@@ -1,0 +1,70 @@
+# Environment and credentials
+.env
+.env.local
+.env.*.local
+credentials.json
+token.json
+
+# Runtime outputs
+.tmp/
+logs/
+test_audio/
+backups/
+*.log
+
+# Python caches/artifacts
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+**/.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+venv/
+.venv/
+**/venv/
+**/.venv/
+
+# JavaScript build caches
+**/node_modules/
+**/.next/
+**/dist/
+**/build/
+**/.turbo/
+
+# Local tooling folders
+.agent/
+.agents/
+.claude/
+.codex/
+.vscode/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Nested independent repositories (kept external to root Joolife repo)
+blind-to-x/
+hanwoo-dashboard/
+knowledge-dashboard/
+
+# Side projects excluded from root Joolife tracking
+champion-roulette/
+discord-bot/
+escape-room/
+esports-alert/
+infrastructure/
+profit-content-generator/
+stat-card-maker/
+suika-game-v2/
+word-chain/
+word-chain-pygame/
+
+# Keep only archived personal-agent for test compatibility
+_archive/*
+!_archive/personal-agent/
+!_archive/personal-agent/**
