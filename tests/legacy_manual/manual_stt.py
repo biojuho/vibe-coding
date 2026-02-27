@@ -15,15 +15,15 @@ def test_stt_functionality():
     print("🎤 STT Functionality Test")
     print("="*50)
     print("Please speak a sentence within 5 seconds...")
-    
+
     try:
         text = listen_and_transcribe(timeout=5, phrase_time_limit=10)
-        
+
         if text:
             print(f"\n✅ Success! Transcribed Text: '{text}'")
         else:
             print("\n❌ Failed to transcribe or silence detected.")
-            
+
     except Exception as e:
         print(f"\n❌ Error during test: {e}")
 

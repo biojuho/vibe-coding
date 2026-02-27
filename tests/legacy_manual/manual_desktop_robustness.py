@@ -13,7 +13,7 @@ from utils.tts import text_to_speech
 
 if __name__ == "__main__":
     print("🛡️ Testing Desktop & TTS Robustness...")
-    
+
     # Test 1: Launch non-existent app
     print("\n[TEST] Launching invalid app 'fakeapp'...")
     success, msg = launch_app("fakeapp")
@@ -37,7 +37,7 @@ if __name__ == "__main__":
         print(f"✅ TTS generation successful: {path}")
     else:
         print("❌ TTS generation failed (could be network or other issue).")
-        
+
     print("\n" + "="*30)
     print("Robustness Check Complete")
     print("="*30)

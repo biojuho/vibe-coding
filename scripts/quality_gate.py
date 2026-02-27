@@ -7,7 +7,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 VENV_PYTHON = ROOT / "venv" / "Scripts" / "python.exe"
-STATIC_ANALYSIS_TARGETS = ("execution", "scripts", "tests", "joolife_hub.py")
+# tests/ excluded from code_improver: fake credentials in test fixtures are expected
+STATIC_ANALYSIS_TARGETS = ("execution", "scripts", "joolife_hub.py")
+RUFF_TARGETS = ("execution", "scripts", "tests", "joolife_hub.py")
 
 
 def _python_executable() -> str:
@@ -33,6 +35,27 @@ def _run_command(step_name: str, command: list[str]) -> bool:
         print(f"[FAIL] {step_name} (exit={result.returncode})")
         return False
     print(f"[PASS] {step_name}")
+    return True
+
+
+def _run_ruff_gate(python_exe: str) -> bool:
+    print("[STEP] ruff lint")
+    cmd = [python_exe, "-m", "ruff", "check", *RUFF_TARGETS]
+    result = subprocess.run(
+        cmd,
+        cwd=str(ROOT),
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.stdout:
+        print(result.stdout.rstrip())
+    if result.stderr:
+        print(result.stderr.rstrip(), file=sys.stderr)
+    if result.returncode != 0:
+        print(f"[FAIL] ruff lint (exit={result.returncode})")
+        return False
+    print("[PASS] ruff lint")
     return True
 
 
@@ -88,6 +111,9 @@ def main() -> int:
         return 1
 
     if not _run_command("pytest -q", [python_exe, "-m", "pytest", "-q"]):
+        return 1
+
+    if not _run_ruff_gate(python_exe):
         return 1
 
     if not _run_high_severity_gate(python_exe):

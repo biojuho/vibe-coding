@@ -11,7 +11,7 @@ import argparse
 import json
 import os
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -122,7 +122,7 @@ def get_commits(days: int = 30) -> List[Dict]:
     if not user:
         return []
 
-    since = (datetime.utcnow() - timedelta(days=days)).isoformat() + "Z"
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
     repos = get_repos()
     commits = []
 
@@ -183,7 +183,7 @@ def get_pr_stats(state: str = "all", days: int = 30, repo_limit: int = 30) -> Di
     if state not in {"all", "open", "closed"}:
         state = "all"
 
-    since = (datetime.utcnow() - timedelta(days=max(days, 1))).strftime("%Y-%m-%d")
+    since = (datetime.now(timezone.utc) - timedelta(days=max(days, 1))).strftime("%Y-%m-%d")
     base_query = f"author:{user['login']} type:pr created:>={since}"
 
     # repo_limit is accepted for interface stability. Search endpoint already spans all repos.

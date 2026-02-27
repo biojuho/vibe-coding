@@ -1,6 +1,5 @@
 import os
 import sys
-import time
 
 # Force UTF-8 for Windows
 sys.stdout.reconfigure(encoding='utf-8')

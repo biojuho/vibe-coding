@@ -14,10 +14,9 @@ import csv
 import io
 import json
 import sqlite3
-from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 DB_PATH = Path(__file__).resolve().parent.parent / ".tmp" / "finance.db"
 
