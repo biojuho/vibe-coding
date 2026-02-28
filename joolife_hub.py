@@ -316,6 +316,10 @@ PROJECTS = [
     {"key": "github", "icon": "?릻", "name": "GitHub Dash", "desc": "GitHub activity & stats.",
      "cmd": "streamlit run pages/github_dashboard.py", "cwd": ".", "port": 8507,
      "category": "Data & Analytics"},
+    # Content Creation
+    {"key": "shorts", "icon": "🎬", "name": "Shorts Manager", "desc": "YouTube Shorts 콘텐츠 자동 생성 및 관리.",
+     "cmd": "streamlit run pages/shorts_manager.py", "cwd": ".", "port": 8512, "primary": True,
+     "category": "Content Creation"},
     # Row 5: Monitoring
     {"key": "api", "icon": "?뱻", "name": "API Monitor", "desc": "API usage & credit tracking.",
      "cmd": "streamlit run pages/api_monitor.py", "cwd": ".", "port": 8508,

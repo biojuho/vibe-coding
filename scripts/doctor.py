@@ -123,7 +123,12 @@ def _check_google_genai_package(results: List[CheckResult]) -> None:
     google_legacy = _module_exists("google.generativeai")
     google_new = _module_exists("google.genai")
     if google_legacy or google_new:
-        detail = "google.generativeai found" if google_legacy else "google.genai found"
+        if google_new and google_legacy:
+            detail = "google.genai and google.generativeai found"
+        elif google_new:
+            detail = "google.genai found"
+        else:
+            detail = "google.generativeai found (legacy)"
         results.append(CheckResult("PASS", "Package:Google GenAI", detail))
     else:
         results.append(
@@ -131,7 +136,7 @@ def _check_google_genai_package(results: List[CheckResult]) -> None:
                 "FAIL",
                 "Package:Google GenAI",
                 "Neither google.generativeai nor google.genai is installed.",
-                remedy=rf"{VENV_PYTHON} -m pip install google-generativeai",
+                remedy=rf"{VENV_PYTHON} -m pip install google-genai",
             )
         )
 

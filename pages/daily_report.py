@@ -1,6 +1,6 @@
 import json
 import sys
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -79,7 +79,7 @@ if by_repo:
         paper_bgcolor="rgba(0,0,0,0)",
         font_color="#e0e0e0",
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 commits = report["git_activity"].get("commits", [])
 if commits:

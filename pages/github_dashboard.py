@@ -99,7 +99,7 @@ with col_lang:
             paper_bgcolor="rgba(0,0,0,0)",
             font_color="#e0e0e0",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     else:
         st.info("No language data available.")
 
@@ -121,7 +121,7 @@ with col_heatmap:
             paper_bgcolor="rgba(0,0,0,0)",
             font_color="#e0e0e0",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     else:
         st.info("No commit data for this period.")
 

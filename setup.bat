@@ -39,7 +39,7 @@ echo [3.5/4] Running import smoke test...
 %PY% -c "import importlib.util,sys;mods=['streamlit','croniter','gtts','ddgs'];missing=[m for m in mods if importlib.util.find_spec(m) is None];has_google=(importlib.util.find_spec('google.generativeai') is not None or importlib.util.find_spec('google.genai') is not None);print('Smoke test passed.' if (not missing and has_google) else f'Smoke test failed. Missing={missing}, google_genai={has_google}');sys.exit(0 if (not missing and has_google) else 1)"
 if errorlevel 1 (
     echo [ERROR] Smoke test failed.
-    echo Run: %PY% -m pip install streamlit croniter gTTS ddgs google-generativeai
+    echo Run: %PY% -m pip install streamlit croniter gTTS ddgs google-genai
     pause
     exit /b 1
 )

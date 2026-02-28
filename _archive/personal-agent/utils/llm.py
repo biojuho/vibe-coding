@@ -8,13 +8,22 @@ import warnings
 from pathlib import Path
 from typing import Tuple
 
+from config import GOOGLE_API_KEY, LLM_PROVIDER, OPENAI_API_KEY
+
 try:
     from openai import OpenAI
 except ImportError:
     OpenAI = None
 
 try:
-    from google import genai as google_genai
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message=r".*_UnionGenericAlias.*deprecated.*",
+            category=DeprecationWarning,
+            module=r"google\.genai\.types",
+        )
+        from google import genai as google_genai
 except ImportError:
     google_genai = None
 
@@ -36,8 +45,6 @@ except Exception:
     except Exception:  # pragma: no cover - optional integration
         def log_api_call(**_kwargs):
             return None
-
-from config import GOOGLE_API_KEY, LLM_PROVIDER, OPENAI_API_KEY
 
 
 def _safe_int(value) -> int:

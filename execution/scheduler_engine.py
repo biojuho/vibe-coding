@@ -412,6 +412,27 @@ def _build_task_log(
     )
 
 
+def _maybe_notify_telegram_task(log: TaskLog, auto_disabled: bool = False) -> None:
+    try:
+        from execution.telegram_notifier import maybe_send_scheduler_notification
+    except Exception:
+        return
+
+    try:
+        maybe_send_scheduler_notification(
+            task_name=log.task_name,
+            exit_code=int(log.exit_code if log.exit_code is not None else -2),
+            trigger_type=log.trigger_type,
+            duration_ms=log.duration_ms,
+            error_type=log.error_type,
+            stderr=log.stderr,
+            auto_disabled=auto_disabled,
+        )
+    except Exception:
+        # Notifications must not break task persistence or scheduler flow.
+        return
+
+
 def run_task(task_id: int, trigger_type: str = "manual") -> TaskLog:
     """단일 태스크를 실행하고 로그를 저장한다."""
     init_db()
@@ -491,12 +512,14 @@ def run_task(task_id: int, trigger_type: str = "manual") -> TaskLog:
 
     failure_count = int(row["failure_count"] or 0)
     enabled = int(row["enabled"])
+    auto_disabled = False
     if exit_code == 0:
         failure_count = 0
     else:
         failure_count += 1
         if enabled and failure_count >= MAX_FAILURE_COUNT:
             enabled = 0
+            auto_disabled = True
             extra = (
                 f"\nTask auto-disabled after {failure_count} consecutive failures "
                 f"(threshold={MAX_FAILURE_COUNT})."
@@ -517,6 +540,7 @@ def run_task(task_id: int, trigger_type: str = "manual") -> TaskLog:
     )
     conn.commit()
     conn.close()
+    _maybe_notify_telegram_task(log, auto_disabled=auto_disabled)
     return log
 
 

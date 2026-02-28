@@ -102,7 +102,7 @@ else:
                 with st.spinner(f"Running {task.name}..."):
                     log = run_task(task.id)
                 if log.exit_code == 0:
-                    st.success(f"Completed (exit code: 0)")
+                    st.success("Completed (exit code: 0)")
                 else:
                     st.error(f"Failed (exit code: {log.exit_code})")
                 st.rerun()

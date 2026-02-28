@@ -3,6 +3,8 @@ from __future__ import annotations
 import sqlite3
 import sys
 from pathlib import Path
+import builtins
+import types
 from unittest.mock import patch
 
 import pytest
@@ -518,6 +520,111 @@ def test_run_task_timeout(monkeypatch, tmp_path):
     log = se.run_task(task_id)
     assert log.exit_code == -1
     assert log.error_type == "timeout"
+
+
+def test_run_task_calls_telegram_notifier(monkeypatch, tmp_path):
+    _configure_tmp_db(monkeypatch, tmp_path)
+    script_path = tmp_path / "notify_ok.py"
+    script_path.write_text("print('notify')\n", encoding="utf-8")
+
+    task_id = se.add_task(
+        name="notify-ok",
+        executable="python",
+        args=[str(script_path.name)],
+        cwd=".",
+        cron_expression="*/5 * * * *",
+        timeout_sec=30,
+    )
+
+    calls = []
+    monkeypatch.setattr(
+        se,
+        "_maybe_notify_telegram_task",
+        lambda log, auto_disabled=False: calls.append((log, auto_disabled)),
+    )
+
+    log = se.run_task(task_id)
+
+    assert log.exit_code == 0
+    assert len(calls) == 1
+    assert calls[0][0].task_name == "notify-ok"
+    assert calls[0][1] is False
+
+
+def test_maybe_notify_telegram_task_ignores_import_failure(monkeypatch):
+    log = se.TaskLog(
+        id=1,
+        task_id=1,
+        task_name="notify",
+        started_at="2026-01-01 00:00:00",
+        finished_at="2026-01-01 00:00:01",
+        exit_code=0,
+        stdout="",
+        stderr="",
+        duration_ms=10,
+        trigger_type="manual",
+        error_type="",
+    )
+    original_import = builtins.__import__
+
+    def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "execution.telegram_notifier":
+            raise ImportError("missing")
+        return original_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+
+    se._maybe_notify_telegram_task(log)
+
+
+def test_maybe_notify_telegram_task_ignores_send_failure(monkeypatch):
+    log = se.TaskLog(
+        id=1,
+        task_id=1,
+        task_name="notify",
+        started_at="2026-01-01 00:00:00",
+        finished_at="2026-01-01 00:00:01",
+        exit_code=0,
+        stdout="",
+        stderr="boom",
+        duration_ms=10,
+        trigger_type="manual",
+        error_type="",
+    )
+    stub_module = types.ModuleType("execution.telegram_notifier")
+
+    def fake_send(**kwargs):
+        raise RuntimeError("telegram down")
+
+    stub_module.maybe_send_scheduler_notification = fake_send
+    monkeypatch.setitem(sys.modules, "execution.telegram_notifier", stub_module)
+
+    se._maybe_notify_telegram_task(log, auto_disabled=True)
+
+
+def test_run_task_marks_auto_disabled_in_telegram_notification(monkeypatch, tmp_path):
+    _configure_tmp_db(monkeypatch, tmp_path)
+    task_id = se.add_task(
+        name="notify-fail",
+        executable="definitely_missing_executable_123",
+        args=[],
+        cwd=".",
+        cron_expression="*/5 * * * *",
+        timeout_sec=10,
+    )
+
+    auto_disabled_flags = []
+    monkeypatch.setattr(
+        se,
+        "_maybe_notify_telegram_task",
+        lambda log, auto_disabled=False: auto_disabled_flags.append(auto_disabled),
+    )
+
+    for _ in range(se.MAX_FAILURE_COUNT):
+        se.run_task(task_id)
+
+    assert auto_disabled_flags
+    assert auto_disabled_flags[-1] is True
 
 
 def test_run_task_exec_not_found(monkeypatch, tmp_path):

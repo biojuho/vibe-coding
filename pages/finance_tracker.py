@@ -83,7 +83,7 @@ with chart_col1:
             paper_bgcolor="rgba(0,0,0,0)",
             font_color="#e0e0e0",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     else:
         st.info("No expense data for this month.")
 
@@ -114,7 +114,7 @@ with chart_col2:
             paper_bgcolor="rgba(0,0,0,0)",
             font_color="#e0e0e0",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     else:
         st.info("No historical data yet.")
 

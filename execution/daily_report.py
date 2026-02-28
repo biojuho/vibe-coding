@@ -221,6 +221,14 @@ def generate_report(target_date: Optional[date] = None) -> Dict:
     return report_payload
 
 
+def send_report_to_telegram(report: Dict) -> Dict:
+    try:
+        from execution.telegram_notifier import send_daily_report
+    except ModuleNotFoundError:
+        from telegram_notifier import send_daily_report
+    return send_daily_report(report)
+
+
 def _print_markdown_report(report: Dict) -> None:
     summary = report["summary"]
     print(f"# Daily Report: {report['date']}")
@@ -240,12 +248,32 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Joolife Daily Report Generator")
     parser.add_argument("--date", help="Target date (YYYY-MM-DD)")
     parser.add_argument("--format", choices=["json", "markdown"], default="json")
+    parser.add_argument(
+        "--telegram",
+        action="store_true",
+        help="Send the generated report summary to Telegram.",
+    )
     args = parser.parse_args()
 
     selected_date = date.fromisoformat(args.date) if args.date else date.today()
     report = generate_report(selected_date)
+    telegram_meta = None
+
+    if args.telegram:
+        response = send_report_to_telegram(report)
+        telegram_meta = {
+            "sent": True,
+            "message_id": response.get("result", {}).get("message_id"),
+        }
 
     if args.format == "json":
-        print(json.dumps(report, indent=2, ensure_ascii=False))
+        output = dict(report)
+        if telegram_meta is not None:
+            output["telegram"] = telegram_meta
+        print(json.dumps(output, indent=2, ensure_ascii=False))
     else:
         _print_markdown_report(report)
+        if telegram_meta is not None:
+            print("\n## Telegram")
+            print(f"- Sent: {telegram_meta['sent']}")
+            print(f"- Message ID: {telegram_meta['message_id']}")

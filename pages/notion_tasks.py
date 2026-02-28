@@ -63,7 +63,7 @@ with st.expander("Add New Task", expanded=False):
                 due_str = due.isoformat() if due else None
                 page_id = create_task(title, status, due_str)
                 if page_id:
-                    st.success(f"Task created!")
+                    st.success("Task created!")
                     st.rerun()
                 else:
                     st.error("Failed to create task.")

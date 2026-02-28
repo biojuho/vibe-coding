@@ -25,3 +25,8 @@
 python execution/daily_report.py --date 2026-02-24 --format json
 python execution/daily_report.py --format markdown
 ```
+
+## 6. Telegram
+- Optional delivery uses `execution/telegram_notifier.py`
+- CLI: `python execution/daily_report.py --format markdown --telegram`
+- Requires `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`

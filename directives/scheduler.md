@@ -51,3 +51,8 @@ python execution/scheduler_engine.py logs --limit 30
 python execution/scheduler_engine.py kpis --days 7
 python execution/scheduler_worker.py --interval 30
 ```
+
+## 8. Telegram
+- Optional alerts use `execution/telegram_notifier.py`
+- Set `TELEGRAM_NOTIFY_SCHEDULER=failures` or `all`
+- Notification failures must not interrupt scheduler execution
