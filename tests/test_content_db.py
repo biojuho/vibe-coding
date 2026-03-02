@@ -43,6 +43,7 @@ def test_init_db_migrates_legacy_channel_column(monkeypatch, tmp_path):
     cdb.init_db()
 
     assert "channel" in _table_columns(db_path)
+    assert "youtube_error" in _table_columns(db_path)
 
 
 def test_add_get_update_delete_and_channels(monkeypatch, tmp_path):
@@ -205,6 +206,77 @@ def test_get_top_performing_topics_and_hourly_stats(monkeypatch, tmp_path):
     assert by_hour[10]["total"] == 1
 
 
+def test_get_youtube_stats_and_uploadable_filters(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+
+    uploadable_id = cdb.add_topic("Ready upload", channel="space")
+    retry_id = cdb.add_topic("Retry upload", channel="space")
+    uploaded_id = cdb.add_topic("Done upload", channel="history")
+
+    conn = cdb._conn()
+    try:
+        conn.execute(
+            """
+            UPDATE content_queue
+            SET status = 'success', video_path = 'ready.mp4', youtube_status = ''
+            WHERE id = ?
+            """,
+            (uploadable_id,),
+        )
+        conn.execute(
+            """
+            UPDATE content_queue
+            SET status = 'success', video_path = 'retry.mp4', youtube_status = 'failed', youtube_error = 'boom'
+            WHERE id = ?
+            """,
+            (retry_id,),
+        )
+        conn.execute(
+            """
+            UPDATE content_queue
+            SET status = 'success', video_path = 'done.mp4', youtube_status = 'uploaded', youtube_url = 'https://youtu.be/abc'
+            WHERE id = ?
+            """,
+            (uploaded_id,),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    yt_stats = cdb.get_youtube_stats()
+    assert yt_stats == {"uploaded": 1, "failed": 1, "awaiting": 1}
+
+    uploadable = cdb.get_uploadable_items(channel="space", limit=10)
+    assert [item["id"] for item in uploadable] == [uploadable_id]
+
+    retryable = cdb.get_uploadable_items(channel="space", limit=10, include_failed=True)
+    assert {item["id"] for item in retryable} == {uploadable_id, retry_id}
+
+
+def test_channel_settings_roundtrip(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+
+    cdb.upsert_channel_settings(
+        "space",
+        voice="nova",
+        style_preset="neon",
+        font_color="#00FFAA",
+        image_style_prefix="cinematic",
+    )
+    settings = cdb.get_channel_settings("space")
+    assert settings is not None
+    assert settings["voice"] == "nova"
+    assert settings["style_preset"] == "neon"
+    assert settings["font_color"] == "#00FFAA"
+    assert settings["image_style_prefix"] == "cinematic"
+
+    cdb.upsert_channel_settings("space", voice="alloy")
+    updated = cdb.get_channel_settings("space")
+    assert updated is not None
+    assert updated["voice"] == "alloy"
+    assert updated["style_preset"] == "neon"
+
+
 def test_cli_commands(monkeypatch, tmp_path, capsys):
     _patch_db(monkeypatch, tmp_path)
 
@@ -237,6 +309,34 @@ def test_cli_commands(monkeypatch, tmp_path, capsys):
     kpi_output = capsys.readouterr().out
     payload = json.loads(kpi_output)
     assert payload["total"] == 1
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "content_db.py",
+            "channel-set",
+            "--channel",
+            "space",
+            "--voice",
+            "nova",
+            "--style-preset",
+            "neon",
+            "--font-color",
+            "#00FFAA",
+            "--image-prefix",
+            "cinematic",
+        ],
+    )
+    cdb._cli()
+    assert "채널 설정 저장" in capsys.readouterr().out
+
+    monkeypatch.setattr(sys, "argv", ["content_db.py", "channel-get", "--channel", "space"])
+    cdb._cli()
+    channel_output = capsys.readouterr().out
+    channel_payload = json.loads(channel_output)
+    assert channel_payload["voice"] == "nova"
+    assert channel_payload["style_preset"] == "neon"
 
 
 def test_cli_prints_help_without_command(monkeypatch, capsys):

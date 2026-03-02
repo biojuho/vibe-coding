@@ -9,7 +9,13 @@ ROOT = Path(__file__).resolve().parent.parent
 
 BASE_FILES_TO_COMPILE = [
     ROOT / "joolife_hub.py",
+    ROOT / "execution" / "content_db.py",
     ROOT / "execution" / "scheduler_engine.py",
+    ROOT / "execution" / "shorts_daily_runner.py",
+    ROOT / "execution" / "topic_auto_generator.py",
+    ROOT / "execution" / "youtube_uploader.py",
+    ROOT / "execution" / "bgm_downloader.py",
+    ROOT / "execution" / "brand_asset_generator.py",
     ROOT / "execution" / "notion_client.py",
     ROOT / "execution" / "github_stats.py",
 ]
@@ -21,7 +27,13 @@ PERSONAL_AGENT_CANDIDATES = [
 ]
 
 MODULES_TO_IMPORT = [
+    "execution.content_db",
     "execution.scheduler_engine",
+    "execution.shorts_daily_runner",
+    "execution.topic_auto_generator",
+    "execution.youtube_uploader",
+    "execution.bgm_downloader",
+    "execution.brand_asset_generator",
     "execution.notion_client",
     "execution.github_stats",
 ]

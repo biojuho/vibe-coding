@@ -130,6 +130,8 @@ def test_run_one_success_updates_job(monkeypatch):
     assert updates[1][1]["status"] == "success"
     assert updates[1][1]["job_id"] == "job-123"
     assert run_calls[0][1]["cwd"] == str(sdr._V2_DIR)
+    assert "--channel" in run_calls[0][0]
+    assert "space" in run_calls[0][0]
 
 
 def test_run_one_marks_timeout_as_failed(monkeypatch):
@@ -261,7 +263,7 @@ def test_main_runs_selected_topics_and_replenishes(monkeypatch, capsys):
     assert replenish_calls == ["ok"]
 
 
-def test_main_ignores_replenish_exception(monkeypatch, capsys):
+def test_main_ignores_replenish_exception(monkeypatch, caplog):
     monkeypatch.setattr(sys, "argv", ["shorts_daily_runner.py"])
     monkeypatch.setattr(sdr, "load_dotenv", lambda *args, **kwargs: None)
     monkeypatch.setattr(sdr, "init_db", lambda: None)
@@ -282,10 +284,11 @@ def test_main_ignores_replenish_exception(monkeypatch, capsys):
         types.SimpleNamespace(check_and_replenish=lambda: (_ for _ in ()).throw(RuntimeError("boom"))),
     )
 
-    result = sdr.main()
+    with caplog.at_level("WARNING"):
+        result = sdr.main()
 
     assert result == 0
-    assert "[WARN] 주제 보충 실패" in capsys.readouterr().out
+    assert "주제 보충 실패" in caplog.text
 
 
 def test_reload_wraps_stdout_for_non_utf8(monkeypatch):

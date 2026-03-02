@@ -1,0 +1,10 @@
+croniter
+requests
+python-dotenv
+ddgs
+psutil
+openai
+google-api-python-client
+google-auth-oauthlib
+pytrends
+Pillow

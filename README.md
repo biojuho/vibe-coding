@@ -14,6 +14,13 @@
 ## Installation (설치 방법)
 1. 🇬🇧 Run `setup.bat` (Windows) to install dependencies. / 🇰🇷 `setup.bat` (Windows) 파일을 실행하여 의존성 패키지를 설치합니다.
 2. 🇬🇧 Configure required API keys in `.env`. / 🇰🇷 `.env` 파일에 필요한 API 키를 설정합니다.
+3. 🇬🇧 For root workspace tools, install shared runtime dependencies. / 🇰🇷 루트 워크스페이스 도구용 공용 런타임 의존성을 설치합니다.
+
+```bash
+venv\Scripts\python.exe -m pip install -r requirements.txt
+venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+venv\Scripts\python.exe -m pip install -e .\shorts-maker-v2
+```
 
 ## Usage (사용법)
 ```bash
@@ -30,6 +37,12 @@ venv\Scripts\python.exe scripts\doctor.py
 ```bash
 venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 venv\Scripts\python.exe -m pytest -q tests
+```
+
+🇬🇧 **Focused Shorts checks / 🇰🇷 Shorts 집중 검증**:
+```bash
+venv\Scripts\python.exe -m pytest -q tests\test_content_db.py tests\test_topic_auto_generator.py tests\test_shorts_daily_runner.py tests\test_youtube_uploader.py --no-cov
+venv\Scripts\python.exe scripts\quality_gate.py
 ```
 
 🇬🇧 **Quality gate (single command) / 🇰🇷 품질 검사 (단일 명령어)**:
@@ -99,6 +112,34 @@ python execution/daily_report.py --format markdown --telegram
 - `TELEGRAM_BOT_TOKEN`: BotFather token
 - `TELEGRAM_CHAT_ID`: target chat ID
 - `TELEGRAM_NOTIFY_SCHEDULER`: `none`, `failures`, or `all`
+
+## Shorts Automation
+🇬🇧 Root workspace includes a Shorts production pipeline with DB queueing, channel-level style overrides, and private YouTube upload support.
+🇰🇷 루트 워크스페이스에는 DB 큐, 채널별 스타일 설정, 비공개 YouTube 업로드를 포함한 Shorts 자동화 파이프라인이 포함되어 있습니다.
+
+🇬🇧 **Environment setup / 🇰🇷 환경 준비**:
+```bash
+venv\Scripts\python.exe -m pip install -r requirements.txt
+venv\Scripts\python.exe -m pip install -e .\shorts-maker-v2
+venv\Scripts\python.exe -m shorts_maker_v2 doctor --config shorts-maker-v2\config.yaml
+```
+
+- `credentials.json`: Google Cloud OAuth client file for YouTube upload
+- `token.json`: created after first successful browser auth
+- Default YouTube privacy is `private`
+
+🇬🇧 **Daily workflow / 🇰🇷 일상 운영 흐름**:
+1. Add topics in `pages/shorts_manager.py`.
+2. Save per-channel settings (`voice`, `style_preset`, `font_color`, `image_style_prefix`).
+3. Render through Shorts Manager or `python execution/shorts_daily_runner.py`.
+4. Sync manifests if needed.
+5. Upload individually or run batch upload from Shorts Manager.
+
+🇬🇧 **YouTube upload notes / 🇰🇷 YouTube 업로드 주의사항**:
+- If `credentials.json` is missing, upload buttons stay disabled.
+- If `token.json` is missing, the first upload opens a browser auth flow.
+- Unverified Google API projects may be restricted to private uploads.
+- Upload errors are stored separately from memo fields and surfaced in Shorts Manager.
 
 ## Legal and Privacy Disclaimer (법적 및 개인정보 보호 고지)
 1. **Local Execution (로컬 실행)**: 🇬🇧 This software runs on your local machine. The developer does not collect or store your data. / 🇰🇷 이 소프트웨어는 로컬 컴퓨터에서 실행됩니다. 개발자는 사용자의 데이터를 수집하거나 저장하지 않습니다.

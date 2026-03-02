@@ -3,6 +3,8 @@ omit =
     execution/code_improver.py
     execution/daily_report.py
     execution/scheduler_worker.py
+    execution/bgm_downloader.py
+    execution/brand_asset_generator.py
 
 [report]
 exclude_lines =

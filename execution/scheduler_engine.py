@@ -29,10 +29,17 @@ DB_PATH = Path(__file__).resolve().parent.parent / ".tmp" / "scheduler.db"
 WORKSPACE = Path(__file__).resolve().parent.parent
 DEFAULT_TIMEOUT_SEC = 300
 MAX_FAILURE_COUNT = int(os.getenv("SCHEDULER_MAX_FAILURES", "5"))
+WORKER_NAME_DEFAULT = "default"
+WORKER_STALE_AFTER_SEC = int(os.getenv("SCHEDULER_STALE_AFTER_SEC", "180"))
+OPS_STATUS_HEALTHY = "healthy"
+OPS_STATUS_WARNING = "warning"
+OPS_STATUS_CRITICAL = "critical"
+OPS_STATUS_SETUP_REQUIRED = "setup_required"
 
 _SCHEMA_TABLE_INFO_SQL = {
     "tasks": "PRAGMA table_info(tasks)",
     "task_logs": "PRAGMA table_info(task_logs)",
+    "worker_runtime": "PRAGMA table_info(worker_runtime)",
 }
 
 _SCHEMA_MIGRATION_DEFINITIONS = {
@@ -48,6 +55,13 @@ _SCHEMA_MIGRATION_DEFINITIONS = {
         "trigger_type": "TEXT NOT NULL DEFAULT 'manual'",
         "error_type": "TEXT NOT NULL DEFAULT ''",
     },
+    "worker_runtime": {
+        "worker_name": "TEXT PRIMARY KEY",
+        "last_heartbeat": "TEXT NOT NULL",
+        "status": "TEXT NOT NULL DEFAULT 'healthy'",
+        "note": "TEXT DEFAULT ''",
+        "updated_at": "TEXT NOT NULL",
+    },
 }
 
 _ALTER_TABLE_ADD_SQL = {
@@ -59,6 +73,11 @@ _ALTER_TABLE_ADD_SQL = {
     ("task_logs", "duration_ms"): "ALTER TABLE task_logs ADD COLUMN duration_ms INTEGER NOT NULL DEFAULT 0",
     ("task_logs", "trigger_type"): "ALTER TABLE task_logs ADD COLUMN trigger_type TEXT NOT NULL DEFAULT 'manual'",
     ("task_logs", "error_type"): "ALTER TABLE task_logs ADD COLUMN error_type TEXT NOT NULL DEFAULT ''",
+    ("worker_runtime", "worker_name"): "ALTER TABLE worker_runtime ADD COLUMN worker_name TEXT PRIMARY KEY",
+    ("worker_runtime", "last_heartbeat"): "ALTER TABLE worker_runtime ADD COLUMN last_heartbeat TEXT NOT NULL DEFAULT ''",
+    ("worker_runtime", "status"): "ALTER TABLE worker_runtime ADD COLUMN status TEXT NOT NULL DEFAULT 'healthy'",
+    ("worker_runtime", "note"): "ALTER TABLE worker_runtime ADD COLUMN note TEXT DEFAULT ''",
+    ("worker_runtime", "updated_at"): "ALTER TABLE worker_runtime ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''",
 }
 
 
@@ -224,6 +243,13 @@ def init_db() -> None:
             error_type TEXT NOT NULL DEFAULT '',
             FOREIGN KEY (task_id) REFERENCES tasks(id)
         );
+        CREATE TABLE IF NOT EXISTS worker_runtime (
+            worker_name TEXT PRIMARY KEY,
+            last_heartbeat TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'healthy',
+            note TEXT DEFAULT '',
+            updated_at TEXT NOT NULL
+        );
         """
     )
 
@@ -260,6 +286,115 @@ def init_db() -> None:
 
     conn.commit()
     conn.close()
+
+
+def _upsert_worker_heartbeat(
+    conn: sqlite3.Connection,
+    worker_name: str,
+    status: str,
+    note: str = "",
+) -> None:
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute(
+        """
+        INSERT INTO worker_runtime (worker_name, last_heartbeat, status, note, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(worker_name) DO UPDATE SET
+            last_heartbeat = excluded.last_heartbeat,
+            status = excluded.status,
+            note = excluded.note,
+            updated_at = excluded.updated_at
+        """,
+        (worker_name, now_str, status, note[:500], now_str),
+    )
+
+
+def touch_worker_heartbeat(
+    worker_name: str = WORKER_NAME_DEFAULT,
+    status: str = OPS_STATUS_HEALTHY,
+    note: str = "",
+) -> None:
+    init_db()
+    conn = _conn()
+    _upsert_worker_heartbeat(conn, worker_name=worker_name, status=status, note=note)
+    conn.commit()
+    conn.close()
+
+
+def get_worker_heartbeat(worker_name: str = WORKER_NAME_DEFAULT) -> Optional[Dict[str, Any]]:
+    init_db()
+    conn = _conn()
+    row = conn.execute(
+        "SELECT worker_name, last_heartbeat, status, note, updated_at FROM worker_runtime WHERE worker_name = ?",
+        (worker_name,),
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def _parse_datetime(value: Optional[str]) -> Optional[datetime]:
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return None
+
+
+def get_scheduler_ops_summary(
+    stale_after_sec: int = WORKER_STALE_AFTER_SEC,
+    worker_name: str = WORKER_NAME_DEFAULT,
+) -> Dict[str, Any]:
+    heartbeat = get_worker_heartbeat(worker_name)
+    if heartbeat is None:
+        return {
+            "worker_name": worker_name,
+            "status": OPS_STATUS_SETUP_REQUIRED,
+            "last_heartbeat": "",
+            "seconds_since_heartbeat": None,
+            "is_stale": False,
+            "note": "",
+            "next_action": "scheduler run-due 워커를 실행하세요.",
+        }
+
+    last_heartbeat_raw = str(heartbeat.get("last_heartbeat") or "")
+    last_heartbeat_dt = _parse_datetime(last_heartbeat_raw)
+    if last_heartbeat_dt is None:
+        return {
+            "worker_name": worker_name,
+            "status": OPS_STATUS_CRITICAL,
+            "last_heartbeat": last_heartbeat_raw,
+            "seconds_since_heartbeat": None,
+            "is_stale": True,
+            "note": str(heartbeat.get("note") or ""),
+            "next_action": "worker heartbeat 형식을 확인하세요.",
+        }
+
+    seconds_since = max(0, int((datetime.now() - last_heartbeat_dt).total_seconds()))
+    persisted_status = str(heartbeat.get("status") or OPS_STATUS_HEALTHY)
+    status = persisted_status
+    if seconds_since >= stale_after_sec:
+        status = OPS_STATUS_CRITICAL
+    elif seconds_since >= max(30, stale_after_sec // 2) and status == OPS_STATUS_HEALTHY:
+        status = OPS_STATUS_WARNING
+
+    next_action = "정상 동작 중입니다."
+    if status == OPS_STATUS_SETUP_REQUIRED:
+        next_action = "scheduler run-due 워커를 실행하세요."
+    elif status == OPS_STATUS_CRITICAL:
+        next_action = "scheduler 워커 상태와 최근 로그를 확인하세요."
+    elif status == OPS_STATUS_WARNING:
+        next_action = "worker heartbeat와 최근 실패 작업을 점검하세요."
+
+    return {
+        "worker_name": worker_name,
+        "status": status,
+        "last_heartbeat": last_heartbeat_raw,
+        "seconds_since_heartbeat": seconds_since,
+        "is_stale": seconds_since >= stale_after_sec,
+        "note": str(heartbeat.get("note") or ""),
+        "next_action": next_action,
+    }
 
 
 def compute_next_run(cron_expression: str) -> str:
@@ -441,6 +576,13 @@ def run_task(task_id: int, trigger_type: str = "manual") -> TaskLog:
     if not row:
         conn.close()
         raise ValueError(f"Task {task_id} not found")
+    _upsert_worker_heartbeat(
+        conn,
+        worker_name=WORKER_NAME_DEFAULT,
+        status=OPS_STATUS_HEALTHY,
+        note=f"task_start:{row['name']}",
+    )
+    conn.commit()
 
     executable = (row["executable"] or "").strip()
     args = _deserialize_args(row["args_json"])
@@ -538,6 +680,18 @@ def run_task(task_id: int, trigger_type: str = "manual") -> TaskLog:
         "UPDATE tasks SET last_run = ?, next_run = ?, failure_count = ?, enabled = ? WHERE id = ?",
         (now_str, next_run, failure_count, enabled, task_id),
     )
+    heartbeat_status = OPS_STATUS_HEALTHY if exit_code == 0 else OPS_STATUS_WARNING
+    heartbeat_note = (
+        f"last_task_ok:{row['name']}"
+        if exit_code == 0
+        else f"last_task_failed:{row['name']}:{error_type or exit_code}"
+    )
+    _upsert_worker_heartbeat(
+        conn,
+        worker_name=WORKER_NAME_DEFAULT,
+        status=heartbeat_status,
+        note=heartbeat_note,
+    )
     conn.commit()
     conn.close()
     _maybe_notify_telegram_task(log, auto_disabled=auto_disabled)
@@ -558,6 +712,13 @@ def run_due_tasks() -> List[TaskLog]:
         """,
         (now,),
     ).fetchall()
+    _upsert_worker_heartbeat(
+        conn,
+        worker_name=WORKER_NAME_DEFAULT,
+        status=OPS_STATUS_HEALTHY,
+        note=f"run_due_scan:{len(rows)}",
+    )
+    conn.commit()
     conn.close()
 
     logs: List[TaskLog] = []

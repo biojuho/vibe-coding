@@ -27,13 +27,14 @@ class _FakeOpenAIClient:
         )
 
 
-def test_generate_topics_returns_empty_without_api_key(monkeypatch, capsys):
+def test_generate_topics_returns_empty_without_api_key(monkeypatch, caplog):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
-    topics = tag.generate_topics("space", ["old"], count=3)
+    with caplog.at_level("WARNING", logger="execution.topic_auto_generator"):
+        topics = tag.generate_topics("space", ["old"], count=3)
 
     assert topics == []
-    assert "OPENAI_API_KEY 없음" in capsys.readouterr().out
+    assert "OPENAI_API_KEY" in caplog.text
 
 
 def test_generate_topics_uses_openai_and_trims_results(monkeypatch):
@@ -98,7 +99,7 @@ def test_check_and_replenish_returns_empty_without_channels(monkeypatch):
     assert tag.check_and_replenish() == {}
 
 
-def test_check_and_replenish_dry_run(monkeypatch, capsys):
+def test_check_and_replenish_dry_run(monkeypatch, caplog):
     monkeypatch.setattr(tag, "get_channels", lambda: ["space"])
     monkeypatch.setattr(
         tag,
@@ -116,15 +117,15 @@ def test_check_and_replenish_dry_run(monkeypatch, capsys):
     )
     monkeypatch.setattr(tag, "add_topic", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("unexpected")))
 
-    result = tag.check_and_replenish(threshold=1, count=2, dry_run=True)
+    with caplog.at_level("INFO", logger="execution.topic_auto_generator"):
+        result = tag.check_and_replenish(threshold=1, count=2, dry_run=True)
 
     assert result == {"space": ["fresh one", "fresh two"]}
-    output = capsys.readouterr().out
-    assert "[DRY] fresh one" in output
-    assert "[DRY] fresh two" in output
+    assert "[DRY] fresh one" in caplog.text
+    assert "[DRY] fresh two" in caplog.text
 
 
-def test_check_and_replenish_adds_topics_when_below_threshold(monkeypatch, capsys):
+def test_check_and_replenish_adds_topics_when_below_threshold(monkeypatch, caplog):
     monkeypatch.setattr(tag, "get_channels", lambda: ["space", "history"])
 
     def fake_get_all(channel=None):
@@ -145,14 +146,15 @@ def test_check_and_replenish_adds_topics_when_below_threshold(monkeypatch, capsy
     )
     monkeypatch.setattr(tag, "add_topic", lambda topic, channel="", notes="": added.append((topic, channel, notes)))
 
-    result = tag.check_and_replenish(threshold=2, count=1, dry_run=False)
+    with caplog.at_level("INFO", logger="execution.topic_auto_generator"):
+        result = tag.check_and_replenish(threshold=2, count=1, dry_run=False)
 
     assert result == {"space": ["fresh one"]}
     assert added == [("fresh one", "space", "auto-generated")]
-    assert "[ADD] fresh one" in capsys.readouterr().out
+    assert "[ADD] fresh one" in caplog.text
 
 
-def test_check_and_replenish_prints_when_generation_returns_nothing(monkeypatch, capsys):
+def test_check_and_replenish_prints_when_generation_returns_nothing(monkeypatch, caplog):
     monkeypatch.setattr(tag, "get_channels", lambda: ["space"])
     monkeypatch.setattr(tag, "get_all", lambda channel=None: [{"topic": "old topic", "status": "pending"}])
     monkeypatch.setattr(tag, "get_top_performing_topics", lambda limit=10, channel=None: [])
@@ -162,10 +164,11 @@ def test_check_and_replenish_prints_when_generation_returns_nothing(monkeypatch,
         lambda channel, existing, count=0, top_performers=None, **kwargs: [],
     )
 
-    result = tag.check_and_replenish(threshold=3, count=2, dry_run=False)
+    with caplog.at_level("WARNING", logger="execution.topic_auto_generator"):
+        result = tag.check_and_replenish(threshold=3, count=2, dry_run=False)
 
     assert result == {}
-    assert "생성 실패 또는 결과 없음" in capsys.readouterr().out
+    assert "생성 실패 또는 결과 없음" in caplog.text
 
 
 def test_main_prints_added_summary(monkeypatch, capsys):

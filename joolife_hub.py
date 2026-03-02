@@ -9,7 +9,7 @@ import streamlit as st
 
 from execution.process_manager import ProcessManager, TrackedProcess
 
-st.set_page_config(page_title="Joolife Hub", page_icon="?㎛", layout="wide")
+st.set_page_config(page_title="Joolife Hub", page_icon="🧭", layout="wide")
 
 # -- Process Manager 珥덇린??--
 if "pm" not in st.session_state:
@@ -89,8 +89,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.title("?㎛ Joolife Hub")
-st.caption("짤 2026 Joolife - Enterprise Command Center")
+st.title("🧭 Joolife Hub")
+st.caption("2026 Joolife Enterprise Command Center")
 
 # ?? System Metrics ??
 col_sys1, col_sys2, col_sys3 = st.columns(3)
@@ -277,43 +277,43 @@ st.divider()
 # ?? Project Registry ??
 PROJECTS = [
     # Row 1: Core Projects
-    {"key": "agent", "icon": "?쨼", "name": "Personal Agent", "desc": "Your AI assistant.",
+    {"key": "agent", "icon": "🤖", "name": "Personal Agent", "desc": "Your AI desktop assistant.",
      "cmd": "streamlit run app.py", "cwd": "personal-agent", "port": 8501, "primary": True,
      "category": "Core Projects"},
-    {"key": "game", "icon": "?렜", "name": "Word Chain", "desc": "AI word game.",
+    {"key": "game", "icon": "🎮", "name": "Word Chain", "desc": "An AI-powered word chain game.",
      "cmd": "python main.py", "cwd": "word-chain-pygame",
      "category": "Core Projects"},
-    {"key": "dash", "icon": "?뱤", "name": "Knowledge Dash", "desc": "Knowledge management.",
+    {"key": "dash", "icon": "🧠", "name": "Knowledge Dash", "desc": "Knowledge management dashboard.",
      "cmd": "npm run dev", "cwd": "knowledge-dashboard", "port": 3000,
      "category": "Core Projects"},
     # Row 2: More Projects
-    {"key": "hanwoo", "icon": "?맢", "name": "Hanwoo Dash", "desc": "Cattle management system.",
+    {"key": "hanwoo", "icon": "🐄", "name": "Hanwoo Dash", "desc": "Cattle management system.",
      "cmd": "npm run dev", "cwd": "hanwoo-dashboard", "port": 3001, "primary": True, "terminal": True,
      "category": "Projects"},
-    {"key": "profit", "icon": "?뮥", "name": "Profit Gen", "desc": "Content generation CLI.",
+    {"key": "profit", "icon": "💰", "name": "Profit Gen", "desc": "Content generation command line tool.",
      "cmd": "streamlit run app.py", "cwd": "profit-content-generator", "port": 8502,
      "category": "Projects"},
     {"key": "blind", "icon": "X", "name": "Blind to X", "desc": "Blind scraper & X draft.",
      "cmd": "python blind_scraper.py --trending", "cwd": "blind-to-x", "terminal": True,
      "category": "Projects"},
     # Row 3: Hub Tools
-    {"key": "scheduler", "icon": "?뱟", "name": "Scheduler", "desc": "Task scheduling & automation.",
+    {"key": "scheduler", "icon": "📅", "name": "Scheduler", "desc": "Task scheduling and automation.",
      "cmd": "streamlit run pages/scheduler_dashboard.py", "cwd": ".", "port": 8503,
      "category": "Hub Tools"},
-    {"key": "improver", "icon": "?뵇", "name": "Code Improver", "desc": "Static code analysis tool.",
+    {"key": "improver", "icon": "🛠️", "name": "Code Improver", "desc": "Static code analysis tool.",
      "cmd": "python execution/code_improver.py . --format markdown", "cwd": ".", "terminal": True,
      "category": "Hub Tools"},
-    {"key": "report", "icon": "?뱷", "name": "Daily Report", "desc": "Daily activity summary.",
+    {"key": "report", "icon": "📝", "name": "Daily Report", "desc": "Daily activity summary.",
      "cmd": "streamlit run pages/daily_report.py", "cwd": ".", "port": 8504,
      "category": "Hub Tools"},
     # Row 4: Data & Analytics
-    {"key": "notion", "icon": "?뱥", "name": "Notion Tasks", "desc": "Notion task management.",
+    {"key": "notion", "icon": "📋", "name": "Notion Tasks", "desc": "Notion task management.",
      "cmd": "streamlit run pages/notion_tasks.py", "cwd": ".", "port": 8505,
      "category": "Data & Analytics"},
-    {"key": "finance", "icon": "?뮫", "name": "Finance", "desc": "Income & expense tracker.",
+    {"key": "finance", "icon": "💵", "name": "Finance", "desc": "Income and expense tracker.",
      "cmd": "streamlit run pages/finance_tracker.py", "cwd": ".", "port": 8506,
      "category": "Data & Analytics"},
-    {"key": "github", "icon": "?릻", "name": "GitHub Dash", "desc": "GitHub activity & stats.",
+    {"key": "github", "icon": "🐙", "name": "GitHub Dash", "desc": "GitHub activity and stats.",
      "cmd": "streamlit run pages/github_dashboard.py", "cwd": ".", "port": 8507,
      "category": "Data & Analytics"},
     # Content Creation
@@ -321,27 +321,27 @@ PROJECTS = [
      "cmd": "streamlit run pages/shorts_manager.py", "cwd": ".", "port": 8512, "primary": True,
      "category": "Content Creation"},
     # Row 5: Monitoring
-    {"key": "api", "icon": "?뱻", "name": "API Monitor", "desc": "API usage & credit tracking.",
+    {"key": "api", "icon": "📡", "name": "API Monitor", "desc": "API usage and credit tracking.",
      "cmd": "streamlit run pages/api_monitor.py", "cwd": ".", "port": 8508,
      "category": "Monitoring"},
-    {"key": "scheduler_worker", "icon": "?깍툘", "name": "Scheduler Worker", "desc": "Run due-task polling worker.",
+    {"key": "scheduler_worker", "icon": "⚙️", "name": "Scheduler Worker", "desc": "Runs the due-task polling worker.",
      "cmd": "python execution/scheduler_worker.py --interval 30", "cwd": ".", "terminal": True,
      "category": "Monitoring"},
     # Row 6: Mini Games (1)
-    {"key": "discord", "icon": "?쨼", "name": "Discord Bot", "desc": "二쇱궗?? 媛?꾨컮?꾨낫, ? ?섎늻湲?",
+    {"key": "discord", "icon": "💬", "name": "Discord Bot", "desc": "Dice, rock-paper-scissors, and party chat commands.",
      "cmd": "python bot.py", "cwd": "discord-bot", "terminal": True,
      "category": "Mini Games"},
-    {"key": "statcard", "icon": "?렣", "name": "Stat Card Maker", "desc": "RPG ?ㅽ꺈 移대뱶 ?대?吏 ?앹꽦.",
+    {"key": "statcard", "icon": "🃏", "name": "Stat Card Maker", "desc": "Generates RPG-style stat card images.",
      "cmd": "streamlit run app.py", "cwd": "stat-card-maker", "port": 8509,
      "category": "Mini Games"},
-    {"key": "roulette", "icon": "?렟", "name": "Champion Roulette", "desc": "諛쒕줈???& LoL 梨뷀뵾??猷곕젢.",
+    {"key": "roulette", "icon": "🎯", "name": "Champion Roulette", "desc": "Random champion picks for VALORANT and LoL.",
      "cmd": "npm run dev", "cwd": "champion-roulette", "port": 3100,
      "category": "Mini Games"},
     # Row 7: Mini Games (2)
-    {"key": "escape", "icon": "?뵑", "name": "Escape Room", "desc": "?ъ씠踰꾪럱???댄궧 諛⑺깉異?",
+    {"key": "escape", "icon": "🚪", "name": "Escape Room", "desc": "A cyberpunk-themed mystery escape game.",
      "cmd": "streamlit run app.py", "cwd": "escape-room", "port": 8510,
      "category": "Mini Games"},
-    {"key": "esports", "icon": "?룇", "name": "E-Sports Alert", "desc": "寃쎄린 ?쇱젙 & 移댁슫?몃떎??",
+    {"key": "esports", "icon": "🏆", "name": "E-Sports Alert", "desc": "Match schedules and countdown tracker.",
      "cmd": "streamlit run app.py", "cwd": "esports-alert", "port": 8511,
      "category": "Mini Games"},
 ]

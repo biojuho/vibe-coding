@@ -13,12 +13,15 @@ from __future__ import annotations
 
 import io
 import json
+import logging
 import os
 import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
 from openai import OpenAI
+
+logger = logging.getLogger(__name__)
 
 # Windows cp949 인코딩 문제 방지
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
@@ -33,6 +36,17 @@ from execution.content_db import add_topic, get_all, get_channels, get_top_perfo
 THRESHOLD = 3   # pending이 이 이하면 보충
 GEN_COUNT = 5   # 한 번에 생성할 주제 수
 MODEL = "gpt-4o-mini"
+
+
+def get_trending_topics(count: int = 10) -> list[str]:
+    """Google Trends 실시간 인기 검색어 수집 (pytrends). 실패 시 빈 리스트 반환."""
+    try:
+        from pytrends.request import TrendReq  # type: ignore[import-untyped]
+        pt = TrendReq(hl="ko-KR", tz=540)
+        df = pt.trending_searches(pn="south_korea")
+        return df[0].tolist()[:count]
+    except Exception:
+        return []
 
 SYSTEM_PROMPT = """\
 당신은 YouTube Shorts 콘텐츠 기획자입니다.
@@ -54,11 +68,12 @@ def generate_topics(
     count: int = GEN_COUNT,
     api_key: str | None = None,
     top_performers: list[dict] | None = None,
+    trending_keywords: list[str] | None = None,
 ) -> list[str]:
-    """GPT로 채널에 맞는 새 주제 생성. 성과 데이터 기반 추천 지원."""
+    """GPT로 채널에 맞는 새 주제 생성. 성과 데이터 + 트렌드 기반 추천 지원."""
     key = api_key or os.getenv("OPENAI_API_KEY", "")
     if not key:
-        print("[WARN] OPENAI_API_KEY 없음 - 주제 생성 스킵")
+        logger.warning("OPENAI_API_KEY 없음 - 주제 생성 스킵")
         return []
 
     client = OpenAI(api_key=key, timeout=60)
@@ -75,30 +90,50 @@ def generate_topics(
 
 위 성공 패턴과 유사한 스타일/형식의 주제를 우선 생성하세요."""
 
+    trending_context = ""
+    if trending_keywords:
+        trending_context = f"""
+
+현재 한국 트렌딩 키워드 (참고하여 연관 주제 생성):
+{', '.join(trending_keywords[:8])}"""
+
     user_prompt = f"""채널: {channel}
 
 기존 주제 목록 (중복 방지):
 {existing_str}
 {performance_context}
+{trending_context}
 
 위 주제들과 겹치지 않는 새로운 주제 {count}개를 생성하세요.
 형식(리스트형, 비교형, 스토리형, 질문형)과 감정톤(호기심, 공포, 감동, 유머)을 골고루 섞어주세요.
 JSON 형식: {{"topics": [...]}}"""
 
-    response = client.chat.completions.create(
-        model=MODEL,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ],
-        response_format={"type": "json_object"},
-        temperature=0.9,
-    )
+    try:
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.9,
+        )
+    except Exception as api_err:
+        logger.error("OpenAI API 호출 실패 [%s]: %s", channel, api_err)
+        return []
+
+    if not response.choices:
+        logger.warning("OpenAI 응답에 choices 없음 [%s]", channel)
+        return []
     content = (response.choices[0].message.content or "").strip()
     if not content:
         return []
 
-    data = json.loads(content)
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError as jde:
+        logger.error("GPT 응답 JSON 파싱 실패 [%s]: %s — 원본: %s", channel, jde, content[:200])
+        return []
     raw_topics = data.get("topics", [])
     topics: list[str] = []
     for item in raw_topics:
@@ -132,22 +167,29 @@ def check_and_replenish(
         if len(pending) > threshold:
             continue
 
-        print(f"  [{ch}] pending {len(pending)}개 <= {threshold} -> 보충 시작")
+        logger.info("[%s] pending %d개 <= %d -> 보충 시작", ch, len(pending), threshold)
         existing = [i["topic"] for i in items]
         top_performers = get_top_performing_topics(limit=10, channel=ch)
-        new_topics = generate_topics(ch, existing, count=count, top_performers=top_performers)
+        trending = get_trending_topics(count=10)
+        if trending:
+            logger.debug("[TREND] %s", ", ".join(trending[:5]))
+        new_topics = generate_topics(
+            ch, existing, count=count,
+            top_performers=top_performers,
+            trending_keywords=trending,
+        )
 
         if not new_topics:
-            print(f"  [{ch}] 생성 실패 또는 결과 없음")
+            logger.warning("[%s] 생성 실패 또는 결과 없음", ch)
             continue
 
         result[ch] = new_topics
         for topic in new_topics:
             if dry_run:
-                print(f"    [DRY] {topic}")
+                logger.info("  [DRY] %s", topic)
             else:
                 add_topic(topic, channel=ch, notes="auto-generated")
-                print(f"    [ADD] {topic}")
+                logger.info("  [ADD] %s", topic)
 
     return result
 

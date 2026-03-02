@@ -18,6 +18,7 @@ try:
         get_daily_stats,
         get_hourly_stats,
         get_kpis,
+        get_youtube_stats,
         init_db,
     )
     _MODULE_OK = True
@@ -89,7 +90,7 @@ if daily:
             marker_color="#f87171",
         ))
         fig.update_layout(barmode="stack", **CHART_LAYOUT)
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
 
     with col_right:
         st.subheader("일별 비용 추이")
@@ -104,7 +105,7 @@ if daily:
             fillcolor="rgba(124,58,237,0.15)",
         ))
         fig2.update_layout(**CHART_LAYOUT)
-        st.plotly_chart(fig2, width="stretch")
+        st.plotly_chart(fig2, use_container_width=True)
 else:
     st.info("아직 완료된 콘텐츠가 없습니다.")
 
@@ -131,7 +132,7 @@ if channel_stats:
                 color_discrete_sequence=px.colors.qualitative.Set2,
             )
             fig3.update_layout(**CHART_LAYOUT)
-            st.plotly_chart(fig3, width="stretch")
+            st.plotly_chart(fig3, use_container_width=True)
         else:
             st.info("완료된 영상이 없어 분포를 표시할 수 없습니다.")
 
@@ -162,7 +163,7 @@ if channel_stats:
             yaxis_title="평균 비용 ($)",
             **CHART_LAYOUT,
         )
-        st.plotly_chart(fig4, width="stretch")
+        st.plotly_chart(fig4, use_container_width=True)
 
 st.divider()
 
@@ -205,9 +206,37 @@ if hourly:
         yaxis_title="성공 건수",
         **CHART_LAYOUT,
     )
-    st.plotly_chart(fig_hourly, width="stretch")
+    st.plotly_chart(fig_hourly, use_container_width=True)
 
     best_hour = max(hourly, key=lambda h: h["success_rate"])
     st.success(f"최적 생성 시간대: {best_hour['hour']}시 (성공률 {best_hour['success_rate']:.0f}%)")
 else:
     st.info("시간대 분석을 위한 데이터가 아직 부족합니다.")
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# YouTube 업로드 현황
+# ---------------------------------------------------------------------------
+st.subheader("YouTube 업로드 현황")
+yt_stats = get_youtube_stats()
+yt_total = yt_stats["uploaded"] + yt_stats["failed"] + yt_stats["awaiting"]
+
+yt1, yt2, yt3 = st.columns(3)
+yt1.metric("업로드 완료", yt_stats["uploaded"])
+yt2.metric("업로드 실패", yt_stats["failed"])
+yt3.metric("업로드 대기", yt_stats["awaiting"])
+
+if yt_total > 0:
+    fig_yt = px.pie(
+        names=["업로드 완료", "업로드 실패", "업로드 대기"],
+        values=[yt_stats["uploaded"], yt_stats["failed"], yt_stats["awaiting"]],
+        title="YouTube 업로드 상태 분포",
+        color_discrete_sequence=["#ff0000", "#6c757d", "#fbbf24"],
+    )
+    fig_yt.update_layout(**CHART_LAYOUT)
+    st.plotly_chart(fig_yt, use_container_width=True)
+    if yt_stats["failed"] > 0:
+        st.warning("업로드 실패 사유는 Shorts Manager에서 확인하세요.")
+else:
+    st.info("업로드 데이터가 아직 없습니다.")

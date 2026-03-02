@@ -97,6 +97,8 @@ def run_one(item: dict) -> dict:
         "--topic", topic,
         "--config", str(_CONFIG_PATH),
     ]
+    if channel:
+        cmd.extend(["--channel", channel])
 
     try:
         result = subprocess.run(
@@ -200,11 +202,12 @@ def main() -> int:
 
     # 주제 자동 보충
     try:
+        import logging as _logging
         from execution.topic_auto_generator import check_and_replenish
         print("\n[주제 보충 체크]")
         check_and_replenish()
     except Exception as exc:
-        print(f"[WARN] 주제 보충 실패 (무시): {exc}")
+        _logging.getLogger(__name__).warning("주제 보충 실패 (무시): %s", exc)
 
     return 0 if failed == 0 else 1
 
