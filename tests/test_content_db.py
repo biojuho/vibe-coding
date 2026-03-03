@@ -277,6 +277,216 @@ def test_channel_settings_roundtrip(monkeypatch, tmp_path):
     assert updated["style_preset"] == "neon"
 
 
+def test_channel_readiness_summary_setup_required_without_settings(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+    monkeypatch.setattr(cdb, "_SHORTS_BGM_DIR", tmp_path / "shorts-maker-v2" / "assets" / "bgm")
+    monkeypatch.setattr(cdb, "_SHORTS_BRAND_DIR", tmp_path / "shorts-maker-v2" / "assets" / "channels")
+
+    row_id = cdb.add_topic("Mars", channel="space")
+    cdb.update_job(row_id, status="pending")
+
+    summary = cdb.get_channel_readiness_summary(channels=["space"])
+    assert len(summary) == 1
+    item = summary[0]
+    assert item["channel"] == "space"
+    assert item["status"] == cdb.OPS_STATUS_SETUP_REQUIRED
+    assert not item["has_settings"]
+    assert item["next_action"] == "채널 설정 저장"
+    assert "setup:channel_settings_missing" in item["issues"]
+
+
+def test_channel_readiness_summary_warning_when_assets_missing(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+    bgm_dir = tmp_path / "shorts-maker-v2" / "assets" / "bgm"
+    brand_dir = tmp_path / "shorts-maker-v2" / "assets" / "channels"
+    monkeypatch.setattr(cdb, "_SHORTS_BGM_DIR", bgm_dir)
+    monkeypatch.setattr(cdb, "_SHORTS_BRAND_DIR", brand_dir)
+
+    cdb.upsert_channel_settings(
+        "space",
+        voice="nova",
+        style_preset="neon",
+        font_color="#00FFAA",
+        image_style_prefix="cinematic",
+    )
+    row_id = cdb.add_topic("Mars", channel="space")
+    cdb.update_job(row_id, status="failed")
+
+    summary = cdb.get_channel_readiness_summary(channels=["space"])
+    item = summary[0]
+    assert item["status"] == cdb.OPS_STATUS_WARNING
+    assert item["has_settings"]
+    assert not item["bgm_ready"]
+    assert not item["brand_assets_ready"]
+    assert item["failed_count"] == 1
+    assert item["next_action"] in {"브랜드 에셋 생성", "BGM 추가 또는 스킵 확인", "실패 건 확인"}
+    assert item["issues"]
+
+
+def test_channel_readiness_summary_healthy_when_ready(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+    bgm_dir = tmp_path / "shorts-maker-v2" / "assets" / "bgm"
+    brand_dir = tmp_path / "shorts-maker-v2" / "assets" / "channels"
+    (bgm_dir / "calm.mp3").parent.mkdir(parents=True, exist_ok=True)
+    (bgm_dir / "calm.mp3").write_bytes(b"mp3")
+    channel_brand_dir = brand_dir / "space"
+    channel_brand_dir.mkdir(parents=True, exist_ok=True)
+    (channel_brand_dir / "intro.png").write_bytes(b"png")
+    (channel_brand_dir / "outro.png").write_bytes(b"png")
+    monkeypatch.setattr(cdb, "_SHORTS_BGM_DIR", bgm_dir)
+    monkeypatch.setattr(cdb, "_SHORTS_BRAND_DIR", brand_dir)
+
+    cdb.upsert_channel_settings(
+        "space",
+        voice="nova",
+        style_preset="neon",
+        font_color="#00FFAA",
+        image_style_prefix="cinematic",
+    )
+    row_id = cdb.add_topic("Mars", channel="space")
+    cdb.update_job(row_id, status="success")
+
+    summary = cdb.get_channel_readiness_summary(channels=["space"])
+    item = summary[0]
+    assert item["status"] == cdb.OPS_STATUS_HEALTHY
+    assert item["bgm_ready"]
+    assert item["brand_assets_ready"]
+    assert item["issues"] == []
+    assert item["next_action"] == "렌더 실행 가능"
+
+
+def test_recent_failure_items_include_next_action(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+    bgm_dir = tmp_path / "shorts-maker-v2" / "assets" / "bgm"
+    brand_dir = tmp_path / "shorts-maker-v2" / "assets" / "channels"
+    monkeypatch.setattr(cdb, "_SHORTS_BGM_DIR", bgm_dir)
+    monkeypatch.setattr(cdb, "_SHORTS_BRAND_DIR", brand_dir)
+
+    cdb.upsert_channel_settings("space", voice="nova")
+    failed_id = cdb.add_topic("Mars", notes="render failed", channel="space")
+    cdb.update_job(failed_id, status="failed")
+
+    failures = cdb.get_recent_failure_items(limit=5)
+    assert len(failures) == 1
+    item = failures[0]
+    assert item["id"] == failed_id
+    assert item["failure_reason"] == "render failed"
+    assert item["brand_assets_ready"] is False
+    assert item["retry_recommended"] is True
+    assert item["next_action"] in {"브랜드 에셋 확인 후 재실행", "BGM 스킵 가능 여부 확인"}
+
+
+def test_manifest_sync_diffs_detects_mismatches(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+    output_dir = tmp_path / "shorts-maker-v2" / "output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(cdb, "_SHORTS_OUTPUT_DIR", output_dir)
+
+    sync_id = cdb.add_topic("Mars", channel="space")
+    cdb.update_job(
+        sync_id,
+        status="running",
+        job_id="job-sync",
+        title="Old title",
+        video_path="",
+        thumbnail_path="",
+    )
+
+    missing_file_id = cdb.add_topic("Moon", channel="science")
+    cdb.update_job(
+        missing_file_id,
+        status="success",
+        job_id="job-missing-file",
+        video_path=str(tmp_path / "missing.mp4"),
+    )
+
+    missing_manifest_id = cdb.add_topic("Venus", channel="space")
+    existing_video = tmp_path / "venus.mp4"
+    existing_video.write_bytes(b"video")
+    cdb.update_job(
+        missing_manifest_id,
+        status="success",
+        job_id="job-no-manifest",
+        video_path=str(existing_video),
+    )
+
+    (output_dir / "job-sync_manifest.json").write_text(
+        json.dumps(
+            {
+                "job_id": "job-sync",
+                "status": "success",
+                "title": "New title",
+                "output_path": "new.mp4",
+                "thumbnail_path": "thumb.png",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (output_dir / "job-orphan_manifest.json").write_text(
+        json.dumps(
+            {
+                "job_id": "job-orphan",
+                "status": "success",
+                "title": "Orphan",
+                "output_path": "orphan.mp4",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    diff = cdb.get_manifest_sync_diffs(output_dir=output_dir, limit=10)
+    assert diff["summary"]["missing_in_db_count"] == 1
+    assert diff["summary"]["pending_sync_count"] == 1
+    assert diff["summary"]["missing_output_file_count"] == 1
+    assert diff["summary"]["missing_manifest_count"] >= 1
+    assert diff["missing_in_db"][0]["job_id"] == "job-orphan"
+    assert diff["pending_sync"][0]["job_id"] == "job-sync"
+    assert "status" in diff["pending_sync"][0]["mismatches"]
+    assert diff["missing_output_file"][0]["job_id"] == "job-missing-file"
+
+
+def test_review_queue_items_include_file_readiness(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+    video_ok = tmp_path / "ok.mp4"
+    thumb_ok = tmp_path / "ok.png"
+    video_ok.write_bytes(b"video")
+    thumb_ok.write_bytes(b"png")
+
+    healthy_id = cdb.add_topic("Healthy", channel="space")
+    cdb.update_job(
+        healthy_id,
+        status="success",
+        video_path=str(video_ok),
+        thumbnail_path=str(thumb_ok),
+    )
+
+    warning_id = cdb.add_topic("Missing thumb", channel="space")
+    cdb.update_job(
+        warning_id,
+        status="success",
+        video_path=str(video_ok),
+        thumbnail_path=str(tmp_path / "missing-thumb.png"),
+    )
+
+    critical_id = cdb.add_topic("Missing video", channel="space")
+    cdb.update_job(
+        critical_id,
+        status="success",
+        video_path=str(tmp_path / "missing-video.mp4"),
+        thumbnail_path="",
+    )
+
+    queue = cdb.get_review_queue_items(limit=10)
+    by_topic = {item["topic"]: item for item in queue}
+
+    assert by_topic["Healthy"]["review_status"] == cdb.OPS_STATUS_HEALTHY
+    assert by_topic["Healthy"]["next_action"] == "수동 검수 진행"
+    assert by_topic["Missing thumb"]["review_status"] == cdb.OPS_STATUS_WARNING
+    assert by_topic["Missing thumb"]["thumbnail_exists"] is False
+    assert by_topic["Missing video"]["review_status"] == cdb.OPS_STATUS_CRITICAL
+    assert by_topic["Missing video"]["video_exists"] is False
+
+
 def test_cli_commands(monkeypatch, tmp_path, capsys):
     _patch_db(monkeypatch, tmp_path)
 

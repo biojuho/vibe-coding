@@ -423,7 +423,7 @@ def add_task(
             name,
             executable.strip(),
             _serialize_args(args),
-            (subprocess.list2cmdline([executable, *args]) if os.name == "nt" else " ".join([executable, *args])),
+            (subprocess.list2cmdline([executable, *args]) if os.name == "nt" else " ".join(shlex.quote(x) for x in [executable, *args])),
             cwd,
             cron_expression,
             int(timeout_sec) if timeout_sec > 0 else DEFAULT_TIMEOUT_SEC,
@@ -791,6 +791,141 @@ def get_scheduler_kpis(days: int = 7) -> Dict[str, Any]:
         "scheduler_success_rate": round(success_rate, 2),
         "scheduler_backlog": backlog,
     }
+
+
+def get_recent_failure_summary(limit: int = 10, within_hours: int = 24) -> List[Dict[str, Any]]:
+    init_db()
+    conn = _conn()
+    since = (datetime.now() - timedelta(hours=within_hours)).strftime("%Y-%m-%d %H:%M:%S")
+    rows = conn.execute(
+        """
+        SELECT
+            t.id AS task_id,
+            t.name,
+            t.enabled,
+            t.failure_count,
+            t.timeout_sec,
+            t.next_run,
+            (
+                SELECT l.started_at
+                FROM task_logs l
+                WHERE l.task_id = t.id AND l.exit_code != 0
+                ORDER BY l.id DESC
+                LIMIT 1
+            ) AS last_failed_at,
+            (
+                SELECT COALESCE(l.error_type, '')
+                FROM task_logs l
+                WHERE l.task_id = t.id AND l.exit_code != 0
+                ORDER BY l.id DESC
+                LIMIT 1
+            ) AS last_error_type,
+            (
+                SELECT COALESCE(l.stderr, '')
+                FROM task_logs l
+                WHERE l.task_id = t.id AND l.exit_code != 0
+                ORDER BY l.id DESC
+                LIMIT 1
+            ) AS last_stderr,
+            (
+                SELECT COUNT(*)
+                FROM task_logs l
+                WHERE l.task_id = t.id AND l.exit_code != 0 AND l.started_at >= ?
+            ) AS recent_failures
+        FROM tasks t
+        WHERE t.failure_count > 0
+           OR EXISTS (
+                SELECT 1
+                FROM task_logs l
+                WHERE l.task_id = t.id AND l.exit_code != 0 AND l.started_at >= ?
+           )
+        ORDER BY recent_failures DESC, t.failure_count DESC, last_failed_at DESC, t.id DESC
+        LIMIT ?
+        """,
+        (since, since, limit),
+    ).fetchall()
+    conn.close()
+
+    summary: List[Dict[str, Any]] = []
+    for row in rows:
+        recent_failures = int(row["recent_failures"] or 0)
+        failure_count = int(row["failure_count"] or 0)
+        enabled = bool(row["enabled"])
+        if not enabled:
+            next_action = "오류 수정 후 재활성화"
+        elif recent_failures >= 3 or failure_count >= max(2, MAX_FAILURE_COUNT // 2):
+            next_action = "명령과 환경을 우선 점검"
+        else:
+            next_action = "최근 로그 확인"
+        summary.append(
+            {
+                "task_id": row["task_id"],
+                "name": row["name"],
+                "enabled": enabled,
+                "failure_count": failure_count,
+                "recent_failures": recent_failures,
+                "timeout_sec": int(row["timeout_sec"] or DEFAULT_TIMEOUT_SEC),
+                "next_run": row["next_run"],
+                "last_failed_at": row["last_failed_at"] or "",
+                "last_error_type": row["last_error_type"] or "",
+                "last_stderr": row["last_stderr"] or "",
+                "next_action": next_action,
+            }
+        )
+    return summary
+
+
+def get_attention_queue(limit: int = 10) -> List[Dict[str, Any]]:
+    tasks = list_tasks()
+    now = datetime.now()
+    attention_items: List[Dict[str, Any]] = []
+    failure_threshold = max(2, MAX_FAILURE_COUNT // 2)
+
+    for task in tasks:
+        reasons: List[str] = []
+        next_action = ""
+        next_run_dt = _parse_datetime(task.next_run)
+
+        if not task.enabled and task.failure_count > 0:
+            reasons.append("auto_disabled")
+            next_action = "오류 수정 후 재활성화"
+        if task.failure_count >= failure_threshold:
+            reasons.append("repeated_failures")
+            if not next_action:
+                next_action = "연속 실패 원인 점검"
+        if task.enabled and next_run_dt is not None and next_run_dt <= now:
+            reasons.append("overdue")
+            if not next_action:
+                next_action = "작업 즉시 실행 또는 worker 확인"
+
+        if not reasons:
+            continue
+
+        priority = 0
+        if "auto_disabled" in reasons:
+            priority -= 20
+        if "repeated_failures" in reasons:
+            priority -= 10
+        if "overdue" in reasons:
+            priority -= 5
+        priority -= task.failure_count
+
+        attention_items.append(
+            {
+                "task_id": task.id,
+                "name": task.name,
+                "enabled": task.enabled,
+                "failure_count": task.failure_count,
+                "last_run": task.last_run or "",
+                "next_run": task.next_run or "",
+                "reasons": reasons,
+                "next_action": next_action or "상태 확인",
+                "priority": priority,
+            }
+        )
+
+    attention_items.sort(key=lambda item: (item["priority"], item["name"]))
+    return attention_items[:limit]
 
 
 if __name__ == "__main__":

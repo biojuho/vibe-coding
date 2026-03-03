@@ -82,8 +82,9 @@ def test_get_me_returns_bot_payload(monkeypatch):
     assert result["result"]["username"] == "joolife_bot"
 
 
-def test_send_message_posts_to_telegram(monkeypatch):
+def test_send_message_posts_to_telegram(monkeypatch, tmp_path):
     _configure_env(monkeypatch)
+    monkeypatch.setattr(tn, "STATUS_PATH", tmp_path / "telegram_status_success.json")
 
     with patch(
         "execution.telegram_notifier.requests.post",
@@ -95,6 +96,9 @@ def test_send_message_posts_to_telegram(monkeypatch):
     request_json = mock_post.call_args.kwargs["json"]
     assert request_json["chat_id"] == "987654321"
     assert request_json["text"] == "hello from tests"
+    status = tn.get_delivery_status_summary()
+    assert status["last_delivery_ok"] is True
+    assert status["last_success_at"]
 
 
 def test_send_message_rejects_empty_message(monkeypatch):
@@ -106,6 +110,20 @@ def test_send_message_rejects_empty_message(monkeypatch):
         assert "empty" in str(exc).lower()
     else:  # pragma: no cover - safety assertion
         raise AssertionError("Expected ValueError for empty message")
+
+
+def test_send_message_records_failure_status(monkeypatch, tmp_path):
+    _configure_env(monkeypatch)
+    monkeypatch.setattr(tn, "STATUS_PATH", tmp_path / "telegram_status.json")
+
+    with patch("execution.telegram_notifier.requests.post", side_effect=RuntimeError("network down")):
+        with pytest.raises(RuntimeError, match="network down"):
+            tn.send_message("hello")
+
+    status = tn.get_delivery_status_summary()
+    assert status["last_delivery_ok"] is False
+    assert status["last_failure_at"]
+    assert "network down" in status["last_error"]
 
 
 def test_send_message_rejects_when_disabled(monkeypatch):
@@ -303,6 +321,17 @@ def test_build_check_payload_includes_bot_error(monkeypatch):
     payload = tn._build_check_payload()
 
     assert payload["bot_error"] == "boom"
+
+
+def test_get_delivery_status_summary_reports_setup_required(monkeypatch, tmp_path):
+    monkeypatch.setattr(tn, "STATUS_PATH", tmp_path / "telegram_status.json")
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("TELEGRAM_CHAT_ID", raising=False)
+
+    summary = tn.get_delivery_status_summary()
+
+    assert summary["status"] == "setup_required"
+    assert "설정" in summary["next_action"] or "token" in summary["next_action"].lower()
 
 
 def test_parse_date_supports_explicit_and_default():

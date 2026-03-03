@@ -133,6 +133,14 @@ def run_one(item: dict) -> dict:
             cost_usd=manifest.get("estimated_cost_usd", 0.0),
             duration_sec=manifest.get("total_duration_sec", 0.0),
         )
+        # Notion 동기화 (설정된 경우 자동 실행)
+        try:
+            from execution.notion_shorts_sync import is_configured, sync_item
+            if is_configured():
+                notion_result = sync_item(item_id)
+                print(f"[Notion] {notion_result['action']} page_id={notion_result.get('page_id', '')[:8]}")
+        except Exception as exc:
+            print(f"[Notion] 동기화 실패 (건너뜀): {exc}")
         return {
             "id": item_id, "channel": channel, "topic": topic,
             "status": "success",

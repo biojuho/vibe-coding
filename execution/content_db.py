@@ -10,6 +10,7 @@ Usage:
 """
 
 import argparse
+import json
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -24,6 +25,7 @@ _ROOT = Path(__file__).resolve().parent.parent
 _SHORTS_V2_DIR = _ROOT / "shorts-maker-v2"
 _SHORTS_BGM_DIR = _SHORTS_V2_DIR / "assets" / "bgm"
 _SHORTS_BRAND_DIR = _SHORTS_V2_DIR / "assets" / "channels"
+_SHORTS_OUTPUT_DIR = _SHORTS_V2_DIR / "output"
 DB_PATH = Path(__file__).resolve().parent.parent / ".tmp" / "content.db"
 UPDATABLE_COLUMNS = {
     "status",
@@ -40,6 +42,14 @@ UPDATABLE_COLUMNS = {
     "youtube_url",
     "youtube_uploaded_at",
     "youtube_error",
+    "notion_page_id",
+    "yt_views",
+    "yt_likes",
+    "yt_comments",
+    "yt_ctr",
+    "yt_avg_watch_sec",
+    "yt_stats_updated_at",
+    "hook_pattern",
 }
 
 
@@ -52,54 +62,64 @@ def _conn() -> sqlite3.Connection:
 
 def init_db() -> None:
     conn = _conn()
-    conn.executescript("""
-        CREATE TABLE IF NOT EXISTS content_queue (
-            id             INTEGER PRIMARY KEY AUTOINCREMENT,
-            topic          TEXT NOT NULL,
-            channel        TEXT NOT NULL DEFAULT '',
-            status         TEXT NOT NULL DEFAULT 'pending',
-            job_id         TEXT DEFAULT '',
-            title          TEXT DEFAULT '',
-            video_path     TEXT DEFAULT '',
-            thumbnail_path TEXT DEFAULT '',
-            cost_usd       REAL DEFAULT 0.0,
-            duration_sec   REAL DEFAULT 0.0,
-            notes          TEXT DEFAULT '',
-            youtube_video_id    TEXT DEFAULT '',
-            youtube_status      TEXT DEFAULT '',
-            youtube_url         TEXT DEFAULT '',
-            youtube_uploaded_at TEXT DEFAULT '',
-            youtube_error       TEXT DEFAULT '',
-            created_at     TEXT DEFAULT (datetime('now','localtime')),
-            updated_at     TEXT DEFAULT (datetime('now','localtime'))
-        );
+    try:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS content_queue (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                topic          TEXT NOT NULL,
+                channel        TEXT NOT NULL DEFAULT '',
+                status         TEXT NOT NULL DEFAULT 'pending',
+                job_id         TEXT DEFAULT '',
+                title          TEXT DEFAULT '',
+                video_path     TEXT DEFAULT '',
+                thumbnail_path TEXT DEFAULT '',
+                cost_usd       REAL DEFAULT 0.0,
+                duration_sec   REAL DEFAULT 0.0,
+                notes          TEXT DEFAULT '',
+                youtube_video_id    TEXT DEFAULT '',
+                youtube_status      TEXT DEFAULT '',
+                youtube_url         TEXT DEFAULT '',
+                youtube_uploaded_at TEXT DEFAULT '',
+                youtube_error       TEXT DEFAULT '',
+                created_at     TEXT DEFAULT (datetime('now','localtime')),
+                updated_at     TEXT DEFAULT (datetime('now','localtime'))
+            );
 
-        CREATE TABLE IF NOT EXISTS channel_settings (
-            channel            TEXT PRIMARY KEY,
-            voice              TEXT DEFAULT 'alloy',
-            style_preset       TEXT DEFAULT 'default',
-            font_color         TEXT DEFAULT '#FFD700',
-            image_style_prefix TEXT DEFAULT '',
-            created_at         TEXT DEFAULT (datetime('now','localtime')),
-            updated_at         TEXT DEFAULT (datetime('now','localtime'))
-        );
-    """)
-    # 기존 DB migration: 컬럼 없으면 추가
-    _migrations = [
-        "ALTER TABLE content_queue ADD COLUMN channel TEXT NOT NULL DEFAULT ''",
-        "ALTER TABLE content_queue ADD COLUMN youtube_video_id TEXT DEFAULT ''",
-        "ALTER TABLE content_queue ADD COLUMN youtube_status TEXT DEFAULT ''",
-        "ALTER TABLE content_queue ADD COLUMN youtube_url TEXT DEFAULT ''",
-        "ALTER TABLE content_queue ADD COLUMN youtube_uploaded_at TEXT DEFAULT ''",
-        "ALTER TABLE content_queue ADD COLUMN youtube_error TEXT DEFAULT ''",
-    ]
-    for stmt in _migrations:
-        try:
-            conn.execute(stmt)
-        except sqlite3.OperationalError:
-            pass  # 이미 존재
-    conn.commit()
-    conn.close()
+            CREATE TABLE IF NOT EXISTS channel_settings (
+                channel            TEXT PRIMARY KEY,
+                voice              TEXT DEFAULT 'alloy',
+                style_preset       TEXT DEFAULT 'default',
+                font_color         TEXT DEFAULT '#FFD700',
+                image_style_prefix TEXT DEFAULT '',
+                created_at         TEXT DEFAULT (datetime('now','localtime')),
+                updated_at         TEXT DEFAULT (datetime('now','localtime'))
+            );
+        """)
+        # 기존 DB migration: 컬럼 없으면 추가
+        _migrations = [
+            "ALTER TABLE content_queue ADD COLUMN channel TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE content_queue ADD COLUMN youtube_video_id TEXT DEFAULT ''",
+            "ALTER TABLE content_queue ADD COLUMN youtube_status TEXT DEFAULT ''",
+            "ALTER TABLE content_queue ADD COLUMN youtube_url TEXT DEFAULT ''",
+            "ALTER TABLE content_queue ADD COLUMN youtube_uploaded_at TEXT DEFAULT ''",
+            "ALTER TABLE content_queue ADD COLUMN youtube_error TEXT DEFAULT ''",
+            "ALTER TABLE content_queue ADD COLUMN notion_page_id TEXT DEFAULT ''",
+            "ALTER TABLE content_queue ADD COLUMN yt_views INTEGER DEFAULT 0",
+            "ALTER TABLE content_queue ADD COLUMN yt_likes INTEGER DEFAULT 0",
+            "ALTER TABLE content_queue ADD COLUMN yt_comments INTEGER DEFAULT 0",
+            "ALTER TABLE content_queue ADD COLUMN yt_ctr REAL DEFAULT 0.0",
+            "ALTER TABLE content_queue ADD COLUMN yt_avg_watch_sec REAL DEFAULT 0.0",
+            "ALTER TABLE content_queue ADD COLUMN yt_stats_updated_at TEXT DEFAULT ''",
+            "ALTER TABLE content_queue ADD COLUMN hook_pattern TEXT DEFAULT ''",
+        ]
+        for stmt in _migrations:
+            try:
+                conn.execute(stmt)
+            except sqlite3.OperationalError:
+                pass  # 이미 존재
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def add_topic(topic: str, notes: str = "", channel: str = "") -> int:
@@ -127,6 +147,16 @@ def get_all(channel: str | None = None) -> list[dict[str, Any]]:
         ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+def get_by_id(item_id: int) -> dict[str, Any] | None:
+    """단일 항목 조회. 없으면 None."""
+    conn = _conn()
+    row = conn.execute(
+        "SELECT * FROM content_queue WHERE id = ?", (item_id,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
 
 
 def get_channels() -> list[str]:
@@ -485,6 +515,238 @@ def get_channel_readiness_summary(channels: list[str] | None = None) -> list[dic
     return summary
 
 
+def get_recent_failure_items(
+    channel: str | None = None,
+    limit: int = 10,
+) -> list[dict[str, Any]]:
+    conn = _conn()
+    query = """
+        SELECT *
+        FROM content_queue
+        WHERE status = 'failed'
+    """
+    params: list[Any] = []
+    if channel:
+        query += " AND channel = ?"
+        params.append(channel)
+    query += " ORDER BY updated_at DESC, id DESC LIMIT ?"
+    params.append(limit)
+    rows = conn.execute(query, params).fetchall()  # noqa: S608
+    conn.close()
+
+    bgm_ready = _resolve_bgm_readiness()
+    failures: list[dict[str, Any]] = []
+    for row in rows:
+        item = dict(row)
+        channel_name = item.get("channel", "")
+        settings = get_channel_settings(channel_name) if channel_name else None
+        brand_assets_ready = _resolve_brand_asset_readiness(channel_name) if channel_name else False
+        issues: list[str] = []
+        if channel_name and settings is None:
+            issues.append("setup:channel_settings_missing")
+        if not bgm_ready:
+            issues.append("warning:bgm_missing")
+        if channel_name and not brand_assets_ready:
+            issues.append("warning:brand_asset_missing")
+
+        if any(issue.startswith("setup:") for issue in issues):
+            next_action = "채널 설정 저장 후 재실행"
+        elif any("brand_asset_missing" in issue for issue in issues):
+            next_action = "브랜드 에셋 확인 후 재실행"
+        elif any("bgm_missing" in issue for issue in issues):
+            next_action = "BGM 스킵 가능 여부 확인"
+        elif item.get("notes"):
+            next_action = "실패 메모 확인 후 재실행"
+        else:
+            next_action = "최근 로그 확인 후 재실행"
+
+        failures.append(
+            {
+                **item,
+                "has_settings": settings is not None,
+                "bgm_ready": bgm_ready,
+                "brand_assets_ready": brand_assets_ready,
+                "issues": issues,
+                "failure_reason": item.get("notes") or "실패 사유 메모 없음",
+                "next_action": next_action,
+                "retry_recommended": settings is not None,
+            }
+        )
+    return failures
+
+
+def _load_manifest_payloads(output_dir: Path | None = None) -> list[dict[str, Any]]:
+    manifests_dir = output_dir or _SHORTS_OUTPUT_DIR
+    if not manifests_dir.exists():
+        return []
+
+    payloads: list[dict[str, Any]] = []
+    manifest_paths = sorted(
+        manifests_dir.glob("*_manifest.json"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    for path in manifest_paths:
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if not isinstance(payload, dict):
+            continue
+        payloads.append(
+            {
+                **payload,
+                "_manifest_path": str(path),
+            }
+        )
+    return payloads
+
+
+def get_manifest_sync_diffs(
+    output_dir: Path | None = None,
+    limit: int = 10,
+) -> dict[str, Any]:
+    manifests = _load_manifest_payloads(output_dir=output_dir)
+    items = get_all()
+    job_lookup = {item.get("job_id"): item for item in items if item.get("job_id")}
+    manifest_job_ids = {manifest.get("job_id") for manifest in manifests if manifest.get("job_id")}
+
+    missing_in_db: list[dict[str, Any]] = []
+    pending_sync: list[dict[str, Any]] = []
+    for manifest in manifests:
+        job_id = manifest.get("job_id", "")
+        if not job_id:
+            continue
+        item = job_lookup.get(job_id)
+        if item is None:
+            missing_in_db.append(
+                {
+                    "job_id": job_id,
+                    "title": manifest.get("title", ""),
+                    "status": manifest.get("status", ""),
+                    "manifest_path": manifest["_manifest_path"],
+                }
+            )
+            continue
+
+        mismatches: list[str] = []
+        if manifest.get("status") and item.get("status") != manifest.get("status"):
+            mismatches.append("status")
+        if manifest.get("output_path") and item.get("video_path") != manifest.get("output_path"):
+            mismatches.append("video_path")
+        if manifest.get("thumbnail_path") and item.get("thumbnail_path") != manifest.get("thumbnail_path"):
+            mismatches.append("thumbnail_path")
+        if manifest.get("title") and item.get("title") != manifest.get("title"):
+            mismatches.append("title")
+        if mismatches:
+            pending_sync.append(
+                {
+                    "id": item["id"],
+                    "job_id": job_id,
+                    "topic": item.get("topic", ""),
+                    "channel": item.get("channel", ""),
+                    "mismatches": mismatches,
+                    "manifest_path": manifest["_manifest_path"],
+                }
+            )
+
+    missing_output_file: list[dict[str, Any]] = []
+    missing_manifest: list[dict[str, Any]] = []
+    for item in items:
+        job_id = item.get("job_id", "")
+        video_path = item.get("video_path", "")
+        if item.get("status") == "success" and video_path and not Path(video_path).exists():
+            missing_output_file.append(
+                {
+                    "id": item["id"],
+                    "job_id": job_id,
+                    "topic": item.get("topic", ""),
+                    "channel": item.get("channel", ""),
+                    "video_path": video_path,
+                }
+            )
+        if job_id and job_id not in manifest_job_ids:
+            missing_manifest.append(
+                {
+                    "id": item["id"],
+                    "job_id": job_id,
+                    "topic": item.get("topic", ""),
+                    "channel": item.get("channel", ""),
+                    "status": item.get("status", ""),
+                }
+            )
+
+    summary = {
+        "missing_in_db_count": len(missing_in_db),
+        "pending_sync_count": len(pending_sync),
+        "missing_output_file_count": len(missing_output_file),
+        "missing_manifest_count": len(missing_manifest),
+    }
+
+    missing_in_db = missing_in_db[:limit]
+    pending_sync = pending_sync[:limit]
+    missing_output_file = missing_output_file[:limit]
+    missing_manifest = missing_manifest[:limit]
+
+    return {
+        "summary": summary,
+        "missing_in_db": missing_in_db,
+        "pending_sync": pending_sync,
+        "missing_output_file": missing_output_file,
+        "missing_manifest": missing_manifest,
+    }
+
+
+def get_review_queue_items(
+    channel: str | None = None,
+    limit: int = 10,
+) -> list[dict[str, Any]]:
+    conn = _conn()
+    query = """
+        SELECT *
+        FROM content_queue
+        WHERE status = 'success'
+          AND video_path != ''
+    """
+    params: list[Any] = []
+    if channel:
+        query += " AND channel = ?"
+        params.append(channel)
+    query += " ORDER BY updated_at DESC, id DESC LIMIT ?"
+    params.append(limit)
+    rows = conn.execute(query, params).fetchall()  # noqa: S608
+    conn.close()
+
+    queue: list[dict[str, Any]] = []
+    for row in rows:
+        item = dict(row)
+        video_path = str(item.get("video_path") or "")
+        thumbnail_path = str(item.get("thumbnail_path") or "")
+        video_exists = bool(video_path) and Path(video_path).exists()
+        thumbnail_exists = bool(thumbnail_path) and Path(thumbnail_path).exists()
+
+        if not video_exists:
+            review_status = OPS_STATUS_CRITICAL
+            next_action = "영상 재생성 또는 경로 확인"
+        elif thumbnail_path and not thumbnail_exists:
+            review_status = OPS_STATUS_WARNING
+            next_action = "썸네일 재생성 확인"
+        else:
+            review_status = OPS_STATUS_HEALTHY
+            next_action = "수동 검수 진행"
+
+        queue.append(
+            {
+                **item,
+                "video_exists": video_exists,
+                "thumbnail_exists": thumbnail_exists,
+                "review_status": review_status,
+                "next_action": next_action,
+            }
+        )
+    return queue
+
+
 def get_uploadable_items(
     channel: str | None = None,
     limit: int = 10,
@@ -514,6 +776,74 @@ def get_uploadable_items(
     query += " ORDER BY updated_at DESC LIMIT ?"
     params.append(limit)
     rows = conn.execute(query, params).fetchall()  # noqa: S608
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_performance_stats(
+    channel: str | None = None,
+    min_views: int = 0,
+) -> list[dict[str, Any]]:
+    """YouTube 성과 데이터가 있는 항목 반환 (분석용)."""
+    conn = _conn()
+    query = """
+        SELECT id, topic, channel, title, hook_pattern,
+               yt_views, yt_likes, yt_comments, yt_ctr, yt_avg_watch_sec,
+               duration_sec, cost_usd, yt_stats_updated_at, youtube_url
+        FROM content_queue
+        WHERE youtube_status = 'uploaded'
+          AND yt_views >= ?
+    """
+    params: list[Any] = [min_views]
+    if channel:
+        query += " AND channel = ?"
+        params.append(channel)
+    query += " ORDER BY yt_views DESC"
+    rows = conn.execute(query, params).fetchall()  # noqa: S608
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_hook_pattern_performance() -> list[dict[str, Any]]:
+    """훅 패턴별 평균 성과 집계."""
+    conn = _conn()
+    rows = conn.execute("""
+        SELECT
+            hook_pattern,
+            COUNT(*) AS count,
+            COALESCE(AVG(yt_views), 0) AS avg_views,
+            COALESCE(AVG(yt_likes), 0) AS avg_likes,
+            COALESCE(AVG(yt_ctr), 0) AS avg_ctr,
+            COALESCE(AVG(yt_avg_watch_sec), 0) AS avg_watch_sec
+        FROM content_queue
+        WHERE youtube_status = 'uploaded'
+          AND hook_pattern != ''
+          AND yt_views > 0
+        GROUP BY hook_pattern
+        ORDER BY avg_views DESC
+    """).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_channel_performance_summary() -> list[dict[str, Any]]:
+    """채널별 YouTube 성과 요약."""
+    conn = _conn()
+    rows = conn.execute("""
+        SELECT
+            channel,
+            COUNT(*) AS video_count,
+            COALESCE(SUM(yt_views), 0) AS total_views,
+            COALESCE(AVG(yt_views), 0) AS avg_views,
+            COALESCE(AVG(yt_ctr), 0) AS avg_ctr,
+            COALESCE(AVG(yt_avg_watch_sec), 0) AS avg_watch_sec,
+            COALESCE(SUM(cost_usd), 0) AS total_cost
+        FROM content_queue
+        WHERE youtube_status = 'uploaded'
+          AND channel != ''
+        GROUP BY channel
+        ORDER BY total_views DESC
+    """).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 

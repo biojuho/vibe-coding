@@ -14,7 +14,8 @@ import argparse
 import json
 import os
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -24,6 +25,7 @@ load_dotenv()
 
 TELEGRAM_API_BASE = "https://api.telegram.org"
 DEFAULT_MESSAGE_LIMIT = 4000
+STATUS_PATH = Path(__file__).resolve().parent.parent / ".tmp" / "telegram_status.json"
 
 
 @dataclass(frozen=True)
@@ -79,6 +81,81 @@ def _raise_for_telegram_error(response: requests.Response) -> None:
         raise RuntimeError(description)
 
 
+def _load_status_payload() -> Dict[str, Any]:
+    if not STATUS_PATH.exists():
+        return {}
+    try:
+        return json.loads(STATUS_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _record_delivery_status(
+    *,
+    ok: bool,
+    message_text: str,
+    error: str = "",
+    response_payload: Optional[Dict[str, Any]] = None,
+) -> None:
+    payload = _load_status_payload()
+    now_iso = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    payload.update(
+        {
+            "last_attempt_at": now_iso,
+            "last_delivery_ok": ok,
+            "last_error": error[:300],
+            "last_message_preview": message_text[:120],
+        }
+    )
+    if ok:
+        payload["last_success_at"] = now_iso
+        payload["last_error"] = ""
+        payload["last_message_id"] = (
+            (response_payload or {}).get("result", {}).get("message_id")
+            if isinstance(response_payload, dict)
+            else None
+        )
+    else:
+        payload["last_failure_at"] = now_iso
+
+    STATUS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    STATUS_PATH.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def get_delivery_status_summary() -> Dict[str, Any]:
+    config = load_config()
+    payload = _load_status_payload()
+    summary: Dict[str, Any] = {
+        "enabled": config.enabled,
+        "configured": is_configured(config),
+        "has_bot_token": bool(config.bot_token),
+        "has_chat_id": bool(config.chat_id),
+        "scheduler_mode": config.scheduler_mode,
+        "last_attempt_at": payload.get("last_attempt_at", ""),
+        "last_success_at": payload.get("last_success_at", ""),
+        "last_failure_at": payload.get("last_failure_at", ""),
+        "last_delivery_ok": payload.get("last_delivery_ok"),
+        "last_error": payload.get("last_error", ""),
+        "last_message_preview": payload.get("last_message_preview", ""),
+        "last_message_id": payload.get("last_message_id"),
+        "status": "healthy",
+        "next_action": "정상 동작 중입니다.",
+    }
+    if not config.enabled:
+        summary["status"] = "setup_required"
+        summary["next_action"] = "TELEGRAM_ENABLED 설정을 확인하세요."
+    elif not summary["configured"]:
+        summary["status"] = "setup_required"
+        summary["next_action"] = "봇 토큰과 채팅 ID를 설정하세요."
+    elif payload.get("last_delivery_ok") is False:
+        summary["status"] = "warning"
+        summary["next_action"] = "최근 Telegram 전송 실패 원인을 확인하세요."
+    elif not payload.get("last_attempt_at"):
+        summary["status"] = "warning"
+        summary["next_action"] = "테스트 메시지 또는 리포트 전송을 한 번 실행하세요."
+    return summary
+
+
 def get_me(timeout: int = 15) -> Dict[str, Any]:
     config = load_config()
     if not config.bot_token:
@@ -118,17 +195,24 @@ def send_message(
     if not target_chat_id:
         raise ValueError("TELEGRAM_CHAT_ID is not configured.")
 
-    response = requests.post(
-        _api_url(config.bot_token, "sendMessage"),
-        json={
-            "chat_id": target_chat_id,
-            "text": _validate_message(text),
-            "disable_notification": disable_notification,
-        },
-        timeout=timeout,
-    )
-    _raise_for_telegram_error(response)
-    return response.json()
+    validated_text = _validate_message(text)
+    try:
+        response = requests.post(
+            _api_url(config.bot_token, "sendMessage"),
+            json={
+                "chat_id": target_chat_id,
+                "text": validated_text,
+                "disable_notification": disable_notification,
+            },
+            timeout=timeout,
+        )
+        _raise_for_telegram_error(response)
+        payload = response.json()
+        _record_delivery_status(ok=True, message_text=validated_text, response_payload=payload)
+        return payload
+    except Exception as exc:
+        _record_delivery_status(ok=False, message_text=validated_text, error=str(exc))
+        raise
 
 
 def format_scheduler_message(

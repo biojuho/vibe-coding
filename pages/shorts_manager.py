@@ -4,6 +4,7 @@ Shorts Manager - YouTube Shorts 콘텐츠 자동 생성 및 관리 대시보드.
 
 from __future__ import annotations
 
+import html as _html
 import json
 import subprocess
 import sys
@@ -28,7 +29,11 @@ try:
         delete_item,
         get_all,
         get_channel_settings,
+        get_channel_readiness_summary,
+        get_manifest_sync_diffs,
         get_kpis,
+        get_recent_failure_items,
+        get_review_queue_items,
         get_youtube_stats,
         init_db,
         update_job,
@@ -51,6 +56,19 @@ try:
     _YT_OK = True
 except ImportError as e:
     _YT_ERR = str(e)
+
+_NOTION_OK = False
+_NOTION_ERR = ""
+try:
+    from execution.notion_shorts_sync import (
+        is_configured as notion_is_configured,
+        sync_all as notion_sync_all,
+        sync_item as notion_sync_item,
+    )
+
+    _NOTION_OK = True
+except ImportError as e:
+    _NOTION_ERR = str(e)
 
 # ---------------------------------------------------------------------------
 # 채널 목록 (고정)
@@ -120,12 +138,34 @@ def _fmt_cost(usd: float) -> str:
 
 def _youtube_badge(yt_status: str, yt_url: str = "") -> str:
     if yt_status == "uploaded" and yt_url:
-        return f"<a href='{yt_url}' target='_blank' style='background:#ff0000;color:white;padding:2px 8px;border-radius:10px;font-size:0.7rem;text-decoration:none'>▶ YT</a>"
+        safe_url = _html.escape(yt_url, quote=True)
+        return f"<a href='{safe_url}' target='_blank' style='background:#ff0000;color:white;padding:2px 8px;border-radius:10px;font-size:0.7rem;text-decoration:none'>▶ YT</a>"
     if yt_status == "uploaded":
         return "<span style='background:#ff0000;color:white;padding:2px 8px;border-radius:10px;font-size:0.7rem'>▶ YT</span>"
     if yt_status == "failed":
         return "<span style='background:#6c757d;color:white;padding:2px 8px;border-radius:10px;font-size:0.7rem'>YT 실패</span>"
     return ""
+
+
+def _ops_badge(status: str) -> str:
+    colors = {
+        "healthy": "#28a745",
+        "warning": "#fd7e14",
+        "critical": "#dc3545",
+        "setup_required": "#6f42c1",
+    }
+    labels = {
+        "healthy": "정상",
+        "warning": "주의",
+        "critical": "중요",
+        "setup_required": "설정 필요",
+    }
+    color = colors.get(status, "#6c757d")
+    label = labels.get(status, status)
+    return (
+        f"<span style='background:{color};color:white;padding:2px 8px;"
+        f"border-radius:10px;font-size:0.75rem'>{label}</span>"
+    )
 
 
 def _scan_manifests() -> None:
@@ -179,11 +219,8 @@ def _launch_v2(item_id: int, topic: str, channel: str = "") -> str | None:
         proc = subprocess.Popen(
             cmd,
             cwd=str(_V2_DIR),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
         update_job(item_id, status="running")
         return str(proc.pid)
@@ -258,11 +295,13 @@ def _upload_single(item: dict[str, Any], retry: bool = False) -> dict[str, Any]:
         tags=tags,
         privacy_status="private",
     )
+    if not result.get("video_id"):
+        raise RuntimeError(result.get("error", "업로드 실패: video_id 없음"))
     update_job(
         item["id"],
         youtube_video_id=result["video_id"],
         youtube_status="uploaded",
-        youtube_url=result["youtube_url"],
+        youtube_url=result.get("youtube_url", ""),
         youtube_uploaded_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         youtube_error="",
     )
@@ -282,9 +321,146 @@ def _style_index(settings: dict[str, Any] | None) -> int:
 # ---------------------------------------------------------------------------
 # UI 시작
 # ---------------------------------------------------------------------------
+def _render_channel_readiness(channels: list[str]) -> None:
+    st.subheader("채널 준비 상태")
+    summary = get_channel_readiness_summary(channels=channels)
+    if not summary:
+        st.info("표시할 채널 상태가 없습니다.")
+        return
+
+    priority = {"critical": 0, "setup_required": 1, "warning": 2, "healthy": 3}
+    summary = sorted(
+        summary,
+        key=lambda item: (
+            priority.get(str(item.get("status")), 99),
+            -int(item.get("failed_count", 0)),
+            str(item.get("channel", "")),
+        ),
+    )
+
+    for item in summary:
+        with st.container(border=True):
+            top_col, meta_col = st.columns([2, 3])
+            with top_col:
+                st.markdown(
+                    f"**{item['channel']}** {_ops_badge(item['status'])}",
+                    unsafe_allow_html=True,
+                )
+                st.caption(
+                    f"voice: `{item['voice'] or '-'}` | style: `{item['style_preset'] or '-'}`"
+                )
+            with meta_col:
+                st.caption(
+                    "BGM: "
+                    f"{'준비됨' if item['bgm_ready'] else '부족'} | "
+                    "브랜드 에셋: "
+                    f"{'준비됨' if item['brand_assets_ready'] else '부족'} | "
+                    f"실패 {item['failed_count']} / 실행중 {item['running_count']} / 대기 {item['pending_count']}"
+                )
+                st.caption(f"다음 액션: {item['next_action']}")
+            if item["issues"]:
+                issue_labels = [
+                    issue.split(":", 1)[1].replace("_", " ")
+                    if ":" in issue
+                    else issue.replace("_", " ")
+                    for issue in item["issues"]
+                ]
+                st.caption("이슈: " + ", ".join(issue_labels))
+
+
+def _render_failure_triage(limit: int = 6) -> None:
+    st.subheader("실패 triage")
+    failures = get_recent_failure_items(limit=limit)
+    if not failures:
+        st.info("최근 실패 건이 없습니다.")
+        return
+
+    for item in failures:
+        with st.container(border=True):
+            st.markdown(
+                f"**{item.get('channel') or '-'}** {_status_badge('failed')} "
+                f"&nbsp; **{item.get('title') or item.get('topic') or '-'}**",
+                unsafe_allow_html=True,
+            )
+            st.caption(
+                f"실패 시각: {item.get('updated_at', '-')[:16]} | "
+                f"재시도 권장: {'예' if item.get('retry_recommended') else '아니오'}"
+            )
+            st.caption(f"실패 원인: {item.get('failure_reason', '-')}")
+            if item.get("issues"):
+                issue_labels = [
+                    issue.split(":", 1)[1].replace("_", " ")
+                    if ":" in issue
+                    else issue.replace("_", " ")
+                    for issue in item["issues"]
+                ]
+                st.caption("사전 점검: " + ", ".join(issue_labels))
+            st.caption(f"다음 액션: {item.get('next_action', '-')}")
+
+
+def _render_manifest_sync_panel() -> None:
+    st.subheader("Manifest sync 점검")
+    diff = get_manifest_sync_diffs(limit=5)
+    summary = diff["summary"]
+    metric_cols = st.columns(4)
+    metric_cols[0].metric("DB 누락", summary["missing_in_db_count"])
+    metric_cols[1].metric("동기화 필요", summary["pending_sync_count"])
+    metric_cols[2].metric("영상 파일 누락", summary["missing_output_file_count"])
+    metric_cols[3].metric("manifest 누락", summary["missing_manifest_count"])
+
+    if not any(summary.values()):
+        st.success("현재 확인된 manifest 불일치가 없습니다.")
+        return
+
+    if diff["pending_sync"]:
+        st.caption("동기화 필요")
+        for item in diff["pending_sync"]:
+            st.caption(
+                f"- [{item['channel'] or '-'}] {item['topic']} / "
+                f"{', '.join(item['mismatches'])}"
+            )
+    if diff["missing_in_db"]:
+        st.caption("DB 누락")
+        for item in diff["missing_in_db"]:
+            st.caption(f"- {item['job_id']} / {item['title'] or '-'}")
+    if diff["missing_output_file"]:
+        st.caption("영상 파일 누락")
+        for item in diff["missing_output_file"]:
+            st.caption(f"- [{item['channel'] or '-'}] {item['topic']}")
+    if diff["missing_manifest"]:
+        st.caption("manifest 누락")
+        for item in diff["missing_manifest"]:
+            st.caption(f"- [{item['channel'] or '-'}] {item['topic']} / {item['status']}")
+
+
+def _render_manual_review_queue(limit: int = 6) -> None:
+    st.subheader("수동 검수 큐")
+    review_items = get_review_queue_items(limit=limit)
+    if not review_items:
+        st.info("검수할 완료 결과가 없습니다.")
+        return
+
+    for item in review_items:
+        with st.container(border=True):
+            st.markdown(
+                f"**{item.get('channel') or '-'}** {_ops_badge(item['review_status'])} "
+                f"&nbsp; **{item.get('title') or item.get('topic') or '-'}**",
+                unsafe_allow_html=True,
+            )
+            st.caption(
+                f"생성: {item.get('updated_at', '-')[:16]} | "
+                f"영상: {'있음' if item.get('video_exists') else '없음'} | "
+                f"썸네일: {'있음' if item.get('thumbnail_exists') else '없음'}"
+            )
+            if item.get("notes"):
+                st.caption(f"메모: {item['notes']}")
+            st.caption(f"다음 액션: {item.get('next_action', '-')}")
+
+
 st.title("🎬 Shorts Manager")
 st.caption("YouTube Shorts 콘텐츠 자동 생성 및 관리")
 _render_flash()
+_render_channel_readiness(CHANNELS)
 
 auth_status = _default_auth_status()
 
@@ -320,11 +496,26 @@ with batch_col:
                 _set_flash("info", "업로드할 항목이 없습니다.")
             st.rerun()
 
-sync_col, sync_spacer = st.columns([1, 5])
+sync_col, notion_col, sync_spacer = st.columns([1, 1, 4])
 with sync_col:
     if st.button("↻ 결과 동기화", help="v2 output 폴더에서 완료된 작업을 가져옵니다", use_container_width=True):
         _scan_manifests()
         _set_flash("success", "manifest 동기화 완료")
+        st.rerun()
+with notion_col:
+    notion_ready = _NOTION_OK and notion_is_configured()
+    if st.button(
+        "📋 전체 Notion 동기화",
+        help="모든 항목을 Notion DB에 동기화합니다" if notion_ready else "NOTION_SHORTS_DATABASE_ID 설정 필요",
+        disabled=not notion_ready,
+        use_container_width=True,
+    ):
+        results = notion_sync_all()
+        created = sum(1 for r in results if r["action"] == "created")
+        updated = sum(1 for r in results if r["action"] == "updated")
+        errors = sum(1 for r in results if r["action"] == "error")
+        level = "success" if errors == 0 else "warning"
+        _set_flash(level, f"Notion 동기화 완료: 생성 {created} / 업데이트 {updated} / 오류 {errors}")
         st.rerun()
 
 # ---------------------------------------------------------------------------
@@ -345,6 +536,14 @@ st.divider()
 # ---------------------------------------------------------------------------
 # 레이아웃: 좌측 폼 | 우측 채널 탭 콘텐츠 목록
 # ---------------------------------------------------------------------------
+triage_col, manifest_col, review_col = st.columns(3)
+with triage_col:
+    _render_failure_triage()
+with manifest_col:
+    _render_manifest_sync_panel()
+with review_col:
+    _render_manual_review_queue()
+
 left, right = st.columns([1, 3])
 
 v2_ok = _V2_DIR.exists()
@@ -429,12 +628,13 @@ with right:
                 with row1:
                     status_html = _status_badge(item["status"])
                     yt_html = _youtube_badge(item.get("youtube_status", ""), item.get("youtube_url", ""))
-                    title_display = item.get("title") or item["topic"]
+                    title_display = _html.escape(item.get("title") or item["topic"])
                     ch_tag = ""
                     if item.get("channel"):
+                        safe_ch = _html.escape(item["channel"])
                         ch_tag = (
                             f"<span style='background:#0d6efd;color:white;padding:2px 6px;"
-                            f"border-radius:8px;font-size:0.7rem'>{item['channel']}</span> "
+                            f"border-radius:8px;font-size:0.7rem'>{safe_ch}</span> "
                         )
                     st.markdown(f"{ch_tag}{status_html} {yt_html} &nbsp; **{title_display}**", unsafe_allow_html=True)
                     if item.get("title") and item["title"] != item["topic"]:
@@ -457,7 +657,7 @@ with right:
                         st.caption(f"업로드 오류: {item['youtube_error']}")
 
                 with row2:
-                    btn_col1, btn_col2, btn_col3, btn_col4 = st.columns(4)
+                    btn_col1, btn_col2, btn_col3, btn_col4, btn_col5 = st.columns(5)
                     with btn_col1:
                         can_run = item["status"] in ("pending", "failed") and v2_ok
                         if st.button(
@@ -516,6 +716,23 @@ with right:
                                 _set_flash("error", f"재업로드 실패: {exc}")
                             st.rerun()
                     with btn_col4:
+                        notion_synced = bool(item.get("notion_page_id", ""))
+                        notion_btn_label = "📋 Notion↑" if not notion_synced else "📋 Notion↻"
+                        if st.button(
+                            notion_btn_label,
+                            key=f"notion_{key_prefix}_{item['id']}",
+                            disabled=not (_NOTION_OK and notion_is_configured()),
+                            help="Notion에 동기화" if not notion_synced else "Notion 업데이트",
+                            use_container_width=True,
+                        ):
+                            result = notion_sync_item(item["id"])
+                            action = result["action"]
+                            if action in ("created", "updated"):
+                                _set_flash("success", f"Notion {action}: {result.get('page_id', '')[:8]}")
+                            else:
+                                _set_flash("error", f"Notion 오류: {result.get('error', '')}")
+                            st.rerun()
+                    with btn_col5:
                         if st.button(
                             "삭제",
                             key=f"del_{key_prefix}_{item['id']}",

@@ -841,3 +841,142 @@ def test_run_task_legacy_command_parse_error(monkeypatch, tmp_path):
     log = se.run_task(task_id)
     assert log.exit_code == -5
     assert log.error_type == "invalid_command"
+
+
+def test_scheduler_ops_summary_requires_setup_without_heartbeat(monkeypatch, tmp_path):
+    _configure_tmp_db(monkeypatch, tmp_path)
+
+    summary = se.get_scheduler_ops_summary(stale_after_sec=180)
+    assert summary["status"] == se.OPS_STATUS_SETUP_REQUIRED
+    assert summary["seconds_since_heartbeat"] is None
+    assert "run-due" in summary["next_action"]
+
+
+def test_touch_worker_heartbeat_and_summary_healthy(monkeypatch, tmp_path):
+    _configure_tmp_db(monkeypatch, tmp_path)
+
+    se.touch_worker_heartbeat(note="boot")
+    summary = se.get_scheduler_ops_summary(stale_after_sec=180)
+
+    assert summary["status"] == se.OPS_STATUS_HEALTHY
+    assert summary["seconds_since_heartbeat"] is not None
+    assert summary["note"] == "boot"
+
+
+def test_scheduler_ops_summary_turns_critical_when_stale(monkeypatch, tmp_path):
+    _configure_tmp_db(monkeypatch, tmp_path)
+    se.touch_worker_heartbeat(note="old")
+
+    conn = se._conn()
+    conn.execute(
+        """
+        UPDATE worker_runtime
+        SET last_heartbeat = ?, updated_at = ?
+        WHERE worker_name = ?
+        """,
+        ("2000-01-01 00:00:00", "2000-01-01 00:00:00", se.WORKER_NAME_DEFAULT),
+    )
+    conn.commit()
+    conn.close()
+
+    summary = se.get_scheduler_ops_summary(stale_after_sec=60)
+    assert summary["status"] == se.OPS_STATUS_CRITICAL
+    assert summary["is_stale"] is True
+    assert summary["seconds_since_heartbeat"] is not None
+
+
+def test_run_due_tasks_updates_worker_heartbeat(monkeypatch, tmp_path):
+    _configure_tmp_db(monkeypatch, tmp_path)
+    script_path = tmp_path / "due_hb.py"
+    script_path.write_text("print('hb')\n", encoding="utf-8")
+
+    task_id = se.add_task(
+        name="due-hb",
+        executable="python",
+        args=[str(script_path.name)],
+        cwd=".",
+        cron_expression="*/5 * * * *",
+        timeout_sec=30,
+    )
+
+    conn = se._conn()
+    conn.execute("UPDATE tasks SET next_run = ? WHERE id = ?", ("2000-01-01 00:00:00", task_id))
+    conn.commit()
+    conn.close()
+
+    logs = se.run_due_tasks()
+    assert logs
+
+    heartbeat = se.get_worker_heartbeat()
+    assert heartbeat is not None
+    assert heartbeat["worker_name"] == se.WORKER_NAME_DEFAULT
+    assert heartbeat["note"].startswith("last_task_")
+
+
+def test_get_recent_failure_summary_orders_by_recent_failures(monkeypatch, tmp_path):
+    _configure_tmp_db(monkeypatch, tmp_path)
+    missing_task_id = se.add_task(
+        name="missing-exec",
+        executable="definitely_missing_executable_123",
+        args=[],
+        cwd=".",
+        cron_expression="*/5 * * * *",
+        timeout_sec=10,
+    )
+    script_path = tmp_path / "fail_once.py"
+    script_path.write_text("import sys\nsys.exit(2)\n", encoding="utf-8")
+    script_task_id = se.add_task(
+        name="script-fail",
+        executable="python",
+        args=[str(script_path.name)],
+        cwd=".",
+        cron_expression="*/5 * * * *",
+        timeout_sec=10,
+    )
+
+    se.run_task(missing_task_id)
+    se.run_task(missing_task_id)
+    se.run_task(script_task_id)
+
+    summary = se.get_recent_failure_summary(limit=5, within_hours=24)
+    assert len(summary) >= 2
+    assert summary[0]["task_id"] == missing_task_id
+    assert summary[0]["recent_failures"] >= 2
+    assert summary[0]["failure_count"] >= 2
+    assert summary[0]["last_error_type"] in {"exec_not_found", "non_zero_exit", "auto_disabled"}
+    assert summary[0]["next_action"]
+
+
+def test_get_attention_queue_prioritizes_disabled_and_overdue(monkeypatch, tmp_path):
+    _configure_tmp_db(monkeypatch, tmp_path)
+    disabled_id = se.add_task(
+        name="disabled-failure",
+        executable="definitely_missing_executable_123",
+        args=[],
+        cwd=".",
+        cron_expression="*/5 * * * *",
+        timeout_sec=10,
+    )
+    overdue_id = se.add_task(
+        name="overdue-task",
+        executable="python",
+        args=["-c", "print('ok')"],
+        cwd=".",
+        cron_expression="*/5 * * * *",
+        timeout_sec=10,
+    )
+
+    for _ in range(se.MAX_FAILURE_COUNT):
+        se.run_task(disabled_id)
+
+    conn = se._conn()
+    conn.execute("UPDATE tasks SET next_run = ? WHERE id = ?", ("2000-01-01 00:00:00", overdue_id))
+    conn.commit()
+    conn.close()
+
+    queue = se.get_attention_queue(limit=10)
+    assert len(queue) >= 2
+    assert queue[0]["task_id"] == disabled_id
+    assert "auto_disabled" in queue[0]["reasons"]
+    overdue = next(item for item in queue if item["task_id"] == overdue_id)
+    assert "overdue" in overdue["reasons"]

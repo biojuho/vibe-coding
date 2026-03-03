@@ -11,6 +11,9 @@ try:
     from execution.scheduler_engine import (
         add_task,
         delete_task,
+        get_attention_queue,
+        get_recent_failure_summary,
+        get_scheduler_ops_summary,
         get_scheduler_kpis,
         get_logs,
         init_db,
@@ -23,6 +26,12 @@ except ImportError as e:
     _MODULE_OK = False
     _MODULE_ERR = str(e)
 
+try:
+    from execution.telegram_notifier import get_delivery_status_summary
+    _TG_OK = True
+except ImportError:
+    _TG_OK = False
+
 st.set_page_config(page_title="Scheduler - Joolife", page_icon="📅", layout="wide")
 
 if not _MODULE_OK:
@@ -32,10 +41,123 @@ if not _MODULE_OK:
 
 init_db()
 
+
+def _ops_badge(status: str) -> str:
+    colors = {
+        "healthy": "#28a745",
+        "warning": "#fd7e14",
+        "critical": "#dc3545",
+        "setup_required": "#6f42c1",
+    }
+    labels = {
+        "healthy": "Healthy",
+        "warning": "Warning",
+        "critical": "Critical",
+        "setup_required": "Setup Required",
+    }
+    color = colors.get(status, "#6c757d")
+    label = labels.get(status, status)
+    return (
+        f"<span style='background:{color};color:white;padding:2px 8px;"
+        f"border-radius:10px;font-size:0.75rem'>{label}</span>"
+    )
+
+
 st.title("📅 Scheduler Dashboard")
 st.caption("Task scheduling & automation management")
 
 # ── KPI ──
+ops_summary = get_scheduler_ops_summary()
+if ops_summary["status"] == "critical":
+    st.error(ops_summary["next_action"])
+elif ops_summary["status"] == "warning":
+    st.warning(ops_summary["next_action"])
+elif ops_summary["status"] == "setup_required":
+    st.info(ops_summary["next_action"])
+
+st.subheader("Worker Status")
+worker_cols = st.columns([1.2, 1.2, 1.2, 2.4])
+with worker_cols[0]:
+    st.markdown(_ops_badge(ops_summary["status"]), unsafe_allow_html=True)
+with worker_cols[1]:
+    st.caption("Last heartbeat")
+    st.write(ops_summary["last_heartbeat"] or "Never")
+with worker_cols[2]:
+    st.caption("Seconds since")
+    st.write(
+        "-"
+        if ops_summary["seconds_since_heartbeat"] is None
+        else str(ops_summary["seconds_since_heartbeat"])
+    )
+with worker_cols[3]:
+    st.caption("Next action")
+    st.write(ops_summary["next_action"])
+
+if ops_summary.get("note"):
+    st.caption(f"Worker note: {ops_summary['note']}")
+
+st.subheader("Recent Failures")
+failure_items = get_recent_failure_summary(limit=6)
+if not failure_items:
+    st.info("No recent scheduler failures.")
+else:
+    for item in failure_items:
+        with st.container(border=True):
+            cols = st.columns([2.2, 1.2, 1.2, 2.4])
+            with cols[0]:
+                st.markdown(f"**{item['name']}**")
+                st.caption(f"Error: `{item['last_error_type'] or 'unknown'}`")
+            with cols[1]:
+                st.caption("Recent 24h")
+                st.write(str(item["recent_failures"]))
+            with cols[2]:
+                st.caption("Consecutive")
+                st.write(str(item["failure_count"]))
+            with cols[3]:
+                st.caption("Next action")
+                st.write(item["next_action"])
+            if item.get("last_failed_at"):
+                st.caption(f"Last failed: {item['last_failed_at']}")
+            if item.get("last_stderr"):
+                st.caption(f"stderr: {item['last_stderr'][:160]}")
+
+st.subheader("Attention Queue")
+attention_items = get_attention_queue(limit=6)
+if not attention_items:
+    st.info("No attention items.")
+else:
+    for item in attention_items:
+        with st.container(border=True):
+            st.markdown(f"**{item['name']}**")
+            st.caption(
+                f"reason: {', '.join(item['reasons'])} | "
+                f"failure_count: {item['failure_count']} | "
+                f"next_run: {item['next_run'] or 'N/A'}"
+            )
+            st.caption(f"next action: {item['next_action']}")
+
+st.subheader("Telegram Status")
+if not _TG_OK:
+    st.info("Telegram notifier module not available.")
+else:
+    telegram_summary = get_delivery_status_summary()
+    tg_cols = st.columns([1.2, 1.6, 1.6, 2.4])
+    with tg_cols[0]:
+        st.markdown(_ops_badge(telegram_summary["status"]), unsafe_allow_html=True)
+    with tg_cols[1]:
+        st.caption("Last success")
+        st.write(telegram_summary["last_success_at"] or "Never")
+    with tg_cols[2]:
+        st.caption("Last failure")
+        st.write(telegram_summary["last_failure_at"] or "None")
+    with tg_cols[3]:
+        st.caption("Next action")
+        st.write(telegram_summary["next_action"])
+    if telegram_summary.get("last_error"):
+        st.caption(f"last error: {telegram_summary['last_error']}")
+    if telegram_summary.get("last_message_preview"):
+        st.caption(f"last message: {telegram_summary['last_message_preview']}")
+
 kpi = get_scheduler_kpis(days=7)
 k1, k2, k3, k4 = st.columns(4)
 with k1:
