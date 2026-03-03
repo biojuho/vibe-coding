@@ -327,6 +327,12 @@ PROJECTS = [
     {"key": "scheduler_worker", "icon": "⚙️", "name": "Scheduler Worker", "desc": "Runs the due-task polling worker.",
      "cmd": "python execution/scheduler_worker.py --interval 30", "cwd": ".", "terminal": True,
      "category": "Monitoring"},
+    {"key": "health", "icon": "🏥", "name": "Health Check", "desc": "시스템 상태 일괄 점검.",
+     "cmd": "streamlit run pages/health_check_dashboard.py", "cwd": ".", "port": 8513,
+     "category": "Monitoring"},
+    {"key": "debug_hist", "icon": "🪲", "name": "Debug History", "desc": "디버깅 이력 및 에러 패턴.",
+     "cmd": "streamlit run pages/debug_history.py", "cwd": ".", "port": 8514,
+     "category": "Monitoring"},
     # Row 6: Mini Games (1)
     {"key": "discord", "icon": "💬", "name": "Discord Bot", "desc": "Dice, rock-paper-scissors, and party chat commands.",
      "cmd": "python bot.py", "cwd": "discord-bot", "terminal": True,

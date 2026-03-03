@@ -33,6 +33,12 @@ sys.path.insert(0, str(_ROOT))
 
 from execution.content_db import add_topic, get_all, get_channels, get_top_performing_topics, init_db  # noqa: E402
 
+try:
+    from execution.community_trend_scraper import get_community_trend_titles  # noqa: E402
+    _COMMUNITY_TRENDS_OK = True
+except ImportError:
+    _COMMUNITY_TRENDS_OK = False
+
 THRESHOLD = 3   # pending이 이 이하면 보충
 GEN_COUNT = 5   # 한 번에 생성할 주제 수
 MODEL = "gpt-4o-mini"
@@ -171,6 +177,14 @@ def check_and_replenish(
         existing = [i["topic"] for i in items]
         top_performers = get_top_performing_topics(limit=10, channel=ch)
         trending = get_trending_topics(count=10)
+        if _COMMUNITY_TRENDS_OK:
+            try:
+                community = get_community_trend_titles(limit=5)
+                if community:
+                    logger.debug("[COMMUNITY] %s", ", ".join(community[:3]))
+                    trending = trending + community
+            except Exception:
+                logger.warning("커뮤니티 트렌드 수집 실패 (무시)")
         if trending:
             logger.debug("[TREND] %s", ", ".join(trending[:5]))
         new_topics = generate_topics(

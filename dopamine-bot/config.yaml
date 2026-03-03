@@ -1,0 +1,19 @@
+dopamine_bot:
+  scrapers:
+    fmkorea:
+      enabled: true
+      target_url: "https://www.fmkorea.com/index.php?mid=best&listStyle=list"
+      post_limit: 5 # 수집할 베스트 게시물 수
+      filters:
+        min_views: 10000
+        min_recommendations: 100
+
+    ppomppu:
+      enabled: true
+      target_url: "https://www.ppomppu.co.kr/zboard/zboard.php?id=freeboard" # 뽐뿌는 자유게시판 핫게 등을 예시로 설정가능, 지금은 전체 핫게용 url 사용 (hot.php)
+      # 실제 사용할 핫게시글 접속 URL:
+      # target_url: "https://www.ppomppu.co.kr/hot.php?category=2" (전체 핫게시글)
+      post_limit: 5
+      filters:
+        min_views: 5000
+        min_recommendations: 20

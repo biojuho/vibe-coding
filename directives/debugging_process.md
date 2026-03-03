@@ -294,13 +294,33 @@ logger = logging.getLogger(__name__)
 
 ## 10. 다음 액션
 
-10.1 **지금 당장 할 일 3가지:**
+10.1 **완료된 액션:**
 - (1) 이 SOP를 `directives/debugging_process.md`로 저장 완료 ✅
-- (2) 현재 알려진 버그가 있다면 이 프로세스로 한 건 시범 적용
-- (3) 각 execution/ 스크립트에 로깅 표준(6.2)이 적용되어 있는지 점검
+- (2) execution/ 스크립트 로깅 표준 점검 완료 ✅ (4개 logging 적용, 나머지 CLI-only print 준수)
+- (3) `execution/health_check.py` 제작 완료 ✅ (31개 항목: env, api, filesystem, database, environment)
+- (4) `execution/debug_history_db.py` 제작 완료 ✅ (이력 CRUD + 에러 패턴 매핑 + 19개 패턴 시드)
+- (5) 기존 버그 이력 20건 시드 등록 완료 ✅
 
-10.2 **선택적 다음 단계:**
-- 자동화된 health-check 스크립트 제작 (API 연결 상태, 토큰 유효성 일괄 확인)
-- 디버깅 히스토리 DB 구축 (에러 패턴 → 해결책 매핑)
+10.2 **도구 사용법:**
 
-10.2 체계가 잡히면 버그가 와도 무섭지 않다. 하나씩 단단하게 만들어가자.
+```bash
+# 시스템 헬스 체크
+python execution/health_check.py               # 전체 점검
+python execution/health_check.py --category api # API만
+python execution/health_check.py --json         # JSON 출력
+
+# 디버깅 이력 기록
+python execution/debug_history_db.py add --severity P1 --module 모듈명 \
+    --symptom "증상" --cause "원인" --solution "해결"
+python execution/debug_history_db.py search "키워드"
+python execution/debug_history_db.py stats
+python execution/debug_history_db.py lookup "에러메시지"  # 패턴 자동 매칭
+```
+
+10.3 **선택적 다음 단계:**
+
+- Streamlit 대시보드에 헬스 체크 탭 추가
+- 스케줄러에 주기적 헬스 체크 + Telegram 알림 연동
+- 디버깅 이력에서 반복 패턴 자동 감지 (top N 에러 분석)
+
+10.3 체계가 잡히면 버그가 와도 무섭지 않다. 하나씩 단단하게 만들어가자.
