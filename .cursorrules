@@ -1,0 +1,33 @@
+# 에이전트 지침
+
+> 이 파일은 Cursor에서 자동 로드됩니다. 동일 내용은 CLAUDE.md, AGENTS.md, GEMINI.md에도 있습니다.
+
+## AI 도구 공유 컨텍스트 시스템
+
+이 프로젝트는 여러 AI 도구(Claude Code, Codex, Gemini, Cursor 등)가 번갈아 작업하는 로컬 전용 프로젝트입니다.
+**세션 시작 시 반드시 아래 파일들을 순서대로 읽으십시오:**
+
+1. `.ai/CONTEXT.md` — 프로젝트 구조, 스택, 컨벤션, 진행 상황
+2. `.ai/SESSION_LOG.md` — 이전 AI 도구들의 작업 기록
+3. `.ai/DECISIONS.md` — 확정된 아키텍처 결정 (**절대 임의 변경 금지**)
+
+### 코딩 컨벤션
+**TypeScript/React**: 함수형 컴포넌트 + 화살표 함수, Props는 별도 interface, any 금지(unknown + 타입가드), 비즈니스 로직은 커스텀 훅 분리
+**Python**: 타입 힌트 필수, Google 스타일 docstring, f-string 사용, Pydantic 데이터 검증
+**네이밍**: JS는 camelCase(함수/변수), PascalCase(컴포넌트) / Python은 snake_case(함수/변수), PascalCase(클래스)
+**Import 순서**: (JS) React→외부→내부→훅→타입→스타일 / (Python) 표준→서드파티→로컬
+
+### 작업 규칙
+- .ai/CONTEXT.md의 디렉토리 구조를 따를 것
+- 환경변수 추가 시 .env.example에도 키 추가
+- 에러 핸들링 필수, 빈 catch 금지
+- 커밋 메시지: 한국어, "[영역] 작업내용" 형식
+- 원격 push/pull/deploy 절대 금지 (로컬 전용)
+- .ai/DECISIONS.md의 결정사항을 임의로 변경하지 말 것
+
+### 세션 종료 시 반드시:
+1. `.ai/SESSION_LOG.md`에 이번 세션 기록 추가
+2. 진행 상황 변경 시 `.ai/CONTEXT.md` 업데이트
+3. 새 아키텍처 결정 시 `.ai/DECISIONS.md` 기록
+4. AI 반복 실수 발견 시 `.ai/CONTEXT.md`의 "지뢰밭" 섹션에 추가
+5. `git commit -m "[ai-context] 세션 로그 업데이트"`
