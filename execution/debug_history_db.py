@@ -16,7 +16,7 @@ Usage (library):
 import argparse
 import json
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -370,7 +370,7 @@ def log_scrape_quality(source: str, url: str, quality_score: float, issues: list
             "INSERT INTO scrape_quality_log (logged_at, source, url, quality_score, issues) "
             "VALUES (?, ?, ?, ?, ?)",
             (
-                datetime.utcnow().isoformat(),
+                datetime.now(timezone.utc).isoformat(),
                 source[:100],
                 url[:500],
                 round(float(quality_score), 2),
@@ -389,7 +389,7 @@ def get_scrape_quality_stats(days: int = 14) -> Dict:
     init_db()
     conn = _conn()
     try:
-        cutoff = datetime.utcnow().replace(microsecond=0).isoformat()[:10]
+        cutoff = datetime.now(timezone.utc).replace(microsecond=0).isoformat()[:10]
         rows = conn.execute(
             "SELECT source, AVG(quality_score) as avg_score, COUNT(*) as total "
             "FROM scrape_quality_log "
