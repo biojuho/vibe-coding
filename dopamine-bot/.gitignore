@@ -1,9 +1,0 @@
-# 테스트 산출물
-*_test*.html
-*_test*.json
-*_result*.txt
-*_result*.json
-
-# Python cache
-__pycache__/
-*.pyc

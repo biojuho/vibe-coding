@@ -50,7 +50,7 @@ if report is None:
 # ── Summary Metrics ──
 st.divider()
 s = report["summary"]
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
 with col1:
     st.metric("Total Commits", s["total_commits"])
 with col2:
@@ -59,6 +59,12 @@ with col3:
     st.metric("Files Modified", s["files_modified"])
 with col4:
     st.metric("Scheduled Tasks Run", s["scheduler_tasks_run"])
+with col5:
+    st.metric("LLM Bridge Calls", s.get("llm_bridge_calls", 0))
+with col6:
+    st.metric("Bridge Repairs", s.get("llm_bridge_repairs", 0))
+with col7:
+    st.metric("Bridge Fallbacks", s.get("llm_bridge_fallbacks", 0))
 
 # ── Git Activity ──
 st.divider()
@@ -97,3 +103,23 @@ if sched_logs:
     for log in sched_logs:
         icon = "✅" if log.get("exit_code") == 0 else "❌"
         st.markdown(f"{icon} **{log['task_name']}** — {log['started_at']}")
+
+bridge = report.get("llm_bridge", {})
+if bridge.get("total_calls", 0):
+    st.divider()
+    st.subheader("LLM Bridge")
+    bridge_col1, bridge_col2, bridge_col3, bridge_col4 = st.columns(4)
+    with bridge_col1:
+        st.metric("Shadow Calls", bridge.get("shadow_calls", 0))
+    with bridge_col2:
+        st.metric("Enforce Calls", bridge.get("enforce_calls", 0))
+    with bridge_col3:
+        st.metric("Avg Language Score", bridge.get("average_language_score") or 0)
+    with bridge_col4:
+        st.metric("Providers", len(bridge.get("by_provider", {})))
+
+    reason_codes = bridge.get("top_reason_codes", [])
+    if reason_codes:
+        st.markdown("**Top Reason Codes:**")
+        for item in reason_codes[:10]:
+            st.markdown(f"- `{item['reason_code']}` {item['count']}회")
