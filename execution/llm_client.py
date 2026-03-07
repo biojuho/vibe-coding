@@ -346,7 +346,7 @@ class LLMClient:
             output_tokens = getattr(resp.usage, "output_tokens", 0)
             return content, input_tokens, output_tokens
 
-        raise ValueError(f"Unsupported provider: {provider}")
+        raise ValueError(f"Unsupported provider: {provider}")  # pragma: no cover — _get_client raises first
 
     def _log_usage(
         self,

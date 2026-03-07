@@ -325,3 +325,47 @@ def test_collect_and_update_passes_channel_to_get_all(monkeypatch):
     yac.collect_and_update(channel="science")
 
     assert captured_channels == ["science"]
+
+
+# ---------------------------------------------------------------------------
+# _cli (lines 136-145)
+# ---------------------------------------------------------------------------
+
+
+def test_cli_calls_collect_and_update_and_prints_result(monkeypatch, capsys):
+    """_cli() parses argv, calls collect_and_update, and prints summary."""
+    import sys
+
+    monkeypatch.setattr(sys, "argv", ["youtube_analytics_collector.py", "--channel", "science"])
+    monkeypatch.setattr(
+        yac,
+        "collect_and_update",
+        lambda channel=None: {"updated": 3, "skipped": 1, "errors": ["id=5: timeout"]},
+    )
+
+    yac._cli()
+
+    output = capsys.readouterr().out
+    assert "3개 업데이트" in output
+    assert "1개 스킵" in output
+    assert "1개 에러" in output
+    assert "id=5: timeout" in output
+
+
+def test_cli_no_channel_arg(monkeypatch, capsys):
+    """_cli() without --channel passes None to collect_and_update."""
+    import sys
+
+    captured_channels = []
+    monkeypatch.setattr(sys, "argv", ["youtube_analytics_collector.py"])
+    monkeypatch.setattr(
+        yac,
+        "collect_and_update",
+        lambda channel=None: captured_channels.append(channel) or {"updated": 0, "skipped": 0, "errors": []},
+    )
+
+    yac._cli()
+
+    assert captured_channels == [None]
+    output = capsys.readouterr().out
+    assert "0개 업데이트" in output

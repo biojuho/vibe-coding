@@ -227,3 +227,220 @@ def test_reload_wraps_stdout_for_non_utf8(monkeypatch):
     monkeypatch.setattr(sys, "stdout", original_stdout)
     monkeypatch.setattr(sys, "stderr", original_stderr)
     importlib.reload(tag)
+
+
+# ---------------------------------------------------------------------------
+# get_trending_topics (lines 46-48)
+# ---------------------------------------------------------------------------
+
+
+def test_get_trending_topics_success(monkeypatch):
+    """Mocked pytrends returns trending keywords."""
+    import types as _types
+
+    class FakeTrendReq:
+        def __init__(self, **kw):
+            pass
+
+        def trending_searches(self, pn="south_korea"):
+            import types
+            # Return a fake DataFrame-like object with [0].tolist()
+            class FakeDF:
+                def __init__(self):
+                    self._data = {0: self}
+                    self._items = ["키워드1", "키워드2", "키워드3"]
+
+                def __getitem__(self, key):
+                    if key == 0:
+                        return self
+                    raise KeyError(key)
+
+                def tolist(self):
+                    return self._items
+            return FakeDF()
+
+    fake_pytrends = _types.ModuleType("pytrends")
+    fake_request = _types.ModuleType("pytrends.request")
+    fake_request.TrendReq = FakeTrendReq
+    fake_pytrends.request = fake_request
+
+    monkeypatch.setitem(sys.modules, "pytrends", fake_pytrends)
+    monkeypatch.setitem(sys.modules, "pytrends.request", fake_request)
+
+    result = tag.get_trending_topics(count=2)
+    assert result == ["키워드1", "키워드2"]
+
+
+def test_get_trending_topics_import_error(monkeypatch):
+    """pytrends not installed -> returns empty list."""
+    # Remove pytrends from modules if present
+    monkeypatch.delitem(sys.modules, "pytrends", raising=False)
+    monkeypatch.delitem(sys.modules, "pytrends.request", raising=False)
+
+    import builtins
+    original_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        if name == "pytrends.request" or name == "pytrends":
+            raise ImportError("No module named 'pytrends'")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+
+    result = tag.get_trending_topics()
+    assert result == []
+
+
+# ---------------------------------------------------------------------------
+# generate_topics with trending_keywords (line 98)
+# ---------------------------------------------------------------------------
+
+
+def test_generate_topics_with_trending_keywords(monkeypatch):
+    """trending_keywords are included in the prompt."""
+    fake = _FakeLLMClient(json_result={"topics": ["Trend Topic A"]})
+    monkeypatch.setattr(tag, "LLMClient", lambda **kwargs: fake)
+
+    topics = tag.generate_topics(
+        "space",
+        ["old"],
+        count=1,
+        trending_keywords=["트렌드1", "트렌드2"],
+    )
+
+    assert topics == ["Trend Topic A"]
+    prompt = fake.calls[0]["user_prompt"]
+    assert "트렌드1" in prompt
+    assert "트렌드2" in prompt
+
+
+# ---------------------------------------------------------------------------
+# generate_topics non-bridged fallback (line 122)
+# ---------------------------------------------------------------------------
+
+
+def test_generate_topics_uses_non_bridged_fallback(monkeypatch):
+    """When generate_json_bridged is not available, falls back to generate_json."""
+    class _NoBridgeLLMClient:
+        def __init__(self):
+            self.calls = []
+
+        def enabled_providers(self):
+            return ["google"]
+
+        def generate_json(self, *, system_prompt, user_prompt, temperature=0.7):
+            self.calls.append("generate_json")
+            return {"topics": ["Fallback Topic"]}
+
+    fake = _NoBridgeLLMClient()
+    monkeypatch.setattr(tag, "LLMClient", lambda **kwargs: fake)
+
+    topics = tag.generate_topics("space", ["old"], count=1)
+
+    assert topics == ["Fallback Topic"]
+    assert fake.calls == ["generate_json"]
+
+
+# ---------------------------------------------------------------------------
+# _COMMUNITY_TRENDS_OK = False (lines 35-36)
+# ---------------------------------------------------------------------------
+
+
+def test_check_and_replenish_without_community_trends(monkeypatch, caplog):
+    """When _COMMUNITY_TRENDS_OK is False, community trend collection is skipped."""
+    monkeypatch.setattr(tag, "_COMMUNITY_TRENDS_OK", False)
+    monkeypatch.setattr(tag, "get_channels", lambda: ["space"])
+    monkeypatch.setattr(
+        tag,
+        "get_all",
+        lambda channel=None: [{"topic": "old topic", "status": "pending"}],
+    )
+    monkeypatch.setattr(tag, "get_top_performing_topics", lambda limit=10, channel=None: [])
+    monkeypatch.setattr(tag, "get_trending_topics", lambda count=10: [])
+    monkeypatch.setattr(
+        tag,
+        "generate_topics",
+        lambda channel, existing, count=0, top_performers=None, **kwargs: ["new topic"],
+    )
+    added = []
+    monkeypatch.setattr(tag, "add_topic", lambda topic, channel="", notes="": added.append(topic))
+
+    with caplog.at_level("INFO", logger="execution.topic_auto_generator"):
+        result = tag.check_and_replenish(threshold=3, count=1, dry_run=False)
+
+    assert result == {"space": ["new topic"]}
+    assert added == ["new topic"]
+
+
+# ---------------------------------------------------------------------------
+# community trend collection in auto_generate_all (lines 172-175, 177)
+# ---------------------------------------------------------------------------
+
+
+def test_check_and_replenish_with_community_trends_success(monkeypatch, caplog):
+    """Community trends are appended to trending keywords."""
+    monkeypatch.setattr(tag, "_COMMUNITY_TRENDS_OK", True)
+    monkeypatch.setattr(tag, "get_channels", lambda: ["space"])
+    monkeypatch.setattr(
+        tag,
+        "get_all",
+        lambda channel=None: [{"topic": "old topic", "status": "pending"}],
+    )
+    monkeypatch.setattr(tag, "get_top_performing_topics", lambda limit=10, channel=None: [])
+    monkeypatch.setattr(tag, "get_trending_topics", lambda count=10: ["trending1"])
+
+    captured_kwargs = {}
+
+    def fake_generate(channel, existing, count=0, top_performers=None, **kwargs):
+        captured_kwargs.update(kwargs)
+        return ["community topic"]
+
+    monkeypatch.setattr(tag, "generate_topics", fake_generate)
+
+    # Mock community trend function
+    monkeypatch.setattr(
+        tag,
+        "get_community_trend_titles",
+        lambda limit=5: ["커뮤니티1", "커뮤니티2"],
+    )
+    added = []
+    monkeypatch.setattr(tag, "add_topic", lambda topic, channel="", notes="": added.append(topic))
+
+    with caplog.at_level("DEBUG", logger="execution.topic_auto_generator"):
+        result = tag.check_and_replenish(threshold=3, count=1, dry_run=False)
+
+    assert result == {"space": ["community topic"]}
+    # Verify community trends were appended to trending_keywords
+    assert "커뮤니티1" in captured_kwargs.get("trending_keywords", [])
+    assert "trending1" in captured_kwargs.get("trending_keywords", [])
+
+
+def test_check_and_replenish_community_trends_failure(monkeypatch, caplog):
+    """Community trend collection fails -> warning logged, continues normally."""
+    monkeypatch.setattr(tag, "_COMMUNITY_TRENDS_OK", True)
+    monkeypatch.setattr(tag, "get_channels", lambda: ["space"])
+    monkeypatch.setattr(
+        tag,
+        "get_all",
+        lambda channel=None: [{"topic": "old topic", "status": "pending"}],
+    )
+    monkeypatch.setattr(tag, "get_top_performing_topics", lambda limit=10, channel=None: [])
+    monkeypatch.setattr(tag, "get_trending_topics", lambda count=10: [])
+    monkeypatch.setattr(
+        tag,
+        "get_community_trend_titles",
+        lambda limit=5: (_ for _ in ()).throw(RuntimeError("scrape fail")),
+    )
+    monkeypatch.setattr(
+        tag,
+        "generate_topics",
+        lambda channel, existing, count=0, top_performers=None, **kwargs: ["fallback topic"],
+    )
+    added = []
+    monkeypatch.setattr(tag, "add_topic", lambda topic, channel="", notes="": added.append(topic))
+
+    with caplog.at_level("WARNING", logger="execution.topic_auto_generator"):
+        result = tag.check_and_replenish(threshold=3, count=1, dry_run=False)
+
+    assert result == {"space": ["fallback topic"]}
+    assert "커뮤니티 트렌드 수집 실패" in caplog.text

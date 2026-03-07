@@ -170,3 +170,57 @@ def test_get_community_trend_titles_skips_empty():
          patch.object(cts, "_PpomppuScraper", None):
         titles = cts.get_community_trend_titles(sources=["fmkorea"])
     assert titles == ["있는제목"]
+
+
+# ---------------------------------------------------------------------------
+# main() CLI function (lines 125-145)
+# ---------------------------------------------------------------------------
+
+
+def test_main_json_output(monkeypatch, capsys):
+    """main()이 --json 플래그로 JSON 출력."""
+    import json as _json
+
+    mock_cls = MagicMock()
+    mock_cls.return_value.scrape.return_value = [
+        {"title": "CLI제목", "source": "fmkorea", "views": "100", "recommendations": "5", "link": "https://x.com/1"},
+    ]
+
+    monkeypatch.setattr("sys.argv", ["community_trend_scraper.py", "--json", "--source", "fmkorea"])
+    with patch.object(cts, "_FMKoreaScraper", mock_cls), \
+         patch.object(cts, "_PpomppuScraper", None):
+        ret = cts.main()
+    assert ret == 0
+    captured = capsys.readouterr().out
+    data = _json.loads(captured)
+    assert isinstance(data, list)
+    assert data[0]["title"] == "CLI제목"
+
+
+def test_main_text_output(monkeypatch, capsys):
+    """main()이 기본(텍스트) 형식으로 출력."""
+    mock_cls = MagicMock()
+    mock_cls.return_value.scrape.return_value = [
+        {"title": "텍스트제목", "source": "ppomppu", "views": "200", "recommendations": "10", "link": ""},
+    ]
+
+    monkeypatch.setattr("sys.argv", ["community_trend_scraper.py", "--source", "ppomppu", "--limit", "5"])
+    with patch.object(cts, "_FMKoreaScraper", None), \
+         patch.object(cts, "_PpomppuScraper", mock_cls):
+        ret = cts.main()
+    assert ret == 0
+    captured = capsys.readouterr().out
+    assert "1건 수집" in captured
+    assert "텍스트제목" in captured
+    assert "ppomppu" in captured
+
+
+def test_main_no_source_flag(monkeypatch, capsys):
+    """main()이 --source 없이 모든 소스 수집."""
+    monkeypatch.setattr("sys.argv", ["community_trend_scraper.py", "--json"])
+    with patch.object(cts, "_FMKoreaScraper", None), \
+         patch.object(cts, "_PpomppuScraper", None):
+        ret = cts.main()
+    assert ret == 0
+    captured = capsys.readouterr().out
+    assert "[]" in captured

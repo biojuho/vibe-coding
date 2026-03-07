@@ -434,3 +434,56 @@ def test_main_without_command_prints_help(monkeypatch, capsys):
 
     assert result == 1
     assert "usage:" in capsys.readouterr().out.lower()
+
+
+# ---------------------------------------------------------------------------
+# _load_status_payload edge cases (lines 89-90)
+# ---------------------------------------------------------------------------
+
+
+def test_load_status_payload_returns_empty_when_file_missing(monkeypatch, tmp_path):
+    """STATUS_PATH doesn't exist -> returns empty dict."""
+    monkeypatch.setattr(tn, "STATUS_PATH", tmp_path / "nonexistent.json")
+    result = tn._load_status_payload()
+    assert result == {}
+
+
+def test_load_status_payload_returns_empty_on_invalid_json(monkeypatch, tmp_path):
+    """STATUS_PATH exists but has invalid JSON -> returns empty dict."""
+    bad_file = tmp_path / "bad.json"
+    bad_file.write_text("{not valid json", encoding="utf-8")
+    monkeypatch.setattr(tn, "STATUS_PATH", bad_file)
+    result = tn._load_status_payload()
+    assert result == {}
+
+
+# ---------------------------------------------------------------------------
+# get_delivery_status_summary edge cases (lines 145-146, 154-155)
+# ---------------------------------------------------------------------------
+
+
+def test_get_delivery_status_summary_disabled_returns_setup_required(monkeypatch, tmp_path):
+    """config.enabled is False -> status='setup_required'."""
+    monkeypatch.setattr(tn, "STATUS_PATH", tmp_path / "telegram_status.json")
+    monkeypatch.setenv("TELEGRAM_ENABLED", "0")
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:token")
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "999")
+
+    summary = tn.get_delivery_status_summary()
+
+    assert summary["status"] == "setup_required"
+    assert "TELEGRAM_ENABLED" in summary["next_action"]
+
+
+def test_get_delivery_status_summary_warning_no_attempt(monkeypatch, tmp_path):
+    """No last_attempt_at in payload -> status='warning'."""
+    _configure_env(monkeypatch)
+    monkeypatch.setattr(tn, "STATUS_PATH", tmp_path / "telegram_status.json")
+    # Create a valid status file with no last_attempt_at
+    status_file = tmp_path / "telegram_status.json"
+    status_file.write_text('{"last_delivery_ok": true}', encoding="utf-8")
+
+    summary = tn.get_delivery_status_summary()
+
+    assert summary["status"] == "warning"
+    assert "테스트 메시지" in summary["next_action"]

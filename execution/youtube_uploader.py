@@ -301,7 +301,7 @@ def upload_pending_items(
     """content_db에서 업로드 가능한 항목을 찾아 순차 업로드."""
     import sys
     _root = Path(__file__).resolve().parent.parent
-    if str(_root) not in sys.path:
+    if str(_root) not in sys.path:  # pragma: no cover — always in path during normal execution
         sys.path.insert(0, str(_root))
     from execution.content_db import get_uploadable_items, init_db, update_job
 

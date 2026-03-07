@@ -980,3 +980,174 @@ def test_get_attention_queue_prioritizes_disabled_and_overdue(monkeypatch, tmp_p
     assert "auto_disabled" in queue[0]["reasons"]
     overdue = next(item for item in queue if item["task_id"] == overdue_id)
     assert "overdue" in overdue["reasons"]
+
+
+# ---------------------------------------------------------------------------
+# _parse_datetime (lines 335-341)
+# ---------------------------------------------------------------------------
+
+
+def test_parse_datetime_valid():
+    result = se._parse_datetime("2026-03-07 14:30:00")
+    assert result is not None
+    assert result.year == 2026
+    assert result.month == 3
+    assert result.day == 7
+
+
+def test_parse_datetime_none():
+    assert se._parse_datetime(None) is None
+
+
+def test_parse_datetime_empty_string():
+    assert se._parse_datetime("") is None
+
+
+def test_parse_datetime_invalid_format():
+    assert se._parse_datetime("not-a-date") is None
+
+
+def test_parse_datetime_partial_format():
+    assert se._parse_datetime("2026-03-07") is None
+
+
+# ---------------------------------------------------------------------------
+# get_scheduler_ops_summary edge cases (lines 360-387)
+# ---------------------------------------------------------------------------
+
+
+def test_scheduler_ops_summary_unparseable_heartbeat(monkeypatch, tmp_path):
+    """Heartbeat exists but datetime is unparseable -> OPS_STATUS_CRITICAL."""
+    _configure_tmp_db(monkeypatch, tmp_path)
+    se.touch_worker_heartbeat(note="test")
+
+    # Set heartbeat to an unparseable string
+    conn = se._conn()
+    conn.execute(
+        "UPDATE worker_runtime SET last_heartbeat = ? WHERE worker_name = ?",
+        ("invalid-datetime-format", se.WORKER_NAME_DEFAULT),
+    )
+    conn.commit()
+    conn.close()
+
+    summary = se.get_scheduler_ops_summary(stale_after_sec=180)
+    assert summary["status"] == se.OPS_STATUS_CRITICAL
+    assert summary["seconds_since_heartbeat"] is None
+    assert summary["is_stale"] is True
+    assert "형식" in summary["next_action"]
+
+
+def test_scheduler_ops_summary_warning_state(monkeypatch, tmp_path):
+    """Worker heartbeat is older than stale_after_sec//2 but not stale -> WARNING."""
+    _configure_tmp_db(monkeypatch, tmp_path)
+    se.touch_worker_heartbeat(note="half-stale")
+
+    from datetime import datetime as _dt, timedelta as _td
+
+    # Set heartbeat to stale_after_sec//2 + 10 seconds ago (triggers warning but not critical)
+    stale_sec = 180
+    half_plus = stale_sec // 2 + 10  # 100 seconds ago
+    old_time = (_dt.now() - _td(seconds=half_plus)).strftime("%Y-%m-%d %H:%M:%S")
+
+    conn = se._conn()
+    conn.execute(
+        "UPDATE worker_runtime SET last_heartbeat = ?, updated_at = ? WHERE worker_name = ?",
+        (old_time, old_time, se.WORKER_NAME_DEFAULT),
+    )
+    conn.commit()
+    conn.close()
+
+    summary = se.get_scheduler_ops_summary(stale_after_sec=stale_sec)
+    assert summary["status"] == se.OPS_STATUS_WARNING
+    assert summary["is_stale"] is False
+    assert "점검" in summary["next_action"]
+
+
+# ---------------------------------------------------------------------------
+# get_attention_queue edge cases (lines 855-902)
+# ---------------------------------------------------------------------------
+
+
+def test_get_attention_queue_empty_when_all_healthy(monkeypatch, tmp_path):
+    """No disabled/failed/overdue tasks -> empty queue."""
+    _configure_tmp_db(monkeypatch, tmp_path)
+    se.add_task(
+        name="healthy-task",
+        executable="python",
+        args=["-c", "print('ok')"],
+        cwd=".",
+        cron_expression="*/5 * * * *",
+    )
+
+    queue = se.get_attention_queue(limit=10)
+    assert queue == []
+
+
+def test_get_attention_queue_repeated_failures_only(monkeypatch, tmp_path):
+    """Task with repeated failures but still enabled -> 'repeated_failures' reason."""
+    _configure_tmp_db(monkeypatch, tmp_path)
+
+    # Create task and manually set failure_count high but keep enabled
+    task_id = se.add_task(
+        name="failing-task",
+        executable="python",
+        args=["-c", "print('ok')"],
+        cwd=".",
+        cron_expression="*/5 * * * *",
+    )
+    failure_threshold = max(2, se.MAX_FAILURE_COUNT // 2)
+
+    conn = se._conn()
+    conn.execute(
+        "UPDATE tasks SET failure_count = ? WHERE id = ?",
+        (failure_threshold, task_id),
+    )
+    conn.commit()
+    conn.close()
+
+    queue = se.get_attention_queue(limit=10)
+    task_entry = next(item for item in queue if item["task_id"] == task_id)
+    assert "repeated_failures" in task_entry["reasons"]
+    assert "연속 실패" in task_entry["next_action"]
+
+
+# ---------------------------------------------------------------------------
+# get_scheduler_ops_summary: persisted status=setup_required (line 383)
+# ---------------------------------------------------------------------------
+
+def test_scheduler_ops_summary_setup_required_status(monkeypatch, tmp_path):
+    """Persisted status 'setup_required' triggers setup next_action."""
+    from datetime import datetime as _dt
+    _configure_tmp_db(monkeypatch, tmp_path)
+    # Insert heartbeat with status=setup_required and recent timestamp
+    conn = se._conn()
+    now_str = _dt.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute(
+        "INSERT INTO worker_runtime (worker_name, last_heartbeat, status, note, updated_at) VALUES (?, ?, ?, ?, ?)",
+        (se.WORKER_NAME_DEFAULT, now_str, se.OPS_STATUS_SETUP_REQUIRED, "needs setup", now_str),
+    )
+    conn.commit()
+    conn.close()
+    result = se.get_scheduler_ops_summary()
+    assert result["status"] == se.OPS_STATUS_SETUP_REQUIRED
+    assert "워커를 실행" in result["next_action"]
+
+
+# ---------------------------------------------------------------------------
+# get_attention_queue: disabled task (line 855)
+# ---------------------------------------------------------------------------
+
+def test_recent_failure_summary_disabled_task(monkeypatch, tmp_path):
+    """Disabled task in get_recent_failure_summary gets '오류 수정 후 재활성화' (line 855)."""
+    _configure_tmp_db(monkeypatch, tmp_path)
+    task_id = se.add_task("disabled_task", "echo", ["disabled"], str(tmp_path), "*/5 * * * *")
+    # Disable the task and add a failure
+    conn = se._conn()
+    conn.execute("UPDATE tasks SET enabled = 0, failure_count = 1 WHERE id = ?", (task_id,))
+    conn.commit()
+    conn.close()
+
+    summary = se.get_recent_failure_summary(limit=10)
+    task_entry = next(item for item in summary if item["task_id"] == task_id)
+    assert task_entry["enabled"] is False
+    assert task_entry["next_action"] == "오류 수정 후 재활성화"

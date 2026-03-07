@@ -308,3 +308,115 @@ def test_reload_wraps_stdout_for_non_utf8(monkeypatch):
     monkeypatch.setattr(sys, "stdout", original_stdout)
     monkeypatch.setattr(sys, "stderr", original_stderr)
     importlib.reload(sdr)
+
+
+# ---------------------------------------------------------------------------
+# Notion sync paths (lines 139-143)
+# ---------------------------------------------------------------------------
+
+
+def test_run_one_notion_sync_success(monkeypatch, capsys):
+    """Notion sync success path: is_configured() True + sync_item returns result."""
+    updates = []
+
+    monkeypatch.setattr(sdr, "update_job", lambda item_id, **kwargs: updates.append((item_id, kwargs)))
+    monkeypatch.setattr(
+        sdr.subprocess,
+        "run",
+        lambda cmd, **kwargs: types.SimpleNamespace(returncode=0),
+    )
+    monkeypatch.setattr(
+        sdr,
+        "_find_latest_manifest",
+        lambda output_dir, after_ts: {
+            "status": "success",
+            "job_id": "job-notion",
+            "title": "Notion title",
+            "output_path": "v.mp4",
+            "thumbnail_path": "t.png",
+            "estimated_cost_usd": 0.5,
+            "total_duration_sec": 20.0,
+        },
+    )
+
+    # Mock notion_shorts_sync module
+    fake_notion_sync = types.SimpleNamespace(
+        is_configured=lambda: True,
+        sync_item=lambda item_id: {"action": "created", "page_id": "abcdef1234567890"},
+    )
+    monkeypatch.setitem(sys.modules, "execution.notion_shorts_sync", fake_notion_sync)
+
+    result = sdr.run_one({"id": 50, "topic": "Notion test", "channel": "space"})
+
+    assert result["status"] == "success"
+    output = capsys.readouterr().out
+    assert "[Notion] created page_id=abcdef12" in output
+
+
+def test_run_one_notion_sync_not_configured(monkeypatch, capsys):
+    """Notion sync skipped when is_configured() returns False."""
+    updates = []
+
+    monkeypatch.setattr(sdr, "update_job", lambda item_id, **kwargs: updates.append((item_id, kwargs)))
+    monkeypatch.setattr(
+        sdr.subprocess,
+        "run",
+        lambda cmd, **kwargs: types.SimpleNamespace(returncode=0),
+    )
+    monkeypatch.setattr(
+        sdr,
+        "_find_latest_manifest",
+        lambda output_dir, after_ts: {
+            "status": "success",
+            "job_id": "job-no-notion",
+            "output_path": "v.mp4",
+            "estimated_cost_usd": 0.3,
+            "total_duration_sec": 15.0,
+        },
+    )
+
+    fake_notion_sync = types.SimpleNamespace(
+        is_configured=lambda: False,
+        sync_item=lambda item_id: (_ for _ in ()).throw(AssertionError("should not be called")),
+    )
+    monkeypatch.setitem(sys.modules, "execution.notion_shorts_sync", fake_notion_sync)
+
+    result = sdr.run_one({"id": 51, "topic": "No notion", "channel": "space"})
+
+    assert result["status"] == "success"
+    output = capsys.readouterr().out
+    assert "[Notion]" not in output
+
+
+def test_run_one_notion_sync_exception(monkeypatch, capsys):
+    """Notion sync exception path: error is printed but run_one still returns success."""
+    updates = []
+
+    monkeypatch.setattr(sdr, "update_job", lambda item_id, **kwargs: updates.append((item_id, kwargs)))
+    monkeypatch.setattr(
+        sdr.subprocess,
+        "run",
+        lambda cmd, **kwargs: types.SimpleNamespace(returncode=0),
+    )
+    monkeypatch.setattr(
+        sdr,
+        "_find_latest_manifest",
+        lambda output_dir, after_ts: {
+            "status": "success",
+            "job_id": "job-err-notion",
+            "output_path": "v.mp4",
+            "estimated_cost_usd": 0.2,
+            "total_duration_sec": 10.0,
+        },
+    )
+
+    fake_notion_sync = types.SimpleNamespace(
+        is_configured=lambda: (_ for _ in ()).throw(RuntimeError("notion import fail")),
+    )
+    monkeypatch.setitem(sys.modules, "execution.notion_shorts_sync", fake_notion_sync)
+
+    result = sdr.run_one({"id": 52, "topic": "Notion error", "channel": "space"})
+
+    assert result["status"] == "success"
+    output = capsys.readouterr().out
+    assert "[Notion] 동기화 실패 (건너뜀)" in output

@@ -254,3 +254,149 @@ def test_checker_exception_handled(monkeypatch):
     monkeypatch.setattr(hc, "check_env_vars", _boom)
     results = hc.run_all_checks(category="env")
     assert any(r["status"] == hc.STATUS_FAIL for r in results)
+
+
+# ---------------------------------------------------------------------------
+# check_apis — future.result() exception path (lines 209-210)
+# ---------------------------------------------------------------------------
+
+
+def test_check_apis_future_exception(monkeypatch):
+    """check_api_connections의 future.result() 예외 시 STATUS_FAIL."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+
+    def _exploding_check(api):
+        raise RuntimeError("executor boom")
+
+    monkeypatch.setattr(hc, "_check_single_api", _exploding_check)
+    results = hc.check_api_connections()
+    assert any(r["status"] == hc.STATUS_FAIL and "unexpected error" in r["detail"] for r in results)
+
+
+# ---------------------------------------------------------------------------
+# check_directories — missing directory (line 224)
+# ---------------------------------------------------------------------------
+
+
+def test_check_directories_missing(monkeypatch):
+    """존재하지 않는 디렉토리가 STATUS_FAIL."""
+    from pathlib import Path
+    monkeypatch.setattr(
+        hc, "REQUIRED_DIRS",
+        [("nonexistent_dir/", Path("/this/path/does/not/exist/at/all"))],
+    )
+    results = hc.check_directories()
+    assert len(results) == 1
+    assert results[0]["status"] == hc.STATUS_FAIL
+    assert "missing" in results[0]["detail"]
+
+
+# ---------------------------------------------------------------------------
+# check_files — missing file (line 235)
+# ---------------------------------------------------------------------------
+
+
+def test_check_files_missing(monkeypatch):
+    """존재하지 않는 파일이 STATUS_FAIL."""
+    from pathlib import Path
+    monkeypatch.setattr(
+        hc, "REQUIRED_FILES",
+        [("missing.txt", Path("/this/file/does/not/exist.txt"))],
+    )
+    results = hc.check_files()
+    assert len(results) == 1
+    assert results[0]["status"] == hc.STATUS_FAIL
+    assert "missing" in results[0]["detail"]
+
+
+# ---------------------------------------------------------------------------
+# check_databases — corrupt DB (lines 252-253)
+# ---------------------------------------------------------------------------
+
+
+def test_check_databases_corrupt(tmp_path):
+    """손상된 DB 파일이 STATUS_FAIL."""
+    db_path = tmp_path / "corrupt.db"
+    db_path.write_bytes(b"this is not a valid sqlite database")
+
+    original = hc.DB_CHECKS
+    hc.DB_CHECKS = [("corrupt.db", db_path)]
+    try:
+        results = hc.check_databases()
+        assert results[0]["status"] == hc.STATUS_FAIL
+    finally:
+        hc.DB_CHECKS = original
+
+
+# ---------------------------------------------------------------------------
+# _print_report (lines 326-345)
+# ---------------------------------------------------------------------------
+
+
+def test_print_report_output(capsys):
+    """_print_report가 카테고리별 아이콘/요약을 출력."""
+    results = [
+        hc._check_result("env_var_1", "env", hc.STATUS_OK, "set"),
+        hc._check_result("env_var_2", "env", hc.STATUS_WARN, "missing"),
+        hc._check_result("dir_1", "filesystem", hc.STATUS_FAIL, "missing: /x"),
+        hc._check_result("skip_1", "database", hc.STATUS_SKIP, "not created yet"),
+    ]
+    hc._print_report(results)
+    captured = capsys.readouterr().out
+    assert "[ENV]" in captured
+    assert "[FILESYSTEM]" in captured
+    assert "[DATABASE]" in captured
+    assert "Overall:" in captured
+    assert "FAIL" in captured
+    assert "OK=1" in captured
+    assert "WARN=1" in captured
+    assert "FAIL=1" in captured
+    assert "SKIP=1" in captured
+
+
+def test_print_report_all_ok(capsys):
+    """모두 OK일 때 overall도 OK."""
+    results = [
+        hc._check_result("check1", "env", hc.STATUS_OK, "good"),
+    ]
+    hc._print_report(results)
+    captured = capsys.readouterr().out
+    assert "OK" in captured
+
+
+# ---------------------------------------------------------------------------
+# check_venv: venv not activated but exists / venv not found (lines 265-268)
+# ---------------------------------------------------------------------------
+
+def test_check_venv_exists_not_activated(monkeypatch, tmp_path):
+    """venv directory exists but not activated."""
+    venv_dir = tmp_path / "venv"
+    venv_dir.mkdir()
+    monkeypatch.setattr(hc, "_ROOT", tmp_path)
+    # Ensure not in venv
+    monkeypatch.delattr("sys.real_prefix", raising=False)
+    monkeypatch.setattr("sys.base_prefix", "sys.prefix_value")
+    monkeypatch.setattr("sys.prefix", "sys.prefix_value")
+    result = hc.check_venv()
+    assert result[0]["status"] == hc.STATUS_WARN
+
+
+def test_check_venv_not_found(monkeypatch, tmp_path):
+    """venv directory not found."""
+    monkeypatch.setattr(hc, "_ROOT", tmp_path)
+    monkeypatch.delattr("sys.real_prefix", raising=False)
+    monkeypatch.setattr("sys.base_prefix", "sys.prefix_value")
+    monkeypatch.setattr("sys.prefix", "sys.prefix_value")
+    result = hc.check_venv()
+    assert result[0]["status"] == hc.STATUS_FAIL
+
+
+# ---------------------------------------------------------------------------
+# check_git: no .git directory (line 276)
+# ---------------------------------------------------------------------------
+
+def test_check_git_not_found(monkeypatch, tmp_path):
+    """No .git directory."""
+    monkeypatch.setattr(hc, "_ROOT", tmp_path)
+    result = hc.check_git()
+    assert result[0]["status"] == hc.STATUS_FAIL

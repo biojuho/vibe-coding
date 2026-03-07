@@ -31,7 +31,7 @@ _CONFIG_PATH = _BOT_DIR / "config.yaml"
 _FMKoreaScraper = None
 _PpomppuScraper = None
 
-if _SCRAPERS_DIR.is_dir():
+if _SCRAPERS_DIR.is_dir():  # pragma: no cover — conditional on local directory
     sys.path.insert(0, str(_BOT_DIR))
     try:
         from scrapers.fmkorea import FMKoreaScraper as _FMKoreaScraper  # noqa: F401

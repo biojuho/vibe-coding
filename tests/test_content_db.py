@@ -555,3 +555,385 @@ def test_cli_prints_help_without_command(monkeypatch, capsys):
     cdb._cli()
 
     assert "usage:" in capsys.readouterr().out.lower()
+
+
+# ---------------------------------------------------------------------------
+# upsert_channel_settings — invalid fields ValueError (line 189)
+# ---------------------------------------------------------------------------
+
+
+def test_upsert_channel_settings_invalid_field(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+    try:
+        cdb.upsert_channel_settings("space", bad_field="bad")
+    except ValueError as exc:
+        assert "bad_field" in str(exc)
+    else:
+        raise AssertionError("Expected ValueError for unsupported field")
+
+
+# ---------------------------------------------------------------------------
+# get_youtube_stats — zero row (line 390)
+# ---------------------------------------------------------------------------
+
+
+def test_get_youtube_stats_empty_db(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+    stats = cdb.get_youtube_stats()
+    assert stats == {"uploaded": 0, "failed": 0, "awaiting": 0}
+
+
+# ---------------------------------------------------------------------------
+# _derive_ops_status / _derive_next_action branches (lines 437, 450-454)
+# ---------------------------------------------------------------------------
+
+
+def test_derive_ops_status_critical():
+    assert cdb._derive_ops_status(["critical:something"]) == cdb.OPS_STATUS_CRITICAL
+
+
+def test_derive_ops_status_healthy():
+    assert cdb._derive_ops_status([]) == cdb.OPS_STATUS_HEALTHY
+
+
+def test_derive_next_action_bgm_missing():
+    assert cdb._derive_next_action(["warning:bgm_missing"]) == "BGM 추가 또는 스킵 확인"
+
+
+def test_derive_next_action_failed_jobs():
+    assert cdb._derive_next_action(["warning:failed_jobs"]) == "실패 건 확인"
+
+
+def test_derive_next_action_fallback():
+    assert cdb._derive_next_action(["unknown:something"]) == "운영 상태 점검"
+
+
+# ---------------------------------------------------------------------------
+# get_recent_failure_items — channel filter, various issue branches
+# (lines 530-531, 546, 553, 556-561)
+# ---------------------------------------------------------------------------
+
+
+def test_get_recent_failure_items_with_channel_filter(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+    bgm_dir = tmp_path / "shorts-maker-v2" / "assets" / "bgm"
+    brand_dir = tmp_path / "shorts-maker-v2" / "assets" / "channels"
+    monkeypatch.setattr(cdb, "_SHORTS_BGM_DIR", bgm_dir)
+    monkeypatch.setattr(cdb, "_SHORTS_BRAND_DIR", brand_dir)
+
+    cdb.upsert_channel_settings("space", voice="nova")
+    space_id = cdb.add_topic("Mars", channel="space")
+    cdb.update_job(space_id, status="failed")
+
+    hist_id = cdb.add_topic("Rome", channel="history")
+    cdb.update_job(hist_id, status="failed")
+
+    # Filter by channel
+    space_failures = cdb.get_recent_failure_items(channel="space", limit=10)
+    assert len(space_failures) == 1
+    assert space_failures[0]["channel"] == "space"
+
+
+def test_get_recent_failure_items_no_settings_issue(monkeypatch, tmp_path):
+    """채널 설정이 없으면 setup: 이슈와 '채널 설정 저장 후 재실행' next_action."""
+    _patch_db(monkeypatch, tmp_path)
+    bgm_dir = tmp_path / "shorts-maker-v2" / "assets" / "bgm"
+    brand_dir = tmp_path / "shorts-maker-v2" / "assets" / "channels"
+    monkeypatch.setattr(cdb, "_SHORTS_BGM_DIR", bgm_dir)
+    monkeypatch.setattr(cdb, "_SHORTS_BRAND_DIR", brand_dir)
+
+    # No settings for this channel
+    fid = cdb.add_topic("NoSettings", channel="orphan")
+    cdb.update_job(fid, status="failed")
+
+    failures = cdb.get_recent_failure_items(limit=5)
+    item = [f for f in failures if f["channel"] == "orphan"][0]
+    assert "setup:channel_settings_missing" in item["issues"]
+    assert item["next_action"] == "채널 설정 저장 후 재실행"
+    assert item["has_settings"] is False
+    assert item["retry_recommended"] is False
+
+
+def test_get_recent_failure_items_no_notes_next_action(monkeypatch, tmp_path):
+    """메모 없는 실패 건 → '최근 로그 확인 후 재실행'."""
+    _patch_db(monkeypatch, tmp_path)
+    bgm_dir = tmp_path / "shorts-maker-v2" / "assets" / "bgm"
+    brand_dir = tmp_path / "shorts-maker-v2" / "assets" / "channels"
+    # Create BGM so bgm_missing is not an issue
+    bgm_dir.mkdir(parents=True, exist_ok=True)
+    (bgm_dir / "calm.mp3").write_bytes(b"mp3")
+    # Create brand assets
+    ch_dir = brand_dir / "test_ch"
+    ch_dir.mkdir(parents=True, exist_ok=True)
+    (ch_dir / "intro.png").write_bytes(b"png")
+    (ch_dir / "outro.png").write_bytes(b"png")
+    monkeypatch.setattr(cdb, "_SHORTS_BGM_DIR", bgm_dir)
+    monkeypatch.setattr(cdb, "_SHORTS_BRAND_DIR", brand_dir)
+
+    cdb.upsert_channel_settings("test_ch", voice="nova")
+    fid = cdb.add_topic("NoNotes", channel="test_ch")
+    cdb.update_job(fid, status="failed")
+
+    failures = cdb.get_recent_failure_items(limit=5)
+    item = [f for f in failures if f["topic"] == "NoNotes"][0]
+    assert item["next_action"] == "최근 로그 확인 후 재실행"
+
+
+def test_get_recent_failure_items_with_notes_next_action(monkeypatch, tmp_path):
+    """메모 있는 실패 건 → '실패 메모 확인 후 재실행'."""
+    _patch_db(monkeypatch, tmp_path)
+    bgm_dir = tmp_path / "shorts-maker-v2" / "assets" / "bgm"
+    brand_dir = tmp_path / "shorts-maker-v2" / "assets" / "channels"
+    bgm_dir.mkdir(parents=True, exist_ok=True)
+    (bgm_dir / "calm.mp3").write_bytes(b"mp3")
+    ch_dir = brand_dir / "note_ch"
+    ch_dir.mkdir(parents=True, exist_ok=True)
+    (ch_dir / "intro.png").write_bytes(b"png")
+    (ch_dir / "outro.png").write_bytes(b"png")
+    monkeypatch.setattr(cdb, "_SHORTS_BGM_DIR", bgm_dir)
+    monkeypatch.setattr(cdb, "_SHORTS_BRAND_DIR", brand_dir)
+
+    cdb.upsert_channel_settings("note_ch", voice="nova")
+    fid = cdb.add_topic("WithNotes", notes="render timeout", channel="note_ch")
+    cdb.update_job(fid, status="failed")
+
+    failures = cdb.get_recent_failure_items(limit=5)
+    item = [f for f in failures if f["topic"] == "WithNotes"][0]
+    assert item["next_action"] == "실패 메모 확인 후 재실행"
+    assert item["failure_reason"] == "render timeout"
+
+
+# ---------------------------------------------------------------------------
+# _load_manifest_payloads — edge cases (lines 581, 592-593, 595)
+# ---------------------------------------------------------------------------
+
+
+def test_load_manifest_payloads_nonexistent_dir(tmp_path):
+    result = cdb._load_manifest_payloads(output_dir=tmp_path / "nonexistent")
+    assert result == []
+
+
+def test_load_manifest_payloads_invalid_json(tmp_path):
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    (output_dir / "bad_manifest.json").write_text("not valid json{{{", encoding="utf-8")
+    result = cdb._load_manifest_payloads(output_dir=output_dir)
+    assert result == []
+
+
+def test_load_manifest_payloads_non_dict_json(tmp_path):
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    (output_dir / "list_manifest.json").write_text("[1, 2, 3]", encoding="utf-8")
+    result = cdb._load_manifest_payloads(output_dir=output_dir)
+    assert result == []
+
+
+# ---------------------------------------------------------------------------
+# get_manifest_sync_diffs — manifest with empty job_id (line 619)
+# ---------------------------------------------------------------------------
+
+
+def test_manifest_sync_diffs_skips_empty_job_id(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    monkeypatch.setattr(cdb, "_SHORTS_OUTPUT_DIR", output_dir)
+
+    # Manifest with no job_id
+    (output_dir / "empty_manifest.json").write_text(
+        json.dumps({"title": "No Job ID", "status": "success"}),
+        encoding="utf-8",
+    )
+    diff = cdb.get_manifest_sync_diffs(output_dir=output_dir, limit=10)
+    assert diff["summary"]["missing_in_db_count"] == 0
+
+
+# ---------------------------------------------------------------------------
+# get_review_queue_items / get_uploadable_items — channel filter (lines 713-714)
+# ---------------------------------------------------------------------------
+
+
+def test_get_review_queue_items_channel_filter(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+    video = tmp_path / "vid.mp4"
+    video.write_bytes(b"video")
+
+    s1 = cdb.add_topic("Space Vid", channel="space")
+    cdb.update_job(s1, status="success", video_path=str(video))
+
+    h1 = cdb.add_topic("History Vid", channel="history")
+    cdb.update_job(h1, status="success", video_path=str(video))
+
+    queue = cdb.get_review_queue_items(channel="space", limit=10)
+    assert len(queue) == 1
+    assert queue[0]["channel"] == "space"
+
+
+def test_get_upload_queue_channel_filter(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+
+    s1 = cdb.add_topic("Space Upload", channel="space")
+    cdb.update_job(s1, status="success", video_path="space.mp4")
+
+    h1 = cdb.add_topic("History Upload", channel="history")
+    cdb.update_job(h1, status="success", video_path="history.mp4")
+
+    items = cdb.get_uploadable_items(channel="space", limit=10)
+    assert len(items) == 1
+    assert items[0]["channel"] == "space"
+
+
+# ---------------------------------------------------------------------------
+# get_performance_stats — channel filter, min_views (lines 788-804)
+# ---------------------------------------------------------------------------
+
+
+def test_get_performance_stats_with_filters(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+
+    s1 = cdb.add_topic("High Views", channel="space")
+    s2 = cdb.add_topic("Low Views", channel="space")
+    s3 = cdb.add_topic("History Views", channel="history")
+    cdb.update_job(s1, status="success", video_path="a.mp4")
+
+    conn = cdb._conn()
+    try:
+        conn.execute(
+            "UPDATE content_queue SET youtube_status='uploaded', yt_views=5000, hook_pattern='question' WHERE id=?",
+            (s1,),
+        )
+        conn.execute(
+            "UPDATE content_queue SET status='success', youtube_status='uploaded', yt_views=10, hook_pattern='stat' WHERE id=?",
+            (s2,),
+        )
+        conn.execute(
+            "UPDATE content_queue SET status='success', youtube_status='uploaded', yt_views=3000, hook_pattern='question' WHERE id=?",
+            (s3,),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    # Channel filter
+    space_stats = cdb.get_performance_stats(channel="space")
+    assert all(s["channel"] == "space" for s in space_stats)
+    assert len(space_stats) == 2
+
+    # min_views filter
+    high_stats = cdb.get_performance_stats(min_views=1000)
+    assert all(s["yt_views"] >= 1000 for s in high_stats)
+    assert len(high_stats) == 2
+
+    # Both filters
+    combined = cdb.get_performance_stats(channel="space", min_views=1000)
+    assert len(combined) == 1
+    assert combined[0]["topic"] == "High Views"
+
+
+# ---------------------------------------------------------------------------
+# get_hook_pattern_performance (lines 809-826)
+# ---------------------------------------------------------------------------
+
+
+def test_get_hook_pattern_performance(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+
+    topic_ids = []
+    data = [("question", 5000), ("question", 3000), ("stat", 1000)]
+    for i, (hook, views) in enumerate(data):
+        topic_ids.append(cdb.add_topic(f"Topic{i}", channel="space"))
+
+    conn = cdb._conn()
+    try:
+        for (hook, views), topic_id in zip(data, topic_ids):
+            conn.execute(
+                "UPDATE content_queue SET status='success', youtube_status='uploaded', "
+                "yt_views=?, yt_likes=?, yt_ctr=?, yt_avg_watch_sec=?, hook_pattern=? WHERE id=?",
+                (views, views // 10, 5.0, 30.0, hook, topic_id),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+    results = cdb.get_hook_pattern_performance()
+    assert len(results) == 2
+    # Sorted by avg_views DESC
+    assert results[0]["hook_pattern"] == "question"
+    assert results[0]["count"] == 2
+    assert results[0]["avg_views"] == 4000.0
+
+
+# ---------------------------------------------------------------------------
+# get_channel_performance_summary (lines 831-848)
+# ---------------------------------------------------------------------------
+
+
+def test_get_channel_performance_summary(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+
+    data = [("space", 5000, 1.0), ("space", 3000, 0.5), ("history", 2000, 0.75)]
+    topic_ids = []
+    for channel, views, cost in data:
+        topic_ids.append(cdb.add_topic(f"T-{channel}-{views}", channel=channel))
+
+    conn = cdb._conn()
+    try:
+        for (channel, views, cost), topic_id in zip(data, topic_ids):
+            conn.execute(
+                "UPDATE content_queue SET status='success', youtube_status='uploaded', "
+                "yt_views=?, cost_usd=?, yt_ctr=5.0, yt_avg_watch_sec=30.0 WHERE id=?",
+                (views, cost, topic_id),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+    results = cdb.get_channel_performance_summary()
+    assert len(results) == 2
+    by_channel = {r["channel"]: r for r in results}
+    assert by_channel["space"]["video_count"] == 2
+    assert by_channel["space"]["total_views"] == 8000
+    assert by_channel["history"]["video_count"] == 1
+    assert by_channel["history"]["total_cost"] == 0.75
+
+
+# ---------------------------------------------------------------------------
+# CLI channel-get with no settings (line 920)
+# ---------------------------------------------------------------------------
+
+
+def test_cli_channel_get_no_settings(monkeypatch, tmp_path, capsys):
+    _patch_db(monkeypatch, tmp_path)
+    monkeypatch.setattr(sys, "argv", ["content_db.py", "channel-get", "--channel", "nonexistent"])
+    cdb._cli()
+    output = capsys.readouterr().out
+    assert "설정 없음" in output
+
+
+# ---------------------------------------------------------------------------
+# get_youtube_stats empty table returns default (line 390)
+# ---------------------------------------------------------------------------
+
+def test_get_youtube_stats_empty_table(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+    result = cdb.get_youtube_stats()
+    assert result["uploaded"] == 0
+    assert result["failed"] == 0
+    assert result["awaiting"] == 0
+
+
+# ---------------------------------------------------------------------------
+# get_recent_failure_items: bgm_missing only path (line 557)
+# ---------------------------------------------------------------------------
+
+def test_get_recent_failure_items_bgm_missing_only(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+    cdb.upsert_channel_settings("testch", voice="nova")
+    item_id = cdb.add_topic("fail topic", channel="testch")
+    cdb.update_job(item_id, status="failed")
+    monkeypatch.setattr(cdb, "_resolve_bgm_readiness", lambda: False)
+    monkeypatch.setattr(cdb, "_resolve_brand_asset_readiness", lambda ch: True)
+    failures = cdb.get_recent_failure_items(channel="testch")
+    assert len(failures) >= 1
+    assert failures[0]["next_action"] == "BGM 스킵 가능 여부 확인"

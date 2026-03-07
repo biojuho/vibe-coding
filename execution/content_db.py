@@ -387,7 +387,7 @@ def get_youtube_stats() -> dict[str, int]:
     conn.close()
     if row:
         return {"uploaded": row["uploaded"] or 0, "failed": row["yt_failed"] or 0, "awaiting": row["awaiting"] or 0}
-    return {"uploaded": 0, "failed": 0, "awaiting": 0}
+    return {"uploaded": 0, "failed": 0, "awaiting": 0}  # pragma: no cover — aggregate query always returns a row
 
 
 def _collect_channel_usage_stats() -> dict[str, dict[str, int]]:

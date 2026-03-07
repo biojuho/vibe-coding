@@ -32,7 +32,7 @@ from execution.llm_client import LLMClient  # noqa: E402
 try:
     from execution.community_trend_scraper import get_community_trend_titles  # noqa: E402
     _COMMUNITY_TRENDS_OK = True
-except ImportError:
+except ImportError:  # pragma: no cover — depends on optional dependency
     _COMMUNITY_TRENDS_OK = False
 
 THRESHOLD = 3   # pending이 이 이하면 보충
