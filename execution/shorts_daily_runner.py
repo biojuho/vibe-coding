@@ -38,7 +38,7 @@ from execution.content_db import get_all, get_channels, init_db, update_job  # n
 # ---------------------------------------------------------------------------
 # 상수
 # ---------------------------------------------------------------------------
-RUN_TIMEOUT_SEC = 600  # 1편당 최대 10분
+RUN_TIMEOUT_SEC = 1800  # 1편당 최대 30분 (렌더링 ~16분 + LLM/TTS/이미지)
 STALE_HOURS = 2        # 이 시간 이상 running이면 stale 처리
 
 

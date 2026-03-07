@@ -15,10 +15,11 @@
 | Git 커밋 | 워크스페이스 내 모든 .git 레포 | `git log --since --until` |
 | 파일 변경 | 파일 시스템 mtime | `os.walk` + stat |
 | 스케줄러 로그 | `.tmp/scheduler.db` | `get_logs()` |
+| LLM 브릿지 품질 이슈 | `.tmp/api_usage.db` | bridge 메타데이터 집계 |
 
 ## 4. 출력
 - JSON: `.tmp/reports/daily_YYYY-MM-DD.json`
-- 포함 필드: summary, git_activity, file_changes, scheduler_logs
+- 포함 필드: summary, git_activity, file_changes, scheduler_logs, llm_bridge
 
 ## 5. CLI 사용법
 ```bash

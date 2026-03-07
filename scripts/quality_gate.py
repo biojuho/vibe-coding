@@ -8,8 +8,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 VENV_PYTHON = ROOT / "venv" / "Scripts" / "python.exe"
 # tests/ excluded from code_improver: fake credentials in test fixtures are expected
-STATIC_ANALYSIS_TARGETS = ("execution", "scripts", "joolife_hub.py")
-RUFF_TARGETS = ("execution", "scripts", "tests", "joolife_hub.py")
+STATIC_ANALYSIS_TARGETS = ("execution", "scripts")
+RUFF_TARGETS = ("execution", "scripts", "tests")
 
 
 def _python_executable() -> str:

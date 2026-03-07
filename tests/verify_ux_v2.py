@@ -25,7 +25,7 @@ print("🔎 Starting UX/UI v2.0 Verification (QA: Jieun)...")
 print("-" * 50)
 
 # 1. Joolife Hub (Glassmorphism)
-check_file_content("joolife_hub.py", "backdrop-filter: blur(10px);")
+check_file_content("execution/joolife_hub.py", "backdrop-filter: blur(10px);")
 
 # 2. Personal Agent (JooPark & Bubbles)
 check_file_content("projects/personal-agent/config.py", 'USER_NAME = "Joolife President JooPark"')

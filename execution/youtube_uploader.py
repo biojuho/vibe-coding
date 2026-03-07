@@ -129,6 +129,7 @@ def _build_video_body(
         "status": {
             "privacyStatus": privacy_status,
             "selfDeclaredMadeForKids": False,
+            "containsSyntheticMedia": True,  # AI 생성 콘텐츠 표시 (YouTube 정책 의무)
         },
     }
 

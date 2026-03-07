@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -77,22 +78,31 @@ API_CHECKS = [
     {
         "name": "DeepSeek",
         "env_key": "DEEPSEEK_API_KEY",
-        "url": None,
+        "url": "https://api.deepseek.com/models",
+        "auth_header": "Bearer",
     },
     {
         "name": "Moonshot",
         "env_key": "MOONSHOT_API_KEY",
-        "url": None,
+        "url": "https://api.moonshot.cn/v1/models",
+        "auth_header": "Bearer",
     },
     {
         "name": "Zhipu AI",
         "env_key": "ZHIPUAI_API_KEY",
-        "url": None,
+        "url": None,  # 키 존재만 확인 (표준 /models 엔드포인트 없음)
     },
     {
         "name": "xAI (Grok)",
         "env_key": "XAI_API_KEY",
-        "url": None,
+        "url": "https://api.x.ai/v1/models",
+        "auth_header": "Bearer",
+    },
+    {
+        "name": "Groq",
+        "env_key": "GROQ_API_KEY",
+        "url": "https://api.groq.com/openai/v1/models",
+        "auth_header": "Bearer",
     },
     {
         "name": "Cloudinary",
@@ -140,54 +150,66 @@ def check_env_vars() -> List[Dict]:
     return results
 
 
+def _check_single_api(api: Dict) -> Dict:
+    """단일 API 항목 점검 (병렬 실행용)."""
+    name = api["name"]
+
+    if "env_keys" in api:
+        missing = [k for k in api["env_keys"] if not os.getenv(k, "")]
+        if missing:
+            return _check_result(name, "api", STATUS_WARN, f"missing keys: {', '.join(missing)}")
+        return _check_result(name, "api", STATUS_OK, "all keys set")
+
+    env_key = api.get("env_key", "")
+    api_key = os.getenv(env_key, "")
+    if not api_key:
+        return _check_result(name, "api", STATUS_WARN, f"{env_key} not set")
+
+    url = api.get("url")
+    if not url:
+        return _check_result(name, "api", STATUS_OK, "key present (no ping endpoint)")
+
+    headers = {"Authorization": f"{api.get('auth_header', 'Bearer')} {api_key}"}
+    headers.update(api.get("extra_headers", {}))
+    try:
+        resp = requests.get(url, headers=headers, timeout=10)
+        if resp.status_code == 200:
+            return _check_result(name, "api", STATUS_OK, "connected")
+        elif resp.status_code == 401:
+            return _check_result(name, "api", STATUS_FAIL, "401 Unauthorized - token invalid/expired")
+        elif resp.status_code == 403:
+            return _check_result(name, "api", STATUS_FAIL, "403 Forbidden - insufficient permissions")
+        elif resp.status_code == 429:
+            return _check_result(name, "api", STATUS_WARN, "429 Rate Limited")
+        else:
+            return _check_result(name, "api", STATUS_WARN, f"HTTP {resp.status_code}")
+    except requests.ConnectionError:
+        return _check_result(name, "api", STATUS_FAIL, "connection failed")
+    except requests.Timeout:
+        return _check_result(name, "api", STATUS_FAIL, "timeout (10s)")
+    except Exception as exc:
+        return _check_result(name, "api", STATUS_FAIL, str(exc))
+
+
 def check_api_connections() -> List[Dict]:
-    """API 엔드포인트 연결 및 인증 점검."""
-    results = []
-    for api in API_CHECKS:
-        name = api["name"]
+    """API 엔드포인트 연결 및 인증 점검 (병렬 실행으로 속도 향상)."""
+    # 원래 순서 보존을 위해 index로 정렬
+    futures_map: Dict = {}
+    results: List[Dict] = [None] * len(API_CHECKS)  # type: ignore[list-item]
 
-        # 다중 키 체크 (Cloudinary 등)
-        if "env_keys" in api:
-            missing = [k for k in api["env_keys"] if not os.getenv(k, "")]
-            if missing:
-                results.append(_check_result(name, "api", STATUS_WARN, f"missing keys: {', '.join(missing)}"))
-            else:
-                results.append(_check_result(name, "api", STATUS_OK, "all keys set"))
-            continue
+    with ThreadPoolExecutor(max_workers=min(len(API_CHECKS), 8)) as executor:
+        for idx, api in enumerate(API_CHECKS):
+            future = executor.submit(_check_single_api, api)
+            futures_map[future] = idx
 
-        env_key = api.get("env_key", "")
-        api_key = os.getenv(env_key, "")
-
-        if not api_key:
-            results.append(_check_result(name, "api", STATUS_WARN, f"{env_key} not set"))
-            continue
-
-        url = api.get("url")
-        if not url:
-            results.append(_check_result(name, "api", STATUS_OK, "key present (no ping endpoint)"))
-            continue
-
-        # 실제 API ping
-        headers = {"Authorization": f"{api.get('auth_header', 'Bearer')} {api_key}"}
-        headers.update(api.get("extra_headers", {}))
-        try:
-            resp = requests.get(url, headers=headers, timeout=10)
-            if resp.status_code == 200:
-                results.append(_check_result(name, "api", STATUS_OK, "connected"))
-            elif resp.status_code == 401:
-                results.append(_check_result(name, "api", STATUS_FAIL, "401 Unauthorized - token invalid/expired"))
-            elif resp.status_code == 403:
-                results.append(_check_result(name, "api", STATUS_FAIL, "403 Forbidden - insufficient permissions"))
-            elif resp.status_code == 429:
-                results.append(_check_result(name, "api", STATUS_WARN, "429 Rate Limited"))
-            else:
-                results.append(_check_result(name, "api", STATUS_WARN, f"HTTP {resp.status_code}"))
-        except requests.ConnectionError:
-            results.append(_check_result(name, "api", STATUS_FAIL, "connection failed"))
-        except requests.Timeout:
-            results.append(_check_result(name, "api", STATUS_FAIL, "timeout (10s)"))
-        except Exception as exc:
-            results.append(_check_result(name, "api", STATUS_FAIL, str(exc)))
+        for future in as_completed(futures_map):
+            idx = futures_map[future]
+            try:
+                results[idx] = future.result()
+            except Exception as exc:
+                results[idx] = _check_result(
+                    API_CHECKS[idx]["name"], "api", STATUS_FAIL, f"unexpected error: {exc}"
+                )
 
     return results
 

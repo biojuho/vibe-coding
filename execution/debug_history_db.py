@@ -54,6 +54,15 @@ def init_db() -> None:
                 notes             TEXT DEFAULT ''
             );
 
+            CREATE TABLE IF NOT EXISTS scrape_quality_log (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                logged_at   TEXT NOT NULL,
+                source      TEXT NOT NULL DEFAULT '',
+                url         TEXT NOT NULL DEFAULT '',
+                quality_score REAL NOT NULL DEFAULT 0.0,
+                issues      TEXT NOT NULL DEFAULT ''
+            );
+
             CREATE TABLE IF NOT EXISTS error_patterns (
                 id                INTEGER PRIMARY KEY AUTOINCREMENT,
                 pattern           TEXT NOT NULL UNIQUE,
@@ -114,6 +123,49 @@ def add_entry(
         return cursor.lastrowid
     finally:
         conn.close()
+
+
+def auto_log_error(
+    exc: Exception,
+    module: str,
+    context: str = "",
+    severity: str = "P2",
+) -> Optional[int]:
+    """파이프라인 예외를 debug_history_db에 자동 기록.
+
+    같은 module + 에러 타입이 최근 24시간 이내에 이미 기록된 경우 중복 저장 안 함.
+    반환: 생성된 entry ID 또는 None (중복/실패)
+    """
+    try:
+        init_db()
+        exc_type = type(exc).__name__
+        symptom = f"[auto] {exc_type}: {str(exc)[:200]}"
+        if context:
+            symptom = f"[auto][{context}] {exc_type}: {str(exc)[:180]}"
+
+        # 24시간 내 동일 모듈+에러 타입 중복 확인
+        conn = _conn()
+        try:
+            from datetime import timedelta
+            since = (datetime.now() - timedelta(hours=24)).isoformat(timespec="seconds")
+            row = conn.execute(
+                "SELECT id FROM debug_entries WHERE module=? AND symptom LIKE ? AND created_at>?",
+                (module, f"%{exc_type}%", since),
+            ).fetchone()
+            if row:
+                return None  # 중복 억제
+        finally:
+            conn.close()
+
+        return add_entry(
+            symptom=symptom,
+            severity=severity,
+            layer="execution",
+            module=module,
+            tags="auto_captured",
+        )
+    except Exception:
+        return None
 
 
 def list_entries(
@@ -297,6 +349,57 @@ def seed_known_patterns() -> int:
         register_pattern(pattern, etype, first_check, tool, module_hint)
         count += 1
     return count
+
+
+# ── 스크랩 품질 히스토리 (P2-C) ───────────────────────────
+
+
+def log_scrape_quality(source: str, url: str, quality_score: float, issues: list) -> None:
+    """스크랩 품질 결과를 scrape_quality_log 테이블에 기록.
+
+    Args:
+        source: 수집 소스 ("blind", "ppomppu" 등)
+        url: 게시글 URL
+        quality_score: scrape quality score (0~100)
+        issues: 품질 저하 이유 목록
+    """
+    init_db()
+    conn = _conn()
+    try:
+        conn.execute(
+            "INSERT INTO scrape_quality_log (logged_at, source, url, quality_score, issues) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (
+                datetime.utcnow().isoformat(),
+                source[:100],
+                url[:500],
+                round(float(quality_score), 2),
+                json.dumps(issues, ensure_ascii=False),
+            ),
+        )
+        conn.commit()
+    except Exception:
+        pass  # 품질 로깅 실패가 메인 파이프라인을 막으면 안 됨
+    finally:
+        conn.close()
+
+
+def get_scrape_quality_stats(days: int = 14) -> Dict:
+    """소스별 평균 품질 점수 및 이슈 분포 조회."""
+    init_db()
+    conn = _conn()
+    try:
+        cutoff = datetime.utcnow().replace(microsecond=0).isoformat()[:10]
+        rows = conn.execute(
+            "SELECT source, AVG(quality_score) as avg_score, COUNT(*) as total "
+            "FROM scrape_quality_log "
+            "WHERE logged_at >= date(?, ?) "
+            "GROUP BY source ORDER BY avg_score DESC",
+            (cutoff, f"-{days} days"),
+        ).fetchall()
+        return {"by_source": [dict(r) for r in rows], "lookback_days": days}
+    finally:
+        conn.close()
 
 
 # ── CLI ────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 
 import execution.api_usage_tracker as aut
 
@@ -150,6 +151,112 @@ def test_provider_breakdown_empty(monkeypatch, tmp_path):
     _patch_db(monkeypatch, tmp_path)
     result = aut.get_provider_breakdown(days=1)
     assert result == []
+
+
+def test_get_bridge_activity_for_date(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+    aut.log_api_call(
+        provider="deepseek",
+        model="deepseek-chat",
+        bridge_mode="shadow",
+        reason_codes=["mixed_language", "mojibake"],
+        repair_count=1,
+        fallback_used=True,
+        language_score=0.72,
+        provider_used="google",
+    )
+    aut.log_api_call(
+        provider="google",
+        model="gemini-2.5-flash",
+        bridge_mode="shadow",
+        reason_codes=["mixed_language"],
+        repair_count=0,
+        fallback_used=False,
+        language_score=0.95,
+        provider_used="google",
+    )
+
+    summary = aut.get_bridge_activity_for_date(date.today())
+
+    assert summary["total_calls"] == 2
+    assert summary["shadow_calls"] == 2
+    assert summary["repair_calls"] == 1
+    assert summary["fallback_calls"] == 1
+    assert summary["reason_codes"]["mixed_language"] == 2
+    assert summary["reason_codes"]["mojibake"] == 1
+    assert summary["by_provider"]["google"] == 2
+
+
+def test_get_bridge_daily_and_reason_breakdown(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+    aut.log_api_call(
+        provider="deepseek",
+        bridge_mode="shadow",
+        reason_codes=["mixed_language"],
+        repair_count=1,
+        fallback_used=False,
+        language_score=0.7,
+    )
+    aut.log_api_call(
+        provider="google",
+        bridge_mode="enforce",
+        reason_codes=["mixed_language", "mojibake"],
+        repair_count=0,
+        fallback_used=True,
+        language_score=0.95,
+    )
+
+    daily = aut.get_bridge_daily_breakdown(days=1)
+    reasons = aut.get_bridge_reason_breakdown(days=1)
+
+    assert len(daily) == 1
+    assert daily[0]["calls"] == 2
+    assert daily[0]["shadow_calls"] == 1
+    assert daily[0]["enforce_calls"] == 1
+    assert daily[0]["repair_calls"] == 1
+    assert daily[0]["fallback_calls"] == 1
+    assert reasons[0]["reason_code"] == "mixed_language"
+    assert reasons[0]["count"] == 2
+
+
+def test_get_bridge_provider_breakdown(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+    aut.log_api_call(
+        provider="deepseek",
+        bridge_mode="shadow",
+        reason_codes=["mixed_language"],
+        repair_count=0,
+        fallback_used=False,
+        language_score=0.7,
+        provider_used="deepseek",
+    )
+    aut.log_api_call(
+        provider="deepseek",
+        bridge_mode="enforce",
+        reason_codes=[],
+        repair_count=1,
+        fallback_used=True,
+        language_score=0.93,
+        provider_used="deepseek",
+    )
+    aut.log_api_call(
+        provider="google",
+        bridge_mode="shadow",
+        reason_codes=["mojibake"],
+        repair_count=1,
+        fallback_used=False,
+        language_score=0.88,
+        provider_used="google",
+    )
+
+    breakdown = aut.get_bridge_provider_breakdown(days=1)
+    by_provider = {item["provider"]: item for item in breakdown}
+
+    assert by_provider["deepseek"]["bridge_calls"] == 2
+    assert by_provider["deepseek"]["bridge_failure_rate"] == 50.0
+    assert by_provider["deepseek"]["repair_success_rate"] == 100.0
+    assert by_provider["deepseek"]["fallback_calls"] == 1
+    assert by_provider["google"]["repair_success_rate"] == 0.0
 
 
 # ---------------------------------------------------------------------------

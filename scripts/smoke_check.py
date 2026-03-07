@@ -8,7 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 BASE_FILES_TO_COMPILE = [
-    ROOT / "joolife_hub.py",
+    ROOT / "execution" / "joolife_hub.py",
     ROOT / "execution" / "content_db.py",
     ROOT / "execution" / "scheduler_engine.py",
     ROOT / "execution" / "shorts_daily_runner.py",

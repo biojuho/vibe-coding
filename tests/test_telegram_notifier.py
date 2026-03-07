@@ -288,6 +288,12 @@ def test_format_daily_report_message_includes_summary():
             "active_repos": 2,
             "files_modified": 7,
             "scheduler_tasks_run": 4,
+            "llm_bridge_calls": 2,
+            "llm_bridge_repairs": 1,
+            "llm_bridge_fallbacks": 1,
+        },
+        "llm_bridge": {
+            "top_reason_codes": [{"reason_code": "mixed_language", "count": 2}],
         },
         "git_activity": {
             "commits": [
@@ -301,6 +307,8 @@ def test_format_daily_report_message_includes_summary():
 
     assert "[Joolife][Daily Report] 2026-02-28" in message
     assert "Commits: 3" in message
+    assert "LLM bridge calls: 2" in message
+    assert "LLM bridge reasons: mixed_language=2" in message
     assert "- [repo-a] abc12345 feat: add bot" in message
 
 

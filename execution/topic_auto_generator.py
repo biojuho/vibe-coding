@@ -11,27 +11,23 @@ Usage:
 """
 from __future__ import annotations
 
-import io
-import json
 import logging
-import os
 import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
-from openai import OpenAI
+from execution.language_bridge import ensure_utf8_stdio
 
 logger = logging.getLogger(__name__)
 
 # Windows cp949 인코딩 문제 방지
-if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+ensure_utf8_stdio()
 
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT))
 
 from execution.content_db import add_topic, get_all, get_channels, get_top_performing_topics, init_db  # noqa: E402
+from execution.llm_client import LLMClient  # noqa: E402
 
 try:
     from execution.community_trend_scraper import get_community_trend_titles  # noqa: E402
@@ -41,7 +37,6 @@ except ImportError:
 
 THRESHOLD = 3   # pending이 이 이하면 보충
 GEN_COUNT = 5   # 한 번에 생성할 주제 수
-MODEL = "gpt-4o-mini"
 
 
 def get_trending_topics(count: int = 10) -> list[str]:
@@ -76,13 +71,15 @@ def generate_topics(
     top_performers: list[dict] | None = None,
     trending_keywords: list[str] | None = None,
 ) -> list[str]:
-    """GPT로 채널에 맞는 새 주제 생성. 성과 데이터 + 트렌드 기반 추천 지원."""
-    key = api_key or os.getenv("OPENAI_API_KEY", "")
-    if not key:
-        logger.warning("OPENAI_API_KEY 없음 - 주제 생성 스킵")
-        return []
+    """LLM으로 채널에 맞는 새 주제 생성. 7개 프로바이더 자동 fallback 지원.
 
-    client = OpenAI(api_key=key, timeout=60)
+    성과 데이터 + 트렌드 기반 추천 지원.
+    """
+    # 통합 LLM 클라이언트 (모든 프로바이더 자동 fallback)
+    llm = LLMClient(caller_script="topic_auto_generator")
+    if not llm.enabled_providers():
+        logger.warning("사용 가능한 LLM API 키 없음 - 주제 생성 스킵")
+        return []
 
     existing_str = "\n".join(f"- {t}" for t in existing_topics[-30:])
 
@@ -115,31 +112,22 @@ def generate_topics(
 JSON 형식: {{"topics": [...]}}"""
 
     try:
-        response = client.chat.completions.create(
-            model=MODEL,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.9,
-        )
-    except Exception as api_err:
-        logger.error("OpenAI API 호출 실패 [%s]: %s", channel, api_err)
+        if hasattr(llm, "generate_json_bridged"):
+            data = llm.generate_json_bridged(
+                system_prompt=SYSTEM_PROMPT,
+                user_prompt=user_prompt,
+                temperature=0.9,
+            )
+        else:
+            data = llm.generate_json(
+                system_prompt=SYSTEM_PROMPT,
+                user_prompt=user_prompt,
+                temperature=0.9,
+            )
+    except RuntimeError as err:
+        logger.error("LLM 주제 생성 실패 [%s]: %s", channel, err)
         return []
 
-    if not response.choices:
-        logger.warning("OpenAI 응답에 choices 없음 [%s]", channel)
-        return []
-    content = (response.choices[0].message.content or "").strip()
-    if not content:
-        return []
-
-    try:
-        data = json.loads(content)
-    except json.JSONDecodeError as jde:
-        logger.error("GPT 응답 JSON 파싱 실패 [%s]: %s — 원본: %s", channel, jde, content[:200])
-        return []
     raw_topics = data.get("topics", [])
     topics: list[str] = []
     for item in raw_topics:

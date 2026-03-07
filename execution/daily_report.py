@@ -152,6 +152,25 @@ def collect_scheduler_logs(target_date: date) -> List[Dict]:
     return scheduler_events
 
 
+def collect_llm_bridge_activity(target_date: date) -> Dict:
+    try:
+        from execution.api_usage_tracker import get_bridge_activity_for_date
+    except Exception:
+        return {
+            "total_calls": 0,
+            "shadow_calls": 0,
+            "enforce_calls": 0,
+            "repair_calls": 0,
+            "fallback_calls": 0,
+            "average_language_score": None,
+            "reason_codes": {},
+            "top_reason_codes": [],
+            "by_provider": {},
+        }
+
+    return get_bridge_activity_for_date(target_date)
+
+
 def _summarize_commits_by_repo(commit_entries: List[Dict]) -> Dict[str, int]:
     commits_by_repo: Dict[str, int] = {}
     for commit_entry in commit_entries:
@@ -165,12 +184,16 @@ def _build_summary(
     commits_by_repo: Dict[str, int],
     file_changes: Dict,
     scheduler_logs: List[Dict],
+    llm_bridge: Dict,
 ) -> Dict:
     return {
         "total_commits": len(commit_entries),
         "active_repos": len(commits_by_repo),
         "files_modified": file_changes["files_modified"],
         "scheduler_tasks_run": len(scheduler_logs),
+        "llm_bridge_calls": llm_bridge.get("total_calls", 0),
+        "llm_bridge_repairs": llm_bridge.get("repair_calls", 0),
+        "llm_bridge_fallbacks": llm_bridge.get("fallback_calls", 0),
     }
 
 
@@ -179,9 +202,10 @@ def _build_report_payload(
     commit_entries: List[Dict],
     file_changes: Dict,
     scheduler_logs: List[Dict],
+    llm_bridge: Dict,
 ) -> Dict:
     commits_by_repo = _summarize_commits_by_repo(commit_entries)
-    summary = _build_summary(commit_entries, commits_by_repo, file_changes, scheduler_logs)
+    summary = _build_summary(commit_entries, commits_by_repo, file_changes, scheduler_logs, llm_bridge)
     return {
         "date": report_date.isoformat(),
         "generated_at": datetime.now().isoformat(timespec="seconds"),
@@ -192,6 +216,7 @@ def _build_report_payload(
         },
         "file_changes": file_changes,
         "scheduler_logs": scheduler_logs,
+        "llm_bridge": llm_bridge,
     }
 
 
@@ -210,12 +235,14 @@ def generate_report(target_date: Optional[date] = None) -> Dict:
     commit_entries = collect_git_activity(report_date)
     file_changes = collect_file_changes(report_date)
     scheduler_logs = collect_scheduler_logs(report_date)
+    llm_bridge = collect_llm_bridge_activity(report_date)
 
     report_payload = _build_report_payload(
         report_date,
         commit_entries,
         file_changes,
         scheduler_logs,
+        llm_bridge,
     )
     _save_report(report_date, report_payload)
     return report_payload
@@ -237,11 +264,24 @@ def _print_markdown_report(report: Dict) -> None:
     print(f"- Active repos: {summary['active_repos']}")
     print(f"- Files modified: {summary['files_modified']}")
     print(f"- Scheduler tasks: {summary['scheduler_tasks_run']}")
+    print(f"- LLM bridge calls: {summary.get('llm_bridge_calls', 0)}")
+    print(f"- LLM bridge repairs: {summary.get('llm_bridge_repairs', 0)}")
+    print(f"- LLM bridge fallbacks: {summary.get('llm_bridge_fallbacks', 0)}")
     commits = report["git_activity"]["commits"]
     if commits:
         print("\n## Git Commits")
         for commit in commits:
             print(f"- [{commit['repo']}] {commit['hash']} {commit['message']}")
+    bridge = report.get("llm_bridge", {})
+    if bridge.get("total_calls", 0):
+        print("\n## LLM Bridge")
+        print(f"- Shadow calls: {bridge.get('shadow_calls', 0)}")
+        print(f"- Enforce calls: {bridge.get('enforce_calls', 0)}")
+        avg_score = bridge.get("average_language_score")
+        if avg_score is not None:
+            print(f"- Avg language score: {avg_score}")
+        for item in bridge.get("top_reason_codes", [])[:5]:
+            print(f"- Reason: {item['reason_code']} ({item['count']})")
 
 
 if __name__ == "__main__":

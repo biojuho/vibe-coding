@@ -276,6 +276,7 @@ def maybe_send_scheduler_notification(
 def format_daily_report_message(report: Dict[str, Any], max_commits: int = 5) -> str:
     summary = report.get("summary", {})
     commits = report.get("git_activity", {}).get("commits", [])
+    bridge = report.get("llm_bridge", {})
     lines = [
         f"[Joolife][Daily Report] {report.get('date', '')}",
         f"Commits: {summary.get('total_commits', 0)}",
@@ -283,6 +284,21 @@ def format_daily_report_message(report: Dict[str, Any], max_commits: int = 5) ->
         f"Files modified: {summary.get('files_modified', 0)}",
         f"Scheduler tasks: {summary.get('scheduler_tasks_run', 0)}",
     ]
+    if summary.get("llm_bridge_calls", 0):
+        lines.extend(
+            [
+                f"LLM bridge calls: {summary.get('llm_bridge_calls', 0)}",
+                f"LLM bridge repairs: {summary.get('llm_bridge_repairs', 0)}",
+                f"LLM bridge fallbacks: {summary.get('llm_bridge_fallbacks', 0)}",
+            ]
+        )
+        top_reason_codes = bridge.get("top_reason_codes", [])
+        if top_reason_codes:
+            top = ", ".join(
+                f"{item.get('reason_code', '?')}={item.get('count', 0)}"
+                for item in top_reason_codes[:3]
+            )
+            lines.append(f"LLM bridge reasons: {top}")
     if commits:
         lines.append("Recent commits:")
         for commit in commits[:max_commits]:

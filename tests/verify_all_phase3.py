@@ -46,7 +46,7 @@ if missing: print(f"Missing: {missing}")
 try:
     import streamlit
     check("Streamlit Library", True)
-    if os.path.exists("joolife_hub.py"):
+    if os.path.exists("execution/joolife_hub.py"):
         check("Hub Script Exists", True)
     else:
         check("Hub Script Exists", False)
