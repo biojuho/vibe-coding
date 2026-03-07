@@ -1,0 +1,83 @@
+# Dependabot configuration for automated dependency updates
+# Docs: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+
+version: 2
+updates:
+  # Root workspace - Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "python"
+
+  # blind-to-x - Python
+  - package-ecosystem: "pip"
+    directory: "/blind-to-x"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "blind-to-x"
+
+  # shorts-maker-v2 - Python
+  - package-ecosystem: "pip"
+    directory: "/shorts-maker-v2"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "shorts-maker"
+
+  # hanwoo-dashboard - npm
+  - package-ecosystem: "npm"
+    directory: "/hanwoo-dashboard"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "hanwoo-dashboard"
+    groups:
+      next-ecosystem:
+        patterns:
+          - "next*"
+          - "eslint-config-next"
+      radix-ui:
+        patterns:
+          - "@radix-ui/*"
+
+  # word-chain - npm
+  - package-ecosystem: "npm"
+    directory: "/word-chain"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "word-chain"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Asia/Seoul"
+    labels:
+      - "dependencies"
+      - "github-actions"
