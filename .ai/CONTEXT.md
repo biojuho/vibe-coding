@@ -100,10 +100,12 @@ Vibe coding/                      # Root 워크스페이스
 - YouTube Analytics → Notion 자동 수집 구현
 - Telegram 알림 시스템 구축
 - QA/QC 4단계 자동화 검증 워크플로우 통합 (project-rules 및 session_workflow 연동)
+- blind-to-x: 간헐적 파이프라인 exit code 1 유발 Silent Error 방지 및 로깅 강화
+- shorts-maker-v2: 영상 품질 최적화 (Phase 2 기술 업그레이드 - Neon Cyberpunk, VS 비교 등)
+- shorts-maker-v2: 5채널 토픽 자동 생성 및 트렌딩 주제 갱신 완벽 연동
 
 ### 🔄 진행 중
-- shorts-maker-v2: 영상 품질 최적화 (Phase 2 기술 업그레이드)
-- 5채널 토픽 자동 생성 및 트렌딩 주제 갱신
+- (현재 진행 중인 이슈 없음)
 
 ### 📋 예정
 - (사용자가 결정)
