@@ -5,6 +5,38 @@
 
 ---
 
+## 2026-03-08 KST — Claude Code (Opus 4.6)
+
+### 작업 요약
+blind-to-x 스케줄 미작동 + 이미지 품질 저하 + 비용 진단 및 4건 수정
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `blind-to-x/.tmp/.running.lock` | stale lock 파일 삭제 (PID 151848) |
+| `blind-to-x/main.py` | lock 로직 개선: Windows PermissionError 호환 + 타임스탬프 기반 1시간 자동 만료 |
+| `blind-to-x/run_scheduled.bat` | 에러코드 체크 + 로그 파일 기록 + 실행 후 lock 정리 |
+| `blind-to-x/pipeline/ab_feedback_loop.py` | draft_type→mood 매핑 버그 수정 (한국어 "공감형" → 영어 mood 디스크립터로 변환) |
+| `blind-to-x/pipeline/content_intelligence.py` | publishability 기본점수 25→30 상향 |
+
+### 핵심 결정사항
+- Lock 파일에 `PID:timestamp` 형식 도입, 1시간 초과 시 stale로 자동 처리
+- Windows에서 `os.kill(pid, 0)`의 `PermissionError`를 "프로세스 존재"로 정확히 처리
+- A/B 피드백 루프: draft_type("공감형")을 이미지 mood("warm, empathetic, soft lighting")로 매핑하는 딕셔너리 추가
+- publishability 기본점수 25→30: 3/2 이전 수준(35)과 이후(25)의 중간값으로 조정
+
+### 미완료 TODO
+- 없음
+
+### 다음 도구에게 전달할 메모
+- `.tmp/.running.lock` 형식이 `PID:timestamp`로 변경됨 (이전: PID만)
+- `run_scheduled.bat`이 `.tmp/logs/`에 날짜별 로그 기록
+- A/B 피드백 루프의 mood 매핑 테이블: 5개 draft_type 지원 (공감형/논쟁형/정보전달형/유머형/스토리형)
+- `newsletter_scheduler.py`의 `fetch_recent_records` AttributeError는 `__pycache__` 삭제로 해결 완료 (메서드는 `notion_upload.py:970`에 정상 존재)
+- test_scrapers.py 18건 실패는 playwright_stealth 미설치로 인한 기존 이슈 (이번 변경과 무관)
+
+---
+
 ## 2026-03-08 10:48 KST — Gemini/Antigravity
 
 ### 작업 요약

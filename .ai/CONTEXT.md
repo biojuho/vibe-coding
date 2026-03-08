@@ -103,9 +103,12 @@ Vibe coding/                      # Root 워크스페이스
 - blind-to-x: 간헐적 파이프라인 exit code 1 유발 Silent Error 방지 및 로깅 강화
 - shorts-maker-v2: 영상 품질 최적화 (Phase 2 기술 업그레이드 - Neon Cyberpunk, VS 비교 등)
 - shorts-maker-v2: 5채널 토픽 자동 생성 및 트렌딩 주제 갱신 완벽 연동
+- blind-to-x: P6 멀티 플랫폼 초안 생성 (Threads + 네이버 블로그) 파이프라인 완성
+- blind-to-x: P6 플랫폼별 톤 최적화 (classification_rules.yaml 확장 530줄)
+- blind-to-x: P6 성과 피드백 루프 모듈 (`performance_tracker.py`) 구현 — QC 승인
 
 ### 🔄 진행 중
-- (현재 진행 중인 이슈 없음)
+- blind-to-x: 실 운영 LLM 초안 품질 모니터링 (1주간 manual review)
 
 ### 📋 예정
 - (사용자가 결정)
@@ -151,4 +154,4 @@ Vibe coding/                      # Root 워크스페이스
 
 ---
 
-*마지막 업데이트: 2026-03-08 KST (Gemini/Antigravity)*
+*마지막 업데이트: 2026-03-08 19:18 KST (Antigravity — P6 QC 승인 완료)*
