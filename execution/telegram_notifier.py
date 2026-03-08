@@ -215,6 +215,35 @@ def send_message(
         raise
 
 
+def send_alert(
+    text: str,
+    level: str = "INFO",
+    *,
+    chat_id: Optional[str] = None,
+    disable_notification: bool = False,
+    timeout: int = 15,
+) -> Dict[str, Any]:
+    """Sends a tiered alert message to Telegram.
+    
+    Args:
+        text: The message content.
+        level: "CRITICAL" 🚨, "WARNING" ⚠️, or "INFO" ℹ️.
+    """
+    prefixes = {
+        "CRITICAL": "🚨 [CRITICAL]",
+        "WARNING": "⚠️ [WARNING]",
+        "INFO": "ℹ️ [INFO]",
+    }
+    prefix = prefixes.get(level.upper(), "ℹ️ [INFO]")
+    formatted_text = f"{prefix}\n{text}"
+    return send_message(
+        formatted_text,
+        chat_id=chat_id,
+        disable_notification=disable_notification,
+        timeout=timeout,
+    )
+
+
 def format_scheduler_message(
     *,
     task_name: str,
@@ -347,6 +376,7 @@ def main() -> int:
 
     p_send = subparsers.add_parser("send")
     p_send.add_argument("--message", required=True)
+    p_send.add_argument("--level", default="INFO", choices=["INFO", "WARNING", "CRITICAL"])
     p_send.add_argument("--disable-notification", action="store_true")
 
     p_report = subparsers.add_parser("daily-report")
@@ -364,10 +394,17 @@ def main() -> int:
         return 0
 
     if args.cmd == "send":
-        response = send_message(
-            args.message,
-            disable_notification=bool(args.disable_notification),
-        )
+        if hasattr(args, "level"):
+            response = send_alert(
+                args.message,
+                level=args.level,
+                disable_notification=bool(args.disable_notification),
+            )
+        else:
+            response = send_message(
+                args.message,
+                disable_notification=bool(args.disable_notification),
+            )
         print(json.dumps(response, indent=2, ensure_ascii=False))
         return 0
 
