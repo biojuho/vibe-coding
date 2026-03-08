@@ -5,6 +5,27 @@
 
 ---
 
+## 2026-03-08 10:48 KST — Gemini/Antigravity
+
+### 작업 요약
+사용자 요청에 따라 `finance_economy` 및 `beauty_lifestyle` 신규 버티컬 채널 확장 롤백.
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `shorts-maker-v2/ShortsFactory/config/channels.yaml` | `finance_economy`, `beauty_lifestyle` 블록 삭제 |
+| `blind-to-x/config.yaml` | `output_formats` 목록에서 `finance_economy`, `beauty_lifestyle` 항목 삭제 |
+| `.gemini/.../task.md` | 신규 채널 추가 태스크 취소선 처리 및 롤백 사유 기재 |
+
+### 핵심 결정사항
+- 현재 시점에서 버티컬 확장은 발생할 수 있는 잠재적 문제가 있다고 판단하여, 배포 전 폐기 및 롤백 조치.
+
+### 미완료 TODO
+- 없음
+
+### 다음 도구에게 전달할 메모
+- 시스템 확장 및 자동화 루프 관련 파이프라인 고도화는 최종 완료되었으며, 신규 채널(금융, 뷰티) 확장은 당분간 보류됨.
+
 ## 2026-03-08 10:45 KST — Gemini/Antigravity
 
 ### 작업 요약
