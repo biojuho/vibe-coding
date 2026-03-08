@@ -99,6 +99,7 @@ Vibe coding/                      # Root 워크스페이스
 - word-chain: React 19 + Vite 7 빌드 완료
 - YouTube Analytics → Notion 자동 수집 구현
 - Telegram 알림 시스템 구축
+- QA/QC 4단계 자동화 검증 워크플로우 통합 (project-rules 및 session_workflow 연동)
 
 ### 🔄 진행 중
 - shorts-maker-v2: 영상 품질 최적화 (Phase 2 기술 업그레이드)
@@ -148,4 +149,4 @@ Vibe coding/                      # Root 워크스페이스
 
 ---
 
-*마지막 업데이트: 2026-03-06 14:13 KST (Gemini/Antigravity)*
+*마지막 업데이트: 2026-03-08 KST (Gemini/Antigravity)*

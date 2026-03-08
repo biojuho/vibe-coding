@@ -5,6 +5,95 @@
 
 ---
 
+## 2026-03-08 09:40 KST — Gemini/Antigravity
+
+### 작업 요약
+QA/QC 4단계 워크플로우 프롬프트 모음 생성 (개발→QA→수정→QC)
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `.agents/workflows/qa-qc.md` | 🆕 생성 — `/qa-qc` 슬래시 커맨드용 워크플로우 요약 |
+| `directives/qa_qc_workflow.md` | 🆕 생성 — 전체 SOP (4단계 프롬프트 원문 포함 + 마스터 프롬프트) |
+| `.agents/rules/project-rules.md` | `작업 중 (상시)` 섹션에 QA/QC 통과 의무화 규칙 추가 |
+| `directives/session_workflow.md` | 작업 중 절차 및 세션 종료 절차에 QA/QC 단계 연동 |
+| `.agents/workflows/end.md` | 작업 요약 시 QA/QC 통과 여부 검증 항목 추가 |
+
+### 핵심 결정사항
+- 3계층 아키텍처에 맞게 워크플로우(2계층)와 지침(1계층) 양쪽에 파일 생성
+- 워크플로우 파일은 실행 절차 요약, 지침 파일은 각 STEP 프롬프트 원문 포함
+- 자동화 세션 훅(`project-rules`, `start`, `end`) 및 `session_workflow` SOP에 QA/QC 검증 절차를 편입시켜, 별도의 수동 실행 없이도 코드 변경 시 자연스럽게 품질 검증 루프를 타도록 강제함
+
+### 미완료 TODO
+- 없음
+
+### 다음 도구에게 전달할 메모
+- `/qa-qc` 슬래시 커맨드로 워크플로우 실행 가능
+- 상세 프롬프트는 `directives/qa_qc_workflow.md` 참조
+- 노드 분리 실행 시 STEP 1~4 각각, 통합 실행 시 마스터 프롬프트 사용
+
+---
+
+## 2026-03-08 08:17 KST — Gemini/Antigravity
+
+### 작업 요약
+blind-to-x 전체 현황 점검 + 4개 이슈 일괄 해결 (Notion DB 스키마 정렬, 테스트 수정, 환경 확인, E2E 검증)
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| Notion DB `2d8d6f4c` | 21개 속성 추가 (10개 → 31개): 분석 메트릭(4), 인텔리전스(4), 운영(5), 콘텐츠(4), 추적(4) |
+| `blind-to-x/tests_unit/test_notion_accuracy.py` | `test_exact_duplicate_check_uses_equals`, `test_duplicate_query_error_returns_none` — `query_collection` 직접 mock으로 변경 |
+| `blind-to-x/tests_unit/test_notion_connection_modes.py` | `test_duplicate_check_uses_data_source_query` — 동일 패턴 수정 |
+
+### 핵심 결정사항
+- Notion DB에 파이프라인 설계에 맞는 전체 속성 추가 (축소 대신 확장 선택)
+- 테스트 mock 전략: `databases.query()` library mock → `uploader.query_collection` 직접 mock (httpx 직접 호출 구조에 맞춤)
+
+### 미완료 TODO
+- 없음 (모든 이슈 해결 완료)
+
+### 다음 도구에게 전달할 메모
+- Notion DB 31개 속성 존재, 실제 업로드 검증 완료 (`Total: 1 | OK 1 | FAIL 0`)
+- 유닛 테스트 105/105 통과
+- MS Store Python shim 비활성화 완료 → `python` 명령 정상
+- `run_scheduled.bat`은 venv Python 절대 경로 사용
+- Windows 작업 스케줄러 5개 시간대 등록 확인 (BlindToX_0500/0900/1300/1700/2100)
+
+---
+
+## 2026-03-07 21:51 KST — Gemini/Antigravity
+
+### 작업 요약
+blind-to-x Notion 업로드 문제 해결 (2일간 장애 복구) + 로컬 스케줄러 등록 + Gemini API 키 전체 교체
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `blind-to-x/.env` | `NOTION_DATABASE_ID` 수정 (`7253f1ef...` → `2d8d6f4c...`), `GEMINI_API_KEY` 추가 |
+| `blind-to-x/pipeline/notion_upload.py` | `_retrieve_collection`에 httpx 폴백 추가 (notion-client 2.2.1 properties 버그 우회), `query_collection`에서 httpx 직접 REST API 호출로 변경 (databases.query 메서드 제거 대응), `_page_parent_payload`를 `database_id`로 복원 |
+| `shorts-maker-v2/.env` | `GEMINI_API_KEY` 새 키로 교체 |
+| `hanwoo-dashboard/.env` | `GEMINI_API_KEY` 추가 |
+| `infrastructure/.env` | `GEMINI_API_KEY` 추가 |
+| `.env` (루트) | `GEMINI_API_KEY` 추가 |
+
+### 핵심 결정사항
+- `notion-client 2.2.1` 자체 버그 우회: 라이브러리가 `databases.retrieve`에서 properties를 빈 딕셔너리로 반환하고, `databases.query` 메서드가 제거됨 → `httpx`로 Notion REST API 직접 호출하여 해결
+- 올바른 Notion DB ID: `2d8d6f4c-9757-4aa8-9fcb-2ae548ed6f9a` (📋 X 콘텐츠 파이프라인)
+- Windows 작업 스케줄러에 5개 시간대 등록 (05/09/13/17/21시, 각 3건)
+- Gemini API 키 전체 프로젝트 통일: `AIzaSyARsRAGjc4oVom2JK9kZILl9x9ZvFvn-Eo`
+
+### 미완료 TODO
+- Windows 앱 실행 별칭 해제 후 **새 터미널 열면** python PATH 문제 해결됨 (현재 터미널에서는 전체 경로 필요)
+- 파이프라인 exit code 1 원인 추가 조사 (Notion 업로드는 성공하나 이미지 관련 부차적 에러 가능)
+
+### 다음 도구에게 전달할 메모
+- `notion-client 2.2.1`은 현재 Notion API와 호환 불량 → `notion_upload.py`에 httpx 폴백이 적용됨. 라이브러리 업그레이드 시 폴백 제거 가능
+- `run_scheduled.bat`은 `venv/Scripts/python.exe` 사용 → venv에 의존성 설치 상태 유지 필요
+- 스케줄러는 "대화형만" 모드 → PC 로그인 상태에서만 실행됨
+
+---
+
 ## 2026-03-07 — Claude Code (Opus 4.6)
 
 ### 작업 요약
