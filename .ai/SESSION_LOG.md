@@ -5,6 +5,60 @@
 
 ---
 
+## 2026-03-08 10:15 KST — Gemini/Antigravity
+
+### 작업 요약
+Blind-to-x 간헐적 exit code 1 유발 버그 심층 디버깅 및 Shorts Maker V2 파이프라인(Phase 2) 렌더링 검증 완료
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `blind-to-x/main.py` | 예산 초과, 전체 항목 실패, 전역 예외 시 `sys.exit(1)` 분기에 대한 상세 에러 로깅(`logger.exception`) 추가 |
+| `blind-to-x/pipeline/process.py` | 스크린샷 캡처 및 AI 이미지 생성 실패 시 warning을 exception 로깅으로 변경 및 'Partial Success' 에러 메시지 반환 로직 추가 |
+| `blind-to-x/pipeline/image_generator.py` | AI 이미지 생성기(Gemini, Pollinations, DALL-E) 오류 시 상세 스택 트레이스(`exc_info`) 로깅 강화 |
+
+### 핵심 결정사항
+- `blind-to-x`의 간헐적 **Silent Error** 방지를 위해 부가 프로세스 실패 내역이 전체 결과에 명시되도록 보강
+- 단일 실패가 파이프라인을 멈추지 않고, 모두 실패한 경우에만 1을 반환하는 로직의 관측성을 높이기 위해 전체 아이템 실패 사유 취합 후 출력
+- `shorts-maker-v2`의 Phase 2 고도화 요소 (Neon Cyberpunk UI, VS 비교, 자동 토픽 생성기, HW 렌더링 가속) 구현 검증 및 완료 처리
+
+### 미완료 TODO
+- 없음
+
+### 다음 도구에게 전달할 메모
+- `shorts-maker-v2` 기능 구현이 Phase 2까지 안정적으로 마무리됨.
+- 예약 스케줄러를 담당하는 로컬 배치 파일들은 모두 `venv/Scripts/python.exe` (절대 경로)를 정상 참조 중임.
+
+
+
+## 2026-03-08 09:55 KST — Gemini/Antigravity
+
+### 작업 요약
+Blind-to-X 스프린트 작업 및 파이프라인 P2 고도화 (Image A/B 테스팅, 뉴스레터 자동 스케줄링, 6D 스코어 품질 부스트 구현)
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `blind-to-x/pipeline/image_ab_tester.py` | 🆕 생성 — 이미지 A/B 테스트 프레임워크 구현 |
+| `blind-to-x/pipeline/newsletter_scheduler.py` | 🆕 생성 — 뉴스레터 자동 발행 스케줄러 구현 |
+| `blind-to-x/pipeline/image_generator.py` | `build_image_prompt` 메서드에 변형 파라미터 연동 |
+| `blind-to-x/pipeline/content_intelligence.py` | 6D 스코어에 `quality_boost` 가중치 로직 추가 |
+| `blind-to-x/config.yaml` 외 | 환경 변수 및 CLI 연동 추가 |
+| `blind-to-x/tests_unit/test_fmkorea_jobplanet_dryrun.py` | FMKorea / JobPlanet dry-run 테스트 추가 |
+
+### 핵심 결정사항
+- 출처별 `quality_boost`를 도입하여 6D 스코어 정확도 개선
+- 뉴스레터 스케줄러에 발행 시간 최적화(`optimal_slot`) 메커니즘 연동
+- ImageABTester를 통한 다변화된 프롬프트 파이프라인 구축 및 성과 측정 프로세스 확립
+
+### 미완료 TODO
+- 파이프라인 exit code 1 원인 추가 조사 잔존 (Notion 업로드 외 부차적 이슈 추적 필요)
+
+### 다음 도구에게 전달할 메모
+- 금번 생성된 컴포넌트는 즉시 도입된 QA/QC 자동화 워크플로우를 통해 검증을 거칠 예정임
+
+---
+
 ## 2026-03-08 09:40 KST — Gemini/Antigravity
 
 ### 작업 요약
