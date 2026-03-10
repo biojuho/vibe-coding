@@ -7,7 +7,7 @@ requests==2.32.3
 python-dotenv==1.0.1
 cloudinary==1.41.0
 curl_cffi==0.14.1
-beautifulsoup4==4.12.3
+beautifulsoup4==4.14.3
 openai==1.59.9
 tweepy==4.14.0
 aiohttp==3.11.11
