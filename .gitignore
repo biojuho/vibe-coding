@@ -1,18 +1,25 @@
-# Environment and credentials
+# ============================================================
+# Vibe Coding - .gitignore (Private Backup 용)
+# 목적: 전체 프로젝트 코드 백업 (보안 민감 파일 제외)
+# ============================================================
+
+# ===== 보안 (절대 커밋 금지) =====
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 credentials.json
 token.json
+*.pem
+*.key
 
-# Runtime outputs
+# ===== 런타임 출력물 =====
 .tmp/
-logs/
+**/logs/
 test_audio/
 backups/
 *.log
 
-# Python caches/artifacts
+# ===== Python 캐시/아티팩트 =====
 __pycache__/
 **/__pycache__/
 *.pyc
@@ -24,51 +31,47 @@ __pycache__/
 .ruff_cache/
 .coverage
 htmlcov/
+*.egg-info/
 
-# Virtual environments
+# ===== 가상환경 =====
 venv/
 .venv/
 **/venv/
 **/.venv/
 
-# JavaScript build caches
+# ===== JavaScript 빌드 캐시 =====
 **/node_modules/
 **/.next/
 **/dist/
 **/build/
 **/.turbo/
 
-# Local tooling folders
+# ===== AI 도구 로컬 설정 (각 도구 고유) =====
 .agent/
-.agents/
+.agents/skills/_archive/
 .claude/
 .codex/
 .vscode/
+.gemini/
 
-# OS junk
+# ===== Nested Git Repos (renamed for root backup) =====
+**/.git.bak/
+
+# ===== OS =====
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Nested independent repositories (kept external to root Joolife repo)
-blind-to-x/
-hanwoo-dashboard/
-knowledge-dashboard/
+# ===== Docker =====
+infrastructure/n8n/logs/
 
-# Side projects excluded from root Joolife tracking
+# ===== 미사용/아카이브 프로젝트 =====
+_archive/
 champion-roulette/
 discord-bot/
 escape-room/
 esports-alert/
-infrastructure/
 profit-content-generator/
 shorts-maker/
-shorts-maker-v2/
 stat-card-maker/
-suika-game-v2/
-word-chain/
 word-chain-pygame/
-
-# Keep only archived personal-agent for test compatibility
-_archive/*
-!_archive/personal-agent/
-!_archive/personal-agent/**

@@ -3,6 +3,319 @@
 > 각 AI 도구가 작업할 때마다 아래 형식으로 기록합니다.
 > 최신 세션이 파일 상단에 위치합니다 (역순).
 
+## 2026-03-10 16:00 KST — Antigravity (Sprint 3)
+
+### 작업 요약
+Shorts Maker V2 Sprint 3 구현 완료: 카라오케 word-level highlight, Intro/Outro 에셋 연동 강화, GPU 렌더링 벤치마크
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `shorts-maker-v2/config.yaml` | `highlight_color: "#FFD700"`, `highlight_mode: "word"` 설정 추가 |
+| `shorts-maker-v2/src/shorts_maker_v2/config.py` | `CaptionSettings`에 `highlight_color`, `highlight_mode` 필드 추가 + `load_config` 파싱 |
+| `shorts-maker-v2/src/shorts_maker_v2/render/karaoke.py` | `render_karaoke_highlight_image()` 함수 신규 — 청크 내 단어별 하이라이트 이미지 생성 |
+| `shorts-maker-v2/src/shorts_maker_v2/render/outro_card.py` | 🆕 채널별 아웃트로 카드 자동 생성 모듈 (테마 색상 + 글로우 + 소셜 CTA) |
+| `shorts-maker-v2/src/shorts_maker_v2/pipeline/render_step.py` | Word-level highlight 카라오케 로직, 인트로/아웃트로 자동 감지+애니메이션, 렌더링 벤치마크 추가 |
+| `shorts-maker-v2/src/shorts_maker_v2/utils/hwaccel.py` | `get_hw_decode_params()`, `detect_gpu_info()` 함수 추가 — GPU 디코딩 + 시스템 감지 |
+
+### 핵심 결정사항
+- **Word-Level Highlight**: `highlight_mode: "word"` 설정 시, 청크 내 각 단어의 WordBoundary 타이밍에 맞춰 현재 발화 단어를 금색(#FFD700)으로 강조, 나머지 단어는 반투명 흰색으로 표시. `highlight_mode: "chunk"`로 기존 동작 유지 가능.
+- **Intro 자동 감지**: config에 intro_path가 없어도 `assets/intros/{channel_key}_intro.png`를 자동 탐색하여 적용
+- **Outro 자동 생성**: `outro_card.py`의 `ensure_outro_assets()`가 5채널 아웃트로 에셋을 자동 생성 (assets/outro/ 폴더)
+- **렌더링 벤치마크**: `time.perf_counter()`로 인코딩 시간 측정, 영상 길이 대비 속도 비율(N.Nx) 출력
+
+### 테스트 결과
+- ✅ 222 passed, 5 skipped (기존 테스트 전체 통과)
+- ✅ Config 로딩 검증 통과 (highlight_color, highlight_mode)
+- ✅ 모듈 import 검증 통과 (karaoke, outro_card, hwaccel)
+- ✅ 5채널 아웃트로 에셋 생성 성공
+- ✅ Word-level highlight 이미지 렌더링 검증 통과
+
+### 미완료 TODO
+- GPU 디코딩 실제 적용 (MoviePy 내부 ffmpeg input에 `-hwaccel` 파라미터 전달은 MoviePy API 제약으로 보류)
+- Intro/Outro 비디오 에셋 (MP4) 제작 — 현재 정적 이미지(PNG)만 지원
+
+### 다음 도구에게 전달할 메모
+- `highlight_mode: "chunk"`로 변경하면 기존 카라오케 동작으로 롤백 가능
+- 5채널 아웃트로 에셋이 `assets/outro/` 폴더에 자동 생성됨 (수동 교체 가능)
+- 렌더링 벤치마크 결과가 콘솔 + 로그에 자동 출력됨
+
+---
+
+## 2026-03-10 16:00 KST — Antigravity (Gemini)
+
+### 작업 요약
+Shorts Maker V2 Critical Issues 8건 중 6건 즉시 수정 + Notion 콘텐츠 캘린더 모듈 신규 생성 + 아키텍처 문서 생성
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `shorts-maker-v2/config.yaml` | `visual_primary` google-imagen→gemini-image (404 해결), `visual_stock` ""→"pexels" 활성화, `target_duration_sec` [30,40]→[25,35] |
+| `shorts-maker-v2/channel_profiles.yaml` | 5채널 `target_duration_sec` 보수적 하향 (40~55초→30~40초), `target_chars` 연동 조정, health 채널 `visual_styles` safety prefix 추가 |
+| `shorts-maker-v2/src/shorts_maker_v2/cli.py` | `_ensure_utf8_stdio()` 함수 추가 — 모든 진입점에서 cp949→UTF-8 래핑 |
+| `shorts-maker-v2/src/shorts_maker_v2/pipeline/media_step.py` | content_policy 실패 시 Pexels 스톡 fallback 경로 추가 (placeholder 전 단계), 주석 업데이트 |
+| `shorts-maker-v2/src/shorts_maker_v2/pipeline/orchestrator.py` | Pexels 클라이언트 초기화 조건 확장 (visual_stock OR stock_mix_ratio > 0) |
+| `shorts-maker-v2/src/shorts_maker_v2/utils/content_calendar.py` | 🆕 Notion 기반 콘텐츠 캘린더 모듈 (pending 조회, 상태 업데이트, 중복방지 추가) |
+| `shorts-maker-v2/ARCHITECTURE.md` | 🆕 이중 아키텍처 역할 분리 문서 (ShortsFactory=deprecated, src/shorts_maker_v2=main) |
+
+### 핵심 결정사항
+- **Imagen 3 → Gemini 전환**: Imagen 3 API가 404 NOT_FOUND를 반환하므로 무료 Gemini 이미지 생성을 기본값으로 전환. Gemini→Pollinations→DALL-E→Pexels→placeholder 순 fallback 체인 유지.
+- **영상 길이 보수적 조정**: 실측 TTS가 목표 대비 40-81% 길어지므로, 채널별 target_duration_sec를 30-40초로 하향하여 60초 하드캡 안전 마진 확보.
+- **Pexels 이중 활성화**: `visual_stock` 설정 + `stock_mix_ratio > 0` 양쪽 조건으로 초기화하여 Body 씬 스톡 비디오 믹스 + content_policy 최종 fallback 모두 지원.
+- **건강 채널 안전 프롬프트**: "no anatomy", "no blood or surgery" 등 DALL-E content_policy 위반 방지 접두어를 visual_styles에 직접 삽입.
+- **Notion 콘텐츠 캘린더**: NOTION_API_KEY + NOTION_TRACKING_DB_ID 활용, txt 파일 수동 관리 대체.
+
+### 미완료 TODO
+- Sprint 2 (자동화): YouTube Data API v3 자동 업로드, n8n 스케줄링 연동
+- Sprint 3 (품질): 카라오케 자막 word-level sync 정밀도, Intro/Outro 에셋 제작, GPU 렌더링 가속 검증
+
+### QC 판정
+- ✅ **승인** — 유닛 테스트 203 passed, 4 skipped, 0 failed / config 유효성 검증 통과 / 기존 ffmpeg 미설치 환경 이슈(렌더링 테스트)는 코드 변경과 무관
+
+### 다음 도구에게 전달할 메모
+- `visual_primary`가 `gemini-image`로 변경됨 — Imagen 3 재활성화 시 `google-imagen`으로 복원
+- Pexels API 키(`PEXELS_API_KEY`)가 `.env`에 설정되어 있어야 스톡 비디오 작동
+- `content_calendar.py`의 Notion DB 스키마는 기존 NOTION_TRACKING_DB_ID를 사용 — Name, Status, Channel, Scheduled Date 속성 필요
+- `ARCHITECTURE.md` 생성됨 — ShortsFactory는 공식 deprecated
+
+---
+
+## 2026-03-09 22:20 KST — Antigravity (Gemini)
+
+### 작업 요약
+n8n Phase 1 도입 완료 — Docker Desktop + n8n 컨테이너 + HTTP 브릿지 서버 구축, BTX 4시간 간격 스케줄링 + 30분 헬스체크 자동화, 부팅 시 자동 시작 등록
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `infrastructure/n8n/docker-compose.yml` | 🆕 n8n Docker Compose (512MB, KST, restart: unless-stopped) |
+| `infrastructure/n8n/bridge_server.py` | 🆕 HTTP 브릿지 서버 (Bearer 인증, 커맨드 화이트리스트, UTF-8 env) |
+| `infrastructure/n8n/healthcheck.py` | 🆕 시스템 헬스체크 (Notion/LLM/디스크/Python 점검) |
+| `infrastructure/n8n/start_n8n.bat` | 🆕 수동 시작 스크립트 |
+| `infrastructure/n8n/stop_n8n.bat` | 🆕 수동 종료 스크립트 |
+| `infrastructure/n8n/autostart_bridge.bat` | 🆕 부팅 시 브릿지 자동 시작 (시작프로그램 등록) |
+| `infrastructure/n8n/workflows/btx_pipeline_schedule.json` | 🆕 BTX 스케줄링 워크플로우 (05,09,13,17,21시) |
+| `infrastructure/n8n/workflows/system_healthcheck.json` | 🆕 30분 헬스체크 워크플로우 |
+| `infrastructure/n8n/README.md` | 🆕 사용 가이드 |
+
+### 핵심 결정사항
+- n8n은 기존 파이프라인을 **대체하지 않고 스케줄링만 담당** — main.py 코드 변경 없음
+- Docker 컨테이너 → 호스트 통신은 `host.docker.internal` + HTTP 브릿지 방식
+- 브릿지 서버 보안: Bearer 토큰 + 커맨드 화이트리스트 + localhost only
+- 스케줄: 기존 Task Scheduler와 동일한 4시간 간격 (05:00, 09:00, 13:00, 17:00, 21:00)
+- 부팅 자동화: Docker Desktop(레지스트리) + n8n(restart policy) + 브릿지(시작프로그램 폴더)
+- n8n 워크플로우 노드명은 영문 사용 (PowerShell→Docker 한글 인코딩 깨짐 이슈)
+
+### 미완료 TODO
+- Slack/Discord webhook 연동 (알림 채널 미설정)
+- 기존 Windows Task Scheduler 비활성화 (n8n과 중복 실행 방지)
+
+### QC 판정
+- ✅ **승인** — 13개 검증 항목 전수 PASS (Docker/n8n/브릿지/통신/헬스체크/워크플로우/자동시작)
+
+### 다음 도구에게 전달할 메모
+- n8n UI: `http://localhost:5678` (계정은 사용자가 직접 설정)
+- 브릿지 서버: `http://127.0.0.1:9876` (토큰: `Bearer n8n-bridge-secret-2026`)
+- n8n에서 호스트 접근: `http://host.docker.internal:9876`
+- 워크플로우 ID: BTX=`D0rhgz3Gm4GMnlVy`, Healthcheck=`m9lnmfWHgcAQVGFW`
+- Credential ID: `GDHnGurtIfPtiGMq` (Header Auth)
+- WSL Ubuntu 배포판 설치됨 (Docker Desktop 백엔드용)
+- 기존 Task Scheduler(BlindToX_0500~2100)는 아직 활성 상태 — n8n 안정화 후 비활성화 필요
+
+---
+
+## 2026-03-09 20:20 KST — Antigravity (Gemini)
+
+### 작업 요약
+시스템 3대 약점 개선: pipeline_watchdog.py 구축 (7개 항목 자동 감시 + Telegram 알림) + OneDrive 자동 백업 구축 (3,702파일/1.5GB) + run_scheduled.py 통합
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `execution/pipeline_watchdog.py` | 🆕 생성 — PipelineWatchdog 클래스: btx 파이프라인, 스케줄러, Notion API, Windows Task Scheduler, 디스크 공간, Telegram, 백업 상태 7개 항목 자동 점검 + Telegram 알림 + 이력 저장 |
+| `execution/backup_to_onedrive.py` | 🆕 생성 — OneDrive 자동 백업: 핵심 파일만 선별 복사, venv/node_modules 등 제외, 최근 7회 보관, dry-run/status 지원 |
+| `blind-to-x/run_scheduled.py` | 파이프라인 완료 후 watchdog + backup 자동 실행 (후속 태스크 실패는 메인 exit code에 영향 없음) |
+| `directives/watchdog_backup.md` | 🆕 생성 — Watchdog & Backup SOP 지침서 |
+| `.ai/CONTEXT.md` | 완료 항목 3건 추가, 예정 항목 2건 추가, 알려진 이슈 1건 추가 |
+
+### 핵심 결정사항
+- Watchdog는 매일 파이프라인 직후 자동 실행 (run_scheduled.py 통합)
+- 이상 감지 시에만 Telegram 알림 (성공 시 조용히) — `--daily` 옵션으로 매일 요약 가능
+- OneDrive 백업에서 `.db`, `venv/`, `node_modules/` 등 재생성 가능 파일 제외 → 1.5GB로 경량화
+- 스킬 45개 → 15개 정리는 다음 세션에서 진행 예정
+
+### 미완료 TODO
+- 스킬 감사 및 정리 (45개 → 15개)
+- GitHub Private Repo 설정
+- Windows Task Scheduler에 BlindToX_Pipeline 재등록
+
+### QC 판정
+- ✅ **승인 (QC-2026-0309-03)** — QA 검토 후 DRY 위반 수정 (telegram_notifier 중복 import → `_load_telegram_module()` 헬퍼 추출), 3개 파일 컴파일 검증 + 현장 테스트 통과
+
+### 다음 도구에게 전달할 메모
+- `pipeline_watchdog.py --json --no-notify` 로 점검 결과 JSON 확인 가능
+- `backup_to_onedrive.py --status` 로 백업 현황 확인 가능
+- 백업 경로: `C:\Users\박주호\OneDrive\VibeCodingBackup\backup_YYYYMMDD_HHMM`
+- Watchdog 이력: `.tmp/watchdog_history.json` (최근 30회)
+- Windows Task Scheduler에 `BlindToX_Pipeline` 태스크가 미등록 상태 → S4U 재설정 필요
+
+---
+
+## 2026-03-09 19:58 KST — Antigravity (Gemini)
+
+### 작업 요약
+Blind-to-X 소스별 이미지 전략 분기 구현 + 수집량 하루 ~30건 조정 + Newsletter 태스크 제거
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `blind-to-x/pipeline/image_generator.py` | `_BLIND_ANIME_STYLE` 상수 + `_build_blind_anime_prompt()` 메서드 신규 (15개 토픽 장면 + 8개 감정 표정 매핑), `build_image_prompt()`에 `source` 파라미터 추가 + None 방어 |
+| `blind-to-x/pipeline/process.py` | 소스별 3-way 이미지 분기 로직 (blind=AI 애니 필수 / ppomppu,fmkorea=원본 이미지만 / 기타=기존), QA 수정: 중복 if/else 단순화 |
+| `blind-to-x/config.yaml` | `scrape_limit: 5→3`, 소스별 상한 `2→1`, `max_posts_per_day: 25` |
+| `blind-to-x/run_scheduled.py` | Newsletter Build 태스크 제거 |
+
+### 핵심 결정사항
+- **소스별 이미지 전략**: 블라인드=Pixar/애니 삽화 AI 이미지 필수, 뽐뿌/에펨=원본 게시판 짤만 사용(AI 불필요)
+- **수집량 조정**: 하루 ~48건 → ~30건 (scrape_limit 3, 소스별 각 1)
+- **Newsletter 제거**: 사용자 요청으로 스케줄러에서 뉴스레터 빌드 태스크 제거
+- **비용 영향 없음**: 대부분 무료 tier 사용, 월 ~$0.60 수준 유지
+
+### 미완료 TODO
+- 없음
+
+### QC 판정
+- ✅ **승인** — 4개 프롬프트 시나리오 테스트 통과 / QA 3건 이슈 전수 해결 / 리스크 LOW
+
+### 다음 도구에게 전달할 메모
+- `build_image_prompt(source="blind")` 호출 시 Pixar 3D 애니 스타일 프롬프트 반환
+- `process.py`에서 소스별 분기: `_is_blind` / `_is_community` 플래그로 판별
+- 뽐뿌/에펨은 AI 이미지 생성을 **완전 스킵** — 원본 `image_urls[0]`만 CDN 업로드
+- Newsletter 태스크는 `run_scheduled.py`에서 제거됨 — 복원 시 `("Newsletter Build", [PYTHON, "main.py", "--newsletter-build"])` 추가
+
+---
+
+## 2026-03-09 15:20 KST — Antigravity (Gemini)
+
+### 작업 요약
+Blind-to-X 스케줄러 한국어 경로 인코딩 깨짐 해결 (`C:\btx\` ASCII launcher chain 구성) + Notion 2000자 초과 에러 수정 (1990자 안전 마진)
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `blind-to-x/pipeline/notion_upload.py` | `rich_text`/`title` truncation limit 2000→1990 (Unicode 카운팅 차이 대응) |
+| `C:\btx\run.bat` | 🆕 ASCII bat launcher — `%LOCALAPPDATA%`로 Python 경로 런타임 구성 |
+| `C:\btx\launch.py` | 🆕 Python launcher — `%USERPROFILE%`로 한국어 작업 디렉토리 런타임 구성 |
+| `blind-to-x/run_scheduled.py` | 🆕 3개 작업(trending/popular/newsletter) 순차 실행 + 로그 기록 |
+| `blind-to-x/register_schedule.ps1` | `cmd.exe /c C:\btx\run.bat` 방식으로 변경 (ASCII-only) |
+| `blind-to-x/run_scheduled.bat` | 절대 경로 하드코딩 (기존 bat 백업용 유지) |
+| `C:\btx\register_tasks.ps1` | 🆕 ASCII 경로 전용 간소화 등록 스크립트 |
+
+### 핵심 결정사항
+- Windows Task Scheduler XML이 `Register-ScheduledTask`로 등록 시 한국어(`박주호`)를 `諛뺤＜??`로 깨뜨림 → ASCII-only 경로(`C:\btx\`)를 경유하고 환경변수(`%LOCALAPPDATA%`, `%USERPROFILE%`)로 런타임에 한국어 경로 해석
+- Notion API `rich_text` 2000자 제한에서 유니코드 카운팅 차이로 2006자 에러 → 10자 여유를 둔 1990자로 변경
+- 스케줄러 LogonType을 `Interactive`로 유지 (S4U에서도 한국어 경로 이슈 발생)
+
+### 미완료 TODO
+- 없음
+
+### QC 판정
+- ✅ **승인** — 스케줄러 수동 트리거 2회 exit 0 / 유닛 테스트 238 passed 0 failed / Notion 업로드 100% 성공
+
+### 다음 도구에게 전달할 메모
+- **한국어 경로가 포함된 파일은 Windows Task Scheduler에 직접 등록 불가** — 반드시 `C:\btx\` ASCII launcher 경유
+- `CONTEXT.md` 지뢰밭에 이 이슈 등록 완료
+- Python 버전 업그레이드 시 `C:\btx\launch.py`의 `pythoncore-3.14-64` 경로 수동 업데이트 필요
+- 스케줄러는 `대화형만(Interactive)` 모드 — PC 로그인 상태에서만 실행됨
+
+---
+
+## 2026-03-09 13:17 KST — Antigravity (Gemini)
+
+### 작업 요약
+Blind-to-X 파이프라인 헬스 체크 + 수동 실행 (5건 Notion 업로드) + 스케줄러 `대화형만` → `S4U/백그라운드` 모드 수정
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `blind-to-x/register_schedule.ps1` | 스케줄러 로그온 모드 변경: `대화형만` → `S4U`(로그온 여부 무관), `-WorkingDirectory` 명시, `-ExecutionTimeLimit 2h`, `RunLevel Highest` 추가 |
+
+### 핵심 결정사항
+- 스케줄러 `LogonType S4U` 적용 — PC 잠금/로그아웃 상태에서도 실행 가능
+- 기존 5개 태스크(0500/0900/1300/1700/2100) 모두 관리자 권한 재등록 완료
+- 수동 `--trending` 실행으로 4일간 공백 데이터 즉시 보충 (5건)
+
+### 미완료 TODO
+- 없음
+
+### QC 판정
+- ✅ **승인** — 238 passed, 1 skipped / 스케줄러 5개 모두 `대화형/백그라운드` 확인 / Notion 5건 업로드 100% 성공
+
+### 다음 도구에게 전달할 메모
+- `register_schedule.ps1` 재실행 시 **관리자 권한 PowerShell** 필수
+- 스케줄러가 `S4U` 모드로 변경되었으므로 PC 종료/잠금 시에도 자동 실행됨
+- 오늘 05:00/09:00 태스크는 실행됐으나 exit code 1로 실패 — 원인은 `대화형만` 모드에서 GUI 세션 없이 실행되어 Playwright headless 브라우저 초기화 실패로 추정
+- `TELEGRAM_BOT_TOKEN` 미설정 상태 — 알림 필요 시 `.env`에 추가 필요
+
+---
+
+## 2026-03-09 10:53 KST — Antigravity (Gemini)
+
+### 작업 요약
+시스템 점검 4건 후속 처리 + QC 최종 승인.
+1. **NOTION_DATABASE_ID 통일 검토** — 의도적으로 다른 DB임 확인, 양쪽 `.env`에 역할 구분 주석 추가
+2. **Gemini/xAI 드래프트 생성 점검** — API 직접 테스트 성공, 4 provider 모두 enabled, circuit breaker 정상
+3. **소스별 limit 할당제** — `config.yaml`에 `scrape_limits_per_source` 추가, `main.py`에 enforcement 로직 구현
+4. **playwright_stealth 테스트** — 이전 세션에서 이미 해결 확인 (v2.0.2: 27 passed)
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `blind-to-x/config.yaml` | `scrape_limits_per_source` 설정 추가 (blind=2, ppomppu=2, fmkorea=2, jobplanet=1) |
+| `blind-to-x/main.py` | per-source limit enforcement 로직 (L422-L439) |
+| `.env` (root) | NOTION_DATABASE_ID 역할 구분 주석 추가 |
+| `blind-to-x/.env` | NOTION_DATABASE_ID 역할 구분 주석 추가 |
+
+### 핵심 결정사항
+- Root `.env`(7253f1ef...)와 blind-to-x `.env`(2d8d6f4c...)의 NOTION_DATABASE_ID는 의도적으로 다른 DB — 통일 불필요
+- 소스별 limit은 engagement 정렬 후 적용 → 고품질 콘텐츠 우선 확보 보장
+
+### 미완료 TODO
+- 없음
+
+### QC 판정
+- ✅ **승인** — blind-to-x 238 passed, root 705 passed, 리스크 LOW
+
+### 다음 도구에게 전달할 메모
+- per-source limit은 `config.yaml` 수정만으로 즉시 조정 가능
+- Gemini API는 현재 정상이나, 일시적 실패 시 fallback 체인이 자동 처리
+- playwright_stealth v2.0.2 설치 완료, 관련 테스트 18건→27건 모두 통과 상태
+
+---
+
+## 2026-03-09 10:15 KST — Antigravity (Gemini)
+
+### 작업 요약
+전체 시스템 점검 (7개 프로젝트 + 루트 워크스페이스) 실행 및 발견 이슈 1건 수정.
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `tests/test_telegram_notifier.py` | `test_main_send_command`: `send_message` mock → `send_alert` mock으로 변경 (`main()`이 `send_alert` 호출하도록 변경된 반영분 누락 수정) |
+
+### 핵심 결정사항
+- 기존 이슈인 suika-game-v2/word-chain Vite 빌드 한국어 경로 문제는 코드 수정 대상이 아니라 환경 이슈로 확인 (dev 서버는 정상 작동)
+
+### 미완료 TODO
+- 없음
+
+### 다음 도구에게 전달할 메모
+- Root 테스트: 705 passed, 1 skipped, coverage 99.86%
+- blind-to-x 테스트: 238 passed, 1 skipped
+- hanwoo-dashboard, knowledge-dashboard: Next.js 빌드 정상
+- suika-game-v2, word-chain: Vite 빌드 실패 (한국어 경로 이슈 — 기존 확인됨)
+
+---
+
 ## 2026-03-08 22:30 KST — Antigravity (Gemini)
 
 ### 작업 요약

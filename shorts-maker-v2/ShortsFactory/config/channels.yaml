@@ -1,0 +1,110 @@
+# ============================================================
+# ShortsFactory 채널별 스타일 정의 (channels.yaml)
+# 5개 채널의 비주얼/타이포/훅/키워드 하이라이트 설정
+# ============================================================
+
+channels:
+
+  # ── 🤖 AI/기술 ──────────────────────────────────────────────
+  ai_tech:
+    name: "AI/기술"
+    palette:
+      primary: "#00D4FF"
+      secondary: "#7C3AED"
+      accent: "#00FF88"
+      bg: "#0A0E1A"
+    font_title: "Pretendard-ExtraBold"
+    font_body: "Pretendard-Regular"
+    color_preset: "neon_tech"
+    default_templates:
+      - ai_news
+      - tech_comparison
+      - future_countdown
+    keyword_highlights:
+      tech_terms: "#00FF88"
+      numbers: "#FFD700"
+    hook_style: "glitch"
+
+  # ── 🧠 심리학 ──────────────────────────────────────────────
+  psychology:
+    name: "심리학"
+    palette:
+      primary: "#E879F9"
+      secondary: "#F59E0B"
+      accent: "#FB7185"
+      bg: "#1A0A1E"
+    font_title: "NanumMyeongjo-Bold"
+    font_body: "Pretendard-Regular"
+    color_preset: "dreamy_purple"
+    default_templates:
+      - psych_experiment
+      - psych_quiz
+      - self_development
+    keyword_highlights:
+      emotions: "#FB7185"
+      numbers: "#F59E0B"
+      terms: "#E879F9"
+    hook_style: "typewriter"
+
+  # ── 🏺 역사/고고학 ─────────────────────────────────────────
+  history:
+    name: "역사/고고학"
+    palette:
+      primary: "#D4A574"
+      secondary: "#8B6914"
+      accent: "#C41E3A"
+      bg: "#1A1408"
+    font_title: "NanumMyeongjo-Bold"
+    font_body: "Pretendard-Regular"
+    color_preset: "vintage_sepia"
+    default_templates:
+      - history_timeline
+      - history_mystery
+    keyword_highlights:
+      dates: "#D4A574"
+      wars: "#C41E3A"
+      people: "#F59E0B"
+    hook_style: "typewriter"
+
+  # ── 🔭 우주/천문학 ─────────────────────────────────────────
+  space:
+    name: "우주/천문학"
+    palette:
+      primary: "#818CF8"
+      secondary: "#06B6D4"
+      accent: "#F59E0B"
+      bg: "#030014"
+    font_title: "Pretendard-ExtraBold"
+    font_body: "Pretendard-Regular"
+    color_preset: "deep_space"
+    default_templates:
+      - space_scale
+      - space_facts
+    keyword_highlights:
+      numbers: "#F59E0B"
+      objects: "#818CF8"
+    hook_style: "zoom_flash"
+
+  # ── 💊 의학/건강 ───────────────────────────────────────────
+  health:
+    name: "의학/건강"
+    palette:
+      primary: "#34D399"
+      secondary: "#3B82F6"
+      accent: "#EF4444"
+      bg: "#0A1A14"
+    font_title: "Pretendard-Bold"
+    font_body: "Pretendard-Regular"
+    color_preset: "clean_medical"
+    default_templates:
+      - health_dodont
+      - research_result
+      - mental_health
+    keyword_highlights:
+      positive: "#34D399"
+      warning: "#EF4444"
+      numbers: "#3B82F6"
+    hook_style: "clean_popup"
+    disclaimer: true  # 항상 면책조항 포함
+
+

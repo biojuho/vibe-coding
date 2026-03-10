@@ -375,8 +375,8 @@ def test_main_send_command(monkeypatch, capsys):
     )
     monkeypatch.setattr(
         tn,
-        "send_message",
-        lambda message, disable_notification=False: {
+        "send_alert",
+        lambda message, level="INFO", disable_notification=False: {
             "result": {"message_id": 321, "disable_notification": disable_notification, "text": message}
         },
     )

@@ -1,0 +1,172 @@
+{
+  "name": "시스템 헬스체크",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "healthcheck-cron",
+      "name": "⏰ 30분마다 점검",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:9876/execute",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"command\": \"healthcheck\",\n  \"timeout\": 60\n}",
+        "options": {
+          "timeout": 70000
+        }
+      },
+      "id": "run-healthcheck",
+      "name": "🏥 헬스체크 실행",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [250, 0],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "bridge-auth",
+          "name": "Bridge Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 헬스체크 출력 파싱\nconst output = $input.first().json;\nlet healthData;\n\ntry {\n  // stdout에서 JSON 파싱\n  healthData = JSON.parse(output.stdout || '{}');\n} catch(e) {\n  healthData = { overall_status: 'error', checks: {}, parse_error: e.message };\n}\n\nreturn [{ json: { \n  ...healthData,\n  bridge_status: output.status,\n  bridge_exit_code: output.exit_code\n}}];"
+      },
+      "id": "parse-output",
+      "name": "📊 결과 파싱",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "healthy-check",
+              "leftValue": "={{ $json.overall_status }}",
+              "rightValue": "healthy",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "check-health",
+      "name": "🔍 정상 여부 확인",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [750, 0]
+    },
+    {
+      "parameters": {},
+      "id": "healthy-noop",
+      "name": "✅ 정상 (알림 없음)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1000, -100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SLACK_WEBHOOK_URL || 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"⚠️ *시스템 헬스체크 경고*\\n• 상태: {{ $json.overall_status }}\\n• 시간: {{ $json.timestamp }}\\n• 점검 결과:\\n{{ Object.entries($json.checks || {}).map(([k,v]) => `  - ${k}: ${v.status} — ${v.message}`).join('\\n') }}\"\n}"
+      },
+      "id": "unhealthy-notify",
+      "name": "⚠️ 이상 감지 알림",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 100]
+    }
+  ],
+  "connections": {
+    "⏰ 30분마다 점검": {
+      "main": [
+        [
+          {
+            "node": "🏥 헬스체크 실행",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🏥 헬스체크 실행": {
+      "main": [
+        [
+          {
+            "node": "📊 결과 파싱",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 결과 파싱": {
+      "main": [
+        [
+          {
+            "node": "🔍 정상 여부 확인",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 정상 여부 확인": {
+      "main": [
+        [
+          {
+            "node": "✅ 정상 (알림 없음)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "⚠️ 이상 감지 알림",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Seoul"
+  },
+  "tags": [
+    {
+      "name": "monitoring"
+    },
+    {
+      "name": "healthcheck"
+    }
+  ]
+}

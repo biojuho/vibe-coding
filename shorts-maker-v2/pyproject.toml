@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "shorts-maker-v2"
+version = "0.1.0"
+description = "One-click YouTube Shorts generator CLI"
+readme = "docs/README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "openai>=1.59.3",
+  "google-genai>=1.0.0",
+  "python-dotenv>=1.0.1",
+  "PyYAML>=6.0.2",
+  "moviepy>=2.1.0",
+  "Pillow>=10.2.0",
+  "mutagen>=1.47.0",
+  "requests>=2.32.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+]
+
+[project.scripts]
+shorts-maker-v2 = "shorts_maker_v2.cli:run_cli"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
