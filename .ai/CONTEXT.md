@@ -116,18 +116,21 @@ Vibe coding/                      # Root 워크스페이스
 - 시스템 모니터링: `pipeline_watchdog.py` 구축 — 파이프라인/스케줄러/Notion/디스크/백업 7개 항목 자동 감시 + Telegram 알림
 - OneDrive 자동 백업: `backup_to_onedrive.py` 구축 — 핵심 파일 3,702개(1.5GB) 매일 자동 백업, 최근 7회 보관
 - blind-to-x: `run_scheduled.py`에 watchdog + backup 후속 태스크 통합
+- n8n Phase 1: Docker Desktop + n8n 컨테이너 구축, HTTP 브릿지 서버, 워크플로우 2개 (BTX 스케줄링 + 헬스체크)
+- 스킬 감사 정리: 45개 → 23개 (22개 아카이브: 미사용 18개 + 중복 4개, `_archive/` 이동)
+- GitHub Private Repo 설정: `biojuho/vibe-coding` (641 files, .env 제외), 초기 push 완료
 
 ### 🔄 진행 중
+- n8n ↔ Task Scheduler 이중 실행 방지: Task Scheduler 5개 태스크 비활성화 필요 (관리자 권한 필요 — `infrastructure/n8n/disable_task_scheduler.ps1`)
 - blind-to-x: 스케줄러 자동 실행 모니터링 (S4U 전환 후 1주간)
 - blind-to-x: 실 운영 LLM 초안 품질 모니터링 (1주간 manual review)
-- blind-to-x: 소스별 이미지 전략 실 운영 결과 확인 (다음 스케줄 20:00 이후)
 
 ### 📋 예정
-- 스킬 감사 및 정리: 45개 → 15개 목표 (중복 통합 + 미사용 아카이브)
-- GitHub Private Repo 설정: 코드 백업용 (.env 제외)
+- (없음 — 백로그 소진됨)
 
 ### ⚠️ 알려진 이슈
-- Windows Task Scheduler에 `BlindToX_Pipeline` 태스크 미등록 상태 (S4U 이후 재설정 필요)
+- Windows Task Scheduler BlindToX_0500~2100 5개 태스크가 아직 활성 상태 — n8n과 이중 실행 가능성 → 관리자 권한으로 `disable_task_scheduler.ps1` 실행 필요
+- 하위 프로젝트(blind-to-x, hanwoo-dashboard, knowledge-dashboard)의 `.git` 폴더가 독립 repo → root git push 시 임시로 `.git.bak` 변경 필요
 
 ---
 
