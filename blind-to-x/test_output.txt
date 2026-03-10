@@ -1,0 +1,20 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.14.2, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\Users\諛뺤＜??Desktop\Vibe coding\blind-to-x
+configfile: pytest.ini
+plugins: anyio-4.12.1, langsmith-0.6.9, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 56 items
+
+tests\test_p0_enhancements.py ..............                             [ 25%]
+tests\test_p1_enhancements.py ..................                         [ 57%]
+tests\test_p2_enhancements.py ...............                            [ 83%]
+tests\test_p3_enhancements.py .........                                  [100%]
+
+============================== warnings summary ===============================
+tests/test_p0_enhancements.py::test_get_season_boost_returns_float
+  C:\Users\諛뺤＜??AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\anthropic\_compat.py:48: UserWarning: Core Pydantic V1 functionality isn't compatible with Python 3.14 or greater.
+    from pydantic.v1.typing import (
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 56 passed, 1 warning in 6.52s ========================

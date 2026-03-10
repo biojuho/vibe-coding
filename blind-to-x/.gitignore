@@ -1,0 +1,14 @@
+config.yaml
+screenshots/
+__pycache__/
+*.pyc
+.env*
+!.env.example
+venv/
+.tmp/
+app_debug.log
+*.log
+debug_*.py
+search_notion.py
+credentials.json
+token.json

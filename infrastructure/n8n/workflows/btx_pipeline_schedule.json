@@ -1,0 +1,157 @@
+{
+  "name": "BTX 파이프라인 스케줄링",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 5,9,13,17,21 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "⏰ 4시간마다 (05,09,13,17,21시)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:9876/execute",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"command\": \"btx_pipeline\",\n  \"timeout\": 600\n}",
+        "options": {
+          "timeout": 660000
+        }
+      },
+      "id": "execute-btx",
+      "name": "🚀 BTX 파이프라인 실행",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [250, 0],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "bridge-auth",
+          "name": "Bridge Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "success-check",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "success",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "check-result",
+      "name": "✅ 성공 여부 확인",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [500, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SLACK_WEBHOOK_URL || 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"✅ *BTX 파이프라인 성공*\\n• 소요시간: {{ $json.duration_seconds }}초\\n• 시간: {{ $json.timestamp }}\\n• 상세: ```{{ $json.stdout ? $json.stdout.slice(-500) : '출력 없음' }}```\"\n}"
+      },
+      "id": "success-notify",
+      "name": "✅ 성공 알림",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [750, -100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SLACK_WEBHOOK_URL || 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"🚨 *BTX 파이프라인 실패*\\n• 종료코드: {{ $json.exit_code }}\\n• 소요시간: {{ $json.duration_seconds }}초\\n• 에러: ```{{ $json.stderr ? $json.stderr.slice(-500) : '에러 정보 없음' }}```\"\n}"
+      },
+      "id": "failure-notify",
+      "name": "🚨 실패 알림",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [750, 100]
+    }
+  ],
+  "connections": {
+    "⏰ 4시간마다 (05,09,13,17,21시)": {
+      "main": [
+        [
+          {
+            "node": "🚀 BTX 파이프라인 실행",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🚀 BTX 파이프라인 실행": {
+      "main": [
+        [
+          {
+            "node": "✅ 성공 여부 확인",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ 성공 여부 확인": {
+      "main": [
+        [
+          {
+            "node": "✅ 성공 알림",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🚨 실패 알림",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Seoul"
+  },
+  "tags": [
+    {
+      "name": "blind-to-x"
+    },
+    {
+      "name": "automation"
+    }
+  ]
+}

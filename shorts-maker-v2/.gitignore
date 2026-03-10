@@ -1,0 +1,15 @@
+.env
+output/
+logs/
+runs/
+.pytest_cache/
+__pycache__/
+
+# MoviePy 임시 파일
+*TEMP_MPY_*.mp4
+*.mp4.tmp
+TEMP_*.mp4
+
+# 캐시
+.cache/
+MagicMock/

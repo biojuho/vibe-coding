@@ -1,0 +1,177 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FarmSettings {
+  id        String   @id @default("default")
+  name      String   @default("Joolife Farm")
+  location  String   @default("Namwon")
+  latitude  Float    @default(35.446)
+  longitude Float    @default(127.344)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Building {
+  id          String          @id @default(cuid())
+  name        String
+  penCount    Int             @default(32)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  cattle      Cattle[]
+  feedRecords FeedRecord[]
+  expenses    ExpenseRecord[]
+}
+
+model Cattle {
+  id             String          @id @default(cuid())
+  tagNumber      String          @unique
+  name           String
+  birthDate      DateTime
+  gender         String
+  status         String
+  weight         Float
+  buildingId     String
+  penNumber      Int
+  memo           String?
+  geneticFather  String?
+  geneticMother  String?
+  geneticGrade   String?
+  weightHistory  String?
+  lastEstrus     DateTime?
+  pregnancyDate  DateTime?
+  purchasePrice  Int?
+  purchaseDate   DateTime?
+  isArchived     Boolean         @default(false)
+  archivedAt     DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  building       Building        @relation(fields: [buildingId], references: [id], onDelete: Restrict)
+  salesRecords   SalesRecord[]
+  scheduleEvents ScheduleEvent[]
+  histories      CattleHistory[]
+  expenses       ExpenseRecord[]
+}
+
+model SalesRecord {
+  id        String   @id @default(cuid())
+  saleDate  DateTime
+  price     Int
+  purchaser String?
+  grade     String?
+  cattleId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  cattle    Cattle   @relation(fields: [cattleId], references: [id], onDelete: Restrict)
+}
+
+model FeedStandard {
+  id            String   @id @default(cuid())
+  status        String   @unique
+  roughage      String
+  roughageKg    Float
+  concentrate   String
+  concentrateKg Float
+  note          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model InventoryItem {
+  id        String   @id @default(cuid())
+  name      String
+  category  String
+  quantity  Float
+  unit      String
+  threshold Float?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ScheduleEvent {
+  id          String   @id @default(cuid())
+  title       String
+  date        DateTime
+  type        String
+  cattleId    String?
+  isCompleted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  cattle      Cattle?  @relation(fields: [cattleId], references: [id], onDelete: SetNull)
+}
+
+model FeedRecord {
+  id          String   @id @default(cuid())
+  date        DateTime
+  buildingId  String
+  penNumber   Int?
+  roughage    Float
+  concentrate Float
+  note        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  building    Building @relation(fields: [buildingId], references: [id], onDelete: Restrict)
+}
+
+model Subscription {
+  id              String    @id @default(cuid())
+  userId          String?
+  status          String    @default("INACTIVE")
+  billingKey      String?
+  customerKey     String    @unique
+  planName        String    @default("BASIC")
+  amount          Int       @default(9900)
+  nextPaymentDate DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model PaymentLog {
+  id          String    @id @default(cuid())
+  orderId     String    @unique
+  paymentKey  String?
+  amount      Int
+  status      String
+  requestedAt DateTime  @default(now())
+  approvedAt  DateTime?
+  receiptUrl  String?
+  updatedAt   DateTime  @updatedAt
+}
+
+model ExpenseRecord {
+  id          String    @id @default(cuid())
+  date        DateTime
+  cattleId    String?
+  buildingId  String?
+  category    String
+  amount      Int
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  cattle      Cattle?   @relation(fields: [cattleId], references: [id], onDelete: SetNull)
+  building    Building? @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+}
+
+model CattleHistory {
+  id          String   @id @default(cuid())
+  cattleId    String
+  eventType   String
+  eventDate   DateTime
+  description String?
+  metadata    String?
+  createdAt   DateTime @default(now())
+  cattle      Cattle   @relation(fields: [cattleId], references: [id], onDelete: Cascade)
+}

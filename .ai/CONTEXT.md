@@ -107,15 +107,27 @@ Vibe coding/                      # Root 워크스페이스
 - blind-to-x: P6 플랫폼별 톤 최적화 (classification_rules.yaml 확장 530줄)
 - blind-to-x: P6 성과 피드백 루프 모듈 (`performance_tracker.py`) 구현 — QC 승인
 - blind-to-x: 뽐뿌 원본 이미지 보존 파이프라인 (AI 이미지 생성 우회) 구현 — QC 승인
+- blind-to-x: 소스별 scrape limit 할당제 구현 (독식 방지) — QC 승인
+- blind-to-x: NOTION_DATABASE_ID 환경 분리 명확화 (root vs blind-to-x 주석 추가)
+- blind-to-x: Gemini/xAI API 호환성 검증 완료 (4 provider fallback 정상 동작)
+- blind-to-x: 스케줄러 S4U 모드 전환 — PC 잠금/로그아웃 시에도 자동 실행 보장
+- blind-to-x: 소스별 이미지 전략 3-way 분기 (블라인드=Pixar 애니/뽐뿌,에펨=원본 짤/기타=기존) — QC 승인
+- blind-to-x: 수집량 하루 ~30건 조정 (scrape_limit 3, 소스별 1) + Newsletter 태스크 제거 — QC 승인
+- 시스템 모니터링: `pipeline_watchdog.py` 구축 — 파이프라인/스케줄러/Notion/디스크/백업 7개 항목 자동 감시 + Telegram 알림
+- OneDrive 자동 백업: `backup_to_onedrive.py` 구축 — 핵심 파일 3,702개(1.5GB) 매일 자동 백업, 최근 7회 보관
+- blind-to-x: `run_scheduled.py`에 watchdog + backup 후속 태스크 통합
 
 ### 🔄 진행 중
+- blind-to-x: 스케줄러 자동 실행 모니터링 (S4U 전환 후 1주간)
 - blind-to-x: 실 운영 LLM 초안 품질 모니터링 (1주간 manual review)
+- blind-to-x: 소스별 이미지 전략 실 운영 결과 확인 (다음 스케줄 20:00 이후)
 
 ### 📋 예정
-- (사용자가 결정)
+- 스킬 감사 및 정리: 45개 → 15개 목표 (중복 통합 + 미사용 아카이브)
+- GitHub Private Repo 설정: 코드 백업용 (.env 제외)
 
 ### ⚠️ 알려진 이슈
-- (발견 시 기록)
+- Windows Task Scheduler에 `BlindToX_Pipeline` 태스크 미등록 상태 (S4U 이후 재설정 필요)
 
 ---
 
@@ -150,9 +162,11 @@ Vibe coding/                      # Root 워크스페이스
 > AI 도구가 반복적으로 실수하는 부분을 여기에 기록합니다.
 
 | 날짜 | 도구 | 내용 | 해결 방법 |
-|------|------|------|-----------|
+|------|------|------|-----------| 
 | 2026-03-06 | 초기 세팅 | (초기화) | - |
+| 2026-03-09 | Antigravity | Windows Task Scheduler에서 `Register-ScheduledTask`로 한국어 경로(`박주호`)를 등록하면 XML에 `諛뺤＜??`로 깨짐 → 스케줄러 실패 | ASCII-only 경로(`C:\btx\`)에 launcher를 두고 환경변수(`%LOCALAPPDATA%`, `%USERPROFILE%`)로 런타임 해석 |
+| 2026-03-09 | Antigravity | Notion API `rich_text` 2000자 제한에서 유니코드 한국어 문자열이 정확히 2000자여도 API가 거부하는 경우 발생 | 안전 마진 10자를 두고 1990자로 truncate |
 
 ---
 
-*마지막 업데이트: 2026-03-08 19:18 KST (Antigravity — P6 QC 승인 완료)*
+*마지막 업데이트: 2026-03-09 19:58 KST (Antigravity — 소스별 이미지 전략 3-way 분기 + 수집량 30건/일 조정 + QC 승인)*
