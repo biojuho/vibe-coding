@@ -1,10 +1,14 @@
 # ============================================================
 # BlindToX Windows Task Scheduler 비활성화 스크립트
 # n8n으로 스케줄링 전환 시 이중 실행 방지용
-# 사용법: 관리자 PowerShell에서 실행
+# 사용법: PowerShell에서 실행 (자동으로 관리자 권한 요청)
 # ============================================================
 
-#Requires -RunAsAdministrator
+# 관리자 권한 자동 상승
+if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Start-Process powershell -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
+    exit
+}
 
 $tasks = @('BlindToX_0500', 'BlindToX_0900', 'BlindToX_1300', 'BlindToX_1700', 'BlindToX_2100')
 
