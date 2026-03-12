@@ -3,6 +3,102 @@
 > 각 AI 도구가 작업할 때마다 아래 형식으로 기록합니다.
 > 최신 세션이 파일 상단에 위치합니다 (역순).
 
+## 2026-03-12 14:50 KST — Antigravity (Gemini) — QC 세션
+
+### 작업 요약
+MCP & Skill 확장 Phase A+B+C 전체에 대한 QA/QC 4단계 프로세스 실행.
+
+### QA 검토 (STEP 2)
+- **기능성**: 3개 MCP, 5개 Skill, 3개 업그레이드 Skill 구조 및 기능 검증
+- **보안**: SQL Injection 벡터 발견 (테이블명 f-string 삽입) → FAIL
+- **안정성**: Docker 헬스체크 타임아웃 개선 필요 → FAIL
+- **코드 품질**: docstring 오류(6→7개) → FAIL
+
+### 수정 사항 (STEP 3)
+1. `sqlite-multi-mcp/server.py` — `_validate_table_name()` 함수 추가 (SQL Injection 방어)
+2. `sqlite-multi-mcp/server.py` — `_get_table_schema()`, `_quick_stats()`에 검증 적용
+3. `sqlite-multi-mcp/server.py` — docstring 6→7개 정정
+4. `system-monitor/server.py` — Docker 타임아웃 5→3초, OSError catch, CREATE_NO_WINDOW 플래그
+
+### QC 최종 검증 (STEP 4)
+- **17/17 테스트 전수 통과**
+- **QC 판정: ✅ 승인 (APPROVED)**
+
+### 변경 파일
+- `infrastructure/sqlite-multi-mcp/server.py` (보안 강화)
+- `infrastructure/system-monitor/server.py` (안정성 강화)
+
+### 다음 도구에게 메모
+- T8 테이블명 검증은 정규식 `^[a-zA-Z_][a-zA-Z0-9_]*$`로 구현 — 향후 특수 테이블명 필요 시 확장 고려
+- Docker Desktop 미설치 환경에서도 3초 이내 반환 보장
+
+---
+
+## 2026-03-12 세션3 KST — Claude Code (Opus 4.6)
+
+### 작업 요약
+MCP & Skill 확장 QC 수행. `/simplify` 스킬로 3개 리뷰 에이전트(Code Reuse, Code Quality, Efficiency) 병렬 실행 후 발견된 이슈 전체 수정.
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `.mcp.json` | npm 패키지명 `@anthropic-ai/mcp-server-*` → `@modelcontextprotocol/server-*` 수정 |
+| `infrastructure/youtube-mcp/server.py` | 서비스 캐싱, `_fetch_video_stats_batch()` 공통 헬퍼 추출, google SDK import 가드, TOCTOU 제거, 토큰 저장 에러 핸들링, 불필요 파라미터 제거 |
+| `infrastructure/telegram-mcp/server.py` | 예외→dict 반환 통일, `requests.Session` TCP 풀링, 환경변수 1회 읽기, MIME 자동 감지, logging 추가 |
+| `infrastructure/n8n-mcp/server.py` | `requests.Session` auth 사전 설정 (헬스체크 인증 누락 수정), 에러 메시지 상수 추출, TOCTOU 제거, logging 추가 |
+
+### QC 결과 (15건 수정)
+- **Code Reuse**: `_fetch_video_stats_batch()` 공통 헬퍼 추출 (youtube-mcp 중복 코드 제거)
+- **Code Quality**: TOCTOU 패턴 3건 제거, 에러 반환 타입 통일 (telegram), FastMCP 생성자 `instructions` 키워드 통일
+- **Efficiency**: YouTube 서비스 모듈 레벨 캐싱, `requests.Session` TCP 풀링 2건, 환경변수 시작 시 1회 읽기, MIME 자동 감지
+
+### 핵심 결정사항
+- MCP 서버 에러 반환 패턴 통일: 모든 도구 함수는 예외를 raise하지 않고 `{"error": "..."}` dict 반환
+- `requests.Session` 모듈 레벨 싱글톤 패턴 표준화 (telegram, n8n 적용)
+
+### 다음 도구에게 메모
+- 3개 커스텀 MCP 서버 모두 AST 파싱 검증 완료
+- Phase 3 (Cloudinary MCP, Google Calendar MCP, content-calendar 스킬) 미실행 → 향후 진행 가능
+
+---
+
+## 2026-03-12 14:30 KST — Antigravity (Gemini)
+
+### 작업 내용: MCP & Skill 확장 (Phase A+B+C 전체 실행)
+
+#### 신규 MCP 서버 (3개 생성)
+- `infrastructure/sqlite-multi-mcp/server.py` — 7개 SQLite DB 통합 읽기 전용 접근 (4 tools)
+- `infrastructure/system-monitor/server.py` — v2 완성판: CPU/메모리/디스크/프로세스/서비스/네트워크 (5 tools, 기존 1→5)
+- `infrastructure/cloudinary-mcp/server.py` — 이미지 에셋 업로드/관리/CDN URL 생성 (5 tools)
+
+#### 신규 Skill (5개 생성)
+- `.agents/skills/content-calendar/SKILL.md` — 5채널 YouTube Shorts 콘텐츠 캘린더 관리
+- `.agents/skills/error-debugger/SKILL.md` — 파이프라인 에러 자동 진단/분류/복구
+- `.agents/skills/trend-scout/SKILL.md` — 실시간 트렌드 탐지 + 채널별 토픽 제안
+- `.agents/skills/roi-analyzer/SKILL.md` — API 비용 vs 수익 ROI 분석
+- `.agents/skills/deployment-helper/SKILL.md` — Firebase/Supabase 배포 자동화
+
+#### 기존 Skill 업그레이드 (3개 → v2)
+- `.agents/skills/daily-brief/SKILL.md` — 시스템 헬스/네트워크 섹션 추가, MCP 연동 매트릭스
+- `.agents/skills/cost-check/SKILL.md` — Multi-DB MCP 연동, 프로젝트별 비용 분리
+- `.agents/skills/pipeline-runner/SKILL.md` — Pre-flight 자동 검증(비용 가드/헬스/lock)
+
+#### .mcp.json 업데이트
+- sqlite (단일) → sqlite-multi (7개 DB) 교체
+- system-monitor, cloudinary MCP 추가
+- 총 10개 MCP 서버
+
+#### 검증 결과
+- SQLite Multi-DB: 4/7 DB 정상 접근 (3개는 .tmp에 아직 미생성)
+- System Monitor v2: CPU/메모리/서비스 헬스 정상 보고
+
+#### 다음 도구에게 메모
+- Brave Search API 키 `.env` 설정 필요 (사용자 수동)
+- Cloudinary API 키 `.env` 설정 필요 (사용자 수동)
+- 커스텀 MCP 3종 (YouTube/Telegram/n8n) `mcp[cli]` 패키지 설치 검증 필요
+
+---
+
 ## 2026-03-12 KST — Claude Code (Opus 4.6)
 
 ### 작업 요약
