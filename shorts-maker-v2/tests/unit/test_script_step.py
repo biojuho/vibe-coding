@@ -12,8 +12,8 @@ class FakeOpenAIClient:
         self.responses = list(responses)
         self.calls = 0
 
-    def generate_json(self, *, model: str = "", system_prompt: str = "", user_prompt: str = "", temperature: float = 0.7):
-        del model, system_prompt, user_prompt, temperature
+    def generate_json(self, *, model: str = "", system_prompt: str = "", user_prompt: str = "", temperature: float = 0.7, thinking_level: str | None = None):
+        del model, system_prompt, user_prompt, temperature, thinking_level
         self.calls += 1
         if not self.responses:
             raise AssertionError("No more fake responses available.")
@@ -26,6 +26,9 @@ def make_config(*, duration_range=(20, 30), tts_speed=1.05):
             llm="openai",
             llm_model="gpt-4o-mini",
             tts_speed=tts_speed,
+            thinking_level="low",
+            thinking_level_review="high",
+            embedding_model="gemini-embedding-2-preview",
         ),
         project=SimpleNamespace(
             default_scene_count=2,

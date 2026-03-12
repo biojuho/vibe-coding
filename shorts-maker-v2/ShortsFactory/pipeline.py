@@ -303,5 +303,126 @@ class ShortsFactory:
             "jobs_done": sum(1 for j in self._jobs if j.status == "done"),
         }
 
+    # ── Phase 1: Main Pipeline 연동용 브리지 메서드 ──────────────────────────
+
+    def render_from_plan(
+        self,
+        scenes: list[dict],
+        assets: dict[int, str | Path],
+        output: str,
+        *,
+        audio_paths: dict[int, str | Path] | None = None,
+        template: str | None = None,
+    ) -> str:
+        """Main Pipeline의 ScenePlan 데이터를 받아 ShortsFactory 스타일로 렌더링합니다.
+
+        이 메서드는 Main Pipeline의 orchestrator가 RenderAdapter를 통해 호출합니다.
+        ShortsFactory의 6대 엔진(Text/Color/Background/Layout/Hook/Transition)을
+        활용하여 채널별 스타일이 적용된 최종 영상을 렌더링합니다.
+
+        Args:
+            scenes: ScenePlan 딕셔너리 리스트.
+                각 항목: {"scene_id", "narration_ko", "visual_prompt_en",
+                          "target_sec", "structure_role"}
+            assets: scene_id → 비주얼 파일 경로 매핑
+            output: 최종 출력 파일 경로
+            audio_paths: scene_id → TTS 오디오 파일 경로 매핑 (선택)
+            template: 사용할 템플릿 이름 (선택, 없으면 채널 기본 템플릿)
+
+        Returns:
+            렌더링된 영상 파일 경로
+        """
+        from ShortsFactory.templates import TEMPLATE_REGISTRY, Scene
+
+        # 템플릿 선택
+        tmpl_name = template or (
+            self.channel.default_templates[0]
+            if self.channel.default_templates
+            else "ai_news"
+        )
+        tmpl_cls = TEMPLATE_REGISTRY.get(tmpl_name)
+        if tmpl_cls is None:
+            logger.warning(
+                "Template '%s' not found in TEMPLATE_REGISTRY, using base render",
+                tmpl_name,
+            )
+            # 폴백: 기존 RenderJob 경로
+            data = {"scenes": scenes, "assets": assets}
+            self.create(tmpl_name, data)
+            return self.render(output)
+
+        # ChannelConfig을 dict로 변환하여 BaseTemplate에 전달
+        channel_dict = {
+            "id": self.channel.id,
+            "palette": self.channel.palette,
+            "font": self.channel.font,
+            "color_preset": self.channel.color_preset,
+            "caption_combo": self.channel.caption_combo,
+            "hook_style": self.channel.hook_style,
+            "transition": self.channel.transition,
+            "disclaimer": self.channel.disclaimer,
+            "highlight_color": self.channel.highlight_color,
+            "keyword_highlights": self.channel.keyword_highlights,
+        }
+
+        # 템플릿 인스턴스 생성
+        tmpl = tmpl_cls(channel_dict)
+
+        # ScenePlan → Scene 변환
+        factory_scenes: list[Scene] = []
+        for sp in scenes:
+            scene = Scene(
+                role=sp.get("structure_role", "body"),
+                text=sp.get("narration_ko", ""),
+                keywords=[],
+                image_path=Path(assets[sp["scene_id"]]) if sp["scene_id"] in assets else None,
+                duration=sp.get("target_sec", 5.0),
+            )
+            factory_scenes.append(scene)
+
+        # 공통 후처리 (면책조항 등)
+        factory_scenes = tmpl.finalize_scenes(factory_scenes)
+
+        # 씬 에셋 렌더링 (자막 이미지 생성)
+        run_dir = Path(output).parent / ".render_work"
+        factory_scenes = tmpl.render_scene_assets(factory_scenes, run_dir)
+
+        # 렌더 작업 기록
+        job = RenderJob(tmpl_name, {"scene_count": len(factory_scenes)}, self.channel)
+        job.status = "rendering"
+        self._jobs.append(job)
+        t0 = time.time()
+
+        try:
+            # FFmpeg filter_complex 렌더링은 ShortsFactory/render.py가 담당
+            from ShortsFactory.render import RenderStep as SFRenderStep
+            renderer = SFRenderStep(self.channel)
+            result = renderer.render_scenes(factory_scenes, str(output))
+            job.output_path = result
+            job.status = "done"
+            job.duration_sec = time.time() - t0
+            logger.info("render_from_plan OK: %s (%0.1fs)", result, job.duration_sec)
+            return result
+        except Exception as e:
+            job.status = "error"
+            job.error = str(e)
+            job.duration_sec = time.time() - t0
+            logger.error("render_from_plan FAIL: %s", e)
+            raise
+
+    def get_template_info(self, template_name: str) -> dict | None:
+        """템플릿 정보를 반환합니다 (RenderAdapter용)."""
+        from ShortsFactory.templates import TEMPLATE_REGISTRY
+        cls = TEMPLATE_REGISTRY.get(template_name)
+        if cls is None:
+            return None
+        return {
+            "name": template_name,
+            "class": cls.__name__,
+            "module": cls.__module__,
+            "channel": getattr(cls, "channel", self.channel.id),
+        }
+
     def __repr__(self):
         return f"<ShortsFactory channel={self.channel.id} jobs={len(self._jobs)}>"
+

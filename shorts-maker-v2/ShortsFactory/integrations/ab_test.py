@@ -153,13 +153,14 @@ class ABTestAnalyzer:
     def fetch_metrics(self, video_id: str) -> dict[str, float]:
         """YouTube Analytics API에서 지표 가져오기."""
         if not self.api_key:
-            logger.warning("YOUTUBE_API_KEY not set. Returning mock metrics.")
-            return self._mock_metrics()
+            logger.warning("YOUTUBE_API_KEY not set. Cannot fetch metrics.")
+            return {}
 
         try:
             import requests
         except ImportError:
-            return self._mock_metrics()
+            logger.warning("requests library not installed. Cannot fetch metrics.")
+            return {}
 
         url = "https://www.googleapis.com/youtube/v3/videos"
         params = {
@@ -215,14 +216,4 @@ class ABTestAnalyzer:
             },
         }
 
-    @staticmethod
-    def _mock_metrics() -> dict[str, float]:
-        """테스트용 목업 지표."""
-        import random
-        return {
-            "views": random.randint(100, 5000),
-            "likes": random.randint(5, 200),
-            "comments": random.randint(0, 30),
-            "ctr": round(random.uniform(3.0, 15.0), 1),
-            "avg_view_percentage": round(random.uniform(40.0, 90.0), 1),
-        }
+

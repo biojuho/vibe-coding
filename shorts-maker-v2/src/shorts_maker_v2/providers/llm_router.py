@@ -48,7 +48,7 @@ PROVIDER_ALIASES = {
 
 DEFAULT_MODELS = {
     "openai": "gpt-4o-mini",
-    "google": "gemini-2.5-flash",
+    "google": "gemini-3.1-flash-lite-preview",
     "anthropic": "claude-sonnet-4-20250514",
     "xai": "grok-3-mini-fast",
     "deepseek": "deepseek-chat",
@@ -56,6 +56,9 @@ DEFAULT_MODELS = {
     "zhipuai": "glm-4-flash",
     "groq": "llama-3.3-70b-versatile",
 }
+
+# Gemini 3.1 Thinking Levels (minimal → high)
+VALID_THINKING_LEVELS = {"minimal", "low", "medium", "high"}
 
 # OpenAI-compatible 프로바이더의 base_url
 OPENAI_COMPATIBLE_BASE_URLS = {
@@ -168,6 +171,7 @@ class LLMRouter:
         user_prompt: str,
         temperature: float,
         json_mode: bool,
+        thinking_level: str | None = None,
     ) -> str:
         client = self._get_client(provider)
 
@@ -187,16 +191,27 @@ class LLMRouter:
 
         elif provider == "google":
             from google.genai import types
-            config = types.GenerateContentConfig(
-                system_instruction=system_prompt,
-                temperature=temperature,
-            )
-            if json_mode:
-                config = types.GenerateContentConfig(
-                    system_instruction=system_prompt,
-                    temperature=temperature,
-                    response_mime_type="application/json",
+            # Gemini 3.1: thinking_config 지원
+            thinking_config = None
+            if thinking_level and thinking_level in VALID_THINKING_LEVELS:
+                thinking_config = types.ThinkingConfig(
+                    thinking_level=thinking_level,
                 )
+                logger.info(
+                    "[Gemini] Thinking level: %s (model: %s)",
+                    thinking_level, self.models[provider],
+                )
+
+            config_kwargs: dict[str, Any] = {
+                "system_instruction": system_prompt,
+                "temperature": temperature,
+            }
+            if json_mode:
+                config_kwargs["response_mime_type"] = "application/json"
+            if thinking_config:
+                config_kwargs["thinking_config"] = thinking_config
+
+            config = types.GenerateContentConfig(**config_kwargs)
             resp = client.models.generate_content(
                 model=self.models[provider],
                 contents=user_prompt,
@@ -241,8 +256,14 @@ class LLMRouter:
         system_prompt: str,
         user_prompt: str,
         temperature: float = 0.7,
+        thinking_level: str | None = None,
     ) -> dict[str, Any]:
-        """Generate JSON from LLM with automatic provider fallback."""
+        """Generate JSON from LLM with automatic provider fallback.
+
+        Args:
+            thinking_level: Gemini 3.1 thinking depth (minimal/low/medium/high).
+                           None = model default. Only affects Google provider.
+        """
         providers = self.enabled_providers()
         if not providers:
             raise RuntimeError(
@@ -265,6 +286,7 @@ class LLMRouter:
                     content = self._generate_once(
                         provider, system_prompt, user_prompt,
                         temperature, json_mode=True,
+                        thinking_level=thinking_level,
                     )
                     content = self._clean_json(content)
                     result = json.loads(content)
@@ -305,6 +327,7 @@ class LLMRouter:
         system_prompt: str,
         user_prompt: str,
         temperature: float = 0.7,
+        thinking_level: str | None = None,
     ) -> str:
         """Generate plain text (no JSON mode) with provider fallback."""
         providers = self.enabled_providers()
@@ -318,6 +341,7 @@ class LLMRouter:
                     content = self._generate_once(
                         provider, system_prompt, user_prompt,
                         temperature, json_mode=False,
+                        thinking_level=thinking_level,
                     )
                     return content
                 except Exception as e:

@@ -1,7 +1,13 @@
 """
-background_engine.py — 배경/파티클 엔진
-========================================
+background_engine.py — 배경/파티클 엔진 v2
+==========================================
 채널 palette 기반 그라데이션 배경과 파티클 오버레이를 생성합니다.
+
+v2 개선사항:
+- create_noise_texture(): 필름 그레인/노이즈 텍스처 오버레이
+- create_scanline_overlay(): CRT 스캔라인 효과
+- create_mesh_gradient(): 다중 제어점 기반 메쉬 그라데이션
+- 기존 메서드 성능 최적화
 
 독립 사용:
     from ShortsFactory.engines.background_engine import BackgroundEngine
@@ -400,6 +406,196 @@ class BackgroundEngine:
 
         img.save(output_path, format="PNG")
         logger.debug("[BackgroundEngine] 블러 배경 생성: sigma=%d, brightness=%.1f", blur_sigma, brightness)
+        return output_path
+
+    # ── v2 신규 메서드 ────────────────────────────────────────────────────
+
+    def create_noise_texture(
+        self,
+        width: int = 1080,
+        height: int = 1920,
+        *,
+        intensity: float = 0.08,
+        grain_size: int = 1,
+        monochrome: bool = True,
+        output_path: Path | None = None,
+    ) -> Path:
+        """필름 그레인/노이즈 텍스처 오버레이(RGBA)를 생성합니다.
+
+        영상 위에 합성하면 시네마틱한 질감을 추가합니다.
+
+        Args:
+            width: 이미지 너비.
+            height: 이미지 높이.
+            intensity: 노이즈 강도 (0.0~1.0, 보통 0.05~0.15).
+            grain_size: 노이즈 그레인 크기 (1=픽셀, 2=2x2 블록).
+            monochrome: True면 흑백 노이즈, False면 컬러 노이즈.
+            output_path: 출력 경로.
+
+        Returns:
+            생성된 노이즈 텍스처 이미지 경로.
+        """
+        if output_path is None:
+            output_path = Path(tempfile.mktemp(suffix=".png"))
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        alpha_max = int(255 * min(1.0, intensity))
+
+        if grain_size > 1:
+            small_h = height // grain_size
+            small_w = width // grain_size
+        else:
+            small_h, small_w = height, width
+
+        if monochrome:
+            noise_vals = np.random.randint(0, 256, (small_h, small_w), dtype=np.uint8)
+            noise_rgb = np.stack([noise_vals] * 3, axis=-1)
+        else:
+            noise_rgb = np.random.randint(0, 256, (small_h, small_w, 3), dtype=np.uint8)
+
+        noise_alpha = np.random.randint(0, alpha_max + 1, (small_h, small_w), dtype=np.uint8)
+
+        rgba = np.zeros((small_h, small_w, 4), dtype=np.uint8)
+        rgba[:, :, :3] = noise_rgb
+        rgba[:, :, 3] = noise_alpha
+
+        image = Image.fromarray(rgba, "RGBA")
+        if grain_size > 1:
+            image = image.resize((width, height), Image.NEAREST)
+
+        image.save(output_path, format="PNG")
+        logger.debug(
+            "[BackgroundEngine] 노이즈 텍스처 생성: %.0f%% intensity, grain=%d",
+            intensity * 100, grain_size,
+        )
+        return output_path
+
+    def create_scanline_overlay(
+        self,
+        width: int = 1080,
+        height: int = 1920,
+        *,
+        line_spacing: int = 4,
+        line_opacity: float = 0.06,
+        line_color: str = "#000000",
+        output_path: Path | None = None,
+    ) -> Path:
+        """CRT 스캔라인 효과 오버레이(RGBA)를 생성합니다.
+
+        레트로/사이버펑크 느낌의 수평 라인 패턴입니다.
+
+        Args:
+            width: 이미지 너비.
+            height: 이미지 높이.
+            line_spacing: 스캔라인 간격 (px).
+            line_opacity: 스캔라인 불투명도 (0.0~1.0).
+            line_color: 라인 색상.
+            output_path: 출력 경로.
+
+        Returns:
+            생성된 스캔라인 오버레이 이미지 경로.
+        """
+        if output_path is None:
+            output_path = Path(tempfile.mktemp(suffix=".png"))
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        rgb = self._hex_to_rgb(line_color)
+        alpha = max(0, min(255, int(255 * line_opacity)))
+
+        # numpy 기반 빠른 생성
+        rgba = np.zeros((height, width, 4), dtype=np.uint8)
+        for y in range(0, height, line_spacing):
+            rgba[y, :, 0] = rgb[0]
+            rgba[y, :, 1] = rgb[1]
+            rgba[y, :, 2] = rgb[2]
+            rgba[y, :, 3] = alpha
+
+        image = Image.fromarray(rgba, "RGBA")
+        image.save(output_path, format="PNG")
+        logger.debug(
+            "[BackgroundEngine] 스캔라인 오버레이: spacing=%d, opacity=%.0f%%",
+            line_spacing, line_opacity * 100,
+        )
+        return output_path
+
+    def create_mesh_gradient(
+        self,
+        width: int = 1080,
+        height: int = 1920,
+        *,
+        colors: list[str] | None = None,
+        num_points: int = 5,
+        blur_radius: int = 150,
+        output_path: Path | None = None,
+    ) -> Path:
+        """다중 제어점 기반 메쉬 그라데이션 이미지를 생성합니다.
+
+        여러 색상 포인트를 블러로 혼합하여 유기적인 그라데이션을 만듭니다.
+        모던한 배경 디자인에 적합합니다.
+
+        Args:
+            width: 이미지 너비.
+            height: 이미지 높이.
+            colors: 제어점 색상 리스트 (None → palette에서 추출).
+            num_points: 색상 제어점 수 (colors보다 우선).
+            blur_radius: 가우시안 블러 반경 (혼합 부드러움).
+            output_path: 출력 경로.
+
+        Returns:
+            생성된 메쉬 그라데이션 이미지 경로.
+        """
+        if output_path is None:
+            output_path = Path(tempfile.mktemp(suffix=".png"))
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if colors is None:
+            colors = [
+                self.palette.get("bg", "#0A0E1A"),
+                self.palette.get("primary", "#00D4FF"),
+                self.palette.get("accent", "#00FF88"),
+                self.palette.get("secondary", "#7C3AED"),
+            ]
+
+        color_rgbs = [self._hex_to_rgb(c) for c in colors[:num_points]]
+        # [QA 수정] 빈 리스트 방어: 최소 1개 색상 보장
+        if not color_rgbs:
+            color_rgbs = [self._hex_to_rgb(self.palette.get("bg", "#0A0E1A"))]
+        while len(color_rgbs) < num_points:
+            color_rgbs.append(color_rgbs[len(color_rgbs) % len(color_rgbs)])
+
+        # 각 제어점에 랜덤 위치 할당
+        from PIL import ImageFilter as _IF
+
+        arr = np.zeros((height, width, 3), dtype=np.float32)
+
+        for rgb in color_rgbs:
+            cx = random.randint(int(width * 0.1), int(width * 0.9))
+            cy = random.randint(int(height * 0.1), int(height * 0.9))
+            radius = random.randint(
+                min(width, height) // 4,
+                min(width, height) // 2,
+            )
+
+            # 원형 그라데이션 (가우시안 폴오프)
+            y_grid, x_grid = np.mgrid[0:height, 0:width]
+            dist = np.sqrt((x_grid - cx) ** 2 + (y_grid - cy) ** 2)
+            falloff = np.exp(-(dist ** 2) / (2 * (radius ** 2)))
+
+            for c in range(3):
+                arr[:, :, c] += rgb[c] * falloff
+
+        # 클리핑
+        arr = np.clip(arr, 0, 255).astype(np.uint8)
+
+        image = Image.fromarray(arr, "RGB")
+        # 강한 블러로 부드러운 혼합
+        image = image.filter(_IF.GaussianBlur(radius=blur_radius))
+
+        image.save(output_path, format="PNG")
+        logger.debug(
+            "[BackgroundEngine] 메쉬 그라데이션: %d 제어점, blur=%d",
+            len(color_rgbs), blur_radius,
+        )
         return output_path
 
     # ── 내부 메서드 ─────────────────────────────────────────────────────

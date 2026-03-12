@@ -13,6 +13,15 @@ from shorts_maker_v2.models import ScenePlan
 from shorts_maker_v2.providers.llm_router import LLMRouter
 
 
+class TopicUnsuitableError(Exception):
+    """LLM이 신뢰할 수 있는 자료가 부족하다고 판단한 경우 발생.
+
+    orchestrator/batch에서 이 에러를 잡아 다른 주제로 전환하거나,
+    n8n 워크플로우에서 'topic_unsuitable' 상태를 분기 조건으로 사용.
+    """
+    pass
+
+
 class ScriptStep:
     duration_estimate_chars_per_sec = 8.5  # 실측 TTS(speed=1.05) 기준 보정
     max_generation_attempts = 3
@@ -37,35 +46,110 @@ class ScriptStep:
     _tone_counter: int = 0
     _structure_counter: int = 0  # YPP: 구조 프리셋 로테이션
 
+    # ── Sprint 4: 채널별 대본 검증 기준 ────────────────────────────────────────
+    # 각 채널에 특화된 추가 채점 항목 + min_score 오버라이드
+    _CHANNEL_REVIEW_CRITERIA: dict[str, dict[str, Any]] = {
+        "health": {
+            "extra_dimensions": (
+                "  source_score : Does the script cite specific data sources "
+                "(e.g. WHO, specific studies)? (1=no sources, 10=multiple cited)\n"
+                "  safety_score : Does the script avoid dangerous medical claims, "
+                "unverified treatments, or misleading health info? (1=dangerous, 10=fully safe)\n"
+            ),
+            "extra_keys": ("source_score", "safety_score"),
+            "min_score_override": 8,  # 건강 채널은 더 엄격
+            "context_note": (
+                "This is a HEALTH/MEDICAL channel. Patient safety is paramount. "
+                "Score very strictly on safety_score. Any unverified medical claim = score 1."
+            ),
+        },
+        "ai_tech": {
+            "extra_dimensions": (
+                "  data_score : Does the script use specific numbers, dates, or data points "
+                "rather than vague claims? (1=all vague, 10=data-rich)\n"
+            ),
+            "extra_keys": ("data_score",),
+            "min_score_override": 7,
+            "context_note": (
+                "This is an AI/TECH channel targeting developers and tech enthusiasts. "
+                "Vague hype without specifics should score low on data_score."
+            ),
+        },
+        "psychology": {
+            "extra_dimensions": (
+                "  empathy_score : Does the script feel warm, relatable, and emotionally safe? "
+                "(1=cold/clinical, 10=deeply empathetic)\n"
+            ),
+            "extra_keys": ("empathy_score",),
+            "min_score_override": 7,
+            "context_note": (
+                "This is a PSYCHOLOGY channel focused on emotional safety and self-understanding. "
+                "Cold academic tone should score low on empathy_score."
+            ),
+        },
+        "history": {
+            "extra_dimensions": (
+                "  narrative_score : Does the script tell a compelling story with dramatic tension? "
+                "(1=boring list, 10=gripping narrative)\n"
+            ),
+            "extra_keys": ("narrative_score",),
+            "min_score_override": 7,
+            "context_note": (
+                "This is a HISTORY channel. Dry chronological lists should score low. "
+                "Dramatic storytelling with twists scores high."
+            ),
+        },
+        "space": {
+            "extra_dimensions": (
+                "  wonder_score : Does the script evoke a sense of awe and cosmic scale? "
+                "(1=mundane, 10=mind-blowing wonder)\n"
+            ),
+            "extra_keys": ("wonder_score",),
+            "min_score_override": 7,
+            "context_note": (
+                "This is a SPACE/ASTRONOMY channel. Content should make viewers feel the "
+                "vastness and wonder of the cosmos. Use analogies to convey scale."
+            ),
+        },
+    }
+
     def __init__(self, config: AppConfig, llm_router: LLMRouter, openai_client: Any | None = None,
                  channel_hook_pattern: str | None = None,
-                 channel_duration_override: int | None = None):
+                 channel_duration_override: int | None = None,
+                 channel_key: str = ""):
         self.config = config
         self.llm_router = llm_router
         # Keep openai_client reference for TTS/image (non-LLM) tasks
         self.openai_client = openai_client
         # 채널별 Hook 패턴 고정 (없으면 None → 로테이션 사용)
-        # 예: 'shocking_stat', 'relatable_frustration', 'myth_busting', 'counterintuitive_question'
         self.channel_hook_pattern: str | None = channel_hook_pattern
         # 채널별 목표 영상 길이 (초). None이면 config.video.target_duration_sec 사용
         self.channel_duration_override: int | None = channel_duration_override
+        # Sprint 4: 채널 키 (리뷰 기준 분기용)
+        self.channel_key: str = channel_key
 
     @classmethod
-    def from_channel_profile(cls, config: AppConfig, llm_router: LLMRouter,
-                              channel_profile: dict,
-                              openai_client: Any | None = None) -> "ScriptStep":
+    def from_channel_profile(
+        cls,
+        config: AppConfig,
+        llm_router: LLMRouter,
+        channel_profile: dict,
+        openai_client: Any | None = None,
+        channel_key: str = "",
+    ) -> "ScriptStep":
         """
         channel_profiles.yaml의 채널 딕셔너리를 받아 hook_pattern을 자동 적용합니다.
 
         예::
             profile = yaml.safe_load(open('channel_profiles.yaml'))['channels']['ai_tech']
-            step = ScriptStep.from_channel_profile(config, llm_router, profile)
+            step = ScriptStep.from_channel_profile(config, llm_router, profile, channel_key='ai_tech')
         """
         hook_pattern = channel_profile.get('hook_pattern', None)
         duration_override = channel_profile.get('target_duration_sec', None)
         return cls(config, llm_router, openai_client=openai_client,
                    channel_hook_pattern=hook_pattern,
-                   channel_duration_override=duration_override)
+                   channel_duration_override=duration_override,
+                   channel_key=channel_key)
 
     def _next_hook_pattern(self) -> tuple[str, str]:
         """Hook 패턴 로테이션. 호출할 때마다 다음 패턴 반환."""
@@ -276,15 +360,20 @@ class ScriptStep:
             "Schema:\n"
             "{\n"
             '  "title": "string",\n'
-            '  "scenes": [\n'
-            '    {\n'
-            '      "structure_role": "hook" | "body" | "cta",\n'
-            '      "narration_ko": "string",\n'
-            '      "visual_prompt_en": "string",\n'
-            '      "estimated_seconds": number\n'
-            '    }\n'
-            "  ]\n"
+            '  "scenes": [...],\n'
+            '  "no_reliable_source": false\n'
             "}\n"
+            "\n"
+            "CRITICAL SOURCE RULE:\n"
+            "  - You MUST base all claims on verifiable facts you are confident about.\n"
+            "  - If you cannot recall specific data, studies, or established facts for this topic,\n"
+            "    DO NOT invent or guess. Instead, return:\n"
+            '    {"title": "", "scenes": [], "no_reliable_source": true,\n'
+            '     "reason": "<why no reliable source was found>"}\n'
+            "  - It is FAR BETTER to admit 'I don't have reliable data' than to hallucinate facts.\n"
+            "  - For each factual claim in the Body, mentally ask: 'Can a viewer Google this and confirm it?'\n"
+            "    If the answer is no, either remove the claim or flag no_reliable_source.\n"
+            "\n"
             f"Structure — exactly {scene_count} scenes:\n"
             + structure_section
             + f"{tone_section}"
@@ -360,37 +449,81 @@ class ScriptStep:
             return 0.0
         return abs(total_sec - target_mid)
 
-    # ── 스크립트 품질 검토 ────────────────────────────────────────────────────
+    # ── 스크립트 품질 검토 (Sprint 4: 채널별 차별화) ──────────────────────────
 
-    _REVIEW_SYSTEM = (
+    _BASE_REVIEW_SYSTEM = (
         "You are a YouTube Shorts script quality evaluator. "
-        "Score the given script on three dimensions from 1-10:\n"
+        "Score the given script on these dimensions from 1-10:\n"
         "  hook_score : How well does the Hook stop the scroll? (1=boring, 10=irresistible)\n"
         "  flow_score : How naturally does the Body build and connect? (1=choppy, 10=seamless)\n"
         "  cta_score  : How clear and actionable is the CTA? (1=vague, 10=immediately doable)\n"
-        "Also provide a brief 'feedback' string (max 80 chars) with the main weakness.\n"
-        "Output ONLY valid JSON: {\"hook_score\": n, \"flow_score\": n, \"cta_score\": n, \"feedback\": \"...\"}"
+        "  verifiability_score : Can a viewer Google each factual claim and confirm it? "
+        "(1=all claims feel fabricated/unverifiable, 10=every claim is well-known or easily verifiable)\n"
     )
+
+    def _build_review_system(self) -> tuple[str, tuple[str, ...], int]:
+        """채널별 리뷰 시스템 프롬프트 + 필수 키 + min_score를 반환.
+
+        Returns:
+            (system_prompt, required_score_keys, effective_min_score)
+        """
+        base_keys = ("hook_score", "flow_score", "cta_score", "verifiability_score")
+        extra_dimensions = ""
+        extra_keys: tuple[str, ...] = ()
+        min_score = self.config.project.script_review_min_score
+        context_note = ""
+
+        if self.channel_key and self.channel_key in self._CHANNEL_REVIEW_CRITERIA:
+            criteria = self._CHANNEL_REVIEW_CRITERIA[self.channel_key]
+            extra_dimensions = criteria.get("extra_dimensions", "")
+            extra_keys = criteria.get("extra_keys", ())
+            min_score = criteria.get("min_score_override", min_score)
+            context_note = criteria.get("context_note", "")
+
+        all_keys = base_keys + extra_keys
+        json_example = ", ".join(f'\"{k}\": n' for k in all_keys)
+
+        system_prompt = (
+            self._BASE_REVIEW_SYSTEM
+            + extra_dimensions
+            + "Also provide a brief 'feedback' string (max 80 chars) with the main weakness.\n"
+        )
+        if context_note:
+            system_prompt += f"\nChannel Context: {context_note}\n"
+        system_prompt += (
+            f"Output ONLY valid JSON: {{{json_example}, \"feedback\": \"...\"}}"
+        )
+
+        return system_prompt, all_keys, min_score
 
     def _review_script(
         self, title: str, scenes: list[ScenePlan]
     ) -> dict[str, Any]:
-        """GPT로 생성된 스크립트 품질 채점."""
+        """LLM으로 생성된 스크립트 품질 채점 (채널별 차별화된 기준 적용).
+
+        Gemini 3.1: thinking_level='high'로 심층 추론.
+        건강 채널 팩트체크 등 복잡한 판단에서 정확도 향상.
+        """
+        system_prompt, _, _ = self._build_review_system()
         script_text = f"Title: {title}\n\n"
         for s in scenes:
             script_text += f"[{s.structure_role.upper()}] {s.narration_ko}\n"
+        # Sprint 4.1: thinking_level_review (기본 'high') — 깊은 추론으로 품질 검증
+        review_thinking = self.config.providers.thinking_level_review
         result = self.llm_router.generate_json(
-            system_prompt=self._REVIEW_SYSTEM,
+            system_prompt=system_prompt,
             user_prompt=script_text,
             temperature=0.2,
+            thinking_level=review_thinking,
         )
         return result if isinstance(result, dict) else {}
 
     def _passes_review(self, review: dict[str, Any], min_score: int) -> bool:
-        """세 점수 모두 min_score 이상이면 통과."""
+        """채널별 필수 키 전체가 min_score 이상이면 통과."""
+        _, required_keys, _ = self._build_review_system()
         return all(
             int(review.get(k, 0)) >= min_score
-            for k in ("hook_score", "flow_score", "cta_score")
+            for k in required_keys
         )
 
     def _truncate_to_fit(
@@ -508,11 +641,26 @@ class ScriptStep:
                 previous_total_sec=previous_total_sec,
                 previous_scene_count=scene_count,
             )
+            # Sprint 4.1: 대본 생성은 thinking_level='low' (빠른 속도)
+            gen_thinking = self.config.providers.thinking_level
             payload = self.llm_router.generate_json(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 temperature=0.7,
+                thinking_level=gen_thinking,
             )
+
+            # ── no_reliable_source 감지 (1차: 생성 단계) ─────────────────
+            if isinstance(payload, dict) and payload.get("no_reliable_source"):
+                reason = payload.get("reason", "LLM이 신뢰할 자료 부족으로 판단")
+                logger.warning(
+                    "[TopicUnsuitable] LLM self-reported: no_reliable_source=true | reason=%s",
+                    reason,
+                )
+                raise TopicUnsuitableError(
+                    f"주제 '{topic}'에 대해 신뢰할 수 있는 자료가 부족합니다: {reason}"
+                )
+
             parsed = self.parse_script_payload(
                 payload,
                 scene_count=scene_count,
@@ -554,32 +702,55 @@ class ScriptStep:
         else:
             logger.info("[ScriptDuration] OK: estimated %.1fs (target %d-%ds)", final_total, target_min, target_max)
 
-        # 품질 검토 (활성화된 경우)
+        # 품질 검토 (활성화된 경우 — Sprint 4: 채널별 차별화)
         if self.config.project.script_review_enabled:
-            min_score = self.config.project.script_review_min_score
+            _, required_keys, effective_min_score = self._build_review_system()
             title_out, scenes_out = best_result
             try:
                 review = self._review_script(title_out, scenes_out)
-                scores = {k: review.get(k, 0) for k in ("hook_score", "flow_score", "cta_score")}
+                scores = {k: review.get(k, 0) for k in required_keys}
+                scores_str = " ".join(f"{k}={scores[k]}" for k in required_keys)
                 logger.info(
-                    "[ScriptReview] hook=%s flow=%s cta=%s / min=%d | %s",
-                    scores["hook_score"], scores["flow_score"], scores["cta_score"],
-                    min_score, review.get("feedback", ""),
+                    "[ScriptReview] %s / min=%d (channel=%s) | %s",
+                    scores_str, effective_min_score,
+                    self.channel_key or "default",
+                    review.get("feedback", ""),
                 )
-                if not self._passes_review(review, min_score):
-                    # 피드백을 추가해 1회 재생성 시도
+
+                # ── no_reliable_source 감지 (2차: 리뷰 단계) ────────────
+                verifiability = int(review.get("verifiability_score", 10))
+                if verifiability < 4:
+                    logger.warning(
+                        "[TopicUnsuitable] verifiability_score=%d < 4 → 자료 부족 주제",
+                        verifiability,
+                    )
+                    raise TopicUnsuitableError(
+                        f"주제 '{topic}'의 verifiability_score={verifiability} "
+                        f"(4 미만) — 검증 가능한 자료 부족: {review.get('feedback', '')}"
+                    )
+
+                if not self._passes_review(review, effective_min_score):
+                    # 채널 특화 피드백을 추가해 1회 재생성 시도
                     feedback = review.get("feedback", "")
+                    # 미달 점수 키 구체적 안내
+                    weak_keys = [
+                        k for k in required_keys
+                        if int(review.get(k, 0)) < effective_min_score
+                    ]
+                    weak_hint = f"Weak dimensions: {', '.join(weak_keys)}." if weak_keys else ""
                     retry_prompt = self._build_user_prompt(
                         topic=topic,
                         duration_range=duration_range,
                         attempt=self.max_generation_attempts + 1,
                         previous_total_sec=None,
                         previous_scene_count=scene_count,
-                    ) + f"\nQuality feedback to fix: {feedback}\n"
+                    ) + f"\nQuality feedback to fix: {feedback}\n{weak_hint}\n"
+                    # Sprint 4.1: 재생성은 thinking_level='medium' (품질↑ + 속도 균형)
                     retry_payload = self.llm_router.generate_json(
                         system_prompt=system_prompt,
                         user_prompt=retry_prompt,
                         temperature=0.7,
+                        thinking_level="medium",
                     )
                     retry_parsed = self.parse_script_payload(
                         retry_payload,
@@ -589,7 +760,10 @@ class ScriptStep:
                         tts_speed=tts_speed,
                     )
                     best_result = retry_parsed
-                    logger.info("[ScriptReview] regeneration complete")
+                    logger.info(
+                        "[ScriptReview] 채널 '%s' 기준 재생성 완료",
+                        self.channel_key or "default",
+                    )
             except Exception as exc:
                 logger.warning("[ScriptReview] scoring failed (skipped): %s", exc)
 

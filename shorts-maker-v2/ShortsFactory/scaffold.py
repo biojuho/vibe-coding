@@ -133,17 +133,23 @@ def scaffold_channel(
     profile_block = _build_profile_yaml(channel_id, display_name, category, pal, caption_style)
     _append_to_profiles(profile_block)
     created["channel_profiles.yaml"] = str(_PROFILES)
-    logger.info(f"[1/3] channel_profiles.yaml updated: {channel_id}")
+    logger.info(f"[1/4] channel_profiles.yaml updated: {channel_id}")
 
     # 2. 첫 템플릿 생성
     tmpl_file = _create_first_template(channel_id, display_name, first_template)
     created["template"] = str(tmpl_file)
-    logger.info(f"[2/3] Template created: {tmpl_file.name}")
+    logger.info(f"[2/4] Template created: {tmpl_file.name}")
 
-    # 3. 가이드 출력
+    # 3. __init__.py에 자동 등록
+    cls_name = f"{channel_id.title().replace('_', '')}CountdownTemplate"
+    _register_in_init(channel_id, cls_name)
+    created["registry"] = str(_TEMPLATES_DIR / "__init__.py")
+    logger.info(f"[3/4] Auto-registered in __init__.py: {cls_name}")
+
+    # 4. 가이드 출력
     guide = _generate_guide(channel_id, display_name, caption_style, pal)
     created["guide"] = guide
-    logger.info(f"[3/3] Scaffold complete for '{channel_id}'!")
+    logger.info(f"[4/4] Scaffold complete for '{channel_id}'!")
 
     return created
 
@@ -228,15 +234,58 @@ def _create_first_template(channel_id: str, display_name: str, template_type: st
     return out
 
 
+def _register_in_init(channel_id: str, cls_name: str) -> None:
+    """__init__.py에 import + TEMPLATE_REGISTRY 항목을 자동 추가합니다."""
+    init_path = _TEMPLATES_DIR / "__init__.py"
+    content = init_path.read_text(encoding="utf-8")
+
+    module_name = f"{channel_id}_countdown"
+    import_line = f"from ShortsFactory.templates.{module_name} import {cls_name}"
+    registry_key = f"{channel_id}_countdown"
+    registry_entry = f'    "{registry_key}": {cls_name},'
+
+    # 이미 등록되어 있으면 스킵
+    if import_line in content:
+        logger.info(f"  Already registered: {cls_name}")
+        return
+
+    # 1) import 추가: TEMPLATE_REGISTRY 바로 위에 삽입
+    marker = "TEMPLATE_REGISTRY: dict["
+    if marker in content:
+        content = content.replace(
+            marker,
+            f"# {channel_id.replace('_', ' ').title()}\n"
+            f"{import_line}\n\n"
+            f"{marker}",
+        )
+
+    # 2) registry 항목 추가: 닫는 중괄호 직전에 삽입
+    closing_brace = "\n}\n"
+    if closing_brace in content:
+        content = content.replace(
+            closing_brace,
+            f"\n    # {channel_id.replace('_', ' ').title()}\n"
+            f"{registry_entry}\n"
+            f"}}\n",
+        )
+
+    init_path.write_text(content, encoding="utf-8")
+    logger.info(f"  Registered {cls_name} in __init__.py")
+
+
 def _generate_guide(channel_id: str, display_name: str, caption_style: str, palette: dict) -> str:
     """완료 후 가이드 텍스트."""
     return textwrap.dedent(f"""
     === {display_name} 채널 스캐폴딩 완료! ===
     
-    다음 단계:
+    자동 완료된 항목:
+    ✅ channel_profiles.yaml에 채널 추가
+    ✅ {channel_id}_countdown.py 템플릿 생성
+    ✅ templates/__init__.py에 자동 등록
+    
+    남은 단계:
     1. caption_pillow.py에 '{caption_style}' 프리셋 추가
     2. channel_profiles.yaml에서 highlight_keywords 채우기
-    3. ShortsFactory/templates/__init__.py에 새 템플릿 등록
     
     사용법:
       factory = ShortsFactory(channel="{channel_id}")

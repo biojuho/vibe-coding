@@ -36,6 +36,7 @@ def generate_ai_news_short(
     points: list[dict[str, Any]],
     hook_text: str = "🚨 AI 속보",
     *,
+    channel: str = "ai_tech",
     bg_music: str | Path | None = None,
     cta_text: str | None = None,
     output_path: str | Path | None = None,
@@ -81,7 +82,7 @@ def generate_ai_news_short(
         data["cta_text"] = cta_text
 
     # ShortsFactory 파이프라인 실행
-    factory = ShortsFactory(channel="ai_tech")
+    factory = ShortsFactory(channel=channel)
     factory.create("ai_news", data)
     result = factory.render(output_path, bg_music=bg_music)
 
@@ -92,6 +93,7 @@ def generate_ai_news_short(
 def generate_future_countdown_short(
     items: list[dict[str, Any]],
     *,
+    channel: str = "ai_tech",
     intro_text: str | None = None,
     outro_text: str | None = None,
     bg_music: str | Path | None = None,
@@ -135,7 +137,7 @@ def generate_future_countdown_short(
     if outro_text is not None:
         data["outro_text"] = outro_text
 
-    factory = ShortsFactory(channel="ai_tech")
+    factory = ShortsFactory(channel=channel)
     factory.create("future_countdown", data)
     result = factory.render(output_path, bg_music=bg_music)
 
@@ -148,6 +150,7 @@ def generate_tech_vs_short(
     item_b: dict[str, Any],
     categories: list[str],
     *,
+    channel: str = "ai_tech",
     conclusion_text: str | None = None,
     bg_music: str | Path | None = None,
     output_path: str | Path | None = None,
@@ -190,7 +193,7 @@ def generate_tech_vs_short(
     if conclusion_text is not None:
         data["conclusion_text"] = conclusion_text
 
-    factory = ShortsFactory(channel="ai_tech")
+    factory = ShortsFactory(channel=channel)
     factory.create("tech_vs", data)
     result = factory.render(output_path, bg_music=bg_music)
 

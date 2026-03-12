@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 import base64
+import math
 import time
 
 from google import genai
 from google.genai import types
 import requests
+
+logger = logging.getLogger(__name__)
 
 
 class GoogleClient:
@@ -160,4 +164,74 @@ class GoogleClient:
         raise RuntimeError(
             f"All Imagen 3 models failed. Last error: {last_error}"
         )
+
+    # ── Multimodal Embedding (Gemini Embedding 2 Preview) ───────────────────
+
+    def embed_content(
+        self,
+        *,
+        contents: list[str | tuple[bytes, str]],
+        model: str = "gemini-embedding-2-preview",
+    ) -> list[list[float]]:
+        """텍스트, 이미지, 오디오를 멀티모달 임베딩으로 변환.
+
+        Args:
+            contents: 임베딩할 콘텐츠 리스트.
+                - str: 텍스트
+                - tuple[bytes, str]: (바이트 데이터, MIME 타입)
+                  예: (image_bytes, "image/png"), (audio_bytes, "audio/mpeg")
+            model: 임베딩 모델 (기본: gemini-embedding-2-preview)
+
+        Returns:
+            각 콘텐츠의 임베딩 벡터 리스트.
+
+        Example::
+            embeddings = client.embed_content(
+                contents=[
+                    "인공지능의 미래",
+                    (image_bytes, "image/png"),
+                    (audio_bytes, "audio/mpeg"),
+                ],
+            )
+        """
+        parts: list = []
+        for item in contents:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, tuple) and len(item) == 2:
+                data, mime_type = item
+                parts.append(
+                    types.Part.from_bytes(data=data, mime_type=mime_type)
+                )
+            else:
+                raise ValueError(
+                    f"Invalid content item: expected str or (bytes, mime_type) tuple, got {type(item)}"
+                )
+
+        result = self.client.models.embed_content(
+            model=model,
+            contents=parts,
+        )
+        embeddings = [list(e.values) for e in result.embeddings]
+        logger.info(
+            "[Embedding] %d 항목 임베딩 완료 (model=%s, dim=%d)",
+            len(embeddings), model,
+            len(embeddings[0]) if embeddings else 0,
+        )
+        return embeddings
+
+    @staticmethod
+    def compute_similarity(vec_a: list[float], vec_b: list[float]) -> float:
+        """두 임베딩 벡터 간의 코사인 유사도 계산 (0~1).
+
+        외부 라이브러리 없이 순수 Python으로 계산.
+        """
+        if len(vec_a) != len(vec_b):
+            raise ValueError(f"Vector dimension mismatch: {len(vec_a)} vs {len(vec_b)}")
+        dot = sum(a * b for a, b in zip(vec_a, vec_b))
+        norm_a = math.sqrt(sum(a * a for a in vec_a))
+        norm_b = math.sqrt(sum(b * b for b in vec_b))
+        if norm_a == 0 or norm_b == 0:
+            return 0.0
+        return dot / (norm_a * norm_b)
 
