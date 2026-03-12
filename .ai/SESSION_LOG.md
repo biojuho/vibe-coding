@@ -3,6 +3,172 @@
 > 각 AI 도구가 작업할 때마다 아래 형식으로 기록합니다.
 > 최신 세션이 파일 상단에 위치합니다 (역순).
 
+## 2026-03-12 11:00~11:20 KST — Antigravity (Gemini)
+
+### 작업 요약
+카운트다운 템플릿 4개의 코드 중복을 CountdownMixin으로 추출 (148줄 → 60줄). scaffold.py에 display_name/category/palette_style/first_template 입력 검증 강화.
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `ShortsFactory/templates/countdown_mixin.py` | 🆕 CountdownMixin 클래스 (공통 build_scenes 로직) |
+| `ShortsFactory/templates/history_countdown.py` | CountdownMixin 적용 (37줄 → 15줄) |
+| `ShortsFactory/templates/space_countdown.py` | CountdownMixin 적용 (39줄 → 16줄, include_value=True) |
+| `ShortsFactory/templates/health_countdown.py` | CountdownMixin 적용 (36줄 → 15줄) |
+| `ShortsFactory/templates/ai_countdown.py` | CountdownMixin 적용 (36줄 → 16줄, hook_duration=2.5) |
+| `ShortsFactory/scaffold.py` | _validate_text_field 추가, 4가지 입력 검증 강화, 생성 템플릿 Mixin 기반 전환 |
+
+### 핵심 결정사항
+- CountdownMixin은 MRO에서 BaseTemplate보다 앞에 위치 → `build_scenes` 오버라이드
+- 각 채널 특성은 클래스 변수(default_hook_text, hook_animation 등)로만 정의
+- scaffold가 생성하는 새 템플릿도 자동으로 Mixin 기반
+
+### QC 결과
+- **판정**: ✅ 승인 (APPROVED)
+- **테스트**: 11개 단위 + 31개 통합 = **42 PASSED, 0 FAILED**
+
+### 미완료 TODO
+- (없음)
+
+### 다음 도구에게 전달할 메모
+- TEMPLATE_REGISTRY: 실제 19개 (이전 기록 21개는 카운트 오류)
+- CountdownMixin 사용 시 MRO: `class X(CountdownMixin, BaseTemplate)` 순서 필수
+
+---
+
+## 2026-03-11 — Claude Code (Opus 4.6)
+
+### 작업 요약
+시스템 고도화 기획안 v2 작성 및 Phase 0~3 (15개 태스크) 전체 실행 완료.
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `directives/enhancement_plan_v2.md` | 🆕 6 Phase 21 태스크 고도화 기획안 |
+| `execution/llm_client.py` | P0-1: 캐시 TTL 0→72h 활성화, `cache_cleanup()` 함수 추가 |
+| `infrastructure/n8n/workflows/backup_schedule.json` | 🆕 P0-2: OneDrive 백업 n8n 워크플로우 (Mon/Thu 03:00) |
+| `infrastructure/n8n/bridge_server.py` | P0-2/P1-1/P3-1: `onedrive_backup`, `yt_analytics`, `cache_cleanup` 커맨드 추가, `/health` 엔드포인트 추가 |
+| `execution/debug_history_db.py` | P0-3: `archive_old_entries(retention_days=90)` TTL 정리 |
+| `infrastructure/n8n/workflows/yt_analytics_daily.json` | 🆕 P1-1: YouTube Analytics 일일 수집 (09:00 KST) |
+| `shorts-maker-v2/.../utils/style_tracker.py` | P1-2: Thompson Sampling 성과 피드백 루프 추가 |
+| `blind-to-x/pipeline/ml_scorer.py` | P1-3: 티어드 Cold Start (heuristic→LogReg→GBM) |
+| `execution/pages/performance_overview.py` | 🆕 P1-4: 크로스 프로젝트 KPI 대시보드 |
+| `shorts-maker-v2/.../pipeline/topic_validator.py` | 🆕 P2-1: 토픽 사전 검증 모듈 |
+| `blind-to-x/scrapers/base.py` | P2-2: `_auto_repair_selector()` CSS 셀렉터 자가 복구 |
+| `shorts-maker-v2/.../utils/content_calendar.py` | P2-3: Notion 콘텐츠 캘린더 자동화 강화 |
+| `execution/notion_client.py` | P2-4: 429/5xx 지수 백오프 재시도 (`_request()`) |
+| `infrastructure/n8n/workflows/uptime_monitor.json` | 🆕 P3-1: 브릿지 서버 5분 업타임 모니터 |
+| `.github/workflows/full-test-matrix.yml` | 🆕 P3-2: 3개 프로젝트 통합 CI 테스트 매트릭스 |
+| `execution/error_analyzer.py` | 🆕 P3-3: 에러 패턴 분석 자동화 |
+| `execution/health_check.py` | P3-4: `check_api_key_health()` API 키 검증/로테이션 알림 |
+
+### 결정사항
+
+- LLM 캐시 기본 TTL: 72시간 (SHA256 해시 키)
+- Debug History 보관 기한: 90일
+- 브릿지 서버 헬스 기준: memory >512MB=unhealthy, >256MB=degraded
+- ML 스코어러 활성화 티어: 0-19건 heuristic, 20-99건 LogReg, 100건+ GBM
+
+### TODO (다음 세션)
+
+- Phase 4~5 실행 (고급 최적화, 문서화)
+- 통합 테스트 실행 및 검증
+- n8n Docker 컨테이너에서 워크플로우 import 테스트
+
+### 다음 도구에게 메모
+
+- `bridge_server.py`에 psutil 의존성 추가됨 — 배포 시 `pip install psutil` 필요
+- `full-test-matrix.yml`은 3개 프로젝트(root, blind-to-x, shorts-maker-v2) 매트릭스 — 각 프로젝트 requirements.txt 확인 필요
+- `error_analyzer.py`는 `.tmp/failures/` 디렉토리와 `debug_history_db` 참조
+
+## 2026-03-12 08:00~08:50 KST — Antigravity (Gemini)
+
+### 작업 요약
+ShortsFactory v1.2~v2.5 로드맵 전체 구현 + QA/QC 4단계 완료(승인). 10개 신규 BaseTemplate, Notion Bridge, 채널 스캐폴딩, AI 스크립트 생성기, A/B 테스트 프레임워크.
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `ShortsFactory/templates/psych_quiz.py` | 🆕 심리학 퀴즈 템플릿 |
+| `ShortsFactory/templates/psych_self_growth.py` | 🆕 심리학 자기계발 템플릿 |
+| `ShortsFactory/templates/history_mystery.py` | 🆕 역사 미스터리 템플릿 |
+| `ShortsFactory/templates/history_fact_reversal.py` | 🆕 역사 반전 팩트 템플릿 |
+| `ShortsFactory/templates/history_countdown.py` | 🆕 역사 카운트다운 템플릿 |
+| `ShortsFactory/templates/space_fact_bomb.py` | 🆕 우주 팩트폭탄 템플릿 |
+| `ShortsFactory/templates/space_countdown.py` | 🆕 우주 카운트다운 템플릿 |
+| `ShortsFactory/templates/health_medical_study.py` | 🆕 의학 연구 인포그래픽 템플릿 |
+| `ShortsFactory/templates/health_mental_message.py` | 🆕 정신건강 감성 메시지 템플릿 |
+| `ShortsFactory/templates/health_countdown.py` | 🆕 건강 카운트다운 템플릿 |
+| `ShortsFactory/templates/ai_countdown.py` | 🆕 AI 카운트다운 템플릿 |
+| `ShortsFactory/templates/__init__.py` | 21개 TEMPLATE_REGISTRY 업데이트 |
+| `ShortsFactory/integrations/notion_bridge.py` | 🆕 Notion DB 연동 (v1.3) |
+| `ShortsFactory/integrations/script_gen.py` | 🆕 AI 스크립트 자동 생성기 (v1.5) |
+| `ShortsFactory/integrations/ab_test.py` | 🆕 A/B 테스트 프레임워크 (v2.5) |
+| `ShortsFactory/scaffold.py` | 🆕 5분 채널 스캐폴딩 (v2.0) |
+| `ShortsFactory/pipeline.py` | [QA 수정] data dict 복사로 원본 변형 방지 |
+| `ShortsFactory/integrations/notion_bridge.py` | [QA 수정] JSONDecodeError 명시 catch |
+| `ShortsFactory/integrations/script_gen.py` | [QA 수정] 빈 LLM 응답 guard |
+| `ShortsFactory/scaffold.py` | [QA 수정] channel_id YAML injection 방지 |
+
+### 핵심 결정사항
+- v1.2~v2.5 로드맵 5개 버전 일괄 구현
+- BaseTemplate 상속 패턴으로 모든 템플릿 통일
+- channel_profiles.yaml이 유일한 채널 설정 소스(Single Source of Truth)
+- QA에서 4건 이슈 발견 → 전수 수정 후 48/48 테스트 + 3건 regression 테스트 통과
+
+### QC 결과
+- **판정**: ✅ 승인 (APPROVED)
+- **테스트**: 48개 전량 PASS + 3건 regression PASS
+- **QA 지적 4건 → 4건 전수 수정**
+- **리스크**: LOW
+
+### 미완료 TODO
+- v3.0 Multi-language + SaaS (향후)
+
+### 다음 도구에게 전달할 메모
+- 환경변수: `NOTION_TOKEN`(v1.3), `OPENAI_API_KEY`(v1.5), `YOUTUBE_API_KEY`(v2.5) 필요
+- TEMPLATE_REGISTRY: 21 entries (17 unique + 4 aliases)
+- scaffold로 신규 채널 추가 시 `__init__.py` 레지스트리 수동 등록 필요
+- ShortsFactory는 ARCHITECTURE.md상 deprecated이지만 팩토리 패턴 레이어로 유지
+
+---
+
+## 2026-03-11 13:00~17:05 KST — Antigravity (Gemini)
+
+### 작업 요약
+T3 YouTube Analytics 대시보드 완성: "수동 업로드 + 자동 결과 관리" 철학 기반 콘텐츠 결과 추적 시스템 구축. `result_tracker_db.py` + `result_dashboard.py` 신규 개발 → QA/QC 4단계 완료(승인).
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `execution/result_tracker_db.py` | 🆕 생성 — 콘텐츠 결과 추적 DB (SQLite). YouTube 통계 API Key 자동 수집, X/Threads/Blog 수동 입력, CRUD, 집계, 히스토리 관리. QA 수정: json import 제거, UNIQUE(platform,url) 중복 방지, try-finally DB 안전성 |
+| `execution/pages/result_dashboard.py` | 🆕 생성 — 4탭 Streamlit 대시보드 (콘텐츠 등록/성과 개요/상세 관리/추이 분석). QA 수정: 삭제 확인 체크박스 추가 |
+| `tests/test_result_tracker.py` | 🆕 생성 — 38개 유닛 테스트 (CRUD, URL 파싱, 통계, 집계, YouTube API mock, 중복 방지 검증) |
+
+### 핵심 결정사항
+- **자동 업로드 제거**: YouTube/X 자동 업로드의 계정 정지 위험 → 수동 업로드 + URL 등록 방식으로 전환
+- **OAuth 불필요 확인**: `YOUTUBE_API_KEY`만으로 공개 통계 수집 가능 → credentials.json/token.json 불필요
+- **중복 URL 등록 방지**: `UNIQUE(platform, url)` DB 제약 + 코드 레벨 체크로 이중 방어
+- **DB 연결 안전성**: 모든 DB 조작에 `try-finally` 패턴 적용
+
+### QC 결과
+- **판정**: ✅ 승인 (APPROVED)
+- **테스트**: 38개 전량 PASS
+- **QA 지적 5건 → 4건 수정, 1건 보류 (get_all() 중복 호출 — Streamlit 캐싱 특성으로 보류)**
+- **리스크**: LOW
+
+### 미완료 TODO
+- (없음)
+
+### 다음 도구에게 전달할 메모
+- `result_tracker_db.py`는 `.tmp/result_tracker.db` SQLite 파일 사용
+- `YOUTUBE_API_KEY` 환경변수 필수 (YouTube 통계 자동 수집용)
+- 대시보드 실행: `streamlit run execution/pages/result_dashboard.py --server.port 8503`
+- pytest 실행 시 root `pytest.ini`의 `--cov-fail-under=80` 주의 → `--override-ini="addopts="` 필요할 수 있음
+- 기존 `shorts_analytics.py`는 미변경 (별도 유지)
+
+---
+
 ## 2026-03-11 08:31~10:50 KST — Antigravity (Gemini)
 
 ### 작업 요약

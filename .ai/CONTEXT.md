@@ -120,13 +120,31 @@ Vibe coding/                      # Root 워크스페이스
 - 스킬 감사 정리: 45개 → 23개 (22개 아카이브: 미사용 18개 + 중복 4개, `_archive/` 이동)
 - GitHub Private Repo 설정: `biojuho/vibe-coding` (641 files, .env 제외), 초기 push 완료
 - n8n ↔ Task Scheduler 이중 실행 방지 완료: BlindToX_0500~2100 5개 태스크 Disabled
+- YouTube Analytics: 콘텐츠 결과 추적 시스템 구축 (result_tracker_db.py + result_dashboard.py) — QC 승인
+- shorts-maker-v2: ShortsFactory v1.2~v2.5 전체 구현 + QC 승인
+  - v1.2: BaseTemplate 전환 (10개 신규 템플릿, 총 17종)
+  - v1.3: Notion Bridge 연동 (notion_bridge.py)
+  - v1.5: AI 스크립트 자동 생성 (script_gen.py)
+  - v2.0: 5분 채널 스캐폴딩 (scaffold.py)
+  - v2.5: A/B 테스트 + 분석 (ab_test.py)
+  - CountdownMixin 추출: 4개 카운트다운 템플릿 공통 로직 Mixin화 (코드 60% 감소)
+  - scaffold 입력 검증 강화: display_name/category/palette_style/first_template YAML injection 방어
+
+- 시스템 고도화 v2 Phase 0~3 완료 (15개 태스크, 2026-03-11):
+  - P0: LLM 캐시 72h 활성화, OneDrive n8n 백업, Debug DB TTL 90일
+  - P1: YT Analytics n8n, 스타일 Thompson Sampling, ML 티어드 Cold Start, KPI 대시보드
+  - P2: 토픽 사전 검증, 셀렉터 자가 복구, 콘텐츠 캘린더, Notion 백오프
+  - P3: 업타임 모니터, CI 테스트 매트릭스, 에러 분석기, API 키 검증
 
 ### 🔄 진행 중
 - blind-to-x: 스케줄러 자동 실행 모니터링 (S4U 전환 후 1주간)
 - blind-to-x: 실 운영 LLM 초안 품질 모니터링 (1주간 manual review)
+- 시스템 고도화 v2 Phase 4~5 (고급 최적화, 문서화) 미실행
 
 ### 📋 예정
-- (없음 — 백로그 소진됨)
+
+- 시스템 고도화 v2 Phase 4~5 실행
+- shorts-maker-v2: v3.0 Multi-language + SaaS 전환 (향후)
 
 ### ⚠️ 알려진 이슈
 - 하위 프로젝트(blind-to-x, hanwoo-dashboard, knowledge-dashboard)의 `.git` 폴더가 독립 repo → root git push 시 임시로 `.git.bak` 변경 필요
@@ -171,4 +189,4 @@ Vibe coding/                      # Root 워크스페이스
 
 ---
 
-*마지막 업데이트: 2026-03-09 19:58 KST (Antigravity — 소스별 이미지 전략 3-way 분기 + 수집량 30건/일 조정 + QC 승인)*
+*마지막 업데이트: 2026-03-12 11:18 KST (Antigravity — CountdownMixin 추출 + scaffold 검증 강화 + QC 42/42 승인)*
