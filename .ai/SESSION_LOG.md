@@ -3,6 +3,46 @@
 > 각 AI 도구가 작업할 때마다 아래 형식으로 기록합니다.
 > 최신 세션이 파일 상단에 위치합니다 (역순).
 
+## 2026-03-12 KST — Claude Code (Opus 4.6)
+
+### 작업 요약
+MCP & Skill 확장 기획안 수립 및 Phase 1~2 전체 구현. 통합 `.mcp.json` 생성, 공식 MCP 5개 + 커스텀 MCP 3개 + Skill 3개 구축.
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `.mcp.json` | 통합 MCP 설정 파일 신규 생성 (8개 서버: notion, sqlite, filesystem, brave-search, github, youtube-data, telegram, n8n-workflow) |
+| `infrastructure/youtube-mcp/server.py` | YouTube Data API v3 MCP 서버 (4 tools: get_channel_stats, get_recent_videos, get_video_analytics, search_trending) |
+| `infrastructure/youtube-mcp/requirements.txt` | 의존성 정의 |
+| `infrastructure/telegram-mcp/server.py` | Telegram Bot API MCP 서버 (4 tools: send_message, send_photo, get_updates, get_bot_info) |
+| `infrastructure/telegram-mcp/requirements.txt` | 의존성 정의 |
+| `infrastructure/n8n-mcp/server.py` | n8n 브릿지 서버 래핑 MCP (4 tools: trigger_workflow, get_available_commands, get_execution_history, check_bridge_health) |
+| `infrastructure/n8n-mcp/requirements.txt` | 의존성 정의 |
+| `.agents/skills/pipeline-runner/SKILL.md` | blind-to-x + shorts-maker-v2 파이프라인 통합 실행 스킬 |
+| `.agents/skills/daily-brief/SKILL.md` | 시스템 전체 일일 브리핑 생성 스킬 |
+| `.agents/skills/cost-check/SKILL.md` | API 비용 실시간 확인 및 예산 알림 스킬 |
+| `.env.example` | Telegram, GitHub, Brave, n8n Bridge 키 섹션 추가 |
+| `directives/mcp_skill_expansion_plan.md` | MCP & Skill 확장 기획안 (Phase 1~3) |
+| `.ai/CONTEXT.md` | MCP 서버 목록 업데이트, 진행 상황 추가, 지뢰밭 추가 |
+
+### 핵심 결정사항
+- FastMCP 1.26에서 `description` kwarg 미지원 → `instructions` 사용
+- 커스텀 MCP 서버는 `try/except ImportError` 패턴으로 mcp 미설치 시에도 함수 직접 호출 가능
+- `.mcp.json`으로 8개 MCP 서버 통합 관리 (공식 5 + 커스텀 3)
+- mcp[cli] 패키지 venv에 설치 완료
+
+### TODO (다음 세션)
+- Phase 3: Cloudinary MCP, Google Calendar MCP, System Monitor MCP 완성, content-calendar 스킬
+- Brave Search API 키 발급 필요 (무료 2,000 req/mo)
+- MCP 서버 실제 연결 테스트 (Claude Code 재시작 후)
+
+### 다음 도구에게 메모
+- `.mcp.json`이 생성되었으므로 Claude Code 재시작 시 MCP 서버가 자동 로드됩니다
+- Brave Search는 API 키가 없어 비활성 상태입니다 — 키 발급 후 `.env`에 `BRAVE_API_KEY` 추가 필요
+- 커스텀 MCP 서버(youtube, telegram, n8n)는 `venv/Scripts/python.exe`로 실행됩니다
+
+---
+
 ## 2026-03-12 20:00~21:00 KST — Antigravity (Gemini)
 
 ### 작업 요약

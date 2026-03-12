@@ -1,0 +1,132 @@
+name: Visual Regression CI
+
+on:
+  push:
+    paths:
+      - 'ShortsFactory/engines/**'
+      - 'ShortsFactory/templates/**'
+      - 'tests/unit/test_visual_regression.py'
+  pull_request:
+    paths:
+      - 'ShortsFactory/engines/**'
+      - 'ShortsFactory/templates/**'
+      - 'tests/unit/test_visual_regression.py'
+
+env:
+  PYTHON_VERSION: '3.14'
+
+jobs:
+  visual-regression:
+    name: Visual Regression Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-noto-cjk
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-html
+
+      - name: Restore baseline cache
+        uses: actions/cache@v4
+        with:
+          path: .tmp/visual_baselines
+          key: visual-baselines-${{ hashFiles('tests/unit/test_visual_regression.py') }}
+          restore-keys: |
+            visual-baselines-
+
+      - name: Run visual regression tests
+        run: |
+          python -m pytest tests/unit/test_visual_regression.py \
+            -v --tb=long \
+            --html=.tmp/visual_regression_report.html \
+            --self-contained-html \
+            -x \
+            2>&1 | tee .tmp/visual_regression_output.txt
+
+      - name: Generate SSIM summary
+        if: always()
+        run: |
+          python -c "
+          import json
+          from pathlib import Path
+
+          baseline_dir = Path('.tmp/visual_baselines')
+          meta_file = baseline_dir / 'metadata.json'
+
+          if meta_file.exists():
+              meta = json.loads(meta_file.read_text())
+              print('## Visual Regression Baselines')
+              print(f'| Test | Size | Mode | Checksum |')
+              print(f'|------|------|------|----------|')
+              for name, info in meta.items():
+                  size = 'x'.join(map(str, info.get('size', [])))
+                  mode = info.get('mode', '?')
+                  chk = info.get('checksum', '?')[:12]
+                  print(f'| {name} | {size} | {mode} | {chk}... |')
+          else:
+              print('No baselines found (first run will create them).')
+          " >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload regression report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-regression-report
+          path: |
+            .tmp/visual_regression_report.html
+            .tmp/visual_regression_output.txt
+            .tmp/visual_baselines/metadata.json
+          retention-days: 14
+
+      - name: Check for regressions
+        if: failure()
+        run: |
+          echo "::error::Visual regression detected! Check the report artifact for details."
+          echo "To update baselines locally, run:"
+          echo "  pytest tests/unit/test_visual_regression.py --update-baselines"
+          exit 1
+
+  engine-unit-tests:
+    name: Engine V2 Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-noto-cjk
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run engine v2 tests
+        run: |
+          python -m pytest tests/unit/test_engines_v2.py -v --tb=short
+
+      - name: Run interface tests
+        run: |
+          python -m pytest tests/unit/test_interfaces.py -v --tb=short
