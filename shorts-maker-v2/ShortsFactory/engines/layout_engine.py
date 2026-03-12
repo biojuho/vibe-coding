@@ -321,6 +321,392 @@ class LayoutEngine:
         logger.debug("[LayoutEngine] VS 스코어 바: %s (A:%.0f vs B:%.0f)", category, score_a, score_b)
         return output_path
 
+    # ── v2: 넘버드 리스트 레이아웃 ──────────────────────────────────
+
+    def numbered_list_layout(
+        self,
+        items: list[str],
+        *,
+        title: str = "",
+        badge_color: str | None = None,
+        output_path: Path | None = None,
+    ) -> Path:
+        """넘버 배지가 있는 리스트 레이아웃을 생성합니다.
+
+        각 항목 앞에 원형 넘버 배지가 표시됩니다.
+
+        Args:
+            items: 리스트 항목 텍스트 목록.
+            title: 상단 제목 (선택).
+            badge_color: 배지 색상 (기본: accent).
+            output_path: 출력 경로.
+        """
+        if output_path is None:
+            output_path = Path(tempfile.mktemp(suffix=".png"))
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        bg = self._hex(self.palette.get("bg", "#0A0E1A"))
+        acc = self._hex(badge_color or self.palette.get("accent", "#00FF88"))
+        pri = self._hex(self.palette.get("primary", "#00D4FF"))
+
+        img = Image.new("RGB", (self._width, self._height), bg)
+        d = ImageDraw.Draw(img)
+
+        tf = _load_font(self.font_title, 48)
+        bf = _load_font(self.font_body, 34)
+        nf = _load_font(self.font_title, 30)
+
+        y_start = 160
+        if title:
+            d.text((self._width // 2, 100), title, font=tf, fill=pri, anchor="mm")
+            y_start = 200
+
+        item_h = 140
+        for i, item_text in enumerate(items):
+            y = y_start + i * item_h
+            if y + item_h > self._height - 100:
+                break
+            # 넘버 배지 (원형)
+            cx, cy = 90, y + 40
+            r = 28
+            d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=acc)
+            d.text((cx, cy), str(i + 1), font=nf, fill=(10, 14, 26), anchor="mm")
+            # 텍스트
+            self._wrap(d, item_text, bf, 140, y + 15, self._width - 200, (230, 230, 230))
+
+        img.save(output_path, format="PNG")
+        logger.debug("[LayoutEngine v2] numbered_list: %d items", len(items))
+        return output_path
+
+    # ── v2: 이미지+텍스트 오버레이 ───────────────────────────────
+
+    def image_text_overlay(
+        self,
+        text: str,
+        *,
+        position: str = "bottom",
+        opacity: int = 200,
+        output_path: Path | None = None,
+    ) -> Path:
+        """반투명 텍스트 버블 오버레이를 생성합니다 (이미지 위에 합성용).
+
+        Args:
+            text: 표시할 텍스트.
+            position: "top" | "center" | "bottom".
+            opacity: 배경 투명도 (0-255).
+            output_path: 출력 경로.
+        """
+        if output_path is None:
+            output_path = Path(tempfile.mktemp(suffix=".png"))
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        pri = self._hex(self.palette.get("primary", "#00D4FF"))
+        img = Image.new("RGBA", (self._width, self._height), (0, 0, 0, 0))
+        d = ImageDraw.Draw(img)
+        bf = _load_font(self.font_body, 38)
+
+        # 텍스트 높이 측정
+        lines = self._wrap_lines(text, bf, self._width - 120)
+        line_h = 48
+        block_h = len(lines) * line_h + 40
+
+        # 위치 계산
+        if position == "top":
+            box_y = 60
+        elif position == "center":
+            box_y = (self._height - block_h) // 2
+        else:  # bottom
+            box_y = self._height - block_h - 120
+
+        # 반투명 배경
+        d.rounded_rectangle(
+            [30, box_y, self._width - 30, box_y + block_h],
+            radius=20,
+            fill=(10, 14, 26, opacity),
+        )
+
+        # 텍스트
+        for i, ln in enumerate(lines):
+            d.text(
+                (60, box_y + 20 + i * line_h),
+                ln,
+                font=bf,
+                fill=(*pri, 250),
+            )
+
+        img.save(output_path, format="PNG")
+        logger.debug("[LayoutEngine v2] image_text_overlay: %s", position)
+        return output_path
+
+    # ── v2: KPI 메트릭 대시보드 ──────────────────────────────────
+
+    def metric_dashboard(
+        self,
+        metrics: list[dict[str, str]],
+        *,
+        title: str = "",
+        cols: int = 2,
+        output_path: Path | None = None,
+    ) -> Path:
+        """KPI 메트릭 대시보드 카드를 생성합니다.
+
+        Args:
+            metrics: [{"label": "구독자", "value": "10만", "change": "+12%"}, ...]
+            title: 대시보드 제목 (선택).
+            cols: 열 개수 (1~3).
+            output_path: 출력 경로.
+        """
+        if output_path is None:
+            output_path = Path(tempfile.mktemp(suffix=".png"))
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        bg = self._hex(self.palette.get("bg", "#0A0E1A"))
+        pri = self._hex(self.palette.get("primary", "#00D4FF"))
+        acc = self._hex(self.palette.get("accent", "#00FF88"))
+
+        img = Image.new("RGB", (self._width, self._height), bg)
+        d = ImageDraw.Draw(img)
+
+        tf = _load_font(self.font_title, 46)
+        vf = _load_font(self.font_title, 56)  # 큰 값
+        lf = _load_font(self.font_body, 28)
+        cf = _load_font(self.font_body, 24)
+
+        y_start = 160
+        if title:
+            d.text((self._width // 2, 90), title, font=tf, fill=pri, anchor="mm")
+            y_start = 200
+
+        cols = max(1, min(cols, 3))
+        card_w = (self._width - 40 * (cols + 1)) // cols
+        card_h = 200
+        gap = 40
+
+        for idx, m in enumerate(metrics):
+            row, col = divmod(idx, cols)
+            x = gap + col * (card_w + gap)
+            y = y_start + row * (card_h + gap)
+            if y + card_h > self._height - 60:
+                break
+
+            # 카드 배경
+            d.rounded_rectangle(
+                [x, y, x + card_w, y + card_h],
+                radius=16,
+                fill=(20, 25, 45),
+                outline=(*pri, 60),
+                width=1,
+            )
+
+            # 라벨
+            d.text((x + card_w // 2, y + 30), m.get("label", ""), font=lf,
+                   fill=(180, 180, 180), anchor="mm")
+            # 값
+            d.text((x + card_w // 2, y + 90), m.get("value", ""), font=vf,
+                   fill=pri, anchor="mm")
+            # 변화량
+            change = m.get("change", "")
+            if change:
+                is_positive = change.startswith("+")
+                color = acc if is_positive else (239, 68, 68)  # green or red
+                d.text((x + card_w // 2, y + 150), change, font=cf,
+                       fill=color, anchor="mm")
+
+        img.save(output_path, format="PNG")
+        logger.debug("[LayoutEngine v2] metric_dashboard: %d metrics", len(metrics))
+        return output_path
+
+    # ── v2: 단계별 가이드 레이아웃 ─────────────────────────────────
+
+    def step_by_step_layout(
+        self,
+        steps: list[dict[str, str]],
+        *,
+        title: str = "",
+        output_path: Path | None = None,
+    ) -> Path:
+        """단계별 가이드 레이아웃을 생성합니다 (커넥터 라인 포함).
+
+        Args:
+            steps: [{"label": "STEP 1", "title": "준비", "desc": "재료를 준비합니다"}, ...]
+            title: 상단 제목 (선택).
+            output_path: 출력 경로.
+        """
+        if output_path is None:
+            output_path = Path(tempfile.mktemp(suffix=".png"))
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        bg = self._hex(self.palette.get("bg", "#0A0E1A"))
+        pri = self._hex(self.palette.get("primary", "#00D4FF"))
+        acc = self._hex(self.palette.get("accent", "#00FF88"))
+
+        img = Image.new("RGB", (self._width, self._height), bg)
+        d = ImageDraw.Draw(img)
+
+        tf = _load_font(self.font_title, 44)
+        sf = _load_font(self.font_title, 32)
+        bf = _load_font(self.font_body, 28)
+        label_f = _load_font(self.font_body, 22)
+
+        y_start = 160
+        if title:
+            d.text((self._width // 2, 90), title, font=tf, fill=pri, anchor="mm")
+            y_start = 200
+
+        step_h = max(200, (self._height - y_start - 100) // max(len(steps), 1))
+        dot_x = 100
+
+        for i, step in enumerate(steps):
+            y = y_start + i * step_h
+            if y + step_h > self._height - 60:
+                break
+
+            # 커넥터 라인 (마지막 제외)
+            if i < len(steps) - 1:
+                d.line([(dot_x, y + 30), (dot_x, y + step_h)], fill=(*pri, 80), width=2)
+
+            # 도트
+            d.ellipse([dot_x - 16, y + 14, dot_x + 16, y + 46], fill=acc)
+
+            # 라벨 (STEP 1 등)
+            label = step.get("label", f"STEP {i + 1}")
+            d.text((dot_x + 40, y + 10), label, font=label_f, fill=acc)
+
+            # 제목
+            d.text((dot_x + 40, y + 40), step.get("title", ""), font=sf, fill=(255, 255, 255))
+
+            # 설명
+            desc = step.get("desc", "")
+            if desc:
+                self._wrap(d, desc, bf, dot_x + 40, y + 80, self._width - dot_x - 100, (180, 180, 180))
+
+        img.save(output_path, format="PNG")
+        logger.debug("[LayoutEngine v2] step_by_step: %d steps", len(steps))
+        return output_path
+
+    # ── v2: 인용문 카드 ──────────────────────────────────────────
+
+    def quote_card(
+        self,
+        quote: str,
+        *,
+        author: str = "",
+        accent_color: str | None = None,
+        output_path: Path | None = None,
+    ) -> Path:
+        """인용문 카드를 생성합니다 (좌측 악센트 바 + 큰따옴표).
+
+        Args:
+            quote: 인용 텍스트.
+            author: 저자/출처 (선택).
+            accent_color: 악센트 색상 (기본: primary).
+            output_path: 출력 경로.
+        """
+        if output_path is None:
+            output_path = Path(tempfile.mktemp(suffix=".png"))
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        bg = self._hex(self.palette.get("bg", "#0A0E1A"))
+        pri = self._hex(accent_color or self.palette.get("primary", "#00D4FF"))
+
+        card_h = 500
+        img = Image.new("RGB", (self._width, card_h), bg)
+        d = ImageDraw.Draw(img)
+
+        # 카드 배경
+        d.rounded_rectangle(
+            [40, 30, self._width - 40, card_h - 30],
+            radius=20,
+            fill=(17, 24, 39),
+            outline=(*pri, 60),
+            width=1,
+        )
+
+        # 좌측 악센트 바
+        d.rectangle([40, 30, 50, card_h - 30], fill=pri)
+
+        # 큰따옴표
+        qf = _load_font(self.font_title, 80)
+        d.text((90, 50), "\u201c", font=qf, fill=(*pri, 150))
+
+        # 인용 텍스트
+        qbf = _load_font(self.font_body, 36)
+        self._wrap(d, quote, qbf, 100, 150, self._width - 200, (230, 230, 230))
+
+        # 저자
+        if author:
+            af = _load_font(self.font_body, 28)
+            d.text((self._width - 80, card_h - 80), f"— {author}", font=af,
+                   fill=(*pri, 200), anchor="rm")
+
+        img.save(output_path, format="PNG")
+        logger.debug("[LayoutEngine v2] quote_card: %.30s...", quote)
+        return output_path
+
+    # ── v2: 비교표 ───────────────────────────────────────────────
+
+    def comparison_table(
+        self,
+        headers: list[str],
+        rows: list[list[str]],
+        *,
+        header_color: str | None = None,
+        output_path: Path | None = None,
+    ) -> Path:
+        """비교표 레이아웃을 생성합니다.
+
+        Args:
+            headers: 헤더 텍스트 목록 (3개 권장).
+            rows: 행 데이터 목록 (각 행은 headers와 동일 길이).
+            header_color: 헤더 배경 색상 (기본: primary).
+            output_path: 출력 경로.
+        """
+        if output_path is None:
+            output_path = Path(tempfile.mktemp(suffix=".png"))
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        bg = self._hex(self.palette.get("bg", "#0A0E1A"))
+        pri = self._hex(header_color or self.palette.get("primary", "#00D4FF"))
+
+        row_h = 70
+        header_h = 80
+        total_h = header_h + row_h * len(rows) + 80
+        total_h = min(total_h, self._height)
+
+        img = Image.new("RGB", (self._width, total_h), bg)
+        d = ImageDraw.Draw(img)
+
+        col_w = (self._width - 80) // max(len(headers), 1)
+        hf = _load_font(self.font_title, 30)
+        rf = _load_font(self.font_body, 28)
+
+        # 헤더
+        d.rectangle([30, 30, self._width - 30, 30 + header_h], fill=(*pri, 40))
+        for j, h in enumerate(headers):
+            cx = 40 + j * col_w + col_w // 2
+            d.text((cx, 30 + header_h // 2), h, font=hf, fill=pri, anchor="mm")
+
+        # 행
+        for i, row in enumerate(rows):
+            y = 30 + header_h + i * row_h
+            if y + row_h > total_h - 10:
+                break
+            if i % 2 == 1:
+                d.rectangle([30, y, self._width - 30, y + row_h], fill=(20, 25, 40))
+            for j, cell in enumerate(row):
+                cx = 40 + j * col_w + col_w // 2
+                d.text((cx, y + row_h // 2), cell, font=rf, fill=(210, 210, 210), anchor="mm")
+
+        # 테두리
+        d.rectangle([30, 30, self._width - 30, 30 + header_h + len(rows) * row_h],
+                     outline=(*pri, 40), width=1)
+
+        img.save(output_path, format="PNG")
+        logger.debug("[LayoutEngine v2] comparison_table: %dx%d", len(headers), len(rows))
+        return output_path
+
+    # ── 유틸리티 ─────────────────────────────────────────────────
+
     @staticmethod
     def _wrap(d, text, font, x, y, mw, fill):
         words, lines, cur = text.split(), [], []
@@ -332,6 +718,30 @@ class LayoutEngine:
             else: lines.append(" ".join(cur)); cur = [w]
         if cur: lines.append(" ".join(cur))
         for i, ln in enumerate(lines): d.text((x,y+i*40), ln, font=font, fill=fill)
+
+    @staticmethod
+    def _wrap_lines(text: str, font, max_width: int) -> list[str]:
+        """텍스트를 max_width 내에서 줄바꿈하여 리스트 반환."""
+        words = text.split()
+        lines: list[str] = []
+        cur: list[str] = []
+        for w in words:
+            c = " ".join(cur + [w])
+            try:
+                from PIL import Image as _Img, ImageDraw as _Draw
+                probe = _Img.new("RGB", (1, 1))
+                d = _Draw.Draw(probe)
+                bw = d.textbbox((0, 0), c, font=font)[2]
+            except Exception:
+                bw = len(c) * 20
+            if bw <= max_width or not cur:
+                cur.append(w)
+            else:
+                lines.append(" ".join(cur))
+                cur = [w]
+        if cur:
+            lines.append(" ".join(cur))
+        return lines
 
     @staticmethod
     def _hex(c: str) -> tuple[int,int,int]:

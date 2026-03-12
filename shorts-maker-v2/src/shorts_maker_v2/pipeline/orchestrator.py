@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import json
+import logging
 import os
 from pathlib import Path
 import threading
@@ -11,7 +12,7 @@ from typing import Any
 import yaml
 
 from shorts_maker_v2.config import AppConfig, resolve_runtime_paths
-from shorts_maker_v2.models import JobManifest, ScenePlan
+from shorts_maker_v2.models import JobManifest, SceneAsset, ScenePlan
 from shorts_maker_v2.pipeline.media_step import MediaStep
 from shorts_maker_v2.pipeline.render_step import RenderStep
 from shorts_maker_v2.pipeline.script_step import ScriptStep, TopicUnsuitableError
@@ -23,6 +24,8 @@ from shorts_maker_v2.providers.pexels_client import PexelsClient
 from shorts_maker_v2.render.srt_export import export_srt
 from shorts_maker_v2.utils.cost_guard import CostGuard
 from shorts_maker_v2.utils.cost_tracker import CostTracker
+
+logger = logging.getLogger(__name__)
 
 
 class JsonlLogger:
@@ -62,9 +65,11 @@ class PipelineOrchestrator:
         render_step: RenderStep | None = None,
         *,
         job_index: int = 0,
+        use_shorts_factory: bool = False,
     ):
         self.config = config
         self._job_index = job_index
+        self._use_shorts_factory = use_shorts_factory
         self.paths = resolve_runtime_paths(config, base_dir)
         self.paths.output_dir.mkdir(parents=True, exist_ok=True)
         self.paths.logs_dir.mkdir(parents=True, exist_ok=True)
@@ -256,22 +261,41 @@ class PipelineOrchestrator:
                 )
 
             safe_output_name = Path(output_filename).name if output_filename else f"{job_id}.mp4"
-            output_path = self.render_step.run(
-                scene_plans=scene_plans,
-                scene_assets=scene_assets,
-                output_dir=self.paths.output_dir,
-                output_filename=safe_output_name,
-                run_dir=run_dir,
-                title=title,
-                topic=topic,
-            )
+
+            # ── Phase 3: ShortsFactory 렌더링 분기 ──
+            sf_rendered = False
+            if self._use_shorts_factory and channel:
+                sf_rendered = self._try_shorts_factory_render(
+                    channel=channel,
+                    scene_plans=scene_plans,
+                    scene_assets=scene_assets,
+                    output_path=self.paths.output_dir / safe_output_name,
+                    logger=logger,
+                )
+
+            if sf_rendered:
+                output_path = self.paths.output_dir / safe_output_name
+            else:
+                # 기존 render_step 경로 (폴백 또는 기본)
+                output_path = self.render_step.run(
+                    scene_plans=scene_plans,
+                    scene_assets=scene_assets,
+                    output_dir=self.paths.output_dir,
+                    output_filename=safe_output_name,
+                    run_dir=run_dir,
+                    title=title,
+                    topic=topic,
+                )
+
             manifest.output_path = output_path.resolve().as_posix()
             manifest.total_duration_sec = round(sum(item.duration_sec for item in scene_assets), 3)
             manifest.status = "success"
+            manifest.ab_variant["renderer"] = "shorts_factory" if sf_rendered else "native"
             logger.info(
                 "render_done",
                 output_path=manifest.output_path,
                 total_duration_sec=manifest.total_duration_sec,
+                renderer="shorts_factory" if sf_rendered else "native",
             )
 
             thumb_path = self.thumbnail_step.run(title=title, output_dir=self.paths.output_dir, topic=topic)
@@ -345,3 +369,77 @@ class PipelineOrchestrator:
             pass  # 비용 추적 실패는 무시 (핵심 흐름에 영향 없음)
 
         return manifest
+
+    # ── Phase 3: ShortsFactory 렌더링 브리지 ────────────────────────────
+
+    @staticmethod
+    def _try_shorts_factory_render(
+        *,
+        channel: str,
+        scene_plans: list[ScenePlan],
+        scene_assets: list[SceneAsset],
+        output_path: Path,
+        logger: Any,
+    ) -> bool:
+        """ShortsFactory RenderAdapter를 통한 렌더링 시도.
+
+        성공 시 True, 실패 시 False를 반환하여 기존 render_step으로 폴백합니다.
+
+        Args:
+            channel: 채널 키 (e.g., "ai_tech")
+            scene_plans: 대본 씬 목록
+            scene_assets: 미디어 에셋 목록
+            output_path: 최종 출력 경로
+            logger: 로거
+
+        Returns:
+            렌더링 성공 여부
+        """
+        try:
+            from ShortsFactory.interfaces import RenderAdapter
+
+            adapter = RenderAdapter()
+
+            # ScenePlan → dict 변환
+            scenes_data = [sp.to_dict() for sp in scene_plans]
+
+            # SceneAsset → 에셋 매핑
+            assets_map: dict[int, str] = {
+                a.scene_id: a.visual_path for a in scene_assets
+            }
+            audio_map: dict[int, str] = {
+                a.scene_id: a.audio_path for a in scene_assets
+            }
+
+            result = adapter.render_with_plan(
+                channel_id=channel,
+                scenes=scenes_data,
+                assets=assets_map,
+                output_path=output_path,
+                audio_paths=audio_map,
+            )
+
+            if result.success:
+                logger.info(
+                    "shorts_factory_render_ok",
+                    channel=channel,
+                    template=result.template_used,
+                    duration_sec=result.duration_sec,
+                )
+                return True
+            else:
+                logger.warning(
+                    "shorts_factory_render_failed",
+                    channel=channel,
+                    error=result.error,
+                    fallback="native_render_step",
+                )
+                return False
+
+        except Exception as exc:
+            logger.warning(
+                "shorts_factory_import_failed",
+                error=str(exc),
+                fallback="native_render_step",
+            )
+            return False

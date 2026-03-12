@@ -29,8 +29,16 @@ AI 기반 YouTube Shorts 자동 생성 파이프라인
 - ✅ Phase 4: QA 인프라 (QA/QC 승인 완료)
   - 비주얼 리그레션 (SSIM/PSNR)
   - 성능 벤치마크 (JSON 결과)
-  - 전체 89 passed, 9 skipped, 0 failed
-- ⬜ Phase 3: Orchestrator 통합 (render_from_plan 호출 분기)
+  - CI 워크플로우: `.github/workflows/visual-regression.yml`
+- ✅ Phase 3: Orchestrator 통합
+  - `use_shorts_factory` feature flag (기본: False)
+  - `_try_shorts_factory_render()` → RenderAdapter → ShortsFactory
+  - 실패 시 기존 render_step.run() 자동 폴백
+  - `ab_variant["renderer"]` A/B 테스트 기록
+- ✅ Phase 2.5: LayoutEngine v2 + ColorEngine v2
+  - LayoutEngine: numbered_list, image_text_overlay, metric_dashboard, step_by_step, quote_card, comparison_table
+  - ColorEngine: apply_lut, apply_role_grading, blend_presets, auto_correct
+- 🔲 다음: E2E 통합 테스트 (use_shorts_factory=True), render_step에 role_grading 통합
 
 ## 컨벤션
 - 테스트: `tests/unit/`, `tests/integration/`

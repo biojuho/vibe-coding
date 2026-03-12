@@ -17,3 +17,16 @@
 - **결정**: Main Pipeline이 ScenePlan/SceneAsset을 ShortsFactory에 전달하는 브리지 메서드 `render_from_plan()` 도입
 - **근거**: 기존 `create/render` API를 유지하면서 새로운 통합 경로를 제공
 - **영향**: `RenderAdapter.render_with_plan()` → `ShortsFactory.render_from_plan()` → Template → Engine 경로
+
+## AD-004: Feature Flag 기반 렌더러 분기
+- **날짜**: 2026-03-12
+- **결정**: Orchestrator에 `use_shorts_factory` kwarg(기본: False)를 추가하여 ShortsFactory 렌더링 경로를 선택적으로 활성화
+- **근거**: 기존 동작을 보존하면서 A/B 테스트 가능. `ab_variant["renderer"]`로 성과 추적
+- **영향**: Zero Risk Deploy — flag=False면 기존 render_step.run() 100% 동작
+
+## AD-005: 씬 역할별 자동 컬러 그레이딩
+- **날짜**: 2026-03-12
+- **결정**: ColorEngine에 `apply_role_grading(role)` 도입 — hook/body/cta 각각에 최적화된 대비/채도/감마 적용
+- **근거**: 시청자 심리에 맞는 영상 톤 자동화 (hook=시선 집중, cta=긍정 인상)
+- **영향**: 기존 `apply_grading()`과 별개 메서드, 프리셋 위에 역할 보정을 추가 적용
+

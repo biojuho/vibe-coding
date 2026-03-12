@@ -34,7 +34,10 @@
 | **word-chain** | 게임 | React, Vite, Framer Motion, TailwindCSS | React 19, Vite 7, TW 4 |
 
 ### 공유 인프라
-- **MCP 서버**: Supabase, Firebase, Notion
+
+- **MCP 서버** (8개, `.mcp.json` 통합 관리):
+  - 공식: Notion, SQLite, Filesystem, Brave Search, GitHub
+  - 커스텀: YouTube Data (`infrastructure/youtube-mcp/`), Telegram (`infrastructure/telegram-mcp/`), n8n Workflow (`infrastructure/n8n-mcp/`)
 - **알림**: Telegram Bot
 - **외부 API**: OpenAI, Google Gemini, Anthropic, DeepSeek, Moonshot, Zhipu AI, xAI
 
@@ -136,7 +139,14 @@ Vibe coding/                      # Root 워크스페이스
   - P2: 토픽 사전 검증, 셀렉터 자가 복구, 콘텐츠 캘린더, Notion 백오프
   - P3: 업타임 모니터, CI 테스트 매트릭스, 에러 분석기, API 키 검증
 
+- MCP & Skill 확장 Phase 1~2 완료 (2026-03-12):
+  - Phase 1: 통합 `.mcp.json` 생성, 공식 MCP 5개 (Notion, SQLite, Filesystem, Brave Search, GitHub)
+  - Phase 2: 커스텀 MCP 3개 (YouTube Data, Telegram, n8n Workflow) + Skill 3개 (pipeline-runner, daily-brief, cost-check)
+  - mcp 패키지 설치 (`mcp[cli]>=1.0.0`), FastMCP 기반 서버 패턴 통일
+  - `.env.example` 업데이트 (Telegram, GitHub, Brave, n8n Bridge 키 추가)
+
 ### 🔄 진행 중
+
 - blind-to-x: 스케줄러 자동 실행 모니터링 (S4U 전환 후 1주간)
 - blind-to-x: 실 운영 LLM 초안 품질 모니터링 (1주간 manual review)
 - 시스템 고도화 v2 Phase 4~5 (고급 최적화, 문서화) 미실행
@@ -186,7 +196,8 @@ Vibe coding/                      # Root 워크스페이스
 | 2026-03-06 | 초기 세팅 | (초기화) | - |
 | 2026-03-09 | Antigravity | Windows Task Scheduler에서 `Register-ScheduledTask`로 한국어 경로(`박주호`)를 등록하면 XML에 `諛뺤＜??`로 깨짐 → 스케줄러 실패 | ASCII-only 경로(`C:\btx\`)에 launcher를 두고 환경변수(`%LOCALAPPDATA%`, `%USERPROFILE%`)로 런타임 해석 |
 | 2026-03-09 | Antigravity | Notion API `rich_text` 2000자 제한에서 유니코드 한국어 문자열이 정확히 2000자여도 API가 거부하는 경우 발생 | 안전 마진 10자를 두고 1990자로 truncate |
+| 2026-03-12 | Claude Code | FastMCP 1.26에서 `description` kwarg 미지원 → `instructions`로 변경 필요 | `FastMCP("name", instructions="...")` 패턴 사용 |
 
 ---
 
-*마지막 업데이트: 2026-03-12 11:18 KST (Antigravity — CountdownMixin 추출 + scaffold 검증 강화 + QC 42/42 승인)*
+*마지막 업데이트: 2026-03-12 KST (Claude Code — MCP & Skill 확장 Phase 1~2 완료, 통합 .mcp.json 8개 서버)*

@@ -130,7 +130,7 @@ def _get_bot_info() -> Dict[str, Any]:
 if FastMCP is not None:
     mcp = FastMCP(
         "telegram",
-        description="텔레그램 봇 API MCP 서버 - 메시지 전송, 사진 전송, 업데이트 조회",
+        instructions="텔레그램 봇 API MCP 서버 - 메시지 전송, 사진 전송, 업데이트 조회",
     )
 
     @mcp.tool()
