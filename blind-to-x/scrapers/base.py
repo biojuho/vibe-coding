@@ -48,6 +48,8 @@ class BaseScraper:
 
     def __init__(self, config):
         self.config = config
+        # Selector self-repair: maps failed_selector -> repaired_selector
+        self._selector_repairs: dict[str, str] = {}
         self.proxy_manager = ProxyManager(config)
         self.headless = config.get("headless", True)
         self.screenshot_dir = config.get("screenshot_dir", "./screenshots")
@@ -220,6 +222,215 @@ class BaseScraper:
         except Exception as exc:
             logger.debug("Screenshot failed (path=%s): %s", path, exc)
             return False
+
+    # ── Selector self-repair ─────────────────────────────────────
+    def _suggest_selectors(self, html: str, failed_selector: str) -> list[str]:
+        """Parse the failed selector and search HTML for similar elements.
+
+        Uses regex-based HTML parsing only (no BeautifulSoup dependency).
+        Returns up to 3 candidate selectors ordered by similarity.
+        """
+        candidates: list[str] = []
+
+        # Extract the target type and value from the failed selector
+        # e.g. ".my-class" -> class name "my-class"
+        #      "#my-id"    -> id "my-id"
+        #      "div.foo"   -> tag "div", class "foo"
+        failed_clean = failed_selector.strip()
+
+        # Extract class name from selector (e.g. ".board-contents" -> "board-contents")
+        cls_match = re.search(r'\.([a-zA-Z_][\w-]*)', failed_clean)
+        target_class = cls_match.group(1) if cls_match else None
+
+        # Extract id from selector (e.g. "#main-content" -> "main-content")
+        id_match = re.search(r'#([a-zA-Z_][\w-]*)', failed_clean)
+        target_id = id_match.group(1) if id_match else None
+
+        # Extract tag name from selector (e.g. "article.post" -> "article")
+        tag_match = re.match(r'^([a-zA-Z][\w]*)', failed_clean)
+        target_tag = tag_match.group(1) if tag_match else None
+
+        # Strategy 1: Find elements with similar class names
+        if target_class:
+            # Split class name by common delimiters to get component words
+            parts = re.split(r'[-_]', target_class)
+            significant_parts = [p for p in parts if len(p) > 2]
+
+            # Find all class values in the HTML
+            all_classes = re.findall(r'class=["\']([^"\']+)["\']', html)
+            scored: list[tuple[float, str]] = []
+            for class_attr in all_classes:
+                for cls in class_attr.split():
+                    if cls == target_class:
+                        continue  # skip exact match (it didn't work)
+                    # Score by how many parts overlap
+                    cls_parts = re.split(r'[-_]', cls)
+                    if not significant_parts:
+                        continue
+                    overlap = sum(1 for p in significant_parts if p.lower() in [cp.lower() for cp in cls_parts])
+                    if overlap > 0:
+                        score = overlap / max(len(significant_parts), len(cls_parts))
+                        scored.append((score, f".{cls}"))
+
+            # Deduplicate and sort by score descending
+            seen: set[str] = set()
+            for _score, sel in sorted(scored, key=lambda x: -x[0]):
+                if sel not in seen:
+                    seen.add(sel)
+                    candidates.append(sel)
+                if len(candidates) >= 3:
+                    break
+
+        # Strategy 2: Find elements with similar id names
+        if target_id and len(candidates) < 3:
+            id_parts = re.split(r'[-_]', target_id)
+            significant_id_parts = [p for p in id_parts if len(p) > 2]
+            all_ids = re.findall(r'id=["\']([^"\']+)["\']', html)
+            for eid in all_ids:
+                if eid == target_id:
+                    continue
+                eid_parts = re.split(r'[-_]', eid)
+                if significant_id_parts:
+                    overlap = sum(1 for p in significant_id_parts if p.lower() in [ep.lower() for ep in eid_parts])
+                    if overlap > 0:
+                        sel = f"#{eid}"
+                        if sel not in {c for c in candidates}:
+                            candidates.append(sel)
+                if len(candidates) >= 3:
+                    break
+
+        # Strategy 3: If we have a tag, look for that tag with content-related classes
+        if target_tag and len(candidates) < 3:
+            content_hints = ["content", "body", "text", "article", "post", "main", "entry", "detail"]
+            tag_pattern = rf'<{re.escape(target_tag)}\s[^>]*class=["\']([^"\']+)["\']'
+            tag_classes = re.findall(tag_pattern, html, re.IGNORECASE)
+            for class_attr in tag_classes:
+                for cls in class_attr.split():
+                    cls_lower = cls.lower()
+                    if any(hint in cls_lower for hint in content_hints):
+                        sel = f"{target_tag}.{cls}"
+                        if sel not in {c for c in candidates}:
+                            candidates.append(sel)
+                    if len(candidates) >= 3:
+                        break
+                if len(candidates) >= 3:
+                    break
+
+        return candidates[:3]
+
+    async def _auto_repair_selector(
+        self, page, failed_selector: str, context: str = ""
+    ) -> str | None:
+        """Attempt to auto-repair a failed CSS selector by analyzing the page HTML.
+
+        Tries up to 3 candidate selectors derived from similarity analysis.
+        On success, caches the mapping in self._selector_repairs and returns the
+        working selector. Returns None if no candidate works.
+        """
+        # Check if we already have a cached repair for this selector
+        if failed_selector in self._selector_repairs:
+            cached = self._selector_repairs[failed_selector]
+            logger.info(
+                "Selector repair cache hit: '%s' -> '%s'", failed_selector, cached
+            )
+            return cached
+
+        try:
+            html = await page.content()
+        except Exception as exc:
+            logger.warning(
+                "Cannot get page HTML for selector repair: %s", exc
+            )
+            return None
+
+        if not html:
+            logger.warning("Empty page HTML, cannot attempt selector repair.")
+            return None
+
+        candidates = self._suggest_selectors(html, failed_selector)
+        if not candidates:
+            logger.warning(
+                "Selector repair: no candidates found for '%s'%s",
+                failed_selector,
+                f" (context: {context})" if context else "",
+            )
+            return None
+
+        logger.info(
+            "Selector repair: trying %d candidate(s) for '%s': %s",
+            len(candidates), failed_selector, candidates,
+        )
+
+        for i, candidate in enumerate(candidates, 1):
+            try:
+                el = await page.query_selector(candidate)
+                if el is not None:
+                    self._selector_repairs[failed_selector] = candidate
+                    logger.info(
+                        "Selector repair SUCCESS [%d/%d]: '%s' -> '%s'%s",
+                        i, len(candidates), failed_selector, candidate,
+                        f" (context: {context})" if context else "",
+                    )
+                    return candidate
+                else:
+                    logger.info(
+                        "Selector repair candidate [%d/%d] '%s' returned no element.",
+                        i, len(candidates), candidate,
+                    )
+            except Exception as exc:
+                logger.info(
+                    "Selector repair candidate [%d/%d] '%s' raised error: %s",
+                    i, len(candidates), candidate, exc,
+                )
+
+        logger.warning(
+            "Selector repair FAILED: all %d candidates exhausted for '%s'%s",
+            len(candidates), failed_selector,
+            f" (context: {context})" if context else "",
+        )
+        return None
+
+    async def _wait_for_selector_with_repair(
+        self, page, selector: str, timeout_ms: int | None = None, context: str = ""
+    ):
+        """Wait for a selector, attempting auto-repair on timeout.
+
+        Returns the located element on success, or None if both the original
+        selector and repair attempts fail.
+        """
+        if timeout_ms is None:
+            timeout_ms = self.selector_timeout_ms
+
+        # Check if we have a known repair for this selector
+        effective_selector = self._selector_repairs.get(selector, selector)
+        if effective_selector != selector:
+            logger.info(
+                "Using previously repaired selector: '%s' -> '%s'",
+                selector, effective_selector,
+            )
+
+        try:
+            el = await page.wait_for_selector(effective_selector, timeout=timeout_ms)
+            return el
+        except PlaywrightTimeoutError:
+            logger.warning(
+                "Selector '%s' timed out after %dms, attempting auto-repair...%s",
+                effective_selector, timeout_ms,
+                f" (context: {context})" if context else "",
+            )
+            repaired = await self._auto_repair_selector(
+                page, selector, context=context
+            )
+            if repaired:
+                try:
+                    el = await page.wait_for_selector(repaired, timeout=timeout_ms)
+                    return el
+                except PlaywrightTimeoutError:
+                    logger.warning(
+                        "Repaired selector '%s' also timed out.", repaired
+                    )
+                    return None
+            return None
 
     async def _clean_ui_for_screenshot(self, page):
         logger.info("Hiding unnecessary UI elements for screenshot...")

@@ -21,13 +21,16 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import psutil
 from fastapi import FastAPI, HTTPException, Header, BackgroundTasks
 from pydantic import BaseModel
 from typing import Optional
 
 # ─── 설정 ────────────────────────────────────────────────────────────────────
 
-BRIDGE_TOKEN = os.getenv("BRIDGE_TOKEN", "N8N_BRIDGE_TOKEN_PLACEHOLDER")
+BRIDGE_TOKEN = os.getenv("BRIDGE_TOKEN")
+if not BRIDGE_TOKEN:
+    raise RuntimeError("BRIDGE_TOKEN 환경 변수가 설정되지 않았습니다.")
 BTX_DIR = Path(os.getenv("BTX_DIR", r"C:\Users\박주호\Desktop\Vibe coding\blind-to-x"))
 PYTHON_EXE = os.getenv("PYTHON_EXE", sys.executable)
 LOG_DIR = Path(os.getenv("BRIDGE_LOG_DIR", r"C:\Users\박주호\Desktop\Vibe coding\infrastructure\n8n\logs"))
@@ -49,6 +52,21 @@ ALLOWED_COMMANDS = {
         "cwd": str(Path(__file__).parent),
         "description": "시스템 전체 헬스체크",
     },
+    "onedrive_backup": {
+        "cmd": [PYTHON_EXE, str(Path(__file__).parent.parent.parent / "execution" / "backup_to_onedrive.py")],
+        "cwd": str(Path(__file__).parent.parent.parent),
+        "description": "OneDrive 핵심 파일 백업",
+    },
+    "yt_analytics": {
+        "cmd": [PYTHON_EXE, str(Path(__file__).parent.parent.parent / "execution" / "result_tracker_db.py"), "collect"],
+        "cwd": str(Path(__file__).parent.parent.parent),
+        "description": "YouTube Analytics 자동 수집",
+    },
+    "cache_cleanup": {
+        "cmd": [PYTHON_EXE, "-c", "from execution.llm_client import cache_cleanup; print(f'Cleaned {cache_cleanup()} entries')"],
+        "cwd": str(Path(__file__).parent.parent.parent),
+        "description": "LLM 캐시 만료 항목 정리",
+    },
 }
 
 # ─── FastAPI 앱 ──────────────────────────────────────────────────────────────
@@ -58,6 +76,8 @@ app = FastAPI(
     description="n8n → Host 브릿지 서버 (Blind-to-X / Shorts Maker 파이프라인용)",
     version="1.0.0",
 )
+
+_server_start_time = datetime.now()
 
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -123,6 +143,46 @@ async def root():
         "status": "running",
         "available_commands": list(ALLOWED_COMMANDS.keys()),
         "timestamp": datetime.now().isoformat(),
+    }
+
+
+@app.get("/health")
+async def health():
+    """Server health check (no authentication required)."""
+    now = datetime.now()
+    uptime_seconds = round((now - _server_start_time).total_seconds(), 2)
+
+    # Current process memory usage in MB
+    process = psutil.Process(os.getpid())
+    memory_mb = round(process.memory_info().rss / (1024 * 1024), 2)
+
+    total_executions = len(_execution_history)
+    last_execution_at = (
+        _execution_history[-1].get("timestamp") if _execution_history else None
+    )
+
+    # Determine status
+    # - unhealthy: memory > 512 MB
+    # - degraded: last 3 executions all failed, or memory > 256 MB
+    # - healthy: otherwise
+    if memory_mb > 512:
+        status = "unhealthy"
+    elif memory_mb > 256:
+        status = "degraded"
+    elif total_executions >= 3 and all(
+        e.get("status") != "success" for e in _execution_history[-3:]
+    ):
+        status = "degraded"
+    else:
+        status = "healthy"
+
+    return {
+        "uptime_seconds": uptime_seconds,
+        "memory_mb": memory_mb,
+        "total_executions": total_executions,
+        "last_execution_at": last_execution_at,
+        "status": status,
+        "timestamp": now.isoformat(),
     }
 
 

@@ -16,11 +16,12 @@ import argparse
 import json
 import logging
 import os
+import re
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import requests
 from dotenv import load_dotenv
@@ -276,6 +277,205 @@ def check_git() -> List[Dict]:
     return [_check_result("git", "environment", STATUS_FAIL, ".git directory not found")]
 
 
+# ── API 키 형식 패턴 (prefix → regex) ─────────────────────
+_KEY_FORMAT_PATTERNS: Dict[str, Tuple[str, re.Pattern[str]]] = {
+    "OPENAI_API_KEY": ("sk-...", re.compile(r"^sk-.{20,}")),
+    "ANTHROPIC_API_KEY": ("sk-ant-...", re.compile(r"^sk-ant-.{20,}")),
+    "XAI_API_KEY": ("xai-...", re.compile(r"^xai-.{10,}")),
+    "DEEPSEEK_API_KEY": ("sk-...", re.compile(r"^sk-.{20,}")),
+    "MOONSHOT_API_KEY": ("sk-...", re.compile(r"^sk-.{20,}")),
+    "GOOGLE_API_KEY": ("AIza...", re.compile(r"^AIza.{30,}")),
+    "GEMINI_API_KEY": ("AIza...", re.compile(r"^AIza.{30,}")),
+    "NOTION_API_KEY": ("ntn_...", re.compile(r"^(ntn_|secret_).{20,}")),
+    "YOUTUBE_API_KEY": ("AIza...", re.compile(r"^AIza.{30,}")),
+    "GROQ_API_KEY": ("gsk_...", re.compile(r"^gsk_.{20,}")),
+}
+
+# Lightweight validation endpoints (GET only, no credit consumption)
+_KEY_VALIDATION_ENDPOINTS: Dict[str, Dict] = {
+    "OPENAI_API_KEY": {
+        "url": "https://api.openai.com/v1/models",
+        "auth_header": "Bearer",
+    },
+    "DEEPSEEK_API_KEY": {
+        "url": "https://api.deepseek.com/models",
+        "auth_header": "Bearer",
+    },
+    "MOONSHOT_API_KEY": {
+        "url": "https://api.moonshot.cn/v1/models",
+        "auth_header": "Bearer",
+    },
+    "XAI_API_KEY": {
+        "url": "https://api.x.ai/v1/models",
+        "auth_header": "Bearer",
+    },
+    "GROQ_API_KEY": {
+        "url": "https://api.groq.com/openai/v1/models",
+        "auth_header": "Bearer",
+    },
+    "NOTION_API_KEY": {
+        "url": "https://api.notion.com/v1/users/me",
+        "auth_header": "Bearer",
+        "extra_headers": {"Notion-Version": "2022-06-28"},
+    },
+}
+
+
+def check_api_key_health() -> List[Dict]:
+    """API 키 존재, 형식, 유효성 점검.
+
+    For each known API key environment variable:
+    - Check if the key is set (non-empty)
+    - Validate key format (prefix pattern)
+    - If a lightweight validation endpoint exists, ping it to verify auth
+    Returns a list of check results in the standard format.
+    """
+    results: List[Dict] = []
+
+    # Collect all known API key env vars from API_CHECKS + format patterns
+    all_key_names: List[str] = []
+    for api in API_CHECKS:
+        if "env_key" in api:
+            all_key_names.append(api["env_key"])
+        if "env_keys" in api:
+            all_key_names.extend(api["env_keys"])
+    # Add keys from format patterns not already covered
+    for k in _KEY_FORMAT_PATTERNS:
+        if k not in all_key_names:
+            all_key_names.append(k)
+
+    # Deduplicate while preserving order
+    seen: set = set()
+    unique_keys: List[str] = []
+    for k in all_key_names:
+        if k not in seen:
+            seen.add(k)
+            unique_keys.append(k)
+
+    for env_key in unique_keys:
+        value = os.getenv(env_key, "")
+        check_name = f"key:{env_key}"
+
+        # 1) Not set
+        if not value:
+            results.append(_check_result(check_name, "api", STATUS_WARN, "key not set"))
+            continue
+
+        # 2) Format validation
+        if env_key in _KEY_FORMAT_PATTERNS:
+            expected_prefix, pattern = _KEY_FORMAT_PATTERNS[env_key]
+            if not pattern.match(value):
+                results.append(_check_result(
+                    check_name, "api", STATUS_WARN,
+                    f"unexpected format (expected {expected_prefix})"
+                ))
+                continue
+
+        # 3) Lightweight endpoint validation (if available)
+        if env_key in _KEY_VALIDATION_ENDPOINTS:
+            ep = _KEY_VALIDATION_ENDPOINTS[env_key]
+            headers = {"Authorization": f"{ep.get('auth_header', 'Bearer')} {value}"}
+            headers.update(ep.get("extra_headers", {}))
+            try:
+                resp = requests.get(ep["url"], headers=headers, timeout=8)
+                if resp.status_code == 200:
+                    results.append(_check_result(check_name, "api", STATUS_OK, "valid (auth ok)"))
+                elif resp.status_code == 401:
+                    results.append(_check_result(
+                        check_name, "api", STATUS_FAIL, "invalid or expired (401)"
+                    ))
+                elif resp.status_code == 403:
+                    results.append(_check_result(
+                        check_name, "api", STATUS_FAIL, "forbidden (403) - check permissions"
+                    ))
+                elif resp.status_code == 429:
+                    results.append(_check_result(
+                        check_name, "api", STATUS_WARN, "rate limited (429) - key likely valid"
+                    ))
+                else:
+                    results.append(_check_result(
+                        check_name, "api", STATUS_WARN, f"HTTP {resp.status_code}"
+                    ))
+            except requests.ConnectionError:
+                results.append(_check_result(
+                    check_name, "api", STATUS_FAIL, "connection failed"
+                ))
+            except requests.Timeout:
+                results.append(_check_result(
+                    check_name, "api", STATUS_WARN, "timeout (8s) - key format ok"
+                ))
+            except Exception as exc:
+                results.append(_check_result(check_name, "api", STATUS_FAIL, str(exc)))
+        else:
+            # No validation endpoint: format-only check passed
+            results.append(_check_result(
+                check_name, "api", STATUS_OK, "key set, format ok (no ping endpoint)"
+            ))
+
+    return results
+
+
+def check_env_completeness() -> List[Dict]:
+    """Compare .env against .env.example and report missing/extra keys.
+
+    Parses both files for KEY=value lines, ignoring comments and blank lines.
+    Returns check results indicating missing keys (in example but not in .env)
+    and extra keys (in .env but not in example).
+    """
+    env_path = _ROOT / ".env"
+    example_path = _ROOT / ".env.example"
+
+    if not example_path.is_file():
+        return [_check_result(
+            "env_completeness", "env", STATUS_SKIP,
+            ".env.example not found"
+        )]
+    if not env_path.is_file():
+        return [_check_result(
+            "env_completeness", "env", STATUS_FAIL,
+            ".env file not found"
+        )]
+
+    def _parse_keys(filepath: Path) -> set:
+        keys: set = set()
+        with open(filepath, encoding="utf-8", errors="replace") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" in line:
+                    key = line.split("=", 1)[0].strip()
+                    if key:
+                        keys.add(key)
+        return keys
+
+    env_keys = _parse_keys(env_path)
+    example_keys = _parse_keys(example_path)
+
+    missing = sorted(example_keys - env_keys)
+    extra = sorted(env_keys - example_keys)
+
+    results: List[Dict] = []
+
+    if missing:
+        results.append(_check_result(
+            "env_completeness:missing", "env", STATUS_WARN,
+            f"keys in .env.example but not in .env: {', '.join(missing)}"
+        ))
+    if extra:
+        results.append(_check_result(
+            "env_completeness:extra", "env", STATUS_OK,
+            f"extra keys in .env (not in example): {', '.join(extra)}"
+        ))
+    if not missing and not extra:
+        results.append(_check_result(
+            "env_completeness", "env", STATUS_OK,
+            f".env matches .env.example ({len(env_keys)} keys)"
+        ))
+
+    return results
+
+
 # ── 메인 실행 ──────────────────────────────────────────────
 
 
@@ -285,7 +485,9 @@ def run_all_checks(category: Optional[str] = None) -> List[Dict]:
 
     checkers = [
         ("env", check_env_vars),
+        ("env", check_env_completeness),
         ("api", check_api_connections),
+        ("api", check_api_key_health),
         ("filesystem", check_directories),
         ("filesystem", check_files),
         ("database", check_databases),

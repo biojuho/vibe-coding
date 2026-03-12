@@ -185,13 +185,29 @@ def _cache_set(key: str, content: str) -> None:
         pass
 
 
+def cache_cleanup(ttl_sec: int = 259200) -> int:
+    """만료된 캐시 항목 삭제. 삭제 건수 반환."""
+    try:
+        with sqlite3.connect(str(_CACHE_DB_PATH)) as conn:
+            cutoff = time.time() - ttl_sec
+            cursor = conn.execute(
+                "DELETE FROM llm_cache WHERE created_at < ?", (cutoff,)
+            )
+            deleted = cursor.rowcount
+            if deleted > 0:
+                conn.execute("PRAGMA optimize")
+            return deleted
+    except Exception:
+        return 0
+
+
 class LLMClient:
     """7개 프로바이더 자동 fallback LLM 클라이언트.
 
     사용 가능한 API 키가 있는 프로바이더만 활성화되며,
     호출 실패 시 다음 프로바이더로 자동 전환됩니다.
 
-    cache_ttl_sec > 0 이면 동일 프롬프트 재호출 시 캐시 반환 (기본값: 0 = 비활성).
+    cache_ttl_sec > 0 이면 동일 프롬프트 재호출 시 캐시 반환 (기본값: 259200 = 72시간).
     """
 
     def __init__(
@@ -203,7 +219,7 @@ class LLMClient:
         request_timeout_sec: int = 120,
         track_usage: bool = True,
         caller_script: str = "",
-        cache_ttl_sec: int = 0,
+        cache_ttl_sec: int = 259200,
     ):
         self.provider_order = self._normalize_providers(
             providers or DEFAULT_PROVIDER_ORDER
