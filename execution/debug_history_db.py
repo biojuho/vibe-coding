@@ -257,6 +257,37 @@ def get_stats() -> Dict:
         conn.close()
 
 
+# ── TTL / 자동 아카이브 ────────────────────────────────────
+
+
+def archive_old_entries(retention_days: int = 90) -> int:
+    """지정 기간 이전의 debug_entries를 삭제하고 VACUUM. 삭제 건수 반환."""
+    init_db()
+    conn = _conn()
+    try:
+        from datetime import timedelta
+        cutoff = (datetime.now() - timedelta(days=retention_days)).isoformat(timespec="seconds")
+        cursor = conn.execute(
+            "DELETE FROM debug_entries WHERE created_at < ?", (cutoff,)
+        )
+        deleted = cursor.rowcount
+
+        # scrape_quality_log도 같은 기간 정리
+        conn.execute(
+            "DELETE FROM scrape_quality_log WHERE logged_at < ?", (cutoff,)
+        )
+
+        conn.commit()
+        if deleted > 0:
+            conn.execute("VACUUM")
+        return deleted
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
 # ── 에러 패턴 등록/조회 ───────────────────────────────────
 
 
@@ -454,6 +485,10 @@ if __name__ == "__main__":
     # stats
     sub.add_parser("stats", help="통계")
 
+    # archive
+    archive_p = sub.add_parser("archive", help="오래된 이력 삭제 (기본 90일)")
+    archive_p.add_argument("--days", type=int, default=90, help="보관 기간 (일)")
+
     # seed
     sub.add_parser("seed", help="알려진 에러 패턴 시드 등록")
 
@@ -493,6 +528,10 @@ if __name__ == "__main__":
     elif args.command == "stats":
         stats = get_stats()
         print(json.dumps(stats, indent=2, ensure_ascii=False))
+
+    elif args.command == "archive":
+        deleted = archive_old_entries(retention_days=args.days)
+        print(f"Archived {deleted} entries older than {args.days} days")
 
     elif args.command == "seed":
         count = seed_known_patterns()

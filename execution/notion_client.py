@@ -51,19 +51,45 @@ def is_configured() -> bool:
 
 
 def _request(method: str, endpoint: str, **kwargs) -> requests.Response:
+    """Notion API 요청 + 429/5xx 지수 백오프 재시도."""
+    import time
+    import logging as _logging
+    _log = _logging.getLogger(__name__)
+
     timeout = kwargs.pop("timeout", 30)
-    resp = requests.request(
-        method=method,
-        url=f"{NOTION_BASE_URL}/{endpoint}",
-        headers=_headers(),
-        timeout=timeout,
-        **kwargs,
-    )
-    log_api_call(
-        provider="notion",
-        endpoint=f"{method.upper()} /{endpoint}",
-        caller_script="execution/notion_client.py",
-    )
+    max_retries = kwargs.pop("max_retries", 3)
+
+    for attempt in range(max_retries + 1):
+        resp = requests.request(
+            method=method,
+            url=f"{NOTION_BASE_URL}/{endpoint}",
+            headers=_headers(),
+            timeout=timeout,
+            **kwargs,
+        )
+        log_api_call(
+            provider="notion",
+            endpoint=f"{method.upper()} /{endpoint}",
+            caller_script="execution/notion_client.py",
+        )
+
+        if resp.status_code == 429 or resp.status_code >= 500:
+            if attempt < max_retries:
+                wait = min(2 ** (attempt + 1), 16)
+                retry_after = resp.headers.get("Retry-After")
+                if retry_after:
+                    try:
+                        wait = max(wait, int(retry_after))
+                    except ValueError:
+                        pass
+                _log.warning(
+                    "Notion %s /%s → %d, retrying in %ds (attempt %d/%d)",
+                    method.upper(), endpoint, resp.status_code, wait, attempt + 1, max_retries,
+                )
+                time.sleep(wait)
+                continue
+        break
+
     return resp
 
 

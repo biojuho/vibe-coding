@@ -3,19 +3,21 @@
 Replaces/augments the heuristic `calculate_performance_score()` once enough
 labeled training data accumulates in the CostDatabase draft_analytics table.
 
-Activation:
-  - MIN_TRAINING_ROWS (default 100) labelled records required in draft_analytics
-  - Falls back to heuristic scoring when data is insufficient
+Activation (tiered cold-start system):
+  - 0–19 rows: Pure heuristic fallback (no ML)
+  - 20–99 rows: LogisticRegression (simple, works with few samples)
+  - 100+ rows: GradientBoosting (full model)
 
 Model:
-  - Gradient Boosted Trees (sklearn GradientBoostingClassifier)
-  - Target: `published` (binary, 0/1)
+  - Gradient Boosted Trees (sklearn GradientBoostingClassifier) or
+    LogisticRegression depending on data volume
+  - Target: `published` (binary, 0/1) or log(yt_views+1) (continuous)
   - Features: topic_cluster, hook_type, emotion_axis, draft_style (one-hot) +
               final_rank_score as numeric feature
   - Output: predicted publish probability → scaled to 0–100
 
 Persistence:
-  - Model is saved to `.tmp/ml_scorer.pkl` after training
+  - Model is saved to `.tmp/ml_scorer.joblib` after training
   - Re-trained when new data has grown by ≥ RETRAIN_THRESHOLD rows
   - Thread-safe via file-lock pattern
 
@@ -50,8 +52,10 @@ _MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
 _LEGACY_PKL_PATH = _BTX_ROOT / ".tmp" / "ml_scorer.pkl"
 
 # 스키마 버전 — feature_names 구조가 변경될 때 증가
-_SCHEMA_VERSION = 2
+_SCHEMA_VERSION = 3
 
+# Tiered activation thresholds
+MIN_LOGISTIC_ROWS = int(os.environ.get("BTX_ML_MIN_LOGISTIC_ROWS", "20"))
 MIN_TRAINING_ROWS = int(os.environ.get("BTX_ML_MIN_ROWS", "100"))
 RETRAIN_THRESHOLD = int(os.environ.get("BTX_ML_RETRAIN_ROWS", "20"))
 
@@ -133,6 +137,7 @@ class _ModelBundle:
         training_rows: int,
         target_type: str = "binary",
         schema_version: int = _SCHEMA_VERSION,
+        model_tier: str = "gradient",
     ):
         self.model = model
         self.cat_sorted = cat_sorted
@@ -140,6 +145,7 @@ class _ModelBundle:
         self.training_rows = training_rows
         self.target_type = target_type  # "binary" or "continuous"
         self.schema_version = schema_version  # 구조 변경 감지용
+        self.model_tier = model_tier  # "heuristic" | "logistic" | "gradient"
 
     def _build_vec(
         self,
@@ -234,8 +240,10 @@ class MLScorer:
                     self._bundle = bundle
                     self._last_row_count = bundle.training_rows
                     logger.info(
-                        "MLScorer: loaded model (trained on %d rows, schema_v%d)",
-                        bundle.training_rows, bundle.schema_version,
+                        "MLScorer: loaded model (trained on %d rows, tier=%s, schema_v%d)",
+                        bundle.training_rows,
+                        getattr(bundle, "model_tier", "gradient"),
+                        bundle.schema_version,
                     )
                     _, current_count = _load_training_data()
                     if current_count - self._last_row_count >= RETRAIN_THRESHOLD:
@@ -248,18 +256,29 @@ class MLScorer:
             self._train()
 
     def _train(self) -> None:
-        """Train model from draft_analytics. Must be called inside _lock."""
+        """Train model from draft_analytics. Must be called inside _lock.
+
+        Tiered activation:
+          - 0–19 rows: heuristic (no ML)
+          - 20–99 rows: LogisticRegression (cold-start tier)
+          - 100+ rows: GradientBoosting (full tier)
+        """
         rows, count = _load_training_data()
-        if count < MIN_TRAINING_ROWS:
+        if count < MIN_LOGISTIC_ROWS:
             logger.info(
                 "MLScorer: not enough data (%d/%d rows). Using heuristic fallback.",
-                count, MIN_TRAINING_ROWS,
+                count, MIN_LOGISTIC_ROWS,
             )
             self._bundle = None
             return
 
+        # Determine model tier
+        model_tier = "gradient" if count >= MIN_TRAINING_ROWS else "logistic"
+
         try:
-            from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
+            if model_tier == "gradient":
+                from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
+            from sklearn.linear_model import LogisticRegression
         except ImportError:
             logger.warning("MLScorer: scikit-learn not installed. Heuristic fallback active.")
             self._bundle = None
@@ -267,17 +286,27 @@ class MLScorer:
 
         try:
             # Phase 5: continuous target when ≥15% of rows have YouTube view data
+            # Only use continuous target for gradient tier (logistic is binary-only)
             views_count = sum(1 for r in rows if float(r.get("yt_views") or 0) > 0)
-            use_views = views_count >= max(10, int(count * 0.15))
+            use_views = (
+                model_tier == "gradient"
+                and views_count >= max(10, int(count * 0.15))
+            )
             target_type = "continuous" if use_views else "binary"
             logger.info(
-                "MLScorer: target=%s (yt_views rows: %d/%d)",
-                target_type, views_count, count,
+                "MLScorer: tier=%s, target=%s, rows=%d (yt_views rows: %d/%d)",
+                model_tier, target_type, count, views_count, count,
             )
 
             X, y, feature_names, cat_sorted = _build_feature_matrix(rows, use_views=use_views)
 
-            if target_type == "continuous":
+            if model_tier == "logistic":
+                model = LogisticRegression(
+                    max_iter=1000,
+                    random_state=42,
+                    solver="lbfgs",
+                )
+            elif target_type == "continuous":
                 model = GradientBoostingRegressor(
                     n_estimators=100,
                     max_depth=3,
@@ -297,6 +326,7 @@ class MLScorer:
                 model, cat_sorted, feature_names,
                 training_rows=count, target_type=target_type,
                 schema_version=_SCHEMA_VERSION,
+                model_tier=model_tier,
             )
             self._bundle = bundle
             self._last_row_count = count
@@ -306,8 +336,8 @@ class MLScorer:
                 if _HAS_JOBLIB:
                     _joblib.dump(bundle, _MODEL_PATH)
                     logger.info(
-                        "MLScorer: model saved via joblib (%d rows, %d features, target=%s, schema_v%d)",
-                        count, len(feature_names), target_type, _SCHEMA_VERSION,
+                        "MLScorer: model saved via joblib (%d rows, %d features, tier=%s, target=%s, schema_v%d)",
+                        count, len(feature_names), model_tier, target_type, _SCHEMA_VERSION,
                     )
                 else:
                     logger.warning("MLScorer: joblib 미설치, 모델 저장 건너뜀 (pip install joblib)")
@@ -335,7 +365,8 @@ class MLScorer:
             _, current_count = _load_training_data()
             return 0.0, {
                 "method": "heuristic",
-                "reason": f"insufficient_data ({current_count}/{MIN_TRAINING_ROWS})",
+                "model_tier": "heuristic",
+                "reason": f"insufficient_data ({current_count}/{MIN_LOGISTIC_ROWS})",
             }
 
         try:
@@ -347,14 +378,17 @@ class MLScorer:
                 final_rank_score=final_rank_score,
             )
             target_type = getattr(self._bundle, "target_type", "binary")
+            model_tier = getattr(self._bundle, "model_tier", "gradient")
             if target_type == "continuous":
                 # Scale log-views to 0-100: log(50000) ≈ 10.82 as practical ceiling
                 _LOG_VIEWS_MAX = 10.82
                 score = round(min(100.0, max(0.0, raw / _LOG_VIEWS_MAX * 100)), 1)
             else:
+                # Both logistic and gradient binary models output probability → scale to 0-100
                 score = round(raw * 100, 1)
             return score, {
                 "method": "ml",
+                "model_tier": model_tier,
                 "target_type": target_type,
                 "trained_on": self._bundle.training_rows,
                 "raw_prediction": round(raw, 4),

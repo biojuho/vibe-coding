@@ -1,0 +1,161 @@
+{
+  "name": "Bridge Server Uptime Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "*/5 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://host.docker.internal:9876/health",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "health-check",
+      "name": "GET Health Endpoint",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [250, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Track consecutive unhealthy checks using workflow static data\nconst staticData = $getWorkflowStaticData('global');\nconst status = $input.first().json.status;\n\nif (status === 'healthy') {\n  staticData.consecutive_failures = 0;\n} else {\n  staticData.consecutive_failures = (staticData.consecutive_failures || 0) + 1;\n}\n\nreturn [{\n  json: {\n    ...$input.first().json,\n    consecutive_failures: staticData.consecutive_failures,\n    should_alert: staticData.consecutive_failures >= 3\n  }\n}];"
+      },
+      "id": "track-failures",
+      "name": "Track Consecutive Failures",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "alert-check",
+              "leftValue": "={{ $json.should_alert }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "should-alert",
+      "name": "Should Alert",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [750, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SLACK_WEBHOOK_URL || 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"🚨 *Bridge Server Unhealthy*\\n• Status: {{ $json.status }}\\n• Consecutive failures: {{ $json.consecutive_failures }}\\n• Uptime: {{ $json.uptime_seconds }}s\\n• Memory: {{ $json.memory_mb }} MB\\n• Total executions: {{ $json.total_executions }}\\n• Last execution: {{ $json.last_execution_at || 'N/A' }}\\n• Checked at: {{ $json.timestamp }}\"\n}"
+      },
+      "id": "send-alert",
+      "name": "Send Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, -100]
+    },
+    {
+      "parameters": {},
+      "id": "no-action",
+      "name": "No Action",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1000, 100]
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes": {
+      "main": [
+        [
+          {
+            "node": "GET Health Endpoint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET Health Endpoint": {
+      "main": [
+        [
+          {
+            "node": "Track Consecutive Failures",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Track Consecutive Failures": {
+      "main": [
+        [
+          {
+            "node": "Should Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Alert": {
+      "main": [
+        [
+          {
+            "node": "Send Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Seoul"
+  },
+  "tags": [
+    {
+      "name": "monitoring"
+    },
+    {
+      "name": "automation"
+    }
+  ]
+}

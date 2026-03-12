@@ -1,0 +1,112 @@
+name: full-test-matrix
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHONUTF8: "1"
+
+jobs:
+  # ── Job 1: Root project tests ──────────────────────────────────
+  root-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run root tests
+        run: pytest tests/ --tb=short -q
+
+  # ── Job 2: blind-to-x tests ───────────────────────────────────
+  blind-to-x-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: blind-to-x/requirements.txt
+
+      - name: Install dependencies
+        working-directory: blind-to-x
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run blind-to-x tests
+        working-directory: blind-to-x
+        run: pytest tests_unit/ --tb=short -q
+
+  # ── Job 3: shorts-maker-v2 tests ──────────────────────────────
+  shorts-maker-v2-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: shorts-maker-v2/pyproject.toml
+
+      - name: Install dependencies
+        working-directory: shorts-maker-v2
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run shorts-maker-v2 tests
+        working-directory: shorts-maker-v2
+        run: pytest tests/ --tb=short -q
+
+  # ── Summary gate ──────────────────────────────────────────────
+  test-summary:
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [root-tests, blind-to-x-tests, shorts-maker-v2-tests]
+
+    steps:
+      - name: Report results
+        run: |
+          echo "## Test Matrix Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Job | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-----|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| root-tests | ${{ needs.root-tests.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| blind-to-x-tests | ${{ needs.blind-to-x-tests.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| shorts-maker-v2-tests | ${{ needs.shorts-maker-v2-tests.result }} |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check all passed
+        if: >-
+          needs.root-tests.result != 'success' ||
+          needs.blind-to-x-tests.result != 'success' ||
+          needs.shorts-maker-v2-tests.result != 'success'
+        run: |
+          echo "::error::One or more test jobs failed."
+          exit 1
