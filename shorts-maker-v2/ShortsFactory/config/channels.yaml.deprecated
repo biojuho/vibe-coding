@@ -1,0 +1,164 @@
+# ═══════════════════════════════════════════════════════════
+# ShortsFactory — 5채널 통합 스타일 정의
+# 채널 이름만 바꾸면 전체 스타일(색상/폰트/전환/훅)이 자동 전환
+# ═══════════════════════════════════════════════════════════
+
+channels:
+
+  # ─── 🤖 AI/기술 ──────────────────────────────────────────
+  ai_tech:
+    name: "AI/기술"
+    display_name: "퓨처 시냅스"
+    palette:
+      primary: "#00D4FF"
+      secondary: "#7C3AED"
+      accent: "#00FF88"
+      bg: "#0A0E1A"
+      warning: "#FF00AA"
+    font:
+      title: "NanumGothicBold"
+      body: "NanumGothic"
+    color_preset: "neon_tech"
+    caption_combo: ["neon_tech_highlight", "neon_tech", "neon_tech_hud"]
+    default_templates: ["ai_news_breaking", "tech_vs", "ai_countdown"]
+    keyword_highlights:
+      tech_terms:
+        color: "#00FF88"
+        words: ["GPT", "AI", "딥러닝", "신경망", "트랜스포머", "LLM", "AGI",
+                "멀티모달", "파인튜닝", "프롬프트", "OpenAI", "구글", "메타",
+                "NVIDIA", "GPU", "반도체", "양자컴퓨터", "로봇", "자율주행",
+                "블록체인", "클라우드", "API", "오픈소스", "벤치마크", "파라미터"]
+      numbers:
+        color: "#FFD700"
+        pattern: "\\d+[%배억만조]?"
+    hook_style: "glitch"
+    transition: "zoom_glitch"
+    disclaimer: false
+
+  # ─── 🧠 심리학 ──────────────────────────────────────────
+  psychology:
+    name: "심리학"
+    display_name: "토닥토닥 심리"
+    palette:
+      primary: "#E879F9"
+      secondary: "#F59E0B"
+      accent: "#FB7185"
+      bg: "#1A0A1E"
+    font:
+      title: "NanumMyeongjo"
+      body: "NanumGothic"
+    color_preset: "dreamy_purple"
+    caption_combo: ["dreamy_purple_highlight", "dreamy_purple", "dreamy_purple"]
+    default_templates: ["psychology_experiment", "psychology_quiz", "psychology_self_growth"]
+    keyword_highlights:
+      emotions:
+        color: "#FB7185"
+        words: ["불안", "우울", "분노", "슬픔", "공포", "행복", "사랑"]
+      numbers:
+        color: "#F59E0B"
+        pattern: "\\d+[%명]?"
+      terms:
+        color: "#E879F9"
+        words: ["무의식", "인지부조화", "가스라이팅", "확증편향", "플라시보",
+                "밀그램", "스탠포드", "프로이트", "융", "아들러", "매슬로",
+                "자존감", "트라우마", "MBTI", "공감", "방어기제", "투사", "전이"]
+    hook_style: "typewriter"
+    transition: "fade_mystery"
+    disclaimer: false
+
+  # ─── 🏺 역사/고고학 ─────────────────────────────────────
+  history:
+    name: "역사/고고학"
+    display_name: "역사팝콘"
+    palette:
+      primary: "#D4A574"
+      secondary: "#8B6914"
+      accent: "#C41E3A"
+      bg: "#1A1408"
+    font:
+      title: "NanumMyeongjo"
+      body: "NanumGothic"
+    color_preset: "vintage_sepia"
+    caption_combo: ["vintage_sepia_highlight", "vintage_sepia", "vintage_sepia_chronicle"]
+    default_templates: ["history_timeline", "history_mystery", "history_fact_reversal", "history_countdown"]
+    keyword_highlights:
+      dates:
+        color: "#D4A574"
+        pattern: "\\d{3,4}년"
+      wars:
+        color: "#C41E3A"
+        words: ["전쟁", "혁명", "반란", "전투", "침략", "정복"]
+      people:
+        color: "#F59E0B"
+        words: ["왕", "황제", "교황", "장군", "선지자"]
+      places:
+        color: "#D4A574"
+        words: ["로마", "이집트", "메소포타미아", "피라미드", "콜로세움",
+                "삼국시대", "조선", "고려", "르네상스", "중세"]
+    hook_style: "typewriter"
+    transition: "fade_sepia"
+    disclaimer: false
+
+  # ─── 🔭 우주/천문학 ─────────────────────────────────────
+  space:
+    name: "우주/천문학"
+    display_name: "도파민 랩"
+    palette:
+      primary: "#818CF8"
+      secondary: "#06B6D4"
+      accent: "#F59E0B"
+      bg: "#030014"
+    font:
+      title: "NanumGothicBold"
+      body: "NanumGothic"
+    color_preset: "deep_space"
+    caption_combo: ["deep_space_highlight", "deep_space", "deep_space_cosmic"]
+    default_templates: ["space_scale", "space_fact_bomb", "space_countdown"]
+    keyword_highlights:
+      objects:
+        color: "#818CF8"
+        words: ["블랙홀", "중성자별", "펄서", "퀘이사", "성운", "은하",
+                "항성", "행성", "소행성", "혜성", "초신성"]
+      numbers:
+        color: "#F59E0B"
+        pattern: "\\d+[억만조]?(km|광년|배|°C)?"
+      missions:
+        color: "#06B6D4"
+        words: ["NASA", "허블", "제임스 웹", "보이저", "ISS",
+                "빅뱅", "암흑물질", "암흑에너지", "중력파", "사건의 지평선"]
+    hook_style: "zoom_flash"
+    transition: "warp_zoom"
+    disclaimer: false
+
+  # ─── 💊 의학/건강 ───────────────────────────────────────
+  health:
+    name: "의학/건강"
+    display_name: "건강 스포일러"
+    palette:
+      primary: "#34D399"
+      secondary: "#3B82F6"
+      accent: "#EF4444"
+      bg: "#0A1A14"
+      warning: "#EF4444"
+    font:
+      title: "NanumGothicBold"
+      body: "NanumGothic"
+    color_preset: "clean_medical"
+    caption_combo: ["clean_medical_highlight", "clean_medical", "clean_medical_warm"]
+    default_templates: ["health_do_vs_dont", "health_medical_study", "health_mental_message", "health_countdown"]
+    keyword_highlights:
+      positive:
+        color: "#34D399"
+        words: ["단백질", "비타민", "오메가3", "항산화", "식이섬유",
+                "면역력", "수면", "유산소", "스트레칭"]
+      warning:
+        color: "#EF4444"
+        words: ["혈당", "혈압", "당뇨", "비만", "콜레스테롤",
+                "염증", "불면증", "코르티솔"]
+      numbers:
+        color: "#3B82F6"
+        pattern: "\\d+[%mg명배]?"
+    hook_style: "clean_popup"
+    transition: "clean_slide"
+    disclaimer: true
+    disclaimer_text: "※ 의학적 조언이 아닌 정보 제공 목적입니다. 전문가 상담을 권장합니다."

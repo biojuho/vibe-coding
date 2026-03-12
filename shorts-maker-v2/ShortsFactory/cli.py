@@ -1,10 +1,21 @@
-"""
-cli.py — ShortsFactory CLI 인터페이스
-=====================================
+#!/usr/bin/env python3
+"""ShortsFactory — CLI 인터페이스.
+
 사용법:
-    python -m ShortsFactory --channel ai_tech --template ai_news --data '{...}'
-    python -m ShortsFactory --batch contents.csv --output-dir ./output/
-    python -m ShortsFactory --list-channels
+    # 단일 영상 렌더
+    python -m ShortsFactory.cli render --channel ai_tech --template ai_news_breaking --data '{"news_title":"GPT-5"}' --out output.mp4
+
+    # 배치 렌더
+    python -m ShortsFactory.cli batch --csv contents.csv --outdir ./output/
+
+    # 채널 목록
+    python -m ShortsFactory.cli channels
+
+    # 템플릿 목록
+    python -m ShortsFactory.cli templates
+
+    # 채널 정보
+    python -m ShortsFactory.cli info --channel ai_tech
 """
 from __future__ import annotations
 
@@ -12,86 +23,123 @@ import argparse
 import json
 import logging
 import sys
-from pathlib import Path
 
-from ShortsFactory.pipeline import ShortsFactory
-
-
-def _build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(
-        prog="ShortsFactory",
-        description="5채널 통합 숏츠 제작 파이프라인",
-    )
-    p.add_argument("--channel", "-c", help="채널 키 (ai_tech, psychology, history, space, health)")
-    p.add_argument("--template", "-t", help="템플릿 이름 (ai_news, psych_experiment 등)")
-    p.add_argument("--data", "-d", help="콘텐츠 데이터 JSON 문자열")
-    p.add_argument("--data-file", help="콘텐츠 데이터 JSON 파일 경로")
-    p.add_argument("--output", "-o", default="output.mp4", help="출력 파일 경로")
-    p.add_argument("--batch", "-b", help="배치 CSV 파일 경로")
-    p.add_argument("--output-dir", default="./output", help="배치 출력 디렉토리")
-    p.add_argument("--list-channels", action="store_true", help="사용 가능한 채널 목록")
-    p.add_argument("--list-templates", action="store_true", help="사용 가능한 템플릿 목록")
-    p.add_argument("--verbose", "-v", action="store_true", help="디버그 로깅")
-    return p
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(message)s",
+)
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = _build_parser()
-    args = parser.parse_args(argv)
+def cmd_channels(args):
+    from .pipeline import ShortsFactory
+    channels = ShortsFactory.list_channels()
+    print(f"\n{'='*60}")
+    print(f"🎬 ShortsFactory — {len(channels)}개 채널")
+    print(f"{'='*60}")
+    for ch in channels:
+        tmpl = ", ".join(ch["templates"])
+        print(f"  {ch['id']:15s} | {ch['display_name']:12s} | 프리셋: {ch['color_preset']}")
+        print(f"{'':17s} └ 템플릿: {tmpl}")
+    print()
 
-    # 로깅
-    level = logging.DEBUG if args.verbose else logging.INFO
-    logging.basicConfig(
-        level=level,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        datefmt="%H:%M:%S",
-    )
 
-    # 채널 목록
-    if args.list_channels:
-        channels = ShortsFactory.list_channels()
-        print("\n📺 사용 가능한 채널:")
-        for ch in channels:
-            print(f"  {ch['key']:15s} — {ch['name']} (hook: {ch['hook_style']})")
-        return 0
+def cmd_templates(args):
+    from .pipeline import ShortsFactory
+    tmpls = ShortsFactory.list_templates()
+    print(f"\n📋 등록된 템플릿 ({len(tmpls)}종):")
+    for t in tmpls:
+        print(f"  • {t}")
+    print()
 
-    # 템플릿 목록
-    if args.list_templates:
-        from ShortsFactory.templates import TEMPLATE_REGISTRY
-        print("\n📋 사용 가능한 템플릿:")
-        for name, cls in TEMPLATE_REGISTRY.items():
-            print(f"  {name:20s} — {cls.__doc__ or cls.template_name}")
-        return 0
 
-    # 배치 모드
-    if args.batch:
-        if not args.channel:
-            print("❌ --batch 모드에서는 --channel이 필요합니다.")
-            return 1
-        factory = ShortsFactory(args.channel)
-        results = factory.batch_render(args.batch, args.output_dir)
-        errors = sum(1 for r in results if r.status == "error")
-        return 1 if errors > 0 else 0
+def cmd_info(args):
+    from .pipeline import ShortsFactory
+    factory = ShortsFactory(channel=args.channel)
+    info = factory.info()
+    print(f"\n{'='*50}")
+    print(f"📊 채널 정보: {info['display_name']} ({info['channel']})")
+    print(f"{'='*50}")
+    print(f"  팔레트:   {info['palette']}")
+    print(f"  프리셋:   {info['color_preset']}")
+    print(f"  캡션콤보: {info['caption_combo']}")
+    print(f"  훅 스타일: {info['hook_style']}")
+    print(f"  전환:     {info['transition']}")
+    print(f"  키워드:   {info['keywords']}개")
+    print(f"  면책조항: {'✅' if info['disclaimer'] else '❌'}")
+    print(f"  템플릿:   {', '.join(info['templates'])}")
+    print()
 
-    # 단일 모드
-    if not args.channel or not args.template:
-        parser.print_help()
-        return 1
 
-    # 데이터 로드
+def cmd_render(args):
+    from .pipeline import ShortsFactory
+
     data = {}
     if args.data:
-        data = json.loads(args.data)
-    elif args.data_file:
-        with open(args.data_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        try:
+            data = json.loads(args.data)
+        except json.JSONDecodeError as e:
+            print(f"❌ JSON 파싱 실패: {e}")
+            sys.exit(1)
 
-    factory = ShortsFactory(args.channel)
+    factory = ShortsFactory(channel=args.channel)
     factory.create(args.template, data)
-    result = factory.render(args.output)
-    print(f"\n✅ 완료: {result}")
-    return 0
+    result = factory.render(args.out)
+    print(f"\n✅ 렌더 완료: {result}")
+
+
+def cmd_batch(args):
+    from .batch import batch_render
+
+    results = batch_render(args.csv, args.outdir)
+    done = sum(1 for r in results if r.get("status") == "done")
+    fail = sum(1 for r in results if r.get("status") == "error")
+    print(f"\n📊 배치 결과: {done} 성공, {fail} 실패 / {len(results)} 전체")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="ShortsFactory",
+        description="5채널 통합 쇼츠 생성 파이프라인"
+    )
+    sub = parser.add_subparsers(dest="command", help="명령어")
+
+    # channels
+    sub.add_parser("channels", help="채널 목록 보기")
+
+    # templates
+    sub.add_parser("templates", help="템플릿 목록 보기")
+
+    # info
+    p_info = sub.add_parser("info", help="채널 상세 정보")
+    p_info.add_argument("--channel", required=True)
+
+    # render
+    p_render = sub.add_parser("render", help="단일 영상 렌더")
+    p_render.add_argument("--channel", required=True)
+    p_render.add_argument("--template", required=True)
+    p_render.add_argument("--data", default="{}", help="JSON 데이터")
+    p_render.add_argument("--out", default="output.mp4")
+
+    # batch
+    p_batch = sub.add_parser("batch", help="CSV 배치 렌더")
+    p_batch.add_argument("--csv", required=True)
+    p_batch.add_argument("--outdir", default="output")
+
+    args = parser.parse_args()
+
+    cmds = {
+        "channels": cmd_channels,
+        "templates": cmd_templates,
+        "info": cmd_info,
+        "render": cmd_render,
+        "batch": cmd_batch,
+    }
+
+    if args.command in cmds:
+        cmds[args.command](args)
+    else:
+        parser.print_help()
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()

@@ -1,0 +1,54 @@
+# ═══════════════════════════════════════════════════════════
+# ShortsFactory — 컬러 그레이딩 프리셋
+# 각 프리셋은 채널의 전체 색감/분위기를 결정합니다.
+# ═══════════════════════════════════════════════════════════
+
+presets:
+
+  neon_tech:
+    description: "사이버펑크 네온 — AI/기술 채널"
+    blue_shift: 0.15
+    contrast: 1.12
+    saturation: 1.1
+    vignette: 0.5
+    glow: true
+    glow_color: "#00D4FF"
+
+  dreamy_purple:
+    description: "몽환적 라벤더 — 심리학 채널"
+    red_shift: 0.03
+    blue_shift: 0.08
+    contrast: 1.05
+    saturation: 0.95
+    vignette: 0.4
+    bloom: true
+    bloom_intensity: 0.15
+
+  vintage_sepia:
+    description: "빈티지 양피지 — 역사 채널"
+    red_shift: -0.1
+    green_shift: -0.05
+    blue_shift: -0.2
+    contrast: 1.08
+    saturation: 0.8
+    vignette: 0.6
+    grain: true
+    grain_intensity: 0.03
+
+  deep_space:
+    description: "딥 스페이스 — 우주 채널"
+    blue_shift: 0.15
+    contrast: 1.1
+    saturation: 1.0
+    vignette: 0.65
+    stars: true
+    star_count: 400
+
+  clean_medical:
+    description: "클린 메디컬 — 건강 채널"
+    green_shift: 0.05
+    contrast: 1.05
+    saturation: 0.9
+    vignette: 0.35
+    grid: true
+    grid_opacity: 0.06
