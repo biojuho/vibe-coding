@@ -56,9 +56,43 @@ channels:
 
     # BGM 에너지
     bgm_energy: "high"                      # 긴장감 있는 전자음악
-    caption_style: "neon"                   # 네온 자막 스타일
-    # 자막 조합: hook=neon(시각적 충격), body=default(가독성), cta=bold(행동 유도)
-    caption_combo: ["neon", "default", "bold"]
+    caption_style: "neon_tech"              # 🆕 사이버펑크 테크 자막
+    # 자막 조합: hook=neon_tech_highlight(시안 글로우 충격), body=neon_tech(가독성), cta=neon_tech_hud(데이터 강조)
+    caption_combo: ["neon_tech_highlight", "neon_tech", "neon_tech_hud"]
+    # 🆕 AI/기술 키워드 하이라이트 규칙
+    highlight_keywords:
+      - "GPT"
+      - "LLM"
+      - "AGI"
+      - "딥러닝"
+      - "트랜스포머"
+      - "뉴럴 네트워크"
+      - "파인튜닝"
+      - "프롬프트"
+      - "멀티모달"
+      - "오픈소스"
+      - "API"
+      - "토큰"
+      - "파라미터"
+      - "벤치마크"
+      - "추론"
+      - "할루시네이션"
+      - "RAG"
+      - "에이전트"
+      - "자율주행"
+      - "로보틱스"
+      - "클라우드"
+      - "GPU"
+      - "CUDA"
+      - "양자 컴퓨팅"
+      - "블록체인"
+    highlight_color: "#00F0FF"             # 일렉트릭 시안 (AI 채널 톤)
+    # Factory 통합 필드
+    palette: {primary: "#00D4FF", secondary: "#7C3AED", accent: "#00FF88", bg: "#0A0E1A"}
+    font: {title: "NanumGothicBold", body: "NanumGothic"}
+    hook_style: "glitch"
+    transition: "zoom_glitch"
+    disclaimer: false
     intro_path: "assets/intros/ai_tech_intro.png"
     intro_duration: 2.0
 
@@ -109,9 +143,36 @@ channels:
 
     # BGM 에너지
     bgm_energy: "calm"                      # 잔잔하고 따뜻한 배경음악
-    caption_style: "subtitle"              # 부드러운 자막 스타일
-    # 자막 조합: hook=subtitle(부드럽게), body=subtitle(일관성), cta=default(깔끔)
-    caption_combo: ["subtitle", "subtitle", "default"]
+    caption_style: "dreamy_purple"         # 🆕 보라빛 글로우 자막
+    # 자막 조합: hook=dreamy_purple_highlight(강조), body=dreamy_purple(일관성), cta=dreamy_purple(깔끔)
+    caption_combo: ["dreamy_purple_highlight", "dreamy_purple", "dreamy_purple"]
+    # 🆕 심리학 키워드 하이라이트 규칙
+    highlight_keywords:
+      - "인지 부조화"
+      - "자존감"
+      - "애착 유형"
+      - "번아웃"
+      - "가스라이팅"
+      - "방어기제"
+      - "무의식"
+      - "트라우마"
+      - "거울 뉴런"
+      - "확증 편향"
+      - "던닝-크루거"
+      - "후광 효과"
+      - "조건 반사"
+      - "플라시보"
+      - "스톡홀름 증후군"
+      - "FOMO"
+      - "리프레이밍"
+      - "마인드풀니스"
+    highlight_color: "#E879F9"             # 키워드 하이라이트 색상 (핑크-보라)
+    # Factory 통합 필드
+    palette: {primary: "#E879F9", secondary: "#F59E0B", accent: "#FB7185", bg: "#1A0A1E"}
+    font: {title: "NanumMyeongjo", body: "NanumGothic"}
+    hook_style: "typewriter"
+    transition: "fade_mystery"
+    disclaimer: false
     intro_path: "assets/intros/psychology_intro.png"
     intro_duration: 2.0
 
@@ -163,9 +224,51 @@ channels:
 
     # BGM 에너지
     bgm_energy: "medium"                    # 서사적이고 웅장한 오케스트라
-    caption_style: "bold"                  # 굵고 임팩트 있는 자막
-    # 자막 조합: hook=bold(반전의 강조), body=subtitle(스토리텔링), cta=cta(화려한 마무리)
-    caption_combo: ["bold", "subtitle", "cta"]
+    caption_style: "vintage_sepia"          # 🆕 양피지+골드 글로우 자막
+    # 자막 조합: hook=vintage_sepia_highlight(크림슨 충격), body=vintage_sepia(본문), cta=vintage_sepia_chronicle(골드 마무리)
+    caption_combo: ["vintage_sepia_highlight", "vintage_sepia", "vintage_sepia_chronicle"]
+    # 🆕 역사/고고학 키워드 하이라이트 규칙 (30개)
+    highlight_keywords:
+      # 역사 일반
+      - "전쟁"
+      - "혁명"
+      - "황제"
+      - "왕조"
+      - "멸망"
+      - "독립"
+      - "정복"
+      - "제국"
+      - "반란"
+      - "암살"
+      - "조약"
+      - "식민지"
+      - "봉건"
+      # 고고학/문화유산
+      - "발견"
+      - "고대"
+      - "유적"
+      - "문명"
+      - "유물"
+      - "발굴"
+      - "피라미드"
+      - "미라"
+      - "벽화"
+      - "토기"
+      - "유네스코"
+      # 지역/시대
+      - "메소포타미아"
+      - "이집트"
+      - "로마"
+      - "르네상스"
+      - "중세"
+      - "삼국시대"
+    highlight_color: "#D4A574"             # 골드 (역사 채널 톤)
+    # Factory 통합 필드
+    palette: {primary: "#D4A574", secondary: "#8B6914", accent: "#C41E3A", bg: "#1A1408"}
+    font: {title: "NanumMyeongjo", body: "NanumGothic"}
+    hook_style: "typewriter"
+    transition: "fade_sepia"
+    disclaimer: false
     intro_path: "assets/intros/history_intro.png"
     intro_duration: 2.0
 
@@ -217,9 +320,52 @@ channels:
 
     # BGM 에너지
     bgm_energy: "epic"                      # 한스 짐머 스타일 웅장한 음악
-    caption_style: "neon"                  # 우주적 네온 자막
-    # 자막 조합: hook=neon(우주적 경이), body=neon(일관된 우주 감성), cta=bold(강렬한 마무리)
-    caption_combo: ["neon", "neon", "bold"]
+    caption_style: "deep_space"             # 🆕 딥 스페이스 (인디고 글로우) 자막
+    # 자막 조합: hook=deep_space_highlight(시안 경이), body=deep_space(본문), cta=deep_space_cosmic(앰버 마무리)
+    caption_combo: ["deep_space_highlight", "deep_space", "deep_space_cosmic"]
+    # 🆕 우주/천문학 키워드 하이라이트 규칙 (30개)
+    highlight_keywords:
+      # 천체
+      - "블랙홀"
+      - "중성자별"
+      - "펄서"
+      - "퀘이사"
+      - "성운"
+      - "은하"
+      - "항성"
+      - "행성"
+      - "왜소행성"
+      - "소행성"
+      - "혜성"
+      # 우주 현상
+      - "초신성"
+      - "감마선"
+      - "중력파"
+      - "암흑물질"
+      - "암흑에너지"
+      - "빅뱅"
+      - "적색이동"
+      - "사건의 지평선"
+      # 탐사/관측
+      - "NASA"
+      - "허블"
+      - "제임스 웹"
+      - "보이저"
+      - "ISS"
+      - "화성"
+      # 물리/단위
+      - "광년"
+      - "파섹"
+      - "절대영도"
+      - "특이점"
+      - "시공간"
+    highlight_color: "#818CF8"             # 인디고 라벤더 (우주 채널 톤)
+    # Factory 통합 필드
+    palette: {primary: "#818CF8", secondary: "#06B6D4", accent: "#F59E0B", bg: "#030014"}
+    font: {title: "NanumGothicBold", body: "NanumGothic"}
+    hook_style: "zoom_flash"
+    transition: "warp_zoom"
+    disclaimer: false
     intro_path: "assets/intros/space_intro.png"
     intro_duration: 2.0
 
@@ -270,8 +416,53 @@ channels:
 
     # BGM 에너지
     bgm_energy: "medium"                    # 담담하고 안정적인 배경음악
-    caption_style: "default"               # 깔끔한 기본 자막
-    # 자막 조합: hook=bold(건강 경고 강조), body=subtitle(신뢰감), cta=default(전문적 마무리)
-    caption_combo: ["bold", "subtitle", "default"]
+    caption_style: "clean_medical"          # 🆕 클린 메디컬 (민트 글로우) 자막
+    # 자막 조합: hook=clean_medical_highlight(에메랄드 강조), body=clean_medical(본문), cta=clean_medical_warm(따뜻한 마무리)
+    caption_combo: ["clean_medical_highlight", "clean_medical", "clean_medical_warm"]
+    # 🆕 의학/건강 키워드 하이라이트 규칙 (30개)
+    highlight_keywords:
+      # 영양소/식품
+      - "단백질"
+      - "비타민"
+      - "오메가3"
+      - "항산화"
+      - "식이섬유"
+      - "프로바이오틱스"
+      - "콜레스테롤"
+      - "탄수화물"
+      # 질환/증상
+      - "혈당"
+      - "혈압"
+      - "당뇨"
+      - "심혈관"
+      - "면역력"
+      - "염증"
+      - "스트레스"
+      - "불면증"
+      - "우울증"
+      - "비만"
+      # 신체/기관
+      - "장내세균"
+      - "대사"
+      - "호르몬"
+      - "자율신경"
+      - "코르티솔"
+      # 건강습관
+      - "공복"
+      - "유산소"
+      - "간헐적단식"
+      - "수면"
+      - "스트레칭"
+      # 의료
+      - "FDA"
+      - "임상시험"
+    highlight_color: "#34D399"             # 민트 그린 (건강 채널 톤)
+    # Factory 통합 필드
+    palette: {primary: "#34D399", secondary: "#3B82F6", accent: "#EF4444", bg: "#0A1A14"}
+    font: {title: "NanumGothicBold", body: "NanumGothic"}
+    hook_style: "clean_popup"
+    transition: "clean_slide"
+    disclaimer: true
+    disclaimer_text: "※ 의학적 조언이 아닌 정보 제공 목적입니다. 전문가 상담을 권장합니다."
     intro_path: "assets/intros/health_intro.png"
     intro_duration: 2.0

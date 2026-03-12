@@ -1,11 +1,17 @@
 """
 썸네일 생성 단계.
-mode에 따라 Pillow(직접 생성), DALL-E(AI 생성), Canva(레거시) 중 선택.
+mode에 따라 Pillow(직접 생성), DALL-E/Gemini(AI 생성), Canva(레거시) 중 선택.
 실패 시 None 반환 (파이프라인 계속 진행).
+
+Sprint 4 개선:
+- 채널별 AI 썸네일 프롬프트 템플릿 (5채널 × 고유 비주얼 아이덴티티)
+- Gemini Imagen 무료 모드 지원
+- channel_key 기반 자동 스타일 분기
 """
 from __future__ import annotations
 
 import json
+import logging
 import os
 import time
 from pathlib import Path
@@ -17,11 +23,58 @@ from shorts_maker_v2.config import CanvaSettings, ThumbnailSettings
 
 if TYPE_CHECKING:
     from shorts_maker_v2.providers.openai_client import OpenAIClient
+    from shorts_maker_v2.providers.google_client import GoogleClient
+
+logger = logging.getLogger(__name__)
 
 POLL_INTERVAL = 2
 POLL_TIMEOUT = 120
 API_BASE = "https://api.canva.com/rest/v1"
 TOKEN_URL = "https://api.canva.com/rest/v1/oauth/token"
+
+# ── 채널별 AI 썸네일 프롬프트 템플릿 ─────────────────────────────────────────
+# {title}: 영상 제목, {topic}: 주제 키워드로 치환됩니다.
+# 모든 프롬프트는 텍스트 없이 비주얼만 생성하도록 "No text" 지시 포함.
+
+_CHANNEL_THUMB_PROMPTS: dict[str, str] = {
+    "ai_tech": (
+        "YouTube Shorts thumbnail for topic: {topic}. "
+        "Neon cyberpunk aesthetic, dark background with glowing blue and purple elements, "
+        "holographic HUD overlay, futuristic tech circuits, dramatic rim lighting, "
+        "high contrast, cinematic composition. No text, no letters, no words."
+    ),
+    "psychology": (
+        "YouTube Shorts thumbnail for topic: {topic}. "
+        "Soft watercolor illustration style, warm pastel colors (amber, beige, soft pink), "
+        "gentle bokeh background, emotional human silhouette, cozy atmospheric lighting, "
+        "dreamy soft focus, therapeutic calm mood. No text, no letters, no words."
+    ),
+    "history": (
+        "YouTube Shorts thumbnail for topic: {topic}. "
+        "Vintage parchment texture, aged sepia tones, dramatic chiaroscuro lighting, "
+        "historical painting composition, archaeological discovery atmosphere, "
+        "cinematic wide angle, epic documentary feel, film grain. No text, no letters, no words."
+    ),
+    "space": (
+        "YouTube Shorts thumbnail for topic: {topic}. "
+        "Ultra-realistic space photography, cosmic nebula with vivid colors, "
+        "Hubble telescope style, deep space 8K HDR, dramatic planetary close-up, "
+        "volumetric light rays, awe-inspiring scale, epic composition. No text, no letters, no words."
+    ),
+    "health": (
+        "YouTube Shorts thumbnail for topic: {topic}. "
+        "Clean modern medical infographic style, professional blue and green tones, "
+        "healthy lifestyle photography, bright natural light, simple abstract shapes, "
+        "fresh vibrant colors, trustworthy professional atmosphere. No text, no letters, no words. "
+        "No medical tools, no blood, no surgery, no anatomy."
+    ),
+}
+
+_DEFAULT_THUMB_PROMPT = (
+    "YouTube Shorts thumbnail, topic: {topic}. "
+    "Cinematic dramatic lighting, dark atmospheric background, "
+    "high contrast, visually striking, professional. No text, no letters, no words."
+)
 
 _FONT_CANDIDATES = [
     "C:/Windows/Fonts/malgunbd.ttf",
@@ -269,17 +322,26 @@ class ThumbnailStep:
         thumbnail_config: ThumbnailSettings,
         canva_config: CanvaSettings,
         openai_client: OpenAIClient | None = None,
+        google_client: GoogleClient | None = None,
     ):
         self.thumbnail_config = thumbnail_config
         self.canva_config = canva_config
         self.openai_client = openai_client
+        self.google_client = google_client
         self.token_file = Path(canva_config.token_file).resolve() if canva_config.token_file else Path("")
 
     # ── 공개 인터페이스 ──────────────────────────────────────────────────────
 
-    def run(self, title: str, output_dir: Path, topic: str = "") -> str | None:
+    def run(
+        self,
+        title: str,
+        output_dir: Path,
+        topic: str = "",
+        channel_key: str = "",
+    ) -> str | None:
         """
-        썸네일 생성. mode에 따라 pillow / dalle / canva 분기.
+        썸네일 생성. mode에 따라 pillow / dalle / gemini / canva 분기.
+        channel_key가 주어지면 채널별 최적화된 AI 프롬프트를 사용합니다.
         실패 시 None 반환 (파이프라인 중단 없음).
         """
         mode = self.thumbnail_config.mode
@@ -291,14 +353,16 @@ class ThumbnailStep:
             if mode == "pillow":
                 return self._run_pillow(title, output_path)
             if mode == "dalle":
-                return self._run_dalle(title, topic, output_path)
+                return self._run_dalle(title, topic, output_path, channel_key)
+            if mode == "gemini":
+                return self._run_gemini(title, topic, output_path, channel_key)
             if mode == "canva":
                 return self._run_canva(title, output_dir, output_path)
             # 알 수 없는 모드 → pillow 폴백
-            print(f"[Thumbnail] 알 수 없는 mode='{mode}', Pillow로 폴백")
+            logger.warning("[Thumbnail] 알 수 없는 mode='%s', Pillow로 폴백", mode)
             return self._run_pillow(title, output_path)
         except Exception as exc:
-            print(f"[Thumbnail] 생성 실패 (건너뜀): {exc}")
+            logger.error("[Thumbnail] 생성 실패 (건너뜀): %s", exc)
             return None
 
     # ── 내부 모드 구현 ───────────────────────────────────────────────────────
@@ -314,20 +378,34 @@ class ThumbnailStep:
         print(f"[Thumbnail] Pillow 썸네일 저장: {result}")
         return result.resolve().as_posix()
 
-    def _run_dalle(self, title: str, topic: str, output_path: Path) -> str | None:
+    @staticmethod
+    def _resolve_ai_prompt(topic: str, title: str, channel_key: str, config_template: str) -> str:
+        """AI 썸네일 프롬프트를 채널별 템플릿에서 결정.
+
+        우선순위: config.yaml 커스텀 템플릿 > 채널별 내장 템플릿 > 기본 템플릿
+        """
+        effective_topic = topic or title
+        if config_template:
+            return config_template.format(title=title, topic=effective_topic)
+        if channel_key and channel_key in _CHANNEL_THUMB_PROMPTS:
+            prompt = _CHANNEL_THUMB_PROMPTS[channel_key].format(
+                title=title, topic=effective_topic,
+            )
+            logger.info("[Thumbnail] 채널 '%s' 전용 프롬프트 사용", channel_key)
+            return prompt
+        return _DEFAULT_THUMB_PROMPT.format(title=title, topic=effective_topic)
+
+    def _run_dalle(
+        self, title: str, topic: str, output_path: Path, channel_key: str = "",
+    ) -> str | None:
         if not self.openai_client:
-            print("[Thumbnail] DALL-E 모드지만 openai_client 없음 → Pillow 폴백")
+            logger.warning("[Thumbnail] DALL-E 모드지만 openai_client 없음 → Pillow 폴백")
             return self._run_pillow(title, output_path)
 
-        template = self.thumbnail_config.dalle_prompt_template
-        if template:
-            dalle_prompt = template.format(title=title, topic=topic or title)
-        else:
-            dalle_prompt = (
-                f"YouTube Shorts thumbnail, topic: {topic or title}. "
-                "Cinematic dramatic lighting, dark atmospheric background, "
-                "high contrast, visually striking, professional. No text."
-            )
+        dalle_prompt = self._resolve_ai_prompt(
+            topic, title, channel_key, self.thumbnail_config.dalle_prompt_template,
+        )
+        logger.info("[Thumbnail] DALL-E prompt (channel=%s): %.80s...", channel_key or "default", dalle_prompt)
 
         bg_path = output_path.parent / "thumbnail_dalle_bg.png"
         self.openai_client.generate_image(
@@ -339,7 +417,36 @@ class ThumbnailStep:
         )
         _overlay_title(bg_path, _sanitize_title(title), output_path)
         bg_path.unlink(missing_ok=True)
-        print(f"[Thumbnail] DALL-E 썸네일 저장: {output_path}")
+        logger.info("[Thumbnail] DALL-E 썸네일 저장: %s", output_path)
+        return output_path.resolve().as_posix()
+
+    def _run_gemini(
+        self, title: str, topic: str, output_path: Path, channel_key: str = "",
+    ) -> str | None:
+        """Gemini Imagen 3 API로 썸네일 생성 (무료 tier)."""
+        if not self.google_client:
+            logger.warning("[Thumbnail] Gemini 모드지만 google_client 없음 → DALL-E 폴백")
+            return self._run_dalle(title, topic, output_path, channel_key)
+
+        gemini_prompt = self._resolve_ai_prompt(
+            topic, title, channel_key, self.thumbnail_config.dalle_prompt_template,
+        )
+        logger.info("[Thumbnail] Gemini prompt (channel=%s): %.80s...", channel_key or "default", gemini_prompt)
+
+        bg_path = output_path.parent / "thumbnail_gemini_bg.png"
+        try:
+            self.google_client.generate_image(
+                prompt=gemini_prompt,
+                output_path=bg_path,
+                aspect_ratio="9:16",
+            )
+        except Exception as exc:
+            logger.warning("[Thumbnail] Gemini Imagen 실패 → DALL-E 폴백: %s", exc)
+            return self._run_dalle(title, topic, output_path, channel_key)
+
+        _overlay_title(bg_path, _sanitize_title(title), output_path)
+        bg_path.unlink(missing_ok=True)
+        logger.info("[Thumbnail] Gemini 썸네일 저장: %s", output_path)
         return output_path.resolve().as_posix()
 
     def _run_canva(self, title: str, output_dir: Path, output_path: Path) -> str | None:

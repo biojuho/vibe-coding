@@ -179,11 +179,12 @@ def _make_batch_namespace(base_args: argparse.Namespace, channel: str) -> argpar
 
 def _print_batch_summary(results: list[BatchResult]) -> None:
     success = sum(1 for r in results if r.status == "success")
-    failed = len(results) - success
+    skipped = sum(1 for r in results if r.status == "topic_unsuitable")
+    failed = len(results) - success - skipped
     total_cost = sum(r.cost_usd for r in results)
     total_dur = sum(r.duration_sec for r in results)
     print(f"\n{'=' * 50}")
-    print(f"배치 완료: 성공 {success} / 실패 {failed} / 총 {len(results)}건")
+    print(f"배치 완료: 성공 {success} / 주제스킵 {skipped} / 실패 {failed} / 총 {len(results)}건")
     print(f"총 비용: ${total_cost:.3f} | 총 길이: {total_dur:.1f}s")
     print(f"{'=' * 50}")
 
@@ -282,11 +283,13 @@ def _run_batch(args: argparse.Namespace, config_path: Path) -> int:
         results.append(result)
         if result.status == "success":
             print(f"  -> 성공 | 비용: ${result.cost_usd:.3f} | 길이: {result.duration_sec:.1f}s")
+        elif result.status == "topic_unsuitable":
+            print(f"  -> 주제 부적합 (스킵) | {result.error[:100]}")
         else:
             print(f"  -> 실패 | {result.error[:100]}")
 
     _print_batch_summary(results)
-    return 0 if all(r.status == "success" for r in results) else 1
+    return 0 if all(r.status in ("success", "topic_unsuitable") for r in results) else 1
 
 
 def _doctor(config_path: Path) -> int:

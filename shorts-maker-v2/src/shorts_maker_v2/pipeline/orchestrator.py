@@ -14,7 +14,7 @@ from shorts_maker_v2.config import AppConfig, resolve_runtime_paths
 from shorts_maker_v2.models import JobManifest, ScenePlan
 from shorts_maker_v2.pipeline.media_step import MediaStep
 from shorts_maker_v2.pipeline.render_step import RenderStep
-from shorts_maker_v2.pipeline.script_step import ScriptStep
+from shorts_maker_v2.pipeline.script_step import ScriptStep, TopicUnsuitableError
 from shorts_maker_v2.pipeline.thumbnail_step import ThumbnailStep
 from shorts_maker_v2.providers.google_client import GoogleClient
 from shorts_maker_v2.providers.llm_router import LLMRouter
@@ -307,6 +307,11 @@ class PipelineOrchestrator:
                     logger.info("srt_exported", srt_path=manifest.srt_path)
             except Exception as srt_exc:
                 logger.warning("srt_export_failed", error=str(srt_exc))
+        except TopicUnsuitableError as exc:
+            # 주제 부적합 — 자료 부족으로 스킵 (n8n에서 분기 가능)
+            failures.append({"step": "script", "code": "TopicUnsuitableError", "message": str(exc)})
+            manifest.status = "topic_unsuitable"
+            logger.warning("topic_unsuitable", error=str(exc), topic=topic)
         except Exception as exc:
             failures.append({"step": "pipeline", "code": type(exc).__name__, "message": str(exc)})
             manifest.status = "failed"

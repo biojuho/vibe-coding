@@ -1,0 +1,61 @@
+{
+  "mcpServers": {
+    "notion": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@notionhq/notion-mcp-server"],
+      "env": {
+        "NOTION_API_KEY": "${NOTION_API_KEY}"
+      }
+    },
+    "sqlite": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@anthropic-ai/mcp-server-sqlite", ".tmp/api_usage.db"]
+    },
+    "filesystem": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y", "@anthropic-ai/mcp-server-filesystem",
+        ".tmp",
+        "execution",
+        "infrastructure/n8n/logs"
+      ]
+    },
+    "brave-search": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@anthropic-ai/mcp-server-brave-search"],
+      "env": {
+        "BRAVE_API_KEY": "${BRAVE_API_KEY}"
+      }
+    },
+    "github": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@anthropic-ai/mcp-server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+      }
+    },
+    "youtube-data": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["infrastructure/youtube-mcp/server.py"],
+      "env": {
+        "YOUTUBE_TOKEN_PATH": "token.json"
+      }
+    },
+    "telegram": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["infrastructure/telegram-mcp/server.py"]
+    },
+    "n8n-workflow": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["infrastructure/n8n-mcp/server.py"]
+    }
+  }
+}

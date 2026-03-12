@@ -1,7 +1,7 @@
 """
 color_engine.py — 컬러 그레이딩 엔진
 =====================================
-color_presets.yaml에서 채널별 프리셋을 로드하여
+채널별 프리셋을 내장하여
 영상 클립에 컬러 그레이딩을 적용합니다.
 
 독립 사용:
@@ -17,22 +17,42 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-import yaml
 
 logger = logging.getLogger(__name__)
 
-_CONFIG_DIR = Path(__file__).parent.parent / "config"
+# ── Built-in 프리셋 (이전 color_presets.yaml에서 마이그레이션) ──
+_BUILTIN_PRESETS: dict[str, dict[str, Any]] = {
+    "neon_tech": {
+        "brightness": 0.05, "contrast": 1.25, "saturation": 1.3,
+        "hue_shift": 0, "gamma": 0.95, "vignette": 0.3,
+        "tint": "#0A0E1A", "tint_opacity": 0.08,
+    },
+    "dreamy_purple": {
+        "brightness": 0.02, "contrast": 1.1, "saturation": 1.15,
+        "hue_shift": 10, "gamma": 1.05, "vignette": 0.25,
+        "tint": "#1A0A2E", "tint_opacity": 0.1,
+    },
+    "vintage_sepia": {
+        "brightness": 0.0, "contrast": 1.15, "saturation": 0.7,
+        "hue_shift": 25, "gamma": 1.1, "vignette": 0.4,
+        "tint": "#2B1810", "tint_opacity": 0.15,
+    },
+    "deep_space": {
+        "brightness": -0.05, "contrast": 1.2, "saturation": 1.1,
+        "hue_shift": -5, "gamma": 0.9, "vignette": 0.35,
+        "tint": "#050520", "tint_opacity": 0.12,
+    },
+    "clean_medical": {
+        "brightness": 0.03, "contrast": 1.05, "saturation": 0.95,
+        "hue_shift": 0, "gamma": 1.0, "vignette": 0.15,
+        "tint": "#F0FFF0", "tint_opacity": 0.05,
+    },
+}
 
 
-def _load_presets(config_dir: Path | None = None) -> dict[str, Any]:
-    """color_presets.yaml을 로드합니다."""
-    path = (config_dir or _CONFIG_DIR) / "color_presets.yaml"
-    if not path.exists():
-        logger.warning("[ColorEngine] 프리셋 파일 없음: %s", path)
-        return {}
-    with path.open("r", encoding="utf-8") as f:
-        data = yaml.safe_load(f)
-    return data.get("presets", {})
+def _load_presets() -> dict[str, Any]:
+    """내장 프리셋을 반환합니다."""
+    return dict(_BUILTIN_PRESETS)
 
 
 class ColorPreset:
@@ -59,17 +79,14 @@ class ColorEngine:
     """컬러 그레이딩 엔진.
 
     Args:
-        preset_name: color_presets.yaml의 프리셋 이름.
-        config_dir: config 디렉토리 경로 (기본: ShortsFactory/config/).
+        preset_name: 프리셋 이름 (neon_tech, dreamy_purple, vintage_sepia, deep_space, clean_medical).
     """
 
     def __init__(
         self,
         preset_name: str,
-        *,
-        config_dir: Path | None = None,
     ) -> None:
-        self._presets = _load_presets(config_dir)
+        self._presets = _load_presets()
         preset_data = self._presets.get(preset_name, {})
         if not preset_data:
             logger.warning(

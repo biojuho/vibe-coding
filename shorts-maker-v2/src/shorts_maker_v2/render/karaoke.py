@@ -292,6 +292,7 @@ def render_karaoke_highlight_image(
     style: CaptionStyle,
     highlight_color: str,
     output_path: Path,
+    keyword_colors: dict[str, tuple[int, int, int, int]] | None = None,
 ) -> Path:
     """
     청크 내 단어를 모두 표시하되, active 단어만 highlight 색상으로 강조.
@@ -362,6 +363,11 @@ def render_karaoke_highlight_image(
     dim_color = (255, 255, 255, 160)  # 반투명 흰색
     active_color = (hr, hg, hb, 255)
 
+    # 키워드 하이라이트 색상 (keyword_highlight_color가 제공된 경우)
+    kw_color = None
+    if keyword_colors:
+        kw_color = keyword_colors  # dict[word_lower] -> (r,g,b,a)
+
     # 단어별 X 위치 계산 후 개별 렌더링
     x_cursor = base_x
     space_w = probe_draw.textlength(" ", font=font) if hasattr(probe_draw, "textlength") else font.getlength(" ")
@@ -370,7 +376,17 @@ def render_karaoke_highlight_image(
 
     for i, word in enumerate(words):
         is_active = (i == active_word_index)
-        color = active_color if is_active else dim_color
+        # 키워드 매칭 체크 (2글자 이상 단어만)
+        is_keyword = False
+        if kw_color and len(word) >= 2:
+            clean = word.rstrip(".,?!;:~")
+            is_keyword = clean in kw_color
+        if is_active:
+            color = active_color
+        elif is_keyword:
+            color = kw_color[word.rstrip(".,?!;:~")]
+        else:
+            color = dim_color
 
         # 드롭 섀도우
         draw.text(
@@ -401,4 +417,35 @@ def render_karaoke_highlight_image(
     image = image.resize((final_w, final_h), Image.LANCZOS)
     image.save(output_path, format="PNG")
     return output_path
+
+
+def build_keyword_color_map(
+    keywords: list[str],
+    color_hex: str = "#E879F9",
+) -> dict[str, tuple[int, int, int, int]]:
+    """키워드 리스트 → 하이라이트 색상 매핑 dict 생성.
+
+    단일 단어와 복합어 모두 지원.
+    복합어(예: '인지 부조화')는 각 구성 단어로도 매핑.
+
+    Args:
+        keywords: 하이라이트할 키워드/전문 용어 리스트.
+        color_hex: 강조 색상 (hex).
+
+    Returns:
+        {단어: (r, g, b, 255)} 딕셔너리.
+    """
+    r, g, b = _hex_to_rgb(color_hex)
+    color = (r, g, b, 255)
+    result: dict[str, tuple[int, int, int, int]] = {}
+    for kw in keywords:
+        parts = kw.split()
+        for part in parts:
+            clean = part.strip(".,?!;:~")
+            if len(clean) >= 2:
+                result[clean] = color
+        # 전체 키워드 자체도 등록
+        result[kw.strip()] = color
+    return result
+
 

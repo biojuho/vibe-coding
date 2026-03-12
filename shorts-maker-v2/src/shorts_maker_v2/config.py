@@ -57,6 +57,11 @@ class ProviderSettings:
     tts_voice_strategy: str = "fixed"  # fixed | rotate | random
     tts_voice_roles: dict[str, str] | None = None  # YPP: 역할별 음성 매핑 (hook/body/cta)
     visual_styles: tuple[str, ...] = ()  # YPP: 영상별 아트 스타일 풀
+    # Gemini 3.1 Thinking Mode (minimal/low/medium/high)
+    thinking_level: str = "low"  # 대본 생성용 기본값 (빠른 속도)
+    thinking_level_review: str = "high"  # 대본 리뷰용 (심층 추론)
+    # Multimodal Embedding (콘텐츠 중복 검사)
+    embedding_model: str = "gemini-embedding-2-preview"
 
 
 @dataclass(frozen=True)
@@ -278,6 +283,9 @@ def load_config(config_path: str | Path) -> AppConfig:
         visual_styles=tuple(
             str(s) for s in providers_raw.get("visual_styles", [])
         ) if isinstance(providers_raw.get("visual_styles"), list) else (),
+        thinking_level=str(providers_raw.get("thinking_level", "low")),
+        thinking_level_review=str(providers_raw.get("thinking_level_review", "high")),
+        embedding_model=str(providers_raw.get("embedding_model", "gemini-embedding-2-preview")),
     )
 
     limits_raw = _section(raw, "limits")

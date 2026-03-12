@@ -1,4 +1,4 @@
-"""ShortsFactory Templates — 17종 콘텐츠 유형별 템플릿 (Single Registry)."""
+"""ShortsFactory Templates — 17종 콘텐츠 유형별 템플릿 + 1 alias = 18 엔트리 (Single Registry)."""
 from ShortsFactory.templates.base_template import BaseTemplate, Scene
 
 # AI/Tech (3)

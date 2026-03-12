@@ -40,7 +40,7 @@ providers:
     - anthropic                  # Claude — 고품질 최종 폴백
   llm_models:                    # provider별 모델 매핑
     openai: "gpt-4.1-mini"
-    google: "gemini-2.5-flash"
+    google: "gemini-3.1-flash-lite-preview"
     anthropic: "claude-sonnet-4-20250514"
     xai: "grok-3-mini-fast"
     deepseek: "deepseek-chat"
@@ -98,6 +98,11 @@ providers:
     - "Watercolor painting, soft edges, muted earth tones"
     - "Neon cyberpunk aesthetic, dark background, glowing elements"
     - "Vintage film grain, warm sepia tones, 1970s photography"
+  # Gemini 3.1 Thinking Mode
+  thinking_level: "low"             # 대본 생성 (빠른 속도): minimal/low/medium/high
+  thinking_level_review: "high"     # 대본 리뷰 (심층 추론): minimal/low/medium/high
+  # Multimodal Embedding (콘텐츠 중복 검사)
+  embedding_model: "gemini-embedding-2-preview"  # 텍스트+이미지+오디오 통합 임베딩
 
 limits:
   max_cost_usd: 2.0
@@ -105,7 +110,7 @@ limits:
   request_timeout_sec: 120
 
 costs:
-  llm_per_job: 0.01             # gpt-4o-mini 실측 기준
+  llm_per_job: 0.002             # gemini-3.1-flash-lite ($0.25/1Mi+$1.50/1Mo) 실측 기준
   tts_per_second: 0.0             # edge-tts 무료 (openai 복귀 시 0.0008)
   veo_per_second: 0.35          # 실제 Gemini API 가격 (사용 안 함)
   image_per_scene: 0.02         # Imagen 3 실제 가격 (DALL-E 3은 $0.08)

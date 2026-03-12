@@ -70,6 +70,169 @@ CAPTION_PRESETS: dict[str, dict[str, Any]] = {
         "bg_opacity": 0,
         "bg_radius": 0,
     },
+    # ── 심리학 채널 전용 (dreamy_purple) ──
+    "dreamy_purple": {
+        "text_color": "#F0E6FF",           # 밝은 라벤더 (가독성 ↑)
+        "stroke_color": "#6B21A8",          # 진한 보라 아웃라인
+        "stroke_width": 4,
+        "bg_color": "#1A0A1E",             # 짙은 보라 배경 박스
+        "bg_opacity": 180,
+        "bg_radius": 16,
+        "glow_enabled": True,
+        "glow_color": "#E879F9",           # 핑크-보라 글로우
+        "glow_radius": 10,
+    },
+    "dreamy_purple_highlight": {
+        "text_color": "#E879F9",           # 보라-핑크 강조색
+        "stroke_color": "#4C1D95",          # 다크 바이올렛 아웃라인
+        "stroke_width": 5,
+        "font_size": 80,
+        "bg_opacity": 0,
+        "glow_enabled": True,
+        "glow_color": "#E879F9",
+        "glow_radius": 16,
+    },
+    # ── 역사 채널 전용 (sepia_warm) ──
+    "sepia_warm": {
+        "text_color": "#E8DCC8",           # 따뜻한 크림
+        "stroke_color": "#3D2B1F",          # 다크 브라운 아웃라인
+        "stroke_width": 4,
+        "bg_color": "#2C2210",             # 양피지 느낌 배경
+        "bg_opacity": 170,
+        "bg_radius": 12,
+    },
+    "vintage_sepia": {
+        "text_color": "#F5E6C8",           # 따뜻한 아이보리 (가독성 ↑)
+        "stroke_color": "#4A3520",          # 미디엄 브라운 아웃라인
+        "stroke_width": 4,
+        "bg_color": "#1A1408",             # 다크 브라운 배경 박스
+        "bg_opacity": 185,
+        "bg_radius": 10,
+        "glow_enabled": True,
+        "glow_color": "#D4A574",           # 골드 글로우
+        "glow_radius": 6,
+    },
+    "vintage_sepia_highlight": {
+        "text_color": "#C41E3A",           # 크림슨 — 반전/충격 강조
+        "stroke_color": "#2C1810",          # 딥 브라운 아웃라인
+        "stroke_width": 6,
+        "font_size": 82,
+        "bg_opacity": 0,
+        "glow_enabled": True,
+        "glow_color": "#C41E3A",
+        "glow_radius": 14,
+    },
+    "vintage_sepia_chronicle": {
+        "text_color": "#D4A574",           # 골드 — 연도/장소/출처 강조
+        "stroke_color": "#2C1810",          # 딥 브라운
+        "stroke_width": 3,
+        "font_size": 64,
+        "bg_color": "#1A1408",
+        "bg_opacity": 120,
+        "bg_radius": 6,
+    },
+    # ── AI/기술 채널 전용 (neon_tech) ──
+    "neon_tech": {
+        "text_color": "#E0F7FF",           # 밝은 아이스 블루 (가독성 ↑)
+        "stroke_color": "#0A2A40",          # 딥 네이비 아웃라인
+        "stroke_width": 4,
+        "bg_color": "#0A1628",             # 다크 네이비 배경 박스
+        "bg_opacity": 190,
+        "bg_radius": 14,
+        "glow_enabled": True,
+        "glow_color": "#00D4FF",           # 일렉트릭 블루 글로우
+        "glow_radius": 10,
+    },
+    "neon_tech_highlight": {
+        "text_color": "#00F0FF",           # 시안 — 후킹 강조
+        "stroke_color": "#FF00AA",          # 마젠타 아웃라인 (사이버펑크)
+        "stroke_width": 6,
+        "font_size": 84,
+        "bg_opacity": 0,
+        "glow_enabled": True,
+        "glow_color": "#00F0FF",
+        "glow_radius": 18,
+    },
+    "neon_tech_hud": {
+        "text_color": "#39FF14",           # 매트릭스 그린 — 데이터/수치 강조
+        "stroke_color": "#0A1628",          # 딥 네이비
+        "stroke_width": 3,
+        "font_size": 68,
+        "bg_color": "#0A1628",
+        "bg_opacity": 140,
+        "bg_radius": 8,
+        "glow_enabled": True,
+        "glow_color": "#39FF14",
+        "glow_radius": 8,
+    },
+    # ── 우주/천문학 채널 전용 (deep_space) ──
+    "deep_space": {
+        "text_color": "#E0E7FF",           # 아이스 화이트 (차가운 우주 톤)
+        "stroke_color": "#0F172A",          # 딥 네이비 아웃라인
+        "stroke_width": 4,
+        "bg_color": "#030014",             # 울트라 다크 배경
+        "bg_opacity": 200,
+        "bg_radius": 12,
+        "glow_enabled": True,
+        "glow_color": "#818CF8",           # 인디고 글로우
+        "glow_radius": 8,
+    },
+    "deep_space_highlight": {
+        "text_color": "#06B6D4",           # 시안 — 경이로운 훅 강조
+        "stroke_color": "#0F172A",          # 딥 네이비
+        "stroke_width": 6,
+        "font_size": 84,
+        "bg_opacity": 0,
+        "glow_enabled": True,
+        "glow_color": "#06B6D4",
+        "glow_radius": 16,
+    },
+    "deep_space_cosmic": {
+        "text_color": "#F59E0B",           # 앰버 — 숫자/수치/우주 스케일 강조
+        "stroke_color": "#0F172A",          # 딥 네이비
+        "stroke_width": 3,
+        "font_size": 72,
+        "bg_color": "#030014",
+        "bg_opacity": 130,
+        "bg_radius": 8,
+        "glow_enabled": True,
+        "glow_color": "#F59E0B",
+        "glow_radius": 10,
+    },
+    # ── 의학/건강 채널 전용 (clean_medical) ──
+    "clean_medical": {
+        "text_color": "#F0FDF4",           # 클린 화이트-그린
+        "stroke_color": "#0A1A14",          # 다크 그린 아웃라인
+        "stroke_width": 4,
+        "bg_color": "#0A1A14",             # 다크 메디컬 그린
+        "bg_opacity": 200,
+        "bg_radius": 12,
+        "glow_enabled": True,
+        "glow_color": "#34D399",           # 민트 글로우
+        "glow_radius": 6,
+    },
+    "clean_medical_highlight": {
+        "text_color": "#10B981",           # 에메랄드 — 경고/핵심 강조
+        "stroke_color": "#0A1A14",
+        "stroke_width": 6,
+        "font_size": 84,
+        "bg_opacity": 0,
+        "glow_enabled": True,
+        "glow_color": "#10B981",
+        "glow_radius": 14,
+    },
+    "clean_medical_warm": {
+        "text_color": "#FDE68A",           # 따뜻한 앰버-옐로 — 감성/조언
+        "stroke_color": "#0A1A14",
+        "stroke_width": 3,
+        "font_size": 68,
+        "bg_color": "#0A1A14",
+        "bg_opacity": 140,
+        "bg_radius": 8,
+        "glow_enabled": True,
+        "glow_color": "#34D399",
+        "glow_radius": 8,
+    },
 }
 
 

@@ -550,7 +550,200 @@ class RenderStep:
             logger.warning("Thumbnail extraction failed: %s", exc)
             return None
 
+    # ── 메인 렌더링 ──────────────────────────────────────────────────────────
 
+    def run(
+        self,
+        *,
+        scene_plans: list[ScenePlan],
+        scene_assets: list[SceneAsset],
+        output_dir: Path,
+        output_filename: str,
+        run_dir: Path,
+        title: str = "",
+        topic: str = "",
+    ) -> Path:
+        """씬 에셋을 최종 영상으로 합성합니다.
+
+        Args:
+            scene_plans: 대본 생성 단계의 ScenePlan 목록
+            scene_assets: 미디어 생성 단계의 SceneAsset 목록 (TTS + 비주얼)
+            output_dir: 최종 영상 출력 디렉토리
+            output_filename: 출력 파일 이름 (e.g. "job-id.mp4")
+            run_dir: 현재 작업 디렉토리 (중간 파일 저장용)
+            title: 영상 제목
+            topic: 원본 주제
+
+        Returns:
+            렌더링된 MP4 파일 경로
+        """
+        import moviepy.audio.fx as afx
+
+        target_width, target_height = self.config.video.resolution
+        io_cfg = self.config.intro_outro
+
+        all_clips: list = []
+        _audio_clips_to_close: list = []
+        _bgm_clip = None  # BGM 원본 참조 (close 용)
+        scene_roles: list[str] = []
+        last_effect = ""
+
+        # ── 인트로 삽입 ──
+        intro_path = io_cfg.intro_path
+        if intro_path:
+            intro = self._build_bookend_clip(intro_path, io_cfg.intro_duration, target_width, target_height)
+            if intro is not None:
+                intro = intro.with_effects([vfx.FadeIn(0.3)])
+                all_clips.append(intro)
+                logger.info("[Intro] 인트로 삽입 (%.1fs): %s", io_cfg.intro_duration, intro_path)
+
+        # ── 제목 오버레이 이미지 준비 ──
+        title_overlay_clip = None
+        if title:
+            try:
+                title_img_path = run_dir / "title_overlay.png"
+                self._render_title_image(title, target_width, title_img_path)
+                title_overlay_clip = ImageClip(str(title_img_path)).with_duration(1.0)
+            except Exception as exc:
+                logger.warning("[Title] 제목 오버레이 생성 실패: %s", exc)
+
+        # ── 씬별 클립 빌드 ──
+        for plan, asset in zip(scene_plans, scene_assets):
+            duration_sec = asset.duration_sec
+            role = plan.structure_role
+            scene_roles.append(role)
+
+            # 1) 베이스 비주얼 클립
+            base = self._build_base_clip(asset, duration_sec, target_width, target_height)
+
+            # 2) 카메라 효과 (Ken Burns 등)
+            if asset.visual_type == "image":
+                if role == "hook":
+                    base = self._dramatic_ken_burns(base, target_width, target_height)
+                    last_effect = "dramatic_ken_burns"
+                else:
+                    base, last_effect = self._apply_random_effect(
+                        base, target_width, target_height, exclude=last_effect
+                    )
+
+            # 3) 오디오 합성
+            audio = AudioFileClip(asset.audio_path)
+            if audio.duration != duration_sec:
+                if audio.duration > duration_sec:
+                    audio = audio.subclipped(0, duration_sec)
+                # audio shorter than visual → visual에 맞춤 (음성 끝 자연 종료)
+            _audio_clips_to_close.append(audio)
+            base = base.with_audio(audio)
+
+            # 4) 자막 오버레이
+            style = (
+                self.hook_style if role == "hook"
+                else self.cta_style if role == "cta"
+                else self.body_style
+            )
+
+            # 카라오케 모드
+            if style.mode == "karaoke":
+                words_json_path = Path(asset.audio_path).parent / f"{Path(asset.audio_path).stem}_words.json"
+                try:
+                    raw_words = load_words_json(words_json_path)
+                    corrected_words = apply_ssml_break_correction(raw_words)
+                    chunks = group_into_chunks(corrected_words, style.words_per_chunk)
+
+                    # Word-level highlight 모드
+                    if self.config.captions.highlight_mode == "word":
+                        caption_clips = []
+                        for chunk in chunks:
+                            for word_data in chunk["words"]:
+                                ws = word_data["start"]
+                                we = word_data["end"]
+                                wd = max(0.05, we - ws)
+                                highlight_img = render_karaoke_highlight_image(
+                                    chunk_text=chunk["text"],
+                                    highlight_word=word_data["word"],
+                                    style=style,
+                                    canvas_width=target_width,
+                                    highlight_color=self.config.captions.highlight_color,
+                                )
+                                cap_clip = ImageClip(highlight_img, transparent=True).with_duration(wd).with_start(ws)
+                                caption_clips.append(cap_clip)
+                    else:
+                        caption_clips = []
+                        for chunk in chunks:
+                            cs = chunk["start"]
+                            ce = chunk["end"]
+                            cd = max(0.1, ce - cs)
+                            cap_img = render_karaoke_image(chunk["text"], style, target_width)
+                            cap_clip = ImageClip(cap_img, transparent=True).with_duration(cd).with_start(cs)
+                            caption_clips.append(cap_clip)
+
+                    if caption_clips:
+                        base = CompositeVideoClip([base] + caption_clips)
+
+                except Exception as kex:
+                    logger.warning("[Karaoke] 카라오케 실패, 정적 자막 폴백: %s", kex)
+                    cap_img = render_caption_image(plan.narration_ko, style, target_width)
+                    cap_clip = ImageClip(cap_img, transparent=True).with_duration(duration_sec)
+                    base = CompositeVideoClip([base, cap_clip])
+            else:
+                # 정적 자막 모드
+                cap_img = render_caption_image(plan.narration_ko, style, target_width)
+                cap_clip = ImageClip(cap_img, transparent=True).with_duration(duration_sec)
+                base = CompositeVideoClip([base, cap_clip])
+
+            # 5) 텍스트 애니메이션 (Hook 씬)
+            if role == "hook":
+                try:
+                    base = apply_text_animation(
+                        base,
+                        animation_type=self.config.captions.hook_animation,
+                        duration=duration_sec,
+                    )
+                except Exception as aex:
+                    logger.warning("[Animation] Hook 애니메이션 실패: %s", aex)
+
+            # 6) B-Roll 오버레이 (PiP)
+            broll_path = run_dir / f"broll_{plan.scene_id:02d}.mp4"
+            if broll_path.exists():
+                try:
+                    pip_clip = create_broll_pip(
+                        str(broll_path), duration_sec, target_width, target_height
+                    )
+                    if pip_clip is not None:
+                        base = CompositeVideoClip([base, pip_clip])
+                except Exception:
+                    pass
+
+            # 7) HUD 오버레이
+            try:
+                hud_clip = render_hud_overlay(
+                    width=target_width,
+                    height=target_height,
+                    duration=duration_sec,
+                    scene_index=plan.scene_id,
+                    total_scenes=len(scene_plans),
+                    role=role,
+                )
+                if hud_clip is not None:
+                    base = CompositeVideoClip([base, hud_clip])
+            except Exception:
+                pass
+
+            # 8) 제목 오버레이 (첫 번째 씬에만)
+            if title_overlay_clip is not None and plan.scene_id == 1:
+                try:
+                    title_clip = title_overlay_clip.with_position(("center", 80))
+                    base = CompositeVideoClip([base, title_clip])
+                except Exception:
+                    pass
+
+            all_clips.append(base)
+
+        # ── 전환 효과 적용 ──
+        all_clips = self._apply_transitions(all_clips, target_width, target_height, roles=scene_roles)
+
+        # ── 아웃트로 삽입 ──
+        outro_path = io_cfg.outro_path
         if outro_path:
             outro = self._build_bookend_clip(outro_path, io_cfg.outro_duration, target_width, target_height)
             if outro is not None:
@@ -562,7 +755,7 @@ class RenderStep:
         output_path = output_dir / output_filename
         final_video = concatenate_videoclips(all_clips, method="compose")
 
-        # BGM 무드 매칭 + 동적 볼륨 믹싱
+        # BGM 무드 매칭 + 오디오 Ducking (Sprint 4)
         bgm_dir = (run_dir.parent.parent / self.config.audio.bgm_dir).resolve()
         if bgm_dir.exists():
             bgm_files = list(bgm_dir.glob("*.mp3"))
@@ -572,31 +765,80 @@ class RenderStep:
                 _bgm_clip = bgm_clip
                 bgm_clip = bgm_clip.with_effects([afx.AudioLoop(duration=final_video.duration)])
 
-                # 동적 볼륨: 나레이션 구간 낮게, 전환 구간 높게
-                base_vol = self.config.audio.bgm_volume  # 기본 0.12
-                narration_vol = base_vol * 0.65           # 나레이션 중 ~0.08
-                transition_vol = base_vol * 2.0           # 전환 중 ~0.24
-                fade_dur = self.config.audio.fade_duration
+                # ── Sprint 4: RMS 기반 오디오 Ducking ──────────────────────
+                # TTS 나레이션의 RMS 에너지를 분석하여 BGM 볼륨을 동적 조절.
+                # 말소리 있을 때: BGM ↓ (duck_ratio), 침묵 시: BGM ↑ (base_vol)
+                base_vol = self.config.audio.bgm_volume      # 0.12
+                duck_ratio = 0.30                              # 발화 시 BGM = base_vol * 0.30
+                silence_boost = 1.8                            # 침묵 시 BGM = base_vol * 1.8
+                attack_sec = 0.20                              # duck 시작 속도 (빠르게 줄임)
+                release_sec = 0.40                             # duck 해제 속도 (천천히 올림)
+                rms_threshold = 0.01                           # 이 이상이면 "발화 중"
 
-                # 씬별 시작/끝 시간 맵 (나레이션 구간)
-                narration_ranges: list[tuple[float, float]] = []
-                cursor = 0.0
-                for asset in scene_assets:
-                    narration_ranges.append((cursor, cursor + asset.duration_sec))
-                    cursor += asset.duration_sec
+                # TTS 오디오에서 RMS 에너지 프로파일 만들기
+                try:
+                    import numpy as _np
+                    tts_audio = final_video.audio
+                    # 100ms 단위로 RMS 샘플링
+                    sample_rate = 44100
+                    hop_sec = 0.05  # 50ms 단위
+                    total_dur = final_video.duration
+                    n_samples = max(1, int(total_dur / hop_sec))
 
-                def _bgm_volume_at(t: float) -> float:
-                    """시간 t에서의 BGM 볼륨 계수. 나레이션 중 낮게, 전환 중 높게."""
-                    for start, end in narration_ranges:
-                        # 씬 전환 직전/직후 fade_dur 구간은 높은 볼륨
-                        if start + fade_dur <= t <= end - fade_dur:
-                            return narration_vol
-                    return transition_vol
+                    rms_profile: list[float] = []
+                    for i in range(n_samples):
+                        t_start = i * hop_sec
+                        t_end = min(t_start + hop_sec, total_dur)
+                        try:
+                            chunk = tts_audio.subclipped(t_start, t_end)
+                            frames = chunk.to_soundarray(fps=sample_rate)
+                            rms_val = float(_np.sqrt(_np.mean(frames ** 2)))
+                        except Exception:
+                            rms_val = 0.0
+                        rms_profile.append(rms_val)
 
-                bgm_clip = bgm_clip.transform(
-                    lambda get_frame, t: get_frame(t) * _bgm_volume_at(t),
-                    apply_to=["audio"],
-                )
+                    # 스무딩된 duck envelope 생성
+                    duck_envelope: list[float] = []
+                    current_duck = silence_boost  # 초기: 침묵 상태
+                    for rms_val in rms_profile:
+                        is_speech = rms_val > rms_threshold
+                        target = duck_ratio if is_speech else silence_boost
+                        # 지수적 접근 (attack/release 비대칭)
+                        if target < current_duck:
+                            # Ducking (빠르게)
+                            alpha = min(1.0, hop_sec / max(attack_sec, 0.01))
+                        else:
+                            # Release (천천히)
+                            alpha = min(1.0, hop_sec / max(release_sec, 0.01))
+                        current_duck += alpha * (target - current_duck)
+                        duck_envelope.append(current_duck)
+
+                    logger.info(
+                        "[DUCKING] RMS 프로파일 생성 완료: %d 샘플, "
+                        "평균 RMS=%.4f, duck 구간=%.0f%%",
+                        len(rms_profile),
+                        sum(rms_profile) / max(len(rms_profile), 1),
+                        sum(1 for r in rms_profile if r > rms_threshold) / max(len(rms_profile), 1) * 100,
+                    )
+
+                    def _ducked_bgm_volume(t: float) -> float:
+                        """RMS 기반 ducking 볼륨 계수."""
+                        idx = min(int(t / hop_sec), len(duck_envelope) - 1)
+                        return base_vol * duck_envelope[max(0, idx)]
+
+                    bgm_clip = bgm_clip.transform(
+                        lambda get_frame, t: get_frame(t) * _ducked_bgm_volume(t),
+                        apply_to=["audio"],
+                    )
+                    logger.info("[DUCKING] 오디오 ducking 적용 완료")
+
+                except Exception as duck_exc:
+                    # Ducking 실패 시 기존 고정 볼륨 폴백
+                    logger.warning("[DUCKING] RMS 분석 실패, 고정 볼륨 폴백: %s", duck_exc)
+                    bgm_clip = bgm_clip.with_effects([
+                        MultiplyVolume(base_vol),
+                    ])
+
                 mixed_audio = CompositeAudioClip([final_video.audio, bgm_clip])
                 final_video = final_video.with_audio(mixed_audio)
 
