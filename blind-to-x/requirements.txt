@@ -4,7 +4,7 @@ anthropic==0.43.0
 notion-client==2.2.1
 PyYAML==6.0.2
 requests==2.32.3
-python-dotenv==1.0.1
+python-dotenv==1.2.2
 cloudinary==1.41.0
 curl_cffi==0.14.1
 beautifulsoup4==4.12.3
