@@ -8,16 +8,16 @@
         "NOTION_API_KEY": "${NOTION_API_KEY}"
       }
     },
-    "sqlite": {
+    "sqlite-multi": {
       "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@anthropic-ai/mcp-server-sqlite", ".tmp/api_usage.db"]
+      "command": "python",
+      "args": ["infrastructure/sqlite-multi-mcp/server.py"]
     },
     "filesystem": {
       "type": "stdio",
       "command": "npx",
       "args": [
-        "-y", "@anthropic-ai/mcp-server-filesystem",
+        "-y", "@modelcontextprotocol/server-filesystem",
         ".tmp",
         "execution",
         "infrastructure/n8n/logs"
@@ -26,7 +26,7 @@
     "brave-search": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@anthropic-ai/mcp-server-brave-search"],
+      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
       "env": {
         "BRAVE_API_KEY": "${BRAVE_API_KEY}"
       }
@@ -34,7 +34,7 @@
     "github": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@anthropic-ai/mcp-server-github"],
+      "args": ["-y", "@modelcontextprotocol/server-github"],
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
       }
@@ -56,6 +56,16 @@
       "type": "stdio",
       "command": "python",
       "args": ["infrastructure/n8n-mcp/server.py"]
+    },
+    "system-monitor": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["infrastructure/system-monitor/server.py"]
+    },
+    "cloudinary": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["infrastructure/cloudinary-mcp/server.py"]
     }
   }
 }

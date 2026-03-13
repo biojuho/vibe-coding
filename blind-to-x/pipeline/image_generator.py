@@ -10,8 +10,13 @@ import aiohttp
 
 logger = logging.getLogger(__name__)
 
-# Gemini image generation model (free tier: 10 RPM, 500 RPD)
-_GEMINI_IMAGE_MODEL = "gemini-2.0-flash-exp-image-generation"
+# Gemini image generation models (priority order: primary → fallback)
+# gemini-2.5-flash-image (Nano Banana): speed/efficiency optimized, 1024px, free tier
+# gemini-3.1-flash-image-preview (Nano Banana 2): best all-around, preview
+_GEMINI_IMAGE_MODELS = [
+    "gemini-2.5-flash-image",
+    "gemini-3.1-flash-image-preview",
+]
 
 # ── P2-A3: 토픽별 이미지 스타일 매핑 ────────────────────────────────
 _TOPIC_IMAGE_STYLES: dict[str, dict[str, str]] = {
@@ -292,43 +297,48 @@ class ImageGenerator:
         return result
 
     async def _generate_gemini(self, prompt: str) -> str | None:
-        """Generate image via Gemini (free, uses GOOGLE_API_KEY)."""
+        """Generate image via Gemini (free, uses GOOGLE_API_KEY).
+
+        Tries each model in _GEMINI_IMAGE_MODELS in order.
+        Falls through to Pollinations if all models fail.
+        """
         if not self._gemini_client:
             return None
 
-        logger.info("Generating image via Gemini (free)... Prompt: %s...", prompt[:50])
+        from google.genai import types
 
-        try:
-            from google.genai import types
+        for model_name in _GEMINI_IMAGE_MODELS:
+            logger.info("Generating image via Gemini [%s]... Prompt: %s...", model_name, prompt[:50])
+            try:
+                response = await asyncio.to_thread(
+                    self._gemini_client.models.generate_content,
+                    model=model_name,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_modalities=["IMAGE", "TEXT"],
+                    ),
+                )
 
-            response = await asyncio.to_thread(
-                self._gemini_client.models.generate_content,
-                model=_GEMINI_IMAGE_MODEL,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_modalities=["IMAGE", "TEXT"],
-                ),
-            )
+                for part in response.candidates[0].content.parts:
+                    if part.inline_data is not None:
+                        image_data = part.inline_data.data
+                        if len(image_data) < 1000:
+                            logger.error("Gemini [%s] returned too-small image (%d bytes)", model_name, len(image_data))
+                            break  # try next model
 
-            for part in response.candidates[0].content.parts:
-                if part.inline_data is not None:
-                    image_data = part.inline_data.data
-                    if len(image_data) < 1000:
-                        logger.error("Gemini returned too-small image (%d bytes)", len(image_data))
-                        return None
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as f:
+                            f.write(image_data)
+                            temp_path = f.name
 
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as f:
-                        f.write(image_data)
-                        temp_path = f.name
+                        logger.info("Successfully generated image via Gemini [%s] (%d bytes)", model_name, len(image_data))
+                        return temp_path
 
-                    logger.info("Successfully generated image via Gemini (%d bytes)", len(image_data))
-                    return temp_path
+                logger.warning("Gemini [%s] response contained no image data.", model_name)
+            except Exception as e:
+                logger.warning("Gemini [%s] failed: %s. Trying next model...", model_name, e)
 
-            logger.warning("Gemini response contained no image data.")
-            return None
-        except Exception as e:
-            logger.exception("Gemini image generation failed: %s", e)
-            return None
+        logger.error("All Gemini models failed for image generation.")
+        return None
 
     async def _generate_pollinations(self, prompt: str) -> str | None:
         """Generate image via Pollinations.ai (free, no API key needed)."""
