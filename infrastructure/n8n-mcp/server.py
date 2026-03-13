@@ -10,9 +10,12 @@ Claude Desktop 등 MCP 클라이언트에서 워크플로우를 트리거할 수
   GET  /history  - 실행 이력
   GET  /health   - 헬스체크
 """
+from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
+from typing import Any
 
 import requests
 from dotenv import load_dotenv
@@ -25,81 +28,82 @@ except ImportError:
 # ─── 환경 설정 ────────────────────────────────────────────────────────────────
 
 _project_root = Path(__file__).resolve().parent.parent.parent
-_env_path = _project_root / ".env"
-if _env_path.exists():
-    load_dotenv(_env_path)
-else:
-    load_dotenv()
+load_dotenv(_project_root / ".env")
+
+logger = logging.getLogger(__name__)
 
 BRIDGE_URL: str = os.getenv("BRIDGE_URL", "http://localhost:9876")
 BRIDGE_TOKEN: str = os.getenv("BRIDGE_TOKEN", "")
 
+_CONN_ERROR_MSG = f"브릿지 서버({BRIDGE_URL})에 연결할 수 없습니다."
 
-def _headers() -> dict[str, str]:
-    """인증 헤더를 생성합니다."""
-    return {"Authorization": f"Bearer {BRIDGE_TOKEN}"}
+# HTTP 세션 재사용
+_session = requests.Session()
+_session.headers.update({"Authorization": f"Bearer {BRIDGE_TOKEN}"})
 
 
 # ─── 도구 함수 ────────────────────────────────────────────────────────────────
 
 
-def _trigger_workflow(command: str, timeout: int = 600) -> dict:
+def _trigger_workflow(command: str, timeout: int = 600) -> dict[str, Any]:
     """브릿지 서버를 통해 워크플로우를 실행합니다."""
     try:
-        resp = requests.post(
+        resp = _session.post(
             f"{BRIDGE_URL}/execute",
             json={"command": command, "timeout": timeout},
-            headers=_headers(),
             timeout=timeout + 30,
         )
         resp.raise_for_status()
         return resp.json()
     except requests.ConnectionError:
-        return {"status": "error", "message": f"브릿지 서버({BRIDGE_URL})에 연결할 수 없습니다."}
+        return {"status": "error", "message": _CONN_ERROR_MSG}
     except requests.Timeout:
         return {"status": "error", "message": f"요청이 타임아웃되었습니다 ({timeout + 30}초 초과)."}
     except requests.HTTPError as e:
-        return {"status": "error", "message": f"HTTP 오류: {e.response.status_code} - {e.response.text}"}
+        return {"status": "error", "message": f"HTTP 오류: {e.response.status_code}"}
     except Exception as e:
+        logger.error("워크플로우 실행 실패: %s", e)
         return {"status": "error", "message": f"예상치 못한 오류: {e}"}
 
 
-def _get_available_commands() -> dict:
+def _get_available_commands() -> dict[str, Any]:
     """브릿지 서버에서 사용 가능한 명령어 목록을 조회합니다."""
     try:
-        resp = requests.get(f"{BRIDGE_URL}/commands", headers=_headers(), timeout=10)
+        resp = _session.get(f"{BRIDGE_URL}/commands", timeout=10)
         resp.raise_for_status()
         return resp.json()
     except requests.ConnectionError:
-        return {"status": "error", "message": f"브릿지 서버({BRIDGE_URL})에 연결할 수 없습니다."}
+        return {"status": "error", "message": _CONN_ERROR_MSG}
     except Exception as e:
+        logger.error("명령어 목록 조회 실패: %s", e)
         return {"status": "error", "message": f"예상치 못한 오류: {e}"}
 
 
-def _get_execution_history(limit: int = 10) -> dict:
+def _get_execution_history(limit: int = 10) -> dict[str, Any]:
     """최근 워크플로우 실행 이력을 조회합니다."""
     try:
-        resp = requests.get(
-            f"{BRIDGE_URL}/history", params={"limit": limit},
-            headers=_headers(), timeout=10,
+        resp = _session.get(
+            f"{BRIDGE_URL}/history", params={"limit": limit}, timeout=10,
         )
         resp.raise_for_status()
         return resp.json()
     except requests.ConnectionError:
-        return {"status": "error", "message": f"브릿지 서버({BRIDGE_URL})에 연결할 수 없습니다."}
+        return {"status": "error", "message": _CONN_ERROR_MSG}
     except Exception as e:
+        logger.error("실행 이력 조회 실패: %s", e)
         return {"status": "error", "message": f"예상치 못한 오류: {e}"}
 
 
-def _check_bridge_health() -> dict:
+def _check_bridge_health() -> dict[str, Any]:
     """브릿지 서버의 상태를 확인합니다."""
     try:
-        resp = requests.get(f"{BRIDGE_URL}/health", timeout=10)
+        resp = _session.get(f"{BRIDGE_URL}/health", timeout=10)
         resp.raise_for_status()
         return resp.json()
     except requests.ConnectionError:
-        return {"status": "unreachable", "message": f"브릿지 서버({BRIDGE_URL})에 연결할 수 없습니다."}
+        return {"status": "unreachable", "message": _CONN_ERROR_MSG}
     except Exception as e:
+        logger.error("헬스체크 실패: %s", e)
         return {"status": "error", "message": f"헬스체크 실패: {e}"}
 
 
@@ -112,7 +116,7 @@ if FastMCP is not None:
     )
 
     @mcp.tool()
-    def trigger_workflow(command: str, timeout: int = 600) -> dict:
+    def trigger_workflow(command: str, timeout: int = 600) -> dict[str, Any]:
         """브릿지 서버를 통해 워크플로우를 실행합니다.
 
         Args:
@@ -123,12 +127,12 @@ if FastMCP is not None:
         return _trigger_workflow(command, timeout)
 
     @mcp.tool()
-    def get_available_commands() -> dict:
+    def get_available_commands() -> dict[str, Any]:
         """브릿지 서버에서 사용 가능한 명령어 목록을 조회합니다."""
         return _get_available_commands()
 
     @mcp.tool()
-    def get_execution_history(limit: int = 10) -> dict:
+    def get_execution_history(limit: int = 10) -> dict[str, Any]:
         """최근 워크플로우 실행 이력을 조회합니다.
 
         Args:
@@ -137,7 +141,7 @@ if FastMCP is not None:
         return _get_execution_history(limit)
 
     @mcp.tool()
-    def check_bridge_health() -> dict:
+    def check_bridge_health() -> dict[str, Any]:
         """브릿지 서버의 상태를 확인합니다."""
         return _check_bridge_health()
 

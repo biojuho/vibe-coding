@@ -3,6 +3,203 @@
 > 각 AI 도구가 작업할 때마다 아래 형식으로 기록합니다.
 > 최신 세션이 파일 상단에 위치합니다 (역순).
 
+## 2026-03-13 16:18 KST — Antigravity (Gemini) — Ollama 로컬 LLM 5번째 폴백 통합
+
+### 작업 요약
+Ollama(v0.17.7) 설치 + Gemma3 4B 모델 다운로드(3.3GB) + blind-to-x `draft_generator.py`에 5번째 비상 폴백 provider로 통합. QC 6/6 통합 테스트 + 23 pytest 전량 통과 → 승인.
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `pipeline/draft_generator.py` | Ollama를 5번째 provider로 추가 (+41줄): PROVIDER_ALIASES, DEFAULT_PROVIDER_ORDER, `_check_ollama_enabled()`, `_generate_with_ollama()`, `_timeout_for("ollama")=90s`, `ollama_client=AsyncOpenAI(base_url="localhost:11434/v1")` |
+| `pipeline/cost_tracker.py` | Ollama 비용 $0.00 등록 (+1줄) |
+
+### 핵심 결정사항
+- Ollama는 기존 4-provider (anthropic→gemini→xai→openai) 뒤 **마지막 비상 폴백**으로 배치
+- OpenAI 호환 API(`/v1/chat/completions`) 활용 → `AsyncOpenAI(api_key="ollama", base_url="...")` 패턴 — xAI와 동일
+- `_check_ollama_enabled()`: 초기화 시 `localhost:11434`에 2초 health check → 미응답 시 자동 비활성화 (Zero Impact 보장)
+- CPU 추론 특성상 타임아웃 90초 (다른 API 30~45초)
+- 모델 기본값: `gemma3:4b` (한국어 지원, ~3.3GB RAM, 15초/응답)
+
+### 테스트 결과
+- QC 통합 테스트 6/6 PASS (서비스 확인, 한국어 분류, cost_tracker, draft_generator, _check_ollama_enabled, timeout)
+- pytest 23 passed (draft_generator, cost_controls, env_fallbacks, arateam_structure)
+- 기존 실패 22건: config_workflow_sync, performance_tracker 등 — 코드 변경 무관 (기존 이슈)
+
+### QC 판정
+- ✅ **승인 (APPROVED)** — 6/6 + 23 pytest PASS, Zero Impact, 롤백 2분
+
+### 다음 도구에게 메모
+- Ollama가 Windows 서비스로 자동 실행됨 — PC 재시작 후에도 자동 가용
+- 모델 변경: `ollama.model` config 키 또는 `ollama pull <모델명>`
+- Ollama 비활성화: `ollama.enabled: false` config 또는 Ollama 서비스 중지
+- RAM 부족 시: Ollama가 5분 미사용 후 자동으로 모델 언로드
+
+---
+
+## 2026-03-12 19:31 KST — Antigravity (Gemini) — notion_upload.py 분할 QC
+
+### 작업 요약
+`notion_upload.py` 4모듈 분할 리팩토링에 대한 QC(Quality Control) 최종 검증 실행. 9개 항목 자동화 테스트 전체 통과.
+
+### QC 테스트 결과
+
+| # | 항목 | 결과 |
+|---|------|------|
+| T1 | AST Parse — 6개 파일 구문 오류 검사 | ✅ PASS |
+| T2 | Import — `from pipeline.notion_upload import NotionUploader` | ✅ PASS |
+| T3 | MRO — NotionUploader → Schema → Cache → Upload → Query → object | ✅ PASS |
+| T4 | Key Methods — 15개 핵심 메서드 존재 확인 | ✅ PASS |
+| T5 | Constants — DEFAULT_PROPS, EXPECTED_TYPES 등 5개 상수 | ✅ PASS |
+| T6 | Cross-reference — 4개 Mixin 간 public 메서드 충돌 없음 | ✅ PASS |
+| T7 | Backward-compat — 기존 import 경로 + 패키지 re-export 동일 | ✅ PASS |
+| T8 | File size — 총 53,111 bytes (6개 .py 파일) | ✅ PASS |
+| T9 | Method count — Schema:5, Cache:5, Upload:5, Query:8 = 23 methods | ✅ PASS |
+
+### 유닛 테스트 결과
+- **196 passed**, 22 failed, 4 errors, 1 skipped (리팩토링 전후 동일)
+- 기존 실패 22건: multi_platform, config_workflow_sync, performance_tracking 관련 — 코드 변경 무관
+- **새로운 regression: 0건** ✅
+
+### 참고사항
+- `search_page_by_title`: 원래 코드베이스에 존재하지 않는 메서드 — 이전 세션의 테스트 목록에서 잘못 포함된 것으로 확인, 검증 대상에서 제외
+- `.tmp/qc_tests.py`: QC 테스트 스크립트 (임시 파일, 삭제 가능)
+
+---
+
+## 2026-03-12 18:40 KST — Antigravity (Gemini) — notion_upload.py 4모듈 분할
+
+### 작업 요약
+`notion_upload.py` (1060줄/47KB)를 4개 Mixin 모듈로 분할. Mixin 합성(Multiple Inheritance) 패턴으로 **역호환성 100% 유지** — 기존 `from pipeline.notion_upload import NotionUploader` 경로 변경 없음.
+
+### 변경 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `pipeline/notion/__init__.py` | 🆕 서브패키지 진입점 — 4개 Mixin re-export |
+| `pipeline/notion/_schema.py` | 🆕 NotionSchemaMixin — 34개 속성 정의, 자동감지(AUTO_DETECT_KEYWORDS), 타입 검증 |
+| `pipeline/notion/_cache.py` | 🆕 NotionCacheMixin — URL 중복 캐시(bulk load, TTL, warm_cache, is_duplicate, canonicalize_url) |
+| `pipeline/notion/_upload.py` | 🆕 NotionUploadMixin — upload(), update_page_properties(), 속성 payload 생성 헬퍼 |
+| `pipeline/notion/_query.py` | 🆕 NotionQueryMixin — 조회/검색/레코드 추출(get_recent_pages, get_top_performing_posts 등) |
+| `pipeline/notion_upload.py` | ♻️ 4개 Mixin 합성으로 재구성 — __init__, 에러 관리, API 인프라(ensure_schema, query_collection, _safe_notion_call)만 잔류 (1060줄 → 272줄) |
+
+### 핵심 결정사항
+- **Mixin 패턴 채택** — 4개 Mixin을 NotionUploader가 다중 상속하여 단일 클래스로 합성
+- **역호환성 100%** — `from pipeline.notion_upload import NotionUploader` 경로 유지
+- **MRO**: NotionUploader → NotionSchemaMixin → NotionCacheMixin → NotionUploadMixin → NotionQueryMixin → object
+- **API 인프라(ensure_schema, query_collection 등)는 분할하지 않음** — 모든 Mixin이 공유하는 핵심 인프라
+
+### 테스트 결과
+- blind-to-x unit: **196 passed**, 1 skipped (리팩토링 전후 동일)
+- 기존 실패 22건 + 4 errors: 모두 기존 이슈 (multi_platform config_sync 관련, 코드 변경 무관)
+- Import 검증: NotionUploader MRO 정상 확인
+
+### 다음 도구에게 메모
+- `pipeline/notion/` 서브패키지가 신규 생성됨 — git add 필요
+- Mixin 간 의존성: _upload.py와 _cache.py는 ensure_schema, query_collection 등을 self로 참조 (NotionUploader에서 합성 시 해결)
+- canonicalize_url()이 _cache.py에도 @staticmethod로 존재 — NotionSchemaMixin.TRACKING_QUERY_KEYS와의 결합은 하드코딩 폴백으로 처리
+
+## 2026-03-12 17:29 KST — Antigravity (Gemini) — 시스템 리팩토링 R1~R3
+
+### 작업 요약
+워크스페이스 전체 리팩토링 필요 여부를 분석하고, 3단계 개선 Sprint(R1/R2/R3)를 실행.
+전면 리팩토링은 불필요 — 선별적 구조 개선(Targeted Refactoring) 실시.
+
+### 변경 파일
+**Sprint R1 (긴급 정리)**:
+- `blind-to-x/` 루트 — 46개 임시 파일(로그, HTML 덤프, 디버그 JSON, 임시 test) → `.tmp/debug_artifacts/`로 이동
+- `blind-to-x/.gitignore` — 디버그 산출물 패턴 추가 (재발 방지)
+- `shorts-maker-v2/shorts_maker_v2/__init__.py` — 네임스페이스 브릿지 역할 docstring 추가
+- `shorts-maker-v2/ARCHITECTURE.md` — ShortsFactory 라벨 정정 + shorts_maker_v2 브릿지 문서화
+
+**Sprint R2 (구조 정규화)**:
+- `blind-to-x/tests/` — 혼재 구조를 `tests/unit/` + `tests/integration/` + `tests/helpers/`로 재구조화
+- `blind-to-x/tests_unit/` — 삭제 (→ `tests/unit/`으로 통합)
+- `blind-to-x/pytest.ini` — testpaths 업데이트 (`tests_unit` → `tests/unit`)
+- `blind-to-x/pipeline/_archive/` — newsletter_formatter.py, newsletter_scheduler.py, test 아카이브
+- `scripts/README.md` — scripts/ vs execution/ 역할 구분 문서화
+
+**Sprint R3 (아키텍처 리뷰)**:
+- `notion_upload.py` 분할: 1060줄/47KB → 별도 세그먼트로 계획 (높은 리스크로 보류)
+- ShortsFactory: RenderAdapter 인터페이스 확인 → 물리적 통합 불필요 판정
+- `_archive/`: 이미 비어있음 확인
+
+### 결정사항
+- **전면 리팩토링 불필요** — 선별적 개선으로 충분
+- **blind-to-x 테스트 표준 구조**: `tests/{unit,integration,helpers}/`
+- **shorts_maker_v2/ 루트 패키지는 삭제 금지** — 네임스페이스 브릿지 역할 (모든 테스트와 CLI가 의존)
+- **notion_upload.py 분할은 별도 작업으로 분리** (높은 위험도, 34개 속성 스키마와 밀접 결합)
+
+### 테스트 결과
+- blind-to-x unit: 196 passed, 1 skipped (리팩토링 전후 동일)
+- 기존 실패 22건: 멀티플랫폼/config_sync/performance_tracker 관련 (기존 이슈, 코드 변경 무관)
+- shorts-maker-v2: ffmpeg 미설치로 인한 collection error (기존 이슈)
+
+### 다음 도구에게 메모
+- `blind-to-x/tests/` 재구조화 완료됨 — CI/CD에서 `tests/unit` 경로 참조 확인 필요
+- `notion_upload.py` 분할 기획안은 별도 세션에서 진행 권장
+- 기존 실패 테스트 22건은 classification_rules.yaml 확장 미완 + config_workflow_sync 이슈
+
+## 2026-03-12 17:15 KST — Antigravity (Gemini) — BTX 3대 인프라 이슈 해결
+
+### 작업 요약
+Blind-to-X 파이프라인의 잔존 인프라 이슈 3건 일괄 해결.
+
+### 변경 파일
+- `blind-to-x/pipeline/image_generator.py` — Gemini 모델 폐기 대응
+  - `gemini-2.0-flash-exp-image-generation` (404 에러) → `gemini-2.5-flash-image` (Nano Banana, 안정)
+  - fallback 모델 리스트 추가: `gemini-2.5-flash-image` → `gemini-3.1-flash-image-preview` → Pollinations
+  - 모델별 순차 시도 후 전부 실패 시 Pollinations fallback 유지
+- `blind-to-x/pipeline/image_upload.py` — Cloudinary 10MB 제한 대응
+  - `_optimize_image_for_upload()` 함수 추가: PNG→JPEG 변환, 점진적 품질 감소, 해상도 축소
+  - `upload()` 메서드에서 Cloudinary 사용 시 자동 호출
+  - 9MB 이하로 최적화 후 업로드 (Pillow 의존)
+- Docker: `docker update --restart unless-stopped n8n` 적용
+
+### 결정사항
+- Gemini 이미지 모델: `gemini-2.5-flash-image` 을 primary로 채택 (무료, 빠름, 1024px)
+- Cloudinary 업로드 한도: 9MB 안전 마진 (10MB 한도 - 1MB 여유)
+- Docker Desktop: 이미 자동 시작 설정 확인됨 (레지스트리 `HKCU\...\Run`)
+- n8n 컨테이너: `unless-stopped` restart 정책으로 Docker 재시작 시 자동 복구
+
+### 테스트 결과
+- ImageGenerator 테스트 3/3 PASS
+- Upload/Cloudinary 테스트 12/12 PASS
+- 모듈 import 검증 OK
+
+### 다음 도구에게 메모
+- Gemini 모델 리스트 `_GEMINI_IMAGE_MODELS`는 배열이므로 새 모델 추가/교체 시 순서만 조정하면 됨
+- `_optimize_image_for_upload()`는 Pillow 필수 — `pip install Pillow` 확인
+- Docker Desktop 자동 시작 + n8n `unless-stopped` 조합으로 재부팅 후에도 n8n 자동 복구됨
+
+---
+
+## 2026-03-12 16:04 KST — Antigravity (Gemini) — BTX 파이프라인 복구
+
+### 작업 요약
+Blind-to-X 파이프라인 1.5일간 미실행 원인 진단 + Task Scheduler 재활성화 + 수동 실행 확인 + cp949 인코딩 에러 수정.
+
+### 진단 결과
+- **근본 원인**: Task Scheduler 5개 Disabled + Docker Desktop 미실행 → n8n 컨테이너 접근 불가 → 양쪽 스케줄러 모두 비활성화
+- **파이프라인 코드**: 정상 작동 확인 (3/11 마지막 실행 시 6/6 성공)
+
+### 수행 조치
+1. Task Scheduler 5개 (BlindToX_0500~2100) → **Ready** 상태로 재활성화 (관리자 PowerShell)
+2. `main.py --trending` 수동 실행 → 3건 Notion 업로드 성공 확인
+3. `pipeline_watchdog.py` + `backup_to_onedrive.py` cp949 인코딩 에러 수정 (UTF-8 stdout 래핑)
+
+### 변경 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `execution/pipeline_watchdog.py` | `__main__` 블록에 `sys.stdout.reconfigure(encoding="utf-8")` 추가 |
+| `execution/backup_to_onedrive.py` | `__main__` 블록에 `sys.stdout.reconfigure(encoding="utf-8")` 추가 |
+
+### 다음 도구에게 메모
+- Task Scheduler 5개가 다시 Ready — n8n과 이중 실행 가능하지만, Notion URL dedup이 보호
+- Docker Desktop을 켜면 n8n도 자동 시작되므로 이중 스케줄링 됨 — 파이프라인 자체가 중복 방지하므로 문제 없음
+- Gemini 이미지 모델 `gemini-2.0-flash-exp-image-generation`이 404 → Pollinations/캐시로 fallback 중
+
+---
+
 ## 2026-03-12 14:50 KST — Antigravity (Gemini) — QC 세션
 
 ### 작업 요약

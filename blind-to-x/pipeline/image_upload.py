@@ -12,6 +12,7 @@ import asyncio
 import base64
 import logging
 import os
+import tempfile
 
 import requests
 import cloudinary
@@ -20,6 +21,99 @@ import cloudinary.uploader
 from .utils import async_run_with_retry
 
 logger = logging.getLogger(__name__)
+
+# Cloudinary 무료 플랜 업로드 한도 대비 안전 마진 (9MB < 10MB 한도)
+_MAX_UPLOAD_BYTES = 9 * 1024 * 1024  # 9 MB
+
+
+def _optimize_image_for_upload(filepath: str, max_bytes: int = _MAX_UPLOAD_BYTES) -> str:
+    """이미지 파일이 max_bytes를 초과하면 자동으로 압축/리사이즈하여 임시 파일로 반환합니다.
+
+    1단계: PNG → JPEG 변환 (투명 배경은 흰색으로 채움)
+    2단계: JPEG quality를 점진적으로 낮춤 (85 → 70 → 55 → 40)
+    3단계: quality로 부족하면 해상도를 80%씩 축소
+
+    원본 파일이 이미 한도 이내이면 원본 경로를 그대로 반환합니다.
+    """
+    file_size = os.path.getsize(filepath)
+    if file_size <= max_bytes:
+        return filepath
+
+    logger.info(
+        "이미지 최적화 시작: %.1fMB → 목표 %.1fMB 이하 (%s)",
+        file_size / 1024 / 1024,
+        max_bytes / 1024 / 1024,
+        os.path.basename(filepath),
+    )
+
+    try:
+        from PIL import Image
+    except ImportError:
+        logger.warning("Pillow가 설치되지 않아 이미지 최적화를 건너뜁니다. pip install Pillow")
+        return filepath
+
+    try:
+        img = Image.open(filepath)
+
+        # RGBA/P → RGB (투명 배경을 흰색으로 채움)
+        if img.mode in ("RGBA", "P", "LA"):
+            background = Image.new("RGB", img.size, (255, 255, 255))
+            if img.mode == "P":
+                img = img.convert("RGBA")
+            background.paste(img, mask=img.split()[-1] if "A" in img.mode else None)
+            img = background
+        elif img.mode != "RGB":
+            img = img.convert("RGB")
+
+        # 점진적 품질 감소 시도
+        quality_steps = [85, 70, 55, 40]
+        for quality in quality_steps:
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
+            tmp.close()
+            img.save(tmp.name, format="JPEG", quality=quality, optimize=True)
+            new_size = os.path.getsize(tmp.name)
+
+            if new_size <= max_bytes:
+                logger.info(
+                    "이미지 최적화 완료: %.1fMB → %.1fMB (quality=%d)",
+                    file_size / 1024 / 1024,
+                    new_size / 1024 / 1024,
+                    quality,
+                )
+                return tmp.name
+            os.unlink(tmp.name)
+
+        # 품질 감소만으로 부족 → 해상도 축소
+        scale = 0.8
+        for _ in range(5):
+            new_w = int(img.width * scale)
+            new_h = int(img.height * scale)
+            if new_w < 400 or new_h < 400:
+                break
+            resized = img.resize((new_w, new_h), Image.LANCZOS)
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
+            tmp.close()
+            resized.save(tmp.name, format="JPEG", quality=55, optimize=True)
+            new_size = os.path.getsize(tmp.name)
+
+            if new_size <= max_bytes:
+                logger.info(
+                    "이미지 최적화 완료: %.1fMB → %.1fMB (resize=%dx%d, quality=55)",
+                    file_size / 1024 / 1024,
+                    new_size / 1024 / 1024,
+                    new_w,
+                    new_h,
+                )
+                return tmp.name
+            os.unlink(tmp.name)
+            scale *= 0.8
+
+        logger.warning("이미지 최적화 실패: 모든 시도 후에도 %.1fMB. 원본으로 업로드 시도.", file_size / 1024 / 1024)
+        return filepath
+
+    except Exception as exc:
+        logger.warning("이미지 최적화 중 오류 발생 (원본으로 진행): %s", exc)
+        return filepath
 
 
 class ImageUploader:
@@ -70,6 +164,10 @@ class ImageUploader:
             return None
 
         # 3. 설정된 제공자(provider) 이름표에 따라 알맞은 업로드 함수를 골라서 호출합니다.
+        #    Cloudinary는 10MB 제한이 있으므로 업로드 전 자동 최적화를 적용합니다.
+        if self.provider == "cloudinary":
+            filepath = _optimize_image_for_upload(filepath)
+        
         if self.provider == "imgur":
             return await self._upload_to_imgur(filepath)
         elif self.provider == "cloudinary":

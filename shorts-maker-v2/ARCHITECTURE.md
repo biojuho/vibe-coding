@@ -29,7 +29,11 @@ shorts-maker-v2/
 │       ├── cost_tracker.py       # 비용 이력 추적
 │       └── media_cache.py        # 프롬프트 해시 기반 캐시
 │
-├── ShortsFactory/                # 🎨 RENDERING LAYER: 채널별 비주얼 렌더링
+├── shorts_maker_v2/              # 🔗 BRIDGE: 네임스페이스 브릿지 (src/ → import 연결)
+│   ├── __init__.py               # pkgutil.extend_path로 src/ 참조
+│   └── __main__.py               # CLI 진입점 + UTF-8 래핑
+│
+├── ShortsFactory/                # 🎨 RENDERING LAYER: 채널별 비주얼 렌더링 (활성 사용 중)
 │   ├── pipeline.py               # ShortsFactory 클래스 (render_from_plan 포함)
 │   ├── interfaces.py             # RenderAdapter, RenderRequest, RenderResult
 │   ├── templates/                # 비주얼 레이아웃 템플릿 (18종, Single Registry)

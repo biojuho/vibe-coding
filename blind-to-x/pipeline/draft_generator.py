@@ -53,9 +53,10 @@ PROVIDER_ALIASES = {
     "xai": "xai",
     "chatgpt": "openai",
     "openai": "openai",
+    "ollama": "ollama",
 }
 
-DEFAULT_PROVIDER_ORDER = ["anthropic", "gemini", "xai", "openai"]
+DEFAULT_PROVIDER_ORDER = ["anthropic", "gemini", "xai", "openai", "ollama"]
 
 
 class TweetDraftGenerator:
@@ -102,17 +103,25 @@ class TweetDraftGenerator:
         self.openai_model = config.get("openai.chat_model", "gpt-4.1-mini")
         self.gemini_model = config.get("gemini.model", "gemini-2.5-flash")
         self.xai_model = config.get("xai.model", "grok-4-1-fast-reasoning")
+        self.ollama_model = config.get("ollama.model", "gemma3:4b")
+        self.ollama_base_url = config.get("ollama.base_url", "http://localhost:11434/v1")
 
         self.anthropic_enabled = self._provider_enabled("anthropic", self.anthropic_api_key)
         self.openai_enabled = self._provider_enabled("openai", self.openai_api_key)
         self.gemini_enabled = self._provider_enabled("gemini", self.gemini_api_key)
         self.xai_enabled = self._provider_enabled("xai", self.xai_api_key)
+        self.ollama_enabled = self._check_ollama_enabled()
 
         self.anthropic_client = AsyncAnthropic(api_key=self.anthropic_api_key) if self.anthropic_enabled else None
         self.openai_client = AsyncOpenAI(api_key=self.openai_api_key) if self.openai_enabled else None
         self.xai_client = (
             AsyncOpenAI(api_key=self.xai_api_key, base_url="https://api.x.ai/v1")
             if self.xai_enabled
+            else None
+        )
+        self.ollama_client = (
+            AsyncOpenAI(api_key="ollama", base_url=self.ollama_base_url)
+            if self.ollama_enabled
             else None
         )
 
@@ -141,6 +150,20 @@ class TweetDraftGenerator:
         if explicit is None:
             explicit = True
         return bool(explicit and api_key)
+
+    def _check_ollama_enabled(self) -> bool:
+        """Ollama 서비스가 로컬에서 실행 중인지 확인. 미실행 시 자동 비활성화."""
+        explicit = self.config.get("ollama.enabled", None)
+        if explicit is False:
+            return False
+        try:
+            import urllib.request
+            req = urllib.request.Request("http://localhost:11434/api/tags", method="GET")
+            with urllib.request.urlopen(req, timeout=2) as resp:
+                return resp.status == 200
+        except Exception:
+            logger.debug("Ollama not available at localhost:11434 — disabled as fallback.")
+            return False
 
     def _resolve_tone(self, post_data: dict[str, Any]) -> str:
         """토픽 클러스터 기반 톤 매핑 (YAML 기반, fallback 포함)."""
@@ -408,6 +431,7 @@ class TweetDraftGenerator:
             "gemini": self.gemini_enabled,
             "xai": self.xai_enabled,
             "openai": self.openai_enabled,
+            "ollama": self.ollama_enabled,
         }
         return [provider for provider in self.provider_order if availability.get(provider, False)]
 
@@ -437,6 +461,19 @@ class TweetDraftGenerator:
         response = await self.xai_client.chat.completions.create(
             model=self.xai_model,
             messages=[{"role": "user", "content": prompt}],
+        )
+        text = response.choices[0].message.content or ""
+        usage = getattr(response, "usage", None)
+        input_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
+        output_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
+        return text, input_tokens, output_tokens
+
+    async def _generate_with_ollama(self, prompt: str) -> tuple[str, int, int]:
+        """Ollama 로컬 LLM으로 초안 생성 (OpenAI 호환 API, CPU 추론)."""
+        response = await self.ollama_client.chat.completions.create(
+            model=self.ollama_model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
         )
         text = response.choices[0].message.content or ""
         usage = getattr(response, "usage", None)
@@ -475,7 +512,9 @@ class TweetDraftGenerator:
         return text, input_tokens, output_tokens
 
     def _timeout_for(self, provider: str) -> int:
-        """프로바이더별 차등 타임아웃: 유료(anthropic/openai) 45s, 무료/저렴 30s."""
+        """프로바이더별 차등 타임아웃: 유료 45s, 무료/저렴 30s, Ollama(CPU) 90s."""
+        if provider == "ollama":
+            return 90  # CPU 추론은 느림 → 넉넉한 타임아웃
         if provider in {"anthropic", "openai"}:
             return self.request_timeout_seconds
         return min(30, self.request_timeout_seconds)
@@ -491,6 +530,8 @@ class TweetDraftGenerator:
             coro = self._generate_with_gemini(prompt)
         elif provider == "xai":
             coro = self._generate_with_xai(prompt)
+        elif provider == "ollama":
+            coro = self._generate_with_ollama(prompt)
         else:
             raise RuntimeError(f"Unsupported provider: {provider}")
         return await asyncio.wait_for(coro, timeout=timeout)

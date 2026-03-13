@@ -1,3 +1,13 @@
+"""shorts_maker_v2 패키지 브릿지.
+
+이 패키지는 프로젝트 루트에서 `from shorts_maker_v2.xxx import yyy` 형태의
+import를 가능하게 하는 **네임스페이스 브릿지**입니다.
+
+실제 소스 코드는 `src/shorts_maker_v2/`에 있으며, 이 __init__.py가
+pkgutil.extend_path를 통해 경로를 연결합니다.
+
+⚠️ 삭제하면 모든 테스트와 CLI가 동작하지 않습니다!
+"""
 from __future__ import annotations
 
 from pathlib import Path

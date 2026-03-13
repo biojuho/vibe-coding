@@ -582,6 +582,10 @@ def _print_report(report: Dict[str, Any]) -> None:
 
 
 if __name__ == "__main__":
+    import sys
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
     parser = argparse.ArgumentParser(description="Pipeline Watchdog — 시스템 상태 감시")
     parser.add_argument("--json", action="store_true", help="JSON 출력")
     parser.add_argument("--no-notify", action="store_true", help="Telegram 알림 비활성화")

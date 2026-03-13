@@ -236,6 +236,10 @@ def get_status() -> dict:
 # ── CLI ──────────────────────────────────────────────────
 
 if __name__ == "__main__":
+    import sys
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
     parser = argparse.ArgumentParser(description="OneDrive Backup — 프로젝트 핵심 파일 백업")
     parser.add_argument("--dry-run", action="store_true", help="실제 복사 없이 미리보기")
     parser.add_argument("--status", action="store_true", help="백업 현황 조회")

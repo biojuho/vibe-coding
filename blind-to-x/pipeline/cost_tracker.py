@@ -22,6 +22,7 @@ DEFAULT_TEXT_PRICING = {
     "deepseek": {"input_per_1m": 0.001, "output_per_1m": 0.002},
     "moonshot": {"input_per_1m": 0.003, "output_per_1m": 0.005},
     "zhipuai": {"input_per_1m": 0.002, "output_per_1m": 0.003},
+    "ollama": {"input_per_1m": 0.0, "output_per_1m": 0.0},  # 로컬 추론 (비용 무료)
 }
 
 DALLE3_COST_PER_IMAGE = 0.040
