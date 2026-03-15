@@ -3,6 +3,76 @@
 > 각 AI 도구가 작업할 때마다 아래 형식으로 기록합니다.
 > 최신 세션이 파일 상단에 위치합니다 (역순).
 
+## 2026-03-15 17:49 KST — Antigravity (Gemini) — 시스템 QC 2차
+
+### 작업 요약
+시스템 전체 QC 2차 점검 — 3개 프로젝트 테스트 + 6개 인프라 서비스 + 19개 코어 파일 AST 검증 + 파이프라인 로그 리뷰.
+
+### 검증 결과
+| 항목 | 결과 |
+|------|------|
+| blind-to-x 유닛 | 196 passed, 22 failed (기존), 4 errors (기존) — **신규 regression 0건** |
+| shorts-maker-v2 유닛 | 309 passed, 2 failed (기존), 5 skipped |
+| root 유닛 | **743 passed**, 1 skipped — 🟢 이전 collection error에서 대폭 개선 |
+| 코어 모듈 AST (19파일) | ✅ 전량 OK |
+| Docker/n8n | ✅ Up 2 days |
+| Ollama | ✅ API 200, gemma3:4b 로드 |
+| Task Scheduler | ✅ 5개 Ready |
+| Bridge 서버 | ❌ 미실행 (LOW 리스크) |
+| 디스크 | ✅ 137.57 GB 여유 |
+| Telegram | ⚠️ 토큰 미설정 |
+| 파이프라인 로그 | ✅ 3/15 app_debug.log 정상 동작 확인, 클린 셧다운 |
+
+### QC 판정
+- ✅ **조건부 승인 (CONDITIONALLY APPROVED)** — 핵심 파이프라인 정상, 신규 regression 0건
+- root 테스트 743 passed로 이전 대비 대폭 개선 (Python 3.14 호환성 해결)
+- 조건: Bridge 서버 미실행 인지, Telegram 토큰 미설정 인지, shorts-maker-v2 2건 인지
+
+### 변경 파일
+- `.ai/SESSION_LOG.md` — 세션 기록 최종화
+- `.ai/CONTEXT.md` — 마지막 업데이트 타임스탬프 갱신
+
+### 다음 도구에게 메모
+- Bridge 서버(`infrastructure/n8n/bridge_server.py`) 수동 재시작 필요
+- Telegram `TELEGRAM_BOT_TOKEN` 미설정 — 알림 비활성화 상태
+- root 테스트가 이전 collection error에서 743 passed로 개선됨 (Python 3.14 호환성 해결 확인)
+- QC 리포트: `system_qc_report.md` (Antigravity artifacts 폴더)
+
+---
+
+## 2026-03-15 09:51 KST — Antigravity (Gemini) — 시스템 QC
+
+### 작업 요약
+시스템 전체 QC 점검 실행 — 3개 프로젝트 테스트 + 6개 인프라 서비스 + 19개 코어 파일 AST 검증.
+
+### 검증 결과
+| 항목 | 결과 |
+|------|------|
+| blind-to-x 유닛 | 196 passed, 22 failed (기존), 4 errors (기존) — **신규 regression 0건** |
+| shorts-maker-v2 유닛 | 309 passed, 2 failed (config sync), 8 collection errors (ffmpeg 미설치) |
+| root 유닛 | collection error 1건 (Python 3.14 호환성) |
+| 코어 모듈 AST (19파일) | ✅ 전량 OK |
+| Docker/n8n | ✅ Up 2 days |
+| Ollama | ✅ API 200, gemma3:4b 로드 |
+| Task Scheduler | ✅ 5개 Ready |
+| Bridge 서버 | ❌ 미실행 (LOW 리스크) |
+| 디스크 | ✅ 137GB 여유 |
+
+### QC 판정
+- ✅ **조건부 승인 (CONDITIONALLY APPROVED)** — 핵심 파이프라인 정상, 신규 regression 0건
+- 조건: Bridge 서버 미실행 인지, shorts-maker-v2 config sync 테스트 2건 인지
+
+### 변경 파일
+- (없음 — 읽기 전용 점검)
+
+### 다음 도구에게 메모
+- Bridge 서버(`infrastructure/n8n/bridge_server.py`) 수동 재시작 또는 `autostart_bridge.bat` 시작프로그램 등록 확인 필요
+- Ollama CLI PATH 미등록이지만 서비스 자체는 정상 (API 응답 200)
+- Telegram `TELEGRAM_BOT_TOKEN` 미설정 — 알림 비활성화 상태
+- shorts-maker-v2 `test_config_workflow_sync` 테스트가 config 변경 사항 미반영으로 실패 중
+
+---
+
 ## 2026-03-13 16:18 KST — Antigravity (Gemini) — Ollama 로컬 LLM 5번째 폴백 통합
 
 ### 작업 요약

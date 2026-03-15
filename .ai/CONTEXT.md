@@ -211,4 +211,4 @@ Vibe coding/                      # Root 워크스페이스
 
 ---
 
-*마지막 업데이트: 2026-03-12 15:00 KST (Antigravity — MCP & Skill 확장 QC 2차 완료 + ShortsFactory Quick Win/Phase 1 완료)*
+*마지막 업데이트: 2026-03-15 17:49 KST (Antigravity — 시스템 QC 2차 완료, 조건부 승인)*
