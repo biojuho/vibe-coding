@@ -38,7 +38,13 @@ AI 기반 YouTube Shorts 자동 생성 파이프라인
 - ✅ Phase 2.5: LayoutEngine v2 + ColorEngine v2
   - LayoutEngine: numbered_list, image_text_overlay, metric_dashboard, step_by_step, quote_card, comparison_table
   - ColorEngine: apply_lut, apply_role_grading, blend_presets, auto_correct
-- 🔲 다음: E2E 통합 테스트 (use_shorts_factory=True), render_step에 role_grading 통합
+- ✅ Phase 5: RenderAdapter 파이프라인 연동 + 영상 생성 검증 (QC 승인 2026-03-16)
+  - `ShortsFactory/render.py` 신규 생성 (SFRenderStep.render_scenes)
+  - render_from_plan() → RenderStep.render_scenes() 전체 경로 동작 확인
+  - orchestrator `_try_shorts_factory_render()` 로거 버그 수정 (logger→jlog)
+  - E2E 통합 테스트 26개 (ffmpeg 실제 렌더링 포함)
+  - QA 수정: MoviePy 클립 리소스 해제, text_overlay 중복 분리
+- 🔲 다음: TextEngine 자막 렌더링 → text_image_path 연동, 프로덕션 use_shorts_factory=True 활성화
 
 ## 컨벤션
 - 테스트: `tests/unit/`, `tests/integration/`
@@ -52,4 +58,5 @@ AI 기반 YouTube Shorts 자동 생성 파이프라인
 - ShortsFactory의 `TEMPLATE_REGISTRY`는 `ShortsFactory/templates/`의 BaseTemplate 기반
 - **MoviePy v2.x**: `with_effects()`에 lambda 사용 불가 → Effect 클래스(CrossFadeIn/Out) 사용 필수
 - **TextEngine gradient**: putpixel은 O(W×H) 병목 → numpy 벡터화 필수
+- E2E 통합 테스트(test_shorts_factory_e2e.py)는 ffmpeg 실제 렌더링 포함 → 실행 시간 ~15분
 
