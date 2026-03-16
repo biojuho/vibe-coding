@@ -15,7 +15,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import re
 from pathlib import Path
 
 # Subclass edge_tts.Communicate to allow raw SSML (bypassing xml.sax.saxutils.escape)
@@ -176,21 +175,21 @@ class EdgeTTSClient:
         ssml_text = _apply_ssml_by_role(text, role)
         logger.info("EdgeTTS: voice=%s rate=%s text_len=%d role=%s", edge_voice, rate, len(text), role)
 
-        # 타이밍 추출 모드 선택
-        if words_json_path is not None:
-            coro = _generate_async_with_timing(ssml_text, edge_voice, rate, output_path, words_json_path)
-        else:
-            coro = _generate_async(ssml_text, edge_voice, rate, output_path)
+        def _make_coro():
+            if words_json_path is not None:
+                return _generate_async_with_timing(ssml_text, edge_voice, rate, output_path, words_json_path)
+            return _generate_async(ssml_text, edge_voice, rate, output_path)
 
         # Phase 1-D: asyncio.run() creates a fresh loop — safe in threads.
         # Fallback to dedicated thread only when called from an already-running loop.
         try:
-            asyncio.run(coro)
+            asyncio.run(_make_coro())
         except RuntimeError:
             # "cannot be called from a running event loop" — delegate to new thread
+            # Must create a fresh coroutine since the previous one was consumed
             import concurrent.futures
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(asyncio.run, coro)
+                future = executor.submit(asyncio.run, _make_coro())
                 future.result()
 
         logger.info("EdgeTTS: saved %s", output_path)

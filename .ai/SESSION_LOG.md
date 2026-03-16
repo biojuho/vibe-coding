@@ -3,6 +3,127 @@
 > 각 AI 도구가 작업할 때마다 아래 형식으로 기록합니다.
 > 최신 세션이 파일 상단에 위치합니다 (역순).
 
+## 2026-03-16 — Claude Code (Opus 4.6) — shorts-maker-v2 코드 검증 + 7건 버그 수정
+
+### 작업 요약
+shorts-maker-v2 전체 코드베이스를 검증하고, 프로덕션 런타임 크래시를 유발할 수 있는 Critical 버그 2건 포함 총 7건의 버그를 발견·수정.
+
+### 수정된 버그
+| # | 심각도 | 파일 | 수정 |
+|---|--------|------|------|
+| 1 | **Critical** | `render_step.py` | `_build_sfx_clips()`에서 `afx.MultiplyVolume` 참조 — `afx`는 `run()` 내부 로컬 import라 NameError. 최상단 `MultiplyVolume` import로 수정 |
+| 2 | Medium | `script_step.py:200` | 깨진 한국어 로그 `'완성 합니가에서 대만 수 없어'` → `'찾을 수 없어'` |
+| 3 | Medium | `orchestrator.py:134` | `from_channel_profile()`에 `channel_key` 미전달 → 채널별 리뷰 기준(health/ai_tech 등) 무력화. `channel_key=config._channel_key` 추가 |
+| 4 | Low | `render_step.py:825` | RMS ducking closure가 외부 mutable 참조 → default arg로 로컬 바인딩 + 빈 envelope 방어 |
+| 5 | Medium | `media_step.py:115` | edge-tts(WordBoundary 이미 생성) 후 Whisper가 `_words.json` 덮어쓰기 → `tts != "edge-tts"` 가드 추가 |
+| 6 | Low | `orchestrator.py:339` | `ab_variant`에 `_tone_counter - 1`이 음수/overflow 가능 → modulo 연산 적용 |
+| 7 | **Critical** | `edge_tts_client.py:187` | `asyncio.run()` 실패 시 이미 소비된 coroutine 재사용 → `_make_coro()` 팩토리로 새 coroutine 생성 |
+
+### 추가 정리
+- 미사용 import 제거: `AudioLoop`, `render_ending_card`, `re` (edge_tts_client)
+- `run()` 내부 `import moviepy.audio.fx as afx` 중복 로컬 import 제거
+
+### 변경 파일
+| 파일 | 변경 |
+|------|------|
+| `shorts-maker-v2/src/shorts_maker_v2/pipeline/render_step.py` | BUG #1, #4 수정 + import 정리 |
+| `shorts-maker-v2/src/shorts_maker_v2/pipeline/script_step.py` | BUG #2 수정 |
+| `shorts-maker-v2/src/shorts_maker_v2/pipeline/orchestrator.py` | BUG #3, #6 수정 |
+| `shorts-maker-v2/src/shorts_maker_v2/pipeline/media_step.py` | BUG #5 수정 |
+| `shorts-maker-v2/src/shorts_maker_v2/providers/edge_tts_client.py` | BUG #7 수정 + 미사용 import 제거 |
+
+### QC 결과
+| 항목 | 결과 |
+|------|------|
+| Unit 테스트 354 passed, 4 skipped | ✅ PASS |
+| Integration 테스트 | ⏭️ SKIP (외부 API 타임아웃, 네트워크 의존) |
+| 신규 기능 추가 | 없음 (버그 수정만) |
+
+### 다음 도구에게 메모
+- Integration 테스트(`tests/integration/`)는 외부 API 호출 포함으로 120s+ 소요. 로컬 네트워크 상태에 따라 타임아웃 발생 가능.
+- `render_step.py`에 Pillow DeprecationWarning 29건 (`'mode' parameter`) — Pillow 13(2026-10) 제거 예정, `ShortsFactory/engines/`에서 발생. 향후 대응 필요.
+
+## 2026-03-16 15:55 KST — Antigravity (Gemini) — SiteAgent 패턴 적용 (#1~#5)
+
+### 작업 요약
+GiniGen AI SiteAgent 프로젝트 분석 후, Shorts Maker V2 파이프라인에 5가지 핵심 패턴을 적용:
+1. **에러 타입 세분화** — 9종 `PipelineErrorType` enum + 자동 분류기
+2. **상태 표시 컬러 시스템** — 6종 `StepStatus` + ANSI/Hex 컬러 + CLI 아이콘
+3. **MARL 자기검증** — 리서치↔대본 일관성 LLM 교차검증 + 자동 수정
+4. **Pydantic 스키마 강제** — `ScriptOutput`/`SceneOutput` 모델로 LLM 출력 구조 검증
+5. **스마트 재시도 에이전트 루프** — 에러 타입별 차별화 복구 전략 (retry/fallback/abort)
+
+### 변경 파일
+| 파일 | 변경 | 설명 |
+|------|------|------|
+| `shorts-maker-v2/src/shorts_maker_v2/pipeline/error_types.py` | **신규** | 9종 에러 분류 + classify_error + PipelineError |
+| `shorts-maker-v2/src/shorts_maker_v2/utils/pipeline_status.py` | **신규** | 6종 상태 표시 + PipelineStatusTracker |
+| `shorts-maker-v2/src/shorts_maker_v2/pipeline/script_step.py` | 수정 | MARL 검증(_verify_with_research) + Pydantic 스키마(ScriptOutput) |
+| `shorts-maker-v2/src/shorts_maker_v2/pipeline/orchestrator.py` | 수정 | 에러 타입 통합 + 상태 트래커 통합 + _smart_retry_strategy |
+| `shorts-maker-v2/tests/unit/test_siteagent_patterns.py` | **신규** | 34개 단위 테스트 |
+
+### QC 결과
+| 항목 | 결과 |
+|------|------|
+| 신규 테스트 34/34 | ✅ PASS |
+| 기존 테스트 354 passed, 5 skipped | ✅ PASS |
+| 실패 2건 (기존 결함, 이번 변경 무관) | ⚠️ 기존 |
+| AST 파싱 9개 핵심 파일 | ✅ PASS |
+| Pydantic 미설치 graceful degradation | ✅ PASS |
+| **QC 판정** | ✅ **승인 (APPROVED)** |
+
+### 결정사항
+- 에러 타입은 string enum으로 JSONL 로그에 직접 직렬화 가능하게 설계
+- Pydantic은 optional dependency — 미설치 시 검증 자동 스킵 (graceful)
+- MARL 자기검증은 리서치가 활성화된 경우에만 실행
+- orchestrator의 logger 변수를 `jlog`으로 rename (stdlib logger와 충돌 방지)
+
+### TODO
+- (없음 — 5가지 패턴 모두 적용 완료)
+
+### 다음 도구에게 메모
+- `error_types.py`의 `classify_error()`로 모든 에러를 분류 가능
+- `PipelineStatusTracker`는 `quiet=True`로 CLI 출력 비활성 가능
+- 기존 실패 2건: `test_media_fallback`, `test_apply_backward_compat` — moviepy/ShortsFactory 쪽 기존 결함
+
+
+## 2026-03-16 15:00 KST — Antigravity (Gemini) — 바이브 코딩 어시스턴트 Custom Instructions 설정
+
+### 작업 요약
+"바이브 코딩 어시스턴트" Custom Instructions를 `.agents/rules/vibe-coding-assistant.md`에 설정. 비개발자/초보 개발자 대응을 위한 8가지 규칙 (프로젝트 감지, 사용자 레벨 파악, 기능 추출 & 스텝 분할, 로드맵 보여주기, 스텝 실행, 이어하기 문서, 이어하기 문서 수신 처리, 유연한 대응). 3개 에이전트 미러링 파일에 참조 추가.
+
+### 변경 파일
+| 파일 | 변경 | 설명 |
+|------|------|------|
+| `.agents/rules/vibe-coding-assistant.md` | **신규** | 바이브 코딩 어시스턴트 Custom Instructions 전체 (8규칙, 119줄) |
+| `GEMINI.md` | 수정 | 바이브 코딩 어시스턴트 참조 섹션 추가 (L97~100) |
+| `AGENTS.md` | 수정 | 동일 참조 미러링 |
+| `CLAUDE.md` | 수정 | 동일 참조 미러링 |
+
+### QC 결과
+| 항목 | 결과 |
+|------|------|
+| GEMINI.md ↔ AGENTS.md 미러링 | ✅ PASS (`FC: 다른 점이 없습니다`) |
+| GEMINI.md ↔ CLAUDE.md 미러링 | ✅ PASS (`FC: 다른 점이 없습니다`) |
+| 3파일 모두 vibe-coding-assistant.md 참조 | ✅ PASS (L99 동일) |
+| vibe-coding-assistant.md 규칙 8개 완전성 | ✅ PASS (view_file 수동 검증) |
+| 사용자 원문과 내용 일치 | ✅ PASS |
+| 기존 project-rules.md 훼손 없음 | ✅ PASS |
+| **QC 판정** | ✅ **승인 (APPROVED)** |
+
+### 결정사항
+- Custom Instructions는 기존 3계층 아키텍처 지침과 **별도 파일**로 분리 (`.agents/rules/vibe-coding-assistant.md`)
+- 에이전트 미러링 파일(GEMINI/AGENTS/CLAUDE.md)에는 참조 링크만 추가
+
+### TODO
+- (없음)
+
+### 다음 도구에게 메모
+- 프로젝트 규모의 코딩 요청이 들어오면 `.agents/rules/vibe-coding-assistant.md` 규칙 따를 것
+- 핵심 흐름: 프로젝트 감지 → 사용자 레벨 파악 → 기능 분할 → 로드맵 확인 → 스텝별 실행 → 이어하기 문서 생성
+
+---
+
 ## 2026-03-16 14:46 KST — Antigravity (Gemini) — shorts-maker-v2 영상 길이 최적화 + Critical Bug Fix
 
 ### 작업 요약

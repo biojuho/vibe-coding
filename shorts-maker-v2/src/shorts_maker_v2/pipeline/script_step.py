@@ -6,6 +6,12 @@ import math
 import re
 from typing import Any
 
+try:
+    from pydantic import BaseModel, Field, ValidationError
+    _HAS_PYDANTIC = True
+except ImportError:  # graceful degradation
+    _HAS_PYDANTIC = False
+
 logger = logging.getLogger(__name__)
 
 from shorts_maker_v2.config import AppConfig
@@ -20,6 +26,28 @@ class TopicUnsuitableError(Exception):
     n8n 워크플로우에서 'topic_unsuitable' 상태를 분기 조건으로 사용.
     """
     pass
+
+
+# ── 패턴 #4: Pydantic 스키마 기반 출력 검증 ────────────────────────────────
+
+if _HAS_PYDANTIC:
+    class SceneOutput(BaseModel):
+        """LLM이 반환해야 하는 개별 씬 스키마."""
+        narration_ko: str = Field(..., min_length=5, description="한국어 나레이션")
+        visual_prompt_en: str = Field(..., min_length=5, description="DALL-E용 영어 비주얼 프롬프트")
+        estimated_seconds: float = Field(default=5.0, ge=1.0, le=30.0)
+        structure_role: str = Field(default="body", pattern=r"^(hook|body|cta)$")
+
+    class ScriptOutput(BaseModel):
+        """LLM 대본 생성 전체 출력 스키마.
+
+        SiteAgent의 zodToOpenAITool 패턴을 Pydantic으로 구현.
+        LLM 응답이 이 스키마에 맞지 않으면 ValidationError 발생.
+        """
+        title: str = Field(..., min_length=1, max_length=100)
+        scenes: list[SceneOutput] = Field(..., min_length=1)
+        no_reliable_source: bool = Field(default=False)
+        reason: str = Field(default="")
 
 
 class ScriptStep:
@@ -169,7 +197,7 @@ class ScriptStep:
                     logger.info("[Hook] 채널 고정 패턴 적용: %s", name)
                     return name, instruction
             logger.warning(
-                "[Hook] channel_hook_pattern '%s'를 완성 합니가에서 대만 수 없어 로테이션으로 폴백.",
+                "[Hook] channel_hook_pattern '%s'를 찾을 수 없어 로테이션으로 폴백.",
                 self.channel_hook_pattern,
             )
         return self._next_hook_pattern()
@@ -523,6 +551,154 @@ class ScriptStep:
         )
         return result if isinstance(result, dict) else {}
 
+    # ── 패턴 #3: MARL 자기검증 (리서치 일관성 검증) ────────────────────────
+
+    def _verify_with_research(
+        self,
+        title: str,
+        scenes: list[ScenePlan],
+        research_context: Any,
+    ) -> dict[str, Any]:
+        """MARL 단계 2: 대본과 리서치 결과의 일관성을 LLM으로 자기검증.
+
+        SiteAgent의 MARL 메타인지 패턴(생성→자기검증→수정) 중 '자기검증' 단계.
+        리서치에서 확인된 팩트와 대본의 주장이 일치하는지, 과장이나 왜곡이 없는지 확인.
+
+        Args:
+            title: 대본 제목
+            scenes: 생성된 씬 목록
+            research_context: 리서치 스텝 결과 (to_prompt_block 메서드 필요)
+
+        Returns:
+            검증 결과 딕셔너리:
+            {
+                "consistent": true/false,
+                "issues": ["과장된 부분 설명", ...],
+                "fixes": [{"scene_id": 2, "original": "...", "suggested": "..."}, ...],
+                "confidence": 0.0-1.0
+            }
+        """
+        if not hasattr(research_context, "to_prompt_block"):
+            return {"consistent": True, "issues": [], "fixes": [], "confidence": 1.0}
+
+        research_block = research_context.to_prompt_block()
+        if not research_block:
+            return {"consistent": True, "issues": [], "fixes": [], "confidence": 1.0}
+
+        script_text = f"Title: {title}\n\n"
+        for s in scenes:
+            script_text += f"[Scene {s.scene_id} / {s.structure_role.upper()}]\n{s.narration_ko}\n\n"
+
+        system_prompt = (
+            "You are a fact-checking editor for YouTube Shorts scripts. "
+            "Compare the SCRIPT against the RESEARCH FACTS below.\n\n"
+            "For each factual claim in the script, check:\n"
+            "  1. Is it supported by the research facts?\n"
+            "  2. Is it exaggerated or distorted from the original data?\n"
+            "  3. Are any important facts from the research missing?\n\n"
+            "Output ONLY valid JSON:\n"
+            '{\n'
+            '  "consistent": true/false,\n'
+            '  "issues": ["description of each inconsistency"],\n'
+            '  "fixes": [{"scene_id": N, "original": "problematic text", "suggested": "corrected text"}],\n'
+            '  "confidence": 0.0-1.0\n'
+            '}'
+        )
+
+        user_prompt = (
+            f"=== RESEARCH FACTS ===\n{research_block}\n\n"
+            f"=== SCRIPT TO VERIFY ===\n{script_text}"
+        )
+
+        try:
+            result = self.llm_router.generate_json(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                temperature=0.1,
+                thinking_level="medium",
+            )
+            return result if isinstance(result, dict) else {"consistent": True, "issues": [], "fixes": [], "confidence": 1.0}
+        except Exception as exc:
+            logger.warning("[MARL] verification failed (skipped): %s", exc)
+            return {"consistent": True, "issues": [], "fixes": [], "confidence": 1.0}
+
+    def _apply_verification_fixes(
+        self,
+        scenes: list[ScenePlan],
+        verification: dict[str, Any],
+    ) -> list[ScenePlan]:
+        """MARL 단계 3: 자기검증에서 발견된 문제를 자동 수정.
+
+        Args:
+            scenes: 원본 씬 목록
+            verification: _verify_with_research의 반환값
+
+        Returns:
+            수정된 씬 목록 (수정 사항이 없으면 원본 그대로)
+        """
+        fixes = verification.get("fixes", [])
+        if not fixes:
+            return scenes
+
+        # scene_id → suggested narration 매핑
+        fix_map: dict[int, str] = {}
+        for fix in fixes:
+            sid = fix.get("scene_id")
+            suggested = fix.get("suggested", "")
+            if sid and suggested:
+                fix_map[int(sid)] = suggested
+
+        if not fix_map:
+            return scenes
+
+        patched: list[ScenePlan] = []
+        for scene in scenes:
+            if scene.scene_id in fix_map:
+                new_narration = fix_map[scene.scene_id]
+                new_target = self.estimate_narration_duration_sec(
+                    new_narration,
+                    language=self.config.project.language,
+                    tts_speed=self.config.providers.tts_speed,
+                )
+                patched.append(
+                    ScenePlan(
+                        scene_id=scene.scene_id,
+                        narration_ko=new_narration,
+                        visual_prompt_en=scene.visual_prompt_en,
+                        target_sec=new_target,
+                        structure_role=scene.structure_role,
+                    )
+                )
+                logger.info(
+                    "[MARL] Scene %d narration patched (%.0f→%.0f chars)",
+                    scene.scene_id, len(scene.narration_ko), len(new_narration),
+                )
+            else:
+                patched.append(scene)
+
+        return patched
+
+    # ── 패턴 #4: Pydantic 스키마 출력 검증 ────────────────────────────────
+
+    @staticmethod
+    def _validate_script_schema(payload: dict[str, Any]) -> list[str]:
+        """Pydantic 모델로 LLM 응답 스키마를 검증.
+
+        SiteAgent의 Zod → OpenAI Tool 패턴을 Pydantic으로 구현.
+        Pydantic이 없으면 빈 리스트 반환 (graceful degradation).
+
+        Returns:
+            에러 메시지 리스트 (비어있으면 유효)
+        """
+        if not _HAS_PYDANTIC:
+            return []
+
+        try:
+            ScriptOutput.model_validate(payload)
+            return []
+        except ValidationError as e:
+            return [str(err) for err in e.errors()]
+
     def _passes_review(self, review: dict[str, Any], min_score: int) -> bool:
         """채널별 필수 키 전체가 min_score 이상이면 통과."""
         _, required_keys, _ = self._build_review_system()
@@ -668,6 +844,16 @@ class ScriptStep:
                 thinking_level=gen_thinking,
             )
 
+            # ── 패턴 #4: Pydantic 스키마 검증 ─────────────────────────────
+            if isinstance(payload, dict):
+                schema_errors = self._validate_script_schema(payload)
+                if schema_errors:
+                    logger.warning(
+                        "[ScriptSchema] validation errors (attempt %d): %s",
+                        attempt, "; ".join(schema_errors[:3]),
+                    )
+                    # 스키마 에러가 있어도 기존 로직으로 파싱 시도 (graceful)
+
             # ── no_reliable_source 감지 (1차: 생성 단계) ─────────────────
             if isinstance(payload, dict) and payload.get("no_reliable_source"):
                 reason = payload.get("reason", "LLM이 신뢰할 자료 부족으로 판단")
@@ -697,6 +883,26 @@ class ScriptStep:
 
         if best_result is None:
             raise ValueError("Failed to generate a usable script.")
+
+        # ── 패턴 #3: MARL 자기검증 (리서치 일관성 검증) ────────────────────
+        if research_context is not None:
+            title_out, scenes_out = best_result
+            verification = self._verify_with_research(title_out, scenes_out, research_context)
+            is_consistent = verification.get("consistent", True)
+            issues = verification.get("issues", [])
+            confidence = verification.get("confidence", 1.0)
+
+            logger.info(
+                "[MARL] verification: consistent=%s, confidence=%.2f, issues=%d",
+                is_consistent, confidence, len(issues),
+            )
+
+            if not is_consistent and issues:
+                logger.warning("[MARL] inconsistencies found: %s", "; ".join(issues[:3]))
+                # 자동 수정 적용
+                scenes_out = self._apply_verification_fixes(scenes_out, verification)
+                best_result = (title_out, scenes_out)
+                logger.info("[MARL] auto-fix applied, %d scenes patched", len(verification.get("fixes", [])))
 
         # 최종 추정 길이 사전 체크 + 초과 시 강제 Truncation
         final_total = self.estimate_total_duration_sec(best_result[1])

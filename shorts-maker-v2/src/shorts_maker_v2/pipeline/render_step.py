@@ -16,7 +16,7 @@ from moviepy import (
     concatenate_videoclips,
     vfx,
 )
-from moviepy.audio.fx import AudioLoop, MultiplyVolume
+from moviepy.audio.fx import MultiplyVolume
 
 from shorts_maker_v2.config import AppConfig
 from shorts_maker_v2.models import SceneAsset, ScenePlan
@@ -32,7 +32,6 @@ from shorts_maker_v2.render.karaoke import (
 )
 from shorts_maker_v2.render.animations import apply_text_animation
 from shorts_maker_v2.render.broll_overlay import create_broll_pip
-from shorts_maker_v2.render.ending_card import render_ending_card
 from shorts_maker_v2.render.hud_overlay import render_hud_overlay
 
 # MoviePy 2.x: PIL.Image.ANTIALIAS hotfix no longer needed (Pillow native)
@@ -511,19 +510,19 @@ class RenderStep:
             if role == "hook" and sfx_files.get("hook"):
                 sfx_path = random.choice(sfx_files["hook"])
                 clip = AudioFileClip(str(sfx_path))
-                clip = clip.with_effects([afx.MultiplyVolume(volume)])
+                clip = clip.with_effects([MultiplyVolume(volume)])
                 sfx_clips.append(clip.with_start(cursor))
             # CTA 씬 시작에 팝 SFX
             elif role == "cta" and sfx_files.get("cta"):
                 sfx_path = random.choice(sfx_files["cta"])
                 clip = AudioFileClip(str(sfx_path))
-                clip = clip.with_effects([afx.MultiplyVolume(volume)])
+                clip = clip.with_effects([MultiplyVolume(volume)])
                 sfx_clips.append(clip.with_start(cursor))
             # 씬 전환 시점에 스위시 SFX (마지막 씬 제외)
             if i < len(scene_roles) - 1 and sfx_files.get("transition"):
                 sfx_path = random.choice(sfx_files["transition"])
                 clip = AudioFileClip(str(sfx_path))
-                clip = clip.with_effects([afx.MultiplyVolume(volume)])
+                clip = clip.with_effects([MultiplyVolume(volume)])
                 transition_t = max(0, cursor + dur - 0.15)
                 sfx_clips.append(clip.with_start(transition_t))
             cursor += dur
@@ -578,8 +577,6 @@ class RenderStep:
         Returns:
             렌더링된 MP4 파일 경로
         """
-        import moviepy.audio.fx as afx
-
         target_width, target_height = self.config.video.resolution
         io_cfg = self.config.intro_outro
 
@@ -825,10 +822,17 @@ class RenderStep:
                         sum(1 for r in rms_profile if r > rms_threshold) / max(len(rms_profile), 1) * 100,
                     )
 
-                    def _ducked_bgm_volume(t: float) -> float:
+                    # closure에서 참조할 값을 로컬 바인딩
+                    _envelope = list(duck_envelope)
+                    _hop = hop_sec
+                    _base = base_vol
+
+                    def _ducked_bgm_volume(t: float, _e=_envelope, _h=_hop, _b=_base) -> float:
                         """RMS 기반 ducking 볼륨 계수."""
-                        idx = min(int(t / hop_sec), len(duck_envelope) - 1)
-                        return base_vol * duck_envelope[max(0, idx)]
+                        if not _e:
+                            return _b
+                        idx = min(int(t / _h), len(_e) - 1)
+                        return _b * _e[max(0, idx)]
 
                     bgm_clip = bgm_clip.transform(
                         lambda get_frame, t: get_frame(t) * _ducked_bgm_volume(t),

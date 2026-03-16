@@ -112,7 +112,8 @@ class MediaStep:
                 output_path=output_path,
             )
 
-        if self.config.audio.sync_with_whisper and self.openai_client:
+        # edge-tts는 WordBoundary로 _words.json을 이미 생성하므로 Whisper 불필요
+        if self.config.providers.tts != "edge-tts" and self.config.audio.sync_with_whisper and self.openai_client:
             try:
                 import json
                 words = self.openai_client.transcribe_audio(audio_result)

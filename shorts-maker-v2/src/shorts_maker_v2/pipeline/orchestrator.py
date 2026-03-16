@@ -13,6 +13,11 @@ import yaml
 
 from shorts_maker_v2.config import AppConfig, resolve_runtime_paths
 from shorts_maker_v2.models import JobManifest, SceneAsset, ScenePlan
+from shorts_maker_v2.pipeline.error_types import (
+    PipelineError,
+    PipelineErrorType,
+    classify_error,
+)
 from shorts_maker_v2.pipeline.media_step import MediaStep
 from shorts_maker_v2.pipeline.render_step import RenderStep
 from shorts_maker_v2.pipeline.research_step import ResearchStep
@@ -25,6 +30,10 @@ from shorts_maker_v2.providers.pexels_client import PexelsClient
 from shorts_maker_v2.render.srt_export import export_srt
 from shorts_maker_v2.utils.cost_guard import CostGuard
 from shorts_maker_v2.utils.cost_tracker import CostTracker
+from shorts_maker_v2.utils.pipeline_status import (
+    PipelineStatusTracker,
+    StepStatus,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +132,7 @@ class PipelineOrchestrator:
         if channel_profile:
             self.script_step = script_step or ScriptStep.from_channel_profile(
                 config, llm_router, channel_profile, openai_client=openai_client,
+                channel_key=config._channel_key,
             )
         else:
             self.script_step = script_step or ScriptStep(
@@ -197,6 +207,67 @@ class PipelineOrchestrator:
         except Exception as exc:
             logger.warning("cleanup_failed", error=str(exc))
 
+    # ── 패턴 #5: 에이전트 루프 스마트 재시도 ────────────────────────────────
+
+    @staticmethod
+    def _smart_retry_strategy(
+        error: BaseException,
+        step_name: str,
+        attempt: int,
+        max_attempts: int = 3,
+    ) -> dict[str, Any]:
+        """에이전트 루프: 관찰→사고→행동 전략 결정.
+
+        SiteAgent의 에이전트 루프 패턴(관찰→사고→행동→평가)을 적용:
+        에러를 관찰(분류)하고, 복구 전략을 사고(결정)합니다.
+
+        Args:
+            error: 발생한 예외
+            step_name: 실패한 스텝 이름
+            attempt: 현재 시도 횟수
+            max_attempts: 최대 시도 횟수
+
+        Returns:
+            전략 딕셔너리:
+            {
+                "action": "retry" | "fallback" | "skip" | "abort",
+                "error_type": PipelineErrorType,
+                "wait_sec": float,
+                "detail": str,
+            }
+        """
+        # 1단계: 관찰 (에러 분류)
+        error_type = classify_error(error)
+
+        # 2단계: 사고 (전략 결정)
+        if not error_type.is_retryable:
+            return {
+                "action": "abort",
+                "error_type": error_type,
+                "wait_sec": 0,
+                "detail": f"{error_type.icon} [{step_name}] 복구 불가: {error_type.value}",
+            }
+
+        if attempt >= max_attempts:
+            return {
+                "action": "fallback" if step_name in ("research", "thumbnail") else "abort",
+                "error_type": error_type,
+                "wait_sec": 0,
+                "detail": f"{error_type.icon} [{step_name}] 최대 재시도 초과 ({attempt}/{max_attempts})",
+            }
+
+        # 타입별 대기 시간
+        wait_sec = error_type.suggested_wait_sec
+        if error_type == PipelineErrorType.RATE_LIMIT:
+            wait_sec = min(wait_sec * attempt, 60)  # progressive backoff
+
+        return {
+            "action": "retry",
+            "error_type": error_type,
+            "wait_sec": wait_sec,
+            "detail": f"{error_type.icon} [{step_name}] 재시도 {attempt}/{max_attempts} ({wait_sec:.0f}s 대기)",
+        }
+
     def run(self, topic: str, output_filename: str | None = None, channel: str = "", parallel: bool = False, resume_job_id: str | None = None) -> JobManifest:
         if resume_job_id:
             job_id = resume_job_id
@@ -208,8 +279,11 @@ class PipelineOrchestrator:
             run_dir = self.paths.runs_dir / job_id
             run_dir.mkdir(parents=True, exist_ok=True)
             
-        logger = JsonlLogger(self.paths.logs_dir / f"{job_id}.jsonl")
+        jlog = JsonlLogger(self.paths.logs_dir / f"{job_id}.jsonl")
         cost_guard = CostGuard(max_cost_usd=self.config.limits.max_cost_usd, price_table=self.config.costs)
+
+        # 패턴 #2: 상태 표시 트래커 초기화
+        status = PipelineStatusTracker(job_id=job_id)
 
         manifest = JobManifest(
             job_id=job_id,
@@ -218,12 +292,12 @@ class PipelineOrchestrator:
             created_at=datetime.now(timezone.utc).isoformat(),
         )
         failures: list[dict[str, str]] = []
-        logger.info("job_started", job_id=job_id, topic=topic, channel=channel or "")
+        jlog.info("job_started", job_id=job_id, topic=topic, channel=channel or "")
 
         try:
             checkpoint_path = run_dir / "checkpoint.json"
             if resume_job_id and checkpoint_path.exists():
-                logger.info("loading_checkpoint", path=str(checkpoint_path))
+                jlog.info("loading_checkpoint", path=str(checkpoint_path))
                 cp_data = json.loads(checkpoint_path.read_text(encoding="utf-8"))
                 title = cp_data["title"]
                 hook_pattern = cp_data["hook_pattern"]
@@ -232,22 +306,29 @@ class PipelineOrchestrator:
                 manifest.scene_count = len(scene_plans)
                 manifest.hook_pattern = hook_pattern
                 manifest.ab_variant = cp_data.get("ab_variant", {})
-                logger.info("checkpoint_loaded", scene_count=manifest.scene_count)
+                jlog.info("checkpoint_loaded", scene_count=manifest.scene_count)
+                status.update("checkpoint", StepStatus.COMPLETED, detail=f"{manifest.scene_count} scenes loaded")
             else:
                 # ── Research Step (활성화 시) ──
                 research_context = None
                 if self.research_step:
+                    status.start("research", detail="Gathering facts")
                     try:
                         research_context = self.research_step.run(topic)
-                        logger.info(
+                        jlog.info(
                             "research_done",
                             facts=len(research_context.facts),
                             data_points=len(research_context.key_data_points),
                             elapsed_sec=research_context.elapsed_sec,
                         )
+                        status.complete("research", detail=f"{len(research_context.facts)} facts")
                     except Exception as exc:
-                        logger.warning("research_failed", error=str(exc))
+                        # 패턴 #5: 스마트 재시도 — research는 실패해도 계속 진행
+                        error_type = classify_error(exc)
+                        jlog.warning("research_failed", error=str(exc), error_type=error_type.value)
+                        status.fail("research", detail=f"{error_type.icon} {error_type.value}")
 
+                status.start("script", detail="Generating script")
                 title, scene_plans, hook_pattern = self.script_step.run(topic, research_context=research_context)
                 manifest.title = title
                 manifest.scene_count = len(scene_plans)
@@ -255,11 +336,12 @@ class PipelineOrchestrator:
                 # A/B 변수 기록 (성과 분석용)
                 manifest.ab_variant = {
                     "hook_pattern": hook_pattern,
-                    "tone_preset": str(ScriptStep._tone_counter - 1),
-                    "structure_preset": str(ScriptStep._structure_counter - 1),
+                    "tone_preset": str((ScriptStep._tone_counter - 1) % len(ScriptStep.TONE_PRESETS)),
+                    "structure_preset": str((ScriptStep._structure_counter - 1) % max(len(self.config.project.structure_presets or {}), 1)),
                     "caption_combo": str(self._job_index % len(RenderStep._CAPTION_COMBOS)),
                 }
                 cost_guard.add_llm_cost()
+                status.complete("script", detail=f"{manifest.scene_count} scenes, {manifest.title[:30]}")
                 
                 # 체크포인트 저장
                 cp_data = {
@@ -270,17 +352,23 @@ class PipelineOrchestrator:
                 }
                 checkpoint_path.write_text(json.dumps(cp_data, ensure_ascii=False, indent=2), encoding="utf-8")
                 
-                logger.info("script_ready", scene_count=manifest.scene_count, title=title, hook_pattern=hook_pattern)
+                jlog.info("script_ready", scene_count=manifest.scene_count, title=title, hook_pattern=hook_pattern)
 
+            status.start("media", detail="Generating media assets")
             media_runner = self.media_step.run_parallel if parallel else self.media_step.run
             scene_assets, media_failures = media_runner(
                 scene_plans=scene_plans,
                 run_dir=run_dir,
                 cost_guard=cost_guard,
-                logger=logger,
+                logger=jlog,
             )
+            # 패턴 #1: 에러 타입 세분화 — 미디어 실패를 구조화
+            for mf in media_failures:
+                error_type = classify_error(Exception(mf.get("message", "")))
+                mf["error_type"] = error_type.value
             failures.extend(media_failures)
-            logger.info("media_ready", scene_count=len(scene_assets))
+            jlog.info("media_ready", scene_count=len(scene_assets))
+            status.complete("media", detail=f"{len(scene_assets)}/{len(scene_plans)} assets")
             
             if len(scene_assets) < len(scene_plans):
                 raise RuntimeError(
@@ -291,6 +379,7 @@ class PipelineOrchestrator:
             safe_output_name = Path(output_filename).name if output_filename else f"{job_id}.mp4"
 
             # ── Phase 3: ShortsFactory 렌더링 분기 ──
+            status.start("render", detail="Rendering video")
             sf_rendered = False
             if self._use_shorts_factory and channel:
                 sf_rendered = self._try_shorts_factory_render(
@@ -298,7 +387,7 @@ class PipelineOrchestrator:
                     scene_plans=scene_plans,
                     scene_assets=scene_assets,
                     output_path=self.paths.output_dir / safe_output_name,
-                    logger=logger,
+                    logger=jlog,
                 )
 
             if sf_rendered:
@@ -319,7 +408,7 @@ class PipelineOrchestrator:
             manifest.total_duration_sec = round(sum(item.duration_sec for item in scene_assets), 3)
             # YouTube Shorts 상한 (45초) 체크
             if manifest.total_duration_sec > 45:
-                logger.warning(
+                jlog.warning(
                     "shorts_overlength",
                     total_sec=manifest.total_duration_sec,
                     limit_sec=45,
@@ -327,17 +416,22 @@ class PipelineOrchestrator:
                 )
             manifest.status = "success"
             manifest.ab_variant["renderer"] = "shorts_factory" if sf_rendered else "native"
-            logger.info(
+            status.complete("render", detail=f"{manifest.total_duration_sec:.1f}s")
+            jlog.info(
                 "render_done",
                 output_path=manifest.output_path,
                 total_duration_sec=manifest.total_duration_sec,
                 renderer="shorts_factory" if sf_rendered else "native",
             )
 
+            status.start("thumbnail", detail="Generating thumbnail")
             thumb_path = self.thumbnail_step.run(title=title, output_dir=self.paths.output_dir, topic=topic)
             if thumb_path:
                 manifest.thumbnail_path = thumb_path
-                logger.info("thumbnail_done", thumbnail_path=thumb_path)
+                jlog.info("thumbnail_done", thumbnail_path=thumb_path)
+                status.complete("thumbnail")
+            else:
+                status.update("thumbnail", StepStatus.SKIPPED)
 
             # SRT 자막 내보내기 (Whisper 타이밍 기반, fallback: narration 텍스트)
             try:
@@ -364,30 +458,41 @@ class PipelineOrchestrator:
                 )
                 if srt_path.exists() and srt_path.stat().st_size > 0:
                     manifest.srt_path = srt_path.resolve().as_posix()
-                    logger.info("srt_exported", srt_path=manifest.srt_path)
+                    jlog.info("srt_exported", srt_path=manifest.srt_path)
             except Exception as srt_exc:
-                logger.warning("srt_export_failed", error=str(srt_exc))
+                jlog.warning("srt_export_failed", error=str(srt_exc))
         except TopicUnsuitableError as exc:
             # 주제 부적합 — 자료 부족으로 스킵 (n8n에서 분기 가능)
-            failures.append({"step": "script", "code": "TopicUnsuitableError", "message": str(exc)})
+            failures.append({"step": "script", "code": "TopicUnsuitableError", "message": str(exc), "error_type": "content_filter"})
             manifest.status = "topic_unsuitable"
-            logger.warning("topic_unsuitable", error=str(exc), topic=topic)
+            jlog.warning("topic_unsuitable", error=str(exc), topic=topic)
+            status.fail("script", detail="topic unsuitable")
         except Exception as exc:
-            failures.append({"step": "pipeline", "code": type(exc).__name__, "message": str(exc)})
+            # 패턴 #1+#5: 에러 타입 세분화 + 스마트 전략 로깅
+            error_type = classify_error(exc)
+            pe = PipelineError.from_exception(exc, step="pipeline")
+            failures.append(pe.to_dict())
             manifest.status = "failed"
-            logger.error("job_failed", error=str(exc), error_type=type(exc).__name__)
+            jlog.error(
+                "job_failed",
+                error=str(exc),
+                error_type=error_type.value,
+                is_retryable=error_type.is_retryable,
+            )
+            status.fail("pipeline", detail=f"{error_type.icon} {error_type.value}: {str(exc)[:60]}")
             # 체크포인트 재개를 위해 실패 시에도 미디어 파일을 보존합니다.
-            # self._cleanup_run_dir(run_dir, logger)
+            # self._cleanup_run_dir(run_dir, jlog)
 
         manifest.estimated_cost_usd = round(cost_guard.estimated_cost_usd, 6)
         manifest.failed_steps = failures
         run_manifest_path, output_manifest_path = self._save_manifest(manifest, run_dir=run_dir)
-        logger.info(
+        jlog.info(
             "job_finished",
             status=manifest.status,
             estimated_cost_usd=manifest.estimated_cost_usd,
             run_manifest=run_manifest_path.resolve().as_posix(),
             output_manifest=output_manifest_path.resolve().as_posix(),
+            status_summary=status.to_log_record(),
         )
 
         # 비용 추적기에 기록
