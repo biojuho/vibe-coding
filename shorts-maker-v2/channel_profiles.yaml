@@ -34,8 +34,8 @@ channels:
       - "AI neural network visualization, glowing nodes, dark space background, ultra HD"
 
     # 스크립트 생성 파라미터 (채널 최적화)
-    target_duration_sec: 30          # 실측 TTS가 +40~80% 길어지므로 보수적 설정 (60초 제한)
-    target_chars: "250-290"          # 30초 x 8.5cps x 1.15speed
+    target_duration_sec: 35          # 상한 45초 내 목표 (CPS 4.2 보정)
+    target_chars: "130-160"          # 35초 x 4.2cps x 1.15speed
     hook_pattern: "shocking_stat"    # 충격 통계/수치로 시작
 
     # 콘텐츠 구조
@@ -121,8 +121,8 @@ channels:
       - "Dreamy soft focus photography, warm golden hour light, peaceful nature"
 
     # 스크립트 생성 파라미터 (채널 최적화)
-    target_duration_sec: 40          # 실측 TTS 보정 (60초 제한)
-    target_chars: "330-370"          # 40초 x 8.5cps x 1.00speed
+    target_duration_sec: 38          # 상한 45초 내 목표 (CPS 4.2 보정)
+    target_chars: "140-170"          # 38초 x 4.2cps x 1.00speed
     hook_pattern: "relatable_frustration"  # 공감·감성 후킹
 
     # 콘텐츠 구조
@@ -202,8 +202,8 @@ channels:
       - "Epic historical scene, wide angle, dramatic sky, cinematic color grading"
 
     # 스크립트 생성 파라미터 (채널 최적화)
-    target_duration_sec: 38          # 실측 TTS 보정 (60초 제한)
-    target_chars: "320-360"          # 38초 x 8.5cps x 1.05speed
+    target_duration_sec: 35          # 상한 45초 내 목표 (CPS 4.2 보정)
+    target_chars: "135-160"          # 35초 x 4.2cps x 1.05speed
     hook_pattern: "myth_busting"     # "사실은 이게 아니에요" 반전 훅
 
     # 콘텐츠 구조
@@ -298,8 +298,8 @@ channels:
       - "Astronaut POV, Earth from space, curved horizon, ISS perspective"
 
     # 스크립트 생성 파라미터 (채널 최적화)
-    target_duration_sec: 35          # 실측 TTS 보정 (60초 제한)
-    target_chars: "310-350"          # 35초 x 8.5cps x 1.10speed
+    target_duration_sec: 35          # 상한 45초 내 목표 (CPS 4.2 보정)
+    target_chars: "135-165"          # 35초 x 4.2cps x 1.10speed
     hook_pattern: "counterintuitive_question"  # 역발상 질문으로 경이로움 유발
 
     # 콘텐츠 구조
@@ -394,8 +394,8 @@ channels:
       - "Flat design health icons, pastel colors, clean data visualization, no blood or surgery"
 
     # 스크립트 생성 파라미터 (채널 최적화)
-    target_duration_sec: 35          # 실측 TTS 보정 (60초 제한)
-    target_chars: "300-340"          # 35초 x 8.5cps x 1.05speed
+    target_duration_sec: 35          # 상한 45초 내 목표 (CPS 4.2 보정)
+    target_chars: "135-160"          # 35초 x 4.2cps x 1.05speed
     hook_pattern: "shocking_stat"    # "성인 3명 중 1명" 등 통계 훅
 
     # 콘텐츠 구조

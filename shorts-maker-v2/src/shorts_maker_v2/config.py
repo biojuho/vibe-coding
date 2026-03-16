@@ -141,6 +141,11 @@ class ThumbnailSettings:
 
 
 @dataclass(frozen=True)
+class ResearchSettings:
+    enabled: bool = False          # True 시 대본 생성 전 웹 리서치 수행
+    provider: str = "gemini"       # "gemini" (Google Search Grounding) | "llm" (LLM 지식만)
+
+@dataclass(frozen=True)
 class CacheSettings:
     enabled: bool = True
     dir: str = ".cache"
@@ -162,6 +167,7 @@ class AppConfig:
     intro_outro: IntroOutroSettings = IntroOutroSettings()
     thumbnail: ThumbnailSettings = ThumbnailSettings()
     cache: CacheSettings = CacheSettings()
+    research: ResearchSettings = ResearchSettings()
 
 
 @dataclass(frozen=True)
@@ -397,6 +403,12 @@ def load_config(config_path: str | Path) -> AppConfig:
         ttl_days=int(cache_raw.get("ttl_days", 30)),
     )
 
+    research_raw = _section(raw, "research") if "research" in raw else {}
+    research = ResearchSettings(
+        enabled=bool(research_raw.get("enabled", False)),
+        provider=str(research_raw.get("provider", "gemini")),
+    )
+
     return AppConfig(
         project=project,
         video=video,
@@ -410,6 +422,7 @@ def load_config(config_path: str | Path) -> AppConfig:
         intro_outro=intro_outro,
         thumbnail=thumbnail,
         cache=cache,
+        research=research,
     )
 
 

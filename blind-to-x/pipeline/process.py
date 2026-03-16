@@ -381,20 +381,30 @@ async def process_single_post(
             drafts = drafts_output
             image_prompt = None
 
-        # ── 드래프트 품질 검증 ─────────────────────────────────────────
-        twitter_draft = drafts.get("twitter", "") if isinstance(drafts, dict) else ""
-        if twitter_draft and len(twitter_draft) > 560:
-            logger.warning("Tweet draft too long (%d chars), will be truncated on publish.", len(twitter_draft))
-        newsletter_draft = drafts.get("newsletter", "") if isinstance(drafts, dict) else ""
-        if newsletter_draft and len(newsletter_draft.split()) < 30:
-            logger.warning("Newsletter draft too short (%d words).", len(newsletter_draft.split()))
-        # P6: Threads / 네이버 블로그 품질 검증
-        threads_draft = drafts.get("threads", "") if isinstance(drafts, dict) else ""
-        if threads_draft and len(threads_draft) > 500:
-            logger.warning("Threads draft too long (%d chars), consider shortening.", len(threads_draft))
-        blog_draft = drafts.get("naver_blog", "") if isinstance(drafts, dict) else ""
-        if blog_draft and len(blog_draft) < 1500:
-            logger.warning("Blog draft too short (%d chars), may not rank well in search.", len(blog_draft))
+        # ── 드래프트 품질 게이트 ──────────────────────────────────────
+        if isinstance(drafts, dict):
+            try:
+                from pipeline.draft_quality_gate import DraftQualityGate
+                _quality_gate = DraftQualityGate()
+                _qg_results = _quality_gate.validate_all(drafts)
+                _qg_summary = _quality_gate.format_summary(_qg_results)
+                post_data["quality_gate_report"] = _qg_summary
+                post_data["quality_gate_scores"] = {
+                    p: r.score for p, r in _qg_results.items()
+                }
+                for plat, qr in _qg_results.items():
+                    if not qr.passed:
+                        logger.warning(
+                            "Quality gate FAILED for %s: score=%d, %s",
+                            plat, qr.score, url,
+                        )
+                    elif qr.score < 70:
+                        logger.info(
+                            "Quality gate WARNING for %s: score=%d",
+                            plat, qr.score,
+                        )
+            except Exception as exc:
+                logger.debug("Quality gate skipped: %s", exc)
 
         post_data["image_prompt"] = image_prompt
 

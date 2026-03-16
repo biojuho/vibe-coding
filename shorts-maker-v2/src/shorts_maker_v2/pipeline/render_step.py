@@ -394,8 +394,9 @@ class RenderStep:
             is_last = i == len(clips) - 1
 
             # 역할 기반 구조적 전환 (roles 제공 시)
-            if roles and i > 0 and global_style == "random":
-                style = _structural_style(roles[i - 1], roles[i])
+            if roles and i > 0 and global_style == "random" and i < len(roles):
+                prev_idx = min(i - 1, len(roles) - 1)
+                style = _structural_style(roles[prev_idx], roles[i])
             elif global_style == "random":
                 style = self._pick_transition_style()
             else:
@@ -595,6 +596,7 @@ class RenderStep:
             if intro is not None:
                 intro = intro.with_effects([vfx.FadeIn(0.3)])
                 all_clips.append(intro)
+                scene_roles.append("intro")
                 logger.info("[Intro] 인트로 삽입 (%.1fs): %s", io_cfg.intro_duration, intro_path)
 
         # ── 제목 오버레이 이미지 준비 ──
@@ -682,13 +684,15 @@ class RenderStep:
 
                 except Exception as kex:
                     logger.warning("[Karaoke] 카라오케 실패, 정적 자막 폴백: %s", kex)
-                    cap_img = render_caption_image(plan.narration_ko, style, target_width)
-                    cap_clip = ImageClip(cap_img, transparent=True).with_duration(duration_sec)
+                    cap_out = run_dir / f"caption_fallback_{plan.scene_id:02d}.png"
+                    cap_img = render_caption_image(plan.narration_ko, target_width, style, cap_out)
+                    cap_clip = ImageClip(str(cap_img), transparent=True).with_duration(duration_sec)
                     base = CompositeVideoClip([base, cap_clip])
             else:
                 # 정적 자막 모드
-                cap_img = render_caption_image(plan.narration_ko, style, target_width)
-                cap_clip = ImageClip(cap_img, transparent=True).with_duration(duration_sec)
+                cap_out = run_dir / f"caption_static_{plan.scene_id:02d}.png"
+                cap_img = render_caption_image(plan.narration_ko, target_width, style, cap_out)
+                cap_clip = ImageClip(str(cap_img), transparent=True).with_duration(duration_sec)
                 base = CompositeVideoClip([base, cap_clip])
 
             # 5) 텍스트 애니메이션 (Hook 씬)

@@ -18,13 +18,15 @@ blind-to-x/
 ├── pipeline/          # 핵심 파이프라인 모듈
 │   ├── process.py     # 메인 프로세싱
 │   ├── draft_generator.py  # LLM 초안 생성
-│   ├── image_generator.py  # 이미지 생성
+│   ├── image_generator.py  # 이미지 생성 (시멘틱 씬 매핑 70+ 조합)
+│   ├── draft_quality_gate.py # Post-LLM 초안 품질 게이트
+│   ├── image_upload.py     # 이미지 업로드 (Cloudinary)
 │   ├── image_ab_tester.py  # A/B 테스트
 │   ├── ab_feedback_loop.py # A/B 피드백 루프
-│   ├── notion_upload.py    # Notion 업로드
+│   ├── notion_upload.py    # Notion 업로드 (Mixin 분리)
 │   └── ...
-├── tests_unit/        # 유닛 테스트 (238개)
-├── tests/             # 스크래치/통합 테스트
+├── tests/unit/        # 유닛 테스트
+├── tests/integration/ # 통합 테스트
 ├── docs/              # 운영 문서
 ├── scripts/           # 유틸리티 스크립트
 ├── config.yaml        # 메인 설정
@@ -37,7 +39,9 @@ blind-to-x/
 - ✅ playwright-stealth context-level 마이그레이션 (2026-03-09)
 - ✅ A/B 테스트 수동 위너 선택 UI (2026-03-09)
 - ✅ 운영 SOP 매뉴얼 작성 (2026-03-09)
-- ✅ 유닛 테스트 238개 통과
+- ✅ 품질 고도화 Phase 1: Post-LLM 품질 게이트 + 시멘틱 씬 매핑 (2026-03-15)
+- ✅ 프로젝트 정리: tests_unit→tests/unit 마이그레이션, 불필요 파일·모듈 삭제 (2026-03-16)
+- ✅ Per-source limit, classification_rules 외부화, image_upload 모듈 분리 (2026-03-16)
 
 ## 지뢰밭 (주의사항)
 1. **playwright-stealth**: context 레벨에서만 적용. page 레벨 stealth 호출 추가 금지.
@@ -45,3 +49,5 @@ blind-to-x/
 3. **Python 3.14 + Pydantic V1**: anthropic 패키지에서 호환 경고 발생 (기능 영향 없음).
 4. **config.yaml 속성 동기화**: Notion 속성 추가 시 `config.yaml`과 `test_notion_accuracy.py`의 `build_default_config()` 동시 업데이트 필요.
 5. **scratch 파일**: `tests/scratch_*.py`는 pytest 수집 대상이 아님. 수동 실행 전용.
+6. **tests_unit 폐기**: 구 `tests_unit/` 폴더 삭제됨. 모든 테스트는 `tests/unit/`에 위치.
+7. **newsletter 모듈 삭제**: `newsletter_formatter.py`, `newsletter_scheduler.py` 제거됨. 참조 금지.

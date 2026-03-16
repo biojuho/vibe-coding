@@ -144,21 +144,21 @@ def test_run_retries_when_first_script_is_too_short() -> None:
         "title": "Longer Draft",
         "scenes": [
             {
-                "narration_ko": "\uccab \uc7a5\uba74\uc740 \uc774\uc57c\uae30\uc758 \ubc30\uacbd\uc744 \uc790\uc138\ud788 \uc124\uba85\ud558\uace0 \uc2dc\uccad\uc790\uac00 \ud750\ub984\uc744 \ub530\ub77c\uc624\ub3c4\ub85d \ub9cc\ub4ed\ub2c8\ub2e4.",
+                "narration_ko": "\uccab \uc7a5\uba74 \uc124\uba85\uc785\ub2c8\ub2e4.",
                 "visual_prompt_en": "Scene one",
             },
             {
-                "narration_ko": "\ub450 \ubc88\uc9f8 \uc7a5\uba74\uc740 \ud575\uc2ec \ud3ec\uc778\ud2b8\ub97c \ub354\ud558\uace0 \ub9c8\ubb34\ub9ac\uae4c\uc9c0 \uc790\uc5f0\uc2a4\ub7fd\uac8c \uc774\uc5b4\uc11c \ucd1d \ub7f0\ud0c0\uc784\uc744 \ub9de\ucda5\ub2c8\ub2e4.",
+                "narration_ko": "\ub450 \ubc88\uc9f8 \uc7a5\uba74\uc785\ub2c8\ub2e4.",
                 "visual_prompt_en": "Scene two",
             },
         ],
     }
     client = FakeOpenAIClient([short_payload, long_enough_payload])
-    step = ScriptStep(config=make_config(duration_range=(8, 10)), llm_router=client, openai_client=client)
+    step = ScriptStep(config=make_config(duration_range=(4, 8)), llm_router=client, openai_client=client)
 
     title, scenes, hook_pattern = step.run("science topic")
 
     assert title == "Longer Draft"
     assert client.calls == 2
-    assert 8.0 <= ScriptStep.estimate_total_duration_sec(scenes) <= 10.0
+    assert 4.0 <= ScriptStep.estimate_total_duration_sec(scenes) <= 8.0
     assert hook_pattern in [p[0] for p in ScriptStep.HOOK_PATTERNS]

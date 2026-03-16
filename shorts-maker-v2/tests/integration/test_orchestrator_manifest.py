@@ -11,7 +11,7 @@ from shorts_maker_v2.pipeline.orchestrator import PipelineOrchestrator
 
 
 class StubScriptStep:
-    def run(self, topic: str):
+    def run(self, topic: str, **kwargs):
         return "stub-title", [ScenePlan(scene_id=1, narration_ko=f"{topic} narration", visual_prompt_en="prompt", target_sec=5.0)], "shocking_stat"
 
 

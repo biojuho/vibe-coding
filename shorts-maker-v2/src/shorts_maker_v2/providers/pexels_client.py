@@ -187,12 +187,21 @@ class PexelsClient:
             f"force_original_aspect_ratio=increase,"
             f"crop={target_width}:{target_height}"
         )
+        # HW 인코더별 preset 결정
         hw_codec, _ = detect_hw_encoder()
+        if hw_codec == "libx264":
+            preset = "ultrafast"
+        elif "nvenc" in hw_codec:
+            preset = "p1"       # NVENC preset
+        elif "qsv" in hw_codec:
+            preset = "veryfast"  # QSV preset
+        else:
+            preset = "veryfast"  # 기타 HW 인코더 폴백
         cmd = [
             "ffmpeg", "-y", "-i", str(input_path),
             "-vf", vf,
             "-c:v", hw_codec,
-            "-preset", "ultrafast" if hw_codec == "libx264" else "p1",
+            "-preset", preset,
             "-an",
             str(output_path),
         ]

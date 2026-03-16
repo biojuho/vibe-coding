@@ -43,7 +43,7 @@ _BLIND_ANIME_STYLE = {
     "base": "Pixar-style 3D animated illustration",
     "character": "cute expressive Korean office worker character with big eyes",
     "quality": "cinematic lighting, warm color grading, soft shadows, bokeh background",
-    "constraints": "no text overlay, no watermark, no speech bubbles, 16:9 aspect ratio",
+    "constraints": "absolutely no text, no letters, no numbers, no words, no captions, no watermark, no speech bubbles, no signs with writing, clean image only, 16:9 aspect ratio",
 }
 
 # 감정별 분위기 오버라이드
@@ -55,6 +55,92 @@ _EMOTION_MOOD_OVERRIDE: dict[str, str] = {
     "자부심": "proud, triumphant",
     "불안": "anxious, uncertain",
     "기대감": "excited, hopeful",
+}
+
+# ── 시멘틱 씬 매핑: 토픽×감정 교차 조합별 구체적 장면 사전 ─────────────
+# 형식: _SEMANTIC_SCENES[(topic, emotion)] → 영문 장면 설명
+# 호출순서:
+#   1. (topic, emotion) 정확 매칭 → 최적 장면
+#   2. fallback: 토픽 기본 장면 (_TOPIC_SCENES)
+_SEMANTIC_SCENES: dict[tuple[str, str], str] = {
+    # ── 연봉 ────────────────────────────────────────────────────────
+    ("연봉", "분노"): "office worker angrily staring at a tiny paycheck stub while coworkers celebrate bonuses in the background",
+    ("연봉", "허탈"): "office worker staring blankly at empty wallet at a dimly lit desk with scattered bills",
+    ("연봉", "경악"): "office worker jaw dropped reading a shockingly low salary offer letter on screen",
+    ("연봉", "웃김"): "office worker laughing nervously comparing tiny paycheck to enormous coffee shop receipt",
+    ("연봉", "공감"): "two office workers sharing sympathetic looks over lunch comparing their pay stubs",
+    ("연봉", "자부심"): "confident office worker proudly holding a glowing paycheck with coins floating around",
+    ("연봉", "현타"): "exhausted office worker calculating monthly expenses at desk late at night",
+    # ── 이직 ────────────────────────────────────────────────────────
+    ("이직", "분노"): "frustrated worker slamming resignation letter on boss's desk in a heated office",
+    ("이직", "허탈"): "worker standing alone in empty office corridor holding a cardboard box of belongings",
+    ("이직", "경악"): "shocked worker receiving unexpected job offer call while at current boring desk",
+    ("이직", "웃김"): "worker doing a secret happy dance in bathroom stall after getting a new job offer",
+    ("이직", "공감"): "two workers whispering about quitting over coffee in break room",
+    ("이직", "기대감"): "worker confidently walking toward a bright glowing door leaving dark cubicle behind",
+    ("이직", "불안"): "nervous worker standing at crossroads between two office buildings in foggy weather",
+    # ── 회사문화 ──────────────────────────────────────────────────────
+    ("회사문화", "분노"): "angry workers in overcrowded open office with noise and chaos everywhere",
+    ("회사문화", "허탈"): "lone worker sitting in massive empty meeting room after pointless two-hour meeting",
+    ("회사문화", "경악"): "worker staring at absurd company memo posted on bulletin board in disbelief",
+    ("회사문화", "웃김"): "workers secretly playing games on phones during mandatory team-building exercise",
+    ("회사문화", "공감"): "tired workers nodding knowingly at each other during boring company announcement",
+    # ── 상사 ────────────────────────────────────────────────────────
+    ("상사", "분노"): "worker clenching fists under desk while stern boss lectures in meeting room",
+    ("상사", "허탈"): "deflated worker leaving boss's office after unfair performance review",
+    ("상사", "경악"): "worker shocked seeing boss take credit for their work on presentation screen",
+    ("상사", "웃김"): "boss accidentally sending embarrassing message to entire company chat",
+    ("상사", "공감"): "group of workers sharing eye rolls behind demanding boss during meeting",
+    # ── 복지 ────────────────────────────────────────────────────────
+    ("복지", "분노"): "worker reading email about benefit cuts while standing by vending machine",
+    ("복지", "웃김"): "overjoyed worker discovering unexpected company snack bar stocked with premium treats",
+    ("복지", "공감"): "workers happily enjoying cozy bean bags and coffee in modern break room",
+    ("복지", "자부심"): "worker touring friends through amazing company facilities with proud smile",
+    ("복지", "기대감"): "excited worker reading about new remote work policy announcement on laptop",
+    # ── 연애 ────────────────────────────────────────────────────────
+    ("연애", "공감"): "young professional daydreaming at desk with romantic sunset through office window",
+    ("연애", "웃김"): "awkward blind date scene at trendy cafe with both people nervously checking phones",
+    ("연애", "허탈"): "lonely worker eating convenience store dinner alone looking at couples outside",
+    ("연애", "기대감"): "worker excitedly getting ready for date checking outfit in office bathroom mirror",
+    # ── 결혼 ────────────────────────────────────────────────────────
+    ("결혼", "분노"): "couple arguing over wedding budget spreadsheet at kitchen table with calculator",
+    ("결혼", "허탈"): "exhausted newlywed looking at empty bank account after wedding expenses",
+    ("결혼", "공감"): "young couple juggling wedding planning folder and work laptop with tired smiles",
+    ("결혼", "기대감"): "happy couple looking at wedding venue brochure with sparkling eyes",
+    # ── 가족 ────────────────────────────────────────────────────────
+    ("가족", "공감"): "tired parent working laptop at kitchen table with sleeping child on shoulder",
+    ("가족", "허탈"): "parent looking at family photo on desk while working late in empty office",
+    ("가족", "웃김"): "parent receiving chaotic video call from kids while in important virtual meeting",
+    ("가족", "자부심"): "proud parent hanging child's drawing on office cubicle wall with warm smile",
+    # ── 재테크 ──────────────────────────────────────────────────────
+    ("재테크", "분노"): "frustrated investor seeing red stock chart plummeting on multiple screens",
+    ("재테크", "경악"): "shocked worker staring at crypto chart that crashed overnight on phone",
+    ("재테크", "웃김"): "worker secretly checking stock app under desk during meeting and doing victory gesture",
+    ("재테크", "공감"): "workers huddled at lunch discussing investment tips over kimbap",
+    ("재테크", "불안"): "nervous investor refreshing portfolio app at 3am in dark room",
+    # ── 직장개그 ──────────────────────────────────────────────────────
+    ("직장개그", "웃김"): "exaggerated funny office scene with worker's chair rolling away during presentation",
+    ("직장개그", "공감"): "worker nodding off in meeting and suddenly jerking awake in front of everyone",
+    ("직장개그", "경악"): "worker accidentally sending personal message to company-wide group chat",
+    # ── 부동산 ──────────────────────────────────────────────────────
+    ("부동산", "분노"): "frustrated young worker looking at impossibly high apartment price tags in window",
+    ("부동산", "허탈"): "couple staring hopelessly at apartment price comparison on giant screen",
+    ("부동산", "경악"): "shocked worker reading rent increase notice letter with jaw dropped",
+    ("부동산", "기대감"): "excited couple touring dream apartment with sunlight streaming through windows",
+    # ── IT ──────────────────────────────────────────────────────────
+    ("IT", "분노"): "developer angrily staring at error-filled code on multiple monitors at 2am",
+    ("IT", "웃김"): "developer celebrating a single line of code working after hours of debugging",
+    ("IT", "허탈"): "developer realizing Friday deploy broke everything with loading spinner of doom",
+    ("IT", "공감"): "developers sharing knowing look during impossible deadline meeting",
+    # ── 건강 ────────────────────────────────────────────────────────
+    ("건강", "공감"): "office workers stretching together at desks during break time",
+    ("건강", "현타"): "exhausted worker rubbing neck pain while staring at computer screen",
+    ("건강", "기대감"): "energetic worker going for morning jog before heading to office",
+    # ── 자기계발 ──────────────────────────────────────────────────────
+    ("자기계발", "공감"): "worker studying online course on laptop at cafe after work hours",
+    ("자기계발", "자부심"): "worker proudly displaying certificate on desk with determination in eyes",
+    ("자기계발", "기대감"): "worker starting fresh morning routine with books and coffee at sunrise",
+    ("자기계발", "현타"): "worker exhausted falling asleep on study materials late at night",
 }
 
 
@@ -170,18 +256,10 @@ class ImageGenerator:
         except Exception:
             pass
 
-        # 콘텐츠 요약 (제목 우선, 없으면 초안에서 추출)
-        subject_hint = ""
-        if title:
-            subject_hint = title[:30].strip()
-        elif draft_text:
-            subject_hint = draft_text[:50].strip()
-
-        # 프롬프트 조합 (March 1st preferred style)
-        if subject_hint:
-            return f"A {style} about Korean office workers related to '{subject_hint}' with {mood} mood using {colors} color palette, no text overlay, no watermark, high quality, 16:9 aspect ratio"
-        else:
-            return f"A {style} about Korean office workers with {mood} mood using {colors} color palette, no text overlay, no watermark, high quality, 16:9 aspect ratio"
+        # 프롬프트 조합 — 한글 제목/초안 텍스트는 프롬프트에 포함하지 않음
+        # (한글 텍스트가 이미지에 오타로 렌더링되는 문제 방지)
+        _NO_TEXT = "absolutely no text, no letters, no numbers, no words, no captions, no writing of any kind, no watermark, clean image only"
+        return f"A {style} about Korean office workers with {mood} mood using {colors} color palette, {_NO_TEXT}, high quality, 16:9 aspect ratio"
 
     @staticmethod
     def _build_blind_anime_prompt(
@@ -194,13 +272,18 @@ class ImageGenerator:
 
         공감 유도를 위해 귀엽고 표정이 풍부한 3D 캐릭터가
         직장 상황을 연출하는 일러스트를 생성합니다.
+
+        시멘틱 씬 매핑 적용:
+          1순위: _SEMANTIC_SCENES[(topic, emotion)] — 토픽×감정 교차 매핑
+          2순위: _TOPIC_SCENES[topic] — 토픽 기본 장면
+          3순위: default_scene — 범용 직장 장면
         """
         base = _BLIND_ANIME_STYLE["base"]
         character = _BLIND_ANIME_STYLE["character"]
         quality = _BLIND_ANIME_STYLE["quality"]
         constraints = _BLIND_ANIME_STYLE["constraints"]
 
-        # 토픽별 장면 설정
+        # 토픽별 기본 장면 설정 (시멘틱 씬 매핑의 fallback)
         _TOPIC_SCENES: dict[str, str] = {
             "연봉": "looking at paycheck with coins and bills floating around in a modern office",
             "이직": "standing at a crossroads between two office buildings, holding a resignation letter",
@@ -219,7 +302,14 @@ class ImageGenerator:
             "자기계발": "studying late at night at desk with determination in eyes",
         }
         default_scene = "sitting at an office desk with a relatable everyday expression"
-        scene = _TOPIC_SCENES.get(topic_cluster, default_scene)
+
+        # 시멘틱 씬 매핑: (토픽, 감정) 교차 조합 우선 → 토픽 기본 → 범용
+        semantic_key = (topic_cluster, emotion_axis)
+        if semantic_key in _SEMANTIC_SCENES:
+            scene = _SEMANTIC_SCENES[semantic_key]
+            logger.debug("Semantic scene matched: %s → %s", semantic_key, scene[:60])
+        else:
+            scene = _TOPIC_SCENES.get(topic_cluster, default_scene)
 
         # 감정별 표정 설정
         _EMOTION_EXPRESSIONS: dict[str, str] = {
@@ -231,18 +321,16 @@ class ImageGenerator:
             "불안": "nervous fidgeting with worried eyes",
             "기대감": "excited sparkling eyes with hopeful smile",
             "공감": "empathetic nodding with understanding eyes",
+            "현타": "exhausted empty eyes staring into space",
         }
         expression = _EMOTION_EXPRESSIONS.get(emotion_axis, "expressive and relatable")
 
-        # 제목에서 키워드 힌트
-        subject_hint = ""
-        if title:
-            subject_hint = f" related to '{title[:30].strip()}'"
-        elif draft_text:
-            subject_hint = f" related to '{draft_text[:40].strip()}'"
+        # 한글 제목/초안 텍스트는 프롬프트에 포함하지 않음
+        # (한글 텍스트가 이미지에 오타로 렌더링되는 문제 방지)
+        # 시멘틱 씬 매핑 + 감정 표정으로 장면을 직관적으로 구성
 
         return (
-            f"{base} of a {character}, {scene}{subject_hint}, "
+            f"{base} of a {character}, {scene}, "
             f"showing {expression}, "
             f"{quality}, {constraints}"
         )

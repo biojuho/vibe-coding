@@ -31,7 +31,8 @@ import yaml
 logger = logging.getLogger(__name__)
 
 # 기본 채널 프로파일 파일 위치 (프로젝트 루트 기준)
-_DEFAULT_PROFILES_PATH = Path(__file__).parents[4] / "channel_profiles.yaml"
+# channel_router.py → utils/ → shorts_maker_v2/ → src/ → shorts-maker-v2/
+_DEFAULT_PROFILES_PATH = Path(__file__).parents[3] / "channel_profiles.yaml"
 
 
 class ChannelRouter:
@@ -101,7 +102,7 @@ class ChannelRouter:
     def apply(self, config: Any, channel_key: str) -> Any:
         """
         채널 프로파일을 AppConfig에 적용하여 새 config를 반환합니다.
-        원본 config는 변경되지 않습니다 (deepcopy).
+        frozen dataclass이므로 dataclasses.replace()를 사용합니다.
 
         Args:
             config:      AppConfig 인스턴스.
@@ -110,6 +111,8 @@ class ChannelRouter:
         Returns:
             채널 프로파일이 적용된 AppConfig 복사본.
         """
+        from dataclasses import replace as dc_replace
+
         if not channel_key:
             return config
 
@@ -120,35 +123,51 @@ class ChannelRouter:
             return config
 
         profile = self._profiles[channel_key]
-        new_config = copy.deepcopy(config)
+        pipeline = profile.get("pipeline", {})
 
-        # ── TTS 설정 적용 ────────────────────────────────────────────────
+        # ── providers 오버라이드 ──────────────────────────────────────────
+        prov_kwargs: dict[str, Any] = {}
         if "tts_voice" in profile:
-            new_config.providers.tts_voice = profile["tts_voice"]
-            logger.debug("[ChannelRouter] TTS 음성: %s", profile["tts_voice"])
-
+            prov_kwargs["tts_voice"] = profile["tts_voice"]
         if "tts_speed" in profile:
-            new_config.providers.tts_speed = profile["tts_speed"]
-
+            prov_kwargs["tts_speed"] = float(profile["tts_speed"])
         if "tts_voice_roles" in profile:
-            # 기존 역할 매핑에 채널별 역할 오버라이드
-            existing = dict(new_config.providers.tts_voice_roles or {})
+            existing = dict(config.providers.tts_voice_roles or {})
             existing.update(profile["tts_voice_roles"])
-            new_config.providers.tts_voice_roles = existing
-
-        # ── 시각 스타일 적용 ─────────────────────────────────────────────
+            prov_kwargs["tts_voice_roles"] = existing
         if "visual_styles" in profile:
-            new_config.video.visual_styles = profile["visual_styles"]
+            prov_kwargs["visual_styles"] = tuple(profile["visual_styles"])
 
-        # ── 구조 프리셋 적용 ─────────────────────────────────────────────
-        if "default_structure" in profile:
-            # 기본 구조를 profile 지정 구조로 설정
-            # (실제 ScriptStep에서 structure_counter 리셋이 필요)
-            new_config._channel_default_structure = profile["default_structure"]
+        new_providers = dc_replace(config.providers, **prov_kwargs) if prov_kwargs else config.providers
 
-        # ── 자막 스타일 적용 ─────────────────────────────────────────────
+        # ── video 오버라이드 ──────────────────────────────────────────────
+        vid_kwargs: dict[str, Any] = {}
+        if "target_duration_sec" in profile:
+            val = profile["target_duration_sec"]
+            if isinstance(val, (list, tuple)):
+                vid_kwargs["target_duration_sec"] = (int(val[0]), int(val[1]))
+            else:
+                vid_kwargs["target_duration_sec"] = (int(val), int(val))
+
+        new_video = dc_replace(config.video, **vid_kwargs) if vid_kwargs else config.video
+
+        # ── captions 오버라이드 ───────────────────────────────────────────
+        cap_kwargs: dict[str, Any] = {}
         if "caption_style" in profile:
-            new_config.captions.style_preset = profile["caption_style"]
+            cap_kwargs["style_preset"] = profile["caption_style"]
+        new_captions = dc_replace(config.captions, **cap_kwargs) if cap_kwargs else config.captions
+
+        # ── 최종 config 조합 ────────────────────────────────────────────
+        new_config = dc_replace(
+            config,
+            providers=new_providers,
+            video=new_video,
+            captions=new_captions,
+        )
+
+        # 구조 프리셋 (non-frozen 속성이므로 object.__setattr__ 사용)
+        if "default_structure" in profile:
+            object.__setattr__(new_config, "_channel_default_structure", profile["default_structure"])
 
         logger.info(
             "[ChannelRouter] '%s' (%s) 프로파일 적용 완료",

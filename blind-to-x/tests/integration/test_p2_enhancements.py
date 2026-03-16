@@ -19,13 +19,16 @@ class TestBuildImagePrompt:
         prompt = ImageGenerator.build_image_prompt(topic_cluster="이직", emotion_axis="분노")
         assert "intense" in prompt.lower() or "frustrated" in prompt.lower()
 
-    def test_title_hint_included(self):
+    def test_title_not_in_prompt(self):
+        """한글 제목은 프롬프트에 포함되지 않아야 함 (이미지 텍스트 오타 방지)."""
         from pipeline.image_generator import ImageGenerator
         prompt = ImageGenerator.build_image_prompt(
             topic_cluster="IT",
             title="개발자 연봉 인상 꿀팁 공개",
         )
-        assert "개발자" in prompt or "futuristic" in prompt.lower()
+        # IT 토픽 스타일은 적용되지만 한글 텍스트는 제외
+        assert "futuristic" in prompt.lower()
+        assert "개발자" not in prompt
 
     def test_default_style_for_unknown_topic(self):
         from pipeline.image_generator import ImageGenerator

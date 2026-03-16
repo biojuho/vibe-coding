@@ -23,7 +23,7 @@ class TopicUnsuitableError(Exception):
 
 
 class ScriptStep:
-    duration_estimate_chars_per_sec = 8.5  # 실측 TTS(speed=1.05) 기준 보정
+    duration_estimate_chars_per_sec = 4.2   # 실측 edge-tts 보정: 488chars→68.4s → 보정값 4.2
     max_generation_attempts = 3
 
     # 4가지 Hook 패턴 (로테이션)
@@ -415,6 +415,7 @@ class ScriptStep:
         attempt: int,
         previous_total_sec: float | None,
         previous_scene_count: int | None,
+        research_block: str = "",
     ) -> str:
         target_min, target_max = duration_range
         target_mid = (target_min + target_max) / 2
@@ -422,6 +423,10 @@ class ScriptStep:
             f"Topic: {topic}\n"
             f"Target total duration: {target_min}-{target_max} seconds.\n"
             f"Target midpoint: about {target_mid:.1f} seconds.\n"
+        )
+        if research_block:
+            prompt += research_block
+        prompt += (
             "Write a Hook-Body-CTA script for YouTube Shorts:\n"
             "  Hook  — Open with a surprising fact or relatable problem. Stop the scroll instantly.\n"
             "  Body  — Guide through analogy → data/fact → cause or solution. Build naturally.\n"
@@ -588,9 +593,14 @@ class ScriptStep:
             )
         return truncated_scenes
 
-    def run(self, topic: str) -> tuple[str, list[ScenePlan], str]:
+    def run(self, topic: str, research_context: Any | None = None) -> tuple[str, list[ScenePlan], str]:
         """
         대본 생성.
+
+        Args:
+            topic: 영상 주제
+            research_context: ResearchContext 객체 (리서치 스텝 결과). None이면 리서치 없이 생성.
+
         Returns: (title, scene_plans, hook_pattern_name)
         """
         # Multi-provider fallback via LLMRouter (no longer OpenAI-only)
@@ -629,6 +639,13 @@ class ScriptStep:
             structure_flow=preset_flow,
         )
 
+        # 리서치 컨텍스트 → 프롬프트 블록 변환
+        research_block = ""
+        if research_context is not None and hasattr(research_context, "to_prompt_block"):
+            research_block = research_context.to_prompt_block()
+            if research_block:
+                logger.info("[Script] research context injected (%d chars)", len(research_block))
+
         best_result: tuple[str, list[ScenePlan]] | None = None
         best_error = float("inf")
         previous_total_sec: float | None = None
@@ -640,6 +657,7 @@ class ScriptStep:
                 attempt=attempt,
                 previous_total_sec=previous_total_sec,
                 previous_scene_count=scene_count,
+                research_block=research_block,
             )
             # Sprint 4.1: 대본 생성은 thinking_level='low' (빠른 속도)
             gen_thinking = self.config.providers.thinking_level
@@ -683,8 +701,8 @@ class ScriptStep:
         # 최종 추정 길이 사전 체크 + 초과 시 강제 Truncation
         final_total = self.estimate_total_duration_sec(best_result[1])
         target_min, target_max = duration_range
-        # YouTube Shorts 하드 리밋 (60초) — 채널 목표보다 이게 더 중요
-        SHORTS_HARD_LIMIT = 60
+        # YouTube Shorts 상한 (45초) — 시청 완료율 최적화 + 60초 플랫폼 제한 내 안전 여유
+        SHORTS_HARD_LIMIT = 45
         effective_max = min(target_max, SHORTS_HARD_LIMIT)
 
         if final_total > effective_max:

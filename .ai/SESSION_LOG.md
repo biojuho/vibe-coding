@@ -3,6 +3,76 @@
 > 각 AI 도구가 작업할 때마다 아래 형식으로 기록합니다.
 > 최신 세션이 파일 상단에 위치합니다 (역순).
 
+## 2026-03-16 14:46 KST — Antigravity (Gemini) — shorts-maker-v2 영상 길이 최적화 + Critical Bug Fix
+
+### 작업 요약
+shorts-maker-v2의 영상 길이가 YouTube Shorts 상한(60초)을 초과하는 문제를 발견하고 45초 상한으로 재조정. 과정에서 **channel_router.py에 프로젝트 생성 이후 한 번도 발견되지 않은 Critical Bug 2개** 발견 및 수정.
+
+### 변경 파일
+| 파일 | 변경 | 설명 |
+|------|------|------|
+| `shorts-maker-v2/src/shorts_maker_v2/utils/channel_router.py` | **Critical Bug Fix** | ① `parents[4]` → `parents[3]` 경로 수정 (채널 프로필 미로드 해결) ② `apply()` frozen dataclass 호환 재작성 (`dataclasses.replace()`) |
+| `shorts-maker-v2/src/shorts_maker_v2/pipeline/script_step.py` | 수정 | `chars_per_sec` 8.5 → 4.2 보정, 45초 하드 리밋 적용 |
+| `shorts-maker-v2/src/shorts_maker_v2/pipeline/orchestrator.py` | 수정 | 45초 Shorts 경고 체크 추가 |
+| `shorts-maker-v2/config.yaml` | 수정 | `target_duration_sec: [25, 40]` |
+| `shorts-maker-v2/channel_profiles.yaml` | 수정 | 5개 채널 duration/chars 보정 |
+| `shorts-maker-v2/tests/unit/test_script_step.py` | 수정 | 보정된 CPS에 맞게 테스트 데이터 조정 |
+| `shorts-maker-v2/tests/integration/test_orchestrator_manifest.py` | 수정 | `StubScriptStep.run()` 에 `**kwargs` 추가 |
+
+### 결정사항
+- YouTube Shorts 하드 리밋: 60초 → **45초** (better engagement, 안전 마진)
+- `duration_estimate_chars_per_sec`: 8.5 → **4.2** (실측 TTS 데이터 기반)
+- 채널 프로필 경로: `parents[4]` → `parents[3]` (프로젝트 루트 기준)
+
+### 발견된 Critical Bugs
+1. **channel_router.py 경로 오류** — 프로젝트 생성 이후 `channel_profiles.yaml`이 한 번도 로드되지 않음. 5개 채널 모두 기본 config로 동작 중이었음
+2. **apply() FrozenInstanceError** — `copy.deepcopy()` 후 frozen dataclass에 직접 assign → Bug #1 때문에 dead code로 존재
+
+### 테스트 결과
+- 320 passed, 2 failed (기존), 5 skipped
+- 기존 실패: `test_media_fallback`, `test_apply_backward_compat` (이번 세션 무관)
+
+### TODO
+- [ ] `psychology` 채널 여유분(+4초) 모니터링 — tts_speed=1.0으로 가장 빡빡
+- [ ] 코드 내 채널키 통일 (empathy↔psychology, knowledge↔history, science↔space 혼용)
+- [ ] 실제 영상 1건 생성하여 최종 길이 검증
+
+### 다음 도구에게 메모
+- channel_profiles.yaml의 실제 채널 키: `ai_tech`, `psychology`, `history`, `space`, `health`
+- CLI/배치에서 `--channel` 사용 시 위 키 정확히 사용해야 함
+- `channel_router.py`의 singleton(`_router_singleton`)은 프로세스 내 1회만 초기화됨 — 테스트에서 초기화 필요시 `cr_mod._router_singleton = None` 리셋
+
+---
+
+## 2026-03-13 — Claude Opus 4.6 — shorts-maker-v2 Research Step 구현
+
+### 작업 요약
+shorts-maker-v2에 대본 생성 전 웹 검색 기반 팩트 수집(Research Step) 기능 추가. AgentIR 도입 검토 후, 프로젝트 특성(무료 운영, 단일턴 파이프라인)에 맞지 않아 대안으로 Gemini Google Search Grounding 기반 리서치 스텝을 구현.
+
+### 변경 파일
+| 파일 | 변경 | 설명 |
+|------|------|------|
+| `shorts-maker-v2/src/shorts_maker_v2/pipeline/research_step.py` | **신규** | ResearchStep + ResearchContext (Gemini Grounding → LLM fallback) |
+| `shorts-maker-v2/src/shorts_maker_v2/config.py` | 수정 | `ResearchSettings` dataclass 추가 (enabled, provider) |
+| `shorts-maker-v2/src/shorts_maker_v2/pipeline/script_step.py` | 수정 | `run()`에 `research_context` 파라미터, `_build_user_prompt()`에 `research_block` 주입 |
+| `shorts-maker-v2/src/shorts_maker_v2/pipeline/orchestrator.py` | 수정 | ResearchStep 초기화 + research → script 순서 연결 |
+| `shorts-maker-v2/tests/unit/test_research_step.py` | **신규** | 11개 테스트 (context 4, grounding 3, llm 1, parse 3) |
+
+### 결정사항
+- AgentIR (4B 임베딩 모델) 도입 **비추천** — 코퍼스 부재, GPU 비용, 한국어 미지원
+- 대신 Gemini Google Search Grounding (무료) 기반 리서치 스텝 구현
+- `config.yaml`에 `research.enabled: true` 설정으로 활성화 (기본값 false, 기존 동작 영향 없음)
+- 리서치 실패 시 파이프라인 중단 안 함 (graceful degradation)
+
+### 테스트 결과
+- 신규 11개 + 기존 254개 = **265 passed**, 5 skipped
+
+### 다음 도구에게 메모
+- `config.yaml`에 `research:` 섹션 추가해야 활성화됨 (`enabled: true`, `provider: "gemini"`)
+- Gemini Grounding은 무료 tier이지만 RPM 제한 있을 수 있음 — 대량 배치 시 모니터링 필요
+
+---
+
 ## 2026-03-15 17:49 KST — Antigravity (Gemini) — 시스템 QC 2차
 
 ### 작업 요약

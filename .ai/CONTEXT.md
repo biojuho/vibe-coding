@@ -208,7 +208,9 @@ Vibe coding/                      # Root 워크스페이스
 | 2026-03-09 | Antigravity | Notion API `rich_text` 2000자 제한에서 유니코드 한국어 문자열이 정확히 2000자여도 API가 거부하는 경우 발생 | 안전 마진 10자를 두고 1990자로 truncate |
 | 2026-03-12 | Claude Code | FastMCP 1.26에서 `description` kwarg 미지원 → `instructions`로 변경 필요 | `FastMCP("name", instructions="...")` 패턴 사용 |
 | 2026-03-12 | Antigravity | SQLite 쿼리에서 테이블명을 f-string으로 직접 삽입하면 SQL Injection 벡터 발생 | `_validate_table_name()` 정규식 검증 함수로 보호 (`^[a-zA-Z_][a-zA-Z0-9_]*$`) |
+| 2026-03-16 | Antigravity | `channel_router.py`에서 `Path(__file__).parents[4]`로 프로필 경로 탐색 → 실제 프로젝트 루트는 `parents[3]`. 프로젝트 생성 이후 채널 프로필이 한 번도 로드되지 않았음 (경로 depth 계산 실수) | `parents[3]`으로 수정 + 주석에 depth 설명 추가. 경로 depth 변경 시 반드시 실제 실행 위치에서 `resolve()` 검증 필수 |
+| 2026-03-16 | Antigravity | frozen dataclass에 `copy.deepcopy()` 후 직접 속성 할당 시 `FrozenInstanceError`. 기존 코드가 dead code여서 발견 안 됨 | `dataclasses.replace()` 사용으로 변경. frozen=True 클래스에는 항상 `replace()` 패턴 적용 |
 
 ---
 
-*마지막 업데이트: 2026-03-15 17:49 KST (Antigravity — 시스템 QC 2차 완료, 조건부 승인)*
+*마지막 업데이트: 2026-03-16 14:46 KST (Antigravity — shorts-maker-v2 영상 길이 최적화 + Critical Bug Fix + QC 통과)*

@@ -1,5 +1,131 @@
 # Blind-to-X 세션 로그
 
+## 2026-03-16 10:25 KST — Antigravity (Gemini)
+
+### 작업 요약
+
+이전 세션(3/15) 이후 수행된 다음 작업들의 기록 정리.
+
+### 변경 파일 (83 files, +844 / −8,240 lines)
+
+| 카테고리 | 파일 | 변경 | 설명 |
+|----------|------|------|------|
+| **신규** | `pipeline/image_upload.py` | +98 | 이미지 업로드 독립 모듈 |
+| **신규** | `classification_rules.yaml` | +123 | 토픽/감정/톤 분류 규칙 외부화 |
+| **변경** | `main.py` | +19 | Per-source limit 기능 추가 (소스별 스크래핑 수 제한) |
+| **변경** | `scrapers/base.py` | +227 | 스크래퍼 베이스 클래스 기능 확장 |
+| **변경** | `scrapers/ppomppu.py` | +52 | 뽐뿌 스크래퍼 개선 |
+| **변경** | `pipeline/draft_generator.py` | +79 | 초안 생성기 기능 보강 |
+| **리팩토링** | `pipeline/notion_upload.py` | +836/−800 net | Mixin 분리 후 대폭 축소 |
+| **리팩토링** | `pipeline/ab_feedback_loop.py` | ±60 | A/B 피드백 루프 개선 |
+| **리팩토링** | `pipeline/ml_scorer.py` | ±74 | ML 스코러 리팩토링 |
+| **정리** | `tests_unit/` 전체 | −3,900+ | `tests/unit/`으로 마이그레이션 완료, 구 폴더 삭제 |
+| **정리** | `tests/` 스크래치 | −800+ | 개발용 scratch 테스트 14개 파일 삭제 |
+| **정리** | 루트 디버그 파일 | −1,500+ | jobplanet_*, fmkorea_*, out*.txt 등 중간 산출물 일괄 삭제 |
+| **정리** | 루트 테스트 파일 | −250+ | test_ai.py, test_jobplanet_*.py 등 단발성 테스트 삭제 |
+| **삭제** | `pipeline/newsletter_formatter.py` | −489 | 미사용 모듈 제거 |
+| **삭제** | `pipeline/newsletter_scheduler.py` | −285 | 미사용 모듈 제거 |
+| **설정** | `.gitignore` | ±41 | 정리된 파일 패턴 반영 |
+| **설정** | `pytest.ini` | ±2 | 테스트 경로 업데이트 |
+| **설정** | `register_schedule.ps1`, `run_scheduled.bat` | ±75 | 스케줄 설정 개선 |
+
+### 핵심 변경 요약
+
+1. **프로젝트 정리**: 중간 산출물, 디버그 로그, scratch 테스트 등 **약 40개 불필요 파일 삭제**로 저장소 클린업
+2. **테스트 폴더 통합**: `tests_unit/` → `tests/unit/` 마이그레이션 완료, 구 폴더 전체 삭제
+3. **Per-source limit**: `main.py`에 소스별 스크래핑 수 제한 기능 추가 (`scrape_limits_per_source` 설정)
+4. **분류 규칙 외부화**: `classification_rules.yaml` 신규 생성으로 토픽/감정/톤 규칙을 코드에서 분리
+5. **이미지 업로드 분리**: `pipeline/image_upload.py` 독립 모듈 신규 생성
+6. **미사용 모듈 정리**: newsletter_formatter, newsletter_scheduler 삭제
+
+### 다음 도구에게 메모
+
+- 테스트 폴더는 이제 `tests/unit/`만 사용 (구 `tests_unit/` 삭제됨)
+- 분류 규칙은 `classification_rules.yaml`에서 관리
+- `main.py`의 `scrape_limits_per_source` 설정으로 소스별 제한 가능
+
+## 2026-03-15 20:22 KST — Antigravity (Gemini)
+
+### 작업 요약
+
+품질 고도화 Phase 1 QC 수행 및 통과.
+
+### QC 결과
+
+- AST 구문 검증: 3/3 통과
+- 신규 테스트 (품질 게이트 + 시멘틱 씬): 36/36 통과
+- 관련 기존 테스트 회귀: 0건
+- 기존 미구현 실패 20개는 이번 변경과 무관 (format_for_threads, config.yaml 등)
+- **최종 판정: ✅ PASS**
+
+### 변경 파일
+
+| 파일 | 변경 | 이유 |
+|------|------|------|
+| `.ai/CONTEXT.md` | 업데이트 | 신규 모듈 및 진행 상황 반영 |
+| `.ai/SESSION_LOG.md` | 업데이트 | QC 결과 기록 |
+
+### 이전 세션 (19:04 KST) 작업 요약
+
+- `pipeline/draft_quality_gate.py` 신규 생성 (Post-LLM 초안 품질 게이트)
+- `pipeline/image_generator.py` 시멘틱 씬 매핑 추가 (70+ 토픽×감정 조합)
+- `pipeline/process.py` 품질 게이트 파이프라인 통합
+- `tests/unit/test_quality_gate_and_scenes.py` 36개 테스트 생성
+
+## 2026-03-15 19:04 KST — Antigravity (Gemini)
+
+### 작업 요약
+품질 고도화 Phase 1 구현: **Post-LLM 초안 품질 게이트** + **시멘틱 씬 매핑** 두 가지 핵심 기능 추가.
+
+### 변경 파일
+| 파일 | 변경 | 이유 |
+|------|------|------|
+| `pipeline/draft_quality_gate.py` | 신규 생성 | LLM 생성 초안의 플랫폼별 품질 검증 (글자 수, 한글 비율, CTA, 해시태그, 소제목, 금지패턴, 중복문장) |
+| `pipeline/image_generator.py` | 시멘틱 씬 매핑 추가 | 토픽×감정 교차 조합별 구체적 장면 사전(70+ 조합) 구축, 프롬프트 구체성 대폭 향상 |
+| `pipeline/process.py` | 품질 게이트 연동 | 하드코딩된 품질 검증을 DraftQualityGate 모듈로 교체, 검증 리포트를 post_data에 저장 |
+| `tests/unit/test_quality_gate_and_scenes.py` | 신규 생성 | 36개 테스트: 품질 게이트 20개 + 시멘틱 씬 매핑 10개 + 헬퍼 함수 6개 |
+
+### 결정사항
+- 품질 게이트는 `RegulationChecker`와 별도 모듈로 분리 (규제 준수 vs 품질 검증은 관심사가 다름)
+- 시멘틱 씬 매핑은 3단계 폴백: (토픽, 감정) 교차 → 토픽 기본 → 범용 장면
+- `현타` 감정 신규 추가 (exhausted empty eyes staring into space)
+- strict_mode, custom_rules 지원으로 확장성 확보
+
+### TODO
+- [ ] 골든 프롬프트 템플릿 확장 (3개 → 15개 토픽)
+- [ ] Notion 업로드 실패 재시도 큐
+- [ ] 실행 요약 리포트 생성
+
+### 다음 도구에게 메모
+- `DraftQualityGate`는 `process.py`에서 `RegulationChecker` 바로 전에 실행됨
+- `_SEMANTIC_SCENES`는 `image_generator.py` 모듈 레벨 dict로 정의됨
+- 테스트는 `tests/unit/test_quality_gate_and_scenes.py`에 36개 존재, 전부 통과
+
+## 2026-03-15 17:51 KST — Antigravity (Gemini)
+
+### 작업 요약
+이미지 생성 프롬프트에서 한글 텍스트(제목/초안)를 완전 제거하여, 생성 AI가 한글 오타를 이미지에 렌더링하는 문제를 해결. 토픽+감정 축만으로 직관적인 이미지를 생성하도록 변경. no-text 제약을 대폭 강화.
+
+### 변경 파일
+| 파일 | 변경 | 이유 |
+|------|------|------|
+| `pipeline/image_generator.py` | MODIFY | 한글 title/draft_text를 프롬프트에서 완전 제거. `_BLIND_ANIME_STYLE.constraints` 및 일반 프롬프트에 강한 no-text 제약 추가 |
+| `tests/integration/test_p2_enhancements.py` | MODIFY | `test_title_hint_included` → `test_title_not_in_prompt`로 변경. 한글 텍스트가 프롬프트에 포함되지 않음을 검증 |
+
+### 주요 결정사항
+1. **한글 텍스트 완전 제거**: 프롬프트에 한글이 포함되면 Gemini/DALL-E 등이 한글을 이미지에 렌더링하려 하여 오타 발생. 토픽+감정만으로 장면을 구성하면 충분히 직관적.
+2. **강한 no-text 제약**: 기존 `no text overlay` → `absolutely no text, no letters, no numbers, no words, no captions, no writing of any kind` 으로 대폭 강화.
+
+### QA/QC 통과 여부
+- **이미지 프롬프트 테스트**: ✅ 6 passed
+- **A/B 테스터 테스트**: ✅ 16 passed
+
+### 다음 도구에게 메모
+- `build_image_prompt()`의 `title`, `draft_text` 매개변수는 하위 호환성을 위해 남아있지만 프롬프트에 반영되지 않음.
+- 이미지 스타일은 `_TOPIC_IMAGE_STYLES`(일반) 및 `_TOPIC_SCENES`(블라인드 전용)의 토픽 매핑으로만 결정됨.
+
+---
+
 ## 2026-03-09 09:46 KST — Antigravity (Gemini)
 
 ### 작업 요약

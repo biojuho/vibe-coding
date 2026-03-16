@@ -13,16 +13,41 @@ import threading
 import time
 from typing import Any
 
-from execution.language_bridge import (
-    BridgePolicy,
-    build_bridge_system_prompt,
-    build_repair_messages,
-    normalize_json_payload,
-    normalize_prompt_text,
-    preferred_provider_order,
-    validate_json_payload,
-    validate_text_content,
-)
+def _import_language_bridge():
+    """Lazily import execution.language_bridge with dynamic sys.path fixup."""
+    import sys as _sys
+    from pathlib import Path as _Path
+    _root = _Path(__file__).resolve().parent.parent.parent.parent.parent
+    if str(_root) not in _sys.path:
+        _sys.path.insert(0, str(_root))
+    from execution.language_bridge import (  # type: ignore[import]
+        BridgePolicy,
+        build_bridge_system_prompt,
+        build_repair_messages,
+        normalize_json_payload,
+        normalize_prompt_text,
+        preferred_provider_order,
+        validate_json_payload,
+        validate_text_content,
+    )
+    return {
+        "BridgePolicy": BridgePolicy,
+        "build_bridge_system_prompt": build_bridge_system_prompt,
+        "build_repair_messages": build_repair_messages,
+        "normalize_json_payload": normalize_json_payload,
+        "normalize_prompt_text": normalize_prompt_text,
+        "preferred_provider_order": preferred_provider_order,
+        "validate_json_payload": validate_json_payload,
+        "validate_text_content": validate_text_content,
+    }
+
+_bridge_cache: dict | None = None
+
+def _get_bridge():
+    global _bridge_cache
+    if _bridge_cache is None:
+        _bridge_cache = _import_language_bridge()
+    return _bridge_cache
 
 logger = logging.getLogger(__name__)
 
@@ -359,8 +384,16 @@ class LLMRouter:
         system_prompt: str,
         user_prompt: str,
         temperature: float = 0.7,
-        policy: BridgePolicy | None = None,
+        policy: Any | None = None,
     ) -> str:
+        bridge = _get_bridge()
+        BridgePolicy = bridge["BridgePolicy"]
+        preferred_provider_order = bridge["preferred_provider_order"]
+        build_bridge_system_prompt = bridge["build_bridge_system_prompt"]
+        normalize_prompt_text = bridge["normalize_prompt_text"]
+        validate_text_content = bridge["validate_text_content"]
+        build_repair_messages = bridge["build_repair_messages"]
+
         policy = policy or BridgePolicy.from_env()
         if policy.mode == "off":
             return self.generate_text(
@@ -452,8 +485,18 @@ class LLMRouter:
         system_prompt: str,
         user_prompt: str,
         temperature: float = 0.7,
-        policy: BridgePolicy | None = None,
+        policy: Any | None = None,
     ) -> dict[str, Any]:
+        bridge = _get_bridge()
+        BridgePolicy = bridge["BridgePolicy"]
+        preferred_provider_order = bridge["preferred_provider_order"]
+        build_bridge_system_prompt = bridge["build_bridge_system_prompt"]
+        normalize_prompt_text = bridge["normalize_prompt_text"]
+        validate_text_content = bridge["validate_text_content"]
+        build_repair_messages = bridge["build_repair_messages"]
+        normalize_json_payload = bridge["normalize_json_payload"]
+        validate_json_payload = bridge["validate_json_payload"]
+
         policy = policy or BridgePolicy.from_env()
         if policy.mode == "off":
             return self.generate_json(
@@ -549,3 +592,4 @@ class LLMRouter:
                         time.sleep(min(2 ** attempt, 10))
 
         raise RuntimeError(f"All bridge providers failed: {' | '.join(all_errors)}")
+

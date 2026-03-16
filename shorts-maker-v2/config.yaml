@@ -16,7 +16,7 @@ project:
       flow: [hook, pro1, con1, pro2, con2, verdict, cta]
 
 video:
-  target_duration_sec: [25, 35]
+  target_duration_sec: [25, 40]      # 상한 45초 내 안전 범위
   resolution: [1080, 1920]
   fps: 30
   scene_video_duration_sec: 5

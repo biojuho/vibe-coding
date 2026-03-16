@@ -15,6 +15,7 @@ from shorts_maker_v2.config import AppConfig, resolve_runtime_paths
 from shorts_maker_v2.models import JobManifest, SceneAsset, ScenePlan
 from shorts_maker_v2.pipeline.media_step import MediaStep
 from shorts_maker_v2.pipeline.render_step import RenderStep
+from shorts_maker_v2.pipeline.research_step import ResearchStep
 from shorts_maker_v2.pipeline.script_step import ScriptStep, TopicUnsuitableError
 from shorts_maker_v2.pipeline.thumbnail_step import ThumbnailStep
 from shorts_maker_v2.providers.google_client import GoogleClient
@@ -83,6 +84,7 @@ class PipelineOrchestrator:
                 thumbnail_config=config.thumbnail,
                 canva_config=config.canva,
             )
+            self.research_step: ResearchStep | None = None
             return
 
         openai_key = os.getenv("OPENAI_API_KEY", "")
@@ -140,6 +142,18 @@ class PipelineOrchestrator:
             canva_config=config.canva,
             openai_client=openai_client,
         )
+
+        # Research Step (config.research.enabled=True 시 활성화)
+        if config.research.enabled:
+            research_google = google_client if config.research.provider == "gemini" else None
+            research_llm = llm_router if config.research.provider == "llm" or not research_google else llm_router
+            self.research_step: ResearchStep | None = ResearchStep(
+                config=config,
+                google_client=research_google,
+                llm_router=research_llm,
+            )
+        else:
+            self.research_step = None
 
     @staticmethod
     def _load_channel_profile(channel_key: str, base_dir: Path) -> dict | None:
@@ -220,7 +234,21 @@ class PipelineOrchestrator:
                 manifest.ab_variant = cp_data.get("ab_variant", {})
                 logger.info("checkpoint_loaded", scene_count=manifest.scene_count)
             else:
-                title, scene_plans, hook_pattern = self.script_step.run(topic)
+                # ── Research Step (활성화 시) ──
+                research_context = None
+                if self.research_step:
+                    try:
+                        research_context = self.research_step.run(topic)
+                        logger.info(
+                            "research_done",
+                            facts=len(research_context.facts),
+                            data_points=len(research_context.key_data_points),
+                            elapsed_sec=research_context.elapsed_sec,
+                        )
+                    except Exception as exc:
+                        logger.warning("research_failed", error=str(exc))
+
+                title, scene_plans, hook_pattern = self.script_step.run(topic, research_context=research_context)
                 manifest.title = title
                 manifest.scene_count = len(scene_plans)
                 manifest.hook_pattern = hook_pattern
@@ -289,6 +317,14 @@ class PipelineOrchestrator:
 
             manifest.output_path = output_path.resolve().as_posix()
             manifest.total_duration_sec = round(sum(item.duration_sec for item in scene_assets), 3)
+            # YouTube Shorts 상한 (45초) 체크
+            if manifest.total_duration_sec > 45:
+                logger.warning(
+                    "shorts_overlength",
+                    total_sec=manifest.total_duration_sec,
+                    limit_sec=45,
+                    message=f"⚠️ 영상 {manifest.total_duration_sec:.1f}s > 45s Shorts 상한! 길이 확인 필요.",
+                )
             manifest.status = "success"
             manifest.ab_variant["renderer"] = "shorts_factory" if sf_rendered else "native"
             logger.info(
