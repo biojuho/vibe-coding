@@ -8,14 +8,14 @@ function FailContent() {
   const router = useRouter();
 
   return (
-    <div style={{ padding: "40px", textAlign: "center", fontFamily: "'Noto Sans KR', sans-serif" }}>
-      <h1 style={{ fontSize: "24px", fontWeight: 700, color: "#D32F2F" }}>결제 실패 😢</h1>
-      <p style={{ marginTop: "10px", color: "#666" }}>{searchParams.get("message") || "알 수 없는 오류가 발생했습니다."}</p>
-      <p style={{ marginTop: "4px", fontSize: "12px", color: "#999" }}>Code: {searchParams.get("code")}</p>
+    <div style={{ padding: "56px 24px", textAlign: "center", fontFamily: "var(--font-sans-custom)", color: "var(--color-text)" }}>
+      <h1 style={{ fontSize: "28px", fontWeight: 700, color: "var(--color-danger)", fontFamily: "var(--font-display-custom)" }}>결제 실패 😢</h1>
+      <p style={{ marginTop: "10px", color: "var(--color-text-secondary)" }}>{searchParams.get("message") || "알 수 없는 오류가 발생했습니다."}</p>
+      <p style={{ marginTop: "4px", fontSize: "12px", color: "var(--color-text-muted)" }}>Code: {searchParams.get("code")}</p>
       
       <button 
         onClick={() => router.back()}
-        style={{ marginTop: "20px", padding: "10px 20px", background: "#333", color: "white", borderRadius: "8px", border: "none", cursor: "pointer" }}
+        style={{ marginTop: "20px", padding: "12px 22px", background: "var(--surface-gradient-primary)", color: "white", borderRadius: "18px", border: "1px solid var(--color-surface-stroke)", cursor: "pointer", boxShadow: "var(--shadow-button-primary)" }}
       >
         다시 시도하기
       </button>

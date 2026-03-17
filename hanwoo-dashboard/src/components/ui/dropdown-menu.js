@@ -10,7 +10,7 @@ export function DropdownMenuTrigger({ asChild, children, ...props }) {
 
 export function DropdownMenuContent({ align = "end", children, className }) {
   return (
-    <div className={`absolute right-0 mt-2 w-56 origin-top-right bg-white divide-y divide-gray-100 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50 ${className}`}>
+    <div className={`clay-surface absolute right-0 mt-2 w-56 origin-top-right divide-y rounded-[22px] focus:outline-none z-50 ${className}`} style={{ borderColor: 'var(--color-surface-stroke)' }}>
       <div className="py-1">{children}</div>
     </div>
   );
@@ -19,7 +19,8 @@ export function DropdownMenuContent({ align = "end", children, className }) {
 export function DropdownMenuItem({ children, onClick, className }) {
   return (
     <div
-      className={`block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 cursor-pointer ${className}`}
+      className={`block cursor-pointer rounded-[14px] px-4 py-2 text-sm transition-colors hover:bg-background/70 ${className}`}
+      style={{ color: 'var(--color-text)' }}
       onClick={onClick}
     >
       {children}
@@ -28,9 +29,9 @@ export function DropdownMenuItem({ children, onClick, className }) {
 }
 
 export function DropdownMenuLabel({ children }) {
-  return <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">{children}</div>;
+  return <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>{children}</div>;
 }
 
 export function DropdownMenuSeparator() {
-  return <div className="border-t border-gray-100 my-1"></div>;
+  return <div className="my-1 border-t" style={{ borderColor: 'var(--color-surface-border)' }}></div>;
 }

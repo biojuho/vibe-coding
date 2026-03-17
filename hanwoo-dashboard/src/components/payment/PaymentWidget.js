@@ -50,7 +50,7 @@ export default function PaymentWidget({ clientKey, customerKey, amount }) {
   };
 
   return (
-    <div style={{padding:"20px", background:"white", borderRadius:"16px"}}>
+    <div style={{padding:"24px", background:"var(--surface-gradient)", borderRadius:"28px", border:"1px solid var(--color-surface-stroke)", boxShadow:"var(--shadow-lg)"}}>
       <h2 style={{fontSize:"18px", fontWeight:700, marginBottom:"20px"}}>구독 결제</h2>
       <div id="payment-widget" />
       <div id="agreement" />
@@ -59,14 +59,15 @@ export default function PaymentWidget({ clientKey, customerKey, amount }) {
         style={{
             width:"100%", 
             padding:"16px", 
-            background:"#3182F6", // Toss Blue
+            background:"var(--surface-gradient-primary)",
             color:"white", 
             fontSize:"16px", 
             fontWeight:700, 
-            border:"none", 
-            borderRadius:"12px", 
+            border:"1px solid var(--color-surface-stroke)", 
+            borderRadius:"18px", 
             marginTop:"20px", 
-            cursor:"pointer"
+            cursor:"pointer",
+            boxShadow:"var(--shadow-button-primary)"
         }}
       >
         {price.toLocaleString()}원 결제하기

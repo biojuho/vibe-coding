@@ -341,7 +341,7 @@ export default function DashboardClient({ initialCattle, initialSales, initialFe
         {/* Header Section */}
         <div className="animate-fadeInDown flex justify-between items-center mb-5 py-1">
           <div>
-            <h1 className="text-2xl font-extrabold text-foreground tracking-tight mb-1">
+            <h1 className="text-2xl font-extrabold text-foreground tracking-[0.04em] mb-1">
               {farmSettings.name || "Joolife Dashboard"}
             </h1>
             <p className="text-sm text-muted-foreground">오늘도 힘찬 하루 되세요! 🐮</p>
@@ -352,7 +352,7 @@ export default function DashboardClient({ initialCattle, initialSales, initialFe
               variant="outline"
               size="icon"
               onClick={()=>setShowNotifications(true)}
-              className="relative shadow-md"
+              className="relative shadow-[var(--shadow-sm)]"
             >
               <Bell className="h-5 w-5" />
               {notifications.some(n=>n.type==='urgent') && (
@@ -362,7 +362,7 @@ export default function DashboardClient({ initialCattle, initialSales, initialFe
             <Button
               size="icon"
               onClick={()=>setShowAddModal(true)}
-              className="shadow-[0_4px_16px_rgba(62,47,28,0.35)]"
+              className="shadow-[var(--shadow-button-primary)]"
             >
               <Plus className="h-5 w-5" />
             </Button>
@@ -405,7 +405,7 @@ export default function DashboardClient({ initialCattle, initialSales, initialFe
                 <Card
                   key={b.id}
                   onClick={() => setSelectedBuildingId(b.id)}
-                  className="animate-fadeInUp cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all"
+                  className="animate-fadeInUp cursor-pointer hover:-translate-y-1 transition-all"
                   style={{animationDelay:`${250 + idx*50}ms`}}
                 >
                   <CardContent className="flex justify-between items-center p-4">
@@ -482,11 +482,11 @@ export default function DashboardClient({ initialCattle, initialSales, initialFe
     <div className="dashboard-container">
       <div className="max-w-[600px] mx-auto p-4 relative">
         {!isOnline && (
-          <div className="bg-amber-500 text-white rounded-lg mb-3 flex items-center gap-2.5 px-4 py-2.5 text-sm font-bold shadow-md">
+          <div className="mb-3 flex items-center gap-2.5 rounded-[20px] px-4 py-3 text-sm font-bold text-white shadow-[var(--shadow-md)]" style={{ background: "linear-gradient(145deg, color-mix(in srgb, var(--color-warning) 72%, white 28%), var(--color-warning))", border: "1px solid rgba(255,255,255,0.2)" }}>
             <WifiOff className="h-5 w-5 flex-shrink-0" />
             오프라인 모드 — 작업은 저장되어 연결 복구 시 자동 동기화됩니다
             {queueSize() > 0 && (
-              <Badge variant="secondary" className="ml-auto bg-white/30 text-white border-0 text-xs">
+              <Badge variant="secondary" className="ml-auto border-white/15 bg-white/25 text-white text-xs shadow-none">
                 {queueSize()}건 대기
               </Badge>
             )}
@@ -526,7 +526,7 @@ export default function DashboardClient({ initialCattle, initialSales, initialFe
         <div className="mt-3 flex justify-center gap-4 flex-wrap">
           <a href="/terms" className="no-underline text-muted-foreground hover:text-foreground transition-colors py-1">이용약관</a>
           <a href="/privacy" className="no-underline text-muted-foreground hover:text-foreground transition-colors py-1">개인정보처리방침</a>
-          <a href="/subscription" className="no-underline text-amber-600 dark:text-amber-400 font-semibold hover:text-amber-500 transition-colors py-1">⭐ 프리미엄 구독</a>
+          <a href="/subscription" className="no-underline text-primary font-semibold hover:text-foreground transition-colors py-1">⭐ 프리미엄 구독</a>
         </div>
         <p className="mt-3.5 text-[11px] text-muted-foreground/60">
           Copyright © 2026 Joolife. All rights reserved.

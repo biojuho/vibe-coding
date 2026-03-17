@@ -30,19 +30,20 @@ export default function LoginPage() {
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      background: "#F7F6F4",
-      fontFamily: "'Noto Sans KR', sans-serif"
+      background: "var(--color-bg)",
+      fontFamily: "var(--font-sans-custom)"
     }}>
       <div style={{
-        background: "white",
+        background: "var(--surface-gradient)",
         padding: "40px",
-        borderRadius: "24px",
-        boxShadow: "0 10px 30px rgba(0,0,0,0.05)",
+        borderRadius: "32px",
+        boxShadow: "var(--shadow-lg)",
+        border: "1px solid var(--color-surface-stroke)",
         width: "100%",
         maxWidth: "400px"
       }}>
-        <h1 style={{fontSize:"24px", fontWeight:800, marginBottom:"8px", color:"#3E2F1C", textAlign:"center"}}>한우 대시보드</h1>
-        <p style={{fontSize:"14px", color:"#8B7D6B", marginBottom:"24px", textAlign:"center"}}>관리자 계정으로 로그인하세요.</p>
+        <h1 style={{fontSize:"24px", fontWeight:800, marginBottom:"8px", color:"var(--color-text)", textAlign:"center", letterSpacing:"0.04em", fontFamily:"var(--font-display-custom)"}}>한우 대시보드</h1>
+        <p style={{fontSize:"14px", color:"var(--color-text-secondary)", marginBottom:"24px", textAlign:"center"}}>관리자 계정으로 로그인하세요.</p>
         
         <form onSubmit={handleSubmit} style={{display:"flex", flexDirection:"column", gap:"16px"}}>
           <input
@@ -52,10 +53,13 @@ export default function LoginPage() {
             onChange={(e) => setUsername(e.target.value)}
             style={{
               padding: "16px",
-              borderRadius: "12px",
-              border: "1px solid #E0E0E0",
+              borderRadius: "18px",
+              border: "1px solid var(--color-surface-border)",
               fontSize: "16px",
-              outline: "none"
+              outline: "none",
+              background: "var(--surface-gradient)",
+              color: "var(--color-text)",
+              boxShadow: "var(--shadow-inset-soft)"
             }}
           />
           <input
@@ -65,25 +69,29 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             style={{
               padding: "16px",
-              borderRadius: "12px",
-              border: "1px solid #E0E0E0",
+              borderRadius: "18px",
+              border: "1px solid var(--color-surface-border)",
               fontSize: "16px",
-              outline: "none"
+              outline: "none",
+              background: "var(--surface-gradient)",
+              color: "var(--color-text)",
+              boxShadow: "var(--shadow-inset-soft)"
             }}
           />
-          {error && <div style={{color:"red", fontSize:"13px", textAlign:"center"}}>{error}</div>}
+          {error && <div style={{color:"var(--color-danger)", fontSize:"13px", textAlign:"center"}}>{error}</div>}
           <button
             type="submit"
             style={{
               padding: "16px",
-              borderRadius: "12px",
-              background: "#3E2F1C",
+              borderRadius: "18px",
+              background: "var(--surface-gradient-primary)",
               color: "white",
               fontSize: "16px",
               fontWeight: 700,
-              border: "none",
+              border: "1px solid var(--color-surface-stroke)",
               cursor: "pointer",
-              transition: "background 0.2s"
+              transition: "background 0.2s",
+              boxShadow: "var(--shadow-button-primary)"
             }}
           >
             로그인
