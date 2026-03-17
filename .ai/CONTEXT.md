@@ -256,3 +256,15 @@ Vibe coding/                      # Root 워크스페이스
 
 ### Known risks / landmines
 - Visual regression hashes are environment-sensitive by design; if fonts or rendering stack change intentionally, the approved hashes must be regenerated consciously.
+
+## 2026-03-17 Codex UI Update
+
+### hanwoo-dashboard
+- The dashboard design system has been shifted to a claymorphism theme: warm cream/cocoa palettes, dual-shadow surfaces, softer tabs/modals/cards, and serif-accented headings.
+- Tailwind/shadcn tokens and the legacy dashboard `--color-*` variables are now aligned, so shared primitives and custom screens read from the same theme source.
+- Theme toggling now synchronizes both `data-theme` and the `.dark` class. This fixes the previous mismatch where legacy CSS changed but shadcn/Tailwind primitives stayed in light mode.
+- Public-route visual verification artifact: `hanwoo-dashboard/hanwoo-login-clay.png`
+
+### Known risks / landmines
+- Protected `hanwoo-dashboard` routes redirect unauthenticated users to `/login`, so browser-based visual QA without credentials is limited to public pages unless someone signs in manually.
+- The public route still logs manifest/favicon console noise during Playwright verification; it was not introduced by the claymorphism refresh.

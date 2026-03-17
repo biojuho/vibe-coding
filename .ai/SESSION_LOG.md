@@ -3,6 +3,41 @@
 > 각 AI 도구가 작업할 때마다 아래 형식으로 기록합니다.
 > 최신 세션이 파일 상단에 위치합니다 (역순).
 
+## 2026-03-17 — Antigravity (Gemini) — System Enhancement v2 Phase 4 실행 + v3.0 로드맵
+
+### 작업 요약
+Phase 4 (수익화 기반 구축) 4개 모듈 신규 구현 + 2개 Streamlit 대시보드 + v3.0 다국어/SaaS 전환 로드맵 문서 작성.
+
+### 신규 파일
+| # | 파일 | 설명 |
+|---|------|------|
+| 1 | `execution/channel_growth_tracker.py` | T4-1: YouTube 채널 성장 트래커 (API 수집 + SQLite + 성장률 분석) |
+| 2 | `execution/pages/channel_growth.py` | T4-1: Streamlit 대시보드 (구독자/조회수 추이 차트) |
+| 3 | `execution/roi_calculator.py` | T4-2: 콘텐츠 ROI 계산기 (비용-수익 분석, 손익분기점) |
+| 4 | `execution/pages/roi_dashboard.py` | T4-2: ROI Streamlit 대시보드 |
+| 5 | `shorts-maker-v2/src/.../series_engine.py` | T4-3: 시리즈화 엔진 (고성과 토픽 자동 감지 + 후속편 제안) |
+| 6 | `blind-to-x/pipeline/x_analytics.py` | T4-4: X(Twitter) 성과 수집 (우선순위 샘플링, 월 1500 reads 관리) |
+| 7 | `directives/roadmap_v3.md` | v3.0 다국어+SaaS 전환 로드맵 (Phase A/B/C) |
+
+### 테스트 결과
+| 테스트 파일 | 결과 |
+|------------|------|
+| `execution/tests/test_channel_growth_tracker.py` | 10 passed ✅ |
+| `execution/tests/test_roi_calculator.py` | 14 passed ✅ |
+| `shorts-maker-v2/tests/unit/test_series_engine.py` | 14 passed ✅ |
+| `blind-to-x/tests/test_x_analytics.py` | 10 passed ✅ |
+| **총합** | **48 passed** ✅ |
+
+### RenderAdapter 상태
+`orchestrator.py`의 `_try_shorts_factory_render` 메서드로 이미 완전 통합 확인. 추가 코드 변경 불필요.
+
+### 다음 도구에게 메모
+- Phase 5(Next-Gen Features)는 탐색적 단계. T5-1 다국어 Shorts부터 시작 권장.
+- `roadmap_v3.md`에 v3.0 전체 로드맵 정리됨. Phase A(다국어) → B(SaaS) → C(클라우드) 순서.
+- X API Free Tier 월 1,500 reads 제한 — `x_analytics.py`에 자동 쿼터 관리 구현됨.
+
+---
+
 ## 2026-03-17 — Claude Code (Opus 4.6) — shorts-maker-v2 영상 길이 초과 + 카라오케 자막 Critical 버그 2건 수정
 
 ### 작업 요약
@@ -1765,3 +1800,39 @@ AI 도구 공유 컨텍스트 시스템 초기 세팅
 
 ### 최종 판정
 - Re-QC passed for the two previously blocking items.
+
+## 2026-03-17 19:02 KST ??Codex ??hanwoo-dashboard claymorphism theme refresh
+
+### ?묒뾽 ?붿빟
+- Re-themed `hanwoo-dashboard` around a claymorphism surface system with warm cream/cocoa palettes, softened gradients, and dual-shadow depth.
+- Unified Tailwind/shadcn tokens with the legacy `--color-*` dashboard variables so cards, buttons, inputs, tabs, dialogs, and dropdowns follow the same theme.
+- Fixed theme switching so `useTheme()` now syncs both `data-theme` and the `.dark` class; shared primitives now respond to dark mode correctly.
+- Refreshed public auth/billing surfaces (`/login`, subscription/payment success/fail) and verified the login route visually with Playwright.
+
+### 蹂寃쏀븳 ?뚯씪
+| ?뚯씪 | 蹂寃??댁슜 |
+|------|-----------|
+| `hanwoo-dashboard/src/app/globals.css` | claymorphism tokens, surfaces, shadows, backgrounds, tab/modal/weather/card styling |
+| `hanwoo-dashboard/src/lib/useTheme.js` | sync `data-theme` + `.dark` class together |
+| `hanwoo-dashboard/src/app/layout.js` | updated font stack for serif display + Korean body pairing |
+| `hanwoo-dashboard/src/components/ui/{card,button,badge,input,tabs,select,tooltip,dialog,dropdown-menu}.js` | shared primitive styling updated to clay surfaces |
+| `hanwoo-dashboard/src/components/ui/common.js` | inline style helpers updated to new tokens |
+| `hanwoo-dashboard/src/components/DashboardClient.js` | dashboard header/offline banner/premium link polish |
+| `hanwoo-dashboard/src/app/login/page.js` | clay login panel and inputs |
+| `hanwoo-dashboard/src/app/subscription/{page,success,fail}.js` | billing flow surfaces aligned to new theme |
+| `hanwoo-dashboard/src/components/payment/PaymentWidget.js` | payment card/button aligned to new theme |
+
+### 寃곗젙?ы빆
+- Kept the existing app structure and implemented the theme through tokens + shared primitives instead of per-screen rewrites.
+- Used the public `/login` route for visual verification because protected dashboard routes redirect unauthenticated users back to login.
+
+### QC / verification
+- `npm run build` (`hanwoo-dashboard`) ??PASS
+- Playwright screenshot: `hanwoo-dashboard/hanwoo-login-clay.png`
+
+### TODO
+- If authenticated dashboard credentials are available later, visually verify the home/settings tabs and diagnostics page under the new theme.
+
+### ?ㅼ쓬 ?꾧뎄?먭쾶 ?꾨떖??硫붾え
+- Future theme work must keep `data-theme` and `.dark` in sync; changing only one will desync shadcn/Tailwind vs legacy dashboard styles.
+- Playwright console still reports manifest/favicon noise on public pages; that was present during verification and not addressed in this session.
