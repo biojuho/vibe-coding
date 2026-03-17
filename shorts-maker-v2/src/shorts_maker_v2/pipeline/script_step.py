@@ -51,7 +51,7 @@ if _HAS_PYDANTIC:
 
 
 class ScriptStep:
-    duration_estimate_chars_per_sec = 4.2   # 실측 edge-tts 보정: 488chars→68.4s → 보정값 4.2
+    duration_estimate_chars_per_sec = 2.8   # 실측 SSML+edge-tts 보정: 씬별 prosody/emphasis/break 오버헤드 반영
     max_generation_attempts = 3
 
     # 4가지 Hook 패턴 (로테이션)

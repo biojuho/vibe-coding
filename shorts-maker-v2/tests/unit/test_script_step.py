@@ -131,11 +131,11 @@ def test_run_retries_when_first_script_is_too_short() -> None:
         "title": "Short Draft",
         "scenes": [
             {
-                "narration_ko": "\uc9e7\uc740 \uc124\uba85\uc785\ub2c8\ub2e4.",
+                "narration_ko": "짧아.",
                 "visual_prompt_en": "Scene one",
             },
             {
-                "narration_ko": "\ub610 \uc9e7\uc2b5\ub2c8\ub2e4.",
+                "narration_ko": "짧음.",
                 "visual_prompt_en": "Scene two",
             },
         ],
@@ -144,21 +144,21 @@ def test_run_retries_when_first_script_is_too_short() -> None:
         "title": "Longer Draft",
         "scenes": [
             {
-                "narration_ko": "\uccab \uc7a5\uba74 \uc124\uba85\uc785\ub2c8\ub2e4.",
+                "narration_ko": "첫 번째 장면은 충분히 긴 나레이션으로 구성합니다.",
                 "visual_prompt_en": "Scene one",
             },
             {
-                "narration_ko": "\ub450 \ubc88\uc9f8 \uc7a5\uba74\uc785\ub2c8\ub2e4.",
+                "narration_ko": "두 번째 장면도 충분히 긴 나레이션으로 설명합니다.",
                 "visual_prompt_en": "Scene two",
             },
         ],
     }
     client = FakeOpenAIClient([short_payload, long_enough_payload])
-    step = ScriptStep(config=make_config(duration_range=(4, 8)), llm_router=client, openai_client=client)
+    step = ScriptStep(config=make_config(duration_range=(8, 16)), llm_router=client, openai_client=client)
 
     title, scenes, hook_pattern = step.run("science topic")
 
     assert title == "Longer Draft"
     assert client.calls == 2
-    assert 4.0 <= ScriptStep.estimate_total_duration_sec(scenes) <= 8.0
+    assert 8.0 <= ScriptStep.estimate_total_duration_sec(scenes) <= 16.0
     assert hook_pattern in [p[0] for p in ScriptStep.HOOK_PATTERNS]

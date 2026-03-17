@@ -84,6 +84,57 @@ def _apply_ssml_by_role(text: str, role: str) -> str:
         return safe_text.replace(". ", '.<break time="200ms"/> ')
 
 
+def _approximate_word_timings(ssml_text: str, audio_path: Path) -> list[dict]:
+    """WordBoundary 이벤트 미수신 시 오디오 길이 기반 근사 단어 타이밍 생성.
+
+    SSML 태그를 제거하고 순수 텍스트를 추출한 뒤,
+    오디오 총 길이를 단어 수로 균등 분배합니다.
+    """
+    import re
+    # SSML 태그 제거 → 순수 텍스트 추출
+    plain = re.sub(r"<[^>]+>", " ", ssml_text)
+    plain = re.sub(r"\s+", " ", plain).strip()
+    if not plain:
+        return []
+
+    # 한국어: 공백 + 조사 경계로 분리, 영어: 공백 분리
+    words = [w for w in plain.split() if w.strip()]
+    if not words:
+        return []
+
+    # 오디오 길이 읽기
+    try:
+        from mutagen.mp3 import MP3
+        audio_dur = MP3(str(audio_path)).info.length
+    except Exception:
+        return []
+
+    if audio_dur <= 0:
+        return []
+
+    # 한글 음절 수 기반 가중 분배 (한글이 영문보다 발화 시간이 긺)
+    def _weight(word: str) -> float:
+        hangul = len(re.findall(r"[가-힣]", word))
+        latin = len(re.findall(r"[A-Za-z0-9]", word))
+        return max(1.0, hangul * 1.0 + latin * 0.5)
+
+    weights = [_weight(w) for w in words]
+    total_weight = sum(weights)
+
+    result: list[dict] = []
+    cursor = 0.0
+    for w, wt in zip(words, weights):
+        dur = (wt / total_weight) * audio_dur
+        result.append({
+            "word": w,
+            "start": round(cursor, 4),
+            "end": round(cursor + dur, 4),
+        })
+        cursor += dur
+
+    return result
+
+
 async def _generate_async(text: str, voice: str, rate: str, output_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     communicate = SSMLCommunicate(text, voice=voice, rate=rate)
@@ -135,6 +186,18 @@ async def _generate_async_with_timing(
             encoding="utf-8",
         )
         logger.info("EdgeTTS: %d word timings saved to %s", len(words), words_json_path)
+    else:
+        # WordBoundary 이벤트 미수신 (SSML 사용 시 발생 가능) → 근사 타이밍 생성
+        approx = _approximate_word_timings(text, output_path)
+        if approx:
+            words_json_path.write_text(
+                json.dumps(approx, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            logger.info(
+                "EdgeTTS: WordBoundary 미수신, 근사 타이밍 %d words 생성: %s",
+                len(approx), words_json_path,
+            )
 
     # Phase 2: SSML 원문 저장 → render_step의 apply_ssml_break_correction에서 활용
     ssml_txt_path = words_json_path.parent / f"{words_json_path.stem}_ssml.txt"

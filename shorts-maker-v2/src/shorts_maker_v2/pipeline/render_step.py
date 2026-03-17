@@ -644,36 +644,47 @@ class RenderStep:
             # 카라오케 모드
             if style.mode == "karaoke":
                 words_json_path = Path(asset.audio_path).parent / f"{Path(asset.audio_path).stem}_words.json"
+                ssml_txt_path = words_json_path.parent / f"{words_json_path.stem}_ssml.txt"
                 try:
                     raw_words = load_words_json(words_json_path)
-                    corrected_words = apply_ssml_break_correction(raw_words)
+                    # SSML break 보정 (ssml 텍스트 파일이 있을 때만)
+                    if ssml_txt_path.exists():
+                        ssml_text = ssml_txt_path.read_text(encoding="utf-8")
+                        corrected_words = apply_ssml_break_correction(raw_words, ssml_text)
+                    else:
+                        corrected_words = raw_words
+                    # group_into_chunks → list[tuple[start, end, text]]
                     chunks = group_into_chunks(corrected_words, style.words_per_chunk)
 
                     # Word-level highlight 모드
                     if self.config.captions.highlight_mode == "word":
                         caption_clips = []
-                        for chunk in chunks:
-                            for word_data in chunk["words"]:
-                                ws = word_data["start"]
-                                we = word_data["end"]
-                                wd = max(0.05, we - ws)
-                                highlight_img = render_karaoke_highlight_image(
-                                    chunk_text=chunk["text"],
-                                    highlight_word=word_data["word"],
-                                    style=style,
+                        for chunk_start, chunk_end, chunk_text in chunks:
+                            # 청크 내 단어별 하이라이트
+                            chunk_words = chunk_text.split()
+                            chunk_dur = max(0.1, chunk_end - chunk_start)
+                            word_dur = chunk_dur / max(len(chunk_words), 1)
+                            for wi, cw in enumerate(chunk_words):
+                                ws = chunk_start + wi * word_dur
+                                wd = max(0.05, word_dur)
+                                highlight_out = run_dir / f"kh_{plan.scene_id:02d}_{chunk_start:.2f}_{wi}.png"
+                                render_karaoke_highlight_image(
+                                    words=chunk_words,
+                                    active_word_index=wi,
                                     canvas_width=target_width,
+                                    style=style,
                                     highlight_color=self.config.captions.highlight_color,
+                                    output_path=highlight_out,
                                 )
-                                cap_clip = ImageClip(highlight_img, transparent=True).with_duration(wd).with_start(ws)
+                                cap_clip = ImageClip(str(highlight_out), transparent=True).with_duration(wd).with_start(ws)
                                 caption_clips.append(cap_clip)
                     else:
                         caption_clips = []
-                        for chunk in chunks:
-                            cs = chunk["start"]
-                            ce = chunk["end"]
-                            cd = max(0.1, ce - cs)
-                            cap_img = render_karaoke_image(chunk["text"], style, target_width)
-                            cap_clip = ImageClip(cap_img, transparent=True).with_duration(cd).with_start(cs)
+                        for chunk_start, chunk_end, chunk_text in chunks:
+                            cd = max(0.1, chunk_end - chunk_start)
+                            cap_out = run_dir / f"kc_{plan.scene_id:02d}_{chunk_start:.2f}.png"
+                            render_karaoke_image(chunk_text, target_width, style, cap_out)
+                            cap_clip = ImageClip(str(cap_out), transparent=True).with_duration(cd).with_start(chunk_start)
                             caption_clips.append(cap_clip)
 
                     if caption_clips:

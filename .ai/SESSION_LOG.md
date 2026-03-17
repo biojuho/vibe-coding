@@ -3,6 +3,51 @@
 > 각 AI 도구가 작업할 때마다 아래 형식으로 기록합니다.
 > 최신 세션이 파일 상단에 위치합니다 (역순).
 
+## 2026-03-17 — Claude Code (Opus 4.6) — shorts-maker-v2 영상 길이 초과 + 카라오케 자막 Critical 버그 2건 수정
+
+### 작업 요약
+shorts-maker-v2 영상 재생성 테스트에서 발견된 Critical 버그 2건을 수정:
+1. 영상 길이 56.3초 (45초 상한 초과) — CPS 보정 + 오케스트레이터 자동 트림
+2. 카라오케 _words.json 미생성 (7/7 실패) — 근사 타이밍 fallback + render_step 데이터 구조 수정
+
+### 근본 원인 분석
+| 이슈 | 원인 | 영향 |
+|------|------|------|
+| 영상 길이 초과 | CPS 4.2 추정이 SSML prosody/emphasis/break 오버헤드 미반영. 추정 34.7s → 실제 TTS 53s (1.53x) | YouTube Shorts 45초 상한 위반 가능 |
+| 카라오케 미동작 | SSMLCommunicate 사용 시 edge-tts WordBoundary 이벤트 미수신 + render_step이 group_into_chunks 반환 타입(tuple)을 dict로 접근 | 모든 씬에서 정적 자막 폴백, 카라오케 기능 완전 불능 |
+
+### 수정 사항
+| # | 파일 | 수정 |
+|---|------|------|
+| 1 | `providers/edge_tts_client.py` | `_approximate_word_timings()` 함수 추가 — WordBoundary 미수신 시 오디오 길이 기반 한글 음절 가중 근사 타이밍 자동 생성 |
+| 2 | `pipeline/render_step.py` | 카라오케 데이터 접근 dict→tuple 언패킹 수정, SSML 파일 조건부 로드, `render_karaoke_highlight_image` 정확한 파라미터 전달 |
+| 3 | `pipeline/orchestrator.py` | 미디어 생성 후 총 오디오 43초(45초-여유2초) 초과 시 뒤쪽 body 씬 자동 트림 (hook/cta 보존) |
+| 4 | `pipeline/script_step.py` | CPS 4.2 → 2.8 (SSML prosody/emphasis/break 오버헤드 보정) |
+| 5 | `tests/unit/test_script_step.py` | CPS 변경에 맞게 테스트 narration/duration_range 조정 |
+
+### QC 결과
+| 항목 | 결과 |
+|------|------|
+| AST 파싱 5개 파일 | PASS |
+| Unit 테스트 382 passed, 5 skipped | PASS |
+| 실제 영상 생성 (수정 전) | 56.3s, words_json 0/7 |
+| 실제 영상 생성 (수정 후) | 44.0s, words_json 7/7 |
+| 비용 | $0.002 (변동 없음) |
+| **QC 판정** | **승인 (APPROVED)** |
+
+### 결정사항
+- CPS 2.8은 SSML 오버헤드 포함 실측값 기반. LLM이 긴 narration을 생성해도 orchestrator 트림으로 안전 보장
+- 근사 타이밍은 WordBoundary 대비 정밀도 낮으나, 정적 자막 폴백보다 월등히 나은 UX 제공
+- 트림 시 hook(첫 씬)/cta(마지막 씬) 보존, body 씬만 뒤에서부터 제거
+
+### TODO
+- (없음 — 2건 모두 수정 완료, 추가 채널 테스트는 운영 시 수행)
+
+### 다음 도구에게 메모
+- `_approximate_word_timings()`은 오디오 길이 기반 근사치이므로, 향후 edge-tts가 SSML에서도 WordBoundary를 지원하면 근사 로직은 자동으로 비활성화됨 (if words: 분기)
+- 트림 로직은 MAX_SHORTS_SEC=43.0으로 설정. 인트로(2s)+전환(~1s) 포함 45초 이내 보장
+- CPS 2.8은 ai_tech 채널(tts_speed=1.15) 기준. 다른 채널(tts_speed=1.0~1.1)에서 더 보수적일 수 있으나 트림이 안전망 역할
+
 ## 2026-03-16 — Claude Code (Opus 4.6) — shorts-maker-v2 코드 검증 + 7건 버그 수정
 
 ### 작업 요약

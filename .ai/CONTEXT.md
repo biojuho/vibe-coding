@@ -154,6 +154,13 @@ Vibe coding/                      # Root 워크스페이스
   - Pipeline ↔ ShortsFactory 통합 인터페이스 (`RenderAdapter`) 정의
   - QC: 228 passed, 0 failed
 
+- shorts-maker-v2: 영상 길이 초과 + 카라오케 자막 Critical 버그 2건 수정 (2026-03-17)
+  - CPS 4.2→2.8 보정 (SSML prosody/emphasis/break 오버헤드 반영)
+  - orchestrator: 총 오디오 43초 초과 시 body 씬 자동 트림 (hook/cta 보존)
+  - edge_tts_client: WordBoundary 미수신 시 근사 타이밍 fallback 생성
+  - render_step: 카라오케 데이터 접근 dict→tuple 수정
+  - QC: 382 passed, 0 failed, 실제 영상 56.3s→44.0s, words_json 0/7→7/7
+
 ### 🔄 진행 중
 
 - blind-to-x: 스케줄러 자동 실행 모니터링 (S4U 전환 후 1주간)
@@ -210,7 +217,10 @@ Vibe coding/                      # Root 워크스페이스
 | 2026-03-12 | Antigravity | SQLite 쿼리에서 테이블명을 f-string으로 직접 삽입하면 SQL Injection 벡터 발생 | `_validate_table_name()` 정규식 검증 함수로 보호 (`^[a-zA-Z_][a-zA-Z0-9_]*$`) |
 | 2026-03-16 | Antigravity | `channel_router.py`에서 `Path(__file__).parents[4]`로 프로필 경로 탐색 → 실제 프로젝트 루트는 `parents[3]`. 프로젝트 생성 이후 채널 프로필이 한 번도 로드되지 않았음 (경로 depth 계산 실수) | `parents[3]`으로 수정 + 주석에 depth 설명 추가. 경로 depth 변경 시 반드시 실제 실행 위치에서 `resolve()` 검증 필수 |
 | 2026-03-16 | Antigravity | frozen dataclass에 `copy.deepcopy()` 후 직접 속성 할당 시 `FrozenInstanceError`. 기존 코드가 dead code여서 발견 안 됨 | `dataclasses.replace()` 사용으로 변경. frozen=True 클래스에는 항상 `replace()` 패턴 적용 |
+| 2026-03-17 | Claude Code | edge-tts SSMLCommunicate 사용 시 `stream()`에서 WordBoundary 이벤트 미수신 → `_words.json` 미생성 → 카라오케 자막 전체 불능 | `_approximate_word_timings()` fallback 추가. WordBoundary가 비어있으면 오디오 길이 기반 근사 타이밍 자동 생성 |
+| 2026-03-17 | Claude Code | `group_into_chunks()` 반환 타입이 `list[tuple[float, float, str]]`인데, render_step에서 `chunk["text"]`, `chunk["words"]` 등 dict 접근으로 사용 — 런타임에서 항상 except로 빠져 정적 자막 폴백 | tuple 언패킹 `for start, end, text in chunks` 패턴으로 수정. 데이터 구조 변경 시 호출부도 반드시 확인 |
+| 2026-03-17 | Claude Code | `script_step.py` CPS 4.2는 plain text 기준이었으나, SSML prosody/emphasis/break가 TTS 발화 시간을 1.5배 증가시킴 (추정 34.7s → 실제 53s) | CPS 2.8로 하향 + orchestrator에서 43초 초과 시 body 씬 자동 트림 |
 
 ---
 
-*마지막 업데이트: 2026-03-16 14:46 KST (Antigravity — shorts-maker-v2 영상 길이 최적화 + Critical Bug Fix + QC 통과)*
+*마지막 업데이트: 2026-03-17 13:00 KST (Claude Code — shorts-maker-v2 영상 길이 + 카라오케 Critical 버그 2건 수정 + QC 승인)*

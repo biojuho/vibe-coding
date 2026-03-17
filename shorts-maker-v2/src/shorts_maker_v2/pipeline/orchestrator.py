@@ -376,6 +376,38 @@ class PipelineOrchestrator:
                     "Halting pipeline to prevent rendering a broken video. You can resume this job later."
                 )
 
+            # ── 영상 길이 강제: 총 오디오가 MAX_SHORTS_SEC 초과 시 body 씬 트림 ──
+            MAX_SHORTS_SEC = 43.0  # 45초 상한 - 인트로/전환 여유 2초
+            total_audio = sum(a.duration_sec for a in scene_assets)
+            if total_audio > MAX_SHORTS_SEC and len(scene_plans) > 2:
+                jlog.warning(
+                    "duration_over_budget",
+                    total_sec=round(total_audio, 1),
+                    max_sec=MAX_SHORTS_SEC,
+                )
+                # hook(첫 씬)과 cta(마지막 씬)는 보존, 뒤쪽 body 씬부터 제거
+                while total_audio > MAX_SHORTS_SEC and len(scene_plans) > 2:
+                    # 마지막 body 씬 찾기 (cta 직전)
+                    trim_idx = len(scene_plans) - 2
+                    # hook도 보존
+                    if trim_idx <= 0:
+                        break
+                    removed_plan = scene_plans.pop(trim_idx)
+                    removed_asset = scene_assets.pop(trim_idx)
+                    total_audio -= removed_asset.duration_sec
+                    jlog.info(
+                        "scene_trimmed",
+                        removed_scene_id=removed_plan.scene_id,
+                        removed_duration=round(removed_asset.duration_sec, 1),
+                        remaining_total=round(total_audio, 1),
+                    )
+                logger.info(
+                    "[TRIM] 영상 길이 조정: %d씬 → %.1fs",
+                    len(scene_plans), total_audio,
+                )
+                status.update("media", StepStatus.COMPLETED,
+                              detail=f"trimmed to {len(scene_plans)} scenes ({total_audio:.1f}s)")
+
             safe_output_name = Path(output_filename).name if output_filename else f"{job_id}.mp4"
 
             # ── Phase 3: ShortsFactory 렌더링 분기 ──
