@@ -22,6 +22,7 @@ class Scene:
     text: str = ""
     keywords: list[str] = field(default_factory=list)
     image_path: Path | None = None
+    text_image_path: Path | None = None
     duration: float = 5.0
     start_time: float | None = None   # 절대 시작 시간 (초), None이면 순차
     animation: str = "none"           # none / slide_up / slide_in_right / slide_out_left / fade_in / glow
@@ -73,11 +74,11 @@ class BaseTemplate:
         """각 씬의 자막/레이아웃 이미지를 렌더링합니다."""
         output_dir.mkdir(parents=True, exist_ok=True)
         for i, scene in enumerate(scenes):
-            if scene.text and scene.image_path is None:
-                img_path = output_dir / f"scene_{i:02d}_{scene.role}.png"
+            if scene.text:
+                img_path = output_dir / f"scene_{i:02d}_{scene.role}_text.png"
                 self.text.render_subtitle(
                     scene.text, keywords=scene.keywords,
                     role=scene.role, output_path=img_path,
                 )
-                scene.image_path = img_path
+                scene.text_image_path = img_path
         return scenes

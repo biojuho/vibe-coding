@@ -30,6 +30,13 @@ def _build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--style-preset", type=str, default="", help="자막 스타일 오버라이드 (default/bold/neon/subtitle/cta)")
     run_parser.add_argument("--font-color", type=str, default="", help="자막 폰트 색상 오버라이드 (hex)")
     run_parser.add_argument("--image-prefix", type=str, default="", help="이미지 스타일 접두어 오버라이드")
+    run_parser.add_argument(
+        "--renderer",
+        type=str,
+        default="",
+        choices=["native", "auto", "shorts_factory"],
+        help="렌더러 선택 오버라이드",
+    )
     run_parser.add_argument("--parallel", action="store_true", help="씬별 미디어 병렬 생성")
 
     batch_parser = subparsers.add_parser("batch", help="Batch-generate multiple shorts videos")
@@ -39,6 +46,13 @@ def _build_parser() -> argparse.ArgumentParser:
     batch_parser.add_argument("--limit", type=int, default=5, help="최대 처리 수 (기본: 5)")
     batch_parser.add_argument("--channel", type=str, default="", help="채널 필터 (--from-db 전용)")
     batch_parser.add_argument("--config", type=str, default="config.yaml", help="Path to YAML config")
+    batch_parser.add_argument(
+        "--renderer",
+        type=str,
+        default="",
+        choices=["native", "auto", "shorts_factory"],
+        help="렌더러 선택 오버라이드",
+    )
     batch_parser.add_argument("--parallel", action="store_true", help="씬별 미디어 병렬 생성")
     batch_parser.add_argument("--no-continue-on-error", action="store_true", help="실패 시 중단")
 
@@ -108,6 +122,7 @@ def _apply_channel_overrides(config: AppConfig, args: argparse.Namespace) -> App
     style_preset = getattr(args, "style_preset", "") or db_settings.get("style_preset", "")
     font_color = getattr(args, "font_color", "") or db_settings.get("font_color", "")
     image_prefix = getattr(args, "image_prefix", "") or db_settings.get("image_style_prefix", "")
+    renderer = getattr(args, "renderer", "") or config.rendering.engine
 
     providers = config.providers
     captions = config.captions
@@ -136,7 +151,13 @@ def _apply_channel_overrides(config: AppConfig, args: argparse.Namespace) -> App
         if intro_p.exists():
             intro_outro = replace(intro_outro, intro_path=str(intro_p), outro_path=str(outro_p))
 
-    new_config = replace(config, providers=providers, captions=captions, intro_outro=intro_outro)
+    new_config = replace(
+        config,
+        providers=providers,
+        captions=captions,
+        intro_outro=intro_outro,
+        rendering=replace(config.rendering, engine=renderer),
+    )
 
     # style_preset은 RenderStep.__init__에서 적용되므로 captions에 반영
     if style_preset:
@@ -174,6 +195,7 @@ def _make_batch_namespace(base_args: argparse.Namespace, channel: str) -> argpar
         style_preset="",
         font_color="",
         image_prefix="",
+        renderer=getattr(base_args, "renderer", ""),
     )
 
 
@@ -243,7 +265,11 @@ def _run_batch(args: argparse.Namespace, config_path: Path) -> int:
         try:
             ns = _make_batch_namespace(args, channel)
             job_config = _apply_channel_overrides(config, ns)
-            orchestrator = PipelineOrchestrator(config=job_config, base_dir=config_path.parent)
+            orchestrator = PipelineOrchestrator(
+                config=job_config,
+                base_dir=config_path.parent,
+                renderer_mode=job_config.rendering.engine,
+            )
             manifest = orchestrator.run(topic=topic, channel=channel, parallel=parallel)
 
             result = BatchResult(
@@ -402,7 +428,11 @@ def run_cli(argv: list[str] | None = None) -> int:
 
         config = _apply_channel_overrides(config, args)
         parallel = getattr(args, "parallel", False)
-        orchestrator = PipelineOrchestrator(config=config, base_dir=config_path.parent)
+        orchestrator = PipelineOrchestrator(
+            config=config,
+            base_dir=config_path.parent,
+            renderer_mode=config.rendering.engine,
+        )
         manifest = orchestrator.run(
             topic=args.topic,
             output_filename=args.out or None,
@@ -418,7 +448,10 @@ def run_cli(argv: list[str] | None = None) -> int:
 
         print("[FAIL] generation failed")
         for failed in manifest.failed_steps:
-            print(f" - {failed['step']}: {failed['code']} - {failed['message']}")
+            step = failed.get("step", "unknown")
+            code = failed.get("code") or failed.get("error_type", "unknown")
+            message = failed.get("message", "")
+            print(f" - {step}: {code} - {message}")
         return 1
 
     print("[FAIL] unknown command")

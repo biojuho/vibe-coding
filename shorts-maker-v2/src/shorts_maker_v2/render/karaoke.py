@@ -148,6 +148,53 @@ def sentence_boundary_chunks(
     return chunks
 
 
+def group_word_segments(
+    words: list[WordSegment],
+    chunk_size: int,
+    *,
+    boundary_aware: bool = True,
+) -> list[tuple[float, float, str, list[WordSegment]]]:
+    """단어 세그먼트를 청크 단위로 묶어 원본 타이밍까지 유지합니다."""
+    if not words:
+        return []
+
+    grouped: list[tuple[float, float, str, list[WordSegment]]] = []
+
+    if boundary_aware:
+        current: list[WordSegment] = []
+        for i, word in enumerate(words):
+            current.append(word)
+            word_clean = word.word.rstrip()
+            has_boundary = bool(word_clean) and word_clean[-1] in _BOUNDARY_CHARS
+            is_max = len(current) >= chunk_size
+            is_last = i == len(words) - 1
+
+            if not (is_last or has_boundary or is_max):
+                continue
+
+            end = words[i + 1].start if not is_last else current[-1].end
+            chunk_words = list(current)
+            grouped.append((
+                chunk_words[0].start,
+                end,
+                " ".join(w.word for w in chunk_words),
+                chunk_words,
+            ))
+            current = []
+        return grouped
+
+    for i in range(0, len(words), chunk_size):
+        chunk_words = words[i:i + chunk_size]
+        end = words[i + chunk_size].start if i + chunk_size < len(words) else chunk_words[-1].end
+        grouped.append((
+            chunk_words[0].start,
+            end,
+            " ".join(w.word for w in chunk_words),
+            list(chunk_words),
+        ))
+    return grouped
+
+
 def group_into_chunks(
     words: list[WordSegment],
     chunk_size: int,
@@ -167,26 +214,14 @@ def group_into_chunks(
     Returns:
         (start_sec, end_sec, text) 튜플 목록.
     """
-    if not words:
-        return []
-
-    if boundary_aware:
-        return sentence_boundary_chunks(words, max_words=chunk_size)
-
-    # 기존 방식 (boundary_aware=False)
-    chunks: list[tuple[float, float, str]] = []
-    groups = [words[i: i + chunk_size] for i in range(0, len(words), chunk_size)]
-
-    for idx, group in enumerate(groups):
-        start = group[0].start
-        if idx + 1 < len(groups):
-            end = groups[idx + 1][0].start
-        else:
-            end = group[-1].end
-        text = " ".join(w.word for w in group)
-        chunks.append((start, end, text))
-
-    return chunks
+    return [
+        (start, end, text)
+        for start, end, text, _ in group_word_segments(
+            words,
+            chunk_size,
+            boundary_aware=boundary_aware,
+        )
+    ]
 
 
 
@@ -378,13 +413,13 @@ def render_karaoke_highlight_image(
         is_active = (i == active_word_index)
         # 키워드 매칭 체크 (2글자 이상 단어만)
         is_keyword = False
+        clean_word = word.rstrip(".,?!;:~").lower()
         if kw_color and len(word) >= 2:
-            clean = word.rstrip(".,?!;:~")
-            is_keyword = clean in kw_color
+            is_keyword = clean_word in kw_color
         if is_active:
             color = active_color
         elif is_keyword:
-            color = kw_color[word.rstrip(".,?!;:~")]
+            color = kw_color[clean_word]
         else:
             color = dim_color
 
@@ -441,11 +476,13 @@ def build_keyword_color_map(
     for kw in keywords:
         parts = kw.split()
         for part in parts:
-            clean = part.strip(".,?!;:~")
+            clean = part.strip(".,?!;:~").lower()
             if len(clean) >= 2:
                 result[clean] = color
         # 전체 키워드 자체도 등록
-        result[kw.strip()] = color
+        whole = kw.strip().lower()
+        if whole:
+            result[whole] = color
     return result
 
 

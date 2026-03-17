@@ -224,3 +224,23 @@ Vibe coding/                      # Root 워크스페이스
 ---
 
 *마지막 업데이트: 2026-03-17 13:00 KST (Claude Code — shorts-maker-v2 영상 길이 + 카라오케 Critical 버그 2건 수정 + QC 승인)*
+
+## 2026-03-17 Codex Update
+
+### shorts-maker-v2
+- Renderer selection is now explicit in config/CLI/orchestrator: `native`, `auto`, `shorts_factory`.
+- Native caption quality improved with real word timings, keyword highlight wiring, style override behavior, and channel-specific safe-area/motion tuning for `ai_tech` and `psychology`.
+- ShortsFactory plan rendering now separates visual media from text overlay assets through `Scene.text_image_path`, so auto mode can be used for real visual comparison without losing subtitles.
+- Representative renders completed successfully:
+  - `output/qa_ai_tech_native.mp4`
+  - `output/qa_psychology_native.mp4`
+  - `output/qa_ai_tech_auto.mp4`
+  - `output/qa_psychology_auto.mp4`
+- Latest auto manifests recorded `ab_variant.renderer = shorts_factory`:
+  - `output/20260317-065508-93e4a3c1_manifest.json`
+  - `output/20260317-070555-013d38de_manifest.json`
+
+### Known risks / landmines
+- Edge TTS Korean voices `SoonBokNeural` and `BongJinNeural` can intermittently return `No audio was received`; the client now retries with plain text and default-voice fallback, but upstream instability remains.
+- Fresh shells running MoviePy-related tests still need `IMAGEIO_FFMPEG_EXE` and `FFMPEG_BINARY` exported first.
+- Visual regression baselines for subtitle PNG checks are currently generated under `.tmp/visual_baselines_quality` rather than committed goldens.

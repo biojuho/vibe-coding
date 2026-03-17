@@ -118,6 +118,15 @@ class ChannelConfig:
                     result.append((data["pattern"], data.get("color", "#FFFFFF")))
         return result
 
+    def match_keywords(self, text: str) -> list[str]:
+        """텍스트에 실제 포함된 채널 키워드만 추출합니다."""
+        normalized = (text or "").lower()
+        matches: list[str] = []
+        for keyword in sorted(self.get_all_keywords().keys(), key=len, reverse=True):
+            if keyword and keyword.lower() in normalized:
+                matches.append(keyword)
+        return matches
+
     def __repr__(self):
         return f"<ChannelConfig {self.id}: {self.display_name} ({len(self.default_templates)} templates)>"
 
@@ -371,10 +380,11 @@ class ShortsFactory:
         # ScenePlan → Scene 변환
         factory_scenes: list[Scene] = []
         for sp in scenes:
+            narration = sp.get("narration_ko", "")
             scene = Scene(
                 role=sp.get("structure_role", "body"),
-                text=sp.get("narration_ko", ""),
-                keywords=[],
+                text=narration,
+                keywords=self.channel.match_keywords(narration),
                 image_path=Path(assets[sp["scene_id"]]) if sp["scene_id"] in assets else None,
                 duration=sp.get("target_sec", 5.0),
             )
@@ -425,4 +435,3 @@ class ShortsFactory:
 
     def __repr__(self):
         return f"<ShortsFactory channel={self.channel.id} jobs={len(self._jobs)}>"
-

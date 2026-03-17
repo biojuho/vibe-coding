@@ -136,3 +136,14 @@
 | **대안** | (고려했던 다른 방안) |
 | **선택 이유** | (왜 이 방안을 선택했는지) |
 -->
+
+## ADR-010: Explicit renderer mode with native default
+
+| 항목 | 내용 |
+|------|------|
+| **날짜** | 2026-03-17 |
+| **상태** | ✅ 확정 |
+| **맥락** | shorts-maker-v2 had an implicit native-vs-ShortsFactory branch controlled by a boolean flag, which made rollout, fallback policy, and manifest verification ambiguous. |
+| **결정** | Introduce explicit renderer modes: `native`, `auto`, `shorts_factory`. Keep `native` as the default. `auto` means ShortsFactory first with native fallback. `shorts_factory` means fail fast if the ShortsFactory path fails. |
+| **대안** | Keep boolean `use_shorts_factory`; silently switch the default renderer to ShortsFactory. |
+| **선택 이유** | The explicit mode makes rollout safe, keeps production default stable, and gives testable manifest semantics for fallback behavior. |

@@ -57,6 +57,10 @@ class SFRenderStep:
     TARGET_WIDTH = 1080
     TARGET_HEIGHT = 1920
     FPS = 30
+    _CHANNEL_SUBTITLE_OFFSETS = {
+        "ai_tech": {"hook": 280, "body": 300, "cta": 320},
+        "psychology": {"hook": 300, "body": 330, "cta": 340},
+    }
 
     def __init__(self, channel_config: Any) -> None:
         # ChannelConfig 객체 또는 dict 모두 지원
@@ -122,7 +126,7 @@ class SFRenderStep:
             )
 
             # 2) 자막/텍스트 오버레이 (image_path가 Scene에 의해 렌더링된 텍스트 이미지)
-            text_overlay = self._build_text_overlay(scene, duration, w, mp)
+            text_overlay = self._build_text_overlay(scene, duration, w, h, mp)
             if text_overlay is not None:
                 base = CompositeVideoClip([base, text_overlay])
 
@@ -253,7 +257,7 @@ class SFRenderStep:
 
         return gradient
 
-    def _build_text_overlay(self, scene, duration: float, w: int, mp: dict):
+    def _build_text_overlay(self, scene, duration: float, w: int, h: int, mp: dict):
         """Scene의 텍스트를 오버레이 이미지로 변환."""
         # [QA 수정] image_path는 베이스 비주얼로 이미 사용되므로
         # 별도의 텍스트 렌더링 이미지(text_image_path)만 오버레이
@@ -266,7 +270,13 @@ class SFRenderStep:
             ImageClip = mp["ImageClip"]
             try:
                 clip = ImageClip(str(text_img_path), transparent=True)
-                return clip.with_duration(duration)
+                role = getattr(scene, "role", "body")
+                offset = self._CHANNEL_SUBTITLE_OFFSETS.get(
+                    self._channel_dict.get("id", ""),
+                    {},
+                ).get(role, 300)
+                y = max(80, int(h - clip.h - offset))
+                return clip.with_duration(duration).with_position(("center", y))
             except Exception:
                 pass
 

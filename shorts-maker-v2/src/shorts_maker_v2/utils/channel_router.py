@@ -152,10 +152,7 @@ class ChannelRouter:
         new_video = dc_replace(config.video, **vid_kwargs) if vid_kwargs else config.video
 
         # ── captions 오버라이드 ───────────────────────────────────────────
-        cap_kwargs: dict[str, Any] = {}
-        if "caption_style" in profile:
-            cap_kwargs["style_preset"] = profile["caption_style"]
-        new_captions = dc_replace(config.captions, **cap_kwargs) if cap_kwargs else config.captions
+        new_captions = config.captions
 
         # ── 최종 config 조합 ────────────────────────────────────────────
         new_config = dc_replace(

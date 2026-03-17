@@ -31,6 +31,7 @@ def test_load_config_success(tmp_path: Path) -> None:
     assert config.project.default_scene_count == 7
     assert config.video.target_duration_sec == (35, 45)
     assert config.providers.visual_primary == "google-veo"
+    assert config.rendering.engine == "native"
 
 
 def test_load_config_invalid_duration_range(tmp_path: Path) -> None:
@@ -92,3 +93,26 @@ def test_config_rejects_negative_tts_speed(tmp_path: Path) -> None:
     with pytest.raises(ConfigError, match="tts_speed"):
         load_config(path)
 
+
+def test_config_loads_rendering_engine_override(tmp_path: Path) -> None:
+    path = _write_config(
+        tmp_path,
+        {
+            **_base_config(),
+            "rendering": {"engine": "auto"},
+        },
+    )
+    config = load_config(path)
+    assert config.rendering.engine == "auto"
+
+
+def test_config_rejects_invalid_rendering_engine(tmp_path: Path) -> None:
+    path = _write_config(
+        tmp_path,
+        {
+            **_base_config(),
+            "rendering": {"engine": "broken"},
+        },
+    )
+    with pytest.raises(ConfigError, match="rendering.engine"):
+        load_config(path)

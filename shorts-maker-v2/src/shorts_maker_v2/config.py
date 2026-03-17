@@ -145,6 +145,12 @@ class ResearchSettings:
     enabled: bool = False          # True 시 대본 생성 전 웹 리서치 수행
     provider: str = "gemini"       # "gemini" (Google Search Grounding) | "llm" (LLM 지식만)
 
+
+@dataclass(frozen=True)
+class RenderSettings:
+    engine: str = "native"  # "native" | "auto" | "shorts_factory"
+
+
 @dataclass(frozen=True)
 class CacheSettings:
     enabled: bool = True
@@ -168,6 +174,7 @@ class AppConfig:
     thumbnail: ThumbnailSettings = ThumbnailSettings()
     cache: CacheSettings = CacheSettings()
     research: ResearchSettings = ResearchSettings()
+    rendering: RenderSettings = RenderSettings()
 
 
 @dataclass(frozen=True)
@@ -409,6 +416,13 @@ def load_config(config_path: str | Path) -> AppConfig:
         provider=str(research_raw.get("provider", "gemini")),
     )
 
+    rendering_raw = _section(raw, "rendering") if "rendering" in raw else {}
+    rendering = RenderSettings(
+        engine=str(rendering_raw.get("engine", "native")),
+    )
+    if rendering.engine not in {"native", "auto", "shorts_factory"}:
+        raise ConfigError("rendering.engine must be one of: native, auto, shorts_factory.")
+
     return AppConfig(
         project=project,
         video=video,
@@ -423,6 +437,7 @@ def load_config(config_path: str | Path) -> AppConfig:
         thumbnail=thumbnail,
         cache=cache,
         research=research,
+        rendering=rendering,
     )
 
 
@@ -463,4 +478,3 @@ def validate_environment(config: AppConfig) -> list[str]:
         if not os.getenv(key):
             missing.append(key)
     return missing
-

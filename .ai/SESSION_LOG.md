@@ -1689,3 +1689,50 @@ AI 도구 공유 컨텍스트 시스템 초기 세팅
 ### 다음 도구에게 전달할 메모
 - (인수인계 사항)
 -->
+
+## 2026-03-17 16:25 KST — Codex — shorts-maker-v2 renderer routing + caption quality rollout
+
+### 작업 요약
+- Implemented explicit renderer routing (`native`, `auto`, `shorts_factory`) across config, CLI, and orchestrator.
+- Fixed native karaoke timing to use real word segment timings and wired channel keyword highlights / safe-area tuning for `ai_tech` and `psychology`.
+- Finished ShortsFactory plan overlay path with `Scene.text_image_path` so visual assets and subtitle overlays render together.
+- Added regression/unit/integration coverage and verified 4 representative renders (`native`/`auto` x `ai_tech`/`psychology`).
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `shorts-maker-v2/src/shorts_maker_v2/config.py` | `RenderSettings.engine` + `AppConfig.rendering` 추가 |
+| `shorts-maker-v2/src/shorts_maker_v2/cli.py` | `--renderer` 추가, 실패 출력 보강 |
+| `shorts-maker-v2/src/shorts_maker_v2/pipeline/orchestrator.py` | renderer mode routing / manifest renderer 기록 |
+| `shorts-maker-v2/src/shorts_maker_v2/pipeline/render_step.py` | word timing / keyword highlight / channel tuning / style override / role motion |
+| `shorts-maker-v2/src/shorts_maker_v2/render/karaoke.py` | `group_word_segments()` 추가 |
+| `shorts-maker-v2/src/shorts_maker_v2/utils/channel_router.py` | profile-driven `style_preset` override 제거 |
+| `shorts-maker-v2/ShortsFactory/templates/base_template.py` | `Scene.text_image_path` 추가 |
+| `shorts-maker-v2/ShortsFactory/pipeline.py` | channel keyword matching 전달 |
+| `shorts-maker-v2/ShortsFactory/engines/text_engine.py` | list-based keyword highlight color 처리 |
+| `shorts-maker-v2/ShortsFactory/render.py` | text overlay safe-area positioning |
+| `shorts-maker-v2/src/shorts_maker_v2/providers/edge_tts_client.py` | Edge TTS no-audio retry/fallback |
+| `shorts-maker-v2/tests/...` | renderer routing / timing / overlay / regression / retry 테스트 추가 |
+
+### 결정사항
+- Native remains the default renderer.
+- `auto` = ShortsFactory first, native fallback on failure.
+- `shorts_factory` = fail fast if the ShortsFactory path fails.
+- Explicit `style_preset` is now a real override knob; channel `caption_combo` stays the default.
+
+### QC / verification
+- `python -m pytest -q tests/unit/test_config.py tests/unit/test_cli_renderer_override.py tests/unit/test_karaoke_word_segments.py tests/unit/test_render_quality_controls.py tests/unit/test_shorts_factory_plan_overlay.py tests/unit/test_visual_regression_quality.py tests/unit/test_edge_tts_retry.py tests/unit/test_engines_v2_extended.py::TestOrchestratorShortsFactoryBranch::test_try_shorts_factory_render_import_fail tests/unit/test_engines_v2_extended.py::TestOrchestratorShortsFactoryBranch::test_use_shorts_factory_flag_default tests/integration/test_renderer_mode_manifest.py tests/integration/test_shorts_factory_e2e.py::TestOrchestratorSFBranch::test_try_sf_render_returns_tuple tests/integration/test_shorts_factory_e2e.py::TestOrchestratorSFBranch::test_sf_branch_fallback_on_import_error tests/integration/test_shorts_factory_e2e.py::TestOrchestratorSFBranch::test_renderer_mode_defaults_to_native``
+- Result: 29 passed, 2 warnings
+- Real renders:
+  - `qa_ai_tech_native.mp4` successful, manifest duration about 39.9s
+  - `qa_psychology_native.mp4` successful, manifest duration about 33.2s
+  - `qa_ai_tech_auto.mp4` successful, manifest renderer `shorts_factory`, duration 41.568s
+  - `qa_psychology_auto.mp4` successful, manifest renderer `shorts_factory`, duration 31.968s
+- Manual frame checks confirmed visible subtitle overlays in both auto renders.
+
+### TODO
+- Monitor intermittent upstream Edge TTS failures for `SoonBokNeural` and `BongJinNeural`; fallback now works.
+
+### 다음 도구에게 전달할 메모
+- Visual regression baselines are in `shorts-maker-v2/.tmp/visual_baselines_quality`; do not commit unless the team wants checked-in goldens.
+- Fresh shells running MoviePy tests still need `IMAGEIO_FFMPEG_EXE` / `FFMPEG_BINARY` exported first.

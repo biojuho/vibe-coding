@@ -98,6 +98,10 @@ class TextEngine:
         self.font_title = channel_config.get("font_title", "Pretendard-ExtraBold")
         self.font_body = channel_config.get("font_body", "Pretendard-Regular")
         self.keyword_highlights = channel_config.get("keyword_highlights", {})
+        self.highlight_color = channel_config.get(
+            "highlight_color",
+            self.palette.get("accent", "#FFD700"),
+        )
         self._canvas_width = 1080
         self._canvas_height = 1920
 
@@ -715,6 +719,8 @@ class TextEngine:
 
     def _resolve_keyword_color(self, keyword: str) -> str | None:
         """keyword_highlights에서 해당 키워드의 색상을 찾습니다."""
+        if isinstance(self.keyword_highlights, (list, tuple, set)):
+            return self.highlight_color if keyword else None
         for _category, color in self.keyword_highlights.items():
             # 실제로는 카테고리 기반이므로, 키워드가 어떤 카테고리인지
             # 판단하는 로직 필요 — 여기서는 숫자/특수 패턴으로 구분

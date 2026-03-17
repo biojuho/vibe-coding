@@ -293,8 +293,9 @@ class TestOrchestratorShortsFactoryBranch:
             logger=mock_logger,
         )
 
-        # 실패 시 False 반환
-        assert result is False
+        # 실패 시 (False, error) 반환
+        assert result[0] is False
+        assert isinstance(result[1], str)
 
     def test_use_shorts_factory_flag_default(self):
         """PipelineOrchestrator.__init__이 use_shorts_factory 파라미터를 지원하는지 확인."""
@@ -304,6 +305,6 @@ class TestOrchestratorShortsFactoryBranch:
         sig = inspect.signature(PipelineOrchestrator.__init__)
         params = sig.parameters
         assert "use_shorts_factory" in params
-        # 기본값이 False인지 확인
+        # 기본값이 None인지 확인
         default = params["use_shorts_factory"].default
-        assert default is False
+        assert default is None

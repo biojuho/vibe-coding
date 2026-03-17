@@ -25,6 +25,8 @@ from shorts_maker_v2.providers.openai_client import OpenAIClient
 from shorts_maker_v2.render.caption_pillow import CaptionStyle, apply_preset, render_caption_image
 from shorts_maker_v2.render.karaoke import (
     apply_ssml_break_correction,
+    build_keyword_color_map,
+    group_word_segments,
     group_into_chunks,
     load_words_json,
     render_karaoke_image,
@@ -48,6 +50,45 @@ class RenderStep:
         ("subtitle", "bold", "cta"),         # 영화적 → 임팩트 → CTA 특화
         ("default", "neon", "bold"),         # 깔끔 → 네온 → 임팩트
     ]
+    _CHANNEL_STYLE_TUNING: dict[str, dict[str, int]] = {
+        "ai_tech": {
+            "margin_x": 72,
+            "bottom_offset": 300,
+            "line_spacing": 14,
+        },
+        "psychology": {
+            "font_size": 68,
+            "margin_x": 76,
+            "bottom_offset": 330,
+            "line_spacing": 16,
+        },
+    }
+    _CHANNEL_MOTION_CHOICES: dict[str, dict[str, list[str] | str]] = {
+        "ai_tech": {
+            "hook": "dramatic_ken_burns",
+            "body": ["pan_left", "pan_right", "ken_burns", "zoom_out"],
+            "cta": ["zoom_out", "ken_burns"],
+        },
+        "psychology": {
+            "hook": "ken_burns",
+            "body": ["ken_burns", "zoom_out"],
+            "cta": ["zoom_out"],
+        },
+    }
+    _CHANNEL_TRANSITIONS: dict[str, dict[tuple[str, str], list[str]]] = {
+        "ai_tech": {
+            ("hook", "body"): ["flash", "glitch", "zoom"],
+            ("body", "body"): ["slide", "zoom", "crossfade"],
+            ("body", "cta"): ["zoom", "crossfade"],
+            ("hook", "cta"): ["flash", "zoom"],
+        },
+        "psychology": {
+            ("hook", "body"): ["crossfade", "slide"],
+            ("body", "body"): ["crossfade", "slide"],
+            ("body", "cta"): ["crossfade"],
+            ("hook", "cta"): ["crossfade"],
+        },
+    }
 
     def __init__(
         self,
@@ -63,19 +104,26 @@ class RenderStep:
         self._llm_router = llm_router
         self._job_index = job_index
         self._channel_key = channel_key
+        self._channel_profile = self._load_channel_profile(channel_key)
+        self._keyword_color_map = self._build_keyword_color_map()
 
         # YPP: bottom_offset에 ±20px 랜덤 변동
         offset_jitter = random.randint(-20, 20)
-        jittered_offset = max(200, config.captions.bottom_offset + offset_jitter)
+        style_tuning = self._CHANNEL_STYLE_TUNING.get(channel_key, {})
+        tuned_font_size = max(48, style_tuning.get("font_size", config.captions.font_size))
+        tuned_margin_x = max(40, style_tuning.get("margin_x", config.captions.margin_x))
+        tuned_line_spacing = max(8, style_tuning.get("line_spacing", config.captions.line_spacing))
+        tuned_bottom_offset = style_tuning.get("bottom_offset", config.captions.bottom_offset)
+        jittered_offset = max(220, tuned_bottom_offset + offset_jitter)
 
         base_style = CaptionStyle(
-            font_size=config.captions.font_size,
-            margin_x=config.captions.margin_x,
+            font_size=tuned_font_size,
+            margin_x=tuned_margin_x,
             bottom_offset=jittered_offset,
             text_color=config.captions.text_color,
             stroke_color=config.captions.stroke_color,
             stroke_width=config.captions.stroke_width,
-            line_spacing=config.captions.line_spacing,
+            line_spacing=tuned_line_spacing,
             font_candidates=config.captions.font_candidates,
             mode=config.captions.mode,
             words_per_chunk=config.captions.words_per_chunk,
@@ -84,8 +132,17 @@ class RenderStep:
             bg_radius=config.captions.bg_radius,
         )
 
-        # 채널별 caption_combo 우선 사용, 없으면 job_index 기반 로테이션
-        combo = self._resolve_caption_combo(channel_key, job_index)
+        forced_preset = self._resolve_style_override()
+        if forced_preset:
+            combo = (forced_preset, forced_preset, forced_preset)
+            logger.info(
+                "[RenderStep] style_preset 강제 적용 — hook/body/cta=%s (channel=%r)",
+                forced_preset,
+                channel_key or "default",
+            )
+        else:
+            # 채널별 caption_combo 우선 사용, 없으면 job_index 기반 로테이션
+            combo = self._resolve_caption_combo(channel_key, job_index)
         self.hook_style = apply_preset(base_style, combo[0])
         self.body_style = apply_preset(base_style, combo[1])
         self.cta_style = apply_preset(base_style, combo[2])
@@ -94,6 +151,31 @@ class RenderStep:
             "[RenderStep] 자막 combo — hook=%s, body=%s, cta=%s (channel=%r)",
             combo[0], combo[1], combo[2], channel_key or "default",
         )
+
+    @staticmethod
+    def _load_channel_profile(channel_key: str) -> dict:
+        if not channel_key:
+            return {}
+        try:
+            from shorts_maker_v2.utils.channel_router import ChannelRouter
+            return ChannelRouter().get_profile(channel_key)
+        except Exception as exc:
+            logger.warning("[RenderStep] 채널 프로파일 로드 실패: %s", exc)
+            return {}
+
+    def _build_keyword_color_map(self) -> dict[str, tuple[int, int, int, int]] | None:
+        keywords = self._channel_profile.get("highlight_keywords")
+        if not keywords:
+            return None
+        color = self._channel_profile.get(
+            "highlight_color",
+            self.config.captions.highlight_color,
+        )
+        return build_keyword_color_map(list(keywords), color)
+
+    def _resolve_style_override(self) -> str:
+        preset = str(getattr(self.config.captions, "style_preset", "") or "").strip()
+        return "" if preset in {"", "default"} else preset
 
     @classmethod
     def _resolve_caption_combo(cls, channel_key: str, job_index: int) -> tuple[str, str, str]:
@@ -117,6 +199,44 @@ class RenderStep:
         combo = cls._CAPTION_COMBOS[job_index % len(cls._CAPTION_COMBOS)]
         logger.info("[RenderStep] 로테이션 combo 사용 (job_index=%d): %s", job_index, combo)
         return combo
+
+    def _apply_named_effect(self, effect_name: str, clip, target_width: int, target_height: int):
+        effect_map = {
+            "ken_burns": lambda c: self._ken_burns(c, target_width, target_height),
+            "dramatic_ken_burns": lambda c: self._dramatic_ken_burns(c, target_width, target_height),
+            "zoom_out": lambda c: self._zoom_out(c, target_width, target_height),
+            "pan_left": lambda c: self._pan_horizontal(c, target_width, target_height, +1),
+            "pan_right": lambda c: self._pan_horizontal(c, target_width, target_height, -1),
+        }
+        fn = effect_map.get(effect_name)
+        if fn is None:
+            return self._apply_random_effect(clip, target_width, target_height)
+        return fn(clip), effect_name
+
+    def _apply_channel_image_motion(
+        self,
+        clip,
+        *,
+        role: str,
+        target_width: int,
+        target_height: int,
+        exclude: str = "",
+    ):
+        channel_motion = self._CHANNEL_MOTION_CHOICES.get(self._channel_key, {})
+        motion = channel_motion.get(role)
+        if isinstance(motion, str):
+            return self._apply_named_effect(motion, clip, target_width, target_height)
+        if isinstance(motion, list) and motion:
+            candidates = [name for name in motion if name != exclude] or motion
+            chosen = random.choice(candidates)
+            return self._apply_named_effect(chosen, clip, target_width, target_height)
+        if role == "hook":
+            return self._apply_named_effect("dramatic_ken_burns", clip, target_width, target_height)
+        return self._apply_random_effect(clip, target_width, target_height, exclude=exclude)
+
+    @staticmethod
+    def _caption_y(clip, target_height: int, style: CaptionStyle) -> int:
+        return max(80, int(target_height - clip.h - style.bottom_offset))
 
 
     def _build_bookend_clip(self, path_str: str, duration: float, target_width: int, target_height: int):
@@ -375,6 +495,9 @@ class RenderStep:
         def _structural_style(prev_role: str, cur_role: str) -> str:
             """Phase 4-C: 역할 쌍에 따른 전환 스타일 결정."""
             pair = (prev_role, cur_role)
+            channel_mapping = self._CHANNEL_TRANSITIONS.get(self._channel_key, {})
+            if pair in channel_mapping:
+                return random.choice(channel_mapping[pair])
             mapping: dict[tuple[str, str], list[str]] = {
                 ("hook", "body"):  ["flash", "glitch", "zoom"],   # 강한 전환
                 ("hook", "cta"):   ["flash", "zoom"],             # 직접 CTA
@@ -617,13 +740,13 @@ class RenderStep:
 
             # 2) 카메라 효과 (Ken Burns 등)
             if asset.visual_type == "image":
-                if role == "hook":
-                    base = self._dramatic_ken_burns(base, target_width, target_height)
-                    last_effect = "dramatic_ken_burns"
-                else:
-                    base, last_effect = self._apply_random_effect(
-                        base, target_width, target_height, exclude=last_effect
-                    )
+                base, last_effect = self._apply_channel_image_motion(
+                    base,
+                    role=role,
+                    target_width=target_width,
+                    target_height=target_height,
+                    exclude=last_effect,
+                )
 
             # 3) 오디오 합성
             audio = AudioFileClip(asset.audio_path)
@@ -654,29 +777,34 @@ class RenderStep:
                     else:
                         corrected_words = raw_words
                     # group_into_chunks → list[tuple[start, end, text]]
-                    chunks = group_into_chunks(corrected_words, style.words_per_chunk)
+                    chunk_groups = group_word_segments(corrected_words, style.words_per_chunk)
+                    chunks = [(start, end, text) for start, end, text, _ in chunk_groups]
 
                     # Word-level highlight 모드
                     if self.config.captions.highlight_mode == "word":
                         caption_clips = []
-                        for chunk_start, chunk_end, chunk_text in chunks:
-                            # 청크 내 단어별 하이라이트
-                            chunk_words = chunk_text.split()
-                            chunk_dur = max(0.1, chunk_end - chunk_start)
-                            word_dur = chunk_dur / max(len(chunk_words), 1)
-                            for wi, cw in enumerate(chunk_words):
-                                ws = chunk_start + wi * word_dur
-                                wd = max(0.05, word_dur)
-                                highlight_out = run_dir / f"kh_{plan.scene_id:02d}_{chunk_start:.2f}_{wi}.png"
+                        for chunk_start, _chunk_end, _chunk_text, chunk_words in chunk_groups:
+                            chunk_text_words = [word.word for word in chunk_words]
+                            for wi, word_segment in enumerate(chunk_words):
+                                ws = word_segment.start
+                                wd = max(0.05, word_segment.end - word_segment.start)
+                                highlight_out = run_dir / f"kh_{plan.scene_id:02d}_{word_segment.start:.2f}_{wi}.png"
                                 render_karaoke_highlight_image(
-                                    words=chunk_words,
+                                    words=chunk_text_words,
                                     active_word_index=wi,
                                     canvas_width=target_width,
                                     style=style,
                                     highlight_color=self.config.captions.highlight_color,
                                     output_path=highlight_out,
+                                    keyword_colors=self._keyword_color_map,
                                 )
-                                cap_clip = ImageClip(str(highlight_out), transparent=True).with_duration(wd).with_start(ws)
+                                highlight_clip = ImageClip(str(highlight_out), transparent=True)
+                                cap_clip = (
+                                    highlight_clip
+                                    .with_duration(wd)
+                                    .with_start(ws)
+                                    .with_position(("center", self._caption_y(highlight_clip, target_height, style)))
+                                )
                                 caption_clips.append(cap_clip)
                     else:
                         caption_clips = []
@@ -684,7 +812,13 @@ class RenderStep:
                             cd = max(0.1, chunk_end - chunk_start)
                             cap_out = run_dir / f"kc_{plan.scene_id:02d}_{chunk_start:.2f}.png"
                             render_karaoke_image(chunk_text, target_width, style, cap_out)
-                            cap_clip = ImageClip(str(cap_out), transparent=True).with_duration(cd).with_start(chunk_start)
+                            caption_image = ImageClip(str(cap_out), transparent=True)
+                            cap_clip = (
+                                caption_image
+                                .with_duration(cd)
+                                .with_start(chunk_start)
+                                .with_position(("center", self._caption_y(caption_image, target_height, style)))
+                            )
                             caption_clips.append(cap_clip)
 
                     if caption_clips:
@@ -694,13 +828,19 @@ class RenderStep:
                     logger.warning("[Karaoke] 카라오케 실패, 정적 자막 폴백: %s", kex)
                     cap_out = run_dir / f"caption_fallback_{plan.scene_id:02d}.png"
                     cap_img = render_caption_image(plan.narration_ko, target_width, style, cap_out)
-                    cap_clip = ImageClip(str(cap_img), transparent=True).with_duration(duration_sec)
+                    cap_clip_img = ImageClip(str(cap_img), transparent=True)
+                    cap_clip = cap_clip_img.with_duration(duration_sec).with_position(
+                        ("center", self._caption_y(cap_clip_img, target_height, style))
+                    )
                     base = CompositeVideoClip([base, cap_clip])
             else:
                 # 정적 자막 모드
                 cap_out = run_dir / f"caption_static_{plan.scene_id:02d}.png"
                 cap_img = render_caption_image(plan.narration_ko, target_width, style, cap_out)
-                cap_clip = ImageClip(str(cap_img), transparent=True).with_duration(duration_sec)
+                cap_clip_img = ImageClip(str(cap_img), transparent=True)
+                cap_clip = cap_clip_img.with_duration(duration_sec).with_position(
+                    ("center", self._caption_y(cap_clip_img, target_height, style))
+                )
                 base = CompositeVideoClip([base, cap_clip])
 
             # 5) 텍스트 애니메이션 (Hook 씬)

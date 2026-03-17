@@ -232,8 +232,8 @@ class TestRenderAdapterPipeline:
 class TestOrchestratorSFBranch:
     """PipelineOrchestrator._try_shorts_factory_render() 검증."""
 
-    def test_try_sf_render_returns_bool(self, sample_image, tmp_dir):
-        """정적 메서드가 bool을 반환하는지 확인."""
+    def test_try_sf_render_returns_tuple(self, sample_image, tmp_dir):
+        """정적 메서드가 (success, error) 튜플을 반환하는지 확인."""
         from shorts_maker_v2.pipeline.orchestrator import PipelineOrchestrator
         from shorts_maker_v2.models import ScenePlan, SceneAsset
 
@@ -255,7 +255,9 @@ class TestOrchestratorSFBranch:
             logger=mock_logger,
         )
 
-        assert isinstance(result, bool)
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], bool)
 
     def test_sf_branch_fallback_on_import_error(self, tmp_dir):
         """ShortsFactory import 실패 시 False 반환 (폴백)."""
@@ -272,10 +274,11 @@ class TestOrchestratorSFBranch:
                 output_path=tmp_dir / "fail.mp4",
                 logger=mock_logger,
             )
-            assert result is False
+            assert result[0] is False
+            assert isinstance(result[1], str)
 
-    def test_use_shorts_factory_flag_default_false(self):
-        """use_shorts_factory 기본값이 False인지 확인."""
+    def test_renderer_mode_defaults_to_native(self):
+        """명시하지 않으면 renderer_mode가 native로 설정되는지 확인."""
         from shorts_maker_v2.pipeline.orchestrator import PipelineOrchestrator
         from unittest.mock import MagicMock
 
@@ -290,6 +293,7 @@ class TestOrchestratorSFBranch:
         config.providers.visual_stock = "none"
         config.video.stock_mix_ratio = 0
         config.research.enabled = False
+        config.rendering.engine = "native"
         config.thumbnail = MagicMock()
         config.canva = MagicMock()
 
@@ -300,6 +304,7 @@ class TestOrchestratorSFBranch:
             media_step=MagicMock(),
             render_step=MagicMock(),
         )
+        assert orch._renderer_mode == "native"
         assert orch._use_shorts_factory is False
 
 
