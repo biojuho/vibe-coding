@@ -244,3 +244,15 @@ Vibe coding/                      # Root 워크스페이스
 - Edge TTS Korean voices `SoonBokNeural` and `BongJinNeural` can intermittently return `No audio was received`; the client now retries with plain text and default-voice fallback, but upstream instability remains.
 - Fresh shells running MoviePy-related tests still need `IMAGEIO_FFMPEG_EXE` and `FFMPEG_BINARY` exported first.
 - Visual regression baselines for subtitle PNG checks are currently generated under `.tmp/visual_baselines_quality` rather than committed goldens.
+
+## 2026-03-17 Codex Re-QC Update
+
+### shorts-maker-v2
+- The previous `auto`/ShortsFactory silent-output issue is fixed: `audio_paths` now reach `Scene.extra["audio_path"]`, and real rerender output includes AAC audio.
+- Subtitle visual regression tests are now hash-gated instead of auto-creating baselines on first run.
+- Verified rerender artifact:
+  - `output/qa_ai_tech_auto_rerun.mp4`
+  - `output/20260317-081721-617444d2_manifest.json`
+
+### Known risks / landmines
+- Visual regression hashes are environment-sensitive by design; if fonts or rendering stack change intentionally, the approved hashes must be regenerated consciously.

@@ -3,23 +3,20 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
-from PIL import Image
+
+_EXPECTED_HASHES = {
+    "ai_tech_hook_overlay": "5775ede816bee1ebaa803d1ed1f04c45",
+    "ai_tech_body_overlay": "7ccf8b1b7fcc282a99853be5c5c07e84",
+    "psychology_hook_overlay": "767c760ece96217628a5fe15f640d888",
+    "psychology_body_overlay": "d747a22b69b19c644cafea91ebfa6f81",
+}
 
 
-_BASELINE_DIR = Path(__file__).resolve().parents[2] / ".tmp" / "visual_baselines_quality"
-
-
-def _assert_matches_baseline(name: str, image_path: Path) -> None:
-    baseline_path = _BASELINE_DIR / f"{name}.png"
-    baseline_path.parent.mkdir(parents=True, exist_ok=True)
-
-    current_bytes = image_path.read_bytes()
-    if not baseline_path.exists():
-        baseline_path.write_bytes(current_bytes)
-        return
-
-    baseline_bytes = baseline_path.read_bytes()
-    assert hashlib.md5(current_bytes).hexdigest() == hashlib.md5(baseline_bytes).hexdigest()
+def _assert_matches_expected_hash(name: str, image_path: Path) -> None:
+    current_hash = hashlib.md5(image_path.read_bytes()).hexdigest()
+    expected_hash = _EXPECTED_HASHES[name]
+    assert expected_hash, f"Missing approved hash for {name}"
+    assert current_hash == expected_hash
 
 
 def _render_text_engine(config: dict, text: str, *, role: str, keywords: list[str], output: Path) -> Path:
@@ -39,12 +36,12 @@ def test_ai_tech_hook_visual_baseline(tmp_path) -> None:
     }
     output = _render_text_engine(
         config,
-        "GPT API 경쟁이 다시 뜨거워졌습니다",
+        "GPT API workflow just changed again.",
         role="hook",
         keywords=["GPT", "API"],
         output=tmp_path / "ai_hook.png",
     )
-    _assert_matches_baseline("ai_tech_hook_overlay", output)
+    _assert_matches_expected_hash("ai_tech_hook_overlay", output)
 
 
 def test_ai_tech_body_visual_baseline(tmp_path) -> None:
@@ -52,17 +49,17 @@ def test_ai_tech_body_visual_baseline(tmp_path) -> None:
         "palette": {"primary": "#00D4FF", "secondary": "#7C3AED", "accent": "#00FF88", "bg": "#0A0E1A"},
         "font_title": "Pretendard-ExtraBold",
         "font_body": "Pretendard-Regular",
-        "keyword_highlights": ["GPT", "벤치마크", "CUDA"],
+        "keyword_highlights": ["GPT", "BENCHMARK", "CUDA"],
         "highlight_color": "#00F0FF",
     }
     output = _render_text_engine(
         config,
-        "벤치마크 수치가 다시 공개됐습니다",
+        "New benchmark numbers are public today.",
         role="body",
-        keywords=["벤치마크"],
+        keywords=["BENCHMARK"],
         output=tmp_path / "ai_body.png",
     )
-    _assert_matches_baseline("ai_tech_body_overlay", output)
+    _assert_matches_expected_hash("ai_tech_body_overlay", output)
 
 
 def test_psychology_hook_visual_baseline(tmp_path) -> None:
@@ -70,17 +67,17 @@ def test_psychology_hook_visual_baseline(tmp_path) -> None:
         "palette": {"primary": "#E879F9", "secondary": "#F59E0B", "accent": "#FB7185", "bg": "#1A0A1E"},
         "font_title": "Pretendard-ExtraBold",
         "font_body": "Pretendard-Regular",
-        "keyword_highlights": ["인지 부조화", "자존감"],
+        "keyword_highlights": ["LOSS", "BIAS"],
         "highlight_color": "#E879F9",
     }
     output = _render_text_engine(
         config,
-        "인지 부조화가 커질수록 더 불편해집니다",
+        "Loss bias hurts more than the same reward helps.",
         role="hook",
-        keywords=["인지 부조화"],
+        keywords=["LOSS", "BIAS"],
         output=tmp_path / "psych_hook.png",
     )
-    _assert_matches_baseline("psychology_hook_overlay", output)
+    _assert_matches_expected_hash("psychology_hook_overlay", output)
 
 
 def test_psychology_body_visual_baseline(tmp_path) -> None:
@@ -88,14 +85,14 @@ def test_psychology_body_visual_baseline(tmp_path) -> None:
         "palette": {"primary": "#E879F9", "secondary": "#F59E0B", "accent": "#FB7185", "bg": "#1A0A1E"},
         "font_title": "Pretendard-ExtraBold",
         "font_body": "Pretendard-Regular",
-        "keyword_highlights": ["자존감", "방어기제"],
+        "keyword_highlights": ["SELF", "DEFENSE"],
         "highlight_color": "#E879F9",
     }
     output = _render_text_engine(
         config,
-        "자존감이 낮을 때는 방어기제가 먼저 올라옵니다",
+        "Your self image is protected by a defense pattern.",
         role="body",
-        keywords=["자존감", "방어기제"],
+        keywords=["SELF", "DEFENSE"],
         output=tmp_path / "psych_body.png",
     )
-    _assert_matches_baseline("psychology_body_overlay", output)
+    _assert_matches_expected_hash("psychology_body_overlay", output)

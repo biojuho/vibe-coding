@@ -12,8 +12,10 @@ from __future__ import annotations
 
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
+import wave
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -27,6 +29,21 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 if str(_PROJECT) not in sys.path:
     sys.path.insert(0, str(_PROJECT))
+
+
+def _write_test_tone(path: Path, *, duration_sec: float = 1.0, sample_rate: int = 22050) -> Path:
+    frame_count = int(duration_sec * sample_rate)
+    amplitude = 12000
+    freq_hz = 440.0
+    with wave.open(str(path), "wb") as wav_file:
+        wav_file.setnchannels(1)
+        wav_file.setsampwidth(2)
+        wav_file.setframerate(sample_rate)
+        for index in range(frame_count):
+            phase = 2.0 * np.pi * freq_hz * (index / sample_rate)
+            sample = int(amplitude * np.sin(phase))
+            wav_file.writeframesraw(sample.to_bytes(2, byteorder="little", signed=True))
+    return path
 
 # ffmpeg 감지
 HAS_FFMPEG = shutil.which("ffmpeg") is not None
@@ -349,6 +366,34 @@ class TestRenderFromPlanE2E:
         )
 
         assert Path(result).exists()
+
+    @SKIP_FFMPEG
+    def test_render_from_plan_preserves_audio_stream(self, sample_scenes, sample_image, tmp_dir):
+        """plan-based render should keep per-scene audio in the final MP4."""
+        from ShortsFactory.pipeline import ShortsFactory
+
+        factory = ShortsFactory(channel="ai_tech")
+        assets = {s["scene_id"]: str(sample_image) for s in sample_scenes[:1]}
+        audio_path = _write_test_tone(tmp_dir / "scene_01.wav", duration_sec=4.0)
+        output = str(tmp_dir / "with_audio.mp4")
+
+        result = factory.render_from_plan(
+            scenes=sample_scenes[:1],
+            assets=assets,
+            output=output,
+            audio_paths={1: audio_path},
+        )
+
+        assert Path(result).exists()
+
+        ffmpeg_output = subprocess.run(
+            ["ffmpeg", "-i", str(result)],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="ignore",
+        ).stderr
+        assert "Audio:" in ffmpeg_output
 
     def test_render_from_plan_scene_conversion(self, sample_scenes, sample_image):
         """Scene 변환이 올바른지 검증 (렌더링 없이)."""

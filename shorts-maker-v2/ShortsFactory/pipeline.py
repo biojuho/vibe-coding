@@ -381,12 +381,17 @@ class ShortsFactory:
         factory_scenes: list[Scene] = []
         for sp in scenes:
             narration = sp.get("narration_ko", "")
+            scene_id = sp["scene_id"]
+            extra: dict[str, Any] = {}
+            if audio_paths and scene_id in audio_paths:
+                extra["audio_path"] = str(audio_paths[scene_id])
             scene = Scene(
                 role=sp.get("structure_role", "body"),
                 text=narration,
                 keywords=self.channel.match_keywords(narration),
-                image_path=Path(assets[sp["scene_id"]]) if sp["scene_id"] in assets else None,
+                image_path=Path(assets[scene_id]) if scene_id in assets else None,
                 duration=sp.get("target_sec", 5.0),
+                extra=extra,
             )
             factory_scenes.append(scene)
 

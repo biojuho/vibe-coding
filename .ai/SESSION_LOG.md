@@ -1736,3 +1736,32 @@ AI 도구 공유 컨텍스트 시스템 초기 세팅
 ### 다음 도구에게 전달할 메모
 - Visual regression baselines are in `shorts-maker-v2/.tmp/visual_baselines_quality`; do not commit unless the team wants checked-in goldens.
 - Fresh shells running MoviePy tests still need `IMAGEIO_FFMPEG_EXE` / `FFMPEG_BINARY` exported first.
+
+## 2026-03-17 17:30 KST — Codex — shorts-maker-v2 re-QC fixes for auto audio and visual regression gating
+
+### 작업 요약
+- Fixed the remaining QC blockers from the previous review.
+- `audio_paths` are now propagated into ShortsFactory plan scenes so `auto` / `shorts_factory` outputs retain narration audio.
+- Visual regression tests no longer auto-accept first-run output; they now compare rendered subtitle PNGs against approved MD5 hashes.
+- Added/updated tests for audio propagation and actual audio-stream preservation in plan-based renders.
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `shorts-maker-v2/ShortsFactory/pipeline.py` | `render_from_plan()` now passes per-scene `audio_path` through `Scene.extra` |
+| `shorts-maker-v2/tests/unit/test_shorts_factory_plan_overlay.py` | verifies `audio_path` propagation alongside visual/text overlay generation |
+| `shorts-maker-v2/tests/integration/test_shorts_factory_e2e.py` | adds ffmpeg-backed audio-stream preservation test |
+| `shorts-maker-v2/tests/unit/test_visual_regression_quality.py` | replaces auto-baseline creation with fixed approved hashes |
+
+### QC / verification
+- `python -m pytest -q shorts-maker-v2/tests/unit/test_shorts_factory_plan_overlay.py shorts-maker-v2/tests/unit/test_visual_regression_quality.py shorts-maker-v2/tests/integration/test_shorts_factory_e2e.py::TestRenderFromPlanE2E::test_render_from_plan_preserves_audio_stream shorts-maker-v2/tests/integration/test_renderer_mode_manifest.py`
+- Result: 8 passed, 2 warnings
+- Real rerender:
+  - `shorts-maker-v2/output/qa_ai_tech_auto_rerun.mp4`
+  - manifest: `shorts-maker-v2/output/20260317-081721-617444d2_manifest.json`
+  - renderer: `shorts_factory`
+  - duration: `40.272s`
+  - ffmpeg inspection confirms an AAC audio stream is present in the output MP4
+
+### 최종 판정
+- Re-QC passed for the two previously blocking items.

@@ -10,6 +10,8 @@ def test_render_from_plan_keeps_visual_and_generates_text_overlay(tmp_path, monk
 
     visual = tmp_path / "visual.png"
     Image.new("RGB", (1080, 1920), "#101820").save(visual)
+    audio = tmp_path / "voice.wav"
+    audio.write_bytes(b"wav")
 
     captured = {}
 
@@ -35,12 +37,14 @@ def test_render_from_plan_keeps_visual_and_generates_text_overlay(tmp_path, monk
             }
         ],
         assets={1: visual},
+        audio_paths={1: audio},
         output=str(output),
     )
 
     assert Path(result).exists()
     scene = captured["scenes"][0]
     assert scene.image_path == visual
+    assert scene.extra["audio_path"] == str(audio)
     assert scene.text_image_path is not None
     assert scene.text_image_path.exists()
     assert "GPT" in scene.keywords
