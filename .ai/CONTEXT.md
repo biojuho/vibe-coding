@@ -1,229 +1,235 @@
-# 🧠 Vibe Coding (Joolife) — 마스터 컨텍스트
+﻿# ?쭬 Vibe Coding (Joolife) ??留덉뒪??而⑦뀓?ㅽ듃
 
-> **⚠️ 로컬 전용 프로젝트 — 원격 push/pull/deploy 금지**
-> 이 프로젝트는 로컬에서만 운영됩니다. 어떤 AI 도구도 원격 저장소에 push, pull, deploy를 수행하지 마세요.
+> **?좑툘 濡쒖뺄 ?꾩슜 ?꾨줈?앺듃 ???먭꺽 push/pull/deploy 湲덉?**
+> ???꾨줈?앺듃??濡쒖뺄?먯꽌留??댁쁺?⑸땲?? ?대뼡 AI ?꾧뎄???먭꺽 ??μ냼??push, pull, deploy瑜??섑뻾?섏? 留덉꽭??
 
-## 프로젝트 개요
+## ?꾨줈?앺듃 媛쒖슂
 
-- **프로젝트명**: Vibe Coding (Joolife)
-- **한 줄 설명**: 데스크톱 제어, 일일 브리핑, YouTube Shorts 자동화, 사이드 프로젝트를 포함하는 올인원 AI 어시스턴트 워크스페이스
-- **라이선스**: MIT
+- **?꾨줈?앺듃紐?*: Vibe Coding (Joolife)
+- **??以??ㅻ챸**: ?곗뒪?ы넲 ?쒖뼱, ?쇱씪 釉뚮━?? YouTube Shorts ?먮룞?? ?ъ씠???꾨줈?앺듃瑜??ы븿?섎뒗 ?ъ씤??AI ?댁떆?ㅽ꽩???뚰겕?ㅽ럹?댁뒪
+- **?쇱씠?좎뒪**: MIT
 
 ---
 
-## 기술 스택
+## 湲곗닠 ?ㅽ깮
 
-### Root 워크스페이스
-| 항목 | 기술 | 버전 |
+### Root ?뚰겕?ㅽ럹?댁뒪
+| ??ぉ | 湲곗닠 | 踰꾩쟾 |
 |------|------|------|
-| 언어 | Python | 3.14 |
-| 테스트 | pytest | 8.x+ |
-| 린트 | ruff | - |
+| ?몄뼱 | Python | 3.14 |
+| ?뚯뒪??| pytest | 8.x+ |
+| 由고듃 | ruff | - |
 | CI | GitHub Actions (`root-quality-gate.yml`) | - |
-| 환경 관리 | venv + `.env` | - |
+| ?섍꼍 愿由?| venv + `.env` | - |
 
-### 하위 프로젝트별 스택
+### ?섏쐞 ?꾨줈?앺듃蹂??ㅽ깮
 
-| 프로젝트 | 유형 | 핵심 기술 | 주요 버전 |
+| ?꾨줈?앺듃 | ?좏삎 | ?듭떖 湲곗닠 | 二쇱슂 踰꾩쟾 |
 |----------|------|-----------|-----------|
-| **hanwoo-dashboard** | 웹앱 | Next.js, React, Prisma, TailwindCSS, Radix UI, Recharts | Next 16, React 19, Prisma 6, TW 4 |
-| **blind-to-x** | 파이프라인 | Python, Notion API, Cloudinary, YAML 설정 | Python 3.x |
-| **shorts-maker-v2** | CLI/파이프라인 | Python, MoviePy, Edge TTS, OpenAI, Google GenAI, Pillow | Python 3.10+, MoviePy 2.1 |
-| **knowledge-dashboard** | 웹앱 | Next.js, TypeScript, React, TailwindCSS, Recharts | Next 16, React 19, TS 5, TW 4 |
-| **suika-game-v2** | 게임 | Vanilla JS, Matter.js, Vite | Matter.js 0.20, Vite 6 |
-| **word-chain** | 게임 | React, Vite, Framer Motion, TailwindCSS | React 19, Vite 7, TW 4 |
+| **hanwoo-dashboard** | ?뱀빋 | Next.js, React, Prisma, TailwindCSS, Radix UI, Recharts | Next 16, React 19, Prisma 6, TW 4 |
+| **blind-to-x** | ?뚯씠?꾨씪??| Python, Notion API, Cloudinary, YAML ?ㅼ젙 | Python 3.x |
+| **shorts-maker-v2** | CLI/?뚯씠?꾨씪??| Python, MoviePy, Edge TTS, OpenAI, Google GenAI, Pillow | Python 3.10+, MoviePy 2.1 |
+| **knowledge-dashboard** | ?뱀빋 | Next.js, TypeScript, React, TailwindCSS, Recharts | Next 16, React 19, TS 5, TW 4 |
+| **suika-game-v2** | 寃뚯엫 | Vanilla JS, Matter.js, Vite | Matter.js 0.20, Vite 6 |
+| **word-chain** | 寃뚯엫 | React, Vite, Framer Motion, TailwindCSS | React 19, Vite 7, TW 4 |
 
-### 공유 인프라
+### 怨듭쑀 ?명봽??
 
-- **MCP 서버** (10개, `.mcp.json` 통합 관리):
-  - 공식: Notion, Filesystem, Brave Search, GitHub
-  - 커스텀: SQLite Multi-DB, YouTube Data, Telegram, n8n Workflow, System Monitor, Cloudinary
-- **알림**: Telegram Bot
-- **외부 API**: OpenAI, Google Gemini, Anthropic, DeepSeek, Moonshot, Zhipu AI, xAI
-
----
-
-## 디렉토리 구조
-
-```
-Vibe coding/                      # Root 워크스페이스
-├── .ai/                          # 🆕 AI 도구 공유 컨텍스트
-│   ├── CONTEXT.md                # 마스터 컨텍스트 (이 파일)
-│   ├── SESSION_LOG.md            # 세션 로그
-│   └── DECISIONS.md              # 아키텍처 결정 기록
-├── .agents/                      # AI 에이전트 설정
-│   ├── rules/                    # 프로젝트 규칙
-│   ├── skills/                   # 33종 커스텀 스킬
-│   └── workflows/                # 워크플로우 (/start, /end, /organize)
-├── directives/                   # SOP 지침서 (16+ markdown)
-│   └── personas/                 # AI 페르소나 정의
-├── execution/                    # 결정론적 Python 스크립트 (27+)
-│   └── pages/                    # Streamlit UI 페이지
-├── scripts/                      # 유틸리티 스크립트
-├── tests/                        # 루트 테스트 스위트 (30+)
-├── infrastructure/               # MCP 서버, 시스템 모니터
-│
-├── hanwoo-dashboard/             # 한우 대시보드 (Next.js)
-│   ├── src/                      # 메인 소스
-│   └── prisma/                   # DB 스키마
-├── blind-to-x/                   # 블라인드 스크레이퍼 → Notion
-│   ├── pipeline/                 # 처리 파이프라인
-│   ├── scrapers/                 # 스크레이퍼 모듈
-│   └── tests/                    # 테스트
-├── shorts-maker-v2/              # YouTube Shorts 자동화
-│   ├── src/shorts_maker_v2/      # 메인 패키지
-│   │   └── pipeline/             # 오케스트레이터
-│   ├── assets/                   # 미디어 에셋
-│   └── tests/                    # 테스트
-├── knowledge-dashboard/          # 지식 대시보드 (Next.js/TS)
-│   └── src/                      # 메인 소스
-├── suika-game-v2/                # 수박 게임 (Matter.js)
-│   └── src/                      # 메인 소스
-├── word-chain/                   # 끝말잇기 게임 (React/Vite)
-│   └── src/                      # 메인 소스
-│
-├── _archive/                     # 아카이브된 프로젝트
-├── .tmp/                         # 임시 파일 (삭제 가능)
-└── venv/                         # Python 가상환경
-```
+- **MCP ?쒕쾭** (10媛? `.mcp.json` ?듯빀 愿由?:
+  - 怨듭떇: Notion, Filesystem, Brave Search, GitHub
+  - 而ㅼ뒪?: SQLite Multi-DB, YouTube Data, Telegram, n8n Workflow, System Monitor, Cloudinary
+- **?뚮┝**: Telegram Bot
+- **?몃? API**: OpenAI, Google Gemini, Anthropic, DeepSeek, Moonshot, Zhipu AI, xAI
 
 ---
 
-## 현재 진행 상황
+## ?붾젆?좊━ 援ъ“
 
-### ✅ 완료
-- 루트 워크스페이스 3계층 아키텍처 (directives → orchestration → execution)
-- hanwoo-dashboard: Next.js 16, Prisma 6, TailwindCSS 4 마이그레이션 완료
-- blind-to-x: Notion 연동 파이프라인 운영 중
-- shorts-maker-v2: 5채널 컨텐츠 전략 및 파이프라인 구축 (3-페르소나 시스템)
-- shorts-maker-v2: 가라오케 싱크 v2, FFmpeg HW 가속, 채널별 인트로/아웃트로
-- knowledge-dashboard: Next.js 16, TypeScript 빌드 완료
-- suika-game-v2: Matter.js 기반 게임 완성
-- word-chain: React 19 + Vite 7 빌드 완료
-- YouTube Analytics → Notion 자동 수집 구현
-- Telegram 알림 시스템 구축
-- QA/QC 4단계 자동화 검증 워크플로우 통합 (project-rules 및 session_workflow 연동)
-- blind-to-x: 간헐적 파이프라인 exit 가코드 1 유발 Silent Error 방지 및 로깅 강화
-- shorts-maker-v2: 영상 품질 최적화 (Phase 2 기술 업그레이드 - Neon Cyberpunk, VS 비교 등)
-- shorts-maker-v2: 5채널 토픽 자동 생성 및 트렌딩 주제 갱신 완벽 연동
-- blind-to-x: P6 멀티 플랫폼 초안 생성 (Threads + 네이버 블로그) 파이프라인 완성
-- blind-to-x: P6 플랫폼별 톤 최적화 (classification_rules.yaml 확장 530줄)
-- blind-to-x: P6 성과 피드백 루프 모듈 (`performance_tracker.py`) 구현 — QC 승인
-- blind-to-x: 뽐뿌 원본 이미지 보존 파이프라인 (AI 이미지 생성 우회) 구현 — QC 승인
-- blind-to-x: 소스별 scrape limit 할당제 구현 (독식 방지) — QC 승인
-- blind-to-x: NOTION_DATABASE_ID 환경 분리 명확화 (root vs blind-to-x 주석 추가)
-- blind-to-x: Gemini/xAI API 호환성 검증 완료 (4 provider fallback 정상 동작)
-- blind-to-x: 스케줄러 S4U 모드 전환 — PC 잠금/로그아웃 시에도 자동 실행 보장
-- blind-to-x: 소스별 이미지 전략 3-way 분기 (블라인드=Pixar 애니/뽐뿌,에펨=원본 짤/기타=기존) — QC 승인
-- blind-to-x: 수집량 하루 ~30건 조정 (scrape_limit 3, 소스별 1) + Newsletter 태스크 제거 — QC 승인
-- 시스템 모니터링: `pipeline_watchdog.py` 구축 — 파이프라인/스케줄러/Notion/디스크/백업 7개 항목 자동 감시 + Telegram 알림
-- OneDrive 자동 백업: `backup_to_onedrive.py` 구축 — 핵심 파일 3,702개(1.5GB) 매일 자동 백업, 최근 7회 보관
-- blind-to-x: `run_scheduled.py`에 watchdog + backup 후속 태스크 통합
-- n8n Phase 1: Docker Desktop + n8n 컨테이너 구축, HTTP 브릿지 서버, 워크플로우 2개 (BTX 스케줄링 + 헬스체크)
-- 스킬 감사 정리: 45개 → 23개 (22개 아카이브: 미사용 18개 + 중복 4개, `_archive/` 이동)
-- GitHub Private Repo 설정: `biojuho/vibe-coding` (641 files, .env 제외), 초기 push 완료
-- n8n ↔ Task Scheduler 이중 실행 방지 완료: BlindToX_0500~2100 5개 태스크 Disabled
-- YouTube Analytics: 콘텐츠 결과 추적 시스템 구축 (result_tracker_db.py + result_dashboard.py) — QC 승인
-- shorts-maker-v2: ShortsFactory v1.2~v2.5 전체 구현 + QC 승인
-  - v1.2: BaseTemplate 전환 (10개 신규 템플릿, 총 17종)
-  - v1.3: Notion Bridge 연동 (notion_bridge.py)
-  - v1.5: AI 스크립트 자동 생성 (script_gen.py)
-  - v2.0: 5분 채널 스캐폴딩 (scaffold.py)
-  - v2.5: A/B 테스트 + 분석 (ab_test.py)
-  - CountdownMixin 추출: 4개 카운트다운 템플릿 공통 로직 Mixin화 (코드 60% 감소)
-  - scaffold 입력 검증 강화: display_name/category/palette_style/first_template YAML injection 방어
+```
+Vibe coding/                      # Root ?뚰겕?ㅽ럹?댁뒪
+?쒋?? .ai/                          # ?넅 AI ?꾧뎄 怨듭쑀 而⑦뀓?ㅽ듃
+??  ?쒋?? CONTEXT.md                # 留덉뒪??而⑦뀓?ㅽ듃 (???뚯씪)
+??  ?쒋?? SESSION_LOG.md            # ?몄뀡 濡쒓렇
+??  ?붴?? DECISIONS.md              # ?꾪궎?띿쿂 寃곗젙 湲곕줉
+?쒋?? .agents/                      # AI ?먯씠?꾪듃 ?ㅼ젙
+??  ?쒋?? rules/                    # ?꾨줈?앺듃 洹쒖튃
+??  ?쒋?? skills/                   # 33醫?而ㅼ뒪? ?ㅽ궗
+??  ?붴?? workflows/                # ?뚰겕?뚮줈??(/start, /end, /organize)
+?쒋?? directives/                   # SOP 吏移⑥꽌 (16+ markdown)
+??  ?붴?? personas/                 # AI ?섎Ⅴ?뚮굹 ?뺤쓽
+?쒋?? execution/                    # 寃곗젙濡좎쟻 Python ?ㅽ겕由쏀듃 (27+)
+??  ?붴?? pages/                    # Streamlit UI ?섏씠吏
+?쒋?? scripts/                      # ?좏떥由ы떚 ?ㅽ겕由쏀듃
+?쒋?? tests/                        # 猷⑦듃 ?뚯뒪???ㅼ쐞??(30+)
+?쒋?? infrastructure/               # MCP ?쒕쾭, ?쒖뒪??紐⑤땲??
+??
+?쒋?? hanwoo-dashboard/             # ?쒖슦 ??쒕낫??(Next.js)
+??  ?쒋?? src/                      # 硫붿씤 ?뚯뒪
+??  ?붴?? prisma/                   # DB ?ㅽ궎留?
+?쒋?? blind-to-x/                   # 釉붾씪?몃뱶 ?ㅽ겕?덉씠????Notion
+??  ?쒋?? pipeline/                 # 泥섎━ ?뚯씠?꾨씪??
+??  ?쒋?? scrapers/                 # ?ㅽ겕?덉씠??紐⑤뱢
+??  ?붴?? tests/                    # ?뚯뒪??
+?쒋?? shorts-maker-v2/              # YouTube Shorts ?먮룞??
+??  ?쒋?? src/shorts_maker_v2/      # 硫붿씤 ?⑦궎吏
+??  ??  ?붴?? pipeline/             # ?ㅼ??ㅽ듃?덉씠??
+??  ?쒋?? assets/                   # 誘몃뵒???먯뀑
+??  ?붴?? tests/                    # ?뚯뒪??
+?쒋?? knowledge-dashboard/          # 吏????쒕낫??(Next.js/TS)
+??  ?붴?? src/                      # 硫붿씤 ?뚯뒪
+?쒋?? suika-game-v2/                # ?섎컯 寃뚯엫 (Matter.js)
+??  ?붴?? src/                      # 硫붿씤 ?뚯뒪
+?쒋?? word-chain/                   # ?앸쭚?뉕린 寃뚯엫 (React/Vite)
+??  ?붴?? src/                      # 硫붿씤 ?뚯뒪
+??
+?쒋?? _archive/                     # ?꾩뭅?대툕???꾨줈?앺듃
+?쒋?? .tmp/                         # ?꾩떆 ?뚯씪 (??젣 媛??
+?붴?? venv/                         # Python 媛?곹솚寃?
+```
 
-- 시스템 고도화 v2 Phase 0~3 완료 (15개 태스크, 2026-03-11):
-  - P0: LLM 캐시 72h 활성화, OneDrive n8n 백업, Debug DB TTL 90일
-  - P1: YT Analytics n8n, 스타일 Thompson Sampling, ML 티어드 Cold Start, KPI 대시보드
-  - P2: 토픽 사전 검증, 셀렉터 자가 복구, 콘텐츠 캘린더, Notion 백오프
-  - P3: 업타임 모니터, CI 테스트 매트릭스, 에러 분석기, API 키 검증
+---
 
-- MCP & Skill 확장 Phase 1~2 완료 + QC 승인 (2026-03-12):
-  - Phase 1: 통합 `.mcp.json` 생성, 공식 MCP 5개 (Notion, SQLite, Filesystem, Brave Search, GitHub)
-  - Phase 2: 커스텀 MCP 3개 (YouTube Data, Telegram, n8n Workflow) + Skill 3개 (pipeline-runner, daily-brief, cost-check)
-  - Phase A+B+C (Antigravity): 커스텀 MCP 3개 추가 (SQLite Multi-DB, System Monitor v2, Cloudinary) + Skill 5개 추가
-  - QC: npm 패키지명 수정, YouTube 서비스 캐싱, 에러 반환 통일, TOCTOU 제거, Session 풀링 등 15건 수정
-  - mcp 패키지 설치 (`mcp[cli]>=1.0.0`), FastMCP 기반 서버 패턴 통일
-  - `.env.example` 업데이트 (Telegram, GitHub, Brave, n8n Bridge 키 추가)
-  - QC 2차 (Antigravity): SQL Injection 방어(`_validate_table_name`), Docker 타임아웃 3초+OSError 방어 — 17/17 테스트 통과, 승인
+## ?꾩옱 吏꾪뻾 ?곹솴
 
-- shorts-maker-v2: ShortsFactory Quick Win + Phase 1 아키텍처 통합 (2026-03-12)
-  - deprecated config 폴더 삭제, 컬러 프리셋 내장 마이그레이션
-  - scaffold 4단계 자동등록, _mock_metrics 제거, channel 매개변수화
-  - Pipeline ↔ ShortsFactory 통합 인터페이스 (`RenderAdapter`) 정의
+### ???꾨즺
+- 猷⑦듃 ?뚰겕?ㅽ럹?댁뒪 3怨꾩링 ?꾪궎?띿쿂 (directives ??orchestration ??execution)
+- hanwoo-dashboard: Next.js 16, Prisma 6, TailwindCSS 4 留덉씠洹몃젅?댁뀡 ?꾨즺
+- blind-to-x: Notion ?곕룞 ?뚯씠?꾨씪???댁쁺 以?
+- shorts-maker-v2: 5梨꾨꼸 而⑦뀗痢??꾨왂 諛??뚯씠?꾨씪??援ъ텞 (3-?섎Ⅴ?뚮굹 ?쒖뒪??
+- shorts-maker-v2: 媛?쇱삤耳 ?깊겕 v2, FFmpeg HW 媛?? 梨꾨꼸蹂??명듃濡??꾩썐?몃줈
+- knowledge-dashboard: Next.js 16, TypeScript 鍮뚮뱶 ?꾨즺
+- suika-game-v2: Matter.js 湲곕컲 寃뚯엫 ?꾩꽦
+- word-chain: React 19 + Vite 7 鍮뚮뱶 ?꾨즺
+- YouTube Analytics ??Notion ?먮룞 ?섏쭛 援ы쁽
+- Telegram ?뚮┝ ?쒖뒪??援ъ텞
+- QA/QC 4?④퀎 ?먮룞??寃利??뚰겕?뚮줈???듯빀 (project-rules 諛?session_workflow ?곕룞)
+- blind-to-x: 媛꾪뿉???뚯씠?꾨씪??exit 媛肄붾뱶 1 ?좊컻 Silent Error 諛⑹? 諛?濡쒓퉭 媛뺥솕
+- shorts-maker-v2: ?곸긽 ?덉쭏 理쒖쟻??(Phase 2 湲곗닠 ?낃렇?덉씠??- Neon Cyberpunk, VS 鍮꾧탳 ??
+- shorts-maker-v2: 5梨꾨꼸 ?좏뵿 ?먮룞 ?앹꽦 諛??몃젋??二쇱젣 媛깆떊 ?꾨꼍 ?곕룞
+- blind-to-x: P6 硫???뚮옯??珥덉븞 ?앹꽦 (Threads + ?ㅼ씠踰?釉붾줈洹? ?뚯씠?꾨씪???꾩꽦
+- blind-to-x: P6 ?뚮옯?쇰퀎 ??理쒖쟻??(classification_rules.yaml ?뺤옣 530以?
+- blind-to-x: P6 ?깃낵 ?쇰뱶諛?猷⑦봽 紐⑤뱢 (`performance_tracker.py`) 援ы쁽 ??QC ?뱀씤
+- blind-to-x: 戮먮퓣 ?먮낯 ?대?吏 蹂댁〈 ?뚯씠?꾨씪??(AI ?대?吏 ?앹꽦 ?고쉶) 援ы쁽 ??QC ?뱀씤
+- blind-to-x: ?뚯뒪蹂?scrape limit ?좊떦??援ы쁽 (?낆떇 諛⑹?) ??QC ?뱀씤
+- blind-to-x: NOTION_DATABASE_ID ?섍꼍 遺꾨━ 紐낇솗??(root vs blind-to-x 二쇱꽍 異붽?)
+- blind-to-x: Gemini/xAI API ?명솚??寃利??꾨즺 (4 provider fallback ?뺤긽 ?숈옉)
+- blind-to-x: ?ㅼ?以꾨윭 S4U 紐⑤뱶 ?꾪솚 ??PC ?좉툑/濡쒓렇?꾩썐 ?쒖뿉???먮룞 ?ㅽ뻾 蹂댁옣
+- blind-to-x: ?뚯뒪蹂??대?吏 ?꾨왂 3-way 遺꾧린 (釉붾씪?몃뱶=Pixar ?좊땲/戮먮퓣,?먰렓=?먮낯 吏?湲고?=湲곗〈) ??QC ?뱀씤
+- blind-to-x: ?섏쭛???섎（ ~30嫄?議곗젙 (scrape_limit 3, ?뚯뒪蹂?1) + Newsletter ?쒖뒪???쒓굅 ??QC ?뱀씤
+- ?쒖뒪??紐⑤땲?곕쭅: `pipeline_watchdog.py` 援ъ텞 ???뚯씠?꾨씪???ㅼ?以꾨윭/Notion/?붿뒪??諛깆뾽 7媛???ぉ ?먮룞 媛먯떆 + Telegram ?뚮┝
+- OneDrive ?먮룞 諛깆뾽: `backup_to_onedrive.py` 援ъ텞 ???듭떖 ?뚯씪 3,702媛?1.5GB) 留ㅼ씪 ?먮룞 諛깆뾽, 理쒓렐 7??蹂닿?
+- blind-to-x: `run_scheduled.py`??watchdog + backup ?꾩냽 ?쒖뒪???듯빀
+- n8n Phase 1: Docker Desktop + n8n 而⑦뀒?대꼫 援ъ텞, HTTP 釉뚮┸吏 ?쒕쾭, ?뚰겕?뚮줈??2媛?(BTX ?ㅼ?以꾨쭅 + ?ъ뒪泥댄겕)
+- ?ㅽ궗 媛먯궗 ?뺣━: 45媛???23媛?(22媛??꾩뭅?대툕: 誘몄궗??18媛?+ 以묐났 4媛? `_archive/` ?대룞)
+- GitHub Private Repo ?ㅼ젙: `biojuho/vibe-coding` (641 files, .env ?쒖쇅), 珥덇린 push ?꾨즺
+- n8n ??Task Scheduler ?댁쨷 ?ㅽ뻾 諛⑹? ?꾨즺: BlindToX_0500~2100 5媛??쒖뒪??Disabled
+- YouTube Analytics: 肄섑뀗痢?寃곌낵 異붿쟻 ?쒖뒪??援ъ텞 (result_tracker_db.py + result_dashboard.py) ??QC ?뱀씤
+- shorts-maker-v2: ShortsFactory v1.2~v2.5 ?꾩껜 援ы쁽 + QC ?뱀씤
+  - v1.2: BaseTemplate ?꾪솚 (10媛??좉퇋 ?쒗뵆由? 珥?17醫?
+  - v1.3: Notion Bridge ?곕룞 (notion_bridge.py)
+  - v1.5: AI ?ㅽ겕由쏀듃 ?먮룞 ?앹꽦 (script_gen.py)
+  - v2.0: 5遺?梨꾨꼸 ?ㅼ틦?대뵫 (scaffold.py)
+  - v2.5: A/B ?뚯뒪??+ 遺꾩꽍 (ab_test.py)
+  - CountdownMixin 異붿텧: 4媛?移댁슫?몃떎???쒗뵆由?怨듯넻 濡쒖쭅 Mixin??(肄붾뱶 60% 媛먯냼)
+  - scaffold ?낅젰 寃利?媛뺥솕: display_name/category/palette_style/first_template YAML injection 諛⑹뼱
+
+- ?쒖뒪??怨좊룄??v2 Phase 0~3 ?꾨즺 (15媛??쒖뒪?? 2026-03-11):
+  - P0: LLM 罹먯떆 72h ?쒖꽦?? OneDrive n8n 諛깆뾽, Debug DB TTL 90??
+  - P1: YT Analytics n8n, ?ㅽ???Thompson Sampling, ML ?곗뼱??Cold Start, KPI ??쒕낫??
+  - P2: ?좏뵿 ?ъ쟾 寃利? ??됲꽣 ?먭? 蹂듦뎄, 肄섑뀗痢?罹섎┛?? Notion 諛깆삤??
+  - P3: ?낇???紐⑤땲?? CI ?뚯뒪??留ㅽ듃由?뒪, ?먮윭 遺꾩꽍湲? API ??寃利?
+
+- MCP & Skill ?뺤옣 Phase 1~2 ?꾨즺 + QC ?뱀씤 (2026-03-12):
+  - Phase 1: ?듯빀 `.mcp.json` ?앹꽦, 怨듭떇 MCP 5媛?(Notion, SQLite, Filesystem, Brave Search, GitHub)
+  - Phase 2: 而ㅼ뒪? MCP 3媛?(YouTube Data, Telegram, n8n Workflow) + Skill 3媛?(pipeline-runner, daily-brief, cost-check)
+  - Phase A+B+C (Antigravity): 而ㅼ뒪? MCP 3媛?異붽? (SQLite Multi-DB, System Monitor v2, Cloudinary) + Skill 5媛?異붽?
+  - QC: npm ?⑦궎吏紐??섏젙, YouTube ?쒕퉬??罹먯떛, ?먮윭 諛섑솚 ?듭씪, TOCTOU ?쒓굅, Session ?留???15嫄??섏젙
+  - mcp ?⑦궎吏 ?ㅼ튂 (`mcp[cli]>=1.0.0`), FastMCP 湲곕컲 ?쒕쾭 ?⑦꽩 ?듭씪
+  - `.env.example` ?낅뜲?댄듃 (Telegram, GitHub, Brave, n8n Bridge ??異붽?)
+  - QC 2李?(Antigravity): SQL Injection 諛⑹뼱(`_validate_table_name`), Docker ??꾩븘??3珥?OSError 諛⑹뼱 ??17/17 ?뚯뒪???듦낵, ?뱀씤
+
+- shorts-maker-v2: ShortsFactory Quick Win + Phase 1 ?꾪궎?띿쿂 ?듯빀 (2026-03-12)
+  - deprecated config ?대뜑 ??젣, 而щ윭 ?꾨━???댁옣 留덉씠洹몃젅?댁뀡
+  - scaffold 4?④퀎 ?먮룞?깅줉, _mock_metrics ?쒓굅, channel 留ㅺ컻蹂?섑솕
+  - Pipeline ??ShortsFactory ?듯빀 ?명꽣?섏씠??(`RenderAdapter`) ?뺤쓽
   - QC: 228 passed, 0 failed
 
-- shorts-maker-v2: 영상 길이 초과 + 카라오케 자막 Critical 버그 2건 수정 (2026-03-17)
-  - CPS 4.2→2.8 보정 (SSML prosody/emphasis/break 오버헤드 반영)
-  - orchestrator: 총 오디오 43초 초과 시 body 씬 자동 트림 (hook/cta 보존)
-  - edge_tts_client: WordBoundary 미수신 시 근사 타이밍 fallback 생성
-  - render_step: 카라오케 데이터 접근 dict→tuple 수정
-  - QC: 382 passed, 0 failed, 실제 영상 56.3s→44.0s, words_json 0/7→7/7
+- shorts-maker-v2: ?곸긽 湲몄씠 珥덇낵 + 移대씪?ㅼ? ?먮쭑 Critical 踰꾧렇 2嫄??섏젙 (2026-03-17)
+  - CPS 4.2??.8 蹂댁젙 (SSML prosody/emphasis/break ?ㅻ쾭?ㅻ뱶 諛섏쁺)
+  - orchestrator: 珥??ㅻ뵒??43珥?珥덇낵 ??body ???먮룞 ?몃┝ (hook/cta 蹂댁〈)
+  - edge_tts_client: WordBoundary 誘몄닔????洹쇱궗 ??대컢 fallback ?앹꽦
+  - render_step: 移대씪?ㅼ? ?곗씠???묎렐 dict?뭪uple ?섏젙
+  - QC: 382 passed, 0 failed, ?ㅼ젣 ?곸긽 56.3s??4.0s, words_json 0/7??/7
 
-### 🔄 진행 중
+- 시스템 고도화 v2 Phase 4 완료 + QC 승인 (2026-03-17):
+  - T4-1: YouTube Channel Growth Tracker (channel_growth_tracker.py, pages/channel_growth.py)
+  - T4-2: Content ROI Calculator (roi_calculator.py, pages/roi_dashboard.py)
+  - T4-3: Content Series Engine (series_engine.py)
+  - T4-4: X Analytics (x_analytics.py)
+  - v3.0 로드맵 문서 작성 (directives/roadmap_v3.md)
+  - QC: 753 tests passed, AST 11/11 OK, 보안 스캔 CLEAR
+
+### 현재 진행 중
 
 - blind-to-x: 스케줄러 자동 실행 모니터링 (S4U 전환 후 1주간)
-- blind-to-x: 실 운영 LLM 초안 품질 모니터링 (1주간 manual review)
-- 시스템 고도화 v2 Phase 4~5 (고급 최적화, 문서화) 미실행
-- shorts-maker-v2: Phase 1 나머지 — 메인 파이프라인 render_step에 RenderAdapter 연동
+- blind-to-x: 신규 영입 LLM 초안 품질 모니터링 (1주간 manual review)
+- shorts-maker-v2: Phase 1 렌더링 → 메인 파이프라인 render_step↔RenderAdapter 연동
 
-### 📋 예정
+### 향후 예정
 
-- 시스템 고도화 v2 Phase 4~5 실행
+- 시스템 고도화 v2 Phase 5 실행 (고급 최적화 + 문서화)
 - shorts-maker-v2: v3.0 Multi-language + SaaS 전환 (향후)
-
-### ⚠️ 알려진 이슈
-- 하위 프로젝트(blind-to-x, hanwoo-dashboard, knowledge-dashboard)의 `.git` 폴더가 독립 repo → root git push 시 임시로 `.git.bak` 변경 필요
+### ?좑툘 ?뚮젮吏??댁뒋
+- ?섏쐞 ?꾨줈?앺듃(blind-to-x, hanwoo-dashboard, knowledge-dashboard)??`.git` ?대뜑媛 ?낅┰ repo ??root git push ???꾩떆濡?`.git.bak` 蹂寃??꾩슂
 
 ---
 
-## 핵심 코딩 컨벤션
+## ?듭떖 肄붾뵫 而⑤깽??
 
 ### TypeScript / React
-- **컴포넌트**: 함수형 컴포넌트 + 화살표 함수
-- **Props**: 별도 `interface` 정의
-- **타입**: `any` 금지 → `unknown` + 타입가드
-- **비즈니스 로직**: 커스텀 훅으로 분리
-- **네이밍**: `camelCase`(함수/변수), `PascalCase`(컴포넌트)
-- **Import 순서**: React → 외부 라이브러리 → 내부 모듈 → 훅 → 타입 → 스타일
+- **而댄룷?뚰듃**: ?⑥닔??而댄룷?뚰듃 + ?붿궡???⑥닔
+- **Props**: 蹂꾨룄 `interface` ?뺤쓽
+- **???*: `any` 湲덉? ??`unknown` + ??낃???
+- **鍮꾩쫰?덉뒪 濡쒖쭅**: 而ㅼ뒪? ?낆쑝濡?遺꾨━
+- **?ㅼ씠諛?*: `camelCase`(?⑥닔/蹂??, `PascalCase`(而댄룷?뚰듃)
+- **Import ?쒖꽌**: React ???몃? ?쇱씠釉뚮윭由????대? 紐⑤뱢 ????????????ㅽ???
 
 ### Python
-- **타입 힌트**: 모든 함수에 필수
-- **Docstring**: Google 스타일
-- **문자열**: f-string 사용
-- **데이터 검증**: Pydantic 활용
-- **네이밍**: `snake_case`(함수/변수), `PascalCase`(클래스)
-- **Import 순서**: 표준 라이브러리 → 서드파티 → 로컬
+- **????뚰듃**: 紐⑤뱺 ?⑥닔???꾩닔
+- **Docstring**: Google ?ㅽ???
+- **臾몄옄??*: f-string ?ъ슜
+- **?곗씠??寃利?*: Pydantic ?쒖슜
+- **?ㅼ씠諛?*: `snake_case`(?⑥닔/蹂??, `PascalCase`(?대옒??
+- **Import ?쒖꽌**: ?쒖? ?쇱씠釉뚮윭由????쒕뱶?뚰떚 ??濡쒖뺄
 
-### 공통 규칙
-- 에러 핸들링 필수, 빈 `catch`/`except` 금지
-- 환경변수 추가 시 `.env.example`에도 키 추가
-- 커밋 메시지: 한국어, `[영역] 작업내용` 형식
-- 변경사항은 작은 단위로 자주 commit
+### 怨듯넻 洹쒖튃
+- ?먮윭 ?몃뱾留??꾩닔, 鍮?`catch`/`except` 湲덉?
+- ?섍꼍蹂??異붽? ??`.env.example`?먮룄 ??異붽?
+- 而ㅻ컠 硫붿떆吏: ?쒓뎅?? `[?곸뿭] ?묒뾽?댁슜` ?뺤떇
+- 蹂寃쎌궗??? ?묒? ?⑥쐞濡??먯＜ commit
 
 ---
 
-## 🚧 지뢰밭 (AI 반복 실수 기록)
+## ?슙 吏猶곕강 (AI 諛섎났 ?ㅼ닔 湲곕줉)
 
-> AI 도구가 반복적으로 실수하는 부분을 여기에 기록합니다.
+> AI ?꾧뎄媛 諛섎났?곸쑝濡??ㅼ닔?섎뒗 遺遺꾩쓣 ?ш린??湲곕줉?⑸땲??
 
-| 날짜 | 도구 | 내용 | 해결 방법 |
+| ?좎쭨 | ?꾧뎄 | ?댁슜 | ?닿껐 諛⑸쾿 |
 |------|------|------|-----------| 
-| 2026-03-06 | 초기 세팅 | (초기화) | - |
-| 2026-03-09 | Antigravity | Windows Task Scheduler에서 `Register-ScheduledTask`로 한국어 경로(`박주호`)를 등록하면 XML에 `諛뺤＜??`로 깨짐 → 스케줄러 실패 | ASCII-only 경로(`C:\btx\`)에 launcher를 두고 환경변수(`%LOCALAPPDATA%`, `%USERPROFILE%`)로 런타임 해석 |
-| 2026-03-09 | Antigravity | Notion API `rich_text` 2000자 제한에서 유니코드 한국어 문자열이 정확히 2000자여도 API가 거부하는 경우 발생 | 안전 마진 10자를 두고 1990자로 truncate |
-| 2026-03-12 | Claude Code | FastMCP 1.26에서 `description` kwarg 미지원 → `instructions`로 변경 필요 | `FastMCP("name", instructions="...")` 패턴 사용 |
-| 2026-03-12 | Antigravity | SQLite 쿼리에서 테이블명을 f-string으로 직접 삽입하면 SQL Injection 벡터 발생 | `_validate_table_name()` 정규식 검증 함수로 보호 (`^[a-zA-Z_][a-zA-Z0-9_]*$`) |
-| 2026-03-16 | Antigravity | `channel_router.py`에서 `Path(__file__).parents[4]`로 프로필 경로 탐색 → 실제 프로젝트 루트는 `parents[3]`. 프로젝트 생성 이후 채널 프로필이 한 번도 로드되지 않았음 (경로 depth 계산 실수) | `parents[3]`으로 수정 + 주석에 depth 설명 추가. 경로 depth 변경 시 반드시 실제 실행 위치에서 `resolve()` 검증 필수 |
-| 2026-03-16 | Antigravity | frozen dataclass에 `copy.deepcopy()` 후 직접 속성 할당 시 `FrozenInstanceError`. 기존 코드가 dead code여서 발견 안 됨 | `dataclasses.replace()` 사용으로 변경. frozen=True 클래스에는 항상 `replace()` 패턴 적용 |
-| 2026-03-17 | Claude Code | edge-tts SSMLCommunicate 사용 시 `stream()`에서 WordBoundary 이벤트 미수신 → `_words.json` 미생성 → 카라오케 자막 전체 불능 | `_approximate_word_timings()` fallback 추가. WordBoundary가 비어있으면 오디오 길이 기반 근사 타이밍 자동 생성 |
-| 2026-03-17 | Claude Code | `group_into_chunks()` 반환 타입이 `list[tuple[float, float, str]]`인데, render_step에서 `chunk["text"]`, `chunk["words"]` 등 dict 접근으로 사용 — 런타임에서 항상 except로 빠져 정적 자막 폴백 | tuple 언패킹 `for start, end, text in chunks` 패턴으로 수정. 데이터 구조 변경 시 호출부도 반드시 확인 |
-| 2026-03-17 | Claude Code | `script_step.py` CPS 4.2는 plain text 기준이었으나, SSML prosody/emphasis/break가 TTS 발화 시간을 1.5배 증가시킴 (추정 34.7s → 실제 53s) | CPS 2.8로 하향 + orchestrator에서 43초 초과 시 body 씬 자동 트림 |
+| 2026-03-06 | 珥덇린 ?명똿 | (珥덇린?? | - |
+| 2026-03-09 | Antigravity | Windows Task Scheduler?먯꽌 `Register-ScheduledTask`濡??쒓뎅??寃쎈줈(`諛뺤＜??)瑜??깅줉?섎㈃ XML??`獄쏅벡竊??`濡?源⑥쭚 ???ㅼ?以꾨윭 ?ㅽ뙣 | ASCII-only 寃쎈줈(`C:\btx\`)??launcher瑜??먭퀬 ?섍꼍蹂??`%LOCALAPPDATA%`, `%USERPROFILE%`)濡??고????댁꽍 |
+| 2026-03-09 | Antigravity | Notion API `rich_text` 2000???쒗븳?먯꽌 ?좊땲肄붾뱶 ?쒓뎅??臾몄옄?댁씠 ?뺥솗??2000?먯뿬??API媛 嫄곕??섎뒗 寃쎌슦 諛쒖깮 | ?덉쟾 留덉쭊 10?먮? ?먭퀬 1990?먮줈 truncate |
+| 2026-03-12 | Claude Code | FastMCP 1.26?먯꽌 `description` kwarg 誘몄?????`instructions`濡?蹂寃??꾩슂 | `FastMCP("name", instructions="...")` ?⑦꽩 ?ъ슜 |
+| 2026-03-12 | Antigravity | SQLite 荑쇰━?먯꽌 ?뚯씠釉붾챸??f-string?쇰줈 吏곸젒 ?쎌엯?섎㈃ SQL Injection 踰≫꽣 諛쒖깮 | `_validate_table_name()` ?뺢퇋??寃利??⑥닔濡?蹂댄샇 (`^[a-zA-Z_][a-zA-Z0-9_]*$`) |
+| 2026-03-16 | Antigravity | `channel_router.py`?먯꽌 `Path(__file__).parents[4]`濡??꾨줈??寃쎈줈 ?먯깋 ???ㅼ젣 ?꾨줈?앺듃 猷⑦듃??`parents[3]`. ?꾨줈?앺듃 ?앹꽦 ?댄썑 梨꾨꼸 ?꾨줈?꾩씠 ??踰덈룄 濡쒕뱶?섏? ?딆븯??(寃쎈줈 depth 怨꾩궛 ?ㅼ닔) | `parents[3]`?쇰줈 ?섏젙 + 二쇱꽍??depth ?ㅻ챸 異붽?. 寃쎈줈 depth 蹂寃???諛섎뱶???ㅼ젣 ?ㅽ뻾 ?꾩튂?먯꽌 `resolve()` 寃利??꾩닔 |
+| 2026-03-16 | Antigravity | frozen dataclass??`copy.deepcopy()` ??吏곸젒 ?띿꽦 ?좊떦 ??`FrozenInstanceError`. 湲곗〈 肄붾뱶媛 dead code?ъ꽌 諛쒓껄 ????| `dataclasses.replace()` ?ъ슜?쇰줈 蹂寃? frozen=True ?대옒?ㅼ뿉????긽 `replace()` ?⑦꽩 ?곸슜 |
+| 2026-03-17 | Claude Code | edge-tts SSMLCommunicate ?ъ슜 ??`stream()`?먯꽌 WordBoundary ?대깽??誘몄닔????`_words.json` 誘몄깮????移대씪?ㅼ? ?먮쭑 ?꾩껜 遺덈뒫 | `_approximate_word_timings()` fallback 異붽?. WordBoundary媛 鍮꾩뼱?덉쑝硫??ㅻ뵒??湲몄씠 湲곕컲 洹쇱궗 ??대컢 ?먮룞 ?앹꽦 |
+| 2026-03-17 | Claude Code | `group_into_chunks()` 諛섑솚 ??낆씠 `list[tuple[float, float, str]]`?몃뜲, render_step?먯꽌 `chunk["text"]`, `chunk["words"]` ??dict ?묎렐?쇰줈 ?ъ슜 ???고??꾩뿉????긽 except濡?鍮좎졇 ?뺤쟻 ?먮쭑 ?대갚 | tuple ?명뙣??`for start, end, text in chunks` ?⑦꽩?쇰줈 ?섏젙. ?곗씠??援ъ“ 蹂寃????몄텧遺??諛섎뱶???뺤씤 |
+| 2026-03-17 | Claude Code | `script_step.py` CPS 4.2??plain text 湲곗??댁뿀?쇰굹, SSML prosody/emphasis/break媛 TTS 諛쒗솕 ?쒓컙??1.5諛?利앷??쒗궡 (異붿젙 34.7s ???ㅼ젣 53s) | CPS 2.8濡??섑뼢 + orchestrator?먯꽌 43珥?珥덇낵 ??body ???먮룞 ?몃┝ |
 
 ---
 
-*마지막 업데이트: 2026-03-17 13:00 KST (Claude Code — shorts-maker-v2 영상 길이 + 카라오케 Critical 버그 2건 수정 + QC 승인)*
+*留덉?留??낅뜲?댄듃: 2026-03-17 13:00 KST (Claude Code ??shorts-maker-v2 ?곸긽 湲몄씠 + 移대씪?ㅼ? Critical 踰꾧렇 2嫄??섏젙 + QC ?뱀씤)*
 
 ## 2026-03-17 Codex Update
 
@@ -268,3 +274,4 @@ Vibe coding/                      # Root 워크스페이스
 ### Known risks / landmines
 - Protected `hanwoo-dashboard` routes redirect unauthenticated users to `/login`, so browser-based visual QA without credentials is limited to public pages unless someone signs in manually.
 - The public route still logs manifest/favicon console noise during Playwright verification; it was not introduced by the claymorphism refresh.
+
