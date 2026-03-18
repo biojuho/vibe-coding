@@ -612,28 +612,58 @@ def run_task(task_id: int, trigger_type: str = "manual") -> TaskLog:
         resolved_exec, resolved_args = _resolve_executable(executable, args)
         timeout_sec = int(row["timeout_sec"] or DEFAULT_TIMEOUT_SEC)
         timeout_sec = timeout_sec if timeout_sec > 0 else DEFAULT_TIMEOUT_SEC
+        proc = None
         try:
-            result = subprocess.run(
-                [resolved_exec, *resolved_args],
+            popen_kwargs: dict = dict(
                 shell=False,
                 cwd=str(target_cwd),
-                capture_output=True,
-                text=True,
-                timeout=timeout_sec,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                encoding="utf-8",
+                errors="replace",
             )
-            exit_code = result.returncode
-            stdout = result.stdout or ""
-            stderr = result.stderr or ""
-            if exit_code != 0:
-                error_type = "non_zero_exit"
+            if os.name == "nt":
+                # Windows: CREATE_NEW_PROCESS_GROUP prevents handle inheritance
+                # issues with pytest stdout capture (WinError 6).
+                import ctypes  # noqa: F401  – sanity import
+                popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+            proc = subprocess.Popen([resolved_exec, *resolved_args], **popen_kwargs)
+
+            try:
+                out, err = proc.communicate(timeout=timeout_sec)
+            except subprocess.TimeoutExpired:
+                try:
+                    proc.kill()
+                except OSError:
+                    pass
+                try:
+                    out, err = proc.communicate()
+                except OSError:
+                    out, err = "", ""
+                exit_code = -1
+                error_type = "timeout"
+                stderr = f"Timeout after {timeout_sec} seconds"
+            else:
+                exit_code = proc.returncode
+                stdout = out or ""
+                stderr = err or ""
+                if exit_code != 0:
+                    error_type = "non_zero_exit"
         except FileNotFoundError as exc:
             exit_code = -4
             error_type = "exec_not_found"
             stderr = str(exc)
-        except subprocess.TimeoutExpired:
-            exit_code = -1
-            error_type = "timeout"
-            stderr = f"Timeout after {timeout_sec} seconds"
+        except OSError as exc:
+            # Non-FileNotFoundError OSError (e.g. WinError 6 on handle issues)
+            # — only map to exec_not_found when it's a "not found" style error
+            winerror = getattr(exc, "winerror", None)
+            if winerror in (2, 3):  # ERROR_FILE_NOT_FOUND, ERROR_PATH_NOT_FOUND
+                exit_code = -4
+                error_type = "exec_not_found"
+            else:
+                exit_code = -2
+                error_type = "exception"
+            stderr = str(exc)
         except Exception as exc:  # pragma: no cover - defensive path
             exit_code = -2
             error_type = "exception"

@@ -3,7 +3,34 @@
 > 각 AI 도구가 작업할 때마다 아래 형식으로 기록합니다.
 > 최신 세션이 파일 상단에 위치합니다 (역순).
 
+## 2026-03-19 — Antigravity (Gemini) — QC: Scheduler WinError 6 버그 수정
+
+### 작업 요약
+NotebookLM x Blind-to-X QC 계속. `test_scheduler_engine.py` 8개 실패의 근본 원인인 **Windows subprocess WinError 6** 버그를 수정했습니다.
+
+### 문제 원인
+pytest가 stdout/stderr를 캡처하는 동안 `subprocess.PIPE`가 Windows 핸들을 무효화 → `[WinError 6]` 발생 → 모든 run_task가 `exit_code = -2`로 잘못 기록됨.
+
+### 변경 파일
+| 파일 | 변경 |
+|------|------|
+| `execution/scheduler_engine.py` | `subprocess.run(capture_output=True)` → `Popen + communicate()` 전환, `TimeoutExpired`/`OSError` 방어코드 추가 |
+| `pytest.ini` | `--capture=no` 추가하여 Windows subprocess 핸들 안전 보장 |
+| `tests/conftest.py` | **신규** — autouse capture disable fixture (Windows 전용) |
+| `tests/test_scheduler_engine.py` | Windows autouse fixture 추가 |
+
+### 검증 결과
+- `--capture=no` 적용 후 scheduler 테스트: **65 passed, 0 failed** ✅
+- AST 검사 4개 파일: **모두 PASS** ✅
+
+### 지뢰밭 추가
+- Windows pytest 환경에서 `subprocess.PIPE` 사용 시 WinError 6 발생 → pytest.ini에 `--capture=no` 필수
+
+---
+
 ## 2026-03-18 — Antigravity (Gemini) — NotebookLM × Blind-to-X 소셜 자산 자동 연동
+
+
 
 ### 작업 요약
 NotebookLM이 생성한 인포그래픽(.png) / 슬라이드(.pptx)를 Blind-to-X 소셜 미디어 포스팅 파이프라인에 자동 연동하는 기능 구현.

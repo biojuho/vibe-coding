@@ -12,6 +12,25 @@ import pytest
 import execution.scheduler_engine as se
 
 
+# ---------------------------------------------------------------------------
+# Windows: pytest stdout 캡처가 subprocess PIPE와 충돌하여 WinError 6 발생.
+# 이 파일의 모든 테스트에서 캡처를 비활성화하여 해결.
+# ---------------------------------------------------------------------------
+
+if sys.platform == "win32":
+    @pytest.fixture(autouse=True)
+    def _disable_capture_for_subprocess(request):
+        capman = request.config.pluginmanager.getplugin("capturemanager")
+        if capman is None:
+            yield
+            return
+        capman.suspend_global_capture(in_=True)
+        try:
+            yield
+        finally:
+            capman.resume_global_capture()
+
+
 def _configure_tmp_db(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(se, "DB_PATH", tmp_path / "scheduler.db")
     monkeypatch.setattr(se, "WORKSPACE", tmp_path)
