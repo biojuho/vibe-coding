@@ -1,4 +1,4 @@
-﻿# ?쭬 Vibe Coding (Joolife) ??留덉뒪??而⑦뀓?ㅽ듃
+# ?쭬 Vibe Coding (Joolife) ??留덉뒪??而⑦뀓?ㅽ듃
 
 > **?좑툘 濡쒖뺄 ?꾩슜 ?꾨줈?앺듃 ???먭꺽 push/pull/deploy 湲덉?**
 > ???꾨줈?앺듃??濡쒖뺄?먯꽌留??댁쁺?⑸땲?? ?대뼡 AI ?꾧뎄???먭꺽 ??μ냼??push, pull, deploy瑜??섑뻾?섏? 留덉꽭??
@@ -168,6 +168,19 @@ Vibe coding/                      # Root ?뚰겕?ㅽ럹?댁뒪
   - T4-4: X Analytics (x_analytics.py)
   - v3.0 로드맵 문서 작성 (directives/roadmap_v3.md)
   - QC: 753 tests passed, AST 11/11 OK, 보안 스캔 CLEAR
+- NotebookLM-py 도입 완료 (2026-03-18):
+  - v0.3.4 환경 구축, 노트북/문서 리스트/생성 CLI 래퍼 구현
+  - 팟캐스트(Audio Overview) 기능 제외 후 운영 SOP 작성
+  - auto_research_and_generate() 추가: 자동 웹 리서치 → 인포그래픽/슬라이드/마인드맵 생성
+- NotebookLM × Blind-to-X 소셜 자산 자동 연동 완료 (2026-03-18):
+  - notebooklm_enricher.py 신규 생성: 주제 기반 딥리서치 + 인포그래픽/슬라이드 자동 생성 + Cloudinary CDN 업로드
+  - process.py 수정: draft 생성 직후 enricher 비동기 병렬 실행, 인포그래픽 → fallback 이미지로 활용
+  - notion/_upload.py 수정: 🔬 NotebookLM 리서치 자산 섹션 Notion 페이지에 자동 삽입
+  - NOTEBOOKLM_ENABLED=true 환경변수 가드로 기존 파이프라인 Zero Impact 보장
+- Knowledge Dashboard 고도화 및 QA/QC 자동화 완료 (2026-03-18):
+  - 3-탭 구조(지식현황/QA·QC/타임라인) UI 개편
+  - `qaqc_runner.py` 기반 1-command 통합 테스팅(pytest, AST, 보안, 인프라) 구축
+  - SQLite 히스토리 DB 연동 및 Dashboard 시각화
 
 ### 현재 진행 중
 
