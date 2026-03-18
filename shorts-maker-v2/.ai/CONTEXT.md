@@ -44,7 +44,17 @@ AI 기반 YouTube Shorts 자동 생성 파이프라인
   - orchestrator `_try_shorts_factory_render()` 로거 버그 수정 (logger→jlog)
   - E2E 통합 테스트 26개 (ffmpeg 실제 렌더링 포함)
   - QA 수정: MoviePy 클립 리소스 해제, text_overlay 중복 분리
-- 🔲 다음: TextEngine 자막 렌더링 → text_image_path 연동, 프로덕션 use_shorts_factory=True 활성화
+- ✅ 영상·자막 품질 업그레이드 (QC 승인 2026-03-17)
+  - 자막: 카라오케 glow+scale, 채널별 프로필, Safe Zone, 커스텀 등록
+  - 영상: 인코딩 품질 프로필(draft/standard/premium), 채널별 색보정(pure-numpy), 카메라 모션 4종
+  - 전환: wipe, morph_cut, iris, rgb_split 4종 추가
+  - TTS: 감정 키워드 SSML 강조, 숫자 프로소디, 오디오 LUFS 노멀라이즈+EQ
+  - Hook: bounce, countdown, particle 특수 효과
+- ✅ 잔여 TODO 해소 (2026-03-18 세션2)
+  - series_engine.py → orchestrator 통합 (렌더링 후 시리즈 후속편 자동 제안)
+  - pipeline_status.py 전용 테스트 56개 추가
+  - TextEngine glow → native render_step hook 씬 연동
+- 🔲 다음: 없음 (전 TODO 해소 완료)
 
 ## 컨벤션
 - 테스트: `tests/unit/`, `tests/integration/`
@@ -59,4 +69,6 @@ AI 기반 YouTube Shorts 자동 생성 파이프라인
 - **MoviePy v2.x**: `with_effects()`에 lambda 사용 불가 → Effect 클래스(CrossFadeIn/Out) 사용 필수
 - **TextEngine gradient**: putpixel은 O(W×H) 병목 → numpy 벡터화 필수
 - E2E 통합 테스트(test_shorts_factory_e2e.py)는 ffmpeg 실제 렌더링 포함 → 실행 시간 ~15분
+- `color_grading.py`는 pure-numpy 구현 (PIL ImageEnhance 사용하지 않음), 비네트 마스크는 `@lru_cache`로 캐시
+- `render_step.py`의 카메라 모션은 `_build_effect_map()`에 통합; `_RANDOM_EXCLUDE` 셋으로 랜덤 풀 제어
 

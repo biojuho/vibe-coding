@@ -28,6 +28,7 @@ from shorts_maker_v2.providers.llm_router import LLMRouter
 from shorts_maker_v2.providers.openai_client import OpenAIClient
 from shorts_maker_v2.providers.pexels_client import PexelsClient
 from shorts_maker_v2.render.srt_export import export_srt
+from shorts_maker_v2.pipeline.series_engine import SeriesEngine
 from shorts_maker_v2.utils.cost_guard import CostGuard
 from shorts_maker_v2.utils.cost_tracker import CostTracker
 from shorts_maker_v2.utils.pipeline_status import (
@@ -505,6 +506,25 @@ class PipelineOrchestrator:
                     jlog.info("srt_exported", srt_path=manifest.srt_path)
             except Exception as srt_exc:
                 jlog.warning("srt_export_failed", error=str(srt_exc))
+
+            # ── 시리즈 후속편 제안 ──
+            try:
+                series_engine = SeriesEngine(
+                    output_dir=self.paths.output_dir,
+                    min_performance_score=30.0,
+                )
+                series_plan = series_engine.suggest_next(topic)
+                if series_plan is not None:
+                    manifest.series_suggestion = series_plan.to_dict()
+                    jlog.info(
+                        "series_suggested",
+                        series_id=series_plan.series_id,
+                        episode=series_plan.episode,
+                        title=series_plan.suggested_title,
+                    )
+            except Exception as series_exc:
+                jlog.warning("series_suggestion_failed", error=str(series_exc))
+
         except TopicUnsuitableError as exc:
             # 주제 부적합 — 자료 부족으로 스킵 (n8n에서 분기 가능)
             failures.append({"step": "script", "code": "TopicUnsuitableError", "message": str(exc), "error_type": "content_filter"})

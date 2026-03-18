@@ -33,6 +33,7 @@ class VideoSettings:
     encoding_crf: int = 23               # 품질 기반 인코딩 (0=무손실, 23=기본, 51=최저)
     hw_accel: str = "auto"               # "auto" | "nvenc" | "qsv" | "amf" | "none"
     stock_mix_ratio: float = 0.0         # Body 씬 중 Pexels 스톡 영상 비율 (0.0 ~ 1.0)
+    quality_profile: str = "standard"    # "draft" | "standard" | "premium"
 
 
 @dataclass(frozen=True)
@@ -106,6 +107,16 @@ class CaptionSettings:
     hook_animation: str = "random" # "random" | "typing" | "glitch" | "popup" | "none"
     highlight_color: str = "#FFD700"  # 카라오케 word-level highlight 색상 (금색)
     highlight_mode: str = "word"      # "word" (단어별 하이라이트) | "chunk" (기존 청크 모드)
+    # NEW: custom style definitions from config
+    custom_styles: dict[str, dict] | None = None  # user-defined caption styles from YAML
+    # NEW: channel-to-style auto-mapping
+    channel_style_map: dict[str, str] | None = None  # e.g. {"ai_tech": "neon_tech", "psychology": "dreamy_purple"}
+    # NEW: outline thickness presets
+    outline_thickness: str = "medium"  # "thin" (2px) | "medium" (4px) | "bold" (6px)
+    # NEW: safe zone and spacing
+    safe_zone_enabled: bool = True       # YouTube UI overlap prevention
+    center_hook: bool = True             # Center captions for hook scenes
+    line_spacing_factor: float = 1.3     # Multiplier for multi-line spacing
 
 
 @dataclass(frozen=True)
@@ -256,6 +267,7 @@ def load_config(config_path: str | Path) -> AppConfig:
         encoding_crf=int(video_raw.get("encoding_crf", 23)),
         hw_accel=str(video_raw.get("hw_accel", "auto")),
         stock_mix_ratio=float(video_raw.get("stock_mix_ratio", 0.0)),
+        quality_profile=str(video_raw.get("quality_profile", "standard")),
     )
     if video.fps <= 0:
         raise ConfigError("video.fps must be > 0.")
@@ -353,6 +365,12 @@ def load_config(config_path: str | Path) -> AppConfig:
         hook_animation=str(captions_raw.get("hook_animation", "random")),
         highlight_color=str(captions_raw.get("highlight_color", "#FFD700")),
         highlight_mode=str(captions_raw.get("highlight_mode", "word")),
+        custom_styles=dict(captions_raw.get("custom_styles", {})) if isinstance(captions_raw.get("custom_styles"), dict) else None,
+        channel_style_map=dict(captions_raw.get("channel_style_map", {})) if isinstance(captions_raw.get("channel_style_map"), dict) else None,
+        outline_thickness=str(captions_raw.get("outline_thickness", "medium")),
+        safe_zone_enabled=bool(captions_raw.get("safe_zone_enabled", True)),
+        center_hook=bool(captions_raw.get("center_hook", True)),
+        line_spacing_factor=float(captions_raw.get("line_spacing_factor", 1.3)),
     )
     if captions.font_size <= 0:
         raise ConfigError("captions.font_size must be > 0.")
@@ -368,6 +386,8 @@ def load_config(config_path: str | Path) -> AppConfig:
         raise ConfigError("video.encoding_crf must be 0–51.")
     if not (0.0 <= video.stock_mix_ratio <= 1.0):
         raise ConfigError("video.stock_mix_ratio must be 0.0–1.0.")
+    if video.quality_profile not in {"draft", "standard", "premium"}:
+        raise ConfigError("video.quality_profile must be one of: draft, standard, premium.")
     if providers.tts_speed <= 0:
         raise ConfigError("providers.tts_speed must be > 0.")
 

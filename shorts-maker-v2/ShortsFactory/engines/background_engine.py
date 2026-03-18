@@ -87,7 +87,7 @@ class BackgroundEngine:
                     bg_color[c], primary[c] * 0.3 + bg_color[c] * 0.7, height
                 ).reshape(-1, 1).astype(np.uint8)
 
-        image = Image.fromarray(arr, "RGB")
+        image = Image.fromarray(arr)
         image.save(output_path, format="PNG")
         logger.debug("[BackgroundEngine] 그라데이션 생성: %s", output_path.name)
         return output_path
@@ -241,7 +241,7 @@ class BackgroundEngine:
                 ).reshape(-1, 1).astype(np.uint8)
 
             frame_path = output_dir / f"grad_{i:04d}.png"
-            Image.fromarray(arr, "RGB").save(frame_path, format="PNG")
+            Image.fromarray(arr).save(frame_path, format="PNG")
             paths.append(frame_path)
 
         logger.debug(
@@ -459,7 +459,7 @@ class BackgroundEngine:
         rgba[:, :, :3] = noise_rgb
         rgba[:, :, 3] = noise_alpha
 
-        image = Image.fromarray(rgba, "RGBA")
+        image = Image.fromarray(rgba)
         if grain_size > 1:
             image = image.resize((width, height), Image.NEAREST)
 
@@ -510,7 +510,7 @@ class BackgroundEngine:
             rgba[y, :, 2] = rgb[2]
             rgba[y, :, 3] = alpha
 
-        image = Image.fromarray(rgba, "RGBA")
+        image = Image.fromarray(rgba)
         image.save(output_path, format="PNG")
         logger.debug(
             "[BackgroundEngine] 스캔라인 오버레이: spacing=%d, opacity=%.0f%%",
@@ -587,7 +587,7 @@ class BackgroundEngine:
         # 클리핑
         arr = np.clip(arr, 0, 255).astype(np.uint8)
 
-        image = Image.fromarray(arr, "RGB")
+        image = Image.fromarray(arr)
         # 강한 블러로 부드러운 혼합
         image = image.filter(_IF.GaussianBlur(radius=blur_radius))
 

@@ -5,6 +5,8 @@ import random
 import time
 from pathlib import Path
 
+import numpy as np
+
 logger = logging.getLogger(__name__)
 
 from moviepy import (
@@ -12,6 +14,7 @@ from moviepy import (
     CompositeAudioClip,
     CompositeVideoClip,
     ImageClip,
+    VideoClip,
     VideoFileClip,
     concatenate_videoclips,
     vfx,
@@ -22,7 +25,15 @@ from shorts_maker_v2.config import AppConfig
 from shorts_maker_v2.models import SceneAsset, ScenePlan
 from shorts_maker_v2.providers.llm_router import LLMRouter
 from shorts_maker_v2.providers.openai_client import OpenAIClient
-from shorts_maker_v2.render.caption_pillow import CaptionStyle, apply_preset, render_caption_image
+from shorts_maker_v2.render.caption_pillow import (
+    CaptionStyle,
+    _OUTLINE_THICKNESS_MAP,
+    apply_preset,
+    calculate_safe_position,
+    register_custom_styles,
+    render_caption_image,
+    resolve_channel_style,
+)
 from shorts_maker_v2.render.karaoke import (
     apply_ssml_break_correction,
     build_keyword_color_map,
@@ -34,9 +45,17 @@ from shorts_maker_v2.render.karaoke import (
 )
 from shorts_maker_v2.render.animations import apply_text_animation
 from shorts_maker_v2.render.broll_overlay import create_broll_pip
+from shorts_maker_v2.render.color_grading import color_grade_clip
 from shorts_maker_v2.render.hud_overlay import render_hud_overlay
+from shorts_maker_v2.render.audio_postprocess import postprocess_tts_audio
 
 # MoviePy 2.x: PIL.Image.ANTIALIAS hotfix no longer needed (Pillow native)
+
+_QUALITY_PROFILES = {
+    "draft": {"crf": 28, "preset": "ultrafast", "maxrate": None},
+    "standard": {"crf": 20, "preset": "medium", "maxrate": "8M"},
+    "premium": {"crf": 16, "preset": "slow", "maxrate": "12M"},
+}
 
 
 class RenderStep:
@@ -116,13 +135,21 @@ class RenderStep:
         tuned_bottom_offset = style_tuning.get("bottom_offset", config.captions.bottom_offset)
         jittered_offset = max(220, tuned_bottom_offset + offset_jitter)
 
+        # Register user-defined custom styles before building base_style
+        register_custom_styles(config.captions.custom_styles)
+
+        # Resolve stroke_width from outline_thickness if stroke_width is default (0)
+        stroke_w = config.captions.stroke_width
+        if stroke_w == 0 and config.captions.outline_thickness != "medium":
+            stroke_w = _OUTLINE_THICKNESS_MAP.get(config.captions.outline_thickness, 4)
+
         base_style = CaptionStyle(
             font_size=tuned_font_size,
             margin_x=tuned_margin_x,
             bottom_offset=jittered_offset,
             text_color=config.captions.text_color,
             stroke_color=config.captions.stroke_color,
-            stroke_width=config.captions.stroke_width,
+            stroke_width=stroke_w,
             line_spacing=tuned_line_spacing,
             font_candidates=config.captions.font_candidates,
             mode=config.captions.mode,
@@ -130,6 +157,9 @@ class RenderStep:
             bg_color=config.captions.bg_color,
             bg_opacity=config.captions.bg_opacity,
             bg_radius=config.captions.bg_radius,
+            safe_zone_enabled=config.captions.safe_zone_enabled,
+            center_hook=config.captions.center_hook,
+            line_spacing_factor=config.captions.line_spacing_factor,
         )
 
         forced_preset = self._resolve_style_override()
@@ -143,9 +173,15 @@ class RenderStep:
         else:
             # 채널별 caption_combo 우선 사용, 없으면 job_index 기반 로테이션
             combo = self._resolve_caption_combo(channel_key, job_index)
-        self.hook_style = apply_preset(base_style, combo[0])
-        self.body_style = apply_preset(base_style, combo[1])
-        self.cta_style = apply_preset(base_style, combo[2])
+        # Apply channel_style_map overrides if configured
+        channel_map = config.captions.channel_style_map
+        hook_preset = resolve_channel_style(channel_key, "hook", channel_map) or combo[0]
+        body_preset = resolve_channel_style(channel_key, "body", channel_map) or combo[1]
+        cta_preset = resolve_channel_style(channel_key, "cta", channel_map) or combo[2]
+
+        self.hook_style = apply_preset(base_style, hook_preset)
+        self.body_style = apply_preset(base_style, body_preset)
+        self.cta_style = apply_preset(base_style, cta_preset)
 
         logger.info(
             "[RenderStep] 자막 combo — hook=%s, body=%s, cta=%s (channel=%r)",
@@ -200,14 +236,25 @@ class RenderStep:
         logger.info("[RenderStep] 로테이션 combo 사용 (job_index=%d): %s", job_index, combo)
         return combo
 
-    def _apply_named_effect(self, effect_name: str, clip, target_width: int, target_height: int):
-        effect_map = {
+    def _build_effect_map(self, target_width: int, target_height: int) -> dict:
+        """모든 카메라 모션 효과의 단일 매핑."""
+        return {
             "ken_burns": lambda c: self._ken_burns(c, target_width, target_height),
             "dramatic_ken_burns": lambda c: self._dramatic_ken_burns(c, target_width, target_height),
             "zoom_out": lambda c: self._zoom_out(c, target_width, target_height),
             "pan_left": lambda c: self._pan_horizontal(c, target_width, target_height, +1),
             "pan_right": lambda c: self._pan_horizontal(c, target_width, target_height, -1),
+            "drift": lambda c: self._drift(c, target_width, target_height),
+            "push_in": lambda c: self._push_in(c, target_width, target_height),
+            "shake": lambda c: self._shake(c, target_width, target_height, fps=self.config.video.fps),
+            "ease_ken_burns": lambda c: self._ease_ken_burns(c, target_width, target_height),
         }
+
+    # 랜덤 풀에서 제외할 효과 (명시적 지정에서만 사용)
+    _RANDOM_EXCLUDE = {"shake", "dramatic_ken_burns"}
+
+    def _apply_named_effect(self, effect_name: str, clip, target_width: int, target_height: int):
+        effect_map = self._build_effect_map(target_width, target_height)
         fn = effect_map.get(effect_name)
         if fn is None:
             return self._apply_random_effect(clip, target_width, target_height)
@@ -235,9 +282,36 @@ class RenderStep:
         return self._apply_random_effect(clip, target_width, target_height, exclude=exclude)
 
     @staticmethod
-    def _caption_y(clip, target_height: int, style: CaptionStyle) -> int:
+    def _caption_y(clip, target_height: int, style: CaptionStyle, role: str = "body") -> int:
+        """Calculate caption Y position with safe zone awareness."""
+        if style.safe_zone_enabled:
+            return calculate_safe_position(target_height, clip.h, style, role)
         return max(80, int(target_height - clip.h - style.bottom_offset))
 
+
+    def _render_static_caption(
+        self,
+        text: str,
+        target_width: int,
+        style: CaptionStyle,
+        output_path: Path,
+        role: str,
+    ) -> Path:
+        """정적 자막 렌더링. hook 씬에서 TextEngine glow를 시도합니다."""
+        if role == "hook" and self._channel_key:
+            try:
+                from ShortsFactory.engines.text_engine import TextEngine
+
+                channel_cfg = self._channel_profile or {}
+                engine = TextEngine(channel_cfg)
+                return engine.render_subtitle_with_glow(
+                    text,
+                    role="hook",
+                    output_path=output_path,
+                )
+            except Exception as exc:
+                logger.debug("[TextEngine] glow 폴백: %s", exc)
+        return render_caption_image(text, target_width, style, output_path)
 
     def _build_bookend_clip(self, path_str: str, duration: float, target_width: int, target_height: int):
         """인트로/아웃트로 클립 빌드 (이미지 또는 비디오)."""
@@ -316,15 +390,95 @@ class RenderStep:
 
         return zoomed.transform(make_frame).with_duration(clip.duration)
 
+    @staticmethod
+    def _drift(clip, target_width: int, target_height: int, speed: float = 0.04):
+        """Body 씬용 느린 수평 드리프트 (미세한 움직임감)."""
+        overscan = 0.06
+        zoomed = clip.resized(1.0 + overscan)
+        max_shift = zoomed.w * overscan / 2
+        dur = max(clip.duration, 0.001)
+        zw, zh = zoomed.w, zoomed.h
+
+        def make_frame(get_frame, t):
+            frame = get_frame(t)
+            progress = (t / dur) * 2 - 1  # -1 to +1
+            cx = zw / 2 + max_shift * progress * speed / 0.04
+            x1 = int(max(0, min(cx - target_width / 2, zw - target_width)))
+            y1 = int(max(0, (zh - target_height) / 2))
+            return frame[y1:y1 + target_height, x1:x1 + target_width]
+
+        return zoomed.transform(make_frame).with_duration(clip.duration)
+
+    @staticmethod
+    def _push_in(clip, target_width: int, target_height: int, zoom: float = 0.08):
+        """CTA 씬용 점진적 줌인 (긴박감 연출). ease-out 커브 적용."""
+        def resize_func(t: float) -> float:
+            progress = t / max(clip.duration, 0.001)
+            # ease-out: 1 - (1-p)^2
+            eased = 1.0 - (1.0 - progress) ** 2
+            return 1.0 + zoom * eased
+
+        zoomed = clip.resized(resize_func)
+        return zoomed.cropped(
+            x_center=zoomed.w / 2,
+            y_center=zoomed.h / 2,
+            width=target_width,
+            height=target_height,
+        )
+
+    @staticmethod
+    def _shake(clip, target_width: int, target_height: int, amplitude: int = 3, fps: int = 30):
+        """Hook 씬용 미세 진동 효과 (충격/긴장감)."""
+
+        overscan = 0.04
+        zoomed = clip.resized(1.0 + overscan)
+        dur = max(clip.duration, 0.001)
+        zw, zh = zoomed.w, zoomed.h
+        cx, cy = zw / 2, zh / 2
+        # Pre-generate random offsets for deterministic rendering
+        n_frames = max(1, int(dur * fps))
+        rng = np.random.RandomState(42)
+        offsets_x = rng.randint(-amplitude, amplitude + 1, size=n_frames)
+        offsets_y = rng.randint(-amplitude, amplitude + 1, size=n_frames)
+
+        def make_frame(get_frame, t):
+            frame = get_frame(t)
+            # Shake intensity decays over time (strongest at start)
+            decay = max(0.0, 1.0 - t / dur * 0.7)
+            idx = min(int(t * fps), n_frames - 1)
+            ox = int(offsets_x[idx] * decay)
+            oy = int(offsets_y[idx] * decay)
+            x1 = int(max(0, min(cx - target_width / 2 + ox, zw - target_width)))
+            y1 = int(max(0, min(cy - target_height / 2 + oy, zh - target_height)))
+            return frame[y1:y1 + target_height, x1:x1 + target_width]
+
+        return zoomed.transform(make_frame).with_duration(clip.duration)
+
+    @staticmethod
+    def _ease_ken_burns(clip, target_width: int, target_height: int, zoom: float = 0.08):
+        """ease-in-out Ken Burns (부드러운 시작/끝). Body 씬에 적합."""
+        def resize_func(t: float) -> float:
+            progress = t / max(clip.duration, 0.001)
+            # ease-in-out: cubic
+            if progress < 0.5:
+                eased = 4 * progress ** 3
+            else:
+                eased = 1 - (-2 * progress + 2) ** 3 / 2
+            return 1.0 + zoom * eased
+
+        zoomed = clip.resized(resize_func)
+        return zoomed.cropped(
+            x_center=zoomed.w / 2,
+            y_center=zoomed.h / 2,
+            width=target_width,
+            height=target_height,
+        )
+
     def _apply_random_effect(self, clip, target_width: int, target_height: int, *, exclude: str = ""):
-        """zoom-in / zoom-out / pan-left / pan-right 중 랜덤 선택 (exclude로 연속 동일 효과 방지)."""
-        all_effects = {
-            "ken_burns": lambda c: self._ken_burns(c, target_width, target_height),
-            "zoom_out": lambda c: self._zoom_out(c, target_width, target_height),
-            "pan_left": lambda c: self._pan_horizontal(c, target_width, target_height, +1),
-            "pan_right": lambda c: self._pan_horizontal(c, target_width, target_height, -1),
-        }
-        candidates = {k: v for k, v in all_effects.items() if k != exclude}
+        """zoom-in / zoom-out / pan / drift / push_in / ease_ken_burns 중 랜덤 선택 (exclude로 연속 동일 효과 방지)."""
+        all_effects = self._build_effect_map(target_width, target_height)
+        excluded = self._RANDOM_EXCLUDE | {exclude}
+        candidates = {k: v for k, v in all_effects.items() if k not in excluded}
         if not candidates:
             candidates = all_effects
         chosen_name = random.choice(list(candidates.keys()))
@@ -466,7 +620,7 @@ class RenderStep:
         """'random'이면 실제 스타일 중 하나를 무작위 선택."""
         style = self.config.video.transition_style
         if style == "random":
-            return random.choice(["crossfade", "flash", "glitch", "zoom", "slide"])
+            return random.choice(["crossfade", "flash", "glitch", "zoom", "slide", "wipe", "iris"])
         return style
 
     def _apply_transitions(
@@ -488,8 +642,8 @@ class RenderStep:
         global_style = self.config.video.transition_style
 
         def _white_frame() -> ImageClip:
-            import numpy as _np
-            arr = _np.ones((target_height, target_width, 3), dtype="uint8") * 255
+    
+            arr = np.ones((target_height, target_width, 3), dtype="uint8") * 255
             return ImageClip(arr, is_mask=False).with_duration(0.12)
 
         def _structural_style(prev_role: str, cur_role: str) -> str:
@@ -499,11 +653,11 @@ class RenderStep:
             if pair in channel_mapping:
                 return random.choice(channel_mapping[pair])
             mapping: dict[tuple[str, str], list[str]] = {
-                ("hook", "body"):  ["flash", "glitch", "zoom"],   # 강한 전환
-                ("hook", "cta"):   ["flash", "zoom"],             # 직접 CTA
-                ("body", "body"):  ["crossfade", "slide"],        # 부드러운 흐름
-                ("body", "cta"):   ["crossfade", "slide", "zoom"],# 자연스러운 마무리
-                ("cta", "body"):   ["flash", "glitch"],           # 재시작 강조
+                ("hook", "body"):  ["flash", "glitch", "zoom", "rgb_split", "iris"],  # 강한 전환
+                ("hook", "cta"):   ["flash", "zoom", "iris"],                          # 직접 CTA
+                ("body", "body"):  ["crossfade", "slide", "wipe", "morph_cut"],        # 부드러운 흐름
+                ("body", "cta"):   ["crossfade", "slide", "zoom", "wipe"],             # 자연스러운 마무리
+                ("cta", "body"):   ["flash", "glitch", "rgb_split"],                   # 재시작 강조
             }
             choices = mapping.get(pair, ["crossfade", "slide"])
             return random.choice(choices)
@@ -540,11 +694,11 @@ class RenderStep:
                     result.append(_white_frame())
             elif style == "glitch":
                 # Glitch: 짧은 RGB 글리치 효과 (3프레임 흰+검 교대)
-                import numpy as _np
+        
                 glitch_frames = []
                 for _gi in range(3):
                     color = 255 if _gi % 2 == 0 else 0
-                    arr = _np.ones((target_height, target_width, 3), dtype="uint8") * color
+                    arr = np.ones((target_height, target_width, 3), dtype="uint8") * color
                     glitch_frames.append(ImageClip(arr, is_mask=False).with_duration(0.04))
                 result.append(clip)
                 if not is_last:
@@ -563,6 +717,107 @@ class RenderStep:
                     effects.append(vfx.FadeOut(fade_sec * 0.5))
                 if effects:
                     clip = clip.with_effects(effects)
+                result.append(clip)
+            elif style == "wipe":
+                # Wipe: 왼→오 와이프 전환 (이전 클립 위에 다음 클립이 덮어감)
+        
+
+                if i > 0 and len(result) > 0:
+                    wipe_dur = min(fade_sec * 2, 0.5)
+                    prev_clip = result[-1]
+
+                    def _wipe_mask_factory(_wipe_dur, _tw, _th):
+                        _buf = np.zeros((_th, _tw), dtype="float32")
+                        def _make_mask(t):
+                            _buf[:] = 0
+                            progress = min(1.0, t / max(0.01, _wipe_dur))
+                            reveal_w = int(_tw * progress)
+                            if reveal_w > 0:
+                                _buf[:, :reveal_w] = 1.0
+                            return _buf
+                        return _make_mask
+
+                    wipe_mask = VideoClip(
+                        _wipe_mask_factory(wipe_dur, target_width, target_height),
+                        duration=wipe_dur,
+                        is_mask=True,
+                    )
+                    wipe_clip = clip.with_start(prev_clip.duration - wipe_dur)
+                    wipe_clip = wipe_clip.with_mask(wipe_mask)
+                    # 이전 클립 유지 + 와이프 오버레이
+                    combined = CompositeVideoClip(
+                        [prev_clip, wipe_clip],
+                        size=(target_width, target_height),
+                    ).with_duration(prev_clip.duration)
+                    result[-1] = combined
+                else:
+                    result.append(clip)
+            elif style == "iris":
+                # Iris: 원형으로 확장되며 등장 (아이리스 전환)
+        
+
+                iris_dur = min(fade_sec * 2, 0.4)
+
+                def _iris_filter_factory(_iris_dur, _tw, _th):
+                    cx, cy = _tw / 2, _th / 2
+                    max_r = (_tw ** 2 + _th ** 2) ** 0.5 / 2
+                    # 거리 그리드 한 번만 계산
+                    y_grid, x_grid = np.ogrid[:_th, :_tw]
+                    _dist = np.sqrt((x_grid - cx) ** 2 + (y_grid - cy) ** 2)
+
+                    def _filter(get_frame, t):
+                        frame = get_frame(t)
+                        if t >= _iris_dur:
+                            return frame
+                        progress = t / max(0.01, _iris_dur)
+                        radius = max_r * progress
+                        mask = (_dist <= radius).astype(np.float32)
+                        mask_3d = mask[:, :, np.newaxis]
+                        return (frame.astype(np.float32) * mask_3d).astype(np.uint8)
+                    return _filter
+
+                clip = clip.transform(_iris_filter_factory(iris_dur, target_width, target_height))
+                result.append(clip)
+            elif style == "rgb_split":
+                # RGB Split: RGB 채널 분리 글리치 전환
+        
+
+                split_dur = min(fade_sec, 0.25)
+
+                def _rgb_split_factory(_split_dur):
+                    def _filter(get_frame, t):
+                        frame = get_frame(t)
+                        if t >= _split_dur:
+                            return frame
+                        progress = 1.0 - (t / max(0.01, _split_dur))
+                        shift = int(12 * progress)
+                        if shift == 0:
+                            return frame
+                        out = np.copy(frame)
+                        # R 채널 오른쪽, B 채널 왼쪽 이동
+                        out[:, shift:, 0] = frame[:, :-shift, 0]
+                        out[:, :-shift, 2] = frame[:, shift:, 2]
+                        return out
+                    return _filter
+
+                clip = clip.transform(_rgb_split_factory(split_dur))
+                result.append(clip)
+            elif style == "morph_cut":
+                # Morph Cut: 급속 줌인 + 페이드 (점프컷 부드러움)
+                if fade_sec > 0:
+                    morph_dur = min(fade_sec, 0.3)
+                    if not is_last:
+                        clip = clip.with_effects([vfx.FadeOut(morph_dur)])
+                    if i > 0:
+                        clip = clip.with_effects([vfx.FadeIn(morph_dur)])
+                        # 약간의 줌인으로 시작 (1.05x → 1.0x)
+                        def _morph_resize_factory(_morph_dur):
+                            def _resize(t):
+                                if t >= _morph_dur:
+                                    return 1.0
+                                return 1.05 - 0.05 * (t / max(0.01, _morph_dur))
+                            return _resize
+                        clip = clip.resized(_morph_resize_factory(morph_dur))
                 result.append(clip)
             else:  # cut
                 result.append(clip)
@@ -748,6 +1003,21 @@ class RenderStep:
                     exclude=last_effect,
                 )
 
+            # 2.5) 색보정 (채널별 컬러 그레이딩 + 비네트)
+            try:
+                base = color_grade_clip(base, self._channel_key, role)
+            except Exception as cg_exc:
+                logger.warning("[ColorGrade] 색보정 실패: %s", cg_exc)
+
+            # 2.9) TTS 오디오 후처리 (노멀라이즈 + EQ)
+            try:
+                postprocess_tts_audio(
+                    Path(asset.audio_path),
+                    voice_name=self.config.providers.tts_voice,
+                )
+            except Exception as pp_exc:
+                logger.warning("[AudioPost] 후처리 실패, 원본 사용: %s", pp_exc)
+
             # 3) 오디오 합성
             audio = AudioFileClip(asset.audio_path)
             if audio.duration != duration_sec:
@@ -803,7 +1073,7 @@ class RenderStep:
                                     highlight_clip
                                     .with_duration(wd)
                                     .with_start(ws)
-                                    .with_position(("center", self._caption_y(highlight_clip, target_height, style)))
+                                    .with_position(("center", self._caption_y(highlight_clip, target_height, style, role)))
                                 )
                                 caption_clips.append(cap_clip)
                     else:
@@ -817,7 +1087,7 @@ class RenderStep:
                                 caption_image
                                 .with_duration(cd)
                                 .with_start(chunk_start)
-                                .with_position(("center", self._caption_y(caption_image, target_height, style)))
+                                .with_position(("center", self._caption_y(caption_image, target_height, style, role)))
                             )
                             caption_clips.append(cap_clip)
 
@@ -827,19 +1097,23 @@ class RenderStep:
                 except Exception as kex:
                     logger.warning("[Karaoke] 카라오케 실패, 정적 자막 폴백: %s", kex)
                     cap_out = run_dir / f"caption_fallback_{plan.scene_id:02d}.png"
-                    cap_img = render_caption_image(plan.narration_ko, target_width, style, cap_out)
+                    cap_img = self._render_static_caption(
+                        plan.narration_ko, target_width, style, cap_out, role,
+                    )
                     cap_clip_img = ImageClip(str(cap_img), transparent=True)
                     cap_clip = cap_clip_img.with_duration(duration_sec).with_position(
-                        ("center", self._caption_y(cap_clip_img, target_height, style))
+                        ("center", self._caption_y(cap_clip_img, target_height, style, role))
                     )
                     base = CompositeVideoClip([base, cap_clip])
             else:
-                # 정적 자막 모드
+                # 정적 자막 모드 — hook 씬에서 TextEngine glow 시도
                 cap_out = run_dir / f"caption_static_{plan.scene_id:02d}.png"
-                cap_img = render_caption_image(plan.narration_ko, target_width, style, cap_out)
+                cap_img = self._render_static_caption(
+                    plan.narration_ko, target_width, style, cap_out, role,
+                )
                 cap_clip_img = ImageClip(str(cap_img), transparent=True)
                 cap_clip = cap_clip_img.with_duration(duration_sec).with_position(
-                    ("center", self._caption_y(cap_clip_img, target_height, style))
+                    ("center", self._caption_y(cap_clip_img, target_height, style, role))
                 )
                 base = CompositeVideoClip([base, cap_clip])
 
@@ -929,7 +1203,7 @@ class RenderStep:
 
                 # TTS 오디오에서 RMS 에너지 프로파일 만들기
                 try:
-                    import numpy as _np
+            
                     tts_audio = final_video.audio
                     # 100ms 단위로 RMS 샘플링
                     sample_rate = 44100
@@ -944,7 +1218,7 @@ class RenderStep:
                         try:
                             chunk = tts_audio.subclipped(t_start, t_end)
                             frames = chunk.to_soundarray(fps=sample_rate)
-                            rms_val = float(_np.sqrt(_np.mean(frames ** 2)))
+                            rms_val = float(np.sqrt(np.mean(frames ** 2)))
                         except Exception:
                             rms_val = 0.0
                         rms_profile.append(rms_val)
@@ -1026,18 +1300,21 @@ class RenderStep:
         except Exception:
             pass
 
-        # HW 인코더별 ffmpeg 파라미터 구성
+        # ── Quality Profile 적용 ──
+        qp = _QUALITY_PROFILES.get(self.config.video.quality_profile, _QUALITY_PROFILES["standard"])
+
         if hw_codec == "libx264":
-            # CPU 인코딩: CRF 기반
             ffmpeg_extra = [
-                "-crf", str(self.config.video.encoding_crf),
+                "-crf", str(qp["crf"]),
                 "-pix_fmt", "yuv420p",
             ]
-            preset = self.config.video.encoding_preset
+            # Bitrate cap for YouTube optimization
+            if qp["maxrate"]:
+                ffmpeg_extra.extend(["-maxrate", qp["maxrate"], "-bufsize", qp["maxrate"]])
+            preset = qp["preset"]
         else:
-            # HW 인코딩: 인코더별 최적 파라미터 사용
             ffmpeg_extra = list(hw_params)
-            preset = None  # HW 인코더는 자체 preset 사용
+            preset = None
 
         write_kwargs: dict = {
             "fps": self.config.video.fps,

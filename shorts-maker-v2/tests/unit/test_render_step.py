@@ -59,7 +59,7 @@ def _make_render_step(transition_style: str = "random") -> RenderStep:
 def test_pick_transition_style_random() -> None:
     """'random' 설정 시 유효한 스타일 반환."""
     step = _make_render_step(transition_style="random")
-    valid_styles = {"crossfade", "flash", "glitch", "zoom", "slide"}
+    valid_styles = {"crossfade", "flash", "glitch", "zoom", "slide", "wipe", "iris"}
     for _ in range(20):
         style = step._pick_transition_style()
         assert style in valid_styles

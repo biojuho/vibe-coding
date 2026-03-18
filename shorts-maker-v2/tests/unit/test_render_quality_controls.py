@@ -32,6 +32,12 @@ def _make_config(*, style_preset: str = "default") -> SimpleNamespace:
             hook_animation="random",
             highlight_color="#FFD700",
             highlight_mode="word",
+            custom_styles=None,
+            channel_style_map=None,
+            outline_thickness="medium",
+            safe_zone_enabled=True,
+            center_hook=True,
+            line_spacing_factor=1.0,
         ),
         audio=SimpleNamespace(
             bgm_dir="assets/bgm",

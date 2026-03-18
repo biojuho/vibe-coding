@@ -26,6 +26,9 @@ class CaptionStyle:
     bg_color: str = "#000000"
     bg_opacity: int = 185
     bg_radius: int = 18
+    safe_zone_enabled: bool = True       # YouTube UI overlap prevention
+    center_hook: bool = True             # Center captions for hook scenes
+    line_spacing_factor: float = 1.3     # Multiplier for multi-line spacing
     glow_enabled: bool = False
     glow_color: str = "#00F0FF"
     glow_radius: int = 12
@@ -236,6 +239,63 @@ CAPTION_PRESETS: dict[str, dict[str, Any]] = {
 }
 
 
+_OUTLINE_THICKNESS_MAP = {"thin": 2, "medium": 4, "bold": 6}
+
+
+def register_custom_styles(custom_styles: dict[str, dict] | None) -> None:
+    """Register user-defined caption styles from config.yaml into CAPTION_PRESETS."""
+    if not custom_styles:
+        return
+    for name, overrides in custom_styles.items():
+        if isinstance(overrides, dict) and name not in CAPTION_PRESETS:
+            CAPTION_PRESETS[name] = overrides
+
+
+def resolve_channel_style(channel_key: str, role: str, channel_style_map: dict[str, str] | None) -> str | None:
+    """Return the preset name for a channel+role combo, or None for default behavior."""
+    if not channel_style_map or not channel_key:
+        return None
+    base_style = channel_style_map.get(channel_key)
+    if not base_style:
+        return None
+    # Check for role-specific variant (e.g. "neon_tech_highlight" for hook)
+    if role == "hook":
+        variant = f"{base_style}_highlight"
+        if variant in CAPTION_PRESETS:
+            return variant
+    return base_style
+
+
+def calculate_safe_position(
+    canvas_height: int,
+    caption_height: int,
+    style: CaptionStyle,
+    role: str = "body",
+) -> int:
+    """Calculate Y position respecting YouTube Shorts safe zones.
+
+    Safe zones:
+    - Top 15% (270px @1920): channel name, title overlay area
+    - Bottom 20% (384px @1920): like/comment/share buttons, description
+
+    For hook scenes with center_hook=True, center vertically in safe area.
+    """
+    top_safe = int(canvas_height * 0.15)    # 288px @1920
+    bottom_safe = int(canvas_height * 0.20)  # 384px @1920
+    safe_area_top = top_safe
+    safe_area_bottom = canvas_height - bottom_safe
+    safe_area_height = safe_area_bottom - safe_area_top
+
+    if role == "hook" and style.center_hook:
+        # Center in safe zone
+        y = safe_area_top + (safe_area_height - caption_height) // 2
+        return max(safe_area_top, y)
+
+    # Default: bottom-aligned within safe zone
+    y = safe_area_bottom - caption_height - 20  # 20px padding from bottom safe edge
+    return max(safe_area_top, y)
+
+
 def complementary_color(hex_color: str) -> str:
     """Return the complementary (opposite hue) hex color for maximum contrast."""
     hex_color = hex_color.lstrip("#")
@@ -387,11 +447,17 @@ def render_caption_image(
         lines.append("")
     line_text = "\n".join(lines)
 
+    # Increase line spacing for multi-line text
+    if len(lines) >= 2:
+        adjusted_spacing = int(hi_style.line_spacing * style.line_spacing_factor)
+    else:
+        adjusted_spacing = hi_style.line_spacing
+
     left, top, right, bottom = draw.multiline_textbbox(
         (0, 0),
         line_text,
         font=font,
-        spacing=hi_style.line_spacing,
+        spacing=adjusted_spacing,
         stroke_width=hi_style.stroke_width,
         align="center",
     )
@@ -415,7 +481,7 @@ def render_caption_image(
         font=font,
         fill=(0, 0, 0, 160),
         stroke_width=0,
-        spacing=hi_style.line_spacing,
+        spacing=adjusted_spacing,
         align="center",
     )
 
@@ -427,7 +493,7 @@ def render_caption_image(
         fill=style.text_color,
         stroke_width=hi_style.stroke_width,
         stroke_fill=style.stroke_color,
-        spacing=hi_style.line_spacing,
+        spacing=adjusted_spacing,
         align="center",
     )
 

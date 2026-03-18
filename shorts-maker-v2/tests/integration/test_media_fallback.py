@@ -38,6 +38,7 @@ def _make_config(tmp_path: Path):
         "costs": {"llm_per_job": 0.25, "tts_per_second": 0.001, "veo_per_second": 0.03, "image_per_scene": 0.04},
         "paths": {"output_dir": "output", "logs_dir": "logs", "runs_dir": "runs"},
         "captions": {"font_size": 64, "margin_x": 90, "bottom_offset": 240, "text_color": "#FFD700", "stroke_color": "#000000", "stroke_width": 4, "line_spacing": 12, "font_candidates": ["C:/Windows/Fonts/malgun.ttf"]},
+        "cache": {"enabled": False},
     }
     config_path = tmp_path / "config.yaml"
     config_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")

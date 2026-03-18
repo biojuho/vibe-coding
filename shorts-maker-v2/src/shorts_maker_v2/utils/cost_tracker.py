@@ -17,7 +17,7 @@ class CostTracker:
 
     사용법:
         tracker = CostTracker(logs_dir="logs")
-        tracker.record(job_id="abc", cost_usd=0.17, topic="블랙홀", channel="science")
+        tracker.record(job_id="abc", cost_usd=0.17, topic="블랙홀", channel="space")
         print(tracker.summary())
     """
 

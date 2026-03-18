@@ -47,7 +47,17 @@ def _speed_to_rate(speed: float) -> str:
 
 
 def _apply_ssml_by_role(text: str, role: str) -> str:
-    safe_text = escape(text)
+    """역할 기반 SSML 변환 + 감정 키워드/숫자 자동 강조.
+
+    - Hook: 빠른 속도 + 높은 피치 + strong emphasis
+    - CTA: 느린 속도 + break + moderate emphasis
+    - Body: 문장 간 200ms 호흡 + 감정/숫자 자동 강조
+    """
+    enhanced = _enhance_prosody(text)
+    safe_text = escape(enhanced)
+    # 감정 키워드 + 숫자 강조 적용 (escape 후)
+    safe_text = _apply_keyword_emphasis(safe_text)
+
     if role == "hook":
         return (
             '<prosody rate="+15%" pitch="+8Hz">'
@@ -61,14 +71,68 @@ def _apply_ssml_by_role(text: str, role: str) -> str:
             f'<emphasis level="moderate">{safe_text}</emphasis>'
             "</prosody>"
         )
-    return safe_text.replace(". ", '.<break time="200ms"/> ')
+    # Body: 문장 간 호흡 300ms (기존 200ms → 더 자연스러운 간격)
+    return safe_text.replace(". ", '.<break time="300ms"/> ')
+
+
+# ── 감정 키워드 자동 강조 ──────────────────────────────────────────────────────
+
+# 강조할 감정 키워드 (emphasis level="strong" 적용)
+_EMOTION_KEYWORDS: list[str] = [
+    "놀랍게도", "충격적", "충격", "경고", "위험", "절대",
+    "반드시", "꼭", "진짜", "사실", "비밀", "최초",
+    "놀라운", "무서운", "심각한", "치명적", "폭발적",
+    "긴급", "속보", "결국", "드디어", "마침내",
+]
+
+# 숫자/통계 강조 패턴 (rate -20%, pitch +3Hz)
+import re as _re
+_NUMBER_PATTERN = _re.compile(
+    r'(\d+(?:\.\d+)?(?:\s*[%만억원달러배])?)',
+)
+# 감정 키워드 단일 정규식 (escape된 형태로 합치기)
+_EMOTION_PATTERN = _re.compile(
+    "|".join(_re.escape(escape(kw)) for kw in _EMOTION_KEYWORDS)
+)
+
+
+def _apply_keyword_emphasis(ssml_text: str) -> str:
+    """감정 키워드와 숫자/통계에 SSML emphasis 삽입.
+
+    이미 escape된 텍스트에 적용. emphasis 태그 중첩 방지.
+    """
+    result = ssml_text
+
+    # 1) 감정 키워드 강조 (단일 regex, 첫 매치만)
+    if "emphasis>" not in result:
+        result = _EMOTION_PATTERN.sub(
+            lambda m: f'<emphasis level="strong">{m.group(0)}</emphasis>',
+            result,
+            count=1,
+        )
+
+    # 2) 숫자/통계 강조 (속도 감소 + 피치 상승으로 주목)
+    result = _NUMBER_PATTERN.sub(
+        lambda m: f'<prosody rate="-20%" pitch="+3Hz">{m.group(1)}</prosody>',
+        result,
+    )
+    return result
+
+
+def _enhance_prosody(text: str) -> str:
+    """텍스트 전처리: 문장 끝 자연스러운 pause 강화.
+
+    쉼표 뒤 짧은 pause, 물음표/느낌표 뒤 긴 pause.
+    """
+    # 물음표/느낌표 뒤 강조 pause (원본 텍스트, escape 전 처리)
+    text = text.replace("? ", "?  ")  # 물음표 뒤 공백 확장 (TTS가 더 쉼)
+    text = text.replace("! ", "!  ")  # 느낌표 뒤도
+    return text
 
 
 def _approximate_word_timings(ssml_text: str, audio_path: Path) -> list[dict]:
-    import re
-
-    plain = re.sub(r"<[^>]+>", " ", ssml_text)
-    plain = re.sub(r"\s+", " ", plain).strip()
+    plain = _re.sub(r"<[^>]+>", " ", ssml_text)
+    plain = _re.sub(r"\s+", " ", plain).strip()
     if not plain:
         return []
 

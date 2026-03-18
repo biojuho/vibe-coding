@@ -506,7 +506,7 @@ class TextEngine:
         grad_arr = np.tile(grad_row[:, np.newaxis, :], (1, img_w, 1))  # (H, W, 3)
         alpha_ch = np.full((img_h, img_w, 1), 255, dtype=np.uint8)
         grad_rgba = np.concatenate([grad_arr, alpha_ch], axis=-1)  # (H, W, 4)
-        gradient = Image.fromarray(grad_rgba, "RGBA")
+        gradient = Image.fromarray(grad_rgba)
 
         # 3) 텍스트 알파로 그라데이션 마스킹
         # 텍스트의 알파 채널을 그라데이션에 적용

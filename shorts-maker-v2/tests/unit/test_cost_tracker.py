@@ -9,8 +9,8 @@ def test_record_and_summary(tmp_path: Path) -> None:
     """레코드 기록 후 summary가 올바른 통계 반환."""
     tracker = CostTracker(logs_dir=tmp_path)
 
-    tracker.record(job_id="j1", cost_usd=0.17, topic="블랙홀", channel="science")
-    tracker.record(job_id="j2", cost_usd=0.25, topic="우주", channel="science")
+    tracker.record(job_id="j1", cost_usd=0.17, topic="블랙홀", channel="space")
+    tracker.record(job_id="j2", cost_usd=0.25, topic="우주", channel="space")
 
     s = tracker.summary()
     assert s["daily_jobs"] == 2

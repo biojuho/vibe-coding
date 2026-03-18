@@ -208,7 +208,7 @@ class TestTransitionEngineV2:
 
     def test_apply_backward_compat(self, engine):
         """기존 apply() 메서드가 역할 기반 전환 선택과 함께 동작하는지."""
-        clips = [MagicMock(duration=2.0) for _ in range(3)]
+        clips = [self._make_mock_clip() for _ in range(3)]
         roles = ["hook", "body", "cta"]
         # apply는 모킹된 클립에서는 flash/crossfade만 발생
         result = engine.apply(clips, roles=roles)
