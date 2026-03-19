@@ -98,3 +98,33 @@ Vibe coding/                    # 워크스페이스 루트
 | 3계층 - 실행 | 결정론적 작업 수행 | `execution/*.py` |
 
 > ⚠️ 스크립트 작성 전 반드시 `execution/` 폴더에서 기존 도구를 먼저 확인하세요.
+
+---
+
+## 🚀 gstack 스프린트 구조 (공식 채택)
+
+> **출처:** [garrytan/gstack](https://github.com/garrytan/gstack) 철학 선별 도입 (2026-03-19)
+
+모든 기능 개발은 아래 순서를 따른다:
+
+```
+Think → Plan → Build → Review → Test → Ship → Reflect
+```
+
+| 단계 | 워크플로우 | 설명 |
+|------|-----------|------|
+| Think | `/office-hours` | 기능 개발 전 6가지 강제 질문으로 방향 재정의 |
+| Plan | Implementation Plan | 아키텍처, 엣지 케이스, 테스트 계획 수립 |
+| Build | `/qa-qc` STEP 1 | 코드 작성 + 유닛 테스트 |
+| Review | `/qa-qc` STEP 2 | 보안/기능/품질 자동 검토 |
+| Test | `/qa-qc` STEP 3 | 수정 + **회귀 테스트 필수 작성** |
+| Ship | git commit + push | QC 승인 후 커밋 |
+| Reflect | `/retro` (주 1회) | 주간 회고 및 기술 부채 파악 |
+
+### 강제 규칙
+
+- **새 기능 개발 시** `/office-hours` 먼저 실행할 것을 **강력 권고**
+  (긴급 버그 수정, 1시간 이내 단순 작업은 생략 가능)
+- **버그 발생 시** `/debug` 워크플로우 사용 (Iron Law: 조사 없이 수정 금지)
+- **버그 수정 시** 회귀 테스트 의무 작성 (1 fix = 1 regression test)
+- **주 1회** `/retro` 실행 권장

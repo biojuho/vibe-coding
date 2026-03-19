@@ -2129,3 +2129,73 @@ AI 도구 공유 컨텍스트 시스템 초기 세팅
 ### Notes for next agent
 - Browser navigation to `/terms` during this session redirected back to `/login`, so the new legal-page visuals were not directly inspected in-browser.
 - Existing manifest/favicon console noise remains present on the dev server and is unrelated to this theme pass.
+
+
+---
+
+## Session: 2026-03-19 | Antigravity (Gemini)
+
+### 작업 요약
+gstack(github.com/garrytan/gstack) 도입 검토 팀 회의 진행 및 선별적 도입 실행 완료.
+
+### 변경 파일
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| .agents/workflows/office-hours.md | 신규 생성 | 기능 개발 전 6가지 강제 질문 체크포인트 |
+| .agents/workflows/retro.md | 신규 생성 | 주간 개발 회고 자동화 |
+| .agents/workflows/debug.md | 신규 생성 | Iron Law 디버깅 (조사 없이 수정 금지, 3회 실패 시 중지) |
+| .agents/workflows/qa-qc.md | 수정 | STEP 3 회귀 테스트 의무화(1 fix = 1 regression test), STEP 4 체크리스트 강화 |
+| .agents/rules/project-rules.md | 수정 | gstack 스프린트 구조 공식 채택 (Think→Plan→Build→Review→Test→Ship→Reflect) |
+
+### 결정 사항
+- gstack 전면 도입 아닌 **선별적 도입** 결정 (Claude Code 종속성 이슈로 전면 도입 보류)
+- gstack의 프로세스 철학만 흡수: /office-hours, /retro, /debug 신규 워크플로우 채택
+- 버그 수정 시 회귀 테스트 의무화 (qa-qc 강화)
+- gstack 스프린트 구조를 개발 흐름 표준으로 공식 채택
+
+### QC 결과
+✅ 승인 — 5개 파일 모두 정상. debug.md 비결정적 버그 로그 수집 방법 상세화 1건 수정.
+
+### TODO (다음 세션)
+- [ ] Claude Code 파일럿 실행 (소규모 프로젝트 1개 선정해서 gstack 원본 체험)
+- [ ] /browse Windows 안정성 별도 테스트 (Chromium 헤드리스)
+
+### 다음 에이전트에게
+- 새 기능 개발 요청 시 /office-hours 워크플로우 먼저 실행할 것 (강력 권고)
+- 버그 발생 시 반드시 /debug 워크플로우 사용 (추측으로 수정 금지)
+- 주 1회 /retro 실행 권장
+
+
+---
+
+## Session: 2026-03-19 | Antigravity (Gemini)
+
+### 작업 요약
+gstack(github.com/garrytan/gstack) 도입 검토 팀 회의 진행 및 선별적 도입 실행 완료.
+
+### 변경 파일
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| .agents/workflows/office-hours.md | 신규 생성 | 기능 개발 전 6가지 강제 질문 체크포인트 |
+| .agents/workflows/retro.md | 신규 생성 | 주간 개발 회고 자동화 |
+| .agents/workflows/debug.md | 신규 생성 | Iron Law 디버깅 (조사 없이 수정 금지, 3회 실패 시 중지) |
+| .agents/workflows/qa-qc.md | 수정 | STEP 3 회귀 테스트 의무화, STEP 4 체크리스트 강화 |
+| .agents/rules/project-rules.md | 수정 | gstack 스프린트 구조 공식 채택 |
+
+### 결정 사항
+- gstack 선별적 도입 (Claude Code 종속성으로 전면 도입 보류)
+- /office-hours, /retro, /debug 신규 워크플로우 채택
+- 버그 수정 시 회귀 테스트 의무화 (1 fix = 1 regression test)
+- gstack 스프린트 구조 표준 채택: Think -> Plan -> Build -> Review -> Test -> Ship -> Reflect
+
+### QC 결과
+APPROVED - 5개 파일 모두 정상. debug.md 비결정적 버그 예외처리 상세화 1건 수정.
+
+### TODO (다음 세션)
+- [ ] Claude Code 파일럿 실행 (소규모 프로젝트 1개 선정)
+- [ ] /browse Windows 안정성 테스트 (Chromium 헤드리스)
+
+### 다음 에이전트에게
+- 새 기능 개발 요청 시 /office-hours 먼저 실행 (강력 권고)
+- 버그 발생 시 /debug 워크플로우 사용 (추측 수정 금지)
+- 주 1회 /retro 실행 권장
