@@ -288,3 +288,19 @@ Vibe coding/                      # Root ?뚰겕?ㅽ럹?댁뒪
 - Protected `hanwoo-dashboard` routes redirect unauthenticated users to `/login`, so browser-based visual QA without credentials is limited to public pages unless someone signs in manually.
 - The public route still logs manifest/favicon console noise during Playwright verification; it was not introduced by the claymorphism refresh.
 
+## 2026-03-19 Antigravity QC Update
+
+### blind-to-x (NotebookLM Integration + Scheduler WinError 6)
+
+- `notebooklm_enricher.py` 신규 생성 — 주제 기반 딥 리서치 + 인포그래픽/슬라이드 자동 생성 + Cloudinary CDN 업로드
+- `process.py` 수정 — enricher 비동기 병렬 실행
+- `notion/_upload.py` 수정 — NotebookLM 리서치 자산 섹션 추가
+- `execution/scheduler_engine.py` 수정 — subprocess WinError 6 방어 (Popen + communicate + OSError 처리)
+- `pytest.ini` 수정 — `--capture=no` 추가 (Windows subprocess 핸들 안전 보장)
+- `tests/conftest.py` 신규 — Windows capture disable autouse fixture
+
+### Known risks / landmines
+
+- **Windows pytest + subprocess PIPE → WinError 6**: pytest stdout 캡처 활성화 상태에서 `subprocess.PIPE`가 Windows 핸들 무효화 → `[WinError 6]`. `pytest.ini`에 `--capture=no` 필수. `scheduler_engine.py`에서 `subprocess.run(capture_output=True)` 사용 금지.
+- **`update_context.py` 무한 루프**: `.tmp/update_context.py`가 장시간 실행되면 git lock 점유 → `git add/commit` block. 18시간 이상 실행된 사례 있음. 주기적으로 확인 필요.
+
