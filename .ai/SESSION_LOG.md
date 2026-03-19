@@ -1,3 +1,27 @@
+## 2026-03-19 — Codex — 서브에이전트 저장소 탐색
+
+### 작업 요약
+사용자 요청에 따라 탐색 전용 서브에이전트(Newton)를 생성해 저장소를 읽기 전용으로 훑고, 루트 구조·주요 앱·운영 모델·활성 변경 구간·지뢰밭을 요약했습니다.
+
+### 변경 파일
+| 파일 | 변경 |
+|------|------|
+| .ai/SESSION_LOG.md | 이번 탐색 세션 기록 추가 |
+
+### 결정사항
+- 프로젝트 파일은 수정하지 않음
+- 루트 저장소의 핵심 운영 모델은 directives/ SOP → execution/ 결정론적 스크립트 → 앱/인프라 디렉터리 조합으로 계속 해석
+- 현재 우선 탐색 대상은 shorts-maker-v2, knowledge-dashboard, 루트 QA/QC 도구
+
+### 미완료 TODO
+- 없음
+
+### 다음 도구에게 메모
+- 루트 허브 엔트리 포인트는 execution/joolife_hub.py
+- 루트 README의 projects/personal-agent/app.py 경로는 현재 기준 드리프트 상태로 보임
+- 작업 전 .ai/CONTEXT.md, .ai/SESSION_LOG.md, .ai/DECISIONS.md를 먼저 읽고, 현재 dirty worktree(shorts-maker-v2, knowledge-dashboard, 미러링된 agent docs)를 되돌리지 말 것
+
+---
 # 📋 세션 로그 (SESSION LOG)
 
 > 각 AI 도구가 작업할 때마다 아래 형식으로 기록합니다.
