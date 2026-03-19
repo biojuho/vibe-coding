@@ -84,7 +84,7 @@ jobs:
       - name: Run data accuracy tests
         run: |
           python -m pip install pytest pytest-asyncio
-          python -m pytest -q tests_unit
+          python -m pytest -q tests/unit
 
       - name: Detect pipeline mode (time-based)
         id: mode

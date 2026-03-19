@@ -234,7 +234,47 @@ class ImageGenerator:
                 topic_cluster, emotion_axis, title, draft_text
             )
 
-        # ── 기존 로직: 뽐뿌/에펨 등 (실제로는 호출되지 않아야 함) ──────
+        # ── 커뮤니티별 시맨틱 씬 (비블라인드 소스) ────────────────────
+        _COMMUNITY_SCENES: dict[str, dict[str, str]] = {
+            "ppomppu": {
+                "base": "playful shopping illustration",
+                "scene": "animated character excitedly discovering an amazing deal on a phone screen with sale tags floating around",
+                "mood": "energetic, bargain-hunting",
+            },
+            "뽐뿌": {
+                "base": "playful shopping illustration",
+                "scene": "animated character excitedly discovering an amazing deal on a phone screen with sale tags floating around",
+                "mood": "energetic, bargain-hunting",
+            },
+            "fmkorea": {
+                "base": "internet culture cartoon",
+                "scene": "animated character scrolling through a chaotic online forum with memes and reactions floating around",
+                "mood": "humorous, internet-savvy, meme-like",
+            },
+            "에펨코리아": {
+                "base": "internet culture cartoon",
+                "scene": "animated character scrolling through a chaotic online forum with memes and reactions floating around",
+                "mood": "humorous, internet-savvy, meme-like",
+            },
+            "jobplanet": {
+                "base": "corporate review infographic illustration",
+                "scene": "animated character analyzing a company review dashboard with star ratings and charts",
+                "mood": "analytical, data-driven",
+            },
+            "잡플래닛": {
+                "base": "corporate review infographic illustration",
+                "scene": "animated character analyzing a company review dashboard with star ratings and charts",
+                "mood": "analytical, data-driven",
+            },
+        }
+        _NO_TEXT = "absolutely no text, no letters, no numbers, no words, no captions, no writing of any kind, no watermark, clean image only"
+
+        if _source in _COMMUNITY_SCENES:
+            comm = _COMMUNITY_SCENES[_source]
+            emotion_mood = _EMOTION_MOOD_OVERRIDE.get(emotion_axis, comm["mood"])
+            return f"{comm['base']}, {comm['scene']}, {emotion_mood} mood, {_NO_TEXT}, high quality, 16:9 aspect ratio"
+
+        # ── 기존 로직: 소스 미지정 or 기타 ──────────────────────────────
         style_info = _TOPIC_IMAGE_STYLES.get(topic_cluster, _DEFAULT_IMAGE_STYLE)
         style = style_info["style"]
         mood = style_info["mood"]
@@ -375,6 +415,24 @@ class ImageGenerator:
             result = await self._generate_dalle(prompt)
             provider_used = "dalle"
 
+        # ── PIL 기반 이미지 품질 검증 ──────────────────────────────────
+        if result and os.path.exists(result):
+            valid, reason = self._validate_image(result)
+            if not valid:
+                logger.warning("Image quality check failed (%s): %s", reason, result)
+                # 1회 재시도: 프롬프트 보강
+                retry_result = None
+                retry_prompt = prompt + ", highly detailed, photorealistic quality, vivid colors"
+                if provider_used == "gemini":
+                    retry_result = await self._generate_gemini(retry_prompt)
+                elif provider_used == "pollinations":
+                    retry_result = await self._generate_pollinations(retry_prompt)
+                if retry_result and os.path.exists(retry_result):
+                    valid2, _ = self._validate_image(retry_result)
+                    if valid2:
+                        result = retry_result
+                        logger.info("Image retry succeeded after quality check failure")
+
         # ── ImageCache 저장 ───────────────────────────────────────────
         if result and _cache and topic_cluster:
             try:
@@ -383,6 +441,37 @@ class ImageGenerator:
                 pass
 
         return result
+
+    @staticmethod
+    def _validate_image(path: str) -> tuple[bool, str]:
+        """PIL로 이미지 품질을 검증합니다.
+
+        Returns:
+            (True, "") if 통과
+            (False, "이유") if 실패
+        """
+        try:
+            from PIL import Image
+            import numpy as np
+        except ImportError:
+            return True, ""  # PIL 없으면 무조건 통과
+
+        try:
+            with Image.open(path) as img:
+                width, height = img.size
+                if width < 256 or height < 256:
+                    return False, f"too_small ({width}x{height})"
+
+                # RGB 변환 후 분산 체크 (거의 단색인지)
+                rgb = img.convert("RGB")
+                arr = np.array(rgb)
+                variance = float(arr.var())
+                if variance < 100.0:
+                    return False, f"too_uniform (variance={variance:.0f})"
+
+            return True, ""
+        except Exception as exc:
+            return False, f"open_failed ({exc})"
 
     async def _generate_gemini(self, prompt: str) -> str | None:
         """Generate image via Gemini (free, uses GOOGLE_API_KEY).

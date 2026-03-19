@@ -1,5 +1,134 @@
 # Blind-to-X 세션 로그
 
+## 2026-03-19 — Claude Code (Claude Opus 4.6), 세션 3
+
+### 작업 요약
+
+P1~P5 전체 퀄리티 개선 — "진짜 올려도 좋은 수준"으로 파이프라인 품질 끌어올리기. 브랜드 보이스 주입, LLM 자가 검수(에디토리얼 리뷰), 실질 품질 검사 4종, 콘텐츠 다양성 가드, 6D 가중치 자동 보정, 훅 타입 6종 통일, 커뮤니티별 이미지 씬, 한국어 가독성 스코어, pytrends 재시도 등.
+
+### 변경 파일
+
+| 카테고리 | 파일 | 설명 |
+|----------|------|------|
+| **P1-A** | `classification_rules.yaml` | brand_voice, cliche_watchlist, 통찰형/한줄팩폭형 hook_rules, 토픽 키워드 17개 확장 |
+| **P1-B** | `pipeline/draft_generator.py` | 보이스 가이드 프롬프트 주입 + 골든 예시 랜덤 2개 로테이션 + top performers 자동 추가 |
+| **P1-C 신규** | `pipeline/editorial_reviewer.py` | Gemini Flash 2차 리뷰 (5축 평가, avg<6 자동 리라이트, 15s timeout) |
+| **P1-D** | `pipeline/process.py` | 에디토리얼 리뷰 통합 + ContentCalendar 가드 |
+| **P1-E** | `pipeline/draft_quality_gate.py` | 실질 품질 검사 4종 (클리셰/반복구조/훅강도/모호표현) |
+| **P2-A 신규** | `pipeline/content_calendar.py` | 토픽/훅/감정 다양성 가드 (6h 토픽 2건, 최근3건 훅 2건, 최근5건 감정 3건) |
+| **P2-B** | `pipeline/cost_db.py` | get_top_performing_drafts(), save/load_calibrated_weights() |
+| **P3-A** | `pipeline/content_intelligence.py` | calibrate_weights() Pearson 상관계수 자동 보정, 통찰형/한줄팩폭형 hook 추가 |
+| **P4-A 신규** | `pipeline/readability.py` | 한국어 가독성 스코어 (문장길이/수동태/문장수) |
+| **P4-B,C** | `pipeline/image_generator.py` | 커뮤니티별 씬 매핑 + PIL _validate_image() |
+| **P5-A** | `pipeline/trend_monitor.py` | pytrends 3회 재시도 + 지수 백오프 |
+| **P5-B** | `pipeline/cross_source_insight.py` | 빈 태그 파싱 경고 로그 |
+| **P5-C** | `pipeline/notebooklm_enricher.py` | 미구현 다운로드 코드 정리 → None 반환 |
+| **테스트** | `tests/unit/test_quality_improvements.py` | 신규 25건 (7개 클래스) |
+
+### 결과
+
+- 테스트: **370 passed**, 1 skipped, 0 failures ✅ (25건 신규)
+- 에디토리얼 리뷰: Gemini Flash 무료, 추가 비용 $0
+- 브랜드 보이스: 30대 직장인 톡 말투 + 금지 표현 10개 + 클리셰 30개
+- 콘텐츠 다양성: SQLite draft_analytics 기반 토픽/훅/감정 반복 방지
+
+### 결정사항
+
+- D-012: 에디토리얼 리뷰는 avg_score < 6.0일 때만 자동 리라이트 (6.0 이상은 원본 유지)
+- D-013: 실질 품질 검사는 모두 severity="warning" (기존 테스트 호환)
+- D-014: 콘텐츠 캘린더는 DB 없으면 항상 허용 (graceful degradation)
+- D-015: 6D 가중치 자동 보정은 min_rows=30, 7일 TTL
+
+### 다음 도구에게 메모
+
+- `editorial_reviewer.py`는 `GEMINI_API_KEY` 환경변수 필요 (없으면 자동 스킵)
+- `content_calendar.py`는 `cost_db.draft_analytics` 테이블 의존 (없으면 graceful)
+- `calibrate_weights()`는 engagement_rate 데이터가 30건 이상 있어야 실행됨
+- `_validate_image()`는 PIL(Pillow) 패키지 필요 (이미 requirements.txt에 포함)
+- 클리셰 캐시(`_cliche_cache`)는 프로세스 생명주기 동안 1회 로드
+
+---
+
+## 2026-03-17 — Claude Code (Claude Opus 4.6), 세션 2
+
+### 작업 요약
+
+강점 분석 기반 성장 전략 수립 → Strategy 3(크로스소스 인사이트) + Strategy 4(실시간 트렌드) 구현 → QC 3건 수정.
+
+### 변경 파일
+
+| 카테고리 | 파일 | 설명 |
+|----------|------|------|
+| **신규** | `pipeline/cross_source_insight.py` | 크로스소스 트렌드 감지 + LLM 인사이트 초안 생성 + Notion 업로드 |
+| **신규** | `pipeline/trend_monitor.py` | Google Trends + Naver DataLab 통합 트렌드 모니터 |
+| **신규** | `tests/unit/test_cross_source_insight.py` | 크로스소스 인사이트 테스트 13건 |
+| **신규** | `tests/unit/test_trend_monitor.py` | 트렌드 모니터 테스트 15건 |
+| **수정** | `pipeline/content_intelligence.py` | "분석형" hook_type 추가, trend_boost 파라미터 → calculate_6d_score 연결 |
+| **수정** | `pipeline/cost_db.py` | cross_source_insights/trend_spikes 테이블 추가, archive_old_data 테이블 목록 보완 |
+| **수정** | `classification_rules.yaml` | 분석형 hook_rules + golden examples + cross_source/trends 설정 |
+| **수정** | `config.example.yaml` | cross_source_insight, trends 섹션 추가 |
+| **수정** | `config.ci.yaml` | cross_source_insight, trends 섹션 추가 |
+| **수정** | `main.py` | TrendMonitor 초기화 + 크로스소스 인사이트 처리 블록 |
+| **수정** | `requirements.txt` | pytrends>=4.9.0 추가 |
+
+### QC 결과
+
+- Critical #1: `upload_post()` → `upload()` 인터페이스 수정 ✅
+- Critical #2: `trend_boost` 미연결 → `calculate_6d_score(trend_boost=trend_boost)` 연결 ✅
+- Critical #3: `archive_old_data()` 테이블 목록 누락 → 2개 테이블 추가 ✅
+
+### 결과
+
+- 테스트: **335 passed**, 1 skipped ✅ (28개 신규)
+- 크로스소스 인사이트: 3+건 2+소스 동일 토픽 감지 → LLM 트렌드 분석 초안 자동 생성
+- 실시간 트렌드: Google Trends + Naver DataLab → trend_boost(0-30) 6D 스코어 반영
+
+### 결정사항
+
+- D-010: 크로스소스 인사이트는 opt-in (config cross_source_insight.enabled)
+- D-011: 실시간 트렌드는 opt-in (config trends.enabled), spike_threshold 80.0
+
+### 다음 도구에게 메모
+
+- `trend_monitor.py`의 Naver DataLab API는 `NAVER_CLIENT_ID`/`NAVER_CLIENT_SECRET` 환경변수 필요
+- `cross_source_insight.py`는 draft_generator의 _enabled_providers(), _generate_once(), _parse_response() 내부 메서드에 의존
+- pytrends 라이브러리는 Google 차단에 취약 — 프로덕션에서 proxy 설정 권장
+
+---
+
+## 2026-03-17 — Antigravity (Gemini)
+
+### 작업 요약
+
+A-1(깨진 테스트 수정), A-3(Dead code 정리), B-5(품질 게이트 자동 재생성 루프) 구현.
+
+### 변경 파일
+
+| 카테고리 | 파일 | 설명 |
+|----------|------|------|
+| **수정** | `tests/unit/test_multi_platform.py` | TestFormatForThreads 삭제 (dead newsletter_formatter 참조), config_path 경로 수정 |
+| **수정** | `tests/integration/test_p2_enhancements.py` | newsletter_formatter 의존 테스트 3건 제거 |
+| **수정** | `tests/unit/test_performance_tracker.py` | RULES_FILE 경로 parents[2]로 수정 |
+| **수정** | `tests/integration/test_p3_enhancements.py` | base 경로 프로젝트 루트까지 도달하도록 수정 |
+| **수정** | `tests/unit/test_config_workflow_sync.py` | ROOT 경로 parents[2]로 수정 |
+| **수정** | `.github/workflows/blind-to-x.yml` | tests_unit → tests/unit 오타 수정 |
+| **B-5** | `pipeline/process.py` | 품질 게이트 실패 시 자동 재생성 루프 (최대 2회) |
+| **B-5** | `pipeline/draft_generator.py` | `_build_retry_prompt()` + `quality_feedback` 파라미터 추가 |
+| **신규** | `tests/unit/test_quality_gate_retry.py` | B-5 자동 재생성 루프 테스트 8건 |
+
+### 결과
+
+- 테스트: **307 passed**, 1 skipped, 0 failed ✅
+- A-1: 깨진 테스트 전부 수정 (경로 문제 5건 + dead 참조 제거)
+- A-3: newsletter_formatter 관련 dead code 완전 정리
+- B-5: 품질 게이트 should_retry 시 LLM에 실패 피드백 전달 후 재생성
+
+### 다음 도구에게 메모
+
+- B-5 구현 완료: `process.py` L384~L464에 자동 재생성 루프 존재
+- `DraftQualityGate.should_retry`가 True인 플랫폼에 대해서만 재생성 시도
+- `generate_drafts(quality_feedback=[...])` 인터페이스로 피드백 전달
+
 ## 2026-03-16 10:25 KST — Antigravity (Gemini)
 
 ### 작업 요약

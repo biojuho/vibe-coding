@@ -219,6 +219,18 @@ circuit_breaker:
   session_skip_threshold: 3
   initial_skip_hours: 1.0
 
+cross_source_insight:
+  enabled: true
+  min_posts: 3
+  min_sources: 2
+
+trends:
+  enabled: false
+  google_enabled: true
+  naver_enabled: true
+  spike_threshold: 80.0
+  cache_ttl_minutes: 10
+
 schedule:
   enabled: true
   cron: "0 */3 * * *"

@@ -273,19 +273,30 @@ def classify_hook_type(title: str, content: str, emotion_axis: str) -> str:
     논쟁형_kw = hook_rules.get("논쟁형", {}).get("keywords", ["왜", "vs", "맞아?", "어떰", "어떻게 생각", "논란", "?"])
     정보형_kw = hook_rules.get("정보형", {}).get("keywords", ["정리", "팁", "방법", "요약", "가이드", "체크리스트"])
     짤형_kw = hook_rules.get("짤형", {}).get("keywords", ["짤", "웃김", "현웃", "개웃", "밈"])
+    분석형_kw = hook_rules.get("분석형", {}).get("keywords", ["분석", "트렌드", "비교", "종합", "모아봤", "정리해봤", "동시에", "커뮤니티"])
+    통찰형_kw = hook_rules.get("통찰형", {}).get("keywords", ["배운", "깨달", "인사이트", "알게 된", "정리하면", "느낀 점", "교훈", "결론"])
+    한줄팩폭형_kw = hook_rules.get("한줄팩폭형", {}).get("keywords", ["ㅋㅋ", "레전드", "개웃", "이건 진짜", "실화냐", "미쳤", "헐"])
 
+    if any(token in text for token in 분석형_kw):
+        return "분석형"
+    if any(token in text for token in 통찰형_kw):
+        return "통찰형"
     if any(token in text for token in 논쟁형_kw):
         return "논쟁형"
     if any(token in text for token in 정보형_kw):
         return "정보형"
     if any(token in text for token in 짤형_kw):
         return "짤형"
+    if any(token in text for token in 한줄팩폭형_kw):
+        return "한줄팩폭형"
     if emotion_axis in {"분노", "허탈", "현타"} and len(content.strip()) < 180:
         return "한줄팩폭형"
     return "공감형"
 
 
 def recommend_draft_type(hook_type: str, emotion_axis: str) -> str:
+    if hook_type == "분석형":
+        return "분석형"
     if hook_type == "정보형":
         return "정보전달형"
     if hook_type == "논쟁형" or emotion_axis in {"분노", "경악"}:
@@ -390,6 +401,7 @@ def calculate_6d_score(
     emotion_axis: str,
     audience_fit: str,
     source: str = "",
+    trend_boost: float = 0.0,
 ) -> tuple[float, dict[str, float]]:
     """6차원 콘텐츠 품질 스코어카드 (Phase 4-B).
 
@@ -434,7 +446,8 @@ def calculate_6d_score(
     title_len = len(title.strip())
     hook_base = {
         "논쟁형": 90.0, "공감형": 75.0, "정보형": 70.0,
-        "한줄팩폭형": 85.0, "짤형": 65.0,
+        "한줄팩폭형": 85.0, "짤형": 65.0, "분석형": 88.0,
+        "통찰형": 82.0,
     }.get(hook_type, 60.0)
     # title 길이 보너스 (8-35자 최적)
     if 8 <= title_len <= 35:
@@ -458,6 +471,9 @@ def calculate_6d_score(
     season_boost = get_season_boost(topic_cluster)
     if season_boost > 0:
         trend = min(100.0, trend + season_boost)
+    # 실시간 트렌드 부스트 (trend_monitor.py에서 전달, 최대 30점)
+    if trend_boost > 0:
+        trend = min(100.0, trend + trend_boost)
 
     # ── Audience Targeting (15%) ────────────────────────────────────
     audience_scores = {
@@ -476,7 +492,7 @@ def calculate_6d_score(
     }
     viral = viral_scores.get(emotion_axis, 50.0)
 
-    # ── Weighted sum ─────────────────────────────────────────────────
+    # ── Weighted sum (보정 가중치 우선 사용) ──────────────────────────
     weights = {
         "freshness": 0.15,
         "social": 0.25,
@@ -485,6 +501,13 @@ def calculate_6d_score(
         "audience": 0.15,
         "viral": 0.10,
     }
+    try:
+        from pipeline.cost_db import get_cost_db
+        calibrated = get_cost_db().load_calibrated_weights(max_age_days=7)
+        if calibrated and all(k in calibrated for k in weights):
+            weights = calibrated
+    except Exception:
+        pass
     rank_6d = _round_score(
         freshness * weights["freshness"]
         + social * weights["social"]
@@ -571,6 +594,7 @@ def build_content_profile(
     historical_examples: list[dict[str, Any]] | None = None,
     ranking_weights: dict[str, float] | None = None,
     llm_viral_boost: bool = False,
+    trend_boost: float = 0.0,
 ) -> ContentProfile:
     title = str(post_data.get("title", "") or "")
     content = str(post_data.get("content", "") or "")
@@ -640,6 +664,7 @@ def build_content_profile(
     rank_6d, dims_6d = calculate_6d_score(
         post_data, topic_cluster, hook_type, emotion_axis, audience_fit,
         source=str(post_data.get("source", "")),
+        trend_boost=trend_boost,
     )
 
     rationale = sorted(set(publishability_rationale + performance_rationale))
@@ -662,3 +687,90 @@ def build_content_profile(
         viral_potential_score=dims_6d["viral_potential_score"],
         rank_6d=rank_6d,
     )
+
+
+# ── 6D 가중치 자동 보정 (Phase 3-A) ──────────────────────────────────
+
+
+def calibrate_weights(days: int = 30, min_rows: int = 30) -> dict[str, float] | None:
+    """draft_analytics의 실제 성과 데이터로 6D 가중치를 자동 보정합니다.
+
+    engagement_rate가 있는 포스트들의 각 6D 차원과 engagement의
+    상관계수를 계산하여 가중치를 재배분합니다.
+
+    Args:
+        days: 분석할 최근 일수.
+        min_rows: 최소 필요 데이터 수. 미달 시 None 반환.
+
+    Returns:
+        보정된 가중치 dict. 데이터 부족 시 None.
+    """
+    try:
+        from pipeline.cost_db import get_cost_db
+        db = get_cost_db()
+
+        from datetime import datetime, timedelta
+        cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+        with db._connect() as conn:
+            rows = conn.execute(
+                """SELECT hook_score, virality_score, fit_score,
+                          engagement_rate, yt_views
+                   FROM draft_analytics
+                   WHERE date >= ? AND published = 1
+                     AND engagement_rate > 0""",
+                (cutoff,),
+            ).fetchall()
+
+        if len(rows) < min_rows:
+            logger.debug("calibrate_weights: not enough data (%d < %d)", len(rows), min_rows)
+            return None
+
+        # 간단한 Pearson 상관계수 계산 (numpy 없이)
+        n = len(rows)
+        engagement_vals = [r[3] + math.log1p(r[4]) * 0.1 for r in rows]  # combined metric
+
+        # 6D 차원별 proxy 값 (현재 저장된 점수 활용)
+        dim_names = ["freshness", "social", "hook", "trend", "audience", "viral"]
+        # hook_score → hook, virality_score → viral, fit_score → audience
+        # freshness/social/trend는 직접 저장 안 되므로 proxy 사용
+        dim_proxies = {
+            "hook": [float(r[0] or 5) for r in rows],
+            "viral": [float(r[1] or 5) for r in rows],
+            "audience": [float(r[2] or 5) for r in rows],
+        }
+
+        def _pearson(x: list[float], y: list[float]) -> float:
+            mx = sum(x) / n
+            my = sum(y) / n
+            cov = sum((xi - mx) * (yi - my) for xi, yi in zip(x, y))
+            sx = math.sqrt(sum((xi - mx) ** 2 for xi in x)) or 1e-10
+            sy = math.sqrt(sum((yi - my) ** 2 for yi in y)) or 1e-10
+            return cov / (sx * sy)
+
+        correlations = {}
+        for dim in dim_names:
+            if dim in dim_proxies:
+                correlations[dim] = max(0.05, abs(_pearson(dim_proxies[dim], engagement_vals)))
+            else:
+                correlations[dim] = 0.15  # proxy 없는 차원은 기본값
+
+        # 상관계수 비례로 가중치 재배분 (합=1.0, 각 0.05~0.40)
+        total_corr = sum(correlations.values())
+        weights = {}
+        for dim in dim_names:
+            raw = correlations[dim] / total_corr
+            weights[dim] = max(0.05, min(0.40, raw))
+
+        # 합 정규화
+        w_sum = sum(weights.values())
+        weights = {k: round(v / w_sum, 4) for k, v in weights.items()}
+
+        # 저장
+        db.save_calibrated_weights(weights)
+        logger.info("calibrate_weights: new weights = %s (from %d rows)", weights, n)
+        return weights
+
+    except Exception as exc:
+        logger.debug("calibrate_weights failed: %s", exc)
+        return None

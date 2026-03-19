@@ -16,7 +16,7 @@ from pipeline.performance_tracker import (
     ENGAGEMENT_WEIGHTS,
 )
 
-RULES_FILE = Path(__file__).parent.parent / "classification_rules.yaml"
+RULES_FILE = Path(__file__).resolve().parents[2] / "classification_rules.yaml"
 
 
 # ═══════════════════════════════════════════════════════════════════

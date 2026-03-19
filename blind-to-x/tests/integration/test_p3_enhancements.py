@@ -8,7 +8,7 @@ class TestSourceHintsConfig:
     def test_all_sources_in_hints(self):
         """config.yaml input_sources에 등록된 모든 소스가 source_hints에 존재."""
         import yaml, os
-        base = os.path.dirname(os.path.dirname(__file__))
+        base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         with open(os.path.join(base, "config.yaml"), encoding="utf-8") as f:
             config = yaml.safe_load(f)
         with open(os.path.join(base, "classification_rules.yaml"), encoding="utf-8") as f:
@@ -20,7 +20,7 @@ class TestSourceHintsConfig:
     def test_source_hint_structure(self):
         """각 소스 힌트에 필수 필드가 존재."""
         import yaml, os
-        base = os.path.dirname(os.path.dirname(__file__))
+        base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         with open(os.path.join(base, "classification_rules.yaml"), encoding="utf-8") as f:
             rules = yaml.safe_load(f)
         for name, hint in rules.get("source_hints", {}).items():
@@ -81,7 +81,7 @@ class TestConfigInputSources:
 
     def test_four_sources_enabled(self):
         import yaml, os
-        base = os.path.dirname(os.path.dirname(__file__))
+        base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         with open(os.path.join(base, "config.yaml"), encoding="utf-8") as f:
             config = yaml.safe_load(f)
         sources = config.get("input_sources", [])

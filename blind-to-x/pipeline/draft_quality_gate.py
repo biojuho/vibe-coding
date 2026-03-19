@@ -15,9 +15,36 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
+try:
+    import yaml as _yaml
+except ImportError:
+    _yaml = None  # type: ignore[assignment]
+
 logger = logging.getLogger(__name__)
+
+# ── 클리셰 감시 목록 로더 ──────────────────────────────────────────
+_RULES_FILE = Path(__file__).parent.parent / "classification_rules.yaml"
+_cliche_cache: list[str] | None = None
+
+
+def _load_cliche_watchlist() -> list[str]:
+    """classification_rules.yaml에서 cliche_watchlist를 1회 로드 후 캐시."""
+    global _cliche_cache
+    if _cliche_cache is not None:
+        return _cliche_cache
+    if _yaml is None or not _RULES_FILE.exists():
+        _cliche_cache = []
+        return _cliche_cache
+    try:
+        with open(_RULES_FILE, encoding="utf-8") as f:
+            data = _yaml.safe_load(f) or {}
+        _cliche_cache = data.get("cliche_watchlist", [])
+    except Exception:
+        _cliche_cache = []
+    return _cliche_cache
 
 
 # ── 플랫폼별 품질 기준 ──────────────────────────────────────────────
@@ -326,6 +353,81 @@ class DraftQualityGate:
                 "중복 문장",
                 dup_ratio < 0.3,
                 f"중복 비율 {dup_ratio:.0%}" if dup_ratio >= 0.3 else "정상",
+                "warning",
+            )
+
+        # ── 8. 클리셰 검사 ─────────────────────────────────────────────
+        cliches = _load_cliche_watchlist()
+        if cliches:
+            matched_cliches = [c for c in cliches if c in text]
+            if len(matched_cliches) >= 3:
+                result.add(
+                    "클리셰 과다",
+                    False,
+                    f"상투적 표현 {len(matched_cliches)}개: {', '.join(matched_cliches[:5])}",
+                    "warning",
+                )
+            elif matched_cliches:
+                result.add(
+                    "클리셰 검사",
+                    True,
+                    f"감지 {len(matched_cliches)}개 (허용 범위)",
+                    "info",
+                )
+
+        # ── 9. 반복 문장 구조 검사 ─────────────────────────────────────
+        if sentences and len(sentences) >= 3:
+            # 연속 2문장이 같은 접두사(3자 이상)로 시작하면 경고
+            repetitive_pairs = 0
+            for i in range(len(sentences) - 1):
+                prefix_len = min(3, len(sentences[i]), len(sentences[i + 1]))
+                if prefix_len >= 3 and sentences[i][:prefix_len] == sentences[i + 1][:prefix_len]:
+                    repetitive_pairs += 1
+            if repetitive_pairs >= 2:
+                result.add(
+                    "반복 구조",
+                    False,
+                    f"연속 유사 시작 문장 {repetitive_pairs}쌍 — 문장 구조를 다양하게",
+                    "warning",
+                )
+
+        # ── 10. 훅 강도 검사 (twitter/threads만) ───────────────────────
+        if platform in ("twitter", "threads") and sentences:
+            first_sentence = sentences[0]
+            has_number = bool(re.search(r"\d", first_sentence))
+            has_question = bool(re.search(r"[?？]", first_sentence))
+            has_contrast = bool(re.search(r"(vs|VS|반면|아닌데|근데|그런데)", first_sentence))
+            has_emotion = bool(re.search(
+                r"(레전드|미쳤|실화|충격|빡|열받|헐|대박|소름|ㅋㅋ|😂|🥲|😱|🤣)",
+                first_sentence,
+            ))
+            hook_strong = has_number or has_question or has_contrast or has_emotion
+            if not hook_strong:
+                result.add(
+                    "훅 강도",
+                    False,
+                    "첫 문장에 숫자/질문/대비/감정어가 없음 — 스크롤 정지력 약함",
+                    "warning",
+                )
+
+        # ── 11. 모호한 표현 검사 (구체성) ──────────────────────────────
+        vague_patterns = [
+            (r"높은 연봉", "구체적 금액을 사용하세요"),
+            (r"많은 사람들", "구체적 대상을 명시하세요"),
+            (r"최근에", "구체적 시점을 사용하세요"),
+            (r"어떤 회사", "구체적 정보를 활용하세요"),
+            (r"상당한 금액", "구체적 수치를 사용하세요"),
+            (r"여러 가지", "구체적으로 나열하세요"),
+        ]
+        vague_found = []
+        for pattern, suggestion in vague_patterns:
+            if re.search(pattern, text):
+                vague_found.append(suggestion)
+        if len(vague_found) >= 2:
+            result.add(
+                "구체성 부족",
+                False,
+                f"모호한 표현 {len(vague_found)}개 — {vague_found[0]}",
                 "warning",
             )
 

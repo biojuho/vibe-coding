@@ -195,14 +195,18 @@ class TweetDraftGenerator:
         top_examples: list[dict[str, Any]] | None,
         topic_cluster: str = "",
     ) -> str:
-        """성과 우수 예시 포맷팅. YAML 골든 예시도 자동 병합."""
+        """성과 우수 예시 포맷팅. YAML 골든 예시도 자동 병합 (랜덤 로테이션)."""
+        import random
+
         merged: list[dict[str, Any]] = []
 
-        # 1. YAML 골든 예시에서 해당 토픽 예시 로드
+        # 1. YAML 골든 예시에서 해당 토픽 예시 로드 (3개 이상이면 랜덤 2개)
         rules = _load_draft_rules()
         golden = rules.get("golden_examples", {})
         if topic_cluster and topic_cluster in golden:
-            for ge in golden[topic_cluster]:
+            golden_list = golden[topic_cluster]
+            selected = random.sample(golden_list, min(2, len(golden_list))) if len(golden_list) >= 3 else golden_list
+            for ge in selected:
                 merged.append({
                     "views": "(골든 예시)",
                     "topic_cluster": topic_cluster,
@@ -213,7 +217,25 @@ class TweetDraftGenerator:
                     "grade": ge.get("grade", ""),
                 })
 
-        # 2. 실시간 성과 예시 추가
+        # 2. cost_db에서 실제 성과 우수 포스트 자동 추가
+        try:
+            from pipeline.cost_db import get_cost_db
+            db = get_cost_db()
+            top_from_db = db.get_top_performing_drafts(topic_cluster=topic_cluster, limit=2)
+            for row in top_from_db:
+                merged.append({
+                    "views": row.get("yt_views", 0),
+                    "topic_cluster": row.get("topic_cluster", ""),
+                    "hook_type": row.get("hook_type", ""),
+                    "emotion_axis": row.get("emotion_axis", ""),
+                    "draft_style": row.get("draft_style", ""),
+                    "text": row.get("text", ""),
+                    "grade": "실적우수",
+                })
+        except Exception:
+            pass  # cost_db 미가용 시 무시
+
+        # 3. 실시간 성과 예시 추가
         if top_examples:
             merged.extend(top_examples)
 
@@ -394,9 +416,31 @@ class TweetDraftGenerator:
    ⚠️ Threads | 외부 링크 | 링크 1개 발견 — 댓글로 분리 권장
 """
 
+        # ── 브랜드 보이스 가이드 주입 ────────────────────────────────────
+        voice_block = ""
+        brand_voice = rules.get("brand_voice", {})
+        if brand_voice:
+            traits = "\n".join(f"  - {t}" for t in brand_voice.get("voice_traits", []))
+            forbidden = "\n".join(f"  - {f}" for f in brand_voice.get("forbidden_expressions", []))
+            good_ex = brand_voice.get("examples", {}).get("good", "")
+            bad_ex = brand_voice.get("examples", {}).get("bad", "")
+            voice_block = f"""
+[보이스 가이드 — 반드시 준수]
+페르소나: {brand_voice.get('persona', '')}
+말투 규칙:
+{traits}
+좋은 예: {good_ex}
+나쁜 예: {bad_ex}
+
+[절대 사용 금지 표현]
+아래 표현은 AI스럽거나 상투적이므로 절대 사용하지 마세요:
+{forbidden}
+"""
+
         examples_block = self._format_examples(top_examples, topic_cluster=topic_cluster)
         return f"""{system_role}
 아래 게시글을 기반으로 발행 가능한 초안을 작성하세요.
+{voice_block}
 
 [게시글 정보]
 출처: {source}
@@ -595,23 +639,73 @@ class TweetDraftGenerator:
         raw = f"{title}|{category}|{source}|{fmt_str}"
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
-    async def generate_drafts(self, post_data, top_tweets=None, output_formats=None):
+    def _build_retry_prompt(
+        self,
+        original_prompt: str,
+        quality_feedback: list[dict[str, Any]],
+    ) -> str:
+        """품질 게이트 실패 피드백을 기반으로 재생성 프롬프트를 조립합니다.
+
+        Args:
+            original_prompt: 원래 사용된 프롬프트.
+            quality_feedback: [{platform, issues, score}] 형태의 실패 정보.
+
+        Returns:
+            피드백이 포함된 재생성용 프롬프트.
+        """
+        feedback_lines = [
+            "",
+            "━" * 40,
+            "[이전 초안 품질 게이트 실패 — 아래 피드백을 반영하여 재작성하세요]",
+        ]
+        for fb in quality_feedback:
+            platform = fb.get("platform", "unknown")
+            score = fb.get("score", 0)
+            issues = fb.get("issues", [])
+            feedback_lines.append(f"\n❌ {platform} (점수: {score}/100):")
+            for issue in issues:
+                feedback_lines.append(f"  - {issue}")
+
+        feedback_lines.extend([
+            "",
+            "[재작성 지침]",
+            "1. 위에서 지적된 문제점을 반드시 수정하세요.",
+            "2. 글자 수, CTA, 해시태그 등 플랫폼 규칙을 정확히 준수하세요.",
+            "3. 기존 초안의 좋은 점은 유지하되, 문제점만 개선하세요.",
+            "━" * 40,
+        ])
+
+        return original_prompt + "\n".join(feedback_lines)
+
+    async def generate_drafts(
+        self,
+        post_data,
+        top_tweets=None,
+        output_formats=None,
+        quality_feedback: list[dict[str, Any]] | None = None,
+    ):
         if output_formats is None:
             output_formats = ["twitter"]
 
-        # ── 드래프트 캐시 조회 (동일 포스트 재생성 방지) ───────────────
+        # ── 드래프트 캐시 조회 (재생성 시에는 캐시 스킵) ───────────────
         cache_key = self._make_cache_key(post_data, output_formats)
-        try:
-            _cache = DraftCache()
-            cached = _cache.get(cache_key)
-            if cached:
-                drafts, image_prompt = cached
-                logger.info("Draft cache HIT: %s (provider=%s)", cache_key[:12], drafts.get("_provider_used", "cached"))
-                return drafts, image_prompt
-        except Exception as exc:
-            logger.debug("Draft cache lookup failed (ignored): %s", exc)
+        if not quality_feedback:
+            try:
+                _cache = DraftCache()
+                cached = _cache.get(cache_key)
+                if cached:
+                    drafts, image_prompt = cached
+                    logger.info("Draft cache HIT: %s (provider=%s)", cache_key[:12], drafts.get("_provider_used", "cached"))
+                    return drafts, image_prompt
+            except Exception as exc:
+                logger.debug("Draft cache lookup failed (ignored): %s", exc)
 
         prompt = self._build_prompt(post_data, top_tweets, output_formats)
+
+        # B-5: 품질 피드백이 있으면 재생성 프롬프트에 반영
+        if quality_feedback:
+            prompt = self._build_retry_prompt(prompt, quality_feedback)
+            logger.info("[B-5] Quality gate retry: incorporating %d platform feedback(s)", len(quality_feedback))
         providers = self._enabled_providers()
 
         # ── 실패 이력 기반 provider 스킵 ──────────────────────────────

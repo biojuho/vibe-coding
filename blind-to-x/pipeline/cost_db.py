@@ -101,11 +101,35 @@ class CostDatabase:
                     skip_until     TEXT    DEFAULT NULL
                 );
 
+                CREATE TABLE IF NOT EXISTS cross_source_insights (
+                    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                    recorded_at    TEXT NOT NULL DEFAULT (datetime('now')),
+                    date           TEXT NOT NULL,
+                    topic_cluster  TEXT NOT NULL,
+                    sources        TEXT NOT NULL DEFAULT '[]',
+                    post_count     INTEGER DEFAULT 0,
+                    notion_page_id TEXT DEFAULT '',
+                    published      INTEGER DEFAULT 0
+                );
+
+                CREATE TABLE IF NOT EXISTS trend_spikes (
+                    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                    recorded_at    TEXT NOT NULL DEFAULT (datetime('now')),
+                    date           TEXT NOT NULL,
+                    keyword        TEXT NOT NULL,
+                    source         TEXT NOT NULL DEFAULT 'combined',
+                    score          REAL DEFAULT 0.0,
+                    matched_topic  TEXT DEFAULT '',
+                    triggered      INTEGER DEFAULT 0
+                );
+
                 CREATE INDEX IF NOT EXISTS idx_text_date  ON daily_text_costs(date);
                 CREATE INDEX IF NOT EXISTS idx_image_date ON daily_image_costs(date);
                 CREATE INDEX IF NOT EXISTS idx_draft_date ON draft_analytics(date);
                 CREATE INDEX IF NOT EXISTS idx_draft_content_url ON draft_analytics(content_url);
                 CREATE INDEX IF NOT EXISTS idx_draft_page_id ON draft_analytics(notion_page_id);
+                CREATE INDEX IF NOT EXISTS idx_insight_date ON cross_source_insights(date);
+                CREATE INDEX IF NOT EXISTS idx_spike_date ON trend_spikes(date);
             """)
             self._ensure_column(conn, "draft_analytics", "content_url", "TEXT DEFAULT ''")
             self._ensure_column(conn, "draft_analytics", "notion_page_id", "TEXT DEFAULT ''")
@@ -613,6 +637,85 @@ class CostDatabase:
             logger.warning("CostDB: failed to get best draft style: %s", exc)
             return None
 
+    # ── Cross-source insight tracking ──────────────────────────────────
+
+    def record_cross_source_insight(
+        self,
+        *,
+        topic_cluster: str,
+        sources: list[str],
+        post_count: int = 0,
+        notion_page_id: str = "",
+    ) -> None:
+        """크로스소스 인사이트 생성 이력 기록."""
+        import json as _json
+
+        today = date.today().isoformat()
+        try:
+            with self._conn() as conn:
+                conn.execute(
+                    """INSERT INTO cross_source_insights
+                       (date, topic_cluster, sources, post_count, notion_page_id)
+                       VALUES (?, ?, ?, ?, ?)""",
+                    (today, topic_cluster, _json.dumps(sources, ensure_ascii=False), post_count, notion_page_id),
+                )
+        except Exception as exc:
+            logger.warning("CostDB: failed to record cross-source insight: %s", exc)
+
+    def record_trend_spike(
+        self,
+        *,
+        keyword: str,
+        source: str = "combined",
+        score: float = 0.0,
+        matched_topic: str = "",
+        triggered: bool = False,
+    ) -> None:
+        """트렌드 스파이크 이력 기록."""
+        today = date.today().isoformat()
+        try:
+            with self._conn() as conn:
+                conn.execute(
+                    """INSERT INTO trend_spikes
+                       (date, keyword, source, score, matched_topic, triggered)
+                       VALUES (?, ?, ?, ?, ?, ?)""",
+                    (today, keyword, source, float(score), matched_topic, int(triggered)),
+                )
+        except Exception as exc:
+            logger.warning("CostDB: failed to record trend spike: %s", exc)
+
+    def get_recent_insights(self, days: int = 7) -> list[dict[str, Any]]:
+        """최근 N일 크로스소스 인사이트 목록."""
+        cutoff = (date.today() - timedelta(days=days)).isoformat()
+        try:
+            with self._conn() as conn:
+                rows = conn.execute(
+                    """SELECT date, topic_cluster, sources, post_count, notion_page_id, published
+                       FROM cross_source_insights WHERE date >= ?
+                       ORDER BY date DESC""",
+                    (cutoff,),
+                ).fetchall()
+            return [dict(row) for row in rows]
+        except Exception as exc:
+            logger.warning("CostDB: failed to read recent insights: %s", exc)
+            return []
+
+    def get_recent_spikes(self, days: int = 7) -> list[dict[str, Any]]:
+        """최근 N일 트렌드 스파이크 목록."""
+        cutoff = (date.today() - timedelta(days=days)).isoformat()
+        try:
+            with self._conn() as conn:
+                rows = conn.execute(
+                    """SELECT date, keyword, source, score, matched_topic, triggered
+                       FROM trend_spikes WHERE date >= ?
+                       ORDER BY score DESC""",
+                    (cutoff,),
+                ).fetchall()
+            return [dict(row) for row in rows]
+        except Exception as exc:
+            logger.warning("CostDB: failed to read recent spikes: %s", exc)
+            return []
+
     # ── 포스트별 비용 추적 ─────────────────────────────────────────────
 
     def get_cost_per_post(self, days: int = 30) -> dict[str, float]:
@@ -666,7 +769,7 @@ class CostDatabase:
         quarter = (now.month - 1) // 3 + 1
         archive_path = self.db_path.parent / f"btx_costs_archive_{now.year}-Q{quarter}.db"
 
-        tables = ["daily_text_costs", "daily_image_costs", "draft_analytics"]
+        tables = ["daily_text_costs", "daily_image_costs", "draft_analytics", "cross_source_insights", "trend_spikes"]
         result: dict[str, int] = {}
 
         try:
@@ -715,6 +818,112 @@ class CostDatabase:
             result = {t: 0 for t in tables}
 
         return result
+
+    # ── 성과 우수 포스트 조회 (골든 예시 자동 갱신용) ──────────────────────
+
+    def get_top_performing_drafts(
+        self,
+        topic_cluster: str = "",
+        min_engagement: float = 0.0,
+        limit: int = 3,
+    ) -> list[dict]:
+        """engagement_rate 또는 yt_views 기준 성과 우수 포스트를 반환합니다.
+
+        Args:
+            topic_cluster: 특정 토픽만 조회. 빈 문자열이면 전체.
+            min_engagement: 최소 engagement_rate 필터.
+            limit: 반환할 최대 포스트 수.
+
+        Returns:
+            [{"topic_cluster", "hook_type", "emotion_axis", "draft_style", "text", "yt_views", ...}]
+        """
+        try:
+            with self._connect() as conn:
+                if topic_cluster:
+                    rows = conn.execute(
+                        """SELECT topic_cluster, hook_type, emotion_axis, draft_style,
+                                  content_url, yt_views, engagement_rate
+                           FROM draft_analytics
+                           WHERE topic_cluster = ? AND published = 1
+                             AND (engagement_rate > ? OR yt_views > 0)
+                           ORDER BY engagement_rate DESC, yt_views DESC
+                           LIMIT ?""",
+                        (topic_cluster, min_engagement, limit),
+                    ).fetchall()
+                else:
+                    rows = conn.execute(
+                        """SELECT topic_cluster, hook_type, emotion_axis, draft_style,
+                                  content_url, yt_views, engagement_rate
+                           FROM draft_analytics
+                           WHERE published = 1
+                             AND (engagement_rate > ? OR yt_views > 0)
+                           ORDER BY engagement_rate DESC, yt_views DESC
+                           LIMIT ?""",
+                        (min_engagement, limit),
+                    ).fetchall()
+            return [
+                {
+                    "topic_cluster": r[0] or "",
+                    "hook_type": r[1] or "",
+                    "emotion_axis": r[2] or "",
+                    "draft_style": r[3] or "",
+                    "text": r[4] or "",  # content_url as text placeholder
+                    "yt_views": r[5] or 0,
+                    "engagement_rate": r[6] or 0.0,
+                }
+                for r in rows
+            ]
+        except Exception as exc:
+            logger.debug("get_top_performing_drafts failed: %s", exc)
+            return []
+
+    # ── 6D 가중치 보정 저장/로드 ──────────────────────────────────────
+
+    def save_calibrated_weights(self, weights: dict[str, float]) -> None:
+        """보정된 6D 가중치를 저장합니다."""
+        import json as _json
+        try:
+            with self._connect() as conn:
+                conn.execute(
+                    """CREATE TABLE IF NOT EXISTS calibrated_weights (
+                        id INTEGER PRIMARY KEY CHECK (id = 1),
+                        weights_json TEXT NOT NULL,
+                        calibrated_at TEXT NOT NULL DEFAULT (datetime('now'))
+                    )"""
+                )
+                conn.execute(
+                    """INSERT OR REPLACE INTO calibrated_weights (id, weights_json, calibrated_at)
+                       VALUES (1, ?, datetime('now'))""",
+                    (_json.dumps(weights),),
+                )
+        except Exception as exc:
+            logger.debug("save_calibrated_weights failed: %s", exc)
+
+    def load_calibrated_weights(self, max_age_days: int = 7) -> dict[str, float] | None:
+        """보정된 6D 가중치를 로드합니다. 만료되었으면 None 반환."""
+        import json as _json
+        try:
+            with self._connect() as conn:
+                conn.execute(
+                    """CREATE TABLE IF NOT EXISTS calibrated_weights (
+                        id INTEGER PRIMARY KEY CHECK (id = 1),
+                        weights_json TEXT NOT NULL,
+                        calibrated_at TEXT NOT NULL DEFAULT (datetime('now'))
+                    )"""
+                )
+                row = conn.execute(
+                    """SELECT weights_json, calibrated_at FROM calibrated_weights WHERE id = 1"""
+                ).fetchone()
+                if not row:
+                    return None
+                from datetime import datetime, timedelta
+                cal_time = datetime.fromisoformat(row[1])
+                if datetime.now() - cal_time > timedelta(days=max_age_days):
+                    return None
+                return _json.loads(row[0])
+        except Exception as exc:
+            logger.debug("load_calibrated_weights failed: %s", exc)
+            return None
 
 
 # ── 모듈 레벨 싱글톤 (Phase 2-E) ──────────────────────────────────────

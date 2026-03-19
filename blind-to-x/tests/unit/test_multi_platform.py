@@ -171,87 +171,10 @@ class TestDraftGeneratorMultiPlatform:
         assert img == "office scene"
 
 
-# ── 2. newsletter_formatter: Threads 포맷 변환 ────────────────────────
-
-class TestFormatForThreads:
-    """format_for_threads() 함수가 올바르게 작동하는지 검증."""
-
-    def _make_newsletter_result(self, topic="연봉", emotion="공감"):
-        from pipeline.newsletter_formatter import NewsletterResult
-        return NewsletterResult(
-            hook="이걸 모르면 연봉 협상에서 항상 질 수밖에 없다",
-            story="한 블라인드 유저가 연봉 협상 경험을 공유했다. "
-                  "그는 시장 조사를 철저히 한 덕분에 연봉을 20% 올렸다고 한다. "
-                  "핵심은 준비와 타이밍이었다.",
-            insight="연봉은 숫자가 아니라 나의 시장가치를 반영합니다.",
-            cta="댓글로 이야기해주세요.",
-            full_text="...",
-            word_count=100,
-            char_count=400,
-            topic_cluster=topic,
-            emotion_axis=emotion,
-        )
-
-    def test_basic_format(self):
-        """기본적인 Threads 포맷 변환이 작동하는지 검증."""
-        from pipeline.newsletter_formatter import format_for_threads
-        result = self._make_newsletter_result()
-        text = format_for_threads(result)
-        assert "이걸 모르면" in text  # hook
-        assert "#연봉" in text  # hashtag
-        assert len(text) <= 500
-
-    def test_hashtag_count(self):
-        """해시태그 개수가 올바르게 제한되는지 검증."""
-        from pipeline.newsletter_formatter import format_for_threads
-        result = self._make_newsletter_result()
-        text = format_for_threads(result, hashtags_count=2)
-        hashtags = re.findall(r"#\w+", text)
-        assert len(hashtags) <= 2
-
-    def test_max_length_enforcement(self):
-        """최대 글자수 제한이 적용되는지 검증."""
-        from pipeline.newsletter_formatter import format_for_threads
-        result = self._make_newsletter_result()
-        text = format_for_threads(result, max_length=200)
-        assert len(text) <= 210  # slight tolerance for truncation edge
-
-    def test_emotion_cta_mapping(self):
-        """감정 축에 따라 올바른 CTA가 사용되는지 검증."""
-        from pipeline.newsletter_formatter import format_for_threads
-        result = self._make_newsletter_result(emotion="웃김")
-        text = format_for_threads(result)
-        assert "밈" in text or "ㅋㅋ" in text  # 웃김 감정의 CTA
-
-    def test_dict_input(self):
-        """dict 입력도 올바르게 처리하는지 검증."""
-        from pipeline.newsletter_formatter import format_for_threads
-        data = {
-            "hook": "테스트 훅",
-            "story": "테스트 스토리 문장입니다. 이것은 두 번째 문장입니다. 세 번째 문장입니다.",
-            "emotion_axis": "공감",
-            "topic_cluster": "이직",
-        }
-        text = format_for_threads(data)
-        assert "테스트 훅" in text
-        assert "#이직" in text
-
-    def test_format_for_blog_naver(self):
-        """format_for_blog('naver')가 올바른 포맷을 생성하는지 검증."""
-        from pipeline.newsletter_formatter import format_for_blog
-        result = self._make_newsletter_result()
-        text = format_for_blog(result, platform="naver")
-        assert "[직장인 라이프]" in text
-        assert "#직장인" in text
-        assert "#직장생활" in text
-
-    def test_format_for_blog_brunch(self):
-        """format_for_blog('brunch')가 올바른 포맷을 생성하는지 검증."""
-        from pipeline.newsletter_formatter import format_for_blog
-        result = self._make_newsletter_result()
-        text = format_for_blog(result, platform="brunch")
-        assert "#" in text  # heading marker or hashtags
-        assert "---" in text  # divider
+# ── 2. newsletter_formatter 제거됨 ─────────────────────────────────
+# TestFormatForThreads 및 format_for_blog 테스트는 newsletter_formatter.py
+# 삭제(2026-03-16)에 따라 제거되었습니다. Threads/Blog 초안 생성은 이제
+# draft_generator.py 내에서 LLM이 직접 처리합니다.
 
 
 # ── 3. NotionUploader: 새 속성 매핑 ────────────────────────────────────
@@ -300,7 +223,7 @@ class TestConfigMultiPlatform:
     def config_data(self):
         import yaml
         from pathlib import Path
-        config_path = Path(__file__).parent.parent / "config.yaml"
+        config_path = Path(__file__).resolve().parents[2] / "config.yaml"
         with open(config_path, encoding="utf-8") as f:
             return yaml.safe_load(f)
 

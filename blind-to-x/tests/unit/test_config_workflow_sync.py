@@ -6,7 +6,7 @@ from pathlib import Path
 
 import yaml
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_CONFIG = ROOT / "config.example.yaml"
 WORKFLOW_FILE = ROOT / ".github" / "workflows" / "blind-to-x.yml"
 

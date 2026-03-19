@@ -24,6 +24,8 @@ blind-to-x/
 │   ├── image_ab_tester.py  # A/B 테스트
 │   ├── ab_feedback_loop.py # A/B 피드백 루프
 │   ├── notion_upload.py    # Notion 업로드 (Mixin 분리)
+│   ├── cross_source_insight.py  # 크로스소스 트렌드 감지 + 인사이트 생성
+│   ├── trend_monitor.py    # Google Trends + Naver DataLab 모니터
 │   └── ...
 ├── tests/unit/        # 유닛 테스트
 ├── tests/integration/ # 통합 테스트
@@ -42,6 +44,11 @@ blind-to-x/
 - ✅ 품질 고도화 Phase 1: Post-LLM 품질 게이트 + 시멘틱 씬 매핑 (2026-03-15)
 - ✅ 프로젝트 정리: tests_unit→tests/unit 마이그레이션, 불필요 파일·모듈 삭제 (2026-03-16)
 - ✅ Per-source limit, classification_rules 외부화, image_upload 모듈 분리 (2026-03-16)
+- ✅ A-1: 깨진 테스트 전건 수정 → 307 passed 올그린 복원 (2026-03-17)
+- ✅ A-3: Dead code 정리 — newsletter_formatter 참조 완전 제거 (2026-03-17)
+- ✅ B-5: 품질 게이트 불통과 → LLM 자동 재생성 루프 (최대 2회) (2026-03-17)
+- ✅ 크로스소스 인사이트: 3+건 2+소스 동일 토픽 → LLM 트렌드 분석 초안 자동 생성 (2026-03-17)
+- ✅ 실시간 트렌드: Google Trends + Naver DataLab → trend_boost(0-30) 6D 스코어 반영 (2026-03-17)
 
 ## 지뢰밭 (주의사항)
 1. **playwright-stealth**: context 레벨에서만 적용. page 레벨 stealth 호출 추가 금지.
@@ -51,3 +58,4 @@ blind-to-x/
 5. **scratch 파일**: `tests/scratch_*.py`는 pytest 수집 대상이 아님. 수동 실행 전용.
 6. **tests_unit 폐기**: 구 `tests_unit/` 폴더 삭제됨. 모든 테스트는 `tests/unit/`에 위치.
 7. **newsletter 모듈 삭제**: `newsletter_formatter.py`, `newsletter_scheduler.py` 제거됨. 참조 금지.
+8. **B-5 재생성 루프**: `process.py` L384~L464. `generate_drafts(quality_feedback=[...])` 인터페이스. 최대 2회 재시도. `should_retry=True`(error severity)인 플랫폼만 대상.

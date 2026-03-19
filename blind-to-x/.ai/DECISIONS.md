@@ -39,3 +39,22 @@
 - **일자**: 2026-03-09
 - **결정**: API가 뷰 생성을 미지원하므로 설정 가이드 문서 + 속성 검증 스크립트 제공
 - **이유**: Notion API 제약사항
+
+## [D-009] 품질 게이트 자동 재생성 루프 (B-5)
+- **일자**: 2026-03-17
+- **결정**: `DraftQualityGate.should_retry=True` (error severity) 시 실패 사유를 LLM에 피드백하여 최대 2회 자동 재작성
+- **이유**: LLM의 확률적 출력을 결정론적 품질 검증으로 보정. 글자 수, CTA, 한글 비율 등 규칙 위반 시 구체적 피드백과 함께 재생성하여 초안 품질 향상
+- **인터페이스**: `generate_drafts(quality_feedback=[{platform, score, issues}])`
+
+## [D-010] 크로스소스 인사이트 (opt-in)
+- **일자**: 2026-03-17
+- **결정**: 3+건 2+소스가 동일 topic_cluster를 공유하면 LLM으로 비교 분석 초안 자동 생성
+- **이유**: 기존 멀티소스 데이터를 활용한 차별화 콘텐츠. 단순 요약이 아닌 관점 비교 인사이트
+- **설정**: `cross_source_insight.enabled`, `min_posts`, `min_sources`
+
+## [D-011] 실시간 트렌드 모니터 (opt-in)
+- **일자**: 2026-03-17
+- **결정**: Google Trends + Naver DataLab로 트렌딩 키워드 감지, trend_boost(0-30)로 6D 스코어 반영
+- **이유**: 트렌드 시의성 반영으로 콘텐츠 적시성 향상. 무료 API로 비용 부담 없음
+- **설정**: `trends.enabled`, `spike_threshold: 80.0`, `cache_ttl_minutes: 10`
+

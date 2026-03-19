@@ -354,6 +354,18 @@ async def main():
     # ── Notion URL 캐시 웜업 (중복 체크 O(1) 확보) ──────────────────
     await notion_uploader.warm_cache()
 
+    # ── 실시간 트렌드 모니터 초기화 (opt-in) ──────────────────────────
+    trend_monitor = None
+    if config_mgr.get("trends.enabled", False):
+        try:
+            from pipeline.trend_monitor import TrendMonitor
+            trend_monitor = TrendMonitor(config_mgr)
+            await trend_monitor.get_trending_keywords()  # 캐시 웜업
+            logger.info("TrendMonitor 초기화 완료")
+        except Exception as exc:
+            logger.warning("TrendMonitor 초기화 실패 (무시): %s", exc)
+            trend_monitor = None
+
     # ── 성과 기반 가중치 자동 조정 ──────────────────────────────────
     feedback_loop = FeedbackLoop(notion_uploader, config_mgr)
     adaptive_weights = await feedback_loop.compute_adaptive_weights()
@@ -371,7 +383,11 @@ async def main():
             effective_limit = args.limit or config_mgr.get("scrape_limit", 5)
             fetch_multiplier = int(config_mgr.get("feed_filter.fetch_multiplier", 2))
             min_engagement = float(config_mgr.get("feed_filter.min_engagement_score", 0))
+            title_blacklist = [
+                kw.lower() for kw in (config_mgr.get("feed_filter.title_blacklist") or [])
+            ]
             low_engagement_skips = 0
+            blacklist_skips = 0
 
             urls_to_process = []
             for source_name, scraper in scrapers.items():
@@ -394,6 +410,16 @@ async def main():
                     mode=feed_mode, limit=effective_limit * fetch_multiplier,
                 )
                 for candidate in candidates:
+                    # 제목 블랙리스트 필터
+                    if title_blacklist and candidate.title:
+                        _title_lower = candidate.title.lower()
+                        if any(kw in _title_lower for kw in title_blacklist):
+                            logger.info(
+                                "SKIP [blacklist] %s '%s' %s",
+                                source_name, candidate.title[:40], candidate.url,
+                            )
+                            blacklist_skips += 1
+                            continue
                     if min_engagement > 0 and candidate.engagement_score < min_engagement:
                         logger.info(
                             "SKIP [low engagement] %s (score=%.1f, likes=%d, comments=%d) %s",
@@ -512,6 +538,45 @@ async def main():
 
                 results = await asyncio.gather(*[_bounded(item) for item in urls_to_process])
 
+            # ── 크로스소스 인사이트 생성 (다중 소스 교차 분석) ────────────
+            if not args.dry_run and config_mgr.get("cross_source_insight.enabled", True):
+                try:
+                    from pipeline.cross_source_insight import process_cross_source_insights
+                    insight_results = await process_cross_source_insights(
+                        results=list(results),
+                        draft_generator=draft_generator,
+                        notion_uploader=notion_uploader,
+                        image_uploader=image_uploader,
+                        image_generator=image_generator,
+                        config=config_mgr,
+                        output_formats=output_formats,
+                        top_examples=top_examples,
+                        trend_monitor=trend_monitor,
+                    )
+                    if insight_results:
+                        results = list(results) + insight_results
+                        logger.info("크로스소스 인사이트 %d건 추가", len(insight_results))
+                except Exception as exc:
+                    logger.warning("크로스소스 인사이트 생성 실패 (무시): %s", exc)
+
+            # ── 트렌드 스파이크 기록 ──────────────────────────────────────
+            if trend_monitor and not args.dry_run:
+                try:
+                    spikes = await trend_monitor.detect_spikes()
+                    if spikes:
+                        from pipeline.cost_db import get_cost_db
+                        db = get_cost_db()
+                        for spike in spikes[:10]:  # 최대 10건 기록
+                            matched = trend_monitor.match_topic_cluster(spike["keyword"])
+                            db.record_trend_spike(
+                                keyword=spike["keyword"],
+                                source=spike["source"],
+                                score=spike["score"],
+                                matched_topic=matched or "",
+                            )
+                except Exception as exc:
+                    logger.debug("트렌드 스파이크 기록 실패: %s", exc)
+
             elapsed = (datetime.now() - start_time).total_seconds()
             metrics = calculate_run_metrics(results, dry_run=args.dry_run)
             successful = metrics["successful"]
@@ -525,6 +590,7 @@ async def main():
             print(f"  Duplicate Skips: {len(metrics['duplicate_skips'])}")
             print(f"  Content Similarity Skips: {content_dup_skips}")
             print(f"  Low Engagement Skips: {low_engagement_skips}")
+            print(f"  Blacklist Skips: {blacklist_skips}")
             print(f"  Cross-Source Dedup: {cross_source_dedup_count}")
             print(f"  Filtered Skips: {len(metrics['filtered_skips'])}")
             print(f"  Avg Quality Score (success): {metrics['avg_quality_score']:.1f}")

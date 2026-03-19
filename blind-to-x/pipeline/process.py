@@ -36,6 +36,12 @@ try:
 except Exception:
     _regulation_checker = None
 
+# NotebookLM 자산 생성 (NOTEBOOKLM_ENABLED=true 시 활성화)
+try:
+    from pipeline.notebooklm_enricher import enrich_post_with_assets as _nlm_enrich
+except Exception:
+    _nlm_enrich = None  # type: ignore[assignment]
+
 # P6: 성과 피드백 루프 (선택적 — 실패 시 무시)
 try:
     from pipeline.performance_tracker import PerformanceTracker
@@ -361,6 +367,28 @@ async def process_single_post(
         post_data["review_reason"] = decision["review_reason"]
         post_data["review_priority"] = decision["review_priority"]
 
+        # ── 콘텐츠 다양성 가드 (토픽/훅/감정 반복 방지) ──────────────────
+        try:
+            from pipeline.content_calendar import ContentCalendar
+            from pipeline.cost_db import get_cost_db
+            _calendar = ContentCalendar(cost_db=get_cost_db())
+            _cal_ok, _cal_reason = _calendar.should_post_topic(
+                topic_cluster=profile.get("topic_cluster", ""),
+                hook_type=profile.get("hook_type", ""),
+                emotion_axis=profile.get("emotion_axis", ""),
+            )
+            if not _cal_ok:
+                result["error"] = f"Calendar skip: {_cal_reason}"
+                result["error_code"] = ERROR_FILTERED_LOW_QUALITY
+                result["success"] = True
+                result["notion_url"] = "(skipped-calendar)"
+                result["failure_stage"] = "filter"
+                result["failure_reason"] = "content_calendar_diversity"
+                logger.info("[Calendar] SKIP %s: %s", url, _cal_reason)
+                return result
+        except Exception as exc:
+            logger.debug("Content calendar check skipped: %s", exc)
+
         # ── 스크린샷 업로드와 draft 생성 병렬 실행 ──────────────────────
         # 스크린샷 업로드는 LLM 호출(~45s)과 독립적이므로 먼저 시작
         screenshot_task = None
@@ -381,32 +409,113 @@ async def process_single_post(
             drafts = drafts_output
             image_prompt = None
 
-        # ── 드래프트 품질 게이트 ──────────────────────────────────────
+        # ── B-5: 드래프트 품질 게이트 + 자동 재생성 루프 ─────────────────
+        _MAX_QG_RETRIES = 2
+        _qg_retry_count = 0
+
+        if isinstance(drafts, dict):
+            for _qg_attempt in range(_MAX_QG_RETRIES + 1):
+                try:
+                    from pipeline.draft_quality_gate import DraftQualityGate
+                    _quality_gate = DraftQualityGate()
+                    _qg_results = _quality_gate.validate_all(drafts)
+                    _qg_summary = _quality_gate.format_summary(_qg_results)
+                    post_data["quality_gate_report"] = _qg_summary
+                    post_data["quality_gate_scores"] = {
+                        p: r.score for p, r in _qg_results.items()
+                    }
+
+                    # 재시도 대상 플랫폼 수집
+                    _retry_platforms = []
+                    for plat, qr in _qg_results.items():
+                        if qr.should_retry:
+                            _failed_issues = [
+                                f"{item.rule}: {item.detail}"
+                                for item in qr.items
+                                if not item.passed
+                            ]
+                            _retry_platforms.append({
+                                "platform": plat,
+                                "score": qr.score,
+                                "issues": _failed_issues,
+                            })
+                            logger.warning(
+                                "Quality gate FAILED for %s: score=%d, %s",
+                                plat, qr.score, url,
+                            )
+                        elif not qr.passed:
+                            logger.warning(
+                                "Quality gate FAILED (no retry) for %s: score=%d, %s",
+                                plat, qr.score, url,
+                            )
+                        elif qr.score < 70:
+                            logger.info(
+                                "Quality gate WARNING for %s: score=%d",
+                                plat, qr.score,
+                            )
+
+                    # B-5: 재시도 가능 플랫폼이 있고 리트라이 횟수 남아있으면 재생성
+                    if _retry_platforms and _qg_attempt < _MAX_QG_RETRIES:
+                        _qg_retry_count += 1
+                        logger.info(
+                            "[B-5] Quality gate auto-retry %d/%d: regenerating for %s",
+                            _qg_retry_count,
+                            _MAX_QG_RETRIES,
+                            ", ".join(fb["platform"] for fb in _retry_platforms),
+                        )
+                        drafts_output = await draft_generator.generate_drafts(
+                            post_data,
+                            top_tweets=top_tweets,
+                            output_formats=output_formats,
+                            quality_feedback=_retry_platforms,
+                        )
+                        if isinstance(drafts_output, tuple):
+                            drafts = drafts_output[0]
+                            image_prompt = drafts_output[1] if len(drafts_output) > 1 else image_prompt
+                        else:
+                            drafts = drafts_output
+                        continue  # 재검증
+                    else:
+                        break  # 통과 또는 리트라이 소진
+
+                except Exception as exc:
+                    logger.debug("Quality gate skipped: %s", exc)
+                    break
+
+        post_data["quality_gate_retries"] = _qg_retry_count
+        if _qg_retry_count > 0:
+            logger.info("[B-5] Quality gate retries used: %d/%d", _qg_retry_count, _MAX_QG_RETRIES)
+
+        # ── 에디토리얼 리뷰 (LLM 자가 검수 + 자동 리라이트) ────────────────
         if isinstance(drafts, dict):
             try:
-                from pipeline.draft_quality_gate import DraftQualityGate
-                _quality_gate = DraftQualityGate()
-                _qg_results = _quality_gate.validate_all(drafts)
-                _qg_summary = _quality_gate.format_summary(_qg_results)
-                post_data["quality_gate_report"] = _qg_summary
-                post_data["quality_gate_scores"] = {
-                    p: r.score for p, r in _qg_results.items()
-                }
-                for plat, qr in _qg_results.items():
-                    if not qr.passed:
-                        logger.warning(
-                            "Quality gate FAILED for %s: score=%d, %s",
-                            plat, qr.score, url,
-                        )
-                    elif qr.score < 70:
-                        logger.info(
-                            "Quality gate WARNING for %s: score=%d",
-                            plat, qr.score,
-                        )
+                from pipeline.editorial_reviewer import EditorialReviewer
+                _reviewer = EditorialReviewer(config=config)
+                _editorial_result = await _reviewer.review_and_polish(drafts, post_data)
+                drafts = _editorial_result.polished_drafts
+                post_data["editorial_scores"] = _editorial_result.scores
+                post_data["editorial_avg_score"] = _editorial_result.avg_score
+                if _editorial_result.suggestions:
+                    post_data["editorial_suggestions"] = _editorial_result.suggestions
+                if _editorial_result.avg_score > 0:
+                    logger.info(
+                        "[Editorial] avg=%.1f, platforms=%d",
+                        _editorial_result.avg_score,
+                        len(_editorial_result.original_drafts),
+                    )
             except Exception as exc:
-                logger.debug("Quality gate skipped: %s", exc)
+                logger.debug("Editorial review skipped: %s", exc)
 
         post_data["image_prompt"] = image_prompt
+
+        # ── [NLM] NotebookLM 리서치 자산 비동기 생성 시작 ────────────────
+        # 딥 리서치 + 인포그래픽/슬라이드 생성을 이미지 처리와 병렬 실행
+        nlm_task = None
+        if _nlm_enrich is not None and os.environ.get("NOTEBOOKLM_ENABLED") == "true":
+            nlm_topic = profile.get("topic_cluster") or post_data.get("title", "")
+            nlm_task = asyncio.ensure_future(
+                _nlm_enrich(nlm_topic, image_uploader=image_uploader)
+            )
 
         # ── P7: 드래프트 규제 검증 ────────────────────────────────────────
         regulation_report_text = ""
@@ -549,7 +658,22 @@ async def process_single_post(
         # 대표 이미지 우선순위: 1. 원본 이미지(Ppomppu) 2. AI 이미지(Blind).
         # 스크린샷은 별도 필드(Screenshot URL)로 전송됨.
         image_url = original_image_url or ai_image_url
-        
+
+        # ── [NLM] NotebookLM 자산 결과 수집 ─────────────────────────────
+        if nlm_task:
+            try:
+                nlm_assets = await nlm_task
+                if nlm_assets.infographic_url:
+                    post_data["nlm_infographic_url"] = nlm_assets.infographic_url
+                    logger.info("[NLM] 인포그래픽 CDN URL: %s", nlm_assets.infographic_url)
+                if nlm_assets.slides_local:
+                    post_data["nlm_slides_path"] = nlm_assets.slides_local
+                if nlm_assets.infographic_local and not image_url:
+                    # AI 이미지 생성 실패 시 인포그래픽을 대표 이미지로 사용
+                    image_url = nlm_assets.infographic_url or image_url
+            except Exception as exc:
+                logger.warning("[NLM] 자산 수집 실패 (파이프라인 계속): %s", exc)
+
         notion_result = await notion_uploader.upload(
             post_data, image_url, drafts,
             analysis=profile, screenshot_url=screenshot_url,

@@ -265,6 +265,36 @@ class NotionUploadMixin:
                     properties, "regulation_status",
                     "통과" if "전체 플랫폼 규제 검증 통과" in regulation_report else "경고"
                 )
+
+            # ── NotebookLM 리서치 자산 (인포그래픽·슬라이드) ─────────────────
+            nlm_infographic = post_data.get("nlm_infographic_url", "")
+            nlm_slides = post_data.get("nlm_slides_path", "")
+            if nlm_infographic or nlm_slides:
+                children.append({"object": "block", "type": "divider", "divider": {}})
+                children.append(
+                    {
+                        "object": "block",
+                        "type": "heading_2",
+                        "heading_2": {"rich_text": [{"type": "text", "text": {"content": "🔬 NotebookLM 리서치 자산"}}]},
+                    }
+                )
+                if nlm_infographic:
+                    children.append(
+                        {
+                            "object": "block",
+                            "type": "image",
+                            "image": {"type": "external", "external": {"url": nlm_infographic}},
+                        }
+                    )
+                if nlm_slides:
+                    children.extend(
+                        self._create_text_blocks(f"📊 슬라이드 파일: {nlm_slides}")
+                    )
+                # NLM infographic URL을 Notion 속성에도 저장
+                self._append_property_if_present(
+                    properties, "nlm_infographic_url", nlm_infographic
+                )
+
             response = await self.client.pages.create(
                 parent=self._page_parent_payload(),
                 properties=properties,
