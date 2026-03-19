@@ -1,63 +1,182 @@
-import { clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
-import { TODAY, ESTRUS_CYCLE_DAYS, ESTRUS_ALERT_WINDOW, CALVING_DAYS, CALVING_ALERT_WINDOW } from './constants';
+import { clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+import {
+  TODAY,
+  ESTRUS_CYCLE_DAYS,
+  ESTRUS_ALERT_WINDOW,
+  CALVING_DAYS,
+  CALVING_ALERT_WINDOW,
+} from './constants';
 
 export function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
-export function getMonthAge(bd) {
-  if (!bd) return 0;
-  const d = bd instanceof Date ? bd : new Date(bd);
-  return Math.max(1, (TODAY.getFullYear()-d.getFullYear())*12 + TODAY.getMonth()-d.getMonth());
+export function getMonthAge(birthDate) {
+  if (!birthDate) return 0;
+  const date = birthDate instanceof Date ? birthDate : new Date(birthDate);
+  return Math.max(1, (TODAY.getFullYear() - date.getFullYear()) * 12 + TODAY.getMonth() - date.getMonth());
 }
-export function getNextEstrusDate(le) {
-  if (!le) return null;
-  const n = new Date(le instanceof Date ? le : new Date(le));
-  while (n <= TODAY) n.setDate(n.getDate() + ESTRUS_CYCLE_DAYS);
-  return n;
+
+export function getNextEstrusDate(lastEstrus) {
+  if (!lastEstrus) return null;
+  const next = new Date(lastEstrus instanceof Date ? lastEstrus : new Date(lastEstrus));
+
+  while (next <= TODAY) next.setDate(next.getDate() + ESTRUS_CYCLE_DAYS);
+
+  return next;
 }
-export function getDaysUntilEstrus(le) {
-  const n = getNextEstrusDate(le); return n ? Math.ceil((n - TODAY) / 86400000) : null;
+
+export function getDaysUntilEstrus(lastEstrus) {
+  const next = getNextEstrusDate(lastEstrus);
+  return next ? Math.ceil((next - TODAY) / 86400000) : null;
 }
-export function isEstrusAlert(le) { const d = getDaysUntilEstrus(le); return d !== null && d >= 0 && d <= ESTRUS_ALERT_WINDOW; }
-export function isEstrusToday(le) { return getDaysUntilEstrus(le) === 0; }
+
+export function isEstrusAlert(lastEstrus) {
+  const days = getDaysUntilEstrus(lastEstrus);
+  return days !== null && days >= 0 && days <= ESTRUS_ALERT_WINDOW;
+}
+
+export function isEstrusToday(lastEstrus) {
+  return getDaysUntilEstrus(lastEstrus) === 0;
+}
 
 export function getCalvingDate(pregnancyDate) {
   if (!pregnancyDate) return null;
   return new Date(new Date(pregnancyDate).getTime() + CALVING_DAYS * 86400000);
 }
+
 export function getDaysUntilCalving(pregnancyDate) {
-  const cd = getCalvingDate(pregnancyDate);
-  return cd ? Math.ceil((cd - TODAY) / 86400000) : null;
-}
-export function isCalvingAlert(pregnancyDate) {
-  const d = getDaysUntilCalving(pregnancyDate);
-  return d !== null && d >= 0 && d <= CALVING_ALERT_WINDOW;
+  const calvingDate = getCalvingDate(pregnancyDate);
+  return calvingDate ? Math.ceil((calvingDate - TODAY) / 86400000) : null;
 }
 
-export function formatDate(d) { if (!d) return "-"; return (d instanceof Date ? d : new Date(d)).toLocaleDateString("ko-KR"); }
-export function toInputDate(d) { if (!d) return ""; return (d instanceof Date ? d : new Date(d)).toISOString().split("T")[0]; }
-export function calcTHI(t, h) { return (1.8*t+32)-(0.55-0.0055*h)*(1.8*t-26); }
-export function getTHILevel(thi) {
-  if (thi<72) return {label:"정상",color:"#4CAF50",bg:"#E8F5E9",desc:"한우 활동에 적합한 환경"};
-  if (thi<78) return {label:"주의",color:"#FF9800",bg:"#FFF3E0",desc:"경미한 스트레스, 환기 확인"};
-  if (thi<89) return {label:"경고",color:"#F44336",bg:"#FFEBEE",desc:"급수량 증가, 환기 강화 필요"};
-  return {label:"위험",color:"#B71C1C",bg:"#FFCDD2",desc:"긴급 냉방/살수 필요"};
+export function isCalvingAlert(pregnancyDate) {
+  const days = getDaysUntilCalving(pregnancyDate);
+  return days !== null && days >= 0 && days <= CALVING_ALERT_WINDOW;
 }
-export function getWeatherIcon(c) { if(c===0)return"☀️";if(c<=3)return"⛅";if(c<=48)return"🌫️";if(c<=67)return"🌧️";if(c<=77)return"🌨️";return"⛈️"; }
-export function getWeatherDesc(c) { if(c===0)return"맑음";if(c<=2)return"구름 조금";if(c===3)return"흐림";if(c<=48)return"안개";if(c<=55)return"이슬비";if(c<=65)return"비";if(c<=75)return"눈";return"뇌우"; }
-export function formatMoney(n) { return new Intl.NumberFormat('ko-KR').format(n); }
+
+export function formatDate(value) {
+  if (!value) return '-';
+  return (value instanceof Date ? value : new Date(value)).toLocaleDateString('ko-KR');
+}
+
+export function toInputDate(value) {
+  if (!value) return '';
+  return (value instanceof Date ? value : new Date(value)).toISOString().split('T')[0];
+}
+
+export function calcTHI(temp, humidity) {
+  return (1.8 * temp + 32) - (0.55 - 0.0055 * humidity) * (1.8 * temp - 26);
+}
+
+export function getTHILevel(thi) {
+  if (thi < 72) {
+    return {
+      label: '정상',
+      color: '#7f9a76',
+      bg: '#e7efe3',
+      desc: '한우 활동에 적합한 안정 구간입니다.',
+    };
+  }
+
+  if (thi < 78) {
+    return {
+      label: '주의',
+      color: '#d39a63',
+      bg: '#f7ead9',
+      desc: '가벼운 스트레스 구간으로 환기 상태를 확인하세요.',
+    };
+  }
+
+  if (thi < 89) {
+    return {
+      label: '경고',
+      color: '#cf7f76',
+      bg: '#f5e1dd',
+      desc: '급수량 확보와 송풍 강화가 필요한 수준입니다.',
+    };
+  }
+
+  return {
+    label: '위험',
+    color: '#a54f49',
+    bg: '#f1d7d3',
+    desc: '즉시 냉방과 살수 조치가 필요한 고위험 상태입니다.',
+  };
+}
+
+export function getWeatherIcon(code) {
+  if (code === 0) return '☀️';
+  if (code <= 3) return '⛅';
+  if (code <= 48) return '🌫️';
+  if (code <= 67) return '🌧️';
+  if (code <= 77) return '❄️';
+  return '⛈️';
+}
+
+export function getWeatherDesc(code) {
+  if (code === 0) return '맑음';
+  if (code <= 2) return '구름 조금';
+  if (code === 3) return '흐림';
+  if (code <= 48) return '안개';
+  if (code <= 55) return '이슬비';
+  if (code <= 65) return '비';
+  if (code <= 75) return '눈';
+  return '폭우';
+}
+
+export function formatMoney(value) {
+  return new Intl.NumberFormat('ko-KR').format(value);
+}
 
 export function getLivestockWeatherAlerts(forecast = []) {
   const alerts = [];
-  forecast.forEach(day => {
+
+  forecast.forEach((day) => {
     const label = new Date(day.date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
-    if (day.tempMax >= 35) alerts.push({ type: 'heat', level: 'danger', msg: `${label} 폭염 경보 (${day.tempMax}°C) - 냉방/살수 필요`, icon: '🥵' });
-    else if (day.tempMax >= 33) alerts.push({ type: 'heat', level: 'warning', msg: `${label} 고온 주의 (${day.tempMax}°C) - 환기 강화`, icon: '🌡️' });
-    if (day.tempMin <= -10) alerts.push({ type: 'cold', level: 'danger', msg: `${label} 한파 경보 (${day.tempMin}°C) - 보온 필수`, icon: '🥶' });
-    else if (day.tempMin <= -5) alerts.push({ type: 'cold', level: 'warning', msg: `${label} 저온 주의 (${day.tempMin}°C) - 보온 확인`, icon: '❄️' });
-    if (day.precipProb >= 80) alerts.push({ type: 'rain', level: 'warning', msg: `${label} 강수 확률 ${day.precipProb}% - 축사 점검`, icon: '🌧️' });
+
+    if (day.tempMax >= 35) {
+      alerts.push({
+        type: 'heat',
+        level: 'danger',
+        msg: `${label} 폭염 경보 (${day.tempMax}°C) - 냉방과 살수 조치가 필요합니다.`,
+        icon: '🔥',
+      });
+    } else if (day.tempMax >= 33) {
+      alerts.push({
+        type: 'heat',
+        level: 'warning',
+        msg: `${label} 고온 주의 (${day.tempMax}°C) - 환기와 급수 상태를 강화하세요.`,
+        icon: '🌡️',
+      });
+    }
+
+    if (day.tempMin <= -10) {
+      alerts.push({
+        type: 'cold',
+        level: 'danger',
+        msg: `${label} 한파 경보 (${day.tempMin}°C) - 보온 설비 점검이 필요합니다.`,
+        icon: '🥶',
+      });
+    } else if (day.tempMin <= -5) {
+      alerts.push({
+        type: 'cold',
+        level: 'warning',
+        msg: `${label} 저온 주의 (${day.tempMin}°C) - 보온 상태를 확인하세요.`,
+        icon: '🧣',
+      });
+    }
+
+    if (day.precipProb >= 80) {
+      alerts.push({
+        type: 'rain',
+        level: 'warning',
+        msg: `${label} 강수 확률 ${day.precipProb}% - 축사 누수와 바닥 상태를 점검하세요.`,
+        icon: '🌧️',
+      });
+    }
   });
+
   return alerts;
 }

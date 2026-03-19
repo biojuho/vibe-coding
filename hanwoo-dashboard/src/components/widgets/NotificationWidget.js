@@ -1,8 +1,38 @@
-
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { getNotifications } from '@/lib/actions';
+
+const TYPE_STYLES = {
+  estrus: {
+    accent: 'var(--color-estrus)',
+    surface: 'color-mix(in srgb, var(--color-estrus) 14%, var(--color-surface-elevated))',
+    iconSurface: 'color-mix(in srgb, var(--color-estrus) 18%, white 82%)',
+    icon: '🫀',
+    label: '번식 알림',
+  },
+  calving: {
+    accent: 'var(--color-calving)',
+    surface: 'color-mix(in srgb, var(--color-calving) 14%, var(--color-surface-elevated))',
+    iconSurface: 'color-mix(in srgb, var(--color-calving) 18%, white 82%)',
+    icon: '🐮',
+    label: '분만 알림',
+  },
+  urgent: {
+    accent: 'var(--chart-clay-4)',
+    surface: 'color-mix(in srgb, var(--chart-clay-4) 14%, var(--color-surface-elevated))',
+    iconSurface: 'color-mix(in srgb, var(--chart-clay-4) 18%, white 82%)',
+    icon: '🚨',
+    label: '긴급 알림',
+  },
+  default: {
+    accent: 'var(--chart-clay-5)',
+    surface: 'color-mix(in srgb, var(--chart-clay-5) 14%, var(--color-surface-elevated))',
+    iconSurface: 'color-mix(in srgb, var(--chart-clay-5) 18%, white 82%)',
+    icon: '🔔',
+    label: '운영 알림',
+  },
+};
 
 export default function NotificationWidget() {
   const [notifications, setNotifications] = useState([]);
@@ -13,59 +43,75 @@ export default function NotificationWidget() {
       try {
         const data = await getNotifications();
         setNotifications(data);
-      } catch (e) {
-        console.error(e);
+      } catch (error) {
+        console.error(error);
       } finally {
         setLoading(false);
       }
     };
+
     load();
   }, []);
 
-  if (loading) return null; // Don't show anything while loading to avoid CLS or show skeleton
-  if (notifications.length === 0) return null; // Hide if no notifications
+  if (loading || notifications.length === 0) return null;
 
   return (
-    <div className="animate-fadeInDown" style={{marginBottom:"24px"}}>
-        <div style={{display:"flex", alignItems:"center", marginBottom:"12px", gap:"8px"}}>
-            <span style={{fontSize:"18px"}}>🔔</span>
-            <div style={{fontWeight:800, fontSize:"16px", color:"var(--color-text)"}}>주요 알림</div>
-            <div style={{fontSize:"11px", background:"var(--color-danger)", color:"white", padding:"2px 8px", borderRadius:"100px", fontWeight:700}}>
-                {notifications.length}건
-            </div>
-        </div>
+    <section className="animate-fadeInDown mb-6">
+      <div className="mb-3 flex items-center gap-3">
+        <div className="clay-page-eyebrow">Priority Alerts</div>
+        <div className="clay-stat-chip">{notifications.length}건</div>
+      </div>
 
-        <div style={{display:"flex", flexDirection:"column", gap:"10px"}}>
-            {notifications.map((note) => (
-                <div key={note.id} style={{
-                    background: "var(--color-bg-card)",
-                    borderRadius: "12px",
-                    padding: "16px",
-                    borderLeft: `5px solid ${note.type === 'estrus' ? '#E91E63' : '#2196F3'}`,
-                    boxShadow: "var(--shadow-sm)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "14px"
-                }}>
-                    <div style={{
-                        width:"40px", height:"40px",
-                        borderRadius:"50%",
-                        background: note.type === 'estrus' ? '#FCE4EC' : '#E3F2FD',
-                        display:"flex", alignItems:"center", justifyContent:"center",
-                        fontSize:"20px", flexShrink: 0
-                    }}>
-                        {note.type === 'estrus' ? '💕' : '👶'}
-                    </div>
-                    <div>
-                        <div style={{fontWeight:800, fontSize:"14px", color:"var(--color-text)", marginBottom:"2px"}}>
-                            {note.title}
-                            {note.level === 'critical' && <span className="animate-pulse" style={{marginLeft:"6px", fontSize:"10px", color:"var(--color-danger)"}}>긴급</span>}
-                        </div>
-                        <div style={{fontSize:"13px", color:"var(--color-text-secondary)"}}>{note.message}</div>
-                    </div>
+      <div className="grid gap-3">
+        {notifications.map((note) => {
+          const style = TYPE_STYLES[note.type] || TYPE_STYLES.default;
+
+          return (
+            <div
+              key={note.id}
+              className="rounded-[24px] border p-4"
+              style={{
+                background: style.surface,
+                borderColor: 'color-mix(in srgb, var(--color-surface-stroke) 80%, transparent)',
+                boxShadow: 'var(--shadow-sm)',
+              }}
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className="flex h-11 w-11 items-center justify-center rounded-full text-lg"
+                  style={{
+                    background: style.iconSurface,
+                    color: style.accent,
+                    boxShadow: 'var(--shadow-sm)',
+                  }}
+                >
+                  {style.icon}
                 </div>
-            ))}
-        </div>
-    </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="mb-1 flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-bold text-[color:var(--color-text)]">{note.title}</span>
+                    <span
+                      className="inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold"
+                      style={{
+                        borderColor: 'color-mix(in srgb, var(--color-surface-border) 80%, transparent)',
+                        color: style.accent,
+                      }}
+                    >
+                      {style.label}
+                    </span>
+                    {note.level === 'critical' ? (
+                      <span className="animate-pulse text-[10px] font-bold text-[color:var(--color-danger)]">긴급</span>
+                    ) : null}
+                  </div>
+
+                  <p className="m-0 text-sm leading-6 text-[color:var(--color-text-secondary)]">{note.message}</p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }

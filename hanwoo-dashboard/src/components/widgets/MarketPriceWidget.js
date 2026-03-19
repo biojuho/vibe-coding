@@ -1,10 +1,37 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { useEffect, useState } from 'react';
 import { RefreshCwIcon } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getRealTimeMarketPrice } from '@/lib/actions';
 import { formatMoney } from '@/lib/utils';
+
+function PricePanel({ title, emoji, rows }) {
+  return (
+    <div className="clay-inset rounded-[24px] p-4">
+      <div className="mb-3 flex items-center gap-2 border-b border-[color:var(--color-surface-border)] pb-3">
+        <span className="text-lg">{emoji}</span>
+        <span className="text-sm font-bold text-[color:var(--color-text)]">{title}</span>
+      </div>
+      <div className="grid gap-2">
+        {rows.map(([grade, value], index) => (
+          <div
+            key={grade}
+            className="flex items-center justify-between text-sm"
+            style={{
+              paddingBottom: index === rows.length - 1 ? 0 : '8px',
+              borderBottom:
+                index === rows.length - 1 ? 'none' : '1px solid color-mix(in srgb, var(--color-surface-border) 65%, transparent)',
+            }}
+          >
+            <span className="font-medium text-[color:var(--color-text-secondary)]">{grade}</span>
+            <span className="font-bold text-[color:var(--color-text)]">{formatMoney(value)}원</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function MarketPriceWidget() {
   const [prices, setPrices] = useState(null);
@@ -18,7 +45,7 @@ export default function MarketPriceWidget() {
       setPrices(data);
       setLastUpdated(new Date());
     } catch (error) {
-      console.error("Failed to fetch market prices:", error);
+      console.error('Failed to fetch market prices:', error);
     } finally {
       setLoading(false);
     }
@@ -26,157 +53,101 @@ export default function MarketPriceWidget() {
 
   useEffect(() => {
     fetchPrices();
-    const interval = setInterval(fetchPrices, 1000 * 60 * 60); // Refresh every hour
+    const interval = setInterval(fetchPrices, 1000 * 60 * 60);
     return () => clearInterval(interval);
   }, []);
 
-  const renderPriceRow = (grade, value) => (
-    <div
-      className="flex items-center justify-between py-1.5 text-sm"
-      style={{ borderBottom: "1px solid var(--color-border)" }}
-    >
-      <span style={{ color: "var(--color-text-secondary)", fontWeight: 500 }}>{grade}</span>
-      <span style={{ fontWeight: 700, color: "var(--color-text)" }}>
-        {formatMoney(value)}원
-      </span>
-    </div>
-  );
-
   if (loading && !prices) {
     return (
-      <Card className="w-full animate-pulse" style={{ height: "240px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>시세 정보 로딩 중...</div>
+      <Card className="animate-fadeInUp">
+        <CardContent className="flex h-60 items-center justify-center">
+          <div className="text-sm text-[color:var(--color-text-secondary)]">시세 정보를 불러오는 중입니다.</div>
+        </CardContent>
       </Card>
     );
   }
 
   if (!prices) {
     return (
-      <Card className="w-full" style={{ height: "100px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>시세 정보를 불러올 수 없습니다.</div>
+      <Card className="animate-fadeInUp">
+        <CardContent className="flex h-28 items-center justify-center">
+          <div className="text-sm text-[color:var(--color-text-secondary)]">시세 정보를 불러오지 못했습니다.</div>
+        </CardContent>
       </Card>
     );
   }
 
+  const badgeStyle = prices.isRealtime
+    ? {
+        background: 'color-mix(in srgb, var(--chart-clay-5) 18%, white 82%)',
+        color: 'var(--chart-clay-5)',
+        borderColor: 'color-mix(in srgb, var(--chart-clay-5) 32%, transparent)',
+      }
+    : {
+        background: 'color-mix(in srgb, var(--chart-clay-2) 18%, white 82%)',
+        color: 'var(--chart-clay-2)',
+        borderColor: 'color-mix(in srgb, var(--chart-clay-2) 32%, transparent)',
+      };
+
   return (
-    <Card className="w-full shadow-sm hover:shadow-md transition-shadow animate-fadeInUp">
-      <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <CardTitle className="text-lg font-bold" style={{ color: "var(--color-text)" }}>
-            📊 오늘의 한우 시세
-          </CardTitle>
-          <span style={{ fontSize: "11px", color: "var(--color-text-secondary)" }}>
-            ({prices.date} 기준, 전국 평균)
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span
-            style={{
-              fontSize: "10px",
-              padding: "3px 10px",
-              borderRadius: "var(--radius-full)",
-              fontWeight: 700,
-              background: prices.isRealtime
-                ? "rgba(59, 130, 246, 0.12)"
-                : "rgba(245, 158, 11, 0.12)",
-              color: prices.isRealtime
-                ? "var(--color-info, #3b82f6)"
-                : "var(--color-warning, #f59e0b)",
-              border: `1px solid ${prices.isRealtime ? "rgba(59,130,246,0.3)" : "rgba(245,158,11,0.3)"}`,
-            }}
-          >
-            {prices.isRealtime ? "🟢 실시간 (API)" : "🟡 시뮬레이션"}
-          </span>
-          <button
-            onClick={fetchPrices}
-            disabled={loading}
-            style={{
-              background: "transparent",
-              border: "none",
-              padding: "6px",
-              borderRadius: "var(--radius-full)",
-              cursor: "pointer",
-              color: "var(--color-text-secondary)",
-              transition: "background var(--transition-fast)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = "var(--color-border-light)"}
-            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-          >
-            <RefreshCwIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+    <Card className="animate-fadeInUp overflow-hidden">
+      <CardHeader className="pb-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="clay-page-eyebrow mb-3">Market Pulse</div>
+            <CardTitle className="text-xl font-bold text-[color:var(--color-text)]">오늘의 한우 시세</CardTitle>
+            <p className="mt-2 text-xs text-[color:var(--color-text-secondary)]">
+              {prices.date} 기준, 등급별 평균 거래가
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span
+              className="inline-flex rounded-full border px-3 py-1 text-[11px] font-bold"
+              style={badgeStyle}
+            >
+              {prices.isRealtime ? '실시간 API' : '샘플 데이터'}
+            </span>
+            <button
+              type="button"
+              onClick={fetchPrices}
+              disabled={loading}
+              className="clay-pressable inline-flex h-10 w-10 items-center justify-center rounded-full text-[color:var(--color-text-secondary)]"
+            >
+              <RefreshCwIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 gap-3">
-          {/* 거세우 섹션 */}
-          <div
-            style={{
-              background: "var(--color-border-light)",
-              borderRadius: "var(--radius-lg)",
-              padding: "12px",
-            }}
-          >
-            <div
-              style={{
-                fontSize: "12px",
-                fontWeight: 700,
-                color: "var(--color-text)",
-                marginBottom: "8px",
-                paddingBottom: "8px",
-                borderBottom: "1px solid var(--color-border)",
-              }}
-            >
-              🐂 거세우 (지육 kg)
-            </div>
-            {renderPriceRow("1++등급", prices.bull.grade1pp)}
-            {renderPriceRow("1+등급", prices.bull.grade1p)}
-            <div className="flex items-center justify-between py-1.5 text-sm">
-              <span style={{ color: "var(--color-text-secondary)", fontWeight: 500 }}>1등급</span>
-              <span style={{ fontWeight: 700, color: "var(--color-text)" }}>{formatMoney(prices.bull.grade1)}원</span>
-            </div>
-          </div>
 
-          {/* 암소 섹션 */}
-          <div
-            style={{
-              background: "var(--color-border-light)",
-              borderRadius: "var(--radius-lg)",
-              padding: "12px",
-            }}
-          >
-            <div
-              style={{
-                fontSize: "12px",
-                fontWeight: 700,
-                color: "var(--color-text)",
-                marginBottom: "8px",
-                paddingBottom: "8px",
-                borderBottom: "1px solid var(--color-border)",
-              }}
-            >
-              🐄 암소 (지육 kg)
-            </div>
-            {renderPriceRow("1++등급", prices.cow.grade1pp)}
-            {renderPriceRow("1+등급", prices.cow.grade1p)}
-            <div className="flex items-center justify-between py-1.5 text-sm">
-              <span style={{ color: "var(--color-text-secondary)", fontWeight: 500 }}>1등급</span>
-              <span style={{ fontWeight: 700, color: "var(--color-text)" }}>{formatMoney(prices.cow.grade1)}원</span>
-            </div>
-          </div>
+      <CardContent>
+        <div className="grid gap-3 md:grid-cols-2">
+          <PricePanel
+            title="거세우 지육 kg"
+            emoji="🐂"
+            rows={[
+              ['1++ 등급', prices.bull.grade1pp],
+              ['1+ 등급', prices.bull.grade1p],
+              ['1 등급', prices.bull.grade1],
+            ]}
+          />
+          <PricePanel
+            title="암소 지육 kg"
+            emoji="🐄"
+            rows={[
+              ['1++ 등급', prices.cow.grade1pp],
+              ['1+ 등급', prices.cow.grade1p],
+              ['1 등급', prices.cow.grade1],
+            ]}
+          />
         </div>
 
-        {lastUpdated && (
-          <div
-            className="mt-3 flex justify-between items-center"
-            style={{ fontSize: "10px", color: "var(--color-text-secondary)" }}
-          >
-            <span>업데이트: {lastUpdated.toLocaleTimeString()}</span>
-            <span>출처: 축산물품질평가원</span>
+        {lastUpdated ? (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[color:var(--color-text-muted)]">
+            <span>업데이트 {lastUpdated.toLocaleTimeString()}</span>
+            <span>출처 축산물품질평가원</span>
           </div>
-        )}
+        ) : null}
       </CardContent>
     </Card>
   );

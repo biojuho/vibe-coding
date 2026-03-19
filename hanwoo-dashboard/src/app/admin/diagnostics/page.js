@@ -1,9 +1,24 @@
-
 'use client';
 
-import { useState, useEffect } from 'react';
-import { getSystemDiagnostics, getRawData } from '@/lib/actions';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ArrowLeft, Database, Cpu, Activity } from 'lucide-react';
+import { getSystemDiagnostics, getRawData } from '@/lib/actions';
+
+const STATUS_STYLES = {
+  good: {
+    accent: 'var(--chart-clay-1)',
+    background: 'color-mix(in srgb, var(--chart-clay-1) 18%, var(--color-surface-elevated))',
+  },
+  bad: {
+    accent: 'var(--chart-clay-4)',
+    background: 'color-mix(in srgb, var(--chart-clay-4) 18%, var(--color-surface-elevated))',
+  },
+  neutral: {
+    accent: 'var(--chart-clay-5)',
+    background: 'color-mix(in srgb, var(--chart-clay-5) 18%, var(--color-surface-elevated))',
+  },
+};
 
 export default function DiagnosticsPage() {
   const router = useRouter();
@@ -21,110 +36,179 @@ export default function DiagnosticsPage() {
     loadData(selectedModel);
   }, [selectedModel]);
 
+  const recordCounts = useMemo(
+    () => (stats?.database?.recordCounts ? Object.entries(stats.database.recordCounts) : []),
+    [stats]
+  );
+
   const loadStats = async () => {
     setLoading(true);
-    const res = await getSystemDiagnostics();
-    setStats(res);
+    const result = await getSystemDiagnostics();
+    setStats(result);
     setLoading(false);
   };
 
   const loadData = async (model) => {
     setDataLoading(true);
-    const res = await getRawData(model);
-    if(res.success) setRawData(res.data);
-    else alert("데이터 로드 실패");
+    const result = await getRawData(model);
+    if (result.success) setRawData(result.data);
+    else alert('데이터 로드에 실패했습니다.');
     setDataLoading(false);
   };
 
-  if (loading) return <div className="p-8 text-center text-gray-500">시스템 진단 중...</div>;
+  if (loading) {
+    return (
+      <div className="clay-shell">
+        <div className="clay-page-card p-8 text-center">
+          <div className="clay-page-eyebrow mb-4">Diagnostics</div>
+          <h1 className="clay-page-title mb-3">시스템 진단 중</h1>
+          <p className="clay-page-subtitle">데이터베이스와 런타임 상태를 확인하고 있습니다.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-8 max-w-6xl mx-auto text-gray-800">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">🛠️ 시스템 진단 (System Diagnostics)</h1>
-        <button onClick={() => router.push('/')} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 transition">
-          ← 대시보드로 돌아가기
-        </button>
-      </div>
-
-      {/* System Status Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <StatusCard 
-          title="Database Status" 
-          value={stats.database.status} 
-          sub={stats.database.latency}
-          status={stats.success ? 'good' : 'bad'} 
-        />
-        <StatusCard 
-          title="Node.js Runtime" 
-          value={stats.nodeVersion} 
-          sub={`Uptime: ${Math.floor(stats.uptime / 60)}m`}
-          status="neutral" 
-        />
-        <StatusCard 
-          title="Memory Usage" 
-          value={`${Math.round(stats.memory.heapUsed / 1024 / 1024)} MB`} 
-          sub={`Total: ${Math.round(stats.memory.heapTotal / 1024 / 1024)} MB`}
-          status="neutral" 
-        />
-      </div>
-
-      {/* Database Record Counts */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border mb-10">
-        <h2 className="text-xl font-bold mb-4">📊 데이터베이스 레코드 현황</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {stats.database.recordCounts && Object.entries(stats.database.recordCounts).map(([key, val]) => (
-            <div key={key} className="bg-gray-50 p-4 rounded text-center">
-              <div className="text-gray-500 uppercase text-xs font-bold">{key}</div>
-              <div className="text-2xl font-black text-blue-600">{val}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Raw Data Viewer */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">🔍 Raw Data Inspector (Top 50)</h2>
-          <select 
-            value={selectedModel} 
-            onChange={(e) => setSelectedModel(e.target.value)}
-            className="p-2 border rounded bg-gray-50"
-          >
-            <option value="cattle">Cattle (소)</option>
-            <option value="salesRecord">Sales (판매)</option>
-            <option value="feedRecord">Feed (급여)</option>
-            <option value="scheduleEvent">Schedule (일정)</option>
-            <option value="inventoryItem">Inventory (재고)</option>
-            <option value="building">Buildings (축사)</option>
-            <option value="farmSettings">Settings (설정)</option>
-          </select>
-        </div>
-
-        {dataLoading ? (
-          <div className="text-center py-10 text-gray-400">데이터 로딩 중...</div>
-        ) : (
-          <div className="bg-gray-900 text-green-400 p-4 rounded overflow-auto h-96 font-mono text-sm shadow-inner">
-            <pre>{JSON.stringify(rawData, null, 2)}</pre>
+    <div className="clay-shell">
+      <div className="clay-page-card p-6 md:p-8">
+        <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div className="max-w-2xl">
+            <div className="clay-page-eyebrow mb-4">System Diagnostics</div>
+            <h1 className="clay-page-title mb-3">운영 상태 점검실</h1>
+            <p className="clay-page-subtitle">
+              데이터베이스 연결, 런타임 메모리, 원시 레코드를 한 화면에서 확인할 수 있게 정리했습니다.
+            </p>
           </div>
-        )}
+
+          <button
+            type="button"
+            onClick={() => router.push('/')}
+            className="clay-pressable inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-[color:var(--color-text)]"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            대시보드로 돌아가기
+          </button>
+        </div>
+
+        <div className="mb-6 grid gap-4 md:grid-cols-3">
+          <StatusCard
+            title="Database Status"
+            value={stats.database.status}
+            sub={stats.database.latency}
+            icon={<Database className="h-5 w-5" />}
+            status={stats.success ? 'good' : 'bad'}
+          />
+          <StatusCard
+            title="Node.js Runtime"
+            value={stats.nodeVersion}
+            sub={`Uptime ${Math.floor(stats.uptime / 60)}m`}
+            icon={<Cpu className="h-5 w-5" />}
+            status="neutral"
+          />
+          <StatusCard
+            title="Memory Usage"
+            value={`${Math.round(stats.memory.heapUsed / 1024 / 1024)} MB`}
+            sub={`Total ${Math.round(stats.memory.heapTotal / 1024 / 1024)} MB`}
+            icon={<Activity className="h-5 w-5" />}
+            status="neutral"
+          />
+        </div>
+
+        <section className="clay-page-section mb-6 p-5 md:p-6">
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <div>
+              <div className="clay-page-eyebrow mb-3">Database Ledger</div>
+              <h2 className="text-xl font-bold text-[color:var(--color-text)]">데이터베이스 레코드 현황</h2>
+            </div>
+            <div className="clay-stat-chip">{recordCounts.length}개 모델</div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {recordCounts.map(([key, value]) => (
+              <div
+                key={key}
+                className="clay-inset rounded-[22px] p-4"
+                style={{ borderColor: 'var(--color-surface-stroke)' }}
+              >
+                <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[color:var(--color-text-muted)]">
+                  {key}
+                </div>
+                <div
+                  className="text-3xl font-bold"
+                  style={{ color: 'var(--color-primary-custom)', fontFamily: 'var(--font-display-custom)' }}
+                >
+                  {value}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="clay-page-section p-5 md:p-6">
+          <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="clay-page-eyebrow mb-3">Raw Data</div>
+              <h2 className="text-xl font-bold text-[color:var(--color-text)]">레코드 인스펙터</h2>
+            </div>
+
+            <select
+              value={selectedModel}
+              onChange={(event) => setSelectedModel(event.target.value)}
+              className="clay-inset rounded-full px-4 py-3 text-sm font-medium text-[color:var(--color-text)] outline-none"
+            >
+              <option value="cattle">Cattle</option>
+              <option value="salesRecord">Sales</option>
+              <option value="feedRecord">Feed</option>
+              <option value="scheduleEvent">Schedule</option>
+              <option value="inventoryItem">Inventory</option>
+              <option value="building">Buildings</option>
+              <option value="farmSettings">Settings</option>
+            </select>
+          </div>
+
+          {dataLoading ? (
+            <div className="clay-inset rounded-[24px] px-6 py-14 text-center text-sm text-[color:var(--color-text-muted)]">
+              데이터를 불러오는 중입니다.
+            </div>
+          ) : (
+            <div className="clay-console h-96 overflow-auto p-5 text-sm leading-6">
+              <pre className="m-0 whitespace-pre-wrap break-all">{JSON.stringify(rawData, null, 2)}</pre>
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );
 }
 
-function StatusCard({ title, value, sub, status }) {
-    const colors = {
-        good: 'bg-green-50 text-green-700 border-green-200',
-        bad: 'bg-red-50 text-red-700 border-red-200',
-        neutral: 'bg-blue-50 text-blue-700 border-blue-200'
-    };
-    
-    return (
-        <div className={`p-6 rounded-xl border ${colors[status] || colors.neutral}`}>
-            <div className="text-sm font-semibold opacity-70 mb-1">{title}</div>
-            <div className="text-3xl font-bold mb-1">{value}</div>
-            <div className="text-xs opacity-80">{sub}</div>
-        </div>
-    );
+function StatusCard({ title, value, sub, icon, status }) {
+  const style = STATUS_STYLES[status] || STATUS_STYLES.neutral;
+
+  return (
+    <div
+      className="rounded-[26px] border p-5"
+      style={{
+        background: style.background,
+        borderColor: 'color-mix(in srgb, var(--color-surface-stroke) 84%, transparent)',
+        boxShadow: 'var(--shadow-sm)',
+      }}
+    >
+      <div className="mb-3 flex items-center justify-between">
+        <span className="text-sm font-semibold text-[color:var(--color-text-secondary)]">{title}</span>
+        <span
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full"
+          style={{
+            background: `color-mix(in srgb, ${style.accent} 16%, white 84%)`,
+            color: style.accent,
+          }}
+        >
+          {icon}
+        </span>
+      </div>
+      <div className="mb-1 text-3xl font-bold text-[color:var(--color-text)]" style={{ fontFamily: 'var(--font-display-custom)' }}>
+        {value}
+      </div>
+      <div className="text-xs font-medium text-[color:var(--color-text-muted)]">{sub}</div>
+    </div>
+  );
 }
