@@ -304,3 +304,19 @@ Vibe coding/                      # Root ?뚰겕?ㅽ럹?댁뒪
 - **Windows pytest + subprocess PIPE → WinError 6**: pytest stdout 캡처 활성화 상태에서 `subprocess.PIPE`가 Windows 핸들 무효화 → `[WinError 6]`. `pytest.ini`에 `--capture=no` 필수. `scheduler_engine.py`에서 `subprocess.run(capture_output=True)` 사용 금지.
 - **`update_context.py` 무한 루프**: `.tmp/update_context.py`가 장시간 실행되면 git lock 점유 → `git add/commit` block. 18시간 이상 실행된 사례 있음. 주기적으로 확인 필요.
 
+
+## 2026-03-19 Codex UI Polish Update
+
+### hanwoo-dashboard
+- Secondary clay polish now covers the remaining obvious non-themed surfaces: `admin/diagnostics`, legal pages (`/terms`, `/privacy`), market/notification widgets, and the `analysis`, `feed`, `calving`, `schedule` tabs.
+- Added reusable page-level clay helpers in `src/app/globals.css` (`.clay-shell`, `.clay-page-card`, `.clay-page-section`, `.clay-console`, etc.) plus shared clay chart palette variables (`--chart-clay-*`).
+- Status/THI color maps in `src/lib/constants.js` and `src/lib/utils.js` were shifted from generic bright primaries to warmer clay-compatible accents so badges, rows, and weather states stay visually consistent.
+- Legal pages now share `src/components/layout/LegalDocumentLayout.js` instead of inline one-off styles.
+
+### Verification
+- `npm run build` for `hanwoo-dashboard` passed after the polish pass.
+- Playwright re-verified `/login` on a local dev server (`http://127.0.0.1:3002/login`) and saved `hanwoo-login-clay-refresh.png`.
+
+### Known risks / landmines
+- During this session, `/terms` navigation in the browser ended up on `/login`, so visual QA for the new legal layout is still limited by the current auth/middleware behavior.
+- The dev server still reports the existing manifest/favicon console noise on public pages; this session did not change that.
