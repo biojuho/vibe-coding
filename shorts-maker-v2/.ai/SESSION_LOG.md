@@ -1,5 +1,56 @@
 # 📋 AI 세션 로그
 
+## 2026-03-21 — Antigravity (채널 페르소나 & TTS/BGM/Script 품질 전면 개선)
+
+### 작업 요약
+영상 품질 4대 문제(TTS 기계음, BGM 단조로움, 스크립트 AI 티, 자막 영역) 중 TTS/BGM/Script 3영역 코드 개선 + Skill 파일 4개 체계화.
+
+### 세부 변경사항
+
+#### 1. TTS 품질 — `edge_tts_client.py`
+- `_CHANNEL_PROSODY` 딕셔너리 신규 추가: 5채널별 (rate_jitter_pct, pitch_jitter_hz) 변주 폭 정의
+- `_get_role_prosody(role, channel_key)` — channel_key 파라미터 추가, body 역할에 채널별 변주 적용
+- `generate_tts(channel_key=...)` 파라미터 추가
+
+#### 2. BGM 전략 — `freesound_client.py`
+- `BGM_ENERGY_TAGS` 전면 개선: 채널별 분위기를 정밀하게 표현하는 복합 키워드로 업그레이드
+- `warm_uplifting` 에너지 레벨 신규 추가 (health 채널 전용)
+- 상위 3개 중 랜덤 선택으로 BGM 다양성 확보
+
+#### 3. 스크립트 페르소나 — `script_step.py`
+- `_CHANNEL_PERSONA` 딕셔너리 신규 추가: 5채널 × 4개 항목(role_description, tone, forbidden, required)
+- `_build_system_prompt(channel_key=...)` 파라미터 추가 + 페르소나 섹션 주입 로직
+- `run()` 메서드에서 `_build_system_prompt(channel_key=self.channel_key)` 전달 연결
+
+#### 4. Skill 파일 4개 신규 생성
+- `.agents/skills/shorts-tts-quality/SKILL.md` — Edge TTS prosody 가이드
+- `.agents/skills/shorts-bgm-strategy/SKILL.md` — Freesound BGM 키워드 전략
+- `.agents/skills/shorts-script-persona/SKILL.md` — 5채널 페르소나 사전
+- `.agents/skills/shorts-subtitle-safezone/SKILL.md` — Safe Zone 배치 규칙
+
+### 결과
+- 유닛 테스트: **541 passed, 12 skipped, 0 failed** (회귀 없음)
+
+### 결정사항
+- Local TTS(Bark/XTTS) 도입 배제 — GPU 없음, 한국어 지원 미비
+- BGM 랜덤 선택(top-3)으로 다양성 확보
+- 채널 페르소나는 LLM system prompt에 직접 주입 (별도 fine-tune X)
+
+### 변경 파일
+- `src/shorts_maker_v2/providers/edge_tts_client.py`
+- `src/shorts_maker_v2/providers/freesound_client.py`
+- `src/shorts_maker_v2/pipeline/script_step.py`
+- `.agents/skills/shorts-tts-quality/SKILL.md` (신규)
+- `.agents/skills/shorts-bgm-strategy/SKILL.md` (신규)
+- `.agents/skills/shorts-script-persona/SKILL.md` (신규)
+- `.agents/skills/shorts-subtitle-safezone/SKILL.md` (신규)
+
+### 다음 도구에게 메모
+- `generate_tts()` 호출 시 `channel_key` 미전달 시 기본 prosody 사용 (방어 코딩됨)
+- 자막 관련 수정사항은 없음 — `caption_pillow.py`, `karaoke.py`는 이미 Safe Zone 구현 완료 상태
+
+---
+
 ## 2026-03-21 — Antigravity (Ruff 0건 달성)
 
 ### 작업 요약

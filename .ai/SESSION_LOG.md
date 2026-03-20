@@ -1,3 +1,51 @@
+## 2026-03-21 — Claude Code (Opus 4.6) — blind-to-x X 콘텐츠 큐레이션 고도화
+
+### 작업 요약
+
+요구사항 정의서 기반 blind-to-x 콘텐츠 큐레이션 체계 개선. X 알고리즘 2025-2026 연구 반영, 멘션(캡션) 생성 품질 개선, 링크-인-리플라이 전략 구현.
+
+### 변경 파일
+
+- `blind-to-x/directives/x_content_curation.md` (NEW) — X 콘텐츠 큐레이션 SOP directive
+- `blind-to-x/classification_rules.yaml` — X 알고리즘 규칙 최신화 (해시태그 2개 제한, 링크 페널티 규칙, 참여 가중치, 최적 게시 시간, 트위터 프롬프트 대폭 개선)
+- `blind-to-x/pipeline/draft_generator.py` — `<reply>` 태그 파싱 (링크-인-리플라이), 트위터 fallback 프롬프트 개선
+- `blind-to-x/pipeline/process.py` — reply_text에 원문 URL 자동 주입
+- `blind-to-x/pipeline/notion/_upload.py` — reply_text 속성 저장 + Notion 페이지에 답글 섹션 표시
+- `blind-to-x/pipeline/notion/_schema.py` — reply_text 시맨틱 키 추가
+- `blind-to-x/pipeline/regulation_checker.py` — X 본문 링크 감지 강화 (30-50% 도달 감소 경고)
+
+### 핵심 개선 사항
+
+1. **X 알고리즘 최적화**: 해시태그 3→2개 제한, 본문 링크 금지, 텍스트 우선 전략, 참여 가중치 반영
+2. **멘션 품질**: 훅→가치→CTA 공식, 구체적 선택형 질문 강제, engagement farming 금지
+3. **링크-인-리플라이**: 본문에서 링크/해시태그 분리 → 첫 번째 답글에 배치 (30-50% 도달 감소 회피)
+4. **수동 게시 워크플로우**: Notion에서 본문+답글 텍스트 모두 복사 가능
+
+### 검증
+
+- 394 passed, 1 failed (기존 Gemini 429 rate limit), 15 skipped
+- regulation_checker 22 passed, draft_generator 32 passed
+
+### 결정사항
+
+- X에서는 텍스트 전용이 미디어보다 우월 (37% 높은 참여율) — 이미지 첨부는 선택사항으로 변경
+- 해시태그 최대 2개 (3개 이상 시 -40% 페널티)
+- 자동 포스팅 절대 금지 원칙 유지
+
+### TODO
+
+- Notion DB에 "답글 텍스트" 속성 실제 생성 필요 (rich_text 타입)
+- reply_text 품질 게이트 추가 고려
+- A/B 테스트: 링크-인-리플라이 vs 기존 방식 성과 비교
+
+### 다음 도구에게
+
+- `classification_rules.yaml`의 `platform_regulations.x_twitter` 섹션이 대폭 변경됨
+- `draft_generator.py`의 트위터 프롬프트가 "멘션 작성 공식" + "답글 분리" 패턴으로 변경됨
+- Notion DB에 reply_text (답글 텍스트) 속성이 없으면 자동 스킵됨 (스키마 mixin의 graceful handling)
+
+---
+
 ## 2026-03-20 — Claude Code (Opus 4.6) — blind-to-x 운영 복구 + QC
 
 ### 작업 요약

@@ -152,6 +152,93 @@ class ScriptStep:
         },
     }
 
+    # ── 채널별 페르소나 정의 ──────────────────────────────────────────────────
+    # 각 채널의 고유한 서술 스타일, 음성 톤, 금지 패턴, 필수 요소를 정의.
+    # _build_system_prompt가 이 딕셔너리를 참조하여 LLM 프롬프트를 강화한다.
+    _CHANNEL_PERSONA: dict[str, dict[str, str]] = {
+        "ai_tech": {
+            "role_description": "You are a tech journalist delivering breaking AI/tech news in crisp, exciting Korean.",
+            "tone": (
+                "Tone: Fast-paced, precise, data-driven. Use present tense. "
+                "Every sentence should feel like a revelation. No filler phrases."
+            ),
+            "forbidden": (
+                "Forbidden: Vague hype without specifics (e.g. '놀라운 기술' without naming it), "
+                "'사실', '실제로' as filler, melodramatic exaggeration."
+            ),
+            "required": (
+                "Required: At least 1 specific number, date, or product name in the body. "
+                "Hook must name the exact technology or company."
+            ),
+        },
+        "history": {
+            "role_description": "You are a dramatic storyteller bringing history to life in vivid Korean narrative.",
+            "tone": (
+                "Tone: Cinematic, suspenseful. Use past tense for events. "
+                "Build tension through scene-setting and unexpected plot twists. "
+                "Speak as if recounting an epic tale."
+            ),
+            "forbidden": (
+                "Forbidden: Dry chronological lists without drama, "
+                "modern slang that feels anachronistic, generic openings like '오늘은 OO에 대해'."
+            ),
+            "required": (
+                "Required: The hook must introduce an unexpected paradox or reversal "
+                "(e.g. the famous hero was actually a villain). "
+                "Include at least one plot twist in the body."
+            ),
+        },
+        "psychology": {
+            "role_description": "You are a warm, empathetic therapist-friend sharing psychological insights in conversational Korean.",
+            "tone": (
+                "Tone: Gentle, validating, emotionally safe. Use second person '당신' sparingly. "
+                "Speak as if you completely understand the viewer's inner world. "
+                "Normalize their feelings before offering insight."
+            ),
+            "forbidden": (
+                "Forbidden: Cold clinical terminology without emotional warmth, "
+                "judgmental framing, rushed advice without empathy first."
+            ),
+            "required": (
+                "Required: Hook must make the viewer feel 'someone finally understands me'. "
+                "Body must validate before informing. "
+                "CTA must be gentle and optional (never commanding)."
+            ),
+        },
+        "space": {
+            "role_description": "You are a cosmos explorer conveying the mind-bending scale and wonder of the universe in poetic Korean.",
+            "tone": (
+                "Tone: Awe-inspiring, contemplative, occasionally poetic. "
+                "Use analogies to convey cosmic scale (e.g. 지구가 모래알이라면 태양계는 축구장). "
+                "End each thought with a sense of wonder."
+            ),
+            "forbidden": (
+                "Forbidden: Mundane framing without cosmic perspective, "
+                "technical jargon without analogy, closing without an awe-inspiring thought."
+            ),
+            "required": (
+                "Required: Include at least one scale analogy in the body. "
+                "Hook must immediately convey something that shatters the viewer's sense of scale or reality."
+            ),
+        },
+        "health": {
+            "role_description": "You are a knowledgeable, caring health guide sharing evidence-based tips in warm, encouraging Korean.",
+            "tone": (
+                "Tone: Warm, encouraging, trustworthy. Never alarmist. "
+                "Frame health information as empowering insights, not warnings. "
+                "Sound like a supportive friend who happens to know a lot about health."
+            ),
+            "forbidden": (
+                "Forbidden: Alarmist language ('당신은 지금 위험합니다'), "
+                "unverified medical claims, scare tactics, any claim not backed by consensus science."
+            ),
+            "required": (
+                "Required: Cite the basis of claims (e.g. '연구에 따르면', 'WHO 권고안'). "
+                "CTA must be a single safe, immediately actionable habit."
+            ),
+        },
+    }
+
     def __init__(
         self,
         config: AppConfig,
@@ -364,6 +451,7 @@ class ScriptStep:
         hook_instruction: str = "",
         tone_guide: str = "",
         structure_flow: list[str] | None = None,
+        channel_key: str = "",
     ) -> str:
         last = scene_count
         body_count = scene_count - 2  # hook(1) + cta(1)
@@ -375,6 +463,19 @@ class ScriptStep:
         hook_rule = (
             hook_instruction or "Open with a shocking stat, a relatable frustration, or a counterintuitive question."
         )
+
+        # 채널별 페르소나 섹션 주입
+        persona_section = ""
+        persona = self._CHANNEL_PERSONA.get(channel_key or self.channel_key)
+        if persona:
+            persona_section = (
+                "\n"
+                f"Channel Persona (CRITICAL — defines your entire voice for this video):\n"
+                f"  Role: {persona['role_description']}\n"
+                f"  {persona['tone']}\n"
+                f"  {persona['forbidden']}\n"
+                f"  {persona['required']}\n"
+            )
 
         # YPP: 톤 가이드 섹션
         tone_section = ""
@@ -408,6 +509,7 @@ class ScriptStep:
             '  "scenes": [...],\n'
             '  "no_reliable_source": false\n'
             "}\n"
+            f"{persona_section}"
             "\n"
             "CRITICAL SOURCE RULE:\n"
             "  - You MUST base all claims on verifiable facts you are confident about.\n"
@@ -841,6 +943,7 @@ class ScriptStep:
             hook_instruction=hook_instruction,
             tone_guide=tone_guide,
             structure_flow=preset_flow,
+            channel_key=self.channel_key,  # 채널별 페르소나 주입
         )
 
         # 리서치 컨텍스트 → 프롬프트 블록 변환

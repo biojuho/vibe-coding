@@ -206,19 +206,27 @@ class RegulationChecker:
             severity="error" if content_len > max_len else "warning",
         )
 
-        # 2. 외부 링크 단독 여부
+        # 2. 외부 링크 감지 (본문에 링크 포함 시 30-50% 도달 감소)
         url_pattern = r"https?://\S+"
         urls = re.findall(url_pattern, content)
-        text_without_urls = re.sub(url_pattern, "", content).strip()
-        if urls and len(text_without_urls) < 30:
-            report.add(
-                "외부 링크 단독 게시 금지",
-                False,
-                "본문이 너무 짧고 링크만 포함됨 — 알고리즘 불이익",
-                severity="error",
-            )
+        if urls:
+            text_without_urls = re.sub(url_pattern, "", content).strip()
+            if len(text_without_urls) < 30:
+                report.add(
+                    "외부 링크 본문 포함 금지",
+                    False,
+                    "본문이 링크 위주 — 알고리즘 30-50% 도달 감소. 링크를 답글(reply)로 분리하세요.",
+                    severity="error",
+                )
+            else:
+                report.add(
+                    "외부 링크 본문 포함 금지",
+                    False,
+                    f"링크 {len(urls)}개 발견 — 답글(reply)로 분리해야 도달률이 높아집니다.",
+                    severity="warning",
+                )
         else:
-            report.add("외부 링크 단독 게시 금지", True, "정상")
+            report.add("외부 링크 본문 포함 금지", True, "정상 (링크 없음)")
 
         # 3. 해시태그 개수
         hashtags = re.findall(r"#\w+", content)

@@ -391,7 +391,7 @@ class DraftQualityGate:
                     "warning",
                 )
 
-        # ── 10. 훅 강도 검사 (twitter/threads만) ───────────────────────
+        # ── 10. 훅 강도 검사 (twitter/threads만, 참고용 info) ────────────
         if platform in ("twitter", "threads") and sentences:
             first_sentence = sentences[0]
             has_number = bool(re.search(r"\d", first_sentence))
@@ -405,9 +405,9 @@ class DraftQualityGate:
             if not hook_strong:
                 result.add(
                     "훅 강도",
-                    False,
-                    "첫 문장에 숫자/질문/대비/감정어가 없음 — 스크롤 정지력 약함",
-                    "warning",
+                    True,  # 통과 처리 (자연스러운 훅도 허용)
+                    "첫 문장에 숫자/질문/대비/감정어 미감지 — 참고사항",
+                    "info",
                 )
 
         # ── 11. 모호한 표현 검사 (구체성) ──────────────────────────────
@@ -423,12 +423,20 @@ class DraftQualityGate:
         for pattern, suggestion in vague_patterns:
             if re.search(pattern, text):
                 vague_found.append(suggestion)
-        if len(vague_found) >= 2:
+        if len(vague_found) >= 3:
+            # 3개 이상일 때만 실패 (자연어에서 1-2개는 허용)
             result.add(
                 "구체성 부족",
                 False,
                 f"모호한 표현 {len(vague_found)}개 — {vague_found[0]}",
                 "warning",
+            )
+        elif len(vague_found) >= 1:
+            result.add(
+                "구체성 참고",
+                True,  # 통과 (참고만)
+                f"모호한 표현 {len(vague_found)}개 감지 — 참고사항",
+                "info",
             )
 
         # strict_mode 처리

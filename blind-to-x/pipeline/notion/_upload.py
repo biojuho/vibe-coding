@@ -112,6 +112,8 @@ class NotionUploadMixin:
                 # P6: 멀티 플랫폼 초안 저장
                 self._append_property_if_present(properties, "threads_body", drafts.get("threads"))
                 self._append_property_if_present(properties, "blog_body", drafts.get("naver_blog"))
+                # 링크-인-리플라이: 답글 텍스트 저장
+                self._append_property_if_present(properties, "reply_text", drafts.get("reply_text"))
             else:
                 self._append_property_if_present(properties, "tweet_body", drafts)
 
@@ -179,6 +181,16 @@ class NotionUploadMixin:
                             }
                         )
                         children.extend(self._create_text_blocks(drafts["twitter"]))
+                    if drafts.get("reply_text"):
+                        children.append({"object": "block", "type": "divider", "divider": {}})
+                        children.append(
+                            {
+                                "object": "block",
+                                "type": "heading_3",
+                                "heading_3": {"rich_text": [{"type": "text", "text": {"content": "X 답글 (링크+해시태그)"}}]},
+                            }
+                        )
+                        children.extend(self._create_text_blocks(drafts["reply_text"]))
                     if drafts.get("threads"):
                         children.append({"object": "block", "type": "divider", "divider": {}})
                         children.append(

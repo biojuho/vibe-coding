@@ -31,7 +31,8 @@ _RULES_FILE = Path(__file__).parent.parent / "classification_rules.yaml"
 _brand_voice_cache: dict | None = None
 
 # 리뷰 통과 기준 (평균 이 점수 이상이면 원본 유지, 미만이면 리라이트)
-_REWRITE_THRESHOLD = 6.0
+# 5.0으로 낮춤: 6.0은 자연스러운 캡션도 과도하게 리라이트하여 경직되는 문제
+_REWRITE_THRESHOLD = 5.0
 _REVIEW_TIMEOUT_SECONDS = 15
 
 # Multi-provider fallback 설정
@@ -210,7 +211,7 @@ class EditorialReviewer:
 {{
   "scores": {{"hook": N, "specificity": N, "voice": N, "engagement": N, "readability": N}},
   "suggestions": ["개선 제안 1", "개선 제안 2"],
-  "rewritten": "평균 6점 미만일 경우에만 리라이트한 전체 초안. 6점 이상이면 빈 문자열."
+  "rewritten": "평균 5점 미만일 경우에만 리라이트한 전체 초안. 5점 이상이면 빈 문자열. 리라이트 시에도 원본의 자연스러운 톤을 유지하세요."
 }}"""
 
     async def _call_gemini_api(self, prompt: str, api_key: str, model: str) -> str:

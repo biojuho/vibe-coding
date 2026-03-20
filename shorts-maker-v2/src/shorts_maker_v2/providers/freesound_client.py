@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import os
+import random
 from pathlib import Path
 
 import requests
@@ -17,11 +18,18 @@ import requests
 logger = logging.getLogger(__name__)
 
 # 채널별 BGM 에너지 → Freesound 검색 태그 매핑
+# 키워드는 각 채널 분위기에 맞게 정밀 조정 (단순 generics 배제)
 BGM_ENERGY_TAGS: dict[str, str] = {
-    "high": "electronic upbeat energetic synthwave cyberpunk loop",
-    "medium": "cinematic orchestral background loop",
-    "calm": "calm ambient peaceful piano loop",
-    "epic": "epic orchestral cinematic dramatic loop",
+    # AI/기술: 사이버펑크 미래감 + 구동감
+    "high": "synthwave electronic driving futuristic cyberpunk upbeat loop",
+    # 역사: 다큐멘터리 오케스트라 + 서사적 긴장감  
+    "medium": "cinematic orchestral epic historical documentary tension background",
+    # 심리학: 따뜻하고 감성적인 피아노 + 앰비언트
+    "calm": "calm ambient warm piano emotional gentle healing loop",
+    # 우주: 한스 짐머 스타일 웅장함 + 광활한 공간감
+    "epic": "epic orchestral space cosmos wonder cinematic dramatic majestic",
+    # 건강: 밝고 긍정적인 어쿠스틱 — 실천 의지 고취
+    "warm_uplifting": "upbeat acoustic positive cheerful motivating healthy lifestyle loop",
 }
 
 # 채널 ID → BGM 에너지 기본값 (channel_profiles.yaml와 동기)
@@ -30,7 +38,7 @@ CHANNEL_BGM_ENERGY: dict[str, str] = {
     "psychology": "calm",
     "history": "medium",
     "space": "epic",
-    "health": "medium",
+    "health": "warm_uplifting",  # medium → warm_uplifting (밝고 편안한 톤)
 }
 
 
@@ -203,8 +211,13 @@ class FreesoundClient:
         if not results:
             raise RuntimeError(f"[Freesound] 검색 결과 없음 — channel={channel!r}, query={query!r}")
 
-        # 첫 번째 결과 사용
-        sound = results[0]
+        # 상위 결과 중 랜덤 선택 (다양성 확보 — 매번 같은 BGM 반복 방지)
+        sound = random.choice(results[:min(3, len(results))])
+        logger.info(
+            "[Freesound] 선택된 BGM: %r (%.1fs)",
+            sound.get("name", "unknown"),
+            sound.get("duration", 0),
+        )
         return self.download_preview(sound=sound, output_path=output_path)
 
     def download_sfx(

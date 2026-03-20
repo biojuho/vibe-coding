@@ -36,34 +36,68 @@ _OPENAI_TO_EDGE_VOICE: dict[str, str] = {
 }
 _DEFAULT_VOICE = "ko-KR-SunHiNeural"
 
+# ── 채널별 prosody 설정 ───────────────────────────────────────────────────────
+# (rate_jitter_range_pct, pitch_jitter_range_hz) — body 씬 기본값
+# 채널 특성에 맞게 변주 폭을 다르게 설정하여 AI 티를 줄인다.
+# rate 변주: 숫자가 클수록 속도 변화가 크고 생동감 있음
+# pitch 변주: 숫자가 클수록 음높이 변화가 크고 감성적임
+_CHANNEL_PROSODY: dict[str, tuple[int, int]] = {
+    # (rate_jitter_pct, pitch_jitter_hz)
+    "ai_tech":    (7, 2),   # 빠른 리듬감; rate 변주 ±7%, pitch 변주 소폭
+    "history":    (4, 3),   # 서사적 호흡; rate ±4%, pitch ±3Hz
+    "psychology": (3, 5),   # 공감·감성; rate 소폭, pitch ±5Hz로 부드럽게
+    "space":      (5, 4),   # 경이로움; 중간 리듬, pitch ±4Hz
+    "health":     (3, 2),   # 신뢰감; 안정적으로 변주 최소화
+}
+_DEFAULT_PROSODY: tuple[int, int] = (5, 3)  # 채널 미지정 시 기본값
+
 
 def _speed_to_rate(speed: float) -> str:
     pct = round((speed - 1.0) * 100)
     return f"+{pct}%" if pct >= 0 else f"{pct}%"
 
 
-def _get_role_prosody(role: str, base_rate: str = "+0%") -> tuple[str, str]:
+def _get_role_prosody(
+    role: str,
+    base_rate: str = "+0%",
+    channel_key: str = "",
+) -> tuple[str, str]:
     """역할 기반 rate/pitch 반환 (SSML 없이 파라미터 직접 사용).
 
-    body 역할에 ±3~5% rate, ±2Hz pitch 랜덤 변주를 적용하여
-    단조로운 AI 억양을 완화합니다.
+    hook/cta는 고정값, body는 채널별 prosody 테이블의 변주 폭으로
+    자연스러운 억양 변화를 적용한다.
+
+    Args:
+        role: 씬 역할 (hook / body / cta)
+        base_rate: 기본 속도 문자열 (예: "+10%")
+        channel_key: 채널 ID (예: 'psychology'). 빈 문자열이면 기본값 사용.
 
     Returns:
         (rate, pitch) 튜플
     """
     if role == "hook":
-        return "+15%", "+8Hz"
+        # Hook: 강렬하고 빠르게 — 채널별로 hook pitch 약간 변주
+        pitch_hook_map = {
+            "psychology": "+6Hz",   # 따뜻한 첫 인상
+            "history":    "+7Hz",   # 극적인 시작
+            "space":      "+5Hz",   # 경이감
+            "ai_tech":    "+10Hz",  # 임팩트있는 개시
+            "health":     "+6Hz",   # 친근한 시작
+        }
+        hook_pitch = pitch_hook_map.get(channel_key, "+8Hz")
+        return "+15%", hook_pitch
     if role == "cta":
         return "-10%", "+5Hz"
-    # body 및 기타 역할: 랜덤 변주 적용
+    # body 및 기타 역할: 채널별 변주 폭으로 자연스러운 억양 적용
     try:
         base_pct = int(base_rate.replace("%", "").replace("+", ""))
     except ValueError:
         base_pct = 0
-    jitter = random.randint(-5, 5)
+    rate_jitter, pitch_jitter = _CHANNEL_PROSODY.get(channel_key, _DEFAULT_PROSODY)
+    jitter = random.randint(-rate_jitter, rate_jitter)
     final_pct = base_pct + jitter
     rate = f"+{final_pct}%" if final_pct >= 0 else f"{final_pct}%"
-    pitch_hz = random.randint(-2, 3)
+    pitch_hz = random.randint(-pitch_jitter, pitch_jitter)
     pitch = f"+{pitch_hz}Hz" if pitch_hz >= 0 else f"{pitch_hz}Hz"
     return rate, pitch
 
@@ -277,6 +311,7 @@ class EdgeTTSClient:
         output_path: Path,
         words_json_path: Path | None = None,
         role: str = "body",
+        channel_key: str = "",
     ) -> Path:
         del model
 
@@ -289,9 +324,9 @@ class EdgeTTSClient:
         else:
             edge_voice = _OPENAI_TO_EDGE_VOICE.get(voice, _DEFAULT_VOICE)
 
-        # 역할별 rate/pitch 결정 (SSML 태그 없음)
+        # 채널별·역할별 rate/pitch 결정 (SSML 태그 없음)
         base_rate = _speed_to_rate(speed)
-        rate, pitch = _get_role_prosody(role, base_rate=base_rate)
+        rate, pitch = _get_role_prosody(role, base_rate=base_rate, channel_key=channel_key)
 
         # 시도 계획: 기본 음성 → 폴백 음성
         attempt_plan: list[tuple[str, str, str, str]] = [

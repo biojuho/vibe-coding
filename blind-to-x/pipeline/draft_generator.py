@@ -368,17 +368,20 @@ class TweetDraftGenerator:
                     recommended_draft_type=recommended_draft_type,
                 )
             else:
-                # Hardcoded fallback
-                twitter_block = f"""\n[트위터(X) 초안 작성 조건]
-1. 아래 3가지 초안을 모두 작성하세요.
-   - [공감형 트윗]
-   - [논쟁형 트윗]
-   - [정보전달형 트윗]
-2. 각 초안은 {self.max_length}자 이내로 작성하세요.
-3. 출처가 '{source}'임을 자연스럽게 드러내세요.
-4. 추천 초안 타입은 '{recommended_draft_type}'입니다. 이 타입은 가장 강하게 만드세요.
-5. 마지막 문장은 댓글이나 인용을 유도하는 질문 또는 한 줄 코멘트로 마무리하세요.
-6. 반드시 <twitter> 와 </twitter> 태그 안에만 작성하세요.
+                # Hardcoded fallback (natural caption focus, 2026)
+                twitter_block = f"""\n[트위터(X) 초안 — 편집 없이 바로 게시할 수 있게]
+
+당신은 30대 직장인이 퇴근 후 친구에게 카톡하듯 글을 씁니다.
+AI가 쓴 티가 나면 실패입니다. 사람이 실제로 치는 톡처럼 써야 합니다.
+
+[금지] 본문에 링크/해시태그 금지, 상투적 표현 금지, 원문에 없는 사실 날조 금지
+[자유] 짧아도 길어도 OK ({self.max_length}자 이내). 구조에 얽매이지 마세요.
+원문의 가장 재밌거나 충격적인 부분을 살리고, 끝은 답글이 달리게 마무리.
+출처 '{source}'를 자연스럽게 녹이세요.
+
+1. 3가지 초안 (공감형, 논쟁형, 정보전달형). 추천: '{recommended_draft_type}'
+2. <twitter> 와 </twitter> 태그 안에만 작성
+3. 답글 텍스트도 <reply> 와 </reply> 태그 (원문 링크 + 해시태그 1-2개)
 """
 
         # ── Newsletter 블록 (YAML 템플릿 우선) ────────────────────────
@@ -765,6 +768,14 @@ class TweetDraftGenerator:
         naver_blog_match = re.search(r"<naver_blog>(.*?)</naver_blog>", response_text, re.DOTALL)
         if naver_blog_match:
             drafts_dict["naver_blog"] = naver_blog_match.group(1).strip()
+
+        # ── 답글(Reply) 파싱 — 링크-인-리플라이 전략 ─────────────────
+        reply_match = re.search(r"<reply>(.*?)</reply>", response_text, re.DOTALL)
+        if reply_match:
+            drafts_dict["reply_text"] = reply_match.group(1).strip()
+        elif "twitter" in output_formats:
+            # reply 태그가 없으면 placeholder — process.py에서 원문 URL 주입
+            drafts_dict["reply_text"] = ""
 
         image_prompt = None
         prompt_match = re.search(r"<image_prompt>(.*?)</image_prompt>", response_text, re.DOTALL)

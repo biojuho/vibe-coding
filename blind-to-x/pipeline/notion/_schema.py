@@ -53,6 +53,8 @@ class NotionSchemaMixin:
         # P7: 규제 검증
         "regulation_status": "규제 검증",
         "screenshot_url": "스크린샷 URL",
+        # 링크-인-리플라이 답글 텍스트
+        "reply_text": "답글 텍스트",
     }
 
     PROP_ENV_OVERRIDES = {key: f"NOTION_PROP_{key.upper()}" for key in DEFAULT_PROPS}
@@ -96,6 +98,8 @@ class NotionSchemaMixin:
         # P7: 규제 검증
         "regulation_status": {"select", "rich_text"},
         "screenshot_url": {"url", "rich_text"},
+        # 링크-인-리플라이 답글 텍스트
+        "reply_text": {"rich_text"},
     }
 
     AUTO_DETECT_KEYWORDS = {
@@ -137,6 +141,8 @@ class NotionSchemaMixin:
         # P7: 규제 검증
         "regulation_status": ("regulation", "규제", "검증"),
         "screenshot_url": ("screenshot", "스크린샷", "Screenshot URL"),
+        # 링크-인-리플라이 답글 텍스트
+        "reply_text": ("reply", "답글", "답글 텍스트"),
     }
 
     TRACKING_QUERY_KEYS = {"fbclid", "gclid", "igshid", "ref", "ref_src", "ref_url", "feature"}

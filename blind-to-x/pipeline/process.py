@@ -490,6 +490,17 @@ async def process_single_post(
             drafts = drafts_output
             image_prompt = None
 
+        # ── 링크-인-리플라이: reply_text에 원문 URL 주입 ────────────────
+        if isinstance(drafts, dict) and "twitter" in output_formats:
+            reply_text = drafts.get("reply_text", "")
+            if not reply_text:
+                # LLM이 reply를 생성하지 않은 경우 기본 답글 생성
+                profile_topic = (profile or {}).get("topic_cluster", "직장인")
+                drafts["reply_text"] = f"원문: {url}\n#{profile_topic}"
+            elif reply_text and "(링크)" in reply_text:
+                # 플레이스홀더 치환
+                drafts["reply_text"] = reply_text.replace("(링크)", url)
+
         # ── B-5: 드래프트 품질 게이트 + 자동 재생성 루프 ─────────────────
         _MAX_QG_RETRIES = 2
         _qg_retry_count = 0
