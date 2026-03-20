@@ -9,6 +9,8 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+import contextlib
+
 from moviepy import (
     AudioFileClip,
     CompositeAudioClip,
@@ -20,34 +22,35 @@ from moviepy import (
     vfx,
 )
 from moviepy.audio.fx import MultiplyVolume
+from moviepy.audio import fx as afx
 
 from shorts_maker_v2.config import AppConfig
 from shorts_maker_v2.models import SceneAsset, ScenePlan
 from shorts_maker_v2.providers.llm_router import LLMRouter
 from shorts_maker_v2.providers.openai_client import OpenAIClient
+from shorts_maker_v2.render.animations import apply_text_animation
+
+# HUD 오버레이 비활성화 (깔끔한 화면 유지)
+from shorts_maker_v2.render.audio_postprocess import postprocess_tts_audio
+from shorts_maker_v2.render.broll_overlay import create_broll_pip
 from shorts_maker_v2.render.caption_pillow import (
-    CaptionStyle,
     _OUTLINE_THICKNESS_MAP,
+    CaptionStyle,
     apply_preset,
     calculate_safe_position,
     register_custom_styles,
     render_caption_image,
     resolve_channel_style,
 )
+from shorts_maker_v2.render.color_grading import color_grade_clip
 from shorts_maker_v2.render.karaoke import (
     apply_ssml_break_correction,
     build_keyword_color_map,
     group_word_segments,
-    group_into_chunks,
     load_words_json,
-    render_karaoke_image,
     render_karaoke_highlight_image,
+    render_karaoke_image,
 )
-from shorts_maker_v2.render.animations import apply_text_animation
-from shorts_maker_v2.render.broll_overlay import create_broll_pip
-from shorts_maker_v2.render.color_grading import color_grade_clip
-from shorts_maker_v2.render.hud_overlay import render_hud_overlay
-from shorts_maker_v2.render.audio_postprocess import postprocess_tts_audio
 
 # MoviePy 2.x: PIL.Image.ANTIALIAS hotfix no longer needed (Pillow native)
 
@@ -62,12 +65,12 @@ class RenderStep:
     # YPP: 역할별 자막 프리셋 조합 로테이션 (반복적 콘텐츠 방지)
     _CAPTION_COMBOS: list[tuple[str, str, str]] = [
         # (hook_preset, body_preset, cta_preset)
-        ("bold", "subtitle", "default"),    # 임팩트 → 영화적 → 깔끔
-        ("neon", "default", "subtitle"),     # 네온 → 깔끔 → 영화적
-        ("bold", "default", "neon"),         # 임팩트 → 깔끔 → 네온
-        ("neon", "subtitle", "bold"),        # 네온 → 영화적 → 임팩트
-        ("subtitle", "bold", "cta"),         # 영화적 → 임팩트 → CTA 특화
-        ("default", "neon", "bold"),         # 깔끔 → 네온 → 임팩트
+        ("bold", "subtitle", "default"),  # 임팩트 → 영화적 → 깔끔
+        ("neon", "default", "subtitle"),  # 네온 → 깔끔 → 영화적
+        ("bold", "default", "neon"),  # 임팩트 → 깔끔 → 네온
+        ("neon", "subtitle", "bold"),  # 네온 → 영화적 → 임팩트
+        ("subtitle", "bold", "cta"),  # 영화적 → 임팩트 → CTA 특화
+        ("default", "neon", "bold"),  # 깔끔 → 네온 → 임팩트
     ]
     _CHANNEL_STYLE_TUNING: dict[str, dict[str, int]] = {
         "ai_tech": {
@@ -185,7 +188,10 @@ class RenderStep:
 
         logger.info(
             "[RenderStep] 자막 combo — hook=%s, body=%s, cta=%s (channel=%r)",
-            combo[0], combo[1], combo[2], channel_key or "default",
+            combo[0],
+            combo[1],
+            combo[2],
+            channel_key or "default",
         )
 
     @staticmethod
@@ -194,6 +200,7 @@ class RenderStep:
             return {}
         try:
             from shorts_maker_v2.utils.channel_router import ChannelRouter
+
             return ChannelRouter().get_profile(channel_key)
         except Exception as exc:
             logger.warning("[RenderStep] 채널 프로파일 로드 실패: %s", exc)
@@ -219,13 +226,15 @@ class RenderStep:
         if channel_key:
             try:
                 from shorts_maker_v2.utils.channel_router import ChannelRouter
+
                 router = ChannelRouter()
                 profile = router.get_profile(channel_key)
                 combo_list = profile.get("caption_combo")
                 if combo_list and len(combo_list) == 3:
                     logger.info(
                         "[RenderStep] 채널 '%s' 전용 caption_combo 적용: %s",
-                        channel_key, combo_list,
+                        channel_key,
+                        combo_list,
                     )
                     return tuple(combo_list)  # type: ignore[return-value]
             except Exception as exc:
@@ -288,7 +297,6 @@ class RenderStep:
             return calculate_safe_position(target_height, clip.h, style, role)
         return max(80, int(target_height - clip.h - style.bottom_offset))
 
-
     def _render_static_caption(
         self,
         text: str,
@@ -297,20 +305,30 @@ class RenderStep:
         output_path: Path,
         role: str,
     ) -> Path:
-        """정적 자막 렌더링. hook 씬에서 TextEngine glow를 시도합니다."""
+        """정적 자막 렌더링. hook 씬에서 그라디언트+글로우를 시도합니다."""
         if role == "hook" and self._channel_key:
             try:
                 from ShortsFactory.engines.text_engine import TextEngine
 
                 channel_cfg = self._channel_profile or {}
                 engine = TextEngine(channel_cfg)
+                # 그라디언트 텍스트 우선 시도
+                try:
+                    return engine.render_gradient_text(
+                        text,
+                        role="hook",
+                        output_path=output_path,
+                    )
+                except Exception:
+                    pass
+                # 폴백: 글로우 자막
                 return engine.render_subtitle_with_glow(
                     text,
                     role="hook",
                     output_path=output_path,
                 )
             except Exception as exc:
-                logger.debug("[TextEngine] glow 폴백: %s", exc)
+                logger.debug("[TextEngine] glow/gradient 폴백: %s", exc)
         return render_caption_image(text, target_width, style, output_path)
 
     def _build_bookend_clip(self, path_str: str, duration: float, target_width: int, target_height: int):
@@ -331,6 +349,7 @@ class RenderStep:
     @staticmethod
     def _ken_burns(clip, target_width: int, target_height: int, zoom: float = 0.06):
         """이미지 클립에 서서히 줌인하는 켄번스 효과 적용."""
+
         def resize_func(t: float) -> float:
             return 1.0 + zoom * (t / max(clip.duration, 0.001))
 
@@ -345,6 +364,7 @@ class RenderStep:
     @staticmethod
     def _dramatic_ken_burns(clip, target_width: int, target_height: int, zoom: float = 0.12):
         """Hook 씬용 빠르고 강렬한 줌인 효과 (기본 zoom 2배)."""
+
         def resize_func(t: float) -> float:
             return 1.0 + zoom * (t / max(clip.duration, 0.001))
 
@@ -359,6 +379,7 @@ class RenderStep:
     @staticmethod
     def _zoom_out(clip, target_width: int, target_height: int, zoom: float = 0.06):
         """이미지 클립에 서서히 줌아웃하는 효과 적용."""
+
         def resize_func(t: float) -> float:
             return 1.0 + zoom * (1.0 - t / max(clip.duration, 0.001))
 
@@ -386,7 +407,7 @@ class RenderStep:
             cx = zw / 2 + direction * max_shift * progress
             x1 = int(max(0, cx - target_width / 2))
             y1 = int(max(0, y_center - target_height / 2))
-            return frame[y1:y1 + target_height, x1:x1 + target_width]
+            return frame[y1 : y1 + target_height, x1 : x1 + target_width]
 
         return zoomed.transform(make_frame).with_duration(clip.duration)
 
@@ -405,13 +426,14 @@ class RenderStep:
             cx = zw / 2 + max_shift * progress * speed / 0.04
             x1 = int(max(0, min(cx - target_width / 2, zw - target_width)))
             y1 = int(max(0, (zh - target_height) / 2))
-            return frame[y1:y1 + target_height, x1:x1 + target_width]
+            return frame[y1 : y1 + target_height, x1 : x1 + target_width]
 
         return zoomed.transform(make_frame).with_duration(clip.duration)
 
     @staticmethod
     def _push_in(clip, target_width: int, target_height: int, zoom: float = 0.08):
         """CTA 씬용 점진적 줌인 (긴박감 연출). ease-out 커브 적용."""
+
         def resize_func(t: float) -> float:
             progress = t / max(clip.duration, 0.001)
             # ease-out: 1 - (1-p)^2
@@ -450,20 +472,18 @@ class RenderStep:
             oy = int(offsets_y[idx] * decay)
             x1 = int(max(0, min(cx - target_width / 2 + ox, zw - target_width)))
             y1 = int(max(0, min(cy - target_height / 2 + oy, zh - target_height)))
-            return frame[y1:y1 + target_height, x1:x1 + target_width]
+            return frame[y1 : y1 + target_height, x1 : x1 + target_width]
 
         return zoomed.transform(make_frame).with_duration(clip.duration)
 
     @staticmethod
     def _ease_ken_burns(clip, target_width: int, target_height: int, zoom: float = 0.08):
         """ease-in-out Ken Burns (부드러운 시작/끝). Body 씬에 적합."""
+
         def resize_func(t: float) -> float:
             progress = t / max(clip.duration, 0.001)
             # ease-in-out: cubic
-            if progress < 0.5:
-                eased = 4 * progress ** 3
-            else:
-                eased = 1 - (-2 * progress + 2) ** 3 / 2
+            eased = 4 * progress**3 if progress < 0.5 else 1 - (-2 * progress + 2) ** 3 / 2
             return 1.0 + zoom * eased
 
         zoomed = clip.resized(resize_func)
@@ -546,12 +566,42 @@ class RenderStep:
     # 무드별 한국어 키워드 (파일명에도 활용)
     _MOOD_KEYWORDS: dict[str, list[str]] = {
         "dramatic": [
-            "블랙홀", "우주", "죽음", "사망", "재앙", "공포", "위험", "충격", "비밀",
-            "경고", "무서운", "진실", "폭발", "전쟁", "붕괴", "최후", "멸종",
+            "블랙홀",
+            "우주",
+            "죽음",
+            "사망",
+            "재앙",
+            "공포",
+            "위험",
+            "충격",
+            "비밀",
+            "경고",
+            "무서운",
+            "진실",
+            "폭발",
+            "전쟁",
+            "붕괴",
+            "최후",
+            "멸종",
         ],
         "upbeat": [
-            "돈", "절약", "성공", "방법", "비결", "팁", "건강", "행복", "성장",
-            "개선", "효과", "좋은", "최고", "쉬운", "간단", "빠른", "부자",
+            "돈",
+            "절약",
+            "성공",
+            "방법",
+            "비결",
+            "팁",
+            "건강",
+            "행복",
+            "성장",
+            "개선",
+            "효과",
+            "좋은",
+            "최고",
+            "쉬운",
+            "간단",
+            "빠른",
+            "부자",
         ],
     }
     # 파일명 기반 무드 감지 키워드
@@ -573,8 +623,8 @@ class RenderStep:
         """LLMRouter(7-provider fallback)로 BGM 무드 분류. 실패 시 None 반환."""
         _system = (
             "You classify YouTube Shorts topics into a BGM mood. "
-            "Choose exactly one: \"dramatic\", \"upbeat\", or \"calm\".\n"
-            "Output JSON: {\"mood\": \"...\"}"
+            'Choose exactly one: "dramatic", "upbeat", or "calm".\n'
+            'Output JSON: {"mood": "..."}'
         )
         _user = f"Topic: {text}"
 
@@ -642,7 +692,7 @@ class RenderStep:
         global_style = self.config.video.transition_style
 
         def _white_frame() -> ImageClip:
-    
+
             arr = np.ones((target_height, target_width, 3), dtype="uint8") * 255
             return ImageClip(arr, is_mask=False).with_duration(0.12)
 
@@ -653,11 +703,11 @@ class RenderStep:
             if pair in channel_mapping:
                 return random.choice(channel_mapping[pair])
             mapping: dict[tuple[str, str], list[str]] = {
-                ("hook", "body"):  ["flash", "glitch", "zoom", "rgb_split", "iris"],  # 강한 전환
-                ("hook", "cta"):   ["flash", "zoom", "iris"],                          # 직접 CTA
-                ("body", "body"):  ["crossfade", "slide", "wipe", "morph_cut"],        # 부드러운 흐름
-                ("body", "cta"):   ["crossfade", "slide", "zoom", "wipe"],             # 자연스러운 마무리
-                ("cta", "body"):   ["flash", "glitch", "rgb_split"],                   # 재시작 강조
+                ("hook", "body"): ["flash", "glitch", "zoom", "rgb_split", "iris"],  # 강한 전환
+                ("hook", "cta"): ["flash", "zoom", "iris"],  # 직접 CTA
+                ("body", "body"): ["crossfade", "slide", "wipe", "morph_cut"],  # 부드러운 흐름
+                ("body", "cta"): ["crossfade", "slide", "zoom", "wipe"],  # 자연스러운 마무리
+                ("cta", "body"): ["flash", "glitch", "rgb_split"],  # 재시작 강조
             }
             choices = mapping.get(pair, ["crossfade", "slide"])
             return random.choice(choices)
@@ -693,16 +743,38 @@ class RenderStep:
                 if not is_last:
                     result.append(_white_frame())
             elif style == "glitch":
-                # Glitch: 짧은 RGB 글리치 효과 (3프레임 흰+검 교대)
-        
-                glitch_frames = []
-                for _gi in range(3):
-                    color = 255 if _gi % 2 == 0 else 0
-                    arr = np.ones((target_height, target_width, 3), dtype="uint8") * color
-                    glitch_frames.append(ImageClip(arr, is_mask=False).with_duration(0.04))
+                # Glitch: RGB 채널 분리 + 흰색 플래시 (0.2초)
+                glitch_dur = 0.2
+
+                def _glitch_factory(_clip, _glitch_dur, _tw, _th):
+                    def _filter(get_frame, t):
+                        frame = get_frame(t)
+                        remaining = _clip.duration - t
+                        if remaining > _glitch_dur:
+                            return frame
+                        progress = 1.0 - (remaining / max(0.01, _glitch_dur))
+                        shift = int(18 * (1.0 - progress))
+                        if shift == 0:
+                            return frame
+                        out = np.copy(frame)
+                        # R 채널 오른쪽, B 채널 왼쪽 이동
+                        if shift < _tw:
+                            out[:, shift:, 0] = frame[:, :-shift, 0]
+                            out[:, :-shift, 2] = frame[:, shift:, 2]
+                        # 스캔라인 노이즈 (짝수 행)
+                        out[::2, :, :] = np.clip(
+                            out[::2, :, :].astype(np.int16) + int(30 * (1.0 - progress)), 0, 255
+                        ).astype(np.uint8)
+                        return out
+
+                    return _filter
+
+                clip = clip.transform(_glitch_factory(clip, glitch_dur, target_width, target_height))
                 result.append(clip)
                 if not is_last:
-                    result.extend(glitch_frames)
+                    # 짧은 흰색 플래시
+                    flash_arr = np.ones((target_height, target_width, 3), dtype="uint8") * 255
+                    result.append(ImageClip(flash_arr, is_mask=False).with_duration(0.06))
             elif style == "zoom":
                 # Zoom: 현재 클립 끝을 줌-아웃하며 전환
                 if fade_sec > 0 and not is_last:
@@ -720,7 +792,6 @@ class RenderStep:
                 result.append(clip)
             elif style == "wipe":
                 # Wipe: 왼→오 와이프 전환 (이전 클립 위에 다음 클립이 덮어감)
-        
 
                 if i > 0 and len(result) > 0:
                     wipe_dur = min(fade_sec * 2, 0.5)
@@ -728,6 +799,7 @@ class RenderStep:
 
                     def _wipe_mask_factory(_wipe_dur, _tw, _th):
                         _buf = np.zeros((_th, _tw), dtype="float32")
+
                         def _make_mask(t):
                             _buf[:] = 0
                             progress = min(1.0, t / max(0.01, _wipe_dur))
@@ -735,6 +807,7 @@ class RenderStep:
                             if reveal_w > 0:
                                 _buf[:, :reveal_w] = 1.0
                             return _buf
+
                         return _make_mask
 
                     wipe_mask = VideoClip(
@@ -754,13 +827,12 @@ class RenderStep:
                     result.append(clip)
             elif style == "iris":
                 # Iris: 원형으로 확장되며 등장 (아이리스 전환)
-        
 
                 iris_dur = min(fade_sec * 2, 0.4)
 
                 def _iris_filter_factory(_iris_dur, _tw, _th):
                     cx, cy = _tw / 2, _th / 2
-                    max_r = (_tw ** 2 + _th ** 2) ** 0.5 / 2
+                    max_r = (_tw**2 + _th**2) ** 0.5 / 2
                     # 거리 그리드 한 번만 계산
                     y_grid, x_grid = np.ogrid[:_th, :_tw]
                     _dist = np.sqrt((x_grid - cx) ** 2 + (y_grid - cy) ** 2)
@@ -774,13 +846,13 @@ class RenderStep:
                         mask = (_dist <= radius).astype(np.float32)
                         mask_3d = mask[:, :, np.newaxis]
                         return (frame.astype(np.float32) * mask_3d).astype(np.uint8)
+
                     return _filter
 
                 clip = clip.transform(_iris_filter_factory(iris_dur, target_width, target_height))
                 result.append(clip)
             elif style == "rgb_split":
                 # RGB Split: RGB 채널 분리 글리치 전환
-        
 
                 split_dur = min(fade_sec, 0.25)
 
@@ -798,6 +870,7 @@ class RenderStep:
                         out[:, shift:, 0] = frame[:, :-shift, 0]
                         out[:, :-shift, 2] = frame[:, shift:, 2]
                         return out
+
                     return _filter
 
                 clip = clip.transform(_rgb_split_factory(split_dur))
@@ -810,13 +883,16 @@ class RenderStep:
                         clip = clip.with_effects([vfx.FadeOut(morph_dur)])
                     if i > 0:
                         clip = clip.with_effects([vfx.FadeIn(morph_dur)])
+
                         # 약간의 줌인으로 시작 (1.05x → 1.0x)
                         def _morph_resize_factory(_morph_dur):
                             def _resize(t):
                                 if t >= _morph_dur:
                                     return 1.0
                                 return 1.05 - 0.05 * (t / max(0.01, _morph_dur))
+
                             return _resize
+
                         clip = clip.resized(_morph_resize_factory(morph_dur))
                 result.append(clip)
             else:  # cut
@@ -831,10 +907,7 @@ class RenderStep:
         """
         mood = self._classify_mood(text)
         mood_keys = self._BGM_MOOD_NAMES.get(mood, [])
-        matched = [
-            f for f in bgm_files
-            if any(k in f.stem.lower() for k in mood_keys)
-        ]
+        matched = [f for f in bgm_files if any(k in f.stem.lower() for k in mood_keys)]
         if matched:
             chosen = random.choice(matched)
             logger.info("[BGM] mood=%s → %s", mood, chosen.name)
@@ -842,6 +915,13 @@ class RenderStep:
         chosen = random.choice(bgm_files)
         logger.info("[BGM] mood=%s (no match, random fallback) → %s", mood, chosen.name)
         return chosen
+
+    @staticmethod
+    def _collect_bgm_files(bgm_dir: Path) -> list[Path]:
+        files: list[Path] = []
+        for pattern in ("*.mp3", "*.wav", "*.m4a", "*.aac"):
+            files.extend(bgm_dir.glob(pattern))
+        return sorted(files)
 
     # ── SFX 효과음 ──────────────────────────────────────────────────────────────
 
@@ -883,7 +963,7 @@ class RenderStep:
         sfx_clips: list = []
         volume = self.config.audio.sfx_volume
         cursor = 0.0
-        for i, (role, dur) in enumerate(zip(scene_roles, scene_durations)):
+        for i, (role, dur) in enumerate(zip(scene_roles, scene_durations, strict=False)):
             # Hook 씬 시작에 임팩트 SFX
             if role == "hook" and sfx_files.get("hook"):
                 sfx_path = random.choice(sfx_files["hook"])
@@ -919,6 +999,7 @@ class RenderStep:
             finally:
                 clip.close()
             from PIL import Image
+
             img = Image.fromarray(frame)
             output_path.parent.mkdir(parents=True, exist_ok=True)
             img.save(str(output_path), format="PNG")
@@ -974,18 +1055,10 @@ class RenderStep:
                 scene_roles.append("intro")
                 logger.info("[Intro] 인트로 삽입 (%.1fs): %s", io_cfg.intro_duration, intro_path)
 
-        # ── 제목 오버레이 이미지 준비 ──
-        title_overlay_clip = None
-        if title:
-            try:
-                title_img_path = run_dir / "title_overlay.png"
-                self._render_title_image(title, target_width, title_img_path)
-                title_overlay_clip = ImageClip(str(title_img_path)).with_duration(1.0)
-            except Exception as exc:
-                logger.warning("[Title] 제목 오버레이 생성 실패: %s", exc)
+        # ── 제목/HUD 오버레이 비활성화 (깔끔한 화면 유지) ──
 
         # ── 씬별 클립 빌드 ──
-        for plan, asset in zip(scene_plans, scene_assets):
+        for plan, asset in zip(scene_plans, scene_assets, strict=False):
             duration_sec = asset.duration_sec
             role = plan.structure_role
             scene_roles.append(role)
@@ -1020,19 +1093,14 @@ class RenderStep:
 
             # 3) 오디오 합성
             audio = AudioFileClip(asset.audio_path)
-            if audio.duration != duration_sec:
-                if audio.duration > duration_sec:
-                    audio = audio.subclipped(0, duration_sec)
+            if audio.duration != duration_sec and audio.duration > duration_sec:
+                audio = audio.subclipped(0, duration_sec)
                 # audio shorter than visual → visual에 맞춤 (음성 끝 자연 종료)
             _audio_clips_to_close.append(audio)
             base = base.with_audio(audio)
 
             # 4) 자막 오버레이
-            style = (
-                self.hook_style if role == "hook"
-                else self.cta_style if role == "cta"
-                else self.body_style
-            )
+            style = self.hook_style if role == "hook" else self.cta_style if role == "cta" else self.body_style
 
             # 카라오케 모드
             if style.mode == "karaoke":
@@ -1070,10 +1138,11 @@ class RenderStep:
                                 )
                                 highlight_clip = ImageClip(str(highlight_out), transparent=True)
                                 cap_clip = (
-                                    highlight_clip
-                                    .with_duration(wd)
+                                    highlight_clip.with_duration(wd)
                                     .with_start(ws)
-                                    .with_position(("center", self._caption_y(highlight_clip, target_height, style, role)))
+                                    .with_position(
+                                        ("center", self._caption_y(highlight_clip, target_height, style, role))
+                                    )
                                 )
                                 caption_clips.append(cap_clip)
                     else:
@@ -1084,38 +1153,45 @@ class RenderStep:
                             render_karaoke_image(chunk_text, target_width, style, cap_out)
                             caption_image = ImageClip(str(cap_out), transparent=True)
                             cap_clip = (
-                                caption_image
-                                .with_duration(cd)
+                                caption_image.with_duration(cd)
                                 .with_start(chunk_start)
                                 .with_position(("center", self._caption_y(caption_image, target_height, style, role)))
                             )
                             caption_clips.append(cap_clip)
 
                     if caption_clips:
-                        base = CompositeVideoClip([base] + caption_clips)
+                        base = CompositeVideoClip([base] + caption_clips, size=(target_width, target_height))
 
                 except Exception as kex:
                     logger.warning("[Karaoke] 카라오케 실패, 정적 자막 폴백: %s", kex)
                     cap_out = run_dir / f"caption_fallback_{plan.scene_id:02d}.png"
                     cap_img = self._render_static_caption(
-                        plan.narration_ko, target_width, style, cap_out, role,
+                        plan.narration_ko,
+                        target_width,
+                        style,
+                        cap_out,
+                        role,
                     )
                     cap_clip_img = ImageClip(str(cap_img), transparent=True)
                     cap_clip = cap_clip_img.with_duration(duration_sec).with_position(
                         ("center", self._caption_y(cap_clip_img, target_height, style, role))
                     )
-                    base = CompositeVideoClip([base, cap_clip])
+                    base = CompositeVideoClip([base, cap_clip], size=(target_width, target_height))
             else:
                 # 정적 자막 모드 — hook 씬에서 TextEngine glow 시도
                 cap_out = run_dir / f"caption_static_{plan.scene_id:02d}.png"
                 cap_img = self._render_static_caption(
-                    plan.narration_ko, target_width, style, cap_out, role,
+                    plan.narration_ko,
+                    target_width,
+                    style,
+                    cap_out,
+                    role,
                 )
                 cap_clip_img = ImageClip(str(cap_img), transparent=True)
                 cap_clip = cap_clip_img.with_duration(duration_sec).with_position(
                     ("center", self._caption_y(cap_clip_img, target_height, style, role))
                 )
-                base = CompositeVideoClip([base, cap_clip])
+                base = CompositeVideoClip([base, cap_clip], size=(target_width, target_height))
 
             # 5) 텍스트 애니메이션 (Hook 씬)
             if role == "hook":
@@ -1132,36 +1208,14 @@ class RenderStep:
             broll_path = run_dir / f"broll_{plan.scene_id:02d}.mp4"
             if broll_path.exists():
                 try:
-                    pip_clip = create_broll_pip(
-                        str(broll_path), duration_sec, target_width, target_height
-                    )
+                    pip_clip = create_broll_pip(str(broll_path), duration_sec, target_width, target_height)
                     if pip_clip is not None:
-                        base = CompositeVideoClip([base, pip_clip])
+                        base = CompositeVideoClip([base, pip_clip], size=(target_width, target_height))
                 except Exception:
                     pass
 
-            # 7) HUD 오버레이
-            try:
-                hud_clip = render_hud_overlay(
-                    width=target_width,
-                    height=target_height,
-                    duration=duration_sec,
-                    scene_index=plan.scene_id,
-                    total_scenes=len(scene_plans),
-                    role=role,
-                )
-                if hud_clip is not None:
-                    base = CompositeVideoClip([base, hud_clip])
-            except Exception:
-                pass
-
-            # 8) 제목 오버레이 (첫 번째 씬에만)
-            if title_overlay_clip is not None and plan.scene_id == 1:
-                try:
-                    title_clip = title_overlay_clip.with_position(("center", 80))
-                    base = CompositeVideoClip([base, title_clip])
-                except Exception:
-                    pass
+            # 7) HUD 오버레이 — 비활성화 (깔끔한 화면 유지)
+            # 8) 제목 오버레이 — 비활성화
 
             all_clips.append(base)
 
@@ -1184,93 +1238,24 @@ class RenderStep:
         # BGM 무드 매칭 + 오디오 Ducking (Sprint 4)
         bgm_dir = (run_dir.parent.parent / self.config.audio.bgm_dir).resolve()
         if bgm_dir.exists():
-            bgm_files = list(bgm_dir.glob("*.mp3"))
+            bgm_files = self._collect_bgm_files(bgm_dir)
             if bgm_files and final_video.audio is not None:
                 bgm_path = self._pick_bgm_by_mood(bgm_files, topic or title)
                 bgm_clip = AudioFileClip(str(bgm_path))
                 _bgm_clip = bgm_clip
-                bgm_clip = bgm_clip.with_effects([afx.AudioLoop(duration=final_video.duration)])
+                # AudioLoop is not available in moviepy 2.x — manual looping
+                target_dur = final_video.duration
+                if bgm_clip.duration and bgm_clip.duration < target_dur:
+                    repeats = int(target_dur / bgm_clip.duration) + 1
+                    from moviepy import concatenate_audioclips
+                    bgm_clip = concatenate_audioclips([bgm_clip] * repeats)
+                bgm_clip = bgm_clip.subclipped(0, target_dur)
 
-                # ── Sprint 4: RMS 기반 오디오 Ducking ──────────────────────
-                # TTS 나레이션의 RMS 에너지를 분석하여 BGM 볼륨을 동적 조절.
-                # 말소리 있을 때: BGM ↓ (duck_ratio), 침묵 시: BGM ↑ (base_vol)
-                base_vol = self.config.audio.bgm_volume      # 0.12
-                duck_ratio = 0.30                              # 발화 시 BGM = base_vol * 0.30
-                silence_boost = 1.8                            # 침묵 시 BGM = base_vol * 1.8
-                attack_sec = 0.20                              # duck 시작 속도 (빠르게 줄임)
-                release_sec = 0.40                             # duck 해제 속도 (천천히 올림)
-                rms_threshold = 0.01                           # 이 이상이면 "발화 중"
-
-                # TTS 오디오에서 RMS 에너지 프로파일 만들기
-                try:
-            
-                    tts_audio = final_video.audio
-                    # 100ms 단위로 RMS 샘플링
-                    sample_rate = 44100
-                    hop_sec = 0.05  # 50ms 단위
-                    total_dur = final_video.duration
-                    n_samples = max(1, int(total_dur / hop_sec))
-
-                    rms_profile: list[float] = []
-                    for i in range(n_samples):
-                        t_start = i * hop_sec
-                        t_end = min(t_start + hop_sec, total_dur)
-                        try:
-                            chunk = tts_audio.subclipped(t_start, t_end)
-                            frames = chunk.to_soundarray(fps=sample_rate)
-                            rms_val = float(np.sqrt(np.mean(frames ** 2)))
-                        except Exception:
-                            rms_val = 0.0
-                        rms_profile.append(rms_val)
-
-                    # 스무딩된 duck envelope 생성
-                    duck_envelope: list[float] = []
-                    current_duck = silence_boost  # 초기: 침묵 상태
-                    for rms_val in rms_profile:
-                        is_speech = rms_val > rms_threshold
-                        target = duck_ratio if is_speech else silence_boost
-                        # 지수적 접근 (attack/release 비대칭)
-                        if target < current_duck:
-                            # Ducking (빠르게)
-                            alpha = min(1.0, hop_sec / max(attack_sec, 0.01))
-                        else:
-                            # Release (천천히)
-                            alpha = min(1.0, hop_sec / max(release_sec, 0.01))
-                        current_duck += alpha * (target - current_duck)
-                        duck_envelope.append(current_duck)
-
-                    logger.info(
-                        "[DUCKING] RMS 프로파일 생성 완료: %d 샘플, "
-                        "평균 RMS=%.4f, duck 구간=%.0f%%",
-                        len(rms_profile),
-                        sum(rms_profile) / max(len(rms_profile), 1),
-                        sum(1 for r in rms_profile if r > rms_threshold) / max(len(rms_profile), 1) * 100,
-                    )
-
-                    # closure에서 참조할 값을 로컬 바인딩
-                    _envelope = list(duck_envelope)
-                    _hop = hop_sec
-                    _base = base_vol
-
-                    def _ducked_bgm_volume(t: float, _e=_envelope, _h=_hop, _b=_base) -> float:
-                        """RMS 기반 ducking 볼륨 계수."""
-                        if not _e:
-                            return _b
-                        idx = min(int(t / _h), len(_e) - 1)
-                        return _b * _e[max(0, idx)]
-
-                    bgm_clip = bgm_clip.transform(
-                        lambda get_frame, t: get_frame(t) * _ducked_bgm_volume(t),
-                        apply_to=["audio"],
-                    )
-                    logger.info("[DUCKING] 오디오 ducking 적용 완료")
-
-                except Exception as duck_exc:
-                    # Ducking 실패 시 기존 고정 볼륨 폴백
-                    logger.warning("[DUCKING] RMS 분석 실패, 고정 볼륨 폴백: %s", duck_exc)
-                    bgm_clip = bgm_clip.with_effects([
-                        MultiplyVolume(base_vol),
-                    ])
+                # BGM 볼륨 적용 (고정 볼륨)
+                # TODO: RMS 기반 ducking은 moviepy 2.x transform API 호환 후 재활성화
+                base_vol = self.config.audio.bgm_volume  # 0.12
+                bgm_clip = bgm_clip.with_effects([MultiplyVolume(base_vol)])
+                logger.info("[BGM] 고정 볼륨 적용: %.2f", base_vol)
 
                 mixed_audio = CompositeAudioClip([final_video.audio, bgm_clip])
                 final_video = final_video.with_audio(mixed_audio)
@@ -1287,7 +1272,8 @@ class RenderStep:
                     logger.info("[SFX] %d effects applied", len(sfx_clips))
 
         # HW 가속 인코더 자동 감지
-        from shorts_maker_v2.utils.hwaccel import detect_hw_encoder, detect_gpu_info
+        from shorts_maker_v2.utils.hwaccel import detect_gpu_info, detect_hw_encoder
+
         hw_codec, hw_params = detect_hw_encoder(self.config.video.hw_accel)
 
         # Sprint 3: GPU 정보 로깅
@@ -1295,7 +1281,9 @@ class RenderStep:
             gpu_info = detect_gpu_info()
             logger.info(
                 "[RENDER] GPU: %s | Encoder: %s | HW Decode: %s",
-                gpu_info["gpu_name"], gpu_info["encoder"], gpu_info["decoder_support"],
+                gpu_info["gpu_name"],
+                gpu_info["encoder"],
+                gpu_info["decoder_support"],
             )
         except Exception:
             pass
@@ -1305,8 +1293,10 @@ class RenderStep:
 
         if hw_codec == "libx264":
             ffmpeg_extra = [
-                "-crf", str(qp["crf"]),
-                "-pix_fmt", "yuv420p",
+                "-crf",
+                str(qp["crf"]),
+                "-pix_fmt",
+                "yuv420p",
             ]
             # Bitrate cap for YouTube optimization
             if qp["maxrate"]:
@@ -1353,18 +1343,12 @@ class RenderStep:
             # Phase 1-A: close ALL clips to prevent OOM in batch mode
             final_video.close()
             for clip in all_clips:
-                try:
+                with contextlib.suppress(Exception):
                     clip.close()
-                except Exception:
-                    pass
             for clip in _audio_clips_to_close:
-                try:
+                with contextlib.suppress(Exception):
                     clip.close()
-                except Exception:
-                    pass
             if _bgm_clip is not None:
-                try:
+                with contextlib.suppress(Exception):
                     _bgm_clip.close()
-                except Exception:
-                    pass
         return output_path
