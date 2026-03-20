@@ -95,6 +95,7 @@ channels:
     disclaimer: false
     intro_path: "assets/intros/ai_tech_intro.png"
     intro_duration: 2.0
+    outro_path: ""             # 아웃트로 비활성화
 
   # ────────────────────────────────────────────────────────
   # 🧠 토닥토닥 심리 — 심리학

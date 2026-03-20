@@ -1,5 +1,58 @@
 # 📋 AI 세션 로그
 
+## 2026-03-20 — Antigravity (영상 품질 대폭 개선)
+
+### 작업 요약
+프로젝트 전체 분석 후 **만들어놓은 고급 기능의 80%가 비활성화**되어 있다는 사실을 발견. config.yaml 설정 변경만으로 즉시 품질 향상.
+
+### 세부 변경사항
+
+#### 1. 품질 진단
+- 6개 엔진+18종 템플릿 → `use_shorts_factory=False` (전부 미사용)
+- 카라오케 자막 → `mode: "static"` (비활성화)
+- 인트로/아웃트로 → 에셋은 있으나 ai_tech 경로 미설정
+- LLM → MiMo(최저비용)가 1순위 (한국어 대본 품질 저하)
+- 인코딩 → `fast` preset (품질 절충)
+
+#### 2. config.yaml 4개 설정 변경 (Phase A)
+- `captions.mode`: `"static"` → `"karaoke"` (카라오케 하이라이트 자막 활성화)
+- `video.encoding_preset`: `"fast"` → `"medium"` (인코딩 품질 향상)
+- `video.transition_style`: `"crossfade"` → `"random"` (역할 기반 구조적 전환)
+- `providers.llm_providers`: google(Gemini 무료) → groq → mimo 순서로 변경
+
+#### 3. channel_profiles.yaml 수정 (Phase B)
+- `ai_tech.intro_path`: `""` → `"assets/intros/ai_tech_intro.png"` (인트로 활성화)
+- `ai_tech.intro_duration`: `0.0` → `2.0`
+- 나머지 4채널(psychology, history, space, health)은 이미 인트로 설정 완료 확인
+
+### 테스트 결과
+- **537 passed, 12 skipped, 0 failed** (회귀 없음)
+
+### 변경 파일
+- `config.yaml` — 4개 설정 변경 (카라오케, medium 인코딩, random 전환, LLM 순위)
+- `channel_profiles.yaml` — ai_tech 인트로 경로 활성화
+
+### 다음 도구에게 메모
+- **ShortsFactory는 아직 `use_shorts_factory=False`** — 렌더링 시간 증가 우려로 미활성화. 1개 채널 테스트 후 점진적 활성화 권장.
+- 카라오케 모드 전환 후 첫 영상 생성 시 글로우+하이라이트 출력 확인 필요
+- `medium` preset은 `fast` 대비 렌더링 ~2배 소요 예상
+- LLM 1순위가 Gemini로 변경됨 → 무료 tier quota 주의 (분당 10회 제한)
+- 리스크 LOW (config 변경만, 코드 수정 없음)
+
+---
+
+
+## 2026-03-20 — Antigravity (메모 전달)
+
+### 다음 도구에게 메모
+- ⚠️ **Python 재설치 시 훅 재패치 필요**: Python을 재설치하거나 버전을 변경하면 `.git/hooks/pre-commit`이 깨집니다. 아래 명령으로 복구하세요:
+  ```bash
+  python -c "from pre_commit.main import main; main(['install'])"
+  ```
+  그 후 `.git/hooks/pre-commit` 파일 내 Python 절대경로를 새 경로로 수정해야 합니다 (한국어 경로 이슈 참고: 이 로그의 2026-03-20 pre-commit 훅 PATH 수정 섹션).
+
+---
+
 ## 2026-03-20 — Antigravity (pre-commit 훅 PATH 수정)
 
 ### 작업 요약

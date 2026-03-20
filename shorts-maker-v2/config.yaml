@@ -21,17 +21,18 @@ video:
   fps: 30
   scene_video_duration_sec: 5
   aspect_ratio: "9:16"
-  transition_style: "random"   # "crossfade" | "flash" | "cut" | "random"
-  encoding_preset: "fast"      # ffmpeg preset: ultrafast/fast/medium/slow
+  transition_style: "random"      # 역할 기반 구조적 전환 (hook→body: flash/glitch, body→body: crossfade/slide)
+  encoding_preset: "medium"    # ffmpeg preset: ultrafast/fast/medium/slow (품질 우선)
   encoding_crf: 20             # 품질 기반 인코딩 (0=무손실, 20=고품질, 23=기본, 51=최저)
   hw_accel: "auto"             # "auto" | "nvenc" | "qsv" | "amf" | "none"
-  stock_mix_ratio: 0.5         # Body 씬 중 Pexels 스톡 영상 비율 (0.0~1.0)
+  stock_mix_ratio: 0.4         # 씬별 Pexels 스톡 영상 시도 비율 (0.0~1.0) — 이미지도 활용
 
 providers:
   llm: "openai"                  # 기본 LLM provider (llm_providers 없으면 이것만 사용)
-  llm_providers:                 # fallback 순서 (위→아래, 비용 효율 순)
-    - google                     # Gemini — 무료 tier
+  llm_providers:                 # fallback 순서 (위→아래, 품질+비용 균형)
+    - google                     # Gemini — 무료 tier, 한국어 품질 우수
     - groq                       # Groq — 무료 tier, 세계 최고속 추론
+    - mimo                       # MiMo V2-Flash — $0.10/Mi+$0.30/Mo, 309B MoE
     - deepseek                   # DeepSeek — 매우 저렴
     - moonshot                   # Moonshot Kimi — 저렴
     - zhipuai                    # ZhipuAI GLM — 무료
@@ -39,7 +40,8 @@ providers:
     - xai                        # Grok — 중간 비용
     - anthropic                  # Claude — 고품질 최종 폴백
   llm_models:                    # provider별 모델 매핑
-    openai: "gpt-4.1-mini"
+    mimo: "mimo-v2-flash"
+    openai: "gpt-4o-mini"
     google: "gemini-3.1-flash-lite-preview"
     anthropic: "claude-sonnet-4-20250514"
     xai: "grok-3-mini-fast"
@@ -50,7 +52,7 @@ providers:
   tts: "edge-tts"                    # "edge-tts"(무료) | "openai"(유료 $0.0008/s)
   visual_primary: "gemini-image"    # Gemini 무료 이미지 생성 (Imagen 3 API 404 이슈로 전환)
   visual_fallback: "openai-image"
-  llm_model: "gpt-4.1-mini"         # 단일 provider 사용 시 기본 모델
+  llm_model: "gpt-4o-mini"         # 단일 provider 사용 시 기본 모델
   tts_model: "tts-1-hd"             # edge-tts 사용 시 이 값은 무시됨
   tts_voice: "ko-KR-SunHiNeural"   # edge-tts: Neural 이름 직접 사용
   tts_voice_pool:                   # edge-tts 한국어 음성 풀 (6종 로테이션)
@@ -110,7 +112,7 @@ limits:
   request_timeout_sec: 120
 
 costs:
-  llm_per_job: 0.002             # gemini-3.1-flash-lite ($0.25/1Mi+$1.50/1Mo) 실측 기준
+  llm_per_job: 0.001             # MiMo V2-Flash ($0.10/1Mi+$0.30/1Mo) 실측 기준
   tts_per_second: 0.0             # edge-tts 무료 (openai 복귀 시 0.0008)
   veo_per_second: 0.35          # 실제 Gemini API 가격 (사용 안 함)
   image_per_scene: 0.02         # Imagen 3 실제 가격 (DALL-E 3은 $0.08)
@@ -122,22 +124,22 @@ paths:
   runs_dir: "runs"
 
 captions:
-  mode: "karaoke"           # "static" | "karaoke"
-  words_per_chunk: 3        # 카라오케: 한 번에 표시할 단어 수
-  font_size: 72
+  mode: "karaoke"           # "static" | "karaoke" — 카라오케 하이라이트 자막 활성화
+  words_per_chunk: 6        # static 모드: 한 번에 표시할 단어 수 (더 자연스럽게)
+  font_size: 72             # 적당한 크기
   margin_x: 60
-  bottom_offset: 280
-  text_color: "#FFFFFF"     # 카라오케: 흰색이 dark bg에 잘 보임
+  bottom_offset: 380        # 화면 하단 영역
+  text_color: "#FFFFFF"     # 흰색 텍스트
   stroke_color: "#000000"
-  stroke_width: 0           # 카라오케 모드에서는 bg box가 대신함
-  line_spacing: 12
-  bg_color: "#000000"       # 카라오케 배경 박스 색상
-  bg_opacity: 185           # 0-255 (185 ≈ 73% 불투명)
-  bg_radius: 18             # 배경 박스 모서리 둥글기
-  style_preset: "default"   # "default" | "neon" | "subtitle" | "bold"
-  hook_animation: "random"  # "random" | "typing" | "glitch" | "popup" | "none"
-  highlight_color: "#FFD700" # 카라오케 word-level highlight 색상 (금색)
-  highlight_mode: "word"     # "word" (단어별 하이라이트) | "chunk" (기존 청크 모드)
+  stroke_width: 8           # 굵은 검정 아웃라인 (가독성 향상)
+  line_spacing: 14
+  bg_color: "#000000"       # 사용 안 함 (opacity=0)
+  bg_opacity: 0             # 배경 박스 완전 제거
+  bg_radius: 0              # 배경 없음
+  style_preset: "bold"      # "default" | "neon" | "subtitle" | "bold"
+  hook_animation: "none"    # 인트로 애니메이션 없음
+  highlight_color: "#FFD700" # 하이라이트 색상
+  highlight_mode: "chunk"   # "chunk" (청크 모드)
   font_candidates:
     - "C:/Windows/Fonts/malgunbd.ttf"
     - "C:/Windows/Fonts/malgun.ttf"
