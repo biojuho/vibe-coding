@@ -1,5 +1,171 @@
 # Blind-to-X 세션 로그
 
+## 2026-03-20 — Claude Code (Opus 4.6), 세션 6: 운영 복구 + QC
+
+### 작업 요약
+파이프라인 미동작 진단 → 운영 설정 6건 수정. 코드는 건전(454 테스트 통과), Gemini 쿼타 소진 + 설정 문제가 원인.
+
+### 변경 파일
+
+| 구분 | 파일 | 설명 |
+|------|------|------|
+| **수정** | `config.yaml:122` | OpenAI 모델명 `gpt-4.1-mini` → `gpt-4o-mini` |
+| **수정** | `pipeline/editorial_reviewer.py` | Gemini 단일 → **multi-provider fallback** (DeepSeek/Gemini/xAI). dead code `_REVIEW_MODEL` 제거, docstring 갱신 |
+| **수정** | `pipeline/text_polisher.py:43-49` | kiwipiepy 모델 복사 `os.listdir` → `shutil.copytree` (하위 디렉토리 포함 재귀 복사) |
+| **수정** | `tests/unit/test_quality_improvements.py` | `reviewer.api_key=None` → `reviewer._providers=[]` (2곳) |
+| **신규** | `run_pipeline.bat` | Task Scheduler용 bat 래퍼 |
+| **신규** | `register_task.ps1` | Task Scheduler 등록 PowerShell 스크립트 |
+
+### 진단 결과
+
+| 우선순위 | 문제 | 조치 |
+|---------|------|------|
+| P0 | Gemini API 429 RESOURCE_EXHAUSTED | 키 유효, 일일 쿼타 소진 (자동 리셋). DeepSeek이 이미 1순위 |
+| P0 | config.yaml `gpt-4.1-mini` 오타 | `gpt-4o-mini`로 수정 |
+| P1 | editorial_reviewer.py Gemini 단일 provider | 3-provider fallback 구현 |
+| P1 | Windows Task Scheduler 태스크 누락 | `BlindToX_Pipeline` 등록 (3시간 간격) |
+| P1 | Telegram 환경변수 미설정 | 사용자 나중에 설정 예정 |
+| P2 | kiwipiepy `extract.mdl` 로드 실패 | `shutil.copytree` 재귀 복사로 수정 |
+
+### QC 결과 (6항목 전 PASS)
+- 코드 리뷰: dead code 제거, docstring 정확성
+- 보안: API key 로그 미노출 확인
+- 엣지 케이스: config=None, 빈 providers 안전
+- 단위 테스트: **454 passed**, 0 failed
+- dry-run: 파이프라인 정상 (Blind 4 + Ppomppu 5 + FMKorea 2건 수집, 1건 처리 성공)
+
+### 결정사항
+- D-025: editorial_reviewer는 config.yaml의 `llm.providers` 순서를 존중하되, gemini/deepseek/xai만 지원
+- D-026: Gemini 무료 쿼타 소진은 fallback으로 해결, 별도 유료 플랜 전환 불필요
+
+### 다음 도구에게
+- Telegram 환경변수 (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`) 미설정 상태
+- Jobplanet DNS 실패 — 네트워크 이슈 또는 API 엔드포인트 변경 가능성 확인 필요
+- `register_task.ps1`, `run_pipeline.bat`는 `.gitignore` 추가 고려
+
+---
+
+## 2026-03-20 — Claude Code (Claude Opus 4.6), 세션 5
+
+### 작업 요약
+
+GitHub OSS 리서치 → 4대 업그레이드 구현: Crawl4AI LLM 추출 폴백, 감성 분석 트래커, AI 바이럴 필터, 일일 다이제스트 자동 발송. QC 4개 에이전트 병렬 리뷰 → 19건 발견 16건 수정.
+
+### 변경 파일
+
+| 구분 | 파일 | 설명 |
+|------|------|------|
+| **신규** | `scrapers/crawl4ai_extractor.py` | Crawl4AI LLM 기반 구조화 추출 (JSON schema, Gemini Flash) |
+| **신규** | `pipeline/sentiment_tracker.py` | 10개 감정×90+ 키워드, SQLite 영속, spike 감지 |
+| **신규** | `pipeline/viral_filter.py` | Gemini Flash 5차원 바이럴 스코어링 (hook/relatability/share/controversy/timely) |
+| **신규** | `pipeline/daily_digest.py` | Notion 집계 → AI 요약 → Telegram/뉴스레터 발송 |
+| **신규** | `tests/unit/test_new_features.py` | 28개 테스트 (Crawl4AI 5 + Sentiment 8 + Viral 5 + Digest 8 + Integration 2) |
+| **수정** | `scrapers/base.py` | `_get_crawl4ai_extractor()` 싱글톤 + `_extract_with_crawl4ai()` 폴백 메서드 |
+| **수정** | `scrapers/blind.py` | CSS 셀렉터 전부 실패 시 Crawl4AI LLM 폴백 자동 실행 |
+| **수정** | `pipeline/process.py` | P2.5 감성 트래킹 + P2.7 바이럴 필터 통합, ViralFilter 싱글톤 |
+| **수정** | `main.py` | `--digest`, `--digest-date`, `--sentiment-report` CLI + 자동 다이제스트 발송 |
+| **수정** | `config.example.yaml` | crawl4ai, viral_filter, sentiment, digest 4개 섹션 추가 |
+| **수정** | `config.ci.yaml` | CI 설정 동기화 |
+| **수정** | `requirements.txt` | crawl4ai>=0.4.0, google-generativeai>=0.8.0, httpx>=0.27.0 추가 |
+
+### QC 수정 (19건 발견 → 16건 수정, 3건 보류)
+
+| 이슈 | 파일 | 수정 내용 |
+|------|------|-----------|
+| `genai.configure()` 글로벌 경합 | crawl4ai, viral, digest | `genai.Client()` 인스턴스 패턴 (3곳) |
+| LLM 출력 타입 안전성 | crawl4ai | `_safe_str()`, `_safe_int()` 헬퍼 |
+| 타임아웃 누락 | crawl4ai | `asyncio.wait_for()` 래핑 |
+| 데드락 위험 | sentiment | `threading.Lock` → `RLock` |
+| 싱글톤 경합 | sentiment | double-check lock 패턴 |
+| 바이럴 점수 클램핑 | viral_filter | 0-10 범위 강제 |
+| Notion 페이지네이션 | daily_digest | `has_more`/`next_cursor` 루프 |
+| Telegram MD 인젝션 | daily_digest | `_escape_telegram_md()` |
+| per-entry 에러 핸들링 | daily_digest | 한 건 실패 시 전체 유지 |
+| double page.close() | blind.py | explicit close 제거 |
+| ViralFilter 매 호출 생성 | process.py | 모듈 싱글톤 |
+
+### 결과
+
+- 테스트: **423 passed** (395 기존 + 28 신규), 15 skipped, 0 failures
+- 신규 의존성: crawl4ai, google-generativeai, httpx (전부 무료 tier)
+- 파이프라인 단계 추가: P2.5(감성 트래킹), P2.7(바이럴 필터)
+- CLI 추가: `--digest`, `--digest-date`, `--sentiment-report`
+
+### 결정사항
+
+- D-021: Crawl4AI LLM 추출은 CSS→자동수리→trafilatura→Crawl4AI 최종 폴백
+- D-022: 바이럴 필터 threshold 40점, 실패 시 permissive default
+- D-023: 감성 트래커 10개 감정 카테고리, 30일 보관
+- D-024: 일일 다이제스트 Notion 집계 → Gemini 요약 → Telegram
+- D-025: Gemini API는 `genai.Client()` 인스턴스 패턴 (글로벌 상태 경합 방지)
+
+### 다음 도구에게 메모
+
+- `crawl4ai_extractor.py`는 crawl4ai 미설치 시 graceful degradation (폴백 스킵)
+- `viral_filter.py`는 Gemini API 키 없으면 default pass (오탐 방지)
+- `sentiment_tracker.py`는 RLock 사용 (재귀 안전), singleton은 double-check lock
+- `daily_digest.py`는 Notion 페이지네이션 처리 완료 (>100건 대응)
+- Gemini API 호출은 반드시 `google.genai.Client(api_key=)` 인스턴스 사용 (D-025)
+- `process.py`의 `_viral_filter_instance`는 모듈 싱글톤 (global 선언 필요)
+
+---
+
+## 2026-03-20 — Claude Code (Claude Opus 4.6), 세션 4
+
+### 작업 요약
+
+GitHub 프로젝트 리서치 → 5개 OSS 도입 (kiwipiepy, trafilatura, datasketch, camoufox, KOTE) + 품질 게이트/검증 래퍼 신규 개발. Phase 1~3 총 3단계 실행, QC 2건 수정.
+
+### 변경 파일
+
+| Phase | 파일 | 설명 |
+|-------|------|------|
+| **1-A** | `requirements.txt` | kiwipiepy, trafilatura, datasketch, camoufox[geoip] 추가 |
+| **1-B 신규** | `pipeline/text_polisher.py` | kiwipiepy 맞춤법+띄어쓰기 교정 + 가독성 점수 (0-100) |
+| **1-C** | `scrapers/base.py` | `_extract_clean_text()` 정적 메서드 (trafilatura) |
+| **1-D** | `scrapers/blind.py`, `fmkorea.py`, `ppomppu.py` | 셀렉터 실패 시 trafilatura 폴백 추가 |
+| **1-E** | `pipeline/editorial_reviewer.py` | LLM 리뷰 후 text_polisher 후처리 단계 추가 |
+| **1-F** | `pipeline/process.py` | 가독성 점수 메타데이터 기록 |
+| **2-A** | `pipeline/dedup.py` | MinHash LSH 가속 경로 추가 (datasketch, O(n²)→O(n)) |
+| **2-B 신규** | `pipeline/quality_gate.py` | 7축 하드 게이트 (길이/독성/PII/클리셰/금지/반복/충실도) |
+| **2-C 신규** | `pipeline/draft_validator.py` | 게이트 실패 시 자동 수정 프롬프트 + LLM 재시도 래퍼 |
+| **2-D** | `pipeline/process.py` | `validate_and_fix_drafts()` 호출 삽입 |
+| **3-A** | `scrapers/base.py` | Camoufox Firefox 우선 → Chromium 폴백 (`browser.engine` config) |
+| **3-B 신규** | `pipeline/emotion_analyzer.py` | KOTE 44차원 감정 분석 (EmotionProfile, valence/arousal) |
+| **3-C** | `pipeline/content_intelligence.py` | `classify_emotion_axis()` KOTE 우선 → 키워드 폴백 |
+| **3-D** | `pipeline/process.py` | emotion_profile 메타데이터 기록 |
+| **QC** | `pipeline/fact_checker.py` | 복합 한국어 단위 파싱 재귀 처리 ("5천만원"→50000000) |
+| **QC** | `pipeline/quality_gate.py` | 전화번호 정규식 오탐 수정 + YAML 캐시 통합 |
+| **테스트** | `tests/unit/test_text_polisher.py` | 신규 19건 (가독성, 폴백, trafilatura) |
+| **테스트** | `tests/unit/test_quality_gate.py` | 신규 17건 (게이트 9 + MinHash 6 + validator 2) |
+| **테스트** | `tests/unit/test_phase3.py` | 신규 11건 (Camoufox 3 + KOTE 6 + 폴백 2) |
+| **테스트** | `tests/unit/conftest.py` | non-ASCII 경로 Kiwi segfault 방지 |
+
+### 결과
+
+- 테스트: **379 passed**, 4 skipped, 0 failures (335 → 379, +44건)
+- 도입 OSS 5개 전부 $0 운영 비용 유지
+- 파이프라인 단계: 스크래핑→[trafilatura]→[KOTE 감정]→초안→에디토리얼→[text_polisher]→팩트검증→[가독성]→[품질게이트→자동수정]→이미지→게시
+
+### 결정사항
+
+- D-016: Camoufox는 `browser.engine` config가 "chromium"이 아닌 한 기본 사용 (auto/firefox)
+- D-017: 품질 게이트 failure는 -20점, warning은 -5점 (failures>0이면 불통과)
+- D-018: KOTE 감정 분석은 confidence>=0.5일 때만 키워드 폴백 대체
+- D-019: MinHash LSH는 후보 4건 이상일 때만 활성화 (소규모 배치는 기존 Jaccard)
+- D-020: text_polisher의 kiwipiepy non-ASCII 경로 문제는 %TEMP%/kiwi_model로 자동 복사하여 우회
+
+### 다음 도구에게 메모
+
+- `text_polisher.py`는 kiwipiepy 미설치 시 graceful degradation (교정 스킵, 가독성은 정규식 폴백)
+- `emotion_analyzer.py`는 transformers + torch 필요 (미설치 시 키워드 폴백으로 자동 전환)
+- `quality_gate.py`는 `classification_rules.yaml`의 `cliche_watchlist`와 `brand_voice.forbidden_expressions` 의존
+- `draft_validator.py`의 `_call_llm_with_fallback`은 DraftGenerator 인스턴스 메서드 — generator=None이면 재시도 스킵
+- Camoufox Firefox 바이너리는 `py -3 -m camoufox fetch`로 별도 다운로드 필요
+- Windows non-ASCII 사용자명 환경에서 kiwipiepy C 확장 segfault → conftest.py에 dummy 모듈 주입으로 테스트 보호
+
+---
+
 ## 2026-03-19 — Claude Code (Claude Opus 4.6), 세션 3
 
 ### 작업 요약
@@ -540,3 +706,63 @@ Blind-to-X 콘텐츠 파이프라인 전면 고도화. 4단계(P0~P3) 작업 완
 - `newsletter_scheduler.py`는 `publish_optimizer.py`와 연동되어 최적 시간대 추천
 - `image_ab_tester.py`는 `image_generator.py`의 `_TOPIC_IMAGE_STYLES`를 직접 참조
 - 전체 165개 테스트 — 새 기능 추가 시 반드시 `python -m pytest tests_unit/ -q` 실행
+
+
+---
+
+## Session: 2026-03-19 16:30 | Tool: Antigravity (Gemini)
+
+### 작업 요약
+- blind-to-x 개선 계획 수립 및 즉시 실행 (Area 1 + Area 2 완료)
+
+### 변경 파일
+- lind-to-x/config.yaml: output_formats에 naver_blog 추가, LLM 폴백 순서 DeepSeek 1순위로 변경
+
+### 주요 발견 사항
+- Task Scheduler (BlindToX_0500~2100) 이미 정상 작동 중: 오늘 0500/0900/1300 실행 확인
+- Gemini API 일일 20건 한도 초과가 반복됨 → DeepSeek 1순위로 재정렬로 해결
+- 1300 로그: OK 3 / FAIL 0 (파이프라인 실제로 돌아가고 있었음)
+- naver_blog가 output_formats에 누락되어 있었음 → 추가 완료
+
+### TODO
+- Notion에 5개 뷰 실제 생성 (notion_operations_guide.md 참조)
+- 발행 시작 (검토필요 → 승인됨 → 플랫폼별 발행)
+
+### 다음 AI에게
+- 파이프라인은 정상 작동 중. 이제 실제 콘텐츠 발행을 시작하면 됨.
+- Area 3(초안 품질) Area 4(수익화) 는 발행 데이터 쌓인 후 진행
+
+
+---
+
+## Session: 2026-03-19 20:00 | Tool: Antigravity (Gemini)
+
+### 작업 요약
+blind-to-x 개선 계획 수립 및 Area 1~2 즉시 실행, QC 완료
+
+### 변경 파일
+- `config.yaml`: output_formats에 naver_blog 추가, LLM 폴백 순서 DeepSeek 1순위로 변경
+- `.env`: Gemini API 키 교체 (blind-to-x 전용, 루트 .env 영향 없음)
+- `pipeline/utils.py`: W293 trailing whitespace 수정 (ruff QC)
+
+### 주요 발견 사항
+- Task Scheduler 5개(BlindToX_0500~2100) 이미 정상 작동 중: 오늘 0500/0900/1300 실행 확인, OK 3/FAIL 0
+- Gemini API 일일 20건 한도 초과가 반복됨. 구 API 키 문제 가능성. 새 키로 교체 완료
+- naver_blog가 output_formats에 빠져 있어 블로그 초안이 생성 안 됐음 → 추가 완료
+- 파이프라인은 이미 살아있음. 남은 것은 Notion 뷰 구성 + 실제 발행 시작
+
+### QC 결과
+- 테스트: 370 passed, 0 failed
+- ruff: W293 1건 수정 후 클린
+- 최종 판정: ✅ 승인
+
+### TODO
+- Notion 5개 뷰 실제 생성 (notion_operations_guide.md 참고)
+- 발행 시작 (검토필요 → 승인됨 → 플랫폼별 발행)
+- Area 3(초안 품질), Area 4(수익화)는 발행 데이터 충분히 쌓인 뒤 진행
+
+### 다음 AI에게
+- 파이프라인은 정상 작동 중 (실운영 로그 확인됨)
+- LLM 순서: DeepSeek 1순위 → Gemini 2순위 (Gemini 쿼터 문제로 변경)
+- Gemini API 키 새로 교체됨 (AIzaSyBxqyq72V...)
+- naver_blog output_format 활성화됨. Notion DB에 `블로그 본문` 필드 있는지 확인 권장

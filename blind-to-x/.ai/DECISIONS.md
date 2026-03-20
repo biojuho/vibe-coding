@@ -58,3 +58,42 @@
 - **이유**: 트렌드 시의성 반영으로 콘텐츠 적시성 향상. 무료 API로 비용 부담 없음
 - **설정**: `trends.enabled`, `spike_threshold: 80.0`, `cache_ttl_minutes: 10`
 
+## [D-021] Crawl4AI LLM 추출 폴백
+- **일자**: 2026-03-20
+- **결정**: CSS 셀렉터 전부 실패 시 Crawl4AI LLM 추출을 최종 폴백으로 사용
+- **이유**: 사이트 레이아웃 변경에 대한 근본적 내성. Gemini Flash(무료)로 비용 $0
+- **폴백 체인**: CSS 셀렉터 → 자동 수리 → trafilatura → Crawl4AI LLM
+- **설정**: `crawl4ai.provider`, `crawl4ai.timeout_seconds`
+
+## [D-022] AI 바이럴 필터 (P2.7)
+- **일자**: 2026-03-20
+- **결정**: 드래프트 생성 전 Gemini Flash로 5차원 바이럴 잠재력 스코어링, threshold 미만 자동 필터링
+- **이유**: 노이즈 글에 대한 LLM 드래프트 비용 절감. 10초 타임아웃 + 실패 시 permissive default
+- **설정**: `viral_filter.enabled`, `viral_filter.threshold: 40.0`
+
+## [D-023] 감성 분석 트래커
+- **일자**: 2026-03-20
+- **결정**: 10개 감정 카테고리 × 90+ 한국어 키워드로 감정 신호 SQLite 영속, 시간 윈도우 vs 베이스라인 spike 감지
+- **이유**: "지금 뜨는 감정" 실시간 감지 → 콘텐츠 전략 데이터 제공
+- **설정**: `sentiment.enabled`, `sentiment.retention_days: 30`
+
+## [D-024] 일일 다이제스트 자동 발송
+- **일자**: 2026-03-20
+- **결정**: RSSbrew 스타일 일일 다이제스트 — Notion 집계 → Gemini AI 요약 → Telegram 발송
+- **이유**: 수집 결과를 자동 정리하여 운영자에게 일일 브리핑 제공
+- **설정**: `digest.enabled`, `digest.max_entries: 10`, `digest.telegram_enabled`
+
+## [D-025] Gemini API 호출 패턴: genai.Client() 인스턴스
+- **일자**: 2026-03-20
+- **결정**: `genai.configure()` (글로벌 상태) 대신 `genai.Client(api_key=)` 인스턴스 패턴 사용
+- **이유**: 동시 실행 시 API 키 경합 방지. QC에서 발견된 thread safety 이슈
+
+## [D-026] Editorial Reviewer Multi-Provider Fallback
+- **일자**: 2026-03-20
+- **결정**: editorial_reviewer.py에 Gemini/DeepSeek/xAI 3-provider fallback 적용. config.yaml의 `llm.providers` 순서를 존중하되, 지원 provider만 필터
+- **이유**: Gemini 무료 쿼타 소진 시 editorial review 전체 스킵되는 문제. 별도 유료 플랜 전환 불필요
+
+## [D-027] kiwipiepy Non-ASCII 경로: shutil.copytree 재귀 복사
+- **일자**: 2026-03-20
+- **결정**: 모델 디렉토리를 `shutil.copytree`로 재귀 복사 (기존 `os.listdir` + `copy2`는 하위 디렉토리 누락)
+- **이유**: `extract.mdl` 등이 하위 디렉토리에 있을 수 있어 평면 복사로는 불충분

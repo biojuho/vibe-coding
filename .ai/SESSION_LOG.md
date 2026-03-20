@@ -1,3 +1,19 @@
+## 2026-03-20 — Claude Code (Opus 4.6) — blind-to-x 운영 복구 + QC
+
+### 작업 요약
+
+blind-to-x 파이프라인 미동작 진단 → 운영 설정 6건 수정. Gemini 쿼타 소진 + config 오타 + editorial_reviewer 단일 provider가 원인. multi-provider fallback 구현, kiwipiepy 경로 우회 개선, Task Scheduler 등록.
+
+### 변경 파일
+
+- `blind-to-x/config.yaml` (모델명 수정), `pipeline/editorial_reviewer.py` (3-provider fallback), `pipeline/text_polisher.py` (copytree), `tests/unit/test_quality_improvements.py`, `run_pipeline.bat` (NEW), `register_task.ps1` (NEW)
+
+### 검증
+
+- 454 passed, 0 failed, dry-run 성공
+
+---
+
 ## 2026-03-20 — Claude Code (Opus 4.6) — blind-to-x 4대 업그레이드 + QC
 
 ### 작업 요약
