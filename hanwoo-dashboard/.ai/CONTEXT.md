@@ -19,3 +19,9 @@
 - `src/lib/formSchemas.js`로 공통 폼 검증 스키마 분리
 - `CattleForm`, `InventoryTab`, `ScheduleTab`를 RHF + Zod 기반 인라인 검증으로 전환
 - `npm run build` 통과
+## 최근 변경 (2026-03-20, 2차)
+- `DashboardClient`의 전역 액션 피드백을 `FeedbackProvider` 기반 토스트/확인 다이얼로그로 정리
+- `CalvingTab`를 RHF + Zod 기반으로 전환하고 `calvingRecordSchema` 추가
+- `ExcelExportButton`까지 브라우저 기본 `alert()`를 제거해 컴포넌트 계층 피드백을 통일
+- `handleAddCattle` / `handleUpdateCattle`는 후속 플로우 제어를 위해 boolean 결과와 커스텀 피드백 옵션을 지원
+- `npm run build` 재통과

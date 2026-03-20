@@ -1,3 +1,32 @@
+## 2026-03-20 — Codex — hanwoo-dashboard 피드백 UX 정리 + CalvingTab RHF 전환
+
+### 작업 요약
+`hanwoo-dashboard`의 남아 있던 브라우저 기본 `alert/confirm` 의존 구간을 `FeedbackProvider` 기반 토스트/확인 다이얼로그로 정리하고, `CalvingTab`을 `React Hook Form + Zod` 패턴으로 확장 적용했다. `DashboardClient` 액션 핸들러 전반의 성공/실패/오프라인 피드백을 통일했고, `npm run build` 통과까지 확인했다.
+
+### 변경 파일
+| 파일 | 변경 |
+|------|------|
+| `hanwoo-dashboard/src/components/DashboardClient.js` | 전역 액션 피드백을 `useAppFeedback()` 기반 토스트/확인 다이얼로그로 전환, cattle CRUD 핸들러가 boolean 결과와 커스텀 피드백 옵션을 반환하도록 정리 |
+| `hanwoo-dashboard/src/components/tabs/CalvingTab.js` | RHF + Zod 기반으로 재작성, 분만일 인라인 검증 및 분만 처리 성공 흐름 정리 |
+| `hanwoo-dashboard/src/lib/formSchemas.js` | `calvingRecordSchema`, `createCalvingFormValues()` 추가 |
+| `hanwoo-dashboard/src/components/widgets/ExcelExportButton.js` | 빈 데이터 다운로드 시 브라우저 `alert` 대신 토스트 사용 |
+
+### 결정사항
+- `DashboardClient`는 더 이상 브라우저 기본 `alert/confirm`에 의존하지 않고 `FeedbackProvider`를 단일 피드백 레이어로 사용
+- `handleAddCattle` / `handleUpdateCattle`는 후속 플로우(`CalvingTab`, 드래그 이동 등) 제어를 위해 boolean 결과와 선택적 피드백 옵션을 지원
+- `CalvingTab`는 분만 처리 시 어미 업데이트 성공 이후에만 송아지 등록을 시도하도록 흐름을 정리
+
+### 미완료 TODO
+- `hanwoo-dashboard`에 Playwright 스모크 테스트 추가
+- 필요하면 `DashboardClient` 액션 토스트 문구를 더 세분화
+
+### 다음 도구에게 메모
+- `FeedbackProvider`는 `src/app/layout.js`에서 이미 감싸고 있으므로 새 컴포넌트에서는 `useAppFeedback()`만 바로 써도 됨
+- 현재 `src/components` 기준 브라우저 기본 `alert()`는 제거되었고, 남은 `confirm()` 검색 결과는 모두 커스텀 다이얼로그 훅 호출임
+- 빌드 검증: `cd hanwoo-dashboard && npm run build` 통과
+
+---
+
 ## 2026-03-19 — Claude Code (Opus 4.6) — shorts-maker-v2 영상 버그 10건 수정 + QC 승인
 
 ### 작업 요약

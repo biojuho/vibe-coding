@@ -1,5 +1,29 @@
 # Session Log — hanwoo-dashboard
 
+## 2026-03-20 (Codex)
+
+### 작업: 전역 피드백 UX 정리 + CalvingTab RHF + Zod 전환
+
+**작업 요약:**
+- `DashboardClient`의 남은 브라우저 기본 `alert/confirm`를 `useAppFeedback()` 기반 토스트/확인 다이얼로그로 전환
+- cattle CRUD, 일정/재고/급여/판매/축사 액션에 성공/실패/오프라인 토스트 추가
+- `CalvingTab`를 RHF + Zod 패턴으로 재작성하고 `calvingRecordSchema` 추가
+- `ExcelExportButton`의 빈 데이터 경고도 토스트로 통일
+- `npm run build` 통과 확인
+
+**변경 파일:**
+- `src/components/DashboardClient.js`
+- `src/components/tabs/CalvingTab.js`
+- `src/lib/formSchemas.js`
+- `src/components/widgets/ExcelExportButton.js`
+
+**메모:**
+- `handleAddCattle` / `handleUpdateCattle`는 이제 boolean 결과를 반환하고, 선택적 피드백 옵션을 받음
+- `FeedbackProvider`는 `src/app/layout.js`에 이미 연결되어 있어 추가 설정 불필요
+- `src/components` 기준 브라우저 기본 `alert()`는 제거 완료
+
+---
+
 ## 2026-03-08 (Antigravity/Gemini)
 
 ### 작업: Prisma 6 → 7 마이그레이션
