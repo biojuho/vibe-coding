@@ -30,3 +30,27 @@
 - 빌드 실행 시 `--legacy-peer-deps` 플래그 기억
 - SSL 설정: `rejectUnauthorized: false` (Supabase pooler 필수)
 - `.gitignore`에 `src/generated/` 추가 검토 필요
+## 2026-03-20 (Codex)
+
+### 작업: React Hook Form + Zod 1차 도입
+
+**작업 요약:**
+- `react-hook-form`, `@hookform/resolvers`, `zod` 직접 의존성 추가
+- `src/lib/formSchemas.js` 신규 생성
+- `CattleForm`, `InventoryTab`, `ScheduleTab`를 RHF + Zod 기반으로 전환
+- 필드별 인라인 에러 메시지 추가
+- `npm run build` 통과 확인
+
+**변경 파일:**
+- `package.json`
+- `package-lock.json`
+- `src/lib/formSchemas.js`
+- `src/components/forms/CattleForm.js`
+- `src/components/tabs/InventoryTab.js`
+- `src/components/tabs/ScheduleTab.js`
+
+**메모:**
+- 의존성 설치 시 `--legacy-peer-deps` 필요
+- 다음 확장 후보: `SalesTab`, `FeedTab`, `SettingsTab`
+
+---

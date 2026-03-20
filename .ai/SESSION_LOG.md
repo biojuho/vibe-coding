@@ -2259,3 +2259,26 @@ APPROVED - 5개 파일 모두 정상. debug.md 비결정적 버그 예외처리 
 - `hanwoo-dashboard/tests` 디렉터리가 없어 QA 자동화 여지가 큼
 - 모바일 PWA 특성상 현재 HTML5 drag/drop보다 `dnd-kit` 체감효과가 클 가능성이 높음
 ---
+## 2026-03-20 ??Codex ??hanwoo-dashboard RHF + Zod 1차 도입
+
+### ?묒뾽 ?붿빟
+`hanwoo-dashboard`에 `react-hook-form`, `@hookform/resolvers`, `zod`를 도입하고 공통 스키마 파일을 추가한 뒤 `CattleForm`, `InventoryTab`, `ScheduleTab`을 인라인 검증 기반 폼으로 리팩토링함. `npm run build` 통과 확인.
+
+### 蹂寃??뚯씪
+| ?뚯씪 | 蹂寃?|
+|------|------|
+| `hanwoo-dashboard/package.json` | RHF/Zod 의존성 추가 |
+| `hanwoo-dashboard/package-lock.json` | lockfile 갱신 |
+| `hanwoo-dashboard/src/lib/formSchemas.js` | 공통 폼 스키마 신규 |
+| `hanwoo-dashboard/src/components/forms/CattleForm.js` | RHF + Zod 전환 |
+| `hanwoo-dashboard/src/components/tabs/InventoryTab.js` | RHF + Zod 전환 |
+| `hanwoo-dashboard/src/components/tabs/ScheduleTab.js` | RHF + Zod 전환 |
+
+### 寃곗젙?ы빆
+- 1차 범위는 개체/재고/일정 폼까지로 제한
+- `SalesTab`, `FeedTab`, `SettingsTab`은 다음 확장 후보
+- 이 프로젝트는 의존성 설치 시 여전히 `--legacy-peer-deps` 필요
+
+### ?ㅼ쓬 ?꾧뎄?먭쾶 硫붾え
+- 다음 턴에는 동일 패턴으로 남은 폼 확장 또는 Playwright 스모크 테스트 추가가 자연스러움
+---

@@ -14,3 +14,8 @@
 ## 최근 변경 (2026-03-08)
 - Prisma 6 → 7 마이그레이션 진행 중
 - 코드 변경 완료, 빌드 검증 미완
+## 최근 변경 (2026-03-20)
+- `react-hook-form`, `@hookform/resolvers`, `zod` 도입
+- `src/lib/formSchemas.js`로 공통 폼 검증 스키마 분리
+- `CattleForm`, `InventoryTab`, `ScheduleTab`를 RHF + Zod 기반 인라인 검증으로 전환
+- `npm run build` 통과
