@@ -30,3 +30,7 @@
 - **근거**: 시청자 심리에 맞는 영상 톤 자동화 (hook=시선 집중, cta=긍정 인상)
 - **영향**: 기존 `apply_grading()`과 별개 메서드, 프리셋 위에 역할 보정을 추가 적용
 
+### AD-006: faster-whisper 선택적 의존성 도입 (2026-03-20)
+- **결정**: faster-whisper를 TTS 자막 동기화의 정밀 fallback으로 통합, optional extra로 도입
+- **근거**: EdgeTTS WordBoundary 실패 시 근사치(±200ms 오차) 대신 Whisper ASR 기반 정밀 타이밍(±50ms) 제공
+- **영향**: 미설치 시 기존 동작 100% 유지, `pip install shorts-maker-v2[whisper]`로 활성화

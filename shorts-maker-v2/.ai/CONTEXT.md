@@ -54,7 +54,12 @@ AI 기반 YouTube Shorts 자동 생성 파이프라인
   - series_engine.py → orchestrator 통합 (렌더링 후 시리즈 후속편 자동 제안)
   - pipeline_status.py 전용 테스트 56개 추가
   - TextEngine glow → native render_step hook 씬 연동
-- 🔲 다음: 없음 (전 TODO 해소 완료)
+- ✅ faster-whisper 통합 (QC 승인 2026-03-20)
+  - `whisper_aligner.py` 신규: word-level 타임스탬프 추출 (CPU int8)
+  - `edge_tts_client.py`: 3계층 fallback (WordBoundary → Whisper → 근사치)
+  - `pyproject.toml`: `[whisper]` optional extra 추가
+  - 테스트 10개 추가, 전체 524 passed
+- 🔲 다음: faster-whisper E2E 검증, 성능 벤치마크 whisper 항목 추가
 
 ## 컨벤션
 - 테스트: `tests/unit/`, `tests/integration/`
@@ -71,4 +76,6 @@ AI 기반 YouTube Shorts 자동 생성 파이프라인
 - E2E 통합 테스트(test_shorts_factory_e2e.py)는 ffmpeg 실제 렌더링 포함 → 실행 시간 ~15분
 - `color_grading.py`는 pure-numpy 구현 (PIL ImageEnhance 사용하지 않음), 비네트 마스크는 `@lru_cache`로 캐시
 - `render_step.py`의 카메라 모션은 `_build_effect_map()`에 통합; `_RANDOM_EXCLUDE` 셋으로 랜덤 풀 제어
+- `whisper_aligner.py`의 faster-whisper import는 lazy import — 미설치 시 빈 리스트 반환 (crash 없음)
+- faster-whisper 최초 실행 시 모델 다운로드 ~150MB 필요 (이후 캐시), CPU int8 base 모델 기준 30초 오디오 ≈ 8-15초
 

@@ -1,5 +1,57 @@
 # 📋 AI 세션 로그
 
+## 2026-03-20 — Antigravity (faster-whisper 통합 + QC)
+
+### 작업 요약
+GitHub 오픈소스 조사 → faster-whisper를 TTS 자막 동기화 정밀 fallback으로 통합 구현 + QC 승인
+
+### 세부 변경사항
+
+#### 1. GitHub 오픈소스 도입안 조사
+- faster-whisper (21.6k⭐), MoneyPrinterTurbo, WhisperX, short-video-maker, auto-yt-shorts 5개 프로젝트 비교 분석
+- faster-whisper를 1순위 도입 대상으로 선정 (word-level 타임스탬프, CPU 지원, MIT 라이선스)
+
+#### 2. faster-whisper 통합 구현
+- **[신규]** `providers/whisper_aligner.py` — faster-whisper 래퍼 모듈
+  - `is_whisper_available()`: import 가능 여부 체크
+  - `transcribe_to_word_timings()`: CPU int8 base 모델, word_timestamps=True, language="ko"
+  - 파일 없음/빈 파일/예외 → 빈 리스트 반환 (graceful)
+- **[수정]** `providers/edge_tts_client.py` — 3계층 fallback 체인 구축
+  - 1순위: EdgeTTS WordBoundary (기존)
+  - 2순위: faster-whisper 오디오 재분석 (**신규**)
+  - 3순위: `_approximate_word_timings()` 근사치 (기존 fallback)
+- **[수정]** `pyproject.toml` — `[project.optional-dependencies]` whisper extra 추가
+- **[신규]** `tests/unit/test_whisper_aligner.py` — 10개 유닛 테스트
+
+#### 3. QC 실행 결과
+- AST 구문 검사: 50개 파일 PASS
+- 보안 스캔: 이슈 없음
+- 유닛 테스트: 524 passed, 12 skipped, 0 failed
+- 테스트 함수 총 545개
+- 최종 판정: ✅ APPROVED
+
+### 변경 파일
+- `src/shorts_maker_v2/providers/whisper_aligner.py` — 신규 (96줄)
+- `src/shorts_maker_v2/providers/edge_tts_client.py` — fallback 체인 교체 (~25줄 변경)
+- `pyproject.toml` — whisper optional extra 3줄 추가
+- `tests/unit/test_whisper_aligner.py` — 신규 (190줄, 10개 테스트)
+
+### 결정사항
+- AD-006: faster-whisper를 선택적 의존성(optional extra)으로 도입, 미설치 시 기존 동작 100% 유지
+
+### 잔여 TODO
+- [ ] faster-whisper 실제 설치 후 end-to-end 타이밍 정확도 검증
+- [ ] 성능 벤치마크에 whisper fallback 소요 시간 항목 추가
+
+### 다음 도구에게 메모
+- `whisper_aligner.py`는 독립 모듈 — 삭제해도 다른 코드에 영향 없음
+- `edge_tts_client.py`의 whisper import는 지연 import (lazy) — 미설치 시 에러 없음
+- Whisper base 모델 최초 실행 시 ~150MB 다운로드 필요 (이후 캐시)
+- `language="ko"` 강제 설정으로 한국어 인식 정확도 향상
+
+---
+
+
 ## 2026-03-18 — Claude Code (잔여 TODO 3건 해소 + 테스트 확대)
 
 ### 작업 요약
