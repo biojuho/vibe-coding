@@ -229,10 +229,7 @@ def _apply_subtle_reverb(
         delay_1 = delay_1[:target_len]
         delay_2 = delay_2[:target_len]
 
-        # wet 신호: 딜레이 두 개를 혼합 후 감쇠
-        wet_db = -20 * (1 / max(wet_mix, 0.01))  # wet_mix → dB 변환
-        wet_gain = max(-30, min(-5, -10 / max(wet_mix, 0.01) * 0.1))
-
+        # wet 신호: 딜레이 두 개를 혼합 후 감쇠 (-18dB, -22dB 고정)
         reverbed = audio.overlay(delay_1.apply_gain(-18)).overlay(delay_2.apply_gain(-22))
         reverbed.export(str(audio_path), format=ext if ext else "mp3")
         logger.info("[AudioPost] 리버브 적용: %s (room=%.2f, wet=%.2f)", audio_path.name, room_size, wet_mix)

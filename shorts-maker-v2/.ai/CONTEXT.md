@@ -65,7 +65,10 @@ AI 기반 YouTube Shorts 자동 생성 파이프라인
   - CI 워크플로우: `.github/workflows/ci.yml` (lint + test + coverage)
   - pytest-cov: 커버리지 기준선 45.46%, `fail_under=45`
   - 의존성 통합: requirements.txt 삭제, pyproject.toml SSOT
-- 🔲 다음: 커버리지 향상 (45% → 60% 목표), 잔여 ruff 경고 17개 점진적 수정
+- ✅ QC 및 유닛 테스트(540개) 통과 (2026-03-21)
+  - `test_phase4_features.py`, `test_edge_tts_retry.py` 오류 수정 및 100% PASS
+  - Ruff 린터 43건 경고 확인 (진행성 영향 없음, 추후 점진적 수정)
+- 🔲 다음: 기능 개발 시나리오 논의 및 확정 또는 커버리지 향상 (45% → 60% 목표)
 
 ## 컨벤션
 - 테스트: `tests/unit/`, `tests/integration/`

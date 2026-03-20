@@ -37,9 +37,8 @@ class TestIsWhisperAvailable:
 
     def test_false_when_not_installed(self):
         """faster_whisper가 없으면 False."""
-        with patch.dict("sys.modules", {"faster_whisper": None}):
-            with patch("builtins.__import__", side_effect=ImportError("no module")):
-                assert is_whisper_available() is False
+        with patch.dict("sys.modules", {"faster_whisper": None}), patch("builtins.__import__", side_effect=ImportError("no module")):
+            assert is_whisper_available() is False
 
 
 # ── transcribe_to_word_timings ────────────────────────────────────────────────
@@ -108,11 +107,13 @@ class TestTranscribeToWordTimings:
         audio = tmp_path / "test.mp3"
         audio.write_bytes(b"\xff\xfb\x90")
 
-        with patch("shorts_maker_v2.providers.whisper_aligner.is_whisper_available", return_value=False):
+        with (
+            patch("shorts_maker_v2.providers.whisper_aligner.is_whisper_available", return_value=False),
             # is_whisper_available=False이면 import 시도 자체가 안 일어남
             # faster_whisper import 실패 경로를 직접 테스트
-            with patch("builtins.__import__", side_effect=ImportError):
-                result = transcribe_to_word_timings(audio)
+            patch("builtins.__import__", side_effect=ImportError),
+        ):
+            result = transcribe_to_word_timings(audio)
         assert result == []
 
     def test_skips_empty_words(self, tmp_path: Path):

@@ -133,13 +133,12 @@ def get_hw_decode_params(preference: str = "auto") -> list[str]:
 
     # 인코더가 감지된 경우 대응하는 디코더 추가
     codec, _ = detect_hw_encoder(preference)
-    if codec == "h264_nvenc":
-        return ["-hwaccel", "cuda", "-hwaccel_output_format", "cuda"]
-    elif codec == "h264_qsv":
-        return ["-hwaccel", "qsv"]
-    elif codec == "h264_amf":
-        return ["-hwaccel", "dxva2"]
-    return []
+    _decode_map: dict[str, list[str]] = {
+        "h264_nvenc": ["-hwaccel", "cuda", "-hwaccel_output_format", "cuda"],
+        "h264_qsv": ["-hwaccel", "qsv"],
+        "h264_amf": ["-hwaccel", "dxva2"],
+    }
+    return _decode_map.get(codec, [])
 
 
 @lru_cache(maxsize=1)

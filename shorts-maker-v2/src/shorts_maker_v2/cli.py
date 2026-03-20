@@ -388,8 +388,7 @@ def _ensure_utf8_stdio() -> None:
 
     for stream_name in ("stdout", "stderr"):
         stream = getattr(sys, stream_name, None)
-        if stream and hasattr(stream, "encoding") and stream.encoding:
-            if stream.encoding.lower() not in ("utf-8", "utf_8"):
+        if stream and hasattr(stream, "encoding") and stream.encoding and stream.encoding.lower() not in ("utf-8", "utf_8"):
                 wrapped = io.TextIOWrapper(stream.buffer, encoding="utf-8", errors="replace")
                 setattr(sys, stream_name, wrapped)
 

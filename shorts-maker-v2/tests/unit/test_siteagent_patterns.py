@@ -140,7 +140,10 @@ try:
     from shorts_maker_v2.pipeline.script_step import _HAS_PYDANTIC, ScriptStep
 
     if _HAS_PYDANTIC:
-        from shorts_maker_v2.pipeline.script_step import SceneOutput, ScriptOutput
+        from shorts_maker_v2.pipeline.script_step import (  # noqa: F401
+            SceneOutput,
+            ScriptOutput,
+        )
 except ImportError:
     _HAS_PYDANTIC = False
 

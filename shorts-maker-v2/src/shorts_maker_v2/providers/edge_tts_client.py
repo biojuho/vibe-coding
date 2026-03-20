@@ -316,17 +316,21 @@ class EdgeTTSClient:
                 attempt_label,
             )
 
-            def _make_coro():
+            def _make_coro(
+                _voice: str = attempt_voice,
+                _rate: str = attempt_rate,
+                _pitch: str = attempt_pitch,
+            ):
                 if words_json_path is not None:
                     return _generate_async_with_timing(
                         text,
-                        attempt_voice,
-                        attempt_rate,
-                        attempt_pitch,
+                        _voice,
+                        _rate,
+                        _pitch,
                         output_path,
                         words_json_path,
                     )
-                return _generate_async(text, attempt_voice, attempt_rate, attempt_pitch, output_path)
+                return _generate_async(text, _voice, _rate, _pitch, output_path)
 
             try:
                 _run_coroutine(_make_coro)

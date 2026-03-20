@@ -19,7 +19,7 @@ tmp_path = WindowsPath('C:/Users/����ȣ/AppData/Local/Temp/pytest-of-�
         audio = tmp_path / "retry.mp3"
         words = tmp_path / "retry_words.json"
         calls = {"count": 0}
-    
+
         async def fake_generate_with_timing(text, voice, rate, output_path, words_json_path):  # noqa: ANN001
             calls["count"] += 1
             if calls["count"] == 1:
@@ -27,12 +27,12 @@ tmp_path = WindowsPath('C:/Users/����ȣ/AppData/Local/Temp/pytest-of-�
             output_path.write_bytes(b"audio")
             words_json_path.write_text(json.dumps([{"word": "GPT", "start": 0.0, "end": 0.4}]), encoding="utf-8")
             (words_json_path.parent / f"{words_json_path.stem}_ssml.txt").write_text(text, encoding="utf-8")
-    
+
         monkeypatch.setattr(
             "shorts_maker_v2.providers.edge_tts_client._generate_async_with_timing",
             fake_generate_with_timing,
         )
-    
+
 >       result = EdgeTTSClient().generate_tts(
             model="tts-1",
             voice="ko-KR-SoonBokNeural",
@@ -43,7 +43,7 @@ tmp_path = WindowsPath('C:/Users/����ȣ/AppData/Local/Temp/pytest-of-�
             role="body",
         )
 
-tests\unit\test_edge_tts_retry.py:27: 
+tests\unit\test_edge_tts_retry.py:27:
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 src\shorts_maker_v2\providers\edge_tts_client.py:353: in generate_tts
     raise last_exc

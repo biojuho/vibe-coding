@@ -125,7 +125,7 @@ try:
     import shutil
 
     if shutil.which("ffmpeg"):
-        from moviepy import VideoClip
+        import moviepy  # noqa: F401  # confirms moviepy is available
 
         _HAS_FFMPEG = True
 except (RuntimeError, ImportError, OSError):
