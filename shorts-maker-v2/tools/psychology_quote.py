@@ -7,13 +7,22 @@
 - 떠오르는 파티클 효과
 - 상/하단 그라데이션 오버레이
 """
+
 from __future__ import annotations
-import argparse, math, os, random, re, warnings
+
+import argparse
+import math
+import os
+import random
+import re
+import warnings
 from pathlib import Path
+
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="PIL")
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
+
 try:
     from moviepy import VideoClip
 except ImportError:
@@ -30,18 +39,49 @@ class QuoteShortsGenerator:
 
     # 강조할 심리학/자기계발 키워드
     HL_WORDS = {
-        "무의식","의식","자아","그림자","페르소나","원형","개성화",
-        "성장","변화","용기","두려움","자유","책임","의미","목적",
-        "행복","고통","치유","수용","인정","사랑","진실","본능",
-        "선택","운명","잠재력","가능성","힘","강점","약점","균형",
+        "무의식",
+        "의식",
+        "자아",
+        "그림자",
+        "페르소나",
+        "원형",
+        "개성화",
+        "성장",
+        "변화",
+        "용기",
+        "두려움",
+        "자유",
+        "책임",
+        "의미",
+        "목적",
+        "행복",
+        "고통",
+        "치유",
+        "수용",
+        "인정",
+        "사랑",
+        "진실",
+        "본능",
+        "선택",
+        "운명",
+        "잠재력",
+        "가능성",
+        "힘",
+        "강점",
+        "약점",
+        "균형",
     }
 
-    def __init__(self, quote_text: str, author: str,
-                 category_tags: str = "#자기계발 #심리학",
-                 insight_line: str = "",
-                 bg_image: str | None = None,
-                 highlight_words: list[str] | None = None,
-                 duration: float = 20.0):
+    def __init__(
+        self,
+        quote_text: str,
+        author: str,
+        category_tags: str = "#자기계발 #심리학",
+        insight_line: str = "",
+        bg_image: str | None = None,
+        highlight_words: list[str] | None = None,
+        duration: float = 20.0,
+    ):
         self.quote = quote_text
         self.author = author
         self.tags = category_tags
@@ -60,9 +100,14 @@ class QuoteShortsGenerator:
         # 파티클 시드
         random.seed(42)
         self._particles = [
-            {"x": random.randint(0, self.W), "y": random.randint(0, self.H),
-             "r": random.uniform(1.5, 3.5), "speed": random.uniform(15, 40),
-             "alpha": random.randint(60, 160), "phase": random.uniform(0, 2 * math.pi)}
+            {
+                "x": random.randint(0, self.W),
+                "y": random.randint(0, self.H),
+                "r": random.uniform(1.5, 3.5),
+                "speed": random.uniform(15, 40),
+                "alpha": random.randint(60, 160),
+                "phase": random.uniform(0, 2 * math.pi),
+            }
             for _ in range(45)
         ]
         # 텍스트 래핑
@@ -71,20 +116,25 @@ class QuoteShortsGenerator:
 
     # ── Fonts ──
     def _load_fonts(self):
-        dirs = [Path("C:/Windows/Fonts"),
-                Path(os.path.expanduser("~/AppData/Local/Microsoft/Windows/Fonts"))]
+        dirs = [Path("C:/Windows/Fonts"), Path(os.path.expanduser("~/AppData/Local/Microsoft/Windows/Fonts"))]
+
         def _f(names, fb="malgun.ttf"):
             for d in dirs:
                 for n in names:
-                    if (d / n).exists(): return str(d / n)
+                    if (d / n).exists():
+                        return str(d / n)
             for d in dirs:
-                if (d / fb).exists(): return str(d / fb)
+                if (d / fb).exists():
+                    return str(d / fb)
             return ""
+
         se = _f(["NanumMyeongjo.ttf", "NanumMyeongjoBold.ttf", "batang.ttc"])
         sb = _f(["NanumGothicBold.ttf", "NanumGothicExtraBold.ttf", "malgunbd.ttf"])
         sa = _f(["NanumGothic.ttf", "malgun.ttf"])
+
         def _l(p, s):
             return ImageFont.truetype(p, s) if p else ImageFont.load_default(s)
+
         self.f_quote = _l(se, 60)
         self.f_tag = _l(sa, 32)
         self.f_author = _l(se, 42)
@@ -132,21 +182,29 @@ class QuoteShortsGenerator:
         lines, cur = [], ""
         for ch in text:
             if ch == "\n":
-                if cur: lines.append(cur)
-                cur = ""; continue
+                if cur:
+                    lines.append(cur)
+                cur = ""
+                continue
             t = cur + ch
             if font.getbbox(t)[2] - font.getbbox(t)[0] <= mw:
                 cur = t
             else:
-                if cur: lines.append(cur)
+                if cur:
+                    lines.append(cur)
                 cur = ch
-        if cur: lines.append(cur)
+        if cur:
+            lines.append(cur)
         return lines
 
     def _tw(self, t, f):
-        b = f.getbbox(t); return b[2] - b[0]
+        b = f.getbbox(t)
+        return b[2] - b[0]
+
     def _th(self, t, f):
-        b = f.getbbox(t); return b[3] - b[1]
+        b = f.getbbox(t)
+        return b[3] - b[1]
+
     @staticmethod
     def _eo(t):
         return 1 - (1 - min(1, max(0, t))) ** 3
@@ -164,8 +222,7 @@ class QuoteShortsGenerator:
             flicker = 0.6 + 0.4 * math.sin(t * 2 + p["phase"])
             al = int(p["alpha"] * flicker)
             r = p["r"]
-            draw.ellipse([(x - r, y - r), (x + r, y + r)],
-                         fill=(255, 255, 240, al))
+            draw.ellipse([(x - r, y - r), (x + r, y + r)], fill=(255, 255, 240, al))
 
     # ── Frame ──
     def _render(self, t):
@@ -186,18 +243,22 @@ class QuoteShortsGenerator:
             global_alpha = 1 - self._eo((t - fade_out_start) / 3.0)
 
         # Background
-        bg_arr = (self._bg.astype(np.float32) * bg_alpha * global_alpha)
+        bg_arr = self._bg.astype(np.float32) * bg_alpha * global_alpha
         bg = Image.fromarray(np.clip(bg_arr, 0, 255).astype(np.uint8), "RGB").convert("RGBA")
 
         # Gradient overlays
         ov = Image.new("RGBA", (self.W, self.H), (0, 0, 0, 0))
         if bg_alpha > 0.1:
-            bg.paste(Image.alpha_composite(
-                Image.new("RGBA", (self.W, self.H), (0, 0, 0, 0)), self._grad_top), (0, 0),
-                self._grad_top)
-            bg.paste(Image.alpha_composite(
-                Image.new("RGBA", (self.W, self.H), (0, 0, 0, 0)), self._grad_bot), (0, 0),
-                self._grad_bot)
+            bg.paste(
+                Image.alpha_composite(Image.new("RGBA", (self.W, self.H), (0, 0, 0, 0)), self._grad_top),
+                (0, 0),
+                self._grad_top,
+            )
+            bg.paste(
+                Image.alpha_composite(Image.new("RGBA", (self.W, self.H), (0, 0, 0, 0)), self._grad_bot),
+                (0, 0),
+                self._grad_bot,
+            )
 
         draw = ImageDraw.Draw(ov)
 
@@ -212,8 +273,7 @@ class QuoteShortsGenerator:
             ta = int(153 * self._eo((t - 1.5) / 1.0) * global_alpha)  # 60% max
             if ta > 0:
                 tw_ = self._tw(self.tags, self.f_tag)
-                draw.text(((self.W - tw_) // 2, 180), self.tags,
-                          font=self.f_tag, fill=(*self.LAVENDER, ta))
+                draw.text(((self.W - tw_) // 2, 180), self.tags, font=self.f_tag, fill=(*self.LAVENDER, ta))
 
         # Quote lines (중앙)
         lh = self._th("가", self.f_quote) + 24
@@ -245,8 +305,7 @@ class QuoteShortsGenerator:
                 # 한국어 — 공백 없이 이어진 경우 전체 흰색 렌더
                 # 단어 단위 강조는 공백으로 구분된 텍스트에만 적용
                 lw = self._tw(line, self.f_quote)
-                draw.text(((self.W - lw) // 2 + slide_x, y), line,
-                          font=self.f_quote, fill=(255, 255, 255, alpha))
+                draw.text(((self.W - lw) // 2 + slide_x, y), line, font=self.f_quote, fill=(255, 255, 255, alpha))
 
         # Author (하단)
         if t > author_start:
@@ -256,20 +315,24 @@ class QuoteShortsGenerator:
                 atxt = f"— {self.author}"
                 aw = self._tw(atxt, self.f_author)
                 author_y = self.H - 420
-                draw.text(((self.W - aw) // 2, author_y), atxt,
-                          font=self.f_author, fill=(255, 255, 255, ai))
+                draw.text(((self.W - aw) // 2, author_y), atxt, font=self.f_author, fill=(255, 255, 255, ai))
                 # 구분선
                 line_w = 80
                 lx = (self.W - line_w) // 2
-                draw.line([(lx, author_y + 70), (lx + line_w, author_y + 70)],
-                          fill=(*self.LAVENDER, int(ai * 0.5)), width=2)
+                draw.line(
+                    [(lx, author_y + 70), (lx + line_w, author_y + 70)], fill=(*self.LAVENDER, int(ai * 0.5)), width=2
+                )
                 # Insight line
                 if self.insight:
                     ia = int(200 * self._eo((t - author_start - 0.8) / 0.8) * global_alpha)
                     if ia > 0:
                         iw = self._tw(self.insight, self.f_insight)
-                        draw.text(((self.W - iw) // 2, author_y + 95),
-                                  self.insight, font=self.f_insight, fill=(200, 200, 210, ia))
+                        draw.text(
+                            ((self.W - iw) // 2, author_y + 95),
+                            self.insight,
+                            font=self.f_insight,
+                            fill=(200, 200, 210, ia),
+                        )
 
         comp = Image.alpha_composite(bg, ov)
         return np.array(comp.convert("RGB"))
@@ -277,19 +340,14 @@ class QuoteShortsGenerator:
     def generate(self, out="quote_shorts.mp4"):
         clip = VideoClip(lambda t: self._render(t), duration=self.duration).with_fps(self.FPS)
         Path(out).parent.mkdir(parents=True, exist_ok=True)
-        clip.write_videofile(str(out), codec="libx264", preset="medium",
-                             bitrate="8000k", audio=False, logger="bar")
+        clip.write_videofile(str(out), codec="libx264", preset="medium", bitrate="8000k", audio=False, logger="bar")
         print(f"\n✅ 생성 완료: {Path(out).resolve()}")
         print(f"   크기: {self.W}×{self.H} | 길이: {self.duration:.0f}초 | FPS: {self.FPS}")
         return str(Path(out).resolve())
 
 
 DEMO_DATA = {
-    "quote_text": (
-        "당신이 되고자 하는 것이 아니라,\n"
-        "당신이 이미 가진 것을 인정하는 순간\n"
-        "진정한 변화가 시작된다."
-    ),
+    "quote_text": ("당신이 되고자 하는 것이 아니라,\n당신이 이미 가진 것을 인정하는 순간\n진정한 변화가 시작된다."),
     "author": "칼 융 (Carl Jung)",
     "category_tags": "#자기계발 #심리학 #칼융",
     "insight_line": "그림자를 수용하면 자아는 더 강해집니다",
@@ -317,9 +375,9 @@ def main():
     if not all([a.quote, a.author]):
         print("[FAIL] --quote, --author 필수. --demo로 먼저 시도하세요.")
         return 1
-    QuoteShortsGenerator(a.quote, a.author, a.tags, a.insight,
-                         a.bg_image, a.highlight, a.duration).generate(a.out)
+    QuoteShortsGenerator(a.quote, a.author, a.tags, a.insight, a.bg_image, a.highlight, a.duration).generate(a.out)
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

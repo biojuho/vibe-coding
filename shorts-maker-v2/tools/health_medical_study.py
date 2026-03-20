@@ -4,13 +4,19 @@
 클린 메디컬 톤 — 연구 소개 → 핵심 발견 카드 + 바 차트 → 결론/권고.
 신뢰감 있는 다큐멘터리 스타일.
 """
+
 from __future__ import annotations
-import argparse, math, os, random, warnings
+
+import argparse
+import os
+import warnings
 from pathlib import Path
+
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="PIL")
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
+
 try:
     from moviepy import VideoClip
 except ImportError:
@@ -23,9 +29,9 @@ class MedicalStudyGenerator:
     MG = 60
 
     # Clean medical palette
-    BG = (8, 20, 16)              # 다크 그린-블랙
-    MINT = (52, 211, 153)         # #34D399
-    BLUE = (59, 130, 246)         # #3B82F6
+    BG = (8, 20, 16)  # 다크 그린-블랙
+    MINT = (52, 211, 153)  # #34D399
+    BLUE = (59, 130, 246)  # #3B82F6
     WHITE = (240, 248, 245)
     GRAY = (100, 116, 110)
     CARD_BG = (14, 30, 24)
@@ -33,16 +39,19 @@ class MedicalStudyGenerator:
     BAR_GRAY = (60, 70, 65)
     AMBER = (245, 158, 11)
 
-    def __init__(self, hook: str = "최신 연구가 밝혀낸\n충격적 사실",
-                 study_source: str = "",
-                 topic: str = "",
-                 sample_size: str = "",
-                 study_period: str = "",
-                 findings: list[dict] | None = None,
-                 conclusion: str = "",
-                 recommendation: str = "",
-                 disclaimer: str = "※ 이 영상은 연구 결과를 소개하는 목적이며,\n전문 의료인과의 상담을 권장합니다.",
-                 duration: float = 35.0):
+    def __init__(
+        self,
+        hook: str = "최신 연구가 밝혀낸\n충격적 사실",
+        study_source: str = "",
+        topic: str = "",
+        sample_size: str = "",
+        study_period: str = "",
+        findings: list[dict] | None = None,
+        conclusion: str = "",
+        recommendation: str = "",
+        disclaimer: str = "※ 이 영상은 연구 결과를 소개하는 목적이며,\n전문 의료인과의 상담을 권장합니다.",
+        duration: float = 35.0,
+    ):
         """
         Args:
             findings: [{"title": "...", "stat": "72%", "comparison": {"label_a": "섭취군", "val_a": 72, "label_b": "비섭취군", "val_b": 31}}]
@@ -71,19 +80,24 @@ class MedicalStudyGenerator:
         self._grid = self._make_grid()
 
     def _load_fonts(self):
-        dirs = [Path("C:/Windows/Fonts"),
-                Path(os.path.expanduser("~/AppData/Local/Microsoft/Windows/Fonts"))]
+        dirs = [Path("C:/Windows/Fonts"), Path(os.path.expanduser("~/AppData/Local/Microsoft/Windows/Fonts"))]
+
         def _f(ns, fb="malgun.ttf"):
             for d in dirs:
                 for n in ns:
-                    if (d / n).exists(): return str(d / n)
+                    if (d / n).exists():
+                        return str(d / n)
             for d in dirs:
-                if (d / fb).exists(): return str(d / fb)
+                if (d / fb).exists():
+                    return str(d / fb)
             return ""
+
         sb = _f(["NanumGothicBold.ttf", "malgunbd.ttf"])
         sa = _f(["NanumGothic.ttf", "malgun.ttf"])
+
         def _l(p, s):
             return ImageFont.truetype(p, s) if p else ImageFont.load_default(s)
+
         self.f_hook = _l(sb, 62)
         self.f_title = _l(sb, 48)
         self.f_stat = _l(sb, 80)
@@ -104,12 +118,14 @@ class MedicalStudyGenerator:
         self._disc_lines = self.disclaimer.split("\n")
         self._finding_data = []
         for f in self.findings:
-            self._finding_data.append({
-                "title": f.get("title", ""),
-                "stat": f.get("stat", ""),
-                "title_lines": self._wrap(f.get("title", ""), self.f_body, tw - 40),
-                "comparison": f.get("comparison"),
-            })
+            self._finding_data.append(
+                {
+                    "title": f.get("title", ""),
+                    "stat": f.get("stat", ""),
+                    "title_lines": self._wrap(f.get("title", ""), self.f_body, tw - 40),
+                    "comparison": f.get("comparison"),
+                }
+            )
 
     def _make_grid(self):
         """Subtle grid pattern (medical/scientific feel)."""
@@ -126,29 +142,36 @@ class MedicalStudyGenerator:
     def _wrap(text, font, mw):
         lines, cur = [], ""
         for seg in text.replace("\n", " ").split(" "):
-            if not seg: continue
+            if not seg:
+                continue
             t = f"{cur} {seg}".strip() if cur else seg
             bb = font.getbbox(t)
             if bb[2] - bb[0] <= mw:
                 cur = t
             else:
-                if cur: lines.append(cur)
+                if cur:
+                    lines.append(cur)
                 cur = seg
-        if cur: lines.append(cur)
+        if cur:
+            lines.append(cur)
         return lines
 
     def _tw(self, t, f):
-        b = f.getbbox(t); return b[2] - b[0] if b else 0
+        b = f.getbbox(t)
+        return b[2] - b[0] if b else 0
+
     def _th(self, t, f):
-        b = f.getbbox(t); return b[3] - b[1] if b else 0
+        b = f.getbbox(t)
+        return b[3] - b[1] if b else 0
+
     @staticmethod
-    def _eo(t): return 1 - (1 - min(1, max(0, t))) ** 3
+    def _eo(t):
+        return 1 - (1 - min(1, max(0, t))) ** 3
 
     def _draw_badge(self, draw, x, y, text, color=None):
         c = color or self.MINT
         tw_ = self._tw(text, self.f_badge) + 24
-        draw.rounded_rectangle([(x, y), (x + tw_, y + 34)],
-                               radius=6, fill=(*c, 30), outline=(*c, 120), width=1)
+        draw.rounded_rectangle([(x, y), (x + tw_, y + 34)], radius=6, fill=(*c, 30), outline=(*c, 120), width=1)
         draw.text((x + 12, y + 4), text, font=self.f_badge, fill=(*c, 220))
         return tw_
 
@@ -172,28 +195,26 @@ class MedicalStudyGenerator:
         draw.text((x, ay + 4), la, font=self.f_bar, fill=(*self.WHITE, 200))
         bar_x = x + label_w
         bar_w_a = int(bar_area * (va / max_val) * min(1, progress))
-        draw.rounded_rectangle([(bar_x, ay), (bar_x + bar_area, ay + bar_h)],
-                               radius=6, fill=(*self.BAR_GRAY, 80))
+        draw.rounded_rectangle([(bar_x, ay), (bar_x + bar_area, ay + bar_h)], radius=6, fill=(*self.BAR_GRAY, 80))
         if bar_w_a > 5:
-            draw.rounded_rectangle([(bar_x, ay), (bar_x + bar_w_a, ay + bar_h)],
-                                   radius=6, fill=(*self.MINT, 200))
+            draw.rounded_rectangle([(bar_x, ay), (bar_x + bar_w_a, ay + bar_h)], radius=6, fill=(*self.MINT, 200))
         # Value
         val_text = f"{int(va * min(1, progress))}%"
-        draw.text((bar_x + bar_w_a + 10, ay + 3), val_text,
-                  font=self.f_bar, fill=(*self.MINT, int(220 * min(1, progress))))
+        draw.text(
+            (bar_x + bar_w_a + 10, ay + 3), val_text, font=self.f_bar, fill=(*self.MINT, int(220 * min(1, progress)))
+        )
 
         # Bar B (gray)
         by = ay + bar_h + gap
         draw.text((x, by + 4), lb, font=self.f_bar, fill=(*self.WHITE, 200))
         bar_w_b = int(bar_area * (vb / max_val) * min(1, progress))
-        draw.rounded_rectangle([(bar_x, by), (bar_x + bar_area, by + bar_h)],
-                               radius=6, fill=(*self.BAR_GRAY, 80))
+        draw.rounded_rectangle([(bar_x, by), (bar_x + bar_area, by + bar_h)], radius=6, fill=(*self.BAR_GRAY, 80))
         if bar_w_b > 5:
-            draw.rounded_rectangle([(bar_x, by), (bar_x + bar_w_b, by + bar_h)],
-                                   radius=6, fill=(*self.GRAY, 180))
+            draw.rounded_rectangle([(bar_x, by), (bar_x + bar_w_b, by + bar_h)], radius=6, fill=(*self.GRAY, 180))
         val_text_b = f"{int(vb * min(1, progress))}%"
-        draw.text((bar_x + bar_w_b + 10, by + 3), val_text_b,
-                  font=self.f_bar, fill=(*self.GRAY, int(200 * min(1, progress))))
+        draw.text(
+            (bar_x + bar_w_b + 10, by + 3), val_text_b, font=self.f_bar, fill=(*self.GRAY, int(200 * min(1, progress)))
+        )
 
         return bar_h * 2 + gap + 20
 
@@ -223,8 +244,7 @@ class MedicalStudyGenerator:
             full = stat_str
 
         tw_ = self._tw(full, self.f_stat)
-        draw.text((cx - tw_ // 2, cy), full,
-                  font=self.f_stat, fill=(*self.MINT, min(255, alpha)))
+        draw.text((cx - tw_ // 2, cy), full, font=self.f_stat, fill=(*self.MINT, min(255, alpha)))
 
     # ── Phase renderers ──
 
@@ -235,12 +255,12 @@ class MedicalStudyGenerator:
 
         for i, line in enumerate(self._hook_lines):
             prog = self._eo((t - 0.15 - i * 0.12) / 0.5)
-            if prog <= 0: continue
+            if prog <= 0:
+                continue
             al = int(250 * prog)
             bounce = int(12 * (1 - prog))
             tw_ = self._tw(line, self.f_hook)
-            draw.text(((self.W - tw_) // 2, sy + i * lh + bounce), line,
-                      font=self.f_hook, fill=(*self.WHITE, al))
+            draw.text(((self.W - tw_) // 2, sy + i * lh + bounce), line, font=self.f_hook, fill=(*self.WHITE, al))
 
     def _render_study_intro(self, draw, t_local):
         """연구 소개 화면."""
@@ -254,24 +274,22 @@ class MedicalStudyGenerator:
             lh = self._th("가", self.f_title) + 14
             for i, line in enumerate(self._topic_lines):
                 la = int(240 * self._eo((t_local - 0.5 - i * 0.12) / 0.5))
-                if la < 0: la = 0
+                if la < 0:
+                    la = 0
                 tw_ = self._tw(line, self.f_title)
-                draw.text(((self.W - tw_) // 2, 480 + i * lh), line,
-                          font=self.f_title, fill=(*self.WHITE, la))
+                draw.text(((self.W - tw_) // 2, 480 + i * lh), line, font=self.f_title, fill=(*self.WHITE, la))
 
         # Sample size & period (countup)
         info_y = 700
         if self.sample_size and t_local > 1.5:
             self._draw_badge(draw, self.MG, info_y, "👥 참여자", self.MINT)
             sa = int(220 * self._eo((t_local - 1.5) / 0.5))
-            draw.text((self.MG + 130, info_y + 2), self.sample_size,
-                      font=self.f_num, fill=(*self.MINT, sa))
+            draw.text((self.MG + 130, info_y + 2), self.sample_size, font=self.f_num, fill=(*self.MINT, sa))
 
         if self.study_period and t_local > 2.0:
             self._draw_badge(draw, self.MG, info_y + 50, "📅 기간", self.MINT)
             pa = int(220 * self._eo((t_local - 2.0) / 0.5))
-            draw.text((self.MG + 130, info_y + 52), self.study_period,
-                      font=self.f_num, fill=(*self.MINT, pa))
+            draw.text((self.MG + 130, info_y + 52), self.study_period, font=self.f_num, fill=(*self.MINT, pa))
 
     def _render_finding(self, draw, idx, t_local):
         """핵심 발견 카드."""
@@ -293,10 +311,15 @@ class MedicalStudyGenerator:
         ca = int(255 * self._eo(t_local / 0.4) * alpha_mult)
 
         # Card bg
-        draw.rounded_rectangle([(card_x, card_y), (card_x + card_w, card_y + card_h)],
-                               radius=14, fill=(*self.CARD_BG, ca))
-        draw.rounded_rectangle([(card_x, card_y), (card_x + card_w, card_y + card_h)],
-                               radius=14, outline=(*self.CARD_BORDER, int(ca * 0.3)), width=1)
+        draw.rounded_rectangle(
+            [(card_x, card_y), (card_x + card_w, card_y + card_h)], radius=14, fill=(*self.CARD_BG, ca)
+        )
+        draw.rounded_rectangle(
+            [(card_x, card_y), (card_x + card_w, card_y + card_h)],
+            radius=14,
+            outline=(*self.CARD_BORDER, int(ca * 0.3)),
+            width=1,
+        )
 
         # Badge
         badge_text = f"핵심 발견 {idx + 1:02d}"
@@ -306,24 +329,21 @@ class MedicalStudyGenerator:
         lh = self._th("가", self.f_body) + 12
         for i, line in enumerate(fd["title_lines"]):
             la = int(ca * self._eo((t_local - 0.3 - i * 0.1) / 0.4))
-            if la < 0: la = 0
-            draw.text((card_x + 30, card_y + 75 + i * lh), line,
-                      font=self.f_body, fill=(*self.WHITE, la))
+            if la < 0:
+                la = 0
+            draw.text((card_x + 30, card_y + 75 + i * lh), line, font=self.f_body, fill=(*self.WHITE, la))
 
         # Stat number (big, countup)
         if fd["stat"] and t_local > 0.6:
             st = max(0, t_local - 0.6)
             stat_y = card_y + 75 + len(fd["title_lines"]) * lh + 20
-            self._countup_text(draw, fd["stat"], self.W // 2, stat_y, st,
-                               int(ca * alpha_mult))
+            self._countup_text(draw, fd["stat"], self.W // 2, stat_y, st, int(ca * alpha_mult))
 
         # Bar chart
         if fd["comparison"] and t_local > 1.0:
             bar_prog = self._eo((t_local - 1.0) / 1.5)
             bar_y = card_y + 75 + len(fd["title_lines"]) * lh + 130
-            self._draw_bar_chart(draw, card_x + 30, bar_y,
-                                 card_w - 60, fd["comparison"],
-                                 bar_prog * alpha_mult)
+            self._draw_bar_chart(draw, card_x + 30, bar_y, card_w - 60, fd["comparison"], bar_prog * alpha_mult)
 
         # Progress dots
         n = len(self.findings)
@@ -336,8 +356,7 @@ class MedicalStudyGenerator:
             c = self.MINT if i == idx else self.GRAY
             al = int((200 if i == idx else 80) * alpha_mult)
             cx_ = dot_sx + i * dot_spacing + 5
-            draw.ellipse([(cx_ - r, dot_y - r), (cx_ + r, dot_y + r)],
-                         fill=(*c, al))
+            draw.ellipse([(cx_ - r, dot_y - r), (cx_ + r, dot_y + r)], fill=(*c, al))
 
     def _render_conclusion(self, draw, t_local):
         """결론 + 권고."""
@@ -349,9 +368,9 @@ class MedicalStudyGenerator:
         lh = self._th("가", self.f_body) + 14
         for i, line in enumerate(self._concl_lines):
             la = int(230 * self._eo((t_local - 0.5 - i * 0.12) / 0.5))
-            if la < 0: la = 0
-            draw.text((self.MG + 10, 510 + i * lh), line,
-                      font=self.f_body, fill=(*self.WHITE, la))
+            if la < 0:
+                la = 0
+            draw.text((self.MG + 10, 510 + i * lh), line, font=self.f_body, fill=(*self.WHITE, la))
 
         # Recommendation
         if self._rec_lines and t_local > 2.0:
@@ -359,23 +378,21 @@ class MedicalStudyGenerator:
             self._draw_badge(draw, self.MG, rec_y, "💡 권고 사항", self.AMBER)
             for i, line in enumerate(self._rec_lines):
                 la = int(200 * self._eo((t_local - 2.3 - i * 0.1) / 0.4))
-                if la < 0: la = 0
-                draw.text((self.MG + 10, rec_y + 50 + i * lh), line,
-                          font=self.f_body, fill=(*self.WHITE, la))
+                if la < 0:
+                    la = 0
+                draw.text((self.MG + 10, rec_y + 50 + i * lh), line, font=self.f_body, fill=(*self.WHITE, la))
 
         # Disclaimer
         if t_local > 3.0:
             da = int(100 * self._eo((t_local - 3.0) / 0.5))
             for i, dl in enumerate(self._disc_lines):
                 dw = self._tw(dl, self.f_small)
-                draw.text(((self.W - dw) // 2, self.H - 160 + i * 28), dl,
-                          font=self.f_small, fill=(*self.WHITE, da))
+                draw.text(((self.W - dw) // 2, self.H - 160 + i * 28), dl, font=self.f_small, fill=(*self.WHITE, da))
 
         # Fade out
         if t_local > self.concl_dur - 1.0:
             fo = (t_local - (self.concl_dur - 1.0)) / 1.0
-            draw.rectangle([(0, 0), (self.W, self.H)],
-                           fill=(*self.BG, int(200 * fo)))
+            draw.rectangle([(0, 0), (self.W, self.H)], fill=(*self.BG, int(200 * fo)))
 
     def _medical_grade(self, arr):
         """Clean medical color grading."""
@@ -423,8 +440,7 @@ class MedicalStudyGenerator:
     def generate(self, out="medical_study.mp4"):
         clip = VideoClip(lambda t: self._render(t), duration=self.duration).with_fps(self.FPS)
         Path(out).parent.mkdir(parents=True, exist_ok=True)
-        clip.write_videofile(str(out), codec="libx264", preset="medium",
-                             bitrate="8000k", audio=False, logger="bar")
+        clip.write_videofile(str(out), codec="libx264", preset="medium", bitrate="8000k", audio=False, logger="bar")
         sz = Path(out).stat().st_size / (1024 * 1024)
         print(f"\n✅ 생성 완료: {Path(out).resolve()}")
         print(f"   크기: {self.W}×{self.H} | 길이: {self.duration:.0f}초 | 파일: {sz:.1f}MB")
@@ -443,24 +459,30 @@ DEMO_DATA = {
             "title": "하루 30분 이상 걷는 그룹의 심혈관 질환 사망 위험이 현저히 감소",
             "stat": "35%",
             "comparison": {
-                "label_a": "걷기 그룹",  "val_a": 35,
-                "label_b": "비활동 그룹", "val_b": 100,
+                "label_a": "걷기 그룹",
+                "val_a": 35,
+                "label_b": "비활동 그룹",
+                "val_b": 100,
             },
         },
         {
             "title": "전체 사망률도 유의미하게 낮아지는 결과를 보임",
             "stat": "21%",
             "comparison": {
-                "label_a": "걷기 그룹",  "val_a": 21,
-                "label_b": "비활동 그룹", "val_b": 100,
+                "label_a": "걷기 그룹",
+                "val_a": 21,
+                "label_b": "비활동 그룹",
+                "val_b": 100,
             },
         },
         {
             "title": "강도보다 '규칙성'이 더 중요한 것으로 밝혀짐",
             "stat": "92%",
             "comparison": {
-                "label_a": "매일 걷기", "val_a": 92,
-                "label_b": "주 1회 운동", "val_b": 58,
+                "label_a": "매일 걷기",
+                "val_a": 92,
+                "label_b": "주 1회 운동",
+                "val_b": 58,
             },
         },
     ],
@@ -482,6 +504,7 @@ def main():
         gen.generate(a.out)
     else:
         print("--demo 플래그로 데모를 생성하세요")
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

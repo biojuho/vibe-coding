@@ -4,13 +4,21 @@
 따뜻하고 안전한 느낌 — 호흡 리듬 밝기 변화 + 줄 단위 페이드인 + 민트 하이라이트.
 배경: 자연/풍경 이미지 블러 or 그래디언트.
 """
+
 from __future__ import annotations
-import argparse, math, os, random, warnings
+
+import argparse
+import math
+import os
+import random
+import warnings
 from pathlib import Path
+
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="PIL")
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
+
 try:
     from moviepy import VideoClip
 except ImportError:
@@ -23,16 +31,19 @@ class MentalHealthMessageGenerator:
 
     # Warm palette
     BG = (12, 22, 18)
-    MINT = (52, 211, 153)         # #34D399
+    MINT = (52, 211, 153)  # #34D399
     WHITE = (245, 248, 245)
     WARM_WHITE = (255, 250, 240)
 
-    def __init__(self, message_lines: list[str],
-                 highlight_words: list[str] | None = None,
-                 closing_text: str = "오늘 하루도 잘 버텼어요",
-                 disclaimer: str = "어려움이 있다면 전문가 상담을 받아주세요",
-                 bg_image: str = "",
-                 duration: float = 22.0):
+    def __init__(
+        self,
+        message_lines: list[str],
+        highlight_words: list[str] | None = None,
+        closing_text: str = "오늘 하루도 잘 버텼어요",
+        disclaimer: str = "어려움이 있다면 전문가 상담을 받아주세요",
+        bg_image: str = "",
+        duration: float = 22.0,
+    ):
         self.message_lines = message_lines
         self.highlight_words = set(highlight_words or [])
         self.closing_text = closing_text
@@ -56,33 +67,44 @@ class MentalHealthMessageGenerator:
         # Soft particles (firefly-like)
         random.seed(42)
         self._particles = [
-            {"x": random.randint(0, self.W), "y": random.randint(0, self.H),
-             "vy": random.uniform(-6, -1.5), "vx": random.uniform(-1, 1),
-             "r": random.uniform(1, 3), "a": random.randint(15, 55),
-             "ph": random.uniform(0, math.tau), "spd": random.uniform(0.8, 2.0)}
+            {
+                "x": random.randint(0, self.W),
+                "y": random.randint(0, self.H),
+                "vy": random.uniform(-6, -1.5),
+                "vx": random.uniform(-1, 1),
+                "r": random.uniform(1, 3),
+                "a": random.randint(15, 55),
+                "ph": random.uniform(0, math.tau),
+                "spd": random.uniform(0.8, 2.0),
+            }
             for _ in range(25)
         ]
 
     def _load_fonts(self):
-        dirs = [Path("C:/Windows/Fonts"),
-                Path(os.path.expanduser("~/AppData/Local/Microsoft/Windows/Fonts"))]
+        dirs = [Path("C:/Windows/Fonts"), Path(os.path.expanduser("~/AppData/Local/Microsoft/Windows/Fonts"))]
+
         def _f(ns, fb="malgun.ttf"):
             for d in dirs:
                 for n in ns:
-                    if (d / n).exists(): return str(d / n)
+                    if (d / n).exists():
+                        return str(d / n)
             for d in dirs:
-                if (d / fb).exists(): return str(d / fb)
+                if (d / fb).exists():
+                    return str(d / fb)
             return ""
+
         # Serif for emotional feel
         serif = _f(["NanumMyeongjo.ttf", "NanumMyeongjoBold.ttf", "batang.ttc"])
         sans = _f(["NanumGothic.ttf", "malgun.ttf"])
         sb = _f(["NanumGothicBold.ttf", "malgunbd.ttf"])
+
         def _l(p, s):
             return ImageFont.truetype(p, s) if p else ImageFont.load_default(s)
-        self.f_msg = _l(serif, 50)       # 메시지 (세리프)
-        self.f_highlight = _l(serif, 50) # 하이라이트 (same font, colored)
-        self.f_closing = _l(sb, 30)      # 마무리 작은 텍스트
-        self.f_disc = _l(sans, 22)       # 면책
+
+        self.f_msg = _l(serif, 50)  # 메시지 (세리프)
+        self.f_highlight = _l(serif, 50)  # 하이라이트 (same font, colored)
+        self.f_closing = _l(sb, 30)  # 마무리 작은 텍스트
+        self.f_disc = _l(sans, 22)  # 면책
 
     def _prepare_bg(self):
         """배경 이미지 준비 (블러 + 어둡게) or 그래디언트."""
@@ -97,17 +119,22 @@ class MentalHealthMessageGenerator:
             arr = np.zeros((self.H, self.W, 3), dtype=np.uint8)
             for y in range(self.H):
                 r = y / self.H
-                arr[y, :, 0] = int(8 + 10 * r)     # R
-                arr[y, :, 1] = int(18 + 15 * r)    # G
-                arr[y, :, 2] = int(14 + 8 * r)     # B
+                arr[y, :, 0] = int(8 + 10 * r)  # R
+                arr[y, :, 1] = int(18 + 15 * r)  # G
+                arr[y, :, 2] = int(14 + 8 * r)  # B
             return arr
 
     def _tw(self, t, f):
-        b = f.getbbox(t); return b[2] - b[0] if b else 0
+        b = f.getbbox(t)
+        return b[2] - b[0] if b else 0
+
     def _th(self, t, f):
-        b = f.getbbox(t); return b[3] - b[1] if b else 0
+        b = f.getbbox(t)
+        return b[3] - b[1] if b else 0
+
     @staticmethod
-    def _eo(t): return 1 - (1 - min(1, max(0, t))) ** 3
+    def _eo(t):
+        return 1 - (1 - min(1, max(0, t))) ** 3
 
     def _breathing_brightness(self, t):
         """호흡 리듬 밝기 0.35→0.45→0.35, 주기 3초."""
@@ -128,15 +155,13 @@ class MentalHealthMessageGenerator:
             for gi in range(3):
                 gr = r + gi * 2
                 ga = max(1, al // (gi + 1))
-                draw.ellipse([(x - gr, y - gr), (x + gr, y + gr)],
-                             fill=(*self.MINT, ga))
+                draw.ellipse([(x - gr, y - gr), (x + gr, y + gr)], fill=(*self.MINT, ga))
 
     def _draw_message_line(self, draw, line, cx, cy, alpha):
         """줄 렌더링 — 핵심 단어 민트 하이라이트 포함."""
         if not self.highlight_words:
             tw_ = self._tw(line, self.f_msg)
-            draw.text((cx - tw_ // 2, cy), line,
-                      font=self.f_msg, fill=(*self.WARM_WHITE, alpha))
+            draw.text((cx - tw_ // 2, cy), line, font=self.f_msg, fill=(*self.WARM_WHITE, alpha))
             return
 
         # Split into words, highlight matching
@@ -154,8 +179,7 @@ class MentalHealthMessageGenerator:
         space_w = self._tw(" ", self.f_msg)
         for i, seg in enumerate(segments):
             color = self.MINT if seg["hl"] else self.WARM_WHITE
-            draw.text((x, cy), seg["text"],
-                      font=self.f_msg, fill=(*color, alpha))
+            draw.text((x, cy), seg["text"], font=self.f_msg, fill=(*color, alpha))
             x += self._tw(seg["text"], self.f_msg)
             if i < len(segments) - 1:
                 x += space_w
@@ -177,7 +201,7 @@ class MentalHealthMessageGenerator:
         Y, X = np.ogrid[:h, :w]
         cx, cy = w / 2, h / 2
         dist = np.sqrt((X - cx) ** 2 + (Y - cy) ** 2)
-        max_d = math.sqrt(cx ** 2 + cy ** 2)
+        max_d = math.sqrt(cx**2 + cy**2)
         vig = 1 - (dist / max_d) ** 2 * strength
         vig = np.clip(vig, 0, 1)
         return (arr.astype(np.float32) * vig[:, :, np.newaxis]).clip(0, 255).astype(np.uint8)
@@ -240,16 +264,14 @@ class MentalHealthMessageGenerator:
             cl_al = int(160 * cl_prog * master_alpha)
             cw = self._tw(self.closing_text, self.f_closing)
             cy = (self.H + (len(self.message_lines) * 72)) // 2 + 60
-            draw.text(((self.W - cw) // 2, cy), self.closing_text,
-                      font=self.f_closing, fill=(*self.MINT, cl_al))
+            draw.text(((self.W - cw) // 2, cy), self.closing_text, font=self.f_closing, fill=(*self.MINT, cl_al))
 
         # Disclaimer (last 3 seconds)
         if t > self.duration - 3.5:
             disc_prog = self._eo((t - (self.duration - 3.5)) / 0.8)
             da = int(100 * disc_prog * master_alpha)
             dw = self._tw(self.disclaimer, self.f_disc)
-            draw.text(((self.W - dw) // 2, self.H - 130), self.disclaimer,
-                      font=self.f_disc, fill=(*self.WHITE, da))
+            draw.text(((self.W - dw) // 2, self.H - 130), self.disclaimer, font=self.f_disc, fill=(*self.WHITE, da))
 
         # Top gradient (subtle)
         for y in range(150):
@@ -269,8 +291,7 @@ class MentalHealthMessageGenerator:
     def generate(self, out="mental_health_message.mp4"):
         clip = VideoClip(lambda t: self._render(t), duration=self.duration).with_fps(self.FPS)
         Path(out).parent.mkdir(parents=True, exist_ok=True)
-        clip.write_videofile(str(out), codec="libx264", preset="medium",
-                             bitrate="8000k", audio=False, logger="bar")
+        clip.write_videofile(str(out), codec="libx264", preset="medium", bitrate="8000k", audio=False, logger="bar")
         sz = Path(out).stat().st_size / (1024 * 1024)
         print(f"\n✅ 생성 완료: {Path(out).resolve()}")
         print(f"   크기: {self.W}×{self.H} | 길이: {self.duration:.0f}초 | 파일: {sz:.1f}MB")
@@ -314,6 +335,7 @@ def main():
         gen.generate(a.out)
     else:
         print("--demo 플래그로 데모를 생성하세요")
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

@@ -7,6 +7,7 @@
 - Pipeline: future_countdown 템플릿 렌더링
 - generate_future_countdown_short: 편의 API
 """
+
 from __future__ import annotations
 
 import json
@@ -57,14 +58,17 @@ def sample_items():
 # 1. BackgroundEngine — 파티클 & 블러 배경
 # ════════════════════════════════════════════════════════════════
 
+
 class TestAnimatedParticles:
     def test_creates_frames(self, ai_tech_config, tmp_path):
         from ShortsFactory.engines.background_engine import BackgroundEngine
 
         engine = BackgroundEngine(ai_tech_config)
         frames = engine.create_animated_particle_frames(
-            width=270, height=480,
-            num_particles=10, num_frames=5,
+            width=270,
+            height=480,
+            num_particles=10,
+            num_frames=5,
             output_dir=tmp_path / "particles",
         )
         assert len(frames) == 5
@@ -73,20 +77,29 @@ class TestAnimatedParticles:
             assert f.stat().st_size > 0
 
     def test_density_multiplier(self, ai_tech_config, tmp_path):
-        from ShortsFactory.engines.background_engine import BackgroundEngine
-        from PIL import Image
         import numpy as np
+        from PIL import Image
+
+        from ShortsFactory.engines.background_engine import BackgroundEngine
 
         engine = BackgroundEngine(ai_tech_config)
         # 일반 밀도
         frames_normal = engine.create_animated_particle_frames(
-            width=270, height=480, num_particles=10, num_frames=1,
-            density_multiplier=1.0, output_dir=tmp_path / "p_normal",
+            width=270,
+            height=480,
+            num_particles=10,
+            num_frames=1,
+            density_multiplier=1.0,
+            output_dir=tmp_path / "p_normal",
         )
         # 3배 밀도
         frames_dense = engine.create_animated_particle_frames(
-            width=270, height=480, num_particles=10, num_frames=1,
-            density_multiplier=3.0, output_dir=tmp_path / "p_dense",
+            width=270,
+            height=480,
+            num_particles=10,
+            num_frames=1,
+            density_multiplier=3.0,
+            output_dir=tmp_path / "p_dense",
         )
 
         # 3배 밀도 프레임이 더 많은 비배경 픽셀을 가져야 함
@@ -98,14 +111,19 @@ class TestAnimatedParticles:
 
     def test_particle_movement(self, ai_tech_config, tmp_path):
         """파티클이 실제로 상승하는지 확인 (프레임 간 변화)."""
-        from ShortsFactory.engines.background_engine import BackgroundEngine
-        from PIL import Image
         import numpy as np
+        from PIL import Image
+
+        from ShortsFactory.engines.background_engine import BackgroundEngine
 
         engine = BackgroundEngine(ai_tech_config)
         frames = engine.create_animated_particle_frames(
-            width=270, height=480, num_particles=5, num_frames=3,
-            speed=10, output_dir=tmp_path / "movement",
+            width=270,
+            height=480,
+            num_particles=5,
+            num_frames=3,
+            speed=10,
+            output_dir=tmp_path / "movement",
         )
 
         arr_0 = np.array(Image.open(frames[0]))
@@ -116,8 +134,9 @@ class TestAnimatedParticles:
 
 class TestBlurredBg:
     def test_creates_blurred_image(self, ai_tech_config, tmp_path):
-        from ShortsFactory.engines.background_engine import BackgroundEngine
         from PIL import Image
+
+        from ShortsFactory.engines.background_engine import BackgroundEngine
 
         # 테스트용 이미지 생성
         src = tmp_path / "source.png"
@@ -137,7 +156,10 @@ class TestBlurredBg:
         engine = BackgroundEngine(ai_tech_config)
         out = tmp_path / "fallback.png"
         result = engine.create_blurred_bg(
-            "nonexistent.png", 270, 480, output_path=out,
+            "nonexistent.png",
+            270,
+            480,
+            output_path=out,
         )
         assert result.exists()
 
@@ -145,6 +167,7 @@ class TestBlurredBg:
 # ════════════════════════════════════════════════════════════════
 # 2. TextEngine — 워터마크 순번
 # ════════════════════════════════════════════════════════════════
+
 
 class TestWatermarkNumber:
     def test_render_watermark(self, ai_tech_config, tmp_path):
@@ -157,22 +180,27 @@ class TestWatermarkNumber:
         assert result.stat().st_size > 0
 
     def test_watermark_dimensions(self, ai_tech_config, tmp_path):
-        from ShortsFactory.engines.text_engine import TextEngine
         from PIL import Image
+
+        from ShortsFactory.engines.text_engine import TextEngine
 
         engine = TextEngine(ai_tech_config)
         out = tmp_path / "dim.png"
         engine.render_watermark_number(
-            3, canvas_w=300, canvas_h=200, output_path=out,
+            3,
+            canvas_w=300,
+            canvas_h=200,
+            output_path=out,
         )
         img = Image.open(out)
         assert img.size == (300, 200)
         assert img.mode == "RGBA"
 
     def test_watermark_opacity(self, ai_tech_config, tmp_path):
-        from ShortsFactory.engines.text_engine import TextEngine
-        from PIL import Image
         import numpy as np
+        from PIL import Image
+
+        from ShortsFactory.engines.text_engine import TextEngine
 
         engine = TextEngine(ai_tech_config)
         out = tmp_path / "opacity.png"
@@ -187,6 +215,7 @@ class TestWatermarkNumber:
 # ════════════════════════════════════════════════════════════════
 # 3. FutureCountdownTemplate
 # ════════════════════════════════════════════════════════════════
+
 
 class TestFutureCountdownTemplate:
     def test_scene_count(self, ai_tech_config, sample_items):
@@ -284,10 +313,12 @@ class TestFutureCountdownTemplate:
         from ShortsFactory.templates.future_countdown import FutureCountdownTemplate
 
         template = FutureCountdownTemplate(ai_tech_config)
-        scenes = template.build_scenes({
-            "items": sample_items,
-            "intro_text": "커스텀 인트로",
-        })
+        scenes = template.build_scenes(
+            {
+                "items": sample_items,
+                "intro_text": "커스텀 인트로",
+            }
+        )
         assert scenes[0].text == "커스텀 인트로"
 
     def test_outro_scene(self, ai_tech_config, sample_items):
@@ -305,6 +336,7 @@ class TestFutureCountdownTemplate:
 # ════════════════════════════════════════════════════════════════
 # 4. Pipeline 통합 테스트
 # ════════════════════════════════════════════════════════════════
+
 
 class TestCountdownPipeline:
     def test_create_and_manifest(self, tmp_path, sample_items):
@@ -331,10 +363,12 @@ class TestCountdownPipeline:
 # 5. generate_future_countdown_short 테스트
 # ════════════════════════════════════════════════════════════════
 
+
 class TestGenerateCountdownShort:
     def test_function_signature(self):
-        from ShortsFactory.generate_short import generate_future_countdown_short
         import inspect
+
+        from ShortsFactory.generate_short import generate_future_countdown_short
 
         sig = inspect.signature(generate_future_countdown_short)
         params = list(sig.parameters.keys())
@@ -348,6 +382,7 @@ class TestGenerateCountdownShort:
         out = tmp_path / "gen_countdown.mp4"
         with patch("ShortsFactory.pipeline._ffmpeg_available", return_value=False):
             result = generate_future_countdown_short(
-                items=sample_items, output_path=out,
+                items=sample_items,
+                output_path=out,
             )
         assert result == out

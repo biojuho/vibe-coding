@@ -8,6 +8,7 @@ pkgutil.extend_path를 통해 경로를 연결합니다.
 
 ⚠️ 삭제하면 모든 테스트와 CLI가 동작하지 않습니다!
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -17,4 +18,3 @@ __path__ = extend_path(__path__, __name__)
 src_package_path = Path(__file__).resolve().parents[1] / "src" / "shorts_maker_v2"
 if src_package_path.exists():
     __path__.append(str(src_package_path))
-

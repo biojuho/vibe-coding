@@ -4,13 +4,21 @@
 작은 것에서 큰 것으로 줌아웃하며 스케일감을 연출.
 별 파티클 + 글로우 링 + 카운트업 애니메이션 + 와프 전환.
 """
+
 from __future__ import annotations
-import argparse, math, os, random, warnings
+
+import argparse
+import math
+import os
+import random
+import warnings
 from pathlib import Path
+
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="PIL")
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageFont
+
 try:
     from moviepy import VideoClip
 except ImportError:
@@ -22,16 +30,16 @@ class SpaceScaleGenerator:
     FPS = 30
 
     # Palette
-    BG = (3, 0, 20)              # #030014
-    INDIGO = (129, 140, 248)     # #818CF8
-    AMBER = (245, 158, 11)       # #F59E0B
+    BG = (3, 0, 20)  # #030014
+    INDIGO = (129, 140, 248)  # #818CF8
+    AMBER = (245, 158, 11)  # #F59E0B
     WHITE = (255, 255, 255)
     STAR_BLUE = (180, 200, 255)
     DEEP_PURPLE = (88, 28, 135)  # 글로우 외곽
 
-    def __init__(self, scales: list[dict],
-                 outro_text: str = "그리고 이 모든 것 속에\n당신이 있습니다",
-                 duration: float = 40.0):
+    def __init__(
+        self, scales: list[dict], outro_text: str = "그리고 이 모든 것 속에\n당신이 있습니다", duration: float = 40.0
+    ):
         """
         Args:
             scales: [{"name": "인간", "size_text": "1.7m", "image_path": "..."}, ...]
@@ -60,19 +68,24 @@ class SpaceScaleGenerator:
         self._outro_lines = self.outro_text.split("\n")
 
     def _load_fonts(self):
-        dirs = [Path("C:/Windows/Fonts"),
-                Path(os.path.expanduser("~/AppData/Local/Microsoft/Windows/Fonts"))]
+        dirs = [Path("C:/Windows/Fonts"), Path(os.path.expanduser("~/AppData/Local/Microsoft/Windows/Fonts"))]
+
         def _f(ns, fb="malgun.ttf"):
             for d in dirs:
                 for n in ns:
-                    if (d / n).exists(): return str(d / n)
+                    if (d / n).exists():
+                        return str(d / n)
             for d in dirs:
-                if (d / fb).exists(): return str(d / fb)
+                if (d / fb).exists():
+                    return str(d / fb)
             return ""
+
         sb = _f(["NanumGothicBold.ttf", "malgunbd.ttf"])
         sa = _f(["NanumGothic.ttf", "malgun.ttf"])
+
         def _l(p, s):
             return ImageFont.truetype(p, s) if p else ImageFont.load_default(s)
+
         self.f_name = _l(sb, 56)
         self.f_size = _l(sb, 72)
         self.f_unit = _l(sa, 38)
@@ -119,9 +132,8 @@ class SpaceScaleGenerator:
             draw.ellipse([(cx - r, cy - r), (cx + r, cy + r)], fill=c)
         # 이름 이니셜
         ch = name[0] if name else "?"
-        tw = draw.textlength(ch, font=self.f_big) if hasattr(draw, 'textlength') else self.f_big.getlength(ch)
-        draw.text(((size - tw) / 2, size // 2 - 30), ch,
-                  font=self.f_big, fill=(255, 255, 255, 200))
+        tw = draw.textlength(ch, font=self.f_big) if hasattr(draw, "textlength") else self.f_big.getlength(ch)
+        draw.text(((size - tw) / 2, size // 2 - 30), ch, font=self.f_big, fill=(255, 255, 255, 200))
         return img
 
     def _init_stars(self):
@@ -137,16 +149,19 @@ class SpaceScaleGenerator:
             y = cy + math.sin(angle) * dist
             is_blue = random.random() < 0.3
             color = self.STAR_BLUE if is_blue else self.WHITE
-            self._stars.append({
-                "x0": x, "y0": y,
-                "angle": angle,
-                "dist0": dist,
-                "r": random.uniform(0.8, 3.5),
-                "color": color,
-                "twinkle_ph": random.uniform(0, math.tau),
-                "twinkle_spd": random.uniform(1.5, 4.0),
-                "alpha_base": random.randint(80, 220),
-            })
+            self._stars.append(
+                {
+                    "x0": x,
+                    "y0": y,
+                    "angle": angle,
+                    "dist0": dist,
+                    "r": random.uniform(0.8, 3.5),
+                    "color": color,
+                    "twinkle_ph": random.uniform(0, math.tau),
+                    "twinkle_spd": random.uniform(1.5, 4.0),
+                    "alpha_base": random.randint(80, 220),
+                }
+            )
 
     def _draw_stars(self, draw, t, speed_mult=1.0):
         """별 파티클 렌더링 — 중앙에서 바깥으로 이동."""
@@ -172,11 +187,9 @@ class SpaceScaleGenerator:
                 streak = min(8, speed_mult * 1.5)
                 dx = math.cos(s["angle"]) * streak
                 dy = math.sin(s["angle"]) * streak
-                draw.line([(x, y), (x + dx, y + dy)],
-                          fill=(*s["color"], alpha), width=max(1, int(r * 0.7)))
+                draw.line([(x, y), (x + dx, y + dy)], fill=(*s["color"], alpha), width=max(1, int(r * 0.7)))
             else:
-                draw.ellipse([(x - r, y - r), (x + r, y + r)],
-                             fill=(*s["color"], alpha))
+                draw.ellipse([(x - r, y - r), (x + r, y + r)], fill=(*s["color"], alpha))
 
     def _draw_glow_ring(self, draw, cx, cy, radius, t, alpha_base=50):
         """소프트 글로우 링."""
@@ -184,9 +197,9 @@ class SpaceScaleGenerator:
             r = radius + i * 2
             pulse = 0.7 + 0.3 * math.sin(t * 2.0 + i * 0.2)
             al = int(alpha_base * pulse * (1 - i / 20))
-            if al < 1: continue
-            draw.ellipse([(cx - r, cy - r), (cx + r, cy + r)],
-                         outline=(*self.INDIGO, al), width=2)
+            if al < 1:
+                continue
+            draw.ellipse([(cx - r, cy - r), (cx + r, cy + r)], outline=(*self.INDIGO, al), width=2)
 
     def _draw_countup(self, draw, text, t_local, total_t, cy):
         """카운트업 애니메이션 — 숫자 부분만 올라감."""
@@ -222,13 +235,15 @@ class SpaceScaleGenerator:
 
         # 사이즈 텍스트 (앰버)
         tw = self._tw(full, self.f_size)
-        draw.text(((self.W - tw) // 2, cy), full,
-                  font=self.f_size, fill=(*self.AMBER, fa))
+        draw.text(((self.W - tw) // 2, cy), full, font=self.f_size, fill=(*self.AMBER, fa))
 
     @staticmethod
-    def _eo(t): return 1 - (1 - min(1, max(0, t))) ** 3
+    def _eo(t):
+        return 1 - (1 - min(1, max(0, t))) ** 3
+
     @staticmethod
-    def _ei(t): return min(1, max(0, t)) ** 2
+    def _ei(t):
+        return min(1, max(0, t)) ** 2
 
     def _tw(self, t, f):
         b = f.getbbox(t)
@@ -282,8 +297,16 @@ class SpaceScaleGenerator:
                 cur_scale = 1.0
                 cur_alpha = 255
 
-            self._draw_scale_item(draw, bg, idx, cur_scale, cur_alpha, t, show_text=True,
-                                  text_t=max(0, lt - self.trans_dur * (1 if idx > 0 else 0)))
+            self._draw_scale_item(
+                draw,
+                bg,
+                idx,
+                cur_scale,
+                cur_alpha,
+                t,
+                show_text=True,
+                text_t=max(0, lt - self.trans_dur * (1 if idx > 0 else 0)),
+            )
 
         elif t < rewind_start:
             # Outro
@@ -301,12 +324,14 @@ class SpaceScaleGenerator:
             start_y = (self.H - total_h) // 2
             for i, line in enumerate(self._outro_lines):
                 la = int(255 * self._eo((lt - 0.3 - i * 0.4) / 0.8))
-                if la < 0: la = 0
+                if la < 0:
+                    la = 0
                 tw = self._tw(line, self.f_outro)
                 # Slide up slightly
                 slide = int(15 * (1 - self._eo((lt - 0.3 - i * 0.4) / 0.8)))
-                draw.text(((self.W - tw) // 2, start_y + i * lh + slide), line,
-                          font=self.f_outro, fill=(*self.WHITE, la))
+                draw.text(
+                    ((self.W - tw) // 2, start_y + i * lh + slide), line, font=self.f_outro, fill=(*self.WHITE, la)
+                )
 
         else:
             # Rewind: 빠르게 줌인 역재생
@@ -370,8 +395,7 @@ class SpaceScaleGenerator:
             na = int(min(255, alpha) * self._eo(text_t / 0.6))
             if na > 0:
                 nw = self._tw(name, self.f_name)
-                draw.text(((self.W - nw) // 2, name_y), name,
-                          font=self.f_name, fill=(*self.INDIGO, na))
+                draw.text(((self.W - nw) // 2, name_y), name, font=self.f_name, fill=(*self.INDIGO, na))
 
             # 크기 (앰버, 하단, 카운트업)
             size_y = cy + int(target_size * scale / 2) + 40
@@ -384,14 +408,12 @@ class SpaceScaleGenerator:
             step_text = f"{idx + 1} / {len(self.scales)}"
             sa = int(100 * self._eo(text_t / 0.8))
             sw = self._tw(step_text, self.f_small)
-            draw.text(((self.W - sw) // 2, self.H - 120), step_text,
-                      font=self.f_small, fill=(*self.INDIGO, sa))
+            draw.text(((self.W - sw) // 2, self.H - 120), step_text, font=self.f_small, fill=(*self.INDIGO, sa))
 
     def generate(self, out="space_scale.mp4"):
         clip = VideoClip(lambda t: self._render(t), duration=self.duration).with_fps(self.FPS)
         Path(out).parent.mkdir(parents=True, exist_ok=True)
-        clip.write_videofile(str(out), codec="libx264", preset="medium",
-                             bitrate="8000k", audio=False, logger="bar")
+        clip.write_videofile(str(out), codec="libx264", preset="medium", bitrate="8000k", audio=False, logger="bar")
         sz = Path(out).stat().st_size / (1024 * 1024)
         print(f"\n✅ 생성 완료: {Path(out).resolve()}")
         print(f"   크기: {self.W}×{self.H} | 길이: {self.duration:.0f}초 | 파일: {sz:.1f}MB")
@@ -400,15 +422,16 @@ class SpaceScaleGenerator:
 
 # ── Demo data ──
 DEMO_SCALES = [
-    {"name": "인간",           "size_text": "1.7 m"},
-    {"name": "에베레스트 산",    "size_text": "8,849 m"},
-    {"name": "지구",           "size_text": "12,742 km"},
-    {"name": "목성",           "size_text": "139,820 km"},
-    {"name": "태양",           "size_text": "1,392,700 km"},
-    {"name": "태양계",         "size_text": "287억 km"},
-    {"name": "은하수",         "size_text": "100,000 광년"},
+    {"name": "인간", "size_text": "1.7 m"},
+    {"name": "에베레스트 산", "size_text": "8,849 m"},
+    {"name": "지구", "size_text": "12,742 km"},
+    {"name": "목성", "size_text": "139,820 km"},
+    {"name": "태양", "size_text": "1,392,700 km"},
+    {"name": "태양계", "size_text": "287억 km"},
+    {"name": "은하수", "size_text": "100,000 광년"},
     {"name": "관측 가능한 우주", "size_text": "930억 광년"},
 ]
+
 
 def main():
     pa = argparse.ArgumentParser(description="우주 스케일 비교 줌아웃 쇼츠")
@@ -427,6 +450,7 @@ def main():
         gen.generate(a.out)
     else:
         print("--demo 플래그로 데모를 생성하세요")
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

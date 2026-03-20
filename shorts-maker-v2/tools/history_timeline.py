@@ -4,14 +4,22 @@
 좌측 타임라인 바 + 우측 이벤트 카드, 세피아 톤.
 이벤트 타입별 특수 효과 (war→빨강, discovery→금색, culture→기본).
 """
+
 from __future__ import annotations
-import argparse, math, os, random, warnings
+
+import argparse
+import math
+import os
+import random
+import warnings
 from pathlib import Path
 from typing import Any
+
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="PIL")
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageFont
+
 try:
     from moviepy import VideoClip
 except ImportError:
@@ -46,10 +54,15 @@ class HistoryTimelineGenerator:
         # 먼지 파티클
         random.seed(7)
         self._dust = [
-            {"x": random.randint(0, self.W), "y": random.randint(0, self.H),
-             "r": random.uniform(1, 3), "vx": random.uniform(-8, 8),
-             "vy": random.uniform(-15, -5), "a": random.randint(30, 90),
-             "ph": random.uniform(0, math.tau)}
+            {
+                "x": random.randint(0, self.W),
+                "y": random.randint(0, self.H),
+                "r": random.uniform(1, 3),
+                "vx": random.uniform(-8, 8),
+                "vy": random.uniform(-15, -5),
+                "a": random.randint(30, 90),
+                "ph": random.uniform(0, math.tau),
+            }
             for _ in range(8)
         ]
         # 이벤트 텍스트 래핑
@@ -59,20 +72,25 @@ class HistoryTimelineGenerator:
             e["_title"] = self._wrap(e.get("title", ""), self.f_title, tw)
 
     def _load_fonts(self):
-        dirs = [Path("C:/Windows/Fonts"),
-                Path(os.path.expanduser("~/AppData/Local/Microsoft/Windows/Fonts"))]
+        dirs = [Path("C:/Windows/Fonts"), Path(os.path.expanduser("~/AppData/Local/Microsoft/Windows/Fonts"))]
+
         def _f(ns, fb="malgun.ttf"):
             for d in dirs:
                 for n in ns:
-                    if (d / n).exists(): return str(d / n)
+                    if (d / n).exists():
+                        return str(d / n)
             for d in dirs:
-                if (d / fb).exists(): return str(d / fb)
+                if (d / fb).exists():
+                    return str(d / fb)
             return ""
+
         se = _f(["NanumMyeongjo.ttf", "NanumMyeongjoBold.ttf", "batang.ttc"])
         sb = _f(["NanumGothicBold.ttf", "malgunbd.ttf"])
         sa = _f(["NanumGothic.ttf", "malgun.ttf"])
+
         def _l(p, s):
             return ImageFont.truetype(p, s) if p else ImageFont.load_default(s)
+
         self.f_year = _l(sb, 90)
         self.f_title = _l(se, 56)
         self.f_body = _l(sa, 36)
@@ -124,20 +142,30 @@ class HistoryTimelineGenerator:
             if font.getbbox(t)[2] - font.getbbox(t)[0] <= mw:
                 cur = t
             else:
-                if cur: lines.append(cur)
+                if cur:
+                    lines.append(cur)
                 cur = w
-        if cur: lines.append(cur)
+        if cur:
+            lines.append(cur)
         return lines
 
-    def _tw(self, t, f): b = f.getbbox(t); return b[2] - b[0]
-    def _th(self, t, f): b = f.getbbox(t); return b[3] - b[1]
+    def _tw(self, t, f):
+        b = f.getbbox(t)
+        return b[2] - b[0]
+
+    def _th(self, t, f):
+        b = f.getbbox(t)
+        return b[3] - b[1]
 
     @staticmethod
-    def _eo(t): return 1 - (1 - min(1, max(0, t))) ** 3
+    def _eo(t):
+        return 1 - (1 - min(1, max(0, t))) ** 3
 
     def _sepia_color(self, etype):
-        if etype == "war": return self.WAR_RED
-        if etype == "discovery": return self.DISC_GOLD
+        if etype == "war":
+            return self.WAR_RED
+        if etype == "discovery":
+            return self.DISC_GOLD
         return self.WHITE
 
     # ── Drawing ──
@@ -148,8 +176,7 @@ class HistoryTimelineGenerator:
             fl = 0.5 + 0.5 * math.sin(t * 1.5 + p["ph"])
             al = int(p["a"] * fl)
             r = p["r"]
-            draw.ellipse([(x - r, y - r), (x + r, y + r)],
-                         fill=(200, 180, 150, al))
+            draw.ellipse([(x - r, y - r), (x + r, y + r)], fill=(200, 180, 150, al))
 
     def _draw_timeline_bar(self, draw, active_idx, t):
         """좌측 세로 타임라인 바 + 마커."""
@@ -164,15 +191,13 @@ class HistoryTimelineGenerator:
             r_ratio = i / max(1, self.n - 1) if self.n > 1 else 0.5
             my = int(y_start + (y_end - y_start) * r_ratio)
             mr = 8
-            is_active = (i == active_idx)
+            is_active = i == active_idx
             if is_active:
                 pulse = 0.5 + 0.5 * math.sin(t * 4)
                 glow_r = int(mr + 6 * pulse)
-                draw.ellipse([(x - glow_r, my - glow_r), (x + glow_r, my + glow_r)],
-                             fill=(*self.GOLD, int(60 * pulse)))
+                draw.ellipse([(x - glow_r, my - glow_r), (x + glow_r, my + glow_r)], fill=(*self.GOLD, int(60 * pulse)))
             fill_a = 255 if is_active else 100
-            draw.ellipse([(x - mr, my - mr), (x + mr, my + mr)],
-                         fill=(*self.GOLD, fill_a))
+            draw.ellipse([(x - mr, my - mr), (x + mr, my + mr)], fill=(*self.GOLD, fill_a))
 
     def _draw_event_card(self, draw, ev, y_base, alpha, etype):
         """우측 이벤트 카드."""
@@ -199,23 +224,20 @@ class HistoryTimelineGenerator:
     def _draw_intro(self, draw, t):
         a = int(255 * self._eo(t / 1.5))
         tw_ = self._tw(self.title, self.f_intro)
-        draw.text(((self.W - tw_) // 2, self.H // 2 - 60), self.title,
-                  font=self.f_intro, fill=(255, 255, 255, a))
+        draw.text(((self.W - tw_) // 2, self.H // 2 - 60), self.title, font=self.f_intro, fill=(255, 255, 255, a))
         # 구분선
         la = int(180 * self._eo((t - 0.5) / 1.0))
         if la > 0:
             lw = 120
             lx = (self.W - lw) // 2
-            draw.line([(lx, self.H // 2 + 30), (lx + lw, self.H // 2 + 30)],
-                      fill=(*self.GOLD, la), width=2)
+            draw.line([(lx, self.H // 2 + 30), (lx + lw, self.H // 2 + 30)], fill=(*self.GOLD, la), width=2)
 
     def _draw_outro(self, draw, t):
         fade = 1 - self._eo(t / 3.0)
         a = int(200 * fade)
         txt = "역사는 반복된다"
         tw_ = self._tw(txt, self.f_intro)
-        draw.text(((self.W - tw_) // 2, self.H // 2 - 40), txt,
-                  font=self.f_intro, fill=(255, 255, 255, a))
+        draw.text(((self.W - tw_) // 2, self.H // 2 - 40), txt, font=self.f_intro, fill=(255, 255, 255, a))
 
     # ── Render ──
     def _render(self, t):
@@ -290,29 +312,39 @@ class HistoryTimelineGenerator:
     def generate(self, out="history_timeline.mp4"):
         clip = VideoClip(lambda t: self._render(t), duration=self.duration).with_fps(self.FPS)
         Path(out).parent.mkdir(parents=True, exist_ok=True)
-        clip.write_videofile(str(out), codec="libx264", preset="medium",
-                             bitrate="8000k", audio=False, logger="bar")
+        clip.write_videofile(str(out), codec="libx264", preset="medium", bitrate="8000k", audio=False, logger="bar")
         print(f"\n✅ 생성 완료: {Path(out).resolve()}")
-        print(f"   크기: {self.W}×{self.H} | 길이: {self.duration:.0f}초"
-              f" | 이벤트: {self.n}개 | FPS: {self.FPS}")
+        print(f"   크기: {self.W}×{self.H} | 길이: {self.duration:.0f}초 | 이벤트: {self.n}개 | FPS: {self.FPS}")
         return str(Path(out).resolve())
 
 
 DEMO_DATA = {
     "title": "한국 근현대사 주요 사건",
     "events": [
-        {"year": 1919, "title": "3·1 운동",
-         "description": "일제 강점기 최대 규모의 독립운동. 전국적으로 200만 명 이상이 참여한 비폭력 만세 시위.",
-         "type": "culture"},
-        {"year": 1945, "title": "광복",
-         "description": "35년간의 일본 식민 지배가 종결. 8월 15일 조선이 해방되었다.",
-         "type": "discovery"},
-        {"year": 1950, "title": "한국전쟁 발발",
-         "description": "6월 25일 북한의 남침으로 시작된 전쟁. 3년간 약 300만 명의 민간인 사상자 발생.",
-         "type": "war"},
-        {"year": 1988, "title": "서울 올림픽",
-         "description": "대한민국의 경제 성장과 민주화를 전 세계에 알린 역사적 순간.",
-         "type": "culture"},
+        {
+            "year": 1919,
+            "title": "3·1 운동",
+            "description": "일제 강점기 최대 규모의 독립운동. 전국적으로 200만 명 이상이 참여한 비폭력 만세 시위.",
+            "type": "culture",
+        },
+        {
+            "year": 1945,
+            "title": "광복",
+            "description": "35년간의 일본 식민 지배가 종결. 8월 15일 조선이 해방되었다.",
+            "type": "discovery",
+        },
+        {
+            "year": 1950,
+            "title": "한국전쟁 발발",
+            "description": "6월 25일 북한의 남침으로 시작된 전쟁. 3년간 약 300만 명의 민간인 사상자 발생.",
+            "type": "war",
+        },
+        {
+            "year": 1988,
+            "title": "서울 올림픽",
+            "description": "대한민국의 경제 성장과 민주화를 전 세계에 알린 역사적 순간.",
+            "type": "culture",
+        },
     ],
 }
 
@@ -328,6 +360,7 @@ def main():
         return 0
     print("[INFO] --demo로 먼저 시도하세요. 프로그래밍 방식 사용은 Python import 권장.")
     return 1
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

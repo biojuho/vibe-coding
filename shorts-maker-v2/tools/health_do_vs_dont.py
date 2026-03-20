@@ -4,13 +4,21 @@
 상하 분할 레이아웃 — 잘못된 습관(레드) vs 올바른 습관(그린).
 헥사곤 패턴 배경 + 슬라이드 전환 + 감성 아웃트로.
 """
+
 from __future__ import annotations
-import argparse, math, os, random, warnings
+
+import argparse
+import math
+import os
+import random
+import warnings
 from pathlib import Path
+
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="PIL")
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
+
 try:
     from moviepy import VideoClip
 except ImportError:
@@ -23,9 +31,9 @@ class HealthDoVsDontGenerator:
     MG = 60  # margin
 
     # Palette
-    BG = (10, 26, 20)             # #0A1A14
-    RED = (239, 68, 68)           # #EF4444
-    GREEN = (52, 211, 153)        # #34D399
+    BG = (10, 26, 20)  # #0A1A14
+    RED = (239, 68, 68)  # #EF4444
+    GREEN = (52, 211, 153)  # #34D399
     WHITE = (240, 245, 240)
     DARK_RED = (50, 15, 15)
     DARK_GREEN = (12, 40, 30)
@@ -33,12 +41,15 @@ class HealthDoVsDontGenerator:
     CARD_BG_DO = (52, 211, 153)
     DIVIDER = (30, 60, 45)
 
-    def __init__(self, title: str,
-                 pairs: list[dict],
-                 category: str = "건강습관",
-                 outro_text: str = "건강한 습관이\n인생을 바꿉니다",
-                 disclaimer: str = "※ 의학적 조언이 아닌 정보 제공 목적입니다",
-                 duration: float = 30.0):
+    def __init__(
+        self,
+        title: str,
+        pairs: list[dict],
+        category: str = "건강습관",
+        outro_text: str = "건강한 습관이\n인생을 바꿉니다",
+        disclaimer: str = "※ 의학적 조언이 아닌 정보 제공 목적입니다",
+        duration: float = 30.0,
+    ):
         """
         Args:
             title: "아침 공복에 하면 안 되는 3가지"
@@ -67,44 +78,56 @@ class HealthDoVsDontGenerator:
         # Subtle particles
         random.seed(55)
         self._particles = [
-            {"x": random.randint(0, self.W), "y": random.randint(0, self.H),
-             "vy": random.uniform(-8, -2), "r": random.uniform(1, 2.5),
-             "a": random.randint(15, 50), "ph": random.uniform(0, math.tau)}
+            {
+                "x": random.randint(0, self.W),
+                "y": random.randint(0, self.H),
+                "vy": random.uniform(-8, -2),
+                "r": random.uniform(1, 2.5),
+                "a": random.randint(15, 50),
+                "ph": random.uniform(0, math.tau),
+            }
             for _ in range(20)
         ]
 
     def _load_fonts(self):
-        dirs = [Path("C:/Windows/Fonts"),
-                Path(os.path.expanduser("~/AppData/Local/Microsoft/Windows/Fonts"))]
+        dirs = [Path("C:/Windows/Fonts"), Path(os.path.expanduser("~/AppData/Local/Microsoft/Windows/Fonts"))]
+
         def _f(ns, fb="malgun.ttf"):
             for d in dirs:
                 for n in ns:
-                    if (d / n).exists(): return str(d / n)
+                    if (d / n).exists():
+                        return str(d / n)
             for d in dirs:
-                if (d / fb).exists(): return str(d / fb)
+                if (d / fb).exists():
+                    return str(d / fb)
             return ""
+
         sb = _f(["NanumGothicBold.ttf", "malgunbd.ttf"])
         sa = _f(["NanumGothic.ttf", "malgun.ttf"])
+
         def _l(p, s):
             return ImageFont.truetype(p, s) if p else ImageFont.load_default(s)
+
         self.f_title = _l(sb, 56)
-        self.f_label = _l(sb, 38)     # DO/DON'T label
-        self.f_body = _l(sa, 36)      # card text
-        self.f_vs = _l(sb, 32)        # VS badge
-        self.f_tag = _l(sb, 28)       # category tag
-        self.f_outro = _l(sb, 46)     # outro
-        self.f_small = _l(sa, 22)     # disclaimer
-        self.f_counter = _l(sb, 24)   # pair counter
+        self.f_label = _l(sb, 38)  # DO/DON'T label
+        self.f_body = _l(sa, 36)  # card text
+        self.f_vs = _l(sb, 32)  # VS badge
+        self.f_tag = _l(sb, 28)  # category tag
+        self.f_outro = _l(sb, 46)  # outro
+        self.f_small = _l(sa, 22)  # disclaimer
+        self.f_counter = _l(sb, 24)  # pair counter
 
     def _preprocess_text(self):
         tw = self.W - self.MG * 2 - 80
         self._title_lines = self._wrap(self.title, self.f_title, tw)
         self._pair_data = []
         for p in self.pairs:
-            self._pair_data.append({
-                "dont_lines": self._wrap(p.get("dont_text", ""), self.f_body, tw - 20),
-                "do_lines": self._wrap(p.get("do_text", ""), self.f_body, tw - 20),
-            })
+            self._pair_data.append(
+                {
+                    "dont_lines": self._wrap(p.get("dont_text", ""), self.f_body, tw - 20),
+                    "do_lines": self._wrap(p.get("do_text", ""), self.f_body, tw - 20),
+                }
+            )
         self._outro_lines = self.outro_text.split("\n")
 
     def _make_hex_pattern(self):
@@ -137,9 +160,11 @@ class HealthDoVsDontGenerator:
             if bb[2] - bb[0] <= mw:
                 cur = t
             else:
-                if cur: lines.append(cur)
+                if cur:
+                    lines.append(cur)
                 cur = seg
-        if cur: lines.append(cur)
+        if cur:
+            lines.append(cur)
         return lines
 
     def _tw(self, t, f):
@@ -151,9 +176,12 @@ class HealthDoVsDontGenerator:
         return b[3] - b[1] if b else 0
 
     @staticmethod
-    def _eo(t): return 1 - (1 - min(1, max(0, t))) ** 3
+    def _eo(t):
+        return 1 - (1 - min(1, max(0, t))) ** 3
+
     @staticmethod
-    def _ei(t): return min(1, max(0, t)) ** 2
+    def _ei(t):
+        return min(1, max(0, t)) ** 2
 
     def _draw_particles(self, draw, t):
         for p in self._particles:
@@ -162,20 +190,16 @@ class HealthDoVsDontGenerator:
             fl = 0.4 + 0.6 * math.sin(t * 1.5 + p["ph"])
             al = int(p["a"] * fl)
             r = p["r"]
-            draw.ellipse([(x - r, y - r), (x + r, y + r)],
-                         fill=(*self.GREEN, al))
+            draw.ellipse([(x - r, y - r), (x + r, y + r)], fill=(*self.GREEN, al))
 
     def _draw_card(self, draw, x, y, w, h, color, alpha=25):
         """반투명 색상 카드."""
         # BG fill
-        draw.rounded_rectangle([(x, y), (x + w, y + h)],
-                               radius=12, fill=(*color, alpha))
+        draw.rounded_rectangle([(x, y), (x + w, y + h)], radius=12, fill=(*color, alpha))
         # Left accent line
-        draw.rounded_rectangle([(x, y + 8), (x + 4, y + h - 8)],
-                               radius=2, fill=(*color, 180))
+        draw.rounded_rectangle([(x, y + 8), (x + 4, y + h - 8)], radius=2, fill=(*color, 180))
         # Border
-        draw.rounded_rectangle([(x, y), (x + w, y + h)],
-                               radius=12, outline=(*color, 40), width=1)
+        draw.rounded_rectangle([(x, y), (x + w, y + h)], radius=12, outline=(*color, 40), width=1)
 
     # ── Phase renderers ──
 
@@ -187,12 +211,12 @@ class HealthDoVsDontGenerator:
 
         for i, line in enumerate(self._title_lines):
             prog = self._eo((t - 0.2 - i * 0.15) / 0.5)
-            if prog <= 0: continue
+            if prog <= 0:
+                continue
             al = int(250 * prog)
             bounce = int(15 * (1 - prog))
             tw_ = self._tw(line, self.f_title)
-            draw.text(((self.W - tw_) // 2, start_y + i * lh + bounce), line,
-                      font=self.f_title, fill=(*self.WHITE, al))
+            draw.text(((self.W - tw_) // 2, start_y + i * lh + bounce), line, font=self.f_title, fill=(*self.WHITE, al))
 
         # Category tag
         if t > 1.0:
@@ -201,8 +225,9 @@ class HealthDoVsDontGenerator:
             tag_w = self._tw(tag, self.f_tag) + 24
             tx = (self.W - tag_w) // 2
             ty = start_y + total_h + 30
-            draw.rounded_rectangle([(tx, ty), (tx + tag_w, ty + 38)],
-                                   radius=6, fill=(*self.GREEN, 30), outline=(*self.GREEN, ta))
+            draw.rounded_rectangle(
+                [(tx, ty), (tx + tag_w, ty + 38)], radius=6, fill=(*self.GREEN, 30), outline=(*self.GREEN, ta)
+            )
             draw.text((tx + 12, ty + 5), tag, font=self.f_tag, fill=(*self.GREEN, ta))
 
     def _render_pair(self, draw, idx, t_local):
@@ -243,9 +268,9 @@ class HealthDoVsDontGenerator:
             lh = self._th("가", self.f_body) + 12
             for i, line in enumerate(pair["dont_lines"]):
                 tla = int(dont_alpha * self._eo((t_local - 0.15 - i * 0.08) / 0.3))
-                if tla < 0: tla = 0
-                draw.text((dx + 25, dont_y + 70 + i * lh), line,
-                          font=self.f_body, fill=(*self.WHITE, tla))
+                if tla < 0:
+                    tla = 0
+                draw.text((dx + 25, dont_y + 70 + i * lh), line, font=self.f_body, fill=(*self.WHITE, tla))
 
         # ── VS divider (중간) ──
         vs_y = dont_y + card_h + 15
@@ -253,19 +278,25 @@ class HealthDoVsDontGenerator:
         if t_local > 0.2:
             va = int(180 * self._eo((t_local - 0.2) / 0.3) * alpha_mult)
             # line
-            draw.line([(self.MG + 30 + slide_x, vs_y + vs_zone_h // 2),
-                       (self.W - self.MG - 30 + slide_x, vs_y + vs_zone_h // 2)],
-                      fill=(*self.DIVIDER, va), width=1)
+            draw.line(
+                [
+                    (self.MG + 30 + slide_x, vs_y + vs_zone_h // 2),
+                    (self.W - self.MG - 30 + slide_x, vs_y + vs_zone_h // 2),
+                ],
+                fill=(*self.DIVIDER, va),
+                width=1,
+            )
             # VS badge
             vs_w = 60
             vx = (self.W - vs_w) // 2 + slide_x
-            draw.rounded_rectangle([(vx, vs_y + 10), (vx + vs_w, vs_y + vs_zone_h - 10)],
-                                   radius=8, fill=(*self.BG, 255))
-            draw.rounded_rectangle([(vx, vs_y + 10), (vx + vs_w, vs_y + vs_zone_h - 10)],
-                                   radius=8, outline=(*self.GREEN, va // 2), width=1)
+            draw.rounded_rectangle(
+                [(vx, vs_y + 10), (vx + vs_w, vs_y + vs_zone_h - 10)], radius=8, fill=(*self.BG, 255)
+            )
+            draw.rounded_rectangle(
+                [(vx, vs_y + 10), (vx + vs_w, vs_y + vs_zone_h - 10)], radius=8, outline=(*self.GREEN, va // 2), width=1
+            )
             vtw = self._tw("VS", self.f_vs)
-            draw.text(((self.W - vtw) // 2 + slide_x, vs_y + 14), "VS",
-                      font=self.f_vs, fill=(*self.WHITE, va))
+            draw.text(((self.W - vtw) // 2 + slide_x, vs_y + 14), "VS", font=self.f_vs, fill=(*self.WHITE, va))
 
         # ── DO card (하단 45%) ──
         do_y = vs_y + vs_zone_h + 15
@@ -286,16 +317,15 @@ class HealthDoVsDontGenerator:
             lh = self._th("가", self.f_body) + 12
             for i, line in enumerate(pair["do_lines"]):
                 tla = int(do_alpha * self._eo((t_local - 0.7 - i * 0.08) / 0.3))
-                if tla < 0: tla = 0
-                draw.text((dx + 25, do_y + 70 + i * lh), line,
-                          font=self.f_body, fill=(*self.WHITE, tla))
+                if tla < 0:
+                    tla = 0
+                draw.text((dx + 25, do_y + 70 + i * lh), line, font=self.f_body, fill=(*self.WHITE, tla))
 
         # Pair counter
         ct = f"{idx + 1} / {len(self.pairs)}"
         cta = int(100 * alpha_mult)
         cw = self._tw(ct, self.f_counter)
-        draw.text(((self.W - cw) // 2, self.H - 100), ct,
-                  font=self.f_counter, fill=(*self.GREEN, cta))
+        draw.text(((self.W - cw) // 2, self.H - 100), ct, font=self.f_counter, fill=(*self.GREEN, cta))
 
     def _render_outro(self, draw, t_local):
         """아웃트로: 감성 텍스트 + 면책."""
@@ -305,18 +335,17 @@ class HealthDoVsDontGenerator:
 
         for i, line in enumerate(self._outro_lines):
             la = int(240 * self._eo((t_local - 0.3 - i * 0.3) / 0.6))
-            if la < 0: la = 0
+            if la < 0:
+                la = 0
             tw_ = self._tw(line, self.f_outro)
             slide = int(12 * (1 - self._eo((t_local - 0.3 - i * 0.3) / 0.6)))
-            draw.text(((self.W - tw_) // 2, start_y + i * lh + slide), line,
-                      font=self.f_outro, fill=(*self.WHITE, la))
+            draw.text(((self.W - tw_) // 2, start_y + i * lh + slide), line, font=self.f_outro, fill=(*self.WHITE, la))
 
         # Disclaimer
         if t_local > 1.5:
             da = int(120 * self._eo((t_local - 1.5) / 0.5))
             dw = self._tw(self.disclaimer, self.f_small)
-            draw.text(((self.W - dw) // 2, self.H - 150), self.disclaimer,
-                      font=self.f_small, fill=(*self.WHITE, da))
+            draw.text(((self.W - dw) // 2, self.H - 150), self.disclaimer, font=self.f_small, fill=(*self.WHITE, da))
 
         # Fade out
         if t_local > self.outro_dur - 1.0:
@@ -358,8 +387,7 @@ class HealthDoVsDontGenerator:
     def generate(self, out="health_do_vs_dont.mp4"):
         clip = VideoClip(lambda t: self._render(t), duration=self.duration).with_fps(self.FPS)
         Path(out).parent.mkdir(parents=True, exist_ok=True)
-        clip.write_videofile(str(out), codec="libx264", preset="medium",
-                             bitrate="8000k", audio=False, logger="bar")
+        clip.write_videofile(str(out), codec="libx264", preset="medium", bitrate="8000k", audio=False, logger="bar")
         sz = Path(out).stat().st_size / (1024 * 1024)
         print(f"\n✅ 생성 완료: {Path(out).resolve()}")
         print(f"   크기: {self.W}×{self.H} | 길이: {self.duration:.0f}초 | 파일: {sz:.1f}MB")
@@ -400,6 +428,7 @@ def main():
         gen.generate(a.out)
     else:
         print("--demo 플래그로 데모를 생성하세요")
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

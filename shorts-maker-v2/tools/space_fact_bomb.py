@@ -4,13 +4,21 @@
 빠른 템포로 충격적인 우주 사실을 연속 공개.
 글리치 플래시 + 카운트업 + 딥 스페이스 컬러 그레이딩.
 """
+
 from __future__ import annotations
-import argparse, math, os, random, warnings
+
+import argparse
+import math
+import os
+import random
+import warnings
 from pathlib import Path
+
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="PIL")
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageFont
+
 try:
     from moviepy import VideoClip
 except ImportError:
@@ -22,18 +30,21 @@ class SpaceFactBombGenerator:
     FPS = 30
 
     # Deep space palette
-    BG = (3, 0, 20)               # #030014
-    CYAN = (6, 182, 212)          # #06B6D4
-    AMBER = (245, 158, 11)        # #F59E0B
-    LAVENDER = (129, 140, 248)    # #818CF8
+    BG = (3, 0, 20)  # #030014
+    CYAN = (6, 182, 212)  # #06B6D4
+    AMBER = (245, 158, 11)  # #F59E0B
+    LAVENDER = (129, 140, 248)  # #818CF8
     WHITE = (240, 240, 255)
-    DEEP_NAVY = (8, 12, 40)       # 그림자
-    CARD_BG = (10, 15, 45)        # 카드 배경
+    DEEP_NAVY = (8, 12, 40)  # 그림자
+    CARD_BG = (10, 15, 45)  # 카드 배경
 
-    def __init__(self, topic_title: str,
-                 facts: list[dict],
-                 outro_text: str = "우주는 아직 99%가\n미지의 영역",
-                 duration: float = 35.0):
+    def __init__(
+        self,
+        topic_title: str,
+        facts: list[dict],
+        outro_text: str = "우주는 아직 99%가\n미지의 영역",
+        duration: float = 35.0,
+    ):
         """
         Args:
             topic_title: "우주에서 가장 ○○한 것"
@@ -60,27 +71,32 @@ class SpaceFactBombGenerator:
         self._preprocess_text()
 
     def _load_fonts(self):
-        dirs = [Path("C:/Windows/Fonts"),
-                Path(os.path.expanduser("~/AppData/Local/Microsoft/Windows/Fonts"))]
+        dirs = [Path("C:/Windows/Fonts"), Path(os.path.expanduser("~/AppData/Local/Microsoft/Windows/Fonts"))]
+
         def _f(ns, fb="malgun.ttf"):
             for d in dirs:
                 for n in ns:
-                    if (d / n).exists(): return str(d / n)
+                    if (d / n).exists():
+                        return str(d / n)
             for d in dirs:
-                if (d / fb).exists(): return str(d / fb)
+                if (d / fb).exists():
+                    return str(d / fb)
             return ""
+
         sb = _f(["NanumGothicBold.ttf", "malgunbd.ttf"])
         sa = _f(["NanumGothic.ttf", "malgun.ttf"])
+
         def _l(p, s):
             return ImageFont.truetype(p, s) if p else ImageFont.load_default(s)
-        self.f_hook = _l(sb, 80)       # 훅 타이틀
-        self.f_title = _l(sb, 52)      # 팩트 제목
-        self.f_number = _l(sb, 88)     # 숫자 (크게)
-        self.f_unit = _l(sb, 44)       # 단위
-        self.f_detail = _l(sa, 32)     # 부가 설명
-        self.f_badge = _l(sb, 28)      # FACT 01 배지
-        self.f_outro = _l(sb, 48)      # 아웃트로
-        self.f_small = _l(sa, 26)      # 작은 텍스트
+
+        self.f_hook = _l(sb, 80)  # 훅 타이틀
+        self.f_title = _l(sb, 52)  # 팩트 제목
+        self.f_number = _l(sb, 88)  # 숫자 (크게)
+        self.f_unit = _l(sb, 44)  # 단위
+        self.f_detail = _l(sa, 32)  # 부가 설명
+        self.f_badge = _l(sb, 28)  # FACT 01 배지
+        self.f_outro = _l(sb, 48)  # 아웃트로
+        self.f_small = _l(sa, 26)  # 작은 텍스트
 
     def _init_stars(self):
         random.seed(77)
@@ -91,25 +107,30 @@ class SpaceFactBombGenerator:
             dist = random.uniform(5, max(self.W, self.H) * 0.85)
             is_blue = random.random() < 0.35
             color = (180, 200, 255) if is_blue else (255, 255, 255)
-            self._stars.append({
-                "x0": cx + math.cos(angle) * dist,
-                "y0": cy + math.sin(angle) * dist,
-                "angle": angle,
-                "dist0": dist,
-                "r": random.uniform(0.5, 3.0),
-                "color": color,
-                "twk_ph": random.uniform(0, math.tau),
-                "twk_spd": random.uniform(2, 5),
-                "alpha": random.randint(60, 220),
-            })
+            self._stars.append(
+                {
+                    "x0": cx + math.cos(angle) * dist,
+                    "y0": cy + math.sin(angle) * dist,
+                    "angle": angle,
+                    "dist0": dist,
+                    "r": random.uniform(0.5, 3.0),
+                    "color": color,
+                    "twk_ph": random.uniform(0, math.tau),
+                    "twk_spd": random.uniform(2, 5),
+                    "alpha": random.randint(60, 220),
+                }
+            )
 
     def _init_glitch(self):
         """글리치 타이밍 시드."""
         random.seed(33)
         self._glitch_slices = [
-            {"y": random.randint(0, self.H), "h": random.randint(3, 20),
-             "dx": random.choice([-1, 1]) * random.randint(5, 30),
-             "color_shift": random.choice(["r", "g", "b"])}
+            {
+                "y": random.randint(0, self.H),
+                "h": random.randint(3, 20),
+                "dx": random.choice([-1, 1]) * random.randint(5, 30),
+                "color_shift": random.choice(["r", "g", "b"]),
+            }
             for _ in range(15)
         ]
 
@@ -118,13 +139,15 @@ class SpaceFactBombGenerator:
         self._hook_lines = self._wrap(self.topic_title, self.f_hook, tw)
         self._fact_data = []
         for f in self.facts:
-            self._fact_data.append({
-                "title_lines": self._wrap(f.get("title", ""), self.f_title, tw - 40),
-                "detail_lines": self._wrap(f.get("detail", ""), self.f_detail, tw - 40),
-                "number": f.get("number", ""),
-                "unit": f.get("unit", ""),
-                "image_path": f.get("image_path", ""),
-            })
+            self._fact_data.append(
+                {
+                    "title_lines": self._wrap(f.get("title", ""), self.f_title, tw - 40),
+                    "detail_lines": self._wrap(f.get("detail", ""), self.f_detail, tw - 40),
+                    "number": f.get("number", ""),
+                    "unit": f.get("unit", ""),
+                    "image_path": f.get("image_path", ""),
+                }
+            )
         self._outro_lines = self.outro_text.split("\n")
 
     @staticmethod
@@ -136,9 +159,11 @@ class SpaceFactBombGenerator:
             if bb[2] - bb[0] <= mw:
                 cur = t
             else:
-                if cur: lines.append(cur)
+                if cur:
+                    lines.append(cur)
                 cur = seg
-        if cur: lines.append(cur)
+        if cur:
+            lines.append(cur)
         return lines
 
     def _tw(self, t, f):
@@ -150,9 +175,12 @@ class SpaceFactBombGenerator:
         return b[3] - b[1] if b else 0
 
     @staticmethod
-    def _eo(t): return 1 - (1 - min(1, max(0, t))) ** 3
+    def _eo(t):
+        return 1 - (1 - min(1, max(0, t))) ** 3
+
     @staticmethod
-    def _ei(t): return min(1, max(0, t)) ** 2.5
+    def _ei(t):
+        return min(1, max(0, t)) ** 2.5
 
     # ── Drawing helpers ──
 
@@ -171,8 +199,7 @@ class SpaceFactBombGenerator:
             tw_ = 0.4 + 0.6 * ((math.sin(t * s["twk_spd"] + s["twk_ph"]) + 1) / 2)
             al = int(s["alpha"] * tw_ * min(1.0, density_mult))
             r = s["r"] * (0.7 + 0.3 * tw_)
-            draw.ellipse([(x - r, y - r), (x + r, y + r)],
-                         fill=(*s["color"], min(255, al)))
+            draw.ellipse([(x - r, y - r), (x + r, y + r)], fill=(*s["color"], min(255, al)))
 
     def _draw_glitch(self, arr, intensity=1.0):
         """글리치 효과 — 수평 슬라이스 이동 + RGB 쉬프트."""
@@ -190,15 +217,15 @@ class SpaceFactBombGenerator:
                 continue
             sl = arr[y1:y2].copy()
             if dx > 0:
-                result[y1:y2, dx:] = sl[:, :self.W - dx]
+                result[y1:y2, dx:] = sl[:, : self.W - dx]
             elif dx < 0:
-                result[y1:y2, :self.W + dx] = sl[:, -dx:]
+                result[y1:y2, : self.W + dx] = sl[:, -dx:]
             # Color channel shift
             if gl["color_shift"] == "r" and y2 < self.H:
                 shift = max(1, int(3 * intensity))
                 safe_y2 = min(self.H, y2 + shift)
                 if safe_y2 > y1 + shift:
-                    result[y1 + shift:safe_y2, :, 0] = arr[y1:safe_y2 - shift, :, 0]
+                    result[y1 + shift : safe_y2, :, 0] = arr[y1 : safe_y2 - shift, :, 0]
         return result
 
     def _draw_vignette(self, arr, strength=0.7):
@@ -207,7 +234,7 @@ class SpaceFactBombGenerator:
         Y, X = np.ogrid[:h, :w]
         cx, cy = w / 2, h / 2
         dist = np.sqrt((X - cx) ** 2 + (Y - cy) ** 2)
-        max_dist = math.sqrt(cx ** 2 + cy ** 2)
+        max_dist = math.sqrt(cx**2 + cy**2)
         vignette = 1 - (dist / max_dist) ** 2 * strength
         vignette = np.clip(vignette, 0, 1)
         return (arr.astype(np.float32) * vignette[:, :, np.newaxis]).clip(0, 255).astype(np.uint8)
@@ -227,8 +254,7 @@ class SpaceFactBombGenerator:
     def _draw_badge(self, draw, x, y, text, color=None):
         c = color or self.CYAN
         tw_ = self._tw(text, self.f_badge) + 24
-        draw.rounded_rectangle([(x, y), (x + tw_, y + 36)],
-                               radius=6, fill=(*c, 40), outline=(*c, 140), width=2)
+        draw.rounded_rectangle([(x, y), (x + tw_, y + 36)], radius=6, fill=(*c, 40), outline=(*c, 140), width=2)
         draw.text((x + 12, y + 4), text, font=self.f_badge, fill=(*c, 230))
         return tw_
 
@@ -260,14 +286,12 @@ class SpaceFactBombGenerator:
         # Number (amber, large)
         na = min(255, alpha)
         nw = self._tw(display, self.f_number)
-        draw.text((cx - nw // 2, cy), display,
-                  font=self.f_number, fill=(*self.AMBER, na))
+        draw.text((cx - nw // 2, cy), display, font=self.f_number, fill=(*self.AMBER, na))
 
         # Unit (smaller, below)
         if unit:
             uw = self._tw(unit, self.f_unit)
-            draw.text((cx - uw // 2, cy + 95), unit,
-                      font=self.f_unit, fill=(*self.AMBER, int(na * 0.8)))
+            draw.text((cx - uw // 2, cy + 95), unit, font=self.f_unit, fill=(*self.AMBER, int(na * 0.8)))
 
     # ── Phase renderers ──
 
@@ -295,8 +319,7 @@ class SpaceFactBombGenerator:
             sub = "알고 계셨나요?"
             sa = int(180 * self._eo((t - 1.5) / 0.5))
             sw = self._tw(sub, self.f_detail)
-            draw.text(((self.W - sw) // 2, start_y + total_h + 30), sub,
-                      font=self.f_detail, fill=(*self.CYAN, sa))
+            draw.text(((self.W - sw) // 2, start_y + total_h + 30), sub, font=self.f_detail, fill=(*self.CYAN, sa))
 
     def _render_fact_card(self, draw, idx, t_local):
         """팩트 카드 한 장."""
@@ -321,16 +344,15 @@ class SpaceFactBombGenerator:
         lh = self._th("가", self.f_title) + 14
         for i, line in enumerate(self._hook_lines if not fact["title_lines"] else fact["title_lines"]):
             la = int(alpha * self._eo((t_local - 0.2 - i * 0.1) / 0.4))
-            if la < 0: la = 0
+            if la < 0:
+                la = 0
             tw_ = self._tw(line, self.f_title)
-            draw.text(((self.W - tw_) // 2, 490 + i * lh), line,
-                      font=self.f_title, fill=(*self.LAVENDER, la))
+            draw.text(((self.W - tw_) // 2, 490 + i * lh), line, font=self.f_title, fill=(*self.LAVENDER, la))
 
         # Number + unit (center, countup)
         if fact["number"]:
             num_t = max(0, t_local - 0.5)
-            self._draw_countup(draw, fact["number"], fact["unit"],
-                               self.W // 2, 680, num_t, alpha)
+            self._draw_countup(draw, fact["number"], fact["unit"], self.W // 2, 680, num_t, alpha)
 
         # Detail (bottom, small, opacity 70%)
         if fact["detail_lines"]:
@@ -338,10 +360,10 @@ class SpaceFactBombGenerator:
             dy = 900
             for i, line in enumerate(fact["detail_lines"]):
                 da = int(alpha * 0.7 * self._eo((t_local - 0.8 - i * 0.1) / 0.4))
-                if da < 0: da = 0
+                if da < 0:
+                    da = 0
                 dw = self._tw(line, self.f_detail)
-                draw.text(((self.W - dw) // 2, dy + i * dlh), line,
-                          font=self.f_detail, fill=(*self.WHITE, da))
+                draw.text(((self.W - dw) // 2, dy + i * dlh), line, font=self.f_detail, fill=(*self.WHITE, da))
 
         # Progress bar (bottom)
         n = len(self.facts)
@@ -349,12 +371,12 @@ class SpaceFactBombGenerator:
         bar_w = self.W - 120
         bar_x = 60
         # Background
-        draw.rounded_rectangle([(bar_x, bar_y), (bar_x + bar_w, bar_y + 4)],
-                               radius=2, fill=(*self.DEEP_NAVY, 100))
+        draw.rounded_rectangle([(bar_x, bar_y), (bar_x + bar_w, bar_y + 4)], radius=2, fill=(*self.DEEP_NAVY, 100))
         # Fill
         fill_w = int(bar_w * (idx + t_local / self.card_dur) / n)
-        draw.rounded_rectangle([(bar_x, bar_y), (bar_x + fill_w, bar_y + 4)],
-                               radius=2, fill=(*self.CYAN, int(alpha * 0.6)))
+        draw.rounded_rectangle(
+            [(bar_x, bar_y), (bar_x + fill_w, bar_y + 4)], radius=2, fill=(*self.CYAN, int(alpha * 0.6))
+        )
 
     def _render_outro(self, draw, t_local):
         """마무리 감성 텍스트."""
@@ -364,17 +386,16 @@ class SpaceFactBombGenerator:
 
         for i, line in enumerate(self._outro_lines):
             la = int(230 * self._eo((t_local - 0.3 - i * 0.3) / 0.7))
-            if la < 0: la = 0
+            if la < 0:
+                la = 0
             tw_ = self._tw(line, self.f_outro)
             slide = int(15 * (1 - self._eo((t_local - 0.3 - i * 0.3) / 0.7)))
-            draw.text(((self.W - tw_) // 2, start_y + i * lh + slide), line,
-                      font=self.f_outro, fill=(*self.WHITE, la))
+            draw.text(((self.W - tw_) // 2, start_y + i * lh + slide), line, font=self.f_outro, fill=(*self.WHITE, la))
 
         # Fade out at end
         if t_local > self.outro_dur - 1.5:
             fo = self._ei((t_local - (self.outro_dur - 1.5)) / 1.5)
-            draw.rectangle([(0, 0), (self.W, self.H)],
-                           fill=(*self.BG, int(200 * fo)))
+            draw.rectangle([(0, 0), (self.W, self.H)], fill=(*self.BG, int(200 * fo)))
 
     # ── Main render ──
     def _render(self, t):
@@ -442,8 +463,7 @@ class SpaceFactBombGenerator:
     def generate(self, out="space_fact_bomb.mp4"):
         clip = VideoClip(lambda t: self._render(t), duration=self.duration).with_fps(self.FPS)
         Path(out).parent.mkdir(parents=True, exist_ok=True)
-        clip.write_videofile(str(out), codec="libx264", preset="medium",
-                             bitrate="8000k", audio=False, logger="bar")
+        clip.write_videofile(str(out), codec="libx264", preset="medium", bitrate="8000k", audio=False, logger="bar")
         sz = Path(out).stat().st_size / (1024 * 1024)
         print(f"\n✅ 생성 완료: {Path(out).resolve()}")
         print(f"   크기: {self.W}×{self.H} | 길이: {self.duration:.0f}초 | 파일: {sz:.1f}MB")
@@ -488,6 +508,7 @@ DEMO_FACTS = {
     "duration": 35.0,
 }
 
+
 def main():
     pa = argparse.ArgumentParser(description="우주 팩트 폭탄 쇼츠 생성기")
     pa.add_argument("--demo", action="store_true", help="데모 영상 생성")
@@ -501,6 +522,7 @@ def main():
         gen.generate(a.out)
     else:
         print("--demo 플래그로 데모를 생성하세요")
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

@@ -6,6 +6,7 @@
 - Pipeline: tech_vs 템플릿 렌더링
 - generate_tech_vs_short: 편의 API
 """
+
 from __future__ import annotations
 
 import json
@@ -57,6 +58,7 @@ def sample_vs_data():
 # 1. LayoutEngine — VS 레이아웃
 # ════════════════════════════════════════════════════════════════
 
+
 class TestVsTitleBar:
     def test_creates_image(self, ai_tech_config, tmp_path):
         from ShortsFactory.engines.layout_engine import LayoutEngine
@@ -68,8 +70,9 @@ class TestVsTitleBar:
         assert result.stat().st_size > 0
 
     def test_dimensions(self, ai_tech_config, tmp_path):
-        from ShortsFactory.engines.layout_engine import LayoutEngine
         from PIL import Image
+
+        from ShortsFactory.engines.layout_engine import LayoutEngine
 
         engine = LayoutEngine(ai_tech_config)
         out = tmp_path / "bar_dim.png"
@@ -90,8 +93,9 @@ class TestVsSplitCards:
         assert result.exists()
 
     def test_dimensions(self, ai_tech_config, tmp_path):
-        from ShortsFactory.engines.layout_engine import LayoutEngine
         from PIL import Image
+
+        from ShortsFactory.engines.layout_engine import LayoutEngine
 
         engine = LayoutEngine(ai_tech_config)
         out = tmp_path / "split_dim.png"
@@ -138,6 +142,7 @@ class TestVsScoreBar:
 # ════════════════════════════════════════════════════════════════
 # 2. TechVsTemplate
 # ════════════════════════════════════════════════════════════════
+
 
 class TestTechVsTemplate:
     def test_scene_count(self, ai_tech_config, sample_vs_data):
@@ -257,6 +262,7 @@ class TestTechVsTemplate:
 # 3. Pipeline 통합
 # ════════════════════════════════════════════════════════════════
 
+
 class TestVsPipeline:
     def test_create_and_manifest(self, tmp_path, sample_vs_data):
         from ShortsFactory.pipeline import ShortsFactory
@@ -280,10 +286,12 @@ class TestVsPipeline:
 # 4. generate_tech_vs_short
 # ════════════════════════════════════════════════════════════════
 
+
 class TestGenerateVsShort:
     def test_function_signature(self):
-        from ShortsFactory.generate_short import generate_tech_vs_short
         import inspect
+
+        from ShortsFactory.generate_short import generate_tech_vs_short
 
         sig = inspect.signature(generate_tech_vs_short)
         params = list(sig.parameters.keys())

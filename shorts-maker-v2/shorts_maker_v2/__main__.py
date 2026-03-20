@@ -14,7 +14,5 @@ if str(_VIBE_ROOT) not in sys.path:
 
 from shorts_maker_v2.cli import run_cli
 
-
 if __name__ == "__main__":
     raise SystemExit(run_cli())
-

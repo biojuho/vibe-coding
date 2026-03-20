@@ -8,6 +8,7 @@
 - ShortsFactory pipeline: 매니페스트 생성
 - generate_ai_news_short: 편의 API
 """
+
 from __future__ import annotations
 
 import json
@@ -24,6 +25,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 
 # ── 채널 설정 fixture ─────────────────────────────────────────────
+
 
 @pytest.fixture
 def ai_tech_config():
@@ -71,6 +73,7 @@ def tmp_output(tmp_path):
 # 1. BackgroundEngine 테스트
 # ════════════════════════════════════════════════════════════════
 
+
 class TestBackgroundEngine:
     def test_create_grid_overlay(self, ai_tech_config, tmp_output):
         from ShortsFactory.engines.background_engine import BackgroundEngine
@@ -84,8 +87,9 @@ class TestBackgroundEngine:
         assert result.stat().st_size > 0
 
     def test_grid_overlay_dimensions(self, ai_tech_config, tmp_output):
-        from ShortsFactory.engines.background_engine import BackgroundEngine
         from PIL import Image
+
+        from ShortsFactory.engines.background_engine import BackgroundEngine
 
         engine = BackgroundEngine(ai_tech_config)
         out = tmp_output / "grid_dim.png"
@@ -97,9 +101,10 @@ class TestBackgroundEngine:
 
     def test_grid_overlay_opacity(self, ai_tech_config, tmp_output):
         """그리드 오버레이 opacity 5% 확인."""
-        from ShortsFactory.engines.background_engine import BackgroundEngine
-        from PIL import Image
         import numpy as np
+        from PIL import Image
+
+        from ShortsFactory.engines.background_engine import BackgroundEngine
 
         engine = BackgroundEngine(ai_tech_config)
         out = tmp_output / "grid_op.png"
@@ -116,7 +121,10 @@ class TestBackgroundEngine:
 
         engine = BackgroundEngine(ai_tech_config)
         frames = engine.create_gradient_shift_frames(
-            width=270, height=480, num_frames=5, output_dir=tmp_output / "grad",
+            width=270,
+            height=480,
+            num_frames=5,
+            output_dir=tmp_output / "grad",
         )
 
         assert len(frames) == 5
@@ -127,6 +135,7 @@ class TestBackgroundEngine:
 # ════════════════════════════════════════════════════════════════
 # 2. TextEngine 테스트
 # ════════════════════════════════════════════════════════════════
+
 
 class TestTextEngine:
     def test_render_subtitle_with_glow(self, ai_tech_config, tmp_output):
@@ -154,8 +163,9 @@ class TestTextEngine:
         assert result.stat().st_size > 0
 
     def test_badge_dimensions(self, ai_tech_config, tmp_output):
-        from ShortsFactory.engines.text_engine import TextEngine
         from PIL import Image
+
+        from ShortsFactory.engines.text_engine import TextEngine
 
         engine = TextEngine(ai_tech_config)
         out = tmp_output / "badge_dim.png"
@@ -171,7 +181,9 @@ class TestTextEngine:
         engine = TextEngine(ai_tech_config)
         out = tmp_output / "glow_r30.png"
         result = engine.render_subtitle_with_glow(
-            "테스트 텍스트", glow_radius=30, output_path=out,
+            "테스트 텍스트",
+            glow_radius=30,
+            output_path=out,
         )
 
         assert result.exists()
@@ -180,6 +192,7 @@ class TestTextEngine:
 # ════════════════════════════════════════════════════════════════
 # 3. HookEngine 테스트
 # ════════════════════════════════════════════════════════════════
+
 
 class TestHookEngine:
     def test_create_hook(self, ai_tech_config):
@@ -197,13 +210,14 @@ class TestHookEngine:
 
     def test_brightness_flash_function(self):
         from ShortsFactory.engines.hook_engine import _apply_brightness_flash
+
         assert callable(_apply_brightness_flash)
 
     def test_glitch_rgb_split(self):
         """개선된 글리치가 RGB 분리를 수행하는지 확인."""
-        from ShortsFactory.engines.hook_engine import _apply_glitch
-        import numpy as np
         from unittest.mock import MagicMock
+
+        from ShortsFactory.engines.hook_engine import _apply_glitch
 
         clip = MagicMock()
         clip.transform = MagicMock(return_value=clip)
@@ -215,6 +229,7 @@ class TestHookEngine:
 # ════════════════════════════════════════════════════════════════
 # 4. AiNewsTemplate 테스트
 # ════════════════════════════════════════════════════════════════
+
 
 class TestAiNewsTemplate:
     def test_build_scenes_structure(self, ai_tech_config, sample_data):
@@ -303,11 +318,13 @@ class TestAiNewsTemplate:
         from ShortsFactory.templates.ai_news import AiNewsTemplate
 
         template = AiNewsTemplate(ai_tech_config)
-        scenes = template.build_scenes({
-            "news_title": "테스트",
-            "points": [{"text": "포인트1", "keywords": []}],
-            "cta_text": "커스텀 CTA 문구",
-        })
+        scenes = template.build_scenes(
+            {
+                "news_title": "테스트",
+                "points": [{"text": "포인트1", "keywords": []}],
+                "cta_text": "커스텀 CTA 문구",
+            }
+        )
 
         cta = scenes[-1]
         assert cta.text == "커스텀 CTA 문구"
@@ -316,6 +333,7 @@ class TestAiNewsTemplate:
 # ════════════════════════════════════════════════════════════════
 # 5. Scene dataclass 테스트
 # ════════════════════════════════════════════════════════════════
+
 
 class TestScene:
     def test_new_fields(self):
@@ -341,6 +359,7 @@ class TestScene:
 # ════════════════════════════════════════════════════════════════
 # 6. Pipeline 통합 테스트
 # ════════════════════════════════════════════════════════════════
+
 
 class TestPipeline:
     def test_create_and_manifest(self, tmp_output, sample_data):
@@ -382,10 +401,12 @@ class TestPipeline:
 # 7. generate_ai_news_short 테스트
 # ════════════════════════════════════════════════════════════════
 
+
 class TestGenerateShort:
     def test_function_signature(self):
-        from ShortsFactory.generate_short import generate_ai_news_short
         import inspect
+
+        from ShortsFactory.generate_short import generate_ai_news_short
 
         sig = inspect.signature(generate_ai_news_short)
         params = list(sig.parameters.keys())

@@ -16,16 +16,14 @@ import argparse
 import math
 import os
 import re
-import sys
 import warnings
 from pathlib import Path
-from typing import Any
 
 # Pillow deprecation warning 억제 (load_default size param)
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="PIL")
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageFont
 
 try:
     from moviepy import VideoClip
@@ -42,32 +40,58 @@ class PsychologyShortsGenerator:
     """심리학 실험 기반 YouTube Shorts 생성기."""
 
     # ── 색상 팔레트 ──────────────────────────────────────────────────────────
-    BG_PURPLE = (26, 10, 30)          # #1A0A1E
-    BG_BLACK  = (5, 2, 8)
-    BG_RED    = (45, 10, 10)          # #2D0A0A
-    CARD_BG   = (45, 27, 51, 204)     # #2D1B33  80 %
-    WHITE     = (255, 255, 255)
-    LAVENDER  = (232, 121, 249)       # #E879F9
-    AMBER     = (245, 158, 11)        # #F59E0B
-    PINK      = (251, 113, 133)       # #FB7185
+    BG_PURPLE = (26, 10, 30)  # #1A0A1E
+    BG_BLACK = (5, 2, 8)
+    BG_RED = (45, 10, 10)  # #2D0A0A
+    CARD_BG = (45, 27, 51, 204)  # #2D1B33  80 %
+    WHITE = (255, 255, 255)
+    LAVENDER = (232, 121, 249)  # #E879F9
+    AMBER = (245, 158, 11)  # #F59E0B
+    PINK = (251, 113, 133)  # #FB7185
 
     # ── 레이아웃 ─────────────────────────────────────────────────────────────
-    W, H   = 1080, 1920
-    FPS    = 30
+    W, H = 1080, 1920
+    FPS = 30
     MARGIN = 60
 
     # ── 페이즈 타이밍 (초) ───────────────────────────────────────────────────
-    P1_END =  3.0
+    P1_END = 3.0
     P2_END = 10.0
     P3_END = 25.0
     P4_END = 35.0
 
     # ── 감정 단어 사전 (키워드 하이라이트) ─────────────────────────────────────
     EMOTION_WORDS = {
-        "두려움", "복종", "공포", "불안", "고통", "충격", "분노", "슬픔",
-        "죄책감", "혼란", "절망", "압박", "위협", "무력감", "동조", "순종",
-        "거부", "저항", "갈등", "트라우마", "스트레스", "우울", "공감", "연민",
-        "권위", "순응", "양심", "전기충격", "비명", "항의",
+        "두려움",
+        "복종",
+        "공포",
+        "불안",
+        "고통",
+        "충격",
+        "분노",
+        "슬픔",
+        "죄책감",
+        "혼란",
+        "절망",
+        "압박",
+        "위협",
+        "무력감",
+        "동조",
+        "순종",
+        "거부",
+        "저항",
+        "갈등",
+        "트라우마",
+        "스트레스",
+        "우울",
+        "공감",
+        "연민",
+        "권위",
+        "순응",
+        "양심",
+        "전기충격",
+        "비명",
+        "항의",
     }
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -113,8 +137,8 @@ class PsychologyShortsGenerator:
         self._vignette = self._make_vignette()
 
         # 텍스트 래핑 캐시
-        self._setup_lines  = self._wrap(self.setup_text,  self.font_body,  self.W - self.MARGIN * 2 - 40)
-        self._result_lines = self._wrap(self.result_text,  self.font_body,  self.W - self.MARGIN * 2 - 40)
+        self._setup_lines = self._wrap(self.setup_text, self.font_body, self.W - self.MARGIN * 2 - 40)
+        self._result_lines = self._wrap(self.result_text, self.font_body, self.W - self.MARGIN * 2 - 40)
         self._insight_lines = self._wrap(self.insight_text, self.font_quote, self.W - self.MARGIN * 2 - 80)
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -139,9 +163,9 @@ class PsychologyShortsGenerator:
                     return str(p)
             return ""
 
-        serif  = _find(["NanumMyeongjo.ttf", "batang.ttc"])
+        serif = _find(["NanumMyeongjo.ttf", "batang.ttc"])
         serif_b = _find(["NanumMyeongjoBold.ttf", "NanumMyeongjoExtraBold.ttf"])
-        sans   = _find(["NanumGothic.ttf", "malgun.ttf"])
+        sans = _find(["NanumGothic.ttf", "malgun.ttf"])
         sans_b = _find(["NanumGothicBold.ttf", "NanumGothicExtraBold.ttf", "malgunbd.ttf"])
 
         def _load(path: str, size: int) -> ImageFont.FreeTypeFont:
@@ -149,15 +173,15 @@ class PsychologyShortsGenerator:
                 return ImageFont.truetype(path, size)
             return ImageFont.load_default(size)
 
-        self.font_hook      = _load(sans_b, 76)     # Phase 1  훅
-        self.font_title     = _load(serif, 52)       # Phase 2  실험명
-        self.font_body      = _load(sans, 40)        # Phase 2,3 본문
-        self.font_bold      = _load(sans_b, 52)      # Phase 3  강조
-        self.font_quote     = _load(serif, 46)       # Phase 4  인용
-        self.font_question  = _load(sans_b, 54)      # Phase 4  질문
-        self.font_turnaround = _load(sans_b, 80)     # Phase 3  "그런데..."
-        self.font_small     = _load(sans, 34)        # 부가 텍스트
-        self.font_cursor    = _load(sans, 76)        # 타자기 커서
+        self.font_hook = _load(sans_b, 76)  # Phase 1  훅
+        self.font_title = _load(serif, 52)  # Phase 2  실험명
+        self.font_body = _load(sans, 40)  # Phase 2,3 본문
+        self.font_bold = _load(sans_b, 52)  # Phase 3  강조
+        self.font_quote = _load(serif, 46)  # Phase 4  인용
+        self.font_question = _load(sans_b, 54)  # Phase 4  질문
+        self.font_turnaround = _load(sans_b, 80)  # Phase 3  "그런데..."
+        self.font_small = _load(sans, 34)  # 부가 텍스트
+        self.font_cursor = _load(sans, 76)  # 타자기 커서
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     #  Background / Vignette
@@ -267,7 +291,10 @@ class PsychologyShortsGenerator:
     def _draw_card(
         self,
         draw: ImageDraw.ImageDraw,
-        x: int, y: int, w: int, h: int,
+        x: int,
+        y: int,
+        w: int,
+        h: int,
         color: tuple = (45, 27, 51, 204),
         radius: int = 20,
     ) -> None:
@@ -326,7 +353,8 @@ class PsychologyShortsGenerator:
         line_y = 230
         draw.line(
             [(self.W // 2 - 120, line_y), (self.W // 2 + 120, line_y)],
-            fill=(*self.LAVENDER, line_alpha), width=2,
+            fill=(*self.LAVENDER, line_alpha),
+            width=2,
         )
 
         # ── 중앙: 이미지 ──
@@ -358,8 +386,7 @@ class PsychologyShortsGenerator:
         # 카드 페이드인
         card_alpha = int(204 * self._ease_out((t - 0.5) / 0.6))
         if card_alpha > 0:
-            self._draw_card(draw, card_x, card_y_start, card_w, card_h,
-                            color=(45, 27, 51, card_alpha), radius=16)
+            self._draw_card(draw, card_x, card_y_start, card_w, card_h, color=(45, 27, 51, card_alpha), radius=16)
 
         # 줄 단위 순차 페이드인 (0.3초 간격)
         for i, line in enumerate(self._setup_lines):
@@ -381,8 +408,7 @@ class PsychologyShortsGenerator:
             tx = (self.W - tw) // 2
             ty = self.H // 2 - 50
             # 스케일 효과 시뮬레이션 (텍스트 크기 조절은 비용이 크므로 alpha로 표현)
-            draw.text((tx, ty), text, font=self.font_turnaround,
-                      fill=(255, 255, 255, int(popup_alpha * popup_scale)))
+            draw.text((tx, ty), text, font=self.font_turnaround, fill=(255, 255, 255, int(popup_alpha * popup_scale)))
 
         # ── 결과 설명 카드 ──
         if t >= 1.2:
@@ -405,8 +431,7 @@ class PsychologyShortsGenerator:
                 card_alpha = int(204 * card_alpha_f)
                 card_h = line_h * len(card_lines) + 50
 
-                self._draw_card(draw, card_x, y_cursor, card_w, card_h,
-                                color=(45, 27, 51, card_alpha), radius=16)
+                self._draw_card(draw, card_x, y_cursor, card_w, card_h, color=(45, 27, 51, card_alpha), radius=16)
 
                 for li, line in enumerate(card_lines):
                     la = int(255 * self._ease_out((card_t - card_delay - 0.2 - li * 0.15) / 0.4))
@@ -423,8 +448,7 @@ class PsychologyShortsGenerator:
         # ── 큰 따옴표 ──
         quote_alpha = int(120 * self._ease_out(t / 0.6))
         # 열기 따옴표
-        draw.text((self.MARGIN + 10, 450), "\u201c", font=self.font_turnaround,
-                  fill=(*self.LAVENDER, quote_alpha))
+        draw.text((self.MARGIN + 10, 450), "\u201c", font=self.font_turnaround, fill=(*self.LAVENDER, quote_alpha))
 
         # ── 인사이트 텍스트 (줄 단위 페이드인) ──
         for i, line in enumerate(self._insight_lines):
@@ -439,8 +463,12 @@ class PsychologyShortsGenerator:
         close_alpha = int(120 * self._ease_out((t - 0.3 - len(self._insight_lines) * 0.3) / 0.4))
         if close_alpha > 0:
             cw = self._text_w("\u201d", self.font_turnaround)
-            draw.text((self.W - self.MARGIN - cw - 10, last_y - 20), "\u201d",
-                      font=self.font_turnaround, fill=(*self.LAVENDER, max(0, close_alpha)))
+            draw.text(
+                (self.W - self.MARGIN - cw - 10, last_y - 20),
+                "\u201d",
+                font=self.font_turnaround,
+                fill=(*self.LAVENDER, max(0, close_alpha)),
+            )
 
         # ── 구분선 ──
         sep_y = last_y + 60
@@ -448,7 +476,8 @@ class PsychologyShortsGenerator:
         if sep_alpha > 0:
             draw.line(
                 [(self.W // 2 - 80, sep_y), (self.W // 2 + 80, sep_y)],
-                fill=(255, 255, 255, sep_alpha), width=2,
+                fill=(255, 255, 255, sep_alpha),
+                width=2,
             )
 
         # ── 마무리 질문 ──
@@ -464,8 +493,7 @@ class PsychologyShortsGenerator:
             visible_q = self.question_text[:chars_vis]
             vw = self._text_w(visible_q, self.font_question)
             vx = (self.W - qw) // 2  # 최종 위치 기준 정렬 유지
-            draw.text((vx, qy), visible_q, font=self.font_question,
-                      fill=(*self.LAVENDER, q_alpha))
+            draw.text((vx, qy), visible_q, font=self.font_question, fill=(*self.LAVENDER, q_alpha))
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     #  Card Splitting Helper
@@ -589,6 +617,7 @@ DEMO_DATA = {
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  CLI
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="심리학 실험 스토리텔링 쇼츠 생성기")

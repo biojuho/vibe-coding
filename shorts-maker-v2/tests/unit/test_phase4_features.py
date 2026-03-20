@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from shorts_maker_v2.providers.edge_tts_client import _apply_ssml_by_role
+from shorts_maker_v2.providers.edge_tts_client import _get_role_prosody
 from shorts_maker_v2.render.caption_pillow import auto_font_size, complementary_color
 from shorts_maker_v2.utils.style_tracker import StyleTracker
 
@@ -48,35 +48,34 @@ def test_auto_font_size_minimum() -> None:
     assert auto_font_size(10, 100, "body") >= 32
 
 
-# ─── 4-B: SSML role-based ──────────────────────────────────────────────────
+# ─── 4-B: get_role_prosody ──────────────────────────────────────────────────
 
 
-def test_ssml_hook_has_emphasis() -> None:
-    result = _apply_ssml_by_role("Hello", "hook")
-    assert "<emphasis" in result
-    assert "strong" in result
+def test_get_role_prosody_hook() -> None:
+    rate, pitch = _get_role_prosody("hook")
+    assert rate == "+15%"
+    assert pitch == "+8Hz"
 
 
-def test_ssml_cta_has_break() -> None:
-    result = _apply_ssml_by_role("Subscribe", "cta")
-    assert "<break" in result
-    assert "moderate" in result
+def test_get_role_prosody_cta() -> None:
+    rate, pitch = _get_role_prosody("cta")
+    assert rate == "-10%"
+    assert pitch == "+5Hz"
 
 
-def test_ssml_body_inserts_pause() -> None:
-    result = _apply_ssml_by_role("First sentence. Second sentence.", "body")
-    assert "<break" in result
+def test_get_role_prosody_body_random() -> None:
+    import re
+
+    rate, pitch = _get_role_prosody("body")
+    assert re.match(r"^[+-]?\d+%$", rate) is not None
+    assert re.match(r"^[+-]?\d+Hz$", pitch) is not None
 
 
-def test_ssml_body_no_period_no_break() -> None:
-    result = _apply_ssml_by_role("No punctuation here", "body")
-    assert "<break" not in result
-
-
-def test_ssml_escapes_special_chars() -> None:
-    result = _apply_ssml_by_role("A & B <tag>", "hook")
-    assert "&amp;" in result
-    assert "&lt;" in result
+def test_get_role_prosody_body_base_rate() -> None:
+    # 테스트 base_rate = "+10%" 일 때, jitter(±5)가 적용되어 5%~15% 여야 함
+    rate, _ = _get_role_prosody("body", base_rate="+10%")
+    rate_val = int(rate.replace("%", "").replace("+", ""))
+    assert 5 <= rate_val <= 15
 
 
 # ─── 4-E: StyleTracker ─────────────────────────────────────────────────────
