@@ -1,3 +1,51 @@
+## 2026-03-20 — Antigravity (Gemini) — SSML 태그 누출 수정 + MiMo LLM 프로바이더 통합 + QC 승인
+
+### 작업 요약
+edge-tts SSML 태그가 음성으로 읽히고 자막에 노출되는 Critical 버그를 수정하고, Xiaomi MiMo V2-Flash를 최우선 LLM 프로바이더로 통합. QC 전 항목 통과로 승인.
+
+### 변경 파일
+| 파일 | 변경 |
+|------|------|
+| `shorts-maker-v2/src/.../providers/edge_tts_client.py` | SSML 이중 래핑 수정: `_create_ssml()`에서 외부 `<prosody>` 제거, `_apply_ssml_by_role()`에 `base_rate` 파라미터 추가, hook/CTA 역할에서 키워드 emphasis 중복 방지 |
+| `shorts-maker-v2/src/.../providers/llm_router.py` | MiMo 프로바이더 추가: PROVIDER_ALIASES(`mimo`, `xiaomi`), DEFAULT_MODELS(`mimo-v2-flash`), OPENAI_COMPATIBLE_BASE_URLS(`https://api.xiaomimimo.com/v1`), API 키 로딩 |
+| `shorts-maker-v2/config.yaml` | `llm_providers` 최우선에 `mimo` 추가, `llm_models`에 `mimo-v2-flash` 매핑, `costs.llm_per_job` $0.002→$0.001 |
+| `shorts-maker-v2/.env` | `MIMO_API_KEY` 추가 (사용자 제공 키 설정) |
+
+### SSML 버그 상세
+1. **이중 래핑**: `_create_ssml()`이 이미 SSML 마크업된 텍스트를 다시 `<prosody>`로 감싸 → edge-tts가 태그를 리터럴 텍스트로 읽음
+2. **이중 emphasis**: hook/CTA 역할에도 키워드 emphasis가 적용되어 `<emphasis>` 중첩 발생
+3. **수정**: 외부 prosody 제거, body에만 `base_rate` 적용, hook/CTA는 emphasis 스킵
+
+### MiMo 통합 상세
+- **모델**: MiMo V2-Flash (OpenAI 호환 API)
+- **비용**: $0.10/M 입력 + $0.30/M 출력 토큰 → 작업당 ~$0.001
+- **Fallback**: MiMo 장애 시 Google → Groq → ... 9단계 자동 전환
+
+### QC 결과
+| 항목 | 결과 |
+|------|------|
+| AST 구문 검사 | ✅ PASS |
+| Unit Tests | ✅ 537 passed, 12 skipped, 0 failed |
+| 보안 스캔 | ✅ .env → .gitignore, 하드코딩 없음 |
+| MiMo API 라이브 테스트 | ✅ JSON 정상 반환 |
+| **최종 판정** | **✅ 승인 (APPROVED)** |
+
+### 결정사항
+- MiMo를 최우선 LLM 프로바이더로 설정 (비용 50% 절감, 품질 동등 이상)
+- SSML 수정: body 역할에만 keyword emphasis 적용, hook/CTA는 스킵
+- 롤백: `config.yaml`에서 `mimo` 한 줄 삭제로 즉시 가능
+
+### 미완료 TODO
+- 없음 (SSML 수정 + MiMo 통합 + QC 모두 완료)
+
+### 다음 도구에게 메모
+- MiMo API 엔드포인트: `https://api.xiaomimimo.com/v1` (OpenAI 호환)
+- `.env`에 `MIMO_API_KEY` 설정 필요 (또는 `XIAOMI_API_KEY`)
+- SSML 수정 후 edge-tts WordBoundary 동작은 기존과 동일 (근사 타이밍 fallback 유지)
+- 12개 skipped 테스트는 기존 이슈 (ffmpeg PATH / faster-whisper 미설치 관련)
+
+---
+
 ## 2026-03-20 — Codex — hanwoo-dashboard 피드백 UX 정리 + CalvingTab RHF 전환
 
 ### 작업 요약
@@ -2310,4 +2358,50 @@ APPROVED - 5개 파일 모두 정상. debug.md 비결정적 버그 예외처리 
 
 ### ?ㅼ쓬 ?꾧뎄?먭쾶 硫붾え
 - 다음 턴에는 동일 패턴으로 남은 폼 확장 또는 Playwright 스모크 테스트 추가가 자연스러움
+---
+
+
+## 2026-03-20 — Antigravity (Gemini) — SSML Fix + MiMo LLM Integration
+
+### 작업 요약
+shorts-maker-v2의 SSML 태그 누출 버그 수정 및 Xiaomi MiMo V2-Flash LLM 프로바이더 통합.
+
+### 버그 수정: SSML 태그 누출
+- **문제**: edge-tts SSML 태그가 TTS 음성에 읽히고 자막에 노출
+- **원인 1**: _create_ssml()에서 이미 SSML 마크업된 텍스트를 <prosody>로 이중 래핑
+- **원인 2**: hook/CTA 역할에 <emphasis> 태그 중첩 적용
+- **수정**: 
+  - _create_ssml()에서 외부 <prosody> 태그 제거
+  - _apply_ssml_by_role()에 ase_rate 파라미터 추가
+  - hook/CTA 역할 키워드 강조 스킵 로직 추가
+
+### 신규 통합: MiMo V2-Flash LLM
+- config.yaml: llm_providers 최상위에 mimo 추가, mimo-v2-flash 모델 매핑
+- .env: MIMO_API_KEY 추가 (OpenAI 호환 API)
+- costs.llm_per_job: .002 → .001 (50% 절감)
+- 폴백 체인: MiMo → Google → Groq → ... (9단계)
+
+### 변경 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| shorts-maker-v2/src/shorts_maker_v2/pipeline/edge_tts_client.py | SSML 이중 래핑 제거, base_rate 파라미터 추가 |
+| shorts-maker-v2/config.yaml | mimo 프로바이더 및 모델 추가, 비용 조정 |
+| shorts-maker-v2/.env | MIMO_API_KEY 추가 |
+
+### QC 결과
+- AST 검사: PASS
+- 단위 테스트: 537 passed, 12 skipped, 0 failed
+- 보안 스캔: CLEAR
+- MiMo API 라이브 테스트: 성공
+- **판정: ✅ 승인 (APPROVED)**
+
+### 결정사항
+- MiMo V2-Flash를 기본 LLM 프로바이더로 채택 (비용 효율 + 성능)
+- 롤백: config.yaml에서 mimo 제거만으로 가능
+
+### 다음 에이전트에게 메모
+- MiMo API는 OpenAI 호환 — platform.xiaomimimo.com 엔드포인트
+- SSML 수정 핵심: _apply_ssml_by_role()의 ase_rate 파라미터로 역할별 속도 제어
+- skipped 테스트 12건은 기존 이슈 (ffmpeg PATH, faster-whisper 미설치)
+
 ---

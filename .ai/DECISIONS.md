@@ -147,3 +147,16 @@
 | **결정** | Introduce explicit renderer modes: `native`, `auto`, `shorts_factory`. Keep `native` as the default. `auto` means ShortsFactory first with native fallback. `shorts_factory` means fail fast if the ShortsFactory path fails. |
 | **대안** | Keep boolean `use_shorts_factory`; silently switch the default renderer to ShortsFactory. |
 | **선택 이유** | The explicit mode makes rollout safe, keeps production default stable, and gives testable manifest semantics for fallback behavior. |
+
+---
+
+## ADR-011: MiMo V2-Flash as Default LLM Provider
+
+| 항목 | 내용 |
+|------|------|
+| **날짜** | 2026-03-20 |
+| **상태** | ✅ 확정 |
+| **맥락** | shorts-maker-v2의 LLM 비용 절감 필요. 기존 Google Gemini/Groq 프로바이더 대비 동등 품질에서 비용 50% 절감 가능한 대안 발견 |
+| **결정** | Xiaomi MiMo V2-Flash를 기본 LLM 프로바이더로 채택. OpenAI 호환 API 사용. 9단계 폴백 체인 유지 (MiMo → Google → Groq → ...) |
+| **대안** | Google Gemini Flash 유지 / DeepSeek V3 사용 |
+| **선택 이유** | 비용 효율 ($0.001/job), OpenAI 호환 API로 통합 용이, 롤백은 config.yaml에서 `mimo` 제거만으로 가능 |

@@ -39,7 +39,7 @@
   - 怨듭떇: Notion, Filesystem, Brave Search, GitHub
   - 而ㅼ뒪?: SQLite Multi-DB, YouTube Data, Telegram, n8n Workflow, System Monitor, Cloudinary
 - **?뚮┝**: Telegram Bot
-- **?몃? API**: OpenAI, Google Gemini, Anthropic, DeepSeek, Moonshot, Zhipu AI, xAI
+- **?몃? API**: OpenAI, Google Gemini, Anthropic, DeepSeek, Moonshot, Zhipu AI, xAI, Xiaomi MiMo
 
 ---
 
@@ -181,6 +181,10 @@ Vibe coding/                      # Root ?뚰겕?ㅽ럹?댁뒪
   - 3-탭 구조(지식현황/QA·QC/타임라인) UI 개편
   - `qaqc_runner.py` 기반 1-command 통합 테스팅(pytest, AST, 보안, 인프라) 구축
   - SQLite 히스토리 DB 연동 및 Dashboard 시각화
+- shorts-maker-v2: SSML 태그 누출 버그 수정 + MiMo V2-Flash LLM 프로바이더 통합 (2026-03-20):
+  - edge_tts_client: SSML 이중 래핑 제거, base_rate 파라미터 추가, hook/CTA 키워드 강조 스킵
+  - config.yaml: MiMo 프로바이더 추가, llm_per_job .002→.001 (50% 절감)
+  - QC: 537 passed, 12 skipped, 0 failed, MiMo API 라이브 테스트 성공
 
 ### 현재 진행 중
 
