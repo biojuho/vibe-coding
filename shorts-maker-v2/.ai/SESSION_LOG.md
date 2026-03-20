@@ -1,5 +1,32 @@
 # 📋 AI 세션 로그
 
+## 2026-03-20 — Antigravity (pre-commit 훅 PATH 수정)
+
+### 작업 요약
+`pip install --user`로 설치된 pre-commit이 Windows PATH에 없어서 Git 훅 실행 실패 → `.git/hooks/pre-commit` 스크립트를 Python 절대경로로 직접 호출하도록 수정
+
+### 세부 변경사항
+- **문제**: `git commit` 시 `'pre-commit' not found. Did you forget to activate your virtualenv?` 에러
+- **원인**: `pip install --user` → Scripts 디렉토리가 시스템 PATH에 없음 + 한국어 경로 인코딩 이슈
+- **해결**: `.git/hooks/pre-commit` 스크립트 재작성
+  - `INSTALL_PYTHON` fallback 제거 → Python 절대경로(`C:/Users/박주호/.../python.exe -mpre_commit`) 직접 사용
+  - 한국어 경로 대응: `cd "repo_root"` 명시
+- `pre-commit install` 정상 완료, 테스트 커밋 exit code 0 ✅
+
+### QC 결과
+- AST: ✅ 50파일 PASS | 보안: ✅ PASS | 테스트: ✅ 537 passed | Ruff: ⚠️ 10건 (기존)
+- **최종 판정: ✅ 승인**
+
+### 변경 파일
+- `.git/hooks/pre-commit` (로컬 전용, 커밋 불가)
+
+### 다음 도구에게 메모
+- `.git/hooks/pre-commit`은 gitignore 대상이라 원격에 푸시되지 않음
+- Python 재설치/버전 변경 시 `python -c "from pre_commit.main import main; main(['install'])"` + 훅 재패치 필요
+- 리스크 LOW
+
+---
+
 ## 2026-03-20 — Antigravity (품질 안정화 도구 도입)
 
 ### 작업 요약
