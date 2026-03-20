@@ -12,6 +12,30 @@ blind-to-x 프로젝트에 4대 업그레이드 구현: (1) Crawl4AI LLM 추출 
 
 ---
 
+## 2026-03-20 Codex shorts-maker-v2 Lyria QC follow-up
+
+### Summary
+- Ran focused QA/QC for the new Lyria realtime BGM support.
+- Found and fixed a filename-collision bug where Korean prompts collapsed to the fallback stem `lyria-bgm`.
+- Cleaned the touched files until targeted Ruff, pytest, and CLI checks all passed.
+
+### Changed Files
+- `execution/lyria_bgm_generator.py`
+- `execution/tests/test_lyria_bgm_generator.py`
+- `shorts-maker-v2/src/shorts_maker_v2/pipeline/render_step.py`
+
+### Verification
+- `python -m ruff check execution/lyria_bgm_generator.py execution/tests/test_lyria_bgm_generator.py shorts-maker-v2/src/shorts_maker_v2/providers/google_music_client.py shorts-maker-v2/src/shorts_maker_v2/pipeline/render_step.py shorts-maker-v2/tests/unit/test_google_music_client.py shorts-maker-v2/tests/unit/test_render_step.py`
+- `python -m pytest execution/tests/test_lyria_bgm_generator.py -q -o addopts=""`
+- `cd shorts-maker-v2 && python -m pytest tests/unit/test_google_music_client.py tests/unit/test_render_step.py tests/unit/test_config.py tests/unit/test_cli_renderer_override.py -q`
+- `python execution/lyria_bgm_generator.py --help`
+
+### Notes For Next Agent
+- `_slugify()` now preserves Korean prompt signal, so prompts like `미니멀 테크노` generate distinct filenames instead of collapsing to the fallback.
+- Root `pytest.ini` enforces coverage over the whole `execution/` tree, so single-file execution tests should use `-o addopts=""` when doing focused QC.
+
+---
+
 ## 2026-03-20 Codex shorts-maker-v2 Lyria realtime BGM support
 
 ### Summary
