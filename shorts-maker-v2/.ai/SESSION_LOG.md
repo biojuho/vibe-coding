@@ -1,5 +1,112 @@
 # 📋 AI 세션 로그
 
+## 2026-03-20 — Antigravity (품질 안정화 도구 도입)
+
+### 작업 요약
+프로젝트 품질 안정화를 위한 GitHub 도구 5종 도입: Ruff 린터/포매터, pre-commit, pytest-cov, CI 워크플로우, 의존성 통합
+
+### 세부 변경사항
+
+#### 1. Gap Analysis
+- 6개 영역 부재 확인: Linter, Pre-commit, CI, Coverage, Security Scan, 의존성 관리
+- GitHub 프로젝트 5종 비교 분석 후 도입 대상 선정
+
+#### 2. Ruff 린터/포매터 도입
+- **ruff 0.15.7** 설치, `pyproject.toml`에 Ruff 설정 추가
+- 규칙: E/W/F/I/UP/B/SIM/S (프로젝트 특성에 맞게 12개 규칙 예외 처리)
+- `ruff check --fix`: 54개 이슈 자동 수정
+- `ruff format`: 126개 파일 리포맷
+- 잔여 17개: SIM/B/F 코드 품질 경고 (비진행성)
+
+#### 3. 의존성 통합
+- **[삭제]** `requirements.txt` — pyproject.toml로 일원화
+- **[수정]** `pyproject.toml` — dev extra에 pytest-cov, ruff, pre-commit, pydub 통합
+- `pip install -e ".[dev]"`로 단일 설치 경로
+
+#### 4. pre-commit 훅 설정
+- **[신규]** `.pre-commit-config.yaml` — ruff lint+format, trailing-whitespace, check-yaml 등
+
+#### 5. CI 워크플로우 신설
+- **[신규]** `.github/workflows/ci.yml` — lint(ruff-action) + test(pytest-cov) 2-job 파이프라인
+- main 브랜치 push/PR 트리거
+- 커버리지 XML 아티팩트 + Step Summary
+
+#### 6. pytest-cov 커버리지 측정
+- **커버리지 기준선: 45.46%** (6,071줄 중 3,311줄 미커버)
+- `fail_under = 45` 설정 (현실적 기준선)
+
+### 테스트 결과
+- **537 passed, 12 skipped, 0 failed** (회귀 없음)
+
+### QC 결과 (2026-03-20)
+- AST 구문 검사: ✅ 50개 파일 PASS
+- 보안 스캔: ✅ 하드코딩 시크릿 0건
+- 유닛 테스트: ✅ 537 passed, 0 failed
+- 커버리지: ✅ 45.46% ≥ fail_under(45%)
+- Ruff 린트: ⚠️ 10건 비핵심 경고 (B023×4, F821×2, SIM102×2, B007×1, SIM116×1)
+- .env 일관성: ✅ 필수 키 전부 존재
+- **최종 판정: ✅ 승인 (APPROVED)**
+
+### 변경 파일
+- `pyproject.toml` — Ruff 설정, Coverage 설정, 의존성 통합
+- `requirements.txt` — 삭제
+- `.pre-commit-config.yaml` — 신규
+- `.github/workflows/ci.yml` — 신규
+- 126개 소스 파일 — ruff format 적용
+
+### 결정사항
+- AD-007: Ruff를 단일 린터/포매터로 채택 (flake8+black+isort+bandit 대체)
+- AD-008: requirements.txt 폐기, pyproject.toml을 의존성 SSOT로 지정
+
+### 다음 도구에게 메모
+- `ruff check`에서 10개 경고가 남아 있음 (B023, SIM102, F821, B007, SIM116) — 점진적 수정 권장
+- 커버리지 45% → 향후 테스트 추가 시 `fail_under` 점진적 상향 권장
+- ✅ pre-commit install 완료 (로컬 훅 활성화됨)
+
+---
+
+## 2026-03-20 — Antigravity (기술 부채 3건 해소)
+
+### 작업 요약
+기술 부채 3건 일괄 해소: faster-whisper 설치, ffmpeg PATH 자동설정, 파이프라인 [PERF] 스텝별 타이밍 로그 추가
+
+### 세부 변경사항
+
+#### 1. faster-whisper 설치 검증
+- `python -m pip install faster-whisper>=1.1.0` → `faster-whisper 1.2.1` Python 3.14에 설치
+- `is_whisper_available()` → True 확인
+
+#### 2. ffmpeg PATH 자동 설정
+- **[수정]** `tests/conftest.py` — `imageio_ffmpeg` 번들 ffmpeg를 PATH/IMAGEIO_FFMPEG_EXE/FFMPEG_BINARY에 자동 등록
+- Visual regression 테스트: **9 passed in 2.08s**
+- Performance benchmark: **14 passed in 3.22s**
+
+#### 3. 파이프라인 성능 측정 로그
+- **[수정]** `pipeline/orchestrator.py` — 6개 스텝(research, script, media, render, thumbnail, srt)에 `time.perf_counter()` 타이밍 추가
+  - `[PERF]` 요약 로그 stdout + logger 출력
+  - `job_finished` JSONL 이벤트에 `step_timings` 딕셔너리 기록
+  - manifest JSON에 `step_timings` 영속화
+- **[수정]** `models.py` — `JobManifest`에 `step_timings: dict[str, float]` 필드 추가
+
+### 테스트 결과
+- **537 passed, 12 skipped, 0 failed**
+
+### 변경 파일
+- `tests/conftest.py`
+- `src/shorts_maker_v2/pipeline/orchestrator.py`
+- `src/shorts_maker_v2/models.py`
+
+### 실측 성능 데이터 (job: 20260320-025637-577f5323)
+- 영상: "커피가 뇌에 미치는 놀라운 효과" (7 scenes, 84.3s, $0.002)
+- **step_timings**: script=26.5s | media=105.0s | render=1309.5s | thumbnail=1.3s | srt=0.03s | total=1442.5s
+- **핵심 인사이트**: render가 전체의 90.8% → GPU(NVENC) 활성화 시 5-10배 개선 가능
+
+### 다음 도구에게 메모
+- render 최적화가 가장 큰 성능 개선 효과 (현재 ~1.8fps CPU/QSV)
+- `tests/unit/test_performance_benchmark.py`에 whisper 벤치마크 항목 추가 가능
+
+---
+
 ## 2026-03-20 — Antigravity (faster-whisper 통합 + QC)
 
 ### 작업 요약

@@ -34,3 +34,13 @@
 - **결정**: faster-whisper를 TTS 자막 동기화의 정밀 fallback으로 통합, optional extra로 도입
 - **근거**: EdgeTTS WordBoundary 실패 시 근사치(±200ms 오차) 대신 Whisper ASR 기반 정밀 타이밍(±50ms) 제공
 - **영향**: 미설치 시 기존 동작 100% 유지, `pip install shorts-maker-v2[whisper]`로 활성화
+
+### AD-007: Ruff를 단일 린터/포매터로 채택 (2026-03-20)
+- **결정**: Ruff를 프로젝트 유일 린터 겸 포매터로 도입 (flake8 + black + isort + bandit 기능 통합)
+- **근거**: Rust 기반 10-100배 속도, pre-commit + CI에서 단일 도구로 통합 관리 가능
+- **영향**: `pyproject.toml`에 `[tool.ruff]` 설정, 126개 파일 일괄 포매팅
+
+### AD-008: pyproject.toml을 의존성 Single Source of Truth로 지정 (2026-03-20)
+- **결정**: `requirements.txt` 폐기, `pyproject.toml`의 `[project.dependencies]` 및 `[project.optional-dependencies]`로 일원화
+- **근거**: 이중 관리(requirements.txt + pyproject.toml)로 인한 버전 드리프트 방지
+- **영향**: `pip install -e ".[dev]"` 단일 설치 경로, CI에서도 동일 경로 사용

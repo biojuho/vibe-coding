@@ -59,7 +59,13 @@ AI 기반 YouTube Shorts 자동 생성 파이프라인
   - `edge_tts_client.py`: 3계층 fallback (WordBoundary → Whisper → 근사치)
   - `pyproject.toml`: `[whisper]` optional extra 추가
   - 테스트 10개 추가, 전체 524 passed
-- 🔲 다음: faster-whisper E2E 검증, 성능 벤치마크 whisper 항목 추가
+- ✅ 품질 안정화 도구 도입 (2026-03-20)
+  - Ruff 0.15.7: 린터+포매터 (126개 파일 포맷, 54개 린트 이슈 자동 수정)
+  - pre-commit: ruff + trailing-whitespace + check-yaml 훅
+  - CI 워크플로우: `.github/workflows/ci.yml` (lint + test + coverage)
+  - pytest-cov: 커버리지 기준선 45.46%, `fail_under=45`
+  - 의존성 통합: requirements.txt 삭제, pyproject.toml SSOT
+- 🔲 다음: 커버리지 향상 (45% → 60% 목표), 잔여 ruff 경고 17개 점진적 수정
 
 ## 컨벤션
 - 테스트: `tests/unit/`, `tests/integration/`
