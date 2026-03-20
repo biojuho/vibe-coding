@@ -232,7 +232,7 @@ Vibe coding/                      # Root ?뚰겕?ㅽ럹?댁뒪
 > AI ?꾧뎄媛 諛섎났?곸쑝濡??ㅼ닔?섎뒗 遺遺꾩쓣 ?ш린??湲곕줉?⑸땲??
 
 | ?좎쭨 | ?꾧뎄 | ?댁슜 | ?닿껐 諛⑸쾿 |
-|------|------|------|-----------| 
+|------|------|------|-----------|
 | 2026-03-06 | 珥덇린 ?명똿 | (珥덇린?? | - |
 | 2026-03-09 | Antigravity | Windows Task Scheduler?먯꽌 `Register-ScheduledTask`濡??쒓뎅??寃쎈줈(`諛뺤＜??)瑜??깅줉?섎㈃ XML??`獄쏅벡竊??`濡?源⑥쭚 ???ㅼ?以꾨윭 ?ㅽ뙣 | ASCII-only 寃쎈줈(`C:\btx\`)??launcher瑜??먭퀬 ?섍꼍蹂??`%LOCALAPPDATA%`, `%USERPROFILE%`)濡??고????댁꽍 |
 | 2026-03-09 | Antigravity | Notion API `rich_text` 2000???쒗븳?먯꽌 ?좊땲肄붾뱶 ?쒓뎅??臾몄옄?댁씠 ?뺥솗??2000?먯뿬??API媛 嫄곕??섎뒗 寃쎌슦 諛쒖깮 | ?덉쟾 留덉쭊 10?먮? ?먭퀬 1990?먮줈 truncate |
@@ -324,3 +324,18 @@ Vibe coding/                      # Root ?뚰겕?ㅽ럹?댁뒪
 ### Known risks / landmines
 - During this session, `/terms` navigation in the browser ended up on `/login`, so visual QA for the new legal layout is still limited by the current auth/middleware behavior.
 - The dev server still reports the existing manifest/favicon console noise on public pages; this session did not change that.
+
+## 2026-03-20 Codex QC Follow-up
+
+### hanwoo-dashboard
+- Calving processing is now atomic: `src/lib/actions.js` exposes `recordCalving()` and updates the mother record, calf creation, and history writes inside one Prisma transaction.
+- `DashboardClient` and `CalvingTab` now use the single `recordCalving` path, and `src/lib/syncManager.js` can replay the same action from the offline queue.
+- The lint toolchain has been migrated to ESLint 9 flat config (`eslint.config.mjs`), so `npm run lint` works again without the deprecated `next lint` path.
+- New lint findings were cleaned up in `src/app/admin/diagnostics/page.js`, `src/lib/useTheme.js`, `src/lib/useOnlineStatus.js`, and the dashboard widget-settings initialization flow.
+
+### Verification
+- `npm run lint` passes in `hanwoo-dashboard`
+- `npm run build` passes in `hanwoo-dashboard`
+
+### Known risks / landmines
+- `src/app/layout.js` still loads Google Fonts via page-level `<link>` tags, so lint emits one non-blocking `@next/next/no-page-custom-font` warning.

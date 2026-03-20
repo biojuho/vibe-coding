@@ -2,6 +2,38 @@
 
 ## 2026-03-20 (Codex)
 
+### 작업: QC 후속 수정 - 분만 원자성 + lint 복구
+
+**작업 요약:**
+- QC에서 확인된 분만 처리 부분 성공 문제를 `recordCalving()` 서버 액션으로 통합하고, 어미 상태 변경, 송아지 생성, 이력 기록을 Prisma 트랜잭션 안에서 처리하도록 수정
+- 오프라인 큐도 `recordCalving`를 재생할 수 있게 연결해 온라인/오프라인 흐름이 같은 액션을 사용하도록 정리
+- `next lint` 기반 스크립트를 제거하고 ESLint 9 flat config로 전환해 `npm run lint`를 복구
+- lint 복구 과정에서 `admin/diagnostics`, `useTheme`, `useOnlineStatus`, 위젯 설정 초기화 로직에서 드러난 규칙 위반을 함께 정리
+
+**변경 파일:**
+- `src/lib/actions.js`
+- `src/lib/syncManager.js`
+- `src/components/DashboardClient.js`
+- `src/components/tabs/CalvingTab.js`
+- `src/app/admin/diagnostics/page.js`
+- `src/lib/useTheme.js`
+- `src/lib/useOnlineStatus.js`
+- `package.json`
+- `package-lock.json`
+- `eslint.config.mjs`
+
+**검증:**
+- `npm run lint` 통과
+- `npm run build` 통과
+
+**메모:**
+- `src/app/layout.js`의 Google Fonts `<link>` 때문에 lint warning 1건(`@next/next/no-page-custom-font`)은 남아 있지만, 오류는 없다
+- `.eslintrc.json`은 제거되고 flat config 기반으로 관리된다
+
+---
+
+## 2026-03-20 (Codex)
+
 ### 작업: 전역 피드백 UX 정리 + CalvingTab RHF + Zod 전환
 
 **작업 요약:**

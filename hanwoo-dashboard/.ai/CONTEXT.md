@@ -19,6 +19,14 @@
 - `src/lib/formSchemas.js`로 공통 폼 검증 스키마 분리
 - `CattleForm`, `InventoryTab`, `ScheduleTab`를 RHF + Zod 기반 인라인 검증으로 전환
 - `npm run build` 통과
+## 최근 변경 (2026-03-20, 3차)
+- `src/lib/actions.js`에 `recordCalving()` 서버 액션을 추가해 어미 업데이트, 송아지 생성, 이력 기록을 Prisma 트랜잭션으로 원자 처리
+- `DashboardClient`와 `CalvingTab`이 단일 `recordCalving` 흐름을 사용하도록 정리되고, `src/lib/syncManager.js`도 오프라인 재동기화를 지원
+- lint 체계를 ESLint 9 flat config(`eslint.config.mjs`)로 전환하고 `package.json`의 `lint` 스크립트를 `eslint .`로 수정
+- `src/app/admin/diagnostics/page.js`, `src/lib/useTheme.js`, `src/lib/useOnlineStatus.js`, 위젯 설정 초기화 흐름의 lint 이슈 정리
+- `npm run lint` 통과, `npm run build` 통과
+- 남은 비차단 항목: `src/app/layout.js`의 Google Fonts `<link>`로 인한 `@next/next/no-page-custom-font` warning 1건
+
 ## 최근 변경 (2026-03-20, 2차)
 - `DashboardClient`의 전역 액션 피드백을 `FeedbackProvider` 기반 토스트/확인 다이얼로그로 정리
 - `CalvingTab`를 RHF + Zod 기반으로 전환하고 `calvingRecordSchema` 추가
