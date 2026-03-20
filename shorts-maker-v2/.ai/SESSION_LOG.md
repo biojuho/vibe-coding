@@ -1,5 +1,25 @@
 # 📋 AI 세션 로그
 
+## 2026-03-20 — Antigravity (SSML 태그 누출 수정)
+
+### 작업 요약
+TTS가 SSML 태그를 한국어로 읽는 문제 수정. `SSMLCommunicate` 클래스와 SSML 관련 함수 전면 제거, plain text + rate/pitch 파라미터 방식으로 전환.
+
+### 세부 변경사항
+- `edge_tts_client.py`: SSMLCommunicate, _apply_ssml_by_role, _apply_keyword_emphasis, _enhance_prosody 삭제
+- `edge_tts.Communicate`의 rate/pitch 파라미터 직접 사용
+- 역할별(hook/cta/body) 속도/피치: `_get_role_prosody()` 함수로 처리
+
+### 근본 원인
+`SSMLCommunicate._create_ssml()` 오버라이드가 edge-tts 최신 버전에서 무시되어, 내부 SSML 태그가 escape 후 리터럴 텍스트로 TTS에 전달됨.
+
+### 검증
+- word timings에서 "프라서디", "앰퍼시스" 등 SSML 텍스트 완전 제거 확인
+- 새 영상: 36.5s (이전 73.5s) — Shorts 60초 이내 ✅
+- 비용: $0.001
+
+---
+
 ## 2026-03-20 — Antigravity (영상 품질 대폭 개선)
 
 ### 작업 요약
@@ -516,7 +536,7 @@ ShortsFactory v3.0 고도화 Phase 2 (4개 엔진 v2 업그레이드) + Phase 4 
 **TransitionEngine v2:**
 - ✅ `swipe()`: 4방향 스와이프 전환 (left/right/up/down, ease-out)
 - ✅ `blur_dissolve()`: 블러 → 디졸브 전환
-- ✅ `zoom_through()`: A 확대 → B 녹아 들어옴  
+- ✅ `zoom_through()`: A 확대 → B 녹아 들어옴
 - ✅ `color_wipe()`: 채널 accent 색상 와이프
 - ✅ moviepy lazy import 적용 (ffmpeg 미설치 환경 대응)
 - ✅ 역할 기반 전환 매핑 확장 (intro/outro 포함)
@@ -721,3 +741,29 @@ ShortsFactory 렌더링 파이프라인의 핵심 누락 파일(`ShortsFactory/r
 - `ShortsFactory/render.py`가 이제 존재합니다. `render_from_plan()` → `RenderStep.render_scenes()` 전체 경로 동작합니다.
 - `use_shorts_factory=False`가 기본값이므로 프로덕션에 즉시 영향은 없습니다.
 - E2E 테스트가 ffmpeg 기반 실제 렌더링을 포함하므로 실행 시간이 ~15분 소요됩니다.
+---
+
+## 2026-03-20 Codex | Lyria realtime BGM QC 기록
+
+### 작업 요약
+- Google Lyria realtime BGM 지원 범위를 QC했습니다.
+- 실행 스크립트, PCM->WAV 처리, 기존 BGM 로딩 경로를 점검했습니다.
+- QA 중 한글 프롬프트 파일명이 `lyria-bgm`으로 뭉개져 덮어쓸 수 있는 문제를 발견해 수정했습니다.
+
+### 변경 파일
+- `execution/lyria_bgm_generator.py`
+- `execution/tests/test_lyria_bgm_generator.py`
+- `src/shorts_maker_v2/pipeline/render_step.py`
+
+### 검증
+- `python -m ruff check execution/lyria_bgm_generator.py execution/tests/test_lyria_bgm_generator.py src/shorts_maker_v2/providers/google_music_client.py src/shorts_maker_v2/pipeline/render_step.py tests/unit/test_google_music_client.py tests/unit/test_render_step.py`
+- `python -m pytest execution/tests/test_lyria_bgm_generator.py -q -o addopts=""`
+- `python -m pytest tests/unit/test_google_music_client.py tests/unit/test_render_step.py tests/unit/test_config.py tests/unit/test_cli_renderer_override.py -q`
+- `python execution/lyria_bgm_generator.py --help`
+
+### 최종 판정
+- APPROVED
+
+### 메모
+- `_slugify()`는 이제 한글 프롬프트를 보존해 서로 다른 BGM 파일명이 생성됩니다.
+- 루트 `pytest.ini`는 `execution/` 전체 coverage를 강제하므로 단일 실행 테스트는 `-o addopts=""`로 돌려야 합니다.

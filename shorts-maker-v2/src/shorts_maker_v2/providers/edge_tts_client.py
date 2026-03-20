@@ -1,30 +1,25 @@
-"""edge-tts client with WordBoundary timing capture and retry fallbacks."""
+"""edge-tts client with WordBoundary timing capture and retry fallbacks.
+
+SSML 태그 제거 — edge-tts의 rate/pitch 파라미터를 직접 사용합니다.
+이전 버전에서 SSMLCommunicate + _apply_ssml_by_role 방식으로 SSML 태그를
+텍스트에 삽입했으나, edge-tts가 이 태그를 리터럴 텍스트로 읽는 버그가 있어
+plain text 방식으로 전환합니다.
+"""
 
 from __future__ import annotations
 
 import asyncio
 import json
 import logging
+import re as _re
 from pathlib import Path
-from xml.sax.saxutils import escape
 
 import edge_tts
 
 logger = logging.getLogger(__name__)
 
 
-class SSMLCommunicate(edge_tts.Communicate):
-    """Allow raw SSML input without re-escaping the text body."""
-
-    def _create_ssml(self) -> str:
-        return (
-            f"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>"
-            f"<voice name='{self.voice}'>"
-            f"<prosody rate='{self.rate}' pitch='{self.pitch}' volume='{self.volume}'>"
-            f"{self.text}"
-            f"</prosody></voice></speak>"
-        )
-
+# ── 음성 매핑 ─────────────────────────────────────────────────────────────────
 
 _OPENAI_TO_EDGE_VOICE: dict[str, str] = {
     "alloy": "ko-KR-SunHiNeural",
@@ -42,97 +37,30 @@ _DEFAULT_VOICE = "ko-KR-SunHiNeural"
 
 
 def _speed_to_rate(speed: float) -> str:
-    pct = int((speed - 1.0) * 100)
+    pct = round((speed - 1.0) * 100)
     return f"+{pct}%" if pct >= 0 else f"{pct}%"
 
 
-def _apply_ssml_by_role(text: str, role: str) -> str:
-    """역할 기반 SSML 변환 + 감정 키워드/숫자 자동 강조.
+def _get_role_prosody(role: str, base_rate: str = "+0%") -> tuple[str, str]:
+    """역할 기반 rate/pitch 반환 (SSML 없이 파라미터 직접 사용).
 
-    - Hook: 빠른 속도 + 높은 피치 + strong emphasis
-    - CTA: 느린 속도 + break + moderate emphasis
-    - Body: 문장 간 200ms 호흡 + 감정/숫자 자동 강조
+    Returns:
+        (rate, pitch) 튜플
     """
-    enhanced = _enhance_prosody(text)
-    safe_text = escape(enhanced)
-    # 감정 키워드 + 숫자 강조 적용 (escape 후)
-    safe_text = _apply_keyword_emphasis(safe_text)
-
     if role == "hook":
-        return (
-            '<prosody rate="+15%" pitch="+8Hz">'
-            f'<emphasis level="strong">{safe_text}</emphasis>'
-            "</prosody>"
-        )
+        return "+15%", "+8Hz"
     if role == "cta":
-        return (
-            '<break time="300ms"/>'
-            '<prosody rate="-10%" pitch="+5Hz">'
-            f'<emphasis level="moderate">{safe_text}</emphasis>'
-            "</prosody>"
-        )
-    # Body: 문장 간 호흡 300ms (기존 200ms → 더 자연스러운 간격)
-    return safe_text.replace(". ", '.<break time="300ms"/> ')
+        return "-10%", "+5Hz"
+    # body: base_rate 사용, pitch 기본값
+    return base_rate, "+0Hz"
 
 
-# ── 감정 키워드 자동 강조 ──────────────────────────────────────────────────────
-
-# 강조할 감정 키워드 (emphasis level="strong" 적용)
-_EMOTION_KEYWORDS: list[str] = [
-    "놀랍게도", "충격적", "충격", "경고", "위험", "절대",
-    "반드시", "꼭", "진짜", "사실", "비밀", "최초",
-    "놀라운", "무서운", "심각한", "치명적", "폭발적",
-    "긴급", "속보", "결국", "드디어", "마침내",
-]
-
-# 숫자/통계 강조 패턴 (rate -20%, pitch +3Hz)
-import re as _re
-_NUMBER_PATTERN = _re.compile(
-    r'(\d+(?:\.\d+)?(?:\s*[%만억원달러배])?)',
-)
-# 감정 키워드 단일 정규식 (escape된 형태로 합치기)
-_EMOTION_PATTERN = _re.compile(
-    "|".join(_re.escape(escape(kw)) for kw in _EMOTION_KEYWORDS)
-)
+# ── 근사 타이밍 (WordBoundary 미지원 시 fallback) ──────────────────────────────
 
 
-def _apply_keyword_emphasis(ssml_text: str) -> str:
-    """감정 키워드와 숫자/통계에 SSML emphasis 삽입.
-
-    이미 escape된 텍스트에 적용. emphasis 태그 중첩 방지.
-    """
-    result = ssml_text
-
-    # 1) 감정 키워드 강조 (단일 regex, 첫 매치만)
-    if "emphasis>" not in result:
-        result = _EMOTION_PATTERN.sub(
-            lambda m: f'<emphasis level="strong">{m.group(0)}</emphasis>',
-            result,
-            count=1,
-        )
-
-    # 2) 숫자/통계 강조 (속도 감소 + 피치 상승으로 주목)
-    result = _NUMBER_PATTERN.sub(
-        lambda m: f'<prosody rate="-20%" pitch="+3Hz">{m.group(1)}</prosody>',
-        result,
-    )
-    return result
-
-
-def _enhance_prosody(text: str) -> str:
-    """텍스트 전처리: 문장 끝 자연스러운 pause 강화.
-
-    쉼표 뒤 짧은 pause, 물음표/느낌표 뒤 긴 pause.
-    """
-    # 물음표/느낌표 뒤 강조 pause (원본 텍스트, escape 전 처리)
-    text = text.replace("? ", "?  ")  # 물음표 뒤 공백 확장 (TTS가 더 쉼)
-    text = text.replace("! ", "!  ")  # 느낌표 뒤도
-    return text
-
-
-def _approximate_word_timings(ssml_text: str, audio_path: Path) -> list[dict]:
-    plain = _re.sub(r"<[^>]+>", " ", ssml_text)
-    plain = _re.sub(r"\s+", " ", plain).strip()
+def _approximate_word_timings(text: str, audio_path: Path) -> list[dict]:
+    """음절 가중치 기반 근사 타이밍."""
+    plain = _re.sub(r"\s+", " ", text).strip()
     if not plain:
         return []
 
@@ -151,28 +79,39 @@ def _approximate_word_timings(ssml_text: str, audio_path: Path) -> list[dict]:
         return []
 
     def _weight(word: str) -> float:
-        hangul = len(re.findall(r"[가-힣]", word))
-        latin = len(re.findall(r"[A-Za-z0-9]", word))
+        hangul = len(_re.findall(r"[가-힣]", word))
+        latin = len(_re.findall(r"[A-Za-z0-9]", word))
         return max(1.0, hangul * 1.0 + latin * 0.5)
 
     weights = [_weight(word) for word in words]
     total_weight = sum(weights)
     cursor = 0.0
     result: list[dict] = []
-    for word, weight in zip(words, weights):
+    for word, weight in zip(words, weights, strict=False):
         dur = (weight / total_weight) * audio_dur
-        result.append({
-            "word": word,
-            "start": round(cursor, 4),
-            "end": round(cursor + dur, 4),
-        })
+        result.append(
+            {
+                "word": word,
+                "start": round(cursor, 4),
+                "end": round(cursor + dur, 4),
+            }
+        )
         cursor += dur
     return result
 
 
-async def _generate_async(text: str, voice: str, rate: str, output_path: Path) -> None:
+# ── 비동기 TTS 생성 ──────────────────────────────────────────────────────────
+
+
+async def _generate_async(
+    text: str,
+    voice: str,
+    rate: str,
+    pitch: str,
+    output_path: Path,
+) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    communicate = SSMLCommunicate(text, voice=voice, rate=rate)
+    communicate = edge_tts.Communicate(text, voice=voice, rate=rate, pitch=pitch)
     await communicate.save(str(output_path))
 
 
@@ -180,13 +119,14 @@ async def _generate_async_with_timing(
     text: str,
     voice: str,
     rate: str,
+    pitch: str,
     output_path: Path,
     words_json_path: Path,
 ) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     words_json_path.parent.mkdir(parents=True, exist_ok=True)
 
-    communicate = SSMLCommunicate(text, voice=voice, rate=rate)
+    communicate = edge_tts.Communicate(text, voice=voice, rate=rate, pitch=pitch)
     words: list[dict] = []
     audio_chunks: list[bytes] = []
 
@@ -196,11 +136,13 @@ async def _generate_async_with_timing(
         elif chunk["type"] == "WordBoundary":
             offset_sec = chunk["offset"] / 10_000_000
             duration_sec = chunk["duration"] / 10_000_000
-            words.append({
-                "word": chunk["text"],
-                "start": round(offset_sec, 4),
-                "end": round(offset_sec + duration_sec, 4),
-            })
+            words.append(
+                {
+                    "word": chunk["text"],
+                    "start": round(offset_sec, 4),
+                    "end": round(offset_sec + duration_sec, 4),
+                }
+            )
 
     with output_path.open("wb") as handle:
         for data in audio_chunks:
@@ -213,18 +155,45 @@ async def _generate_async_with_timing(
         )
         logger.info("EdgeTTS: %d word timings saved to %s", len(words), words_json_path)
     else:
-        approx = _approximate_word_timings(text, output_path)
-        if approx:
+        # 1순위 fallback: faster-whisper로 TTS 오디오 재분석 (정밀)
+        whisper_words: list[dict] = []
+        try:
+            from shorts_maker_v2.providers.whisper_aligner import (
+                is_whisper_available,
+                transcribe_to_word_timings,
+            )
+
+            if is_whisper_available():
+                logger.info("EdgeTTS: WordBoundary 없음 → faster-whisper fallback 시도")
+                whisper_words = transcribe_to_word_timings(output_path)
+        except Exception as _whisper_exc:
+            logger.debug("EdgeTTS: whisper_aligner 호출 실패 (%s) — 근사치로 진행", _whisper_exc)
+
+        if whisper_words:
             words_json_path.write_text(
-                json.dumps(approx, ensure_ascii=False, indent=2),
+                json.dumps(whisper_words, ensure_ascii=False, indent=2),
                 encoding="utf-8",
             )
             logger.info(
-                "EdgeTTS: approximate timings saved for %d words: %s",
-                len(approx),
+                "EdgeTTS: whisper word timings saved for %d words: %s",
+                len(whisper_words),
                 words_json_path,
             )
+        else:
+            # 2순위 fallback: 음절 가중치 기반 근사치
+            approx = _approximate_word_timings(text, output_path)
+            if approx:
+                words_json_path.write_text(
+                    json.dumps(approx, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+                logger.info(
+                    "EdgeTTS: approximate timings saved for %d words: %s",
+                    len(approx),
+                    words_json_path,
+                )
 
+    # plain text 저장 (이전 SSML 호환: render_step의 break 보정에 사용)
     (words_json_path.parent / f"{words_json_path.stem}_ssml.txt").write_text(
         text,
         encoding="utf-8",
@@ -243,7 +212,12 @@ def _run_coroutine(coro_factory) -> None:
 
 
 class EdgeTTSClient:
-    """Wrapper compatible with OpenAIClient.generate_tts()."""
+    """Wrapper compatible with OpenAIClient.generate_tts().
+
+    SSML 태그 없이 plain text를 edge-tts에 전달합니다.
+    역할(hook/cta/body)별 속도/피치 조절은 edge-tts의
+    rate/pitch 파라미터로 직접 처리합니다.
+    """
 
     def generate_tts(
         self,
@@ -267,24 +241,28 @@ class EdgeTTSClient:
         else:
             edge_voice = _OPENAI_TO_EDGE_VOICE.get(voice, _DEFAULT_VOICE)
 
-        rate = _speed_to_rate(speed)
-        ssml_text = _apply_ssml_by_role(text, role)
-        attempt_plan: list[tuple[str, str, str]] = [
-            (edge_voice, ssml_text, "primary_ssml"),
-            (edge_voice, escape(text), "primary_plain"),
+        # 역할별 rate/pitch 결정 (SSML 태그 없음)
+        base_rate = _speed_to_rate(speed)
+        rate, pitch = _get_role_prosody(role, base_rate=base_rate)
+
+        # 시도 계획: 기본 음성 → 폴백 음성
+        attempt_plan: list[tuple[str, str, str, str]] = [
+            (edge_voice, rate, pitch, "primary"),
         ]
         if edge_voice != _DEFAULT_VOICE:
-            attempt_plan.extend([
-                (_DEFAULT_VOICE, ssml_text, "default_voice_ssml"),
-                (_DEFAULT_VOICE, escape(text), "default_voice_plain"),
-            ])
+            attempt_plan.append(
+                (_DEFAULT_VOICE, rate, pitch, "default_voice"),
+            )
 
         last_exc: Exception | None = None
-        for attempt_index, (attempt_voice, attempt_text, attempt_label) in enumerate(attempt_plan, start=1):
+        for attempt_index, (attempt_voice, attempt_rate, attempt_pitch, attempt_label) in enumerate(
+            attempt_plan, start=1
+        ):
             logger.info(
-                "EdgeTTS: voice=%s rate=%s text_len=%d role=%s attempt=%s",
+                "EdgeTTS: voice=%s rate=%s pitch=%s text_len=%d role=%s attempt=%s",
                 attempt_voice,
-                rate,
+                attempt_rate,
+                attempt_pitch,
                 len(text),
                 role,
                 attempt_label,
@@ -293,13 +271,14 @@ class EdgeTTSClient:
             def _make_coro():
                 if words_json_path is not None:
                     return _generate_async_with_timing(
-                        attempt_text,
+                        text,
                         attempt_voice,
-                        rate,
+                        attempt_rate,
+                        attempt_pitch,
                         output_path,
                         words_json_path,
                     )
-                return _generate_async(attempt_text, attempt_voice, rate, output_path)
+                return _generate_async(text, attempt_voice, attempt_rate, attempt_pitch, output_path)
 
             try:
                 _run_coroutine(_make_coro)
