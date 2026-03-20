@@ -80,7 +80,11 @@ def test_process_one_scene_returns_asset(tmp_path) -> None:
 
     with patch.object(MediaStep, "_read_audio_duration", return_value=5.0):
         asset, failures = step._process_one_scene(
-            scene, audio_dir, image_dir, video_dir, cost_guard,
+            scene,
+            audio_dir,
+            image_dir,
+            video_dir,
+            cost_guard,
         )
 
     assert isinstance(asset, SceneAsset)

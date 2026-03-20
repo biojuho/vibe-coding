@@ -38,6 +38,7 @@ def test_cost_guard_tracks_total() -> None:
 
 # ─── Phase 2-A: atomic check-then-add ─────────────────────────────────────
 
+
 def test_add_video_cost_if_under_accepts() -> None:
     """Under limit → adds cost and returns True."""
     guard = CostGuard(
@@ -76,4 +77,3 @@ def test_add_image_cost_if_under_rejects() -> None:
     )
     assert guard.add_image_cost_if_under() is False
     assert guard.estimated_cost_usd == 0.0
-

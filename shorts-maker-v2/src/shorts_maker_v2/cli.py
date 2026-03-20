@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import replace
-from pathlib import Path
 import shutil
 import sys
+from dataclasses import replace
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -15,19 +15,22 @@ from shorts_maker_v2.utils.channel_router import get_router
 from shorts_maker_v2.utils.cost_tracker import CostTracker
 
 
-
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="YouTube Shorts one-click generator (MVP)")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     run_parser = subparsers.add_parser("run", help="Generate one shorts video")
-    run_parser.add_argument("--topic", type=str, required=False, default="", help="Shorts topic (요구: 새 작업 시 필수)")
+    run_parser.add_argument(
+        "--topic", type=str, required=False, default="", help="Shorts topic (요구: 새 작업 시 필수)"
+    )
     run_parser.add_argument("--resume", type=str, default="", help="재개할 Job ID")
     run_parser.add_argument("--config", type=str, default="config.yaml", help="Path to YAML config")
     run_parser.add_argument("--out", type=str, default="", help="Output mp4 filename")
     run_parser.add_argument("--channel", type=str, default="", help="채널명 (DB 설정 자동 로드)")
     run_parser.add_argument("--tts-voice", type=str, default="", help="TTS 보이스 오버라이드")
-    run_parser.add_argument("--style-preset", type=str, default="", help="자막 스타일 오버라이드 (default/bold/neon/subtitle/cta)")
+    run_parser.add_argument(
+        "--style-preset", type=str, default="", help="자막 스타일 오버라이드 (default/bold/neon/subtitle/cta)"
+    )
     run_parser.add_argument("--font-color", type=str, default="", help="자막 폰트 색상 오버라이드 (hex)")
     run_parser.add_argument("--image-prefix", type=str, default="", help="이미지 스타일 접두어 오버라이드")
     run_parser.add_argument(
@@ -61,7 +64,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     costs_parser = subparsers.add_parser("costs", help="Show cost summary (daily/monthly/total)")
     costs_parser.add_argument("--config", type=str, default="config.yaml", help="Path to YAML config")
-    
+
     dashboard_parser = subparsers.add_parser("dashboard", help="Generate HTML statistics dashboard")
     dashboard_parser.add_argument("--config", type=str, default="config.yaml", help="Path to YAML config")
     dashboard_parser.add_argument("--out", type=str, default="dashboard.html", help="Path to output HTML file")
@@ -73,10 +76,12 @@ def _load_channel_settings(channel: str) -> dict:
     try:
         import sys as _sys
         from pathlib import Path as _Path
+
         _root = _Path(__file__).resolve().parent.parent.parent.parent.parent
         if str(_root) not in _sys.path:
             _sys.path.insert(0, str(_root))
         from execution.content_db import get_channel_settings, init_db  # type: ignore[import]
+
         init_db()
         return get_channel_settings(channel) or {}
     except Exception:
@@ -88,10 +93,12 @@ def _import_content_db():
     try:
         import sys as _sys
         from pathlib import Path as _Path
+
         _root = _Path(__file__).resolve().parent.parent.parent.parent.parent
         if str(_root) not in _sys.path:
             _sys.path.insert(0, str(_root))
         from execution import content_db  # type: ignore[import]
+
         content_db.init_db()
         return content_db
     except Exception:
@@ -140,16 +147,18 @@ def _apply_channel_overrides(config: AppConfig, args: argparse.Namespace) -> App
         config_base = Path(args.config).resolve().parent
         brand_dir = config_base / "assets" / "channels" / channel
         intro_p = brand_dir / "intro.png"
-        outro_p = brand_dir / "outro.png"
+        brand_dir / "outro.png"
         if not intro_p.exists():
             try:
                 from execution.brand_asset_generator import generate_channel_brand  # type: ignore[import]
+
                 generate_channel_brand(channel, output_dir=brand_dir)
                 print(f"[OK] 브랜드 에셋 생성: {brand_dir}")
             except Exception as exc:
                 print(f"[WARN] 브랜드 에셋 생성 실패 (무시): {exc}")
-        if intro_p.exists():
-            intro_outro = replace(intro_outro, intro_path=str(intro_p), outro_path=str(outro_p))
+        # 인트로/아웃트로 자동 삽입 비활성화 — 첫 화면 제거
+        # if intro_p.exists():
+        #     intro_outro = replace(intro_outro, intro_path=str(intro_p), outro_path=str(outro_p))
 
     new_config = replace(
         config,
@@ -164,7 +173,6 @@ def _apply_channel_overrides(config: AppConfig, args: argparse.Namespace) -> App
         new_config = replace(new_config, captions=replace(new_config.captions, style_preset=style_preset))
 
     return new_config
-
 
 
 # ── 배치 모드 ────────────────────────────────────────────────────────────────
@@ -225,7 +233,7 @@ def _run_batch(args: argparse.Namespace, config_path: Path) -> int:
             print(f"[FAIL] topics file not found: {file_path}")
             return 1
         lines = file_path.read_text(encoding="utf-8").strip().splitlines()
-        for line in lines[:args.limit]:
+        for line in lines[: args.limit]:
             stripped = line.strip()
             if stripped and not stripped.startswith("#"):
                 topics.append((stripped, args.channel, None))
@@ -273,30 +281,44 @@ def _run_batch(args: argparse.Namespace, config_path: Path) -> int:
             manifest = orchestrator.run(topic=topic, channel=channel, parallel=parallel)
 
             result = BatchResult(
-                topic=topic, channel=channel, status=manifest.status,
-                job_id=manifest.job_id, cost_usd=manifest.estimated_cost_usd,
+                topic=topic,
+                channel=channel,
+                status=manifest.status,
+                job_id=manifest.job_id,
+                cost_usd=manifest.estimated_cost_usd,
                 duration_sec=manifest.total_duration_sec,
             )
             if manifest.status != "success":
                 result = BatchResult(
-                    topic=topic, channel=channel, status=manifest.status,
-                    job_id=manifest.job_id, cost_usd=manifest.estimated_cost_usd,
+                    topic=topic,
+                    channel=channel,
+                    status=manifest.status,
+                    job_id=manifest.job_id,
+                    cost_usd=manifest.estimated_cost_usd,
                     duration_sec=manifest.total_duration_sec,
                     error="; ".join(f["message"] for f in manifest.failed_steps),
                 )
 
             if db_id is not None and db is not None:
                 db.update_job(
-                    db_id, status=manifest.status, job_id=manifest.job_id,
-                    title=manifest.title, video_path=manifest.output_path,
+                    db_id,
+                    status=manifest.status,
+                    job_id=manifest.job_id,
+                    title=manifest.title,
+                    video_path=manifest.output_path,
                     thumbnail_path=manifest.thumbnail_path,
                     cost_usd=manifest.estimated_cost_usd,
                     duration_sec=manifest.total_duration_sec,
                 )
         except Exception as exc:
             result = BatchResult(
-                topic=topic, channel=channel, status="failed",
-                job_id="", cost_usd=0, duration_sec=0, error=str(exc),
+                topic=topic,
+                channel=channel,
+                status="failed",
+                job_id="",
+                cost_usd=0,
+                duration_sec=0,
+                error=str(exc),
             )
             if db_id is not None and db is not None:
                 db.update_job(db_id, status="failed", notes=str(exc)[:500])
@@ -363,6 +385,7 @@ def _doctor(config_path: Path) -> int:
 def _ensure_utf8_stdio() -> None:
     """Windows cp949 콘솔 인코딩 문제 방지 — 모든 진입점에서 호출."""
     import io
+
     for stream_name in ("stdout", "stderr"):
         stream = getattr(sys, stream_name, None)
         if stream and hasattr(stream, "encoding") and stream.encoding:
@@ -383,7 +406,7 @@ def run_cli(argv: list[str] | None = None) -> int:
 
     if args.command == "batch":
         return _run_batch(args, config_path)
-        
+
     if args.command == "dashboard":
         try:
             config = load_config(config_path)
@@ -391,8 +414,9 @@ def run_cli(argv: list[str] | None = None) -> int:
             logs_dir = config_path.parent / "logs"
         else:
             logs_dir = (config_path.parent / config.paths.logs_dir).resolve()
-            
+
         from shorts_maker_v2.utils.dashboard import generate_dashboard
+
         out_html = config_path.parent / args.out
         generate_dashboard(logs_dir=logs_dir, output_file=out_html)
         print(f"[OK] Dashboard generated at {out_html}")
@@ -414,7 +438,7 @@ def run_cli(argv: list[str] | None = None) -> int:
         if not args.topic and not args.resume:
             print("[FAIL] --topic is required unless --resume is specified")
             return 1
-            
+
         try:
             config = load_config(config_path)
         except ConfigError as exc:

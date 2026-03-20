@@ -2,7 +2,7 @@
 
 Dedup layers (applied in order):
 1. URL exact match (O(1), via Notion URL cache)
-2. Jaccard character-bigram similarity (Threshold 0.6)
+2. MinHash LSH 근사 중복 탐지 (datasketch, O(n) — fallback: Jaccard bigram O(n²))
 3. [Optional] Gemini gemini-embedding-001 semantic similarity (Threshold 0.82)
 
 Semantic dedup catches cases Jaccard misses, e.g.:
@@ -21,6 +21,12 @@ import threading
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
+
+try:
+    from datasketch import MinHash, MinHashLSH
+    _HAS_DATASKETCH = True
+except ImportError:
+    _HAS_DATASKETCH = False
 
 logger = logging.getLogger(__name__)
 
@@ -270,6 +276,16 @@ async def find_similar_in_notion(
     return matches
 
 
+def _build_minhash(tokens: set[str], num_perm: int = 128) -> "MinHash | None":
+    """토큰 집합으로부터 MinHash 객체를 생성. datasketch 미설치 시 None."""
+    if not _HAS_DATASKETCH or not tokens:
+        return None
+    m = MinHash(num_perm=num_perm)
+    for token in tokens:
+        m.update(token.encode("utf-8"))
+    return m
+
+
 def check_cross_source_duplicates(
     candidates: list[dict[str, Any]],
     threshold: float = 0.6,
@@ -277,6 +293,9 @@ def check_cross_source_duplicates(
     semantic_threshold: float = 0.82,
 ) -> list[dict[str, Any]]:
     """Detect duplicate topics across different sources in the current batch.
+
+    datasketch MinHash LSH로 O(n) 후보 필터링 후 정밀 비교.
+    datasketch 미설치 시 기존 O(n²) Jaccard로 폴백.
 
     Returns deduplicated list, preferring higher engagement candidates.
     """
@@ -286,23 +305,97 @@ def check_cross_source_duplicates(
     titles = [candidate.get("feed_title") or "" for candidate in candidates]
     token_cache = {i: extract_korean_tokens(t) for i, t in enumerate(titles)}
 
-    # Pre-compute Gemini embeddings for all titles (batch, cached)
-    embed_cache: dict[int, list[float] | None] = {}
+    # ── MinHash LSH 가속 경로 ─────────────────────────────────────────
+    if _HAS_DATASKETCH and len(candidates) >= 4:
+        minhash_cache: dict[int, MinHash] = {}
+        lsh = MinHashLSH(threshold=threshold, num_perm=128)
+
+        for i, tokens in token_cache.items():
+            if not tokens:
+                continue
+            mh = _build_minhash(tokens)
+            if mh:
+                minhash_cache[i] = mh
+                try:
+                    lsh.insert(str(i), mh)
+                except ValueError:
+                    pass  # 중복 키 무시
+
+        to_remove: set[int] = set()
+        for i in range(len(candidates)):
+            if i in to_remove or i not in minhash_cache:
+                continue
+            # LSH로 후보만 빠르게 필터링
+            lsh_candidates = lsh.query(minhash_cache[i])
+            for j_str in lsh_candidates:
+                j = int(j_str)
+                if j <= i or j in to_remove:
+                    continue
+                # 같은 소스는 스킵
+                if candidates[i].get("source") == candidates[j].get("source"):
+                    continue
+                # 정밀 Jaccard 확인
+                jaccard_sim = jaccard_similarity(token_cache[i], token_cache.get(j, set()))
+                if jaccard_sim >= threshold:
+                    eng_i = candidates[i].get("feed_engagement", 0)
+                    eng_j = candidates[j].get("feed_engagement", 0)
+                    loser = j if eng_i >= eng_j else i
+                    to_remove.add(loser)
+                    logger.info(
+                        "DEDUP [LSH+cross] Removing %s '%s' (sim=%.2f with %s '%s')",
+                        candidates[loser].get("source"),
+                        (candidates[loser].get("feed_title") or candidates[loser].get("url", ""))[:40],
+                        jaccard_sim,
+                        candidates[i if loser == j else j].get("source"),
+                        (candidates[i if loser == j else j].get("feed_title") or "")[:40],
+                    )
+
+        # Semantic 보조 검사: LSH가 놓친 시맨틱 중복 추가 탐지
+        if use_semantic:
+            embed_cache: dict[int, list[float] | None] = {}
+            for i, t in enumerate(titles):
+                if i not in to_remove:
+                    embed_cache[i] = _get_gemini_embedding(normalize_korean_text(t)) if t else None
+            for i in range(len(candidates)):
+                if i in to_remove:
+                    continue
+                for j in range(i + 1, len(candidates)):
+                    if j in to_remove:
+                        continue
+                    if candidates[i].get("source") == candidates[j].get("source"):
+                        continue
+                    ei, ej = embed_cache.get(i), embed_cache.get(j)
+                    if ei is not None and ej is not None:
+                        sem_sim = _cosine_similarity(ei, ej)
+                        if sem_sim >= semantic_threshold:
+                            eng_i = candidates[i].get("feed_engagement", 0)
+                            eng_j = candidates[j].get("feed_engagement", 0)
+                            loser = j if eng_i >= eng_j else i
+                            to_remove.add(loser)
+                            logger.info(
+                                "DEDUP [semantic+cross] Removing %s '%s' (cosine=%.2f)",
+                                candidates[loser].get("source"),
+                                (candidates[loser].get("feed_title") or "")[:40],
+                                sem_sim,
+                            )
+
+        return [c for i, c in enumerate(candidates) if i not in to_remove]
+
+    # ── Fallback: 기존 O(n²) Jaccard (datasketch 미설치 또는 소규모 배치) ──
+    embed_cache_fb: dict[int, list[float] | None] = {}
     if use_semantic:
         for i, t in enumerate(titles):
-            embed_cache[i] = _get_gemini_embedding(normalize_korean_text(t)) if t else None
+            embed_cache_fb[i] = _get_gemini_embedding(normalize_korean_text(t)) if t else None
 
-    to_remove: set[int] = set()
+    to_remove_fb: set[int] = set()
     for i in range(len(candidates)):
-        if i in to_remove:
+        if i in to_remove_fb:
             continue
         for j in range(i + 1, len(candidates)):
-            if j in to_remove:
+            if j in to_remove_fb:
                 continue
-            # Only cross-source comparison
             if candidates[i].get("source") == candidates[j].get("source"):
                 continue
-            # Skip if either title is empty
             if not token_cache[i] or not token_cache[j]:
                 continue
 
@@ -310,9 +403,8 @@ def check_cross_source_duplicates(
             is_dup = jaccard_sim >= threshold
             sim = jaccard_sim
 
-            # Semantic check: catches duplicates with different wording
             if not is_dup and use_semantic:
-                ei, ej = embed_cache.get(i), embed_cache.get(j)
+                ei, ej = embed_cache_fb.get(i), embed_cache_fb.get(j)
                 if ei is not None and ej is not None:
                     sem_sim = _cosine_similarity(ei, ej)
                     if sem_sim >= semantic_threshold:
@@ -323,7 +415,7 @@ def check_cross_source_duplicates(
                 eng_i = candidates[i].get("feed_engagement", 0)
                 eng_j = candidates[j].get("feed_engagement", 0)
                 loser = j if eng_i >= eng_j else i
-                to_remove.add(loser)
+                to_remove_fb.add(loser)
                 logger.info(
                     "DEDUP [cross-source] Removing %s '%s' (sim=%.2f with %s '%s')",
                     candidates[loser].get("source"),
@@ -333,4 +425,4 @@ def check_cross_source_duplicates(
                     (candidates[i if loser == j else j].get("feed_title") or "")[:40],
                 )
 
-    return [c for i, c in enumerate(candidates) if i not in to_remove]
+    return [c for i, c in enumerate(candidates) if i not in to_remove_fb]

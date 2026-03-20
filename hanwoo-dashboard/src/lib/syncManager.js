@@ -1,6 +1,7 @@
 import { getQueue, clearQueue } from './offlineQueue';
 import {
   createCattle, updateCattle, deleteCattle,
+  recordCalving,
   createSalesRecord, recordFeed,
   addInventoryItem, updateInventoryQuantity,
   createScheduleEvent, toggleEventCompletion,
@@ -12,6 +13,7 @@ const ACTION_MAP = {
   createCattle,
   updateCattle: (args) => updateCattle(args[0], args[1]),
   deleteCattle,
+  recordCalving,
   createSalesRecord,
   recordFeed,
   addInventoryItem,

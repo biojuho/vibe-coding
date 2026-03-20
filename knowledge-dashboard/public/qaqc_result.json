@@ -1,0 +1,277 @@
+{
+  "timestamp": "2026-03-18T19:47:14",
+  "verdict": "CONDITIONALLY_APPROVED",
+  "elapsed_sec": 491.6,
+  "projects": {
+    "blind-to-x": {
+      "passed": 345,
+      "failed": 0,
+      "skipped": 1,
+      "errors": 0,
+      "status": "PASS",
+      "duration_sec": 126.25
+    },
+    "shorts-maker-v2": {
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 1,
+      "status": "TIMEOUT",
+      "message": "pytest timed out after 300s"
+    },
+    "root": {
+      "passed": 763,
+      "failed": 0,
+      "skipped": 1,
+      "errors": 0,
+      "status": "PASS",
+      "duration_sec": 48.36
+    }
+  },
+  "total": {
+    "passed": 1108,
+    "failed": 0
+  },
+  "ast_check": {
+    "total": 20,
+    "ok": 20,
+    "failures": []
+  },
+  "security_scan": {
+    "status": "WARNING (44 issue(s))",
+    "issues": [
+      {
+        "file": ".agent\\skills\\pdf\\scripts\\create_validation_image.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"Created validation image at {output_path} with {num_boxes}"
+      },
+      {
+        "file": ".agent\\skills\\pptx\\scripts\\replace.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"Saved updated presentation to: {output_file}"
+      },
+      {
+        "file": ".agent\\skills\\pptx\\scripts\\thumbnail.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"Created {len(grid_files)}"
+      },
+      {
+        "file": ".agent\\skills\\skill-creator\\scripts\\init_skill.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"[OK] Created skill directory: {skill_dir}"
+      },
+      {
+        "file": ".agents\\skills\\pdf\\scripts\\create_validation_image.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"Created validation image at {output_path} with {num_boxes}"
+      },
+      {
+        "file": ".agents\\skills\\pptx\\scripts\\replace.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"Saved updated presentation to: {output_file}"
+      },
+      {
+        "file": ".agents\\skills\\pptx\\scripts\\thumbnail.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"Created {len(grid_files)}"
+      },
+      {
+        "file": ".agents\\skills\\skill-creator\\scripts\\init_skill.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"[OK] Created skill directory: {skill_dir}"
+      },
+      {
+        "file": "blind-to-x\\pipeline\\cost_db.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"SELECT * FROM {table}"
+      },
+      {
+        "file": "blind-to-x\\pipeline\\cost_db.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"INSERT OR IGNORE INTO {table} VALUES ({placeholders}"
+      },
+      {
+        "file": "blind-to-x\\pipeline\\cost_db.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"DELETE FROM {table}"
+      },
+      {
+        "file": "blind-to-x\\scrapers\\base.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"Could not hide '{selector}': {e}"
+      },
+      {
+        "file": "blind-to-x\\scrapers\\base.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"suggested_selectors={','.join(suggested)}"
+      },
+      {
+        "file": "blind-to-x\\scrapers\\blind.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"Found content container with selector: {selector}"
+      },
+      {
+        "file": "blind-to-x\\scrapers\\blind.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"Direct navigation succeeded with selector: {selector}"
+      },
+      {
+        "file": "blind-to-x\\scrapers\\browser_pool.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"BrowserContextPool: failed to create page: {exc}"
+      },
+      {
+        "file": "blind-to-x\\scrapers\\fmkorea.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"Found {len(collected)} URLs with selector: {selector}"
+      },
+      {
+        "file": "blind-to-x\\scrapers\\ppomppu.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"Found {len(collected)} URLs with selector: {selector}"
+      },
+      {
+        "file": "blind-to-x\\scripts\\backfill_notion_urls.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"  updated: {stats['updated']}"
+      },
+      {
+        "file": "blind-to-x\\scripts\\backfill_notion_urls.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"  would_update: {stats['would_update']}"
+      },
+      {
+        "file": "blind-to-x\\scripts\\recompute_scores.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"recompute_scores complete: updated={updated} total={len(pages)} days={days}"
+      },
+      {
+        "file": "execution\\content_db.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"Unsupported update fields: {invalid_list}"
+      },
+      {
+        "file": "execution\\content_db.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"UPDATE content_queue SET {set_clause}"
+      },
+      {
+        "file": "execution\\debug_history_db.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"  [{e['severity']}] {e['created_at']}  {e['module'] or '(no module)'}"
+      },
+      {
+        "file": "execution\\debug_history_db.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"Archived {deleted} entries older than {args.days}"
+      },
+      {
+        "file": "execution\\github_stats.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"author:{user['login']} type:pr created:>={since}"
+      },
+      {
+        "file": "execution\\notion_client.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"Created: {pid}"
+      },
+      {
+        "file": "execution\\notion_shorts_sync.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"[Notion] 동기화 완료: 생성 {created} / 업데이트 {updated} / 오류 {errors} (총 {len(results)}"
+      },
+      {
+        "file": "execution\\scheduler_engine.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"Created task #{tid}"
+      },
+      {
+        "file": "execution\\selector_validator.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"Missing required selectors: {result['required_fail']}"
+      },
+      {
+        "file": "execution\\selector_validator.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"Missing optional selectors: {result['optional_miss']}"
+      },
+      {
+        "file": "execution\\youtube_analytics_collector.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"결과: {result['updated']}개 업데이트, {result['skipped']}개 스킵, {len(result['errors'])"
+      },
+      {
+        "file": "execution\\yt_analytics_to_notion.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"\\n📊 결과: 업데이트 {result['updated']}개 / 스킵 {result['skipped']}개 / 에러 {len(result['"
+      },
+      {
+        "file": "execution\\pages\\shorts_manager.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"Notion 동기화 완료: 생성 {created} / 업데이트 {updated} / 오류 {errors}"
+      },
+      {
+        "file": "hanwoo-dashboard\\public\\sw.js",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"},{url:\"/_next/static/chunks/webpack-e08da262b32814b6.js\",revision:\"T0yJO_Gh6U"
+      },
+      {
+        "file": "infrastructure\\sqlite-multi-mcp\\server.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"SELECT COUNT(*) FROM {safe_name}"
+      },
+      {
+        "file": "infrastructure\\sqlite-multi-mcp\\server.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"SELECT COUNT(*) FROM {safe_t}"
+      },
+      {
+        "file": "scripts\\update_all.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"\\nStarting updates (strategy={args.strategy}"
+      },
+      {
+        "file": "shorts-maker-v2\\ShortsFactory\\pipeline.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"  Job created: {template} ({self.channel.display_name}"
+      },
+      {
+        "file": "shorts-maker-v2\\ShortsFactory\\scaffold.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"[1/4] channel_profiles.yaml updated: {channel_id}"
+      },
+      {
+        "file": "shorts-maker-v2\\ShortsFactory\\scaffold.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"[2/4] Template created: {tmpl_file.name}"
+      },
+      {
+        "file": "shorts-maker-v2\\ShortsFactory\\integrations\\notion_bridge.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"Status update failed: {resp.status_code}"
+      },
+      {
+        "file": "shorts-maker-v2\\src\\shorts_maker_v2\\cli.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"Cannot create directory {target}: {exc}"
+      },
+      {
+        "file": "tests\\legacy_manual\\manual_file_manager_safety.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"Created {len(files)} dummy files in {TEST_DIR}"
+      }
+    ]
+  },
+  "infrastructure": {
+    "docker": true,
+    "docker_containers": [
+      "n8n"
+    ],
+    "ollama": true,
+    "scheduler": {
+      "ready": 0,
+      "total": 5
+    },
+    "disk_gb_free": 133.5
+  }
+}

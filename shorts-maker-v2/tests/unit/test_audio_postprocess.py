@@ -1,8 +1,7 @@
 """audio_postprocess.py 유닛 테스트."""
+
 from __future__ import annotations
 
-import shutil
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -15,8 +14,8 @@ from shorts_maker_v2.render.audio_postprocess import (
     postprocess_tts_audio,
 )
 
-
 # ── detect_voice_gender ──────────────────────────────────────────────────────
+
 
 class TestDetectVoiceGender:
     def test_female_sunhi(self):
@@ -52,6 +51,7 @@ class TestDetectVoiceGender:
 
 # ── EQ_PRESETS ───────────────────────────────────────────────────────────────
 
+
 class TestEqPresets:
     def test_all_presets_defined(self):
         assert "male_voice" in EQ_PRESETS
@@ -72,6 +72,7 @@ class TestEqPresets:
 
 
 # ── normalize_audio (pydub fallback) ─────────────────────────────────────────
+
 
 class TestNormalizeAudio:
     def test_returns_path_when_pydub_missing(self, tmp_path):
@@ -168,6 +169,7 @@ class TestNormalizeAudio:
 
 # ── apply_eq ─────────────────────────────────────────────────────────────────
 
+
 class TestApplyEq:
     def test_returns_path_when_pydub_missing(self, tmp_path):
         audio = tmp_path / "test.mp3"
@@ -186,9 +188,11 @@ class TestApplyEq:
         mock_band.apply_gain.return_value = mock_band
         mock_audio.overlay.return_value = mock_audio
 
-        with patch("shorts_maker_v2.render.audio_postprocess.AudioSegment") as MockAudio, \
-             patch("shorts_maker_v2.render.audio_postprocess.high_pass_filter", return_value=mock_band), \
-             patch("shorts_maker_v2.render.audio_postprocess.low_pass_filter", return_value=mock_band):
+        with (
+            patch("shorts_maker_v2.render.audio_postprocess.AudioSegment") as MockAudio,
+            patch("shorts_maker_v2.render.audio_postprocess.high_pass_filter", return_value=mock_band),
+            patch("shorts_maker_v2.render.audio_postprocess.low_pass_filter", return_value=mock_band),
+        ):
             MockAudio.from_file.return_value = mock_audio
             result = apply_eq(audio, preset="neutral")
 
@@ -203,9 +207,11 @@ class TestApplyEq:
         mock_audio = MagicMock()
         mock_audio.overlay.return_value = mock_audio
 
-        with patch("shorts_maker_v2.render.audio_postprocess.AudioSegment") as MockAudio, \
-             patch("shorts_maker_v2.render.audio_postprocess.high_pass_filter", return_value=MagicMock()), \
-             patch("shorts_maker_v2.render.audio_postprocess.low_pass_filter", return_value=MagicMock()):
+        with (
+            patch("shorts_maker_v2.render.audio_postprocess.AudioSegment") as MockAudio,
+            patch("shorts_maker_v2.render.audio_postprocess.high_pass_filter", return_value=MagicMock()),
+            patch("shorts_maker_v2.render.audio_postprocess.low_pass_filter", return_value=MagicMock()),
+        ):
             MockAudio.from_file.return_value = mock_audio
             result = apply_eq(audio, preset="nonexistent_preset")
 
@@ -225,6 +231,7 @@ class TestApplyEq:
 
 # ── postprocess_tts_audio ─────────────────────────────────────────────────────
 
+
 class TestPostprocessTtsAudio:
     def test_nonexistent_file_returns_path(self, tmp_path):
         audio = tmp_path / "nonexistent.mp3"
@@ -235,8 +242,10 @@ class TestPostprocessTtsAudio:
         audio = tmp_path / "tts.mp3"
         audio.write_bytes(b"\x00")
 
-        with patch("shorts_maker_v2.render.audio_postprocess.normalize_audio", return_value=audio) as mock_norm, \
-             patch("shorts_maker_v2.render.audio_postprocess.apply_eq", return_value=audio) as mock_eq:
+        with (
+            patch("shorts_maker_v2.render.audio_postprocess.normalize_audio", return_value=audio) as mock_norm,
+            patch("shorts_maker_v2.render.audio_postprocess.apply_eq", return_value=audio) as mock_eq,
+        ):
             result = postprocess_tts_audio(audio, voice_name="ko-KR-InJoon-Neural")
 
         mock_norm.assert_called_once_with(audio, -14.0)
@@ -247,8 +256,10 @@ class TestPostprocessTtsAudio:
         audio = tmp_path / "tts.mp3"
         audio.write_bytes(b"\x00")
 
-        with patch("shorts_maker_v2.render.audio_postprocess.normalize_audio", return_value=audio), \
-             patch("shorts_maker_v2.render.audio_postprocess.apply_eq") as mock_eq:
+        with (
+            patch("shorts_maker_v2.render.audio_postprocess.normalize_audio", return_value=audio),
+            patch("shorts_maker_v2.render.audio_postprocess.apply_eq") as mock_eq,
+        ):
             postprocess_tts_audio(audio, voice_name="")
 
         mock_eq.assert_not_called()
@@ -257,8 +268,10 @@ class TestPostprocessTtsAudio:
         audio = tmp_path / "tts.mp3"
         audio.write_bytes(b"\x00")
 
-        with patch("shorts_maker_v2.render.audio_postprocess.normalize_audio") as mock_norm, \
-             patch("shorts_maker_v2.render.audio_postprocess.apply_eq", return_value=audio):
+        with (
+            patch("shorts_maker_v2.render.audio_postprocess.normalize_audio") as mock_norm,
+            patch("shorts_maker_v2.render.audio_postprocess.apply_eq", return_value=audio),
+        ):
             postprocess_tts_audio(audio, voice_name="ko-KR-SunHi", normalize=False)
 
         mock_norm.assert_not_called()
@@ -267,8 +280,10 @@ class TestPostprocessTtsAudio:
         audio = tmp_path / "tts.mp3"
         audio.write_bytes(b"\x00")
 
-        with patch("shorts_maker_v2.render.audio_postprocess.normalize_audio", return_value=audio), \
-             patch("shorts_maker_v2.render.audio_postprocess.apply_eq") as mock_eq:
+        with (
+            patch("shorts_maker_v2.render.audio_postprocess.normalize_audio", return_value=audio),
+            patch("shorts_maker_v2.render.audio_postprocess.apply_eq") as mock_eq,
+        ):
             postprocess_tts_audio(audio, voice_name="ko-KR-SunHi", eq_enabled=False)
 
         mock_eq.assert_not_called()
@@ -277,8 +292,10 @@ class TestPostprocessTtsAudio:
         audio = tmp_path / "tts.mp3"
         audio.write_bytes(b"\x00")
 
-        with patch("shorts_maker_v2.render.audio_postprocess.normalize_audio", return_value=audio) as mock_norm, \
-             patch("shorts_maker_v2.render.audio_postprocess.apply_eq", return_value=audio):
+        with (
+            patch("shorts_maker_v2.render.audio_postprocess.normalize_audio", return_value=audio) as mock_norm,
+            patch("shorts_maker_v2.render.audio_postprocess.apply_eq", return_value=audio),
+        ):
             postprocess_tts_audio(audio, voice_name="", target_lufs=-16.0)
 
         mock_norm.assert_called_once_with(audio, -16.0)

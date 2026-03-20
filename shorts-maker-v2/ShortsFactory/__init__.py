@@ -4,9 +4,10 @@ Config: channel_profiles.yaml (Single Source of Truth)
 Registry: shorts_maker_v2.templates (Single Source of Truth)
 Interface: ShortsFactory.interfaces (Pipeline ↔ ShortsFactory 통합)
 """
-from .pipeline import ShortsFactory, ChannelConfig, RenderJob
+
 from .batch import batch_render
 from .interfaces import RenderAdapter, RenderRequest, RenderResult
+from .pipeline import ChannelConfig, RenderJob, ShortsFactory
 
 __all__ = [
     "ShortsFactory",
@@ -17,4 +18,3 @@ __all__ = [
     "RenderRequest",
     "RenderResult",
 ]
-

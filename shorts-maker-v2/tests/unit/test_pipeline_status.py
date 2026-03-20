@@ -1,4 +1,5 @@
 """PipelineStatusTracker + 유틸리티 함수 테스트."""
+
 from __future__ import annotations
 
 import time
@@ -6,15 +7,14 @@ import time
 import pytest
 
 from shorts_maker_v2.utils.pipeline_status import (
-    PipelineStatusTracker,
-    StepStatus,
     _STATUS_COLORS,
     _STATUS_ICONS,
+    PipelineStatusTracker,
+    StepStatus,
     format_status_line,
     get_status_color,
     get_status_icon,
 )
-
 
 # ── StepStatus enum ──────────────────────────────────────────────
 
@@ -88,15 +88,11 @@ class TestFormatStatusLine:
         assert "thinking" in line
 
     def test_with_detail(self):
-        line = format_status_line(
-            "render", StepStatus.EXECUTING, detail="encoding", use_color=False
-        )
+        line = format_status_line("render", StepStatus.EXECUTING, detail="encoding", use_color=False)
         assert "— encoding" in line
 
     def test_with_elapsed(self):
-        line = format_status_line(
-            "media", StepStatus.COMPLETED, elapsed_sec=3.14, use_color=False
-        )
+        line = format_status_line("media", StepStatus.COMPLETED, elapsed_sec=3.14, use_color=False)
         assert "(3.1s)" in line
 
     def test_with_color(self):

@@ -1,10 +1,22 @@
 """구조 프리셋 로테이션 및 시스템 프롬프트 반영 테스트."""
+
 from __future__ import annotations
 
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-from shorts_maker_v2.config import AppConfig, ProjectSettings, VideoSettings, ProviderSettings, LimitSettings, CostTable, PathSettings, CaptionSettings, AudioSettings, CanvaSettings
+from shorts_maker_v2.config import (
+    AppConfig,
+    AudioSettings,
+    CanvaSettings,
+    CaptionSettings,
+    CostTable,
+    LimitSettings,
+    PathSettings,
+    ProjectSettings,
+    ProviderSettings,
+    VideoSettings,
+)
 from shorts_maker_v2.pipeline.script_step import ScriptStep
 
 
@@ -24,19 +36,30 @@ def _make_config(presets: dict[str, list[str]] | None = None) -> AppConfig:
             aspect_ratio="9:16",
         ),
         providers=ProviderSettings(
-            llm="openai", tts="edge-tts", visual_primary="google-veo",
-            visual_fallback="openai-image", llm_model="gpt-4o-mini",
-            tts_model="tts-1", tts_voice="alloy", tts_speed=1.1,
-            image_model="dall-e-3", image_size="1024x1792",
-            image_quality="standard", veo_model="veo-2.0-generate-001",
+            llm="openai",
+            tts="edge-tts",
+            visual_primary="google-veo",
+            visual_fallback="openai-image",
+            llm_model="gpt-4o-mini",
+            tts_model="tts-1",
+            tts_voice="alloy",
+            tts_speed=1.1,
+            image_model="dall-e-3",
+            image_size="1024x1792",
+            image_quality="standard",
+            veo_model="veo-2.0-generate-001",
         ),
         limits=LimitSettings(max_cost_usd=2.0, max_retries=3, request_timeout_sec=180),
         costs=CostTable(llm_per_job=0.25, tts_per_second=0.0, veo_per_second=0.03, image_per_scene=0.04),
         paths=PathSettings(output_dir="output", logs_dir="logs", runs_dir="runs"),
         captions=CaptionSettings(
-            font_size=64, margin_x=90, bottom_offset=240,
-            text_color="#FFD700", stroke_color="#000000",
-            stroke_width=4, line_spacing=12,
+            font_size=64,
+            margin_x=90,
+            bottom_offset=240,
+            text_color="#FFD700",
+            stroke_color="#000000",
+            stroke_width=4,
+            line_spacing=12,
             font_candidates=("C:/Windows/Fonts/malgunbd.ttf",),
         ),
         audio=AudioSettings(),
@@ -103,9 +126,9 @@ class TestStructurePresetRotation(unittest.TestCase):
             char_min=20,
             char_max=60,
         )
-        self.assertIn("structure_role: \"hook\"", prompt)
-        self.assertIn("structure_role: \"body\"", prompt)
-        self.assertIn("structure_role: \"cta\"", prompt)
+        self.assertIn('structure_role: "hook"', prompt)
+        self.assertIn('structure_role: "body"', prompt)
+        self.assertIn('structure_role: "cta"', prompt)
         self.assertNotIn("Scene flow:", prompt)
 
 

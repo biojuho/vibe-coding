@@ -1,4 +1,5 @@
 """Unsplash 스톡 이미지 프로바이더 (무료 API)."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -80,16 +81,11 @@ class UnsplashClient:
 
         photos = self.search_photos(query=query, per_page=per_page)
         if not photos:
-            raise RuntimeError(
-                f"No Unsplash photos found for query: {query!r}"
-            )
+            raise RuntimeError(f"No Unsplash photos found for query: {query!r}")
 
         # portrait 비율 우선 (h >= w)
         photo = next(
-            (
-                p for p in photos
-                if p.get("height", 0) >= p.get("width", 1)
-            ),
+            (p for p in photos if p.get("height", 0) >= p.get("width", 1)),
             photos[0],
         )
 
@@ -97,9 +93,7 @@ class UnsplashClient:
         urls: dict = photo.get("urls", {})
         url = urls.get("full") or urls.get("regular") or urls.get("small")
         if not url:
-            raise RuntimeError(
-                f"No usable Unsplash URL for query: {query!r}"
-            )
+            raise RuntimeError(f"No usable Unsplash URL for query: {query!r}")
 
         self._stream_download(url, output_path)
         return output_path

@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Database, Cpu, Activity } from 'lucide-react';
+
+import { useAppFeedback } from '@/components/feedback/FeedbackProvider';
 import { getSystemDiagnostics, getRawData } from '@/lib/actions';
 
 const STATUS_STYLES = {
@@ -22,39 +24,60 @@ const STATUS_STYLES = {
 
 export default function DiagnosticsPage() {
   const router = useRouter();
+  const { notify } = useAppFeedback();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedModel, setSelectedModel] = useState('cattle');
   const [rawData, setRawData] = useState(null);
-  const [dataLoading, setDataLoading] = useState(false);
-
-  useEffect(() => {
-    loadStats();
-  }, []);
-
-  useEffect(() => {
-    loadData(selectedModel);
-  }, [selectedModel]);
+  const [dataLoading, setDataLoading] = useState(true);
 
   const recordCounts = useMemo(
     () => (stats?.database?.recordCounts ? Object.entries(stats.database.recordCounts) : []),
     [stats]
   );
 
-  const loadStats = async () => {
-    setLoading(true);
-    const result = await getSystemDiagnostics();
-    setStats(result);
-    setLoading(false);
-  };
+  useEffect(() => {
+    let cancelled = false;
 
-  const loadData = async (model) => {
-    setDataLoading(true);
-    const result = await getRawData(model);
-    if (result.success) setRawData(result.data);
-    else alert('데이터 로드에 실패했습니다.');
-    setDataLoading(false);
-  };
+    void getSystemDiagnostics().then((result) => {
+      if (cancelled) {
+        return;
+      }
+
+      setStats(result);
+      setLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void getRawData(selectedModel).then((result) => {
+      if (cancelled) {
+        return;
+      }
+
+      if (result.success) {
+        setRawData(result.data);
+      } else {
+        notify({
+          title: '데이터 로드에 실패했습니다.',
+          description: result.message || '잠시 후 다시 시도해 주세요.',
+          variant: 'error',
+        });
+      }
+
+      setDataLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [notify, selectedModel]);
 
   if (loading) {
     return (
@@ -153,7 +176,10 @@ export default function DiagnosticsPage() {
 
             <select
               value={selectedModel}
-              onChange={(event) => setSelectedModel(event.target.value)}
+              onChange={(event) => {
+                setDataLoading(true);
+                setSelectedModel(event.target.value);
+              }}
               className="clay-inset rounded-full px-4 py-3 text-sm font-medium text-[color:var(--color-text)] outline-none"
             >
               <option value="cattle">Cattle</option>

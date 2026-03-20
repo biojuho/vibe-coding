@@ -7,9 +7,12 @@
 서브클래스에서 클래스 변수로 채널별 기본값만 지정하면
 build_scenes가 자동으로 작동합니다.
 """
+
 from __future__ import annotations
+
 from typing import Any
-from ShortsFactory.templates.base_template import BaseTemplate, Scene
+
+from ShortsFactory.templates.base_template import Scene
 
 
 class CountdownMixin:
@@ -53,13 +56,15 @@ class CountdownMixin:
         scenes: list[Scene] = []
 
         # Hook
-        scenes.append(Scene(
-            role="hook",
-            text=data.get("hook_text", self.default_hook_text),
-            duration=self.hook_duration,
-            animation=self.hook_animation,
-            extra={"font_size": self.hook_font_size},
-        ))
+        scenes.append(
+            Scene(
+                role="hook",
+                text=data.get("hook_text", self.default_hook_text),
+                duration=self.hook_duration,
+                animation=self.hook_animation,
+                extra={"font_size": self.hook_font_size},
+            )
+        )
 
         # Items (countdown cards)
         for item in data.get("items", []):
@@ -78,20 +83,24 @@ class CountdownMixin:
             if self.include_value and value:
                 extra["value"] = value
 
-            scenes.append(Scene(
-                role="body",
-                text=full,
-                keywords=item.get("keywords", []),
-                duration=self.body_duration,
-                animation=self.body_animation,
-                extra=extra,
-            ))
+            scenes.append(
+                Scene(
+                    role="body",
+                    text=full,
+                    keywords=item.get("keywords", []),
+                    duration=self.body_duration,
+                    animation=self.body_animation,
+                    extra=extra,
+                )
+            )
 
         # CTA
-        scenes.append(Scene(
-            role="cta",
-            text=data.get("cta_text", self.default_cta_text),
-            duration=self.cta_duration,
-        ))
+        scenes.append(
+            Scene(
+                role="cta",
+                text=data.get("cta_text", self.default_cta_text),
+                duration=self.cta_duration,
+            )
+        )
 
         return self.finalize_scenes(scenes)

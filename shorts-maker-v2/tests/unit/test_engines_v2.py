@@ -11,9 +11,8 @@ Phase 2에서 추가된 v2 메서드들의 기능을 검증합니다.
 """
 
 import sys
-import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
@@ -49,6 +48,7 @@ class TestTextEngineV2:
     @pytest.fixture
     def engine(self):
         from ShortsFactory.engines.text_engine import TextEngine
+
         return TextEngine(_CHANNEL_CONFIG)
 
     def test_render_gradient_text_creates_file(self, engine, tmp_path):
@@ -123,8 +123,10 @@ class TestTextEngineV2:
 _HAS_FFMPEG = False
 try:
     import shutil
+
     if shutil.which("ffmpeg"):
         from moviepy import VideoClip
+
         _HAS_FFMPEG = True
 except (RuntimeError, ImportError, OSError):
     pass
@@ -137,6 +139,7 @@ class TestTransitionEngineV2:
     @pytest.fixture
     def engine(self):
         from ShortsFactory.engines.transition_engine import TransitionEngine
+
         return TransitionEngine(_CHANNEL_CONFIG)
 
     def _make_mock_clip(self, duration=2.0, w=1080, h=1920):
@@ -226,21 +229,25 @@ class TestHookEngineV2:
     @pytest.fixture
     def engine_popup(self):
         from ShortsFactory.engines.hook_engine import HookEngine
+
         return HookEngine({**_CHANNEL_CONFIG, "hook_style": "popup"})
 
     @pytest.fixture
     def engine_shake(self):
         from ShortsFactory.engines.hook_engine import HookEngine
+
         return HookEngine({**_CHANNEL_CONFIG, "hook_style": "shake"})
 
     @pytest.fixture
     def engine_reveal(self):
         from ShortsFactory.engines.hook_engine import HookEngine
+
         return HookEngine({**_CHANNEL_CONFIG, "hook_style": "reveal"})
 
     @pytest.fixture
     def engine_combo(self):
         from ShortsFactory.engines.hook_engine import HookEngine
+
         return HookEngine({**_CHANNEL_CONFIG, "hook_style": "glitch_shake"})
 
     def _make_clip_with_frame(self, w=100, h=100, duration=1.0):
@@ -257,6 +264,7 @@ class TestHookEngineV2:
     def test_shake_animation(self):
         """_apply_shake가 프레임을 변형하는지 확인."""
         from ShortsFactory.engines.hook_engine import _apply_shake
+
         clip = self._make_clip_with_frame()
         result = _apply_shake(clip, 0.3)
         assert result is not None
@@ -264,6 +272,7 @@ class TestHookEngineV2:
     def test_reveal_animation(self):
         """_apply_reveal이 프레임을 변형하는지 확인."""
         from ShortsFactory.engines.hook_engine import _apply_reveal
+
         clip = self._make_clip_with_frame()
         result = _apply_reveal(clip, 0.5)
         assert result is not None
@@ -309,6 +318,7 @@ class TestHookEngineV2:
     def test_get_animation_type_v2(self):
         """v2 스타일 매핑 확인."""
         from ShortsFactory.engines.hook_engine import HookEngine
+
         engine = HookEngine({**_CHANNEL_CONFIG, "hook_style": "reveal"})
         assert engine.get_animation_type() == "reveal"
 
@@ -324,13 +334,17 @@ class TestBackgroundEngineV2:
     @pytest.fixture
     def engine(self):
         from ShortsFactory.engines.background_engine import BackgroundEngine
+
         return BackgroundEngine(_CHANNEL_CONFIG)
 
     def test_create_noise_texture(self, engine, tmp_path):
         """노이즈 텍스처 생성 확인."""
         output = tmp_path / "noise.png"
         result = engine.create_noise_texture(
-            200, 200, intensity=0.1, output_path=output,
+            200,
+            200,
+            intensity=0.1,
+            output_path=output,
         )
         assert result.exists()
         img = Image.open(result)
@@ -341,7 +355,10 @@ class TestBackgroundEngineV2:
         """grain_size 옵션이 동작하는지 확인."""
         output = tmp_path / "noise_grain.png"
         result = engine.create_noise_texture(
-            200, 200, grain_size=4, output_path=output,
+            200,
+            200,
+            grain_size=4,
+            output_path=output,
         )
         assert result.exists()
 
@@ -349,7 +366,10 @@ class TestBackgroundEngineV2:
         """컬러 노이즈 생성 확인."""
         output = tmp_path / "noise_color.png"
         result = engine.create_noise_texture(
-            200, 200, monochrome=False, output_path=output,
+            200,
+            200,
+            monochrome=False,
+            output_path=output,
         )
         assert result.exists()
 
@@ -357,7 +377,10 @@ class TestBackgroundEngineV2:
         """스캔라인 오버레이 생성 확인."""
         output = tmp_path / "scanlines.png"
         result = engine.create_scanline_overlay(
-            200, 200, line_spacing=4, output_path=output,
+            200,
+            200,
+            line_spacing=4,
+            output_path=output,
         )
         assert result.exists()
         img = Image.open(result)
@@ -367,7 +390,11 @@ class TestBackgroundEngineV2:
         """스캔라인이 실제로 라인을 포함하는지 확인."""
         output = tmp_path / "scanlines_check.png"
         engine.create_scanline_overlay(
-            100, 100, line_spacing=4, line_opacity=0.5, output_path=output,
+            100,
+            100,
+            line_spacing=4,
+            line_opacity=0.5,
+            output_path=output,
         )
         img = Image.open(output)
         arr = np.array(img)
@@ -380,7 +407,11 @@ class TestBackgroundEngineV2:
         """메쉬 그라데이션 생성 확인."""
         output = tmp_path / "mesh.png"
         result = engine.create_mesh_gradient(
-            200, 300, num_points=3, blur_radius=50, output_path=output,
+            200,
+            300,
+            num_points=3,
+            blur_radius=50,
+            output_path=output,
         )
         assert result.exists()
         img = Image.open(result)
@@ -390,7 +421,8 @@ class TestBackgroundEngineV2:
         """커스텀 색상 메쉬 그라데이션."""
         output = tmp_path / "mesh_custom.png"
         result = engine.create_mesh_gradient(
-            200, 300,
+            200,
+            300,
             colors=["#FF0000", "#00FF00", "#0000FF"],
             output_path=output,
         )

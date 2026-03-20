@@ -12,9 +12,9 @@ from PIL import Image, ImageDraw
 
 from shorts_maker_v2.config import AppConfig
 from shorts_maker_v2.models import SceneAsset, ScenePlan
+from shorts_maker_v2.providers.edge_tts_client import EdgeTTSClient
 from shorts_maker_v2.providers.google_client import GoogleClient
 from shorts_maker_v2.providers.llm_router import LLMRouter
-from shorts_maker_v2.providers.edge_tts_client import EdgeTTSClient
 from shorts_maker_v2.providers.openai_client import OpenAIClient
 from shorts_maker_v2.providers.pexels_client import PexelsClient
 from shorts_maker_v2.utils.cost_guard import CostGuard
@@ -85,10 +85,7 @@ class MediaStep:
     def _generate_audio(self, narration_ko: str, output_path: Path, *, role: str = "body") -> Path:
         # 역할별 음성 매핑 (tts_voice_roles 설정 시)
         voice_roles = self.config.providers.tts_voice_roles
-        if voice_roles and role in voice_roles:
-            voice = voice_roles[role]
-        else:
-            voice = self._tts_voice
+        voice = voice_roles[role] if voice_roles and role in voice_roles else self._tts_voice
 
         # edge-tts 설정 시 무료 Microsoft TTS 사용 + WordBoundary 타이밍 추출
         if self.config.providers.tts == "edge-tts":
@@ -116,12 +113,10 @@ class MediaStep:
         if self.config.providers.tts != "edge-tts" and self.config.audio.sync_with_whisper and self.openai_client:
             try:
                 import json
+
                 words = self.openai_client.transcribe_audio(audio_result)
                 words_json_path = audio_result.parent / f"{audio_result.stem}_words.json"
-                words_json_path.write_text(
-                    json.dumps(words, ensure_ascii=False, indent=2),
-                    encoding="utf-8"
-                )
+                words_json_path.write_text(json.dumps(words, ensure_ascii=False, indent=2), encoding="utf-8")
             except Exception:
                 pass
 
@@ -153,12 +148,13 @@ class MediaStep:
     def _generate_image_pollinations(self, prompt: str, output_path: Path) -> Path:
         """Pollinations.ai FLUX 이미지 생성 — 무료, API 키 불필요."""
         import requests as _req
+
         if output_path.exists():
             return output_path
         w, h = self.config.video.resolution
         url = f"https://image.pollinations.ai/prompt/{quote(prompt[:1500])}"
         params = {"model": "flux", "width": str(w), "height": str(h), "nologo": "true"}
-        resp = _req.get(url, params=params, timeout=120)
+        resp = _req.get(url, params=params, timeout=30)
         resp.raise_for_status()
         if len(resp.content) < 5000:
             raise ValueError(f"Pollinations returned suspiciously small image: {len(resp.content)}B")
@@ -172,7 +168,7 @@ class MediaStep:
             "You rewrite DALL-E image prompts to avoid content policy violations. "
             "Remove or replace any medical, anatomical, violent, or sensitive terms "
             "with safe abstract/metaphorical alternatives. Keep the visual style and "
-            "composition intact. Output JSON: {\"prompt\": \"...\"}"
+            'composition intact. Output JSON: {"prompt": "..."}'
         )
         _user = f"Original prompt:\n{prompt}\n\nRewrite to be DALL-E safe."
 
@@ -208,15 +204,15 @@ class MediaStep:
             quantized = img.quantize(colors=10, method=Image.Quantize.FASTOCTREE)
             palette = quantized.getpalette()
             counts = quantized.getcolors()
-            
+
             if not palette or not counts:
                 return ""
-                
+
             # (count, index) 정렬 (많이 쓰인 순)
             counts.sort(key=lambda x: x[0], reverse=True)
-            
+
             hex_colors = []
-            for count, idx in counts:
+            for _count, idx in counts:
                 base = idx * 3
                 if base + 2 >= len(palette):
                     continue
@@ -287,7 +283,8 @@ class MediaStep:
             _color_hint = f"[Color palette consistency: use tones of {color_hint}] "
         return (
             f"{_role_guide}{_color_hint}{_prefix} {scene.visual_prompt_en}".strip()
-            if (_role_guide or _color_hint or _prefix) else scene.visual_prompt_en
+            if (_role_guide or _color_hint or _prefix)
+            else scene.visual_prompt_en
         )
 
     def _generate_best_image(
@@ -314,23 +311,28 @@ class MediaStep:
         # ── 캐시 조회 ──
         cached = self._cache.get(visual_prompt, dest_path=img_path)
         if cached is not None:
-            self._log(logger, "info", "image_cache_hit",
-                      scene_id=scene.scene_id, cached_path=str(cached))
+            self._log(logger, "info", "image_cache_hit", scene_id=scene.scene_id, cached_path=str(cached))
             return str(cached), visual_type, failures
 
         wants_video = self.config.providers.visual_primary == "google-veo"
         video_allowed = wants_video and cost_guard.can_use_video(duration_sec)
 
         if wants_video and not video_allowed:
-            self._log(logger, "warning", "video_downgraded_by_cost",
-                      scene_id=scene.scene_id,
-                      estimated_cost_usd=cost_guard.estimated_cost_usd,
-                      max_cost_usd=cost_guard.max_cost_usd)
+            self._log(
+                logger,
+                "warning",
+                "video_downgraded_by_cost",
+                scene_id=scene.scene_id,
+                estimated_cost_usd=cost_guard.estimated_cost_usd,
+                max_cost_usd=cost_guard.max_cost_usd,
+            )
 
         if wants_video and video_allowed:
             try:
                 visual_path = retry_with_backoff(
-                    lambda p=visual_prompt, vp=video_dir / f"{scene_name}.mp4": self._generate_video(p, duration_sec, vp),
+                    lambda p=visual_prompt, vp=video_dir / f"{scene_name}.mp4": self._generate_video(
+                        p, duration_sec, vp
+                    ),
                     max_attempts=self.config.limits.max_retries,
                     base_delay_sec=2.0,
                 )
@@ -341,17 +343,10 @@ class MediaStep:
                 failures.append({"step": "visual_primary", "code": type(exc).__name__, "message": str(exc)})
                 self._log(logger, "warning", "video_failed_fallback_to_image", scene_id=scene.scene_id, error=str(exc))
 
-        # Body 씬 스톡 영상 믹싱: stock_mix_ratio 확률로 Pexels 스톡 우선 시도
-        _is_body = scene.structure_role not in ("hook", "cta")
+        # 스톡 영상 믹싱: stock_mix_ratio 확률로만 Pexels 스톡 우선 시도
+        # visual_stock="pexels"는 폴백 활성화 의미이지 무조건 사용이 아님
         _stock_mix = self.config.video.stock_mix_ratio
-        _try_stock = (
-            visual_type == "image"
-            and self.pexels_client
-            and (
-                self.config.providers.visual_stock == "pexels"
-                or (_is_body and _stock_mix > 0 and random.random() < _stock_mix)
-            )
-        )
+        _try_stock = visual_type == "image" and self.pexels_client and _stock_mix > 0 and random.random() < _stock_mix
         if _try_stock:
             stock_path = video_dir / f"{scene_name}_stock.mp4"
             try:
@@ -362,12 +357,13 @@ class MediaStep:
                 )
                 visual_type = "video"
                 cost_guard.add_stock_cost()
-                self._log(logger, "info", "stock_video_ready",
-                          scene_id=scene.scene_id, mixed=_is_body)
+                self._log(logger, "info", "stock_video_ready", scene_id=scene.scene_id, mixed=True)
                 return str(visual_path), visual_type, failures
             except Exception as exc:
                 failures.append({"step": "visual_stock", "code": type(exc).__name__, "message": str(exc)})
-                self._log(logger, "warning", "stock_video_failed_fallback_to_image", scene_id=scene.scene_id, error=str(exc))
+                self._log(
+                    logger, "warning", "stock_video_failed_fallback_to_image", scene_id=scene.scene_id, error=str(exc)
+                )
 
         # 이미지 생성 폴백 체인
         # visual_primary == "google-imagen" 이면 Imagen 3(유료) 우선 시도.
@@ -379,7 +375,9 @@ class MediaStep:
         if wants_imagen and use_paid_image and self.google_client:
             try:
                 visual_path = retry_with_backoff(
-                    lambda p=visual_prompt, ip=img_path: self.google_client.generate_image_imagen3(prompt=p, output_path=ip),
+                    lambda p=visual_prompt, ip=img_path: self.google_client.generate_image_imagen3(
+                        prompt=p, output_path=ip
+                    ),
                     max_attempts=self.config.limits.max_retries,
                     base_delay_sec=1.0,
                 )
@@ -388,8 +386,9 @@ class MediaStep:
                 self._log(logger, "info", "image_imagen3_success", scene_id=scene.scene_id)
             except Exception as exc:
                 failures.append({"step": "image_imagen3", "code": type(exc).__name__, "message": str(exc)[:120]})
-                self._log(logger, "warning", "image_imagen3_failed_fallback_to_free",
-                          scene_id=scene.scene_id, error=str(exc))
+                self._log(
+                    logger, "warning", "image_imagen3_failed_fallback_to_free", scene_id=scene.scene_id, error=str(exc)
+                )
 
         if not image_ready and self.google_client:
             try:
@@ -402,22 +401,32 @@ class MediaStep:
                 self._log(logger, "info", "image_gemini_success", scene_id=scene.scene_id)
             except Exception as exc:
                 failures.append({"step": "image_gemini", "code": type(exc).__name__, "message": str(exc)[:120]})
-                self._log(logger, "warning", "image_gemini_failed_fallback_to_pollinations",
-                          scene_id=scene.scene_id, error=str(exc))
+                self._log(
+                    logger,
+                    "warning",
+                    "image_gemini_failed_fallback_to_pollinations",
+                    scene_id=scene.scene_id,
+                    error=str(exc),
+                )
 
         if not image_ready:
             try:
                 visual_path = retry_with_backoff(
                     lambda p=visual_prompt, ip=img_path: self._generate_image_pollinations(p, ip),
-                    max_attempts=self.config.limits.max_retries,
-                    base_delay_sec=2.0,
+                    max_attempts=min(2, self.config.limits.max_retries),
+                    base_delay_sec=1.0,
                 )
                 image_ready = True
                 self._log(logger, "info", "image_pollinations_flux_success", scene_id=scene.scene_id)
             except Exception as exc:
                 failures.append({"step": "image_pollinations", "code": type(exc).__name__, "message": str(exc)[:120]})
-                self._log(logger, "warning", "image_pollinations_failed_fallback_to_dalle",
-                          scene_id=scene.scene_id, error=str(exc))
+                self._log(
+                    logger,
+                    "warning",
+                    "image_pollinations_failed_fallback_to_dalle",
+                    scene_id=scene.scene_id,
+                    error=str(exc),
+                )
 
         if not image_ready and use_paid_image:
             try:
@@ -430,13 +439,23 @@ class MediaStep:
                 image_ready = True
             except BadRequestError as exc:
                 if "content_policy_violation" in str(exc):
-                    self._log(logger, "warning", "image_content_policy_blocked",
-                              scene_id=scene.scene_id, original_prompt=visual_prompt[:80])
+                    self._log(
+                        logger,
+                        "warning",
+                        "image_content_policy_blocked",
+                        scene_id=scene.scene_id,
+                        original_prompt=visual_prompt[:80],
+                    )
                     failures.append({"step": "image_policy", "code": "ContentPolicy", "message": str(exc)[:120]})
                     try:
                         safe_prompt = self._sanitize_visual_prompt(visual_prompt)
-                        self._log(logger, "info", "image_sanitized_retry",
-                                  scene_id=scene.scene_id, safe_prompt=safe_prompt[:80])
+                        self._log(
+                            logger,
+                            "info",
+                            "image_sanitized_retry",
+                            scene_id=scene.scene_id,
+                            safe_prompt=safe_prompt[:80],
+                        )
                         visual_path = self._generate_image(safe_prompt, img_path)
                         cost_guard.add_image_cost()
                         image_ready = True
@@ -447,8 +466,7 @@ class MediaStep:
             except Exception as exc:
                 failures.append({"step": "image_dalle", "code": type(exc).__name__, "message": str(exc)[:120]})
         elif not image_ready and not use_paid_image:
-            self._log(logger, "info", "image_paid_skipped_body_scene",
-                      scene_id=scene.scene_id)
+            self._log(logger, "info", "image_paid_skipped_body_scene", scene_id=scene.scene_id)
 
         # content_policy 등 전체 이미지 실패 시 Pexels 스톡 이미지 최종 시도
         if not image_ready and self.pexels_client:
@@ -462,10 +480,11 @@ class MediaStep:
                 visual_type = "video"
                 cost_guard.add_stock_cost()
                 image_ready = True
-                self._log(logger, "info", "stock_fallback_after_policy_block",
-                          scene_id=scene.scene_id)
+                self._log(logger, "info", "stock_fallback_after_policy_block", scene_id=scene.scene_id)
             except Exception as stock_exc:
-                failures.append({"step": "stock_policy_fallback", "code": type(stock_exc).__name__, "message": str(stock_exc)[:120]})
+                failures.append(
+                    {"step": "stock_policy_fallback", "code": type(stock_exc).__name__, "message": str(stock_exc)[:120]}
+                )
 
         if not image_ready:
             self._log(logger, "warning", "image_all_failed_placeholder", scene_id=scene.scene_id)
@@ -532,10 +551,14 @@ class MediaStep:
         # which blocks on running tasks even after cancel(), wasting time on error.
         _pool = ThreadPoolExecutor(max_workers=2)
         _audio_future = _pool.submit(
-            lambda: audio_path if audio_exists else retry_with_backoff(
-                lambda: self._generate_audio(scene.narration_ko, audio_path, role=scene.structure_role),
-                max_attempts=self.config.limits.max_retries,
-                base_delay_sec=1.0,
+            lambda: (
+                audio_path
+                if audio_exists
+                else retry_with_backoff(
+                    lambda: self._generate_audio(scene.narration_ko, audio_path, role=scene.structure_role),
+                    max_attempts=self.config.limits.max_retries,
+                    base_delay_sec=1.0,
+                )
             )
         )
         # Body 씬은 무료 이미지만 사용 (비용 절감)
@@ -545,8 +568,14 @@ class MediaStep:
             if visual_path_str:
                 return visual_path_str, visual_type, []
             return self._generate_best_image(
-                _visual_prompt, img_path, scene.target_sec,
-                cost_guard, video_dir, scene, logger, _use_paid,
+                _visual_prompt,
+                img_path,
+                scene.target_sec,
+                cost_guard,
+                video_dir,
+                scene,
+                logger,
+                _use_paid,
             )
 
         _image_future = _pool.submit(_get_visual)
@@ -593,7 +622,12 @@ class MediaStep:
 
         for scene in scene_plans:
             asset, failures = self._process_one_scene(
-                scene, audio_dir, image_dir, video_dir, cost_guard, logger,
+                scene,
+                audio_dir,
+                image_dir,
+                video_dir,
+                cost_guard,
+                logger,
                 color_hint=palette_hint,
             )
             assets.append(asset)
@@ -630,7 +664,13 @@ class MediaStep:
                 futures = {
                     executor.submit(
                         self._process_one_scene,
-                        scene, audio_dir, image_dir, video_dir, cost_guard, logger, color_hint,
+                        scene,
+                        audio_dir,
+                        image_dir,
+                        video_dir,
+                        cost_guard,
+                        logger,
+                        color_hint,
                     ): scene.scene_id
                     for scene in scenes
                 }
@@ -641,7 +681,9 @@ class MediaStep:
                         results[scene_id] = asset
                         all_failures.extend(failures)
                     except Exception as exc:
-                        all_failures.append({"step": f"scene_{scene_id}", "code": type(exc).__name__, "message": str(exc)})
+                        all_failures.append(
+                            {"step": f"scene_{scene_id}", "code": type(exc).__name__, "message": str(exc)}
+                        )
                         self._log(logger, "error", "parallel_scene_failed", scene_id=scene_id, error=str(exc))
 
         # Hook 씬 먼저 처리 (팔레트 추출을 위해)
@@ -665,4 +707,3 @@ class MediaStep:
         # scene_id 순으로 정렬하여 반환
         assets = [results[s.scene_id] for s in scene_plans if s.scene_id in results]
         return assets, all_failures
-

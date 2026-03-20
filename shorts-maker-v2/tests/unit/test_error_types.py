@@ -1,4 +1,5 @@
 """error_types.py 유닛 테스트."""
+
 from __future__ import annotations
 
 import pytest
@@ -14,9 +15,15 @@ class TestPipelineErrorType:
     def test_all_9_types_defined(self):
         types = {e.value for e in PipelineErrorType}
         assert types == {
-            "network_error", "rate_limit", "auth_error", "server_error",
-            "invalid_response", "content_filter", "context_length",
-            "resource_error", "unknown",
+            "network_error",
+            "rate_limit",
+            "auth_error",
+            "server_error",
+            "invalid_response",
+            "content_filter",
+            "context_length",
+            "resource_error",
+            "unknown",
         }
 
     def test_retryable_types(self):

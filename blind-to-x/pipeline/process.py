@@ -29,6 +29,20 @@ from pipeline.dedup import find_similar_in_notion
 from pipeline.draft_analytics import record_draft_event, refresh_ml_scorer_if_needed
 from pipeline.review_queue import build_review_decision
 
+# P2.5: 감성 분석 트래커 (감정 키워드 트렌드 감지)
+try:
+    from pipeline.sentiment_tracker import get_sentiment_tracker
+    _sentiment_tracker = get_sentiment_tracker()
+except Exception:
+    _sentiment_tracker = None
+
+# P2.7: AI 바이럴 필터 (노이즈 제거)
+_viral_filter_instance: object | None = None
+try:
+    from pipeline.viral_filter import ViralFilter as _ViralFilterCls
+except Exception:
+    _ViralFilterCls = None  # type: ignore[assignment]
+
 # P7: 플랫폼 규제 점검 시스템
 try:
     from pipeline.regulation_checker import RegulationChecker
@@ -353,6 +367,60 @@ async def process_single_post(
         result["final_rank_score"] = profile["final_rank_score"]
         result["review_status"] = decision["review_status"]
 
+        # KOTE 감정 프로필 메타데이터 기록
+        try:
+            from pipeline.emotion_analyzer import get_emotion_profile
+            emo = get_emotion_profile(f"{post_data.get('title', '')} {str(post_data.get('content', ''))[:300]}")
+            if emo.confidence > 0:
+                post_data["emotion_profile"] = {
+                    "top_emotions": emo.top_emotions[:3],
+                    "valence": emo.valence,
+                    "arousal": emo.arousal,
+                    "dominant_group": emo.dominant_group,
+                }
+        except Exception:
+            pass
+
+        # P2.5: 감성 분석 트래킹 (감정 키워드 트렌드 감지)
+        if _sentiment_tracker is not None:
+            try:
+                _sentiment_tracker.record(
+                    url=url,
+                    title=post_data.get("title", ""),
+                    content=str(content_text)[:1000],
+                    emotion_axis=profile.get("emotion_axis", ""),
+                    source=post_data.get("source", ""),
+                )
+            except Exception as _st_exc:
+                logger.debug("Sentiment tracking failed: %s", _st_exc)
+
+        # P2.7: AI 바이럴 필터 (노이즈 글 자동 제거)
+        global _viral_filter_instance
+        if _ViralFilterCls is not None and config:
+            try:
+                if _viral_filter_instance is None:
+                    _viral_filter_instance = _ViralFilterCls(config)
+                _vf = _viral_filter_instance
+                _viral_score = await _vf.score(
+                    title=post_data.get("title", ""),
+                    content=str(content_text)[:2000],
+                    source=post_data.get("source", ""),
+                    likes=int(post_data.get("likes", 0) or 0),
+                    comments=int(post_data.get("comments", 0) or 0),
+                )
+                post_data["viral_score"] = _viral_score.to_dict()
+                if not _viral_score.pass_filter:
+                    result["error"] = f"Viral filter: score {_viral_score.score:.0f} < threshold ({_viral_score.reasoning})"
+                    result["error_code"] = ERROR_FILTERED_LOW_QUALITY
+                    result["success"] = True
+                    result["notion_url"] = "(skipped-viral-filter)"
+                    result["failure_stage"] = "filter"
+                    result["failure_reason"] = "viral_filter_below_threshold"
+                    logger.info("[ViralFilter] SKIP %s: score=%.0f reason=%s", url, _viral_score.score, _viral_score.reasoning)
+                    return result
+            except Exception as _vf_exc:
+                logger.debug("Viral filter skipped: %s", _vf_exc)
+
         if not decision["should_queue"]:
             result["error"] = "Below review threshold"
             result["error_code"] = ERROR_FILTERED_LOW_QUALITY
@@ -506,6 +574,51 @@ async def process_single_post(
             except Exception as exc:
                 logger.debug("Editorial review skipped: %s", exc)
 
+        # ── P1-4: 팩트 검증 게이트 (원문 대비 숫자 날조 검증) ───────────────
+        if isinstance(drafts, dict):
+            try:
+                from pipeline.fact_checker import verify_facts
+                source_content = str(post_data.get("content", ""))
+                for platform, draft_text in list(drafts.items()):
+                    if platform.startswith("_") or not isinstance(draft_text, str):
+                        continue
+                    fc = verify_facts(source_content, draft_text)
+                    if not fc.passed:
+                        logger.warning(
+                            "[FactCheck] %s: 잠재 날조 항목 %d개: %s",
+                            platform, len(fc.fabricated_items), fc.fabricated_items[:5],
+                        )
+                        post_data.setdefault("fact_check_warnings", {})[platform] = fc.fabricated_items
+            except Exception as exc:
+                logger.debug("Fact checker skipped: %s", exc)
+
+        # ── 가독성 점수 기록 ─────────────────────────────────────────────
+        if isinstance(drafts, dict):
+            try:
+                from pipeline.text_polisher import TextPolisher
+                _polisher = TextPolisher(fix_spacing=False, fix_typo=False)
+                if _polisher.available:
+                    readability_scores = {}
+                    for platform, draft_text in drafts.items():
+                        if platform.startswith("_") or not isinstance(draft_text, str):
+                            continue
+                        readability_scores[platform] = _polisher.compute_readability(draft_text)
+                    if readability_scores:
+                        post_data["readability_scores"] = readability_scores
+                        logger.info("[Readability] %s", readability_scores)
+            except Exception as exc:
+                logger.debug("Readability scoring skipped: %s", exc)
+
+        # ── 품질 게이트 + 자동 수정 ─────────────────────────────────────
+        if isinstance(drafts, dict):
+            try:
+                from pipeline.draft_validator import validate_and_fix_drafts
+                drafts = await validate_and_fix_drafts(
+                    drafts, post_data, generator=draft_generator, config=config,
+                )
+            except Exception as exc:
+                logger.debug("Quality gate skipped: %s", exc)
+
         post_data["image_prompt"] = image_prompt
 
         # ── [NLM] NotebookLM 리서치 자산 비동기 생성 시작 ────────────────
@@ -654,7 +767,7 @@ async def process_single_post(
 
         notion_url = None
         notion_page_id = None
-        
+
         # 대표 이미지 우선순위: 1. 원본 이미지(Ppomppu) 2. AI 이미지(Blind).
         # 스크린샷은 별도 필드(Screenshot URL)로 전송됨.
         image_url = original_image_url or ai_image_url

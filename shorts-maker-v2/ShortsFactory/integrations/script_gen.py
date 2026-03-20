@@ -4,14 +4,15 @@
 
 Usage:
     from ShortsFactory.integrations.script_gen import ScriptGenerator
-    
+
     gen = ScriptGenerator(channel="ai_tech")
     data = gen.generate("GPT-5 출시 소문", template="ai_news_breaking")
     # data = {"news_title": "...", "points": [...], "hook_text": "..."}
-    
+
     # 렌더링까지 원스톱
     result = gen.generate_and_render("GPT-5 출시 소문", template="ai_news_breaking")
 """
+
 from __future__ import annotations
 
 import json
@@ -71,6 +72,7 @@ class ScriptGenerator:
 
     def __init__(self, channel: str, api_key: str | None = None, model: str = "gpt-4o-mini"):
         from ShortsFactory.pipeline import ShortsFactory
+
         self.factory = ShortsFactory(channel=channel)
         self.channel = channel
         self.persona = self.factory.channel._raw.get("persona_channel_context", "")
@@ -101,8 +103,11 @@ class ScriptGenerator:
             return self._generate_placeholder(topic, template, required)
 
     def generate_and_render(
-        self, topic: str, template: str,
-        output: str | None = None, **kwargs,
+        self,
+        topic: str,
+        template: str,
+        output: str | None = None,
+        **kwargs,
     ) -> str:
         """주제 → 스크립트 생성 → 렌더링 → MP4 경로 반환."""
         data = self.generate(topic, template, **kwargs)
@@ -113,6 +118,7 @@ class ScriptGenerator:
 
         if output is None:
             from datetime import datetime
+
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             safe = "".join(c if c.isalnum() or c in "_ -" else "_" for c in topic[:20])
             output = f"output/{self.channel}_{template}_{ts}_{safe}.mp4"
@@ -121,8 +127,11 @@ class ScriptGenerator:
         return self.factory.render(output)
 
     def _build_prompt(
-        self, topic: str, template: str,
-        required: list[str], example: dict,
+        self,
+        topic: str,
+        template: str,
+        required: list[str],
+        example: dict,
     ) -> str:
         """LLM 프롬프트 생성."""
         example_json = json.dumps(example, ensure_ascii=False, indent=2) if example else "{}"
@@ -137,12 +146,12 @@ class ScriptGenerator:
 [과제]
 주제: {topic}
 템플릿: {template}
-필수 필드: {', '.join(required) if required else '자유 형식'}
+필수 필드: {", ".join(required) if required else "자유 형식"}
 
 [결과 형식]
 반드시 JSON 형식으로만 응답하세요. 설명 없이 JSON만 출력하세요.
 한국어로 작성하세요.
-{f'참고 예시: {example_json}' if example else ''}
+{f"참고 예시: {example_json}" if example else ""}
 
 [주의사항]
 - 채널 톤에 맞게 작성하세요
@@ -192,16 +201,16 @@ class ScriptGenerator:
             return {}
 
     def _generate_placeholder(
-        self, topic: str, template: str, required: list[str],
+        self,
+        topic: str,
+        template: str,
+        required: list[str],
     ) -> dict[str, Any]:
         """API 키 없을 때 플레이스홀더 생성."""
         result: dict[str, Any] = {}
         for field in required:
             if "items" in field or "points" in field:
-                result[field] = [
-                    {"text": f"{topic} - 항목 {i+1}", "keywords": []}
-                    for i in range(3)
-                ]
+                result[field] = [{"text": f"{topic} - 항목 {i + 1}", "keywords": []} for i in range(3)]
             elif "text" in field:
                 result[field] = f"{topic} - {field}"
             else:

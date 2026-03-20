@@ -8,6 +8,7 @@ from typing import Any
 
 try:
     from pydantic import BaseModel, Field, ValidationError
+
     _HAS_PYDANTIC = True
 except ImportError:  # graceful degradation
     _HAS_PYDANTIC = False
@@ -25,14 +26,17 @@ class TopicUnsuitableError(Exception):
     orchestrator/batch에서 이 에러를 잡아 다른 주제로 전환하거나,
     n8n 워크플로우에서 'topic_unsuitable' 상태를 분기 조건으로 사용.
     """
+
     pass
 
 
 # ── 패턴 #4: Pydantic 스키마 기반 출력 검증 ────────────────────────────────
 
 if _HAS_PYDANTIC:
+
     class SceneOutput(BaseModel):
         """LLM이 반환해야 하는 개별 씬 스키마."""
+
         narration_ko: str = Field(..., min_length=5, description="한국어 나레이션")
         visual_prompt_en: str = Field(..., min_length=5, description="DALL-E용 영어 비주얼 프롬프트")
         estimated_seconds: float = Field(default=5.0, ge=1.0, le=30.0)
@@ -44,6 +48,7 @@ if _HAS_PYDANTIC:
         SiteAgent의 zodToOpenAITool 패턴을 Pydantic으로 구현.
         LLM 응답이 이 스키마에 맞지 않으면 ValidationError 발생.
         """
+
         title: str = Field(..., min_length=1, max_length=100)
         scenes: list[SceneOutput] = Field(..., min_length=1)
         no_reliable_source: bool = Field(default=False)
@@ -51,14 +56,20 @@ if _HAS_PYDANTIC:
 
 
 class ScriptStep:
-    duration_estimate_chars_per_sec = 2.8   # 실측 SSML+edge-tts 보정: 씬별 prosody/emphasis/break 오버헤드 반영
+    duration_estimate_chars_per_sec = 2.8  # 실측 SSML+edge-tts 보정: 씬별 prosody/emphasis/break 오버헤드 반영
     max_generation_attempts = 3
 
     # 4가지 Hook 패턴 (로테이션)
     HOOK_PATTERNS: list[tuple[str, str]] = [
         ("shocking_stat", "Open with a shocking statistic or number that makes the viewer stop scrolling."),
-        ("relatable_frustration", "Open with a relatable frustration or common pain point the viewer instantly identifies with."),
-        ("counterintuitive_question", "Open with a counterintuitive or provocative question that challenges common assumptions."),
+        (
+            "relatable_frustration",
+            "Open with a relatable frustration or common pain point the viewer instantly identifies with.",
+        ),
+        (
+            "counterintuitive_question",
+            "Open with a counterintuitive or provocative question that challenges common assumptions.",
+        ),
         ("myth_busting", "Open by stating a popular misconception, then immediately hint that it's wrong."),
     ]
     _hook_counter: int = 0
@@ -141,10 +152,15 @@ class ScriptStep:
         },
     }
 
-    def __init__(self, config: AppConfig, llm_router: LLMRouter, openai_client: Any | None = None,
-                 channel_hook_pattern: str | None = None,
-                 channel_duration_override: int | None = None,
-                 channel_key: str = ""):
+    def __init__(
+        self,
+        config: AppConfig,
+        llm_router: LLMRouter,
+        openai_client: Any | None = None,
+        channel_hook_pattern: str | None = None,
+        channel_duration_override: int | None = None,
+        channel_key: str = "",
+    ):
         self.config = config
         self.llm_router = llm_router
         # Keep openai_client reference for TTS/image (non-LLM) tasks
@@ -164,7 +180,7 @@ class ScriptStep:
         channel_profile: dict,
         openai_client: Any | None = None,
         channel_key: str = "",
-    ) -> "ScriptStep":
+    ) -> ScriptStep:
         """
         channel_profiles.yaml의 채널 딕셔너리를 받아 hook_pattern을 자동 적용합니다.
 
@@ -172,12 +188,16 @@ class ScriptStep:
             profile = yaml.safe_load(open('channel_profiles.yaml'))['channels']['ai_tech']
             step = ScriptStep.from_channel_profile(config, llm_router, profile, channel_key='ai_tech')
         """
-        hook_pattern = channel_profile.get('hook_pattern', None)
-        duration_override = channel_profile.get('target_duration_sec', None)
-        return cls(config, llm_router, openai_client=openai_client,
-                   channel_hook_pattern=hook_pattern,
-                   channel_duration_override=duration_override,
-                   channel_key=channel_key)
+        hook_pattern = channel_profile.get("hook_pattern")
+        duration_override = channel_profile.get("target_duration_sec")
+        return cls(
+            config,
+            llm_router,
+            openai_client=openai_client,
+            channel_hook_pattern=hook_pattern,
+            channel_duration_override=duration_override,
+            channel_key=channel_key,
+        )
 
     def _next_hook_pattern(self) -> tuple[str, str]:
         """Hook 패턴 로테이션. 호출할 때마다 다음 패턴 반환."""
@@ -297,10 +317,7 @@ class ScriptStep:
             if not isinstance(raw_scene, dict):
                 raise ValueError(f"Scene #{idx} must be an object.")
             narration = str(
-                raw_scene.get("narration_ko")
-                or raw_scene.get("narration")
-                or raw_scene.get("voiceover")
-                or ""
+                raw_scene.get("narration_ko") or raw_scene.get("narration") or raw_scene.get("voiceover") or ""
             ).strip()
             visual_prompt = str(
                 raw_scene.get("visual_prompt_en")
@@ -351,11 +368,13 @@ class ScriptStep:
         last = scene_count
         body_count = scene_count - 2  # hook(1) + cta(1)
         # 역할별 자막 길이 목표 (Hook/CTA는 짧고 임팩트, Body는 풍부하게)
-        hook_max = max(30, int(char_max * 0.60))
-        body_min = char_min
-        body_max = int(char_max * 1.20)
-        cta_max = max(30, int(char_max * 0.60))
-        hook_rule = hook_instruction or "Open with a shocking stat, a relatable frustration, or a counterintuitive question."
+        hook_max = max(40, int(char_max * 0.65))
+        body_min = max(40, int(char_min * 1.3))  # body 최소 글자수 상향
+        body_max = int(char_max * 1.30)
+        cta_max = max(25, int(char_max * 0.40))  # CTA 더 짧게
+        hook_rule = (
+            hook_instruction or "Open with a shocking stat, a relatable frustration, or a counterintuitive question."
+        )
 
         # YPP: 톤 가이드 섹션
         tone_section = ""
@@ -370,9 +389,7 @@ class ScriptStep:
         # 프리셋 기반 vs 기본 구조 섹션
         if structure_flow:
             structure_section = (
-                "  Scene flow: " + " → ".join(
-                    f'{i+1}:{role}' for i, role in enumerate(structure_flow)
-                ) + "\n"
+                "  Scene flow: " + " → ".join(f"{i + 1}:{role}" for i, role in enumerate(structure_flow)) + "\n"
                 "  Use these roles as structure_role values for each scene.\n"
             )
         else:
@@ -402,9 +419,7 @@ class ScriptStep:
             "  - For each factual claim in the Body, mentally ask: 'Can a viewer Google this and confirm it?'\n"
             "    If the answer is no, either remove the claim or flag no_reliable_source.\n"
             "\n"
-            f"Structure — exactly {scene_count} scenes:\n"
-            + structure_section
-            + f"{tone_section}"
+            f"Structure — exactly {scene_count} scenes:\n" + structure_section + f"{tone_section}"
             "\n"
             "Hook rules:\n"
             f"  - {hook_rule}\n"
@@ -427,12 +442,21 @@ class ScriptStep:
             f"  - narration_ko must be in {language}\n"
             f"  - return exactly {scene_count} scenes\n"
             "  - narration must sound natural when spoken aloud, not like bullet points\n"
+            "  - Do NOT use '...' (ellipsis) in narration_ko. Write complete sentences.\n"
             "  - estimated_seconds must realistically match the spoken length of that scene\n"
             "  - visual_prompt_en: English only, describe camera angle, lighting, action, artistic style for DALL-E 3\n"
             "  - visual_prompt_en MUST be DALL-E safe: NO medical imagery, anatomical details, injuries, blood,\n"
             "    violence, weapons, drugs, or explicit body parts. Use abstract metaphors instead.\n"
             "    (e.g. 'a person resting on a couch' instead of 'sedentary lifestyle causing muscle atrophy')\n"
-            "  - do not include markdown"
+            "  - do not include markdown\n"
+            "\n"
+            "Korean Spelling & Spacing Rules (CRITICAL):\n"
+            "  - All narration_ko text MUST follow correct Korean spelling (맞춤법) and spacing (띄어쓰기).\n"
+            "  - Double-check every sentence for: 되/돼, 안/안돼, 되다/되다, 하던/하던, 의/의, 로서/로써 etc.\n"
+            "  - Use standard 받침 rules: 같이/같이, 많은/많은, 나을/나을 etc.\n"
+            "  - Common errors to avoid: '잘했다'(✔) vs '잘 했다'(✘), '될까'(✔) vs '될까'(✔), '됩니다'(✔) vs '됬니다'(✘)\n"
+            "  - Spacing after particles: '의 사람'(✔), '의사람'(✘).\n"
+            "  - Proofread each narration_ko line carefully before outputting."
         )
 
     def _build_user_prompt(
@@ -492,6 +516,8 @@ class ScriptStep:
         "  cta_score  : How clear and actionable is the CTA? (1=vague, 10=immediately doable)\n"
         "  verifiability_score : Can a viewer Google each factual claim and confirm it? "
         "(1=all claims feel fabricated/unverifiable, 10=every claim is well-known or easily verifiable)\n"
+        "  spelling_score : Is the Korean spelling (맞춤법) and spacing (띄어쓰기) correct? "
+        "(1=many errors, 10=perfect Korean). If errors found, list them in 'spelling_fixes'.\n"
     )
 
     def _build_review_system(self) -> tuple[str, tuple[str, ...], int]:
@@ -500,7 +526,7 @@ class ScriptStep:
         Returns:
             (system_prompt, required_score_keys, effective_min_score)
         """
-        base_keys = ("hook_score", "flow_score", "cta_score", "verifiability_score")
+        base_keys = ("hook_score", "flow_score", "cta_score", "verifiability_score", "spelling_score")
         extra_dimensions = ""
         extra_keys: tuple[str, ...] = ()
         min_score = self.config.project.script_review_min_score
@@ -514,7 +540,7 @@ class ScriptStep:
             context_note = criteria.get("context_note", "")
 
         all_keys = base_keys + extra_keys
-        json_example = ", ".join(f'\"{k}\": n' for k in all_keys)
+        json_example = ", ".join(f'"{k}": n' for k in all_keys)
 
         system_prompt = (
             self._BASE_REVIEW_SYSTEM
@@ -523,15 +549,11 @@ class ScriptStep:
         )
         if context_note:
             system_prompt += f"\nChannel Context: {context_note}\n"
-        system_prompt += (
-            f"Output ONLY valid JSON: {{{json_example}, \"feedback\": \"...\"}}"
-        )
+        system_prompt += f'Output ONLY valid JSON: {{{json_example}, "feedback": "..."}}'
 
         return system_prompt, all_keys, min_score
 
-    def _review_script(
-        self, title: str, scenes: list[ScenePlan]
-    ) -> dict[str, Any]:
+    def _review_script(self, title: str, scenes: list[ScenePlan]) -> dict[str, Any]:
         """LLM으로 생성된 스크립트 품질 채점 (채널별 차별화된 기준 적용).
 
         Gemini 3.1: thinking_level='high'로 심층 추론.
@@ -597,18 +619,15 @@ class ScriptStep:
             "  2. Is it exaggerated or distorted from the original data?\n"
             "  3. Are any important facts from the research missing?\n\n"
             "Output ONLY valid JSON:\n"
-            '{\n'
+            "{\n"
             '  "consistent": true/false,\n'
             '  "issues": ["description of each inconsistency"],\n'
             '  "fixes": [{"scene_id": N, "original": "problematic text", "suggested": "corrected text"}],\n'
             '  "confidence": 0.0-1.0\n'
-            '}'
+            "}"
         )
 
-        user_prompt = (
-            f"=== RESEARCH FACTS ===\n{research_block}\n\n"
-            f"=== SCRIPT TO VERIFY ===\n{script_text}"
-        )
+        user_prompt = f"=== RESEARCH FACTS ===\n{research_block}\n\n=== SCRIPT TO VERIFY ===\n{script_text}"
 
         try:
             result = self.llm_router.generate_json(
@@ -617,7 +636,11 @@ class ScriptStep:
                 temperature=0.1,
                 thinking_level="medium",
             )
-            return result if isinstance(result, dict) else {"consistent": True, "issues": [], "fixes": [], "confidence": 1.0}
+            return (
+                result
+                if isinstance(result, dict)
+                else {"consistent": True, "issues": [], "fixes": [], "confidence": 1.0}
+            )
         except Exception as exc:
             logger.warning("[MARL] verification failed (skipped): %s", exc)
             return {"consistent": True, "issues": [], "fixes": [], "confidence": 1.0}
@@ -671,7 +694,9 @@ class ScriptStep:
                 )
                 logger.info(
                     "[MARL] Scene %d narration patched (%.0f→%.0f chars)",
-                    scene.scene_id, len(scene.narration_ko), len(new_narration),
+                    scene.scene_id,
+                    len(scene.narration_ko),
+                    len(new_narration),
                 )
             else:
                 patched.append(scene)
@@ -702,10 +727,7 @@ class ScriptStep:
     def _passes_review(self, review: dict[str, Any], min_score: int) -> bool:
         """채널별 필수 키 전체가 min_score 이상이면 통과."""
         _, required_keys, _ = self._build_review_system()
-        return all(
-            int(review.get(k, 0)) >= min_score
-            for k in required_keys
-        )
+        return all(int(review.get(k, 0)) >= min_score for k in required_keys)
 
     def _truncate_to_fit(
         self,
@@ -728,36 +750,42 @@ class ScriptStep:
         for scene in scenes:
             original_narration = scene.narration_ko
             original_target_sec = scene.target_sec
-            
+
             # 새로운 목표 시간 계산 (최소 1.2초는 유지)
             new_target_sec = max(1.2, original_target_sec * reduction_ratio)
-            
+
             # 새로운 목표 시간에 맞는 최대 문자 수 계산
             # estimate_narration_duration_sec의 역산
             # estimated = (spoken_sec + pause_sec) / speed
             # spoken_sec = estimated * speed - pause_sec
             # weighted_units = spoken_sec * cls.duration_estimate_chars_per_sec
-            
+
             # 대략적인 역산 (정확한 역산은 복잡하므로 근사치 사용)
             # TTS 속도와 언어 보정을 고려하여 대략적인 문자당 시간으로 계산
             # cls.duration_estimate_chars_per_sec는 1.05배속 기준이므로, 실제 speed를 곱해줘야 함
             effective_chars_per_sec = self.duration_estimate_chars_per_sec / max(0.7, tts_speed)
-            
+
             # 구두점 보정은 무시하고 단순 문자 수로만 계산
             max_chars_for_new_target = int(new_target_sec * effective_chars_per_sec)
 
             truncated_narration = original_narration
             if len(original_narration) > max_chars_for_new_target:
-                truncated_narration = original_narration[:max_chars_for_new_target].rsplit(' ', 1)[0] + '...' if ' ' in original_narration[:max_chars_for_new_target] else original_narration[:max_chars_for_new_target] + '...'
+                truncated_narration = (
+                    original_narration[:max_chars_for_new_target].rsplit(" ", 1)[0] + "..."
+                    if " " in original_narration[:max_chars_for_new_target]
+                    else original_narration[:max_chars_for_new_target] + "..."
+                )
                 # 너무 짧아지는 것을 방지 (최소 10자)
                 if len(truncated_narration) < 10:
-                    truncated_narration = original_narration[:10] + '...' if len(original_narration) > 10 else original_narration
+                    truncated_narration = (
+                        original_narration[:10] + "..." if len(original_narration) > 10 else original_narration
+                    )
 
             # 다시 추정하여 실제 반영될 시간 확인
             re_estimated_sec = self.estimate_narration_duration_sec(
                 truncated_narration, language=language, tts_speed=tts_speed
             )
-            
+
             truncated_scenes.append(
                 ScenePlan(
                     scene_id=scene.scene_id,
@@ -850,7 +878,8 @@ class ScriptStep:
                 if schema_errors:
                     logger.warning(
                         "[ScriptSchema] validation errors (attempt %d): %s",
-                        attempt, "; ".join(schema_errors[:3]),
+                        attempt,
+                        "; ".join(schema_errors[:3]),
                     )
                     # 스키마 에러가 있어도 기존 로직으로 파싱 시도 (graceful)
 
@@ -861,9 +890,7 @@ class ScriptStep:
                     "[TopicUnsuitable] LLM self-reported: no_reliable_source=true | reason=%s",
                     reason,
                 )
-                raise TopicUnsuitableError(
-                    f"주제 '{topic}'에 대해 신뢰할 수 있는 자료가 부족합니다: {reason}"
-                )
+                raise TopicUnsuitableError(f"주제 '{topic}'에 대해 신뢰할 수 있는 자료가 부족합니다: {reason}")
 
             parsed = self.parse_script_payload(
                 payload,
@@ -894,7 +921,9 @@ class ScriptStep:
 
             logger.info(
                 "[MARL] verification: consistent=%s, confidence=%.2f, issues=%d",
-                is_consistent, confidence, len(issues),
+                is_consistent,
+                confidence,
+                len(issues),
             )
 
             if not is_consistent and issues:
@@ -914,7 +943,8 @@ class ScriptStep:
         if final_total > effective_max:
             logger.warning(
                 "[ScriptDuration] estimated %.1fs > limit %ds — truncating narrations",
-                final_total, effective_max,
+                final_total,
+                effective_max,
             )
             title_out, scenes_out = best_result
             scenes_out = self._truncate_to_fit(scenes_out, effective_max, language, tts_speed)
@@ -922,7 +952,9 @@ class ScriptStep:
             final_total = self.estimate_total_duration_sec(scenes_out)
             logger.info("[ScriptDuration] after truncation: %.1fs", final_total)
         elif final_total < target_min:
-            logger.warning("[ScriptDuration] estimated %.1fs < target %ds (actual TTS may be shorter)", final_total, target_min)
+            logger.warning(
+                "[ScriptDuration] estimated %.1fs < target %ds (actual TTS may be shorter)", final_total, target_min
+            )
         else:
             logger.info("[ScriptDuration] OK: estimated %.1fs (target %d-%ds)", final_total, target_min, target_max)
 
@@ -936,7 +968,8 @@ class ScriptStep:
                 scores_str = " ".join(f"{k}={scores[k]}" for k in required_keys)
                 logger.info(
                     "[ScriptReview] %s / min=%d (channel=%s) | %s",
-                    scores_str, effective_min_score,
+                    scores_str,
+                    effective_min_score,
                     self.channel_key or "default",
                     review.get("feedback", ""),
                 )
@@ -957,18 +990,18 @@ class ScriptStep:
                     # 채널 특화 피드백을 추가해 1회 재생성 시도
                     feedback = review.get("feedback", "")
                     # 미달 점수 키 구체적 안내
-                    weak_keys = [
-                        k for k in required_keys
-                        if int(review.get(k, 0)) < effective_min_score
-                    ]
+                    weak_keys = [k for k in required_keys if int(review.get(k, 0)) < effective_min_score]
                     weak_hint = f"Weak dimensions: {', '.join(weak_keys)}." if weak_keys else ""
-                    retry_prompt = self._build_user_prompt(
-                        topic=topic,
-                        duration_range=duration_range,
-                        attempt=self.max_generation_attempts + 1,
-                        previous_total_sec=None,
-                        previous_scene_count=scene_count,
-                    ) + f"\nQuality feedback to fix: {feedback}\n{weak_hint}\n"
+                    retry_prompt = (
+                        self._build_user_prompt(
+                            topic=topic,
+                            duration_range=duration_range,
+                            attempt=self.max_generation_attempts + 1,
+                            previous_total_sec=None,
+                            previous_scene_count=scene_count,
+                        )
+                        + f"\nQuality feedback to fix: {feedback}\n{weak_hint}\n"
+                    )
                     # Sprint 4.1: 재생성은 thinking_level='medium' (품질↑ + 속도 균형)
                     retry_payload = self.llm_router.generate_json(
                         system_prompt=system_prompt,

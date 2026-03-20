@@ -118,13 +118,13 @@ def _optimize_image_for_upload(filepath: str, max_bytes: int = _MAX_UPLOAD_BYTES
 
 class ImageUploader:
     """이미지 업로드를 전담하는 메인 도우미(클래스)입니다."""
-    
+
     def __init__(self, config):
         self.config = config
         # 설정 파일에서 기본 업로드 서비스(provider)를 가져옵니다. 별도 지정이 없으면 기본값 'imgur'를 사용합니다.
         self.provider = config.get("image_hosting.provider", "imgur")
         self.imgur_client_id = config.get("image_hosting.imgur.client_id")
-        
+
         # 외부 통신 실패 시 최대 몇 번을 재시도할지, 대기 시간은 몇 초로 할지 설정합니다.
         self.max_retries = int(config.get("request.retries", 3))
         self.backoff = float(config.get("request.backoff_seconds", 1.5))
@@ -157,7 +157,7 @@ class ImageUploader:
         if not os.path.exists(filepath):
             logger.error(f"지정된 파일을 찾을 수 없습니다: {filepath}")
             return None
-            
+
         # 2. 파일 용량이 너무 작은지도 검사합니다 (1000 바이트 미만이면 속이 빈 껍데기 파일일 확률이 높음).
         if os.path.getsize(filepath) < 1000:
             logger.error(f"스크린샷 파일 용량이 너무 작아 손상된 것으로 보입니다 ({os.path.getsize(filepath)} bytes): {filepath}")
@@ -167,7 +167,7 @@ class ImageUploader:
         #    Cloudinary는 10MB 제한이 있으므로 업로드 전 자동 최적화를 적용합니다.
         if self.provider == "cloudinary":
             filepath = _optimize_image_for_upload(filepath)
-        
+
         if self.provider == "imgur":
             return await self._upload_to_imgur(filepath)
         elif self.provider == "cloudinary":
@@ -182,25 +182,25 @@ class ImageUploader:
     async def upload_from_url(self, url):
         """내 컴퓨터에 파일이 없어도, 이미 인터넷 언딘가(URL)에 있는 이미지를 그대로 가져와서 우리 서비스로 재업로드합니다 (예: AI가 방금 그려낸 이미지)."""
         logger.info(f"URL로부터 이미지를 직접 업로드합니다: {url[:50]}...")
-        
+
         if self.provider == "cloudinary":
             # Cloudinary는 URL을 그대로 주어도 알아서 서버가 직접 긁어와 업로드해 줍니다.
             return await self._upload_to_cloudinary(url)
-            
+
         elif self.provider == "imgur":
             # Imgur 역시 URL 다이렉트 업로드를 지원합니다.
             if not self.imgur_client_id:
                 return None
-                
+
             headers = {"Authorization": f"Client-ID {self.imgur_client_id}"}
             payload = {"image": url, "type": "url"} # base64 방식 대신 URL 문자열이라고 명시해서 전송합니다.
-            
+
             # 실제 Imgur 서버와 우체부 역할을 하며 통신을 맺는 내부 함수입니다 (비동기가 아님).
             def do_request():
                 response = requests.post("https://api.imgur.com/3/image", headers=headers, data=payload, timeout=30)
                 response.raise_for_status() # 성공(200번대 응답)이 아니면 그 즉시 에러 불꽃(Exception)을 일으킵니다.
                 return response.json()
-            
+
             try:
                 # 위에서 만든 'utils.py'의 공통 유틸리티를 사용해, 실패 시 시간 텀을 두고 부드럽게 재시도(지수 백오프)를 맡깁니다.
                 data = await async_run_with_retry(
@@ -209,7 +209,7 @@ class ImageUploader:
                     backoff_seconds=self.backoff,
                     action_name="Imgur URL 다이렉트 업로드"
                 )
-                
+
                 # 통신이 최종 성공했고 돌려받은 상자(딕셔너리) 안에 이미지 주소(link)가 들어 있다면 무사히 반환합니다!
                 if data.get("success") and data.get("data", {}).get("link"):
                     return data["data"]["link"]
@@ -243,7 +243,7 @@ class ImageUploader:
                 timeout=30, # 30초 동안 응답이 없으면 포기(타임아웃)합니다.
             )
             response.raise_for_status() # 비정상 응답이면 예외 발생
-            
+
             try:
                 return response.json() # 결과물을 다루기 편한 Python 사전(딕셔너리)으로 해석합니다.
             except ValueError as json_err:
@@ -262,7 +262,7 @@ class ImageUploader:
                 backoff_seconds=self.backoff,
                 action_name="Imgur 로컬 파일 업로드"
             )
-            
+
             if data.get("success") and data.get("data", {}).get("link"):
                 link = data["data"]["link"]
                 logger.info(f"✨ 업로드 대성공! 발급된 링크: {link}")
@@ -289,7 +289,7 @@ class ImageUploader:
             link = response.get("secure_url") # 'https(보안)'가 적용된 안전한 이미지 주소를 확보합니다.
             if link:
                 return link
-            
+
             # 예상치 못한 엉뚱한 응답 포맷일 경우
             raise RuntimeError(f"Cloudinary로부터 예상치 못한 형태의 응답을 받았습니다: {response}")
 

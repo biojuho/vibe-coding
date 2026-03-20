@@ -22,10 +22,11 @@
     # 주제 사용 처리 (pending → in_progress)
     calendar.mark_topic_used(notion_page_id="abc-123")
 """
+
 from __future__ import annotations
 
-import os
 import logging
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -40,6 +41,7 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _extract_title(prop: dict) -> str:
     """Notion title 속성에서 텍스트 추출."""
@@ -72,6 +74,7 @@ def _tokenize(text: str) -> set[str]:
     한국어/영어 혼합 텍스트에서 공백·구두점 기준 분리.
     """
     import re
+
     return set(re.findall(r"[\w]+", text.lower()))
 
 
@@ -89,6 +92,7 @@ def _jaccard_similarity(a: str, b: str) -> float:
 # ---------------------------------------------------------------------------
 # Main class
 # ---------------------------------------------------------------------------
+
 
 class NotionContentCalendar:
     """Notion DB 기반 콘텐츠 캘린더 (주제 CRUD + 상태 추적 + 트렌드 제안)."""
@@ -143,9 +147,7 @@ class NotionContentCalendar:
             "sorts": [{"property": "Created", "direction": "ascending"}],
         }
         if channel:
-            filter_body["filter"]["and"].append(
-                {"property": "Channel", "select": {"equals": channel}}
-            )
+            filter_body["filter"]["and"].append({"property": "Channel", "select": {"equals": channel}})
 
         try:
             result = self._request("POST", f"/databases/{self.database_id}/query", filter_body)
@@ -159,12 +161,14 @@ class NotionContentCalendar:
             props = page.get("properties", {})
             topic = _extract_title(props.get("Topic") or props.get("Name") or props.get("title", {}))
             ch = _extract_select(props.get("Channel", {}))
-            topics.append({
-                "id": page["id"],
-                "topic": topic,
-                "channel": ch,
-                "status": "pending",
-            })
+            topics.append(
+                {
+                    "id": page["id"],
+                    "topic": topic,
+                    "channel": ch,
+                    "status": "pending",
+                }
+            )
         return topics
 
     def update_status(
@@ -212,10 +216,14 @@ class NotionContentCalendar:
             properties["Scheduled Date"] = {"date": {"start": scheduled_date}}
 
         try:
-            result = self._request("POST", "/pages", {
-                "parent": {"database_id": self.database_id},
-                "properties": properties,
-            })
+            result = self._request(
+                "POST",
+                "/pages",
+                {
+                    "parent": {"database_id": self.database_id},
+                    "properties": properties,
+                },
+            )
             return result.get("id")
         except Exception as exc:
             logger.warning("Notion add topic failed: %s", exc)
@@ -224,13 +232,17 @@ class NotionContentCalendar:
     def _check_duplicate(self, topic: str) -> bool:
         """주제 중복 체크 (제목 기반 필터)."""
         try:
-            result = self._request("POST", f"/databases/{self.database_id}/query", {
-                "filter": {
-                    "property": "Name",
-                    "title": {"equals": topic},
+            result = self._request(
+                "POST",
+                f"/databases/{self.database_id}/query",
+                {
+                    "filter": {
+                        "property": "Name",
+                        "title": {"equals": topic},
+                    },
+                    "page_size": 1,
                 },
-                "page_size": 1,
-            })
+            )
             return len(result.get("results", [])) > 0
         except Exception:
             return False  # API 실패 시 중복 아님으로 간주
@@ -263,7 +275,9 @@ class NotionContentCalendar:
 
         try:
             result = self._request(
-                "POST", f"/databases/{self.database_id}/query", filter_body,
+                "POST",
+                f"/databases/{self.database_id}/query",
+                filter_body,
             )
             pages = result.get("results", [])
         except Exception as exc:
@@ -278,12 +292,14 @@ class NotionContentCalendar:
             )
             ch = _extract_select(props.get("Channel", {}))
             scheduled = _extract_date(props.get("Scheduled Date", {}))
-            topics.append({
-                "topic": topic,
-                "channel": ch,
-                "scheduled_date": scheduled,
-                "notion_page_id": page["id"],
-            })
+            topics.append(
+                {
+                    "topic": topic,
+                    "channel": ch,
+                    "scheduled_date": scheduled,
+                    "notion_page_id": page["id"],
+                }
+            )
         return topics
 
     # ------------------------------------------------------------------
@@ -300,11 +316,15 @@ class NotionContentCalendar:
             성공 시 ``True``, 실패 시 ``False``.
         """
         try:
-            self._request("PATCH", f"/pages/{notion_page_id}", {
-                "properties": {
-                    "Status": {"status": {"name": "in_progress"}},
+            self._request(
+                "PATCH",
+                f"/pages/{notion_page_id}",
+                {
+                    "properties": {
+                        "Status": {"status": {"name": "in_progress"}},
+                    },
                 },
-            })
+            )
             logger.info("Marked topic %s as in_progress", notion_page_id)
             return True
         except Exception as exc:
@@ -348,9 +368,7 @@ class NotionContentCalendar:
 
             # 기존 주제와 유사도 비교
             too_similar = any(
-                _jaccard_similarity(trend_stripped, existing)
-                >= threshold
-                for existing in existing_topics
+                _jaccard_similarity(trend_stripped, existing) >= threshold for existing in existing_topics
             )
             if not too_similar:
                 suggestions.append(trend_stripped)
@@ -390,11 +408,7 @@ class NotionContentCalendar:
             candidate_stripped = candidate.strip()
             if not candidate_stripped:
                 continue
-            too_similar = any(
-                _jaccard_similarity(candidate_stripped, recent)
-                >= threshold
-                for recent in recent_titles
-            )
+            too_similar = any(_jaccard_similarity(candidate_stripped, recent) >= threshold for recent in recent_titles)
             if not too_similar:
                 balanced.append(candidate_stripped)
 
@@ -438,7 +452,9 @@ class NotionContentCalendar:
 
         try:
             result = self._request(
-                "POST", f"/databases/{self.database_id}/query", filter_body,
+                "POST",
+                f"/databases/{self.database_id}/query",
+                filter_body,
             )
             pages = result.get("results", [])
         except Exception as exc:
@@ -458,9 +474,11 @@ class NotionContentCalendar:
                 status_inner = status_prop.get("status")
                 if isinstance(status_inner, dict):
                     status_val = status_inner.get("name", "")
-            topics.append({
-                "topic": topic,
-                "channel": ch,
-                "status": status_val,
-            })
+            topics.append(
+                {
+                    "topic": topic,
+                    "channel": ch,
+                    "status": status_val,
+                }
+            )
         return topics

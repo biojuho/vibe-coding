@@ -1,17 +1,16 @@
 """FreesoundClient 단위 테스트."""
+
 from __future__ import annotations
 
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from shorts_maker_v2.providers.freesound_client import (
-    CHANNEL_BGM_ENERGY,
     BGM_ENERGY_TAGS,
+    CHANNEL_BGM_ENERGY,
     FreesoundClient,
 )
-
 
 # ════════════════════════════════════════════════════════════
 # 초기화
@@ -187,6 +186,4 @@ class TestEnergyMapping:
     def test_channel_energy_consistency(self):
         """CHANNEL_BGM_ENERGY 모든 값이 BGM_ENERGY_TAGS에 있어야 함."""
         for channel, energy in CHANNEL_BGM_ENERGY.items():
-            assert energy in BGM_ENERGY_TAGS, (
-                f"채널 {channel!r}의 energy {energy!r}가 BGM_ENERGY_TAGS에 없음"
-            )
+            assert energy in BGM_ENERGY_TAGS, f"채널 {channel!r}의 energy {energy!r}가 BGM_ENERGY_TAGS에 없음"

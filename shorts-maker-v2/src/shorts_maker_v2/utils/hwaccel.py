@@ -3,6 +3,7 @@
 NVENC (NVIDIA) → QSV (Intel) → AMF (AMD) → libx264 (CPU) 순서로 감지.
 프로세스 라이프타임 동안 결과를 캐싱하여 반복 호출 시 오버헤드 제거.
 """
+
 from __future__ import annotations
 
 import logging
@@ -53,15 +54,23 @@ def _test_encode(codec: str) -> bool:
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "test.mp4"
         cmd = [
-            "ffmpeg", "-y",
-            "-f", "lavfi", "-i", "color=black:s=64x64:d=1:r=1",
-            "-c:v", codec,
-            "-frames:v", "1",
+            "ffmpeg",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=black:s=64x64:d=1:r=1",
+            "-c:v",
+            codec,
+            "-frames:v",
+            "1",
             str(out),
         ]
         try:
             result = subprocess.run(
-                cmd, capture_output=True, timeout=15,
+                cmd,
+                capture_output=True,
+                timeout=15,
             )
             return result.returncode == 0 and out.exists()
         except Exception:
@@ -108,6 +117,7 @@ def detect_hw_encoder(preference: str = "auto") -> tuple[str, list[str]]:
 
 
 # ── Sprint 3: GPU 디코딩 & 시스템 감지 ────────────────────────────────────────
+
 
 def get_hw_decode_params(preference: str = "auto") -> list[str]:
     """GPU 디코딩을 위한 ffmpeg input 파라미터 반환.
@@ -168,7 +178,8 @@ def detect_gpu_info() -> dict[str, str]:
 
     logger.info(
         "[GPU_INFO] GPU=%s | Encoder=%s | HW Decode=%s",
-        info["gpu_name"], info["encoder"], info["decoder_support"],
+        info["gpu_name"],
+        info["encoder"],
+        info["decoder_support"],
     )
     return info
-

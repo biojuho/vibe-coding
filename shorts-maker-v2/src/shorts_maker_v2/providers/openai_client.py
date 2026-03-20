@@ -5,8 +5,8 @@ import json
 import logging
 from pathlib import Path
 
-from openai import OpenAI
 import requests
+from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
@@ -113,4 +113,3 @@ class OpenAIClient:
             return output_path
 
         raise ValueError("OpenAI image response did not contain url or b64_json.")
-

@@ -1,5 +1,7 @@
 """ai_countdown.py — AI 카운트다운형 템플릿"""
+
 from __future__ import annotations
+
 from ShortsFactory.templates.base_template import BaseTemplate
 from ShortsFactory.templates.countdown_mixin import CountdownMixin
 

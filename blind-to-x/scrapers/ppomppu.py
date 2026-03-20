@@ -454,6 +454,16 @@ class PpomppuScraper(BaseScraper):
                                 image_urls.append(src)
                         break
 
+            # trafilatura 폴백: 셀렉터 추출 실패 시 HTML에서 클린 텍스트 추출
+            if not content:
+                try:
+                    raw_html = await page.content()
+                    content = self._extract_clean_text(raw_html)
+                    if content:
+                        logger.info("Content extracted via trafilatura fallback")
+                except Exception:
+                    pass
+
             if title == "제목 없음" and not content:
                 failure_reason = "title_and_content_missing"
                 raise Exception(f"Could not parse title/content on {url}")

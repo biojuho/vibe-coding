@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
-import os
 from typing import Any
 
 import yaml
@@ -17,7 +17,7 @@ class ProjectSettings:
     language: str
     default_scene_count: int
     script_review_enabled: bool = False  # True 시 GPT 품질 채점 후 기준 미달 재생성
-    script_review_min_score: int = 6     # 10점 만점 최소 기준 (hook/flow/cta 각각)
+    script_review_min_score: int = 6  # 10점 만점 최소 기준 (hook/flow/cta 각각)
     structure_presets: dict[str, list[str]] | None = None  # YPP: 콘텐츠 구조 프리셋
 
 
@@ -29,11 +29,11 @@ class VideoSettings:
     scene_video_duration_sec: int
     aspect_ratio: str
     transition_style: str = "crossfade"  # "crossfade" | "flash" | "cut" | "random"
-    encoding_preset: str = "fast"        # ffmpeg preset: ultrafast/fast/medium/slow
-    encoding_crf: int = 23               # 품질 기반 인코딩 (0=무손실, 23=기본, 51=최저)
-    hw_accel: str = "auto"               # "auto" | "nvenc" | "qsv" | "amf" | "none"
-    stock_mix_ratio: float = 0.0         # Body 씬 중 Pexels 스톡 영상 비율 (0.0 ~ 1.0)
-    quality_profile: str = "standard"    # "draft" | "standard" | "premium"
+    encoding_preset: str = "fast"  # ffmpeg preset: ultrafast/fast/medium/slow
+    encoding_crf: int = 23  # 품질 기반 인코딩 (0=무손실, 23=기본, 51=최저)
+    hw_accel: str = "auto"  # "auto" | "nvenc" | "qsv" | "amf" | "none"
+    stock_mix_ratio: float = 0.0  # Body 씬 중 Pexels 스톡 영상 비율 (0.0 ~ 1.0)
+    quality_profile: str = "standard"  # "draft" | "standard" | "premium"
 
 
 @dataclass(frozen=True)
@@ -98,15 +98,15 @@ class CaptionSettings:
     stroke_width: int
     line_spacing: int
     font_candidates: tuple[str, ...]
-    mode: str = "karaoke"       # "static" | "karaoke"
+    mode: str = "karaoke"  # "static" | "karaoke"
     words_per_chunk: int = 3
     bg_color: str = "#000000"
     bg_opacity: int = 185
     bg_radius: int = 18
     style_preset: str = "default"  # "default" | "neon" | "subtitle" | "bold"
-    hook_animation: str = "random" # "random" | "typing" | "glitch" | "popup" | "none"
+    hook_animation: str = "random"  # "random" | "typing" | "glitch" | "popup" | "none"
     highlight_color: str = "#FFD700"  # 카라오케 word-level highlight 색상 (금색)
-    highlight_mode: str = "word"      # "word" (단어별 하이라이트) | "chunk" (기존 청크 모드)
+    highlight_mode: str = "word"  # "word" (단어별 하이라이트) | "chunk" (기존 청크 모드)
     # NEW: custom style definitions from config
     custom_styles: dict[str, dict] | None = None  # user-defined caption styles from YAML
     # NEW: channel-to-style auto-mapping
@@ -114,9 +114,9 @@ class CaptionSettings:
     # NEW: outline thickness presets
     outline_thickness: str = "medium"  # "thin" (2px) | "medium" (4px) | "bold" (6px)
     # NEW: safe zone and spacing
-    safe_zone_enabled: bool = True       # YouTube UI overlap prevention
-    center_hook: bool = True             # Center captions for hook scenes
-    line_spacing_factor: float = 1.3     # Multiplier for multi-line spacing
+    safe_zone_enabled: bool = True  # YouTube UI overlap prevention
+    center_hook: bool = True  # Center captions for hook scenes
+    line_spacing_factor: float = 1.3  # Multiplier for multi-line spacing
 
 
 @dataclass(frozen=True)
@@ -128,6 +128,9 @@ class AudioSettings:
     sfx_dir: str = "assets/sfx"
     sfx_volume: float = 0.35
     sync_with_whisper: bool = False
+    bgm_provider: str = "local"  # "lyria" (AI 생성) | "local" (assets/bgm)
+    ducking_factor: float = 0.3  # 나레이션 구간 BGM 볼륨 감소 비율 (0=무음, 1=감소없음)
+    lyria_prompt_map: dict[str, str] | None = None  # 채널별 Lyria BGM 프롬프트
 
 
 @dataclass(frozen=True)
@@ -147,14 +150,14 @@ class CanvaSettings:
 
 @dataclass(frozen=True)
 class ThumbnailSettings:
-    mode: str = "pillow"              # "pillow" | "dalle" | "canva" | "none"
-    dalle_prompt_template: str = ""   # {title}/{topic} 치환 지원
+    mode: str = "pillow"  # "pillow" | "dalle" | "canva" | "none"
+    dalle_prompt_template: str = ""  # {title}/{topic} 치환 지원
 
 
 @dataclass(frozen=True)
 class ResearchSettings:
-    enabled: bool = False          # True 시 대본 생성 전 웹 리서치 수행
-    provider: str = "gemini"       # "gemini" (Google Search Grounding) | "llm" (LLM 지식만)
+    enabled: bool = False  # True 시 대본 생성 전 웹 리서치 수행
+    provider: str = "gemini"  # "gemini" (Google Search Grounding) | "llm" (LLM 지식만)
 
 
 @dataclass(frozen=True)
@@ -243,7 +246,8 @@ def load_config(config_path: str | Path) -> AppConfig:
             str(k): [str(r) for r in v.get("flow", [])]
             for k, v in project_raw.get("structure_presets", {}).items()
             if isinstance(v, dict)
-        } or None,
+        }
+        or None,
     )
     if project.default_scene_count <= 0:
         raise ConfigError("project.default_scene_count must be > 0.")
@@ -297,17 +301,16 @@ def load_config(config_path: str | Path) -> AppConfig:
         image_style_prefix=str(providers_raw.get("image_style_prefix", "")),
         llm_providers=llm_providers,
         llm_models=llm_models,
-        tts_voice_pool=tuple(
-            str(v) for v in providers_raw.get("tts_voice_pool", [])
-        ) if isinstance(providers_raw.get("tts_voice_pool"), list) else (),
+        tts_voice_pool=tuple(str(v) for v in providers_raw.get("tts_voice_pool", []))
+        if isinstance(providers_raw.get("tts_voice_pool"), list)
+        else (),
         tts_voice_strategy=str(providers_raw.get("tts_voice_strategy", "fixed")),
-        tts_voice_roles={
-            str(k): str(v)
-            for k, v in providers_raw.get("tts_voice_roles", {}).items()
-        } if isinstance(providers_raw.get("tts_voice_roles"), dict) else None,
-        visual_styles=tuple(
-            str(s) for s in providers_raw.get("visual_styles", [])
-        ) if isinstance(providers_raw.get("visual_styles"), list) else (),
+        tts_voice_roles={str(k): str(v) for k, v in providers_raw.get("tts_voice_roles", {}).items()}
+        if isinstance(providers_raw.get("tts_voice_roles"), dict)
+        else None,
+        visual_styles=tuple(str(s) for s in providers_raw.get("visual_styles", []))
+        if isinstance(providers_raw.get("visual_styles"), list)
+        else (),
         thinking_level=str(providers_raw.get("thinking_level", "low")),
         thinking_level_review=str(providers_raw.get("thinking_level_review", "high")),
         embedding_model=str(providers_raw.get("embedding_model", "gemini-embedding-2-preview")),
@@ -365,8 +368,12 @@ def load_config(config_path: str | Path) -> AppConfig:
         hook_animation=str(captions_raw.get("hook_animation", "random")),
         highlight_color=str(captions_raw.get("highlight_color", "#FFD700")),
         highlight_mode=str(captions_raw.get("highlight_mode", "word")),
-        custom_styles=dict(captions_raw.get("custom_styles", {})) if isinstance(captions_raw.get("custom_styles"), dict) else None,
-        channel_style_map=dict(captions_raw.get("channel_style_map", {})) if isinstance(captions_raw.get("channel_style_map"), dict) else None,
+        custom_styles=dict(captions_raw.get("custom_styles", {}))
+        if isinstance(captions_raw.get("custom_styles"), dict)
+        else None,
+        channel_style_map=dict(captions_raw.get("channel_style_map", {}))
+        if isinstance(captions_raw.get("channel_style_map"), dict)
+        else None,
         outline_thickness=str(captions_raw.get("outline_thickness", "medium")),
         safe_zone_enabled=bool(captions_raw.get("safe_zone_enabled", True)),
         center_hook=bool(captions_raw.get("center_hook", True)),
@@ -399,6 +406,11 @@ def load_config(config_path: str | Path) -> AppConfig:
         sfx_enabled=bool(audio_raw.get("sfx_enabled", True)),
         sfx_dir=str(audio_raw.get("sfx_dir", "assets/sfx")),
         sfx_volume=float(audio_raw.get("sfx_volume", 0.35)),
+        bgm_provider=str(audio_raw.get("bgm_provider", "local")),
+        ducking_factor=float(audio_raw.get("ducking_factor", 0.3)),
+        lyria_prompt_map={str(k): str(v) for k, v in audio_raw.get("lyria_prompt_map", {}).items()}
+        if isinstance(audio_raw.get("lyria_prompt_map"), dict)
+        else None,
     )
 
     canva_raw = _section(raw, "canva")

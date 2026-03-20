@@ -39,6 +39,7 @@ def _apply_typing_effect(clip: ImageClip, duration: float) -> VideoClip:
 
 def _apply_popup_effect(clip: ImageClip, duration: float) -> VideoClip:
     """Scales up from 0.5 to 1.0 with a slight bounce."""
+
     def resize_func(t):
         if t >= duration:
             return 1.0
@@ -55,6 +56,7 @@ def _apply_popup_effect(clip: ImageClip, duration: float) -> VideoClip:
 
 def _apply_glitch_effect(clip: ImageClip, duration: float) -> VideoClip:
     """Applies random RGB shifts and horizontal displacements."""
+
     def filter_frame(get_frame, t):
         frame = get_frame(t)
         if t >= duration:
@@ -62,11 +64,11 @@ def _apply_glitch_effect(clip: ImageClip, duration: float) -> VideoClip:
         # Only glitch intermittently
         if int(t * 20) % 2 == 0:
             return frame
-            
+
         shift = random.randint(-15, 15)
         if shift == 0:
             return frame
-            
+
         glitched = np.zeros_like(frame)
         if shift > 0:
             glitched[:, shift:] = frame[:, :-shift]
@@ -85,11 +87,11 @@ def _apply_glitch_effect(clip: ImageClip, duration: float) -> VideoClip:
             return mask
         if int(t * 20) % 2 == 0:
             return mask
-            
+
         shift = random.randint(-15, 15)
         if shift == 0:
             return mask
-            
+
         glitched = np.zeros_like(mask)
         if shift > 0:
             glitched[:, shift:] = mask[:, :-shift]
@@ -105,7 +107,6 @@ def _apply_glitch_effect(clip: ImageClip, duration: float) -> VideoClip:
 
 def _apply_bounce_effect(clip: ImageClip, duration: float) -> VideoClip:
     """탄성 바운스 등장 효과 (위에서 아래로 떨어지며 바운스)."""
-
 
     def resize_func(t):
         if t >= duration:
@@ -147,8 +148,12 @@ def _apply_particle_effect(clip: ImageClip, duration: float) -> VideoClip:
     n_particles = 15
     rng = np.random.RandomState(42)
     particles = [
-        (rng.randint(0, max(1, w - 1)), rng.randint(0, max(1, h - 1)),
-         rng.uniform(0.3, 1.0), rng.uniform(0.5, 2.0))  # x, y, max_alpha, speed
+        (
+            rng.randint(0, max(1, w - 1)),
+            rng.randint(0, max(1, h - 1)),
+            rng.uniform(0.3, 1.0),
+            rng.uniform(0.5, 2.0),
+        )  # x, y, max_alpha, speed
         for _ in range(n_particles)
     ]
 
@@ -156,7 +161,7 @@ def _apply_particle_effect(clip: ImageClip, duration: float) -> VideoClip:
         frame = np.copy(get_frame(t))
         if t >= duration:
             return frame
-    
+
         for px, py, max_a, speed in particles:
             # 사인파로 반짝이는 알파
             alpha = max(0.0, max_a * abs(math.sin(t * speed * math.pi)))
@@ -169,7 +174,9 @@ def _apply_particle_effect(clip: ImageClip, duration: float) -> VideoClip:
                     if 0 <= nx < w and 0 <= ny < h:
                         blend = alpha * (0.6 if abs(dx) + abs(dy) > 1 else 1.0)
                         frame[ny, nx] = np.clip(
-                            frame[ny, nx].astype(np.float32) + 255 * blend, 0, 255,
+                            frame[ny, nx].astype(np.float32) + 255 * blend,
+                            0,
+                            255,
                         ).astype(np.uint8)
         return frame
 

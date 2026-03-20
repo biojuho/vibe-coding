@@ -8,9 +8,9 @@ Task 3+4: RenderAdapter 파이프라인 연동 + 실제 영상 생성 검증.
 3. SFRenderStep이 실제 MP4를 생성하는지 (ffmpeg 필요)
 4. 에러 시 폴백 동작
 """
+
 from __future__ import annotations
 
-import os
 import shutil
 import subprocess
 import sys
@@ -45,12 +45,14 @@ def _write_test_tone(path: Path, *, duration_sec: float = 1.0, sample_rate: int 
             wav_file.writeframesraw(sample.to_bytes(2, byteorder="little", signed=True))
     return path
 
+
 # ffmpeg 감지
 HAS_FFMPEG = shutil.which("ffmpeg") is not None
 SKIP_FFMPEG = pytest.mark.skipif(not HAS_FFMPEG, reason="ffmpeg not installed")
 
 
 # ── 픽스처 ────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def tmp_dir():
@@ -63,9 +65,8 @@ def tmp_dir():
 def sample_image(tmp_dir):
     """테스트용 1080x1920 이미지 생성."""
     from PIL import Image
-    img = Image.fromarray(
-        np.random.randint(0, 255, (1920, 1080, 3), dtype=np.uint8)
-    )
+
+    img = Image.fromarray(np.random.randint(0, 255, (1920, 1080, 3), dtype=np.uint8))
     path = tmp_dir / "test_visual.png"
     img.save(str(path))
     return path
@@ -101,17 +102,20 @@ def sample_scenes():
 
 # ── 1. SFRenderStep 유닛 테스트 ────────────────────────────────────
 
+
 class TestSFRenderStep:
     """ShortsFactory/render.py SFRenderStep 유닛 테스트."""
 
     def test_import(self):
         """SFRenderStep이 정상적으로 import 되는지 확인."""
         from ShortsFactory.render import SFRenderStep
+
         assert SFRenderStep is not None
 
     def test_init_with_dict(self):
         """dict 기반 초기화."""
         from ShortsFactory.render import SFRenderStep
+
         config = {
             "id": "ai_tech",
             "palette": {"primary": "#00D4AA", "secondary": "#1a1a2e"},
@@ -125,14 +129,17 @@ class TestSFRenderStep:
     def test_init_with_channel_config(self):
         """ChannelConfig 객체 기반 초기화."""
         from ShortsFactory.pipeline import ShortsFactory
+
         factory = ShortsFactory(channel="ai_tech")
         from ShortsFactory.render import SFRenderStep
+
         renderer = SFRenderStep(factory.channel)
         assert renderer._color_preset == factory.channel.color_preset
 
     def test_create_gradient_bg(self):
         """그라데이션 배경 생성."""
         from ShortsFactory.render import SFRenderStep
+
         renderer = SFRenderStep({"palette": {"primary": "#FF0000", "secondary": "#0000FF"}})
         bg = renderer._create_gradient_bg(100, 200)
         assert bg.shape == (200, 100, 3)
@@ -143,6 +150,7 @@ class TestSFRenderStep:
 
     def test_hex_to_rgb(self):
         from ShortsFactory.render import SFRenderStep
+
         assert SFRenderStep._hex_to_rgb("#FF0000") == (255, 0, 0)
         assert SFRenderStep._hex_to_rgb("#00FF00") == (0, 255, 0)
         assert SFRenderStep._hex_to_rgb("invalid") == (30, 30, 60)
@@ -153,13 +161,15 @@ class TestSFRenderStep:
         from ShortsFactory.render import SFRenderStep
         from ShortsFactory.templates.base_template import Scene
 
-        renderer = SFRenderStep({
-            "id": "ai_tech",
-            "palette": {"primary": "#00D4AA", "secondary": "#1a1a2e"},
-            "color_preset": "neon_tech",
-            "hook_style": "clean_popup",
-            "transition": "fade",
-        })
+        renderer = SFRenderStep(
+            {
+                "id": "ai_tech",
+                "palette": {"primary": "#00D4AA", "secondary": "#1a1a2e"},
+                "color_preset": "neon_tech",
+                "hook_style": "clean_popup",
+                "transition": "fade",
+            }
+        )
 
         scenes = [
             Scene(role="hook", text="Hook 씬", duration=2.0, image_path=sample_image),
@@ -178,9 +188,11 @@ class TestSFRenderStep:
         from ShortsFactory.render import SFRenderStep
         from ShortsFactory.templates.base_template import Scene
 
-        renderer = SFRenderStep({
-            "palette": {"primary": "#FF6B35", "secondary": "#004E89"},
-        })
+        renderer = SFRenderStep(
+            {
+                "palette": {"primary": "#FF6B35", "secondary": "#004E89"},
+            }
+        )
 
         scenes = [
             Scene(role="body", text="이미지 없는 씬", duration=2.0),
@@ -193,12 +205,14 @@ class TestSFRenderStep:
     def test_render_scenes_empty_raises(self):
         """빈 씬 리스트 → RuntimeError."""
         from ShortsFactory.render import SFRenderStep
+
         renderer = SFRenderStep({})
         with pytest.raises(RuntimeError, match="렌더링할 씬이 없습니다"):
             renderer.render_scenes([], "output.mp4")
 
 
 # ── 2. RenderAdapter → render_from_plan 경로 테스트 ──────────────
+
 
 class TestRenderAdapterPipeline:
     """RenderAdapter → ShortsFactory.render_from_plan() 통합 경로."""
@@ -246,21 +260,36 @@ class TestRenderAdapterPipeline:
 
 # ── 3. Orchestrator _try_shorts_factory_render 분기 테스트 ─────
 
+
 class TestOrchestratorSFBranch:
     """PipelineOrchestrator._try_shorts_factory_render() 검증."""
 
     def test_try_sf_render_returns_tuple(self, sample_image, tmp_dir):
         """정적 메서드가 (success, error) 튜플을 반환하는지 확인."""
+        from shorts_maker_v2.models import SceneAsset, ScenePlan
         from shorts_maker_v2.pipeline.orchestrator import PipelineOrchestrator
-        from shorts_maker_v2.models import ScenePlan, SceneAsset
 
         scene_plans = [
-            ScenePlan(scene_id=1, narration_ko="테스트", visual_prompt_en="test", target_sec=3.0, structure_role="hook"),
+            ScenePlan(
+                scene_id=1, narration_ko="테스트", visual_prompt_en="test", target_sec=3.0, structure_role="hook"
+            ),
             ScenePlan(scene_id=2, narration_ko="본문", visual_prompt_en="body", target_sec=4.0, structure_role="body"),
         ]
         scene_assets = [
-            SceneAsset(scene_id=1, audio_path=str(tmp_dir / "fake.mp3"), visual_type="image", visual_path=str(sample_image), duration_sec=3.0),
-            SceneAsset(scene_id=2, audio_path=str(tmp_dir / "fake2.mp3"), visual_type="image", visual_path=str(sample_image), duration_sec=4.0),
+            SceneAsset(
+                scene_id=1,
+                audio_path=str(tmp_dir / "fake.mp3"),
+                visual_type="image",
+                visual_path=str(sample_image),
+                duration_sec=3.0,
+            ),
+            SceneAsset(
+                scene_id=2,
+                audio_path=str(tmp_dir / "fake2.mp3"),
+                visual_type="image",
+                visual_path=str(sample_image),
+                duration_sec=4.0,
+            ),
         ]
 
         mock_logger = MagicMock()
@@ -279,7 +308,6 @@ class TestOrchestratorSFBranch:
     def test_sf_branch_fallback_on_import_error(self, tmp_dir):
         """ShortsFactory import 실패 시 False 반환 (폴백)."""
         from shorts_maker_v2.pipeline.orchestrator import PipelineOrchestrator
-        from shorts_maker_v2.models import ScenePlan, SceneAsset
 
         mock_logger = MagicMock()
 
@@ -296,8 +324,9 @@ class TestOrchestratorSFBranch:
 
     def test_renderer_mode_defaults_to_native(self):
         """명시하지 않으면 renderer_mode가 native로 설정되는지 확인."""
-        from shorts_maker_v2.pipeline.orchestrator import PipelineOrchestrator
         from unittest.mock import MagicMock
+
+        from shorts_maker_v2.pipeline.orchestrator import PipelineOrchestrator
 
         config = MagicMock()
         config.limits.request_timeout_sec = 30
@@ -326,6 +355,7 @@ class TestOrchestratorSFBranch:
 
 
 # ── 4. render_from_plan Scene 변환 E2E (ffmpeg 필요) ────────────
+
 
 class TestRenderFromPlanE2E:
     """ShortsFactory.render_from_plan() E2E 검증."""
@@ -443,6 +473,7 @@ class TestRenderFromPlanE2E:
 
 
 # ── 5. 채널별 렌더링 검증 ─────────────────────────────────────────
+
 
 class TestChannelSpecificRendering:
     """각 채널별 SFRenderStep 동작 검증."""

@@ -3,13 +3,13 @@
 채널별 컬러 그레이딩 프로파일, 비네트 효과, 밝기/대비/채도 조정.
 PIL ImageEnhance 기반 — 추가 의존성 없음.
 """
+
 from __future__ import annotations
 
 from functools import lru_cache
 
 import numpy as np
 from PIL import Image, ImageDraw
-
 
 # ── 채널별 컬러 그레이딩 프로파일 ─────────────────────────────────────────────
 # brightness, contrast, saturation: 1.0 = 원본, >1 = 증가, <1 = 감소
@@ -21,35 +21,35 @@ COLOR_PROFILES: dict[str, dict] = {
         "brightness": 0.95,
         "contrast": 1.12,
         "saturation": 0.90,
-        "tint": (-5, 0, 12),        # cool blue shift
+        "tint": (-5, 0, 12),  # cool blue shift
         "vignette_strength": 0.3,
     },
     "psychology": {
         "brightness": 1.02,
         "contrast": 1.05,
         "saturation": 1.08,
-        "tint": (8, 2, -3),          # warm amber shift
+        "tint": (8, 2, -3),  # warm amber shift
         "vignette_strength": 0.25,
     },
     "history": {
         "brightness": 0.98,
         "contrast": 1.08,
         "saturation": 0.75,
-        "tint": (12, 6, -8),         # sepia tone
+        "tint": (12, 6, -8),  # sepia tone
         "vignette_strength": 0.4,
     },
     "medical": {
         "brightness": 1.05,
         "contrast": 1.03,
         "saturation": 0.95,
-        "tint": (-2, 5, 0),          # slight green clinical tone
+        "tint": (-2, 5, 0),  # slight green clinical tone
         "vignette_strength": 0.15,
     },
     "space": {
         "brightness": 0.92,
         "contrast": 1.15,
         "saturation": 1.10,
-        "tint": (-3, -2, 15),        # deep blue/indigo
+        "tint": (-3, -2, 15),  # deep blue/indigo
         "vignette_strength": 0.45,
     },
     "default": {

@@ -19,13 +19,13 @@ v2 개선사항:
 from __future__ import annotations
 
 import logging
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from PIL import Image, ImageFilter
 
 if TYPE_CHECKING:
-    from moviepy import ColorClip, CompositeVideoClip, VideoClip
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 def _import_moviepy():
     """moviepy를 lazy import합니다 (ffmpeg 미설치 환경 대응)."""
     from moviepy import ColorClip, CompositeVideoClip, VideoClip, concatenate_videoclips
+
     return ColorClip, CompositeVideoClip, VideoClip, concatenate_videoclips
 
 
@@ -65,6 +66,7 @@ class TransitionEngine:
         self._default_duration = 0.4
         self._width = 1080
         self._height = 1920
+        self._fps = int(self.config.get("fps", 30))
 
     # ── 공개 메서드 ─────────────────────────────────────────────────────
 
@@ -93,15 +95,11 @@ class TransitionEngine:
             if roles and i < len(roles) and i - 1 < len(roles):
                 prev_role = self._normalize_role(roles[i - 1])
                 cur_role = self._normalize_role(roles[i])
-                style = _STRUCTURAL_TRANSITIONS.get(
-                    (prev_role, cur_role), default_style
-                )
+                style = _STRUCTURAL_TRANSITIONS.get((prev_role, cur_role), default_style)
             else:
                 style = default_style
 
-            transition_clip = self._make_transition(
-                clips[i - 1], clips[i], style
-            )
+            transition_clip = self._make_transition(clips[i - 1], clips[i], style)
             if transition_clip is not None:
                 result.append(transition_clip)
             result.append(clips[i])
@@ -118,16 +116,18 @@ class TransitionEngine:
         if d <= 0:
             return clip_b
         from moviepy.video.fx import CrossFadeIn  # [QA 수정] MoviePy v2 Effect 클래스
+
         return clip_b.with_effects([CrossFadeIn(d)])
 
     def flash(self, duration: float = 0.15):
         """흰색 플래시 전환 클립 생성."""
         ColorClip, _, _, _ = _import_moviepy()
         from moviepy.video.fx import CrossFadeOut  # [QA 수정] MoviePy v2 Effect 클래스
-        return ColorClip(
-            size=(self._width, self._height), color=(255, 255, 255)
-        ).with_duration(duration).with_effects(
-            [CrossFadeOut(duration * 0.6)]
+
+        return (
+            ColorClip(size=(self._width, self._height), color=(255, 255, 255))
+            .with_duration(duration)
+            .with_effects([CrossFadeOut(duration * 0.6)])
         )
 
     def cut(self) -> None:
@@ -156,7 +156,7 @@ class TransitionEngine:
             전환 효과가 적용된 CompositeVideoClip.
         """
         w, h = self._width, self._height
-        d = min(duration, clip_a.duration * 0.4, clip_b.duration * 0.4)
+        d = max(0.01, min(duration, clip_a.duration * 0.4, clip_b.duration * 0.4))
 
         def make_frame(t):
             """두 프레임을 스와이프로 합성."""
@@ -176,28 +176,28 @@ class TransitionEngine:
             if direction == "right":
                 offset = int(w * p)
                 if offset < w:
-                    result[:, offset:] = fa[:, :w - offset]
-                result[:, :offset] = fb[:, w - offset:]
+                    result[:, offset:] = fa[:, : w - offset]
+                result[:, :offset] = fb[:, w - offset :]
             elif direction == "left":
                 offset = int(w * p)
                 if offset < w:
-                    result[:, :w - offset] = fa[:, offset:]
-                result[:, w - offset:] = fb[:, :offset]
+                    result[:, : w - offset] = fa[:, offset:]
+                result[:, w - offset :] = fb[:, :offset]
             elif direction == "down":
                 offset = int(h * p)
                 if offset < h:
-                    result[offset:, :] = fa[:h - offset, :]
-                result[:offset, :] = fb[h - offset:, :]
+                    result[offset:, :] = fa[: h - offset, :]
+                result[:offset, :] = fb[h - offset :, :]
             elif direction == "up":
                 offset = int(h * p)
                 if offset < h:
-                    result[:h - offset, :] = fa[offset:, :]
-                result[h - offset:, :] = fb[:offset, :]
+                    result[: h - offset, :] = fa[offset:, :]
+                result[h - offset :, :] = fb[:offset, :]
 
             return result
 
         _, _, VideoClip, _ = _import_moviepy()
-        return VideoClip(make_frame, duration=d).with_fps(30)
+        return VideoClip(make_frame, duration=d).with_fps(self._fps)
 
     def blur_dissolve(
         self,
@@ -219,7 +219,7 @@ class TransitionEngine:
             전환 효과가 적용된 VideoClip.
         """
         w, h = self._width, self._height
-        d = min(duration, clip_a.duration * 0.5, clip_b.duration * 0.5)
+        d = max(0.01, min(duration, clip_a.duration * 0.5, clip_b.duration * 0.5))
 
         def make_frame(t):
             progress = min(1.0, t / max(d, 0.01))
@@ -240,11 +240,11 @@ class TransitionEngine:
                 fa = np.array(img_a)
 
             # 가중 평균으로 블렌딩
-            result = (fa.astype(np.float32) * (1 - p) + fb.astype(np.float32) * p)
+            result = fa.astype(np.float32) * (1 - p) + fb.astype(np.float32) * p
             return result.astype(np.uint8)
 
         _, _, VideoClip, _ = _import_moviepy()
-        return VideoClip(make_frame, duration=d).with_fps(30)
+        return VideoClip(make_frame, duration=d).with_fps(self._fps)
 
     def zoom_through(
         self,
@@ -268,7 +268,7 @@ class TransitionEngine:
             전환 효과가 적용된 VideoClip.
         """
         w, h = self._width, self._height
-        d = min(duration, clip_a.duration * 0.3, clip_b.duration * 0.3)
+        d = max(0.01, min(duration, clip_a.duration * 0.3, clip_b.duration * 0.3))
 
         def make_frame(t):
             progress = min(1.0, t / max(d, 0.01))
@@ -297,7 +297,7 @@ class TransitionEngine:
             return result
 
         _, _, VideoClip, _ = _import_moviepy()
-        return VideoClip(make_frame, duration=d).with_fps(30)
+        return VideoClip(make_frame, duration=d).with_fps(self._fps)
 
     def color_wipe(
         self,
@@ -336,9 +336,35 @@ class TransitionEngine:
             return frame
 
         _, _, VideoClip, _ = _import_moviepy()
-        return VideoClip(make_frame, duration=duration).with_fps(30)
+        return VideoClip(make_frame, duration=duration).with_fps(self._fps)
 
     # ── 내부 메서드 ─────────────────────────────────────────────────────
+
+    def glitch(self, clip_a, clip_b, *, duration: float = 0.25):
+        """RGB 채널 분리 글리치 전환."""
+        w, h = self._width, self._height
+        d = max(0.01, min(duration, clip_a.duration * 0.3, clip_b.duration * 0.3))
+
+        def make_frame(t):
+            progress = min(1.0, t / max(d, 0.01))
+            frame = clip_a.get_frame(clip_a.duration - d + t) if progress < 0.5 else clip_b.get_frame(t)
+            frame = self._resize_frame(frame, w, h)
+            shift = int(20 * (1.0 - abs(progress - 0.5) * 2))
+            if shift > 0 and shift < w:
+                out = np.copy(frame)
+                out[:, shift:, 0] = frame[:, :-shift, 0]
+                out[:, :-shift, 2] = frame[:, shift:, 2]
+                # scanline noise
+                out[::2, :, :] = np.clip(
+                    out[::2, :, :].astype(np.int16) + int(40 * (1.0 - abs(progress - 0.5) * 2)),
+                    0,
+                    255,
+                ).astype(np.uint8)
+                return out
+            return frame
+
+        _, _, VideoClip, _ = _import_moviepy()
+        return VideoClip(make_frame, duration=d).with_fps(self._fps)
 
     def _make_transition(self, clip_a, clip_b, style: str):
         """전환 스타일에 따라 전환 클립/효과를 생성합니다."""
@@ -348,6 +374,8 @@ class TransitionEngine:
             return None  # crossfade는 concatenate 시 적용
         elif style == "cut":
             return None
+        elif style == "glitch":
+            return self.glitch(clip_a, clip_b)
         elif style.startswith("swipe"):
             parts = style.split("_")
             direction = parts[1] if len(parts) > 1 else "right"

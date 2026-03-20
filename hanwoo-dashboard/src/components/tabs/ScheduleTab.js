@@ -1,7 +1,11 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { ChevronLeft, ChevronRight, PlusCircle } from 'lucide-react';
+
+import { createScheduleFormValues, scheduleEventSchema } from '@/lib/formSchemas';
 
 const TYPE_STYLES = {
   Vaccination: { label: '백신', color: 'var(--chart-clay-4)' },
@@ -11,13 +15,26 @@ const TYPE_STYLES = {
   General: { label: '일반', color: 'var(--chart-clay-1)' },
 };
 
+const errorTextStyle = {
+  fontSize: '12px',
+  marginTop: '6px',
+  color: 'var(--color-danger)',
+  fontWeight: 600,
+};
+
 export default function ScheduleTab({ events, onCreateEvent, onToggleEvent }) {
   const [isAdding, setIsAdding] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [formData, setFormData] = useState({
-    title: '',
-    date: new Date().toISOString().split('T')[0],
-    type: 'General',
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(scheduleEventSchema),
+    defaultValues: createScheduleFormValues(),
   });
 
   const monthDays = useMemo(() => {
@@ -25,8 +42,13 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent }) {
     const total = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
     const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
 
-    for (let index = 0; index < firstDay; index += 1) days.push(null);
-    for (let day = 1; day <= total; day += 1) days.push(new Date(currentDate.getFullYear(), currentDate.getMonth(), day));
+    for (let index = 0; index < firstDay; index += 1) {
+      days.push(null);
+    }
+
+    for (let day = 1; day <= total; day += 1) {
+      days.push(new Date(currentDate.getFullYear(), currentDate.getMonth(), day));
+    }
 
     return days;
   }, [currentDate]);
@@ -37,36 +59,46 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent }) {
         const date = new Date(event.date);
         return date.getMonth() === currentDate.getMonth() && date.getFullYear() === currentDate.getFullYear();
       }),
-    [events, currentDate]
+    [events, currentDate],
   );
 
   const upcomingEvents = useMemo(() => {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
+
     return events
       .filter((event) => new Date(event.date) >= now && !event.isCompleted)
       .sort((first, second) => new Date(first.date) - new Date(second.date))
       .slice(0, 5);
   }, [events]);
 
-  const handleSubmit = () => {
-    if (!formData.title) {
-      alert('일정 제목을 입력해 주세요.');
-      return;
-    }
+  const toggleAddForm = () => {
+    const next = !isAdding;
+    setIsAdding(next);
 
-    onCreateEvent({ ...formData, date: formData.date });
+    if (!next) {
+      reset(createScheduleFormValues());
+    }
+  };
+
+  const openFormForDate = (dateString) => {
+    setValue('date', dateString, { shouldDirty: true, shouldValidate: true });
+    setIsAdding(true);
+  };
+
+  const submitSchedule = (values) => {
+    onCreateEvent(values);
     setIsAdding(false);
-    setFormData({ title: '', date: new Date().toISOString().split('T')[0], type: 'General' });
+    reset(createScheduleFormValues());
   };
 
   return (
     <div>
       <div className="mb-4 flex items-center justify-between gap-3">
-        <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--color-text)' }}>🗓️ 농장 일정 관리</div>
+        <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--color-text)' }}>목장 일정 관리</div>
         <button
           type="button"
-          onClick={() => setIsAdding((previous) => !previous)}
+          onClick={toggleAddForm}
           className="clay-pressable inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-[color:var(--color-text)]"
         >
           <PlusCircle size={14} />
@@ -75,37 +107,45 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent }) {
       </div>
 
       {isAdding ? (
-        <div className="clay-page-section mb-4 p-4">
+        <form onSubmit={handleSubmit(submitSchedule)} className="clay-page-section mb-4 p-4">
           <div className="mb-3 text-sm font-bold text-[color:var(--color-text)]">일정 등록</div>
           <div className="grid gap-3">
-            <input
-              placeholder="예: 1동 구제역 백신"
-              value={formData.title}
-              onChange={(event) => setFormData({ ...formData, title: event.target.value })}
-              className="clay-inset rounded-[16px] px-4 py-3 text-sm text-[color:var(--color-text)] outline-none"
-            />
-            <div className="grid grid-cols-2 gap-3">
+            <div>
               <input
-                type="date"
-                value={formData.date}
-                onChange={(event) => setFormData({ ...formData, date: event.target.value })}
-                className="clay-inset rounded-[16px] px-4 py-3 text-sm text-[color:var(--color-text)] outline-none"
+                placeholder="예: 1번 구제역 백신"
+                {...register('title')}
+                className="clay-inset w-full rounded-[16px] px-4 py-3 text-sm text-[color:var(--color-text)] outline-none"
               />
-              <select
-                value={formData.type}
-                onChange={(event) => setFormData({ ...formData, type: event.target.value })}
-                className="clay-inset rounded-[16px] px-4 py-3 text-sm text-[color:var(--color-text)] outline-none"
-              >
-                <option value="General">일반</option>
-                <option value="Vaccination">백신</option>
-                <option value="Checkup">검진</option>
-                <option value="Breeding">번식</option>
-                <option value="Other">기타</option>
-              </select>
+              {errors.title ? <div style={errorTextStyle}>{errors.title.message}</div> : null}
             </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <input
+                  type="date"
+                  {...register('date')}
+                  className="clay-inset w-full rounded-[16px] px-4 py-3 text-sm text-[color:var(--color-text)] outline-none"
+                />
+                {errors.date ? <div style={errorTextStyle}>{errors.date.message}</div> : null}
+              </div>
+
+              <div>
+                <select
+                  {...register('type')}
+                  className="clay-inset w-full rounded-[16px] px-4 py-3 text-sm text-[color:var(--color-text)] outline-none"
+                >
+                  <option value="General">일반</option>
+                  <option value="Vaccination">백신</option>
+                  <option value="Checkup">검진</option>
+                  <option value="Breeding">번식</option>
+                  <option value="Other">기타</option>
+                </select>
+                {errors.type ? <div style={errorTextStyle}>{errors.type.message}</div> : null}
+              </div>
+            </div>
+
             <button
-              type="button"
-              onClick={handleSubmit}
+              type="submit"
               className="rounded-[18px] px-4 py-3 text-sm font-bold text-white"
               style={{
                 background: 'var(--surface-gradient-primary)',
@@ -115,7 +155,7 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent }) {
               일정 등록하기
             </button>
           </div>
-        </div>
+        </form>
       ) : null}
 
       <div className="mb-3 flex items-center justify-between px-1">
@@ -133,7 +173,11 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent }) {
       <div className="clay-page-section mb-5 p-3">
         <div className="mb-2 grid grid-cols-7 gap-2 text-center">
           {['일', '월', '화', '수', '목', '금', '토'].map((label, index) => (
-            <div key={label} className="text-[11px] font-semibold" style={{ color: index === 0 ? 'var(--color-danger)' : 'var(--color-text-secondary)' }}>
+            <div
+              key={label}
+              className="text-[11px] font-semibold"
+              style={{ color: index === 0 ? 'var(--color-danger)' : 'var(--color-text-secondary)' }}
+            >
               {label}
             </div>
           ))}
@@ -146,16 +190,15 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent }) {
             }
 
             const dateStr = day.toISOString().split('T')[0];
-            const dayEvents = currentMonthEvents.filter((event) => new Date(event.date).toISOString().split('T')[0] === dateStr);
+            const dayEvents = currentMonthEvents.filter(
+              (event) => new Date(event.date).toISOString().split('T')[0] === dateStr,
+            );
             const isToday = dateStr === new Date().toISOString().split('T')[0];
 
             return (
               <div
                 key={dateStr}
-                onClick={() => {
-                  setFormData({ ...formData, date: dateStr });
-                  setIsAdding(true);
-                }}
+                onClick={() => openFormForDate(dateStr)}
                 className="rounded-[16px] border p-2"
                 style={{
                   minHeight: '78px',
@@ -171,6 +214,7 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent }) {
                 <div className="grid gap-1">
                   {dayEvents.slice(0, 3).map((event) => {
                     const typeStyle = TYPE_STYLES[event.type] || TYPE_STYLES.General;
+
                     return (
                       <div
                         key={event.id}
@@ -182,7 +226,9 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent }) {
                     );
                   })}
                   {dayEvents.length > 3 ? (
-                    <div className="text-center text-[9px] font-semibold text-[color:var(--color-text-muted)]">+{dayEvents.length - 3}</div>
+                    <div className="text-center text-[9px] font-semibold text-[color:var(--color-text-muted)]">
+                      +{dayEvents.length - 3}
+                    </div>
                   ) : null}
                 </div>
               </div>
@@ -199,10 +245,7 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent }) {
             const typeStyle = TYPE_STYLES[event.type] || TYPE_STYLES.General;
 
             return (
-              <div
-                key={event.id}
-                className="clay-page-section flex items-center gap-3 p-4"
-              >
+              <div key={event.id} className="clay-page-section flex items-center gap-3 p-4">
                 <input
                   type="checkbox"
                   checked={event.isCompleted}

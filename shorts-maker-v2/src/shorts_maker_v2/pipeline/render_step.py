@@ -1,16 +1,12 @@
 from __future__ import annotations
 
+import contextlib
 import logging
 import random
 import time
 from pathlib import Path
 
 import numpy as np
-
-logger = logging.getLogger(__name__)
-
-import contextlib
-
 from moviepy import (
     AudioFileClip,
     CompositeAudioClip,
@@ -22,7 +18,6 @@ from moviepy import (
     vfx,
 )
 from moviepy.audio.fx import MultiplyVolume
-from moviepy.audio import fx as afx
 
 from shorts_maker_v2.config import AppConfig
 from shorts_maker_v2.models import SceneAsset, ScenePlan
@@ -53,6 +48,8 @@ from shorts_maker_v2.render.karaoke import (
 )
 
 # MoviePy 2.x: PIL.Image.ANTIALIAS hotfix no longer needed (Pillow native)
+
+logger = logging.getLogger(__name__)
 
 _QUALITY_PROFILES = {
     "draft": {"crf": 28, "preset": "ultrafast", "maxrate": None},
@@ -923,6 +920,129 @@ class RenderStep:
             files.extend(bgm_dir.glob(pattern))
         return sorted(files)
 
+    def _generate_lyria_bgm(
+        self,
+        *,
+        run_dir: Path,
+        duration_sec: float,
+        channel: str = "",
+        topic: str = "",
+    ) -> Path | None:
+        """Google Lyria로 영상 길이에 맞는 맞춤 BGM을 생성합니다.
+
+        Returns:
+            생성된 BGM 파일 경로 또는 None (실패 시)
+        """
+        import asyncio
+        import os
+
+        api_key = os.getenv("GEMINI_API_KEY", "")
+        if not api_key:
+            logger.info("[BGM/Lyria] GEMINI_API_KEY 없음 → local fallback")
+            return None
+
+        # 채널별 프롬프트 결정
+        prompt_map = self.config.audio.lyria_prompt_map or {}
+        prompt = prompt_map.get(channel, prompt_map.get("default", ""))
+        if not prompt:
+            prompt = "calm lo-fi beats with soft piano, minimal percussion, background music"
+
+        bgm_path = run_dir / "bgm_lyria.mp3"
+        if bgm_path.exists() and bgm_path.stat().st_size > 0:
+            logger.info("[BGM/Lyria] 캐시 사용: %s", bgm_path.name)
+            return bgm_path
+
+        try:
+            from shorts_maker_v2.providers.google_music_client import GoogleMusicClient
+
+            client = GoogleMusicClient.from_env()
+            # Lyria 생성: 영상 길이 + 2초 여유
+            coro = client.generate_music_file(
+                prompt=prompt,
+                output_path=bgm_path,
+                duration_sec=min(duration_sec + 2, 120),
+                bpm=90,
+                temperature=1.0,
+            )
+            try:
+                asyncio.run(coro)
+            except RuntimeError:
+                import concurrent.futures
+
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(asyncio.run, coro)
+                    future.result()
+
+            if bgm_path.exists() and bgm_path.stat().st_size > 0:
+                logger.info("[BGM/Lyria] 생성 완료: %s (%.1fs)", bgm_path.name, duration_sec)
+                return bgm_path
+        except Exception as exc:
+            logger.warning("[BGM/Lyria] 생성 실패: %s → local fallback", exc)
+
+        return None
+
+    @staticmethod
+    def _apply_rms_ducking(
+        narration_audio,
+        bgm_clip,
+        *,
+        base_vol: float = 0.12,
+        duck_factor: float = 0.25,
+        window_sec: float = 0.5,
+    ):
+        """RMS 기반 Audio Ducking: 나레이션이 있는 구간에서 BGM 볼륨을 자동 감소.
+
+        나레이션 RMS가 높은 구간 → BGM 볼륨을 duck_factor로 감소
+        나레이션이 없는 구간 → BGM 볼륨을 base_vol 그대로 유지
+        """
+        try:
+            nar_dur = narration_audio.duration
+            if not nar_dur or nar_dur <= 0:
+                return bgm_clip.with_effects([MultiplyVolume(base_vol)])
+
+            # 나레이션 RMS 에너지를 window_sec 간격으로 샘플링
+            fps = 44100
+            nar_array = narration_audio.to_soundarray(fps=fps)
+            if nar_array.ndim > 1:
+                nar_array = nar_array.mean(axis=1)
+
+            window_samples = int(window_sec * fps)
+            n_windows = max(1, len(nar_array) // window_samples)
+
+            rms_values = []
+            for i in range(n_windows):
+                chunk = nar_array[i * window_samples : (i + 1) * window_samples]
+                rms = float(np.sqrt(np.mean(chunk**2)))
+                rms_values.append(rms)
+
+            # RMS 임계값: 평균의 30%를 기준으로 음성 구간 판별
+            if not rms_values:
+                return bgm_clip.with_effects([MultiplyVolume(base_vol)])
+
+            rms_threshold = np.mean(rms_values) * 0.3
+
+            # BGM에 시간별 볼륨 변화 적용
+            def volume_filter(get_frame, t):
+                window_idx = min(int(t / window_sec), len(rms_values) - 1)
+                if window_idx < 0:
+                    window_idx = 0
+                is_speech = rms_values[window_idx] > rms_threshold
+                vol = base_vol * duck_factor if is_speech else base_vol
+                frame = get_frame(t)
+                return frame * vol
+
+            ducked = bgm_clip.transform(volume_filter)
+            logger.info(
+                "[BGM/Ducking] RMS ducking 적용: speech_windows=%d/%d, duck=%.0f%%",
+                sum(1 for r in rms_values if r > rms_threshold),
+                len(rms_values),
+                duck_factor * 100,
+            )
+            return ducked
+        except Exception as exc:
+            logger.warning("[BGM/Ducking] RMS ducking 실패, 고정 볼륨 사용: %s", exc)
+            return bgm_clip.with_effects([MultiplyVolume(base_vol)])
+
     # ── SFX 효과음 ──────────────────────────────────────────────────────────────
 
     # SFX 파일명 기반 역할 매칭 (파일명에 키워드 포함)
@@ -1121,7 +1241,7 @@ class RenderStep:
                     # Word-level highlight 모드
                     if self.config.captions.highlight_mode == "word":
                         caption_clips = []
-                        for chunk_start, _chunk_end, _chunk_text, chunk_words in chunk_groups:
+                        for _chunk_start, _chunk_end, _chunk_text, chunk_words in chunk_groups:
                             chunk_text_words = [word.word for word in chunk_words]
                             for wi, word_segment in enumerate(chunk_words):
                                 ws = word_segment.start
@@ -1235,30 +1355,76 @@ class RenderStep:
         output_path = output_dir / output_filename
         final_video = concatenate_videoclips(all_clips, method="compose")
 
-        # BGM 무드 매칭 + 오디오 Ducking (Sprint 4)
-        bgm_dir = (run_dir.parent.parent / self.config.audio.bgm_dir).resolve()
-        if bgm_dir.exists():
-            bgm_files = self._collect_bgm_files(bgm_dir)
-            if bgm_files and final_video.audio is not None:
-                bgm_path = self._pick_bgm_by_mood(bgm_files, topic or title)
-                bgm_clip = AudioFileClip(str(bgm_path))
+        # ── YouTube Shorts 하드 리밋 (59초) ──
+        MAX_SHORTS_DURATION = 59.0  # YouTube Shorts 최대 60초, 1초 마진
+        if final_video.duration and final_video.duration > MAX_SHORTS_DURATION:
+            logger.warning(
+                "[DURATION] 영상 %.1fs > %.1fs — Shorts 제한에 맞게 트림",
+                final_video.duration,
+                MAX_SHORTS_DURATION,
+            )
+            final_video = final_video.subclipped(0, MAX_SHORTS_DURATION)
+
+        # BGM: Lyria AI 생성 (1순위) → local assets 폴백
+        target_dur = final_video.duration
+        bgm_clip = None
+
+        # 1순위: Lyria AI BGM (영상 길이에 맞는 맞춤 BGM)
+        if self.config.audio.bgm_provider == "lyria" and final_video.audio is not None:
+            lyria_bgm = self._generate_lyria_bgm(
+                run_dir=run_dir,
+                duration_sec=target_dur,
+                channel=getattr(self, "_channel_key", ""),
+                topic=topic or title,
+            )
+            if lyria_bgm:
+                bgm_clip = AudioFileClip(str(lyria_bgm))
                 _bgm_clip = bgm_clip
-                # AudioLoop is not available in moviepy 2.x — manual looping
-                target_dur = final_video.duration
-                if bgm_clip.duration and bgm_clip.duration < target_dur:
-                    repeats = int(target_dur / bgm_clip.duration) + 1
-                    from moviepy import concatenate_audioclips
-                    bgm_clip = concatenate_audioclips([bgm_clip] * repeats)
-                bgm_clip = bgm_clip.subclipped(0, target_dur)
+                if bgm_clip.duration and bgm_clip.duration > target_dur:
+                    bgm_clip = bgm_clip.subclipped(0, target_dur)
+                logger.info("[BGM] Lyria AI BGM 사용: %s", lyria_bgm.name)
 
-                # BGM 볼륨 적용 (고정 볼륨)
-                # TODO: RMS 기반 ducking은 moviepy 2.x transform API 호환 후 재활성화
-                base_vol = self.config.audio.bgm_volume  # 0.12
-                bgm_clip = bgm_clip.with_effects([MultiplyVolume(base_vol)])
-                logger.info("[BGM] 고정 볼륨 적용: %.2f", base_vol)
+        # 2순위: local assets/bgm 폴백 (크로스페이드 루핑)
+        if bgm_clip is None and final_video.audio is not None:
+            bgm_dir = (run_dir.parent.parent / self.config.audio.bgm_dir).resolve()
+            if bgm_dir.exists():
+                bgm_files = self._collect_bgm_files(bgm_dir)
+                if bgm_files:
+                    bgm_path = self._pick_bgm_by_mood(bgm_files, topic or title)
+                    bgm_clip = AudioFileClip(str(bgm_path))
+                    _bgm_clip = bgm_clip
+                    # 크로스페이드 루핑 (끊김 방지)
+                    if bgm_clip.duration and bgm_clip.duration < target_dur:
+                        repeats = int(target_dur / bgm_clip.duration) + 1
+                        from moviepy import concatenate_audioclips
+                        # 각 반복 끝에 페이드인/아웃 적용
+                        fade_ms = min(500, int(bgm_clip.duration * 1000 * 0.1))
+                        looped_clips = []
+                        for _ in range(repeats):
+                            clip_copy = bgm_clip.with_effects([
+                                vfx.CrossFadeIn(fade_ms / 1000),
+                                vfx.CrossFadeOut(fade_ms / 1000),
+                            ]) if fade_ms > 0 else bgm_clip
+                            looped_clips.append(clip_copy)
+                        try:
+                            bgm_clip = concatenate_audioclips(looped_clips)
+                        except Exception:
+                            bgm_clip = concatenate_audioclips([bgm_clip] * repeats)
+                    bgm_clip = bgm_clip.subclipped(0, target_dur)
+                    logger.info("[BGM] local 파일 사용: %s", bgm_path.name)
 
-                mixed_audio = CompositeAudioClip([final_video.audio, bgm_clip])
-                final_video = final_video.with_audio(mixed_audio)
+        # RMS 기반 Ducking 적용
+        if bgm_clip is not None and final_video.audio is not None:
+            base_vol = self.config.audio.bgm_volume
+            duck_factor = self.config.audio.ducking_factor
+            bgm_clip = self._apply_rms_ducking(
+                final_video.audio,
+                bgm_clip,
+                base_vol=base_vol,
+                duck_factor=duck_factor,
+            )
+            mixed_audio = CompositeAudioClip([final_video.audio, bgm_clip])
+            final_video = final_video.with_audio(mixed_audio)
 
         # SFX 효과음 레이어
         if self.config.audio.sfx_enabled:

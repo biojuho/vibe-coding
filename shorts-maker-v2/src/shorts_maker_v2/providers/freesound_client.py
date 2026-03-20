@@ -5,12 +5,12 @@ Freesound API v2:
   - 검색 엔드포인트: GET /apiv2/search/text/
   - 상세 + 다운로드: GET /apiv2/sounds/<id>/download/
 """
+
 from __future__ import annotations
 
 import logging
 import os
 from pathlib import Path
-from typing import Literal
 
 import requests
 
@@ -18,19 +18,19 @@ logger = logging.getLogger(__name__)
 
 # 채널별 BGM 에너지 → Freesound 검색 태그 매핑
 BGM_ENERGY_TAGS: dict[str, str] = {
-    "high":   "electronic upbeat energetic synthwave cyberpunk loop",
+    "high": "electronic upbeat energetic synthwave cyberpunk loop",
     "medium": "cinematic orchestral background loop",
-    "calm":   "calm ambient peaceful piano loop",
-    "epic":   "epic orchestral cinematic dramatic loop",
+    "calm": "calm ambient peaceful piano loop",
+    "epic": "epic orchestral cinematic dramatic loop",
 }
 
 # 채널 ID → BGM 에너지 기본값 (channel_profiles.yaml와 동기)
 CHANNEL_BGM_ENERGY: dict[str, str] = {
-    "ai_tech":    "high",
+    "ai_tech": "high",
     "psychology": "calm",
-    "history":    "medium",
-    "space":      "epic",
-    "health":     "medium",
+    "history": "medium",
+    "space": "epic",
+    "health": "medium",
 }
 
 
@@ -47,7 +47,7 @@ class FreesoundClient:
     """
 
     SEARCH_URL = "https://freesound.org/apiv2/search/text/"
-    SOUND_URL   = "https://freesound.org/apiv2/sounds/{sound_id}/"
+    SOUND_URL = "https://freesound.org/apiv2/sounds/{sound_id}/"
     DOWNLOAD_URL = "https://freesound.org/apiv2/sounds/{sound_id}/download/"
 
     def __init__(self, api_key: str, request_timeout_sec: int = 60):
@@ -66,9 +66,7 @@ class FreesoundClient:
         """환경 변수에서 API 키를 읽어 인스턴스 생성."""
         key = os.getenv("FREESOUND_API_KEY", "")
         if not key:
-            raise EnvironmentError(
-                "FREESOUND_API_KEY가 설정되지 않았습니다. .env 파일을 확인하세요."
-            )
+            raise OSError("FREESOUND_API_KEY가 설정되지 않았습니다. .env 파일을 확인하세요.")
         return cls(api_key=key)
 
     # ──────────────────────────────────────────────
@@ -101,10 +99,7 @@ class FreesoundClient:
             params={
                 **self._auth,
                 "query": query,
-                "filter": (
-                    f"duration:[{duration_min} TO {duration_max}] "
-                    f'license:("{license_filter}")'
-                ),
+                "filter": (f'duration:[{duration_min} TO {duration_max}] license:("{license_filter}")'),
                 "fields": "id,name,duration,license,previews,download",
                 "sort": "score",
                 "page_size": per_page,
@@ -135,14 +130,9 @@ class FreesoundClient:
             return output_path
 
         previews: dict = sound.get("previews", {})
-        url = (
-            previews.get("preview-hq-mp3")
-            or previews.get("preview-lq-mp3")
-        )
+        url = previews.get("preview-hq-mp3") or previews.get("preview-lq-mp3")
         if not url:
-            raise RuntimeError(
-                f"No preview URL in sound id={sound.get('id')!r}"
-            )
+            raise RuntimeError(f"No preview URL in sound id={sound.get('id')!r}")
 
         # Freesound preview URL은 token 파라미터로 인증
         resp = requests.get(
@@ -200,7 +190,9 @@ class FreesoundClient:
 
         logger.info(
             "[Freesound] BGM 검색 — channel=%s, energy=%s, query=%r",
-            channel, energy, query,
+            channel,
+            energy,
+            query,
         )
 
         results = self.search(
@@ -209,9 +201,7 @@ class FreesoundClient:
             duration_max=duration_max,
         )
         if not results:
-            raise RuntimeError(
-                f"[Freesound] 검색 결과 없음 — channel={channel!r}, query={query!r}"
-            )
+            raise RuntimeError(f"[Freesound] 검색 결과 없음 — channel={channel!r}, query={query!r}")
 
         # 첫 번째 결과 사용
         sound = results[0]
@@ -244,9 +234,7 @@ class FreesoundClient:
             duration_max=duration_max,
         )
         if not results:
-            raise RuntimeError(
-                f"[Freesound] 효과음 검색 결과 없음: {query!r}"
-            )
+            raise RuntimeError(f"[Freesound] 효과음 검색 결과 없음: {query!r}")
 
         sound = results[0]
         return self.download_preview(sound=sound, output_path=output_path)

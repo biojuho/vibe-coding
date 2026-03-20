@@ -160,6 +160,7 @@ Output: 반드시 아래 JSON 스키마만 출력합니다.
 # Helpers
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def _extract_json(raw: Any) -> dict[str, Any]:
     """LLM 응답에서 JSON dict를 추출합니다. 이미 dict면 그대로 반환."""
     if isinstance(raw, dict):
@@ -180,6 +181,7 @@ def _parse_channel_chars(channel_context: str) -> str:
     없으면 기본값 '245-275'를 반환합니다.
     """
     import re
+
     match = re.search(r'target_chars[:\s]+["\']?([\d]+[-–][\d]+)["\']?', channel_context)
     if match:
         return match.group(1)
@@ -192,7 +194,8 @@ def _parse_channel_duration(channel_context: str) -> int:
     없으면 기본값 45를 반환합니다.
     """
     import re
-    match = re.search(r'target_duration_sec[:\s]+(\d+)', channel_context)
+
+    match = re.search(r"target_duration_sec[:\s]+(\d+)", channel_context)
     if match:
         return int(match.group(1))
     return 45
@@ -203,8 +206,8 @@ def _extract_forbidden(channel_context: str) -> str:
     channel_context에서 '금지:' 라인을 추출해 경고 섹션 문자열로 반환.
     없으면 빈 문자열 반환.
     """
-    lines = channel_context.split('\n')
-    forbidden_lines = [l.strip() for l in lines if '금지:' in l or '금지 ' in l]
+    lines = channel_context.split("\n")
+    forbidden_lines = [l.strip() for l in lines if "금지:" in l or "금지 " in l]
     if forbidden_lines:
         return "\n\n⚠️ 이 채널 절대 금지 표현 (반드시 준수):\n" + "\n".join(f"  - {l}" for l in forbidden_lines)
     return ""
@@ -233,6 +236,7 @@ def _call_phase(
 # Phase 함수 (개별 호출 가능)
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def run_haewon(topic: str, llm_router: Any, channel_context: str = "") -> dict[str, Any]:
     """
     Phase 1 — 해원 (기획자)
@@ -245,7 +249,9 @@ def run_haewon(topic: str, llm_router: Any, channel_context: str = "") -> dict[s
 
     # 채널별 목표 러닝타임 주입 → 해원의 phase 타이밍 계산 기준
     target_sec = _parse_channel_duration(channel_context)
-    duration_hint = f"\n\n[목표 러닝타임] {target_sec}초 기준으로 script_structure의 각 phase target_sec를 계산하십시오."
+    duration_hint = (
+        f"\n\n[목표 러닝타임] {target_sec}초 기준으로 script_structure의 각 phase target_sec를 계산하십시오."
+    )
 
     user_prompt = (
         f"주제: {topic}\n"
@@ -277,12 +283,12 @@ def run_jinsol(haewon_output: dict[str, Any], llm_router: Any, channel_context: 
 
     # ── 채널별 동적 글자수 목표 파싱 ──────────────────────────────────────────
     target_chars = _parse_channel_chars(channel_context)  # 예: "380-420"
-    target_sec   = _parse_channel_duration(channel_context)  # 예: 40
+    target_sec = _parse_channel_duration(channel_context)  # 예: 40
     try:
-        char_min_str, char_max_str = target_chars.replace('–', '-').split('-')
+        char_min_str, char_max_str = target_chars.replace("–", "-").split("-")
         char_range_hint = f"총 글자 수(띄어쓰기 포함)는 반드시 {char_min_str.strip()}~{char_max_str.strip()}자로 맞추십시오. (채널 TTS 속도 기준 약 {target_sec}초 분량)"
     except Exception:
-        char_range_hint = f"총 글자 수(띄어쓰기 포함)는 반드시 245~275자로 맞추십시오."
+        char_range_hint = "총 글자 수(띄어쓰기 포함)는 반드시 245~275자로 맞추십시오."
 
     # ── 채널별 금지 표현 추출 ──────────────────────────────────────────────────
     forbidden_hint = _extract_forbidden(channel_context)
@@ -333,6 +339,7 @@ def run_jiwoo(jinsol_output: dict[str, Any], llm_router: Any) -> dict[str, Any]:
 # 메인 오케스트레이터 (아라님 총 책임자)
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def generate_shorts_pipeline(
     topic: str,
     llm_router: Any,
@@ -382,6 +389,7 @@ def generate_shorts_pipeline(
 # ShortsAutomationMaster — 클래스 기반 파이프라인 (진솔 → 지우 → FFmpeg)
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 class ShortsAutomationMaster:
     """
     2026 숏폼 자동화 마스터 컨트롤러.
@@ -405,12 +413,12 @@ class ShortsAutomationMaster:
         self.llm_router = llm_router
         self.tone = tone
         self.channel_context = channel_context
-        channel_note = f" | 채널 가이드 적용" if channel_context else ""
+        channel_note = " | 채널 가이드 적용" if channel_context else ""
         self.master_guideline = (
             f"주제: '{topic}' | 전체 톤: '{tone}' | 길이: 55~60초 | 2026 숏폼 트렌드 준수{channel_note}"
         )
-        self.script_data: dict[str, Any] | None = None    # 진솔 대본
-        self.editing_data: dict[str, Any] | None = None   # 지우 편집 설계도
+        self.script_data: dict[str, Any] | None = None  # 진솔 대본
+        self.editing_data: dict[str, Any] | None = None  # 지우 편집 설계도
         self.ffmpeg_config: dict[str, Any] | None = None  # FFmpeg 렌더 구성
 
     # ── Phase 1: 진솔 대본 작가 ───────────────────────────────────────────────

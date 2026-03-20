@@ -7,8 +7,6 @@ LLMRouter를 Mock으로 교체해 실제 API 호출 없이 흐름을 검증합�
 
 from __future__ import annotations
 
-import json
-from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -19,7 +17,6 @@ from shorts_maker_v2.pipeline.persona_pipeline import (
     run_jinsol,
     run_jiwoo,
 )
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 픽스처 — Mock LLM 응답
@@ -112,6 +109,7 @@ def _make_mock_router(*responses: dict) -> MagicMock:
 # 테스트
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 class TestHaewonPhase:
     def test_output_schema(self):
         """해원 output이 필수 키를 모두 포함해야 한다."""
@@ -200,8 +198,13 @@ class TestJiwooPhase:
         router = _make_mock_router(MOCK_JIWOO_OUTPUT)
         result = run_jiwoo(MOCK_JINSOL_OUTPUT, router)
         required_fields = {
-            "clip_index", "estimated_time_sec", "narration_text",
-            "b_roll_prompt_en", "visual_effect", "sound_effect", "transition_type",
+            "clip_index",
+            "estimated_time_sec",
+            "narration_text",
+            "b_roll_prompt_en",
+            "visual_effect",
+            "sound_effect",
+            "transition_type",
         }
         for clip in result["timeline_data"]:
             missing = required_fields - clip.keys()
@@ -214,7 +217,7 @@ class TestJiwooPhase:
         for clip in result["timeline_data"]:
             prompt = clip["b_roll_prompt_en"]
             # 한글 유니코드 범위 포함 여부 체크
-            has_korean = any("\uAC00" <= ch <= "\uD7A3" for ch in prompt)
+            has_korean = any("\uac00" <= ch <= "\ud7a3" for ch in prompt)
             assert not has_korean, f"b_roll_prompt_en에 한글 포함: {prompt[:50]}"
 
 
@@ -254,6 +257,7 @@ class TestShortsAutomationMaster:
             MOCK_FFMPEG_OUTPUT,
         )
         from shorts_maker_v2.pipeline.persona_pipeline import ShortsAutomationMaster
+
         master = ShortsAutomationMaster("이중항체 기술", router)
         result = master.run_pipeline()
 
@@ -268,6 +272,7 @@ class TestShortsAutomationMaster:
             MOCK_FFMPEG_OUTPUT,
         )
         from shorts_maker_v2.pipeline.persona_pipeline import ShortsAutomationMaster
+
         master = ShortsAutomationMaster("이중항체 기술", router)
         master.run_pipeline()
 
@@ -279,6 +284,7 @@ class TestShortsAutomationMaster:
         """phase1 없이 phase2 호출 시 RuntimeError를 발생시켜야 한다."""
         router = _make_mock_router()
         from shorts_maker_v2.pipeline.persona_pipeline import ShortsAutomationMaster
+
         master = ShortsAutomationMaster("이중항체 기술", router)
         with pytest.raises(RuntimeError, match="phase1"):
             master.phase2_generate_editing()
@@ -287,6 +293,7 @@ class TestShortsAutomationMaster:
         """phase2 없이 phase3 호출 시 RuntimeError를 발생시켜야 한다."""
         router = _make_mock_router()
         from shorts_maker_v2.pipeline.persona_pipeline import ShortsAutomationMaster
+
         master = ShortsAutomationMaster("이중항체 기술", router)
         with pytest.raises(RuntimeError, match="phase2"):
             master.phase3_generate_ffmpeg()
@@ -299,6 +306,7 @@ class TestShortsAutomationMaster:
             MOCK_FFMPEG_OUTPUT,
         )
         from shorts_maker_v2.pipeline.persona_pipeline import ShortsAutomationMaster
+
         master = ShortsAutomationMaster("이중항체 기술", router)
         master.run_pipeline()
 
@@ -313,6 +321,7 @@ class TestShortsAutomationMaster:
             MOCK_FFMPEG_OUTPUT,
         )
         from shorts_maker_v2.pipeline.persona_pipeline import ShortsAutomationMaster
+
         master = ShortsAutomationMaster("이중항체 기술", router, tone="도발적으로")
         master.run_pipeline()
 

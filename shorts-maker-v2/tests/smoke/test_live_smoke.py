@@ -31,4 +31,3 @@ def test_live_smoke_single_run() -> None:
         ]
     )
     assert exit_code == 0
-

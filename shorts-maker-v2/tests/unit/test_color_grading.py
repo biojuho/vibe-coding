@@ -1,4 +1,5 @@
 """color_grading.py 유닛 테스트."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -13,8 +14,8 @@ from shorts_maker_v2.render.color_grading import (
     color_grade_clip,
 )
 
-
 # ── COLOR_PROFILES / ROLE_ADJUSTMENTS ────────────────────────────────────────
+
 
 class TestColorProfiles:
     def test_all_channels_defined(self):
@@ -47,6 +48,7 @@ class TestColorProfiles:
 
 
 # ── apply_color_grade ─────────────────────────────────────────────────────────
+
 
 class TestApplyColorGrade:
     @pytest.fixture
@@ -84,8 +86,12 @@ class TestApplyColorGrade:
     def test_brightness_effect(self):
         """밝기 증가 → 결과값이 더 밝아야 함."""
         frame = np.full((64, 64, 3), 100, dtype=np.uint8)
-        bright = apply_color_grade(frame, override={"brightness": 1.3, "contrast": 1.0, "saturation": 1.0, "tint": (0, 0, 0)})
-        dark = apply_color_grade(frame, override={"brightness": 0.7, "contrast": 1.0, "saturation": 1.0, "tint": (0, 0, 0)})
+        bright = apply_color_grade(
+            frame, override={"brightness": 1.3, "contrast": 1.0, "saturation": 1.0, "tint": (0, 0, 0)}
+        )
+        dark = apply_color_grade(
+            frame, override={"brightness": 0.7, "contrast": 1.0, "saturation": 1.0, "tint": (0, 0, 0)}
+        )
         assert bright.mean() > dark.mean()
 
     def test_output_clipped_0_255(self, sample_frame):
@@ -97,18 +103,23 @@ class TestApplyColorGrade:
     def test_tint_shifts_channel(self):
         """파란 틴트 → B 채널 증가."""
         frame = np.full((32, 32, 3), 100, dtype=np.uint8)
-        result = apply_color_grade(frame, override={
-            "brightness": 1.0, "contrast": 1.0, "saturation": 1.0,
-            "tint": (0, 0, 30), "vignette_strength": 0.0,
-        })
+        result = apply_color_grade(
+            frame,
+            override={
+                "brightness": 1.0,
+                "contrast": 1.0,
+                "saturation": 1.0,
+                "tint": (0, 0, 30),
+                "vignette_strength": 0.0,
+            },
+        )
         # B 채널이 R 채널보다 높아야 함
         assert result[:, :, 2].mean() > result[:, :, 0].mean()
 
     def test_override_applied(self, sample_frame):
         """override 딕셔너리가 프로파일을 덮어씀."""
         result_default = apply_color_grade(sample_frame, channel_key="ai_tech")
-        result_override = apply_color_grade(sample_frame, channel_key="ai_tech",
-                                             override={"brightness": 2.0})
+        result_override = apply_color_grade(sample_frame, channel_key="ai_tech", override={"brightness": 2.0})
         # brightness 2.0이 적용되므로 더 밝아야 함
         assert result_override.mean() > result_default.mean()
 
@@ -122,6 +133,7 @@ class TestApplyColorGrade:
 
 
 # ── apply_vignette ────────────────────────────────────────────────────────────
+
 
 class TestApplyVignette:
     @pytest.fixture
@@ -173,10 +185,12 @@ class TestApplyVignette:
 
 # ── color_grade_clip ──────────────────────────────────────────────────────────
 
+
 class TestColorGradeClip:
     def test_returns_transformed_clip(self):
         """color_grade_clip이 clip.transform()을 호출해야 함."""
         from unittest.mock import MagicMock
+
         mock_clip = MagicMock()
         mock_clip.transform.return_value = mock_clip
 
@@ -187,7 +201,8 @@ class TestColorGradeClip:
 
     def test_transform_function_processes_frame(self):
         """transform에 전달된 함수가 실제로 프레임을 변환하는지."""
-        from unittest.mock import MagicMock, call
+        from unittest.mock import MagicMock
+
         mock_clip = MagicMock()
         captured_fn = {}
 
@@ -200,7 +215,10 @@ class TestColorGradeClip:
 
         # 캡처된 함수로 실제 프레임 변환 테스트
         frame = np.full((64, 64, 3), 128, dtype=np.uint8)
-        get_frame = lambda t: frame
+
+        def get_frame(t):
+            return frame
+
         result = captured_fn["fn"](get_frame, 0.0)
         assert result.shape == (64, 64, 3)
         assert result.dtype == np.uint8

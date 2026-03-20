@@ -3,8 +3,10 @@
 동일 visual prompt로 생성된 이미지를 캐시하여 재생성을 방지합니다.
 캐시 키는 프롬프트 텍스트의 SHA-256 해시이며, 파일명에 확장자를 보존합니다.
 """
+
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import shutil
 import threading
@@ -54,10 +56,10 @@ class MediaCache:
         """TTL이 지난 파일 삭재."""
         if self.ttl_days <= 0 or not self.cache_dir.exists():
             return
-            
+
         now = time.time()
         ttl_sec = self.ttl_days * 86400
-        
+
         for f in self.cache_dir.iterdir():
             if f.is_file():
                 try:
@@ -89,8 +91,8 @@ class MediaCache:
 
         # 오래된 순 정렬
         files.sort(key=lambda x: x[1])
-        
-        for f, mtime, size in files:
+
+        for f, _mtime, size in files:
             try:
                 f.unlink(missing_ok=True)
                 total_size -= size
@@ -141,10 +143,8 @@ class MediaCache:
             return dest_path
 
         # hit 시 mtime 업데이트 (LRU 갱신)
-        try:
+        with contextlib.suppress(Exception):
             cached.touch(exist_ok=True)
-        except Exception:
-            pass
 
         return cached
 

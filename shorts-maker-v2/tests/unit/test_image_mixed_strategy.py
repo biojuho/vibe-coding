@@ -1,4 +1,5 @@
 """이미지 생성 혼합 전략 테스트: Body 씬에서 DALL-E 스킵 검증."""
+
 from __future__ import annotations
 
 import unittest
@@ -69,14 +70,14 @@ class TestVoiceRoleMapping(unittest.TestCase):
             "cta": "ko-KR-InJoonNeural",
         }
         for role, expected in voice_roles.items():
-            voice = voice_roles[role] if role in voice_roles else "default-voice"
+            voice = voice_roles.get(role, "default-voice")
             self.assertEqual(voice, expected, f"{role} 역할의 음성이 올바르지 않습니다")
 
     def test_unknown_role_uses_default(self):
         """매핑에 없는 역할은 기본 음성 사용."""
         voice_roles = {"hook": "ko-KR-InJoonNeural", "body": "ko-KR-SunHiNeural"}
         role = "rank3"
-        voice = voice_roles[role] if role in voice_roles else "default-voice"
+        voice = voice_roles.get(role, "default-voice")
         self.assertEqual(voice, "default-voice")
 
 

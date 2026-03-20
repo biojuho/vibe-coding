@@ -1,7 +1,8 @@
 """Multi-provider LLM router with fallback, retry, and cost-awareness.
 
 Supported providers: openai, google (gemini), anthropic, xai (grok),
-                     deepseek, moonshot (kimi), zhipuai (glm), groq (llama).
+                     deepseek, moonshot (kimi), zhipuai (glm), groq (llama),
+                     mimo (xiaomi).
 """
 
 from __future__ import annotations
@@ -13,10 +14,12 @@ import threading
 import time
 from typing import Any
 
+
 def _import_language_bridge():
     """Lazily import execution.language_bridge with dynamic sys.path fixup."""
     import sys as _sys
     from pathlib import Path as _Path
+
     _root = _Path(__file__).resolve().parent.parent.parent.parent.parent
     if str(_root) not in _sys.path:
         _sys.path.insert(0, str(_root))
@@ -30,6 +33,7 @@ def _import_language_bridge():
         validate_json_payload,
         validate_text_content,
     )
+
     return {
         "BridgePolicy": BridgePolicy,
         "build_bridge_system_prompt": build_bridge_system_prompt,
@@ -41,13 +45,16 @@ def _import_language_bridge():
         "validate_text_content": validate_text_content,
     }
 
+
 _bridge_cache: dict | None = None
+
 
 def _get_bridge():
     global _bridge_cache
     if _bridge_cache is None:
         _bridge_cache = _import_language_bridge()
     return _bridge_cache
+
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +76,8 @@ PROVIDER_ALIASES = {
     "zhipu": "zhipuai",
     "groq": "groq",
     "llama": "groq",
+    "mimo": "mimo",
+    "xiaomi": "mimo",
 }
 
 DEFAULT_MODELS = {
@@ -80,6 +89,7 @@ DEFAULT_MODELS = {
     "moonshot": "moonshot-v1-8k",
     "zhipuai": "glm-4-flash",
     "groq": "llama-3.3-70b-versatile",
+    "mimo": "mimo-v2-flash",
 }
 
 # Gemini 3.1 Thinking Levels (minimal → high)
@@ -92,6 +102,7 @@ OPENAI_COMPATIBLE_BASE_URLS = {
     "moonshot": "https://api.moonshot.cn/v1",
     "zhipuai": "https://open.bigmodel.cn/api/paas/v4",
     "groq": "https://api.groq.com/openai/v1",
+    "mimo": "https://api.xiaomimimo.com/v1",
 }
 
 NON_RETRYABLE_KEYWORDS = [
@@ -132,6 +143,7 @@ class LLMRouter:
             "moonshot": os.getenv("MOONSHOT_API_KEY"),
             "zhipuai": os.getenv("ZHIPUAI_API_KEY"),
             "groq": os.getenv("GROQ_API_KEY"),
+            "mimo": os.getenv("MIMO_API_KEY") or os.getenv("XIAOMI_API_KEY"),
         }
 
         self._clients: dict[str, Any] = {}
@@ -168,13 +180,16 @@ class LLMRouter:
 
             if provider == "google":
                 from google import genai
+
                 client = genai.Client(api_key=api_key)
             elif provider == "anthropic":
                 from anthropic import Anthropic
+
                 client = Anthropic(api_key=api_key)
             elif provider in OPENAI_COMPATIBLE_BASE_URLS:
                 # xai, deepseek, moonshot, zhipuai → OpenAI-compatible
                 from openai import OpenAI
+
                 client = OpenAI(
                     api_key=api_key,
                     base_url=OPENAI_COMPATIBLE_BASE_URLS[provider],
@@ -182,6 +197,7 @@ class LLMRouter:
                 )
             elif provider == "openai":
                 from openai import OpenAI
+
                 client = OpenAI(api_key=api_key, timeout=self.request_timeout_sec)
             else:
                 raise ValueError(f"Unknown provider: {provider}")
@@ -200,7 +216,7 @@ class LLMRouter:
     ) -> str:
         client = self._get_client(provider)
 
-        if provider in ("openai", "xai", "deepseek", "moonshot", "zhipuai", "groq"):
+        if provider in ("openai", "xai", "deepseek", "moonshot", "zhipuai", "groq", "mimo"):
             kwargs: dict[str, Any] = {
                 "model": self.models[provider],
                 "messages": [
@@ -216,6 +232,7 @@ class LLMRouter:
 
         elif provider == "google":
             from google.genai import types
+
             # Gemini 3.1: thinking_config 지원
             thinking_config = None
             if thinking_level and thinking_level in VALID_THINKING_LEVELS:
@@ -224,7 +241,8 @@ class LLMRouter:
                 )
                 logger.info(
                     "[Gemini] Thinking level: %s (model: %s)",
-                    thinking_level, self.models[provider],
+                    thinking_level,
+                    self.models[provider],
                 )
 
             config_kwargs: dict[str, Any] = {
@@ -304,13 +322,18 @@ class LLMRouter:
                 try:
                     logger.info(
                         "LLM request via %s (attempt %d/%d)",
-                        provider, attempt, self.max_retries,
+                        provider,
+                        attempt,
+                        self.max_retries,
                     )
                     print(f"  🔄 [{provider}] LLM 요청 ({attempt}/{self.max_retries})...")
 
                     content = self._generate_once(
-                        provider, system_prompt, user_prompt,
-                        temperature, json_mode=True,
+                        provider,
+                        system_prompt,
+                        user_prompt,
+                        temperature,
+                        json_mode=True,
                         thinking_level=thinking_level,
                     )
                     content = self._clean_json(content)
@@ -336,15 +359,13 @@ class LLMRouter:
                         break
 
                 if attempt < self.max_retries:
-                    wait = min(2 ** attempt, 10)
+                    wait = min(2**attempt, 10)
                     time.sleep(wait)
 
             logger.info("Provider %s exhausted. Moving to next.", provider)
             print(f"  ➡️ [{provider}] 실패, 다음 provider로 전환")
 
-        raise RuntimeError(
-            f"All LLM providers failed.\nErrors: {' | '.join(all_errors)}"
-        )
+        raise RuntimeError(f"All LLM providers failed.\nErrors: {' | '.join(all_errors)}")
 
     def generate_text(
         self,
@@ -364,8 +385,11 @@ class LLMRouter:
             for attempt in range(1, self.max_retries + 1):
                 try:
                     content = self._generate_once(
-                        provider, system_prompt, user_prompt,
-                        temperature, json_mode=False,
+                        provider,
+                        system_prompt,
+                        user_prompt,
+                        temperature,
+                        json_mode=False,
                         thinking_level=thinking_level,
                     )
                     return content
@@ -374,7 +398,7 @@ class LLMRouter:
                     if self._is_non_retryable(e):
                         break
                     if attempt < self.max_retries:
-                        time.sleep(min(2 ** attempt, 10))
+                        time.sleep(min(2**attempt, 10))
 
         raise RuntimeError(f"All providers failed: {' | '.join(all_errors)}")
 
@@ -402,10 +426,13 @@ class LLMRouter:
                 temperature=temperature,
             )
 
-        providers = preferred_provider_order(
-            self._enabled_from_order(list(policy.fallback_providers)),
-            policy=policy,
-        ) or self.enabled_providers()
+        providers = (
+            preferred_provider_order(
+                self._enabled_from_order(list(policy.fallback_providers)),
+                policy=policy,
+            )
+            or self.enabled_providers()
+        )
         if not providers:
             raise RuntimeError("No LLM providers available.")
 
@@ -475,7 +502,7 @@ class LLMRouter:
                     if self._is_non_retryable(e):
                         break
                     if attempt < self.max_retries:
-                        time.sleep(min(2 ** attempt, 10))
+                        time.sleep(min(2**attempt, 10))
 
         raise RuntimeError(f"All bridge providers failed: {' | '.join(all_errors)}")
 
@@ -505,10 +532,13 @@ class LLMRouter:
                 temperature=temperature,
             )
 
-        providers = preferred_provider_order(
-            self._enabled_from_order(list(policy.fallback_providers)),
-            policy=policy,
-        ) or self.enabled_providers()
+        providers = (
+            preferred_provider_order(
+                self._enabled_from_order(list(policy.fallback_providers)),
+                policy=policy,
+            )
+            or self.enabled_providers()
+        )
         if not providers:
             raise RuntimeError(
                 "No LLM providers available. Check API keys: "
@@ -589,7 +619,6 @@ class LLMRouter:
                     if self._is_non_retryable(e):
                         break
                     if attempt < self.max_retries:
-                        time.sleep(min(2 ** attempt, 10))
+                        time.sleep(min(2**attempt, 10))
 
         raise RuntimeError(f"All bridge providers failed: {' | '.join(all_errors)}")
-

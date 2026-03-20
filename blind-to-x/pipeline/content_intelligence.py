@@ -259,6 +259,20 @@ def classify_topic_cluster(title: str, content: str) -> str:
 
 
 def classify_emotion_axis(title: str, content: str) -> str:
+    """감정 축 분류 — KOTE 44차원 모델 우선, 키워드 폴백."""
+    # KOTE 모델 시도 (로드 실패 시 자동 폴백)
+    try:
+        from pipeline.emotion_analyzer import get_emotion_profile
+        profile = get_emotion_profile(f"{title} {content}")
+        if profile.confidence >= 0.5:
+            logger.debug(
+                "KOTE emotion: %s (confidence=%.2f, valence=%.2f)",
+                profile.emotion_axis, profile.confidence, profile.valence,
+            )
+            return profile.emotion_axis
+    except Exception:
+        pass
+    # 키워드 기반 폴백
     return _match_first(f"{title} {content}", get_emotion_rules(), "공감")
 
 

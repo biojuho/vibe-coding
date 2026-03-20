@@ -1,4 +1,5 @@
 """hwaccel 모듈 유닛 테스트."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -6,8 +7,6 @@ from unittest.mock import MagicMock, patch
 from shorts_maker_v2.utils.hwaccel import (
     _CPU_FALLBACK,
     _HW_ENCODERS,
-    _encoder_available,
-    _test_encode,
     detect_hw_encoder,
 )
 
@@ -73,6 +72,7 @@ def test_forced_but_failed(mock_test: MagicMock) -> None:
 
 
 # ─── Phase 3-E: additional encoder stability tests ────────────────────────
+
 
 @patch("shorts_maker_v2.utils.hwaccel._test_encode", return_value=True)
 @patch("shorts_maker_v2.utils.hwaccel._encoder_available", return_value=False)

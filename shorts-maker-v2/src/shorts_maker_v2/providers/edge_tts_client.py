@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import random
 import re as _re
 from pathlib import Path
 
@@ -44,6 +45,9 @@ def _speed_to_rate(speed: float) -> str:
 def _get_role_prosody(role: str, base_rate: str = "+0%") -> tuple[str, str]:
     """역할 기반 rate/pitch 반환 (SSML 없이 파라미터 직접 사용).
 
+    body 역할에 ±3~5% rate, ±2Hz pitch 랜덤 변주를 적용하여
+    단조로운 AI 억양을 완화합니다.
+
     Returns:
         (rate, pitch) 튜플
     """
@@ -51,8 +55,17 @@ def _get_role_prosody(role: str, base_rate: str = "+0%") -> tuple[str, str]:
         return "+15%", "+8Hz"
     if role == "cta":
         return "-10%", "+5Hz"
-    # body: base_rate 사용, pitch 기본값
-    return base_rate, "+0Hz"
+    # body 및 기타 역할: 랜덤 변주 적용
+    try:
+        base_pct = int(base_rate.replace("%", "").replace("+", ""))
+    except ValueError:
+        base_pct = 0
+    jitter = random.randint(-5, 5)
+    final_pct = base_pct + jitter
+    rate = f"+{final_pct}%" if final_pct >= 0 else f"{final_pct}%"
+    pitch_hz = random.randint(-2, 3)
+    pitch = f"+{pitch_hz}Hz" if pitch_hz >= 0 else f"{pitch_hz}Hz"
+    return rate, pitch
 
 
 # ── 근사 타이밍 (WordBoundary 미지원 시 fallback) ──────────────────────────────
@@ -100,6 +113,22 @@ def _approximate_word_timings(text: str, audio_path: Path) -> list[dict]:
     return result
 
 
+def _add_silence_padding(audio_path: Path, pad_ms: int = 50) -> None:
+    """오디오 앞뒤에 짧은 무음 패딩을 추가하여 씬 전환 팝/클릭 방지."""
+    try:
+        from pydub import AudioSegment
+
+        audio = AudioSegment.from_file(str(audio_path))
+        silence = AudioSegment.silent(duration=pad_ms, frame_rate=audio.frame_rate)
+        padded = silence + audio + silence
+        padded.export(str(audio_path), format=audio_path.suffix.lstrip("."))
+        logger.debug("EdgeTTS: added %dms silence padding to %s", pad_ms, audio_path.name)
+    except ImportError:
+        logger.debug("EdgeTTS: pydub not available, skipping silence padding")
+    except Exception as exc:
+        logger.debug("EdgeTTS: silence padding failed: %s", exc)
+
+
 # ── 비동기 TTS 생성 ──────────────────────────────────────────────────────────
 
 
@@ -113,6 +142,7 @@ async def _generate_async(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     communicate = edge_tts.Communicate(text, voice=voice, rate=rate, pitch=pitch)
     await communicate.save(str(output_path))
+    _add_silence_padding(output_path)
 
 
 async def _generate_async_with_timing(
@@ -192,6 +222,24 @@ async def _generate_async_with_timing(
                     len(approx),
                     words_json_path,
                 )
+
+    # silence padding 적용 (씬 전환 팝/클릭 방지)
+    _add_silence_padding(output_path)
+
+    # padding offset 적용: word timing을 0.05s 시프트 (앞 50ms 패딩)
+    _pad_sec = 0.05
+    if words_json_path.exists():
+        try:
+            _saved_words = json.loads(words_json_path.read_text(encoding="utf-8"))
+            for w in _saved_words:
+                w["start"] = round(w["start"] + _pad_sec, 4)
+                w["end"] = round(w["end"] + _pad_sec, 4)
+            words_json_path.write_text(
+                json.dumps(_saved_words, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+        except Exception:
+            pass
 
     # plain text 저장 (이전 SSML 호환: render_step의 break 보정에 사용)
     (words_json_path.parent / f"{words_json_path.stem}_ssml.txt").write_text(

@@ -3,7 +3,6 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
-
 _EXPECTED_HASHES = {
     "ai_tech_hook_overlay": "5775ede816bee1ebaa803d1ed1f04c45",
     "ai_tech_body_overlay": "7ccf8b1b7fcc282a99853be5c5c07e84",

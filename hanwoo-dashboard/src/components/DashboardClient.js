@@ -1,10 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createCattle, updateCattle, deleteCattle, createSalesRecord, addInventoryItem, updateInventoryQuantity, createScheduleEvent, toggleEventCompletion, recordFeed, createBuilding, deleteBuilding, updateFarmSettings, getNotifications } from '@/lib/actions';
-import { BUILDINGS, NAMWON_LAT, NAMWON_LNG } from '@/lib/constants';
+import { createCattle, updateCattle, deleteCattle, recordCalving, createSalesRecord, addInventoryItem, updateInventoryQuantity, createScheduleEvent, toggleEventCompletion, recordFeed, createBuilding, deleteBuilding, updateFarmSettings, getNotifications } from '@/lib/actions';
+import { useAppFeedback } from '@/components/feedback/FeedbackProvider';
 import { formatMoney } from '@/lib/utils';
-import { PlusIcon } from '@/components/ui/common';
 import { TabBar, WeatherWidget, EstrusAlertBanner, CalvingAlertBanner } from '@/components/widgets/widgets';
 import { StatCard, PenCard, CattleRow } from '@/components/ui/cards';
 import { Button } from '@/components/ui/button';
@@ -48,21 +47,14 @@ const WIDGETS_STORAGE_KEY = "joolife-widgets";
 
 function useWidgetSettings() {
   const [visible, setVisible] = useState(() => {
-    if (typeof window === "undefined") return {};
+    const defaults = Object.fromEntries(WIDGET_REGISTRY.map(w => [w.id, w.defaultOn]));
+    if (typeof window === "undefined") return defaults;
     try {
       const saved = localStorage.getItem(WIDGETS_STORAGE_KEY);
-      if (saved) return JSON.parse(saved);
+      if (saved) return { ...defaults, ...JSON.parse(saved) };
     } catch {}
-    return Object.fromEntries(WIDGET_REGISTRY.map(w => [w.id, w.defaultOn]));
+    return defaults;
   });
-
-  useEffect(() => {
-    // Ensure new widgets have defaults
-    setVisible(prev => {
-      const merged = { ...Object.fromEntries(WIDGET_REGISTRY.map(w => [w.id, w.defaultOn])), ...prev };
-      return merged;
-    });
-  }, []);
 
   const toggle = (id) => {
     setVisible(prev => {
@@ -78,6 +70,7 @@ function useWidgetSettings() {
 export default function DashboardClient({ initialCattle, initialSales, initialFeedStandards, initialInventory, initialSchedule, initialFeedHistory, initialBuildings, initialFarmSettings, initialExpenses }) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
+  const { notify, confirm } = useAppFeedback();
   const widgetSettings = useWidgetSettings();
   const isOnline = useOnlineStatus();
   const [activeTab, setActiveTab] = useState("home");
@@ -101,6 +94,19 @@ export default function DashboardClient({ initialCattle, initialSales, initialFe
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
+
+  const showSuccess = (title, description = '') => {
+    notify({ title, description, variant: 'success' });
+  };
+
+  const showWarning = (title, description = '') => {
+    notify({ title, description, variant: 'warning' });
+  };
+
+  const showError = (title, description = '') => {
+    notify({ title, description, variant: 'error' });
+  };
+
   
   // Weather Fetch
   useEffect(() => {
@@ -175,142 +181,319 @@ export default function DashboardClient({ initialCattle, initialSales, initialFe
     if (isOnline && queueSize() > 0) {
       syncOfflineQueue().then(({ synced, failed }) => {
         if (synced > 0) {
-          alert(`오프라인 작업 ${synced}건 동기화 완료${failed > 0 ? ` (${failed}건 실패)` : ''}`);
+          notify({
+            title: failed > 0 ? '오프라인 작업을 일부 동기화했습니다.' : '오프라인 작업 동기화가 완료되었습니다.',
+            description:
+              failed > 0
+                ? `${synced}건은 반영되었고 ${failed}건은 다시 시도해 주세요.`
+                : `${synced}건이 서버에 반영되었습니다.`,
+            variant: failed > 0 ? 'warning' : 'success',
+          });
           router.refresh();
         }
       });
     }
-  }, [isOnline, router]);
+  }, [isOnline, notify, router]);
 
   const handleTestSMS = () => {
-      alert("✅ [테스트] 등록된 번호로 SMS가 발송되었습니다.\n'Joolife: 분만 임박 알림 - 순심이(0001) 예정일 3일 전입니다.'");
+      showSuccess(
+        '테스트 SMS를 발송했습니다.',
+        "Joolife: 분만 임박 알림 - 순심이(0001) 예정일 3일 전입니다.",
+      );
   };
 
   const handleUpdateFarmSettings = async (data) => {
     const res = await updateFarmSettings(data);
-    if (!res.success) alert(res.message);
-    else {
-        setFarmSettings(res.data);
-        alert("농장 정보가 저장되었습니다.");
-        router.refresh();
+    if (!res.success) {
+      showError('농장 정보를 저장하지 못했습니다.', res.message);
+      return false;
     }
+
+    setFarmSettings(res.data);
+    showSuccess('농장 정보가 저장되었습니다.');
+    router.refresh();
+    return true;
   };
 
-  const handleAddCattle = async (newCattle) => {
+  const handleAddCattle = async (newCattle, feedbackOptions = {}) => {
+    const {
+      successTitle = '개체가 등록되었습니다.',
+      successDescription = '',
+      errorTitle = '개체 등록에 실패했습니다.',
+      offlineTitle = '오프라인 상태입니다.',
+      offlineDescription = '등록 요청이 대기열에 저장되었습니다.',
+      skipSuccessFeedback = false,
+    } = feedbackOptions;
+
     if (!isOnline) {
       enqueue('createCattle', [newCattle]);
       setCattleList(prev => [newCattle, ...prev]);
       setShowAddModal(false);
-      return alert("오프라인: 등록이 대기열에 저장되었습니다.");
+      showWarning(offlineTitle, offlineDescription);
+      return true;
     }
+
     try {
       const result = await createCattle(newCattle);
       if (result.success) {
-        setCattleList(prev => [newCattle, ...prev]);
+        const savedCattle = result.data || newCattle;
+        setCattleList(prev => [savedCattle, ...prev]);
         setShowAddModal(false);
-        alert("등록되었습니다.");
+        if (!skipSuccessFeedback) {
+          showSuccess(successTitle, successDescription);
+        }
         router.refresh();
+        return true;
       } else {
-        alert("등록 실패: " + result.message);
+        showError(errorTitle, result.message);
+        return false;
       }
     } catch (e) {
-      alert("오류 발생: " + e.message);
+      showError(errorTitle, e.message);
+      return false;
     }
   };
   
-  const handleUpdateCattle = async (updated) => {
+  const handleUpdateCattle = async (updated, feedbackOptions = {}) => {
+    const {
+      successTitle = '개체 정보를 수정했습니다.',
+      successDescription = '',
+      errorTitle = '개체 수정에 실패했습니다.',
+      offlineTitle = '오프라인 상태입니다.',
+      offlineDescription = '수정 요청이 대기열에 저장되었습니다.',
+      skipSuccessFeedback = false,
+    } = feedbackOptions;
+
     if (!isOnline) {
       enqueue('updateCattle', [updated.id, updated]);
       setCattleList(prev => prev.map(c => c.id === updated.id ? updated : c));
       setIsEditing(false);
       if (selectedCow && selectedCow.id === updated.id) setSelectedCow(updated);
-      return alert("오프라인: 수정이 대기열에 저장되었습니다.");
+      showWarning(offlineTitle, offlineDescription);
+      return true;
     }
+
     try {
       const result = await updateCattle(updated.id, updated);
       if (result.success) {
-        setCattleList(prev => prev.map(c => c.id === updated.id ? updated : c));
+        const savedCattle = result.data || updated;
+        setCattleList(prev => prev.map(c => c.id === savedCattle.id ? savedCattle : c));
         setIsEditing(false);
-        if (selectedCow && selectedCow.id === updated.id) setSelectedCow(updated);
+        if (selectedCow && selectedCow.id === savedCattle.id) setSelectedCow(savedCattle);
+        if (!skipSuccessFeedback) {
+          showSuccess(successTitle, successDescription);
+        }
         router.refresh();
+        return true;
       } else {
-        alert("수정 실패: " + result.message);
+        showError(errorTitle, result.message);
+        return false;
       }
     } catch (e) {
-      alert("오류 발생: " + e.message);
+      showError(errorTitle, e.message);
+      return false;
     }
   };
 
   const handleDeleteCattle = async (id) => {
-    if(confirm("정말 삭제하시겠습니까?")){
-        try {
-            const result = await deleteCattle(id);
-            if(result.success) {
-                setCattleList(prev => prev.filter(c => c.id !== id));
-                setSelectedCow(null);
-                router.refresh();
-            } else {
-                alert("삭제 실패: " + result.message);
-            }
-        } catch(e) {
-            alert("삭제 중 오류가 발생했습니다.");
-        }
+    const targetCattle = cattleList.find((cow) => cow.id === id);
+    const shouldDelete = await confirm({
+      title: '개체를 삭제할까요?',
+      description: targetCattle
+        ? `${targetCattle.name} (${targetCattle.tagNumber}) 정보가 목록에서 제거됩니다.`
+        : '삭제한 데이터는 되돌릴 수 없습니다.',
+      confirmLabel: '삭제',
+      cancelLabel: '취소',
+      variant: 'destructive',
+    });
+
+    if (!shouldDelete) {
+      return false;
+    }
+
+    try {
+      const result = await deleteCattle(id);
+      if(result.success) {
+        setCattleList(prev => prev.filter(c => c.id !== id));
+        setSelectedCow(null);
+        showSuccess('개체를 삭제했습니다.');
+        router.refresh();
+        return true;
+      }
+
+      showError('개체 삭제에 실패했습니다.', result.message);
+      return false;
+    } catch(e) {
+      showError('개체 삭제 중 오류가 발생했습니다.');
+      return false;
     }
   };
 
   const handleAddItem = async (data) => {
     const res = await addInventoryItem(data);
-    if(!res.success) alert(res.message); else router.refresh();
+    if (!res.success) {
+      showError('재고 항목을 추가하지 못했습니다.', res.message);
+      return false;
+    }
+
+    showSuccess('재고 항목이 추가되었습니다.');
+    router.refresh();
+    return true;
   };
 
   const handleUpdateQuantity = async (id, qty) => {
     const res = await updateInventoryQuantity(id, qty);
-    if(!res.success) alert(res.message); else router.refresh();
+    if (!res.success) {
+      showError('재고 수량을 수정하지 못했습니다.', res.message);
+      return false;
+    }
+
+    showSuccess('재고 수량을 업데이트했습니다.');
+    router.refresh();
+    return true;
   };
 
   const handleCreateEvent = async (data) => {
     const res = await createScheduleEvent(data);
-    if(!res.success) alert(res.message); else router.refresh();
+    if (!res.success) {
+      showError('일정을 등록하지 못했습니다.', res.message);
+      return false;
+    }
+
+    showSuccess('일정을 등록했습니다.');
+    router.refresh();
+    return true;
   };
 
   const handleToggleEvent = async (id, isCompleted) => {
     const res = await toggleEventCompletion(id, isCompleted);
-    if(!res.success) alert(res.message); else router.refresh();
+    if (!res.success) {
+      showError('일정 상태를 변경하지 못했습니다.', res.message);
+      return false;
+    }
+
+    showSuccess(isCompleted ? '일정을 완료 처리했습니다.' : '일정을 다시 진행 중으로 변경했습니다.');
+    router.refresh();
+    return true;
   };
 
   const handleCreateSale = async (data) => {
     if (!isOnline) {
       enqueue('createSalesRecord', [data]);
-      return alert("오프라인: 판매 기록이 대기열에 저장되었습니다.");
+      showWarning('오프라인 상태입니다.', '판매 기록이 대기열에 저장되었습니다.');
+      return true;
     }
+
     const res = await createSalesRecord(data);
-    if(!res.success) alert(res.message); else {
-        alert("판매 기록이 등록되었습니다.");
-        router.refresh();
+    if (!res.success) {
+      showError('판매 기록을 등록하지 못했습니다.', res.message);
+      return false;
     }
+
+    showSuccess('판매 기록이 등록되었습니다.');
+    router.refresh();
+    return true;
   };
 
   const handleRecordFeed = async (data) => {
     if (!isOnline) {
       enqueue('recordFeed', [data]);
-      return alert("오프라인: 급여 기록이 대기열에 저장되었습니다.");
+      showWarning('오프라인 상태입니다.', '급여 기록이 대기열에 저장되었습니다.');
+      return true;
     }
+
     const res = await recordFeed(data);
-    if (!res.success) alert(res.message);
-    else {
-      alert("급여 기록이 완료되었습니다.");
-      router.refresh();
+    if (!res.success) {
+      showError('급여 기록을 저장하지 못했습니다.', res.message);
+      return false;
     }
+
+    showSuccess('급여 기록이 완료되었습니다.');
+    router.refresh();
+    return true;
   };
 
   const handleCreateBuilding = async (data) => {
     const res = await createBuilding(data);
-    if (!res.success) alert(res.message); else router.refresh();
+    if (!res.success) {
+      showError('축사 정보를 추가하지 못했습니다.', res.message);
+      return false;
+    }
+
+    showSuccess('축사를 추가했습니다.');
+    router.refresh();
+    return true;
   };
 
   const handleDeleteBuilding = async (id) => {
     const res = await deleteBuilding(id);
-    if (!res.success) alert(res.message); else router.refresh();
+    if (!res.success) {
+      showError('축사를 삭제하지 못했습니다.', res.message);
+      return false;
+    }
+
+    showSuccess('축사를 삭제했습니다.');
+    router.refresh();
+    return true;
+  };
+
+  const handleRecordCalving = async ({ motherId, calvingDate, calfGender }) => {
+    const mother = cattleList.find((cow) => cow.id === motherId);
+
+    if (!mother) {
+      showError('분만 대상 개체를 찾지 못했습니다.');
+      return false;
+    }
+
+    const calfTagNumber = `KR0000-${String(Math.floor(Math.random() * 900000) + 100000)}`;
+    const updatedMother = {
+      ...mother,
+      status: '번식우',
+      pregnancyDate: null,
+      lastEstrus: null,
+      memo: mother.memo
+        ? `${mother.memo}\n[분만] ${calvingDate} ${calfGender} 송아지 분만`
+        : `[분만] ${calvingDate} ${calfGender} 송아지 분만`,
+    };
+    const calfDraft = {
+      id: `new_${Date.now()}`,
+      tagNumber: calfTagNumber,
+      name: `${mother.name}의 송아지`,
+      buildingId: mother.buildingId,
+      penNumber: mother.penNumber,
+      gender: calfGender,
+      birthDate: new Date(calvingDate).toISOString(),
+      weight: 25,
+      status: '송아지',
+      memo: `모체 ${mother.tagNumber} (${mother.name})`,
+      geneticInfo: {
+        father: mother.geneticFather || '미상',
+        mother: mother.tagNumber,
+        grade: '-',
+      },
+    };
+
+    if (!isOnline) {
+      enqueue('recordCalving', [{ motherId, calvingDate, calfGender, calfTagNumber }]);
+      setCattleList((prev) => [calfDraft, ...prev.map((cow) => (cow.id === motherId ? updatedMother : cow))]);
+      showWarning('오프라인 상태입니다.', '분만 처리 요청이 대기열에 저장되었습니다.');
+      return true;
+    }
+
+    const res = await recordCalving({ motherId, calvingDate, calfGender, calfTagNumber });
+
+    if (!res.success) {
+      showError('분만 처리를 완료하지 못했습니다.', res.message);
+      return false;
+    }
+
+    const savedMother = res.data?.mother || updatedMother;
+    const savedCalf = res.data?.calf || calfDraft;
+
+    setCattleList((prev) => [savedCalf, ...prev.map((cow) => (cow.id === motherId ? savedMother : cow))]);
+    showSuccess('분만 처리가 완료되었습니다.', `${mother.name}의 상태와 송아지 등록이 함께 반영되었습니다.`);
+    router.refresh();
+    return true;
   };
 
   const handleDragDrop = async (cattleId, toBuildingId, toPenNumber) => {
@@ -318,16 +501,38 @@ export default function DashboardClient({ initialCattle, initialSales, initialFe
     if (!cow) return;
     if (cow.buildingId === toBuildingId && cow.penNumber === toPenNumber) return;
     const penCattle = cattleList.filter(c => c.buildingId === toBuildingId && c.penNumber === toPenNumber);
-    if (penCattle.length >= 5) return alert("이 칸은 이미 가득 찼습니다 (최대 5두).");
-    if (!confirm(`${cow.name}을(를) ${buildings.find(b=>b.id===toBuildingId)?.name || toBuildingId} ${toPenNumber}번 칸으로 이동하시겠습니까?`)) return;
+    const targetBuilding = buildings.find((building) => building.id === toBuildingId);
+    const targetLabel = `${targetBuilding?.name || toBuildingId} ${toPenNumber}번 칸`;
+
+    if (penCattle.length >= 5) {
+      showWarning('이 칸은 이미 가득 찼습니다.', '한 칸에는 최대 5두까지만 배치할 수 있습니다.');
+      return false;
+    }
+
+    const shouldMove = await confirm({
+      title: '개체를 이동할까요?',
+      description: `${cow.name}을(를) ${targetLabel}(으)로 이동합니다.`,
+      confirmLabel: '이동',
+      cancelLabel: '취소',
+    });
+
+    if (!shouldMove) {
+      return false;
+    }
+
     const updated = { ...cow, buildingId: toBuildingId, penNumber: toPenNumber };
-    await handleUpdateCattle(updated);
+    return handleUpdateCattle(updated, {
+      successTitle: '개체를 이동했습니다.',
+      successDescription: `${cow.name}을(를) ${targetLabel}(으)로 옮겼습니다.`,
+      offlineTitle: '오프라인 상태입니다.',
+      offlineDescription: `${cow.name} 이동 요청이 대기열에 저장되었습니다.`,
+    });
   };
 
   // Render Content based on Tab
   const renderContent = () => {
     if (activeTab === "feed") return <FeedTab cattle={cattleList} feedStandards={feedStandards} feedHistory={feedHistory} onRecordFeed={handleRecordFeed} buildings={buildings} />;
-    if (activeTab === "calving") return <CalvingTab cattle={cattleList} onUpdateCattle={handleUpdateCattle} onCreateCattle={handleAddCattle} />;
+    if (activeTab === "calving") return <CalvingTab cattle={cattleList} onRecordCalving={handleRecordCalving} />;
     if (activeTab === "sales") return <SalesTab saleRecords={saleRecords} cattleList={cattleList} onCreateSale={handleCreateSale} expenseRecords={expenseRecords} />;
     
     if (activeTab === "inventory") return <InventoryTab inventory={inventoryList} onAddItem={handleAddItem} onUpdateQuantity={handleUpdateQuantity} />;

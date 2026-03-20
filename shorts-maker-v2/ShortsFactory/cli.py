@@ -17,6 +17,7 @@
     # 채널 정보
     python -m ShortsFactory.cli info --channel ai_tech
 """
+
 from __future__ import annotations
 
 import argparse
@@ -32,10 +33,11 @@ logging.basicConfig(
 
 def cmd_channels(args):
     from .pipeline import ShortsFactory
+
     channels = ShortsFactory.list_channels()
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"🎬 ShortsFactory — {len(channels)}개 채널")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     for ch in channels:
         tmpl = ", ".join(ch["templates"])
         print(f"  {ch['id']:15s} | {ch['display_name']:12s} | 프리셋: {ch['color_preset']}")
@@ -45,6 +47,7 @@ def cmd_channels(args):
 
 def cmd_templates(args):
     from .pipeline import ShortsFactory
+
     tmpls = ShortsFactory.list_templates()
     print(f"\n📋 등록된 템플릿 ({len(tmpls)}종):")
     for t in tmpls:
@@ -54,11 +57,12 @@ def cmd_templates(args):
 
 def cmd_info(args):
     from .pipeline import ShortsFactory
+
     factory = ShortsFactory(channel=args.channel)
     info = factory.info()
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print(f"📊 채널 정보: {info['display_name']} ({info['channel']})")
-    print(f"{'='*50}")
+    print(f"{'=' * 50}")
     print(f"  팔레트:   {info['palette']}")
     print(f"  프리셋:   {info['color_preset']}")
     print(f"  캡션콤보: {info['caption_combo']}")
@@ -97,10 +101,7 @@ def cmd_batch(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        prog="ShortsFactory",
-        description="5채널 통합 쇼츠 생성 파이프라인"
-    )
+    parser = argparse.ArgumentParser(prog="ShortsFactory", description="5채널 통합 쇼츠 생성 파이프라인")
     sub = parser.add_subparsers(dest="command", help="명령어")
 
     # channels

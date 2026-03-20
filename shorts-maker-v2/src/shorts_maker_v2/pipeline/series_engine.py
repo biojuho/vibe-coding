@@ -9,11 +9,12 @@ Usage:
     engine = SeriesEngine(output_dir=Path("output"))
     suggestion = engine.suggest_next("AI가 바꾸는 미래")
 """
+
 from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +24,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SeriesPlan:
     """시리즈 에피소드 계획."""
+
     series_id: str
     parent_topic: str
     episode: int
@@ -37,6 +39,7 @@ class SeriesPlan:
 @dataclass
 class TopicPerformance:
     """토픽 성과 데이터."""
+
     topic: str
     views: int = 0
     likes: int = 0
@@ -219,7 +222,7 @@ class SeriesEngine:
         topics = self.analyze_topics(performance_data)
         candidates = []
 
-        for tp in topics[:top_n * 2]:  # 필터링 여유분
+        for tp in topics[: top_n * 2]:  # 필터링 여유분
             plan = self.suggest_next(tp.topic, performance_data)
             if plan is not None:
                 candidates.append(plan)
@@ -244,12 +247,14 @@ class SeriesEngine:
             try:
                 data = json.loads(f.read_text(encoding="utf-8"))
                 if data.get("status") == "success":
-                    results.append({
-                        "topic": data.get("topic", ""),
-                        "views": 0,  # 매니페스트에는 조회수 없음
-                        "likes": 0,
-                        "comments": 0,
-                    })
+                    results.append(
+                        {
+                            "topic": data.get("topic", ""),
+                            "views": 0,  # 매니페스트에는 조회수 없음
+                            "likes": 0,
+                            "comments": 0,
+                        }
+                    )
             except Exception:
                 continue
         return results

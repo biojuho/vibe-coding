@@ -13,8 +13,10 @@ Main Pipeline의 render_from_plan()이 Scene 리스트를 전달하면
     renderer = SFRenderStep(channel_config)
     output = renderer.render_scenes(scenes, "output.mp4")
 """
+
 from __future__ import annotations
 
+import contextlib
 import logging
 from pathlib import Path
 from typing import Any
@@ -34,6 +36,7 @@ def _lazy_moviepy():
         concatenate_videoclips,
         vfx,
     )
+
     return {
         "AudioFileClip": AudioFileClip,
         "CompositeVideoClip": CompositeVideoClip,
@@ -102,11 +105,11 @@ class SFRenderStep:
             렌더링된 MP4 파일 경로
         """
         mp = _lazy_moviepy()
-        ImageClip = mp["ImageClip"]
-        VideoFileClip = mp["VideoFileClip"]
+        mp["ImageClip"]
+        mp["VideoFileClip"]
         CompositeVideoClip = mp["CompositeVideoClip"]
         concatenate_videoclips = mp["concatenate_videoclips"]
-        vfx = mp["vfx"]
+        mp["vfx"]
         AudioFileClip = mp["AudioFileClip"]
 
         w, h = self.TARGET_WIDTH, self.TARGET_HEIGHT
@@ -121,9 +124,7 @@ class SFRenderStep:
             roles.append(role)
 
             # 1) 베이스 비주얼 클립
-            base = self._build_visual_clip(
-                image_path, duration, w, h, mp
-            )
+            base = self._build_visual_clip(image_path, duration, w, h, mp)
 
             # 2) 자막/텍스트 오버레이 (image_path가 Scene에 의해 렌더링된 텍스트 이미지)
             text_overlay = self._build_text_overlay(scene, duration, w, h, mp)
@@ -168,7 +169,9 @@ class SFRenderStep:
 
         logger.info(
             "[SFRender] writing MP4: %s (%.1fs, %d scenes)",
-            output, final.duration, len(scenes),
+            output,
+            final.duration,
+            len(scenes),
         )
         try:
             final.write_videofile(
@@ -181,15 +184,11 @@ class SFRenderStep:
             )
         finally:
             # [QA 수정] MoviePy 클립 리소스 해제 (메모리 누수 방지)
-            try:
+            with contextlib.suppress(Exception):
                 final.close()
-            except Exception:
-                pass
             for clip in scene_clips:
-                try:
+                with contextlib.suppress(Exception):
                     clip.close()
-                except Exception:
-                    pass
 
         return str(output_path)
 
@@ -289,6 +288,7 @@ class SFRenderStep:
 
         try:
             from ShortsFactory.engines.color_engine import ColorEngine
+
             engine = ColorEngine(self._color_preset)
             return engine.apply_role_grading(clip, role=role)
         except Exception as exc:
@@ -299,6 +299,7 @@ class SFRenderStep:
         """Hook 씬에 시선 집중 효과 적용."""
         try:
             from ShortsFactory.engines.hook_engine import HookEngine
+
             engine = HookEngine(self._channel_dict)
             return engine.create_hook(clip)
         except Exception as exc:
@@ -312,6 +313,7 @@ class SFRenderStep:
 
         try:
             from ShortsFactory.engines.transition_engine import TransitionEngine
+
             engine = TransitionEngine(self._channel_dict)
             return engine.apply(clips, roles=roles)
         except Exception as exc:

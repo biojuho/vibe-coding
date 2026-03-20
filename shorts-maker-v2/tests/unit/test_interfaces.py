@@ -1,4 +1,5 @@
 """test_interfaces.py — ShortsFactory 인터페이스 유닛 테스트."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -11,6 +12,7 @@ class TestRenderRequest:
 
     def test_basic_creation(self):
         from ShortsFactory.interfaces import RenderRequest
+
         req = RenderRequest(
             channel_id="ai_tech",
             template_name="ai_news_breaking",
@@ -23,6 +25,7 @@ class TestRenderRequest:
 
     def test_defaults(self):
         from ShortsFactory.interfaces import RenderRequest
+
         req = RenderRequest(
             channel_id="psychology",
             template_name="psychology_experiment",
@@ -40,6 +43,7 @@ class TestRenderResult:
 
     def test_success_result(self):
         from ShortsFactory.interfaces import RenderResult
+
         result = RenderResult(
             success=True,
             output_path=Path("output/test.mp4"),
@@ -52,6 +56,7 @@ class TestRenderResult:
 
     def test_failure_result(self):
         from ShortsFactory.interfaces import RenderResult
+
         result = RenderResult(
             success=False,
             error="Template not found",
@@ -66,6 +71,7 @@ class TestTemplateInfo:
 
     def test_basic_creation(self):
         from ShortsFactory.interfaces import TemplateInfo
+
         info = TemplateInfo(
             name="ai_countdown",
             channel="ai_tech",
@@ -81,6 +87,7 @@ class TestRenderAdapter:
 
     def test_list_templates_all(self):
         from ShortsFactory.interfaces import RenderAdapter
+
         adapter = RenderAdapter()
         templates = adapter.list_templates()
         assert len(templates) >= 15
@@ -89,6 +96,7 @@ class TestRenderAdapter:
 
     def test_list_templates_by_channel(self):
         from ShortsFactory.interfaces import RenderAdapter
+
         adapter = RenderAdapter()
         ai_templates = adapter.list_templates(channel_id="ai_tech")
         for t in ai_templates:
@@ -96,6 +104,7 @@ class TestRenderAdapter:
 
     def test_get_channel_info(self):
         from ShortsFactory.interfaces import RenderAdapter
+
         adapter = RenderAdapter()
         info = adapter.get_channel_info("psychology")
         assert info["channel"] == "psychology"
@@ -103,6 +112,7 @@ class TestRenderAdapter:
 
     def test_render_invalid_template(self):
         from ShortsFactory.interfaces import RenderAdapter, RenderRequest
+
         adapter = RenderAdapter()
         req = RenderRequest(
             channel_id="ai_tech",
@@ -117,6 +127,7 @@ class TestRenderAdapter:
     def test_render_with_plan_invalid_channel(self):
         """render_with_plan에 잘못된 channel_id를 전달하면 실패 RenderResult 반환."""
         from ShortsFactory.interfaces import RenderAdapter
+
         adapter = RenderAdapter()
         result = adapter.render_with_plan(
             channel_id="nonexistent_channel",
@@ -134,6 +145,7 @@ class TestRenderFromPlan:
     def test_render_from_plan_invalid_template_falls_back(self):
         """존재하지 않는 템플릿 → 폴백 경로 시도 (create/render) → 에러."""
         from ShortsFactory.pipeline import ShortsFactory
+
         factory = ShortsFactory(channel="ai_tech")
 
         # 존재하지 않는 템플릿으로 fallback 시 ValueError 발생
@@ -176,7 +188,7 @@ class TestRenderFromPlan:
             "highlight_color": factory.channel.highlight_color,
             "keyword_highlights": factory.channel.keyword_highlights,
         }
-        tmpl = tmpl_cls(channel_dict)
+        tmpl_cls(channel_dict)
 
         scenes = []
         for sp in scene_data:
@@ -195,6 +207,7 @@ class TestRenderFromPlan:
     def test_get_template_info(self):
         """get_template_info가 올바른 정보를 반환하는지 검증."""
         from ShortsFactory.pipeline import ShortsFactory
+
         factory = ShortsFactory(channel="ai_tech")
 
         info = factory.get_template_info("ai_news")
@@ -204,4 +217,3 @@ class TestRenderFromPlan:
 
         # 존재하지 않는 템플릿
         assert factory.get_template_info("nonexistent") is None
-

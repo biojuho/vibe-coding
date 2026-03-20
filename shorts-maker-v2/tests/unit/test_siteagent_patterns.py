@@ -10,11 +10,11 @@ Verifies:
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import MagicMock, patch
 
 # ── Pattern #1: Error Type Classification ─────────────────────────────────
-
 from shorts_maker_v2.pipeline.error_types import (
     PipelineError,
     PipelineErrorType,
@@ -137,9 +137,10 @@ class TestPipelineStatus:
 # ── Pattern #4: Pydantic Schema Validation ────────────────────────────────
 
 try:
-    from shorts_maker_v2.pipeline.script_step import ScriptStep, _HAS_PYDANTIC
+    from shorts_maker_v2.pipeline.script_step import _HAS_PYDANTIC, ScriptStep
+
     if _HAS_PYDANTIC:
-        from shorts_maker_v2.pipeline.script_step import ScriptOutput, SceneOutput
+        from shorts_maker_v2.pipeline.script_step import SceneOutput, ScriptOutput
 except ImportError:
     _HAS_PYDANTIC = False
 

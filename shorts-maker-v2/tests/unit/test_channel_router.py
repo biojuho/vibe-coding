@@ -11,7 +11,7 @@ test_channel_router.py
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock
+
 import pytest
 
 # 프로젝트 루트 기준 channel_profiles.yaml 경로
@@ -22,6 +22,7 @@ class TestChannelRouter:
     def _get_router(self):
         """ChannelRouter를 실제 channel_profiles.yaml로 로드."""
         from shorts_maker_v2.utils.channel_router import ChannelRouter
+
         return ChannelRouter(profiles_path=_PROFILES_YAML)
 
     def test_load_profiles(self):
@@ -29,9 +30,7 @@ class TestChannelRouter:
         router = self._get_router()
         channels = router.list_channels()
         keys = {c["key"] for c in channels}
-        assert keys == {"ai_tech", "psychology", "history", "space", "health"}, (
-            f"예상 채널 키와 다릅니다: {keys}"
-        )
+        assert keys == {"ai_tech", "psychology", "history", "space", "health"}, f"예상 채널 키와 다릅니다: {keys}"
 
     def test_get_profile_ai_tech(self):
         """퓨처 시냅스 프로파일 주요 필드 확인."""
@@ -73,6 +72,7 @@ class TestChannelRouter:
     def test_apply_tts_voice_override(self):
         """apply()가 TTS 음성을 채널 프로파일로 교체하는지 확인."""
         from shorts_maker_v2.config import load_config
+
         router = self._get_router()
 
         config_path = Path(__file__).parents[3] / "config.yaml"
@@ -91,6 +91,7 @@ class TestChannelRouter:
     def test_apply_does_not_mutate_original(self):
         """apply()는 원본 config를 변경하지 않는지 확인 (deepcopy)."""
         from shorts_maker_v2.config import load_config
+
         router = self._get_router()
 
         config_path = Path(__file__).parents[3] / "config.yaml"
@@ -107,6 +108,7 @@ class TestChannelRouter:
     def test_apply_unknown_channel_returns_original(self):
         """존재하지 않는 채널 키는 원본 config를 그대로 반환."""
         from shorts_maker_v2.config import load_config
+
         router = self._get_router()
 
         config_path = Path(__file__).parents[3] / "config.yaml"
@@ -120,6 +122,7 @@ class TestChannelRouter:
     def test_apply_empty_channel_returns_original(self):
         """빈 채널 키는 원본 config를 그대로 반환."""
         from shorts_maker_v2.config import load_config
+
         router = self._get_router()
 
         config_path = Path(__file__).parents[3] / "config.yaml"

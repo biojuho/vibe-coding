@@ -20,9 +20,7 @@ channel_router.py
 
 from __future__ import annotations
 
-import copy
 import logging
-import os
 from pathlib import Path
 from typing import Any
 
@@ -54,9 +52,7 @@ class ChannelRouter:
     def _load(self) -> None:
         """YAML 파일을 로드합니다."""
         if not self._path.exists():
-            logger.warning(
-                "[ChannelRouter] 채널 프로파일 파일을 찾을 수 없습니다: %s", self._path
-            )
+            logger.warning("[ChannelRouter] 채널 프로파일 파일을 찾을 수 없습니다: %s", self._path)
             return
         with self._path.open("r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
@@ -81,10 +77,7 @@ class ChannelRouter:
         """채널 키로 프로파일을 반환합니다."""
         if channel_key not in self._profiles:
             available = list(self._profiles.keys())
-            raise ValueError(
-                f"[ChannelRouter] 알 수 없는 채널 키: '{channel_key}'. "
-                f"사용 가능한 채널: {available}"
-            )
+            raise ValueError(f"[ChannelRouter] 알 수 없는 채널 키: '{channel_key}'. 사용 가능한 채널: {available}")
         return self._profiles[channel_key]
 
     def get_channel_context(self, channel_key: str) -> str:
@@ -117,13 +110,11 @@ class ChannelRouter:
             return config
 
         if channel_key not in self._profiles:
-            logger.warning(
-                "[ChannelRouter] 채널 '%s'를 찾을 수 없어 기본 설정을 사용합니다.", channel_key
-            )
+            logger.warning("[ChannelRouter] 채널 '%s'를 찾을 수 없어 기본 설정을 사용합니다.", channel_key)
             return config
 
         profile = self._profiles[channel_key]
-        pipeline = profile.get("pipeline", {})
+        profile.get("pipeline", {})
 
         # ── providers 오버라이드 ──────────────────────────────────────────
         prov_kwargs: dict[str, Any] = {}

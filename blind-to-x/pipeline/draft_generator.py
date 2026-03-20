@@ -45,6 +45,21 @@ def _load_draft_rules() -> dict:
 
 logger = logging.getLogger(__name__)
 
+# ── P0-4: 품질 게이트 실패 유형별 구체적 수정 지침 ────────────────────
+_FIX_INSTRUCTIONS: dict[str, str] = {
+    "최소 글자 수": "글이 너무 짧습니다. 원문의 구체적인 사례, 숫자, 인용구를 추가하여 더 풍성하게 작성하세요.",
+    "최소 길이": "글이 너무 짧습니다. 원문의 구체적인 사례, 숫자, 인용구를 추가하여 더 풍성하게 작성하세요.",
+    "최대 글자 수": "글이 너무 깁니다. 불필요한 수식어와 반복을 제거하고 핵심만 남기세요.",
+    "최대 길이": "글이 너무 깁니다. 불필요한 수식어와 반복을 제거하고 핵심만 남기세요.",
+    "CTA": "마지막 문장을 구체적인 질문으로 교체하세요. '여러분 생각은?'이 아니라 구체적 선택지를 제시하세요. 예: '3% 인상 vs 이직, 뭘 고르실?'",
+    "해시태그": "해시태그 수를 플랫폼 기준에 맞추세요. 핵심 키워드 중심으로 정리하세요.",
+    "클리셰": "상투적 표현을 원문의 구체적인 디테일(숫자, 인용, 에피소드)로 대체하세요.",
+    "한글 비율": "영어/특수문자 비율이 너무 높습니다. 한국어 문장을 자연스럽게 늘리세요.",
+    "금지 패턴": "외부 링크 등 금지된 패턴이 포함되어 있습니다. 제거하세요.",
+    "소제목": "소제목(##)을 3~4개 사용하여 글을 구조화하세요.",
+    "SEO 태그": "글 끝에 검색 키워드 태그를 추가하세요.",
+}
+
 PROVIDER_ALIASES = {
     "claude": "anthropic",
     "anthropic": "anthropic",
@@ -191,6 +206,60 @@ class TweetDraftGenerator:
         return tone_map.get("기타", self.tone)
 
     @staticmethod
+    def _extract_content_essence(post_data: dict[str, Any]) -> dict[str, Any]:
+        """원문에서 핵심 요소를 결정론적으로 추출 (LLM 호출 없음).
+
+        Returns:
+            {key_numbers, quotes, emotional_peaks, opening, closing}
+        """
+        content = str(post_data.get("content", ""))
+        title = str(post_data.get("title", ""))
+
+        # 1. 숫자 + 맥락 추출 (전후 15자)
+        key_numbers: list[str] = []
+        for m in re.finditer(r"\d[\d,.]*\d?[만천백억원%명개월년일시위등배]?", content):
+            start = max(0, m.start() - 15)
+            end = min(len(content), m.end() + 15)
+            snippet = content[start:end].strip()
+            if snippet and snippet not in key_numbers:
+                key_numbers.append(snippet)
+        key_numbers = key_numbers[:8]  # 최대 8개
+
+        # 2. 인용/발언 추출
+        quotes: list[str] = re.findall(
+            r"""['\"\u201c\u201d\u2018\u2019「」『』](.{5,80}?)['\"\u201c\u201d\u2018\u2019「」『』]""",
+            content,
+        )
+        quotes = quotes[:5]  # 최대 5개
+
+        # 3. 감정 고조 문장 (emotion_rules 키워드 기반)
+        rules = _load_draft_rules()
+        emotion_keywords: list[str] = []
+        for rule in rules.get("emotion_rules", []):
+            emotion_keywords.extend(rule.get("keywords", []))
+
+        sentences = [s.strip() for s in re.split(r"[.!?\n]+", content) if len(s.strip()) > 10]
+        emotional_peaks: list[str] = []
+        for s in sentences:
+            if any(kw in s for kw in emotion_keywords):
+                emotional_peaks.append(s)
+                if len(emotional_peaks) >= 3:
+                    break
+
+        # 4. 내러티브 북엔드 (첫/끝 문장)
+        opening = sentences[0] if sentences else ""
+        closing = sentences[-1] if len(sentences) > 1 else ""
+
+        return {
+            "title": title,
+            "key_numbers": key_numbers,
+            "quotes": quotes,
+            "emotional_peaks": emotional_peaks,
+            "opening": opening,
+            "closing": closing,
+        }
+
+    @staticmethod
     def _format_examples(
         top_examples: list[dict[str, Any]] | None,
         topic_cluster: str = "",
@@ -269,6 +338,8 @@ class TweetDraftGenerator:
         draft_format: str = "standard",
     ) -> str:
         """YAML 기반 프롬프트 조립. YAML 로드 실패 시 하드코딩 fallback."""
+        # P0-1: 원문 핵심 추출
+        essence = self._extract_content_essence(post_data)
         content = str(post_data.get("content", ""))
         if len(content) > 700:
             logger.info("Content truncated from %s chars to 700 for API prompt.", len(content))
@@ -437,6 +508,78 @@ class TweetDraftGenerator:
 {forbidden}
 """
 
+        # ── P0-3: 클리셰 목록 사전 주입 ─────────────────────────────────
+        cliches = rules.get("cliche_watchlist", [])
+        if cliches:
+            cliche_str = "\n".join(f"  - \"{c}\"" for c in cliches[:20])
+            voice_block += f"""
+[절대 사용 금지 — 클리셰 목록]
+아래 표현을 하나라도 사용하면 재생성 대상입니다:
+{cliche_str}
+"""
+
+        # ── P0-1: 원문 핵심 추출 블록 구성 ───────────────────────────────
+        essence_block = ""
+        if essence.get("key_numbers") or essence.get("quotes") or essence.get("emotional_peaks"):
+            parts = []
+            if essence["key_numbers"]:
+                parts.append(f"핵심 수치: {' | '.join(essence['key_numbers'])}")
+            if essence["quotes"]:
+                parts.append(f"인용/발언: {' | '.join(essence['quotes'])}")
+            if essence["emotional_peaks"]:
+                parts.append(f"감정 고조점: {' / '.join(essence['emotional_peaks'])}")
+            if essence.get("opening"):
+                parts.append(f"원문 도입부: {essence['opening']}")
+            if essence.get("closing") and essence["closing"] != essence.get("opening"):
+                parts.append(f"원문 결론부: {essence['closing']}")
+            essence_block = "\n[원문 핵심 추출 — 초안에 반드시 활용]\n" + "\n".join(parts)
+
+        # ── P0-2: Chain-of-Thought 사고 과정 블록 ────────────────────────
+        thinking_tmpl = templates.get("thinking_framework", "")
+        thinking_block = ""
+        if thinking_tmpl:
+            thinking_block = thinking_tmpl
+        else:
+            thinking_block = """
+[사고 과정 — <thinking> 태그 안에 작성]
+초안을 작성하기 전에 반드시 아래를 먼저 분석하세요:
+1. 이 글의 핵심 인사이트는 무엇인가? (한 문장)
+2. 직장인이 공유하고 싶은 포인트는? (공감/분노/놀라움 중 택1과 이유)
+3. 가장 강한 훅이 될 숫자/인용구/대비는?
+4. 피해야 할 함정은? (상투적 표현, 원문에 없는 내용 날조)
+반드시 <thinking> 와 </thinking> 태그 안에만 작성하세요.
+"""
+
+        # ── P1-1: 토픽별 프롬프트 전략 블록 ──────────────────────────────
+        topic_strategy_block = ""
+        topic_strategies = rules.get("topic_prompt_strategies", {})
+        ts = topic_strategies.get(topic_cluster, {})
+        if ts:
+            ts_parts = [f"[토픽별 작성 전략 — {topic_cluster}]"]
+            if ts.get("emphasis"):
+                ts_parts.append(f"강조: {ts['emphasis']}")
+            if ts.get("avoid"):
+                ts_parts.append(f"피하기: {ts['avoid']}")
+            if ts.get("hook_template"):
+                ts_parts.append(f"훅 구조: {ts['hook_template']}")
+            if ts.get("example_structure"):
+                ts_parts.append(f"글 구조: {ts['example_structure']}")
+            topic_strategy_block = "\n" + "\n".join(ts_parts)
+
+        # ── P1-2: 나쁜 예시 (anti-examples) ──────────────────────────────
+        anti_examples_block = ""
+        anti_examples = rules.get("anti_examples", {})
+        generic_bad = anti_examples.get("generic_bad", [])
+        topic_bad = anti_examples.get(topic_cluster, [])
+        all_bad = (topic_bad + generic_bad)[:3]
+        if all_bad:
+            ae_lines = ["\n[나쁜 예시 — 이렇게 쓰지 마세요]"]
+            for idx, ae in enumerate(all_bad, 1):
+                ae_lines.append(f"- 나쁜 예시 {idx}: {ae.get('text', '')}")
+                if ae.get("reason"):
+                    ae_lines.append(f"  이유: {ae['reason']}")
+            anti_examples_block = "\n".join(ae_lines)
+
         examples_block = self._format_examples(top_examples, topic_cluster=topic_cluster)
         return f"""{system_role}
 아래 게시글을 기반으로 발행 가능한 초안을 작성하세요.
@@ -448,6 +591,7 @@ class TweetDraftGenerator:
 본문: {content}
 카테고리: {post_data.get('category', 'general')}
 공감수: {post_data.get('likes', 0)} | 댓글수: {post_data.get('comments', 0)}
+{essence_block}
 
 [콘텐츠 프로필]
 토픽 클러스터: {topic_cluster}
@@ -457,8 +601,11 @@ class TweetDraftGenerator:
 추천 초안 타입: {recommended_draft_type}
 발행 적합도 점수: {profile.get('publishability_score', 0)}
 성과 예측 점수: {profile.get('performance_score', 0)}
+{topic_strategy_block}
 {regulation_context}
+{thinking_block}
 {examples_block}
+{anti_examples_block}
 {twitter_block}
 {threads_block}
 {newsletter_block}
@@ -583,6 +730,9 @@ class TweetDraftGenerator:
     def _parse_response(self, response_text: str, output_formats: list[str], provider_used: str) -> tuple[dict[str, str], str | None]:
         drafts_dict: dict[str, str] = {"_provider_used": provider_used}
 
+        # ── P0-2: <thinking> 태그 제거 (사고 과정은 출력에 포함하지 않음) ──
+        response_text = re.sub(r"<thinking>.*?</thinking>", "", response_text, flags=re.DOTALL).strip()
+
         # ── 스레드형 파싱 (P0-A1) ──────────────────────────────────────
         thread_match = re.search(r"<twitter_thread>(.*?)</twitter_thread>", response_text, re.DOTALL)
         if thread_match:
@@ -665,13 +815,19 @@ class TweetDraftGenerator:
             feedback_lines.append(f"\n❌ {platform} (점수: {score}/100):")
             for issue in issues:
                 feedback_lines.append(f"  - {issue}")
+                # P0-4: 실패 유형별 구체적 수정 지침 매칭
+                for key, instruction in _FIX_INSTRUCTIONS.items():
+                    if key in str(issue):
+                        feedback_lines.append(f"    → 수정 방법: {instruction}")
+                        break
 
         feedback_lines.extend([
             "",
             "[재작성 지침]",
-            "1. 위에서 지적된 문제점을 반드시 수정하세요.",
+            "1. 위에서 지적된 문제점과 '수정 방법'을 반드시 반영하세요.",
             "2. 글자 수, CTA, 해시태그 등 플랫폼 규칙을 정확히 준수하세요.",
             "3. 기존 초안의 좋은 점은 유지하되, 문제점만 개선하세요.",
+            "4. 원문에 없는 숫자나 사실을 날조하지 마세요.",
             "━" * 40,
         ])
 

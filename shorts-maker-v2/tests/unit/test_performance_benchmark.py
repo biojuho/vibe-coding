@@ -14,8 +14,8 @@ test_performance_benchmark.py — 엔진 성능 벤치마크
 import json
 import sys
 import time
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from dataclasses import dataclass, field, asdict
 
 import numpy as np
 import pytest
@@ -60,6 +60,7 @@ _PERF_THRESHOLDS = {
 @dataclass
 class BenchmarkResult:
     """벤치마크 결과."""
+
     name: str
     duration_ms: float
     threshold_ms: float
@@ -136,65 +137,80 @@ def _benchmark(name: str, fn, iterations: int = 3, **metadata) -> BenchmarkResul
 
 # ── TextEngine 벤치마크 ──────────────────────────────────────────────
 
+
 class TestTextEngineBenchmark:
     """TextEngine 렌더링 성능 벤치마크."""
 
     @pytest.fixture
     def engine(self):
         from ShortsFactory.engines.text_engine import TextEngine
+
         return TextEngine(_CHANNEL_CONFIG)
 
     def test_benchmark_render_subtitle(self, engine, tmp_path):
         """자막 렌더링 속도."""
+
         def run():
             engine.render_subtitle(
                 "성능 테스트 자막입니다 - 3배 향상",
                 role="body",
                 output_path=tmp_path / f"sub_{time.time_ns()}.png",
             )
+
         result = _benchmark("text_render_subtitle", run)
         assert result.passed, f"성능 저하: {result.duration_ms:.1f}ms > {result.threshold_ms:.1f}ms"
 
     def test_benchmark_render_glow(self, engine, tmp_path):
         """글로우 자막 렌더링 속도."""
+
         def run():
             engine.render_subtitle_with_glow(
                 "네온 글로우 테스트",
                 output_path=tmp_path / f"glow_{time.time_ns()}.png",
             )
+
         result = _benchmark("text_render_glow", run)
         assert result.passed, f"성능 저하: {result.duration_ms:.1f}ms > {result.threshold_ms:.1f}ms"
 
     def test_benchmark_render_badge(self, engine, tmp_path):
         """배지 렌더링 속도."""
+
         def run():
             engine.render_badge(
-                7, output_path=tmp_path / f"badge_{time.time_ns()}.png",
+                7,
+                output_path=tmp_path / f"badge_{time.time_ns()}.png",
             )
+
         result = _benchmark("text_render_badge", run)
         assert result.passed, f"성능 저하: {result.duration_ms:.1f}ms > {result.threshold_ms:.1f}ms"
 
     def test_benchmark_render_gradient_text(self, engine, tmp_path):
         """그라데이션 텍스트 속도."""
+
         def run():
             engine.render_gradient_text(
                 "그라데이션 테스트",
                 output_path=tmp_path / f"grad_{time.time_ns()}.png",
             )
+
         result = _benchmark("text_render_gradient", run)
         assert result.passed, f"성능 저하: {result.duration_ms:.1f}ms > {result.threshold_ms:.1f}ms"
 
     def test_benchmark_render_progress_bar(self, engine, tmp_path):
         """프로그레스 바 속도."""
+
         def run():
             engine.render_progress_bar(
-                0.7, output_path=tmp_path / f"prog_{time.time_ns()}.png",
+                0.7,
+                output_path=tmp_path / f"prog_{time.time_ns()}.png",
             )
+
         result = _benchmark("text_render_progress_bar", run)
         assert result.passed, f"성능 저하: {result.duration_ms:.1f}ms > {result.threshold_ms:.1f}ms"
 
 
 # ── BackgroundEngine 벤치마크 ────────────────────────────────────────
+
 
 class TestBackgroundEngineBenchmark:
     """BackgroundEngine 렌더링 성능 벤치마크."""
@@ -202,67 +218,92 @@ class TestBackgroundEngineBenchmark:
     @pytest.fixture
     def engine(self):
         from ShortsFactory.engines.background_engine import BackgroundEngine
+
         return BackgroundEngine(_CHANNEL_CONFIG)
 
     def test_benchmark_create_gradient(self, engine, tmp_path):
         """그라데이션 배경 생성 속도."""
+
         def run():
             engine.create_gradient(
-                540, 960, output_path=tmp_path / f"bg_{time.time_ns()}.png",
+                540,
+                960,
+                output_path=tmp_path / f"bg_{time.time_ns()}.png",
             )
+
         result = _benchmark("bg_create_gradient", run)
         assert result.passed
 
     def test_benchmark_create_particle(self, engine, tmp_path):
         """파티클 오버레이 생성 속도."""
+
         def run():
             engine.create_particle_overlay(
-                540, 960, output_path=tmp_path / f"px_{time.time_ns()}.png",
+                540,
+                960,
+                output_path=tmp_path / f"px_{time.time_ns()}.png",
             )
+
         result = _benchmark("bg_create_particle", run)
         assert result.passed
 
     def test_benchmark_create_grid(self, engine, tmp_path):
         """그리드 오버레이 생성 속도."""
+
         def run():
             engine.create_grid_overlay(
-                540, 960, output_path=tmp_path / f"grid_{time.time_ns()}.png",
+                540,
+                960,
+                output_path=tmp_path / f"grid_{time.time_ns()}.png",
             )
+
         result = _benchmark("bg_create_grid", run)
         assert result.passed
 
     def test_benchmark_create_noise(self, engine, tmp_path):
         """노이즈 텍스처 생성 속도."""
+
         def run():
             engine.create_noise_texture(
-                540, 960, output_path=tmp_path / f"noise_{time.time_ns()}.png",
+                540,
+                960,
+                output_path=tmp_path / f"noise_{time.time_ns()}.png",
             )
+
         result = _benchmark("bg_create_noise", run)
         assert result.passed
 
     def test_benchmark_create_scanline(self, engine, tmp_path):
         """스캔라인 오버레이 생성 속도."""
+
         def run():
             engine.create_scanline_overlay(
-                540, 960, output_path=tmp_path / f"scan_{time.time_ns()}.png",
+                540,
+                960,
+                output_path=tmp_path / f"scan_{time.time_ns()}.png",
             )
+
         result = _benchmark("bg_create_scanline", run)
         assert result.passed
 
     def test_benchmark_create_mesh_gradient(self, engine, tmp_path):
         """메쉬 그라데이션 생성 속도 (가장 무거운 연산)."""
+
         def run():
             engine.create_mesh_gradient(
-                270, 480,  # 작은 크기로 테스트
+                270,
+                480,  # 작은 크기로 테스트
                 num_points=3,
                 blur_radius=30,
                 output_path=tmp_path / f"mesh_{time.time_ns()}.png",
             )
+
         result = _benchmark("bg_create_mesh_gradient", run)
         assert result.passed
 
 
 # ── LayoutEngine 벤치마크 ────────────────────────────────────────────
+
 
 class TestLayoutEngineBenchmark:
     """LayoutEngine 렌더링 성능 벤치마크."""
@@ -270,30 +311,38 @@ class TestLayoutEngineBenchmark:
     @pytest.fixture
     def engine(self):
         from ShortsFactory.engines.layout_engine import LayoutEngine
+
         return LayoutEngine(_CHANNEL_CONFIG)
 
     def test_benchmark_split_screen(self, engine, tmp_path):
         """분할 화면 생성 속도."""
+
         def run():
             engine.split_screen(
-                "좋은 예시", "나쁜 예시",
+                "좋은 예시",
+                "나쁜 예시",
                 output_path=tmp_path / f"split_{time.time_ns()}.png",
             )
+
         result = _benchmark("layout_split_screen", run)
         assert result.passed
 
     def test_benchmark_card_layout(self, engine, tmp_path):
         """카드 레이아웃 생성 속도."""
         items = [{"title": f"항목 {i}", "body": f"설명 {i}"} for i in range(5)]
+
         def run():
             engine.card_layout(
-                items, output_path=tmp_path / f"card_{time.time_ns()}.png",
+                items,
+                output_path=tmp_path / f"card_{time.time_ns()}.png",
             )
+
         result = _benchmark("layout_card", run)
         assert result.passed
 
 
 # ── ColorEngine 벤치마크 ─────────────────────────────────────────────
+
 
 class TestColorEngineBenchmark:
     """ColorEngine 프레임 처리 성능 벤치마크."""
@@ -301,6 +350,7 @@ class TestColorEngineBenchmark:
     def test_benchmark_grading_frame(self, tmp_path):
         """단일 프레임 컬러 그레이딩 속도."""
         from ShortsFactory.engines.color_engine import ColorEngine
+
         engine = ColorEngine("neon_tech")
 
         # 가짜 클립 (get_frame만 제공)
@@ -308,6 +358,7 @@ class TestColorEngineBenchmark:
 
         class FakeClip:
             size = (540, 960)
+
             def transform(self, fn):
                 # fn을 한 번 실행하여 성능 측정
                 fn(lambda t: frame, 0.0)
@@ -321,6 +372,7 @@ class TestColorEngineBenchmark:
 
 
 # ── 벤치마크 결과 저장 ──────────────────────────────────────────────
+
 
 @pytest.fixture(scope="session", autouse=True)
 def save_benchmark_results():

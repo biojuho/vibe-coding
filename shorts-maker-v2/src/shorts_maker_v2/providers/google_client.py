@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-import logging
-from pathlib import Path
 import base64
+import logging
 import math
 import time
+from pathlib import Path
 
+import requests
 from google import genai
 from google.genai import types
-import requests
 
 logger = logging.getLogger(__name__)
 
@@ -110,9 +110,9 @@ class GoogleClient:
 
     # Imagen 3 모델 fallback 체인 (001은 2026년 초 shutdown됨)
     _IMAGEN3_MODELS = [
-        "imagen-3.0-generate-002",   # 최신 (2026-03 기준)
+        "imagen-3.0-generate-002",  # 최신 (2026-03 기준)
         "imagen-3.0-fast-generate-001",  # 빠른 대안
-        "imagen-3.0-generate-001",   # 레거시 (일부 Vertex AI에서 아직 유효)
+        "imagen-3.0-generate-001",  # 레거시 (일부 Vertex AI에서 아직 유효)
     ]
 
     def generate_image_imagen3(
@@ -151,8 +151,7 @@ class GoogleClient:
                 image_data = image_obj.image_bytes
                 if not image_data or len(image_data) < 1000:
                     raise RuntimeError(
-                        f"{model_name} returned too-small image "
-                        f"({len(image_data) if image_data else 0} bytes)"
+                        f"{model_name} returned too-small image ({len(image_data) if image_data else 0} bytes)"
                     )
 
                 output_path.write_bytes(image_data)
@@ -161,9 +160,7 @@ class GoogleClient:
                 last_error = exc
                 continue  # 다음 모델 시도
 
-        raise RuntimeError(
-            f"All Imagen 3 models failed. Last error: {last_error}"
-        )
+        raise RuntimeError(f"All Imagen 3 models failed. Last error: {last_error}")
 
     # ── Multimodal Embedding (Gemini Embedding 2 Preview) ───────────────────
 
@@ -200,13 +197,9 @@ class GoogleClient:
                 parts.append(item)
             elif isinstance(item, tuple) and len(item) == 2:
                 data, mime_type = item
-                parts.append(
-                    types.Part.from_bytes(data=data, mime_type=mime_type)
-                )
+                parts.append(types.Part.from_bytes(data=data, mime_type=mime_type))
             else:
-                raise ValueError(
-                    f"Invalid content item: expected str or (bytes, mime_type) tuple, got {type(item)}"
-                )
+                raise ValueError(f"Invalid content item: expected str or (bytes, mime_type) tuple, got {type(item)}")
 
         result = self.client.models.embed_content(
             model=model,
@@ -215,7 +208,8 @@ class GoogleClient:
         embeddings = [list(e.values) for e in result.embeddings]
         logger.info(
             "[Embedding] %d 항목 임베딩 완료 (model=%s, dim=%d)",
-            len(embeddings), model,
+            len(embeddings),
+            model,
             len(embeddings[0]) if embeddings else 0,
         )
         return embeddings
@@ -228,10 +222,9 @@ class GoogleClient:
         """
         if len(vec_a) != len(vec_b):
             raise ValueError(f"Vector dimension mismatch: {len(vec_a)} vs {len(vec_b)}")
-        dot = sum(a * b for a, b in zip(vec_a, vec_b))
+        dot = sum(a * b for a, b in zip(vec_a, vec_b, strict=False))
         norm_a = math.sqrt(sum(a * a for a in vec_a))
         norm_b = math.sqrt(sum(b * b for b in vec_b))
         if norm_a == 0 or norm_b == 0:
             return 0.0
         return dot / (norm_a * norm_b)
-

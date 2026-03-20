@@ -1,4 +1,4 @@
-# Blind-to-X 프로젝트 컨텍스트
+﻿# Blind-to-X 프로젝트 컨텍스트
 
 ## 프로젝트 개요
 Blind-to-X는 직장인 커뮤니티(Blind, FMKorea, JobPlanet 등)에서 인기 게시물을 수집하여 X(Twitter), Threads, 네이버 블로그용 콘텐츠를 자동 생성하는 파이프라인입니다.
@@ -49,6 +49,12 @@ blind-to-x/
 - ✅ B-5: 품질 게이트 불통과 → LLM 자동 재생성 루프 (최대 2회) (2026-03-17)
 - ✅ 크로스소스 인사이트: 3+건 2+소스 동일 토픽 → LLM 트렌드 분석 초안 자동 생성 (2026-03-17)
 - ✅ 실시간 트렌드: Google Trends + Naver DataLab → trend_boost(0-30) 6D 스코어 반영 (2026-03-17)
+- ✅ **실운영 정착**: Task Scheduler 5개 정상 작동 확인 (0500~2100, 오늘 3회 실행) (2026-03-19)
+- ✅ **config 개선**: naver_blog output_format 활성화, LLM 폴백 DeepSeek 1순위 변경 (2026-03-19)
+- ✅ **Gemini API 키 교체**: blind-to-x 전용 키로 교체 완료 (2026-03-19)
+- ✅ **OSS 5종 도입**: kiwipiepy, trafilatura, datasketch, camoufox, KOTE (2026-03-20)
+- ✅ **4대 업그레이드**: Crawl4AI LLM 폴백, 감성 트래커, AI 바이럴 필터, 일일 다이제스트 (2026-03-20)
+- 🔲 **다음 단계**: Notion 5개 뷰 구성 → 실제 발행 시작
 
 ## 지뢰밭 (주의사항)
 1. **playwright-stealth**: context 레벨에서만 적용. page 레벨 stealth 호출 추가 금지.
@@ -59,3 +65,6 @@ blind-to-x/
 6. **tests_unit 폐기**: 구 `tests_unit/` 폴더 삭제됨. 모든 테스트는 `tests/unit/`에 위치.
 7. **newsletter 모듈 삭제**: `newsletter_formatter.py`, `newsletter_scheduler.py` 제거됨. 참조 금지.
 8. **B-5 재생성 루프**: `process.py` L384~L464. `generate_drafts(quality_feedback=[...])` 인터페이스. 최대 2회 재시도. `should_retry=True`(error severity)인 플랫폼만 대상.
+9. **Gemini API 패턴**: `genai.configure()` 사용 금지. 반드시 `google.genai.Client(api_key=)` 인스턴스 사용 (D-025).
+10. **Crawl4AI 폴백**: CSS→자동수리→trafilatura→Crawl4AI 순서. crawl4ai 미설치 시 자동 스킵.
+11. **ViralFilter 싱글톤**: `process.py`의 `_viral_filter_instance`는 모듈 global. 매 호출 생성 금지.

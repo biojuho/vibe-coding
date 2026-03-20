@@ -16,6 +16,7 @@ v2 개선사항:
     engine = TextEngine(channel_config)
     path = engine.render_subtitle("성능 3배 향상", keywords=["3배"], role="body")
 """
+
 from __future__ import annotations
 
 import logging
@@ -24,7 +25,6 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np  # [QA 수정] gradient vectorization에 필요
-
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 logger = logging.getLogger(__name__)
@@ -56,13 +56,7 @@ def _resolve_font(font_name: str, size: int) -> ImageFont.FreeTypeFont | ImageFo
     # 직접 경로가 주어진 경우
     if not candidates:
         p = Path(font_name)
-        if p.exists():
-            candidates = [str(p)]
-        else:
-            candidates = [
-                "C:/Windows/Fonts/malgunbd.ttf",
-                "C:/Windows/Fonts/malgun.ttf",
-            ]
+        candidates = [str(p)] if p.exists() else ["C:/Windows/Fonts/malgunbd.ttf", "C:/Windows/Fonts/malgun.ttf"]
     for path in candidates:
         if Path(path).exists():
             try:
@@ -75,6 +69,7 @@ def _resolve_font(font_name: str, size: int) -> ImageFont.FreeTypeFont | ImageFo
 @dataclass
 class TextStyle:
     """렌더링에 사용할 텍스트 스타일 파라미터."""
+
     font_size: int = 72
     text_color: str = "#FFFFFF"
     stroke_color: str = "#000000"
@@ -128,13 +123,14 @@ class TextEngine:
         """
         if output_path is None:
             import tempfile
+
             output_path = Path(tempfile.mktemp(suffix=".png"))
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         style = self._get_style(role)
         font_name = self.font_title if role == "hook" else self.font_body
-        font = _resolve_font(font_name, style.font_size)
+        _resolve_font(font_name, style.font_size)
 
         # 이미지 생성 (2x 슈퍼샘플링)
         scale = 2
@@ -151,7 +147,9 @@ class TextEngine:
 
         # 텍스트 바운딩 박스 계산
         bbox = draw.multiline_textbbox(
-            (0, 0), line_text, font=hi_font,
+            (0, 0),
+            line_text,
+            font=hi_font,
             spacing=style.line_spacing * scale,
             stroke_width=style.stroke_width * scale,
         )
@@ -183,12 +181,17 @@ class TextEngine:
         if not keywords:
             # 드롭 섀도우
             draw.multiline_text(
-                (tx + scale, ty + scale), line_text, font=hi_font,
-                fill=(0, 0, 0, 160), spacing=style.line_spacing * scale,
+                (tx + scale, ty + scale),
+                line_text,
+                font=hi_font,
+                fill=(0, 0, 0, 160),
+                spacing=style.line_spacing * scale,
                 align="center",
             )
             draw.multiline_text(
-                (tx, ty), line_text, font=hi_font,
+                (tx, ty),
+                line_text,
+                font=hi_font,
                 fill=style.text_color,
                 stroke_width=style.stroke_width * scale,
                 stroke_fill=style.stroke_color,
@@ -198,8 +201,15 @@ class TextEngine:
         else:
             # 키워드 하이라이트 적용 — 줄별로 처리
             self._draw_highlighted_text(
-                draw, lines, hi_font, tx, ty,
-                style, scale, keywords, img_w,
+                draw,
+                lines,
+                hi_font,
+                tx,
+                ty,
+                style,
+                scale,
+                keywords,
+                img_w,
             )
 
         # 다운샘플
@@ -213,7 +223,9 @@ class TextEngine:
     def render_title(self, text: str, *, output_path: Path | None = None) -> Path:
         """타이틀 전용 렌더링 (font_title, 큰 폰트 사이즈)."""
         return self.render_subtitle(
-            text, role="hook", output_path=output_path,
+            text,
+            role="hook",
+            output_path=output_path,
         )
 
     def render_subtitle_with_glow(
@@ -244,6 +256,7 @@ class TextEngine:
         """
         if output_path is None:
             import tempfile
+
             output_path = Path(tempfile.mktemp(suffix=".png"))
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -265,7 +278,9 @@ class TextEngine:
         line_text = "\n".join(lines)
 
         bbox = draw.multiline_textbbox(
-            (0, 0), line_text, font=hi_font,
+            (0, 0),
+            line_text,
+            font=hi_font,
             spacing=style.line_spacing * scale,
             stroke_width=style.stroke_width * scale,
         )
@@ -282,7 +297,9 @@ class TextEngine:
         ty = pad + style.padding * scale - bbox[1]
 
         glow_draw.multiline_text(
-            (tx, ty), line_text, font=hi_font,
+            (tx, ty),
+            line_text,
+            font=hi_font,
             fill=(*gc_rgb, 200),
             spacing=style.line_spacing * scale,
             align="center",
@@ -293,7 +310,9 @@ class TextEngine:
         text_layer = Image.new("RGBA", (img_w, img_h), (0, 0, 0, 0))
         text_draw = ImageDraw.Draw(text_layer)
         text_draw.multiline_text(
-            (tx, ty), line_text, font=hi_font,
+            (tx, ty),
+            line_text,
+            font=hi_font,
             fill=style.text_color,
             stroke_width=style.stroke_width * scale,
             stroke_fill=style.stroke_color,
@@ -337,6 +356,7 @@ class TextEngine:
         """
         if output_path is None:
             import tempfile
+
             output_path = Path(tempfile.mktemp(suffix=".png"))
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -392,6 +412,7 @@ class TextEngine:
         """
         if output_path is None:
             import tempfile
+
             output_path = Path(tempfile.mktemp(suffix=".png"))
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -412,7 +433,9 @@ class TextEngine:
         ty = (hi_h - (bbox[3] - bbox[1])) / 2 - bbox[1]
 
         draw.text(
-            (tx, ty), num_str, font=font,
+            (tx, ty),
+            num_str,
+            font=font,
             fill=(*rgb, alpha),
         )
 
@@ -448,6 +471,7 @@ class TextEngine:
         """
         if output_path is None:
             import tempfile
+
             output_path = Path(tempfile.mktemp(suffix=".png"))
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -468,7 +492,9 @@ class TextEngine:
         line_text = "\n".join(lines)
 
         bbox = draw.multiline_textbbox(
-            (0, 0), line_text, font=hi_font,
+            (0, 0),
+            line_text,
+            font=hi_font,
             spacing=style.line_spacing * scale,
             stroke_width=style.stroke_width * scale,
         )
@@ -485,12 +511,17 @@ class TextEngine:
 
         # 드롭 섀도우
         text_draw.multiline_text(
-            (tx + scale, ty + scale), line_text, font=hi_font,
-            fill=(0, 0, 0, 160), spacing=style.line_spacing * scale,
+            (tx + scale, ty + scale),
+            line_text,
+            font=hi_font,
+            fill=(0, 0, 0, 160),
+            spacing=style.line_spacing * scale,
             align="center",
         )
         text_draw.multiline_text(
-            (tx, ty), line_text, font=hi_font,
+            (tx, ty),
+            line_text,
+            font=hi_font,
             fill=(255, 255, 255, 255),
             stroke_width=style.stroke_width * scale,
             stroke_fill=style.stroke_color,
@@ -517,7 +548,9 @@ class TextEngine:
         stroke_layer = Image.new("RGBA", (img_w, img_h), (0, 0, 0, 0))
         stroke_draw = ImageDraw.Draw(stroke_layer)
         stroke_draw.multiline_text(
-            (tx, ty), line_text, font=hi_font,
+            (tx, ty),
+            line_text,
+            font=hi_font,
             fill=(0, 0, 0, 0),
             stroke_width=style.stroke_width * scale,
             stroke_fill=(0, 0, 0, 220),
@@ -561,6 +594,7 @@ class TextEngine:
         """
         if output_path is None:
             import tempfile
+
             output_path = Path(tempfile.mktemp(suffix=".png"))
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -630,6 +664,7 @@ class TextEngine:
         """
         if output_path is None:
             import tempfile
+
             output_path = Path(tempfile.mktemp(suffix=".png"))
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -665,7 +700,8 @@ class TextEngine:
             label_font = _resolve_font(self.font_body, int(12 * scale))
             draw.text(
                 (total_w - 10 * scale, bar_h + 5 * scale),
-                label, font=label_font,
+                label,
+                font=label_font,
                 fill=(200, 200, 200, 200),
                 anchor="rt",
             )
@@ -761,18 +797,22 @@ class TextEngine:
                         # 키워드 색상으로 그리기
                         kw_color = self._resolve_keyword_color(kw) or style.text_color
                         draw.text(
-                            (cursor_x + scale, y + scale), kw, font=font,
+                            (cursor_x + scale, y + scale),
+                            kw,
+                            font=font,
                             fill=(0, 0, 0, 160),
                         )
                         draw.text(
-                            (cursor_x, y), kw, font=font,
+                            (cursor_x, y),
+                            kw,
+                            font=font,
                             fill=kw_color,
                             stroke_width=style.stroke_width * scale,
                             stroke_fill=style.stroke_color,
                         )
                         kw_bbox = draw.textbbox((0, 0), kw, font=font, stroke_width=style.stroke_width * scale)
                         cursor_x += kw_bbox[2] - kw_bbox[0]
-                        remaining = remaining[len(kw):]
+                        remaining = remaining[len(kw) :]
                         matched = True
                         break
 
@@ -780,11 +820,15 @@ class TextEngine:
                     # 일반 문자 그리기 (한 글자씩)
                     char = remaining[0]
                     draw.text(
-                        (cursor_x + scale, y + scale), char, font=font,
+                        (cursor_x + scale, y + scale),
+                        char,
+                        font=font,
                         fill=(0, 0, 0, 160),
                     )
                     draw.text(
-                        (cursor_x, y), char, font=font,
+                        (cursor_x, y),
+                        char,
+                        font=font,
                         fill=style.text_color,
                         stroke_width=style.stroke_width * scale,
                         stroke_fill=style.stroke_color,

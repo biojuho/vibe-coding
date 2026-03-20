@@ -56,6 +56,7 @@ def _make_render_step(transition_style: str = "random") -> RenderStep:
 
 # ─── 전환 스타일 테스트 ────────────────────────────────────────────────────────
 
+
 def test_pick_transition_style_random() -> None:
     """'random' 설정 시 유효한 스타일 반환."""
     step = _make_render_step(transition_style="random")
@@ -72,6 +73,7 @@ def test_pick_transition_style_fixed() -> None:
 
 
 # ─── 무드 분류 테스트 ────────────────────────────────────────────────────────
+
 
 def test_classify_mood_dramatic() -> None:
     """블랙홀, 우주 등 키워드 → dramatic."""
@@ -92,6 +94,7 @@ def test_classify_mood_calm_default() -> None:
 
 # ─── BGM 선택 테스트 ────────────────────────────────────────────────────────
 
+
 def test_pick_bgm_by_mood_matches_filename(tmp_path: Path) -> None:
     """파일명에 무드 키워드가 있으면 우선 선택."""
     step = _make_render_step()
@@ -105,9 +108,7 @@ def test_pick_bgm_by_mood_matches_filename(tmp_path: Path) -> None:
         f.write_bytes(b"\x00" * 100)
 
     # "블랙홀" → dramatic → bgm_dramatic_01.mp3
-    result = step._pick_bgm_by_mood(
-        [bgm_dramatic, bgm_upbeat, bgm_calm], "블랙홀의 비밀"
-    )
+    result = step._pick_bgm_by_mood([bgm_dramatic, bgm_upbeat, bgm_calm], "블랙홀의 비밀")
     assert "dramatic" in result.name
 
 
@@ -131,6 +132,7 @@ def test_pick_bgm_fallback_random(tmp_path: Path) -> None:
 
 # ─── 랜덤 효과 테스트 ────────────────────────────────────────────────────────
 
+
 def test_apply_random_effect_has_method() -> None:
     """_apply_random_effect 메서드 존재 확인."""
     step = _make_render_step()
@@ -139,6 +141,7 @@ def test_apply_random_effect_has_method() -> None:
 
 
 # ─── 자막 콤보 로테이션 테스트 ──────────────────────────────────────────────
+
 
 def test_caption_combo_count() -> None:
     """최소 3개 이상의 자막 콤보 존재."""
@@ -155,6 +158,7 @@ def test_caption_combo_rotation_varies() -> None:
 
 # ─── 제목 이미지 렌더링 테스트 ──────────────────────────────────────────────
 
+
 def test_render_title_image_creates_file(tmp_path: Path) -> None:
     """_render_title_image가 PNG 파일을 정상 생성."""
     step = _make_render_step()
@@ -168,6 +172,7 @@ def test_render_title_image_creates_file(tmp_path: Path) -> None:
 
 
 # ─── 썸네일 추출 테스트 ──────────────────────────────────────────────────
+
 
 def test_extract_thumbnail_returns_none_for_missing_file(tmp_path: Path) -> None:
     """존재하지 않는 비디오 → None 반환 (에러 없이)."""
@@ -184,3 +189,19 @@ def test_extract_thumbnail_returns_none_for_invalid_file(tmp_path: Path) -> None
     bad_video.write_bytes(b"\x00" * 100)
     result = RenderStep.extract_thumbnail(bad_video, tmp_path / "thumb.png")
     assert result is None
+
+
+def test_collect_bgm_files_supports_wav(tmp_path: Path) -> None:
+    """BGM 수집 시 wav 확장자도 포함한다."""
+    mp3_file = tmp_path / "bgm_calm_01.mp3"
+    wav_file = tmp_path / "bgm_calm_02.wav"
+    txt_file = tmp_path / "notes.txt"
+    mp3_file.write_bytes(b"\x00" * 10)
+    wav_file.write_bytes(b"\x00" * 10)
+    txt_file.write_text("ignore", encoding="utf-8")
+
+    files = RenderStep._collect_bgm_files(tmp_path)
+
+    assert mp3_file in files
+    assert wav_file in files
+    assert txt_file not in files

@@ -11,26 +11,30 @@ function applyTheme(theme) {
 }
 
 export function useTheme() {
-  const [theme, setTheme] = useState('light');
+  const [theme, setTheme] = useState(() => {
+    if (typeof window === 'undefined') {
+      return 'light';
+    }
 
-  useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved === 'dark' || saved === 'light') {
-      setTheme(saved);
-      applyTheme(saved);
-    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      setTheme('dark');
-      applyTheme('dark');
-    } else {
-      applyTheme('light');
+      return saved;
     }
-  }, []);
+
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
+
+  useEffect(() => {
+    applyTheme(theme);
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, theme);
+    }
+  }, [theme]);
 
   const toggleTheme = useCallback(() => {
     setTheme(prev => {
       const next = prev === 'light' ? 'dark' : 'light';
-      localStorage.setItem(STORAGE_KEY, next);
-      applyTheme(next);
       return next;
     });
   }, []);

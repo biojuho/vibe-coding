@@ -1,13 +1,14 @@
 from pathlib import Path
+
 from PIL import Image, ImageDraw, ImageFont
 
 # 채널별 브랜드 컬러, 아이콘, 표시명
 _CHANNEL_BRAND: dict[str, dict] = {
-    "ai_tech":    {"color": "#00D4FF", "icon": "🤖", "display": "퓨처 시냅스"},
+    "ai_tech": {"color": "#00D4FF", "icon": "🤖", "display": "퓨처 시냅스"},
     "psychology": {"color": "#FF9EAF", "icon": "🧠", "display": "토닥토닥 심리"},
-    "history":    {"color": "#D4A843", "icon": "🏺", "display": "역사팝콘"},
-    "space":      {"color": "#A855F7", "icon": "🔭", "display": "도파민 랩"},
-    "health":     {"color": "#4CAF50", "icon": "💊", "display": "건강 스포일러"},
+    "history": {"color": "#D4A843", "icon": "🏺", "display": "역사팝콘"},
+    "space": {"color": "#A855F7", "icon": "🔭", "display": "도파민 랩"},
+    "health": {"color": "#4CAF50", "icon": "💊", "display": "건강 스포일러"},
 }
 _DEFAULT_BRAND = {"color": "#FF0000", "icon": "▶", "display": "Subscribe Now!"}
 

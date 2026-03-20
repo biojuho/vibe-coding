@@ -1,4 +1,5 @@
 """Pexels 스톡 비디오/이미지 프로바이더 (무료 API)."""
+
 from __future__ import annotations
 
 import subprocess
@@ -92,9 +93,7 @@ class PexelsClient:
             if url:
                 break
         if not url:
-            raise RuntimeError(
-                f"No suitable Pexels video file found for query: {query!r}"
-            )
+            raise RuntimeError(f"No suitable Pexels video file found for query: {query!r}")
 
         raw_path = output_path.parent / f"{output_path.stem}_raw.mp4"
         self._stream_download(url, raw_path)
@@ -149,10 +148,7 @@ class PexelsClient:
             (p for p in photos if p.get("height", 0) >= p.get("width", 1)),
             photos[0],
         )
-        url = (
-            photo.get("src", {}).get("large2x")
-            or photo.get("src", {}).get("original")
-        )
+        url = photo.get("src", {}).get("large2x") or photo.get("src", {}).get("original")
         if not url:
             raise RuntimeError(f"No usable photo URL for query: {query!r}")
 
@@ -192,21 +188,25 @@ class PexelsClient:
         if hw_codec == "libx264":
             preset = "ultrafast"
         elif "nvenc" in hw_codec:
-            preset = "p1"       # NVENC preset
+            preset = "p1"  # NVENC preset
         elif "qsv" in hw_codec:
             preset = "veryfast"  # QSV preset
         else:
             preset = "veryfast"  # 기타 HW 인코더 폴백
         cmd = [
-            "ffmpeg", "-y", "-i", str(input_path),
-            "-vf", vf,
-            "-c:v", hw_codec,
-            "-preset", preset,
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(input_path),
+            "-vf",
+            vf,
+            "-c:v",
+            hw_codec,
+            "-preset",
+            preset,
             "-an",
             str(output_path),
         ]
         result = subprocess.run(cmd, capture_output=True, timeout=120)  # noqa: S603
         if result.returncode != 0:
-            raise RuntimeError(
-                f"ffmpeg crop failed: {result.stderr.decode(errors='replace')[:500]}"
-            )
+            raise RuntimeError(f"ffmpeg crop failed: {result.stderr.decode(errors='replace')[:500]}")

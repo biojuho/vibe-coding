@@ -10,6 +10,7 @@ CSV 형식:
 사용법:
     python -m ShortsFactory.batch --csv ai_contents.csv --outdir ./output/
 """
+
 from __future__ import annotations
 
 import csv
@@ -67,6 +68,7 @@ def batch_render(
     # tqdm 시도
     try:
         from tqdm import tqdm
+
         iterator = tqdm(enumerate(rows), total=total, desc="🎬 배치 렌더링")
     except ImportError:
         iterator = enumerate(rows)
@@ -99,16 +101,22 @@ def batch_render(
             factory.create(template, data)
             path = factory.render(out_path)
             result = {
-                "index": i, "channel": channel, "template": template,
-                "output": path, "status": "done",
+                "index": i,
+                "channel": channel,
+                "template": template,
+                "output": path,
+                "status": "done",
             }
         except Exception as e:
             result = {
-                "index": i, "channel": channel, "template": template,
-                "status": "error", "error": str(e),
+                "index": i,
+                "channel": channel,
+                "template": template,
+                "status": "error",
+                "error": str(e),
             }
             errors.append(result)
-            logger.error(f"  [{i+1}/{total}] ❌ {channel}/{template}: {e}")
+            logger.error(f"  [{i + 1}/{total}] ❌ {channel}/{template}: {e}")
 
         results.append(result)
         if on_progress:
@@ -118,9 +126,9 @@ def batch_render(
     done = sum(1 for r in results if r.get("status") == "done")
     fail = len(errors)
 
-    logger.info(f"\n{'='*50}")
+    logger.info(f"\n{'=' * 50}")
     logger.info(f"배치 완료: {done}/{total} 성공, {fail} 실패 ({elapsed:.1f}초)")
-    logger.info(f"{'='*50}")
+    logger.info(f"{'=' * 50}")
 
     # 에러 로그
     if errors:
@@ -132,10 +140,17 @@ def batch_render(
     # 결과 요약
     summary_path = out_dir / "batch_summary.json"
     with open(summary_path, "w", encoding="utf-8") as f:
-        json.dump({
-            "total": total, "done": done, "errors": fail,
-            "elapsed_sec": round(elapsed, 1),
-            "results": results,
-        }, f, ensure_ascii=False, indent=2)
+        json.dump(
+            {
+                "total": total,
+                "done": done,
+                "errors": fail,
+                "elapsed_sec": round(elapsed, 1),
+                "results": results,
+            },
+            f,
+            ensure_ascii=False,
+            indent=2,
+        )
 
     return results

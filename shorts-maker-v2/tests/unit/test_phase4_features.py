@@ -1,15 +1,16 @@
 """Phase 4 feature tests: caption utilities, SSML, style tracker."""
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
-from shorts_maker_v2.render.caption_pillow import auto_font_size, complementary_color
 from shorts_maker_v2.providers.edge_tts_client import _apply_ssml_by_role
+from shorts_maker_v2.render.caption_pillow import auto_font_size, complementary_color
 from shorts_maker_v2.utils.style_tracker import StyleTracker
 
-
 # ─── 4-A: complementary color ──────────────────────────────────────────────
+
 
 def test_complementary_white_to_black() -> None:
     assert complementary_color("#FFFFFF") == "#000000"
@@ -29,6 +30,7 @@ def test_complementary_invalid_returns_white() -> None:
 
 # ─── 4-A: auto_font_size ───────────────────────────────────────────────────
 
+
 def test_auto_font_size_hook_larger() -> None:
     base = auto_font_size(64, 20, "body")
     hook = auto_font_size(64, 20, "hook")
@@ -47,6 +49,7 @@ def test_auto_font_size_minimum() -> None:
 
 
 # ─── 4-B: SSML role-based ──────────────────────────────────────────────────
+
 
 def test_ssml_hook_has_emphasis() -> None:
     result = _apply_ssml_by_role("Hello", "hook")
@@ -78,6 +81,7 @@ def test_ssml_escapes_special_chars() -> None:
 
 # ─── 4-E: StyleTracker ─────────────────────────────────────────────────────
 
+
 def test_style_tracker_empty_dir(tmp_path: Path) -> None:
     tracker = StyleTracker(tmp_path)
     result = tracker.weighted_pick("hook_pattern", ["A", "B", "C"])
@@ -91,7 +95,8 @@ def test_style_tracker_reads_manifests(tmp_path: Path) -> None:
             "ab_variant": {"hook_pattern": "A" if i < 8 else "B"},
         }
         (tmp_path / f"job{i}_manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8",
+            json.dumps(manifest),
+            encoding="utf-8",
         )
     tracker = StyleTracker(tmp_path)
     counts = tracker.get_success_counts("hook_pattern")
@@ -106,7 +111,8 @@ def test_style_tracker_weighted_pick_favors_winner(tmp_path: Path) -> None:
             "ab_variant": {"hook_pattern": "winner" if i < 18 else "loser"},
         }
         (tmp_path / f"job{i}_manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8",
+            json.dumps(manifest),
+            encoding="utf-8",
         )
     tracker = StyleTracker(tmp_path)
     # Run 100 picks — winner should be picked significantly more

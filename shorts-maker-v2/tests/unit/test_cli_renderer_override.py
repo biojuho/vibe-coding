@@ -19,12 +19,32 @@ from shorts_maker_v2.config import load_config
 def _write_config(path: Path, engine: str = "native") -> Path:
     payload = {
         "project": {"language": "ko-KR", "default_scene_count": 1},
-        "video": {"target_duration_sec": [35, 45], "resolution": [1080, 1920], "fps": 30, "scene_video_duration_sec": 5, "aspect_ratio": "9:16"},
-        "providers": {"llm": "openai", "tts": "openai", "visual_primary": "openai-image", "visual_fallback": "openai-image"},
+        "video": {
+            "target_duration_sec": [35, 45],
+            "resolution": [1080, 1920],
+            "fps": 30,
+            "scene_video_duration_sec": 5,
+            "aspect_ratio": "9:16",
+        },
+        "providers": {
+            "llm": "openai",
+            "tts": "openai",
+            "visual_primary": "openai-image",
+            "visual_fallback": "openai-image",
+        },
         "limits": {"max_cost_usd": 2.0, "max_retries": 1, "request_timeout_sec": 5},
         "costs": {"llm_per_job": 0.01, "tts_per_second": 0.001, "veo_per_second": 0.03, "image_per_scene": 0.04},
         "paths": {"output_dir": "output", "logs_dir": "logs", "runs_dir": "runs"},
-        "captions": {"font_size": 64, "margin_x": 90, "bottom_offset": 240, "text_color": "#FFD700", "stroke_color": "#000000", "stroke_width": 4, "line_spacing": 12, "font_candidates": ["C:/Windows/Fonts/malgun.ttf"]},
+        "captions": {
+            "font_size": 64,
+            "margin_x": 90,
+            "bottom_offset": 240,
+            "text_color": "#FFD700",
+            "stroke_color": "#000000",
+            "stroke_width": 4,
+            "line_spacing": 12,
+            "font_candidates": ["C:/Windows/Fonts/malgun.ttf"],
+        },
         "rendering": {"engine": engine},
     }
     config_path = path / "config.yaml"

@@ -1,54 +1,76 @@
+'use client';
+
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+
+import { useAppFeedback } from '@/components/feedback/FeedbackProvider';
+import {
+  calvingRecordSchema,
+  createCalvingFormValues,
+} from '@/lib/formSchemas';
 import { BUILDINGS } from '@/lib/constants';
-import { getCalvingDate, getDaysUntilCalving, isCalvingAlert, toInputDate, formatDate } from '@/lib/utils';
+import { getCalvingDate, getDaysUntilCalving, isCalvingAlert, formatDate } from '@/lib/utils';
 import { inputStyle, btnPrimary } from '@/components/ui/common';
 
-export default function CalvingTab({ cattle, onUpdateCattle, onCreateCattle }) {
+const errorTextStyle = {
+  fontSize: '12px',
+  marginTop: '6px',
+  color: 'var(--color-danger)',
+  fontWeight: 600,
+};
+
+export default function CalvingTab({ cattle, onRecordCalving }) {
   const pregnantCows = cattle
     .filter((row) => row.status === '임신우')
     .sort((first, second) => new Date(first.pregnancyDate) - new Date(second.pregnancyDate));
 
   const [selectedCowId, setSelectedCowId] = useState(null);
-  const [calvingDate, setCalvingDate] = useState('');
-  const [calfGender, setCalfGender] = useState('암');
+  const { notify } = useAppFeedback();
 
-  const handleCalving = () => {
-    if (!calvingDate) {
-      alert('분만일을 입력해 주세요.');
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(calvingRecordSchema),
+    defaultValues: createCalvingFormValues(),
+  });
+
+  const closeCalvingForm = () => {
+    setSelectedCowId(null);
+    reset(createCalvingFormValues());
+  };
+
+  const openCalvingForm = (cowId) => {
+    setSelectedCowId(cowId);
+    reset(createCalvingFormValues());
+  };
+
+  const submitCalving = async (values) => {
+    const cow = cattle.find((row) => row.id === selectedCowId);
+
+    if (!cow) {
+      notify({
+        title: '분만 대상 개체를 찾지 못했습니다.',
+        description: '목록을 새로고침한 뒤 다시 시도해 주세요.',
+        variant: 'error',
+      });
       return;
     }
 
-    const cow = cattle.find((row) => row.id === selectedCowId);
-    if (!cow) return;
+    const recorded = await onRecordCalving({
+      motherId: cow.id,
+      calvingDate: values.calvingDate,
+      calfGender: values.calfGender,
+    });
 
-    const updatedMother = {
-      ...cow,
-      status: '번식우',
-      pregnancyDate: null,
-      lastEstrus: null,
-      memo: cow.memo
-        ? `${cow.memo}\n[분만] ${calvingDate} ${calfGender} 송아지 분만`
-        : `[분만] ${calvingDate} ${calfGender} 송아지 분만`,
-    };
-
-    onUpdateCattle(updatedMother);
-
-    if (onCreateCattle) {
-      onCreateCattle({
-        tagNumber: `KR0000-${String(Math.floor(Math.random() * 900000) + 100000)}`,
-        name: `${cow.name}의 송아지`,
-        buildingId: cow.buildingId,
-        penNumber: cow.penNumber,
-        gender: calfGender,
-        birthDate: new Date(calvingDate).toISOString(),
-        weight: 25,
-        status: '송아지',
-        geneticInfo: { father: cow.geneticFather || '미상', mother: cow.tagNumber, grade: '-' },
-        memo: `모체 ${cow.tagNumber} (${cow.name})`,
-      });
+    if (!recorded) {
+      return;
     }
 
-    setSelectedCowId(null);
+    closeCalvingForm();
   };
 
   return (
@@ -120,7 +142,8 @@ export default function CalvingTab({ cattle, onUpdateCattle, onCreateCattle }) {
                 </div>
 
                 {isSelected ? (
-                  <div
+                  <form
+                    onSubmit={handleSubmit(submitCalving)}
                     className="clay-inset rounded-[22px] p-4"
                     style={{ borderColor: 'var(--color-surface-stroke)' }}
                   >
@@ -132,29 +155,33 @@ export default function CalvingTab({ cattle, onUpdateCattle, onCreateCattle }) {
                         </label>
                         <input
                           type="date"
-                          value={calvingDate}
-                          onChange={(event) => setCalvingDate(event.target.value)}
+                          {...register('calvingDate')}
                           style={{ ...inputStyle, width: '100%' }}
                         />
+                        {errors.calvingDate ? <div style={errorTextStyle}>{errors.calvingDate.message}</div> : null}
                       </div>
                       <div>
                         <label style={{ fontSize: '12px', color: 'var(--color-text-secondary)', display: 'block', marginBottom: '4px' }}>
                           송아지 성별
                         </label>
-                        <select value={calfGender} onChange={(event) => setCalfGender(event.target.value)} style={{ ...inputStyle, width: '100%' }}>
+                        <select
+                          {...register('calfGender')}
+                          style={{ ...inputStyle, width: '100%' }}
+                        >
                           <option value="암">암송아지</option>
                           <option value="수">수송아지</option>
                         </select>
+                        {errors.calfGender ? <div style={errorTextStyle}>{errors.calfGender.message}</div> : null}
                       </div>
                     </div>
 
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      <button type="button" onClick={handleCalving} style={{ ...btnPrimary, flex: 1, padding: '12px' }}>
+                      <button type="submit" style={{ ...btnPrimary, flex: 1, padding: '12px' }}>
                         분만 완료 및 송아지 등록
                       </button>
                       <button
                         type="button"
-                        onClick={() => setSelectedCowId(null)}
+                        onClick={closeCalvingForm}
                         style={{
                           ...btnPrimary,
                           background: 'var(--surface-gradient)',
@@ -167,14 +194,11 @@ export default function CalvingTab({ cattle, onUpdateCattle, onCreateCattle }) {
                         취소
                       </button>
                     </div>
-                  </div>
+                  </form>
                 ) : (
                   <button
                     type="button"
-                    onClick={() => {
-                      setSelectedCowId(cow.id);
-                      setCalvingDate(toInputDate(new Date()));
-                    }}
+                    onClick={() => openCalvingForm(cow.id)}
                     className="clay-pressable w-full rounded-[18px] px-4 py-3 text-sm font-semibold text-[color:var(--color-text-secondary)]"
                   >
                     분만 처리 열기

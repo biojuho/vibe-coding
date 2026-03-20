@@ -1,4 +1,5 @@
 """HUD 오버레이 유닛 테스트."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -18,7 +19,7 @@ def test_hud_overlay_returns_rgba_image() -> None:
 def test_hud_overlay_saves_to_file(tmp_path: Path) -> None:
     """HUD 오버레이 이미지가 파일로 정상 저장되는지 확인."""
     output = tmp_path / "hud.png"
-    img = render_hud_overlay(
+    render_hud_overlay(
         target_width=1080,
         target_height=1920,
         output_path=output,

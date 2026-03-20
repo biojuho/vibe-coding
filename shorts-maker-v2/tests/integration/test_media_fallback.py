@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PIL import Image
 import yaml
+from PIL import Image
 
 from shorts_maker_v2.config import load_config
 from shorts_maker_v2.models import ScenePlan
@@ -32,12 +32,32 @@ class FailingGoogleClient:
 def _make_config(tmp_path: Path):
     payload = {
         "project": {"language": "ko-KR", "default_scene_count": 1},
-        "video": {"target_duration_sec": [35, 45], "resolution": [1080, 1920], "fps": 30, "scene_video_duration_sec": 5, "aspect_ratio": "9:16"},
-        "providers": {"llm": "openai", "tts": "openai", "visual_primary": "google-veo", "visual_fallback": "openai-image"},
+        "video": {
+            "target_duration_sec": [35, 45],
+            "resolution": [1080, 1920],
+            "fps": 30,
+            "scene_video_duration_sec": 5,
+            "aspect_ratio": "9:16",
+        },
+        "providers": {
+            "llm": "openai",
+            "tts": "openai",
+            "visual_primary": "google-veo",
+            "visual_fallback": "openai-image",
+        },
         "limits": {"max_cost_usd": 2.0, "max_retries": 1, "request_timeout_sec": 5},
         "costs": {"llm_per_job": 0.25, "tts_per_second": 0.001, "veo_per_second": 0.03, "image_per_scene": 0.04},
         "paths": {"output_dir": "output", "logs_dir": "logs", "runs_dir": "runs"},
-        "captions": {"font_size": 64, "margin_x": 90, "bottom_offset": 240, "text_color": "#FFD700", "stroke_color": "#000000", "stroke_width": 4, "line_spacing": 12, "font_candidates": ["C:/Windows/Fonts/malgun.ttf"]},
+        "captions": {
+            "font_size": 64,
+            "margin_x": 90,
+            "bottom_offset": 240,
+            "text_color": "#FFD700",
+            "stroke_color": "#000000",
+            "stroke_width": 4,
+            "line_spacing": 12,
+            "font_candidates": ["C:/Windows/Fonts/malgun.ttf"],
+        },
         "cache": {"enabled": False},
     }
     config_path = tmp_path / "config.yaml"
@@ -50,7 +70,9 @@ def test_media_step_fallbacks_to_image_when_video_fails(tmp_path: Path, monkeypa
     step = MediaStep(config=config, openai_client=FakeOpenAIClient(), google_client=FailingGoogleClient())
     monkeypatch.setattr(step, "_read_audio_duration", lambda *_, **__: 5.0)
 
-    scene_plans = [ScenePlan(scene_id=1, narration_ko="안녕하세요", visual_prompt_en="A cinematic vertical scene", target_sec=5.0)]
+    scene_plans = [
+        ScenePlan(scene_id=1, narration_ko="안녕하세요", visual_prompt_en="A cinematic vertical scene", target_sec=5.0)
+    ]
     cost_guard = CostGuard(max_cost_usd=config.limits.max_cost_usd, price_table=config.costs)
 
     assets, failures = step.run(scene_plans=scene_plans, run_dir=tmp_path / "run", cost_guard=cost_guard, logger=None)

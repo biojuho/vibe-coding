@@ -2,8 +2,10 @@
 SRT 자막 파일 생성.
 Whisper 타이밍 JSON → .srt 형식으로 변환.
 """
+
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from shorts_maker_v2.render.karaoke import WordSegment, group_into_chunks, load_words_json
@@ -21,11 +23,58 @@ def _format_timestamp(seconds: float) -> str:
 def generate_srt_from_words(
     words: list[WordSegment],
     chunk_size: int = 3,
+    *,
+    min_duration_sec: float = 0.5,
 ) -> str:
-    """WordSegment 리스트 → SRT 문자열."""
-    chunks = group_into_chunks(words, chunk_size)
+    """WordSegment 리스트 → SRT 문자열.
+
+    Args:
+        words: 단어 타이밍 목록
+        chunk_size: 청크당 최대 단어 수
+        min_duration_sec: 자막 최소 표시 시간(초). 이보다 짧은 청크는 다음 청크와 병합.
+    """
+    raw_chunks = group_into_chunks(words, chunk_size)
+
+    # 최소 표시 시간 미만인 청크를 다음 청크와 병합
+    merged: list[tuple[float, float, str]] = []
+    pending_start: float | None = None
+    pending_text: str = ""
+
+    for start, end, text in raw_chunks:
+        duration = end - start
+        if pending_start is not None:
+            # 이전 청크가 너무 짧았으면 현재와 병합
+            merged_text = (pending_text + " " + text).strip()
+            if duration >= min_duration_sec:
+                merged.append((pending_start, end, merged_text))
+                pending_start = None
+                pending_text = ""
+            else:
+                # 현재도 짧으면 계속 누적
+                pending_text = merged_text
+                # end는 갱신 (pending_start 유지)
+        else:
+            if duration < min_duration_sec:
+                pending_start = start
+                pending_text = text
+            else:
+                merged.append((start, end, text))
+
+    # 남은 pending 청크 플러시
+    if pending_start is not None and pending_text:
+        if merged:
+            # 마지막 청크와 합치기
+            prev_start, prev_end, prev_text = merged[-1]
+            merged[-1] = (
+                prev_start,
+                max(prev_end, pending_start + min_duration_sec),
+                (prev_text + " " + pending_text).strip(),
+            )
+        else:
+            merged.append((pending_start, pending_start + min_duration_sec, pending_text))
+
     lines: list[str] = []
-    for idx, (start, end, text) in enumerate(chunks, start=1):
+    for idx, (start, end, text) in enumerate(merged, start=1):
         lines.append(str(idx))
         lines.append(f"{_format_timestamp(start)} --> {_format_timestamp(end)}")
         lines.append(text.strip())
@@ -59,7 +108,7 @@ def export_srt(
     """
     all_words: list[WordSegment] = []
 
-    for json_path, offset in zip(words_json_paths, scene_offsets):
+    for json_path, offset in zip(words_json_paths, scene_offsets, strict=False):
         if not json_path.exists():
             continue
         words = load_words_json(json_path)
@@ -81,9 +130,7 @@ def export_srt(
 
     # Fallback: narration 텍스트 + duration 기반 간단 SRT 생성
     if narrations and durations and scene_offsets:
-        srt_content = _generate_srt_from_narrations(
-            narrations, durations, scene_offsets
-        )
+        srt_content = _generate_srt_from_narrations(narrations, durations, scene_offsets)
         if srt_content:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(srt_content, encoding="utf-8")
@@ -100,11 +147,18 @@ def _generate_srt_from_narrations(
     """narration 텍스트를 씬 단위로 SRT 항목 생성 (Whisper 없을 때 fallback)."""
     lines: list[str] = []
     idx = 1
-    for narration, duration, offset in zip(narrations, durations, offsets):
+    for narration, duration, offset in zip(narrations, durations, offsets, strict=False):
         if not narration.strip():
             continue
-        # 긴 나레이션은 문장 단위로 분할
-        sentences = [s.strip() for s in narration.replace(".", ".\n").replace("?", "?\n").replace("!", "!\n").split("\n") if s.strip()]
+        # 긴 나레이션은 문장 단위로 분할 (소수점/약어 보호: 숫자 앞뒤 마침표 제외)
+        parts = re.split(r"(?<!\d)([.!?])\s+", narration)
+        # re.split with group → [text, punct, text, punct, ...] → 구두점을 앞 텍스트에 재결합
+        sentences = []
+        for i in range(0, len(parts) - 1, 2):
+            sentences.append(parts[i] + parts[i + 1])
+        if len(parts) % 2 == 1 and parts[-1].strip():
+            sentences.append(parts[-1])
+        sentences = [s.strip() for s in sentences if s.strip()]
         if not sentences:
             sentences = [narration]
 

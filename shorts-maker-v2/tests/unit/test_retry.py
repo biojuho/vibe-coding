@@ -37,4 +37,3 @@ def test_retry_raises_after_max_attempts() -> None:
             max_delay_sec=0,
             jitter_ratio=0,
         )
-

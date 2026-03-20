@@ -3,6 +3,7 @@
 JSONL 파일 기반으로 모든 작업의 비용을 누적 기록하고,
 일일/월간/전체 통계를 조회할 수 있습니다.
 """
+
 from __future__ import annotations
 
 import json
@@ -47,9 +48,8 @@ class CostTracker:
             "status": status,
             "duration_sec": round(duration_sec, 1),
         }
-        with self._lock:
-            with self._file.open("a", encoding="utf-8") as f:
-                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        with self._lock, self._file.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
     def _load_records(self) -> list[dict[str, Any]]:
         """전체 레코드 로드."""
@@ -75,9 +75,8 @@ class CostTracker:
             ts = r.get("timestamp", "")
             try:
                 dt = datetime.fromisoformat(ts)
-                if dt.year == year and dt.month == month:
-                    if day is None or dt.day == day:
-                        result.append(r)
+                if dt.year == year and dt.month == month and (day is None or dt.day == day):
+                    result.append(r)
             except (ValueError, TypeError):
                 continue
         return result

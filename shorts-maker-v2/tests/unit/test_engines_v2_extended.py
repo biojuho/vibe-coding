@@ -5,6 +5,7 @@ Phase 3에서 추가된 v2 엔진 메서드들의 유닛 테스트:
                 step_by_step, quote_card, comparison_table
 - ColorEngine: apply_lut, apply_role_grading, blend_presets, auto_correct
 """
+
 from __future__ import annotations
 
 import sys
@@ -37,21 +38,18 @@ class TestLayoutEngineV2:
     @pytest.fixture
     def engine(self):
         from ShortsFactory.engines.layout_engine import LayoutEngine
+
         return LayoutEngine(_CHANNEL_CONFIG)
 
     def test_numbered_list_layout(self, engine, tmp_path):
         items = ["첫 번째 항목", "두 번째 항목", "세 번째 항목"]
-        out = engine.numbered_list_layout(
-            items, title="TOP 3", output_path=tmp_path / "numbered.png"
-        )
+        out = engine.numbered_list_layout(items, title="TOP 3", output_path=tmp_path / "numbered.png")
         assert out.exists()
         img = Image.open(out)
         assert img.size == (1080, 1920)
 
     def test_numbered_list_no_title(self, engine, tmp_path):
-        out = engine.numbered_list_layout(
-            ["A", "B"], output_path=tmp_path / "no_title.png"
-        )
+        out = engine.numbered_list_layout(["A", "B"], output_path=tmp_path / "no_title.png")
         assert out.exists()
 
     def test_image_text_overlay_positions(self, engine, tmp_path):
@@ -73,7 +71,9 @@ class TestLayoutEngineV2:
             {"label": "댓글", "value": "1,200"},
         ]
         out = engine.metric_dashboard(
-            metrics, title="채널 KPI", cols=2,
+            metrics,
+            title="채널 KPI",
+            cols=2,
             output_path=tmp_path / "dashboard.png",
         )
         assert out.exists()
@@ -83,7 +83,8 @@ class TestLayoutEngineV2:
     def test_metric_dashboard_cols_clamped(self, engine, tmp_path):
         """cols가 범위 밖일 때 클램핑되는지 확인."""
         out = engine.metric_dashboard(
-            [{"label": "X", "value": "1"}], cols=5,
+            [{"label": "X", "value": "1"}],
+            cols=5,
             output_path=tmp_path / "clamped.png",
         )
         assert out.exists()
@@ -95,7 +96,8 @@ class TestLayoutEngineV2:
             {"label": "STEP 3", "title": "완성", "desc": "접시에 담습니다"},
         ]
         out = engine.step_by_step_layout(
-            steps, title="요리 가이드",
+            steps,
+            title="요리 가이드",
             output_path=tmp_path / "steps.png",
         )
         assert out.exists()
@@ -117,9 +119,7 @@ class TestLayoutEngineV2:
         assert img.size[0] == 1080
 
     def test_quote_card_no_author(self, engine, tmp_path):
-        out = engine.quote_card(
-            "짧은 인용문", output_path=tmp_path / "quote_no_author.png"
-        )
+        out = engine.quote_card("짧은 인용문", output_path=tmp_path / "quote_no_author.png")
         assert out.exists()
 
     def test_comparison_table(self, engine, tmp_path):
@@ -129,14 +129,13 @@ class TestLayoutEngineV2:
             ["성능", "★★★★", "★★★★★"],
             ["디자인", "★★★", "★★★★"],
         ]
-        out = engine.comparison_table(
-            headers, rows, output_path=tmp_path / "table.png"
-        )
+        out = engine.comparison_table(headers, rows, output_path=tmp_path / "table.png")
         assert out.exists()
 
     def test_comparison_table_single_column(self, engine, tmp_path):
         out = engine.comparison_table(
-            ["제목"], [["행 1"], ["행 2"]],
+            ["제목"],
+            [["행 1"], ["행 2"]],
             output_path=tmp_path / "single_col.png",
         )
         assert out.exists()
@@ -151,6 +150,7 @@ class TestColorEngineV2:
     @pytest.fixture
     def engine(self):
         from ShortsFactory.engines.color_engine import ColorEngine
+
         return ColorEngine("cinematic")
 
     def test_apply_lut_identity(self, engine):
@@ -250,6 +250,7 @@ class TestColorEngineV2:
         class FakeClip:
             def get_frame(self, t):
                 return dark_frame
+
             def transform(self, fn):
                 self._fn = fn
                 return self
@@ -277,8 +278,10 @@ class TestOrchestratorShortsFactoryBranch:
         class MockLogger:
             def __init__(self):
                 self.warnings = []
+
             def warning(self, *args, **kwargs):
                 self.warnings.append(args)
+
             def info(self, *args, **kwargs):
                 pass
 
@@ -300,6 +303,7 @@ class TestOrchestratorShortsFactoryBranch:
     def test_use_shorts_factory_flag_default(self):
         """PipelineOrchestrator.__init__이 use_shorts_factory 파라미터를 지원하는지 확인."""
         import inspect
+
         from shorts_maker_v2.pipeline.orchestrator import PipelineOrchestrator
 
         sig = inspect.signature(PipelineOrchestrator.__init__)

@@ -7,7 +7,7 @@ import urllib.parse
 from pathlib import Path
 
 import requests
-from moviepy import ImageClip, vfx
+from moviepy import ImageClip
 
 logger = logging.getLogger(__name__)
 
@@ -70,14 +70,15 @@ def _ensure_broll_image(cache_dir: Path, broll_prompt: str) -> Path | None:
 
     return None
 
+
 def create_broll_pip(
-    base_clip, 
+    base_clip,
     cache_dir: Path,
-    visual_prompt: str, 
-    target_width: int, 
+    visual_prompt: str,
+    target_width: int,
     target_height: int,
     start_time: float = 0.0,
-    duration: float | None = None
+    duration: float | None = None,
 ):
     """
     B-Roll(보조 이미지/아이콘)을 화면 우상단에 Picture-in-Picture(PIP) 모드로 겹친다.
@@ -91,30 +92,28 @@ def create_broll_pip(
     except Exception as e:
         logger.warning("[B-Roll] Failed to load PIP source %s: %s", broll_path, e)
         return None
-        
-    if duration is not None:
-        pip_clip = pip_clip.with_duration(duration)
-    else:
-        pip_clip = pip_clip.with_duration(base_clip.duration)
-        
+
+    pip_clip = pip_clip.with_duration(duration) if duration is not None else pip_clip.with_duration(base_clip.duration)
+
     pip_clip = pip_clip.with_start(start_time)
 
     # 1. 크기 조정 (화면 너비의 30% 정도)
     pip_w = int(target_width * 0.30)
-    
+
     # 원본 비율 유지하면서 resize
     scale = pip_w / pip_clip.w
     pip_clip = pip_clip.resized(scale)
-    
+
     # 2. 반투명 및 약간의 테두리 여백
     # opacity 플러그인 등 지원이 완벽하지 않을 수 있으므로 MoviePy의 with_opacity 사용 권장 (기본적으로 with_opacity는 mask alpha 조절)
     try:
-        # with_opacity가 있으면 사용. 
+        # with_opacity가 있으면 사용.
         if hasattr(pip_clip, "with_opacity"):
             pip_clip = pip_clip.with_opacity(0.85)
         else:
             # MoviePy 1.x/2.x 호환성을 위해 ImageClip 자체에 마스크 부여
             import numpy as np
+
             mask_arr = np.ones((pip_clip.h, pip_clip.w), dtype=float) * 0.85
             pip_clip = pip_clip.with_mask(ImageClip(mask_arr, is_mask=True))
     except Exception:
@@ -122,10 +121,10 @@ def create_broll_pip(
 
     margin_x = 40
     margin_y = 60
-    
+
     # 위치: 우상단
     pos_x = target_width - pip_clip.w - margin_x
     pos_y = margin_y
-    
+
     pip_clip = pip_clip.with_position((pos_x, pos_y))
     return pip_clip

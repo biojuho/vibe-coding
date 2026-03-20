@@ -3,10 +3,11 @@
 채널 키 + 템플릿 이름으로 적절한 생성기를 로드하고
 파이프라인 설정(컬러 프리셋, 키워드 하이라이트 등)을 자동 적용합니다.
 """
+
 from __future__ import annotations
+
 import importlib
 import logging
-from pathlib import Path
 from typing import Any
 
 from shorts_maker_v2 import templates
@@ -27,6 +28,7 @@ class ChannelPipeline:
     def _load_profile(channel_key: str) -> dict[str, Any]:
         try:
             from shorts_maker_v2.utils.channel_router import ChannelRouter
+
             return ChannelRouter().get_profile(channel_key)
         except Exception:
             return {}
@@ -53,13 +55,10 @@ class ChannelPipeline:
         tmpl = templates.get(template_name)
         if not tmpl:
             available = [t["name"] for t in self.list_templates()]
-            raise ValueError(
-                f"템플릿 '{template_name}' 없음. 사용 가능: {available}"
-            )
+            raise ValueError(f"템플릿 '{template_name}' 없음. 사용 가능: {available}")
         if tmpl["channel"] != self.channel_key:
             raise ValueError(
-                f"템플릿 '{template_name}'은 채널 '{tmpl['channel']}'용입니다. "
-                f"현재 채널: '{self.channel_key}'"
+                f"템플릿 '{template_name}'은 채널 '{tmpl['channel']}'용입니다. 현재 채널: '{self.channel_key}'"
             )
         mod = importlib.import_module(tmpl["module"])
         cls = getattr(mod, tmpl["generator_cls"])
@@ -80,7 +79,9 @@ class ChannelPipeline:
         result = gen.generate(output_path)
         logger.info(
             "[ChannelPipeline] ✅ %s/%s → %s",
-            self.channel_key, template_name, result,
+            self.channel_key,
+            template_name,
+            result,
         )
         return result
 

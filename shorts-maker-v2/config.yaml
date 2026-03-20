@@ -125,8 +125,8 @@ paths:
 
 captions:
   mode: "karaoke"           # "static" | "karaoke" — 카라오케 하이라이트 자막 활성화
-  words_per_chunk: 6        # static 모드: 한 번에 표시할 단어 수 (더 자연스럽게)
-  font_size: 72             # 적당한 크기
+  words_per_chunk: 4        # 한국어 최적화: 4단어씩 표시 (화면 넘침 방지)
+  font_size: 56             # 한국어 최적 크기 (72→56)
   margin_x: 60
   bottom_offset: 380        # 화면 하단 영역
   text_color: "#FFFFFF"     # 흰색 텍스트
@@ -153,6 +153,15 @@ audio:
   sfx_dir: "assets/sfx"         # SFX mp3/wav 파일 폴더
   sfx_volume: 0.35               # 효과음 볼륨 (0.0~1.0)
   sync_with_whisper: false       # true 시 Whisper-1로 단어 수준 동기화 수행
+  bgm_provider: "lyria"          # "lyria" (AI 생성, 무료) | "local" (assets/bgm 파일)
+  ducking_factor: 0.25           # 나레이션 구간 BGM 볼륨 비율 (0.25 = 25%로 감소)
+  lyria_prompt_map:              # 채널별 Lyria BGM 생성 프롬프트
+    ai_tech: "upbeat electronic lo-fi beats, futuristic synth, minimal percussion, background music"
+    psychology: "gentle piano with soft ambient pads, calming and warm, minimal beat, background music"
+    history: "cinematic orchestral, documentary style, strings and woodwinds, subtle percussion, background music"
+    space: "epic orchestral with deep bass, cosmic ambient pads, slow tempo, awe-inspiring, background music"
+    health: "calm acoustic guitar with light percussion, warm and trustworthy, background music"
+    default: "calm lo-fi beats with soft piano, minimal percussion, background music"
 
 intro_outro:
   intro_path: ""               # 인트로 이미지/영상 경로 (비우면 스킵)
@@ -174,4 +183,3 @@ cache:
   dir: ".cache"                    # 캐시 디렉토리 (상대 경로)
   max_size_mb: 500                 # 최대 캐시 크기 (MB)
   ttl_days: 30                     # 캐시 만료 기간 (일)
-

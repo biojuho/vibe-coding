@@ -1,5 +1,33 @@
 # 📋 AI 세션 로그
 
+## 2026-03-20 — Antigravity (영상 품질 4대 개선)
+
+### 작업 요약
+영상 품질 4가지 이슈(오디오 끊김, BGM 부자연스러움, 자막 오타, AI 음성 티) 해결.
+
+### 세부 변경사항
+- `edge_tts_client.py`: TTS 앞뒤 50ms silence padding, body 역할 ±5% rate/±3Hz pitch 랜덤 변주
+- `render_step.py`: Google Lyria AI BGM 생성 통합(1순위), local 크로스페이드 루핑(2순위), RMS ducking
+- `script_step.py`: 맞춤법 교정 프롬프트 추가, spelling_score 리뷰 차원 추가
+- `audio_postprocess.py`: 컴프레서(50ms 소프트 리미팅), 미량 리버브(25ms/50ms delay overlay) 추가
+- `config.py`/`config.yaml`: bgm_provider, ducking_factor, lyria_prompt_map 설정 추가
+- `pydub` 패키지 설치
+
+### 결정사항
+- BGM 1순위 Lyria(무료), 실패 시 local assets fallback
+- Ducking factor 0.25 (나레이션 구간 BGM → 25%)
+- edge-tts 무료 유지 (OpenAI TTS 전환은 향후 검토)
+
+### TODO
+- 영상 재생성 후 실제 품질 확인 필요
+- Google Lyria BGM 생성 시간 측정 (30~60초 추가 예상)
+
+### 다음 도구에게 메모
+- `_channel_key` attribute는 render_step에 없으므로 `getattr(self, "_channel_key", "")` 방어 코딩 적용
+- Lyria 프롬프트는 config.yaml의 lyria_prompt_map에서 channel key로 조회
+
+---
+
 ## 2026-03-20 — Antigravity (SSML 태그 누출 수정)
 
 ### 작업 요약

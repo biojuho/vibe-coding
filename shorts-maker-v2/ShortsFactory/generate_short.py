@@ -19,6 +19,7 @@
     )
     print(f"생성된 영상: {result}")
 """
+
 from __future__ import annotations
 
 import logging

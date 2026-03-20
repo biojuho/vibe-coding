@@ -1,4 +1,5 @@
 """StockMediaManager — Pexels + Unsplash 채널별 통합 미디어 관리자."""
+
 from __future__ import annotations
 
 import logging
@@ -95,9 +96,7 @@ class StockMediaManager:
         unsplash_key = os.getenv("UNSPLASH_API_KEY", "")
 
         if not pexels_key:
-            raise EnvironmentError(
-                "PEXELS_API_KEY가 설정되지 않았습니다. .env 파일을 확인하세요."
-            )
+            raise OSError("PEXELS_API_KEY가 설정되지 않았습니다. .env 파일을 확인하세요.")
 
         pexels = PexelsClient(api_key=pexels_key)
         unsplash = UnsplashClient(access_key=unsplash_key) if unsplash_key else None
@@ -180,8 +179,7 @@ class StockMediaManager:
                 errors.append(msg)
 
         raise RuntimeError(
-            f"[StockMedia] 모든 소스에서 미디어를 가져오지 못했습니다.\n"
-            + "\n".join(f"  - {e}" for e in errors)
+            "[StockMedia] 모든 소스에서 미디어를 가져오지 못했습니다.\n" + "\n".join(f"  - {e}" for e in errors)
         )
 
     # ──────────────────────────────────────────────
@@ -199,11 +197,7 @@ class StockMediaManager:
         visual_prompt (AI 생성 영문)를 35자 이내로 잘라 붙여서
         Pexels/Unsplash 검색 정확도를 높인다.
         """
-        channel_kw = (
-            self._channel_keywords
-            .get(channel, {})
-            .get(scene_role, _DEFAULT_KEYWORD)
-        )
+        channel_kw = self._channel_keywords.get(channel, {}).get(scene_role, _DEFAULT_KEYWORD)
         # visual_prompt 앞 35자 추출 (단어 단위 절삭)
         truncated = " ".join(visual_prompt.split()[:5])
         query = f"{truncated} {channel_kw}".strip()

@@ -7,6 +7,7 @@ Phase 2 개선:
 - apply_ssml_break_correction: SSML <break> offset 누적 보정
 - group_into_chunks: boundary_aware 옵션 추가
 """
+
 from __future__ import annotations
 
 import json
@@ -23,7 +24,7 @@ from shorts_maker_v2.render.caption_pillow import CaptionStyle, _load_font
 class WordSegment:
     word: str
     start: float  # 오디오 내 시작 시각 (초)
-    end: float    # 오디오 내 종료 시각 (초)
+    end: float  # 오디오 내 종료 시각 (초)
 
 
 def load_words_json(json_path: Path) -> list[WordSegment]:
@@ -174,24 +175,28 @@ def group_word_segments(
 
             end = words[i + 1].start if not is_last else current[-1].end
             chunk_words = list(current)
-            grouped.append((
-                chunk_words[0].start,
-                end,
-                " ".join(w.word for w in chunk_words),
-                chunk_words,
-            ))
+            grouped.append(
+                (
+                    chunk_words[0].start,
+                    end,
+                    " ".join(w.word for w in chunk_words),
+                    chunk_words,
+                )
+            )
             current = []
         return grouped
 
     for i in range(0, len(words), chunk_size):
-        chunk_words = words[i:i + chunk_size]
+        chunk_words = words[i : i + chunk_size]
         end = words[i + chunk_size].start if i + chunk_size < len(words) else chunk_words[-1].end
-        grouped.append((
-            chunk_words[0].start,
-            end,
-            " ".join(w.word for w in chunk_words),
-            list(chunk_words),
-        ))
+        grouped.append(
+            (
+                chunk_words[0].start,
+                end,
+                " ".join(w.word for w in chunk_words),
+                list(chunk_words),
+            )
+        )
     return grouped
 
 
@@ -224,10 +229,64 @@ def group_into_chunks(
     ]
 
 
-
 def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
     h = hex_color.lstrip("#")
     return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+
+
+def _auto_scale_font(style: CaptionStyle, text: str, max_width: int) -> CaptionStyle:
+    """텍스트가 max_width에 맞도록 폰트를 자동 축소.
+
+    최소 폰트 크기는 원래의 50%로 제한.
+    """
+    from PIL import Image, ImageDraw
+
+    min_font_size = max(24, style.font_size // 2)
+    current_size = style.font_size
+
+    while current_size > min_font_size:
+        test_style = CaptionStyle(
+            font_size=current_size,
+            margin_x=style.margin_x,
+            bottom_offset=style.bottom_offset,
+            text_color=style.text_color,
+            stroke_color=style.stroke_color,
+            stroke_width=style.stroke_width,
+            line_spacing=style.line_spacing,
+            font_candidates=style.font_candidates,
+            mode=style.mode,
+            words_per_chunk=style.words_per_chunk,
+            bg_color=style.bg_color,
+            bg_opacity=style.bg_opacity,
+            bg_radius=style.bg_radius,
+        )
+        font = _load_font(test_style)
+        probe = Image.new("RGBA", (max_width * 2, 400), (0, 0, 0, 0))
+        probe_draw = ImageDraw.Draw(probe)
+        bbox = probe_draw.textbbox((0, 0), text, font=font, stroke_width=0)
+        text_w = bbox[2] - bbox[0]
+        pad_x = 44  # padding
+        if text_w + pad_x * 2 <= max_width:
+            break
+        current_size -= 4  # 4px씩 축소
+
+    if current_size != style.font_size:
+        return CaptionStyle(
+            font_size=current_size,
+            margin_x=style.margin_x,
+            bottom_offset=style.bottom_offset,
+            text_color=style.text_color,
+            stroke_color=style.stroke_color,
+            stroke_width=style.stroke_width,
+            line_spacing=style.line_spacing,
+            font_candidates=style.font_candidates,
+            mode=style.mode,
+            words_per_chunk=style.words_per_chunk,
+            bg_color=style.bg_color,
+            bg_opacity=style.bg_opacity,
+            bg_radius=style.bg_radius,
+        )
+    return style
 
 
 def render_karaoke_image(
@@ -242,6 +301,9 @@ def render_karaoke_image(
     """
     output_path.parent.mkdir(parents=True, exist_ok=True)
     scale = 2  # 2x 슈퍼샘플링
+
+    # 자동 폰트 축소: 텍스트가 캔버스를 초과하면 축소
+    style = _auto_scale_font(style, text, canvas_width)
 
     # 2x 스케일 스타일
     hi_style = CaptionStyle(
@@ -270,10 +332,7 @@ def render_karaoke_image(
     text_w = max(1, int(bbox[2] - bbox[0]))
     text_h = max(1, int(bbox[3] - bbox[1]))
 
-    if hi_style.bg_radius == 0:
-        image_w = hi_width - hi_style.margin_x * 2
-    else:
-        image_w = min(hi_width, text_w + pad_x * 2)
+    image_w = hi_width - hi_style.margin_x * 2 if hi_style.bg_radius == 0 else min(hi_width, text_w + pad_x * 2)
     image_h = text_h + pad_y * 2
 
     image = Image.new("RGBA", (image_w, image_h), (0, 0, 0, 0))
@@ -324,7 +383,7 @@ def _render_word_glow(
     image: Image.Image,
     position: tuple[float, float],
     word: str,
-    font: "ImageFont",
+    font: ImageFont,
     glow_color: str,
     glow_radius: int = 6,
 ) -> Image.Image:
@@ -384,6 +443,10 @@ def render_karaoke_highlight_image(
     """
     output_path.parent.mkdir(parents=True, exist_ok=True)
     scale = 2
+
+    # 자동 폰트 축소: 전체 단어 텍스트가 캔버스를 초과하면 축소
+    full_text = " ".join(words)
+    style = _auto_scale_font(style, full_text, canvas_width)
 
     hi_style = CaptionStyle(
         font_size=style.font_size * scale,
@@ -448,10 +511,7 @@ def render_karaoke_highlight_image(
     normal_ascent = -normal_bbox[1]
     active_ascent = -active_bbox[1]
 
-    if hi_style.bg_radius == 0:
-        image_w = hi_width - hi_style.margin_x * 2
-    else:
-        image_w = min(hi_width, text_w + pad_x * 2)
+    image_w = hi_width - hi_style.margin_x * 2 if hi_style.bg_radius == 0 else min(hi_width, text_w + pad_x * 2)
     image_h = text_h + pad_y * 2
 
     image = Image.new("RGBA", (image_w, image_h), (0, 0, 0, 0))
@@ -469,9 +529,9 @@ def render_karaoke_highlight_image(
     # 텍스트 시작 위치 (가운데 정렬)
     base_x = (image_w - text_w) / 2
 
-    # dim 색상 (비활성 단어용 — 반투명 흰색, alpha 120으로 대비 강화)
+    # dim 색상 (비활성 단어용 — 흰색, 잘 보이게)
     hr, hg, hb = _hex_to_rgb(highlight_color)
-    dim_color = (255, 255, 255, 120)
+    dim_color = (255, 255, 255, 255)
     active_color = (hr, hg, hb, 255)
 
     # 키워드 하이라이트 색상 (keyword_highlight_color가 제공된 경우)
@@ -488,14 +548,11 @@ def render_karaoke_highlight_image(
     shadow_offset = max(2, scale)
 
     for i, word in enumerate(words):
-        is_active = (i == active_word_index)
+        is_active = i == active_word_index
         use_font = active_font if is_active else font
 
         # baseline 정렬: 활성 단어는 더 큰 폰트이므로 y 보정
-        if is_active:
-            base_y = pad_y + (normal_ascent - active_ascent)
-        else:
-            base_y = pad_y
+        base_y = pad_y + (normal_ascent - active_ascent) if is_active else pad_y
 
         # 키워드 매칭 체크 (2글자 이상 단어만)
         is_keyword = False
@@ -586,5 +643,3 @@ def build_keyword_color_map(
         if whole:
             result[whole] = color
     return result
-
-

@@ -24,7 +24,7 @@ class TwitterPoster:
         self.consumer_secret = os.environ.get("TWITTER_CONSUMER_SECRET") or config_mgr.get("twitter.consumer_secret")
         self.access_token = os.environ.get("TWITTER_ACCESS_TOKEN") or config_mgr.get("twitter.access_token")
         self.access_token_secret = os.environ.get("TWITTER_ACCESS_TOKEN_SECRET") or config_mgr.get("twitter.access_token_secret")
-        
+
         if self.enabled:
             try:
                 if not all([self.consumer_key, self.consumer_secret, self.access_token, self.access_token_secret]):
@@ -37,7 +37,7 @@ class TwitterPoster:
                     self.access_token_secret
                 )
                 self.api_v1 = tweepy.API(auth)
-                
+
                 # v2 API for tweeting
                 self.client_v2 = tweepy.Client(
                     consumer_key=self.consumer_key,

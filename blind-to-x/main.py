@@ -53,6 +53,9 @@ def _build_parser():
     parser.add_argument("--reprocess-approved", action="store_true", help="Publish approved Notion items only")
     parser.add_argument("--newsletter-build", action="store_true", help="Build newsletter edition from approved Notion items")
     parser.add_argument("--newsletter-preview", action="store_true", help="Preview newsletter edition without publishing")
+    parser.add_argument("--digest", action="store_true", help="Generate and send daily digest")
+    parser.add_argument("--digest-date", type=str, default=None, help="Digest date (YYYY-MM-DD, default: today)")
+    parser.add_argument("--sentiment-report", action="store_true", help="Show current emotion trends")
     return parser
 
 
@@ -292,6 +295,34 @@ async def main():
             await notifier.send_message(
                 f"Blind-to-X 승인 재발행 완료\n성공 {success_count}건 / 실패 {fail_count}건"
             )
+        return
+
+    # ── 일일 다이제스트 모드 ──────────────────────────────────────
+    if getattr(args, "digest", False):
+        from pipeline.daily_digest import generate_and_send
+        digest = await generate_and_send(
+            config_mgr, notion_uploader=notion_uploader, date=args.digest_date,
+        )
+        logger.info("Daily digest generated: %d posts, %d published", digest.total_collected, digest.total_published)
+        return
+
+    # ── 감성 트렌드 리포트 모드 ────────────────────────────────────
+    if getattr(args, "sentiment_report", False):
+        from pipeline.sentiment_tracker import get_sentiment_tracker
+        tracker = get_sentiment_tracker()
+        snapshot = tracker.get_snapshot(hours=24)
+        print(f"\n=== Sentiment Report ({snapshot.timestamp.strftime('%Y-%m-%d %H:%M KST')}) ===")
+        print(f"Posts analyzed: {snapshot.total_posts}")
+        print(f"Dominant emotion: {snapshot.dominant_emotion}")
+        if snapshot.top_emotions:
+            print("\nTop emotions:")
+            for emo, cnt in snapshot.top_emotions[:5]:
+                print(f"  {emo}: {cnt}")
+        if snapshot.trending_keywords:
+            print("\nTrending keywords:")
+            for t in snapshot.trending_keywords:
+                arrow = "^" if t.direction == "rising" else ("v" if t.direction == "falling" else "=")
+                print(f"  {t.keyword} {arrow} (x{t.spike_ratio}, count={t.current_count})")
         return
 
     # ── 뉴스레터 빌드 모드 ───────────────────────────────────────
@@ -620,6 +651,14 @@ async def main():
                 error_reasons = "; ".join([str(f.get('error', 'unknown')) for f in failed])
                 logger.error(f"Exit 1: All {len(failed)} items failed. Reasons: {error_reasons}")
                 sys.exit(1)
+
+            # Auto-send daily digest if configured (end of pipeline run)
+            if config_mgr.get("digest.enabled", False) and config_mgr.get("digest.telegram_enabled", False):
+                try:
+                    from pipeline.daily_digest import generate_and_send
+                    await generate_and_send(config_mgr, notion_uploader=notion_uploader)
+                except Exception as _dg_exc:
+                    logger.debug("Auto digest skipped: %s", _dg_exc)
     except Exception as exc:
         logger.exception("Critical error in main: %s", exc)
         await notifier.send_message(f"Blind-to-X pipeline crash\nError: `{exc}`", level="CRITICAL")

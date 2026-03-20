@@ -14,9 +14,9 @@ test_visual_regression.py — 비주얼 리그레션 테스트 프레임워크
     pytest tests/unit/test_visual_regression.py --update-baselines  # 베이스라인 갱신
 """
 
-import sys
 import hashlib
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -47,6 +47,7 @@ _SSIM_THRESHOLD = 0.85
 
 # ── SSIM 계산 (scikit-image 없이) ─────────────────────────────────────
 
+
 def compute_ssim(img_a: np.ndarray, img_b: np.ndarray) -> float:
     """두 이미지 간 Structural Similarity Index (SSIM) 계산.
 
@@ -63,9 +64,8 @@ def compute_ssim(img_a: np.ndarray, img_b: np.ndarray) -> float:
     if img_a.shape != img_b.shape:
         # 크기 다르면 리사이즈
         from PIL import Image as _Img
-        b = _Img.fromarray(img_b).resize(
-            (img_a.shape[1], img_a.shape[0]), _Img.LANCZOS
-        )
+
+        b = _Img.fromarray(img_b).resize((img_a.shape[1], img_a.shape[0]), _Img.LANCZOS)
         img_b = np.array(b)
 
     a = img_a.astype(np.float64)
@@ -84,7 +84,7 @@ def compute_ssim(img_a: np.ndarray, img_b: np.ndarray) -> float:
     sigma_ab = np.mean((a - mu_a) * (b - mu_b))
 
     numerator = (2 * mu_a * mu_b + c1) * (2 * sigma_ab + c2)
-    denominator = (mu_a ** 2 + mu_b ** 2 + c1) * (sigma_a_sq + sigma_b_sq + c2)
+    denominator = (mu_a**2 + mu_b**2 + c1) * (sigma_a_sq + sigma_b_sq + c2)
 
     return float(numerator / denominator)
 
@@ -101,18 +101,18 @@ def compute_psnr(img_a: np.ndarray, img_b: np.ndarray) -> float:
     """
     if img_a.shape != img_b.shape:
         from PIL import Image as _Img
-        b = _Img.fromarray(img_b).resize(
-            (img_a.shape[1], img_a.shape[0]), _Img.LANCZOS
-        )
+
+        b = _Img.fromarray(img_b).resize((img_a.shape[1], img_a.shape[0]), _Img.LANCZOS)
         img_b = np.array(b)
 
     mse = np.mean((img_a.astype(np.float64) - img_b.astype(np.float64)) ** 2)
     if mse == 0:
         return float("inf")
-    return float(10.0 * np.log10(255.0 ** 2 / mse))
+    return float(10.0 * np.log10(255.0**2 / mse))
 
 
 # ── 베이스라인 관리 ──────────────────────────────────────────────────
+
 
 def _get_baseline_path(test_name: str) -> Path:
     """테스트 이름으로 베이스라인 경로 생성."""
@@ -185,12 +185,14 @@ def _compare_with_baseline(
 
 # ── 테스트 클래스 ─────────────────────────────────────────────────────
 
+
 class TestVisualRegressionTextEngine:
     """TextEngine 비주얼 리그레션 테스트."""
 
     @pytest.fixture
     def engine(self):
         from ShortsFactory.engines.text_engine import TextEngine
+
         return TextEngine(_CHANNEL_CONFIG)
 
     def test_subtitle_body_regression(self, engine, tmp_path):
@@ -232,6 +234,7 @@ class TestVisualRegressionBackgroundEngine:
     @pytest.fixture
     def engine(self):
         from ShortsFactory.engines.background_engine import BackgroundEngine
+
         return BackgroundEngine(_CHANNEL_CONFIG)
 
     def test_gradient_vertical_regression(self, engine, tmp_path):
@@ -265,6 +268,7 @@ class TestVisualRegressionLayoutEngine:
     @pytest.fixture
     def engine(self):
         from ShortsFactory.engines.layout_engine import LayoutEngine
+
         return LayoutEngine(_CHANNEL_CONFIG)
 
     def test_split_screen_regression(self, engine, tmp_path):

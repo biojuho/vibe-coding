@@ -10,7 +10,5 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
 
 from shorts_maker_v2.cli import run_cli  # noqa: E402
 
-
 if __name__ == "__main__":
     raise SystemExit(run_cli())
-

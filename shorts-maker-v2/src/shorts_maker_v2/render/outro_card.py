@@ -3,6 +3,7 @@
 인트로와 대칭적인 브랜드 아웃트로 이미지를 자동 생성합니다.
 채널별 테마 색상 + 채널명 + 소셜 CTA 포함.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -11,11 +12,11 @@ from PIL import Image, ImageDraw, ImageFont
 
 # 채널별 브랜드 컬러, 아이콘, 표시명 (ending_card.py와 동일)
 _CHANNEL_BRAND: dict[str, dict] = {
-    "ai_tech":    {"color": "#00D4FF", "icon": "🤖", "display": "퓨처 시냅스"},
+    "ai_tech": {"color": "#00D4FF", "icon": "🤖", "display": "퓨처 시냅스"},
     "psychology": {"color": "#FF9EAF", "icon": "🧠", "display": "토닥토닥 심리"},
-    "history":    {"color": "#D4A843", "icon": "🏺", "display": "역사팝콘"},
-    "space":      {"color": "#A855F7", "icon": "🔭", "display": "도파민 랩"},
-    "health":     {"color": "#4CAF50", "icon": "💊", "display": "건강 스포일러"},
+    "history": {"color": "#D4A843", "icon": "🏺", "display": "역사팝콘"},
+    "space": {"color": "#A855F7", "icon": "🔭", "display": "도파민 랩"},
+    "health": {"color": "#4CAF50", "icon": "💊", "display": "건강 스포일러"},
 }
 _DEFAULT_BRAND = {"color": "#FF0000", "icon": "▶", "display": "Subscribe"}
 
@@ -97,12 +98,14 @@ def render_outro_card(
     iw = bb[2] - bb[0]
     draw.text(
         (cx - iw // 2 + 3, cy - 160 + 3),
-        icon_text, font=font_large,
+        icon_text,
+        font=font_large,
         fill=(0, 0, 0, 140),
     )
     draw.text(
         (cx - iw // 2, cy - 160),
-        icon_text, font=font_large,
+        icon_text,
+        font=font_large,
         fill=(*accent_rgb, 255),
     )
 
@@ -112,12 +115,14 @@ def render_outro_card(
     mw = bb2[2] - bb2[0]
     draw.text(
         (cx - mw // 2 + 2, cy - 40 + 2),
-        msg, font=font_medium,
+        msg,
+        font=font_medium,
         fill=(0, 0, 0, 120),
     )
     draw.text(
         (cx - mw // 2, cy - 40),
-        msg, font=font_medium,
+        msg,
+        font=font_medium,
         fill=(240, 240, 240, 255),
     )
 
@@ -127,7 +132,8 @@ def render_outro_card(
     ctw = bb3[2] - bb3[0]
     draw.text(
         (cx - ctw // 2, cy + 60),
-        cta, font=font_small,
+        cta,
+        font=font_small,
         fill=(180, 180, 190, 255),
     )
 

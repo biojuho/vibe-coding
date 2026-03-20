@@ -231,6 +231,26 @@ trends:
   spike_threshold: 80.0
   cache_ttl_minutes: 10
 
+crawl4ai:
+  provider: "gemini/gemini-2.5-flash"
+  timeout_seconds: 30
+  verbose: false
+
+viral_filter:
+  enabled: true
+  threshold: 40.0
+  timeout_seconds: 10
+
+sentiment:
+  enabled: true
+  retention_days: 30
+
+digest:
+  enabled: true
+  max_entries: 10
+  send_time: "22:00"
+  telegram_enabled: true
+
 schedule:
   enabled: true
   cron: "0 */3 * * *"

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import json
 import logging
 import os
-from pathlib import Path
 import threading
+import time
 import uuid
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import yaml
@@ -22,13 +23,13 @@ from shorts_maker_v2.pipeline.media_step import MediaStep
 from shorts_maker_v2.pipeline.render_step import RenderStep
 from shorts_maker_v2.pipeline.research_step import ResearchStep
 from shorts_maker_v2.pipeline.script_step import ScriptStep, TopicUnsuitableError
+from shorts_maker_v2.pipeline.series_engine import SeriesEngine
 from shorts_maker_v2.pipeline.thumbnail_step import ThumbnailStep
 from shorts_maker_v2.providers.google_client import GoogleClient
 from shorts_maker_v2.providers.llm_router import LLMRouter
 from shorts_maker_v2.providers.openai_client import OpenAIClient
 from shorts_maker_v2.providers.pexels_client import PexelsClient
 from shorts_maker_v2.render.srt_export import export_srt
-from shorts_maker_v2.pipeline.series_engine import SeriesEngine
 from shorts_maker_v2.utils.cost_guard import CostGuard
 from shorts_maker_v2.utils.cost_tracker import CostTracker
 from shorts_maker_v2.utils.pipeline_status import (
@@ -52,9 +53,8 @@ class JsonlLogger:
             "event": event,
             **fields,
         }
-        with self._lock:
-            with self.log_path.open("a", encoding="utf-8") as handle:
-                handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
+        with self._lock, self.log_path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
 
     def info(self, event: str, **fields: Any) -> None:
         self._write("INFO", event, **fields)
@@ -118,9 +118,7 @@ class PipelineOrchestrator:
 
         # LLM Router (multi-provider fallback)
         llm_providers = (
-            list(config.providers.llm_providers)
-            if config.providers.llm_providers
-            else [config.providers.llm]
+            list(config.providers.llm_providers) if config.providers.llm_providers else [config.providers.llm]
         )
         llm_models = dict(config.providers.llm_models) if config.providers.llm_models else {}
         llm_models.setdefault("openai", config.providers.llm_model)
@@ -133,26 +131,36 @@ class PipelineOrchestrator:
 
         # 채널 프로필 로딩
         channel_profile: dict | None = None
-        if hasattr(config, '_channel_key') and config._channel_key:
+        if hasattr(config, "_channel_key") and config._channel_key:
             channel_profile = self._load_channel_profile(config._channel_key, base_dir)
 
         if channel_profile:
             self.script_step = script_step or ScriptStep.from_channel_profile(
-                config, llm_router, channel_profile, openai_client=openai_client,
+                config,
+                llm_router,
+                channel_profile,
+                openai_client=openai_client,
                 channel_key=config._channel_key,
             )
         else:
             self.script_step = script_step or ScriptStep(
-                config=config, llm_router=llm_router, openai_client=openai_client,
+                config=config,
+                llm_router=llm_router,
+                openai_client=openai_client,
             )
         self.media_step = media_step or MediaStep(
-            config=config, openai_client=openai_client,
-            google_client=google_client, pexels_client=pexels_client,
-            llm_router=llm_router, job_index=job_index,
+            config=config,
+            openai_client=openai_client,
+            google_client=google_client,
+            pexels_client=pexels_client,
+            llm_router=llm_router,
+            job_index=job_index,
         )
         self.render_step = render_step or RenderStep(
-            config=config, openai_client=openai_client,
-            llm_router=llm_router, job_index=job_index,
+            config=config,
+            openai_client=openai_client,
+            llm_router=llm_router,
+            job_index=job_index,
             channel_key=getattr(config, "_channel_key", ""),
         )
         self.thumbnail_step = ThumbnailStep(
@@ -276,7 +284,14 @@ class PipelineOrchestrator:
             "detail": f"{error_type.icon} [{step_name}] 재시도 {attempt}/{max_attempts} ({wait_sec:.0f}s 대기)",
         }
 
-    def run(self, topic: str, output_filename: str | None = None, channel: str = "", parallel: bool = False, resume_job_id: str | None = None) -> JobManifest:
+    def run(
+        self,
+        topic: str,
+        output_filename: str | None = None,
+        channel: str = "",
+        parallel: bool = False,
+        resume_job_id: str | None = None,
+    ) -> JobManifest:
         if resume_job_id:
             job_id = resume_job_id
             run_dir = self.paths.runs_dir / job_id
@@ -286,7 +301,7 @@ class PipelineOrchestrator:
             job_id = self._new_job_id()
             run_dir = self.paths.runs_dir / job_id
             run_dir.mkdir(parents=True, exist_ok=True)
-            
+
         jlog = JsonlLogger(self.paths.logs_dir / f"{job_id}.jsonl")
         cost_guard = CostGuard(max_cost_usd=self.config.limits.max_cost_usd, price_table=self.config.costs)
 
@@ -300,6 +315,8 @@ class PipelineOrchestrator:
             created_at=datetime.now(timezone.utc).isoformat(),
         )
         failures: list[dict[str, str]] = []
+        step_timings: dict[str, float] = {}
+        pipeline_start = time.perf_counter()
         jlog.info("job_started", job_id=job_id, topic=topic, channel=channel or "")
 
         try:
@@ -321,13 +338,16 @@ class PipelineOrchestrator:
                 research_context = None
                 if self.research_step:
                     status.start("research", detail="Gathering facts")
+                    _t0 = time.perf_counter()
                     try:
                         research_context = self.research_step.run(topic)
+                        step_timings["research"] = round(time.perf_counter() - _t0, 2)
                         jlog.info(
                             "research_done",
                             facts=len(research_context.facts),
                             data_points=len(research_context.key_data_points),
                             elapsed_sec=research_context.elapsed_sec,
+                            perf_sec=step_timings["research"],
                         )
                         status.complete("research", detail=f"{len(research_context.facts)} facts")
                     except Exception as exc:
@@ -337,7 +357,9 @@ class PipelineOrchestrator:
                         status.fail("research", detail=f"{error_type.icon} {error_type.value}")
 
                 status.start("script", detail="Generating script")
+                _t0 = time.perf_counter()
                 title, scene_plans, hook_pattern = self.script_step.run(topic, research_context=research_context)
+                step_timings["script"] = round(time.perf_counter() - _t0, 2)
                 manifest.title = title
                 manifest.scene_count = len(scene_plans)
                 manifest.hook_pattern = hook_pattern
@@ -345,24 +367,33 @@ class PipelineOrchestrator:
                 manifest.ab_variant = {
                     "hook_pattern": hook_pattern,
                     "tone_preset": str((ScriptStep._tone_counter - 1) % len(ScriptStep.TONE_PRESETS)),
-                    "structure_preset": str((ScriptStep._structure_counter - 1) % max(len(self.config.project.structure_presets or {}), 1)),
+                    "structure_preset": str(
+                        (ScriptStep._structure_counter - 1) % max(len(self.config.project.structure_presets or {}), 1)
+                    ),
                     "caption_combo": str(self._job_index % len(RenderStep._CAPTION_COMBOS)),
                 }
                 cost_guard.add_llm_cost()
                 status.complete("script", detail=f"{manifest.scene_count} scenes, {manifest.title[:30]}")
-                
+
                 # 체크포인트 저장
                 cp_data = {
                     "title": title,
                     "hook_pattern": hook_pattern,
                     "ab_variant": manifest.ab_variant,
-                    "scene_plans": [sp.to_dict() for sp in scene_plans]
+                    "scene_plans": [sp.to_dict() for sp in scene_plans],
                 }
                 checkpoint_path.write_text(json.dumps(cp_data, ensure_ascii=False, indent=2), encoding="utf-8")
-                
-                jlog.info("script_ready", scene_count=manifest.scene_count, title=title, hook_pattern=hook_pattern)
+
+                jlog.info(
+                    "script_ready",
+                    scene_count=manifest.scene_count,
+                    title=title,
+                    hook_pattern=hook_pattern,
+                    perf_sec=step_timings["script"],
+                )
 
             status.start("media", detail="Generating media assets")
+            _t0 = time.perf_counter()
             media_runner = self.media_step.run_parallel if parallel else self.media_step.run
             scene_assets, media_failures = media_runner(
                 scene_plans=scene_plans,
@@ -370,56 +401,46 @@ class PipelineOrchestrator:
                 cost_guard=cost_guard,
                 logger=jlog,
             )
+            step_timings["media"] = round(time.perf_counter() - _t0, 2)
             # 패턴 #1: 에러 타입 세분화 — 미디어 실패를 구조화
             for mf in media_failures:
                 error_type = classify_error(Exception(mf.get("message", "")))
                 mf["error_type"] = error_type.value
             failures.extend(media_failures)
-            jlog.info("media_ready", scene_count=len(scene_assets))
+            jlog.info("media_ready", scene_count=len(scene_assets), perf_sec=step_timings["media"])
             status.complete("media", detail=f"{len(scene_assets)}/{len(scene_plans)} assets")
-            
+
             if len(scene_assets) < len(scene_plans):
                 raise RuntimeError(
                     f"Media generation incomplete. Generated {len(scene_assets)} assets out of {len(scene_plans)} scenes. "
                     "Halting pipeline to prevent rendering a broken video. You can resume this job later."
                 )
 
-            # ── 영상 길이 강제: 총 오디오가 MAX_SHORTS_SEC 초과 시 body 씬 트림 ──
+            # ── 영상 길이 점검: 총 오디오가 MAX_SHORTS_SEC 초과 시 경고만 출력 ──
+            # (씬 삭제 대신 경고 로그만 남겨 영상이 완전한 형태로 렌더링되도록 함)
             MAX_SHORTS_SEC = 43.0  # 45초 상한 - 인트로/전환 여유 2초
             total_audio = sum(a.duration_sec for a in scene_assets)
-            if total_audio > MAX_SHORTS_SEC and len(scene_plans) > 2:
+            if total_audio > MAX_SHORTS_SEC:
                 jlog.warning(
                     "duration_over_budget",
                     total_sec=round(total_audio, 1),
                     max_sec=MAX_SHORTS_SEC,
+                    message=(
+                        f"⚠️ 총 오디오 {total_audio:.1f}s > {MAX_SHORTS_SEC}s 예산 초과. "
+                        "씬을 삭제하지 않고 그대로 렌더링합니다."
+                    ),
                 )
-                # hook(첫 씬)과 cta(마지막 씬)는 보존, 뒤쪽 body 씬부터 제거
-                while total_audio > MAX_SHORTS_SEC and len(scene_plans) > 2:
-                    # 마지막 body 씬 찾기 (cta 직전)
-                    trim_idx = len(scene_plans) - 2
-                    # hook도 보존
-                    if trim_idx <= 0:
-                        break
-                    removed_plan = scene_plans.pop(trim_idx)
-                    removed_asset = scene_assets.pop(trim_idx)
-                    total_audio -= removed_asset.duration_sec
-                    jlog.info(
-                        "scene_trimmed",
-                        removed_scene_id=removed_plan.scene_id,
-                        removed_duration=round(removed_asset.duration_sec, 1),
-                        remaining_total=round(total_audio, 1),
-                    )
-                logger.info(
-                    "[TRIM] 영상 길이 조정: %d씬 → %.1fs",
-                    len(scene_plans), total_audio,
+                logger.warning(
+                    "[TRIM SKIPPED] 총 오디오 %.1fs > %.1fs — 씬 삭제 없이 렌더링",
+                    total_audio,
+                    MAX_SHORTS_SEC,
                 )
-                status.update("media", StepStatus.COMPLETED,
-                              detail=f"trimmed to {len(scene_plans)} scenes ({total_audio:.1f}s)")
 
             safe_output_name = Path(output_filename).name if output_filename else f"{job_id}.mp4"
 
             # ── Phase 3: ShortsFactory 렌더링 분기 ──
             status.start("render", detail="Rendering video")
+            _t0 = time.perf_counter()
             sf_rendered = False
             sf_error: str | None = None
             if self._renderer_mode in {"auto", "shorts_factory"} and channel:
@@ -448,6 +469,7 @@ class PipelineOrchestrator:
                     title=title,
                     topic=topic,
                 )
+            step_timings["render"] = round(time.perf_counter() - _t0, 2)
 
             manifest.output_path = output_path.resolve().as_posix()
             manifest.total_duration_sec = round(sum(item.duration_sec for item in scene_assets), 3)
@@ -467,25 +489,36 @@ class PipelineOrchestrator:
                 output_path=manifest.output_path,
                 total_duration_sec=manifest.total_duration_sec,
                 renderer="shorts_factory" if sf_rendered else "native",
+                perf_sec=step_timings["render"],
             )
 
             status.start("thumbnail", detail="Generating thumbnail")
-            thumb_path = self.thumbnail_step.run(title=title, output_dir=self.paths.output_dir, topic=topic)
+            _t0 = time.perf_counter()
+            thumb_path = self.thumbnail_step.run(
+                title=title,
+                output_dir=self.paths.output_dir,
+                topic=topic,
+                channel_key=getattr(self.config, "_channel_key", ""),
+                scene_assets=scene_assets,
+                job_id=job_id,
+            )
+            step_timings["thumbnail"] = round(time.perf_counter() - _t0, 2)
             if thumb_path:
                 manifest.thumbnail_path = thumb_path
-                jlog.info("thumbnail_done", thumbnail_path=thumb_path)
+                jlog.info("thumbnail_done", thumbnail_path=thumb_path, perf_sec=step_timings["thumbnail"])
                 status.complete("thumbnail")
             else:
                 status.update("thumbnail", StepStatus.SKIPPED)
 
             # SRT 자막 내보내기 (Whisper 타이밍 기반, fallback: narration 텍스트)
+            _t0 = time.perf_counter()
             try:
                 words_json_paths: list[Path] = []
                 scene_offsets: list[float] = []
                 narration_texts: list[str] = []
                 scene_durations: list[float] = []
                 cursor = 0.0
-                for plan, asset in zip(scene_plans, scene_assets):
+                for plan, asset in zip(scene_plans, scene_assets, strict=False):
                     wj = Path(asset.audio_path).parent / f"{Path(asset.audio_path).stem}_words.json"
                     words_json_paths.append(wj)
                     scene_offsets.append(cursor)
@@ -503,7 +536,8 @@ class PipelineOrchestrator:
                 )
                 if srt_path.exists() and srt_path.stat().st_size > 0:
                     manifest.srt_path = srt_path.resolve().as_posix()
-                    jlog.info("srt_exported", srt_path=manifest.srt_path)
+                    step_timings["srt"] = round(time.perf_counter() - _t0, 2)
+                    jlog.info("srt_exported", srt_path=manifest.srt_path, perf_sec=step_timings["srt"])
             except Exception as srt_exc:
                 jlog.warning("srt_export_failed", error=str(srt_exc))
 
@@ -527,7 +561,9 @@ class PipelineOrchestrator:
 
         except TopicUnsuitableError as exc:
             # 주제 부적합 — 자료 부족으로 스킵 (n8n에서 분기 가능)
-            failures.append({"step": "script", "code": "TopicUnsuitableError", "message": str(exc), "error_type": "content_filter"})
+            failures.append(
+                {"step": "script", "code": "TopicUnsuitableError", "message": str(exc), "error_type": "content_filter"}
+            )
             manifest.status = "topic_unsuitable"
             jlog.warning("topic_unsuitable", error=str(exc), topic=topic)
             status.fail("script", detail="topic unsuitable")
@@ -549,6 +585,16 @@ class PipelineOrchestrator:
 
         manifest.estimated_cost_usd = round(cost_guard.estimated_cost_usd, 6)
         manifest.failed_steps = failures
+
+        # ── 파이프라인 전체 소요 시간 ──
+        step_timings["total"] = round(time.perf_counter() - pipeline_start, 2)
+        manifest.step_timings = step_timings
+
+        # [PERF] 스텝별 타이밍 요약 로그
+        perf_parts = [f"{k}={v:.1f}s" for k, v in step_timings.items()]
+        logger.info("[PERF] %s", " | ".join(perf_parts))
+        print(f"\n[PERF] {' | '.join(perf_parts)}\n")
+
         run_manifest_path, output_manifest_path = self._save_manifest(manifest, run_dir=run_dir)
         jlog.info(
             "job_finished",
@@ -557,6 +603,7 @@ class PipelineOrchestrator:
             run_manifest=run_manifest_path.resolve().as_posix(),
             output_manifest=output_manifest_path.resolve().as_posix(),
             status_summary=status.to_log_record(),
+            step_timings=step_timings,
         )
 
         # 비용 추적기에 기록
@@ -609,12 +656,8 @@ class PipelineOrchestrator:
             scenes_data = [sp.to_dict() for sp in scene_plans]
 
             # SceneAsset → 에셋 매핑
-            assets_map: dict[int, str] = {
-                a.scene_id: a.visual_path for a in scene_assets
-            }
-            audio_map: dict[int, str] = {
-                a.scene_id: a.audio_path for a in scene_assets
-            }
+            assets_map: dict[int, str] = {a.scene_id: a.visual_path for a in scene_assets}
+            audio_map: dict[int, str] = {a.scene_id: a.audio_path for a in scene_assets}
 
             result = adapter.render_with_plan(
                 channel_id=channel,

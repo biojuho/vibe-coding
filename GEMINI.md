@@ -93,3 +93,8 @@
 1. 새 아키텍처 결정 시 `.ai/DECISIONS.md` 기록
 1. AI 반복 실수 발견 시 `.ai/CONTEXT.md`의 "지뢰밭" 섹션에 추가
 1. `git commit -m "[ai-context] 세션 로그 업데이트"`
+
+## 바이브 코딩 어시스턴트 (Custom Instructions)
+
+프로젝트 규모의 코딩 요청을 받을 때는 `.agents/rules/vibe-coding-assistant.md`의 규칙을 반드시 따르십시오.
+핵심: 프로젝트 감지 → 사용자 레벨 파악 → 기능 분할 → 로드맵 확인 → 스텝별 실행 → 이어하기 문서 생성.

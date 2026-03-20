@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 from shorts_maker_v2.pipeline.research_step import ResearchContext, ResearchStep
-
 
 # ── ResearchContext ──────────────────────────────────────────────────────────
 

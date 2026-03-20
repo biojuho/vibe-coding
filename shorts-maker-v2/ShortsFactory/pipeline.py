@@ -11,11 +11,10 @@
     })
     factory.render("output.mp4")
 """
+
 from __future__ import annotations
 
-import json
 import logging
-import re
 import time
 from pathlib import Path
 from typing import Any
@@ -35,6 +34,7 @@ _CHANNEL_PROFILES = _PROJECT / "channel_profiles.yaml"
 def _ensure_paths():
     """sys.path에 프로젝트 경로 추가."""
     import sys
+
     for p in [str(_PROJECT / "src"), str(_PROJECT)]:
         if p not in sys.path:
             sys.path.insert(0, p)
@@ -44,6 +44,7 @@ def _get_template_registry() -> dict:
     """템플릿 레지스트리를 shorts_maker_v2.templates에서 가져옵니다 (Single Source of Truth)."""
     _ensure_paths()
     from shorts_maker_v2 import templates as tmpl_mod
+
     return {t["name"]: t for t in tmpl_mod.list_all()}
 
 
@@ -56,6 +57,7 @@ def _import_generator(module_path: str, cls_name: str):
     """동적으로 생성기 클래스를 임포트합니다."""
     import importlib
     import sys
+
     src = _PROJECT / "src"
     if str(src) not in sys.path:
         sys.path.insert(0, str(src))
@@ -83,10 +85,7 @@ class ChannelConfig:
         self.hook_style: str = raw.get("hook_style", "clean_popup")
         self.transition: str = raw.get("transition", "fade")
         self.disclaimer: bool = raw.get("disclaimer", False)
-        self.disclaimer_text: str = raw.get(
-            "disclaimer_text",
-            "※ 의학적 조언이 아닌 정보 제공 목적입니다."
-        )
+        self.disclaimer_text: str = raw.get("disclaimer_text", "※ 의학적 조언이 아닌 정보 제공 목적입니다.")
 
     def get_all_keywords(self) -> dict[str, str]:
         """모든 키워드 → 색상 매핑을 반환합니다. list/dict 형식 모두 지원."""
@@ -192,13 +191,15 @@ class ShortsFactory:
         raw = _load_yaml(cfg_path)
         result = []
         for cid, cdata in raw.get("channels", {}).items():
-            result.append({
-                "id": cid,
-                "name": cdata.get("category", cid),
-                "display_name": cdata.get("display_name", cid),
-                "templates": cdata.get("default_templates", []),
-                "color_preset": cdata.get("color_preset", cdata.get("caption_style", "default")),
-            })
+            result.append(
+                {
+                    "id": cid,
+                    "name": cdata.get("category", cid),
+                    "display_name": cdata.get("display_name", cid),
+                    "templates": cdata.get("default_templates", []),
+                    "color_preset": cdata.get("color_preset", cdata.get("caption_style", "default")),
+                }
+            )
         return result
 
     @staticmethod
@@ -207,7 +208,7 @@ class ShortsFactory:
         reg = _get_template_registry()
         return sorted(reg.keys())
 
-    def create(self, template: str, data: dict) -> "ShortsFactory":
+    def create(self, template: str, data: dict) -> ShortsFactory:
         """렌더링 작업을 생성합니다.
 
         Args:
@@ -344,11 +345,7 @@ class ShortsFactory:
         from ShortsFactory.templates import TEMPLATE_REGISTRY, Scene
 
         # 템플릿 선택
-        tmpl_name = template or (
-            self.channel.default_templates[0]
-            if self.channel.default_templates
-            else "ai_news"
-        )
+        tmpl_name = template or (self.channel.default_templates[0] if self.channel.default_templates else "ai_news")
         tmpl_cls = TEMPLATE_REGISTRY.get(tmpl_name)
         if tmpl_cls is None:
             logger.warning(
@@ -411,6 +408,7 @@ class ShortsFactory:
         try:
             # FFmpeg filter_complex 렌더링은 ShortsFactory/render.py가 담당
             from ShortsFactory.render import RenderStep as SFRenderStep
+
             renderer = SFRenderStep(self.channel)
             result = renderer.render_scenes(factory_scenes, str(output))
             job.output_path = result
@@ -428,6 +426,7 @@ class ShortsFactory:
     def get_template_info(self, template_name: str) -> dict | None:
         """템플릿 정보를 반환합니다 (RenderAdapter용)."""
         from ShortsFactory.templates import TEMPLATE_REGISTRY
+
         cls = TEMPLATE_REGISTRY.get(template_name)
         if cls is None:
             return None

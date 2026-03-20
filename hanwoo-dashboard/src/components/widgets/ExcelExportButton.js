@@ -1,8 +1,19 @@
 'use client';
 
+import { useAppFeedback } from '@/components/feedback/FeedbackProvider';
+
 export default function ExcelExportButton({ cattleList = [] }) {
+  const { notify } = useAppFeedback();
+
   const handleDownload = () => {
-    if(!cattleList || cattleList.length === 0) return alert("다운로드할 데이터가 없습니다.");
+    if (!cattleList || cattleList.length === 0) {
+      notify({
+        title: '다운로드할 데이터가 없습니다.',
+        description: '먼저 등록된 개체 정보를 확인해 주세요.',
+        variant: 'warning',
+      });
+      return;
+    }
 
     // 1. Create CSV Header
     const headers = ["ID", "이름", "이력번호", "출생일", "성별", "품종", "축사(ID)", "칸 번호", "어미소", "아비소", "비고"];

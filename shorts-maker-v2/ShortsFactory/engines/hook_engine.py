@@ -10,9 +10,14 @@ v2 개선사항:
 - reveal: 원형 마스크 확장 애니메이션
 - combo: 여러 효과의 순차/병렬 조합 시스템
 """
+
 from __future__ import annotations
-import logging, random, math
+
+import logging
+import math
+import random
 from typing import Any
+
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -23,39 +28,51 @@ _HOOK_ANIMATIONS = {
     "typewriter": "typing",
     "zoom_flash": "popup",
     "clean_popup": "popup",
-    "shake": "shake",               # v2: 화면 흔들림
-    "reveal": "reveal",             # v2: 원형 마스크 공개
-    "glitch_shake": "combo_gs",     # v2: 글리치 + 쉐이크
-    "reveal_flash": "combo_rf",     # v2: 리벌 + 플래시
+    "shake": "shake",  # v2: 화면 흔들림
+    "reveal": "reveal",  # v2: 원형 마스크 공개
+    "glitch_shake": "combo_gs",  # v2: 글리치 + 쉐이크
+    "reveal_flash": "combo_rf",  # v2: 리벌 + 플래시
 }
 
 
 def _apply_typing(clip, duration: float):
     w = clip.w
+
     def filt(get_frame, t):
         frame = np.copy(get_frame(t))
-        if t >= duration: return frame
+        if t >= duration:
+            return frame
         p = max(0.0, t / duration)
         rw = int(w * p)
-        if rw < w: frame[:, rw:] = 0
+        if rw < w:
+            frame[:, rw:] = 0
         return frame
+
     def filt_mask(get_frame, t):
         m = np.copy(get_frame(t))
-        if t >= duration: return m
+        if t >= duration:
+            return m
         p = max(0.0, t / duration)
         rw = int(w * p)
-        if rw < w: m[:, rw:] = 0
+        if rw < w:
+            m[:, rw:] = 0
         return m
+
     nc = clip.transform(filt)
-    if clip.mask: nc.mask = clip.mask.transform(filt_mask)
+    if clip.mask:
+        nc.mask = clip.mask.transform(filt_mask)
     return nc
+
 
 def _apply_popup(clip, duration: float):
     def rs(t):
-        if t >= duration: return 1.0
+        if t >= duration:
+            return 1.0
         p = max(0.0, t / duration)
-        return (0.5 + (0.6/0.7)*p) if p < 0.7 else (1.1 - (0.1/0.3)*(p-0.7))
+        return (0.5 + (0.6 / 0.7) * p) if p < 0.7 else (1.1 - (0.1 / 0.3) * (p - 0.7))
+
     return clip.resized(rs)
+
 
 def _apply_glitch(clip, duration: float):
     """개선된 글리치: RGB 채널 분리 시프트 + 노이즈 합성.
@@ -65,6 +82,7 @@ def _apply_glitch(clip, duration: float):
     - RGB 각 채널을 서로 다른 방향으로 시프트
     - 랜덤 노이즈 오버레이
     """
+
     def filt(get_frame, t):
         frame = get_frame(t)
         if duration <= 0 or t >= duration:  # [QA 수정] duration=0 방어
@@ -120,11 +138,15 @@ def _apply_glitch(clip, duration: float):
             noise_strength = int(30 * intensity)
             if noise_strength > 0:
                 noise = np.random.randint(
-                    -noise_strength, noise_strength,
-                    frame.shape, dtype=np.int16,
+                    -noise_strength,
+                    noise_strength,
+                    frame.shape,
+                    dtype=np.int16,
                 )
                 frame = np.clip(
-                    frame.astype(np.int16) + noise, 0, 255,
+                    frame.astype(np.int16) + noise,
+                    0,
+                    255,
                 ).astype(np.uint8)
 
         return frame
@@ -140,23 +162,25 @@ def _apply_brightness_flash(clip, flash_duration: float = 0.15, peak: float = 1.
         flash_duration: 플래시 지속 시간.
         peak: 최대 밝기 배율.
     """
+
     def filt(get_frame, t):
         frame = get_frame(t)
         if t >= flash_duration:
             return frame
         # 삼각파: 0→peak→1.0
         p = t / flash_duration
-        if p < 0.5:
-            brightness = 1.0 + (peak - 1.0) * (p / 0.5)
-        else:
-            brightness = peak - (peak - 1.0) * ((p - 0.5) / 0.5)
+        brightness = 1.0 + (peak - 1.0) * (p / 0.5) if p < 0.5 else peak - (peak - 1.0) * ((p - 0.5) / 0.5)
         return np.clip(
-            frame.astype(np.float32) * brightness, 0, 255,
+            frame.astype(np.float32) * brightness,
+            0,
+            255,
         ).astype(np.uint8)
+
     return clip.transform(filt)
 
 
 # ── v2 신규 효과 ──────────────────────────────────────────────────
+
 
 def _apply_shake(clip, duration: float, max_offset: int = 15):
     """화면 흔들림 효과: 랜덤 x/y 오프셋 적용.
@@ -169,6 +193,7 @@ def _apply_shake(clip, duration: float, max_offset: int = 15):
         duration: 쉐이크 지속 시간.
         max_offset: 최대 픽셀 오프셋.
     """
+
     def filt(get_frame, t):
         frame = get_frame(t)
         if duration <= 0 or t >= duration:  # [QA 수정] duration=0 방어
@@ -186,7 +211,7 @@ def _apply_shake(clip, duration: float, max_offset: int = 15):
 
         # x 오프셋
         if ox > 0:
-            result[:, ox:] = frame[:, :w - ox]
+            result[:, ox:] = frame[:, : w - ox]
         elif ox < 0:
             result[:, :ox] = frame[:, -ox:]
         else:
@@ -196,7 +221,7 @@ def _apply_shake(clip, duration: float, max_offset: int = 15):
         if oy > 0:
             shifted = result.copy()
             result = np.zeros_like(frame)
-            result[oy:] = shifted[:h - oy]
+            result[oy:] = shifted[: h - oy]
         elif oy < 0:
             shifted = result.copy()
             result = np.zeros_like(frame)
@@ -214,6 +239,7 @@ def _apply_reveal(clip, duration: float):
         clip: 대상 클립.
         duration: 리벌 지속 시간.
     """
+
     def filt(get_frame, t):
         frame = get_frame(t)
         if duration <= 0 or t >= duration:  # [QA 수정] duration=0 방어
@@ -228,7 +254,7 @@ def _apply_reveal(clip, duration: float):
         p = 1.0 - (1.0 - p) ** 3  # cubic ease-out
 
         # 최대 반경: 대각선 절반
-        max_radius = math.sqrt(cx ** 2 + cy ** 2)
+        max_radius = math.sqrt(cx**2 + cy**2)
         radius = max_radius * p
 
         # 원형 마스크 생성
@@ -262,6 +288,7 @@ class HookEngine:
     Args:
         channel_config: channels.yaml에서 읽은 채널 설정 dict.
     """
+
     def __init__(self, channel_config: dict[str, Any]) -> None:
         self.config = channel_config
         self.hook_style = channel_config.get("hook_style", "popup")
@@ -288,8 +315,9 @@ class HookEngine:
             return self._apply_combo(clip, ["reveal", "flash"], duration)
         return clip
 
-    def create_hook_with_flash(self, clip, *, glitch_duration: float = 0.1,
-                                flash_duration: float = 0.15, flash_peak: float = 1.5):
+    def create_hook_with_flash(
+        self, clip, *, glitch_duration: float = 0.1, flash_duration: float = 0.15, flash_peak: float = 1.5
+    ):
         """글리치 + 밝기 플래시를 순차 적용합니다.
 
         사양서 요구사항:
@@ -306,8 +334,9 @@ class HookEngine:
         clip = _apply_brightness_flash(clip, flash_duration, flash_peak)
         return clip
 
-    def create_hook_with_shake(self, clip, *, shake_duration: float = 0.3,
-                                flash_duration: float = 0.15, flash_peak: float = 1.3):
+    def create_hook_with_shake(
+        self, clip, *, shake_duration: float = 0.3, flash_duration: float = 0.15, flash_peak: float = 1.3
+    ):
         """쉐이크 + 밝기 플래시를 순차 적용합니다.
 
         Args:
@@ -320,8 +349,9 @@ class HookEngine:
         clip = _apply_brightness_flash(clip, flash_duration, flash_peak)
         return clip
 
-    def create_hook_with_reveal(self, clip, *, reveal_duration: float = 0.5,
-                                 flash_duration: float = 0.1, flash_peak: float = 1.2):
+    def create_hook_with_reveal(
+        self, clip, *, reveal_duration: float = 0.5, flash_duration: float = 0.1, flash_peak: float = 1.2
+    ):
         """리벌 + 밝기 플래시를 순차 적용합니다.
 
         Args:
@@ -340,8 +370,7 @@ class HookEngine:
 
     def list_available_effects(self) -> list[str]:
         """사용 가능한 모든 효과 이름을 반환합니다."""
-        return ["typing", "glitch", "popup", "shake", "reveal",
-                "combo_gs", "combo_rf", "flash"]
+        return ["typing", "glitch", "popup", "shake", "reveal", "combo_gs", "combo_rf", "flash"]
 
     # ── 내부 메서드 ─────────────────────────────────────────────────────
 

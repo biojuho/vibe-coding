@@ -1,15 +1,14 @@
 """StockMediaManager + Pexels/Unsplash 클라이언트 단위 테스트."""
+
 from __future__ import annotations
 
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from shorts_maker_v2.providers.pexels_client import PexelsClient
-from shorts_maker_v2.providers.unsplash_client import UnsplashClient
 from shorts_maker_v2.providers.stock_media_manager import StockMediaManager
-
+from shorts_maker_v2.providers.unsplash_client import UnsplashClient
 
 # ════════════════════════════════════════════════════════════
 # PexelsClient
@@ -29,9 +28,7 @@ class TestPexelsClientInit:
 class TestPexelsSearchVideos:
     @patch("shorts_maker_v2.providers.pexels_client.requests.get")
     def test_returns_video_list(self, mock_get):
-        mock_get.return_value.json.return_value = {
-            "videos": [{"id": 1, "video_files": []}]
-        }
+        mock_get.return_value.json.return_value = {"videos": [{"id": 1, "video_files": []}]}
         mock_get.return_value.raise_for_status = lambda: None
 
         client = PexelsClient(api_key="key")
@@ -100,9 +97,7 @@ class TestUnsplashSearchPhotos:
     @patch("shorts_maker_v2.providers.unsplash_client.requests.get")
     def test_returns_results_list(self, mock_get):
         mock_get.return_value.json.return_value = {
-            "results": [
-                {"id": "abc", "urls": {"full": "https://unsplash.com/abc.jpg"}, "width": 800, "height": 1200}
-            ]
+            "results": [{"id": "abc", "urls": {"full": "https://unsplash.com/abc.jpg"}, "width": 800, "height": 1200}]
         }
         mock_get.return_value.raise_for_status = lambda: None
 
@@ -258,6 +253,7 @@ class TestStockMediaManagerFromEnv:
     @patch.dict("os.environ", {"PEXELS_API_KEY": "only_pexels"}, clear=False)
     def test_from_env_without_unsplash_is_ok(self):
         import os
+
         os.environ.pop("UNSPLASH_API_KEY", None)
         manager = StockMediaManager.from_env()
         assert manager.unsplash is None

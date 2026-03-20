@@ -17,6 +17,7 @@ Usage:
     # Get best combo via Thompson Sampling
     best_combo = tracker.get_weighted_combo("my_channel")
 """
+
 from __future__ import annotations
 
 import json
@@ -25,8 +26,8 @@ import random
 import sqlite3
 import threading
 from collections import Counter
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -187,10 +188,9 @@ class StyleTracker:
         is_success = (likes / views) >= self._success_threshold if views > 0 else False
         success_inc = 1 if is_success else 0
 
-        with self._db_lock:
-            with self._get_conn() as conn:
-                conn.execute(
-                    """
+        with self._db_lock, self._get_conn() as conn:
+            conn.execute(
+                """
                     INSERT INTO combo_performance (channel, combo_name, views, likes, trials, successes)
                     VALUES (?, ?, ?, ?, 1, ?)
                     ON CONFLICT (channel, combo_name) DO UPDATE SET
@@ -200,8 +200,8 @@ class StyleTracker:
                         successes  = successes + excluded.successes,
                         updated_at = datetime('now')
                     """,
-                    (channel, combo_name, views, likes, success_inc),
-                )
+                (channel, combo_name, views, likes, success_inc),
+            )
 
         logger.debug(
             "Recorded performance: channel=%s combo=%s views=%d likes=%d success=%s",
@@ -230,16 +230,15 @@ class StyleTracker:
         self._ensure_db()
 
         rows: list[sqlite3.Row] = []
-        with self._db_lock:
-            with self._get_conn() as conn:
-                rows = conn.execute(
-                    """
+        with self._db_lock, self._get_conn() as conn:
+            rows = conn.execute(
+                """
                     SELECT combo_name, trials, successes
                     FROM combo_performance
                     WHERE channel = ?
                     """,
-                    (channel,),
-                ).fetchall()
+                (channel,),
+            ).fetchall()
 
         if not rows:
             # Fall back to manifest-based rotation
@@ -276,16 +275,15 @@ class StyleTracker:
         """
         self._ensure_db()
 
-        with self._db_lock:
-            with self._get_conn() as conn:
-                rows = conn.execute(
-                    """
+        with self._db_lock, self._get_conn() as conn:
+            rows = conn.execute(
+                """
                     SELECT combo_name, views, likes, trials, successes
                     FROM combo_performance
                     WHERE channel = ?
                     ORDER BY successes DESC, trials DESC
                     """,
-                    (channel,),
-                ).fetchall()
+                (channel,),
+            ).fetchall()
 
         return [dict(row) for row in rows]

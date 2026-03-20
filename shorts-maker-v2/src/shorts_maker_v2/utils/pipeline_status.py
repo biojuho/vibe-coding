@@ -11,11 +11,11 @@ SiteAgent의 실시간 상태 인디케이터(thinking/executing/completed/error
 
 from __future__ import annotations
 
-from enum import Enum
-from typing import Any
 import logging
 import sys
 import time
+from enum import Enum
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -43,27 +43,27 @@ class StepStatus(str, Enum):
 # 상태별 컬러 코드 (ANSI 256-color + Hex for dashboards)
 _STATUS_COLORS: dict[StepStatus, dict[str, str]] = {
     StepStatus.THINKING: {
-        "hex": "#39B6FF",     # SiteAgent --color-1 (블루)
+        "hex": "#39B6FF",  # SiteAgent --color-1 (블루)
         "ansi": "\033[38;5;39m",  # 밝은 파랑
     },
     StepStatus.EXECUTING: {
-        "hex": "#BD45FB",     # SiteAgent --color-2 (퍼플)
+        "hex": "#BD45FB",  # SiteAgent --color-2 (퍼플)
         "ansi": "\033[38;5;135m",  # 보라
     },
     StepStatus.COMPLETED: {
-        "hex": "#22C55E",     # SiteAgent 완료 (그린)
+        "hex": "#22C55E",  # SiteAgent 완료 (그린)
         "ansi": "\033[38;5;34m",  # 초록
     },
     StepStatus.ERROR: {
-        "hex": "#EF4444",     # SiteAgent --color-3 (레드)
+        "hex": "#EF4444",  # SiteAgent --color-3 (레드)
         "ansi": "\033[38;5;196m",  # 빨강
     },
     StepStatus.RETRY: {
-        "hex": "#FFD600",     # SiteAgent --color-4 (옐로우)
+        "hex": "#FFD600",  # SiteAgent --color-4 (옐로우)
         "ansi": "\033[38;5;220m",  # 노랑
     },
     StepStatus.SKIPPED: {
-        "hex": "#6B7280",     # 회색
+        "hex": "#6B7280",  # 회색
         "ansi": "\033[38;5;245m",  # 회색
     },
 }
@@ -184,8 +184,10 @@ class PipelineStatusTracker:
         if not self.quiet:
             use_color = hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
             line = format_status_line(
-                step_name, status,
-                detail=detail, elapsed_sec=elapsed_sec,
+                step_name,
+                status,
+                detail=detail,
+                elapsed_sec=elapsed_sec,
                 use_color=use_color,
             )
             print(line)
@@ -223,12 +225,6 @@ class PipelineStatusTracker:
             "job_id": self.job_id,
             "steps": self.summary(),
             "total_steps": len(self._steps),
-            "completed": sum(
-                1 for s in self._steps.values()
-                if s["status"] == StepStatus.COMPLETED.value
-            ),
-            "failed": sum(
-                1 for s in self._steps.values()
-                if s["status"] == StepStatus.ERROR.value
-            ),
+            "completed": sum(1 for s in self._steps.values() if s["status"] == StepStatus.COMPLETED.value),
+            "failed": sum(1 for s in self._steps.values() if s["status"] == StepStatus.ERROR.value),
         }

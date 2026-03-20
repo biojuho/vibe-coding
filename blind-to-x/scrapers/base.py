@@ -20,6 +20,26 @@ from config import ProxyManager
 
 logger = logging.getLogger(__name__)
 
+# Lazy-loaded Crawl4AI extractor (fallback when CSS selectors fail)
+_crawl4ai_extractor = None
+
+
+def _get_crawl4ai_extractor(config):
+    """Singleton accessor for Crawl4AI extractor."""
+    global _crawl4ai_extractor
+    if _crawl4ai_extractor is None:
+        try:
+            from scrapers.crawl4ai_extractor import Crawl4AIExtractor, _check_crawl4ai
+            if _check_crawl4ai():
+                _crawl4ai_extractor = Crawl4AIExtractor(config)
+                logger.info("Crawl4AI extractor initialized (LLM fallback enabled).")
+            else:
+                _crawl4ai_extractor = False  # sentinel: unavailable
+        except Exception as exc:
+            logger.debug("Crawl4AI extractor not available: %s", exc)
+            _crawl4ai_extractor = False
+    return _crawl4ai_extractor if _crawl4ai_extractor is not False else None
+
 
 @dataclass
 class FeedCandidate:
@@ -77,6 +97,7 @@ class BaseScraper:
         self._pool = None  # BrowserContextPool (set in open() if pool_size > 1)
 
         # Managed browser state (used when pool_size == 1)
+        self._camo_ctx = None  # AsyncCamoufox context manager (if using Camoufox)
         self._pw = None
         self._browser = None
         self._context = None
@@ -105,11 +126,33 @@ class BaseScraper:
         # Single-context mode (original behaviour)
         if self._browser:
             return
-        self._pw = await async_playwright().start()
-        iphone_14_pro = self._pw.devices["iPhone 14 Pro"]
 
         proxy_url = self.proxy_manager.get_random_proxy()
         proxy_config = {"server": proxy_url} if proxy_url else None
+
+        # ── Camoufox 우선 시도 (C++ 레벨 핑거프린트 스푸핑) ──────────
+        use_camoufox = self.config.get("browser.engine", "auto") != "chromium"
+        if use_camoufox:
+            try:
+                from camoufox.async_api import AsyncCamoufox
+                camo_kwargs = {
+                    "headless": self.headless,
+                    "geoip": True,
+                    "locale": "ko-KR",
+                }
+                if proxy_config:
+                    camo_kwargs["proxy"] = proxy_config
+                self._camo_ctx = AsyncCamoufox(**camo_kwargs)
+                self._browser = await self._camo_ctx.__aenter__()
+                self._context = self._browser  # Camoufox context = browser
+                logger.info("Browser opened (Camoufox stealth Firefox).")
+                return
+            except Exception as exc:
+                logger.info("Camoufox unavailable (%s), falling back to Chromium.", exc)
+
+        # ── Patchright/Playwright Chromium 폴백 ──────────────────────
+        self._pw = await async_playwright().start()
+        iphone_14_pro = self._pw.devices["iPhone 14 Pro"]
 
         launch_kwargs = {"headless": self.headless}
         if proxy_config:
@@ -119,13 +162,24 @@ class BaseScraper:
         self._browser = await self._pw.chromium.launch(**launch_kwargs)
         self._context = await self._browser.new_context(**iphone_14_pro, locale="ko-KR")
         await Stealth().apply_stealth_async(self._context)
-        logger.info("Browser opened (shared instance, stealth applied to context).")
+        logger.info("Browser opened (Chromium + stealth).")
 
     async def close(self):
         """Shut down the shared browser and context (or pool)."""
         if self._pool is not None:
             await self._pool.close()
             self._pool = None
+            return
+        # Camoufox cleanup
+        if self._camo_ctx is not None:
+            try:
+                await self._camo_ctx.__aexit__(None, None, None)
+            except Exception as e:
+                logger.warning("Error closing Camoufox: %s", e)
+            self._camo_ctx = None
+            self._browser = None
+            self._context = None
+            logger.info("Camoufox browser closed.")
             return
         if self._context:
             try:
@@ -464,6 +518,25 @@ class BaseScraper:
             logger.info(f"Cleaned up {removed} old screenshot(s) (>{self.retention_days}d).")
 
     @staticmethod
+    def _extract_clean_text(html: str) -> str:
+        """trafilatura로 HTML에서 클린 본문 텍스트를 추출.
+
+        trafilatura가 없거나 실패하면 빈 문자열 반환 (기존 셀렉터 파싱으로 폴백).
+        """
+        try:
+            import trafilatura
+            text = trafilatura.extract(
+                html,
+                include_comments=False,
+                include_tables=False,
+                no_fallback=False,
+                favor_precision=True,
+            )
+            return text.strip() if text else ""
+        except Exception:
+            return ""
+
+    @staticmethod
     def _suggest_selectors_from_html(html: str) -> list[str]:
         """BeautifulSoup으로 본문 후보 CSS 셀렉터를 자동 추출.
 
@@ -588,6 +661,49 @@ class BaseScraper:
 
         score = max(0, min(100, int(score)))
         return {"score": score, "reasons": reasons, "metrics": metrics}
+
+    # ── Crawl4AI LLM fallback ────────────────────────────────────────
+    async def _extract_with_crawl4ai(self, url: str, html: str | None = None) -> dict | None:
+        """Fallback extraction using Crawl4AI LLM when CSS selectors fail.
+
+        Tries HTML-based extraction first (faster, no browser), then full crawl.
+        Returns post_data dict on success, None on failure.
+        """
+        extractor = _get_crawl4ai_extractor(self.config)
+        if not extractor:
+            return None
+
+        logger.info("Attempting Crawl4AI LLM extraction for %s", url)
+        result = None
+
+        # Try HTML-based extraction first (no extra browser launch)
+        if html:
+            result = await extractor.extract_post_from_html(url, html)
+
+        # Fall back to full Crawl4AI crawl
+        if not result:
+            result = await extractor.extract_post(url)
+
+        if not result or not result.content:
+            logger.warning("Crawl4AI extraction returned no content for %s", url)
+            return None
+
+        logger.info(
+            "Crawl4AI extraction SUCCESS for %s: title='%s' (%d chars)",
+            url, result.title[:30], len(result.content),
+        )
+        return {
+            "url": url,
+            "title": result.title,
+            "content": result.content,
+            "likes": result.likes,
+            "comments": result.comments,
+            "views": result.views,
+            "category": result.category,
+            "image_urls": result.image_urls or [],
+            "source": getattr(self, "SOURCE_NAME", "unknown"),
+            "extraction_method": result.extraction_method,
+        }
 
     # ── Abstract interface ───────────────────────────────────────────
     async def scrape_post(self, url):

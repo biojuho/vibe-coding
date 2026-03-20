@@ -19,12 +19,32 @@ def test_load_config_success(tmp_path: Path) -> None:
         tmp_path,
         {
             "project": {"language": "ko-KR", "default_scene_count": 7},
-            "video": {"target_duration_sec": [35, 45], "resolution": [1080, 1920], "fps": 30, "scene_video_duration_sec": 5, "aspect_ratio": "9:16"},
-            "providers": {"llm": "openai", "tts": "openai", "visual_primary": "google-veo", "visual_fallback": "openai-image"},
+            "video": {
+                "target_duration_sec": [35, 45],
+                "resolution": [1080, 1920],
+                "fps": 30,
+                "scene_video_duration_sec": 5,
+                "aspect_ratio": "9:16",
+            },
+            "providers": {
+                "llm": "openai",
+                "tts": "openai",
+                "visual_primary": "google-veo",
+                "visual_fallback": "openai-image",
+            },
             "limits": {"max_cost_usd": 2.0, "max_retries": 3, "request_timeout_sec": 180},
             "costs": {"llm_per_job": 0.25, "tts_per_second": 0.0008, "veo_per_second": 0.03, "image_per_scene": 0.04},
             "paths": {"output_dir": "output", "logs_dir": "logs", "runs_dir": "runs"},
-            "captions": {"font_size": 64, "margin_x": 90, "bottom_offset": 240, "text_color": "#FFD700", "stroke_color": "#000000", "stroke_width": 4, "line_spacing": 12, "font_candidates": ["C:/Windows/Fonts/malgun.ttf"]},
+            "captions": {
+                "font_size": 64,
+                "margin_x": 90,
+                "bottom_offset": 240,
+                "text_color": "#FFD700",
+                "stroke_color": "#000000",
+                "stroke_width": 4,
+                "line_spacing": 12,
+                "font_candidates": ["C:/Windows/Fonts/malgun.ttf"],
+            },
         },
     )
     config = load_config(config_path)
@@ -39,7 +59,13 @@ def test_load_config_invalid_duration_range(tmp_path: Path) -> None:
         tmp_path,
         {
             "project": {"language": "ko-KR", "default_scene_count": 7},
-            "video": {"target_duration_sec": [45, 35], "resolution": [1080, 1920], "fps": 30, "scene_video_duration_sec": 5, "aspect_ratio": "9:16"},
+            "video": {
+                "target_duration_sec": [45, 35],
+                "resolution": [1080, 1920],
+                "fps": 30,
+                "scene_video_duration_sec": 5,
+                "aspect_ratio": "9:16",
+            },
             "providers": {},
             "limits": {},
             "costs": {},
@@ -53,11 +79,17 @@ def test_load_config_invalid_duration_range(tmp_path: Path) -> None:
 
 # ─── Phase 2-B: range validation tests ────────────────────────────────────
 
+
 def _base_config(**overrides: dict) -> dict:
     """Minimal valid config with overrides applied."""
     cfg: dict = {
         "project": {"language": "ko-KR", "default_scene_count": 7},
-        "video": {"target_duration_sec": [35, 45], "resolution": [1080, 1920], "fps": 30, "scene_video_duration_sec": 5},
+        "video": {
+            "target_duration_sec": [35, 45],
+            "resolution": [1080, 1920],
+            "fps": 30,
+            "scene_video_duration_sec": 5,
+        },
         "providers": {},
         "limits": {},
         "costs": {},

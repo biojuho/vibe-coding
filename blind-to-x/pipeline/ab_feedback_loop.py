@@ -28,7 +28,7 @@ class ABFeedbackLoop:
         self.notion_uploader = notion_uploader
         self.config = config
         self.ab_tester = ImageABTester(config_mgr=config)
-        
+
         # Ensure data directory exists
         os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
 
@@ -91,7 +91,7 @@ class ABFeedbackLoop:
             r for r in records
             if r.get("views") and float(r.get("views") or 0) > 0 and r.get("topic_cluster")
         ]
-        
+
         if not valid_records:
             logger.info("No valid records with views found for A/B testing feedback.")
             return self.load_tuned_styles()
@@ -106,7 +106,7 @@ class ABFeedbackLoop:
         for r in valid_records:
             topic = r.get("topic_cluster", "기타")
             variant = r.get("chosen_draft_type") or r.get("recommended_draft_type") or "공감형"
-            
+
             stats = topic_stats[topic][variant]
             stats["views"] += float(r.get("views", 0) or 0)
             stats["likes"] += float(r.get("likes", 0) or 0)
@@ -115,7 +115,7 @@ class ABFeedbackLoop:
 
         tuned_styles = self.load_tuned_styles()
         updates_made = 0
-        
+
         # draft_type → 이미지 mood 매핑 (한국어 draft_type을 영어 mood 디스크립터로 변환)
         _DRAFT_TYPE_TO_MOOD = {
             "공감형": "warm, empathetic, soft lighting",
@@ -174,7 +174,7 @@ class ABFeedbackLoop:
             logger.info(f"Successfully tuned {updates_made} topics.")
         else:
             logger.info("No style updates were necessary from A/B feedback.")
-            
+
         return tuned_styles
 
     @staticmethod
@@ -198,23 +198,23 @@ class ABFeedbackLoop:
 
 if __name__ == "__main__":
     import asyncio
-    
+
     # Simple dry-run script behavior
     sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
     from config import ConfigManager, load_env
     from pipeline.notion_upload import NotionUploader
-    
+
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-    
+
     async def main():
         load_env()
         config_mgr = ConfigManager()
         notion_uploader = NotionUploader(config_mgr)
         loop = ABFeedbackLoop(notion_uploader, config_mgr)
-        
+
         logger.info("Starting dry-run of ABFeedbackLoop...")
         styles = await loop.run_feedback_loop()
         print("\n--- Current Tuned Styles ---")
         print(json.dumps(styles, indent=2, ensure_ascii=False))
-            
+
     asyncio.run(main())

@@ -7,6 +7,7 @@ test_karaoke_sync.py — Phase 2 word-level 자막 싱크 정밀도 테스트
 - group_into_chunks: boundary_aware 옵션
 - 엣지 케이스: 빈 목록, 단일 단어, 긴 단어 연속
 """
+
 from __future__ import annotations
 
 import pytest
@@ -18,8 +19,8 @@ from shorts_maker_v2.render.karaoke import (
     sentence_boundary_chunks,
 )
 
-
 # ── 픽스처 ──────────────────────────────────────────────────────────────────
+
 
 def _w(word: str, start: float, end: float) -> WordSegment:
     return WordSegment(word=word, start=start, end=end)
@@ -52,6 +53,7 @@ def boundary_words() -> list[WordSegment]:
 
 
 # ── sentence_boundary_chunks 테스트 ──────────────────────────────────────────
+
 
 class TestSentenceBoundaryChunks:
     def test_empty_returns_empty(self):
@@ -89,7 +91,6 @@ class TestSentenceBoundaryChunks:
         if len(chunks) > 1:
             assert chunks[0][1] == pytest.approx(0.6, abs=0.01)
 
-
     def test_no_empty_chunks(self, boundary_words):
         chunks = sentence_boundary_chunks(boundary_words)
         for _, _, text in chunks:
@@ -115,6 +116,7 @@ class TestSentenceBoundaryChunks:
 
 
 # ── apply_ssml_break_correction 테스트 ───────────────────────────────────────
+
 
 class TestApplySsmlBreakCorrection:
     def test_no_break_tag_unchanged(self):
@@ -166,6 +168,7 @@ class TestApplySsmlBreakCorrection:
 
 
 # ── group_into_chunks 테스트 ──────────────────────────────────────────────────
+
 
 class TestGroupIntoChunks:
     def test_boundary_aware_true_uses_boundary(self, boundary_words):

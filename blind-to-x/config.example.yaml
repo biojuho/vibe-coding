@@ -242,6 +242,30 @@ trends:
   spike_threshold: 80.0
   cache_ttl_minutes: 10
 
+crawl4ai:
+  # Crawl4AI LLM extraction fallback (CSS 셀렉터 실패 시 LLM으로 추출)
+  provider: "gemini/gemini-2.5-flash"
+  timeout_seconds: 30
+  verbose: false
+
+viral_filter:
+  # AI 바이럴 필터 (노이즈 글 자동 제거)
+  enabled: true
+  threshold: 40.0  # 0-100, 이 점수 미만은 필터링
+  timeout_seconds: 10
+
+sentiment:
+  # 감성 분석 트래커 (감정 키워드 트렌드 감지)
+  enabled: true
+  retention_days: 30  # 감정 데이터 보관 기간
+
+digest:
+  # RSSbrew 스타일 일일 다이제스트
+  enabled: true
+  max_entries: 10  # 다이제스트에 포함할 최대 포스트 수
+  send_time: "22:00"  # KST 발송 시각
+  telegram_enabled: true
+
 schedule:
   enabled: true
   cron: "0 */3 * * *"

@@ -2,19 +2,17 @@
 
 Usage:
     python -m ShortsFactory.scaffold --name cooking --display "쿡슈머" --category "요리"
-    
+
     또는 코드에서:
     from ShortsFactory.scaffold import scaffold_channel
     scaffold_channel("cooking", display_name="쿡슈머", category="요리")
 """
+
 from __future__ import annotations
 
 import logging
 import textwrap
 from pathlib import Path
-from typing import Any
-
-import yaml
 
 logger = logging.getLogger("ShortsFactory.scaffold")
 
@@ -26,11 +24,11 @@ _CAPTION_PILLOW = _PROJECT / "src" / "shorts_maker_v2" / "render" / "caption_pil
 
 # 기본 팔레트 프리셋 (사용자가 커스텀 가능)
 DEFAULT_PALETTES = {
-    "warm":  {"primary": "#FF6B35", "secondary": "#F59E0B", "accent": "#EF4444", "bg": "#1A0A05"},
-    "cool":  {"primary": "#06B6D4", "secondary": "#3B82F6", "accent": "#8B5CF6", "bg": "#0A1420"},
+    "warm": {"primary": "#FF6B35", "secondary": "#F59E0B", "accent": "#EF4444", "bg": "#1A0A05"},
+    "cool": {"primary": "#06B6D4", "secondary": "#3B82F6", "accent": "#8B5CF6", "bg": "#0A1420"},
     "earth": {"primary": "#8B6914", "secondary": "#D4A574", "accent": "#6B8E23", "bg": "#1A1408"},
-    "neon":  {"primary": "#00FF88", "secondary": "#00D4FF", "accent": "#FF00FF", "bg": "#0A0E1A"},
-    "soft":  {"primary": "#E879F9", "secondary": "#FB7185", "accent": "#F59E0B", "bg": "#1A0A1E"},
+    "neon": {"primary": "#00FF88", "secondary": "#00D4FF", "accent": "#FF00FF", "bg": "#0A0E1A"},
+    "soft": {"primary": "#E879F9", "secondary": "#FB7185", "accent": "#F59E0B", "bg": "#1A0A1E"},
 }
 
 
@@ -54,15 +52,11 @@ def _validate_text_field(value: str, field_name: str, max_len: int = 50) -> str:
         raise ValueError(f"{field_name} must not be empty or whitespace-only.")
     value = value.strip()
     if len(value) > max_len:
-        raise ValueError(
-            f"{field_name} too long ({len(value)} chars). Max: {max_len}."
-        )
+        raise ValueError(f"{field_name} too long ({len(value)} chars). Max: {max_len}.")
     # YAML injection 방지: 작은/큰따옴표 쌍 불일치, 백슬래시 시퀀스, 제어문자 차단
-    _FORBIDDEN = _re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\\`]')
+    _FORBIDDEN = _re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\\`]")
     if _FORBIDDEN.search(value):
-        raise ValueError(
-            f"{field_name} contains forbidden characters (control chars or backslash)."
-        )
+        raise ValueError(f"{field_name} contains forbidden characters (control chars or backslash).")
     return value
 
 
@@ -92,7 +86,7 @@ def scaffold_channel(
 
     # --- 입력 검증 ---
     # 1) channel_id: 소문자 영숫자 + 언더스코어, 2~31자, 문자로 시작
-    if not _re.match(r'^[a-z][a-z0-9_]{1,30}$', channel_id):
+    if not _re.match(r"^[a-z][a-z0-9_]{1,30}$", channel_id):
         raise ValueError(
             f"Invalid channel_id '{channel_id}'. "
             "Must be lowercase alphanumeric + underscores, 2-31 chars, start with letter."
@@ -104,24 +98,19 @@ def scaffold_channel(
     else:
         display_name = _validate_text_field(display_name, "display_name", max_len=50)
 
-    if not category:
-        category = display_name
-    else:
-        category = _validate_text_field(category, "category", max_len=50)
+    category = display_name if not category else _validate_text_field(category, "category", max_len=50)
 
     # 3) palette_style: 허용 목록 검증
     if palette is None and palette_style not in DEFAULT_PALETTES:
         raise ValueError(
-            f"Invalid palette_style '{palette_style}'. "
-            f"Must be one of: {', '.join(sorted(DEFAULT_PALETTES.keys()))}"
+            f"Invalid palette_style '{palette_style}'. Must be one of: {', '.join(sorted(DEFAULT_PALETTES.keys()))}"
         )
 
     # 4) first_template: 허용 목록 검증
     _ALLOWED_TEMPLATES = {"countdown", "listicle", "quiz", "compare"}
     if first_template not in _ALLOWED_TEMPLATES:
         raise ValueError(
-            f"Invalid first_template '{first_template}'. "
-            f"Must be one of: {', '.join(sorted(_ALLOWED_TEMPLATES))}"
+            f"Invalid first_template '{first_template}'. Must be one of: {', '.join(sorted(_ALLOWED_TEMPLATES))}"
         )
 
     pal = palette or DEFAULT_PALETTES.get(palette_style, DEFAULT_PALETTES["cool"])
@@ -155,8 +144,11 @@ def scaffold_channel(
 
 
 def _build_profile_yaml(
-    channel_id: str, display_name: str, category: str,
-    palette: dict, caption_style: str,
+    channel_id: str,
+    display_name: str,
+    category: str,
+    palette: dict,
+    caption_style: str,
 ) -> str:
     """channel_profiles.yaml에 추가할 YAML 블록."""
     # display_name, category는 이미 _validate_text_field로 검증됨
@@ -190,8 +182,8 @@ def _build_profile_yaml(
     caption_style: "{caption_style}"
     caption_combo: ["{caption_style}", "{caption_style}", "{caption_style}"]
     highlight_keywords: []
-    highlight_color: "{palette['primary']}"
-    palette: {{primary: "{palette['primary']}", secondary: "{palette['secondary']}", accent: "{palette['accent']}", bg: "{palette['bg']}"}}
+    highlight_color: "{palette["primary"]}"
+    palette: {{primary: "{palette["primary"]}", secondary: "{palette["secondary"]}", accent: "{palette["accent"]}", bg: "{palette["bg"]}"}}
     font: {{title: "NanumGothicBold", body: "NanumGothic"}}
     hook_style: "clean_popup"
     transition: "clean_slide"
@@ -254,9 +246,7 @@ def _register_in_init(channel_id: str, cls_name: str) -> None:
     if marker in content:
         content = content.replace(
             marker,
-            f"# {channel_id.replace('_', ' ').title()}\n"
-            f"{import_line}\n\n"
-            f"{marker}",
+            f"# {channel_id.replace('_', ' ').title()}\n{import_line}\n\n{marker}",
         )
 
     # 2) registry 항목 추가: 닫는 중괄호 직전에 삽입
@@ -264,9 +254,7 @@ def _register_in_init(channel_id: str, cls_name: str) -> None:
     if closing_brace in content:
         content = content.replace(
             closing_brace,
-            f"\n    # {channel_id.replace('_', ' ').title()}\n"
-            f"{registry_entry}\n"
-            f"}}\n",
+            f"\n    # {channel_id.replace('_', ' ').title()}\n{registry_entry}\n}}\n",
         )
 
     init_path.write_text(content, encoding="utf-8")
@@ -277,21 +265,21 @@ def _generate_guide(channel_id: str, display_name: str, caption_style: str, pale
     """완료 후 가이드 텍스트."""
     return textwrap.dedent(f"""
     === {display_name} 채널 스캐폴딩 완료! ===
-    
+
     자동 완료된 항목:
     ✅ channel_profiles.yaml에 채널 추가
     ✅ {channel_id}_countdown.py 템플릿 생성
     ✅ templates/__init__.py에 자동 등록
-    
+
     남은 단계:
     1. caption_pillow.py에 '{caption_style}' 프리셋 추가
     2. channel_profiles.yaml에서 highlight_keywords 채우기
-    
+
     사용법:
       factory = ShortsFactory(channel="{channel_id}")
       factory.create("{channel_id}_countdown", {{"items": [...]}})
       factory.render("output.mp4")
-    
+
     CLI:
       python -m ShortsFactory render --channel {channel_id} --template {channel_id}_countdown --data '...'
     """).strip()
@@ -299,6 +287,7 @@ def _generate_guide(channel_id: str, display_name: str, caption_style: str, pale
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser(description="ShortsFactory 채널 스캐폴딩")
     parser.add_argument("--name", required=True, help="채널 ID")
     parser.add_argument("--display", default="", help="표시 이름")

@@ -13,7 +13,6 @@ color_engine.py — 컬러 그레이딩 엔진
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -23,29 +22,54 @@ logger = logging.getLogger(__name__)
 # ── Built-in 프리셋 (이전 color_presets.yaml에서 마이그레이션) ──
 _BUILTIN_PRESETS: dict[str, dict[str, Any]] = {
     "neon_tech": {
-        "brightness": 0.05, "contrast": 1.25, "saturation": 1.3,
-        "hue_shift": 0, "gamma": 0.95, "vignette": 0.3,
-        "tint": "#0A0E1A", "tint_opacity": 0.08,
+        "brightness": 0.05,
+        "contrast": 1.25,
+        "saturation": 1.3,
+        "hue_shift": 0,
+        "gamma": 0.95,
+        "vignette": 0.3,
+        "tint": "#0A0E1A",
+        "tint_opacity": 0.08,
     },
     "dreamy_purple": {
-        "brightness": 0.02, "contrast": 1.1, "saturation": 1.15,
-        "hue_shift": 10, "gamma": 1.05, "vignette": 0.25,
-        "tint": "#1A0A2E", "tint_opacity": 0.1,
+        "brightness": 0.02,
+        "contrast": 1.1,
+        "saturation": 1.15,
+        "hue_shift": 10,
+        "gamma": 1.05,
+        "vignette": 0.25,
+        "tint": "#1A0A2E",
+        "tint_opacity": 0.1,
     },
     "vintage_sepia": {
-        "brightness": 0.0, "contrast": 1.15, "saturation": 0.7,
-        "hue_shift": 25, "gamma": 1.1, "vignette": 0.4,
-        "tint": "#2B1810", "tint_opacity": 0.15,
+        "brightness": 0.0,
+        "contrast": 1.15,
+        "saturation": 0.7,
+        "hue_shift": 25,
+        "gamma": 1.1,
+        "vignette": 0.4,
+        "tint": "#2B1810",
+        "tint_opacity": 0.15,
     },
     "deep_space": {
-        "brightness": -0.05, "contrast": 1.2, "saturation": 1.1,
-        "hue_shift": -5, "gamma": 0.9, "vignette": 0.35,
-        "tint": "#050520", "tint_opacity": 0.12,
+        "brightness": -0.05,
+        "contrast": 1.2,
+        "saturation": 1.1,
+        "hue_shift": -5,
+        "gamma": 0.9,
+        "vignette": 0.35,
+        "tint": "#050520",
+        "tint_opacity": 0.12,
     },
     "clean_medical": {
-        "brightness": 0.03, "contrast": 1.05, "saturation": 0.95,
-        "hue_shift": 0, "gamma": 1.0, "vignette": 0.15,
-        "tint": "#F0FFF0", "tint_opacity": 0.05,
+        "brightness": 0.03,
+        "contrast": 1.05,
+        "saturation": 0.95,
+        "hue_shift": 0,
+        "gamma": 1.0,
+        "vignette": 0.15,
+        "tint": "#F0FFF0",
+        "tint_opacity": 0.05,
     },
 }
 
@@ -89,9 +113,7 @@ class ColorEngine:
         self._presets = _load_presets()
         preset_data = self._presets.get(preset_name, {})
         if not preset_data:
-            logger.warning(
-                "[ColorEngine] 프리셋 '%s' 없음. 기본값 사용.", preset_name
-            )
+            logger.warning("[ColorEngine] 프리셋 '%s' 없음. 기본값 사용.", preset_name)
         self.preset = ColorPreset(preset_data)
         self.preset_name = preset_name
 
@@ -145,7 +167,10 @@ class ColorEngine:
             # 5. Tint overlay
             if tint_rgb is not None:
                 tint_layer = np.array(tint_rgb, dtype=np.float32)
-                frame = frame * (1 - preset.tint_opacity) + tint_layer * preset.tint_opacity * 255 / 255.0 * frame / 255.0 * 255
+                frame = (
+                    frame * (1 - preset.tint_opacity)
+                    + tint_layer * preset.tint_opacity * 255 / 255.0 * frame / 255.0 * 255
+                )
 
             # 6. Vignette
             if vignette_mask is not None:
@@ -196,9 +221,9 @@ class ColorEngine:
 
     # ── v2: LUT 기반 컬러 그레이딩 ─────────────────────────────────
 
-    def apply_lut(self, clip, lut_r: np.ndarray | None = None,
-                  lut_g: np.ndarray | None = None,
-                  lut_b: np.ndarray | None = None) -> Any:
+    def apply_lut(
+        self, clip, lut_r: np.ndarray | None = None, lut_g: np.ndarray | None = None, lut_b: np.ndarray | None = None
+    ) -> Any:
         """1D LUT (Look-Up Table)를 적용합니다.
 
         256 길이의 numpy 배열로 각 채널의 입출력 매핑을 정의합니다.
@@ -239,7 +264,7 @@ class ColorEngine:
     _ROLE_ADJUSTMENTS: dict[str, dict[str, float]] = {
         "hook": {"contrast": 1.3, "saturation": 1.25, "brightness": 0.03, "gamma": 0.92},
         "body": {"contrast": 1.1, "saturation": 1.05, "brightness": 0.0, "gamma": 1.0},
-        "cta":  {"contrast": 1.15, "saturation": 1.1, "brightness": 0.05, "gamma": 1.08},
+        "cta": {"contrast": 1.15, "saturation": 1.1, "brightness": 0.05, "gamma": 1.08},
     }
 
     def apply_role_grading(self, clip, role: str = "body") -> Any:
@@ -283,14 +308,17 @@ class ColorEngine:
 
         logger.debug(
             "[ColorEngine v2] role_grading: role=%s, contrast=%.2f, sat=%.2f, gamma=%.2f",
-            role, combined_contrast, combined_saturation, combined_gamma,
+            role,
+            combined_contrast,
+            combined_saturation,
+            combined_gamma,
         )
         return clip.transform(_grade_role)
 
     # ── v2: 프리셋 블렌딩 ────────────────────────────────────────
 
     @classmethod
-    def blend_presets(cls, preset_a: str, preset_b: str, ratio: float = 0.5) -> "ColorEngine":
+    def blend_presets(cls, preset_a: str, preset_b: str, ratio: float = 0.5) -> ColorEngine:
         """두 프리셋을 비율에 따라 블렌딩한 새 ColorEngine을 생성합니다.
 
         Args:
@@ -368,10 +396,13 @@ class ColorEngine:
         brightness_offset = max(-80, min(80, brightness_offset))
 
         logger.debug(
-            "[ColorEngine v2] auto_correct: mean=%.1f→%.1f, std=%.1f→%.1f, "
-            "contrast=%.2f, brightness_offset=%.1f",
-            current_mean, target_mean, current_std, target_std,
-            contrast_factor, brightness_offset,
+            "[ColorEngine v2] auto_correct: mean=%.1f→%.1f, std=%.1f→%.1f, contrast=%.2f, brightness_offset=%.1f",
+            current_mean,
+            target_mean,
+            current_std,
+            target_std,
+            contrast_factor,
+            brightness_offset,
         )
 
         def _auto_correct_frame(get_frame, t):
@@ -388,9 +419,9 @@ class ColorEngine:
         """비네트 마스크 (3채널, float32) 생성."""
         y, x = np.mgrid[0:h, 0:w].astype(np.float32)
         cx, cy = w / 2, h / 2
-        max_r = np.sqrt(cx ** 2 + cy ** 2)
+        max_r = np.sqrt(cx**2 + cy**2)
         dist = np.sqrt((x - cx) ** 2 + (y - cy) ** 2) / max_r
-        mask = 1.0 - strength * dist ** 2
+        mask = 1.0 - strength * dist**2
         mask = np.clip(mask, 0.3, 1.0)
         return mask[:, :, np.newaxis]
 

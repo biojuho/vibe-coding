@@ -5,7 +5,7 @@ ShortsFactory 렌더링용 데이터로 변환합니다.
 
 Usage:
     from ShortsFactory.integrations.notion_bridge import NotionContentFetcher
-    
+
     fetcher = NotionContentFetcher(database_id="your_db_id")
     jobs = fetcher.fetch_ready_content()
     for job in jobs:
@@ -14,27 +14,27 @@ Usage:
         factory.render(job["output_path"])
         fetcher.mark_done(job["page_id"])
 """
+
 from __future__ import annotations
 
 import json
 import logging
 import os
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger("ShortsFactory.notion")
 
 # Notion DB 스키마 정의
 NOTION_SCHEMA = {
-    "title":       {"type": "title",      "field": "제목"},
-    "channel":     {"type": "select",     "field": "채널"},
-    "template":    {"type": "select",     "field": "템플릿"},
-    "script_data": {"type": "rich_text",  "field": "스크립트 데이터"},
-    "status":      {"type": "status",     "field": "상태"},
-    "scheduled":   {"type": "date",       "field": "예약일"},
-    "output_path": {"type": "url",        "field": "영상경로"},
-    "error":       {"type": "rich_text",  "field": "에러"},
+    "title": {"type": "title", "field": "제목"},
+    "channel": {"type": "select", "field": "채널"},
+    "template": {"type": "select", "field": "템플릿"},
+    "script_data": {"type": "rich_text", "field": "스크립트 데이터"},
+    "status": {"type": "status", "field": "상태"},
+    "scheduled": {"type": "date", "field": "예약일"},
+    "output_path": {"type": "url", "field": "영상경로"},
+    "error": {"type": "rich_text", "field": "에러"},
 }
 
 STATUS_FLOW = ["draft", "ready", "rendering", "done", "uploaded", "error"]
@@ -95,21 +95,23 @@ class NotionContentFetcher:
                 try:
                     data = json.loads(script_raw) if script_raw else {}
                 except json.JSONDecodeError as je:
-                    logger.warning(f"Invalid script JSON in page {page.get('id','?')}: {je}")
+                    logger.warning(f"Invalid script JSON in page {page.get('id', '?')}: {je}")
                     continue
 
                 ts = datetime.now().strftime("%Y%m%d_%H%M%S")
                 safe_title = "".join(c if c.isalnum() or c in "_ -" else "_" for c in title[:30])
                 output = f"output/{channel}_{template}_{ts}_{safe_title}.mp4"
 
-                results.append({
-                    "page_id": page["id"],
-                    "channel": channel,
-                    "template": template,
-                    "data": data,
-                    "title": title,
-                    "output_path": output,
-                })
+                results.append(
+                    {
+                        "page_id": page["id"],
+                        "channel": channel,
+                        "template": template,
+                        "data": data,
+                        "title": title,
+                        "output_path": output,
+                    }
+                )
             except Exception as e:
                 logger.warning(f"Page parse error: {e}")
                 continue
@@ -130,9 +132,7 @@ class NotionContentFetcher:
         if "output_path" in extra_fields:
             props["영상경로"] = {"url": extra_fields["output_path"]}
         if "error" in extra_fields:
-            props["에러"] = {
-                "rich_text": [{"text": {"content": str(extra_fields["error"])[:2000]}}]
-            }
+            props["에러"] = {"rich_text": [{"text": {"content": str(extra_fields["error"])[:2000]}}]}
 
         resp = requests.patch(url, json={"properties": props}, headers=self._headers())
         ok = resp.status_code == 200

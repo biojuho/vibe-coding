@@ -73,19 +73,19 @@ class BackgroundEngine:
 
         if direction == "radial":
             cx, cy = width // 2, height // 2
-            max_r = math.sqrt(cx ** 2 + cy ** 2)
+            max_r = math.sqrt(cx**2 + cy**2)
             y_grid, x_grid = np.mgrid[0:height, 0:width]
             dist = np.sqrt((x_grid - cx) ** 2 + (y_grid - cy) ** 2) / max_r
             dist = np.clip(dist, 0, 1)
             for c in range(3):
-                arr[:, :, c] = (
-                    primary[c] * (1 - dist) + bg_color[c] * dist
-                ).astype(np.uint8)
+                arr[:, :, c] = (primary[c] * (1 - dist) + bg_color[c] * dist).astype(np.uint8)
         else:  # vertical
             for c in range(3):
-                arr[:, :, c] = np.linspace(
-                    bg_color[c], primary[c] * 0.3 + bg_color[c] * 0.7, height
-                ).reshape(-1, 1).astype(np.uint8)
+                arr[:, :, c] = (
+                    np.linspace(bg_color[c], primary[c] * 0.3 + bg_color[c] * 0.7, height)
+                    .reshape(-1, 1)
+                    .astype(np.uint8)
+                )
 
         image = Image.fromarray(arr)
         image.save(output_path, format="PNG")
@@ -183,7 +183,8 @@ class BackgroundEngine:
         image.save(output_path, format="PNG")
         logger.debug(
             "[BackgroundEngine] 그리드 오버레이 생성: spacing=%d, opacity=%.0f%%",
-            grid_spacing, opacity * 100,
+            grid_spacing,
+            opacity * 100,
         )
         return output_path
 
@@ -227,25 +228,27 @@ class BackgroundEngine:
             # 부드러운 ease-in-out 보간
             t_smooth = t * t * (3 - 2 * t)
 
-            mid_rgb = tuple(
-                int(start_rgb[c] * (1 - t_smooth) + end_rgb[c] * t_smooth)
-                for c in range(3)
-            )
+            mid_rgb = tuple(int(start_rgb[c] * (1 - t_smooth) + end_rgb[c] * t_smooth) for c in range(3))
 
             arr = np.zeros((height, width, 3), dtype=np.uint8)
             for c in range(3):
-                arr[:, :, c] = np.linspace(
-                    start_rgb[c] * (1 - t_smooth) + mid_rgb[c] * t_smooth,
-                    mid_rgb[c],
-                    height,
-                ).reshape(-1, 1).astype(np.uint8)
+                arr[:, :, c] = (
+                    np.linspace(
+                        start_rgb[c] * (1 - t_smooth) + mid_rgb[c] * t_smooth,
+                        mid_rgb[c],
+                        height,
+                    )
+                    .reshape(-1, 1)
+                    .astype(np.uint8)
+                )
 
             frame_path = output_dir / f"grad_{i:04d}.png"
             Image.fromarray(arr).save(frame_path, format="PNG")
             paths.append(frame_path)
 
         logger.debug(
-            "[BackgroundEngine] 그라데이션 쉬프트 %d프레임 생성", num_frames,
+            "[BackgroundEngine] 그라데이션 쉬프트 %d프레임 생성",
+            num_frames,
         )
         return paths
 
@@ -300,14 +303,16 @@ class BackgroundEngine:
         # 파티클 초기 상태 생성
         particles = []
         for _ in range(actual_count):
-            particles.append({
-                "x": random.randint(0, width),
-                "y": random.randint(0, height),
-                "r": random.randint(size_range[0], size_range[1]),
-                "alpha": random.randint(60, 180),
-                "color": random.choice(color_rgbs),
-                "speed": random.uniform(speed * 0.5, speed * 1.5),
-            })
+            particles.append(
+                {
+                    "x": random.randint(0, width),
+                    "y": random.randint(0, height),
+                    "r": random.randint(size_range[0], size_range[1]),
+                    "alpha": random.randint(60, 180),
+                    "color": random.choice(color_rgbs),
+                    "speed": random.uniform(speed * 0.5, speed * 1.5),
+                }
+            )
 
         paths: list[Path] = []
         for frame_idx in range(num_frames):
@@ -339,7 +344,8 @@ class BackgroundEngine:
 
         logger.debug(
             "[BackgroundEngine] 애니메이션 파티클 %d프레임 (%d개 파티클)",
-            num_frames, actual_count,
+            num_frames,
+            actual_count,
         )
         return paths
 
@@ -368,7 +374,8 @@ class BackgroundEngine:
         Returns:
             생성된 배경 이미지 경로.
         """
-        from PIL import ImageFilter as _IF, ImageEnhance
+        from PIL import ImageEnhance
+        from PIL import ImageFilter as _IF
 
         if output_path is None:
             output_path = Path(tempfile.mktemp(suffix=".png"))
@@ -466,7 +473,8 @@ class BackgroundEngine:
         image.save(output_path, format="PNG")
         logger.debug(
             "[BackgroundEngine] 노이즈 텍스처 생성: %.0f%% intensity, grain=%d",
-            intensity * 100, grain_size,
+            intensity * 100,
+            grain_size,
         )
         return output_path
 
@@ -514,7 +522,8 @@ class BackgroundEngine:
         image.save(output_path, format="PNG")
         logger.debug(
             "[BackgroundEngine] 스캔라인 오버레이: spacing=%d, opacity=%.0f%%",
-            line_spacing, line_opacity * 100,
+            line_spacing,
+            line_opacity * 100,
         )
         return output_path
 
@@ -579,7 +588,7 @@ class BackgroundEngine:
             # 원형 그라데이션 (가우시안 폴오프)
             y_grid, x_grid = np.mgrid[0:height, 0:width]
             dist = np.sqrt((x_grid - cx) ** 2 + (y_grid - cy) ** 2)
-            falloff = np.exp(-(dist ** 2) / (2 * (radius ** 2)))
+            falloff = np.exp(-(dist**2) / (2 * (radius**2)))
 
             for c in range(3):
                 arr[:, :, c] += rgb[c] * falloff
@@ -594,7 +603,8 @@ class BackgroundEngine:
         image.save(output_path, format="PNG")
         logger.debug(
             "[BackgroundEngine] 메쉬 그라데이션: %d 제어점, blur=%d",
-            len(color_rgbs), blur_radius,
+            len(color_rgbs),
+            blur_radius,
         )
         return output_path
 

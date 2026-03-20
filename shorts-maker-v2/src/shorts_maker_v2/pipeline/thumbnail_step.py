@@ -8,6 +8,7 @@ Sprint 4 개선:
 - Gemini Imagen 무료 모드 지원
 - channel_key 기반 자동 스타일 분기
 """
+
 from __future__ import annotations
 
 import json
@@ -22,8 +23,8 @@ import requests
 from shorts_maker_v2.config import CanvaSettings, ThumbnailSettings
 
 if TYPE_CHECKING:
-    from shorts_maker_v2.providers.openai_client import OpenAIClient
     from shorts_maker_v2.providers.google_client import GoogleClient
+    from shorts_maker_v2.providers.openai_client import OpenAIClient
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +87,7 @@ _FONT_CANDIDATES = [
 
 # ── Canva 헬퍼 (레거시) ───────────────────────────────────────────────────────
 
+
 def _load_token(token_file: Path) -> dict:
     if not token_file.exists():
         raise FileNotFoundError(f"Canva 토큰 없음: {token_file}")
@@ -99,6 +101,7 @@ def _headers(token: str) -> dict:
 def _refresh_access_token(token_file: Path) -> str:
     """refresh_token으로 새 access_token 발급 후 파일 갱신."""
     from dotenv import load_dotenv
+
     sibling_env = token_file.parent / ".env"
     if sibling_env.exists():
         load_dotenv(sibling_env, override=False)
@@ -175,8 +178,7 @@ def _http_download(url: str, output_path: Path) -> Path:
 def _sanitize_title(title: str) -> str:
     """cp949 비호환 Unicode 특수문자를 안전한 대체 문자로 치환."""
     return (
-        title
-        .replace("\u2014", "-")
+        title.replace("\u2014", "-")
         .replace("\u2013", "-")
         .replace("\u2026", "...")
         .replace("\u201c", '"')
@@ -217,8 +219,10 @@ def _overlay_title(base_png: Path, title: str, output_path: Path) -> Path:
 
 # ── Pillow 썸네일 생성 ────────────────────────────────────────────────────────
 
+
 def _load_font_for_thumb(size: int):
     from PIL import ImageFont
+
     for fp in _FONT_CANDIDATES:
         p = Path(fp)
         if p.exists():
@@ -250,71 +254,107 @@ def _wrap_text(text: str, font, draw, max_width: int) -> list[str]:
     return lines or [text]
 
 
-def _generate_pillow_thumbnail(title: str, output_path: Path) -> Path:
+def _generate_pillow_thumbnail(
+    title: str,
+    output_path: Path,
+    bg_image_path: str | None = None,
+) -> Path:
     """
     Pillow로 1080×1920 Shorts 썸네일 직접 생성.
-    다크 그라데이션 배경 + 굵은 제목 텍스트 + 골드 액센트 라인.
+    bg_image_path가 있으면 씬 이미지를 배경으로, 없으면 다크 그라디언트.
     """
-    from PIL import Image, ImageDraw
+    from PIL import Image, ImageDraw, ImageFilter
 
     W, H = 1080, 1920
     GOLD = (255, 215, 0)
-    TOP_COLOR = (13, 13, 30)
-    BOT_COLOR = (20, 8, 58)
 
-    # 1. 그라데이션 배경
-    img = Image.new("RGB", (W, H))
+    # 1. 배경: 씬 이미지 or 그라데이션
+    if bg_image_path and Path(bg_image_path).exists():
+        try:
+            bg = Image.open(bg_image_path).convert("RGB")
+            # 세로 맞춤 크롭
+            scale = max(W / bg.width, H / bg.height)
+            bg = bg.resize((int(bg.width * scale), int(bg.height * scale)), Image.LANCZOS)
+            left = (bg.width - W) // 2
+            top = (bg.height - H) // 2
+            bg = bg.crop((left, top, left + W, top + H))
+            # 약간 블러 + 어둡게 (텍스트 가독성)
+            bg = bg.filter(ImageFilter.GaussianBlur(radius=3))
+            from PIL import ImageEnhance
+
+            bg = ImageEnhance.Brightness(bg).enhance(0.5)
+            img = bg
+        except Exception:
+            img = _pillow_gradient_bg(W, H)
+    else:
+        img = _pillow_gradient_bg(W, H)
+
     draw = ImageDraw.Draw(img)
-    for y in range(H):
-        t = y / H
-        r = int(TOP_COLOR[0] * (1 - t) + BOT_COLOR[0] * t)
-        g = int(TOP_COLOR[1] * (1 - t) + BOT_COLOR[1] * t)
-        b = int(TOP_COLOR[2] * (1 - t) + BOT_COLOR[2] * t)
-        draw.line([(0, y), (W, y)], fill=(r, g, b))
 
-    # 2. 골드 액센트 라인 (상/하)
-    draw.rectangle([(0, 0), (W, 8)], fill=GOLD)
-    draw.rectangle([(0, H - 8), (W, H)], fill=GOLD)
+    # 2. 상/하단 그라디언트 비네트 오버레이 (numpy 벡터화)
+    import numpy as np
 
-    # 3. 제목 폰트 (90px)
-    font = _load_font_for_thumb(90)
+    quarter = H // 4
+    alpha_arr = np.zeros(H, dtype=np.uint8)
+    # 상단 비네트: 180→0
+    alpha_arr[:quarter] = (180 * (1 - np.arange(quarter) / quarter)).astype(np.uint8)
+    # 하단 비네트: 0→200
+    bottom_len = H - H * 3 // 4
+    alpha_arr[H * 3 // 4 :] = (200 * np.arange(bottom_len) / max(quarter, 1)).astype(np.uint8)[:bottom_len]
+    # RGBA 비네트 배열 생성
+    vig_rgba = np.zeros((H, W, 4), dtype=np.uint8)
+    vig_rgba[:, :, 3] = alpha_arr[:, np.newaxis]
+    vignette = Image.fromarray(vig_rgba, "RGBA")
+    img = Image.alpha_composite(img.convert("RGBA"), vignette).convert("RGB")
+    draw = ImageDraw.Draw(img)
+
+    # 3. 골드 액센트 라인 (상/하)
+    draw.rectangle([(0, 0), (W, 6)], fill=GOLD)
+    draw.rectangle([(0, H - 6), (W, H)], fill=GOLD)
+
+    # 4. 제목 폰트 (96px 대형)
+    font = _load_font_for_thumb(96)
     title_clean = _sanitize_title(title)
     margin = 80
     lines = _wrap_text(title_clean, font, draw, W - margin * 2)
 
-    line_h = 90 + 24  # 폰트 크기 + 줄 간격
+    line_h = 96 + 28
     total_text_h = len(lines) * line_h
-    y_start = max(margin, (H - total_text_h) // 2 - 80)
+    y_start = max(margin, (H - total_text_h) // 2 - 60)
 
-    # 4. 텍스트 그림자 + 본문
+    # 5. 텍스트 (두꺼운 외곽선 + 글로우)
     for i, line in enumerate(lines):
         bbox = draw.textbbox((0, 0), line, font=font)
         text_w = bbox[2] - bbox[0]
         x = (W - text_w) // 2
         y = y_start + i * line_h
-        # 검은 그림자
-        for dx, dy in [(-3, -3), (3, -3), (-3, 3), (3, 3), (0, 4), (4, 0)]:
-            draw.text((x + dx, y + dy), line, font=font, fill=(0, 0, 0))
-        # 흰 텍스트
-        draw.text((x, y), line, font=font, fill=(255, 255, 255))
+        # 외곽선 (두꺼운 검정)
+        draw.text((x, y), line, font=font, fill=(255, 255, 255), stroke_width=6, stroke_fill=(0, 0, 0))
 
-    # 5. 텍스트 아래 골드 구분선
-    div_y = y_start + total_text_h + 28
+    # 6. 텍스트 아래 골드 구분선
+    div_y = y_start + total_text_h + 20
     draw.rectangle([(W // 4, div_y), (3 * W // 4, div_y + 4)], fill=GOLD)
-
-    # 6. 하단 반투명 바 (영상 제목 공간)
-    bar_h = 140
-    overlay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    overlay_draw = ImageDraw.Draw(overlay)
-    overlay_draw.rectangle([(0, H - bar_h), (W, H)], fill=(0, 0, 0, 160))
-    img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     img.save(str(output_path), "PNG")
     return output_path
 
 
+def _pillow_gradient_bg(w: int, h: int):
+    """다크 그라데이션 배경 생성 (numpy 벡터화)."""
+    import numpy as np
+    from PIL import Image
+
+    TOP_COLOR = np.array([13, 13, 30], dtype=np.float32)
+    BOT_COLOR = np.array([20, 8, 58], dtype=np.float32)
+    t = np.linspace(0, 1, h, dtype=np.float32).reshape(h, 1, 1)
+    gradient = (TOP_COLOR * (1 - t) + BOT_COLOR * t).astype(np.uint8)
+    gradient = np.broadcast_to(gradient, (h, w, 3)).copy()
+    return Image.fromarray(gradient, "RGB")
+
+
 # ── ThumbnailStep ─────────────────────────────────────────────────────────────
+
 
 class ThumbnailStep:
     def __init__(
@@ -338,14 +378,44 @@ class ThumbnailStep:
         output_dir: Path,
         topic: str = "",
         channel_key: str = "",
+        scene_assets: list | None = None,
+        job_id: str = "",
     ) -> str | None:
         """
         썸네일 생성. mode에 따라 pillow / dalle / gemini / canva 분기.
         channel_key가 주어지면 채널별 최적화된 AI 프롬프트를 사용합니다.
+        scene_assets가 주어지면 첫 씬 이미지를 배경으로 사용합니다.
+        job_id가 주어지면 thumbnail_{job_id}.png 형태로 저장 (덮어쓰기 방지).
         실패 시 None 반환 (파이프라인 중단 없음).
         """
         mode = self.thumbnail_config.mode
-        output_path = output_dir / "thumbnail.png"
+        thumb_filename = f"thumbnail_{job_id}.png" if job_id else "thumbnail.png"
+        output_path = output_dir / thumb_filename
+
+        # 첫 씬 비주얼 경로 추출 (이미지 또는 영상 프레임)
+        self._bg_image_path = None
+        if scene_assets:
+            for asset in scene_assets:
+                vp = getattr(asset, "visual_path", None)
+                if not vp or not Path(vp).exists():
+                    continue
+                ext = Path(vp).suffix.lower()
+                if ext in (".png", ".jpg", ".jpeg", ".webp"):
+                    self._bg_image_path = vp
+                    break
+                if ext in (".mp4", ".webm", ".mov"):
+                    # 영상에서 1초 지점 프레임 추출
+                    try:
+                        from moviepy import VideoFileClip
+
+                        frame_path = output_dir / "thumb_frame.jpg"
+                        with VideoFileClip(vp) as clip:
+                            t = min(1.0, clip.duration * 0.3)
+                            clip.save_frame(str(frame_path), t=t)
+                        self._bg_image_path = str(frame_path)
+                        break
+                    except Exception:
+                        continue
 
         try:
             if mode == "none":
@@ -370,11 +440,12 @@ class ThumbnailStep:
     def _run_pillow(self, title: str, output_path: Path) -> str | None:
         clean_title = _sanitize_title(title)
         if len(clean_title) > 15:
-            print(
-                f"[Thumbnail] WARNING: 제목 {len(clean_title)}자 — "
-                "15자 이하 권장 (모바일 가독성)"
-            )
-        result = _generate_pillow_thumbnail(title, output_path)
+            print(f"[Thumbnail] WARNING: 제목 {len(clean_title)}자 — 15자 이하 권장 (모바일 가독성)")
+        result = _generate_pillow_thumbnail(
+            title,
+            output_path,
+            bg_image_path=getattr(self, "_bg_image_path", None),
+        )
         print(f"[Thumbnail] Pillow 썸네일 저장: {result}")
         return result.resolve().as_posix()
 
@@ -389,21 +460,29 @@ class ThumbnailStep:
             return config_template.format(title=title, topic=effective_topic)
         if channel_key and channel_key in _CHANNEL_THUMB_PROMPTS:
             prompt = _CHANNEL_THUMB_PROMPTS[channel_key].format(
-                title=title, topic=effective_topic,
+                title=title,
+                topic=effective_topic,
             )
             logger.info("[Thumbnail] 채널 '%s' 전용 프롬프트 사용", channel_key)
             return prompt
         return _DEFAULT_THUMB_PROMPT.format(title=title, topic=effective_topic)
 
     def _run_dalle(
-        self, title: str, topic: str, output_path: Path, channel_key: str = "",
+        self,
+        title: str,
+        topic: str,
+        output_path: Path,
+        channel_key: str = "",
     ) -> str | None:
         if not self.openai_client:
             logger.warning("[Thumbnail] DALL-E 모드지만 openai_client 없음 → Pillow 폴백")
             return self._run_pillow(title, output_path)
 
         dalle_prompt = self._resolve_ai_prompt(
-            topic, title, channel_key, self.thumbnail_config.dalle_prompt_template,
+            topic,
+            title,
+            channel_key,
+            self.thumbnail_config.dalle_prompt_template,
         )
         logger.info("[Thumbnail] DALL-E prompt (channel=%s): %.80s...", channel_key or "default", dalle_prompt)
 
@@ -421,7 +500,11 @@ class ThumbnailStep:
         return output_path.resolve().as_posix()
 
     def _run_gemini(
-        self, title: str, topic: str, output_path: Path, channel_key: str = "",
+        self,
+        title: str,
+        topic: str,
+        output_path: Path,
+        channel_key: str = "",
     ) -> str | None:
         """Gemini Imagen 3 API로 썸네일 생성 (무료 tier)."""
         if not self.google_client:
@@ -429,7 +512,10 @@ class ThumbnailStep:
             return self._run_dalle(title, topic, output_path, channel_key)
 
         gemini_prompt = self._resolve_ai_prompt(
-            topic, title, channel_key, self.thumbnail_config.dalle_prompt_template,
+            topic,
+            title,
+            channel_key,
+            self.thumbnail_config.dalle_prompt_template,
         )
         logger.info("[Thumbnail] Gemini prompt (channel=%s): %.80s...", channel_key or "default", gemini_prompt)
 

@@ -8,7 +8,9 @@ Note:
     _REGISTRY — 대본 생성기(tools/) 매핑 (Main Pipeline용)
     TEMPLATE_REGISTRY — 비주얼 렌더링 템플릿(ShortsFactory) 매핑
 """
+
 from __future__ import annotations
+
 from typing import Any
 
 # Re-export: ShortsFactory 비주얼 렌더링 템플릿 (Single Source of Truth)
@@ -44,11 +46,7 @@ def get(name: str) -> dict[str, Any] | None:
 
 
 def list_for_channel(channel: str) -> list[dict[str, Any]]:
-    return [
-        {"name": k, **v}
-        for k, v in _REGISTRY.items()
-        if v["channel"] == channel
-    ]
+    return [{"name": k, **v} for k, v in _REGISTRY.items() if v["channel"] == channel]
 
 
 def list_all() -> list[dict[str, Any]]:

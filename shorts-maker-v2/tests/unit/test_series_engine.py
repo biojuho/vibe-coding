@@ -1,7 +1,6 @@
 """T4-3: Series Engine 단위 테스트."""
-from __future__ import annotations
 
-from pathlib import Path
+from __future__ import annotations
 
 from shorts_maker_v2.pipeline.series_engine import (
     SeriesEngine,

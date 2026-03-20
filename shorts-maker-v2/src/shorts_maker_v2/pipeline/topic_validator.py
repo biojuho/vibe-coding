@@ -6,7 +6,6 @@ with a single cheap LLM call.
 
 from __future__ import annotations
 
-import json
 import logging
 from dataclasses import dataclass, field
 
@@ -125,11 +124,7 @@ def _parse_result(data: dict) -> TopicValidation:
         reason = str(data.get("reason", "No reason provided."))
 
         raw_suggestions = data.get("suggestions", [])
-        suggestions = (
-            [str(s) for s in raw_suggestions if s]
-            if isinstance(raw_suggestions, list)
-            else []
-        )
+        suggestions = [str(s) for s in raw_suggestions if s] if isinstance(raw_suggestions, list) else []
 
         score_keys = [
             "visual_feasibility",

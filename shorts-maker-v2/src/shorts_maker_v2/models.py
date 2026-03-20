@@ -47,6 +47,7 @@ class JobManifest:
     srt_path: str = ""
     ab_variant: dict[str, str] = field(default_factory=dict)  # A/B 테스트 변수 기록
     series_suggestion: dict[str, Any] | None = None  # 시리즈 후속편 추천
+    step_timings: dict[str, float] = field(default_factory=dict)  # 파이프라인 스텝별 소요 시간(초)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -64,4 +65,3 @@ class BatchResult:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
-

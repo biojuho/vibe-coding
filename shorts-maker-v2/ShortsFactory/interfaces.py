@@ -17,6 +17,7 @@ Architecture:
         output_path="output/gpt5.mp4",
     )
 """
+
 from __future__ import annotations
 
 import time
@@ -39,6 +40,7 @@ class RenderRequest:
         subtitle_data: 자막 데이터 (word-level timing 포함)
         assets: 추가 에셋 경로 (인트로, 아웃트로, 워터마크 등)
     """
+
     channel_id: str
     template_name: str
     content_data: dict[str, Any]
@@ -65,6 +67,7 @@ class RenderResult:
         metadata: 추가 메타데이터 (해상도, 프레임레이트, 씬 수 등)
         error: 실패 시 에러 메시지
     """
+
     success: bool
     output_path: Path | None = None
     duration_sec: float = 0.0
@@ -86,6 +89,7 @@ class TemplateInfo:
         module: 모듈 경로
         supports_countdown: 카운트다운 지원 여부
     """
+
     name: str
     channel: str
     description: str = ""
@@ -128,9 +132,7 @@ class RenderAdapter:
         try:
             # 팩토리 캐시 (같은 채널 재사용)
             if request.channel_id not in self._factory_cache:
-                self._factory_cache[request.channel_id] = ShortsFactory(
-                    channel=request.channel_id
-                )
+                self._factory_cache[request.channel_id] = ShortsFactory(channel=request.channel_id)
             factory = self._factory_cache[request.channel_id]
 
             # 데이터 준비
@@ -244,14 +246,16 @@ class RenderAdapter:
         for name, info in registry.items():
             if channel_id and info.get("channel") != channel_id:
                 continue
-            templates.append(TemplateInfo(
-                name=name,
-                channel=info.get("channel", ""),
-                description=info.get("description", ""),
-                generator_cls=info.get("generator_cls", ""),
-                module=info.get("module", ""),
-                supports_countdown="countdown" in name,
-            ))
+            templates.append(
+                TemplateInfo(
+                    name=name,
+                    channel=info.get("channel", ""),
+                    description=info.get("description", ""),
+                    generator_cls=info.get("generator_cls", ""),
+                    module=info.get("module", ""),
+                    supports_countdown="countdown" in name,
+                )
+            )
 
         return templates
 

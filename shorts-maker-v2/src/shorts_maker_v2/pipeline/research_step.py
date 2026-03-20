@@ -123,7 +123,9 @@ class ResearchStep:
                 if ctx.has_content:
                     logger.info(
                         "[Research] grounding OK: %d facts, %d data_points (%.1fs)",
-                        len(ctx.facts), len(ctx.key_data_points), ctx.elapsed_sec,
+                        len(ctx.facts),
+                        len(ctx.key_data_points),
+                        ctx.elapsed_sec,
                     )
                     return ctx
             except Exception as exc:
@@ -137,7 +139,9 @@ class ResearchStep:
                 if ctx.has_content:
                     logger.info(
                         "[Research] LLM fallback OK: %d facts, %d data_points (%.1fs)",
-                        len(ctx.facts), len(ctx.key_data_points), ctx.elapsed_sec,
+                        len(ctx.facts),
+                        len(ctx.key_data_points),
+                        ctx.elapsed_sec,
                     )
                     return ctx
             except Exception as exc:
@@ -173,7 +177,7 @@ class ResearchStep:
         sources = data.get("sources", [])
         grounding_meta = getattr(response.candidates[0], "grounding_metadata", None)
         if grounding_meta and hasattr(grounding_meta, "grounding_chunks"):
-            for chunk in (grounding_meta.grounding_chunks or []):
+            for chunk in grounding_meta.grounding_chunks or []:
                 web = getattr(chunk, "web", None)
                 if web and hasattr(web, "title") and web.title:
                     source_name = web.title

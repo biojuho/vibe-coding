@@ -12,15 +12,19 @@ from shorts_maker_v2.pipeline.orchestrator import PipelineOrchestrator
 
 class StubScriptStep:
     def run(self, topic: str, **kwargs):  # noqa: ARG002
-        return "stub-title", [
-            ScenePlan(
-                scene_id=1,
-                narration_ko=f"{topic} narration",
-                visual_prompt_en="prompt",
-                target_sec=5.0,
-                structure_role="hook",
-            )
-        ], "shocking_stat"
+        return (
+            "stub-title",
+            [
+                ScenePlan(
+                    scene_id=1,
+                    narration_ko=f"{topic} narration",
+                    visual_prompt_en="prompt",
+                    target_sec=5.0,
+                    structure_role="hook",
+                )
+            ],
+            "shocking_stat",
+        )
 
 
 class StubMediaStep:
@@ -43,7 +47,16 @@ class StubMediaStep:
 
 
 class StubRenderStep:
-    def run(self, scene_plans, scene_assets, output_dir: Path, output_filename: str, run_dir: Path, title: str = "", topic: str = ""):  # noqa: ARG002
+    def run(
+        self,
+        scene_plans,
+        scene_assets,
+        output_dir: Path,
+        output_filename: str,
+        run_dir: Path,
+        title: str = "",
+        topic: str = "",
+    ):  # noqa: ARG002
         output_dir.mkdir(parents=True, exist_ok=True)
         output_path = output_dir / output_filename
         output_path.write_bytes(b"native-mp4")
@@ -53,12 +66,32 @@ class StubRenderStep:
 def _make_config_file(tmp_path: Path) -> Path:
     payload = {
         "project": {"language": "ko-KR", "default_scene_count": 1},
-        "video": {"target_duration_sec": [35, 45], "resolution": [1080, 1920], "fps": 30, "scene_video_duration_sec": 5, "aspect_ratio": "9:16"},
-        "providers": {"llm": "openai", "tts": "openai", "visual_primary": "google-veo", "visual_fallback": "openai-image"},
+        "video": {
+            "target_duration_sec": [35, 45],
+            "resolution": [1080, 1920],
+            "fps": 30,
+            "scene_video_duration_sec": 5,
+            "aspect_ratio": "9:16",
+        },
+        "providers": {
+            "llm": "openai",
+            "tts": "openai",
+            "visual_primary": "google-veo",
+            "visual_fallback": "openai-image",
+        },
         "limits": {"max_cost_usd": 2.0, "max_retries": 1, "request_timeout_sec": 5},
         "costs": {"llm_per_job": 0.25, "tts_per_second": 0.001, "veo_per_second": 0.03, "image_per_scene": 0.04},
         "paths": {"output_dir": "output", "logs_dir": "logs", "runs_dir": "runs"},
-        "captions": {"font_size": 64, "margin_x": 90, "bottom_offset": 240, "text_color": "#FFD700", "stroke_color": "#000000", "stroke_width": 4, "line_spacing": 12, "font_candidates": ["C:/Windows/Fonts/malgun.ttf"]},
+        "captions": {
+            "font_size": 64,
+            "margin_x": 90,
+            "bottom_offset": 240,
+            "text_color": "#FFD700",
+            "stroke_color": "#000000",
+            "stroke_width": 4,
+            "line_spacing": 12,
+            "font_candidates": ["C:/Windows/Fonts/malgun.ttf"],
+        },
         "rendering": {"engine": "native"},
     }
     config_path = tmp_path / "config.yaml"

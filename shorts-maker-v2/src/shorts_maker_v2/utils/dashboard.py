@@ -1,7 +1,7 @@
 import json
+from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
-from collections import defaultdict
 
 
 def generate_dashboard(logs_dir: str | Path, output_file: str | Path = "dashboard.html") -> Path:
@@ -115,7 +115,7 @@ def generate_dashboard(logs_dir: str | Path, output_file: str | Path = "dashboar
         .card {{ background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex: 1; text-align: center; }}
         .card h2 {{ font-size: 1rem; color: #666; margin: 0 0 0.5rem 0; }}
         .card .value {{ font-size: 2rem; font-weight: bold; margin: 0; }}
-        .fail-rate {{ color: { 'red' if fail_rate > 10 else 'green' }; }}
+        .fail-rate {{ color: {"red" if fail_rate > 10 else "green"}; }}
         table {{ width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; }}
         th, td {{ padding: 1rem; text-align: left; border-bottom: 1px solid #ddd; }}
         th {{ background: #f1f3f5; font-weight: bold; }}
@@ -125,7 +125,7 @@ def generate_dashboard(logs_dir: str | Path, output_file: str | Path = "dashboar
 <body>
     <h1>Shorts Maker V2 통계 대시보드</h1>
     <p>업데이트: {datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")} (UTC)</p>
-    
+
     <div class="summary">
         <div class="card">
             <h2>총 시도 (건)</h2>
@@ -172,7 +172,7 @@ def generate_dashboard(logs_dir: str | Path, output_file: str | Path = "dashboar
                 <td style="color: green;">{stats["success"]}</td>
                 <td style="color: red;">{stats["failed"]}</td>
                 <td>${stats["cost"]:.4f}</td>
-                <td style="color: { 'red' if f_rate > 10 else 'inherit' };">{f_rate:.1f}%</td>
+                <td style="color: {"red" if f_rate > 10 else "inherit"};">{f_rate:.1f}%</td>
             </tr>
 """
     html += """
@@ -184,8 +184,10 @@ def generate_dashboard(logs_dir: str | Path, output_file: str | Path = "dashboar
     out_path.write_text(html, encoding="utf-8")
     return out_path
 
+
 if __name__ == "__main__":
     import sys
+
     if len(sys.argv) > 1:
         generate_dashboard(sys.argv[1])
     else:

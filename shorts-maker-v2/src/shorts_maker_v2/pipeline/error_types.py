@@ -66,13 +66,13 @@ _RETRYABLE_TYPES = {
 # 에러 타입별 권장 대기 시간
 _WAIT_TIMES = {
     PipelineErrorType.NETWORK_ERROR: 3.0,
-    PipelineErrorType.RATE_LIMIT: 15.0,      # rate limit은 더 오래 기다림
+    PipelineErrorType.RATE_LIMIT: 15.0,  # rate limit은 더 오래 기다림
     PipelineErrorType.SERVER_ERROR: 5.0,
     PipelineErrorType.INVALID_RESPONSE: 1.0,  # 즉시 재시도 가능
-    PipelineErrorType.AUTH_ERROR: 0.0,        # 재시도 무의미
-    PipelineErrorType.CONTENT_FILTER: 0.0,    # 프롬프트 수정 필요
-    PipelineErrorType.CONTEXT_LENGTH: 0.0,    # 입력 축소 필요
-    PipelineErrorType.RESOURCE_ERROR: 0.0,    # 시스템 점검 필요
+    PipelineErrorType.AUTH_ERROR: 0.0,  # 재시도 무의미
+    PipelineErrorType.CONTENT_FILTER: 0.0,  # 프롬프트 수정 필요
+    PipelineErrorType.CONTEXT_LENGTH: 0.0,  # 입력 축소 필요
+    PipelineErrorType.RESOURCE_ERROR: 0.0,  # 시스템 점검 필요
 }
 
 # 로그 아이콘
@@ -92,52 +92,80 @@ _ICONS = {
 _CLASSIFICATION_RULES: list[tuple[list[str], PipelineErrorType]] = [
     # AUTH_ERROR — 재시도 불가
     (
-        ["invalid api key", "unauthorized", "permission denied", "insufficient_quota",
-         "credit balance is too low", "billing", "invalid_api_key", "authentication",
-         "api key not found"],
+        [
+            "invalid api key",
+            "unauthorized",
+            "permission denied",
+            "insufficient_quota",
+            "credit balance is too low",
+            "billing",
+            "invalid_api_key",
+            "authentication",
+            "api key not found",
+        ],
         PipelineErrorType.AUTH_ERROR,
     ),
     # RATE_LIMIT
     (
-        ["rate limit", "rate_limit", "429", "too many requests", "quota exceeded",
-         "resource_exhausted", "throttl"],
+        ["rate limit", "rate_limit", "429", "too many requests", "quota exceeded", "resource_exhausted", "throttl"],
         PipelineErrorType.RATE_LIMIT,
     ),
     # CONTENT_FILTER
     (
-        ["content_policy", "content policy", "safety", "content_filter",
-         "blocked", "moderation", "harmful", "inappropriate",
-         "your request was rejected"],
+        [
+            "content_policy",
+            "content policy",
+            "safety",
+            "content_filter",
+            "blocked",
+            "moderation",
+            "harmful",
+            "inappropriate",
+            "your request was rejected",
+        ],
         PipelineErrorType.CONTENT_FILTER,
     ),
     # CONTEXT_LENGTH
     (
-        ["context_length", "context length", "max_tokens", "maximum context",
-         "token limit", "too long", "context window"],
+        [
+            "context_length",
+            "context length",
+            "max_tokens",
+            "maximum context",
+            "token limit",
+            "too long",
+            "context window",
+        ],
         PipelineErrorType.CONTEXT_LENGTH,
     ),
     # INVALID_RESPONSE
     (
-        ["json", "parse error", "decode", "invalid response", "malformed",
-         "expecting value", "unexpected token"],
+        ["json", "parse error", "decode", "invalid response", "malformed", "expecting value", "unexpected token"],
         PipelineErrorType.INVALID_RESPONSE,
     ),
     # SERVER_ERROR
     (
-        ["500", "502", "503", "504", "internal server error", "server error",
-         "service unavailable", "bad gateway", "overloaded"],
+        [
+            "500",
+            "502",
+            "503",
+            "504",
+            "internal server error",
+            "server error",
+            "service unavailable",
+            "bad gateway",
+            "overloaded",
+        ],
         PipelineErrorType.SERVER_ERROR,
     ),
     # NETWORK_ERROR
     (
-        ["timeout", "timed out", "connection", "network", "dns", "unreachable",
-         "reset by peer", "ssl", "eof"],
+        ["timeout", "timed out", "connection", "network", "dns", "unreachable", "reset by peer", "ssl", "eof"],
         PipelineErrorType.NETWORK_ERROR,
     ),
     # RESOURCE_ERROR
     (
-        ["disk", "space", "memory", "no such file", "file not found", "permission",
-         "errno", "oserror", "ioerror"],
+        ["disk", "space", "memory", "no such file", "file not found", "permission", "errno", "oserror", "ioerror"],
         PipelineErrorType.RESOURCE_ERROR,
     ),
 ]
@@ -212,7 +240,7 @@ class PipelineError(Exception):
         *,
         step: str = "",
         provider: str = "",
-    ) -> "PipelineError":
+    ) -> PipelineError:
         """일반 예외를 PipelineError로 변환."""
         error_type = classify_error(exc)
         return cls(

@@ -148,6 +148,96 @@ export async function updateCattle(id, data) {
   }
 }
 
+export async function recordCalving(data) {
+  try {
+    const mother = await prisma.cattle.findUnique({
+      where: { id: data.motherId },
+    });
+
+    if (!mother || mother.isArchived) {
+      return { success: false, message: "분만 대상 개체를 찾을 수 없습니다." };
+    }
+
+    const calvingDate = new Date(data.calvingDate);
+    const calfTagNumber = data.calfTagNumber;
+    const calfGender = data.calfGender;
+    const nextMemo = mother.memo
+      ? `${mother.memo}\n[분만] ${data.calvingDate} ${calfGender} 송아지 분만`
+      : `[분만] ${data.calvingDate} ${calfGender} 송아지 분만`;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const updatedMother = await tx.cattle.update({
+        where: { id: mother.id },
+        data: {
+          status: "번식우",
+          pregnancyDate: null,
+          lastEstrus: null,
+          memo: nextMemo,
+        },
+      });
+
+      const calf = await tx.cattle.create({
+        data: {
+          tagNumber: calfTagNumber,
+          name: `${mother.name}의 송아지`,
+          birthDate: calvingDate,
+          gender: calfGender,
+          status: "송아지",
+          weight: 25,
+          buildingId: mother.buildingId,
+          penNumber: mother.penNumber,
+          memo: `모체 ${mother.tagNumber} (${mother.name})`,
+          geneticFather: mother.geneticFather || "미상",
+          geneticMother: mother.tagNumber,
+          geneticGrade: "-",
+        },
+      });
+
+      const historyItems = [
+        {
+          cattleId: mother.id,
+          eventType: "calving",
+          eventDate: calvingDate,
+          description: `분만 완료: ${calfGender} 송아지 (${calfTagNumber})`,
+          metadata: JSON.stringify({
+            calfId: calf.id,
+            calfTagNumber,
+            calfGender,
+          }),
+        },
+      ];
+
+      if (mother.status !== "번식우") {
+        historyItems.push({
+          cattleId: mother.id,
+          eventType: "status_change",
+          eventDate: calvingDate,
+          description: `상태 변경: ${mother.status} → 번식우`,
+          metadata: JSON.stringify({
+            from: mother.status,
+            to: "번식우",
+          }),
+        });
+      }
+
+      await tx.cattleHistory.createMany({
+        data: historyItems,
+      });
+
+      return {
+        mother: updatedMother,
+        calf,
+      };
+    });
+
+    revalidatePath('/');
+    return { success: true, data: result };
+  } catch (error) {
+    console.error("Failed to record calving:", error);
+    return { success: false, message: error.message };
+  }
+}
+
 export async function deleteCattle(id) {
   try {
     // 판매기록 있으면 삭제 불가

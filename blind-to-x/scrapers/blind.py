@@ -320,6 +320,21 @@ class BlindScraper(BaseScraper):
                     logger.error(f"Fallback direct navigation also failed: {fallback_err}")
 
             if not main_container:
+                # Crawl4AI LLM fallback: extract using LLM when all selectors fail
+                crawl4ai_result = await self._extract_with_crawl4ai(url, html_content)
+                if crawl4ai_result and crawl4ai_result.get("content"):
+                    logger.info("Crawl4AI fallback succeeded for %s", url)
+                    # Take screenshot from page before returning
+                    short_id = uuid.uuid4().hex[:8]
+                    safe_t = "".join(x for x in crawl4ai_result.get("title", "post")[:20] if x.isalnum() or x in " -_").strip() or "post"
+                    filepath = os.path.join(self.screenshot_dir, f"blind_{safe_t}_{short_id}.png")
+                    await self._take_screenshot(page, filepath)
+                    crawl4ai_result["screenshot_path"] = filepath
+                    crawl4ai_result["category"] = self._determine_category(
+                        crawl4ai_result.get("title", ""), crawl4ai_result.get("content", "")
+                    )
+                    return crawl4ai_result
+
                 failure_stage = "parse"
                 failure_reason = "main_container_not_found"
                 raise Exception(f"Could not find main content container on {url}")
@@ -349,6 +364,16 @@ class BlindScraper(BaseScraper):
                     if text:
                         content = text
                         break
+            # trafilatura 폴백: 셀렉터 추출 실패 시 HTML에서 클린 텍스트 추출
+            if not content:
+                try:
+                    raw_html = await page.content()
+                    content = self._extract_clean_text(raw_html)
+                    if content:
+                        logger.info("Content extracted via trafilatura fallback")
+                except Exception:
+                    pass
+
             if title == "제목 없음" and not content:
                 failure_reason = "title_and_content_missing"
                 raise Exception(f"Could not parse title/content on {url}")

@@ -1,16 +1,16 @@
 """test_shorts_factory.py — ShortsFactory 유닛 테스트"""
+
 from __future__ import annotations
 
 import csv
 import json
-import tempfile
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 import yaml
 
 # ── Config 로드 테스트 ──────────────────────────────────────────────────────
+
 
 class TestChannelConfig:
     """channel_profiles.yaml 로드 및 5개 채널 설정 검증."""
@@ -46,12 +46,14 @@ class TestChannelConfig:
 
 # ── 엔진 독립 사용 테스트 ───────────────────────────────────────────────────
 
+
 class TestTextEngine:
     """TextEngine 독립 사용 검증."""
 
     @pytest.fixture
     def engine(self):
         from ShortsFactory.engines.text_engine import TextEngine
+
         config = {
             "palette": {"primary": "#00D4FF", "accent": "#00FF88", "bg": "#0A0E1A"},
             "font_title": "Pretendard-ExtraBold",
@@ -78,6 +80,7 @@ class TestBackgroundEngine:
     @pytest.fixture
     def engine(self):
         from ShortsFactory.engines.background_engine import BackgroundEngine
+
         config = {"palette": {"primary": "#818CF8", "accent": "#F59E0B", "bg": "#030014"}}
         return BackgroundEngine(config)
 
@@ -97,11 +100,13 @@ class TestColorEngine:
 
     def test_load_preset(self):
         from ShortsFactory.engines.color_engine import ColorEngine
+
         engine = ColorEngine("neon_tech")
         assert engine.preset.contrast == 1.25
 
     def test_ffmpeg_filter_string(self):
         from ShortsFactory.engines.color_engine import ColorEngine
+
         engine = ColorEngine("vintage_sepia")
         filt = engine.get_ffmpeg_filter()
         assert "eq=" in filt
@@ -109,6 +114,7 @@ class TestColorEngine:
 
     def test_unknown_preset_defaults(self):
         from ShortsFactory.engines.color_engine import ColorEngine
+
         engine = ColorEngine("nonexistent_preset")
         assert engine.preset.contrast == 1.0  # 기본값
 
@@ -118,6 +124,7 @@ class TestHookEngine:
 
     def test_animation_type_mapping(self):
         from ShortsFactory.engines.hook_engine import HookEngine
+
         e1 = HookEngine({"hook_style": "glitch"})
         assert e1.get_animation_type() == "glitch"
         e2 = HookEngine({"hook_style": "typewriter"})
@@ -131,6 +138,7 @@ class TestTransitionEngine:
 
     def test_normalize_role(self):
         from ShortsFactory.engines.transition_engine import TransitionEngine
+
         engine = TransitionEngine()
         assert engine._normalize_role("hook") == "hook"
         assert engine._normalize_role("rank1") == "body"
@@ -143,6 +151,7 @@ class TestLayoutEngine:
     @pytest.fixture
     def engine(self):
         from ShortsFactory.engines.layout_engine import LayoutEngine
+
         config = {
             "palette": {"primary": "#34D399", "accent": "#EF4444", "bg": "#0A1A14"},
             "font_title": "Pretendard-Bold",
@@ -170,6 +179,7 @@ class TestLayoutEngine:
 
 # ── 템플릿 테스트 ────────────────────────────────────────────────────────────
 
+
 class TestTemplates:
     """5개 템플릿 씬 빌드 검증."""
 
@@ -177,46 +187,57 @@ class TestTemplates:
     def ai_config(self):
         return {
             "palette": {"primary": "#00D4FF", "secondary": "#7C3AED", "accent": "#00FF88", "bg": "#0A0E1A"},
-            "font_title": "Pretendard-ExtraBold", "font_body": "Pretendard-Regular",
+            "font_title": "Pretendard-ExtraBold",
+            "font_body": "Pretendard-Regular",
             "keyword_highlights": {"numbers": "#FFD700"},
-            "hook_style": "glitch", "color_preset": "neon_tech",
+            "hook_style": "glitch",
+            "color_preset": "neon_tech",
         }
 
     @pytest.fixture
     def health_config(self):
         return {
             "palette": {"primary": "#34D399", "secondary": "#3B82F6", "accent": "#EF4444", "bg": "#0A1A14"},
-            "font_title": "Pretendard-Bold", "font_body": "Pretendard-Regular",
+            "font_title": "Pretendard-Bold",
+            "font_body": "Pretendard-Regular",
             "keyword_highlights": {"positive": "#34D399", "warning": "#EF4444"},
-            "hook_style": "clean_popup", "color_preset": "clean_medical",
+            "hook_style": "clean_popup",
+            "color_preset": "clean_medical",
             "disclaimer": True,
         }
 
     def test_ai_news_scene_count(self, ai_config):
         from ShortsFactory.templates.ai_news import AiNewsTemplate
+
         tmpl = AiNewsTemplate(ai_config)
-        scenes = tmpl.build_scenes({
-            "hook_text": "🚨 속보",
-            "news_title": "GPT-5 출시",
-            "points": [{"text": "성능 3배", "keywords": ["3배"]}],
-        })
+        scenes = tmpl.build_scenes(
+            {
+                "hook_text": "🚨 속보",
+                "news_title": "GPT-5 출시",
+                "points": [{"text": "성능 3배", "keywords": ["3배"]}],
+            }
+        )
         assert len(scenes) >= 4  # hook + title + point + cta
         assert scenes[0].role == "hook"
         assert scenes[-1].role == "cta"
 
     def test_health_dodont_has_disclaimer(self, health_config):
         from ShortsFactory.templates.health_dodont import HealthDoDontTemplate
+
         tmpl = HealthDoDontTemplate(health_config)
-        scenes = tmpl.build_scenes({
-            "hook_text": "이것만은 꼭!",
-            "do_items": ["운동하기"],
-            "dont_items": ["야식먹기"],
-        })
+        scenes = tmpl.build_scenes(
+            {
+                "hook_text": "이것만은 꼭!",
+                "do_items": ["운동하기"],
+                "dont_items": ["야식먹기"],
+            }
+        )
         roles = [s.role for s in scenes]
         assert "disclaimer" in roles, "health 채널은 면책조항이 있어야 함"
 
     def test_ai_news_no_disclaimer(self, ai_config):
         from ShortsFactory.templates.ai_news import AiNewsTemplate
+
         tmpl = AiNewsTemplate(ai_config)
         scenes = tmpl.build_scenes({"hook_text": "테스트"})
         roles = [s.role for s in scenes]
@@ -225,11 +246,13 @@ class TestTemplates:
 
 # ── Pipeline 테스트 ──────────────────────────────────────────────────────────
 
+
 class TestShortsFactory:
     """ShortsFactory 메인 클래스 검증."""
 
     def test_channel_auto_switch(self):
         from ShortsFactory.pipeline import ShortsFactory
+
         f1 = ShortsFactory("ai_tech")
         f2 = ShortsFactory("psychology")
         # ChannelConfig 객체의 속성으로 비교
@@ -238,17 +261,20 @@ class TestShortsFactory:
 
     def test_invalid_channel_raises(self):
         from ShortsFactory.pipeline import ShortsFactory
+
         with pytest.raises(ValueError, match="알 수 없는 채널"):
             ShortsFactory("nonexistent")
 
     def test_invalid_template_raises(self):
         from ShortsFactory.pipeline import ShortsFactory
+
         f = ShortsFactory("ai_tech")
         with pytest.raises(ValueError, match="Unknown template"):
             f.create("nonexistent_template", {})
 
     def test_create_adds_job(self):
         from ShortsFactory.pipeline import ShortsFactory
+
         f = ShortsFactory("ai_tech")
         f.create("ai_news_breaking", {"hook_text": "테스트"})
         assert len(f._jobs) >= 1
@@ -256,6 +282,7 @@ class TestShortsFactory:
 
     def test_list_channels(self):
         from ShortsFactory.pipeline import ShortsFactory
+
         channels = ShortsFactory.list_channels()
         assert len(channels) >= 5
         keys = {c["id"] for c in channels}
@@ -264,6 +291,7 @@ class TestShortsFactory:
 
 # ── 배치 테스트 ──────────────────────────────────────────────────────────────
 
+
 class TestBatch:
     """batch_render CSV 처리 검증."""
 
@@ -271,16 +299,16 @@ class TestBatch:
         """CSV 파일이 올바르게 읽히는지 확인."""
         csv_file = tmp_path / "test.csv"
         with csv_file.open("w", encoding="utf-8", newline="") as f:
-            writer = csv.DictWriter(
-                f, fieldnames=["channel", "template", "output_name", "data_json"]
-            )
+            writer = csv.DictWriter(f, fieldnames=["channel", "template", "output_name", "data_json"])
             writer.writeheader()
-            writer.writerow({
-                "channel": "ai_tech",
-                "template": "ai_news_breaking",
-                "output_name": "test1",
-                "data_json": json.dumps({"hook_text": "테스트"}),
-            })
+            writer.writerow(
+                {
+                    "channel": "ai_tech",
+                    "template": "ai_news_breaking",
+                    "output_name": "test1",
+                    "data_json": json.dumps({"hook_text": "테스트"}),
+                }
+            )
 
         # CSV를 직접 읽어 파싱 확인
         rows = []
@@ -296,12 +324,10 @@ class TestBatch:
         """빈 CSV는 빈 결과 반환."""
         csv_file = tmp_path / "empty.csv"
         with csv_file.open("w", encoding="utf-8", newline="") as f:
-            writer = csv.DictWriter(
-                f, fieldnames=["channel", "template", "output_name", "data_json"]
-            )
+            writer = csv.DictWriter(f, fieldnames=["channel", "template", "output_name", "data_json"])
             writer.writeheader()
 
         from ShortsFactory.batch import batch_render
+
         results = batch_render(csv_file, output_dir=tmp_path / "out")
         assert results == []
-

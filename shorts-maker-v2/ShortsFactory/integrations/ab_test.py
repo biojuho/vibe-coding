@@ -4,12 +4,13 @@
 
 Usage:
     from ShortsFactory.integrations.ab_test import ABTestRunner
-    
+
     runner = ABTestRunner(channel="space")
     runner.add_variant("A", template="space_fact_bomb", overrides={"hook_text": "충격 통계형"})
     runner.add_variant("B", template="space_scale",     overrides={"hook_text": "질문형"})
     results = runner.run(topic="블랙홀의 비밀", data={...})
 """
+
 from __future__ import annotations
 
 import json
@@ -28,11 +29,12 @@ _PROJECT = Path(__file__).resolve().parent.parent.parent
 @dataclass
 class Variant:
     """A/B 테스트 변형."""
+
     name: str
     template: str
     overrides: dict[str, Any] = field(default_factory=dict)
     output_path: str = ""
-    video_id: str = ""     # YouTube 업로드 후 ID
+    video_id: str = ""  # YouTube 업로드 후 ID
     status: str = "pending"
     metrics: dict[str, float] = field(default_factory=dict)
 
@@ -40,6 +42,7 @@ class Variant:
 @dataclass
 class ABTestResult:
     """A/B 테스트 결과."""
+
     test_id: str
     topic: str
     channel: str
@@ -59,13 +62,19 @@ class ABTestRunner:
         self._results_dir.mkdir(exist_ok=True)
 
     def add_variant(
-        self, name: str, template: str, overrides: dict | None = None,
-    ) -> "ABTestRunner":
+        self,
+        name: str,
+        template: str,
+        overrides: dict | None = None,
+    ) -> ABTestRunner:
         """변형 추가."""
-        self.variants.append(Variant(
-            name=name, template=template,
-            overrides=overrides or {},
-        ))
+        self.variants.append(
+            Variant(
+                name=name,
+                template=template,
+                overrides=overrides or {},
+            )
+        )
         return self
 
     def run(self, topic: str, data: dict[str, Any]) -> ABTestResult:
@@ -195,9 +204,9 @@ class ABTestAnalyzer:
         for v in test_result.variants:
             if v.metrics:
                 score = (
-                    v.metrics.get("ctr", 0) * 0.4 +
-                    v.metrics.get("avg_view_percentage", 0) * 0.3 +
-                    v.metrics.get("likes", 0) / max(v.metrics.get("views", 1), 1) * 100 * 0.3
+                    v.metrics.get("ctr", 0) * 0.4
+                    + v.metrics.get("avg_view_percentage", 0) * 0.3
+                    + v.metrics.get("likes", 0) / max(v.metrics.get("views", 1), 1) * 100 * 0.3
                 )
                 scored.append((v.name, score))
 
@@ -211,9 +220,5 @@ class ABTestAnalyzer:
             "winner": test_result.winner,
             "confidence": f"{test_result.confidence:.1f}%",
             "scores": scored,
-            "variants": {
-                v.name: v.metrics for v in test_result.variants
-            },
+            "variants": {v.name: v.metrics for v in test_result.variants},
         }
-
-
