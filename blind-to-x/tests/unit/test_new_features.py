@@ -2,12 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
-import json
-import os
-import sqlite3
-import tempfile
-from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -16,11 +10,13 @@ import pytest
 # 1. Crawl4AI Extractor Tests
 # ════════════════════════════════════════════════════════════════════════
 
+
 class TestCrawl4AIExtractor:
     """Tests for scrapers/crawl4ai_extractor.py"""
 
     def test_extracted_post_to_dict(self):
         from scrapers.crawl4ai_extractor import ExtractedPost
+
         post = ExtractedPost(
             title="테스트 제목",
             content="본문 내용",
@@ -38,6 +34,7 @@ class TestCrawl4AIExtractor:
 
     def test_extracted_post_defaults(self):
         from scrapers.crawl4ai_extractor import ExtractedPost
+
         post = ExtractedPost()
         d = post.to_dict()
         assert d["title"] == ""
@@ -47,11 +44,11 @@ class TestCrawl4AIExtractor:
     def test_check_crawl4ai_unavailable(self):
         """When crawl4ai is not installed, _check_crawl4ai returns False."""
         from scrapers import crawl4ai_extractor
+
         # Reset cached value
         crawl4ai_extractor._crawl4ai_available = None
         with patch.dict("sys.modules", {"crawl4ai": None}):
             # Force ImportError
-            import importlib
             crawl4ai_extractor._crawl4ai_available = None
             result = crawl4ai_extractor._check_crawl4ai()
             # Result depends on whether crawl4ai is actually installed
@@ -61,6 +58,7 @@ class TestCrawl4AIExtractor:
     async def test_extract_post_from_html_no_key(self):
         """Without API key, returns None."""
         from scrapers.crawl4ai_extractor import Crawl4AIExtractor
+
         extractor = Crawl4AIExtractor({"gemini.api_key": ""})
         extractor._api_key = ""
         result = await extractor.extract_post_from_html("https://example.com", "<html>test</html>")
@@ -70,6 +68,7 @@ class TestCrawl4AIExtractor:
     async def test_extract_post_from_html_empty(self):
         """Empty HTML returns None."""
         from scrapers.crawl4ai_extractor import Crawl4AIExtractor
+
         extractor = Crawl4AIExtractor({})
         result = await extractor.extract_post_from_html("https://example.com", "")
         assert result is None
@@ -79,12 +78,14 @@ class TestCrawl4AIExtractor:
 # 2. Sentiment Tracker Tests
 # ════════════════════════════════════════════════════════════════════════
 
+
 class TestSentimentTracker:
     """Tests for pipeline/sentiment_tracker.py"""
 
     @pytest.fixture
     def tracker(self, tmp_path):
         from pipeline.sentiment_tracker import SentimentTracker
+
         db_path = str(tmp_path / "test_sentiment.db")
         return SentimentTracker(db_path=db_path)
 
@@ -124,9 +125,7 @@ class TestSentimentTracker:
         for i in range(5):
             tracker.record(f"u{i}", f"빡치는 {i}", "열받 빡 화나", "분노", "blind")
 
-        trends = tracker.get_trending_emotions(
-            window_hours=24, baseline_days=7, min_count=1
-        )
+        trends = tracker.get_trending_emotions(window_hours=24, baseline_days=7, min_count=1)
         assert isinstance(trends, list)
 
     def test_emotion_history(self, tracker):
@@ -148,6 +147,7 @@ class TestSentimentTracker:
 
     def test_singleton(self, tmp_path):
         from pipeline import sentiment_tracker
+
         sentiment_tracker._instance = None
         db_path = str(tmp_path / "singleton.db")
         t1 = sentiment_tracker.get_sentiment_tracker(db_path)
@@ -165,15 +165,22 @@ class TestSentimentTracker:
 # 3. Viral Filter Tests
 # ════════════════════════════════════════════════════════════════════════
 
+
 class TestViralFilter:
     """Tests for pipeline/viral_filter.py"""
 
     def test_viral_score_to_dict(self):
         from pipeline.viral_filter import ViralScore
+
         score = ViralScore(
-            score=65.0, hook_strength=7.0, relatability=6.5,
-            shareability=6.0, controversy=5.5, timeliness=7.0,
-            reasoning="Good hook", pass_filter=True,
+            score=65.0,
+            hook_strength=7.0,
+            relatability=6.5,
+            shareability=6.0,
+            controversy=5.5,
+            timeliness=7.0,
+            reasoning="Good hook",
+            pass_filter=True,
         )
         d = score.to_dict()
         assert d["viral_score"] == 65.0
@@ -182,6 +189,7 @@ class TestViralFilter:
 
     def test_default_pass(self):
         from pipeline.viral_filter import ViralFilter
+
         vf = ViralFilter({})
         default = vf._default_pass()
         assert default.pass_filter is True
@@ -190,6 +198,7 @@ class TestViralFilter:
     @pytest.mark.asyncio
     async def test_score_disabled(self):
         from pipeline.viral_filter import ViralFilter
+
         vf = ViralFilter({"viral_filter.enabled": False})
         result = await vf.score("test title", "test content")
         assert result.pass_filter is True
@@ -197,6 +206,7 @@ class TestViralFilter:
     @pytest.mark.asyncio
     async def test_score_no_api_key(self):
         from pipeline.viral_filter import ViralFilter
+
         vf = ViralFilter({"viral_filter.enabled": True, "gemini.api_key": ""})
         vf._api_key = ""
         result = await vf.score("test title", "test content")
@@ -204,13 +214,28 @@ class TestViralFilter:
 
     def test_should_process(self):
         from pipeline.viral_filter import ViralFilter, ViralScore
+
         vf = ViralFilter({"viral_filter.threshold": 50.0})
-        high = ViralScore(score=70, hook_strength=7, relatability=7,
-                          shareability=7, controversy=7, timeliness=7,
-                          reasoning="", pass_filter=True)
-        low = ViralScore(score=30, hook_strength=3, relatability=3,
-                         shareability=3, controversy=3, timeliness=3,
-                         reasoning="", pass_filter=False)
+        high = ViralScore(
+            score=70,
+            hook_strength=7,
+            relatability=7,
+            shareability=7,
+            controversy=7,
+            timeliness=7,
+            reasoning="",
+            pass_filter=True,
+        )
+        low = ViralScore(
+            score=30,
+            hook_strength=3,
+            relatability=3,
+            shareability=3,
+            controversy=3,
+            timeliness=3,
+            reasoning="",
+            pass_filter=False,
+        )
         assert vf.should_process(high) is True
         assert vf.should_process(low) is False
 
@@ -219,11 +244,13 @@ class TestViralFilter:
 # 4. Daily Digest Tests
 # ════════════════════════════════════════════════════════════════════════
 
+
 class TestDailyDigest:
     """Tests for pipeline/daily_digest.py"""
 
     def test_digest_entry_creation(self):
         from pipeline.daily_digest import DigestEntry
+
         entry = DigestEntry(
             title="연봉 인상 이야기",
             url="https://example.com/1",
@@ -238,6 +265,7 @@ class TestDailyDigest:
 
     def test_format_digest_telegram(self):
         from pipeline.daily_digest import DailyDigest, DigestEntry, format_digest_telegram
+
         digest = DailyDigest(
             date="2026-03-20",
             total_collected=15,
@@ -260,6 +288,7 @@ class TestDailyDigest:
 
     def test_format_digest_newsletter(self):
         from pipeline.daily_digest import DailyDigest, DigestEntry, format_digest_newsletter
+
         digest = DailyDigest(
             date="2026-03-20",
             total_collected=10,
@@ -279,6 +308,7 @@ class TestDailyDigest:
     @pytest.mark.asyncio
     async def test_generate_no_notion(self):
         from pipeline.daily_digest import DigestGenerator
+
         gen = DigestGenerator({}, notion_uploader=None)
         digest = await gen.generate("2026-03-20")
         assert digest.total_collected == 0
@@ -286,16 +316,22 @@ class TestDailyDigest:
 
     def test_fallback_summary(self):
         from pipeline.daily_digest import DigestGenerator, DailyDigest
+
         gen = DigestGenerator({})
         digest = DailyDigest(
-            date="2026-03-20", total_collected=0, total_published=0,
-            top_posts=[], trending_emotions=[], topic_distribution={},
+            date="2026-03-20",
+            total_collected=0,
+            total_published=0,
+            top_posts=[],
+            trending_emotions=[],
+            topic_distribution={},
         )
         summary = gen._fallback_summary(digest)
         assert "2026-03-20" in summary
 
     def test_extract_title(self):
         from pipeline.daily_digest import DigestGenerator
+
         props = {
             "콘텐츠": {"title": [{"plain_text": "테스트 제목"}]},
         }
@@ -303,12 +339,14 @@ class TestDailyDigest:
 
     def test_extract_number(self):
         from pipeline.daily_digest import DigestGenerator
+
         props = {"점수": {"number": 42.5}}
         assert DigestGenerator._extract_number(props, "점수") == 42.5
         assert DigestGenerator._extract_number(props, "없는키") == 0.0
 
     def test_compute_topic_distribution(self):
         from pipeline.daily_digest import DigestGenerator, DigestEntry
+
         gen = DigestGenerator({})
         entries = [
             DigestEntry("a", "u1", "blind", "연봉", "분노", 80),
@@ -323,6 +361,7 @@ class TestDailyDigest:
 # ════════════════════════════════════════════════════════════════════════
 # 5. Integration: BaseScraper Crawl4AI fallback
 # ════════════════════════════════════════════════════════════════════════
+
 
 class TestBaseScraper4AIFallback:
     """Test _extract_with_crawl4ai method on BaseScraper."""

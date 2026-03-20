@@ -61,6 +61,7 @@ def _load_rules_once() -> dict:
         return _rules_cache
     try:
         import yaml
+
         if _RULES_FILE.exists():
             with open(_RULES_FILE, encoding="utf-8") as f:
                 _rules_cache = yaml.safe_load(f) or {}
@@ -139,13 +140,9 @@ class QualityGate:
         result.metrics["text_length"] = float(text_len)
 
         if text_len < limits["min_len"]:
-            result.failures.append(
-                f"too_short: {text_len}자 < 최소 {limits['min_len']}자 ({platform})"
-            )
+            result.failures.append(f"too_short: {text_len}자 < 최소 {limits['min_len']}자 ({platform})")
         elif text_len > limits["max_len"]:
-            result.failures.append(
-                f"too_long: {text_len}자 > 최대 {limits['max_len']}자 ({platform})"
-            )
+            result.failures.append(f"too_long: {text_len}자 > 최대 {limits['max_len']}자 ({platform})")
 
     def _check_toxic(self, text: str, result: GateResult) -> None:
         """독성/개인정보 필터."""
@@ -195,6 +192,7 @@ class QualityGate:
     def _check_source_fidelity(self, draft: str, source: str, result: GateResult) -> None:
         """원문 핵심 숫자가 초안에 보존되었는지 검사."""
         from pipeline.fact_checker import verify_facts
+
         fc = verify_facts(source, draft)
         result.metrics["fact_confidence"] = fc.confidence
         if not fc.passed and len(fc.fabricated_items) >= 2:

@@ -25,6 +25,7 @@ def _load_rules() -> dict:
         return _loaded_rules
     try:
         import yaml  # PyYAML (requirements.txt에 포함)
+
         with open(_RULES_FILE, encoding="utf-8") as f:
             _loaded_rules = yaml.safe_load(f) or {}
         logger.info("분류 규칙 YAML 로드 완료: %s", _RULES_FILE)
@@ -64,13 +65,13 @@ class ContentProfile:
     final_rank_score: float
     rationale: list[str]
     # Phase 4-B: 6D quality scorecard (optional — zero when not computed)
-    freshness_score: float = 0.0       # 15% — 게시글 신선도 (시간 기반)
+    freshness_score: float = 0.0  # 15% — 게시글 신선도 (시간 기반)
     social_signal_score: float = 0.0  # 25% — 좋아요·댓글 소셜 신호
     hook_strength_score: float = 0.0  # 20% — 제목·훅 강도
     trend_relevance_score: float = 0.0  # 15% — 토픽 클러스터 트렌드 적합도
     audience_targeting_score: float = 0.0  # 15% — 독자 타게팅 정확도
-    viral_potential_score: float = 0.0   # 10% — 감정 축 바이럴 잠재력
-    rank_6d: float = 0.0               # 가중합 최종 점수 (0-100)
+    viral_potential_score: float = 0.0  # 10% — 감정 축 바이럴 잠재력
+    rank_6d: float = 0.0  # 가중합 최종 점수 (0-100)
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
@@ -150,6 +151,7 @@ def get_time_context() -> dict[str, str]:
         kst_hour = (_dt.datetime.now(_dt.timezone.utc).hour + 9) % 24
     except Exception:
         import time as _time
+
         kst_hour = (_time.gmtime().tm_hour + 9) % 24
 
     if 6 <= kst_hour < 12:
@@ -164,11 +166,11 @@ def get_time_context() -> dict[str, str]:
         slot = "심야"
 
     _FALLBACK = {
-        "오전":  {"prefix": "출근 준비 중인 직장인들이 딱 공감할", "tone_hint": "핵심만, 에너지 넘치게"},
-        "점심":  {"prefix": "점심시간 직장인들이 폰으로 읽을", "tone_hint": "가볍고 재미있게"},
-        "오후":  {"prefix": "오후 업무 중 숨돌리는 직장인들의", "tone_hint": "공감 유발 강하게"},
-        "저녁":  {"prefix": "퇴근 후 소파에서 직장인들이 공감하는", "tone_hint": "솔직하고 따뜻하게"},
-        "심야":  {"prefix": "잠 못 드는 직장인들의 솔직한", "tone_hint": "감성적이고 진솔하게"},
+        "오전": {"prefix": "출근 준비 중인 직장인들이 딱 공감할", "tone_hint": "핵심만, 에너지 넘치게"},
+        "점심": {"prefix": "점심시간 직장인들이 폰으로 읽을", "tone_hint": "가볍고 재미있게"},
+        "오후": {"prefix": "오후 업무 중 숨돌리는 직장인들의", "tone_hint": "공감 유발 강하게"},
+        "저녁": {"prefix": "퇴근 후 소파에서 직장인들이 공감하는", "tone_hint": "솔직하고 따뜻하게"},
+        "심야": {"prefix": "잠 못 드는 직장인들의 솔직한", "tone_hint": "감성적이고 진솔하게"},
     }
 
     rules = _load_rules().get("prompt_variants", {}).get("time_context", {})
@@ -224,10 +226,12 @@ def get_season_boost(topic_cluster: str, month: int | None = None) -> float:
     """
     if month is None:
         import datetime as _dt
+
         try:
             month = _dt.datetime.now(_dt.timezone.utc).month
         except Exception:
             import time as _time
+
             month = _time.gmtime().tm_mon
 
     rules = _load_rules()
@@ -263,11 +267,14 @@ def classify_emotion_axis(title: str, content: str) -> str:
     # KOTE 모델 시도 (로드 실패 시 자동 폴백)
     try:
         from pipeline.emotion_analyzer import get_emotion_profile
+
         profile = get_emotion_profile(f"{title} {content}")
         if profile.confidence >= 0.5:
             logger.debug(
                 "KOTE emotion: %s (confidence=%.2f, valence=%.2f)",
-                profile.emotion_axis, profile.confidence, profile.valence,
+                profile.emotion_axis,
+                profile.confidence,
+                profile.valence,
             )
             return profile.emotion_axis
     except Exception:
@@ -287,9 +294,15 @@ def classify_hook_type(title: str, content: str, emotion_axis: str) -> str:
     논쟁형_kw = hook_rules.get("논쟁형", {}).get("keywords", ["왜", "vs", "맞아?", "어떰", "어떻게 생각", "논란", "?"])
     정보형_kw = hook_rules.get("정보형", {}).get("keywords", ["정리", "팁", "방법", "요약", "가이드", "체크리스트"])
     짤형_kw = hook_rules.get("짤형", {}).get("keywords", ["짤", "웃김", "현웃", "개웃", "밈"])
-    분석형_kw = hook_rules.get("분석형", {}).get("keywords", ["분석", "트렌드", "비교", "종합", "모아봤", "정리해봤", "동시에", "커뮤니티"])
-    통찰형_kw = hook_rules.get("통찰형", {}).get("keywords", ["배운", "깨달", "인사이트", "알게 된", "정리하면", "느낀 점", "교훈", "결론"])
-    한줄팩폭형_kw = hook_rules.get("한줄팩폭형", {}).get("keywords", ["ㅋㅋ", "레전드", "개웃", "이건 진짜", "실화냐", "미쳤", "헐"])
+    분석형_kw = hook_rules.get("분석형", {}).get(
+        "keywords", ["분석", "트렌드", "비교", "종합", "모아봤", "정리해봤", "동시에", "커뮤니티"]
+    )
+    통찰형_kw = hook_rules.get("통찰형", {}).get(
+        "keywords", ["배운", "깨달", "인사이트", "알게 된", "정리하면", "느낀 점", "교훈", "결론"]
+    )
+    한줄팩폭형_kw = hook_rules.get("한줄팩폭형", {}).get(
+        "keywords", ["ㅋㅋ", "레전드", "개웃", "이건 진짜", "실화냐", "미쳤", "헐"]
+    )
 
     if any(token in text for token in 분석형_kw):
         return "분석형"
@@ -320,7 +333,9 @@ def recommend_draft_type(hook_type: str, emotion_axis: str) -> str:
     return "공감형"
 
 
-def calculate_publishability_score(post_data: dict[str, Any], topic_cluster: str, hook_type: str, emotion_axis: str) -> tuple[float, list[str]]:
+def calculate_publishability_score(
+    post_data: dict[str, Any], topic_cluster: str, hook_type: str, emotion_axis: str
+) -> tuple[float, list[str]]:
     title = str(post_data.get("title", "") or "")
     content = str(post_data.get("content", "") or "")
     rationale: list[str] = []
@@ -442,6 +457,7 @@ def calculate_6d_score(
     if scraped_at:
         try:
             import datetime as _dt
+
             if isinstance(scraped_at, (int, float)):
                 age_hours = (time.time() - scraped_at) / 3600
             else:
@@ -459,8 +475,12 @@ def calculate_6d_score(
     # ── Hook Strength (20%) ─────────────────────────────────────────
     title_len = len(title.strip())
     hook_base = {
-        "논쟁형": 90.0, "공감형": 75.0, "정보형": 70.0,
-        "한줄팩폭형": 85.0, "짤형": 65.0, "분석형": 88.0,
+        "논쟁형": 90.0,
+        "공감형": 75.0,
+        "정보형": 70.0,
+        "한줄팩폭형": 85.0,
+        "짤형": 65.0,
+        "분석형": 88.0,
         "통찰형": 82.0,
     }.get(hook_type, 60.0)
     # title 길이 보너스 (8-35자 최적)
@@ -491,8 +511,11 @@ def calculate_6d_score(
 
     # ── Audience Targeting (15%) ────────────────────────────────────
     audience_scores = {
-        "전직장인": 85.0, "이직준비층": 80.0,
-        "초년생": 70.0, "관리자층": 60.0, "범용": 50.0,
+        "전직장인": 85.0,
+        "이직준비층": 80.0,
+        "초년생": 70.0,
+        "관리자층": 60.0,
+        "범용": 50.0,
     }
     audience = audience_scores.get(audience_fit, 50.0)
     # content 길이 보너스 (충분한 컨텍스트 = 타게팅 가능)
@@ -501,8 +524,13 @@ def calculate_6d_score(
 
     # ── Viral Potential (10%) ───────────────────────────────────────
     viral_scores = {
-        "분노": 90.0, "경악": 85.0, "웃김": 80.0,
-        "현타": 75.0, "허탈": 70.0, "공감": 65.0, "통찰": 55.0,
+        "분노": 90.0,
+        "경악": 85.0,
+        "웃김": 80.0,
+        "현타": 75.0,
+        "허탈": 70.0,
+        "공감": 65.0,
+        "통찰": 55.0,
     }
     viral = viral_scores.get(emotion_axis, 50.0)
 
@@ -517,6 +545,7 @@ def calculate_6d_score(
     }
     try:
         from pipeline.cost_db import get_cost_db
+
         calibrated = get_cost_db().load_calibrated_weights(max_age_days=7)
         if calibrated and all(k in calibrated for k in weights):
             weights = calibrated
@@ -557,11 +586,11 @@ def estimate_viral_boost_llm(title: str, content: str, topic_cluster: str, emoti
     """
     try:
         # 루트 경로에서 LLMClient 접근 (blind-to-x는 루트 venv 사용)
-        import importlib.util, pathlib
+        import importlib.util
+        import pathlib
+
         _root = pathlib.Path(__file__).resolve().parent.parent.parent
-        spec = importlib.util.spec_from_file_location(
-            "execution.llm_client", _root / "execution" / "llm_client.py"
-        )
+        spec = importlib.util.spec_from_file_location("execution.llm_client", _root / "execution" / "llm_client.py")
         if spec is None or spec.loader is None:
             return 0.0
         mod = importlib.util.module_from_spec(spec)
@@ -581,8 +610,7 @@ def estimate_viral_boost_llm(title: str, content: str, topic_cluster: str, emoti
         'Respond ONLY with valid JSON: {"score": <integer 0-100>, "reason": "<one sentence in Korean>"}'
     )
     _user = (
-        f"Topic cluster: {topic_cluster}\nEmotion: {emotion_axis}\n\n"
-        f"Title: {title[:200]}\n\nContent: {content[:500]}"
+        f"Topic cluster: {topic_cluster}\nEmotion: {emotion_axis}\n\nTitle: {title[:200]}\n\nContent: {content[:500]}"
     )
 
     try:
@@ -594,8 +622,7 @@ def estimate_viral_boost_llm(title: str, content: str, topic_cluster: str, emoti
         raw = float(result.get("score", 0))
         # 0~100 점수를 0~15 부스트로 변환 (최대 15점 가산)
         boost = round(max(0.0, min(15.0, raw * 0.15)), 2)
-        logger.info("LLM 바이럴 부스트: %.1f/100 → +%.2f pts | %s",
-                    raw, boost, result.get("reason", ""))
+        logger.info("LLM 바이럴 부스트: %.1f/100 → +%.2f pts | %s", raw, boost, result.get("reason", ""))
         return boost
     except Exception as exc:
         logger.debug("LLM 바이럴 부스트 실패: %s", exc)
@@ -638,6 +665,7 @@ def build_content_profile(
     ml_score, ml_meta = 0.0, {}
     try:
         from pipeline.ml_scorer import get_ml_scorer
+
         _ml = get_ml_scorer()
         if _ml.is_active():
             ml_score, ml_meta = _ml.predict_score(
@@ -676,7 +704,11 @@ def build_content_profile(
 
     # Phase 4-B: 6D scorecard
     rank_6d, dims_6d = calculate_6d_score(
-        post_data, topic_cluster, hook_type, emotion_axis, audience_fit,
+        post_data,
+        topic_cluster,
+        hook_type,
+        emotion_axis,
+        audience_fit,
         source=str(post_data.get("source", "")),
         trend_boost=trend_boost,
     )
@@ -721,9 +753,11 @@ def calibrate_weights(days: int = 30, min_rows: int = 30) -> dict[str, float] | 
     """
     try:
         from pipeline.cost_db import get_cost_db
+
         db = get_cost_db()
 
         from datetime import datetime, timedelta
+
         cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
 
         with db._connect() as conn:

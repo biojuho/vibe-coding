@@ -5,10 +5,11 @@ import logging
 import os
 import re
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 
 from curl_cffi.requests import AsyncSession
+
 try:
     # patchright: Playwright 드롭인 대체 — 더 강한 스텔스 (Cloudflare/DataDome 우회)
     from patchright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
@@ -30,6 +31,7 @@ def _get_crawl4ai_extractor(config):
     if _crawl4ai_extractor is None:
         try:
             from scrapers.crawl4ai_extractor import Crawl4AIExtractor, _check_crawl4ai
+
             if _check_crawl4ai():
                 _crawl4ai_extractor = Crawl4AIExtractor(config)
                 logger.info("Crawl4AI extractor initialized (LLM fallback enabled).")
@@ -135,6 +137,7 @@ class BaseScraper:
         if use_camoufox:
             try:
                 from camoufox.async_api import AsyncCamoufox
+
                 camo_kwargs = {
                     "headless": self.headless,
                     "geoip": True,
@@ -242,15 +245,14 @@ class BaseScraper:
                     response = await session.get(url, impersonate="chrome120")
                     response.raise_for_status()
                     # 외부 src 스크립트만 제거하고 인라인 스크립트는 보존.
-                    html = re.sub(r'<script[^>]+src=[^>]+></script>', '', response.text, flags=re.DOTALL)
+                    html = re.sub(r"<script[^>]+src=[^>]+></script>", "", response.text, flags=re.DOTALL)
                     return html
             except Exception as e:
                 last_error = e
                 if attempt < self.request_retries:
                     sleep_for = self.request_backoff * attempt
                     logger.warning(
-                        f"Fetch failed ({attempt}/{self.request_retries}) for {url}: {e}. "
-                        f"Retrying in {sleep_for:.1f}s."
+                        f"Fetch failed ({attempt}/{self.request_retries}) for {url}: {e}. Retrying in {sleep_for:.1f}s."
                     )
                     await asyncio.sleep(sleep_for)
                 else:
@@ -293,21 +295,21 @@ class BaseScraper:
         failed_clean = failed_selector.strip()
 
         # Extract class name from selector (e.g. ".board-contents" -> "board-contents")
-        cls_match = re.search(r'\.([a-zA-Z_][\w-]*)', failed_clean)
+        cls_match = re.search(r"\.([a-zA-Z_][\w-]*)", failed_clean)
         target_class = cls_match.group(1) if cls_match else None
 
         # Extract id from selector (e.g. "#main-content" -> "main-content")
-        id_match = re.search(r'#([a-zA-Z_][\w-]*)', failed_clean)
+        id_match = re.search(r"#([a-zA-Z_][\w-]*)", failed_clean)
         target_id = id_match.group(1) if id_match else None
 
         # Extract tag name from selector (e.g. "article.post" -> "article")
-        tag_match = re.match(r'^([a-zA-Z][\w]*)', failed_clean)
+        tag_match = re.match(r"^([a-zA-Z][\w]*)", failed_clean)
         target_tag = tag_match.group(1) if tag_match else None
 
         # Strategy 1: Find elements with similar class names
         if target_class:
             # Split class name by common delimiters to get component words
-            parts = re.split(r'[-_]', target_class)
+            parts = re.split(r"[-_]", target_class)
             significant_parts = [p for p in parts if len(p) > 2]
 
             # Find all class values in the HTML
@@ -318,7 +320,7 @@ class BaseScraper:
                     if cls == target_class:
                         continue  # skip exact match (it didn't work)
                     # Score by how many parts overlap
-                    cls_parts = re.split(r'[-_]', cls)
+                    cls_parts = re.split(r"[-_]", cls)
                     if not significant_parts:
                         continue
                     overlap = sum(1 for p in significant_parts if p.lower() in [cp.lower() for cp in cls_parts])
@@ -337,13 +339,13 @@ class BaseScraper:
 
         # Strategy 2: Find elements with similar id names
         if target_id and len(candidates) < 3:
-            id_parts = re.split(r'[-_]', target_id)
+            id_parts = re.split(r"[-_]", target_id)
             significant_id_parts = [p for p in id_parts if len(p) > 2]
             all_ids = re.findall(r'id=["\']([^"\']+)["\']', html)
             for eid in all_ids:
                 if eid == target_id:
                     continue
-                eid_parts = re.split(r'[-_]', eid)
+                eid_parts = re.split(r"[-_]", eid)
                 if significant_id_parts:
                     overlap = sum(1 for p in significant_id_parts if p.lower() in [ep.lower() for ep in eid_parts])
                     if overlap > 0:
@@ -372,9 +374,7 @@ class BaseScraper:
 
         return candidates[:3]
 
-    async def _auto_repair_selector(
-        self, page, failed_selector: str, context: str = ""
-    ) -> str | None:
+    async def _auto_repair_selector(self, page, failed_selector: str, context: str = "") -> str | None:
         """Attempt to auto-repair a failed CSS selector by analyzing the page HTML.
 
         Tries up to 3 candidate selectors derived from similarity analysis.
@@ -384,17 +384,13 @@ class BaseScraper:
         # Check if we already have a cached repair for this selector
         if failed_selector in self._selector_repairs:
             cached = self._selector_repairs[failed_selector]
-            logger.info(
-                "Selector repair cache hit: '%s' -> '%s'", failed_selector, cached
-            )
+            logger.info("Selector repair cache hit: '%s' -> '%s'", failed_selector, cached)
             return cached
 
         try:
             html = await page.content()
         except Exception as exc:
-            logger.warning(
-                "Cannot get page HTML for selector repair: %s", exc
-            )
+            logger.warning("Cannot get page HTML for selector repair: %s", exc)
             return None
 
         if not html:
@@ -412,7 +408,9 @@ class BaseScraper:
 
         logger.info(
             "Selector repair: trying %d candidate(s) for '%s': %s",
-            len(candidates), failed_selector, candidates,
+            len(candidates),
+            failed_selector,
+            candidates,
         )
 
         for i, candidate in enumerate(candidates, 1):
@@ -422,24 +420,33 @@ class BaseScraper:
                     self._selector_repairs[failed_selector] = candidate
                     logger.info(
                         "Selector repair SUCCESS [%d/%d]: '%s' -> '%s'%s",
-                        i, len(candidates), failed_selector, candidate,
+                        i,
+                        len(candidates),
+                        failed_selector,
+                        candidate,
                         f" (context: {context})" if context else "",
                     )
                     return candidate
                 else:
                     logger.info(
                         "Selector repair candidate [%d/%d] '%s' returned no element.",
-                        i, len(candidates), candidate,
+                        i,
+                        len(candidates),
+                        candidate,
                     )
             except Exception as exc:
                 logger.info(
                     "Selector repair candidate [%d/%d] '%s' raised error: %s",
-                    i, len(candidates), candidate, exc,
+                    i,
+                    len(candidates),
+                    candidate,
+                    exc,
                 )
 
         logger.warning(
             "Selector repair FAILED: all %d candidates exhausted for '%s'%s",
-            len(candidates), failed_selector,
+            len(candidates),
+            failed_selector,
             f" (context: {context})" if context else "",
         )
         return None
@@ -460,7 +467,8 @@ class BaseScraper:
         if effective_selector != selector:
             logger.info(
                 "Using previously repaired selector: '%s' -> '%s'",
-                selector, effective_selector,
+                selector,
+                effective_selector,
             )
 
         try:
@@ -469,35 +477,41 @@ class BaseScraper:
         except PlaywrightTimeoutError:
             logger.warning(
                 "Selector '%s' timed out after %dms, attempting auto-repair...%s",
-                effective_selector, timeout_ms,
+                effective_selector,
+                timeout_ms,
                 f" (context: {context})" if context else "",
             )
-            repaired = await self._auto_repair_selector(
-                page, selector, context=context
-            )
+            repaired = await self._auto_repair_selector(page, selector, context=context)
             if repaired:
                 try:
                     el = await page.wait_for_selector(repaired, timeout=timeout_ms)
                     return el
                 except PlaywrightTimeoutError:
-                    logger.warning(
-                        "Repaired selector '%s' also timed out.", repaired
-                    )
+                    logger.warning("Repaired selector '%s' also timed out.", repaired)
                     return None
             return None
 
     async def _clean_ui_for_screenshot(self, page):
         logger.info("Hiding unnecessary UI elements for screenshot...")
         selectors_to_hide = [
-            'header', 'nav', 'footer', '.banner', '#gnb',
-            '.sticky-banner', '[class*="popup"]', '[class*="ad-"]',
+            "header",
+            "nav",
+            "footer",
+            ".banner",
+            "#gnb",
+            ".sticky-banner",
+            '[class*="popup"]',
+            '[class*="ad-"]',
         ]
         for selector in selectors_to_hide:
             try:
-                await page.evaluate('''(sel) => {
+                await page.evaluate(
+                    """(sel) => {
                     const elements = document.querySelectorAll(sel);
                     elements.forEach(el => el.style.display = 'none');
-                }''', selector)
+                }""",
+                    selector,
+                )
             except Exception as e:
                 logger.debug(f"Could not hide '{selector}': {e}")
 
@@ -525,6 +539,7 @@ class BaseScraper:
         """
         try:
             import trafilatura
+
             text = trafilatura.extract(
                 html,
                 include_comments=False,
@@ -545,6 +560,7 @@ class BaseScraper:
         """
         try:
             from bs4 import BeautifulSoup
+
             soup = BeautifulSoup(html, "html.parser")
             candidates: list[str] = []
             for tag in soup.find_all(["article", "section", "div", "p", "main"]):
@@ -593,7 +609,9 @@ class BaseScraper:
                     f.write(f"suggested_selectors={','.join(suggested)}\n")
                     logger.info(
                         "셀렉터 자동 제안 [%s] → %s (스냅샷: %s)",
-                        stage, suggested, meta_path,
+                        stage,
+                        suggested,
+                        meta_path,
                     )
             if html:
                 with open(html_path, "w", encoding="utf-8") as f:
@@ -690,7 +708,9 @@ class BaseScraper:
 
         logger.info(
             "Crawl4AI extraction SUCCESS for %s: title='%s' (%d chars)",
-            url, result.title[:30], len(result.content),
+            url,
+            result.title[:30],
+            len(result.content),
         )
         return {
             "url": url,

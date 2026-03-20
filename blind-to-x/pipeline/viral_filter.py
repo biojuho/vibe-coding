@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ViralScore:
     """Result of viral potential assessment."""
+
     score: float  # 0-100
     hook_strength: float  # 0-10: how attention-grabbing
     relatability: float  # 0-10: how relatable to the audience
@@ -60,13 +61,9 @@ class ViralFilter:
         self._threshold = float(config.get("viral_filter.threshold", 40.0))
         self._enabled = bool(config.get("viral_filter.enabled", True))
         self._timeout = int(config.get("viral_filter.timeout_seconds", 10))
-        self._api_key = (
-            os.environ.get("GEMINI_API_KEY")
-            or config.get("gemini.api_key", "")
-        )
+        self._api_key = os.environ.get("GEMINI_API_KEY") or config.get("gemini.api_key", "")
 
-    async def score(self, title: str, content: str, source: str = "",
-                    likes: int = 0, comments: int = 0) -> ViralScore:
+    async def score(self, title: str, content: str, source: str = "", likes: int = 0, comments: int = 0) -> ViralScore:
         """Score a post's viral potential.
 
         Returns a ViralScore. If scoring fails, returns a permissive default
@@ -91,8 +88,7 @@ class ViralFilter:
             logger.warning("Viral scoring error: %s", exc)
             return self._default_pass()
 
-    async def _score_with_llm(self, title: str, content: str, source: str,
-                              likes: int, comments: int) -> ViralScore:
+    async def _score_with_llm(self, title: str, content: str, source: str, likes: int, comments: int) -> ViralScore:
         """Call Gemini Flash for viral scoring."""
         from google import genai as genai_client
 

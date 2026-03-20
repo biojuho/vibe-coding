@@ -25,6 +25,7 @@ def _check_crawl4ai() -> bool:
     if _crawl4ai_available is None:
         try:
             import crawl4ai  # noqa: F401
+
             _crawl4ai_available = True
         except ImportError:
             _crawl4ai_available = False
@@ -35,6 +36,7 @@ def _check_crawl4ai() -> bool:
 @dataclass
 class ExtractedPost:
     """Structured output from Crawl4AI LLM extraction."""
+
     title: str = ""
     content: str = ""
     likes: int = 0
@@ -61,34 +63,16 @@ class ExtractedPost:
 _POST_SCHEMA = {
     "type": "object",
     "properties": {
-        "title": {
-            "type": "string",
-            "description": "The main title/heading of the post"
-        },
-        "content": {
-            "type": "string",
-            "description": "The full body text of the post, preserving paragraph breaks"
-        },
-        "likes": {
-            "type": "integer",
-            "description": "Number of likes/upvotes (0 if not found)"
-        },
-        "comments": {
-            "type": "integer",
-            "description": "Number of comments/replies (0 if not found)"
-        },
-        "views": {
-            "type": "integer",
-            "description": "Number of views (0 if not found)"
-        },
-        "category": {
-            "type": "string",
-            "description": "Post category or board name if visible"
-        },
+        "title": {"type": "string", "description": "The main title/heading of the post"},
+        "content": {"type": "string", "description": "The full body text of the post, preserving paragraph breaks"},
+        "likes": {"type": "integer", "description": "Number of likes/upvotes (0 if not found)"},
+        "comments": {"type": "integer", "description": "Number of comments/replies (0 if not found)"},
+        "views": {"type": "integer", "description": "Number of views (0 if not found)"},
+        "category": {"type": "string", "description": "Post category or board name if visible"},
         "image_urls": {
             "type": "array",
             "items": {"type": "string"},
-            "description": "URLs of images embedded in the post"
+            "description": "URLs of images embedded in the post",
         },
     },
     "required": ["title", "content"],
@@ -131,9 +115,7 @@ class Crawl4AIExtractor:
         # LLM provider for extraction (uses Gemini by default - free)
         self._provider = config.get("crawl4ai.provider", "gemini/gemini-2.5-flash")
         self._api_key = (
-            config.get("crawl4ai.api_key")
-            or os.environ.get("GEMINI_API_KEY")
-            or config.get("gemini.api_key", "")
+            config.get("crawl4ai.api_key") or os.environ.get("GEMINI_API_KEY") or config.get("gemini.api_key", "")
         )
         self._timeout = int(config.get("crawl4ai.timeout_seconds", 30))
         self._verbose = bool(config.get("crawl4ai.verbose", False))
@@ -154,6 +136,7 @@ class Crawl4AIExtractor:
             return int(value)
         try:
             import re
+
             digits = re.sub(r"[^0-9]", "", str(value))
             return int(digits) if digits else default
         except (ValueError, TypeError):

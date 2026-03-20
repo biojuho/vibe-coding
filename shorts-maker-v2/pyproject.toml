@@ -84,4 +84,3 @@ exclude_lines = [
   "if __name__",
   "pragma: no cover",
 ]
-

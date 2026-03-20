@@ -80,6 +80,7 @@ def _get_classifier():
     _load_attempted = True
     try:
         from transformers import pipeline as hf_pipeline
+
         _classifier = hf_pipeline(
             "text-classification",
             model=_MODEL_NAME,

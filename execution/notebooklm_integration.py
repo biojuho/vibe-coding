@@ -325,7 +325,9 @@ def main():
     p_research.add_argument("--urls", nargs="*", help="추가할 URL 목록")
     p_research.add_argument("--query", help="웹 리서치 쿼리 (자동 소스 연동)")
     p_research.add_argument("--questions", nargs="*", help="질문 목록")
-    p_research.add_argument("--search-mode", choices=["deep", "fast"], default="deep", help="웹 리서치 모드 (기본: deep)")
+    p_research.add_argument(
+        "--search-mode", choices=["deep", "fast"], default="deep", help="웹 리서치 모드 (기본: deep)"
+    )
 
     # generate
     p_gen = sub.add_parser("generate", help="콘텐츠 생성")
@@ -342,7 +344,8 @@ def main():
     p_auto = sub.add_parser("auto-research", help="주제 입력 시 자동 소스 탐색 + 아티팩트 생성")
     p_auto.add_argument("topic", help="리서치할 주제 (\ubaa8든 소스 자동 탐색)")
     p_auto.add_argument(
-        "--generate", nargs="*",
+        "--generate",
+        nargs="*",
         default=["mind-map", "report"],
         metavar="TYPE",
         help=f"생성할 유형 (기본: mind-map infographic slide-deck). 선택 가능: {', '.join(ALLOWED_GENERATE_TYPES)}",
@@ -357,8 +360,7 @@ def main():
 
     if args.command == "research":
         result = research_workflow(
-            args.title, urls=args.urls, query=args.query, 
-            questions=args.questions, search_mode=args.search_mode
+            args.title, urls=args.urls, query=args.query, questions=args.questions, search_mode=args.search_mode
         )
     elif args.command == "auto-research":
         result = auto_research_and_generate(

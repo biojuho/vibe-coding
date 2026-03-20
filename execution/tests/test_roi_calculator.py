@@ -1,7 +1,8 @@
 """T4-2: ROI Calculator 단위 테스트."""
+
 from __future__ import annotations
 
-from execution.roi_calculator import ROICalculator, ChannelROISummary
+from execution.roi_calculator import ROICalculator
 
 
 def test_estimate_content_cost_default() -> None:

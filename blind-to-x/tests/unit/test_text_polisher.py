@@ -37,6 +37,7 @@ def _try_load_kiwi() -> bool:
     ASCII 모델 경로가 이미 존재하는 경우에만 시도합니다.
     """
     import os
+
     ascii_model = os.path.join(os.environ.get("TEMP", "/tmp"), "kiwi_model")
     if not os.path.isdir(ascii_model):
         return False
@@ -169,7 +170,9 @@ class TestWithKiwi:
         assert len(sents) >= 2
 
     def test_readability_with_kiwi(self):
-        metrics = tp._compute_readability("직장인 평균 연봉이 5천만원을 돌파했습니다. 전문가들은 긍정적으로 평가합니다.")
+        metrics = tp._compute_readability(
+            "직장인 평균 연봉이 5천만원을 돌파했습니다. 전문가들은 긍정적으로 평가합니다."
+        )
         assert metrics["readability"] > 0
         assert "sino_korean_ratio" in metrics
 
@@ -178,6 +181,7 @@ class TestWithKiwi:
 class TestTrafilaturaExtraction:
     def test_extract_clean_text_from_html(self):
         from scrapers.base import BaseScraper
+
         html = """
         <html><body>
         <nav>메뉴바</nav>
@@ -196,11 +200,13 @@ class TestTrafilaturaExtraction:
 
     def test_extract_clean_text_empty_html(self):
         from scrapers.base import BaseScraper
+
         result = BaseScraper._extract_clean_text("")
         assert result == ""
 
     def test_extract_clean_text_minimal_html(self):
         from scrapers.base import BaseScraper
+
         result = BaseScraper._extract_clean_text("<p>짧은 텍스트</p>")
         # 매우 짧은 HTML은 추출 실패할 수 있음 → 빈 문자열 허용
         assert isinstance(result, str)

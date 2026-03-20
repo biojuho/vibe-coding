@@ -17,6 +17,7 @@ try:
         get_growth_history,
         init_db,
     )
+
     _MODULE_OK = True
 except ImportError as e:
     _MODULE_OK = False
@@ -63,12 +64,14 @@ if comparison:
         for ch in channels:
             history = get_growth_history(ch["id"], days=period)
             if history:
-                fig_sub.add_trace(go.Scatter(
-                    x=[h["collected_at"] for h in history],
-                    y=[h["subscribers"] for h in history],
-                    name=ch["name"] or ch["channel_id"][:10],
-                    mode="lines+markers",
-                ))
+                fig_sub.add_trace(
+                    go.Scatter(
+                        x=[h["collected_at"] for h in history],
+                        y=[h["subscribers"] for h in history],
+                        name=ch["name"] or ch["channel_id"][:10],
+                        mode="lines+markers",
+                    )
+                )
         fig_sub.update_layout(
             title="구독자 수 추이",
             xaxis_title="날짜",
@@ -84,12 +87,14 @@ if comparison:
         for ch in channels:
             history = get_growth_history(ch["id"], days=period)
             if history:
-                fig_views.add_trace(go.Scatter(
-                    x=[h["collected_at"] for h in history],
-                    y=[h["total_views"] for h in history],
-                    name=ch["name"] or ch["channel_id"][:10],
-                    mode="lines+markers",
-                ))
+                fig_views.add_trace(
+                    go.Scatter(
+                        x=[h["collected_at"] for h in history],
+                        y=[h["total_views"] for h in history],
+                        name=ch["name"] or ch["channel_id"][:10],
+                        mode="lines+markers",
+                    )
+                )
         fig_views.update_layout(
             title="조회수 추이",
             xaxis_title="날짜",
@@ -104,20 +109,22 @@ if comparison:
 
     # ── 성장률 비교 바 차트 ──
     st.subheader("7일 성장률 비교")
-    fig_bar = go.Figure(data=[
-        go.Bar(
-            x=[ch["name"] or ch["channel_id"][:10] for ch in comparison],
-            y=[ch["sub_growth_7d"] for ch in comparison],
-            name="구독자 성장률 (%)",
-            marker_color="#4ade80",
-        ),
-        go.Bar(
-            x=[ch["name"] or ch["channel_id"][:10] for ch in comparison],
-            y=[ch["view_growth_7d"] for ch in comparison],
-            name="조회수 성장률 (%)",
-            marker_color="#60a5fa",
-        ),
-    ])
+    fig_bar = go.Figure(
+        data=[
+            go.Bar(
+                x=[ch["name"] or ch["channel_id"][:10] for ch in comparison],
+                y=[ch["sub_growth_7d"] for ch in comparison],
+                name="구독자 성장률 (%)",
+                marker_color="#4ade80",
+            ),
+            go.Bar(
+                x=[ch["name"] or ch["channel_id"][:10] for ch in comparison],
+                y=[ch["view_growth_7d"] for ch in comparison],
+                name="조회수 성장률 (%)",
+                marker_color="#60a5fa",
+            ),
+        ]
+    )
     fig_bar.update_layout(
         barmode="group",
         plot_bgcolor="rgba(0,0,0,0)",

@@ -1,9 +1,9 @@
 """T4-1: channel_growth_tracker 단위 테스트."""
+
 from __future__ import annotations
 
 import sqlite3
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -34,13 +34,9 @@ from execution.channel_growth_tracker import (  # noqa: E402
 def test_init_db_creates_tables(tmp_path: Path) -> None:
     init_db()
     from execution.channel_growth_tracker import DB_PATH
+
     conn = sqlite3.connect(str(DB_PATH))
-    tables = [
-        r[0]
-        for r in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall()
-    ]
+    tables = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
     conn.close()
     assert "channels" in tables
     assert "growth_snapshots" in tables

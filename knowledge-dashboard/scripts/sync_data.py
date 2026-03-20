@@ -1,4 +1,3 @@
-
 import json
 import os
 import re
@@ -7,7 +6,7 @@ from pathlib import Path
 from datetime import datetime
 
 # Force UTF-8 output for Windows console
-sys.stdout.reconfigure(encoding='utf-8')
+sys.stdout.reconfigure(encoding="utf-8")
 
 # Add site-packages from parent directory's venv if needed
 NOTEBOOKLM_VENV_LIB = r"c:\Users\박주호\Desktop\Vibe coding\infrastructure\notebooklm-mcp\venv\Lib\site-packages"
@@ -35,16 +34,14 @@ SESSION_LOG_PATH = ROOT_DIR / ".ai" / "SESSION_LOG.md"
 # [QA 수정] GitHub 토큰은 환경변수에서만 로드 — 하드코딩 제거
 GITHUB_TOKEN = os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN", "")
 
+
 def fetch_github_repos():
     print("Fetching GitHub repositories...")
     if not GITHUB_TOKEN:
         print("  - GITHUB_PERSONAL_ACCESS_TOKEN 환경변수가 설정되지 않았습니다.")
         return []
 
-    headers = {
-        "Authorization": f"token {GITHUB_TOKEN}",
-        "Accept": "application/vnd.github.v3+json"
-    }
+    headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
     url = "https://api.github.com/user/repos?sort=updated&per_page=10"
 
     try:
@@ -54,21 +51,24 @@ def fetch_github_repos():
 
         simplified = []
         for repo in repos:
-            simplified.append({
-                "id": repo["id"],
-                "name": repo["name"],
-                "full_name": repo["full_name"],
-                "description": repo["description"],
-                "html_url": repo["html_url"],
-                "language": repo["language"],
-                "stargazers_count": repo["stargazers_count"],
-                "updated_at": repo["updated_at"]
-            })
+            simplified.append(
+                {
+                    "id": repo["id"],
+                    "name": repo["name"],
+                    "full_name": repo["full_name"],
+                    "description": repo["description"],
+                    "html_url": repo["html_url"],
+                    "language": repo["language"],
+                    "stargazers_count": repo["stargazers_count"],
+                    "updated_at": repo["updated_at"],
+                }
+            )
         print(f"  - Found {len(simplified)} repositories")
         return simplified
     except Exception as e:
         print(f"  - Error fetching GitHub repos: {e}")
         return []
+
 
 def fetch_notebooklm_notebooks():
     print("Fetching NotebookLM notebooks...")
@@ -77,38 +77,35 @@ def fetch_notebooklm_notebooks():
         return []
 
     try:
-        with open(NOTEBOOKLM_TOKEN_PATH, 'r', encoding='utf-8') as f:
+        with open(NOTEBOOKLM_TOKEN_PATH, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         tokens = AuthTokens.from_dict(data)
-        client = NotebookLMClient(
-            cookies=tokens.cookies,
-            csrf_token=tokens.csrf_token,
-            session_id=tokens.session_id
-        )
+        client = NotebookLMClient(cookies=tokens.cookies, csrf_token=tokens.csrf_token, session_id=tokens.session_id)
 
         notebooks = client.list_notebooks()
 
         simplified = []
         for nb in notebooks:
-            simplified.append({
-                "id": nb.id,
-                "title": nb.title,
-                "source_count": nb.source_count,
-                "url": nb.url,
-                "ownership": nb.ownership,
-                "sources": [{
-                    "id": s.get("id"),
-                    "title": s.get("title"),
-                    "type": s.get("type")
-                } for s in nb.sources] if nb.sources else []
-            })
+            simplified.append(
+                {
+                    "id": nb.id,
+                    "title": nb.title,
+                    "source_count": nb.source_count,
+                    "url": nb.url,
+                    "ownership": nb.ownership,
+                    "sources": [{"id": s.get("id"), "title": s.get("title"), "type": s.get("type")} for s in nb.sources]
+                    if nb.sources
+                    else [],
+                }
+            )
 
         print(f"  - Found {len(simplified)} notebooks")
         return simplified
     except Exception as e:
         print(f"  - Error fetching NotebookLM notebooks: {e}")
         import traceback
+
         traceback.print_exc()
         return []
 
@@ -130,22 +127,22 @@ def parse_session_log() -> list[dict]:
     # 패턴: ## YYYY-MM-DD or ### 날짜 형태의 헤더를 찾아 세션 블록 파싱
     # 세션 로그 형식: | 날짜 | 도구 | 요약 | ... | 형태의 테이블 또는
     # ## 날짜\n- 도구: ...\n- 요약: ... 형태
-    blocks = re.split(r'\n(?=##\s)', content)
+    blocks = re.split(r"\n(?=##\s)", content)
 
     for block in blocks:
         # 날짜 추출 시도
-        date_match = re.search(r'(\d{4}-\d{2}-\d{2})', block)
+        date_match = re.search(r"(\d{4}-\d{2}-\d{2})", block)
         if not date_match:
             continue
 
         date = date_match.group(1)
 
         # 도구 이름 추출
-        tool_match = re.search(r'(?:도구|Tool|AI)[:\s]*([^\n|]+)', block, re.IGNORECASE)
+        tool_match = re.search(r"(?:도구|Tool|AI)[:\s]*([^\n|]+)", block, re.IGNORECASE)
         tool = tool_match.group(1).strip() if tool_match else "Unknown"
 
         # 요약 추출
-        summary_match = re.search(r'(?:요약|Summary|작업)[:\s]*([^\n|]+)', block, re.IGNORECASE)
+        summary_match = re.search(r"(?:요약|Summary|작업)[:\s]*([^\n|]+)", block, re.IGNORECASE)
         summary = summary_match.group(1).strip() if summary_match else block[:100].strip()
 
         # QC 판정 추출
@@ -159,16 +156,18 @@ def parse_session_log() -> list[dict]:
                 verdict = "✅ APPROVED"
 
         # 변경 파일 수 추출
-        files_match = re.findall(r'(?:변경|changed|modified|파일)[:\s]*(\d+)', block, re.IGNORECASE)
+        files_match = re.findall(r"(?:변경|changed|modified|파일)[:\s]*(\d+)", block, re.IGNORECASE)
         files_changed = int(files_match[0]) if files_match else 0
 
-        sessions.append({
-            "date": date,
-            "tool": tool,
-            "summary": summary[:200],
-            "verdict": verdict,
-            "files_changed": files_changed,
-        })
+        sessions.append(
+            {
+                "date": date,
+                "tool": tool,
+                "summary": summary[:200],
+                "verdict": verdict,
+                "files_changed": files_changed,
+            }
+        )
 
     # 최근 20개만
     sessions = sessions[-20:]
@@ -181,6 +180,7 @@ def fetch_qaqc_trend() -> list[dict]:
     print("Fetching QA/QC trend data...")
     try:
         from qaqc_history_db import QaQcHistoryDB
+
         db = QaQcHistoryDB()
         trend = db.get_trend_data(days=30)
         print(f"  - Found {len(trend)} trend points")
@@ -215,14 +215,15 @@ def main():
             # 트렌드 데이터 추가
             qaqc_data["trend"] = fetch_qaqc_trend()
             data["qaqc"] = qaqc_data
-            print(f"  - QA/QC result loaded")
+            print("  - QA/QC result loaded")
         except Exception as e:
             print(f"  - Error loading QA/QC result: {e}")
 
-    with open(OUTPUT_FILE, "w", encoding='utf-8') as f:
+    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
     print(f"✅ Data saved to {OUTPUT_FILE}")
+
 
 if __name__ == "__main__":
     main()

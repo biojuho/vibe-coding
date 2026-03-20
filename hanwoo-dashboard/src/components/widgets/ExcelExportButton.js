@@ -17,7 +17,7 @@ export default function ExcelExportButton({ cattleList = [] }) {
 
     // 1. Create CSV Header
     const headers = ["ID", "이름", "이력번호", "출생일", "성별", "품종", "축사(ID)", "칸 번호", "어미소", "아비소", "비고"];
-    
+
     // 2. Create CSV Rows
     const rows = cattleList.map(c => [
         c.id,
@@ -51,7 +51,7 @@ export default function ExcelExportButton({ cattleList = [] }) {
   };
 
   return (
-    <button 
+    <button
         onClick={handleDownload}
         style={{
             background: "var(--color-bg-card)",

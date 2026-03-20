@@ -10,13 +10,13 @@ Usage:
     python execution/channel_growth_tracker.py collect
     python execution/channel_growth_tracker.py report
 """
+
 from __future__ import annotations
 
 import argparse
 import logging
 import os
 import sqlite3
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -76,9 +76,7 @@ def add_channel(channel_id: str, name: str = "") -> int:
     """채널 등록. 이미 존재하면 기존 id 반환."""
     conn = _conn()
     try:
-        existing = conn.execute(
-            "SELECT id FROM channels WHERE channel_id = ?", (channel_id,)
-        ).fetchone()
+        existing = conn.execute("SELECT id FROM channels WHERE channel_id = ?", (channel_id,)).fetchone()
         if existing:
             logger.info("이미 등록된 채널: %s (id=%d)", channel_id, existing["id"])
             return existing["id"]
@@ -116,9 +114,7 @@ def get_latest_snapshot(channel_db_id: int) -> dict | None:
     return dict(row) if row else None
 
 
-def get_growth_history(
-    channel_db_id: int, days: int = 90
-) -> list[dict]:
+def get_growth_history(channel_db_id: int, days: int = 90) -> list[dict]:
     """채널의 성장 히스토리 조회."""
     conn = _conn()
     rows = conn.execute(
@@ -184,9 +180,7 @@ def collect_channel_stats() -> dict[str, Any]:
                 timeout=30,
             )
             if resp.status_code != 200:
-                logger.error(
-                    "YouTube API 오류: %s %s", resp.status_code, resp.text[:200]
-                )
+                logger.error("YouTube API 오류: %s %s", resp.status_code, resp.text[:200])
                 continue
 
             for item in resp.json().get("items", []):
@@ -199,11 +193,7 @@ def collect_channel_stats() -> dict[str, Any]:
                     "video_count": int(s.get("videoCount", 0)),
                     "title": snippet.get("title", ""),
                     "custom_url": snippet.get("customUrl", ""),
-                    "thumbnail_url": (
-                        snippet.get("thumbnails", {})
-                        .get("default", {})
-                        .get("url", "")
-                    ),
+                    "thumbnail_url": (snippet.get("thumbnails", {}).get("default", {}).get("url", "")),
                 }
         except Exception as exc:
             logger.error("YouTube API 호출 실패: %s", exc)
@@ -256,7 +246,7 @@ def calculate_growth_rate(channel_db_id: int, days: int = 7) -> dict[str, float]
 
     Returns:
         {
-            "subscriber_growth_rate": float (%), 
+            "subscriber_growth_rate": float (%),
             "view_growth_rate": float (%),
             "subscriber_daily_avg": float,
         }
@@ -296,16 +286,18 @@ def get_channel_comparison() -> list[dict]:
     for ch in channels:
         latest = get_latest_snapshot(ch["id"])
         growth = calculate_growth_rate(ch["id"], days=7)
-        result.append({
-            "name": ch["name"],
-            "channel_id": ch["channel_id"],
-            "subscribers": latest["subscribers"] if latest else 0,
-            "total_views": latest["total_views"] if latest else 0,
-            "video_count": latest["video_count"] if latest else 0,
-            "sub_growth_7d": growth["subscriber_growth_rate"],
-            "view_growth_7d": growth["view_growth_rate"],
-            "sub_daily_avg": growth["subscriber_daily_avg"],
-        })
+        result.append(
+            {
+                "name": ch["name"],
+                "channel_id": ch["channel_id"],
+                "subscribers": latest["subscribers"] if latest else 0,
+                "total_views": latest["total_views"] if latest else 0,
+                "video_count": latest["video_count"] if latest else 0,
+                "sub_growth_7d": growth["subscriber_growth_rate"],
+                "view_growth_7d": growth["view_growth_rate"],
+                "sub_daily_avg": growth["subscriber_daily_avg"],
+            }
+        )
     return result
 
 
@@ -341,7 +333,7 @@ def _cli() -> None:
         init_db()
         comparison = get_channel_comparison()
         print(f"\n{'─' * 70}")
-        print(f"  📈 채널 성장 비교 (7일)")
+        print("  📈 채널 성장 비교 (7일)")
         print(f"{'─' * 70}")
         for ch in comparison:
             print(

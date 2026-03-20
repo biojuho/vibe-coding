@@ -43,6 +43,7 @@ def _load_draft_rules() -> dict:
         _draft_rules_cache = {}
     return _draft_rules_cache
 
+
 logger = logging.getLogger(__name__)
 
 # ── P0-4: 품질 게이트 실패 유형별 구체적 수정 지침 ────────────────────
@@ -104,15 +105,9 @@ class TweetDraftGenerator:
         self.anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY") or config.get("anthropic.api_key")
         self.openai_api_key = os.environ.get("OPENAI_API_KEY") or config.get("openai.api_key")
         self.gemini_api_key = (
-            os.environ.get("GEMINI_API_KEY")
-            or os.environ.get("GOOGLE_API_KEY")
-            or config.get("gemini.api_key")
+            os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or config.get("gemini.api_key")
         )
-        self.xai_api_key = (
-            os.environ.get("XAI_API_KEY")
-            or os.environ.get("GROK_API_KEY")
-            or config.get("xai.api_key")
-        )
+        self.xai_api_key = os.environ.get("XAI_API_KEY") or os.environ.get("GROK_API_KEY") or config.get("xai.api_key")
 
         self.anthropic_model = config.get("anthropic.model", "claude-haiku-4-5-20251001")
         self.openai_model = config.get("openai.chat_model", "gpt-4.1-mini")
@@ -130,14 +125,10 @@ class TweetDraftGenerator:
         self.anthropic_client = AsyncAnthropic(api_key=self.anthropic_api_key) if self.anthropic_enabled else None
         self.openai_client = AsyncOpenAI(api_key=self.openai_api_key) if self.openai_enabled else None
         self.xai_client = (
-            AsyncOpenAI(api_key=self.xai_api_key, base_url="https://api.x.ai/v1")
-            if self.xai_enabled
-            else None
+            AsyncOpenAI(api_key=self.xai_api_key, base_url="https://api.x.ai/v1") if self.xai_enabled else None
         )
         self.ollama_client = (
-            AsyncOpenAI(api_key="ollama", base_url=self.ollama_base_url)
-            if self.ollama_enabled
-            else None
+            AsyncOpenAI(api_key="ollama", base_url=self.ollama_base_url) if self.ollama_enabled else None
         )
 
         # P7: 규제 점검 시스템
@@ -173,6 +164,7 @@ class TweetDraftGenerator:
             return False
         try:
             import urllib.request
+
             req = urllib.request.Request("http://localhost:11434/api/tags", method="GET")
             with urllib.request.urlopen(req, timeout=2) as resp:
                 return resp.status == 200
@@ -276,31 +268,36 @@ class TweetDraftGenerator:
             golden_list = golden[topic_cluster]
             selected = random.sample(golden_list, min(2, len(golden_list))) if len(golden_list) >= 3 else golden_list
             for ge in selected:
-                merged.append({
-                    "views": "(골든 예시)",
-                    "topic_cluster": topic_cluster,
-                    "hook_type": ge.get("hook_type", "공감형"),
-                    "emotion_axis": "-",
-                    "draft_style": ge.get("hook_type", "공감형"),
-                    "text": ge.get("text", ""),
-                    "grade": ge.get("grade", ""),
-                })
+                merged.append(
+                    {
+                        "views": "(골든 예시)",
+                        "topic_cluster": topic_cluster,
+                        "hook_type": ge.get("hook_type", "공감형"),
+                        "emotion_axis": "-",
+                        "draft_style": ge.get("hook_type", "공감형"),
+                        "text": ge.get("text", ""),
+                        "grade": ge.get("grade", ""),
+                    }
+                )
 
         # 2. cost_db에서 실제 성과 우수 포스트 자동 추가
         try:
             from pipeline.cost_db import get_cost_db
+
             db = get_cost_db()
             top_from_db = db.get_top_performing_drafts(topic_cluster=topic_cluster, limit=2)
             for row in top_from_db:
-                merged.append({
-                    "views": row.get("yt_views", 0),
-                    "topic_cluster": row.get("topic_cluster", ""),
-                    "hook_type": row.get("hook_type", ""),
-                    "emotion_axis": row.get("emotion_axis", ""),
-                    "draft_style": row.get("draft_style", ""),
-                    "text": row.get("text", ""),
-                    "grade": "실적우수",
-                })
+                merged.append(
+                    {
+                        "views": row.get("yt_views", 0),
+                        "topic_cluster": row.get("topic_cluster", ""),
+                        "hook_type": row.get("hook_type", ""),
+                        "emotion_axis": row.get("emotion_axis", ""),
+                        "draft_style": row.get("draft_style", ""),
+                        "text": row.get("text", ""),
+                        "grade": "실적우수",
+                    }
+                )
         except Exception:
             pass  # cost_db 미가용 시 무시
 
@@ -353,10 +350,7 @@ class TweetDraftGenerator:
 
         rules = _load_draft_rules()
         templates = rules.get("prompt_templates", {})
-        system_role = templates.get(
-            "system_role",
-            "당신은 직장인 대상 콘텐츠를 큐레이션하는 시니어 에디터입니다."
-        )
+        system_role = templates.get("system_role", "당신은 직장인 대상 콘텐츠를 큐레이션하는 시니어 에디터입니다.")
 
         # ── Twitter 블록 (YAML 템플릿 우선) ────────────────────────────
         twitter_block = ""
@@ -391,12 +385,16 @@ class TweetDraftGenerator:
         newsletter_block = ""
         if "newsletter" in output_formats:
             nl_tmpl = templates.get("newsletter", "")
-            newsletter_block = nl_tmpl if nl_tmpl else """\n[뉴스레터 초안 작성 조건]
+            newsletter_block = (
+                nl_tmpl
+                if nl_tmpl
+                else """\n[뉴스레터 초안 작성 조건]
 1. 한 문단 요약, 인사이트, 한 줄 결론 구조로 작성하세요.
 2. 450자 이상 900자 이하로 작성하세요.
 3. 직장인 독자가 읽는다는 전제로 해석과 시사점을 덧붙이세요.
 4. 반드시 <newsletter> 와 </newsletter> 태그 안에만 작성하세요.
 """
+            )
 
         # ── Threads 블록 ──────────────────────────────────────────────
         threads_block = ""
@@ -458,12 +456,16 @@ class TweetDraftGenerator:
 
         # ── Image prompt 블록 (YAML 템플릿 우선) ──────────────────────
         img_tmpl = templates.get("image_prompt", "")
-        image_block = img_tmpl if img_tmpl else """[이미지 프롬프트 작성 조건]
+        image_block = (
+            img_tmpl
+            if img_tmpl
+            else """[이미지 프롬프트 작성 조건]
 1. 마지막에 영어 이미지 프롬프트를 작성하세요.
 2. 텍스트 없는 장면 중심 이미지여야 합니다.
 3. 직장인 커뮤니티 상황이 한눈에 보이게 묘사하세요.
 4. 반드시 <image_prompt> 와 </image_prompt> 태그 안에만 작성하세요.
 """
+        )
 
         # ── P7: 규제 컨텍스트 자동 주입 ────────────────────────────────
         regulation_context = ""
@@ -497,7 +499,7 @@ class TweetDraftGenerator:
             bad_ex = brand_voice.get("examples", {}).get("bad", "")
             voice_block = f"""
 [보이스 가이드 — 반드시 준수]
-페르소나: {brand_voice.get('persona', '')}
+페르소나: {brand_voice.get("persona", "")}
 말투 규칙:
 {traits}
 좋은 예: {good_ex}
@@ -511,7 +513,7 @@ class TweetDraftGenerator:
         # ── P0-3: 클리셰 목록 사전 주입 ─────────────────────────────────
         cliches = rules.get("cliche_watchlist", [])
         if cliches:
-            cliche_str = "\n".join(f"  - \"{c}\"" for c in cliches[:20])
+            cliche_str = "\n".join(f'  - "{c}"' for c in cliches[:20])
             voice_block += f"""
 [절대 사용 금지 — 클리셰 목록]
 아래 표현을 하나라도 사용하면 재생성 대상입니다:
@@ -587,20 +589,20 @@ class TweetDraftGenerator:
 
 [게시글 정보]
 출처: {source}
-제목: {post_data.get('title', '')}
+제목: {post_data.get("title", "")}
 본문: {content}
-카테고리: {post_data.get('category', 'general')}
-공감수: {post_data.get('likes', 0)} | 댓글수: {post_data.get('comments', 0)}
+카테고리: {post_data.get("category", "general")}
+공감수: {post_data.get("likes", 0)} | 댓글수: {post_data.get("comments", 0)}
 {essence_block}
 
 [콘텐츠 프로필]
 토픽 클러스터: {topic_cluster}
-훅 타입: {profile.get('hook_type', '공감형')}
-감정 축: {profile.get('emotion_axis', '공감')}
-대상 독자: {profile.get('audience_fit', '범용')}
+훅 타입: {profile.get("hook_type", "공감형")}
+감정 축: {profile.get("emotion_axis", "공감")}
+대상 독자: {profile.get("audience_fit", "범용")}
 추천 초안 타입: {recommended_draft_type}
-발행 적합도 점수: {profile.get('publishability_score', 0)}
-성과 예측 점수: {profile.get('performance_score', 0)}
+발행 적합도 점수: {profile.get("publishability_score", 0)}
+성과 예측 점수: {profile.get("performance_score", 0)}
 {topic_strategy_block}
 {regulation_context}
 {thinking_block}
@@ -727,7 +729,9 @@ class TweetDraftGenerator:
             raise RuntimeError(f"Unsupported provider: {provider}")
         return await asyncio.wait_for(coro, timeout=timeout)
 
-    def _parse_response(self, response_text: str, output_formats: list[str], provider_used: str) -> tuple[dict[str, str], str | None]:
+    def _parse_response(
+        self, response_text: str, output_formats: list[str], provider_used: str
+    ) -> tuple[dict[str, str], str | None]:
         drafts_dict: dict[str, str] = {"_provider_used": provider_used}
 
         # ── P0-2: <thinking> 태그 제거 (사고 과정은 출력에 포함하지 않음) ──
@@ -821,15 +825,17 @@ class TweetDraftGenerator:
                         feedback_lines.append(f"    → 수정 방법: {instruction}")
                         break
 
-        feedback_lines.extend([
-            "",
-            "[재작성 지침]",
-            "1. 위에서 지적된 문제점과 '수정 방법'을 반드시 반영하세요.",
-            "2. 글자 수, CTA, 해시태그 등 플랫폼 규칙을 정확히 준수하세요.",
-            "3. 기존 초안의 좋은 점은 유지하되, 문제점만 개선하세요.",
-            "4. 원문에 없는 숫자나 사실을 날조하지 마세요.",
-            "━" * 40,
-        ])
+        feedback_lines.extend(
+            [
+                "",
+                "[재작성 지침]",
+                "1. 위에서 지적된 문제점과 '수정 방법'을 반드시 반영하세요.",
+                "2. 글자 수, CTA, 해시태그 등 플랫폼 규칙을 정확히 준수하세요.",
+                "3. 기존 초안의 좋은 점은 유지하되, 문제점만 개선하세요.",
+                "4. 원문에 없는 숫자나 사실을 날조하지 마세요.",
+                "━" * 40,
+            ]
+        )
 
         return original_prompt + "\n".join(feedback_lines)
 
@@ -851,7 +857,9 @@ class TweetDraftGenerator:
                 cached = _cache.get(cache_key)
                 if cached:
                     drafts, image_prompt = cached
-                    logger.info("Draft cache HIT: %s (provider=%s)", cache_key[:12], drafts.get("_provider_used", "cached"))
+                    logger.info(
+                        "Draft cache HIT: %s (provider=%s)", cache_key[:12], drafts.get("_provider_used", "cached")
+                    )
                     return drafts, image_prompt
             except Exception as exc:
                 logger.debug("Draft cache lookup failed (ignored): %s", exc)
@@ -867,6 +875,7 @@ class TweetDraftGenerator:
         # ── 실패 이력 기반 provider 스킵 ──────────────────────────────
         try:
             from pipeline.cost_db import get_cost_db
+
             _cost_db = get_cost_db()
             skipped = _cost_db.get_skipped_providers() if _cost_db else set()
             if skipped:
@@ -904,6 +913,7 @@ class TweetDraftGenerator:
                         pass
                     try:
                         from pipeline.cost_db import get_cost_db
+
                         get_cost_db().record_provider_success(provider)
                     except Exception:
                         pass
@@ -928,6 +938,7 @@ class TweetDraftGenerator:
                         # circuit breaker: 비복구 에러 시 provider 스킵 등록
                         try:
                             from pipeline.cost_db import get_cost_db
+
                             _cdb = get_cost_db()
                             skip_h = _cdb.get_circuit_skip_hours(provider)
                             _cdb.record_provider_failure(provider, skip_hours=skip_h)

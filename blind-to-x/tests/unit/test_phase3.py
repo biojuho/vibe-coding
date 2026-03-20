@@ -18,6 +18,7 @@ class TestCamoufoxIntegration:
         """camoufox 패키지가 import 가능한지 확인."""
         try:
             from camoufox.async_api import AsyncCamoufox
+
             assert AsyncCamoufox is not None
         except ImportError:
             pytest.skip("camoufox not installed")
@@ -56,6 +57,7 @@ class TestEmotionAnalyzer:
     @pytest.fixture(scope="class")
     def analyzer_available(self):
         import pipeline.emotion_analyzer as ea
+
         ea._load_attempted = False
         ea._classifier = None
         clf = ea._get_classifier()
@@ -65,6 +67,7 @@ class TestEmotionAnalyzer:
         if not analyzer_available:
             pytest.skip("KOTE model not loadable")
         from pipeline.emotion_analyzer import analyze_emotions
+
         result = analyze_emotions("연봉이 너무 적어서 화가 나요")
         assert len(result) > 0
         assert "label" in result[0]
@@ -75,6 +78,7 @@ class TestEmotionAnalyzer:
         if not analyzer_available:
             pytest.skip("KOTE model not loadable")
         from pipeline.emotion_analyzer import analyze_emotions
+
         result = analyze_emotions("상사가 너무 짜증나고 화가 치밀어 오른다")
         labels = [r["label"] for r in result]
         assert any("화남" in l or "짜증" in l or "불평" in l for l in labels)
@@ -83,6 +87,7 @@ class TestEmotionAnalyzer:
         if not analyzer_available:
             pytest.skip("KOTE model not loadable")
         from pipeline.emotion_analyzer import analyze_emotions
+
         result = analyze_emotions("이직 성공해서 너무 기쁘고 행복합니다")
         labels = [r["label"] for r in result]
         assert any("기쁨" in l or "감동" in l or "고마움" in l for l in labels)
@@ -91,6 +96,7 @@ class TestEmotionAnalyzer:
         if not analyzer_available:
             pytest.skip("KOTE model not loadable")
         from pipeline.emotion_analyzer import get_emotion_profile
+
         profile = get_emotion_profile("퇴사하고 싶은데 용기가 없다")
         assert hasattr(profile, "emotion_axis")
         assert hasattr(profile, "valence")
@@ -103,12 +109,14 @@ class TestEmotionAnalyzer:
         if not analyzer_available:
             pytest.skip("KOTE model not loadable")
         from pipeline.emotion_analyzer import get_emotion_profile
+
         # 분노 텍스트 → 분노 axis
         angry = get_emotion_profile("진짜 빡치네 이런 회사 때려칠래")
         assert angry.emotion_axis in ("분노", "현타", "허탈")  # 분노 계열
 
     def test_empty_text_returns_empty(self):
         from pipeline.emotion_analyzer import analyze_emotions
+
         result = analyze_emotions("")
         assert result == []
 
@@ -119,12 +127,14 @@ class TestEmotionAnalyzerFallback:
     def test_classify_emotion_axis_without_kote(self):
         """KOTE 미로드 시 키워드 폴백."""
         import pipeline.emotion_analyzer as ea
+
         old_clf = ea._classifier
         old_attempted = ea._load_attempted
         try:
             ea._classifier = None
             ea._load_attempted = True  # 로드 실패 상태
             from pipeline.content_intelligence import classify_emotion_axis
+
             result = classify_emotion_axis("빡치는 상사", "상사가 너무 화나게 한다")
             assert isinstance(result, str)
             assert len(result) > 0
@@ -137,5 +147,6 @@ class TestEmotionAnalyzerFallback:
 class TestTrafilaturaInScrapers:
     def test_extract_method_exists(self):
         from scrapers.base import BaseScraper
+
         assert hasattr(BaseScraper, "_extract_clean_text")
         assert callable(BaseScraper._extract_clean_text)

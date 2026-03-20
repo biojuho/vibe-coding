@@ -10,7 +10,6 @@ Usage:
 
 import json
 import sys
-from datetime import datetime
 from pathlib import Path
 
 # 경로 설정
@@ -50,6 +49,7 @@ def load_history() -> list[dict]:
     """히스토리 DB에서 트렌드 데이터를 가져옵니다."""
     try:
         from qaqc_history_db import QaQcHistoryDB
+
         db = QaQcHistoryDB()
         return db.get_trend_data(days=30)
     except ImportError:
@@ -157,6 +157,7 @@ st.divider()
 if history:
     st.subheader("📈 30일 테스트 추이")
     import pandas as pd
+
     df = pd.DataFrame(history)
     if not df.empty:
         st.line_chart(df.set_index("date")[["passed", "failed"]])

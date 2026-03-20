@@ -39,7 +39,9 @@ async def _run(args: argparse.Namespace) -> Path:
 
     client = GoogleMusicClient.from_env(request_timeout_sec=args.timeout)
     output_dir = Path(args.output_dir).resolve()
-    output_path = Path(args.output).resolve() if args.output else _build_output_path(args.prompt, output_dir, args.format)
+    output_path = (
+        Path(args.output).resolve() if args.output else _build_output_path(args.prompt, output_dir, args.format)
+    )
     return await client.generate_music_file(
         prompt=args.prompt,
         output_path=output_path,

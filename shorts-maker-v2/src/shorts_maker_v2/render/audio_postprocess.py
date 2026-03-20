@@ -190,7 +190,9 @@ def _apply_compression(
 
         compressed = sum(compressed_chunks[1:], compressed_chunks[0]) if compressed_chunks else audio
         compressed.export(str(audio_path), format=ext if ext else "mp3")
-        logger.info("[AudioPost] 컴프레서 적용: %s (threshold=%.0fdB, ratio=%.1f)", audio_path.name, threshold_db, ratio)
+        logger.info(
+            "[AudioPost] 컴프레서 적용: %s (threshold=%.0fdB, ratio=%.1f)", audio_path.name, threshold_db, ratio
+        )
         return audio_path
 
     except ImportError:

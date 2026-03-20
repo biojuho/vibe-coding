@@ -5,15 +5,19 @@ import pytest
 # Kiwi C 확장이 non-ASCII Windows 경로에서 segfault하므로 테스트 시 로드 방지.
 # kiwipiepy 자체 import도 안전하지 않으므로 sys.modules에 dummy를 주입.
 import os as _os
+
 if any(ord(c) > 127 for c in _os.path.expanduser("~")):
     import sys as _sys
+
     if "kiwipiepy" not in _sys.modules:
         import types as _types
+
         _dummy = _types.ModuleType("kiwipiepy")
         _dummy.Kiwi = None  # type: ignore[attr-defined]
         _sys.modules["kiwipiepy"] = _dummy
     try:
         import pipeline.text_polisher as _tp
+
         _tp._kiwi_load_attempted = True
         _tp._kiwi_instance = None
     except ImportError:

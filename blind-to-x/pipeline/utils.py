@@ -4,11 +4,9 @@ from typing import Callable, Any
 
 logger = logging.getLogger(__name__)
 
+
 async def async_run_with_retry(
-    func: Callable[[], Any],
-    max_retries: int,
-    backoff_seconds: float,
-    action_name: str = "Operation"
+    func: Callable[[], Any], max_retries: int, backoff_seconds: float, action_name: str = "Operation"
 ) -> Any:
     """
     일반(동기) 함수를 멈춤 없이(비동기로) 실행하고, 실패할 경우 점차 시간을 늘려가며(지수 백오프) 재시도하는 공통 유틸리티 함수입니다.

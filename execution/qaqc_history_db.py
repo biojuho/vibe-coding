@@ -52,22 +52,25 @@ class QaQcHistoryDB:
     def save_run(self, report: dict) -> int:
         """QA/QC 실행 결과를 저장합니다. 삽입된 ID를 반환합니다."""
         with sqlite3.connect(str(self.db_path)) as conn:
-            cursor = conn.execute("""
+            cursor = conn.execute(
+                """
                 INSERT INTO qaqc_runs
                     (timestamp, verdict, total_passed, total_failed,
                      elapsed_sec, projects_json, ast_json, security_json, infra_json)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                report.get("timestamp", datetime.now().isoformat()),
-                report.get("verdict", "UNKNOWN"),
-                report.get("total", {}).get("passed", 0),
-                report.get("total", {}).get("failed", 0),
-                report.get("elapsed_sec", 0),
-                json.dumps(report.get("projects", {}), ensure_ascii=False),
-                json.dumps(report.get("ast_check", {}), ensure_ascii=False),
-                json.dumps(report.get("security_scan", {}), ensure_ascii=False),
-                json.dumps(report.get("infrastructure", {}), ensure_ascii=False),
-            ))
+            """,
+                (
+                    report.get("timestamp", datetime.now().isoformat()),
+                    report.get("verdict", "UNKNOWN"),
+                    report.get("total", {}).get("passed", 0),
+                    report.get("total", {}).get("failed", 0),
+                    report.get("elapsed_sec", 0),
+                    json.dumps(report.get("projects", {}), ensure_ascii=False),
+                    json.dumps(report.get("ast_check", {}), ensure_ascii=False),
+                    json.dumps(report.get("security_scan", {}), ensure_ascii=False),
+                    json.dumps(report.get("infrastructure", {}), ensure_ascii=False),
+                ),
+            )
             return cursor.lastrowid or 0
 
     def get_recent_runs(self, days: int = 30, limit: int = 100) -> list[dict]:
@@ -75,27 +78,32 @@ class QaQcHistoryDB:
         cutoff = (datetime.now() - timedelta(days=days)).isoformat()
         with sqlite3.connect(str(self.db_path)) as conn:
             conn.row_factory = sqlite3.Row
-            rows = conn.execute("""
+            rows = conn.execute(
+                """
                 SELECT * FROM qaqc_runs
                 WHERE timestamp >= ?
                 ORDER BY timestamp DESC
                 LIMIT ?
-            """, (cutoff, limit)).fetchall()
+            """,
+                (cutoff, limit),
+            ).fetchall()
 
         results = []
         for row in rows:
-            results.append({
-                "id": row["id"],
-                "timestamp": row["timestamp"],
-                "verdict": row["verdict"],
-                "total_passed": row["total_passed"],
-                "total_failed": row["total_failed"],
-                "elapsed_sec": row["elapsed_sec"],
-                "projects": json.loads(row["projects_json"] or "{}"),
-                "ast": json.loads(row["ast_json"] or "{}"),
-                "security": json.loads(row["security_json"] or "{}"),
-                "infrastructure": json.loads(row["infra_json"] or "{}"),
-            })
+            results.append(
+                {
+                    "id": row["id"],
+                    "timestamp": row["timestamp"],
+                    "verdict": row["verdict"],
+                    "total_passed": row["total_passed"],
+                    "total_failed": row["total_failed"],
+                    "elapsed_sec": row["elapsed_sec"],
+                    "projects": json.loads(row["projects_json"] or "{}"),
+                    "ast": json.loads(row["ast_json"] or "{}"),
+                    "security": json.loads(row["security_json"] or "{}"),
+                    "infrastructure": json.loads(row["infra_json"] or "{}"),
+                }
+            )
         return results
 
     def get_latest_run(self) -> dict | None:
@@ -108,12 +116,15 @@ class QaQcHistoryDB:
         cutoff = (datetime.now() - timedelta(days=days)).isoformat()
         with sqlite3.connect(str(self.db_path)) as conn:
             conn.row_factory = sqlite3.Row
-            rows = conn.execute("""
+            rows = conn.execute(
+                """
                 SELECT timestamp, verdict, total_passed, total_failed
                 FROM qaqc_runs
                 WHERE timestamp >= ?
                 ORDER BY timestamp ASC
-            """, (cutoff,)).fetchall()
+            """,
+                (cutoff,),
+            ).fetchall()
 
         return [
             {

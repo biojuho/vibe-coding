@@ -72,7 +72,9 @@ async def validate_and_fix_drafts(
 
         logger.warning(
             "[QualityGate] %s FAIL (score=%.0f, failures=%s)",
-            platform, result.score, result.failures,
+            platform,
+            result.score,
+            result.failures,
         )
 
         # 자동 수정 시도
@@ -92,7 +94,10 @@ async def validate_and_fix_drafts(
         for retry in range(_MAX_RETRIES):
             try:
                 retry_prompt = _build_retry_prompt(
-                    draft_text, fix_instructions, platform, post_data,
+                    draft_text,
+                    fix_instructions,
+                    platform,
+                    post_data,
                 )
                 retried = await generator._call_llm_with_fallback(retry_prompt)
                 if not retried or not retried.strip():
@@ -104,13 +109,18 @@ async def validate_and_fix_drafts(
                     fixed_drafts[platform] = retried
                     logger.info(
                         "[QualityGate] %s RETRY %d: score %.0f → %.0f",
-                        platform, retry + 1, result.score, recheck.score,
+                        platform,
+                        retry + 1,
+                        result.score,
+                        recheck.score,
                     )
                     break
                 else:
                     logger.info(
                         "[QualityGate] %s RETRY %d: no improvement (%.0f)",
-                        platform, retry + 1, recheck.score,
+                        platform,
+                        retry + 1,
+                        recheck.score,
                     )
             except Exception as exc:
                 logger.debug("[QualityGate] %s retry failed: %s", platform, exc)
@@ -137,7 +147,7 @@ def _build_retry_prompt(
 [수정 지시]
 {fixes}
 
-[원문 제목] {post_data.get('title', '')}
-[원문 요약] {str(post_data.get('content', ''))[:500]}
+[원문 제목] {post_data.get("title", "")}
+[원문 요약] {str(post_data.get("content", ""))[:500]}
 
 수정된 초안만 출력하세요. 설명이나 태그 없이 초안 텍스트만 반환하세요."""

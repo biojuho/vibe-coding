@@ -187,7 +187,7 @@ class BlindScraper(BaseScraper):
 
             # 각 게시글 행에서 제목 + 인기도 추출
             rows = await page.query_selector_all(".article-list li, .article-list > div")
-            for row in rows[:limit * 3]:
+            for row in rows[: limit * 3]:
                 link = await row.query_selector(".tit h3 a")
                 if not link:
                     link = await row.query_selector("a")
@@ -211,8 +211,11 @@ class BlindScraper(BaseScraper):
                 comments = self._extract_count(meta_text, ["댓글", "comment", "💬"])
 
                 candidate = FeedCandidate(
-                    url=url, title=title, likes=likes,
-                    comments=comments, source=self.SOURCE_NAME,
+                    url=url,
+                    title=title,
+                    likes=likes,
+                    comments=comments,
+                    source=self.SOURCE_NAME,
                 )
                 candidate.compute_engagement()
                 if candidate.url not in {c.url for c in candidates}:
@@ -326,7 +329,12 @@ class BlindScraper(BaseScraper):
                     logger.info("Crawl4AI fallback succeeded for %s", url)
                     # Take screenshot from page before returning
                     short_id = uuid.uuid4().hex[:8]
-                    safe_t = "".join(x for x in crawl4ai_result.get("title", "post")[:20] if x.isalnum() or x in " -_").strip() or "post"
+                    safe_t = (
+                        "".join(
+                            x for x in crawl4ai_result.get("title", "post")[:20] if x.isalnum() or x in " -_"
+                        ).strip()
+                        or "post"
+                    )
                     filepath = os.path.join(self.screenshot_dir, f"blind_{safe_t}_{short_id}.png")
                     await self._take_screenshot(page, filepath)
                     crawl4ai_result["screenshot_path"] = filepath

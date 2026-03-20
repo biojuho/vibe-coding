@@ -8,7 +8,6 @@
 - 예외 처리(Exception Handling): 프로그램이 중간에 에러(장애물)를 만나도 멈추지 않고, 정해진 다른 길(우회로)로 가도록 안전장치를 마련하는 것입니다.
 """
 
-import asyncio
 import base64
 import logging
 import os
@@ -145,7 +144,7 @@ class ImageUploader:
                 cloud_name=cloud_name,
                 api_key=api_key,
                 api_secret=api_secret,
-                secure=True, # 안전한 HTTPS 통신을 강제합니다.
+                secure=True,  # 안전한 HTTPS 통신을 강제합니다.
             )
             self.cloudinary_ready = True
         else:
@@ -160,7 +159,9 @@ class ImageUploader:
 
         # 2. 파일 용량이 너무 작은지도 검사합니다 (1000 바이트 미만이면 속이 빈 껍데기 파일일 확률이 높음).
         if os.path.getsize(filepath) < 1000:
-            logger.error(f"스크린샷 파일 용량이 너무 작아 손상된 것으로 보입니다 ({os.path.getsize(filepath)} bytes): {filepath}")
+            logger.error(
+                f"스크린샷 파일 용량이 너무 작아 손상된 것으로 보입니다 ({os.path.getsize(filepath)} bytes): {filepath}"
+            )
             return None
 
         # 3. 설정된 제공자(provider) 이름표에 따라 알맞은 업로드 함수를 골라서 호출합니다.
@@ -193,12 +194,12 @@ class ImageUploader:
                 return None
 
             headers = {"Authorization": f"Client-ID {self.imgur_client_id}"}
-            payload = {"image": url, "type": "url"} # base64 방식 대신 URL 문자열이라고 명시해서 전송합니다.
+            payload = {"image": url, "type": "url"}  # base64 방식 대신 URL 문자열이라고 명시해서 전송합니다.
 
             # 실제 Imgur 서버와 우체부 역할을 하며 통신을 맺는 내부 함수입니다 (비동기가 아님).
             def do_request():
                 response = requests.post("https://api.imgur.com/3/image", headers=headers, data=payload, timeout=30)
-                response.raise_for_status() # 성공(200번대 응답)이 아니면 그 즉시 에러 불꽃(Exception)을 일으킵니다.
+                response.raise_for_status()  # 성공(200번대 응답)이 아니면 그 즉시 에러 불꽃(Exception)을 일으킵니다.
                 return response.json()
 
             try:
@@ -207,7 +208,7 @@ class ImageUploader:
                     func=do_request,
                     max_retries=self.max_retries,
                     backoff_seconds=self.backoff,
-                    action_name="Imgur URL 다이렉트 업로드"
+                    action_name="Imgur URL 다이렉트 업로드",
                 )
 
                 # 통신이 최종 성공했고 돌려받은 상자(딕셔너리) 안에 이미지 주소(link)가 들어 있다면 무사히 반환합니다!
@@ -217,7 +218,6 @@ class ImageUploader:
                 logger.error(f"Imgur에 URL 기반 이미지를 업로드하는 데 실패했습니다: {e}")
                 return None
         return None
-
 
     async def _upload_to_imgur(self, filepath):
         """Imgur 서비스에 로컬 컴퓨터의 파일을 올려주는 숨겨진 내부 조수 함수(메서드)입니다."""
@@ -240,18 +240,17 @@ class ImageUploader:
                 "https://api.imgur.com/3/image",
                 headers=headers,
                 data=payload,
-                timeout=30, # 30초 동안 응답이 없으면 포기(타임아웃)합니다.
+                timeout=30,  # 30초 동안 응답이 없으면 포기(타임아웃)합니다.
             )
-            response.raise_for_status() # 비정상 응답이면 예외 발생
+            response.raise_for_status()  # 비정상 응답이면 예외 발생
 
             try:
-                return response.json() # 결과물을 다루기 편한 Python 사전(딕셔너리)으로 해석합니다.
+                return response.json()  # 결과물을 다루기 편한 Python 사전(딕셔너리)으로 해석합니다.
             except ValueError as json_err:
                 # JSON 해석에 실패하면(서버가 이상한 글자를 줬다면) 에러의 단서를 수집해 다시 에러를 던집니다.
                 preview = response.text[:200] if hasattr(response, "text") else "(응답 내용-몸통 없음)"
                 raise RuntimeError(
-                    f"Imgur API가 약속된 형태(JSON)로 대답하지 않았습니다. "
-                    f"(상태코드={response.status_code}): {preview}"
+                    f"Imgur API가 약속된 형태(JSON)로 대답하지 않았습니다. (상태코드={response.status_code}): {preview}"
                 ) from json_err
 
         try:
@@ -260,7 +259,7 @@ class ImageUploader:
                 func=do_request,
                 max_retries=self.max_retries,
                 backoff_seconds=self.backoff,
-                action_name="Imgur 로컬 파일 업로드"
+                action_name="Imgur 로컬 파일 업로드",
             )
 
             if data.get("success") and data.get("data", {}).get("link"):
@@ -282,11 +281,11 @@ class ImageUploader:
 
         logger.info(f"Cloudinary에 업로드 진행 중... 대상: {filepath}")
 
-        # Cloudinary 전용 택배원(라이브러리 uploader)에게 일을 넘깁니다. 
+        # Cloudinary 전용 택배원(라이브러리 uploader)에게 일을 넘깁니다.
         # (주의: 이 친구는 아주 간단해 보이지만 내부적으로 무수히 많은 통신 규칙을 혼자 처리하고 있습니다)
         def do_request():
             response = cloudinary.uploader.upload(filepath)
-            link = response.get("secure_url") # 'https(보안)'가 적용된 안전한 이미지 주소를 확보합니다.
+            link = response.get("secure_url")  # 'https(보안)'가 적용된 안전한 이미지 주소를 확보합니다.
             if link:
                 return link
 
@@ -299,7 +298,7 @@ class ImageUploader:
                 func=do_request,
                 max_retries=self.max_retries,
                 backoff_seconds=self.backoff,
-                action_name="Cloudinary 공식 라이브러리 업로드"
+                action_name="Cloudinary 공식 라이브러리 업로드",
             )
             logger.info(f"✨ 업로드 완료 (보안 링크 획득): {link}")
             return link

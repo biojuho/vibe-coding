@@ -76,11 +76,9 @@ CORE_MODULES = [
 # ── 보안 스캔 패턴 ──────────────────────────────────────────
 SECURITY_PATTERNS = [
     # API 키 하드코딩 패턴 (false positive 필터 포함)
-    (r'(?:api_key|secret|password|token)\s*=\s*["\'][A-Za-z0-9_\-]{20,}["\']',
-     "Hardcoded secret detected"),
+    (r'(?:api_key|secret|password|token)\s*=\s*["\'][A-Za-z0-9_\-]{20,}["\']', "Hardcoded secret detected"),
     # SQL injection (f-string 직접 삽입)
-    (r'f["\'].*(?:SELECT|INSERT|UPDATE|DELETE|DROP|CREATE).*\{[^}]+\}',
-     "Potential SQL injection via f-string"),
+    (r'f["\'].*(?:SELECT|INSERT|UPDATE|DELETE|DROP|CREATE).*\{[^}]+\}', "Potential SQL injection via f-string"),
 ]
 
 # Prisma 자동생성 파일 등 false-positive 제외 경로
@@ -105,22 +103,28 @@ def run_pytest(project_name: str, project_config: dict) -> dict:
 
     if not test_dir.exists():
         return {
-            "passed": 0, "failed": 0, "skipped": 0, "errors": 0,
-            "status": "SKIP", "message": f"Test directory not found: {test_dir}"
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "errors": 0,
+            "status": "SKIP",
+            "message": f"Test directory not found: {test_dir}",
         }
 
     cmd = [
-        str(VENV_PYTHON), "-m", "pytest",
+        str(VENV_PYTHON),
+        "-m",
+        "pytest",
         str(test_dir),
-        "-q", "--tb=short", "--no-header",
+        "-q",
+        "--tb=short",
+        "--no-header",
         "-x" if project_name != "root" else "--maxfail=50",
     ]
 
     try:
         result = subprocess.run(
-            cmd, cwd=str(cwd),
-            capture_output=True, text=True, encoding="utf-8", errors="replace",
-            timeout=300
+            cmd, cwd=str(cwd), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300
         )
         output = result.stdout + result.stderr
 
@@ -133,20 +137,24 @@ def run_pytest(project_name: str, project_config: dict) -> dict:
         status = "PASS" if failed == 0 and errors == 0 else "FAIL"
 
         return {
-            "passed": passed, "failed": failed,
-            "skipped": skipped, "errors": errors,
-            "status": status, "duration_sec": _parse_duration(output),
+            "passed": passed,
+            "failed": failed,
+            "skipped": skipped,
+            "errors": errors,
+            "status": status,
+            "duration_sec": _parse_duration(output),
         }
     except subprocess.TimeoutExpired:
         return {
-            "passed": 0, "failed": 0, "skipped": 0, "errors": 1,
-            "status": "TIMEOUT", "message": "pytest timed out after 300s"
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "errors": 1,
+            "status": "TIMEOUT",
+            "message": "pytest timed out after 300s",
         }
     except Exception as e:
-        return {
-            "passed": 0, "failed": 0, "skipped": 0, "errors": 1,
-            "status": "ERROR", "message": str(e)
-        }
+        return {"passed": 0, "failed": 0, "skipped": 0, "errors": 1, "status": "ERROR", "message": str(e)}
 
 
 def _parse_count(output: str, keyword: str) -> int:
@@ -172,9 +180,7 @@ def check_ast(modules: list[str]) -> dict:
         results["total"] += 1
 
         if not full_path.exists():
-            results["failures"].append({
-                "file": module_path, "error": "File not found"
-            })
+            results["failures"].append({"file": module_path, "error": "File not found"})
             continue
 
         try:
@@ -182,10 +188,7 @@ def check_ast(modules: list[str]) -> dict:
             ast.parse(source, filename=str(full_path))
             results["ok"] += 1
         except SyntaxError as e:
-            results["failures"].append({
-                "file": module_path,
-                "error": f"SyntaxError at line {e.lineno}: {e.msg}"
-            })
+            results["failures"].append({"file": module_path, "error": f"SyntaxError at line {e.lineno}: {e.msg}"})
 
     return results
 
@@ -224,11 +227,13 @@ def security_scan() -> dict:
                         continue
 
                     rel_path = str(filepath.relative_to(ROOT_DIR))
-                    issues.append({
-                        "file": rel_path,
-                        "pattern": description,
-                        "match_preview": line[:80],
-                    })
+                    issues.append(
+                        {
+                            "file": rel_path,
+                            "pattern": description,
+                            "match_preview": line[:80],
+                        }
+                    )
 
     status = "CLEAR" if len(issues) == 0 else f"WARNING ({len(issues)} issue(s))"
     return {"status": status, "issues": issues}
@@ -242,13 +247,15 @@ def check_infrastructure() -> dict:
     try:
         r = subprocess.run(
             ["docker", "ps", "--format", "{{.Names}}"],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
         infra["docker"] = r.returncode == 0
-        infra["docker_containers"] = [
-            c.strip() for c in r.stdout.strip().split("\n") if c.strip()
-        ] if r.returncode == 0 else []
+        infra["docker_containers"] = (
+            [c.strip() for c in r.stdout.strip().split("\n") if c.strip()] if r.returncode == 0 else []
+        )
     except (FileNotFoundError, subprocess.TimeoutExpired):
         infra["docker"] = False
         infra["docker_containers"] = []
@@ -256,6 +263,7 @@ def check_infrastructure() -> dict:
     # Ollama 체크
     try:
         import urllib.request
+
         req = urllib.request.Request("http://localhost:11434/api/tags", method="GET")
         with urllib.request.urlopen(req, timeout=3) as resp:
             infra["ollama"] = resp.status == 200
@@ -266,14 +274,14 @@ def check_infrastructure() -> dict:
     try:
         r = subprocess.run(
             ["schtasks", "/query", "/fo", "CSV", "/nh"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=10,
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
-        btx_tasks = [
-            line for line in r.stdout.split("\n")
-            if "BlindToX" in line
-        ]
+        btx_tasks = [line for line in r.stdout.split("\n") if "BlindToX" in line]
         ready_count = sum(1 for t in btx_tasks if "Ready" in t or "준비" in t)
         infra["scheduler"] = {"ready": ready_count, "total": len(btx_tasks)}
     except Exception:
@@ -293,13 +301,8 @@ def determine_verdict(projects: dict, ast_result: dict, security_result: dict) -
     """최종 QC 판정을 결정합니다."""
     total_failed = sum(p.get("failed", 0) for p in projects.values())
     # TIMEOUT은 실제 테스트 실패가 아니므로 분리 처리
-    real_errors = sum(
-        p.get("errors", 0) for p in projects.values()
-        if p.get("status") not in ("TIMEOUT", "SKIP")
-    )
-    timeout_count = sum(
-        1 for p in projects.values() if p.get("status") == "TIMEOUT"
-    )
+    real_errors = sum(p.get("errors", 0) for p in projects.values() if p.get("status") not in ("TIMEOUT", "SKIP"))
+    timeout_count = sum(1 for p in projects.values() if p.get("status") == "TIMEOUT")
     ast_failures = len(ast_result.get("failures", []))
     security_issues = len(security_result.get("issues", []))
 
@@ -350,9 +353,7 @@ def run_qaqc(
         project_results[name] = result
 
         status_icon = "✅" if result["status"] == "PASS" else "❌"
-        print(f"   {status_icon} {result['passed']} passed, "
-              f"{result['failed']} failed, "
-              f"{result['skipped']} skipped")
+        print(f"   {status_icon} {result['passed']} passed, {result['failed']} failed, {result['skipped']} skipped")
 
     # 2. AST 검증
     print(f"\n🔍 AST 구문 검증 ({len(CORE_MODULES)}개 파일)...")
@@ -416,6 +417,7 @@ def run_qaqc(
     # SQLite 히스토리 저장
     try:
         from qaqc_history_db import QaQcHistoryDB
+
         db = QaQcHistoryDB()
         db.save_run(report)
         print("💾 히스토리 DB 저장 완료")
@@ -429,16 +431,21 @@ def main():
     """CLI 진입점."""
     parser = argparse.ArgumentParser(description="통합 QA/QC 자동화 러너")
     parser.add_argument(
-        "--project", "-p", nargs="*",
+        "--project",
+        "-p",
+        nargs="*",
         choices=list(PROJECTS.keys()),
         help="특정 프로젝트만 실행",
     )
     parser.add_argument(
-        "--skip-infra", action="store_true",
+        "--skip-infra",
+        action="store_true",
         help="인프라 헬스 체크 생략",
     )
     parser.add_argument(
-        "--output", "-o", type=str,
+        "--output",
+        "-o",
+        type=str,
         help="결과 JSON 파일 경로",
     )
     args = parser.parse_args()

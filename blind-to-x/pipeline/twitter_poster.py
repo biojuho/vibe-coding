@@ -23,7 +23,9 @@ class TwitterPoster:
         self.consumer_key = os.environ.get("TWITTER_CONSUMER_KEY") or config_mgr.get("twitter.consumer_key")
         self.consumer_secret = os.environ.get("TWITTER_CONSUMER_SECRET") or config_mgr.get("twitter.consumer_secret")
         self.access_token = os.environ.get("TWITTER_ACCESS_TOKEN") or config_mgr.get("twitter.access_token")
-        self.access_token_secret = os.environ.get("TWITTER_ACCESS_TOKEN_SECRET") or config_mgr.get("twitter.access_token_secret")
+        self.access_token_secret = os.environ.get("TWITTER_ACCESS_TOKEN_SECRET") or config_mgr.get(
+            "twitter.access_token_secret"
+        )
 
         if self.enabled:
             try:
@@ -31,10 +33,7 @@ class TwitterPoster:
                     raise ValueError("Missing one or more Twitter API credentials")
                 # v1.1 API needed for media upload
                 auth = tweepy.OAuth1UserHandler(
-                    self.consumer_key,
-                    self.consumer_secret,
-                    self.access_token,
-                    self.access_token_secret
+                    self.consumer_key, self.consumer_secret, self.access_token, self.access_token_secret
                 )
                 self.api_v1 = tweepy.API(auth)
 
@@ -43,7 +42,7 @@ class TwitterPoster:
                     consumer_key=self.consumer_key,
                     consumer_secret=self.consumer_secret,
                     access_token=self.access_token,
-                    access_token_secret=self.access_token_secret
+                    access_token_secret=self.access_token_secret,
                 )
             except Exception as e:
                 logger.error(f"Failed to initialize Twitter client: {e}")
@@ -74,9 +73,7 @@ class TwitterPoster:
                     media_ids = [media.media_id]
 
                 logger.info("Posting tweet (attempt %d/%d)...", attempt, max_retries)
-                response = await asyncio.to_thread(
-                    self.client_v2.create_tweet, text=text, media_ids=media_ids
-                )
+                response = await asyncio.to_thread(self.client_v2.create_tweet, text=text, media_ids=media_ids)
                 tweet_id = response.data["id"]
                 tweet_url = f"https://x.com/user/status/{tweet_id}"
                 logger.info("Successfully posted to Twitter: %s", tweet_url)
@@ -87,7 +84,9 @@ class TwitterPoster:
                 if attempt < max_retries:
                     logger.warning(
                         "Twitter rate limit (429). %d/%d 재시도 대기 %ds...",
-                        attempt, max_retries, wait,
+                        attempt,
+                        max_retries,
+                        wait,
                     )
                     await asyncio.sleep(wait)
                 else:

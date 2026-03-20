@@ -43,13 +43,15 @@ class PpomppuScraper(BaseScraper):
                         html = response.content.decode("cp949")
                     except (UnicodeDecodeError, LookupError):
                         html = response.content.decode("euc-kr", errors="replace")
-                    html = _re.sub(r'<script[^>]+src=[^>]+></script>', '', html, flags=_re.DOTALL)
+                    html = _re.sub(r"<script[^>]+src=[^>]+></script>", "", html, flags=_re.DOTALL)
                     return html
             except Exception as e:
                 last_error = e
                 if attempt < self.request_retries:
                     sleep_for = self.request_backoff * attempt
-                    logger.warning(f"Fetch failed ({attempt}/{self.request_retries}) for {url}: {e}. Retrying in {sleep_for:.1f}s.")
+                    logger.warning(
+                        f"Fetch failed ({attempt}/{self.request_retries}) for {url}: {e}. Retrying in {sleep_for:.1f}s."
+                    )
                     await asyncio.sleep(sleep_for)
                 else:
                     logger.error(f"Fetch failed after {self.request_retries} attempts for {url}: {e}")
@@ -103,7 +105,7 @@ class PpomppuScraper(BaseScraper):
                 try:
                     await page.wait_for_selector(selector, timeout=self.selector_timeout_ms)
                     elements = await page.query_selector_all(selector)
-                    for el in elements[:limit * 3]:
+                    for el in elements[: limit * 3]:
                         href = await el.get_attribute("href")
                         normalized = self._normalize_url(href)
                         if normalized and normalized not in collected:
@@ -130,6 +132,7 @@ class PpomppuScraper(BaseScraper):
                 logger.warning(f"curl_cffi fetch failed for {label}: {fetch_err}. Falling back to direct navigation.")
 
             if html_content:
+
                 async def intercept(route):
                     # response.text는 이미 Unicode(UTF-8)로 디코딩됨 → charset=utf-8 선언
                     await route.fulfill(body=html_content, content_type="text/html; charset=utf-8")
@@ -197,11 +200,7 @@ class PpomppuScraper(BaseScraper):
 
     async def get_feed_candidates(self, mode="trending", limit=5):
         """피드 목록에서 제목 + 조회수/추천수/댓글수를 사전 추출하여 인기순 정렬."""
-        feed_url = (
-            f"{self.BASE_URL}/hot.php"
-            if mode == "popular"
-            else f"{self.BASE_URL}/zboard/zboard.php?id=humor"
-        )
+        feed_url = f"{self.BASE_URL}/hot.php" if mode == "popular" else f"{self.BASE_URL}/zboard/zboard.php?id=humor"
         candidates = []
         page = await self._new_page()
         try:
@@ -212,8 +211,10 @@ class PpomppuScraper(BaseScraper):
                 logger.warning("curl_cffi fetch failed for candidates: %s", fetch_err)
 
             if html_content:
+
                 async def intercept(route):
                     await route.fulfill(body=html_content, content_type="text/html; charset=utf-8")
+
                 try:
                     await page.route(feed_url, intercept)
                     await page.goto(feed_url, wait_until="domcontentloaded", timeout=30000)
@@ -231,11 +232,10 @@ class PpomppuScraper(BaseScraper):
 
             # 뽐뿌 목록 행에서 제목 + 조회수 + 추천수 + 댓글수 추출
             rows = await page.query_selector_all("tr")
-            for row in rows[:limit * 4]:
+            for row in rows[: limit * 4]:
                 # 제목 + URL
                 title_el = await row.query_selector(
-                    "td.title a[href*='view.php'], td[class*='title'] a[href*='view.php'], "
-                    "a[href*='view.php?id=']"
+                    "td.title a[href*='view.php'], td[class*='title'] a[href*='view.php'], a[href*='view.php?id=']"
                 )
                 if not title_el:
                     continue
@@ -251,10 +251,10 @@ class PpomppuScraper(BaseScraper):
                 raw_title = (await title_el.inner_text()).strip()
                 # [댓글수] 제거
                 comments = 0
-                cmt_match = re.search(r'\[(\d+)\]', raw_title)
+                cmt_match = re.search(r"\[(\d+)\]", raw_title)
                 if cmt_match:
                     comments = int(cmt_match.group(1))
-                title = re.sub(r'\s*\[\d+\]\s*$', '', raw_title).strip()
+                title = re.sub(r"\s*\[\d+\]\s*$", "", raw_title).strip()
 
                 # 조회수
                 views = 0
@@ -269,7 +269,7 @@ class PpomppuScraper(BaseScraper):
                 rec_el = await row.query_selector("td.recommend, td.vote")
                 if rec_el:
                     rec_text = (await rec_el.inner_text()).strip()
-                    if rec_text.lstrip('-').isdigit():
+                    if rec_text.lstrip("-").isdigit():
                         likes = max(0, int(rec_text))
 
                 # 이미지 아이콘/썸네일 여부 (뽐뿌 목록에서 이미지 글 표시)
@@ -286,9 +286,14 @@ class PpomppuScraper(BaseScraper):
                     image_count = max(image_count, 1)
 
                 candidate = FeedCandidate(
-                    url=url, title=title, likes=likes,
-                    comments=comments, views=views, source=self.SOURCE_NAME,
-                    has_image=has_image, image_count=image_count,
+                    url=url,
+                    title=title,
+                    likes=likes,
+                    comments=comments,
+                    views=views,
+                    source=self.SOURCE_NAME,
+                    has_image=has_image,
+                    image_count=image_count,
                 )
                 candidate.compute_engagement()
                 candidates.append(candidate)
@@ -354,9 +359,9 @@ class PpomppuScraper(BaseScraper):
 
             # 뽐뿌 게시글 컨테이너 셀렉터 (우선순위 순, 2026-03 구조 반영)
             content_selectors = [
-                ".board-contents",    # 실제 본문 td (현행)
-                ".JS_ContentMain",    # JS 렌더링 콘텐츠 영역 (현행)
-                ".bbsDetail",         # 레거시
+                ".board-contents",  # 실제 본문 td (현행)
+                ".JS_ContentMain",  # JS 렌더링 콘텐츠 영역 (현행)
+                ".bbsDetail",  # 레거시
                 "#view_content",
                 ".view_content",
                 "td.view_content",
@@ -382,7 +387,14 @@ class PpomppuScraper(BaseScraper):
                     await page.unroute(url)
                     await page.goto(url, wait_until="domcontentloaded", timeout=60000)
                     await asyncio.sleep(3)
-                    for selector in [".board-contents", ".JS_ContentMain", ".bbsDetail", "#view_content", "main", "body"]:
+                    for selector in [
+                        ".board-contents",
+                        ".JS_ContentMain",
+                        ".bbsDetail",
+                        "#view_content",
+                        "main",
+                        "body",
+                    ]:
                         try:
                             await page.wait_for_selector(selector, timeout=self.direct_fallback_timeout_ms)
                             main_container = await page.query_selector(selector)
@@ -405,9 +417,9 @@ class PpomppuScraper(BaseScraper):
             # 제목 추출 (2026-03 구조: h1에 제목 있음)
             title = ""
             title_selectors = [
-                "h1",                 # 현행 뽐뿌 제목 위치
+                "h1",  # 현행 뽐뿌 제목 위치
                 ".topTitle-mainbox",  # 제목 영역 래퍼
-                ".bbsSubject",        # 레거시
+                ".bbsSubject",  # 레거시
                 ".view_title",
                 "td.title_subject",
                 ".subject",
@@ -430,9 +442,9 @@ class PpomppuScraper(BaseScraper):
             # 본문 추출 (2026-03 구조: .board-contents 또는 .JS_ContentMain)
             content = ""
             body_selectors = [
-                ".board-contents",    # 현행 본문 td
-                ".JS_ContentMain",    # JS 렌더링 콘텐츠
-                "#view_content",      # 레거시
+                ".board-contents",  # 현행 본문 td
+                ".JS_ContentMain",  # JS 렌더링 콘텐츠
+                "#view_content",  # 레거시
                 ".view_content",
                 "td.view_content",
                 ".zb_content",
@@ -515,7 +527,9 @@ class PpomppuScraper(BaseScraper):
                     if src.startswith("http"):
                         image_urls.append(src)
             has_images = len(image_urls) > 0
-            logger.info(f"Extracted: '{title[:20]}...' | Likes {likes} | Comments {comments} | Images {len(image_urls)}")
+            logger.info(
+                f"Extracted: '{title[:20]}...' | Likes {likes} | Comments {comments} | Images {len(image_urls)}"
+            )
 
             await self._clean_ui_for_screenshot(page)
 

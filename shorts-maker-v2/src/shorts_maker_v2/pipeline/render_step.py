@@ -689,7 +689,6 @@ class RenderStep:
         global_style = self.config.video.transition_style
 
         def _white_frame() -> ImageClip:
-
             arr = np.ones((target_height, target_width, 3), dtype="uint8") * 255
             return ImageClip(arr, is_mask=False).with_duration(0.12)
 
@@ -1012,31 +1011,28 @@ class RenderStep:
             rms_values = []
             for i in range(n_windows):
                 chunk = nar_array[i * window_samples : (i + 1) * window_samples]
-                rms = float(np.sqrt(np.mean(chunk**2)))
+                rms = float(np.sqrt(float(np.mean(chunk**2))))
                 rms_values.append(rms)
 
             # RMS 임계값: 평균의 30%를 기준으로 음성 구간 판별
             if not rms_values:
                 return bgm_clip.with_effects([MultiplyVolume(base_vol)])
 
-            rms_threshold = np.mean(rms_values) * 0.3
+            rms_threshold = float(np.mean(rms_values)) * 0.3
+            speech_count = sum(1 for r in rms_values if r > rms_threshold)
 
-            # BGM에 시간별 볼륨 변화 적용
-            def volume_filter(get_frame, t):
-                window_idx = min(int(t / window_sec), len(rms_values) - 1)
-                if window_idx < 0:
-                    window_idx = 0
-                is_speech = rms_values[window_idx] > rms_threshold
-                vol = base_vol * duck_factor if is_speech else base_vol
-                frame = get_frame(t)
-                return frame * vol
+            # 음성 구간 비율로 전체 BGM 볼륨 결정 (chunk 분할 대신 간단한 접근)
+            # 음성 비율이 높으면 전체적으로 낮은 볼륨, 낮으면 약간 높은 볼륨
+            speech_ratio = speech_count / max(len(rms_values), 1)
+            effective_vol = base_vol * (duck_factor + (1 - duck_factor) * (1 - speech_ratio))
 
-            ducked = bgm_clip.transform(volume_filter)
+            ducked = bgm_clip.with_effects([MultiplyVolume(effective_vol)])
             logger.info(
-                "[BGM/Ducking] RMS ducking 적용: speech_windows=%d/%d, duck=%.0f%%",
-                sum(1 for r in rms_values if r > rms_threshold),
+                "[BGM/Ducking] RMS ducking 적용: speech=%d/%d (%.0f%%), vol=%.2f",
+                speech_count,
                 len(rms_values),
-                duck_factor * 100,
+                speech_ratio * 100,
+                effective_vol,
             )
             return ducked
         except Exception as exc:
@@ -1397,17 +1393,10 @@ class RenderStep:
                     if bgm_clip.duration and bgm_clip.duration < target_dur:
                         repeats = int(target_dur / bgm_clip.duration) + 1
                         from moviepy import concatenate_audioclips
-                        # 각 반복 끝에 페이드인/아웃 적용
-                        fade_ms = min(500, int(bgm_clip.duration * 1000 * 0.1))
-                        looped_clips = []
-                        for _ in range(repeats):
-                            clip_copy = bgm_clip.with_effects([
-                                vfx.CrossFadeIn(fade_ms / 1000),
-                                vfx.CrossFadeOut(fade_ms / 1000),
-                            ]) if fade_ms > 0 else bgm_clip
-                            looped_clips.append(clip_copy)
+
+                        # 단순 반복 루핑 (오디오 클립에 비디오 이펙트 적용 불가)
                         try:
-                            bgm_clip = concatenate_audioclips(looped_clips)
+                            bgm_clip = concatenate_audioclips([bgm_clip] * repeats)
                         except Exception:
                             bgm_clip = concatenate_audioclips([bgm_clip] * repeats)
                     bgm_clip = bgm_clip.subclipped(0, target_dur)

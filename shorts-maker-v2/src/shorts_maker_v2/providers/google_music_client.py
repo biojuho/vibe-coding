@@ -184,9 +184,7 @@ class GoogleMusicClient:
         accumulator = PcmAudioAccumulator(target_duration_sec=duration_sec)
 
         async with self.client.aio.live.music.connect(model=model) as session:
-            await session.set_weighted_prompts(
-                prompts=[types.WeightedPrompt(text=prompt, weight=weight)]
-            )
+            await session.set_weighted_prompts(prompts=[types.WeightedPrompt(text=prompt, weight=weight)])
             await session.set_music_generation_config(
                 config=types.LiveMusicGenerationConfig(
                     bpm=bpm,

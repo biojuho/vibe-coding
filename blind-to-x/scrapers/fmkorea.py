@@ -63,7 +63,7 @@ class FMKoreaScraper(BaseScraper):
                 try:
                     await page.wait_for_selector(selector, timeout=self.selector_timeout_ms)
                     elements = await page.query_selector_all(selector)
-                    for el in elements[:limit * 3]:
+                    for el in elements[: limit * 3]:
                         href = await el.get_attribute("href")
                         normalized = self._normalize_url(href)
                         if normalized and normalized not in collected:
@@ -104,6 +104,7 @@ class FMKoreaScraper(BaseScraper):
                 logger.warning(f"curl_cffi fetch failed for {label}: {fetch_err}. Falling back to direct navigation.")
 
             if html_content:
+
                 async def intercept(route):
                     await route.fulfill(body=html_content, content_type="text/html")
 
@@ -216,10 +217,10 @@ class FMKoreaScraper(BaseScraper):
 
             # FMKorea 게시글 컨테이너 셀렉터 (우선순위 순)
             content_selectors = [
-                ".rd_body",           # 게시글 본문 영역
-                ".xe_content",        # XE CMS 게시글 내용
-                "#bd_contents",       # 콘텐츠 래퍼
-                ".document_read",     # 일부 게시판 클래스
+                ".rd_body",  # 게시글 본문 영역
+                ".xe_content",  # XE CMS 게시글 내용
+                "#bd_contents",  # 콘텐츠 래퍼
+                ".document_read",  # 일부 게시판 클래스
                 "article",
                 "main",
                 "#__xe_content",

@@ -11,7 +11,6 @@ import logging
 import os
 import sqlite3
 import threading
-from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
@@ -25,6 +24,7 @@ _KST = timezone(timedelta(hours=9))
 @dataclass
 class EmotionTrend:
     """A single emotion keyword trend."""
+
     keyword: str
     current_count: int
     baseline_count: float
@@ -35,6 +35,7 @@ class EmotionTrend:
 @dataclass
 class SentimentSnapshot:
     """Aggregated sentiment state at a point in time."""
+
     dominant_emotion: str
     top_emotions: list[tuple[str, int]]  # (emotion, count) sorted desc
     trending_keywords: list[EmotionTrend]
@@ -108,8 +109,7 @@ class SentimentTracker:
             finally:
                 conn.close()
 
-    def record(self, url: str, title: str, content: str, emotion_axis: str,
-               source: str = "") -> dict[str, int]:
+    def record(self, url: str, title: str, content: str, emotion_axis: str, source: str = "") -> dict[str, int]:
         """Record emotion signals from a post. Returns matched keyword counts."""
         text = f"{title} {content}".lower()
         matched: dict[str, int] = {}
@@ -136,8 +136,7 @@ class SentimentTracker:
                     emotion_label = self._keyword_to_emotion(kw)
                     for _ in range(min(count, 5)):  # cap at 5 per keyword per post
                         conn.execute(
-                            "INSERT INTO keyword_signals (keyword, emotion, url, created_at) "
-                            "VALUES (?, ?, ?, ?)",
+                            "INSERT INTO keyword_signals (keyword, emotion, url, created_at) VALUES (?, ?, ?, ?)",
                             (kw, emotion_label, url, now),
                         )
                 conn.commit()
@@ -209,13 +208,15 @@ class SentimentTracker:
                     else:
                         direction = "stable"
 
-                    trends.append(EmotionTrend(
-                        keyword=kw,
-                        current_count=cnt,
-                        baseline_count=round(baseline, 2),
-                        spike_ratio=round(ratio, 2),
-                        direction=direction,
-                    ))
+                    trends.append(
+                        EmotionTrend(
+                            keyword=kw,
+                            current_count=cnt,
+                            baseline_count=round(baseline, 2),
+                            spike_ratio=round(ratio, 2),
+                            direction=direction,
+                        )
+                    )
 
                 trends.sort(key=lambda t: t.spike_ratio, reverse=True)
                 return trends[:top_n]

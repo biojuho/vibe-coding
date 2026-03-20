@@ -24,6 +24,7 @@ from typing import Any
 
 try:
     from datasketch import MinHash, MinHashLSH
+
     _HAS_DATASKETCH = True
 except ImportError:
     _HAS_DATASKETCH = False
@@ -75,12 +76,11 @@ class _EmbeddingCache:
         h = self._hash(text)
         try:
             with self._conn() as conn:
-                row = conn.execute(
-                    "SELECT embedding FROM embeddings WHERE text_hash = ?", (h,)
-                ).fetchone()
+                row = conn.execute("SELECT embedding FROM embeddings WHERE text_hash = ?", (h,)).fetchone()
             if row is None:
                 return None
             import json
+
             return json.loads(row[0])
         except Exception:
             return None
@@ -89,6 +89,7 @@ class _EmbeddingCache:
         h = self._hash(text)
         try:
             import json
+
             with self._conn() as conn:
                 conn.execute(
                     "INSERT OR REPLACE INTO embeddings (text_hash, embedding) VALUES (?, ?)",
@@ -124,6 +125,7 @@ def _get_gemini_embedding(text: str) -> list[float] | None:
 
     try:
         from google import genai
+
         client = genai.Client(api_key=api_key)
         result = client.models.embed_content(
             model="models/gemini-embedding-001",
@@ -152,9 +154,9 @@ def semantic_similarity(title_a: str, title_b: str) -> float:
 def normalize_korean_text(text: str) -> str:
     """Normalize Korean text for comparison."""
     text = text.lower().strip()
-    text = re.sub(r'[ㅋㅎㅠㅜㄷㅂㅅㅈ]+', '', text)  # emoticons
-    text = re.sub(r'[^\w가-힣a-z0-9\s]', '', text)  # punctuation
-    text = re.sub(r'\s+', ' ', text).strip()
+    text = re.sub(r"[ㅋㅎㅠㅜㄷㅂㅅㅈ]+", "", text)  # emoticons
+    text = re.sub(r"[^\w가-힣a-z0-9\s]", "", text)  # punctuation
+    text = re.sub(r"\s+", " ", text).strip()
     return text
 
 
@@ -163,10 +165,10 @@ def extract_korean_tokens(text: str) -> set[str]:
     normalized = normalize_korean_text(text)
     if not normalized:
         return set()
-    chars = normalized.replace(' ', '')
+    chars = normalized.replace(" ", "")
     if len(chars) < 2:
         return {chars}
-    return {chars[i:i + 2] for i in range(len(chars) - 1)}
+    return {chars[i : i + 2] for i in range(len(chars) - 1)}
 
 
 def jaccard_similarity(set_a: set, set_b: set) -> float:
@@ -260,17 +262,21 @@ async def find_similar_in_notion(
                     method = "semantic"
                     logger.info(
                         "Semantic DEDUP 감지: '%s' ↔ '%s' (cosine=%.3f)",
-                        title[:30], existing_title[:30], sem_sim,
+                        title[:30],
+                        existing_title[:30],
+                        sem_sim,
                     )
 
         if final_sim >= (semantic_threshold if method == "semantic" else threshold):
-            matches.append({
-                "page_id": page.get("id"),
-                "title": existing_title,
-                "similarity": round(final_sim, 3),
-                "method": method,
-                "url": notion_uploader.get_page_property_value(page, "url", ""),
-            })
+            matches.append(
+                {
+                    "page_id": page.get("id"),
+                    "title": existing_title,
+                    "similarity": round(final_sim, 3),
+                    "method": method,
+                    "url": notion_uploader.get_page_property_value(page, "url", ""),
+                }
+            )
 
     matches.sort(key=lambda m: m["similarity"], reverse=True)
     return matches

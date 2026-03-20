@@ -32,6 +32,7 @@ from pipeline.review_queue import build_review_decision
 # P2.5: 감성 분석 트래커 (감정 키워드 트렌드 감지)
 try:
     from pipeline.sentiment_tracker import get_sentiment_tracker
+
     _sentiment_tracker = get_sentiment_tracker()
 except Exception:
     _sentiment_tracker = None
@@ -46,6 +47,7 @@ except Exception:
 # P7: 플랫폼 규제 점검 시스템
 try:
     from pipeline.regulation_checker import RegulationChecker
+
     _regulation_checker: RegulationChecker | None = RegulationChecker()
 except Exception:
     _regulation_checker = None
@@ -59,6 +61,7 @@ except Exception:
 # P6: 성과 피드백 루프 (선택적 — 실패 시 무시)
 try:
     from pipeline.performance_tracker import PerformanceTracker
+
     _perf_tracker: PerformanceTracker | None = PerformanceTracker()
 except Exception:
     _perf_tracker = None
@@ -69,6 +72,7 @@ logger = logging.getLogger(__name__)
 try:
     import importlib.util as _ilu
     import pathlib as _pl
+
     _spec = _ilu.spec_from_file_location(
         "execution.debug_history_db",
         _pl.Path(__file__).resolve().parent.parent.parent / "execution" / "debug_history_db.py",
@@ -156,9 +160,7 @@ async def _upload_images(url, post_data, image_generator, image_uploader):
     elif image_prompt and can_generate_ai_image:
         _topic = post_data.get("content_profile", {}).get("topic_cluster", "")
         _emotion = post_data.get("content_profile", {}).get("emotion_axis", "")
-        ai_temp_url = await image_generator.generate_image(
-            image_prompt, topic_cluster=_topic, emotion_axis=_emotion
-        )
+        ai_temp_url = await image_generator.generate_image(image_prompt, topic_cluster=_topic, emotion_axis=_emotion)
         if ai_temp_url:
             # Pollinations returns a local file path; DALL-E returns a URL
             if os.path.exists(ai_temp_url):
@@ -263,7 +265,10 @@ async def process_single_post(
             sim_threshold = float(config.get("dedup.title_similarity_threshold", 0.6)) if config else 0.6
             lookback = int(config.get("dedup.lookback_days", 14)) if config else 14
             similar = await find_similar_in_notion(
-                notion_uploader, feed_title, threshold=sim_threshold, lookback_days=lookback,
+                notion_uploader,
+                feed_title,
+                threshold=sim_threshold,
+                lookback_days=lookback,
             )
             if similar:
                 best = similar[0]
@@ -354,12 +359,16 @@ async def process_single_post(
             ranking_weights=ranking_weights,
             llm_viral_boost=llm_viral_boost,
         ).to_dict()
-        decision = build_review_decision(config, post_data, profile) if config else {
-            "should_queue": True,
-            "review_status": "검토필요",
-            "review_reason": "queued_for_review",
-            "review_priority": "normal",
-        }
+        decision = (
+            build_review_decision(config, post_data, profile)
+            if config
+            else {
+                "should_queue": True,
+                "review_status": "검토필요",
+                "review_reason": "queued_for_review",
+                "review_priority": "normal",
+            }
+        )
 
         result["quality_score"] = profile["scrape_quality_score"]
         result["publishability_score"] = profile["publishability_score"]
@@ -370,6 +379,7 @@ async def process_single_post(
         # KOTE 감정 프로필 메타데이터 기록
         try:
             from pipeline.emotion_analyzer import get_emotion_profile
+
             emo = get_emotion_profile(f"{post_data.get('title', '')} {str(post_data.get('content', ''))[:300]}")
             if emo.confidence > 0:
                 post_data["emotion_profile"] = {
@@ -410,13 +420,17 @@ async def process_single_post(
                 )
                 post_data["viral_score"] = _viral_score.to_dict()
                 if not _viral_score.pass_filter:
-                    result["error"] = f"Viral filter: score {_viral_score.score:.0f} < threshold ({_viral_score.reasoning})"
+                    result["error"] = (
+                        f"Viral filter: score {_viral_score.score:.0f} < threshold ({_viral_score.reasoning})"
+                    )
                     result["error_code"] = ERROR_FILTERED_LOW_QUALITY
                     result["success"] = True
                     result["notion_url"] = "(skipped-viral-filter)"
                     result["failure_stage"] = "filter"
                     result["failure_reason"] = "viral_filter_below_threshold"
-                    logger.info("[ViralFilter] SKIP %s: score=%.0f reason=%s", url, _viral_score.score, _viral_score.reasoning)
+                    logger.info(
+                        "[ViralFilter] SKIP %s: score=%.0f reason=%s", url, _viral_score.score, _viral_score.reasoning
+                    )
                     return result
             except Exception as _vf_exc:
                 logger.debug("Viral filter skipped: %s", _vf_exc)
@@ -439,6 +453,7 @@ async def process_single_post(
         try:
             from pipeline.content_calendar import ContentCalendar
             from pipeline.cost_db import get_cost_db
+
             _calendar = ContentCalendar(cost_db=get_cost_db())
             _cal_ok, _cal_reason = _calendar.should_post_topic(
                 topic_cluster=profile.get("topic_cluster", ""),
@@ -461,9 +476,7 @@ async def process_single_post(
         # 스크린샷 업로드는 LLM 호출(~45s)과 독립적이므로 먼저 시작
         screenshot_task = None
         if post_data.get("screenshot_path"):
-            screenshot_task = asyncio.ensure_future(
-                image_uploader.upload(post_data["screenshot_path"])
-            )
+            screenshot_task = asyncio.ensure_future(image_uploader.upload(post_data["screenshot_path"]))
 
         drafts_output = await draft_generator.generate_drafts(
             post_data,
@@ -485,41 +498,43 @@ async def process_single_post(
             for _qg_attempt in range(_MAX_QG_RETRIES + 1):
                 try:
                     from pipeline.draft_quality_gate import DraftQualityGate
+
                     _quality_gate = DraftQualityGate()
                     _qg_results = _quality_gate.validate_all(drafts)
                     _qg_summary = _quality_gate.format_summary(_qg_results)
                     post_data["quality_gate_report"] = _qg_summary
-                    post_data["quality_gate_scores"] = {
-                        p: r.score for p, r in _qg_results.items()
-                    }
+                    post_data["quality_gate_scores"] = {p: r.score for p, r in _qg_results.items()}
 
                     # 재시도 대상 플랫폼 수집
                     _retry_platforms = []
                     for plat, qr in _qg_results.items():
                         if qr.should_retry:
-                            _failed_issues = [
-                                f"{item.rule}: {item.detail}"
-                                for item in qr.items
-                                if not item.passed
-                            ]
-                            _retry_platforms.append({
-                                "platform": plat,
-                                "score": qr.score,
-                                "issues": _failed_issues,
-                            })
+                            _failed_issues = [f"{item.rule}: {item.detail}" for item in qr.items if not item.passed]
+                            _retry_platforms.append(
+                                {
+                                    "platform": plat,
+                                    "score": qr.score,
+                                    "issues": _failed_issues,
+                                }
+                            )
                             logger.warning(
                                 "Quality gate FAILED for %s: score=%d, %s",
-                                plat, qr.score, url,
+                                plat,
+                                qr.score,
+                                url,
                             )
                         elif not qr.passed:
                             logger.warning(
                                 "Quality gate FAILED (no retry) for %s: score=%d, %s",
-                                plat, qr.score, url,
+                                plat,
+                                qr.score,
+                                url,
                             )
                         elif qr.score < 70:
                             logger.info(
                                 "Quality gate WARNING for %s: score=%d",
-                                plat, qr.score,
+                                plat,
+                                qr.score,
                             )
 
                     # B-5: 재시도 가능 플랫폼이 있고 리트라이 횟수 남아있으면 재생성
@@ -558,6 +573,7 @@ async def process_single_post(
         if isinstance(drafts, dict):
             try:
                 from pipeline.editorial_reviewer import EditorialReviewer
+
                 _reviewer = EditorialReviewer(config=config)
                 _editorial_result = await _reviewer.review_and_polish(drafts, post_data)
                 drafts = _editorial_result.polished_drafts
@@ -578,6 +594,7 @@ async def process_single_post(
         if isinstance(drafts, dict):
             try:
                 from pipeline.fact_checker import verify_facts
+
                 source_content = str(post_data.get("content", ""))
                 for platform, draft_text in list(drafts.items()):
                     if platform.startswith("_") or not isinstance(draft_text, str):
@@ -586,7 +603,9 @@ async def process_single_post(
                     if not fc.passed:
                         logger.warning(
                             "[FactCheck] %s: 잠재 날조 항목 %d개: %s",
-                            platform, len(fc.fabricated_items), fc.fabricated_items[:5],
+                            platform,
+                            len(fc.fabricated_items),
+                            fc.fabricated_items[:5],
                         )
                         post_data.setdefault("fact_check_warnings", {})[platform] = fc.fabricated_items
             except Exception as exc:
@@ -596,6 +615,7 @@ async def process_single_post(
         if isinstance(drafts, dict):
             try:
                 from pipeline.text_polisher import TextPolisher
+
                 _polisher = TextPolisher(fix_spacing=False, fix_typo=False)
                 if _polisher.available:
                     readability_scores = {}
@@ -613,8 +633,12 @@ async def process_single_post(
         if isinstance(drafts, dict):
             try:
                 from pipeline.draft_validator import validate_and_fix_drafts
+
                 drafts = await validate_and_fix_drafts(
-                    drafts, post_data, generator=draft_generator, config=config,
+                    drafts,
+                    post_data,
+                    generator=draft_generator,
+                    config=config,
                 )
             except Exception as exc:
                 logger.debug("Quality gate skipped: %s", exc)
@@ -626,18 +650,14 @@ async def process_single_post(
         nlm_task = None
         if _nlm_enrich is not None and os.environ.get("NOTEBOOKLM_ENABLED") == "true":
             nlm_topic = profile.get("topic_cluster") or post_data.get("title", "")
-            nlm_task = asyncio.ensure_future(
-                _nlm_enrich(nlm_topic, image_uploader=image_uploader)
-            )
+            nlm_task = asyncio.ensure_future(_nlm_enrich(nlm_topic, image_uploader=image_uploader))
 
         # ── P7: 드래프트 규제 검증 ────────────────────────────────────────
         regulation_report_text = ""
         if _regulation_checker and isinstance(drafts, dict):
             try:
                 validation_reports = _regulation_checker.validate_all_drafts(drafts)
-                regulation_report_text = _regulation_checker.format_validation_summary(
-                    validation_reports
-                )
+                regulation_report_text = _regulation_checker.format_validation_summary(validation_reports)
                 post_data["regulation_report"] = regulation_report_text
 
                 # LLM 자체 검증 리포트가 있으면 추가
@@ -650,7 +670,9 @@ async def process_single_post(
                     if not rpt.passed:
                         logger.warning(
                             "Regulation check FAILED for %s: score=%d, %s",
-                            plat, rpt.score, url,
+                            plat,
+                            rpt.score,
+                            url,
                         )
             except Exception as exc:
                 logger.debug("Regulation check skipped: %s", exc)
@@ -681,6 +703,7 @@ async def process_single_post(
 
             # [QA 수정] 항상 애니 스타일로 빌드 (LLM 프롬프트 유무 무관)
             from pipeline.image_generator import ImageGenerator
+
             image_prompt = ImageGenerator.build_image_prompt(
                 topic_cluster=_topic,
                 emotion_axis=_emotion,
@@ -697,6 +720,7 @@ async def process_single_post(
                 if ab_active:
                     from pipeline.image_ab_tester import ImageABTester
                     import random
+
                     tester = ImageABTester(config)
                     title = post_data.get("title", "")
                     variants = tester.generate_variants(_topic, _emotion, title=title, max_variants=3)
@@ -704,7 +728,11 @@ async def process_single_post(
                         chosen_variant = random.choice(variants)
                         post_data["image_variant_id"] = chosen_variant.variant_id
                         post_data["image_variant_type"] = chosen_variant.variant_type
-                        logger.info("A/B Testing active: Selected variant %s (%s), keeping anime prompt style.", chosen_variant.variant_id, chosen_variant.variant_type)
+                        logger.info(
+                            "A/B Testing active: Selected variant %s (%s), keeping anime prompt style.",
+                            chosen_variant.variant_id,
+                            chosen_variant.variant_type,
+                        )
             except Exception as exc:
                 logger.warning("Failed to inject A/B variants: %s", exc)
 
@@ -788,8 +816,11 @@ async def process_single_post(
                 logger.warning("[NLM] 자산 수집 실패 (파이프라인 계속): %s", exc)
 
         notion_result = await notion_uploader.upload(
-            post_data, image_url, drafts,
-            analysis=profile, screenshot_url=screenshot_url,
+            post_data,
+            image_url,
+            drafts,
+            analysis=profile,
+            screenshot_url=screenshot_url,
         )
         if notion_result:
             notion_url, notion_page_id = notion_result
@@ -903,17 +934,20 @@ def calculate_run_metrics(results, dry_run=False):
     ]
     avg_quality_score = sum(quality_scores) / len(quality_scores) if quality_scores else 0.0
 
-    live_upload_attempts = max(0, len(results) - len(duplicate_skips) - len(content_duplicate_skips) - len(filtered_skips)) if not dry_run else 0
+    live_upload_attempts = (
+        max(0, len(results) - len(duplicate_skips) - len(content_duplicate_skips) - len(filtered_skips))
+        if not dry_run
+        else 0
+    )
     live_upload_success = [
         item
         for item in results
         if item.get("success")
         and item.get("notion_url")
-        and item.get("notion_url") not in {"(skipped-duplicate)", "(skipped-filtered)", "(skipped-similar)", "(dry-run)"}
+        and item.get("notion_url")
+        not in {"(skipped-duplicate)", "(skipped-filtered)", "(skipped-similar)", "(dry-run)"}
     ]
-    upload_success_rate = (
-        (len(live_upload_success) / live_upload_attempts * 100) if live_upload_attempts > 0 else 0.0
-    )
+    upload_success_rate = (len(live_upload_success) / live_upload_attempts * 100) if live_upload_attempts > 0 else 0.0
 
     return {
         "successful": successful,

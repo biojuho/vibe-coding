@@ -8,10 +8,9 @@ triggered from the main pipeline.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
@@ -22,6 +21,7 @@ _KST = timezone(timedelta(hours=9))
 @dataclass
 class DigestEntry:
     """A single entry in the daily digest."""
+
     title: str
     url: str
     source: str
@@ -37,6 +37,7 @@ class DigestEntry:
 @dataclass
 class DailyDigest:
     """Complete daily digest ready for delivery."""
+
     date: str
     total_collected: int
     total_published: int
@@ -54,10 +55,7 @@ class DigestGenerator:
         self._config = config
         self._notion = notion_uploader
         self._max_entries = int(config.get("digest.max_entries", 10))
-        self._gemini_key = (
-            os.environ.get("GEMINI_API_KEY")
-            or config.get("gemini.api_key", "")
-        )
+        self._gemini_key = os.environ.get("GEMINI_API_KEY") or config.get("gemini.api_key", "")
 
     async def generate(self, date: str | None = None) -> DailyDigest:
         """Generate a daily digest for the given date (default: today KST).
@@ -77,7 +75,7 @@ class DigestGenerator:
 
         # Sort by rank score
         entries.sort(key=lambda e: e.final_rank_score, reverse=True)
-        top = entries[:self._max_entries]
+        top = entries[: self._max_entries]
 
         digest = DailyDigest(
             date=date,
@@ -135,14 +133,8 @@ class DigestGenerator:
         try:
             import httpx
 
-            notion_key = (
-                os.environ.get("NOTION_API_KEY")
-                or self._config.get("notion.api_key", "")
-            )
-            db_id = (
-                os.environ.get("NOTION_DATABASE_ID")
-                or self._config.get("notion.database_id", "")
-            )
+            notion_key = os.environ.get("NOTION_API_KEY") or self._config.get("notion.api_key", "")
+            db_id = os.environ.get("NOTION_DATABASE_ID") or self._config.get("notion.database_id", "")
 
             if not notion_key or not db_id:
                 return []
@@ -160,14 +152,10 @@ class DigestGenerator:
                     "property": date_prop,
                     "date": {
                         "on_or_after": date,
-                        "before": (
-                            datetime.strptime(date, "%Y-%m-%d") + timedelta(days=1)
-                        ).strftime("%Y-%m-%d"),
+                        "before": (datetime.strptime(date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d"),
                     },
                 },
-                "sorts": [
-                    {"property": date_prop, "direction": "descending"}
-                ],
+                "sorts": [{"property": date_prop, "direction": "descending"}],
             }
 
             all_results: list[dict] = []
@@ -193,6 +181,7 @@ class DigestGenerator:
         """Get trending emotions from SentimentTracker."""
         try:
             from pipeline.sentiment_tracker import get_sentiment_tracker
+
             tracker = get_sentiment_tracker()
             trends = tracker.get_trending_emotions(window_hours=24, top_n=5)
             return [
@@ -224,13 +213,12 @@ class DigestGenerator:
 
             client = genai_client.Client(api_key=self._gemini_key)
 
-            top_titles = [f"- {e.title} (score:{e.final_rank_score:.0f}, {e.source})"
-                          for e in digest.top_posts[:5]]
+            top_titles = [f"- {e.title} (score:{e.final_rank_score:.0f}, {e.source})" for e in digest.top_posts[:5]]
             topics = ", ".join(f"{k}({v})" for k, v in list(digest.topic_distribution.items())[:5])
-            trending = ", ".join(
-                f"{t['keyword']}(x{t['spike_ratio']})"
-                for t in digest.trending_emotions[:3]
-            ) or "none detected"
+            trending = (
+                ", ".join(f"{t['keyword']}(x{t['spike_ratio']})" for t in digest.trending_emotions[:3])
+                or "none detected"
+            )
 
             prompt = (
                 f"Today's Korean workplace community digest ({digest.date}):\n"
@@ -296,6 +284,7 @@ class DigestGenerator:
 
 # ── Formatting ─────────────────────────────────────────────────────────
 
+
 def _escape_telegram_md(text: str) -> str:
     """Escape Telegram Markdown special characters in untrusted text."""
     for ch in ("*", "_", "`", "[", "]"):
@@ -348,8 +337,7 @@ def format_digest_newsletter(digest: DailyDigest) -> str:
         "",
         f"> {digest.summary}" if digest.summary else "",
         "",
-        f"**{digest.total_collected}** posts collected, "
-        f"**{digest.total_published}** met quality threshold.",
+        f"**{digest.total_collected}** posts collected, **{digest.total_published}** met quality threshold.",
         "",
     ]
 
@@ -380,10 +368,12 @@ def format_digest_newsletter(digest: DailyDigest) -> str:
 
 # ── Delivery ───────────────────────────────────────────────────────────
 
+
 async def send_digest_telegram(digest: DailyDigest, config: dict) -> bool:
     """Send digest via Telegram."""
     try:
         from pipeline.notification import NotificationManager
+
         notifier = NotificationManager(config)
         message = format_digest_telegram(digest)
         await notifier.send_message(message, level="INFO")

@@ -11,7 +11,6 @@ import logging
 import os
 import sys
 from collections import defaultdict
-from typing import Any
 
 from pipeline.image_ab_tester import ImageABTester
 
@@ -58,7 +57,9 @@ class ABFeedbackLoop:
                 continue
 
             # 토픽 클러스터 읽기
-            topic_prop_name = self.config.get("notion.properties.topic_cluster", "토픽 클러스터") if self.config else "토픽 클러스터"
+            topic_prop_name = (
+                self.config.get("notion.properties.topic_cluster", "토픽 클러스터") if self.config else "토픽 클러스터"
+            )
             topic_prop = props.get(topic_prop_name, {})
             topic = None
             if topic_prop.get("type") == "select" and topic_prop.get("select"):
@@ -88,8 +89,7 @@ class ABFeedbackLoop:
 
         # Filter valid records that have actual views and a topic cluster
         valid_records = [
-            r for r in records
-            if r.get("views") and float(r.get("views") or 0) > 0 and r.get("topic_cluster")
+            r for r in records if r.get("views") and float(r.get("views") or 0) > 0 and r.get("topic_cluster")
         ]
 
         if not valid_records:
@@ -150,7 +150,7 @@ class ABFeedbackLoop:
                     variant_metrics[variant] = {
                         "views": stats["views"] / count,
                         "likes": stats["likes"] / count,
-                        "retweets": stats["retweets"] / count
+                        "retweets": stats["retweets"] / count,
                     }
 
             result = self.ab_tester.compare_results(variant_metrics)

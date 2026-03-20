@@ -4,14 +4,10 @@ QA/QC 러너 유닛 테스트.
 qaqc_runner.py와 qaqc_history_db.py의 핵심 로직을 검증합니다.
 """
 
-import json
-import sqlite3
 import sys
-import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-import pytest
 
 # execution 경로 추가
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -22,7 +18,6 @@ from qaqc_runner import (
     _parse_duration,
     check_ast,
     determine_verdict,
-    CORE_MODULES,
 )
 from qaqc_history_db import QaQcHistoryDB
 
@@ -171,10 +166,8 @@ class TestQaQcHistoryDB:
 
     def test_get_latest_run(self, tmp_path):
         db = QaQcHistoryDB(db_path=tmp_path / "test.db")
-        db.save_run({"timestamp": "2026-03-17T10:00:00", "verdict": "REJECTED",
-                      "total": {"passed": 100, "failed": 5}})
-        db.save_run({"timestamp": "2026-03-18T10:00:00", "verdict": "APPROVED",
-                      "total": {"passed": 200, "failed": 0}})
+        db.save_run({"timestamp": "2026-03-17T10:00:00", "verdict": "REJECTED", "total": {"passed": 100, "failed": 5}})
+        db.save_run({"timestamp": "2026-03-18T10:00:00", "verdict": "APPROVED", "total": {"passed": 200, "failed": 0}})
 
         latest = db.get_latest_run()
         assert latest is not None
@@ -184,11 +177,13 @@ class TestQaQcHistoryDB:
     def test_trend_data(self, tmp_path):
         db = QaQcHistoryDB(db_path=tmp_path / "test.db")
         for i in range(5):
-            db.save_run({
-                "timestamp": f"2026-03-{15+i:02d}T10:00:00",
-                "verdict": "APPROVED",
-                "total": {"passed": 1000 + i * 100, "failed": 0},
-            })
+            db.save_run(
+                {
+                    "timestamp": f"2026-03-{15 + i:02d}T10:00:00",
+                    "verdict": "APPROVED",
+                    "total": {"passed": 1000 + i * 100, "failed": 0},
+                }
+            )
 
         trend = db.get_trend_data(days=30)
         assert len(trend) == 5

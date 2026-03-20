@@ -9,10 +9,11 @@ Usage:
     calc = ROICalculator()
     report = calc.generate_report(channel="ai_tech")
 """
+
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +25,7 @@ _ROOT = Path(__file__).resolve().parent.parent
 @dataclass
 class ContentCost:
     """단일 콘텐츠의 비용 내역."""
+
     content_id: int
     title: str
     channel: str
@@ -40,6 +42,7 @@ class ContentCost:
 @dataclass
 class ROIResult:
     """ROI 분석 결과."""
+
     content_id: int
     title: str
     channel: str
@@ -53,6 +56,7 @@ class ROIResult:
 @dataclass
 class ChannelROISummary:
     """채널별 ROI 요약."""
+
     channel: str
     total_content: int
     total_cost: float
@@ -66,12 +70,12 @@ class ChannelROISummary:
 
 # ── 기본 비용 상수 (AppConfig costs 기반) ──────────────────
 DEFAULT_COSTS = {
-    "llm_per_job": 0.25,        # 대본 생성 1건
-    "tts_per_second": 0.0008,   # EdgeTTS (실제 무료, 폴백용 OpenAI 기준)
-    "image_per_scene": 0.04,    # DALL-E 3 기준
-    "stock_per_scene": 0.0,     # Pexels = 무료
-    "avg_scenes": 5,            # 평균 씬 수
-    "avg_duration_sec": 35,     # 평균 영상 길이
+    "llm_per_job": 0.25,  # 대본 생성 1건
+    "tts_per_second": 0.0008,  # EdgeTTS (실제 무료, 폴백용 OpenAI 기준)
+    "image_per_scene": 0.04,  # DALL-E 3 기준
+    "stock_per_scene": 0.0,  # Pexels = 무료
+    "avg_scenes": 5,  # 평균 씬 수
+    "avg_duration_sec": 35,  # 평균 영상 길이
 }
 
 

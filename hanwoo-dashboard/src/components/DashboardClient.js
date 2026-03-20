@@ -83,12 +83,12 @@ export default function DashboardClient({ initialCattle, initialSales, initialFe
   const [buildings, setBuildings] = useState(initialBuildings);
   const [farmSettings, setFarmSettings] = useState(initialFarmSettings);
   const [expenseRecords, setExpenseRecords] = useState(initialExpenses || []);
-  
+
   const [weather, setWeather] = useState({ temp: 20, condition: "Clear", humidity: 50, wind: 2, locationName: initialFarmSettings.location || "Seoul" });
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedCow, setSelectedCow] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
-  
+
   const [selectedBuildingId, setSelectedBuildingId] = useState(null); // Filter by Building
   const [selectedPenId, setSelectedPenId] = useState(null); // Filter by Pen
 
@@ -107,7 +107,7 @@ export default function DashboardClient({ initialCattle, initialSales, initialFe
     notify({ title, description, variant: 'error' });
   };
 
-  
+
   // Weather Fetch
   useEffect(() => {
     const fetchWeather = async (lat, lng) => {
@@ -253,7 +253,7 @@ export default function DashboardClient({ initialCattle, initialSales, initialFe
       return false;
     }
   };
-  
+
   const handleUpdateCattle = async (updated, feedbackOptions = {}) => {
     const {
       successTitle = '개체 정보를 수정했습니다.',
@@ -534,12 +534,12 @@ export default function DashboardClient({ initialCattle, initialSales, initialFe
     if (activeTab === "feed") return <FeedTab cattle={cattleList} feedStandards={feedStandards} feedHistory={feedHistory} onRecordFeed={handleRecordFeed} buildings={buildings} />;
     if (activeTab === "calving") return <CalvingTab cattle={cattleList} onRecordCalving={handleRecordCalving} />;
     if (activeTab === "sales") return <SalesTab saleRecords={saleRecords} cattleList={cattleList} onCreateSale={handleCreateSale} expenseRecords={expenseRecords} />;
-    
+
     if (activeTab === "inventory") return <InventoryTab inventory={inventoryList} onAddItem={handleAddItem} onUpdateQuantity={handleUpdateQuantity} />;
     if (activeTab === "schedule") return <ScheduleTab events={scheduleEvents} onCreateEvent={handleCreateEvent} onToggleEvent={handleToggleEvent} />;
     if (activeTab === "analysis") return <AnalysisTab saleRecords={saleRecords} feedHistory={feedHistory} cattleList={cattleList} expenseRecords={expenseRecords} />;
     if (activeTab === "settings") return <SettingsTab buildings={buildings} onCreateBuilding={handleCreateBuilding} onDeleteBuilding={handleDeleteBuilding} farmSettings={farmSettings} onUpdateFarmSettings={handleUpdateFarmSettings} theme={theme} onToggleTheme={toggleTheme} widgetRegistry={WIDGET_REGISTRY} widgetVisible={widgetSettings.visible} onToggleWidget={widgetSettings.toggle} />;
-    
+
     // Default: Home Tab
     return (
       <>
@@ -677,7 +677,7 @@ export default function DashboardClient({ initialCattle, initialSales, initialFe
             </div>
           </div>
         )}
-        
+
         <AIChatWidget />
       </>
     );
@@ -700,21 +700,21 @@ export default function DashboardClient({ initialCattle, initialSales, initialFe
         {renderContent()}
       </div>
       <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
-      
+
       {/* Modals */}
       {showAddModal && <CattleForm onSubmit={handleAddCattle} onCancel={()=>setShowAddModal(false)} />}
-      
+
       {isEditing && selectedCow && (
         <CattleForm cattle={selectedCow} onSubmit={(updated)=>{handleUpdateCattle(updated); setIsEditing(false);}} onCancel={()=>setIsEditing(false)} />
       )}
-      
+
       {selectedCow && !isEditing && (
-        <CattleDetailModal 
-            cattle={selectedCow} 
-            onClose={()=>setSelectedCow(null)} 
-            onEdit={()=>setIsEditing(true)} 
-            onDelete={()=>handleDeleteCattle(selectedCow.id)} 
-            onUpdate={handleUpdateCattle} 
+        <CattleDetailModal
+            cattle={selectedCow}
+            onClose={()=>setSelectedCow(null)}
+            onEdit={()=>setIsEditing(true)}
+            onDelete={()=>handleDeleteCattle(selectedCow.id)}
+            onUpdate={handleUpdateCattle}
         />
       )}
       {/* Footer */}
