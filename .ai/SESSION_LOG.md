@@ -1,3 +1,38 @@
+## 2026-03-20 — Antigravity (Gemini) — MiMo API 키 워크스페이스 전체 등록 + QC 승인
+
+### 작업 요약
+사용자로부터 Xiaomi MiMo V2-Flash API 키를 수령, 워크스페이스 전체 3개 `.env` 파일에 등록. QC 4개 자동 검사 전체 통과.
+
+### 변경 파일
+| 파일 | 변경 |
+|------|------|
+| `shorts-maker-v2/.env` | 이전 세션에서 이미 `MIMO_API_KEY` 설정 완료 확인 |
+| `Root .env` | `MIMO_API_KEY` 추가 (향후 공용 사용 대비) |
+| `blind-to-x/.env` | `MIMO_API_KEY` 추가 (향후 LLM Router 도입 시 즉시 활용) |
+
+### QC 결과
+| 항목 | 결과 |
+|------|------|
+| AST 구문 검사 (50 파일) | ✅ PASS |
+| 보안 스캔 (14 키) | ✅ PASS (소스 누수 0건) |
+| .env 일관성 검사 (3 파일) | ✅ PASS (동일 키 값 확인) |
+| Unit Tests | ✅ 523 passed, 12 skipped (14.91s) |
+| **최종 판정** | **✅ 승인 (APPROVED)** |
+
+### 결정사항
+- 3개 `.env` 파일에 동일 키 등록하여 향후 프로젝트 간 LLM Router 공유 시 즉시 활용 가능
+- blind-to-x는 현재 MiMo를 직접 호출하지 않으므로 실질적 영향 없음
+
+### 미완료 TODO
+- 없음
+
+### 다음 도구에게 메모
+- `MIMO_API_KEY` 또는 `XIAOMI_API_KEY` 환경변수로 MiMo 접근 가능
+- MiMo API 엔드포인트: `https://api.xiaomimimo.com/v1` (OpenAI 호환)
+- API 키 갱신 시 3개 `.env` 파일 모두 업데이트 필요 (shorts-maker-v2, root, blind-to-x)
+
+---
+
 ## 2026-03-20 — Antigravity (Gemini) — SSML 태그 누출 수정 + MiMo LLM 프로바이더 통합 + QC 승인
 
 ### 작업 요약
