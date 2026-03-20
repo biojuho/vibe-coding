@@ -1,3 +1,44 @@
+## 2026-03-20 — Claude Code (Opus 4.6) — blind-to-x 4대 업그레이드 + QC
+
+### 작업 요약
+blind-to-x 프로젝트에 4대 업그레이드 구현: (1) Crawl4AI LLM 추출 폴백 (셀렉터 깨짐 근본 해결), (2) 감성 분석 트래커 (감정 키워드 spike 감지), (3) AI 바이럴 필터 (노이즈 글 자동 제거), (4) RSSbrew 스타일 일일 다이제스트 (Telegram 자동 발송). QC 4개 에이전트 병렬 리뷰 → 19건 발견 16건 수정.
+
+### 변경 파일
+- `blind-to-x/scrapers/crawl4ai_extractor.py` (NEW), `pipeline/sentiment_tracker.py` (NEW), `pipeline/viral_filter.py` (NEW), `pipeline/daily_digest.py` (NEW), `tests/unit/test_new_features.py` (NEW 28tests)
+- `scrapers/base.py`, `scrapers/blind.py`, `pipeline/process.py`, `main.py`, `config.example.yaml`, `config.ci.yaml`, `requirements.txt`
+
+### 검증
+- 423 passed (395 기존 + 28 신규), 15 skipped, 0 failures
+
+---
+
+## 2026-03-20 Codex shorts-maker-v2 Lyria realtime BGM support
+
+### Summary
+- Added reusable Google Lyria realtime music generation support for `shorts-maker-v2`.
+- Implemented a deterministic execution script that saves generated music into the existing BGM asset flow.
+- Expanded native render-time BGM discovery so `.wav` outputs can be used immediately without manual conversion.
+
+### Changed Files
+- `shorts-maker-v2/src/shorts_maker_v2/providers/google_music_client.py`
+- `shorts-maker-v2/src/shorts_maker_v2/providers/__init__.py`
+- `shorts-maker-v2/src/shorts_maker_v2/pipeline/render_step.py`
+- `shorts-maker-v2/tests/unit/test_google_music_client.py`
+- `shorts-maker-v2/tests/unit/test_render_step.py`
+- `execution/lyria_bgm_generator.py`
+
+### Verification
+- `cd shorts-maker-v2 && python -m pytest tests/unit/test_google_music_client.py tests/unit/test_render_step.py -q`
+- `cd shorts-maker-v2 && python -m pytest tests/unit/test_config.py tests/unit/test_cli_renderer_override.py -q`
+- `python execution/lyria_bgm_generator.py --help`
+
+### Notes For Next Agent
+- Official Google docs and SDK tests indicate Lyria live music chunks arrive as PCM (`audio/l16`) and commonly include `rate=48000;channels=2`; the provider parses chunk MIME metadata before writing WAV.
+- The execution script supports `.wav` and `.mp3` output; `.mp3` export requires `ffmpeg`.
+- The current implementation is intentionally standalone and does not auto-generate BGM during the main orchestration flow yet.
+
+---
+
 ## 2026-03-20 — Codex — hanwoo-dashboard QC 후속 수정
 
 ### 작업 요약
