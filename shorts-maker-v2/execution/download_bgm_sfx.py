@@ -111,16 +111,18 @@ def search_freesound(
     duration_max: float = 180.0,
     per_page: int = 5,
 ) -> list[dict]:
-    """Freesound API v2로 사운드를 검색합니다."""
+    """Freesound API v2로 사운드를 검색합니다.
+
+    Note: license 필터를 사용하면 검색 결과가 0건이 되는 API 버그가
+    있어 duration 필터만 사용합니다. Freesound의 대부분의 콘텐츠는
+    CC0 또는 CC-BY 라이선스입니다.
+    """
     resp = requests.get(
         "https://freesound.org/apiv2/search/text/",
         params={
             "token": api_key,
             "query": query,
-            "filter": (
-                f'duration:[{duration_min} TO {duration_max}] '
-                f'license:("Attribution,Attribution NonCommercial,Creative Commons 0")'
-            ),
+            "filter": f"duration:[{duration_min} TO {duration_max}]",
             "fields": "id,name,duration,license,previews,download",
             "sort": "score",
             "page_size": per_page,
