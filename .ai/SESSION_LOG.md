@@ -1,4 +1,49 @@
+## 2026-03-21 — Antigravity (Gemini) — NotebookLM Pipeline blind-to-x 이식 + QC
+
+### 작업 요약
+NotebookLM Pipeline Phase 1 MVP 스크립트들을 `blind-to-x` 프로젝트 내부 파이프라인에 기능적으로 이식.
+unofficial `notebooklm-py` 의존을 완전히 제거하고 `execution/content_writer.py` + `execution/gdrive_pdf_extractor.py`와 동적 연동하는 방식으로 재작성.
+QC 수행 결과 **✅ 승인** (신규 테스트 16/16 통과, 회귀 없음).
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| `blind-to-x/pipeline/notebooklm_enricher.py` | 완전 재작성 | unofficial lib 제거 → content_writer/gdrive 동적 연동, topic/gdrive 두 모드 |
+| `blind-to-x/pipeline/notion/_upload.py` | 수정 | `nlm_article` 필드 → Markdown→Notion 블록 변환 섹션 추가 |
+| `blind-to-x/tests/unit/test_notebooklm_enricher.py` | 신규 | 16개 단위 테스트 (disabled/topic/gdrive/timeout/_upload 커버) |
+
+### 결정사항
+- `process.py` 수정 없음 — `enrich_post_with_assets()` 인터페이스 유지로 하위 호환
+- 동적 import 방식 채택 (`importlib.util.spec_from_file_location`) — 의존성 결합 최소화
+- `markdown_to_notion_blocks` 단일 소스 유지 — `execution/notion_article_uploader.py` 동적 로드, 중복 코드 없음
+
+### QC 결과
+
+| 항목 | 결과 |
+|------|------|
+| AST 검증 | ✅ 3파일 모두 통과 |
+| 보안 스캔 | ✅ 하드코딩 시크릿·위험 함수 없음 |
+| 경로 검증 | ✅ `_upload.py` → `execution/notion_article_uploader.py` 경로 존재 확인 |
+| 신규 테스트 | ✅ 16/16 PASSED |
+| 기존 회귀 | ✅ 없음 (기존 `_draft` 실패 1건은 pre-existing) |
+| 최종 판정 | ✅ 승인 |
+
+### TODO (다음 세션)
+- [ ] `NOTEBOOKLM_ENABLED=true` + 실제 AI 키로 smoke test 실행
+- [ ] `NOTEBOOKLM_MODE=gdrive` 실전 테스트 (Google Drive 서비스 계정 설정 필요)
+- [ ] 기존 pre-existing `_draft` 단위 테스트 실패 원인 조사 및 수정
+- [ ] 루트 `quality_gate.py` Windows 인코딩 오류 수정 (이전 세션 TODO 이월)
+
+### 다음 에이전트에게 메모
+- `notebooklm_enricher.py`는 v2로 완전 재작성됨. `notebooklm-py` 라이브러리 관련 코드 없음.
+- `NOTEBOOKLM_ENABLED=false`(기본값)이므로 실기동 전까지 파이프라인에 영향 없음.
+- `blind-to-x/pipeline/notion/_upload.py`에 `nlm_article` 블록 처리 추가됨 — DB 스키마 변경 없음 (page children 블록 방식).
+
+---
+
 ## 2026-03-21 — Codex — 전체 프로젝트 현황 점검 및 우선순위 정리
+
 
 ### 작업 요약
 사용자 요청에 따라 루트 워크스페이스와 하위 프로젝트 전반을 점검했다. `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md`, `.ai/DECISIONS.md`, `directives/roadmap_v3.md`, 각 프로젝트 메타 파일을 확인했고, 루트 품질 게이트와 전체 pytest를 실제 실행해 현재 막혀 있는 지점을 분리했다.
@@ -2741,3 +2786,50 @@ shorts-maker-v2의 SSML 태그 누출 버그 수정 및 Xiaomi MiMo V2-Flash LLM
 - skipped 테스트 12건은 기존 이슈 (ffmpeg PATH, faster-whisper 미설치)
 
 ---
+## 2026-03-21 — Codex — Root QA gate 복구 및 커버리지 회복
+
+### 작업 요약
+- `scripts/quality_gate.py`의 Windows 인코딩 문제를 수정해 UTF-8 환경에서 안정적으로 하위 프로세스 출력을 수집하도록 복구.
+- `pytest.ini`와 `execution/qaqc_runner.py`를 조정해 `execution/tests`도 루트 QA 범위에 포함되도록 정리.
+- `tests/test_qaqc_runner.py`의 고정 날짜 기반 stale 테스트를 상대 시간 기준으로 바꿔 단일 실패를 제거.
+- `execution/content_writer.py`, `execution/gdrive_pdf_extractor.py`, `execution/notion_article_uploader.py`, `execution/backup_to_onedrive.py`, `execution/qaqc_runner.py`를 대상으로 루트 테스트를 추가해 커버리지를 80% 이상으로 회복.
+- 남아 있던 `ruff` 경고를 정리하고 `execution/api_usage_tracker.py`에 SQL identifier 검증 헬퍼를 추가해 high-severity 정적분석 이슈를 제거.
+
+### 변경 파일
+- `.ai/CONTEXT.md`
+- `.ai/SESSION_LOG.md`
+- `pytest.ini`
+- `scripts/quality_gate.py`
+- `execution/api_usage_tracker.py`
+- `execution/qaqc_runner.py`
+- `execution/telegram_notifier.py`
+- `execution/pages/channel_growth.py`
+- `tests/test_qaqc_runner.py`
+- `tests/test_content_writer.py`
+- `tests/test_gdrive_pdf_extractor.py`
+- `tests/test_notion_article_uploader.py`
+- `tests/test_backup_to_onedrive.py`
+- `tests/test_qaqc_runner_extended.py`
+- `tests/test_joolife_hub.py`
+- `tests/test_llm_client.py`
+- `tests/test_result_tracker.py`
+- `tests/test_selector_validator.py`
+- `tests/test_youtube_uploader.py`
+
+### 검증 결과
+- `venv\Scripts\python.exe -m ruff check execution scripts tests` 통과
+- `venv\Scripts\python.exe execution\code_improver.py execution --format json --severity high` 이슈 0
+- `venv\Scripts\python.exe execution\code_improver.py scripts --format json --severity high` 이슈 0
+- `venv\Scripts\python.exe -m pytest -q` 통과
+  - 결과: `815 passed, 1 skipped`
+  - 커버리지: `81.05%`
+- `venv\Scripts\python.exe scripts\quality_gate.py` 통과
+
+### 남은 TODO / 리스크
+- pytest 중 `ResourceWarning: unclosed database` 경고가 다수 남아 있어, 다음 안정화 턴에서 DB connection 정리 루틴을 손보는 게 좋음.
+- `execution/content_writer.py`의 `datetime.utcnow()`는 Python 3.14에서 deprecation warning이 발생하므로 timezone-aware datetime으로 교체 권장.
+- `selector_validator` 관련 테스트 출력에 실제 셀렉터 실패 로그가 섞이지만 현재는 테스트 의도상 허용 범위.
+
+### 다음 도구에게 메모
+- 루트 QA 게이트 자체는 복구 완료. 다음 우선순위는 warning 청소나 blind-to-x / shorts-maker-v2의 미완료 기능 검증으로 넘겨도 됨.
+- 작업 중이던 사용자 변경 파일은 건드리지 않았고, 이번 수정은 루트 QA 복구 범위에 한정됨.

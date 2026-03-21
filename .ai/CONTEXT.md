@@ -339,3 +339,21 @@ Vibe coding/                      # Root ?뚰겕?ㅽ럹?댁뒪
 
 ### Known risks / landmines
 - `src/app/layout.js` still loads Google Fonts via page-level `<link>` tags, so lint emits one non-blocking `@next/next/no-page-custom-font` warning.
+## Recent Update — 2026-03-21
+
+- Root QA gate restored on Windows:
+  - `scripts/quality_gate.py` now forces UTF-8 subprocess I/O to avoid CP949 decode/print failures.
+  - Root pytest collection now includes `execution/tests` via `pytest.ini` and `execution/qaqc_runner.py`.
+- Root test status:
+  - `venv\Scripts\python.exe -m pytest -q` => `815 passed, 1 skipped`
+  - coverage recovered to `81.05%` (`pytest.ini` threshold: 80%)
+  - `venv\Scripts\python.exe scripts\quality_gate.py` passes end-to-end
+- New root coverage tests added for execution scripts:
+  - `tests/test_content_writer.py`
+  - `tests/test_gdrive_pdf_extractor.py`
+  - `tests/test_notion_article_uploader.py`
+  - `tests/test_backup_to_onedrive.py`
+  - `tests/test_qaqc_runner_extended.py`
+- Known non-blocking warnings still present:
+  - `ResourceWarning: unclosed database` in some pytest paths
+  - `datetime.utcnow()` deprecation warning in `execution/content_writer.py`
