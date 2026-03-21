@@ -1,3 +1,57 @@
+## 2026-03-21 — Claude Code (Opus 4.6) — blind-to-x 멘션 품질 근본 개선 (세션 2)
+
+### 작업 요약
+
+멘션(캡션) 부자연스러움의 8가지 근본 원인 분석 후 6건 수정. 프롬프트 경직성 완화, 골든 예시 확장, 품질 게이트 완화, 에디토리얼 리라이트 임계값 조정, 금지 표현/클리셰 최적화, TextPolisher 캡션 비활성화.
+
+### 변경 파일
+
+- `classification_rules.yaml` — 트위터 프롬프트: 3-part formula 제거 → "친구에게 카톡하듯" 자연어 가이드, 골든 예시 토픽별 2-3개→5-6개로 확장, 금지 표현 10→6개 (과도한 항목 제거), 클리셰 목록 20+→14개 (사람도 쓰는 표현 허용)
+- `pipeline/draft_generator.py` — hardcoded fallback 프롬프트 동일하게 자연어 가이드로 변경
+- `pipeline/draft_quality_gate.py` — 훅 강도 검사: warning→info(통과), 모호한 표현: 2개→3개부터 실패
+- `pipeline/editorial_reviewer.py` — 리라이트 임계값 6.0→5.0, TextPolisher twitter/threads 스킵
+- `tests/unit/test_quality_improvements.py` — 변경된 규칙에 맞게 4개 테스트 수정
+
+### 근본 원인 분석 결과
+
+| 원인 | 파일 | 심각도 | 조치 |
+|------|------|--------|------|
+| 12개 동시 지시 블록 | draft_generator.py | 높음 | 트위터 블록을 자연어 가이드로 간소화 |
+| 3-part formula 강제 | classification_rules.yaml | 높음 | 구조 자유도 부여 ("짧아도 길어도 OK") |
+| 골든 예시 2-3개 | classification_rules.yaml | 높음 | 5-6개로 확장, 다양한 톤 |
+| 품질 게이트 과엄 | draft_quality_gate.py | 높음 | 훅/모호표현 기준 완화 |
+| 에디토리얼 리라이트 과다 | editorial_reviewer.py | 중간 | 임계값 6.0→5.0 |
+| 금지 표현 과잉 | classification_rules.yaml | 중간 | 사람도 쓰는 표현 허용 |
+| TextPolisher 구어체 교정 | editorial_reviewer.py | 중간 | twitter/threads 스킵 |
+| hook_type 이중 제약 | content_intelligence.py | 낮음 | 향후 개선 가능 |
+
+### 검증
+
+- 452 passed, 0 failed, 15 skipped
+
+### QC (4개 에이전트 병렬)
+
+- 8개 파일 검증 → 1건 발견 1건 수정 (test docstring "2개→3개" 불일치)
+- YAML 문법 OK, 골든 예시 12토픽 40개, 클리셰 18개, 금지표현 6개
+- Notion 스키마 reply_text 3곳 정합성 OK
+- regulation_checker 링크 감지 warning/error 분기 OK
+
+### 결정사항
+
+- ADR-010: 캡션 자연스러움 우선 원칙 (규칙 엄격성 < 톤 자연스러움)
+- ADR-011: 링크-인-리플라이 전략 (본문 링크 금지, 답글에 분리)
+
+### 다음 도구에게
+
+- `_REWRITE_THRESHOLD`가 5.0으로 변경됨 (editorial_reviewer.py)
+- twitter/threads는 TextPolisher 적용 안 됨 (`_SKIP_POLISH_PLATFORMS`)
+- 훅 강도 검사는 이제 `passed=True, severity=info` (실패 아닌 참고)
+- 모호한 표현은 3개 이상부터만 실패 (1-2개는 info)
+- 골든 예시가 토픽별 5-6개로 확장됨 — 추가 시 동일 톤 유지
+- 금지 표현에서 "많은 분들이", "여러분도 한번", "그렇다면" 등은 의도적으로 허용
+
+---
+
 ## 2026-03-21 — Claude Code (Opus 4.6) — blind-to-x X 콘텐츠 큐레이션 고도화
 
 ### 작업 요약

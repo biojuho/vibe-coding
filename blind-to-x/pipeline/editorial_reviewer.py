@@ -391,6 +391,9 @@ class EditorialReviewer:
         result.avg_score = sum(all_scores.values()) / max(len(all_scores), 1) if all_scores else 0.0
 
         # ── 텍스트 후처리: 맞춤법 + 띄어쓰기 교정 (kiwipiepy) ────────
+        # twitter/threads는 구어체·비격식 톤이 핵심이므로 polisher 적용하지 않음
+        # (polisher가 구어체를 교정하면 부자연스러워짐)
+        _SKIP_POLISH_PLATFORMS = {"twitter", "threads", "reply_text"}
         try:
             from pipeline.text_polisher import TextPolisher
 
@@ -398,6 +401,9 @@ class EditorialReviewer:
             if polisher.available:
                 for platform, draft_text in list(result.polished_drafts.items()):
                     if platform.startswith("_") or not isinstance(draft_text, str):
+                        continue
+                    if platform in _SKIP_POLISH_PLATFORMS:
+                        logger.debug("[TextPolish] Skipping %s (casual tone preserved)", platform)
                         continue
                     pr = polisher.polish(draft_text)
                     result.polished_drafts[platform] = pr.text

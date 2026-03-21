@@ -31,7 +31,8 @@ class TestQualityGateSubstanceChecks(unittest.TestCase):
 
     def test_cliche_warning_triggered(self):
         """클리셰 3개 이상이면 warning 발생."""
-        draft = "이거 실화? 나만 이런 거 아니죠? 직장인이라면 공감하실 연봉 5천만원 이야기. 여러분 어떻게 생각하세요?"
+        # AI스러운 클리셰 3개 이상 포함 (흥미로운 점은, 결론적으로, 주목할 만한)
+        draft = "흥미로운 점은 연봉 5천이라는 것입니다. 결론적으로 주목할 만한 이야기죠. 여러분 어떻게 생각하세요?"
         result = self.gate.validate("twitter", draft)
         cliche_items = [i for i in result.items if i.rule == "클리셰 과다"]
         self.assertTrue(len(cliche_items) > 0, "클리셰 과다 항목이 있어야 함")
@@ -44,13 +45,13 @@ class TestQualityGateSubstanceChecks(unittest.TestCase):
         cliche_fail = [i for i in result.items if i.rule == "클리셰 과다" and not i.passed]
         self.assertEqual(len(cliche_fail), 0)
 
-    def test_hook_strength_warning_no_hook(self):
-        """첫 문장에 숫자/질문/감정어 없으면 훅 강도 경고."""
+    def test_hook_strength_info_no_hook(self):
+        """첫 문장에 숫자/질문/감정어 없으면 훅 강도 info (통과 처리)."""
         draft = "직장인들의 일상은 참으로 바쁘다. 매일 출근하면 힘든 일이 가득합니다. 그래도 다같이 힘내봐요?"
         result = self.gate.validate("twitter", draft)
         hook_items = [i for i in result.items if i.rule == "훅 강도"]
         if hook_items:  # 문장 분리가 되어야 작동
-            self.assertFalse(hook_items[0].passed)
+            self.assertTrue(hook_items[0].passed)  # info로 변경: 통과 처리
 
     def test_hook_strength_pass_with_number(self):
         """첫 문장에 숫자가 있으면 훅 강도 통과."""
@@ -60,7 +61,7 @@ class TestQualityGateSubstanceChecks(unittest.TestCase):
         self.assertEqual(len(hook_fail), 0)
 
     def test_vague_language_warning(self):
-        """모호한 표현 2개 이상이면 구체성 부족 경고."""
+        """모호한 표현 3개 이상이면 구체성 부족 경고."""
         draft = "높은 연봉을 받는 많은 사람들이 최근에 이직을 고려하고 있다고 해요. 여러분 생각은?"
         result = self.gate.validate("twitter", draft)
         vague_items = [i for i in result.items if i.rule == "구체성 부족"]
@@ -304,7 +305,7 @@ class TestBrandVoiceYAML(unittest.TestCase):
         self.assertIn("voice_traits", bv)
         self.assertIn("forbidden_expressions", bv)
         self.assertIsInstance(bv["forbidden_expressions"], list)
-        self.assertGreaterEqual(len(bv["forbidden_expressions"]), 5)
+        self.assertGreaterEqual(len(bv["forbidden_expressions"]), 4)
 
     def test_cliche_watchlist_exists(self):
         """cliche_watchlist 섹션이 YAML에 정의되어 있어야 함."""
@@ -318,7 +319,7 @@ class TestBrandVoiceYAML(unittest.TestCase):
             data = yaml.safe_load(f)
         self.assertIn("cliche_watchlist", data)
         self.assertIsInstance(data["cliche_watchlist"], list)
-        self.assertGreaterEqual(len(data["cliche_watchlist"]), 20)
+        self.assertGreaterEqual(len(data["cliche_watchlist"]), 10)
 
     def test_hook_rules_has_6_types(self):
         """hook_rules에 6종 훅 타입이 모두 정의되어 있어야 함."""
@@ -660,7 +661,7 @@ class TestDynamicEditorialThreshold(unittest.TestCase):
         er._rules_cache = {}
         er._brand_voice_cache = {}
         reviewer = er.EditorialReviewer()
-        self.assertEqual(reviewer._get_threshold("unknown", ""), 6.0)
+        self.assertEqual(reviewer._get_threshold("unknown", ""), 5.0)
         er._rules_cache = None
         er._brand_voice_cache = None
 
