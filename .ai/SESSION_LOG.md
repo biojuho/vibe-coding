@@ -1,3 +1,47 @@
+## 2026-03-21 — Antigravity (Gemini) — NotebookLM 파이프라인 Phase 1 MVP 구현
+
+### 작업 요약
+NotebookLM 기반 콘텐츠 자동화 파이프라인 Phase 1 MVP 핵심 스크립트 5개 + bridge_server 확장 + n8n 워크플로우 JSON 작성 완료.
+
+### 변경 파일
+
+| 파일 | 변경 |
+|------|------|
+| `execution/gdrive_pdf_extractor.py` | **신규** — Google Drive API v3, PDF(pdfplumber) + 이미지(pytesseract/OCR) 텍스트 추출, CLI 인터페이스 |
+| `execution/content_writer.py` | **신규** — AI 아티클 작성기 (Gemini→Claude→GPT 폴백 체인), 프로젝트별 YAML 프롬프트 템플릿 지원 |
+| `execution/notion_article_uploader.py` | **신규** — Notion DB 레코드 생성 + Markdown→Notion 블록 변환 + 100블록 청크 업로드 (httpx 기반) |
+| `directives/prompts/notebooklm_default.yaml` | **신규** — 기본 프롬프트 템플릿 (korean, informative 톤, Notion Markdown 출력) |
+| `infrastructure/n8n/bridge_server.py` | **수정** — v1.0.0→v1.1.0, 3개 엔드포인트 추가: `POST /notebooklm/extract-pdf`, `/write-article`, `/create-notion-page` |
+| `infrastructure/n8n/workflows/notebooklm_pipeline.json` | **신규** — Webhook(수동) + Schedule(매일 09:00 KST) 트리거, PDF 추출→AI 작성→Notion 업로드 3단계 파이프라인 |
+
+### 아키텍처 결정사항
+- `notion_article_uploader.py`는 blind-to-x NotionUploader와 독립적으로 설계 (외부 의존성 없음)
+- `content_writer.py` 폴백 체인: Gemini Flash(기본) → Claude → GPT
+- bridge_server는 새 엔드포인트에서 subprocess 대신 Python 모듈 직접 임포트 (asyncio.run_in_executor 비동기 처리)
+- n8n 워크플로우는 `file_id`를 Webhook body 또는 n8n 변수 `GDRIVE_FILE_ID`로 전달
+
+### 환경 변수 (신규 추가 필요)
+```
+NOTEBOOKLM_NOTION_DB_ID    notion DB ID (아티클 저장)
+GOOGLE_DRIVE_FOLDER_ID     Drive 폴더 ID
+GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON  서비스 계정 키 경로
+GOOGLE_AI_API_KEY          Gemini API 키 (content_writer)
+```
+
+### 미완료 (사용자 직접 설정 필요)
+- [ ] Notion DB 생성 및 NOTEBOOKLM_NOTION_DB_ID 설정
+- [ ] Google Drive 서비스 계정 키 발급 및 설정
+- [ ] n8n에 `notebooklm_pipeline.json` 워크플로우 임포트
+- [ ] Phase 2: Google Drive Trigger 노드 추가 (파일 자동 감지)
+
+### 다음 도구에게 메모
+- `execution/gdrive_pdf_extractor.py`의 `download_and_extract(file_id)` 함수가 bridge_server `/notebooklm/extract-pdf`에서 직접 호출됨
+- `content_writer.py`는 `directives/prompts/notebooklm_{project}.yaml` 우선 탐색 → 없으면 `notebooklm_default.yaml` fallback
+- `notion_article_uploader.py`의 Notion 속성명(한국어)은 사용자 DB 스키마와 일치해야 함 (제목, 작성일, 상태, AI 모델, 프로젝트, 원본 자료, 태그)
+- bridge_server v1.1.0 실행 전 `ROOT_DIR` 경로가 `/execution/` 폴더를 올바르게 가리키는지 확인 필요
+
+---
+
 ## 2026-03-21 — Claude Code (Opus 4.6) — blind-to-x 멘션 품질 근본 개선 (세션 2)
 
 ### 작업 요약
