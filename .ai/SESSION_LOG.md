@@ -1,3 +1,39 @@
+## 2026-03-21 — Codex — 전체 프로젝트 현황 점검 및 우선순위 정리
+
+### 작업 요약
+사용자 요청에 따라 루트 워크스페이스와 하위 프로젝트 전반을 점검했다. `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md`, `.ai/DECISIONS.md`, `directives/roadmap_v3.md`, 각 프로젝트 메타 파일을 확인했고, 루트 품질 게이트와 전체 pytest를 실제 실행해 현재 막혀 있는 지점을 분리했다.
+
+### 변경 파일
+| 파일 | 변경 |
+|------|------|
+| `.ai/SESSION_LOG.md` | 이번 점검 세션 기록 추가 |
+
+### 핵심 확인 결과
+- 루트 `scripts/quality_gate.py`는 Windows에서 `subprocess.run(..., text=True, capture_output=True)` 사용 시 CP949 디코딩 오류로 먼저 실패한다. 테스트 실패 이전에 품질 게이트 스크립트 자체를 고쳐야 한다.
+- 루트 `pytest -q`는 UTF-8 강제 환경에서 **1 failed, 762 passed, 1 skipped**였다.
+- 단일 테스트 실패는 `tests/test_qaqc_runner.py::TestQaQcHistoryDB::test_save_and_retrieve`이며, 하드코딩된 타임스탬프(`2026-03-18`)와 `get_recent_runs(days=1)` 조합 때문에 날짜가 지나면서 깨진 테스트로 보인다.
+- 루트 커버리지는 **68.66%**로 `pytest.ini`의 `--cov-fail-under=80` 기준을 충족하지 못했다. 특히 신규/대형 `execution/` 스크립트 다수가 미커버 상태다.
+- 워킹트리에 미커밋 변경이 남아 있다. 주요 축은 `blind-to-x`의 NotebookLM 기사 파이프라인, `infrastructure/n8n/bridge_server.py`, `shorts-maker-v2`의 ShortsFactory/LLM/스크립트 생성 안정화 작업이다.
+- `hanwoo-dashboard`는 최근 빌드/린트 통과 기록이 있으나 테스트 디렉터리가 없고, 다음 자연스러운 작업은 Playwright 스모크 테스트 또는 남은 RHF/Zod 확장이다.
+- `blind-to-x` 최신 TODO는 Notion `reply_text` 속성 실제 생성, reply_text 품질 게이트 검토, 링크-인-리플라이 A/B 테스트다.
+- NotebookLM 파이프라인 MVP는 코드가 이미 들어와 있으나, Notion DB 생성, Google Drive 서비스 계정, n8n 워크플로우 임포트 같은 수동 설정이 남아 있다.
+
+### TODO (다음 세션)
+- [ ] `scripts/quality_gate.py`에 Windows-safe 인코딩 처리 추가 (`encoding="utf-8"` 또는 동등한 방어)
+- [ ] `tests/test_qaqc_runner.py`의 날짜 하드코딩 제거 또는 상대 시간 기반으로 수정
+- [ ] 루트 coverage 80% 복구 계획 수립: 미테스트 `execution/` 스크립트에 테스트 추가하거나 범위/기준 재조정
+- [ ] NotebookLM 파이프라인 수동 설정 4건 완료 여부 확인
+- [ ] `blind-to-x` Notion DB에 `reply_text` 속성 실제 생성 여부 확인
+- [ ] 현재 미커밋 WIP를 프로젝트별로 정리 후 검증/커밋 분리
+- [ ] `hanwoo-dashboard` Playwright 스모크 테스트 도입 검토
+
+### 다음 에이전트에게 메모
+- 전체 코드베이스는 “대부분 안정 + 몇 군데 운영/검증 구멍” 상태다. 가장 먼저 잡아야 할 것은 새 기능이 아니라 **루트 QA 자동화 복구**다.
+- `quality_gate.py` 실패와 `pytest` 단일 실패는 별개다. 전자는 인코딩 문제, 후자는 stale test 데이터 문제다.
+- `shorts-maker-v2`와 `blind-to-x`는 최근 작업량이 많아, 새 작업 시작 전에 미커밋 변경 의도를 먼저 확인하는 편이 안전하다.
+
+---
+
 ## 2026-03-21 — Antigravity (Gemini) — NotebookLM 파이프라인 Phase 1 MVP 구현
 
 ### 작업 요약
