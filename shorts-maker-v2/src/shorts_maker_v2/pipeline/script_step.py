@@ -430,6 +430,20 @@ class ScriptStep:
                 structure_role = "cta"
             else:
                 structure_role = "body"
+            # ── Hook 15자 하드 제한 (화면 임팩트 극대화) ─────────────────────────
+            # Hook은 3초 이내에 시청자를 사로잡아야 하므로 15자 이내를 강제한다.
+            # TTS는 원본 narration을 읽으므로 음성 품질에는 영향 없음.
+            # 단, 자막 렌더(caption_pillow)에서 픽셀 기반 줄바꿈이 걸리므로
+            # hook narration이 길면 자막이 2~3줄로 분산되어 임팩트가 감소한다.
+            _HOOK_NARRATION_MAX_CHARS = 15
+            if structure_role == "hook" and len(narration) > _HOOK_NARRATION_MAX_CHARS:
+                logger.warning(
+                    "Hook narration exceeds %d chars (%d chars): '%s…' — "
+                    "consider shortening for maximum scroll-stop impact.",
+                    _HOOK_NARRATION_MAX_CHARS,
+                    len(narration),
+                    narration[:_HOOK_NARRATION_MAX_CHARS],
+                )
             scenes.append(
                 ScenePlan(
                     scene_id=idx,
