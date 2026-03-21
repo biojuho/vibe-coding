@@ -15,9 +15,9 @@ except ImportError:  # graceful degradation
 
 logger = logging.getLogger(__name__)
 
-from shorts_maker_v2.config import AppConfig
-from shorts_maker_v2.models import ScenePlan
-from shorts_maker_v2.providers.llm_router import LLMRouter
+from shorts_maker_v2.config import AppConfig  # noqa: E402
+from shorts_maker_v2.models import ScenePlan  # noqa: E402, E501
+from shorts_maker_v2.providers.llm_router import LLMRouter  # noqa: E402
 
 
 class TopicUnsuitableError(Exception):
@@ -56,7 +56,7 @@ if _HAS_PYDANTIC:
 
 
 class ScriptStep:
-    duration_estimate_chars_per_sec = 2.8  # 실측 SSML+edge-tts 보정: 씬별 prosody/emphasis/break 오버헤드 반영
+    duration_estimate_chars_per_sec = 2.8  # 실측 SSML+edge-tts 보정: 씬별 prosody/emphasis/break 오버헤드 반영  # noqa: E501
     max_generation_attempts = 3
 
     # 4가지 Hook 패턴 (로테이션)
@@ -189,7 +189,7 @@ class ScriptStep:
             ),
         },
         "psychology": {
-            "role_description": "You are a warm, empathetic therapist-friend sharing psychological insights in conversational Korean.",
+            "role_description": "You are a warm, empathetic therapist-friend sharing psychological insights in conversational Korean.",  # noqa: E501
             "tone": (
                 "Tone: Gentle, validating, emotionally safe. Use second person '당신' sparingly. "
                 "Speak as if you completely understand the viewer's inner world. "
@@ -206,7 +206,7 @@ class ScriptStep:
             ),
         },
         "space": {
-            "role_description": "You are a cosmos explorer conveying the mind-bending scale and wonder of the universe in poetic Korean.",
+            "role_description": "You are a cosmos explorer conveying the mind-bending scale and wonder of the universe in poetic Korean.",  # noqa: E501
             "tone": (
                 "Tone: Awe-inspiring, contemplative, occasionally poetic. "
                 "Use analogies to convey cosmic scale (e.g. 지구가 모래알이라면 태양계는 축구장). "
@@ -222,7 +222,7 @@ class ScriptStep:
             ),
         },
         "health": {
-            "role_description": "You are a knowledgeable, caring health guide sharing evidence-based tips in warm, encouraging Korean.",
+            "role_description": "You are a knowledgeable, caring health guide sharing evidence-based tips in warm, encouraging Korean.",  # noqa: E501
             "tone": (
                 "Tone: Warm, encouraging, trustworthy. Never alarmist. "
                 "Frame health information as empowering insights, not warnings. "
@@ -430,19 +430,19 @@ class ScriptStep:
                 structure_role = "cta"
             else:
                 structure_role = "body"
-            # ── Hook 15자 하드 제한 (화면 임팩트 극대화) ─────────────────────────
-            # Hook은 3초 이내에 시청자를 사로잡아야 하므로 15자 이내를 강제한다.
+            # ── Hook 15자 경고 (화면 임팩트 극대화) ──────────────────────────
+            # Hook은 3초 이내에 시청자를 사로잡아야 하므로 15자 이내를 권장한다.
             # TTS는 원본 narration을 읽으므로 음성 품질에는 영향 없음.
             # 단, 자막 렌더(caption_pillow)에서 픽셀 기반 줄바꿈이 걸리므로
             # hook narration이 길면 자막이 2~3줄로 분산되어 임팩트가 감소한다.
-            _HOOK_NARRATION_MAX_CHARS = 15
-            if structure_role == "hook" and len(narration) > _HOOK_NARRATION_MAX_CHARS:
+            _hook_narration_max_chars = 15
+            if structure_role == "hook" and len(narration) > _hook_narration_max_chars:
                 logger.warning(
                     "Hook narration exceeds %d chars (%d chars): '%s…' — "
                     "consider shortening for maximum scroll-stop impact.",
-                    _HOOK_NARRATION_MAX_CHARS,
+                    _hook_narration_max_chars,
                     len(narration),
-                    narration[:_HOOK_NARRATION_MAX_CHARS],
+                    narration[:_hook_narration_max_chars],
                 )
             scenes.append(
                 ScenePlan(
@@ -570,7 +570,7 @@ class ScriptStep:
             "  - All narration_ko text MUST follow correct Korean spelling (맞춤법) and spacing (띄어쓰기).\n"
             "  - Double-check every sentence for: 되/돼, 안/안돼, 되다/되다, 하던/하던, 의/의, 로서/로써 etc.\n"
             "  - Use standard 받침 rules: 같이/같이, 많은/많은, 나을/나을 etc.\n"
-            "  - Common errors to avoid: '잘했다'(✔) vs '잘 했다'(✘), '될까'(✔) vs '될까'(✔), '됩니다'(✔) vs '됬니다'(✘)\n"
+            "  - Common errors to avoid: '잘했다'(✔) vs '잘 했다'(✘), '될까'(✔) vs '될까'(✔), '됩니다'(✔) vs '됬니다'(✘)\n"  # noqa: E501
             "  - Spacing after particles: '의 사람'(✔), '의사람'(✘).\n"
             "  - Proofread each narration_ko line carefully before outputting."
         )
@@ -1053,9 +1053,9 @@ class ScriptStep:
         # 최종 추정 길이 사전 체크 + 초과 시 강제 Truncation
         final_total = self.estimate_total_duration_sec(best_result[1])
         target_min, target_max = duration_range
-        # YouTube Shorts 상한 (45초) — 시청 완료율 최적화 + 60초 플랫폼 제한 내 안전 여유
-        SHORTS_HARD_LIMIT = 45
-        effective_max = min(target_max, SHORTS_HARD_LIMIT)
+        # YouTube Shorts 상한 (45초) — 시청 완료율 최적화 + 60초 플랫폼 제한 내 안전 여유  # noqa: E501
+        _shorts_hard_limit = 45
+        effective_max = min(target_max, _shorts_hard_limit)
 
         if final_total > effective_max:
             logger.warning(

@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 BGM_ENERGY_TAGS: dict[str, str] = {
     # AI/기술: 사이버펑크 미래감 + 구동감
     "high": "synthwave electronic driving futuristic cyberpunk upbeat loop",
-    # 역사: 다큐멘터리 오케스트라 + 서사적 긴장감  
+    # 역사: 다큐멘터리 오케스트라 + 서사적 긴장감
     "medium": "cinematic orchestral epic historical documentary tension background",
     # 심리학: 따뜻하고 감성적인 피아노 + 앰비언트
     "calm": "calm ambient warm piano emotional gentle healing loop",
