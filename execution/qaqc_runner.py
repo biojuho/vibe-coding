@@ -36,15 +36,15 @@ if not VENV_PYTHON.exists():
 # ── 프로젝트 정의 ─────────────────────────────────────────
 PROJECTS = {
     "blind-to-x": {
-        "test_dir": ROOT_DIR / "blind-to-x" / "tests",
+        "test_paths": [ROOT_DIR / "blind-to-x" / "tests"],
         "cwd": ROOT_DIR / "blind-to-x",
     },
     "shorts-maker-v2": {
-        "test_dir": ROOT_DIR / "shorts-maker-v2" / "tests",
+        "test_paths": [ROOT_DIR / "shorts-maker-v2" / "tests"],
         "cwd": ROOT_DIR / "shorts-maker-v2",
     },
     "root": {
-        "test_dir": ROOT_DIR / "tests",
+        "test_paths": [ROOT_DIR / "tests", ROOT_DIR / "execution" / "tests"],
         "cwd": ROOT_DIR,
     },
 }
@@ -98,24 +98,28 @@ SECURITY_EXCLUDE_PATTERNS = [
 
 def run_pytest(project_name: str, project_config: dict) -> dict:
     """프로젝트의 pytest를 실행하고 결과를 반환합니다."""
-    test_dir = project_config["test_dir"]
+    test_paths = project_config.get("test_paths")
+    if not test_paths:
+        legacy_path = project_config.get("test_dir")
+        test_paths = [legacy_path] if legacy_path else []
     cwd = project_config["cwd"]
 
-    if not test_dir.exists():
+    existing_paths = [path for path in test_paths if path.exists()]
+    if not existing_paths:
         return {
             "passed": 0,
             "failed": 0,
             "skipped": 0,
             "errors": 0,
             "status": "SKIP",
-            "message": f"Test directory not found: {test_dir}",
+            "message": f"Test directory not found: {', '.join(str(path) for path in test_paths)}",
         }
 
     cmd = [
         str(VENV_PYTHON),
         "-m",
         "pytest",
-        str(test_dir),
+        *[str(path) for path in existing_paths],
         "-q",
         "--tb=short",
         "--no-header",
@@ -134,7 +138,13 @@ def run_pytest(project_name: str, project_config: dict) -> dict:
         skipped = _parse_count(output, "skipped")
         errors = _parse_count(output, "error")
 
-        status = "PASS" if failed == 0 and errors == 0 else "FAIL"
+        # returncode != 0이면 출력 파싱 결과와 무관하게 FAIL 처리
+        if result.returncode != 0:
+            status = "FAIL"
+        elif passed == 0 and failed == 0 and errors == 0:
+            status = "FAIL"  # 출력 없음 = crash 또는 수집 실패
+        else:
+            status = "PASS" if failed == 0 and errors == 0 else "FAIL"
 
         return {
             "passed": passed,

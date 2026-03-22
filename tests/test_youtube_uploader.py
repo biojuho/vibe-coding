@@ -291,7 +291,7 @@ def test_get_credentials_refreshes_expired_token(monkeypatch, tmp_path):
     monkeypatch.setitem(sys.modules, "google_auth_oauthlib", types.ModuleType("google_auth_oauthlib"))
     monkeypatch.setitem(sys.modules, "google_auth_oauthlib.flow", mock_flow_mod)
 
-    creds = uploader._get_credentials()
+    uploader._get_credentials()
     assert len(refresh_called) == 1
     assert token_path.read_text(encoding="utf-8") == '{"refreshed": true}'
 

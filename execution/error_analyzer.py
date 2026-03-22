@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
@@ -64,9 +63,13 @@ def _classify_error(text: str) -> str:
 
 
 def _parse_iso(dt_str: str) -> Optional[datetime]:
-    """Parse an ISO datetime string, returning None on failure."""
+    """Parse an ISO datetime string, returning naive-local datetime on success."""
     try:
-        return datetime.fromisoformat(dt_str)
+        dt = datetime.fromisoformat(dt_str)
+        # aware → naive-local 변환으로 비교 일관성 확보
+        if dt.tzinfo is not None:
+            dt = dt.astimezone().replace(tzinfo=None)
+        return dt
     except (ValueError, TypeError):
         return None
 

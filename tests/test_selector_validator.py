@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 from unittest.mock import patch
 
-import pytest
 
 
 # selector_validator는 dotenv를 모듈 레벨에서 호출하므로 임포트 전 mock 불필요
@@ -181,7 +180,6 @@ class TestCssToPatternFallback:
 class TestFetchHtml:
     def test_fetch_html_success_utf8(self):
         """_fetch_html returns text for utf-8 encoding."""
-        from execution.selector_validator import _fetch_html
         mock_session_cls = type("Session", (), {
             "__init__": lambda self, **kw: None,
             "__enter__": lambda self: self,
@@ -196,7 +194,6 @@ class TestFetchHtml:
         with patch.dict("sys.modules", {"curl_cffi": type("M", (), {})(), "curl_cffi.requests": mock_curl}):
             with patch("execution.selector_validator.Session", mock_session_cls, create=True):
                 # We need to patch the import inside the function
-                import importlib
                 # Direct patch approach
                 with patch("execution.selector_validator._fetch_html") as mock_fetch:
                     mock_fetch.return_value = "<html>hello</html>"
@@ -322,7 +319,7 @@ class TestMainCLI:
         """main() without --json outputs human-readable text."""
         from execution.selector_validator import main
         mock_fetch.return_value = '<div class="article-list">ok</div>'
-        ret = main()
+        main()
         out = capsys.readouterr().out
         assert "셀렉터 검증 결과" in out
 
@@ -332,7 +329,7 @@ class TestMainCLI:
         """main() with --site filters to matching sites."""
         from execution.selector_validator import main
         mock_fetch.return_value = '<div class="article-list">ok</div>'
-        ret = main()
+        main()
         out = capsys.readouterr().out
         assert "blind" in out
 
@@ -353,7 +350,7 @@ class TestMainCLI:
         """main() with --json and --site outputs filtered JSON."""
         from execution.selector_validator import main
         mock_fetch.return_value = "<div>nothing</div>"
-        ret = main()
+        main()
         out = capsys.readouterr().out
         parsed = json.loads(out)
         assert all("ppomppu" in r["name"] for r in parsed["results"])

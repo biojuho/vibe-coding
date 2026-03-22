@@ -14,6 +14,7 @@ Usage (CLI):
 import argparse
 import json
 import os
+import re
 import sqlite3
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -47,12 +48,41 @@ PRICING = {
     "gemini-pro": {"input": 0.00025, "output": 0.0005},
 }
 
+IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
 
 def _conn() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def _validate_identifier(name: str) -> str:
+    candidate = (name or "").strip()
+    if not IDENTIFIER_PATTERN.fullmatch(candidate):
+        raise ValueError(f"Invalid SQL identifier: {name!r}")
+    return candidate
+
+
+def _table_info_sql(table: str) -> str:
+    safe_table = _validate_identifier(table)
+    return f"PRAGMA table_info({safe_table})"
+
+
+_ALLOWED_DEFINITIONS = re.compile(
+    r"^(TEXT|INTEGER|REAL|BLOB|NUMERIC)"
+    r"(\s+(DEFAULT\s+('[^']*'|NULL|\d+(\.\d+)?)|NOT\s+NULL))*$",
+    re.IGNORECASE,
+)
+
+
+def _add_column_sql(table: str, column: str, definition: str) -> str:
+    safe_table = _validate_identifier(table)
+    safe_column = _validate_identifier(column)
+    if not _ALLOWED_DEFINITIONS.fullmatch(definition.strip()):
+        raise ValueError(f"Invalid column definition: {definition!r}")
+    return f"ALTER TABLE {safe_table} ADD COLUMN {safe_column} {definition}"
 
 
 def init_db() -> None:
@@ -99,11 +129,11 @@ def _ensure_columns(
     table: str,
     columns: Dict[str, str],
 ) -> None:
-    existing_rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
+    existing_rows = conn.execute(_table_info_sql(table)).fetchall()
     existing = {row["name"] for row in existing_rows}
     for column, definition in columns.items():
         if column not in existing:
-            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+            conn.execute(_add_column_sql(table, column, definition))
 
 
 def log_api_call(

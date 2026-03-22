@@ -311,7 +311,6 @@ def test_log_scrape_quality_exception_swallowed(monkeypatch, tmp_path):
     """log_scrape_quality는 conn.execute 실패 시 예외를 삼킴."""
     _patch_db(monkeypatch, tmp_path)
 
-    import sqlite3
 
     original_conn = dhdb._conn
 

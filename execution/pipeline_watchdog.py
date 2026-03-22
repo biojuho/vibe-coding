@@ -24,9 +24,9 @@ import os
 import shutil
 import sqlite3
 import subprocess
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import requests
 from dotenv import load_dotenv
@@ -325,7 +325,7 @@ class PipelineWatchdog:
         result = _check("disk_space", STATUS_OK, "")
 
         try:
-            usage = shutil.disk_usage("C:\\")
+            usage = shutil.disk_usage(Path(__file__).resolve().drive + "\\")
             free_gb = usage.free / (1024**3)
             total_gb = usage.total / (1024**3)
 
@@ -561,7 +561,7 @@ def _print_report(report: Dict[str, Any]) -> None:
     overall_icons = {"OK": "✅", "WARN": "⚠️", "FAIL": "❌"}
 
     print(f"\n{'═' * 55}")
-    print(f"  🐕 Pipeline Watchdog Report")
+    print("  🐕 Pipeline Watchdog Report")
     print(f"  {report['checked_at']}")
     print(f"{'═' * 55}")
 

@@ -255,11 +255,11 @@ if __name__ == "__main__":
         print(json.dumps(status, indent=2, ensure_ascii=False))
     else:
         print(f"\n{'═' * 50}")
-        print(f"  💾 OneDrive Backup")
+        print("  💾 OneDrive Backup")
         print(f"  Source: {_ROOT}")
         print(f"  Dest:   {_BACKUP_ROOT}")
         if args.dry_run:
-            print(f"  Mode:   🔍 DRY RUN (no files will be copied)")
+            print("  Mode:   🔍 DRY RUN (no files will be copied)")
         print(f"{'═' * 50}\n")
 
         result = backup(dry_run=args.dry_run)

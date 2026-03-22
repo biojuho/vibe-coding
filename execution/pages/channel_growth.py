@@ -6,11 +6,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import streamlit as st
 
 try:
-    import plotly.express as px
     import plotly.graph_objects as go
     from execution.channel_growth_tracker import (
         add_channel,
-        calculate_growth_rate,
         collect_channel_stats,
         get_channel_comparison,
         get_channels,

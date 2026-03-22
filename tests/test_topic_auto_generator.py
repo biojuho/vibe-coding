@@ -243,7 +243,6 @@ def test_get_trending_topics_success(monkeypatch):
             pass
 
         def trending_searches(self, pn="south_korea"):
-            import types
             # Return a fake DataFrame-like object with [0].tolist()
             class FakeDF:
                 def __init__(self):

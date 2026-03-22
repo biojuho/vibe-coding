@@ -5,6 +5,7 @@ qaqc_runner.py와 qaqc_history_db.py의 핵심 로직을 검증합니다.
 """
 
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -13,13 +14,13 @@ from unittest.mock import patch
 ROOT_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT_DIR / "execution"))
 
-from qaqc_runner import (
+from qaqc_runner import (  # noqa: E402
     _parse_count,
     _parse_duration,
     check_ast,
     determine_verdict,
 )
-from qaqc_history_db import QaQcHistoryDB
+from qaqc_history_db import QaQcHistoryDB  # noqa: E402
 
 
 # ── _parse_count 테스트 ────────────────────────────────────
@@ -146,8 +147,9 @@ class TestQaQcHistoryDB:
 
     def test_save_and_retrieve(self, tmp_path):
         db = QaQcHistoryDB(db_path=tmp_path / "test.db")
+        recent_ts = (datetime.now() - timedelta(hours=1)).isoformat(timespec="seconds")
         report = {
-            "timestamp": "2026-03-18T19:00:00",
+            "timestamp": recent_ts,
             "verdict": "APPROVED",
             "total": {"passed": 1556, "failed": 0},
             "elapsed_sec": 45.2,
@@ -166,8 +168,10 @@ class TestQaQcHistoryDB:
 
     def test_get_latest_run(self, tmp_path):
         db = QaQcHistoryDB(db_path=tmp_path / "test.db")
-        db.save_run({"timestamp": "2026-03-17T10:00:00", "verdict": "REJECTED", "total": {"passed": 100, "failed": 5}})
-        db.save_run({"timestamp": "2026-03-18T10:00:00", "verdict": "APPROVED", "total": {"passed": 200, "failed": 0}})
+        older_ts = (datetime.now() - timedelta(days=2)).isoformat(timespec="seconds")
+        newer_ts = (datetime.now() - timedelta(hours=1)).isoformat(timespec="seconds")
+        db.save_run({"timestamp": older_ts, "verdict": "REJECTED", "total": {"passed": 100, "failed": 5}})
+        db.save_run({"timestamp": newer_ts, "verdict": "APPROVED", "total": {"passed": 200, "failed": 0}})
 
         latest = db.get_latest_run()
         assert latest is not None
@@ -179,7 +183,7 @@ class TestQaQcHistoryDB:
         for i in range(5):
             db.save_run(
                 {
-                    "timestamp": f"2026-03-{15 + i:02d}T10:00:00",
+                    "timestamp": (datetime.now() - timedelta(days=4 - i)).isoformat(timespec="seconds"),
                     "verdict": "APPROVED",
                     "total": {"passed": 1000 + i * 100, "failed": 0},
                 }

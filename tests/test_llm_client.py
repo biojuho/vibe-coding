@@ -1,7 +1,6 @@
 """execution/llm_client.py 테스트."""
 from __future__ import annotations
 
-import json
 import sqlite3
 import time
 from unittest.mock import MagicMock, patch
@@ -12,7 +11,6 @@ from execution.llm_client import (
     DEFAULT_MODELS,
     DEFAULT_PROVIDER_ORDER,
     LLMClient,
-    NON_RETRYABLE_KEYWORDS,
     OPENAI_COMPATIBLE_BASE_URLS,
     PRICING,
     PROVIDER_ALIASES,
@@ -353,7 +351,6 @@ class TestCacheSetParentDir:
         with patch("execution.llm_client._CACHE_DB_PATH", nested):
             _cache_set("k1", "v1")
         assert nested.parent.exists()
-        result = _cache_get("k1", 3600) if nested.exists() else None
         # If DB was created we should be able to read back (need same mock)
         with patch("execution.llm_client._CACHE_DB_PATH", nested):
             assert _cache_get("k1", 3600) == "v1"
@@ -398,7 +395,7 @@ class TestGetClientProviders:
         mock_anthropic_mod = MagicMock()
         mock_anthropic_mod.Anthropic = mock_anthropic_cls
         with patch.dict("sys.modules", {"anthropic": mock_anthropic_mod}):
-            result = client._get_client("anthropic")
+            client._get_client("anthropic")
         mock_anthropic_cls.assert_called_once_with(api_key="test-key")
         assert "anthropic" in client._clients
 
@@ -409,7 +406,7 @@ class TestGetClientProviders:
         mock_openai_mod = MagicMock()
         mock_openai_mod.OpenAI = mock_openai_cls
         with patch.dict("sys.modules", {"openai": mock_openai_mod}):
-            result = client._get_client("xai")
+            client._get_client("xai")
         mock_openai_cls.assert_called_once_with(
             api_key="test-key",
             base_url=OPENAI_COMPATIBLE_BASE_URLS["xai"],
@@ -424,7 +421,7 @@ class TestGetClientProviders:
         mock_openai_mod = MagicMock()
         mock_openai_mod.OpenAI = mock_openai_cls
         with patch.dict("sys.modules", {"openai": mock_openai_mod}):
-            result = client._get_client("openai")
+            client._get_client("openai")
         mock_openai_cls.assert_called_once_with(api_key="test-key", timeout=30)
 
     def test_get_client_no_api_key(self):

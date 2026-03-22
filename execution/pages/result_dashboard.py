@@ -397,9 +397,9 @@ with tab_detail:
                     st.plotly_chart(fig_h, use_container_width=True)
 
                 # [QA 수정] 삭제 확인 절차 추가
-                confirm = st.checkbox(f"삭제 확인", key=f"confirm_del_{item['id']}")
+                confirm = st.checkbox("삭제 확인", key=f"confirm_del_{item['id']}")
                 if confirm:
-                    if st.button(f"🗑️ 정말 삭제", key=f"del_{item['id']}", type="secondary"):
+                    if st.button("🗑️ 정말 삭제", key=f"del_{item['id']}", type="secondary"):
                         delete_content(item["id"])
                         st.success("삭제 완료")
                         st.rerun()

@@ -224,7 +224,7 @@ def send_alert(
     timeout: int = 15,
 ) -> Dict[str, Any]:
     """Sends a tiered alert message to Telegram.
-    
+
     Args:
         text: The message content.
         level: "CRITICAL" 🚨, "WARNING" ⚠️, or "INFO" ℹ️.

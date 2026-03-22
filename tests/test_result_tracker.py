@@ -2,9 +2,7 @@
 result_tracker_db 유닛 테스트.
 QA/QC STEP 2: 기능성, 보안, 안정성, 코드 품질 검증.
 """
-import os
 import sys
-import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -234,7 +232,7 @@ class TestAggregates:
             add_content, get_platform_summary, update_stats,
         )
         id1 = add_content(platform="youtube", url="u1", title="Y1")
-        id2 = add_content(platform="x", url="u2", title="X1")
+        add_content(platform="x", url="u2", title="X1")
         update_stats(id1, views=1000)
         summary = get_platform_summary()
         assert len(summary) == 2
