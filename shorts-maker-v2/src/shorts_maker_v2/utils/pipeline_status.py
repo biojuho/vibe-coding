@@ -20,6 +20,18 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+def _safe_print(text: str) -> None:
+    """Windows CP949 터미널에서 이모지 출력 시 UnicodeEncodeError를 방지."""
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        # 이모지/특수문자를 ? 로 대체하여 출력
+        safe = text.encode(sys.stdout.encoding or "utf-8", errors="replace").decode(
+            sys.stdout.encoding or "utf-8", errors="replace"
+        )
+        print(safe)
+
+
 class StepStatus(str, Enum):
     """파이프라인 스텝 상태.
 
@@ -189,7 +201,7 @@ class PipelineStatusTracker:
                 elapsed_sec=elapsed_sec,
                 use_color=use_color,
             )
-            print(line)
+            _safe_print(line)
 
         logger.info(
             "pipeline_status",

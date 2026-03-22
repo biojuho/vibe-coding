@@ -49,7 +49,9 @@ STATUS_RUNNING = "running"
 
 # ── Watchdog 결과 저장 ───────────────────────────────────
 _WATCHDOG_HISTORY = _ROOT / ".tmp" / "watchdog_history.json"
+_HEARTBEAT_FILE = _ROOT / ".tmp" / "watchdog_heartbeat.json"
 _MAX_HISTORY = 30  # 최근 30회분만 보관
+_HEARTBEAT_STALE_MINUTES = 30  # heartbeat가 이보다 오래되면 워치독 사망 판정
 
 
 def _check(name: str, status: str, detail: str = "") -> Dict[str, Any]:
@@ -443,10 +445,51 @@ class PipelineWatchdog:
             "alert_count": len(self.alerts),
         }
 
-        # 이력 저장
+        # 이력 저장 + heartbeat 갱신
         self._save_history(report)
+        self._write_heartbeat(report["overall"])
 
         return report
+
+    @staticmethod
+    def _write_heartbeat(overall: str) -> None:
+        """워치독 생존 신호를 기록합니다."""
+        try:
+            _HEARTBEAT_FILE.parent.mkdir(parents=True, exist_ok=True)
+            heartbeat = {
+                "pid": os.getpid(),
+                "last_scan": datetime.now().isoformat(timespec="seconds"),
+                "overall": overall,
+            }
+            _HEARTBEAT_FILE.write_text(
+                json.dumps(heartbeat, ensure_ascii=False), encoding="utf-8"
+            )
+        except Exception as exc:
+            logger.warning("Failed to write heartbeat: %s", exc)
+
+    @staticmethod
+    def check_heartbeat_fresh() -> dict:
+        """워치독 heartbeat가 신선한지 확인합니다 (외부 체크용).
+
+        Returns:
+            {"alive": bool, "age_minutes": float, "detail": str}
+        """
+        if not _HEARTBEAT_FILE.exists():
+            return {"alive": False, "age_minutes": -1, "detail": "heartbeat 파일 없음"}
+
+        try:
+            data = json.loads(_HEARTBEAT_FILE.read_text(encoding="utf-8"))
+            last_scan = datetime.fromisoformat(data["last_scan"])
+            age_minutes = (datetime.now() - last_scan).total_seconds() / 60
+
+            alive = age_minutes < _HEARTBEAT_STALE_MINUTES
+            return {
+                "alive": alive,
+                "age_minutes": round(age_minutes, 1),
+                "detail": f"last={data['last_scan']}, overall={data.get('overall', '?')}, pid={data.get('pid', '?')}",
+            }
+        except Exception as exc:
+            return {"alive": False, "age_minutes": -1, "detail": str(exc)[:200]}
 
     def _save_history(self, report: Dict[str, Any]) -> None:
         """점검 이력 저장 (최근 N회분)."""
@@ -590,12 +633,39 @@ if __name__ == "__main__":
     parser.add_argument("--json", action="store_true", help="JSON 출력")
     parser.add_argument("--no-notify", action="store_true", help="Telegram 알림 비활성화")
     parser.add_argument("--daily", action="store_true", help="매일 요약 리포트 전송 (성공해도)")
+    parser.add_argument("--check-alive", action="store_true",
+                        help="워치독 heartbeat 상태만 확인 (자동 재시작 체크용)")
     args = parser.parse_args()
 
     logging.basicConfig(
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         level=logging.INFO,
     )
+
+    # --check-alive: heartbeat만 확인 후 종료
+    if args.check_alive:
+        hb = PipelineWatchdog.check_heartbeat_fresh()
+        if args.json:
+            print(json.dumps(hb, ensure_ascii=False))
+        else:
+            status = "ALIVE" if hb["alive"] else "DEAD"
+            print(f"Watchdog: {status} ({hb['detail']})")
+
+        if not hb["alive"]:
+            # 워치독 사망 → Telegram 알림 + exit code 1
+            try:
+                mod = PipelineWatchdog._load_telegram_module()
+                if mod and mod.is_configured():
+                    age = hb["age_minutes"]
+                    mod.send_alert(
+                        f"🚨 Watchdog DEAD — heartbeat {age}분 전 마지막 갱신\n"
+                        f"Detail: {hb['detail']}",
+                        level="CRITICAL",
+                    )
+            except Exception:
+                pass
+            sys.exit(1)
+        sys.exit(0)
 
     watchdog = PipelineWatchdog()
     report = watchdog.run_all()
