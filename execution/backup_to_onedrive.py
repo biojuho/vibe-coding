@@ -15,7 +15,6 @@ import execution._logging  # noqa: F401 — loguru 중앙 설정 활성화
 
 import argparse
 import json
-import logging
 import os
 import shutil
 from datetime import datetime
@@ -26,7 +25,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-logger = logging.getLogger(__name__)
+from execution._logging import logger  # noqa: E402
 
 # ── 설정 ──────────────────────────────────────────────
 _ROOT = Path(__file__).resolve().parent.parent
@@ -302,11 +301,6 @@ if __name__ == "__main__":
     parser.add_argument("--dry-run", action="store_true", help="실제 복사 없이 미리보기")
     parser.add_argument("--status", action="store_true", help="백업 현황 조회")
     args = parser.parse_args()
-
-    logging.basicConfig(
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        level=logging.INFO,
-    )
 
     if args.status:
         status = get_status()

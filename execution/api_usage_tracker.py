@@ -46,7 +46,19 @@ PRICING = {
     "claude-sonnet-4": {"input": 0.003, "output": 0.015},
     "claude-haiku-3.5": {"input": 0.0008, "output": 0.004},
     "gemini-pro": {"input": 0.00025, "output": 0.0005},
+    "gemini-2.5-flash": {"input": 0.0, "output": 0.0},
+    "gemini-2.0-flash": {"input": 0.0, "output": 0.0},
+    "deepseek-chat": {"input": 0.00014, "output": 0.00028},
+    "moonshot-v1-8k": {"input": 0.00015, "output": 0.00015},
+    "glm-4-flash": {"input": 0.0, "output": 0.0},
+    "grok-2": {"input": 0.002, "output": 0.01},
 }
+
+# 월간 예산 (USD) - 환경변수로 오버라이드 가능
+MONTHLY_BUDGET_USD = float(os.getenv("MONTHLY_LLM_BUDGET_USD", "30.0"))
+
+# 프리미엄 모델 기준 가격 (절감 효과 계산용, per 1K tokens)
+PREMIUM_BASELINE = {"input": 0.003, "output": 0.015}  # claude-sonnet-4 기준
 
 IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
@@ -422,7 +434,9 @@ def get_bridge_provider_breakdown(days: int = 30) -> List[Dict]:
                 "bridge_failure_rate": round((issue_calls / bridge_calls) * 100, 2) if bridge_calls else 0.0,
                 "repair_attempts": repair_attempts,
                 "repair_successes": repair_successes,
-                "repair_success_rate": round((repair_successes / repair_attempts) * 100, 2) if repair_attempts else None,
+                "repair_success_rate": (
+                    round((repair_successes / repair_attempts) * 100, 2) if repair_attempts else None
+                ),
                 "fallback_calls": int(bucket["fallback_calls"]),
                 "average_language_score": round(sum(scores) / len(scores), 4) if scores else None,
             }
@@ -455,6 +469,116 @@ def get_blind_to_x_summary(days: int = 30) -> Dict:
         "providers": provider_rows,
         "total_calls": total_calls,
         "total_cost_usd": round(total_cost, 5),
+    }
+
+
+def get_model_breakdown(days: int = 30) -> List[Dict]:
+    """모델별 비용 및 호출 수 집계."""
+    init_db()
+    conn = _conn()
+    since = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+    rows = conn.execute(
+        "SELECT model, provider, COUNT(*) as calls, "
+        "SUM(tokens_input) as input_tokens, "
+        "SUM(tokens_output) as output_tokens, "
+        "SUM(cost_usd) as cost "
+        "FROM api_calls WHERE timestamp >= ? "
+        "GROUP BY model, provider ORDER BY cost DESC, calls DESC",
+        (since,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_monthly_summary(months: int = 6) -> List[Dict]:
+    """월별 비용 집계 (최근 N개월)."""
+    init_db()
+    conn = _conn()
+    since = (datetime.now() - timedelta(days=months * 31)).strftime("%Y-%m-%d")
+    rows = conn.execute(
+        "SELECT substr(timestamp, 1, 7) as month, "
+        "COUNT(*) as calls, "
+        "SUM(tokens_input + tokens_output) as tokens, "
+        "SUM(cost_usd) as cost "
+        "FROM api_calls WHERE timestamp >= ? "
+        "GROUP BY month ORDER BY month",
+        (since,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_task_breakdown(days: int = 30) -> List[Dict]:
+    """caller_script(task) 별 비용 집계."""
+    init_db()
+    conn = _conn()
+    since = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+    rows = conn.execute(
+        "SELECT caller_script, COUNT(*) as calls, "
+        "SUM(tokens_input + tokens_output) as tokens, "
+        "SUM(cost_usd) as cost "
+        "FROM api_calls WHERE timestamp >= ? "
+        "GROUP BY caller_script ORDER BY cost DESC, calls DESC",
+        (since,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_fallback_analysis(days: int = 30) -> Dict:
+    """폴백 체인 사용 통계."""
+    init_db()
+    conn = _conn()
+    since = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+    total = conn.execute(
+        "SELECT COUNT(*) FROM api_calls WHERE timestamp >= ?", (since,)
+    ).fetchone()[0]
+    fallback_count = conn.execute(
+        "SELECT COUNT(*) FROM api_calls WHERE timestamp >= ? AND fallback_used = 1",
+        (since,),
+    ).fetchone()[0]
+    by_provider = conn.execute(
+        "SELECT provider_used, COUNT(*) as calls, SUM(cost_usd) as cost "
+        "FROM api_calls WHERE timestamp >= ? AND fallback_used = 1 "
+        "GROUP BY provider_used ORDER BY calls DESC",
+        (since,),
+    ).fetchall()
+    conn.close()
+    return {
+        "total_calls": total,
+        "fallback_calls": fallback_count,
+        "fallback_rate": round(fallback_count / total * 100, 2) if total else 0.0,
+        "by_provider": [dict(r) for r in by_provider],
+    }
+
+
+def get_savings_estimate(days: int = 30) -> Dict:
+    """프리미엄 모델 대비 절감 효과 추정 (30일 rolling)."""
+    init_db()
+    conn = _conn()
+    since = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+    rows = conn.execute(
+        "SELECT tokens_input, tokens_output, cost_usd "
+        "FROM api_calls WHERE timestamp >= ?",
+        (since,),
+    ).fetchall()
+    conn.close()
+
+    actual_cost = 0.0
+    premium_cost = 0.0
+    for r in rows:
+        inp = r["tokens_input"] or 0
+        out = r["tokens_output"] or 0
+        actual_cost += r["cost_usd"] or 0.0
+        premium_cost += (inp / 1000 * PREMIUM_BASELINE["input"]) + (
+            out / 1000 * PREMIUM_BASELINE["output"]
+        )
+    saved = premium_cost - actual_cost
+    return {
+        "actual_cost_usd": round(actual_cost, 4),
+        "premium_baseline_usd": round(premium_cost, 4),
+        "savings_usd": round(saved, 4),
+        "savings_pct": round(saved / premium_cost * 100, 2) if premium_cost > 0 else 0.0,
     }
 
 

@@ -15,13 +15,12 @@ Usage (CLI):
 from __future__ import annotations
 
 import json
-import logging
 import sys
 from pathlib import Path
 
 import yaml
 
-logger = logging.getLogger(__name__)
+from execution._logging import logger
 
 _BOT_DIR = Path(__file__).resolve().parent.parent / "dopamine-bot"
 _SCRAPERS_DIR = _BOT_DIR / "scrapers"
@@ -123,8 +122,6 @@ def get_community_trend_titles(
 
 def main() -> int:
     import argparse
-
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
     parser = argparse.ArgumentParser(description="커뮤니티 트렌드 수집")
     parser.add_argument("--source", choices=ALL_SOURCES, help="특정 소스만 수집")

@@ -93,15 +93,15 @@
   - [ ] `telegram_notifier.py`에 severity 파라미터 추가
 - **예상 소요**: 2~3시간
 
-### P2-3. 비용 통합 대시보드
+### P2-3. 비용 통합 대시보드 ✅
 - **심각도**: MEDIUM (2곳 합의)
 - **현황**: `api_usage_tracker.py` 존재하나 전체 LLM 통합 뷰 없음
 - **조치**:
-  - [ ] 비용 이벤트 스키마 통일: provider, model, task, tokens, cost_usd, fallback_stage
-  - [ ] Streamlit 페이지 `pages/cost_dashboard.py` 신규
-  - [ ] 예산 알림 50%/80%/95% 3단계
-  - [ ] MiMo V2-Flash 절감 효과 30일 rolling 측정
-- **예상 소요**: 4~6시간
+  - [x] 비용 이벤트 스키마 통일: provider, model, task, tokens, cost_usd, fallback_stage
+  - [x] Streamlit 페이지 `pages/cost_dashboard.py` 신규
+  - [x] 예산 알림 50%/80%/95% 3단계
+  - [x] MiMo V2-Flash 절감 효과 30일 rolling 측정
+- **완료**: 2026-03-22
 
 ### P2-4. directives ↔ execution 매핑 인덱스
 - **심각도**: MEDIUM (2곳 합의)
@@ -134,52 +134,59 @@
 
 ## Phase 3: 장기 (분기 이내)
 
-### P3-1. SaaS 로드맵 vs ADR-002 조화
+### P3-1. SaaS 로드맵 vs ADR-002 조화 ✅
 - **심각도**: HIGH (3곳 합의)
 - **현황**: roadmap_v3.md SaaS 전환 vs "로컬 전용" 정책 모순
 - **조치**:
-  - [ ] "local-first SaaS" 하이브리드 아키텍처 설계
-  - [ ] StorageAdapter / SchedulerAdapter / NotifierAdapter 인터페이스 정의
-  - [ ] 로컬 실행은 유지, 웹 껍데기만 SaaS(Vercel) 배포
-  - [ ] Cloudflare Tunnel 또는 n8n Webhook으로 로컬 워커 연동
-- **예상 소요**: 2~3주
+  - [x] "local-first SaaS" 하이브리드 아키텍처 설계
+  - [x] StorageAdapter / SchedulerAdapter / NotifierAdapter 인터페이스 정의
+  - [x] 로컬 실행은 유지, 웹 껍데기만 SaaS(Vercel) 배포
+  - [x] Cloudflare Tunnel 또는 n8n Webhook으로 로컬 워커 연동
+- **완료**: 2026-03-22 (ADR-013 + `directives/local_first_saas_design.md`)
 
-### P3-2. MCP 서버 리소스 프로파일링 + on-demand 전환
-- **심각도**: MEDIUM (2곳 합의)
-- **현황**: 10개 MCP 서버 상시 가동 → 로컬 리소스 부하 우려
+### P3-2. MCP 서버 리소스 프로파일링 + on-demand 전환 ✅
+- **심각도**: MEDIUM → **CRITICAL** (실측 결과 상향)
+- **현황**: 13개 MCP 서버가 각각 4배 중복 실행 → ~90개 프로세스, ~4.9GB RAM (31%)
 - **조치**:
-  - [ ] System Monitor MCP로 1주간 리소스 측정
-  - [ ] 사용 빈도 낮은 서버 on-demand 시작으로 전환
-  - [ ] Docker Compose profile 또는 startup script 분리
-- **예상 소요**: 1주
+  - [x] System Monitor MCP로 리소스 측정 → `directives/mcp_resource_profile.md`
+  - [x] 사용 빈도별 Tier 1/2/3 분류 완료
+  - [x] Tier 3 (youtube/cloudinary/n8n/playwright/firebase/supabase/notebooklm) on-demand 전환 권장
+  - [ ] (후속) AI 도구 동시 실행 제한으로 즉시 ~3.7GB 확보
+  - [ ] (후속) server-filesystem 제거 (Read/Glob으로 대체)
+- **완료**: 2026-03-22 (프로파일링 + 권장안)
 
-### P3-3. MoviePy 탈출 경로 확보
+### P3-3. MoviePy 탈출 경로 확보 ✅ (Phase 1)
 - **심각도**: MEDIUM (보고서2)
 - **현황**: MoviePy 2.x 메인테이너 부족, 성능 변동성 보고
 - **조치**:
-  - [ ] `video_renderer.py` 추상화 레이어 도입
-  - [ ] FFmpeg subprocess 직접 호출 대안 경로 구현
-  - [ ] golden render test (30초 샘플, 해상도/오디오 sync 검사)
-- **예상 소요**: 1주
+  - [x] `video_renderer.py` 추상화 레이어 도입 (ABC + ClipHandle + Factory)
+  - [x] FFmpeg subprocess 직접 호출 대안 경로 구현 (FFmpegRenderer)
+  - [x] MoviePyRenderer 현재 구현 래핑
+  - [ ] (후속) render_step.py를 VideoRendererBackend 경유로 점진 전환
+  - [ ] (후속) golden render test (30초 샘플, 해상도/오디오 sync 검사)
+- **완료**: 2026-03-22 (`shorts-maker-v2/src/shorts_maker_v2/render/video_renderer.py`)
 
-### P3-4. 키 로테이션 알림 자동화
+### P3-4. 키 로테이션 알림 자동화 ✅
+
 - **심각도**: MEDIUM (보고서2)
 - **현황**: API 키 로테이션 전략 없음
 - **조치**:
-  - [ ] `.env.meta` 파일에 각 키의 마지막 로테이션 일자 기록
-  - [ ] `scripts/key_rotation_checker.py`: 90일 경과 시 Telegram 알림
-  - [ ] 분기별 SOP(`directives/security_rotation.md`) 작성
-- **예상 소요**: 2~3시간
+  - [x] `.env.meta` 파일에 각 키의 마지막 로테이션 일자 기록 (12개 키)
+  - [x] `scripts/key_rotation_checker.py`: 90일 경과 시 Telegram 알림 + `--update` 명령
+  - [x] 분기별 SOP(`directives/security_rotation.md`) 작성
+- **완료**: 2026-03-22
 
-### P3-5. 프로젝트 운영 등급화
+### P3-5. 프로젝트 운영 등급화 ✅
+
 - **심각도**: MEDIUM (보고서3)
 - **현황**: 6개 서브프로젝트 모두 동일 수준으로 유지보수
 - **조치**:
-  - [ ] Active: blind-to-x, shorts-maker-v2, hanwoo-dashboard
-  - [ ] Maintenance: knowledge-dashboard
-  - [ ] Frozen: suika-game-v2, word-chain
-  - [ ] Frozen 프로젝트는 테스트/업데이트 빈도 최소화
-- **예상 소요**: 1시간 (문서 작업)
+  - [x] Active: blind-to-x (13건), shorts-maker-v2 (32건), hanwoo-dashboard (8건)
+  - [x] Maintenance: knowledge-dashboard (3건)
+  - [x] Frozen: suika-game-v2 (1건), word-chain (1건)
+  - [x] 등급별 운영 지침 + 변경 절차 문서화
+  - [x] `.ai/CONTEXT.md` 프로젝트 테이블에 등급 컬럼 추가
+- **완료**: 2026-03-22 (`directives/project_operations_grade.md`)
 
 ---
 

@@ -103,6 +103,7 @@ class QCStep:
         manifest: JobManifest,
         output_path: str,
         target_duration: tuple[int, int] = (40, 50),
+        stub_mode: bool = False,
     ) -> QCReport:
         """Gate 4: 렌더 완료 후 최종 품질 검수.
 
@@ -110,6 +111,7 @@ class QCStep:
             manifest: 작업 매니페스트
             output_path: 렌더된 MP4 경로
             target_duration: (min, max) 초
+            stub_mode: True면 duration/filesize 체크를 skip (테스트용 stub 렌더)
 
         Returns:
             QCReport — PASS 또는 HOLD (자동 재생성 없음)
@@ -117,6 +119,17 @@ class QCStep:
         checks: dict[str, bool] = {}
         issues: list[str] = []
         dur_min, dur_max = target_duration
+
+        # stub 렌더: duration/filesize/resolution/audio 체크 불필요
+        if stub_mode:
+            logger.info("[QC Gate 4] stub_mode — skipping media validation")
+            no_failures = len(manifest.failed_steps) == 0
+            checks["no_failed_steps"] = no_failures
+            checks["stub_mode"] = True
+            if not no_failures:
+                issues.append(f"{len(manifest.failed_steps)} failed step(s)")
+            verdict = GateVerdict.PASS.value if no_failures else GateVerdict.HOLD.value
+            return QCReport(checks=checks, verdict=verdict, issues=issues)
 
         # Check 1: 영상 길이
         dur = manifest.total_duration_sec

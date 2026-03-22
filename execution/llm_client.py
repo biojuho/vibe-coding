@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import logging
 import os
 import sqlite3
 import time
@@ -53,7 +52,7 @@ from execution.language_bridge import (
 load_dotenv()
 load_dotenv(Path(__file__).resolve().parent.parent / "shorts-maker-v2" / ".env", override=False)
 
-logger = logging.getLogger(__name__)
+from execution._logging import logger  # noqa: E402
 
 # ── 프로바이더 설정 ──────────────────────────────────────────
 
@@ -875,7 +874,11 @@ def generate_json(
     caller_script: str = "",
 ) -> dict[str, Any]:
     """간편 JSON 생성 함수. 매번 새 클라이언트 생성 없이 사용."""
-    client = LLMClient(providers=providers, caller_script=caller_script) if providers else get_default_client(caller_script=caller_script)
+    client = (
+        LLMClient(providers=providers, caller_script=caller_script)
+        if providers
+        else get_default_client(caller_script=caller_script)
+    )
     return client.generate_json(
         system_prompt=system_prompt,
         user_prompt=user_prompt,
@@ -892,7 +895,11 @@ def generate_text(
     caller_script: str = "",
 ) -> str:
     """간편 텍스트 생성 함수."""
-    client = LLMClient(providers=providers, caller_script=caller_script) if providers else get_default_client(caller_script=caller_script)
+    client = (
+        LLMClient(providers=providers, caller_script=caller_script)
+        if providers
+        else get_default_client(caller_script=caller_script)
+    )
     return client.generate_text(
         system_prompt=system_prompt,
         user_prompt=user_prompt,
@@ -909,7 +916,11 @@ def generate_json_bridged(
     caller_script: str = "",
     policy: BridgePolicy | None = None,
 ) -> dict[str, Any]:
-    client = LLMClient(providers=providers, caller_script=caller_script) if providers else get_default_client(caller_script=caller_script)
+    client = (
+        LLMClient(providers=providers, caller_script=caller_script)
+        if providers
+        else get_default_client(caller_script=caller_script)
+    )
     return client.generate_json_bridged(
         system_prompt=system_prompt,
         user_prompt=user_prompt,
@@ -927,7 +938,11 @@ def generate_text_bridged(
     caller_script: str = "",
     policy: BridgePolicy | None = None,
 ) -> str:
-    client = LLMClient(providers=providers, caller_script=caller_script) if providers else get_default_client(caller_script=caller_script)
+    client = (
+        LLMClient(providers=providers, caller_script=caller_script)
+        if providers
+        else get_default_client(caller_script=caller_script)
+    )
     return client.generate_text_bridged(
         system_prompt=system_prompt,
         user_prompt=user_prompt,
@@ -951,11 +966,7 @@ def main() -> int:
 
     args = parser.parse_args()
 
-    logging.basicConfig(
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        level=logging.INFO,
-    )
-
+    # loguru setup already applied via execution._logging import
     client = LLMClient()
 
     ICONS = {"ok": "✅", "fail": "❌", "skip": "⏭️"}

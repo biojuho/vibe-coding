@@ -3,13 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
-_xfail_qc = pytest.mark.xfail(
-    reason="QC step gate4 rejects stub render (duration/filesize) — needs stub-aware QC bypass",
-    strict=False,
-)
-
 import yaml
 
 from shorts_maker_v2.config import load_config
@@ -118,7 +111,6 @@ def _make_orchestrator(tmp_path: Path, *, renderer_mode: str) -> PipelineOrchest
     )
 
 
-@_xfail_qc
 def test_auto_renderer_records_native_on_shorts_factory_failure(tmp_path: Path) -> None:
     orchestrator = _make_orchestrator(tmp_path, renderer_mode="auto")
 
@@ -134,7 +126,6 @@ def test_auto_renderer_records_native_on_shorts_factory_failure(tmp_path: Path) 
     assert manifest.output_path.endswith("fallback.mp4")
 
 
-@_xfail_qc
 def test_auto_renderer_records_shorts_factory_on_success(tmp_path: Path) -> None:
     orchestrator = _make_orchestrator(tmp_path, renderer_mode="auto")
 

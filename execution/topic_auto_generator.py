@@ -18,6 +18,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from execution.language_bridge import ensure_utf8_stdio
 
+import execution._logging  # noqa: F401 — loguru 설정 활성화
 logger = logging.getLogger(__name__)
 
 # Windows cp949 인코딩 문제 방지

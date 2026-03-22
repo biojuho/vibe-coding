@@ -88,13 +88,6 @@ def _make_config_file(tmp_path: Path) -> Path:
     return config_path
 
 
-import pytest
-
-
-@pytest.mark.xfail(
-    reason="QC step gate4 rejects stub render (duration/filesize) — needs stub-aware QC bypass",
-    strict=False,
-)
 def test_orchestrator_writes_manifest(tmp_path: Path) -> None:
     config_path = _make_config_file(tmp_path)
     config = load_config(config_path)

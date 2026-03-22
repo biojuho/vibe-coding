@@ -343,7 +343,11 @@ class PipelineOrchestrator:
                     planning_step = PlanningStep(
                         config=self.config,
                         llm_router=LLMRouter(
-                            providers=list(self.config.providers.llm_providers) if self.config.providers.llm_providers else [self.config.providers.llm],
+                            providers=(
+                                list(self.config.providers.llm_providers)
+                                if self.config.providers.llm_providers
+                                else [self.config.providers.llm]
+                            ),
                             models=dict(self.config.providers.llm_models) if self.config.providers.llm_models else {},
                             max_retries=self.config.limits.max_retries,
                             request_timeout_sec=self.config.limits.request_timeout_sec,
@@ -445,7 +449,8 @@ class PipelineOrchestrator:
 
             if len(scene_assets) < len(scene_plans):
                 raise RuntimeError(
-                    f"Media generation incomplete. Generated {len(scene_assets)} assets out of {len(scene_plans)} scenes. "
+                    f"Media generation incomplete. Generated {len(scene_assets)} "
+                    f"assets out of {len(scene_plans)} scenes. "
                     "Halting pipeline to prevent rendering a broken video. You can resume this job later."
                 )
 
@@ -545,10 +550,12 @@ class PipelineOrchestrator:
 
             # ── Gate 4: 최종 QC ──
             status.start("gate4_final_qc", detail="Final quality check")
+            _is_stub = not isinstance(self.render_step, RenderStep)
             gate4_report = QCStep.gate4_final(
                 manifest=manifest,
                 output_path=str(output_path),
                 target_duration=target_dur if 'target_dur' in dir() else (40, 50),
+                stub_mode=_is_stub,
             )
             manifest.qc_result = {
                 "checks": gate4_report.checks,

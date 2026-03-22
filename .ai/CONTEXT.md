@@ -24,14 +24,14 @@
 
 ### 서브 프로젝트별 스택
 
-| 프로젝트 | 유형 | 핵심 기술 | 주요 버전 |
-|----------|------|-----------|-----------|
-| **hanwoo-dashboard** | 웹앱 | Next.js, React, Prisma, TailwindCSS, Radix UI, Recharts | Next 16, React 19, Prisma 6, TW 4 |
-| **blind-to-x** | 파이프라인 | Python, Notion API, Cloudinary, YAML 설정 | Python 3.x |
-| **shorts-maker-v2** | CLI/파이프라인 | Python, MoviePy, Edge TTS, OpenAI, Google GenAI, Pillow | Python 3.10+, MoviePy 2.1 |
-| **knowledge-dashboard** | 웹앱 | Next.js, TypeScript, React, TailwindCSS, Recharts | Next 16, React 19, TS 5, TW 4 |
-| **suika-game-v2** | 게임 | Vanilla JS, Matter.js, Vite | Matter.js 0.20, Vite 6 |
-| **word-chain** | 게임 | React, Vite, Framer Motion, TailwindCSS | React 19, Vite 7, TW 4 |
+| 프로젝트 | 등급 | 유형 | 핵심 기술 | 주요 버전 |
+|----------|------|------|-----------|-----------|
+| **blind-to-x** | Active | 파이프라인 | Python, Notion API, Cloudinary, YAML 설정 | Python 3.x |
+| **shorts-maker-v2** | Active | CLI/파이프라인 | Python, MoviePy, Edge TTS, OpenAI, Google GenAI, Pillow | Python 3.10+, MoviePy 2.1 |
+| **hanwoo-dashboard** | Active | 웹앱 | Next.js, React, Prisma, TailwindCSS, Radix UI, Recharts | Next 16, React 19, Prisma 6, TW 4 |
+| **knowledge-dashboard** | Maintenance | 웹앱 | Next.js, TypeScript, React, TailwindCSS, Recharts | Next 16, React 19, TS 5, TW 4 |
+| **suika-game-v2** | Frozen | 게임 | Vanilla JS, Matter.js, Vite | Matter.js 0.20, Vite 6 |
+| **word-chain** | Frozen | 게임 | React, Vite, Framer Motion, TailwindCSS | React 19, Vite 7, TW 4 |
 
 ### 공유 인프라
 

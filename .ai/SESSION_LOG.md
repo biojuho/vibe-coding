@@ -1,3 +1,51 @@
+## 2026-03-22 (세션2) — Claude Code (Opus 4.6) — P2-3 + Phase 3 완료 + xfail 수정 + loguru 적용
+
+### 작업 요약
+
+P2-3 비용 통합 대시보드 완료, Phase 3 전 항목(P3-1~P3-5) 완료, shorts-maker-v2 xfail 3건 근본 수정, loguru 5개 스크립트 적용.
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| `execution/api_usage_tracker.py` | 수정 | PRICING 확장 + 5개 신규 쿼리 함수 + MONTHLY_BUDGET_USD |
+| `execution/pages/cost_dashboard.py` | **신규** | 통합 비용 대시보드 (8개 섹션, 3 데이터소스) |
+| `.ai/DECISIONS.md` | 수정 | ADR-013 Local-First SaaS 하이브리드 추가 |
+| `directives/local_first_saas_design.md` | **신규** | Adapter 인터페이스 + 배포 토폴로지 + 보안 경계 |
+| `directives/mcp_resource_profile.md` | **신규** | MCP 서버 4x 중복 발견 (~4.9GB, 90개 프로세스) |
+| `shorts-maker-v2/.../render/video_renderer.py` | **신규** | MoviePy 추상화 (ABC + MoviePyRenderer + FFmpegRenderer) |
+| `.env.meta` | **신규** | API 키 로테이션 메타데이터 (12개 키) |
+| `scripts/key_rotation_checker.py` | **신규** | 90일 로테이션 체커 + Telegram 알림 |
+| `directives/security_rotation.md` | **신규** | 분기별 키 로테이션 SOP |
+| `directives/project_operations_grade.md` | **신규** | Active/Maintenance/Frozen 등급화 |
+| `.ai/CONTEXT.md` | 수정 | 프로젝트 테이블에 등급 컬럼 추가 |
+| `shorts-maker-v2/.../pipeline/qc_step.py` | 수정 | `stub_mode` 파라미터 추가 (Gate 4) |
+| `shorts-maker-v2/.../pipeline/orchestrator.py` | 수정 | stub 감지 → `stub_mode=True` 전달 |
+| `shorts-maker-v2/tests/integration/test_orchestrator_manifest.py` | 수정 | xfail 제거 |
+| `shorts-maker-v2/tests/integration/test_renderer_mode_manifest.py` | 수정 | xfail 2건 제거 |
+| `execution/llm_client.py` | 수정 | loguru 전환 |
+| `execution/pipeline_watchdog.py` | 수정 | loguru 전환 |
+| `execution/backup_to_onedrive.py` | 수정 | loguru 전환 |
+| `execution/community_trend_scraper.py` | 수정 | loguru 전환 |
+| `execution/topic_auto_generator.py` | 수정 | loguru 설정 활성화 (stdlib 유지, caplog 호환) |
+| `directives/system_audit_action_plan.md` | 수정 | P2-3, P3-1~P3-5 완료 마킹 |
+
+### 결정사항
+- **ADR-013**: Local-First SaaS 하이브리드 — ADR-002 폐기 않고 범위 재해석
+- **MCP 중복**: 13개 서버 x 4 인스턴스 = 90개 프로세스. 즉시 AI 도구 동시 실행 제한 필요
+- **프로젝트 등급**: Active 3개 / Maintenance 1개 / Frozen 2개
+
+### 테스트 결과
+- Root: 825 passed, 0 failed (coverage 77.95%)
+- shorts-maker-v2 xfail 3건: 모두 통과
+
+### 다음 도구에게
+- loguru 전환 나머지 ~13개 스크립트는 `caplog` 의존 테스트 유무 확인 필요 (topic_auto_generator 패턴 참조)
+- MCP 서버 중복은 AI 도구 창 닫기로 즉시 해결 가능, 근본 해결은 MCP 프록시 검토
+- video_renderer.py는 render_step.py 점진 전환 + golden render test 후속 필요
+
+---
+
 ## 2026-03-22 — Claude Code (Opus 4.6) — 시스템 감사 즉시조치 + Phase 1~2 실행
 
 ### 작업 요약

@@ -21,7 +21,6 @@ import execution._logging  # noqa: F401 — loguru 중앙 설정 활성화
 
 import argparse
 import json
-import logging
 import os
 import shutil
 import sqlite3
@@ -35,7 +34,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-logger = logging.getLogger(__name__)
+from execution._logging import logger  # noqa: E402
 
 _ROOT = Path(__file__).resolve().parent.parent
 _BTX_ROOT = _ROOT / "blind-to-x"
@@ -638,11 +637,6 @@ if __name__ == "__main__":
     parser.add_argument("--check-alive", action="store_true",
                         help="워치독 heartbeat 상태만 확인 (자동 재시작 체크용)")
     args = parser.parse_args()
-
-    logging.basicConfig(
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        level=logging.INFO,
-    )
 
     # --check-alive: heartbeat만 확인 후 종료
     if args.check_alive:
