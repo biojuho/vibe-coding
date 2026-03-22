@@ -1,4 +1,114 @@
-## 2026-03-22 — Antigravity (Gemini) — blind-to-x 테스트 복구 (Phase 6) 완료
+## 2026-03-22 — Antigravity (Gemini) — 세션 종료 (blind-to-x: Perf Collector + Smoke Test + QC)
+
+### 작업 요약
+Performance Collector 실제 API 연동, NotebookLM Smoke Test 16개 작성, reply_text 자동화,
+그리고 최종 QA/QC 승인까지 완료한 세션.
+
+### 변경 파일
+| 파일 | 변경 유형 |
+|------|-----------|
+| `blind-to-x/pipeline/performance_collector.py` | 완전 재작성 (Twitter/Threads/Naver API) |
+| `blind-to-x/pipeline/notion/_schema.py` | reply_text 복원 + unused import 제거 |
+| `blind-to-x/pipeline/notion/_upload.py` | reply_text payload 추가 |
+| `blind-to-x/.env.example` | X_BEARER_TOKEN, THREADS_ACCESS_TOKEN 추가 |
+| `blind-to-x/tests/integration/test_notebooklm_smoke.py` | **신규** 16개 smoke test |
+| Notion DB (API) | `답글 텍스트` rich_text 속성 자동 생성 |
+
+### QC 결과
+| 항목 | 결과 |
+|------|------|
+| AST 구문 검사 | ✅ PASS (3개 파일) |
+| Ruff lint | ✅ PASS (F401 1건 수정 후 clean) |
+| pytest 전체 | ✅ **497 passed, 5 skipped, 0 failed** |
+
+### 결정사항
+- Naver Blog 공개 API 없음 → graceful skip + 수동 입력 안내 패턴 채택
+- Threads API: shortcode → numeric media_id 2단계 조회 구조
+- reply_text 자동화로 Notion DB 수동 작업 제거
+
+### TODO (다음 세션)
+- [ ] `X_BEARER_TOKEN` 발급 후 `.env` 추가 (X Basic tier 이상)
+- [ ] `THREADS_ACCESS_TOKEN` 발급 후 `.env` 추가 (Meta Developers)
+- [ ] `NOTEBOOKLM_MODE=gdrive` 실전 테스트
+
+### 다음 AI에게
+- **테스트 안정 상태**: pytest 497 passed / 0 failed — 베이스라인 유지 필수
+- **performance_collector.py**: API 토큰 없으면 자동 skip (0 기록 안 함), 토큰 추가 후 재실행 필요
+- **reply_text**: Notion DB 및 코드 양쪽 완전 활성화 완료. 추가 작업 불필요.
+- **Ruff**: `pipeline/notion/_schema.py`의 `from typing import Any`는 `performance_collector.py`에는 사용 중이므로 혼동 주의
+
+---
+
+## 2026-03-22 — Antigravity (Gemini) — QC 승인 (blind-to-x 세션 최종)
+
+### 작업 요약
+이번 세션 전체 변경사항에 대한 QA/QC 완료.
+
+### QA 결과
+
+| 항목 | 결과 |
+|------|------|
+| AST 구문 검사 (3개 파일) | ✅ PASS |
+| Ruff lint | ✅ PASS (1건 수정: `_schema.py` unused import 제거) |
+| 전체 테스트 | ✅ 497 passed, 5 skipped, 0 failed |
+
+### STEP 3 — 수정 (QA)
+
+| 파일 | 수정 내용 |
+|------|-----------|
+| `pipeline/notion/_schema.py` | `from typing import Any` 미사용 import 제거 (Ruff F401) |
+
+### 최종 판정
+
+**✅ QC 승인** — 497 passed, 0 failed, Ruff clean
+
+---
+
+## 2026-03-22 — Antigravity (Gemini) — Performance Collector API 연동 + Smoke Test + reply_text 완전 자동화
+
+### 작업 요약
+blind-to-x 3가지 TODO를 모두 완료:
+1. `performance_collector.py` 실제 API 연동 (Twitter/Threads/Naver graceful fallback)
+2. `NOTEBOOKLM_ENABLED=true` 통합 smoke test 작성 및 통과
+3. `reply_text` 속성 코드+Notion DB 양쪽 완전 활성화 (MCP/urllib 직접 PATCH 자동화)
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| `blind-to-x/pipeline/performance_collector.py` | 완전 재작성 | `_estimate_metrics()` placeholder → `_fetch_platform_metrics()` 실제 API. Twitter X API v2, Threads Meta Graph API `/insights`, Naver Blog graceful skip |
+| `blind-to-x/pipeline/notion/_schema.py` | 수정 | `reply_text` DEPRECATED_PROPS → DEFAULT_PROPS 복원, EXPECTED_TYPES/AUTO_DETECT_KEYWORDS 추가 |
+| `blind-to-x/pipeline/notion/_upload.py` | 수정 | `reply_text` 속성 payload 전송 추가 |
+| `blind-to-x/.env.example` | 수정 | `X_BEARER_TOKEN`, `THREADS_ACCESS_TOKEN` 추가 |
+| `blind-to-x/tests/integration/test_notebooklm_smoke.py` | **신규** | 16개 통합 smoke test (disabled/topic/timeout/env variants) |
+| Notion DB (API 직접) | 속성 추가 | `답글 텍스트` (rich_text) 속성 자동 생성 완료 (urllib PATCH) |
+
+### 테스트 결과
+
+| 항목 | 결과 |
+|------|------|
+| NotebookLM smoke test (신규) | ✅ 16 passed, 1 skipped (content_writer.py 없어 정상 skip) |
+| blind-to-x 단위 테스트 전체 | ✅ 423 passed, 4 skipped, 0 failed |
+
+### 결정사항
+- 이전 TODO "Notion DB reply_text 속성 수동 추가" → 완전 자동화됨 (urllib PATCH 스크립트)
+- API 키 없어도 graceful skip 구조: None 반환 → 수동 입력 대기 (0 기록 없음)
+- Threads API: shortcode → numeric media_id 2단계 조회 구조
+
+### TODO (다음 세션)
+- [ ] `X_BEARER_TOKEN` 발급 후 `.env`에 추가 (X Basic tier 이상 필요)
+- [ ] `THREADS_ACCESS_TOKEN` 발급 후 `.env`에 추가 (Meta Developers)
+- [ ] `NOTEBOOKLM_MODE=gdrive` 실전 테스트 (Google Drive 서비스 계정 설정 필요)
+- [ ] execution/content_writer.py 경로 확인 (smoke test 1 skip 해소)
+
+### 다음 도구에게 메모
+- `performance_collector.py`는 이제 `_fetch_platform_metrics(platform, page_info)` 함수로 실제 API 호출
+- Notion DB `답글 텍스트` (rich_text) 속성이 자동으로 추가되어 있음 (확인 완료, 총 39개 속성)
+- smoke test는 Python 3.10+ asyncio.run() 방식 사용 (`asyncio.get_event_loop().run_until_complete()` 아님)
+
+---
+
+
 
 ### 작업 요약
 blind-to-x 파이프라인 전체 테스트 스위트의 실패 3건을 수정하여 **481 passed, 0 failed, 4 skipped** 달성.
