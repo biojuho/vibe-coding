@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import logging
 import os
 import shutil
 import sqlite3
@@ -25,7 +24,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-logger = logging.getLogger(__name__)
+from execution._logging import logger  # noqa: E402
 _ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -207,8 +206,6 @@ if __name__ == "__main__":
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--no-notify", action="store_true")
     args = parser.parse_args()
-
-    logging.basicConfig(level=logging.INFO)
 
     report = run_restore_test(dry_run=args.dry_run)
 

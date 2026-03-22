@@ -14,7 +14,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import logging
 import os
 import sqlite3
 from pathlib import Path
@@ -23,7 +22,7 @@ from typing import Any
 import requests
 from dotenv import load_dotenv
 
-logger = logging.getLogger(__name__)
+from execution._logging import logger  # noqa: E402
 
 _ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(_ROOT / ".env")
@@ -303,7 +302,6 @@ def get_channel_comparison() -> list[dict]:
 
 # ── CLI ──────────────────────────────────────────────────────
 def _cli() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
     parser = argparse.ArgumentParser(description="YouTube 채널 성장 트래커")
     sub = parser.add_subparsers(dest="cmd")
 

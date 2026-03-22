@@ -27,8 +27,12 @@
 | roadmap_v3.md | *(계획 문서, 직접 매핑 없음)* | v3.0 로드맵 참조용 |
 | scheduler.md | scheduler_engine.py, scheduler_worker.py | Windows Task Scheduler 연동 |
 | session_workflow.md | *(워크플로우, 직접 매핑 없음)* | AI 세션 워크플로우 |
+| security_rotation.md | *(SOP 문서)* → scripts/key_rotation_checker.py | 키 로테이션 절차 |
 | system_audit_action_plan.md | *(계획 문서, 직접 매핑 없음)* | 감사 액션 플랜 |
 | telegram_notifications.md | telegram_notifier.py | Telegram 알림 |
+| local_first_saas_design.md | *(설계 문서, 직접 매핑 없음)* | Local-First SaaS (ADR-013) |
+| mcp_resource_profile.md | *(분석 문서, 직접 매핑 없음)* | MCP 서버 리소스 프로파일 |
+| project_operations_grade.md | *(정책 문서, 직접 매핑 없음)* | 프로젝트 등급화 정책 |
 | watchdog_backup.md | pipeline_watchdog.py, backup_to_onedrive.py, backup_restore_test.py | 감시 + 백업 |
 | yt_analytics_to_notion.md | yt_analytics_to_notion.py, youtube_analytics_collector.py | YT→Notion 연동 |
 

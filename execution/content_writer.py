@@ -20,14 +20,13 @@ from __future__ import annotations
 
 import argparse
 import json
-import logging
 import os
 from datetime import datetime
 from pathlib import Path
 
 import yaml
 
-logger = logging.getLogger(__name__)
+from execution._logging import logger
 
 # 기본 리소스 경로 (Execution Layer 기준)
 _ROOT = Path(__file__).resolve().parent.parent
@@ -279,8 +278,6 @@ def write_article(
 
 def main():
     """CLI 엔트리포인트."""
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-
     parser = argparse.ArgumentParser(description="AI 기반 콘텐츠 작성기")
     sub = parser.add_subparsers(dest="command", required=True)
 

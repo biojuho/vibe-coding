@@ -19,11 +19,10 @@ from __future__ import annotations
 
 import argparse
 import json
-import logging
 import os
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+from execution._logging import logger
 
 # ── Google API 의존성 확인 ──────────────────────────────────────────────────
 
@@ -335,8 +334,6 @@ def download_and_extract(file_id: str, *, dest_dir: str | Path | None = None) ->
 
 def main():
     """CLI 엔트리포인트."""
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-
     # 의존성 체크
     missing = _check_deps()
     if missing:

@@ -75,15 +75,17 @@
 
 ## Phase 2: 중기 (1개월 이내)
 
-### P2-1. 구조화 로깅 도입 (structlog/loguru)
+### P2-1. 구조화 로깅 도입 (structlog/loguru) ✅
+
 - **심각도**: MEDIUM (3곳 합의)
 - **현황**: print() 혼재, 로그 로테이션 없음
 - **조치**:
-  - [ ] `loguru` 채택 (structlog 대비 설정 간결)
-  - [ ] `.tmp/logs/<project>/<date>.jsonl` 출력
-  - [ ] 7일 로테이션, 500MB 상한
-  - [ ] Telegram에는 ERROR/CRITICAL만 전송
-- **예상 소요**: 3~4시간
+  - [x] `loguru` 채택 → `execution/_logging.py` 중앙 설정 (이전 세션)
+  - [x] `.tmp/logs/execution_{date}.jsonl` 출력 + 7일 로테이션 + gz 압축
+  - [x] stdlib logging 인터셉트 (기존 코드 호환)
+  - [x] 12/14개 execution 스크립트 loguru 전환 완료
+  - [ ] (후속) 나머지 ~6개 스크립트 (bgm_downloader, health_check, selector_validator 등)
+- **완료**: 2026-03-22
 
 ### P2-2. Telegram 알림 티어링
 - **심각도**: MEDIUM (2곳 합의)
@@ -103,32 +105,37 @@
   - [x] MiMo V2-Flash 절감 효과 30일 rolling 측정
 - **완료**: 2026-03-22
 
-### P2-4. directives ↔ execution 매핑 인덱스
+### P2-4. directives ↔ execution 매핑 인덱스 ✅
+
 - **심각도**: MEDIUM (2곳 합의)
 - **현황**: 28 SOP vs 39 스크립트 — 고아 파일 가능성
 - **조치**:
-  - [ ] `directives/INDEX.md` 작성: SOP → execution 매핑
-  - [ ] 미매핑 스크립트를 utility/watchdog/adapter로 분류
-  - [ ] 검증 스크립트 `scripts/check_mapping.py` 추가
-- **예상 소요**: 1~2시간
+  - [x] `directives/INDEX.md` 작성 (이전 세션) + 신규 directive 6건 추가
+  - [x] 미매핑 스크립트 15개를 utility/entrypoint로 분류
+  - [x] 검증 스크립트 `scripts/check_mapping.py` 추가 — 26 SOP, 42 스크립트 매핑 검증 통과
+- **완료**: 2026-03-22
 
-### P2-5. SQLite 백업 방식 개선
-- **심각도**: HIGH (보고서3 단독)
-- **현황**: OneDrive가 live WAL DB를 직접 동기화 → 손상 가능성
-- **조치**:
-  - [ ] `backup_to_onedrive.py`에 `VACUUM INTO` snapshot 방식 추가
-  - [ ] live DB 폴더와 snapshot 폴더 분리
-  - [ ] OneDrive는 snapshot 폴더만 동기화
-- **예상 소요**: 2~3시간
+### P2-5. SQLite 백업 방식 개선 ✅
 
-### P2-6. Task Scheduler S4U 적합성 감사
-- **심각도**: CRITICAL (보고서3 단독)
-- **현황**: S4U 모드는 네트워크 접근 없음이 문서 사양 — Playwright/외부 API와 충돌 가능
+- **심각도**: HIGH → **이미 해결됨** (실측)
+- **현황**: 프로젝트가 OneDrive 외부(Desktop)에 위치 → live DB 동기화 없음
 - **조치**:
-  - [ ] `schtasks /query /xml` 전수 export
-  - [ ] 각 작업에 needs_network/needs_gui 태그 부여
-  - [ ] S4U 부적합 작업은 TASK_LOGON_PASSWORD 또는 TASK_LOGON_INTERACTIVE_TOKEN으로 전환
-- **예상 소요**: 4시간
+  - [x] `backup_to_onedrive.py`에 `VACUUM INTO` snapshot 방식 추가 (이전 세션)
+  - [x] live DB 폴더(Desktop/.tmp/) ↔ snapshot 폴더(OneDrive/VibeCodingBackup/) 분리 확인
+  - [x] OneDrive는 snapshot 폴더만 동기화 확인
+  - [x] `.db` 파일 SKIP_EXTS로 일반 복사 제외 확인
+- **완료**: 2026-03-22 (이미 올바르게 구성됨 확인)
+
+### P2-6. Task Scheduler S4U 적합성 감사 ✅
+
+- **심각도**: CRITICAL → **해당없음** (실측)
+- **현황**: S4U 모드 작업 0건. 모든 프로젝트 작업(BlindToX 6건)은 Interactive 모드
+- **조치**:
+  - [x] Get-ScheduledTask 전수 조회 — S4U 로그온 타입 사용 작업 0건 확인
+  - [x] BlindToX 6건 모두 Interactive 모드 (네트워크 접근 정상)
+  - [x] 일부 작업 LastResult=1 (실행 오류) — S4U와 무관, 스크립트 자체 이슈
+  - [ ] (후속) watchdog heartbeat checker를 Task Scheduler에 등록 권장
+- **완료**: 2026-03-22 (S4U 위험 없음 확인)
 
 ---
 

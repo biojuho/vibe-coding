@@ -7,7 +7,7 @@
 
 Usage:
     python execution/result_tracker_db.py init
-    python execution/result_tracker_db.py add --platform youtube --url "https://youtu.be/..." --title "제목" --channel "AI/기술"
+    python execution/result_tracker_db.py add --platform youtube --url "..." --title "제목"
     python execution/result_tracker_db.py list
     python execution/result_tracker_db.py collect   # YouTube 통계 자동 수집
 """
@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import argparse
 # [QA 수정] json import 제거 (미사용)
-import logging
 import os
 import re
 import sqlite3
@@ -26,7 +25,7 @@ from typing import Any
 import requests
 from dotenv import load_dotenv
 
-logger = logging.getLogger(__name__)
+from execution._logging import logger  # noqa: E402
 
 _ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(_ROOT / ".env")
@@ -413,7 +412,6 @@ def get_daily_trend(days: int = 30) -> list[dict]:
 
 # ── CLI ──────────────────────────────────────────────────────
 def _cli() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
     parser = argparse.ArgumentParser(description="콘텐츠 결과 추적기")
     sub = parser.add_subparsers(dest="cmd")
 
@@ -451,7 +449,11 @@ def _cli() -> None:
         items = get_all(platform=args.platform or None)
         for it in items:
             emoji = PLATFORMS.get(it["platform"], {}).get("emoji", "📄")
-            print(f"  {emoji} [{it['id']}] {it['title'][:40]:40s} | {it['views']:>6}v {it['likes']:>4}♥ | {it['url'][:50]}")
+            title = it["title"][:40]
+            print(
+                f"  {emoji} [{it['id']}] {title:40s}"
+                f" | {it['views']:>6}v {it['likes']:>4}♥ | {it['url'][:50]}"
+            )
     elif args.cmd == "collect":
         init_db()
         result = collect_youtube_stats()

@@ -20,12 +20,11 @@ from __future__ import annotations
 
 import argparse
 import json
-import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+from execution._logging import logger
 
 NOTION_API_VERSION = "2022-06-28"
 NOTION_BASE_URL = "https://api.notion.com/v1"
@@ -268,8 +267,6 @@ def create_article_page(
 
 def main():
     """CLI 엔트리포인트."""
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-
     parser = argparse.ArgumentParser(description="Notion 아티클 업로더")
     sub = parser.add_subparsers(dest="command", required=True)
 
