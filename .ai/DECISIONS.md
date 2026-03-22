@@ -188,3 +188,17 @@
 | **결정** | Xiaomi MiMo V2-Flash를 기본 LLM 프로바이더로 채택. OpenAI 호환 API 사용. 9단계 폴백 체인 유지 (MiMo → Google → Groq → ...) |
 | **대안** | Google Gemini Flash 유지 / DeepSeek V3 사용 |
 | **선택 이유** | 비용 효율 ($0.001/job), OpenAI 호환 API로 통합 용이, 롤백은 config.yaml에서 `mimo` 제거만으로 가능 |
+
+---
+
+## ADR-012: OpenAI TTS (tts-1-hd) Premium Stack + SFX 비활성화
+
+| 항목 | 내용 |
+|------|------|
+| **날짜** | 2026-03-21 |
+| **상태** | ✅ 확정 |
+| **맥락** | edge-tts의 TTS 품질이 부족하고, 중간 효과음(SFX)이 영상 몰입도를 저해. 사용자가 "돈을 투자하자"고 결정 |
+| **결정** | TTS를 edge-tts → OpenAI tts-1-hd로 전환, SFX 비활성화, Whisper-1 단어 동기화 활성화 |
+| **비용** | TTS $0.0008/초 (영상당 ~$0.008 ≈ 12원), 7씬 기준 총 $0.0086 |
+| **대안** | edge-tts 유지 (무료) / Google Cloud TTS |
+| **선택 이유** | OpenAI tts-1-hd는 자연스러운 숨소리와 억양으로 팟캐스트 수준 품질. 비용 대비 품질 향상 효과가 큼 |
