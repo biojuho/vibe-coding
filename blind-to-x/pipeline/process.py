@@ -491,7 +491,7 @@ async def process_single_post(
             image_prompt = None
 
         # ── 링크-인-리플라이: reply_text에 원문 URL 주입 ────────────────
-        if isinstance(drafts, dict) and "twitter" in output_formats:
+        if isinstance(drafts, dict) and "twitter" in (output_formats or ["twitter"]):
             reply_text = drafts.get("reply_text", "")
             if not reply_text:
                 # LLM이 reply를 생성하지 않은 경우 기본 답글 생성
@@ -863,12 +863,8 @@ async def process_single_post(
                     await notion_uploader.update_page_properties(
                         notion_page_id,
                         {
-                            "tweet_url": twitter_url,
-                            "publish_channel": "twitter",
-                            "published_at": "now",
                             "status": "발행완료",
                             "review_status": "발행완료",
-                            "chosen_draft_type": chosen_draft_type,
                         },
                     )
             elif twitter_poster and twitter_poster.enabled:
@@ -879,8 +875,6 @@ async def process_single_post(
                 {
                     "status": decision["review_status"],
                     "review_status": decision["review_status"],
-                    "chosen_draft_type": chosen_draft_type,
-                    "review_note": decision["review_reason"],
                 },
             )
 

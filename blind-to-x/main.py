@@ -207,9 +207,6 @@ async def _reprocess_approved_posts(config_mgr, notion_uploader, twitter_poster,
             await notion_uploader.update_page_properties(
                 record["page_id"],
                 {
-                    "tweet_url": twitter_url,
-                    "publish_channel": "twitter",
-                    "published_at": "now",
                     "status": "발행완료",
                     "review_status": "발행완료",
                 },
@@ -333,21 +330,7 @@ async def main():
                 print(f"  {t.keyword} {arrow} (x{t.spike_ratio}, count={t.current_count})")
         return
 
-    # ── 뉴스레터 빌드 모드 ───────────────────────────────────────
-    if getattr(args, "newsletter_build", False) or getattr(args, "newsletter_preview", False):
-        from pipeline.newsletter_scheduler import NewsletterScheduler
 
-        scheduler = NewsletterScheduler(config_mgr, notion_uploader)
-        edition = await scheduler.build_newsletter_edition()
-        print(edition["preview"])
-        if edition["can_publish"] and not getattr(args, "newsletter_preview", False):
-            outputs = scheduler.format_for_platforms(edition)
-            for platform, text in outputs.items():
-                logger.info("뉴스레터 %s 포맷 생성 완료 (%d자)", platform, len(text))
-            logger.info("뉴스레터 에디션 빌드 완료. %d건 콘텐츠.", edition["item_count"])
-        elif not edition["can_publish"]:
-            logger.info("뉴스레터 에디션 불가: 콘텐츠 부족 (%d/%d)", edition["item_count"], scheduler.min_items)
-        return
 
     input_sources = _resolve_input_sources(config_mgr, args)
     scrapers = {}
@@ -707,4 +690,24 @@ async def main():
 if __name__ == "__main__":
     load_env()
     setup_logging()
+    
+    # Windows 특유의 asyncio 파이프 종료 타이밍 버그 우회 (dry-run 등에서 발생하는 ValueError 방지)
+    if sys.platform == "win32":
+        try:
+            from asyncio.proactor_events import _ProactorBasePipeTransport
+            
+            # 파이프 닫힘으로 인한 예외를 조용히 무시하도록 패치
+            original_del = _ProactorBasePipeTransport.__del__
+            
+            def silenced_del(self, *args, **kwargs):
+                try:
+                    original_del(self, *args, **kwargs)
+                except ValueError as e:
+                    if "closed pipe" not in str(e):
+                        raise
+                        
+            _ProactorBasePipeTransport.__del__ = silenced_del
+        except ImportError:
+            pass
+
     asyncio.run(main())

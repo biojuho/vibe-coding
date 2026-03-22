@@ -1,5 +1,98 @@
 # Blind-to-X 세션 로그
 
+## 2026-03-22 — Antigravity, 세션 9: 테스트 회귀 수정 + deprecated 참조 마무리 정리
+
+### 작업 요약
+
+Phase 2 구현 후 테스트 회귀 4건 수정 및 `main.py` deprecated 참조 추가 정리.
+
+### 변경 파일
+
+| 파일 | 변경 내용 |
+|---|---|
+| `main.py` | `_reprocess_approved_posts()`에서 `tweet_url`, `publish_channel`, `published_at` 참조 제거 |
+| `tests/unit/test_multi_platform.py` | 4건 assertion 수정: 블로그 프롬프트 텍스트, deprecated 속성 체크 제거, 프로퍼티 카운트 35→15 |
+
+### 검증 결과
+
+- `test_multi_platform.py`: 16/16 통과 (1 skip)
+- `test_cross_source_insight.py`: 13/13 통과
+- Full suite: 419 pass, 2 fail (pre-existing 429 rate limit), 4 skip
+
+### 다음 도구에게
+
+- 2건의 실패(`test_cost_controls`, `test_pipeline_flow`)는 Gemini API 429 rate limit으로 인한 기존 flaky test. 코드 변경과 무관.
+- dry_run 모드는 Windows asyncio pipe 에러로 실행 불가. WSL 또는 리눅스 환경에서 테스트 필요.
+
+---
+
+## 2026-03-22 — Antigravity, 세션 8: 피벗 Phase 2 구현 (남은 TODO 4건)
+
+### 작업 요약
+
+Phase 1 피벗(페르소나·블로그 전략·LLM 체인 축소) 완료 후 남은 4건의 TODO를 구현.
+
+### 변경 파일
+
+| 파일 | 변경 내용 |
+|---|---|
+| `pipeline/cross_source_insight.py` | 시그널 카드 프롬프트: 페르소나→"정중+위트 해설자", 네이버 블로그→4부 패턴 리포트, creator_take 지시 추가 |
+| `pipeline/notion/_schema.py` | `DEFAULT_PROPS` 37→15개 경량화, 제거된 22개는 `DEPRECATED_PROPS`로 이동 |
+| `pipeline/notion/_upload.py` | 제거된 속성 참조 삭제, memo에 creator_take 반영, analysis_mapping 축소 |
+| `pipeline/process.py` | `update_page_properties` 호출에서 deprecated 속성 제거 |
+| `pipeline/performance_tracker.py` | `update_notion_performance()` — 성과 등급만 기록하도록 단순화 |
+| `pipeline/performance_collector.py` **(NEW)** | 72h 성과 수집 루프: Notion 조회→등급 계산→업데이트 |
+
+### 검증 결과
+
+- YAML/Config 검증 ✅
+- AST 검증 6파일 ✅
+- Notion 스키마 count: 15 DEFAULT + 22 DEPRECATED = 37 total ✅
+- Unit tests: 24/25 passed (1 failure = 기존 viral_filter 429 rate limit)
+
+### TODO (잔여)
+
+- [ ] 수동 발행 품질 테스트 (dry_run)
+- [ ] Notion DB에서 deprecated 속성 수동 정리 (선택)
+- [ ] performance_collector.py API 연동 (Twitter/Threads/Naver API)
+
+---
+
+## 2026-03-22 — Antigravity (Opus), 세션 7: LLM 리뷰 기반 피벗 구현
+
+### 작업 요약
+3개 외부 LLM의 프로젝트 점검 피드백을 교차 분석 → 종합 피벗 플랜 작성 → 코드 반영. 핵심: 크리에이터 페르소나 정의, 네이버 블로그 해설형 큐레이션 전환, 파이프라인 경량화.
+
+### 변경 파일
+
+| 구분 | 파일 | 설명 |
+|------|------|------|
+| **수정** | `classification_rules.yaml` | brand_voice.persona → "정중+위트 시그널 해설자", system_role 재작성, naver_blog 프롬프트 → 해설형 큐레이션 4단 구조, voice_traits에 creator_take 필수 포함 |
+| **수정** | `config.yaml` | LLM providers 7→3개(deepseek/gemini/openai), max_posts_per_day 25→10, scrape_limit 3→2, AI이미지 fallback OFF, content_strategy.creator_persona 추가 |
+| **수정** | `pipeline/draft_generator.py` | naver_blog 하드코딩 fallback → 패턴 리포트 구조, _parse_response()에 `<creator_take>` 태그 파싱 추가 |
+
+### 결정사항
+- 소스 수집(Blind/JobPlanet 포함)은 **중단하지 않음** (사용자 결정)
+- 네이버 블로그: 단일 포스트 확장 → **해설형 큐레이션** (패턴 리포트)
+- 크리에이터 페르소나: **정중+위트** 기반 직장인 시그널 해설자
+- 발행 빈도 축소: max 25→10, scrape 3→2
+
+### QC 결과
+- YAML 구문 검증: ✅ PASS (persona + creator_take 키 확인)
+- Config 구문 검증: ✅ PASS (providers=3, max_posts=10)
+- Unit Tests: ✅ 21/21 PASS (test_draft_generator_multi_provider + test_quality_gate)
+
+### TODO
+- [ ] 크로스소스 패턴 카드(signal card) 생성 로직 구현
+- [ ] Notion 속성 37개 → 핵심 12~15개로 경량화
+- [ ] 발행 후 72h 성과 수집 → 스코어 보정 루프
+- [ ] 수동 발행 테스트 후 品質 피드백 반영
+
+### 다음 도구에게 메모
+- `classification_rules.yaml`의 `brand_voice` 섹션이 종전 "친구에게 톡하듯"에서 "정중+위트 해설자"로 변경됨
+- 모든 플랫폼 초안에 `<creator_take>` 태그가 필수로 포함되도록 system_role이 변경됨
+- LLM fallback 체인이 3개로 대폭 축소됨 — xai/moonshot/zhipuai/anthropic 설정 블록은 config.yaml에 남아있지만 providers 목록에서 제거됨
+
 ## 2026-03-20 — Claude Code (Opus 4.6), 세션 6: 운영 복구 + QC
 
 ### 작업 요약

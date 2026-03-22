@@ -52,6 +52,7 @@ def _optimize_image_for_upload(filepath: str, max_bytes: int = _MAX_UPLOAD_BYTES
         return filepath
 
     try:
+        Image.MAX_IMAGE_PIXELS = 200_000_000  # 200M pixels (기본 89M 초과 방지)
         img = Image.open(filepath)
 
         # RGBA/P → RGB (투명 배경을 흰색으로 채움)
@@ -68,9 +69,14 @@ def _optimize_image_for_upload(filepath: str, max_bytes: int = _MAX_UPLOAD_BYTES
         quality_steps = [85, 70, 55, 40]
         for quality in quality_steps:
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
+            tmp_path = tmp.name
             tmp.close()
-            img.save(tmp.name, format="JPEG", quality=quality, optimize=True)
-            new_size = os.path.getsize(tmp.name)
+            try:
+                img.save(tmp_path, format="JPEG", quality=quality, optimize=True)
+                new_size = os.path.getsize(tmp_path)
+            except Exception:
+                os.unlink(tmp_path)
+                raise
 
             if new_size <= max_bytes:
                 logger.info(
@@ -79,8 +85,8 @@ def _optimize_image_for_upload(filepath: str, max_bytes: int = _MAX_UPLOAD_BYTES
                     new_size / 1024 / 1024,
                     quality,
                 )
-                return tmp.name
-            os.unlink(tmp.name)
+                return tmp_path
+            os.unlink(tmp_path)
 
         # 품질 감소만으로 부족 → 해상도 축소
         scale = 0.8
@@ -91,9 +97,14 @@ def _optimize_image_for_upload(filepath: str, max_bytes: int = _MAX_UPLOAD_BYTES
                 break
             resized = img.resize((new_w, new_h), Image.LANCZOS)
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
+            tmp_path = tmp.name
             tmp.close()
-            resized.save(tmp.name, format="JPEG", quality=55, optimize=True)
-            new_size = os.path.getsize(tmp.name)
+            try:
+                resized.save(tmp_path, format="JPEG", quality=55, optimize=True)
+                new_size = os.path.getsize(tmp_path)
+            except Exception:
+                os.unlink(tmp_path)
+                raise
 
             if new_size <= max_bytes:
                 logger.info(
@@ -103,8 +114,8 @@ def _optimize_image_for_upload(filepath: str, max_bytes: int = _MAX_UPLOAD_BYTES
                     new_w,
                     new_h,
                 )
-                return tmp.name
-            os.unlink(tmp.name)
+                return tmp_path
+            os.unlink(tmp_path)
             scale *= 0.8
 
         logger.warning("이미지 최적화 실패: 모든 시도 후에도 %.1fMB. 원본으로 업로드 시도.", file_size / 1024 / 1024)

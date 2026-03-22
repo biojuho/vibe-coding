@@ -299,33 +299,34 @@ async def update_notion_performance(
     platform: str,
     metrics: dict[str, float],
 ) -> bool:
-    """Notion 페이지에 성과 데이터를 업데이트합니다."""
-    # [QA 수정] 빈 page_id 방어
+    """Notion 페이지에 성과 데이터를 업데이트합니다.
+
+    Phase 2 경량화: 성과 등급만 Notion에 기록하고,
+    상세 지표는 performance_records.jsonl에 보관합니다.
+    """
     if not notion_page_id or not notion_page_id.strip():
         logger.warning("Notion 성과 업데이트 스킵: page_id가 비어 있습니다.")
         return False
 
     try:
-        props_update: dict[str, Any] = {}
+        # 성과 등급 계산
+        record = PerformanceRecord(
+            notion_page_id=notion_page_id,
+            platform=platform,
+            metrics=metrics,
+        )
 
-        # [QA 수정] 플랫폼별 성과 지표 매핑 — url_key 미사용 변수 제거
-        if platform == "twitter":
-            if "likes" in metrics:
-                props_update["24h 좋아요"] = {"number": metrics["likes"]}
-            if "retweets" in metrics:
-                props_update["24h 리트윗"] = {"number": metrics["retweets"]}
-            if "impressions" in metrics:
-                props_update["24h 조회수"] = {"number": metrics["impressions"]}
-        # TODO: threads, naver_blog 성과 속성은 Notion DB에 추가 후 매핑
-
-        if props_update and notion_uploader:
-            if hasattr(notion_uploader, "client") and notion_uploader.client:
-                await notion_uploader.client.pages.update(
-                    page_id=notion_page_id,
-                    properties=props_update,
-                )
-                logger.info("Notion 성과 업데이트 완료: %s (%s)", notion_page_id[:8], platform)
-                return True
+        # 성과 등급을 Notion에 업데이트 (semantic key 사용)
+        if notion_uploader and hasattr(notion_uploader, "update_page_properties"):
+            await notion_uploader.update_page_properties(
+                page_id=notion_page_id,
+                updates={"performance_grade": record.grade},
+            )
+            logger.info(
+                "Notion 성과 업데이트 완료: %s (%s) → %s등급",
+                notion_page_id[:8], platform, record.grade,
+            )
+            return True
 
     except Exception as exc:
         logger.warning("Notion 성과 업데이트 실패: %s — %s", notion_page_id[:8], exc)

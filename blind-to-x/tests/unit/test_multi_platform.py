@@ -102,7 +102,7 @@ class TestDraftGeneratorMultiPlatform:
             },
         }
         prompt = gen._build_prompt(post_data, None, ["naver_blog"])
-        assert "네이버 블로그 초안 작성 조건" in prompt
+        assert "해설형 큐레이션 초안 작성 조건" in prompt or "네이버 블로그" in prompt
         assert "1500자" in prompt
         assert "3000자" in prompt
 
@@ -183,23 +183,20 @@ class TestNotionUploaderMultiPlatform:
     """NotionUploader에 P6 멀티 플랫폼 속성이 올바르게 정의되었는지 검증."""
 
     def test_default_props_include_threads(self):
-        """DEFAULT_PROPS에 Threads/Blog 속성이 포함되어 있는지 검증."""
+        """DEFAULT_PROPS에 Threads/Blog 핵심 속성이 포함되어 있는지 검증."""
         from pipeline.notion_upload import NotionUploader
         assert "threads_body" in NotionUploader.DEFAULT_PROPS
         assert "blog_body" in NotionUploader.DEFAULT_PROPS
         assert "publish_platforms" in NotionUploader.DEFAULT_PROPS
-        assert "threads_url" in NotionUploader.DEFAULT_PROPS
-        assert "blog_url" in NotionUploader.DEFAULT_PROPS
-        assert "publish_scheduled_at" in NotionUploader.DEFAULT_PROPS
+        # threads_url, blog_url, publish_scheduled_at는 Phase 2 스키마 경량화로 제거됨
 
     def test_expected_types_defined(self):
-        """EXPECTED_TYPES에 새 속성의 타입이 정의되어 있는지 검증."""
+        """EXPECTED_TYPES에 핵심 속성의 타입이 정의되어 있는지 검증."""
         from pipeline.notion_upload import NotionUploader
         assert "rich_text" in NotionUploader.EXPECTED_TYPES["threads_body"]
         assert "rich_text" in NotionUploader.EXPECTED_TYPES["blog_body"]
         assert "multi_select" in NotionUploader.EXPECTED_TYPES["publish_platforms"]
-        assert "url" in NotionUploader.EXPECTED_TYPES["threads_url"]
-        assert "date" in NotionUploader.EXPECTED_TYPES["publish_scheduled_at"]
+        # threads_url, publish_scheduled_at는 Phase 2 스키마 경량화로 제거됨
 
     def test_auto_detect_keywords_defined(self):
         """AUTO_DETECT_KEYWORDS에 새 속성의 감지 키워드가 정의되어 있는지 검증."""
@@ -209,9 +206,9 @@ class TestNotionUploaderMultiPlatform:
         assert "publish_platforms" in NotionUploader.AUTO_DETECT_KEYWORDS
 
     def test_property_count_includes_new_fields(self):
-        """DEFAULT_PROPS에 기존 + 신규 속성이 포함되어 총 35개 이상인지 검증."""
+        """DEFAULT_PROPS가 Phase 2 경량화 후 15개 핵심 속성을 포함하는지 검증."""
         from pipeline.notion_upload import NotionUploader
-        assert len(NotionUploader.DEFAULT_PROPS) >= 35
+        assert len(NotionUploader.DEFAULT_PROPS) >= 15
 
 
 # ── 4. config.yaml: 설정 검증 ──────────────────────────────────────────

@@ -89,50 +89,41 @@ class NotionUploadMixin:
             properties: dict[str, Any] = {}
 
             self._append_property_if_present(properties, "title", post_data.get("title", ""))
-            memo_text = f"원본 링크: {canonical_url or post_data.get('url', '')}"
+
+            # memo: 원본 링크 + creator_take (있으면)
+            memo_parts = [f"원본 링크: {canonical_url or post_data.get('url', '')}"]
             if analysis and analysis.get("rationale"):
-                memo_text += f"\n판정 근거: {', '.join(analysis['rationale'])}"
-            self._append_property_if_present(properties, "memo", memo_text)
+                memo_parts.append(f"판정 근거: {', '.join(analysis['rationale'])}")
+            creator_take = ""
+            if isinstance(drafts, dict):
+                creator_take = drafts.get("creator_take", "")
+            if creator_take:
+                memo_parts.append(f"🎯 운영자 해석: {creator_take}")
+            self._append_property_if_present(properties, "memo", "\n".join(memo_parts))
+
             self._append_property_if_present(properties, "status", post_data.get("review_status") or self.status_default)
             self._append_property_if_present(properties, "date", datetime.now().date())
-            self._append_property_if_present(properties, "image_needed", bool(image_url))
             self._append_property_if_present(properties, "url", canonical_url)
             self._append_property_if_present(properties, "source", post_data.get("source", "blind"))
-            self._append_property_if_present(properties, "feed_mode", post_data.get("feed_mode", "trending"))
             self._append_property_if_present(
                 properties,
                 "review_status",
                 post_data.get("review_status", self.review_status_default),
             )
-            self._append_property_if_present(properties, "review_note", post_data.get("review_reason", "queued_for_review"))
 
             if isinstance(drafts, dict):
                 self._append_property_if_present(properties, "tweet_body", drafts.get("twitter"))
-                self._append_property_if_present(properties, "newsletter_body", drafts.get("newsletter"))
-                # P6: 멀티 플랫폼 초안 저장
+                self._append_property_if_present(properties, "reply_text", drafts.get("reply_text"))
                 self._append_property_if_present(properties, "threads_body", drafts.get("threads"))
                 self._append_property_if_present(properties, "blog_body", drafts.get("naver_blog"))
-                # 링크-인-리플라이: 답글 텍스트 저장
-                self._append_property_if_present(properties, "reply_text", drafts.get("reply_text"))
             else:
                 self._append_property_if_present(properties, "tweet_body", drafts)
-
-            if screenshot_url:
-                self._append_property_if_present(properties, "screenshot_url", screenshot_url)
 
             if analysis:
                 analysis_mapping = {
                     "topic_cluster": analysis.get("topic_cluster"),
-                    "hook_type": analysis.get("hook_type"),
                     "emotion_axis": analysis.get("emotion_axis"),
-                    "audience_fit": analysis.get("audience_fit"),
-                    "scrape_quality_score": analysis.get("scrape_quality_score"),
-                    "publishability_score": analysis.get("publishability_score"),
-                    "performance_score": analysis.get("performance_score"),
                     "final_rank_score": analysis.get("final_rank_score"),
-                    "chosen_draft_type": analysis.get("recommended_draft_type"),
-                    "image_variant_id": post_data.get("image_variant_id"),
-                    "image_variant_type": post_data.get("image_variant_type"),
                 }
                 for semantic_key, value in analysis_mapping.items():
                     self._append_property_if_present(properties, semantic_key, value)
@@ -277,6 +268,36 @@ class NotionUploadMixin:
                     properties, "regulation_status",
                     "통과" if "전체 플랫폼 규제 검증 통과" in regulation_report else "경고"
                 )
+
+            # ── NotebookLM AI 아티클 (content_writer 자동 생성) ──────────────────
+            nlm_article = post_data.get("nlm_article", "")
+            if nlm_article:
+                children.append({"object": "block", "type": "divider", "divider": {}})
+                children.append(
+                    {
+                        "object": "block",
+                        "type": "heading_2",
+                        "heading_2": {"rich_text": [{"type": "text", "text": {"content": "✍️ AI 자동 아티클"}}]},
+                    }
+                )
+                # markdown_to_notion_blocks 동적 로드 (execution/ 단일 소스 유지)
+                try:
+                    import importlib.util as _ilu
+                    import pathlib as _pl
+
+                    _uploader_path = (
+                        _pl.Path(__file__).resolve().parent.parent.parent.parent
+                        / "execution" / "notion_article_uploader.py"
+                    )
+                    _spec = _ilu.spec_from_file_location("notion_article_uploader", str(_uploader_path))
+                    _uploader_mod = _ilu.module_from_spec(_spec)
+                    _spec.loader.exec_module(_uploader_mod)
+                    _article_blocks = _uploader_mod.markdown_to_notion_blocks(nlm_article)
+                    for _i in range(0, len(_article_blocks), 100):
+                        children.extend(_article_blocks[_i: _i + 100])
+                except Exception as _exc:
+                    logger.debug("[NLM Article] 블록 변환 실패, plain text 폴백: %s", _exc)
+                    children.extend(self._create_text_blocks(nlm_article))
 
             # ── NotebookLM 리서치 자산 (인포그래픽·슬라이드) ─────────────────
             nlm_infographic = post_data.get("nlm_infographic_url", "")

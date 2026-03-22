@@ -133,7 +133,23 @@ def test_record_draft_upserts_publish_state():
     assert row["published"] == 1
 
 
-def test_review_only_still_generates_image_and_records_draft():
+from unittest.mock import patch
+
+@patch("pipeline.editorial_reviewer.EditorialReviewer")
+def test_review_only_still_generates_image_and_records_draft(mock_reviewer_class):
+    mock_reviewer = mock_reviewer_class.return_value
+    # AsyncMock is automatically used if the patched method is async in 3.8+, but let's be safe:
+    async def mock_eval(*args, **kwargs):
+        return {
+            "action": "approve",
+            "revised_drafts": {
+                "twitter": "revised tweet",
+                "_provider_used": "gemini"
+            },
+            "reason": "OK"
+        }
+    mock_reviewer.evaluate_and_rewrite = mock_eval
+
     image_generator = StubImageGenerator()
 
     result = asyncio.run(

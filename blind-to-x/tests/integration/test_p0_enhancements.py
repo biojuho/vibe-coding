@@ -57,10 +57,12 @@ def test_classify_topic_cluster_new_topics():
 def test_classify_emotion_axis_new_emotions():
     """New emotions (자부심, 불안, 기대감) are classified correctly."""
     from pipeline.content_intelligence import classify_emotion_axis
+    from unittest.mock import patch
 
-    assert classify_emotion_axis("자부심 넘침", "뿌듯하고 자랑스러운 성과") == "자부심"
-    assert classify_emotion_axis("불안한 미래", "걱정되고 불안한 노후") == "불안"
-    assert classify_emotion_axis("기대감 폭발", "설레고 기대되는 결과") == "기대감"
+    with patch("pipeline.emotion_analyzer.get_emotion_profile", side_effect=Exception("Mock ML disabled")):
+        assert classify_emotion_axis("자부심 넘침", "뿌듯하고 자랑스러운 성과") == "자부심"
+        assert classify_emotion_axis("불안한 미래", "걱정되고 불안한 노후") == "불안"
+        assert classify_emotion_axis("기대감 폭발", "설레고 기대되는 결과") == "기대감"
 
 
 def test_calculate_6d_score_with_season_boost():

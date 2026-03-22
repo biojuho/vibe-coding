@@ -44,7 +44,7 @@ def _get_kiwi():
                 # Non-ASCII 경로 → 임시 ASCII 경로로 재귀 복사 (하위 디렉토리 포함)
                 import shutil
 
-                ascii_path = os.path.join(os.environ.get("TEMP", "/tmp"), "kiwi_model")
+                ascii_path = os.path.join("C:/tmp", "kiwi_model")
                 if not os.path.exists(os.path.join(ascii_path, "extract.mdl")):
                     if os.path.exists(ascii_path):
                         shutil.rmtree(ascii_path)
