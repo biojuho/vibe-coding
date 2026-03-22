@@ -1,3 +1,41 @@
+## 2026-03-22 (세션3) — Claude Code (Opus 4.6) — 감사 잔여 P2 완료 + 커버리지 80% 달성
+
+### 작업 요약
+
+P2-1/4/5/6 잔여 항목 완료 (loguru 18/18, 매핑 검증, S4U 확인, 백업 확인), script_step.py WIP 정리, 테스트 52개 추가로 커버리지 78%→81% (80% 게이트 달성).
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| execution/{bgm,health,selector,yt_upload,yt_analytics,yt_notion}.py | 수정 | loguru 전환 (6개) |
+| scripts/watchdog_heartbeat_check.bat | **신규** | 10분 주기 heartbeat 체커 |
+| scripts/check_mapping.py | **신규** | directive↔execution 매핑 검증기 |
+| directives/INDEX.md | 수정 | 신규 directive 6건 추가 |
+| shorts-maker-v2/.../script_step.py | 수정 | CTA 금지어 + 페르소나 스코어 + Hook 트림 |
+| shorts-maker-v2/tests/unit/test_script_quality.py | **신규** | 스크립트 품질 테스트 29개 |
+| tests/test_roi_calculator.py | **신규** | ROI 계산기 테스트 19개 |
+| tests/test_lyria_bgm_generator.py | **신규** | Lyria BGM 유틸 테스트 9개 |
+| tests/test_qaqc_history_db.py | **신규** | QaQc DB 테스트 7개 |
+| tests/test_env_loader.py | **신규** | env_loader 테스트 4개 |
+| tests/test_error_analyzer.py | **신규** | 에러 분류 테스트 13개 |
+
+### 테스트 결과
+- Root: **877 passed**, 0 failed, coverage **80.57%** (게이트 달성)
+- shorts-maker-v2: 572+ passed (xfail 0건)
+
+### 결정사항
+- Task Scheduler S4U 작업 0건 확인 — CRITICAL→해당없음 하향
+- SQLite VACUUM INTO 이미 올바르게 구현됨 확인
+- Watchdog heartbeat: Task Scheduler 10분 주기 등록 완료
+
+### 다음 도구에게
+- 커버리지 80% 달성됨, 추가 테스트는 필요 시에만
+- video_renderer.py → render_step.py 전환은 대규모 리팩토링, 별도 세션 권장
+- MCP 중복은 AI 도구 창 관리로 해결 (코드 변경 불필요)
+
+---
+
 ## 2026-03-22 (세션2) — Claude Code (Opus 4.6) — P2-3 + Phase 3 완료 + xfail 수정 + loguru 적용
 
 ### 작업 요약
