@@ -10,7 +10,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import logging
 import os
 import sys
 from pathlib import Path
@@ -18,7 +17,7 @@ from pathlib import Path
 import requests
 from dotenv import load_dotenv
 
-logger = logging.getLogger(__name__)
+from execution._logging import logger  # noqa: E402
 
 _ROOT = Path(__file__).resolve().parent.parent
 _DEFAULT_BGM_DIR = _ROOT / "shorts-maker-v2" / "assets" / "bgm"

@@ -87,12 +87,14 @@
   - [ ] (후속) 나머지 ~6개 스크립트 (bgm_downloader, health_check, selector_validator 등)
 - **완료**: 2026-03-22
 
-### P2-2. Telegram 알림 티어링
+### P2-2. Telegram 알림 티어링 ✅
+
 - **심각도**: MEDIUM (2곳 합의)
 - **현황**: 모든 알림이 같은 채널로 전송 → alert fatigue
 - **조치**:
-  - [ ] P1 (즉시), P2 (30분 digest), P3 (일일 요약) 3단계
-  - [ ] `telegram_notifier.py`에 severity 파라미터 추가
+  - [x] `send_alert(level=)`: CRITICAL/WARNING/INFO 3단계 (이전 세션)
+  - [x] `queue_digest()` / `flush_digest()`: 30분 배치 전송 (이전 세션)
+- **완료**: 2026-03-22
 - **예상 소요**: 2~3시간
 
 ### P2-3. 비용 통합 대시보드 ✅

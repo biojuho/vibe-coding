@@ -14,7 +14,6 @@ Usage (library):
 
 import argparse
 import json
-import logging
 import os
 import re
 import sqlite3
@@ -28,7 +27,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-logger = logging.getLogger(__name__)
+from execution._logging import logger  # noqa: E402
 
 _ROOT = Path(__file__).resolve().parent.parent
 
@@ -556,11 +555,6 @@ if __name__ == "__main__":
     )
     parser.add_argument("--json", action="store_true", help="JSON 형식 출력")
     args = parser.parse_args()
-
-    logging.basicConfig(
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        level=logging.INFO,
-    )
 
     results = run_all_checks(category=args.category)
 

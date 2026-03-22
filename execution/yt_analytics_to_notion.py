@@ -21,7 +21,6 @@ Required (최초 1회 OAuth 인증):
 from __future__ import annotations
 
 import argparse
-import logging
 import os
 import sys
 import time
@@ -36,8 +35,7 @@ _ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(_ROOT / ".env")
 sys.path.insert(0, str(_ROOT))
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
-logger = logging.getLogger(__name__)
+from execution._logging import logger  # noqa: E402
 
 # ── 상수 ─────────────────────────────────────────────────────
 _NOTION_API_BASE = "https://api.notion.com/v1"

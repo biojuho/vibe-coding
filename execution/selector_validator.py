@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import logging
 import re
 from datetime import datetime
 from pathlib import Path
@@ -28,7 +27,7 @@ from typing import Any
 from dotenv import load_dotenv
 
 load_dotenv()
-logger = logging.getLogger(__name__)
+from execution._logging import logger  # noqa: E402
 
 _ROOT = Path(__file__).resolve().parent.parent
 _OUTPUT_PATH = _ROOT / ".tmp" / "selector_failures.json"
@@ -236,11 +235,6 @@ def main() -> int:
     parser.add_argument("--site", type=str, help="특정 사이트만 검증 (예: ppomppu)")
     parser.add_argument("--json", action="store_true", help="JSON 형식으로 출력")
     args = parser.parse_args()
-
-    logging.basicConfig(
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        level=logging.INFO,
-    )
 
     results = run_all_validations(args.site)
     summary = get_summary(results)

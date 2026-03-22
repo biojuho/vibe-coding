@@ -19,12 +19,11 @@ from __future__ import annotations
 
 import argparse
 import json
-import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from execution._logging import logger
 
 _ROOT = Path(__file__).resolve().parent.parent
 CREDENTIALS_PATH = _ROOT / "credentials.json"

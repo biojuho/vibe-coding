@@ -10,7 +10,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import logging
 import os
 from datetime import datetime
 from typing import Any
@@ -18,7 +17,7 @@ from typing import Any
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
-logger = logging.getLogger(__name__)
+from execution._logging import logger
 
 _TOKEN_FILE = os.path.join(os.path.dirname(__file__), "..", "token.json")
 _SCOPES = [
@@ -134,7 +133,6 @@ def collect_and_update(channel: str | None = None) -> dict[str, Any]:
 
 
 def _cli() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
     parser = argparse.ArgumentParser(description="YouTube Analytics 수집")
     parser.add_argument("--channel", default="", help="채널 필터")
     args = parser.parse_args()
