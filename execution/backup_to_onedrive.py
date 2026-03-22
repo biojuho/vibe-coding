@@ -11,6 +11,8 @@ Usage:
 
 from __future__ import annotations
 
+import execution._logging  # noqa: F401 — loguru 중앙 설정 활성화
+
 import argparse
 import json
 import logging
@@ -86,6 +88,58 @@ def _should_skip_file(path: Path) -> bool:
     return False
 
 
+def _snapshot_sqlite_dbs(dest: Path, *, dry_run: bool = False) -> list[dict]:
+    """프로젝트 내 SQLite DB를 VACUUM INTO로 안전하게 스냅샷합니다.
+
+    live DB 파일을 직접 복사하는 대신, VACUUM INTO로 일관된 스냅샷을 생성합니다.
+    이는 WAL 모드 DB에서 -wal/-shm 파일과의 시점 불일치를 방지합니다.
+    """
+    import sqlite3
+
+    results = []
+    db_patterns = ["**/*.db", "**/*.sqlite3"]
+    skip_dirs = SKIP_DIRS | {"venv", "node_modules"}
+
+    for pattern in db_patterns:
+        for db_path in _ROOT.glob(pattern):
+            try:
+                rel = db_path.relative_to(_ROOT)
+            except ValueError:
+                continue
+            if any(part in skip_dirs for part in rel.parts):
+                continue
+
+            entry = {"source": str(rel), "ok": False, "detail": ""}
+            if dry_run:
+                entry["detail"] = "dry-run"
+                entry["ok"] = True
+                results.append(entry)
+                continue
+
+            snapshot_path = dest / rel
+            try:
+                snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+                conn = sqlite3.connect(str(db_path))
+                conn.execute(f"VACUUM INTO '{snapshot_path}'")
+                conn.close()
+                entry["ok"] = True
+                entry["size_mb"] = round(snapshot_path.stat().st_size / (1024 * 1024), 2)
+                entry["detail"] = "VACUUM INTO success"
+            except Exception as exc:
+                entry["detail"] = str(exc)[:200]
+                # VACUUM INTO 실패 시 일반 복사로 fallback
+                try:
+                    shutil.copy2(db_path, snapshot_path)
+                    entry["ok"] = True
+                    entry["detail"] = f"fallback copy (VACUUM failed: {str(exc)[:60]})"
+                except Exception as copy_exc:
+                    entry["detail"] = f"both failed: {exc}, {copy_exc}"
+
+            results.append(entry)
+
+    return results
+
+
 def backup(dry_run: bool = False) -> dict:
     """핵심 파일을 OneDrive로 백업.
 
@@ -142,6 +196,9 @@ def backup(dry_run: bool = False) -> dict:
             errors.append(f"{rel}: {exc}")
             logger.warning("Failed to copy %s: %s", rel, exc)
 
+    # SQLite DB 안전 스냅샷 (VACUUM INTO)
+    db_snapshots = _snapshot_sqlite_dbs(dest, dry_run=dry_run)
+
     # 오래된 백업 삭제 (최근 N개만 유지)
     if not dry_run:
         _cleanup_old_backups()
@@ -153,6 +210,7 @@ def backup(dry_run: bool = False) -> dict:
         "skipped_count": skipped_count,
         "total_bytes": total_bytes,
         "total_mb": round(total_bytes / (1024 * 1024), 1),
+        "db_snapshots": db_snapshots,
         "errors": errors,
         "dry_run": dry_run,
     }

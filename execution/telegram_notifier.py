@@ -10,6 +10,8 @@ Usage:
 
 from __future__ import annotations
 
+import execution._logging  # noqa: F401 — loguru 중앙 설정 활성화
+
 import argparse
 import json
 import os
@@ -340,6 +342,82 @@ def format_daily_report_message(report: Dict[str, Any], max_commits: int = 5) ->
 
 def send_daily_report(report: Dict[str, Any]) -> Dict[str, Any]:
     return send_message(format_daily_report_message(report))
+
+
+# ── 알림 티어링 (P2 digest / P3 일일 요약) ───────────────
+
+
+_DIGEST_FILE = Path(__file__).resolve().parent.parent / ".tmp" / "telegram_digest.json"
+
+
+def queue_digest(text: str, level: str = "INFO") -> None:
+    """P2/P3 알림을 digest 큐에 저장합니다 (즉시 전송하지 않음).
+
+    30분 또는 일일 주기로 flush_digest()를 호출하면 한꺼번에 전송됩니다.
+    """
+    import json as _json
+
+    _DIGEST_FILE.parent.mkdir(parents=True, exist_ok=True)
+    queue: list = []
+    if _DIGEST_FILE.exists():
+        try:
+            queue = _json.loads(_DIGEST_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            queue = []
+
+    queue.append({
+        "text": text,
+        "level": level,
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+    })
+    _DIGEST_FILE.write_text(_json.dumps(queue, ensure_ascii=False), encoding="utf-8")
+
+
+def flush_digest(*, title: str = "Digest") -> Optional[Dict[str, Any]]:
+    """큐에 쌓인 알림을 하나의 메시지로 합쳐 전송합니다.
+
+    빈 큐면 None 반환. 전송 후 큐 파일 삭제.
+    """
+    import json as _json
+
+    if not _DIGEST_FILE.exists():
+        return None
+
+    try:
+        queue = _json.loads(_DIGEST_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+    if not queue:
+        _DIGEST_FILE.unlink(missing_ok=True)
+        return None
+
+    # 레벨별 카운트
+    counts = {"CRITICAL": 0, "WARNING": 0, "INFO": 0}
+    for item in queue:
+        lvl = item.get("level", "INFO").upper()
+        counts[lvl] = counts.get(lvl, 0) + 1
+
+    # 가장 높은 레벨 결정
+    if counts["CRITICAL"]:
+        overall_level = "CRITICAL"
+    elif counts["WARNING"]:
+        overall_level = "WARNING"
+    else:
+        overall_level = "INFO"
+
+    lines = [f"📋 {title} ({len(queue)}건)", ""]
+    for item in queue[-20:]:  # 최대 20건
+        prefix = {"CRITICAL": "🚨", "WARNING": "⚠️", "INFO": "ℹ️"}.get(
+            item.get("level", "INFO").upper(), "ℹ️"
+        )
+        lines.append(f"{prefix} {item['text'][:100]}")
+
+    if len(queue) > 20:
+        lines.append(f"... +{len(queue) - 20}건 생략")
+
+    _DIGEST_FILE.unlink(missing_ok=True)
+    return send_alert("\n".join(lines), level=overall_level)
 
 
 def _build_check_payload() -> Dict[str, Any]:

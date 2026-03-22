@@ -17,6 +17,8 @@ Usage (library):
 
 from __future__ import annotations
 
+import execution._logging  # noqa: F401 — loguru 중앙 설정 활성화
+
 import argparse
 import json
 import logging
