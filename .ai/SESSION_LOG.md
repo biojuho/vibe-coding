@@ -1,3 +1,62 @@
+## 2026-03-22 — Claude Code (Opus 4.6) — 시스템 감사 즉시조치 + Phase 1~2 실행
+
+### 작업 요약
+3개 독립 LLM 감사 보고서 교차 분석 → 즉시 조치 4건 + Phase 1 (6건) + Phase 2 (5/6건) 실행.
+총 10개 커밋, 워킹 디렉터리 클린.
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| `.ai/CONTEXT.md` | 완전 재작성 | 1~163줄 mojibake UTF-8 복구 |
+| `.ai/DECISIONS.md` | 수정 | ADR-010~012 반영 |
+| `.env` / `.env.llm` / `.env.social` / `.env.project` | 분리 | 역할별 키 분리 구조 |
+| `execution/_env_loader.py` | **신규** | 중앙 환경변수 로더 |
+| `execution/_logging.py` | **신규** | loguru 중앙 설정 (JSONL 7일 로테이션) |
+| `execution/pipeline_watchdog.py` | 수정 | heartbeat 기능 + --check-alive 모드 |
+| `execution/backup_to_onedrive.py` | 수정 | SQLite VACUUM INTO 스냅샷 백업 |
+| `execution/backup_restore_test.py` | **신규** | OneDrive 백업 복원 테스트 |
+| `execution/telegram_notifier.py` | 수정 | queue_digest/flush_digest 티어링 |
+| `tests/test_llm_fallback_chain.py` | **신규** | LLM 폴백 체인 테스트 8개 |
+| `shorts-maker-v2/utils/pipeline_status.py` | 수정 | CP949 이모지 _safe_print |
+| `shorts-maker-v2/pytest.ini` | 수정 | --cov 커버리지 측정 추가 |
+| `blind-to-x/pytest.ini` | 수정 | --cov 커버리지 측정 추가 |
+| `.githooks/pre-commit` | **신규** | ruff + UTF-8 검사 (staged only) |
+| `infrastructure/n8n/docker-compose.yml` | 수정 | 127.0.0.1 바인딩 고정 |
+| `directives/INDEX.md` | **신규** | SOP↔execution 매핑 인덱스 |
+| `directives/system_audit_action_plan.md` | **신규** | 종합 액션 플랜 (3개 보고서 통합) |
+| blind-to-x/* (20파일) | 수정 | 멘션 품질 + NotebookLM + 성과 추적 |
+| shorts-maker-v2/* (8파일) | 수정 | 파이프라인 안정화 + planning/qc step |
+| execution/* + tests/* (26파일) | 수정 | QC 버그 수정 + 신규 스크립트 3 + 테스트 32 |
+
+### 테스트 결과
+
+| 영역 | Passed | Failed | Coverage |
+|------|--------|--------|----------|
+| Root | 842+ | 0 | 84.72% |
+| shorts-maker-v2 | 569 | 0 (3 xfail) | 46.36% |
+| blind-to-x | 486 | 0 | 51.52% |
+
+### 결정사항
+- .env 역할별 분리: `.env.llm`/`.env.social`/`.env.project` + 레거시 `.env` 유지
+- loguru 점진 도입: 핵심 3개 스크립트만 우선 적용, stdlib intercept로 호환
+- shorts-maker-v2 QC gate/stub 불일치 3건: xfail 격리 (stub-aware QC bypass 필요)
+- Task Scheduler: 모든 작업 InteractiveToken 확인 (S4U 아님)
+
+### TODO (다음 세션)
+- [ ] P2-3: 비용 통합 대시보드 (Streamlit `pages/cost_dashboard.py`)
+- [ ] Phase 3 항목 순차 진행 (directives/system_audit_action_plan.md 참조)
+- [ ] shorts-maker-v2 xfail 3건 근본 수정 (QC step에 stub bypass 로직)
+- [ ] loguru를 나머지 15개 execution 스크립트에 점진 적용
+
+### 다음 에이전트에게 메모
+- `directives/system_audit_action_plan.md`에 전체 로드맵이 있음. Phase 1 완료, Phase 2는 P2-3만 남음.
+- `.githooks/pre-commit`이 활성화됨 — staged .py 파일만 ruff check.
+- `execution/_logging.py` import 한 줄 추가로 기존 스크립트에 loguru 적용 가능.
+- blind-to-x 테스트 486 전통과 — 이전 세션의 pre-existing 3건 실패는 이미 해결됨.
+
+---
+
 ## 2026-03-22 — Antigravity (Gemini) — 세션 종료 (blind-to-x: Perf Collector + Smoke Test + QC)
 
 ### 작업 요약
