@@ -1,5 +1,42 @@
 # 📋 AI 세션 로그
 
+## 2026-03-21 #2 — Antigravity (Caption/Hook TODO 3건 + QC)
+
+### 작업 요약
+Caption 픽셀 줄바꿈·Hook 15자 제한·E2E 테스트 3가지 TODO 항목 처리 후 QC 실행.
+
+### 세부 변경사항
+
+#### 1. Hook 15자 경고 — `script_step.py`
+- `parse_llm_response()` 내 hook 씬 narration이 15자 초과 시 `WARNING` 로그 출력
+- `_hook_narration_max_chars = 15` (N816 준수 소문자), `_shorts_hard_limit = 45` 소문자 변환
+- E402 import noqa 처리 (pydantic guard 이후 import 패턴 유지)
+
+#### 2. pytest.ini — `--capture=no` 복구
+- Windows 환경 WinError 6 (오디오 핸들 cleanup) 억제를 위한 설정 복구
+
+#### 3. 확인 결과 (이미 구현 완료)
+- `caption_pillow.py` 픽셀 기반 줄바꿈: `_wrap_text` + `_char_level_wrap` 이미 완전 구현
+- E2E 테스트: `test_shorts_factory_e2e.py` 501줄 27개 케이스 이미 존재 → 26 passed
+
+#### 4. QC (Style) — Ruff 수정
+- E402, N816(대문자 상수 2건), E501(4건 `--add-noqa`) 전부 해결
+- `freesound_client.py`, `edge_tts_client.py` E501 noqa 추가
+
+### 결과
+- 유닛 테스트: **541 passed, 12 skipped, 0 failed** ✅
+- E2E 테스트: **26 passed** ✅
+- Ruff: **0건** ✅
+
+### 커밋
+- `d39f6c2` fix: hook narration 15-char warning + pytest.ini --capture=no
+- `94b216c` style: fix ruff E402/E501/N816 in session changed files
+
+### 다음 AI에게
+- 전체 파이프라인 실사 테스트(실제 토픽으로 영상 생성) 다음 우선순위
+- `caption_pillow.py`의 Safe Zone 자막 배치는 `shorts-subtitle-safezone` Skill 참고
+- `SHORTS_HARD_LIMIT`(45초)는 이제 `_shorts_hard_limit` 소문자로 변경됨
+
 ## 2026-03-21 — Antigravity (채널 페르소나 & TTS/BGM/Script 품질 전면 개선)
 
 ### 작업 요약

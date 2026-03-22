@@ -13,13 +13,15 @@ from typing import Any
 import yaml
 
 from shorts_maker_v2.config import AppConfig, resolve_runtime_paths
-from shorts_maker_v2.models import JobManifest, SceneAsset, ScenePlan
+from shorts_maker_v2.models import GateVerdict, JobManifest, SceneAsset, ScenePlan
 from shorts_maker_v2.pipeline.error_types import (
     PipelineError,
     PipelineErrorType,
     classify_error,
 )
 from shorts_maker_v2.pipeline.media_step import MediaStep
+from shorts_maker_v2.pipeline.planning_step import PlanningStep
+from shorts_maker_v2.pipeline.qc_step import QCStep
 from shorts_maker_v2.pipeline.render_step import RenderStep
 from shorts_maker_v2.pipeline.research_step import ResearchStep
 from shorts_maker_v2.pipeline.script_step import ScriptStep, TopicUnsuitableError
@@ -334,6 +336,37 @@ class PipelineOrchestrator:
                 jlog.info("checkpoint_loaded", scene_count=manifest.scene_count)
                 status.update("checkpoint", StepStatus.COMPLETED, detail=f"{manifest.scene_count} scenes loaded")
             else:
+                # ── Gate 1: PlanningStep (기획 자동화) ──
+                status.start("planning", detail="Generating production plan")
+                _t0 = time.perf_counter()
+                try:
+                    planning_step = PlanningStep(
+                        config=self.config,
+                        llm_router=LLMRouter(
+                            providers=list(self.config.providers.llm_providers) if self.config.providers.llm_providers else [self.config.providers.llm],
+                            models=dict(self.config.providers.llm_models) if self.config.providers.llm_models else {},
+                            max_retries=self.config.limits.max_retries,
+                            request_timeout_sec=self.config.limits.request_timeout_sec,
+                        ),
+                    )
+                    production_plan = planning_step.run(topic=topic, channel=channel)
+                    manifest.production_plan = production_plan.to_dict()
+                    step_timings["planning"] = round(time.perf_counter() - _t0, 2)
+                    jlog.info(
+                        "planning_done",
+                        concept=production_plan.concept[:60],
+                        persona=production_plan.target_persona[:40],
+                        perf_sec=step_timings["planning"],
+                    )
+                    status.complete("planning", detail=production_plan.concept[:40])
+                except Exception as exc:
+                    # Planning은 실패해도 계속 진행 (optional enhancement)
+                    step_timings["planning"] = round(time.perf_counter() - _t0, 2)
+                    error_type = classify_error(exc)
+                    jlog.warning("planning_failed", error=str(exc), error_type=error_type.value)
+                    status.fail("planning", detail=f"{error_type.icon} {error_type.value}")
+                    production_plan = None
+
                 # ── Research Step (활성화 시) ──
                 research_context = None
                 if self.research_step:
@@ -416,6 +449,25 @@ class PipelineOrchestrator:
                     "Halting pipeline to prevent rendering a broken video. You can resume this job later."
                 )
 
+            # ── Gate 3: 미디어 QC ──
+            status.start("gate3_media_qc", detail="Validating media assets")
+            target_dur = tuple(self.config.video.target_duration_sec)
+            gate3_report = QCStep.gate3_media(
+                scene_plans=scene_plans,
+                scene_assets=scene_assets,
+                target_duration=target_dur,
+            )
+            if gate3_report.verdict == GateVerdict.PASS.value:
+                jlog.info("gate3_pass", checks=gate3_report.checks)
+                status.complete("gate3_media_qc")
+            else:
+                jlog.warning(
+                    "gate3_fail",
+                    verdict=gate3_report.verdict,
+                    issues=gate3_report.issues,
+                )
+                status.fail("gate3_media_qc", detail="; ".join(gate3_report.issues[:2]))
+
             # ── 영상 길이 점검: 총 오디오가 MAX_SHORTS_SEC 초과 시 경고만 출력 ──
             # (씬 삭제 대신 경고 로그만 남겨 영상이 완전한 형태로 렌더링되도록 함)
             MAX_SHORTS_SEC = 43.0  # 45초 상한 - 인트로/전환 여유 2초
@@ -481,7 +533,6 @@ class PipelineOrchestrator:
                     limit_sec=45,
                     message=f"⚠️ 영상 {manifest.total_duration_sec:.1f}s > 45s Shorts 상한! 길이 확인 필요.",
                 )
-            manifest.status = "success"
             manifest.ab_variant["renderer"] = "shorts_factory" if sf_rendered else "native"
             status.complete("render", detail=f"{manifest.total_duration_sec:.1f}s")
             jlog.info(
@@ -491,6 +542,31 @@ class PipelineOrchestrator:
                 renderer="shorts_factory" if sf_rendered else "native",
                 perf_sec=step_timings["render"],
             )
+
+            # ── Gate 4: 최종 QC ──
+            status.start("gate4_final_qc", detail="Final quality check")
+            gate4_report = QCStep.gate4_final(
+                manifest=manifest,
+                output_path=str(output_path),
+                target_duration=target_dur if 'target_dur' in dir() else (40, 50),
+            )
+            manifest.qc_result = {
+                "checks": gate4_report.checks,
+                "verdict": gate4_report.verdict,
+                "issues": gate4_report.issues,
+            }
+            if gate4_report.verdict == GateVerdict.PASS.value:
+                manifest.status = "success"
+                jlog.info("gate4_pass", checks=gate4_report.checks)
+                status.complete("gate4_final_qc")
+            else:
+                manifest.status = "hold"  # HOLD: 수동 검토 필요
+                jlog.warning(
+                    "gate4_hold",
+                    verdict=gate4_report.verdict,
+                    issues=gate4_report.issues,
+                )
+                status.fail("gate4_final_qc", detail="; ".join(gate4_report.issues[:2]))
 
             status.start("thumbnail", detail="Generating thumbnail")
             _t0 = time.perf_counter()

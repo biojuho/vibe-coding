@@ -1211,10 +1211,10 @@ class RenderStep:
 
             # 3) 오디오 합성
             audio = AudioFileClip(asset.audio_path)
+            _audio_clips_to_close.append(audio)  # 생성 직후 등록 → 예외 시에도 close 보장
             if audio.duration != duration_sec and audio.duration > duration_sec:
                 audio = audio.subclipped(0, duration_sec)
                 # audio shorter than visual → visual에 맞춤 (음성 끝 자연 종료)
-            _audio_clips_to_close.append(audio)
             base = base.with_audio(audio)
 
             # 4) 자막 오버레이

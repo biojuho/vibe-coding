@@ -260,12 +260,27 @@ class MediaStep:
         video_dir.mkdir(parents=True, exist_ok=True)
         return audio_dir, image_dir, video_dir
 
-    # ── 씬 역할별 비주얼 프롬프트 가이드 ──
+    # ── 씬 역할별 비주얼 프롬프트 가이드 (5-ACT 아트 디렉션) ──
     _ROLE_VISUAL_GUIDE: dict[str, str] = {
         "hook": (
             "[HOOK scene — must be eye-catching] "
             "Use dramatic lighting, bold composition, high contrast, "
-            "dynamic camera angle. Make it impossible to scroll past. "
+            "dynamic camera angle, neon glow. Make it impossible to scroll past. "
+        ),
+        "problem": (
+            "[PROBLEM scene — convey tension and empathy] "
+            "Dark moody atmosphere, dim lighting, desaturated colors. "
+            "Show struggle or frustration through visual metaphor. "
+        ),
+        "insight": (
+            "[INSIGHT scene — reveal and illuminate] "
+            "Bright revealing light breaking through darkness, "
+            "split screen or data overlay, vibrant accent colors. "
+        ),
+        "solution": (
+            "[SOLUTION scene — clear and actionable] "
+            "Clean modern aesthetic, whiteboard or infographic style, "
+            "bright accents on white/light background. Step-by-step feel. "
         ),
         "cta": (
             "[CTA scene — call to action] "
@@ -547,9 +562,8 @@ class MediaStep:
             ), failures
 
         # ── TTS + 이미지 생성 병렬 실행 ──
-        # Phase 1-C: manual pool management — `with` calls shutdown(wait=True)
-        # which blocks on running tasks even after cancel(), wasting time on error.
         _pool = ThreadPoolExecutor(max_workers=2)
+        _pool_shutdown = False
         _audio_future = _pool.submit(
             lambda: (
                 audio_path
@@ -587,12 +601,16 @@ class MediaStep:
             failures.append({"step": "audio", "code": type(exc).__name__, "message": str(exc)})
             self._log(logger, "error", "audio_failed", scene_id=scene.scene_id, error=str(exc))
             _pool.shutdown(wait=False, cancel_futures=True)
+            _pool_shutdown = True
             raise
+        finally:
+            if not _pool_shutdown:
+                _pool.shutdown(wait=False)
+                _pool_shutdown = True
 
         # 이미지 결과 수집
         visual_path_str, visual_type, img_failures = _image_future.result()
         failures.extend(img_failures)
-        _pool.shutdown(wait=False)
 
         duration_sec = self._read_audio_duration(audio_path, fallback_sec=scene.target_sec)
         cost_guard.add_tts_cost(duration_sec)

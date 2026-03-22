@@ -1,9 +1,11 @@
 project:
   language: "ko-KR"
-  default_scene_count: 7
+  default_scene_count: 8
   script_review_enabled: true    # GPT가 Hook/Flow/CTA 채점 후 미달 시 재생성
   script_review_min_score: 7     # 10점 만점 최소 기준 (6→7 강화)
   structure_presets:             # YPP: 콘텐츠 구조 다양화 (rotate)
+    premium:
+      flow: [hook, problem, problem, insight, insight, solution, solution, cta]
     listicle:
       flow: [hook, body, body, body, body, body, cta]
     countdown:
@@ -16,7 +18,7 @@ project:
       flow: [hook, pro1, con1, pro2, con2, verdict, cta]
 
 video:
-  target_duration_sec: [25, 40]      # 상한 45초 내 안전 범위
+  target_duration_sec: [40, 50]      # 40-50초 목표 (워크플로우 기준)
   resolution: [1080, 1920]
   fps: 30
   scene_video_duration_sec: 5
@@ -49,44 +51,44 @@ providers:
     moonshot: "moonshot-v1-8k"
     zhipuai: "glm-4-flash"
     groq: "llama-3.3-70b-versatile"
-  tts: "edge-tts"                    # "edge-tts"(무료) | "openai"(유료 $0.0008/s)
+  tts: "openai"                      # "edge-tts"(무료) | "openai"(유료 $0.0008/s)
   visual_primary: "gemini-image"    # Gemini 무료 이미지 생성 (Imagen 3 API 404 이슈로 전환)
   visual_fallback: "openai-image"
   llm_model: "gpt-4o-mini"         # 단일 provider 사용 시 기본 모델
   tts_model: "tts-1-hd"             # edge-tts 사용 시 이 값은 무시됨
-  tts_voice: "ko-KR-SunHiNeural"   # edge-tts: Neural 이름 직접 사용
-  tts_voice_pool:                   # edge-tts 한국어 음성 풀 (6종 로테이션)
-    - ko-KR-SunHiNeural             # 여성 — 밝고 자연스러운 톤
-    - ko-KR-InJoonNeural            # 남성 — 강하고 권위적 톤
-    - ko-KR-HyunsuNeural            # 남성 — 차분하고 지적인 톤
-    - ko-KR-BongJinNeural           # 남성 — 따뜻하고 친근한 톤
-    - ko-KR-SoonBokNeural           # 여성 — 부드럽고 안정적 톤
-    - ko-KR-GookMinNeural           # 남성 — 또렷하고 낮은 톤
+  tts_voice: "nova"                 # openai: nova(여성, 따뜻) | alloy | echo | fable | onyx | shimmer
+  tts_voice_pool:                   # openai 음성 풀 (6종 로테이션)
+    - nova                           # 여성 — 따뜻하고 자연스러운 톤
+    - onyx                           # 남성 — 깊고 권위적 톤
+    - echo                           # 남성 — 차분하고 부드러운 톤
+    - fable                          # 남성 — 표현력 풍부한 톤
+    - shimmer                        # 여성 — 밝고 또렷한 톤
+    - alloy                          # 중성 — 균형 잡힌 톤
   tts_voice_strategy: "rotate"      # rotate | random | fixed
   tts_voice_roles:                   # 역할별 음성 매핑 (voice_strategy보다 우선)
-    hook: ko-KR-InJoonNeural         # 남성 강한 톤 → 주의 끌기
-    body: ko-KR-SunHiNeural          # 여성 차분한 톤 → 설명
-    cta: ko-KR-InJoonNeural          # 남성 열정적 톤 → 행동 유도
-    rank5: ko-KR-HyunsuNeural        # 남성 차분 → 카운트다운 시작
-    rank4: ko-KR-SoonBokNeural       # 여성 부드럽 → 톤 변화
-    rank3: ko-KR-BongJinNeural       # 남성 따뜻 → 중반 전환
-    rank2: ko-KR-SunHiNeural         # 여성 밝음 → 긴장감 상승
-    rank1: ko-KR-GookMinNeural       # 남성 또렷 → 1위 강조
-    question: ko-KR-SunHiNeural      # 여성 호기심 톤
-    answer: ko-KR-HyunsuNeural       # 남성 권위적 답변
-    hint: ko-KR-BongJinNeural        # 남성 친근 힌트
-    setup: ko-KR-SoonBokNeural       # 여성 내러티브 시작
-    conflict: ko-KR-InJoonNeural     # 남성 갈등 강조
-    climax: ko-KR-GookMinNeural      # 남성 클라이맥스
-    resolution: ko-KR-SunHiNeural    # 여성 해결
-    lesson: ko-KR-HyunsuNeural       # 남성 교훈
-    pro1: ko-KR-InJoonNeural         # 남성 찬성
-    con1: ko-KR-SunHiNeural          # 여성 반대
-    pro2: ko-KR-BongJinNeural        # 남성 찬성 2
-    con2: ko-KR-SoonBokNeural        # 여성 반대 2
-    verdict: ko-KR-GookMinNeural     # 남성 판정
-    explain: ko-KR-HyunsuNeural      # 남성 해설
-    bonus: ko-KR-BongJinNeural       # 남성 보너스
+    hook: onyx                       # 남성 깊은 톤 → 주의 끌기
+    body: nova                       # 여성 따뜻한 톤 → 설명
+    cta: onyx                        # 남성 권위적 톤 → 행동 유도
+    rank5: echo                      # 남성 차분 → 카운트다운 시작
+    rank4: shimmer                   # 여성 밝음 → 톤 변화
+    rank3: fable                     # 남성 표현력 → 중반 전환
+    rank2: nova                      # 여성 따뜻 → 긴장감 상승
+    rank1: alloy                     # 중성 또렷 → 1위 강조
+    question: nova                   # 여성 호기심 톤
+    answer: echo                     # 남성 차분한 답변
+    hint: fable                      # 남성 표현력 힌트
+    setup: shimmer                   # 여성 내러티브 시작
+    conflict: onyx                   # 남성 갈등 강조
+    climax: alloy                    # 중성 클라이맥스
+    resolution: nova                 # 여성 해결
+    lesson: echo                     # 남성 교훈
+    pro1: onyx                       # 남성 찬성
+    con1: nova                       # 여성 반대
+    pro2: fable                      # 남성 찬성 2
+    con2: shimmer                    # 여성 반대 2
+    verdict: alloy                   # 중성 판정
+    explain: echo                    # 남성 해설
+    bonus: fable                     # 남성 보너스
   tts_speed: 1.1                    # edge-tts rate: 1.1 = +10%
   image_model: "dall-e-3"
   image_size: "1024x1792"
@@ -113,7 +115,7 @@ limits:
 
 costs:
   llm_per_job: 0.001             # MiMo V2-Flash ($0.10/1Mi+$0.30/1Mo) 실측 기준
-  tts_per_second: 0.0             # edge-tts 무료 (openai 복귀 시 0.0008)
+  tts_per_second: 0.0008          # OpenAI tts-1-hd ($0.0008/초)
   veo_per_second: 0.35          # 실제 Gemini API 가격 (사용 안 함)
   image_per_scene: 0.02         # Imagen 3 실제 가격 (DALL-E 3은 $0.08)
   stock_per_scene: 0.0          # Pexels = 무료
@@ -149,10 +151,10 @@ audio:
   bgm_dir: "assets/bgm"         # BGM mp3 파일 폴더 (없으면 BGM 스킵)
   bgm_volume: 0.12               # 나레이션 대비 BGM 볼륨 (0.0~1.0)
   fade_duration: 0.5             # 장면 전환 페이드 시간 (초)
-  sfx_enabled: true              # 효과음 활성화 (Hook 우쉬, 전환 스위시, CTA 팝)
+  sfx_enabled: false             # 효과음 비활성화 (사용자 요청: 중간중간 효과음 제거)
   sfx_dir: "assets/sfx"         # SFX mp3/wav 파일 폴더
   sfx_volume: 0.35               # 효과음 볼륨 (0.0~1.0)
-  sync_with_whisper: false       # true 시 Whisper-1로 단어 수준 동기화 수행
+  sync_with_whisper: true        # OpenAI TTS + karaoke 자막을 위해 Whisper-1 단어 동기화 활성화
   bgm_provider: "lyria"          # "lyria" (AI 생성, 무료) | "local" (assets/bgm 파일)
   ducking_factor: 0.25           # 나레이션 구간 BGM 볼륨 비율 (0.25 = 25%로 감소)
   lyria_prompt_map:              # 채널별 Lyria BGM 생성 프롬프트
