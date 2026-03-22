@@ -285,7 +285,10 @@ async def _generate_async_with_timing(
 def _run_coroutine(coro_factory) -> None:
     try:
         asyncio.run(coro_factory())
-    except RuntimeError:
+    except RuntimeError as exc:
+        # 기존 이벤트 루프 충돌만 fallback (코루틴 자체 RuntimeError는 전파)
+        if "event loop" not in str(exc).lower() and "running" not in str(exc).lower():
+            raise
         import concurrent.futures
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:

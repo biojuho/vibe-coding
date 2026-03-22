@@ -47,12 +47,15 @@ def _import_language_bridge():
 
 
 _bridge_cache: dict | None = None
+_bridge_lock = __import__("threading").Lock()
 
 
 def _get_bridge():
     global _bridge_cache
     if _bridge_cache is None:
-        _bridge_cache = _import_language_bridge()
+        with _bridge_lock:
+            if _bridge_cache is None:
+                _bridge_cache = _import_language_bridge()
     return _bridge_cache
 
 

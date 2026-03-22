@@ -1,3 +1,91 @@
+## 2026-03-22 — Antigravity (Gemini) — blind-to-x 테스트 복구 (Phase 6) 완료
+
+### 작업 요약
+blind-to-x 파이프라인 전체 테스트 스위트의 실패 3건을 수정하여 **481 passed, 0 failed, 4 skipped** 달성.
+아울러 이번 세션의 배경이 된 Pivot Phase 2 TODO 4건(시그널 카드, Notion 경량화, 72h 수집 루프, 검증)도 모두 완료.
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| `blind-to-x/pipeline/process.py` | 수정 | `output_formats`가 `None`일 때 `["twitter"]` 기본값 폴백 처리 |
+| `blind-to-x/main.py` | 수정 | 삭제된 `newsletter_scheduler` 모듈 참조(newsletter 빌드 모드 전체 블록) 제거 |
+| `blind-to-x/tests/unit/test_cost_controls.py` | 수정 | `EditorialReviewer` mock 추가 (`pipeline.editorial_reviewer.EditorialReviewer`) — 실제 LLM 호출로 인한 hang 방지 |
+| `blind-to-x/tests/integration/test_p0_enhancements.py` | 수정 | `test_classify_emotion_axis_new_emotions`에 `pipeline.emotion_analyzer.get_emotion_profile` mock 추가 — ML 모델이 키워드 폴백 경로를 차단하는 문제 해결 |
+
+### 테스트 결과
+
+| 항목 | 결과 |
+|------|------|
+| blind-to-x 전체 | ✅ **481 passed, 0 failed, 4 skipped** |
+| 이전 대비 | 이전 419p + 2fail → 이번 481p + 0fail |
+
+### 결정사항
+- `test_classify_emotion_axis_new_emotions`: ML 분류기는 mock 처리, YAML 키워드 폴백만 단위 테스트 (ML 결과는 통합 테스트 별도 담당)
+- `EditorialReviewer`는 외부 LLM API 의존 → 단위 테스트에서는 반드시 mock 처리 (hang 위험)
+- `newsletter_scheduler` 모듈은 삭제됨 — `main.py`에 해당 코드 블록 재추가 금지
+
+### TODO (다음 세션)
+- [ ] `performance_collector.py` 실제 API 연동 (Twitter/Threads/Naver 성과 수집)
+- [ ] `NOTEBOOKLM_ENABLED=true` + 실제 AI 키로 smoke test 실행
+- [ ] NotebookLM `NOTEBOOKLM_MODE=gdrive` 실전 테스트 (Google Drive 서비스 계정 설정 필요)
+- [ ] Notion DB에 `reply_text` (답글 텍스트) 속성 수동 생성 (rich_text 타입)
+
+### 다음 에이전트에게 메모
+- blind-to-x 테스트: `pytest tests -v` 실행 시 **481 pass, 4 skip, 0 fail** 정상.
+- `test_cost_controls.py`에 `EditorialReviewer` mock이 추가됨 — 이 mock이 없으면 LLM API를 실제 호출하여 테스트가 hang에 걸림.
+- `test_p0_enhancements.py`에서 `get_emotion_profile`은 `pipeline.emotion_analyzer.get_emotion_profile` 경로로 mock 처리됨 (content_intelligence 모듈 내 로컬 import 아님에 주의).
+- `newsletter_scheduler`는 삭제된 모듈. `main.py`, `test` 파일 등에서 참조 금지.
+- Pivot Phase 2 완전 완료: 시그널 카드 + Notion 경량화(15개) + 72h 수집 루프 모두 구현·QC 완료.
+
+---
+
+## 2026-03-22 — Claude Code (Opus 4.6) — 시스템 전체 QC
+
+
+### 작업 요약
+3개 서브프로젝트(root, shorts-maker-v2, blind-to-x)에 대해 전체 QC를 수행.
+CRITICAL 4건 + HIGH 5건 버그 수정, 32개 테스트 추가로 커버리지 77% → 85% 복구.
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| `execution/api_usage_tracker.py` | 수정 | SQL `definition` 파라미터 화이트리스트 검증 (injection 방어) |
+| `execution/qaqc_runner.py` | 수정 | returncode 기반 FAIL 판정 + 빈 출력 감지 |
+| `execution/pipeline_watchdog.py` | 수정 | `"C:\\"` 하드코딩 → 동적 드라이브 감지 |
+| `execution/error_analyzer.py` | 수정 | aware→naive datetime 정규화 (타임존 비교 일관성) |
+| `shorts-maker-v2/.../media_step.py` | 수정 | ThreadPoolExecutor 이중 shutdown 방지 (`_pool_shutdown` 플래그) |
+| `shorts-maker-v2/.../render_step.py` | 수정 | AudioFileClip 생성 직후 `_audio_clips_to_close` 등록 (누수 방지) |
+| `blind-to-x/pipeline/image_upload.py` | 수정 | tempfile try/except + os.unlink (고아 파일 방지) |
+| `tests/test_pipeline_watchdog.py` | **신규** | 32개 테스트 (disk/telegram/notion/scheduler/backup/btx/run_all/alerts/history) |
+
+### 테스트 결과
+
+| 영역 | Passed | Failed | Coverage |
+|------|--------|--------|----------|
+| Root | 842 | 0 | 84.72% |
+| shorts-maker-v2 | 541 | 0 | — |
+| blind-to-x | 467 | 3 (pre-existing) | — |
+| **합계** | **1,850** | **3** | — |
+
+### 결정사항
+- 커버리지 목표 80%는 테스트 추가로 달성 (기준 하향 아닌 실질 개선)
+- quality_gate.py는 이미 인코딩 안정화 적용 상태 확인 (추가 수정 불필요)
+- blind-to-x 3건 실패는 pre-existing (curl_cffi 네트워크, cost_controls mock 불일치)
+
+### TODO (다음 세션)
+- [ ] blind-to-x pre-existing 3건 실패 수정
+- [ ] MEDIUM 7건 후속 수정 (모델 가격표 갱신, PID 확인, Notion 재시도, config 범위 검증 등)
+- [ ] 미커밋 변경 정리 및 커밋
+
+### 다음 에이전트에게 메모
+- 전체 QA 자동화 복구 완료. Root coverage 84.72%로 80% 기준 충족.
+- `pipeline_watchdog.py` 테스트가 새로 추가되어 해당 모듈 수정 시 회귀 방지 가능.
+- `media_step.py`의 ThreadPoolExecutor는 `_pool_shutdown` 플래그 패턴 사용 중 — `with` 문 대신 수동 관리 (이유: `with`는 `wait=True`로 에러 시 블로킹).
+
+---
+
 ## 2026-03-21 — Antigravity (Gemini) — NotebookLM Pipeline blind-to-x 이식 + QC
 
 ### 작업 요약

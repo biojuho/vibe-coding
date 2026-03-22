@@ -19,13 +19,10 @@ v2 개선사항:
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import numpy as np
 from PIL import Image, ImageFilter
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 

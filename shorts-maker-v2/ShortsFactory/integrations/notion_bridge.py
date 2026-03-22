@@ -78,7 +78,7 @@ class NotionContentFetcher:
             "sorts": [{"property": "예약일", "direction": "ascending"}],
         }
 
-        resp = requests.post(url, json=payload, headers=self._headers())
+        resp = requests.post(url, json=payload, headers=self._headers(), timeout=30)
         if resp.status_code != 200:
             logger.error(f"Notion API error: {resp.status_code} {resp.text[:200]}")
             return []
@@ -134,7 +134,7 @@ class NotionContentFetcher:
         if "error" in extra_fields:
             props["에러"] = {"rich_text": [{"text": {"content": str(extra_fields["error"])[:2000]}}]}
 
-        resp = requests.patch(url, json={"properties": props}, headers=self._headers())
+        resp = requests.patch(url, json={"properties": props}, headers=self._headers(), timeout=30)
         ok = resp.status_code == 200
         if not ok:
             logger.error(f"Status update failed: {resp.status_code}")

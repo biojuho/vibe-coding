@@ -4,6 +4,7 @@ import json
 import logging
 import math
 import re
+import threading
 from typing import Any
 
 try:
@@ -72,6 +73,7 @@ class ScriptStep:
         ),
         ("myth_busting", "Open by stating a popular misconception, then immediately hint that it's wrong."),
     ]
+    _counter_lock = threading.Lock()
     _hook_counter: int = 0
 
     # YPP 대응: 5가지 톤 프리셋 (로테이션)
@@ -288,8 +290,9 @@ class ScriptStep:
 
     def _next_hook_pattern(self) -> tuple[str, str]:
         """Hook 패턴 로테이션. 호출할 때마다 다음 패턴 반환."""
-        idx = ScriptStep._hook_counter % len(self.HOOK_PATTERNS)
-        ScriptStep._hook_counter += 1
+        with ScriptStep._counter_lock:
+            idx = ScriptStep._hook_counter % len(self.HOOK_PATTERNS)
+            ScriptStep._hook_counter += 1
         return self.HOOK_PATTERNS[idx]
 
     def _get_hook_pattern(self) -> tuple[str, str]:
@@ -311,8 +314,9 @@ class ScriptStep:
 
     def _next_tone_preset(self) -> tuple[str, str]:
         """톤 프리셋 로테이션. 호출할 때마다 다음 톤 반환."""
-        idx = ScriptStep._tone_counter % len(self.TONE_PRESETS)
-        ScriptStep._tone_counter += 1
+        with ScriptStep._counter_lock:
+            idx = ScriptStep._tone_counter % len(self.TONE_PRESETS)
+            ScriptStep._tone_counter += 1
         return self.TONE_PRESETS[idx]
 
     def _next_structure_preset(
@@ -323,8 +327,9 @@ class ScriptStep:
         if not presets:
             return None, None
         names = list(presets.keys())
-        idx = ScriptStep._structure_counter % len(names)
-        ScriptStep._structure_counter += 1
+        with ScriptStep._counter_lock:
+            idx = ScriptStep._structure_counter % len(names)
+            ScriptStep._structure_counter += 1
         name = names[idx]
         return name, presets[name]
 

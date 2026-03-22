@@ -187,7 +187,12 @@ class ScriptGenerator:
             logger.error(f"OpenAI API error: {resp.status_code}")
             return {}
 
-        content = resp.json()["choices"][0]["message"]["content"]
+        data = resp.json()
+        choices = data.get("choices", [])
+        if not choices:
+            logger.error("OpenAI API returned empty choices")
+            return {}
+        content = choices[0]["message"]["content"]
         # JSON 추출 (```json ... ``` 포맷 처리)
         content = content.strip()
         if content.startswith("```"):

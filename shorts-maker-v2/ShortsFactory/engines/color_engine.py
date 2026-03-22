@@ -169,7 +169,7 @@ class ColorEngine:
                 tint_layer = np.array(tint_rgb, dtype=np.float32)
                 frame = (
                     frame * (1 - preset.tint_opacity)
-                    + tint_layer * preset.tint_opacity * 255 / 255.0 * frame / 255.0 * 255
+                    + tint_layer * preset.tint_opacity
                 )
 
             # 6. Vignette

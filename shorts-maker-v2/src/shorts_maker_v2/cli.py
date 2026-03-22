@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import shutil
 import sys
 from dataclasses import replace
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 from dotenv import load_dotenv
 
@@ -77,14 +80,15 @@ def _load_channel_settings(channel: str) -> dict:
         import sys as _sys
         from pathlib import Path as _Path
 
-        _root = _Path(__file__).resolve().parent.parent.parent.parent.parent
+        _root = _Path(__file__).resolve().parent.parent.parent.parent
         if str(_root) not in _sys.path:
             _sys.path.insert(0, str(_root))
         from execution.content_db import get_channel_settings, init_db  # type: ignore[import]
 
         init_db()
         return get_channel_settings(channel) or {}
-    except Exception:
+    except Exception as exc:
+        logger.debug("content_db 로드 실패 (무시): %s", exc)
         return {}
 
 
@@ -94,14 +98,15 @@ def _import_content_db():
         import sys as _sys
         from pathlib import Path as _Path
 
-        _root = _Path(__file__).resolve().parent.parent.parent.parent.parent
+        _root = _Path(__file__).resolve().parent.parent.parent.parent
         if str(_root) not in _sys.path:
             _sys.path.insert(0, str(_root))
         from execution import content_db  # type: ignore[import]
 
         content_db.init_db()
         return content_db
-    except Exception:
+    except Exception as exc:
+        logger.debug("content_db 모듈 로드 실패 (무시): %s", exc)
         return None
 
 
@@ -116,13 +121,11 @@ def _apply_channel_overrides(config: AppConfig, args: argparse.Namespace) -> App
             router = get_router()
             config = router.apply(config, channel)
             profile_context = router.get_channel_context(channel)
+            config = replace(config, _channel_key=channel)
             if profile_context:
-                # 채널 컨텍스트를 config에 임시 저장 (persona_pipeline에서 꺼내 사용)
-                object.__setattr__(config, "_channel_context", profile_context)
-            # 채널 키를 config에 저장 (orchestrator에서 프로필 자동 로딩용)
-            object.__setattr__(config, "_channel_key", channel)
-    except Exception:
-        pass  # 프로파일 미존재 시 무시 (기존 동작 유지)
+                config = replace(config, _channel_context=profile_context)
+    except Exception as exc:
+        logger.warning("채널 프로파일 적용 실패 (%s): %s", channel, exc)
 
     # 2. CLI 플래그 오버라이드 (CLI가 항상 최우선)
     tts_voice = getattr(args, "tts_voice", "") or db_settings.get("voice", "")
@@ -147,7 +150,6 @@ def _apply_channel_overrides(config: AppConfig, args: argparse.Namespace) -> App
         config_base = Path(args.config).resolve().parent
         brand_dir = config_base / "assets" / "channels" / channel
         intro_p = brand_dir / "intro.png"
-        brand_dir / "outro.png"
         if not intro_p.exists():
             try:
                 from execution.brand_asset_generator import generate_channel_brand  # type: ignore[import]

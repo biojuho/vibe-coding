@@ -20,6 +20,8 @@ v2 개선사항:
 from __future__ import annotations
 
 import logging
+import os
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -122,15 +124,15 @@ class TextEngine:
             생성된 자막 이미지 경로.
         """
         if output_path is None:
-            import tempfile
 
-            output_path = Path(tempfile.mktemp(suffix=".png"))
+            _fd, _tmp = tempfile.mkstemp(suffix=".png")
+            os.close(_fd)
+            output_path = Path(_tmp)
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         style = self._get_style(role)
         font_name = self.font_title if role == "hook" else self.font_body
-        _resolve_font(font_name, style.font_size)
 
         # 이미지 생성 (2x 슈퍼샘플링)
         scale = 2
@@ -255,9 +257,10 @@ class TextEngine:
             생성된 자막 이미지 경로.
         """
         if output_path is None:
-            import tempfile
 
-            output_path = Path(tempfile.mktemp(suffix=".png"))
+            _fd, _tmp = tempfile.mkstemp(suffix=".png")
+            os.close(_fd)
+            output_path = Path(_tmp)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         gc = glow_color or self.palette.get("primary", "#00D4FF")
@@ -355,9 +358,10 @@ class TextEngine:
             생성된 배지 이미지 경로.
         """
         if output_path is None:
-            import tempfile
 
-            output_path = Path(tempfile.mktemp(suffix=".png"))
+            _fd, _tmp = tempfile.mkstemp(suffix=".png")
+            os.close(_fd)
+            output_path = Path(_tmp)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         scale = 2
@@ -411,9 +415,10 @@ class TextEngine:
             생성된 워터마크 이미지 경로.
         """
         if output_path is None:
-            import tempfile
 
-            output_path = Path(tempfile.mktemp(suffix=".png"))
+            _fd, _tmp = tempfile.mkstemp(suffix=".png")
+            os.close(_fd)
+            output_path = Path(_tmp)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         scale = 2
@@ -470,9 +475,10 @@ class TextEngine:
             생성된 이미지 경로.
         """
         if output_path is None:
-            import tempfile
 
-            output_path = Path(tempfile.mktemp(suffix=".png"))
+            _fd, _tmp = tempfile.mkstemp(suffix=".png")
+            os.close(_fd)
+            output_path = Path(_tmp)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         cs = self._hex_to_rgb(color_start or self.palette.get("accent", "#00FF88"))
@@ -593,9 +599,10 @@ class TextEngine:
             생성된 배지 이미지 경로.
         """
         if output_path is None:
-            import tempfile
 
-            output_path = Path(tempfile.mktemp(suffix=".png"))
+            _fd, _tmp = tempfile.mkstemp(suffix=".png")
+            os.close(_fd)
+            output_path = Path(_tmp)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         bc = self._hex_to_rgb(badge_color or self.palette.get("accent", "#FF4444"))
@@ -663,9 +670,10 @@ class TextEngine:
             생성된 프로그레스 바 이미지 경로.
         """
         if output_path is None:
-            import tempfile
 
-            output_path = Path(tempfile.mktemp(suffix=".png"))
+            _fd, _tmp = tempfile.mkstemp(suffix=".png")
+            os.close(_fd)
+            output_path = Path(_tmp)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         bc = self._hex_to_rgb(bar_color or self.palette.get("accent", "#00FF88"))
@@ -760,9 +768,8 @@ class TextEngine:
         for _category, color in self.keyword_highlights.items():
             # 실제로는 카테고리 기반이므로, 키워드가 어떤 카테고리인지
             # 판단하는 로직 필요 — 여기서는 숫자/특수 패턴으로 구분
-            if keyword.replace(",", "").replace(".", "").replace("%", "").strip().isdigit():
-                if "numbers" in self.keyword_highlights:
-                    return self.keyword_highlights["numbers"]
+            if keyword.replace(",", "").replace(".", "").replace("%", "").strip().isdigit() and "numbers" in self.keyword_highlights:
+                return self.keyword_highlights["numbers"]
             # 기본: 첫 번째 하이라이트 색상 사용
             return color
         return None

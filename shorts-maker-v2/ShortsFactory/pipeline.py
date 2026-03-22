@@ -58,11 +58,12 @@ def _import_generator(module_path: str, cls_name: str):
     import importlib
     import sys
 
-    src = _PROJECT / "src"
-    if str(src) not in sys.path:
-        sys.path.insert(0, str(src))
-    if str(_PROJECT) not in sys.path:
-        sys.path.insert(0, str(_PROJECT))
+    src = str(_PROJECT / "src")
+    proj = str(_PROJECT)
+    if src not in sys.path:
+        sys.path.insert(0, src)
+    if proj not in sys.path:
+        sys.path.insert(0, proj)
     mod = importlib.import_module(module_path)
     return getattr(mod, cls_name)
 
@@ -253,7 +254,7 @@ class ShortsFactory:
             _ensure_paths()
             GenCls = _import_generator(reg["module"], reg["generator_cls"])
             gen = GenCls(**job.data)
-            result = gen.generate(output)
+            result = gen.generate(output, **kwargs)
             job.output_path = result
             job.status = "done"
             job.duration_sec = time.time() - t0

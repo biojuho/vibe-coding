@@ -189,6 +189,10 @@ class AppConfig:
     cache: CacheSettings = CacheSettings()
     research: ResearchSettings = ResearchSettings()
     rendering: RenderSettings = RenderSettings()
+    # 런타임 채널 메타 (frozen 안전 — replace()로만 설정)
+    _channel_context: dict | None = None
+    _channel_key: str = ""
+    _channel_default_structure: list | None = None
 
 
 @dataclass(frozen=True)

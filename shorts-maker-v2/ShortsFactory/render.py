@@ -105,15 +105,13 @@ class SFRenderStep:
             렌더링된 MP4 파일 경로
         """
         mp = _lazy_moviepy()
-        mp["ImageClip"]
-        mp["VideoFileClip"]
         CompositeVideoClip = mp["CompositeVideoClip"]
         concatenate_videoclips = mp["concatenate_videoclips"]
-        mp["vfx"]
         AudioFileClip = mp["AudioFileClip"]
 
         w, h = self.TARGET_WIDTH, self.TARGET_HEIGHT
         scene_clips: list = []
+        _audio_clips_to_close: list = []
         roles: list[str] = []
 
         for i, scene in enumerate(scenes):
@@ -135,6 +133,7 @@ class SFRenderStep:
             if audio_path and Path(audio_path).exists():
                 try:
                     audio = AudioFileClip(str(audio_path))
+                    _audio_clips_to_close.append(audio)
                     if audio.duration > duration:
                         audio = audio.subclipped(0, duration)
                     base = base.with_audio(audio)
@@ -187,6 +186,9 @@ class SFRenderStep:
             with contextlib.suppress(Exception):
                 final.close()
             for clip in scene_clips:
+                with contextlib.suppress(Exception):
+                    clip.close()
+            for clip in _audio_clips_to_close:
                 with contextlib.suppress(Exception):
                     clip.close()
 
@@ -276,8 +278,8 @@ class SFRenderStep:
                 ).get(role, 300)
                 y = max(80, int(h - clip.h - offset))
                 return clip.with_duration(duration).with_position(("center", y))
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("[SFRender] 텍스트 오버레이 로드 실패: %s", exc)
 
         return None
 

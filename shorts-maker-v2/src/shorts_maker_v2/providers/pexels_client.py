@@ -184,7 +184,7 @@ class PexelsClient:
             f"crop={target_width}:{target_height}"
         )
         # HW 인코더별 preset 결정
-        hw_codec, _ = detect_hw_encoder()
+        hw_codec, _ = detect_hw_encoder("auto")
         if hw_codec == "libx264":
             preset = "ultrafast"
         elif "nvenc" in hw_codec:

@@ -77,7 +77,7 @@ def _test_encode(codec: str) -> bool:
             return False
 
 
-@lru_cache(maxsize=1)
+@lru_cache(maxsize=8)
 def detect_hw_encoder(preference: str = "auto") -> tuple[str, list[str]]:
     """가용 HW 인코더를 감지하여 (codec, ffmpeg_params) 반환.
 

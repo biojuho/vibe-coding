@@ -617,8 +617,8 @@ class PipelineOrchestrator:
                 status=manifest.status,
                 duration_sec=manifest.total_duration_sec,
             )
-        except Exception:
-            pass  # 비용 추적 실패는 무시 (핵심 흐름에 영향 없음)
+        except Exception as exc:
+            logger.warning("비용 추적 실패: %s", exc)
 
         return manifest
 

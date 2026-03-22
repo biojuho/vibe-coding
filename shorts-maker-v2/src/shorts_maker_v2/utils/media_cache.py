@@ -173,8 +173,9 @@ class MediaCache:
 
     def stats(self) -> dict[str, int]:
         """캐시 통계 반환."""
+        # lock 밖에서 I/O 수행 (get/put 블로킹 방지)
+        total_files = sum(1 for f in self.cache_dir.iterdir() if f.is_file()) if self.cache_dir.exists() else 0
         with self._lock:
-            total_files = sum(1 for f in self.cache_dir.iterdir() if f.is_file()) if self.cache_dir.exists() else 0
             return {
                 "hits": self._hits,
                 "misses": self._misses,

@@ -335,7 +335,7 @@ class RenderStep:
             return None
         ext = path.suffix.lower()
         if ext in (".mp4", ".mov", ".avi", ".webm"):
-            clip = VideoFileClip(str(path)).without_audio()
+            clip = VideoFileClip(str(path), audio=False)
             clip = clip.subclipped(0, min(clip.duration, duration))
         elif ext in (".png", ".jpg", ".jpeg", ".webp"):
             clip = ImageClip(str(path)).with_duration(duration)
@@ -794,15 +794,13 @@ class RenderStep:
                     prev_clip = result[-1]
 
                     def _wipe_mask_factory(_wipe_dur, _tw, _th):
-                        _buf = np.zeros((_th, _tw), dtype="float32")
-
                         def _make_mask(t):
-                            _buf[:] = 0
+                            buf = np.zeros((_th, _tw), dtype="float32")
                             progress = min(1.0, t / max(0.01, _wipe_dur))
                             reveal_w = int(_tw * progress)
                             if reveal_w > 0:
-                                _buf[:, :reveal_w] = 1.0
-                            return _buf
+                                buf[:, :reveal_w] = 1.0
+                            return buf
 
                         return _make_mask
 
@@ -811,7 +809,8 @@ class RenderStep:
                         duration=wipe_dur,
                         is_mask=True,
                     )
-                    wipe_clip = clip.with_start(prev_clip.duration - wipe_dur)
+                    wipe_clip = clip.subclipped(0, wipe_dur)
+                    wipe_clip = wipe_clip.with_start(prev_clip.duration - wipe_dur)
                     wipe_clip = wipe_clip.with_mask(wipe_mask)
                     # 이전 클립 유지 + 와이프 오버레이
                     combined = CompositeVideoClip(
@@ -965,7 +964,9 @@ class RenderStep:
             )
             try:
                 asyncio.run(coro)
-            except RuntimeError:
+            except RuntimeError as exc:
+                if "event loop" not in str(exc).lower() and "running" not in str(exc).lower():
+                    raise
                 import concurrent.futures
 
                 with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
@@ -1157,6 +1158,7 @@ class RenderStep:
 
         all_clips: list = []
         _audio_clips_to_close: list = []
+        _caption_clips_to_close: list = []  # karaoke ImageClip 추적 (close 용)
         _bgm_clip = None  # BGM 원본 참조 (close 용)
         scene_roles: list[str] = []
         last_effect = ""
@@ -1253,6 +1255,7 @@ class RenderStep:
                                     keyword_colors=self._keyword_color_map,
                                 )
                                 highlight_clip = ImageClip(str(highlight_out), transparent=True)
+                                _caption_clips_to_close.append(highlight_clip)
                                 cap_clip = (
                                     highlight_clip.with_duration(wd)
                                     .with_start(ws)
@@ -1268,6 +1271,7 @@ class RenderStep:
                             cap_out = run_dir / f"kc_{plan.scene_id:02d}_{chunk_start:.2f}.png"
                             render_karaoke_image(chunk_text, target_width, style, cap_out)
                             caption_image = ImageClip(str(cap_out), transparent=True)
+                            _caption_clips_to_close.append(caption_image)
                             cap_clip = (
                                 caption_image.with_duration(cd)
                                 .with_start(chunk_start)
@@ -1289,6 +1293,7 @@ class RenderStep:
                         role,
                     )
                     cap_clip_img = ImageClip(str(cap_img), transparent=True)
+                    _caption_clips_to_close.append(cap_clip_img)
                     cap_clip = cap_clip_img.with_duration(duration_sec).with_position(
                         ("center", self._caption_y(cap_clip_img, target_height, style, role))
                     )
@@ -1304,6 +1309,7 @@ class RenderStep:
                     role,
                 )
                 cap_clip_img = ImageClip(str(cap_img), transparent=True)
+                _caption_clips_to_close.append(cap_clip_img)
                 cap_clip = cap_clip_img.with_duration(duration_sec).with_position(
                     ("center", self._caption_y(cap_clip_img, target_height, style, role))
                 )
@@ -1395,10 +1401,7 @@ class RenderStep:
                         from moviepy import concatenate_audioclips
 
                         # 단순 반복 루핑 (오디오 클립에 비디오 이펙트 적용 불가)
-                        try:
-                            bgm_clip = concatenate_audioclips([bgm_clip] * repeats)
-                        except Exception:
-                            bgm_clip = concatenate_audioclips([bgm_clip] * repeats)
+                        bgm_clip = concatenate_audioclips([bgm_clip] * repeats)
                     bgm_clip = bgm_clip.subclipped(0, target_dur)
                     logger.info("[BGM] local 파일 사용: %s", bgm_path.name)
 
@@ -1422,6 +1425,7 @@ class RenderStep:
                 scene_durations = [a.duration_sec for a in scene_assets]
                 sfx_clips = self._build_sfx_clips(scene_roles, scene_durations, sfx_files)
                 if sfx_clips and final_video.audio is not None:
+                    _audio_clips_to_close.extend(sfx_clips)
                     all_audio = [final_video.audio] + sfx_clips
                     final_video = final_video.with_audio(CompositeAudioClip(all_audio))
                     logger.info("[SFX] %d effects applied", len(sfx_clips))
@@ -1440,8 +1444,8 @@ class RenderStep:
                 gpu_info["encoder"],
                 gpu_info["decoder_support"],
             )
-        except Exception:
-            pass
+        except Exception as gpu_exc:
+            logger.debug("[RENDER] GPU 정보 조회 실패: %s", gpu_exc)
 
         # ── Quality Profile 적용 ──
         qp = _QUALITY_PROFILES.get(self.config.video.quality_profile, _QUALITY_PROFILES["standard"])
@@ -1506,4 +1510,7 @@ class RenderStep:
             if _bgm_clip is not None:
                 with contextlib.suppress(Exception):
                     _bgm_clip.close()
+            for clip in _caption_clips_to_close:
+                with contextlib.suppress(Exception):
+                    clip.close()
         return output_path

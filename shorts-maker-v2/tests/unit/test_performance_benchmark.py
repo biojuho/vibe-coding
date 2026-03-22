@@ -96,17 +96,22 @@ class BenchmarkCollector:
 
     def print_summary(self):
         """벤치마크 요약 출력."""
-        print("\n" + "=" * 70)
-        print("📊 성능 벤치마크 결과")
-        print("=" * 70)
+        lines = []
+        lines.append("\n" + "=" * 70)
+        lines.append("Performance Benchmark Results")
+        lines.append("=" * 70)
         for r in self.results:
-            status = "✅" if r.passed else "❌"
-            print(f"  {status} {r.name:<35} {r.duration_ms:>8.1f}ms / {r.threshold_ms:>8.1f}ms")
-        print("-" * 70)
+            status = "PASS" if r.passed else "FAIL"
+            lines.append(f"  [{status}] {r.name:<35} {r.duration_ms:>8.1f}ms / {r.threshold_ms:>8.1f}ms")
+        lines.append("-" * 70)
         total = len(self.results)
         passed = sum(1 for r in self.results if r.passed)
-        print(f"  총 {total}건 | ✅ {passed}건 | ❌ {total - passed}건")
-        print("=" * 70)
+        lines.append(f"  Total {total} | PASS {passed} | FAIL {total - passed}")
+        lines.append("=" * 70)
+        try:
+            print("\n".join(lines))
+        except UnicodeEncodeError:
+            print("\n".join(lines).encode("ascii", errors="replace").decode("ascii"))
 
 
 _collector = BenchmarkCollector()

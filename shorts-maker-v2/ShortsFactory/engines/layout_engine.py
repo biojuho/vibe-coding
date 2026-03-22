@@ -5,6 +5,7 @@ layout_engine.py — 분할/카드 레이아웃 엔진
 from __future__ import annotations
 
 import logging
+import os
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -25,8 +26,8 @@ def _load_font(name: str, size: int):
     try:
         if Path(path).exists():
             return ImageFont.truetype(path, size)
-    except Exception:
-        pass
+    except Exception as exc:
+        logging.getLogger(__name__).warning("폰트 로드 실패 (%s): %s", name, exc)
     return ImageFont.load_default()
 
 
@@ -50,7 +51,9 @@ class LayoutEngine:
         output_path: Path | None = None,
     ) -> Path:
         if output_path is None:
-            output_path = Path(tempfile.mktemp(suffix=".png"))
+            _fd, _tmp = tempfile.mkstemp(suffix=".png")
+            os.close(_fd)
+            output_path = Path(_tmp)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         bg = self._hex(self.palette.get("bg", "#0A0E1A"))
         pos = self._hex(left_color or self.palette.get("accent", "#34D399"))
@@ -70,7 +73,9 @@ class LayoutEngine:
 
     def card_layout(self, items: list[dict[str, str]], *, output_path: Path | None = None) -> Path:
         if output_path is None:
-            output_path = Path(tempfile.mktemp(suffix=".png"))
+            _fd, _tmp = tempfile.mkstemp(suffix=".png")
+            os.close(_fd)
+            output_path = Path(_tmp)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         bg = self._hex(self.palette.get("bg", "#0A0E1A"))
         pri = self._hex(self.palette.get("primary", "#00D4FF"))
@@ -92,7 +97,9 @@ class LayoutEngine:
 
     def timeline_layout(self, events: list[dict[str, str]], *, output_path: Path | None = None) -> Path:
         if output_path is None:
-            output_path = Path(tempfile.mktemp(suffix=".png"))
+            _fd, _tmp = tempfile.mkstemp(suffix=".png")
+            os.close(_fd)
+            output_path = Path(_tmp)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         bg = self._hex(self.palette.get("bg", "#1A1408"))
         pri = self._hex(self.palette.get("primary", "#D4A574"))
@@ -145,7 +152,9 @@ class LayoutEngine:
             output_path: 출력 경로.
         """
         if output_path is None:
-            output_path = Path(tempfile.mktemp(suffix=".png"))
+            _fd, _tmp = tempfile.mkstemp(suffix=".png")
+            os.close(_fd)
+            output_path = Path(_tmp)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         bar_h = int(self._height * height_ratio)
@@ -206,7 +215,9 @@ class LayoutEngine:
             output_path: 출력 경로.
         """
         if output_path is None:
-            output_path = Path(tempfile.mktemp(suffix=".png"))
+            _fd, _tmp = tempfile.mkstemp(suffix=".png")
+            os.close(_fd)
+            output_path = Path(_tmp)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         card_h = int(self._height * height_ratio)
@@ -285,7 +296,9 @@ class LayoutEngine:
             output_path: 출력 경로.
         """
         if output_path is None:
-            output_path = Path(tempfile.mktemp(suffix=".png"))
+            _fd, _tmp = tempfile.mkstemp(suffix=".png")
+            os.close(_fd)
+            output_path = Path(_tmp)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         w = width or self._width
@@ -373,7 +386,9 @@ class LayoutEngine:
             output_path: 출력 경로.
         """
         if output_path is None:
-            output_path = Path(tempfile.mktemp(suffix=".png"))
+            _fd, _tmp = tempfile.mkstemp(suffix=".png")
+            os.close(_fd)
+            output_path = Path(_tmp)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         bg = self._hex(self.palette.get("bg", "#0A0E1A"))
@@ -428,7 +443,9 @@ class LayoutEngine:
             output_path: 출력 경로.
         """
         if output_path is None:
-            output_path = Path(tempfile.mktemp(suffix=".png"))
+            _fd, _tmp = tempfile.mkstemp(suffix=".png")
+            os.close(_fd)
+            output_path = Path(_tmp)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         pri = self._hex(self.palette.get("primary", "#00D4FF"))
@@ -488,7 +505,9 @@ class LayoutEngine:
             output_path: 출력 경로.
         """
         if output_path is None:
-            output_path = Path(tempfile.mktemp(suffix=".png"))
+            _fd, _tmp = tempfile.mkstemp(suffix=".png")
+            os.close(_fd)
+            output_path = Path(_tmp)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         bg = self._hex(self.palette.get("bg", "#0A0E1A"))
@@ -561,7 +580,9 @@ class LayoutEngine:
             output_path: 출력 경로.
         """
         if output_path is None:
-            output_path = Path(tempfile.mktemp(suffix=".png"))
+            _fd, _tmp = tempfile.mkstemp(suffix=".png")
+            os.close(_fd)
+            output_path = Path(_tmp)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         bg = self._hex(self.palette.get("bg", "#0A0E1A"))
@@ -631,7 +652,9 @@ class LayoutEngine:
             output_path: 출력 경로.
         """
         if output_path is None:
-            output_path = Path(tempfile.mktemp(suffix=".png"))
+            _fd, _tmp = tempfile.mkstemp(suffix=".png")
+            os.close(_fd)
+            output_path = Path(_tmp)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         bg = self._hex(self.palette.get("bg", "#0A0E1A"))
@@ -689,7 +712,9 @@ class LayoutEngine:
             output_path: 출력 경로.
         """
         if output_path is None:
-            output_path = Path(tempfile.mktemp(suffix=".png"))
+            _fd, _tmp = tempfile.mkstemp(suffix=".png")
+            os.close(_fd)
+            output_path = Path(_tmp)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         bg = self._hex(self.palette.get("bg", "#0A0E1A"))
@@ -740,7 +765,7 @@ class LayoutEngine:
             c = " ".join(cur + [w])
             try:
                 bw = d.textbbox((0, 0), c, font=font)[2]
-            except:
+            except Exception:
                 bw = len(c) * 20
             if bw <= mw or not cur:
                 cur.append(w)

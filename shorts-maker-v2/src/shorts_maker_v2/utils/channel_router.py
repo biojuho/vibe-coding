@@ -114,7 +114,6 @@ class ChannelRouter:
             return config
 
         profile = self._profiles[channel_key]
-        profile.get("pipeline", {})
 
         # ── providers 오버라이드 ──────────────────────────────────────────
         prov_kwargs: dict[str, Any] = {}
@@ -153,9 +152,9 @@ class ChannelRouter:
             captions=new_captions,
         )
 
-        # 구조 프리셋 (non-frozen 속성이므로 object.__setattr__ 사용)
+        # 구조 프리셋
         if "default_structure" in profile:
-            object.__setattr__(new_config, "_channel_default_structure", profile["default_structure"])
+            new_config = dc_replace(new_config, _channel_default_structure=profile["default_structure"])
 
         logger.info(
             "[ChannelRouter] '%s' (%s) 프로파일 적용 완료",

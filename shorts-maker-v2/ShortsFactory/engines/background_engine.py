@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import math
+import os
 import random
 import tempfile
 from pathlib import Path
@@ -63,7 +64,9 @@ class BackgroundEngine:
             생성된 이미지 경로.
         """
         if output_path is None:
-            output_path = Path(tempfile.mktemp(suffix=".png"))
+            _fd, _tmp = tempfile.mkstemp(suffix=".png")
+            os.close(_fd)
+            output_path = Path(_tmp)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         bg_color = self._hex_to_rgb(self.palette.get("bg", "#000000"))
@@ -112,7 +115,9 @@ class BackgroundEngine:
             생성된 파티클 오버레이 이미지 경로.
         """
         if output_path is None:
-            output_path = Path(tempfile.mktemp(suffix=".png"))
+            _fd, _tmp = tempfile.mkstemp(suffix=".png")
+            os.close(_fd)
+            output_path = Path(_tmp)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         accent = self._hex_to_rgb(self.palette.get("accent", "#FFFFFF"))
@@ -164,7 +169,9 @@ class BackgroundEngine:
             생성된 그리드 오버레이 이미지 경로.
         """
         if output_path is None:
-            output_path = Path(tempfile.mktemp(suffix=".png"))
+            _fd, _tmp = tempfile.mkstemp(suffix=".png")
+            os.close(_fd)
+            output_path = Path(_tmp)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         rgb = self._hex_to_rgb(line_color)
@@ -378,7 +385,9 @@ class BackgroundEngine:
         from PIL import ImageFilter as _IF
 
         if output_path is None:
-            output_path = Path(tempfile.mktemp(suffix=".png"))
+            _fd, _tmp = tempfile.mkstemp(suffix=".png")
+            os.close(_fd)
+            output_path = Path(_tmp)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         try:
@@ -443,7 +452,9 @@ class BackgroundEngine:
             생성된 노이즈 텍스처 이미지 경로.
         """
         if output_path is None:
-            output_path = Path(tempfile.mktemp(suffix=".png"))
+            _fd, _tmp = tempfile.mkstemp(suffix=".png")
+            os.close(_fd)
+            output_path = Path(_tmp)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         alpha_max = int(255 * min(1.0, intensity))
@@ -504,7 +515,9 @@ class BackgroundEngine:
             생성된 스캔라인 오버레이 이미지 경로.
         """
         if output_path is None:
-            output_path = Path(tempfile.mktemp(suffix=".png"))
+            _fd, _tmp = tempfile.mkstemp(suffix=".png")
+            os.close(_fd)
+            output_path = Path(_tmp)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         rgb = self._hex_to_rgb(line_color)
@@ -554,7 +567,9 @@ class BackgroundEngine:
             생성된 메쉬 그라데이션 이미지 경로.
         """
         if output_path is None:
-            output_path = Path(tempfile.mktemp(suffix=".png"))
+            _fd, _tmp = tempfile.mkstemp(suffix=".png")
+            os.close(_fd)
+            output_path = Path(_tmp)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         if colors is None:
@@ -569,8 +584,9 @@ class BackgroundEngine:
         # [QA 수정] 빈 리스트 방어: 최소 1개 색상 보장
         if not color_rgbs:
             color_rgbs = [self._hex_to_rgb(self.palette.get("bg", "#0A0E1A"))]
+        orig_len = len(color_rgbs)
         while len(color_rgbs) < num_points:
-            color_rgbs.append(color_rgbs[len(color_rgbs) % len(color_rgbs)])
+            color_rgbs.append(color_rgbs[len(color_rgbs) % orig_len])
 
         # 각 제어점에 랜덤 위치 할당
         from PIL import ImageFilter as _IF
