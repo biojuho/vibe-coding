@@ -1,5 +1,57 @@
 # 📋 AI 세션 로그
 
+## 2026-03-22 — Antigravity (스크립트 품질 강화 Phase 2)
+
+### 작업 요약
+`script_step.py`에 5-ACT 스크립트 품질 검증 3개 기능을 추가하고, 단위 테스트 29개(`test_script_quality.py`)를 신규 작성했습니다.
+
+### 세부 변경사항
+
+#### 1. `script_step.py` — 3개 기능 추가
+- `_CTA_FORBIDDEN_WORDS` 클래스 상수: 구독, 좋아요, subscribe, like, follow 등 14개 금지어
+- `_PERSONA_KEYWORDS` 클래스 상수: 채널별 키워드 사전 (ai_tech/psychology/history/space/health)
+- `_trim_hook_to_limit()` `@staticmethod`: Hook narration 글자 수 제한 (기본 15자)
+- `_validate_cta()` `@classmethod`: CTA 금지어 감지 — `narration.lower()`로 대소문자 무시
+- `_score_persona_match()` `@classmethod`: 키워드 밀도 기반 채널 페르소나 스코어 (0.0~1.0)
+- `parse_script_payload()`: Hook이 15자 초과 시 자동 트림 + WARNING 로그 추가
+- `run()`: CTA 씬 금지어 감지 시 WARNING, channel_key 있으면 페르소나 스코어 로깅
+
+#### 2. `tests/unit/test_script_quality.py` — 신규 (29개 테스트)
+- TestTrimHookToLimit (7개): 경계값, 한국어 글자 단위 트림
+- TestValidateCta (8개): 금지어 감지, 대소문자 처리
+- TestScorePersonaMatch (7개): 채널 스코어, 알 수 없는 채널 중립값
+- TestParseScriptPayloadHookTrim (2개): parse 단계 통합 검증
+- TestRunIntegration (5개): run() 반환 ScenePlan 직접 검증
+
+#### 3. Ruff 수정
+- UP037: `_score_persona_match` 타입 어노테이션 따옴표 제거
+- F401: 미사용 `import pytest` 제거 (test 파일)
+- I001: import 정렬 자동 수정
+
+### 결과
+- Ruff: **All checks passed** ✅
+- pytest test_script_quality.py: **29 passed** ✅
+- pytest test_script_step.py: **4 passed** (기존 회귀 없음) ✅
+
+### 결정사항
+- Hook 트림은 TTS 음성 품질에 영향 없음 (원본 읽음) — 자막 픽셀 overflow 방지 목적
+- CTA 금지어는 WARNING 로그로 운영자에게 알림 (즉시 재생성 X)
+- caplog propagation 이슈로 run() 통합 테스트는 반환 ScenePlan 직접 검증으로 설계
+
+### 지뢰밭 업데이트
+- `run()`은 duration_range 초과 시 narration을 truncation함 → 테스트 payload narration이 duration_range를 반드시 준수해야 함
+
+### 변경 파일
+- `src/shorts_maker_v2/pipeline/script_step.py`
+- `tests/unit/test_script_quality.py` (신규)
+
+### 다음 도구에게 메모
+- `_validate_cta()`는 `narration.lower()`로 영어 대소문자 무시
+- `_score_persona_match()`에서 알 수 없는 채널 키 → 0.5 중립 반환
+- pytest caplog: `logger` 파라미터 지정보다 반환 데이터 직접 검증 방식이 안정적
+
+---
+
 ## 2026-03-21 #2 — Antigravity (Caption/Hook TODO 3건 + QC)
 
 ### 작업 요약

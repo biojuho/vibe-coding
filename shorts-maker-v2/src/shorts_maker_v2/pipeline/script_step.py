@@ -241,6 +241,37 @@ class ScriptStep:
         },
     }
 
+    # ── YPP CTA 금지어 목록 ──────────────────────────────────────────────────
+    # 구독/좋아요 등 채널 행동 유도를 포함한 CTA는 YouTube 품질 심사(YPP) 위험.
+    # _validate_cta()가 이 목록을 순회하여 위반 항목을 반환한다.
+    _CTA_FORBIDDEN_WORDS: tuple[str, ...] = (
+        "구독",
+        "좋아요",
+        "subscribe",
+        "like",
+        "알림",
+        "벨",
+        "bell",
+        "follow",
+        "팔로우",
+        "눌러",
+        "눌러주",
+        "부탁",
+        "잊지 마",
+        "잊지마",
+    )
+
+    # ── 채널별 페르소나 키워드 (스코어링용) ──────────────────────────────────
+    # 대본 본문 키워드 밀도로 채널 톤 이탈 여부를 수치화한다.
+    # _score_persona_match()가 이 딕셔너리를 참조한다.
+    _PERSONA_KEYWORDS: dict[str, tuple[str, ...]] = {
+        "ai_tech": ("AI", "데이터", "기술", "모델", "%", "연구", "실제로", "개발", "알고리즘", "소프트웨어"),
+        "psychology": ("마음", "감정", "공감", "당신", "느끼", "심리", "이해", "관계", "자신", "불안"),
+        "history": ("년", "시대", "왕", "전쟁", "역사", "당시", "사건", "제국", "혁명", "문명"),
+        "space": ("우주", "광년", "행성", "은하", "태양", "지구", "빛", "별", "블랙홀", "망원경"),
+        "health": ("건강", "연구", "권고", "습관", "효과", "몸", "영양", "운동", "식단", "수면"),
+    }
+
     def __init__(
         self,
         config: AppConfig,
@@ -287,6 +318,42 @@ class ScriptStep:
             channel_duration_override=duration_override,
             channel_key=channel_key,
         )
+
+    @staticmethod
+    def _trim_hook_to_limit(narration: str, limit: int = 15) -> str:
+        """Hook narration이 limit자 초과 시 글자 단위로 트림한다.
+
+        TTS 음성은 원본 narration을 그대로 읽으므로 음성 품질에는 영향 없다.
+        자막(caption_pillow) 렌더 시 픽셀 넘침 방지가 목적.
+        공백으로 끝나는 경우 rstrip으로 정리한다.
+        """
+        if len(narration) <= limit:
+            return narration
+        return narration[:limit].rstrip()
+
+    @classmethod
+    def _validate_cta(cls, narration: str) -> list[str]:
+        """CTA 나레이션에 금지어가 포함되어 있으면 위반 항목 리스트를 반환한다.
+
+        반환값이 빈 리스트이면 통과. 비어있지 않으면 위반 항목이 로그에 기록된다.
+        """
+        return [w for w in cls._CTA_FORBIDDEN_WORDS if w in narration.lower()]
+
+    @classmethod
+    def _score_persona_match(cls, scenes: list[ScenePlan], channel_key: str) -> float:
+        """채널 페르소나 키워드 밀도 기반 매칭 스코어를 반환한다 (0.0~1.0).
+
+        알 수 없는 채널 키 → 0.5 중립 반환.
+        씬이 없으면 → 0.0 반환.
+        """
+        if not scenes:
+            return 0.0
+        keywords = cls._PERSONA_KEYWORDS.get(channel_key)
+        if not keywords:
+            return 0.5  # 알 수 없는 채널은 중립
+        all_text = " ".join(s.narration_ko for s in scenes)
+        hit_count = sum(1 for kw in keywords if kw in all_text)
+        return round(hit_count / len(keywords), 3)
 
     def _next_hook_pattern(self) -> tuple[str, str]:
         """Hook 패턴 로테이션. 호출할 때마다 다음 패턴 반환."""
@@ -435,20 +502,21 @@ class ScriptStep:
                 structure_role = "cta"
             else:
                 structure_role = "body"
-            # ── Hook 15자 경고 (화면 임팩트 극대화) ──────────────────────────
-            # Hook은 3초 이내에 시청자를 사로잡아야 하므로 15자 이내를 권장한다.
+            # ── Hook 15자 트림 (화면 임팩트 극대화) ─────────────────────────
+            # Hook은 3초 이내에 시청자를 사로잡아야 하므로 15자 이내를 강제한다.
             # TTS는 원본 narration을 읽으므로 음성 품질에는 영향 없음.
-            # 단, 자막 렌더(caption_pillow)에서 픽셀 기반 줄바꿈이 걸리므로
-            # hook narration이 길면 자막이 2~3줄로 분산되어 임팩트가 감소한다.
+            # 자막 렌더(caption_pillow) 픽셀 넘침 방지 목적으로 자동 트림한다.
             _hook_narration_max_chars = 15
             if structure_role == "hook" and len(narration) > _hook_narration_max_chars:
                 logger.warning(
                     "Hook narration exceeds %d chars (%d chars): '%s…' — "
-                    "consider shortening for maximum scroll-stop impact.",
+                    "auto-trimming to %d chars for scroll-stop impact.",
                     _hook_narration_max_chars,
                     len(narration),
                     narration[:_hook_narration_max_chars],
+                    _hook_narration_max_chars,
                 )
+                narration = cls._trim_hook_to_limit(narration, _hook_narration_max_chars)
             scenes.append(
                 ScenePlan(
                     scene_id=idx,
@@ -1145,5 +1213,32 @@ class ScriptStep:
                     )
             except Exception as exc:
                 logger.warning("[ScriptReview] scoring failed (skipped): %s", exc)
+
+        # ── CTA 금지어 검증 ───────────────────────────────────────────────────
+        # 구독/좋아요 등 채널 행동 CTA는 YPP 품질 심사에서 감점 요인.
+        final_title, final_scenes = best_result
+        cta_scenes = [s for s in final_scenes if s.structure_role == "cta"]
+        for cta_scene in cta_scenes:
+            violations = self._validate_cta(cta_scene.narration_ko)
+            if violations:
+                logger.warning(
+                    "[CTAGuard] Scene %d CTA contains forbidden words: %s — "
+                    "consider revising to organic CTA.",
+                    cta_scene.scene_id,
+                    ", ".join(repr(v) for v in violations),
+                )
+
+        # ── 페르소나 매칭 스코어 ─────────────────────────────────────────────
+        # 채널 키워드 밀도로 대본이 채널 톤을 유지하는지 수치화한다.
+        if self.channel_key:
+            persona_score = self._score_persona_match(final_scenes, self.channel_key)
+            log_level = logging.WARNING if persona_score < 0.4 else logging.INFO
+            logger.log(
+                log_level,
+                "[PersonaScore] channel=%s score=%.3f%s",
+                self.channel_key,
+                persona_score,
+                " ← LOW: persona drift detected" if persona_score < 0.4 else "",
+            )
 
         return (*best_result, hook_pattern_name)
