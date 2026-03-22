@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -11,11 +12,23 @@ VENV_PYTHON = ROOT / "venv" / "Scripts" / "python.exe"
 STATIC_ANALYSIS_TARGETS = ("execution", "scripts")
 RUFF_TARGETS = ("execution", "scripts", "tests")
 
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 
 def _python_executable() -> str:
     if VENV_PYTHON.exists():
         return str(VENV_PYTHON)
     return sys.executable
+
+
+def _subprocess_env() -> dict[str, str]:
+    """Return a UTF-8-safe subprocess environment for Windows CI/local runs."""
+    env = os.environ.copy()
+    env.setdefault("PYTHONUTF8", "1")
+    env.setdefault("PYTHONIOENCODING", "utf-8")
+    return env
 
 
 def _run_command(step_name: str, command: list[str]) -> bool:
@@ -25,6 +38,9 @@ def _run_command(step_name: str, command: list[str]) -> bool:
         cwd=str(ROOT),
         text=True,
         capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        env=_subprocess_env(),
         check=False,
     )
     if result.stdout:
@@ -46,6 +62,9 @@ def _run_ruff_gate(python_exe: str) -> bool:
         cwd=str(ROOT),
         text=True,
         capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        env=_subprocess_env(),
         check=False,
     )
     if result.stdout:
@@ -76,6 +95,9 @@ def _run_high_severity_gate(python_exe: str) -> bool:
             cwd=str(ROOT),
             text=True,
             capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            env=_subprocess_env(),
             check=False,
         )
         if result.stderr:

@@ -1,0 +1,276 @@
+{
+  "name": "NotebookLM 콘텐츠 파이프라인",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "⏰ 매일 오전 9시 (KST)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 200]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "notebooklm-trigger",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "🔗 수동 실행 Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "notebooklm-manual-trigger"
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "output": "input1"
+      },
+      "id": "merge-triggers",
+      "name": "🔀 트리거 병합",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [250, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:9876/notebooklm/extract-pdf",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"file_id\": \"{{ $json.file_id || $vars.GDRIVE_FILE_ID }}\",\n  \"dest_dir\": null\n}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "extract-pdf",
+      "name": "📄 PDF 텍스트 추출",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 100],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "bridge-auth",
+          "name": "Bridge Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-text",
+              "leftValue": "={{ $json.char_count }}",
+              "rightValue": 100,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "check-text",
+      "name": "✅ 텍스트 충분 여부 확인",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [750, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:9876/notebooklm/write-article",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"{{ $json.text }}\",\n  \"project\": \"{{ $json.project || 'default' }}\",\n  \"provider\": \"gemini\"\n}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "write-article",
+      "name": "✍️ AI 블로그 작성 (Gemini)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 0],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "bridge-auth",
+          "name": "Bridge Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:9876/notebooklm/create-notion-page",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"{{ $json.title }}\",\n  \"article\": \"{{ $json.article }}\",\n  \"project\": \"{{ $('📄 PDF 텍스트 추출').item.json.project || 'default' }}\",\n  \"ai_provider\": \"{{ $json.provider }}\",\n  \"drive_url\": \"{{ $('📄 PDF 텍스트 추출').item.json.drive_url }}\",\n  \"tags\": [\"NotebookLM\", \"자동생성\"]\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "create-notion",
+      "name": "📝 Notion 페이지 생성",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1250, 0],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "bridge-auth",
+          "name": "Bridge Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:9876/execute",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"command\": \"healthcheck\",\n  \"timeout\": 30\n}",
+        "options": {}
+      },
+      "id": "error-log",
+      "name": "⚠️ 빈 텍스트 경고",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "bridge-auth",
+          "name": "Bridge Auth"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "⏰ 매일 오전 9시 (KST)": {
+      "main": [
+        [
+          {
+            "node": "🔀 트리거 병합",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "🔗 수동 실행 Webhook": {
+      "main": [
+        [
+          {
+            "node": "🔀 트리거 병합",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 트리거 병합": {
+      "main": [
+        [
+          {
+            "node": "📄 PDF 텍스트 추출",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📄 PDF 텍스트 추출": {
+      "main": [
+        [
+          {
+            "node": "✅ 텍스트 충분 여부 확인",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ 텍스트 충분 여부 확인": {
+      "main": [
+        [
+          {
+            "node": "✍️ AI 블로그 작성 (Gemini)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "⚠️ 빈 텍스트 경고",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✍️ AI 블로그 작성 (Gemini)": {
+      "main": [
+        [
+          {
+            "node": "📝 Notion 페이지 생성",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Seoul",
+    "errorWorkflow": ""
+  },
+  "tags": [
+    {
+      "name": "notebooklm"
+    },
+    {
+      "name": "automation"
+    },
+    {
+      "name": "notion"
+    }
+  ],
+  "meta": {
+    "version": "1.0.0",
+    "description": "Google Drive PDF → AI 글 작성 → Notion 자동 업로드 파이프라인 (Phase 1 MVP)",
+    "author": "Vibe Coding / Antigravity",
+    "created": "2026-03-21",
+    "notes": [
+      "트리거 방식 A(수동 Webhook) / B(스케줄 09:00 KST) 지원",
+      "Bridge Server 엔드포인트: /notebooklm/extract-pdf, /write-article, /create-notion-page",
+      "file_id는 Webhook body 또는 n8n 변수 GDRIVE_FILE_ID로 전달",
+      "Phase 2에서 Google Drive Trigger 노드 추가 예정"
+    ]
+  }
+}

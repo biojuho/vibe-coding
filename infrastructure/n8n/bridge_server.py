@@ -67,14 +67,19 @@ ALLOWED_COMMANDS = {
         "cwd": str(Path(__file__).parent.parent.parent),
         "description": "LLM 캐시 만료 항목 정리",
     },
+    "notebooklm_pipeline": {
+        "cmd": [PYTHON_EXE, str(Path(__file__).parent.parent.parent / "execution" / "gdrive_pdf_extractor.py"), "list-folder"],
+        "cwd": str(Path(__file__).parent.parent.parent),
+        "description": "NotebookLM 파이프라인 Drive 폴더 조회",
+    },
 }
 
 # ─── FastAPI 앱 ──────────────────────────────────────────────────────────────
 
 app = FastAPI(
     title="n8n Bridge Server",
-    description="n8n → Host 브릿지 서버 (Blind-to-X / Shorts Maker 파이프라인용)",
-    version="1.0.0",
+    description="n8n → Host 브릿지 서버 (Blind-to-X / Shorts Maker / NotebookLM 파이프라인용)",
+    version="1.1.0",
 )
 
 _server_start_time = datetime.now()
@@ -276,6 +281,110 @@ async def execution_history(
     """최근 실행 기록."""
     verify_token(authorization)
     return {"history": _execution_history[-limit:]}
+
+
+# ─── NotebookLM 파이프라인 엔드포인트 ────────────────────────────────────────
+
+ROOT_DIR = Path(__file__).parent.parent.parent
+
+
+class GDriveExtractRequest(BaseModel):
+    file_id: str
+    dest_dir: Optional[str] = None
+
+
+class ContentWriteRequest(BaseModel):
+    text: str
+    project: str = "default"
+    provider: Optional[str] = None  # "gemini" | "claude" | "gpt"
+
+
+class NotionArticleRequest(BaseModel):
+    title: str
+    article: str
+    project: str = ""
+    ai_provider: str = "gemini"
+    drive_url: str = ""
+    tags: Optional[list[str]] = None
+    db_id: Optional[str] = None
+
+
+@app.post("/notebooklm/extract-pdf")
+async def notebooklm_extract_pdf(
+    request: GDriveExtractRequest,
+    authorization: str = Header(None),
+):
+    """Google Drive 파일 다운로드 + PDF / 이미지 텍스트 추출."""
+    verify_token(authorization)
+    try:
+        import sys
+        sys.path.insert(0, str(ROOT_DIR))
+        from execution.gdrive_pdf_extractor import download_and_extract
+        result = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: download_and_extract(request.file_id, dest_dir=request.dest_dir),
+        )
+        _log_execution({"endpoint": "notebooklm/extract-pdf", "file_id": request.file_id, "status": "success", "timestamp": datetime.now().isoformat()})
+        return result
+    except Exception as exc:
+        logger.error("[Bridge] extract-pdf 실패: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.post("/notebooklm/write-article")
+async def notebooklm_write_article(
+    request: ContentWriteRequest,
+    authorization: str = Header(None),
+):
+    """추출 텍스트 → AI 아티클 생성 (Gemini / Claude / GPT 폴백 체인)."""
+    verify_token(authorization)
+    try:
+        import sys
+        sys.path.insert(0, str(ROOT_DIR))
+        from execution.content_writer import write_article
+        result = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: write_article(
+                request.text,
+                project=request.project,
+                provider=request.provider,
+            ),
+        )
+        _log_execution({"endpoint": "notebooklm/write-article", "project": request.project, "status": "success", "timestamp": datetime.now().isoformat()})
+        return result
+    except Exception as exc:
+        logger.error("[Bridge] write-article 실패: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.post("/notebooklm/create-notion-page")
+async def notebooklm_create_notion_page(
+    request: NotionArticleRequest,
+    authorization: str = Header(None),
+):
+    """아티클 → Notion DB 레코드 + 페이지 본문 작성."""
+    verify_token(authorization)
+    try:
+        import sys
+        sys.path.insert(0, str(ROOT_DIR))
+        from execution.notion_article_uploader import create_article_page
+        result = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: create_article_page(
+                title=request.title,
+                article=request.article,
+                project=request.project,
+                ai_provider=request.ai_provider,
+                drive_url=request.drive_url,
+                tags=request.tags,
+                db_id=request.db_id,
+            ),
+        )
+        _log_execution({"endpoint": "notebooklm/create-notion-page", "title": request.title, "status": "success", "timestamp": datetime.now().isoformat()})
+        return result
+    except Exception as exc:
+        logger.error("[Bridge] create-notion-page 실패: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 # ─── 메인 ────────────────────────────────────────────────────────────────────
