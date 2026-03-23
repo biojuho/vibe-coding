@@ -21,6 +21,7 @@
 ### P1-1. 서브프로젝트 커버리지 측정
 - **심각도**: HIGH (3곳 합의)
 - **현황**: 서브프로젝트별 coverage 계측은 이미 설정됨. 다만 목표선(shorts ≥ 80%, blind-to-x ≥ 75%)까지의 테스트 보강은 별도 후속이 필요
+- **측정 메모 (2026-03-23)**: `shorts-maker-v2` 704 passed / 12 skipped / **54.98%**, `blind-to-x` 487 passed / 5 skipped / **51.72%**. `shorts-maker-v2`에는 coverage uplift용 신규 테스트 29건을 추가했고 전체 재측정은 다음 실행 대기
 - **조치**:
   - [x] `shorts-maker-v2/pyproject.toml`에 `--cov=src/shorts_maker_v2` 설정
   - [x] `blind-to-x/pytest.ini`에 `--cov=pipeline --cov=scrapers` 설정

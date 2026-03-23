@@ -109,6 +109,7 @@ Vibe coding/                      # Root 워크스페이스
 
 - blind-to-x: 스케줄러 자동 실행 모니터링 (S4U 전환 후 1주간)
 - 시스템 고도화 v2 Phase 5: coverage 목표 상향과 후속 문서 정리
+- coverage 기준선(2026-03-23): shorts-maker-v2 54.98%, blind-to-x 51.72%; shorts targeted tests 29건 추가 후 전체 재측정 대기
 
 ### 향후 예정
 
@@ -134,4 +135,4 @@ Vibe coding/                      # Root 워크스페이스
 
 ---
 
-*마지막 업데이트: 2026-03-23 KST (Codex — render adapter / LLM fallback / logging 안정화)*
+*마지막 업데이트: 2026-03-23 KST (Codex — coverage baseline + targeted tests 기록)*

@@ -1,3 +1,36 @@
+## 2026-03-23 — Codex — coverage 기준선 재측정 + targeted test 추가
+
+### 작업 요약
+
+Phase 5 P1-1 후속으로 `shorts-maker-v2`와 `blind-to-x`의 현재 coverage 기준선을 다시 측정했다. 그 결과 shorts는 **54.98%**, blind-to-x는 **51.72%**였고, 기준선 이후 `shorts-maker-v2`의 `content_calendar`, `planning_step`, `qc_step`, `channel_router`를 겨냥한 신규 단위 테스트 29건을 추가했다.
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| `shorts-maker-v2/tests/unit/test_content_calendar_extended.py` | **신규** | Notion content calendar CRUD / suggestion / recent-topic 로직 테스트 |
+| `shorts-maker-v2/tests/unit/test_planning_step.py` | **신규** | Gate 1 계획 생성 retry / fallback / parse 검증 |
+| `shorts-maker-v2/tests/unit/test_qc_step.py` | **신규** | Gate 3/4 QC와 ffprobe / volumedetect 유틸 검증 |
+| `shorts-maker-v2/tests/unit/test_channel_router.py` | **신규** | profile load / apply / singleton router 검증 |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md` | 수정 | coverage 기준선과 신규 테스트 메모 기록 |
+| `directives/system_audit_action_plan.md` | 수정 | P1-1 실제 측정 수치와 현재 갭 기록 |
+
+### 측정 및 테스트 결과
+
+- `python -m pytest tests/unit tests/integration -q` (`shorts-maker-v2`) → **704 passed, 12 skipped, coverage 54.98%**
+- `python -m pytest -q` (`blind-to-x`) → **487 passed, 5 skipped, coverage 51.72%**
+- `python -m ruff check tests/unit/test_content_calendar_extended.py tests/unit/test_planning_step.py tests/unit/test_qc_step.py tests/unit/test_channel_router.py` ✅
+- `python -m pytest --no-cov tests/unit/test_content_calendar_extended.py tests/unit/test_planning_step.py tests/unit/test_qc_step.py tests/unit/test_channel_router.py -q` → **29 passed** ✅
+- `shorts-maker-v2` 전체 coverage 재측정(신규 테스트 반영)은 사용자 요청으로 중간에 중단됨
+
+### 다음 도구에게 메모
+
+- coverage 목표(80/75)와 현재 기준선 사이 간격이 커서, 큰 분기와 결정론적 유틸을 우선 메우는 전략이 필요함
+- `shorts-maker-v2`는 기본 `pytest`가 `tests/legacy/`도 줍기 때문에 coverage 측정 시 `tests/unit tests/integration` 경로를 명시하는 편이 안전함
+- 다음 재측정 전 후보: shorts `render_step`, `thumbnail_step`, `llm_router`, blind-to-x `feed_collector`, `commands`, `notion/_query`
+
+---
+
 ## 2026-03-23 — Codex — render adapter 연결 + LLM fallback/로깅 안정화
 
 ### 작업 요약
