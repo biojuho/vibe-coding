@@ -8,6 +8,7 @@
 | ID | 태스크 | 담당 도구 | 우선순위 | 생성일 |
 |----|--------|-----------|----------|--------|
 | T-016 | blind-to-x 전체 `--review-only` 배치 스모크 실행 (LLM/이미지 비용 전 사용자 승인 필요) | any | MEDIUM | 2026-03-23 |
+| T-019 | blind-to-x Ruff 레거시 이슈 28건 정리 (E402/F401/E741 등) | any | LOW | 2026-03-23 |
 
 ## IN_PROGRESS
 
@@ -19,11 +20,11 @@
 
 | ID | 태스크 | 완료 도구 | 완료일 |
 |----|--------|-----------|--------|
+| T-018 | blind-to-x coverage 전체 재측정 (533 passed, QA/QC ✅ 승인) | Gemini | 2026-03-23 |
 | T-017 | blind-to-x Notion 검토 큐의 기존 부적절/레거시 항목 점검 및 정리 | Codex | 2026-03-23 |
 | T-014 | 서브프로젝트 coverage uplift (thumbnail_step 신규, llm_router 수정, notion_upload 99%) | Claude Code | 2026-03-23 |
 | T-015 | blind-to-x 라이브 URL 필터 검증 + Windows curl_cffi 직접 폴백 복구 | Codex | 2026-03-23 |
 | T-003 | shorts-maker-v2 v3.0 Multi-language + SaaS 전환 설계 | Gemini | 2026-03-23 |
-| T-011 | MCP 서버 on-demand 전환 (Tier 3 토글) | Gemini | 2026-03-23 |
 
 ## 규칙
 

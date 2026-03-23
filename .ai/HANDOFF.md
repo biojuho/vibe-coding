@@ -8,8 +8,8 @@
 | 항목 | 내용 |
 |------|------|
 | 날짜 | 2026-03-23 |
-| 도구 | Codex |
-| 작업 | blind-to-x Notion 검토 큐 live audit — 레거시 unsafe 1건 `반려` 처리, 감사 메모 추가, 실수로 생긴 `승인 상태=??` 옵션 제거 |
+| 도구 | Gemini |
+| 작업 | blind-to-x 커버리지 테스트 보강 (commands 100%, feed_collector, notion_upload 99%) + 라이브 필터 검증 (`--review-only --limit 2`) + QA/QC 수행 (533 passed, Ruff --fix 적용, ✅ 최종 승인) |
 
 ## 현재 시스템 상태
 
@@ -17,15 +17,16 @@
 - shorts `llm_router.py`: **17건 전 통과** — lazy import patch 경로 버그(`genai`/`types`) 수정 완료
 - btx `notion_upload.py`: **99% coverage** (L246 dead code만 남음)
 - btx `feed_collector.py` / `commands/dry_run.py` / `commands/one_off.py`: **100% coverage**
-- blind-to-x: **라이브 필터 검증 완료** — `INAPPROPRIATE_TITLE_KEYWORDS`, `혐오` 감정 거부, ImageCache stale evict 모두 동작 확인
-- blind-to-x: **Notion 검토 큐 정리 완료** — 421페이지 audit 결과 unsafe 키워드 잔존 1건만 발견, `검토필요`→`반려` 처리 후 현재 unsafe 항목 `검토필요` 0건
-- **QC 기준선 갱신 (2026-03-23)**: shorts-maker-v2 **776 passed / 62.29%**, blind-to-x **458 passed / 50.4%**
+- blind-to-x: **라이브 필터 검증 완료** — `INAPPROPRIATE_TITLE_KEYWORDS`, `혐오` 감정 거부 동작 확인
+- blind-to-x: **Notion 검토 큐 정리 완료** — 레거시 unsafe 1건 `반려` 처리 완료
+- **Coverage 기준 (2026-03-23 갱신)**: blind-to-x pytest 533 passed (5 skipped) / Ruff 28개 minor 레거시 이슈 비관리 대상
+- **QC 보고서 생성 완료**: `qc_report.md` 아티팩트 참조
 
 ## 다음 도구가 해야 할 일 (우선순위)
 
-1. blind-to-x `--review-only` 배치 스모크 — **LLM/이미지 비용 발생하므로 사용자 승인 후** 실행
-2. coverage 전체 재측정 — 이번 세션 추가 테스트 반영 후 shorts/btx 수치 확인
-3. 필요 시 blind-to-x live audit 재실행 — 대화형 PowerShell에서는 Notion select 값을 이름 대신 option ID/유니코드 escape로 다룰 것
+1. **T-016** blind-to-x 전체 `--review-only` 배치 스모크 — **LLM/이미지 비용 발생하므로 사용자 승인 후** 실행
+2. blind-to-x Ruff 레거시 이슈 28건 정리 (E402, F401, E741 등) — 레거시 파일 위주
+3. blinds-to-x coverage 재측정 — 현재 수치 정확히 갱신 필요
 
 ## 주의사항
 

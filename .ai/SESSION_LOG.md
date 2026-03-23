@@ -1391,3 +1391,33 @@ notebooklm-py v0.3.4 도입. Phase 0(환경 구축) + Phase 1(스킬 설치) + P
 - Bridge 서버 미실행, Telegram 토큰 미설정은 여전히 LOW 리스크 (핵심 기능 미영향)
 
 ---
+
+---
+
+## 2026-03-23 — Antigravity (Gemini) — blind-to-x coverage 보강 + 라이브 필터 검증 + QA/QC 승인
+
+### 작업 요약
+
+blind-to-x 4개 모듈의 테스트 케이스를 추가하여 커버리지를 보강하고, 라이브 필터 검증 스모크 테스트를 실행했다. 이후 전체 pytest 재실행(533 passed, 5 skipped) 및 Ruff --fix 적용 후 QA/QC 최종 승인 완료.
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| \	ests/unit/test_dry_run_command.py\ | 수정 | scrape_post None 반환 케이스 테스트 추가 |
+| \	ests/unit/test_one_off_command.py\ | 수정 | top_emotions / trending_keywords 빈 값 케이스 추가 |
+| \	ests/unit/test_feed_collector.py\ | 수정 | cross-source dedup 비활성화 + 소스 limit 없음 케이스 추가 |
+| \	ests/unit/test_notion_upload.py\ | 수정 | upload() / update_page_properties() 직접 단위 테스트 추가 |
+| \.ai/HANDOFF.md\, \.ai/TASKS.md\ | 수정 | T-018 DONE, T-019 신규 등록, 세션 기록 |
+
+### 테스트 결과
+
+- \python -m pytest --cov=pipeline\ → **533 passed, 5 skipped, 0 failed** ✅
+- \python -m ruff check --fix .\ → 자동 수정 적용, 레거시 이슈 28건 잔존 (T-019로 추적) ✅
+- **최종 QC 판정: ✅ 승인** (qc_report.md 참조)
+
+### 결정사항
+
+- Ruff 레거시 이슈 28건(E402/F401/E741 등)은 핵심 파이프라인 로직 무관 → T-019로 별도 추적
+- \--review-only\ 배치 스모크(T-016)는 LLM/이미지 비용 발생으로 사용자 승인 필요
+
