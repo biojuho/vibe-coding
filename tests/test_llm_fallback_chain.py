@@ -6,10 +6,12 @@
 
 from __future__ import annotations
 
+from unittest.mock import patch
 
 import pytest
 
 from execution.llm_client import (
+    DEFAULT_MODELS,
     DEFAULT_PROVIDER_ORDER,
     LLMClient,
 )
@@ -33,9 +35,15 @@ def all_keys_env(monkeypatch):
 def no_keys_env(monkeypatch):
     """모든 API 키 제거."""
     for key in [
-        "OPENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY",
-        "ANTHROPIC_API_KEY", "XAI_API_KEY", "DEEPSEEK_API_KEY",
-        "MOONSHOT_API_KEY", "ZHIPUAI_API_KEY", "GROQ_API_KEY",
+        "OPENAI_API_KEY",
+        "GEMINI_API_KEY",
+        "GOOGLE_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "XAI_API_KEY",
+        "DEEPSEEK_API_KEY",
+        "MOONSHOT_API_KEY",
+        "ZHIPUAI_API_KEY",
+        "GROQ_API_KEY",
     ]:
         monkeypatch.delenv(key, raising=False)
 
@@ -118,3 +126,161 @@ def test_all_provider_status_no_keys(no_keys_env):
     client = LLMClient(cache_ttl_sec=0)
     status = client.all_provider_status()
     assert all(v is False for v in status.values())
+
+
+# ── E2E 폴백 체인 테스트 ──────────────────────────────────
+
+
+def _make_e2e_client(providers: list[str]) -> LLMClient:
+    """테스트용 LLMClient 생성 (실제 API 호출 없이)."""
+    client = LLMClient.__new__(LLMClient)
+    client.provider_order = list(providers)
+    client.models = dict(DEFAULT_MODELS)
+    client.api_keys = {p: f"fake-{p}" for p in providers}
+    client.max_retries = 2
+    client.cache_ttl_sec = 0
+    client.track_usage = False
+    client._clients = {}
+    client.caller_script = ""
+    client.request_timeout_sec = 30
+    return client
+
+
+class TestFullCascadeFallback:
+    """8개 프로바이더 전체 순차 폴백을 검증합니다."""
+
+    def test_first_provider_succeeds_no_fallback(self):
+        """첫 프로바이더 성공 시 나머지 호출 안 함."""
+        client = _make_e2e_client(["google", "openai", "anthropic"])
+        calls: list[str] = []
+
+        def fake_gen(provider, *a, **kw):
+            calls.append(provider)
+            return '{"result": "ok"}', 10, 5
+
+        with patch.object(client, "_generate_once", side_effect=fake_gen):
+            result = client.generate_json(system_prompt="s", user_prompt="u")
+
+        assert result == {"result": "ok"}
+        assert calls == ["google"]
+
+    @patch("execution.llm_client.time.sleep")
+    def test_cascade_7_fail_8th_succeeds(self, mock_sleep):
+        """7개 프로바이더 실패 → 8번째(마지막)가 성공."""
+        all_8 = list(DEFAULT_PROVIDER_ORDER)
+        client = _make_e2e_client(all_8)
+        calls: list[str] = []
+
+        def fake_gen(provider, *a, **kw):
+            calls.append(provider)
+            if provider == "anthropic":  # 마지막
+                return '{"answer": "from anthropic"}', 20, 10
+            raise Exception(f"{provider} timeout")
+
+        with patch.object(client, "_generate_once", side_effect=fake_gen):
+            result = client.generate_json(system_prompt="s", user_prompt="u")
+
+        assert result == {"answer": "from anthropic"}
+        # 각 프로바이더가 max_retries(2)번씩 시도, anthropic은 1번에 성공
+        # 7 providers * 2 retries + 1 success = 15 calls
+        assert calls.count("anthropic") >= 1
+        # 순서 확인: google이 가장 먼저
+        assert calls[0] == "google"
+
+    @patch("execution.llm_client.time.sleep")
+    def test_all_8_providers_exhausted_raises(self, mock_sleep):
+        """8개 프로바이더 모두 실패 시 RuntimeError."""
+        all_8 = list(DEFAULT_PROVIDER_ORDER)
+        client = _make_e2e_client(all_8)
+
+        def fake_gen(provider, *a, **kw):
+            raise Exception(f"{provider} server error")
+
+        with patch.object(client, "_generate_once", side_effect=fake_gen):
+            with pytest.raises(RuntimeError, match="모든 LLM 프로바이더 실패"):
+                client.generate_json(system_prompt="s", user_prompt="u")
+
+    @patch("execution.llm_client.time.sleep")
+    def test_non_retryable_skips_retries_falls_to_next(self, mock_sleep):
+        """non-retryable 에러는 재시도 없이 즉시 다음 프로바이더로."""
+        client = _make_e2e_client(["google", "openai", "anthropic"])
+        calls: list[str] = []
+
+        def fake_gen(provider, *a, **kw):
+            calls.append(provider)
+            if provider == "google":
+                raise Exception("invalid api key")  # non-retryable
+            if provider == "openai":
+                return '{"ok": true}', 5, 3
+            raise Exception("should not reach")
+
+        with patch.object(client, "_generate_once", side_effect=fake_gen):
+            result = client.generate_json(system_prompt="s", user_prompt="u")
+
+        assert result == {"ok": True}
+        # google: 1번만 (non-retryable → 재시도 안 함)
+        assert calls.count("google") == 1
+        assert calls.count("openai") == 1
+
+    @patch("execution.llm_client.time.sleep")
+    def test_generate_text_cascade(self, mock_sleep):
+        """generate_text도 폴백 체인이 동작."""
+        client = _make_e2e_client(["google", "openai"])
+        calls: list[str] = []
+
+        def fake_gen(provider, *a, **kw):
+            calls.append(provider)
+            if provider == "google":
+                raise Exception("rate limit")
+            return "success text", 5, 3
+
+        with patch.object(client, "_generate_once", side_effect=fake_gen):
+            result = client.generate_text(system_prompt="s", user_prompt="u")
+
+        assert result == "success text"
+        assert "openai" in calls
+
+    @patch("execution.llm_client.time.sleep")
+    def test_cascade_order_preserved(self, mock_sleep):
+        """프로바이더 시도 순서가 설정된 순서를 따름."""
+        order = ["deepseek", "groq", "google", "anthropic"]
+        client = _make_e2e_client(order)
+        tried: list[str] = []
+
+        def fake_gen(provider, *a, **kw):
+            if provider not in tried:
+                tried.append(provider)
+            if provider == "anthropic":
+                return '{"done": true}', 5, 3
+            raise Exception("fail")
+
+        with patch.object(client, "_generate_once", side_effect=fake_gen):
+            client.generate_json(system_prompt="s", user_prompt="u")
+
+        assert tried == ["deepseek", "groq", "google", "anthropic"]
+
+    @patch("execution.llm_client.time.sleep")
+    def test_mixed_failure_modes(self, mock_sleep):
+        """다양한 실패 유형 혼재 시에도 정상 폴백."""
+        client = _make_e2e_client(["google", "deepseek", "openai", "anthropic"])
+        calls: list[str] = []
+
+        def fake_gen(provider, *a, **kw):
+            calls.append(provider)
+            if provider == "google":
+                raise TimeoutError("connection timeout")
+            if provider == "deepseek":
+                raise Exception("insufficient_quota")  # non-retryable
+            if provider == "openai":
+                raise ConnectionError("network unreachable")
+            return '{"result": "anthropic wins"}', 10, 5
+
+        with patch.object(client, "_generate_once", side_effect=fake_gen):
+            result = client.generate_json(system_prompt="s", user_prompt="u")
+
+        assert result == {"result": "anthropic wins"}
+        # deepseek는 non-retryable → 1번만
+        assert calls.count("deepseek") == 1
+        # google/openai는 retryable → max_retries(2)번
+        assert calls.count("google") == 2
+        assert calls.count("openai") == 2
