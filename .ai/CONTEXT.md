@@ -108,6 +108,7 @@ Vibe coding/                      # Root 워크스페이스
 ### 현재 진행 중
 
 - blind-to-x: 스케줄러 자동 실행 모니터링 (S4U 전환 후 1주간)
+- blind-to-x: 라이브 URL 필터 검증 + Notion 검토 큐 레거시 unsafe 1건 정리 완료. 전체 `--review-only` 배치 스모크는 사용자 승인 대기
 - 시스템 고도화 v2 Phase 5: coverage 목표 상향과 후속 문서 정리
 - coverage 기준선(2026-03-23): shorts-maker-v2 54.98%, blind-to-x 51.72%; shorts targeted tests 29건 추가 후 전체 재측정 대기
 
@@ -132,7 +133,9 @@ Vibe coding/                      # Root 워크스페이스
 | 2026-03-17 | Claude Code | `group_into_chunks()` 반환형 tuple인데 dict 접근 | `for start, end, text in chunks` 패턴 |
 | 2026-03-17 | Claude Code | SSML prosody가 TTS 발화시간 1.5배 증가 미반영 | CPS 2.8 하향 + 43초 초과시 자동 트림 |
 | 2026-03-23 | Codex | Windows cp949 콘솔에서 이모지 `print()`가 `UnicodeEncodeError`를 유발 | 상태 출력은 `_safe_console_print()` 또는 logger 사용 |
+| 2026-03-23 | Codex | Windows 한글 사용자 경로에서 `curl_cffi`가 CA 파일 경로를 읽지 못해 Error 77 발생 | Blind 스크래퍼는 세션 fetch 실패 시 Playwright 직접 탐색 폴백 유지 |
+| 2026-03-23 | Codex | PowerShell heredoc의 한글 문자열로 Notion select 값을 직접 PATCH하면 `??` 옵션이 생성될 수 있음 | live Notion 수정은 select option ID 또는 `\\u` escape 문자열 사용 |
 
 ---
 
-*마지막 업데이트: 2026-03-23 KST (Codex — coverage baseline + targeted tests 기록)*
+*마지막 업데이트: 2026-03-23 KST (Codex — blind-to-x Notion 검토 큐 live audit + select 인코딩 지뢰밭 기록)*

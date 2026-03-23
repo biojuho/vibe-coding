@@ -1,3 +1,36 @@
+## 2026-03-23 — Codex — blind-to-x Notion 검토 큐 레거시 unsafe 1건 정리
+
+### 작업 요약
+
+T-017 후속으로 blind-to-x Notion 검토 큐를 live audit했다. `notion_doctor.py`와 `check_notion_views.py`를 다시 확인한 뒤 data source 전체 421페이지를 조회했고, 현재 필터 기준으로 부적절한 레거시 항목 `카페에서 앞에 앉은여자 골반 구경중` 1건이 아직 `검토필요` 상태인 것을 찾아 `반려`로 전환하고 감사 메모를 남겼다. 중간에 PowerShell heredoc 한글 인코딩 때문에 `승인 상태` select에 `??` 옵션이 생기는 부작용이 있었으나, 기존 `반려` option ID로 페이지 값을 복구하고 data source 스키마에서 stray 옵션도 제거했다.
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | 수정 | T-017 결과, 다음 작업, PowerShell↔Notion select 인코딩 주의사항 기록 |
+| Notion data source `승인 상태` | live update | 레거시 unsafe 페이지 1건 `검토필요`→`반려`, stray `??` select option 제거 |
+
+### 검증 결과
+
+- `python -X utf8 scripts/notion_doctor.py --config config.yaml` → **PASS** (`data_source`, props resolved) ✅
+- `python -X utf8 scripts/check_notion_views.py` → **모든 필수 속성 존재** ✅
+- Notion live audit → **TOTAL_PAGES=421**, **FLAGGED_TOTAL=1**, **FLAGGED_IN_REVIEW=0** ✅
+- 대상 페이지 review status raw 확인 → `반려`, memo audit note 존재 ✅
+- `승인 상태` select 옵션 raw 확인 → `검토필요`, `승인됨`, `반려`, `발행완료`, `발행승인`만 남음 ✅
+
+### 결정사항
+
+- 대화형 PowerShell에서 live Notion 수정 시 한글 select option 이름을 그대로 PATCH하지 말고, **option ID** 또는 `\\u` escape 문자열을 사용한다.
+- blind-to-x Notion 검토 큐에는 현재 필터 기준의 unsafe 키워드 항목이 `검토필요` 상태로 남아 있지 않다.
+
+### 다음 도구에게 메모
+
+- `--review-only` 전체 배치 스모크는 여전히 LLM/이미지 비용이 따라오므로 사용자 승인 없이 실행하지 않는다.
+- live audit 재실행이 필요하면 no-filter query 후 로컬 판정으로 점검하는 경로가 안전하다.
+
+---
+
 ## 2026-03-23 — Claude Code — coverage uplift: thumbnail_step 신규 + llm_router 버그 수정 + notion_upload 99%
 
 ### 작업 요약

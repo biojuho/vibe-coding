@@ -13,18 +13,17 @@
 
 | ID | 태스크 | 담당 도구 | 시작일 | 메모 |
 |----|--------|-----------|--------|------|
-| T-017 | blind-to-x Notion 검토 큐의 기존 부적절/레거시 항목 점검 및 정리 | Codex | 2026-03-23 | 기존 필터 추가 이후 남아 있는 레거시 unsafe 페이지 정리 |
 | T-004 | blind-to-x 스케줄러 자동 실행 모니터링 | Gemini | 2026-03-23 | S4U 전환 후 1주간 관찰 |
 
 ## DONE (최근 5건)
 
 | ID | 태스크 | 완료 도구 | 완료일 |
 |----|--------|-----------|--------|
+| T-017 | blind-to-x Notion 검토 큐의 기존 부적절/레거시 항목 점검 및 정리 | Codex | 2026-03-23 |
 | T-014 | 서브프로젝트 coverage uplift (thumbnail_step 신규, llm_router 수정, notion_upload 99%) | Claude Code | 2026-03-23 |
 | T-015 | blind-to-x 라이브 URL 필터 검증 + Windows curl_cffi 직접 폴백 복구 | Codex | 2026-03-23 |
 | T-003 | shorts-maker-v2 v3.0 Multi-language + SaaS 전환 설계 | Gemini | 2026-03-23 |
 | T-011 | MCP 서버 on-demand 전환 (Tier 3 토글) | Gemini | 2026-03-23 |
-| T-012 | 감사 Phase 1 전 항목 완료 + render_step 연동 | Claude Code | 2026-03-23 |
 
 ## 규칙
 
