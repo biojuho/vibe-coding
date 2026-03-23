@@ -117,10 +117,13 @@ class RenderStep:
         llm_router: LLMRouter | None = None,
         job_index: int = 0,
         channel_key: str = "",
+        video_renderer_backend: str | None = None,
     ):
         self.config = config
         self._openai_client = openai_client
         self._llm_router = llm_router
+        # video_renderer 추상화: None이면 MoviePy 직접 호출 (기존 동작)
+        self._renderer_backend = video_renderer_backend
         self._job_index = job_index
         self._channel_key = channel_key
         self._channel_profile = self._load_channel_profile(channel_key)
@@ -1479,7 +1482,28 @@ class RenderStep:
         render_start_time = time.perf_counter()
 
         try:
-            final_video.write_videofile(str(output_path), **write_kwargs)
+            if self._renderer_backend and self._renderer_backend != "moviepy":
+                from shorts_maker_v2.render.video_renderer import (
+                    ClipHandle,
+                    create_renderer,
+                )
+
+                renderer = create_renderer(self._renderer_backend)
+                handle = ClipHandle(
+                    backend=self._renderer_backend,
+                    native=final_video,
+                    duration=video_duration,
+                )
+                renderer.write(
+                    handle, output_path,
+                    fps=write_kwargs.get("fps", 30),
+                    codec=write_kwargs.get("codec", "libx264"),
+                    audio_codec=write_kwargs.get("audio_codec", "aac"),
+                    preset=write_kwargs.get("preset"),
+                    ffmpeg_params=write_kwargs.get("ffmpeg_params"),
+                )
+            else:
+                final_video.write_videofile(str(output_path), **write_kwargs)
         finally:
             render_elapsed = time.perf_counter() - render_start_time
 

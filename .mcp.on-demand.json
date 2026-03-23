@@ -1,0 +1,18 @@
+{
+  "_comment": "On-demand MCP servers. Copy entries to .mcp.json when needed.",
+  "mcpServers": {
+    "youtube-data": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["infrastructure/youtube-mcp/server.py"],
+      "env": {
+        "YOUTUBE_TOKEN_PATH": "token.json"
+      }
+    },
+    "n8n-workflow": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["infrastructure/n8n-mcp/server.py"]
+    }
+  }
+}
