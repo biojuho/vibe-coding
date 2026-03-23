@@ -7,24 +7,22 @@
 
 | ID | 태스크 | 담당 도구 | 우선순위 | 생성일 |
 |----|--------|-----------|----------|--------|
-| T-023 | shorts-maker-v2 `tests/unit tests/integration` 전체 suite timeout 원인 점검 | any | HIGH | 2026-03-23 |
-| T-024 | `execution/qaqc_runner.py` 시스템 판정 안정화 (`root tests`/`execution/tests` 분리 반영, blind `curl_cffi` known env 처리) | any | HIGH | 2026-03-24 |
+| T-026 | system QC security scan 6건 triage (real issue vs false positive 분류) | any | MEDIUM | 2026-03-24 |
 
 ## IN_PROGRESS
 
 | ID | 태스크 | 담당 도구 | 시작일 | 메모 |
 |----|--------|-----------|--------|------|
-| T-004 | blind-to-x 스케줄러 자동 실행 모니터링 | Gemini | 2026-03-23 | S4U 전환 후 1주간 관찰 |
 
 ## DONE (최근 5건)
 
 | ID | 태스크 | 완료 도구 | 완료일 |
 |----|--------|-----------|--------|
+| T-024 | `execution/qaqc_runner.py` 시스템 판정 안정화 (`addopts` override, root 분리 실행, blind known env ignore) | Codex | 2026-03-24 |
+| T-023 | shorts-maker-v2 `tests/unit tests/integration` 전체 suite timeout 원인 점검 + timeout 상향 반영 | Codex | 2026-03-24 |
+| T-025 | 4단계 비판적 검토 체계 구축 (Claude commands + 공유 스킬 + 워크플로우) | Gemini | 2026-03-24 |
+| T-004 | blind-to-x 스케줄러 모니터링 — `run_pipeline.bat` `--dry-run` 제거, 실운영 전환 | Gemini | 2026-03-24 |
 | T-016 | blind-to-x `--review-only` 배치 스모크 — 3건 업로드 확인(검토필요 상태) | Gemini | 2026-03-24 |
-| T-019 | blind-to-x Ruff 28건 정리 (E402/F401/E741/E731 등) | Claude Code | 2026-03-23 |
-| T-017 | blind-to-x Notion 검토 큐의 기존 부적절/레거시 항목 점검 및 정리 | Codex | 2026-03-23 |
-| T-022 | `execution/qaqc_runner.py` shorts test_paths legacy 제외 (unit+integration) | Claude Code | 2026-03-23 |
-| T-021 | root `tests/test_qaqc_history_db.py` 날짜 하드코딩 제거 (7/7 통과) | Claude Code | 2026-03-23 |
 
 ## 규칙
 
