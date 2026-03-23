@@ -1,3 +1,31 @@
+## 2026-03-23 — Claude Code — QC 전체 측정 + coverage 기준선 갱신
+
+### 작업 요약
+
+양쪽 서브프로젝트 전체 테스트 + coverage 재측정 (이번 세션 추가 테스트 반영).
+
+### QC 결과
+
+| 프로젝트 | 이전 | 현재 | 변화 |
+|----------|------|------|------|
+| shorts-maker-v2 | 729 passed / 59% | **776 passed / 62.29%** | +47 tests, +3.3% |
+| blind-to-x (unit) | 443 passed / 51.7% | **458 passed / 50.4%** | +15 tests, -1.3%* |
+
+\* btx coverage 소폭 하락: ruff format으로 인한 소스 라인 변동 (pipeline 외 파일 미포함)
+
+### 주요 모듈 coverage
+
+| 모듈 | 이전 | 현재 |
+|------|------|------|
+| `thumbnail_step.py` | 0% (테스트 없음) | 신규 31건 |
+| `llm_router.py` | 2 failed | 17 passed (100%) |
+| `notion_upload.py` | 89% | **99%** |
+| `feed_collector.py` | — | **100%** |
+| `commands/dry_run.py` | — | **100%** |
+| `commands/one_off.py` | — | **100%** |
+
+---
+
 ## 2026-03-23 — Codex — blind-to-x Notion 검토 큐 레거시 unsafe 1건 정리
 
 ### 작업 요약

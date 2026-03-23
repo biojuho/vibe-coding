@@ -19,6 +19,7 @@
 - btx `feed_collector.py` / `commands/dry_run.py` / `commands/one_off.py`: **100% coverage**
 - blind-to-x: **라이브 필터 검증 완료** — `INAPPROPRIATE_TITLE_KEYWORDS`, `혐오` 감정 거부, ImageCache stale evict 모두 동작 확인
 - blind-to-x: **Notion 검토 큐 정리 완료** — 421페이지 audit 결과 unsafe 키워드 잔존 1건만 발견, `검토필요`→`반려` 처리 후 현재 unsafe 항목 `검토필요` 0건
+- **QC 기준선 갱신 (2026-03-23)**: shorts-maker-v2 **776 passed / 62.29%**, blind-to-x **458 passed / 50.4%**
 
 ## 다음 도구가 해야 할 일 (우선순위)
 
