@@ -7,29 +7,27 @@
 
 | 항목 | 내용 |
 |------|------|
-| 날짜 | 2026-03-23 |
+| 날짜 | 2026-03-24 |
 | 도구 | Codex |
-| 작업 | 시스템 QC 재실행 — `execution/qaqc_runner.py` 기준 REJECTED. blind-to-x 3 fail, root 2 fail, shorts 경로/timeout 이슈를 분리 진단하고 후속 TODO 추가 |
+| 작업 | 사용자 수정 반영 후 QC 재검증 완료 — blind/root focused 재검증은 녹색, 시스템 runner는 여전히 REJECTED |
 
 ## 현재 시스템 상태
 
-- shorts `thumbnail_step.py`: **신규 테스트 31건** (모드 분기, 예외, AI 프롬프트, 배경 추출)
-- shorts `llm_router.py`: **17건 전 통과** — lazy import patch 경로 버그(`genai`/`types`) 수정 완료
-- btx `notion_upload.py`: **99% coverage** (L246 dead code만 남음)
-- btx `feed_collector.py` / `commands/dry_run.py` / `commands/one_off.py`: **100% coverage**
-- blind-to-x: **라이브 필터 검증 완료** — `INAPPROPRIATE_TITLE_KEYWORDS`, `혐오` 감정 거부 동작 확인
-- blind-to-x: **Notion 검토 큐 정리 완료** — 레거시 unsafe 1건 `반려` 처리 완료
-- blind-to-x focused QC는 533 passed로 통과했지만, **전체 blind-to-x 테스트 재실행**에서는 `tests/unit/test_cost_controls.py` 3건 실패
-- root 테스트: `tests/test_qaqc_history_db.py` 2건 실패 (`days=1` + 하드코딩 타임스탬프 조합)
-- shorts-maker-v2: `execution/qaqc_runner.py`가 `tests/legacy/test_ssml.py`까지 수집해 collection error를 내고, 권장 경로 `tests/unit tests/integration --no-cov --maxfail=1`도 **15분 초과 timeout**
-- 보안 스캔 46건은 현재 regex가 `.agents/`, 번들 JS, 일반 f-string 로그까지 잡는 **false positive 다수**
+- **시스템 QC 재검증 (2026-03-24)**: `python -X utf8 execution/qaqc_runner.py` → **REJECTED**
+  - blind-to-x `99 passed / 1 failed / 1 skipped`
+  - shorts-maker-v2 `TIMEOUT` (300s)
+  - root `0 passed / 0 failed / 1 skipped / errors 2`
+- **Focused 재검증은 녹색**:
+  - blind-to-x: `542 passed, 5 skipped` (`test_curl_cffi.py` 제외)
+  - root `tests/`: `884 passed, 1 skipped`
+  - root `execution/tests`: `25 passed`
+- **남은 핵심 이슈**: shorts full suite timeout, `qaqc_runner.py` 최종 판정/경로 보정, Windows 한글 경로 환경의 `curl_cffi` CA Error 77
 
 ## 다음 도구가 해야 할 일 (우선순위)
 
-1. **T-020** blind-to-x `test_cost_controls.py` 회귀 3건 수정 — 현재 시스템 QC의 가장 명확한 실제 코드 blocker
-2. **T-022/T-023** `execution/qaqc_runner.py` 경로 정리 + shorts-maker-v2 full suite timeout 원인 분리
-3. **T-021** root `qaqc_history_db` 테스트를 상대시간 기준으로 고쳐 시스템 QC false fail 제거
-4. **T-016** blind-to-x 전체 `--review-only` 배치 스모크 — **LLM/이미지 비용 발생하므로 사용자 승인 후** 실행
+1. **T-023** shorts-maker-v2 full suite timeout 원인 분리 (느린 테스트 격리 또는 timeout 상향)
+2. **T-024** `execution/qaqc_runner.py` 시스템 판정 보정 (`root tests`/`execution/tests` 분리 반영, blind known env failure 처리 전략 정리)
+3. **T-004** 스케줄러 모니터링 계속 (S4U 전환 후 1주 관찰)
 
 ## 주의사항
 

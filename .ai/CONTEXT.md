@@ -109,7 +109,9 @@ Vibe coding/                      # Root 워크스페이스
 
 - blind-to-x: 스케줄러 자동 실행 모니터링 (S4U 전환 후 1주간)
 - blind-to-x: 라이브 URL 필터 검증 + Notion 검토 큐 레거시 unsafe 1건 정리 완료. 전체 `--review-only` 배치 스모크는 사용자 승인 대기
-- 시스템 QC 재실행(2026-03-23): blind-to-x `test_cost_controls` 3 fail, root `test_qaqc_history_db` 2 fail, shorts-maker-v2 full suite timeout + QAQC runner 경로 이슈 triage 필요
+- 시스템 QC 재검증(2026-03-24): 표준 runner는 여전히 **REJECTED** (`blind-to-x` 99/1/1, `shorts-maker-v2` 300s timeout, `root` errors 2)이나, focused 재검증 결과 blind/root의 실제 코드 회귀는 해소됨
+- focused 재검증(2026-03-24): blind-to-x `542 passed, 5 skipped` (`test_curl_cffi.py` 제외), root `tests/` 884 passed, root `execution/tests/` 25 passed
+- 남은 triage: shorts-maker-v2 full suite timeout, `execution/qaqc_runner.py`의 시스템 판정 보정, Windows 한글 경로 환경의 `curl_cffi` CA Error 77 처리 전략
 - 시스템 고도화 v2 Phase 5: coverage 목표 상향과 후속 문서 정리
 - coverage 기준선(2026-03-23): shorts-maker-v2 54.98%, blind-to-x 51.72%; shorts targeted tests 29건 추가 후 전체 재측정 대기
 
@@ -139,7 +141,8 @@ Vibe coding/                      # Root 워크스페이스
 | 2026-03-23 | Codex | `execution/qaqc_runner.py`가 shorts `tests/legacy/`까지 수집해 legacy 실험 테스트로 QC를 깨뜨림 | shorts QC는 `tests/unit tests/integration` 경로만 대상으로 분리 |
 | 2026-03-23 | Codex | root에서 `tests`와 `execution/tests`를 동시에 수집하면 동일 basename 테스트가 import mismatch를 일으킴 | root QC는 두 디렉터리를 분리 실행하거나 import mode를 조정 |
 | 2026-03-23 | Codex | `tests/test_qaqc_history_db.py`가 2026-03-22 고정 타임스탬프를 써서 날짜가 지나면 `days=1` 조회가 0건이 됨 | 테스트 fixture를 상대시간 기준으로 바꿔야 안정적 |
+| 2026-03-24 | Codex | `shorts-maker-v2`에서 `pytest --collect-only`만 돌려도 프로젝트 coverage 설정 때문에 실패처럼 보일 수 있음 | 수집 디버깅은 `--no-cov`를 함께 쓰거나 coverage gate를 명시적으로 끈다 |
 
 ---
 
-*마지막 업데이트: 2026-03-23 KST (Codex — 시스템 QC 재실행, runner 지뢰밭, 실패 테스트 triage 기록)*
+*마지막 업데이트: 2026-03-24 KST (Codex — 사용자 수정 반영 QC 재검증, focused green 확인, runner 잔여 이슈 기록)*
