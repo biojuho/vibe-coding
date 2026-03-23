@@ -1,3 +1,26 @@
+## 2026-03-24 — Claude Code — QC 전체 재측정
+
+### 작업 요약
+
+blind-to-x + shorts-maker-v2 QC 전체 재측정. Ruff 0건 확인, golden_render flaky 1건 발견.
+
+### QC 결과
+
+| 항목 | 결과 | 이전 |
+|------|------|------|
+| blind-to-x Ruff | ✅ 0건 | 0건 |
+| blind-to-x pytest | 522 passed, 16 skipped | 522 passed |
+| blind-to-x coverage | 53.35% | 53.33% |
+| shorts-maker-v2 pytest | 775 passed, 1 failed (flaky), 8 skipped | 776 passed |
+| shorts-maker-v2 coverage | 62.58% | 62.45% |
+
+### 특이사항
+
+- `test_golden_render_moviepy`: 전체 스위트에서 1 failed, 단독 실행 시 2 passed → 자원 경합 flaky
+- shorts 전체 소요 15분 45초 (qaqc_runner 300s 초과 지속)
+
+---
+
 ## 2026-03-24 — Codex — 사용자 수정 반영 QC 재검증
 
 ### 작업 요약

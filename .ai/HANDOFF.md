@@ -8,20 +8,17 @@
 | 항목 | 내용 |
 |------|------|
 | 날짜 | 2026-03-24 |
-| 도구 | Codex |
-| 작업 | 사용자 수정 반영 후 QC 재검증 완료 — blind/root focused 재검증은 녹색, 시스템 runner는 여전히 REJECTED |
+| 도구 | Claude Code |
+| 작업 | QC 전체 재측정 — blind-to-x ✅, shorts 62.58% (golden_render flaky 1건 격리 시 통과) |
 
 ## 현재 시스템 상태
 
-- **시스템 QC 재검증 (2026-03-24)**: `python -X utf8 execution/qaqc_runner.py` → **REJECTED**
-  - blind-to-x `99 passed / 1 failed / 1 skipped`
-  - shorts-maker-v2 `TIMEOUT` (300s)
-  - root `0 passed / 0 failed / 1 skipped / errors 2`
-- **Focused 재검증은 녹색**:
-  - blind-to-x: `542 passed, 5 skipped` (`test_curl_cffi.py` 제외)
-  - root `tests/`: `884 passed, 1 skipped`
-  - root `execution/tests`: `25 passed`
-- **남은 핵심 이슈**: shorts full suite timeout, `qaqc_runner.py` 최종 판정/경로 보정, Windows 한글 경로 환경의 `curl_cffi` CA Error 77
+- **QC 기준선 (2026-03-24 최신)**:
+  - blind-to-x: Ruff ✅ 0건 / **522 passed, 53.35%** ✅
+  - shorts-maker-v2: **775 passed, 62.58%** / 1 flaky (`test_golden_render_moviepy` — 단독 실행 시 통과, full suite 자원 경합)
+  - 전체 소요: blind 4분 24초, shorts 15분 45초
+- **시스템 QC runner (`qaqc_runner.py`)**: 여전히 REJECTED (shorts 300s timeout, curl_cffi CA Error 77 미해결)
+- **남은 핵심 이슈**: T-023 shorts full suite timeout 격리, T-024 qaqc_runner 판정 보정
 
 ## 다음 도구가 해야 할 일 (우선순위)
 

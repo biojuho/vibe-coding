@@ -40,7 +40,10 @@ PROJECTS = {
         "cwd": ROOT_DIR / "blind-to-x",
     },
     "shorts-maker-v2": {
-        "test_paths": [ROOT_DIR / "shorts-maker-v2" / "tests"],
+        "test_paths": [
+            ROOT_DIR / "shorts-maker-v2" / "tests" / "unit",
+            ROOT_DIR / "shorts-maker-v2" / "tests" / "integration",
+        ],
         "cwd": ROOT_DIR / "shorts-maker-v2",
     },
     "root": {

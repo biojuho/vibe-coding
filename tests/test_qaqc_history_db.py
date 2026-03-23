@@ -1,5 +1,6 @@
 """QaQcHistoryDB 단위 테스트."""
 
+from datetime import datetime
 from pathlib import Path
 
 from execution.qaqc_history_db import QaQcHistoryDB
@@ -11,7 +12,7 @@ def _make_db(tmp_path: Path) -> QaQcHistoryDB:
 
 def _sample_report(**overrides) -> dict:
     base = {
-        "timestamp": "2026-03-22T12:00:00",
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
         "verdict": "PASS",
         "total": {"passed": 100, "failed": 0},
         "elapsed_sec": 5.2,
@@ -61,7 +62,7 @@ class TestQaQcHistoryDB:
 
         trend = db.get_trend_data(days=1)
         assert len(trend) == 2
-        assert trend[0]["date"] == "2026-03-22"
+        assert trend[0]["date"] == datetime.now().strftime("%Y-%m-%d")
         assert "passed" in trend[0]
 
     def test_latest_run_none_when_empty(self, tmp_path: Path):
