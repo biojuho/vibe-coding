@@ -7,6 +7,10 @@
 
 | ID | 태스크 | 담당 도구 | 우선순위 | 생성일 |
 |----|--------|-----------|----------|--------|
+| T-020 | blind-to-x `test_cost_controls.py` 회귀 3건 수정 (`CostTracker`/`record_draft`/SQLite draft cache) | any | HIGH | 2026-03-23 |
+| T-021 | root `tests/test_qaqc_history_db.py` 날짜 하드코딩 제거 및 상대시간 기준으로 안정화 | any | HIGH | 2026-03-23 |
+| T-022 | `execution/qaqc_runner.py` QC 대상 경로 정리 (`shorts-maker-v2/tests/legacy` 제외, root `tests`/`execution/tests` 분리) | any | HIGH | 2026-03-23 |
+| T-023 | shorts-maker-v2 `tests/unit tests/integration` 전체 suite timeout 원인 점검 | any | HIGH | 2026-03-23 |
 | T-016 | blind-to-x 전체 `--review-only` 배치 스모크 실행 (LLM/이미지 비용 전 사용자 승인 필요) | any | MEDIUM | 2026-03-23 |
 | T-019 | blind-to-x Ruff 레거시 이슈 28건 정리 (E402/F401/E741 등) | any | LOW | 2026-03-23 |
 

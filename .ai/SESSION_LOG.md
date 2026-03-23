@@ -26,6 +26,42 @@
 
 ---
 
+## 2026-03-23 — Codex — 시스템 QC 재실행 (REJECTED) + blocker triage
+
+### 작업 요약
+
+사용자 요청으로 시스템 QC를 재실행했다. 표준 엔트리포인트 `python -X utf8 execution/qaqc_runner.py` 기준 결과는 **REJECTED**였고, blind-to-x 98 passed / 1 failed / 1 skipped, shorts-maker-v2 errors 1, root errors 2로 집계됐다. 이후 프로젝트별 권장 경로로 재검증한 결과, 실제 blocker는 blind-to-x `tests/unit/test_cost_controls.py` 3건, root `tests/test_qaqc_history_db.py` 2건이며, shorts-maker-v2는 QAQC runner가 `tests/legacy/test_ssml.py`까지 수집하는 경로 문제와 별개로 `tests/unit tests/integration --no-cov --maxfail=1`도 15분 내 완료되지 않아 timeout 원인 분리가 필요하다고 판단했다.
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | 수정 | QC 판정, blocker, runner 지뢰밭, 후속 TODO 기록 |
+| `knowledge-dashboard/public/qaqc_result.json` | 갱신 | `execution/qaqc_runner.py` 최신 QC 결과 JSON 저장 |
+
+### 검증 결과
+
+- `python -X utf8 execution/qaqc_runner.py` → **REJECTED** (`blind-to-x` 98/1/1, `shorts-maker-v2` error 1, `root` errors 2) ❌
+- `python -X utf8 -m pytest blind-to-x\\tests -q --tb=short --no-header -x` → `test_curl_cffi.py::test_fetch`에서 known CA Error 77 재현 ❌
+- `python -X utf8 -m pytest blind-to-x\\tests --ignore=blind-to-x\\tests\\integration\\test_curl_cffi.py -q --tb=short --no-header` → **3 failed, 539 passed, 5 skipped** (`tests/unit/test_cost_controls.py`) ❌
+- `python -X utf8 -m pytest tests -q --tb=short --no-header` → **2 failed, 882 passed, 1 skipped** (`tests/test_qaqc_history_db.py`) ❌
+- `python -X utf8 -m pytest execution\\tests -q --tb=short --no-header` → **25 passed**, coverage gate 때문에 command rc는 fail이지만 테스트 자체는 통과 ⚠️
+- `python -X utf8 -m pytest shorts-maker-v2\\tests -q --tb=short -x` → `tests/legacy/test_ssml.py` collection error (`edge_tts.Communicate._create_ssml` 없음) ❌
+- `python -X utf8 -m pytest tests/unit tests/integration -q --maxfail=1 --no-cov` (`shorts-maker-v2`) → **15분 초과 timeout** ❌
+
+### 결정사항
+
+- 현재 시스템 QC의 실제 코드 blocker는 blind-to-x 비용 추적/캐시 회귀 3건과 root `qaqc_history_db` 날짜 하드코딩 2건이다.
+- `execution/qaqc_runner.py`는 shorts-maker-v2와 root에 대해 false fail을 만들 수 있는 수집 경로 문제를 갖고 있다.
+- 보안 스캔 46건은 현재 regex가 `.agents/`, 번들 JS, 일반 f-string 로그까지 잡아 false positive가 많아 즉시 blocker로 보지 않는다.
+
+### 다음 도구에게 메모
+
+- 후속 작업 우선순위는 `T-020`(blind-to-x cost controls) → `T-022/T-023`(runner 경로/shorts timeout) → `T-021`(root timestamp test) 순서가 적절하다.
+- blind-to-x `test_curl_cffi.py`는 현재 환경의 known CA Error 77 재현용에 가까워 시스템 QC 기준에서는 별도 skip/xfail 전략을 검토할 만하다.
+
+---
+
 ## 2026-03-23 — Codex — blind-to-x Notion 검토 큐 레거시 unsafe 1건 정리
 
 ### 작업 요약

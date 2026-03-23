@@ -8,8 +8,8 @@
 | 항목 | 내용 |
 |------|------|
 | 날짜 | 2026-03-23 |
-| 도구 | Gemini |
-| 작업 | blind-to-x 커버리지 테스트 보강 (commands 100%, feed_collector, notion_upload 99%) + 라이브 필터 검증 (`--review-only --limit 2`) + QA/QC 수행 (533 passed, Ruff --fix 적용, ✅ 최종 승인) |
+| 도구 | Codex |
+| 작업 | 시스템 QC 재실행 — `execution/qaqc_runner.py` 기준 REJECTED. blind-to-x 3 fail, root 2 fail, shorts 경로/timeout 이슈를 분리 진단하고 후속 TODO 추가 |
 
 ## 현재 시스템 상태
 
@@ -19,14 +19,17 @@
 - btx `feed_collector.py` / `commands/dry_run.py` / `commands/one_off.py`: **100% coverage**
 - blind-to-x: **라이브 필터 검증 완료** — `INAPPROPRIATE_TITLE_KEYWORDS`, `혐오` 감정 거부 동작 확인
 - blind-to-x: **Notion 검토 큐 정리 완료** — 레거시 unsafe 1건 `반려` 처리 완료
-- **Coverage 기준 (2026-03-23 갱신)**: blind-to-x pytest 533 passed (5 skipped) / Ruff 28개 minor 레거시 이슈 비관리 대상
-- **QC 보고서 생성 완료**: `qc_report.md` 아티팩트 참조
+- blind-to-x focused QC는 533 passed로 통과했지만, **전체 blind-to-x 테스트 재실행**에서는 `tests/unit/test_cost_controls.py` 3건 실패
+- root 테스트: `tests/test_qaqc_history_db.py` 2건 실패 (`days=1` + 하드코딩 타임스탬프 조합)
+- shorts-maker-v2: `execution/qaqc_runner.py`가 `tests/legacy/test_ssml.py`까지 수집해 collection error를 내고, 권장 경로 `tests/unit tests/integration --no-cov --maxfail=1`도 **15분 초과 timeout**
+- 보안 스캔 46건은 현재 regex가 `.agents/`, 번들 JS, 일반 f-string 로그까지 잡는 **false positive 다수**
 
 ## 다음 도구가 해야 할 일 (우선순위)
 
-1. **T-016** blind-to-x 전체 `--review-only` 배치 스모크 — **LLM/이미지 비용 발생하므로 사용자 승인 후** 실행
-2. blind-to-x Ruff 레거시 이슈 28건 정리 (E402, F401, E741 등) — 레거시 파일 위주
-3. blinds-to-x coverage 재측정 — 현재 수치 정확히 갱신 필요
+1. **T-020** blind-to-x `test_cost_controls.py` 회귀 3건 수정 — 현재 시스템 QC의 가장 명확한 실제 코드 blocker
+2. **T-022/T-023** `execution/qaqc_runner.py` 경로 정리 + shorts-maker-v2 full suite timeout 원인 분리
+3. **T-021** root `qaqc_history_db` 테스트를 상대시간 기준으로 고쳐 시스템 QC false fail 제거
+4. **T-016** blind-to-x 전체 `--review-only` 배치 스모크 — **LLM/이미지 비용 발생하므로 사용자 승인 후** 실행
 
 ## 주의사항
 
@@ -35,6 +38,7 @@
 - Windows cp949 콘솔 이모지 크래시 주의 — llm_router.py는 `_safe_console_print()` 우회
 - Windows 한글 사용자 경로 + `curl_cffi` 조합에서 CA 경로 Error 77이 재현됨. Blind 스크래퍼는 직접 브라우저 폴백 경로 유지 필요
 - Windows PowerShell heredoc에서 한글 select 값을 Notion에 직접 PATCH하면 `??` 옵션이 생길 수 있음. live 수정은 option ID 또는 `\\u` escape 문자열 사용
+- `execution/qaqc_runner.py`의 현재 기본 경로는 shorts `tests/legacy/`와 root `tests`+`execution/tests`를 한 번에 줍기 때문에 QC false fail 가능
 - coverage 재측정 중 `shorts-maker-v2` 기본 `pytest`는 `tests/legacy/`까지 줍기 때문에 `python -m pytest tests/unit tests/integration -q` 경로 지정 필요
 - 작업 트리에 기존 미정리 변경이 많음. 무관한 파일은 되돌리지 말 것
 
