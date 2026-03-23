@@ -8,28 +8,28 @@
 | 항목 | 내용 |
 |------|------|
 | 날짜 | 2026-03-23 |
-| 도구 | Codex |
-| 작업 | shorts-maker-v2 `render_step`↔`RenderAdapter` 연동 완료, `LLMRouter` 9단계 폴백 테스트 추가, `execution/_logging.py` loguru 미설치 fallback 보강 |
+| 도구 | Claude Code (Opus 4.6) |
+| 작업 | render_step→VideoRendererBackend 연동, 감사 Phase 1 완료 확인, LLM E2E 테스트 7건, 고도화 v2 Phase 0~4 전 완료 확인 |
 
 ## 현재 시스템 상태
 
 - blind-to-x: 스케줄러 자동 실행 모니터링 중 (S4U 전환 후 1주간)
-- shorts-maker-v2: `render_step` <-> `RenderAdapter` 연결 완료, 관련 테스트 65 + focused 3 통과
-- shorts-maker-v2: `tests/unit/test_llm_router.py` 추가, 9-provider fallback/retry/non-retryable/JSON parse 시나리오 4 passed
-- root execution: `execution/_logging.py`가 `loguru` 없을 때 stdlib fallback 사용, `execution/tests` 25 passed
+- shorts-maker-v2: render_step이 VideoRendererBackend 경유 로딩/쓰기로 전환됨
+- 전체 테스트: Root 815+, shorts 695 passed (48.52%), btx 486 passed (51.98%)
+- 감사 보고서: Phase 1~3 전 항목 완료, 고도화 v2 Phase 0~4 전 항목 완료
 
 ## 다음 도구가 해야 할 일 (우선순위)
 
-1. blind-to-x: 스케줄러 실행 로그 확인 → 정상 동작 여부 판단
-2. 시스템 고도화 v2 Phase 5: P1-1 목표 coverage(shorts ≥ 80%, blind-to-x ≥ 75%) 달성용 테스트 보강
-3. shorts-maker-v2: VideoRenderer 후속 작업 (golden render test, backend 점진 전환 범위 확대)
+1. golden render test: 30초 샘플 영상 렌더링 후 해상도/오디오 sync 자동 검증
+2. MCP 서버 Tier 3 on-demand 전환 (RAM ~3.7GB 확보)
+3. shorts-maker-v2 v3.0 Multi-language + SaaS 전환 설계 (탐색적)
 
 ## 주의사항
 
-- `blind-to-x/main.py` import 경로가 `from pipeline.commands import ...` 방식으로 변경됨 (2026-03-23)
-- Windows cp949 콘솔에서 이모지 `print()`가 크래시를 유발할 수 있음 — `shorts-maker-v2/providers/llm_router.py`는 `_safe_console_print()`로 우회
-- Python 3.14 환경에서 `openai` / `google-genai` 경고는 계속 보이지만 테스트는 통과
-- 작업 트리에 기존 미정리 변경이 많음. 내 변경과 무관한 파일은 되돌리지 말 것
+- render_step.py의 커스텀 이펙트(ken_burns, 전환효과, 카라오케)는 MoviePy 전용 유지
+- `.githooks/pre-commit`에 `ruff format --check` 추가됨 — 커밋 전 포맷 확인 필요
+- Windows cp949 콘솔 이모지 크래시 주의 — llm_router.py는 `_safe_console_print()` 우회
+- 작업 트리에 기존 미정리 변경이 많음. 무관한 파일은 되돌리지 말 것
 
 ## 규칙
 

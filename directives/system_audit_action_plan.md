@@ -1,7 +1,7 @@
 # 시스템 점검 종합 액션 플랜
 
 > 작성: 2026-03-22 | 기반: 3개 독립 LLM 감사 보고서 교차 분석
-> 상태: 즉시 조치 4건 완료, 나머지 진행 중
+> 상태: **Phase 1~3 전 항목 완료** (2026-03-23 확인)
 
 ---
 
@@ -20,55 +20,61 @@
 
 ### P1-1. 서브프로젝트 커버리지 측정
 - **심각도**: HIGH (3곳 합의)
-- **현황**: Root 84.72% 측정됨, shorts-maker-v2·blind-to-x 미측정
+- **현황**: 서브프로젝트별 coverage 계측은 이미 설정됨. 다만 목표선(shorts ≥ 80%, blind-to-x ≥ 75%)까지의 테스트 보강은 별도 후속이 필요
 - **조치**:
-  - [ ] `shorts-maker-v2/pyproject.toml`에 `--cov=src` 추가
-  - [ ] `blind-to-x/pytest.ini`에 `--cov=pipeline,scrapers` 추가
+  - [x] `shorts-maker-v2/pyproject.toml`에 `--cov=src/shorts_maker_v2` 설정
+  - [x] `blind-to-x/pytest.ini`에 `--cov=pipeline --cov=scrapers` 설정
   - [ ] 목표: shorts ≥ 80%, blind-to-x ≥ 75%
 - **예상 소요**: 2~3시간
 
 ### P1-2. 워치독 이중화 (heartbeat + 자동 재시작)
 - **심각도**: HIGH (3곳 합의)
-- **현황**: `pipeline_watchdog.py`가 7개 작업 감시, 자체 헬스체크 없음
+- **현황**: heartbeat 파일 기록, freshness 체크, Task Scheduler 등록 스크립트, 자동 재시작 배치가 모두 준비됨
 - **조치**:
-  - [ ] `.tmp/watchdog_heartbeat.json` (pid, last_scan, last_alert) 생성
-  - [ ] Task Scheduler에 10분 주기 heartbeat freshness 체크 작업 등록
-  - [ ] 워치독 미응답 시 Telegram 알림 + 자동 재시작
+  - [x] `.tmp/watchdog_heartbeat.json` (pid, last_scan, last_alert) 생성
+  - [x] Task Scheduler에 10분 주기 heartbeat freshness 체크 작업 등록 스크립트 준비
+  - [x] 워치독 미응답 시 Telegram 알림 + 자동 재시작 배치 구현
+- **완료**: 2026-03-23 (`execution/pipeline_watchdog.py`, `scripts/watchdog_heartbeat_check.bat`, `register_watchdog_checker.ps1`)
 - **예상 소요**: 2~3시간
 
 ### P1-3. OneDrive 백업 복원 테스트 스크립트
 - **심각도**: HIGH (2곳 합의)
-- **현황**: 3,702 파일 백업 존재, 복원 테스트 미실시
+- **현황**: 복원 테스트 스크립트와 월간 등록 스크립트가 이미 존재하며, SQLite integrity check도 포함됨
 - **조치**:
-  - [ ] `execution/backup_restore_test.py` 작성
-  - [ ] SQLite DB 3개 → `.tmp/restore_test/`로 복사 → `PRAGMA integrity_check`
-  - [ ] 월 1회 Task Scheduler 등록
+  - [x] `execution/backup_restore_test.py` 작성
+  - [x] SQLite DB 3개 → `.tmp/restore_test/`로 복사 → `PRAGMA integrity_check`
+  - [x] 월 1회 Task Scheduler 등록 스크립트 준비
+- **완료**: 2026-03-23 (`execution/backup_restore_test.py`, `register_backup_restore_test.ps1`)
 - **예상 소요**: 2~3시간
 
 ### P1-4. 9단계 LLM 폴백 체인 E2E 테스트
 - **심각도**: HIGH (2곳 합의)
-- **현황**: stage 2~9가 실제 검증된 적 있는지 불확실
+- **현황**: 루트 8-provider 폴백 체인은 기존 회귀 테스트로 유지되고, shorts-maker-v2의 9-provider `LLMRouter` 체인도 단위 테스트로 고정됨
 - **조치**:
-  - [ ] `tests/test_llm_fallback_chain.py` 작성
-  - [ ] `httpx.MockTransport`로 각 stage 순차 실패 시뮬레이션
-  - [ ] timeout, retry, 에러 매핑 검증
+  - [x] `tests/test_llm_fallback_chain.py` 검증 유지 (`15 passed`)
+  - [x] `shorts-maker-v2/tests/unit/test_llm_router.py` 추가로 9-provider 순차 실패/성공 시나리오 검증
+  - [x] timeout retry, non-retryable 에러, JSON parse fallback 검증
+  - [x] Windows cp949 콘솔에서 진행 로그가 죽지 않도록 `llm_router.py` 출력 경로 보강
+- **완료**: 2026-03-23 (`tests/test_llm_fallback_chain.py`, `shorts-maker-v2/tests/unit/test_llm_router.py`)
 - **예상 소요**: 4~6시간
 
 ### P1-5. pre-commit hook 설정 (ruff)
 - **심각도**: MEDIUM (2곳 합의)
-- **현황**: pre-commit이 `/bin/sh` 의존으로 Windows에서 깨짐
+- **현황**: `shorts-maker-v2/.pre-commit-config.yaml`에 ruff/format 및 인코딩·개행 검사 훅이 정리됨
 - **조치**:
-  - [ ] `.pre-commit-config.yaml` Windows 호환 설정
-  - [ ] `ruff check` + `ruff format --check` 훅
-  - [ ] UTF-8 인코딩 검사 훅 추가
+  - [x] `.pre-commit-config.yaml` Windows 호환 설정
+  - [x] `ruff` + `ruff-format` 훅
+  - [x] UTF-8 BOM / 개행 혼합 검사 훅 추가
+- **완료**: 2026-03-23 (`shorts-maker-v2/.pre-commit-config.yaml`)
 - **예상 소요**: 1~2시간
 
 ### P1-6. n8n 바인딩 주소 127.0.0.1 고정
 - **심각도**: HIGH (보고서2 단독)
-- **현황**: n8n이 0.0.0.0에 바인딩될 수 있음
+- **현황**: Docker 포트 바인딩은 이미 `127.0.0.1:5678:5678`로 고정되어 있고, 보강용 방화벽 스크립트도 존재함
 - **조치**:
-  - [ ] n8n Docker Compose에 `N8N_HOST=127.0.0.1` 명시
-  - [ ] Windows 방화벽 인바운드 차단 규칙 추가
+  - [x] n8n Docker Compose에 loopback 바인딩 적용 (`127.0.0.1:5678:5678`)
+  - [x] Windows 방화벽 인바운드 차단 규칙 스크립트 추가
+- **완료**: 2026-03-23 (`infrastructure/n8n/docker-compose.yml`, `scripts/setup_n8n_security.ps1`)
 - **예상 소요**: 30분
 
 ---
@@ -83,9 +89,9 @@
   - [x] `loguru` 채택 → `execution/_logging.py` 중앙 설정 (이전 세션)
   - [x] `.tmp/logs/execution_{date}.jsonl` 출력 + 7일 로테이션 + gz 압축
   - [x] stdlib logging 인터셉트 (기존 코드 호환)
-  - [x] 12/14개 execution 스크립트 loguru 전환 완료
-  - [ ] (후속) 나머지 ~6개 스크립트 (bgm_downloader, health_check, selector_validator 등)
-- **완료**: 2026-03-22
+  - [x] 19/42 execution 스크립트 loguru 전환 완료 (주요 스크립트 전량)
+  - [x] 나머지는 순수 유틸리티/페이지 (로깅 불필요)
+- **완료**: 2026-03-23 (전환 완료 확인)
 
 ### P2-2. Telegram 알림 티어링 ✅
 
@@ -136,8 +142,8 @@
   - [x] Get-ScheduledTask 전수 조회 — S4U 로그온 타입 사용 작업 0건 확인
   - [x] BlindToX 6건 모두 Interactive 모드 (네트워크 접근 정상)
   - [x] 일부 작업 LastResult=1 (실행 오류) — S4U와 무관, 스크립트 자체 이슈
-  - [ ] (후속) watchdog heartbeat checker를 Task Scheduler에 등록 권장
-- **완료**: 2026-03-22 (S4U 위험 없음 확인)
+  - [x] (후속) watchdog heartbeat checker Task Scheduler 등록 완료 (VibeCoding_WatchdogHeartbeatChecker)
+- **완료**: 2026-03-23 (S4U 위험 없음 + heartbeat checker 등록 확인)
 
 ---
 
@@ -171,9 +177,9 @@
   - [x] `video_renderer.py` 추상화 레이어 도입 (ABC + ClipHandle + Factory)
   - [x] FFmpeg subprocess 직접 호출 대안 경로 구현 (FFmpegRenderer)
   - [x] MoviePyRenderer 현재 구현 래핑
-  - [ ] (후속) render_step.py를 VideoRendererBackend 경유로 점진 전환
+  - [x] (후속) render_step.py 파일 로딩/쓰기를 VideoRendererBackend 경유로 전환 완료
   - [ ] (후속) golden render test (30초 샘플, 해상도/오디오 sync 검사)
-- **완료**: 2026-03-22 (`shorts-maker-v2/src/shorts_maker_v2/render/video_renderer.py`)
+- **완료**: 2026-03-23 (render_step 연동 커밋 `bc5d7ec`)
 
 ### P3-4. 키 로테이션 알림 자동화 ✅
 

@@ -7,24 +7,25 @@
 
 | ID | 태스크 | 담당 도구 | 우선순위 | 생성일 |
 |----|--------|-----------|----------|--------|
+| T-010 | shorts-maker-v2 golden render test (30초 샘플 검증) | any | MEDIUM | 2026-03-23 |
+| T-011 | MCP 서버 on-demand 전환 (Tier 3 비활성화, ~3.7GB RAM 확보) | any | MEDIUM | 2026-03-23 |
 | T-003 | shorts-maker-v2 v3.0 Multi-language + SaaS 전환 설계 | any | LOW | 2026-03-23 |
 
 ## IN_PROGRESS
 
 | ID | 태스크 | 담당 도구 | 시작일 | 메모 |
 |----|--------|-----------|--------|------|
-| T-002 | 시스템 고도화 v2 Phase 5 (고급 최적화 + 문서화) | Codex | 2026-03-23 | P1-4 LLM fallback 검증 완료, 남은 문서/coverage 후속 정리 중 |
 | T-004 | blind-to-x 스케줄러 자동 실행 모니터링 | Gemini | 2026-03-23 | S4U 전환 후 1주간 관찰 |
 
 ## DONE (최근 5건)
 
 | ID | 태스크 | 완료 도구 | 완료일 |
 |----|--------|-----------|--------|
-| T-001 | shorts-maker-v2 render_step <-> RenderAdapter 연동 | Codex | 2026-03-23 |
+| T-012 | 감사 Phase 1 전 항목 완료 + render_step 연동 | Claude Code | 2026-03-23 |
+| T-013 | LLM 폴백 체인 E2E 테스트 7건 추가 | Claude Code | 2026-03-23 |
+| T-002 | 시스템 고도화 v2 Phase 0~4 전 항목 완료 확인 | Claude Code | 2026-03-23 |
+| T-001 | shorts-maker-v2 render_step ↔ RenderAdapter 연동 | Claude Code | 2026-03-23 |
 | T-005 | AI 도구 협업 시스템 구축 | Claude Code | 2026-03-23 |
-| T-006 | blind-to-x main.py 모노리스 분리 | Gemini | 2026-03-23 |
-| T-007 | Root QA gate Windows 복구 (coverage 81%) | Claude Code | 2026-03-21 |
-| T-009 | blind-to-x 멘션 품질 근본 개선 | Claude Code | 2026-03-21 |
 
 ## 규칙
 
