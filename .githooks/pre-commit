@@ -12,6 +12,13 @@ if [ -n "$STAGED_PY" ]; then
         echo "ruff check failed. Fix errors and retry."
         exit 1
     fi
+
+    echo "Pre-commit: ruff format check on staged files..."
+    echo "$STAGED_PY" | xargs python -m ruff format --check --quiet 2>/dev/null
+    if [ $? -ne 0 ]; then
+        echo "ruff format check failed. Run 'ruff format' and retry."
+        exit 1
+    fi
 fi
 
 # .ai/ 파일 UTF-8 검증

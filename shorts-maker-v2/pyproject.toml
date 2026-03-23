@@ -72,6 +72,11 @@ ignore = [
 [tool.ruff.format]
 quote-style = "double"
 
+# ── Pytest ──────────────────────────────────────────────────
+[tool.pytest.ini_options]
+testpaths = ["tests/unit", "tests/integration"]
+addopts = "--cov=src/shorts_maker_v2 --cov-report=term-missing --cov-fail-under=45"
+
 # ── Coverage ────────────────────────────────────────────────
 [tool.coverage.run]
 source = ["src/shorts_maker_v2"]

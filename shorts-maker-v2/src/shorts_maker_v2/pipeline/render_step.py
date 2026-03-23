@@ -5,10 +5,10 @@ import logging
 import random
 import time
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 from moviepy import (
-    AudioFileClip,
     CompositeAudioClip,
     CompositeVideoClip,
     ImageClip,
@@ -46,6 +46,7 @@ from shorts_maker_v2.render.karaoke import (
     render_karaoke_highlight_image,
     render_karaoke_image,
 )
+from shorts_maker_v2.render.video_renderer import ClipHandle, create_renderer
 
 # MoviePy 2.x: PIL.Image.ANTIALIAS hotfix no longer needed (Pillow native)
 
@@ -122,8 +123,13 @@ class RenderStep:
         self.config = config
         self._openai_client = openai_client
         self._llm_router = llm_router
-        # video_renderer 추상화: None이면 MoviePy 직접 호출 (기존 동작)
-        self._renderer_backend = video_renderer_backend
+        # Scene 조립은 아직 MoviePy native clip에 의존하므로,
+        # backend 선택은 최종 encode 단계에만 적용합니다.
+        self._renderer_backend = video_renderer_backend or "moviepy"
+        self._native_renderer = create_renderer("moviepy")
+        self._output_renderer = (
+            self._native_renderer if self._renderer_backend == "moviepy" else create_renderer(self._renderer_backend)
+        )
         self._job_index = job_index
         self._channel_key = channel_key
         self._channel_profile = self._load_channel_profile(channel_key)
@@ -219,6 +225,75 @@ class RenderStep:
     def _resolve_style_override(self) -> str:
         preset = str(getattr(self.config.captions, "style_preset", "") or "").strip()
         return "" if preset in {"", "default"} else preset
+
+    # ── Renderer helpers (native clip passthrough) ─────────────────────────────
+
+    def _load_video_clip(self, path: str | Path, audio: bool = True):
+        """MoviePy renderer 경유 비디오 로드 -> native clip 반환."""
+        return self._native_renderer.load_video(path, audio=audio).native
+
+    def _load_image_clip(self, path: str | Path, duration: float = 5.0):
+        """MoviePy renderer 경유 이미지 로드 -> native clip 반환."""
+        return self._native_renderer.load_image(path, duration=duration).native
+
+    def _load_audio_clip(self, path: str | Path):
+        """MoviePy renderer 경유 오디오 로드 -> native clip 반환."""
+        return self._native_renderer.load_audio(path).native
+
+    @staticmethod
+    def try_render_with_adapter(
+        *,
+        channel: str,
+        scene_plans: list[ScenePlan],
+        scene_assets: list[SceneAsset],
+        output_path: Path,
+        logger: Any,
+    ) -> tuple[bool, str | None]:
+        """RenderAdapter를 통한 ShortsFactory 렌더링을 시도합니다.
+
+        Render 관련 ScenePlan/SceneAsset → adapter payload 변환은 render_step이
+        담당하고, orchestrator는 renderer mode 라우팅만 맡도록 역할을 분리합니다.
+        """
+        try:
+            from ShortsFactory.interfaces import RenderAdapter
+
+            adapter = RenderAdapter()
+            scenes_data = [scene_plan.to_dict() for scene_plan in scene_plans]
+            assets_map = {asset.scene_id: asset.visual_path for asset in scene_assets}
+            audio_map = {asset.scene_id: asset.audio_path for asset in scene_assets if asset.audio_path}
+
+            result = adapter.render_with_plan(
+                channel_id=channel,
+                scenes=scenes_data,
+                assets=assets_map,
+                output_path=output_path,
+                audio_paths=audio_map or None,
+            )
+
+            if result.success:
+                logger.info(
+                    "shorts_factory_render_ok",
+                    channel=channel,
+                    template=result.template_used,
+                    duration_sec=result.duration_sec,
+                )
+                return True, None
+
+            logger.warning(
+                "shorts_factory_render_failed",
+                channel=channel,
+                error=result.error,
+                fallback="native_render_step",
+            )
+            return False, result.error or "ShortsFactory render failed"
+
+        except Exception as exc:
+            logger.warning(
+                "shorts_factory_import_failed",
+                error=str(exc),
+                fallback="native_render_step",
+            )
+            return False, str(exc)
 
     @classmethod
     def _resolve_caption_combo(cls, channel_key: str, job_index: int) -> tuple[str, str, str]:
@@ -338,10 +413,10 @@ class RenderStep:
             return None
         ext = path.suffix.lower()
         if ext in (".mp4", ".mov", ".avi", ".webm"):
-            clip = VideoFileClip(str(path), audio=False)
+            clip = self._load_video_clip(path, audio=False)
             clip = clip.subclipped(0, min(clip.duration, duration))
         elif ext in (".png", ".jpg", ".jpeg", ".webp"):
-            clip = ImageClip(str(path)).with_duration(duration)
+            clip = self._load_image_clip(path, duration=duration)
         else:
             return None
         return self._fit_vertical(clip, target_width, target_height)
@@ -552,13 +627,13 @@ class RenderStep:
 
     def _build_base_clip(self, asset: SceneAsset, duration_sec: float, target_width: int, target_height: int):
         if asset.visual_type == "video":
-            base = VideoFileClip(asset.visual_path).without_audio()
+            base = self._load_video_clip(asset.visual_path, audio=False)
             if base.duration < duration_sec:
                 base = base.with_effects([vfx.Loop(duration=duration_sec)])
             elif base.duration > duration_sec:
                 base = base.subclipped(0, duration_sec)
         else:
-            base = ImageClip(asset.visual_path).with_duration(duration_sec)
+            base = self._load_image_clip(asset.visual_path, duration=duration_sec)
         return self._fit_vertical(base, target_width, target_height)
 
     # ── BGM 무드 매칭 ─────────────────────────────────────────────────────────
@@ -1087,19 +1162,19 @@ class RenderStep:
             # Hook 씬 시작에 임팩트 SFX
             if role == "hook" and sfx_files.get("hook"):
                 sfx_path = random.choice(sfx_files["hook"])
-                clip = AudioFileClip(str(sfx_path))
+                clip = self._load_audio_clip(sfx_path)
                 clip = clip.with_effects([MultiplyVolume(volume)])
                 sfx_clips.append(clip.with_start(cursor))
             # CTA 씬 시작에 팝 SFX
             elif role == "cta" and sfx_files.get("cta"):
                 sfx_path = random.choice(sfx_files["cta"])
-                clip = AudioFileClip(str(sfx_path))
+                clip = self._load_audio_clip(sfx_path)
                 clip = clip.with_effects([MultiplyVolume(volume)])
                 sfx_clips.append(clip.with_start(cursor))
             # 씬 전환 시점에 스위시 SFX (마지막 씬 제외)
             if i < len(scene_roles) - 1 and sfx_files.get("transition"):
                 sfx_path = random.choice(sfx_files["transition"])
-                clip = AudioFileClip(str(sfx_path))
+                clip = self._load_audio_clip(sfx_path)
                 clip = clip.with_effects([MultiplyVolume(volume)])
                 transition_t = max(0, cursor + dur - 0.15)
                 sfx_clips.append(clip.with_start(transition_t))
@@ -1213,7 +1288,7 @@ class RenderStep:
                 logger.warning("[AudioPost] 후처리 실패, 원본 사용: %s", pp_exc)
 
             # 3) 오디오 합성
-            audio = AudioFileClip(asset.audio_path)
+            audio = self._load_audio_clip(asset.audio_path)
             _audio_clips_to_close.append(audio)  # 생성 직후 등록 → 예외 시에도 close 보장
             if audio.duration != duration_sec and audio.duration > duration_sec:
                 audio = audio.subclipped(0, duration_sec)
@@ -1383,7 +1458,7 @@ class RenderStep:
                 topic=topic or title,
             )
             if lyria_bgm:
-                bgm_clip = AudioFileClip(str(lyria_bgm))
+                bgm_clip = self._load_audio_clip(lyria_bgm)
                 _bgm_clip = bgm_clip
                 if bgm_clip.duration and bgm_clip.duration > target_dur:
                     bgm_clip = bgm_clip.subclipped(0, target_dur)
@@ -1396,7 +1471,7 @@ class RenderStep:
                 bgm_files = self._collect_bgm_files(bgm_dir)
                 if bgm_files:
                     bgm_path = self._pick_bgm_by_mood(bgm_files, topic or title)
-                    bgm_clip = AudioFileClip(str(bgm_path))
+                    bgm_clip = self._load_audio_clip(bgm_path)
                     _bgm_clip = bgm_clip
                     # 크로스페이드 루핑 (끊김 방지)
                     if bgm_clip.duration and bgm_clip.duration < target_dur:
@@ -1482,28 +1557,20 @@ class RenderStep:
         render_start_time = time.perf_counter()
 
         try:
-            if self._renderer_backend and self._renderer_backend != "moviepy":
-                from shorts_maker_v2.render.video_renderer import (
-                    ClipHandle,
-                    create_renderer,
-                )
-
-                renderer = create_renderer(self._renderer_backend)
-                handle = ClipHandle(
-                    backend=self._renderer_backend,
-                    native=final_video,
-                    duration=video_duration,
-                )
-                renderer.write(
-                    handle, output_path,
-                    fps=write_kwargs.get("fps", 30),
-                    codec=write_kwargs.get("codec", "libx264"),
-                    audio_codec=write_kwargs.get("audio_codec", "aac"),
-                    preset=write_kwargs.get("preset"),
-                    ffmpeg_params=write_kwargs.get("ffmpeg_params"),
-                )
-            else:
-                final_video.write_videofile(str(output_path), **write_kwargs)
+            handle = ClipHandle(
+                backend=self._renderer_backend,
+                native=final_video,
+                duration=video_duration,
+            )
+            self._output_renderer.write(
+                handle,
+                output_path,
+                fps=write_kwargs.get("fps", 30),
+                codec=write_kwargs.get("codec", "libx264"),
+                audio_codec=write_kwargs.get("audio_codec", "aac"),
+                preset=write_kwargs.get("preset"),
+                ffmpeg_params=write_kwargs.get("ffmpeg_params"),
+            )
         finally:
             render_elapsed = time.perf_counter() - render_start_time
 
