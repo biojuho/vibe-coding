@@ -1,3 +1,91 @@
+## 2026-03-23 — Claude Code — coverage uplift: thumbnail_step 신규 + llm_router 버그 수정 + notion_upload 99%
+
+### 작업 요약
+
+T-014 coverage uplift 2차. shorts-maker-v2 `thumbnail_step.py` 전용 테스트 31건 신규 작성, `llm_router.py` 기존 실패 테스트 2건(lazy import patch 경로 오류) 수정, btx `notion_upload.py` 89%→99% (10건 추가).
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| `shorts-maker-v2/tests/unit/test_thumbnail_step.py` | **신규** | thumbnail_step 전체 커버: 모드분기(none/pillow/dalle/gemini/canva/unknown), 예외, _resolve_ai_prompt, scene_assets 배경 추출 (31건) |
+| `shorts-maker-v2/tests/unit/test_llm_router.py` | 수정 | `_get_client` / `_generate_once` patch 경로 `shorts_maker_v2.providers.llm_router.genai` → `google.genai.Client` / `google.genai.types` 로 수정 (2 failed → 0 failed) |
+| `blind-to-x/tests/unit/test_notion_upload.py` | 수정 | limit 초과, exception, no-client, httpx-fallback 실패, non-retryable raise, schema exhausted, filter/sorts, data_source endpoint, schema_mismatch, already-ready 12건 추가 |
+
+### 테스트 결과
+
+- `shorts-maker-v2` `test_render_step + test_llm_router + test_thumbnail_step` → **65 passed** ✅
+- `blind-to-x` `test_notion_upload` → **29 passed** ✅ (notion_upload.py 99% coverage)
+- `feed_collector.py` 100%, `commands/dry_run.py` 100%, `commands/one_off.py` 100%
+
+---
+
+## 2026-03-23 — Codex — blind-to-x 라이브 필터 검증 + curl_cffi 직접 폴백 복구
+
+### 작업 요약
+
+blind-to-x의 실운영 검증을 이어받아, Windows 한글 사용자 경로에서 `curl_cffi`가 `error setting certificate verify locations`(libcurl error 77)로 실패하는 문제를 재현하고 Blind 스크래퍼에 브라우저 직접 탐색 폴백을 추가했다. 함께 부적절 제목/혐오 감정 회귀 테스트를 추가했고, 실제 Blind URL `카페에서 앞에 앉은여자 골반 구경중`을 실스크래핑하여 `FILTERED_SPAM / inappropriate_content / (skipped-filtered)`로 업로드 전에 차단되는 것을 확인했다.
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| `blind-to-x/scrapers/blind.py` | 수정 | feed/post 수집 시 `curl_cffi` 실패 → Playwright 직접 탐색 폴백, direct fallback `wait_until='domcontentloaded'`로 완화 |
+| `blind-to-x/tests/unit/test_scrape_failure_classification.py` | 수정 | 부적절 제목 필터, 혐오 감정 필터, feed session fetch failure fallback 회귀 테스트 3건 추가 |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md` | 수정 | 라이브 검증 결과와 후속 작업 기록 |
+
+### 검증 결과
+
+- `python -m ruff check scrapers/blind.py tests/unit/test_scrape_failure_classification.py` ✅
+- `python -m pytest --no-cov tests/unit/test_scrape_failure_classification.py -q` → **8 passed** ✅
+- `python -X utf8 scripts/notion_doctor.py --config config.yaml` → **PASS** (`data_source`, props resolved) ✅
+- `python -X utf8 scripts/check_notion_views.py` → **모든 필수 속성 존재** ✅
+- 실제 Notion 최근 페이지 조회: 2026-03-23 생성 `카페에서 앞에 앉은여자 골반 구경중` 레거시 항목 잔존 확인
+- 실제 Blind URL 라이브 스크래핑 + `process_single_post()` 가드 실행: `FILTERED_SPAM`, `failure_reason='inappropriate_content'`, `notion_url='(skipped-filtered)'` 확인 ✅
+
+### 결정사항
+
+- 이 환경에서는 `curl_cffi`를 신뢰 경로로 단독 의존하지 않고, Blind 스크래퍼가 직접 브라우저 탐색으로 자동 폴백해야 함
+- TeamBlind 직접 탐색은 `networkidle`보다 `domcontentloaded`가 더 안정적임
+- 전체 `main.py --review-only` 배치 스모크는 LLM/이미지 비용이 따라올 수 있으므로 사용자 승인 없이 실행하지 않음
+
+### 다음 도구에게 메모
+
+- `collect_feed_items()`는 cross-source dedup 경로에서 임베딩 API를 호출할 수 있으니, 단순 피드 확인은 `BlindScraper.get_feed_candidates()` 직접 호출이 더 안전함
+- Notion 검토 큐에는 레거시 unsafe 페이지가 남아 있다. 새 필터가 막아 주더라도 기존 데이터 정리는 별도 판단이 필요
+- Windows에서 subprocess 종료 시 `BaseSubprocessTransport.__del__` 경고가 간헐적으로 찍히지만 이번 검증의 pass/fail과는 무관
+
+---
+
+## 2026-03-23 — Claude Code — blind-to-x 실운영 점검 3종 수정
+
+### 작업 요약
+
+blind-to-x 파이프라인에서 "콘텐츠 품질 저하"와 "이미지 중복" 문제를 진단하고 3종 수정을 완료했다.
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| `blind-to-x/pipeline/image_cache.py` | **수정** | `get()` — 로컬 파일 경로 존재 검증 추가. stale 항목 자동 evict + 재생성 트리거 |
+| `blind-to-x/pipeline/process.py` | **수정** | `INAPPROPRIATE_TITLE_KEYWORDS` 12개 추가, `_REJECT_EMOTION_AXES={'혐오'}` 추가. 필터 2곳 삽입 |
+| `blind-to-x/pipeline/image_generator.py` | **수정** | "기타" 토픽 기본 장면 7종 풀 무작위 선택 (이미지 중복 방지) |
+| `blind-to-x/classification_rules.yaml` | **수정** | 각 토픽 키워드 +5~8개 확장, `ㅋㅋ`/`ㅎㅎ` 제거, 직장개그 오탐 방지 |
+
+### 핵심 수정 내용
+
+1. **ImageCache stale 버그**: 48h TTL 캐시가 Windows 임시파일 경로를 저장 → OS가 파일 삭제 후에도 캐시 HIT → 빈 경로 반환. `Path.exists()` 체크 후 없으면 evict + None 반환으로 수정
+2. **부적절 콘텐츠 필터**: "카페에서 앞에 앉은여자 골반 구경중" 류 게시물이 스팸 필터 통과. 제목 키워드 필터 + 혐오 감정 자동 거부 추가
+3. **토픽 분류 개선**: `ㅋㅋ` 키워드가 직장개그에 포함되어 "환율ㅋㅋ"가 잘못 분류되는 문제 수정. 금융/경제에 `환율`, `코스피` 등 추가
+
+### 검증 결과
+
+- Fix 1: 존재파일 HIT, 삭제파일 MISS+evict, URL HIT 모두 정상
+- Fix 2: "골반 구경" 키워드 필터 정상, `혐오` 감정 거부 정상
+- Fix 3: "환율ㅋㅋ" → "금융/경제" 정상, "기타" 이미지 10회 중 6종 다양화 확인
+
+---
+
 ## 2026-03-23 — Codex — coverage 기준선 재측정 + targeted test 추가
 
 ### 작업 요약

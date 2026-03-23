@@ -105,11 +105,24 @@ class ImageCache:
                 logger.debug("ImageCache: expired entry for topic=%s emotion=%s", topic_cluster, emotion_axis)
                 self._delete(key)
                 return None
+            cached_path = row["image_path"]
+            # 로컬 파일 경로인 경우 실제 존재 여부 검증 (임시파일은 OS가 삭제할 수 있음)
+            if not cached_path.startswith(("http://", "https://")):
+                if not Path(cached_path).exists():
+                    logger.info(
+                        "ImageCache STALE (file deleted): topic=%s emotion=%s — evicting",
+                        topic_cluster,
+                        emotion_axis,
+                    )
+                    self._delete(key)
+                    return None
             logger.info(
                 "ImageCache HIT: topic=%s emotion=%s path=%s",
-                topic_cluster, emotion_axis, row["image_path"][:60],
+                topic_cluster,
+                emotion_axis,
+                cached_path[:60],
             )
-            return row["image_path"]
+            return cached_path
         except Exception as exc:
             logger.warning("ImageCache.get() failed (graceful): %s", exc)
             return None
@@ -143,7 +156,9 @@ class ImageCache:
                 )
             logger.debug(
                 "ImageCache SET: topic=%s emotion=%s provider=%s",
-                topic_cluster, emotion_axis, provider,
+                topic_cluster,
+                emotion_axis,
+                provider,
             )
         except Exception as exc:
             logger.warning("ImageCache.set() failed (graceful): %s", exc)
@@ -153,9 +168,7 @@ class ImageCache:
         now = self._now_iso()
         try:
             with self._conn() as conn:
-                cursor = conn.execute(
-                    "DELETE FROM image_cache WHERE expires_at < ?", (now,)
-                )
+                cursor = conn.execute("DELETE FROM image_cache WHERE expires_at < ?", (now,))
                 deleted = cursor.rowcount
             if deleted:
                 logger.info("ImageCache: evicted %d expired entries", deleted)
@@ -170,9 +183,7 @@ class ImageCache:
             now = self._now_iso()
             with self._conn() as conn:
                 total = conn.execute("SELECT COUNT(*) FROM image_cache").fetchone()[0]
-                alive = conn.execute(
-                    "SELECT COUNT(*) FROM image_cache WHERE expires_at >= ?", (now,)
-                ).fetchone()[0]
+                alive = conn.execute("SELECT COUNT(*) FROM image_cache WHERE expires_at >= ?", (now,)).fetchone()[0]
             return {"total": total, "alive": alive, "expired": total - alive}
         except Exception:
             return {"total": 0, "alive": 0, "expired": 0}

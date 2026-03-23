@@ -30,7 +30,11 @@ _TOPIC_IMAGE_STYLES: dict[str, dict[str, str]] = {
     "가족": {"style": "warm sketch", "mood": "nostalgic, tender", "colors": "warm brown and soft orange"},
     "재테크": {"style": "data visualization art", "mood": "sharp, analytical", "colors": "green and dark blue"},
     "직장개그": {"style": "meme-style cartoon", "mood": "funny, exaggerated", "colors": "bright yellow and comic blue"},
-    "부동산": {"style": "architectural illustration", "mood": "urban, realistic", "colors": "concrete gray and sky blue"},
+    "부동산": {
+        "style": "architectural illustration",
+        "mood": "urban, realistic",
+        "colors": "concrete gray and sky blue",
+    },  # noqa: E501
     "IT": {"style": "tech-futuristic", "mood": "innovative, sleek", "colors": "neon blue and dark background"},
     "건강": {"style": "fitness illustration", "mood": "energetic, fresh", "colors": "green and white"},
     "정치": {"style": "newspaper editorial", "mood": "serious, neutral", "colors": "black, white, and red accent"},
@@ -43,7 +47,7 @@ _BLIND_ANIME_STYLE = {
     "base": "Pixar-style 3D animated illustration",
     "character": "cute expressive Korean office worker character with big eyes",
     "quality": "cinematic lighting, warm color grading, soft shadows, bokeh background",
-    "constraints": "absolutely no text, no letters, no numbers, no words, no captions, no watermark, no speech bubbles, no signs with writing, clean image only, 16:9 aspect ratio",
+    "constraints": "absolutely no text, no letters, no numbers, no words, no captions, no watermark, no speech bubbles, no signs with writing, clean image only, 16:9 aspect ratio",  # noqa: E501
 }
 
 # 감정별 분위기 오버라이드
@@ -64,7 +68,10 @@ _EMOTION_MOOD_OVERRIDE: dict[str, str] = {
 #   2. fallback: 토픽 기본 장면 (_TOPIC_SCENES)
 _SEMANTIC_SCENES: dict[tuple[str, str], str] = {
     # ── 연봉 ────────────────────────────────────────────────────────
-    ("연봉", "분노"): "office worker angrily staring at a tiny paycheck stub while coworkers celebrate bonuses in the background",
+    (
+        "연봉",
+        "분노",
+    ): "office worker angrily staring at a tiny paycheck stub while coworkers celebrate bonuses in the background",  # noqa: E501
     ("연봉", "허탈"): "office worker staring blankly at empty wallet at a dimly lit desk with scattered bills",
     ("연봉", "경악"): "office worker jaw dropped reading a shockingly low salary offer letter on screen",
     ("연봉", "웃김"): "office worker laughing nervously comparing tiny paycheck to enormous coffee shop receipt",
@@ -170,6 +177,7 @@ class ImageGenerator:
             if google_key:
                 try:
                     from google import genai
+
                     self._gemini_client = genai.Client(api_key=google_key)
                     logger.info("Image provider: gemini (free)")
                 except ImportError:
@@ -195,6 +203,7 @@ class ImageGenerator:
 
             if openai_enabled and self.api_key:
                 from openai import AsyncOpenAI
+
                 self.client = AsyncOpenAI(api_key=self.api_key)
                 logger.info("Image provider: dalle (paid)")
             else:
@@ -230,30 +239,28 @@ class ImageGenerator:
 
         # ── 블라인드 전용: 애니/삽화/Pixar 3D 스타일 ────────────────────
         if _source in {"blind", "블라인드"}:
-            return ImageGenerator._build_blind_anime_prompt(
-                topic_cluster, emotion_axis, title, draft_text
-            )
+            return ImageGenerator._build_blind_anime_prompt(topic_cluster, emotion_axis, title, draft_text)
 
         # ── 커뮤니티별 시맨틱 씬 (비블라인드 소스) ────────────────────
         _COMMUNITY_SCENES: dict[str, dict[str, str]] = {
             "ppomppu": {
                 "base": "playful shopping illustration",
-                "scene": "animated character excitedly discovering an amazing deal on a phone screen with sale tags floating around",
+                "scene": "animated character excitedly discovering an amazing deal on a phone screen with sale tags floating around",  # noqa: E501
                 "mood": "energetic, bargain-hunting",
             },
             "뽐뿌": {
                 "base": "playful shopping illustration",
-                "scene": "animated character excitedly discovering an amazing deal on a phone screen with sale tags floating around",
+                "scene": "animated character excitedly discovering an amazing deal on a phone screen with sale tags floating around",  # noqa: E501
                 "mood": "energetic, bargain-hunting",
             },
             "fmkorea": {
                 "base": "internet culture cartoon",
-                "scene": "animated character scrolling through a chaotic online forum with memes and reactions floating around",
+                "scene": "animated character scrolling through a chaotic online forum with memes and reactions floating around",  # noqa: E501
                 "mood": "humorous, internet-savvy, meme-like",
             },
             "에펨코리아": {
                 "base": "internet culture cartoon",
-                "scene": "animated character scrolling through a chaotic online forum with memes and reactions floating around",
+                "scene": "animated character scrolling through a chaotic online forum with memes and reactions floating around",  # noqa: E501
                 "mood": "humorous, internet-savvy, meme-like",
             },
             "jobplanet": {
@@ -267,7 +274,7 @@ class ImageGenerator:
                 "mood": "analytical, data-driven",
             },
         }
-        _NO_TEXT = "absolutely no text, no letters, no numbers, no words, no captions, no writing of any kind, no watermark, clean image only"
+        _NO_TEXT = "absolutely no text, no letters, no numbers, no words, no captions, no writing of any kind, no watermark, clean image only"  # noqa: E501
 
         if _source in _COMMUNITY_SCENES:
             comm = _COMMUNITY_SCENES[_source]
@@ -287,6 +294,7 @@ class ImageGenerator:
         # A/B 테스트 우수 가중치 최우선 반영
         try:
             from pipeline.ab_feedback_loop import ABFeedbackLoop
+
             tuned = ABFeedbackLoop.load_tuned_styles()
             if topic_cluster in tuned:
                 if "mood" in tuned[topic_cluster]:
@@ -298,8 +306,8 @@ class ImageGenerator:
 
         # 프롬프트 조합 — 한글 제목/초안 텍스트는 프롬프트에 포함하지 않음
         # (한글 텍스트가 이미지에 오타로 렌더링되는 문제 방지)
-        _NO_TEXT = "absolutely no text, no letters, no numbers, no words, no captions, no writing of any kind, no watermark, clean image only"
-        return f"A {style} about Korean office workers with {mood} mood using {colors} color palette, {_NO_TEXT}, high quality, 16:9 aspect ratio"
+        _NO_TEXT = "absolutely no text, no letters, no numbers, no words, no captions, no writing of any kind, no watermark, clean image only"  # noqa: E501
+        return f"A {style} about Korean office workers with {mood} mood using {colors} color palette, {_NO_TEXT}, high quality, 16:9 aspect ratio"  # noqa: E501
 
     @staticmethod
     def _build_blind_anime_prompt(
@@ -341,15 +349,28 @@ class ImageGenerator:
             "정치": "reading news on phone with a surprised expression in office cafeteria",
             "자기계발": "studying late at night at desk with determination in eyes",
         }
-        default_scene = "sitting at an office desk with a relatable everyday expression"
+        # "기타" 토픽용 다양한 기본 장면 풀 — 매 생성마다 무작위 선택하여 이미지 중복 방지
+        _DEFAULT_SCENES_POOL = [
+            "sitting at an office desk with a relatable everyday expression",
+            "walking out of an elevator into a busy office floor with mixed emotions",
+            "staring out a window from a modern office with a thoughtful look",
+            "standing by a coffee machine in a break room with a tired but cheerful smile",
+            "checking phone notifications at a quiet office desk late in the evening",
+            "packing up a bag at the end of the workday with a relieved expression",
+            "waiting in a long queue at a cafeteria holding a lunch tray",
+        ]
 
-        # 시멘틱 씬 매핑: (토픽, 감정) 교차 조합 우선 → 토픽 기본 → 범용
+        # 시멘틱 씬 매핑: (토픽, 감정) 교차 조합 우선 → 토픽 기본 → 범용 풀 무작위
         semantic_key = (topic_cluster, emotion_axis)
         if semantic_key in _SEMANTIC_SCENES:
             scene = _SEMANTIC_SCENES[semantic_key]
             logger.debug("Semantic scene matched: %s → %s", semantic_key, scene[:60])
+        elif topic_cluster in _TOPIC_SCENES:
+            scene = _TOPIC_SCENES[topic_cluster]
         else:
-            scene = _TOPIC_SCENES.get(topic_cluster, default_scene)
+            import random
+
+            scene = random.choice(_DEFAULT_SCENES_POOL)
 
         # 감정별 표정 설정
         _EMOTION_EXPRESSIONS: dict[str, str] = {
@@ -369,11 +390,7 @@ class ImageGenerator:
         # (한글 텍스트가 이미지에 오타로 렌더링되는 문제 방지)
         # 시멘틱 씬 매핑 + 감정 표정으로 장면을 직관적으로 구성
 
-        return (
-            f"{base} of a {character}, {scene}, "
-            f"showing {expression}, "
-            f"{quality}, {constraints}"
-        )
+        return f"{base} of a {character}, {scene}, showing {expression}, {quality}, {constraints}"
 
     async def generate_image(self, prompt: str, topic_cluster: str = "", emotion_axis: str = "") -> str | None:
         """Generate an image from a prompt. Returns a temp file path or URL.
@@ -394,6 +411,7 @@ class ImageGenerator:
         if topic_cluster:
             try:
                 from pipeline.image_cache import ImageCache
+
                 _cache = ImageCache()
                 cached = _cache.get(topic_cluster, emotion_axis)
                 if cached:
@@ -507,7 +525,9 @@ class ImageGenerator:
                             f.write(image_data)
                             temp_path = f.name
 
-                        logger.info("Successfully generated image via Gemini [%s] (%d bytes)", model_name, len(image_data))
+                        logger.info(
+                            "Successfully generated image via Gemini [%s] (%d bytes)", model_name, len(image_data)
+                        )  # noqa: E501
                         return temp_path
 
                 logger.warning("Gemini [%s] response contained no image data.", model_name)

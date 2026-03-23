@@ -107,6 +107,25 @@ SPAM_TITLE_KEYWORDS = [
     "텔레그램상담",
 ]
 
+# 부적절 콘텐츠 키워드 (제목 기준) — 성적/혐오/불법 소지
+INAPPROPRIATE_TITLE_KEYWORDS = [
+    "골반 구경",
+    "몰카",
+    "불법촬영",
+    "업스커트",
+    "노출",
+    "야동",
+    "훔쳐보",
+    "성희롱",
+    "성추행",
+    "성폭행",
+    "아동",
+    "미성년",  # 명백한 불법 소지
+]
+
+# profile 단계에서 걸러낼 감정 축 (발행 부적절 콘텐츠)
+_REJECT_EMOTION_AXES = {"혐오"}
+
 DRAFT_STYLE_LABELS = {
     "공감형": "공감형 트윗",
     "논쟁형": "논쟁형 트윗",
@@ -330,6 +349,17 @@ async def process_single_post(
         matched_spam = [k for k in SPAM_TITLE_KEYWORDS if k in title_text]
         # 본문에서 스팸 키워드 확인 (본문은 기본 키워드 사용)
         matched_spam.extend([k for k in SPAM_KEYWORDS if k in content_text])
+        # 부적절 콘텐츠 필터 (제목 기준 — 성적/혐오/불법)
+        matched_inappropriate = [k for k in INAPPROPRIATE_TITLE_KEYWORDS if k in title_text]
+        if matched_inappropriate:
+            result["error"] = f"Inappropriate content detected: {matched_inappropriate[0]}"
+            result["error_code"] = ERROR_FILTERED_SPAM
+            result["success"] = True
+            result["notion_url"] = "(skipped-filtered)"
+            result["failure_stage"] = "filter"
+            result["failure_reason"] = "inappropriate_content"
+            logger.info("SKIP [inappropriate] %s — keyword: %s", url, matched_inappropriate[0])
+            return result
         if matched_spam:
             result["error"] = "Spam keywords detected"
             result["error_code"] = ERROR_FILTERED_SPAM
@@ -375,6 +405,17 @@ async def process_single_post(
         result["performance_score"] = profile["performance_score"]
         result["final_rank_score"] = profile["final_rank_score"]
         result["review_status"] = decision["review_status"]
+
+        # 혐오 감정 분류 → 자동 거부 (브랜드 안전)
+        if profile.get("emotion_axis") in _REJECT_EMOTION_AXES:
+            result["error"] = f"Rejected: emotion_axis='{profile['emotion_axis']}' not suitable for publishing"
+            result["error_code"] = ERROR_FILTERED_SPAM
+            result["success"] = True
+            result["notion_url"] = "(skipped-filtered)"
+            result["failure_stage"] = "filter"
+            result["failure_reason"] = "rejected_emotion_axis"
+            logger.info("SKIP [emotion_filter] %s — emotion=%s", url, profile["emotion_axis"])
+            return result
 
         # KOTE 감정 프로필 메타데이터 기록
         try:
