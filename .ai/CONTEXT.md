@@ -109,10 +109,10 @@ Vibe coding/                      # Root 워크스페이스
 
 - blind-to-x: 스케줄러 자동 실행 모니터링 (S4U 전환 후 1주간)
 - blind-to-x: 라이브 URL 필터 검증 + Notion 검토 큐 레거시 unsafe 1건 정리 완료. 전체 `--review-only` 배치 스모크는 사용자 승인 대기
-- 시스템 QC 최신 기준(2026-03-24): `execution/qaqc_runner.py`가 **`CONDITIONALLY_APPROVED`** 복구. blind-to-x `531 passed, 16 skipped`, shorts-maker-v2 `776 passed, 8 skipped`, root `910 passed, 1 skipped`, 총 `2217 passed`
+- 시스템 QC 최신 기준(2026-03-24): `execution/qaqc_runner.py`가 **`APPROVED`** 복구. blind-to-x `534 passed, 16 skipped`, shorts-maker-v2 `776 passed, 8 skipped`, root `913 passed, 1 skipped`, 총 `2223 passed`
 - `execution/qaqc_runner.py`는 이제 project-local `pytest.ini`/`pyproject`의 coverage/capture `addopts`를 `-o addopts=`로 비활성화하고, root는 `tests/`와 `execution/tests/`를 분리 실행함
 - blind-to-x의 `tests/integration/test_curl_cffi.py`는 Windows 한글 경로 환경의 known CA Error 77 재현용에 가까워 system QC runner에서만 ignore 처리
-- 남은 triage: security scan 6건(`blind-to-x/pipeline/cost_db.py`, `execution/content_db.py`, `sqlite-multi-mcp/server.py`) 분류, intermittent `test_golden_render_moviepy` 재발 여부 관찰
+- security scan 6건 triage 완료: line-level `# noqa`와 explicit triage metadata를 runner가 인식하도록 보강되어 **CLEAR**. 남은 관찰 포인트는 intermittent `test_golden_render_moviepy` 재발 여부
 - 시스템 고도화 v2 Phase 5: coverage 목표 상향과 후속 문서 정리
 - coverage 기준선(2026-03-23): shorts-maker-v2 54.98%, blind-to-x 51.72%; shorts targeted tests 29건 추가 후 전체 재측정 대기
 
@@ -147,4 +147,4 @@ Vibe coding/                      # Root 워크스페이스
 
 ---
 
-*마지막 업데이트: 2026-03-24 KST (Codex — `qaqc_runner.py` 안정화, full QC `CONDITIONALLY_APPROVED` 복구, security triage 후속 이슈 기록)*
+*마지막 업데이트: 2026-03-24 KST (Codex — security triage 반영, full QC `APPROVED` 복구)*

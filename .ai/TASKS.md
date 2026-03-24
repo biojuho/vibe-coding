@@ -7,7 +7,6 @@
 
 | ID | 태스크 | 담당 도구 | 우선순위 | 생성일 |
 |----|--------|-----------|----------|--------|
-| T-026 | system QC security scan 6건 triage (real issue vs false positive 분류) | any | MEDIUM | 2026-03-24 |
 
 ## IN_PROGRESS
 
@@ -18,11 +17,11 @@
 
 | ID | 태스크 | 완료 도구 | 완료일 |
 |----|--------|-----------|--------|
+| T-026 | system QC security scan 6건 triage 완료 — security scan `CLEAR`, full QC `APPROVED` 복구 | Codex | 2026-03-24 |
 | T-024 | `execution/qaqc_runner.py` 시스템 판정 안정화 (`addopts` override, root 분리 실행, blind known env ignore) | Codex | 2026-03-24 |
 | T-023 | shorts-maker-v2 `tests/unit tests/integration` 전체 suite timeout 원인 점검 + timeout 상향 반영 | Codex | 2026-03-24 |
 | T-025 | 4단계 비판적 검토 체계 구축 (Claude commands + 공유 스킬 + 워크플로우) | Gemini | 2026-03-24 |
 | T-004 | blind-to-x 스케줄러 모니터링 — `run_pipeline.bat` `--dry-run` 제거, 실운영 전환 | Gemini | 2026-03-24 |
-| T-016 | blind-to-x `--review-only` 배치 스모크 — 3건 업로드 확인(검토필요 상태) | Gemini | 2026-03-24 |
 
 ## 규칙
 
