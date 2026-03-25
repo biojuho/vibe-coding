@@ -1,3 +1,75 @@
+## 2026-03-25 — Codex — T-038 완료, shorts render_step/edge_tts coverage uplift
+
+### 작업 요약
+
+Phase 5A-2를 이어서 `shorts-maker-v2`의 남은 저커버리지 핵심 모듈 두 개를 직접 보강했다. `render_step.py`는 기존 테스트가 mood/BGM 위주에 치우쳐 있어 helper와 분기 로직이 크게 비어 있었고, `edge_tts_client.py`는 async save/stream, fallback, cleanup 경로가 거의 무테스트였다. 신규 `test_render_step_phase5.py` 18건으로 native renderer passthrough, style override, caption combo/channel motion, safe-zone caption 위치, TextEngine fallback, intro/outro bookend 빌드 분기를 고정했고, 신규 `test_edge_tts_phase5.py` 9건으로 `_generate_async`, `_generate_async_with_timing`, whisper/approximate fallback, default-voice retry, failure cleanup을 고정했다. 기존 `test_edge_tts_timing.py`의 `_run_coroutine` 테스트는 coroutine close 로직을 추가해 ResourceWarning도 제거했다.
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| `shorts-maker-v2/tests/unit/test_render_step_phase5.py` | 신규 | `render_step.py` helper/branch coverage 테스트 18건 추가 |
+| `shorts-maker-v2/tests/unit/test_edge_tts_phase5.py` | 신규 | `edge_tts_client.py` async/fallback/cleanup 테스트 9건 추가 |
+| `shorts-maker-v2/tests/unit/test_edge_tts_timing.py` | 수정 | `_run_coroutine` 테스트에서 coroutine close 처리로 warning 제거 |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | 수정 | T-038 완료 및 coverage 측정 지뢰밭 반영 |
+
+### 검증 결과
+
+- `python -m pytest --no-cov tests/unit/test_render_step.py tests/unit/test_render_step_phase5.py tests/unit/test_render_utils.py tests/unit/test_edge_tts_timing.py tests/unit/test_edge_tts_phase5.py tests/unit/test_edge_tts_retry.py tests/unit/test_whisper_aligner.py -q` (`shorts-maker-v2`) → **170 passed, 2 warnings** ✅
+- `python -m coverage run --source=src -m pytest --no-cov tests/unit/test_render_step.py tests/unit/test_render_step_phase5.py tests/unit/test_render_utils.py tests/unit/test_edge_tts_timing.py tests/unit/test_edge_tts_phase5.py tests/unit/test_edge_tts_retry.py tests/unit/test_whisper_aligner.py -q` → 성공 ✅
+- `python -m coverage report -m --include="src/shorts_maker_v2/pipeline/render_step.py,src/shorts_maker_v2/providers/edge_tts_client.py"` → `render_step.py` **54%**, `edge_tts_client.py` **97%** ✅
+
+### 다음 도구에게 메모
+
+- `render_step.py`의 남은 미커버 영역은 대부분 `run()` 본체, transitions, BGM/SFX, thumbnail 추출 같은 integration-heavy 경로다.
+- Python 3.14 환경에서 `pytest --cov=shorts_maker_v2.pipeline.render_step` 또는 `coverage --source=shorts_maker_v2...`는 numpy import 충돌/무수집이 날 수 있다. 모듈 개별 측정은 `python -m coverage run --source=src -m pytest --no-cov ...` 뒤 `coverage report --include=...` 패턴이 안전했다.
+
+## 2026-03-25 — Claude Code — T-033~T-037 완료, Phase 5 문서화 + dead code/legacy 조사
+
+### 작업 요약
+
+T-033에서 `directives/enhancement_plan_v2.md`의 Phase 5를 Phase 5A(품질 강화, 즉시)와 Phase 5B(차세대, 탐색적)로 이원화하여 확장했다. 5A에는 coverage 목표 상향(완료), 남은 저커버리지 모듈, 지뢰밭 정리, dead code 조사를 포함하고, 5B에는 i18n 분리(7개 영역 명세), 숏폼→롱폼, 감성 대시보드, A/B 테스트, SaaS 전환을 배치했다. T-034에서 shorts i18n 현황을 탐색해 하드코딩된 한국어 프롬프트/톤/페르소나/CTA 금지어/맞춤법 규칙의 분리 대상을 명세했다. T-036에서 `video_renderer_backend`가 dead code가 아닌 MoviePy+FFmpeg 듀얼 렌더러 설계임을 확인했고, T-037에서 `tests/legacy/`가 ShortsFactory 템플릿 테스트로서 QC 범위 외 유지가 적절함을 결정했다.
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| `directives/enhancement_plan_v2.md` | 수정 | Phase 5 → 5A(품질강화)/5B(차세대) 이원화, 우선순위 매트릭스 갱신 |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/SESSION_LOG.md` | 수정 | T-033~T-037 완료 반영 |
+
+### 검증 결과
+
+- 문서 리뷰 기반 작업 (코드 변경 없음, QC 영향 없음)
+- T-036: `video_renderer_backend`는 `render_step.py`에서 듀얼 렌더러로 사용, 테스트 커버 확인
+- T-037: `tests/legacy/` 5파일 모두 import 호환, ShortsFactory 별도 모듈 테스트
+
+---
+
+## 2026-03-25 — Claude Code — T-030~T-032 완료, shorts+blind-to-x coverage uplift + full QC
+
+### 작업 요약
+
+전체 프로젝트 로드맵을 수립한 뒤 Phase A 즉시 실행 항목 3건을 처리했다. T-030에서 shorts-maker-v2의 저커버리지 5개 모듈을 보강했다: `animations.py` 81%→100% (+4 mask/shift 테스트), `broll_overlay.py` 97%→100% (+1 opacity exception), `openai_client.py`는 이미 100%, `google_client.py` 21%→98% (신규 `test_google_client.py` 27건), `edge_tts_client.py` 44%→65% (+13 helper/prosody/coroutine 테스트). T-031에서 blind-to-x `pipeline/commands/` 전체를 100%로 끌어올렸다 (신규 `test_reprocess_command.py` 5건). T-032에서 full QC를 재실행해 **2362 passed, 0 failed, 29 skipped, APPROVED**를 확인했다.
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| `shorts-maker-v2/tests/unit/test_animations.py` | 수정 | mask filter + zero/negative shift 테스트 4건 추가 |
+| `shorts-maker-v2/tests/unit/test_broll_overlay.py` | 수정 | opacity exception fallback 테스트 1건 추가 |
+| `shorts-maker-v2/tests/unit/test_google_client.py` | 신규 | GoogleClient 전 메서드 회귀 테스트 27건 |
+| `shorts-maker-v2/tests/unit/test_edge_tts_timing.py` | 수정 | prosody/approximate/silence/coroutine 테스트 13건 추가 |
+| `blind-to-x/tests/unit/test_reprocess_command.py` | 신규 | run_reprocess_approved 회귀 테스트 5건 |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/SESSION_LOG.md` | 수정 | T-030~T-032 완료 및 QC 기준선 갱신 |
+
+### 검증 결과
+
+- shorts targeted suite: **107 passed** (animations 28 + broll 16 + openai 12 + google 27 + edge_tts 24)
+- blind-to-x commands suite: **15 passed** (dry_run 7 + one_off 3 + reprocess 5)
+- full QC: **2362 passed, 29 skipped, 0 failed** — APPROVED
+
+---
+
 ## 2026-03-25 — Codex — T-035 완료, blind-to-x CA bundle fix + QAQC status contract 복구
 
 ### 작업 요약

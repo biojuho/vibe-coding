@@ -109,17 +109,18 @@ Vibe coding/                      # Root 워크스페이스
 
 - blind-to-x: 스케줄러 자동 실행 모니터링 (S4U 전환 후 1주간)
 - blind-to-x: 라이브 URL 필터 검증 + Notion 검토 큐 레거시 unsafe 1건 정리 완료. 전체 `--review-only` 배치 스모크는 사용자 승인 대기
-- 시스템 QC 최신 기준(2026-03-25): `execution/qaqc_runner.py`가 **`APPROVED`** 유지. blind-to-x `534 passed, 16 skipped`, shorts-maker-v2 `776 passed, 8 skipped`, root `914 passed, 1 skipped`, 총 `2224 passed`
+- 시스템 QC 최신 기준(2026-03-25): `execution/qaqc_runner.py`가 **`APPROVED`** 유지. blind-to-x `541 passed, 16 skipped`, shorts-maker-v2 `906 passed, 12 skipped`, root `915 passed, 1 skipped`, 총 `2362 passed`
 - `execution/qaqc_runner.py`는 이제 project-local `pytest.ini`/`pyproject`의 coverage/capture `addopts`를 `-o addopts=`로 비활성화하고, root는 `tests/`와 `execution/tests/`를 분리 실행함
 - `execution/qaqc_runner.py`는 Windows `schtasks` CSV를 읽을 때 `locale.getencoding()`을 사용하도록 보강되어, `-X utf8` 모드에서도 Scheduler 상태가 `6/6 Ready`로 정확히 집계됨
 - `blind-to-x/config.py`의 `load_env()`는 이제 `certifi` CA 번들을 ASCII-only 경로(`%PUBLIC%`/`%ProgramData%`)로 복사한 뒤 `CURL_CA_BUNDLE`에 연결해 Windows 한글 사용자 경로의 `curl_cffi` Error 77 우회를 강화함
 - `execution/qaqc_runner.py`의 `security_scan`은 다시 안정적인 machine-readable `status`(`CLEAR`/`WARNING`)를 유지하고, 표시용 문자열은 `status_detail`·`triaged_issue_count` 등으로 분리함. `knowledge-dashboard/src/components/QaQcPanel.tsx`도 `status_detail`을 읽도록 보강됨
 - shorts-maker-v2 coverage uplift 진행 중: `tests/unit/test_end_cards.py` 신규 7건으로 `render/ending_card.py` 94%, `render/outro_card.py` 93% 확보, `tests/unit/test_srt_export.py` 확장 12건으로 `render/srt_export.py` 95% 확보
 - shorts-maker-v2 coverage uplift 진행 중: `tests/unit/test_cli.py` 신규 12건으로 `cli.py` 67% 확보, `tests/unit/test_audio_postprocess.py` 확장 29건으로 `render/audio_postprocess.py` 85% 확보. 관련 targeted suite는 총 `60 passed, 12 skipped`
+- shorts-maker-v2 coverage uplift 진행 중(2026-03-25, Codex): 신규 `tests/unit/test_render_step_phase5.py` 18건 + `tests/unit/test_edge_tts_phase5.py` 9건으로 `render_step.py` **28% → 54%**, `edge_tts_client.py` **65% → 97%** 확보. 관련 targeted suite는 총 `170 passed, 2 warnings`
 - blind-to-x의 `tests/integration/test_curl_cffi.py`는 Windows 한글 경로 환경의 known CA Error 77 재현용에 가까워 system QC runner에서만 ignore 처리
 - security scan 6건 triage 완료: line-level `# noqa`와 explicit triage metadata를 runner가 인식하도록 보강되어 **CLEAR**. `test_golden_render_moviepy`는 2026-03-25 full QC에서 재발하지 않았고 이후 full QC에서 관찰만 유지
 - 시스템 고도화 v2 Phase 5: coverage 목표 상향과 후속 문서 정리
-- coverage 기준선(2026-03-23): shorts-maker-v2 54.98%, blind-to-x 51.72%; shorts targeted tests 29건 추가 후 전체 재측정 대기
+- coverage uplift (2026-03-25, Claude): shorts `animations.py` 100%, `broll_overlay.py` 100%, `openai_client.py` 100%, `google_client.py` 98%, `edge_tts_client.py` 65%; blind-to-x `commands/` 전체 100%
 
 ### 향후 예정
 
@@ -154,7 +155,8 @@ Vibe coding/                      # Root 워크스페이스
 | 2026-03-25 | Codex | machine-readable 상태 문자열에 설명을 합치면 `status === "CLEAR"` 같은 소비자 호환이 깨짐 | `status`는 안정 enum만 유지하고 부가 문구는 `status_detail`/count 필드로 분리 |
 | 2026-03-25 | Codex | `shorts-maker-v2` 카드 렌더 테스트를 기본 PIL 폰트로 돌리면 한글/이모지 glyph 문제로 환경 의존 실패가 날 수 있음 | Windows 폰트 후보(`malgun.ttf`, `arial.ttf`, `seguiemj.ttf`)를 우선 주입하고 없으면 테스트를 skip |
 | 2026-03-25 | Codex | `audio_postprocess.py` 테스트가 실제 `pydub` 설치 여부에 기대면 핵심 후처리 분기가 skip되어 coverage가 안 오른다 | `sys.modules`에 fake `pydub`/`pydub.effects` module을 주입해 normalize/EQ/compression/reverb를 직접 커버 |
+| 2026-03-25 | Codex | `shorts-maker-v2`에서 모듈 지정 coverage(`pytest --cov=shorts_maker_v2.pipeline.render_step` 또는 `coverage --source=shorts_maker_v2...`)를 쓰면 Python 3.14 + numpy 조합에서 `cannot load module more than once per process` 또는 no-data가 날 수 있음 | `python -m coverage run --source=src -m pytest --no-cov ...` 후 `coverage report --include=...` 패턴으로 측정 |
 
 ---
 
-*마지막 업데이트: 2026-03-25 KST (Codex — blind-to-x CA bundle fix + QAQC status contract 복구 반영)*
+*마지막 업데이트: 2026-03-25 KST (Codex — T-038 render_step/edge_tts coverage uplift, `54%`/`97%`, targeted suite `170 passed`)*
