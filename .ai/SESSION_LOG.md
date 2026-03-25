@@ -1,3 +1,31 @@
+## 2026-03-25 — Codex — T-027 완료, scheduler locale 파싱 수정 + full QC 재검증
+
+### 작업 요약
+
+handoff에 남아 있던 Task Scheduler `0/6 Ready` 집계를 실제 Windows Task Scheduler와 대조한 결과, 등록된 `BlindToX_*` 5개와 `BlindToX_Pipeline` 1개는 모두 **Ready**였다. 원인은 `execution/qaqc_runner.py`가 `schtasks /query /fo CSV /nh` 출력을 UTF-8 기준으로 읽으면서 한국어 상태값 `준비`를 `�غ�`로 깨뜨린 데 있었다. 1차로 locale 기반 디코딩을 넣었지만, full QC가 `python -X utf8`로 실행되면 `locale.getpreferredencoding(False)`가 다시 UTF-8을 반환하는 함정이 있어 `locale.getencoding()` 기반으로 재수정했다. 이후 targeted 회귀 테스트와 `-X utf8` 직접 호출을 확인한 뒤 full QC를 재실행해 Scheduler **`6/6 Ready`**, 최종 판정 **`APPROVED`**를 확인했다. 같은 full QC에서 `test_golden_render_moviepy` flaky도 재발하지 않았다.
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| `execution/qaqc_runner.py` | 수정 | Windows `schtasks` CSV를 `locale.getencoding()`으로 디코딩하고 CSV 컬럼 기준으로 `Ready`/`준비` 상태를 집계하도록 수정 |
+| `tests/test_qaqc_runner_extended.py` | 수정 | localized scheduler status(`준비`)와 UTF-8 mode 회귀 테스트 추가 |
+| `knowledge-dashboard/public/qaqc_result.json` | 갱신 | latest full QC 결과 저장 (`APPROVED`, Scheduler `6/6 Ready`) |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | 수정 | T-027 완료, 최신 QC 기준선/지뢰밭/후속 작업 반영 |
+
+### 검증 결과
+
+- `python -m pytest -o addopts= tests/test_qaqc_runner_extended.py -q` → **6 passed** ✅
+- `venv\\Scripts\\python.exe -X utf8 -c "from execution.qaqc_runner import check_infrastructure; ..."` → Scheduler **`6/6 Ready`** ✅
+- `venv\\Scripts\\python.exe -X utf8 execution\\qaqc_runner.py` → **full QC `APPROVED`** / blind-to-x **534 passed, 16 skipped**, shorts-maker-v2 **776 passed, 8 skipped**, root **914 passed, 1 skipped**, total **2224 passed, 25 skipped** / Scheduler **`6/6 Ready`** ✅
+
+### 다음 도구에게 메모
+
+- `test_golden_render_moviepy`는 2026-03-25 full QC에서 재발하지 않았다. 이후 full QC에서 관찰만 유지하면 된다.
+- Windows에서 `python -X utf8`로 실행되는 CLI는 locale-sensitive subprocess 출력에서 `locale.getpreferredencoding(False)`를 그대로 쓰면 오탐이 생길 수 있다.
+
+---
+
 ## 2026-03-24 — Codex — T-026 완료, security scan CLEAR + full QC APPROVED
 
 ### 작업 요약

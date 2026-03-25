@@ -109,10 +109,11 @@ Vibe coding/                      # Root 워크스페이스
 
 - blind-to-x: 스케줄러 자동 실행 모니터링 (S4U 전환 후 1주간)
 - blind-to-x: 라이브 URL 필터 검증 + Notion 검토 큐 레거시 unsafe 1건 정리 완료. 전체 `--review-only` 배치 스모크는 사용자 승인 대기
-- 시스템 QC 최신 기준(2026-03-24): `execution/qaqc_runner.py`가 **`APPROVED`** 복구. blind-to-x `534 passed, 16 skipped`, shorts-maker-v2 `776 passed, 8 skipped`, root `913 passed, 1 skipped`, 총 `2223 passed`
+- 시스템 QC 최신 기준(2026-03-25): `execution/qaqc_runner.py`가 **`APPROVED`** 유지. blind-to-x `534 passed, 16 skipped`, shorts-maker-v2 `776 passed, 8 skipped`, root `914 passed, 1 skipped`, 총 `2224 passed`
 - `execution/qaqc_runner.py`는 이제 project-local `pytest.ini`/`pyproject`의 coverage/capture `addopts`를 `-o addopts=`로 비활성화하고, root는 `tests/`와 `execution/tests/`를 분리 실행함
+- `execution/qaqc_runner.py`는 Windows `schtasks` CSV를 읽을 때 `locale.getencoding()`을 사용하도록 보강되어, `-X utf8` 모드에서도 Scheduler 상태가 `6/6 Ready`로 정확히 집계됨
 - blind-to-x의 `tests/integration/test_curl_cffi.py`는 Windows 한글 경로 환경의 known CA Error 77 재현용에 가까워 system QC runner에서만 ignore 처리
-- security scan 6건 triage 완료: line-level `# noqa`와 explicit triage metadata를 runner가 인식하도록 보강되어 **CLEAR**. 남은 관찰 포인트는 intermittent `test_golden_render_moviepy` 재발 여부
+- security scan 6건 triage 완료: line-level `# noqa`와 explicit triage metadata를 runner가 인식하도록 보강되어 **CLEAR**. `test_golden_render_moviepy`는 2026-03-25 full QC에서 재발하지 않았고 이후 full QC에서 관찰만 유지
 - 시스템 고도화 v2 Phase 5: coverage 목표 상향과 후속 문서 정리
 - coverage 기준선(2026-03-23): shorts-maker-v2 54.98%, blind-to-x 51.72%; shorts targeted tests 29건 추가 후 전체 재측정 대기
 
@@ -144,7 +145,8 @@ Vibe coding/                      # Root 워크스페이스
 | 2026-03-23 | Codex | `tests/test_qaqc_history_db.py`가 2026-03-22 고정 타임스탬프를 써서 날짜가 지나면 `days=1` 조회가 0건이 됨 | 테스트 fixture를 상대시간 기준으로 바꿔야 안정적 |
 | 2026-03-24 | Codex | `shorts-maker-v2`에서 `pytest --collect-only`만 돌려도 프로젝트 coverage 설정 때문에 실패처럼 보일 수 있음 | 수집 디버깅은 `--no-cov`를 함께 쓰거나 coverage gate를 명시적으로 끈다 |
 | 2026-03-24 | Codex | system QC runner가 프로젝트별 `addopts`를 그대로 먹으면 root `.coverage` PermissionError, shorts coverage gate, Windows capture 충돌로 오탐이 커짐 | runner는 `-o addopts=`로 고정하고 필요한 인자만 명시적으로 넣는다 |
+| 2026-03-25 | Codex | `python -X utf8`로 실행한 `qaqc_runner.py`에서 `locale.getpreferredencoding(False)`가 UTF-8을 반환해 `schtasks`의 cp949 `준비` 상태가 깨지고 Scheduler가 `0/6 Ready`로 오탐될 수 있음 | Windows scheduler CSV는 `locale.getencoding()`으로 디코딩하고 CSV 컬럼의 상태값을 직접 파싱 |
 
 ---
 
-*마지막 업데이트: 2026-03-24 KST (Codex — security triage 반영, full QC `APPROVED` 복구)*
+*마지막 업데이트: 2026-03-25 KST (Codex — scheduler locale 파싱 수정, full QC `APPROVED` + `6/6 Ready` 복구)*

@@ -7,31 +7,32 @@
 
 | 항목 | 내용 |
 |------|------|
-| 날짜 | 2026-03-24 |
+| 날짜 | 2026-03-25 |
 | 도구 | Codex |
-| 작업 | T-026 완료 — security scan triage 반영, full QC `APPROVED` 복구 |
+| 작업 | T-027 완료 — scheduler locale 파싱 수정, full QC `APPROVED` + `6/6 Ready` 확인 |
 
 ## 현재 시스템 상태
 
-- **QC 기준선 (2026-03-24 최신)**:
+- **QC 기준선 (2026-03-25 최신)**:
   - blind-to-x: **534 passed, 16 skipped** (`test_cost_db_security.py` 포함)
-  - shorts-maker-v2: **776 passed, 8 skipped** / full suite 849.77s
-  - root: **913 passed, 1 skipped**
-  - 전체: **2223 passed, 25 skipped, 0 failed**
+  - shorts-maker-v2: **776 passed, 8 skipped**
+  - root: **914 passed, 1 skipped**
+  - 전체: **2224 passed, 25 skipped, 0 failed**
 - **시스템 QC runner (`qaqc_runner.py`)**: security scan **CLEAR**, full suite **`APPROVED`**
-- **스케줄러**: latest infra check에서 `0/6 Ready`로 집계됨. 이전 handoff의 `BlindToX_Pipeline Ready`와 차이가 있어 다음 운영 작업 시 수동 확인 권장
-- **남은 핵심 이슈**: 없음 (관찰: `test_golden_render_moviepy` flaky 재발 여부)
+- **스케줄러**: Windows Task Scheduler 실제 상태와 최신 infra check가 **`6/6 Ready`**로 일치. 원인은 `schtasks` CSV를 UTF-8 모드에서 잘못 디코딩한 locale 오탐이었고 수정 완료
+- **남은 핵심 이슈**: 없음 (`test_golden_render_moviepy`는 2026-03-25 full QC에서 재발 없음)
 
 ## 다음 도구가 해야 할 일 (우선순위)
 
-1. `test_golden_render_moviepy` flaky가 다시 나타나는지 다음 full QC에서 관찰
-2. 스케줄러를 다시 만질 때 Windows Task Scheduler 실제 상태와 runner의 `0/6 Ready` 집계를 대조 확인
+1. 시스템 고도화 v2 Phase 5 후속(coverage 목표 상향, 문서 정리) 계속 진행
+2. `test_golden_render_moviepy`는 당장은 재현되지 않았으므로 이후 full QC에서 수동 관찰만 유지
 
 ## 주의사항
 
 - render_step.py의 커스텀 이펙트(ken_burns, 전환효과, 카라오케)는 MoviePy 전용 유지
 - `.githooks/pre-commit`에 `ruff format --check` 추가됨 — 커밋 전 포맷 확인 필요
 - Windows cp949 콘솔 이모지 크래시 주의 — llm_router.py는 `_safe_console_print()` 우회
+- `execution/qaqc_runner.py`는 Windows에서 `schtasks` CSV를 읽을 때 `locale.getpreferredencoding(False)` 대신 `locale.getencoding()`을 써야 `-X utf8` 모드에서도 `준비` 상태가 깨지지 않음
 - Windows 한글 사용자 경로 + `curl_cffi` 조합에서 CA 경로 Error 77이 재현됨
 - `execution/qaqc_runner.py`는 `-o addopts=`로 프로젝트별 coverage/capture addopts를 비활성화하고, security scan에서 line-level `# noqa`와 triage metadata 문자열을 무시함
 - 작업 트리에 기존 미정리 변경이 많음. 무관한 파일은 되돌리지 말 것
