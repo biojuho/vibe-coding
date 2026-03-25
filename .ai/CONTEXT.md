@@ -112,6 +112,8 @@ Vibe coding/                      # Root 워크스페이스
 - 시스템 QC 최신 기준(2026-03-25): `execution/qaqc_runner.py`가 **`APPROVED`** 유지. blind-to-x `534 passed, 16 skipped`, shorts-maker-v2 `776 passed, 8 skipped`, root `914 passed, 1 skipped`, 총 `2224 passed`
 - `execution/qaqc_runner.py`는 이제 project-local `pytest.ini`/`pyproject`의 coverage/capture `addopts`를 `-o addopts=`로 비활성화하고, root는 `tests/`와 `execution/tests/`를 분리 실행함
 - `execution/qaqc_runner.py`는 Windows `schtasks` CSV를 읽을 때 `locale.getencoding()`을 사용하도록 보강되어, `-X utf8` 모드에서도 Scheduler 상태가 `6/6 Ready`로 정확히 집계됨
+- `blind-to-x/config.py`의 `load_env()`는 이제 `certifi` CA 번들을 ASCII-only 경로(`%PUBLIC%`/`%ProgramData%`)로 복사한 뒤 `CURL_CA_BUNDLE`에 연결해 Windows 한글 사용자 경로의 `curl_cffi` Error 77 우회를 강화함
+- `execution/qaqc_runner.py`의 `security_scan`은 다시 안정적인 machine-readable `status`(`CLEAR`/`WARNING`)를 유지하고, 표시용 문자열은 `status_detail`·`triaged_issue_count` 등으로 분리함. `knowledge-dashboard/src/components/QaQcPanel.tsx`도 `status_detail`을 읽도록 보강됨
 - shorts-maker-v2 coverage uplift 진행 중: `tests/unit/test_end_cards.py` 신규 7건으로 `render/ending_card.py` 94%, `render/outro_card.py` 93% 확보, `tests/unit/test_srt_export.py` 확장 12건으로 `render/srt_export.py` 95% 확보
 - shorts-maker-v2 coverage uplift 진행 중: `tests/unit/test_cli.py` 신규 12건으로 `cli.py` 67% 확보, `tests/unit/test_audio_postprocess.py` 확장 29건으로 `render/audio_postprocess.py` 85% 확보. 관련 targeted suite는 총 `60 passed, 12 skipped`
 - blind-to-x의 `tests/integration/test_curl_cffi.py`는 Windows 한글 경로 환경의 known CA Error 77 재현용에 가까워 system QC runner에서만 ignore 처리
@@ -148,9 +150,11 @@ Vibe coding/                      # Root 워크스페이스
 | 2026-03-24 | Codex | `shorts-maker-v2`에서 `pytest --collect-only`만 돌려도 프로젝트 coverage 설정 때문에 실패처럼 보일 수 있음 | 수집 디버깅은 `--no-cov`를 함께 쓰거나 coverage gate를 명시적으로 끈다 |
 | 2026-03-24 | Codex | system QC runner가 프로젝트별 `addopts`를 그대로 먹으면 root `.coverage` PermissionError, shorts coverage gate, Windows capture 충돌로 오탐이 커짐 | runner는 `-o addopts=`로 고정하고 필요한 인자만 명시적으로 넣는다 |
 | 2026-03-25 | Codex | `python -X utf8`로 실행한 `qaqc_runner.py`에서 `locale.getpreferredencoding(False)`가 UTF-8을 반환해 `schtasks`의 cp949 `준비` 상태가 깨지고 Scheduler가 `0/6 Ready`로 오탐될 수 있음 | Windows scheduler CSV는 `locale.getencoding()`으로 디코딩하고 CSV 컬럼의 상태값을 직접 파싱 |
+| 2026-03-25 | Codex | Windows 한글 사용자 홈에서 `certifi.where()` 경로를 그대로 `CURL_CA_BUNDLE`에 넣어도 경로 자체가 비ASCII라 `curl_cffi` Error 77 우회가 실패할 수 있음 | CA 번들은 `%PUBLIC%`/`%ProgramData%` 같은 ASCII 경로로 복사하거나 short path fallback을 사용 |
+| 2026-03-25 | Codex | machine-readable 상태 문자열에 설명을 합치면 `status === "CLEAR"` 같은 소비자 호환이 깨짐 | `status`는 안정 enum만 유지하고 부가 문구는 `status_detail`/count 필드로 분리 |
 | 2026-03-25 | Codex | `shorts-maker-v2` 카드 렌더 테스트를 기본 PIL 폰트로 돌리면 한글/이모지 glyph 문제로 환경 의존 실패가 날 수 있음 | Windows 폰트 후보(`malgun.ttf`, `arial.ttf`, `seguiemj.ttf`)를 우선 주입하고 없으면 테스트를 skip |
 | 2026-03-25 | Codex | `audio_postprocess.py` 테스트가 실제 `pydub` 설치 여부에 기대면 핵심 후처리 분기가 skip되어 coverage가 안 오른다 | `sys.modules`에 fake `pydub`/`pydub.effects` module을 주입해 normalize/EQ/compression/reverb를 직접 커버 |
 
 ---
 
-*마지막 업데이트: 2026-03-25 KST (Codex — shorts CLI/audio coverage uplift + scheduler locale fix 유지)*
+*마지막 업데이트: 2026-03-25 KST (Codex — blind-to-x CA bundle fix + QAQC status contract 복구 반영)*

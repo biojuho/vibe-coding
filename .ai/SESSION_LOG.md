@@ -1,3 +1,37 @@
+## 2026-03-25 — Codex — T-035 완료, blind-to-x CA bundle fix + QAQC status contract 복구
+
+### 작업 요약
+
+코드리뷰에서 확인한 두 가지 실제 회귀를 바로 수정했다. `blind-to-x/config.py`는 `certifi.where()`를 그대로 `CURL_CA_BUNDLE`에 넣던 방식이 Windows 한글 사용자 경로에서는 여전히 비ASCII 경로라 `curl_cffi` Error 77 우회가 되지 않았다. 이를 `%PUBLIC%` 또는 `%ProgramData%` 아래 ASCII-only 경로로 CA 번들을 복사하고, 실패 시 short path를 쓰는 방식으로 바꿨다. 동시에 `execution/qaqc_runner.py`는 triaged-only 보안 결과를 `"CLEAR (n triaged issue(s))"`로 덮어써 `status === "CLEAR"` 소비자를 깨뜨리고 있었으므로, machine-readable `status`는 `CLEAR`/`WARNING`으로 되돌리고 표시용 `status_detail` 및 count 필드를 분리했다. `knowledge-dashboard/src/components/QaQcPanel.tsx`도 새 필드를 읽도록 맞췄다.
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| `blind-to-x/config.py` | 수정 | ASCII-safe CA bundle helper 추가, `load_env()`가 `certifi` 번들을 `%PUBLIC%`/`%ProgramData%` 경로로 복사 후 `CURL_CA_BUNDLE`에 연결 |
+| `blind-to-x/tests/unit/test_env_runtime_fallbacks.py` | 수정 | ASCII 경로 복사 우선, short path fallback 검증 테스트 추가 |
+| `execution/qaqc_runner.py` | 수정 | `security_scan.status` 안정 enum 복구, `status_detail`/`triaged_issue_count`/`actionable_issue_count` 분리, 콘솔 출력도 `status_detail` 사용 |
+| `tests/test_qaqc_runner_extended.py` | 수정 | triaged-only 보안 이슈가 여전히 `status == "CLEAR"`를 유지하는 회귀 테스트 추가 |
+| `knowledge-dashboard/src/components/QaQcPanel.tsx` | 수정 | `status_detail` 소비, triaged false positive 카운트 표시, 기존 unused import/const 정리 |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | 수정 | T-035 완료 및 후속 TODO/지뢰밭 갱신 |
+
+### 검증 결과
+
+- `venv\\Scripts\\python -X utf8 -m pytest tests/unit/test_env_runtime_fallbacks.py -q -o addopts=` (`blind-to-x`) → **5 passed** ✅
+- `venv\\Scripts\\python -X utf8 -m pytest tests/test_qaqc_runner.py tests/test_qaqc_runner_extended.py -q -o addopts=` → **30 passed** ✅
+- `venv\\Scripts\\python -X utf8 -m py_compile blind-to-x/config.py execution/qaqc_runner.py` → 성공 ✅
+- `venv\\Scripts\\ruff check blind-to-x/config.py execution/qaqc_runner.py blind-to-x/tests/unit/test_env_runtime_fallbacks.py tests/test_qaqc_runner_extended.py` → clean ✅
+- `npm.cmd exec tsc -- --noEmit` (`knowledge-dashboard`) → 성공 ✅
+- `npm.cmd run lint -- src/components/QaQcPanel.tsx` (`knowledge-dashboard`) → 성공 ✅
+- `git diff --check`는 **기존 unrelated 이슈** `execution/_logging.py:120`의 blank line at EOF 때문에 여전히 실패
+
+### 다음 도구에게 메모
+
+- `knowledge-dashboard/public/qaqc_result.json`은 이번 세션에서 재생성하지 않았다. `T-032`로 full QC를 다시 돌려 새 `security_scan` 필드를 반영하면 된다.
+- `shorts-maker-v2` 리뷰에서 발견한 `video_renderer_backend` orchestrator 미연결, `tests/legacy/` helper API QC 제외 이슈는 각각 `T-036`, `T-037`로 등록했다.
+
+---
+
 ## 2026-03-25 — Codex — T-029 완료, shorts CLI/audio postprocess coverage uplift
 
 ### 작업 요약

@@ -9,7 +9,7 @@
 |------|------|
 | 날짜 | 2026-03-25 |
 | 도구 | Codex |
-| 작업 | T-029 완료 — shorts CLI/audio postprocess coverage uplift + targeted suite 60 passed |
+| 작업 | T-035 완료 — blind-to-x ASCII CA bundle fix + QAQC security status compatibility 복구 |
 
 ## 현재 시스템 상태
 
@@ -19,15 +19,18 @@
   - root: **914 passed, 1 skipped**
   - 전체: **2224 passed, 25 skipped, 0 failed**
 - **시스템 QC runner (`qaqc_runner.py`)**: security scan **CLEAR**, full suite **`APPROVED`**
+- **blind-to-x 런타임**: `load_env()`가 `certifi` 번들을 ASCII-only 경로(`%PUBLIC%`/`%ProgramData%`)로 복사한 뒤 `CURL_CA_BUNDLE`에 연결해 Windows 한글 사용자 경로의 `curl_cffi` Error 77 우회를 보강
+- **QAQC 계약 안정화**: `security_scan.status`는 다시 `CLEAR`/`WARNING` 고정, 표시 문자열은 `status_detail`로 분리. `knowledge-dashboard`도 `status_detail`을 읽도록 보강
 - **스케줄러**: Windows Task Scheduler 실제 상태와 최신 infra check가 **`6/6 Ready`**로 일치. 원인은 `schtasks` CSV를 UTF-8 모드에서 잘못 디코딩한 locale 오탐이었고 수정 완료
 - **shorts coverage uplift (2026-03-25)**: 신규 테스트로 `render/ending_card.py` **94%**, `render/outro_card.py` **93%**, `render/srt_export.py` **95%** 확보 (`test_end_cards.py` 7 passed, `test_srt_export.py` 12 passed)
 - **추가 coverage uplift (2026-03-25)**: `cli.py` **67%**, `render/audio_postprocess.py` **85%** 확보. 신규/확장 테스트 묶음 `test_end_cards.py` + `test_srt_export.py` + `test_cli.py` + `test_audio_postprocess.py`는 **60 passed, 12 skipped**
-- **남은 핵심 이슈**: 없음 (`test_golden_render_moviepy`는 2026-03-25 full QC에서 재발 없음)
+- **남은 핵심 이슈**: shorts `video_renderer_backend`는 `RenderStep`까지는 들어왔지만 orchestrator 실경로 연결 여부를 재확인해야 함
 
 ## 다음 도구가 해야 할 일 (우선순위)
 
-1. 시스템 고도화 v2 Phase 5 후속: shorts 저커버리지 모듈 중 남은 큰 후보 `render/animations.py`, `render/broll_overlay.py`, `providers/openai_client.py` 검토
-2. 테스트 보강을 몇 조각 더 쌓은 뒤 shorts 전체 coverage 재측정 또는 full QC 재실행
+1. `T-032`: full QC를 다시 돌려 `knowledge-dashboard/public/qaqc_result.json`을 최신 `security_scan` 필드 구조로 재생성
+2. `T-036`: `shorts-maker-v2` orchestrator에서 `video_renderer_backend`를 실사용 경로까지 넘길지, 아니면 dead code를 정리할지 결정
+3. `T-037`: `ShortsFactory/generate_short.py` helper API가 아직 지원 대상이면 `tests/legacy/` 일부를 공식 QC 범위로 승격
 
 ## 주의사항
 
@@ -35,7 +38,8 @@
 - `.githooks/pre-commit`에 `ruff format --check` 추가됨 — 커밋 전 포맷 확인 필요
 - Windows cp949 콘솔 이모지 크래시 주의 — llm_router.py는 `_safe_console_print()` 우회
 - `execution/qaqc_runner.py`는 Windows에서 `schtasks` CSV를 읽을 때 `locale.getpreferredencoding(False)` 대신 `locale.getencoding()`을 써야 `-X utf8` 모드에서도 `준비` 상태가 깨지지 않음
-- Windows 한글 사용자 경로 + `curl_cffi` 조합에서 CA 경로 Error 77이 재현됨
+- Windows 한글 사용자 경로 + `curl_cffi` 조합은 여전히 민감하므로, CA 경로 수정 시 `certifi.where()`를 그대로 넣지 말고 ASCII-safe 번들 전략을 유지할 것
+- `security_scan.status`는 기계 판정용 필드라서 `CLEAR`/`WARNING` 같은 안정 enum만 유지하고, 부가 문구는 `status_detail`에 넣어야 소비자 호환이 안 깨짐
 - `execution/qaqc_runner.py`는 `-o addopts=`로 프로젝트별 coverage/capture addopts를 비활성화하고, security scan에서 line-level `# noqa`와 triage metadata 문자열을 무시함
 - `shorts-maker-v2` 카드 렌더 테스트는 Windows 폰트(`malgun.ttf`/`arial.ttf`)가 있어야 안정적이다. 기본 폰트만으로는 한글/이모지 렌더가 깨질 수 있음
 - `shorts-maker-v2` `audio_postprocess.py` 테스트는 실제 `pydub` 설치 여부에 기대지 말고 fake `pydub` module 주입으로 커버해야 skip 없이 안정적이다
