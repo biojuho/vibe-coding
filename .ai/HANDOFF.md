@@ -9,7 +9,7 @@
 |------|------|
 | 날짜 | 2026-03-25 |
 | 도구 | Codex |
-| 작업 | T-028 완료 — shorts render utility coverage uplift (`ending/outro/srt_export` 테스트 보강) |
+| 작업 | T-029 완료 — shorts CLI/audio postprocess coverage uplift + targeted suite 60 passed |
 
 ## 현재 시스템 상태
 
@@ -21,11 +21,12 @@
 - **시스템 QC runner (`qaqc_runner.py`)**: security scan **CLEAR**, full suite **`APPROVED`**
 - **스케줄러**: Windows Task Scheduler 실제 상태와 최신 infra check가 **`6/6 Ready`**로 일치. 원인은 `schtasks` CSV를 UTF-8 모드에서 잘못 디코딩한 locale 오탐이었고 수정 완료
 - **shorts coverage uplift (2026-03-25)**: 신규 테스트로 `render/ending_card.py` **94%**, `render/outro_card.py` **93%**, `render/srt_export.py` **95%** 확보 (`test_end_cards.py` 7 passed, `test_srt_export.py` 12 passed)
+- **추가 coverage uplift (2026-03-25)**: `cli.py` **67%**, `render/audio_postprocess.py` **85%** 확보. 신규/확장 테스트 묶음 `test_end_cards.py` + `test_srt_export.py` + `test_cli.py` + `test_audio_postprocess.py`는 **60 passed, 12 skipped**
 - **남은 핵심 이슈**: 없음 (`test_golden_render_moviepy`는 2026-03-25 full QC에서 재발 없음)
 
 ## 다음 도구가 해야 할 일 (우선순위)
 
-1. 시스템 고도화 v2 Phase 5 후속: shorts 저커버리지 모듈(`cli.py`, `audio_postprocess.py`, `animations.py`) 중 결정론적 유틸부터 계속 보강
+1. 시스템 고도화 v2 Phase 5 후속: shorts 저커버리지 모듈 중 남은 큰 후보 `render/animations.py`, `render/broll_overlay.py`, `providers/openai_client.py` 검토
 2. 테스트 보강을 몇 조각 더 쌓은 뒤 shorts 전체 coverage 재측정 또는 full QC 재실행
 
 ## 주의사항
@@ -37,6 +38,7 @@
 - Windows 한글 사용자 경로 + `curl_cffi` 조합에서 CA 경로 Error 77이 재현됨
 - `execution/qaqc_runner.py`는 `-o addopts=`로 프로젝트별 coverage/capture addopts를 비활성화하고, security scan에서 line-level `# noqa`와 triage metadata 문자열을 무시함
 - `shorts-maker-v2` 카드 렌더 테스트는 Windows 폰트(`malgun.ttf`/`arial.ttf`)가 있어야 안정적이다. 기본 폰트만으로는 한글/이모지 렌더가 깨질 수 있음
+- `shorts-maker-v2` `audio_postprocess.py` 테스트는 실제 `pydub` 설치 여부에 기대지 말고 fake `pydub` module 주입으로 커버해야 skip 없이 안정적이다
 - 작업 트리에 기존 미정리 변경이 많음. 무관한 파일은 되돌리지 말 것
 
 ## 규칙

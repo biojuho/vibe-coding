@@ -1,3 +1,32 @@
+## 2026-03-25 — Codex — T-029 완료, shorts CLI/audio postprocess coverage uplift
+
+### 작업 요약
+
+Phase 5 coverage uplift를 이어서 `shorts-maker-v2`의 `cli.py`와 `render/audio_postprocess.py`를 보강했다. `cli.py`는 `_doctor`, `_pick_from_db`, `_run_batch`, `run_cli` 주요 분기들이 거의 무테스트 상태였고, `audio_postprocess.py`는 후반부 `_apply_compression`/`_apply_subtle_reverb`와 `compress`/`reverb` 분기가 비어 있었다. `cli.py`는 신규 `test_cli.py` 12건으로 batch/topics file/from-db, dashboard/costs, run success/fail, doctor 분기를 고정했다. `audio_postprocess.py`는 기존 테스트를 확장해 private helper와 postprocess toggle 분기까지 잡았고, 실제 `pydub` 설치 여부에 의존하지 않도록 fake `pydub` module 주입 방식을 추가했다.
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| `shorts-maker-v2/tests/unit/test_cli.py` | 신규 | `_doctor`, `_pick_from_db`, `_run_batch`, `run_cli` 주요 분기 회귀 테스트 12건 추가 |
+| `shorts-maker-v2/tests/unit/test_audio_postprocess.py` | 수정 | compression/reverb helper, toggle 분기, fake `pydub` module 주입 테스트 추가 |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | 수정 | T-029 완료 및 최신 coverage uplift 상태/지뢰밭 갱신 |
+
+### 검증 결과
+
+- `venv\\Scripts\\python.exe -X utf8 -m pytest -o addopts= tests\\unit\\test_cli.py -q` (`shorts-maker-v2`) → **12 passed** ✅
+- `venv\\Scripts\\python.exe -X utf8 -m pytest -o addopts= tests\\unit\\test_cli.py --cov=shorts_maker_v2.cli --cov-report=term-missing -q` → `cli.py` **67%** ✅
+- `venv\\Scripts\\python.exe -X utf8 -m pytest -o addopts= tests\\unit\\test_audio_postprocess.py -q` (`shorts-maker-v2`) → **29 passed, 12 skipped** ✅
+- `venv\\Scripts\\python.exe -X utf8 -m pytest -o addopts= tests\\unit\\test_audio_postprocess.py --cov=shorts_maker_v2.render.audio_postprocess --cov-report=term-missing -q` → `audio_postprocess.py` **85%** ✅
+- `venv\\Scripts\\python.exe -X utf8 -m pytest -o addopts= tests\\unit\\test_end_cards.py tests\\unit\\test_srt_export.py tests\\unit\\test_cli.py tests\\unit\\test_audio_postprocess.py -q` → **60 passed, 12 skipped** ✅
+
+### 다음 도구에게 메모
+
+- 다음 coverage uplift 후보는 `render/animations.py`, `render/broll_overlay.py`, `providers/openai_client.py`다.
+- `audio_postprocess.py`는 fake `pydub` injection 패턴을 재사용하면 환경 의존 없이 추가 분기를 쉽게 메울 수 있다.
+
+---
+
 ## 2026-03-25 — Codex — T-028 완료, shorts render utility coverage uplift
 
 ### 작업 요약
