@@ -1,3 +1,31 @@
+## 2026-03-25 — Codex — T-028 완료, shorts render utility coverage uplift
+
+### 작업 요약
+
+Phase 5 coverage uplift 후속으로 `shorts-maker-v2`에서 결정론적이면서 테스트 공백이 큰 렌더 유틸 모듈을 먼저 메웠다. 기존 coverage XML 기준으로 `render/ending_card.py`와 `render/outro_card.py`는 0%, `render/srt_export.py`는 54% 수준이었고, 실제 렌더가 Windows 폰트(`malgun.ttf`) 환경에서 문제없이 동작하는지 먼저 확인한 뒤 테스트를 추가했다. 결과적으로 `test_end_cards.py` 신규 7건, `test_srt_export.py` 확장 6건(총 12건)으로 카드 생성/재사용/실패 폴백, SRT 청크 병합, JSON 기반 export, narration fallback, 소수점 문장 분리까지 고정했다.
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| `shorts-maker-v2/tests/unit/test_end_cards.py` | 신규 | ending/outro 카드 렌더, wrapper 위임, asset 재사용/실패 폴백, 색상 helper 회귀 테스트 7건 추가 |
+| `shorts-maker-v2/tests/unit/test_srt_export.py` | 수정 | 짧은 청크 병합, pending flush, JSON 기반 export, narration fallback, decimal sentence split 테스트 추가 |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | 수정 | T-028 완료 및 다음 coverage 후보/폰트 지뢰밭 반영 |
+
+### 검증 결과
+
+- `venv\\Scripts\\python.exe -X utf8 -m pytest -o addopts= tests\\unit\\test_end_cards.py -q` (`shorts-maker-v2`) → **7 passed** ✅
+- `venv\\Scripts\\python.exe -X utf8 -m pytest -o addopts= tests\\unit\\test_end_cards.py --cov=shorts_maker_v2.render.outro_card --cov=shorts_maker_v2.render.ending_card --cov-report=term-missing -q` → `ending_card.py` **94%**, `outro_card.py` **93%** ✅
+- `venv\\Scripts\\python.exe -X utf8 -m pytest -o addopts= tests\\unit\\test_srt_export.py -q` (`shorts-maker-v2`) → **12 passed** ✅
+- `venv\\Scripts\\python.exe -X utf8 -m pytest -o addopts= tests\\unit\\test_srt_export.py --cov=shorts_maker_v2.render.srt_export --cov-report=term-missing -q` → `srt_export.py` **95%** ✅
+
+### 다음 도구에게 메모
+
+- 다음 coverage uplift 후보는 `cli.py`(36%), `audio_postprocess.py`(42%), `animations.py`(9.8%) 쪽이다. 이 중 `cli.py`와 `audio_postprocess.py`가 먼저 손대기 쉬워 보인다.
+- 카드 렌더 테스트는 Windows 폰트 경로가 필요하므로, 기본 PIL 폰트만 가정하지 않는 편이 안전하다.
+
+---
+
 ## 2026-03-25 — Codex — T-027 완료, scheduler locale 파싱 수정 + full QC 재검증
 
 ### 작업 요약

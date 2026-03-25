@@ -17,11 +17,11 @@
 
 | ID | 태스크 | 완료 도구 | 완료일 |
 |----|--------|-----------|--------|
+| T-028 | shorts render utility coverage uplift (`ending_card.py`, `outro_card.py`, `srt_export.py`) 테스트 보강 | Codex | 2026-03-25 |
 | T-027 | `execution/qaqc_runner.py` 스케줄러 locale 파싱 수정 (`schtasks` `6/6 Ready` 복구) + full QC 재검증 | Codex | 2026-03-25 |
 | T-026 | system QC security scan 6건 triage 완료 — security scan `CLEAR`, full QC `APPROVED` 복구 | Codex | 2026-03-24 |
 | T-024 | `execution/qaqc_runner.py` 시스템 판정 안정화 (`addopts` override, root 분리 실행, blind known env ignore) | Codex | 2026-03-24 |
 | T-023 | shorts-maker-v2 `tests/unit tests/integration` 전체 suite timeout 원인 점검 + timeout 상향 반영 | Codex | 2026-03-24 |
-| T-025 | 4단계 비판적 검토 체계 구축 (Claude commands + 공유 스킬 + 워크플로우) | Gemini | 2026-03-24 |
 
 ## 규칙
 
