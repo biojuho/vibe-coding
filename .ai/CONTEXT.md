@@ -119,6 +119,7 @@ Vibe coding/                      # Root 워크스페이스
 - shorts-maker-v2 coverage uplift 진행 중(2026-03-25, Codex): 신규 `tests/unit/test_render_step_phase5.py` 18건 + `tests/unit/test_edge_tts_phase5.py` 9건으로 `render_step.py` **28% → 54%**, `edge_tts_client.py` **65% → 97%** 확보. 관련 targeted suite는 총 `170 passed, 2 warnings`
 - shorts-maker-v2 i18n PoC 1차(2026-03-25, Codex): 신규 `locales/ko-KR/script_step.yaml` + locale loader로 `script_step.py`의 tone/persona/CTA 금지어/system+user prompt copy를 `project.language` 기준으로 override 가능. 관련 targeted suite는 총 `37 passed, 2 warnings`
 - shorts-maker-v2 i18n PoC 2차(2026-03-25, Codex): `script_step.py` locale bundle이 `persona_keywords`/review prompt copy까지 확장되었고, 신규 `locales/ko-KR/edge_tts.yaml` + `edge_tts_client.py` locale loader로 alias voice/default voice를 언어별로 분리 가능. `MediaStep`이 `project.language`를 Edge TTS에 전달하도록 연결되었고 관련 targeted suite는 총 `86 passed, 2 warnings`
+- shorts-maker-v2 i18n 실사용 경로 1차(2026-03-25, Codex): `locales/en-US/script_step.yaml`, `locales/en-US/edge_tts.yaml`, `locales/en-US/captions.yaml` 추가. `config.py`는 `captions.font_candidates` 미지정 시 locale 기본 폰트를 읽고, `whisper_aligner.py`는 locale(`en-US`)를 short code(`en`)로 정규화해 faster-whisper에 전달. 관련 targeted suite는 총 `78 passed, 2 warnings`
 - blind-to-x의 `tests/integration/test_curl_cffi.py`는 Windows 한글 경로 환경의 known CA Error 77 재현용에 가까워 system QC runner에서만 ignore 처리
 - security scan 6건 triage 완료: line-level `# noqa`와 explicit triage metadata를 runner가 인식하도록 보강되어 **CLEAR**. `test_golden_render_moviepy`는 2026-03-25 full QC에서 재발하지 않았고 이후 full QC에서 관찰만 유지
 - 시스템 고도화 v2 Phase 5: coverage 목표 상향과 후속 문서 정리
@@ -131,35 +132,22 @@ Vibe coding/                      # Root 워크스페이스
 
 ### 지뢰밭 (AI 반복 실수 기록)
 
-> AI 도구가 반복적으로 실수하는 부분을 여기에 기록합니다.
+> AI 도구가 반복적으로 실수하는 부분을 여기에 기록합니다. (과거 완료된 이슈 11건은 `.ai/archive/CONTEXT_MINEFIELD_ARCHIVE.md`로 이동됨)
 
-| 일자 | 도구 | 내용 | 대응 방법 |
-|------|------|------|-----------|
-| 2026-03-09 | Antigravity | Windows Task Scheduler 한국어 경로 XML 깨짐 | ASCII-only 경로(`C:\\btx\\`) + 환경변수 참조 |
-| 2026-03-09 | Antigravity | Notion `rich_text` 2000자 제한에서 한국어도 거부 | 안전 마진 1990자로 truncate |
-| 2026-03-12 | Claude Code | FastMCP 1.26 `description` kwarg 미지원 | `FastMCP("name", instructions="...")` 패턴 |
-| 2026-03-12 | Antigravity | SQLite 테이블명 f-string → SQL Injection | `_validate_table_name()` 화이트리스트 |
-| 2026-03-16 | Antigravity | `Path(__file__).parents[N]` depth 오계산 | 실행 위치에서 `resolve()` 검증 필수 |
-| 2026-03-16 | Antigravity | frozen dataclass에 `copy.deepcopy()` → FrozenInstanceError | `dataclasses.replace()` 사용 |
-| 2026-03-17 | Claude Code | WordBoundary 미수신 시 karaoke 자막 전체 불능 | `_approximate_word_timings()` fallback |
-| 2026-03-17 | Claude Code | `group_into_chunks()` 반환형 tuple인데 dict 접근 | `for start, end, text in chunks` 패턴 |
-| 2026-03-17 | Claude Code | SSML prosody가 TTS 발화시간 1.5배 증가 미반영 | CPS 2.8 하향 + 43초 초과시 자동 트림 |
-| 2026-03-23 | Codex | Windows cp949 콘솔에서 이모지 `print()`가 `UnicodeEncodeError`를 유발 | 상태 출력은 `_safe_console_print()` 또는 logger 사용 |
-| 2026-03-23 | Codex | Windows 한글 사용자 경로에서 `curl_cffi`가 CA 파일 경로를 읽지 못해 Error 77 발생 | Blind 스크래퍼는 세션 fetch 실패 시 Playwright 직접 탐색 폴백 유지 |
-| 2026-03-23 | Codex | PowerShell heredoc의 한글 문자열로 Notion select 값을 직접 PATCH하면 `??` 옵션이 생성될 수 있음 | live Notion 수정은 select option ID 또는 `\\u` escape 문자열 사용 |
-| 2026-03-23 | Codex | `execution/qaqc_runner.py`가 shorts `tests/legacy/`까지 수집해 legacy 실험 테스트로 QC를 깨뜨림 | shorts QC는 `tests/unit tests/integration` 경로만 대상으로 분리 |
-| 2026-03-23 | Codex | root에서 `tests`와 `execution/tests`를 동시에 수집하면 동일 basename 테스트가 import mismatch를 일으킴 | root QC는 두 디렉터리를 분리 실행하거나 import mode를 조정 |
-| 2026-03-23 | Codex | `tests/test_qaqc_history_db.py`가 2026-03-22 고정 타임스탬프를 써서 날짜가 지나면 `days=1` 조회가 0건이 됨 | 테스트 fixture를 상대시간 기준으로 바꿔야 안정적 |
-| 2026-03-24 | Codex | `shorts-maker-v2`에서 `pytest --collect-only`만 돌려도 프로젝트 coverage 설정 때문에 실패처럼 보일 수 있음 | 수집 디버깅은 `--no-cov`를 함께 쓰거나 coverage gate를 명시적으로 끈다 |
-| 2026-03-24 | Codex | system QC runner가 프로젝트별 `addopts`를 그대로 먹으면 root `.coverage` PermissionError, shorts coverage gate, Windows capture 충돌로 오탐이 커짐 | runner는 `-o addopts=`로 고정하고 필요한 인자만 명시적으로 넣는다 |
-| 2026-03-25 | Codex | `python -X utf8`로 실행한 `qaqc_runner.py`에서 `locale.getpreferredencoding(False)`가 UTF-8을 반환해 `schtasks`의 cp949 `준비` 상태가 깨지고 Scheduler가 `0/6 Ready`로 오탐될 수 있음 | Windows scheduler CSV는 `locale.getencoding()`으로 디코딩하고 CSV 컬럼의 상태값을 직접 파싱 |
-| 2026-03-25 | Codex | Windows 한글 사용자 홈에서 `certifi.where()` 경로를 그대로 `CURL_CA_BUNDLE`에 넣어도 경로 자체가 비ASCII라 `curl_cffi` Error 77 우회가 실패할 수 있음 | CA 번들은 `%PUBLIC%`/`%ProgramData%` 같은 ASCII 경로로 복사하거나 short path fallback을 사용 |
-| 2026-03-25 | Codex | machine-readable 상태 문자열에 설명을 합치면 `status === "CLEAR"` 같은 소비자 호환이 깨짐 | `status`는 안정 enum만 유지하고 부가 문구는 `status_detail`/count 필드로 분리 |
-| 2026-03-25 | Codex | `shorts-maker-v2` 카드 렌더 테스트를 기본 PIL 폰트로 돌리면 한글/이모지 glyph 문제로 환경 의존 실패가 날 수 있음 | Windows 폰트 후보(`malgun.ttf`, `arial.ttf`, `seguiemj.ttf`)를 우선 주입하고 없으면 테스트를 skip |
-| 2026-03-25 | Codex | `audio_postprocess.py` 테스트가 실제 `pydub` 설치 여부에 기대면 핵심 후처리 분기가 skip되어 coverage가 안 오른다 | `sys.modules`에 fake `pydub`/`pydub.effects` module을 주입해 normalize/EQ/compression/reverb를 직접 커버 |
-| 2026-03-25 | Codex | `shorts-maker-v2`에서 모듈 지정 coverage(`pytest --cov=shorts_maker_v2.pipeline.render_step` 또는 `coverage --source=shorts_maker_v2...`)를 쓰면 Python 3.14 + numpy 조합에서 `cannot load module more than once per process` 또는 no-data가 날 수 있음 | `python -m coverage run --source=src -m pytest --no-cov ...` 후 `coverage report --include=...` 패턴으로 측정 |
-| 2026-03-25 | Codex | `EdgeTTSClient.generate_tts()`는 `config.project.language`를 직접 모른다. 새 호출부가 `language`를 전달하지 않으면 alias voice(`alloy` 등)가 항상 기본 `ko-KR` 매핑으로 해석될 수 있음 | `MediaStep`처럼 호출 시 `language=self.config.project.language`를 전달하고 locale voice 매핑은 `locales/<lang>/edge_tts.yaml`에 둔다 |
+| 현상 및 도구 | 내용 | 대응 방법 (핵심 원칙) |
+|------|------|-----------------------|
+| 1. Windows 인코딩 이슈 | cp949 콘솔 이모지 출력 에러 (`UnicodeEncodeError`) | 상태 출력은 반드시 `_safe_console_print()` 또는 logger를 사용할 것 |
+| 2. Windows 한글 경로 + `curl_cffi` | 경로 내 비ASCII 문자로 인한 CA 파일 인지 불가 (Error 77) | `certifi.where()`를 그대로 쓰지 말고, `%PUBLIC%` 등 ASCII 경로로 복사본을 만들어 `CURL_CA_BUNDLE`에 할당할 것 |
+| 3. pytest / coverage 수집 충돌 | `qaqc_runner.py`가 하위 디렉터리의 `pytest.ini` `addopts`와 겹쳐 퍼미션 에러/수집 에러 발생 | runner 실행 시 `-o addopts=` 인수로 덮어써서 하위 커버리지 통합 설정을 무시할 것 |
+| 4. 모듈 단위 coverage 측정 버그 | Python 3.14+numpy 환경에선 `--cov=module` 시 `cannot load module...` 충돌 발생 | 개별 테스트나 모듈 측정 시 `python -m coverage run --source=src -m pytest --no-cov` 패턴 사용 후 report 할 것 |
+| 5. CSV + `schtasks` 한글 깨짐 | `qaqc_runner.py`의 `locale.getpreferredencoding(False)`가 UTF-8로 잡혀 `준비` 상태 파싱 실패 | Windows Schedule CSV는 `locale.getencoding()`으로 명시적 디코딩할 것 |
+| 6. security scan 상태 텍스트 혼용 | `status`에 설명을 덧붙이면 `CLEAR` 등의 기계 판정 매칭이 깨짐 | `status`는 안정적인 enum(`CLEAR`/`WARNING`/`ERROR`)만 유지, 부가 설명은 `status_detail` 필드로 분리 |
+| 7. 라이브러리 특수 환경(폰트/의존성) 테스트 | 특수 폰트 부족, pydub 미설치 시 테스트 통과 불가 / 커버리지 하락 | `sys.modules` 조작으로 fake module 주입(pydub) 및 폰트 렌더링 fallback 철저 구현 |
+| 8. 다국어(i18n) 변수 누락 | TTS나 프롬프트 호출 시 `project.language` 미전달 | 호출부는 반드시 `language=config.project.language`를 명시적으로 전달해야 함 |
+| 9. Root / Legacy 테스트 분리 | `root`에서 한 번에 묶어 돌리면 basename 매치로 import/collection 에러 | Root 단위 QC는 `tests/`와 `execution/tests/` 등을 분리 실행할 것 (`legacy/` 등 실험용은 `--ignore` 처리) |
+| 10. Whisper locale 전달 | faster-whisper `language`는 `en-US` 같은 locale보다 `en` 같은 short code가 안전함 | `whisper_aligner.py`에서 locale을 short code로 정규화한 뒤 엔진에 전달할 것 |
+| 11. Locale별 caption 폰트 기본값 | 새 언어 locale을 추가해도 `captions.yaml`이 없으면 한국어 중심 기본 폰트로 떨어질 수 있음 | 새 locale 추가 시 `locales/<lang>/captions.yaml`도 같이 만들고, explicit config가 있으면 그 값을 우선할 것 |
 
 ---
 
-*마지막 업데이트: 2026-03-25 KST (Codex — T-040 shorts i18n PoC 2차 확장, `script_step.py` locale review/persona keywords + `edge_tts_client.py` locale voice mapping, targeted suite `86 passed`)*
+*마지막 업데이트: 2026-03-25 KST (Codex — T-041 shorts `en-US` locale pack + caption font locale defaults + whisper locale normalization, targeted suite `78 passed`)*

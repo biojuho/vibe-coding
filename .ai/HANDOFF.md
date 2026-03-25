@@ -9,7 +9,7 @@
 |------|------|
 | 날짜 | 2026-03-25 |
 | 도구 | Codex |
-| 작업 | T-040 완료 — shorts i18n PoC 2차 확장 (`script_step.py` locale review/persona keywords + `edge_tts_client.py` locale voice mapping), 관련 targeted suite `86 passed` |
+| 작업 | T-041 완료 — shorts 실제 `en-US` locale pack 추가 (`script_step`/`edge_tts`/`captions`) + `whisper_aligner` 언어 locale 정규화, 관련 targeted suite `78 passed` |
 
 ## 현재 시스템 상태
 
@@ -19,6 +19,7 @@
   - root: **915 passed, 1 skipped**
   - 전체: **2362 passed, 29 skipped, 0 failed**
 - **시스템 QC runner**: security scan **CLEAR**, full suite **`APPROVED`**, 스케줄러 **`6/6 Ready`**
+- **shorts i18n 실사용 경로 (Codex, T-041)**: `locales/en-US/`에 `script_step.yaml`, `edge_tts.yaml`, `captions.yaml` 추가. `config.py`는 `captions.font_candidates` 미지정 시 locale 기본 폰트를 읽고, `whisper_aligner.py`는 `en-US` 같은 locale을 `en`으로 정규화해 faster-whisper에 전달함
 - **shorts i18n PoC 2차 (Codex, T-040)**: `script_step.py` locale bundle이 tone/persona/CTA 금지어/system+user prompt copy뿐 아니라 `persona_keywords`/review prompt copy까지 override 가능. `edge_tts_client.py`도 `locales/<lang>/edge_tts.yaml`에서 alias voice/default voice를 읽고 `MediaStep`이 `project.language`를 전달함
 - **shorts i18n PoC 1차 (Codex, T-039)**: `script_step.py`가 `language` 기반 locale bundle을 읽어 tone/persona/CTA 금지어/system+user prompt copy를 override 가능, 신규 `test_script_step_i18n.py` 4건
 - **shorts coverage uplift (Codex, T-038)**: `render_step.py` **28% → 54%**, `edge_tts_client.py` **65% → 97%**
@@ -28,14 +29,16 @@
 
 ## 다음 도구가 해야 할 일 (우선순위)
 
-1. Phase 5B-1 후속: 실제 비한국어 locale(`en-US` 후보) 추가 여부 결정 및 `captions.font_candidates`/`whisper_aligner.py` 언어 고정 경로까지 i18n 범위 확장 검토
+1. Phase 5B-1 후속: 실제 `en-US` 설정 파일/샘플 job 기준 end-to-end smoke test 추가 여부 결정 (`script -> TTS words -> captions` 경로)
 2. Phase 5A-3: `.ai/CONTEXT.md` 지뢰밭 정리 (해결된 항목 아카이브 후보 선별 + 중복 압축)
-3. Phase 5A-4: shorts `render_step.py`의 integration-heavy 분기(`run`, transitions/BGM/SFX) 추가 coverage 검토
+3. Phase 5B-1 후속: `script_step.py`의 `_CHANNEL_REVIEW_CRITERIA` extra copy와 legacy 필드명(`narration_ko`)까지 i18n 범위에 포함할지 결정
 
 ## 주의사항
 
-- `script_step.py`/`edge_tts_client.py` i18n PoC는 현재 `ko-KR` locale만 실데이터가 있고 locale 파일이 없거나 깨져도 기본 하드코딩 fallback으로 동작하도록 유지됨
+- `script_step.py`/`edge_tts_client.py` i18n 경로는 현재 `ko-KR`, `en-US` locale pack만 실데이터가 있고 locale 파일이 없거나 깨져도 기본 하드코딩 fallback으로 동작하도록 유지됨
+- `en-US` locale pack은 추가됐지만 아직 unit-level 검증 위주다. 실제 파이프라인 smoke 없이 곧바로 기본 언어를 바꾸지는 말 것
 - 새 `EdgeTTSClient.generate_tts()` 호출부를 추가할 때는 `language=self.config.project.language` 전달을 잊지 말 것. alias voice(`alloy` 등)는 언어 정보가 없으면 기본 `ko-KR` 매핑으로 떨어짐
+- `whisper_aligner.py`는 locale(`ko-KR`, `en-US`)를 short code(`ko`, `en`)로 정규화해 faster-whisper에 넘긴다. 새 locale 추가 시 이 전제가 깨지지 않는지 확인할 것
 - `render_step.py`의 커스텀 이펙트(ken_burns, 전환효과, 카라오케)는 MoviePy 전용 유지
 - `shorts-maker-v2` 모듈 단위 coverage 측정 시 `python -m coverage run --source=src -m pytest --no-cov ...` 후 `coverage report --include=...` 패턴이 가장 안전함
 - `.githooks/pre-commit`에 `ruff format --check` 추가됨 — 커밋 전 포맷 확인 필요
