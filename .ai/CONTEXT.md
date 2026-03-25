@@ -120,6 +120,7 @@ Vibe coding/                      # Root 워크스페이스
 - shorts-maker-v2 i18n PoC 1차(2026-03-25, Codex): 신규 `locales/ko-KR/script_step.yaml` + locale loader로 `script_step.py`의 tone/persona/CTA 금지어/system+user prompt copy를 `project.language` 기준으로 override 가능. 관련 targeted suite는 총 `37 passed, 2 warnings`
 - shorts-maker-v2 i18n PoC 2차(2026-03-25, Codex): `script_step.py` locale bundle이 `persona_keywords`/review prompt copy까지 확장되었고, 신규 `locales/ko-KR/edge_tts.yaml` + `edge_tts_client.py` locale loader로 alias voice/default voice를 언어별로 분리 가능. `MediaStep`이 `project.language`를 Edge TTS에 전달하도록 연결되었고 관련 targeted suite는 총 `86 passed, 2 warnings`
 - shorts-maker-v2 i18n 실사용 경로 1차(2026-03-25, Codex): `locales/en-US/script_step.yaml`, `locales/en-US/edge_tts.yaml`, `locales/en-US/captions.yaml` 추가. `config.py`는 `captions.font_candidates` 미지정 시 locale 기본 폰트를 읽고, `whisper_aligner.py`는 locale(`en-US`)를 short code(`en`)로 정규화해 faster-whisper에 전달. 관련 targeted suite는 총 `78 passed, 2 warnings`
+- shorts-maker-v2 en-US smoke(2026-03-25, Codex): 실제 `en-US` config를 로드해 `ScriptStep` locale prompt, `MediaStep`의 Edge TTS `language` 전달, `caption_pillow.render_caption_image()` fallback까지 연결하는 `test_i18n_en_us_smoke.py` 추가. 관련 smoke suite는 총 `34 passed, 2 warnings`
 - blind-to-x의 `tests/integration/test_curl_cffi.py`는 Windows 한글 경로 환경의 known CA Error 77 재현용에 가까워 system QC runner에서만 ignore 처리
 - security scan 6건 triage 완료: line-level `# noqa`와 explicit triage metadata를 runner가 인식하도록 보강되어 **CLEAR**. `test_golden_render_moviepy`는 2026-03-25 full QC에서 재발하지 않았고 이후 full QC에서 관찰만 유지
 - 시스템 고도화 v2 Phase 5: coverage 목표 상향과 후속 문서 정리
@@ -150,4 +151,4 @@ Vibe coding/                      # Root 워크스페이스
 
 ---
 
-*마지막 업데이트: 2026-03-25 KST (Codex — T-041 shorts `en-US` locale pack + caption font locale defaults + whisper locale normalization, targeted suite `78 passed`)*
+*마지막 업데이트: 2026-03-25 KST (Codex — T-044 shorts `en-US` config smoke (`ScriptStep -> MediaStep -> caption render`), targeted suite `34 passed`)*
