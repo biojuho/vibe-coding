@@ -7,6 +7,9 @@
 
 | ID | 태스크 | 담당 도구 | 우선순위 | 생성일 |
 |----|--------|-----------|----------|--------|
+| T-041 | Phase 5B-1 후속: 실제 비한국어 locale(`en-US` 후보) 추가 및 captions/whisper 언어 고정 경로 i18n 검토 | any | HIGH | 2026-03-25 |
+| T-042 | Phase 5A-3: `.ai/CONTEXT.md` 지뢰밭 정리 및 SESSION_LOG 로테이션 정리 | any | MEDIUM | 2026-03-25 |
+| T-043 | Phase 5A-4: shorts `render_step.py` integration-heavy 분기 coverage 추가 검토 | any | MEDIUM | 2026-03-25 |
 
 ## IN_PROGRESS
 
@@ -17,11 +20,11 @@
 
 | ID | 태스크 | 완료 도구 | 완료일 |
 |----|--------|-----------|--------|
+| T-040 | shorts i18n PoC 2차 확장 (`script_step.py` persona keywords/review copy, `edge_tts_client.py` locale voice mapping, targeted suite `86 passed`) | Codex | 2026-03-25 |
+| T-039 | shorts `script_step.py` i18n PoC (`locales/ko-KR/script_step.yaml`, locale loader, `37 passed`) | Codex | 2026-03-25 |
 | T-038 | shorts `render_step.py`/`edge_tts_client.py` coverage uplift (`54%`/`97%`, targeted suite `170 passed`) | Codex | 2026-03-25 |
 | T-033 | Phase 5 문서화 — `enhancement_plan_v2.md`에 Phase 5A/5B 확장, i18n 분리 대상 명세 | Claude | 2026-03-25 |
 | T-036 | shorts `video_renderer_backend` 조사 — dead code 아님 (듀얼 렌더러 설계), 조치 불필요 | Claude | 2026-03-25 |
-| T-037 | shorts `tests/legacy/` 조사 — ShortsFactory 테스트, QC 범위 외 유지 결정 | Claude | 2026-03-25 |
-| T-032 | Full QC 재실행 — **2362 passed, 0 failed, APPROVED** | Claude | 2026-03-25 |
 
 ## 규칙
 
