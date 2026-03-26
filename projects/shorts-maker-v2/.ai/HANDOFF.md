@@ -1,19 +1,18 @@
 # HANDOFF.md
 
-## 마지막 세션 요약 (2026-03-26 / Antigravity)
+## 마지막 세션 요약 (2026-03-27 / Antigravity)
 
-- **작업 내용**: shorts-maker-v2 파이프라인 Phase 2(Trend Discovery) 모듈 작성, CLI `--auto-topic` 플래그 통합 완료. 유닛 테스트 잔류 오류(UnboundLocalError, Caption Combo 튜플 수정) 해결.
-- **테스트 결과**: Ruff 린팅 오류 자동 수정(6건), 유닛 테스트 전체 통과 확인. `SESSION_LOG.md`에 내역 기록.
-- **특이사항**: `_CAPTION_COMBOS`가 (hook, body, cta, closing) 4개 요소로 변경되었습니다. 템플릿 프롬프트 내 JSON 포맷 사용 시 중괄호 이스케이핑(`{{`, `}}`)에 유의해야 합니다.
+- **작업 내용**: shorts-maker-v2 커버리지 향상을 위해 `karaoke.py` 모듈 유닛 테스트 보강(97% 커버리지 달성). TDD 관점의 폰트 스케일링, 청킹 로직 테스트 작성(`test_karaoke_chunking.py` 신규).
+- **테스트 결과**: `test_karaoke_render.py` 내 Windows PermissionError 및 폰트 목업 오류 해결 완료.
+- **특이사항**: 전체 커버리지 향상을 막고 있던 레거시(`tests/legacy/`) 테스트들에 대해 삭제/격리를 결정함.
 
 ## 다음 할 일
 
-1. 운영 환경에서 트렌드 수집(RSS, Google Trends) API 응답 패턴 모니터링
-2. 커버리지 80% 상향을 위한 엣지 케이스 추가 테스트 작성
-3. `tests/legacy/` 디렉토리 내 옛날 테스트들 호환성 점검/정리 (테스트 실행 시간 최적화 필요)
+1. V2 핵심 파이프라인 모듈(`render_step.py`, `script_step.py`, `orchestrator.py` 등) 유닛 테스트 우선 작성
+2. `pyproject.toml`에 지정된 `fail-under=45%`를 충족하기 위해 전역 커버리지 확대
+3. `tests/legacy/` 디렉토리 제거 확정 및 삭제
 
 ## 주의 사항
 
-- LLM 프롬프트 템플릿 내에 JSON 형식이 들어갈 때는 이중 중괄호 `{{`, `}}`를 사용해야 `str.format()` 사용 시 KeyError를 방지할 수 있습니다.
-- CLI 변경 시, `tests/unit/test_cli.py`에서 테스트하는 에러 메시지와 정확히 일치해야 합니다.
-- 렌더링 관련 유닛 테스트(`render_step`)는 `MoviePy` 기반이므로 `mock` 처리를 주의하여 작성하세요.
+- 렌더링이나 폰트 처리 등을 테스트할 때 실제 환경(Windows vs Linux)에 따른 파일 I/O 에러나 폰트 경로 에러가 자주 발생하므로 가급적 `unittest.mock`을 적극 활용할 것.
+- 레거시 테스트는 V1(ShortsFactory) 코드베이스에 의존하고 있어 V2 파이프라인 커버리지에 기여하지 못함.

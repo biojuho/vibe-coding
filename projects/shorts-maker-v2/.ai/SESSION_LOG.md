@@ -1,5 +1,31 @@
 # 📋 AI 세션 로그
 
+## 2026-03-27 — Antigravity (테스트 커버리지 향상: Karaoke)
+
+### 작업 요약
+shorts-maker-v2 파이프라인의 카라오케 렌더링 모듈(`karaoke.py`)에 대한 유닛 테스트를 집중적으로 보강하여 해당 모듈의 커버리지를 97% 달성하고 버그를 해결했습니다.
+
+### 주요 작업 내용
+1.  **테스트 보강 및 버그 수정**:
+    *   `src/shorts_maker_v2/render/karaoke.py`: 폰트 스케일링 로직(`_auto_scale_font`)을 테스트하기 위해 `unittest.mock.patch`를 사용하여 PIL 의존성 및 실제 폰트 파일 없이 검증하도록 개선.
+    *   `tests/unit/test_karaoke_render.py`: Windows 환경의 `PermissionError`를 파일 컨텍스트 매니저 사용으로 해결.
+    *   `tests/unit/test_karaoke_chunking.py`: 문장 분할, SSML 휴지 보정, 단어 청킹 로직에 대한 포괄적인 유닛 테스트 신규 작성.
+
+2.  **레거시 테스트 정리 전략**:
+    *   `tests/legacy/` 경로의 테스트가 V1 프레임워크(`ShortsFactory`) 기반임을 확인하고, 이를 V2 커버리지 목표에서 제외하기 위한 격리/삭제 전략 수립.
+
+### 변경 파일
+* `tests/unit/test_karaoke_render.py`
+* `tests/unit/test_karaoke_chunking.py` (신규)
+
+### 다음 단계
+* `render_step.py` 또는 `script_step.py` 등 핵심 V2 파이프라인 모듈 테스트 보강
+* 커버리지 45% (pyproject.toml `fail-under`) 목표 우선 달성, 이후 80% 상향
+* `tests/legacy/` 디렉토리 완전 삭제 또는 아카이브 처리
+
+---
+
+
 ## 2026-03-26 — Antigravity (유닛 테스트 오류 해결 및 QC 진행)
 
 ### 작업 요약
