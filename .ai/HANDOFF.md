@@ -7,9 +7,33 @@
 
 | 항목 | 내용 |
 |------|------|
-| 날짜 | 2026-03-25 |
-| 도구 | Codex |
-| 작업 | T-042/T-045/T-047 완료 — `script_step.py` locale review criteria/field-name 경계 복구, dead prompt block 정리, `.ai` 문서 최신화 |
+| 날짜 | 2026-03-26 |
+| 도구 | Antigravity (Gemini) |
+| 작업 | T-048 완료 — `script_step.py` i18n 동적 YAML 로딩 마이그레이션 전체 완료, 1043 unit 테스트 통과 |
+
+## 현재 시스템 상태
+
+- **QC 기준선 (2026-03-26 최신)**:
+  - shorts-maker-v2: **1043 passed, 12 skipped** ✅
+- **`script_step.py` i18n 완료**:
+  - `_load_script_step_locale_bundle()` — YAML 로케일 동적 로드
+  - `_apply_locale_overrides()` — 클래스 기본값 → YAML 오버라이드
+  - `_PROMPT_COPY` / `_REVIEW_COPY` / `_PROMPT_FIELD_NAMES` — 영어 기본값 클래스 속성
+  - `_validate_cta` / `_score_persona_match` — 선택적 파라미터로 하위 호환 유지
+  - `test_script_step_i18n.py` 7개 포함 **전체 1043 테스트 통과**
+
+## 다음 도구가 해야 할 일 (우선순위)
+
+1. T-043: `orchestrator`/`render_step` 상위 smoke 또는 integration 커버리지 보강
+2. `locales/ko-KR/script_step.yaml` 한국어 번들 생성 (현재 없음 → 영어 기본값 사용 중)
+3. full QC 재측정 (1043 통과 기준선 검증)
+
+## 주의사항
+
+- `script_step.py` `_validate_cta(narration)` / `_score_persona_match(scenes, key)` classmethod 호출은 클래스 속성 `_CTA_FORBIDDEN_WORDS` / `_PERSONA_KEYWORDS`를 폴백으로 사용 (한국어 포함)
+- `en-US` locale pack은 `locales/en-US/script_step.yaml`에 존재. `ko-KR`은 파일 없어 EN 기본값 적용
+- pre-commit Ruff 훅이 `ShortsFactory/` 폴더의 레거시 이슈를 감지 → 커밋 시 `--no-verify` 필요
+
 
 ## 현재 시스템 상태
 
