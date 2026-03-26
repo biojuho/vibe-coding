@@ -120,6 +120,7 @@ Vibe coding/                      # Root 워크스페이스
 - shorts-maker-v2 i18n PoC 2차(2026-03-25, Codex): `script_step.py` locale bundle이 `persona_keywords`/review prompt copy까지 확장되었고, `locales/ko-KR/edge_tts.yaml` + `edge_tts_client.py` locale loader로 alias voice/default voice를 언어별로 분리 가능. `MediaStep`이 `project.language`를 Edge TTS에 전달하도록 연결되었고 관련 targeted suite는 총 `86 passed, 2 warnings`
 - shorts-maker-v2 i18n 실사용 경로 1차(2026-03-25, Codex): `locales/en-US/script_step.yaml`, `locales/en-US/edge_tts.yaml`, `locales/en-US/captions.yaml` 추가. `config.py`는 `captions.font_candidates` 미지정 시 locale 기본 폰트를 읽고, `whisper_aligner.py`는 locale(`en-US`)를 short code(`en`)로 정규화해 faster-whisper에 전달. 관련 targeted suite는 총 `78 passed, 2 warnings`
 - shorts-maker-v2 en-US smoke(2026-03-25, Codex): 실제 `en-US` config를 로드해 `ScriptStep` locale prompt, `MediaStep`의 Edge TTS `language` 전달, `caption_pillow.render_caption_image()` fallback까지 연결되는 `test_i18n_en_us_smoke.py` 추가. 관련 smoke suite는 총 `34 passed, 2 warnings`
+- shorts-maker-v2 orchestrator 상위 en-US smoke(2026-03-26, Codex): 신규 `tests/integration/test_orchestrator_i18n_smoke.py`로 실제 `ScriptStep`, 실제 `RenderStep.run()`, stub media, mocked encode/QC를 조합해 `ScriptStep -> Orchestrator -> RenderStep -> SRT export` 경로를 검증. 같은 세션에서 `script_step.py` `_validate_script_schema()` alias 정규화와 `render_step.py`의 cp949-safe benchmark print도 함께 보강했고 관련 묶음은 총 `17 passed, 8 warnings`
 - shorts-maker-v2 `script_step` 복구(2026-03-25, Codex): locale `field_names`/`channel_review_criteria` 외부화, schema alias(`narration`/`voiceover`/`visual_prompt`) 허용, dead prompt block 정리까지 마쳤고 targeted suite는 총 `13 passed, 2 warnings`
 - blind-to-x의 `tests/integration/test_curl_cffi.py`는 Windows 한글 경로 환경의 known CA Error 77 재현에 가까워 system QC runner에서만 ignore 처리
 - security scan 6건 triage 완료: line-level `# noqa`와 explicit triage metadata를 runner가 인식하도록 보강되어 **CLEAR**. `test_golden_render_moviepy`는 2026-03-25 full QC에서 재발하지 않았고 이후 full QC에서 관찰만 유지
@@ -135,7 +136,7 @@ Vibe coding/                      # Root 워크스페이스
 
 | 현상 / 도구 | 내용 | 대응 방법 (도구 조치) |
 |------|------|-----------------------|
-| 1. Windows 인코딩 이슈 | cp949 콘솔 이모지 출력 에러 (`UnicodeEncodeError`) | 상태 출력은 반드시 `_safe_console_print()` 또는 logger를 사용 |
+| 1. Windows 인코딩 이슈 | cp949 콘솔에서 emoji/특수기호 출력 시 `UnicodeEncodeError` 발생. 2026-03-26에 `render_step.py` benchmark print도 같은 이유로 수정 | 콘솔 출력은 ASCII-safe 문자열, `_safe_console_print()`, 또는 logger 경로를 우선 사용 |
 | 2. Windows 한글 경로 + `curl_cffi` | 한글/비ASCII 경로 때문에 CA 파일 인식 불가 (Error 77) | `certifi.where()`를 그대로 쓰지 말고, `%PUBLIC%` 등 ASCII 경로 복사본 + `CURL_CA_BUNDLE`을 사용 |
 | 3. pytest / coverage 옵션 충돌 | `qaqc_runner.py`가 하위 디렉터리 `pytest.ini`의 `addopts`와 겹치며 수집/측정 오류 발생 | runner 실행 시 `-o addopts=`로 덮어써서 하위 coverage 통합 설정을 무시 |
 | 4. 모듈 단위 coverage 측정 함정 | Python 3.14+numpy 환경에선 `--cov=module` 패턴이 import 충돌을 일으키기도 함 | 모듈 측정은 `python -m coverage run --source=src -m pytest --no-cov ...` 후 `coverage report --include=...` 사용 |

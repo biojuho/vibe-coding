@@ -7,7 +7,8 @@
 
 | ID | 태스크 | 담당 도구 | 우선순위 | 생성일 |
 |----|--------|-----------|----------|--------|
-| T-043 | Phase 5A-4 후속: `orchestrator`/`render_step` 상위 smoke 또는 integration-heavy coverage 추가 | any | MEDIUM | 2026-03-25 |
+| T-049 | `thumbnail_step.py` Pillow deprecation warning 정리 (`Image.fromarray(..., mode=...)`) | any | LOW | 2026-03-26 |
+| T-050 | `shorts-maker-v2` full QC 재실행 및 기준선 갱신 | any | MEDIUM | 2026-03-26 |
 
 ## IN_PROGRESS
 
@@ -18,11 +19,11 @@
 
 | ID | 태스크 | 완료 도구 | 완료일 |
 |----|--------|-----------|--------|
+| T-043 | Phase 5A-4 후속: `orchestrator`/`render_step` 상위 en-US smoke 추가 + integration-heavy coverage 보강 | Codex | 2026-03-26 |
 | T-042 | Phase 5A-3: `.ai/CONTEXT.md` 지뢰밭 정리 및 SESSION_LOG 로테이션 정리 | Codex | 2026-03-25 |
 | T-047 | `script_step.py` AST/i18n 복구 및 schema alias 검증 정리 (`13 passed`) | Codex | 2026-03-25 |
 | T-045 | Phase 5B-1 후속: `script_step.py` locale `field_names`/`channel_review_criteria` 경계 복구 | Codex | 2026-03-25 |
 | T-046 | shorts coverage uplift: `render_step.py` 54%→62% (+44 tests), `edge_tts_client.py` 91% (+15 tests), 전체 2498 passed | Claude | 2026-03-25 |
-| T-044 | shorts `en-US` config smoke 추가 (`34 passed`) | Codex | 2026-03-25 |
 
 ## 규칙
 

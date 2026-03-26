@@ -1,4 +1,29 @@
 ﻿
+## 2026-03-26 | Codex | T-043 완료, shorts orchestrator/render 상위 en-US smoke 추가
+
+### 작업 요약
+
+`shorts-maker-v2`의 다음 우선순위였던 `orchestrator`/`render_step` 상위 smoke를 추가했다. 신규 `tests/integration/test_orchestrator_i18n_smoke.py`는 실제 `ScriptStep`, 실제 `RenderStep.run()`, stub `MediaStep`, mocked encode/QC를 조합해 `ScriptStep -> Orchestrator -> RenderStep -> SRT export` 경로를 `en-US` 설정으로 검증한다. 작업 중 실제 버그도 두 개 같이 수정했다: `script_step.py`의 `_validate_script_schema()`가 alias scene fields(`narration`, `voiceover`, `visual_prompt`)를 schema validate 전에 canonical 필드로 정규화하도록 보강했고, `render_step.py`의 benchmark print는 Windows cp949 콘솔에서 깨지지 않도록 emoji를 ASCII-safe 텍스트로 교체했다.
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| `shorts-maker-v2/tests/integration/test_orchestrator_i18n_smoke.py` | 신규 | `ScriptStep -> Orchestrator -> RenderStep -> SRT export` en-US 상위 smoke 추가 |
+| `shorts-maker-v2/src/shorts_maker_v2/pipeline/script_step.py` | 수정 | `_validate_script_schema()`가 alias scene fields를 canonical 필드로 정규화 후 validate |
+| `shorts-maker-v2/src/shorts_maker_v2/pipeline/render_step.py` | 수정 | benchmark print의 emoji 제거로 Windows cp949 콘솔 호환성 확보 |
+| `.ai/HANDOFF.md` | 수정 | T-043 완료 및 다음 우선순위 반영 |
+| `.ai/TASKS.md` | 수정 | T-043 DONE 처리, T-049/T-050 TODO 추가 |
+| `.ai/CONTEXT.md` | 수정 | orchestrator 상위 smoke 및 Windows 인코딩 지뢰밭 업데이트 |
+| `.ai/SESSION_LOG.md` | 수정 | 현재 세션 기록 추가 |
+
+### 검증 결과
+
+- `python -m ruff check src/shorts_maker_v2/pipeline/script_step.py src/shorts_maker_v2/pipeline/render_step.py tests/integration/test_orchestrator_i18n_smoke.py` -> clean
+- `python -m pytest --no-cov tests/unit/test_script_step.py -q -k validate_script_schema_accepts_alias_scene_fields` (`shorts-maker-v2`) -> **1 passed, 2 warnings**
+- `python -m pytest --no-cov tests/integration/test_orchestrator_i18n_smoke.py -q` (`shorts-maker-v2`) -> **1 passed, 2 warnings**
+- `python -m pytest --no-cov tests/unit/test_script_step.py tests/unit/test_script_step_i18n.py tests/unit/test_i18n_en_us_smoke.py tests/integration/test_orchestrator_manifest.py tests/integration/test_renderer_mode_manifest.py tests/integration/test_orchestrator_i18n_smoke.py -q` (`shorts-maker-v2`) -> **17 passed, 8 warnings**
+
 ## 2026-03-26 — Antigravity (Gemini)
 - **작업**: T-048 script_step.py i18n 마이그레이션 완료
 - **변경 파일**: src/shorts_maker_v2/pipeline/script_step.py, scripts/patch_script_final.py`n- **결과**: 테스트 1043 passed, 12 skipped, unit 전체 통과
