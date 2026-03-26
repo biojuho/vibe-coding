@@ -20,6 +20,7 @@
 - Verification for this change:
   - Blind-to-X targeted unit suite: `103 passed, 1 warning`
   - OpenAI draft generation was aligned to the current SDK via `chat.completions`
+  - Nested `projects/blind-to-x` repo commit created: `4c0304e` (`feat: redesign X curation and draft quality gates`)
 - Shared QC status from earlier today is still the baseline:
   - root: `919 passed, 1 skipped`
   - blind-to-x: standalone unit/integration pass, shared runner timeout still unresolved

@@ -1,3 +1,13 @@
+## 2026-03-26 | Codex | Blind-to-X nested repo code commit
+
+### 작업 요약
+
+Blind-to-X는 루트 저장소 기준으로 canonical move 중이어서 `projects/blind-to-x/` 전체가 미추적처럼 보였지만, 내부에 별도 Git 저장소가 있는 것을 확인했다. 그 저장소에서 이번 X 큐레이션/초안 품질 리디자인 범위 파일만 선별해 커밋했고, 프로젝트 커밋 `4c0304e` (`feat: redesign X curation and draft quality gates`)를 생성했다. `config.yaml`은 프로젝트 `.gitignore`에 의해 계속 로컬 전용으로 남고, 공유 가능한 기본값은 `config.example.yaml`과 `config.ci.yaml`에 반영했다.
+
+### 검증 결과
+
+- `py -3 -m pytest tests/unit/test_feed_collector.py tests/unit/test_quality_gate_and_scenes.py tests/unit/test_quality_improvements.py tests/unit/test_content_intelligence.py tests/unit/test_draft_generator_multi_provider.py tests/unit/test_feedback_loop_fallback.py tests/unit/test_pipeline_flow.py -q -o addopts=` (`projects/blind-to-x`) -> **103 passed, 1 warning**
+
 ## 2026-03-26 | Codex | Blind-to-X X 큐레이션/초안 품질 리디자인 구현
 
 ### 작업 요약
