@@ -58,6 +58,8 @@ Vibe coding/
 - Root automation is being updated to resolve both canonical project paths and legacy root paths internally during migration.
 - `workspace/execution/qaqc_runner.py` and `workspace/execution/joolife_hub.py` now target the canonical layout.
 - QA/QC output is now expected at `projects/knowledge-dashboard/public/qaqc_result.json`.
+- Blind-to-X scheduled entrypoints and n8n bridge defaults now target canonical paths: `projects/blind-to-x` and `workspace/execution`.
+- Windows Task Scheduler launchers are standardized through ASCII-safe `C:\btx\...` wrappers.
 
 ## Shared Services
 
@@ -74,6 +76,7 @@ Vibe coding/
 | pytest `addopts` conflicts | Project-local `pytest.ini` or `pyproject` coverage options can conflict with orchestrated runs | Use `-o addopts=` in shared runners |
 | Legacy path assumptions | Old docs and scripts may still reference root `pages/` or root product dirs | Use `workspace/...` and `projects/...` in new code/docs |
 | Dirty nested repos | Product repos may contain user WIP | Never revert or overwrite unrelated changes |
+| PowerShell ScheduledTasks cmdlets | `Register-ScheduledTask` / `Unregister-ScheduledTask` can return `Access is denied` on this machine even when `schtasks` works | Regenerate `C:\btx\...` launchers first; if cmdlets fail, inspect with `Get-ScheduledTask` and use `schtasks` fallback for recovery |
 
 ## Recent Quality Notes
 

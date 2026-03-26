@@ -1,4 +1,89 @@
+
+## 2026-03-26 | Codex | Blind-to-X 자동 스케줄 경로 복구 (T-055)
+
+### 작업 요약
+
+Blind-to-X 리팩터 이후 깨진 자동 스케줄을 canonical path 기준으로 복구했다. `projects/blind-to-x/run_scheduled.py`가 동적으로 repo root를 계산하도록 바꾸고, 후속 작업은 파일 경로 실행 대신 `workspace`를 cwd로 둔 `python -m execution...` 호출로 전환했다. 동시에 `scheduler_launchers.ps1`를 추가해 `C:\btx\run.bat`, `C:\btx\launch.py`, `C:\btx\run_pipeline.bat`, `C:\btx\launch_pipeline.py`를 canonical 경로 기준으로 재생성하도록 만들었다. n8n bridge와 `healthcheck.py` 기본 경로도 `projects/blind-to-x` / `workspace/execution` 기준으로 정리했다.
+
+운영 검증에서는 PowerShell `Register-ScheduledTask` / `Unregister-ScheduledTask`가 `Access is denied`로 실패했지만, launcher 재생성 자체는 성공했다. 기존 5개 시간대 작업은 원래도 `C:\btx\run.bat`를 사용하고 있었으므로 수정된 launcher를 그대로 타게 되었고, `BlindToX_Pipeline`은 `schtasks`로 `cmd.exe /c C:\btx\run_pipeline.bat` 작업을 다시 만들어 복구했다. n8n bridge는 임시 `BRIDGE_TOKEN`으로 띄운 뒤 `healthcheck`와 `btx_dry_run`을 호출해 새 기본 경로가 실제로 동작함을 확인했다.
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| `projects/blind-to-x/run_scheduled.py` | 수정 | canonical repo/workspace 경로 계산, 후속 작업을 `python -m execution...`으로 전환 |
+| `projects/blind-to-x/scheduler_launchers.ps1` | 신규 | `C:\btx\...` ASCII launcher 생성 공통화 |
+| `projects/blind-to-x/register_schedule.ps1` | 수정 | 시간대 작업들을 `C:\btx\run.bat` 기준으로 재등록 |
+| `projects/blind-to-x/register_task.ps1` | 수정 | `BlindToX_Pipeline`을 `C:\btx\run_pipeline.bat` 기준으로 재등록 |
+| `projects/blind-to-x/run_scheduled.bat`, `run_pipeline.bat`, `setup_task_scheduler.ps1` | 수정 | pre-refactor 절대 경로 제거, launcher 흐름 정리 |
+| `infrastructure/n8n/bridge_server.py`, `infrastructure/n8n/healthcheck.py` | 수정 | canonical 기본 경로와 `workspace/execution` 모듈 실행으로 정리 |
+| `workspace/tests/test_auto_schedule_paths.py` | 신규 | 스케줄러/n8n canonical path 회귀 테스트 추가 |
+
+### 검증 결과
+
+- `venv\Scripts\python.exe -m pytest workspace/tests/test_auto_schedule_paths.py -q -o addopts=` -> **4 passed**
+- `venv\Scripts\python.exe -m pytest workspace/tests/test_qaqc_runner_extended.py -q -o addopts=` -> **7 passed**
+- `BlindToX_0500`, `0900`, `1300`, `1700`, `2100`, `BlindToX_Pipeline` 작업 정의 확인 -> 모두 `Ready`
+- n8n `/execute` `healthcheck` -> **success**
+- n8n `/execute` `btx_dry_run` -> **success** (`timeout=180` 기준)
+
+### 다음 작업 메모
+
+- 다음 자연 실행 후 `projects/blind-to-x/.tmp/logs/scheduled_*.log` 신규 생성과 `LastTaskResult=0`를 확인하면 운영 복구가 완결된다.
+- 이 머신에서는 ScheduledTasks PowerShell cmdlet 권한 이슈가 있으므로, 복구 자동화는 `C:\btx` launcher 재생성과 `schtasks` fallback을 함께 고려해야 한다.
+
+## 2026-03-26 | Antigravity (Gemini) | 자동 주제 발굴 기능 완성 (T-054)
+
+### 작업 요약
+
+shorts-maker-v2의 트렌드 기반 주제 자동 발굴 기능(--auto-topic, --auto-topic-list)을 구현했습니다.
+Google Trends와 RSS 피드를 활용하여 TrendDiscoveryStep을 구현하고, TopicAngleGenerator를 통해 채널별 인지 부조화 훅 패턴에 맞는 제목을 자동 생성하도록 했습니다.
+execution/trend_scout.py 스탠드얼론 스크립트를 추가하여 --json 출력 및 단독 실행이 가능합니다.
+관련 단위 테스트 64건을 작성하여 모두 통과시켰으며, 전체 유닛 테스트 회귀 검증(1107 passed)을 완료했습니다.
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| src/shorts_maker_v2/pipeline/trend_discovery_step.py | 신규 | 구글 트렌드, RSS 기반 키워드 발굴 및 스코어링 |
+| src/shorts_maker_v2/pipeline/topic_angle_generator.py | 신규 | 발굴된 키워드를 채널 성격에 맞는 후킹 제목으로 변환 |
+| src/shorts_maker_v2/cli.py | 수정 | --auto-topic, --auto-topic-list 플래그 추가 및 파이프라인 연동 |
+| execution/trend_scout.py | 신규 | CLI 외곽에서 트렌드를 발굴해 JSON으로 제공하는 스탠드얼론 스크립트 |
+| 	ests/unit/test_trend_discovery_step.py | 신규 | 트렌드 발굴 로직 단위 테스트 |
+| 	ests/unit/test_topic_angle_generator.py | 신규 | 주제 앵글 생성 로직 단위 테스트 |
+| 	ests/unit/test_cli.py | 수정 | --auto-topic 플래그 및 에러 메시지 검증 추가 |
+
+### 검증 결과
+
+- 신규 유닛 테스트: **64 passed**
+- shorts-maker-v2 유닛 테스트: **1107 passed, 12 skipped, 0 failed**
+
 ﻿
+## 2026-03-26 | Claude Code | T-049/T-050 완료, Pillow deprecation 수정 + full QC APPROVED
+
+### 작업 요약
+
+T-049: `thumbnail_step.py`의 `Image.fromarray(arr, "RGBA"/"RGB")` 호출에서 deprecated `mode` 파라미터를 제거. Pillow 13 (2026-10-15 예정)에서 제거 예정인 파라미터로, 배열 shape에서 자동 추론하므로 불필요. src/ 및 build/ 양쪽 수정.
+
+T-050: `workspace/execution/qaqc_runner.py`로 full QC 재실행. **APPROVED**: 2533 passed, 0 failed, 29 skipped, AST 20/20 OK, Security CLEAR, Scheduler 6/6 Ready.
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| `projects/shorts-maker-v2/src/.../thumbnail_step.py` | 수정 | `Image.fromarray` mode 파라미터 제거 (2곳) |
+| `projects/shorts-maker-v2/build/.../thumbnail_step.py` | 수정 | 동일 |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/SESSION_LOG.md` | 수정 | T-049/T-050 완료 반영, QC 기준선 갱신 |
+
+### 검증 결과
+
+- blind-to-x: 541 passed, 16 skipped
+- shorts-maker-v2: 1077 passed, 12 skipped
+- root: 915 passed, 1 skipped
+- 전체: **2533 passed, 0 failed** — **APPROVED**
+
+---
+
 ## 2026-03-26 | Codex | T-052 완료, workspace/projects 구조 리팩터링
 
 ### 작업 요약

@@ -7,6 +7,7 @@
 
 | ID | 태스크 | 담당 도구 | 우선순위 | 생성일 |
 |----|--------|-----------|----------|--------|
+| T-056 | Blind-to-X 다음 자연 실행 후 새 `scheduled_*.log`와 `LastTaskResult=0` 확인 | any | HIGH | 2026-03-26 |
 
 
 ## IN_PROGRESS
@@ -18,12 +19,11 @@
 
 | ID | 태스크 | 완료 도구 | 완료일 |
 |----|--------|-----------|--------|
+| T-055 | Blind-to-X 자동 스케줄 경로 복구 및 `C:\btx` ASCII launcher 정비 | Codex | 2026-03-26 |
+| T-054 | 트렌드 기반 주제 자동 발굴 기능 (--auto-topic) 완성 | Antigravity | 2026-03-26 |
 | T-053 | 루트 `shorts-maker-v2/` 빈 폴더 확인 — 이미 정리됨 | Antigravity | 2026-03-26 |
 | T-050-B | `__init__.py` lazy-import monkeypatch 호환 수정 → **1077 passed, 13 skipped, 0 failed** | Antigravity | 2026-03-26 |
 | T-049 | `thumbnail_step.py` Pillow deprecation warning 수정 (`Image.fromarray` mode 제거) | Claude | 2026-03-26 |
-| T-052 | 루트 구조를 `workspace/` + `projects/` 기준으로 재편 | Codex | 2026-03-26 |
-| T-051 | `orchestrator.py` unit tests 31개 추가 (15%→80%), shorts 1076 passed | Claude | 2026-03-26 |
-| T-043 | `orchestrator`/`render_step` 상위 en-US smoke + integration coverage 보강 | Codex | 2026-03-26 |
 
 ## 규칙
 
