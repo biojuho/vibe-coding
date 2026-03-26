@@ -60,6 +60,7 @@ Vibe coding/
 - QA/QC output is now expected at `projects/knowledge-dashboard/public/qaqc_result.json`.
 - Blind-to-X scheduled entrypoints and n8n bridge defaults now target canonical paths: `projects/blind-to-x` and `workspace/execution`.
 - Windows Task Scheduler launchers are standardized through ASCII-safe `C:\btx\...` wrappers.
+- Latest shared QC run on `2026-03-26` is `CONDITIONALLY_APPROVED`: root passes, blind-to-x hits runner timeout, shorts-maker-v2 has suite-only flaky failures, knowledge-dashboard lint fails.
 
 ## Shared Services
 
@@ -77,9 +78,13 @@ Vibe coding/
 | Legacy path assumptions | Old docs and scripts may still reference root `pages/` or root product dirs | Use `workspace/...` and `projects/...` in new code/docs |
 | Dirty nested repos | Product repos may contain user WIP | Never revert or overwrite unrelated changes |
 | PowerShell ScheduledTasks cmdlets | `Register-ScheduledTask` / `Unregister-ScheduledTask` can return `Access is denied` on this machine even when `schtasks` works | Regenerate `C:\btx\...` launchers first; if cmdlets fail, inspect with `Get-ScheduledTask` and use `schtasks` fallback for recovery |
+| Shared QC timeout budget | `blind-to-x` full suite currently exceeds the runner's fixed 300s timeout even though unit/integration pass when run separately | Treat a runner TIMEOUT as inconclusive; rerun `tests/unit` and `tests/integration` separately or raise/split the timeout |
+| Shorts full-suite flakiness | `shorts-maker-v2` can fail on different tests across full-suite reruns while those same tests pass in isolation | Suspect order dependence or leaked global state before editing production code; rerun isolated tests to confirm |
 
 ## Recent Quality Notes
 
-- `shorts-maker-v2` recently passed broad targeted suites and coverage uplift work.
+- `shorts-maker-v2` recently passed broad targeted suites and coverage uplift work, but full `tests/unit + tests/integration` reruns on `2026-03-26` were unstable.
 - `blind-to-x` has a known env-specific `curl_cffi` CA-path reproducer that is ignored in shared QA/QC.
 - The QA/QC contract uses machine-readable statuses such as `APPROVED`, `CONDITIONALLY_APPROVED`, `REJECTED`, `CLEAR`, and `WARNING`.
+- `knowledge-dashboard` currently fails lint with a conditional `useMemo` hook and an empty interface declaration.
+- `hanwoo-dashboard` lint is green aside from one `@next/next/no-page-custom-font` warning in `src/app/layout.js`.

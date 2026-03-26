@@ -1,4 +1,40 @@
 
+## 2026-03-26 | Codex | 시스템 전체 QC 수행
+
+### 작업 요약
+
+`workspace/execution/qaqc_runner.py`로 shared QC를 실행했고 결과는 `CONDITIONALLY_APPROVED`였다. root는 통과했고 AST/security도 깨끗했지만, blind-to-x는 runner timeout 300초에 걸렸고 shorts-maker-v2는 full-suite 재실행마다 실패 지점이 바뀌었다. 이어서 원인 분해를 위해 blind-to-x를 unit/integration로 쪼개 재검증했고, shorts-maker-v2의 실패 테스트 둘은 각각 isolated rerun에서 통과함을 확인했다. 추가로 frontend lint와 Python `ruff`를 돌려 정적 품질 부채도 수집했다.
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| `.ai/HANDOFF.md` | 수정 | 최신 QC 결과와 후속 우선순위 반영 |
+| `.ai/TASKS.md` | 수정 | T-057~T-060 신규 등록 |
+| `.ai/CONTEXT.md` | 수정 | QC 상태, 지뢰밭, 품질 메모 갱신 |
+| `.ai/SESSION_LOG.md` | 수정 | 현재 세션 기록 추가 |
+
+### 검증 결과
+
+- `venv\Scripts\python.exe -X utf8 workspace/execution/qaqc_runner.py` -> `CONDITIONALLY_APPROVED`
+- `projects/blind-to-x` unit: **468 passed, 15 skipped in 328.89s**
+- `projects/blind-to-x` integration: **63 passed, 1 skipped in 25.61s**
+- `projects/blind-to-x/tests/unit/test_pipeline_flow.py::test_process_single_post_success_returns_notion_url_and_review_state` -> **1 passed in 131.81s**
+- `projects/shorts-maker-v2` full suite run #1 -> **631 passed, 1 failed, 12 skipped** (`test_planning_step.py`)
+- `projects/shorts-maker-v2` full suite run #2 -> **753 passed, 1 failed, 12 skipped** (`test_render_step_phase5.py`)
+- `projects/shorts-maker-v2` isolated reruns:
+  - `tests/unit/test_planning_step.py::test_run_returns_pass_on_first_valid_response` -> **PASS**
+  - `tests/unit/test_render_step_phase5.py::test_resolve_caption_combo_prefers_channel_profile` -> **PASS**
+- `projects/hanwoo-dashboard`: `npm run lint` -> **warning 1개**
+- `projects/knowledge-dashboard`: `npm run lint` -> **error 2개, warning 1개**
+- `venv\Scripts\python.exe -m ruff check workspace projects\blind-to-x projects\shorts-maker-v2\src infrastructure\n8n` -> **41 errors**
+
+### 다음 작업 메모
+
+- blind-to-x는 현재 코드 회귀보다 shared runner timeout budget misfit 가능성이 더 크다.
+- shorts-maker-v2는 first failing test가 매번 바뀌므로 기능 버그 하나보다는 order dependence / leaked state 쪽을 우선 조사하는 편이 맞다.
+- knowledge-dashboard는 lint errors 때문에 현재 프론트엔드 품질 게이트를 통과하지 못한다.
+
 ## 2026-03-26 | Codex | Blind-to-X 자동 스케줄 경로 복구 (T-055)
 
 ### 작업 요약

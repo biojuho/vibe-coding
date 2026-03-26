@@ -8,6 +8,10 @@
 | ID | 태스크 | 담당 도구 | 우선순위 | 생성일 |
 |----|--------|-----------|----------|--------|
 | T-056 | Blind-to-X 다음 자연 실행 후 새 `scheduled_*.log`와 `LastTaskResult=0` 확인 | any | HIGH | 2026-03-26 |
+| T-057 | `workspace/execution/qaqc_runner.py`의 blind-to-x timeout 300s false negative 해소 (timeout 상향 또는 run 분리) | Codex | HIGH | 2026-03-26 |
+| T-058 | `shorts-maker-v2` full-suite order-dependent/flaky failure 조사 및 수정 | Claude | HIGH | 2026-03-26 |
+| T-059 | `knowledge-dashboard` lint 오류 수정 (`ActivityTimeline.tsx`, `ui/input.tsx`) | Codex | HIGH | 2026-03-26 |
+| T-060 | canonical refactor 이후 남은 Python Ruff 오류 41건 정리 | any | MEDIUM | 2026-03-26 |
 
 
 ## IN_PROGRESS
