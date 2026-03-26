@@ -217,3 +217,17 @@
 | **선택 이유** | ADR-002의 보안 원칙 존중 + SaaS 수익화 경로 확보. 로컬 워커는 Cloudflare Tunnel 또는 n8n Webhook으로 웹 껍데기와 연동하며, API 키는 로컬에만 존재 |
 | **ADR-002 관계** | ADR-002를 **폐기하지 않고 범위를 재해석**: "핵심 데이터·키는 로컬"이라는 정신은 유지, "원격 인터페이스 금지"는 "읽기 전용 웹 뷰 + 인증된 작업 트리거"로 완화 |
 | **상세 설계** | `directives/local_first_saas_design.md` 참조 |
+
+---
+
+## ADR-014: Canonical Workspace and Projects Layout
+
+| 항목 | 내용 |
+|------|------|
+| **날짜** | 2026-03-26 |
+| **상태** | 확정 |
+| **맥락** | Root-owned automation folders and product folders were mixed at repo root, causing path drift in scripts, docs, and launch tooling. |
+| **결정** | Canonical root-owned content moves under `workspace/`, product repositories move under `projects/`, and `infrastructure/` remains top-level. |
+| **세부 규칙** | `workspace/directives`, `workspace/execution`, `workspace/scripts`, `workspace/tests` are canonical. Product repos live at `projects/<name>`. `.ai/`, `.agents/`, `.claude/`, `.github/`, `.mcp*.json`, `.tmp/`, `venv/`, and `_archive/` stay at repo root. |
+| **호환성** | Internal automation may resolve both legacy root project paths and canonical `projects/<name>` paths during migration. New docs and commands must use canonical paths only. |
+| **선택 이유** | The split reduces root clutter, makes ownership obvious, and preserves the AI/tooling control plane where existing session bootstrap expects it. |

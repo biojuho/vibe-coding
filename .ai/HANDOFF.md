@@ -1,6 +1,6 @@
-# HANDOFF - AI 도구 간 릴레이 메모
+# HANDOFF - AI 컨텍스트 릴레이 메모
 
-> 이 파일은 50줄 이내로 유지합니다. 상세 이력은 `SESSION_LOG.md`, 결정사항은 `DECISIONS.md`를 참조하세요.
+> 이 파일은 50줄 이내로 유지합니다. 상세 작업 이력은 `SESSION_LOG.md`, 확정 결정은 `DECISIONS.md`를 확인합니다.
 
 ## 마지막 세션
 
@@ -8,30 +8,24 @@
 |------|------|
 | 날짜 | 2026-03-26 |
 | 도구 | Codex |
-| 작업 | T-043 완료 — `orchestrator`/`render_step` 상위 en-US smoke 추가, schema alias 정규화 보강, Windows cp949 콘솔 출력 이슈 수정 |
+| 작업 | T-052 완료: 루트 구조를 `workspace/` + `projects/` 기준으로 재편하고 경로 계약/문서/QAQC 허브를 새 레이아웃에 맞게 정리 |
 
 ## 현재 상태
 
-- `tests/integration/test_orchestrator_i18n_smoke.py` 추가:
-  - 실제 `ScriptStep`
-  - 실제 `RenderStep.run()`
-  - stub `MediaStep`
-  - mocked encode/QC
-  - `ScriptStep -> Orchestrator -> RenderStep -> SRT export` en-US 상위 경로 검증
-- `script_step.py` `_validate_script_schema()`는 alias scene fields(`narration`, `voiceover`, `visual_prompt`)를 schema validate 전에 canonical 필드로 정규화
-- `render_step.py` benchmark print는 emoji 제거로 Windows cp949 콘솔에서도 `UnicodeEncodeError` 없이 동작
-- 검증:
-  - targeted suite `17 passed, 8 warnings`
-  - 관련 smoke/integration 묶음 `17 passed`에 `test_orchestrator_manifest.py`, `test_renderer_mode_manifest.py`, `test_i18n_en_us_smoke.py` 포함
+- Canonical layout is now active: root control plane + `workspace/` + `projects/` + `infrastructure/`.
+- Root-owned folders moved to `workspace/`: `directives/`, `execution/`, `scripts/`, `tests/`.
+- Product folders moved to `projects/`: `blind-to-x`, `shorts-maker-v2`, `hanwoo-dashboard`, `knowledge-dashboard`, `suika-game-v2`, `word-chain`.
+- Shared path resolver lives in `workspace/path_contract.py`; repo automation accepts both legacy root project paths and canonical `projects/<name>` during transition.
+- `workspace/scripts/smoke_check.py`, `workspace/scripts/doctor.py`, `workspace/execution/qaqc_runner.py`, `workspace/execution/joolife_hub.py` all run against the new layout.
 
 ## 다음 우선순위
 
-1. T-049: `thumbnail_step.py` Pillow deprecation warning (`Image.fromarray(..., mode=...)`) 정리
-2. T-050: `shorts-maker-v2` full QC 재실행 및 기준선 갱신
-3. `render_step`/`orchestrator`를 다시 건드릴 때 남아 있는 콘솔 icon 출력도 safe logger 경로로 정리 검토
+1. T-053: 다른 프로세스가 점유 중인 빈 루트 `shorts-maker-v2/` 잔여 디렉터리 정리
+2. T-049: `thumbnail_step.py` Pillow deprecation warning 정리
+3. T-050: `projects/shorts-maker-v2` 기준 full QC 재실행 및 기준값 갱신 필요 여부 확인
 
 ## 주의사항
 
-- `shorts-maker-v2` 워킹트리가 여전히 많이 더럽다. 내가 건드리지 않은 파일은 되돌리지 말 것
-- 새 상위 smoke는 render assemble과 SRT fallback은 실제 경로를 타고, planning/QC/encode만 테스트 친화적으로 patch했다
-- 모듈 coverage 측정은 여전히 `python -m coverage run --source=src -m pytest --no-cov ...` 후 `coverage report --include=...` 패턴이 가장 안전하다
+- 현재 `git status`의 대량 삭제는 실제 삭제가 아니라 `workspace/`와 `projects/`로 이동된 구조 변경이다.
+- 루트 `shorts-maker-v2/`는 비어 있지만 다른 프로세스가 잡고 있어 이동/삭제가 실패했다. 내용은 이미 `projects/shorts-maker-v2/`에 있다.
+- 역사성 문서(`SESSION_LOG.md`)에는 과거 루트 경로 표기가 남아 있을 수 있다. 새 문서와 새 명령은 canonical 경로만 사용한다.
