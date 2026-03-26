@@ -1,5 +1,32 @@
 # 📋 AI 세션 로그
 
+## 2026-03-26 — Antigravity (유닛 테스트 오류 해결 및 QC 진행)
+
+### 작업 요약
+shorts-maker-v2 파이프라인의 잔여 유닛 테스트 실패 2건 및 린터 경고를 해결하고, 누락된 `pydub` 패키지를 설치하여 스킵되는 테스트를 복구했습니다.
+
+### 주요 작업 내용
+1.  **버그/오류 수정**:
+    *   `src/shorts_maker_v2/pipeline/trend_discovery_step.py`: `ET.ParseError` 대신 `Exception`을 포괄적으로 캐치하도록 변경하여 예외 발생 시의 `UnboundLocalError` 해결.
+    *   `tests/unit/test_render_step_phase5.py`, `tests/unit/test_render_utils.py`: `RenderStep._CAPTION_COMBOS`에 `closing` 요소가 추가되면서 튜플 길이가 3에서 4로 변경된 점을 반영하여 테스트 Assertions 수정.
+    
+2.  **의존성 및 코드 품질(QC)**:
+    *   `pydub` 누락으로 인한 의도치 않은 테스트 스킵 방지를 위해 의존성 추가 설치.
+    *   `ruff check --fix`를 실행하여 6건의 코드 컨벤션(Import 순서 및 미사용 모듈) 이슈 수정.
+    *   전체 `pytest` 테스트 스위트 재실행을 통한 검증 수행.
+
+### 변경 파일
+* `src/shorts_maker_v2/pipeline/trend_discovery_step.py`
+* `tests/unit/test_render_step_phase5.py`
+* `tests/unit/test_render_utils.py`
+
+### 다음 단계
+* 운영 환경에서 트렌드 수집 소스의 API 응답 안정성 모니터링
+* 76.34% 커버리지를 80% 이상으로 상향하기 위한 테스트 보강
+* 레거시 테스트(`tests/legacy/`) 호환성 정리 (테스트 실행 시간 최적화 필요)
+
+---
+
 ## 2026-03-26 — Antigravity (자동 주제 발굴 파이프라인 통합)
 
 ### 작업 요약
@@ -1029,3 +1056,28 @@ ShortsFactory 렌더링 파이프라인의 핵심 누락 파일(`ShortsFactory/r
 ### 다음 도구에게 메모
 - Ruff 린트 시 보고되는 43개의 오류는 치명적이지 않으며, 향후 필요시 점진적으로 수정 권장.
 - Windows 로컬 pre-commit 훅이 Python 파일명 인코딩/경로 문제로 실행되지 않을 수 있어 우회 처리(`--no-verify`)함.
+
+---
+
+## 2026-03-26 — Antigravity (TrendDiscoveryStep 신규 모듈 작성 및 파이프라인 QC)
+
+### 작업 요약
+- `shorts-maker-v2`의 Phase 2 (트렌드 발굴) 파이프라인 구성 및 적용 완료.
+- `TrendDiscoveryStep` 구현 및 `YouTubeTrendSource`, `GoogleTrendSource` 연동.
+- CLI `--auto-topic` 플래그 통합 및 `TopicAngleGenerator` 파이프라인 연결.
+- 잔여 유닛 테스트 버그(UnboundLocalError, _CAPTION_COMBOS tuple 길이 관련 Assertion) 해결 후 전체 QC(Quality Control) 진행.
+
+### 세부 변경사항
+- 파이프라인 `TrendDiscoveryStep` 모듈 작성.
+- 프롬프트 템플릿의 JSON 렌더링 중 발생하는 `KeyError` 문제(중괄호 이스케이핑) 해결.
+- `_CAPTION_COMBOS`의 튜플 요소가 3개에서 4개(hook, body, cta, closing)로 늘어난 부분 테스트 코드에 반영.
+- `test_render_step_phase5.py`, `test_render_utils.py` 테스트 케이스 수정 및 통과.
+
+### 테스트 결과
+- **유닛 테스트**: pytest 통과 확인.
+- **Ruff 코드 린터**: --fix 플래그를 통한 자동 수정(6건 반영).
+- **최종 판정**: ✅ 승인 (APPROVED)
+
+### 다음 도구에게 메모
+- `_CAPTION_COMBOS` 길이 주의 필요 (4개 요소).
+- 템플릿 프롬프트에서 JSON 포맷 활용 시 이중 중괄호 `{{`, `}}` 문법 유지할 것.
