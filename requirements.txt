@@ -1,6 +1,7 @@
 croniter
 requests
 python-dotenv
+loguru
 ddgs
 psutil
 openai

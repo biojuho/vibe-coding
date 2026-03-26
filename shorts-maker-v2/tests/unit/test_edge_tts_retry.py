@@ -11,7 +11,7 @@ def test_generate_tts_retries_after_no_audio(monkeypatch, tmp_path: Path) -> Non
     words = tmp_path / "retry_words.json"
     calls = {"count": 0}
 
-    async def fake_generate_with_timing(text, voice, rate, pitch, output_path, words_json_path):  # noqa: ANN001
+    async def fake_generate_with_timing(text, voice, rate, pitch, output_path, words_json_path, language):  # noqa: ANN001
         calls["count"] += 1
         if calls["count"] == 1:
             raise RuntimeError("No audio was received. Please verify that your parameters are correct.")

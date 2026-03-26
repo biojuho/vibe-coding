@@ -2,6 +2,7 @@
 
 import logging
 import os
+import shutil
 
 import yaml
 from dotenv import load_dotenv
@@ -21,6 +22,76 @@ ERROR_FILTERED_SPAM = "FILTERED_SPAM"
 ERROR_FILTERED_LOW_QUALITY = "FILTERED_LOW_QUALITY"
 ERROR_DUPLICATE_CONTENT = "DUPLICATE_CONTENT"
 QUALITY_SCORE_THRESHOLD = 55
+
+
+def _is_ascii_path(path: str) -> bool:
+    try:
+        path.encode("ascii")
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
+def _get_windows_short_path(path: str) -> str:
+    """Return an ASCII-friendly 8.3 path when available on Windows."""
+    if os.name != "nt":
+        return ""
+
+    try:
+        import ctypes
+
+        get_short_path_name = ctypes.windll.kernel32.GetShortPathNameW
+        required = get_short_path_name(path, None, 0)
+        if required <= 0:
+            return ""
+
+        buffer = ctypes.create_unicode_buffer(required)
+        resolved = get_short_path_name(path, buffer, required)
+        if resolved <= 0:
+            return ""
+        return buffer.value
+    except Exception:
+        return ""
+
+
+def _ascii_ca_bundle_candidates() -> list[str]:
+    system_drive = os.environ.get("SystemDrive", "C:")
+    public_root = os.environ.get("PUBLIC") or os.path.join(system_drive, "Users", "Public")
+    program_data = os.environ.get("ProgramData") or os.path.join(system_drive, "ProgramData")
+
+    candidates = [
+        os.path.join(public_root, "btx-cert"),
+        os.path.join(program_data, "btx-cert"),
+    ]
+
+    unique_candidates: list[str] = []
+    for candidate in candidates:
+        if candidate and candidate not in unique_candidates and _is_ascii_path(candidate):
+            unique_candidates.append(candidate)
+    return unique_candidates
+
+
+def _resolve_ascii_curl_ca_bundle(cert_source: str) -> str:
+    """Materialize certifi's CA bundle at an ASCII-only path for curl_cffi."""
+    if not cert_source:
+        return cert_source
+
+    for bundle_dir in _ascii_ca_bundle_candidates():
+        bundle_path = os.path.join(bundle_dir, "certifi-cacert.pem")
+        try:
+            os.makedirs(bundle_dir, exist_ok=True)
+            source_size = os.path.getsize(cert_source)
+            if not os.path.exists(bundle_path) or os.path.getsize(bundle_path) != source_size:
+                shutil.copyfile(cert_source, bundle_path)
+            return bundle_path
+        except OSError:
+            continue
+
+    short_path = _get_windows_short_path(cert_source)
+    if short_path and _is_ascii_path(short_path):
+        return short_path
+
+    return cert_source
 
 
 def setup_logging():
@@ -64,6 +135,16 @@ def load_env():
 
     if not loaded_any:
         load_dotenv(override=False)
+
+    # curl_cffi CA Error 77 우회 (Windows 한글 경로 + Python 3.14)
+    # certifi의 원본 경로가 비ASCII일 수 있어 ASCII-only 위치로 복사한 번들을 우선 사용한다.
+    if not os.environ.get("CURL_CA_BUNDLE"):
+        try:
+            import certifi
+
+            os.environ["CURL_CA_BUNDLE"] = _resolve_ascii_curl_ca_bundle(certifi.where())
+        except ImportError:
+            pass
 
 
 logger = logging.getLogger(__name__)

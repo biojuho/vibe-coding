@@ -9,7 +9,6 @@ Tests cover:
 
 from __future__ import annotations
 
-import re
 import textwrap
 from unittest.mock import MagicMock
 

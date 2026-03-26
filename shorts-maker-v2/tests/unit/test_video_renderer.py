@@ -4,7 +4,8 @@ MoviePyRenderer와 FFmpegRenderer의 인터페이스 동작을 검증합니다.
 MoviePy import는 실제 MoviePy가 설치되어 있으므로 정상 동작합니다.
 """
 
-from unittest.mock import MagicMock
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 from shorts_maker_v2.render.video_renderer import (
     ClipHandle,
@@ -45,7 +46,7 @@ class TestCreateRenderer:
     def test_unknown_raises(self):
         try:
             create_renderer("unknown")
-            assert False, "Should have raised"
+            raise AssertionError("Should have raised")
         except ValueError as e:
             assert "unknown" in str(e)
 
@@ -185,7 +186,7 @@ class TestFFmpegRenderer:
         r = FFmpegRenderer(tmp_dir=".tmp/test_ffmpeg")
         try:
             r.concatenate([])
-            assert False
+            raise AssertionError
         except ValueError:
             pass
 
@@ -198,6 +199,30 @@ class TestFFmpegRenderer:
         r = FFmpegRenderer(tmp_dir=".tmp/test_ffmpeg")
         try:
             r.composite([])
-            assert False
+            raise AssertionError
         except ValueError:
             pass
+
+    def test_write_accepts_moviepy_native_clip(self, tmp_path: Path):
+        """MoviePy composite도 intermediate export 후 ffmpeg encode로 처리한다."""
+        r = FFmpegRenderer(tmp_dir=tmp_path / ".tmp_ffmpeg")
+        moviepy_clip = MagicMock()
+        handle = ClipHandle(backend="ffmpeg", native=moviepy_clip, duration=5.0)
+
+        with patch.object(r, "_run_ffmpeg") as run_ffmpeg:
+            output = tmp_path / "encoded.mp4"
+            result = r.write(
+                handle,
+                output,
+                fps=24,
+                codec="libx264",
+                audio_codec="aac",
+                preset="slow",
+                ffmpeg_params=["-crf", "20"],
+            )
+
+        moviepy_clip.write_videofile.assert_called_once()
+        args = run_ffmpeg.call_args.args[0]
+        assert args[0] == "-i"
+        assert str(output) == args[-1]
+        assert result == output

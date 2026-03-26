@@ -1,0 +1,27 @@
+usage: main.py [-h] [--config CONFIG] [--urls URLS [URLS ...]] [--trending]
+               [--popular] [--limit LIMIT] [--dry-run] [--parallel N]
+               [--source SOURCE] [--review-only] [--reprocess-approved]
+               [--newsletter-build] [--newsletter-preview] [--digest]
+               [--digest-date DIGEST_DATE] [--sentiment-report]
+
+Blind to X Automation Pipeline
+
+options:
+  -h, --help            show this help message and exit
+  --config CONFIG       Path to config file
+  --urls URLS [URLS ...]
+                        Specific URLs to process
+  --trending            Fetch trending posts automatically
+  --popular             Fetch popular posts automatically
+  --limit LIMIT         Limit number of posts (default from config)
+  --dry-run             Scrape and generate drafts without uploading
+  --parallel N          Process up to N posts concurrently (default: 3)
+  --source SOURCE       Source scraper to use
+  --review-only         Queue items for review without publishing
+  --reprocess-approved  Publish approved Notion items only
+  --newsletter-build    Build newsletter edition from approved Notion items
+  --newsletter-preview  Preview newsletter edition without publishing
+  --digest              Generate and send daily digest
+  --digest-date DIGEST_DATE
+                        Digest date (YYYY-MM-DD, default: today)
+  --sentiment-report    Show current emotion trends

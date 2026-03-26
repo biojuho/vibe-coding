@@ -16,6 +16,15 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
+def _normalize_whisper_language(language: str | None) -> str:
+    normalized = (language or "ko").strip().lower()
+    if "-" in normalized:
+        normalized = normalized.split("-", 1)[0]
+    if "_" in normalized:
+        normalized = normalized.split("_", 1)[0]
+    return normalized or "ko"
+
+
 def is_whisper_available() -> bool:
     """faster-whisper가 설치되어 import 가능한지 확인."""
     try:
@@ -29,6 +38,7 @@ def is_whisper_available() -> bool:
 def transcribe_to_word_timings(
     audio_path: Path,
     model_size: str = "base",
+    language: str = "ko",
 ) -> list[dict]:
     """TTS 오디오를 faster-whisper로 분석해 word-level 타임스탬프 반환.
 
@@ -39,6 +49,7 @@ def transcribe_to_word_timings(
         audio_path: 분석할 오디오 파일 경로 (mp3 / wav 등 ffmpeg 지원 형식).
         model_size: Whisper 모델 크기. CPU 환경에서는 "base" 권장.
                     선택 가능: "tiny", "base", "small", "medium", "large-v3"
+        language: Whisper 언어 코드 또는 locale (`ko`, `en`, `ko-KR`, `en-US` 등).
 
     Returns:
         [{"word": str, "start": float, "end": float}] 포맷의 단어 타이밍 목록.
@@ -57,6 +68,7 @@ def transcribe_to_word_timings(
     try:
         logger.info("whisper_aligner: faster-whisper (%s, cpu, int8) 로드 중…", model_size)
         model = WhisperModel(model_size, device="cpu", compute_type="int8")
+        whisper_language = _normalize_whisper_language(language)
 
         logger.info("whisper_aligner: '%s' 분석 시작", audio_path.name)
         segments, _info = model.transcribe(
@@ -64,7 +76,7 @@ def transcribe_to_word_timings(
             word_timestamps=True,
             beam_size=1,  # CPU 속도 최적화
             vad_filter=True,  # 무음 구간 제거 → 타임스탬프 안정화
-            language="ko",  # 한국어 고정 (강제 선언 시 정확도 향상)
+            language=whisper_language,
         )
 
         result: list[dict] = []

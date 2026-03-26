@@ -189,27 +189,77 @@
 
 ---
 
-## Phase 5: 차세대 기능 (장기, 탐색적)
+## Phase 5: 고급 최적화 & 차세대 기능 (2026-03-25~)
 
-> 탐색적 항목 — 이전 Phase 완료 후 검토
+> Phase 0~4 완료 (2026-03-11). Phase 5는 품질 기반 강화(5A)와 차세대 기능(5B)으로 이원화.
+> QC 기준선: 2362 passed, 0 failed, APPROVED (2026-03-25)
 
-### T5-1. 멀티 언어 Shorts 확장
-- **현황**: 한국어 전용 (ko-KR)
-- **구상**: 동일 스크립트 → 영어/일본어 자동 번역 + 현지화 TTS → 멀티 채널 배포
-- **고려사항**: 번역 품질 검증, 문화적 맥락 적응, Edge TTS 다국어 음성 풀
+### Phase 5A: 품질 기반 강화 (즉시 실행, ~5일)
 
-### T5-2. 숏폼 → 롱폼 자동 확장
+#### T5A-1. Coverage 목표 상향 (완료)
+- **목표**: shorts 주요 모듈 80%+, blind-to-x commands/ 100%
+- **결과 (2026-03-25)**:
+  - shorts: `animations.py` 100%, `broll_overlay.py` 100%, `openai_client.py` 100%, `google_client.py` 98%, `edge_tts_client.py` 65%
+  - blind-to-x: `commands/` 전체 100% (dry_run, one_off, reprocess)
+  - 전체 테스트: 2224 → 2362 (+138)
+- **상태**: ✅ 완료
+
+#### T5A-2. 남은 저커버리지 모듈 보강
+- **현황**: shorts `render_step.py` 28%, `edge_tts_client.py` 65% (비동기 함수 미커버)
+- **작업**: render_step의 주요 분기 테스트, edge_tts 비동기 함수 모킹 테스트
+- **파일**: `shorts-maker-v2/tests/unit/test_render_step.py`, `test_edge_tts_timing.py`
+
+#### T5A-3. 지뢰밭 정리 및 문서 최신화
+- **현황**: `.ai/CONTEXT.md` 지뢰밭 18건 누적, 일부는 이미 해결됨
+- **작업**: 해결된 항목 아카이브, 미해결 항목만 유지, SESSION_LOG 로테이션
+- **파일**: `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md`
+
+#### T5A-4. Dead Code / Legacy 정리
+- **T-036 결론**: `video_renderer_backend`는 dead code가 아님 — MoviePy(합성) + FFmpeg(인코딩) 듀얼 렌더러 설계. 프로덕션 config 미노출이나 테스트에서 사용 중. → 정리 불필요
+- **T-037 결론**: `tests/legacy/` (5개 파일)는 ShortsFactory 템플릿 시스템 테스트. import 호환되나 별도 모듈이므로 QC 범위 외 유지 → 현상 유지
+- **상태**: ✅ 조사 완료, 조치 불필요
+
+### Phase 5B: 차세대 기능 (탐색적, 6~12주)
+
+#### T5B-1. 멀티 언어 Shorts 확장 (i18n)
+- **현황**: 한국어 100% 하드코딩 상태에서 locale 기반 구조로 이행 중
+- **진행 상태 (2026-03-25)**:
+  - PoC 1차 완료: `script_step.py`의 tone/persona/CTA 금지어/system+user prompt copy를 `locales/ko-KR/script_step.yaml`로 외부화
+  - PoC 2차 완료: `script_step.py`의 `persona_keywords`/review prompt copy, `edge_tts_client.py`의 alias voice/default voice를 locale 파일(`locales/ko-KR/edge_tts.yaml`)로 외부화
+  - 실사용 경로 1차 완료: `locales/en-US/` locale pack(`script_step.yaml`, `edge_tts.yaml`, `captions.yaml`) 추가, `config.py` locale caption font 기본값 로딩, `whisper_aligner.py` locale→short code 정규화
+  - smoke 완료: `test_i18n_en_us_smoke.py`로 실제 `en-US` config 기준 `ScriptStep -> MediaStep -> caption render` 최소 경로 확인
+  - 후속 복구 완료: locale `field_names`/`channel_review_criteria`가 다시 적용되도록 `script_step.py`를 정리했고, schema alias(`narration`/`voiceover`/`visual_prompt`) 검증도 복구함
+  - **남은 상위 경로 과제**: 내부 `ScenePlan` 필드는 여전히 `narration_ko`를 유지하며, `orchestrator/render assemble` 수준 상위 smoke는 아직 없음
+- **i18n 분리 대상**:
+  | 영역 | 파일 | 난이도 |
+  |------|------|--------|
+  | 프롬프트 | `script_step.py` (시스템 프롬프트 120줄+) | 높음 |
+  | 톤 프리셋 | `script_step.py` (5개 톤 정의) | 중간 |
+  | 채널 페르소나 | `script_step.py` (5채널 × 역할/금지/필수) | 높음 |
+  | TTS 음성 매핑 | `edge_tts_client.py` (10개 매핑) | 낮음 |
+  | CTA 금지어 | `script_step.py` (9개 키워드) | 낮음 |
+  | 자막 폰트 | `config.py` (malgunbd.ttf 등) | 낮음 |
+  | 품질 검증 규칙 | `script_step.py` (맞춤법/리뷰 섹션) | 높음 |
+- **마이그레이션 경로**: `locales/<lang>/*.yaml` → `config.yaml`의 `language` 기반 로딩
+- **첫 지원 언어**: en-US (확정 대기)
+- **상세**: `directives/roadmap_v3.md` Phase A 참조
+
+#### T5B-2. 숏폼 → 롱폼 자동 확장
 - **현황**: 60초 Shorts만 생산
 - **구상**: 고성과 Shorts 3~5편 → 10분 종합편 자동 편집
 - **고려사항**: 내러티브 연결, 전환 효과, 추가 배경 설명 삽입
 
-### T5-3. 커뮤니티 감성 실시간 대시보드
-- **현황**: blind-to-x가 게시글 수집하나 커뮤니티 전체 감성 미분석
+#### T5B-3. 커뮤니티 감성 실시간 대시보드
+- **현황**: blind-to-x `sentiment_tracker.py` + `emotion_analyzer.py` 기반 존재
 - **구상**: 시간대별 감성 흐름 시각화, 급상승 토픽 실시간 감지, 바이럴 예측
 
-### T5-4. 자동 A/B 테스트 프레임워크
-- **현황**: shorts-maker-v2에 A/B 인프라 부분 존재, 자동 승자 선언 없음
+#### T5B-4. 자동 A/B 테스트 프레임워크
+- **현황**: shorts `style_tracker.py`에 Laplace-smoothed 가중 선택 존재, blind-to-x `style_bandit.py`에 Thompson Sampling 존재
 - **구상**: 동일 토픽 2개 변형 생산 → 동시 배포 → 48h 후 자동 승자 분석 → 패배 변형 비공개 처리
+
+#### T5B-5. SaaS 전환 (Local-First)
+- **상태**: ADR-013 확정 (Local-First SaaS 하이브리드)
+- **상세**: `directives/roadmap_v3.md` Phase B, `directives/local_first_saas_design.md` 참조
 
 ---
 
@@ -222,7 +272,8 @@
 | **P2** 파이프라인 지능화 | 5~7일 | 높음 | 높음 | P1 부분 완료 |
 | **P3** 인프라 강건화 | 3~5일 | 중간 | 중간 | 독립 (P1과 병렬 가능) |
 | **P4** 수익화 기반 | 5~7일 | 높음 | 중간 | P1 완료 |
-| **P5** 차세대 | 탐색적 | 매우 높음 | 매우 높음 | P1~P4 완료 |
+| **P5A** 품질 강화 | 3~5일 | 높음 | 낮음 | P0~P4 완료 |
+| **P5B** 차세대 | 탐색적 (6~12주) | 매우 높음 | 매우 높음 | P5A 완료 |
 
 ---
 

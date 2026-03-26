@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from blind_scraper import ConfigManager, NotionUploader
+from blind_scraper import ConfigManager, NotionUploader  # noqa: E402
 
 LOGGER = logging.getLogger("notion_url_backfill")
 URL_PATTERN = re.compile(r"https?://[^\s\]>)\"']+", re.IGNORECASE)

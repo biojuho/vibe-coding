@@ -10,7 +10,7 @@ soup = BeautifulSoup(html, "html.parser")
 for tag in soup.find_all(string=lambda t: t and "구형이라" in t):
     parent = tag.parent
     print(f"Text found in: {parent.name} (class={parent.get('class')})")
-    
+
     # Go up 5 ancestors
     ancestor = parent.parent
     for i in range(5):

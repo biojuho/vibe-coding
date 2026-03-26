@@ -25,6 +25,46 @@ logger = logging.getLogger(__name__)
 _DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent / ".tmp" / "btx_costs.db"
 GEMINI_IMAGE_DAILY_LIMIT = 500
 
+_MIGRATION_COLUMNS: dict[str, dict[str, str]] = {
+    "draft_analytics": {
+        "content_url": "TEXT DEFAULT ''",
+        "notion_page_id": "TEXT DEFAULT ''",
+        "published_at": "TEXT DEFAULT ''",
+        "hook_score": "REAL DEFAULT 0.0",
+        "virality_score": "REAL DEFAULT 0.0",
+        "fit_score": "REAL DEFAULT 0.0",
+        "yt_views": "INTEGER DEFAULT 0",
+        "engagement_rate": "REAL DEFAULT 0.0",
+        "impression_count": "INTEGER DEFAULT 0",
+    }
+}
+_PRAGMA_TABLE_INFO_SQL = {
+    table_name: f"PRAGMA table_info({table_name})"
+    for table_name in _MIGRATION_COLUMNS
+}
+_ALTER_TABLE_ADD_SQL = {
+    (table_name, column_name): f"ALTER TABLE {table_name} ADD COLUMN {column_name} {ddl}"
+    for table_name, columns in _MIGRATION_COLUMNS.items()
+    for column_name, ddl in columns.items()
+}
+
+
+def _validate_allowed_name(name: str, allowed: set[str] | tuple[str, ...], kind: str) -> str:
+    cleaned = name.strip()
+    if cleaned not in allowed:
+        raise ValueError(f"Unsupported {kind}: {name}")
+    return cleaned
+
+
+def _validate_migration_column(table_name: str, column_name: str, ddl: str) -> str:
+    safe_table = _validate_allowed_name(table_name, set(_MIGRATION_COLUMNS), "migration table")
+    expected_ddl = _MIGRATION_COLUMNS[safe_table].get(column_name)
+    if expected_ddl is None:
+        raise ValueError(f"Unsupported migration column: {safe_table}.{column_name}")
+    if ddl != expected_ddl:
+        raise ValueError(f"Unexpected definition for {safe_table}.{column_name}: {ddl}")
+    return safe_table
+
 
 class CostDatabase:
     """blind-to-x 파이프라인 비용 SQLite 영속화.
@@ -144,12 +184,16 @@ class CostDatabase:
 
     @staticmethod
     def _ensure_column(conn: sqlite3.Connection, table_name: str, column_name: str, ddl: str) -> None:
+        safe_table = _validate_migration_column(table_name, column_name, ddl)
         columns = {
             row["name"]
-            for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+            for row in conn.execute(_PRAGMA_TABLE_INFO_SQL[safe_table]).fetchall()
         }
         if column_name not in columns:
-            conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {ddl}")
+            alter_sql = _ALTER_TABLE_ADD_SQL.get((safe_table, column_name))
+            if alter_sql is None:
+                raise ValueError(f"No migration SQL defined for {safe_table}.{column_name}")
+            conn.execute(alter_sql)
 
     # ── Write helpers ────────────────────────────────────────────────
 
@@ -769,7 +813,11 @@ class CostDatabase:
         quarter = (now.month - 1) // 3 + 1
         archive_path = self.db_path.parent / f"btx_costs_archive_{now.year}-Q{quarter}.db"
 
-        tables = ["daily_text_costs", "daily_image_costs", "draft_analytics", "cross_source_insights", "trend_spikes"]
+        _ARCHIVE_TABLES = frozenset({
+            "daily_text_costs", "daily_image_costs", "draft_analytics",
+            "cross_source_insights", "trend_spikes",
+        })
+        tables = sorted(_ARCHIVE_TABLES)
         result: dict[str, int] = {}
 
         try:
@@ -778,6 +826,7 @@ class CostDatabase:
                 arch_conn.execute("PRAGMA journal_mode=WAL")
                 try:
                     for table in tables:
+                        table = _validate_allowed_name(table, _ARCHIVE_TABLES, "archive table")
                         # 아카이브 DB에 테이블 생성 (없으면)
                         schema_row = src_conn.execute(
                             "SELECT sql FROM sqlite_master WHERE type='table' AND name=?",
@@ -788,7 +837,7 @@ class CostDatabase:
 
                         # 이전 데이터 복사
                         old_rows = src_conn.execute(
-                            f"SELECT * FROM {table} WHERE date < ?", (cutoff,)
+                            f"SELECT * FROM {table} WHERE date < ?", (cutoff,)  # noqa: S608 — table from _ARCHIVE_TABLES frozenset
                         ).fetchall()
                         if not old_rows:
                             result[table] = 0
@@ -797,14 +846,14 @@ class CostDatabase:
                         col_count = len(old_rows[0])
                         placeholders = ",".join(["?"] * col_count)
                         arch_conn.executemany(
-                            f"INSERT OR IGNORE INTO {table} VALUES ({placeholders})",
+                            f"INSERT OR IGNORE INTO {table} VALUES ({placeholders})",  # noqa: S608 — table from _ARCHIVE_TABLES frozenset
                             [tuple(r) for r in old_rows],
                         )
                         arch_conn.commit()
 
                         # 원본에서 삭제
                         deleted = src_conn.execute(
-                            f"DELETE FROM {table} WHERE date < ?", (cutoff,)
+                            f"DELETE FROM {table} WHERE date < ?", (cutoff,)  # noqa: S608 — table from _ARCHIVE_TABLES frozenset
                         ).rowcount
                         result[table] = deleted
                         logger.info(

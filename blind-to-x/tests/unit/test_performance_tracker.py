@@ -1,7 +1,6 @@
 """P6: performance_tracker + classification_rules 플랫폼 확장 테스트."""
 from __future__ import annotations
 
-import json
 import tempfile
 import unittest
 from pathlib import Path

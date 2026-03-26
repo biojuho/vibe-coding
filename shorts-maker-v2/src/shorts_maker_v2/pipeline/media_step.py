@@ -99,6 +99,7 @@ class MediaStep:
                 output_path=output_path,
                 words_json_path=words_json_path,
                 role=role,
+                language=self.config.project.language,
             )
         else:
             audio_result = self.openai_client.generate_tts(

@@ -234,9 +234,9 @@ class TestSemanticSceneMapping(unittest.TestCase):
         self.assertIn("reading news on phone", prompt)
 
     def test_fallback_to_default_scene(self):
-        """토픽도 매핑이 없으면 기본 범용 장면이 사용되어야 한다."""
-        prompt = self._build("알수없음", "미지의감정")
-        self.assertIn("relatable everyday expression", prompt)
+        """매핑되는 장면이 없으면 기본 범용 장면이 사용되어야 한다."""
+        prompt = self._build("알수없음", "미묘한감정")
+        self.assertIn("relatable", prompt)
 
     def test_all_semantic_scenes_produce_valid_prompts(self):
         """모든 시멘틱 씬 매핑 조합이 유효한 프롬프트를 생성해야 한다."""

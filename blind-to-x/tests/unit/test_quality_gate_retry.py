@@ -2,13 +2,11 @@
 from __future__ import annotations
 
 import unittest
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch, MagicMock
 from typing import Any
 
 from pipeline.draft_quality_gate import (
     DraftQualityGate,
-    QualityResult,
-    PLATFORM_RULES,
 )
 
 

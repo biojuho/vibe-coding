@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 import re
 
@@ -47,14 +46,14 @@ class NotionCacheMixin:
         if path != "/" and path.endswith("/"):
             path = path[:-1]
 
-        # NotionSchemaMixin에서 정의된 TRACKING_QUERY_KEYS 참조
-        tracking = getattr(
+        # NotionSchemaMixin에서 정의된 TRACKING_QUERY_KEYS 참조 (미래 확장용)
+        _tracking = getattr(
             type, "TRACKING_QUERY_KEYS",
             {"fbclid", "gclid", "igshid", "ref", "ref_src", "ref_url", "feature"},
         )
         # 클래스에 TRACKING_QUERY_KEYS가 있으면 사용
         if hasattr(type(raw_url), "TRACKING_QUERY_KEYS"):
-            tracking = type(raw_url).TRACKING_QUERY_KEYS  # pragma: no cover
+            _tracking = type(raw_url).TRACKING_QUERY_KEYS  # pragma: no cover
 
         # 실제로는 NotionUploader(NotionSchemaMixin, NotionCacheMixin, ...)에서
         # TRACKING_QUERY_KEYS가 self에 있으므로 하드코딩 폴백 사용

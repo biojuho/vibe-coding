@@ -7,9 +7,9 @@ import re
 import uuid
 
 try:
-    from patchright.async_api import TimeoutError as PlaywrightTimeoutError
+    from patchright.async_api import TimeoutError as PlaywrightTimeoutError  # noqa: F401
 except ImportError:
-    from playwright.async_api import TimeoutError as PlaywrightTimeoutError
+    pass
 
 from config import ERROR_SCRAPE_FAILED, ERROR_SCRAPE_PARSE_FAILED
 from scrapers.base import BaseScraper
@@ -47,13 +47,13 @@ class JobplanetScraper(BaseScraper):
             response = await page.goto(feed_url, timeout=30000)
             if response and response.status == 200:
                 json_data = await response.json()
-                
+
                 items = json_data.get('data', {}).get('items', [])
                 for item in items[:limit]:
                     post_id = item.get('id')
                     if post_id:
                         urls.append(f"{self.BASE_URL}/community/posts/{post_id}")
-                
+
                 logger.info(f"Found {len(urls)} {label} from JSON API.")
             elif response and response.status in [403, 404]:
                 logger.warning(f"API fetch returned status {response.status} for {label}")
@@ -124,61 +124,61 @@ class JobplanetScraper(BaseScraper):
             if not match:
                 failure_reason = "invalid_url_format"
                 raise ValueError(f"Could not extract post ID from URL: {url}")
-            
+
             post_id = match.group(1)
             api_url = f"{self.BASE_URL}/api/v5/community/posts/{post_id}"
-            
+
             logger.info(f"Fetching post detail from API: {api_url}")
             response = await page.goto(api_url, timeout=30000)
-            
+
             if not response or response.status in [403, 404]:
                 failure_reason = f"http_{response.status if response else 'unknown'}"
                 raise Exception(f"API fetch failed with status {response.status if response else 'unknown'}")
-                
+
             json_data = await response.json()
             post_data = json_data.get("data", {})
-            
+
             content = post_data.get("content", "").strip()
             title = post_data.get("title", "").strip()
-            
+
             if not title:
                 lines = [line.strip() for line in content.split('\n') if line.strip()]
                 title = lines[0] if lines else "제목 없음"
                 if len(title) > 50:
                     title = title[:47] + "..."
-                    
+
             if title == "제목 없음" and not content:
                 failure_reason = "title_and_content_missing"
                 raise Exception(f"Could not parse title/content on {url}")
 
             likes = post_data.get("likes_count", 0)
             comments = post_data.get("comments_count", 0)
-            views = post_data.get("views_count", 0)
-            
+            _views = post_data.get("views_count", 0)
+
             cat_info = post_data.get("community_category")
             category = cat_info.get("name", "기타") if isinstance(cat_info, dict) else "기타"
-            
+
             failure_stage = "screenshot"
             # 2. Navigate to actual URL just to take a screenshot
             logger.info(f"Navigating to HTML page for screenshot: {url}")
             await page.goto(url, wait_until="domcontentloaded", timeout=30000)
             await asyncio.sleep(3) # Wait for SPA to render
-            
+
             await self._clean_ui_for_screenshot(page)
-            
+
             short_id = uuid.uuid4().hex[:8]
             safe_title = "".join(x for x in title[:20] if x.isalnum() or x in " -_").strip()
             if not safe_title:
                 safe_title = "post"
             filename = f"jobplanet_{safe_title}_{short_id}.png"
             filepath = os.path.join(self.screenshot_dir, filename)
-            
+
             body = await page.query_selector("body")
             if body:
                 await asyncio.wait_for(body.screenshot(path=filepath), timeout=30)
             else:
                 await asyncio.wait_for(page.screenshot(path=filepath, full_page=True), timeout=30)
-                
+
             logger.info(f"Saved screenshot: {filepath}")
 
             return {

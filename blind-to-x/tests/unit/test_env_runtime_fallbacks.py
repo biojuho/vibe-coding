@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import config as config_module
 from pipeline import analytics_tracker as analytics_module
 from pipeline import image_generator as image_module
 from pipeline import twitter_poster as twitter_module
@@ -79,3 +80,42 @@ def test_image_generator_uses_env_flag(monkeypatch):
 
     assert generator.enabled is True
     assert generator.client.api_key == "openai-key"
+
+
+def test_resolve_ascii_curl_ca_bundle_prefers_public_ascii_copy(monkeypatch):
+    copied: dict[str, str] = {}
+
+    monkeypatch.setenv("PUBLIC", r"C:\Public")
+    monkeypatch.setenv("ProgramData", r"C:\ProgramData")
+    monkeypatch.setattr(config_module.os.path, "exists", lambda _path: False)
+    monkeypatch.setattr(config_module.os.path, "getsize", lambda _path: 123)
+    monkeypatch.setattr(config_module.os, "makedirs", lambda path, exist_ok=True: copied.setdefault("dir", path))
+    monkeypatch.setattr(
+        config_module.shutil,
+        "copyfile",
+        lambda src, dst: copied.update({"src": src, "dst": dst}),
+    )
+
+    result = config_module._resolve_ascii_curl_ca_bundle(r"C:\Users\박주호\venv\cacert.pem")
+
+    assert result == r"C:\Public\btx-cert\certifi-cacert.pem"
+    assert copied["dir"] == r"C:\Public\btx-cert"
+    assert copied["dst"] == result
+
+
+def test_resolve_ascii_curl_ca_bundle_falls_back_to_short_path(monkeypatch):
+    monkeypatch.setattr(config_module, "_ascii_ca_bundle_candidates", lambda: [r"C:\Public\btx-cert"])
+    monkeypatch.setattr(
+        config_module.os,
+        "makedirs",
+        lambda *args, **kwargs: (_ for _ in ()).throw(OSError("blocked")),
+    )
+    monkeypatch.setattr(
+        config_module,
+        "_get_windows_short_path",
+        lambda _path: r"C:\PROGRA~1\Certifi\cacert.pem",
+    )
+
+    result = config_module._resolve_ascii_curl_ca_bundle(r"C:\Users\박주호\venv\cacert.pem")
+
+    assert result == r"C:\PROGRA~1\Certifi\cacert.pem"

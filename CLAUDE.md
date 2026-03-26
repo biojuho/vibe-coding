@@ -79,20 +79,33 @@
 
 ## AI 도구 공유 컨텍스트 시스템
 
-이 프로젝트는 여러 AI 도구(Claude Code, Codex, Gemini, Cursor 등)가 번갈아 작업합니다.
-**세션 시작 시 반드시 아래 파일들을 순서대로 읽으십시오:**
+이 프로젝트는 여러 AI 도구(Claude Code, Codex, Gemini)가 번갈아 작업합니다.
 
-1. `.ai/CONTEXT.md` — 프로젝트 구조, 스택, 컨벤션, 진행 상황
-2. `.ai/SESSION_LOG.md` — 이전 AI 도구들의 작업 기록
-3. `.ai/DECISIONS.md` — 확정된 아키텍처 결정 (**절대 임의 변경 금지**)
+### 세션 시작 시 반드시 (이 순서대로)
+
+1. `.ai/HANDOFF.md` — 이전 도구가 남긴 릴레이 메모 (**가장 먼저 읽을 것**)
+2. `.ai/TASKS.md` — 칸반 보드 (TODO/IN_PROGRESS/DONE)
+3. `.ai/CONTEXT.md` — 프로젝트 구조, 스택, 컨벤션
+4. `.ai/DECISIONS.md` — 확정된 아키텍처 결정 (**절대 임의 변경 금지**)
+5. `.ai/TOOL_MATRIX.md` — 도구별 역량 매트릭스 (태스크 배분 참고)
+
+> SESSION_LOG.md는 필요 시에만 참조. 최근 7일만 유지되며 이전 기록은 `.ai/archive/`에 보존.
 
 ### 세션 종료 시 반드시
 
-1. `.ai/SESSION_LOG.md`에 이번 세션 기록 추가 (날짜, 도구명, 작업 요약, 변경 파일, 결정사항, TODO, 다음 도구에게 메모)
-1. 진행 상황 변경 시 `.ai/CONTEXT.md` 업데이트
-1. 새 아키텍처 결정 시 `.ai/DECISIONS.md` 기록
-1. AI 반복 실수 발견 시 `.ai/CONTEXT.md`의 "지뢰밭" 섹션에 추가
-1. `git commit -m "[ai-context] 세션 로그 업데이트"`
+1. `.ai/HANDOFF.md` 갱신 (마지막 세션 테이블 + 다음 할 일 + 주의사항)
+2. `.ai/TASKS.md` 갱신 (완료 → DONE, 신규 발견 → TODO, 담당 도구 지정)
+3. `.ai/SESSION_LOG.md`에 이번 세션 기록 추가 (날짜, 도구명, 작업 요약, 변경 파일)
+4. 진행 상황 변경 시 `.ai/CONTEXT.md` 업데이트
+5. 새 아키텍처 결정 시 `.ai/DECISIONS.md` 기록
+6. AI 반복 실수 발견 시 `.ai/CONTEXT.md`의 "지뢰밭" 섹션에 추가
+7. `git commit -m "[ai-context] 세션 로그 업데이트"`
+
+### SESSION_LOG 로테이션 규칙
+
+- SESSION_LOG.md는 **최근 7일**만 유지
+- 7일 초과분은 `.ai/archive/SESSION_LOG_before_YYYY-MM-DD.md`로 이동
+- 로테이션은 세션 종료 시 자동 수행 (파일이 1000줄 초과 시)
 
 ## 바이브 코딩 어시스턴트 (Custom Instructions)
 

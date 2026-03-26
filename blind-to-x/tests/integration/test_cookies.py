@@ -13,7 +13,7 @@ async def main():
     except Exception as e:
         print("Failed to load cookies:", e)
         return
-        
+
     async with AsyncSession(cookies=cookies) as session:
         response = await session.get(url, impersonate="chrome120")
         if "article-wrap" in response.text:

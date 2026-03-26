@@ -5,7 +5,6 @@ TestNewsletterNewMappings, TestFormatForBlog, TestCurateFromRecords는
 해당 모듈에 의존했으므로 제거되었습니다.
 Threads/Blog 초안 생성은 이제 draft_generator.py 내에서 LLM이 직접 처리합니다.
 """
-import pytest
 
 
 # ── A-3: 이미지 프롬프트 자동 빌드 ──────────────────────────────────

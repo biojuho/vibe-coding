@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell, AreaChart, Area, Legend,
+  ResponsiveContainer, AreaChart, Area, Legend,
 } from "recharts";
 import { Shield, CheckCircle, AlertTriangle, XCircle, Server, HardDrive, Activity } from "lucide-react";
 
@@ -24,7 +24,11 @@ interface AstCheck {
 
 interface SecurityScan {
   status: string;
+  status_detail?: string;
   issues: Array<{ file: string; pattern: string; match_preview?: string }>;
+  triaged_issues?: Array<{ file: string; pattern: string; match_preview?: string }>;
+  actionable_issue_count?: number;
+  triaged_issue_count?: number;
 }
 
 interface Infrastructure {
@@ -57,7 +61,6 @@ interface QaQcPanelProps {
 }
 
 // ── Colors & Config ──────────────────────────────────
-const PROJECT_COLORS = ["#3b82f6", "#8b5cf6", "#10b981"];
 const tooltipStyle = { backgroundColor: "#1e293b", borderColor: "#334155", color: "#f8fafc" };
 
 // ── Verdict Badge ────────────────────────────────────
@@ -146,6 +149,8 @@ export default function QaQcPanel({ data }: QaQcPanelProps) {
 
   // Trend data (if available)
   const trendData = data.trend || [];
+  const securityStatusLabel = data.security_scan.status_detail || data.security_scan.status;
+  const triagedIssues = data.security_scan.triaged_issues || [];
 
   return (
     <div className="space-y-6">
@@ -222,7 +227,7 @@ export default function QaQcPanel({ data }: QaQcPanelProps) {
           <p className={`text-xl font-bold ${
             data.security_scan.status === "CLEAR" ? "text-emerald-400" : "text-amber-400"
           }`}>
-            {data.security_scan.status}
+            {securityStatusLabel}
           </p>
           {data.security_scan.issues.length > 0 && (
             <div className="mt-3 space-y-1">
@@ -232,6 +237,11 @@ export default function QaQcPanel({ data }: QaQcPanelProps) {
                 </p>
               ))}
             </div>
+          )}
+          {data.security_scan.issues.length === 0 && triagedIssues.length > 0 && (
+            <p className="mt-3 text-xs text-emerald-300">
+              Triaged false positives: {data.security_scan.triaged_issue_count ?? triagedIssues.length}
+            </p>
           )}
         </div>
       </div>

@@ -39,7 +39,6 @@ try:
     import joblib as _joblib
     _HAS_JOBLIB = True
 except ImportError:
-    import pickle as _pickle  # type: ignore[no-redef]
     _HAS_JOBLIB = False
 
 logger = logging.getLogger(__name__)

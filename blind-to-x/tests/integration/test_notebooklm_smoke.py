@@ -24,7 +24,7 @@ _PROJECT_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from pipeline.notebooklm_enricher import NotebookLMAssets, enrich_post_with_assets
+from pipeline.notebooklm_enricher import NotebookLMAssets, enrich_post_with_assets  # noqa: E402
 
 # content_writer.py 경로
 _CONTENT_WRITER = _PROJECT_ROOT / "execution" / "content_writer.py"

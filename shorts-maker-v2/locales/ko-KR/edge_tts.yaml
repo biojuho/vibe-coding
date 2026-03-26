@@ -1,0 +1,13 @@
+default_voice: "ko-KR-SunHiNeural"
+
+openai_to_edge_voice:
+  alloy: "ko-KR-SunHiNeural"
+  echo: "ko-KR-InJoonNeural"
+  fable: "ko-KR-SunHiNeural"
+  onyx: "ko-KR-InJoonNeural"
+  nova: "ko-KR-SunHiNeural"
+  shimmer: "ko-KR-SunHiNeural"
+  sage: "ko-KR-HyunsuNeural"
+  coral: "ko-KR-BongJinNeural"
+  ash: "ko-KR-SoonBokNeural"
+  verse: "ko-KR-GookMinNeural"

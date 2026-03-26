@@ -1,30 +1,62 @@
-"""중앙 로깅 설정 — loguru 기반.
+"""Central logging setup for execution scripts.
 
-모든 execution 스크립트에서 import하여 사용합니다.
-stdlib logging과 호환되며, 파일 로테이션 + 콘솔 출력을 제공합니다.
-
-사용법:
-    from execution._logging import logger, setup_logging
-    setup_logging()  # 최초 1회 호출 (선택, import 시 기본 설정 적용)
-    logger.info("message")
-    logger.error("error", extra_field=value)
-
-기존 stdlib logging 코드와의 호환:
-    import logging
-    logging.basicConfig(...)  # 기존 코드 그대로 두면 됨
-    # loguru가 stdlib 핸들러를 intercept하므로 양쪽 모두 동일 출력으로 수렴
+Prefers loguru when available, but falls back to stdlib logging so tests and
+fresh environments do not fail during import.
 """
 
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
+from typing import Any
 
-from loguru import logger
+try:
+    from loguru import logger as _loguru_logger
+except ModuleNotFoundError:
+    _loguru_logger = None
 
 _ROOT = Path(__file__).resolve().parent.parent
 _LOG_DIR = _ROOT / ".tmp" / "logs"
 _CONFIGURED = False
+
+if _loguru_logger is not None:
+    logger: Any = _loguru_logger
+else:
+    logger = logging.getLogger("execution")
+
+
+def _setup_stdlib_logging(*, console_level: str, file_level: str) -> None:
+    """Configure a minimal stdlib fallback logger."""
+    _LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+    root_logger = logging.getLogger()
+    root_logger.handlers.clear()
+    root_logger.setLevel(logging.DEBUG)
+
+    console_handler = logging.StreamHandler(sys.stderr)
+    console_handler.setLevel(getattr(logging, console_level.upper(), logging.INFO))
+    console_handler.setFormatter(
+        logging.Formatter("%(levelname)-8s | %(name)s:%(funcName)s | %(message)s")
+    )
+
+    file_handler = logging.FileHandler(
+        _LOG_DIR / "execution_fallback.log",
+        encoding="utf-8",
+    )
+    file_handler.setLevel(getattr(logging, file_level.upper(), logging.DEBUG))
+    file_handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s | %(levelname)s | %(name)s | %(filename)s:%(lineno)d | %(message)s"
+        )
+    )
+
+    root_logger.addHandler(console_handler)
+    root_logger.addHandler(file_handler)
+
+    logger.handlers.clear()
+    logger.setLevel(logging.DEBUG)
+    logger.propagate = True
 
 
 def setup_logging(
@@ -35,16 +67,21 @@ def setup_logging(
     retention: str = "7 days",
     max_size: str = "500 MB",
 ) -> None:
-    """로깅을 설정합니다. 여러 번 호출해도 안전합니다."""
+    """Configure logging once for execution scripts."""
+    del max_size
+
     global _CONFIGURED  # noqa: PLW0603
     if _CONFIGURED:
         return
     _CONFIGURED = True
 
-    # 기존 핸들러 제거
+    if _loguru_logger is None:
+        _setup_stdlib_logging(console_level=console_level, file_level=file_level)
+        logger.warning("loguru is not installed; using stdlib logging fallback")
+        return
+
     logger.remove()
 
-    # 콘솔 출력 (색상 + 간결 포맷)
     logger.add(
         sys.stderr,
         level=console_level,
@@ -52,21 +89,17 @@ def setup_logging(
         colorize=True,
     )
 
-    # 파일 출력 (JSONL + 로테이션)
     _LOG_DIR.mkdir(parents=True, exist_ok=True)
     logger.add(
         str(_LOG_DIR / "execution_{time:YYYY-MM-DD}.jsonl"),
         level=file_level,
         format="{message}",
-        serialize=True,  # JSON 형식
+        serialize=True,
         rotation=rotation,
         retention=retention,
         compression="gz",
         encoding="utf-8",
     )
-
-    # stdlib logging → loguru intercept
-    import logging
 
     class _InterceptHandler(logging.Handler):
         def emit(self, record: logging.LogRecord) -> None:
@@ -83,5 +116,5 @@ def setup_logging(
     logging.basicConfig(handlers=[_InterceptHandler()], level=0, force=True)
 
 
-# 기본 설정 적용 (import 시)
 setup_logging()
+

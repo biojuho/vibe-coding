@@ -8,7 +8,7 @@ out = []
 for tag in soup.find_all(string=lambda t: t and "인테리어 공사 중인데" in t):
     parent = tag.parent
     out.append(f"Found exact text in tag: {parent.name} (class={parent.get('class')})")
-    
+
     ancestor = parent.parent
     for i in range(5):
         if ancestor and ancestor.name != "[document]":

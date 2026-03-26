@@ -109,6 +109,21 @@ def test_parse_script_payload_uses_own_estimation_not_gpt() -> None:
     assert scenes[0].target_sec >= 1.2  # 최소값 보장
 
 
+def test_validate_script_schema_accepts_alias_scene_fields() -> None:
+    payload = {
+        "title": "Alias Schema",
+        "scenes": [
+            {
+                "narration": "alpha beta gamma delta epsilon",
+                "visual_prompt": "A bright studio shot with clean lighting",
+                "structure_role": "body",
+            }
+        ],
+    }
+
+    assert ScriptStep._validate_script_schema(payload) == []
+
+
 def test_estimate_total_duration_uses_scene_targets() -> None:
     payload = {
         "title": "Total Test",

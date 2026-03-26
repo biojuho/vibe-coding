@@ -15,3 +15,6 @@ repos:
       - id: check-added-large-files
         args: ['--maxkb=500']
       - id: check-merge-conflict
+      - id: check-byte-order-marker  # BOM 감지 (UTF-8 with BOM 방지)
+      - id: mixed-line-ending        # CRLF/LF 혼재 방지
+        args: ['--fix=lf']           # 항상 LF로 정규화

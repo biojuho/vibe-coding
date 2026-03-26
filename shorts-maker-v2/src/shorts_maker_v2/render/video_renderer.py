@@ -14,6 +14,7 @@ Usage:
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -133,10 +134,8 @@ class VideoRendererBackend(ABC):
     def close_all(self, clips: list[ClipHandle]) -> None:
         """Release resources for multiple clips."""
         for c in clips:
-            try:
+            with contextlib.suppress(Exception):
                 self.close(c)
-            except Exception:
-                pass
 
 
 class MoviePyRenderer(VideoRendererBackend):
@@ -246,10 +245,8 @@ class MoviePyRenderer(VideoRendererBackend):
 
     def close(self, clip: ClipHandle) -> None:
         if clip.native is not None:
-            try:
+            with contextlib.suppress(Exception):
                 clip.native.close()
-            except Exception:
-                pass
 
 
 class FFmpegRenderer(VideoRendererBackend):
@@ -422,13 +419,43 @@ class FFmpegRenderer(VideoRendererBackend):
         clip.metadata["opacity"] = opacity
         return clip
 
+    def _ensure_input_path(
+        self,
+        clip: ClipHandle,
+        *,
+        fps: int,
+        audio_codec: str,
+    ) -> str:
+        """Normalize a clip into an ffmpeg-readable file path.
+
+        render_step currently composes the timeline with MoviePy native clips and
+        can hand that final composite into the FFmpeg backend for the last encode
+        step only. In that case we first export an intermediate mp4, then let
+        ffmpeg handle the requested output codec/preset options.
+        """
+        native = clip.native
+        if isinstance(native, Path):
+            return str(native)
+        if isinstance(native, str):
+            return native
+
+        intermediate = self._next_tmp()
+        write_kwargs: dict[str, Any] = {
+            "fps": fps,
+            "codec": "libx264",
+            "audio_codec": audio_codec,
+        }
+        native.write_videofile(str(intermediate), **write_kwargs)
+        return str(intermediate)
+
     def write(
         self, clip: ClipHandle, output_path: str | Path,
         fps: int = 30, codec: str = "libx264", audio_codec: str = "aac",
         preset: str | None = "medium", ffmpeg_params: list[str] | None = None,
     ) -> Path:
         out = Path(output_path)
-        args = ["-i", clip.native, "-c:v", codec, "-c:a", audio_codec, "-r", str(fps)]
+        input_path = self._ensure_input_path(clip, fps=fps, audio_codec=audio_codec)
+        args = ["-i", input_path, "-c:v", codec, "-c:a", audio_codec, "-r", str(fps)]
         if preset:
             args.extend(["-preset", preset])
         if ffmpeg_params:

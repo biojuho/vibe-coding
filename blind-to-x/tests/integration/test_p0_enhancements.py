@@ -91,7 +91,6 @@ def test_calculate_6d_score_with_season_boost():
 
 def test_resolve_tone_yaml_topic():
     """_resolve_tone returns YAML-based tone for known topic_cluster."""
-    from pipeline.content_intelligence import _load_rules
     from pipeline.draft_generator import TweetDraftGenerator, _load_draft_rules
 
     rules = _load_draft_rules()

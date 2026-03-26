@@ -1,6 +1,5 @@
 import asyncio
 import yaml
-import os
 import traceback
 from pipeline.notion_upload import NotionUploader
 
@@ -11,10 +10,10 @@ async def main():
         print("Initializing NotionUploader...")
         uploader = NotionUploader(config)
         await uploader.ensure_schema()
-        
+
         print(f"Collection Kind: {uploader.collection_kind}")
         print(f"Database ID: {uploader.database_id}")
-        
+
         print("Searching for recent pages (using native search client)...")
         response = await uploader.client.search(
             query="",
@@ -22,7 +21,7 @@ async def main():
             sort={"direction": "descending", "timestamp": "last_edited_time"},
             page_size=20
         )
-        
+
         # Filter for pages belonging to our database
         all_results = response.get("results", [])
         print(f"Total pages from search: {len(all_results)}")
@@ -34,7 +33,7 @@ async def main():
             print(f"Parent type: {p_type}, ID: {p_id}")
             if p_type in ["database_id", "data_source_id"] and p_id.replace("-", "") == uploader.database_id.replace("-", ""):
                 results.append(r)
-        
+
         results = results[:5]  # limit to 5
         print(f"Found {len(results)} items in the target database")
         for r in results:
@@ -44,7 +43,7 @@ async def main():
             title = ""
             if "title" in title_prop and title_prop["title"]:
                 title = title_prop["title"][0]["plain_text"]
-                
+
             print(f"Updating [{title}] ({pid})")
             # Ensure it has a newsletter body and approved status
             updates = {
@@ -55,7 +54,7 @@ async def main():
                 "publishability_score": 90
             }
             await uploader.update_page_properties(pid, updates)
-            print(f"  -> Done")
+            print("  -> Done")
     except Exception as e:
         print(f"Failed with exception: {e}")
         traceback.print_exc()

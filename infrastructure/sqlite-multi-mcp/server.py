@@ -155,7 +155,7 @@ def _get_table_schema(db_name: str, table_name: str) -> dict[str, Any]:
     try:
         conn = sqlite3.connect(str(db_path), timeout=3)
         safe_name = _validate_table_name(table_name)  # [QA 수정] SQL Injection 방지
-        cursor = conn.execute(f"PRAGMA table_info({safe_name})")
+        cursor = conn.execute(f"PRAGMA table_info({safe_name})")  # noqa: S608 — validated by _validate_table_name
         columns = []
         for row in cursor.fetchall():
             columns.append({
@@ -171,7 +171,7 @@ def _get_table_schema(db_name: str, table_name: str) -> dict[str, Any]:
             return {"error": f"테이블 '{table_name}'을 찾을 수 없습니다.", "db": db_name}
 
         # 행 수 조회
-        count_cursor = conn.execute(f"SELECT COUNT(*) FROM {safe_name}")
+        count_cursor = conn.execute(f"SELECT COUNT(*) FROM {safe_name}")  # noqa: S608 — validated by _validate_table_name
         row_count = count_cursor.fetchone()[0]
 
         return {
@@ -208,7 +208,7 @@ def _quick_stats(db_name: str) -> dict[str, Any]:
         for table in tables:
             try:
                 safe_t = _validate_table_name(table)  # [QA 수정]
-                count = conn.execute(f"SELECT COUNT(*) FROM {safe_t}").fetchone()[0]
+                count = conn.execute(f"SELECT COUNT(*) FROM {safe_t}").fetchone()[0]  # noqa: S608 — validated by _validate_table_name
                 stats["tables"][table] = {"row_count": count}
             except sqlite3.Error:
                 stats["tables"][table] = {"row_count": "error"}

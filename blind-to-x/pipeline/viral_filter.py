@@ -129,7 +129,8 @@ class ViralFilter:
 
         data = json.loads(response.text.strip())
 
-        _clamp = lambda v, lo=0.0, hi=10.0: max(lo, min(hi, float(v)))
+        def _clamp(v, lo=0.0, hi=10.0):
+            return max(lo, min(hi, float(v)))
         hook = _clamp(data.get("hook_strength", 5))
         relate = _clamp(data.get("relatability", 5))
         share = _clamp(data.get("shareability", 5))

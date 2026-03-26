@@ -81,7 +81,7 @@ class TestEmotionAnalyzer:
 
         result = analyze_emotions("상사가 너무 짜증나고 화가 치밀어 오른다")
         labels = [r["label"] for r in result]
-        assert any("화남" in l or "짜증" in l or "불평" in l for l in labels)
+        assert any("화남" in lbl or "짜증" in lbl or "불평" in lbl for lbl in labels)
 
     def test_joy_detected(self, analyzer_available):
         if not analyzer_available:
@@ -90,7 +90,7 @@ class TestEmotionAnalyzer:
 
         result = analyze_emotions("이직 성공해서 너무 기쁘고 행복합니다")
         labels = [r["label"] for r in result]
-        assert any("기쁨" in l or "감동" in l or "고마움" in l for l in labels)
+        assert any("기쁨" in lbl or "감동" in lbl or "고마움" in lbl for lbl in labels)
 
     def test_emotion_profile_structure(self, analyzer_available):
         if not analyzer_available:

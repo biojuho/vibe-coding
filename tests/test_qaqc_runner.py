@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT_DIR / "execution"))
 from qaqc_runner import (  # noqa: E402
     _parse_count,
     _parse_duration,
+    _triage_security_issue,
     check_ast,
     determine_verdict,
 )
@@ -137,6 +138,37 @@ class TestDetermineVerdict:
         ast_r = {"failures": []}
         sec_r = {"issues": [{"file": "x.py", "pattern": "secret"}]}
         assert determine_verdict(projects, ast_r, sec_r) == "CONDITIONALLY_APPROVED"
+
+    def test_triaged_security_issue_does_not_block_approval(self):
+        projects = {"root": {"passed": 100, "failed": 0, "errors": 0}}
+        ast_r = {"failures": []}
+        sec_r = {"issues": [], "triaged_issues": [{"file": "x.py"}], "actionable_issue_count": 0}
+        assert determine_verdict(projects, ast_r, sec_r) == "APPROVED"
+
+
+class TestSecurityTriage:
+    def test_known_false_positive_is_triaged(self):
+        issue = {
+            "file": r"blind-to-x\pipeline\cost_db.py",
+            "pattern": "Potential SQL injection via f-string",
+            "match_preview": 'f"SELECT * FROM {table}',
+        }
+
+        triaged = _triage_security_issue(issue)
+
+        assert triaged["actionable"] is False
+        assert triaged["triage"]["classification"] == "false_positive"
+
+    def test_unknown_issue_remains_actionable(self):
+        triaged = _triage_security_issue(
+            {
+                "file": "somewhere/else.py",
+                "pattern": "Potential SQL injection via f-string",
+                "match_preview": 'f"SELECT * FROM {user_table}',
+            }
+        )
+
+        assert triaged["actionable"] is True
 
 
 # ── QaQcHistoryDB 테스트 ──────────────────────────────────

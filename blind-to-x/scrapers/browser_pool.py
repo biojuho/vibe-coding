@@ -24,7 +24,7 @@ try:
     from patchright.async_api import async_playwright
 except ImportError:
     from playwright.async_api import async_playwright
-from playwright_stealth import Stealth
+from playwright_stealth import Stealth  # noqa: E402
 
 
 class _PooledPage:

@@ -40,13 +40,13 @@ class FakeConfig:
 # @pytest.mark.asyncio는 "비동기(시간이 예측 안 되는) 테스트를 돌려달라"는 명령어입니다.
 @pytest.mark.asyncio
 class TestAsyncRunWithRetry:
-    
+
     # [정상 케이스 1] 1번째 시도만에 바로 성공할 때
     async def test_success_on_first_try(self):
         # MagicMock은 진짜가 아닌 가짜(대역) 배우를 만들어 줍니다. "무조건 SUCCESS를 외쳐!"
         func = MagicMock(return_value="SUCCESS")
         result = await async_run_with_retry(func, max_retries=3, backoff_seconds=0.1)
-        
+
         # 결과가 우리가 예상한 "SUCCESS"가 맞는지, 가짜 함수가 딱 1번만 불렸는지 확인(assert)합니다.
         assert result == "SUCCESS"
         assert func.call_count == 1
@@ -56,7 +56,7 @@ class TestAsyncRunWithRetry:
         # side_effect: 차례대로 결과를 내놓는 가짜 배우 (첫 번째는 에러 연기, 두 번째는 성공 연기)
         func = MagicMock(side_effect=[Exception("일시적인 인터넷 끊김"), "SUCCESS_AFTER_RETRY"])
         result = await async_run_with_retry(func, max_retries=3, backoff_seconds=0.1)
-        
+
         assert result == "SUCCESS_AFTER_RETRY"
         assert func.call_count == 2 # 2번째에 성공했으니 총 2번 불렸어야 정상입니다.
 
@@ -77,18 +77,18 @@ class TestAsyncRunWithRetry:
     async def test_edge_negative_backoff(self):
         # 대기 시간이 마이너스(-1)일 경우, 시간 여행을 할 수 없으므로 파이썬 자체 내장 ValueError가 터질 겁니다.
         func = MagicMock(side_effect=[Exception("Fail1"), Exception("Fail2")])
-        with pytest.raises(ValueError): 
+        with pytest.raises(ValueError):
             await async_run_with_retry(func, max_retries=2, backoff_seconds=-1)
 
     # [에러 케이스] 3번(최대 기회)을 모두 연달아 실패했을 때
     async def test_error_all_retries_fail(self):
         # 계속 "Critical Error"만 뿜는 덜떨어진 배우 배정
         func = MagicMock(side_effect=Exception("Critical Error"))
-        
+
         # 모두 실패하면 최종적으로 밖으로 에러를 던져야 맞음
         with pytest.raises(Exception) as excinfo:
             await async_run_with_retry(func, max_retries=3, backoff_seconds=0.01)
-            
+
         # 던져진 에러 안에 우리가 지정한 문구 "Critical Error"가 들어있는지, 총 3번 끝까지 시도했는지 검사
         assert "Critical Error" in str(excinfo.value)
         assert func.call_count == 3
@@ -101,7 +101,7 @@ class TestAsyncRunWithRetry:
 # ==============================================================================
 @pytest.mark.asyncio
 class TestImageUploaderComponent:
-    
+
     # [1. 렌더링 확인] -> 클래스가 정상적으로 초기화(만들어지는지) 되는지 확인
     async def test_image_uploader_initialization(self):
         uploader = ImageUploader(FakeConfig())
@@ -150,7 +150,7 @@ class TestImageUploaderComponent:
 # ==============================================================================
 @pytest.mark.asyncio
 class TestImageUploadAPI:
-    
+
     # [1. 200번 상태(성공) 응답] MSW 핸들러 대체
     # builtins.open을 mock_open으로 교체해 실제 파일 없이도 파일 읽기를 시뮬레이션합니다.
     @patch("requests.post")

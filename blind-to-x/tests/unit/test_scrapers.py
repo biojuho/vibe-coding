@@ -229,7 +229,7 @@ class TestBrowserContextPool:
     @pytest.mark.asyncio
     async def test_close_returns_context_to_queue(self):
         """_PooledPage.close() 가 ctx를 풀 큐에 반납하는지 검증."""
-        from scrapers.browser_pool import BrowserContextPool, _PooledPage
+        from scrapers.browser_pool import BrowserContextPool
 
         ctx_mock = AsyncMock()
         page_mock = AsyncMock()

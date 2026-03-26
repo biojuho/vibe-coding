@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys
 import threading
 import time
 from typing import Any
@@ -118,6 +119,20 @@ NON_RETRYABLE_KEYWORDS = [
     "invalid_api_key",
     "authentication",
 ]
+
+
+def _safe_console_print(message: str) -> None:
+    """Print status lines without crashing on Windows console encodings."""
+    encoding = getattr(sys.stdout, "encoding", None) or "utf-8"
+    payload = f"{message}\n".encode(encoding, errors="replace")
+    buffer = getattr(sys.stdout, "buffer", None)
+    if buffer is not None:
+        buffer.write(payload)
+        sys.stdout.flush()
+        return
+
+    sys.stdout.write(payload.decode(encoding, errors="replace"))
+    sys.stdout.flush()
 
 
 class LLMRouter:
@@ -329,7 +344,9 @@ class LLMRouter:
                         attempt,
                         self.max_retries,
                     )
-                    print(f"  🔄 [{provider}] LLM 요청 ({attempt}/{self.max_retries})...")
+                    _safe_console_print(
+                        f"  🔄 [{provider}] LLM 요청 ({attempt}/{self.max_retries})..."
+                    )
 
                     content = self._generate_once(
                         provider,
@@ -342,23 +359,25 @@ class LLMRouter:
                     content = self._clean_json(content)
                     result = json.loads(content)
 
-                    print(f"  ✅ [{provider}] 성공!")
+                    _safe_console_print(f"  ✅ [{provider}] 성공!")
                     return result
 
                 except json.JSONDecodeError as e:
                     msg = f"{provider} attempt {attempt}: JSON parse error - {e}"
                     all_errors.append(msg)
                     logger.warning(msg)
-                    print(f"  ⚠️ [{provider}] JSON 파싱 실패, 재시도...")
+                    _safe_console_print(f"  ⚠️ [{provider}] JSON 파싱 실패, 재시도...")
 
                 except Exception as e:
                     msg = f"{provider} attempt {attempt}: {e}"
                     all_errors.append(msg)
                     logger.warning(msg)
-                    print(f"  ⚠️ [{provider}] 실패: {e}")
+                    _safe_console_print(f"  ⚠️ [{provider}] 실패: {e}")
 
                     if self._is_non_retryable(e):
-                        print(f"  ❌ [{provider}] 복구 불가 에러 → 다음 provider")
+                        _safe_console_print(
+                            f"  ❌ [{provider}] 복구 불가 에러 → 다음 provider"
+                        )
                         break
 
                 if attempt < self.max_retries:
@@ -366,7 +385,7 @@ class LLMRouter:
                     time.sleep(wait)
 
             logger.info("Provider %s exhausted. Moving to next.", provider)
-            print(f"  ➡️ [{provider}] 실패, 다음 provider로 전환")
+            _safe_console_print(f"  ➡️ [{provider}] 실패, 다음 provider로 전환")
 
         raise RuntimeError(f"All LLM providers failed.\nErrors: {' | '.join(all_errors)}")
 

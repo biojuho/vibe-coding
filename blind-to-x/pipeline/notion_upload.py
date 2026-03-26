@@ -12,7 +12,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 import logging
 import os
 from typing import Any

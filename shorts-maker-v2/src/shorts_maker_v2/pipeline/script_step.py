@@ -1,18 +1,29 @@
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import math
 import re
 import threading
+from pathlib import Path
 from typing import Any
 
+import yaml
+
 try:
-    from pydantic import BaseModel, Field, ValidationError
+    from pydantic import BaseModel, Field, ValidationError, model_validator
 
     _HAS_PYDANTIC = True
 except ImportError:  # graceful degradation
-    _HAS_PYDANTIC = False
+    try:
+        from pydantic import BaseModel, Field, ValidationError
+
+        model_validator = None
+        _HAS_PYDANTIC = True
+    except ImportError:
+        model_validator = None
+        _HAS_PYDANTIC = False
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +31,28 @@ from shorts_maker_v2.config import AppConfig  # noqa: E402
 from shorts_maker_v2.models import ScenePlan  # noqa: E402, E501
 from shorts_maker_v2.providers.llm_router import LLMRouter  # noqa: E402
 
+
+def _deep_merge_dicts(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    merged = copy.deepcopy(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _deep_merge_dicts(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def _load_script_step_locale_bundle(language_code: str) -> dict[str, Any]:
+    """Load script_step.yaml bundle for the given language code from locales/."""
+    try:
+        current_dir = Path(__file__).resolve().parent
+        yaml_path = current_dir.parent.parent.parent / "locales" / language_code / "script_step.yaml"
+        if yaml_path.exists():
+            with yaml_path.open(encoding="utf-8") as handle:
+                return yaml.safe_load(handle) or {}
+    except Exception as exc:
+        logger.warning("Failed to load locale bundle for %s: %s", language_code, exc)
+    return {}
 
 class TopicUnsuitableError(Exception):
     """LLM이 신뢰할 수 있는 자료가 부족하다고 판단한 경우 발생.
@@ -42,6 +75,23 @@ if _HAS_PYDANTIC:
         visual_prompt_en: str = Field(..., min_length=5, description="DALL-E용 영어 비주얼 프롬프트")
         estimated_seconds: float = Field(default=5.0, ge=1.0, le=30.0)
         structure_role: str = Field(default="body", pattern=r"^(hook|body|cta)$")
+
+        if model_validator is not None:
+
+            @model_validator(mode="before")
+            @classmethod
+            def _normalize_scene_aliases(cls, value: Any) -> Any:
+                if not isinstance(value, dict):
+                    return value
+
+                normalized = dict(value)
+                if not normalized.get("narration_ko"):
+                    normalized["narration_ko"] = (
+                        normalized.get("narration") or normalized.get("voiceover") or ""
+                    )
+                if not normalized.get("visual_prompt_en"):
+                    normalized["visual_prompt_en"] = normalized.get("visual_prompt") or ""
+                return normalized
 
     class ScriptOutput(BaseModel):
         """LLM 대본 생성 전체 출력 스키마.
@@ -272,6 +322,110 @@ class ScriptStep:
         "health": ("건강", "연구", "권고", "습관", "효과", "몸", "영양", "운동", "식단", "수면"),
     }
 
+    _PROMPT_FIELD_NAMES: dict[str, str] = {
+        "narration": "narration_ko",
+        "visual_prompt": "visual_prompt_en",
+    }
+
+    _PROMPT_COPY: dict[str, str] = {
+        "system_intro": (
+            "You are a YouTube Shorts scriptwriter. You write in the Hook-Body-CTA format.\n"
+            "Output ONLY valid JSON.\n"
+            "Schema:\n"
+            "{\n"
+            '  "title": "string",\n'
+            '  "scenes": [...],\n'
+            '  "no_reliable_source": false\n'
+            "}\n"
+        ),
+        "source_rule": (
+            "CRITICAL SOURCE RULE:\n"
+            "  - You MUST base all claims on verifiable facts you are confident about.\n"
+            "  - If you cannot recall specific data, studies, or established facts for this topic,\n"
+            "    DO NOT invent or guess. Instead, return:\n"
+            '    {"title": "", "scenes": [], "no_reliable_source": true,\n'
+            '     "reason": "<why no reliable source was found>"}\n'
+            "  - It is FAR BETTER to admit 'I don't have reliable data' than to hallucinate facts.\n"
+            "  - For each factual claim in the Body, mentally ask: 'Can a viewer Google this and confirm it?'\n"
+            "    If the answer is no, either remove the claim or flag no_reliable_source.\n"
+        ),
+        "hook_rules": (
+            "Hook rules:\n"
+            "  - {hook_rule}\n"
+            "  - Stop the scroll within 3 seconds. One or two punchy spoken sentences.\n"
+            "  - {narration_field}: up to {hook_max} English characters (short and punchy).\n"
+        ),
+        "body_rules": (
+            "Body rules:\n"
+            "  - Build depth in this order: analogy first -> fact or data -> cause or solution.\n"
+            "  - Each body scene should naturally flow into the next. No bullet points.\n"
+            "  - {narration_field}: {body_min}-{body_max} English characters (detailed and spoken).\n"
+        ),
+        "cta_rules": (
+            "CTA rules:\n"
+            "  - Suggest ONE specific, immediate real-world action the viewer can do right now.\n"
+            "  - Do NOT mention subscriptions, likes, follows, or channel actions.\n"
+            "  - After the action, add one sentence of creator insight, like a personal takeaway or observation.\n"
+            "  - {narration_field}: up to {cta_max} English characters (brief and direct).\n"
+        ),
+        "general_rules": (
+            "General rules:\n"
+            "  - {narration_field} must be in {language}\n"
+            "  - return exactly {scene_count} scenes\n"
+            "  - narration must sound natural when spoken aloud, not like bullet points\n"
+            "  - Do NOT use '...' (ellipsis) in {narration_field}. Write complete sentences.\n"
+            "  - estimated_seconds must realistically match the spoken length of that scene\n"
+            "  - {visual_prompt_field}: English only, describe camera angle, lighting, action, artistic style for DALL-E 3\n"
+            "  - {visual_prompt_field} MUST be DALL-E safe: NO medical imagery, anatomical details, injuries, blood,\n"
+            "    violence, weapons, drugs, or explicit body parts. Use abstract metaphors instead.\n"
+            "    (e.g. 'a person resting on a couch' instead of 'sedentary lifestyle causing muscle atrophy')\n"
+            "  - do not include markdown\n"
+        ),
+        "korean_rules": (
+            "English Writing Rules (CRITICAL):\n"
+            "  - All {narration_field} text must be natural spoken English.\n"
+            "  - Check spelling, punctuation, and contractions for fluency.\n"
+            "  - Avoid stiff textbook phrasing or unnatural repetition.\n"
+            "  - Proofread each {narration_field} line before outputting.\n"
+        ),
+        "user_header": (
+            "Topic: {topic}\n"
+            "Target total duration: {target_min}-{target_max} seconds.\n"
+            "Target midpoint: about {target_mid:.1f} seconds.\n"
+        ),
+        "user_instructions": (
+            "Write a Hook-Body-CTA script for YouTube Shorts in natural spoken English:\n"
+            "  Hook  - Open with a surprising fact or relatable problem. Stop the scroll instantly.\n"
+            "  Body  - Guide through analogy -> data or fact -> cause or solution. Build naturally.\n"
+            "  CTA   - One specific action the viewer can do right now. No subscription requests.\n"
+        ),
+        "retry_too_short": (
+            "The previous draft was too short at about {previous_total_sec:.1f} seconds.\n"
+            "Make each scene narration meaningfully longer with more spoken detail.\n"
+        ),
+        "retry_too_long": (
+            "The previous draft was too long at about {previous_total_sec:.1f} seconds.\n"
+            "Tighten each scene narration while keeping the same clarity.\n"
+        ),
+        "retry_keep_scene_count": "Keep exactly {previous_scene_count} scenes unless that prevents the duration target.\n",
+    }
+
+    _REVIEW_COPY: dict[str, str] = {
+        "base_review_system": (
+            "You are a YouTube Shorts script quality evaluator. "
+            "Score the given script on these dimensions from 1-10:\n"
+            "  hook_score : How well does the Hook stop the scroll? (1=boring, 10=irresistible)\n"
+            "  flow_score : How naturally does the Body build and connect? (1=choppy, 10=seamless)\n"
+            "  cta_score  : How clear and actionable is the CTA? (1=vague, 10=immediately doable)\n"
+            "  verifiability_score : Can a viewer verify the factual claims easily? "
+            "(1=not credible, 10=highly verifiable)\n"
+            "  spelling_score : Is the English spelling, grammar, and punctuation clean and natural for spoken delivery? "
+            "(1=many issues, 10=excellent)\n"
+        ),
+        "feedback_rule": "Also provide a brief 'feedback' string (max 80 chars) with the main weakness.\n",
+        "output_rule": 'Output ONLY valid JSON: {{{json_example}, "feedback": "..."}}',
+    }
+
     def __init__(
         self,
         config: AppConfig,
@@ -291,6 +445,7 @@ class ScriptStep:
         self.channel_duration_override: int | None = channel_duration_override
         # Sprint 4: 채널 키 (리뷰 기준 분기용)
         self.channel_key: str = channel_key
+        self._apply_locale_overrides()
 
     @classmethod
     def from_channel_profile(
@@ -332,23 +487,36 @@ class ScriptStep:
         return narration[:limit].rstrip()
 
     @classmethod
-    def _validate_cta(cls, narration: str) -> list[str]:
+    def _validate_cta(
+        cls,
+        narration: str,
+        forbidden_words: tuple[str, ...] | None = None,
+    ) -> list[str]:
         """CTA 나레이션에 금지어가 포함되어 있으면 위반 항목 리스트를 반환한다.
 
         반환값이 빈 리스트이면 통과. 비어있지 않으면 위반 항목이 로그에 기록된다.
+        forbidden_words가 None이면 클래스 기본 속성을 사용한다.
         """
-        return [w for w in cls._CTA_FORBIDDEN_WORDS if w in narration.lower()]
+        words = forbidden_words if forbidden_words is not None else cls._CTA_FORBIDDEN_WORDS
+        return [w for w in words if w in narration.lower()]
 
     @classmethod
-    def _score_persona_match(cls, scenes: list[ScenePlan], channel_key: str) -> float:
+    def _score_persona_match(
+        cls,
+        scenes: list[ScenePlan],
+        channel_key: str,
+        persona_keywords: dict[str, tuple[str, ...]] | None = None,
+    ) -> float:
         """채널 페르소나 키워드 밀도 기반 매칭 스코어를 반환한다 (0.0~1.0).
 
         알 수 없는 채널 키 → 0.5 중립 반환.
         씬이 없으면 → 0.0 반환.
+        persona_keywords가 None이면 클래스 기본 속성을 사용한다.
         """
         if not scenes:
             return 0.0
-        keywords = cls._PERSONA_KEYWORDS.get(channel_key)
+        kw_map = persona_keywords if persona_keywords is not None else cls._PERSONA_KEYWORDS
+        keywords = kw_map.get(channel_key)
         if not keywords:
             return 0.5  # 알 수 없는 채널은 중립
         all_text = " ".join(s.narration_ko for s in scenes)
@@ -382,9 +550,9 @@ class ScriptStep:
     def _next_tone_preset(self) -> tuple[str, str]:
         """톤 프리셋 로테이션. 호출할 때마다 다음 톤 반환."""
         with ScriptStep._counter_lock:
-            idx = ScriptStep._tone_counter % len(self.TONE_PRESETS)
+            idx = ScriptStep._tone_counter % len(self._tone_presets)
             ScriptStep._tone_counter += 1
-        return self.TONE_PRESETS[idx]
+        return self._tone_presets[idx]
 
     def _next_structure_preset(
         self,
@@ -528,6 +696,101 @@ class ScriptStep:
             )
         return title, scenes
 
+
+    def _apply_locale_overrides(self) -> None:
+        self._tone_presets = list(self.TONE_PRESETS)
+        self._channel_persona = copy.deepcopy(self._CHANNEL_PERSONA)
+        self._cta_forbidden_words = tuple(self._CTA_FORBIDDEN_WORDS)
+        self._persona_keywords = copy.deepcopy(self._PERSONA_KEYWORDS)
+        self._prompt_copy = copy.deepcopy(self._PROMPT_COPY)
+        self._review_copy = copy.deepcopy(self._REVIEW_COPY)
+        self._prompt_field_names = copy.deepcopy(self._PROMPT_FIELD_NAMES)
+        self._channel_review_criteria = copy.deepcopy(self._CHANNEL_REVIEW_CRITERIA)
+
+        lang = self.config.project.language
+        bundle = _load_script_step_locale_bundle(lang)
+        if not bundle:
+            return
+
+        tone_presets = bundle.get("tone_presets")
+        if isinstance(tone_presets, list):
+            normalized_tones: list[tuple[str, str]] = []
+            for item in tone_presets:
+                if not isinstance(item, dict):
+                    continue
+                name = str(item.get("name", "")).strip()
+                guide = str(item.get("guide", "")).strip()
+                if name and guide:
+                    normalized_tones.append((name, guide))
+            if normalized_tones:
+                self._tone_presets = normalized_tones
+
+        channel_persona = bundle.get("channel_persona")
+        if isinstance(channel_persona, dict):
+            for key, value in channel_persona.items():
+                if not isinstance(value, dict):
+                    continue
+                if key not in self._channel_persona:
+                    self._channel_persona[key] = {}
+                self._channel_persona[key].update(value)
+
+        cta_forbidden_words = bundle.get("cta_forbidden_words")
+        if isinstance(cta_forbidden_words, list):
+            normalized_words = tuple(str(word).strip() for word in cta_forbidden_words if str(word).strip())
+            if normalized_words:
+                self._cta_forbidden_words = normalized_words
+
+        persona_keywords = bundle.get("persona_keywords")
+        if isinstance(persona_keywords, dict):
+            merged_keywords = copy.deepcopy(self._persona_keywords)
+            for key, value in persona_keywords.items():
+                if isinstance(value, list):
+                    normalized_keywords = tuple(str(item).strip() for item in value if str(item).strip())
+                    if normalized_keywords:
+                        merged_keywords[str(key)] = normalized_keywords
+            self._persona_keywords = merged_keywords
+
+        prompt_copy = bundle.get("prompt_copy")
+        if isinstance(prompt_copy, dict):
+            self._prompt_copy = _deep_merge_dicts(self._prompt_copy, prompt_copy)
+
+        review_copy = bundle.get("review_copy")
+        if isinstance(review_copy, dict):
+            self._review_copy = _deep_merge_dicts(self._review_copy, review_copy)
+
+        field_names = bundle.get("field_names")
+        if isinstance(field_names, dict):
+            for key, value in field_names.items():
+                normalized_key = str(key).strip()
+                normalized_value = str(value).strip()
+                if normalized_key in self._prompt_field_names and normalized_value:
+                    self._prompt_field_names[normalized_key] = normalized_value
+
+        channel_review_criteria = bundle.get("channel_review_criteria")
+        if isinstance(channel_review_criteria, dict):
+            merged_criteria = copy.deepcopy(self._channel_review_criteria)
+            for key, value in channel_review_criteria.items():
+                if not isinstance(value, dict):
+                    continue
+                normalized_criteria = copy.deepcopy(merged_criteria.get(str(key), {}))
+                extra_dimensions = value.get("extra_dimensions")
+                if isinstance(extra_dimensions, str) and extra_dimensions.strip():
+                    normalized_criteria["extra_dimensions"] = extra_dimensions
+                extra_keys = value.get("extra_keys")
+                if isinstance(extra_keys, (list, tuple)):
+                    normalized_extra_keys = tuple(str(item).strip() for item in extra_keys if str(item).strip())
+                    if normalized_extra_keys:
+                        normalized_criteria["extra_keys"] = normalized_extra_keys
+                min_score_override = value.get("min_score_override")
+                if isinstance(min_score_override, (int, float)):
+                    normalized_criteria["min_score_override"] = int(min_score_override)
+                context_note = value.get("context_note")
+                if isinstance(context_note, str) and context_note.strip():
+                    normalized_criteria["context_note"] = context_note
+                if normalized_criteria:
+                    merged_criteria[str(key)] = normalized_criteria
+            self._channel_review_criteria = merged_criteria
+
     def _build_system_prompt(
         self,
         *,
@@ -542,110 +805,84 @@ class ScriptStep:
     ) -> str:
         last = scene_count
         body_count = scene_count - 2  # hook(1) + cta(1)
-        # 역할별 자막 길이 목표 (Hook/CTA는 짧고 임팩트, Body는 풍부하게)
         hook_max = max(40, int(char_max * 0.65))
-        body_min = max(40, int(char_min * 1.3))  # body 최소 글자수 상향
+        body_min = max(40, int(char_min * 1.3))
         body_max = int(char_max * 1.30)
-        cta_max = max(25, int(char_max * 0.40))  # CTA 더 짧게
+        cta_max = max(25, int(char_max * 0.40))
         hook_rule = (
             hook_instruction or "Open with a shocking stat, a relatable frustration, or a counterintuitive question."
         )
 
-        # 채널별 페르소나 섹션 주입
         persona_section = ""
-        persona = self._CHANNEL_PERSONA.get(channel_key or self.channel_key)
+        persona = self._channel_persona.get(channel_key or self.channel_key)
         if persona:
             persona_section = (
                 "\n"
-                f"Channel Persona (CRITICAL — defines your entire voice for this video):\n"
+                f"Channel Persona (CRITICAL - defines your entire voice for this video):\n"
                 f"  Role: {persona['role_description']}\n"
                 f"  {persona['tone']}\n"
                 f"  {persona['forbidden']}\n"
                 f"  {persona['required']}\n"
             )
 
-        # YPP: 톤 가이드 섹션
         tone_section = ""
+        narration_field = self._prompt_field_names["narration"]
+        visual_prompt_field = self._prompt_field_names["visual_prompt"]
         if tone_guide:
             tone_section = (
                 "\n"
                 "Tone & Voice Guide (MUST follow throughout ALL scenes):\n"
                 f"  - {tone_guide}\n"
-                "  - Apply this tone consistently in narration_ko for every scene.\n"
+                f"  - Apply this tone consistently in {narration_field} for every scene.\n"
             )
 
-        # 프리셋 기반 vs 기본 구조 섹션
         if structure_flow:
             structure_section = (
-                "  Scene flow: " + " → ".join(f"{i + 1}:{role}" for i, role in enumerate(structure_flow)) + "\n"
+                "  Scene flow: " + " -> ".join(f"{i + 1}:{role}" for i, role in enumerate(structure_flow)) + "\n"
                 "  Use these roles as structure_role values for each scene.\n"
             )
         else:
             structure_section = (
-                f'  Scene 1        → structure_role: "hook"\n'
-                f'  Scenes 2-{last - 1}  → structure_role: "body"  ({body_count} scenes)\n'
-                f'  Scene {last}        → structure_role: "cta"\n'
+                f'  Scene 1        -> structure_role: "hook"\n'
+                f'  Scenes 2-{last - 1}  -> structure_role: "body"  ({body_count} scenes)\n'
+                f'  Scene {last}        -> structure_role: "cta"\n'
             )
 
         return (
-            "You are a YouTube Shorts scriptwriter. You write in the Hook-Body-CTA format.\n"
-            "Output ONLY valid JSON.\n"
-            "Schema:\n"
-            "{\n"
-            '  "title": "string",\n'
-            '  "scenes": [...],\n'
-            '  "no_reliable_source": false\n'
-            "}\n"
-            f"{persona_section}"
-            "\n"
-            "CRITICAL SOURCE RULE:\n"
-            "  - You MUST base all claims on verifiable facts you are confident about.\n"
-            "  - If you cannot recall specific data, studies, or established facts for this topic,\n"
-            "    DO NOT invent or guess. Instead, return:\n"
-            '    {"title": "", "scenes": [], "no_reliable_source": true,\n'
-            '     "reason": "<why no reliable source was found>"}\n'
-            "  - It is FAR BETTER to admit 'I don't have reliable data' than to hallucinate facts.\n"
-            "  - For each factual claim in the Body, mentally ask: 'Can a viewer Google this and confirm it?'\n"
-            "    If the answer is no, either remove the claim or flag no_reliable_source.\n"
-            "\n"
-            f"Structure — exactly {scene_count} scenes:\n" + structure_section + f"{tone_section}"
-            "\n"
-            "Hook rules:\n"
-            f"  - {hook_rule}\n"
-            "  - Must stop the scroll within 3 seconds. One or two punchy sentences.\n"
-            f"  - narration_ko: up to {hook_max} Korean characters (short and punchy).\n"
-            "\n"
-            "Body rules:\n"
-            "  - Build depth in this order: analogy first → scientific fact/data → cause or solution.\n"
-            "  - Each body scene naturally leads into the next. No bullet points.\n"
-            f"  - narration_ko: {body_min}-{body_max} Korean characters (detailed and flowing).\n"
-            "\n"
-            "CTA rules:\n"
-            "  - Suggest ONE specific, immediate real-world action the viewer can do RIGHT NOW.\n"
-            "  - Do NOT mention subscriptions, likes, follows, or any channel actions.\n"
-            "  - After the action, add one sentence of 'Creator Insight' — a personal observation\n"
-            "    like '이걸 알고 나서 제가 직접 OO을 바꿔봤는데, 확실히 달라지더라고요' to show unique perspective.\n"
-            f"  - narration_ko: up to {cta_max} Korean characters (brief and direct).\n"
-            "\n"
-            "General rules:\n"
-            f"  - narration_ko must be in {language}\n"
-            f"  - return exactly {scene_count} scenes\n"
-            "  - narration must sound natural when spoken aloud, not like bullet points\n"
-            "  - Do NOT use '...' (ellipsis) in narration_ko. Write complete sentences.\n"
-            "  - estimated_seconds must realistically match the spoken length of that scene\n"
-            "  - visual_prompt_en: English only, describe camera angle, lighting, action, artistic style for DALL-E 3\n"
-            "  - visual_prompt_en MUST be DALL-E safe: NO medical imagery, anatomical details, injuries, blood,\n"
-            "    violence, weapons, drugs, or explicit body parts. Use abstract metaphors instead.\n"
-            "    (e.g. 'a person resting on a couch' instead of 'sedentary lifestyle causing muscle atrophy')\n"
-            "  - do not include markdown\n"
-            "\n"
-            "Korean Spelling & Spacing Rules (CRITICAL):\n"
-            "  - All narration_ko text MUST follow correct Korean spelling (맞춤법) and spacing (띄어쓰기).\n"
-            "  - Double-check every sentence for: 되/돼, 안/안돼, 되다/되다, 하던/하던, 의/의, 로서/로써 etc.\n"
-            "  - Use standard 받침 rules: 같이/같이, 많은/많은, 나을/나을 etc.\n"
-            "  - Common errors to avoid: '잘했다'(✔) vs '잘 했다'(✘), '될까'(✔) vs '될까'(✔), '됩니다'(✔) vs '됬니다'(✘)\n"  # noqa: E501
-            "  - Spacing after particles: '의 사람'(✔), '의사람'(✘).\n"
-            "  - Proofread each narration_ko line carefully before outputting."
+            self._prompt_copy["system_intro"]
+            + f"{persona_section}"
+            + "\n"
+            + self._prompt_copy["source_rule"]
+            + "\n"
+            + f"Structure - exactly {scene_count} scenes:\n"
+            + structure_section
+            + f"{tone_section}"
+            + "\n"
+            + self._prompt_copy["hook_rules"].format(
+                hook_rule=hook_rule,
+                hook_max=hook_max,
+                narration_field=narration_field,
+            )
+            + "\n"
+            + self._prompt_copy["body_rules"].format(
+                body_min=body_min,
+                body_max=body_max,
+                narration_field=narration_field,
+            )
+            + "\n"
+            + self._prompt_copy["cta_rules"].format(
+                cta_max=cta_max,
+                narration_field=narration_field,
+            )
+            + "\n"
+            + self._prompt_copy["general_rules"].format(
+                language=language,
+                scene_count=scene_count,
+                narration_field=narration_field,
+                visual_prompt_field=visual_prompt_field,
+            )
+            + "\n"
+            + self._prompt_copy["korean_rules"].format(narration_field=narration_field)
         )
 
     def _build_user_prompt(
@@ -660,32 +897,24 @@ class ScriptStep:
     ) -> str:
         target_min, target_max = duration_range
         target_mid = (target_min + target_max) / 2
-        prompt = (
-            f"Topic: {topic}\n"
-            f"Target total duration: {target_min}-{target_max} seconds.\n"
-            f"Target midpoint: about {target_mid:.1f} seconds.\n"
+        prompt = self._prompt_copy["user_header"].format(
+            topic=topic,
+            target_min=target_min,
+            target_max=target_max,
+            target_mid=target_mid,
         )
         if research_block:
             prompt += research_block
-        prompt += (
-            "Write a Hook-Body-CTA script for YouTube Shorts:\n"
-            "  Hook  — Open with a surprising fact or relatable problem. Stop the scroll instantly.\n"
-            "  Body  — Guide through analogy → data/fact → cause or solution. Build naturally.\n"
-            "  CTA   — One specific action the viewer can do right now. No subscription requests.\n"
-        )
+        prompt += self._prompt_copy["user_instructions"]
         if attempt > 1 and previous_total_sec is not None:
             if previous_total_sec < target_min:
-                prompt += (
-                    f"The previous draft was too short at about {previous_total_sec:.1f} seconds.\n"
-                    "Make each scene narration meaningfully longer with more spoken detail.\n"
-                )
+                prompt += self._prompt_copy["retry_too_short"].format(previous_total_sec=previous_total_sec)
             elif previous_total_sec > target_max:
-                prompt += (
-                    f"The previous draft was too long at about {previous_total_sec:.1f} seconds.\n"
-                    "Tighten each scene narration while keeping the same clarity.\n"
-                )
+                prompt += self._prompt_copy["retry_too_long"].format(previous_total_sec=previous_total_sec)
             if previous_scene_count is not None:
-                prompt += f"Keep exactly {previous_scene_count} scenes unless that prevents the duration target.\n"
+                prompt += self._prompt_copy["retry_keep_scene_count"].format(
+                    previous_scene_count=previous_scene_count
+                )
         return prompt
 
     @staticmethod
@@ -696,18 +925,6 @@ class ScriptStep:
         return abs(total_sec - target_mid)
 
     # ── 스크립트 품질 검토 (Sprint 4: 채널별 차별화) ──────────────────────────
-
-    _BASE_REVIEW_SYSTEM = (
-        "You are a YouTube Shorts script quality evaluator. "
-        "Score the given script on these dimensions from 1-10:\n"
-        "  hook_score : How well does the Hook stop the scroll? (1=boring, 10=irresistible)\n"
-        "  flow_score : How naturally does the Body build and connect? (1=choppy, 10=seamless)\n"
-        "  cta_score  : How clear and actionable is the CTA? (1=vague, 10=immediately doable)\n"
-        "  verifiability_score : Can a viewer Google each factual claim and confirm it? "
-        "(1=all claims feel fabricated/unverifiable, 10=every claim is well-known or easily verifiable)\n"
-        "  spelling_score : Is the Korean spelling (맞춤법) and spacing (띄어쓰기) correct? "
-        "(1=many errors, 10=perfect Korean). If errors found, list them in 'spelling_fixes'.\n"
-    )
 
     def _build_review_system(self) -> tuple[str, tuple[str, ...], int]:
         """채널별 리뷰 시스템 프롬프트 + 필수 키 + min_score를 반환.
@@ -721,8 +938,8 @@ class ScriptStep:
         min_score = self.config.project.script_review_min_score
         context_note = ""
 
-        if self.channel_key and self.channel_key in self._CHANNEL_REVIEW_CRITERIA:
-            criteria = self._CHANNEL_REVIEW_CRITERIA[self.channel_key]
+        if self.channel_key and self.channel_key in self._channel_review_criteria:
+            criteria = self._channel_review_criteria[self.channel_key]
             extra_dimensions = criteria.get("extra_dimensions", "")
             extra_keys = criteria.get("extra_keys", ())
             min_score = criteria.get("min_score_override", min_score)
@@ -732,13 +949,14 @@ class ScriptStep:
         json_example = ", ".join(f'"{k}": n' for k in all_keys)
 
         system_prompt = (
-            self._BASE_REVIEW_SYSTEM
+            self._review_copy.get("base_review_system", "")
             + extra_dimensions
-            + "Also provide a brief 'feedback' string (max 80 chars) with the main weakness.\n"
+            + self._review_copy.get("feedback_rule", "")
         )
         if context_note:
             system_prompt += f"\nChannel Context: {context_note}\n"
-        system_prompt += f'Output ONLY valid JSON: {{{json_example}, "feedback": "..."}}'
+        output_rule = self._review_copy.get("output_rule", "Output ONLY valid JSON: {{{json_example}, \"feedback\": \"...\"}}")
+        system_prompt += output_rule.format(json_example=json_example)
 
         return system_prompt, all_keys, min_score
 
@@ -1219,7 +1437,7 @@ class ScriptStep:
         final_title, final_scenes = best_result
         cta_scenes = [s for s in final_scenes if s.structure_role == "cta"]
         for cta_scene in cta_scenes:
-            violations = self._validate_cta(cta_scene.narration_ko)
+            violations = self._validate_cta(cta_scene.narration_ko, self._cta_forbidden_words)
             if violations:
                 logger.warning(
                     "[CTAGuard] Scene %d CTA contains forbidden words: %s — "
@@ -1231,7 +1449,7 @@ class ScriptStep:
         # ── 페르소나 매칭 스코어 ─────────────────────────────────────────────
         # 채널 키워드 밀도로 대본이 채널 톤을 유지하는지 수치화한다.
         if self.channel_key:
-            persona_score = self._score_persona_match(final_scenes, self.channel_key)
+            persona_score = self._score_persona_match(final_scenes, self.channel_key, self._persona_keywords)
             log_level = logging.WARNING if persona_score < 0.4 else logging.INFO
             logger.log(
                 log_level,

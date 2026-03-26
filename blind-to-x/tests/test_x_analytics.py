@@ -123,8 +123,8 @@ def test_prioritize_tweets_recent_first() -> None:
     old_time = (now - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
     new_time = (now - timedelta(hours=12)).strftime("%Y-%m-%d %H:%M:%S")
 
-    id_old = add_tweet("old_tweet", published_at=old_time)
-    id_new = add_tweet("new_tweet", published_at=new_time)
+    _id_old = add_tweet("old_tweet", published_at=old_time)
+    _id_new = add_tweet("new_tweet", published_at=new_time)
 
     tweets = get_tracked_tweets()
     prioritized = prioritize_tweets(tweets, max_samples=2)

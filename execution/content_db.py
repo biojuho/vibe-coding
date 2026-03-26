@@ -252,9 +252,9 @@ def update_job(item_id: int, **kwargs: Any) -> None:
     kwargs["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     set_clause = ", ".join(f"{k} = ?" for k in kwargs)
     values = list(kwargs.values()) + [item_id]
-    query = f"UPDATE content_queue SET {set_clause} WHERE id = ?"
+    query = f"UPDATE content_queue SET {set_clause} WHERE id = ?"  # noqa: S608 — keys whitelisted via UPDATABLE_COLUMNS
     conn = _conn()
-    conn.execute(query, values)  # noqa: S608
+    conn.execute(query, values)
     conn.commit()
     conn.close()
 

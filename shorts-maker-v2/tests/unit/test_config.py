@@ -138,6 +138,55 @@ def test_config_loads_rendering_engine_override(tmp_path: Path) -> None:
     assert config.rendering.engine == "auto"
 
 
+def test_config_uses_locale_default_caption_fonts_when_not_provided(tmp_path: Path) -> None:
+    path = _write_config(
+        tmp_path,
+        {
+            "project": {"language": "en-US", "default_scene_count": 7},
+            "video": {
+                "target_duration_sec": [35, 45],
+                "resolution": [1080, 1920],
+                "fps": 30,
+                "scene_video_duration_sec": 5,
+            },
+            "providers": {},
+            "limits": {},
+            "costs": {},
+            "paths": {},
+            "captions": {},
+        },
+    )
+
+    config = load_config(path)
+
+    assert config.captions.font_candidates[0] == "C:/Windows/Fonts/arialbd.ttf"
+    assert "C:/Windows/Fonts/segoeui.ttf" in config.captions.font_candidates
+
+
+def test_config_prefers_explicit_caption_fonts_over_locale_defaults(tmp_path: Path) -> None:
+    path = _write_config(
+        tmp_path,
+        {
+            "project": {"language": "en-US", "default_scene_count": 7},
+            "video": {
+                "target_duration_sec": [35, 45],
+                "resolution": [1080, 1920],
+                "fps": 30,
+                "scene_video_duration_sec": 5,
+            },
+            "providers": {},
+            "limits": {},
+            "costs": {},
+            "paths": {},
+            "captions": {"font_candidates": ["C:/Custom/Font.ttf"]},
+        },
+    )
+
+    config = load_config(path)
+
+    assert config.captions.font_candidates == ("C:/Custom/Font.ttf",)
+
+
 def test_config_rejects_invalid_rendering_engine(tmp_path: Path) -> None:
     path = _write_config(
         tmp_path,

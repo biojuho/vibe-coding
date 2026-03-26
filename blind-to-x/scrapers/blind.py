@@ -99,34 +99,50 @@ class BlindScraper(BaseScraper):
         try:
             await self._login(page)
 
-            logger.info(f"Fetching {label} via curl_cffi...")
-            html_content = await self._fetch_html_via_session(feed_url)
+            html_content = None
+            try:
+                logger.info(f"Fetching {label} via curl_cffi...")
+                html_content = await self._fetch_html_via_session(feed_url)
+            except Exception as fetch_err:
+                logger.warning(
+                    "Feed HTML fetch failed for %s: %s. Trying direct browser navigation.",
+                    label,
+                    fetch_err,
+                )
 
-            async def intercept(route):
-                await route.fulfill(body=html_content, content_type="text/html")
+            if html_content:
+                async def intercept(route):
+                    await route.fulfill(body=html_content, content_type="text/html")
+
+                try:
+                    await page.route(feed_url, intercept)
+                    await page.goto(feed_url, wait_until="domcontentloaded", timeout=30000)
+                    await asyncio.sleep(2)
+                    urls = await _collect_urls()
+                    logger.info(f"Found {len(urls)} {label} (intercept mode).")
+                    return urls
+                except Exception as intercept_err:
+                    logger.warning(
+                        "Intercept feed fetch failed for %s: %s. Trying direct navigation.",
+                        label,
+                        intercept_err,
+                    )
+                finally:
+                    try:
+                        await page.unroute(feed_url)
+                    except Exception:
+                        pass
 
             try:
-                await page.route(feed_url, intercept)
                 await page.goto(feed_url, wait_until="domcontentloaded", timeout=30000)
                 await asyncio.sleep(2)
                 urls = await _collect_urls()
-                logger.info(f"Found {len(urls)} {label} (intercept mode).")
-            except Exception as intercept_err:
-                logger.warning(f"Intercept feed fetch failed for {label}: {intercept_err}. Trying direct navigation.")
-                try:
-                    await page.unroute(feed_url)
-                except Exception:
-                    pass
-                try:
-                    await page.goto(feed_url, wait_until="networkidle", timeout=30000)
-                    await asyncio.sleep(2)
-                    urls = await _collect_urls()
-                    logger.info(f"Found {len(urls)} {label} (direct fallback).")
-                except Exception as direct_err:
-                    self.last_feed_fetch_error = f"Feed fetch failed ({label}): {direct_err}"
-                    self.last_feed_fetch_reason = "feed_fetch_failed_after_fallback"
-                    logger.error(self.last_feed_fetch_error)
-                    return []
+                logger.info(f"Found {len(urls)} {label} (direct fallback).")
+            except Exception as direct_err:
+                self.last_feed_fetch_error = f"Feed fetch failed ({label}): {direct_err}"
+                self.last_feed_fetch_reason = "feed_fetch_failed_after_fallback"
+                logger.error(self.last_feed_fetch_error)
+                return []
         except Exception as e:
             self.last_feed_fetch_error = f"Feed fetch failed ({label}): {e}"
             self.last_feed_fetch_reason = "feed_fetch_failed"
@@ -167,22 +183,39 @@ class BlindScraper(BaseScraper):
         page = await self._new_page()
         try:
             await self._login(page)
-            html_content = await self._fetch_html_via_session(feed_url)
-
-            async def intercept(route):
-                await route.fulfill(body=html_content, content_type="text/html")
-
+            html_content = None
             try:
-                await page.route(feed_url, intercept)
-                await page.goto(feed_url, wait_until="domcontentloaded", timeout=30000)
-                await asyncio.sleep(2)
-            except Exception as nav_err:
-                logger.warning("Feed candidate nav failed: %s. Trying direct.", nav_err)
+                html_content = await self._fetch_html_via_session(feed_url)
+            except Exception as fetch_err:
+                logger.warning(
+                    "Feed candidate HTML fetch failed for %s: %s. Trying direct browser navigation.",
+                    mode,
+                    fetch_err,
+                )
+
+            if html_content:
+                async def intercept(route):
+                    await route.fulfill(body=html_content, content_type="text/html")
+
                 try:
-                    await page.unroute(feed_url)
-                except Exception:
-                    pass
-                await page.goto(feed_url, wait_until="networkidle", timeout=30000)
+                    await page.route(feed_url, intercept)
+                    await page.goto(feed_url, wait_until="domcontentloaded", timeout=30000)
+                    await asyncio.sleep(2)
+                except Exception as nav_err:
+                    logger.warning("Feed candidate nav failed: %s. Trying direct.", nav_err)
+                    try:
+                        await page.unroute(feed_url)
+                    except Exception:
+                        pass
+                    await page.goto(feed_url, wait_until="domcontentloaded", timeout=30000)
+                    await asyncio.sleep(2)
+                finally:
+                    try:
+                        await page.unroute(feed_url)
+                    except Exception:
+                        pass
+            else:
+                await page.goto(feed_url, wait_until="domcontentloaded", timeout=30000)
                 await asyncio.sleep(2)
 
             # 각 게시글 행에서 제목 + 인기도 추출
@@ -258,6 +291,7 @@ class BlindScraper(BaseScraper):
             if delay > 0:
                 await asyncio.sleep(delay)
 
+            html_content = None
             logger.info("Fetching HTML via curl_cffi to bypass bot detection...")
             try:
                 html_content = await self._fetch_html_via_session(url)
@@ -271,14 +305,40 @@ class BlindScraper(BaseScraper):
                     failure_reason = "fetch_timeout"
                 else:
                     failure_reason = "html_fetch_failed"
-                raise
+                logger.warning(
+                    "HTML session fetch failed for %s: %s. Trying direct browser navigation.",
+                    url,
+                    fetch_err,
+                )
 
-            async def intercept_post(route):
-                await route.fulfill(body=html_content, content_type="text/html")
+            if html_content:
+                async def intercept_post(route):
+                    await route.fulfill(body=html_content, content_type="text/html")
 
-            await page.route(url, intercept_post)
-            await page.goto(url, wait_until="domcontentloaded", timeout=30000)
-            await asyncio.sleep(2)
+                try:
+                    await page.route(url, intercept_post)
+                    await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                    await asyncio.sleep(2)
+                except Exception as intercept_err:
+                    logger.warning(
+                        "Intercept post fetch failed for %s: %s. Trying direct navigation.",
+                        url,
+                        intercept_err,
+                    )
+                    try:
+                        await page.unroute(url)
+                    except Exception:
+                        pass
+                    await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                    await asyncio.sleep(3)
+                finally:
+                    try:
+                        await page.unroute(url)
+                    except Exception:
+                        pass
+            else:
+                await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                await asyncio.sleep(3)
 
             content_selectors = [
                 ".contents",
@@ -307,7 +367,7 @@ class BlindScraper(BaseScraper):
                 failure_reason = "intercept_selector_not_found"
                 try:
                     await page.unroute(url)
-                    await page.goto(url, wait_until="networkidle", timeout=30000)
+                    await page.goto(url, wait_until="domcontentloaded", timeout=30000)
                     await asyncio.sleep(3)
                     for selector in [".contents", ".wrapped", "main", "article"]:
                         try:

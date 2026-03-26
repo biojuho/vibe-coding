@@ -9,18 +9,23 @@ plain text 방식으로 전환합니다.
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import logging
 import random
 import re as _re
 from pathlib import Path
+from typing import Any
 
 import edge_tts
+import yaml
 
 logger = logging.getLogger(__name__)
 
 
 # ── 음성 매핑 ─────────────────────────────────────────────────────────────────
+
+_EDGE_TTS_LOCALE_CACHE: dict[str, dict[str, Any]] = {}
 
 _OPENAI_TO_EDGE_VOICE: dict[str, str] = {
     "alloy": "ko-KR-SunHiNeural",
@@ -35,6 +40,61 @@ _OPENAI_TO_EDGE_VOICE: dict[str, str] = {
     "verse": "ko-KR-GookMinNeural",
 }
 _DEFAULT_VOICE = "ko-KR-SunHiNeural"
+
+
+def _edge_tts_locale_path(language: str) -> Path:
+    project_root = Path(__file__).resolve().parents[3]
+    return project_root / "locales" / language / "edge_tts.yaml"
+
+
+def _load_edge_tts_locale_bundle(language: str) -> dict[str, Any]:
+    normalized = (language or "ko-KR").strip() or "ko-KR"
+    cached = _EDGE_TTS_LOCALE_CACHE.get(normalized)
+    if cached is not None:
+        return copy.deepcopy(cached)
+
+    locale_path = _edge_tts_locale_path(normalized)
+    if not locale_path.exists():
+        _EDGE_TTS_LOCALE_CACHE[normalized] = {}
+        return {}
+
+    try:
+        with locale_path.open(encoding="utf-8") as handle:
+            data = yaml.safe_load(handle) or {}
+        if not isinstance(data, dict):
+            logger.warning("[EdgeTTSI18N] locale bundle is not a mapping: %s", locale_path)
+            data = {}
+    except Exception as exc:
+        logger.warning("[EdgeTTSI18N] failed to load locale bundle %s: %s", locale_path, exc)
+        data = {}
+
+    _EDGE_TTS_LOCALE_CACHE[normalized] = copy.deepcopy(data)
+    return data
+
+
+def _get_edge_voice_profile(language: str = "ko-KR") -> tuple[dict[str, str], str]:
+    bundle = _load_edge_tts_locale_bundle(language)
+    voice_map = dict(_OPENAI_TO_EDGE_VOICE)
+
+    localized_map = bundle.get("openai_to_edge_voice")
+    if isinstance(localized_map, dict):
+        voice_map.update(
+            {
+                str(key).strip(): str(value).strip()
+                for key, value in localized_map.items()
+                if str(key).strip() and str(value).strip()
+            }
+        )
+
+    default_voice = str(bundle.get("default_voice", _DEFAULT_VOICE)).strip() or _DEFAULT_VOICE
+    return voice_map, default_voice
+
+
+def _resolve_edge_voice(voice: str, language: str = "ko-KR") -> tuple[str, str]:
+    voice_map, default_voice = _get_edge_voice_profile(language)
+    if "Neural" in voice or "neural" in voice:
+        return voice, default_voice
+    return voice_map.get(voice, default_voice), default_voice
 
 # ── 채널별 prosody 설정 ───────────────────────────────────────────────────────
 # (rate_jitter_range_pct, pitch_jitter_range_hz) — body 씬 기본값
@@ -186,6 +246,7 @@ async def _generate_async_with_timing(
     pitch: str,
     output_path: Path,
     words_json_path: Path,
+    language: str = "ko-KR",
 ) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     words_json_path.parent.mkdir(parents=True, exist_ok=True)
@@ -229,7 +290,7 @@ async def _generate_async_with_timing(
 
             if is_whisper_available():
                 logger.info("EdgeTTS: WordBoundary 없음 → faster-whisper fallback 시도")
-                whisper_words = transcribe_to_word_timings(output_path)
+                whisper_words = transcribe_to_word_timings(output_path, language=language)
         except Exception as _whisper_exc:
             logger.debug("EdgeTTS: whisper_aligner 호출 실패 (%s) — 근사치로 진행", _whisper_exc)
 
@@ -315,6 +376,7 @@ class EdgeTTSClient:
         words_json_path: Path | None = None,
         role: str = "body",
         channel_key: str = "",
+        language: str = "ko-KR",
     ) -> Path:
         del model
 
@@ -322,10 +384,7 @@ class EdgeTTSClient:
             return output_path
         output_path.unlink(missing_ok=True)
 
-        if "Neural" in voice or "neural" in voice:
-            edge_voice = voice
-        else:
-            edge_voice = _OPENAI_TO_EDGE_VOICE.get(voice, _DEFAULT_VOICE)
+        edge_voice, default_voice = _resolve_edge_voice(voice, language)
 
         # 채널별·역할별 rate/pitch 결정 (SSML 태그 없음)
         base_rate = _speed_to_rate(speed)
@@ -335,9 +394,9 @@ class EdgeTTSClient:
         attempt_plan: list[tuple[str, str, str, str]] = [
             (edge_voice, rate, pitch, "primary"),
         ]
-        if edge_voice != _DEFAULT_VOICE:
+        if edge_voice != default_voice:
             attempt_plan.append(
-                (_DEFAULT_VOICE, rate, pitch, "default_voice"),
+                (default_voice, rate, pitch, "default_voice"),
             )
 
         last_exc: Exception | None = None
@@ -367,6 +426,7 @@ class EdgeTTSClient:
                         _pitch,
                         output_path,
                         words_json_path,
+                        language,
                     )
                 return _generate_async(text, _voice, _rate, _pitch, output_path)
 

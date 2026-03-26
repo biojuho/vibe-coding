@@ -7,16 +7,16 @@ async def main():
     async with AsyncSession() as session:
         response = await session.get(url, impersonate="chrome120")
         html = response.text
-        
+
         soup = BeautifulSoup(html, "html.parser")
-        
+
         # Look for the title text exactly
         print("Looking for Title...")
         for tag in soup.find_all(string=lambda t: t and "인테리어 공사 중인데" in t):
             parent = tag.parent
             print("Found exact text in tag:", parent.name)
             print("Classes:", parent.get("class"))
-            
+
             # Print ancestors' classes
             ancestor = parent.parent
             for i in range(5):

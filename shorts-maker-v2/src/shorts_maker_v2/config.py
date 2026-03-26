@@ -7,6 +7,12 @@ from typing import Any
 
 import yaml
 
+_DEFAULT_FONT_CANDIDATES = (
+    "C:/Windows/Fonts/malgunbd.ttf",
+    "C:/Windows/Fonts/malgun.ttf",
+    "C:/Windows/Fonts/arialbd.ttf",
+)
+
 
 class ConfigError(ValueError):
     pass
@@ -230,6 +236,32 @@ def _tuple_str(values: Any, key: str) -> tuple[str, ...]:
     return tuple(casted)
 
 
+def _project_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def _load_locale_yaml(language: str, filename: str) -> dict[str, Any]:
+    locale_path = _project_root() / "locales" / language / filename
+    if not locale_path.exists():
+        return {}
+    try:
+        with locale_path.open(encoding="utf-8") as handle:
+            data = yaml.safe_load(handle) or {}
+    except Exception:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _default_caption_font_candidates(language: str) -> tuple[str, ...]:
+    bundle = _load_locale_yaml(language, "captions.yaml")
+    candidates = bundle.get("font_candidates")
+    if isinstance(candidates, list):
+        normalized = tuple(str(candidate).strip() for candidate in candidates if str(candidate).strip())
+        if normalized:
+            return normalized
+    return _DEFAULT_FONT_CANDIDATES
+
+
 def load_config(config_path: str | Path) -> AppConfig:
     path = Path(config_path).resolve()
     if not path.exists():
@@ -348,6 +380,7 @@ def load_config(config_path: str | Path) -> AppConfig:
     )
 
     captions_raw = _section(raw, "captions")
+    caption_font_candidates = captions_raw.get("font_candidates", list(_default_caption_font_candidates(project.language)))
     captions = CaptionSettings(
         font_size=int(captions_raw.get("font_size", 64)),
         margin_x=int(captions_raw.get("margin_x", 90)),
@@ -356,13 +389,7 @@ def load_config(config_path: str | Path) -> AppConfig:
         stroke_color=str(captions_raw.get("stroke_color", "#000000")),
         stroke_width=int(captions_raw.get("stroke_width", 4)),
         line_spacing=int(captions_raw.get("line_spacing", 12)),
-        font_candidates=_tuple_str(
-            captions_raw.get(
-                "font_candidates",
-                ["C:/Windows/Fonts/malgunbd.ttf", "C:/Windows/Fonts/malgun.ttf", "C:/Windows/Fonts/arialbd.ttf"],
-            ),
-            "captions.font_candidates",
-        ),
+        font_candidates=_tuple_str(caption_font_candidates, "captions.font_candidates"),
         mode=str(captions_raw.get("mode", "karaoke")),
         words_per_chunk=int(captions_raw.get("words_per_chunk", 3)),
         bg_color=str(captions_raw.get("bg_color", "#000000")),

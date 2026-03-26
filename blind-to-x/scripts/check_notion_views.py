@@ -14,11 +14,11 @@ _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from dotenv import load_dotenv
+from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(_ROOT / ".env")
 
-import httpx
+import httpx  # noqa: E402
 
 NOTION_API_KEY = os.getenv("NOTION_API_KEY", "")
 NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID", "")
@@ -97,9 +97,9 @@ def check_views(properties: dict[str, str]) -> bool:
 
         if missing:
             print(f"\n  ⚠️ 누락 속성 {len(missing)}개: {', '.join(missing)}")
-            print(f"  → Notion DB에서 해당 속성을 수동으로 추가하세요.")
+            print("  → Notion DB에서 해당 속성을 수동으로 추가하세요.")
         else:
-            print(f"\n  ✅ 모든 필수 속성 존재 — 뷰 생성 가능!")
+            print("\n  ✅ 모든 필수 속성 존재 — 뷰 생성 가능!")
         print()
 
     return all_ok

@@ -1,0 +1,304 @@
+============================= test session starts =============================
+platform win32 -- Python 3.14.2, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\Users\박주호\Desktop\Vibe coding\shorts-maker-v2
+configfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)
+plugins: anyio-4.12.1, asyncio-1.3.0, cov-6.3.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 17 items
+
+tests\unit\test_llm_router.py ...  🔄 [openai] LLM 요청 (1/1)...
+  ⚠️ [openai] 실패: openai temporary outage
+  ➡️ [openai] 실패, 다음 provider로 전환
+  🔄 [google] LLM 요청 (1/1)...
+  ⚠️ [google] 실패: google temporary outage
+  ➡️ [google] 실패, 다음 provider로 전환
+  🔄 [anthropic] LLM 요청 (1/1)...
+  ⚠️ [anthropic] 실패: anthropic temporary outage
+  ➡️ [anthropic] 실패, 다음 provider로 전환
+  🔄 [xai] LLM 요청 (1/1)...
+  ⚠️ [xai] 실패: xai temporary outage
+  ➡️ [xai] 실패, 다음 provider로 전환
+  🔄 [deepseek] LLM 요청 (1/1)...
+  ⚠️ [deepseek] 실패: deepseek temporary outage
+  ➡️ [deepseek] 실패, 다음 provider로 전환
+  🔄 [moonshot] LLM 요청 (1/1)...
+  ⚠️ [moonshot] 실패: moonshot temporary outage
+  ➡️ [moonshot] 실패, 다음 provider로 전환
+  🔄 [zhipuai] LLM 요청 (1/1)...
+  ⚠️ [zhipuai] 실패: zhipuai temporary outage
+  ➡️ [zhipuai] 실패, 다음 provider로 전환
+  🔄 [groq] LLM 요청 (1/1)...
+  ⚠️ [groq] 실패: groq temporary outage
+  ➡️ [groq] 실패, 다음 provider로 전환
+  🔄 [mimo] LLM 요청 (1/1)...
+  ✅ [mimo] 성공!
+.  🔄 [openai] LLM 요청 (1/2)...
+  ⚠️ [openai] 실패: request timed out
+  🔄 [openai] LLM 요청 (2/2)...
+  ⚠️ [openai] 실패: request timed out
+  ➡️ [openai] 실패, 다음 provider로 전환
+  🔄 [google] LLM 요청 (1/2)...
+  ✅ [google] 성공!
+.  🔄 [openai] LLM 요청 (1/3)...
+  ⚠️ [openai] 실패: invalid_api_key
+  ❌ [openai] 복구 불가 에러 → 다음 provider
+  ➡️ [openai] 실패, 다음 provider로 전환
+  🔄 [google] LLM 요청 (1/3)...
+  ✅ [google] 성공!
+.  🔄 [openai] LLM 요청 (1/2)...
+  ⚠️ [openai] JSON 파싱 실패, 재시도...
+  🔄 [openai] LLM 요청 (2/2)...
+  ⚠️ [openai] JSON 파싱 실패, 재시도...
+  ➡️ [openai] 실패, 다음 provider로 전환
+  🔄 [google] LLM 요청 (1/2)...
+  ✅ [google] 성공!
+.........FF
+ERROR: Coverage failure: total of 5 is less than fail-under=45
+
+
+================================== FAILURES ===================================
+_______________ test_get_client_initializes_providers_correctly _______________
+
+    def test_get_client_initializes_providers_correctly() -> None:
+        router = _make_router(providers=["google", "anthropic", "deepseek", "openai"])
+        router.api_keys = {"google": "g-key", "anthropic": "a-key", "deepseek": "d-key", "openai": "o-key"}
+    
+        with (
+>           patch("shorts_maker_v2.providers.llm_router.genai.Client") as mock_genai,
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            patch("shorts_maker_v2.providers.llm_router.Anthropic") as mock_anthropic,
+            patch("shorts_maker_v2.providers.llm_router.OpenAI") as mock_openai,
+        ):
+
+tests\unit\test_llm_router.py:452: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1487: in __enter__
+    self.target = self.getter()
+                  ^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+name = 'shorts_maker_v2.providers.llm_router.genai'
+
+    def resolve_name(name):
+        """
+        Resolve a name to an object.
+    
+        It is expected that `name` will be a string in one of the following
+        formats, where W is shorthand for a valid Python identifier and dot stands
+        for a literal period in these pseudo-regexes:
+    
+        W(.W)*
+        W(.W)*:(W(.W)*)?
+    
+        The first form is intended for backward compatibility only. It assumes that
+        some part of the dotted name is a package, and the rest is an object
+        somewhere within that package, possibly nested inside other objects.
+        Because the place where the package stops and the object hierarchy starts
+        can't be inferred by inspection, repeated attempts to import must be done
+        with this form.
+    
+        In the second form, the caller makes the division point clear through the
+        provision of a single colon: the dotted name to the left of the colon is a
+        package to be imported, and the dotted name to the right is the object
+        hierarchy within that package. Only one import is needed in this form. If
+        it ends with the colon, then a module object is returned.
+    
+        The function will return an object (which might be a module), or raise one
+        of the following exceptions:
+    
+        ValueError - if `name` isn't in a recognised format
+        ImportError - if an import failed when it shouldn't have
+        AttributeError - if a failure occurred when traversing the object hierarchy
+                         within the imported package to get to the desired object.
+        """
+        global _NAME_PATTERN
+        if _NAME_PATTERN is None:
+            # Lazy import to speedup Python startup time
+            import re
+            dotted_words = r'(?!\d)(\w+)(\.(?!\d)(\w+))*'
+            _NAME_PATTERN = re.compile(f'^(?P<pkg>{dotted_words})'
+                                       f'(?P<cln>:(?P<obj>{dotted_words})?)?$',
+                                       re.UNICODE)
+    
+        m = _NAME_PATTERN.match(name)
+        if not m:
+            raise ValueError(f'invalid format: {name!r}')
+        gd = m.groupdict()
+        if gd.get('cln'):
+            # there is a colon - a one-step import is all that's needed
+            mod = importlib.import_module(gd['pkg'])
+            parts = gd.get('obj')
+            parts = parts.split('.') if parts else []
+        else:
+            # no colon - have to iterate to find the package boundary
+            parts = name.split('.')
+            modname = parts.pop(0)
+            # first part *must* be a module/package.
+            mod = importlib.import_module(modname)
+            while parts:
+                p = parts[0]
+                s = f'{modname}.{p}'
+                try:
+                    mod = importlib.import_module(s)
+                    parts.pop(0)
+                    modname = s
+                except ImportError:
+                    break
+        # if we reach this point, mod is the module, already imported, and
+        # parts is the list of parts in the object hierarchy to be traversed, or
+        # an empty list if just the module is wanted.
+        result = mod
+        for p in parts:
+>           result = getattr(result, p)
+                     ^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'shorts_maker_v2.providers.llm_router' has no attribute 'genai'
+
+..\..\..\AppData\Local\Python\pythoncore-3.14-64\Lib\pkgutil.py:473: AttributeError
+________________ test_generate_once_dispatches_to_correct_impl ________________
+
+    def test_generate_once_dispatches_to_correct_impl() -> None:
+        router = _make_router(providers=["openai", "google", "anthropic"])
+    
+        # Fake clients
+        fake_openai = SimpleNamespace(
+            chat=SimpleNamespace(
+                completions=SimpleNamespace(
+                    create=lambda **kw: SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content="openai-res"))])
+                )
+            )
+        )
+    
+        class FakeGeminiResp:
+            text = "google-res"
+        fake_google = SimpleNamespace(
+            models=SimpleNamespace(
+                generate_content=lambda **kw: FakeGeminiResp()
+            )
+        )
+    
+        fake_anthropic = SimpleNamespace(
+            messages=SimpleNamespace(
+                create=lambda **kw: SimpleNamespace(content=[SimpleNamespace(text="anthropic-res")])
+            )
+        )
+    
+        def fake_get_client(provider):
+            if provider == "openai": return fake_openai
+            if provider == "google": return fake_google
+            if provider == "anthropic": return fake_anthropic
+    
+        router._get_client = fake_get_client
+    
+        res_openai = router._generate_once("openai", "sys", "user", 0.5, True)
+        assert res_openai == "openai-res"
+    
+        # Mock google.genai types for google test
+>       with patch("shorts_maker_v2.providers.llm_router.types"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\unit\test_llm_router.py:515: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1503: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x00000187CBF98050>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'shorts_maker_v2.providers.llm_router' from 'C:\\Users\\박주호\\Desktop\\Vibe coding\\shorts-maker-v2\\src\\shorts_maker_v2\\providers\\llm_router.py'> does not have the attribute 'types'
+
+..\..\..\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1473: AttributeError
+============================== warnings summary ===============================
+..\venv\Lib\site-packages\google\genai\types.py:43
+  C:\Users\박주호\Desktop\Vibe coding\venv\Lib\site-packages\google\genai\types.py:43: DeprecationWarning: '_UnionGenericAlias' is deprecated and slated for removal in Python 3.17
+    VersionedUnionType = Union[builtin_types.UnionType, _UnionGenericAlias]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=============================== tests coverage ================================
+_______________ coverage: platform win32, python 3.14.2-final-0 _______________
+
+Name                                                   Stmts   Miss  Cover   Missing
+------------------------------------------------------------------------------------
+src\shorts_maker_v2\__init__.py                            7      4    43%   8-12
+src\shorts_maker_v2\__main__.py                            7      7     0%   1-11
+src\shorts_maker_v2\cli.py                               302    302     0%   1-483
+src\shorts_maker_v2\config.py                            277    277     0%   1-516
+src\shorts_maker_v2\models.py                             86     86     0%   1-132
+src\shorts_maker_v2\pipeline\__init__.py                   5      5     0%   1-6
+src\shorts_maker_v2\pipeline\error_types.py               46     46     0%   10-246
+src\shorts_maker_v2\pipeline\media_step.py               361    361     0%   1-727
+src\shorts_maker_v2\pipeline\orchestrator.py             342    342     0%   1-733
+src\shorts_maker_v2\pipeline\persona_pipeline.py         158    158     0%   18-526
+src\shorts_maker_v2\pipeline\planning_step.py             59     59     0%   7-182
+src\shorts_maker_v2\pipeline\qc_step.py                  129    129     0%   6-258
+src\shorts_maker_v2\pipeline\render_step.py              841    841     0%   1-1607
+src\shorts_maker_v2\pipeline\research_step.py            103    103     0%   9-231
+src\shorts_maker_v2\pipeline\script_step.py              411    411     0%   1-1244
+src\shorts_maker_v2\pipeline\series_engine.py            111    111     0%   13-260
+src\shorts_maker_v2\pipeline\thumbnail_step.py           295    295     0%   12-560
+src\shorts_maker_v2\pipeline\topic_validator.py           47     47     0%   7-150
+src\shorts_maker_v2\providers\__init__.py                  8      0   100%
+src\shorts_maker_v2\providers\edge_tts_client.py         170    170     0%   9-395
+src\shorts_maker_v2\providers\freesound_client.py         74     50    32%   62-66, 75-78, 105-118, 135-163, 191-221, 240-253, 262, 267
+src\shorts_maker_v2\providers\google_client.py           105     86    18%   18-21, 34-80, 89-109, 131-163, 194-215, 223-230
+src\shorts_maker_v2\providers\google_music_client.py     156    108    31%   35-62, 78, 82-85, 89-90, 94, 97-105, 108-113, 116, 119-125, 138-141, 151-154, 168-221, 224-235, 239-263
+src\shorts_maker_v2\providers\llm_router.py              282     93    67%   21-38, 56-60, 134-135, 187-224, 251-293, 306, 330, 390, 421, 425, 459, 477, 509-529, 565, 592-597, 600, 624-646
+src\shorts_maker_v2\providers\openai_client.py            53     39    26%   16-20, 30-44, 55-68, 72-80, 91-115
+src\shorts_maker_v2\providers\pexels_client.py            95     78    18%   16-20, 35-47, 55-69, 81-102, 116-127, 137-156, 164-169, 179-212
+src\shorts_maker_v2\providers\stock_media_manager.py      84     64    24%   80-86, 95-110, 140-181, 200-204, 213, 221-234
+src\shorts_maker_v2\providers\unsplash_client.py          37     28    24%   16-20, 43-54, 77-99, 107-116
+src\shorts_maker_v2\providers\whisper_aligner.py          38     38     0%   11-95
+src\shorts_maker_v2\render\__init__.py                     2      2     0%   1-3
+src\shorts_maker_v2\render\animations.py                 122    122     0%   1-207
+src\shorts_maker_v2\render\audio_postprocess.py          123    123     0%   6-286
+src\shorts_maker_v2\render\broll_overlay.py               79     79     0%   1-130
+src\shorts_maker_v2\render\caption_pillow.py             174    174     0%   1-519
+src\shorts_maker_v2\render\color_grading.py               65     65     0%   7-166
+src\shorts_maker_v2\render\ending_card.py                 63     63     0%   1-121
+src\shorts_maker_v2\render\hud_overlay.py                 65     65     0%   9-200
+src\shorts_maker_v2\render\karaoke.py                    232    232     0%   11-645
+src\shorts_maker_v2\render\outro_card.py                  69     69     0%   7-165
+src\shorts_maker_v2\render\srt_export.py                  87     87     0%   6-177
+src\shorts_maker_v2\render\video_renderer.py             262    262     0%   15-492
+src\shorts_maker_v2\templates\__init__.py                 32     32     0%   12-177
+src\shorts_maker_v2\templates\channel_pipeline.py         54     54     0%   7-100
+src\shorts_maker_v2\utils\__init__.py                      3      3     0%   1-4
+src\shorts_maker_v2\utils\channel_router.py               73     73     0%   21-180
+src\shorts_maker_v2\utils\content_calendar.py            185    185     0%   26-484
+src\shorts_maker_v2\utils\cost_guard.py                   61     61     0%   1-81
+src\shorts_maker_v2\utils\cost_tracker.py                 70     70     0%   7-131
+src\shorts_maker_v2\utils\dashboard.py                    93     93     0%   1-185
+src\shorts_maker_v2\utils\hwaccel.py                      69     69     0%   7-184
+src\shorts_maker_v2\utils\media_cache.py                 101    101     0%   7-179
+src\shorts_maker_v2\utils\pipeline_status.py              65     65     0%   12-235
+src\shorts_maker_v2\utils\retry.py                        27     27     0%   1-40
+src\shorts_maker_v2\utils\style_tracker.py               109    109     0%   21-289
+------------------------------------------------------------------------------------
+TOTAL                                                   6974   6623     5%
+Coverage XML written to file coverage.xml
+FAIL Required test coverage of 45% not reached. Total coverage: 5.03%
+=========================== short test summary info ===========================
+FAILED tests/unit/test_llm_router.py::test_get_client_initializes_providers_correctly
+FAILED tests/unit/test_llm_router.py::test_generate_once_dispatches_to_correct_impl
+=================== 2 failed, 15 passed, 1 warning in 5.38s ===================

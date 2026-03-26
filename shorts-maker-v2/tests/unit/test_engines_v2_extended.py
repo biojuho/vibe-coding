@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -312,3 +313,28 @@ class TestOrchestratorShortsFactoryBranch:
         # 기본값이 None인지 확인
         default = params["use_shorts_factory"].default
         assert default is None
+
+    def test_try_shorts_factory_render_delegates_to_render_step(self):
+        """브리지 payload 변환은 render_step이 담당하고 orchestrator는 위임만 한다."""
+        from shorts_maker_v2.pipeline.orchestrator import PipelineOrchestrator
+        from shorts_maker_v2.pipeline.render_step import RenderStep
+
+        mock_logger = MagicMock()
+
+        with patch.object(RenderStep, "try_render_with_adapter", return_value=(True, None)) as bridge:
+            result = PipelineOrchestrator._try_shorts_factory_render(
+                channel="ai_tech",
+                scene_plans=[],
+                scene_assets=[],
+                output_path=Path("/tmp/test_ok.mp4"),
+                logger=mock_logger,
+            )
+
+        assert result == (True, None)
+        bridge.assert_called_once_with(
+            channel="ai_tech",
+            scene_plans=[],
+            scene_assets=[],
+            output_path=Path("/tmp/test_ok.mp4"),
+            logger=mock_logger,
+        )

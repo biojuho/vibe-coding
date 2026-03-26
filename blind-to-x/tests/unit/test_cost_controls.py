@@ -133,7 +133,7 @@ def test_record_draft_upserts_publish_state():
     assert row["published"] == 1
 
 
-from unittest.mock import patch
+from unittest.mock import patch  # noqa: E402
 
 @patch("pipeline.editorial_reviewer.EditorialReviewer")
 def test_review_only_still_generates_image_and_records_draft(mock_reviewer_class):
@@ -198,7 +198,6 @@ def test_review_only_still_generates_image_and_records_draft(mock_reviewer_class
 
 
 def test_draft_cache_persists_across_generator_instances(tmp_path):
-    from pipeline import draft_generator as dg
 
     cache_db = tmp_path / "draft_cache.db"
     config = FakeConfig(

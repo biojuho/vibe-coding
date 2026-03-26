@@ -102,6 +102,25 @@ class TestTranscribeToWordTimings:
             assert "start" in item
             assert "end" in item
 
+    def test_normalizes_locale_language_before_transcribe(self, tmp_path: Path):
+        """locale 형식 언어값(en-US 등)을 Whisper short code로 변환한다."""
+        audio = tmp_path / "english.mp3"
+        audio.write_bytes(b"\xff\xfb\x90")
+
+        mock_segment = MagicMock()
+        mock_segment.words = []
+
+        mock_model = MagicMock()
+        mock_model.transcribe.return_value = ([mock_segment], MagicMock())
+
+        mock_whisper_module = MagicMock()
+        mock_whisper_module.WhisperModel.return_value = mock_model
+
+        with patch.dict("sys.modules", {"faster_whisper": mock_whisper_module}):
+            transcribe_to_word_timings(audio, language="en-US")
+
+        assert mock_model.transcribe.call_args.kwargs["language"] == "en"
+
     def test_returns_empty_when_whisper_unavailable(self, tmp_path: Path):
         """faster-whisper 미설치 시 빈 리스트 반환 (graceful)."""
         audio = tmp_path / "test.mp3"

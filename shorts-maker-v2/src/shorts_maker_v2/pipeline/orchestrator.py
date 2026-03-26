@@ -730,47 +730,10 @@ class PipelineOrchestrator:
         Returns:
             렌더링 성공 여부와 실패 메시지
         """
-        try:
-            from ShortsFactory.interfaces import RenderAdapter
-
-            adapter = RenderAdapter()
-
-            # ScenePlan → dict 변환
-            scenes_data = [sp.to_dict() for sp in scene_plans]
-
-            # SceneAsset → 에셋 매핑
-            assets_map: dict[int, str] = {a.scene_id: a.visual_path for a in scene_assets}
-            audio_map: dict[int, str] = {a.scene_id: a.audio_path for a in scene_assets}
-
-            result = adapter.render_with_plan(
-                channel_id=channel,
-                scenes=scenes_data,
-                assets=assets_map,
-                output_path=output_path,
-                audio_paths=audio_map,
-            )
-
-            if result.success:
-                logger.info(
-                    "shorts_factory_render_ok",
-                    channel=channel,
-                    template=result.template_used,
-                    duration_sec=result.duration_sec,
-                )
-                return True, None
-            else:
-                logger.warning(
-                    "shorts_factory_render_failed",
-                    channel=channel,
-                    error=result.error,
-                    fallback="native_render_step",
-                )
-                return False, result.error or "ShortsFactory render failed"
-
-        except Exception as exc:
-            logger.warning(
-                "shorts_factory_import_failed",
-                error=str(exc),
-                fallback="native_render_step",
-            )
-            return False, str(exc)
+        return RenderStep.try_render_with_adapter(
+            channel=channel,
+            scene_plans=scene_plans,
+            scene_assets=scene_assets,
+            output_path=output_path,
+            logger=logger,
+        )

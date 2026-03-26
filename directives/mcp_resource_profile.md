@@ -84,6 +84,18 @@
 `settings.json`에서 Tier 3 서버를 제거하고, 필요 시 수동 활성화.
 절감 효과: 인스턴스당 ~420MB (youtube + cloudinary + n8n + playwright + firebase + supabase + notebooklm)
 
+**토글 스크립트 사용법:**
+```powershell
+# 상태 확인
+.\scripts\mcp_toggle.ps1 -Action Status
+
+# Tier 3 비활성화 (RAM 확보)
+.\scripts\mcp_toggle.ps1 -Action Disable
+
+# 안내 (재활성화는 AI 도구 재시작)
+.\scripts\mcp_toggle.ps1 -Action Enable
+```
+
 ### 3-C. server-filesystem 제거 검토
 
 Claude Code의 Read/Write/Glob/Grep 도구가 filesystem MCP와 완전 중복.
