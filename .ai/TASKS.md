@@ -7,9 +7,7 @@
 
 | ID | 태스크 | 담당 도구 | 우선순위 | 생성일 |
 |----|--------|-----------|----------|--------|
-| T-050 | `projects/shorts-maker-v2` 기준 full QC 재실행 및 기준값 갱신 | any | MEDIUM | 2026-03-26 |
-| T-053 | 점유 중인 빈 루트 `shorts-maker-v2/` 잔여 디렉터리 정리 | any | LOW | 2026-03-26 |
-| T-049 | `thumbnail_step.py` Pillow deprecation warning 정리 (`Image.fromarray(..., mode=...)`) | any | LOW | 2026-03-26 |
+
 
 ## IN_PROGRESS
 
@@ -20,11 +18,12 @@
 
 | ID | 태스크 | 완료 도구 | 완료일 |
 |----|--------|-----------|--------|
-| T-052 | 루트 구조를 `workspace/` + `projects/` 기준으로 단순화하고 경로 계약/문서/QAQC 허브를 새 레이아웃에 맞게 정리 | Codex | 2026-03-26 |
-| T-051 | `orchestrator.py` unit tests 31개 추가 (15%→80%), shorts 1076 passed, coverage 78% | Claude | 2026-03-26 |
-| T-043 | `orchestrator`/`render_step` 상위 en-US smoke + integration-heavy coverage 보강 | Codex | 2026-03-26 |
-| T-042 | `.ai/CONTEXT.md` 지뢰밭 정리 및 `SESSION_LOG` 로테이션 정리 | Codex | 2026-03-25 |
-| T-047 | `script_step.py` AST/i18n 복구 및 schema alias 검증 정리 | Codex | 2026-03-25 |
+| T-053 | 루트 `shorts-maker-v2/` 빈 폴더 확인 — 이미 정리됨 | Antigravity | 2026-03-26 |
+| T-050-B | `__init__.py` lazy-import monkeypatch 호환 수정 → **1077 passed, 13 skipped, 0 failed** | Antigravity | 2026-03-26 |
+| T-049 | `thumbnail_step.py` Pillow deprecation warning 수정 (`Image.fromarray` mode 제거) | Claude | 2026-03-26 |
+| T-052 | 루트 구조를 `workspace/` + `projects/` 기준으로 재편 | Codex | 2026-03-26 |
+| T-051 | `orchestrator.py` unit tests 31개 추가 (15%→80%), shorts 1076 passed | Claude | 2026-03-26 |
+| T-043 | `orchestrator`/`render_step` 상위 en-US smoke + integration coverage 보강 | Codex | 2026-03-26 |
 
 ## 규칙
 
