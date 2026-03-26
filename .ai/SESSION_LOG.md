@@ -1,3 +1,29 @@
+## 2026-03-26 | Codex | Blind-to-X X 큐레이션/초안 품질 리디자인 구현
+
+### 작업 요약
+
+`projects/blind-to-x`에 X 우선 편집 적합도 기반 선별과 초안 fail-closed 흐름을 구현했다. 후보 수집 단계에서 `pre_editorial_score`를 계산해 추상적이거나 파생각이 약한 글을 초기에 탈락시키고, `ContentProfile`에 `selection_summary`, `selection_reason_labels`, `audience_need`, `emotion_lane`, `empathy_anchor`, `spinoff_angle`을 추가했다. 초안 프롬프트는 장면/대사/숫자 오프닝, 같이 웃거나 한숨 쉬게 하는 포인트, 구체 CTA를 강제하도록 바뀌었고, provider 에러 문자열/태그 누락/낮은 한글 비율 응답은 성공으로 간주하지 않는다. few-shot 예시는 `성과 데이터 -> 최근 승인 글 -> YAML golden examples` 순으로 폴백되며, 모든 provider 실패 시 `DRAFT_GENERATION_FAILED`로 Notion 업로드 전에 종료한다.
+
+### 변경 파일
+
+| 파일 | 변경 유형 | 내용 |
+|------|-----------|------|
+| `projects/blind-to-x/pipeline/content_intelligence.py` | 수정 | X 편집 브리프 필드 추가, publishability score 리디자인 |
+| `projects/blind-to-x/classification_rules.yaml` | 수정 | X 전용 editorial rules 및 토픽별 reader desire/spinoff 규칙 추가 |
+| `projects/blind-to-x/pipeline/feed_collector.py` | 수정 | `pre_editorial_score` 계산 및 hard reject / min score 필터 추가 |
+| `projects/blind-to-x/pipeline/draft_generator.py` | 수정 | OpenAI SDK 경로 정리, provider fail-closed 검증, X 편집 브리프 주입 |
+| `projects/blind-to-x/pipeline/draft_quality_gate.py` | 수정 | 깨진 글, 영문 에러문, generic CTA, 상투 오프닝, 장면 부재 hard fail |
+| `projects/blind-to-x/pipeline/notion/_query.py`, `pipeline/feedback_loop.py` | 수정 | few-shot fallback을 `성과 -> 승인 -> YAML` 순으로 재구성 |
+| `projects/blind-to-x/tests/unit/*` | 수정/추가 | editorial filtering, fail-closed generation, fallback chain 회귀 테스트 보강 |
+
+### 검증 결과
+
+- `py -3 -m pytest projects/blind-to-x/tests/unit/test_feed_collector.py projects/blind-to-x/tests/unit/test_quality_gate_and_scenes.py projects/blind-to-x/tests/unit/test_quality_improvements.py projects/blind-to-x/tests/unit/test_content_intelligence.py projects/blind-to-x/tests/unit/test_draft_generator_multi_provider.py projects/blind-to-x/tests/unit/test_feedback_loop_fallback.py projects/blind-to-x/tests/unit/test_pipeline_flow.py -q -o addopts=` -> **103 passed, 1 warning**
+
+### 다음 작업 메모
+
+- runtime/config parity를 위해 `config.example.yaml`, `config.ci.yaml`도 새 editorial threshold에 맞춰 동기화했다.
+- shared `qaqc_runner.py`의 blind-to-x timeout 이슈는 이번 구현 범위 밖이며 여전히 별도 추적이 필요하다.
 
 ## 2026-03-26 | Codex | 시스템 전체 QC 수행
 

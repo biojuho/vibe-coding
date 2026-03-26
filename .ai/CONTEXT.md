@@ -59,6 +59,7 @@ Vibe coding/
 - `workspace/execution/qaqc_runner.py` and `workspace/execution/joolife_hub.py` now target the canonical layout.
 - QA/QC output is now expected at `projects/knowledge-dashboard/public/qaqc_result.json`.
 - Blind-to-X scheduled entrypoints and n8n bridge defaults now target canonical paths: `projects/blind-to-x` and `workspace/execution`.
+- `projects/blind-to-x` now applies X-first editorial filtering (`pre_editorial_score`), fail-closed draft generation, and few-shot fallback (`performance -> approved -> YAML`) after the 2026-03-26 curation redesign.
 - Windows Task Scheduler launchers are standardized through ASCII-safe `C:\btx\...` wrappers.
 - Latest shared QC run on `2026-03-26` is `CONDITIONALLY_APPROVED`: root passes, blind-to-x hits runner timeout, shorts-maker-v2 has suite-only flaky failures, knowledge-dashboard lint fails.
 
@@ -85,6 +86,7 @@ Vibe coding/
 
 - `shorts-maker-v2` recently passed broad targeted suites and coverage uplift work, but full `tests/unit + tests/integration` reruns on `2026-03-26` were unstable.
 - `blind-to-x` has a known env-specific `curl_cffi` CA-path reproducer that is ignored in shared QA/QC.
+- Blind-to-X targeted redesign verification on `2026-03-26`: `103 passed, 1 warning` across the new editorial-filter / draft-fail-closed / few-shot fallback suites.
 - The QA/QC contract uses machine-readable statuses such as `APPROVED`, `CONDITIONALLY_APPROVED`, `REJECTED`, `CLEAR`, and `WARNING`.
 - `knowledge-dashboard` currently fails lint with a conditional `useMemo` hook and an empty interface declaration.
 - `hanwoo-dashboard` lint is green aside from one `@next/next/no-page-custom-font` warning in `src/app/layout.js`.
