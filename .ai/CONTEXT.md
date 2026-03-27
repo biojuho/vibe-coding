@@ -65,6 +65,8 @@ Vibe coding/
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/script_step.py` targeted coverage was raised from 69% to 93% on `2026-03-27` with mock-heavy unit tests for review, verification, retry, and truncation paths.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/orchestrator.py` targeted coverage was raised from 73% to 97% on `2026-03-27` with mock-heavy tests for init paths, optional stages, hold/upload branches, and ShortsFactory/native render routing.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/render_step.py` targeted coverage was raised from 11% to 87% on `2026-03-27` with mocked `run()` happy/fallback flows plus Lyria/local-BGM/thumbnail coverage.
+- `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/media_step.py` targeted coverage was raised from 59% to 90% on `2026-03-27` with branch-heavy unit tests for fallback chains, checkpoint recovery, and regeneration.
+- A pipeline-focused aggregate suite now reports `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline` at **87%** and `projects/shorts-maker-v2/src/shorts_maker_v2` overall at **57%** on `2026-03-27`, clearing the interim 45% target for the full package but not the long-term 80% package-wide target.
 
 ## Shared Services
 
@@ -98,3 +100,5 @@ Vibe coding/
 - `shorts-maker-v2` script-step targeted verification on `2026-03-27`: `29 passed, 1 warning`; `coverage run` reports `script_step.py` at **93%**.
 - `shorts-maker-v2` orchestrator targeted verification on `2026-03-27`: `38 passed, 1 warning`; `coverage run` reports `orchestrator.py` at **97%**.
 - `shorts-maker-v2` render-step targeted verification on `2026-03-27`: `141 passed, 1 warning`; `coverage run` with `coverage report -m --include="*render_step.py"` reports `render_step.py` at **87%**.
+- `shorts-maker-v2` media-step targeted verification on `2026-03-27`: `28 passed, 1 warning`; `coverage run` reports `media_step.py` at **90%**.
+- `shorts-maker-v2` broader aggregate verification on `2026-03-27`: `411 passed, 1 warning`; `coverage run --source=src/shorts_maker_v2` reports **57%** total coverage for `src/shorts_maker_v2`.

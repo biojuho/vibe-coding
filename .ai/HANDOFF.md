@@ -8,14 +8,18 @@
 |------|------|
 | Date | 2026-03-27 |
 | Tool | Codex |
-| Work | Raised `projects/shorts-maker-v2` targeted coverage for `orchestrator.py` and `render_step.py` with mock-heavy unit tests |
+| Work | Raised `projects/shorts-maker-v2` targeted coverage for `orchestrator.py`, `render_step.py`, and `media_step.py`, then re-measured package-wide coverage |
 
 ## Current State
 
-- **shorts-maker-v2 core pipeline coverage uplift is now complete for the three main hotspots**:
+- **shorts-maker-v2 core pipeline coverage uplift is now complete for the four main hotspots**:
   - `script_step.py`: targeted verification `tests/unit/test_script_step.py` + `tests/unit/test_script_step_i18n.py` => **29 passed, 1 warning**; targeted coverage **93%**
   - `orchestrator.py`: targeted verification `tests/unit/test_orchestrator_unit.py` + `tests/integration/test_orchestrator_manifest.py` => **38 passed, 1 warning**; targeted coverage **97%**
   - `render_step.py`: targeted verification `tests/unit/test_render_step.py` + `tests/unit/test_render_step_phase5.py` + `tests/unit/test_render_quality_controls.py` + `tests/unit/test_render_utils.py` => **141 passed, 1 warning**; targeted coverage **87%**
+  - `media_step.py`: targeted verification `tests/unit/test_parallel_media.py` + `tests/unit/test_media_step_branches.py` + `tests/integration/test_media_fallback.py` => **28 passed, 1 warning**; targeted coverage **90%**
+- **Measured coverage milestones**:
+  - Pipeline-focused aggregate suite now reports `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline` at **87%** (`411 passed, 1 warning`)
+  - The same suite reports `projects/shorts-maker-v2/src/shorts_maker_v2` overall at **57%**, which clears the interim **45%** target but not the long-term **80%** package-wide target
 - **shorts-maker-v2 pipeline upgrade remains in place**:
   - Pipeline flow: `Planning -> Research -> StructureStep -> Script -> Media -> Scene QC -> Gate3 -> Render -> Gate4 -> Upload-ready copy`
   - `structure_step.py` and scene-QC related changes from the previous session are still the latest production-facing pipeline changes.
@@ -24,7 +28,7 @@
 
 ## Next Priorities
 
-1. T-067: measure aggregate V2 pipeline coverage after the `script_step` / `orchestrator` / `render_step` uplift and choose the next hotspot
+1. T-069: broaden `src/shorts_maker_v2` overall coverage by folding in more existing provider/render suites, then choose the next non-pipeline hotspot
 2. T-064: archive `projects/shorts-maker-v2/tests/legacy` out of pytest discovery
 3. T-058: investigate `shorts-maker-v2` full-suite order-dependent failure
 4. T-057: fix blind-to-x false-negative timeout in `workspace/execution/qaqc_runner.py`

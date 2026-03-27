@@ -1171,3 +1171,34 @@ Added mock-heavy coverage for the remaining two high-priority V2 pipeline hotspo
 
 - Measure aggregate V2 pipeline coverage after the `script_step` / `orchestrator` / `render_step` uplift and choose the next hotspot (T-067).
 - `tests/legacy/` is still V1/ShortsFactory-heavy and should be archived out of discovery when it is safe to do so (T-064).
+## 2026-03-27 | Codex | shorts-maker-v2 media_step uplift and package-wide re-measure (T-067/T-068)
+
+### Work Summary
+
+Extended the coverage push beyond the original three hotspot modules.
+
+- Added `projects/shorts-maker-v2/tests/unit/test_media_step_branches.py` with branch-heavy tests for `MediaStep` fallback chains, checkpoint recovery, regeneration cleanup, TTS/Whisper sync, and prompt sanitization.
+- Raised `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/media_step.py` targeted coverage from **59%** to **90%**.
+- Re-ran broader coverage measurement for both the `pipeline` package and the full `src/shorts_maker_v2` package using a stable, pipeline-focused suite.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `projects/shorts-maker-v2/tests/unit/test_media_step_branches.py` | Added | New branch-heavy MediaStep unit coverage |
+| `.ai/HANDOFF.md` | Modified | Updated milestones and next priorities |
+| `.ai/TASKS.md` | Modified | Marked T-067/T-068 done and added T-069 |
+| `.ai/CONTEXT.md` | Modified | Recorded media_step and package-wide coverage results |
+| `.ai/SESSION_LOG.md` | Modified | Added this session entry |
+
+### Verification
+
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 ..\..\venv\Scripts\python.exe -m pytest tests/unit/test_media_step_branches.py -q -o addopts=` -> **22 passed, 1 warning**
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 ..\..\venv\Scripts\python.exe -m coverage run --source=src/shorts_maker_v2/pipeline -m pytest tests/unit/test_parallel_media.py tests/unit/test_media_step_branches.py tests/integration/test_media_fallback.py -q -o addopts=` + `coverage report -m src/shorts_maker_v2/pipeline/media_step.py` -> **28 passed, 1 warning**, `media_step.py` **90%**
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 ..\..\venv\Scripts\python.exe -m coverage run --source=src/shorts_maker_v2/pipeline -m pytest <pipeline-focused suite> -q -o addopts=` + `coverage report -m` -> **411 passed, 1 warning**, `src/shorts_maker_v2/pipeline` **87%**
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 ..\..\venv\Scripts\python.exe -m coverage run --source=src/shorts_maker_v2 -m pytest <pipeline-focused suite> -q -o addopts=` + `coverage report -m` -> **411 passed, 1 warning**, `src/shorts_maker_v2` **57%**
+
+### Next Notes
+
+- The interim package-wide goal of 45% is now cleared for `src/shorts_maker_v2`.
+- The remaining gap to 80% package-wide is now mostly outside the core pipeline hotspots, especially in providers/render/utils modules and a few lower-coverage pipeline modules such as `series_engine.py`, `qc_step.py`, and `trend_discovery_step.py`.
