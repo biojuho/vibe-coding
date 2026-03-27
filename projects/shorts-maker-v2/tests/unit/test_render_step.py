@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from contextlib import ExitStack
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -12,6 +14,7 @@ from shorts_maker_v2.pipeline.render_step import RenderStep
 def _make_render_step(
     transition_style: str = "random",
     *,
+    channel_key: str = "",
     video_renderer_backend: str | None = None,
 ) -> RenderStep:
     """RenderStep의 __init__이 사용하는 모든 config 필드를 MagicMock으로 구성."""
@@ -39,6 +42,15 @@ def _make_render_step(
     config.captions.style_preset = "default"
     config.captions.words_per_chunk = 3
     config.captions.font_candidates = ("C:/Windows/Fonts/malgunbd.ttf",)
+    config.captions.outline_thickness = "medium"
+    config.captions.custom_styles = {}
+    config.captions.safe_zone_enabled = True
+    config.captions.center_hook = False
+    config.captions.line_spacing_factor = 1.0
+    config.captions.channel_style_map = {}
+    config.captions.highlight_color = "#FFD700"
+    config.captions.highlight_mode = "word"
+    config.captions.hook_animation = "pop"
 
     # audio
     config.audio.bgm_dir = "assets/bgm"
@@ -47,6 +59,9 @@ def _make_render_step(
     config.audio.sfx_enabled = False
     config.audio.sfx_dir = "assets/sfx"
     config.audio.sfx_volume = 0.35
+    config.audio.bgm_provider = "local"
+    config.audio.ducking_factor = 0.25
+    config.audio.lyria_prompt_map = {}
 
     # intro/outro
     config.intro_outro.intro_path = ""
@@ -56,12 +71,14 @@ def _make_render_step(
 
     # providers
     config.providers.visual_styles = ()
+    config.providers.tts_voice = "ko-KR-SunHiNeural"
 
     openai_client = MagicMock()
     return RenderStep(
         config=config,
         openai_client=openai_client,
         job_index=0,
+        channel_key=channel_key,
         video_renderer_backend=video_renderer_backend,
     )
 
@@ -330,10 +347,7 @@ def _make_fake_clip(w: int = 1200, h: int = 2200, duration: float = 3.0):
 
     def _resized(scale_or_func):
         new_clip = MagicMock()
-        if callable(scale_or_func):
-            s = scale_or_func(0.0)
-        else:
-            s = scale_or_func
+        s = scale_or_func(0.0) if callable(scale_or_func) else scale_or_func
         new_clip.w = int(w * s)
         new_clip.h = int(h * s)
         new_clip.duration = duration
@@ -453,7 +467,10 @@ def test_apply_channel_image_motion_string_motion() -> None:
     step._channel_key = "ai_tech"
     clip = _make_fake_clip()
     _, name = step._apply_channel_image_motion(
-        clip, role="hook", target_width=1080, target_height=1920,
+        clip,
+        role="hook",
+        target_width=1080,
+        target_height=1920,
     )
     assert name == "dramatic_ken_burns"
 
@@ -464,7 +481,10 @@ def test_apply_channel_image_motion_list_motion() -> None:
     step._channel_key = "ai_tech"
     clip = _make_fake_clip()
     _, name = step._apply_channel_image_motion(
-        clip, role="body", target_width=1080, target_height=1920,
+        clip,
+        role="body",
+        target_width=1080,
+        target_height=1920,
     )
     expected = RenderStep._CHANNEL_MOTION_CHOICES["ai_tech"]["body"]
     assert name in expected
@@ -476,7 +496,10 @@ def test_apply_channel_image_motion_hook_default() -> None:
     step._channel_key = "unknown_channel"
     clip = _make_fake_clip()
     _, name = step._apply_channel_image_motion(
-        clip, role="hook", target_width=1080, target_height=1920,
+        clip,
+        role="hook",
+        target_width=1080,
+        target_height=1920,
     )
     assert name == "dramatic_ken_burns"
 
@@ -594,8 +617,8 @@ def test_resolve_caption_combo_fallback_rotation() -> None:
     """채널 프로파일이 없으면 job_index 기반 로테이션."""
     combo0 = RenderStep._resolve_caption_combo("", 0)
     combo1 = RenderStep._resolve_caption_combo("", 1)
-    assert len(combo0) == 3
-    assert len(combo1) == 3
+    assert len(combo0) == 4
+    assert len(combo1) == 4
     if len(RenderStep._CAPTION_COMBOS) > 1:
         assert combo0 != combo1
 
@@ -603,15 +626,13 @@ def test_resolve_caption_combo_fallback_rotation() -> None:
 def test_resolve_caption_combo_uses_channel_profile() -> None:
     """채널 프로파일에 caption_combo가 있으면 우선 사용."""
     mock_router = MagicMock()
-    mock_router.return_value.get_profile.return_value = {
-        "caption_combo": ["neon", "bold", "subtitle"]
-    }
+    mock_router.return_value.get_profile.return_value = {"caption_combo": ["neon", "bold", "subtitle", "closing"]}
     with patch(
         "shorts_maker_v2.utils.channel_router.ChannelRouter",
         mock_router,
     ):
         combo = RenderStep._resolve_caption_combo("ai_tech", 0)
-    assert combo == ("neon", "bold", "subtitle")
+    assert combo == ("neon", "bold", "subtitle", "closing")
 
 
 # ─── BGM 무드 GPT 분류 테스트 ─────────────────────────────────────────────────
@@ -836,9 +857,15 @@ def test_build_effect_map_all_expected_effects() -> None:
     step = _make_render_step()
     effect_map = step._build_effect_map(1080, 1920)
     expected = {
-        "ken_burns", "dramatic_ken_burns", "zoom_out",
-        "pan_left", "pan_right", "drift",
-        "push_in", "shake", "ease_ken_burns",
+        "ken_burns",
+        "dramatic_ken_burns",
+        "zoom_out",
+        "pan_left",
+        "pan_right",
+        "drift",
+        "push_in",
+        "shake",
+        "ease_ken_burns",
     }
     assert set(effect_map.keys()) == expected
 
@@ -1053,7 +1080,9 @@ def test_build_sfx_clips_with_all_roles(tmp_path: Path) -> None:
         "transition": [trans_file],
     }
     clips = step._build_sfx_clips(
-        ["hook", "body", "cta"], [3.0, 5.0, 4.0], sfx_files,
+        ["hook", "body", "cta"],
+        [3.0, 5.0, 4.0],
+        sfx_files,
     )
     # hook SFX + 2 transitions + cta SFX = at least 4
     assert len(clips) >= 3
@@ -1085,7 +1114,9 @@ def test_build_sfx_clips_only_transition(tmp_path: Path) -> None:
 
     sfx_files = {"hook": [], "cta": [], "transition": [trans_file]}
     clips = step._build_sfx_clips(
-        ["hook", "body", "cta"], [3.0, 5.0, 4.0], sfx_files,
+        ["hook", "body", "cta"],
+        [3.0, 5.0, 4.0],
+        sfx_files,
     )
     # 3 scenes → 2 transition points
     assert len(clips) == 2
@@ -1211,7 +1242,10 @@ def test_apply_transitions_with_roles_structural() -> None:
     clip2.with_mask = MagicMock(return_value=clip2)
     clip2.resized = MagicMock(return_value=clip2)
     result = step._apply_transitions(
-        [clip1, clip2], 1080, 1920, roles=["hook", "body"],
+        [clip1, clip2],
+        1080,
+        1920,
+        roles=["hook", "body"],
     )
     assert len(result) >= 2
 
@@ -1225,7 +1259,10 @@ def test_apply_random_effect_with_exclude_param() -> None:
     clip = _make_fake_clip()
     for _ in range(20):
         _, chosen = step._apply_random_effect(
-            clip, 1080, 1920, exclude="ken_burns",
+            clip,
+            1080,
+            1920,
+            exclude="ken_burns",
         )
         assert chosen != "ken_burns"
 
@@ -1345,14 +1382,20 @@ def test_render_static_caption_hook_with_channel_text_engine_fails(
             raise ImportError("blocked for test")
         return original_import(name, *args, **kwargs)
 
-    with patch("builtins.__import__", side_effect=_blocking_import):
-        with patch(
+    with (
+        patch("builtins.__import__", side_effect=_blocking_import),
+        patch(
             "shorts_maker_v2.pipeline.render_step.render_caption_image",
             return_value=output,
-        ) as mock_fn:
-            result = step._render_static_caption(
-                "훅 자막", 1080, mock_style, output, "hook",
-            )
+        ) as mock_fn,
+    ):
+        result = step._render_static_caption(
+            "훅 자막",
+            1080,
+            mock_style,
+            output,
+            "hook",
+        )
     mock_fn.assert_called_once()
     assert result == output
 
@@ -1381,7 +1424,8 @@ def test_load_image_clip_returns_native() -> None:
     result = step._load_image_clip("/tmp/test.png", duration=3.0)
     assert result is native_clip
     step._native_renderer.load_image.assert_called_once_with(
-        "/tmp/test.png", duration=3.0,
+        "/tmp/test.png",
+        duration=3.0,
     )
 
 
@@ -1438,3 +1482,574 @@ def test_apply_rms_ducking_stereo_audio() -> None:
 
     result = RenderStep._apply_rms_ducking(narration, bgm, base_vol=0.12)
     assert result is ducked
+
+
+class _DummyClip:
+    def __init__(
+        self,
+        name: str,
+        *,
+        duration: float = 3.0,
+        w: int = 1080,
+        h: int = 1920,
+        audio=None,
+    ) -> None:
+        self.name = name
+        self.duration = duration
+        self.w = w
+        self.h = h
+        self.audio = audio
+        self.closed = False
+        self.effects: list = []
+        self.start = 0.0
+        self.position = None
+        self.mask = None
+
+    def with_effects(self, effects):
+        self.effects.extend(effects)
+        return self
+
+    def with_audio(self, audio):
+        self.audio = audio
+        return self
+
+    def with_duration(self, duration: float):
+        self.duration = duration
+        return self
+
+    def with_start(self, start: float):
+        self.start = start
+        return self
+
+    def with_position(self, position):
+        self.position = position
+        return self
+
+    def with_mask(self, mask):
+        self.mask = mask
+        return self
+
+    def subclipped(self, start: float, end: float):
+        return _DummyClip(
+            f"{self.name}:sub",
+            duration=max(0.0, end - start),
+            w=self.w,
+            h=self.h,
+            audio=self.audio,
+        )
+
+    def resized(self, scale_or_func):
+        scale = scale_or_func(0.0) if callable(scale_or_func) else scale_or_func
+        return _DummyClip(
+            f"{self.name}:resized",
+            duration=self.duration,
+            w=max(1, int(self.w * scale)),
+            h=max(1, int(self.h * scale)),
+            audio=self.audio,
+        )
+
+    def cropped(self, *, x1, y1, x2, y2):
+        return _DummyClip(
+            f"{self.name}:cropped",
+            duration=self.duration,
+            w=max(1, int(x2 - x1)),
+            h=max(1, int(y2 - y1)),
+            audio=self.audio,
+        )
+
+    def transform(self, _func):
+        return self
+
+    def close(self):
+        self.closed = True
+
+
+class _DummyAudioClip(_DummyClip):
+    def __init__(self, name: str, *, duration: float = 3.0) -> None:
+        super().__init__(name, duration=duration, w=1, h=1, audio=None)
+
+
+def _configure_render_step_for_run(
+    step: RenderStep,
+    *,
+    captions_mode: str = "karaoke",
+    highlight_mode: str = "word",
+    bgm_provider: str = "lyria",
+    sfx_enabled: bool = False,
+) -> None:
+    step.config.captions.mode = captions_mode
+    step.config.captions.highlight_mode = highlight_mode
+    step.config.captions.hook_animation = "pop"
+    step.config.providers.tts_voice = "ko-KR-SunHiNeural"
+    step.config.audio.bgm_provider = bgm_provider
+    step.config.audio.ducking_factor = 0.25
+    step.config.audio.lyria_prompt_map = {"default": "calm piano", "ai_tech": "tech pulse"}
+    step.config.audio.sfx_enabled = sfx_enabled
+    step.config.video.hw_accel = "auto"
+    step.config.video.quality_profile = "draft"
+    step.config.intro_outro.intro_path = ""
+    step.config.intro_outro.outro_path = ""
+
+
+def test_try_render_with_adapter_import_failure_returns_error(tmp_path: Path) -> None:
+    """Import failure should return a native fallback error."""
+    import builtins
+
+    original_import = builtins.__import__
+
+    def _blocking_import(name, *args, **kwargs):
+        if name == "ShortsFactory.interfaces":
+            raise ImportError("adapter unavailable")
+        return original_import(name, *args, **kwargs)
+
+    with patch("builtins.__import__", side_effect=_blocking_import):
+        success, error = RenderStep.try_render_with_adapter(
+            channel="ai_tech",
+            scene_plans=[],
+            scene_assets=[],
+            output_path=tmp_path / "output.mp4",
+            logger=MagicMock(),
+        )
+
+    assert success is False
+    assert error == "adapter unavailable"
+
+
+def test_extract_thumbnail_success_writes_png(tmp_path: Path) -> None:
+    """Thumbnail extraction should save a PNG when frame capture succeeds."""
+    import numpy as np
+
+    frame = np.zeros((4, 4, 3), dtype=np.uint8)
+    clip = MagicMock(duration=1.2)
+    clip.get_frame.return_value = frame
+    output_path = tmp_path / "thumb.png"
+
+    with patch("shorts_maker_v2.pipeline.render_step.VideoFileClip", return_value=clip):
+        result = RenderStep.extract_thumbnail(
+            tmp_path / "video.mp4",
+            output_path,
+            timestamp_sec=0.5,
+        )
+
+    assert result == output_path
+    assert output_path.exists()
+    clip.close.assert_called_once()
+
+
+def test_generate_lyria_bgm_creates_file_from_client(tmp_path: Path) -> None:
+    """Lyria generation should return the generated file when the client succeeds."""
+    step = _make_render_step()
+    step.config.audio.lyria_prompt_map = {"default": "calm piano", "ai_tech": "tech pulse"}
+
+    async def _write_music_file(*, output_path, **kwargs):  # noqa: ARG001
+        output_path.write_bytes(b"bgm-data")
+
+    client = SimpleNamespace(generate_music_file=_write_music_file)
+
+    with (
+        patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}),
+        patch(
+            "shorts_maker_v2.providers.google_music_client.GoogleMusicClient.from_env",
+            return_value=client,
+        ),
+    ):
+        result = step._generate_lyria_bgm(
+            run_dir=tmp_path,
+            duration_sec=30.0,
+            channel="ai_tech",
+            topic="future chips",
+        )
+
+    assert result == tmp_path / "bgm_lyria.mp3"
+    assert result.exists()
+
+
+def test_generate_lyria_bgm_returns_none_on_client_failure(tmp_path: Path) -> None:
+    """Lyria generation should fail closed and fall back to local assets."""
+    step = _make_render_step()
+    step.config.audio.lyria_prompt_map = {}
+
+    with (
+        patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}),
+        patch(
+            "shorts_maker_v2.providers.google_music_client.GoogleMusicClient.from_env",
+            side_effect=RuntimeError("music client down"),
+        ),
+    ):
+        result = step._generate_lyria_bgm(run_dir=tmp_path, duration_sec=20.0)
+
+    assert result is None
+
+
+def test_run_handles_full_karaoke_lyria_and_sfx_flow(tmp_path: Path) -> None:
+    """run() should cover the main render flow with lyric BGM and SFX mixing."""
+    step = _make_render_step(channel_key="ai_tech")
+    _configure_render_step_for_run(step, bgm_provider="lyria", sfx_enabled=True)
+    step.config.intro_outro.intro_path = "intro.mp4"
+    step.config.intro_outro.outro_path = "outro.png"
+
+    workspace = tmp_path / "workspace"
+    run_dir = workspace / "runs" / "job-001"
+    output_dir = workspace / "output"
+    run_dir.mkdir(parents=True)
+    output_dir.mkdir(parents=True)
+
+    audio_path1 = run_dir / "scene01.mp3"
+    audio_path2 = run_dir / "scene02.mp3"
+    ssml_path = run_dir / "scene01_words_ssml.txt"
+    ssml_path.write_text("break", encoding="utf-8")
+    (run_dir / "broll_01.mp4").write_bytes(b"broll")
+
+    scene_plans = [
+        ScenePlan(1, "Hook narration", "hook visual", 3.0, "hook"),
+        ScenePlan(2, "Closing narration", "closing visual", 4.0, "closing"),
+    ]
+    scene_assets = [
+        SceneAsset(1, str(audio_path1), "image", "visual-1.png", 3.0),
+        SceneAsset(2, str(audio_path2), "image", "visual-2.png", 4.0),
+    ]
+
+    word_segments = [
+        SimpleNamespace(word="AI", start=0.0, end=0.5),
+        SimpleNamespace(word="future", start=0.5, end=1.0),
+    ]
+    highlight_chunks = [
+        (0.0, 1.0, "AI future", word_segments),
+    ]
+
+    base_lookup = {
+        1: _DummyClip("base-1", duration=3.0),
+        2: _DummyClip("base-2", duration=4.0),
+    }
+    audio_lookup = {
+        str(audio_path1): _DummyAudioClip("scene-audio-1", duration=4.0),
+        str(audio_path2): _DummyAudioClip("scene-audio-2", duration=4.0),
+        str(run_dir / "bgm_lyria.mp3"): _DummyAudioClip("bgm", duration=80.0),
+    }
+
+    def _image_clip_factory(*args, **kwargs):  # noqa: ARG001
+        return _DummyClip("image", duration=0.1, w=400, h=120)
+
+    def _composite_video_factory(clips, size=None):  # noqa: ARG001
+        duration = max((getattr(clip, "duration", 0.0) for clip in clips), default=0.0)
+        audio = next((clip.audio for clip in clips if getattr(clip, "audio", None) is not None), None)
+        return _DummyClip("composite-video", duration=duration, audio=audio)
+
+    def _composite_audio_factory(clips):
+        duration = max((getattr(clip, "duration", 0.0) for clip in clips), default=0.0)
+        return _DummyAudioClip("mixed-audio", duration=duration)
+
+    final_video = _DummyClip("final-video", duration=62.0, audio=_DummyAudioClip("narration", duration=62.0))
+    final_video.subclipped = lambda start, end: final_video.with_duration(max(0.0, end - start))
+
+    with ExitStack() as stack:
+        stack.enter_context(
+            patch.object(
+                step,
+                "_build_bookend_clip",
+                side_effect=lambda path, duration, *_: _DummyClip(
+                    path,
+                    duration=duration,
+                ),
+            )
+        )
+        stack.enter_context(
+            patch.object(
+                step,
+                "_build_base_clip",
+                side_effect=lambda asset, *_: base_lookup[asset.scene_id],
+            )
+        )
+        stack.enter_context(
+            patch.object(
+                step,
+                "_apply_channel_image_motion",
+                side_effect=lambda base, **kwargs: (
+                    base,
+                    f"{kwargs['role']}-motion",
+                ),
+            )
+        )
+        stack.enter_context(
+            patch.object(
+                step,
+                "_load_audio_clip",
+                side_effect=lambda path: audio_lookup[str(path)],
+            )
+        )
+        stack.enter_context(
+            patch.object(
+                step,
+                "_apply_transitions",
+                side_effect=lambda clips, *args, **kwargs: clips,
+            )
+        )
+        lyria_bgm = stack.enter_context(
+            patch.object(step, "_generate_lyria_bgm", return_value=run_dir / "bgm_lyria.mp3")
+        )
+        ducking = stack.enter_context(
+            patch.object(step, "_apply_rms_ducking", return_value=_DummyAudioClip("ducked", duration=62.0))
+        )
+        load_sfx = stack.enter_context(
+            patch.object(
+                step,
+                "_load_sfx_files",
+                return_value={
+                    "hook": [Path("hook.mp3")],
+                    "transition": [Path("swish.mp3")],
+                    "cta": [],
+                },
+            )
+        )
+        build_sfx = stack.enter_context(
+            patch.object(
+                step,
+                "_build_sfx_clips",
+                return_value=[_DummyAudioClip("sfx-1", duration=0.2), _DummyAudioClip("sfx-2", duration=0.2)],
+            )
+        )
+        stack.enter_context(
+            patch(
+                "shorts_maker_v2.pipeline.render_step.color_grade_clip",
+                side_effect=lambda clip, *args, **kwargs: clip,
+            )
+        )
+        stack.enter_context(
+            patch(
+                "shorts_maker_v2.pipeline.render_step.postprocess_tts_audio",
+                return_value=None,
+            )
+        )
+        stack.enter_context(
+            patch(
+                "shorts_maker_v2.pipeline.render_step.load_words_json",
+                return_value=word_segments,
+            )
+        )
+        ssml_fix = stack.enter_context(
+            patch("shorts_maker_v2.pipeline.render_step.apply_ssml_break_correction", return_value=word_segments)
+        )
+        stack.enter_context(
+            patch(
+                "shorts_maker_v2.pipeline.render_step.group_word_segments",
+                return_value=highlight_chunks,
+            )
+        )
+        render_highlight = stack.enter_context(
+            patch("shorts_maker_v2.pipeline.render_step.render_karaoke_highlight_image", return_value=None)
+        )
+        stack.enter_context(
+            patch(
+                "shorts_maker_v2.pipeline.render_step.ImageClip",
+                side_effect=_image_clip_factory,
+            )
+        )
+        stack.enter_context(
+            patch(
+                "shorts_maker_v2.pipeline.render_step.CompositeVideoClip",
+                side_effect=_composite_video_factory,
+            )
+        )
+        stack.enter_context(
+            patch(
+                "shorts_maker_v2.pipeline.render_step.CompositeAudioClip",
+                side_effect=_composite_audio_factory,
+            )
+        )
+        broll_pip = stack.enter_context(
+            patch("shorts_maker_v2.pipeline.render_step.create_broll_pip", return_value=_DummyClip("pip", duration=1.0))
+        )
+        animate = stack.enter_context(
+            patch("shorts_maker_v2.pipeline.render_step.apply_text_animation", side_effect=lambda clip, **kwargs: clip)
+        )
+        concat_videos = stack.enter_context(
+            patch("shorts_maker_v2.pipeline.render_step.concatenate_videoclips", return_value=final_video)
+        )
+        stack.enter_context(
+            patch(
+                "shorts_maker_v2.utils.hwaccel.detect_hw_encoder",
+                return_value=("libx264", ["-ignored"]),
+            )
+        )
+        stack.enter_context(
+            patch(
+                "shorts_maker_v2.utils.hwaccel.detect_gpu_info",
+                return_value={"gpu_name": "Fake GPU", "encoder": "libx264", "decoder_support": True},
+            )
+        )
+        write_video = stack.enter_context(patch.object(step._output_renderer, "write", return_value=None))
+        stack.enter_context(patch("builtins.print"))
+
+        result = step.run(
+            scene_plans=scene_plans,
+            scene_assets=scene_assets,
+            output_dir=output_dir,
+            output_filename="final.mp4",
+            run_dir=run_dir,
+            title="AI future",
+            topic="AI future",
+        )
+
+    assert result == output_dir / "final.mp4"
+    assert final_video.closed is True
+    assert concat_videos.called
+    assert lyria_bgm.called
+    assert ducking.called
+    assert load_sfx.called
+    assert build_sfx.called
+    assert render_highlight.called
+    assert ssml_fix.called
+    assert broll_pip.called
+    assert animate.called
+    write_video.assert_called_once()
+
+
+def test_run_uses_static_caption_fallback_and_local_bgm_when_karaoke_fails(tmp_path: Path) -> None:
+    """run() should recover from karaoke/render warnings and fall back to local BGM."""
+    step = _make_render_step(channel_key="ai_tech")
+    _configure_render_step_for_run(step, bgm_provider="local", sfx_enabled=False)
+
+    workspace = tmp_path / "workspace"
+    run_dir = workspace / "runs" / "job-002"
+    output_dir = workspace / "output"
+    bgm_dir = workspace / "assets" / "bgm"
+    run_dir.mkdir(parents=True)
+    output_dir.mkdir(parents=True)
+    bgm_dir.mkdir(parents=True)
+    bgm_path = bgm_dir / "bgm_loop.mp3"
+    bgm_path.write_bytes(b"loop")
+    (run_dir / "broll_01.mp4").write_bytes(b"broll")
+
+    audio_path = run_dir / "scene01.mp3"
+    scene_plans = [ScenePlan(1, "Fallback narration", "visual", 5.0, "hook")]
+    scene_assets = [SceneAsset(1, str(audio_path), "image", "visual-1.png", 5.0)]
+
+    base_clip = _DummyClip("base", duration=5.0)
+    final_video = _DummyClip("final", duration=10.0, audio=_DummyAudioClip("narration", duration=10.0))
+    local_bgm_clip = _DummyAudioClip("local-bgm", duration=2.0)
+    looped_bgm_clip = _DummyAudioClip("looped-bgm", duration=12.0)
+
+    def _image_clip_factory(*args, **kwargs):  # noqa: ARG001
+        return _DummyClip("caption", duration=0.1, w=500, h=120)
+
+    def _composite_video_factory(clips, size=None):  # noqa: ARG001
+        audio = next((clip.audio for clip in clips if getattr(clip, "audio", None) is not None), None)
+        duration = max((getattr(clip, "duration", 0.0) for clip in clips), default=0.0)
+        return _DummyClip("composite-video", duration=duration, audio=audio)
+
+    def _composite_audio_factory(clips):
+        duration = max((getattr(clip, "duration", 0.0) for clip in clips), default=0.0)
+        return _DummyAudioClip("mixed-audio", duration=duration)
+
+    with ExitStack() as stack:
+        stack.enter_context(patch.object(step, "_build_base_clip", return_value=base_clip))
+        stack.enter_context(patch.object(step, "_apply_channel_image_motion", return_value=(base_clip, "ken_burns")))
+        stack.enter_context(
+            patch.object(
+                step,
+                "_load_audio_clip",
+                side_effect=lambda path: (
+                    local_bgm_clip if str(path) == str(bgm_path) else _DummyAudioClip("scene", duration=5.5)
+                ),
+            )
+        )
+        static_caption = stack.enter_context(
+            patch.object(step, "_render_static_caption", return_value=run_dir / "caption.png")
+        )
+        stack.enter_context(
+            patch.object(
+                step,
+                "_apply_transitions",
+                side_effect=lambda clips, *args, **kwargs: clips,
+            )
+        )
+        pick_bgm = stack.enter_context(patch.object(step, "_pick_bgm_by_mood", return_value=bgm_path))
+        ducking = stack.enter_context(
+            patch.object(step, "_apply_rms_ducking", return_value=_DummyAudioClip("ducked", duration=10.0))
+        )
+        stack.enter_context(
+            patch(
+                "shorts_maker_v2.pipeline.render_step.color_grade_clip",
+                side_effect=RuntimeError("grade failed"),
+            )
+        )
+        stack.enter_context(
+            patch(
+                "shorts_maker_v2.pipeline.render_step.postprocess_tts_audio",
+                side_effect=RuntimeError("post failed"),
+            )
+        )
+        stack.enter_context(
+            patch(
+                "shorts_maker_v2.pipeline.render_step.load_words_json",
+                side_effect=RuntimeError("words missing"),
+            )
+        )
+        stack.enter_context(
+            patch(
+                "shorts_maker_v2.pipeline.render_step.ImageClip",
+                side_effect=_image_clip_factory,
+            )
+        )
+        stack.enter_context(
+            patch(
+                "shorts_maker_v2.pipeline.render_step.CompositeVideoClip",
+                side_effect=_composite_video_factory,
+            )
+        )
+        stack.enter_context(
+            patch(
+                "shorts_maker_v2.pipeline.render_step.CompositeAudioClip",
+                side_effect=_composite_audio_factory,
+            )
+        )
+        stack.enter_context(
+            patch(
+                "shorts_maker_v2.pipeline.render_step.create_broll_pip",
+                side_effect=RuntimeError("pip failed"),
+            )
+        )
+        stack.enter_context(
+            patch(
+                "shorts_maker_v2.pipeline.render_step.apply_text_animation",
+                side_effect=RuntimeError("anim failed"),
+            )
+        )
+        stack.enter_context(
+            patch(
+                "shorts_maker_v2.pipeline.render_step.concatenate_videoclips",
+                return_value=final_video,
+            )
+        )
+        concat_audio = stack.enter_context(patch("moviepy.concatenate_audioclips", return_value=looped_bgm_clip))
+        stack.enter_context(
+            patch(
+                "shorts_maker_v2.utils.hwaccel.detect_hw_encoder",
+                return_value=("h264_nvenc", ["-preset", "p4"]),
+            )
+        )
+        stack.enter_context(
+            patch(
+                "shorts_maker_v2.utils.hwaccel.detect_gpu_info",
+                side_effect=RuntimeError("gpu lookup failed"),
+            )
+        )
+        write_video = stack.enter_context(patch.object(step._output_renderer, "write", return_value=None))
+        stack.enter_context(patch("builtins.print"))
+
+        result = step.run(
+            scene_plans=scene_plans,
+            scene_assets=scene_assets,
+            output_dir=output_dir,
+            output_filename="fallback.mp4",
+            run_dir=run_dir,
+            title="Fallback topic",
+            topic="Fallback topic",
+        )
+
+    assert result == output_dir / "fallback.mp4"
+    assert static_caption.called
+    assert pick_bgm.called
+    assert concat_audio.called
+    assert ducking.called
+    write_video.assert_called_once()

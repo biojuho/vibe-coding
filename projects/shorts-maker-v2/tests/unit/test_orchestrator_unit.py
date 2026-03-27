@@ -17,15 +17,14 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
 
 from shorts_maker_v2.models import (
-    GateVerdict,
     JobManifest,
-    QCReport,
     SceneAsset,
     ScenePlan,
 )
@@ -34,7 +33,6 @@ from shorts_maker_v2.pipeline.orchestrator import (
     JsonlLogger,
     PipelineOrchestrator,
 )
-
 
 # ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -83,6 +81,26 @@ def _load_cfg(tmp_path: Path):
     from shorts_maker_v2.config import load_config
 
     return load_config(_make_config_yaml(tmp_path))
+
+
+class FakeQcResult:
+    def __init__(self, verdict: str, *, issues: list[str] | None = None, checks: dict | None = None):
+        self.verdict = verdict
+        self.issues = issues or []
+        self.checks = checks or {}
+        self.retry_count = 0
+
+    def to_dict(self):
+        return {
+            "verdict": self.verdict,
+            "issues": list(self.issues),
+            "checks": dict(self.checks),
+            "retry_count": self.retry_count,
+        }
+
+
+def _set_frozen_attr(obj, name: str, value) -> None:
+    object.__setattr__(obj, name, value)
 
 
 class StubScript:
@@ -173,6 +191,112 @@ class TestRendererModeValidation:
             renderer_mode="native",
         )
         assert orch._renderer_mode == "native"
+
+    def test_full_init_uses_channel_profile_optional_clients_and_research(self, tmp_path: Path):
+        cfg = _load_cfg(tmp_path)
+        _set_frozen_attr(cfg, "_channel_key", "ai_tech")
+        _set_frozen_attr(cfg.providers, "visual_stock", "pexels")
+        _set_frozen_attr(cfg.providers, "llm_providers", ("openai", "mimo"))
+        _set_frozen_attr(cfg.providers, "llm_models", {"mimo": "mimo-v2"})
+        _set_frozen_attr(cfg.video, "stock_mix_ratio", 0.3)
+        _set_frozen_attr(cfg.research, "enabled", True)
+        _set_frozen_attr(cfg.research, "provider", "gemini")
+
+        openai_client = MagicMock(name="openai_client")
+        google_client = MagicMock(name="google_client")
+        pexels_client = MagicMock(name="pexels_client")
+        llm_router = MagicMock(name="llm_router")
+        script_step = MagicMock(name="script_step")
+        media_step = MagicMock(name="media_step")
+        render_step = MagicMock(name="render_step")
+        thumbnail_step = MagicMock(name="thumbnail_step")
+        research_step = MagicMock(name="research_step")
+
+        with (
+            patch.dict(
+                "os.environ",
+                {
+                    "OPENAI_API_KEY": "openai-key",
+                    "GEMINI_API_KEY": "gemini-key",
+                    "PEXELS_API_KEY": "pexels-key",
+                },
+                clear=False,
+            ),
+            patch("shorts_maker_v2.pipeline.orchestrator.OpenAIClient", return_value=openai_client) as openai_cls,
+            patch("shorts_maker_v2.pipeline.orchestrator.GoogleClient", return_value=google_client) as google_cls,
+            patch("shorts_maker_v2.pipeline.orchestrator.PexelsClient", return_value=pexels_client) as pexels_cls,
+            patch("shorts_maker_v2.pipeline.orchestrator.LLMRouter", return_value=llm_router) as llm_router_cls,
+            patch(
+                "shorts_maker_v2.pipeline.orchestrator.ScriptStep.from_channel_profile",
+                return_value=script_step,
+            ) as from_profile,
+            patch("shorts_maker_v2.pipeline.orchestrator.MediaStep", return_value=media_step) as media_cls,
+            patch("shorts_maker_v2.pipeline.orchestrator.RenderStep", return_value=render_step) as render_cls,
+            patch("shorts_maker_v2.pipeline.orchestrator.ThumbnailStep", return_value=thumbnail_step) as thumbnail_cls,
+            patch("shorts_maker_v2.pipeline.orchestrator.ResearchStep", return_value=research_step) as research_cls,
+            patch.object(PipelineOrchestrator, "_load_channel_profile", return_value={"hook_pattern": "myth_busting"}),
+        ):
+            orch = PipelineOrchestrator(config=cfg, base_dir=tmp_path)
+
+        assert orch.script_step is script_step
+        assert orch.media_step is media_step
+        assert orch.render_step is render_step
+        assert orch.thumbnail_step is thumbnail_step
+        assert orch.research_step is research_step
+        openai_cls.assert_called_once()
+        google_cls.assert_called_once()
+        pexels_cls.assert_called_once()
+        llm_router_cls.assert_called()
+        from_profile.assert_called_once()
+        media_cls.assert_called_once()
+        render_cls.assert_called_once()
+        thumbnail_cls.assert_called_once()
+        research_cls.assert_called_once_with(config=cfg, google_client=google_client, llm_router=llm_router)
+
+    def test_full_init_without_channel_profile_uses_plain_script_step(self, tmp_path: Path):
+        cfg = _load_cfg(tmp_path)
+        _set_frozen_attr(cfg, "_channel_key", "")
+        _set_frozen_attr(cfg.providers, "visual_stock", "")
+        _set_frozen_attr(cfg.providers, "llm_providers", ())
+        _set_frozen_attr(cfg.providers, "llm_models", {})
+        _set_frozen_attr(cfg.video, "stock_mix_ratio", 0.0)
+        _set_frozen_attr(cfg.research, "enabled", False)
+
+        openai_client = MagicMock(name="openai_client")
+        llm_router = MagicMock(name="llm_router")
+        script_step = MagicMock(name="script_step")
+        media_step = MagicMock(name="media_step")
+        render_step = MagicMock(name="render_step")
+        thumbnail_step = MagicMock(name="thumbnail_step")
+
+        with (
+            patch.dict(
+                "os.environ",
+                {
+                    "OPENAI_API_KEY": "openai-key",
+                    "GEMINI_API_KEY": "",
+                    "PEXELS_API_KEY": "",
+                },
+                clear=False,
+            ),
+            patch("shorts_maker_v2.pipeline.orchestrator.OpenAIClient", return_value=openai_client),
+            patch("shorts_maker_v2.pipeline.orchestrator.GoogleClient") as google_cls,
+            patch("shorts_maker_v2.pipeline.orchestrator.PexelsClient") as pexels_cls,
+            patch("shorts_maker_v2.pipeline.orchestrator.LLMRouter", return_value=llm_router),
+            patch("shorts_maker_v2.pipeline.orchestrator.ScriptStep", return_value=script_step) as script_cls,
+            patch("shorts_maker_v2.pipeline.orchestrator.ScriptStep.from_channel_profile") as from_profile,
+            patch("shorts_maker_v2.pipeline.orchestrator.MediaStep", return_value=media_step),
+            patch("shorts_maker_v2.pipeline.orchestrator.RenderStep", return_value=render_step),
+            patch("shorts_maker_v2.pipeline.orchestrator.ThumbnailStep", return_value=thumbnail_step),
+        ):
+            orch = PipelineOrchestrator(config=cfg, base_dir=tmp_path)
+
+        assert orch.script_step is script_step
+        assert orch.research_step is None
+        script_cls.assert_called_once()
+        from_profile.assert_not_called()
+        google_cls.assert_not_called()
+        pexels_cls.assert_not_called()
         assert orch._use_shorts_factory is False
 
     def test_auto_mode(self, tmp_path: Path):
@@ -222,17 +346,13 @@ class TestLoadChannelProfile:
 
     def test_valid_profile(self, tmp_path: Path):
         profiles = {"channels": {"ai_tech": {"name": "AI Tech", "tone": "exciting"}}}
-        (tmp_path / "channel_profiles.yaml").write_text(
-            yaml.safe_dump(profiles), encoding="utf-8"
-        )
+        (tmp_path / "channel_profiles.yaml").write_text(yaml.safe_dump(profiles), encoding="utf-8")
         result = PipelineOrchestrator._load_channel_profile("ai_tech", tmp_path)
         assert result == {"name": "AI Tech", "tone": "exciting"}
 
     def test_missing_channel(self, tmp_path: Path):
         profiles = {"channels": {"other": {}}}
-        (tmp_path / "channel_profiles.yaml").write_text(
-            yaml.safe_dump(profiles), encoding="utf-8"
-        )
+        (tmp_path / "channel_profiles.yaml").write_text(yaml.safe_dump(profiles), encoding="utf-8")
         result = PipelineOrchestrator._load_channel_profile("ai_tech", tmp_path)
         assert result is None
 
@@ -309,6 +429,16 @@ class TestCleanupRunDir:
         PipelineOrchestrator._cleanup_run_dir(tmp_path / "nonexist", mock_logger)
         # no crash
 
+    def test_cleanup_logs_warning_when_scan_fails(self, tmp_path: Path):
+        run_dir = tmp_path / "run"
+        run_dir.mkdir()
+        mock_logger = MagicMock()
+
+        with patch.object(Path, "rglob", side_effect=OSError("scan failed")):
+            PipelineOrchestrator._cleanup_run_dir(run_dir, mock_logger)
+
+        mock_logger.warning.assert_called_once()
+
 
 # ── _smart_retry_strategy ──────────────────────────────────────────────────
 
@@ -340,9 +470,7 @@ class TestSmartRetryStrategy:
             "shorts_maker_v2.pipeline.orchestrator.classify_error",
             return_value=PipelineErrorType.NETWORK_ERROR,
         ):
-            result = PipelineOrchestrator._smart_retry_strategy(
-                exc, "script", attempt=3, max_attempts=3
-            )
+            result = PipelineOrchestrator._smart_retry_strategy(exc, "script", attempt=3, max_attempts=3)
         assert result["action"] in {"abort", "fallback"}
 
     def test_max_attempts_thumbnail_fallback(self):
@@ -351,9 +479,7 @@ class TestSmartRetryStrategy:
             "shorts_maker_v2.pipeline.orchestrator.classify_error",
             return_value=PipelineErrorType.NETWORK_ERROR,
         ):
-            result = PipelineOrchestrator._smart_retry_strategy(
-                exc, "thumbnail", attempt=3, max_attempts=3
-            )
+            result = PipelineOrchestrator._smart_retry_strategy(exc, "thumbnail", attempt=3, max_attempts=3)
         assert result["action"] == "fallback"
 
     def test_rate_limit_progressive_backoff(self):
@@ -441,9 +567,7 @@ class TestRunErrorPaths:
                 }
             ],
         }
-        (run_dir / "checkpoint.json").write_text(
-            json.dumps(cp_data, ensure_ascii=False), encoding="utf-8"
-        )
+        (run_dir / "checkpoint.json").write_text(json.dumps(cp_data, ensure_ascii=False), encoding="utf-8")
 
         manifest = orch.run(topic="resumed topic", resume_job_id=job_id)
         assert manifest.job_id == job_id
@@ -466,6 +590,163 @@ class TestRunErrorPaths:
         assert "media" in manifest.step_timings
         assert "render" in manifest.step_timings
         assert "total" in manifest.step_timings
+
+    def test_run_covers_optional_pipeline_branches_and_hold_path(self, tmp_path: Path):
+        cfg = _load_cfg(tmp_path)
+        _set_frozen_attr(cfg.project, "structure_validation", "strict")
+        _set_frozen_attr(cfg.project, "scene_qc_enabled", True)
+        orch = PipelineOrchestrator(
+            config=cfg,
+            base_dir=tmp_path,
+            script_step=StubScript(),
+            media_step=MagicMock(),
+            render_step=StubRender(),
+            renderer_mode="auto",
+        )
+
+        heavy_audio = tmp_path / "run" / "heavy.mp3"
+        heavy_audio.parent.mkdir(parents=True, exist_ok=True)
+        heavy_audio.write_bytes(b"audio")
+        original_asset = SceneAsset(
+            scene_id=1,
+            audio_path=str(heavy_audio),
+            visual_type="image",
+            visual_path=str(heavy_audio),
+            duration_sec=50.0,
+        )
+        regenerated_asset = SceneAsset(
+            scene_id=1,
+            audio_path=str(heavy_audio),
+            visual_type="image",
+            visual_path=str(heavy_audio),
+            duration_sec=50.0,
+        )
+        orch.media_step.run.return_value = (
+            [original_asset],
+            [{"scene_id": 1, "message": "asset timeout"}],
+        )
+        orch.media_step.regenerate_scene.return_value = (regenerated_asset, [{"scene_id": 1, "message": "retry ok"}])
+        orch.thumbnail_step = MagicMock()
+        orch.thumbnail_step.run.return_value = None
+        orch.research_step = MagicMock()
+        orch.research_step.run.return_value = SimpleNamespace(
+            facts=["fact one"],
+            key_data_points=["point"],
+            elapsed_sec=1.2,
+        )
+
+        production_plan = SimpleNamespace(
+            concept="A concept worth recording",
+            target_persona="Curious viewers",
+            to_dict=lambda: {"concept": "A concept worth recording"},
+        )
+        structure_outline = SimpleNamespace(
+            scenes=[SimpleNamespace(role="hook")],
+            narrative_arc="rise",
+            to_dict=lambda: {"narrative_arc": "rise"},
+        )
+        fail_qc = FakeQcResult("fail", issues=["visual blur"], checks={"audio_ok": True})
+        pass_qc = FakeQcResult("pass", checks={"audio_ok": True})
+        gate3_fail = SimpleNamespace(verdict="fail", checks={"duration_ok": False}, issues=["too long"])
+        gate4_hold = SimpleNamespace(verdict="hold", checks={"safe": False}, issues=["needs review"])
+
+        with (
+            patch("shorts_maker_v2.pipeline.orchestrator.PlanningStep") as planning_cls,
+            patch("shorts_maker_v2.pipeline.orchestrator.StructureStep") as structure_cls,
+            patch("shorts_maker_v2.pipeline.orchestrator.QCStep.gate_scene_qc", side_effect=[fail_qc, pass_qc]),
+            patch("shorts_maker_v2.pipeline.orchestrator.QCStep.gate3_media", return_value=gate3_fail),
+            patch("shorts_maker_v2.pipeline.orchestrator.QCStep.gate4_final", return_value=gate4_hold),
+            patch.object(orch, "_try_shorts_factory_render", return_value=(True, None)) as sf_render,
+            patch("shorts_maker_v2.pipeline.orchestrator.export_srt", side_effect=RuntimeError("srt failed")),
+            patch("shorts_maker_v2.pipeline.orchestrator.SeriesEngine") as series_cls,
+            patch("shorts_maker_v2.pipeline.orchestrator.CostTracker") as tracker_cls,
+            patch("shorts_maker_v2.pipeline.orchestrator.classify_error", return_value=PipelineErrorType.NETWORK_ERROR),
+            patch("shorts_maker_v2.pipeline.orchestrator.logger.warning") as warning_logger,
+        ):
+            planning_cls.return_value.run.return_value = production_plan
+            structure_cls.return_value.run.return_value = structure_outline
+            series_cls.return_value.suggest_next.side_effect = RuntimeError("series failed")
+            tracker_cls.return_value.record.side_effect = RuntimeError("tracker failed")
+
+            manifest = orch.run(topic="test topic", channel="ai_tech")
+
+        assert manifest.status == "hold"
+        assert manifest.production_plan == {"concept": "A concept worth recording"}
+        assert manifest.structure_outline == {"narrative_arc": "rise"}
+        assert manifest.scene_qc_results[0]["retry_count"] == 0
+        assert manifest.failed_steps[0]["error_type"] == PipelineErrorType.NETWORK_ERROR.value
+        assert manifest.ab_variant["renderer"] == "shorts_factory"
+        assert manifest.thumbnail_path == ""
+        assert manifest.qc_result["verdict"] == "hold"
+        sf_render.assert_called_once()
+        orch.media_step.regenerate_scene.assert_called_once()
+        assert warning_logger.called
+
+    def test_run_success_path_covers_upload_thumbnail_srt_and_series(self, tmp_path: Path):
+        cfg = _load_cfg(tmp_path)
+        _set_frozen_attr(cfg.project, "upload_ready_dir", str(tmp_path / "upload-ready"))
+        orch = PipelineOrchestrator(
+            config=cfg,
+            base_dir=tmp_path,
+            script_step=StubScript(),
+            media_step=StubMedia(),
+            render_step=StubRender(),
+        )
+        thumb_file = tmp_path / "output" / "thumb.png"
+        thumb_file.parent.mkdir(parents=True, exist_ok=True)
+        thumb_file.write_bytes(b"thumb")
+        orch.thumbnail_step = MagicMock()
+        orch.thumbnail_step.run.return_value = str(thumb_file)
+
+        gate3_pass = SimpleNamespace(verdict="pass", checks={"duration_ok": True}, issues=[])
+        gate4_pass = SimpleNamespace(verdict="pass", checks={"final_ok": True}, issues=[])
+        srt_file = tmp_path / "output" / "job.srt"
+        series_plan = SimpleNamespace(
+            series_id="series-1",
+            episode=2,
+            suggested_title="Next episode",
+            to_dict=lambda: {"series_id": "series-1", "episode": 2},
+        )
+
+        def _export_srt(**kwargs):
+            del kwargs
+            srt_file.write_text("1\n00:00:00,000 --> 00:00:01,000\nhello\n", encoding="utf-8")
+            return srt_file
+
+        with (
+            patch("shorts_maker_v2.pipeline.orchestrator.QCStep.gate3_media", return_value=gate3_pass),
+            patch("shorts_maker_v2.pipeline.orchestrator.QCStep.gate4_final", return_value=gate4_pass),
+            patch("shorts_maker_v2.pipeline.orchestrator.export_srt", side_effect=_export_srt),
+            patch("shorts_maker_v2.pipeline.orchestrator.SeriesEngine") as series_cls,
+            patch("shorts_maker_v2.pipeline.orchestrator.CostTracker") as tracker_cls,
+        ):
+            series_cls.return_value.suggest_next.return_value = series_plan
+            manifest = orch.run(topic="test topic", output_filename="upload.mp4")
+
+        copied_output = Path(cfg.project.upload_ready_dir) / "upload.mp4"
+        assert manifest.status == "success"
+        assert manifest.thumbnail_path == str(thumb_file)
+        assert manifest.srt_path.endswith(".srt")
+        assert manifest.series_suggestion == {"series_id": "series-1", "episode": 2}
+        assert copied_output.exists()
+        tracker_cls.return_value.record.assert_called_once()
+
+    def test_shorts_factory_mode_with_channel_fails_fast_when_adapter_fails(self, tmp_path: Path):
+        cfg = _load_cfg(tmp_path)
+        orch = PipelineOrchestrator(
+            config=cfg,
+            base_dir=tmp_path,
+            script_step=StubScript(),
+            media_step=StubMedia(),
+            render_step=StubRender(),
+            renderer_mode="shorts_factory",
+        )
+
+        with patch.object(orch, "_try_shorts_factory_render", return_value=(False, "sf boom")):
+            manifest = orch.run(topic="adapter fail", channel="ai_tech")
+
+        assert manifest.status == "failed"
+        assert any("sf boom" in step["message"] for step in manifest.failed_steps)
 
 
 # ── _try_shorts_factory_render ──────────────────────────────────────────────
