@@ -1186,3 +1186,4 @@ ShortsFactory 렌더링 파이프라인의 핵심 누락 파일(`ShortsFactory/r
 
 ### Notes
 - Coverage expansion commit: `95b3421`
+- Follow-up AI context relay after this commit: `4364164`

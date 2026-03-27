@@ -22,6 +22,7 @@
 - Updated `pytest.ini` with `testpaths = tests` and removed `--cov=ShortsFactory`, so default pytest/coverage is now V2-only.
 - Cleanup commit for the V2-only coverage/test scope change: `b90b393`
 - Coverage expansion test commit for `script/orchestrator/render/media`: `95b3421`
+- Latest AI context relay commit: `4364164`
 
 ## Next Steps
 
@@ -38,3 +39,4 @@
 - `pytest-cov` is still less reliable here because duplicate root/project paths can confuse path mapping.
 - Direct `ShortsFactory` references that remain under `tests/` are intentional V2 bridge/fallback coverage in `test_render_step.py`, `test_render_step_phase5.py`, and `test_orchestrator_unit.py`.
 - The committed verification run for the coverage expansion bundle was `218 passed, 1 warning`.
+- The remaining dirty worktree is outside the just-committed bundle; examples include `tests/unit/test_render_step_phase5.py`, `tests/unit/test_render_utils.py`, and a few archived legacy files.
