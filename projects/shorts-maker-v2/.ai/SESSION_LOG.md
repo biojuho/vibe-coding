@@ -1107,3 +1107,34 @@ ShortsFactory 렌더링 파이프라인의 핵심 누락 파일(`ShortsFactory/r
 ### 다음 도구에게 메모
 - `_CAPTION_COMBOS` 길이 주의 필요 (4개 요소).
 - 템플릿 프롬프트에서 JSON 포맷 활용 시 이중 중괄호 `{{`, `}}` 문법 유지할 것.
+## 2026-03-27 / Codex (coverage aggregation + legacy archive)
+
+### Summary
+- Expanded the V2 coverage measurement from pipeline-only to a broader package suite by appending existing provider, render, CLI, and utils tests.
+- Verified `src/shorts_maker_v2` total coverage at `82%`.
+- Archived the old `tests/legacy/test_*.py` V1 files into `archive/tests_legacy_v1/`.
+- Updated `pytest.ini` with `testpaths = tests` so the archived files are excluded from default collection.
+
+### Files Changed
+- `tests/unit/test_script_step.py`
+- `tests/unit/test_orchestrator_unit.py`
+- `tests/unit/test_render_step.py`
+- `tests/unit/test_media_step_branches.py`
+- `pytest.ini`
+- `archive/tests_legacy_v1/README.md`
+- `archive/tests_legacy_v1/test_ai_news_generator.py`
+- `archive/tests_legacy_v1/test_edge_client.py`
+- `archive/tests_legacy_v1/test_future_countdown.py`
+- `archive/tests_legacy_v1/test_ssml.py`
+- `archive/tests_legacy_v1/test_tech_vs.py`
+
+### Validation
+- `coverage run` pipeline chunk: `411 passed, 1 warning`
+- `coverage run --append` provider/utils chunk: `294 passed, 1 warning`
+- `coverage run --append` render/audio chunk: `176 passed, 12 skipped`
+- `coverage report -m`: `src/shorts_maker_v2 TOTAL 82%`
+- `pytest --collect-only -q -o addopts=` returned no `archive` or legacy test files
+
+### Notes
+- Default `pytest.ini` still measures `ShortsFactory`; full V1 cleanup is not done yet because other ShortsFactory tests still exist under `tests/unit/` and `tests/integration/`.
+- Use plain `coverage run` instead of `pytest-cov` on this machine when path mapping matters.

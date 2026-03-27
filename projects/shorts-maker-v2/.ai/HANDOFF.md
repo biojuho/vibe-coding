@@ -1,18 +1,36 @@
 # HANDOFF.md
 
-## 마지막 세션 요약 (2026-03-27 / Antigravity)
+## Last Session (2026-03-27 / Codex)
 
-- **작업 내용**: shorts-maker-v2 커버리지 향상을 위해 `karaoke.py` 모듈 유닛 테스트 보강(97% 커버리지 달성). TDD 관점의 폰트 스케일링, 청킹 로직 테스트 작성(`test_karaoke_chunking.py` 신규).
-- **테스트 결과**: `test_karaoke_render.py` 내 Windows PermissionError 및 폰트 목업 오류 해결 완료.
-- **특이사항**: 전체 커버리지 향상을 막고 있던 레거시(`tests/legacy/`) 테스트들에 대해 삭제/격리를 결정함.
+- Goal this session: raise V2 coverage toward the `src/shorts_maker_v2` 80% target and clean up the obvious V1 legacy test pocket.
+- Verified `src/shorts_maker_v2` total coverage: `82%` using an expanded suite that combines pipeline, provider, render, CLI, and utils tests.
+- High-value module results now verified:
+  - `pipeline/script_step.py`: `93%`
+  - `pipeline/orchestrator.py`: `97%`
+  - `pipeline/render_step.py`: `88%`
+  - `pipeline/media_step.py`: `90%`
+  - `cli.py`: `65%`
+  - `providers/edge_tts_client.py`: `94%`
+  - `providers/google_client.py`: `98%`
+  - `providers/llm_router.py`: `81%`
+  - `render/caption_pillow.py`: `76%`
+  - `render/video_renderer.py`: `62%`
+  - `render/karaoke.py`: `44%`
+  - `providers/pexels_client.py`: `44%`
+- Archived the old `tests/legacy/test_*.py` V1 files into `archive/tests_legacy_v1/`.
+- Updated `pytest.ini` with `testpaths = tests` so the archived files are no longer part of default pytest collection.
 
-## 다음 할 일
+## Next Steps
 
-1. V2 핵심 파이프라인 모듈(`render_step.py`, `script_step.py`, `orchestrator.py` 등) 유닛 테스트 우선 작성
-2. `pyproject.toml`에 지정된 `fail-under=45%`를 충족하기 위해 전역 커버리지 확대
-3. `tests/legacy/` 디렉토리 제거 확정 및 삭제
+1. Decide whether default coverage should stay mixed (`src/shorts_maker_v2` + `ShortsFactory`) or become V2-only. `pytest.ini` still contains `--cov=ShortsFactory`.
+2. If we keep pushing V2-only coverage higher, next best hotspots are `render/karaoke.py`, `providers/pexels_client.py`, `render/video_renderer.py`, and `utils/dashboard.py`.
+3. Audit the remaining V1/ShortsFactory tests outside `tests/legacy/` such as `tests/unit/test_shorts_factory.py`, `tests/unit/test_interfaces.py`, and `tests/integration/test_shorts_factory_e2e.py`.
 
-## 주의 사항
+## Validation Notes
 
-- 렌더링이나 폰트 처리 등을 테스트할 때 실제 환경(Windows vs Linux)에 따른 파일 I/O 에러나 폰트 경로 에러가 자주 발생하므로 가급적 `unittest.mock`을 적극 활용할 것.
-- 레거시 테스트는 V1(ShortsFactory) 코드베이스에 의존하고 있어 V2 파이프라인 커버리지에 기여하지 못함.
+- Reliable coverage workflow on this Windows machine:
+  - set `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1`
+  - prefer `python -m coverage run ... -m pytest ... -o addopts=`
+  - prefer `coverage report -m --include="*module.py"` if direct file path reports look wrong
+- `pytest-cov` is still less reliable here because duplicate root/project paths can confuse path mapping.
+- `tests/legacy/__pycache__/` may still exist as an untracked cache directory, but no legacy `test_*.py` files remain there.
