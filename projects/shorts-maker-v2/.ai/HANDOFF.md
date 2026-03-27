@@ -2,7 +2,7 @@
 
 ## Last Session (2026-03-27 / Codex)
 
-- Goal this session: raise V2 coverage toward the `src/shorts_maker_v2` 80% target and clean up the obvious V1 legacy test pocket.
+- Goal this session: raise V2 coverage toward the `src/shorts_maker_v2` 80% target and remove the remaining V1/ShortsFactory default test and coverage footprint.
 - Verified `src/shorts_maker_v2` total coverage: `82%` using an expanded suite that combines pipeline, provider, render, CLI, and utils tests.
 - High-value module results now verified:
   - `pipeline/script_step.py`: `93%`
@@ -18,13 +18,14 @@
   - `render/karaoke.py`: `44%`
   - `providers/pexels_client.py`: `44%`
 - Archived the old `tests/legacy/test_*.py` V1 files into `archive/tests_legacy_v1/`.
-- Updated `pytest.ini` with `testpaths = tests` so the archived files are no longer part of default pytest collection.
+- Archived the remaining direct ShortsFactory test files from `tests/unit/` and `tests/integration/` into `archive/tests_legacy_v1/unit/` and `archive/tests_legacy_v1/integration/`.
+- Updated `pytest.ini` with `testpaths = tests` and removed `--cov=ShortsFactory`, so default pytest/coverage is now V2-only.
 
 ## Next Steps
 
-1. Decide whether default coverage should stay mixed (`src/shorts_maker_v2` + `ShortsFactory`) or become V2-only. `pytest.ini` still contains `--cov=ShortsFactory`.
-2. If we keep pushing V2-only coverage higher, next best hotspots are `render/karaoke.py`, `providers/pexels_client.py`, `render/video_renderer.py`, and `utils/dashboard.py`.
-3. Audit the remaining V1/ShortsFactory tests outside `tests/legacy/` such as `tests/unit/test_shorts_factory.py`, `tests/unit/test_interfaces.py`, and `tests/integration/test_shorts_factory_e2e.py`.
+1. If we keep pushing V2-only coverage higher, next best hotspots are `render/karaoke.py`, `providers/pexels_client.py`, `render/video_renderer.py`, and `utils/dashboard.py`.
+2. Decide whether any archived ShortsFactory compatibility tests should be reintroduced in a separate optional CI job or kept fully manual.
+3. Optionally clean the leftover `tests/legacy/__pycache__/` directory if we want the tree to look cleaner, though it is not collected anymore.
 
 ## Validation Notes
 
@@ -33,4 +34,4 @@
   - prefer `python -m coverage run ... -m pytest ... -o addopts=`
   - prefer `coverage report -m --include="*module.py"` if direct file path reports look wrong
 - `pytest-cov` is still less reliable here because duplicate root/project paths can confuse path mapping.
-- `tests/legacy/__pycache__/` may still exist as an untracked cache directory, but no legacy `test_*.py` files remain there.
+- Direct `ShortsFactory` references that remain under `tests/` are intentional V2 bridge/fallback coverage in `test_render_step.py`, `test_render_step_phase5.py`, and `test_orchestrator_unit.py`.

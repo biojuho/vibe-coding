@@ -1133,8 +1133,37 @@ ShortsFactory 렌더링 파이프라인의 핵심 누락 파일(`ShortsFactory/r
 - `coverage run --append` provider/utils chunk: `294 passed, 1 warning`
 - `coverage run --append` render/audio chunk: `176 passed, 12 skipped`
 - `coverage report -m`: `src/shorts_maker_v2 TOTAL 82%`
-- `pytest --collect-only -q -o addopts=` returned no `archive` or legacy test files
+- `pytest --collect-only -q -o addopts=` returned no archived legacy file paths
 
 ### Notes
-- Default `pytest.ini` still measures `ShortsFactory`; full V1 cleanup is not done yet because other ShortsFactory tests still exist under `tests/unit/` and `tests/integration/`.
 - Use plain `coverage run` instead of `pytest-cov` on this machine when path mapping matters.
+
+## 2026-03-27 / Codex (remove remaining ShortsFactory default footprint)
+
+### Summary
+- Removed `--cov=ShortsFactory` from the default `pytest.ini` coverage configuration.
+- Archived the remaining direct ShortsFactory tests from `tests/unit/` and `tests/integration/` into `archive/tests_legacy_v1/`.
+- Kept only the V2 bridge/fallback tests that intentionally patch or exercise ShortsFactory integration points.
+
+### Files Changed
+- `pytest.ini`
+- `archive/tests_legacy_v1/README.md`
+- `archive/tests_legacy_v1/unit/test_engines_v2.py`
+- `archive/tests_legacy_v1/unit/test_engines_v2_extended.py`
+- `archive/tests_legacy_v1/unit/test_interfaces.py`
+- `archive/tests_legacy_v1/unit/test_performance_benchmark.py`
+- `archive/tests_legacy_v1/unit/test_shorts_factory.py`
+- `archive/tests_legacy_v1/unit/test_shorts_factory_plan_overlay.py`
+- `archive/tests_legacy_v1/unit/test_visual_regression.py`
+- `archive/tests_legacy_v1/unit/test_visual_regression_quality.py`
+- `archive/tests_legacy_v1/integration/test_shorts_factory_e2e.py`
+
+### Validation
+- `rg -l "from ShortsFactory|import ShortsFactory|ShortsFactory\\." tests -g "*.py"` now returns only:
+  - `tests/unit/test_render_step.py`
+  - `tests/unit/test_render_step_phase5.py`
+- `pytest tests/unit/test_render_step.py tests/unit/test_render_step_phase5.py tests/unit/test_orchestrator_unit.py -q -o addopts=` -> `161 passed, 1 warning`
+
+### Notes
+- Default pytest discovery is now focused on V2 tests and default coverage semantics are V2-only.
+- Archived ShortsFactory suites can still be run explicitly by path if we need legacy compatibility checks later.

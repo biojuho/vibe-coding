@@ -45,11 +45,13 @@
 
 - Default pytest collection is now limited to `tests/` via `pytest.ini`:
   - `testpaths = tests`
+- Default coverage target in `pytest.ini` is now V2-only:
+  - `--cov=src/shorts_maker_v2`
 - Archived V1 legacy tests live in:
   - `archive/tests_legacy_v1/`
 - Important caveat:
-  - V1/ShortsFactory tests still exist outside `tests/legacy/`, including `tests/unit/test_shorts_factory.py`, `tests/unit/test_interfaces.py`, and `tests/integration/test_shorts_factory_e2e.py`
-  - `pytest.ini` still includes `--cov=ShortsFactory`, so default coverage semantics are still mixed unless changed deliberately
+  - Most direct ShortsFactory tests have been archived out of `tests/`
+  - Intentional ShortsFactory references still remain in V2 bridge/fallback tests such as `tests/unit/test_render_step.py`, `tests/unit/test_render_step_phase5.py`, and `tests/unit/test_orchestrator_unit.py`
 
 ## Reliable Coverage Commands
 

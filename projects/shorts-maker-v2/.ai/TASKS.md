@@ -2,9 +2,9 @@
 
 ## TODO
 
-- [ ] Decide the default coverage scope: mixed (`src/shorts_maker_v2` + `ShortsFactory`) or V2-only (`src/shorts_maker_v2`). Owner: TBD
-- [ ] Audit remaining V1/ShortsFactory tests outside `tests/legacy/` and classify them as keep, archive, or remove. Owner: TBD
 - [ ] Add headroom above the current `82%` V2 package coverage by targeting the biggest remaining hotspots: `render/karaoke.py`, `providers/pexels_client.py`, `render/video_renderer.py`, `utils/dashboard.py`. Owner: TBD
+- [ ] Decide whether archived ShortsFactory compatibility tests should live in a separate optional CI/manual lane. Owner: TBD
+- [ ] Remove or ignore the leftover `tests/legacy/__pycache__/` directory for tree cleanliness. Owner: TBD
 
 ## IN_PROGRESS
 
@@ -12,6 +12,7 @@
 
 ## DONE
 
+- [x] T-071 Remove `--cov=ShortsFactory` from default pytest coverage and archive remaining direct ShortsFactory tests from `tests/unit/` and `tests/integration/` (2026-03-27, Codex)
 - [x] T-070 Archive `tests/legacy` V1 tests into `archive/tests_legacy_v1` and exclude them from default collection with `testpaths = tests` (2026-03-27, Codex)
 - [x] T-069 Broaden overall `src/shorts_maker_v2` coverage using existing provider/render/utils suites; verified `82%` total coverage (2026-03-27, Codex)
 - [x] T-068 Raise `pipeline/media_step.py` targeted coverage to `90%` with branch-heavy mock tests (2026-03-27, Codex)
