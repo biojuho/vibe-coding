@@ -10,7 +10,7 @@
 | T-057 | Fix blind-to-x false-negative timeout in `workspace/execution/qaqc_runner.py` | Codex | HIGH | 2026-03-26 |
 | T-058 | Investigate and fix `shorts-maker-v2` full-suite order-dependent failure | Claude | HIGH | 2026-03-26 |
 | T-059 | Fix `knowledge-dashboard` lint errors (`ActivityTimeline.tsx`, `ui/input.tsx`) | Codex | HIGH | 2026-03-26 |
-| T-060 | Clean up remaining Python Ruff issues after canonical refactor | any | MEDIUM | 2026-03-26 |
+| T-064 | Archive `projects/shorts-maker-v2/tests/legacy` out of pytest discovery after confirming current ShortsFactory fallback needs | any | MEDIUM | 2026-03-27 |
 
 ## IN_PROGRESS
 
@@ -21,11 +21,11 @@
 
 | ID | Task | Completed By | Completed |
 |----|------|--------------|-----------|
+| T-063 | Raise `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/script_step.py` coverage with mock-heavy unit tests | Codex | 2026-03-27 |
+| T-060 | Clean up remaining Python Ruff issues after canonical refactor | Antigravity | 2026-03-27 |
+| T-062 | shorts-maker-v2 ?뚯씠?꾨씪??怨좊룄??(StructureStep + ?щ퀎QC + 議곗슜???댁빞湲??? | Claude Code | 2026-03-26 |
 | T-061 | Implement Blind-to-X X curation and draft quality redesign | Codex | 2026-03-26 |
 | T-055 | Restore Blind-to-X scheduled paths and `C:\btx` ASCII launchers | Codex | 2026-03-26 |
-| T-054 | Complete trend-based auto-topic generation (`--auto-topic`) | Antigravity | 2026-03-26 |
-| T-053 | Confirm empty legacy `shorts-maker-v2/` root and reflect moved-project status | Antigravity | 2026-03-26 |
-| T-050-B | Restore test suite after `__init__.py` lazy-import monkeypatch fix | Antigravity | 2026-03-26 |
 
 ## Rules
 
