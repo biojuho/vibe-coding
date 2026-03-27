@@ -7,8 +7,8 @@
 | Field | Value |
 |------|------|
 | Date | 2026-03-27 |
-| Tool | Codex |
-| Work | Raised `projects/shorts-maker-v2` targeted coverage for `orchestrator.py`, `render_step.py`, and `media_step.py`, then re-measured package-wide coverage |
+| Tool | Antigravity (Gemini) |
+| Work | `blind-to-x` 파이프라인의 `EditorialReviewer`에 LangGraph 기반 Evaluator-Optimizer 루프 적용. 점수 미달 시 최대 2회 자동 재작성 수행. 단위 테스트 및 Linter 검증 완료. |
 
 ## Current State
 
@@ -28,11 +28,13 @@
 
 ## Next Priorities
 
-1. T-069: broaden `src/shorts_maker_v2` overall coverage by folding in more existing provider/render suites, then choose the next non-pipeline hotspot
-2. T-064: archive `projects/shorts-maker-v2/tests/legacy` out of pytest discovery
-3. T-058: investigate `shorts-maker-v2` full-suite order-dependent failure
-4. T-057: fix blind-to-x false-negative timeout in `workspace/execution/qaqc_runner.py`
-5. T-059: fix `knowledge-dashboard` lint errors
+1. T-071: Implement Self-Reflection & Evaluator-Optimizer loop for Code generation
+2. T-072: Implement Pydantic Structured Outputs & Security Score for Evaluator
+3. T-069: broaden `src/shorts_maker_v2` overall coverage by folding in more existing provider/render suites, then choose the next non-pipeline hotspot
+4. T-064: archive `projects/shorts-maker-v2/tests/legacy` out of pytest discovery
+5. T-058: investigate `shorts-maker-v2` full-suite order-dependent failure
+6. T-057: fix blind-to-x false-negative timeout in `workspace/execution/qaqc_runner.py`
+7. T-059: fix `knowledge-dashboard` lint errors
 
 ## Notes
 
