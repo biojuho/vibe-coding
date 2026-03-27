@@ -1168,3 +1168,21 @@ ShortsFactory 렌더링 파이프라인의 핵심 누락 파일(`ShortsFactory/r
 - Default pytest discovery is now focused on V2 tests and default coverage semantics are V2-only.
 - Archived ShortsFactory suites can still be run explicitly by path if we need legacy compatibility checks later.
 - Cleanup commit: `b90b393`
+
+## 2026-03-27 / Codex (commit expanded V2 coverage tests)
+
+### Summary
+- Committed the major mock-heavy coverage expansion tests for `script_step`, `orchestrator`, `render_step`, and `media_step`.
+- This is the main test bundle that pushed the V2 pipeline coverage work into committed state.
+
+### Files Changed
+- `tests/unit/test_script_step.py`
+- `tests/unit/test_orchestrator_unit.py`
+- `tests/unit/test_render_step.py`
+- `tests/unit/test_media_step_branches.py`
+
+### Validation
+- `pytest tests/unit/test_script_step.py tests/unit/test_script_step_i18n.py tests/unit/test_orchestrator_unit.py tests/unit/test_render_step.py tests/unit/test_render_step_phase5.py tests/unit/test_parallel_media.py tests/unit/test_media_step_branches.py tests/integration/test_media_fallback.py -q -o addopts=` -> `218 passed, 1 warning`
+
+### Notes
+- Coverage expansion commit: `95b3421`

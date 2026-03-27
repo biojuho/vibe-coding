@@ -21,6 +21,7 @@
 - Archived the remaining direct ShortsFactory test files from `tests/unit/` and `tests/integration/` into `archive/tests_legacy_v1/unit/` and `archive/tests_legacy_v1/integration/`.
 - Updated `pytest.ini` with `testpaths = tests` and removed `--cov=ShortsFactory`, so default pytest/coverage is now V2-only.
 - Cleanup commit for the V2-only coverage/test scope change: `b90b393`
+- Coverage expansion test commit for `script/orchestrator/render/media`: `95b3421`
 
 ## Next Steps
 
@@ -36,4 +37,4 @@
   - prefer `coverage report -m --include="*module.py"` if direct file path reports look wrong
 - `pytest-cov` is still less reliable here because duplicate root/project paths can confuse path mapping.
 - Direct `ShortsFactory` references that remain under `tests/` are intentional V2 bridge/fallback coverage in `test_render_step.py`, `test_render_step_phase5.py`, and `test_orchestrator_unit.py`.
-- Other expanded coverage tests from this session still remain in the worktree and are not part of `b90b393`.
+- The committed verification run for the coverage expansion bundle was `218 passed, 1 warning`.

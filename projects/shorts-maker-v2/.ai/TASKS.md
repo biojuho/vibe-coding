@@ -12,6 +12,7 @@
 
 ## DONE
 
+- [x] T-072 Commit expanded V2 pipeline coverage tests for `script_step`, `orchestrator`, `render_step`, and `media_step` (`95b3421`) after validating `218 passed, 1 warning` (2026-03-27, Codex)
 - [x] T-071 Remove `--cov=ShortsFactory` from default pytest coverage and archive remaining direct ShortsFactory tests from `tests/unit/` and `tests/integration/` (2026-03-27, Codex)
 - [x] T-070 Archive `tests/legacy` V1 tests into `archive/tests_legacy_v1` and exclude them from default collection with `testpaths = tests` (2026-03-27, Codex)
 - [x] T-069 Broaden overall `src/shorts_maker_v2` coverage using existing provider/render/utils suites; verified `82%` total coverage (2026-03-27, Codex)
