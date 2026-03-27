@@ -1167,3 +1167,4 @@ ShortsFactory 렌더링 파이프라인의 핵심 누락 파일(`ShortsFactory/r
 ### Notes
 - Default pytest discovery is now focused on V2 tests and default coverage semantics are V2-only.
 - Archived ShortsFactory suites can still be run explicitly by path if we need legacy compatibility checks later.
+- Cleanup commit: `b90b393`
