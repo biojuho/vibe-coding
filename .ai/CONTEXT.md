@@ -60,8 +60,11 @@ Vibe coding/
 - QA/QC output is now expected at `projects/knowledge-dashboard/public/qaqc_result.json`.
 - Blind-to-X scheduled entrypoints and n8n bridge defaults now target canonical paths: `projects/blind-to-x` and `workspace/execution`.
 - `projects/blind-to-x` now applies X-first editorial filtering (`pre_editorial_score`), fail-closed draft generation, and few-shot fallback (`performance -> approved -> YAML`) after the 2026-03-26 curation redesign.
+- `workspace/execution/qaqc_runner.py` now runs `blind-to-x` as split unit/integration batches with a 900s timeout budget, fixing the previous false timeout in shared QC.
+- `workspace/execution/graph_engine.py` and `projects/blind-to-x/pipeline/editorial_reviewer.py` now degrade gracefully when `langgraph` is not installed by using local fallback orchestration.
+- `projects/blind-to-x/pipeline/draft_generator.py` now honors `llm.cache_db_path` via a persistent `DraftCache` instance so cache behavior is stable across generator instances and tests.
 - Windows Task Scheduler launchers are standardized through ASCII-safe `C:\btx\...` wrappers.
-- Latest shared QC run on `2026-03-26` is `CONDITIONALLY_APPROVED`: root passes, blind-to-x hits runner timeout, shorts-maker-v2 has suite-only flaky failures, knowledge-dashboard lint fails.
+- Latest shared QC run on `2026-03-28` is **`APPROVED`**: `blind-to-x` 551 passed / 16 skipped, `shorts-maker-v2` 1075 passed / 12 skipped, `root` 1034 passed / 1 skipped, AST 20/20, security `CLEAR`, scheduler `6/6 Ready`.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/script_step.py` targeted coverage was raised from 69% to 93% on `2026-03-27` with mock-heavy unit tests for review, verification, retry, and truncation paths.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/orchestrator.py` targeted coverage was raised from 73% to 97% on `2026-03-27` with mock-heavy tests for init paths, optional stages, hold/upload branches, and ShortsFactory/native render routing.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/render_step.py` targeted coverage was raised from 11% to 87% on `2026-03-27` with mocked `run()` happy/fallback flows plus Lyria/local-BGM/thumbnail coverage.
@@ -84,7 +87,7 @@ Vibe coding/
 | Legacy path assumptions | Old docs and scripts may still reference root `pages/` or root product dirs | Use `workspace/...` and `projects/...` in new code/docs |
 | Dirty nested repos | Product repos may contain user WIP | Never revert or overwrite unrelated changes |
 | PowerShell ScheduledTasks cmdlets | `Register-ScheduledTask` / `Unregister-ScheduledTask` can return `Access is denied` on this machine even when `schtasks` works | Regenerate `C:\btx\...` launchers first; if cmdlets fail, inspect with `Get-ScheduledTask` and use `schtasks` fallback for recovery |
-| Shared QC timeout budget | `blind-to-x` full suite currently exceeds the runner's fixed 300s timeout even though unit/integration pass when run separately | Treat a runner TIMEOUT as inconclusive; rerun `tests/unit` and `tests/integration` separately or raise/split the timeout |
+| Blind-to-X draft tag contract | `generate_drafts()` validation now expects `twitter` outputs to include `reply` and `creator_take` tags alongside the main draft | When mocking provider responses in tests, include all required tags or bypass validation intentionally |
 | Shorts full-suite flakiness | `shorts-maker-v2` can fail on different tests across full-suite reruns while those same tests pass in isolation | Suspect order dependence or leaked global state before editing production code; rerun isolated tests to confirm |
 | Duplicate project roots | Both `projects/shorts-maker-v2` and a legacy root-level `shorts-maker-v2` directory exist on this machine, which can confuse coverage/import collection | Run tests from `projects/shorts-maker-v2` and prefer `coverage run ... -m pytest ... -o addopts=` over `pytest-cov` when measuring targeted module coverage |
 | Coverage report path matching | `coverage report` against a direct Windows source path can sometimes show `0%` unexpectedly even when coverage data exists | When that happens, use `coverage report -m --include="*module_name.py"` instead of a direct file-path report |
@@ -95,6 +98,9 @@ Vibe coding/
 - `blind-to-x` has a known env-specific `curl_cffi` CA-path reproducer that is ignored in shared QA/QC.
 - Blind-to-X targeted redesign verification on `2026-03-26`: `103 passed, 1 warning` across the new editorial-filter / draft-fail-closed / few-shot fallback suites.
 - The QA/QC contract uses machine-readable statuses such as `APPROVED`, `CONDITIONALLY_APPROVED`, `REJECTED`, `CLEAR`, and `WARNING`.
+- Shared QC verification on `2026-03-28`: **`APPROVED`** with `2660 passed, 0 failed, 0 errors, 29 skipped`.
+- Root QC regressions fixed on `2026-03-28`: optional `langgraph` fallback in `graph_engine.py`, UTF-8-safe subprocess execution in `workers.py`, and false-positive security hits removed from `reasoning_engine.py`.
+- Blind-to-X cache/test contract fixes on `2026-03-28`: `TweetDraftGenerator` now respects `llm.cache_db_path`, and cache/quality-gate tests were updated to the current `reply` + `creator_take` output contract.
 - `knowledge-dashboard` currently fails lint with a conditional `useMemo` hook and an empty interface declaration.
 - `hanwoo-dashboard` lint is green aside from one `@next/next/no-page-custom-font` warning in `src/app/layout.js`.
 - `shorts-maker-v2` script-step targeted verification on `2026-03-27`: `29 passed, 1 warning`; `coverage run` reports `script_step.py` at **93%**.
