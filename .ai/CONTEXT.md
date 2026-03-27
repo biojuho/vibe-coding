@@ -63,6 +63,8 @@ Vibe coding/
 - Windows Task Scheduler launchers are standardized through ASCII-safe `C:\btx\...` wrappers.
 - Latest shared QC run on `2026-03-26` is `CONDITIONALLY_APPROVED`: root passes, blind-to-x hits runner timeout, shorts-maker-v2 has suite-only flaky failures, knowledge-dashboard lint fails.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/script_step.py` targeted coverage was raised from 69% to 93% on `2026-03-27` with mock-heavy unit tests for review, verification, retry, and truncation paths.
+- `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/orchestrator.py` targeted coverage was raised from 73% to 97% on `2026-03-27` with mock-heavy tests for init paths, optional stages, hold/upload branches, and ShortsFactory/native render routing.
+- `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/render_step.py` targeted coverage was raised from 11% to 87% on `2026-03-27` with mocked `run()` happy/fallback flows plus Lyria/local-BGM/thumbnail coverage.
 
 ## Shared Services
 
@@ -83,6 +85,7 @@ Vibe coding/
 | Shared QC timeout budget | `blind-to-x` full suite currently exceeds the runner's fixed 300s timeout even though unit/integration pass when run separately | Treat a runner TIMEOUT as inconclusive; rerun `tests/unit` and `tests/integration` separately or raise/split the timeout |
 | Shorts full-suite flakiness | `shorts-maker-v2` can fail on different tests across full-suite reruns while those same tests pass in isolation | Suspect order dependence or leaked global state before editing production code; rerun isolated tests to confirm |
 | Duplicate project roots | Both `projects/shorts-maker-v2` and a legacy root-level `shorts-maker-v2` directory exist on this machine, which can confuse coverage/import collection | Run tests from `projects/shorts-maker-v2` and prefer `coverage run ... -m pytest ... -o addopts=` over `pytest-cov` when measuring targeted module coverage |
+| Coverage report path matching | `coverage report` against a direct Windows source path can sometimes show `0%` unexpectedly even when coverage data exists | When that happens, use `coverage report -m --include="*module_name.py"` instead of a direct file-path report |
 
 ## Recent Quality Notes
 
@@ -93,3 +96,5 @@ Vibe coding/
 - `knowledge-dashboard` currently fails lint with a conditional `useMemo` hook and an empty interface declaration.
 - `hanwoo-dashboard` lint is green aside from one `@next/next/no-page-custom-font` warning in `src/app/layout.js`.
 - `shorts-maker-v2` script-step targeted verification on `2026-03-27`: `29 passed, 1 warning`; `coverage run` reports `script_step.py` at **93%**.
+- `shorts-maker-v2` orchestrator targeted verification on `2026-03-27`: `38 passed, 1 warning`; `coverage run` reports `orchestrator.py` at **97%**.
+- `shorts-maker-v2` render-step targeted verification on `2026-03-27`: `141 passed, 1 warning`; `coverage run` with `coverage report -m --include="*render_step.py"` reports `render_step.py` at **87%**.

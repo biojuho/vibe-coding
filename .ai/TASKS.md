@@ -11,6 +11,7 @@
 | T-058 | Investigate and fix `shorts-maker-v2` full-suite order-dependent failure | Claude | HIGH | 2026-03-26 |
 | T-059 | Fix `knowledge-dashboard` lint errors (`ActivityTimeline.tsx`, `ui/input.tsx`) | Codex | HIGH | 2026-03-26 |
 | T-064 | Archive `projects/shorts-maker-v2/tests/legacy` out of pytest discovery after confirming current ShortsFactory fallback needs | any | MEDIUM | 2026-03-27 |
+| T-067 | Measure aggregate `projects/shorts-maker-v2/src/shorts_maker_v2` coverage after core-module uplift and choose the next hotspot | any | HIGH | 2026-03-27 |
 
 ## IN_PROGRESS
 
@@ -21,11 +22,11 @@
 
 | ID | Task | Completed By | Completed |
 |----|------|--------------|-----------|
+| T-066 | Raise `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/render_step.py` targeted coverage with mock-heavy tests | Codex | 2026-03-27 |
+| T-065 | Raise `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/orchestrator.py` coverage with mock-heavy unit tests | Codex | 2026-03-27 |
 | T-063 | Raise `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/script_step.py` coverage with mock-heavy unit tests | Codex | 2026-03-27 |
 | T-060 | Clean up remaining Python Ruff issues after canonical refactor | Antigravity | 2026-03-27 |
-| T-062 | shorts-maker-v2 ?뚯씠?꾨씪??怨좊룄??(StructureStep + ?щ퀎QC + 議곗슜???댁빞湲??? | Claude Code | 2026-03-26 |
-| T-061 | Implement Blind-to-X X curation and draft quality redesign | Codex | 2026-03-26 |
-| T-055 | Restore Blind-to-X scheduled paths and `C:\btx` ASCII launchers | Codex | 2026-03-26 |
+| T-062 | shorts-maker-v2 structure/QC pipeline upgrade (StructureStep + scene QC + quieter endings) | Claude Code | 2026-03-26 |
 
 ## Rules
 

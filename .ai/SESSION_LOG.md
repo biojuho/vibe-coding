@@ -1139,3 +1139,35 @@ Raised targeted coverage for `projects/shorts-maker-v2/src/shorts_maker_v2/pipel
 ### Notes
 
 - `pytest-cov` was not reliable for this targeted measurement on this machine because duplicate root/project `shorts-maker-v2` directories can trigger import collisions. `coverage run` worked reliably.
+## 2026-03-27 | Codex | shorts-maker-v2 coverage uplift for orchestrator/render (T-065/T-066)
+
+### Work Summary
+
+Added mock-heavy coverage for the remaining two high-priority V2 pipeline hotspots after the earlier `script_step.py` uplift.
+
+- Expanded `projects/shorts-maker-v2/tests/unit/test_orchestrator_unit.py` with branch-heavy tests for init wiring, optional stages, hold/upload/thumbnail/SRT/series flows, and ShortsFactory/native render routing.
+- Expanded `projects/shorts-maker-v2/tests/unit/test_render_step.py` with mocked `run()` happy/fallback flows plus Lyria generation, local BGM fallback, thumbnail success, and adapter import failure coverage.
+- Verified that the three core pipeline modules now sit at strong targeted coverage levels: `script_step.py` **93%**, `orchestrator.py` **97%**, `render_step.py` **87%**.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `projects/shorts-maker-v2/tests/unit/test_orchestrator_unit.py` | Modified | Added mock-heavy orchestrator branch coverage |
+| `projects/shorts-maker-v2/tests/unit/test_render_step.py` | Modified | Added mocked render happy/fallback/Lyria/local-BGM tests |
+| `.ai/HANDOFF.md` | Modified | Updated relay notes and next priorities |
+| `.ai/TASKS.md` | Modified | Marked T-066 done and added T-067 |
+| `.ai/CONTEXT.md` | Modified | Recorded orchestrator/render coverage results and reporting caveat |
+| `.ai/SESSION_LOG.md` | Modified | Added this session entry |
+
+### Verification
+
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 ..\..\venv\Scripts\python.exe -m pytest tests/unit/test_orchestrator_unit.py -q -o addopts=` -> **37 passed, 1 warning**
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 ..\..\venv\Scripts\python.exe -m coverage run --source=src/shorts_maker_v2/pipeline -m pytest tests/unit/test_orchestrator_unit.py tests/integration/test_orchestrator_manifest.py -q -o addopts=` + `coverage report -m src/shorts_maker_v2/pipeline/orchestrator.py` -> **38 passed, 1 warning**, `orchestrator.py` **97%**
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 ..\..\venv\Scripts\python.exe -m pytest tests/unit/test_render_step.py tests/unit/test_render_step_phase5.py tests/unit/test_render_quality_controls.py tests/unit/test_render_utils.py -q -o addopts=` -> **141 passed, 1 warning**
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 ..\..\venv\Scripts\python.exe -m coverage run --source=src/shorts_maker_v2/pipeline -m pytest tests/unit/test_render_step.py tests/unit/test_render_step_phase5.py tests/unit/test_render_quality_controls.py tests/unit/test_render_utils.py -q -o addopts=` + `coverage report -m --include="*render_step.py"` -> **141 passed, 1 warning**, `render_step.py` **87%**
+
+### Next Notes
+
+- Measure aggregate V2 pipeline coverage after the `script_step` / `orchestrator` / `render_step` uplift and choose the next hotspot (T-067).
+- `tests/legacy/` is still V1/ShortsFactory-heavy and should be archived out of discovery when it is safe to do so (T-064).
