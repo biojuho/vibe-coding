@@ -6,7 +6,6 @@
 
 | ID | Task | Owner | Priority | Created |
 |----|------|-------|----------|---------|
-| T-078 | Raise the next `shorts-maker-v2` package hotspots after the 89% milestone (`qc_step`, `trend_discovery_step`, `thumbnail_step`, `utils/dashboard`) | any | MEDIUM | 2026-03-28 |
 
 ## IN_PROGRESS
 
@@ -17,11 +16,11 @@
 
 | ID | Task | Completed By | Completed |
 |----|------|--------------|-----------|
-| T-077 | Shared QC APPROVED: 2741 passed, 0 failed, 30 skipped (blind-to-x 552, shorts-maker-v2 1177, root 1012) | Claude | 2026-03-28 |
-| T-075 | Raise `shorts-maker-v2` non-pipeline coverage: `style_tracker` / `chatterbox_client` / `cosyvoice_client` now 100% targeted, package total 85→89% | Claude+Codex | 2026-03-28 |
+| T-079 | Re-run shared QC after latest `shorts-maker-v2` coverage/test updates — `APPROVED` (2805 passed, 0 failed, 29 skipped) | Codex | 2026-03-28 |
+| T-078 | Raise `shorts-maker-v2` hotspots: `dashboard` 73→97%, `qc_step` 71→90%+, `trend_discovery` 71→85%+, package 89→**91%** (+40 tests) | Claude | 2026-03-28 |
+| T-077 | Shared QC APPROVED: 2741 passed, 0 failed, 30 skipped | Claude | 2026-03-28 |
+| T-075 | Raise `shorts-maker-v2` non-pipeline coverage: `style_tracker` 54→100%, package 85→89% | Claude+Codex | 2026-03-28 |
 | T-076 | Harden `shorts-maker-v2` MoviePy golden-render cleanup on Windows | Codex | 2026-03-28 |
-| T-058 | Fix `shorts-maker-v2` full-suite order-dependent failure via autouse fixtures | Claude | 2026-03-28 |
-| T-056 | Verify Blind-to-X scheduled run — all 6 tasks `LastTaskResult=0` | Claude | 2026-03-28 |
 
 ## Rules
 

@@ -184,3 +184,26 @@ Fixed the `knowledge-dashboard` issues by moving the memoized grouping logic ahe
 
 - `tests/unit/test_tts_providers.py`는 module-level MagicMock을 공유하므로, 새 케이스를 추가할 때도 per-test reset 패턴을 유지하는 편이 안전하다.
 - 다음 `shorts-maker-v2` coverage 후보는 `qc_step.py` 71%, `trend_discovery_step.py` 71%, `dashboard.py` 73%, `thumbnail_step.py` 75%다.
+
+## 2026-03-28 | Codex | shared QC rerun after latest shorts-maker-v2 uplift
+
+### Work Summary
+
+사용자 요청으로 shared workspace QC를 다시 끝까지 실행했다. 첫 시도는 바깥 호출 timeout이 러너 내부 최대 예산보다 짧아서 20분 지점에서 끊겼고, 러너 코드와 현재 프로세스를 확인한 뒤 더 긴 대기 시간으로 재실행했다.
+
+두 번째 실행에서는 `workspace/execution/qaqc_runner.py`가 정상 종료했고, 최종 verdict는 다시 **`APPROVED`**였다. 최신 결과 파일은 `projects/knowledge-dashboard/public/qaqc_result.json`에 저장됐다.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `projects/knowledge-dashboard/public/qaqc_result.json` | refresh | Latest shared QA/QC result (`APPROVED`) persisted by the runner |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | update | Refreshed the latest shared QC totals and relay notes |
+
+### Verification Results
+
+- `venv\Scripts\python.exe -X utf8 workspace\execution\qaqc_runner.py` -> **`APPROVED`** / `blind-to-x` **551 passed, 16 skipped** / `shorts-maker-v2` **1217 passed, 12 skipped** / `root` **1037 passed, 1 skipped** / total **2805 passed, 29 skipped**
+
+### Notes For Next Agent
+
+- The shared QC runner can legitimately take longer than 20 minutes because the per-project pytest budgets add up to roughly 40 minutes (`blind-to-x` 900s, `shorts-maker-v2` 1200s, `root` 300s). Give the outer shell timeout enough headroom.

@@ -66,18 +66,18 @@ Vibe coding/
 - `workspace/execution/workers.py` now emits structured reviewer metadata with optional Pydantic validation plus a deterministic security scan so evaluator feedback is machine-readable even when the LLM falls back to text-only output.
 - `projects/blind-to-x/pipeline/draft_generator.py` now honors `llm.cache_db_path` via a persistent `DraftCache` instance so cache behavior is stable across generator instances and tests.
 - Windows Task Scheduler launchers are standardized through ASCII-safe `C:\btx\...` wrappers.
-- Latest shared QC run on `2026-03-28` is **`APPROVED`**: `blind-to-x` 552 passed / 16 skipped, `shorts-maker-v2` 1177 passed / 13 skipped, `root` 1012 passed / 1 skipped, AST 20/20, security `CLEAR`, scheduler `6/6 Ready`.
+- Latest shared QC run on `2026-03-28` is **`APPROVED`**: `blind-to-x` 551 passed / 16 skipped, `shorts-maker-v2` 1217 passed / 12 skipped, `root` 1037 passed / 1 skipped, AST 20/20, security `CLEAR`, scheduler `6/6 Ready`.
 - `projects/knowledge-dashboard` frontend QC was repaired on `2026-03-28`: `npm run lint` and `npm run build` are now green after fixing the conditional `useMemo` path in `ActivityTimeline.tsx` and replacing the empty `InputProps` interface with a type alias.
 - `projects/hanwoo-dashboard` frontend QC was revalidated on `2026-03-28`: `npm run build` now passes again after refreshing the install tree with `npm install --legacy-peer-deps`, and `lucide-react` was bumped to a React 19-compatible release; lint still reports one `@next/next/no-page-custom-font` warning in `src/app/layout.js`.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/script_step.py` targeted coverage was raised from 69% to 93% on `2026-03-27` with mock-heavy unit tests for review, verification, retry, and truncation paths.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/orchestrator.py` targeted coverage was raised from 73% to 97% on `2026-03-27` with mock-heavy tests for init paths, optional stages, hold/upload branches, and ShortsFactory/native render routing.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/render_step.py` targeted coverage was raised from 11% to 87% on `2026-03-27` with mocked `run()` happy/fallback flows plus Lyria/local-BGM/thumbnail coverage.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/media_step.py` targeted coverage was raised from 59% to 90% on `2026-03-27` with branch-heavy unit tests for fallback chains, checkpoint recovery, and regeneration.
-- `projects/shorts-maker-v2` package-wide coverage was lifted to **89%** on `2026-03-28` by expanding provider/render suites plus the `style_tracker` / optional-provider cluster, then running `coverage run --source=src/shorts_maker_v2 -m pytest tests/unit tests/integration -q -o addopts=` end-to-end (`1191 passed, 12 skipped, 1 warning`).
+- `projects/shorts-maker-v2` package-wide coverage was lifted to **91%** on `2026-03-28` after the provider/style uplift plus the later `dashboard` / `qc_step` / `trend_discovery_step` hotspot pass; the latest full `coverage run --source=src/shorts_maker_v2 -m pytest tests/unit tests/integration -q -o addopts=` reports `1217 passed, 13 skipped, 1 warning`.
 - The strongest 2026-03-28 non-pipeline coverage gains in `projects/shorts-maker-v2` were `google_music_client.py` **99%**, `pexels_client.py` **95%**, `unsplash_client.py` **100%**, `video_renderer.py` **100%**, and `hwaccel.py` **96%**.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/utils/style_tracker.py`, `providers/chatterbox_client.py`, and `providers/cosyvoice_client.py` now each verify at **100% targeted coverage** on `2026-03-28`.
 - `projects/shorts-maker-v2/tests/unit/test_tts_providers.py` now resets shared `torch` / `torchaudio` MagicMocks per test to reduce cross-test side-effect leakage when expanding provider coverage.
-- The next low package hotspots after the 89% milestone are `qc_step.py` **71%**, `trend_discovery_step.py` **71%**, `dashboard.py` **73%**, and `thumbnail_step.py` **75%**.
+- The latest hotspot uplift on `2026-03-28` brought `dashboard.py` to **97%**, `qc_step.py` to about **90%**, and `trend_discovery_step.py` to about **85%**; the next notable follow-up remains `thumbnail_step.py` **75%** plus `caption_pillow.py` **83%**.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/render/video_renderer.py` now forces MoviePy temp audio into a per-output unique file on `2026-03-28`, fixing a Windows repeat-run flake where `test_golden_render_moviepy` could die with `PermissionError [WinError 32]` while deleting `golden_moviepyTEMP_MPY_wvf_snd.mp4`.
 
 ## Shared Services
@@ -105,11 +105,11 @@ Vibe coding/
 
 ## Recent Quality Notes
 
-- `shorts-maker-v2` full `tests/unit + tests/integration` under `coverage run` passed on `2026-03-28` with **1191 passed, 12 skipped, 1 warning** and package-wide coverage at **89%**.
+- `shorts-maker-v2` full `tests/unit + tests/integration` under `coverage run` passed on `2026-03-28` with **1217 passed, 13 skipped, 1 warning** and package-wide coverage at **91%**.
 - `blind-to-x` has a known env-specific `curl_cffi` CA-path reproducer that is ignored in shared QA/QC.
 - Blind-to-X targeted redesign verification on `2026-03-26`: `103 passed, 1 warning` across the new editorial-filter / draft-fail-closed / few-shot fallback suites.
 - The QA/QC contract uses machine-readable statuses such as `APPROVED`, `CONDITIONALLY_APPROVED`, `REJECTED`, `CLEAR`, and `WARNING`.
-- Shared QC verification on `2026-03-28`: **`APPROVED`** with `2741 passed, 0 failed, 0 errors, 30 skipped`.
+- Shared QC verification on `2026-03-28`: **`APPROVED`** with `2805 passed, 0 failed, 0 errors, 29 skipped`.
 - Root QC regressions fixed on `2026-03-28`: optional `langgraph` fallback in `graph_engine.py`, UTF-8-safe subprocess execution in `workers.py`, and false-positive security hits removed from `reasoning_engine.py`.
 - Graph-engine evaluator verification on `2026-03-28`: `ruff` is clean for `workspace/execution/graph_engine.py`, `workspace/execution/workers.py`, and `workspace/tests/test_graph_engine.py`; targeted test suite reports **34 passed**.
 - Blind-to-X cache/test contract fixes on `2026-03-28`: `TweetDraftGenerator` now respects `llm.cache_db_path`, and cache/quality-gate tests were updated to the current `reply` + `creator_take` output contract.
@@ -120,6 +120,7 @@ Vibe coding/
 - `shorts-maker-v2` render-step targeted verification on `2026-03-27`: `141 passed, 1 warning`; `coverage run` with `coverage report -m --include="*render_step.py"` reports `render_step.py` at **87%**.
 - `shorts-maker-v2` media-step targeted verification on `2026-03-27`: `28 passed, 1 warning`; `coverage run` reports `media_step.py` at **90%**.
 - `shorts-maker-v2` broader aggregate verification on `2026-03-27`: `411 passed, 1 warning`; `coverage run --source=src/shorts_maker_v2` reported **57%** total coverage for `src/shorts_maker_v2` before the 2026-03-28 provider/render + `hwaccel` uplift.
-- `shorts-maker-v2` full aggregate verification on `2026-03-28`: `1191 passed, 12 skipped, 1 warning`; `coverage run --source=src/shorts_maker_v2 -m pytest tests/unit tests/integration -q -o addopts=` now reports **89%** total coverage for `src/shorts_maker_v2`.
+- `shorts-maker-v2` full aggregate verification on `2026-03-28`: `1217 passed, 13 skipped, 1 warning`; `coverage run --source=src/shorts_maker_v2 -m pytest tests/unit tests/integration -q -o addopts=` now reports **91%** total coverage for `src/shorts_maker_v2`.
 - `shorts-maker-v2` targeted non-pipeline verification on `2026-03-28`: `tests/unit/test_style_tracker.py` + `tests/unit/test_tts_providers.py` => **64 passed, 1 warning**; `coverage report -m --include="*style_tracker.py,*chatterbox_client.py,*cosyvoice_client.py"` reports all three modules at **100%**.
+- Shared QC rerun on `2026-03-28` after the latest `shorts-maker-v2` test uplift: **`APPROVED`** with `blind-to-x` **551 passed / 16 skipped**, `shorts-maker-v2` **1217 passed / 12 skipped**, `root` **1037 passed / 1 skipped**.
 - `shorts-maker-v2` repeatability verification on `2026-03-28`: `tests/integration/test_golden_render.py::test_golden_render_moviepy` failed once after 4 clean isolated reruns with a MoviePy temp-audio cleanup `PermissionError`; after the `video_renderer.py` fix, the same test passed **5/5** isolated reruns and the full suite passed again (`1191 passed, 12 skipped, 1 warning`).
