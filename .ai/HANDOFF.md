@@ -8,7 +8,7 @@
 |------|------|
 | Date | 2026-03-28 |
 | Tool | Codex |
-| Work | Closed `T-069` by expanding existing `shorts-maker-v2` provider/render coverage suites (`google_music_client`, `video_renderer`, `pexels_client`, `unsplash_client`) plus the next non-pipeline hotspot (`hwaccel`), then re-ran the full `tests/unit + tests/integration` suite under `coverage run`. |
+| Work | Hardened repeated `shorts-maker-v2` MoviePy golden-render runs on Windows by changing `MoviePyRenderer.write()` to use per-output temp audio files, after reproducing the historical flake as a `PermissionError` in `test_golden_render_moviepy`. |
 
 ## Current State
 
@@ -22,6 +22,11 @@
   - Full package report: `coverage report -m` => `src/shorts_maker_v2` **87% total coverage** (`8046 stmts / 1016 miss`)
   - Newly uplifted modules: `google_music_client.py` **99%**, `pexels_client.py` **95%**, `unsplash_client.py` **100%**, `video_renderer.py` **100%**, `hwaccel.py` **96%**
   - The next low non-pipeline cluster after this milestone is `style_tracker.py` **54%** plus optional-provider clients `chatterbox_client.py` **49%** and `cosyvoice_client.py` **53%**
+- **shorts-maker-v2 repeatability sweep on `2026-03-28`**:
+  - `tests/integration/test_golden_render.py::test_golden_render_moviepy` failed once after 4 clean isolated reruns with `PermissionError: [WinError 32]` while MoviePy tried to delete `golden_moviepyTEMP_MPY_wvf_snd.mp4`
+  - Root cause: `MoviePyRenderer.write()` let MoviePy create a fixed-name temp audio file in the current working directory, so repeated Windows runs could collide with a still-open handle
+  - Fix: `projects/shorts-maker-v2/src/shorts_maker_v2/render/video_renderer.py` now passes a per-output unique `temp_audiofile` path and creates the output directory first
+  - Regression checks after the fix: `tests/unit/test_video_renderer.py` => **56 passed**, `test_golden_render_moviepy` repeated **5/5 passed**, full `tests/unit + tests/integration` => **1144 passed, 12 skipped, 1 warning**
 - **Shared quality context**:
   - Latest shared QC run on `2026-03-28` is **`APPROVED`**
   - Totals: **2660 passed, 0 failed, 0 errors, 29 skipped**
@@ -41,15 +46,15 @@
 
 ## Next Priorities
 
-1. T-058: investigate whether the previous `shorts-maker-v2` order-dependent failure still reproduces now that a full coverage run passed once end-to-end
-2. T-056: verify the next Blind-to-X scheduled run creates `scheduled_*.log` and reports `LastTaskResult=0`
-3. T-075: raise the next non-pipeline `shorts-maker-v2` coverage cluster (`style_tracker`, `chatterbox_client`, `cosyvoice_client`)
+1. T-056: verify the next Blind-to-X scheduled run creates `scheduled_*.log` and reports `LastTaskResult=0`
+2. T-075: raise the next non-pipeline `shorts-maker-v2` coverage cluster (`style_tracker`, `chatterbox_client`, `cosyvoice_client`)
+3. Re-run shared QC after the next substantial `shorts-maker-v2` or dashboard change to ensure the new MoviePy temp-audio behavior stays green in the broader workspace runner
 
 ## Notes
 
 - `pytest-cov` can fail on this machine for targeted `shorts-maker-v2` coverage with `ImportError: cannot load module more than once per process`; `coverage run` is the reliable fallback.
 - On this Windows machine, `coverage report` against a direct source path can sometimes show `0%` unexpectedly for `render_step.py`; `coverage report -m --include="*render_step.py"` is the reliable report pattern when that happens.
-- `shorts-maker-v2` full `tests/unit + tests/integration` coverage run passed once on `2026-03-28` (`1144 passed, 12 skipped`), but no repeatability sweep was done yet; keep `T-058` open until reruns stay stable.
+- `shorts-maker-v2` repeatability is materially better after the `MoviePyRenderer.write()` temp-audio fix: the previously flaky `test_golden_render_moviepy` now passes 5 isolated reruns, and the full suite still passes end-to-end.
 - `blind-to-x` draft-generation mocks in tests now need the current output contract: `twitter` responses should include `reply` and `creator_take` tags when validated via `generate_drafts()`.
 - `hanwoo-dashboard` currently installs cleanly only with `npm install --legacy-peer-deps`; the remaining blocker is peer-range drift (`next-auth@5.0.0-beta.25` vs Next 16, plus Toss type-package TypeScript peer warnings).
 - `npm install --legacy-peer-deps` in `projects/hanwoo-dashboard` reported 15 vulnerabilities (8 moderate, 7 high); no audit remediation was done in this session.

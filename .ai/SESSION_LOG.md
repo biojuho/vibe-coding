@@ -1,5 +1,31 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-03-28 | Codex | shorts-maker-v2 MoviePy temp-audio flake hardening
+
+### Work Summary
+
+Investigated the remaining `shorts-maker-v2` repeatability risk after the earlier full-suite passes. The full suite itself passed again, but isolated reruns of `tests/integration/test_golden_render.py::test_golden_render_moviepy` reproduced a Windows-only flake: on the 5th rerun, MoviePy raised `PermissionError [WinError 32]` while trying to delete `golden_moviepyTEMP_MPY_wvf_snd.mp4`.
+
+- Root cause: `MoviePyRenderer.write()` let MoviePy place a fixed-name temp audio file in the current working directory, so repeated Windows runs could collide with a lingering file handle.
+- Fixed `projects/shorts-maker-v2/src/shorts_maker_v2/render/video_renderer.py` to create the output directory first and pass a unique per-output `temp_audiofile` path instead of relying on MoviePy's default cwd temp naming.
+- Updated `projects/shorts-maker-v2/tests/unit/test_video_renderer.py` so the wrapper contract now asserts the temp audio file lives under the output directory with the expected audio suffix.
+- Re-ran the isolated flaky reproducer and the full suite to confirm the hardening.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `projects/shorts-maker-v2/src/shorts_maker_v2/render/video_renderer.py` | fix | Isolated MoviePy temp audio per output path to avoid repeated Windows cleanup collisions |
+| `projects/shorts-maker-v2/tests/unit/test_video_renderer.py` | update | Added assertion for wrapper-managed temp audio path |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | update | Recorded the repeatability root cause, verification sweep, and new done item |
+
+### Verification Results
+
+- `venv\Scripts\python.exe -m ruff check src\shorts_maker_v2\render\video_renderer.py tests\unit\test_video_renderer.py` (`projects/shorts-maker-v2`) -> clean
+- `venv\Scripts\python.exe -m pytest tests\unit\test_video_renderer.py -q -o addopts=` (`projects/shorts-maker-v2`) -> **56 passed, 1 warning**
+- `venv\Scripts\python.exe -m pytest tests\integration\test_golden_render.py::test_golden_render_moviepy -q -o addopts=` repeated 5 times (`projects/shorts-maker-v2`) -> **5/5 passed**
+- `venv\Scripts\python.exe -m pytest tests\unit tests\integration -q -o addopts=` (`projects/shorts-maker-v2`) -> **1144 passed, 12 skipped, 1 warning**
+
 ## 2026-03-28 | Codex | shorts-maker-v2 coverage expansion to 87%
 
 ### Work Summary

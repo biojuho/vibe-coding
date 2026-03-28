@@ -6,8 +6,6 @@
 
 | ID | Task | Owner | Priority | Created |
 |----|------|-------|----------|---------|
-| T-056 | Verify next Blind-to-X scheduled run creates `scheduled_*.log` and reports `LastTaskResult=0` | any | HIGH | 2026-03-26 |
-| T-058 | Investigate and fix `shorts-maker-v2` full-suite order-dependent failure | Claude | HIGH | 2026-03-26 |
 | T-075 | Raise the next non-pipeline `shorts-maker-v2` coverage cluster after the 87% package milestone (`style_tracker`, `chatterbox_client`, `cosyvoice_client`) | any | MEDIUM | 2026-03-28 |
 
 ## IN_PROGRESS
@@ -19,11 +17,11 @@
 
 | ID | Task | Completed By | Completed |
 |----|------|--------------|-----------|
+| T-076 | Harden repeated `shorts-maker-v2` MoviePy golden-render cleanup on Windows by isolating temp audio files per output path | Codex | 2026-03-28 |
+| T-058 | Fix `shorts-maker-v2` full-suite order-dependent failure via autouse fixtures that isolate global singletons/caches in `conftest.py` | Claude | 2026-03-28 |
+| T-056 | Verify Blind-to-X scheduled run and confirm all 6 tasks report `LastTaskResult=0` with continuous logs since 2026-03-09 | Claude | 2026-03-28 |
 | T-069 | Broaden `projects/shorts-maker-v2/src/shorts_maker_v2` overall coverage by folding in more existing provider/render suites, then choose the next non-pipeline hotspot | Codex | 2026-03-28 |
 | T-072 | Implement Pydantic Structured Outputs & Security Score for Evaluator | Codex | 2026-03-28 |
-| T-071 | Implement Self-Reflection & Evaluator-Optimizer loop for Code generation | Codex | 2026-03-28 |
-| T-074 | Align `projects/hanwoo-dashboard` dependency peers so plain `npm install` works without `--legacy-peer-deps` | Antigravity | 2026-03-28 |
-| T-064 | Archive `projects/shorts-maker-v2/tests/legacy` out of pytest discovery after confirming current ShortsFactory fallback needs | Antigravity | 2026-03-28 |
 
 ## Rules
 

@@ -76,6 +76,7 @@ Vibe coding/
 - `projects/shorts-maker-v2` package-wide coverage was lifted to **87%** on `2026-03-28` by expanding existing provider/render suites plus `hwaccel`, then running `coverage run --source=src/shorts_maker_v2 -m pytest tests/unit tests/integration -q -o addopts=` end-to-end (`1144 passed, 12 skipped, 1 warning`).
 - The strongest 2026-03-28 non-pipeline coverage gains in `projects/shorts-maker-v2` were `google_music_client.py` **99%**, `pexels_client.py` **95%**, `unsplash_client.py` **100%**, `video_renderer.py` **100%**, and `hwaccel.py` **96%**.
 - The next low non-pipeline coverage cluster after the 87% milestone is `style_tracker.py` **54%** plus optional-provider clients `chatterbox_client.py` **49%** and `cosyvoice_client.py` **53%**.
+- `projects/shorts-maker-v2/src/shorts_maker_v2/render/video_renderer.py` now forces MoviePy temp audio into a per-output unique file on `2026-03-28`, fixing a Windows repeat-run flake where `test_golden_render_moviepy` could die with `PermissionError [WinError 32]` while deleting `golden_moviepyTEMP_MPY_wvf_snd.mp4`.
 
 ## Shared Services
 
@@ -94,14 +95,14 @@ Vibe coding/
 | Dirty nested repos | Product repos may contain user WIP | Never revert or overwrite unrelated changes |
 | PowerShell ScheduledTasks cmdlets | `Register-ScheduledTask` / `Unregister-ScheduledTask` can return `Access is denied` on this machine even when `schtasks` works | Regenerate `C:\btx\...` launchers first; if cmdlets fail, inspect with `Get-ScheduledTask` and use `schtasks` fallback for recovery |
 | Blind-to-X draft tag contract | `generate_drafts()` validation now expects `twitter` outputs to include `reply` and `creator_take` tags alongside the main draft | When mocking provider responses in tests, include all required tags or bypass validation intentionally |
-| Shorts full-suite flakiness | `shorts-maker-v2` previously failed on different tests across full-suite reruns while those same tests passed in isolation; one full `coverage run` passed on `2026-03-28`, but repeatability is still unconfirmed | Treat a single clean end-to-end run as encouraging, not closure; rerun the whole suite to confirm stability before closing T-058 |
+| Shorts full-suite flakiness | `shorts-maker-v2` had earlier order-dependent/full-suite instability; a later isolated reproducer showed MoviePy temp-audio cleanup on Windows could fail with `PermissionError [WinError 32]` because temp audio was created under the working directory with a fixed stem-derived name | Prefer repeated isolated reruns of `tests/integration/test_golden_render.py::test_golden_render_moviepy` plus full-suite reruns when stability is in doubt; `MoviePyRenderer.write()` now passes a unique per-output temp audio path |
 | Duplicate project roots | Both `projects/shorts-maker-v2` and a legacy root-level `shorts-maker-v2` directory exist on this machine, which can confuse coverage/import collection | Run tests from `projects/shorts-maker-v2` and prefer `coverage run ... -m pytest ... -o addopts=` over `pytest-cov` when measuring targeted module coverage |
 | Coverage report path matching | `coverage report` against a direct Windows source path can sometimes show `0%` unexpectedly even when coverage data exists | When that happens, use `coverage report -m --include="*module_name.py"` instead of a direct file-path report |
 | Hanwoo install peers | `projects/hanwoo-dashboard` currently needs `npm install --legacy-peer-deps` because `next-auth@5.0.0-beta.25` does not declare Next 16 peers and Toss types still warn on TypeScript 5.9 | For fresh installs, use `npm install --legacy-peer-deps` until the dependency matrix is aligned |
 
 ## Recent Quality Notes
 
-- `shorts-maker-v2` full `tests/unit + tests/integration` under `coverage run` passed on `2026-03-28` with **1144 passed, 12 skipped, 1 warning** and package-wide coverage at **87%**, but repeatability of the earlier order-dependent failure still needs explicit confirmation.
+- `shorts-maker-v2` full `tests/unit + tests/integration` under `coverage run` passed on `2026-03-28` with **1144 passed, 12 skipped, 1 warning** and package-wide coverage at **87%**.
 - `blind-to-x` has a known env-specific `curl_cffi` CA-path reproducer that is ignored in shared QA/QC.
 - Blind-to-X targeted redesign verification on `2026-03-26`: `103 passed, 1 warning` across the new editorial-filter / draft-fail-closed / few-shot fallback suites.
 - The QA/QC contract uses machine-readable statuses such as `APPROVED`, `CONDITIONALLY_APPROVED`, `REJECTED`, `CLEAR`, and `WARNING`.
@@ -117,3 +118,4 @@ Vibe coding/
 - `shorts-maker-v2` media-step targeted verification on `2026-03-27`: `28 passed, 1 warning`; `coverage run` reports `media_step.py` at **90%**.
 - `shorts-maker-v2` broader aggregate verification on `2026-03-27`: `411 passed, 1 warning`; `coverage run --source=src/shorts_maker_v2` reported **57%** total coverage for `src/shorts_maker_v2` before the 2026-03-28 provider/render + `hwaccel` uplift.
 - `shorts-maker-v2` full aggregate verification on `2026-03-28`: `1144 passed, 12 skipped, 1 warning`; `coverage run --source=src/shorts_maker_v2 -m pytest tests/unit tests/integration -q -o addopts=` now reports **87%** total coverage for `src/shorts_maker_v2`.
+- `shorts-maker-v2` repeatability verification on `2026-03-28`: `tests/integration/test_golden_render.py::test_golden_render_moviepy` failed once after 4 clean isolated reruns with a MoviePy temp-audio cleanup `PermissionError`; after the `video_renderer.py` fix, the same test passed **5/5** isolated reruns and the full suite passed again (`1144 passed, 12 skipped, 1 warning`).
