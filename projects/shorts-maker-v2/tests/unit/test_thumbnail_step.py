@@ -1,16 +1,20 @@
 from __future__ import annotations
 
+import types
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 
 from shorts_maker_v2.config import CanvaSettings, ThumbnailSettings
 from shorts_maker_v2.pipeline.thumbnail_step import (
     ThumbnailStep,
     _generate_pillow_thumbnail,
+    _http_download,
     _load_token,
     _pillow_gradient_bg,
+    _refresh_access_token,
     _sanitize_title,
     _wrap_text,
 )
@@ -434,3 +438,110 @@ def test_run_canva_cleans_up_unique_temp_bg(tmp_path: Path) -> None:
 
     assert result is not None
     assert not (tmp_path / "thumbnail_job42_canva_base.png").exists()
+
+
+def test_run_canva_refreshes_token_after_401(tmp_path: Path) -> None:
+    step = _make_step(mode="canva", canva_enabled=True, canva_design_id="design123")
+    step.token_file = tmp_path / "token.json"
+
+    http_error = requests.HTTPError("expired")
+    http_error.response = MagicMock(status_code=401)
+
+    def fake_download(url: str, output_path: Path) -> Path:
+        from PIL import Image
+
+        Image.new("RGB", (100, 178), color=(90, 90, 90)).save(str(output_path), "PNG")
+        return output_path
+
+    with (
+        patch("shorts_maker_v2.pipeline.thumbnail_step._get_access_token", return_value="stale-token"),
+        patch("shorts_maker_v2.pipeline.thumbnail_step._refresh_access_token", return_value="fresh-token") as refresh,
+        patch(
+            "shorts_maker_v2.pipeline.thumbnail_step._export_design",
+            side_effect=[http_error, "https://example.com/thumb.png"],
+        ) as export,
+        patch("shorts_maker_v2.pipeline.thumbnail_step._http_download", side_effect=fake_download),
+    ):
+        result = step.run("refresh branch", tmp_path, job_id="job99")
+
+    assert result is not None
+    refresh.assert_called_once_with(step.token_file)
+    assert export.call_args_list[0].args == ("design123", "stale-token")
+    assert export.call_args_list[1].args == ("design123", "fresh-token")
+    assert not (tmp_path / "thumbnail_job99_canva_base.png").exists()
+
+
+def test_run_video_scene_asset_cleans_up_extracted_frame(tmp_path: Path) -> None:
+    video_path = tmp_path / "scene.mp4"
+    video_path.write_bytes(b"fake-video")
+    mock_asset = MagicMock()
+    mock_asset.visual_path = str(video_path)
+    extracted_frames: list[Path] = []
+
+    class FakeVideoFileClip:
+        def __init__(self, path: str) -> None:
+            assert path == str(video_path)
+            self.duration = 2.0
+
+        def __enter__(self) -> FakeVideoFileClip:
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> bool:
+            return False
+
+        def save_frame(self, path: str, t: float) -> None:
+            from PIL import Image
+
+            Image.new("RGB", (100, 178), color=(30, 30, 30)).save(path, "JPEG")
+            extracted_frames.append(Path(path))
+            assert t == pytest.approx(0.6)
+
+    step = _make_step(mode="pillow")
+    with (
+        patch.dict("sys.modules", {"moviepy": types.SimpleNamespace(VideoFileClip=FakeVideoFileClip)}),
+        patch("shorts_maker_v2.pipeline.thumbnail_step._generate_pillow_thumbnail") as generate,
+    ):
+        generate.return_value = tmp_path / "thumbnail_job42.png"
+        result = step.run("video asset", tmp_path, scene_assets=[mock_asset], job_id="job42")
+
+    assert result is not None
+    assert extracted_frames
+    assert extracted_frames[0].name == "thumbnail_job42_frame.jpg"
+    assert generate.call_args.kwargs["bg_image_path"] == str(extracted_frames[0])
+    assert not extracted_frames[0].exists()
+
+
+def test_refresh_access_token_updates_token_file(tmp_path: Path) -> None:
+    import json
+
+    token_file = tmp_path / "token.json"
+    token_file.write_text(json.dumps({"access_token": "old", "refresh_token": "refresh-old"}), encoding="utf-8")
+    response = MagicMock()
+    response.raise_for_status.return_value = None
+    response.json.return_value = {"access_token": "new", "refresh_token": "refresh-new"}
+
+    with (
+        patch.dict("os.environ", {"CANVA_CLIENT_ID": "cid", "CANVA_CLIENT_SECRET": "secret"}, clear=False),
+        patch("shorts_maker_v2.pipeline.thumbnail_step.requests.post", return_value=response) as post,
+    ):
+        access_token = _refresh_access_token(token_file)
+
+    assert access_token == "new"
+    saved = json.loads(token_file.read_text(encoding="utf-8"))
+    assert saved["access_token"] == "new"
+    assert saved["refresh_token"] == "refresh-new"
+    assert post.call_args.kwargs["data"]["refresh_token"] == "refresh-old"
+
+
+def test_http_download_raises_for_http_error(tmp_path: Path) -> None:
+    output_path = tmp_path / "download" / "thumb.png"
+    response = MagicMock()
+    response.raise_for_status.side_effect = requests.HTTPError("boom")
+
+    with (
+        patch("shorts_maker_v2.pipeline.thumbnail_step.requests.get", return_value=response),
+        pytest.raises(requests.HTTPError),
+    ):
+        _http_download("https://example.com/thumb.png", output_path)
+
+    assert not output_path.exists()

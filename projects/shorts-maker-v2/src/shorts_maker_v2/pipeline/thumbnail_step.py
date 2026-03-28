@@ -171,7 +171,9 @@ def _export_design(design_id: str, token: str) -> str:
 
 def _http_download(url: str, output_path: Path) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_bytes(requests.get(url, timeout=60).content)
+    resp = requests.get(url, timeout=60)
+    resp.raise_for_status()
+    output_path.write_bytes(resp.content)
     return output_path
 
 
