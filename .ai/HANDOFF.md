@@ -8,7 +8,7 @@
 |------|------|
 | Date | 2026-03-28 |
 | Tool | Codex |
-| Work | Shared QA/QC rerun reproduced `APPROVED`, fixed `knowledge-dashboard` lint blockers, and restored `hanwoo-dashboard` lint/build verification by refreshing deps and updating `lucide-react` for React 19 compatibility. |
+| Work | Implemented the code-generation Self-Reflection evaluator loop (`T-071`) plus structured reviewer outputs and deterministic security scoring (`T-072`) in `workspace/execution/graph_engine.py` and `workspace/execution/workers.py`, with targeted verification green. |
 
 ## Current State
 
@@ -28,15 +28,17 @@
 - **Maintained dashboard verification on `2026-03-28`**:
   - `knowledge-dashboard`: `npm run lint` and `npm run build` both pass after fixing the conditional `useMemo` path in `ActivityTimeline.tsx` and replacing the empty `InputProps` interface with a type alias
   - `hanwoo-dashboard`: `npm run build` passes again after reinstalling with `npm install --legacy-peer-deps` and bumping `lucide-react` to a React 19-compatible release; `npm run lint` still reports one `@next/next/no-page-custom-font` warning in `src/app/layout.js`
+- **Graph-engine evaluator upgrade on `2026-03-28`**:
+  - `workspace/execution/workers.py` now returns structured reviewer metadata with optional Pydantic validation, a deterministic security score, and an explicit self-reflection brief
+  - `workspace/execution/graph_engine.py` now feeds evaluator reflection back into the next coding attempt and weights security in the final confidence score instead of averaging all historical worker results
+  - Targeted verification: `venv\Scripts\python.exe -m ruff check workspace\execution\graph_engine.py workspace\execution\workers.py workspace\tests\test_graph_engine.py` => **clean**
+  - Targeted verification: `venv\Scripts\python.exe -m pytest workspace\tests\test_graph_engine.py -q -o addopts=` => **34 passed**
 
 ## Next Priorities
 
-1. T-071: Implement Self-Reflection & Evaluator-Optimizer loop for Code generation
-2. T-072: Implement Pydantic Structured Outputs & Security Score for Evaluator
-3. T-069: broaden `src/shorts_maker_v2` overall coverage by folding in more existing provider/render suites, then choose the next non-pipeline hotspot
-4. T-064: archive `projects/shorts-maker-v2/tests/legacy` out of pytest discovery
-5. T-058: investigate `shorts-maker-v2` full-suite order-dependent failure
-6. T-074: align `projects/hanwoo-dashboard` dependencies so plain `npm install` works without `--legacy-peer-deps`
+1. T-069: broaden `src/shorts_maker_v2` overall coverage by folding in more existing provider/render suites, then choose the next non-pipeline hotspot
+2. T-058: investigate `shorts-maker-v2` full-suite order-dependent failure
+3. T-056: verify the next Blind-to-X scheduled run creates `scheduled_*.log` and reports `LastTaskResult=0`
 
 ## Notes
 
@@ -46,3 +48,5 @@
 - `blind-to-x` draft-generation mocks in tests now need the current output contract: `twitter` responses should include `reply` and `creator_take` tags when validated via `generate_drafts()`.
 - `hanwoo-dashboard` currently installs cleanly only with `npm install --legacy-peer-deps`; the remaining blocker is peer-range drift (`next-auth@5.0.0-beta.25` vs Next 16, plus Toss type-package TypeScript peer warnings).
 - `npm install --legacy-peer-deps` in `projects/hanwoo-dashboard` reported 15 vulnerabilities (8 moderate, 7 high); no audit remediation was done in this session.
+- `workspace/execution/workers.py` treats Pydantic as optional. If it is unavailable, reviewer payloads still normalize into the same structured dict shape before scoring.
+- The new evaluator only scores the latest coder/tester/reviewer cycle; this avoids stale low-confidence attempts polluting later iterations and is important if future tests exercise multi-iteration recovery.

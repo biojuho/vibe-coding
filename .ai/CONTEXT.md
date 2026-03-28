@@ -62,6 +62,8 @@ Vibe coding/
 - `projects/blind-to-x` now applies X-first editorial filtering (`pre_editorial_score`), fail-closed draft generation, and few-shot fallback (`performance -> approved -> YAML`) after the 2026-03-26 curation redesign.
 - `workspace/execution/qaqc_runner.py` now runs `blind-to-x` as split unit/integration batches with a 900s timeout budget, fixing the previous false timeout in shared QC.
 - `workspace/execution/graph_engine.py` and `projects/blind-to-x/pipeline/editorial_reviewer.py` now degrade gracefully when `langgraph` is not installed by using local fallback orchestration.
+- `workspace/execution/graph_engine.py` now carries evaluator self-reflection between iterations and weights the latest review security score into final confidence instead of averaging every historical worker result.
+- `workspace/execution/workers.py` now emits structured reviewer metadata with optional Pydantic validation plus a deterministic security scan so evaluator feedback is machine-readable even when the LLM falls back to text-only output.
 - `projects/blind-to-x/pipeline/draft_generator.py` now honors `llm.cache_db_path` via a persistent `DraftCache` instance so cache behavior is stable across generator instances and tests.
 - Windows Task Scheduler launchers are standardized through ASCII-safe `C:\btx\...` wrappers.
 - Latest shared QC run on `2026-03-28` is **`APPROVED`**: `blind-to-x` 551 passed / 16 skipped, `shorts-maker-v2` 1075 passed / 12 skipped, `root` 1034 passed / 1 skipped, AST 20/20, security `CLEAR`, scheduler `6/6 Ready`.
@@ -103,6 +105,7 @@ Vibe coding/
 - The QA/QC contract uses machine-readable statuses such as `APPROVED`, `CONDITIONALLY_APPROVED`, `REJECTED`, `CLEAR`, and `WARNING`.
 - Shared QC verification on `2026-03-28`: **`APPROVED`** with `2660 passed, 0 failed, 0 errors, 29 skipped`.
 - Root QC regressions fixed on `2026-03-28`: optional `langgraph` fallback in `graph_engine.py`, UTF-8-safe subprocess execution in `workers.py`, and false-positive security hits removed from `reasoning_engine.py`.
+- Graph-engine evaluator verification on `2026-03-28`: `ruff` is clean for `workspace/execution/graph_engine.py`, `workspace/execution/workers.py`, and `workspace/tests/test_graph_engine.py`; targeted test suite reports **34 passed**.
 - Blind-to-X cache/test contract fixes on `2026-03-28`: `TweetDraftGenerator` now respects `llm.cache_db_path`, and cache/quality-gate tests were updated to the current `reply` + `creator_take` output contract.
 - `knowledge-dashboard` frontend verification on `2026-03-28`: `npm run lint` and `npm run build` both pass after fixing the conditional `useMemo` hook path and the empty `InputProps` interface.
 - `hanwoo-dashboard` frontend verification on `2026-03-28`: `npm run lint` reports only one `@next/next/no-page-custom-font` warning in `src/app/layout.js`, and `npm run build` passes after reinstalling with `--legacy-peer-deps` and regenerating Prisma client outputs.

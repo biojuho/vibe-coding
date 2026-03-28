@@ -1,5 +1,29 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-03-28 | Codex | graph_engine self-reflection loop + structured reviewer scoring
+
+### Work Summary
+
+Implemented `T-071` and `T-072` in the workspace coding engine.
+
+- `workspace/execution/workers.py` was rewritten so `ReviewerWorker` returns structured review metadata, validates it with Pydantic when available, and overlays a deterministic security score from local regex rules.
+- `workspace/execution/graph_engine.py` was rewritten so the evaluator scores only the latest coder/tester/reviewer cycle, carries explicit self-reflection notes into the next generation attempt, and weights security into the final confidence score.
+- `workspace/tests/test_graph_engine.py` was refreshed to cover structured-output fallback, security-score penalties, reflection propagation, and end-to-end loop behavior.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `workspace/execution/workers.py` | rewrite | Added structured reviewer payload normalization, optional Pydantic validation, deterministic security scan, and reflection summary output |
+| `workspace/execution/graph_engine.py` | rewrite | Added evaluator self-reflection propagation, latest-cycle confidence weighting, and evaluator summaries |
+| `workspace/tests/test_graph_engine.py` | rewrite | Updated worker and graph tests for the new evaluator/reviewer behavior |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | update | Recorded completion of T-071/T-072 and the next priority queue |
+
+### Verification Results
+
+- `venv\Scripts\python.exe -m ruff check workspace\execution\graph_engine.py workspace\execution\workers.py workspace\tests\test_graph_engine.py` -> clean
+- `venv\Scripts\python.exe -m pytest workspace\tests\test_graph_engine.py -q -o addopts=` -> **34 passed**
+
 ## 2026-03-28 | Codex | shared QC rerun + dashboard verification recovery
 
 ### Work Summary
