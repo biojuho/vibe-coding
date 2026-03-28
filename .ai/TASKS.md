@@ -6,7 +6,7 @@
 
 | ID | Task | Owner | Priority | Created |
 |----|------|-------|----------|---------|
-| T-081 | Extend `shorts-maker-v2` thumbnail/live-path hardening with Canva OAuth refresh + video-frame extraction coverage | Codex | Medium | 2026-03-29 |
+| T-082 | Push the next `shorts-maker-v2` output-quality pass: `caption_pillow.py` plus any remaining thumbnail helper branches | Codex | Medium | 2026-03-29 |
 
 ## IN_PROGRESS
 
@@ -17,11 +17,11 @@
 
 | ID | Task | Completed By | Completed |
 |----|------|--------------|-----------|
+| T-081 | Extend `shorts-maker-v2` thumbnail live-path hardening with Canva OAuth refresh, video-frame extraction cleanup coverage, and fail-fast HTTP download handling | Codex | 2026-03-29 |
 | T-080 | Harden `shorts-maker-v2` thumbnail temp-artifact cleanup and long-title wrapping | Codex | 2026-03-29 |
 | T-079 | Re-run shared QC after latest `shorts-maker-v2` coverage/test updates and confirm `APPROVED` (2805 passed, 0 failed, 29 skipped) | Codex | 2026-03-28 |
 | T-078 | Raise `shorts-maker-v2` hotspots: `dashboard` to 97%, `qc_step` to 90%+, `trend_discovery` to 85%+, package to 91% (+40 tests) | Claude | 2026-03-28 |
 | T-077 | Shared QC APPROVED: 2741 passed, 0 failed, 30 skipped | Claude | 2026-03-28 |
-| T-076 | Harden `shorts-maker-v2` MoviePy golden-render cleanup on Windows | Codex | 2026-03-28 |
 
 ## Rules
 

@@ -4,27 +4,28 @@
 
 ### Work Summary
 
-Reviewed `projects/shorts-maker-v2` with a focus on output quality and repeatability, then tightened the thumbnail path where the next meaningful stability gain still existed.
+Reviewed `projects/shorts-maker-v2` with a focus on output quality and repeatability, then tightened the thumbnail path through both code and targeted live-path coverage.
 
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/thumbnail_step.py` no longer relies on fixed-name temp artifacts for extracted video frames or DALL-E / Gemini / Canva backgrounds.
 - Temp artifact names now derive from the final thumbnail filename, which avoids repeated-run collisions inside the same output directory.
 - The selected scene background path is now carried through method calls instead of mutating shared instance state on `ThumbnailStep`.
 - `_wrap_text()` now falls back to char-level wrapping when a single token exceeds the width budget, improving output quality for long no-space titles.
-- `projects/shorts-maker-v2/tests/unit/test_thumbnail_step.py` was updated to validate the new temp cleanup behavior and the stateless background-path flow.
+- `_http_download()` now calls `raise_for_status()` before writing bytes, so Canva download failures surface as explicit HTTP errors instead of producing garbage image files.
+- `projects/shorts-maker-v2/tests/unit/test_thumbnail_step.py` was extended to cover the Canva 401 refresh path, video-frame extraction cleanup, token refresh file updates, and HTTP download failure handling.
 
 ### Changed Files
 
 | File | Change Type | Notes |
 |------|-------------|-------|
-| `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/thumbnail_step.py` | fix | Added per-output temp artifact naming, stateless background-path flow, and char-level fallback wrapping |
-| `projects/shorts-maker-v2/tests/unit/test_thumbnail_step.py` | update | Added cleanup and wrapping regression tests; updated background-asset assertions to match the new stateless flow |
+| `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/thumbnail_step.py` | fix | Added per-output temp artifact naming, stateless background-path flow, char-level fallback wrapping, and fail-fast HTTP download handling |
+| `projects/shorts-maker-v2/tests/unit/test_thumbnail_step.py` | update | Added cleanup, refresh-path, download-failure, and wrapping regression coverage |
 | `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | update | Recorded the new thumbnail hardening task, verification, and follow-up queue |
 
 ### Verification Results
 
-- `venv\Scripts\python.exe -m pytest tests/unit/test_thumbnail_step.py -q -o addopts=` (`projects/shorts-maker-v2`) -> **35 passed, 1 warning**
+- `venv\Scripts\python.exe -m pytest tests/unit/test_thumbnail_step.py -q -o addopts=` (`projects/shorts-maker-v2`) -> **39 passed, 1 warning**
 - `venv\Scripts\python.exe -m ruff check src/shorts_maker_v2/pipeline/thumbnail_step.py tests/unit/test_thumbnail_step.py` (`projects/shorts-maker-v2`) -> clean
-- `venv\Scripts\python.exe -m coverage run --source=src/shorts_maker_v2 -m pytest tests/unit/test_thumbnail_step.py tests/unit/test_caption_pillow.py -q -o addopts=` + `coverage report -m --include="*thumbnail_step.py,*caption_pillow.py"` (`projects/shorts-maker-v2`) -> **38 passed, 1 warning**; isolated report showed `thumbnail_step.py` **78%**
+- `venv\Scripts\python.exe -m coverage run --source=src/shorts_maker_v2 -m pytest tests/unit/test_thumbnail_step.py -q -o addopts=` + `coverage report -m --include="*thumbnail_step.py"` (`projects/shorts-maker-v2`) -> **39 passed, 1 warning**; isolated report showed `thumbnail_step.py` **88%**
 - `venv\Scripts\python.exe -m pytest tests/unit/test_orchestrator_unit.py -k "thumbnail or run_success_path_covers_upload_thumbnail_srt_and_series" -q -o addopts=` (`projects/shorts-maker-v2`) -> **2 passed, 35 deselected, 1 warning**
 
 ## 2026-03-28 | Codex | shorts-maker-v2 MoviePy temp-audio flake hardening

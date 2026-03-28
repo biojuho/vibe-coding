@@ -15,31 +15,38 @@
 - Provider router with Google/OpenAI/other fallbacks
 - Image/video providers such as Pexels, Gemini, DALL-E
 
-## Current Coverage State (2026-03-27)
+## Current Coverage State (2026-03-29)
 
-- Verified V2 package coverage for `src/shorts_maker_v2`: `82%`
-- Verified pipeline-only coverage for `src/shorts_maker_v2/pipeline`: `87%`
-- Key targeted modules:
+- Latest full-package baseline for `src/shorts_maker_v2`: **`91%`**
+  - Verified on `2026-03-28` with `coverage run --source=src/shorts_maker_v2 -m pytest tests/unit tests/integration -q -o addopts=`
+  - Result: `1217 passed, 13 skipped, 1 warning`
+- Key targeted modules already remeasured in the latest uplift:
   - `pipeline/script_step.py`: `93%`
   - `pipeline/orchestrator.py`: `97%`
-  - `pipeline/render_step.py`: `88%`
+  - `pipeline/render_step.py`: `87%`
   - `pipeline/media_step.py`: `90%`
+  - `utils/dashboard.py`: `97%`
+  - `providers/google_music_client.py`: `99%`
+  - `providers/pexels_client.py`: `95%`
+  - `providers/unsplash_client.py`: `100%`
+  - `render/video_renderer.py`: `100%`
+  - `utils/style_tracker.py`: `100%`
+- Thumbnail hardening revalidation on `2026-03-29`:
+  - `tests/unit/test_thumbnail_step.py`: `39 passed, 1 warning`
+  - Isolated `thumbnail_step.py`: `88%`
+  - Thumbnail-focused orchestrator subset: `2 passed, 35 deselected, 1 warning`
 
 ## Important Module Snapshot
 
-- `cli.py`: `65%`
-- `providers/edge_tts_client.py`: `94%`
-- `providers/google_client.py`: `98%`
-- `providers/llm_router.py`: `81%`
-- `providers/pexels_client.py`: `44%`
-- `providers/stock_media_manager.py`: `87%`
-- `render/caption_pillow.py`: `76%`
-- `render/karaoke.py`: `44%`
-- `render/video_renderer.py`: `62%`
-- `utils/content_calendar.py`: `86%`
-- `utils/dashboard.py`: `73%`
-- `utils/media_cache.py`: `84%`
-- `utils/retry.py`: `85%`
+- `pipeline/thumbnail_step.py`
+  - Temp frame / DALL-E / Gemini / Canva artifacts now derive from the final thumbnail filename.
+  - Background-image selection is passed through method calls instead of mutable instance state.
+  - Long single-token titles now fall back to char-level wrapping.
+  - Canva downloads now fail fast on HTTP errors.
+- `render/caption_pillow.py`
+  - Next output-quality follow-up hotspot after the thumbnail pass.
+- `tests/unit/test_tts_providers.py`
+  - Shared `torch` / `torchaudio` MagicMocks are reset per test to reduce cross-test leakage.
 
 ## Test Layout
 
@@ -70,9 +77,13 @@
 - `tests/unit/test_orchestrator_unit.py`
 - `tests/unit/test_render_step.py`
 - `tests/unit/test_media_step_branches.py`
+- `tests/unit/test_thumbnail_step.py`
 
 ## Landmines
 
 - The worktree is very dirty at the monorepo level. Do not revert unrelated files.
 - `pytest-cov` is less reliable here than plain `coverage run` because duplicate root/project paths can confuse path mapping.
+- Duplicate project roots exist on this machine (`projects/shorts-maker-v2` and a legacy root-level copy). Run tests from `projects/shorts-maker-v2`.
+- When `coverage report` shows a direct Windows file path as `0%`, use `coverage report -m --include="*module_name.py"` instead.
+- Thumbnail generation used to create fixed-name temp files in shared output directories; keep temp artifacts derived from the final output stem for repeatability.
 - `tests/legacy/__pycache__/` may still exist as an untracked cache directory, but archived V1 tests are no longer collected by default.

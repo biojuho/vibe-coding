@@ -77,7 +77,7 @@ Vibe coding/
 - The strongest 2026-03-28 non-pipeline coverage gains in `projects/shorts-maker-v2` were `google_music_client.py` **99%**, `pexels_client.py` **95%**, `unsplash_client.py` **100%**, `video_renderer.py` **100%**, and `hwaccel.py` **96%**.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/utils/style_tracker.py`, `providers/chatterbox_client.py`, and `providers/cosyvoice_client.py` now each verify at **100% targeted coverage** on `2026-03-28`.
 - `projects/shorts-maker-v2/tests/unit/test_tts_providers.py` now resets shared `torch` / `torchaudio` MagicMocks per test to reduce cross-test side-effect leakage when expanding provider coverage.
-- The latest hotspot uplift on `2026-03-28` brought `dashboard.py` to **97%**, `qc_step.py` to about **90%**, and `trend_discovery_step.py` to about **85%**; the next notable follow-up remains `thumbnail_step.py` **75%** plus `caption_pillow.py` **83%**.
+- The latest hotspot uplift on `2026-03-28` brought `dashboard.py` to **97%**, `qc_step.py` to about **90%**, and `trend_discovery_step.py` to about **85%**; after the `2026-03-29` thumbnail hardening pass, the next notable follow-up is `caption_pillow.py` plus any remaining thumbnail helper branches.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/render/video_renderer.py` now forces MoviePy temp audio into a per-output unique file on `2026-03-28`, fixing a Windows repeat-run flake where `test_golden_render_moviepy` could die with `PermissionError [WinError 32]` while deleting `golden_moviepyTEMP_MPY_wvf_snd.mp4`.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/thumbnail_step.py` was hardened on `2026-03-29`: temp frame / DALL-E / Gemini / Canva artifacts now derive from the final output filename, background-image selection is no longer stored on mutable instance state, and long single-token titles now fall back to char-level wrapping instead of overflowing the thumbnail canvas.
 
@@ -108,7 +108,7 @@ Vibe coding/
 ## Recent Quality Notes
 
 - `shorts-maker-v2` full `tests/unit + tests/integration` under `coverage run` passed on `2026-03-28` with **1217 passed, 13 skipped, 1 warning** and package-wide coverage at **91%**.
-- `shorts-maker-v2` thumbnail hardening verification on `2026-03-29`: `tests/unit/test_thumbnail_step.py` => **35 passed**, `tests/unit/test_thumbnail_step.py` + `tests/unit/test_caption_pillow.py` under `coverage run` => **38 passed**, and the thumbnail-focused orchestrator subset => **2 passed**.
+- `shorts-maker-v2` thumbnail hardening verification on `2026-03-29`: `tests/unit/test_thumbnail_step.py` => **39 passed**, isolated `coverage run --source=src/shorts_maker_v2 -m pytest tests/unit/test_thumbnail_step.py -q -o addopts=` reports `thumbnail_step.py` at **88%**, and the thumbnail-focused orchestrator subset => **2 passed**.
 - `blind-to-x` has a known env-specific `curl_cffi` CA-path reproducer that is ignored in shared QA/QC.
 - Blind-to-X targeted redesign verification on `2026-03-26`: `103 passed, 1 warning` across the new editorial-filter / draft-fail-closed / few-shot fallback suites.
 - The QA/QC contract uses machine-readable statuses such as `APPROVED`, `CONDITIONALLY_APPROVED`, `REJECTED`, `CLEAR`, and `WARNING`.
