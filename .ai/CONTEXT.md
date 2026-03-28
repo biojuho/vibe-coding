@@ -79,6 +79,7 @@ Vibe coding/
 - `projects/shorts-maker-v2/tests/unit/test_tts_providers.py` now resets shared `torch` / `torchaudio` MagicMocks per test to reduce cross-test side-effect leakage when expanding provider coverage.
 - The latest hotspot uplift on `2026-03-28` brought `dashboard.py` to **97%**, `qc_step.py` to about **90%**, and `trend_discovery_step.py` to about **85%**; the next notable follow-up remains `thumbnail_step.py` **75%** plus `caption_pillow.py` **83%**.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/render/video_renderer.py` now forces MoviePy temp audio into a per-output unique file on `2026-03-28`, fixing a Windows repeat-run flake where `test_golden_render_moviepy` could die with `PermissionError [WinError 32]` while deleting `golden_moviepyTEMP_MPY_wvf_snd.mp4`.
+- `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/thumbnail_step.py` was hardened on `2026-03-29`: temp frame / DALL-E / Gemini / Canva artifacts now derive from the final output filename, background-image selection is no longer stored on mutable instance state, and long single-token titles now fall back to char-level wrapping instead of overflowing the thumbnail canvas.
 
 ## Shared Services
 
@@ -101,11 +102,13 @@ Vibe coding/
 | Shared provider test mocks | `tests/unit/test_tts_providers.py` uses shared module-level MagicMocks for `torch` and `torchaudio`; unreset side effects can bleed across cases and make provider failures look nondeterministic | Reset the shared mocks per test before adding new provider cases, and prefer helper side effects over inline lambdas |
 | Duplicate project roots | Both `projects/shorts-maker-v2` and a legacy root-level `shorts-maker-v2` directory exist on this machine, which can confuse coverage/import collection | Run tests from `projects/shorts-maker-v2` and prefer `coverage run ... -m pytest ... -o addopts=` over `pytest-cov` when measuring targeted module coverage |
 | Coverage report path matching | `coverage report` against a direct Windows source path can sometimes show `0%` unexpectedly even when coverage data exists | When that happens, use `coverage report -m --include="*module_name.py"` instead of a direct file-path report |
+| Thumbnail temp artifact collisions | `shorts-maker-v2` thumbnail generation used to create fixed-name temp files even when the final thumbnail filename was job-specific, so repeated or overlapping runs in one output directory could clobber or reuse stale temp files | Derive thumbnail temp paths from the final output filename (`thumbnail_<job>_*.png/.jpg`) and keep the selected background path local to the current `run()` call |
 | Hanwoo install peers | `projects/hanwoo-dashboard` currently needs `npm install --legacy-peer-deps` because `next-auth@5.0.0-beta.25` does not declare Next 16 peers and Toss types still warn on TypeScript 5.9 | For fresh installs, use `npm install --legacy-peer-deps` until the dependency matrix is aligned |
 
 ## Recent Quality Notes
 
 - `shorts-maker-v2` full `tests/unit + tests/integration` under `coverage run` passed on `2026-03-28` with **1217 passed, 13 skipped, 1 warning** and package-wide coverage at **91%**.
+- `shorts-maker-v2` thumbnail hardening verification on `2026-03-29`: `tests/unit/test_thumbnail_step.py` => **35 passed**, `tests/unit/test_thumbnail_step.py` + `tests/unit/test_caption_pillow.py` under `coverage run` => **38 passed**, and the thumbnail-focused orchestrator subset => **2 passed**.
 - `blind-to-x` has a known env-specific `curl_cffi` CA-path reproducer that is ignored in shared QA/QC.
 - Blind-to-X targeted redesign verification on `2026-03-26`: `103 passed, 1 warning` across the new editorial-filter / draft-fail-closed / few-shot fallback suites.
 - The QA/QC contract uses machine-readable statuses such as `APPROVED`, `CONDITIONALLY_APPROVED`, `REJECTED`, `CLEAR`, and `WARNING`.
