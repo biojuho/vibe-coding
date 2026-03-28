@@ -1,5 +1,39 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-03-28 | Codex | shared QC rerun + dashboard verification recovery
+
+### Work Summary
+
+Re-ran the shared workspace QA/QC entrypoint and reproduced an **`APPROVED`** verdict with `2660 passed, 0 failed, 0 errors, 29 skipped`. Supplemental frontend QC then exposed two gaps outside the shared runner: `knowledge-dashboard` still had lint blockers, and `hanwoo-dashboard` had a broken install tree plus outdated React peers that prevented a clean build.
+
+Fixed the `knowledge-dashboard` issues by moving the memoized grouping logic ahead of the empty-state return and replacing the empty `InputProps` interface with a type alias. On `hanwoo-dashboard`, bumped `lucide-react` to a React 19-compatible release, refreshed dependencies with `npm install --legacy-peer-deps`, regenerated Prisma client outputs through postinstall, and confirmed the app builds again.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `projects/knowledge-dashboard/src/components/ActivityTimeline.tsx` | fix | Resolved the conditional `useMemo` hook call and removed an unused icon import |
+| `projects/knowledge-dashboard/src/components/ui/input.tsx` | fix | Replaced an empty interface declaration with a type alias |
+| `projects/hanwoo-dashboard/package.json` | fix | Bumped `lucide-react` to a React 19-compatible version |
+| `projects/hanwoo-dashboard/package-lock.json` | refresh | Rebuilt the install tree during `npm install --legacy-peer-deps` |
+| `projects/knowledge-dashboard/public/qaqc_result.json` | refresh | Updated with the latest shared QA/QC run |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | update | Recorded the current QC state and follow-up risk |
+
+### Verification Results
+
+- `venv\Scripts\python.exe -X utf8 workspace\execution\qaqc_runner.py` -> **`APPROVED`** / `blind-to-x` **551 passed, 16 skipped** / `shorts-maker-v2` **1075 passed, 12 skipped** / `root` **1034 passed, 1 skipped**
+- `npm run lint` (`projects/knowledge-dashboard`) -> clean
+- `npm run build` (`projects/knowledge-dashboard`) -> pass
+- `npm install --legacy-peer-deps` (`projects/hanwoo-dashboard`) -> pass, Prisma client regenerated
+- `npm run lint` (`projects/hanwoo-dashboard`) -> **1 warning** (`@next/next/no-page-custom-font` in `src/app/layout.js`)
+- `npm run build` (`projects/hanwoo-dashboard`) -> pass
+
+### Notes For Next Agent
+
+- `projects/hanwoo-dashboard` still requires `npm install --legacy-peer-deps` because `next-auth@5.0.0-beta.25` does not declare Next 16 peers, and Toss type packages still warn on TypeScript 5.9.
+- `npm install --legacy-peer-deps` reported **15 vulnerabilities** (8 moderate, 7 high); nothing in `npm audit` was remediated in this session.
+- The only remaining maintained-dashboard QC warning is `@next/next/no-page-custom-font` in `projects/hanwoo-dashboard/src/app/layout.js`.
+
 ## 2026-03-28 | Codex | system-wide QC recovery + shared runner approval
 
 ### 작업 요약

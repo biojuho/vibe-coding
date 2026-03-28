@@ -8,11 +8,11 @@
 |----|------|-------|----------|---------|
 | T-056 | Verify next Blind-to-X scheduled run creates `scheduled_*.log` and reports `LastTaskResult=0` | any | HIGH | 2026-03-26 |
 | T-058 | Investigate and fix `shorts-maker-v2` full-suite order-dependent failure | Claude | HIGH | 2026-03-26 |
-| T-059 | Fix `knowledge-dashboard` lint errors (`ActivityTimeline.tsx`, `ui/input.tsx`) | Codex | HIGH | 2026-03-26 |
 | T-064 | Archive `projects/shorts-maker-v2/tests/legacy` out of pytest discovery after confirming current ShortsFactory fallback needs | any | MEDIUM | 2026-03-27 |
 | T-069 | Broaden `projects/shorts-maker-v2/src/shorts_maker_v2` overall coverage by folding in more existing provider/render suites, then choose the next non-pipeline hotspot | any | HIGH | 2026-03-27 |
 | T-071 | Implement Self-Reflection & Evaluator-Optimizer loop for Code generation | any | HIGH | 2026-03-27 |
 | T-072 | Implement Pydantic Structured Outputs & Security Score for Evaluator | any | HIGH | 2026-03-27 |
+| T-074 | Align `projects/hanwoo-dashboard` dependency peers so plain `npm install` works without `--legacy-peer-deps` | any | MEDIUM | 2026-03-28 |
 
 ## IN_PROGRESS
 
@@ -23,11 +23,11 @@
 
 | ID | Task | Completed By | Completed |
 |----|------|--------------|-----------|
+| T-059 | Fix `knowledge-dashboard` lint errors (`ActivityTimeline.tsx`, `ui/input.tsx`) | Codex | 2026-03-28 |
 | T-057 | Fix blind-to-x false-negative timeout in `workspace/execution/qaqc_runner.py` | Codex | 2026-03-28 |
 | T-073 | Implement LangGraph Evaluator-Optimizer loop for `blind-to-x` Editorial Review | Antigravity | 2026-03-27 |
 | T-070 | Vibe Coding 오픈소스 추론 엔진(LangGraph) 구축 및 QA/QC | Antigravity | 2026-03-27 |
 | T-068 | Raise `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/media_step.py` targeted coverage with branch-heavy tests | Codex | 2026-03-27 |
-| T-067 | Measure aggregate `projects/shorts-maker-v2/src/shorts_maker_v2` coverage after core-module uplift and choose the next hotspot | Codex | 2026-03-27 |
 
 ## Rules
 

@@ -65,6 +65,8 @@ Vibe coding/
 - `projects/blind-to-x/pipeline/draft_generator.py` now honors `llm.cache_db_path` via a persistent `DraftCache` instance so cache behavior is stable across generator instances and tests.
 - Windows Task Scheduler launchers are standardized through ASCII-safe `C:\btx\...` wrappers.
 - Latest shared QC run on `2026-03-28` is **`APPROVED`**: `blind-to-x` 551 passed / 16 skipped, `shorts-maker-v2` 1075 passed / 12 skipped, `root` 1034 passed / 1 skipped, AST 20/20, security `CLEAR`, scheduler `6/6 Ready`.
+- `projects/knowledge-dashboard` frontend QC was repaired on `2026-03-28`: `npm run lint` and `npm run build` are now green after fixing the conditional `useMemo` path in `ActivityTimeline.tsx` and replacing the empty `InputProps` interface with a type alias.
+- `projects/hanwoo-dashboard` frontend QC was revalidated on `2026-03-28`: `npm run build` now passes again after refreshing the install tree with `npm install --legacy-peer-deps`, and `lucide-react` was bumped to a React 19-compatible release; lint still reports one `@next/next/no-page-custom-font` warning in `src/app/layout.js`.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/script_step.py` targeted coverage was raised from 69% to 93% on `2026-03-27` with mock-heavy unit tests for review, verification, retry, and truncation paths.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/orchestrator.py` targeted coverage was raised from 73% to 97% on `2026-03-27` with mock-heavy tests for init paths, optional stages, hold/upload branches, and ShortsFactory/native render routing.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/render_step.py` targeted coverage was raised from 11% to 87% on `2026-03-27` with mocked `run()` happy/fallback flows plus Lyria/local-BGM/thumbnail coverage.
@@ -91,6 +93,7 @@ Vibe coding/
 | Shorts full-suite flakiness | `shorts-maker-v2` can fail on different tests across full-suite reruns while those same tests pass in isolation | Suspect order dependence or leaked global state before editing production code; rerun isolated tests to confirm |
 | Duplicate project roots | Both `projects/shorts-maker-v2` and a legacy root-level `shorts-maker-v2` directory exist on this machine, which can confuse coverage/import collection | Run tests from `projects/shorts-maker-v2` and prefer `coverage run ... -m pytest ... -o addopts=` over `pytest-cov` when measuring targeted module coverage |
 | Coverage report path matching | `coverage report` against a direct Windows source path can sometimes show `0%` unexpectedly even when coverage data exists | When that happens, use `coverage report -m --include="*module_name.py"` instead of a direct file-path report |
+| Hanwoo install peers | `projects/hanwoo-dashboard` currently needs `npm install --legacy-peer-deps` because `next-auth@5.0.0-beta.25` does not declare Next 16 peers and Toss types still warn on TypeScript 5.9 | For fresh installs, use `npm install --legacy-peer-deps` until the dependency matrix is aligned |
 
 ## Recent Quality Notes
 
@@ -101,8 +104,8 @@ Vibe coding/
 - Shared QC verification on `2026-03-28`: **`APPROVED`** with `2660 passed, 0 failed, 0 errors, 29 skipped`.
 - Root QC regressions fixed on `2026-03-28`: optional `langgraph` fallback in `graph_engine.py`, UTF-8-safe subprocess execution in `workers.py`, and false-positive security hits removed from `reasoning_engine.py`.
 - Blind-to-X cache/test contract fixes on `2026-03-28`: `TweetDraftGenerator` now respects `llm.cache_db_path`, and cache/quality-gate tests were updated to the current `reply` + `creator_take` output contract.
-- `knowledge-dashboard` currently fails lint with a conditional `useMemo` hook and an empty interface declaration.
-- `hanwoo-dashboard` lint is green aside from one `@next/next/no-page-custom-font` warning in `src/app/layout.js`.
+- `knowledge-dashboard` frontend verification on `2026-03-28`: `npm run lint` and `npm run build` both pass after fixing the conditional `useMemo` hook path and the empty `InputProps` interface.
+- `hanwoo-dashboard` frontend verification on `2026-03-28`: `npm run lint` reports only one `@next/next/no-page-custom-font` warning in `src/app/layout.js`, and `npm run build` passes after reinstalling with `--legacy-peer-deps` and regenerating Prisma client outputs.
 - `shorts-maker-v2` script-step targeted verification on `2026-03-27`: `29 passed, 1 warning`; `coverage run` reports `script_step.py` at **93%**.
 - `shorts-maker-v2` orchestrator targeted verification on `2026-03-27`: `38 passed, 1 warning`; `coverage run` reports `orchestrator.py` at **97%**.
 - `shorts-maker-v2` render-step targeted verification on `2026-03-27`: `141 passed, 1 warning`; `coverage run` with `coverage report -m --include="*render_step.py"` reports `render_step.py` at **87%**.
