@@ -8,7 +8,7 @@
 |------|------|
 | Date | 2026-03-28 |
 | Tool | Codex |
-| Work | Hardened repeated `shorts-maker-v2` MoviePy golden-render runs on Windows by changing `MoviePyRenderer.write()` to use per-output temp audio files, after reproducing the historical flake as a `PermissionError` in `test_golden_render_moviepy`. |
+| Work | Re-ran `shorts-maker-v2` QC, hardened optional-provider/style coverage tests, and refreshed the package-wide coverage snapshot: `style_tracker.py`, `chatterbox_client.py`, and `cosyvoice_client.py` now each verify at 100% targeted coverage, while the full package stays green at 89% coverage (`1191 passed, 12 skipped`). |
 
 ## Current State
 
@@ -17,11 +17,11 @@
   - `orchestrator.py`: targeted verification `tests/unit/test_orchestrator_unit.py` + `tests/integration/test_orchestrator_manifest.py` => **38 passed, 1 warning**; targeted coverage **97%**
   - `render_step.py`: targeted verification `tests/unit/test_render_step.py` + `tests/unit/test_render_step_phase5.py` + `tests/unit/test_render_quality_controls.py` + `tests/unit/test_render_utils.py` => **141 passed, 1 warning**; targeted coverage **87%**
   - `media_step.py`: targeted verification `tests/unit/test_parallel_media.py` + `tests/unit/test_media_step_branches.py` + `tests/integration/test_media_fallback.py` => **28 passed, 1 warning**; targeted coverage **90%**
-- **shorts-maker-v2 package-wide coverage milestone was exceeded on `2026-03-28`**:
-  - Full verification: `venv\Scripts\python.exe -m coverage run --source=src/shorts_maker_v2 -m pytest tests\unit tests\integration -q -o addopts=` => **1144 passed, 12 skipped, 1 warning**
-  - Full package report: `coverage report -m` => `src/shorts_maker_v2` **87% total coverage** (`8046 stmts / 1016 miss`)
-  - Newly uplifted modules: `google_music_client.py` **99%**, `pexels_client.py` **95%**, `unsplash_client.py` **100%**, `video_renderer.py` **100%**, `hwaccel.py` **96%**
-  - The next low non-pipeline cluster after this milestone is `style_tracker.py` **54%** plus optional-provider clients `chatterbox_client.py` **49%** and `cosyvoice_client.py` **53%**
+- **shorts-maker-v2 package-wide coverage milestone was further extended on `2026-03-28`**:
+  - Full verification: `venv\Scripts\python.exe -m coverage run --source=src/shorts_maker_v2 -m pytest tests\unit tests\integration -q -o addopts=` => **1191 passed, 12 skipped, 1 warning**
+  - Full package report: `coverage report -m` => `src/shorts_maker_v2` **89% total coverage** (`8050 stmts / 867 miss`)
+  - Newly uplifted modules from the broader provider/render sweep remain `google_music_client.py` **99%**, `pexels_client.py` **95%**, `unsplash_client.py` **100%**, `video_renderer.py` **100%**, and `hwaccel.py` **96%**
+  - The next remaining package hotspots after the optional-provider/style cluster are `qc_step.py` **71%**, `trend_discovery_step.py` **71%**, `dashboard.py` **73%**, and `thumbnail_step.py` **75%**
 - **shorts-maker-v2 repeatability sweep on `2026-03-28`**:
   - `tests/integration/test_golden_render.py::test_golden_render_moviepy` failed once after 4 clean isolated reruns with `PermissionError: [WinError 32]` while MoviePy tried to delete `golden_moviepyTEMP_MPY_wvf_snd.mp4`
   - Root cause: `MoviePyRenderer.write()` let MoviePy create a fixed-name temp audio file in the current working directory, so repeated Windows runs could collide with a still-open handle
@@ -29,11 +29,11 @@
   - Regression checks after the fix: `tests/unit/test_video_renderer.py` => **56 passed**, `test_golden_render_moviepy` repeated **5/5 passed**, full `tests/unit + tests/integration` => **1144 passed, 12 skipped, 1 warning**
 - **Shared quality context**:
   - Latest shared QC run on `2026-03-28` is **`APPROVED`**
-  - Totals: **2660 passed, 0 failed, 0 errors, 29 skipped**
+  - Totals: **2741 passed, 0 failed, 0 errors, 30 skipped**
   - Project breakdown:
-    - `blind-to-x`: **551 passed, 0 failed, 16 skipped**
-    - `shorts-maker-v2`: **1075 passed, 0 failed, 12 skipped**
-    - `root`: **1034 passed, 0 failed, 1 skipped**
+    - `blind-to-x`: **552 passed, 0 failed, 16 skipped**
+    - `shorts-maker-v2`: **1177 passed, 0 failed, 13 skipped** (89% coverage)
+    - `root`: **1012 passed, 0 failed, 1 skipped**
   - `workspace/execution/qaqc_runner.py` splits `blind-to-x` into unit/integration runs and uses a 900s budget, removing the prior false timeout
 - **Maintained dashboard verification on `2026-03-28`**:
   - `knowledge-dashboard`: `npm run lint` and `npm run build` both pass after fixing the conditional `useMemo` path in `ActivityTimeline.tsx` and replacing the empty `InputProps` interface with a type alias
@@ -44,16 +44,26 @@
   - Targeted verification: `venv\Scripts\python.exe -m ruff check workspace\execution\graph_engine.py workspace\execution\workers.py workspace\tests\test_graph_engine.py` => **clean**
   - Targeted verification: `venv\Scripts\python.exe -m pytest workspace\tests\test_graph_engine.py -q -o addopts=` => **34 passed**
 
+- **shorts-maker-v2 test isolation fix on `2026-03-28`**:
+  - Root cause of order-dependent flakiness: 5 module-level singletons/caches persisted across tests
+  - Fix: `tests/conftest.py` now has 5 `autouse` fixtures resetting `channel_router._router_singleton`, `hwaccel.detect_hw_encoder`/`detect_gpu_info` LRU caches, `llm_router._bridge_cache`, `cosyvoice_client._model_cache`, `chatterbox_client._model_cache`
+  - Verified with full-suite (1177 passed) and 50-test shuffled order (all passed)
+- **shorts-maker-v2 non-pipeline coverage uplift on `2026-03-28`**:
+  - `style_tracker.py`, `chatterbox_client.py`, and `cosyvoice_client.py` now each verify at **100% targeted coverage** after the latest focused test pass
+  - `tests/unit/test_tts_providers.py` now resets the shared `torch` / `torchaudio` MagicMocks per test, reducing side-effect leakage risk before the full suite rerun
+  - Package total remains **89%**, and the latest dedicated full-package rerun reports **1191 passed, 12 skipped, 1 warning**
+
 ## Next Priorities
 
-1. T-056: verify the next Blind-to-X scheduled run creates `scheduled_*.log` and reports `LastTaskResult=0`
-2. T-075: raise the next non-pipeline `shorts-maker-v2` coverage cluster (`style_tracker`, `chatterbox_client`, `cosyvoice_client`)
-3. Re-run shared QC after the next substantial `shorts-maker-v2` or dashboard change to ensure the new MoviePy temp-audio behavior stays green in the broader workspace runner
+1. T-078: raise the next `shorts-maker-v2` package hotspots after the 89% milestone (`qc_step.py`, `trend_discovery_step.py`, `dashboard.py`, `thumbnail_step.py`)
+2. Re-run shared QC after the next substantial workspace change; the latest local `shorts-maker-v2` full-package coverage run is green at **1191 passed, 12 skipped**
+3. Potential follow-up: `hanwoo-dashboard` npm audit remediation (15 vulnerabilities reported)
 
 ## Notes
 
 - `pytest-cov` can fail on this machine for targeted `shorts-maker-v2` coverage with `ImportError: cannot load module more than once per process`; `coverage run` is the reliable fallback.
 - On this Windows machine, `coverage report` against a direct source path can sometimes show `0%` unexpectedly for `render_step.py`; `coverage report -m --include="*render_step.py"` is the reliable report pattern when that happens.
+- `tests/unit/test_tts_providers.py` uses shared module-level MagicMocks for `torch` / `torchaudio`; keep resetting them per test when adding cases, or side effects can leak across provider scenarios.
 - `shorts-maker-v2` repeatability is materially better after the `MoviePyRenderer.write()` temp-audio fix: the previously flaky `test_golden_render_moviepy` now passes 5 isolated reruns, and the full suite still passes end-to-end.
 - `blind-to-x` draft-generation mocks in tests now need the current output contract: `twitter` responses should include `reply` and `creator_take` tags when validated via `generate_drafts()`.
 - `hanwoo-dashboard` currently installs cleanly only with `npm install --legacy-peer-deps`; the remaining blocker is peer-range drift (`next-auth@5.0.0-beta.25` vs Next 16, plus Toss type-package TypeScript peer warnings).

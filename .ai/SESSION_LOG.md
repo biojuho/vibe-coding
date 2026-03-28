@@ -154,3 +154,33 @@ Fixed the `knowledge-dashboard` issues by moving the memoized grouping logic ahe
 - Shared QC blocker였던 T-057은 해결됨. 다음 우선순위는 `T-059 knowledge-dashboard lint`, `T-058 shorts-maker-v2 order-dependent full-suite failure`, `T-071/T-072 evaluator work`.
 - `blind-to-x` draft-generation 테스트를 추가할 때는 provider mock이 `<twitter>`, `<reply>`, `<creator_take>`를 함께 반환해야 현재 validation contract를 통과한다.
 - `workspace/execution/graph_engine.py`와 `projects/blind-to-x/pipeline/editorial_reviewer.py`는 `langgraph`가 없어도 테스트/기본 실행이 가능하지만, 실제 LangGraph 기능이 필요한 확장 작업에서는 설치 환경 여부를 다시 확인하는 편이 안전하다.
+
+## 2026-03-28 | Codex | shorts-maker-v2 T-075 revalidation + targeted coverage hardening
+
+### Work Summary
+
+사용자 요청대로 `shorts-maker-v2` QC를 다시 확인한 뒤, optional-provider/style 클러스터를 한 번 더 정리했다. `tests/unit/test_tts_providers.py`에 shared `torch` / `torchaudio` MagicMock reset을 넣어 테스트 격리를 강화했고, `chatterbox_client.py`, `cosyvoice_client.py`, `style_tracker.py`의 남은 분기를 직접 치는 케이스를 추가했다.
+
+그 결과 targeted coverage는 세 모듈 모두 100%까지 올라갔고, 전체 패키지 `coverage run`도 다시 녹색으로 확인됐다. 최신 전체 리포트는 `projects/shorts-maker-v2/.coverage_latest_report.txt`로 갱신했다.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `projects/shorts-maker-v2/tests/unit/test_tts_providers.py` | test | Shared mock reset 추가, optional-provider success/import/MP3 fallback/word timing branches 보강 |
+| `projects/shorts-maker-v2/tests/unit/test_style_tracker.py` | test | 기본 DB path와 `_ensure_db` double-check path 등 남은 style tracker 분기 보강 |
+| `projects/shorts-maker-v2/.coverage_latest_report.txt` | refresh | 최신 full-package coverage report 저장 |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | update | 현재 QC/coverage 상태와 다음 coverage 후보 반영 |
+
+### Verification Results
+
+- `venv\Scripts\python.exe -m ruff check tests\unit\test_tts_providers.py tests\unit\test_style_tracker.py` (`projects/shorts-maker-v2`) -> clean
+- `venv\Scripts\python.exe -m pytest tests\unit\test_style_tracker.py tests\unit\test_tts_providers.py -q -o addopts=` (`projects/shorts-maker-v2`) -> **64 passed, 1 warning**
+- `venv\Scripts\python.exe -m coverage run --source=src/shorts_maker_v2 -m pytest tests\unit\test_style_tracker.py tests\unit\test_tts_providers.py -q -o addopts=` + `coverage report -m --include="*style_tracker.py,*chatterbox_client.py,*cosyvoice_client.py"` -> **세 모듈 모두 100%**
+- `venv\Scripts\python.exe -m coverage run --source=src/shorts_maker_v2 -m pytest tests\unit tests\integration -q -o addopts=` (`projects/shorts-maker-v2`) -> **1191 passed, 12 skipped, 1 warning**
+- `venv\Scripts\python.exe -m coverage report -m` (`projects/shorts-maker-v2`) -> `src/shorts_maker_v2` **89% total coverage** (`8050 stmts / 867 miss`)
+
+### Notes For Next Agent
+
+- `tests/unit/test_tts_providers.py`는 module-level MagicMock을 공유하므로, 새 케이스를 추가할 때도 per-test reset 패턴을 유지하는 편이 안전하다.
+- 다음 `shorts-maker-v2` coverage 후보는 `qc_step.py` 71%, `trend_discovery_step.py` 71%, `dashboard.py` 73%, `thumbnail_step.py` 75%다.

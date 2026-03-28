@@ -6,7 +6,7 @@
 
 | ID | Task | Owner | Priority | Created |
 |----|------|-------|----------|---------|
-| T-075 | Raise the next non-pipeline `shorts-maker-v2` coverage cluster after the 87% package milestone (`style_tracker`, `chatterbox_client`, `cosyvoice_client`) | any | MEDIUM | 2026-03-28 |
+| T-078 | Raise the next `shorts-maker-v2` package hotspots after the 89% milestone (`qc_step`, `trend_discovery_step`, `thumbnail_step`, `utils/dashboard`) | any | MEDIUM | 2026-03-28 |
 
 ## IN_PROGRESS
 
@@ -17,11 +17,11 @@
 
 | ID | Task | Completed By | Completed |
 |----|------|--------------|-----------|
-| T-076 | Harden repeated `shorts-maker-v2` MoviePy golden-render cleanup on Windows by isolating temp audio files per output path | Codex | 2026-03-28 |
-| T-058 | Fix `shorts-maker-v2` full-suite order-dependent failure via autouse fixtures that isolate global singletons/caches in `conftest.py` | Claude | 2026-03-28 |
-| T-056 | Verify Blind-to-X scheduled run and confirm all 6 tasks report `LastTaskResult=0` with continuous logs since 2026-03-09 | Claude | 2026-03-28 |
-| T-069 | Broaden `projects/shorts-maker-v2/src/shorts_maker_v2` overall coverage by folding in more existing provider/render suites, then choose the next non-pipeline hotspot | Codex | 2026-03-28 |
-| T-072 | Implement Pydantic Structured Outputs & Security Score for Evaluator | Codex | 2026-03-28 |
+| T-077 | Shared QC APPROVED: 2741 passed, 0 failed, 30 skipped (blind-to-x 552, shorts-maker-v2 1177, root 1012) | Claude | 2026-03-28 |
+| T-075 | Raise `shorts-maker-v2` non-pipeline coverage: `style_tracker` / `chatterbox_client` / `cosyvoice_client` now 100% targeted, package total 85→89% | Claude+Codex | 2026-03-28 |
+| T-076 | Harden `shorts-maker-v2` MoviePy golden-render cleanup on Windows | Codex | 2026-03-28 |
+| T-058 | Fix `shorts-maker-v2` full-suite order-dependent failure via autouse fixtures | Claude | 2026-03-28 |
+| T-056 | Verify Blind-to-X scheduled run — all 6 tasks `LastTaskResult=0` | Claude | 2026-03-28 |
 
 ## Rules
 
