@@ -1,5 +1,35 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-03-28 | Codex | shorts-maker-v2 coverage expansion to 87%
+
+### Work Summary
+
+Closed `T-069` by extending existing `shorts-maker-v2` provider/render coverage suites and then widening the next non-pipeline hotspot.
+
+- Expanded `tests/unit/test_google_music_client.py` to cover env/bootstrap validation, async stream handling, WAV/MP3 output branches, and ffmpeg transcode failures.
+- Expanded `tests/unit/test_video_renderer.py` to cover both MoviePy and FFmpeg renderer load/composition/transform/write paths, including native-path normalization and cleanup behavior.
+- Expanded `tests/unit/test_stock_media_manager.py` to cover direct `PexelsClient` and `UnsplashClient` download/stream/crop branches instead of only manager-level fallback behavior.
+- Rebuilt `tests/unit/test_hwaccel.py` to cover encoder discovery helpers, decode-parameter mapping, GPU info inspection, and encode-path fallbacks.
+- Re-ran the full `tests/unit + tests/integration` suite under `coverage run`, updated `projects/shorts-maker-v2/.coverage_latest_report.txt`, and confirmed the package-wide coverage milestone now exceeds the previous long-term target.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `projects/shorts-maker-v2/tests/unit/test_google_music_client.py` | expand | Added async/live-session, validation, transcode, and env-path coverage |
+| `projects/shorts-maker-v2/tests/unit/test_video_renderer.py` | expand | Added MoviePy and FFmpeg backend branch coverage for load/compose/transform/write helpers |
+| `projects/shorts-maker-v2/tests/unit/test_stock_media_manager.py` | expand | Added direct provider download, stream, and crop branch tests for Pexels and Unsplash |
+| `projects/shorts-maker-v2/tests/unit/test_hwaccel.py` | rewrite | Added coverage for encoder probing, GPU/decode helpers, and fallback behavior |
+| `projects/shorts-maker-v2/.coverage_latest_report.txt` | refresh | Updated from the latest full-package `coverage report -m` run |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | update | Recorded T-069 completion, the 87% package milestone, and the next coverage cluster |
+
+### Verification Results
+
+- `venv\Scripts\python.exe -m ruff check tests\unit\test_google_music_client.py tests\unit\test_video_renderer.py tests\unit\test_stock_media_manager.py tests\unit\test_hwaccel.py` (`projects/shorts-maker-v2`) -> clean
+- `venv\Scripts\python.exe -m pytest tests\unit\test_google_music_client.py tests\unit\test_video_renderer.py tests\unit\test_stock_media_manager.py tests\unit\test_hwaccel.py -q -o addopts=` (`projects/shorts-maker-v2`) -> **132 passed, 1 warning**
+- `venv\Scripts\python.exe -m coverage run --source=src/shorts_maker_v2 -m pytest tests\unit tests\integration -q -o addopts=` (`projects/shorts-maker-v2`) -> **1144 passed, 12 skipped, 1 warning**
+- `venv\Scripts\python.exe -m coverage report -m` (`projects/shorts-maker-v2`) -> `src/shorts_maker_v2` **87%** total coverage
+
 ## 2026-03-28 | Codex | graph_engine self-reflection loop + structured reviewer scoring
 
 ### Work Summary

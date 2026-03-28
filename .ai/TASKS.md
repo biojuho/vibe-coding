@@ -8,7 +8,7 @@
 |----|------|-------|----------|---------|
 | T-056 | Verify next Blind-to-X scheduled run creates `scheduled_*.log` and reports `LastTaskResult=0` | any | HIGH | 2026-03-26 |
 | T-058 | Investigate and fix `shorts-maker-v2` full-suite order-dependent failure | Claude | HIGH | 2026-03-26 |
-| T-069 | Broaden `projects/shorts-maker-v2/src/shorts_maker_v2` overall coverage by folding in more existing provider/render suites, then choose the next non-pipeline hotspot | any | HIGH | 2026-03-27 |
+| T-075 | Raise the next non-pipeline `shorts-maker-v2` coverage cluster after the 87% package milestone (`style_tracker`, `chatterbox_client`, `cosyvoice_client`) | any | MEDIUM | 2026-03-28 |
 
 ## IN_PROGRESS
 
@@ -19,11 +19,11 @@
 
 | ID | Task | Completed By | Completed |
 |----|------|--------------|-----------|
+| T-069 | Broaden `projects/shorts-maker-v2/src/shorts_maker_v2` overall coverage by folding in more existing provider/render suites, then choose the next non-pipeline hotspot | Codex | 2026-03-28 |
 | T-072 | Implement Pydantic Structured Outputs & Security Score for Evaluator | Codex | 2026-03-28 |
 | T-071 | Implement Self-Reflection & Evaluator-Optimizer loop for Code generation | Codex | 2026-03-28 |
 | T-074 | Align `projects/hanwoo-dashboard` dependency peers so plain `npm install` works without `--legacy-peer-deps` | Antigravity | 2026-03-28 |
 | T-064 | Archive `projects/shorts-maker-v2/tests/legacy` out of pytest discovery after confirming current ShortsFactory fallback needs | Antigravity | 2026-03-28 |
-| T-059 | Fix `knowledge-dashboard` lint errors (`ActivityTimeline.tsx`, `ui/input.tsx`) | Codex | 2026-03-28 |
 
 ## Rules
 
