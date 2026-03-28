@@ -348,10 +348,12 @@ def test_run_uses_first_image_scene_asset_as_bg(tmp_path: Path) -> None:
     mock_asset.visual_path = str(bg_path)
 
     step = _make_step(mode="pillow")
-    result = step.run("배경 씬 테스트", tmp_path, scene_assets=[mock_asset])
+    with patch("shorts_maker_v2.pipeline.thumbnail_step._generate_pillow_thumbnail") as generate:
+        generate.return_value = tmp_path / "thumbnail.png"
+        result = step.run("배경 씬 테스트", tmp_path, scene_assets=[mock_asset])
 
     assert result is not None
-    assert step._bg_image_path == str(bg_path)
+    assert generate.call_args.kwargs["bg_image_path"] == str(bg_path)
 
 
 def test_run_skips_missing_visual_path_asset(tmp_path: Path) -> None:
@@ -359,7 +361,76 @@ def test_run_skips_missing_visual_path_asset(tmp_path: Path) -> None:
     mock_asset.visual_path = str(tmp_path / "nonexistent.png")
 
     step = _make_step(mode="pillow")
-    result = step.run("누락 경로 테스트", tmp_path, scene_assets=[mock_asset])
+    with patch("shorts_maker_v2.pipeline.thumbnail_step._generate_pillow_thumbnail") as generate:
+        generate.return_value = tmp_path / "thumbnail.png"
+        result = step.run("누락 경로 테스트", tmp_path, scene_assets=[mock_asset])
 
     assert result is not None
-    assert step._bg_image_path is None
+    assert generate.call_args.kwargs["bg_image_path"] is None
+
+
+def test_wrap_text_long_single_token_uses_char_level_wrap() -> None:
+    from PIL import Image, ImageDraw, ImageFont
+
+    img = Image.new("RGB", (160, 200))
+    draw = ImageDraw.Draw(img)
+    font = ImageFont.load_default()
+
+    result = _wrap_text("A" * 32, font, draw, max_width=20)
+
+    assert len(result) > 1
+    assert "".join(result) == "A" * 32
+
+
+def test_run_dalle_cleans_up_unique_temp_bg(tmp_path: Path) -> None:
+    mock_openai = MagicMock()
+
+    def fake_generate_image(*, model, prompt, size, quality, output_path):
+        from PIL import Image
+
+        Image.new("RGB", (100, 178), color=(50, 50, 50)).save(str(output_path), "PNG")
+
+    mock_openai.generate_image.side_effect = fake_generate_image
+
+    step = _make_step(mode="dalle", openai_client=mock_openai)
+    result = step.run("temp bg cleanup", tmp_path, topic="AI", channel_key="ai_tech", job_id="job42")
+
+    assert result is not None
+    assert not (tmp_path / "thumbnail_job42_dalle_bg.png").exists()
+
+
+def test_run_gemini_cleans_up_unique_temp_bg(tmp_path: Path) -> None:
+    mock_google = MagicMock()
+
+    def fake_generate_image(*, prompt, output_path, aspect_ratio):
+        from PIL import Image
+
+        Image.new("RGB", (100, 178), color=(70, 100, 120)).save(str(output_path), "PNG")
+
+    mock_google.generate_image.side_effect = fake_generate_image
+
+    step = _make_step(mode="gemini", google_client=mock_google)
+    result = step.run("temp bg cleanup", tmp_path, topic="space", channel_key="space", job_id="job42")
+
+    assert result is not None
+    assert not (tmp_path / "thumbnail_job42_gemini_bg.png").exists()
+
+
+def test_run_canva_cleans_up_unique_temp_bg(tmp_path: Path) -> None:
+    step = _make_step(mode="canva", canva_enabled=True, canva_design_id="design123")
+
+    def fake_download(url: str, output_path: Path) -> Path:
+        from PIL import Image
+
+        Image.new("RGB", (100, 178), color=(90, 90, 90)).save(str(output_path), "PNG")
+        return output_path
+
+    with (
+        patch("shorts_maker_v2.pipeline.thumbnail_step._get_access_token", return_value="token"),
+        patch("shorts_maker_v2.pipeline.thumbnail_step._export_design", return_value="https://example.com/thumb.png"),
+        patch("shorts_maker_v2.pipeline.thumbnail_step._http_download", side_effect=fake_download),
+    ):
+        result = step.run("temp bg cleanup", tmp_path, job_id="job42")
+
+    assert result is not None
+    assert not (tmp_path / "thumbnail_job42_canva_base.png").exists()

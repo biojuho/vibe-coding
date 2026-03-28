@@ -233,6 +233,26 @@ def _load_font_for_thumb(size: int):
     return ImageFont.load_default()
 
 
+def _text_width(text: str, font, draw) -> int:
+    bbox = draw.textbbox((0, 0), text, font=font)
+    return bbox[2] - bbox[0]
+
+
+def _char_level_wrap_text(text: str, font, draw, max_width: int) -> list[str]:
+    lines: list[str] = []
+    current = ""
+    for char in text:
+        candidate = current + char
+        if not current or _text_width(candidate, font, draw) <= max_width:
+            current = candidate
+            continue
+        lines.append(current)
+        current = char
+    if current:
+        lines.append(current)
+    return lines or [text]
+
+
 def _wrap_text(text: str, font, draw, max_width: int) -> list[str]:
     """텍스트를 max_width에 맞게 자동 줄바꿈."""
     words = text.split()
@@ -241,9 +261,14 @@ def _wrap_text(text: str, font, draw, max_width: int) -> list[str]:
     lines: list[str] = []
     current = ""
     for word in words:
+        if _text_width(word, font, draw) > max_width:
+            if current:
+                lines.append(current)
+                current = ""
+            lines.extend(_char_level_wrap_text(word, font, draw, max_width))
+            continue
         test = (current + " " + word).strip()
-        bbox = draw.textbbox((0, 0), test, font=font)
-        if bbox[2] - bbox[0] <= max_width:
+        if _text_width(test, font, draw) <= max_width:
             current = test
         else:
             if current:
@@ -353,6 +378,11 @@ def _pillow_gradient_bg(w: int, h: int):
     return Image.fromarray(gradient)
 
 
+def _temp_artifact_path(output_path: Path, label: str, suffix: str) -> Path:
+    """Build a temp artifact path derived from the final output name."""
+    return output_path.with_name(f"{output_path.stem}_{label}{suffix}")
+
+
 # ── ThumbnailStep ─────────────────────────────────────────────────────────────
 
 
@@ -391,9 +421,10 @@ class ThumbnailStep:
         mode = self.thumbnail_config.mode
         thumb_filename = f"thumbnail_{job_id}.png" if job_id else "thumbnail.png"
         output_path = output_dir / thumb_filename
+        bg_image_path = None
+        cleanup_paths: list[Path] = []
 
         # 첫 씬 비주얼 경로 추출 (이미지 또는 영상 프레임)
-        self._bg_image_path = None
         if scene_assets:
             for asset in scene_assets:
                 vp = getattr(asset, "visual_path", None)
@@ -401,18 +432,19 @@ class ThumbnailStep:
                     continue
                 ext = Path(vp).suffix.lower()
                 if ext in (".png", ".jpg", ".jpeg", ".webp"):
-                    self._bg_image_path = vp
+                    bg_image_path = vp
                     break
                 if ext in (".mp4", ".webm", ".mov"):
                     # 영상에서 1초 지점 프레임 추출
                     try:
                         from moviepy import VideoFileClip
 
-                        frame_path = output_dir / "thumb_frame.jpg"
+                        frame_path = _temp_artifact_path(output_path, "frame", ".jpg")
                         with VideoFileClip(vp) as clip:
                             t = min(1.0, clip.duration * 0.3)
                             clip.save_frame(str(frame_path), t=t)
-                        self._bg_image_path = str(frame_path)
+                        bg_image_path = str(frame_path)
+                        cleanup_paths.append(frame_path)
                         break
                     except Exception:
                         continue
@@ -421,30 +453,33 @@ class ThumbnailStep:
             if mode == "none":
                 return None
             if mode == "pillow":
-                return self._run_pillow(title, output_path)
+                return self._run_pillow(title, output_path, bg_image_path=bg_image_path)
             if mode == "dalle":
-                return self._run_dalle(title, topic, output_path, channel_key)
+                return self._run_dalle(title, topic, output_path, channel_key, bg_image_path=bg_image_path)
             if mode == "gemini":
-                return self._run_gemini(title, topic, output_path, channel_key)
+                return self._run_gemini(title, topic, output_path, channel_key, bg_image_path=bg_image_path)
             if mode == "canva":
-                return self._run_canva(title, output_dir, output_path)
+                return self._run_canva(title, output_dir, output_path, bg_image_path=bg_image_path)
             # 알 수 없는 모드 → pillow 폴백
             logger.warning("[Thumbnail] 알 수 없는 mode='%s', Pillow로 폴백", mode)
-            return self._run_pillow(title, output_path)
+            return self._run_pillow(title, output_path, bg_image_path=bg_image_path)
         except Exception as exc:
             logger.error("[Thumbnail] 생성 실패 (건너뜀): %s", exc)
             return None
+        finally:
+            for cleanup_path in cleanup_paths:
+                cleanup_path.unlink(missing_ok=True)
 
     # ── 내부 모드 구현 ───────────────────────────────────────────────────────
 
-    def _run_pillow(self, title: str, output_path: Path) -> str | None:
+    def _run_pillow(self, title: str, output_path: Path, bg_image_path: str | None = None) -> str | None:
         clean_title = _sanitize_title(title)
         if len(clean_title) > 15:
             print(f"[Thumbnail] WARNING: 제목 {len(clean_title)}자 — 15자 이하 권장 (모바일 가독성)")
         result = _generate_pillow_thumbnail(
             title,
             output_path,
-            bg_image_path=getattr(self, "_bg_image_path", None),
+            bg_image_path=bg_image_path,
         )
         print(f"[Thumbnail] Pillow 썸네일 저장: {result}")
         return result.resolve().as_posix()
@@ -473,10 +508,11 @@ class ThumbnailStep:
         topic: str,
         output_path: Path,
         channel_key: str = "",
+        bg_image_path: str | None = None,
     ) -> str | None:
         if not self.openai_client:
             logger.warning("[Thumbnail] DALL-E 모드지만 openai_client 없음 → Pillow 폴백")
-            return self._run_pillow(title, output_path)
+            return self._run_pillow(title, output_path, bg_image_path=bg_image_path)
 
         dalle_prompt = self._resolve_ai_prompt(
             topic,
@@ -486,18 +522,20 @@ class ThumbnailStep:
         )
         logger.info("[Thumbnail] DALL-E prompt (channel=%s): %.80s...", channel_key or "default", dalle_prompt)
 
-        bg_path = output_path.parent / "thumbnail_dalle_bg.png"
-        self.openai_client.generate_image(
-            model="dall-e-3",
-            prompt=dalle_prompt,
-            size="1024x1792",
-            quality="standard",
-            output_path=bg_path,
-        )
-        _overlay_title(bg_path, _sanitize_title(title), output_path)
-        bg_path.unlink(missing_ok=True)
-        logger.info("[Thumbnail] DALL-E 썸네일 저장: %s", output_path)
-        return output_path.resolve().as_posix()
+        bg_path = _temp_artifact_path(output_path, "dalle_bg", ".png")
+        try:
+            self.openai_client.generate_image(
+                model="dall-e-3",
+                prompt=dalle_prompt,
+                size="1024x1792",
+                quality="standard",
+                output_path=bg_path,
+            )
+            _overlay_title(bg_path, _sanitize_title(title), output_path)
+            logger.info("[Thumbnail] DALL-E 썸네일 저장: %s", output_path)
+            return output_path.resolve().as_posix()
+        finally:
+            bg_path.unlink(missing_ok=True)
 
     def _run_gemini(
         self,
@@ -505,11 +543,12 @@ class ThumbnailStep:
         topic: str,
         output_path: Path,
         channel_key: str = "",
+        bg_image_path: str | None = None,
     ) -> str | None:
         """Gemini Imagen 3 API로 썸네일 생성 (무료 tier)."""
         if not self.google_client:
             logger.warning("[Thumbnail] Gemini 모드지만 google_client 없음 → DALL-E 폴백")
-            return self._run_dalle(title, topic, output_path, channel_key)
+            return self._run_dalle(title, topic, output_path, channel_key, bg_image_path=bg_image_path)
 
         gemini_prompt = self._resolve_ai_prompt(
             topic,
@@ -519,7 +558,7 @@ class ThumbnailStep:
         )
         logger.info("[Thumbnail] Gemini prompt (channel=%s): %.80s...", channel_key or "default", gemini_prompt)
 
-        bg_path = output_path.parent / "thumbnail_gemini_bg.png"
+        bg_path = _temp_artifact_path(output_path, "gemini_bg", ".png")
         try:
             self.google_client.generate_image(
                 prompt=gemini_prompt,
@@ -528,20 +567,28 @@ class ThumbnailStep:
             )
         except Exception as exc:
             logger.warning("[Thumbnail] Gemini Imagen 실패 → DALL-E 폴백: %s", exc)
-            return self._run_dalle(title, topic, output_path, channel_key)
+            return self._run_dalle(title, topic, output_path, channel_key, bg_image_path=bg_image_path)
 
-        _overlay_title(bg_path, _sanitize_title(title), output_path)
-        bg_path.unlink(missing_ok=True)
-        logger.info("[Thumbnail] Gemini 썸네일 저장: %s", output_path)
-        return output_path.resolve().as_posix()
+        try:
+            _overlay_title(bg_path, _sanitize_title(title), output_path)
+            logger.info("[Thumbnail] Gemini 썸네일 저장: %s", output_path)
+            return output_path.resolve().as_posix()
+        finally:
+            bg_path.unlink(missing_ok=True)
 
-    def _run_canva(self, title: str, output_dir: Path, output_path: Path) -> str | None:
+    def _run_canva(
+        self,
+        title: str,
+        output_dir: Path,
+        output_path: Path,
+        bg_image_path: str | None = None,
+    ) -> str | None:
         if not self.canva_config.enabled or not self.canva_config.design_id:
             print("[Thumbnail] Canva 모드지만 설정 없음 → Pillow 폴백")
-            return self._run_pillow(title, output_path)
+            return self._run_pillow(title, output_path, bg_image_path=bg_image_path)
 
         token = _get_access_token(self.token_file)
-        tmp_path = output_dir / "thumbnail_base.png"
+        tmp_path = _temp_artifact_path(output_path, "canva_base", ".png")
 
         try:
             download_url = _export_design(self.canva_config.design_id, token)
@@ -553,8 +600,10 @@ class ThumbnailStep:
             else:
                 raise
 
-        _http_download(download_url, tmp_path)
-        _overlay_title(tmp_path, _sanitize_title(title), output_path)
-        tmp_path.unlink(missing_ok=True)
-        print(f"[Canva] 썸네일 저장: {output_path}")
-        return output_path.resolve().as_posix()
+        try:
+            _http_download(download_url, tmp_path)
+            _overlay_title(tmp_path, _sanitize_title(title), output_path)
+            print(f"[Canva] 썸네일 저장: {output_path}")
+            return output_path.resolve().as_posix()
+        finally:
+            tmp_path.unlink(missing_ok=True)
