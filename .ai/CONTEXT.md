@@ -60,6 +60,7 @@ Vibe coding/
 - QA/QC output is now expected at `projects/knowledge-dashboard/public/qaqc_result.json`.
 - Blind-to-X scheduled entrypoints and n8n bridge defaults now target canonical paths: `projects/blind-to-x` and `workspace/execution`.
 - `projects/blind-to-x` now applies X-first editorial filtering (`pre_editorial_score`), fail-closed draft generation, and few-shot fallback (`performance -> approved -> YAML`) after the 2026-03-26 curation redesign.
+- `projects/blind-to-x/docs/external-review/` now contains a reusable outside-LLM review pack with a project brief, share checklist, prompt templates, file manifest, and anonymized sample-case template; a local share-ready mirror lives at `.tmp/blind-to-x-external-review/` plus `.tmp/blind-to-x-external-review.zip`.
 - `workspace/execution/qaqc_runner.py` now runs `blind-to-x` as split unit/integration batches with a 900s timeout budget, fixing the previous false timeout in shared QC.
 - `workspace/execution/graph_engine.py` and `projects/blind-to-x/pipeline/editorial_reviewer.py` now degrade gracefully when `langgraph` is not installed by using local fallback orchestration.
 - `workspace/execution/graph_engine.py` now carries evaluator self-reflection between iterations and weights the latest review security score into final confidence instead of averaging every historical worker result.

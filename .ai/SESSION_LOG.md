@@ -1,5 +1,34 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-03-29 | Codex | blind-to-x external LLM review pack
+
+### Work Summary
+
+Prepared a reusable external-review package for `projects/blind-to-x` so the project can be shared with outside LLMs for both structural and content-quality critique without dumping the whole repo or leaking secrets.
+
+- Added `projects/blind-to-x/docs/external-review/README.md` to define the review-pack purpose, share order, recommended file bundles, and sensitive-data exclusions.
+- Added `project-brief.md`, `share-checklist.md`, `file-manifest.md`, and `review-prompt.md` to frame the project for third-party LLMs and force concrete, file-grounded feedback instead of generic advice.
+- Added `sample-case-template.md` so future sessions can attach 1-3 anonymized real examples and get higher-quality content feedback.
+- Built a local share-ready mirror at `.tmp/blind-to-x-external-review/` and compressed it to `.tmp/blind-to-x-external-review.zip` with only safe files such as `config.example.yaml`, `classification_rules.yaml`, selected pipeline files, and a few representative tests.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `projects/blind-to-x/docs/external-review/README.md` | add | Review-pack overview, share order, quick/deep bundle guidance, and exclusion rules |
+| `projects/blind-to-x/docs/external-review/project-brief.md` | add | Project summary, architecture flow, strengths, risks, and review focus |
+| `projects/blind-to-x/docs/external-review/share-checklist.md` | add | Share checklist for code, rules, samples, and redaction |
+| `projects/blind-to-x/docs/external-review/file-manifest.md` | add | Tiered manifest of the most useful files to send outside |
+| `projects/blind-to-x/docs/external-review/review-prompt.md` | add | Korean and English prompt templates for outside LLM review |
+| `projects/blind-to-x/docs/external-review/sample-case-template.md` | add | Template for anonymized real input/output examples |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | update | Recorded the new review-pack workflow and follow-up task |
+
+### Verification Results
+
+- `Copy-Item` bundle assembly into `.tmp/blind-to-x-external-review/` -> completed
+- `Compress-Archive` -> `.tmp/blind-to-x-external-review.zip` created successfully
+- No runtime tests executed; this session only added documentation and a local share bundle
+
 ## 2026-03-29 | Codex | shorts-maker-v2 thumbnail temp-artifact hardening
 
 ### Work Summary
