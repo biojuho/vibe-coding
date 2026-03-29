@@ -1,5 +1,31 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-03-29 | Codex | blind-to-x staged process orchestration + review_only override
+
+### Work Summary
+
+Finished the next `blind-to-x` refactor slice by moving the active `process_single_post()` entrypoint onto explicit stage helpers instead of the monolithic inline control flow, then fixed a policy mismatch uncovered by the new targeted test sweep.
+
+- Added stage-oriented orchestration in `projects/blind-to-x/pipeline/process.py` with shared helpers for `dedup`, `fetch`, `filter_profile`, `generate_review`, and `persist`.
+- Added `ProcessRunContext` plus `stage_status` tracking so skips/failures are attached to an explicit stage in the returned result payload.
+- Kept the old implementation as `_process_single_post_legacy()` temporarily to reduce replacement risk while the active exported entrypoint now uses the staged flow.
+- Fixed `review_only=True` so manual review runs still generate drafts, images, Notion rows, and analytics even when the final-rank queue threshold would normally skip automation; earlier hard filters still apply.
+- Re-ran the broader `process_single_post`-adjacent test surface, then repeated the earlier contract/generator/quality suites to make sure the staged flow did not regress the first cleanup slice.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `projects/blind-to-x/pipeline/process.py` | update | Added staged orchestration helpers, per-stage status tracking, `review_only` threshold override, and a temporary legacy shadow copy |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | update | Recorded `T-086` completion, staged-process behavior, verification, and the new follow-up cleanup task |
+
+### Verification Results
+
+- `python -m py_compile pipeline/process.py` (`projects/blind-to-x`) -> clean
+- `python -m pytest tests/unit/test_pipeline_flow.py -q -o addopts=` (`projects/blind-to-x`) -> **11 passed, 1 warning**
+- `python -m pytest tests/unit/test_pipeline_flow.py tests/unit/test_cost_controls.py tests/unit/test_dry_run_filters.py tests/unit/test_scrape_failure_classification.py tests/unit/test_reprocess_command.py -q -o addopts=` (`projects/blind-to-x`) -> **33 passed, 1 warning**
+- `python -m pytest tests/unit/test_draft_contract.py tests/unit/test_draft_generator_multi_provider.py tests/unit/test_pipeline_flow.py tests/unit/test_quality_improvements.py tests/unit/test_cost_controls.py tests/unit/test_dry_run_filters.py tests/unit/test_scrape_failure_classification.py tests/unit/test_reprocess_command.py -q -o addopts= -k "not slow"` (`projects/blind-to-x`) -> **92 passed, 1 warning**
+
 ## 2026-03-29 | Codex | blind-to-x external-review cleanup slice
 
 ### Work Summary

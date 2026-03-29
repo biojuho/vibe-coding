@@ -233,6 +233,19 @@
 
 ---
 
+## ADR-016: blind-to-x `review_only` bypasses queue-threshold gating
+
+| ??紐?| ?댁슜 |
+|------|------|
+| **?좎쭨** | 2026-03-29 |
+| **?곹깭** | ?뺤젙 |
+| **臾몃㎘** | `blind-to-x` manual review runs were expected to keep generating drafts, images, Notion rows, and analytics even when the ranking-based review queue threshold would normally skip automation. A targeted regression sweep exposed that `review_only=True` was still being blocked by `final_rank_below_threshold`. |
+| **寃곗젙** | When `review_only=True`, the queue-threshold decision is overridden to continue through generation and persistence with `review_status="검토필요"`. Earlier hard filters such as spam, inappropriate content, low scrape quality, rejected emotion axes, and budget limits still apply. |
+| **???* | Keep the final-rank queue threshold as a hard stop even in `review_only`; introduce a separate force flag for manual review. |
+| **?좏깮 ?댁쑀** | This preserves the automation guardrails for normal runs while making reviewer-driven inspection and reprocessing paths practical and testable without weakening the upstream quality filters. |
+
+---
+
 ## ADR-014: Canonical Workspace and Projects Layout
 
 | 항목 | 내용 |

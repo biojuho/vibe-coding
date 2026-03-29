@@ -8,7 +8,7 @@
 |------|------|
 | Date | 2026-03-29 |
 | Tool | Codex |
-| Work | Applied the first `blind-to-x` external-review cleanup slice: added a draft contract helper, made quality/review loops publishable-only, made `creator_take` optional review metadata, added a deterministic example selector, and documented the phased improvement plan. |
+| Work | Finished the next `blind-to-x` cleanup slice: routed `process_single_post()` through stage helpers (`dedup/fetch/filter_profile/generate_review/persist`), added per-stage status tracing, and fixed `review_only` so manual review runs still generate drafts/images even when rank thresholds would normally skip automation. |
 
 ## Current State
 
@@ -23,6 +23,11 @@
   - `creator_take` is no longer required for draft-generation success; it remains optional reviewer metadata
   - Golden-example selection in `draft_generator.py` is now deterministic per input instead of random
   - The phased follow-up plan is documented in `projects/blind-to-x/docs/external-review/improvement-plan-2026-03-29.md`
+- `blind-to-x` now also has a staged `process_single_post()` entrypoint:
+  - `projects/blind-to-x/pipeline/process.py` now routes the exported entrypoint through shared stage helpers for `dedup`, `fetch`, `filter_profile`, `generate_review`, and `persist`
+  - Process results now include `stage_status` so failures and skips are tied to an explicit stage
+  - `review_only=True` now overrides the final-rank queue threshold so manual reviewer runs still produce drafts, images, Notion rows, and draft analytics
+  - The previous monolithic implementation remains as `_process_single_post_legacy`; do not edit that path by mistake when touching the active flow
 - `shorts-maker-v2` package-wide verification remains at **91% total coverage** from the latest full-suite baseline (`1217 passed, 13 skipped, 1 warning`).
 - Core `shorts-maker-v2` hotspot coverage remains strong:
   - `pipeline/script_step.py` **93%**
@@ -51,10 +56,13 @@
 - `venv\Scripts\python.exe -m coverage run --source=src/shorts_maker_v2 -m pytest tests/unit/test_thumbnail_step.py -q -o addopts=` + `coverage report -m --include="*thumbnail_step.py"` (`projects/shorts-maker-v2`) -> **39 passed, 1 warning**; isolated report showed `thumbnail_step.py` **88%**
 - `venv\Scripts\python.exe -m pytest tests/unit/test_orchestrator_unit.py -k "thumbnail or run_success_path_covers_upload_thumbnail_srt_and_series" -q -o addopts=` (`projects/shorts-maker-v2`) -> **2 passed, 35 deselected, 1 warning**
 - `python -m pytest tests/unit/test_draft_contract.py tests/unit/test_draft_generator_multi_provider.py tests/unit/test_pipeline_flow.py tests/unit/test_quality_improvements.py -q -o addopts= -k "not slow"` (`projects/blind-to-x`) -> **70 passed, 1 warning**
+- `python -m py_compile pipeline/process.py` (`projects/blind-to-x`) -> clean
+- `python -m pytest tests/unit/test_pipeline_flow.py tests/unit/test_cost_controls.py tests/unit/test_dry_run_filters.py tests/unit/test_scrape_failure_classification.py tests/unit/test_reprocess_command.py -q -o addopts=` (`projects/blind-to-x`) -> **33 passed, 1 warning**
+- `python -m pytest tests/unit/test_draft_contract.py tests/unit/test_draft_generator_multi_provider.py tests/unit/test_pipeline_flow.py tests/unit/test_quality_improvements.py tests/unit/test_cost_controls.py tests/unit/test_dry_run_filters.py tests/unit/test_scrape_failure_classification.py tests/unit/test_reprocess_command.py -q -o addopts= -k "not slow"` (`projects/blind-to-x`) -> **92 passed, 1 warning**
 
 ## Next Priorities
 
-1. Follow up `T-086`: split `projects/blind-to-x/pipeline/process.py` into stage-oriented steps (`fetch/filter/profile/generate/review/persist`) around the new draft contract.
+1. Follow up `T-087`: remove `_process_single_post_legacy` and extract the new stage helpers out of `projects/blind-to-x/pipeline/process.py` into dedicated stage modules once it is safe to do a broader cleanup.
 2. Follow up `T-084`: fill `projects/blind-to-x/docs/external-review/sample-case-template.md` with 1-3 anonymized real examples so outside LLMs can critique actual output quality instead of only code and rules.
 3. Follow up `T-082`: push the next `shorts-maker-v2` output-quality pass on `caption_pillow.py` plus any remaining thumbnail helper branches.
 4. Potential follow-up: `hanwoo-dashboard` npm audit remediation (`npm install --legacy-peer-deps` currently reports 15 vulnerabilities).
@@ -64,6 +72,7 @@
 - `coverage run` is the reliable measurement path for `shorts-maker-v2` on this Windows machine; `pytest-cov` can still trip over duplicate root/project paths.
 - For `blind-to-x` external reviews, share the docs pack first and avoid sending `.env`, real `config.yaml`, raw Notion identifiers, or unredacted screenshots/logs.
 - `projects/blind-to-x` already has unrelated user WIP in several pipeline files; avoid blanket commits or reverts in that repo and keep future edits narrowly scoped.
+- For `blind-to-x` process changes, edit the exported `process_single_post()` near the bottom of `pipeline/process.py` or the shared `_run_*_stage()` helpers; `_process_single_post_legacy()` is now shadowed and should be treated as temporary reference only.
 - When targeted `coverage report` looks wrong for a Windows path, prefer `coverage report -m --include="*module_name.py"`.
 - `tests/unit/test_tts_providers.py` still relies on shared module-level `torch` / `torchaudio` MagicMocks; reset them per test when expanding that suite.
 - `hanwoo-dashboard` still installs cleanly only with `npm install --legacy-peer-deps` because of peer drift around `next-auth@5.0.0-beta.25` and Next 16 / TypeScript 5.9.
