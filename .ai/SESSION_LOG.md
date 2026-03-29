@@ -1,5 +1,40 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-03-29 | Codex | blind-to-x external-review cleanup slice
+
+### Work Summary
+
+Converted the first outside-LLM review findings for `projects/blind-to-x` into a safe implementation slice focused on contract cleanup rather than a risky full refactor.
+
+- Added `projects/blind-to-x/pipeline/draft_contract.py` to define publishable drafts vs auxiliary outputs vs review metadata.
+- Updated `draft_generator.py` so `creator_take` is no longer required for draft-generation success, while `reply` remains required for twitter outputs.
+- Switched golden-example selection from random sampling to deterministic selection keyed by topic plus current post context.
+- Updated `draft_quality_gate.py`, `editorial_reviewer.py`, `draft_validator.py`, and the fact-check/readability loops in `process.py` so they operate on publishable drafts only.
+- Added `projects/blind-to-x/docs/external-review/improvement-plan-2026-03-29.md` to capture the phased refactor roadmap that should follow this slice.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `projects/blind-to-x/pipeline/draft_contract.py` | add | Central helper for publishable vs auxiliary vs review-metadata draft keys |
+| `projects/blind-to-x/pipeline/draft_generator.py` | update | `creator_take` optionalized and golden-example selection made deterministic |
+| `projects/blind-to-x/pipeline/draft_quality_gate.py` | update | Validate publishable drafts only |
+| `projects/blind-to-x/pipeline/editorial_reviewer.py` | update | Review/polish publishable drafts only and preserve aux/review metadata |
+| `projects/blind-to-x/pipeline/draft_validator.py` | update | Retry validation narrowed to publishable drafts |
+| `projects/blind-to-x/pipeline/process.py` | update | Fact-check/readability loops now iterate publishable drafts only |
+| `projects/blind-to-x/tests/unit/test_draft_contract.py` | add | Contract-focused regression coverage |
+| `projects/blind-to-x/tests/unit/test_draft_generator_multi_provider.py` | update | Adjusted to the optional `creator_take` contract |
+| `projects/blind-to-x/tests/unit/test_pipeline_flow.py` | update | Generation-failure expectation aligned with the new required-tag set |
+| `projects/blind-to-x/docs/external-review/improvement-plan-2026-03-29.md` | add | Phased improvement plan derived from the outside review |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/DECISIONS.md`, `.ai/SESSION_LOG.md` | update | Recorded the new contract rule, verification, and follow-up refactor task |
+
+### Verification Results
+
+- `python -m pytest tests/unit/test_draft_contract.py tests/unit/test_draft_generator_multi_provider.py -q -o addopts=` (`projects/blind-to-x`) -> **10 passed, 1 warning**
+- `python -m pytest tests/unit/test_pipeline_flow.py -q -o addopts=` (`projects/blind-to-x`) -> **11 passed, 1 warning**
+- `python -m pytest tests/unit/test_quality_improvements.py -q -o addopts= -k "reviewer or thinking or format_examples"` (`projects/blind-to-x`) -> **5 passed, 44 deselected, 1 warning**
+- `python -m pytest tests/unit/test_draft_contract.py tests/unit/test_draft_generator_multi_provider.py tests/unit/test_pipeline_flow.py tests/unit/test_quality_improvements.py -q -o addopts= -k "not slow"` (`projects/blind-to-x`) -> **70 passed, 1 warning**
+
 ## 2026-03-29 | Codex | blind-to-x external LLM review pack
 
 ### Work Summary

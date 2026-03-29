@@ -8,7 +8,7 @@
 |------|------|
 | Date | 2026-03-29 |
 | Tool | Codex |
-| Work | Prepared a reusable `blind-to-x` external LLM review pack: review docs under `projects/blind-to-x/docs/external-review/` plus a local share-ready bundle at `.tmp/blind-to-x-external-review/` and `.tmp/blind-to-x-external-review.zip`. |
+| Work | Applied the first `blind-to-x` external-review cleanup slice: added a draft contract helper, made quality/review loops publishable-only, made `creator_take` optional review metadata, added a deterministic example selector, and documented the phased improvement plan. |
 
 ## Current State
 
@@ -17,6 +17,12 @@
   - Review docs live under `projects/blind-to-x/docs/external-review/`
   - The pack includes a project brief, share checklist, prompt templates, file manifest, and sanitized sample-case template
   - A local bundle of safe-to-share files was prepared at `.tmp/blind-to-x-external-review/` and zipped at `.tmp/blind-to-x-external-review.zip`
+- `blind-to-x` now also has a first contract-cleanup slice from that review:
+  - `projects/blind-to-x/pipeline/draft_contract.py` separates publishable drafts from auxiliary/review metadata
+  - `DraftQualityGate`, `EditorialReviewer`, `draft_validator`, and `process.py` fact-check/readability loops now operate on publishable drafts only
+  - `creator_take` is no longer required for draft-generation success; it remains optional reviewer metadata
+  - Golden-example selection in `draft_generator.py` is now deterministic per input instead of random
+  - The phased follow-up plan is documented in `projects/blind-to-x/docs/external-review/improvement-plan-2026-03-29.md`
 - `shorts-maker-v2` package-wide verification remains at **91% total coverage** from the latest full-suite baseline (`1217 passed, 13 skipped, 1 warning`).
 - Core `shorts-maker-v2` hotspot coverage remains strong:
   - `pipeline/script_step.py` **93%**
@@ -44,18 +50,20 @@
 - `venv\Scripts\python.exe -m ruff check src/shorts_maker_v2/pipeline/thumbnail_step.py tests/unit/test_thumbnail_step.py` (`projects/shorts-maker-v2`) -> clean
 - `venv\Scripts\python.exe -m coverage run --source=src/shorts_maker_v2 -m pytest tests/unit/test_thumbnail_step.py -q -o addopts=` + `coverage report -m --include="*thumbnail_step.py"` (`projects/shorts-maker-v2`) -> **39 passed, 1 warning**; isolated report showed `thumbnail_step.py` **88%**
 - `venv\Scripts\python.exe -m pytest tests/unit/test_orchestrator_unit.py -k "thumbnail or run_success_path_covers_upload_thumbnail_srt_and_series" -q -o addopts=` (`projects/shorts-maker-v2`) -> **2 passed, 35 deselected, 1 warning**
+- `python -m pytest tests/unit/test_draft_contract.py tests/unit/test_draft_generator_multi_provider.py tests/unit/test_pipeline_flow.py tests/unit/test_quality_improvements.py -q -o addopts= -k "not slow"` (`projects/blind-to-x`) -> **70 passed, 1 warning**
 
 ## Next Priorities
 
-1. Follow up `T-082`: push the next `shorts-maker-v2` output-quality pass on `caption_pillow.py` plus any remaining thumbnail helper branches.
-2. Optional follow-up: rerun the full `shorts-maker-v2` `tests/unit + tests/integration` bundle if we want a fresh post-thumbnail-hardening package baseline.
-3. Potential follow-up: `hanwoo-dashboard` npm audit remediation (`npm install --legacy-peer-deps` currently reports 15 vulnerabilities).
-4. Optional follow-up: fill `projects/blind-to-x/docs/external-review/sample-case-template.md` with 1-3 anonymized real examples so outside LLMs can critique actual output quality instead of only code and rules.
+1. Follow up `T-086`: split `projects/blind-to-x/pipeline/process.py` into stage-oriented steps (`fetch/filter/profile/generate/review/persist`) around the new draft contract.
+2. Follow up `T-084`: fill `projects/blind-to-x/docs/external-review/sample-case-template.md` with 1-3 anonymized real examples so outside LLMs can critique actual output quality instead of only code and rules.
+3. Follow up `T-082`: push the next `shorts-maker-v2` output-quality pass on `caption_pillow.py` plus any remaining thumbnail helper branches.
+4. Potential follow-up: `hanwoo-dashboard` npm audit remediation (`npm install --legacy-peer-deps` currently reports 15 vulnerabilities).
 
 ## Notes
 
 - `coverage run` is the reliable measurement path for `shorts-maker-v2` on this Windows machine; `pytest-cov` can still trip over duplicate root/project paths.
 - For `blind-to-x` external reviews, share the docs pack first and avoid sending `.env`, real `config.yaml`, raw Notion identifiers, or unredacted screenshots/logs.
+- `projects/blind-to-x` already has unrelated user WIP in several pipeline files; avoid blanket commits or reverts in that repo and keep future edits narrowly scoped.
 - When targeted `coverage report` looks wrong for a Windows path, prefer `coverage report -m --include="*module_name.py"`.
 - `tests/unit/test_tts_providers.py` still relies on shared module-level `torch` / `torchaudio` MagicMocks; reset them per test when expanding that suite.
 - `hanwoo-dashboard` still installs cleanly only with `npm install --legacy-peer-deps` because of peer drift around `next-auth@5.0.0-beta.25` and Next 16 / TypeScript 5.9.

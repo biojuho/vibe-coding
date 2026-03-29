@@ -220,6 +220,19 @@
 
 ---
 
+## ADR-015: blind-to-x publishable drafts vs review metadata separation
+
+| ??목 | 내용 |
+|------|------|
+| **날짜** | 2026-03-29 |
+| **상태** | 확정 |
+| **문맥** | `blind-to-x` external review found that `reply_text` and `creator_take` were being treated like publishable drafts across generation validation, quality gates, editorial review, and reviewer-facing output, which increased coupling and review fatigue. |
+| **결정** | Introduce an explicit draft contract in `projects/blind-to-x/pipeline/draft_contract.py`: publishable drafts (`twitter`, `threads`, `newsletter`, `naver_blog`, `twitter_thread`) are handled separately from auxiliary outputs (`reply_text`) and review metadata (`creator_take`). Quality/review loops operate on publishable drafts only. |
+| **대안** | Keep the flat draft dict contract and rely on per-module skip lists; fully refactor to nested DTOs immediately. |
+| **선택 이유** | This reduces coupling immediately without a risky full DTO migration, clarifies ownership for quality layers, and creates a safer path for the later `process_single_post()` stage split. |
+
+---
+
 ## ADR-014: Canonical Workspace and Projects Layout
 
 | 항목 | 내용 |
