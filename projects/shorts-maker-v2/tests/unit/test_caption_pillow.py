@@ -110,6 +110,22 @@ def test_calculate_safe_position_centers_caption_inside_safe_zone() -> None:
     assert y == 792
 
 
+def test_calculate_safe_position_keeps_hook_centered_when_enabled() -> None:
+    style = _base_style(center_hook=True)
+
+    y = calculate_safe_position(1920, 240, style, role="hook")
+
+    assert y == 792
+
+
+def test_calculate_safe_position_uses_safe_lower_third_for_non_centered_hook() -> None:
+    style = _base_style(center_hook=False, bottom_offset=220)
+
+    y = calculate_safe_position(1920, 240, style, role="hook")
+
+    assert y == 1296
+
+
 def test_calculate_safe_position_clamps_to_top_for_oversized_caption() -> None:
     style = _base_style()
 

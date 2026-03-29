@@ -274,7 +274,8 @@ def calculate_safe_position(
     - Top 15% (270px @1920): channel name, title overlay area
     - Bottom 20% (384px @1920): like/comment/share buttons, description
 
-    For hook scenes with center_hook=True, center vertically in safe area.
+    Hook captions stay centered only when center_hook is enabled.
+    Otherwise they fall back to a safe-zone-clamped lower-third position.
     """
     top_safe = int(canvas_height * 0.15)  # 288px @1920
     bottom_safe = int(canvas_height * 0.20)  # 384px @1920
@@ -283,8 +284,14 @@ def calculate_safe_position(
     safe_area_height = safe_area_bottom - safe_area_top
 
     # 모든 씬: safe zone 내 중앙 배치 (레퍼런스 스타일)
+    max_y = max(safe_area_top, safe_area_bottom - caption_height)
+
+    if role == "hook" and not style.center_hook:
+        legacy_y = canvas_height - caption_height - style.bottom_offset
+        return max(safe_area_top, min(max_y, legacy_y))
+
     y = safe_area_top + (safe_area_height - caption_height) // 2
-    return max(safe_area_top, y)
+    return max(safe_area_top, min(max_y, y))
 
 
 def complementary_color(hex_color: str) -> str:
