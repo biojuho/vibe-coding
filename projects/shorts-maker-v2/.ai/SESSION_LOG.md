@@ -1187,3 +1187,27 @@ ShortsFactory 렌더링 파이프라인의 핵심 누락 파일(`ShortsFactory/r
 ### Notes
 - Coverage expansion commit: `95b3421`
 - Follow-up AI context relay after this commit: `4364164`
+## 2026-03-29 | Codex | caption_pillow static caption quality pass
+
+### Work Summary
+
+Continued the post-thumbnail quality pass by tightening static subtitle rendering in `caption_pillow.py`.
+
+- `render_caption_image()` now draws the configured background box instead of silently ignoring `bg_color`, `bg_opacity`, and `bg_radius`.
+- The background layer and text/glow layer are composed separately, so glow styles bloom around text without bleeding around the full caption box.
+- Horizontal placement now compensates for Pillow bbox `left` offsets, reducing off-center placement and clipped stroke edges on some glyphs.
+- `tests/unit/test_caption_pillow.py` was refreshed and now includes a regression check that samples the padded region to prove the background box is present.
+
+### Changed Files
+
+- `src/shorts_maker_v2/render/caption_pillow.py`
+- `tests/unit/test_caption_pillow.py`
+
+### Verification
+
+- `..\..\venv\Scripts\python.exe -m pytest tests/unit/test_caption_pillow.py -q -o addopts=` -> **4 passed, 1 warning**
+- `..\..\venv\Scripts\python.exe -m pytest tests/unit/test_i18n_en_us_smoke.py -q -o addopts=` -> **1 passed, 1 warning**
+- `..\..\venv\Scripts\python.exe -m pytest tests/unit/test_render_step_phase5.py -k "render_static_caption or caption_y" -q -o addopts=` -> **4 passed, 14 deselected, 1 warning**
+- `..\..\venv\Scripts\python.exe -m ruff check src/shorts_maker_v2/render/caption_pillow.py tests/unit/test_caption_pillow.py` -> clean
+
+---

@@ -2,7 +2,7 @@
 
 ## TODO
 
-- [ ] T-082 Push the next output-quality pass on `render/caption_pillow.py` plus any remaining thumbnail helper branches. Owner: Codex
+- [ ] T-083 Add stress tests for tall multi-line static captions and any remaining safe-zone edge cases in `render/caption_pillow.py`. Owner: Codex
 - [ ] Decide whether archived ShortsFactory compatibility tests should live in a separate optional CI/manual lane. Owner: TBD
 - [ ] Remove or ignore the leftover `tests/legacy/__pycache__/` directory for tree cleanliness. Owner: TBD
 
@@ -12,6 +12,7 @@
 
 ## DONE
 
+- [x] T-082 Push the next output-quality pass on `render/caption_pillow.py` and restore static caption background-box rendering (2026-03-29, Codex)
 - [x] T-081 Extend `thumbnail_step.py` live-path hardening with Canva OAuth refresh coverage, video-frame extraction cleanup coverage, and fail-fast HTTP download handling (2026-03-29, Codex)
 - [x] T-080 Harden `thumbnail_step.py` temp-artifact cleanup and long-title wrapping (2026-03-29, Codex)
 - [x] T-072 Commit expanded V2 pipeline coverage tests for `script_step`, `orchestrator`, `render_step`, and `media_step` (`95b3421`) after validating `218 passed, 1 warning` (2026-03-27, Codex)

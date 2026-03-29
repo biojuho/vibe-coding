@@ -35,6 +35,10 @@
   - `tests/unit/test_thumbnail_step.py`: `39 passed, 1 warning`
   - Isolated `thumbnail_step.py`: `88%`
   - Thumbnail-focused orchestrator subset: `2 passed, 35 deselected, 1 warning`
+- Static caption rendering follow-up on `2026-03-29`:
+  - `tests/unit/test_caption_pillow.py`: `4 passed, 1 warning`
+  - `tests/unit/test_i18n_en_us_smoke.py`: `1 passed, 1 warning`
+  - `tests/unit/test_render_step_phase5.py -k "render_static_caption or caption_y"`: `4 passed, 14 deselected, 1 warning`
 
 ## Important Module Snapshot
 
@@ -44,7 +48,9 @@
   - Long single-token titles now fall back to char-level wrapping.
   - Canva downloads now fail fast on HTTP errors.
 - `render/caption_pillow.py`
-  - Next output-quality follow-up hotspot after the thumbnail pass.
+  - Static captions now render their configured background box (`bg_color`, `bg_opacity`, `bg_radius`).
+  - Glow compositing is isolated to the text layer so neon styles do not bloom around the whole box.
+  - Horizontal placement now compensates for Pillow bbox `left` offsets to reduce clipping on stroked glyphs.
 - `tests/unit/test_tts_providers.py`
   - Shared `torch` / `torchaudio` MagicMocks are reset per test to reduce cross-test leakage.
 
@@ -78,6 +84,7 @@
 - `tests/unit/test_render_step.py`
 - `tests/unit/test_media_step_branches.py`
 - `tests/unit/test_thumbnail_step.py`
+- `tests/unit/test_caption_pillow.py`
 
 ## Landmines
 
