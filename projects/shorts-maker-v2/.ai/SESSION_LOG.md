@@ -1,5 +1,25 @@
 ﻿# 📋 AI 세션 로그
 
+## 2026-03-29 | Codex | render-step hook placement regression
+
+### Summary
+Closed the follow-up gap after the `center_hook` behavior change by adding a regression at the `RenderStep` call path.
+
+### Key Changes
+- `tests/unit/test_render_step.py`
+  - Added a regression test that uses actual `RenderStep`-built styles to verify non-centered hook captions land in the safe lower-third path.
+  - The same test also locks that body captions remain centered even though the shared base style still carries `center_hook=False`.
+- No implementation change was needed in this pass; the goal was to prove the routing semantics outside the direct helper tests.
+
+### Verification
+- `..\..\venv\Scripts\python.exe -m pytest tests/unit/test_render_step.py -k "caption_y or safe_zone" -q -o addopts=` -> `3 passed, 104 deselected, 1 warning`
+- `..\..\venv\Scripts\python.exe -m pytest tests/unit/test_render_step_phase5.py -k "render_static_caption or caption_y" -q -o addopts=` -> `4 passed, 14 deselected, 1 warning`
+- `..\..\venv\Scripts\python.exe -m pytest tests/unit/test_caption_pillow.py -q -o addopts=` -> `10 passed, 1 warning`
+- `..\..\venv\Scripts\python.exe -m ruff check tests/unit/test_render_step.py tests/unit/test_render_step_phase5.py tests/unit/test_caption_pillow.py src/shorts_maker_v2/render/caption_pillow.py` -> clean
+
+### Changed Files
+- `tests/unit/test_render_step.py`
+
 ## 2026-03-29 | Codex | center_hook safe-zone wiring
 
 ### Summary

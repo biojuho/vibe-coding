@@ -2,7 +2,6 @@
 
 ## TODO
 
-- [ ] T-085 Add a render-level or visual regression check for hook captions when `center_hook=False` so lower-third placement is validated beyond the helper math. Owner: Codex
 - [ ] Decide whether archived ShortsFactory compatibility tests should live in a separate optional CI/manual lane. Owner: TBD
 - [ ] Remove or ignore the leftover `tests/legacy/__pycache__/` directory for tree cleanliness. Owner: TBD
 
@@ -12,6 +11,7 @@
 
 ## DONE
 
+- [x] T-085 Add a render-step regression check for hook captions when `center_hook=False` so lower-third placement is validated beyond the helper math (2026-03-29, Codex)
 - [x] T-084 Wire `center_hook` into `calculate_safe_position()` with safe-zone-aware lower-third hook placement and regression coverage (2026-03-29, Codex)
 - [x] T-083 Add stress tests for tall multi-line static captions and safe-zone edge cases in `render/caption_pillow.py` (2026-03-29, Codex)
 - [x] T-082 Push the next output-quality pass on `render/caption_pillow.py` and restore static caption background-box rendering (2026-03-29, Codex)
