@@ -70,6 +70,14 @@ CAPTION_PRESETS: dict[str, dict[str, Any]] = {
         "bg_opacity": 0,
         "bg_radius": 0,
     },
+    "closing": {
+        "text_color": "#D0D0D0",  # soft muted white — contemplative, gentle
+        "stroke_color": "#1A1A1A",  # near-black, low contrast stroke
+        "stroke_width": 4,
+        "font_size": 72,
+        "bg_opacity": 0,
+        "bg_radius": 0,
+    },
     # ── 심리학 채널 전용 (dreamy_purple) ──
     "dreamy_purple": {
         "text_color": "#F0E6FF",  # 밝은 라벤더 (가독성 ↑)
@@ -294,7 +302,7 @@ def auto_font_size(base_size: int, text_length: int, role: str = "body") -> int:
     Hook/CTA get larger text for emphasis; long text gets scaled down
     to avoid overflow.
     """
-    role_multiplier = {"hook": 1.25, "cta": 1.15, "body": 1.0}.get(role, 1.0)
+    role_multiplier = {"hook": 1.25, "cta": 1.15, "closing": 1.05, "body": 1.0}.get(role, 1.0)
     # Scale down for long text (>30 chars)
     length_factor = 1.0
     if text_length > 50:
@@ -406,6 +414,13 @@ def _render_glow_layer(
     return glow
 
 
+def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
+    hex_color = hex_color.lstrip("#")
+    if len(hex_color) != 6:
+        return (0, 0, 0)
+    return tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
+
+
 def render_caption_image(
     text: str,
     canvas_width: int,
@@ -445,6 +460,8 @@ def render_caption_image(
     font = _load_font(hi_style)
     probe_image = Image.new("RGBA", (hi_width, hi_width), (0, 0, 0, 0))
     draw = ImageDraw.Draw(probe_image)
+    pad_x = hi_style.padding_y * 2
+    use_background = hi_style.bg_opacity > 0
 
     text_width_limit = max(120 * scale, hi_width - (hi_style.margin_x * 2))
     lines = _wrap_text(draw, text.strip(), font, text_width_limit, hi_style.stroke_width)
@@ -470,12 +487,22 @@ def render_caption_image(
     text_h = int(max(1, round(bottom - top)))
     # 글로우 효과 시 여백 확대 (블러가 번질 공간 확보)
     glow_pad = hi_style.glow_radius * 2 if hi_style.glow_enabled else 0
-    image_w = max(1, int(min(hi_width, text_w + hi_style.padding_y * 4 + glow_pad * 2)))
+    image_w = max(1, int(min(hi_width, text_w + pad_x * 2 + glow_pad * 2)))
     image_h = max(1, int(text_h + hi_style.padding_y * 2 + glow_pad * 2))
     image = Image.new("RGBA", (image_w, image_h), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(image)
+    text_layer = Image.new("RGBA", (image_w, image_h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(text_layer)
 
-    tx = (image_w - text_w) / 2
+    if use_background:
+        bg_draw = ImageDraw.Draw(image)
+        r, g, b = _hex_to_rgb(hi_style.bg_color)
+        bg_draw.rounded_rectangle(
+            [(glow_pad, glow_pad), (image_w - glow_pad - 1, image_h - glow_pad - 1)],
+            radius=hi_style.bg_radius,
+            fill=(r, g, b, hi_style.bg_opacity),
+        )
+
+    tx = (image_w - text_w) / 2 - left
     ty = hi_style.padding_y + glow_pad - top
 
     # 드롭 섀도우 (오프셋 2px @2x = 1px @1x)
@@ -504,12 +531,11 @@ def render_caption_image(
 
     # 네온 글로우 효과 (glow_enabled 시)
     if hi_style.glow_enabled:
-        glow_layer = _render_glow_layer(image, hi_style.glow_color, hi_style.glow_radius)
+        glow_layer = _render_glow_layer(text_layer, hi_style.glow_color, hi_style.glow_radius)
         # 글로우를 텍스트 아래에 합성
-        result = Image.new("RGBA", image.size, (0, 0, 0, 0))
-        result = Image.alpha_composite(result, glow_layer)
-        result = Image.alpha_composite(result, image)
-        image = result
+        image = Image.alpha_composite(image, glow_layer)
+
+    image = Image.alpha_composite(image, text_layer)
 
     # 다운샘플 (LANCZOS)
     final_w = max(1, image_w // scale)
