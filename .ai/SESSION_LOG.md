@@ -1,5 +1,29 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-03-29 | Codex | blind-to-x targeted QC rerun + ruff fix
+
+### Work Summary
+
+Ran a final targeted QC pass for the latest `blind-to-x` refactor slices after the rules split and staged-process work. The only issue uncovered was a `ruff` import-order violation in `projects/blind-to-x/pipeline/quality_gate.py`, which was fixed without changing runtime behavior.
+
+- Fixed the import ordering in `projects/blind-to-x/pipeline/quality_gate.py` so the shared rules-loader migration stays lint-clean.
+- Re-ran static checks across the latest rules-loader migration surface.
+- Re-ran the rule/regulation/performance bundle and the broader `not slow` draft/process regression bundle.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `projects/blind-to-x/pipeline/quality_gate.py` | update | Non-behavioral import-order fix for `ruff` compliance |
+| `.ai/HANDOFF.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | update | Recorded the final QC result and the tiny lint-only code delta |
+
+### Verification Results
+
+- `python -m ruff check pipeline/rules_loader.py pipeline/content_intelligence.py pipeline/draft_generator.py pipeline/editorial_reviewer.py pipeline/draft_quality_gate.py pipeline/quality_gate.py pipeline/regulation_checker.py pipeline/feedback_loop.py scripts/update_classification_rules.py scripts/analyze_draft_performance.py tests/unit/test_rules_loader.py` (`projects/blind-to-x`) -> clean
+- `python -m py_compile pipeline/rules_loader.py pipeline/content_intelligence.py pipeline/draft_generator.py pipeline/editorial_reviewer.py pipeline/draft_quality_gate.py pipeline/quality_gate.py pipeline/regulation_checker.py pipeline/feedback_loop.py scripts/update_classification_rules.py scripts/analyze_draft_performance.py tests/unit/test_rules_loader.py` (`projects/blind-to-x`) -> clean
+- `python -m pytest tests/unit/test_rules_loader.py tests/unit/test_regulation_checker.py tests/unit/test_feedback_loop_fallback.py tests/unit/test_performance_tracker.py -q -o addopts=` (`projects/blind-to-x`) -> **56 passed, 1 warning**
+- `python -m pytest tests/unit/test_draft_contract.py tests/unit/test_draft_generator_multi_provider.py tests/unit/test_pipeline_flow.py tests/unit/test_quality_improvements.py tests/unit/test_cost_controls.py tests/unit/test_dry_run_filters.py tests/unit/test_scrape_failure_classification.py tests/unit/test_reprocess_command.py -q -o addopts= -k "not slow"` (`projects/blind-to-x`) -> **92 passed, 1 warning**
+
 ## 2026-03-29 | Codex | blind-to-x split rules loader + `rules/*.yaml` migration
 
 ### Work Summary

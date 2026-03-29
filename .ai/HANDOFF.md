@@ -5,8 +5,8 @@
 ## Last Session
 
 | Date | 2026-03-29 |
-| Tool | Gemini |
-| Work | `hanwoo-dashboard` npm audit remediation (T-088): 15 vulnerabilities → 0. Upgraded next 16.2.1, next-auth beta.30, prisma 7.6.0, @serwist/next 9.5.7, eslint-config-next 16.2.1; pinned picomatch ^4.0.4, lodash ^4.17.23, brace-expansion ^2.0.3, effect ^3.21.0 via overrides. `npm run lint` (0 errors, 1 known warning), `npm run build` both pass. |
+| Tool | Codex |
+| Work | Ran final targeted QC for the latest `blind-to-x` refactor slices, fixed one `ruff` import-order issue in `pipeline/quality_gate.py`, and revalidated the rules/process/draft test surface. |
 
 ## Current State
 
@@ -63,6 +63,7 @@
 - `python -m pytest tests/unit/test_pipeline_flow.py tests/unit/test_cost_controls.py tests/unit/test_dry_run_filters.py tests/unit/test_scrape_failure_classification.py tests/unit/test_reprocess_command.py -q -o addopts=` (`projects/blind-to-x`) -> **33 passed, 1 warning**
 - `python -m pytest tests/unit/test_draft_contract.py tests/unit/test_draft_generator_multi_provider.py tests/unit/test_pipeline_flow.py tests/unit/test_quality_improvements.py tests/unit/test_cost_controls.py tests/unit/test_dry_run_filters.py tests/unit/test_scrape_failure_classification.py tests/unit/test_reprocess_command.py -q -o addopts= -k "not slow"` (`projects/blind-to-x`) -> **92 passed, 1 warning**
 - `python -m py_compile pipeline/rules_loader.py pipeline/content_intelligence.py pipeline/draft_generator.py pipeline/editorial_reviewer.py pipeline/draft_quality_gate.py pipeline/quality_gate.py pipeline/regulation_checker.py pipeline/feedback_loop.py scripts/update_classification_rules.py scripts/analyze_draft_performance.py tests/unit/test_rules_loader.py` (`projects/blind-to-x`) -> clean
+- `python -m ruff check pipeline/rules_loader.py pipeline/content_intelligence.py pipeline/draft_generator.py pipeline/editorial_reviewer.py pipeline/draft_quality_gate.py pipeline/quality_gate.py pipeline/regulation_checker.py pipeline/feedback_loop.py scripts/update_classification_rules.py scripts/analyze_draft_performance.py tests/unit/test_rules_loader.py` (`projects/blind-to-x`) -> clean
 - `python -m pytest tests/unit/test_rules_loader.py tests/unit/test_regulation_checker.py tests/unit/test_feedback_loop_fallback.py tests/unit/test_performance_tracker.py -q -o addopts=` (`projects/blind-to-x`) -> **56 passed, 1 warning**
 - `python -m pytest tests/unit/test_quality_improvements.py tests/unit/test_draft_generator_multi_provider.py tests/unit/test_pipeline_flow.py -q -o addopts=` (`projects/blind-to-x`) -> **65 passed, 1 warning**
 
@@ -80,6 +81,7 @@
 - `projects/blind-to-x` already has unrelated user WIP in several pipeline files; avoid blanket commits or reverts in that repo and keep future edits narrowly scoped.
 - For `blind-to-x` process changes, edit the exported `process_single_post()` near the bottom of `pipeline/process.py` or the shared `_run_*_stage()` helpers; `_process_single_post_legacy()` is now shadowed and should be treated as temporary reference only.
 - For `blind-to-x` rule edits, treat `projects/blind-to-x/rules/*.yaml` as the source of truth; the root `classification_rules.yaml` is now a compatibility snapshot/fallback surface.
+- The latest QC-only code delta in `blind-to-x` was a non-behavioral import-order fix in `pipeline/quality_gate.py` so `ruff` stays green after the rules-loader migration.
 - When targeted `coverage report` looks wrong for a Windows path, prefer `coverage report -m --include="*module_name.py"`.
 - `tests/unit/test_tts_providers.py` still relies on shared module-level `torch` / `torchaudio` MagicMocks; reset them per test when expanding that suite.
 - `hanwoo-dashboard` still installs cleanly only with `npm install --legacy-peer-deps` because of peer drift around `next-auth@5.0.0-beta.25` and Next 16 / TypeScript 5.9.
