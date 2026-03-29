@@ -2,26 +2,26 @@
 
 ## Last Session (2026-03-29 / Codex)
 
-- Goal this session: continue the next output-quality pass after thumbnail hardening by tightening static subtitle rendering.
-- Updated `src/shorts_maker_v2/render/caption_pillow.py` so static captions now honor `bg_color`, `bg_opacity`, and `bg_radius` instead of silently ignoring the configured background box.
-- Split text/glow compositing from the background layer so neon glow only blooms around text, not the whole caption box.
-- Fixed horizontal placement to respect the measured `left` offset from Pillow text bounding boxes, which reduces stroke clipping and mis-centering on some glyphs.
-- Refreshed `tests/unit/test_caption_pillow.py` and added a regression check that samples the rendered padding region to confirm the background box is actually present.
+- Goal this session: lock down the remaining `caption_pillow.py` edge cases with explicit stress tests.
+- Extended `tests/unit/test_caption_pillow.py` to cover:
+  - character-level wrapping for long single-token text
+  - safe-zone centering math
+  - safe-zone top clamp behavior for oversized captions
+  - tall multiline static-caption rendering under tighter widths
+- Kept the implementation unchanged in this pass; the goal was to turn the risky edge cases into repeatable regression checks before touching placement semantics again.
 
 ## Verification
 
-- `..\..\venv\Scripts\python.exe -m pytest tests/unit/test_caption_pillow.py -q -o addopts=` -> **4 passed, 1 warning**
-- `..\..\venv\Scripts\python.exe -m pytest tests/unit/test_i18n_en_us_smoke.py -q -o addopts=` -> **1 passed, 1 warning**
-- `..\..\venv\Scripts\python.exe -m pytest tests/unit/test_render_step_phase5.py -k "render_static_caption or caption_y" -q -o addopts=` -> **4 passed, 14 deselected, 1 warning**
-- `..\..\venv\Scripts\python.exe -m ruff check src/shorts_maker_v2/render/caption_pillow.py tests/unit/test_caption_pillow.py` -> clean
+- `..\..\venv\Scripts\python.exe -m pytest tests/unit/test_caption_pillow.py -q -o addopts=` -> **8 passed, 1 warning**
+- `..\..\venv\Scripts\python.exe -m ruff check tests/unit/test_caption_pillow.py` -> clean
 
 ## Next Steps
 
-1. Follow up with `T-083`: add stress tests around very tall multi-line static captions and any safe-zone edge cases that still need explicit regression coverage.
+1. Follow up with `T-084`: decide whether `center_hook` should remain a dead config flag or be wired into `calculate_safe_position()` with safe-zone-aware lower-third placement.
 2. Sweep any remaining thumbnail helper branches that were not covered in the previous pass.
 3. Keep using `coverage run ... -m pytest ... -o addopts=` on this Windows machine; it is still more reliable than `pytest-cov`.
 
 ## Notes
 
-- Static caption config had already exposed background-box settings (`bg_color`, `bg_opacity`, `bg_radius`), but `render_caption_image()` was not drawing that layer at all before this pass.
+- `center_hook` is still present in config/style plumbing, but `calculate_safe_position()` does not currently branch on it; that is the next design decision point.
 - The current full-suite package baseline is still the `2026-03-28` run: **91%** coverage with `1217 passed, 13 skipped, 1 warning`.

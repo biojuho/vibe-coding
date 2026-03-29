@@ -1211,3 +1211,23 @@ Continued the post-thumbnail quality pass by tightening static subtitle renderin
 - `..\..\venv\Scripts\python.exe -m ruff check src/shorts_maker_v2/render/caption_pillow.py tests/unit/test_caption_pillow.py` -> clean
 
 ---
+## 2026-03-29 | Codex | caption_pillow safe-zone stress tests
+
+### Work Summary
+
+Extended `tests/unit/test_caption_pillow.py` so the recent static-caption quality changes are protected by explicit edge-case coverage.
+
+- Added a long single-token wrap test to ensure character-level fallback keeps each line inside the width budget.
+- Added direct `calculate_safe_position()` checks for normal centering and top-clamp behavior with oversized captions.
+- Added a tall multiline render case to confirm static captions grow vertically under tighter widths instead of failing silently.
+
+### Changed Files
+
+- `tests/unit/test_caption_pillow.py`
+
+### Verification
+
+- `..\..\venv\Scripts\python.exe -m pytest tests/unit/test_caption_pillow.py -q -o addopts=` -> **8 passed, 1 warning**
+- `..\..\venv\Scripts\python.exe -m ruff check tests/unit/test_caption_pillow.py` -> clean
+
+---
