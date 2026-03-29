@@ -1,5 +1,45 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-03-29 | Codex | blind-to-x split rules loader + `rules/*.yaml` migration
+
+### Work Summary
+
+Finished the next `blind-to-x` cleanup slice by moving rule ownership out of the single root `classification_rules.yaml` file and onto split source-of-truth files under `projects/blind-to-x/rules/`.
+
+- Added `projects/blind-to-x/pipeline/rules_loader.py` to merge split rule files behind one cached runtime API.
+- Generated split rule files for classification, examples, prompts, platforms, and editorial policy under `projects/blind-to-x/rules/`.
+- Rewired the main runtime consumers (`content_intelligence.py`, `draft_generator.py`, `editorial_reviewer.py`, `draft_quality_gate.py`, `quality_gate.py`, `regulation_checker.py`, `feedback_loop.py`) to use the shared loader instead of opening the legacy root YAML directly.
+- Updated `scripts/update_classification_rules.py` and `scripts/analyze_draft_performance.py` so the migration also works through the operational scripts and can refresh the legacy compatibility snapshot when needed.
+- Added `projects/blind-to-x/tests/unit/test_rules_loader.py` to lock in the split-loader contract.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `projects/blind-to-x/pipeline/rules_loader.py` | add | Shared cached loader for split rule files plus compatibility snapshot helpers |
+| `projects/blind-to-x/rules/classification.yaml` | add | Taxonomy-style sections such as topic/emotion/audience/hook rules |
+| `projects/blind-to-x/rules/examples.yaml` | add | Golden examples and anti-examples |
+| `projects/blind-to-x/rules/prompts.yaml` | add | Prompt templates, tone mappings, and topic prompt strategies |
+| `projects/blind-to-x/rules/platforms.yaml` | add | Platform regulations plus cross-source/trend config |
+| `projects/blind-to-x/rules/editorial.yaml` | add | Brand voice, cliche watchlist, thresholds, and X editorial rules |
+| `projects/blind-to-x/pipeline/content_intelligence.py` | update | Loads shared rules through `rules_loader` |
+| `projects/blind-to-x/pipeline/draft_generator.py` | update | Loads shared rules through `rules_loader` |
+| `projects/blind-to-x/pipeline/editorial_reviewer.py` | update | Uses shared rule sections for brand voice and prompt-time policy |
+| `projects/blind-to-x/pipeline/draft_quality_gate.py` | update | Uses shared cliche-watchlist section |
+| `projects/blind-to-x/pipeline/quality_gate.py` | update | Uses shared loader for cliches/forbidden expressions |
+| `projects/blind-to-x/pipeline/regulation_checker.py` | update | Uses shared platform regulations and resettable cache |
+| `projects/blind-to-x/pipeline/feedback_loop.py` | update | Reads golden examples through the shared loader |
+| `projects/blind-to-x/scripts/update_classification_rules.py` | update | Writes to split rule files and refreshes the legacy snapshot |
+| `projects/blind-to-x/scripts/analyze_draft_performance.py` | update | Prefers split rule files and refreshes the legacy snapshot |
+| `projects/blind-to-x/tests/unit/test_rules_loader.py` | add | Split-loader regression coverage |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/DECISIONS.md`, `.ai/SESSION_LOG.md` | update | Recorded the new migration state, follow-up task, and verification |
+
+### Verification Results
+
+- `python -m py_compile pipeline/rules_loader.py pipeline/content_intelligence.py pipeline/draft_generator.py pipeline/editorial_reviewer.py pipeline/draft_quality_gate.py pipeline/quality_gate.py pipeline/regulation_checker.py pipeline/feedback_loop.py scripts/update_classification_rules.py scripts/analyze_draft_performance.py tests/unit/test_rules_loader.py` (`projects/blind-to-x`) -> clean
+- `python -m pytest tests/unit/test_rules_loader.py tests/unit/test_regulation_checker.py tests/unit/test_feedback_loop_fallback.py tests/unit/test_performance_tracker.py -q -o addopts=` (`projects/blind-to-x`) -> **56 passed, 1 warning**
+- `python -m pytest tests/unit/test_quality_improvements.py tests/unit/test_draft_generator_multi_provider.py tests/unit/test_pipeline_flow.py -q -o addopts=` (`projects/blind-to-x`) -> **65 passed, 1 warning**
+
 ## 2026-03-29 | Codex | blind-to-x staged process orchestration + review_only override
 
 ### Work Summary

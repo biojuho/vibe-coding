@@ -5,11 +5,8 @@
 ## Last Session
 
 | Date | 2026-03-29 |
-| Tool | Gemini     |
-| Work | Implemented `CodeEvaluator` (T-071, T-072) with Pydantic JSON validation for LLM output, integrated into `VibeCodingGraph`'s Evaluator-Optimizer loop, and successfully ran the `/qa-qc` workflow (tests included). |
-| Date | 2026-03-29 |
 | Tool | Gemini |
-| Work | Implemented `CodeEvaluator` (T-071, T-072) with Pydantic JSON validation for LLM output, integrated into `VibeCodingGraph`'s Evaluator-Optimizer loop, and successfully ran the `/qa-qc` workflow (tests included). |
+| Work | `hanwoo-dashboard` npm audit remediation (T-088): 15 vulnerabilities → 0. Upgraded next 16.2.1, next-auth beta.30, prisma 7.6.0, @serwist/next 9.5.7, eslint-config-next 16.2.1; pinned picomatch ^4.0.4, lodash ^4.17.23, brace-expansion ^2.0.3, effect ^3.21.0 via overrides. `npm run lint` (0 errors, 1 known warning), `npm run build` both pass. |
 
 ## Current State
 
@@ -30,6 +27,10 @@
   - Process results now include `stage_status` so failures and skips are tied to an explicit stage
   - `review_only=True` now overrides the final-rank queue threshold so manual reviewer runs still produce drafts, images, Notion rows, and draft analytics
   - The previous monolithic implementation remains as `_process_single_post_legacy`; do not edit that path by mistake when touching the active flow
+- `blind-to-x` rule configuration is now mid-migration from the single `classification_rules.yaml` file to split source-of-truth files under `projects/blind-to-x/rules/`:
+  - `projects/blind-to-x/pipeline/rules_loader.py` merges `classification.yaml`, `examples.yaml`, `prompts.yaml`, `platforms.yaml`, and `editorial.yaml`
+  - Major runtime consumers now load rules through that shared loader instead of directly opening the legacy root YAML
+  - `scripts/update_classification_rules.py` and `scripts/analyze_draft_performance.py` now target the split layout and regenerate the legacy snapshot when needed
 - `shorts-maker-v2` package-wide verification remains at **91% total coverage** from the latest full-suite baseline (`1217 passed, 13 skipped, 1 warning`).
 - Core `shorts-maker-v2` hotspot coverage remains strong:
   - `pipeline/script_step.py` **93%**
@@ -61,13 +62,16 @@
 - `python -m py_compile pipeline/process.py` (`projects/blind-to-x`) -> clean
 - `python -m pytest tests/unit/test_pipeline_flow.py tests/unit/test_cost_controls.py tests/unit/test_dry_run_filters.py tests/unit/test_scrape_failure_classification.py tests/unit/test_reprocess_command.py -q -o addopts=` (`projects/blind-to-x`) -> **33 passed, 1 warning**
 - `python -m pytest tests/unit/test_draft_contract.py tests/unit/test_draft_generator_multi_provider.py tests/unit/test_pipeline_flow.py tests/unit/test_quality_improvements.py tests/unit/test_cost_controls.py tests/unit/test_dry_run_filters.py tests/unit/test_scrape_failure_classification.py tests/unit/test_reprocess_command.py -q -o addopts= -k "not slow"` (`projects/blind-to-x`) -> **92 passed, 1 warning**
+- `python -m py_compile pipeline/rules_loader.py pipeline/content_intelligence.py pipeline/draft_generator.py pipeline/editorial_reviewer.py pipeline/draft_quality_gate.py pipeline/quality_gate.py pipeline/regulation_checker.py pipeline/feedback_loop.py scripts/update_classification_rules.py scripts/analyze_draft_performance.py tests/unit/test_rules_loader.py` (`projects/blind-to-x`) -> clean
+- `python -m pytest tests/unit/test_rules_loader.py tests/unit/test_regulation_checker.py tests/unit/test_feedback_loop_fallback.py tests/unit/test_performance_tracker.py -q -o addopts=` (`projects/blind-to-x`) -> **56 passed, 1 warning**
+- `python -m pytest tests/unit/test_quality_improvements.py tests/unit/test_draft_generator_multi_provider.py tests/unit/test_pipeline_flow.py -q -o addopts=` (`projects/blind-to-x`) -> **65 passed, 1 warning**
 
 ## Next Priorities
 
 1. Follow up `T-087`: remove `_process_single_post_legacy` and extract the new stage helpers out of `projects/blind-to-x/pipeline/process.py` into dedicated stage modules once it is safe to do a broader cleanup.
-2. Follow up `T-084`: fill `projects/blind-to-x/docs/external-review/sample-case-template.md` with 1-3 anonymized real examples so outside LLMs can critique actual output quality instead of only code and rules.
-3. Follow up `T-082`: push the next `shorts-maker-v2` output-quality pass on `caption_pillow.py` plus any remaining thumbnail helper branches.
-4. Potential follow-up: `hanwoo-dashboard` npm audit remediation (`npm install --legacy-peer-deps` currently reports 15 vulnerabilities).
+2. Follow up `T-089`: finish the `blind-to-x` rules migration by deciding whether the legacy `classification_rules.yaml` remains a compatibility snapshot or can be retired after the remaining direct consumers are moved.
+3. Follow up `T-084`: fill `projects/blind-to-x/docs/external-review/sample-case-template.md` with 1-3 anonymized real examples so outside LLMs can critique actual output quality instead of only code and rules.
+4. Follow up `T-082`: push the next `shorts-maker-v2` output-quality pass on `caption_pillow.py` plus any remaining thumbnail helper branches.
 
 ## Notes
 
@@ -75,6 +79,7 @@
 - For `blind-to-x` external reviews, share the docs pack first and avoid sending `.env`, real `config.yaml`, raw Notion identifiers, or unredacted screenshots/logs.
 - `projects/blind-to-x` already has unrelated user WIP in several pipeline files; avoid blanket commits or reverts in that repo and keep future edits narrowly scoped.
 - For `blind-to-x` process changes, edit the exported `process_single_post()` near the bottom of `pipeline/process.py` or the shared `_run_*_stage()` helpers; `_process_single_post_legacy()` is now shadowed and should be treated as temporary reference only.
+- For `blind-to-x` rule edits, treat `projects/blind-to-x/rules/*.yaml` as the source of truth; the root `classification_rules.yaml` is now a compatibility snapshot/fallback surface.
 - When targeted `coverage report` looks wrong for a Windows path, prefer `coverage report -m --include="*module_name.py"`.
 - `tests/unit/test_tts_providers.py` still relies on shared module-level `torch` / `torchaudio` MagicMocks; reset them per test when expanding that suite.
 - `hanwoo-dashboard` still installs cleanly only with `npm install --legacy-peer-deps` because of peer drift around `next-auth@5.0.0-beta.25` and Next 16 / TypeScript 5.9.

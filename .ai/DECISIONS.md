@@ -257,3 +257,16 @@
 | **세부 규칙** | `workspace/directives`, `workspace/execution`, `workspace/scripts`, `workspace/tests` are canonical. Product repos live at `projects/<name>`. `.ai/`, `.agents/`, `.claude/`, `.github/`, `.mcp*.json`, `.tmp/`, `venv/`, and `_archive/` stay at repo root. |
 | **호환성** | Internal automation may resolve both legacy root project paths and canonical `projects/<name>` paths during migration. New docs and commands must use canonical paths only. |
 | **선택 이유** | The split reduces root clutter, makes ownership obvious, and preserves the AI/tooling control plane where existing session bootstrap expects it. |
+
+---
+
+## ADR-017: blind-to-x split rule files with a shared loader
+
+| 항목 | 내용 |
+|------|------|
+| **날짜** | 2026-03-29 |
+| **상태** | 확정 |
+| **맥락** | `projects/blind-to-x/classification_rules.yaml` had grown into a single mixed source for taxonomy, examples, prompt templates, editorial policy, and platform regulations. That made ownership blurry and raised the risk of unrelated edits colliding in one file. |
+| **결정** | Move the rule source of truth to split files under `projects/blind-to-x/rules/` and load them through `projects/blind-to-x/pipeline/rules_loader.py`. Keep the root `classification_rules.yaml` as a compatibility snapshot/fallback during the migration instead of deleting it immediately. |
+| **대안** | Keep one god YAML file; remove the legacy root YAML immediately and force a big-bang migration. |
+| **선택 이유** | The shared loader preserves runtime compatibility while reducing merge risk, narrowing file ownership, and making later cleanup safer. It also lets scripts and runtime modules migrate incrementally without blocking current operations. |
