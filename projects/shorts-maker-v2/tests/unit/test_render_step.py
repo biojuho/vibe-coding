@@ -580,6 +580,19 @@ def test_caption_y_with_safe_zone_enabled() -> None:
     mock_csp.assert_called_once_with(1920, 100, style, "body")
 
 
+def test_caption_y_non_centered_hook_uses_lower_third_but_body_stays_centered() -> None:
+    step = _make_render_step()
+    clip = MagicMock()
+    clip.h = 240
+
+    hook_y = RenderStep._caption_y(clip, 1920, step.hook_style, "hook")
+    body_y = RenderStep._caption_y(clip, 1920, step.body_style, "body")
+
+    assert hook_y == 1296
+    assert body_y == 792
+    assert hook_y > body_y
+
+
 def test_caption_y_without_safe_zone() -> None:
     """safe_zone_enabled=False → bottom_offset 기반 계산."""
     clip = MagicMock()
