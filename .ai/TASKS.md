@@ -19,11 +19,11 @@
 
 | ID | Task | Completed By | Completed |
 |----|------|--------------|-----------|
+| T-072 | Apply Pydantic structural parsing and multi-metric (`security`, `score`) evaluation outputs in `CodeEvaluator` | Gemini | 2026-03-29 |
+| T-071 | Integrate `CodeEvaluator` with `graph_engine.py` to create a closed Optimizer-Evaluator feedback loop with QA/QC validation | Gemini | 2026-03-29 |
 | T-086 | Split `blind-to-x` `process_single_post()` into stage-oriented pipeline steps and preserve manual `review_only` draft generation via the staged flow | Codex | 2026-03-29 |
 | T-085 | Apply the first `blind-to-x` external-review cleanup slice: draft contract helpers, publishable-only review/gate flow, and deterministic example selection | Codex | 2026-03-29 |
 | T-083 | Prepare `blind-to-x` external LLM review pack with docs, prompt templates, share checklist, and local bundle/zip | Codex | 2026-03-29 |
-| T-081 | Extend `shorts-maker-v2` thumbnail live-path hardening with Canva OAuth refresh, video-frame extraction cleanup coverage, and fail-fast HTTP download handling | Codex | 2026-03-29 |
-| T-080 | Harden `shorts-maker-v2` thumbnail temp-artifact cleanup and long-title wrapping | Codex | 2026-03-29 |
 
 ## Rules
 
