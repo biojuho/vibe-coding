@@ -36,9 +36,10 @@
   - Isolated `thumbnail_step.py`: `88%`
   - Thumbnail-focused orchestrator subset: `2 passed, 35 deselected, 1 warning`
 - Static caption rendering follow-up on `2026-03-29`:
-  - `tests/unit/test_caption_pillow.py`: `8 passed, 1 warning`
+  - `tests/unit/test_caption_pillow.py`: `10 passed, 1 warning`
   - `tests/unit/test_i18n_en_us_smoke.py`: `1 passed, 1 warning`
   - `tests/unit/test_render_step_phase5.py -k "render_static_caption or caption_y"`: `4 passed, 14 deselected, 1 warning`
+  - `tests/unit/test_render_step_phase5.py -k "caption_y"`: `2 passed, 16 deselected, 1 warning`
 
 ## Important Module Snapshot
 
@@ -51,7 +52,8 @@
   - Static captions now render their configured background box (`bg_color`, `bg_opacity`, `bg_radius`).
   - Glow compositing is isolated to the text layer so neon styles do not bloom around the whole box.
   - Horizontal placement now compensates for Pillow bbox `left` offsets to reduce clipping on stroked glyphs.
-  - Stress-test coverage now includes long single-token wrapping, safe-zone centering, top clamp for oversized captions, and tall multiline rendering.
+  - `center_hook` is now wired for hook scenes: centered safe-zone placement when enabled, safe-zone-clamped lower-third placement when disabled.
+  - Stress-test coverage now includes long single-token wrapping, safe-zone centering, hook center/lower-third semantics, top clamp for oversized captions, and tall multiline rendering.
 - `tests/unit/test_tts_providers.py`
   - Shared `torch` / `torchaudio` MagicMocks are reset per test to reduce cross-test leakage.
 
