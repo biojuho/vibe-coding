@@ -7,7 +7,7 @@ STAGED_PY=$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$')
 
 if [ -n "$STAGED_PY" ]; then
     echo "Pre-commit: ruff check on staged files..."
-    echo "$STAGED_PY" | xargs python -m ruff check --select E,W,F --quiet 2>/dev/null
+    echo "$STAGED_PY" | xargs python -m ruff check --config ruff.toml --quiet 2>/dev/null
     if [ $? -ne 0 ]; then
         echo "ruff check failed. Fix errors and retry."
         exit 1

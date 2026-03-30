@@ -5,13 +5,12 @@ line-length = 120
 
 [lint]
 select = ["E", "F", "W"]
-ignore = ["E501"]  # line-too-long: 기존 코드베이스 호환성 유지
+ignore = ["E501", "E402"]  # E501: 기존 코드베이스 호환성, E402: sys.path 조작 후 import 패턴 허용
 
 [lint.per-file-ignores]
-# Legacy manual test scripts: sys.path manipulation before imports is intentional
-"tests/legacy_manual/*.py" = ["E402"]
 # code_improver uses single-letter vars in generator expressions (line-processing)
-"execution/code_improver.py" = ["E741"]
-# Old verify scripts: informal style is intentional
-"tests/verify_all*.py" = ["E701", "F401"]
-"tests/verify_ux_v2.py" = ["E402", "F401"]
+"workspace/execution/code_improver.py" = ["E741"]
+# Legacy manual test scripts
+"workspace/tests/legacy_manual/*.py" = ["E402"]
+"workspace/tests/verify_all*.py" = ["E701", "F401"]
+"workspace/tests/verify_ux_v2.py" = ["E402", "F401"]
