@@ -1,6 +1,69 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-03-30 | Gemini (Antigravity) | T-082 / T-087 / T-084 완료
+
+### Work Summary
+
+**T-082** `shorts-maker-v2` `caption_pillow.py` 커버리지를 81% → 97%로 업리프트, ruff 오류 없음.
+
+**T-087** `blind-to-x` `pipeline/process.py` SyntaxError 수정. 편집 도구 오작동으로 바이트 레벨 패턴 교체가 필요했음. 최종 `py_compile` 통과, 전체 582테스트 green (0 failed).
+
+**T-084** `docs/external-review/sample-cases.md` 생성 — 2가지 익명화된 실제 파이프라인 케이스(공감형 성공 Case A + 품질 게이트 재생성 Case B).
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `projects/shorts-maker-v2/tests/unit/test_caption_pillow.py` | expand | 커버리지 97% 달성, ~25개 신규 테스트 케이스 추가 |
+| `projects/blind-to-x/pipeline/process.py` | fix | 레거시 함수 파라미터 orphan → `async def _process_single_post_legacy(` 바이트 레벨 교체로 SyntaxError 해결 |
+| `projects/blind-to-x/docs/external-review/sample-cases.md` | add | Case A(공감 성공) / Case B(quality-gate retry) 2케이스 |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/SESSION_LOG.md` | update | 세션 결과 동기화 |
+
+### Verification Results
+
+- `python -m py_compile pipeline/process.py` (`projects/blind-to-x`) → **clean** ✅
+- `python -m pytest tests/ -q -o addopts= --tb=no` (`projects/blind-to-x`) → **582 passed, 5 skipped** ✅
+- `python -m coverage report -m --include="*caption_pillow.py"` (`projects/shorts-maker-v2`) → **97%** ✅
+
+### 지뢰밭 기록 (향후 도구에게)
+
+- `pipeline/process.py` 편집 시 `replace_file_content` 도구가 잘못된 위치에 타겟 매칭하는 경우 있음. 혼합 line-ending(LF/CRLF) 파일에서 패턴 매칭 실패하기 쉬움 → 직접 Python 바이트 레벨 교체가 더 신뢰성 있음.
+
+
+
+### Work Summary
+
+`projects/blind-to-x/tests/unit/test_optimizations.py`의 구조적 손상과 `TestClassificationRulesYAML` 테스트 실패를 진단하고 수정했다.
+
+**문제 경위**: 이전 QA 세션에서 `_RULES_FILE` 모노키패치를 `rules_loader.load_rules()` mock으로 교체하는 편집 중 파일 구조가 손상됨 (`test_is_duplicate_not_in_cache` 메서드와 `TestClassificationRulesYAML` 클래스 전체가 엉킴).
+
+**진단**:
+- `test_topic_rules_loaded_from_yaml`: `assert 17 == 1` → mock이 우회되어 실제 17개 rules 로드
+- `test_classify_topic_cluster_uses_yaml_rules`: `assert '건강' == '커스텀주제'` → 캐시 + mock 미적용
+
+**근본 원인**: Python 모듈의 로컬 바인딩 문제. `content_intelligence.py` 내의 `_yaml_rules_to_tuples()`가 `_load_rules()`를 직접 이름으로 호출하므로, `rules_loader.load_rules`나 `ci._load_rules` 함수를 교체해도 `_loaded_rules` 전역 캐시가 이미 채워진 경우 무시됨.
+
+**해결**: `monkeypatch.setattr(ci, "_loaded_rules", fake_dict)` — `_load_rules()`의 캐시 변수에 직접 주입. `_loaded_rules is not None`이면 즉시 반환하므로 실제 rules 파일 읽기가 발생하지 않음.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `projects/blind-to-x/tests/unit/test_optimizations.py` | fix | 파일 구조 복원 (전체 재작성), `TestClassificationRulesYAML` mock 전략을 `_loaded_rules` 직접 주입으로 교체 |
+| `.ai/HANDOFF.md`, `.ai/SESSION_LOG.md` | update | 세션 결과 기록 |
+
+### Verification Results
+
+- `venv\Scripts\python.exe -X utf8 -m pytest projects\blind-to-x\tests\unit\test_optimizations.py::TestClassificationRulesYAML -v --no-header -o addopts=` → **3 passed** ✅
+- `venv\Scripts\python.exe -X utf8 -m pytest projects\blind-to-x\tests\unit\test_optimizations.py -v --no-header -o addopts=` → **13 passed** ✅
+
+### 지뢰밭 기록 (향후 도구에게)
+
+- `content_intelligence.py`의 규칙 mock은 반드시 `monkeypatch.setattr(ci, "_loaded_rules", {...})` 방식 사용. 함수 레벨 mock(`ci._load_rules`, `rl.load_rules`)은 캐시 우회에 신뢰할 수 없음.
+- `test_optimizations.py` 편집 시 파일 구조 확인 필수 — 이전 잘못된 편집으로 인해 클래스 경계가 무너진 이력 있음.
+
 ## 2026-03-29 | Codex | blind-to-x targeted QC rerun + ruff fix
+
 
 ### Work Summary
 

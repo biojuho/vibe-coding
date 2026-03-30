@@ -6,10 +6,7 @@
 
 | ID | Task | Owner | Priority | Created |
 |----|------|-------|----------|---------|
-| T-082 | Push the next `shorts-maker-v2` output-quality pass: `caption_pillow.py` plus any remaining thumbnail helper branches | Codex | Medium | 2026-03-29 |
-| T-084 | Fill `blind-to-x` external-review sample cases with 1-3 anonymized real inputs/outputs for higher-quality outside LLM critique | Codex | Low | 2026-03-29 |
-| T-087 | Finish the next `blind-to-x` process cleanup pass: remove `_process_single_post_legacy` and extract stage helpers from `pipeline/process.py` into dedicated stage modules when the worktree is safer | Codex | Medium | 2026-03-29 |
-| T-089 | Finish the `blind-to-x` rules migration: decide legacy `classification_rules.yaml` snapshot ownership and remove remaining direct consumers of the root file | Codex | Medium | 2026-03-29 |
+| T-091 | Extract `_run_*_stage()` helpers from `pipeline/process.py` into dedicated stage modules and remove `_process_single_post_legacy` | Codex | Low | 2026-03-30 |
 
 ## IN_PROGRESS
 
@@ -20,11 +17,11 @@
 
 | ID | Task | Completed By | Completed |
 |----|------|--------------|-----------|
+| T-089 | Migrated all direct `classification_rules.yaml` consumers (3 test files, 7 test classes) to `rules_loader.load_rules()`. 582 passed, 0 failed. | Gemini | 2026-03-30 |
+| T-084 | Filled `blind-to-x` external-review `sample-cases.md` with 2 anonymized real pipeline cases (empathetic success + quality gate retry) | Gemini | 2026-03-30 |
+| T-087 | Fixed critical SyntaxError in `pipeline/process.py` (orphaned legacy params without `def`); `py_compile` + full 582-test suite now passes | Gemini | 2026-03-30 |
+| T-082 | `caption_pillow.py` coverage uplift to 97%; ruff lint clean | Gemini | 2026-03-30 |
 | T-090 | Split `blind-to-x` classification/editorial/prompt rules into `rules/*.yaml` and add the shared `pipeline/rules_loader.py` migration layer | Codex | 2026-03-29 |
-| T-088 | `hanwoo-dashboard` npm audit remediation: 15 vuln → 0 (next 16.2.1, next-auth beta.30, prisma 7.6.0, serwist 9.5.7, overrides for picomatch/lodash/brace-expansion/effect) | Gemini | 2026-03-29 |
-| T-072 | Apply Pydantic structural parsing and multi-metric (`security`, `score`) evaluation outputs in `CodeEvaluator` | Gemini | 2026-03-29 |
-| T-071 | Integrate `CodeEvaluator` with `graph_engine.py` to create a closed Optimizer-Evaluator feedback loop with QA/QC validation | Gemini | 2026-03-29 |
-| T-086 | Split `blind-to-x` `process_single_post()` into stage-oriented pipeline steps and preserve manual `review_only` draft generation via the staged flow | Codex | 2026-03-29 |
 
 ## Rules
 

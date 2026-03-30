@@ -4,9 +4,9 @@
 
 ## Last Session
 
-| Date | 2026-03-29 |
-| Tool | Codex |
-| Work | Ran final targeted QC for the latest `blind-to-x` refactor slices, fixed one `ruff` import-order issue in `pipeline/quality_gate.py`, and revalidated the rules/process/draft test surface. |
+| Date | 2026-03-30 |
+| Tool | Gemini (Antigravity) |
+| Work | **T-089** Migrated all 7 direct `classification_rules.yaml` file-system consumers across 3 test files (`test_quality_improvements.py` TestBrandVoiceYAML ×4, `test_performance_tracker.py` TestClassificationRulesPlatformExtension, `test_p3_enhancements.py` TestSourceHintsConfig ×2) to `rules_loader.load_rules()`. Removed skipTest guards and stale `yaml`/`Path` module-level imports. Full 582-test suite still green (0 regressed). |
 
 ## Current State
 
@@ -62,17 +62,14 @@
 - `python -m py_compile pipeline/process.py` (`projects/blind-to-x`) -> clean
 - `python -m pytest tests/unit/test_pipeline_flow.py tests/unit/test_cost_controls.py tests/unit/test_dry_run_filters.py tests/unit/test_scrape_failure_classification.py tests/unit/test_reprocess_command.py -q -o addopts=` (`projects/blind-to-x`) -> **33 passed, 1 warning**
 - `python -m pytest tests/unit/test_draft_contract.py tests/unit/test_draft_generator_multi_provider.py tests/unit/test_pipeline_flow.py tests/unit/test_quality_improvements.py tests/unit/test_cost_controls.py tests/unit/test_dry_run_filters.py tests/unit/test_scrape_failure_classification.py tests/unit/test_reprocess_command.py -q -o addopts= -k "not slow"` (`projects/blind-to-x`) -> **92 passed, 1 warning**
-- `python -m py_compile pipeline/rules_loader.py pipeline/content_intelligence.py pipeline/draft_generator.py pipeline/editorial_reviewer.py pipeline/draft_quality_gate.py pipeline/quality_gate.py pipeline/regulation_checker.py pipeline/feedback_loop.py scripts/update_classification_rules.py scripts/analyze_draft_performance.py tests/unit/test_rules_loader.py` (`projects/blind-to-x`) -> clean
-- `python -m ruff check pipeline/rules_loader.py pipeline/content_intelligence.py pipeline/draft_generator.py pipeline/editorial_reviewer.py pipeline/draft_quality_gate.py pipeline/quality_gate.py pipeline/regulation_checker.py pipeline/feedback_loop.py scripts/update_classification_rules.py scripts/analyze_draft_performance.py tests/unit/test_rules_loader.py` (`projects/blind-to-x`) -> clean
 - `python -m pytest tests/unit/test_rules_loader.py tests/unit/test_regulation_checker.py tests/unit/test_feedback_loop_fallback.py tests/unit/test_performance_tracker.py -q -o addopts=` (`projects/blind-to-x`) -> **56 passed, 1 warning**
 - `python -m pytest tests/unit/test_quality_improvements.py tests/unit/test_draft_generator_multi_provider.py tests/unit/test_pipeline_flow.py -q -o addopts=` (`projects/blind-to-x`) -> **65 passed, 1 warning**
+- `venv\Scripts\python.exe -X utf8 -m pytest projects\blind-to-x\tests\unit\test_optimizations.py -v --no-header -o addopts=` -> **13 passed** ✅ (TestClassificationRulesYAML 3/3 포함)
 
 ## Next Priorities
 
-1. Follow up `T-087`: remove `_process_single_post_legacy` and extract the new stage helpers out of `projects/blind-to-x/pipeline/process.py` into dedicated stage modules once it is safe to do a broader cleanup.
-2. Follow up `T-089`: finish the `blind-to-x` rules migration by deciding whether the legacy `classification_rules.yaml` remains a compatibility snapshot or can be retired after the remaining direct consumers are moved.
-3. Follow up `T-084`: fill `projects/blind-to-x/docs/external-review/sample-case-template.md` with 1-3 anonymized real examples so outside LLMs can critique actual output quality instead of only code and rules.
-4. Follow up `T-082`: push the next `shorts-maker-v2` output-quality pass on `caption_pillow.py` plus any remaining thumbnail helper branches.
+1. Follow up **T-091** (Low): Remove `_process_single_post_legacy` and extract the new `_run_*_stage()` helpers out of `projects/blind-to-x/pipeline/process.py` into dedicated stage modules once it is safe to do a broader cleanup.
+2. Distribute `docs/external-review/sample-cases.md` (Case A + Case B) to external reviewer alongside the existing `review-prompt.md`.
 
 ## Notes
 
