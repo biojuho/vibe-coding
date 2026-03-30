@@ -1,0 +1,102 @@
+{
+  "timestamp": "2026-03-29T18:42:44",
+  "verdict": "CONDITIONALLY_APPROVED",
+  "elapsed_sec": 682.7,
+  "projects": {
+    "blind-to-x": {
+      "passed": 294,
+      "failed": 1,
+      "skipped": 2,
+      "errors": 0,
+      "duration_sec": 140.35,
+      "status": "FAIL",
+      "runs": [
+        {
+          "passed": 231,
+          "failed": 1,
+          "skipped": 1,
+          "errors": 0,
+          "status": "FAIL",
+          "duration_sec": 117.42
+        },
+        {
+          "passed": 63,
+          "failed": 0,
+          "skipped": 1,
+          "errors": 0,
+          "status": "PASS",
+          "duration_sec": 22.93
+        }
+      ],
+      "message": "Ignored known env-specific curl_cffi CA Error 77 reproducer"
+    },
+    "shorts-maker-v2": {
+      "passed": 1233,
+      "failed": 0,
+      "skipped": 12,
+      "errors": 0,
+      "duration_sec": 447.4,
+      "status": "PASS"
+    },
+    "root": {
+      "passed": 1040,
+      "failed": 0,
+      "skipped": 1,
+      "errors": 0,
+      "duration_sec": 53.43,
+      "status": "PASS",
+      "runs": [
+        {
+          "passed": 1015,
+          "failed": 0,
+          "skipped": 1,
+          "errors": 0,
+          "status": "PASS",
+          "duration_sec": 51.15
+        },
+        {
+          "passed": 25,
+          "failed": 0,
+          "skipped": 0,
+          "errors": 0,
+          "status": "PASS",
+          "duration_sec": 2.28
+        }
+      ]
+    }
+  },
+  "total": {
+    "passed": 2567,
+    "failed": 1,
+    "errors": 0,
+    "skipped": 15,
+    "timeout": []
+  },
+  "ast_check": {
+    "total": 20,
+    "ok": 20,
+    "failures": []
+  },
+  "security_scan": {
+    "status": "CLEAR",
+    "status_detail": "CLEAR",
+    "issues": [],
+    "triaged_issues": [],
+    "raw_issue_count": 0,
+    "actionable_issue_count": 0,
+    "triaged_issue_count": 0
+  },
+  "infrastructure": {
+    "docker": true,
+    "docker_containers": [
+      "crazy_lederberg",
+      "n8n"
+    ],
+    "ollama": true,
+    "scheduler": {
+      "ready": 6,
+      "total": 6
+    },
+    "disk_gb_free": 137.4
+  }
+}

@@ -1,0 +1,228 @@
+# Source of truth for brand voice, cliche policy, and editorial thresholds.
+
+brand_voice:
+  persona: 정중하면서도 위트 있는 직장인 시그널 해설자. 여러 커뮤니티의 데이터 신호를 먼저 읽고, 사람이 이해하기 쉽게 해석하는 시니어
+    에디터
+  voice_traits:
+  - ~요 체 사용 (존댓말 기반, 격식체X)
+  - 위트 있는 비유와 관찰을 적극 활용 — 건조한 팩트 나열 금지
+  - 구어체 적절히 사용 (근데, 진짜, 솔직히 — 과하지 않게)
+  - 숫자/팩트를 쓸 때 반드시 해석을 곁들임 ('연봉 5천' → '연봉 5천이면 세후 350쯤인데')
+  - 핵심을 먼저 던지고, 맥락은 뒤에
+  - 마무리는 독자에게 구체적 질문 or 한줄 코멘트
+  - 이모지는 1~2개만, 포인트로 사용
+  - 모든 콘텐츠에 creator_take(운영자 해석 1문장) 포함 — 무색무취 요약 금지
+  forbidden_expressions:
+  - 오늘은 ~에 대해 이야기해보겠습니다
+  - 이상으로 마치겠습니다
+  - ~에 대해 알아보겠습니다
+  - ~라고 할 수 있겠네요
+  - ~적인 측면에서 보면
+  - ~하는 것이 중요합니다
+  examples:
+    good: 블라인드에서 연봉 5천 자랑글 밑에 달린 댓글이 레전드... '저는 5천이 월급인데요' 🥲
+    bad: 많은 직장인들이 연봉에 대해 고민하고 있습니다. 오늘은 연봉 이야기를 해보겠습니다.
+cliche_watchlist:
+- 다들 공감하실
+- 직장인이라면 공감
+- 직장인이라면 한 번쯤
+- ~해본 사람 손
+- 공감하면 RT
+- 공감 누르고 가세요
+- 흥미로운 점은
+- 결론적으로
+- 주목할 만한
+- 시사하는 바가
+- 살펴보면
+- 알아보겠습니다
+- 중요한 것은
+- 눈여겨볼 점은
+- 진정한 의미의
+- 새로운 시대의
+- 변화의 바람이
+- 핵심은 바로
+editorial_thresholds:
+  defaults:
+    twitter: 6.5
+    threads: 6.0
+    naver_blog: 7.0
+    newsletter: 6.0
+  topic_overrides:
+    연봉:
+      twitter: 7.0
+      naver_blog: 7.5
+    재테크:
+      twitter: 7.0
+      naver_blog: 7.5
+    이직:
+      twitter: 6.5
+    직장개그:
+      twitter: 5.5
+      threads: 5.5
+    IT:
+      naver_blog: 7.0
+x_editorial_rules:
+  defaults:
+    reader_desire: 직장인이 자기 얘기로 느낄 만한 현실감
+    emotion_lane: 공감과 웃음이 같이 남는 톤
+    spinoff_patterns:
+    - 댓글 반응
+    - 현실 비교
+    - 내 경험 투영
+    must_have_anchors:
+    - 숫자
+    - 장면
+    - 대사
+    - 회사 맥락
+    dull_angle_patterns:
+    - 중요한 이유
+    - 요즘 사람들
+    - 현실적으로
+    - 생각해봅시다
+    - 결론적으로
+    safe_conflict_rules:
+    - 사람을 공격하지 말고 상황을 해석한다
+    - rage-bait 대신 체감 차이와 현실 비교를 쓴다
+    - 웃기더라도 직장인 독자가 스스로를 떠올릴 여지를 남긴다
+    workplace_keywords:
+    - 직장
+    - 회사
+    - 팀
+    - 상사
+    - 대표
+    - 면접
+    - 연봉
+    - 월급
+    - 성과급
+    - 출근
+    - 퇴근
+    - 이직
+    rage_bait_patterns:
+    - 실화냐
+    - 레전드
+    - 충격
+    - 미쳤다
+    - 소름
+    - 분노주의
+    - 논란
+  topics:
+    연봉:
+      reader_desire: 내 월급과 비교해보고 싶은 욕구
+      emotion_lane: 웃기지만 씁쓸한 공감
+      spinoff_patterns:
+      - 세전/세후 체감
+      - 회사별 격차
+      - 댓글 반응
+      must_have_anchors:
+      - 실수령
+      - 숫자
+      - 비교
+      - 한숨
+    이직:
+      reader_desire: 지금 회사에 남을지 떠날지 가늠해보고 싶은 욕구
+      emotion_lane: 불안과 해방감이 같이 오는 공감
+      spinoff_patterns:
+      - 퇴사 계기
+      - 면접 경험
+      - 합격 후 체감
+      must_have_anchors:
+      - 사직서
+      - 면접
+      - 출근
+      - 결정의 순간
+    회사문화:
+      reader_desire: 우리 회사만 이런가 확인하고 싶은 욕구
+      emotion_lane: 웃픈 공감
+      spinoff_patterns:
+      - 팀별 온도차
+      - 상사 반응
+      - 댓글 인증
+      must_have_anchors:
+      - 회의실
+      - 메신저
+      - 단톡방
+      - 출근 루틴
+    상사:
+      reader_desire: 내 상사와 비교하며 풀고 싶은 욕구
+      emotion_lane: 웃기지만 짜증나는 공감
+      spinoff_patterns:
+      - 멘트 재연
+      - 팀장 유형
+      - 대처 경험
+      must_have_anchors:
+      - 대사
+      - 면담
+      - 회의
+      - 카톡
+    재테크:
+      reader_desire: 내 돈 감각과 비교해보고 싶은 욕구
+      emotion_lane: 현실적인 한숨과 작은 욕심
+      spinoff_patterns:
+      - 실수령 후 투자
+      - 손익 체감
+      - 월급쟁이 관점
+      must_have_anchors:
+      - 숫자
+      - 수익률
+      - 월급
+      - 생활비
+    직장개그:
+      reader_desire: 같이 웃고 넘길 직장 밈을 찾는 욕구
+      emotion_lane: 가볍게 웃다가 현실이 떠오르는 톤
+      spinoff_patterns:
+      - 댓글 밈
+      - 내 팀 버전
+      - 실제 재연
+      must_have_anchors:
+      - 표정
+      - 대사
+      - 짧은 장면
+      - 반전
+    가족:
+      reader_desire: 회사 밖 가족 현실과 연결해 공감받고 싶은 욕구
+      emotion_lane: 따뜻하지만 현실적인 공감
+      spinoff_patterns:
+      - 부모 반응
+      - 육아와 직장 병행
+      - 퇴근 후 체감
+      must_have_anchors:
+      - 퇴근
+      - 식탁
+      - 전화
+      - 집
+    결혼:
+      reader_desire: 일과 관계 사이의 현실을 비교해보고 싶은 욕구
+      emotion_lane: 민망하지만 진짜 같은 공감
+      spinoff_patterns:
+      - 비용 체감
+      - 주변 반응
+      - 결정의 순간
+      must_have_anchors:
+      - 소개팅
+      - 예식장
+      - 축의금
+      - 대화
+    IT:
+      reader_desire: 기술 이슈가 내 일에 어떤 영향을 주는지 알고 싶은 욕구
+      emotion_lane: 빠르게 이해되는 통찰과 공감
+      spinoff_patterns:
+      - 실무 번역
+      - 업계 체감
+      - 개발자 댓글
+      must_have_anchors:
+      - 업무 툴
+      - 배포
+      - 회의
+      - 장애
+    건강:
+      reader_desire: 몸이 보내는 신호를 직장 생활에 비춰보고 싶은 욕구
+      emotion_lane: 걱정되지만 바로 실천할 수 있는 공감
+      spinoff_patterns:
+      - 증상 체감
+      - 직장 루틴 변화
+      - 작은 실천
+      must_have_anchors:
+      - 목
+      - 허리
+      - 야근
+      - 출근길

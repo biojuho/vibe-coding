@@ -1,0 +1,127 @@
+name: Blind to X Pipeline
+
+on:
+  schedule:
+    # Full run: KST 06~22 = UTC 21~13 (active hours, 6 runs)
+    - cron: "0 21 * * *"   # KST 06
+    - cron: "0 0 * * *"    # KST 09
+    - cron: "0 3 * * *"    # KST 12
+    - cron: "0 6 * * *"    # KST 15
+    - cron: "0 9 * * *"    # KST 18
+    - cron: "0 12 * * *"   # KST 21
+    # Dry-run: KST 00~06 = UTC 15~21 (off-peak, feed health check only)
+    - cron: "0 15 * * *"   # KST 00  → dry-run
+    - cron: "0 18 * * *"   # KST 03  → dry-run
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Number of posts to scrape"
+        required: false
+        default: "5"
+      mode:
+        description: "Execution mode: full or dry-run"
+        required: false
+        default: "full"
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: blind-to-x/requirements.txt
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('blind-to-x/requirements.txt') }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: |
+          playwright install chromium
+          playwright install-deps
+
+      - name: Generate config file from template
+        env:
+          BLIND_EMAIL: ${{ secrets.BLIND_EMAIL }}
+          BLIND_PASSWORD: ${{ secrets.BLIND_PASSWORD }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          TWITTER_CONSUMER_KEY: ${{ secrets.TWITTER_CONSUMER_KEY }}
+          TWITTER_CONSUMER_SECRET: ${{ secrets.TWITTER_CONSUMER_SECRET }}
+          TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
+          TWITTER_ACCESS_TOKEN_SECRET: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+          IMGUR_CLIENT_ID: ${{ secrets.IMGUR_CLIENT_ID }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+          SCRAPE_LIMIT: ${{ github.event.inputs.limit || '5' }}
+        run: |
+          envsubst < config.ci.yaml > config.yaml
+
+      - name: Validate config.yaml
+        run: python -c "import yaml; yaml.safe_load(open('config.yaml', encoding='utf-8'))"
+
+      - name: Run data accuracy tests
+        run: |
+          python -m pip install pytest pytest-asyncio
+          python -m pytest -q tests/unit
+
+      - name: Detect pipeline mode (time-based)
+        id: mode
+        run: |
+          # KST off-peak = UTC 15~20 → dry-run
+          UTC_HOUR=$(date -u +%H)
+          MANUAL_MODE="${{ github.event.inputs.mode }}"
+          if [ "$MANUAL_MODE" = "dry-run" ]; then
+            echo "mode=dry-run" >> $GITHUB_OUTPUT
+          elif [ "$UTC_HOUR" -ge 15 ] && [ "$UTC_HOUR" -le 20 ]; then
+            echo "mode=dry-run" >> $GITHUB_OUTPUT
+          else
+            echo "mode=full" >> $GITHUB_OUTPUT
+          fi
+          echo "UTC hour: $UTC_HOUR → mode: $(cat $GITHUB_OUTPUT | grep mode | cut -d= -f2)"
+
+      - name: Run pipeline - full (KST 06~22)
+        if: steps.mode.outputs.mode == 'full'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          python main.py --source blind --popular --review-only --limit ${{ github.event.inputs.limit || '5' }}
+
+      - name: Run pipeline - dry-run (KST 00~06, off-peak health check)
+        if: steps.mode.outputs.mode == 'dry-run'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          echo "Off-peak mode: feed health check only (no LLM / Notion upload)"
+          python main.py --source blind --popular --dry-run --limit 3
+
+      - name: Archive screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: blind-screenshots
+          path: screenshots/
+          retention-days: 7

@@ -52,40 +52,13 @@ Vibe coding/
 
 ## Current State
 
-- Workspace simplification refactor is in progress on `2026-03-26`.
-- Root-owned directories `directives/`, `execution/`, `scripts/`, and `tests/` were moved under `workspace/`.
-- Product directories were moved under `projects/`.
-- Root automation is being updated to resolve both canonical project paths and legacy root paths internally during migration.
-- `workspace/execution/qaqc_runner.py` and `workspace/execution/joolife_hub.py` now target the canonical layout.
-- QA/QC output is now expected at `projects/knowledge-dashboard/public/qaqc_result.json`.
-- Blind-to-X scheduled entrypoints and n8n bridge defaults now target canonical paths: `projects/blind-to-x` and `workspace/execution`.
-- `projects/blind-to-x` now applies X-first editorial filtering (`pre_editorial_score`), fail-closed draft generation, and few-shot fallback (`performance -> approved -> YAML`) after the 2026-03-26 curation redesign.
-- `projects/blind-to-x/docs/external-review/` now contains a reusable outside-LLM review pack with a project brief, share checklist, prompt templates, file manifest, and anonymized sample-case template; a local share-ready mirror lives at `.tmp/blind-to-x-external-review/` plus `.tmp/blind-to-x-external-review.zip`.
-- `projects/blind-to-x` now also has a first external-review cleanup slice on `2026-03-29`: `pipeline/draft_contract.py` defines publishable vs auxiliary vs review-metadata keys, publishable-only review/gate/readability/fact-check loops are wired through that helper, `creator_take` is optional metadata instead of a generation-success requirement, and `docs/external-review/improvement-plan-2026-03-29.md` captures the next phases.
-- `projects/blind-to-x/pipeline/process.py` now routes the exported `process_single_post()` through explicit stage helpers on `2026-03-29`: `ProcessRunContext` carries shared state, results include `stage_status`, and `review_only=True` now bypasses only the queue-threshold gate so manual review runs still generate drafts/images without weakening the earlier hard content filters.
-- A `2026-03-30` system audit recovered a later syntax regression in `projects/blind-to-x/pipeline/process.py`: the exported staged `process_single_post()` entrypoint parses again, and the shadow `_process_single_post_legacy()` reference path is back to AST-safe status.
-- `projects/blind-to-x` now also loads editorial/classification/prompt/policy rules through `pipeline/rules_loader.py` on `2026-03-29`: split source-of-truth files live under `projects/blind-to-x/rules/`, major consumers now share that loader, and legacy `classification_rules.yaml` is treated as a compatibility snapshot/fallback during the migration.
-- `workspace/execution/qaqc_runner.py` now runs `blind-to-x` as split unit/integration batches with a 900s timeout budget, fixing the previous false timeout in shared QC.
-- `workspace/execution/health_check.py` now boots correctly when run directly and follows the canonical path contract on `2026-03-30`: repo-root `.env` / `.tmp` / `.git` / `venv` / `CLAUDE.md`, plus workspace-local `execution/` / `directives/`.
-- `workspace/execution/graph_engine.py` and `projects/blind-to-x/pipeline/editorial_reviewer.py` now degrade gracefully when `langgraph` is not installed by using local fallback orchestration.
-- `workspace/execution/graph_engine.py` now carries evaluator self-reflection between iterations and weights the latest review security score into final confidence instead of averaging every historical worker result.
-- `workspace/execution/workers.py` now emits structured reviewer metadata with optional Pydantic validation plus a deterministic security scan so evaluator feedback is machine-readable even when the LLM falls back to text-only output.
-- `projects/blind-to-x/pipeline/draft_generator.py` now honors `llm.cache_db_path` via a persistent `DraftCache` instance so cache behavior is stable across generator instances and tests.
-- Windows Task Scheduler launchers are standardized through ASCII-safe `C:\btx\...` wrappers.
-- Latest shared QC run on `2026-03-30` is **`APPROVED`**: `blind-to-x` 560 passed / 16 skipped, `shorts-maker-v2` 1270 passed / 12 skipped, `root` 1040 passed / 1 skipped, AST 20/20, security `CLEAR`, scheduler `6/6 Ready`.
-- `projects/knowledge-dashboard` frontend QC was repaired on `2026-03-28`: `npm run lint` and `npm run build` are now green after fixing the conditional `useMemo` path in `ActivityTimeline.tsx` and replacing the empty `InputProps` interface with a type alias.
-- `projects/hanwoo-dashboard` npm audit remediation completed on `2026-03-29`: upgraded to next 16.2.1, next-auth 5.0.0-beta.30, prisma 7.6.0 (+ adapter-pg, @prisma/client), @serwist/next 9.5.7, eslint-config-next 16.2.1; added overrides for picomatch ^4.0.4, lodash ^4.17.23, brace-expansion ^2.0.3, effect ^3.21.0. `npm audit` now reports **0 vulnerabilities**. `npm run lint` (0 errors, 1 known warning in layout.js) and `npm run build` both pass. Note: `brace-expansion@5` was NOT used as override because it breaks minimatch (ESLint internal) — use `^2.0.3` instead.
-- `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/script_step.py` targeted coverage was raised from 69% to 93% on `2026-03-27` with mock-heavy unit tests for review, verification, retry, and truncation paths.
-- `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/orchestrator.py` targeted coverage was raised from 73% to 97% on `2026-03-27` with mock-heavy tests for init paths, optional stages, hold/upload branches, and ShortsFactory/native render routing.
-- `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/render_step.py` targeted coverage was raised from 11% to 87% on `2026-03-27` with mocked `run()` happy/fallback flows plus Lyria/local-BGM/thumbnail coverage.
-- `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/media_step.py` targeted coverage was raised from 59% to 90% on `2026-03-27` with branch-heavy unit tests for fallback chains, checkpoint recovery, and regeneration.
-- `projects/shorts-maker-v2` package-wide coverage was lifted to **91%** on `2026-03-28` after the provider/style uplift plus the later `dashboard` / `qc_step` / `trend_discovery_step` hotspot pass; the latest full `coverage run --source=src/shorts_maker_v2 -m pytest tests/unit tests/integration -q -o addopts=` reports `1217 passed, 13 skipped, 1 warning`.
-- The strongest 2026-03-28 non-pipeline coverage gains in `projects/shorts-maker-v2` were `google_music_client.py` **99%**, `pexels_client.py` **95%**, `unsplash_client.py` **100%**, `video_renderer.py` **100%**, and `hwaccel.py` **96%**.
-- `projects/shorts-maker-v2/src/shorts_maker_v2/utils/style_tracker.py`, `providers/chatterbox_client.py`, and `providers/cosyvoice_client.py` now each verify at **100% targeted coverage** on `2026-03-28`.
-- `projects/shorts-maker-v2/tests/unit/test_tts_providers.py` now resets shared `torch` / `torchaudio` MagicMocks per test to reduce cross-test side-effect leakage when expanding provider coverage.
-- The latest hotspot uplift on `2026-03-28` brought `dashboard.py` to **97%**, `qc_step.py` to about **90%**, and `trend_discovery_step.py` to about **85%**; after the `2026-03-29` thumbnail hardening pass, the next notable follow-up is `caption_pillow.py` plus any remaining thumbnail helper branches.
-- `projects/shorts-maker-v2/src/shorts_maker_v2/render/video_renderer.py` now forces MoviePy temp audio into a per-output unique file on `2026-03-28`, fixing a Windows repeat-run flake where `test_golden_render_moviepy` could die with `PermissionError [WinError 32]` while deleting `golden_moviepyTEMP_MPY_wvf_snd.mp4`.
-- `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/thumbnail_step.py` was hardened on `2026-03-29`: temp frame / DALL-E / Gemini / Canva artifacts now derive from the final output filename, background-image selection is no longer stored on mutable instance state, and long single-token titles now fall back to char-level wrapping instead of overflowing the thumbnail canvas.
+> ⚠️ [상태 이전 및 분리 알림]
+> - 매일 변동되는 작업 상태(진행 중인 이슈, 테스트 커버리지)
+> - 일시적인 버그나 회피 패턴(Minefield)
+> - 최신 품질 및 배포 로그 (Quality Notes)
+> 
+> 해당 내용들은 이제 토큰 최적화를 위해 **`.ai/STATUS.md`** 파일에서 관리됩니다.
+> (※ 관련결정사항: [ADR-018 in DECISIONS.md])
 
 ## Shared Services
 
@@ -93,53 +66,4 @@ Vibe coding/
 - Telegram bot and other external providers use root `.env`.
 - `infrastructure/` remains top-level and is not part of `workspace/`.
 
-## Minefield
 
-| Risk | Details | Safe Pattern |
-|---|---|---|
-| Windows console encoding | Emoji and non-ASCII console output can fail under cp949 paths or terminals | Prefer ASCII-safe logging or logger-based output |
-| Windows CA path + `curl_cffi` | Non-ASCII filesystem paths can trigger Error 77 | Copy cert bundle to ASCII-safe path and set `CURL_CA_BUNDLE` |
-| pytest `addopts` conflicts | Project-local `pytest.ini` or `pyproject` coverage options can conflict with orchestrated runs | Use `-o addopts=` in shared runners |
-| Legacy path assumptions | Old docs and scripts may still reference root `pages/` or root product dirs | Use `workspace/...` and `projects/...` in new code/docs |
-| Dirty nested repos | Product repos may contain user WIP | Never revert or overwrite unrelated changes |
-| PowerShell ScheduledTasks cmdlets | `Register-ScheduledTask` / `Unregister-ScheduledTask` can return `Access is denied` on this machine even when `schtasks` works | Regenerate `C:\btx\...` launchers first; if cmdlets fail, inspect with `Get-ScheduledTask` and use `schtasks` fallback for recovery |
-| Blind-to-X draft contract | `twitter` outputs still require a `reply` tag, but `creator_take` is now optional review metadata and non-publishable keys should not be fed back into quality/review loops | Use `pipeline/draft_contract.py` helpers when iterating drafts, and mock provider responses with `<reply>` for twitter cases |
-| Blind-to-X staged process shadowing | `pipeline/process.py` now contains both the active staged `process_single_post()` and a shadowed `_process_single_post_legacy()` reference copy; editing the wrong one will create confusing no-op changes | Touch the exported `process_single_post()` near the bottom of the file or the shared `_run_*_stage()` helpers; treat `_process_single_post_legacy()` as temporary reference only |
-| Blind-to-X split rules migration | `projects/blind-to-x/rules/*.yaml` is now the intended rule source of truth, but the legacy root `classification_rules.yaml` still exists as a compatibility snapshot/fallback and can drift if edits bypass the shared loader/scripts | Edit the split files, load them through `pipeline/rules_loader.py`, and regenerate the legacy snapshot when compatibility consumers still need it |
-| Health check root split | `workspace/execution/health_check.py` intentionally mixes workspace-owned directories with repo-root files, DBs, and virtualenv paths; collapsing everything under one root produces false failures like missing `CLAUDE.md` or the wrong `.tmp` lookup | Keep `execution/` and `directives/` under `workspace/`, but point `.env`, `.tmp`, `.git`, `venv`, and `CLAUDE.md` checks at repo root |
-| Shorts full-suite flakiness | `shorts-maker-v2` had earlier order-dependent/full-suite instability; a later isolated reproducer showed MoviePy temp-audio cleanup on Windows could fail with `PermissionError [WinError 32]` because temp audio was created under the working directory with a fixed stem-derived name | Prefer repeated isolated reruns of `tests/integration/test_golden_render.py::test_golden_render_moviepy` plus full-suite reruns when stability is in doubt; `MoviePyRenderer.write()` now passes a unique per-output temp audio path |
-| Shared provider test mocks | `tests/unit/test_tts_providers.py` uses shared module-level MagicMocks for `torch` and `torchaudio`; unreset side effects can bleed across cases and make provider failures look nondeterministic | Reset the shared mocks per test before adding new provider cases, and prefer helper side effects over inline lambdas |
-| Duplicate project roots | Both `projects/shorts-maker-v2` and a legacy root-level `shorts-maker-v2` directory exist on this machine, which can confuse coverage/import collection | Run tests from `projects/shorts-maker-v2` and prefer `coverage run ... -m pytest ... -o addopts=` over `pytest-cov` when measuring targeted module coverage |
-| Coverage report path matching | `coverage report` against a direct Windows source path can sometimes show `0%` unexpectedly even when coverage data exists | When that happens, use `coverage report -m --include="*module_name.py"` instead of a direct file-path report |
-| Thumbnail temp artifact collisions | `shorts-maker-v2` thumbnail generation used to create fixed-name temp files even when the final thumbnail filename was job-specific, so repeated or overlapping runs in one output directory could clobber or reuse stale temp files | Derive thumbnail temp paths from the final output filename (`thumbnail_<job>_*.png/.jpg`) and keep the selected background path local to the current `run()` call |
-| Hanwoo install peers | `projects/hanwoo-dashboard` currently needs `npm install --legacy-peer-deps` because `next-auth@5.0.0-beta.25` does not declare Next 16 peers and Toss types still warn on TypeScript 5.9 | For fresh installs, use `npm install --legacy-peer-deps` until the dependency matrix is aligned |
-| Hanwoo brace-expansion override | `brace-expansion@5` added as an npm override caused `TypeError: expand is not a function` in ESLint 9 because the old `minimatch` version bundled by `@eslint/config-array` expects the v2 API | Use `brace-expansion@^2.0.3` in overrides (safe range outside `<=1.1.12 || 2.0.0-2.0.2`), never v5 |
-
-## Recent Quality Notes
-
-- `workspace/execution/health_check.py --category filesystem --json` now reports **overall `ok`** on `2026-03-30`, and `workspace/tests/test_health_check.py` is **35 passed** after the canonical root/workspace path split fix.
-- Shared QC verification on `2026-03-30`: **`APPROVED`** with `blind-to-x` **560 passed / 16 skipped**, `shorts-maker-v2` **1270 passed / 12 skipped**, `root` **1040 passed / 1 skipped**, `AST 20/20`, security `CLEAR`, scheduler `6/6 Ready`.
-- `shorts-maker-v2` full `tests/unit + tests/integration` under `coverage run` passed on `2026-03-28` with **1217 passed, 13 skipped, 1 warning** and package-wide coverage at **91%**.
-- `shorts-maker-v2` thumbnail hardening verification on `2026-03-29`: `tests/unit/test_thumbnail_step.py` => **39 passed**, isolated `coverage run --source=src/shorts_maker_v2 -m pytest tests/unit/test_thumbnail_step.py -q -o addopts=` reports `thumbnail_step.py` at **88%**, and the thumbnail-focused orchestrator subset => **2 passed**.
-- `blind-to-x` has a known env-specific `curl_cffi` CA-path reproducer that is ignored in shared QA/QC.
-- Blind-to-X targeted redesign verification on `2026-03-26`: `103 passed, 1 warning` across the new editorial-filter / draft-fail-closed / few-shot fallback suites.
-- Blind-to-X external-review cleanup verification on `2026-03-29`: `python -m pytest tests/unit/test_draft_contract.py tests/unit/test_draft_generator_multi_provider.py tests/unit/test_pipeline_flow.py tests/unit/test_quality_improvements.py -q -o addopts= -k "not slow"` (`projects/blind-to-x`) -> **70 passed, 1 warning**.
-- Blind-to-X staged-process verification on `2026-03-29`: `python -m pytest tests/unit/test_pipeline_flow.py tests/unit/test_cost_controls.py tests/unit/test_dry_run_filters.py tests/unit/test_scrape_failure_classification.py tests/unit/test_reprocess_command.py -q -o addopts=` (`projects/blind-to-x`) -> **33 passed, 1 warning**; broader targeted rerun including the contract/generator/quality suites -> **92 passed, 1 warning**.
-- Blind-to-X split-rules verification on `2026-03-29`: `python -m py_compile ... pipeline/rules_loader.py ... tests/unit/test_rules_loader.py` (`projects/blind-to-x`) -> clean; `tests/unit/test_rules_loader.py tests/unit/test_regulation_checker.py tests/unit/test_feedback_loop_fallback.py tests/unit/test_performance_tracker.py` -> **56 passed, 1 warning**; `tests/unit/test_quality_improvements.py tests/unit/test_draft_generator_multi_provider.py tests/unit/test_pipeline_flow.py` -> **65 passed, 1 warning**.
-- Blind-to-X final targeted QC rerun on `2026-03-29`: `python -m ruff check ... pipeline/quality_gate.py ... tests/unit/test_rules_loader.py` (`projects/blind-to-x`) -> clean after a non-behavioral import-order fix in `pipeline/quality_gate.py`; the broader `not slow` regression bundle remains **92 passed, 1 warning**.
-- The QA/QC contract uses machine-readable statuses such as `APPROVED`, `CONDITIONALLY_APPROVED`, `REJECTED`, `CLEAR`, and `WARNING`.
-- Shared QC verification on `2026-03-28`: **`APPROVED`** with `2805 passed, 0 failed, 0 errors, 29 skipped`.
-- Root QC regressions fixed on `2026-03-28`: optional `langgraph` fallback in `graph_engine.py`, UTF-8-safe subprocess execution in `workers.py`, and false-positive security hits removed from `reasoning_engine.py`.
-- Graph-engine evaluator verification on `2026-03-28`: `ruff` is clean for `workspace/execution/graph_engine.py`, `workspace/execution/workers.py`, and `workspace/tests/test_graph_engine.py`; targeted test suite reports **34 passed**.
-- Blind-to-X cache/test contract fixes on `2026-03-28`: `TweetDraftGenerator` now respects `llm.cache_db_path`, and cache/quality-gate tests were updated to the current `reply` + `creator_take` output contract.
-- `knowledge-dashboard` frontend verification on `2026-03-28`: `npm run lint` and `npm run build` both pass after fixing the conditional `useMemo` hook path and the empty `InputProps` interface.
-- `hanwoo-dashboard` frontend verification on `2026-03-28`: `npm run lint` reports only one `@next/next/no-page-custom-font` warning in `src/app/layout.js`, and `npm run build` passes after reinstalling with `--legacy-peer-deps` and regenerating Prisma client outputs.
-- `shorts-maker-v2` script-step targeted verification on `2026-03-27`: `29 passed, 1 warning`; `coverage run` reports `script_step.py` at **93%**.
-- `shorts-maker-v2` orchestrator targeted verification on `2026-03-27`: `38 passed, 1 warning`; `coverage run` reports `orchestrator.py` at **97%**.
-- `shorts-maker-v2` render-step targeted verification on `2026-03-27`: `141 passed, 1 warning`; `coverage run` with `coverage report -m --include="*render_step.py"` reports `render_step.py` at **87%**.
-- `shorts-maker-v2` media-step targeted verification on `2026-03-27`: `28 passed, 1 warning`; `coverage run` reports `media_step.py` at **90%**.
-- `shorts-maker-v2` broader aggregate verification on `2026-03-27`: `411 passed, 1 warning`; `coverage run --source=src/shorts_maker_v2` reported **57%** total coverage for `src/shorts_maker_v2` before the 2026-03-28 provider/render + `hwaccel` uplift.
-- `shorts-maker-v2` full aggregate verification on `2026-03-28`: `1217 passed, 13 skipped, 1 warning`; `coverage run --source=src/shorts_maker_v2 -m pytest tests/unit tests/integration -q -o addopts=` now reports **91%** total coverage for `src/shorts_maker_v2`.
-- `shorts-maker-v2` targeted non-pipeline verification on `2026-03-28`: `tests/unit/test_style_tracker.py` + `tests/unit/test_tts_providers.py` => **64 passed, 1 warning**; `coverage report -m --include="*style_tracker.py,*chatterbox_client.py,*cosyvoice_client.py"` reports all three modules at **100%**.
-- Shared QC rerun on `2026-03-28` after the latest `shorts-maker-v2` test uplift: **`APPROVED`** with `blind-to-x` **551 passed / 16 skipped**, `shorts-maker-v2` **1217 passed / 12 skipped**, `root` **1037 passed / 1 skipped**.
-- `shorts-maker-v2` repeatability verification on `2026-03-28`: `tests/integration/test_golden_render.py::test_golden_render_moviepy` failed once after 4 clean isolated reruns with a MoviePy temp-audio cleanup `PermissionError`; after the `video_renderer.py` fix, the same test passed **5/5** isolated reruns and the full suite passed again (`1191 passed, 12 skipped, 1 warning`).

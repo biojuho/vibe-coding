@@ -77,27 +77,6 @@
 | **날짜** | 2026-03-05 |
 | **상태** | ✅ 확정 |
 | **맥락** | YouTube Shorts 자동 생성 파이프라인 운영 |
-| **결정** | AI 테크, 심리학, 역사, 건강, 우주 5개 채널별 전용 프로필 및 스타일 운영 |
-| **대안** | 단일 채널 운영 |
-| **선택 이유** | 채널별 최적화된 콘텐츠 생산, 유기적 성장 극대화 |
-
----
-
-## ADR-007: AI 도구 공유 컨텍스트 시스템 (.ai/ 폴더)
-
-| 항목 | 내용 |
-|------|------|
-| **날짜** | 2026-03-06 |
-| **상태** | ✅ 확정 |
-| **맥락** | Claude Code, Codex, Gemini/Antigravity, Cursor 등 여러 AI 도구가 번갈아 작업하며 맥락 유실 발생 |
-| **결정** | `.ai/` 폴더에 CONTEXT.md, SESSION_LOG.md, DECISIONS.md 3개 파일로 공유 컨텍스트 시스템 운영 |
-| **대안** | 각 도구 고유 컨텍스트만 사용 / README.md에 통합 |
-| **선택 이유** | 도구 전환 시 맥락 끊김 방지, 결정사항 보존, 세션 간 인수인계 체계화 |
-
----
-
-## ADR-008: QA/QC 4단계 자동화 검증 워크플로우 통합
-
 | 항목 | 내용 |
 |------|------|
 | **날짜** | 2026-03-08 |
@@ -270,3 +249,16 @@
 | **결정** | Move the rule source of truth to split files under `projects/blind-to-x/rules/` and load them through `projects/blind-to-x/pipeline/rules_loader.py`. Keep the root `classification_rules.yaml` as a compatibility snapshot/fallback during the migration instead of deleting it immediately. |
 | **대안** | Keep one god YAML file; remove the legacy root YAML immediately and force a big-bang migration. |
 | **선택 이유** | The shared loader preserves runtime compatibility while reducing merge risk, narrowing file ownership, and making later cleanup safer. It also lets scripts and runtime modules migrate incrementally without blocking current operations. |
+
+---
+
+## ADR-018: 상태(State)와 규칙(Context)의 물리적 분리 및 Fast-path 도입
+
+| 항목 | 내용 |
+|------|------|
+| **날짜** | 2026-03-30 |
+| **상태** | ✅ 확정 |
+| **맥락** | `CONTEXT.md` 파일에 매일 변동되는 테스트 커버리지, 임시 버그(Minefield) 등이 축적되어 토큰 오버헤드(Context Bloat)가 발생함. 단순한 코드 수정, 질문 답변 시에도 시스템 절차(SESSION_LOG 등 4~5개 파일 업데이트)로 인해 생산성이 저하됨. |
+| **결정** | 1. `CONTEXT.md`에서 현재 상태, 품질 노트, 지뢰밭(Minefield)을 제거하여 `STATUS.md`로 분리. `CONTEXT.md`는 고정된 아키텍처/폴더 구조 유지. <br>2. 1~2줄 수정, 단순 코드 리뷰 등에는 복잡한 업데이트를 생략하는 경량화(Fast-path) 워크플로우 도입. (`AGENTS.md` 반영) |
+| **대안** | 1. 상태 로그 전체 삭제 (히스토리 추적 불가) <br>2. 별도 디렉토리 아카이빙 (가시성 저하) |
+| **선택 이유** | 아키텍처 규칙과 매일 변동되는 상태 데이터를 분리하여 에이전트 구동에 들어가는 시스템 유지보수 오버헤드를 줄이면서 본래의 철학(3-Layer Architecture)은 고수하기 위함. |
