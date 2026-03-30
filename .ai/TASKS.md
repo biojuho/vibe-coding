@@ -17,11 +17,11 @@
 
 | ID | Task | Completed By | Completed |
 |----|------|--------------|-----------|
+| T-092 | Full-system audit: restored `blind-to-x` shared QC by fixing `pipeline/process.py` syntax corruption and corrected `health_check.py` to the canonical repo/workspace path contract | Codex | 2026-03-30 |
 | T-089 | Migrated all direct `classification_rules.yaml` consumers (3 test files, 7 test classes) to `rules_loader.load_rules()`. 582 passed, 0 failed. | Gemini | 2026-03-30 |
 | T-084 | Filled `blind-to-x` external-review `sample-cases.md` with 2 anonymized real pipeline cases (empathetic success + quality gate retry) | Gemini | 2026-03-30 |
 | T-087 | Fixed critical SyntaxError in `pipeline/process.py` (orphaned legacy params without `def`); `py_compile` + full 582-test suite now passes | Gemini | 2026-03-30 |
 | T-082 | `caption_pillow.py` coverage uplift to 97%; ruff lint clean | Gemini | 2026-03-30 |
-| T-090 | Split `blind-to-x` classification/editorial/prompt rules into `rules/*.yaml` and add the shared `pipeline/rules_loader.py` migration layer | Codex | 2026-03-29 |
 
 ## Rules
 

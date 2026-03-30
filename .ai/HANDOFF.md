@@ -5,13 +5,21 @@
 ## Last Session
 
 | Date | 2026-03-30 |
+| Tool | Codex |
+| Work | Performed a full-system audit, recovered the shared QA/QC baseline, and fixed two migration regressions: `projects/blind-to-x/pipeline/process.py` had a syntax-corrupted `process_single_post` / `_process_single_post_legacy` boundary, and `workspace/execution/health_check.py` could not run directly after the workspace path migration. Final shared QC is green again. |
+
+### Previous Note
+
+| Date | 2026-03-30 |
 | Tool | Gemini (Antigravity) |
 | Work | **T-089** Migrated all 7 direct `classification_rules.yaml` file-system consumers across 3 test files (`test_quality_improvements.py` TestBrandVoiceYAML ×4, `test_performance_tracker.py` TestClassificationRulesPlatformExtension, `test_p3_enhancements.py` TestSourceHintsConfig ×2) to `rules_loader.load_rules()`. Removed skipTest guards and stale `yaml`/`Path` module-level imports. Full 582-test suite still green (0 regressed). |
 
 ## Current State
 
+- Shared workspace QC is green again from the latest full rerun on `2026-03-30`: **`APPROVED`**, `blind-to-x 560 passed / 16 skipped`, `shorts-maker-v2 1270 passed / 12 skipped`, `root 1040 passed / 1 skipped`, `AST 20/20`, security `CLEAR`, scheduler `6/6 Ready`.
+- A `2026-03-30` system audit recovered a syntax-corrupted `projects/blind-to-x/pipeline/process.py` state: the exported staged entrypoint near the bottom is active again, and the legacy reference path parses again for AST/QC purposes.
+- `workspace/execution/health_check.py` now boots correctly when run as a script and uses the canonical path contract: repo-root `.env` / `.tmp` / `CLAUDE.md` plus workspace-local `execution/` / `directives/`.
 - `workspace/execution/code_evaluator.py` integrated into `graph_engine.py` for structured code evaluation (`is_approved`, `score`, `security_score`). If failed, generates explicit reflection feedback fed directly to `prepare_variants` (Optimizer loop). QA/QC fully passed.
-- Shared workspace QC is still green from the latest full rerun on `2026-03-28`: **`APPROVED`**, `2805 passed / 0 failed / 29 skipped`.
 - `blind-to-x` now has a reusable external-review kit for third-party LLM consultation:
   - Review docs live under `projects/blind-to-x/docs/external-review/`
   - The pack includes a project brief, share checklist, prompt templates, file manifest, and sanitized sample-case template
@@ -54,6 +62,10 @@
 
 ## Verification Highlights
 
+- `venv\Scripts\python.exe workspace\execution\health_check.py --category filesystem --json` -> **overall `ok`** (`execution/`, `directives/`, repo-root `.tmp`, `.env`, `CLAUDE.md`)
+- `venv\Scripts\python.exe -X utf8 -m pytest workspace\tests\test_health_check.py -q -o addopts=` -> **35 passed**
+- `venv\Scripts\python.exe workspace\execution\qaqc_runner.py -p blind-to-x -o .tmp/qaqc_blind-to-x_recheck2_2026-03-30.json` -> **`APPROVED`** / `560 passed / 16 skipped`
+- `venv\Scripts\python.exe workspace\execution\qaqc_runner.py -o .tmp/qaqc_system_check_final_2026-03-30.json` -> **`APPROVED`** / `2870 passed / 0 failed / 0 errors / 29 skipped`
 - `venv\Scripts\python.exe -m pytest tests/unit/test_thumbnail_step.py -q -o addopts=` (`projects/shorts-maker-v2`) -> **39 passed, 1 warning**
 - `venv\Scripts\python.exe -m ruff check src/shorts_maker_v2/pipeline/thumbnail_step.py tests/unit/test_thumbnail_step.py` (`projects/shorts-maker-v2`) -> clean
 - `venv\Scripts\python.exe -m coverage run --source=src/shorts_maker_v2 -m pytest tests/unit/test_thumbnail_step.py -q -o addopts=` + `coverage report -m --include="*thumbnail_step.py"` (`projects/shorts-maker-v2`) -> **39 passed, 1 warning**; isolated report showed `thumbnail_step.py` **88%**
@@ -69,14 +81,16 @@
 ## Next Priorities
 
 1. Follow up **T-091** (Low): Remove `_process_single_post_legacy` and extract the new `_run_*_stage()` helpers out of `projects/blind-to-x/pipeline/process.py` into dedicated stage modules once it is safe to do a broader cleanup.
-2. Distribute `docs/external-review/sample-cases.md` (Case A + Case B) to external reviewer alongside the existing `review-prompt.md`.
 
 ## Notes
 
 - `coverage run` is the reliable measurement path for `shorts-maker-v2` on this Windows machine; `pytest-cov` can still trip over duplicate root/project paths.
+- During active BlindToX schedule windows, the infra snapshot can show `4/6 Ready` because the remaining two tasks are legitimately `Running`; confirm with `schtasks /query` before treating that as a regression.
 - For `blind-to-x` external reviews, share the docs pack first and avoid sending `.env`, real `config.yaml`, raw Notion identifiers, or unredacted screenshots/logs.
 - `projects/blind-to-x` already has unrelated user WIP in several pipeline files; avoid blanket commits or reverts in that repo and keep future edits narrowly scoped.
 - For `blind-to-x` process changes, edit the exported `process_single_post()` near the bottom of `pipeline/process.py` or the shared `_run_*_stage()` helpers; `_process_single_post_legacy()` is now shadowed and should be treated as temporary reference only.
+- `_process_single_post_legacy()` currently parses again but still contains a quarantined dead block from the earlier corruption; prefer completing **T-091** instead of hand-editing that reference path casually.
+- `workspace/execution/health_check.py` now depends on the repo-root vs workspace-root split; keep `.env`, `.tmp`, `.git`, `venv`, and `CLAUDE.md` on repo root checks, but keep `execution/` and `directives/` on the workspace root.
 - For `blind-to-x` rule edits, treat `projects/blind-to-x/rules/*.yaml` as the source of truth; the root `classification_rules.yaml` is now a compatibility snapshot/fallback surface.
 - The latest QC-only code delta in `blind-to-x` was a non-behavioral import-order fix in `pipeline/quality_gate.py` so `ruff` stays green after the rules-loader migration.
 - When targeted `coverage report` looks wrong for a Windows path, prefer `coverage report -m --include="*module_name.py"`.

@@ -463,3 +463,34 @@ Fixed the `knowledge-dashboard` issues by moving the memoized grouping logic ahe
   - workspace/tests/test_code_evaluator.py (QA automated tests)
   - .ai/HANDOFF.md (Updated state)
   - .ai/TASKS.md (Added T-071, T-072 to DONE)
+
+## 2026-03-30 | Codex | full-system audit + shared QC recovery
+
+### Work Summary
+
+Ran a full-system check from the shared repo root, using the canonical `workspace/execution/qaqc_runner.py` and `workspace/execution/health_check.py` entrypoints first. The initial audit surfaced two migration regressions: `projects/blind-to-x/pipeline/process.py` had a syntax-corrupted boundary between the staged `process_single_post()` entrypoint and `_process_single_post_legacy()`, and `workspace/execution/health_check.py` could no longer run directly because it did not bootstrap `workspace/` onto `sys.path` and still treated `workspace/` as the root for repo-owned files.
+
+Recovered the shared baseline by restoring the `process.py` entrypoint split so the staged flow parses and runs again, then fixed `health_check.py` to boot correctly from CLI and to use the canonical path contract: repo-root `.env` / `.tmp` / `.git` / `venv` / `CLAUDE.md`, plus workspace-local `execution/` / `directives/`. After the targeted rechecks, the final shared QA/QC rerun returned to `APPROVED`.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `projects/blind-to-x/pipeline/process.py` | fix | Recovered the staged `process_single_post()` declaration and AST-safe legacy reference path so shared QC can import and execute the module again |
+| `workspace/execution/health_check.py` | fix | Added direct-script path bootstrap and corrected repo-root vs workspace-root filesystem/env/db lookup behavior |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | update | Refreshed relay state, quality baselines, and next-step notes after the system audit |
+
+### Verification Results
+
+- `venv\Scripts\python.exe workspace\execution\health_check.py --help` -> CLI booted successfully
+- `venv\Scripts\python.exe workspace\execution\health_check.py --category filesystem --json` -> **overall `ok`**
+- `venv\Scripts\python.exe -X utf8 -m pytest workspace\tests\test_health_check.py -q -o addopts=` -> **35 passed**
+- `..\..\venv\Scripts\python.exe -X utf8 -m py_compile pipeline\process.py` (`projects/blind-to-x`) -> clean
+- `venv\Scripts\python.exe workspace\execution\qaqc_runner.py -p blind-to-x -o .tmp/qaqc_blind-to-x_recheck2_2026-03-30.json` -> **`APPROVED`** / `560 passed / 16 skipped`
+- `venv\Scripts\python.exe workspace\execution\qaqc_runner.py -o .tmp/qaqc_system_check_final_2026-03-30.json` -> **`APPROVED`** / `2870 passed / 0 failed / 0 errors / 29 skipped`
+
+### Notes For Next Agent
+
+- `projects/blind-to-x/pipeline/process.py` now parses and the active staged flow is healthy again, but `_process_single_post_legacy()` still contains quarantined dead code from the earlier corruption; prefer completing **T-091** rather than editing that reference path casually.
+- During active BlindToX schedule windows, `qaqc_runner.py` may report `4/6 Ready` because two scheduled tasks are legitimately `Running`; verify with `schtasks /query` before treating that snapshot as infrastructure drift.
+- Keep the `health_check.py` root split intact: repo-root `.env` / `.tmp` / `.git` / `venv` / `CLAUDE.md`, workspace-local `execution/` / `directives/`.
