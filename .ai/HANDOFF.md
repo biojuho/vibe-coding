@@ -4,9 +4,9 @@
 
 ## Last Session
 
-| Date | 2026-03-30 |
+| Date | 2026-03-31 |
 | Tool | Codex |
-| Work | Completed **T-091** after the system audit: restored `blind-to-x` staged runtime compatibility by making `pipeline/process.py` the slim public orchestrator, routing `pipeline/stages/` through the clean `pipeline/process_stages/` implementation, preserving old monkeypatch/import contracts used by tests and commands, and stabilizing CostDB visibility with a WAL checkpoint + retry. Targeted regressions are green again and project QA/QC rerun passed. |
+| Work | Ran a fresh `blind-to-x` project QC pass after the staged-pipeline cleanup and confirmed it is still green: `560 passed / 0 failed / 16 skipped`, `AST 20/20`, security `CLEAR (2 triaged issue(s))`, scheduler `6/6 Ready`, verdict `APPROVED`. |
 
 ### Previous Note
 
@@ -23,7 +23,7 @@
   - `pipeline.commands.dry_run` and `pipeline.commands.reprocess` import paths work without touching callers.
   - Stage/runtime tests now rely on the clean `process_stages` code instead of the previously broken extraction artifacts.
 - `blind-to-x` targeted regression bundle for the staged pipeline is green on `2026-03-30`: `33 passed` across `test_dry_run_filters.py`, `test_reprocess_command.py`, `test_pipeline_flow.py`, `test_cost_controls.py`, and `test_scrape_failure_classification.py`.
-- `blind-to-x` project-only QA/QC rerun on `2026-03-30` is **`CONDITIONALLY_APPROVED`**: `560 passed / 0 failed / 16 skipped`, `AST 20/20`, scheduler `6/6 Ready`, with security scan reporting `18 actionable issue(s)` as an existing backlog item.
+- `blind-to-x` latest project-only QC rerun on `2026-03-31` is **`APPROVED`**: `560 passed / 0 failed / 16 skipped`, `AST 20/20`, security `CLEAR (2 triaged issue(s))`, scheduler `6/6 Ready`.
 - `workspace/execution/health_check.py` now boots correctly when run as a script and uses the canonical path contract: repo-root `.env` / `.tmp` / `CLAUDE.md` plus workspace-local `execution/` / `directives/`.
 - `workspace/execution/code_evaluator.py` integrated into `graph_engine.py` for structured code evaluation (`is_approved`, `score`, `security_score`). If failed, generates explicit reflection feedback fed directly to `prepare_variants` (Optimizer loop). QA/QC fully passed.
 - `blind-to-x` now has a reusable external-review kit for third-party LLM consultation:
@@ -96,6 +96,7 @@
 - `projects/blind-to-x` already has unrelated user WIP in several pipeline files; avoid blanket commits or reverts in that repo and keep future edits narrowly scoped.
 - For `blind-to-x` staged process changes, edit `projects/blind-to-x/pipeline/process_stages/` for behavior and treat `projects/blind-to-x/pipeline/stages/` as a compatibility bridge only.
 - `pipeline.process` still has compatibility globals for tests/commands; if a refactor removes one, expect the unit suite to fail before runtime regressions are obvious.
+- The latest `blind-to-x` project QC artifact is `.tmp/qaqc_blind_to_x_2026-03-31.json`.
 - `workspace/execution/health_check.py` now depends on the repo-root vs workspace-root split; keep `.env`, `.tmp`, `.git`, `venv`, and `CLAUDE.md` on repo root checks, but keep `execution/` and `directives/` on the workspace root.
 - For `blind-to-x` rule edits, treat `projects/blind-to-x/rules/*.yaml` as the source of truth; the root `classification_rules.yaml` is now a compatibility snapshot/fallback surface.
 - The latest QC-only code delta in `blind-to-x` was a non-behavioral import-order fix in `pipeline/quality_gate.py` so `ruff` stays green after the rules-loader migration.
