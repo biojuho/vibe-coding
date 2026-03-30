@@ -1,0 +1,92 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "shorts-maker-v2"
+version = "0.1.0"
+description = "One-click YouTube Shorts generator CLI"
+readme = "docs/README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "openai>=1.59.3",
+  "google-genai>=1.0.0",
+  "python-dotenv>=1.0.1",
+  "PyYAML>=6.0.2",
+  "moviepy>=2.1.0",
+  "Pillow>=10.2.0",
+  "mutagen>=1.47.0",
+  "requests>=2.32.0",
+]
+
+[project.optional-dependencies]
+whisper = [
+  "faster-whisper>=1.1.0",
+]
+dev = [
+  "pytest>=8.0.0",
+  "pytest-cov>=6.0.0",
+  "ruff>=0.11.0",
+  "pre-commit>=4.0.0",
+  "pydub>=0.25.1",
+]
+all = [
+  "shorts-maker-v2[dev,whisper]",
+]
+
+[project.scripts]
+shorts-maker-v2 = "shorts_maker_v2.cli:run_cli"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# ── Ruff (Linter + Formatter) ──────────────────────────────
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "UP", "B", "SIM", "S"]
+ignore = [
+  "S101",   # assert 허용 (테스트 코드)
+  "S603",   # subprocess 호출 허용 (ffmpeg 렌더링)
+  "S607",   # partial path to executable 허용
+  "S311",   # random 모듈 사용 허용 (렌더링 효과 랜덤화, 암호 아님)
+  "S110",   # try-except-pass 허용 (fallback 패턴)
+  "S112",   # try-except-continue 허용 (fallback 패턴)
+  "S105",   # hardcoded password 허용 (테스트 fixture)
+  "E501",   # line-length는 formatter가 관리
+  "E402",   # module-level import 순서 허용 (lazy import 패턴)
+  "E701",   # multiple statements on one line 허용 (compact guard)
+  "E741",   # ambiguous variable name 허용 (이미지/수학 코드에서 l, I 등 사용)
+  "E722",   # bare except 허용 (fallback 패턴)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S"]
+"ShortsFactory/**" = ["S"]
+"src/**/trend_discovery_step.py" = ["S314"]  # defusedxml tried first; stdlib fallback for trusted RSS only
+
+[tool.ruff.format]
+quote-style = "double"
+
+# ── Pytest ──────────────────────────────────────────────────
+[tool.pytest.ini_options]
+testpaths = ["tests/unit", "tests/integration"]
+addopts = "--cov=src/shorts_maker_v2 --cov-report=term-missing --cov-fail-under=45"
+
+# ── Coverage ────────────────────────────────────────────────
+[tool.coverage.run]
+source = ["src/shorts_maker_v2"]
+omit = ["tests/*", "ShortsFactory/*"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 45
+exclude_lines = [
+  "if __name__",
+  "pragma: no cover",
+]

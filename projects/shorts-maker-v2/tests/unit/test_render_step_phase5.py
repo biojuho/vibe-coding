@@ -124,7 +124,7 @@ def test_resolve_caption_combo_prefers_channel_profile() -> None:
     ):
         result = RenderStep._resolve_caption_combo("ai_tech", job_index=99)
 
-    assert result == ("hook_plus", "body_plus", "cta_plus")
+    assert result == ("hook_plus", "body_plus", "cta_plus", "closing")
 
 
 def test_resolve_caption_combo_falls_back_to_rotation_for_invalid_profile() -> None:

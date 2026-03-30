@@ -196,7 +196,7 @@ def test_approximate_word_timings_success(tmp_path: Path) -> None:
     with patch("shorts_maker_v2.providers.edge_tts_client.MP3", mock_mp3, create=True):
         # Need to patch at the import level inside the function
         import types
-        import shorts_maker_v2.providers.edge_tts_client as mod
+
         # Temporarily inject MP3 into the function's scope via mutagen mock
         mock_mutagen_mp3 = types.ModuleType("mutagen.mp3")
         mock_mutagen_mp3.MP3 = mock_mp3
@@ -414,15 +414,13 @@ def test_generate_async_with_timing_approximate_fallback(tmp_path: Path) -> None
             "shorts_maker_v2.providers.edge_tts_client._approximate_word_timings",
             return_value=approx_result,
         ),
+        patch.dict("sys.modules", {"shorts_maker_v2.providers.whisper_aligner": None}),
     ):
         # whisper import 실패 시뮬레이트
-        with patch.dict("sys.modules", {
-            "shorts_maker_v2.providers.whisper_aligner": None,
-        }):
-            asyncio.run(_generate_async_with_timing(
-                "Hello World", "en-US-GuyNeural", "+0%", "+0Hz",
-                audio_out, words_out,
-            ))
+        asyncio.run(_generate_async_with_timing(
+            "Hello World", "en-US-GuyNeural", "+0%", "+0Hz",
+            audio_out, words_out,
+        ))
 
     assert words_out.exists()
     words = json.loads(words_out.read_text(encoding="utf-8"))
@@ -511,7 +509,6 @@ def test_generate_tts_neural_voice_direct(tmp_path: Path) -> None:
         )
 
     # _generate_async의 두 번째 인자(voice)가 그대로 전달되야 함
-    call_args = mock_gen.call_args
     # _make_coro는 _generate_async를 호출할 때 voice를 전달
     assert audio.exists()
 

@@ -9,9 +9,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from shorts_maker_v2.render.audio_postprocess import (
+    EQ_PRESETS,
     _apply_compression,
     _apply_subtle_reverb,
-    EQ_PRESETS,
     apply_eq,
     detect_voice_gender,
     normalize_audio,

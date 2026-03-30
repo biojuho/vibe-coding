@@ -165,3 +165,176 @@ def test_check_audio_peak_returns_none_on_exception(tmp_path: Path, monkeypatch:
     monkeypatch.setattr("shorts_maker_v2.pipeline.qc_step.subprocess.run", raise_error)
 
     assert QCStep._check_audio_peak(video_path) is None
+
+
+def test_check_audio_peak_returns_none_for_missing_file(tmp_path: Path) -> None:
+    assert QCStep._check_audio_peak(str(tmp_path / "no.mp4")) is None
+
+
+# ── gate_scene_qc 테스트 ─────────────────────────────────────────────────────
+
+
+class TestGateSceneQC:
+    """씬별 QC (gate_scene_qc)."""
+
+    def _make_plan(self, sid=1, role="body", narration="나레이션 텍스트"):
+        return ScenePlan(
+            scene_id=sid,
+            narration_ko=narration,
+            visual_prompt_en="prompt",
+            target_sec=6.0,
+            structure_role=role,
+        )
+
+    def _make_asset(self, sid=1, audio_path="", visual_path="", dur=5.0):
+        return SceneAsset(
+            scene_id=sid,
+            audio_path=audio_path,
+            visual_type="image",
+            visual_path=visual_path,
+            duration_sec=dur,
+        )
+
+    def test_pass_all_checks(self, tmp_path: Path) -> None:
+        audio = _write_bytes(tmp_path / "a.wav", 20_000)
+        visual = _write_bytes(tmp_path / "v.jpg", 100)
+        plan = self._make_plan(role="body")
+        asset = self._make_asset(audio_path=audio, visual_path=visual, dur=5.0)
+
+        result = QCStep.gate_scene_qc(plan, asset)
+
+        assert result.verdict == "pass"
+        assert result.issues == []
+        assert result.checks["audio_ok"] is True
+        assert result.checks["visual_ok"] is True
+        assert result.checks["duration_ok"] is True
+
+    def test_audio_missing(self, tmp_path: Path) -> None:
+        visual = _write_bytes(tmp_path / "v.jpg", 100)
+        plan = self._make_plan()
+        asset = self._make_asset(audio_path=str(tmp_path / "missing.wav"), visual_path=visual)
+
+        result = QCStep.gate_scene_qc(plan, asset)
+
+        assert result.verdict == "fail_retry"
+        assert result.checks["audio_ok"] is False
+        assert any("Audio file missing" in i for i in result.issues)
+
+    def test_audio_too_small(self, tmp_path: Path) -> None:
+        audio = _write_bytes(tmp_path / "tiny.wav", 50)
+        visual = _write_bytes(tmp_path / "v.jpg", 100)
+        plan = self._make_plan()
+        asset = self._make_asset(audio_path=audio, visual_path=visual)
+
+        result = QCStep.gate_scene_qc(plan, asset)
+
+        assert result.checks["audio_ok"] is False
+        assert any("Audio too small" in i for i in result.issues)
+
+    def test_visual_missing(self, tmp_path: Path) -> None:
+        audio = _write_bytes(tmp_path / "a.wav", 20_000)
+        plan = self._make_plan()
+        asset = self._make_asset(audio_path=audio, visual_path=str(tmp_path / "no.jpg"))
+
+        result = QCStep.gate_scene_qc(plan, asset)
+
+        assert result.checks["visual_ok"] is False
+        assert any("Visual file missing" in i for i in result.issues)
+
+    def test_duration_out_of_range(self, tmp_path: Path) -> None:
+        audio = _write_bytes(tmp_path / "a.wav", 20_000)
+        visual = _write_bytes(tmp_path / "v.jpg", 100)
+        plan = self._make_plan(role="hook")
+        asset = self._make_asset(audio_path=audio, visual_path=visual, dur=20.0)
+
+        result = QCStep.gate_scene_qc(plan, asset)
+
+        assert result.checks["duration_ok"] is False
+        assert any("Duration" in i for i in result.issues)
+
+    def test_hook_concise_check_pass(self, tmp_path: Path) -> None:
+        audio = _write_bytes(tmp_path / "a.wav", 20_000)
+        visual = _write_bytes(tmp_path / "v.jpg", 100)
+        plan = self._make_plan(role="hook", narration="짧은 훅")
+        asset = self._make_asset(audio_path=audio, visual_path=visual, dur=4.0)
+
+        result = QCStep.gate_scene_qc(plan, asset)
+
+        assert result.checks["hook_concise"] is True
+
+    def test_hook_too_long(self, tmp_path: Path) -> None:
+        audio = _write_bytes(tmp_path / "a.wav", 20_000)
+        visual = _write_bytes(tmp_path / "v.jpg", 100)
+        plan = self._make_plan(role="hook", narration="가" * 201)
+        asset = self._make_asset(audio_path=audio, visual_path=visual, dur=4.0)
+
+        result = QCStep.gate_scene_qc(plan, asset)
+
+        assert result.checks["hook_concise"] is False
+        assert any("Hook narration too long" in i for i in result.issues)
+
+    def test_closing_cta_forbidden_words(self, tmp_path: Path) -> None:
+        audio = _write_bytes(tmp_path / "a.wav", 20_000)
+        visual = _write_bytes(tmp_path / "v.jpg", 100)
+        plan = self._make_plan(role="closing", narration="구독과 좋아요 부탁드립니다")
+        asset = self._make_asset(audio_path=audio, visual_path=visual, dur=4.0)
+
+        result = QCStep.gate_scene_qc(plan, asset)
+
+        assert result.checks["no_cta_words"] is False
+        assert any("forbidden CTA word" in i for i in result.issues)
+
+    def test_closing_no_cta_words(self, tmp_path: Path) -> None:
+        audio = _write_bytes(tmp_path / "a.wav", 20_000)
+        visual = _write_bytes(tmp_path / "v.jpg", 100)
+        plan = self._make_plan(role="closing", narration="다음에 또 만나요")
+        asset = self._make_asset(audio_path=audio, visual_path=visual, dur=4.0)
+
+        result = QCStep.gate_scene_qc(plan, asset)
+
+        assert result.checks["no_cta_words"] is True
+
+    def test_unknown_role_uses_wide_duration_range(self, tmp_path: Path) -> None:
+        audio = _write_bytes(tmp_path / "a.wav", 20_000)
+        visual = _write_bytes(tmp_path / "v.jpg", 100)
+        plan = self._make_plan(role="unknown_role")
+        asset = self._make_asset(audio_path=audio, visual_path=visual, dur=14.0)
+
+        result = QCStep.gate_scene_qc(plan, asset)
+
+        assert result.checks["duration_ok"] is True
+
+
+# ── gate4_final 추가 분기 ───────────────────────────────────────────────────
+
+
+def test_gate4_final_pass_all_checks(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    out = _write_bytes(tmp_path / "out.mp4", 5 * 1024 * 1024)  # 5MB
+    manifest = JobManifest(
+        job_id="pass-1", topic="t", status="ok",
+        total_duration_sec=45.0, failed_steps=[],
+    )
+    monkeypatch.setattr(
+        QCStep, "_probe_video",
+        staticmethod(lambda path: {"width": 1080, "height": 1920, "fps": 30.0}),
+    )
+    monkeypatch.setattr(QCStep, "_check_audio_peak", staticmethod(lambda path: -3.0))
+
+    report = QCStep.gate4_final(manifest, output_path=out)
+
+    assert report.verdict == GateVerdict.PASS.value
+    assert report.issues == []
+
+
+def test_gate4_final_missing_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    manifest = JobManifest(
+        job_id="miss-1", topic="t", status="ok",
+        total_duration_sec=45.0, failed_steps=[],
+    )
+    monkeypatch.setattr(QCStep, "_probe_video", staticmethod(lambda path: None))
+    monkeypatch.setattr(QCStep, "_check_audio_peak", staticmethod(lambda path: None))
+
+    report = QCStep.gate4_final(manifest, output_path=str(tmp_path / "gone.mp4"))
+
+    assert report.verdict == GateVerdict.HOLD.value
+    assert any("Output file missing" in i for i in report.issues)

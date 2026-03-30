@@ -20,6 +20,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -234,14 +235,25 @@ class MoviePyRenderer(VideoRendererBackend):
         fps: int = 30, codec: str = "libx264", audio_codec: str = "aac",
         preset: str | None = "medium", ffmpeg_params: list[str] | None = None,
     ) -> Path:
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        temp_audio_suffix = {
+            "aac": ".m4a",
+            "libfdk_aac": ".m4a",
+            "libmp3lame": ".mp3",
+            "libvorbis": ".ogg",
+            "pcm_s16le": ".wav",
+            "pcm_s32le": ".wav",
+        }.get(audio_codec, ".m4a")
         kwargs: dict[str, Any] = {
             "fps": fps, "codec": codec, "audio_codec": audio_codec,
             "ffmpeg_params": ffmpeg_params or [],
+            "temp_audiofile": str(output_path.parent / f"{output_path.stem}_{uuid4().hex}{temp_audio_suffix}"),
         }
         if preset:
             kwargs["preset"] = preset
         clip.native.write_videofile(str(output_path), **kwargs)
-        return Path(output_path)
+        return output_path
 
     def close(self, clip: ClipHandle) -> None:
         if clip.native is not None:

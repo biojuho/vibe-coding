@@ -14,10 +14,27 @@ token.json
 
 # ===== 런타임 출력물 =====
 .tmp/
+.tmp/reports/
 **/logs/
 test_audio/
 backups/
 *.log
+coverage.xml
+report.xml
+report_unit*.xml
+cov*.txt
+result*.txt
+test_out*.txt
+*.tsbuildinfo
+pytest*.txt
+pytest_*.txt
+ruff*.txt
+ruff*.json
+**/check_failed.txt
+**/failures.txt
+**/old_patch.txt
+**/.coverage_latest_report.txt
+test_errors.txt
 
 # ===== Python 캐시/아티팩트 =====
 __pycache__/

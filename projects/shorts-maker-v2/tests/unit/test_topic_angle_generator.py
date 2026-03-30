@@ -7,13 +7,12 @@ from unittest.mock import MagicMock
 import pytest
 
 from shorts_maker_v2.pipeline.topic_angle_generator import (
-    ScoredAngle,
-    TopicAngleGenerator,
     _CHANNEL_FORBIDDEN,
     _CHANNEL_HOOK_EXAMPLES,
+    ScoredAngle,
+    TopicAngleGenerator,
 )
 from shorts_maker_v2.pipeline.trend_discovery_step import TrendCandidate
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -229,7 +228,7 @@ class TestFallbackAngles:
 
     def test_fallback_score_derived_from_trend_score(self, sample_candidates):
         angles = TopicAngleGenerator._fallback_angles(sample_candidates, "ai_tech")
-        for angle, candidate in zip(angles, sample_candidates):
+        for angle, candidate in zip(angles, sample_candidates, strict=False):
             expected = candidate.score * 6.0
             assert angle.viral_score == pytest.approx(expected)
 

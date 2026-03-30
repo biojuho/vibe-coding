@@ -53,7 +53,7 @@ cd blind-to-x && PYTHONIOENCODING=utf-8 python main.py --sources blind fmkorea
 cd shorts-maker-v2 && PYTHONIOENCODING=utf-8 python -m shorts_maker_v2.cli generate --channel "AI 테크" --topic "주제"
 
 # 일일 자동 생성 (전 채널)
-PYTHONIOENCODING=utf-8 python execution/shorts_daily_runner.py
+PYTHONIOENCODING=utf-8 python workspace/execution/shorts_daily_runner.py
 ```
 
 ### n8n 경유 실행 (n8n MCP)

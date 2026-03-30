@@ -148,6 +148,9 @@ def _get_role_prosody(
         return "+15%", hook_pitch
     if role == "cta":
         return "-10%", "+5Hz"
+    if role == "closing":
+        # 여운 있는 마무리: 느리고 부드럽게, 낮은 pitch로 차분하게 끝남
+        return "-15%", "-2Hz"
     # body 및 기타 역할: 채널별 변주 폭으로 자연스러운 억양 적용
     try:
         base_pct = int(base_rate.replace("%", "").replace("+", ""))

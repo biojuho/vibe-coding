@@ -74,7 +74,7 @@ if _HAS_PYDANTIC:
         narration_ko: str = Field(..., min_length=5, description="한국어 나레이션")
         visual_prompt_en: str = Field(..., min_length=5, description="DALL-E용 영어 비주얼 프롬프트")
         estimated_seconds: float = Field(default=5.0, ge=1.0, le=30.0)
-        structure_role: str = Field(default="body", pattern=r"^(hook|body|cta)$")
+        structure_role: str = Field(default="body", pattern=r"^(hook|body|cta|closing)$")
 
         if model_validator is not None:
 
@@ -367,6 +367,15 @@ class ScriptStep:
             "  - Do NOT mention subscriptions, likes, follows, or channel actions.\n"
             "  - After the action, add one sentence of creator insight, like a personal takeaway or observation.\n"
             "  - {narration_field}: up to {cta_max} English characters (brief and direct).\n"
+        ),
+        "closing_rules": (
+            "Closing rules (IMPORTANT — this channel uses quiet endings, NOT CTAs):\n"
+            "  - End with a contemplative thought that lingers in the viewer's mind.\n"
+            "  - Think of it as the last line of a bedtime story — leave an afterimage.\n"
+            "  - NO action demands. NO 'subscribe/like/comment'. NO imperative commands.\n"
+            "  - A gentle observation, a poetic question, or a moment of wonder works best.\n"
+            "  - {narration_field}: up to {cta_max} English characters.\n"
+            "  - structure_role for the last scene must be \"closing\".\n"
         ),
         "general_rules": (
             "General rules:\n"
@@ -662,12 +671,12 @@ class ScriptStep:
             )
             # Infer structure_role from position if LLM omits it
             raw_role = str(raw_scene.get("structure_role", "")).strip().lower()
-            if raw_role in ("hook", "body", "cta"):
+            if raw_role in ("hook", "body", "cta", "closing"):
                 structure_role = raw_role
             elif idx == 1:
                 structure_role = "hook"
             elif idx == total:
-                structure_role = "cta"
+                structure_role = "closing"
             else:
                 structure_role = "body"
             # ── Hook 15자 트림 (화면 임팩트 극대화) ─────────────────────────
@@ -836,17 +845,24 @@ class ScriptStep:
                 f"  - Apply this tone consistently in {narration_field} for every scene.\n"
             )
 
+        # 구성안 기반 구조 또는 기본 Hook-Body-CTA/Closing 구조
+        use_closing = False
         if structure_flow:
             structure_section = (
                 "  Scene flow: " + " -> ".join(f"{i + 1}:{role}" for i, role in enumerate(structure_flow)) + "\n"
                 "  Use these roles as structure_role values for each scene.\n"
             )
+            use_closing = structure_flow and structure_flow[-1] == "closing"
         else:
             structure_section = (
                 f'  Scene 1        -> structure_role: "hook"\n'
                 f'  Scenes 2-{last - 1}  -> structure_role: "body"  ({body_count} scenes)\n'
-                f'  Scene {last}        -> structure_role: "cta"\n'
+                f'  Scene {last}        -> structure_role: "closing"\n'
             )
+            use_closing = True
+
+        # closing 역할이면 closing_rules 사용, 아니면 기존 cta_rules
+        ending_rules_key = "closing_rules" if use_closing else "cta_rules"
 
         return (
             self._prompt_copy["system_intro"]
@@ -870,7 +886,7 @@ class ScriptStep:
                 narration_field=narration_field,
             )
             + "\n"
-            + self._prompt_copy["cta_rules"].format(
+            + self._prompt_copy[ending_rules_key].format(
                 cta_max=cta_max,
                 narration_field=narration_field,
             )
@@ -894,6 +910,7 @@ class ScriptStep:
         previous_total_sec: float | None,
         previous_scene_count: int | None,
         research_block: str = "",
+        structure_block: str = "",
     ) -> str:
         target_min, target_max = duration_range
         target_mid = (target_min + target_max) / 2
@@ -905,6 +922,8 @@ class ScriptStep:
         )
         if research_block:
             prompt += research_block
+        if structure_block:
+            prompt += "\n" + structure_block + "\n"
         prompt += self._prompt_copy["user_instructions"]
         if attempt > 1 and previous_total_sec is not None:
             if previous_total_sec < target_min:
@@ -1220,18 +1239,28 @@ class ScriptStep:
             )
         return truncated_scenes
 
-    def run(self, topic: str, research_context: Any | None = None) -> tuple[str, list[ScenePlan], str]:
+    def run(
+        self,
+        topic: str,
+        research_context: Any | None = None,
+        structure_outline: Any | None = None,
+    ) -> tuple[str, list[ScenePlan], str]:
         """
         대본 생성.
 
         Args:
             topic: 영상 주제
             research_context: ResearchContext 객체 (리서치 스텝 결과). None이면 리서치 없이 생성.
+            structure_outline: StructureOutline 객체 (구성안). 있으면 씬 수+역할을 구성안에서 가져옴.
 
         Returns: (title, scene_plans, hook_pattern_name)
         """
         # Multi-provider fallback via LLMRouter (no longer OpenAI-only)
-        scene_count = self.config.project.default_scene_count
+        # 구성안이 제공되면 씬 수를 구성안에서 가져옴
+        if structure_outline and hasattr(structure_outline, "scenes") and structure_outline.scenes:
+            scene_count = len(structure_outline.scenes)
+        else:
+            scene_count = self.config.project.default_scene_count
         # 채널별 duration 오버라이드 적용
         if self.channel_duration_override:
             # 채널 목표 ±5초 범위 (예: 45초 → [40, 50])
@@ -1250,12 +1279,23 @@ class ScriptStep:
         hook_pattern_name, hook_instruction = self._get_hook_pattern()
         # YPP: 톤 프리셋 로테이션
         tone_name, tone_guide = self._next_tone_preset()
-        # YPP: 구조 프리셋 로테이션
-        preset_name, preset_flow = self._next_structure_preset()
-        if preset_name:
-            logger.info("[Hook] pattern=%s tone=%s structure=%s", hook_pattern_name, tone_name, preset_name)
+        # YPP: 구조 프리셋 로테이션 (구성안이 있으면 구성안 우선)
+        structure_block = ""
+        if structure_outline and hasattr(structure_outline, "to_prompt_block"):
+            # 구성안에서 역할 흐름 추출 → system prompt의 structure_flow로 사용
+            preset_flow = [s.role for s in structure_outline.scenes]
+            preset_name = "structure_outline"
+            structure_block = structure_outline.to_prompt_block()
+            logger.info(
+                "[Hook] pattern=%s tone=%s structure=outline(%d scenes)",
+                hook_pattern_name, tone_name, len(structure_outline.scenes),
+            )
         else:
-            logger.info("[Hook] pattern=%s tone=%s", hook_pattern_name, tone_name)
+            preset_name, preset_flow = self._next_structure_preset()
+            if preset_name:
+                logger.info("[Hook] pattern=%s tone=%s structure=%s", hook_pattern_name, tone_name, preset_name)
+            else:
+                logger.info("[Hook] pattern=%s tone=%s", hook_pattern_name, tone_name)
         system_prompt = self._build_system_prompt(
             scene_count=scene_count,
             language=language,
@@ -1286,6 +1326,7 @@ class ScriptStep:
                 previous_total_sec=previous_total_sec,
                 previous_scene_count=scene_count,
                 research_block=research_block,
+                structure_block=structure_block,
             )
             # Sprint 4.1: 대본 생성은 thinking_level='low' (빠른 속도)
             gen_thinking = self.config.providers.thinking_level
@@ -1448,17 +1489,19 @@ class ScriptStep:
             except Exception as exc:
                 logger.warning("[ScriptReview] scoring failed (skipped): %s", exc)
 
-        # ── CTA 금지어 검증 ───────────────────────────────────────────────────
+        # ── CTA/Closing 금지어 검증 ────────────────────────────────────────────
         # 구독/좋아요 등 채널 행동 CTA는 YPP 품질 심사에서 감점 요인.
+        # closing 씬에도 동일한 금지어 검증 적용 (조용한 이야기 원칙).
         final_title, final_scenes = best_result
-        cta_scenes = [s for s in final_scenes if s.structure_role == "cta"]
-        for cta_scene in cta_scenes:
-            violations = self._validate_cta(cta_scene.narration_ko, self._cta_forbidden_words)
+        ending_scenes = [s for s in final_scenes if s.structure_role in ("cta", "closing")]
+        for ending_scene in ending_scenes:
+            violations = self._validate_cta(ending_scene.narration_ko, self._cta_forbidden_words)
             if violations:
                 logger.warning(
-                    "[CTAGuard] Scene %d CTA contains forbidden words: %s — "
-                    "consider revising to organic CTA.",
-                    cta_scene.scene_id,
+                    "[CTAGuard] Scene %d (%s) contains forbidden words: %s — "
+                    "consider revising.",
+                    ending_scene.scene_id,
+                    ending_scene.structure_role,
                     ", ".join(repr(v) for v in violations),
                 )
 

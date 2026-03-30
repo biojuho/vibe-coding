@@ -61,14 +61,14 @@ _QUALITY_PROFILES = {
 
 class RenderStep:
     # YPP: 역할별 자막 프리셋 조합 로테이션 (반복적 콘텐츠 방지)
-    _CAPTION_COMBOS: list[tuple[str, str, str]] = [
-        # (hook_preset, body_preset, cta_preset)
-        ("bold", "subtitle", "default"),  # 임팩트 → 영화적 → 깔끔
-        ("neon", "default", "subtitle"),  # 네온 → 깔끔 → 영화적
-        ("bold", "default", "neon"),  # 임팩트 → 깔끔 → 네온
-        ("neon", "subtitle", "bold"),  # 네온 → 영화적 → 임팩트
-        ("subtitle", "bold", "cta"),  # 영화적 → 임팩트 → CTA 특화
-        ("default", "neon", "bold"),  # 깔끔 → 네온 → 임팩트
+    _CAPTION_COMBOS: list[tuple[str, str, str, str]] = [
+        # (hook_preset, body_preset, cta_preset, closing_preset)
+        ("bold", "subtitle", "default", "closing"),  # 임팩트 → 영화적 → 깔끔 → 여운
+        ("neon", "default", "subtitle", "closing"),  # 네온 → 깔끔 → 영화적 → 여운
+        ("bold", "default", "neon", "closing"),  # 임팩트 → 깔끔 → 네온 → 여운
+        ("neon", "subtitle", "bold", "closing"),  # 네온 → 영화적 → 임팩트 → 여운
+        ("subtitle", "bold", "cta", "closing"),  # 영화적 → 임팩트 → CTA 특화 → 여운
+        ("default", "neon", "bold", "closing"),  # 깔끔 → 네온 → 임팩트 → 여운
     ]
     _CHANNEL_STYLE_TUNING: dict[str, dict[str, int]] = {
         "ai_tech": {
@@ -88,11 +88,13 @@ class RenderStep:
             "hook": "dramatic_ken_burns",
             "body": ["pan_left", "pan_right", "ken_burns", "zoom_out"],
             "cta": ["zoom_out", "ken_burns"],
+            "closing": ["drift", "ease_ken_burns"],
         },
         "psychology": {
             "hook": "ken_burns",
             "body": ["ken_burns", "zoom_out"],
             "cta": ["zoom_out"],
+            "closing": ["drift", "zoom_out"],
         },
     }
     _CHANNEL_TRANSITIONS: dict[str, dict[tuple[str, str], list[str]]] = {
@@ -101,12 +103,16 @@ class RenderStep:
             ("body", "body"): ["slide", "zoom", "crossfade"],
             ("body", "cta"): ["zoom", "crossfade"],
             ("hook", "cta"): ["flash", "zoom"],
+            ("body", "closing"): ["crossfade"],
+            ("cta", "closing"): ["crossfade"],
         },
         "psychology": {
             ("hook", "body"): ["crossfade", "slide"],
             ("body", "body"): ["crossfade", "slide"],
             ("body", "cta"): ["crossfade"],
             ("hook", "cta"): ["crossfade"],
+            ("body", "closing"): ["crossfade"],
+            ("cta", "closing"): ["crossfade"],
         },
     }
 
@@ -173,9 +179,9 @@ class RenderStep:
 
         forced_preset = self._resolve_style_override()
         if forced_preset:
-            combo = (forced_preset, forced_preset, forced_preset)
+            combo = (forced_preset, forced_preset, forced_preset, forced_preset)
             logger.info(
-                "[RenderStep] style_preset 강제 적용 — hook/body/cta=%s (channel=%r)",
+                "[RenderStep] style_preset 강제 적용 — hook/body/cta/closing=%s (channel=%r)",
                 forced_preset,
                 channel_key or "default",
             )
@@ -187,16 +193,19 @@ class RenderStep:
         hook_preset = resolve_channel_style(channel_key, "hook", channel_map) or combo[0]
         body_preset = resolve_channel_style(channel_key, "body", channel_map) or combo[1]
         cta_preset = resolve_channel_style(channel_key, "cta", channel_map) or combo[2]
+        closing_preset = resolve_channel_style(channel_key, "closing", channel_map) or (combo[3] if len(combo) > 3 else "closing")
 
         self.hook_style = apply_preset(base_style, hook_preset)
         self.body_style = apply_preset(base_style, body_preset)
         self.cta_style = apply_preset(base_style, cta_preset)
+        self.closing_style = apply_preset(base_style, closing_preset)
 
         logger.info(
-            "[RenderStep] 자막 combo — hook=%s, body=%s, cta=%s (channel=%r)",
+            "[RenderStep] 자막 combo — hook=%s, body=%s, cta=%s, closing=%s (channel=%r)",
             combo[0],
             combo[1],
             combo[2],
+            combo[3] if len(combo) > 3 else "closing",
             channel_key or "default",
         )
 
@@ -296,7 +305,7 @@ class RenderStep:
             return False, str(exc)
 
     @classmethod
-    def _resolve_caption_combo(cls, channel_key: str, job_index: int) -> tuple[str, str, str]:
+    def _resolve_caption_combo(cls, channel_key: str, job_index: int) -> tuple[str, str, str, str]:
         """채널 프로파일의 caption_combo를 우선 사용, 없으면 로테이션 폴백."""
         if channel_key:
             try:
@@ -305,13 +314,16 @@ class RenderStep:
                 router = ChannelRouter()
                 profile = router.get_profile(channel_key)
                 combo_list = profile.get("caption_combo")
-                if combo_list and len(combo_list) == 3:
+                if combo_list and len(combo_list) >= 3:
+                    # Pad with "closing" if channel profile only has 3 elements
+                    if len(combo_list) == 3:
+                        combo_list = list(combo_list) + ["closing"]
                     logger.info(
                         "[RenderStep] 채널 '%s' 전용 caption_combo 적용: %s",
                         channel_key,
                         combo_list,
                     )
-                    return tuple(combo_list)  # type: ignore[return-value]
+                    return tuple(combo_list[:4])  # type: ignore[return-value]
             except Exception as exc:
                 logger.warning("[RenderStep] caption_combo 로드 실패: %s", exc)
 
@@ -782,6 +794,9 @@ class RenderStep:
                 ("body", "body"): ["crossfade", "slide", "wipe", "morph_cut"],  # 부드러운 흐름
                 ("body", "cta"): ["crossfade", "slide", "zoom", "wipe"],  # 자연스러운 마무리
                 ("cta", "body"): ["flash", "glitch", "rgb_split"],  # 재시작 강조
+                ("body", "closing"): ["crossfade"],  # 조용한 마무리
+                ("cta", "closing"): ["crossfade"],  # CTA 후 여운
+                ("hook", "closing"): ["crossfade"],  # 직접 클로징
             }
             choices = mapping.get(pair, ["crossfade", "slide"])
             return random.choice(choices)
@@ -1171,6 +1186,7 @@ class RenderStep:
                 clip = self._load_audio_clip(sfx_path)
                 clip = clip.with_effects([MultiplyVolume(volume)])
                 sfx_clips.append(clip.with_start(cursor))
+            # Closing 씬: SFX 없음 (조용한 여운)
             # 씬 전환 시점에 스위시 SFX (마지막 씬 제외)
             if i < len(scene_roles) - 1 and sfx_files.get("transition"):
                 sfx_path = random.choice(sfx_files["transition"])
@@ -1296,7 +1312,14 @@ class RenderStep:
             base = base.with_audio(audio)
 
             # 4) 자막 오버레이
-            style = self.hook_style if role == "hook" else self.cta_style if role == "cta" else self.body_style
+            if role == "hook":
+                style = self.hook_style
+            elif role == "cta":
+                style = self.cta_style
+            elif role == "closing":
+                style = self.closing_style
+            else:
+                style = self.body_style
 
             # 카라오케 모드
             if style.mode == "karaoke":
@@ -1416,6 +1439,11 @@ class RenderStep:
 
             # 7) HUD 오버레이 — 비활성화 (깔끔한 화면 유지)
             # 8) 제목 오버레이 — 비활성화
+
+            # 9) Closing 씬: 부드러운 페이드아웃 (여운 연출)
+            if role == "closing":
+                fade_dur = min(1.5, duration_sec * 0.4)
+                base = base.with_effects([vfx.FadeOut(fade_dur)])
 
             all_clips.append(base)
 

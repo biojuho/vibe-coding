@@ -87,10 +87,21 @@ class MediaStep:
         voice_roles = self.config.providers.tts_voice_roles
         voice = voice_roles[role] if voice_roles and role in voice_roles else self._tts_voice
 
-        # edge-tts 설정 시 무료 Microsoft TTS 사용 + WordBoundary 타이밍 추출
-        if self.config.providers.tts == "edge-tts":
-            # _words.json 경로: Whisper 없이 자막 동기화 데이터 자동 생성
-            words_json_path = output_path.parent / f"{output_path.stem}_words.json"
+        tts_provider = self.config.providers.tts
+        words_json_path = output_path.parent / f"{output_path.stem}_words.json"
+
+        # TTS 프로바이더 라우팅 (cascade: 선택 프로바이더 → edge-tts fallback)
+        if tts_provider == "chatterbox":
+            audio_result = self._try_tts_with_fallback(
+                narration_ko, output_path, words_json_path, voice, role,
+                primary="chatterbox",
+            )
+        elif tts_provider == "cosyvoice":
+            audio_result = self._try_tts_with_fallback(
+                narration_ko, output_path, words_json_path, voice, role,
+                primary="cosyvoice",
+            )
+        elif tts_provider == "edge-tts":
             audio_result = EdgeTTSClient().generate_tts(
                 model=self.config.providers.tts_model,
                 voice=voice,
@@ -110,8 +121,9 @@ class MediaStep:
                 output_path=output_path,
             )
 
-        # edge-tts는 WordBoundary로 _words.json을 이미 생성하므로 Whisper 불필요
-        if self.config.providers.tts != "edge-tts" and self.config.audio.sync_with_whisper and self.openai_client:
+        # chatterbox/cosyvoice/edge-tts는 자체적으로 _words.json을 생성
+        # OpenAI TTS만 Whisper fallback 필요
+        if tts_provider not in {"edge-tts", "chatterbox", "cosyvoice"} and self.config.audio.sync_with_whisper and self.openai_client:
             try:
                 import json
 
@@ -122,6 +134,88 @@ class MediaStep:
                 pass
 
         return audio_result
+
+    def _try_tts_with_fallback(
+        self,
+        text: str,
+        output_path: Path,
+        words_json_path: Path,
+        voice: str,
+        role: str,
+        *,
+        primary: str,
+    ) -> Path:
+        """프리미엄 TTS 시도 → 실패 시 edge-tts fallback."""
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        try:
+            if primary == "chatterbox":
+                from shorts_maker_v2.providers.chatterbox_client import (
+                    ChatterboxTTSClient,
+                    is_chatterbox_available,
+                )
+
+                if not is_chatterbox_available():
+                    raise ImportError("chatterbox-tts not installed")
+                client = ChatterboxTTSClient(
+                    ref_audio_path=getattr(self.config.providers, "tts_ref_audio", None),
+                )
+                return client.generate_tts(
+                    model=self.config.providers.tts_model,
+                    voice=voice,
+                    speed=self.config.providers.tts_speed,
+                    text=text,
+                    output_path=output_path,
+                    words_json_path=words_json_path,
+                    role=role,
+                    channel_key=getattr(self, "_channel_key", ""),
+                    language=self.config.project.language,
+                )
+
+            elif primary == "cosyvoice":
+                from shorts_maker_v2.providers.cosyvoice_client import (
+                    CosyVoiceTTSClient,
+                    is_cosyvoice_available,
+                )
+
+                if not is_cosyvoice_available():
+                    raise ImportError("cosyvoice not installed")
+                client = CosyVoiceTTSClient(
+                    ref_audio_path=getattr(self.config.providers, "tts_ref_audio", None),
+                    ref_audio_text=getattr(self.config.providers, "tts_ref_audio_text", ""),
+                )
+                return client.generate_tts(
+                    model=self.config.providers.tts_model,
+                    voice=voice,
+                    speed=self.config.providers.tts_speed,
+                    text=text,
+                    output_path=output_path,
+                    words_json_path=words_json_path,
+                    role=role,
+                    channel_key=getattr(self, "_channel_key", ""),
+                    language=self.config.project.language,
+                )
+
+        except Exception as exc:
+            logger.warning(
+                "[MediaStep] %s TTS 실패 → edge-tts fallback: %s",
+                primary, exc,
+            )
+            output_path.unlink(missing_ok=True)
+
+        # edge-tts fallback
+        return EdgeTTSClient().generate_tts(
+            model=self.config.providers.tts_model,
+            voice=voice,
+            speed=self.config.providers.tts_speed,
+            text=text,
+            output_path=output_path,
+            words_json_path=words_json_path,
+            role=role,
+            language=self.config.project.language,
+        )
 
     def _generate_video(self, prompt: str, duration_sec: float, output_path: Path) -> Path:
         if not self.google_client:
@@ -287,6 +381,11 @@ class MediaStep:
             "[CTA scene — call to action] "
             "Clean, minimal background. Action-oriented composition. "
             "Bright, inviting atmosphere. Clear focal point. "
+        ),
+        "closing": (
+            "[CLOSING scene — contemplative] "
+            "Soft ambient lighting, wide establishing shot, peaceful atmosphere, "
+            "gentle fade, cinematic stillness. "
         ),
     }
 
@@ -577,7 +676,7 @@ class MediaStep:
             )
         )
         # Body 씬은 무료 이미지만 사용 (비용 절감)
-        _use_paid = scene.structure_role in ("hook", "cta")
+        _use_paid = scene.structure_role in ("hook", "cta", "closing")
 
         def _get_visual():
             if visual_path_str:
@@ -726,3 +825,60 @@ class MediaStep:
         # scene_id 순으로 정렬하여 반환
         assets = [results[s.scene_id] for s in scene_plans if s.scene_id in results]
         return assets, all_failures
+
+    def regenerate_scene(
+        self,
+        scene: ScenePlan,
+        run_dir: Path,
+        cost_guard: CostGuard,
+        logger: Any = None,
+        color_hint: str = "",
+        component: str = "both",
+    ) -> tuple[SceneAsset, list[dict[str, str]]]:
+        """실패 씬의 미디어를 재생성.
+
+        기존 파일을 삭제 후 _process_one_scene을 호출한다.
+
+        Args:
+            scene: 재생성할 씬 플랜
+            run_dir: 작업 디렉토리
+            cost_guard: 비용 가드
+            logger: JSONL 로거
+            color_hint: 색상 팔레트 힌트
+            component: "audio" | "visual" | "both"
+
+        Returns:
+            (SceneAsset, failures)
+        """
+        audio_dir, image_dir, video_dir = self._prepare_dirs(run_dir)
+        scene_name = f"scene_{scene.scene_id:02d}"
+
+        # 지정된 컴포넌트의 기존 파일 삭제
+        if component in ("audio", "both"):
+            audio_path = audio_dir / f"{scene_name}.mp3"
+            if audio_path.exists():
+                audio_path.unlink(missing_ok=True)
+
+        if component in ("visual", "both"):
+            for ext_dir, exts in [
+                (image_dir, [".png", ".jpg", ".jpeg", ".webp"]),
+                (video_dir, [".mp4"]),
+            ]:
+                for ext in exts:
+                    p = ext_dir / f"{scene_name}{ext}"
+                    if p.exists():
+                        p.unlink(missing_ok=True)
+                    # stock variant
+                    p_stock = ext_dir / f"{scene_name}_stock{ext}"
+                    if p_stock.exists():
+                        p_stock.unlink(missing_ok=True)
+
+        self._log(
+            logger, "info", "scene_regenerate",
+            scene_id=scene.scene_id, component=component,
+        )
+
+        return self._process_one_scene(
+            scene, audio_dir, image_dir, video_dir,
+            cost_guard, logger, color_hint=color_hint,
+        )

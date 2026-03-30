@@ -51,7 +51,7 @@ class TestChannelPipeline:
             cp = ChannelPipeline("space", profile=profile)
             try:
                 cp.get_generator("x")
-                assert False
+                raise AssertionError()
             except ValueError as e:
                 assert "ai_tech" in str(e)
 
@@ -62,7 +62,7 @@ class TestChannelPipeline:
             cp = ChannelPipeline("space", profile=profile)
             try:
                 cp.get_generator("nonexistent")
-                assert False
+                raise AssertionError()
             except ValueError as e:
                 assert "nonexistent" in str(e)
 

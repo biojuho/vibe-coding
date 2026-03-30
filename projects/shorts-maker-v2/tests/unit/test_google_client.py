@@ -5,14 +5,12 @@ All Google SDK calls are fully mocked so no real API calls or costs are incurred
 
 from __future__ import annotations
 
-import math
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from shorts_maker_v2.providers import google_client
-
 
 # ═══════════════════════════════════════════════════════════════════
 # __init__

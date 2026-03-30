@@ -1,151 +1,63 @@
-﻿# Vibe Coding: Personal Agent (Jarvis)
+# Vibe Coding Workspace
 
-[![root-quality-gate](https://github.com/<OWNER>/<REPO>/actions/workflows/root-quality-gate.yml/badge.svg)](https://github.com/<OWNER>/<REPO>/actions/workflows/root-quality-gate.yml)
+Root workspace for shared AI tooling, automation, and multiple product projects.
 
-🇬🇧 Your all-in-one AI assistant for desktop control, daily briefings, and fun.
-🇰🇷 데스크톱 제어, 일일 브리핑, 엔터테인먼트를 위한 올인원 AI 어시스턴트입니다.
+## Canonical Layout
 
-## Features (주요 기능)
-- **Daily Briefing (일일 브리핑)**: Weather, news, and voice synthesis (TTS). / 날씨, 뉴스 및 음성 합성(TTS) 제공.
-- **Desktop Control (데스크톱 제어)**: Launch apps, open websites, and monitor system stats. / 앱 실행, 웹사이트 열기 및 시스템 상태 모니터링.
-- **RAG Brain (RAG 브레인)**: Chat with your local documents using Gemini/OpenAI providers. / Gemini/OpenAI 모델을 활용해 로컬 문서와 대화.
-- **Word Chain Game (끝말잇기 게임)**: Play a game of word chain with the AI. / AI와 함께하는 끝말잇기 게임.
+- `.ai/`, `.agents/`, `.claude/`, `.github/`: shared AI/tooling control plane
+- `workspace/`: root-owned directives, execution code, scripts, and tests
+- `projects/`: app and pipeline projects
+- `infrastructure/`: MCP servers and shared services
+- `.tmp/`: regenerated local intermediates and reports
+- `_archive/`: archived legacy material
 
-## Installation (설치 방법)
-1. 🇬🇧 Run `setup.bat` (Windows) to install dependencies. / 🇰🇷 `setup.bat` (Windows) 파일을 실행하여 의존성 패키지를 설치합니다.
-2. 🇬🇧 Configure required API keys in `.env`. / 🇰🇷 `.env` 파일에 필요한 API 키를 설정합니다.
-3. 🇬🇧 For root workspace tools, install shared runtime dependencies. / 🇰🇷 루트 워크스페이스 도구용 공용 런타임 의존성을 설치합니다.
+## Installation
 
 ```bash
+py -3 -m venv venv
+venv\Scripts\python.exe -m pip install --upgrade pip
 venv\Scripts\python.exe -m pip install -r requirements.txt
 venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-venv\Scripts\python.exe -m pip install -e .\shorts-maker-v2
+venv\Scripts\python.exe -m pip install -e .\projects\shorts-maker-v2
 ```
 
-## Usage (사용법)
-```bash
-venv\Scripts\activate
-venv\Scripts\python.exe -m streamlit run projects/personal-agent/app.py
-```
-
-🇬🇧 **Readiness check (준비 상태 확인)**: / 🇰🇷 **준비 상태 확인**:
-```bash
-venv\Scripts\python.exe scripts\doctor.py
-```
-
-🇬🇧 **Run tests (테스트 실행)**: / 🇰🇷 **테스트 실행**:
-```bash
-venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-venv\Scripts\python.exe -m pytest -q tests
-```
-
-🇬🇧 **Focused Shorts checks / 🇰🇷 Shorts 집중 검증**:
-```bash
-venv\Scripts\python.exe -m pytest -q tests\test_content_db.py tests\test_topic_auto_generator.py tests\test_shorts_daily_runner.py tests\test_youtube_uploader.py --no-cov
-venv\Scripts\python.exe scripts\quality_gate.py
-```
-
-🇬🇧 **Quality gate (single command) / 🇰🇷 품질 검사 (단일 명령어)**:
-```bash
-venv\Scripts\python.exe scripts\quality_gate.py
-```
-
-🇬🇧 **CI uses the same command / 🇰🇷 CI 서버에서도 동일한 명령어를 사용합니다**:
-```bash
-python scripts/quality_gate.py
-```
-
-## Root Repository Bootstrap (루트 저장소 초기화)
-🇬🇧 Initialize and connect this workspace as the root Joolife repository:
-🇰🇷 이 워크스페이스를 Joolife 루트 저장소로 초기화하고 연결합니다:
+## Common Commands
 
 ```bash
-git init
-git branch -M main
-git remote add origin https://github.com/<OWNER>/<REPO>.git
-git push -u origin main
+venv\Scripts\python.exe workspace\scripts\doctor.py
+venv\Scripts\python.exe workspace\scripts\smoke_check.py
+venv\Scripts\python.exe workspace\scripts\quality_gate.py
+venv\Scripts\python.exe workspace\execution\qaqc_runner.py
+venv\Scripts\python.exe -m streamlit run workspace\execution\pages\shorts_manager.py
 ```
 
-🇬🇧 **Root tracking policy / 🇰🇷 루트 저장소 추적 정책**:
-- Included (포함 항목): `execution/`, `scripts/`, `tests/`, `pages/`, `directives/`, `_archive/personal-agent/`, and root config/docs files.
-- Excluded (제외 항목): nested independent repos (`blind-to-x/`, `hanwoo-dashboard/`, `knowledge-dashboard/`) and side projects via `.gitignore`. (독립된 하위 저장소 및 사이드 프로젝트는 제외됨)
-
-## CI Quality Gate (CI 품질 검사)
-- **Workflow file (워크플로우 파일)**: `.github/workflows/root-quality-gate.yml`
-- **Trigger (트리거 조건)**: `push` / `pull_request` on `main`
-- **Runtime (실행 환경)**: `ubuntu-latest`, Python `3.14`
-- **Command (실행 명령어)**: `python scripts/quality_gate.py`
-
-🇬🇧 **Recommended repository rollout / 🇰🇷 권장 저장소 설정**:
-1. Enable branch protection for `main` (PR merge only). / `main` 브랜치 보호 활성화 (PR 병합만 허용).
-2. Add `root-quality-gate` as a required status check. / `root-quality-gate`를 필수 상태 확인 항목으로 추가.
-3. Triage failures by phase in logs: `smoke_check`, `pytest`, `static analysis`. / 로그의 단계별(`smoke_check`, `pytest`, `static analysis`) 실패 원인 분류.
-
-🇬🇧 **Recommended initial commits / 🇰🇷 권장 초기 커밋 메시지**:
-1. `chore(repo): bootstrap root joolife repository skeleton`
-2. `ci(quality): add root quality gate workflow and dependencies`
-
-## Maintenance Scripts (유지보수 스크립트)
-🇬🇧 **Upgrade nested repositories safely / 🇰🇷 하위 저장소 안전 업데이트**:
-```bash
-venv\Scripts\python.exe scripts\update_all.py --list-only
-venv\Scripts\python.exe scripts\update_all.py --strategy ff-only
-```
-
-🇬🇧 **Create data backups / 🇰🇷 데이터 백업 생성**:
-```bash
-venv\Scripts\python.exe scripts\backup_data.py --with-env
-venv\Scripts\python.exe scripts\backup_data.py --dry-run --with-env
-```
-
-## Telegram Notifications
-🇬🇧 Configure a Telegram Bot for scheduler alerts and daily report delivery.
-🇰🇷 스케줄러 알림과 일일 리포트 전송을 위한 텔레그램 봇 설정입니다.
+## Testing
 
 ```bash
-python execution/telegram_notifier.py check
-python execution/telegram_notifier.py updates --limit 10
-python execution/telegram_notifier.py send --message "hello from Joolife"
-python execution/daily_report.py --format markdown --telegram
+venv\Scripts\python.exe -m pytest -q workspace\tests
+venv\Scripts\python.exe -m pytest -q workspace\execution\tests
+venv\Scripts\python.exe workspace\scripts\quality_gate.py
 ```
 
-- `TELEGRAM_BOT_TOKEN`: BotFather token
-- `TELEGRAM_CHAT_ID`: target chat ID
-- `TELEGRAM_NOTIFY_SCHEDULER`: `none`, `failures`, or `all`
+## Projects
 
-## Shorts Automation
-🇬🇧 Root workspace includes a Shorts production pipeline with DB queueing, channel-level style overrides, and private YouTube upload support.
-🇰🇷 루트 워크스페이스에는 DB 큐, 채널별 스타일 설정, 비공개 YouTube 업로드를 포함한 Shorts 자동화 파이프라인이 포함되어 있습니다.
+- `projects/blind-to-x`
+- `projects/shorts-maker-v2`
+- `projects/hanwoo-dashboard`
+- `projects/knowledge-dashboard`
+- `projects/suika-game-v2`
+- `projects/word-chain`
 
-🇬🇧 **Environment setup / 🇰🇷 환경 준비**:
-```bash
-venv\Scripts\python.exe -m pip install -r requirements.txt
-venv\Scripts\python.exe -m pip install -e .\shorts-maker-v2
-venv\Scripts\python.exe -m shorts_maker_v2 doctor --config shorts-maker-v2\config.yaml
-```
+## Shorts Workflow
 
-- `credentials.json`: Google Cloud OAuth client file for YouTube upload
-- `token.json`: created after first successful browser auth
-- Default YouTube privacy is `private`
+1. Add topics in `workspace/execution/pages/shorts_manager.py`.
+2. Save per-channel settings.
+3. Render from Shorts Manager or `python workspace/execution/shorts_daily_runner.py`.
+4. Review QA/QC in `workspace/execution/pages/qaqc_status.py`.
+5. Upload from the manager when credentials are available.
 
-🇬🇧 **Daily workflow / 🇰🇷 일상 운영 흐름**:
-1. Add topics in `pages/shorts_manager.py`.
-2. Save per-channel settings (`voice`, `style_preset`, `font_color`, `image_style_prefix`).
-3. Render through Shorts Manager or `python execution/shorts_daily_runner.py`.
-4. Sync manifests if needed.
-5. Upload individually or run batch upload from Shorts Manager.
+## Notes
 
-🇬🇧 **YouTube upload notes / 🇰🇷 YouTube 업로드 주의사항**:
-- If `credentials.json` is missing, upload buttons stay disabled.
-- If `token.json` is missing, the first upload opens a browser auth flow.
-- Unverified Google API projects may be restricted to private uploads.
-- Upload errors are stored separately from memo fields and surfaced in Shorts Manager.
-
-## Legal and Privacy Disclaimer (법적 및 개인정보 보호 고지)
-1. **Local Execution (로컬 실행)**: 🇬🇧 This software runs on your local machine. The developer does not collect or store your data. / 🇰🇷 이 소프트웨어는 로컬 컴퓨터에서 실행됩니다. 개발자는 사용자의 데이터를 수집하거나 저장하지 않습니다.
-2. **API Usage (API 사용)**: 🇬🇧 User prompts may be processed by external model providers according to your configuration. / 🇰🇷 사용자 프롬프트는 설정에 따라 외부 모델 제공자가 처리할 수 있습니다.
-3. **No Liability (면책 조항)**: 🇬🇧 The user assumes all responsibility for use of this software. / 🇰🇷 소프트웨어 사용으로 인한 모든 책임은 사용자에게 있습니다.
-4. **Copyright (저작권)**: 🇬🇧 External content summaries are for informational purposes. / 🇰🇷 외부 콘텐츠 요약은 정보 제공 목적으로만 사용됩니다.
-
-## License (라이선스)
-MIT License.
+- Canonical paths use `workspace/...` and `projects/...`.
+- Internal automation still accepts legacy root project resolution during migration.
+- Nested projects stay independent; this repo does not flatten them into a monorepo.

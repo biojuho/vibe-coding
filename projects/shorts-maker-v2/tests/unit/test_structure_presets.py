@@ -128,7 +128,7 @@ class TestStructurePresetRotation(unittest.TestCase):
         )
         self.assertIn('structure_role: "hook"', prompt)
         self.assertIn('structure_role: "body"', prompt)
-        self.assertIn('structure_role: "cta"', prompt)
+        self.assertIn('structure_role: "closing"', prompt)
         self.assertNotIn("Scene flow:", prompt)
 
 

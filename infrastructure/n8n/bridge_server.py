@@ -1,97 +1,157 @@
 """
-n8n ↔ 호스트 브릿지 서버
-========================
-n8n Docker 컨테이너에서 호스트 Windows의 파이프라인을 안전하게 실행하기 위한
-경량 HTTP 브릿지 서버입니다.
-
-아키텍처:
-  n8n (Docker) --HTTP Request--> bridge_server.py (Host:9876) --subprocess--> main.py
-
-보안:
-  - localhost(127.0.0.1)에서만 수신 + Docker 내부 네트워크
-  - Bearer 토큰 인증
-  - 허용된 명령어 화이트리스트만 실행 가능
+n8n host bridge server.
 """
+
+from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-
-import psutil
-from fastapi import FastAPI, HTTPException, Header, BackgroundTasks
-from pydantic import BaseModel
 from typing import Optional
 
-# ─── 설정 ────────────────────────────────────────────────────────────────────
+import psutil
+from fastapi import FastAPI, Header, HTTPException
+from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+WORKSPACE_DIR = ROOT_DIR / "workspace"
+N8N_DIR = ROOT_DIR / "infrastructure" / "n8n"
+
+
+def default_btx_dir(repo_root: Path = ROOT_DIR) -> Path:
+    return repo_root / "projects" / "blind-to-x"
+
+
+def default_log_dir(repo_root: Path = ROOT_DIR) -> Path:
+    return repo_root / "infrastructure" / "n8n" / "logs"
+
+
+def workspace_module_command(module: str, *args: str, python_exe: str, workspace_dir: Path) -> dict[str, object]:
+    return {
+        "cmd": [python_exe, "-m", module, *args],
+        "cwd": str(workspace_dir),
+    }
+
 
 BRIDGE_TOKEN = os.getenv("BRIDGE_TOKEN")
 if not BRIDGE_TOKEN:
-    raise RuntimeError("BRIDGE_TOKEN 환경 변수가 설정되지 않았습니다.")
-BTX_DIR = Path(os.getenv("BTX_DIR", r"C:\Users\박주호\Desktop\Vibe coding\blind-to-x"))
+    raise RuntimeError("BRIDGE_TOKEN environment variable is required.")
+
+BTX_DIR = Path(os.getenv("BTX_DIR") or default_btx_dir())
 PYTHON_EXE = os.getenv("PYTHON_EXE", sys.executable)
-LOG_DIR = Path(os.getenv("BRIDGE_LOG_DIR", r"C:\Users\박주호\Desktop\Vibe coding\infrastructure\n8n\logs"))
+LOG_DIR = Path(os.getenv("BRIDGE_LOG_DIR") or default_log_dir())
 
-# 허용된 커맨드 화이트리스트 (보안)
-ALLOWED_COMMANDS = {
-    "btx_pipeline": {
-        "cmd": [PYTHON_EXE, str(BTX_DIR / "main.py"), "--parallel", "3"],
-        "cwd": str(BTX_DIR),
-        "description": "Blind-to-X 파이프라인 전체 실행",
-    },
-    "btx_dry_run": {
-        "cmd": [PYTHON_EXE, str(BTX_DIR / "main.py"), "--dry-run"],
-        "cwd": str(BTX_DIR),
-        "description": "Blind-to-X 파이프라인 드라이런 (데이터 변경 없음)",
-    },
-    "healthcheck": {
-        "cmd": [PYTHON_EXE, str(Path(__file__).parent / "healthcheck.py")],
-        "cwd": str(Path(__file__).parent),
-        "description": "시스템 전체 헬스체크",
-    },
-    "onedrive_backup": {
-        "cmd": [PYTHON_EXE, str(Path(__file__).parent.parent.parent / "execution" / "backup_to_onedrive.py")],
-        "cwd": str(Path(__file__).parent.parent.parent),
-        "description": "OneDrive 핵심 파일 백업",
-    },
-    "yt_analytics": {
-        "cmd": [PYTHON_EXE, str(Path(__file__).parent.parent.parent / "execution" / "result_tracker_db.py"), "collect"],
-        "cwd": str(Path(__file__).parent.parent.parent),
-        "description": "YouTube Analytics 자동 수집",
-    },
-    "cache_cleanup": {
-        "cmd": [PYTHON_EXE, "-c", "from execution.llm_client import cache_cleanup; print(f'Cleaned {cache_cleanup()} entries')"],
-        "cwd": str(Path(__file__).parent.parent.parent),
-        "description": "LLM 캐시 만료 항목 정리",
-    },
-    "notebooklm_pipeline": {
-        "cmd": [PYTHON_EXE, str(Path(__file__).parent.parent.parent / "execution" / "gdrive_pdf_extractor.py"), "list-folder"],
-        "cwd": str(Path(__file__).parent.parent.parent),
-        "description": "NotebookLM 파이프라인 Drive 폴더 조회",
-    },
-}
 
-# ─── FastAPI 앱 ──────────────────────────────────────────────────────────────
+def build_allowed_commands(
+    *,
+    repo_root: Path = ROOT_DIR,
+    btx_dir: Path | None = None,
+    python_exe: str | None = None,
+) -> dict[str, dict[str, object]]:
+    workspace_dir = repo_root / "workspace"
+    n8n_dir = repo_root / "infrastructure" / "n8n"
+    resolved_btx_dir = Path(btx_dir or default_btx_dir(repo_root))
+    resolved_python = python_exe or PYTHON_EXE
+
+    return {
+        "btx_pipeline": {
+            "cmd": [resolved_python, str(resolved_btx_dir / "main.py"), "--parallel", "3"],
+            "cwd": str(resolved_btx_dir),
+            "description": "Blind-to-X pipeline full run",
+        },
+        "btx_dry_run": {
+            "cmd": [resolved_python, str(resolved_btx_dir / "main.py"), "--dry-run"],
+            "cwd": str(resolved_btx_dir),
+            "description": "Blind-to-X pipeline dry run",
+        },
+        "healthcheck": {
+            "cmd": [resolved_python, str(n8n_dir / "healthcheck.py")],
+            "cwd": str(n8n_dir),
+            "description": "System health check",
+        },
+        "onedrive_backup": {
+            **workspace_module_command(
+                "execution.backup_to_onedrive",
+                python_exe=resolved_python,
+                workspace_dir=workspace_dir,
+            ),
+            "description": "OneDrive backup",
+        },
+        "yt_analytics": {
+            **workspace_module_command(
+                "execution.result_tracker_db",
+                "collect",
+                python_exe=resolved_python,
+                workspace_dir=workspace_dir,
+            ),
+            "description": "YouTube analytics sync",
+        },
+        "cache_cleanup": {
+            "cmd": [resolved_python, "-c", "from execution.llm_client import cache_cleanup; print(f'Cleaned {cache_cleanup()} entries')"],
+            "cwd": str(workspace_dir),
+            "description": "LLM cache cleanup",
+        },
+        "notebooklm_pipeline": {
+            **workspace_module_command(
+                "execution.gdrive_pdf_extractor",
+                "list-folder",
+                python_exe=resolved_python,
+                workspace_dir=workspace_dir,
+            ),
+            "description": "NotebookLM Drive listing",
+        },
+        # ── Shorts Maker v2 ──
+        "shorts_generate": {
+            "cmd": [
+                resolved_python, "-m", "shorts_maker_v2",
+                "generate", "--jobs", "1",
+            ],
+            "cwd": str(repo_root / "projects" / "shorts-maker-v2"),
+            "description": "Generate 1 YouTube Short (full pipeline)",
+        },
+        "shorts_batch": {
+            "cmd": [
+                resolved_python, "-m", "shorts_maker_v2",
+                "generate", "--jobs", "3",
+            ],
+            "cwd": str(repo_root / "projects" / "shorts-maker-v2"),
+            "description": "Generate 3 YouTube Shorts (batch mode)",
+        },
+        "shorts_dry_run": {
+            "cmd": [
+                resolved_python, "-m", "shorts_maker_v2",
+                "generate", "--jobs", "1", "--dry-run",
+            ],
+            "cwd": str(repo_root / "projects" / "shorts-maker-v2"),
+            "description": "Shorts dry run (script only, no render)",
+        },
+    }
+
+
+ALLOWED_COMMANDS = build_allowed_commands(btx_dir=BTX_DIR, python_exe=PYTHON_EXE)
 
 app = FastAPI(
     title="n8n Bridge Server",
-    description="n8n → Host 브릿지 서버 (Blind-to-X / Shorts Maker / NotebookLM 파이프라인용)",
-    version="1.1.0",
+    description="HTTP bridge between n8n and local pipelines",
+    version="1.2.0",
 )
 
 _server_start_time = datetime.now()
+_execution_history: list[dict] = []
 
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 
-# ─── 모델 ────────────────────────────────────────────────────────────────────
-
 class ExecuteRequest(BaseModel):
-    command: str  # ALLOWED_COMMANDS 키
-    timeout: int = 600  # 기본 10분 타임아웃
+    command: str
+    timeout: int = 600
 
 
 class ExecuteResponse(BaseModel):
@@ -104,16 +164,7 @@ class ExecuteResponse(BaseModel):
     timestamp: str
 
 
-class HealthResponse(BaseModel):
-    status: str
-    checks: dict
-    timestamp: str
-
-
-# ─── 인증 ────────────────────────────────────────────────────────────────────
-
 def verify_token(authorization: str = Header(None)):
-    """Bearer 토큰 인증."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
     token = authorization.split(" ", 1)[1]
@@ -121,28 +172,18 @@ def verify_token(authorization: str = Header(None)):
         raise HTTPException(status_code=403, detail="Invalid token")
 
 
-# ─── 실행 기록 ───────────────────────────────────────────────────────────────
-
-_execution_history: list[dict] = []
-
-
 def _log_execution(result: dict):
-    """실행 결과를 로그 파일에 기록."""
     _execution_history.append(result)
-    # 최근 100건만 메모리에 유지
     if len(_execution_history) > 100:
         _execution_history.pop(0)
 
     log_file = LOG_DIR / f"bridge_{datetime.now().strftime('%Y%m%d')}.jsonl"
-    with open(log_file, "a", encoding="utf-8") as f:
-        f.write(json.dumps(result, ensure_ascii=False) + "\n")
+    with open(log_file, "a", encoding="utf-8") as handle:
+        handle.write(json.dumps(result, ensure_ascii=False) + "\n")
 
-
-# ─── 엔드포인트 ──────────────────────────────────────────────────────────────
 
 @app.get("/")
 async def root():
-    """브릿지 서버 상태."""
     return {
         "service": "n8n Bridge Server",
         "status": "running",
@@ -153,30 +194,18 @@ async def root():
 
 @app.get("/health")
 async def health():
-    """Server health check (no authentication required)."""
     now = datetime.now()
     uptime_seconds = round((now - _server_start_time).total_seconds(), 2)
-
-    # Current process memory usage in MB
     process = psutil.Process(os.getpid())
     memory_mb = round(process.memory_info().rss / (1024 * 1024), 2)
-
     total_executions = len(_execution_history)
-    last_execution_at = (
-        _execution_history[-1].get("timestamp") if _execution_history else None
-    )
+    last_execution_at = _execution_history[-1].get("timestamp") if _execution_history else None
 
-    # Determine status
-    # - unhealthy: memory > 512 MB
-    # - degraded: last 3 executions all failed, or memory > 256 MB
-    # - healthy: otherwise
     if memory_mb > 512:
         status = "unhealthy"
     elif memory_mb > 256:
         status = "degraded"
-    elif total_executions >= 3 and all(
-        e.get("status") != "success" for e in _execution_history[-3:]
-    ):
+    elif total_executions >= 3 and all(item.get("status") != "success" for item in _execution_history[-3:]):
         status = "degraded"
     else:
         status = "healthy"
@@ -193,35 +222,27 @@ async def health():
 
 @app.get("/commands")
 async def list_commands(authorization: str = Header(None)):
-    """사용 가능한 명령어 목록."""
     verify_token(authorization)
     return {
         "commands": {
-            k: {"description": v["description"]}
-            for k, v in ALLOWED_COMMANDS.items()
+            key: {"description": value["description"]}
+            for key, value in ALLOWED_COMMANDS.items()
         }
     }
 
 
 @app.post("/execute", response_model=ExecuteResponse)
-async def execute_command(
-    request: ExecuteRequest,
-    authorization: str = Header(None),
-):
-    """화이트리스트된 명령어를 실행합니다."""
+async def execute_command(request: ExecuteRequest, authorization: str = Header(None)):
     verify_token(authorization)
 
     if request.command not in ALLOWED_COMMANDS:
         raise HTTPException(
             status_code=400,
-            detail=f"Unknown command: {request.command}. "
-                   f"Available: {list(ALLOWED_COMMANDS.keys())}",
+            detail=f"Unknown command: {request.command}. Available: {list(ALLOWED_COMMANDS.keys())}",
         )
 
     cmd_config = ALLOWED_COMMANDS[request.command]
     start_time = datetime.now()
-
-    # Windows UTF-8 인코딩 보장
     env = os.environ.copy()
     env["PYTHONUTF8"] = "1"
     env["PYTHONIOENCODING"] = "utf-8"
@@ -237,18 +258,16 @@ async def execute_command(
             errors="replace",
             env=env,
         )
-
         duration = (datetime.now() - start_time).total_seconds()
         response = ExecuteResponse(
             status="success" if result.returncode == 0 else "failed",
             command=request.command,
             exit_code=result.returncode,
-            stdout=result.stdout[-5000:] if result.stdout else None,  # 마지막 5000자
-            stderr=result.stderr[-2000:] if result.stderr else None,  # 마지막 2000자
+            stdout=result.stdout[-5000:] if result.stdout else None,
+            stderr=result.stderr[-2000:] if result.stderr else None,
             duration_seconds=round(duration, 2),
             timestamp=start_time.isoformat(),
         )
-
     except subprocess.TimeoutExpired:
         duration = (datetime.now() - start_time).total_seconds()
         response = ExecuteResponse(
@@ -258,14 +277,13 @@ async def execute_command(
             stderr=f"Command timed out after {request.timeout} seconds",
             timestamp=start_time.isoformat(),
         )
-
-    except Exception as e:
+    except Exception as exc:
         duration = (datetime.now() - start_time).total_seconds()
         response = ExecuteResponse(
             status="error",
             command=request.command,
             duration_seconds=round(duration, 2),
-            stderr=str(e),
+            stderr=str(exc),
             timestamp=start_time.isoformat(),
         )
 
@@ -274,18 +292,9 @@ async def execute_command(
 
 
 @app.get("/history")
-async def execution_history(
-    limit: int = 10,
-    authorization: str = Header(None),
-):
-    """최근 실행 기록."""
+async def execution_history(limit: int = 10, authorization: str = Header(None)):
     verify_token(authorization)
     return {"history": _execution_history[-limit:]}
-
-
-# ─── NotebookLM 파이프라인 엔드포인트 ────────────────────────────────────────
-
-ROOT_DIR = Path(__file__).parent.parent.parent
 
 
 class GDriveExtractRequest(BaseModel):
@@ -296,7 +305,7 @@ class GDriveExtractRequest(BaseModel):
 class ContentWriteRequest(BaseModel):
     text: str
     project: str = "default"
-    provider: Optional[str] = None  # "gemini" | "claude" | "gpt"
+    provider: Optional[str] = None
 
 
 class NotionArticleRequest(BaseModel):
@@ -310,38 +319,37 @@ class NotionArticleRequest(BaseModel):
 
 
 @app.post("/notebooklm/extract-pdf")
-async def notebooklm_extract_pdf(
-    request: GDriveExtractRequest,
-    authorization: str = Header(None),
-):
-    """Google Drive 파일 다운로드 + PDF / 이미지 텍스트 추출."""
+async def notebooklm_extract_pdf(request: GDriveExtractRequest, authorization: str = Header(None)):
     verify_token(authorization)
     try:
-        import sys
-        sys.path.insert(0, str(ROOT_DIR))
+        sys.path.insert(0, str(WORKSPACE_DIR))
         from execution.gdrive_pdf_extractor import download_and_extract
+
         result = await asyncio.get_event_loop().run_in_executor(
             None,
             lambda: download_and_extract(request.file_id, dest_dir=request.dest_dir),
         )
-        _log_execution({"endpoint": "notebooklm/extract-pdf", "file_id": request.file_id, "status": "success", "timestamp": datetime.now().isoformat()})
+        _log_execution(
+            {
+                "endpoint": "notebooklm/extract-pdf",
+                "file_id": request.file_id,
+                "status": "success",
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
         return result
-    except Exception as exc:
-        logger.error("[Bridge] extract-pdf 실패: %s", exc)
+    except Exception as exc:  # pragma: no cover - API path
+        logger.error("[Bridge] extract-pdf failed: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc))
 
 
 @app.post("/notebooklm/write-article")
-async def notebooklm_write_article(
-    request: ContentWriteRequest,
-    authorization: str = Header(None),
-):
-    """추출 텍스트 → AI 아티클 생성 (Gemini / Claude / GPT 폴백 체인)."""
+async def notebooklm_write_article(request: ContentWriteRequest, authorization: str = Header(None)):
     verify_token(authorization)
     try:
-        import sys
-        sys.path.insert(0, str(ROOT_DIR))
+        sys.path.insert(0, str(WORKSPACE_DIR))
         from execution.content_writer import write_article
+
         result = await asyncio.get_event_loop().run_in_executor(
             None,
             lambda: write_article(
@@ -350,24 +358,27 @@ async def notebooklm_write_article(
                 provider=request.provider,
             ),
         )
-        _log_execution({"endpoint": "notebooklm/write-article", "project": request.project, "status": "success", "timestamp": datetime.now().isoformat()})
+        _log_execution(
+            {
+                "endpoint": "notebooklm/write-article",
+                "project": request.project,
+                "status": "success",
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
         return result
-    except Exception as exc:
-        logger.error("[Bridge] write-article 실패: %s", exc)
+    except Exception as exc:  # pragma: no cover - API path
+        logger.error("[Bridge] write-article failed: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc))
 
 
 @app.post("/notebooklm/create-notion-page")
-async def notebooklm_create_notion_page(
-    request: NotionArticleRequest,
-    authorization: str = Header(None),
-):
-    """아티클 → Notion DB 레코드 + 페이지 본문 작성."""
+async def notebooklm_create_notion_page(request: NotionArticleRequest, authorization: str = Header(None)):
     verify_token(authorization)
     try:
-        import sys
-        sys.path.insert(0, str(ROOT_DIR))
+        sys.path.insert(0, str(WORKSPACE_DIR))
         from execution.notion_article_uploader import create_article_page
+
         result = await asyncio.get_event_loop().run_in_executor(
             None,
             lambda: create_article_page(
@@ -380,20 +391,26 @@ async def notebooklm_create_notion_page(
                 db_id=request.db_id,
             ),
         )
-        _log_execution({"endpoint": "notebooklm/create-notion-page", "title": request.title, "status": "success", "timestamp": datetime.now().isoformat()})
+        _log_execution(
+            {
+                "endpoint": "notebooklm/create-notion-page",
+                "title": request.title,
+                "status": "success",
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
         return result
-    except Exception as exc:
-        logger.error("[Bridge] create-notion-page 실패: %s", exc)
+    except Exception as exc:  # pragma: no cover - API path
+        logger.error("[Bridge] create-notion-page failed: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc))
 
 
-# ─── 메인 ────────────────────────────────────────────────────────────────────
-
 if __name__ == "__main__":
     import uvicorn
+
     print("=" * 60)
     print("  n8n Bridge Server")
-    print(f"  Listening on http://127.0.0.1:9876")
+    print("  Listening on http://127.0.0.1:9876")
     print(f"  Available commands: {list(ALLOWED_COMMANDS.keys())}")
     print("=" * 60)
     uvicorn.run(app, host="0.0.0.0", port=9876, log_level="info")

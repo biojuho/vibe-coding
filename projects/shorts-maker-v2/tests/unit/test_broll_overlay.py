@@ -8,11 +8,9 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import numpy as np
 import pytest
 
 from shorts_maker_v2.render import broll_overlay
-
 
 # ── helpers ────────────────────────────────────────────────────────
 

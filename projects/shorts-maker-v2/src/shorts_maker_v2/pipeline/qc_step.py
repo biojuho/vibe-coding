@@ -16,6 +16,7 @@ from shorts_maker_v2.models import (
     QCReport,
     SceneAsset,
     ScenePlan,
+    SceneQCResult,
 )
 
 logger = logging.getLogger(__name__)
@@ -89,12 +90,99 @@ class QCStep:
         essential = [
             checks.get("all_scenes_have_assets", False),
         ]
-        if all(essential) and not issues:
-            verdict = GateVerdict.PASS.value
-        else:
-            verdict = GateVerdict.FAIL_RETRY.value
+        verdict = GateVerdict.PASS.value if all(essential) and not issues else GateVerdict.FAIL_RETRY.value
 
         return QCReport(checks=checks, verdict=verdict, issues=issues)
+
+    # ── 씬별 QC ──────────────────────────────────────────────────────────────
+
+    # 역할별 오디오 길이 기준 (초)
+    _ROLE_DURATION_RANGE: dict[str, tuple[float, float]] = {
+        "hook": (2.0, 8.0),
+        "body": (3.0, 12.0),
+        "cta": (2.0, 8.0),
+        "closing": (2.0, 8.0),
+    }
+
+    @staticmethod
+    def gate_scene_qc(
+        scene_plan: ScenePlan,
+        scene_asset: SceneAsset,
+        prev_scene: ScenePlan | None = None,
+        next_scene: ScenePlan | None = None,
+    ) -> SceneQCResult:
+        """씬별 품질 검수 (구조적 체크만, LLM 없음).
+
+        Args:
+            scene_plan: 대본 씬
+            scene_asset: 생성된 미디어 자산
+            prev_scene: 이전 씬 (톤 일관성 체크용)
+            next_scene: 다음 씬
+
+        Returns:
+            SceneQCResult with verdict
+        """
+        checks: dict[str, bool] = {}
+        issues: list[str] = []
+        sid = scene_plan.scene_id
+
+        # 1. 오디오 파일 존재 + 최소 크기
+        if os.path.isfile(scene_asset.audio_path):
+            size = os.path.getsize(scene_asset.audio_path)
+            ok = size > 10_000
+            checks["audio_ok"] = ok
+            if not ok:
+                issues.append(f"Audio too small ({size}B)")
+        else:
+            checks["audio_ok"] = False
+            issues.append("Audio file missing")
+
+        # 2. 비주얼 파일 존재
+        if os.path.isfile(scene_asset.visual_path):
+            checks["visual_ok"] = True
+        else:
+            checks["visual_ok"] = False
+            issues.append("Visual file missing")
+
+        # 3. 오디오 길이 적합성 (역할별 기준)
+        role = scene_plan.structure_role
+        dur_min, dur_max = QCStep._ROLE_DURATION_RANGE.get(role, (1.0, 15.0))
+        dur = scene_asset.duration_sec
+        dur_ok = dur_min <= dur <= dur_max
+        checks["duration_ok"] = dur_ok
+        if not dur_ok:
+            issues.append(
+                f"Duration {dur:.1f}s outside [{dur_min},{dur_max}]s for role '{role}'"
+            )
+
+        # 4. hook 씬: 대본이 충분히 짧고 강렬한지 (글자수 기반 경험적 체크)
+        if role == "hook":
+            narration_len = len(scene_plan.narration_ko)
+            # hook은 너무 길면 안 됨 (200자 이하 권장)
+            hook_concise = narration_len <= 200
+            checks["hook_concise"] = hook_concise
+            if not hook_concise:
+                issues.append(f"Hook narration too long ({narration_len} chars, max 200)")
+
+        # 5. closing 씬: CTA 금지어 체크
+        if role in ("closing", "cta"):
+            _FORBIDDEN = ("구독", "좋아요", "알림", "subscribe", "like", "comment", "follow")
+            text = scene_plan.narration_ko.lower()
+            for word in _FORBIDDEN:
+                if word.lower() in text:
+                    checks["no_cta_words"] = False
+                    issues.append(f"Closing contains forbidden CTA word: '{word}'")
+                    break
+            else:
+                checks["no_cta_words"] = True
+
+        verdict = "pass" if not issues else "fail_retry"
+        return SceneQCResult(
+            scene_id=sid,
+            checks=checks,
+            verdict=verdict,
+            issues=issues,
+        )
 
     # ── Gate 4: 최종 QC ───────────────────────────────────────────────────────
 

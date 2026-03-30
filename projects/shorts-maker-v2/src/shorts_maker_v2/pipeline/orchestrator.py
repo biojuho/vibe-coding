@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shutil
 import threading
 import time
 import uuid
@@ -26,6 +27,7 @@ from shorts_maker_v2.pipeline.render_step import RenderStep
 from shorts_maker_v2.pipeline.research_step import ResearchStep
 from shorts_maker_v2.pipeline.script_step import ScriptStep, TopicUnsuitableError
 from shorts_maker_v2.pipeline.series_engine import SeriesEngine
+from shorts_maker_v2.pipeline.structure_step import StructureStep
 from shorts_maker_v2.pipeline.thumbnail_step import ThumbnailStep
 from shorts_maker_v2.providers.google_client import GoogleClient
 from shorts_maker_v2.providers.llm_router import LLMRouter
@@ -393,9 +395,55 @@ class PipelineOrchestrator:
                         jlog.warning("research_failed", error=str(exc), error_type=error_type.value)
                         status.fail("research", detail=f"{error_type.icon} {error_type.value}")
 
+                # ── NEW: StructureStep (Gate 2 — 구성안 설계) ──
+                structure_outline = None
+                if self.config.project.structure_validation != "off":
+                    status.start("structure", detail="Designing scene outline")
+                    _t0 = time.perf_counter()
+                    try:
+                        _llm_router_for_structure = LLMRouter(
+                            providers=(
+                                list(self.config.providers.llm_providers)
+                                if self.config.providers.llm_providers
+                                else [self.config.providers.llm]
+                            ),
+                            models=dict(self.config.providers.llm_models) if self.config.providers.llm_models else {},
+                            max_retries=self.config.limits.max_retries,
+                            request_timeout_sec=self.config.limits.request_timeout_sec,
+                        )
+                        structure_step = StructureStep(
+                            config=self.config,
+                            llm_router=_llm_router_for_structure,
+                            channel_key=channel,
+                        )
+                        structure_outline = structure_step.run(
+                            topic=topic,
+                            production_plan=production_plan,
+                            research_context=research_context,
+                        )
+                        manifest.structure_outline = structure_outline.to_dict()
+                        step_timings["structure"] = round(time.perf_counter() - _t0, 2)
+                        jlog.info(
+                            "structure_done",
+                            scene_count=len(structure_outline.scenes),
+                            narrative_arc=structure_outline.narrative_arc,
+                            perf_sec=step_timings["structure"],
+                        )
+                        status.complete("structure", detail=f"{len(structure_outline.scenes)} scenes")
+                    except Exception as exc:
+                        step_timings["structure"] = round(time.perf_counter() - _t0, 2)
+                        error_type = classify_error(exc)
+                        jlog.warning("structure_failed", error=str(exc), error_type=error_type.value)
+                        status.fail("structure", detail=f"{error_type.icon} {error_type.value}")
+                        structure_outline = None
+
                 status.start("script", detail="Generating script")
                 _t0 = time.perf_counter()
-                title, scene_plans, hook_pattern = self.script_step.run(topic, research_context=research_context)
+                title, scene_plans, hook_pattern = self.script_step.run(
+                    topic,
+                    research_context=research_context,
+                    structure_outline=structure_outline,
+                )
                 step_timings["script"] = round(time.perf_counter() - _t0, 2)
                 manifest.title = title
                 manifest.scene_count = len(scene_plans)
@@ -418,6 +466,7 @@ class PipelineOrchestrator:
                     "hook_pattern": hook_pattern,
                     "ab_variant": manifest.ab_variant,
                     "scene_plans": [sp.to_dict() for sp in scene_plans],
+                    "structure_outline": structure_outline.to_dict() if structure_outline else None,
                 }
                 checkpoint_path.write_text(json.dumps(cp_data, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -453,6 +502,42 @@ class PipelineOrchestrator:
                     f"assets out of {len(scene_plans)} scenes. "
                     "Halting pipeline to prevent rendering a broken video. You can resume this job later."
                 )
+
+            # ── 씬별 QC + 재시도 (scene_qc_enabled=True일 때) ──
+            if self.config.project.scene_qc_enabled:
+                status.start("scene_qc", detail="Per-scene quality check")
+                _t0 = time.perf_counter()
+                MAX_SCENE_RETRIES = 2
+                all_scene_qc_results = []
+                for idx, (plan, asset) in enumerate(zip(scene_plans, scene_assets, strict=False)):
+                    prev_plan = scene_plans[idx - 1] if idx > 0 else None
+                    next_plan = scene_plans[idx + 1] if idx < len(scene_plans) - 1 else None
+                    qc_result = QCStep.gate_scene_qc(plan, asset, prev_plan, next_plan)
+                    for retry in range(MAX_SCENE_RETRIES):
+                        if qc_result.verdict == "pass":
+                            break
+                        # 실패한 컴포넌트 판별
+                        component = "visual" if qc_result.checks.get("audio_ok", True) else "both"
+                        jlog.info(
+                            "scene_qc_retry",
+                            scene_id=plan.scene_id,
+                            retry=retry + 1,
+                            component=component,
+                            issues=qc_result.issues,
+                        )
+                        new_asset, regen_failures = self.media_step.regenerate_scene(
+                            plan, run_dir, cost_guard, jlog, component=component,
+                        )
+                        scene_assets[idx] = new_asset
+                        failures.extend(regen_failures)
+                        qc_result = QCStep.gate_scene_qc(plan, new_asset, prev_plan, next_plan)
+                    qc_result.retry_count = retry + 1 if qc_result.verdict != "pass" else 0
+                    all_scene_qc_results.append(qc_result.to_dict())
+                manifest.scene_qc_results = all_scene_qc_results
+                step_timings["scene_qc"] = round(time.perf_counter() - _t0, 2)
+                passed = sum(1 for r in all_scene_qc_results if r["verdict"] == "pass")
+                jlog.info("scene_qc_done", passed=passed, total=len(all_scene_qc_results))
+                status.complete("scene_qc", detail=f"{passed}/{len(all_scene_qc_results)} passed")
 
             # ── Gate 3: 미디어 QC ──
             status.start("gate3_media_qc", detail="Validating media assets")
@@ -566,6 +651,18 @@ class PipelineOrchestrator:
                 manifest.status = "success"
                 jlog.info("gate4_pass", checks=gate4_report.checks)
                 status.complete("gate4_final_qc")
+                # ── 업로드 폴더로 복사 ──
+                upload_dir = self.config.project.upload_ready_dir
+                if upload_dir and manifest.status == "success":
+                    try:
+                        upload_path = Path(upload_dir)
+                        upload_path.mkdir(parents=True, exist_ok=True)
+                        for src in [output_path]:
+                            if src and Path(str(src)).exists():
+                                shutil.copy2(str(src), upload_path / Path(str(src)).name)
+                        jlog.info("upload_ready", dir=str(upload_path))
+                    except Exception as upload_exc:
+                        jlog.warning("upload_copy_failed", error=str(upload_exc))
             else:
                 manifest.status = "hold"  # HOLD: 수동 검토 필요
                 jlog.warning(

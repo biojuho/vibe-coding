@@ -257,3 +257,197 @@ class TestStockMediaManagerFromEnv:
         os.environ.pop("UNSPLASH_API_KEY", None)
         manager = StockMediaManager.from_env()
         assert manager.unsplash is None
+
+
+class _FakeResponse:
+    def __init__(self, *, payload=None, chunks: list[bytes] | None = None) -> None:
+        self._payload = payload or {}
+        self._chunks = chunks or []
+
+    def json(self):
+        return self._payload
+
+    def raise_for_status(self) -> None:
+        return None
+
+    def iter_content(self, chunk_size: int = 8192):
+        yield from self._chunks
+
+
+class TestPexelsClientDownloads:
+    def test_download_video_returns_existing_output(self, tmp_path):
+        client = PexelsClient(api_key="key")
+        output_path = tmp_path / "existing.mp4"
+        output_path.write_bytes(b"video")
+
+        result = client.download_video(query="tech", output_path=output_path)
+
+        assert result == output_path
+
+    def test_download_video_raises_when_search_returns_nothing(self, tmp_path):
+        client = PexelsClient(api_key="key")
+        with patch.object(client, "search_videos", return_value=[]), pytest.raises(
+            RuntimeError,
+            match="No Pexels videos found",
+        ):
+            client.download_video(query="tech", output_path=tmp_path / "scene.mp4")
+
+    def test_download_video_raises_when_no_suitable_video_file(self, tmp_path):
+        client = PexelsClient(api_key="key")
+        with patch.object(client, "search_videos", return_value=[{"video_files": []}]), pytest.raises(
+            RuntimeError,
+            match="No suitable Pexels video file found",
+        ):
+            client.download_video(query="tech", output_path=tmp_path / "scene.mp4")
+
+    def test_download_video_downloads_crops_and_removes_raw_file(self, tmp_path):
+        client = PexelsClient(api_key="key")
+        output_path = tmp_path / "scene.mp4"
+
+        with patch.object(
+            client,
+            "search_videos",
+            return_value=[{"video_files": [{"width": 1080, "height": 1920, "link": "https://example.com/video.mp4"}]}],
+        ), patch.object(client, "_stream_download") as stream_download, patch.object(
+            client,
+            "_crop_to_vertical",
+        ) as crop_to_vertical:
+            def _write_raw(url: str, dest):
+                dest.write_bytes(b"raw-video")
+
+            def _write_output(raw_path, final_path, width, height):
+                final_path.write_bytes(b"cropped-video")
+
+            stream_download.side_effect = _write_raw
+            crop_to_vertical.side_effect = _write_output
+
+            result = client.download_video(query="tech", output_path=output_path)
+
+        assert result == output_path
+        assert output_path.exists()
+        assert not output_path.with_name("scene_raw.mp4").exists()
+
+    def test_download_photo_returns_existing_output(self, tmp_path):
+        client = PexelsClient(api_key="key")
+        output_path = tmp_path / "existing.jpg"
+        output_path.write_bytes(b"image")
+
+        result = client.download_photo(query="nature", output_path=output_path)
+
+        assert result == output_path
+
+    def test_download_photo_raises_when_search_returns_nothing(self, tmp_path):
+        client = PexelsClient(api_key="key")
+        with patch.object(client, "search_photos", return_value=[]), pytest.raises(
+            RuntimeError,
+            match="No Pexels photos found",
+        ):
+            client.download_photo(query="nature", output_path=tmp_path / "scene.jpg")
+
+    def test_download_photo_uses_original_when_large2x_missing(self, tmp_path):
+        client = PexelsClient(api_key="key")
+        output_path = tmp_path / "scene.jpg"
+
+        with patch.object(
+            client,
+            "search_photos",
+            return_value=[
+                {"width": 800, "height": 1200, "src": {"original": "https://example.com/original.jpg"}},
+            ],
+        ), patch.object(client, "_stream_download") as stream_download:
+            result = client.download_photo(query="nature", output_path=output_path)
+
+        stream_download.assert_called_once_with("https://example.com/original.jpg", output_path)
+        assert result == output_path
+
+    @patch("shorts_maker_v2.providers.pexels_client.requests.get")
+    def test_stream_download_writes_chunks(self, mock_get, tmp_path):
+        mock_get.return_value = _FakeResponse(chunks=[b"abc", b"def"])
+        client = PexelsClient(api_key="key")
+        dest = tmp_path / "asset.bin"
+
+        client._stream_download("https://example.com/file", dest)
+
+        assert dest.read_bytes() == b"abcdef"
+
+    @patch("shorts_maker_v2.providers.pexels_client.subprocess.run")
+    @patch("shorts_maker_v2.utils.hwaccel.detect_hw_encoder", return_value=("libx264", []))
+    def test_crop_to_vertical_uses_cpu_preset(self, mock_detect, mock_run, tmp_path):
+        input_path = tmp_path / "input.mp4"
+        output_path = tmp_path / "output.mp4"
+        input_path.write_bytes(b"video")
+        mock_run.return_value.returncode = 0
+        mock_run.return_value.stderr = b""
+
+        PexelsClient._crop_to_vertical(input_path, output_path, 1080, 1920)
+
+        cmd = mock_run.call_args.args[0]
+        assert "libx264" in cmd
+        assert "ultrafast" in cmd
+
+    @patch("shorts_maker_v2.providers.pexels_client.subprocess.run")
+    @patch("shorts_maker_v2.utils.hwaccel.detect_hw_encoder", return_value=("h264_nvenc", []))
+    def test_crop_to_vertical_raises_on_ffmpeg_failure(self, mock_detect, mock_run, tmp_path):
+        input_path = tmp_path / "input.mp4"
+        output_path = tmp_path / "output.mp4"
+        input_path.write_bytes(b"video")
+        mock_run.return_value.returncode = 1
+        mock_run.return_value.stderr = b"boom"
+
+        with pytest.raises(RuntimeError, match="ffmpeg crop failed"):
+            PexelsClient._crop_to_vertical(input_path, output_path, 1080, 1920)
+
+
+class TestUnsplashClientDownloads:
+    def test_download_photo_returns_existing_output(self, tmp_path):
+        client = UnsplashClient(access_key="key")
+        output_path = tmp_path / "existing.jpg"
+        output_path.write_bytes(b"image")
+
+        result = client.download_photo(query="space", output_path=output_path)
+
+        assert result == output_path
+
+    def test_download_photo_raises_when_search_returns_nothing(self, tmp_path):
+        client = UnsplashClient(access_key="key")
+        with patch.object(client, "search_photos", return_value=[]), pytest.raises(
+            RuntimeError,
+            match="No Unsplash photos found",
+        ):
+            client.download_photo(query="space", output_path=tmp_path / "scene.jpg")
+
+    def test_download_photo_raises_when_no_usable_url(self, tmp_path):
+        client = UnsplashClient(access_key="key")
+        with patch.object(
+            client,
+            "search_photos",
+            return_value=[{"width": 800, "height": 1200, "urls": {}}],
+        ), pytest.raises(RuntimeError, match="No usable Unsplash URL"):
+            client.download_photo(query="space", output_path=tmp_path / "scene.jpg")
+
+    def test_download_photo_prefers_portrait_and_regular_url(self, tmp_path):
+        client = UnsplashClient(access_key="key")
+        output_path = tmp_path / "scene.jpg"
+        photos = [
+            {"width": 1600, "height": 900, "urls": {"full": "https://example.com/landscape.jpg"}},
+            {"width": 900, "height": 1600, "urls": {"regular": "https://example.com/portrait.jpg"}},
+        ]
+
+        with patch.object(client, "search_photos", return_value=photos), patch.object(
+            client,
+            "_stream_download",
+        ) as stream_download:
+            result = client.download_photo(query="space", output_path=output_path)
+
+        stream_download.assert_called_once_with("https://example.com/portrait.jpg", output_path)
+        assert result == output_path
+
+    @patch("shorts_maker_v2.providers.unsplash_client.requests.get")
+    def test_stream_download_writes_chunks(self, mock_get, tmp_path):
+        mock_get.return_value = _FakeResponse(chunks=[b"12", b"34"])
+        client = UnsplashClient(access_key="key")
+        dest = tmp_path / "asset.bin"
+
+        client._stream_download("https://example.com/file", dest)
+
+        assert dest.read_bytes() == b"1234"

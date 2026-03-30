@@ -83,3 +83,107 @@ class TestGenerateDashboard:
         out = tmp_path / "out.html"
         generate_dashboard(logs, out)
         assert out.exists()
+
+    def test_job_finished_event(self, tmp_path: Path):
+        """job_finished 이벤트가 있는 개별 job 로그."""
+        logs = tmp_path / "logs"
+        logs.mkdir()
+        job_file = logs / "job-success-001.jsonl"
+        entries = [
+            {"event": "start", "timestamp": "2026-03-25T09:00:00+09:00"},
+            {"event": "job_finished", "timestamp": "2026-03-25T09:05:00+09:00"},
+        ]
+        with job_file.open("w", encoding="utf-8") as f:
+            for e in entries:
+                f.write(json.dumps(e) + "\n")
+
+        out = tmp_path / "out.html"
+        result = generate_dashboard(logs, out)
+        content = result.read_text(encoding="utf-8")
+        assert "2026-03-25" in content
+
+    def test_pipeline_complete_event(self, tmp_path: Path):
+        """pipeline_complete 이벤트에서 비용 추출."""
+        logs = tmp_path / "logs"
+        logs.mkdir()
+        job_file = logs / "pipeline-ok-002.jsonl"
+        entries = [
+            {"event": "start", "timestamp": "2026-03-26T10:00:00+00:00"},
+            {"event": "pipeline_complete", "status": "success", "estimated_cost_usd": 0.42},
+        ]
+        with job_file.open("w", encoding="utf-8") as f:
+            for e in entries:
+                f.write(json.dumps(e) + "\n")
+
+        out = tmp_path / "out.html"
+        result = generate_dashboard(logs, out)
+        content = result.read_text(encoding="utf-8")
+        assert "$0.42" in content or "0.4200" in content
+
+    def test_pipeline_error_event(self, tmp_path: Path):
+        """pipeline_error 이벤트 → failed 집계."""
+        logs = tmp_path / "logs"
+        logs.mkdir()
+        job_file = logs / "error-job-003.jsonl"
+        entries = [
+            {"event": "start", "timestamp": "2026-03-26T11:00:00+00:00"},
+            {"event": "pipeline_error"},
+        ]
+        with job_file.open("w", encoding="utf-8") as f:
+            for e in entries:
+                f.write(json.dumps(e) + "\n")
+
+        out = tmp_path / "out.html"
+        result = generate_dashboard(logs, out)
+        content = result.read_text(encoding="utf-8")
+        assert "color: red" in content  # failed count is colored red
+
+    def test_render_done_cost_extraction(self, tmp_path: Path):
+        """render_done 이벤트에서 비용 추출."""
+        logs = tmp_path / "logs"
+        logs.mkdir()
+        job_file = logs / "render-cost-004.jsonl"
+        entries = [
+            {"event": "start", "timestamp": "2026-03-26T12:00:00+00:00"},
+            {"event": "render_done", "estimated_cost_usd": 0.15},
+            {"event": "job_finished"},
+        ]
+        with job_file.open("w", encoding="utf-8") as f:
+            for e in entries:
+                f.write(json.dumps(e) + "\n")
+
+        out = tmp_path / "out.html"
+        result = generate_dashboard(logs, out)
+        content = result.read_text(encoding="utf-8")
+        assert "0.15" in content
+
+    def test_invalid_timestamp_uses_unknown(self, tmp_path: Path):
+        """잘못된 timestamp → 'Unknown' 날짜."""
+        logs = tmp_path / "logs"
+        logs.mkdir()
+        costs_file = logs / "costs.jsonl"
+        record = {"job_id": "bad-ts", "timestamp": "not-a-date", "status": "success", "cost_usd": 0.01}
+        costs_file.write_text(json.dumps(record) + "\n", encoding="utf-8")
+
+        out = tmp_path / "out.html"
+        result = generate_dashboard(logs, out)
+        content = result.read_text(encoding="utf-8")
+        assert "Unknown" in content
+
+    def test_broken_jsonl_file_skipped(self, tmp_path: Path):
+        """파일 읽기 에러 시 건너뜀 (비정상 인코딩 등)."""
+        logs = tmp_path / "logs"
+        logs.mkdir()
+        # 정상 파일 하나 + 깨진 파일 하나
+        good = logs / "good.jsonl"
+        good.write_text(
+            json.dumps({"job_id": "g1", "timestamp": "2026-03-27T10:00:00+00:00", "status": "success", "cost_usd": 0.5}) + "\n",
+            encoding="utf-8",
+        )
+        bad = logs / "bad.jsonl"
+        bad.write_bytes(b"\xff\xfe invalid bytes\n")
+
+        out = tmp_path / "out.html"
+        result = generate_dashboard(logs, out)
+        content = result.read_text(encoding="utf-8")
+        assert "$0.5" in content or "0.5000" in content

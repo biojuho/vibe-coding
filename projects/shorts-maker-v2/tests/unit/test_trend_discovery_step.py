@@ -7,12 +7,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from shorts_maker_v2.pipeline.trend_discovery_step import (
-    TrendCandidate,
-    TrendDiscoveryStep,
     _CHANNEL_RSS_IDS,
     _CHANNEL_TREND_SEEDS,
+    TrendCandidate,
+    TrendDiscoveryStep,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -183,9 +182,11 @@ class TestRun:
             ]
         }
         # RSS와 Google Trends는 빈 채널로 패스스루 (no channel IDs = empty list)
-        with patch.object(step, "_from_youtube_rss", return_value=[]):
-            with patch.object(step, "_from_google_trends", return_value=[]):
-                candidates = step.run(channel_key="ai_tech", n=10)
+        with (
+            patch.object(step, "_from_youtube_rss", return_value=[]),
+            patch.object(step, "_from_google_trends", return_value=[])
+        ):
+            candidates = step.run(channel_key="ai_tech", n=10)
         # "중복 주제"는 1개만 있어야 한다
         keywords = [c.keyword for c in candidates]
         assert keywords.count("중복 주제") == 1
@@ -199,9 +200,11 @@ class TestRun:
                 {"keyword": "중간 점수", "score": 0.6},
             ]
         }
-        with patch.object(step, "_from_youtube_rss", return_value=[]):
-            with patch.object(step, "_from_google_trends", return_value=[]):
-                candidates = step.run(channel_key="ai_tech", n=10)
+        with (
+            patch.object(step, "_from_youtube_rss", return_value=[]),
+            patch.object(step, "_from_google_trends", return_value=[])
+        ):
+            candidates = step.run(channel_key="ai_tech", n=10)
         scores = [c.score for c in candidates]
         assert scores == sorted(scores, reverse=True)
 
@@ -210,25 +213,31 @@ class TestRun:
         mock_llm_router.generate_json.return_value = {
             "candidates": [{"keyword": f"주제{i}", "score": 0.5} for i in range(20)]
         }
-        with patch.object(step, "_from_youtube_rss", return_value=[]):
-            with patch.object(step, "_from_google_trends", return_value=[]):
-                candidates = step.run(channel_key="ai_tech", n=3)
+        with (
+            patch.object(step, "_from_youtube_rss", return_value=[]),
+            patch.object(step, "_from_google_trends", return_value=[])
+        ):
+            candidates = step.run(channel_key="ai_tech", n=3)
         assert len(candidates) <= 3
 
     def test_run_rss_failure_uses_fallback(self, step, mock_llm_router):
         """RSS 실패 시 LLM brainstorm fallback이 작동해야 한다."""
-        with patch.object(step, "_from_youtube_rss", side_effect=Exception("network error")):
-            with patch.object(step, "_from_google_trends", return_value=[]):
-                candidates = step.run(channel_key="ai_tech", n=5)
+        with (
+            patch.object(step, "_from_youtube_rss", side_effect=Exception("network error")),
+            patch.object(step, "_from_google_trends", return_value=[])
+        ):
+            candidates = step.run(channel_key="ai_tech", n=5)
         assert len(candidates) > 0
         assert all(c.source == "llm_brainstorm" for c in candidates)
 
     def test_run_returns_empty_if_all_fail(self, mock_config):
         """모든 소스 실패 시 빈 리스트 반환."""
         step = TrendDiscoveryStep(mock_config, llm_router=None)
-        with patch.object(step, "_from_youtube_rss", return_value=[]):
-            with patch.object(step, "_from_google_trends", return_value=[]):
-                candidates = step.run(channel_key="ai_tech", n=5)
+        with (
+            patch.object(step, "_from_youtube_rss", return_value=[]),
+            patch.object(step, "_from_google_trends", return_value=[])
+        ):
+            candidates = step.run(channel_key="ai_tech", n=5)
         assert candidates == []
 
 
@@ -238,11 +247,108 @@ class TestRun:
 
 class TestMissingDependencies:
     def test_from_youtube_rss_raises_import_error_without_httpx(self, step):
-        with patch.dict("sys.modules", {"httpx": None}):
-            with pytest.raises(ImportError, match="httpx"):
-                step._from_youtube_rss("ai_tech")
+        with patch.dict("sys.modules", {"httpx": None}), pytest.raises(ImportError, match="httpx"):
+            step._from_youtube_rss("ai_tech")
 
     def test_from_google_trends_raises_import_error_without_pytrends(self, step):
-        with patch.dict("sys.modules", {"pytrends": None, "pytrends.request": None}):
-            with pytest.raises(ImportError, match="pytrends"):
-                step._from_google_trends("ai_tech")
+        with patch.dict("sys.modules", {"pytrends": None, "pytrends.request": None}), pytest.raises(ImportError, match="pytrends"):
+            step._from_google_trends("ai_tech")
+
+
+# ---------------------------------------------------------------------------
+# YouTube RSS fetch (httpx mocked)
+# ---------------------------------------------------------------------------
+
+class TestYouTubeRSSFetch:
+    _SAMPLE_RSS = """<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <entry><title>Topic A</title><link rel="alternate" href="https://yt.com/a"/></entry>
+  <entry><title>Topic B</title><link rel="alternate" href="https://yt.com/b"/></entry>
+</feed>"""
+
+    def test_rss_returns_candidates(self, step):
+        mock_resp = MagicMock()
+        mock_resp.text = self._SAMPLE_RSS
+        mock_resp.raise_for_status = MagicMock()
+
+        with patch("shorts_maker_v2.pipeline.trend_discovery_step.httpx", create=True) as mock_httpx:
+            mock_httpx.get.return_value = mock_resp
+            with patch.dict("sys.modules", {"httpx": mock_httpx}):
+                candidates = step._from_youtube_rss("ai_tech")
+
+        assert len(candidates) >= 2
+        assert all(c.source == "youtube_rss" for c in candidates)
+
+    def test_rss_empty_channel_returns_empty(self, step):
+        with patch("shorts_maker_v2.pipeline.trend_discovery_step.httpx", create=True):
+            result = step._from_youtube_rss("nonexistent_channel")
+        assert result == []
+
+    def test_rss_network_error_logged(self, step):
+        with patch("shorts_maker_v2.pipeline.trend_discovery_step.httpx", create=True) as mock_httpx:
+            mock_httpx.get.side_effect = Exception("timeout")
+            with patch.dict("sys.modules", {"httpx": mock_httpx}):
+                candidates = step._from_youtube_rss("ai_tech")
+        assert candidates == []
+
+
+# ---------------------------------------------------------------------------
+# Google Trends fetch (pytrends mocked)
+# ---------------------------------------------------------------------------
+
+class TestGoogleTrendsFetch:
+    def _mock_pytrends_import(self):
+        """pytrends가 미설치된 환경에서 모듈 mock 설정."""
+        mock_module = MagicMock()
+        return mock_module
+
+    def test_trends_empty_seeds_returns_empty(self, step):
+        mock_pytrends_mod = self._mock_pytrends_import()
+        with patch.dict("sys.modules", {"pytrends": mock_pytrends_mod, "pytrends.request": mock_pytrends_mod.request}):
+            mock_pytrends_mod.request.TrendReq = MagicMock()
+            result = step._from_google_trends("nonexistent_channel")
+        assert result == []
+
+    def test_trends_returns_candidates(self, step):
+        import pandas as pd
+
+        mock_df = pd.DataFrame({"query": ["AI 트렌드", "Claude"], "value": [100, 80]})
+        mock_pytrends_instance = MagicMock()
+        mock_pytrends_instance.related_queries.return_value = {
+            "AI": {"top": mock_df}
+        }
+        mock_pytrends_mod = MagicMock()
+        mock_pytrends_mod.request.TrendReq.return_value = mock_pytrends_instance
+
+        with patch.dict("sys.modules", {"pytrends": mock_pytrends_mod, "pytrends.request": mock_pytrends_mod.request}):
+            candidates = step._from_google_trends("ai_tech")
+
+        assert len(candidates) >= 1
+        assert all(c.source == "google_trends" for c in candidates)
+
+
+# ---------------------------------------------------------------------------
+# run() Google Trends + LLM failure branches
+# ---------------------------------------------------------------------------
+
+class TestRunBranches:
+    def test_google_trends_failure_continues(self, step, mock_llm_router):
+        """Google Trends 실패 시에도 LLM brainstorm으로 계속."""
+        with (
+            patch.object(step, "_from_youtube_rss", return_value=[]),
+            patch.object(step, "_from_google_trends", side_effect=Exception("pytrends error"))
+        ):
+            candidates = step.run(channel_key="ai_tech", n=5)
+        assert len(candidates) > 0
+
+    def test_llm_brainstorm_failure_returns_partial(self, step):
+        """LLM brainstorm 실패 시 이전 소스 결과만 반환."""
+        rss = [TrendCandidate(keyword="RSS주제", source="youtube_rss", score=0.9, channel="ai_tech")]
+        step.llm_router.generate_json.side_effect = RuntimeError("LLM down")
+        with (
+            patch.object(step, "_from_youtube_rss", return_value=rss),
+            patch.object(step, "_from_google_trends", return_value=[])
+        ):
+            candidates = step.run(channel_key="ai_tech", n=10)
+        assert len(candidates) == 1
+        assert candidates[0].keyword == "RSS주제"

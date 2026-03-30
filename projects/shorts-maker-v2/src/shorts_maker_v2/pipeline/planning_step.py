@@ -21,6 +21,16 @@ class PlanningStep:
 
     MAX_RETRIES = 2  # Gate 1 재시도 상한
 
+    # 모든 채널 공통 — 조용한 이야기 톤
+    _QUIET_STORYTELLING_HINT = (
+        "\n\nCHANNEL IDENTITY: '시간을 훔치는 이야기' — "
+        "This is a quiet storytelling channel. Viewers come to listen before sleep "
+        "or when waking up, not to be sold anything. "
+        "NEVER include like/subscribe/comment CTAs. "
+        "The ending should leave a lingering thought, not an action demand. "
+        "Think of it as the last line of a bedtime story."
+    )
+
     # 채널별 기획 힌트 (LLM에 추가 맥락 제공)
     _CHANNEL_PLANNING_HINTS: dict[str, str] = {
         "ai_tech": (
@@ -60,7 +70,13 @@ class PlanningStep:
         '  "core_message": "이 영상이 전달할 핵심 메시지 딱 1개 (한국어)",\n'
         '  "visual_keywords": ["비주얼 컨셉 키워드 3개 이상 (영어)"],\n'
         '  "forbidden_elements": ["금지 요소 1개 이상 (한국어)"],\n'
-        '  "tone": "영상 전체의 톤 (한국어, 예: 차분하고 논리적인)"\n'
+        '  "tone": "영상 전체의 톤 (한국어, 예: 차분하고 논리적인)",\n'
+        '  "audience_analysis": {\n'
+        '    "desire": "이 주제에 대해 청중이 진짜 듣고 싶은 이야기 (한국어, 10자 이상)",\n'
+        '    "emotional_state": "이 주제를 접하는 청중의 현재 감정 상태 (한국어)",\n'
+        '    "knowledge_level": "beginner | intermediate | expert",\n'
+        '    "consumption_context": "시청 맥락 (잠들기 전, 출퇴근, 휴식 등)"\n'
+        '  }\n'
         "}\n\n"
         "Rules:\n"
         "- concept: 시청자가 왜 이 영상을 클릭할지 명확히\n"
@@ -69,6 +85,8 @@ class PlanningStep:
         "- core_message: 영상이 끝난 후 시청자가 기억할 한 문장\n"
         "- visual_keywords: DALL-E/Pexels에서 검색할 수 있는 구체적 영어 키워드\n"
         "- forbidden_elements: 이 영상에서 절대 사용하지 말아야 할 표현이나 접근\n"
+        "- audience_analysis.desire: '이 주제에서 청중이 원하는 것'을 구체적으로. "
+        "'알고 싶다'처럼 추상적이면 안됨\n"
     )
 
     def __init__(self, config: AppConfig, llm_router: LLMRouter):
@@ -97,7 +115,7 @@ class PlanningStep:
 
             user_prompt = f"Topic: {topic}\n"
             if channel_hint:
-                user_prompt += f"Channel context: {channel_hint}\n"
+                user_prompt += f"Channel context: {channel_hint}{self._QUIET_STORYTELLING_HINT}\n"
             if attempt > 1:
                 user_prompt += (
                     "IMPORTANT: The previous plan was rejected. "
@@ -136,6 +154,16 @@ class PlanningStep:
 
     def _parse_plan(self, data: dict[str, Any]) -> ProductionPlan:
         """LLM JSON → ProductionPlan 변환."""
+        # 청중 분석 추출
+        audience_raw = data.get("audience_analysis")
+        audience_profile: dict[str, str] | None = None
+        if isinstance(audience_raw, dict):
+            audience_profile = {
+                "desire": str(audience_raw.get("desire", "")).strip(),
+                "emotional_state": str(audience_raw.get("emotional_state", "")).strip(),
+                "knowledge_level": str(audience_raw.get("knowledge_level", "intermediate")).strip(),
+                "consumption_context": str(audience_raw.get("consumption_context", "")).strip(),
+            }
         return ProductionPlan(
             concept=str(data.get("concept", "")).strip(),
             target_persona=str(data.get("target_persona", "")).strip(),
@@ -151,6 +179,7 @@ class PlanningStep:
                 if str(f).strip()
             ],
             tone=str(data.get("tone", "")).strip(),
+            audience_profile=audience_profile,
         )
 
     @staticmethod
@@ -172,6 +201,13 @@ class PlanningStep:
             issues.append(f"visual_keywords only {len(plan.visual_keywords)}, need 3+")
         if len(plan.forbidden_elements) < 1:
             issues.append("forbidden_elements empty")
+        # 청중 분석 검증
+        if plan.audience_profile:
+            desire = plan.audience_profile.get("desire", "")
+            if len(desire) < 10:
+                issues.append("audience desire too vague (need 10+ chars)")
+        else:
+            issues.append("audience_analysis missing")
 
         verdict = GateVerdict.PASS if not issues else GateVerdict.FAIL_RETRY
         return verdict, issues

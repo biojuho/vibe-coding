@@ -2,7 +2,7 @@
 
 3단계 소스 파이프라인 (비용 $0):
   1. YouTube RSS  — 경쟁 채널 최신 영상 제목 파싱
-  2. Google Trends (pytrends) — 채널 키워드 관련 쿼리 수집  
+  2. Google Trends (pytrends) — 채널 키워드 관련 쿼리 수집
   3. LLM Brainstorm (fallback) — Gemini로 후보 30개 생성
 
 Usage:
@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import logging
 import time
-import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -181,8 +180,8 @@ Rules:
         """YouTube RSS 피드에서 최신 영상 제목 추출."""
         try:
             import httpx  # 선택적 의존성
-        except ImportError:
-            raise ImportError("httpx not installed. Run: pip install httpx")
+        except ImportError as err:
+            raise ImportError("httpx not installed. Run: pip install httpx") from err
 
         channel_ids = _CHANNEL_RSS_IDS.get(channel_key, [])
         if not channel_ids:
@@ -225,6 +224,10 @@ Rules:
         }
         entries: list[dict[str, str]] = []
         try:
+            try:
+                from defusedxml import ElementTree as ET
+            except ImportError:
+                import xml.etree.ElementTree as ET  # noqa: S314 — defusedxml tried first; fallback parses trusted YouTube RSS only
             root = ET.fromstring(xml_text)
             for entry in root.findall("atom:entry", ns):
                 title_el = entry.find("atom:title", ns)
@@ -233,7 +236,7 @@ Rules:
                 link = link_el.get("href", "") if link_el is not None else ""
                 if title:
                     entries.append({"title": title, "link": link})
-        except ET.ParseError as exc:
+        except Exception as exc:
             logger.debug("[TrendDiscovery] RSS parse error: %s", exc)
         return entries
 
@@ -245,8 +248,8 @@ Rules:
         """pytrends로 채널 시드 키워드 관련 쿼리 수집."""
         try:
             from pytrends.request import TrendReq  # 선택적 의존성
-        except ImportError:
-            raise ImportError("pytrends not installed. Run: pip install pytrends")
+        except ImportError as err:
+            raise ImportError("pytrends not installed. Run: pip install pytrends") from err
 
         seeds = _CHANNEL_TREND_SEEDS.get(channel_key, [])
         if not seeds:

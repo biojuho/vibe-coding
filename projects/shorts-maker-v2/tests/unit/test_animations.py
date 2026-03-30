@@ -5,15 +5,12 @@ All tests mock MoviePy internals so no actual video rendering occurs.
 
 from __future__ import annotations
 
-import math
-import types
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
 
 from shorts_maker_v2.render import animations
-
 
 # ── helpers ────────────────────────────────────────────────────────
 
@@ -52,7 +49,7 @@ def _make_fake_clip(width: int = 8, height: int = 6, with_mask: bool = False):
     clip.resized = fake_resized
 
     if with_mask:
-        mask_frame = np.ones((height, width), dtype=np.float64)
+        np.ones((height, width), dtype=np.float64)
         mask = MagicMock()
         mask_result = MagicMock()
         mask.transform.return_value = mask_result
@@ -86,7 +83,7 @@ class TestTypingEffect:
     def test_mask_is_also_transformed(self):
         clip, _ = _make_fake_clip(width=10, height=4, with_mask=True)
         # Should not raise — exercises the mask branch of _apply_typing_effect
-        result = animations._apply_typing_effect(clip, duration=1.0)
+        animations._apply_typing_effect(clip, duration=1.0)
         # The clip.mask is truthy so the mask transform branch runs
         clip.mask.transform.assert_called_once()
 
@@ -97,7 +94,8 @@ class TestTypingEffect:
         # Retrieve the filter_mask function from the mock call
         filter_mask = clip.mask.transform.call_args[0][0]
         mask_frame = np.ones((4, 10), dtype=np.float64)
-        get_mask = lambda t: mask_frame.copy()
+        def get_mask(t):
+            return mask_frame.copy()
 
         # Partial reveal at t=0.5 → reveal_w=5, columns 5..9 zeroed
         out = filter_mask(get_mask, 0.5)
@@ -193,7 +191,8 @@ class TestGlitchEffect:
         animations._apply_glitch_effect(clip, duration=2.0)
         filter_mask = clip.mask.transform.call_args[0][0]
         mask_frame = np.ones((4, 20), dtype=np.float64)
-        get_mask = lambda t: mask_frame.copy()
+        def get_mask(t):
+            return mask_frame.copy()
 
         # After duration → pass through
         out = filter_mask(get_mask, 2.1)
@@ -285,7 +284,7 @@ class TestParticleEffect:
         # Not all pixels can be identical to the original because particles are added
         assert out.shape == frame.shape
         # At least one pixel should differ (particles add brightness)
-        has_diff = not np.array_equal(out, frame)
+        not np.array_equal(out, frame)
         # Particles may or may not trigger depending on sin values, so we accept both
         assert out.dtype == np.uint8
 

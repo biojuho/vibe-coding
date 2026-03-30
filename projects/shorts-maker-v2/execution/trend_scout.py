@@ -23,7 +23,6 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -32,7 +31,7 @@ from pathlib import Path
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT / "src"))
 
-from shorts_maker_v2.config import AppConfig, load_config
+from shorts_maker_v2.config import load_config
 from shorts_maker_v2.pipeline.topic_angle_generator import ScoredAngle, TopicAngleGenerator
 from shorts_maker_v2.pipeline.trend_discovery_step import TrendCandidate, TrendDiscoveryStep
 from shorts_maker_v2.providers.llm_router import LLMRouter
@@ -103,7 +102,7 @@ def print_results(angles: list[ScoredAngle], channel_key: str) -> None:
     print("─" * 70)
     for i, angle in enumerate(angles, 1):
         hook_icon = HOOK_EMOJI.get(angle.hook_pattern, "▶")
-        score_bar = "█" * int(angle.viral_score) + "░" * (10 - int(angle.viral_score))
+        "█" * int(angle.viral_score) + "░" * (10 - int(angle.viral_score))
         print(f"  {i:>2}.  {angle.viral_score:>4.1f}  {hook_icon} {angle.hook_pattern:<20}  {angle.title}")
         if angle.title_variants and len(angle.title_variants) > 1:
             for v in angle.title_variants:

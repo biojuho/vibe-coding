@@ -484,7 +484,7 @@ def _resolve_auto_topic(
 
     while True:
         try:
-            raw = input("번호 선택 (0-{}): ".format(len(angles))).strip()
+            raw = input(f"번호 선택 (0-{len(angles)}): ").strip()
             choice = int(raw)
             if choice == 0:
                 return input("주제 직접 입력: ").strip()

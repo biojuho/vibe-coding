@@ -79,9 +79,9 @@ class TestCaptionComboRotation:
     def test_combos_exist(self):
         assert len(RenderStep._CAPTION_COMBOS) >= 3
 
-    def test_each_combo_is_3_tuple(self):
+    def test_each_combo_is_4_tuple(self):
         for combo in RenderStep._CAPTION_COMBOS:
-            assert len(combo) == 3
+            assert len(combo) == 4
             assert all(isinstance(s, str) for s in combo)
 
 
@@ -90,7 +90,7 @@ class TestChannelStyleTuning:
         assert "ai_tech" in RenderStep._CHANNEL_STYLE_TUNING
 
     def test_has_expected_keys(self):
-        for channel, tuning in RenderStep._CHANNEL_STYLE_TUNING.items():
+        for _channel, tuning in RenderStep._CHANNEL_STYLE_TUNING.items():
             assert isinstance(tuning, dict)
             # At least margin_x should exist
             assert "margin_x" in tuning

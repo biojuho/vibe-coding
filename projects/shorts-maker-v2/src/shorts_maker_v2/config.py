@@ -25,6 +25,9 @@ class ProjectSettings:
     script_review_enabled: bool = False  # True 시 GPT 품질 채점 후 기준 미달 재생성
     script_review_min_score: int = 6  # 10점 만점 최소 기준 (hook/flow/cta 각각)
     structure_presets: dict[str, list[str]] | None = None  # YPP: 콘텐츠 구조 프리셋
+    scene_qc_enabled: bool = False  # 씬별 QC (LLM 기반, 추가 비용 발생)
+    structure_validation: str = "strict"  # "strict" | "lenient" | "off"
+    upload_ready_dir: str = ""  # 설정 시 완성 영상을 이 폴더에 복사
 
 
 @dataclass(frozen=True)
@@ -63,6 +66,12 @@ class ProviderSettings:
     tts_voice_pool: tuple[str, ...] = ()  # YPP: 음성 풀 (비어있으면 tts_voice 단일)
     tts_voice_strategy: str = "fixed"  # fixed | rotate | random
     tts_voice_roles: dict[str, str] | None = None  # YPP: 역할별 음성 매핑 (hook/body/cta)
+    # CosyVoice/Chatterbox 전용 설정
+    tts_ref_audio: str = ""  # 음성 클로닝용 참조 오디오 경로
+    tts_ref_audio_text: str = ""  # CosyVoice: 참조 오디오의 텍스트 전사
+    tts_cosyvoice_model_dir: str = "pretrained_models/CosyVoice2-0.5B"
+    tts_cosyvoice_mode: str = "cross_lingual"  # cross_lingual | zero_shot | instruct
+    tts_chatterbox_exaggeration: float = 0.5  # 0.0~1.0 표현력
     visual_styles: tuple[str, ...] = ()  # YPP: 영상별 아트 스타일 풀
     # Gemini 3.1 Thinking Mode (minimal/low/medium/high)
     thinking_level: str = "low"  # 대본 생성용 기본값 (빠른 속도)
@@ -273,6 +282,9 @@ def load_config(config_path: str | Path) -> AppConfig:
         raise ConfigError("Config root must be an object.")
 
     project_raw = _section(raw, "project")
+    structure_validation_val = str(project_raw.get("structure_validation", "strict"))
+    if structure_validation_val not in {"strict", "lenient", "off"}:
+        raise ConfigError("project.structure_validation must be one of: strict, lenient, off.")
     project = ProjectSettings(
         language=str(project_raw.get("language", "ko-KR")),
         default_scene_count=int(project_raw.get("default_scene_count", 7)),
@@ -284,6 +296,9 @@ def load_config(config_path: str | Path) -> AppConfig:
             if isinstance(v, dict)
         }
         or None,
+        scene_qc_enabled=bool(project_raw.get("scene_qc_enabled", False)),
+        structure_validation=structure_validation_val,
+        upload_ready_dir=str(project_raw.get("upload_ready_dir", "")),
     )
     if project.default_scene_count <= 0:
         raise ConfigError("project.default_scene_count must be > 0.")
@@ -344,6 +359,11 @@ def load_config(config_path: str | Path) -> AppConfig:
         tts_voice_roles={str(k): str(v) for k, v in providers_raw.get("tts_voice_roles", {}).items()}
         if isinstance(providers_raw.get("tts_voice_roles"), dict)
         else None,
+        tts_ref_audio=str(providers_raw.get("tts_ref_audio", "")),
+        tts_ref_audio_text=str(providers_raw.get("tts_ref_audio_text", "")),
+        tts_cosyvoice_model_dir=str(providers_raw.get("tts_cosyvoice_model_dir", "pretrained_models/CosyVoice2-0.5B")),
+        tts_cosyvoice_mode=str(providers_raw.get("tts_cosyvoice_mode", "cross_lingual")),
+        tts_chatterbox_exaggeration=float(providers_raw.get("tts_chatterbox_exaggeration", 0.5)),
         visual_styles=tuple(str(s) for s in providers_raw.get("visual_styles", []))
         if isinstance(providers_raw.get("visual_styles"), list)
         else (),

@@ -46,7 +46,7 @@ WHERE strftime('%Y-%m', timestamp) = strftime('%Y-%m', 'now');
 
 **MCP 미연결 시:**
 ```bash
-PYTHONIOENCODING=utf-8 python execution/api_usage_tracker.py summary
+PYTHONIOENCODING=utf-8 python workspace/execution/api_usage_tracker.py summary
 ```
 
 ### 3. 스케줄러 실행 결과 (SQLite Multi-DB MCP)
@@ -62,7 +62,7 @@ ORDER BY started_at DESC;
 ### 4. YouTube 채널 성과
 
 ```bash
-PYTHONIOENCODING=utf-8 python execution/youtube_analytics_collector.py
+PYTHONIOENCODING=utf-8 python workspace/execution/youtube_analytics_collector.py
 ```
 
 **SQLite 연동 시 보충 쿼리 (result_tracker DB):**
@@ -94,7 +94,7 @@ Notion MCP → 콘텐츠 캘린더 DB에서 Status = "진행 중" 조회.
 
 **MCP 미연결 시:**
 ```bash
-PYTHONIOENCODING=utf-8 python execution/notion_client.py list --status "진행 중"
+PYTHONIOENCODING=utf-8 python workspace/execution/notion_client.py list --status "진행 중"
 ```
 
 ### 7. 네트워크 상태 (System Monitor MCP)
@@ -147,5 +147,5 @@ System Monitor MCP → `get_network_status()` 호출.
 
 스케줄러에 등록하면 매일 아침 자동 생성 + Telegram 발송 가능:
 ```bash
-PYTHONIOENCODING=utf-8 python execution/daily_report.py
+PYTHONIOENCODING=utf-8 python workspace/execution/daily_report.py
 ```
