@@ -59,11 +59,11 @@ Vibe coding/
 > 
 > 해당 내용들은 이제 토큰 최적화를 위해 **`.ai/STATUS.md`** 파일에서 관리됩니다.
 > (※ 관련결정사항: [ADR-018 in DECISIONS.md])
+> 최근 `blind-to-x` staged-pipeline cleanup 상태(`T-091`, 2026-03-30)도 `STATUS.md`와 `HANDOFF.md`를 우선 참조하세요.
 
 ## Shared Services
 
 - MCP servers are configured via `.mcp.json` and related files at repo root.
 - Telegram bot and other external providers use root `.env`.
 - `infrastructure/` remains top-level and is not part of `workspace/`.
-
 

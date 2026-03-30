@@ -6,7 +6,7 @@
 
 | Date | 2026-03-30 |
 | Tool | Codex |
-| Work | Performed a full-system audit, recovered the shared QA/QC baseline, and fixed two migration regressions: `projects/blind-to-x/pipeline/process.py` had a syntax-corrupted `process_single_post` / `_process_single_post_legacy` boundary, and `workspace/execution/health_check.py` could not run directly after the workspace path migration. Final shared QC is green again. |
+| Work | Completed **T-091** after the system audit: restored `blind-to-x` staged runtime compatibility by making `pipeline/process.py` the slim public orchestrator, routing `pipeline/stages/` through the clean `pipeline/process_stages/` implementation, preserving old monkeypatch/import contracts used by tests and commands, and stabilizing CostDB visibility with a WAL checkpoint + retry. Targeted regressions are green again and project QA/QC rerun passed. |
 
 ### Previous Note
 
@@ -17,7 +17,13 @@
 ## Current State
 
 - Shared workspace QC is green again from the latest full rerun on `2026-03-30`: **`APPROVED`**, `blind-to-x 560 passed / 16 skipped`, `shorts-maker-v2 1270 passed / 12 skipped`, `root 1040 passed / 1 skipped`, `AST 20/20`, security `CLEAR`, scheduler `6/6 Ready`.
-- A `2026-03-30` system audit recovered a syntax-corrupted `projects/blind-to-x/pipeline/process.py` state: the exported staged entrypoint near the bottom is active again, and the legacy reference path parses again for AST/QC purposes.
+- `projects/blind-to-x/pipeline/process.py` is now the active slim orchestrator again on `2026-03-30`, and the staged implementation lives behind `projects/blind-to-x/pipeline/process_stages/` with `projects/blind-to-x/pipeline/stages/` preserved as the compatibility import surface.
+- `blind-to-x` public compatibility contracts are restored after the stage split:
+  - `pipeline.process` again exposes `SPAM_KEYWORDS`, `extract_preferred_tweet_text`, `build_content_profile`, `build_review_decision`, and the legacy monkeypatch globals (`_ViralFilterCls`, `_sentiment_tracker`, `_nlm_enrich`) used by the unit suite.
+  - `pipeline.commands.dry_run` and `pipeline.commands.reprocess` import paths work without touching callers.
+  - Stage/runtime tests now rely on the clean `process_stages` code instead of the previously broken extraction artifacts.
+- `blind-to-x` targeted regression bundle for the staged pipeline is green on `2026-03-30`: `33 passed` across `test_dry_run_filters.py`, `test_reprocess_command.py`, `test_pipeline_flow.py`, `test_cost_controls.py`, and `test_scrape_failure_classification.py`.
+- `blind-to-x` project-only QA/QC rerun on `2026-03-30` is **`CONDITIONALLY_APPROVED`**: `560 passed / 0 failed / 16 skipped`, `AST 20/20`, scheduler `6/6 Ready`, with security scan reporting `18 actionable issue(s)` as an existing backlog item.
 - `workspace/execution/health_check.py` now boots correctly when run as a script and uses the canonical path contract: repo-root `.env` / `.tmp` / `CLAUDE.md` plus workspace-local `execution/` / `directives/`.
 - `workspace/execution/code_evaluator.py` integrated into `graph_engine.py` for structured code evaluation (`is_approved`, `score`, `security_score`). If failed, generates explicit reflection feedback fed directly to `prepare_variants` (Optimizer loop). QA/QC fully passed.
 - `blind-to-x` now has a reusable external-review kit for third-party LLM consultation:
@@ -31,10 +37,10 @@
   - Golden-example selection in `draft_generator.py` is now deterministic per input instead of random
   - The phased follow-up plan is documented in `projects/blind-to-x/docs/external-review/improvement-plan-2026-03-29.md`
 - `blind-to-x` now also has a staged `process_single_post()` entrypoint:
-  - `projects/blind-to-x/pipeline/process.py` now routes the exported entrypoint through shared stage helpers for `dedup`, `fetch`, `filter_profile`, `generate_review`, and `persist`
-  - Process results now include `stage_status` so failures and skips are tied to an explicit stage
-  - `review_only=True` now overrides the final-rank queue threshold so manual reviewer runs still produce drafts, images, Notion rows, and draft analytics
-  - The previous monolithic implementation remains as `_process_single_post_legacy`; do not edit that path by mistake when touching the active flow
+  - `projects/blind-to-x/pipeline/process.py` routes the exported entrypoint through explicit `dedup`, `fetch`, `filter_profile`, `generate_review`, and `persist` stages
+  - Process results include `stage_status` so failures and skips are tied to an explicit stage
+  - `review_only=True` still overrides only the final-rank queue threshold so manual reviewer runs keep generating drafts, images, Notion rows, and draft analytics
+  - Stage-module compatibility is now intentional: edit `pipeline/process_stages/` for behavior, and keep `pipeline/stages/` as the stable import bridge
 - `blind-to-x` rule configuration is now mid-migration from the single `classification_rules.yaml` file to split source-of-truth files under `projects/blind-to-x/rules/`:
   - `projects/blind-to-x/pipeline/rules_loader.py` merges `classification.yaml`, `examples.yaml`, `prompts.yaml`, `platforms.yaml`, and `editorial.yaml`
   - Major runtime consumers now load rules through that shared loader instead of directly opening the legacy root YAML
@@ -80,7 +86,7 @@
 
 ## Next Priorities
 
-1. Follow up **T-091** (Low): Remove `_process_single_post_legacy` and extract the new `_run_*_stage()` helpers out of `projects/blind-to-x/pipeline/process.py` into dedicated stage modules once it is safe to do a broader cleanup.
+1. Triage the `blind-to-x` project-only security backlog surfaced by QA/QC (`18 actionable issue(s)`) and decide whether any are release-blocking versus documentation debt.
 
 ## Notes
 
@@ -88,8 +94,8 @@
 - During active BlindToX schedule windows, the infra snapshot can show `4/6 Ready` because the remaining two tasks are legitimately `Running`; confirm with `schtasks /query` before treating that as a regression.
 - For `blind-to-x` external reviews, share the docs pack first and avoid sending `.env`, real `config.yaml`, raw Notion identifiers, or unredacted screenshots/logs.
 - `projects/blind-to-x` already has unrelated user WIP in several pipeline files; avoid blanket commits or reverts in that repo and keep future edits narrowly scoped.
-- For `blind-to-x` process changes, edit the exported `process_single_post()` near the bottom of `pipeline/process.py` or the shared `_run_*_stage()` helpers; `_process_single_post_legacy()` is now shadowed and should be treated as temporary reference only.
-- `_process_single_post_legacy()` currently parses again but still contains a quarantined dead block from the earlier corruption; prefer completing **T-091** instead of hand-editing that reference path casually.
+- For `blind-to-x` staged process changes, edit `projects/blind-to-x/pipeline/process_stages/` for behavior and treat `projects/blind-to-x/pipeline/stages/` as a compatibility bridge only.
+- `pipeline.process` still has compatibility globals for tests/commands; if a refactor removes one, expect the unit suite to fail before runtime regressions are obvious.
 - `workspace/execution/health_check.py` now depends on the repo-root vs workspace-root split; keep `.env`, `.tmp`, `.git`, `venv`, and `CLAUDE.md` on repo root checks, but keep `execution/` and `directives/` on the workspace root.
 - For `blind-to-x` rule edits, treat `projects/blind-to-x/rules/*.yaml` as the source of truth; the root `classification_rules.yaml` is now a compatibility snapshot/fallback surface.
 - The latest QC-only code delta in `blind-to-x` was a non-behavioral import-order fix in `pipeline/quality_gate.py` so `ruff` stays green after the rules-loader migration.

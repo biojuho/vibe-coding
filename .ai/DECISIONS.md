@@ -252,6 +252,19 @@
 
 ---
 
+## ADR-019: blind-to-x staged process compatibility bridge
+
+| 항목 | 내용 |
+|------|------|
+| **날짜** | 2026-03-30 |
+| **상태** | ✅ 확정 |
+| **맥락** | `blind-to-x`의 staged `process_single_post()` 분해 과정에서 `pipeline/process.py`는 slim orchestrator로 줄었지만, 기존 테스트와 명령 경로는 여전히 `pipeline.process`와 `pipeline.stages.*`를 직접 import/monkeypatch하고 있었다. 추출 중간 산출물까지 섞이면서 stage 파일 일부가 깨져 호환성과 안정성이 동시에 필요해졌다. |
+| **결정** | `projects/blind-to-x/pipeline/process.py`를 공개 오케스트레이션 표면으로 유지하고, 실제 stage 동작은 `projects/blind-to-x/pipeline/process_stages/`에 둔다. `projects/blind-to-x/pipeline/stages/`는 이 구현을 가리키는 호환 브리지로 유지한다. 또한 `pipeline.process`는 `SPAM_KEYWORDS`, `extract_preferred_tweet_text`, `build_content_profile`, `build_review_decision`, `_ViralFilterCls`, `_sentiment_tracker`, `_nlm_enrich` 같은 기존 monkeypatch/import 표면을 계속 노출한다. |
+| **대안** | `process_stages/`만 남기고 모든 호출부/테스트를 일괄 수정 / 다시 monolithic `process.py`로 회귀 |
+| **선택 이유** | staged architecture 이점을 유지하면서도, 기존 테스트·명령·호출 계약을 깨지 않고 점진적으로 리팩터를 마무리할 수 있다. 호환 브리지 덕분에 이후 정리는 내부 구현에 집중할 수 있다. |
+
+---
+
 ## ADR-018: 상태(State)와 규칙(Context)의 물리적 분리 및 Fast-path 도입
 
 | 항목 | 내용 |

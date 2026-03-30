@@ -1,5 +1,44 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-03-30 | Codex | T-091 완료
+
+### Work Summary
+
+Completed the staged `blind-to-x` pipeline cleanup that remained after the system audit.
+
+- Rewired `projects/blind-to-x/pipeline/stages/` into a compatibility layer backed by the clean `projects/blind-to-x/pipeline/process_stages/` implementation.
+- Restored `pipeline.process` compatibility exports and monkeypatch targets so the existing unit suite can keep patching process-level symbols while runtime behavior stays in staged modules.
+- Stabilized `CostDatabase` immediate visibility with a WAL checkpoint after commit and a short retry in `CostTracker._load_persisted_totals()`.
+- Re-ran the stage-focused regression bundle and the full `blind-to-x` project QA/QC pass.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `projects/blind-to-x/pipeline/process.py` | update | Slim orchestrator now re-exports legacy compatibility symbols and syncs monkeypatch overrides into the staged runtime |
+| `projects/blind-to-x/pipeline/stages/__init__.py` | update | Compatibility export surface now includes `mark_stage` |
+| `projects/blind-to-x/pipeline/stages/context.py` | replace | Compatibility wrapper to `pipeline/process_stages/context.py` |
+| `projects/blind-to-x/pipeline/stages/dedup.py` | replace | Compatibility wrapper to `pipeline/process_stages/dedup_stage.py` |
+| `projects/blind-to-x/pipeline/stages/fetch.py` | replace | Compatibility wrapper to `pipeline/process_stages/fetch_stage.py` |
+| `projects/blind-to-x/pipeline/stages/filter.py` | replace | Compatibility wrapper to `pipeline/process_stages/filter_profile_stage.py` plus spam/inappropriate constants |
+| `projects/blind-to-x/pipeline/stages/generate.py` | replace | Compatibility wrapper to `pipeline/process_stages/generate_review_stage.py` |
+| `projects/blind-to-x/pipeline/stages/persist.py` | replace | Compatibility wrapper to `pipeline/process_stages/persist_stage.py` plus tweet-text helpers |
+| `projects/blind-to-x/pipeline/cost_db.py` | update | Added `busy_timeout` and a post-commit WAL checkpoint |
+| `projects/blind-to-x/pipeline/cost_tracker.py` | update | Added a short persisted-total retry loop for read-after-write stability |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/STATUS.md`, `.ai/DECISIONS.md`, `.ai/SESSION_LOG.md` | update | Session relay + ADR sync |
+
+### Verification Results
+
+- `python -m py_compile pipeline/process.py pipeline/stages/__init__.py pipeline/cost_db.py pipeline/cost_tracker.py` (`projects/blind-to-x`) → **clean** ✅
+- `python -m pytest tests/unit/test_dry_run_filters.py tests/unit/test_reprocess_command.py tests/unit/test_pipeline_flow.py tests/unit/test_cost_controls.py tests/unit/test_scrape_failure_classification.py -q -o addopts=` (`projects/blind-to-x`) → **33 passed** ✅
+- `python workspace/execution/qaqc_runner.py -p blind-to-x -o .tmp/qaqc_blind_to_x_t091_2026-03-30.json` → **CONDITIONALLY_APPROVED**, `560 passed / 16 skipped`, AST `20/20`, scheduler `6/6 Ready`, security scan `18 actionable issue(s)` ⚠️
+
+### 지뢰밭 기록 (향후 도구에게)
+
+- `blind-to-x` staged runtime behavior now lives in `pipeline/process_stages/`; if a caller/test imports `pipeline/stages/*`, treat that package as a compatibility bridge, not the canonical implementation.
+- `pipeline.process` still needs legacy monkeypatch compatibility because the unit suite patches process-level globals (`_ViralFilterCls`, `_sentiment_tracker`, `_nlm_enrich`, `build_content_profile`) directly.
+- `CostDatabase` tests are sensitive to immediate read-after-write visibility across fresh SQLite connections on Windows; keep the WAL checkpoint / retry behavior unless the storage strategy is redesigned.
+
 ## 2026-03-30 | Gemini (Antigravity) | T-082 / T-087 / T-084 완료
 
 ### Work Summary
