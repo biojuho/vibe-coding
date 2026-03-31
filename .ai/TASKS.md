@@ -6,6 +6,7 @@
 
 | ID | Task | Owner | Priority | Created |
 |----|------|-------|----------|---------|
+| T-116 | Fix the root QC blocker in `workspace/tests`: `test_shorts_manager_helpers.py` mutates `sys.modules["path_contract"]` at import time without `REPO_ROOT`/`TMP_ROOT`, which breaks collection for `test_topic_auto_generator.py` and `test_vibe_debt_auditor.py` during shared QA/QC. | Codex | High | 2026-04-01 |
 | T-115 | Continue workspace TDR reduction after the corrected test-gap heuristic: next workspace hotspots are `code_improver.py` (46.2), `workers.py` (37.7), and `result_tracker_db.py` (37.4) | Claude | Low | 2026-03-31 |
 
 

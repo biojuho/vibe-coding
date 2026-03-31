@@ -4,15 +4,15 @@
 
 ## Last Session
 
-| Date | 2026-03-31 |
+| Date | 2026-04-01 |
 | Tool | Codex |
-| Work | Completed **T-114** by adding dedicated coverage for `workspace/execution/pages/shorts_manager.py` (14 tests, **71%** file coverage), extracting shared `_format_issue_labels()` logic, and fixing `workspace/execution/vibe_debt_auditor.py` so `score_test_gap()` scans all parent `tests/` directories instead of stopping at the first nested match. Latest rerun: `shorts_manager.py` **43.9→32.9**, workspace TDR **37.31%→29.25%**, overall TDR **40.87%→38.9%**. |
+| Work | Ran the full shared `DEEP` QA/QC pass on the dirty workspace and got **`CONDITIONALLY_APPROVED`**: `blind-to-x 873 passed / 9 skipped`, `shorts-maker-v2 1270 passed / 12 skipped`, `root 25 passed / 2 errors / 1 skipped`, total `2168 passed / 0 failed / 2 errors / 22 skipped`, `AST 20/20`, security `CLEAR (2 triaged issue(s))`, governance `CLEAR`, infra `6/6 Ready`, debt `TDR 39.1%`. Root was the only blocker: `workspace/tests/test_shorts_manager_helpers.py` mutates `sys.modules["path_contract"]` at import time without `REPO_ROOT`, which breaks collection for `test_topic_auto_generator.py` and `test_vibe_debt_auditor.py`. Logged follow-up `T-116`. |
 
 ### Previous Note
 
 | Date | 2026-03-31 |
-| Tool | Claude |
-| Work | Completed the earlier VibeDebt hotspot reduction round: `llm_client.py` **58.8→41.9**, `blind-to-x/main.py` moved out of the top 10 after splitting `main()` and adding 20 tests, and `karaoke.py` also dropped out of the top 10 after helper extraction. Project-wide TDR moved **41.4%→40.9%** before the latest T-114 follow-up. |
+| Tool | Codex |
+| Work | Completed **T-114** by adding dedicated coverage for `workspace/execution/pages/shorts_manager.py` (14 tests, **71%** file coverage), extracting shared `_format_issue_labels()` logic, and fixing `workspace/execution/vibe_debt_auditor.py` so `score_test_gap()` scans all parent `tests/` directories instead of stopping at the first nested match. Latest rerun: `shorts_manager.py` **43.9→32.9**, workspace TDR **37.31%→29.25%**, overall TDR **40.87%→38.9%**. |
 
 ## Current State
 
@@ -24,7 +24,9 @@
 - `workspace/execution/health_check.py` now reconfigures stdout/stderr to UTF-8 on Windows before printing diagnostic output, which avoids the previous `UnicodeEncodeError` path on cp949 terminals and keeps the tool usable as a real drill-down command.
 - `workspace/execution/qaqc_runner.py` now includes an optional `[DEBT]` stage (skippable with `--skip-debt`) that runs the VibeDebt audit and persists results. The debt audit does not affect the pass/fail verdict; it reports TDR and grade as informational metrics.
 - First VibeDebt scan on `2026-03-31`: **452 files, overall TDR 41.4% (RED)**. Workspace TDR 37.9%, blind-to-x 48.8%, shorts-maker-v2 38.4%. Top debt factors: `test_gap` (33-64 avg) and `complexity` (30-38 avg). Top debtor files: `llm_client.py` (58.8), `blind-to-x/main.py` (59.2), `karaoke.py` (56.4).
-- Shared workspace QC latest rerun on `2026-03-31` is **`APPROVED`**: `blind-to-x 723 passed / 16 skipped`, `shorts-maker-v2 1270 passed / 12 skipped`, `root 1073 passed / 1 skipped`, total `3066 passed / 29 skipped`, `AST 20/20`, security `CLEAR (2 triaged issue(s))`, governance `CLEAR`, infrastructure `6/6 Ready`, disk `138.3 GB free`.
+- Shared workspace QC latest rerun on `2026-04-01` is **`CONDITIONALLY_APPROVED`**: `blind-to-x 873 passed / 9 skipped`, `shorts-maker-v2 1270 passed / 12 skipped`, `root 25 passed / 2 errors / 1 skipped`, total `2168 passed / 0 failed / 2 errors / 22 skipped`, `AST 20/20`, security `CLEAR (2 triaged issue(s))`, governance `CLEAR`, infrastructure `6/6 Ready`, disk `137.0 GB free`.
+- The only active shared QC blocker from `2026-04-01` is in `workspace/tests`: `test_shorts_manager_helpers.py` installs a fake `path_contract` module into `sys.modules` during collection without `REPO_ROOT` / `TMP_ROOT`, so later imports fail in `test_topic_auto_generator.py` and `test_vibe_debt_auditor.py`. This is tracked as `T-116`.
+- Latest VibeDebt rerun on `2026-04-01` nudged overall TDR to **39.08%** with project split `workspace 29.25% / blind-to-x 48.06% / shorts-maker-v2 38.24%`.
 - `projects/blind-to-x` project-only coverage rerun on `2026-03-31` now reports **`701 passed / 16 skipped / 71% coverage`** after the latest `T-100` uplift. New test files: `test_image_generator.py` (45 tests), `test_image_upload.py` (30 tests), `test_analytics_tracker.py` (20 tests), `test_draft_analytics.py` (7 tests). Module coverage: `draft_analytics.py` **100%**, `image_upload.py` **89%**, `image_generator.py` **77%**, `analytics_tracker.py` **59%**.
 - The 2 triaged security findings from the latest shared QC are both known false positives in `projects/blind-to-x/pipeline/cost_db.py` because the interpolated `table` names come only from the internal `_ARCHIVE_TABLES` allowlist.
 - `workspace/execution/governance_checks.py` is now part of the shared control plane on `2026-03-31`: it validates required `.ai` context files, targeted relay claims against live code, directive/INDEX ownership drift, and tracked audit follow-up linkage to `.ai/TASKS.md`.
@@ -70,6 +72,8 @@
 - `venv\Scripts\python.exe -m coverage run --source=execution.pages.shorts_manager -m pytest workspace\tests\test_shorts_manager.py -q -o addopts=` + `coverage report -m --include="*shorts_manager.py"` -> `workspace/execution/pages/shorts_manager.py` **71%**
 - `venv\Scripts\python.exe -m ruff check workspace\execution\pages\shorts_manager.py workspace\tests\test_shorts_manager.py workspace\execution\vibe_debt_auditor.py workspace\tests\test_vibe_debt_auditor.py` -> **All checks passed**
 - `venv\Scripts\python.exe workspace\execution\vibe_debt_auditor.py --format json --top 10` -> latest rerun **overall 38.9% / workspace 29.25% / `shorts_manager.py` 32.9**
+- Detached `venv\Scripts\python.exe -X utf8 workspace\execution\qaqc_runner.py -o .tmp\qaqc_system_check_2026-04-01.json` -> **`CONDITIONALLY_APPROVED`** / `2168 passed / 0 failed / 2 errors / 22 skipped`
+- `venv\Scripts\python.exe -X utf8 -m pytest workspace\tests -q --tb=short --no-header -o addopts= --maxfail=50` -> **2 collection errors** in `workspace\tests\test_topic_auto_generator.py` and `workspace\tests\test_vibe_debt_auditor.py`, both caused by `ImportError: cannot import name 'REPO_ROOT' from 'path_contract'`
 - `venv\Scripts\python.exe -X utf8 workspace\execution\qaqc_runner.py` -> **`APPROVED`** / `3066 passed / 0 failed / 0 errors / 29 skipped`, `blind-to-x 723 passed / 16 skipped`, `shorts-maker-v2 1270 passed / 12 skipped`, `root 1073 passed / 1 skipped`
 - `venv\Scripts\python.exe -m compileall workspace\execution\repo_map.py workspace\execution\context_selector.py workspace\execution\graph_engine.py` -> **pass**
 - `venv\Scripts\python.exe -X utf8 -m pytest workspace\tests\test_governance_checks.py workspace\tests\test_health_check.py workspace\tests\test_qaqc_runner.py workspace\tests\test_qaqc_runner_extended.py -q -o addopts=` -> **74 passed**
@@ -86,10 +90,10 @@
 
 ## Next Priorities
 
-1. Continue `T-100`: `blind-to-x` is now at **71%** (from 59.89%). Next candidates: remaining low-coverage modules (`analytics_tracker.py` sync_metrics path, scraper modules) or pivot to `shorts-maker-v2` coverage uplift.
-2. Tackle `T-115`: continue workspace TDR reduction after the corrected test-gap heuristic. Current workspace hotspots are `workspace/execution/code_improver.py` (**46.2**), `workspace/execution/workers.py` (**37.7**), and `workspace/execution/result_tracker_db.py` (**37.4**).
-3. Continue trimming planning/backlog drift: large roadmap/audit directives should either map to active task IDs or stay clearly marked as reference-only so agents do not scan strategy docs as if they were execution queues.
-4. For further `blind-to-x` uplift, the image/analytics modules are now covered. Next bounded cluster: `pipeline/dedup.py`, `pipeline/content_intelligence.py`, or `pipeline/style_bandit.py`.
+1. Fix `T-116` first: shared QC is blocked by `workspace/tests/test_shorts_manager_helpers.py` polluting `sys.modules["path_contract"]` during collection. Until that is fixed, the shared verdict will stay below `APPROVED`.
+2. Continue `T-100`: `blind-to-x` is now at **71%** (from 59.89%). Next candidates: remaining low-coverage modules (`analytics_tracker.py` sync_metrics path, scraper modules) or pivot to `shorts-maker-v2` coverage uplift.
+3. Tackle `T-115`: continue workspace TDR reduction after the corrected test-gap heuristic. Current workspace hotspots are `workspace/execution/code_improver.py` (**46.2**), `workspace/execution/workers.py` (**37.7**), and `workspace/execution/result_tracker_db.py` (**37.4**).
+4. Continue trimming planning/backlog drift: large roadmap/audit directives should either map to active task IDs or stay clearly marked as reference-only so agents do not scan strategy docs as if they were execution queues.
 5. If the user wants a richer PR lane later, build it on top of `pr_triage_orchestrator.py` as the read-only/local-first entrypoint; keep GitHub write actions as a separately approved extension rather than bundling them into the baseline helper.
 
 ## Notes
@@ -106,3 +110,4 @@
 - `.tmp/repo_map_cache.db` is a deterministic intermediate cache, not a deliverable. It can be deleted and rebuilt safely when debugging repo-map selection issues.
 - `workspace/execution/pr_triage_worktree.py` is safe to run against dirty repos because it checks out a detached linked worktree, but it currently assumes the needed refs already exist locally and does not fetch remotes on your behalf.
 - Node-backed triage profiles intentionally reuse the source repo's existing `node_modules`; if dependencies are missing, `pr_triage_orchestrator.py` marks the command as `SKIP` instead of installing packages in the isolated worktree.
+- Long foreground `qaqc_runner.py` invocations can still get interrupted by the current terminal wrapper on this machine; the `2026-04-01` rerun succeeded only after launching the runner as a detached Python process and polling its log/output files.

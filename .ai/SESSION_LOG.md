@@ -1,5 +1,49 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-04-01 | Codex | shared QC rerun -> CONDITIONALLY_APPROVED (root collection blocker)
+
+### Work Summary
+
+Ran the full shared `DEEP` QA/QC pass again on the live dirty workspace and captured the first 2026-04-01 baseline.
+
+- The normal foreground runner kept getting interrupted by the terminal wrapper, so the successful run used a detached Python process that wrote logs to `.tmp/qaqc_system_check_2026-04-01.*`.
+- Final shared verdict was **`CONDITIONALLY_APPROVED`**.
+- `blind-to-x` passed cleanly: **873 passed / 0 failed / 0 errors / 9 skipped**
+- `shorts-maker-v2` passed cleanly: **1270 passed / 0 failed / 0 errors / 12 skipped**
+- `root` was the only blocker: **25 passed / 0 failed / 2 errors / 1 skipped**
+- AST stayed **20/20 OK**, security stayed **CLEAR (2 triaged issue(s))**, governance stayed **CLEAR**, infra stayed **6/6 Ready**, and debt reran at **TDR 39.08%**
+
+The root blocker is a collection-time import pollution issue, not a broad test regression:
+
+- `workspace/tests/test_shorts_manager_helpers.py` injects a fake `path_contract` into `sys.modules` at import time
+- that fake module only defines `resolve_project_dir` and omits `REPO_ROOT` / `TMP_ROOT`
+- later collection of `workspace/tests/test_topic_auto_generator.py` and `workspace/tests/test_vibe_debt_auditor.py` fails with `ImportError: cannot import name 'REPO_ROOT' from 'path_contract'`
+
+Logged follow-up `T-116` for that blocker.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| .ai/HANDOFF.md | update | Refreshed latest shared QC status and blocker summary |
+| .ai/TASKS.md | update | Added `T-116` for the root collection/import-pollution fix |
+| .ai/SESSION_LOG.md | update | This entry |
+
+### Verification Results
+
+- Detached `venv\Scripts\python.exe -X utf8 workspace\execution\qaqc_runner.py -o .tmp\qaqc_system_check_2026-04-01.json` -> **`CONDITIONALLY_APPROVED`**
+- Totals: **2168 passed / 0 failed / 2 errors / 22 skipped** in about **990.3s**
+- `venv\Scripts\python.exe -X utf8 -m pytest workspace\tests -q --tb=short --no-header -o addopts= --maxfail=50` -> reproduced the **2 collection errors**
+- Error targets: `workspace/tests/test_topic_auto_generator.py` and `workspace/tests/test_vibe_debt_auditor.py`
+- Root cause evidence: `workspace/tests/test_shorts_manager_helpers.py` mutates `sys.modules["path_contract"]` at import time without `REPO_ROOT`
+
+### Notes For Next Agent
+
+- Fix `T-116` before trusting the shared root QC baseline again. The product-project suites are green; the remaining blocker is isolated to root test collection order/state pollution.
+- If you need to rerun full shared QC from this terminal, prefer a detached process plus polling because long foreground runs can still be interrupted externally.
+
+---
+
 ## 2026-03-31 | Codex | T-114 shorts_manager debt reduction + test-gap heuristic fix
 
 ### Work Summary
