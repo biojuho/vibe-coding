@@ -6,17 +6,17 @@
 
 | Date | 2026-03-31 |
 | Tool | Codex |
-| Work | Ran a fresh `blind-to-x` project QC pass after the staged-pipeline cleanup and confirmed it is still green: `560 passed / 0 failed / 16 skipped`, `AST 20/20`, security `CLEAR (2 triaged issue(s))`, scheduler `6/6 Ready`, verdict `APPROVED`. |
+| Work | Ran a fresh full shared workspace QC pass and confirmed all active scopes remain green: `blind-to-x 560 passed / 16 skipped`, `shorts-maker-v2 1270 passed / 12 skipped`, `root 1040 passed / 1 skipped`, total `2870 passed / 0 failed / 0 errors / 29 skipped`, `AST 20/20`, security `CLEAR (2 triaged issue(s))`, scheduler `6/6 Ready`, verdict `APPROVED`. |
 
 ### Previous Note
 
-| Date | 2026-03-30 |
-| Tool | Gemini (Antigravity) |
-| Work | **T-089** Migrated all 7 direct `classification_rules.yaml` file-system consumers across 3 test files (`test_quality_improvements.py` TestBrandVoiceYAML ×4, `test_performance_tracker.py` TestClassificationRulesPlatformExtension, `test_p3_enhancements.py` TestSourceHintsConfig ×2) to `rules_loader.load_rules()`. Removed skipTest guards and stale `yaml`/`Path` module-level imports. Full 582-test suite still green (0 regressed). |
+| Date | 2026-03-31 |
+| Tool | Codex |
+| Work | Re-ran `blind-to-x` project QC after the staged-pipeline cleanup and confirmed `APPROVED`: `560 passed / 0 failed / 16 skipped`, `AST 20/20`, security `CLEAR (2 triaged issue(s))`, scheduler `6/6 Ready`. |
 
 ## Current State
 
-- Shared workspace QC is green again from the latest full rerun on `2026-03-30`: **`APPROVED`**, `blind-to-x 560 passed / 16 skipped`, `shorts-maker-v2 1270 passed / 12 skipped`, `root 1040 passed / 1 skipped`, `AST 20/20`, security `CLEAR`, scheduler `6/6 Ready`.
+- Shared workspace QC latest rerun on `2026-03-31` is **`APPROVED`**: `blind-to-x 560 passed / 16 skipped`, `shorts-maker-v2 1270 passed / 12 skipped`, `root 1040 passed / 1 skipped`, total `2870 passed / 29 skipped`, `AST 20/20`, security `CLEAR (2 triaged issue(s))`, scheduler `6/6 Ready`.
 - `projects/blind-to-x/pipeline/process.py` is now the active slim orchestrator again on `2026-03-30`, and the staged implementation lives behind `projects/blind-to-x/pipeline/process_stages/` with `projects/blind-to-x/pipeline/stages/` preserved as the compatibility import surface.
 - `blind-to-x` public compatibility contracts are restored after the stage split:
   - `pipeline.process` again exposes `SPAM_KEYWORDS`, `extract_preferred_tweet_text`, `build_content_profile`, `build_review_decision`, and the legacy monkeypatch globals (`_ViralFilterCls`, `_sentiment_tracker`, `_nlm_enrich`) used by the unit suite.
@@ -97,6 +97,7 @@
 - For `blind-to-x` staged process changes, edit `projects/blind-to-x/pipeline/process_stages/` for behavior and treat `projects/blind-to-x/pipeline/stages/` as a compatibility bridge only.
 - `pipeline.process` still has compatibility globals for tests/commands; if a refactor removes one, expect the unit suite to fail before runtime regressions are obvious.
 - The latest `blind-to-x` project QC artifact is `.tmp/qaqc_blind_to_x_2026-03-31.json`.
+- The latest shared QC artifact is `.tmp/qaqc_system_check_2026-03-31.json`.
 - `workspace/execution/health_check.py` now depends on the repo-root vs workspace-root split; keep `.env`, `.tmp`, `.git`, `venv`, and `CLAUDE.md` on repo root checks, but keep `execution/` and `directives/` on the workspace root.
 - For `blind-to-x` rule edits, treat `projects/blind-to-x/rules/*.yaml` as the source of truth; the root `classification_rules.yaml` is now a compatibility snapshot/fallback surface.
 - The latest QC-only code delta in `blind-to-x` was a non-behavioral import-order fix in `pipeline/quality_gate.py` so `ruff` stays green after the rules-loader migration.

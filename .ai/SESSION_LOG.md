@@ -1,5 +1,29 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-03-31 | Codex | T-094 shared QC 재확인
+
+### Work Summary
+
+Ran a full shared workspace QC pass after the previous `blind-to-x` project-only verification.
+
+- Executed `workspace/execution/qaqc_runner.py` from the canonical repo root without project filtering.
+- Verified all three scopes (`blind-to-x`, `shorts-maker-v2`, `root`) plus AST, security, and infrastructure status.
+- Confirmed the workspace-wide baseline remains clean on `2026-03-31`.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/STATUS.md`, `.ai/SESSION_LOG.md` | update | Refreshed latest shared QC verdict and artifact path |
+
+### Verification Results
+
+- `python workspace/execution/qaqc_runner.py -o .tmp/qaqc_system_check_2026-03-31.json` -> **`APPROVED`** / `blind-to-x 560 passed / 16 skipped`, `shorts-maker-v2 1270 passed / 12 skipped`, `root 1040 passed / 1 skipped`, total `2870 passed / 0 failed / 0 errors / 29 skipped`, AST `20/20`, security `CLEAR (2 triaged issue(s))`, scheduler `6/6 Ready`
+
+### 지뢰밭 기록 (향후 도구에게)
+
+- This was a verification-only session: no code edits were required, so the latest green baseline is represented only by the QC artifact and `.ai` relay refresh.
+
 ## 2026-03-31 | Codex | T-093 blind-to-x QC 재확인
 
 ### Work Summary
