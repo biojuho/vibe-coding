@@ -16,11 +16,11 @@
 
 | ID | Task | Completed By | Completed |
 |----|------|--------------|-----------|
+| T-095 | Documented the latest shared QC security triage details for `projects/blind-to-x/pipeline/cost_db.py` so the two remaining machine-reported findings are clearly recorded as false positives | Codex | 2026-03-31 |
 | T-094 | Re-ran full shared workspace QC and confirmed all three scopes remain green (`2870 passed`, AST 20/20, security clear, scheduler ready) | Codex | 2026-03-31 |
 | T-093 | Re-ran `blind-to-x` project QC and confirmed the staged pipeline remains green after T-091 (`560 passed`, `AST 20/20`, security clear) | Codex | 2026-03-31 |
 | T-091 | Finalized the staged `blind-to-x` pipeline cleanup: `pipeline/process.py` is now a slim orchestrator, `pipeline/stages/` is a compatibility layer backed by `pipeline/process_stages/`, and targeted regressions plus project QA/QC rerun passed | Codex | 2026-03-30 |
 | T-092 | Full-system audit: restored `blind-to-x` shared QC by fixing `pipeline/process.py` syntax corruption and corrected `health_check.py` to the canonical repo/workspace path contract | Codex | 2026-03-30 |
-| T-089 | Migrated all direct `classification_rules.yaml` consumers (3 test files, 7 test classes) to `rules_loader.load_rules()`. 582 passed, 0 failed. | Gemini | 2026-03-30 |
 
 ## Rules
 

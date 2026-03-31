@@ -1,5 +1,30 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-03-31 | Codex | T-095 security triage 기록 보강
+
+### Work Summary
+
+Recorded the concrete reason behind the latest shared QC security triage so future tools do not waste time re-investigating the same two `cost_db.py` findings.
+
+- Confirmed the latest QC artifacts still report `CLEAR (2 triaged issue(s))` with no actionable security findings.
+- Verified both hits come from `projects/blind-to-x/pipeline/cost_db.py` `archive_old_data()` and are false positives because `table` is selected only from `_ARCHIVE_TABLES`.
+- Updated the relay docs so the next tool sees the exact triage rationale before touching `cost_db.py` or `qaqc_runner.py`.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/STATUS.md`, `.ai/SESSION_LOG.md` | update | Added explicit security triage rationale for the two `cost_db.py` false positives |
+
+### Verification Results
+
+- `python workspace/execution/qaqc_runner.py -o .tmp/qaqc_system_check_2026-03-31.json` artifact review -> shared security state remains **`CLEAR (2 triaged issue(s))`**
+- direct `qaqc_runner.security_scan()` check -> two triaged issues only, `actionable_issue_count = 0`
+
+### 지뢰밭 기록 (향후 도구에게)
+
+- Do not “fix” the two current `cost_db.py` scanner hits blindly; they are already triaged and tied to `_ARCHIVE_TABLES`-restricted table names, not user-controlled SQL fragments.
+
 ## 2026-03-31 | Codex | T-094 shared QC 재확인
 
 ### Work Summary

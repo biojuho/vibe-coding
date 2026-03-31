@@ -17,6 +17,9 @@
 ## Current State
 
 - Shared workspace QC latest rerun on `2026-03-31` is **`APPROVED`**: `blind-to-x 560 passed / 16 skipped`, `shorts-maker-v2 1270 passed / 12 skipped`, `root 1040 passed / 1 skipped`, total `2870 passed / 29 skipped`, `AST 20/20`, security `CLEAR (2 triaged issue(s))`, scheduler `6/6 Ready`.
+- The 2 triaged security findings from the latest shared QC are both known false positives in `projects/blind-to-x/pipeline/cost_db.py`:
+  - `f"SELECT * FROM {table}"` inside `archive_old_data()` only interpolates table names from the internal `_ARCHIVE_TABLES` frozenset; the date cutoff stays parameterized.
+  - `f"DELETE FROM {table}"` inside `archive_old_data()` also only targets `_ARCHIVE_TABLES` members; the cutoff value stays parameterized.
 - `projects/blind-to-x/pipeline/process.py` is now the active slim orchestrator again on `2026-03-30`, and the staged implementation lives behind `projects/blind-to-x/pipeline/process_stages/` with `projects/blind-to-x/pipeline/stages/` preserved as the compatibility import surface.
 - `blind-to-x` public compatibility contracts are restored after the stage split:
   - `pipeline.process` again exposes `SPAM_KEYWORDS`, `extract_preferred_tweet_text`, `build_content_profile`, `build_review_decision`, and the legacy monkeypatch globals (`_ViralFilterCls`, `_sentiment_tracker`, `_nlm_enrich`) used by the unit suite.
@@ -98,6 +101,7 @@
 - `pipeline.process` still has compatibility globals for tests/commands; if a refactor removes one, expect the unit suite to fail before runtime regressions are obvious.
 - The latest `blind-to-x` project QC artifact is `.tmp/qaqc_blind_to_x_2026-03-31.json`.
 - The latest shared QC artifact is `.tmp/qaqc_system_check_2026-03-31.json`.
+- If the security scanner starts flagging `cost_db.py` again, check `workspace/execution/qaqc_runner.py` triage rules before attempting a code rewrite; the current two hits are already documented false positives tied to `_ARCHIVE_TABLES`.
 - `workspace/execution/health_check.py` now depends on the repo-root vs workspace-root split; keep `.env`, `.tmp`, `.git`, `venv`, and `CLAUDE.md` on repo root checks, but keep `execution/` and `directives/` on the workspace root.
 - For `blind-to-x` rule edits, treat `projects/blind-to-x/rules/*.yaml` as the source of truth; the root `classification_rules.yaml` is now a compatibility snapshot/fallback surface.
 - The latest QC-only code delta in `blind-to-x` was a non-behavioral import-order fix in `pipeline/quality_gate.py` so `ruff` stays green after the rules-loader migration.

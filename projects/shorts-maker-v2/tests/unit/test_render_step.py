@@ -572,7 +572,7 @@ def test_caption_y_with_safe_zone_enabled() -> None:
     style = MagicMock()
     style.safe_zone_enabled = True
     with patch(
-        "shorts_maker_v2.pipeline.render_step.calculate_safe_position",
+        "shorts_maker_v2.pipeline.render_captions.calculate_safe_position",
         return_value=500,
     ) as mock_csp:
         result = RenderStep._caption_y(clip, 1920, style, "body")
@@ -980,7 +980,7 @@ def test_render_static_caption_non_hook_direct(tmp_path: Path) -> None:
     output = tmp_path / "caption.png"
     mock_style = MagicMock()
     with patch(
-        "shorts_maker_v2.pipeline.render_step.render_caption_image",
+        "shorts_maker_v2.pipeline.render_captions.render_caption_image",
         return_value=output,
     ) as mock_fn:
         result = step._render_static_caption("테스트 자막", 1080, mock_style, output, "body")
@@ -995,7 +995,7 @@ def test_render_static_caption_hook_without_channel(tmp_path: Path) -> None:
     output = tmp_path / "caption.png"
     mock_style = MagicMock()
     with patch(
-        "shorts_maker_v2.pipeline.render_step.render_caption_image",
+        "shorts_maker_v2.pipeline.render_captions.render_caption_image",
         return_value=output,
     ) as mock_fn:
         result = step._render_static_caption("훅 자막", 1080, mock_style, output, "hook")
@@ -1398,7 +1398,7 @@ def test_render_static_caption_hook_with_channel_text_engine_fails(
     with (
         patch("builtins.__import__", side_effect=_blocking_import),
         patch(
-            "shorts_maker_v2.pipeline.render_step.render_caption_image",
+            "shorts_maker_v2.pipeline.render_captions.render_caption_image",
             return_value=output,
         ) as mock_fn,
     ):
@@ -1637,7 +1637,7 @@ def test_extract_thumbnail_success_writes_png(tmp_path: Path) -> None:
     clip.get_frame.return_value = frame
     output_path = tmp_path / "thumb.png"
 
-    with patch("shorts_maker_v2.pipeline.render_step.VideoFileClip", return_value=clip):
+    with patch("shorts_maker_v2.pipeline.render_captions.VideoFileClip", return_value=clip):
         result = RenderStep.extract_thumbnail(
             tmp_path / "video.mp4",
             output_path,

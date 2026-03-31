@@ -172,7 +172,7 @@ def test_apply_channel_image_motion_uses_list_motion_without_excluded_value() ->
     clip = object()
 
     with (
-        patch("shorts_maker_v2.pipeline.render_step.random.choice", return_value="pan_right") as chooser,
+        patch("shorts_maker_v2.pipeline.render_effects.random.choice", return_value="pan_right") as chooser,
         patch.object(step, "_apply_named_effect", return_value=("body_clip", "pan_right")) as named,
     ):
         result = step._apply_channel_image_motion(
@@ -209,7 +209,7 @@ def test_caption_y_uses_safe_zone_calculation() -> None:
     clip = MagicMock(h=220)
     style = MagicMock(safe_zone_enabled=True)
 
-    with patch("shorts_maker_v2.pipeline.render_step.calculate_safe_position", return_value=777) as calc:
+    with patch("shorts_maker_v2.pipeline.render_captions.calculate_safe_position", return_value=777) as calc:
         result = RenderStep._caption_y(clip, target_height=1920, style=style, role="hook")
 
     assert result == 777
@@ -245,7 +245,7 @@ def test_render_static_caption_falls_back_to_render_caption_image_when_text_engi
 
     with (
         patch("ShortsFactory.engines.text_engine.TextEngine", side_effect=RuntimeError("boom")),
-        patch("shorts_maker_v2.pipeline.render_step.render_caption_image", return_value=output) as renderer,
+        patch("shorts_maker_v2.pipeline.render_captions.render_caption_image", return_value=output) as renderer,
     ):
         result = step._render_static_caption("Fallback", 1080, step.hook_style, output, "hook")
 
