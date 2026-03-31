@@ -1,5 +1,74 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-03-31 | Gemini | Notion review_status to status migration & QC
+
+### Work Summary
+
+Completed the migration of Notion schema mappings from `review_status` to `status` across the `blind-to-x` pipeline. Verified the changes with a local mock script to test the Notion API insertion, then ran the full project test suite to ensure regressions were blocked. Generated the formal QA/QC report validating the changes.
+
+- Updated `NotionUploader` validation logic to map and accept `status` instead of `review_status`.
+- Updated test mocks in `test_notion_accuracy.py`, `test_notion_upload.py`, and `test_optimizations.py` to match the new schema behavior.
+- Cleaned up duplicated keys in `test_notion_accuracy.py` preventing `ruff` parsing.
+- Ran manual test script against the real Notion API (success).
+- Ran a full `pytest` regression run on the `blind-to-x` suite, resulting in 582 passed.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `projects/blind-to-x/pipeline/notion_upload.py` | update | Updated mapping logic to expect `status` in payload |
+| `projects/blind-to-x/tests/unit/test_notion_accuracy.py` | fix | Updated expected mock bodies + fixed duplicate dict keys |
+| `projects/blind-to-x/tests/unit/test_optimizations.py` | fix | Updated expected mock bodies |
+| `projects/blind-to-x/tests/unit/test_notion_upload.py` | fix | Updated expected mock bodies |
+
+### Verification Results
+
+- `python test_upload_status.py` -> Upload successfully processed via MCP Notion API.
+- `venv\Scripts\python.exe -m pytest tests/` (`projects/blind-to-x`) -> **582 passed, 5 skipped**
+- `ruff format` -> **Clean**
+
+### Notes For Next Agent
+
+- The Notion schema mapping is fully updated to write to the `status` column rather than the archived `review_status` column. No further adjustments to the basic payload mapping should be needed here unless the Notion structure changes again.
+
+## 2026-03-31 | Codex | T-098 / T-097 / T-099 control-plane governance hardening
+
+### Work Summary
+
+Closed the top-priority control-plane audit follow-ups by turning governance from a manual convention into a machine-checked gate.
+
+- Added `workspace/execution/governance_checks.py` to validate required `.ai` context files, stale relay claims, directive/index ownership drift, and tracked audit follow-up linkage to `.ai/TASKS.md`.
+- Wired governance into `workspace/execution/health_check.py` and `workspace/execution/qaqc_runner.py` so governance drift can no longer finish as `APPROVED`.
+- Reconciled `workspace/directives/INDEX.md` and `workspace/directives/local_inference.md` so the local inference / agentic coding stack has explicit ownership coverage.
+- Linked the remaining open follow-ups in `workspace/directives/system_audit_action_plan.md` to active `.ai/TASKS.md` items (`T-100`, `T-101`, `T-102`).
+- Corrected the stale relay claim that `code_evaluator.py` was already integrated into `graph_engine.py`; the codebase still uses the local weighted evaluation path, and governance now checks that claim.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `workspace/execution/governance_checks.py` | add/update | Added governance audits for AI context presence, relay claim consistency, mapping coverage, and backlog linkage |
+| `workspace/execution/health_check.py` | update | Added governance category support |
+| `workspace/execution/qaqc_runner.py` | update | Added governance scan and verdict downgrade behavior |
+| `workspace/scripts/check_mapping.py` | update | Reused governance mapping audit instead of a separate drift parser |
+| `workspace/directives/INDEX.md` | update | Mapped the agentic coding / governance modules explicitly |
+| `workspace/directives/local_inference.md` | update | Documented the local inference + agentic coding stack ownership |
+| `workspace/directives/system_audit_action_plan.md` | update | Linked open checklist items to active task IDs |
+| `workspace/tests/test_governance_checks.py`, `workspace/tests/test_health_check.py`, `workspace/tests/test_qaqc_runner.py`, `workspace/tests/test_qaqc_runner_extended.py` | update | Added governance coverage and integration assertions |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/STATUS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | update | Synced the shared AI context to the new governance contract |
+
+### Verification Results
+
+- `python -X utf8 workspace/scripts/check_mapping.py` -> **All mappings valid**
+- `python -X utf8 workspace/execution/health_check.py --category governance --json` -> **overall `ok`**
+- `venv\Scripts\python.exe -X utf8 -m pytest workspace\tests\test_governance_checks.py workspace\tests\test_health_check.py workspace\tests\test_qaqc_runner.py workspace\tests\test_qaqc_runner_extended.py -q -o addopts=` -> **74 passed**
+
+### Notes For Next Agent
+
+- The control-plane priorities now move to `T-100`, `T-101`, and `T-102`; the governance guard is in place, so future sessions should keep those audit follow-ups linked in `.ai/TASKS.md`.
+- The repo is currently mid-merge under `projects/blind-to-x`; do not try to commit the `.ai` updates until that unrelated merge state is resolved.
+
+
 ## 2026-03-30 | Claude Code | T-103, T-104 마이그레이션 + 거대 파일 분리
 
 ### Work Summary
@@ -667,3 +736,4 @@ Recovered the shared baseline by restoring the `process.py` entrypoint split so 
 - `projects/blind-to-x/pipeline/process.py` now parses and the active staged flow is healthy again, but `_process_single_post_legacy()` still contains quarantined dead code from the earlier corruption; prefer completing **T-091** rather than editing that reference path casually.
 - During active BlindToX schedule windows, `qaqc_runner.py` may report `4/6 Ready` because two scheduled tasks are legitimately `Running`; verify with `schtasks /query` before treating that snapshot as infrastructure drift.
 - Keep the `health_check.py` root split intact: repo-root `.env` / `.tmp` / `.git` / `venv` / `CLAUDE.md`, workspace-local `execution/` / `directives/`.
+

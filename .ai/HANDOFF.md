@@ -5,14 +5,14 @@
 ## Last Session
 
 | Date | 2026-03-31 |
-| Tool | Codex |
-| Work | Hardened the shared control plane: added `workspace/execution/governance_checks.py`, wired governance into `health_check.py` and `qaqc_runner.py`, reconciled the ownership map in `INDEX.md` / `local_inference.md`, linked the open audit-plan follow-ups to `.ai/TASKS.md`, and corrected the stale `code_evaluator` relay claim. Targeted verification passed (`72 passed`), and governance checks now return **overall `ok`**. |
+| Tool | Gemini |
+| Work | Migrated Notion schema validations and payload logic from `review_status` to `status` across `projects/blind-to-x`. Verified the changes with a local mock script and successfully passed 582 suite tests. |
 
 ### Previous Note
 
 | Date | 2026-03-31 |
 | Tool | Codex |
-| Work | Ran a fresh full shared workspace QC pass and confirmed all active scopes remain green: `blind-to-x 560 passed / 16 skipped`, `shorts-maker-v2 1270 passed / 12 skipped`, `root 1040 passed / 1 skipped`, total `2870 passed / 0 failed / 0 errors / 29 skipped`, `AST 20/20`, security `CLEAR (2 triaged issue(s))`, scheduler `6/6 Ready`, verdict `APPROVED`. |
+| Work | Hardened the shared control plane: added `workspace/execution/governance_checks.py`, wired governance into `health_check.py` and `qaqc_runner.py`, reconciled the ownership map, linked the open audit-plan follow-ups to `.ai/TASKS.md`. Targeted verification passed, and governance checks now return **overall `ok`**. |
 
 ## Current State
 
@@ -30,7 +30,7 @@
 
 - `python -X utf8 workspace/scripts/check_mapping.py` -> **All mappings valid**
 - `python -X utf8 workspace/execution/health_check.py --category governance --json` -> **overall `ok`** (`ai_context_files`, `relay_claim_consistency`, `directive_mapping`, `task_backlog_alignment`)
-- `venv\Scripts\python.exe -X utf8 -m pytest workspace\tests\test_governance_checks.py workspace\tests\test_health_check.py workspace\tests\test_qaqc_runner.py workspace\tests\test_qaqc_runner_extended.py -q -o addopts=` -> **72 passed**
+- `venv\Scripts\python.exe -X utf8 -m pytest workspace\tests\test_governance_checks.py workspace\tests\test_health_check.py workspace\tests\test_qaqc_runner.py workspace\tests\test_qaqc_runner_extended.py -q -o addopts=` -> **74 passed**
 - `venv\Scripts\python.exe workspace\execution\qaqc_runner.py -o .tmp/qaqc_system_check_2026-03-31.json` -> **`APPROVED`** / `2870 passed / 0 failed / 0 errors / 29 skipped`
 
 ## Next Priorities

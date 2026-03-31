@@ -21,11 +21,11 @@
 
 | ID | Task | Completed By | Completed |
 |----|------|--------------|-----------|
+| ad-hoc | Migrated Notion schema validations and payload logic from `review_status` to `status` across `projects/blind-to-x` and successfully passed 582 suite tests. | Gemini | 2026-03-31 |
 | T-098 | Added a control-plane meta-QC gate: `governance_checks.py` now verifies required `.ai` files, stale relay claims, directive mapping drift, and tracked backlog linkage, and QA/QC can no longer end at `APPROVED` when governance fails | Codex | 2026-03-31 |
 | T-097 | Reconciled the control-plane ownership map by mapping the local inference / agentic coding stack in `INDEX.md` and `local_inference.md`, including `graph_engine.py`, `workers.py`, `code_evaluator.py`, and `governance_checks.py` | Codex | 2026-03-31 |
 | T-099 | Linked the open system-audit follow-ups to active `.ai/TASKS.md` items with enforced `[TASK: T-XXX]` references so backlog drift is now machine-checked | Codex | 2026-03-31 |
 | T-095 | Documented the latest shared QC security triage details for `projects/blind-to-x/pipeline/cost_db.py` so the two remaining machine-reported findings are clearly recorded as false positives | Codex | 2026-03-31 |
-| T-094 | Re-ran full shared workspace QC and confirmed all three scopes remain green (`2870 passed`, AST 20/20, security clear, scheduler ready) | Codex | 2026-03-31 |
 
 ## Rules
 
