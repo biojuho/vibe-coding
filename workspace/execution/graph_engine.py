@@ -69,6 +69,7 @@ class GraphState(TypedDict, total=False):
     next_worker: str
     final_output: str
     context: str
+    context_files: list[str]
     complexity: str
     variant_tasks: list[dict[str, Any]]
     task_variant: dict[str, Any]
@@ -89,6 +90,7 @@ DEFAULT_STATE: dict[str, Any] = {
     "next_worker": "prepare_variants",
     "final_output": "",
     "context": "",
+    "context_files": [],
     "complexity": "simple",
     "variant_tasks": [],
     "variant_results": [],
@@ -192,6 +194,13 @@ class VibeCodingGraph:
         except Exception:
             self.verifier = None
 
+        try:
+            from execution.context_selector import ContextSelector
+
+            self.context_selector = ContextSelector()
+        except Exception:
+            self.context_selector = None
+
         self._graph = self._build_graph()
 
     def supervisor_node(self, state: dict[str, Any]) -> dict[str, Any]:
@@ -205,6 +214,18 @@ class VibeCodingGraph:
             complexity = classification.complexity.value
             logger.info("[Supervisor] Complexity=%s (score=%.2f)", complexity, classification.score)
 
+        context = state.get("context", "")
+        context_files: list[str] = []
+        if self.context_selector and vibe:
+            try:
+                selected = self.context_selector.select(vibe, existing_context=context)
+                if selected.text:
+                    context = self._merge_context(context, selected.text)
+                    context_files = selected.files
+                    logger.info("[Supervisor] Selected %d repo context file(s)", len(context_files))
+            except Exception as exc:
+                logger.warning("[Supervisor] ContextSelector failed; continuing without repo map: %s", exc)
+
         tasks = self._decompose_tasks(vibe, complexity)
         logger.info("[Supervisor] Decomposed into %d task(s)", len(tasks))
 
@@ -214,6 +235,8 @@ class VibeCodingGraph:
             "complexity": complexity,
             "next_worker": "prepare_variants",
             "iteration": 0,
+            "context": context,
+            "context_files": context_files,
             "reflection_notes": "",
             "evaluator_summary": "",
         }
@@ -672,7 +695,7 @@ class VibeCodingGraph:
                 tree_result = decomposer.decompose(vibe)
                 if tree_result and tree_result.children:
                     return [
-                        {"id": f"task-{index}", "description": child.task, "type": "code"}
+                        {"id": f"task-{index}", "description": child.task_text, "type": "code"}
                         for index, child in enumerate(tree_result.children)
                     ]
             except Exception as exc:
@@ -739,6 +762,16 @@ class VibeCodingGraph:
             notes.append("Tighten correctness, safety, and maintainability before the next attempt.")
 
         return "\n\n".join(notes)
+
+    @staticmethod
+    def _merge_context(existing: str, selected: str) -> str:
+        existing = existing.strip()
+        selected = selected.strip()
+        if not existing:
+            return selected
+        if not selected:
+            return existing
+        return f"{existing}\n\n{selected}"
 
 
 def main() -> None:

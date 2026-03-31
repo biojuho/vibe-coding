@@ -19,11 +19,12 @@
 | finance_tracker.md | finance_db.py | 가계부 DB |
 | github_dashboard.md | github_stats.py | GitHub 통계 |
 | llm_fallback.md | llm_client.py | 9단계 LLM 폴백 체인 |
+| local_inference.md | local_inference.py, smart_router.py, reasoning_chain.py, reasoning_engine.py, thought_decomposer.py, confidence_verifier.py, benchmark_local.py, graph_engine.py, workers.py, code_evaluator.py, repo_map.py, context_selector.py | 로컬 추론 + 추론/평가 오케스트레이션 |
 | mcp_skill_expansion_plan.md | *(계획 문서, 직접 매핑 없음)* | MCP 확장 계획 참조용 |
 | notebooklm_ops.md | notebooklm_integration.py, content_writer.py | NotebookLM 운영 |
 | notion_integration.md | notion_client.py, notion_shorts_sync.py, notion_article_uploader.py | Notion API 연동 |
 | process_management.md | process_manager.py, scheduler_engine.py, scheduler_worker.py | 프로세스/스케줄러 관리 |
-| qa_qc_workflow.md | qaqc_runner.py, qaqc_history_db.py | QA/QC 자동화 |
+| qa_qc_workflow.md | qaqc_runner.py, qaqc_history_db.py, governance_checks.py | QA/QC 자동화 + control-plane governance |
 | roadmap_v3.md | *(계획 문서, 직접 매핑 없음)* | v3.0 로드맵 참조용 |
 | scheduler.md | scheduler_engine.py, scheduler_worker.py | Windows Task Scheduler 연동 |
 | session_workflow.md | *(워크플로우, 직접 매핑 없음)* | AI 세션 워크플로우 |
@@ -60,4 +61,4 @@
 
 ---
 
-*마지막 업데이트: 2026-03-22*
+*마지막 업데이트: 2026-03-31*

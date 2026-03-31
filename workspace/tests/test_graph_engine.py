@@ -493,3 +493,34 @@ class TestVibeCodingGraph:
         )
 
         assert "Remove eval()" in result["variant_tasks"][0]["context"]
+
+    def test_supervisor_merges_selected_repo_context(self, mock_llm: MagicMock) -> None:
+        from execution.context_selector import SelectedContext
+
+        graph = self._make_graph(mock_llm)
+        graph.context_selector = MagicMock()
+        graph.context_selector.select.return_value = SelectedContext(
+            text="Repository map relevant to the current task:\n\nFile: workspace/execution/graph_engine.py",
+            files=["workspace/execution/graph_engine.py"],
+        )
+
+        result = graph.supervisor_node({"vibe_input": "Improve graph engine", "context": "User supplied context"})
+
+        assert "User supplied context" in result["context"]
+        assert "Repository map relevant" in result["context"]
+        assert result["context_files"] == ["workspace/execution/graph_engine.py"]
+
+    def test_decompose_tasks_uses_task_text_from_thought_decomposer(self, mock_llm: MagicMock) -> None:
+        from execution.thought_decomposer import TaskNode
+
+        graph = self._make_graph(mock_llm)
+        fake_decomposer = MagicMock()
+        fake_decomposer.decompose.return_value = TaskNode(
+            task_text="Parent task",
+            children=[TaskNode(task_text="Extract repo map"), TaskNode(task_text="Select context")],
+        )
+
+        with patch("execution.thought_decomposer.ThoughtDecomposer", return_value=fake_decomposer):
+            tasks = graph._decompose_tasks("Build repo map support", "complex")
+
+        assert [task["description"] for task in tasks] == ["Extract repo map", "Select context"]

@@ -4,6 +4,7 @@
 
 **Self-Hosted 추론 엔진** — Ollama를 이용해 로컬에서 LLM 추론을 실행합니다.
 상용 API 비용 없이 SIMPLE/MODERATE 쿼리를 처리하며, 기존 7개 클라우드 프로바이더의 fallback 체인과 통합됩니다.
+또한 이 레이어는 단순 모델 호출만이 아니라, 추론 보강(`ReasoningEngine`)과 에이전트형 코딩 오케스트레이션(`graph_engine.py`, `workers.py`, `code_evaluator.py`)의 기반 계층 역할도 담당합니다.
 
 ## 아키텍처
 
@@ -19,6 +20,11 @@ ReasoningEngine
     ├── ReasoningChain    (다중 샘플 합의)     [선택]
     ├── ThoughtDecomposer (서브태스크 분해)    [자동]
     └── ConfidenceVerifier (SAGE 자기-검증)   [선택]
+    ↓
+VibeCodingGraph
+    ├── graph_engine.py   (코딩 오케스트레이터)
+    ├── workers.py        (coder/tester/reviewer/debugger worker)
+    └── code_evaluator.py (구조화된 코드 평가)
 ```
 
 ## 환경 변수
@@ -103,6 +109,28 @@ result = adapter.run_full_reasoning(
     use_verifier=True,   # SAGE 자기-검증
 )
 ```
+
+### 에이전트형 코딩 오케스트레이션
+```python
+from execution.graph_engine import VibeCodingGraph
+
+graph = VibeCodingGraph(max_iterations=3)
+result = graph.run("Build a Python fibonacci function")
+print(result["final_output"])
+```
+
+관련 실행 모듈:
+- `workspace/execution/graph_engine.py`
+- `workspace/execution/workers.py`
+- `workspace/execution/code_evaluator.py`
+- `workspace/execution/repo_map.py`
+- `workspace/execution/context_selector.py`
+- `workspace/execution/smart_router.py`
+- `workspace/execution/reasoning_engine.py`
+- `workspace/execution/reasoning_chain.py`
+- `workspace/execution/thought_decomposer.py`
+- `workspace/execution/confidence_verifier.py`
+- `workspace/execution/benchmark_local.py`
 
 ## 벤치마크
 
