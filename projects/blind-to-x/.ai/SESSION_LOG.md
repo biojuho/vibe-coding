@@ -984,3 +984,13 @@ blind-to-x 개선 계획 수립 및 Area 1~2 즉시 실행, QC 완료
 - LLM 순서: DeepSeek 1순위 → Gemini 2순위 (Gemini 쿼터 문제로 변경)
 - Gemini API 키 새로 교체됨 (AIzaSyBxqyq72V...)
 - naver_blog output_format 활성화됨. Notion DB에 `블로그 본문` 필드 있는지 확인 권장
+
+## [2026-04-01] 테스트 커버리지 강화 (Phase 1 ~ Phase 3)
+- **도구명**: Gemini (Antigravity)
+- **작업 요약**:
+  - Phase 1 코드의 결함 보완 (style_bandit.py falsy list 처리 및 performance_collector.py 모의 객체 경로 수정).
+  - Phase 2, Phase 3 단계 스크립트(process.py, 	ext_polisher.py, quality_gate.py, x_analytics.py, 
+otebooklm_enricher.py)에 대한 100% Mock 기반 고강도 유닛 테스트 작성 및 모든 TC 통과(72개 이상 Pass) 완료.
+  - 관련 AttributeError 버그 수정.
+- **변경 파일**:
+  - \pipeline/style_bandit.py  - \	ests/unit/test_*

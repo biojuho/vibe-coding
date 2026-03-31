@@ -114,7 +114,7 @@ class StyleBandit:
 
         Falls back to uniform random when only one style or on error.
         """
-        styles = list(available_styles or _DEFAULT_STYLES)
+        styles = list(available_styles if available_styles is not None else _DEFAULT_STYLES)
         if not styles:
             return "공감형"
         if len(styles) == 1:
