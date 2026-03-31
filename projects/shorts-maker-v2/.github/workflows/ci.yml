@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: '3.14'
+
+jobs:
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/ruff-action@v3
+
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-noto-cjk
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run tests with coverage
+        run: |
+          python -m pytest tests/unit/ \
+            --cov \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            -x -q \
+            --no-header
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+          retention-days: 14
+
+      - name: Post coverage summary
+        if: always()
+        run: |
+          python -m pytest tests/unit/ \
+            --cov \
+            --cov-report=term \
+            -q --no-header \
+            --co -q 2>/dev/null | head -1 || true
+          echo "## Test Coverage" >> "$GITHUB_STEP_SUMMARY"
+          python -c "
+          import xml.etree.ElementTree as ET
+          tree = ET.parse('coverage.xml')
+          rate = float(tree.getroot().attrib.get('line-rate', 0)) * 100
+          print(f'| Metric | Value |')
+          print(f'|--------|-------|')
+          print(f'| Line Coverage | {rate:.1f}% |')
+          " >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || echo "Coverage XML not found" >> "$GITHUB_STEP_SUMMARY"

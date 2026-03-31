@@ -1,0 +1,13 @@
+default_voice: "en-US-JennyNeural"
+
+openai_to_edge_voice:
+  alloy: "en-US-JennyNeural"
+  echo: "en-US-GuyNeural"
+  fable: "en-US-AriaNeural"
+  onyx: "en-US-DavisNeural"
+  nova: "en-US-JennyNeural"
+  shimmer: "en-US-AnaNeural"
+  sage: "en-US-AndrewNeural"
+  coral: "en-US-EmmaNeural"
+  ash: "en-US-BrianNeural"
+  verse: "en-US-ChristopherNeural"

@@ -1,0 +1,187 @@
+project:
+  language: "ko-KR"
+  default_scene_count: 8
+  script_review_enabled: true    # GPT가 Hook/Flow/CTA 채점 후 미달 시 재생성
+  script_review_min_score: 7     # 10점 만점 최소 기준 (6→7 강화)
+  structure_presets:             # YPP: 콘텐츠 구조 다양화 (rotate)
+    premium:
+      flow: [hook, problem, problem, insight, insight, solution, solution, cta]
+    listicle:
+      flow: [hook, body, body, body, body, body, cta]
+    countdown:
+      flow: [hook, rank5, rank4, rank3, rank2, rank1, cta]
+    story:
+      flow: [hook, setup, conflict, climax, resolution, lesson, cta]
+    quiz:
+      flow: [hook, question, hint, answer, explain, bonus, cta]
+    debate:
+      flow: [hook, pro1, con1, pro2, con2, verdict, cta]
+
+video:
+  target_duration_sec: [40, 50]      # 40-50초 목표 (워크플로우 기준)
+  resolution: [1080, 1920]
+  fps: 30
+  scene_video_duration_sec: 5
+  aspect_ratio: "9:16"
+  transition_style: "random"      # 역할 기반 구조적 전환 (hook→body: flash/glitch, body→body: crossfade/slide)
+  encoding_preset: "medium"    # ffmpeg preset: ultrafast/fast/medium/slow (품질 우선)
+  encoding_crf: 20             # 품질 기반 인코딩 (0=무손실, 20=고품질, 23=기본, 51=최저)
+  hw_accel: "auto"             # "auto" | "nvenc" | "qsv" | "amf" | "none"
+  stock_mix_ratio: 0.4         # 씬별 Pexels 스톡 영상 시도 비율 (0.0~1.0) — 이미지도 활용
+
+providers:
+  llm: "openai"                  # 기본 LLM provider (llm_providers 없으면 이것만 사용)
+  llm_providers:                 # fallback 순서 (위→아래, 품질+비용 균형)
+    - google                     # Gemini — 무료 tier, 한국어 품질 우수
+    - groq                       # Groq — 무료 tier, 세계 최고속 추론
+    - mimo                       # MiMo V2-Flash — $0.10/Mi+$0.30/Mo, 309B MoE
+    - deepseek                   # DeepSeek — 매우 저렴
+    - moonshot                   # Moonshot Kimi — 저렴
+    - zhipuai                    # ZhipuAI GLM — 무료
+    - openai                     # GPT — JSON 안정성
+    - xai                        # Grok — 중간 비용
+    - anthropic                  # Claude — 고품질 최종 폴백
+  llm_models:                    # provider별 모델 매핑
+    mimo: "mimo-v2-flash"
+    openai: "gpt-4o-mini"
+    google: "gemini-3.1-flash-lite-preview"
+    anthropic: "claude-sonnet-4-20250514"
+    xai: "grok-3-mini-fast"
+    deepseek: "deepseek-chat"
+    moonshot: "moonshot-v1-8k"
+    zhipuai: "glm-4-flash"
+    groq: "llama-3.3-70b-versatile"
+  tts: "openai"                      # "edge-tts"(무료) | "openai"(유료 $0.0008/s)
+  visual_primary: "gemini-image"    # Gemini 무료 이미지 생성 (Imagen 3 API 404 이슈로 전환)
+  visual_fallback: "openai-image"
+  llm_model: "gpt-4o-mini"         # 단일 provider 사용 시 기본 모델
+  tts_model: "tts-1-hd"             # edge-tts 사용 시 이 값은 무시됨
+  tts_voice: "nova"                 # openai: nova(여성, 따뜻) | alloy | echo | fable | onyx | shimmer
+  tts_voice_pool:                   # openai 음성 풀 (6종 로테이션)
+    - nova                           # 여성 — 따뜻하고 자연스러운 톤
+    - onyx                           # 남성 — 깊고 권위적 톤
+    - echo                           # 남성 — 차분하고 부드러운 톤
+    - fable                          # 남성 — 표현력 풍부한 톤
+    - shimmer                        # 여성 — 밝고 또렷한 톤
+    - alloy                          # 중성 — 균형 잡힌 톤
+  tts_voice_strategy: "rotate"      # rotate | random | fixed
+  tts_voice_roles:                   # 역할별 음성 매핑 (voice_strategy보다 우선)
+    hook: onyx                       # 남성 깊은 톤 → 주의 끌기
+    body: nova                       # 여성 따뜻한 톤 → 설명
+    cta: onyx                        # 남성 권위적 톤 → 행동 유도
+    rank5: echo                      # 남성 차분 → 카운트다운 시작
+    rank4: shimmer                   # 여성 밝음 → 톤 변화
+    rank3: fable                     # 남성 표현력 → 중반 전환
+    rank2: nova                      # 여성 따뜻 → 긴장감 상승
+    rank1: alloy                     # 중성 또렷 → 1위 강조
+    question: nova                   # 여성 호기심 톤
+    answer: echo                     # 남성 차분한 답변
+    hint: fable                      # 남성 표현력 힌트
+    setup: shimmer                   # 여성 내러티브 시작
+    conflict: onyx                   # 남성 갈등 강조
+    climax: alloy                    # 중성 클라이맥스
+    resolution: nova                 # 여성 해결
+    lesson: echo                     # 남성 교훈
+    pro1: onyx                       # 남성 찬성
+    con1: nova                       # 여성 반대
+    pro2: fable                      # 남성 찬성 2
+    con2: shimmer                    # 여성 반대 2
+    verdict: alloy                   # 중성 판정
+    explain: echo                    # 남성 해설
+    bonus: fable                     # 남성 보너스
+  tts_speed: 1.1                    # edge-tts rate: 1.1 = +10%
+  image_model: "dall-e-3"
+  image_size: "1024x1792"
+  image_quality: "standard"
+  veo_model: "veo-2.0-generate-001"
+  visual_stock: "pexels"          # Pexels 무료 스톡 비디오 활성화 (Body 씬 50% 믹스)
+  visual_styles:                  # YPP 대응: 영상별 다른 아트 스타일
+    - "Cinematic photography, shallow depth of field, dramatic lighting"
+    - "Flat illustration, bold outlines, pastel colors, 2D vector art"
+    - "3D render, isometric view, soft gradient background, minimal"
+    - "Watercolor painting, soft edges, muted earth tones"
+    - "Neon cyberpunk aesthetic, dark background, glowing elements"
+    - "Vintage film grain, warm sepia tones, 1970s photography"
+  # Gemini 3.1 Thinking Mode
+  thinking_level: "low"             # 대본 생성 (빠른 속도): minimal/low/medium/high
+  thinking_level_review: "high"     # 대본 리뷰 (심층 추론): minimal/low/medium/high
+  # Multimodal Embedding (콘텐츠 중복 검사)
+  embedding_model: "gemini-embedding-2-preview"  # 텍스트+이미지+오디오 통합 임베딩
+
+limits:
+  max_cost_usd: 2.0
+  max_retries: 4
+  request_timeout_sec: 120
+
+costs:
+  llm_per_job: 0.001             # MiMo V2-Flash ($0.10/1Mi+$0.30/1Mo) 실측 기준
+  tts_per_second: 0.0008          # OpenAI tts-1-hd ($0.0008/초)
+  veo_per_second: 0.35          # 실제 Gemini API 가격 (사용 안 함)
+  image_per_scene: 0.02         # Imagen 3 실제 가격 (DALL-E 3은 $0.08)
+  stock_per_scene: 0.0          # Pexels = 무료
+
+paths:
+  output_dir: "output"
+  logs_dir: "logs"
+  runs_dir: "runs"
+
+captions:
+  mode: "karaoke"           # "static" | "karaoke" — 카라오케 하이라이트 자막 활성화
+  words_per_chunk: 4        # 한국어 최적화: 4단어씩 표시 (화면 넘침 방지)
+  font_size: 56             # 한국어 최적 크기 (72→56)
+  margin_x: 60
+  bottom_offset: 380        # 화면 하단 영역
+  text_color: "#FFFFFF"     # 흰색 텍스트
+  stroke_color: "#000000"
+  stroke_width: 8           # 굵은 검정 아웃라인 (가독성 향상)
+  line_spacing: 14
+  bg_color: "#000000"       # 사용 안 함 (opacity=0)
+  bg_opacity: 0             # 배경 박스 완전 제거
+  bg_radius: 0              # 배경 없음
+  style_preset: "bold"      # "default" | "neon" | "subtitle" | "bold"
+  hook_animation: "none"    # 인트로 애니메이션 없음
+  highlight_color: "#FFD700" # 하이라이트 색상
+  highlight_mode: "chunk"   # "chunk" (청크 모드)
+  font_candidates:
+    - "C:/Windows/Fonts/malgunbd.ttf"
+    - "C:/Windows/Fonts/malgun.ttf"
+    - "C:/Windows/Fonts/arialbd.ttf"
+
+audio:
+  bgm_dir: "assets/bgm"         # BGM mp3 파일 폴더 (없으면 BGM 스킵)
+  bgm_volume: 0.12               # 나레이션 대비 BGM 볼륨 (0.0~1.0)
+  fade_duration: 0.5             # 장면 전환 페이드 시간 (초)
+  sfx_enabled: false             # 효과음 비활성화 (사용자 요청: 중간중간 효과음 제거)
+  sfx_dir: "assets/sfx"         # SFX mp3/wav 파일 폴더
+  sfx_volume: 0.35               # 효과음 볼륨 (0.0~1.0)
+  sync_with_whisper: true        # OpenAI TTS + karaoke 자막을 위해 Whisper-1 단어 동기화 활성화
+  bgm_provider: "lyria"          # "lyria" (AI 생성, 무료) | "local" (assets/bgm 파일)
+  ducking_factor: 0.25           # 나레이션 구간 BGM 볼륨 비율 (0.25 = 25%로 감소)
+  lyria_prompt_map:              # 채널별 Lyria BGM 생성 프롬프트
+    ai_tech: "upbeat electronic lo-fi beats, futuristic synth, minimal percussion, background music"
+    psychology: "gentle piano with soft ambient pads, calming and warm, minimal beat, background music"
+    history: "cinematic orchestral, documentary style, strings and woodwinds, subtle percussion, background music"
+    space: "epic orchestral with deep bass, cosmic ambient pads, slow tempo, awe-inspiring, background music"
+    health: "calm acoustic guitar with light percussion, warm and trustworthy, background music"
+    default: "calm lo-fi beats with soft piano, minimal percussion, background music"
+
+intro_outro:
+  intro_path: ""               # 인트로 이미지/영상 경로 (비우면 스킵)
+  outro_path: ""               # 아웃트로 이미지/영상 경로 (비우면 스킵)
+  intro_duration: 1.5          # 인트로 길이 (초)
+  outro_duration: 1.5          # 아웃트로 길이 (초)
+
+thumbnail:
+  mode: "pillow"             # "pillow"(기본) | "dalle"(AI생성) | "canva"(레거시) | "none"(스킵)
+  dalle_prompt_template: ""  # DALL-E 모드 커스텀 프롬프트 ({title}/{topic} 치환)
+
+canva:
+  enabled: false                                         # thumbnail.mode="canva" 일 때만 사용
+  design_id: "DAHCkcsyDGQ"                              # Canva Design ID
+  token_file: "../shorts-maker/.canva_token.json"        # v1에서 발급한 토큰 재사용
+
+cache:
+  enabled: true                    # 프롬프트 해시 기반 이미지 캐시
+  dir: ".cache"                    # 캐시 디렉토리 (상대 경로)
+  max_size_mb: 500                 # 최대 캐시 크기 (MB)
+  ttl_days: 30                     # 캐시 만료 기간 (일)

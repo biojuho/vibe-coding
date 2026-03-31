@@ -1,0 +1,212 @@
+# Source of truth for platform regulation and trend/cross-source policy.
+
+platform_regulations:
+  x_twitter:
+    display_name: X (Twitter)
+    max_length: 280
+    max_hashtags: 2
+    recent_policy_notes:
+    - 외부 링크 본문 포함 시 30-50% 도달 감소 — 반드시 답글(reply)에 분리
+    - 해시태그 3개 이상 시 -40% 페널티, 1-2개만 사용
+    - 텍스트 전용 포스트가 이미지보다 37%, 영상보다 30% 높은 참여율 (X만의 특성)
+    - 첫 30-60분 참여 속도(velocity)가 알고리즘 노출의 핵심 결정 요소
+    - 답글+저자응답 = 150배 가중치 (가장 강력한 시그널)
+    - 인용RT = 25배, RT = 20배, 답글 = 13.5배, 북마크 = 10배, Like = 1배
+    - Premium 계정은 4-8배 배포 부스트
+    penalty_triggers:
+    - 본문에 외부 링크 포함 (30-50% 도달 감소)
+    - 해시태그 3개 이상 (-40% 페널티)
+    - 동일 문구 반복 게시 (24시간 내 3회 이상)
+    - 10분 이내 연속 게시 (스팸 감지)
+    - engagement farming ('like하면 OO', '공감하면 RT')
+    - 'shadowban 트리거: 과도한 해시태그, 정치적 극단 키워드'
+    penalty_words: []
+    link_patterns:
+    - http://
+    - https://
+    - bit.ly
+    - t.co
+    algorithm_favors:
+    - 텍스트 전용 포스트 (X에서는 미디어보다 텍스트가 우월)
+    - 답글이 활발한 논의형 콘텐츠 (답글+응답 = 150x)
+    - 북마크를 유도하는 정보성 콘텐츠 (10x)
+    - 71-100자 최적 참여율 (+17%), 240-259자 최적 좋아요
+    - 구체적 선택형 CTA 질문 (답글 유도)
+    - 링크는 첫 번째 답글(reply)에 분리
+    - 스레드 형식으로 체류 시간 확보 (10x)
+    link_in_reply:
+      enabled: true
+      format: '원문: {url}
+
+        #{hashtag1} #{hashtag2}'
+      reason: 본문 링크 페널티 회피 + 해시태그 분리로 가독성 향상
+    do_checklist:
+    - 본문은 텍스트 중심으로 작성하세요 (X에서 텍스트가 최고 성과)
+    - 71-100자 또는 240-259자 범위를 목표로 하세요
+    - 구체적 선택형 질문으로 답글을 유도하세요 (150x 가중치)
+    - 링크와 해시태그는 첫 번째 답글(reply)에 분리하세요
+    - 해시태그는 1-2개만 사용하세요
+    - 인용RT하기 좋은 독립적 인사이트를 포함하세요
+    dont_checklist:
+    - 본문에 외부 링크를 넣지 마세요 (답글에 분리)
+    - 해시태그를 3개 이상 사용하지 마세요 (-40% 페널티)
+    - 같은 내용을 10분 이내에 연속 게시하지 마세요
+    - '''공감하면 RT'', ''like하면 OO'' 등 engagement farming 금지'
+    - '''여러분의 생각은?'' 같은 막연한 CTA 금지 — 구체적 선택지 제시'
+    optimal_posting:
+      best_days:
+      - 화
+      - 수
+      - 목
+      best_windows_kst:
+      - 08:00-10:00
+      - 12:00-13:00
+      - 19:00-21:00
+      peak: 수요일 09:00 KST
+      frequency: 하루 2-3개, 포스트 간 30-60분 간격
+      velocity_window: 첫 30-60분이 알고리즘 결정
+  threads:
+    display_name: Threads
+    max_length: 500
+    max_hashtags: 5
+    recent_policy_notes:
+    - 외부 링크 게시물의 추천 피드 노출 제한
+    - 텍스트 전용 포스트의 가시성 하락
+    - 초기 30분 내 참여율(Early engagement)이 핵심 지표
+    penalty_triggers:
+    - 외부 링크 포함 시 추천 피드에서 제외
+    - 스팸성 반복 해시태그
+    - 상업적 CTA 과다
+    - 봇성 반복 게시 패턴
+    commercial_cta_words:
+    - 구매
+    - 할인
+    - 프로모션
+    - 쿠폰
+    - 광고
+    - 협찬
+    - 링크 클릭
+    algorithm_favors:
+    - 원본 이미지/비디오 포함
+    - 댓글이 활발한 게시물
+    - 초기 30분 내 참여율 (Early engagement)
+    - 진정성 있는 대화체 톤
+    - 짧은 스토리텔링 + 질문형 마무리
+    do_checklist:
+    - 원본 이미지를 최소 1장 포함하세요
+    - 캐주얼한 대화체 톤을 유지하세요
+    - 질문형 CTA로 댓글을 유도하세요
+    - 줄바꿈을 활용해 가독성을 높이세요
+    dont_checklist:
+    - 외부 링크를 본문에 넣지 마세요 (댓글로 분리)
+    - 상업적 톤(구매, 할인 등)을 사용하지 마세요
+    - 해시태그 5개 초과 사용하지 마세요
+    - 다른 플랫폼과 동일한 내용을 그대로 올리지 마세요
+  naver_blog:
+    display_name: 네이버 블로그
+    min_length: 1500
+    min_subheadings: 3
+    min_seo_tags: 10
+    max_keyword_repeat: 10
+    recent_policy_notes:
+    - C-Rank 2.0 — 주제 일관성 가중치 강화
+    - D.I.A. 알고리즘에 사용자 체류 시간 반영 비중 증가
+    - '저품질 판정 기준: 500자 미만, 키워드 도배, 타 블로그 복사'
+    penalty_triggers:
+    - '저품질 판정: 짧은 글(500자 미만), 키워드 도배'
+    - 타 블로그 내용 복사/유사도 높은 글
+    - 과도한 어뷰징 키워드 삽입
+    - 주제와 무관한 태그 사용
+    algorithm_favors:
+    - '주제 일관성 (C-Rank): 하나의 주제에 깊게'
+    - 충분한 글 길이 (1,500자 이상)
+    - 이미지 3~5장 적정 배치
+    - 독자 체류 시간이 긴 콘텐츠
+    - 소제목(##) 활용한 구조화된 글
+    do_checklist:
+    - 소제목(##)을 3~5개로 구조화하세요
+    - 본문 1,500자 이상 유지하세요
+    - SEO 태그 10~15개를 포함하세요
+    - 이미지 3~5장을 중간중간 배치하세요
+    - 검색 키워드를 자연스럽게 포함하세요
+    dont_checklist:
+    - 키워드 반복 도배를 하지 마세요
+    - 외부 복사 텍스트를 사용하지 마세요
+    - 500자 미만 짧은 글을 업로드하지 마세요
+    - 주제와 무관한 태그를 사용하지 마세요
+    - 동일 주제로 하루에 여러 글을 올리지 마세요
+cross_source_insight:
+  enabled: true
+  min_posts: 3
+  min_sources: 2
+trends:
+  enabled: true
+  google_enabled: true
+  naver_enabled: true
+  spike_threshold: 80.0
+  cache_ttl_minutes: 10
+  topic_keywords:
+    연봉:
+    - 직장인 연봉
+    - 연봉 인상
+    - 성과급
+    이직:
+    - 이직
+    - 퇴사
+    - 면접
+    회사문화:
+    - 직장 문화
+    - 야근
+    - 워라밸
+    상사:
+    - 직장 상사
+    - 팀장
+    복지:
+    - 직장 복지
+    - 재택근무
+    재테크:
+    - 주식
+    - 부동산
+    - 재테크
+    IT:
+    - 개발자
+    - AI
+    - 코딩
+    부동산:
+    - 아파트
+    - 전세
+    - 청약
+    건강:
+    - 직장인 건강
+    - 번아웃
+    자기계발:
+    - 자격증
+    - 사이드프로젝트
+    연애:
+    - 연애
+    - 소개팅
+    - 결혼
+    결혼:
+    - 결혼
+    - 신혼
+    - 이혼
+    가족:
+    - 가족
+    - 육아
+    - 부모
+    직장개그:
+    - 직장 유머
+    - 직장 밈
+    - 직장 웃긴
+    정치:
+    - 정치
+    - 대통령
+    - 선거
+    금융/경제:
+    - 금리
+    - 환율
+    - 물가
+    뷰티/라이프:
+    - 뷰티
+    - 라이프스타일
+    - 패션

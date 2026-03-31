@@ -1,0 +1,33 @@
+#!/bin/bash
+# Git pre-commit hook — staged 파일만 ruff 검사 + UTF-8 인코딩 확인
+# 설치: git config core.hooksPath .githooks
+
+# staged된 .py 파일만 검사
+STAGED_PY=$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$')
+
+if [ -n "$STAGED_PY" ]; then
+    echo "Pre-commit: ruff check on staged files..."
+    echo "$STAGED_PY" | xargs python -m ruff check --config ruff.toml --quiet 2>/dev/null
+    if [ $? -ne 0 ]; then
+        echo "ruff check failed. Fix errors and retry."
+        exit 1
+    fi
+
+    echo "Pre-commit: ruff format check on staged files..."
+    echo "$STAGED_PY" | xargs python -m ruff format --check --quiet 2>/dev/null
+    if [ $? -ne 0 ]; then
+        echo "ruff format check failed. Run 'ruff format' and retry."
+        exit 1
+    fi
+fi
+
+# .ai/ 파일 UTF-8 검증
+for f in .ai/CONTEXT.md .ai/DECISIONS.md .ai/SESSION_LOG.md; do
+    if git diff --cached --name-only | grep -q "$f"; then
+        python -c "open('$f', encoding='utf-8').read()" 2>/dev/null
+        if [ $? -ne 0 ]; then
+            echo "UTF-8 encoding check failed for $f"
+            exit 1
+        fi
+    fi
+done

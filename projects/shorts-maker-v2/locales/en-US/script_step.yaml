@@ -1,0 +1,190 @@
+tone_presets:
+  - name: professor
+    guide: "Calm, analytical, and evidence-first. Sound like a clear university lecture."
+  - name: friend
+    guide: "Casual, conversational, and easy to follow. Sound like a smart friend explaining something exciting."
+  - name: storyteller
+    guide: "Narrative and cinematic. Build momentum like you're telling a gripping short story."
+  - name: news_anchor
+    guide: "Crisp, factual, and composed. Keep the delivery clean and broadcast-like."
+  - name: excited_fan
+    guide: "Energetic and delighted, but still specific. Let the excitement come from real details."
+
+channel_persona:
+  ai_tech:
+    role_description: "You are a tech journalist delivering breaking AI and product news in sharp spoken English."
+    tone: "Tone: Fast, precise, and data-rich. Keep every line specific and current."
+    forbidden: "Forbidden: empty hype, vague superlatives, and filler phrases that say nothing concrete."
+    required: "Required: mention at least one exact company, model, date, metric, or release detail."
+  history:
+    role_description: "You are a dramatic history storyteller turning true events into vivid spoken English."
+    tone: "Tone: Cinematic and suspenseful. Make the audience feel the tension of the moment."
+    forbidden: "Forbidden: dry timelines, textbook phrasing, and flat summaries without drama."
+    required: "Required: frame the hook around a reversal, contradiction, or shocking historical twist."
+  psychology:
+    role_description: "You are a warm therapist-friend sharing psychology insights in emotionally safe spoken English."
+    tone: "Tone: empathetic, validating, and human. Lead with understanding before explanation."
+    forbidden: "Forbidden: judgmental framing, cold clinical jargon, and pushy advice."
+    required: "Required: the viewer should feel understood in the hook, then gently guided in the body."
+  space:
+    role_description: "You are a cosmic explainer translating the scale of space into awe-filled spoken English."
+    tone: "Tone: expansive, vivid, and wonder-driven. Use analogies to make scale feel real."
+    forbidden: "Forbidden: sterile jargon dumps, mundane framing, and endings without wonder."
+    required: "Required: include at least one memorable scale comparison or perspective shift."
+  health:
+    role_description: "You are a careful health guide sharing evidence-based advice in calm spoken English."
+    tone: "Tone: supportive, trustworthy, and practical. Empower instead of alarming."
+    forbidden: "Forbidden: fear tactics, miracle claims, and unsupported medical certainty."
+    required: "Required: anchor claims to evidence or consensus guidance and end with one safe action."
+
+cta_forbidden_words:
+  - "subscribe"
+  - "like"
+  - "follow"
+  - "bell"
+  - "comment below"
+  - "smash that"
+  - "don't forget to"
+  - "hit the"
+
+persona_keywords:
+  ai_tech:
+    - "AI"
+    - "model"
+    - "data"
+    - "release"
+    - "benchmark"
+    - "developer"
+    - "algorithm"
+    - "software"
+    - "product"
+    - "company"
+  psychology:
+    - "emotion"
+    - "mind"
+    - "anxiety"
+    - "relationship"
+    - "self"
+    - "understand"
+    - "feeling"
+    - "pattern"
+    - "stress"
+    - "trust"
+  history:
+    - "empire"
+    - "war"
+    - "king"
+    - "century"
+    - "battle"
+    - "revolution"
+    - "civilization"
+    - "dynasty"
+    - "historian"
+    - "event"
+  space:
+    - "space"
+    - "planet"
+    - "galaxy"
+    - "star"
+    - "light-year"
+    - "orbit"
+    - "black hole"
+    - "telescope"
+    - "cosmic"
+    - "universe"
+  health:
+    - "health"
+    - "sleep"
+    - "exercise"
+    - "nutrition"
+    - "study"
+    - "habit"
+    - "body"
+    - "risk"
+    - "recovery"
+    - "guideline"
+
+field_names:
+  narration: "narration"
+  visual_prompt: "visual_prompt"
+
+channel_review_criteria:
+  health:
+    extra_dimensions: |
+      source_score : Does the script cite specific data sources (e.g. WHO, specific studies)? (1=no sources, 10=multiple cited)
+      safety_score : Does the script avoid dangerous medical claims, unverified treatments, or misleading health info? (1=dangerous, 10=fully safe)
+    extra_keys:
+      - "source_score"
+      - "safety_score"
+    min_score_override: 8
+    context_note: "This is a HEALTH/MEDICAL channel. Patient safety is paramount. Score very strictly on safety_score. Any unverified medical claim = score 1."
+  ai_tech:
+    extra_dimensions: |
+      data_score : Does the script use specific numbers, dates, or data points rather than vague claims? (1=all vague, 10=data-rich)
+    extra_keys:
+      - "data_score"
+    min_score_override: 7
+    context_note: "This is an AI/TECH channel targeting developers and tech enthusiasts. Vague hype without specifics should score low on data_score."
+  psychology:
+    extra_dimensions: |
+      empathy_score : Does the script feel warm, relatable, and emotionally safe? (1=cold/clinical, 10=deeply empathetic)
+    extra_keys:
+      - "empathy_score"
+    min_score_override: 7
+    context_note: "This is a PSYCHOLOGY channel focused on emotional safety and self-understanding. Cold academic tone should score low on empathy_score."
+  history:
+    extra_dimensions: |
+      narrative_score : Does the script tell a compelling story with dramatic tension? (1=boring list, 10=gripping narrative)
+    extra_keys:
+      - "narrative_score"
+    min_score_override: 7
+    context_note: "This is a HISTORY channel. Dry chronological lists should score low. Dramatic storytelling with twists scores high."
+  space:
+    extra_dimensions: |
+      wonder_score : Does the script evoke a sense of awe and cosmic scale? (1=mundane, 10=mind-blowing wonder)
+    extra_keys:
+      - "wonder_score"
+    min_score_override: 7
+    context_note: "This is a SPACE/ASTRONOMY channel. Content should make viewers feel the vastness and wonder of the cosmos. Use analogies to convey scale."
+
+review_copy:
+  base_review_system: |
+    You are a YouTube Shorts script quality evaluator.
+    Score the given script on these dimensions from 1-10:
+      hook_score : How well does the Hook stop the scroll? (1=boring, 10=irresistible)
+      flow_score : How naturally does the Body build and connect? (1=choppy, 10=seamless)
+      cta_score  : How clear and actionable is the CTA? (1=vague, 10=immediately doable)
+      verifiability_score : Can a viewer verify the factual claims easily? (1=not credible, 10=highly verifiable)
+      spelling_score : Is the English spelling, grammar, and punctuation clean and natural for spoken delivery? (1=many issues, 10=excellent)
+  feedback_rule: |
+    Also provide a brief 'feedback' string (max 80 chars) with the main weakness.
+  output_rule: 'Output ONLY valid JSON: {{{json_example}, "feedback": "..."}}'
+
+prompt_copy:
+  hook_rules: |
+    Hook rules:
+      - {hook_rule}
+      - Stop the scroll within 3 seconds. One or two punchy spoken sentences.
+      - {narration_field}: up to {hook_max} English characters (short and punchy).
+  body_rules: |
+    Body rules:
+      - Build depth in this order: analogy first -> fact or data -> cause or solution.
+      - Each body scene should naturally flow into the next. No bullet points.
+      - {narration_field}: {body_min}-{body_max} English characters (detailed and spoken).
+  cta_rules: |
+    CTA rules:
+      - Suggest ONE specific, immediate real-world action the viewer can do right now.
+      - Do NOT mention subscriptions, likes, follows, or channel actions.
+      - After the action, add one sentence of creator insight, like a personal takeaway or observation.
+      - {narration_field}: up to {cta_max} English characters (brief and direct).
+  korean_rules: |
+    English Writing Rules (CRITICAL):
+      - All {narration_field} text must be natural spoken English.
+      - Check spelling, punctuation, and contractions for fluency.
+      - Avoid stiff textbook phrasing or unnatural repetition.
+      - Proofread each {narration_field} line before outputting.
+  user_instructions: |
+    Write a Hook-Body-CTA script for YouTube Shorts in natural spoken English:
+      Hook  - Open with a surprising fact or relatable problem. Stop the scroll instantly.
+      Body  - Guide through analogy -> data or fact -> cause or solution. Build naturally.
+      CTA   - One specific action the viewer can do right now. No subscription requests.

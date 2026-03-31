@@ -1,6 +1,6 @@
 @echo off
 echo ======================================================
-echo Vibe Coding: Personal Agent Setup Wizard
+echo Vibe Coding Workspace Setup
 echo ======================================================
 
 echo [1/4] Checking Python installation...
@@ -26,38 +26,32 @@ if not exist "%PY%" (
     exit /b 1
 )
 
-echo [3/4] Installing dependencies...
+echo [3/4] Installing root dependencies...
 %PY% -m pip install --upgrade pip
-%PY% -m pip install -r projects\personal-agent\requirements.txt
+%PY% -m pip install -r requirements.txt
+%PY% -m pip install -r requirements-dev.txt
 if errorlevel 1 (
-    echo [ERROR] Dependency installation failed.
+    echo [ERROR] Root dependency installation failed.
     pause
     exit /b 1
 )
 
-echo [3.5/4] Running import smoke test...
-%PY% -c "import importlib.util,sys;mods=['streamlit','croniter','gtts','ddgs'];missing=[m for m in mods if importlib.util.find_spec(m) is None];has_google=(importlib.util.find_spec('google.generativeai') is not None or importlib.util.find_spec('google.genai') is not None);print('Smoke test passed.' if (not missing and has_google) else f'Smoke test failed. Missing={missing}, google_genai={has_google}');sys.exit(0 if (not missing and has_google) else 1)"
+echo [3.5/4] Installing shared editable project packages...
+%PY% -m pip install -e .\projects\shorts-maker-v2
 if errorlevel 1 (
-    echo [ERROR] Smoke test failed.
-    echo Run: %PY% -m pip install streamlit croniter gTTS ddgs google-genai
+    echo [ERROR] shorts-maker-v2 editable install failed.
     pause
     exit /b 1
 )
 
-echo [4/4] Checking configuration...
-if not exist "projects\personal-agent\.env" (
-    echo [WARN] .env file not found.
-    echo Creating template...
-    echo GOOGLE_API_KEY=YOUR_KEY_HERE > projects\personal-agent\.env
-    echo Please edit projects\personal-agent\.env with your API key.
-) else (
-    echo .env file exists.
-)
+echo [4/4] Running workspace doctor...
+%PY% workspace\scripts\doctor.py
 
 echo ======================================================
 echo Setup complete.
-echo To run the agent:
+echo Canonical commands:
 echo 1. call venv\Scripts\activate
-echo 2. %PY% -m streamlit run projects/personal-agent/app.py
+echo 2. %PY% workspace\scripts\smoke_check.py
+echo 3. %PY% -m streamlit run workspace\execution\pages\shorts_manager.py
 echo ======================================================
 pause
