@@ -1028,5 +1028,34 @@ Recovered the shared baseline by restoring the `process.py` entrypoint split so 
 
 
 
+## 2026-03-31 | Codex | ACPX PR-triage isolation adapted into local worktree helper
+
+### Work Summary
+
+Reviewed the upstream ACPX `examples/flows/pr-triage` implementation and kept only the part that actually fits the Vibe Coding architecture: isolated workspace preparation before PR-style validation. The upstream flow is a write-capable GitHub workflow with temp-clone setup, review/CI loops, and PR comments; that shape conflicts with this repo's local-first policy, so the adopted slice is a deterministic local helper instead of a full autonomous PR bot.
+
+Implemented `workspace/execution/pr_triage_worktree.py` to create disposable linked git worktrees under `.tmp/pr_triage_worktrees/`, optionally run a merge-conflict preflight against a local base ref, and persist `manifest.json` plus `conflict-state.json` for downstream orchestration. Added `workspace/directives/pr_triage_worktree.md`, updated `workspace/directives/INDEX.md`, and covered the helper with focused git worktree tests.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `workspace/execution/pr_triage_worktree.py` | add | New deterministic helper for prepare/cleanup/conflict-preflight of isolated linked worktrees |
+| `workspace/directives/pr_triage_worktree.md` | add | New SOP describing when and how to use the local-only PR triage worktree helper |
+| `workspace/directives/INDEX.md` | update | Mapped the new directive to the new execution helper for governance checks |
+| `workspace/tests/test_pr_triage_worktree.py` | add | Added focused tests for clean prep/cleanup and conflict detection/restoration |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | update | Recorded the new helper, the adoption judgment, and the next follow-up slice |
+
+### Verification Results
+
+- `venv\Scripts\python.exe -m pytest workspace\tests\test_pr_triage_worktree.py -q -o addopts=` -> **2 passed**
+- `venv\Scripts\python.exe -m ruff check workspace\execution\pr_triage_worktree.py workspace\tests\test_pr_triage_worktree.py` -> **All checks passed**
+- `python -X utf8 workspace/scripts/check_mapping.py` -> **All mappings valid**
+
+### Notes For Next Agent
+
+- The appealing part of ACPX's `pr-triage` flow is the isolated workspace discipline and the conflict gates, not the whole write-capable GitHub automation stack. Preserve that separation.
+- Upstream ACPX uses a temp clone in `prepareWorkspace()` rather than `git worktree`; our adaptation intentionally chose linked worktrees because this repo already hosts the local projects and wants lower-overhead isolation.
+- `pr_triage_worktree.py` currently assumes the relevant refs already exist locally. If remote PR fetch support is ever added later, keep it opt-in and separate from the baseline local-only helper.
 
 
