@@ -65,5 +65,7 @@ Vibe coding/
 
 - MCP servers are configured via `.mcp.json` and related files at repo root.
 - Telegram bot and other external providers use root `.env`.
+- Shared control-plane health is checked through `workspace/execution/health_check.py`, with governance-specific validation implemented in `workspace/execution/governance_checks.py` and surfaced in `workspace/execution/qaqc_runner.py`.
+- `workspace/execution/repo_map.py` and `workspace/execution/context_selector.py` now provide deterministic repo-map scoring plus budgeted context selection for `workspace/execution/graph_engine.py`. The selector defaults to `workspace/` unless a prompt explicitly targets `projects/` or `infrastructure/`.
 - `infrastructure/` remains top-level and is not part of `workspace/`.
-
+- The active audit-owned coverage follow-up is still `T-100`: `projects/blind-to-x` improved to **59.89%** on `2026-03-31`, while `projects/shorts-maker-v2` remains above its floor at **91%**.

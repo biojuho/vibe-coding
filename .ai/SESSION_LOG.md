@@ -1,5 +1,196 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-03-31 | Codex | T-108 selective repo-map context loading for VibeCodingGraph
+
+### Work Summary
+
+Implemented the first practical adoption slice from the agentic-coding review without introducing a heavyweight new runtime.
+
+- Added `workspace/execution/repo_map.py` to build a deterministic repository map with file paths, summaries, top-level symbols, imports, git-change awareness, and relevance scoring.
+- Added `workspace/execution/context_selector.py` to rank relevant files inside a character budget and emit a compact repository context block for coding prompts.
+- Wired the selector into `workspace/execution/graph_engine.py` so `VibeCodingGraph` now injects selected repo context before variant generation instead of relying on broad manual context.
+- Fixed the `ThoughtDecomposer` integration bug in `graph_engine.py` by reading `TaskNode.task_text` instead of the nonexistent `child.task`.
+- Updated `workspace/directives/INDEX.md` and `workspace/directives/local_inference.md` so the new control-plane scripts have explicit directive ownership.
+- Added `workspace/tests/test_context_selector.py` plus graph regression coverage for the new context merge path and the task-extraction fix.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `workspace/execution/repo_map.py` | add | Deterministic repo-map builder with scoring, summaries, symbols, imports, and git-change awareness |
+| `workspace/execution/context_selector.py` | add | Budgeted selective context loader built on top of the repo map |
+| `workspace/execution/graph_engine.py` | update | Injects selected repo context during supervision and fixes `ThoughtDecomposer` task extraction |
+| `workspace/tests/test_context_selector.py` | add | Covers repo-map ranking, budget enforcement, and changed-file surfacing |
+| `workspace/tests/test_graph_engine.py` | update | Covers supervisor context merge and `task_text`-based decomposition |
+| `workspace/directives/INDEX.md`, `workspace/directives/local_inference.md` | update | Mapped and documented the new selective-context scripts |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/DECISIONS.md`, `.ai/SESSION_LOG.md` | update | Synced relay, task backlog, architecture decision, and recent-session context |
+
+### Verification Results
+
+- `venv\Scripts\python.exe -m pytest workspace\tests\test_context_selector.py workspace\tests\test_graph_engine.py -q -o addopts=` -> **39 passed**
+- `venv\Scripts\python.exe workspace\scripts\check_mapping.py` -> **All mappings valid**
+- `venv\Scripts\python.exe -X utf8 workspace\execution\health_check.py --category governance --json` -> **overall `ok`**
+- `venv\Scripts\python.exe -m ruff check workspace\execution\repo_map.py workspace\execution\context_selector.py workspace\execution\graph_engine.py workspace\tests\test_context_selector.py workspace\tests\test_graph_engine.py` -> **All checks passed**
+- `venv\Scripts\python.exe -m compileall workspace\execution\repo_map.py workspace\execution\context_selector.py workspace\execution\graph_engine.py` -> **pass**
+
+### Notes For Next Agent
+
+- This is intentionally the smallest high-value adoption slice: repo-map + selective context loading inside the existing control plane, not a wholesale runtime swap.
+- The next logical extension is `T-109`: file-summary caching, agent profiles, and adaptive variant pruning on top of this new context layer.
+- `ContextSelector` defaults to `workspace/` to avoid unrelated `projects/blind-to-x` merge noise unless the prompt explicitly points elsewhere.
+
+## 2026-03-31 | Gemini | Shared QC rerun & Verification
+
+### Work Summary
+
+Ran the full shared workspace QA/QC process (`workspace/execution/qaqc_runner.py`) to confirm system stability after the series of recent testing uplifts and structural refactorings. The verification successfully completed with an `APPROVED` verdict and no regressions.
+
+- Executed shared QA/QC runner across all projects.
+- Confirmed AST structure, security scanner, and governance configurations are continuing to report `CLEAR`.
+- Updated test result counts (now at 2915 passed tests) in `.ai/HANDOFF.md` and `qaqc_result.json`.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `projects/knowledge-dashboard/public/qaqc_result.json` | update | Updated to the latest runner output (`APPROVED`) |
+| `.ai/HANDOFF.md`, `.ai/SESSION_LOG.md` | update | Synced verification highlight and updated passed counts |
+
+### Verification Results
+
+- `python workspace/execution/qaqc_runner.py` -> **`APPROVED`** / `blind-to-x` **594 passed, 16 skipped**, `shorts-maker-v2` **1270 passed, 12 skipped**, `root` **1051 passed, 1 skipped** / total **2915 passed, 0 failed, 29 skipped**
+- Security Scan -> `CLEAR (2 triaged issue(s))`
+- Governance Scan -> `CLEAR`
+
+### Notes For Next Agent
+
+- The codebase is currently fully stable and all tests are passing cleanly on Windows.
+- Proceed with next actions matching `.ai/TASKS.md` (e.g., T-100 coverage tasks or T-106 ruff formatting).
+
+
+## 2026-03-31 | Codex | T-100 blind-to-x coverage uplift (image cache + notification + calendar slice)
+
+### Work Summary
+
+Continued `T-100` with a second deterministic coverage slice after the earlier cost/notion-query work.
+
+- Added `tests/unit/test_image_cache.py` to cover cache-key normalization, remote/local cache hits, stale-file eviction, expired-row cleanup, and graceful DB-failure handling.
+- Added `tests/unit/test_notification.py` to cover no-webhook early return, Telegram+Discord delivery, GitHub Actions deep links, HTTP error logging, and request-exception handling.
+- Added `tests/unit/test_content_calendar_branches.py` to cover DB-backed recent-post reads plus topic/hook/emotion repetition blocks.
+- Tightened the test helper so the in-memory `FakeDB` connection closes cleanly; this removed the extra ResourceWarnings seen in the first full rerun.
+
+### Verification Results
+
+- `..\..\venv\Scripts\python.exe -m pytest tests\unit\test_image_cache.py tests\unit\test_notification.py tests\unit\test_content_calendar_branches.py -q -o addopts=` (`projects/blind-to-x`) -> **14 passed**
+- `..\..\venv\Scripts\python.exe -m coverage run --source=pipeline -m pytest tests\unit\test_image_cache.py tests\unit\test_notification.py tests\unit\test_content_calendar_branches.py -q -o addopts=` + `coverage report -m --include="*image_cache.py,*notification.py,*content_calendar.py"` -> `image_cache.py` **91%**, `notification.py` **93%**, `content_calendar.py` **96%** in the isolated slice
+- `..\..\venv\Scripts\python.exe -m pytest tests\unit tests\integration -q --maxfail=1` (`projects/blind-to-x`) -> **595 passed, 16 skipped, 1 warning**, total coverage **59.89%**
+
+### Notes For Next Agent
+
+- `blind-to-x` is now just under 60%, so the next meaningful uplift needs a larger slice than these utility modules.
+- The best next candidates are `pipeline/image_generator.py` + `pipeline/image_upload.py`, or one of the 0%-coverage analytics modules if their external integrations can be mocked deterministically.
+
+## 2026-03-31 | Codex | T-100 blind-to-x coverage uplift (cost + notion query slice)
+
+### Work Summary
+
+Continued the remaining audit-owned coverage follow-up (`T-100`) inside `projects/blind-to-x` by focusing on deterministic hotspots first instead of scraper-heavy modules.
+
+- Added `tests/unit/test_cost_db_extended.py` to cover provider-failure persistence, score/view-stat updates, daily trends, style-performance lookups, cross-source insight/spike queries, archival flows, and calibrated-weight roundtrips.
+- Added `tests/unit/test_cost_tracker_extended.py` to cover config-driven pricing, summary formatting, Gemini threshold alerts, persisted-budget checks, and persisted daily-image totals.
+- Added `tests/unit/test_notion_query_mixin.py` to cover `pipeline/notion/_query.py` property extraction, top-performing post selection, approved-post fallback, status/select filtering, title search, recent-page filtering, and record extraction.
+- Fixed three runtime issues uncovered by the new tests: restored the legacy `CostDatabase._connect()` alias, corrected circuit-breaker skip-hour indexing in `get_circuit_skip_hours()`, and replaced the broken UTC fallback path in `record_provider_failure()`.
+- Modernized `pipeline/notion/_query.py` away from `datetime.utcnow()` to a local UTC helper so Python 3.14 no longer emits deprecation warnings from the mixin path.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `projects/blind-to-x/pipeline/cost_db.py` | update | Restored `_connect()` compatibility alias and fixed provider-failure helpers |
+| `projects/blind-to-x/pipeline/notion/_query.py` | update | Added UTC helper to avoid deprecated `utcnow()` paths |
+| `projects/blind-to-x/tests/unit/test_cost_db_extended.py` | add | Covered `CostDatabase` persistence/analytics/archive branches |
+| `projects/blind-to-x/tests/unit/test_cost_tracker_extended.py` | add | Covered config pricing, alerts, and persisted-budget flows |
+| `projects/blind-to-x/tests/unit/test_notion_query_mixin.py` | add | Covered `NotionQueryMixin` query/filter/extraction logic |
+| `.ai/TASKS.md`, `.ai/HANDOFF.md`, `.ai/STATUS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | update | Recorded `T-100` progress, new coverage numbers, and next hotspots |
+
+### Verification Results
+
+- `..\..\venv\Scripts\python.exe -m pytest tests\unit\test_cost_db_extended.py tests\unit\test_cost_tracker_extended.py -q -o addopts=` (`projects/blind-to-x`) -> **11 passed**
+- `..\..\venv\Scripts\python.exe -m coverage run --source=pipeline -m pytest tests\unit\test_cost_db_extended.py tests\unit\test_cost_tracker_extended.py -q -o addopts=` + `coverage report -m --include="*cost_db.py,*cost_tracker.py"` -> isolated `cost_db.py` **78%**, `cost_tracker.py` **77%**
+- `..\..\venv\Scripts\python.exe -m pytest tests\unit\test_notion_query_mixin.py -q -o addopts=` (`projects/blind-to-x`) -> **9 passed**
+- `..\..\venv\Scripts\python.exe -m coverage run --source=pipeline -m pytest tests\unit\test_notion_query_mixin.py -q -o addopts=` + `coverage report -m --include="*_query.py"` -> `pipeline/notion/_query.py` **84%**
+- `..\..\venv\Scripts\python.exe -m pytest tests\unit tests\integration -q --maxfail=1` (`projects/blind-to-x`) -> **581 passed, 16 skipped, 1 warning**, total coverage **58.53%**
+
+### Notes For Next Agent
+
+- `T-100` remains open, but `blind-to-x` moved from **56.56%** to **58.53%** in this session.
+- The next bounded uplift candidates are still deterministic modules before scraper-heavy work: `pipeline/image_cache.py`, `pipeline/notification.py`, `pipeline/content_calendar.py`, or one of the 0%-coverage analytics helpers if its external dependencies can be mocked cleanly.
+
+## 2026-03-31 | Codex | T-101 MCP footprint reduction
+
+### Work Summary
+
+Closed the remaining MCP-overhead audit follow-up inside the repo control plane.
+
+- Removed the redundant `filesystem` MCP registration from `.mcp.json` so local file access falls back to the built-in Read/Write/Glob/Grep path.
+- Rewrote `workspace/scripts/mcp_toggle.ps1` to include an `Action Guard` mode that surfaces overlapping AI tool clients before a deep session starts.
+- Marked the related `T-101` checklist items complete in `workspace/directives/system_audit_action_plan.md`.
+- Added `workspace/tests/test_mcp_config.py` so the config and guard surface stay locked in by automated checks.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `.mcp.json` | update | Removed redundant `filesystem` MCP registration |
+| `workspace/scripts/mcp_toggle.ps1` | rewrite | Added AI client footprint guard and unified status output |
+| `workspace/directives/system_audit_action_plan.md` | update | Marked the `T-101` follow-ups complete |
+| `workspace/directives/mcp_resource_profile.md` | update | Added a 2026-03-31 implementation note for the guard/removal |
+| `workspace/tests/test_mcp_config.py` | add | Locked in `.mcp.json` and guard-script expectations |
+| `.ai/TASKS.md`, `.ai/HANDOFF.md`, `.ai/STATUS.md`, `.ai/SESSION_LOG.md` | update | Synced the remaining audit backlog and verification notes |
+
+### Verification Results
+
+- `python -X utf8 -m pytest workspace\tests\test_mcp_config.py -q -o addopts=` -> **2 passed**
+- `powershell -ExecutionPolicy Bypass -File workspace\scripts\mcp_toggle.ps1 -Action Status` -> reported overlapping AI tool clients plus Tier 3 MCP status in one view
+- `python -X utf8 workspace/execution/health_check.py --category governance --json` -> **overall `ok`**, with only `T-100` remaining in the tracked audit backlog
+
+### Notes For Next Agent
+
+- `T-101` is complete at the repo/config layer. The remaining audit-driven work is now `T-100` only.
+- The guard currently detected both `Claude` and `VS Code` as active on this machine, so concurrent-client memory overhead is still real even though the repo now surfaces it explicitly.
+
+
+## 2026-03-31 | Codex | T-102 30-second golden render verification path
+
+### Work Summary
+
+Closed the remaining Shorts renderer audit follow-up by expanding the existing golden render integration path instead of creating a duplicate test surface.
+
+- Updated `projects/shorts-maker-v2/tests/integration/test_golden_render.py` from a 15-second sample to a 30-second sample by rendering 6 scenes at 5 seconds each.
+- Added ffprobe-based audio/video duration checks so the golden path now verifies both 9:16 resolution and A/V alignment, not just file existence and container duration.
+- Updated the slow-test marker description and marked the `T-102` audit-plan checkbox complete.
+- Moved `T-102` from TODO to DONE in `.ai/TASKS.md`.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `projects/shorts-maker-v2/tests/integration/test_golden_render.py` | update | 30-second golden render sample + audio/video sync assertions |
+| `projects/shorts-maker-v2/pytest.ini` | update | Slow-marker description now reflects the 30-second golden render path |
+| `workspace/directives/system_audit_action_plan.md` | update | Marked the `T-102` renderer follow-up complete |
+| `.ai/TASKS.md`, `.ai/HANDOFF.md`, `.ai/STATUS.md`, `.ai/SESSION_LOG.md` | update | Synced completion state and remaining priorities |
+
+### Verification Results
+
+- `..\..\venv\Scripts\python.exe -m pytest tests\integration\test_golden_render.py -q -o addopts=` (`projects/shorts-maker-v2`) -> **2 passed, 2 warnings** in **137.12s**
+- `python -X utf8 workspace/execution/health_check.py --category governance --json` -> **overall `ok`** with the remaining open follow-ups linked to `T-100` and `T-101`
+
+### Notes For Next Agent
+
+- The remaining audit backlog is now `T-100` and `T-101`; the renderer verification path is no longer an open governance gap.
+- The two warnings during the golden render run came from third-party dependencies (`google.genai` and `openai` on Python 3.14), not from the renderer path itself.
+
+
 ## 2026-03-31 | Gemini | Notion review_status to status migration & QC
 
 ### Work Summary
@@ -736,4 +927,11 @@ Recovered the shared baseline by restoring the `process.py` entrypoint split so 
 - `projects/blind-to-x/pipeline/process.py` now parses and the active staged flow is healthy again, but `_process_single_post_legacy()` still contains quarantined dead code from the earlier corruption; prefer completing **T-091** rather than editing that reference path casually.
 - During active BlindToX schedule windows, `qaqc_runner.py` may report `4/6 Ready` because two scheduled tasks are legitimately `Running`; verify with `schtasks /query` before treating that snapshot as infrastructure drift.
 - Keep the `health_check.py` root split intact: repo-root `.env` / `.tmp` / `.git` / `venv` / `CLAUDE.md`, workspace-local `execution/` / `directives/`.
+
+
+
+
+
+
+
 
