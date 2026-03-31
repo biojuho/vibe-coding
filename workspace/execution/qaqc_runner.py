@@ -4,6 +4,9 @@ Unified QA/QC runner for the workspace.
 This runner executes pytest across the root workspace and selected projects,
 performs AST validation for key modules, runs lightweight security checks, and
 optionally captures a small infrastructure snapshot.
+
+Operator ladder role:
+    DEEP shared approval-style pass
 """
 
 from __future__ import annotations
@@ -554,11 +557,13 @@ def determine_verdict(
 def run_qaqc(
     target_projects: list[str] | None = None,
     skip_infra: bool = False,
+    skip_debt: bool = False,
     output_file: str | None = None,
 ) -> dict:
     start_time = time.time()
     timestamp = datetime.now().isoformat(timespec="seconds")
 
+    print("Role: DEEP shared QA/QC approval pass")
     print(f"[INFO] QA/QC runner started at {timestamp}")
     print("=" * 60)
 
@@ -591,6 +596,40 @@ def run_qaqc(
     governance_result = governance_scan()
     gov_status = governance_result.get("status_detail", governance_result["status"])
     print(f"   [{governance_result['status']}] {gov_status}")
+
+    debt_result: dict[str, object] = {}
+    if not skip_debt:
+        print("\n[DEBT] Running VibeDebt audit...")
+        try:
+            from execution.vibe_debt_auditor import run_audit
+
+            audit = run_audit()
+            debt_result = {
+                "overall_tdr": audit.overall_tdr,
+                "overall_grade": audit.overall_grade,
+                "total_files": audit.total_files,
+                "total_principal_hours": audit.total_principal_hours,
+                "total_interest_monthly_hours": audit.total_interest_monthly_hours,
+                "projects": [
+                    {"name": p.name, "tdr_percent": p.tdr_percent, "tdr_grade": p.tdr_grade, "avg_score": p.avg_score}
+                    for p in audit.projects
+                ],
+            }
+            print(f"   TDR: {audit.overall_tdr:.1f}% [{audit.overall_grade}]")
+            print(
+                f"   Principal: {audit.total_principal_hours:.1f}h | Interest: {audit.total_interest_monthly_hours:.1f}h/mo"
+            )
+
+            try:
+                from execution.debt_history_db import DebtHistoryDB
+
+                db = DebtHistoryDB()
+                db.record_audit(audit)
+            except Exception:
+                pass
+        except Exception as exc:
+            print(f"   [WARN] Debt audit failed: {exc}")
+            debt_result = {"error": str(exc)}
 
     infra_result: dict[str, object] = {}
     if not skip_infra:
@@ -632,6 +671,7 @@ def run_qaqc(
         "ast_check": ast_result,
         "security_scan": security_result,
         "governance_scan": governance_result,
+        "debt_audit": debt_result,
         "infrastructure": infra_result,
     }
 
@@ -653,15 +693,25 @@ def run_qaqc(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Unified QA/QC runner")
+    parser = argparse.ArgumentParser(
+        description="Unified QA/QC runner (deep shared approval pass)",
+        epilog=(
+            "Operator ladder: doctor.py = FAST readiness, "
+            "quality_gate.py = STANDARD local gate, "
+            "qaqc_runner.py = DEEP shared approval, "
+            "health_check.py = DIAGNOSTIC drill-down."
+        ),
+    )
     parser.add_argument("--project", "-p", nargs="*", choices=list(PROJECTS.keys()), help="Run only selected projects")
     parser.add_argument("--skip-infra", action="store_true", help="Skip infrastructure checks")
+    parser.add_argument("--skip-debt", action="store_true", help="Skip VibeDebt audit")
     parser.add_argument("--output", "-o", type=str, help="Output JSON path")
     args = parser.parse_args()
 
     run_qaqc(
         target_projects=args.project,
         skip_infra=args.skip_infra,
+        skip_debt=args.skip_debt,
         output_file=args.output,
     )
 

@@ -6,7 +6,7 @@
 
 | ID | Task | Owner | Priority | Created |
 |----|------|-------|----------|---------|
-| T-112 | Consolidate workspace operator entrypoints (`doctor.py`, `health_check.py`, `quality_gate.py`, `qaqc_runner.py`) into one documented fast/standard/deep workflow and trim plan-vs-backlog drift in the control plane | Codex | High | 2026-03-31 |
+| T-113 | Address top debt hotspots identified by VibeDebt Auditor: `llm_client.py` (58.8), `blind-to-x/main.py` (59.2), `karaoke.py` (56.4) — focus on test_gap and complexity reduction | Claude | Medium | 2026-03-31 |
 
 
 ## IN_PROGRESS
@@ -19,11 +19,11 @@
 
 | ID | Task | Completed By | Completed |
 |----|------|--------------|-----------|
+| T-112 | Consolidated workspace operator entrypoints into a canonical `FAST / STANDARD / DEEP / DIAGNOSTIC` workflow, added `operator_workflow.md`, clarified script help/README guidance, and made `health_check.py` Windows-safe for real diagnostic use. | Codex | 2026-03-31 |
 | T-111 | Wired the local-only PR triage worktree helper into `workspace/execution/pr_triage_orchestrator.py`, added repo-specific validation profiles + `triage-report.json` artifacts, documented the new directive, and hardened Windows git-output decoding for non-ASCII paths. | Codex | 2026-03-31 |
 | T-110 | Evaluated ACPX `pr-triage`, adopted the safe isolation slice as `workspace/execution/pr_triage_worktree.py`, documented the directive, updated INDEX mapping, and verified with focused worktree tests. | Codex | 2026-03-31 |
 | T-109 | Extended test coverage for context selector (>80%), profile testing, limits testing. Fixed `repo_map.py` sqlite3 winerror lock issue. | Antigravity | 2026-03-31 |
 | T-106 | Apply ruff format to remaining unformatted files across the workspace (`ruff format .ai` and python files) | Gemini | 2026-03-31 |
-| T-108 | Added deterministic `repo_map.py` + `context_selector.py`, wired selective repository context into `VibeCodingGraph`, fixed `ThoughtDecomposer` task extraction (`task_text`), updated directive ownership, and verified with 39 passing workspace tests plus governance/mapping checks. | Codex | 2026-03-31 |
 
 ## Rules
 

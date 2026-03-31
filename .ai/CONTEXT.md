@@ -65,9 +65,11 @@ Vibe coding/
 
 - MCP servers are configured via `.mcp.json` and related files at repo root.
 - Telegram bot and other external providers use root `.env`.
+- Shared operator ladder on `2026-03-31`: `workspace/scripts/doctor.py` = `FAST` readiness, `workspace/scripts/quality_gate.py` = `STANDARD` local validation, `workspace/execution/qaqc_runner.py` = `DEEP` shared approval, and `workspace/execution/health_check.py` = `DIAGNOSTIC` drill-down. `workspace/directives/operator_workflow.md` is the canonical guide.
 - Shared control-plane health is checked through `workspace/execution/health_check.py`, with governance-specific validation implemented in `workspace/execution/governance_checks.py` and surfaced in `workspace/execution/qaqc_runner.py`.
 - `workspace/execution/repo_map.py` and `workspace/execution/context_selector.py` now provide deterministic repo-map scoring plus budgeted context selection for `workspace/execution/graph_engine.py`. Repo-map summaries are persisted in `.tmp/repo_map_cache.db` so unchanged files can be reused across builder instances. The selector defaults to `workspace/` unless a prompt explicitly targets `projects/` or `infrastructure/`.
 - `workspace/execution/pr_triage_worktree.py` now provides a local-only PR-style isolation primitive: it creates disposable linked worktrees under `.tmp/pr_triage_worktrees/`, records `manifest.json` plus `conflict-state.json`, and avoids implicit remote GitHub side effects.
 - `workspace/execution/pr_triage_orchestrator.py` now wraps that isolation helper with repo-specific validation profiles, per-command logs, and a durable `triage-report.json` artifact while defaulting to cleanup that removes only the linked worktree and keeps the session folder for review.
 - `infrastructure/` remains top-level and is not part of `workspace/`.
 - The active audit-owned coverage follow-up is still `T-100`: `projects/blind-to-x` improved to **71%** on `2026-03-31`, while `projects/shorts-maker-v2` remains above its floor at **91%**.
+- Roadmap-style directives are reference context by default; active execution priority is expected to come from `.ai/TASKS.md` and `.ai/HANDOFF.md`.

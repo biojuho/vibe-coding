@@ -3,6 +3,8 @@
 > 각 SOP(지침)가 어떤 실행 스크립트를 호출하는지, 역으로 스크립트가 어떤 SOP에 종속되는지 명시합니다.
 > 고아 파일 방지 및 유지보수 추적용.
 
+> Active execution priority comes from `.ai/TASKS.md` and `.ai/HANDOFF.md`; roadmap-style directives are reference context unless they are tied to a live task.
+
 ---
 
 ## SOP → Execution 매핑
@@ -23,8 +25,12 @@
 | mcp_skill_expansion_plan.md | *(계획 문서, 직접 매핑 없음)* | MCP 확장 계획 참조용 |
 | notebooklm_ops.md | notebooklm_integration.py, content_writer.py | NotebookLM 운영 |
 | notion_integration.md | notion_client.py, notion_shorts_sync.py, notion_article_uploader.py | Notion API 연동 |
+| operator_workflow.md | scripts/doctor.py, health_check.py, scripts/quality_gate.py, qaqc_runner.py | Canonical fast/standard/deep operator ladder for the shared control plane |
 | process_management.md | process_manager.py, scheduler_engine.py, scheduler_worker.py | 프로세스/스케줄러 관리 |
+| pr_triage_orchestrator.md | pr_triage_orchestrator.py, pr_triage_worktree.py | Read-only PR triage orchestration with repo-specific validation |
+| pr_triage_worktree.md | pr_triage_worktree.py | Isolated git worktree prep for PR-style validation |
 | qa_qc_workflow.md | qaqc_runner.py, qaqc_history_db.py, governance_checks.py | QA/QC 자동화 + control-plane governance |
+| vibe_debt_audit.md | vibe_debt_auditor.py, debt_history_db.py | 기술 부채 정량화 + TDR 추이 추적 |
 | roadmap_v3.md | *(계획 문서, 직접 매핑 없음)* | v3.0 로드맵 참조용 |
 | scheduler.md | scheduler_engine.py, scheduler_worker.py | Windows Task Scheduler 연동 |
 | session_workflow.md | *(워크플로우, 직접 매핑 없음)* | AI 세션 워크플로우 |

@@ -1,11 +1,13 @@
 """
-시스템 헬스 체크 - 디버깅 프로세스 Step 0 자동화.
-API 연결, 토큰 유효성, 환경 변수, 파일/DB 상태를 일괄 점검.
+System health check for targeted diagnostic drill-down.
+
+This is the detailed troubleshooting tool in the shared operator ladder.
+Use it after the FAST or STANDARD checks when you need subsystem detail.
 
 Usage (CLI):
-    python workspace/execution/health_check.py                # 전체 점검
-    python workspace/execution/health_check.py --category api  # API만 점검
-    python workspace/execution/health_check.py --json          # JSON 출력
+    python workspace/execution/health_check.py
+    python workspace/execution/health_check.py --category api
+    python workspace/execution/health_check.py --json
 
 Usage (library):
     from execution.health_check import run_all_checks
@@ -26,6 +28,10 @@ from typing import Dict, List, Optional, Tuple
 import requests
 from dotenv import load_dotenv
 
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 WORKSPACE_DIR = Path(__file__).resolve().parents[1]
 REPO_ROOT = WORKSPACE_DIR.parent
 if str(WORKSPACE_DIR) not in sys.path:
@@ -39,26 +45,31 @@ from execution.governance_checks import run_governance_checks  # noqa: E402
 _WORKSPACE_ROOT = WORKSPACE_DIR
 _ROOT = REPO_ROOT
 
-# ── 상태 상수 ──────────────────────────────────────────────
+# Operator ladder role:
+# - DIAGNOSTIC drill-down tool
+# - Reach for this after FAST/STANDARD checks when you need subsystem detail
+# - Not the default daily gate
+
+# Status constants
 STATUS_OK = "ok"
 STATUS_WARN = "warn"
 STATUS_FAIL = "fail"
 STATUS_SKIP = "skip"
 
-# ── 필수 디렉토리 ──────────────────────────────────────────
+# Required directories
 REQUIRED_DIRS = [
     ("execution/", _WORKSPACE_ROOT / "execution"),
     ("directives/", _WORKSPACE_ROOT / "directives"),
     (".tmp/", _ROOT / ".tmp"),
 ]
 
-# ── 필수 파일 ──────────────────────────────────────────────
+# Required files
 REQUIRED_FILES = [
     (".env", _ROOT / ".env"),
     ("CLAUDE.md", _ROOT / "CLAUDE.md"),
 ]
 
-# ── API 엔드포인트 점검 정의 ───────────────────────────────
+# API connectivity checks
 API_CHECKS = [
     {
         "name": "OpenAI",
@@ -76,7 +87,7 @@ API_CHECKS = [
     {
         "name": "Anthropic",
         "env_key": "ANTHROPIC_API_KEY",
-        "url": None,  # 키 존재만 확인 (credit 소모 방지)
+        "url": None,  # Presence-only check to avoid consuming credits
     },
     {
         "name": "Google (Gemini)",
@@ -98,7 +109,7 @@ API_CHECKS = [
     {
         "name": "Zhipu AI",
         "env_key": "ZHIPUAI_API_KEY",
-        "url": None,  # 키 존재만 확인 (표준 /models 엔드포인트 없음)
+        "url": None,  # Presence-only check; no standard /models endpoint
     },
     {
         "name": "xAI (Grok)",
@@ -119,7 +130,7 @@ API_CHECKS = [
     },
 ]
 
-# ── DB 파일 점검 ───────────────────────────────────────────
+# Database checks
 DB_CHECKS = [
     ("api_usage.db", _ROOT / ".tmp" / "api_usage.db"),
     ("content.db", _ROOT / ".tmp" / "content.db"),
@@ -128,9 +139,7 @@ DB_CHECKS = [
 ]
 
 
-# ── 개별 점검 함수들 ──────────────────────────────────────
-
-
+# Individual check helpers
 def _check_result(name: str, category: str, status: str, detail: str = "") -> Dict:
     return {
         "name": name,
@@ -142,7 +151,7 @@ def _check_result(name: str, category: str, status: str, detail: str = "") -> Di
 
 
 def check_env_vars() -> List[Dict]:
-    """필수 환경 변수 존재 여부 점검."""
+    """Check whether required environment variables are present."""
     results = []
     all_keys = set()
     for api in API_CHECKS:
@@ -159,7 +168,7 @@ def check_env_vars() -> List[Dict]:
 
 
 def _check_single_api(api: Dict) -> Dict:
-    """단일 API 항목 점검 (병렬 실행용)."""
+    """Check one API target; intended for parallel execution."""
     name = api["name"]
 
     if "env_keys" in api:
@@ -200,8 +209,8 @@ def _check_single_api(api: Dict) -> Dict:
 
 
 def check_api_connections() -> List[Dict]:
-    """API 엔드포인트 연결 및 인증 점검 (병렬 실행으로 속도 향상)."""
-    # 원래 순서 보존을 위해 index로 정렬
+    """Check API connectivity and auth with parallel requests where possible."""
+    # Preserve the original display order by writing results back by index.
     futures_map: Dict = {}
     results: List[Dict] = [None] * len(API_CHECKS)  # type: ignore[list-item]
 
@@ -221,7 +230,7 @@ def check_api_connections() -> List[Dict]:
 
 
 def check_directories() -> List[Dict]:
-    """필수 디렉토리 존재 여부 점검."""
+    """Check whether required directories exist."""
     results = []
     for name, path in REQUIRED_DIRS:
         if path.is_dir():
@@ -232,7 +241,7 @@ def check_directories() -> List[Dict]:
 
 
 def check_files() -> List[Dict]:
-    """필수 파일 존재 여부 점검."""
+    """Check whether required files exist."""
     results = []
     for name, path in REQUIRED_FILES:
         if path.is_file():
@@ -243,7 +252,7 @@ def check_files() -> List[Dict]:
 
 
 def check_databases() -> List[Dict]:
-    """SQLite DB 파일 상태 점검."""
+    """Check SQLite database file availability and integrity."""
     results = []
     for name, path in DB_CHECKS:
         if not path.exists():
@@ -261,7 +270,7 @@ def check_databases() -> List[Dict]:
 
 
 def check_venv() -> List[Dict]:
-    """Python venv 활성화 상태 점검."""
+    """Check Python virtual environment availability and activation state."""
     venv_path = _ROOT / "venv"
     in_venv = hasattr(os.sys, "real_prefix") or (hasattr(os.sys, "base_prefix") and os.sys.base_prefix != os.sys.prefix)
     if in_venv:
@@ -273,14 +282,14 @@ def check_venv() -> List[Dict]:
 
 
 def check_git() -> List[Dict]:
-    """Git 상태 점검."""
+    """Check that the repo looks like a Git working tree."""
     git_dir = _ROOT / ".git"
     if git_dir.is_dir():
         return [_check_result("git", "environment", STATUS_OK, str(git_dir))]
     return [_check_result("git", "environment", STATUS_FAIL, ".git directory not found")]
 
 
-# ── API 키 형식 패턴 (prefix → regex) ─────────────────────
+# API key format patterns (prefix -> regex)
 _KEY_FORMAT_PATTERNS: Dict[str, Tuple[str, re.Pattern[str]]] = {
     "OPENAI_API_KEY": ("sk-...", re.compile(r"^sk-.{20,}")),
     "ANTHROPIC_API_KEY": ("sk-ant-...", re.compile(r"^sk-ant-.{20,}")),
@@ -325,7 +334,7 @@ _KEY_VALIDATION_ENDPOINTS: Dict[str, Dict] = {
 
 
 def check_api_key_health() -> List[Dict]:
-    """API 키 존재, 형식, 유효성 점검.
+    """Check API key presence, format, and lightweight validity.
 
     For each known API key environment variable:
     - Check if the key is set (non-empty)
@@ -464,11 +473,9 @@ def check_env_completeness() -> List[Dict]:
     return results
 
 
-# ── 메인 실행 ──────────────────────────────────────────────
-
-
+# Main execution helpers
 def run_all_checks(category: Optional[str] = None) -> List[Dict]:
-    """모든 헬스 체크 실행. category로 필터링 가능."""
+    """Run all health checks, optionally filtered to one category."""
     all_results: List[Dict] = []
 
     checkers = [
@@ -497,7 +504,7 @@ def run_all_checks(category: Optional[str] = None) -> List[Dict]:
 
 
 def get_summary(results: List[Dict]) -> Dict:
-    """점검 결과 요약 통계."""
+    """Summarize the result set into counts and an overall status."""
     counts = {STATUS_OK: 0, STATUS_WARN: 0, STATUS_FAIL: 0, STATUS_SKIP: 0}
     for r in results:
         counts[r["status"]] = counts.get(r["status"], 0) + 1
@@ -513,37 +520,50 @@ def get_summary(results: List[Dict]) -> Dict:
 
 
 def _print_report(results: List[Dict]) -> None:
-    """터미널용 컬러 리포트 출력."""
-    ICONS = {STATUS_OK: "✅", STATUS_WARN: "⚠️", STATUS_FAIL: "❌", STATUS_SKIP: "⏭️"}
+    """Print a terminal-friendly diagnostic report."""
+    ICONS = {STATUS_OK: "[OK]", STATUS_WARN: "[WARN]", STATUS_FAIL: "[FAIL]", STATUS_SKIP: "[SKIP]"}
+
+    print("=" * 50)
+    print("Health Check - DIAGNOSTIC Drill-Down")
+    print("Role: targeted troubleshooting, not the default fast/standard/deep gate")
+    print("=" * 50)
 
     current_cat = ""
     for r in results:
         if r["category"] != current_cat:
             current_cat = r["category"]
-            print(f"\n{'─' * 50}")
+            print(f"\n{'=' * 50}")
             print(f"  [{current_cat.upper()}]")
-            print(f"{'─' * 50}")
+            print(f"{'=' * 50}")
         icon = ICONS.get(r["status"], "?")
-        detail = f" — {r['detail']}" if r["detail"] else ""
+        detail = f" :: {r['detail']}" if r["detail"] else ""
         print(f"  {icon} {r['name']}{detail}")
 
     summary = get_summary(results)
-    print(f"\n{'═' * 50}")
+    print(f"\n{'=' * 50}")
     overall_icon = ICONS.get(summary["overall"], "?")
     c = summary["counts"]
     print(f"  {overall_icon} Overall: {summary['overall'].upper()}")
     print(f"     OK={c[STATUS_OK]}  WARN={c[STATUS_WARN]}  FAIL={c[STATUS_FAIL]}  SKIP={c[STATUS_SKIP]}")
-    print(f"{'═' * 50}")
+    print(f"{'=' * 50}")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Joolife System Health Check")
+    parser = argparse.ArgumentParser(
+        description="Joolife System Health Check (diagnostic drill-down)",
+        epilog=(
+            "Operator ladder: doctor.py = FAST readiness, "
+            "quality_gate.py = STANDARD local gate, "
+            "qaqc_runner.py = DEEP shared approval, "
+            "health_check.py = DIAGNOSTIC drill-down."
+        ),
+    )
     parser.add_argument(
         "--category",
         choices=["env", "api", "filesystem", "database", "environment", "governance"],
-        help="점검 카테고리 필터",
+        help="Filter to one health-check category",
     )
-    parser.add_argument("--json", action="store_true", help="JSON 형식 출력")
+    parser.add_argument("--json", action="store_true", help="Print the report as JSON")
     args = parser.parse_args()
 
     results = run_all_checks(category=args.category)

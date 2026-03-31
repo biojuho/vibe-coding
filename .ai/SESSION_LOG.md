@@ -1,5 +1,100 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-03-31 | Codex | T-112 operator workflow consolidation
+
+### Work Summary
+
+Closed the productivity follow-up from the control-plane critique by reducing operator choice overload into one canonical ladder.
+
+- Added `workspace/directives/operator_workflow.md` as the canonical guide for `FAST / STANDARD / DEEP / DIAGNOSTIC`
+- Rewrote `workspace/scripts/README.md` so the default path is explicit: `doctor.py` -> `quality_gate.py` -> `qaqc_runner.py`
+- Updated `workspace/scripts/doctor.py` and `workspace/scripts/quality_gate.py` to print role-specific guidance and next-step escalation hints
+- Updated `workspace/execution/qaqc_runner.py` help/output text so the deep shared pass is clearly distinguished from lighter gates
+- Hardened `workspace/execution/health_check.py` for Windows real-run diagnostics by forcing UTF-8 console output and switching to ASCII-safe status markers in the printable report
+- Updated `.ai/CONTEXT.md`, `.ai/HANDOFF.md`, and `.ai/TASKS.md` so active execution priority now clearly points to the operator ladder and `T-112` is recorded as done
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| workspace/directives/operator_workflow.md | new | Canonical operator ladder guide |
+| workspace/scripts/README.md | update | Reframed around fast/standard/deep/diagnostic entrypoints |
+| workspace/directives/INDEX.md | update | Added operator workflow mapping + reference-only roadmap note |
+| workspace/scripts/doctor.py | update | FAST readiness role + next-step hint |
+| workspace/scripts/quality_gate.py | update | STANDARD validation role + deep-pass hint |
+| workspace/execution/health_check.py | update | Windows-safe DIAGNOSTIC output and clearer help text |
+| workspace/execution/qaqc_runner.py | update | DEEP shared approval role wording |
+| .ai/CONTEXT.md | update | Canonical operator ladder note |
+| .ai/HANDOFF.md | update | Session relay refreshed for completed `T-112` |
+| .ai/TASKS.md | update | Moved `T-112` to DONE |
+| .ai/SESSION_LOG.md | update | This entry |
+
+### Verification Results
+
+- `venv\Scripts\python.exe -X utf8 workspace\scripts\check_mapping.py` -> **All mappings valid**
+- `venv\Scripts\python.exe -m pytest workspace\tests\test_doctor.py workspace\tests\test_health_check.py workspace\tests\test_qaqc_runner.py workspace\tests\test_qaqc_runner_extended.py -q -o addopts=` -> **71 passed**
+- `venv\Scripts\python.exe -m py_compile workspace\scripts\doctor.py workspace\scripts\quality_gate.py workspace\execution\health_check.py workspace\execution\qaqc_runner.py` -> **pass**
+- `venv\Scripts\python.exe workspace\scripts\doctor.py` -> **pass**
+- `venv\Scripts\python.exe workspace\execution\health_check.py --category governance` -> **pass**
+- `venv\Scripts\python.exe workspace\execution\health_check.py --help` -> **pass**
+- `venv\Scripts\python.exe workspace\execution\qaqc_runner.py --help` -> **pass**
+
+### Notes For Next Agent
+
+- The default shared control-plane path is now `doctor.py` -> `quality_gate.py` -> `qaqc_runner.py`; reserve `health_check.py --category ...` for targeted diagnosis.
+- Treat roadmap-style directives as reference context unless they are linked to an active task in `.ai/TASKS.md` or called out in `.ai/HANDOFF.md`.
+- The next bounded productivity follow-up is no longer operator clarity; it is debt hotspot reduction (`T-113`) and any remaining planning/backlog drift.
+
+---
+
+## 2026-03-31 | Claude | VibeDebt Auditor implementation
+
+### Work Summary
+
+Implemented a complete technical debt quantification system (VibeDebt Auditor) for the vibe-coded workspace, responding to the user's request to introduce debt management tooling.
+
+- Created `workspace/execution/vibe_debt_auditor.py`: 6-dimension scoring engine (complexity 25%, duplication 20%, test_gap 20%, debt_markers 15%, modularity 10%, doc_sync 10%), TDR calculation, principal/interest cost model
+- Created `workspace/execution/debt_history_db.py`: SQLite time-series DB for audit snapshots, project trends, top debtors, consecutive-increase detection
+- Created `workspace/execution/pages/debt_dashboard.py`: Streamlit dashboard with KPI cards, TDR trend charts, per-project breakdown, dimension bars, filterable top debtors table
+- Created `workspace/directives/vibe_debt_audit.md`: SOP with metric definitions, thresholds, execution guide
+- Integrated as optional `[DEBT]` stage in `qaqc_runner.py` (`--skip-debt` flag)
+- Created `workspace/tests/test_vibe_debt_auditor.py`: 29 tests, 82% coverage
+- Updated `workspace/directives/INDEX.md` with new mapping
+- First scan result: 452 files, TDR 41.4% (RED), top factors: test_gap + complexity
+- Logged `T-113` for top hotspot remediation
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| workspace/directives/vibe_debt_audit.md | new | SOP for debt audit |
+| workspace/execution/vibe_debt_auditor.py | new | 6-dimension scoring engine |
+| workspace/execution/debt_history_db.py | new | SQLite history tracker |
+| workspace/execution/pages/debt_dashboard.py | new | Streamlit dashboard |
+| workspace/tests/test_vibe_debt_auditor.py | new | 29 tests |
+| workspace/execution/qaqc_runner.py | update | Added [DEBT] stage + --skip-debt |
+| workspace/directives/INDEX.md | update | Added vibe_debt_audit mapping |
+| .ai/HANDOFF.md | update | Session relay |
+| .ai/TASKS.md | update | Added T-113 |
+| .ai/SESSION_LOG.md | update | This entry |
+
+### Verification Results
+
+- `venv\Scripts\python.exe -X utf8 -m pytest workspace\tests\test_vibe_debt_auditor.py -v` -> **29 passed, 82% coverage**
+- `venv\Scripts\python.exe -m ruff check workspace\execution\vibe_debt_auditor.py workspace\execution\debt_history_db.py` -> **All checks passed**
+- `venv\Scripts\python.exe -X utf8 -m pytest workspace\tests\test_qaqc_runner.py -q` -> **24 passed**
+- `venv\Scripts\python.exe -X utf8 -m pytest workspace\tests\test_governance_checks.py -q` -> **6 passed**
+- `venv\Scripts\python.exe -X utf8 workspace\execution\vibe_debt_auditor.py` -> **452 files scanned, TDR 41.4%**
+
+### Notes For Next Agent
+
+- TDR 41.4% is high but expected for a vibe-coded project with rapid iteration. The test_gap dimension dominates because many execution scripts lack dedicated test files.
+- The cost model (0.5 min/LOC dev cost, 2 min/debt-point principal) is conservative. Calibrate thresholds after collecting 5-10 snapshots.
+- `T-113` should prioritize the top 3 debtor files across projects, focusing on test_gap reduction (adds tests) and complexity reduction (extract functions).
+- The dashboard works standalone via `streamlit run workspace/execution/pages/debt_dashboard.py`.
+
+---
+
 ## 2026-03-31 | Codex | productivity critique + control-plane follow-up capture
 
 ### Work Summary
@@ -1213,5 +1308,4 @@ The baseline remained `APPROVED` and moved up again because the root suite now i
 
 - This QC run was against a dirty workspace, so treat the `3066 passed` total as the current shared baseline for the in-progress tree, not a pristine-branch historical baseline.
 - `projects/knowledge-dashboard/public/qaqc_result.json` was refreshed automatically by the runner and now matches the latest `APPROVED` result.
-
 

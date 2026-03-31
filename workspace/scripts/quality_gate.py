@@ -1,3 +1,11 @@
+"""
+Standard local quality gate for the shared workspace operator ladder.
+
+Use this before commit or handoff to catch local regressions.
+Escalate to `python workspace/execution/qaqc_runner.py` when you need the deep
+shared approval-style pass.
+"""
+
 from __future__ import annotations
 
 import json
@@ -124,6 +132,12 @@ def _run_high_severity_gate(python_exe: str) -> bool:
 
 def main() -> int:
     python_exe = _python_executable()
+    print("=" * 72)
+    print("Quality Gate - STANDARD Local Validation")
+    print("=" * 72)
+    print("Role: smoke + pytest + lint + high-severity static analysis")
+    print("Escalate: run `python workspace/execution/qaqc_runner.py` for the deep shared pass")
+    print("-" * 72)
     if python_exe != str(VENV_PYTHON):
         print(
             f"[WARN] Workspace venv python not found at {VENV_PYTHON}. "
@@ -143,6 +157,7 @@ def main() -> int:
         return 1
 
     print("[PASS] Quality gate passed")
+    print("Next: run `python workspace/execution/qaqc_runner.py` when you need shared QA/QC approval.")
     return 0
 
 

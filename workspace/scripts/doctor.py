@@ -1,3 +1,12 @@
+"""
+Fast readiness check for the shared workspace operator ladder.
+
+Use this first after Python, package, venv, or env-var changes.
+Escalate to `python workspace/execution/health_check.py --category ...` for
+diagnostics and `python workspace/scripts/quality_gate.py` for the standard
+local pre-commit gate.
+"""
+
 from __future__ import annotations
 
 import importlib.util
@@ -220,8 +229,11 @@ def run_checks() -> List[CheckResult]:
 
 def print_report(results: List[CheckResult]) -> int:
     print("=" * 72)
-    print("Joolife Doctor - Readiness Check")
+    print("Joolife Doctor - FAST Readiness Check")
     print("=" * 72)
+    print("Role: quick operator readiness after env/python/package changes")
+    print("Escalate: health_check.py for diagnostics, quality_gate.py for local validation")
+    print("-" * 72)
     for item in results:
         print(f"[{item.status}] {item.name}: {item.detail}")
         if item.remedy:
@@ -233,6 +245,8 @@ def print_report(results: List[CheckResult]) -> int:
     print(f"Summary: PASS={len(results) - len(fails) - len(warns)} WARN={len(warns)} FAIL={len(fails)}")
     print(f"Python: {sys.executable}")
     print(f"Workspace: {WORKSPACE}")
+    if not fails:
+        print("Next: run `python workspace/scripts/quality_gate.py` before local handoff or commit.")
     print("=" * 72)
     return 1 if fails else 0
 
