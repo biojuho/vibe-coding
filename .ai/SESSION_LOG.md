@@ -1,5 +1,40 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-03-31 | Claude | T-100 blind-to-x coverage uplift (+106 tests)
+
+### Work Summary
+
+Raised blind-to-x project coverage from **59.89% → 71%** by adding 106 unit tests across 4 previously-untested modules.
+
+- Created `tests/unit/test_image_generator.py` — 45 tests covering `_env_flag`, `build_image_prompt` (all sources: blind/ppomppu/fmkorea/jobplanet/generic), `_build_blind_anime_prompt` (semantic scene matching, topic fallback, default pool), `_validate_image` (PIL checks), `__init__` (gemini/pollinations/dalle providers), `generate_image` (cache hit, fallback chains), `_generate_gemini` / `_generate_pollinations` error paths.
+- Created `tests/unit/test_image_upload.py` — 30 tests covering `_optimize_image_for_upload` (PNG→JPEG conversion, RGBA/palette/grayscale modes, resolution shrink, corrupted files), `ImageUploader.__init__` (provider configs, env overrides), `upload` / `upload_from_url` (Imgur/Cloudinary success/failure/fallback paths).
+- Created `tests/unit/test_analytics_tracker.py` — 20 tests covering `_env_flag`, `extract_tweet_id`, `_performance_grade` (all grade tiers S/A/B/C/D, bonus calculations), `_kst_time_slot`, `__init__` (disabled/enabled/missing creds).
+- Created `tests/unit/test_draft_analytics.py` — 7 tests covering `record_draft_event` (with/without scores, defaults, exception suppression), `refresh_ml_scorer_if_needed`.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| projects/blind-to-x/tests/unit/test_image_generator.py | new | 45 tests |
+| projects/blind-to-x/tests/unit/test_image_upload.py | new | 30 tests |
+| projects/blind-to-x/tests/unit/test_analytics_tracker.py | new | 20 tests |
+| projects/blind-to-x/tests/unit/test_draft_analytics.py | new | 7 tests |
+| .ai/HANDOFF.md, .ai/TASKS.md, .ai/SESSION_LOG.md | update | Session recording |
+
+### Verification Results
+
+- `pytest tests/unit tests/integration -q` (blind-to-x) → **701 passed, 16 skipped**
+- `coverage report --format=total` (blind-to-x) → **71%** (up from 59.89%)
+- Module coverage: `draft_analytics.py` **100%**, `image_upload.py` **89%**, `image_generator.py` **77%**, `analytics_tracker.py` **59%**
+- Shared QC runner → **APPROVED** (`3038 passed / 29 skipped`, AST 20/20, security+governance CLEAR)
+
+### Notes For Next Agent
+
+- T-100 is still IN_PROGRESS — blind-to-x at 71%, shorts-maker-v2 not yet started.
+- Next blind-to-x candidates: `dedup.py`, `content_intelligence.py`, `style_bandit.py`.
+
+---
+
 ## 2026-03-31 | Antigravity | T-109 context_selector tests & repo_map fix
 
 ### Work Summary
@@ -1085,5 +1120,38 @@ The latest baseline remained `APPROVED`, and the totals moved up because the cur
 
 - This QC run was against a dirty workspace, so treat the `3038 passed` total as the current shared baseline for the in-progress tree, not a pristine-branch historical baseline.
 - `projects/knowledge-dashboard/public/qaqc_result.json` was refreshed automatically by the runner and now matches the latest `APPROVED` result.
+
+## 2026-03-31 | Codex | read-only PR triage orchestrator + Windows path decode hardening
+
+### Work Summary
+
+Built `workspace/execution/pr_triage_orchestrator.py` on top of the existing local worktree helper so a single entrypoint can prepare an isolated linked worktree, auto-select repo-specific validation profiles, run read-only checks, persist `triage-report.json` plus per-command logs, and remove the linked worktree while leaving artifacts behind for review. Added `workspace/directives/pr_triage_orchestrator.md`, mapped it in `workspace/directives/INDEX.md`, and covered the new lane with focused tests.
+
+During an end-to-end smoke run on a temporary git repo, noticed that `workspace/execution/pr_triage_worktree.py` could still mis-handle non-ASCII Windows home-directory paths when decoding git command output. Hardened that helper to decode UTF-8 first and fall back to the local Windows encoding, then added a regression test so triage manifests keep human-readable paths on this machine.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `workspace/execution/pr_triage_orchestrator.py` | add | New read-only PR triage entrypoint that wraps session prep, profile selection, validation execution, artifact capture, and cleanup |
+| `workspace/directives/pr_triage_orchestrator.md` | add | New SOP describing when and how to use the higher-level PR triage orchestrator |
+| `workspace/tests/test_pr_triage_orchestrator.py` | add | Added focused tests for profile auto-detection, node dependency skip behavior, and triage-report persistence |
+| `workspace/execution/pr_triage_worktree.py` | fix | Hardened git stdout decoding for non-ASCII Windows paths by using UTF-8 plus locale fallback |
+| `workspace/tests/test_pr_triage_worktree.py` | update | Added a regression test covering Windows ANSI fallback decoding |
+| `workspace/directives/INDEX.md` | update | Added directive-to-execution mapping for the new PR triage orchestrator |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | update | Recorded the new control-plane lane, verification results, and handoff notes |
+
+### Verification Results
+
+- `venv\Scripts\python.exe -m pytest workspace\tests\test_pr_triage_orchestrator.py workspace\tests\test_pr_triage_worktree.py -q -o addopts=` -> **7 passed**
+- `venv\Scripts\python.exe -m ruff check workspace\execution\pr_triage_orchestrator.py workspace\execution\pr_triage_worktree.py workspace\tests\test_pr_triage_orchestrator.py workspace\tests\test_pr_triage_worktree.py` -> **All checks passed**
+- `venv\Scripts\python.exe -m compileall workspace\execution\pr_triage_orchestrator.py workspace\execution\pr_triage_worktree.py` -> **pass**
+- `venv\Scripts\python.exe -X utf8 workspace\execution\pr_triage_orchestrator.py run --repo-path .tmp/pr_triage_orchestrator_smoke/demo-python --head-ref main --profile python-generic --label smoke` -> **`PASS`** on a temporary git repo; produced `triage-report.json` plus per-command logs and cleaned the linked worktree afterward
+
+### Notes For Next Agent
+
+- `workspace/execution/pr_triage_orchestrator.py` is now the preferred read-only entrypoint for future PR-style validation; keep `workspace/execution/pr_triage_worktree.py` as the lower-level isolation primitive underneath it.
+- Node-backed validation profiles intentionally reuse the source repo's existing `node_modules`; when dependencies are missing, the orchestrator skips those commands rather than installing packages inside the isolated worktree.
+- The new orchestrator still stays strictly local-only. If future work adds manual command overrides or GitHub integration, keep those opt-in and separate from the baseline profile flow.
 
 

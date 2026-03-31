@@ -6,30 +6,32 @@
 
 | Date | 2026-03-31 |
 | Tool | Codex |
-| Work | Ran the full shared QA/QC runner against the current dirty workspace after the new local worktree helper landed, recorded an `APPROVED` result (`3038 passed / 29 skipped`, `AST 20/20`, security and governance `CLEAR`), and refreshed the shared baseline in `projects/knowledge-dashboard/public/qaqc_result.json`. |
+| Work | Completed `T-111`: added `workspace/execution/pr_triage_orchestrator.py` plus `workspace/directives/pr_triage_orchestrator.md`, wired repo-specific read-only validation profiles on top of the local worktree helper, and hardened Windows git-output decoding so triage manifests keep non-ASCII paths readable. |
 
 ### Previous Note
 
 | Date | 2026-03-31 |
-| Tool | Codex |
-| Work | Evaluated ACPX `examples/flows/pr-triage`, kept only the isolation layer that fits the local-first workspace, added `workspace/execution/pr_triage_worktree.py` plus `workspace/directives/pr_triage_worktree.md`, updated `workspace/directives/INDEX.md`, and verified the new helper with focused git-worktree tests. |
+| Tool | Claude |
+| Work | T-100 blind-to-x coverage uplift: added 106 unit tests for `image_generator.py`, `image_upload.py`, `analytics_tracker.py`, `draft_analytics.py`. Coverage moved from **59.89%** to **71%**. QC rerun: **APPROVED** (`3038 passed / 29 skipped`, AST 20/20, security+governance CLEAR). |
 
 ## Current State
 
 - Shared workspace QC latest rerun on `2026-03-31` is **`APPROVED`**: `blind-to-x 700 passed / 16 skipped`, `shorts-maker-v2 1270 passed / 12 skipped`, `root 1068 passed / 1 skipped`, total `3038 passed / 29 skipped`, `AST 20/20`, security `CLEAR (2 triaged issue(s))`, governance `CLEAR`, infrastructure `6/6 Ready`, disk `135.2 GB free`.
-- `projects/blind-to-x` project-only coverage rerun on `2026-03-31` now reports **`595 passed / 16 skipped / 59.89% coverage`** after the active `T-100` uplift slices. The biggest completed hotspots in this session are `pipeline/cost_db.py` (**81%**), `pipeline/cost_tracker.py` (**83%**), `pipeline/notion/_query.py` (**84%**), `pipeline/image_cache.py` (**91%**), `pipeline/notification.py` (**93%**), and `pipeline/content_calendar.py` (**100%**).
+- `projects/blind-to-x` project-only coverage rerun on `2026-03-31` now reports **`701 passed / 16 skipped / 71% coverage`** after the latest `T-100` uplift. New test files: `test_image_generator.py` (45 tests), `test_image_upload.py` (30 tests), `test_analytics_tracker.py` (20 tests), `test_draft_analytics.py` (7 tests). Module coverage: `draft_analytics.py` **100%**, `image_upload.py` **89%**, `image_generator.py` **77%**, `analytics_tracker.py` **59%**.
 - The 2 triaged security findings from the latest shared QC are both known false positives in `projects/blind-to-x/pipeline/cost_db.py` because the interpolated `table` names come only from the internal `_ARCHIVE_TABLES` allowlist.
 - `workspace/execution/governance_checks.py` is now part of the shared control plane on `2026-03-31`: it validates required `.ai` context files, targeted relay claims against live code, directive/INDEX ownership drift, and tracked audit follow-up linkage to `.ai/TASKS.md`.
 - `workspace/execution/health_check.py --category governance` now exposes that governance gate directly, and `workspace/execution/qaqc_runner.py` downgrades the final verdict away from `APPROVED` whenever governance returns `WARNING` or `FAIL`.
 - `workspace/execution/repo_map.py` and `workspace/execution/context_selector.py` are now part of the shared control plane on `2026-03-31`: they build a deterministic repo map, rank relevant files within a char budget, and inject the selected repository context into `workspace/execution/graph_engine.py` before variant generation.
 - `workspace/execution/repo_map.py` now also persists file summaries under `.tmp/repo_map_cache.db` on `2026-03-31`, keyed by relative path + file size + `mtime_ns`, so fresh builder instances can reuse parsed metadata without re-reading unchanged files.
 - `workspace/execution/pr_triage_worktree.py` and `workspace/directives/pr_triage_worktree.md` are now part of the shared control plane on `2026-03-31`: they create disposable linked git worktrees under `.tmp/pr_triage_worktrees/`, record `manifest.json` plus `conflict-state.json`, and keep PR-style validation local-only with no implicit fetch/push/comment side effects.
+- `workspace/execution/pr_triage_orchestrator.py` and `workspace/directives/pr_triage_orchestrator.md` are now part of the shared control plane on `2026-03-31`: they sit above `pr_triage_worktree.py`, auto-select repo-specific validation profiles, persist `triage-report.json` plus `logs/*.log`, and default to removing only the linked worktree while keeping the session artifacts for review.
+- `workspace/execution/pr_triage_worktree.py` now decodes git command output with UTF-8 plus locale fallback on `2026-03-31`, which keeps manifest/report paths readable on Windows machines whose home directory includes non-ASCII characters.
 - `workspace/execution/graph_engine.py` now merges selected repo context into the supervisor state and correctly reads `TaskNode.task_text` from `workspace/execution/thought_decomposer.py` instead of the broken `child.task` attribute.
 - `.mcp.json` no longer registers the redundant `filesystem` MCP server on `2026-03-31`; local file work is expected to use the built-in Read/Write/Glob/Grep tool path instead.
 - `workspace/scripts/mcp_toggle.ps1` now includes a `Guard` action that reports overlapping AI tool clients so multi-client MCP footprint drift is visible before deep sessions.
 - `workspace/directives/INDEX.md` and `workspace/directives/local_inference.md` now explicitly cover the local inference + agentic coding stack, including `graph_engine.py`, `workers.py`, `code_evaluator.py`, and `governance_checks.py`.
 - `workspace/execution/code_evaluator.py` remains a dedicated evaluator module with its own tests, but `workspace/execution/graph_engine.py` still uses its local weighted evaluation/reflection loop rather than a direct `CodeEvaluator` import. The relay now says that explicitly, and governance checks guard against the old stale claim recurring.
-- The latest shared QC was run against a dirty worktree, not a pristine tree. Current non-committed control-plane WIP includes `workspace/execution/repo_map.py`, `workspace/execution/context_selector.py`, `workspace/execution/graph_engine.py`, `workspace/execution/pr_triage_worktree.py`, `workspace/tests/test_context_selector.py`, `workspace/tests/test_pr_triage_worktree.py`, and `workspace/directives/pr_triage_worktree.md`, alongside unrelated skill/infrastructure edits and untracked temp files (`o.txt`, `temp_test_out.txt`).
+- The latest shared QC was run against a dirty worktree, not a pristine tree. Current non-committed control-plane WIP includes `workspace/execution/repo_map.py`, `workspace/execution/context_selector.py`, `workspace/execution/graph_engine.py`, `workspace/execution/pr_triage_worktree.py`, `workspace/execution/pr_triage_orchestrator.py`, `workspace/tests/test_context_selector.py`, `workspace/tests/test_pr_triage_worktree.py`, `workspace/tests/test_pr_triage_orchestrator.py`, `workspace/directives/pr_triage_worktree.md`, and `workspace/directives/pr_triage_orchestrator.md`, alongside unrelated skill/infrastructure edits and untracked temp files (`o.txt`, `temp_test_out.txt`).
 - The ACPX `pr-triage` example reviewed on `2026-03-31` does not literally use `git worktree`; its `prepareWorkspace()` step creates an isolated temp clone. Our adaptation deliberately uses linked worktrees instead because the local-first workspace already has the repos on disk and wants lower-overhead isolation.
 - The Shorts golden render escape hatch is now pinned to a real 30-second verification path in `projects/shorts-maker-v2/tests/integration/test_golden_render.py`, and it validates both backends for resolution plus audio/video duration alignment.
 - Open follow-ups in `workspace/directives/system_audit_action_plan.md` now carry `[TASK: T-XXX]` markers and are linked to the one remaining active audit task (`T-100`) instead of living only in a markdown checklist.
@@ -45,6 +47,10 @@
 - `venv\Scripts\python.exe -m ruff check workspace\execution\repo_map.py workspace\execution\context_selector.py workspace\execution\graph_engine.py workspace\tests\test_context_selector.py workspace\tests\test_graph_engine.py` -> **All checks passed**
 - `venv\Scripts\python.exe -m pytest workspace\tests\test_pr_triage_worktree.py -q -o addopts=` -> **2 passed**
 - `venv\Scripts\python.exe -m ruff check workspace\execution\pr_triage_worktree.py workspace\tests\test_pr_triage_worktree.py` -> **All checks passed**
+- `venv\Scripts\python.exe -m pytest workspace\tests\test_pr_triage_orchestrator.py workspace\tests\test_pr_triage_worktree.py -q -o addopts=` -> **7 passed**
+- `venv\Scripts\python.exe -m ruff check workspace\execution\pr_triage_orchestrator.py workspace\execution\pr_triage_worktree.py workspace\tests\test_pr_triage_orchestrator.py workspace\tests\test_pr_triage_worktree.py` -> **All checks passed**
+- `venv\Scripts\python.exe -m compileall workspace\execution\pr_triage_orchestrator.py workspace\execution\pr_triage_worktree.py` -> **pass**
+- `venv\Scripts\python.exe -X utf8 workspace\execution\pr_triage_orchestrator.py run --repo-path .tmp/pr_triage_orchestrator_smoke/demo-python --head-ref main --profile python-generic --label smoke` -> **`PASS`** on a temporary git repo; generated `triage-report.json` + per-command logs and cleaned the linked worktree afterward
 - `venv\Scripts\python.exe -X utf8 workspace\execution\qaqc_runner.py` -> **`APPROVED`** / `3038 passed / 0 failed / 0 errors / 29 skipped`, `blind-to-x 700 passed / 16 skipped`, `shorts-maker-v2 1270 passed / 12 skipped`, `root 1068 passed / 1 skipped`
 - `venv\Scripts\python.exe -m compileall workspace\execution\repo_map.py workspace\execution\context_selector.py workspace\execution\graph_engine.py` -> **pass**
 - `venv\Scripts\python.exe -X utf8 -m pytest workspace\tests\test_governance_checks.py workspace\tests\test_health_check.py workspace\tests\test_qaqc_runner.py workspace\tests\test_qaqc_runner_extended.py -q -o addopts=` -> **74 passed**
@@ -61,10 +67,10 @@
 
 ## Next Priorities
 
-1. Finish `T-100` by raising the remaining audit-owned coverage follow-up so both `shorts-maker-v2` and `blind-to-x` meet their documented floors without relying on stale baseline numbers.
-2. For the next `blind-to-x` uplift slice, prefer another bounded deterministic cluster over scraper-heavy work first. Good candidates after this session are `pipeline/image_generator.py` + `pipeline/image_upload.py`, or one of the 0%-coverage analytics modules if its external dependencies can be fully mocked.
+1. Continue `T-100`: `blind-to-x` is now at **71%** (from 59.89%). Next candidates: remaining low-coverage modules (`analytics_tracker.py` sync_metrics path, scraper modules) or pivot to `shorts-maker-v2` coverage uplift.
+2. For further `blind-to-x` uplift, the image/analytics modules are now covered. Next bounded cluster: `pipeline/dedup.py`, `pipeline/content_intelligence.py`, or `pipeline/style_bandit.py`.
 3. Keep the shared context backlog tidy now that `T-109` is done, but do not overwrite fresh relay/task edits from other agents without merging them carefully.
-4. If the user wants a richer PR lane later, build it on top of `pr_triage_worktree.py` as a read-only/local-first orchestrator first; keep GitHub write actions as a separately approved extension rather than bundling them into the baseline helper.
+4. If the user wants a richer PR lane later, build it on top of `pr_triage_orchestrator.py` as the read-only/local-first entrypoint; keep GitHub write actions as a separately approved extension rather than bundling them into the baseline helper.
 
 ## Notes
 
@@ -77,3 +83,4 @@
 - `ContextSelector` defaults to `workspace/` roots unless the prompt explicitly points to `projects/` or `infrastructure/`, which helps keep unrelated `blind-to-x` WIP files out of control-plane coding prompts.
 - `.tmp/repo_map_cache.db` is a deterministic intermediate cache, not a deliverable. It can be deleted and rebuilt safely when debugging repo-map selection issues.
 - `workspace/execution/pr_triage_worktree.py` is safe to run against dirty repos because it checks out a detached linked worktree, but it currently assumes the needed refs already exist locally and does not fetch remotes on your behalf.
+- Node-backed triage profiles intentionally reuse the source repo's existing `node_modules`; if dependencies are missing, `pr_triage_orchestrator.py` marks the command as `SKIP` instead of installing packages in the isolated worktree.
