@@ -6,7 +6,7 @@
 
 | ID | Task | Owner | Priority | Created |
 |----|------|-------|----------|---------|
-| T-113 | Address top debt hotspots identified by VibeDebt Auditor: `llm_client.py` (58.8), `blind-to-x/main.py` (59.2), `karaoke.py` (56.4) — focus on test_gap and complexity reduction | Claude | Medium | 2026-03-31 |
+| T-115 | Continue workspace TDR reduction after the corrected test-gap heuristic: next workspace hotspots are `code_improver.py` (46.2), `workers.py` (37.7), and `result_tracker_db.py` (37.4) | Claude | Low | 2026-03-31 |
 
 
 ## IN_PROGRESS
@@ -19,11 +19,11 @@
 
 | ID | Task | Completed By | Completed |
 |----|------|--------------|-----------|
+| T-114 | Added dedicated tests for `workspace/execution/pages/shorts_manager.py` (14 tests, 71% file coverage), extracted repeated issue-label formatting, and fixed `vibe_debt_auditor.py` so test-gap discovery scans all parent `tests/` directories instead of stopping at the first nested match. Latest rerun: `shorts_manager.py` score **43.9 -> 32.9**, workspace TDR **37.31% -> 29.25%**, overall TDR **40.87% -> 38.9%**. | Codex | 2026-03-31 |
+| T-113 | Reduced debt in top 3 hotspots: `llm_client.py` 58.8→41.9 (bridged pattern extraction), `blind-to-x/main.py` 59.2→top10 탈락 (main() split + 20 tests), `karaoke.py` 56.4→top10 탈락 (_scale_style + _measure_words). TDR 41.4%→40.9%. | Claude | 2026-03-31 |
 | T-112 | Consolidated workspace operator entrypoints into a canonical `FAST / STANDARD / DEEP / DIAGNOSTIC` workflow, added `operator_workflow.md`, clarified script help/README guidance, and made `health_check.py` Windows-safe for real diagnostic use. | Codex | 2026-03-31 |
 | T-111 | Wired the local-only PR triage worktree helper into `workspace/execution/pr_triage_orchestrator.py`, added repo-specific validation profiles + `triage-report.json` artifacts, documented the new directive, and hardened Windows git-output decoding for non-ASCII paths. | Codex | 2026-03-31 |
 | T-110 | Evaluated ACPX `pr-triage`, adopted the safe isolation slice as `workspace/execution/pr_triage_worktree.py`, documented the directive, updated INDEX mapping, and verified with focused worktree tests. | Codex | 2026-03-31 |
-| T-109 | Extended test coverage for context selector (>80%), profile testing, limits testing. Fixed `repo_map.py` sqlite3 winerror lock issue. | Antigravity | 2026-03-31 |
-| T-106 | Apply ruff format to remaining unformatted files across the workspace (`ruff format .ai` and python files) | Gemini | 2026-03-31 |
 
 ## Rules
 

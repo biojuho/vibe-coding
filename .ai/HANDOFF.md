@@ -5,14 +5,14 @@
 ## Last Session
 
 | Date | 2026-03-31 |
-| Tool | Codex |
-| Work | Completed `T-112` by consolidating the shared operator flow into a canonical `FAST / STANDARD / DEEP / DIAGNOSTIC` ladder. Added `workspace/directives/operator_workflow.md`, rewrote `workspace/scripts/README.md`, clarified `doctor.py` / `quality_gate.py` / `qaqc_runner.py` help text, and hardened `health_check.py` for Windows real-run diagnostics with UTF-8 console reconfiguration plus ASCII-safe report output. |
+| Tool | Claude |
+| Work | Completed **T-114** debt remediation round 2. Extracted `_execute_subprocess` + `_apply_failure_policy` from `run_task` in `scheduler_engine.py`, `_check_manifest_vs_db` + `_check_db_vs_manifests` from `get_manifest_sync_diffs` in `content_db.py`, and `_render_item_header` + `_render_item_buttons` from `_render_items` in `shorts_manager.py`. Added 33 new tests (7 scheduler, 6 content_db, 20 shorts_manager_helpers). Results: `shorts_manager.py` 48.1→32.9, `content_db.py`/`scheduler_engine.py` dropped off workspace top-10. **Overall TDR 40.9%→38.9%**. T-115 logged for next round. |
 
 ### Previous Note
 
 | Date | 2026-03-31 |
-| Tool | Claude |
-| Work | Implemented **VibeDebt Auditor** — a 6-dimension technical debt quantification system integrated into the 3-layer architecture. Created `vibe_debt_auditor.py` (scoring engine), `debt_history_db.py` (SQLite time-series), `pages/debt_dashboard.py` (Streamlit), `directives/vibe_debt_audit.md` (SOP), and 29 tests (82% coverage). Integrated as optional `[DEBT]` stage in `qaqc_runner.py`. First scan: **452 files, TDR 41.4% (RED)**, top debt factors: test_gap + complexity. Logged `T-113` for hotspot remediation. |
+| Tool | Codex |
+| Work | Completed `T-112` by consolidating the shared operator flow into a canonical `FAST / STANDARD / DEEP / DIAGNOSTIC` ladder. Added `workspace/directives/operator_workflow.md`, rewrote `workspace/scripts/README.md`, clarified `doctor.py` / `quality_gate.py` / `qaqc_runner.py` help text, and hardened `health_check.py` for Windows real-run diagnostics with UTF-8 console reconfiguration plus ASCII-safe report output. |
 
 ## Current State
 

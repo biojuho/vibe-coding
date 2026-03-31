@@ -1,5 +1,40 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-03-31 | Claude | T-113 VibeDebt 상위 부채 파일 리팩토링
+
+### Work Summary
+
+T-113: VibeDebt Auditor가 식별한 상위 3개 부채 파일을 복잡도 감소 + 테스트 추가로 개선.
+
+- `workspace/execution/llm_client.py`: bridged 공통 패턴 4개 헬퍼로 추출. 점수 **58.8 → 41.9**
+- `projects/blind-to-x/main.py`: main() 190줄 → 5개 함수 분할 + test_main.py 20 tests 추가. 점수 **top10 탈락**
+- `projects/shorts-maker-v2/.../karaoke.py`: _scale_style / _measure_words / _render_words_on_image 추출. 점수 **top10 탈락**
+
+TDR: **41.4% → 40.9%**, workspace max: **58.8 → 48.1**, blind-to-x max: **59.2 → 49.2**
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| workspace/execution/llm_client.py | refactor | bridged 공통 패턴 추출 |
+| projects/blind-to-x/main.py | refactor | main() 분할 |
+| projects/blind-to-x/tests/unit/test_main.py | new | 20 tests |
+| projects/shorts-maker-v2/.../karaoke.py | refactor | 함수 분할 |
+| .ai/TASKS.md | update | T-113 DONE, T-114 TODO 추가 |
+
+### Verification Results
+
+- `llm_client` 91 passed, `karaoke` 32 passed, `test_main` 20 passed
+- blind-to-x 기존 6개 실패는 pre-existing (main.py 변경 무관)
+- TDR 40.9%, workspace max 48.1
+
+### Notes For Next Agent
+
+- T-114: 다음 대상 `shorts_manager.py`(48.1), `content_db.py`(47.3), `scheduler_engine.py`(46.3)
+- blind-to-x TDR 주요 원인: test_gap(avg 31) — 테스트 있는 파일 증가로 꾸준히 감소 중
+
+---
+
 ## 2026-03-31 | Codex | T-112 operator workflow consolidation
 
 ### Work Summary
@@ -1309,3 +1344,23 @@ The baseline remained `APPROVED` and moved up again because the root suite now i
 - This QC run was against a dirty workspace, so treat the `3066 passed` total as the current shared baseline for the in-progress tree, not a pristine-branch historical baseline.
 - `projects/knowledge-dashboard/public/qaqc_result.json` was refreshed automatically by the runner and now matches the latest `APPROVED` result.
 
+
+## 2026-03-31 | Claude | T-114 Debt Remediation Round 2
+
+**Tasks completed:** T-114
+
+**Work summary:**
+- `workspace/execution/scheduler_engine.py`: extracted `_execute_subprocess` (subprocess execution + error classification) and `_apply_failure_policy` (failure count + auto-disable) from `run_task` (~154 lines → ~35 lines). Score 46.3 → dropped off workspace top-10.
+- `workspace/execution/content_db.py`: extracted `_check_manifest_vs_db` and `_check_db_vs_manifests` from `get_manifest_sync_diffs` (~95 lines → ~15 lines). Score 47.3 → dropped off workspace top-10.
+- `workspace/execution/pages/shorts_manager.py`: extracted `_render_item_header` and `_render_item_buttons` from `_render_items` (~136 lines → ~20 lines). Score 48.1 → 32.9.
+- **33 new tests**: `test_scheduler_engine.py` (+7 for `_execute_subprocess` + `_apply_failure_policy`), `test_content_db.py` (+6 for manifest diff helpers), `test_shorts_manager_helpers.py` (NEW, 20 tests for `_fmt_dur`, `_fmt_cost`, `_youtube_badge`, `_build_upload_metadata`, `_voice_index`, `_style_index`).
+- **Overall TDR: 40.9% → 38.9%** (-2.0 points). Workspace TDR: 37.3% → 29.2%.
+
+**Changed files:**
+- `workspace/execution/scheduler_engine.py`
+- `workspace/execution/content_db.py`
+- `workspace/execution/pages/shorts_manager.py`
+- `workspace/tests/test_scheduler_engine.py` (appended)
+- `workspace/tests/test_content_db.py` (appended)
+- `workspace/tests/test_shorts_manager_helpers.py` (NEW)
+- `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/SESSION_LOG.md`
