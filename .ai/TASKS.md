@@ -6,6 +6,11 @@
 
 | ID | Task | Owner | Priority | Created |
 |----|------|-------|----------|---------|
+| T-100 | Raise the remaining project coverage follow-up from the system audit so `shorts-maker-v2` and `blind-to-x` reach their documented target floors | Codex | Medium | 2026-03-31 |
+| T-101 | Reduce shared MCP control-plane overhead by limiting concurrent AI tool runs and replacing `server-filesystem` with lighter read/glob usage | Codex | High | 2026-03-31 |
+| T-102 | Add the remaining Shorts golden render follow-up from the audit plan so the renderer escape hatch has a pinned 30-second verification path | Codex | Medium | 2026-03-31 |
+| T-105 | Fix 5 pre-existing test failures: ShortsFactory module registration (4) + cp949 encoding (1) | Any | Medium | 2026-03-30 |
+| T-106 | Apply ruff format to remaining 10 unformatted files in `workspace/` | Any | Low | 2026-03-30 |
 
 ## IN_PROGRESS
 
@@ -16,11 +21,11 @@
 
 | ID | Task | Completed By | Completed |
 |----|------|--------------|-----------|
+| T-098 | Added a control-plane meta-QC gate: `governance_checks.py` now verifies required `.ai` files, stale relay claims, directive mapping drift, and tracked backlog linkage, and QA/QC can no longer end at `APPROVED` when governance fails | Codex | 2026-03-31 |
+| T-097 | Reconciled the control-plane ownership map by mapping the local inference / agentic coding stack in `INDEX.md` and `local_inference.md`, including `graph_engine.py`, `workers.py`, `code_evaluator.py`, and `governance_checks.py` | Codex | 2026-03-31 |
+| T-099 | Linked the open system-audit follow-ups to active `.ai/TASKS.md` items with enforced `[TASK: T-XXX]` references so backlog drift is now machine-checked | Codex | 2026-03-31 |
 | T-095 | Documented the latest shared QC security triage details for `projects/blind-to-x/pipeline/cost_db.py` so the two remaining machine-reported findings are clearly recorded as false positives | Codex | 2026-03-31 |
 | T-094 | Re-ran full shared workspace QC and confirmed all three scopes remain green (`2870 passed`, AST 20/20, security clear, scheduler ready) | Codex | 2026-03-31 |
-| T-093 | Re-ran `blind-to-x` project QC and confirmed the staged pipeline remains green after T-091 (`560 passed`, `AST 20/20`, security clear) | Codex | 2026-03-31 |
-| T-091 | Finalized the staged `blind-to-x` pipeline cleanup: `pipeline/process.py` is now a slim orchestrator, `pipeline/stages/` is a compatibility layer backed by `pipeline/process_stages/`, and targeted regressions plus project QA/QC rerun passed | Codex | 2026-03-30 |
-| T-092 | Full-system audit: restored `blind-to-x` shared QC by fixing `pipeline/process.py` syntax corruption and corrected `health_check.py` to the canonical repo/workspace path contract | Codex | 2026-03-30 |
 
 ## Rules
 

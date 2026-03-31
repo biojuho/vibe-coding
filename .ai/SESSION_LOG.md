@@ -1,5 +1,66 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-03-30 | Claude Code | T-103, T-104 마이그레이션 + 거대 파일 분리
+
+### Work Summary
+
+1. **시스템 비판 수행** — 아키텍처, 코드 품질, 운영, 보안, 지속가능성 6개 영역 평가
+2. **ADR-014 canonical layout 마이그레이션 완료** (T-103):
+   - 레거시 루트 디렉토리 776개 파일 git에서 삭제 (blind-to-x/, shorts-maker-v2/, execution/, directives/, scripts/, tests/ 등)
+   - projects/ + workspace/ canonical 경로에 519개 파일 추가
+   - nested .git → .git.bak 변환 (blind-to-x, hanwoo-dashboard, knowledge-dashboard)
+   - .gitignore에 임시 파일 패턴 추가 (pytest/ruff 출력물)
+   - ruff.toml E402 전역 무시 추가, pre-commit hook을 `--config ruff.toml` 사용으로 통일
+   - ruff format 189개 파일 자동 포맷
+   - blind-to-x/pipeline/process.py: F821 (undefined `image_url`) 수정, F841 (unused `nlm_task`) 제거
+3. **거대 파일 3개 mixin 분리** (T-104):
+   - render_step.py (1635→757줄): render_effects.py(494) + render_audio.py(349) + render_captions.py(156)
+   - script_step.py (1521→506줄): script_prompts.py(606) + script_review.py(430)
+   - draft_generator.py (1127→240줄): draft_prompts.py(623) + draft_providers.py(253) + draft_validation.py(174)
+4. **QC 전체 실행**: 2770 passed / 5 failed (기존 결함) / 28 skipped
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| blind-to-x/, shorts-maker-v2/, execution/, directives/, scripts/, tests/ (레거시 루트) | delete | 776개 파일 git 삭제 |
+| projects/blind-to-x/ | add | canonical 경로 |
+| projects/hanwoo-dashboard/ | add | canonical 경로 |
+| projects/knowledge-dashboard/ | add | canonical 경로 |
+| projects/suika-game-v2/ | add | canonical 경로 |
+| projects/word-chain/ | add | canonical 경로 |
+| workspace/execution/, workspace/directives/, workspace/scripts/, workspace/tests/ | add | canonical 경로 |
+| .gitignore | modify | 임시 파일 패턴 추가 |
+| .githooks/pre-commit | modify | ruff.toml config 사용 |
+| ruff.toml | modify | E402 전역 무시, per-file-ignores canonical 경로 업데이트 |
+| projects/shorts-maker-v2/src/.../pipeline/render_effects.py | add | mixin 분리 |
+| projects/shorts-maker-v2/src/.../pipeline/render_audio.py | add | mixin 분리 |
+| projects/shorts-maker-v2/src/.../pipeline/render_captions.py | add | mixin 분리 |
+| projects/shorts-maker-v2/src/.../pipeline/render_step.py | modify | mixin 상속으로 축소 |
+| projects/shorts-maker-v2/src/.../pipeline/script_prompts.py | add | mixin 분리 |
+| projects/shorts-maker-v2/src/.../pipeline/script_review.py | add | mixin 분리 |
+| projects/shorts-maker-v2/src/.../pipeline/script_step.py | modify | mixin 상속으로 축소 |
+| projects/blind-to-x/pipeline/draft_prompts.py | add | mixin 분리 |
+| projects/blind-to-x/pipeline/draft_providers.py | add | mixin 분리 |
+| projects/blind-to-x/pipeline/draft_validation.py | add | mixin 분리 |
+| projects/blind-to-x/pipeline/draft_generator.py | modify | mixin 상속으로 축소 |
+
+### Verification Results
+
+- shorts-maker-v2: 1258 passed / 5 failed (pre-existing) / 12 skipped (288s)
+- blind-to-x: 497 passed / 0 failed / 15 skipped / 54.18% coverage (212s)
+- workspace: 1015 passed / 0 failed / 1 skipped / 84.33% coverage (52s)
+- ruff check: warnings only (E741 in legacy tools)
+- ruff format: 10 files remaining
+
+### 지뢰밭 기록
+
+- pre-commit hook 첫 실패 후 git staging이 해제될 수 있음 — 반드시 `git add` 재실행 후 커밋
+- Windows 한글 경로 파일은 `git add`로 스테이징 안됨 — `git rm --cached -r` 사용 필요
+- `ShortsFactory` 레거시 모듈 참조 테스트 4개가 여전히 실패 — 모듈 등록 필요 (T-105)
+
+---
+
 ## 2026-03-31 | Codex | T-095 security triage 기록 보강
 
 ### Work Summary
