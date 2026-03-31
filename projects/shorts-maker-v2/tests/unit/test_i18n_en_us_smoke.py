@@ -31,7 +31,12 @@ def _write_config(path: Path) -> Path:
                     "visual_fallback": "openai-image",
                 },
                 "limits": {"max_cost_usd": 2.0, "max_retries": 1, "request_timeout_sec": 30},
-                "costs": {"llm_per_job": 0.25, "tts_per_second": 0.0008, "veo_per_second": 0.03, "image_per_scene": 0.04},
+                "costs": {
+                    "llm_per_job": 0.25,
+                    "tts_per_second": 0.0008,
+                    "veo_per_second": 0.03,
+                    "image_per_scene": 0.04,
+                },
                 "paths": {"output_dir": "output", "logs_dir": "logs", "runs_dir": "runs"},
                 "captions": {},
                 "canva": {"enabled": False, "design_id": "", "token_file": ""},
@@ -72,7 +77,9 @@ def test_en_us_locale_smoke_covers_script_audio_and_caption_paths(tmp_path: Path
         kwargs["words_json_path"].write_text("[]", encoding="utf-8")
         return kwargs["output_path"]
 
-    with patch("shorts_maker_v2.pipeline.media_step.EdgeTTSClient.generate_tts", side_effect=_fake_generate_tts) as generate:
+    with patch(
+        "shorts_maker_v2.pipeline.media_step.EdgeTTSClient.generate_tts", side_effect=_fake_generate_tts
+    ) as generate:
         result = media_step._generate_audio("Hello from the new locale", audio_path, role="hook")
 
     assert result == audio_path

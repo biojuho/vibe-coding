@@ -7,21 +7,22 @@ with open(filepath, encoding="utf-8") as f:
 
 # 1. TONE_PRESETS (Indent 4 spaces)
 content = re.sub(
-    r'(?m)^ +TONE_PRESETS: list\[tuple\[str, str\]\] = \[.*?\]',
-    '''    TONE_PRESETS: list[tuple[str, str]] = [
+    r"(?m)^ +TONE_PRESETS: list\[tuple\[str, str\]\] = \[.*?\]",
+    """    TONE_PRESETS: list[tuple[str, str]] = [
         ("professor", "Calm, analytical, and evidence-first. Sound like a clear university lecture."),
         ("friend", "Casual, conversational, and easy to follow. Sound like a smart friend explaining something exciting."),
         ("storyteller", "Narrative and cinematic. Build momentum like you're telling a gripping short story."),
         ("news_anchor", "Crisp, factual, and composed. Keep the delivery clean and broadcast-like."),
         ("excited_fan", "Energetic and delighted, but still specific. Let the excitement come from real details."),
-    ]''',
-    content, flags=re.DOTALL
+    ]""",
+    content,
+    flags=re.DOTALL,
 )
 
 # 2. _CHANNEL_PERSONA
 content = re.sub(
-    r'(?m)^ +_CHANNEL_PERSONA: dict\[str, dict\[str, str\]\] = \{.*?^    \}',
-    '''    _CHANNEL_PERSONA: dict[str, dict[str, str]] = {
+    r"(?m)^ +_CHANNEL_PERSONA: dict\[str, dict\[str, str\]\] = \{.*?^    \}",
+    """    _CHANNEL_PERSONA: dict[str, dict[str, str]] = {
         "ai_tech": {
             "role_description": "You are a tech journalist delivering breaking AI and product news in sharp spoken English.",
             "tone": "Tone: Fast, precise, and data-rich. Keep every line specific and current.",
@@ -52,14 +53,15 @@ content = re.sub(
             "forbidden": "Forbidden: fear tactics, miracle claims, and unsupported medical certainty.",
             "required": "Required: anchor claims to evidence or consensus guidance and end with one safe action."
         },
-    }''',
-    content, flags=re.DOTALL
+    }""",
+    content,
+    flags=re.DOTALL,
 )
 
 # 3. _CTA_FORBIDDEN_WORDS
 content = re.sub(
-    r'(?m)^ +_CTA_FORBIDDEN_WORDS: tuple\[str, \.\.\.\] = \([^)]+\)',
-    '''    _CTA_FORBIDDEN_WORDS: tuple[str, ...] = (
+    r"(?m)^ +_CTA_FORBIDDEN_WORDS: tuple\[str, \.\.\.\] = \([^)]+\)",
+    """    _CTA_FORBIDDEN_WORDS: tuple[str, ...] = (
         "subscribe",
         "like",
         "follow",
@@ -68,27 +70,29 @@ content = re.sub(
         "smash that",
         "don't forget to",
         "hit the",
-    )''',
-    content, flags=re.DOTALL
+    )""",
+    content,
+    flags=re.DOTALL,
 )
 
 # 4. _PERSONA_KEYWORDS
 content = re.sub(
-    r'(?m)^ +_PERSONA_KEYWORDS: dict\[str, tuple\[str, \.\.\.\]\] = \{.*?^    \}',
-    '''    _PERSONA_KEYWORDS: dict[str, tuple[str, ...]] = {
+    r"(?m)^ +_PERSONA_KEYWORDS: dict\[str, tuple\[str, \.\.\.\]\] = \{.*?^    \}",
+    """    _PERSONA_KEYWORDS: dict[str, tuple[str, ...]] = {
         "ai_tech": ("AI", "model", "data", "release", "benchmark", "developer", "algorithm", "software", "product", "company"),
         "psychology": ("emotion", "mind", "anxiety", "relationship", "self", "understand", "feeling", "pattern", "stress", "trust"),
         "history": ("empire", "war", "king", "century", "battle", "revolution", "civilization", "dynasty", "historian", "event"),
         "space": ("space", "planet", "galaxy", "star", "light-year", "orbit", "black hole", "telescope", "cosmic", "universe"),
         "health": ("health", "sleep", "exercise", "nutrition", "study", "habit", "body", "risk", "recovery", "guideline"),
-    }''',
-    content, flags=re.DOTALL
+    }""",
+    content,
+    flags=re.DOTALL,
 )
 
 # 5. _PROMPT_COPY
 content = re.sub(
-    r'(?m)^ +_PROMPT_COPY: dict\[str, str\] = \{.*?^    \}',
-    r'''    _PROMPT_COPY: dict[str, str] = {
+    r"(?m)^ +_PROMPT_COPY: dict\[str, str\] = \{.*?^    \}",
+    r"""    _PROMPT_COPY: dict[str, str] = {
         "system_intro": (
             "You are a YouTube Shorts scriptwriter. You write in the Hook-Body-CTA format.\n"
             "Output ONLY valid JSON.\n"
@@ -169,14 +173,15 @@ content = re.sub(
             "Tighten each scene narration while keeping the same clarity.\n"
         ),
         "retry_keep_scene_count": "Keep exactly {previous_scene_count} scenes unless that prevents the duration target.\n",
-    }''',
-    content, flags=re.DOTALL
+    }""",
+    content,
+    flags=re.DOTALL,
 )
 
 # 6. _REVIEW_COPY
 content = re.sub(
-    r'(?m)^ +_REVIEW_COPY: dict\[str, str\] = \{.*?^    \}',
-    r'''    _REVIEW_COPY: dict[str, str] = {
+    r"(?m)^ +_REVIEW_COPY: dict\[str, str\] = \{.*?^    \}",
+    r"""    _REVIEW_COPY: dict[str, str] = {
         "base_review_system": (
             "You are a YouTube Shorts script quality evaluator. "
             "Score the given script on these dimensions from 1-10:\n"
@@ -190,8 +195,9 @@ content = re.sub(
         ),
         "feedback_rule": "Also provide a brief 'feedback' string (max 80 chars) with the main weakness.\n",
         "output_rule": 'Output ONLY valid JSON: {{{json_example}, "feedback": "..."}}',
-    }''',
-    content, flags=re.DOTALL
+    }""",
+    content,
+    flags=re.DOTALL,
 )
 
 with open(filepath, "w", encoding="utf-8") as f:

@@ -237,9 +237,7 @@ def test_generate_music_file_writes_wav_and_stops_session(tmp_path: Path) -> Non
 
 
 def test_generate_music_file_raises_when_stream_has_no_audio(tmp_path: Path) -> None:
-    session = _make_session(
-        [SimpleNamespace(server_content=SimpleNamespace(audio_chunks=[]))]
-    )
+    session = _make_session([SimpleNamespace(server_content=SimpleNamespace(audio_chunks=[]))])
     client = _make_client(session=session)
 
     with pytest.raises(RuntimeError, match="no audio chunks"):

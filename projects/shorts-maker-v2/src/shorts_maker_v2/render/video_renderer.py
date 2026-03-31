@@ -167,8 +167,12 @@ class MoviePyRenderer(VideoRendererBackend):
         h = getattr(native, "h", 0) or 0
         has_audio = getattr(native, "audio", None) is not None
         return ClipHandle(
-            backend=backend, native=native, duration=dur,
-            width=w, height=h, has_audio=has_audio,
+            backend=backend,
+            native=native,
+            duration=dur,
+            width=w,
+            height=h,
+            has_audio=has_audio,
         )
 
     def load_video(self, path: str | Path, audio: bool = True) -> ClipHandle:
@@ -231,9 +235,14 @@ class MoviePyRenderer(VideoRendererBackend):
         return self._wrap(result)
 
     def write(
-        self, clip: ClipHandle, output_path: str | Path,
-        fps: int = 30, codec: str = "libx264", audio_codec: str = "aac",
-        preset: str | None = "medium", ffmpeg_params: list[str] | None = None,
+        self,
+        clip: ClipHandle,
+        output_path: str | Path,
+        fps: int = 30,
+        codec: str = "libx264",
+        audio_codec: str = "aac",
+        preset: str | None = "medium",
+        ffmpeg_params: list[str] | None = None,
     ) -> Path:
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -246,7 +255,9 @@ class MoviePyRenderer(VideoRendererBackend):
             "pcm_s32le": ".wav",
         }.get(audio_codec, ".m4a")
         kwargs: dict[str, Any] = {
-            "fps": fps, "codec": codec, "audio_codec": audio_codec,
+            "fps": fps,
+            "codec": codec,
+            "audio_codec": audio_codec,
             "ffmpeg_params": ffmpeg_params or [],
             "temp_audiofile": str(output_path.parent / f"{output_path.stem}_{uuid4().hex}{temp_audio_suffix}"),
         }
@@ -287,11 +298,17 @@ class FFmpegRenderer(VideoRendererBackend):
         try:
             result = subprocess.run(
                 [
-                    "ffprobe", "-v", "quiet",
-                    "-print_format", "json",
-                    "-show_format", str(path),
+                    "ffprobe",
+                    "-v",
+                    "quiet",
+                    "-print_format",
+                    "json",
+                    "-show_format",
+                    str(path),
                 ],
-                capture_output=True, text=True, timeout=10,
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             info = json.loads(result.stdout)
             return float(info.get("format", {}).get("duration", 0))
@@ -311,13 +328,23 @@ class FFmpegRenderer(VideoRendererBackend):
 
     def load_image(self, path: str | Path, duration: float = 5.0) -> ClipHandle:
         out = self._next_tmp()
-        self._run_ffmpeg([
-            "-loop", "1", "-i", str(path),
-            "-t", str(duration),
-            "-c:v", "libx264", "-pix_fmt", "yuv420p",
-            "-vf", "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2",
-            str(out),
-        ])
+        self._run_ffmpeg(
+            [
+                "-loop",
+                "1",
+                "-i",
+                str(path),
+                "-t",
+                str(duration),
+                "-c:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
+                "-vf",
+                "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2",
+                str(out),
+            ]
+        )
         return ClipHandle(backend="ffmpeg", native=str(out), duration=duration, width=1080, height=1920)
 
     def load_audio(self, path: str | Path) -> ClipHandle:
@@ -361,11 +388,24 @@ class FFmpegRenderer(VideoRendererBackend):
 
     def set_audio(self, video: ClipHandle, audio: ClipHandle) -> ClipHandle:
         out = self._next_tmp()
-        self._run_ffmpeg([
-            "-i", video.native, "-i", audio.native,
-            "-c:v", "copy", "-c:a", "aac", "-map", "0:v", "-map", "1:a",
-            "-shortest", str(out),
-        ])
+        self._run_ffmpeg(
+            [
+                "-i",
+                video.native,
+                "-i",
+                audio.native,
+                "-c:v",
+                "copy",
+                "-c:a",
+                "aac",
+                "-map",
+                "0:v",
+                "-map",
+                "1:a",
+                "-shortest",
+                str(out),
+            ]
+        )
         return ClipHandle(backend="ffmpeg", native=str(out), duration=video.duration, has_audio=True)
 
     def mix_audio(self, clips: list[ClipHandle]) -> ClipHandle:
@@ -376,27 +416,46 @@ class FFmpegRenderer(VideoRendererBackend):
         for c in clips:
             inputs.extend(["-i", c.native])
         n = len(clips)
-        self._run_ffmpeg(inputs + [
-            "-filter_complex", f"amix=inputs={n}:duration=longest",
-            str(out),
-        ])
+        self._run_ffmpeg(
+            inputs
+            + [
+                "-filter_complex",
+                f"amix=inputs={n}:duration=longest",
+                str(out),
+            ]
+        )
         return ClipHandle(backend="ffmpeg", native=str(out), duration=max(c.duration for c in clips))
 
     def resize(self, clip: ClipHandle, width: int, height: int) -> ClipHandle:
         out = self._next_tmp()
-        self._run_ffmpeg([
-            "-i", clip.native,
-            "-vf", f"scale={width}:{height}",
-            "-c:a", "copy", str(out),
-        ])
+        self._run_ffmpeg(
+            [
+                "-i",
+                clip.native,
+                "-vf",
+                f"scale={width}:{height}",
+                "-c:a",
+                "copy",
+                str(out),
+            ]
+        )
         return ClipHandle(backend="ffmpeg", native=str(out), duration=clip.duration, width=width, height=height)
 
     def subclip(self, clip: ClipHandle, start: float, end: float) -> ClipHandle:
         out = self._next_tmp()
-        self._run_ffmpeg([
-            "-ss", str(start), "-to", str(end),
-            "-i", clip.native, "-c", "copy", str(out),
-        ])
+        self._run_ffmpeg(
+            [
+                "-ss",
+                str(start),
+                "-to",
+                str(end),
+                "-i",
+                clip.native,
+                "-c",
+                "copy",
+                str(out),
+            ]
+        )
         return ClipHandle(backend="ffmpeg", native=str(out), duration=end - start)
 
     def set_position(self, clip: ClipHandle, pos: tuple) -> ClipHandle:
@@ -410,21 +469,33 @@ class FFmpegRenderer(VideoRendererBackend):
 
     def fade_in(self, clip: ClipHandle, duration: float) -> ClipHandle:
         out = self._next_tmp()
-        self._run_ffmpeg([
-            "-i", clip.native,
-            "-vf", f"fade=in:d={duration}",
-            "-c:a", "copy", str(out),
-        ])
+        self._run_ffmpeg(
+            [
+                "-i",
+                clip.native,
+                "-vf",
+                f"fade=in:d={duration}",
+                "-c:a",
+                "copy",
+                str(out),
+            ]
+        )
         return ClipHandle(backend="ffmpeg", native=str(out), duration=clip.duration)
 
     def fade_out(self, clip: ClipHandle, duration: float) -> ClipHandle:
         out = self._next_tmp()
         start = max(clip.duration - duration, 0)
-        self._run_ffmpeg([
-            "-i", clip.native,
-            "-vf", f"fade=out:st={start}:d={duration}",
-            "-c:a", "copy", str(out),
-        ])
+        self._run_ffmpeg(
+            [
+                "-i",
+                clip.native,
+                "-vf",
+                f"fade=out:st={start}:d={duration}",
+                "-c:a",
+                "copy",
+                str(out),
+            ]
+        )
         return ClipHandle(backend="ffmpeg", native=str(out), duration=clip.duration)
 
     def set_opacity(self, clip: ClipHandle, opacity: float) -> ClipHandle:
@@ -461,9 +532,14 @@ class FFmpegRenderer(VideoRendererBackend):
         return str(intermediate)
 
     def write(
-        self, clip: ClipHandle, output_path: str | Path,
-        fps: int = 30, codec: str = "libx264", audio_codec: str = "aac",
-        preset: str | None = "medium", ffmpeg_params: list[str] | None = None,
+        self,
+        clip: ClipHandle,
+        output_path: str | Path,
+        fps: int = 30,
+        codec: str = "libx264",
+        audio_codec: str = "aac",
+        preset: str | None = "medium",
+        ffmpeg_params: list[str] | None = None,
     ) -> Path:
         out = Path(output_path)
         input_path = self._ensure_input_path(clip, fps=fps, audio_codec=audio_codec)

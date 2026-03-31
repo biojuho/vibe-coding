@@ -6,8 +6,8 @@
 
 | ID | Task | Owner | Priority | Created |
 |----|------|-------|----------|---------|
-| T-106 | Apply ruff format to remaining 10 unformatted files in `workspace/` | Any | Low | 2026-03-30 |
 | T-109 | Add phase-2 selective-context upgrades: file-summary cache, agent profiles, and adaptive pruning on top of `repo_map.py` / `context_selector.py` | Any | Medium | 2026-03-31 |
+
 
 ## IN_PROGRESS
 
@@ -19,11 +19,11 @@
 
 | ID | Task | Completed By | Completed |
 |----|------|--------------|-----------|
+| T-106 | Apply ruff format to remaining unformatted files across the workspace (`ruff format .ai` and python files) | Gemini | 2026-03-31 |
 | T-108 | Added deterministic `repo_map.py` + `context_selector.py`, wired selective repository context into `VibeCodingGraph`, fixed `ThoughtDecomposer` task extraction (`task_text`), updated directive ownership, and verified with 39 passing workspace tests plus governance/mapping checks. | Codex | 2026-03-31 |
 | T-107 | Project critique + tech debt cleanup: removed stages/ bridge (65 LOC), deleted legacy classification_rules.yaml (64KB), cleaned legacy path compat (path_contract, error_analyzer, qaqc_runner, smoke_check), slimmed STATUS.md (109->35), consolidated ADR (20+->9), merged ADR-002/013 contradiction. blind-to-x 605 passed, workspace 1026 passed. | Claude | 2026-03-31 |
 | T-105 | Verified 5 pre-existing test failures resolved: ShortsFactory legacy tests pass/skip, cp949 test passes | Claude | 2026-03-31 |
 | T-101 | Reduced MCP control-plane overhead by removing redundant `filesystem` MCP, adding AI-client footprint guard | Codex | 2026-03-31 |
-| T-102 | Expanded Shorts golden render integration to 30-second sample with MoviePy+FFmpeg verification | Codex | 2026-03-31 |
 
 ## Rules
 

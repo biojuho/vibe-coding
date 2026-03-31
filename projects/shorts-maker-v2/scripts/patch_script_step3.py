@@ -24,7 +24,9 @@ def _load_script_step_locale_bundle(language_code: str) -> dict[str, Any]:
     return {}
 """
     # Insert after imports. Find `class TopicUnsuitableError`
-    content = content.replace("class TopicUnsuitableError(Exception):", bundle_code + "\nclass TopicUnsuitableError(Exception):")
+    content = content.replace(
+        "class TopicUnsuitableError(Exception):", bundle_code + "\nclass TopicUnsuitableError(Exception):"
+    )
     # also add Path import if not there
     if "from pathlib import Path" not in content:
         content = content.replace("import threading", "import threading\nfrom pathlib import Path")
@@ -96,33 +98,50 @@ if "def _apply_locale_overrides" not in content:
 content = content.replace("len(self.TONE_PRESETS)", "len(self._tone_presets)")
 content = content.replace("self.TONE_PRESETS[idx]", "self._tone_presets[idx]")
 content = content.replace("cls._CTA_FORBIDDEN_WORDS", "self._cta_forbidden_words")
-content = content.replace("self._channel_persona.get", "self._channel_persona.get") # no change needed if we used it
+content = content.replace("self._channel_persona.get", "self._channel_persona.get")  # no change needed if we used it
 content = content.replace("cls._PERSONA_KEYWORDS", "self._persona_keywords")
 # Change class methods referencing `cls._PERSONA_KEYWORDS` and `cls._CTA_FORBIDDEN_WORDS` to instance methods context.
 # Wait, `_score_persona_match` is a classmethod!
 # Let's fix _score_persona_match to take persona_keywords from parameter or make it an instance method!
-content = content.replace("    @classmethod\n    def _score_persona_match(cls, scenes: list[ScenePlan], channel_key: str) -> float:", "    @classmethod\n    def _score_persona_match(cls, scenes: list[ScenePlan], channel_key: str, persona_keywords: dict[str, tuple[str, ...]]) -> float:")
-content = content.replace("        keywords = cls._PERSONA_KEYWORDS.get(channel_key)", "        keywords = persona_keywords.get(channel_key)")
-content = content.replace("persona_score = self._score_persona_match(final_scenes, self.channel_key)", "persona_score = self._score_persona_match(final_scenes, self.channel_key, self._persona_keywords)")
+content = content.replace(
+    "    @classmethod\n    def _score_persona_match(cls, scenes: list[ScenePlan], channel_key: str) -> float:",
+    "    @classmethod\n    def _score_persona_match(cls, scenes: list[ScenePlan], channel_key: str, persona_keywords: dict[str, tuple[str, ...]]) -> float:",
+)
+content = content.replace(
+    "        keywords = cls._PERSONA_KEYWORDS.get(channel_key)", "        keywords = persona_keywords.get(channel_key)"
+)
+content = content.replace(
+    "persona_score = self._score_persona_match(final_scenes, self.channel_key)",
+    "persona_score = self._score_persona_match(final_scenes, self.channel_key, self._persona_keywords)",
+)
 
-content = content.replace("    @classmethod\n    def _validate_cta(cls, narration: str) -> list[str]:", "    @classmethod\n    def _validate_cta(cls, narration: str, forbidden_words: tuple[str, ...]) -> list[str]:")
-content = content.replace("        return [w for w in cls._CTA_FORBIDDEN_WORDS if w in narration.lower()]", "        return [w for w in forbidden_words if w in narration.lower()]")
-content = content.replace("violations = self._validate_cta(cta_scene.narration_ko)", "violations = self._validate_cta(cta_scene.narration_ko, self._cta_forbidden_words)")
+content = content.replace(
+    "    @classmethod\n    def _validate_cta(cls, narration: str) -> list[str]:",
+    "    @classmethod\n    def _validate_cta(cls, narration: str, forbidden_words: tuple[str, ...]) -> list[str]:",
+)
+content = content.replace(
+    "        return [w for w in cls._CTA_FORBIDDEN_WORDS if w in narration.lower()]",
+    "        return [w for w in forbidden_words if w in narration.lower()]",
+)
+content = content.replace(
+    "violations = self._validate_cta(cta_scene.narration_ko)",
+    "violations = self._validate_cta(cta_scene.narration_ko, self._cta_forbidden_words)",
+)
 
 # Make _build_system_prompt use self._prompt_copy
-content = content.replace('self._BASE_REVIEW_SYSTEM', 'self._review_copy.get("base_review_system", "")')
+content = content.replace("self._BASE_REVIEW_SYSTEM", 'self._review_copy.get("base_review_system", "")')
 
 # _build_review_system replacement:
 content = re.sub(
     r'system_prompt = \(\n *self._review_copy\.get\("base_review_system", ""\).*?Also provide a brief \'feedback\' string \(max 80 chars\) with the main weakness\.\\n"\n *\)',
     r'system_prompt = (\n            self._review_copy.get("base_review_system", "")\n            + extra_dimensions\n            + self._review_copy.get("feedback_rule", "")\n        )',
     content,
-    flags=re.DOTALL
+    flags=re.DOTALL,
 )
 content = re.sub(
     r'system_prompt \+= f\'Output ONLY valid JSON: \{\{\{json_example\}, "feedback": "\.\.\."\}\}\'',
     r'output_rule = self._review_copy.get("output_rule", "Output ONLY valid JSON: {{{json_example}, \\"feedback\\": \\"...\\"}}")\n        system_prompt += output_rule.format(json_example=json_example)',
-    content
+    content,
 )
 
 with open(filepath, "w", encoding="utf-8") as f:

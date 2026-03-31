@@ -1,4 +1,4 @@
-# MCP 서버 리소스 프로파일링 결과
+﻿# MCP 서버 리소스 프로파일링 결과
 
 > 측정일: 2026-03-22 20:00 KST | 시스템: 15.75GB RAM, 94.4% 사용
 
@@ -108,3 +108,12 @@ Claude Code의 Read/Write/Glob/Grep 도구가 filesystem MCP와 완전 중복.
 - **MCP 프록시 서버**: 단일 프로세스로 모든 MCP 요청을 라우팅 (mcp-proxy 패턴)
 - **lazy-start 래퍼**: 첫 요청 시에만 서버 프로세스 시작, 10분 유휴 시 종료
 - **Docker Compose profile**: `always` / `on-demand` 프로필로 분리
+
+---
+
+### Update 2026-03-31
+
+- `.mcp.json` no longer includes the redundant `filesystem` MCP entry.
+- Local file access should use the built-in Read/Write/Glob/Grep tool path instead.
+- Use `.\scripts\mcp_toggle.ps1 -Action Guard` before deep sessions to surface overlapping AI tool clients.
+

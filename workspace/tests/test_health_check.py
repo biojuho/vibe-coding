@@ -222,6 +222,13 @@ def test_run_all_checks_with_filter():
         assert r["category"] == "filesystem"
 
 
+def test_run_all_checks_with_governance_filter():
+    results = hc.run_all_checks(category="governance")
+    assert len(results) > 0
+    for r in results:
+        assert r["category"] == "governance"
+
+
 def test_get_summary_ok():
     results = [hc._check_result("test", "test", hc.STATUS_OK)]
     s = hc.get_summary(results)

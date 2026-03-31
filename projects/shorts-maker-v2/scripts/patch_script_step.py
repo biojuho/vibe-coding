@@ -7,21 +7,22 @@ with open(filepath, encoding="utf-8") as f:
 
 # TONE_PRESETS (Indent 4 spaces)
 content = re.sub(
-    r'TONE_PRESETS: list\[tuple\[str, str\]\] = \[.*?\]',
-    '''    TONE_PRESETS: list[tuple[str, str]] = [
+    r"TONE_PRESETS: list\[tuple\[str, str\]\] = \[.*?\]",
+    """    TONE_PRESETS: list[tuple[str, str]] = [
         ("professor", "Calm, analytical, and evidence-first. Sound like a clear university lecture."),
         ("friend", "Casual, conversational, and easy to follow. Sound like a smart friend explaining something exciting."),
         ("storyteller", "Narrative and cinematic. Build momentum like you're telling a gripping short story."),
         ("news_anchor", "Crisp, factual, and composed. Keep the delivery clean and broadcast-like."),
         ("excited_fan", "Energetic and delighted, but still specific. Let the excitement come from real details."),
-    ]''',
-    content, flags=re.DOTALL
+    ]""",
+    content,
+    flags=re.DOTALL,
 )
 
 # _CHANNEL_PERSONA (Indent 4 spaces)
 content = re.sub(
-    r'_CHANNEL_PERSONA: dict\[str, dict\[str, str\]\] = \{.*?    \}',
-    '''    _CHANNEL_PERSONA: dict[str, dict[str, str]] = {
+    r"_CHANNEL_PERSONA: dict\[str, dict\[str, str\]\] = \{.*?    \}",
+    """    _CHANNEL_PERSONA: dict[str, dict[str, str]] = {
         "ai_tech": {
             "role_description": "You are a tech journalist delivering breaking AI and product news in sharp spoken English.",
             "tone": "Tone: Fast, precise, and data-rich. Keep every line specific and current.",
@@ -52,14 +53,15 @@ content = re.sub(
             "forbidden": "Forbidden: fear tactics, miracle claims, and unsupported medical certainty.",
             "required": "Required: anchor claims to evidence or consensus guidance and end with one safe action."
         },
-    }''',
-    content, flags=re.DOTALL
+    }""",
+    content,
+    flags=re.DOTALL,
 )
 
 # _CTA_FORBIDDEN_WORDS (Indent 4 spaces)
 content = re.sub(
-    r'_CTA_FORBIDDEN_WORDS: tuple\[str, \.\.\.\] = \([^)]+\)',
-    '''    _CTA_FORBIDDEN_WORDS: tuple[str, ...] = (
+    r"_CTA_FORBIDDEN_WORDS: tuple\[str, \.\.\.\] = \([^)]+\)",
+    """    _CTA_FORBIDDEN_WORDS: tuple[str, ...] = (
         "subscribe",
         "like",
         "follow",
@@ -68,21 +70,23 @@ content = re.sub(
         "smash that",
         "don't forget to",
         "hit the",
-    )''',
-    content, flags=re.DOTALL
+    )""",
+    content,
+    flags=re.DOTALL,
 )
 
 # _PERSONA_KEYWORDS (Indent 4 spaces)
 content = re.sub(
-    r'_PERSONA_KEYWORDS: dict\[str, tuple\[str, \.\.\.\]\] = \{.*?    \}',
-    '''    _PERSONA_KEYWORDS: dict[str, tuple[str, ...]] = {
+    r"_PERSONA_KEYWORDS: dict\[str, tuple\[str, \.\.\.\]\] = \{.*?    \}",
+    """    _PERSONA_KEYWORDS: dict[str, tuple[str, ...]] = {
         "ai_tech": ("AI", "model", "data", "release", "benchmark", "developer", "algorithm", "software", "product", "company"),
         "psychology": ("emotion", "mind", "anxiety", "relationship", "self", "understand", "feeling", "pattern", "stress", "trust"),
         "history": ("empire", "war", "king", "century", "battle", "revolution", "civilization", "dynasty", "historian", "event"),
         "space": ("space", "planet", "galaxy", "star", "light-year", "orbit", "black hole", "telescope", "cosmic", "universe"),
         "health": ("health", "sleep", "exercise", "nutrition", "study", "habit", "body", "risk", "recovery", "guideline"),
-    }''',
-    content, flags=re.DOTALL
+    }""",
+    content,
+    flags=re.DOTALL,
 )
 
 with open(filepath, "w", encoding="utf-8") as f:

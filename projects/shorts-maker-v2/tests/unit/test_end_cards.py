@@ -74,7 +74,9 @@ def test_ensure_outro_assets_reuses_existing_file(tmp_path: Path, monkeypatch: p
 
 
 def test_ensure_outro_assets_returns_none_when_render_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(outro_card, "render_outro_card", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(
+        outro_card, "render_outro_card", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
 
     result = outro_card.ensure_outro_assets("ai_tech", tmp_path)
 

@@ -7,6 +7,7 @@ YouTube Data API v3를 활용한 MCP 서버.
 Usage:
     python server.py
 """
+
 from __future__ import annotations
 
 import logging
@@ -92,10 +93,14 @@ def _fetch_video_stats_batch(youtube, video_ids: list[str]) -> dict[str, dict]:
     """영상 통계를 일괄 조회하는 공통 헬퍼."""
     if not video_ids:
         return {}
-    stats_response = youtube.videos().list(
-        part="statistics,contentDetails",
-        id=",".join(video_ids),
-    ).execute()
+    stats_response = (
+        youtube.videos()
+        .list(
+            part="statistics,contentDetails",
+            id=",".join(video_ids),
+        )
+        .execute()
+    )
 
     stats_map: dict[str, dict] = {}
     for item in stats_response.get("items", []):
@@ -119,10 +124,14 @@ def _get_channel_stats(channel_id: str) -> dict[str, Any]:
     """채널의 구독자 수, 총 조회수, 영상 수를 조회합니다."""
     try:
         youtube = _get_youtube_service()
-        response = youtube.channels().list(
-            part="snippet,statistics",
-            id=channel_id,
-        ).execute()
+        response = (
+            youtube.channels()
+            .list(
+                part="snippet,statistics",
+                id=channel_id,
+            )
+            .execute()
+        )
 
         items = response.get("items", [])
         if not items:
@@ -154,29 +163,32 @@ def _get_recent_videos(channel_id: str, limit: int = 10) -> dict[str, Any]:
     try:
         youtube = _get_youtube_service()
 
-        ch_response = youtube.channels().list(
-            part="contentDetails",
-            id=channel_id,
-        ).execute()
+        ch_response = (
+            youtube.channels()
+            .list(
+                part="contentDetails",
+                id=channel_id,
+            )
+            .execute()
+        )
 
         ch_items = ch_response.get("items", [])
         if not ch_items:
             return {"error": f"채널을 찾을 수 없습니다: {channel_id}"}
 
-        uploads_playlist_id = (
-            ch_items[0]
-            .get("contentDetails", {})
-            .get("relatedPlaylists", {})
-            .get("uploads", "")
-        )
+        uploads_playlist_id = ch_items[0].get("contentDetails", {}).get("relatedPlaylists", {}).get("uploads", "")
         if not uploads_playlist_id:
             return {"error": "업로드 재생목록을 찾을 수 없습니다."}
 
-        playlist_response = youtube.playlistItems().list(
-            part="snippet",
-            playlistId=uploads_playlist_id,
-            maxResults=min(limit, 50),
-        ).execute()
+        playlist_response = (
+            youtube.playlistItems()
+            .list(
+                part="snippet",
+                playlistId=uploads_playlist_id,
+                maxResults=min(limit, 50),
+            )
+            .execute()
+        )
 
         video_ids: list[str] = []
         video_snippets: dict[str, dict] = {}
@@ -196,11 +208,13 @@ def _get_recent_videos(channel_id: str, limit: int = 10) -> dict[str, Any]:
 
         videos: list[dict] = []
         for vid in video_ids:
-            videos.append({
-                "video_id": vid,
-                **video_snippets.get(vid, {}),
-                **stats_map.get(vid, {}),
-            })
+            videos.append(
+                {
+                    "video_id": vid,
+                    **video_snippets.get(vid, {}),
+                    **stats_map.get(vid, {}),
+                }
+            )
 
         return {
             "channel_id": channel_id,
@@ -218,10 +232,14 @@ def _get_video_analytics(video_id: str) -> dict[str, Any]:
     try:
         youtube = _get_youtube_service()
 
-        response = youtube.videos().list(
-            part="snippet,statistics,contentDetails,topicDetails",
-            id=video_id,
-        ).execute()
+        response = (
+            youtube.videos()
+            .list(
+                part="snippet,statistics,contentDetails,topicDetails",
+                id=video_id,
+            )
+            .execute()
+        )
 
         items = response.get("items", [])
         if not items:
@@ -264,21 +282,23 @@ def _get_video_analytics(video_id: str) -> dict[str, Any]:
         return {"error": f"영상 분석 조회 실패: {e}"}
 
 
-def _search_trending(
-    query: str, region: str = "KR", limit: int = 10
-) -> dict[str, Any]:
+def _search_trending(query: str, region: str = "KR", limit: int = 10) -> dict[str, Any]:
     """키워드로 트렌딩 영상을 검색합니다."""
     try:
         youtube = _get_youtube_service()
 
-        search_response = youtube.search().list(
-            part="snippet",
-            q=query,
-            type="video",
-            order="viewCount",
-            regionCode=region,
-            maxResults=min(limit, 50),
-        ).execute()
+        search_response = (
+            youtube.search()
+            .list(
+                part="snippet",
+                q=query,
+                type="video",
+                order="viewCount",
+                regionCode=region,
+                maxResults=min(limit, 50),
+            )
+            .execute()
+        )
 
         video_ids: list[str] = []
         snippets_map: dict[str, dict] = {}
@@ -300,11 +320,13 @@ def _search_trending(
 
         results: list[dict] = []
         for vid in video_ids:
-            results.append({
-                "video_id": vid,
-                **snippets_map.get(vid, {}),
-                **stats_map.get(vid, {}),
-            })
+            results.append(
+                {
+                    "video_id": vid,
+                    **snippets_map.get(vid, {}),
+                    **stats_map.get(vid, {}),
+                }
+            )
 
         return {
             "query": query,

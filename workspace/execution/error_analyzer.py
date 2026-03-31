@@ -24,19 +24,13 @@ from typing import Any, Dict, List, Optional
 try:
     from execution.debug_history_db import list_entries, get_stats
 except ImportError:
-    try:
-        from debug_history_db import list_entries, get_stats
-    except ImportError:
-        list_entries = None  # type: ignore[assignment]
-        get_stats = None  # type: ignore[assignment]
+    list_entries = None  # type: ignore[assignment]
+    get_stats = None  # type: ignore[assignment]
 
 try:
     from execution.telegram_notifier import send_alert
 except ImportError:
-    try:
-        from telegram_notifier import send_alert
-    except ImportError:
-        send_alert = None  # type: ignore[assignment]
+    send_alert = None  # type: ignore[assignment]
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _TMP_DIR = _PROJECT_ROOT / ".tmp"

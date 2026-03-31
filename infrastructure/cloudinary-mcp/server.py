@@ -20,6 +20,7 @@ Tools:
 Usage:
     python server.py
 """
+
 from __future__ import annotations
 
 import os
@@ -33,6 +34,7 @@ try:
     import cloudinary
     import cloudinary.api
     import cloudinary.uploader
+
     _HAS_CLOUDINARY = True
 except ImportError:
     _HAS_CLOUDINARY = False
@@ -139,15 +141,17 @@ def _list_assets(
 
         assets = []
         for r in result.get("resources", []):
-            assets.append({
-                "public_id": r.get("public_id", ""),
-                "secure_url": r.get("secure_url", ""),
-                "format": r.get("format", ""),
-                "width": r.get("width", 0),
-                "height": r.get("height", 0),
-                "bytes": r.get("bytes", 0),
-                "created_at": r.get("created_at", ""),
-            })
+            assets.append(
+                {
+                    "public_id": r.get("public_id", ""),
+                    "secure_url": r.get("secure_url", ""),
+                    "format": r.get("format", ""),
+                    "width": r.get("width", 0),
+                    "height": r.get("height", 0),
+                    "bytes": r.get("bytes", 0),
+                    "created_at": r.get("created_at", ""),
+                }
+            )
 
         return {
             "folder": folder,

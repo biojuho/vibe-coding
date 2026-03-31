@@ -1,0 +1,208 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import execution.governance_checks as gc
+
+
+def test_audit_directive_mapping_detects_orphan_script(tmp_path: Path) -> None:
+    directives_dir = tmp_path / "directives"
+    execution_dir = tmp_path / "execution"
+    directives_dir.mkdir()
+    execution_dir.mkdir()
+
+    (directives_dir / "INDEX.md").write_text(
+        "\n".join(
+            [
+                "## SOP → Execution 매핑",
+                "",
+                "| Directive | Execution Script(s) | 비고 |",
+                "|-----------|---------------------|------|",
+                "| local_inference.md | local_inference.py | test |",
+                "",
+                "---",
+                "",
+                "## 매핑 없는 Execution 스크립트 (유틸리티/인프라)",
+                "",
+                "| Script | 분류 | 용도 |",
+                "|--------|------|------|",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (directives_dir / "local_inference.md").write_text("# local inference", encoding="utf-8")
+    (execution_dir / "local_inference.py").write_text("print('ok')\n", encoding="utf-8")
+    (execution_dir / "orphan.py").write_text("print('orphan')\n", encoding="utf-8")
+
+    result = gc.audit_directive_mapping(
+        index_path=directives_dir / "INDEX.md",
+        directives_dir=directives_dir,
+        execution_dir=execution_dir,
+        root=tmp_path,
+    )
+
+    assert result["status"] == gc.STATUS_FAIL
+    assert any("orphan.py" in issue for issue in result["issues"])
+
+
+def test_audit_directive_mapping_passes_when_index_is_complete(tmp_path: Path) -> None:
+    directives_dir = tmp_path / "directives"
+    execution_dir = tmp_path / "execution"
+    directives_dir.mkdir()
+    execution_dir.mkdir()
+
+    (directives_dir / "INDEX.md").write_text(
+        "\n".join(
+            [
+                "## SOP → Execution 매핑",
+                "",
+                "| Directive | Execution Script(s) | 비고 |",
+                "|-----------|---------------------|------|",
+                "| local_inference.md | local_inference.py | test |",
+                "",
+                "---",
+                "",
+                "## 매핑 없는 Execution 스크립트 (유틸리티/인프라)",
+                "",
+                "| Script | 분류 | 용도 |",
+                "|--------|------|------|",
+                "| helper.py | utility | helper |",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (directives_dir / "local_inference.md").write_text("# local inference", encoding="utf-8")
+    (execution_dir / "local_inference.py").write_text("print('ok')\n", encoding="utf-8")
+    (execution_dir / "helper.py").write_text("print('helper')\n", encoding="utf-8")
+
+    result = gc.audit_directive_mapping(
+        index_path=directives_dir / "INDEX.md",
+        directives_dir=directives_dir,
+        execution_dir=execution_dir,
+        root=tmp_path,
+    )
+
+    assert result["status"] == gc.STATUS_OK
+    assert result["issues"] == []
+
+
+def test_audit_relay_claim_consistency_fails_on_stale_claim(tmp_path: Path) -> None:
+    ai_dir = tmp_path / ".ai"
+    execution_dir = tmp_path / "execution"
+    ai_dir.mkdir()
+    execution_dir.mkdir()
+
+    handoff_path = ai_dir / "HANDOFF.md"
+    handoff_path.write_text(
+        "- `workspace/execution/code_evaluator.py` integrated into `graph_engine.py`\n",
+        encoding="utf-8",
+    )
+    (execution_dir / "graph_engine.py").write_text("def run_graph():\n    return 'ok'\n", encoding="utf-8")
+
+    result = gc.audit_relay_claim_consistency(
+        handoff_path=handoff_path,
+        claim_specs=(
+            {
+                "name": "code_evaluator_graph_engine_integration",
+                "claim_pattern": gc.RELAY_CLAIM_SPECS[0]["claim_pattern"],
+                "proof_path": execution_dir / "graph_engine.py",
+                "proof_patterns": gc.RELAY_CLAIM_SPECS[0]["proof_patterns"],
+                "failure_detail": gc.RELAY_CLAIM_SPECS[0]["failure_detail"],
+            },
+        ),
+    )
+
+    assert result["status"] == gc.STATUS_FAIL
+    assert any("CodeEvaluator" in issue for issue in result["issues"])
+
+
+def test_audit_relay_claim_consistency_passes_when_claim_matches_code(tmp_path: Path) -> None:
+    ai_dir = tmp_path / ".ai"
+    execution_dir = tmp_path / "execution"
+    ai_dir.mkdir()
+    execution_dir.mkdir()
+
+    handoff_path = ai_dir / "HANDOFF.md"
+    handoff_path.write_text(
+        "- `workspace/execution/code_evaluator.py` integrated into `graph_engine.py`\n",
+        encoding="utf-8",
+    )
+    (execution_dir / "graph_engine.py").write_text(
+        "from execution.code_evaluator import CodeEvaluator\nevaluator = CodeEvaluator(llm_client=None)\n",
+        encoding="utf-8",
+    )
+
+    result = gc.audit_relay_claim_consistency(
+        handoff_path=handoff_path,
+        claim_specs=(
+            {
+                "name": "code_evaluator_graph_engine_integration",
+                "claim_pattern": gc.RELAY_CLAIM_SPECS[0]["claim_pattern"],
+                "proof_path": execution_dir / "graph_engine.py",
+                "proof_patterns": gc.RELAY_CLAIM_SPECS[0]["proof_patterns"],
+                "failure_detail": gc.RELAY_CLAIM_SPECS[0]["failure_detail"],
+            },
+        ),
+    )
+
+    assert result["status"] == gc.STATUS_OK
+    assert result["checked_claims"] == ["code_evaluator_graph_engine_integration"]
+
+
+def test_audit_task_backlog_alignment_fails_without_task_link(tmp_path: Path) -> None:
+    tasks_path = tmp_path / "TASKS.md"
+    tracked_path = tmp_path / "plan.md"
+
+    tasks_path.write_text(
+        "\n".join(
+            [
+                "## TODO",
+                "",
+                "| ID | Task | Owner | Priority | Created |",
+                "|----|------|-------|----------|---------|",
+                "| T-100 | Example task | Codex | High | 2026-03-31 |",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    tracked_path.write_text("- [ ] open follow-up without task ref\n", encoding="utf-8")
+
+    result = gc.audit_task_backlog_alignment(
+        tasks_path=tasks_path,
+        tracked_files=(tracked_path,),
+    )
+
+    assert result["status"] == gc.STATUS_FAIL
+    assert "missing [TASK: T-XXX]" in result["detail"]
+
+
+def test_audit_task_backlog_alignment_passes_with_active_task_refs(tmp_path: Path) -> None:
+    tasks_path = tmp_path / "TASKS.md"
+    tracked_path = tmp_path / "plan.md"
+
+    tasks_path.write_text(
+        "\n".join(
+            [
+                "## TODO",
+                "",
+                "| ID | Task | Owner | Priority | Created |",
+                "|----|------|-------|----------|---------|",
+                "| T-100 | Example task | Codex | High | 2026-03-31 |",
+                "",
+                "## IN_PROGRESS",
+                "",
+                "| ID | Task | Owner | Started | Notes |",
+                "|----|------|-------|---------|-------|",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    tracked_path.write_text("- [ ] linked follow-up [TASK: T-100]\n", encoding="utf-8")
+
+    result = gc.audit_task_backlog_alignment(
+        tasks_path=tasks_path,
+        tracked_files=(tracked_path,),
+    )
+
+    assert result["status"] == gc.STATUS_OK
+    assert "T-100" in result["detail"]

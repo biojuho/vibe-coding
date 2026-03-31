@@ -62,11 +62,16 @@ def test_karaoke_chunking_and_ssml():
     # Test JSON load
     with tempfile.TemporaryDirectory() as tmpdir:
         json_path = Path(tmpdir) / "words.json"
-        json_path.write_text(json.dumps([
-            {"word": "Hi ", "start": "0.1", "end": "0.5"},
-            {"word": " ", "start": "0.5", "end": "0.6"},  # Should be skipped
-            {"word": "Test", "start": "0.6", "end": "1.0"}
-        ]), encoding="utf-8")
+        json_path.write_text(
+            json.dumps(
+                [
+                    {"word": "Hi ", "start": "0.1", "end": "0.5"},
+                    {"word": " ", "start": "0.5", "end": "0.6"},  # Should be skipped
+                    {"word": "Test", "start": "0.6", "end": "1.0"},
+                ]
+            ),
+            encoding="utf-8",
+        )
         loaded = load_words_json(json_path)
         assert len(loaded) == 2
         assert loaded[0].word == "Hi"

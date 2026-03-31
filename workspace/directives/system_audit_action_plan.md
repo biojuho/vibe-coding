@@ -25,7 +25,7 @@
 - **조치**:
   - [x] `projects/shorts-maker-v2/pyproject.toml`에 `--cov=src/shorts_maker_v2` 설정
   - [x] `projects/blind-to-x/pytest.ini`에 `--cov=pipeline --cov=scrapers` 설정
-  - [ ] 목표: shorts ≥ 80%, blind-to-x ≥ 75%
+  - [ ] 목표: shorts ≥ 80%, blind-to-x ≥ 75% [TASK: T-100]
 - **예상 소요**: 2~3시간
 
 ### P1-2. 워치독 이중화 (heartbeat + 자동 재시작)
@@ -167,8 +167,8 @@
   - [x] System Monitor MCP로 리소스 측정 → `directives/mcp_resource_profile.md`
   - [x] 사용 빈도별 Tier 1/2/3 분류 완료
   - [x] Tier 3 (youtube/cloudinary/n8n/playwright/firebase/supabase/notebooklm) on-demand 전환 권장
-  - [ ] (후속) AI 도구 동시 실행 제한으로 즉시 ~3.7GB 확보
-  - [ ] (후속) server-filesystem 제거 (Read/Glob으로 대체)
+  - [x] (후속) AI 도구 동시 실행 제한 가드 추가로 즉시 footprint 경고 지원 [TASK: T-101]
+  - [x] (후속) server-filesystem 제거 (Read/Glob으로 대체) [TASK: T-101]
 - **완료**: 2026-03-22 (프로파일링 + 권장안)
 
 ### P3-3. MoviePy 탈출 경로 확보 ✅ (Phase 1)
@@ -179,7 +179,7 @@
   - [x] FFmpeg subprocess 직접 호출 대안 경로 구현 (FFmpegRenderer)
   - [x] MoviePyRenderer 현재 구현 래핑
   - [x] (후속) render_step.py 파일 로딩/쓰기를 VideoRendererBackend 경유로 전환 완료
-  - [ ] (후속) golden render test (30초 샘플, 해상도/오디오 sync 검사)
+  - [x] (후속) golden render test (30초 샘플, 해상도/오디오 sync 검사) [TASK: T-102]
 - **완료**: 2026-03-23 (render_step 연동 커밋 `bc5d7ec`)
 
 ### P3-4. 키 로테이션 알림 자동화 ✅

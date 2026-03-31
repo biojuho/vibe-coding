@@ -57,7 +57,7 @@ class TestGenerateDashboard:
         logs = tmp_path / "logs"
         logs.mkdir()
         costs_file = logs / "data.jsonl"
-        costs_file.write_text("not json\n{\"cost_usd\": 0.1}\n", encoding="utf-8")
+        costs_file.write_text('not json\n{"cost_usd": 0.1}\n', encoding="utf-8")
 
         out = tmp_path / "out.html"
         result = generate_dashboard(logs, out)
@@ -71,8 +71,10 @@ class TestGenerateDashboard:
         entries = [
             {"level": "INFO", "event": "start", "ts": "2026-03-23T10:00:00"},
             {
-                "level": "INFO", "event": "render_complete",
-                "output_path": "/out.mp4", "cost_usd_total": 0.35,
+                "level": "INFO",
+                "event": "render_complete",
+                "output_path": "/out.mp4",
+                "cost_usd_total": 0.35,
                 "status": "success",
             },
         ]
@@ -177,7 +179,8 @@ class TestGenerateDashboard:
         # 정상 파일 하나 + 깨진 파일 하나
         good = logs / "good.jsonl"
         good.write_text(
-            json.dumps({"job_id": "g1", "timestamp": "2026-03-27T10:00:00+00:00", "status": "success", "cost_usd": 0.5}) + "\n",
+            json.dumps({"job_id": "g1", "timestamp": "2026-03-27T10:00:00+00:00", "status": "success", "cost_usd": 0.5})
+            + "\n",
             encoding="utf-8",
         )
         bad = logs / "bad.jsonl"

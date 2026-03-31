@@ -311,11 +311,15 @@ class TestGateSceneQC:
 def test_gate4_final_pass_all_checks(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     out = _write_bytes(tmp_path / "out.mp4", 5 * 1024 * 1024)  # 5MB
     manifest = JobManifest(
-        job_id="pass-1", topic="t", status="ok",
-        total_duration_sec=45.0, failed_steps=[],
+        job_id="pass-1",
+        topic="t",
+        status="ok",
+        total_duration_sec=45.0,
+        failed_steps=[],
     )
     monkeypatch.setattr(
-        QCStep, "_probe_video",
+        QCStep,
+        "_probe_video",
         staticmethod(lambda path: {"width": 1080, "height": 1920, "fps": 30.0}),
     )
     monkeypatch.setattr(QCStep, "_check_audio_peak", staticmethod(lambda path: -3.0))
@@ -328,8 +332,11 @@ def test_gate4_final_pass_all_checks(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
 def test_gate4_final_missing_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     manifest = JobManifest(
-        job_id="miss-1", topic="t", status="ok",
-        total_duration_sec=45.0, failed_steps=[],
+        job_id="miss-1",
+        topic="t",
+        status="ok",
+        total_duration_sec=45.0,
+        failed_steps=[],
     )
     monkeypatch.setattr(QCStep, "_probe_video", staticmethod(lambda path: None))
     monkeypatch.setattr(QCStep, "_check_audio_peak", staticmethod(lambda path: None))

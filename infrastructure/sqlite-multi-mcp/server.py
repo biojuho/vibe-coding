@@ -14,6 +14,7 @@ SQLite Multi-DB MCP Server
 Usage:
     python server.py
 """
+
 from __future__ import annotations
 
 import os
@@ -62,8 +63,9 @@ def _resolve_db(db_name: str) -> Path:
 def _validate_table_name(table_name: str) -> str:
     """테이블 이름을 검증하여 SQL Injection을 방지합니다. # [QA 수정]"""
     import re
+
     cleaned = table_name.strip()
-    if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', cleaned):
+    if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", cleaned):
         raise ValueError(f"유효하지 않은 테이블 이름: '{table_name}'")
     return cleaned
 
@@ -128,9 +130,7 @@ def _list_databases() -> dict[str, Any]:
             # 테이블 목록 조회
             try:
                 conn = sqlite3.connect(str(path), timeout=3)
-                cursor = conn.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-                )
+                cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
                 info["tables"] = [row[0] for row in cursor.fetchall()]
                 info["table_count"] = len(info["tables"])
                 conn.close()
@@ -158,14 +158,16 @@ def _get_table_schema(db_name: str, table_name: str) -> dict[str, Any]:
         cursor = conn.execute(f"PRAGMA table_info({safe_name})")  # noqa: S608 — validated by _validate_table_name
         columns = []
         for row in cursor.fetchall():
-            columns.append({
-                "cid": row[0],
-                "name": row[1],
-                "type": row[2],
-                "notnull": bool(row[3]),
-                "default_value": row[4],
-                "pk": bool(row[5]),
-            })
+            columns.append(
+                {
+                    "cid": row[0],
+                    "name": row[1],
+                    "type": row[2],
+                    "notnull": bool(row[3]),
+                    "default_value": row[4],
+                    "pk": bool(row[5]),
+                }
+            )
 
         if not columns:
             return {"error": f"테이블 '{table_name}'을 찾을 수 없습니다.", "db": db_name}
@@ -194,9 +196,7 @@ def _quick_stats(db_name: str) -> dict[str, Any]:
     conn = None
     try:
         conn = sqlite3.connect(str(db_path), timeout=3)
-        cursor = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-        )
+        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
         tables = [row[0] for row in cursor.fetchall()]
 
         stats = {
@@ -281,6 +281,7 @@ if __name__ == "__main__":
     if mcp is None:
         print("mcp 패키지 미설치. pip install 'mcp[cli]' 후 다시 실행하세요.")
         import json
+
         print("\n=== DB 목록 ===")
         print(json.dumps(_list_databases(), indent=2, ensure_ascii=False))
     else:

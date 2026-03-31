@@ -29,6 +29,7 @@ WORKSPACE_DIR = Path(__file__).resolve().parents[1]
 if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
 
+from execution.governance_checks import run_governance_checks, summarize_governance_results  # noqa: E402
 from path_contract import REPO_ROOT, resolve_project_dir  # noqa: E402
 
 ROOT_DIR = REPO_ROOT
@@ -187,10 +188,7 @@ def _build_test_runs(project_config: dict) -> list[dict]:
     if configured_runs:
         return configured_runs
 
-    test_paths = project_config.get("test_paths")
-    if not test_paths:
-        legacy_path = project_config.get("test_dir")
-        test_paths = [legacy_path] if legacy_path else []
+    test_paths = project_config.get("test_paths", [])
     return [{"paths": test_paths}]
 
 
@@ -324,12 +322,6 @@ def _triage_security_issue(issue: dict[str, str]) -> dict[str, object]:
     normalized_file = _normalize_rel_path(issue.get("file", ""))
     preview = issue.get("match_preview", "")
 
-    legacy_aliases = {
-        "blind-to-x/pipeline/cost_db.py": "projects/blind-to-x/pipeline/cost_db.py",
-        "execution/content_db.py": "workspace/execution/content_db.py",
-    }
-    normalized_file = legacy_aliases.get(normalized_file, normalized_file)
-
     for rule in SECURITY_TRIAGE_RULES:
         if normalized_file == rule["file"] and preview.startswith(rule["match_preview"]):
             return {
@@ -432,6 +424,32 @@ def security_scan() -> dict:
     }
 
 
+def governance_scan() -> dict:
+    results = run_governance_checks()
+    summary = summarize_governance_results(results)
+    overall = summary["overall"]
+
+    if overall == "fail":
+        status = "FAIL"
+        status_detail = f"FAIL ({summary['counts']['fail']} fail / {summary['counts']['warn']} warn)"
+    elif overall == "warn":
+        status = "WARNING"
+        status_detail = f"WARNING ({summary['counts']['warn']} warn)"
+    else:
+        status = "CLEAR"
+        status_detail = "CLEAR"
+
+    flagged = [result for result in results if result.get("status") in {"fail", "warn"}]
+    return {
+        "status": status,
+        "status_detail": status_detail,
+        "checks": results,
+        "flagged_checks": flagged,
+        "counts": summary["counts"],
+        "total": summary["total"],
+    }
+
+
 def check_infrastructure() -> dict:
     infra: dict[str, object] = {}
 
@@ -500,7 +518,9 @@ def check_infrastructure() -> dict:
     return infra
 
 
-def determine_verdict(projects: dict, ast_result: dict, security_result: dict) -> str:
+def determine_verdict(
+    projects: dict, ast_result: dict, security_result: dict, governance_result: dict | None = None
+) -> str:
     total_failed = sum(project.get("failed", 0) for project in projects.values())
     real_errors = sum(
         project.get("errors", 0) for project in projects.values() if project.get("status") not in ("TIMEOUT", "SKIP")
@@ -508,6 +528,7 @@ def determine_verdict(projects: dict, ast_result: dict, security_result: dict) -
     timeout_count = sum(1 for project in projects.values() if project.get("status") == "TIMEOUT")
     ast_failures = len(ast_result.get("failures", []))
     security_issues = security_result.get("actionable_issue_count", len(security_result.get("issues", [])))
+    governance_status = (governance_result or {}).get("status", "CLEAR")
 
     if ast_failures > 0:
         return "REJECTED"
@@ -522,6 +543,9 @@ def determine_verdict(projects: dict, ast_result: dict, security_result: dict) -
         return "CONDITIONALLY_APPROVED"
 
     if security_issues > 0:
+        return "CONDITIONALLY_APPROVED"
+
+    if governance_status in {"FAIL", "WARNING"}:
         return "CONDITIONALLY_APPROVED"
 
     return "APPROVED"
@@ -563,6 +587,11 @@ def run_qaqc(
     sec_status = security_result.get("status_detail", security_result["status"])
     print(f"   [{security_result['status']}] {sec_status}")
 
+    print("\n[GOV] Running governance scan...")
+    governance_result = governance_scan()
+    gov_status = governance_result.get("status_detail", governance_result["status"])
+    print(f"   [{governance_result['status']}] {gov_status}")
+
     infra_result: dict[str, object] = {}
     if not skip_infra:
         print("\n[INFRA] Checking local infrastructure...")
@@ -573,7 +602,7 @@ def run_qaqc(
         print(f"   Scheduler: {scheduler.get('ready', 0)}/{scheduler.get('total', 0)} Ready")
         print(f"   Disk: {infra_result.get('disk_gb_free', '?')} GB free")
 
-    verdict = determine_verdict(project_results, ast_result, security_result)
+    verdict = determine_verdict(project_results, ast_result, security_result, governance_result)
     total_passed = sum(project.get("passed", 0) for project in project_results.values())
     total_failed = sum(project.get("failed", 0) for project in project_results.values())
     total_errors = sum(project.get("errors", 0) for project in project_results.values())
@@ -602,6 +631,7 @@ def run_qaqc(
         },
         "ast_check": ast_result,
         "security_scan": security_result,
+        "governance_scan": governance_result,
         "infrastructure": infra_result,
     }
 
@@ -610,10 +640,7 @@ def run_qaqc(
     out_path.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"\n[SAVED] {out_path}")
 
-    try:
-        from qaqc_history_db import QaQcHistoryDB
-    except ImportError:
-        from execution.qaqc_history_db import QaQcHistoryDB
+    from execution.qaqc_history_db import QaQcHistoryDB
 
     try:
         db = QaQcHistoryDB()

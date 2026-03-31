@@ -60,11 +60,11 @@ _CHANNEL_TREND_SEEDS: dict[str, list[str]] = {
 class TrendCandidate:
     """트렌드 주제 후보 단일 항목."""
 
-    keyword: str               # 유저가 파이프라인에 넣을 주제 키워드
-    source: str                # "youtube_rss" | "google_trends" | "llm_brainstorm"
-    score: float               # 트렌드 강도 0.0-1.0
-    channel: str               # ai_tech | psychology | history | space | health
-    raw_title: str = ""        # YouTube RSS일 경우 원본 제목
+    keyword: str  # 유저가 파이프라인에 넣을 주제 키워드
+    source: str  # "youtube_rss" | "google_trends" | "llm_brainstorm"
+    score: float  # 트렌드 강도 0.0-1.0
+    channel: str  # ai_tech | psychology | history | space | health
+    raw_title: str = ""  # YouTube RSS일 경우 원본 제목
     related_queries: list[str] = field(default_factory=list)  # Google Trends 관련 쿼리
 
 
@@ -286,9 +286,7 @@ Rules:
     # Source 3: LLM Brainstorm (Fallback)
     # ------------------------------------------------------------------
 
-    def _from_llm_brainstorm(
-        self, channel_key: str, n: int = 10
-    ) -> list[TrendCandidate]:
+    def _from_llm_brainstorm(self, channel_key: str, n: int = 10) -> list[TrendCandidate]:
         """LLM으로 채널별 트렌드 후보 생성 (외부 API 미사용 fallback)."""
         if not self.llm_router:
             return []

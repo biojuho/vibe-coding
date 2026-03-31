@@ -57,8 +57,10 @@ class TestChannelPipeline:
 
     def test_get_generator_not_found(self):
         profile = {}
-        with patch("shorts_maker_v2.templates.get", return_value=None), \
-             patch.object(ChannelPipeline, "list_templates", return_value=[]):
+        with (
+            patch("shorts_maker_v2.templates.get", return_value=None),
+            patch.object(ChannelPipeline, "list_templates", return_value=[]),
+        ):
             cp = ChannelPipeline("space", profile=profile)
             try:
                 cp.get_generator("nonexistent")

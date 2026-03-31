@@ -37,9 +37,17 @@ from shorts_maker_v2.render.video_renderer import (
 
 TARGET_W, TARGET_H = 1080, 1920
 SCENE_DURATION = 5.0  # seconds per scene
-SCENE_COUNT = 3
-EXPECTED_TOTAL = SCENE_DURATION * SCENE_COUNT  # 15 seconds
+SCENE_COLORS = (
+    (255, 0, 0),
+    (255, 128, 0),
+    (255, 255, 0),
+    (0, 200, 0),
+    (0, 120, 255),
+    (128, 0, 255),
+)
+EXPECTED_TOTAL = SCENE_DURATION * len(SCENE_COLORS)  # 30 seconds
 DURATION_TOLERANCE = 2.0  # ffprobe tolerance (seconds)
+AUDIO_VIDEO_SYNC_TOLERANCE = 0.5  # allow small AAC padding/encoder drift
 
 
 def _make_test_image(path: Path, color: tuple[int, int, int]) -> Path:
@@ -69,6 +77,7 @@ def _ffprobe(video_path: Path) -> dict[str, Any]:
     ffprobe_bin = "ffprobe"
     try:
         import imageio_ffmpeg
+
         _ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
         if _ffmpeg_exe:
             candidate = Path(_ffmpeg_exe).parent / "ffprobe.exe"
@@ -80,18 +89,39 @@ def _ffprobe(video_path: Path) -> dict[str, Any]:
         pass
 
     cmd = [
-        ffprobe_bin, "-v", "quiet",
-        "-print_format", "json",
+        ffprobe_bin,
+        "-v",
+        "quiet",
+        "-print_format",
+        "json",
         "-show_format",
         "-show_streams",
         str(video_path),
     ]
     result = subprocess.run(
-        cmd, capture_output=True, encoding="utf-8", errors="replace", timeout=30,
+        cmd,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=30,
     )
     assert result.returncode == 0, f"ffprobe failed (rc={result.returncode}): {result.stderr}"
     assert result.stdout, f"ffprobe returned empty output for {video_path}"
     return json.loads(result.stdout)
+
+
+def _stream_duration(stream: dict[str, Any], fallback: float) -> float:
+    """Read a stream duration from ffprobe, falling back to the container value."""
+    raw = stream.get("duration")
+    if raw in (None, "N/A", ""):
+        tags = stream.get("tags", {})
+        raw = tags.get("DURATION")
+    if isinstance(raw, str) and ":" in raw:
+        hours, minutes, seconds = raw.split(":")
+        return (int(hours) * 3600) + (int(minutes) * 60) + float(seconds)
+    if raw not in (None, "N/A", ""):
+        return float(raw)
+    return fallback
 
 
 def _validate_output(video_path: Path) -> None:
@@ -125,13 +155,23 @@ def _validate_output(video_path: Path) -> None:
     assert width == TARGET_W, f"Width mismatch: {width} (expected {TARGET_W})"
     assert height == TARGET_H, f"Height mismatch: {height} (expected {TARGET_H})"
 
+    video_duration = _stream_duration(video_stream, fmt_duration)
+    audio_duration = _stream_duration(audio_stream, fmt_duration)
+    assert abs(video_duration - EXPECTED_TOTAL) < DURATION_TOLERANCE, (
+        f"Video duration mismatch: {video_duration:.2f}s (expected ~{EXPECTED_TOTAL}s)"
+    )
+    assert abs(audio_duration - EXPECTED_TOTAL) < DURATION_TOLERANCE, (
+        f"Audio duration mismatch: {audio_duration:.2f}s (expected ~{EXPECTED_TOTAL}s)"
+    )
+    assert abs(video_duration - audio_duration) < AUDIO_VIDEO_SYNC_TOLERANCE, (
+        f"Audio/video drift too large: video={video_duration:.2f}s audio={audio_duration:.2f}s"
+    )
+
 
 def _generate_assets(base_dir: Path) -> dict[str, Any]:
     """Generate test images and audio in the given directory."""
     images = [
-        _make_test_image(base_dir / "scene_1.png", (255, 0, 0)),    # Red
-        _make_test_image(base_dir / "scene_2.png", (0, 255, 0)),    # Green
-        _make_test_image(base_dir / "scene_3.png", (0, 0, 255)),    # Blue
+        _make_test_image(base_dir / f"scene_{index}.png", color) for index, color in enumerate(SCENE_COLORS, start=1)
     ]
     audio = _make_silent_wav(base_dir / "silence.wav", duration_sec=EXPECTED_TOTAL)
     output_dir = base_dir / "output"

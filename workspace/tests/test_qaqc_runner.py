@@ -139,6 +139,13 @@ class TestDetermineVerdict:
         sec_r = {"issues": [{"file": "x.py", "pattern": "secret"}]}
         assert determine_verdict(projects, ast_r, sec_r) == "CONDITIONALLY_APPROVED"
 
+    def test_governance_warning(self):
+        projects = {"root": {"passed": 100, "failed": 0, "errors": 0}}
+        ast_r = {"failures": []}
+        sec_r = {"issues": []}
+        gov_r = {"status": "WARNING"}
+        assert determine_verdict(projects, ast_r, sec_r, gov_r) == "CONDITIONALLY_APPROVED"
+
     def test_triaged_security_issue_does_not_block_approval(self):
         projects = {"root": {"passed": 100, "failed": 0, "errors": 0}}
         ast_r = {"failures": []}
@@ -149,7 +156,7 @@ class TestDetermineVerdict:
 class TestSecurityTriage:
     def test_known_false_positive_is_triaged(self):
         issue = {
-            "file": r"blind-to-x\pipeline\cost_db.py",
+            "file": "projects/blind-to-x/pipeline/cost_db.py",
             "pattern": "Potential SQL injection via f-string",
             "match_preview": 'f"SELECT * FROM {table}',
         }

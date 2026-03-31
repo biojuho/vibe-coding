@@ -159,6 +159,7 @@ def test_run_qaqc_writes_report_and_saves_history(tmp_path, monkeypatch) -> None
     )
     monkeypatch.setattr(qaqc_runner, "check_ast", lambda modules: {"total": 1, "ok": 1, "failures": []})
     monkeypatch.setattr(qaqc_runner, "security_scan", lambda: {"status": "CLEAR", "issues": []})
+    monkeypatch.setattr(qaqc_runner, "governance_scan", lambda: {"status": "CLEAR", "status_detail": "CLEAR"})
     monkeypatch.setattr(qaqc_runner, "determine_verdict", lambda *args: "APPROVED")
 
     saved_reports: list[dict] = []
@@ -170,7 +171,7 @@ def test_run_qaqc_writes_report_and_saves_history(tmp_path, monkeypatch) -> None
             return 1
 
     fake_qaqc_db.QaQcHistoryDB = FakeHistoryDB
-    monkeypatch.setitem(sys.modules, "qaqc_history_db", fake_qaqc_db)
+    monkeypatch.setitem(sys.modules, "execution.qaqc_history_db", fake_qaqc_db)
 
     output_path = tmp_path / "qaqc.json"
     report = qaqc_runner.run_qaqc(target_projects=["root"], skip_infra=True, output_file=str(output_path))
@@ -178,6 +179,7 @@ def test_run_qaqc_writes_report_and_saves_history(tmp_path, monkeypatch) -> None
     persisted = json.loads(output_path.read_text(encoding="utf-8"))
     assert report["verdict"] == "APPROVED"
     assert persisted["projects"]["root"]["passed"] == 5
+    assert persisted["governance_scan"]["status"] == "CLEAR"
     assert saved_reports[0]["verdict"] == "APPROVED"
 
 
@@ -202,3 +204,24 @@ def test_security_scan_keeps_machine_status_clear_for_triaged_only_issue(tmp_pat
     assert result["status_detail"] == "CLEAR (1 triaged issue(s))"
     assert result["issues"] == []
     assert result["triaged_issue_count"] == 1
+
+
+def test_governance_scan_reports_failures(monkeypatch) -> None:
+    monkeypatch.setattr(
+        qaqc_runner,
+        "run_governance_checks",
+        lambda: [
+            {"name": "directive_mapping", "status": "fail"},
+            {"name": "task_backlog_alignment", "status": "ok"},
+        ],
+    )
+    monkeypatch.setattr(
+        qaqc_runner,
+        "summarize_governance_results",
+        lambda results: {"overall": "fail", "counts": {"ok": 1, "warn": 0, "fail": 1}, "total": 2},
+    )
+
+    result = qaqc_runner.governance_scan()
+
+    assert result["status"] == "FAIL"
+    assert len(result["flagged_checks"]) == 1

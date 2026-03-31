@@ -1,23 +1,23 @@
 {
-  "timestamp": "2026-03-29T18:42:44",
-  "verdict": "CONDITIONALLY_APPROVED",
-  "elapsed_sec": 682.7,
+  "timestamp": "2026-03-31T16:48:21",
+  "verdict": "APPROVED",
+  "elapsed_sec": 801.3,
   "projects": {
     "blind-to-x": {
-      "passed": 294,
-      "failed": 1,
-      "skipped": 2,
+      "passed": 594,
+      "failed": 0,
+      "skipped": 16,
       "errors": 0,
-      "duration_sec": 140.35,
-      "status": "FAIL",
+      "duration_sec": 235.17,
+      "status": "PASS",
       "runs": [
         {
-          "passed": 231,
-          "failed": 1,
-          "skipped": 1,
+          "passed": 531,
+          "failed": 0,
+          "skipped": 15,
           "errors": 0,
-          "status": "FAIL",
-          "duration_sec": 117.42
+          "status": "PASS",
+          "duration_sec": 215.61
         },
         {
           "passed": 63,
@@ -25,34 +25,34 @@
           "skipped": 1,
           "errors": 0,
           "status": "PASS",
-          "duration_sec": 22.93
+          "duration_sec": 19.56
         }
       ],
       "message": "Ignored known env-specific curl_cffi CA Error 77 reproducer"
     },
     "shorts-maker-v2": {
-      "passed": 1233,
+      "passed": 1270,
       "failed": 0,
       "skipped": 12,
       "errors": 0,
-      "duration_sec": 447.4,
+      "duration_sec": 501.83,
       "status": "PASS"
     },
     "root": {
-      "passed": 1040,
+      "passed": 1051,
       "failed": 0,
       "skipped": 1,
       "errors": 0,
-      "duration_sec": 53.43,
+      "duration_sec": 43.92,
       "status": "PASS",
       "runs": [
         {
-          "passed": 1015,
+          "passed": 1026,
           "failed": 0,
           "skipped": 1,
           "errors": 0,
           "status": "PASS",
-          "duration_sec": 51.15
+          "duration_sec": 43.26
         },
         {
           "passed": 25,
@@ -60,16 +60,16 @@
           "skipped": 0,
           "errors": 0,
           "status": "PASS",
-          "duration_sec": 2.28
+          "duration_sec": 0.66
         }
       ]
     }
   },
   "total": {
-    "passed": 2567,
-    "failed": 1,
+    "passed": 2915,
+    "failed": 0,
     "errors": 0,
-    "skipped": 15,
+    "skipped": 29,
     "timeout": []
   },
   "ast_check": {
@@ -79,24 +79,98 @@
   },
   "security_scan": {
     "status": "CLEAR",
-    "status_detail": "CLEAR",
+    "status_detail": "CLEAR (2 triaged issue(s))",
     "issues": [],
-    "triaged_issues": [],
-    "raw_issue_count": 0,
+    "triaged_issues": [
+      {
+        "file": "projects\\blind-to-x\\pipeline\\cost_db.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"SELECT * FROM {table}",
+        "actionable": false,
+        "triage": {
+          "classification": "false_positive",
+          "reason": "archive_old_data only interpolates table names from the internal _ARCHIVE_TABLES frozenset; the date cutoff remains parameterized."
+        }
+      },
+      {
+        "file": "projects\\blind-to-x\\pipeline\\cost_db.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"DELETE FROM {table}",
+        "actionable": false,
+        "triage": {
+          "classification": "false_positive",
+          "reason": "archive_old_data only deletes from archive tables chosen from the internal _ARCHIVE_TABLES frozenset, with the cutoff value parameterized."
+        }
+      }
+    ],
+    "raw_issue_count": 2,
     "actionable_issue_count": 0,
-    "triaged_issue_count": 0
+    "triaged_issue_count": 2
+  },
+  "governance_scan": {
+    "status": "CLEAR",
+    "status_detail": "CLEAR",
+    "checks": [
+      {
+        "name": "ai_context_files",
+        "category": "governance",
+        "status": "ok",
+        "detail": "All 7 required AI context files are present",
+        "checked_at": "2026-03-31T17:01:38",
+        "count": 7
+      },
+      {
+        "name": "relay_claim_consistency",
+        "category": "governance",
+        "status": "ok",
+        "detail": "No targeted relay claims found in HANDOFF.md",
+        "checked_at": "2026-03-31T17:01:38",
+        "checked_claims": []
+      },
+      {
+        "name": "directive_mapping",
+        "category": "governance",
+        "status": "ok",
+        "detail": "Checked 27 SOP mappings, 15 unmapped scripts; no mapping drift detected",
+        "checked_at": "2026-03-31T17:01:38",
+        "issues": [],
+        "sop_count": 27,
+        "unmapped_count": 15,
+        "actual_script_count": 53,
+        "actual_sop_count": 27
+      },
+      {
+        "name": "task_backlog_alignment",
+        "category": "governance",
+        "status": "ok",
+        "detail": "All 1 tracked follow-up(s) are linked to active task(s): T-100",
+        "checked_at": "2026-03-31T17:01:38",
+        "open_followup_count": 1,
+        "active_task_count": 2,
+        "linked_task_ids": [
+          "T-100"
+        ]
+      }
+    ],
+    "flagged_checks": [],
+    "counts": {
+      "ok": 4,
+      "warn": 0,
+      "fail": 0
+    },
+    "total": 4
   },
   "infrastructure": {
     "docker": true,
     "docker_containers": [
-      "crazy_lederberg",
+      "inspiring_ptolemy",
       "n8n"
     ],
     "ollama": true,
     "scheduler": {
-      "ready": 6,
+      "ready": 5,
       "total": 6
     },
-    "disk_gb_free": 137.4
+    "disk_gb_free": 136.7
   }
 }

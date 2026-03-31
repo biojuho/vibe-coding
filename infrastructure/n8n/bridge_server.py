@@ -94,7 +94,11 @@ def build_allowed_commands(
             "description": "YouTube analytics sync",
         },
         "cache_cleanup": {
-            "cmd": [resolved_python, "-c", "from execution.llm_client import cache_cleanup; print(f'Cleaned {cache_cleanup()} entries')"],
+            "cmd": [
+                resolved_python,
+                "-c",
+                "from execution.llm_client import cache_cleanup; print(f'Cleaned {cache_cleanup()} entries')",
+            ],
             "cwd": str(workspace_dir),
             "description": "LLM cache cleanup",
         },
@@ -110,24 +114,37 @@ def build_allowed_commands(
         # ── Shorts Maker v2 ──
         "shorts_generate": {
             "cmd": [
-                resolved_python, "-m", "shorts_maker_v2",
-                "generate", "--jobs", "1",
+                resolved_python,
+                "-m",
+                "shorts_maker_v2",
+                "generate",
+                "--jobs",
+                "1",
             ],
             "cwd": str(repo_root / "projects" / "shorts-maker-v2"),
             "description": "Generate 1 YouTube Short (full pipeline)",
         },
         "shorts_batch": {
             "cmd": [
-                resolved_python, "-m", "shorts_maker_v2",
-                "generate", "--jobs", "3",
+                resolved_python,
+                "-m",
+                "shorts_maker_v2",
+                "generate",
+                "--jobs",
+                "3",
             ],
             "cwd": str(repo_root / "projects" / "shorts-maker-v2"),
             "description": "Generate 3 YouTube Shorts (batch mode)",
         },
         "shorts_dry_run": {
             "cmd": [
-                resolved_python, "-m", "shorts_maker_v2",
-                "generate", "--jobs", "1", "--dry-run",
+                resolved_python,
+                "-m",
+                "shorts_maker_v2",
+                "generate",
+                "--jobs",
+                "1",
+                "--dry-run",
             ],
             "cwd": str(repo_root / "projects" / "shorts-maker-v2"),
             "description": "Shorts dry run (script only, no render)",
@@ -223,12 +240,7 @@ async def health():
 @app.get("/commands")
 async def list_commands(authorization: str = Header(None)):
     verify_token(authorization)
-    return {
-        "commands": {
-            key: {"description": value["description"]}
-            for key, value in ALLOWED_COMMANDS.items()
-        }
-    }
+    return {"commands": {key: {"description": value["description"]} for key, value in ALLOWED_COMMANDS.items()}}
 
 
 @app.post("/execute", response_model=ExecuteResponse)

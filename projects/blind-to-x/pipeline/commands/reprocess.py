@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 
 from pipeline.draft_analytics import record_draft_event, refresh_ml_scorer_if_needed
-from pipeline.stages.persist import extract_preferred_tweet_text
+from pipeline.process_stages.runtime import extract_preferred_tweet_text
 
 logger = logging.getLogger(__name__)
 

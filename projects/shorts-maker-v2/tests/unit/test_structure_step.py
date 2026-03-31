@@ -57,20 +57,24 @@ def _make_valid_llm_response(scene_count: int = 7) -> dict:
         },
     ]
     for i in range(2, scene_count):
-        scenes.append({
-            "role": "body",
-            "intent": f"블랙홀 시간 왜곡의 원리를 쉽게 이해할 수 있도록 설명 {i - 1}",
-            "visual_direction": "Space visualization with distorted grid",
-            "emotional_beat": "understanding" if i % 2 == 0 else "awe",
+        scenes.append(
+            {
+                "role": "body",
+                "intent": f"블랙홀 시간 왜곡의 원리를 쉽게 이해할 수 있도록 설명 {i - 1}",
+                "visual_direction": "Space visualization with distorted grid",
+                "emotional_beat": "understanding" if i % 2 == 0 else "awe",
+                "target_sec": 5.0,
+            }
+        )
+    scenes.append(
+        {
+            "role": "closing",
+            "intent": "우리 모두 시간의 강 위에 떠 있다는 여운 남기기",
+            "visual_direction": "Wide peaceful starfield, gentle fade",
+            "emotional_beat": "quiet contemplation",
             "target_sec": 5.0,
-        })
-    scenes.append({
-        "role": "closing",
-        "intent": "우리 모두 시간의 강 위에 떠 있다는 여운 남기기",
-        "visual_direction": "Wide peaceful starfield, gentle fade",
-        "emotional_beat": "quiet contemplation",
-        "target_sec": 5.0,
-    })
+        }
+    )
     return {"narrative_arc": "quiet_storytelling", "scenes": scenes}
 
 
@@ -91,10 +95,20 @@ class TestStructureStepParsing:
         data = {
             "narrative_arc": "test",
             "scenes": [
-                {"role": "hook", "intent": "test", "visual_direction": "test",
-                 "emotional_beat": "test", "target_sec": 5},
-                {"role": "cta", "intent": "subscribe!", "visual_direction": "test",
-                 "emotional_beat": "test", "target_sec": 5},
+                {
+                    "role": "hook",
+                    "intent": "test",
+                    "visual_direction": "test",
+                    "emotional_beat": "test",
+                    "target_sec": 5,
+                },
+                {
+                    "role": "cta",
+                    "intent": "subscribe!",
+                    "visual_direction": "test",
+                    "emotional_beat": "test",
+                    "target_sec": 5,
+                },
             ],
         }
         outline = step._parse_outline(data)

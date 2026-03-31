@@ -11,7 +11,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import blind_scraper as bs  # noqa: E402
-from pipeline.stages.filter import SPAM_KEYWORDS  # noqa: E402
+from pipeline.process_stages.runtime import SPAM_KEYWORDS  # noqa: E402
 
 
 class FakeConfig:

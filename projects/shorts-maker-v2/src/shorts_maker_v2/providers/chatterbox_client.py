@@ -50,10 +50,7 @@ def _get_model():
             _model_cache["mtl"] = model
             logger.info("[ChatterboxTTS] 모델 로드 완료 (device=%s)", device)
         except ImportError as exc:
-            raise ImportError(
-                "chatterbox-tts가 설치되지 않았습니다. "
-                "설치: pip install chatterbox-tts"
-            ) from exc
+            raise ImportError("chatterbox-tts가 설치되지 않았습니다. 설치: pip install chatterbox-tts") from exc
     return _model_cache["mtl"]
 
 
@@ -109,7 +106,10 @@ class ChatterboxTTSClient:
 
         logger.info(
             "[ChatterboxTTS] lang=%s role=%s exaggeration=%.1f text_len=%d",
-            lang_id, role, exaggeration, len(text),
+            lang_id,
+            role,
+            exaggeration,
+            len(text),
         )
 
         wav = mtl_model.generate(
@@ -174,7 +174,8 @@ class ChatterboxTTSClient:
                     )
                     logger.info(
                         "[ChatterboxTTS] whisper 타이밍 %d words: %s",
-                        len(words), words_json_path,
+                        len(words),
+                        words_json_path,
                     )
                     return
         except Exception as exc:
@@ -194,7 +195,8 @@ class ChatterboxTTSClient:
                 )
                 logger.info(
                     "[ChatterboxTTS] 근사 타이밍 %d words: %s",
-                    len(approx), words_json_path,
+                    len(approx),
+                    words_json_path,
                 )
         except Exception as exc:
             logger.debug("[ChatterboxTTS] 근사 타이밍 실패: %s", exc)

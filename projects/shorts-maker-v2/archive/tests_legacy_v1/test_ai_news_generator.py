@@ -362,6 +362,7 @@ class TestScene:
 
 class TestPipeline:
     import pytest
+
     @pytest.mark.skip(reason="V2 factory.render delegates to script generators and does not create manifest.json")
     def test_create_and_manifest(self, tmp_output, sample_data):
         pass

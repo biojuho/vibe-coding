@@ -526,7 +526,11 @@ class PipelineOrchestrator:
                             issues=qc_result.issues,
                         )
                         new_asset, regen_failures = self.media_step.regenerate_scene(
-                            plan, run_dir, cost_guard, jlog, component=component,
+                            plan,
+                            run_dir,
+                            cost_guard,
+                            jlog,
+                            component=component,
                         )
                         scene_assets[idx] = new_asset
                         failures.extend(regen_failures)
@@ -639,7 +643,7 @@ class PipelineOrchestrator:
             gate4_report = QCStep.gate4_final(
                 manifest=manifest,
                 output_path=str(output_path),
-                target_duration=target_dur if 'target_dur' in dir() else (40, 50),
+                target_duration=target_dur if "target_dur" in dir() else (40, 50),
                 stub_mode=_is_stub,
             )
             manifest.qc_result = {

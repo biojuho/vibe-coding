@@ -37,7 +37,14 @@ class FakeLLMRouter:
         self._responses = list(responses)
         self.calls = 0
 
-    def generate_json(self, *, system_prompt: str = "", user_prompt: str = "", temperature: float = 0.7, thinking_level: str | None = None):  # noqa: ARG002,E501
+    def generate_json(
+        self,
+        *,
+        system_prompt: str = "",
+        user_prompt: str = "",
+        temperature: float = 0.7,
+        thinking_level: str | None = None,
+    ):  # noqa: ARG002,E501
         self.calls += 1
         if not self._responses:
             raise AssertionError("No more fake LLM responses available.")
@@ -112,7 +119,12 @@ def _write_config(tmp_path: Path) -> Path:
                     "tts_speed": 1.05,
                 },
                 "limits": {"max_cost_usd": 2.0, "max_retries": 1, "request_timeout_sec": 30},
-                "costs": {"llm_per_job": 0.25, "tts_per_second": 0.0008, "veo_per_second": 0.03, "image_per_scene": 0.04},
+                "costs": {
+                    "llm_per_job": 0.25,
+                    "tts_per_second": 0.0008,
+                    "veo_per_second": 0.03,
+                    "image_per_scene": 0.04,
+                },
                 "paths": {"output_dir": "output", "logs_dir": "logs", "runs_dir": "runs"},
                 "captions": {
                     "mode": "static",

@@ -14,30 +14,56 @@ VisualType = Literal["video", "image"]
 # cta: 마무리 (43-50s) — 레거시, closing 권장
 # closing: 여운 있는 마무리 (CTA 없이 조용히 끝남)
 # body: 기존 호환용 (listicle 등 프리셋에서 사용)
-VALID_STRUCTURE_ROLES = {"hook", "problem", "insight", "solution", "cta", "closing", "body",
-                         "rank1", "rank2", "rank3", "rank4", "rank5",
-                         "setup", "conflict", "climax", "resolution", "lesson",
-                         "question", "hint", "answer", "explain", "bonus",
-                         "pro1", "con1", "pro2", "con2", "verdict"}
+VALID_STRUCTURE_ROLES = {
+    "hook",
+    "problem",
+    "insight",
+    "solution",
+    "cta",
+    "closing",
+    "body",
+    "rank1",
+    "rank2",
+    "rank3",
+    "rank4",
+    "rank5",
+    "setup",
+    "conflict",
+    "climax",
+    "resolution",
+    "lesson",
+    "question",
+    "hint",
+    "answer",
+    "explain",
+    "bonus",
+    "pro1",
+    "con1",
+    "pro2",
+    "con2",
+    "verdict",
+}
 
 
 class GateVerdict(str, Enum):
     """피드백 게이트 판정 결과."""
+
     PASS = "pass"
-    FAIL_RETRY = "fail_retry"   # 이전 단계로 되돌아가 재생성
-    HOLD = "hold"               # 수동 리뷰 대기
+    FAIL_RETRY = "fail_retry"  # 이전 단계로 되돌아가 재생성
+    HOLD = "hold"  # 수동 리뷰 대기
 
 
 @dataclass(frozen=True)
 class ProductionPlan:
     """Gate 1 출력: 기획서 (PlanningStep이 생성)."""
-    concept: str                    # 영상 컨셉 한 줄 요약
-    target_persona: str             # 타겟 페르소나 (나이/직업/고민)
-    core_message: str               # 핵심 메시지 1개
-    visual_keywords: list[str]      # 비주얼 컨셉 키워드 3+개
-    forbidden_elements: list[str]   # 금지 요소 리스트
-    tone: str = ""                  # 톤 (옵션)
-    reference_notes: str = ""       # 레퍼런스 참고 메모 (옵션)
+
+    concept: str  # 영상 컨셉 한 줄 요약
+    target_persona: str  # 타겟 페르소나 (나이/직업/고민)
+    core_message: str  # 핵심 메시지 1개
+    visual_keywords: list[str]  # 비주얼 컨셉 키워드 3+개
+    forbidden_elements: list[str]  # 금지 요소 리스트
+    tone: str = ""  # 톤 (옵션)
+    reference_notes: str = ""  # 레퍼런스 참고 메모 (옵션)
     audience_profile: dict[str, Any] | None = None  # 청중 분석 결과
 
     def to_dict(self) -> dict[str, Any]:
@@ -67,8 +93,9 @@ class ProductionPlan:
 @dataclass
 class QCReport:
     """Gate 3/4 출력: 품질 검수 결과."""
+
     checks: dict[str, bool] = field(default_factory=dict)
-    verdict: str = "pass"           # "pass" | "fail_retry" | "hold"
+    verdict: str = "pass"  # "pass" | "fail_retry" | "hold"
     issues: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -78,11 +105,12 @@ class QCReport:
 @dataclass(frozen=True)
 class SceneOutline:
     """구성안의 개별 씬 골격 (대본 아닌 의도+방향만)."""
+
     scene_id: int
-    role: str               # structure_role
-    intent: str             # 이 씬이 달성할 것 (1문장)
-    visual_direction: str   # 비주얼 방향 (DALL-E 프롬프트 아님, 컨셉)
-    emotional_beat: str     # 시청자가 느낄 감정
+    role: str  # structure_role
+    intent: str  # 이 씬이 달성할 것 (1문장)
+    visual_direction: str  # 비주얼 방향 (DALL-E 프롬프트 아님, 컨셉)
+    emotional_beat: str  # 시청자가 느낄 감정
     target_sec: float
 
     def to_dict(self) -> dict[str, Any]:
@@ -92,6 +120,7 @@ class SceneOutline:
 @dataclass(frozen=True)
 class StructureOutline:
     """Gate 2 출력: 씬별 구성안 (대본 이전 단계)."""
+
     scenes: list[SceneOutline]
     total_estimated_sec: float
     narrative_arc: str = "quiet_storytelling"  # 내러티브 아크 유형
@@ -126,9 +155,10 @@ class StructureOutline:
 @dataclass
 class SceneQCResult:
     """씬별 품질 검수 결과."""
+
     scene_id: int
     checks: dict[str, bool] = field(default_factory=dict)
-    verdict: str = "pass"       # "pass" | "fail_retry"
+    verdict: str = "pass"  # "pass" | "fail_retry"
     issues: list[str] = field(default_factory=list)
     retry_count: int = 0
 

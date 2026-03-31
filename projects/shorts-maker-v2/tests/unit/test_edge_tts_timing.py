@@ -270,10 +270,12 @@ def test_run_coroutine_event_loop_fallback() -> None:
 
 def test_run_coroutine_non_event_loop_error_propagates() -> None:
     """Non event-loop RuntimeError should propagate."""
+
     async def coro():
         pass
 
     with patch("shorts_maker_v2.providers.edge_tts_client.asyncio.run") as mock_run:
+
         def _fake_run(coro_obj):
             coro_obj.close()
             raise RuntimeError("some other error")
@@ -326,10 +328,16 @@ def test_generate_async_with_timing_word_boundary_events(tmp_path: Path) -> None
         patch("shorts_maker_v2.providers.edge_tts_client.edge_tts.Communicate", mock_communicate),
         patch("shorts_maker_v2.providers.edge_tts_client._add_silence_padding"),
     ):
-        asyncio.run(_generate_async_with_timing(
-            "안녕 세계", "ko-KR-SunHiNeural", "+0%", "+0Hz",
-            audio_out, words_out,
-        ))
+        asyncio.run(
+            _generate_async_with_timing(
+                "안녕 세계",
+                "ko-KR-SunHiNeural",
+                "+0%",
+                "+0Hz",
+                audio_out,
+                words_out,
+            )
+        )
 
     assert audio_out.exists()
     assert words_out.exists()
@@ -370,14 +378,23 @@ def test_generate_async_with_timing_no_word_boundary_whisper_fallback(tmp_path: 
     with (
         patch("shorts_maker_v2.providers.edge_tts_client.edge_tts.Communicate", mock_communicate),
         patch("shorts_maker_v2.providers.edge_tts_client._add_silence_padding"),
-        patch.dict("sys.modules", {
-            "shorts_maker_v2.providers.whisper_aligner": mock_whisper_mod,
-        }),
+        patch.dict(
+            "sys.modules",
+            {
+                "shorts_maker_v2.providers.whisper_aligner": mock_whisper_mod,
+            },
+        ),
     ):
-        asyncio.run(_generate_async_with_timing(
-            "테스트 문장", "ko-KR-SunHiNeural", "+0%", "+0Hz",
-            audio_out, words_out,
-        ))
+        asyncio.run(
+            _generate_async_with_timing(
+                "테스트 문장",
+                "ko-KR-SunHiNeural",
+                "+0%",
+                "+0Hz",
+                audio_out,
+                words_out,
+            )
+        )
 
     assert words_out.exists()
     words = json.loads(words_out.read_text(encoding="utf-8"))
@@ -417,10 +434,16 @@ def test_generate_async_with_timing_approximate_fallback(tmp_path: Path) -> None
         patch.dict("sys.modules", {"shorts_maker_v2.providers.whisper_aligner": None}),
     ):
         # whisper import 실패 시뮬레이트
-        asyncio.run(_generate_async_with_timing(
-            "Hello World", "en-US-GuyNeural", "+0%", "+0Hz",
-            audio_out, words_out,
-        ))
+        asyncio.run(
+            _generate_async_with_timing(
+                "Hello World",
+                "en-US-GuyNeural",
+                "+0%",
+                "+0Hz",
+                audio_out,
+                words_out,
+            )
+        )
 
     assert words_out.exists()
     words = json.loads(words_out.read_text(encoding="utf-8"))
@@ -450,10 +473,16 @@ def test_generate_async_with_timing_saves_ssml_txt(tmp_path: Path) -> None:
         patch("shorts_maker_v2.providers.edge_tts_client.edge_tts.Communicate", mock_communicate),
         patch("shorts_maker_v2.providers.edge_tts_client._add_silence_padding"),
     ):
-        asyncio.run(_generate_async_with_timing(
-            "테스트 텍스트", "ko-KR-SunHiNeural", "+0%", "+0Hz",
-            audio_out, words_out,
-        ))
+        asyncio.run(
+            _generate_async_with_timing(
+                "테스트 텍스트",
+                "ko-KR-SunHiNeural",
+                "+0%",
+                "+0Hz",
+                audio_out,
+                words_out,
+            )
+        )
 
     ssml_txt = words_out.parent / f"{words_out.stem}_ssml.txt"
     assert ssml_txt.exists()
@@ -479,9 +508,15 @@ def test_generate_async_basic(tmp_path: Path) -> None:
         patch("shorts_maker_v2.providers.edge_tts_client.edge_tts.Communicate", mock_communicate),
         patch("shorts_maker_v2.providers.edge_tts_client._add_silence_padding"),
     ):
-        asyncio.run(_generate_async(
-            "테스트", "ko-KR-SunHiNeural", "+0%", "+0Hz", audio_out,
-        ))
+        asyncio.run(
+            _generate_async(
+                "테스트",
+                "ko-KR-SunHiNeural",
+                "+0%",
+                "+0Hz",
+                audio_out,
+            )
+        )
 
     assert audio_out.exists()
 
@@ -495,6 +530,7 @@ def test_generate_tts_neural_voice_direct(tmp_path: Path) -> None:
     client = EdgeTTSClient()
 
     with patch("shorts_maker_v2.providers.edge_tts_client._generate_async") as mock_gen:
+
         async def _fake(*args, **kwargs):
             audio.write_bytes(b"\x00" * 10)
 
@@ -523,6 +559,7 @@ def test_generate_tts_openai_voice_mapped(tmp_path: Path) -> None:
     captured_voice = {}
 
     with patch("shorts_maker_v2.providers.edge_tts_client._generate_async") as mock_gen:
+
         async def _fake(text, voice, rate, pitch, output_path):
             captured_voice["v"] = voice
             output_path.write_bytes(b"\x00" * 10)
@@ -546,6 +583,7 @@ def test_generate_tts_all_fail_raises(tmp_path: Path) -> None:
     client = EdgeTTSClient()
 
     with patch("shorts_maker_v2.providers.edge_tts_client._generate_async") as mock_gen:
+
         async def _fail(*args, **kwargs):
             raise RuntimeError("edge-tts down")
 
@@ -569,6 +607,7 @@ def test_generate_tts_with_channel_key(tmp_path: Path) -> None:
     captured = {}
 
     with patch("shorts_maker_v2.providers.edge_tts_client._generate_async") as mock_gen:
+
         async def _fake(text, voice, rate, pitch, output_path):
             captured["rate"] = rate
             captured["pitch"] = pitch

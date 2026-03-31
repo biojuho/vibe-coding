@@ -94,6 +94,7 @@ class TestTypingEffect:
         # Retrieve the filter_mask function from the mock call
         filter_mask = clip.mask.transform.call_args[0][0]
         mask_frame = np.ones((4, 10), dtype=np.float64)
+
         def get_mask(t):
             return mask_frame.copy()
 
@@ -191,6 +192,7 @@ class TestGlitchEffect:
         animations._apply_glitch_effect(clip, duration=2.0)
         filter_mask = clip.mask.transform.call_args[0][0]
         mask_frame = np.ones((4, 20), dtype=np.float64)
+
         def get_mask(t):
             return mask_frame.copy()
 

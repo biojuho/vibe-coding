@@ -40,13 +40,7 @@ class TestFetchPexelsImage:
     def test_success(self, mock_get, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setenv("PEXELS_API_KEY", "fake-key")
 
-        search_resp = _fake_response(
-            json_data={
-                "photos": [
-                    {"src": {"medium": "https://example.com/photo.jpg"}}
-                ]
-            }
-        )
+        search_resp = _fake_response(json_data={"photos": [{"src": {"medium": "https://example.com/photo.jpg"}}]})
         img_content = b"\xff\xd8\xff" + b"\x00" * 2000  # > 1000 bytes
         img_resp = _fake_response(content=img_content)
         mock_get.side_effect = [search_resp, img_resp]
@@ -163,9 +157,7 @@ class TestCreateBrollPip:
         base_clip = MagicMock()
         base_clip.duration = 5.0
 
-        result = broll_overlay.create_broll_pip(
-            base_clip, tmp_path, "space", 1080, 1920, start_time=1.0, duration=3.0
-        )
+        result = broll_overlay.create_broll_pip(base_clip, tmp_path, "space", 1080, 1920, start_time=1.0, duration=3.0)
         assert result is not None
 
     @patch("shorts_maker_v2.render.broll_overlay._ensure_broll_image", return_value=None)
@@ -200,9 +192,7 @@ class TestCreateBrollPip:
         pip_clip.with_mask.return_value = pip_clip
         MockImageClip.return_value = pip_clip
 
-        result = broll_overlay.create_broll_pip(
-            MagicMock(duration=5.0), tmp_path, "icon", 1080, 1920
-        )
+        result = broll_overlay.create_broll_pip(MagicMock(duration=5.0), tmp_path, "icon", 1080, 1920)
         assert result is not None
 
     @patch("shorts_maker_v2.render.broll_overlay._ensure_broll_image")
@@ -224,7 +214,5 @@ class TestCreateBrollPip:
         pip_clip.with_opacity.side_effect = RuntimeError("opacity unsupported")
         MockImageClip.return_value = pip_clip
 
-        result = broll_overlay.create_broll_pip(
-            MagicMock(duration=5.0), tmp_path, "icon", 1080, 1920
-        )
+        result = broll_overlay.create_broll_pip(MagicMock(duration=5.0), tmp_path, "icon", 1080, 1920)
         assert result is not None

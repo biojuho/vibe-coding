@@ -99,7 +99,9 @@ def test_generate_async_with_timing_passes_language_to_whisper_fallback(tmp_path
         patch("shorts_maker_v2.providers.edge_tts_client.edge_tts.Communicate", FakeCommunicate),
         patch("shorts_maker_v2.providers.edge_tts_client._add_silence_padding"),
         patch("shorts_maker_v2.providers.whisper_aligner.is_whisper_available", return_value=True),
-        patch("shorts_maker_v2.providers.whisper_aligner.transcribe_to_word_timings", return_value=whisper_words) as transcribe,
+        patch(
+            "shorts_maker_v2.providers.whisper_aligner.transcribe_to_word_timings", return_value=whisper_words
+        ) as transcribe,
     ):
         import asyncio
 

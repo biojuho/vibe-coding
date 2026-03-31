@@ -42,8 +42,11 @@ class TestGenerateVideo:
         out.write_bytes(b"existing-video")
         client = google_client.GoogleClient(api_key="k")
         result = client.generate_video(
-            model="veo-2.0-generate-001", prompt="cat", aspect_ratio="9:16",
-            duration_seconds=5, output_path=out,
+            model="veo-2.0-generate-001",
+            prompt="cat",
+            aspect_ratio="9:16",
+            duration_seconds=5,
+            output_path=out,
         )
         assert result == out
         mock_genai.Client.return_value.models.generate_videos.assert_not_called()
@@ -65,8 +68,11 @@ class TestGenerateVideo:
 
         client = google_client.GoogleClient(api_key="k")
         result = client.generate_video(
-            model="veo-2.0-generate-001", prompt="cat", aspect_ratio="9:16",
-            duration_seconds=5, output_path=out,
+            model="veo-2.0-generate-001",
+            prompt="cat",
+            aspect_ratio="9:16",
+            duration_seconds=5,
+            output_path=out,
         )
         assert result == out
         assert out.read_bytes() == b"video-data"
@@ -88,8 +94,11 @@ class TestGenerateVideo:
 
         client = google_client.GoogleClient(api_key="k")
         result = client.generate_video(
-            model="veo", prompt="dog", aspect_ratio="16:9",
-            duration_seconds=5, output_path=out,
+            model="veo",
+            prompt="dog",
+            aspect_ratio="16:9",
+            duration_seconds=5,
+            output_path=out,
         )
         assert result == out
         assert out.read_bytes() == b"raw-video"
@@ -113,8 +122,11 @@ class TestGenerateVideo:
 
         client = google_client.GoogleClient(api_key="k")
         result = client.generate_video(
-            model="veo", prompt="x", aspect_ratio="9:16",
-            duration_seconds=5, output_path=out,
+            model="veo",
+            prompt="x",
+            aspect_ratio="9:16",
+            duration_seconds=5,
+            output_path=out,
         )
         assert result == out
         assert out.read_bytes() == b"decoded-video"
@@ -142,8 +154,11 @@ class TestGenerateVideo:
 
         client = google_client.GoogleClient(api_key="k")
         result = client.generate_video(
-            model="veo", prompt="x", aspect_ratio="9:16",
-            duration_seconds=5, output_path=out,
+            model="veo",
+            prompt="x",
+            aspect_ratio="9:16",
+            duration_seconds=5,
+            output_path=out,
         )
         assert result == out
         assert out.read_bytes() == b"downloaded-video"
@@ -166,8 +181,12 @@ class TestGenerateVideo:
         client = google_client.GoogleClient(api_key="k")
         with pytest.raises(TimeoutError, match="Timed out"):
             client.generate_video(
-                model="veo", prompt="x", aspect_ratio="9:16",
-                duration_seconds=5, output_path=out, timeout_sec=10,
+                model="veo",
+                prompt="x",
+                aspect_ratio="9:16",
+                duration_seconds=5,
+                output_path=out,
+                timeout_sec=10,
             )
 
     @patch("shorts_maker_v2.providers.google_client.time")
@@ -184,8 +203,11 @@ class TestGenerateVideo:
         client = google_client.GoogleClient(api_key="k")
         with pytest.raises(RuntimeError, match="returned no videos"):
             client.generate_video(
-                model="veo", prompt="x", aspect_ratio="9:16",
-                duration_seconds=5, output_path=out,
+                model="veo",
+                prompt="x",
+                aspect_ratio="9:16",
+                duration_seconds=5,
+                output_path=out,
             )
 
     @patch("shorts_maker_v2.providers.google_client.time")
@@ -206,8 +228,11 @@ class TestGenerateVideo:
         client = google_client.GoogleClient(api_key="k")
         with pytest.raises(RuntimeError, match="could not be saved"):
             client.generate_video(
-                model="veo", prompt="x", aspect_ratio="9:16",
-                duration_seconds=5, output_path=out,
+                model="veo",
+                prompt="x",
+                aspect_ratio="9:16",
+                duration_seconds=5,
+                output_path=out,
             )
 
 

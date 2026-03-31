@@ -212,7 +212,7 @@ class FreesoundClient:
             raise RuntimeError(f"[Freesound] 검색 결과 없음 — channel={channel!r}, query={query!r}")
 
         # 상위 결과 중 랜덤 선택 (다양성 확보 — 매번 같은 BGM 반복 방지)
-        sound = random.choice(results[:min(3, len(results))])
+        sound = random.choice(results[: min(3, len(results))])
         logger.info(
             "[Freesound] 선택된 BGM: %r (%.1fs)",
             sound.get("name", "unknown"),

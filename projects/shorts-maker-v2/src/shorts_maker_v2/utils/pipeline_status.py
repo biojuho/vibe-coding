@@ -181,7 +181,11 @@ class PipelineStatusTracker:
     ) -> None:
         """스텝 상태 업데이트 및 출력."""
         # 자동 elapsed 계산
-        if elapsed_sec is None and step_name in self._start_times and status in (StepStatus.COMPLETED, StepStatus.ERROR, StepStatus.SKIPPED):
+        if (
+            elapsed_sec is None
+            and step_name in self._start_times
+            and status in (StepStatus.COMPLETED, StepStatus.ERROR, StepStatus.SKIPPED)
+        ):
             elapsed_sec = round(time.time() - self._start_times[step_name], 1)
 
         self._steps[step_name] = {

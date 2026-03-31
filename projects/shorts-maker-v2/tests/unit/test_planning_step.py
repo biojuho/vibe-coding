@@ -39,8 +39,8 @@ def test_run_returns_pass_on_first_valid_response() -> None:
                     "desire": "How to adapt to the new AI changes",
                     "emotional_state": "anxious",
                     "knowledge_level": "intermediate",
-                    "consumption_context": "commuting"
-                }
+                    "consumption_context": "commuting",
+                },
             }
         ]
     )
@@ -76,8 +76,8 @@ def test_run_retries_after_gate_failure_then_succeeds() -> None:
                     "desire": "I want to know if my job is safe",
                     "emotional_state": "worried",
                     "knowledge_level": "intermediate",
-                    "consumption_context": "before sleep"
-                }
+                    "consumption_context": "before sleep",
+                },
             },
         ]
     )
@@ -123,8 +123,8 @@ def test_parse_plan_strips_values_and_filters_blank_entries() -> None:
                 "desire": "  to learn something new  ",
                 "emotional_state": "  curious  ",
                 "knowledge_level": "  intermediate  ",
-                "consumption_context": "  on the bus  "
-            }
+                "consumption_context": "  on the bus  ",
+            },
         }
     )
 
@@ -140,7 +140,7 @@ def test_parse_plan_strips_values_and_filters_blank_entries() -> None:
             "emotional_state": "curious",
             "knowledge_level": "intermediate",
             "consumption_context": "on the bus",
-        }
+        },
     )
 
 

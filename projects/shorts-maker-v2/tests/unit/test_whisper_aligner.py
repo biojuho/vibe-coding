@@ -37,7 +37,10 @@ class TestIsWhisperAvailable:
 
     def test_false_when_not_installed(self):
         """faster_whisper가 없으면 False."""
-        with patch.dict("sys.modules", {"faster_whisper": None}), patch("builtins.__import__", side_effect=ImportError("no module")):
+        with (
+            patch.dict("sys.modules", {"faster_whisper": None}),
+            patch("builtins.__import__", side_effect=ImportError("no module")),
+        ):
             assert is_whisper_available() is False
 
 

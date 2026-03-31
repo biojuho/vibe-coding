@@ -189,14 +189,6 @@ def _merge_into_yaml(
     rules_path.write_text("".join(header_lines) + body, encoding="utf-8")
 
     logger.info("분류 규칙 업데이트 완료: +%d 키워드 → '%s' 라벨", len(new_keywords), label)
-    try:
-        if str(_BTX_ROOT) not in sys.path:
-            sys.path.insert(0, str(_BTX_ROOT))
-        from pipeline.rules_loader import write_legacy_rules_snapshot
-
-        write_legacy_rules_snapshot()
-    except Exception as exc:
-        logger.warning("Legacy rules snapshot sync failed: %s", exc)
     return len(new_keywords)
 
 

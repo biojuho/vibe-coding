@@ -18,6 +18,7 @@ from shorts_maker_v2.pipeline.trend_discovery_step import TrendCandidate
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture()
 def mock_config():
     return MagicMock()
@@ -76,6 +77,7 @@ def gen(mock_config, mock_llm_router):
 # ScoredAngle Tests
 # ---------------------------------------------------------------------------
 
+
 class TestScoredAngle:
     def test_creation(self):
         angle = ScoredAngle(
@@ -95,6 +97,7 @@ class TestScoredAngle:
 # ---------------------------------------------------------------------------
 # Channel Config Tests
 # ---------------------------------------------------------------------------
+
 
 class TestChannelConfigs:
     @pytest.mark.parametrize("ch", ["ai_tech", "psychology", "history", "space", "health"])
@@ -116,6 +119,7 @@ class TestChannelConfigs:
 # ---------------------------------------------------------------------------
 # Prompt Building Tests
 # ---------------------------------------------------------------------------
+
 
 class TestPromptBuilding:
     def test_build_system_prompt_includes_examples(self, gen):
@@ -141,6 +145,7 @@ class TestPromptBuilding:
 # ---------------------------------------------------------------------------
 # Parsing Tests
 # ---------------------------------------------------------------------------
+
 
 class TestParseAngles:
     def test_parse_valid_response(self, gen):
@@ -194,7 +199,12 @@ class TestParseAngles:
     def test_parse_missing_topic_skipped(self, gen):
         raw = {
             "angles": [
-                {"title": "제목만 있음", "viral_score": 5.0, "hook_pattern": "cognitive_dissonance", "source_keyword": "x"},
+                {
+                    "title": "제목만 있음",
+                    "viral_score": 5.0,
+                    "hook_pattern": "cognitive_dissonance",
+                    "source_keyword": "x",
+                },
             ]
         }
         angles = gen._parse_angles(raw, "ai_tech")
@@ -212,6 +222,7 @@ class TestParseAngles:
 # ---------------------------------------------------------------------------
 # Fallback Tests
 # ---------------------------------------------------------------------------
+
 
 class TestFallbackAngles:
     def test_fallback_creates_angle_per_candidate(self, sample_candidates):
@@ -236,6 +247,7 @@ class TestFallbackAngles:
 # ---------------------------------------------------------------------------
 # run() Integration Tests
 # ---------------------------------------------------------------------------
+
 
 class TestRun:
     def test_run_returns_angles(self, gen, sample_candidates):
@@ -278,8 +290,7 @@ class TestRun:
     def test_run_batches_max_10_candidates(self, mock_config, mock_llm_router):
         """후보가 10개를 초과해도 LLM은 1번만 호출되어야 한다."""
         many = [
-            TrendCandidate(keyword=f"주제{i}", source="llm_brainstorm", score=0.5, channel="ai_tech")
-            for i in range(15)
+            TrendCandidate(keyword=f"주제{i}", source="llm_brainstorm", score=0.5, channel="ai_tech") for i in range(15)
         ]
         gen = TopicAngleGenerator(mock_config, llm_router=mock_llm_router)
         gen.run(many, "ai_tech", n=5)

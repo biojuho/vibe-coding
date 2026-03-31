@@ -344,9 +344,7 @@ class LLMRouter:
                         attempt,
                         self.max_retries,
                     )
-                    _safe_console_print(
-                        f"  🔄 [{provider}] LLM 요청 ({attempt}/{self.max_retries})..."
-                    )
+                    _safe_console_print(f"  🔄 [{provider}] LLM 요청 ({attempt}/{self.max_retries})...")
 
                     content = self._generate_once(
                         provider,
@@ -375,9 +373,7 @@ class LLMRouter:
                     _safe_console_print(f"  ⚠️ [{provider}] 실패: {e}")
 
                     if self._is_non_retryable(e):
-                        _safe_console_print(
-                            f"  ❌ [{provider}] 복구 불가 에러 → 다음 provider"
-                        )
+                        _safe_console_print(f"  ❌ [{provider}] 복구 불가 에러 → 다음 provider")
                         break
 
                 if attempt < self.max_retries:

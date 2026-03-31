@@ -34,8 +34,6 @@ def project_candidates(name: str) -> list[Path]:
     candidates: list[Path] = []
     for variant in project_name_variants(name):
         candidates.append(PROJECTS_ROOT / variant)
-        candidates.append(REPO_ROOT / variant)
-        candidates.append(REPO_ROOT / "_archive" / variant)
     return candidates
 
 
@@ -47,22 +45,3 @@ def resolve_project_dir(name: str, required_paths: Iterable[str] = ()) -> Path:
         if all((candidate / rel).exists() for rel in required):
             return candidate
     return PROJECTS_ROOT / PROJECT_ALIASES.get(name, name)
-
-
-def legacy_workspace_candidates() -> list[Path]:
-    return [
-        WORKSPACE_ROOT,
-        REPO_ROOT / "personal-agent",
-        REPO_ROOT / "_archive" / "personal-agent",
-        PROJECTS_ROOT / "personal-agent",
-    ]
-
-
-def resolve_workspace_legacy_root(required_paths: Iterable[str] = ()) -> Path | None:
-    required = tuple(required_paths)
-    for candidate in legacy_workspace_candidates():
-        if not candidate.exists():
-            continue
-        if all((candidate / rel).exists() for rel in required):
-            return candidate
-    return None

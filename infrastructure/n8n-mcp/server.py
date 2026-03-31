@@ -10,6 +10,7 @@ Claude Desktop 등 MCP 클라이언트에서 워크플로우를 트리거할 수
   GET  /history  - 실행 이력
   GET  /health   - 헬스체크
 """
+
 from __future__ import annotations
 
 import logging
@@ -83,7 +84,9 @@ def _get_execution_history(limit: int = 10) -> dict[str, Any]:
     """최근 워크플로우 실행 이력을 조회합니다."""
     try:
         resp = _session.get(
-            f"{BRIDGE_URL}/history", params={"limit": limit}, timeout=10,
+            f"{BRIDGE_URL}/history",
+            params={"limit": limit},
+            timeout=10,
         )
         resp.raise_for_status()
         return resp.json()

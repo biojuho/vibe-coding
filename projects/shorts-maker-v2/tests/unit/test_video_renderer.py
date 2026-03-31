@@ -27,8 +27,12 @@ class TestClipHandle:
 
     def test_with_values(self):
         ch = ClipHandle(
-            backend="moviepy", native="obj",
-            duration=5.0, width=1080, height=1920, has_audio=True,
+            backend="moviepy",
+            native="obj",
+            duration=5.0,
+            width=1080,
+            height=1920,
+            has_audio=True,
         )
         assert ch.duration == 5.0
         assert ch.width == 1080
@@ -612,10 +616,13 @@ class TestFFmpegRendererExtended:
         r = FFmpegRenderer(tmp_dir=tmp_path / ".tmp_ffmpeg")
         handle = ClipHandle(backend="ffmpeg", native="ready.mp4")
 
-        with patch.object(r, "_ensure_input_path", return_value="ready.mp4") as ensure_path, patch.object(
-            r,
-            "_run_ffmpeg",
-        ) as run_ffmpeg:
+        with (
+            patch.object(r, "_ensure_input_path", return_value="ready.mp4") as ensure_path,
+            patch.object(
+                r,
+                "_run_ffmpeg",
+            ) as run_ffmpeg,
+        ):
             result = r.write(handle, tmp_path / "out.mp4", preset=None, ffmpeg_params=None)
 
         ensure_path.assert_called_once()

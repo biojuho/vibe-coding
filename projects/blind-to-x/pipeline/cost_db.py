@@ -99,6 +99,10 @@ class CostDatabase:
             finally:
                 conn.close()
 
+    def _connect(self):
+        """Backward-compatible alias used by older pipeline helpers."""
+        return self._conn()
+
     def _init_db(self) -> None:
         with self._conn() as conn:
             conn.executescript("""
@@ -520,14 +524,17 @@ class CostDatabase:
 
     def record_provider_failure(self, provider: str, skip_hours: float = 24.0) -> None:
         """비복구 불가 에러 발생 시 provider 실패 이력 기록 + skip_until 설정."""
-        from datetime import datetime as _dt
+        from datetime import datetime as _dt, timezone as _fallback_tz
 
-        now_iso = _dt.now(date.__class__.__mro__[-1]).isoformat()  # fallback
+        now = _dt.now(_fallback_tz.utc)
+        now_iso = now.isoformat()
+        skip_iso = (now + timedelta(hours=skip_hours)).isoformat()
         try:
             from datetime import datetime as _dt2, timezone as _tz
 
-            now_iso = _dt2.now(_tz.utc).isoformat()
-            skip_iso = (_dt2.now(_tz.utc) + timedelta(hours=skip_hours)).isoformat()
+            now = _dt2.now(_tz.utc)
+            now_iso = now.isoformat()
+            skip_iso = (now + timedelta(hours=skip_hours)).isoformat()
             with self._conn() as conn:
                 conn.execute(
                     """INSERT INTO provider_failures (provider, fail_count, last_fail_at, skip_until)
@@ -589,8 +596,11 @@ class CostDatabase:
             fail_count = 0
 
         # 지수적 백오프: 1h, 4h, 12h, 24h, 72h (최대 72h)
+        if fail_count <= 0:
+            return 0.0
+
         thresholds = [1.0, 4.0, 12.0, 24.0, 72.0]
-        idx = min(fail_count, len(thresholds) - 1)
+        idx = min(fail_count - 1, len(thresholds) - 1)
         return thresholds[idx]
 
     # ── Draft self-scoring ────────────────────────────────────────────

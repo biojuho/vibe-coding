@@ -7,7 +7,9 @@ with open(filepath, encoding="utf-8") as f:
 
 # 1. Imports
 if "import yaml" not in content:
-    content = content.replace("import threading", "import threading\nimport copy\nimport yaml\nfrom pathlib import Path")
+    content = content.replace(
+        "import threading", "import threading\nimport copy\nimport yaml\nfrom pathlib import Path"
+    )
 
 # 2. Add _load_script_step_locale_bundle
 bundle_code = """
@@ -24,21 +26,29 @@ def _load_script_step_locale_bundle(language_code: str) -> dict:
     return {}
 """
 if "_load_script_step_locale_bundle" not in content:
-    content = content.replace("class TopicUnsuitableError(Exception):", bundle_code + "\nclass TopicUnsuitableError(Exception):")
+    content = content.replace(
+        "class TopicUnsuitableError(Exception):", bundle_code + "\nclass TopicUnsuitableError(Exception):"
+    )
 
 # 3. Modify class methods to regular methods for easier state access
-content = content.replace("    @classmethod\n    def _score_persona_match(cls, scenes", "    def _score_persona_match(self, scenes")
+content = content.replace(
+    "    @classmethod\n    def _score_persona_match(cls, scenes", "    def _score_persona_match(self, scenes"
+)
 content = content.replace("cls._PERSONA_KEYWORDS", "self._persona_keywords")
-content = content.replace("        keywords = persona_keywords.get(channel_key)", "        keywords = self._persona_keywords.get(channel_key)")
+content = content.replace(
+    "        keywords = persona_keywords.get(channel_key)", "        keywords = self._persona_keywords.get(channel_key)"
+)
 
-content = content.replace("    @classmethod\n    def _validate_cta(cls, narration", "    def _validate_cta(self, narration")
+content = content.replace(
+    "    @classmethod\n    def _validate_cta(cls, narration", "    def _validate_cta(self, narration"
+)
 content = content.replace("cls._CTA_FORBIDDEN_WORDS", "self._cta_forbidden_words")
 
 # 4. Modify calls to these classmethods
 content = content.replace("cls._score_persona_match", "self._score_persona_match")
 content = content.replace("cls._validate_cta", "self._validate_cta")
 # Also in run()
-content = content.replace("self._score_persona_match(", "self._score_persona_match(") # Already correct if it was self.
+content = content.replace("self._score_persona_match(", "self._score_persona_match(")  # Already correct if it was self.
 
 # 5. In __init__, add self._apply_locale_overrides()
 init_end = "        self.channel_key: str = channel_key"
@@ -112,8 +122,8 @@ if "def _apply_locale_overrides(" not in content:
 # 7. Use the instance properties instead of CLASS properties
 content = content.replace("len(self.TONE_PRESETS)", "len(self._tone_presets)")
 content = content.replace("self.TONE_PRESETS[idx]", "self._tone_presets[idx]")
-content = content.replace("self._prompt_copy.get", 'self._prompt_copy.get')
-content = content.replace('cls._PROMPT_COPY', 'self._prompt_copy')
+content = content.replace("self._prompt_copy.get", "self._prompt_copy.get")
+content = content.replace("cls._PROMPT_COPY", "self._prompt_copy")
 
 # 8. Adjust _build_system_prompt to use dynamic strings
 # Find: system_prompt = (\n...
@@ -121,10 +131,10 @@ content = re.sub(
     r'system_prompt = \(\n *self\._BASE_REVIEW_SYSTEM\n.*?"\n *\)',
     r'system_prompt = (\n            self._review_copy.get("base_review_system", "")\n            + extra_dimensions\n            + self._review_copy.get("feedback_rule", "")\n        )',
     content,
-    flags=re.DOTALL
+    flags=re.DOTALL,
 )
 
-content = content.replace('self._BASE_REVIEW_SYSTEM', 'self._review_copy.get("base_review_system", "")')
+content = content.replace("self._BASE_REVIEW_SYSTEM", 'self._review_copy.get("base_review_system", "")')
 content = content.replace('self._PROMPT_COPY["system_intro"]', 'self._prompt_copy["system_intro"]')
 content = content.replace('self._PROMPT_COPY["source_rule"]', 'self._prompt_copy["source_rule"]')
 content = content.replace('self._PROMPT_COPY["hook_rules"]', 'self._prompt_copy["hook_rules"]')
@@ -145,7 +155,7 @@ content = content.replace('self._PROMPT_FIELD_NAMES["visual_prompt"]', 'self._pr
 content = re.sub(
     r'system_prompt \+= f\'Output ONLY valid JSON: \{\{\{json_example\}, "feedback": "\.\.\."\}\}\'',
     r'output_rule = self._review_copy.get("output_rule", "Output ONLY valid JSON: {{{json_example}, \\"feedback\\": \\"...\\"}}")\n        system_prompt += output_rule.format(json_example=json_example)',
-    content
+    content,
 )
 
 with open(filepath, "w", encoding="utf-8") as f:

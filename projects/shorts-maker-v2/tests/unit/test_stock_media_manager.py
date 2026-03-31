@@ -286,17 +286,23 @@ class TestPexelsClientDownloads:
 
     def test_download_video_raises_when_search_returns_nothing(self, tmp_path):
         client = PexelsClient(api_key="key")
-        with patch.object(client, "search_videos", return_value=[]), pytest.raises(
-            RuntimeError,
-            match="No Pexels videos found",
+        with (
+            patch.object(client, "search_videos", return_value=[]),
+            pytest.raises(
+                RuntimeError,
+                match="No Pexels videos found",
+            ),
         ):
             client.download_video(query="tech", output_path=tmp_path / "scene.mp4")
 
     def test_download_video_raises_when_no_suitable_video_file(self, tmp_path):
         client = PexelsClient(api_key="key")
-        with patch.object(client, "search_videos", return_value=[{"video_files": []}]), pytest.raises(
-            RuntimeError,
-            match="No suitable Pexels video file found",
+        with (
+            patch.object(client, "search_videos", return_value=[{"video_files": []}]),
+            pytest.raises(
+                RuntimeError,
+                match="No suitable Pexels video file found",
+            ),
         ):
             client.download_video(query="tech", output_path=tmp_path / "scene.mp4")
 
@@ -304,14 +310,21 @@ class TestPexelsClientDownloads:
         client = PexelsClient(api_key="key")
         output_path = tmp_path / "scene.mp4"
 
-        with patch.object(
-            client,
-            "search_videos",
-            return_value=[{"video_files": [{"width": 1080, "height": 1920, "link": "https://example.com/video.mp4"}]}],
-        ), patch.object(client, "_stream_download") as stream_download, patch.object(
-            client,
-            "_crop_to_vertical",
-        ) as crop_to_vertical:
+        with (
+            patch.object(
+                client,
+                "search_videos",
+                return_value=[
+                    {"video_files": [{"width": 1080, "height": 1920, "link": "https://example.com/video.mp4"}]}
+                ],
+            ),
+            patch.object(client, "_stream_download") as stream_download,
+            patch.object(
+                client,
+                "_crop_to_vertical",
+            ) as crop_to_vertical,
+        ):
+
             def _write_raw(url: str, dest):
                 dest.write_bytes(b"raw-video")
 
@@ -338,9 +351,12 @@ class TestPexelsClientDownloads:
 
     def test_download_photo_raises_when_search_returns_nothing(self, tmp_path):
         client = PexelsClient(api_key="key")
-        with patch.object(client, "search_photos", return_value=[]), pytest.raises(
-            RuntimeError,
-            match="No Pexels photos found",
+        with (
+            patch.object(client, "search_photos", return_value=[]),
+            pytest.raises(
+                RuntimeError,
+                match="No Pexels photos found",
+            ),
         ):
             client.download_photo(query="nature", output_path=tmp_path / "scene.jpg")
 
@@ -348,13 +364,16 @@ class TestPexelsClientDownloads:
         client = PexelsClient(api_key="key")
         output_path = tmp_path / "scene.jpg"
 
-        with patch.object(
-            client,
-            "search_photos",
-            return_value=[
-                {"width": 800, "height": 1200, "src": {"original": "https://example.com/original.jpg"}},
-            ],
-        ), patch.object(client, "_stream_download") as stream_download:
+        with (
+            patch.object(
+                client,
+                "search_photos",
+                return_value=[
+                    {"width": 800, "height": 1200, "src": {"original": "https://example.com/original.jpg"}},
+                ],
+            ),
+            patch.object(client, "_stream_download") as stream_download,
+        ):
             result = client.download_photo(query="nature", output_path=output_path)
 
         stream_download.assert_called_once_with("https://example.com/original.jpg", output_path)
@@ -410,19 +429,25 @@ class TestUnsplashClientDownloads:
 
     def test_download_photo_raises_when_search_returns_nothing(self, tmp_path):
         client = UnsplashClient(access_key="key")
-        with patch.object(client, "search_photos", return_value=[]), pytest.raises(
-            RuntimeError,
-            match="No Unsplash photos found",
+        with (
+            patch.object(client, "search_photos", return_value=[]),
+            pytest.raises(
+                RuntimeError,
+                match="No Unsplash photos found",
+            ),
         ):
             client.download_photo(query="space", output_path=tmp_path / "scene.jpg")
 
     def test_download_photo_raises_when_no_usable_url(self, tmp_path):
         client = UnsplashClient(access_key="key")
-        with patch.object(
-            client,
-            "search_photos",
-            return_value=[{"width": 800, "height": 1200, "urls": {}}],
-        ), pytest.raises(RuntimeError, match="No usable Unsplash URL"):
+        with (
+            patch.object(
+                client,
+                "search_photos",
+                return_value=[{"width": 800, "height": 1200, "urls": {}}],
+            ),
+            pytest.raises(RuntimeError, match="No usable Unsplash URL"),
+        ):
             client.download_photo(query="space", output_path=tmp_path / "scene.jpg")
 
     def test_download_photo_prefers_portrait_and_regular_url(self, tmp_path):
@@ -433,10 +458,13 @@ class TestUnsplashClientDownloads:
             {"width": 900, "height": 1600, "urls": {"regular": "https://example.com/portrait.jpg"}},
         ]
 
-        with patch.object(client, "search_photos", return_value=photos), patch.object(
-            client,
-            "_stream_download",
-        ) as stream_download:
+        with (
+            patch.object(client, "search_photos", return_value=photos),
+            patch.object(
+                client,
+                "_stream_download",
+            ) as stream_download,
+        ):
             result = client.download_photo(query="space", output_path=output_path)
 
         stream_download.assert_called_once_with("https://example.com/portrait.jpg", output_path)

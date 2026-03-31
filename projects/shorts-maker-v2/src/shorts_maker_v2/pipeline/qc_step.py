@@ -65,9 +65,7 @@ class QCStep:
                 ok = size > 10_000  # 10KB 최소
                 checks[f"audio_size_s{asset.scene_id}"] = ok
                 if not ok:
-                    issues.append(
-                        f"Scene {asset.scene_id}: audio too small ({size}B)"
-                    )
+                    issues.append(f"Scene {asset.scene_id}: audio too small ({size}B)")
 
             # 비주얼 파일 확인
             if not os.path.isfile(asset.visual_path):
@@ -82,9 +80,7 @@ class QCStep:
         in_range = dur_min <= total_dur <= dur_max
         checks["tts_duration_in_range"] = in_range
         if not in_range:
-            issues.append(
-                f"TTS total {total_dur:.1f}s not in [{dur_min},{dur_max}]"
-            )
+            issues.append(f"TTS total {total_dur:.1f}s not in [{dur_min},{dur_max}]")
 
         # Verdict
         essential = [
@@ -151,9 +147,7 @@ class QCStep:
         dur_ok = dur_min <= dur <= dur_max
         checks["duration_ok"] = dur_ok
         if not dur_ok:
-            issues.append(
-                f"Duration {dur:.1f}s outside [{dur_min},{dur_max}]s for role '{role}'"
-            )
+            issues.append(f"Duration {dur:.1f}s outside [{dur_min},{dur_max}]s for role '{role}'")
 
         # 4. hook 씬: 대본이 충분히 짧고 강렬한지 (글자수 기반 경험적 체크)
         if role == "hook":
@@ -224,9 +218,7 @@ class QCStep:
         dur_ok = dur_min <= dur <= dur_max
         checks["duration_in_range"] = dur_ok
         if not dur_ok:
-            issues.append(
-                f"Duration {dur:.1f}s not in [{dur_min},{dur_max}]"
-            )
+            issues.append(f"Duration {dur:.1f}s not in [{dur_min},{dur_max}]")
 
         # Check 2: 파일 존재 + 크기
         if os.path.isfile(output_path):
@@ -243,9 +235,7 @@ class QCStep:
         no_failures = len(manifest.failed_steps) == 0
         checks["no_failed_steps"] = no_failures
         if not no_failures:
-            issues.append(
-                f"{len(manifest.failed_steps)} failed step(s)"
-            )
+            issues.append(f"{len(manifest.failed_steps)} failed step(s)")
 
         # Check 4: 해상도/FPS (ffprobe 사용, 실패 시 skip)
         probe = QCStep._probe_video(output_path)
@@ -293,13 +283,20 @@ class QCStep:
         try:
             result = subprocess.run(
                 [
-                    "ffprobe", "-v", "error",
-                    "-select_streams", "v:0",
-                    "-show_entries", "stream=width,height,r_frame_rate",
-                    "-of", "csv=p=0",
+                    "ffprobe",
+                    "-v",
+                    "error",
+                    "-select_streams",
+                    "v:0",
+                    "-show_entries",
+                    "stream=width,height,r_frame_rate",
+                    "-of",
+                    "csv=p=0",
                     path,
                 ],
-                capture_output=True, text=True, timeout=10,
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             if result.returncode != 0:
                 return None
@@ -326,12 +323,21 @@ class QCStep:
         try:
             result = subprocess.run(
                 [
-                    "ffmpeg", "-i", path,
-                    "-af", "volumedetect",
-                    "-vn", "-sn", "-dn",
-                    "-f", "null", "-",
+                    "ffmpeg",
+                    "-i",
+                    path,
+                    "-af",
+                    "volumedetect",
+                    "-vn",
+                    "-sn",
+                    "-dn",
+                    "-f",
+                    "null",
+                    "-",
                 ],
-                capture_output=True, text=True, timeout=30,
+                capture_output=True,
+                text=True,
+                timeout=30,
             )
             # Parse max_volume from stderr
             for line in result.stderr.splitlines():

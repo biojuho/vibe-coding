@@ -1,7 +1,7 @@
 """
 System Monitor MCP Server (v2 — 완성판)
 ========================================
-로컬 시스템의 CPU, 메모리, 디스크, 프로세스, 네트워크 상태를 
+로컬 시스템의 CPU, 메모리, 디스크, 프로세스, 네트워크 상태를
 실시간으로 모니터링하는 MCP 서버.
 
 Tools:
@@ -14,6 +14,7 @@ Tools:
 Usage:
     python server.py
 """
+
 from __future__ import annotations
 
 import datetime
@@ -105,13 +106,15 @@ def _get_process_list(filter_name: str = "", top_n: int = 20) -> dict[str, Any]:
             name = info.get("name", "")
             if filter_name and filter_name.lower() not in name.lower():
                 continue
-            processes.append({
-                "pid": info["pid"],
-                "name": name,
-                "memory_pct": round(info.get("memory_percent", 0) or 0, 2),
-                "cpu_pct": round(info.get("cpu_percent", 0) or 0, 1),
-                "status": info.get("status", "unknown"),
-            })
+            processes.append(
+                {
+                    "pid": info["pid"],
+                    "name": name,
+                    "memory_pct": round(info.get("memory_percent", 0) or 0, 2),
+                    "cpu_pct": round(info.get("cpu_percent", 0) or 0, 1),
+                    "status": info.get("status", "unknown"),
+                }
+            )
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
 
@@ -157,7 +160,9 @@ def _check_service_health() -> dict[str, Any]:
     try:
         result = subprocess.run(
             ["docker", "info"],
-            capture_output=True, text=True, timeout=3,
+            capture_output=True,
+            text=True,
+            timeout=3,
             creationflags=0x08000000 if platform.system() == "Windows" else 0,  # CREATE_NO_WINDOW
         )
         docker_running = result.returncode == 0
@@ -244,11 +249,7 @@ def _get_disk_breakdown() -> dict[str, Any]:
             breakdown[name] = {"exists": False, "size_mb": 0}
             continue
         try:
-            size = sum(
-                f.stat().st_size
-                for f in path.rglob("*")
-                if f.is_file()
-            )
+            size = sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
             size_mb = round(size / (1024 * 1024), 1)
             breakdown[name] = {"exists": True, "size_mb": size_mb}
             total_size += size
@@ -316,6 +317,7 @@ else:
 if __name__ == "__main__":
     if mcp is None:
         import json
+
         print("mcp 패키지 미설치. 직접 테스트 모드:")
         print("\n=== System Stats ===")
         print(json.dumps(_build_system_stats(), indent=2, ensure_ascii=False))

@@ -76,13 +76,13 @@ _CHANNEL_FORBIDDEN: dict[str, str] = {
 class ScoredAngle:
     """하나의 주제-각도-제목 세트."""
 
-    topic: str              # 파이프라인 입력용 주제 (한국어)
-    angle: str              # 각도 설명 (왜 이 관점인지)
-    title: str              # 최종 제목 후보 (인지 부조화 공식 적용)
-    hook_pattern: str       # "cognitive_dissonance" | "shocking_stat" | "myth_busting" | ...
-    viral_score: float      # 0-10 (LLM 평가)
-    source_keyword: str     # 원본 트렌드 키워드
-    channel: str            # 채널 키
+    topic: str  # 파이프라인 입력용 주제 (한국어)
+    angle: str  # 각도 설명 (왜 이 관점인지)
+    title: str  # 최종 제목 후보 (인지 부조화 공식 적용)
+    hook_pattern: str  # "cognitive_dissonance" | "shocking_stat" | "myth_busting" | ...
+    viral_score: float  # 0-10 (LLM 평가)
+    source_keyword: str  # 원본 트렌드 키워드
+    channel: str  # 채널 키
     title_variants: list[str] = field(default_factory=list)  # 제목 후보 3개
 
 
@@ -234,11 +234,13 @@ Examples:
         for i, c in enumerate(candidates, 1):
             lines.append(f"  {i}. [{c.source}] {c.keyword} (트렌드 강도: {c.score:.2f})")
 
-        lines.extend([
-            "",
-            "각 후보에 대해 가장 바이럴 가능성이 높은 각도와 인지 부조화 제목을 생성하세요.",
-            f"최종적으로 viral_score 기준 상위 {n}개만 반환하세요.",
-        ])
+        lines.extend(
+            [
+                "",
+                "각 후보에 대해 가장 바이럴 가능성이 높은 각도와 인지 부조화 제목을 생성하세요.",
+                f"최종적으로 viral_score 기준 상위 {n}개만 반환하세요.",
+            ]
+        )
         return "\n".join(lines)
 
     def _parse_angles(self, result: dict, channel_key: str) -> list[ScoredAngle]:
@@ -272,11 +274,7 @@ Examples:
                     viral_score=viral_score,
                     source_keyword=str(item.get("source_keyword", topic)).strip(),
                     channel=channel_key,
-                    title_variants=[
-                        str(v).strip()
-                        for v in item.get("title_variants", [])
-                        if str(v).strip()
-                    ],
+                    title_variants=[str(v).strip() for v in item.get("title_variants", []) if str(v).strip()],
                 )
             )
         return angles

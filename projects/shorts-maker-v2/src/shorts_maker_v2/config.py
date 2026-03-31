@@ -400,7 +400,9 @@ def load_config(config_path: str | Path) -> AppConfig:
     )
 
     captions_raw = _section(raw, "captions")
-    caption_font_candidates = captions_raw.get("font_candidates", list(_default_caption_font_candidates(project.language)))
+    caption_font_candidates = captions_raw.get(
+        "font_candidates", list(_default_caption_font_candidates(project.language))
+    )
     captions = CaptionSettings(
         font_size=int(captions_raw.get("font_size", 64)),
         margin_x=int(captions_raw.get("margin_x", 90)),

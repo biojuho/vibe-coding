@@ -9,7 +9,7 @@ WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 if str(WORKSPACE_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_ROOT))
 
-from path_contract import resolve_workspace_legacy_root, workspace_path
+from path_contract import workspace_path
 
 ROOT = WORKSPACE_ROOT
 
@@ -39,21 +39,8 @@ MODULES_TO_IMPORT = [
 ]
 
 
-def _resolve_personal_agent_root() -> Path | None:
-    return resolve_workspace_legacy_root(required_paths=("rag/query.py", "utils/llm.py"))
-
-
 def _files_to_compile() -> list[Path]:
-    files = list(BASE_FILES_TO_COMPILE)
-    pa_root = _resolve_personal_agent_root()
-    if pa_root is None:
-        print("[SKIP] legacy workspace-app checks skipped (checked workspace/personal-agent compatibility paths)")
-        return files
-
-    print(f"[INFO] personal-agent root: {pa_root}")
-    files.append(pa_root / "rag" / "query.py")
-    files.append(pa_root / "utils" / "llm.py")
-    return files
+    return list(BASE_FILES_TO_COMPILE)
 
 
 def compile_files() -> list[str]:

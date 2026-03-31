@@ -93,12 +93,20 @@ class MediaStep:
         # TTS 프로바이더 라우팅 (cascade: 선택 프로바이더 → edge-tts fallback)
         if tts_provider == "chatterbox":
             audio_result = self._try_tts_with_fallback(
-                narration_ko, output_path, words_json_path, voice, role,
+                narration_ko,
+                output_path,
+                words_json_path,
+                voice,
+                role,
                 primary="chatterbox",
             )
         elif tts_provider == "cosyvoice":
             audio_result = self._try_tts_with_fallback(
-                narration_ko, output_path, words_json_path, voice, role,
+                narration_ko,
+                output_path,
+                words_json_path,
+                voice,
+                role,
                 primary="cosyvoice",
             )
         elif tts_provider == "edge-tts":
@@ -123,7 +131,11 @@ class MediaStep:
 
         # chatterbox/cosyvoice/edge-tts는 자체적으로 _words.json을 생성
         # OpenAI TTS만 Whisper fallback 필요
-        if tts_provider not in {"edge-tts", "chatterbox", "cosyvoice"} and self.config.audio.sync_with_whisper and self.openai_client:
+        if (
+            tts_provider not in {"edge-tts", "chatterbox", "cosyvoice"}
+            and self.config.audio.sync_with_whisper
+            and self.openai_client
+        ):
             try:
                 import json
 
@@ -201,7 +213,8 @@ class MediaStep:
         except Exception as exc:
             logger.warning(
                 "[MediaStep] %s TTS 실패 → edge-tts fallback: %s",
-                primary, exc,
+                primary,
+                exc,
             )
             output_path.unlink(missing_ok=True)
 
@@ -874,11 +887,19 @@ class MediaStep:
                         p_stock.unlink(missing_ok=True)
 
         self._log(
-            logger, "info", "scene_regenerate",
-            scene_id=scene.scene_id, component=component,
+            logger,
+            "info",
+            "scene_regenerate",
+            scene_id=scene.scene_id,
+            component=component,
         )
 
         return self._process_one_scene(
-            scene, audio_dir, image_dir, video_dir,
-            cost_guard, logger, color_hint=color_hint,
+            scene,
+            audio_dir,
+            image_dir,
+            video_dir,
+            cost_guard,
+            logger,
+            color_hint=color_hint,
         )

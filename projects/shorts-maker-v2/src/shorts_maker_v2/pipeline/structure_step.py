@@ -28,8 +28,19 @@ logger = logging.getLogger(__name__)
 
 # CTA 금지어 (closing 씬에서 사용 금지)
 _CLOSING_FORBIDDEN_WORDS: tuple[str, ...] = (
-    "구독", "좋아요", "알림", "설정", "subscribe", "like", "comment",
-    "follow", "bell", "notification", "channel", "링크", "클릭",
+    "구독",
+    "좋아요",
+    "알림",
+    "설정",
+    "subscribe",
+    "like",
+    "comment",
+    "follow",
+    "bell",
+    "notification",
+    "channel",
+    "링크",
+    "클릭",
 )
 
 
@@ -51,21 +62,21 @@ class StructureStep:
         "{\n"
         '  "narrative_arc": "quiet_storytelling",\n'
         '  "scenes": [\n'
-        '    {\n'
+        "    {\n"
         '      "role": "hook",\n'
         '      "intent": "Capture attention with a surprising fact about the topic",\n'
         '      "visual_direction": "Dark cosmic background with a single bright star",\n'
         '      "emotional_beat": "curiosity and wonder",\n'
         '      "target_sec": 5.0\n'
-        '    },\n'
+        "    },\n"
         "    ...\n"
-        '    {\n'
+        "    {\n"
         '      "role": "closing",\n'
         '      "intent": "Leave a lingering contemplative thought",\n'
         '      "visual_direction": "Wide peaceful landscape at twilight",\n'
         '      "emotional_beat": "quiet wonder, a thought that stays",\n'
         '      "target_sec": 5.0\n'
-        '    }\n'
+        "    }\n"
         "  ]\n"
         "}\n\n"
         "CRITICAL RULES:\n"
@@ -111,11 +122,16 @@ class StructureStep:
         for attempt in range(1, self.MAX_RETRIES + 1):
             logger.info(
                 "[Structure] attempt %d/%d for topic='%s'",
-                attempt, self.MAX_RETRIES, topic,
+                attempt,
+                self.MAX_RETRIES,
+                topic,
             )
             try:
                 system_prompt, user_prompt = self._build_prompts(
-                    topic, production_plan, research_context, attempt,
+                    topic,
+                    production_plan,
+                    research_context,
+                    attempt,
                 )
                 result = self.llm_router.generate_json(
                     system_prompt=system_prompt,
@@ -144,7 +160,8 @@ class StructureStep:
 
                 logger.warning(
                     "[Structure] Gate 2 FAIL (attempt %d): %s",
-                    attempt, "; ".join(issues),
+                    attempt,
+                    "; ".join(issues),
                 )
 
             except Exception as exc:
@@ -208,14 +225,16 @@ class StructureStep:
             # cta를 closing으로 자동 변환
             if role == "cta":
                 role = "closing"
-            scenes.append(SceneOutline(
-                scene_id=idx,
-                role=role,
-                intent=str(raw.get("intent", "")).strip(),
-                visual_direction=str(raw.get("visual_direction", "")).strip(),
-                emotional_beat=str(raw.get("emotional_beat", "")).strip(),
-                target_sec=float(raw.get("target_sec", 5.0)),
-            ))
+            scenes.append(
+                SceneOutline(
+                    scene_id=idx,
+                    role=role,
+                    intent=str(raw.get("intent", "")).strip(),
+                    visual_direction=str(raw.get("visual_direction", "")).strip(),
+                    emotional_beat=str(raw.get("emotional_beat", "")).strip(),
+                    target_sec=float(raw.get("target_sec", 5.0)),
+                )
+            )
 
         total_sec = sum(s.target_sec for s in scenes)
         narrative_arc = str(data.get("narrative_arc", "quiet_storytelling")).strip()
@@ -255,9 +274,7 @@ class StructureStep:
 
         # 4. closing 씬에 CTA 언어가 없는지
         if scenes and scenes[-1].role == "closing":
-            closing_text = (
-                scenes[-1].intent + " " + scenes[-1].emotional_beat
-            ).lower()
+            closing_text = (scenes[-1].intent + " " + scenes[-1].emotional_beat).lower()
             for forbidden in _CLOSING_FORBIDDEN_WORDS:
                 if forbidden.lower() in closing_text:
                     issues.append(f"Closing scene contains forbidden CTA word: '{forbidden}'")
@@ -272,15 +289,9 @@ class StructureStep:
         dur_min, dur_max = self.config.video.target_duration_sec
         # 10초 여유 허용
         if outline.total_estimated_sec < dur_min - 10:
-            issues.append(
-                f"Total duration {outline.total_estimated_sec}s too short "
-                f"(target: {dur_min}-{dur_max}s)"
-            )
+            issues.append(f"Total duration {outline.total_estimated_sec}s too short (target: {dur_min}-{dur_max}s)")
         if outline.total_estimated_sec > dur_max + 10:
-            issues.append(
-                f"Total duration {outline.total_estimated_sec}s too long "
-                f"(target: {dur_min}-{dur_max}s)"
-            )
+            issues.append(f"Total duration {outline.total_estimated_sec}s too long (target: {dur_min}-{dur_max}s)")
 
         # 7. intent가 비어있는 씬 체크
         empty_intents = [s.scene_id for s in scenes if len(s.intent) < 5]
@@ -321,22 +332,26 @@ class StructureStep:
             ),
         ]
         for i in range(2, scene_count):
-            scenes.append(SceneOutline(
-                scene_id=i,
-                role="body",
-                intent=f"{topic}의 핵심 포인트 {i - 1}을 설명한다",
-                visual_direction="Clean informational visual with relevant imagery",
-                emotional_beat="understanding" if i % 2 == 0 else "surprise",
+            scenes.append(
+                SceneOutline(
+                    scene_id=i,
+                    role="body",
+                    intent=f"{topic}의 핵심 포인트 {i - 1}을 설명한다",
+                    visual_direction="Clean informational visual with relevant imagery",
+                    emotional_beat="understanding" if i % 2 == 0 else "surprise",
+                    target_sec=5.0,
+                )
+            )
+        scenes.append(
+            SceneOutline(
+                scene_id=scene_count,
+                role="closing",
+                intent="여운이 남는 한 문장으로 조용히 마무리한다",
+                visual_direction="Wide peaceful landscape, soft ambient light",
+                emotional_beat="quiet contemplation",
                 target_sec=5.0,
-            ))
-        scenes.append(SceneOutline(
-            scene_id=scene_count,
-            role="closing",
-            intent="여운이 남는 한 문장으로 조용히 마무리한다",
-            visual_direction="Wide peaceful landscape, soft ambient light",
-            emotional_beat="quiet contemplation",
-            target_sec=5.0,
-        ))
+            )
+        )
         return StructureOutline(
             scenes=scenes,
             total_estimated_sec=float(scene_count * 5),

@@ -34,6 +34,7 @@ if str(WORKSPACE_DIR) not in sys.path:
 load_dotenv(REPO_ROOT / ".env")
 
 from execution._logging import logger  # noqa: E402
+from execution.governance_checks import run_governance_checks  # noqa: E402
 
 _WORKSPACE_ROOT = WORKSPACE_DIR
 _ROOT = REPO_ROOT
@@ -480,6 +481,7 @@ def run_all_checks(category: Optional[str] = None) -> List[Dict]:
         ("database", check_databases),
         ("environment", check_venv),
         ("environment", check_git),
+        ("governance", run_governance_checks),
     ]
 
     for cat, checker in checkers:
@@ -538,7 +540,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Joolife System Health Check")
     parser.add_argument(
         "--category",
-        choices=["env", "api", "filesystem", "database", "environment"],
+        choices=["env", "api", "filesystem", "database", "environment", "governance"],
         help="점검 카테고리 필터",
     )
     parser.add_argument("--json", action="store_true", help="JSON 형식 출력")

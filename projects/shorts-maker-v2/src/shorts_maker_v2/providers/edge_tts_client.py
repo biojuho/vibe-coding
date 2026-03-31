@@ -96,6 +96,7 @@ def _resolve_edge_voice(voice: str, language: str = "ko-KR") -> tuple[str, str]:
         return voice, default_voice
     return voice_map.get(voice, default_voice), default_voice
 
+
 # ── 채널별 prosody 설정 ───────────────────────────────────────────────────────
 # (rate_jitter_range_pct, pitch_jitter_range_hz) — body 씬 기본값
 # 채널 특성에 맞게 변주 폭을 다르게 설정하여 AI 티를 줄인다.
@@ -103,11 +104,11 @@ def _resolve_edge_voice(voice: str, language: str = "ko-KR") -> tuple[str, str]:
 # pitch 변주: 숫자가 클수록 음높이 변화가 크고 감성적임
 _CHANNEL_PROSODY: dict[str, tuple[int, int]] = {
     # (rate_jitter_pct, pitch_jitter_hz)
-    "ai_tech":    (7, 2),   # 빠른 리듬감; rate 변주 ±7%, pitch 변주 소폭
-    "history":    (4, 3),   # 서사적 호흡; rate ±4%, pitch ±3Hz
-    "psychology": (3, 5),   # 공감·감성; rate 소폭, pitch ±5Hz로 부드럽게
-    "space":      (5, 4),   # 경이로움; 중간 리듬, pitch ±4Hz
-    "health":     (3, 2),   # 신뢰감; 안정적으로 변주 최소화
+    "ai_tech": (7, 2),  # 빠른 리듬감; rate 변주 ±7%, pitch 변주 소폭
+    "history": (4, 3),  # 서사적 호흡; rate ±4%, pitch ±3Hz
+    "psychology": (3, 5),  # 공감·감성; rate 소폭, pitch ±5Hz로 부드럽게
+    "space": (5, 4),  # 경이로움; 중간 리듬, pitch ±4Hz
+    "health": (3, 2),  # 신뢰감; 안정적으로 변주 최소화
 }
 _DEFAULT_PROSODY: tuple[int, int] = (5, 3)  # 채널 미지정 시 기본값
 
@@ -138,11 +139,11 @@ def _get_role_prosody(
     if role == "hook":
         # Hook: 강렬하고 빠르게 — 채널별로 hook pitch 약간 변주
         pitch_hook_map = {
-            "psychology": "+6Hz",   # 따뜻한 첫 인상
-            "history":    "+7Hz",   # 극적인 시작
-            "space":      "+5Hz",   # 경이감
-            "ai_tech":    "+10Hz",  # 임팩트있는 개시
-            "health":     "+6Hz",   # 친근한 시작
+            "psychology": "+6Hz",  # 따뜻한 첫 인상
+            "history": "+7Hz",  # 극적인 시작
+            "space": "+5Hz",  # 경이감
+            "ai_tech": "+10Hz",  # 임팩트있는 개시
+            "health": "+6Hz",  # 친근한 시작
         }
         hook_pitch = pitch_hook_map.get(channel_key, "+8Hz")
         return "+15%", hook_pitch

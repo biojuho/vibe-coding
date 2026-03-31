@@ -105,9 +105,7 @@ def _send_photo(image_path: str, caption: str = "") -> dict[str, Any]:
 
         with open(path, "rb") as f:
             files = {"photo": (path.name, f, mime_type)}
-            response = _session.post(
-                _api_url("sendPhoto"), data=data, files=files, timeout=30
-            )
+            response = _session.post(_api_url("sendPhoto"), data=data, files=files, timeout=30)
 
         return _check_response(response)
     except Exception as e:

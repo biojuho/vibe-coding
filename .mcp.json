@@ -13,16 +13,6 @@
       "command": "python",
       "args": ["infrastructure/sqlite-multi-mcp/server.py"]
     },
-    "filesystem": {
-      "type": "stdio",
-      "command": "npx",
-      "args": [
-        "-y", "@modelcontextprotocol/server-filesystem",
-        ".tmp",
-        "execution",
-        "infrastructure/n8n/logs"
-      ]
-    },
     "brave-search": {
       "type": "stdio",
       "command": "npx",

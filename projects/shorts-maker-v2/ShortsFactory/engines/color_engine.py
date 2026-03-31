@@ -167,10 +167,7 @@ class ColorEngine:
             # 5. Tint overlay
             if tint_rgb is not None:
                 tint_layer = np.array(tint_rgb, dtype=np.float32)
-                frame = (
-                    frame * (1 - preset.tint_opacity)
-                    + tint_layer * preset.tint_opacity
-                )
+                frame = frame * (1 - preset.tint_opacity) + tint_layer * preset.tint_opacity
 
             # 6. Vignette
             if vignette_mask is not None:

@@ -76,7 +76,7 @@ class PlanningStep:
         '    "emotional_state": "이 주제를 접하는 청중의 현재 감정 상태 (한국어)",\n'
         '    "knowledge_level": "beginner | intermediate | expert",\n'
         '    "consumption_context": "시청 맥락 (잠들기 전, 출퇴근, 휴식 등)"\n'
-        '  }\n'
+        "  }\n"
         "}\n\n"
         "Rules:\n"
         "- concept: 시청자가 왜 이 영상을 클릭할지 명확히\n"
@@ -110,7 +110,10 @@ class PlanningStep:
         for attempt in range(1, self.MAX_RETRIES + 1):
             logger.info(
                 "[Planning] attempt %d/%d for topic='%s' channel='%s'",
-                attempt, self.MAX_RETRIES, topic, channel_key,
+                attempt,
+                self.MAX_RETRIES,
+                topic,
+                channel_key,
             )
 
             user_prompt = f"Topic: {topic}\n"
@@ -142,7 +145,8 @@ class PlanningStep:
 
                 logger.warning(
                     "[Planning] Gate 1 FAIL (attempt %d): %s",
-                    attempt, "; ".join(issues),
+                    attempt,
+                    "; ".join(issues),
                 )
             except Exception as exc:
                 logger.warning("[Planning] attempt %d error: %s", attempt, exc)
@@ -168,16 +172,8 @@ class PlanningStep:
             concept=str(data.get("concept", "")).strip(),
             target_persona=str(data.get("target_persona", "")).strip(),
             core_message=str(data.get("core_message", "")).strip(),
-            visual_keywords=[
-                str(k).strip()
-                for k in data.get("visual_keywords", [])
-                if str(k).strip()
-            ],
-            forbidden_elements=[
-                str(f).strip()
-                for f in data.get("forbidden_elements", [])
-                if str(f).strip()
-            ],
+            visual_keywords=[str(k).strip() for k in data.get("visual_keywords", []) if str(k).strip()],
+            forbidden_elements=[str(f).strip() for f in data.get("forbidden_elements", []) if str(f).strip()],
             tone=str(data.get("tone", "")).strip(),
             audience_profile=audience_profile,
         )

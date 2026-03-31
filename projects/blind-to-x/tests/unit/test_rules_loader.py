@@ -4,13 +4,11 @@ from pipeline.rules_loader import (
     RULES_DIR,
     get_rule_file_path,
     get_rule_section,
-    has_split_rule_files,
     load_rules,
 )
 
 
 def test_split_rule_files_exist() -> None:
-    assert has_split_rule_files() is True
     assert (RULES_DIR / "classification.yaml").exists()
     assert (RULES_DIR / "examples.yaml").exists()
     assert (RULES_DIR / "prompts.yaml").exists()

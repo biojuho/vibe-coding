@@ -328,15 +328,6 @@ def main(argv: list[str] | None = None) -> int:
     if not rules_path.exists():
         rules_path = rules_root / "classification_rules.yaml"
     _update_classification_weights(cross_stats, rules_path)
-    try:
-        if str(_BTX_ROOT) not in sys.path:
-            sys.path.insert(0, str(_BTX_ROOT))
-        from pipeline.rules_loader import write_legacy_rules_snapshot
-
-        write_legacy_rules_snapshot()
-    except Exception as exc:
-        logger.warning("Legacy rules snapshot sync failed: %s", exc)
-
     # ML 모델 재훈련 시도
     _record_ml_retrain()
 

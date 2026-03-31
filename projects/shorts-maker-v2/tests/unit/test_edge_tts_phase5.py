@@ -251,14 +251,14 @@ def test_generate_tts_cleans_temp_files_when_all_attempts_fail(tmp_path: Path) -
         patch("shorts_maker_v2.providers.edge_tts_client._generate_async_with_timing", side_effect=fake_generate),
         pytest.raises(RuntimeError, match="still broken"),
     ):
-            EdgeTTSClient().generate_tts(
-                model="tts-1",
-                voice="ko-KR-SoonBokNeural",
-                speed=1.0,
-                text="cleanup",
-                output_path=audio,
-                words_json_path=words,
-            )
+        EdgeTTSClient().generate_tts(
+            model="tts-1",
+            voice="ko-KR-SoonBokNeural",
+            speed=1.0,
+            text="cleanup",
+            output_path=audio,
+            words_json_path=words,
+        )
 
     assert attempted_voices == ["ko-KR-SoonBokNeural", "ko-KR-SunHiNeural"]
     assert not audio.exists()

@@ -92,9 +92,7 @@ class TestGenerateTts:
         client = openai_client.OpenAIClient(api_key="sk-test")
         out = tmp_path / "subdir" / "tts.mp3"
 
-        result = client.generate_tts(
-            model="tts-1", voice="alloy", speed=1.0, text="Hello", output_path=out
-        )
+        result = client.generate_tts(model="tts-1", voice="alloy", speed=1.0, text="Hello", output_path=out)
         assert result == out
         mock_client_inst.audio.speech.create.assert_called_once()
 
@@ -107,9 +105,7 @@ class TestGenerateTts:
         out.write_bytes(b"existing-audio")
 
         client = openai_client.OpenAIClient(api_key="sk-test")
-        result = client.generate_tts(
-            model="tts-1", voice="alloy", speed=1.0, text="Hello", output_path=out
-        )
+        result = client.generate_tts(model="tts-1", voice="alloy", speed=1.0, text="Hello", output_path=out)
         assert result == out
         mock_client_inst.audio.speech.create.assert_not_called()
 
@@ -206,9 +202,7 @@ class TestGenerateImage:
 
         out = tmp_path / "b64.png"
         client = openai_client.OpenAIClient(api_key="sk-test")
-        result = client.generate_image(
-            model="dall-e-3", prompt="dog", size="1024x1024", quality="hd", output_path=out
-        )
+        result = client.generate_image(model="dall-e-3", prompt="dog", size="1024x1024", quality="hd", output_path=out)
         assert result == out
         assert out.read_bytes() == raw_data
 
@@ -242,6 +236,4 @@ class TestGenerateImage:
         out = tmp_path / "fail.png"
         client = openai_client.OpenAIClient(api_key="sk-test")
         with pytest.raises(ValueError, match="did not contain url or b64_json"):
-            client.generate_image(
-                model="dall-e-3", prompt="x", size="1024x1024", quality="standard", output_path=out
-            )
+            client.generate_image(model="dall-e-3", prompt="x", size="1024x1024", quality="standard", output_path=out)

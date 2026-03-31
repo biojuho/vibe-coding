@@ -124,7 +124,6 @@ class TextEngine:
             생성된 자막 이미지 경로.
         """
         if output_path is None:
-
             _fd, _tmp = tempfile.mkstemp(suffix=".png")
             os.close(_fd)
             output_path = Path(_tmp)
@@ -257,7 +256,6 @@ class TextEngine:
             생성된 자막 이미지 경로.
         """
         if output_path is None:
-
             _fd, _tmp = tempfile.mkstemp(suffix=".png")
             os.close(_fd)
             output_path = Path(_tmp)
@@ -358,7 +356,6 @@ class TextEngine:
             생성된 배지 이미지 경로.
         """
         if output_path is None:
-
             _fd, _tmp = tempfile.mkstemp(suffix=".png")
             os.close(_fd)
             output_path = Path(_tmp)
@@ -415,7 +412,6 @@ class TextEngine:
             생성된 워터마크 이미지 경로.
         """
         if output_path is None:
-
             _fd, _tmp = tempfile.mkstemp(suffix=".png")
             os.close(_fd)
             output_path = Path(_tmp)
@@ -475,7 +471,6 @@ class TextEngine:
             생성된 이미지 경로.
         """
         if output_path is None:
-
             _fd, _tmp = tempfile.mkstemp(suffix=".png")
             os.close(_fd)
             output_path = Path(_tmp)
@@ -599,7 +594,6 @@ class TextEngine:
             생성된 배지 이미지 경로.
         """
         if output_path is None:
-
             _fd, _tmp = tempfile.mkstemp(suffix=".png")
             os.close(_fd)
             output_path = Path(_tmp)
@@ -670,7 +664,6 @@ class TextEngine:
             생성된 프로그레스 바 이미지 경로.
         """
         if output_path is None:
-
             _fd, _tmp = tempfile.mkstemp(suffix=".png")
             os.close(_fd)
             output_path = Path(_tmp)
@@ -768,7 +761,10 @@ class TextEngine:
         for _category, color in self.keyword_highlights.items():
             # 실제로는 카테고리 기반이므로, 키워드가 어떤 카테고리인지
             # 판단하는 로직 필요 — 여기서는 숫자/특수 패턴으로 구분
-            if keyword.replace(",", "").replace(".", "").replace("%", "").strip().isdigit() and "numbers" in self.keyword_highlights:
+            if (
+                keyword.replace(",", "").replace(".", "").replace("%", "").strip().isdigit()
+                and "numbers" in self.keyword_highlights
+            ):
                 return self.keyword_highlights["numbers"]
             # 기본: 첫 번째 하이라이트 색상 사용
             return color

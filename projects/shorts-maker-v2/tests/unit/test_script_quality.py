@@ -324,8 +324,7 @@ class TestRunIntegration:
             all_violations.extend(ScriptStep._validate_cta(s.narration_ko))
 
         assert all_violations, (
-            f"Expected CTA violations (구독, 부탁) but got none. "
-            f"CTA narration: {[s.narration_ko for s in cta_scenes]}"
+            f"Expected CTA violations (구독, 부탁) but got none. CTA narration: {[s.narration_ko for s in cta_scenes]}"
         )
         assert "구독" in all_violations
 
@@ -378,4 +377,3 @@ class TestRunIntegration:
             assert len(hook.narration_ko) <= 15, (
                 f"Hook should be <=15 chars but got {len(hook.narration_ko)}: '{hook.narration_ko}'"
             )
-

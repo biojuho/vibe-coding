@@ -1,16 +1,19 @@
-﻿import os
+import os
 import sys
 import time
 from dotenv import load_dotenv
+
 
 # ?덈룄???몄퐫???ㅼ젙
 def _configure_utf8_stdio():
     # Running this unconditionally during test import breaks pytest capturing.
     import io
+
     if hasattr(sys.stdout, "detach"):
         sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding="utf-8")
     if hasattr(sys.stderr, "detach"):
         sys.stderr = io.TextIOWrapper(sys.stderr.detach(), encoding="utf-8")
+
 
 if __name__ == "__main__":
     _configure_utf8_stdio()
@@ -28,14 +31,16 @@ except ImportError:
         print("[FAIL] notebooklm_mcp package is not available. Run this in the notebooklm-mcp venv.")
         sys.exit(1)
 
+
 def test_performance():
     if get_client is None:
         import pytest
+
         pytest.skip("notebooklm_mcp package is not installed in this environment.")
     print("\n?? [Step 1] NotebookLM ?대씪?댁뼵???곌껐 以?..")
     try:
         client = get_client()
-        user_info = client.get_user_info() if hasattr(client, 'get_user_info') else "User info not available"
+        user_info = client.get_user_info() if hasattr(client, "get_user_info") else "User info not available"
         print(f"??[?깃났] ?몄쬆 ?꾨즺! (User: {user_info})")
     except Exception as e:
         print(f"??[?ㅽ뙣] ?몄쬆 ?ㅻ쪟 諛쒖깮: {e}")
@@ -79,27 +84,24 @@ def test_performance():
         - User: ?꾨줈?앺듃 珥앷큵 諛??섏궗寃곗젙
         - Raf (AI): 媛쒕컻, 湲고쉷, ?ㅽ뻾???대떦?섎뒗 理쒓퀬???뚰듃??
         """
-        
+
         source = client.add_text_source(notebook.id, project_overview, title="Antigravity Project Overview")
         # 諛섑솚媛믪씠 dict??寃쎌슦 泥섎━
         if isinstance(source, dict):
-             source_title = source.get('title', 'Unknown Title')
+            source_title = source.get("title", "Unknown Title")
         else:
-             source_title = source.title
-             
+            source_title = source.title
+
         print(f"??[?깃났] ?뚯뒪 異붽??? {source_title}")
         print("   -> ?댁슜 泥섎━瑜??꾪빐 ?좎떆 ?湲고빀?덈떎 (5珥?...")
-        time.sleep(5) 
+        time.sleep(5)
     except Exception as e:
         print(f"??[?ㅽ뙣] ?뚯뒪 異붽? ?ㅻ쪟: {e}")
         return
 
     print("\n?뮠 [Step 4] AI 吏덉쓽?묐떟 ?뚯뒪??..")
-    questions = [
-        "???꾨줈?앺듃???듭떖 紐⑤뱢 3媛吏??臾댁뾿?멸???",
-        "?쇳봽(Raf)????븷? 萸먯빞?"
-    ]
-    
+    questions = ["???꾨줈?앺듃???듭떖 紐⑤뱢 3媛吏??臾댁뾿?멸???", "?쇳봽(Raf)????븷? 萸먯빞?"]
+
     for q in questions:
         print(f"\nQ: {q}")
         try:
@@ -107,14 +109,14 @@ def test_performance():
             # server.py 濡쒖쭅??client.query() ?몄텧 寃곌낵瑜?洹몃?濡??.
             # NotebookLMClient.query??諛섑솚媛믪쓣 ?뺤씤?댁빞 ?? 蹂댄넻 dict??
             answer_obj = client.query(notebook.id, q)
-            
+
             # answer_obj媛 dict?몄? 媛앹껜?몄? ?뺤씤?섏뿬 泥섎━
             answer_text = ""
             if isinstance(answer_obj, dict):
                 answer_text = answer_obj.get("answer", "No answer found")
             else:
                 answer_text = getattr(answer_obj, "answer", str(answer_obj))
-                
+
             print(f"A: {answer_text}")
             print("-" * 50)
         except Exception as e:
@@ -122,6 +124,6 @@ def test_performance():
 
     print("\n??[?꾨즺] 紐⑤뱺 ?뚯뒪?멸? 醫낅즺?섏뿀?듬땲??")
 
+
 if __name__ == "__main__":
     test_performance()
-

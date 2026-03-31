@@ -6,10 +6,14 @@ Mixin: NotionQueryMixin — 조회·검색·레코드 추출.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+
+def _utcnow_naive() -> datetime:
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class NotionQueryMixin:
@@ -69,7 +73,7 @@ class NotionQueryMixin:
                 page_size=max(limit * 4, minimum_posts, 20),
             )
             records = [self.extract_page_record(page) for page in response.get("results", [])]
-            cutoff = datetime.utcnow() - timedelta(days=lookback_days)
+            cutoff = _utcnow_naive() - timedelta(days=lookback_days)
             filtered = []
             for record in records:
                 start = record.get("published_at") or record.get("date")
@@ -106,7 +110,7 @@ class NotionQueryMixin:
             return []
         try:
             pages = await self.get_pages_by_status("승인됨", limit=max(limit * 4, 20))
-            cutoff = datetime.utcnow() - timedelta(days=lookback_days)
+            cutoff = _utcnow_naive() - timedelta(days=lookback_days)
             records: list[dict[str, Any]] = []
             for page in pages:
                 record = self.extract_page_record(page)
@@ -199,7 +203,7 @@ class NotionQueryMixin:
 
             all_results = response.get("results", [])
             results = []
-            cutoff = datetime.utcnow() - timedelta(days=days)
+            cutoff = _utcnow_naive() - timedelta(days=days)
 
             for r in all_results:
                 parent = r.get("parent", {})

@@ -99,7 +99,10 @@ class CosyVoiceTTSClient:
 
         logger.info(
             "[CosyVoice] mode=%s lang=%s role=%s text_len=%d",
-            self._mode, lang_tag, role, len(text),
+            self._mode,
+            lang_tag,
+            role,
+            len(text),
         )
 
         # 모드별 추론
@@ -110,7 +113,9 @@ class CosyVoiceTTSClient:
             if self._speaker_id:
                 # 저장된 스피커 ID 사용
                 for result in cosyvoice.inference_zero_shot(
-                    text, "", "",
+                    text,
+                    "",
+                    "",
                     zero_shot_spk_id=self._speaker_id,
                     stream=False,
                 ):
@@ -141,7 +146,8 @@ class CosyVoiceTTSClient:
             ref_wav = self._ref_audio_path or self._get_default_ref_audio()
             if ref_wav:
                 for result in cosyvoice.inference_cross_lingual(
-                    tagged_text, ref_wav,
+                    tagged_text,
+                    ref_wav,
                     stream=False,
                 ):
                     audio_tensors.append(result["tts_speech"])
@@ -151,13 +157,14 @@ class CosyVoiceTTSClient:
                 sft_voice = sft_voices[0] if sft_voices else None
                 if sft_voice:
                     for result in cosyvoice.inference_sft(
-                        text, sft_voice, stream=False,
+                        text,
+                        sft_voice,
+                        stream=False,
                     ):
                         audio_tensors.append(result["tts_speech"])
                 else:
                     raise RuntimeError(
-                        "CosyVoice: 참조 오디오가 필요합니다 "
-                        "(config.yaml에 providers.tts_ref_audio 설정)"
+                        "CosyVoice: 참조 오디오가 필요합니다 (config.yaml에 providers.tts_ref_audio 설정)"
                     )
 
         if not audio_tensors:
@@ -251,7 +258,8 @@ class CosyVoiceTTSClient:
                     )
                     logger.info(
                         "[CosyVoice] whisper 타이밍 %d words: %s",
-                        len(words), words_json_path,
+                        len(words),
+                        words_json_path,
                     )
                     return
         except Exception as exc:
@@ -271,7 +279,8 @@ class CosyVoiceTTSClient:
                 )
                 logger.info(
                     "[CosyVoice] 근사 타이밍 %d words: %s",
-                    len(approx), words_json_path,
+                    len(approx),
+                    words_json_path,
                 )
         except Exception as exc:
             logger.debug("[CosyVoice] 근사 타이밍 실패: %s", exc)

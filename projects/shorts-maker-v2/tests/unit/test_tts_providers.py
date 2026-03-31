@@ -125,7 +125,9 @@ class TestChatterboxClient:
         from shorts_maker_v2.providers.chatterbox_client import ChatterboxTTSClient
 
         mock_model = MagicMock()
-        mock_model.generate.return_value = torch.zeros(1, 24000) if hasattr(torch, "zeros") and callable(torch.zeros) else MagicMock()
+        mock_model.generate.return_value = (
+            torch.zeros(1, 24000) if hasattr(torch, "zeros") and callable(torch.zeros) else MagicMock()
+        )
         mock_model.sr = 24000
         mock_get_model.return_value = mock_model
 
@@ -260,6 +262,7 @@ class TestChatterboxClient:
         with patch("shorts_maker_v2.providers.chatterbox_client.AudioSegment", create=True):
             # pydub import를 성공시키기 위해 builtins.__import__를 mock
             import builtins
+
             _real_import = builtins.__import__
 
             def _patched_import(name, *args, **kwargs):
@@ -273,8 +276,11 @@ class TestChatterboxClient:
                 # WAV 파일이 생성된 것처럼 torchaudio.save를 통해
                 _mock_torchaudio.save.side_effect = _write_fake_audio
                 client.generate_tts(
-                    model="tts-1", voice="alloy", speed=1.0,
-                    text="MP3 변환 테스트", output_path=output,
+                    model="tts-1",
+                    voice="alloy",
+                    speed=1.0,
+                    text="MP3 변환 테스트",
+                    output_path=output,
                 )
                 mock_segment.export.assert_called_once()
 
@@ -293,6 +299,7 @@ class TestChatterboxClient:
 
         # pydub import 실패 시뮬레이션
         import builtins
+
         _real_import = builtins.__import__
 
         def _fail_pydub(name, *args, **kwargs):
@@ -303,8 +310,11 @@ class TestChatterboxClient:
         _mock_torchaudio.save.side_effect = _write_fake_audio
         with patch.object(builtins, "__import__", side_effect=_fail_pydub):
             result = client.generate_tts(
-                model="tts-1", voice="alloy", speed=1.0,
-                text="pydub 없는 테스트", output_path=output,
+                model="tts-1",
+                voice="alloy",
+                speed=1.0,
+                text="pydub 없는 테스트",
+                output_path=output,
             )
         # .wav 확장자로 반환
         assert result.suffix == ".wav"
@@ -315,6 +325,7 @@ class TestChatterboxClient:
 
         _model_cache.clear()
         import builtins
+
         _real_import = builtins.__import__
 
         def _fail_chatterbox(name, *args, **kwargs):
@@ -322,8 +333,9 @@ class TestChatterboxClient:
                 raise ImportError("no chatterbox")
             return _real_import(name, *args, **kwargs)
 
-        with patch.object(builtins, "__import__", side_effect=_fail_chatterbox), pytest.raises(
-            ImportError, match="chatterbox-tts"
+        with (
+            patch.object(builtins, "__import__", side_effect=_fail_chatterbox),
+            pytest.raises(ImportError, match="chatterbox-tts"),
         ):
             _get_model()
 
@@ -335,12 +347,15 @@ class TestChatterboxClient:
         output.write_bytes(b"fake")
         words_json = tmp_path / "words.json"
 
-        with patch(
-            "shorts_maker_v2.providers.whisper_aligner.is_whisper_available",
-            return_value=True,
-        ), patch(
-            "shorts_maker_v2.providers.whisper_aligner.transcribe_to_word_timings",
-            return_value=[{"word": "안녕", "start": 0.0, "end": 0.5}],
+        with (
+            patch(
+                "shorts_maker_v2.providers.whisper_aligner.is_whisper_available",
+                return_value=True,
+            ),
+            patch(
+                "shorts_maker_v2.providers.whisper_aligner.transcribe_to_word_timings",
+                return_value=[{"word": "안녕", "start": 0.0, "end": 0.5}],
+            ),
         ):
             ChatterboxTTSClient._generate_word_timings(output, "안녕", words_json, "ko-KR")
 
@@ -356,15 +371,19 @@ class TestChatterboxClient:
         audio.write_bytes(b"fake")
         words_json = tmp_path / "words.json"
 
-        with patch(
-            "shorts_maker_v2.providers.whisper_aligner.is_whisper_available",
-            return_value=True,
-        ), patch(
-            "shorts_maker_v2.providers.whisper_aligner.transcribe_to_word_timings",
-            side_effect=RuntimeError("boom"),
-        ), patch(
-            "shorts_maker_v2.providers.edge_tts_client._approximate_word_timings",
-            return_value=[{"word": "fallback", "start": 0.0, "end": 1.0}],
+        with (
+            patch(
+                "shorts_maker_v2.providers.whisper_aligner.is_whisper_available",
+                return_value=True,
+            ),
+            patch(
+                "shorts_maker_v2.providers.whisper_aligner.transcribe_to_word_timings",
+                side_effect=RuntimeError("boom"),
+            ),
+            patch(
+                "shorts_maker_v2.providers.edge_tts_client._approximate_word_timings",
+                return_value=[{"word": "fallback", "start": 0.0, "end": 1.0}],
+            ),
         ):
             ChatterboxTTSClient._generate_word_timings(audio, "fallback", words_json, "ko-KR")
 
@@ -379,12 +398,15 @@ class TestChatterboxClient:
         audio = tmp_path / "test.wav"
         audio.write_bytes(b"fake audio")
 
-        with patch(
-            "shorts_maker_v2.providers.whisper_aligner.is_whisper_available",
-            return_value=False,
-        ), patch(
-            "shorts_maker_v2.providers.edge_tts_client._approximate_word_timings",
-            return_value=[{"word": "테스트", "start": 0.0, "end": 1.0}],
+        with (
+            patch(
+                "shorts_maker_v2.providers.whisper_aligner.is_whisper_available",
+                return_value=False,
+            ),
+            patch(
+                "shorts_maker_v2.providers.edge_tts_client._approximate_word_timings",
+                return_value=[{"word": "테스트", "start": 0.0, "end": 1.0}],
+            ),
         ):
             ChatterboxTTSClient._generate_word_timings(audio, "테스트", words_json, "ko-KR")
 
@@ -398,12 +420,15 @@ class TestChatterboxClient:
         audio.write_bytes(b"fake")
         words_json = tmp_path / "words.json"
 
-        with patch(
-            "shorts_maker_v2.providers.whisper_aligner.is_whisper_available",
-            return_value=False,
-        ), patch(
-            "shorts_maker_v2.providers.edge_tts_client._approximate_word_timings",
-            side_effect=RuntimeError("boom"),
+        with (
+            patch(
+                "shorts_maker_v2.providers.whisper_aligner.is_whisper_available",
+                return_value=False,
+            ),
+            patch(
+                "shorts_maker_v2.providers.edge_tts_client._approximate_word_timings",
+                side_effect=RuntimeError("boom"),
+            ),
         ):
             ChatterboxTTSClient._generate_word_timings(audio, "테스트", words_json, "ko-KR")
 
@@ -494,9 +519,7 @@ class TestCosyVoiceClient:
 
         mock_speech = MagicMock()
         mock_model = MagicMock()
-        mock_model.inference_cross_lingual.return_value = iter(
-            [{"tts_speech": mock_speech}]
-        )
+        mock_model.inference_cross_lingual.return_value = iter([{"tts_speech": mock_speech}])
         mock_model.sample_rate = 22050
         mock_get_model.return_value = mock_model
 
@@ -528,9 +551,7 @@ class TestCosyVoiceClient:
 
         mock_speech = MagicMock()
         mock_model = MagicMock()
-        mock_model.inference_zero_shot.return_value = iter(
-            [{"tts_speech": mock_speech}]
-        )
+        mock_model.inference_zero_shot.return_value = iter([{"tts_speech": mock_speech}])
         mock_model.sample_rate = 22050
         mock_get_model.return_value = mock_model
 
@@ -572,9 +593,10 @@ class TestCosyVoiceClient:
         output = tmp_path / "timed.wav"
         words_json = tmp_path / "words.json"
 
-        with patch.object(torch, "cat", return_value=mock_speech), patch.object(
-            CosyVoiceTTSClient, "_generate_word_timings"
-        ) as mock_timings:
+        with (
+            patch.object(torch, "cat", return_value=mock_speech),
+            patch.object(CosyVoiceTTSClient, "_generate_word_timings") as mock_timings,
+        ):
             client = CosyVoiceTTSClient(ref_audio_path=str(ref_audio), mode="cross_lingual")
             client.generate_tts(
                 model="tts-1",
@@ -616,9 +638,7 @@ class TestCosyVoiceClient:
 
         mock_speech = MagicMock()
         mock_model = MagicMock()
-        mock_model.inference_zero_shot.return_value = iter(
-            [{"tts_speech": mock_speech}]
-        )
+        mock_model.inference_zero_shot.return_value = iter([{"tts_speech": mock_speech}])
         mock_model.sample_rate = 22050
         mock_get_model.return_value = mock_model
 
@@ -633,8 +653,11 @@ class TestCosyVoiceClient:
                 mode="zero_shot",
             )
             client.generate_tts(
-                model="tts-1", voice="alloy", speed=1.0,
-                text="스피커 ID 테스트", output_path=output,
+                model="tts-1",
+                voice="alloy",
+                speed=1.0,
+                text="스피커 ID 테스트",
+                output_path=output,
             )
 
         call_kwargs = mock_model.inference_zero_shot.call_args[1]
@@ -649,9 +672,7 @@ class TestCosyVoiceClient:
 
         mock_speech = MagicMock()
         mock_model = MagicMock()
-        mock_model.inference_instruct2.return_value = iter(
-            [{"tts_speech": mock_speech}]
-        )
+        mock_model.inference_instruct2.return_value = iter([{"tts_speech": mock_speech}])
         mock_model.sample_rate = 22050
         mock_get_model.return_value = mock_model
 
@@ -659,9 +680,13 @@ class TestCosyVoiceClient:
             output = tmp_path / "out.wav"
             client = CosyVoiceTTSClient(mode="instruct")
             client.generate_tts(
-                model="tts-1", voice="alloy", speed=1.0,
-                text="인스트럭트 모드", output_path=output,
-                role="hook", channel_key="ai_tech",
+                model="tts-1",
+                voice="alloy",
+                speed=1.0,
+                text="인스트럭트 모드",
+                output_path=output,
+                role="hook",
+                channel_key="ai_tech",
             )
 
         mock_model.inference_instruct2.assert_called_once()
@@ -679,19 +704,22 @@ class TestCosyVoiceClient:
         mock_speech = MagicMock()
         mock_model = MagicMock()
         mock_model.list_available_spks.return_value = ["default_speaker"]
-        mock_model.inference_sft.return_value = iter(
-            [{"tts_speech": mock_speech}]
-        )
+        mock_model.inference_sft.return_value = iter([{"tts_speech": mock_speech}])
         mock_model.sample_rate = 22050
         mock_get_model.return_value = mock_model
 
-        with patch.object(torch, "cat", return_value=mock_speech), \
-             patch.object(CosyVoiceTTSClient, "_get_default_ref_audio", return_value=None):
+        with (
+            patch.object(torch, "cat", return_value=mock_speech),
+            patch.object(CosyVoiceTTSClient, "_get_default_ref_audio", return_value=None),
+        ):
             output = tmp_path / "out.wav"
             client = CosyVoiceTTSClient(mode="cross_lingual")
             client.generate_tts(
-                model="tts-1", voice="alloy", speed=1.0,
-                text="SFT fallback", output_path=output,
+                model="tts-1",
+                voice="alloy",
+                speed=1.0,
+                text="SFT fallback",
+                output_path=output,
             )
 
         mock_model.inference_sft.assert_called_once()
@@ -711,8 +739,11 @@ class TestCosyVoiceClient:
             client = CosyVoiceTTSClient(mode="cross_lingual")
             with pytest.raises(RuntimeError, match="참조 오디오가 필요합니다"):
                 client.generate_tts(
-                    model="tts-1", voice="alloy", speed=1.0,
-                    text="에러 테스트", output_path=output,
+                    model="tts-1",
+                    voice="alloy",
+                    speed=1.0,
+                    text="에러 테스트",
+                    output_path=output,
                 )
 
     @patch("shorts_maker_v2.providers.cosyvoice_client._get_model")
@@ -732,8 +763,11 @@ class TestCosyVoiceClient:
         client = CosyVoiceTTSClient(ref_audio_path=str(ref_audio), mode="cross_lingual")
         with pytest.raises(RuntimeError, match="음성 생성 결과 없음"):
             client.generate_tts(
-                model="tts-1", voice="alloy", speed=1.0,
-                text="빈 결과", output_path=output,
+                model="tts-1",
+                voice="alloy",
+                speed=1.0,
+                text="빈 결과",
+                output_path=output,
             )
 
     @patch("shorts_maker_v2.providers.cosyvoice_client._get_model")
@@ -747,9 +781,7 @@ class TestCosyVoiceClient:
 
         mock_speech = MagicMock()
         mock_model = MagicMock()
-        mock_model.inference_cross_lingual.return_value = iter(
-            [{"tts_speech": mock_speech}]
-        )
+        mock_model.inference_cross_lingual.return_value = iter([{"tts_speech": mock_speech}])
         mock_model.sample_rate = 22050
         mock_get_model.return_value = mock_model
 
@@ -767,13 +799,18 @@ class TestCosyVoiceClient:
         ref_audio.write_bytes(b"ref")
         output = tmp_path / "out.mp3"
 
-        with patch.object(torch, "cat", return_value=mock_speech), \
-             patch.object(builtins, "__import__", side_effect=_patched_import):
+        with (
+            patch.object(torch, "cat", return_value=mock_speech),
+            patch.object(builtins, "__import__", side_effect=_patched_import),
+        ):
             _mock_torchaudio.save.side_effect = _write_fake_audio
             client = CosyVoiceTTSClient(ref_audio_path=str(ref_audio), mode="cross_lingual")
             client.generate_tts(
-                model="tts-1", voice="alloy", speed=1.0,
-                text="MP3 변환", output_path=output,
+                model="tts-1",
+                voice="alloy",
+                speed=1.0,
+                text="MP3 변환",
+                output_path=output,
             )
 
         mock_segment.export.assert_called_once()
@@ -803,8 +840,9 @@ class TestCosyVoiceClient:
                 raise ImportError("no pydub")
             return _real_import(name, *args, **kwargs)
 
-        with patch.object(torch, "cat", return_value=mock_speech), patch.object(
-            builtins, "__import__", side_effect=_fail_pydub
+        with (
+            patch.object(torch, "cat", return_value=mock_speech),
+            patch.object(builtins, "__import__", side_effect=_fail_pydub),
         ):
             _mock_torchaudio.save.side_effect = _write_fake_audio
             client = CosyVoiceTTSClient(ref_audio_path=str(ref_audio), mode="cross_lingual")
@@ -832,8 +870,9 @@ class TestCosyVoiceClient:
                 raise ImportError("no cosyvoice")
             return _real_import(name, *args, **kwargs)
 
-        with patch.object(builtins, "__import__", side_effect=_fail_cosyvoice), pytest.raises(
-            ImportError, match="CosyVoice"
+        with (
+            patch.object(builtins, "__import__", side_effect=_fail_cosyvoice),
+            pytest.raises(ImportError, match="CosyVoice"),
         ):
             _get_model()
 
@@ -845,12 +884,15 @@ class TestCosyVoiceClient:
         audio.write_bytes(b"fake")
         words_json = tmp_path / "words.json"
 
-        with patch(
-            "shorts_maker_v2.providers.whisper_aligner.is_whisper_available",
-            return_value=True,
-        ), patch(
-            "shorts_maker_v2.providers.whisper_aligner.transcribe_to_word_timings",
-            return_value=[{"word": "hello", "start": 0.0, "end": 0.5}],
+        with (
+            patch(
+                "shorts_maker_v2.providers.whisper_aligner.is_whisper_available",
+                return_value=True,
+            ),
+            patch(
+                "shorts_maker_v2.providers.whisper_aligner.transcribe_to_word_timings",
+                return_value=[{"word": "hello", "start": 0.0, "end": 0.5}],
+            ),
         ):
             CosyVoiceTTSClient._generate_word_timings(audio, "hello", words_json, "en-US")
 
@@ -864,15 +906,19 @@ class TestCosyVoiceClient:
         audio.write_bytes(b"fake")
         words_json = tmp_path / "words.json"
 
-        with patch(
-            "shorts_maker_v2.providers.whisper_aligner.is_whisper_available",
-            return_value=True,
-        ), patch(
-            "shorts_maker_v2.providers.whisper_aligner.transcribe_to_word_timings",
-            side_effect=RuntimeError("boom"),
-        ), patch(
-            "shorts_maker_v2.providers.edge_tts_client._approximate_word_timings",
-            return_value=[{"word": "fallback", "start": 0.0, "end": 1.0}],
+        with (
+            patch(
+                "shorts_maker_v2.providers.whisper_aligner.is_whisper_available",
+                return_value=True,
+            ),
+            patch(
+                "shorts_maker_v2.providers.whisper_aligner.transcribe_to_word_timings",
+                side_effect=RuntimeError("boom"),
+            ),
+            patch(
+                "shorts_maker_v2.providers.edge_tts_client._approximate_word_timings",
+                return_value=[{"word": "fallback", "start": 0.0, "end": 1.0}],
+            ),
         ):
             CosyVoiceTTSClient._generate_word_timings(audio, "fallback", words_json, "ko-KR")
 
@@ -887,12 +933,15 @@ class TestCosyVoiceClient:
         audio.write_bytes(b"fake")
         words_json = tmp_path / "words.json"
 
-        with patch(
-            "shorts_maker_v2.providers.whisper_aligner.is_whisper_available",
-            return_value=False,
-        ), patch(
-            "shorts_maker_v2.providers.edge_tts_client._approximate_word_timings",
-            return_value=[{"word": "test", "start": 0.0, "end": 1.0}],
+        with (
+            patch(
+                "shorts_maker_v2.providers.whisper_aligner.is_whisper_available",
+                return_value=False,
+            ),
+            patch(
+                "shorts_maker_v2.providers.edge_tts_client._approximate_word_timings",
+                return_value=[{"word": "test", "start": 0.0, "end": 1.0}],
+            ),
         ):
             CosyVoiceTTSClient._generate_word_timings(audio, "test", words_json, "ko-KR")
 
@@ -906,12 +955,15 @@ class TestCosyVoiceClient:
         audio.write_bytes(b"fake")
         words_json = tmp_path / "words.json"
 
-        with patch(
-            "shorts_maker_v2.providers.whisper_aligner.is_whisper_available",
-            return_value=False,
-        ), patch(
-            "shorts_maker_v2.providers.edge_tts_client._approximate_word_timings",
-            side_effect=RuntimeError("boom"),
+        with (
+            patch(
+                "shorts_maker_v2.providers.whisper_aligner.is_whisper_available",
+                return_value=False,
+            ),
+            patch(
+                "shorts_maker_v2.providers.edge_tts_client._approximate_word_timings",
+                side_effect=RuntimeError("boom"),
+            ),
         ):
             CosyVoiceTTSClient._generate_word_timings(audio, "test", words_json, "ko-KR")
 

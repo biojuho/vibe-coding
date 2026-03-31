@@ -35,9 +35,11 @@ def base_style():
         bg_radius=20,
     )
 
+
 def test_hex_to_rgb():
     assert _hex_to_rgb("#FFAA00") == (255, 170, 0)
     assert _hex_to_rgb("FFAA00") == (255, 170, 0)
+
 
 def test_build_keyword_color_map():
     keywords = ["테스트", "인지 부조화", "ai"]
@@ -50,6 +52,7 @@ def test_build_keyword_color_map():
     assert "부조화" in color_map
     assert "인지 부조화" in color_map
     assert "ai" in color_map
+
 
 def test_auto_scale_font(base_style):
     from unittest.mock import patch
@@ -64,19 +67,28 @@ def test_auto_scale_font(base_style):
                 font_size = getattr(font, "size", 60)
                 width = len(text) * font_size
                 return (0, 0, width, font_size)
-            def text(self, *args, **kwargs): pass
-            def rounded_rectangle(self, *args, **kwargs): pass
+
+            def text(self, *args, **kwargs):
+                pass
+
+            def rounded_rectangle(self, *args, **kwargs):
+                pass
+
         return FakeDraw()
 
-    with patch("PIL.ImageDraw.Draw", new=fake_draw), patch("shorts_maker_v2.render.karaoke._load_font", side_effect=lambda style: MockFont(style.font_size)):
+    with (
+        patch("PIL.ImageDraw.Draw", new=fake_draw),
+        patch("shorts_maker_v2.render.karaoke._load_font", side_effect=lambda style: MockFont(style.font_size)),
+    ):
         # Test text that fits comfortably within max width
         style_out = _auto_scale_font(base_style, "짧은 텍스트", 2000)
         assert style_out.font_size == base_style.font_size
 
         # Test long text that requires scaling down
-        long_text = "이것은 캔버스 너비를 초과할 가능성이 매우 높은 아주 길고 긴 텍스트입니다. 폰트 크기가 줄어들어야 합니다." # 55 chars. width at size 60 = 3300.
+        long_text = "이것은 캔버스 너비를 초과할 가능성이 매우 높은 아주 길고 긴 텍스트입니다. 폰트 크기가 줄어들어야 합니다."  # 55 chars. width at size 60 = 3300.
         style_out_scaled = _auto_scale_font(base_style, long_text, 800)
         assert style_out_scaled.font_size < base_style.font_size
+
 
 def test_render_karaoke_image(base_style):
     with TemporaryDirectory() as tmpdir:
@@ -86,6 +98,7 @@ def test_render_karaoke_image(base_style):
         assert result_path.exists()
         with Image.open(result_path) as img:
             assert img.format in ["PNG", "MPO", "JPEG", None]  # PIL handles these
+
 
 def test_render_karaoke_highlight_image(base_style):
     with TemporaryDirectory() as tmpdir:
@@ -107,13 +120,16 @@ def test_render_karaoke_highlight_image(base_style):
         with Image.open(result_path) as img:
             assert img.format in ["PNG", "MPO", "JPEG", None]
 
+
 def test_render_word_glow():
     from PIL import ImageFont
+
     # Mock font simply using default load since actual font rendering is handled by PIL
     image = Image.new("RGBA", (200, 100), (0, 0, 0, 0))
     # Create an empty dummy font if needed, or fallback to default
     try:
         from PIL import ImageFont
+
         font = ImageFont.load_default()
     except Exception:
         font = None

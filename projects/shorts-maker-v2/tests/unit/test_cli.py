@@ -290,7 +290,17 @@ def test_run_cli_run_success(tmp_path: Path, monkeypatch, capsys) -> None:
     monkeypatch.setattr(cli, "PipelineOrchestrator", FakeOrchestrator)
 
     result = cli.run_cli(
-        ["run", "--topic", "AI topic", "--config", str(tmp_path / "config.yaml"), "--out", "video.mp4", "--channel", "ai_tech"]
+        [
+            "run",
+            "--topic",
+            "AI topic",
+            "--config",
+            str(tmp_path / "config.yaml"),
+            "--out",
+            "video.mp4",
+            "--channel",
+            "ai_tech",
+        ]
     )
 
     assert result == 0
