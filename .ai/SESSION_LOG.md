@@ -1058,4 +1058,32 @@ Implemented `workspace/execution/pr_triage_worktree.py` to create disposable lin
 - Upstream ACPX uses a temp clone in `prepareWorkspace()` rather than `git worktree`; our adaptation intentionally chose linked worktrees because this repo already hosts the local projects and wants lower-overhead isolation.
 - `pr_triage_worktree.py` currently assumes the relevant refs already exist locally. If remote PR fetch support is ever added later, keep it opt-in and separate from the baseline local-only helper.
 
+## 2026-03-31 | Codex | shared QC rerun after local worktree helper
+
+### Work Summary
+
+Ran the full shared `workspace/execution/qaqc_runner.py` after the new local PR-triage worktree helper landed. The runner completed cleanly on the current dirty workspace and refreshed the public QA/QC artifact used by `knowledge-dashboard`.
+
+The latest baseline remained `APPROVED`, and the totals moved up because the current workspace now includes additional passing coverage slices in `blind-to-x` plus the new root-level worktree helper tests.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `projects/knowledge-dashboard/public/qaqc_result.json` | refresh | Latest shared QA/QC result persisted by the runner |
+| `.ai/HANDOFF.md`, `.ai/SESSION_LOG.md` | update | Refreshed the relay and session history to the newest QC baseline |
+
+### Verification Results
+
+- `venv\Scripts\python.exe -X utf8 workspace\execution\qaqc_runner.py` -> **`APPROVED`** / `3038 passed / 0 failed / 0 errors / 29 skipped`
+- Project split: `blind-to-x 700 passed / 16 skipped`, `shorts-maker-v2 1270 passed / 12 skipped`, `root 1068 passed / 1 skipped`
+- AST: **20/20 OK**
+- Security: **CLEAR (2 triaged issue(s))**
+- Governance: **CLEAR**
+
+### Notes For Next Agent
+
+- This QC run was against a dirty workspace, so treat the `3038 passed` total as the current shared baseline for the in-progress tree, not a pristine-branch historical baseline.
+- `projects/knowledge-dashboard/public/qaqc_result.json` was refreshed automatically by the runner and now matches the latest `APPROVED` result.
+
 
