@@ -1,5 +1,36 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-03-31 | Codex | Shared QC rerun and relay refresh
+
+### Work Summary
+
+Ran the full shared QA/QC pipeline on the current workspace state and refreshed the recorded verification status.
+
+- Executed `workspace/execution/qaqc_runner.py` against the live dirty worktree rather than a pristine checkout, so the result reflects current in-progress control-plane edits too.
+- Confirmed an `APPROVED` verdict with no test failures: `blind-to-x 594 passed / 16 skipped`, `shorts-maker-v2 1270 passed / 12 skipped`, and `root 1066 passed / 1 skipped` for a total of `2930 passed / 29 skipped`.
+- Confirmed `AST 20/20`, security `CLEAR (2 triaged issue(s))`, governance `CLEAR`, infrastructure `6/6 Ready`, and `136.6 GB` free disk.
+- Refreshed `projects/knowledge-dashboard/public/qaqc_result.json` plus the shared relay files so the latest QC status is discoverable by the next agent.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `projects/knowledge-dashboard/public/qaqc_result.json` | update | Saved the latest shared QA/QC report from `qaqc_runner.py` |
+| `.ai/HANDOFF.md`, `.ai/SESSION_LOG.md` | update | Synced the latest QC verdict, counts, and dirty-worktree note |
+
+### Verification Results
+
+- `venv\Scripts\python.exe -X utf8 workspace\execution\qaqc_runner.py` -> **`APPROVED`** / `blind-to-x` **594 passed, 16 skipped**, `shorts-maker-v2` **1270 passed, 12 skipped**, `root` **1066 passed, 1 skipped**, total **2930 passed, 0 failed, 0 errors, 29 skipped**
+- AST Check -> **20/20 OK**
+- Security Scan -> **`CLEAR (2 triaged issue(s))`**
+- Governance Scan -> **`CLEAR`**
+- Infrastructure Snapshot -> **Docker yes / Ollama yes / Scheduler 6/6 Ready / Disk 136.6 GB free**
+
+### Notes For Next Agent
+
+- This QC result reflects the current dirty workspace, including ongoing control-plane WIP in `workspace/execution/repo_map.py`, `workspace/execution/context_selector.py`, `workspace/execution/graph_engine.py`, and `workspace/tests/test_context_selector.py`.
+- There are also unrelated modified files under `.agents/` and `infrastructure/`, plus untracked `o.txt` and `temp_test_out.txt`. Do not assume the repo is otherwise clean.
+
 ## 2026-03-31 | Codex | T-109 file-summary cache for repo_map
 
 ### Work Summary
