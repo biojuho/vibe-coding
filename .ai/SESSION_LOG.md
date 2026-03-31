@@ -1154,4 +1154,33 @@ During an end-to-end smoke run on a temporary git repo, noticed that `workspace/
 - Node-backed validation profiles intentionally reuse the source repo's existing `node_modules`; when dependencies are missing, the orchestrator skips those commands rather than installing packages inside the isolated worktree.
 - The new orchestrator still stays strictly local-only. If future work adds manual command overrides or GitHub integration, keep those opt-in and separate from the baseline profile flow.
 
+## 2026-03-31 | Codex | shared QC rerun after PR triage orchestration slice
+
+### Work Summary
+
+Ran the full shared `workspace/execution/qaqc_runner.py` after the read-only PR triage orchestrator landed so the public baseline would reflect the latest control-plane additions. The runner completed cleanly on the current dirty workspace and refreshed the public QA/QC artifact used by `knowledge-dashboard`.
+
+The baseline remained `APPROVED` and moved up again because the root suite now includes the new orchestration tests while `blind-to-x` also picked up more passing coverage tests already present in the working tree.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `projects/knowledge-dashboard/public/qaqc_result.json` | refresh | Latest shared QA/QC result persisted by the runner |
+| `.ai/HANDOFF.md`, `.ai/SESSION_LOG.md` | update | Refreshed the relay and session history to the newest QC baseline |
+
+### Verification Results
+
+- `venv\Scripts\python.exe -X utf8 workspace\execution\qaqc_runner.py` -> **`APPROVED`** / `3066 passed / 0 failed / 0 errors / 29 skipped`
+- Project split: `blind-to-x 723 passed / 16 skipped`, `shorts-maker-v2 1270 passed / 12 skipped`, `root 1073 passed / 1 skipped`
+- AST: **20/20 OK**
+- Security: **CLEAR (2 triaged issue(s))**
+- Governance: **CLEAR**
+- Infrastructure: **Docker yes / Ollama yes / Scheduler 6/6 Ready / Disk 138.3 GB free**
+
+### Notes For Next Agent
+
+- This QC run was against a dirty workspace, so treat the `3066 passed` total as the current shared baseline for the in-progress tree, not a pristine-branch historical baseline.
+- `projects/knowledge-dashboard/public/qaqc_result.json` was refreshed automatically by the runner and now matches the latest `APPROVED` result.
+
 

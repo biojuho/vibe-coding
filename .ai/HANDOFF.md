@@ -6,17 +6,17 @@
 
 | Date | 2026-03-31 |
 | Tool | Codex |
-| Work | Completed `T-111`: added `workspace/execution/pr_triage_orchestrator.py` plus `workspace/directives/pr_triage_orchestrator.md`, wired repo-specific read-only validation profiles on top of the local worktree helper, and hardened Windows git-output decoding so triage manifests keep non-ASCII paths readable. |
+| Work | Reran the full shared QA/QC flow after the new PR triage orchestration slice landed and recorded an updated **`APPROVED`** baseline: `3066 passed / 0 failed / 0 errors / 29 skipped`, `AST 20/20`, security `CLEAR (2 triaged issue(s))`, governance `CLEAR`, infrastructure `6/6 Ready`. |
 
 ### Previous Note
 
 | Date | 2026-03-31 |
-| Tool | Claude |
-| Work | T-100 blind-to-x coverage uplift: added 106 unit tests for `image_generator.py`, `image_upload.py`, `analytics_tracker.py`, `draft_analytics.py`. Coverage moved from **59.89%** to **71%**. QC rerun: **APPROVED** (`3038 passed / 29 skipped`, AST 20/20, security+governance CLEAR). |
+| Tool | Codex |
+| Work | Completed `T-111`: added `workspace/execution/pr_triage_orchestrator.py` plus `workspace/directives/pr_triage_orchestrator.md`, wired repo-specific read-only validation profiles on top of the local worktree helper, and hardened Windows git-output decoding so triage manifests keep non-ASCII paths readable. |
 
 ## Current State
 
-- Shared workspace QC latest rerun on `2026-03-31` is **`APPROVED`**: `blind-to-x 700 passed / 16 skipped`, `shorts-maker-v2 1270 passed / 12 skipped`, `root 1068 passed / 1 skipped`, total `3038 passed / 29 skipped`, `AST 20/20`, security `CLEAR (2 triaged issue(s))`, governance `CLEAR`, infrastructure `6/6 Ready`, disk `135.2 GB free`.
+- Shared workspace QC latest rerun on `2026-03-31` is **`APPROVED`**: `blind-to-x 723 passed / 16 skipped`, `shorts-maker-v2 1270 passed / 12 skipped`, `root 1073 passed / 1 skipped`, total `3066 passed / 29 skipped`, `AST 20/20`, security `CLEAR (2 triaged issue(s))`, governance `CLEAR`, infrastructure `6/6 Ready`, disk `138.3 GB free`.
 - `projects/blind-to-x` project-only coverage rerun on `2026-03-31` now reports **`701 passed / 16 skipped / 71% coverage`** after the latest `T-100` uplift. New test files: `test_image_generator.py` (45 tests), `test_image_upload.py` (30 tests), `test_analytics_tracker.py` (20 tests), `test_draft_analytics.py` (7 tests). Module coverage: `draft_analytics.py` **100%**, `image_upload.py` **89%**, `image_generator.py` **77%**, `analytics_tracker.py` **59%**.
 - The 2 triaged security findings from the latest shared QC are both known false positives in `projects/blind-to-x/pipeline/cost_db.py` because the interpolated `table` names come only from the internal `_ARCHIVE_TABLES` allowlist.
 - `workspace/execution/governance_checks.py` is now part of the shared control plane on `2026-03-31`: it validates required `.ai` context files, targeted relay claims against live code, directive/INDEX ownership drift, and tracked audit follow-up linkage to `.ai/TASKS.md`.
@@ -51,7 +51,7 @@
 - `venv\Scripts\python.exe -m ruff check workspace\execution\pr_triage_orchestrator.py workspace\execution\pr_triage_worktree.py workspace\tests\test_pr_triage_orchestrator.py workspace\tests\test_pr_triage_worktree.py` -> **All checks passed**
 - `venv\Scripts\python.exe -m compileall workspace\execution\pr_triage_orchestrator.py workspace\execution\pr_triage_worktree.py` -> **pass**
 - `venv\Scripts\python.exe -X utf8 workspace\execution\pr_triage_orchestrator.py run --repo-path .tmp/pr_triage_orchestrator_smoke/demo-python --head-ref main --profile python-generic --label smoke` -> **`PASS`** on a temporary git repo; generated `triage-report.json` + per-command logs and cleaned the linked worktree afterward
-- `venv\Scripts\python.exe -X utf8 workspace\execution\qaqc_runner.py` -> **`APPROVED`** / `3038 passed / 0 failed / 0 errors / 29 skipped`, `blind-to-x 700 passed / 16 skipped`, `shorts-maker-v2 1270 passed / 12 skipped`, `root 1068 passed / 1 skipped`
+- `venv\Scripts\python.exe -X utf8 workspace\execution\qaqc_runner.py` -> **`APPROVED`** / `3066 passed / 0 failed / 0 errors / 29 skipped`, `blind-to-x 723 passed / 16 skipped`, `shorts-maker-v2 1270 passed / 12 skipped`, `root 1073 passed / 1 skipped`
 - `venv\Scripts\python.exe -m compileall workspace\execution\repo_map.py workspace\execution\context_selector.py workspace\execution\graph_engine.py` -> **pass**
 - `venv\Scripts\python.exe -X utf8 -m pytest workspace\tests\test_governance_checks.py workspace\tests\test_health_check.py workspace\tests\test_qaqc_runner.py workspace\tests\test_qaqc_runner_extended.py -q -o addopts=` -> **74 passed**
 - `..\..\venv\Scripts\python.exe -m pytest tests\integration\test_golden_render.py -q -o addopts=` (`projects/shorts-maker-v2`) -> **2 passed, 2 warnings** in about **2m17s**
