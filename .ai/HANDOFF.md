@@ -5,14 +5,14 @@
 ## Last Session
 
 | Date | 2026-03-31 |
-| Tool | Codex |
-| Work | Ran the full shared QA/QC runner against the current dirty workspace, recorded an `APPROVED` result (`2930 passed / 29 skipped`, `AST 20/20`, security and governance `CLEAR`), and refreshed the relay plus `projects/knowledge-dashboard/public/qaqc_result.json`. |
+| Tool | Antigravity |
+| Work | Finished `T-109` by extending test coverage for `context_selector.py` up to >80%, including tests for `ContextProfile` overrides, adaptive pruning, and micro-budgets. Also fixed a critical file lock (`[WinError 32]`) issue in `repo_map.py` by ensuring `sqlite3.connect()` is closed properly using `contextlib.closing`. Ran QA/QC check and it passed. |
 
 ### Previous Note
 
 | Date | 2026-03-31 |
 | Tool | Codex |
-| Work | Started `T-109` by extending `workspace/execution/repo_map.py` with a persistent file-summary cache backed by `.tmp/repo_map_cache.db`, adding cache hit/invalidation coverage in `workspace/tests/test_context_selector.py`, and updating directive context after re-verifying the selective-context stack. |
+| Work | Ran the full shared QA/QC runner against the current dirty workspace, recorded an `APPROVED` result (`2930 passed / 29 skipped`, `AST 20/20`, security and governance `CLEAR`), and refreshed the relay plus `projects/knowledge-dashboard/public/qaqc_result.json`. |
 
 ## Current State
 
@@ -59,7 +59,7 @@
 
 1. Finish `T-100` by raising the remaining audit-owned coverage follow-up so both `shorts-maker-v2` and `blind-to-x` meet their documented floors without relying on stale baseline numbers.
 2. For the next `blind-to-x` uplift slice, prefer another bounded deterministic cluster over scraper-heavy work first. Good candidates after this session are `pipeline/image_generator.py` + `pipeline/image_upload.py`, or one of the 0%-coverage analytics modules if its external dependencies can be fully mocked.
-3. Continue the phase-2 selective-context layer (`T-109`) on top of `repo_map.py` / `context_selector.py`: file-summary caching is now in place, so the next slices are agent profiles and adaptive variant pruning before considering heavier external agent runtimes.
+3. Focus on refining `.ai/TASKS.md` backlog as T-109 feature additions on `context_selector.py` are now fully verified and complete.
 
 ## Notes
 

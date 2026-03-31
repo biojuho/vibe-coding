@@ -1,5 +1,37 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-03-31 | Antigravity | T-109 context_selector tests & repo_map fix
+
+### Work Summary
+
+Finished T-109 follow-up tasks by addressing test coverage for the selective context layer and resolving a resource leak.
+
+- Fixed a critical file lock issue ([WinError 32]) in workspace/execution/repo_map.py by ensuring sqlite3.connect() is closed properly using contextlib.closing.
+- Extended workspace/tests/test_context_selector.py with missing branches: ContextProfile overrides (size/time boundaries), micro-budgets (strict file truncations), adaptive pruning limits, and directory edge cases.
+- Re-ran the shared QA/QC runner for the local execution scope and verified that test coverage for the focused modules reaches >80%, and the integration passes comfortably without OS lock errors.
+- Handled reporting and status update for the AI task context tracking.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| workspace/execution/repo_map.py | fix | Used contextlib.closing for safe SQLite execution releasing handles |
+| workspace/tests/test_context_selector.py | expand | Added specific test combinations to boost branch/line coverage |
+| .ai/HANDOFF.md, .ai/TASKS.md, .ai/SESSION_LOG.md | update | Marked T-109 completed and synced relay for next agent |
+
+### Verification Results
+
+- python -m pytest workspace/tests/test_context_selector.py -> **13 passed**
+- python workspace/execution/qaqc_runner.py -> **Shared Quality checks passed**
+- Overall unit metrics verified and 
+epo_map.py db lock confirmed resolved.
+
+### Notes For Next Agent
+
+- T-109 selective context additions are complete and fully operational.
+- The next step should fall back to .ai/TASKS.md remaining entries like T-100 (shorts-maker-v2 or lind-to-x uplift sprints).
+
+
 ## 2026-03-31 | Codex | Shared QC rerun and relay refresh
 
 ### Work Summary
