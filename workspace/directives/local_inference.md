@@ -132,6 +132,8 @@ print(result["final_output"])
 - `workspace/execution/confidence_verifier.py`
 - `workspace/execution/benchmark_local.py`
 
+`repo_map.py` now includes a persistent file-summary cache under `.tmp/repo_map_cache.db`, so repeated builder instances can reuse parsed file metadata without re-reading or re-parsing unchanged files.
+
 ## 벤치마크
 
 ```bash

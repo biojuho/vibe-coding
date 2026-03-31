@@ -8,13 +8,15 @@ layer choose related files without sending full source files to the LLM.
 from __future__ import annotations
 
 import ast
+import json
 import re
+import sqlite3
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
 
-from path_contract import REPO_ROOT
+from path_contract import REPO_ROOT, TMP_ROOT
 from execution._logging import logger
 
 _ALLOWED_SUFFIXES = {
@@ -59,6 +61,7 @@ _IMPORT_LINE_RE = re.compile(
     re.MULTILINE,
 )
 _TOKEN_RE = re.compile(r"[A-Za-z0-9_./-]+")
+_DEFAULT_CACHE_DB = TMP_ROOT / "repo_map_cache.db"
 
 
 @dataclass(slots=True)
@@ -87,6 +90,14 @@ class RepoMapEntry:
         return "\n".join(lines)
 
 
+@dataclass(slots=True)
+class RepoMapCacheStats:
+    memory_hits: int = 0
+    disk_hits: int = 0
+    misses: int = 0
+    disk_writes: int = 0
+
+
 class RepoMapBuilder:
     """Build a lightweight repository map for selective context loading."""
 
@@ -96,11 +107,17 @@ class RepoMapBuilder:
         *,
         include_roots: Iterable[str] = ("workspace", "projects"),
         max_file_bytes: int = 200_000,
+        cache_db_path: Path | None = None,
+        persistent_cache: bool = True,
     ) -> None:
         self.repo_root = Path(repo_root or REPO_ROOT).resolve()
         self.include_roots = tuple(dict.fromkeys(str(root).strip("/\\") for root in include_roots if str(root).strip()))
         self.max_file_bytes = max_file_bytes
+        self.cache_db_path = Path(cache_db_path or _DEFAULT_CACHE_DB)
+        self.persistent_cache = persistent_cache
         self._cache: dict[Path, tuple[int, int, RepoMapEntry]] = {}
+        self._cache_db_ready = False
+        self._stats = RepoMapCacheStats()
 
     def collect_changed_files(self) -> set[str]:
         """Return git working-tree paths relative to the repo root."""
@@ -131,6 +148,14 @@ class RepoMapBuilder:
             if normalized:
                 changed.add(normalized)
         return changed
+
+    def cache_stats(self) -> dict[str, int]:
+        return {
+            "memory_hits": self._stats.memory_hits,
+            "disk_hits": self._stats.disk_hits,
+            "misses": self._stats.misses,
+            "disk_writes": self._stats.disk_writes,
+        }
 
     def build(
         self,
@@ -199,14 +224,23 @@ class RepoMapBuilder:
         cache_key = (stat.st_mtime_ns, stat.st_size)
         cached = self._cache.get(path)
         if cached and cached[:2] == cache_key:
+            self._stats.memory_hits += 1
             return cached[2]
+
+        relative_path = self._normalize_relative(path.relative_to(self.repo_root))
+        persisted = self._persistent_cache_get(relative_path, cache_key)
+        if persisted is not None:
+            self._cache[path] = (cache_key[0], cache_key[1], persisted)
+            self._stats.disk_hits += 1
+            return persisted
+
+        self._stats.misses += 1
 
         try:
             text = path.read_text(encoding="utf-8", errors="ignore")
         except OSError:
             return None
 
-        relative_path = self._normalize_relative(path.relative_to(self.repo_root))
         language = self._language_for_suffix(path.suffix)
         line_count = text.count("\n") + 1 if text else 0
 
@@ -225,6 +259,7 @@ class RepoMapBuilder:
             imports=imports,
         )
         self._cache[path] = (cache_key[0], cache_key[1], entry)
+        self._persistent_cache_set(entry, cache_key)
         return entry
 
     @staticmethod
@@ -339,3 +374,95 @@ class RepoMapBuilder:
             reasons.append("test-adjacent")
 
         return score, list(dict.fromkeys(reasons))
+
+    def _persistent_cache_get(self, relative_path: str, cache_key: tuple[int, int]) -> RepoMapEntry | None:
+        if not self.persistent_cache:
+            return None
+
+        self._ensure_cache_db()
+        try:
+            with sqlite3.connect(str(self.cache_db_path)) as conn:
+                row = conn.execute(
+                    """
+                    SELECT payload_json
+                    FROM repo_map_entries
+                    WHERE relative_path = ? AND mtime_ns = ? AND file_size = ?
+                    """,
+                    (relative_path, cache_key[0], cache_key[1]),
+                ).fetchone()
+        except sqlite3.Error as exc:
+            logger.debug("[RepoMap] persistent cache read failed: %s", exc)
+            return None
+
+        if not row:
+            return None
+
+        try:
+            payload = json.loads(row[0])
+            return RepoMapEntry(
+                relative_path=relative_path,
+                absolute_path=self.repo_root / relative_path,
+                language=str(payload.get("language", "")),
+                line_count=int(payload.get("line_count", 0)),
+                module_summary=str(payload.get("module_summary", "")),
+                symbols=[str(item) for item in payload.get("symbols", [])],
+                imports=[str(item) for item in payload.get("imports", [])],
+            )
+        except (TypeError, ValueError, json.JSONDecodeError) as exc:
+            logger.debug("[RepoMap] persistent cache payload invalid for %s: %s", relative_path, exc)
+            return None
+
+    def _persistent_cache_set(self, entry: RepoMapEntry, cache_key: tuple[int, int]) -> None:
+        if not self.persistent_cache:
+            return
+
+        self._ensure_cache_db()
+        payload = json.dumps(
+            {
+                "language": entry.language,
+                "line_count": entry.line_count,
+                "module_summary": entry.module_summary,
+                "symbols": entry.symbols,
+                "imports": entry.imports,
+            },
+            ensure_ascii=False,
+        )
+        try:
+            with sqlite3.connect(str(self.cache_db_path)) as conn:
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO repo_map_entries (
+                        relative_path, mtime_ns, file_size, payload_json
+                    ) VALUES (?, ?, ?, ?)
+                    """,
+                    (entry.relative_path, cache_key[0], cache_key[1], payload),
+                )
+        except sqlite3.Error as exc:
+            logger.debug("[RepoMap] persistent cache write failed: %s", exc)
+            return
+
+        self._stats.disk_writes += 1
+
+    def _ensure_cache_db(self) -> None:
+        if self._cache_db_ready or not self.persistent_cache:
+            return
+
+        self.cache_db_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with sqlite3.connect(str(self.cache_db_path)) as conn:
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS repo_map_entries (
+                        relative_path TEXT PRIMARY KEY,
+                        mtime_ns INTEGER NOT NULL,
+                        file_size INTEGER NOT NULL,
+                        payload_json TEXT NOT NULL
+                    )
+                    """
+                )
+        except sqlite3.Error as exc:
+            logger.debug("[RepoMap] persistent cache init failed: %s", exc)
+            self.persistent_cache = False
+            return
+
+        self._cache_db_ready = True
