@@ -1,5 +1,36 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-03-31 | Codex | productivity critique + control-plane follow-up capture
+
+### Work Summary
+
+Reviewed the current shared system from a productivity standpoint using the live `.ai` relay files plus the `workspace/` control-plane docs and entrypoints.
+
+- Confirmed the control plane has grown to **32 directives**, **140 execution files**, **114 tests**, and **152 Python files / 38,784 lines** under `workspace/`.
+- Identified the main throughput risk as operator entrypoint sprawl: `workspace/scripts/doctor.py`, `workspace/execution/health_check.py`, `workspace/scripts/quality_gate.py`, and `workspace/execution/qaqc_runner.py` all overlap around readiness/quality but do not currently form one obvious command ladder.
+- Noted a second productivity risk in planning/backlog fragmentation: multiple roadmap/audit directives remain in the hot path while `.ai/TASKS.md` currently carries only one active implementation task.
+- Logged follow-up `T-112` so the next implementation pass can consolidate the operator workflow instead of only adding more control-plane surface.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| .ai/HANDOFF.md | update | Added the productivity review findings and follow-up priority |
+| .ai/TASKS.md | update | Added `T-112` for operator-workflow consolidation |
+| .ai/SESSION_LOG.md | update | Recorded this analysis session |
+
+### Verification Results
+
+- Repository productivity audit only; no tests or code-generation flows were run in this session
+- Evidence gathered from `.ai/*`, `workspace/directives/*`, `workspace/execution/*`, `workspace/scripts/*`, and workspace file-count/line-count inspection
+
+### Notes For Next Agent
+
+- If `T-112` is taken, prefer a small “fast / standard / deep” operating model instead of another new wrapper script.
+- Keep the solution scoped to operator clarity first; the review did not find an immediate reliability regression, only rising coordination cost.
+
+---
+
 ## 2026-03-31 | Claude | T-100 blind-to-x coverage uplift (+106 tests)
 
 ### Work Summary

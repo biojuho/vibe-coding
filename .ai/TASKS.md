@@ -6,6 +6,7 @@
 
 | ID | Task | Owner | Priority | Created |
 |----|------|-------|----------|---------|
+| T-112 | Consolidate workspace operator entrypoints (`doctor.py`, `health_check.py`, `quality_gate.py`, `qaqc_runner.py`) into one documented fast/standard/deep workflow and trim plan-vs-backlog drift in the control plane | Codex | High | 2026-03-31 |
 
 
 ## IN_PROGRESS

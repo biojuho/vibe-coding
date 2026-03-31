@@ -6,13 +6,13 @@
 
 | Date | 2026-03-31 |
 | Tool | Codex |
-| Work | Reran the full shared QA/QC flow after the new PR triage orchestration slice landed and recorded an updated **`APPROVED`** baseline: `3066 passed / 0 failed / 0 errors / 29 skipped`, `AST 20/20`, security `CLEAR (2 triaged issue(s))`, governance `CLEAR`, infrastructure `6/6 Ready`. |
+| Work | Completed a productivity-focused control-plane critique and meeting-style synthesis. Main throughput risks identified: operator entrypoint sprawl (`doctor.py`, `health_check.py`, `quality_gate.py`, `qaqc_runner.py`), planning/backlog fragmentation across multiple roadmap-style directives, and rising control-plane surface area versus a single active execution priority. Logged follow-up `T-112` to consolidate the workflow. |
 
 ### Previous Note
 
 | Date | 2026-03-31 |
 | Tool | Codex |
-| Work | Completed `T-111`: added `workspace/execution/pr_triage_orchestrator.py` plus `workspace/directives/pr_triage_orchestrator.md`, wired repo-specific read-only validation profiles on top of the local worktree helper, and hardened Windows git-output decoding so triage manifests keep non-ASCII paths readable. |
+| Work | Reran the full shared QA/QC flow after the new PR triage orchestration slice landed and recorded an updated **`APPROVED`** baseline: `3066 passed / 0 failed / 0 errors / 29 skipped`, `AST 20/20`, security `CLEAR (2 triaged issue(s))`, governance `CLEAR`, infrastructure `6/6 Ready`. |
 
 ## Current State
 
@@ -31,6 +31,8 @@
 - `workspace/scripts/mcp_toggle.ps1` now includes a `Guard` action that reports overlapping AI tool clients so multi-client MCP footprint drift is visible before deep sessions.
 - `workspace/directives/INDEX.md` and `workspace/directives/local_inference.md` now explicitly cover the local inference + agentic coding stack, including `graph_engine.py`, `workers.py`, `code_evaluator.py`, and `governance_checks.py`.
 - `workspace/execution/code_evaluator.py` remains a dedicated evaluator module with its own tests, but `workspace/execution/graph_engine.py` still uses its local weighted evaluation/reflection loop rather than a direct `CodeEvaluator` import. The relay now says that explicitly, and governance checks guard against the old stale claim recurring.
+- Productivity review on `2026-03-31` found the shared control plane now spans **32 directives**, **140 execution files**, **114 tests**, and **152 Python files / 38,784 lines** under `workspace/`; reliability is strong, but operator flow is getting harder to learn and choose correctly.
+- The most obvious operator overlap today is across `workspace/scripts/doctor.py`, `workspace/execution/health_check.py`, `workspace/scripts/quality_gate.py`, and `workspace/execution/qaqc_runner.py`, which all touch readiness or quality validation at different depths without one canonical “which command should I run now?” path.
 - The latest shared QC was run against a dirty worktree, not a pristine tree. Current non-committed control-plane WIP includes `workspace/execution/repo_map.py`, `workspace/execution/context_selector.py`, `workspace/execution/graph_engine.py`, `workspace/execution/pr_triage_worktree.py`, `workspace/execution/pr_triage_orchestrator.py`, `workspace/tests/test_context_selector.py`, `workspace/tests/test_pr_triage_worktree.py`, `workspace/tests/test_pr_triage_orchestrator.py`, `workspace/directives/pr_triage_worktree.md`, and `workspace/directives/pr_triage_orchestrator.md`, alongside unrelated skill/infrastructure edits and untracked temp files (`o.txt`, `temp_test_out.txt`).
 - The ACPX `pr-triage` example reviewed on `2026-03-31` does not literally use `git worktree`; its `prepareWorkspace()` step creates an isolated temp clone. Our adaptation deliberately uses linked worktrees instead because the local-first workspace already has the repos on disk and wants lower-overhead isolation.
 - The Shorts golden render escape hatch is now pinned to a real 30-second verification path in `projects/shorts-maker-v2/tests/integration/test_golden_render.py`, and it validates both backends for resolution plus audio/video duration alignment.
@@ -68,9 +70,10 @@
 ## Next Priorities
 
 1. Continue `T-100`: `blind-to-x` is now at **71%** (from 59.89%). Next candidates: remaining low-coverage modules (`analytics_tracker.py` sync_metrics path, scraper modules) or pivot to `shorts-maker-v2` coverage uplift.
-2. For further `blind-to-x` uplift, the image/analytics modules are now covered. Next bounded cluster: `pipeline/dedup.py`, `pipeline/content_intelligence.py`, or `pipeline/style_bandit.py`.
-3. Keep the shared context backlog tidy now that `T-109` is done, but do not overwrite fresh relay/task edits from other agents without merging them carefully.
-4. If the user wants a richer PR lane later, build it on top of `pr_triage_orchestrator.py` as the read-only/local-first entrypoint; keep GitHub write actions as a separately approved extension rather than bundling them into the baseline helper.
+2. Tackle `T-112`: define one canonical operator ladder (for example `doctor` = fast readiness, `health_check` = environment diagnostics, `quality_gate` = local pre-commit, `qaqc_runner` = deep shared approval) and document it in one short entrypoint guide.
+3. Trim planning/backlog drift: large roadmap/audit directives should either map to active task IDs or move out of the hot path so agents do not scan strategy docs as if they were execution queues.
+4. For further `blind-to-x` uplift, the image/analytics modules are now covered. Next bounded cluster: `pipeline/dedup.py`, `pipeline/content_intelligence.py`, or `pipeline/style_bandit.py`.
+5. If the user wants a richer PR lane later, build it on top of `pr_triage_orchestrator.py` as the read-only/local-first entrypoint; keep GitHub write actions as a separately approved extension rather than bundling them into the baseline helper.
 
 ## Notes
 
