@@ -1,5 +1,37 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-03-31 | Codex | T-109 file-summary cache for repo_map
+
+### Work Summary
+
+Started the second selective-context adoption slice by making repo-map file analysis reusable across fresh builder instances.
+
+- Extended `workspace/execution/repo_map.py` with a persistent SQLite-backed file-summary cache stored at `.tmp/repo_map_cache.db`.
+- Reused cached summaries when the relative path, file size, and `mtime_ns` still match, while falling back to re-parse on cache misses or file changes.
+- Added regression coverage in `workspace/tests/test_context_selector.py` for cross-builder cache hits and cache invalidation after a file rewrite.
+- Updated `workspace/directives/local_inference.md` so the local inference directive reflects the new cache layer.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `workspace/execution/repo_map.py` | update | Added persistent file-summary cache plus cache stats and invalidation logic |
+| `workspace/tests/test_context_selector.py` | update | Added cache persistence and cache invalidation coverage |
+| `workspace/directives/local_inference.md` | update | Documented the `.tmp/repo_map_cache.db` intermediate cache |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | update | Synced relay, backlog, and shared context for the T-109 slice |
+
+### Verification Results
+
+- `venv\Scripts\python.exe -m pytest workspace\tests\test_context_selector.py workspace\tests\test_graph_engine.py -q -o addopts=` -> **41 passed**
+- `venv\Scripts\python.exe -m ruff check workspace\execution\repo_map.py workspace\tests\test_context_selector.py` -> **All checks passed**
+- `venv\Scripts\python.exe workspace\scripts\check_mapping.py` -> **All mappings valid**
+- `venv\Scripts\python.exe -X utf8 workspace\execution\health_check.py --category governance --json` -> **overall `ok`**
+
+### Notes For Next Agent
+
+- `T-109` is still in progress. The file-summary cache is done; the remaining planned slices are agent profiles and adaptive variant pruning.
+- `.tmp/repo_map_cache.db` is safe to remove when debugging; it will be recreated automatically.
+
 ## 2026-03-31 | Codex | T-108 selective repo-map context loading for VibeCodingGraph
 
 ### Work Summary

@@ -6,13 +6,13 @@
 
 | Date | 2026-03-31 |
 | Tool | Codex |
-| Work | Closed `T-108` by adding deterministic `workspace/execution/repo_map.py` + `workspace/execution/context_selector.py`, wiring budgeted selective repository context into `workspace/execution/graph_engine.py`, fixing the `ThoughtDecomposer` child-task extraction bug (`task_text`), updating directive ownership, and verifying the rollout with workspace tests, ruff, mapping, and governance checks. |
+| Work | Started `T-109` by extending `workspace/execution/repo_map.py` with a persistent file-summary cache backed by `.tmp/repo_map_cache.db`, adding cache hit/invalidation coverage in `workspace/tests/test_context_selector.py`, and updating directive context after re-verifying the selective-context stack. |
 
 ### Previous Note
 
 | Date | 2026-03-31 |
-| Tool | Gemini |
-| Work | Ran a full shared workspace QC pass via `qaqc_runner.py` to confirm stability after recent updates. Re-verified 2915 passing tests across `blind-to-x`, `shorts-maker-v2`, and `root`. |
+| Tool | Codex |
+| Work | Closed `T-108` by adding deterministic `workspace/execution/repo_map.py` + `workspace/execution/context_selector.py`, wiring budgeted selective repository context into `workspace/execution/graph_engine.py`, fixing the `ThoughtDecomposer` child-task extraction bug (`task_text`), updating directive ownership, and verifying the rollout with workspace tests, ruff, mapping, and governance checks. |
 
 ## Current State
 
@@ -22,6 +22,7 @@
 - `workspace/execution/governance_checks.py` is now part of the shared control plane on `2026-03-31`: it validates required `.ai` context files, targeted relay claims against live code, directive/INDEX ownership drift, and tracked audit follow-up linkage to `.ai/TASKS.md`.
 - `workspace/execution/health_check.py --category governance` now exposes that governance gate directly, and `workspace/execution/qaqc_runner.py` downgrades the final verdict away from `APPROVED` whenever governance returns `WARNING` or `FAIL`.
 - `workspace/execution/repo_map.py` and `workspace/execution/context_selector.py` are now part of the shared control plane on `2026-03-31`: they build a deterministic repo map, rank relevant files within a char budget, and inject the selected repository context into `workspace/execution/graph_engine.py` before variant generation.
+- `workspace/execution/repo_map.py` now also persists file summaries under `.tmp/repo_map_cache.db` on `2026-03-31`, keyed by relative path + file size + `mtime_ns`, so fresh builder instances can reuse parsed metadata without re-reading unchanged files.
 - `workspace/execution/graph_engine.py` now merges selected repo context into the supervisor state and correctly reads `TaskNode.task_text` from `workspace/execution/thought_decomposer.py` instead of the broken `child.task` attribute.
 - `.mcp.json` no longer registers the redundant `filesystem` MCP server on `2026-03-31`; local file work is expected to use the built-in Read/Write/Glob/Grep tool path instead.
 - `workspace/scripts/mcp_toggle.ps1` now includes a `Guard` action that reports overlapping AI tool clients so multi-client MCP footprint drift is visible before deep sessions.
@@ -37,7 +38,7 @@
 
 - `python -X utf8 workspace/scripts/check_mapping.py` -> **All mappings valid**
 - `python -X utf8 workspace/execution/health_check.py --category governance --json` -> **overall `ok`** (`ai_context_files`, `relay_claim_consistency`, `directive_mapping`, `task_backlog_alignment`)
-- `venv\Scripts\python.exe -m pytest workspace\tests\test_context_selector.py workspace\tests\test_graph_engine.py -q -o addopts=` -> **39 passed**
+- `venv\Scripts\python.exe -m pytest workspace\tests\test_context_selector.py workspace\tests\test_graph_engine.py -q -o addopts=` -> **41 passed**
 - `venv\Scripts\python.exe -m ruff check workspace\execution\repo_map.py workspace\execution\context_selector.py workspace\execution\graph_engine.py workspace\tests\test_context_selector.py workspace\tests\test_graph_engine.py` -> **All checks passed**
 - `venv\Scripts\python.exe -m compileall workspace\execution\repo_map.py workspace\execution\context_selector.py workspace\execution\graph_engine.py` -> **pass**
 - `venv\Scripts\python.exe -X utf8 -m pytest workspace\tests\test_governance_checks.py workspace\tests\test_health_check.py workspace\tests\test_qaqc_runner.py workspace\tests\test_qaqc_runner_extended.py -q -o addopts=` -> **74 passed**
@@ -56,7 +57,7 @@
 
 1. Finish `T-100` by raising the remaining audit-owned coverage follow-up so both `shorts-maker-v2` and `blind-to-x` meet their documented floors without relying on stale baseline numbers.
 2. For the next `blind-to-x` uplift slice, prefer another bounded deterministic cluster over scraper-heavy work first. Good candidates after this session are `pipeline/image_generator.py` + `pipeline/image_upload.py`, or one of the 0%-coverage analytics modules if its external dependencies can be fully mocked.
-3. Build the phase-2 selective-context layer (`T-109`) on top of `repo_map.py` / `context_selector.py`: file-summary caching, agent profiles, and adaptive variant pruning before considering heavier external agent runtimes.
+3. Continue the phase-2 selective-context layer (`T-109`) on top of `repo_map.py` / `context_selector.py`: file-summary caching is now in place, so the next slices are agent profiles and adaptive variant pruning before considering heavier external agent runtimes.
 
 ## Notes
 
@@ -67,3 +68,4 @@
 - For `blind-to-x` rule edits, treat `projects/blind-to-x/rules/*.yaml` as the source of truth; the root `classification_rules.yaml` is a compatibility snapshot/fallback surface.
 - When targeted `coverage report` looks wrong for a Windows path, prefer `coverage report -m --include="*module_name.py"`.
 - `ContextSelector` defaults to `workspace/` roots unless the prompt explicitly points to `projects/` or `infrastructure/`, which helps keep unrelated `blind-to-x` WIP files out of control-plane coding prompts.
+- `.tmp/repo_map_cache.db` is a deterministic intermediate cache, not a deliverable. It can be deleted and rebuilt safely when debugging repo-map selection issues.

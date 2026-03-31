@@ -6,7 +6,6 @@
 
 | ID | Task | Owner | Priority | Created |
 |----|------|-------|----------|---------|
-| T-109 | Add phase-2 selective-context upgrades: file-summary cache, agent profiles, and adaptive pruning on top of `repo_map.py` / `context_selector.py` | Any | Medium | 2026-03-31 |
 
 
 ## IN_PROGRESS
@@ -14,6 +13,7 @@
 | ID | Task | Owner | Started | Notes |
 |----|------|-------|---------|-------|
 | T-100 | Raise the remaining project coverage follow-up from the system audit so `shorts-maker-v2` and `blind-to-x` reach their documented target floors | Codex | 2026-03-31 | `blind-to-x` moved from **56.56%** to **59.89%** on 2026-03-31. Next candidates: `image_generator.py` + `image_upload.py`, or analytics modules. |
+| T-109 | Add phase-2 selective-context upgrades: file-summary cache, agent profiles, and adaptive pruning on top of `repo_map.py` / `context_selector.py` | Codex | 2026-03-31 | File-summary cache is now wired into `workspace/execution/repo_map.py` via `.tmp/repo_map_cache.db`; next slices are agent profiles and adaptive pruning. |
 
 ## DONE (Latest 5)
 
