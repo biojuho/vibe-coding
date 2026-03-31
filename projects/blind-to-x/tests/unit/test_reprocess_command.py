@@ -15,7 +15,7 @@ def mock_deps():
     twitter = AsyncMock()
     twitter.enabled = True
     twitter.post_tweet = AsyncMock(return_value="https://x.com/post/123")
-    notion.get_pages_by_review_status = AsyncMock(return_value=[])
+    notion.get_pages_by_status = AsyncMock(return_value=[])
     notion.extract_page_record = MagicMock()
     notion.update_page_properties = AsyncMock()
     return config, notion, twitter
@@ -32,7 +32,7 @@ async def test_disabled_twitter_returns_empty(mock_deps):
 @pytest.mark.asyncio
 async def test_no_approved_pages(mock_deps):
     config, notion, twitter = mock_deps
-    notion.get_pages_by_review_status.return_value = []
+    notion.get_pages_by_status.return_value = []
     result = await run_reprocess_approved(config, notion, twitter, limit=10)
     assert result == []
 
@@ -43,7 +43,7 @@ async def test_no_approved_pages(mock_deps):
 async def test_successful_reprocess(mock_record, mock_refresh, mock_deps):
     config, notion, twitter = mock_deps
     page = MagicMock()
-    notion.get_pages_by_review_status.return_value = [page]
+    notion.get_pages_by_status.return_value = [page]
     notion.extract_page_record.return_value = {
         "page_id": "page-1",
         "tweet_body": "Test tweet content",
@@ -71,7 +71,7 @@ async def test_successful_reprocess(mock_record, mock_refresh, mock_deps):
 async def test_missing_tweet_text(mock_deps):
     config, notion, twitter = mock_deps
     page = MagicMock()
-    notion.get_pages_by_review_status.return_value = [page]
+    notion.get_pages_by_status.return_value = [page]
     notion.extract_page_record.return_value = {
         "page_id": "page-1",
         "tweet_body": "",
@@ -90,7 +90,7 @@ async def test_missing_tweet_text(mock_deps):
 async def test_twitter_post_failure(mock_record, mock_deps):
     config, notion, twitter = mock_deps
     page = MagicMock()
-    notion.get_pages_by_review_status.return_value = [page]
+    notion.get_pages_by_status.return_value = [page]
     notion.extract_page_record.return_value = {
         "page_id": "page-1",
         "tweet_body": "Some tweet",

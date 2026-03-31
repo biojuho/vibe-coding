@@ -35,6 +35,7 @@ class TestGetSourceHint:
 
     def test_known_source(self):
         from pipeline.content_intelligence import get_source_hint
+
         hint = get_source_hint("blind")
         assert hint["display_name"] == "블라인드"
         assert "연봉" in hint["topic_bias"]
@@ -42,12 +43,14 @@ class TestGetSourceHint:
 
     def test_fmkorea_source(self):
         from pipeline.content_intelligence import get_source_hint
+
         hint = get_source_hint("fmkorea")
         assert hint["display_name"] == "에펨코리아"
         assert hint["quality_boost"] == 0.85
 
     def test_jobplanet_source(self):
         from pipeline.content_intelligence import get_source_hint
+
         hint = get_source_hint("jobplanet")
         assert hint["display_name"] == "잡플래닛"
         assert hint["quality_boost"] == 1.1
@@ -55,6 +58,7 @@ class TestGetSourceHint:
 
     def test_unknown_source_returns_default(self):
         from pipeline.content_intelligence import get_source_hint
+
         hint = get_source_hint("unknown_source_xyz")
         assert hint["quality_boost"] == 1.0
         assert hint["display_name"] == "unknown_source_xyz"
@@ -65,11 +69,13 @@ class TestScraperRegistry:
 
     def test_all_sources_registered(self):
         from scrapers import SCRAPER_REGISTRY
+
         for src in ["blind", "ppomppu", "fmkorea", "jobplanet"]:
             assert src in SCRAPER_REGISTRY, f"SCRAPER_REGISTRY에 '{src}' 누락"
 
     def test_get_scraper(self):
         from scrapers import get_scraper
+
         cls = get_scraper("fmkorea")
         assert cls.SOURCE_NAME == "fmkorea"
         cls = get_scraper("jobplanet")
@@ -82,6 +88,7 @@ class TestConfigInputSources:
     def test_four_sources_enabled(self):
         import yaml
         import os
+
         base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         with open(os.path.join(base, "config.yaml"), encoding="utf-8") as f:
             config = yaml.safe_load(f)

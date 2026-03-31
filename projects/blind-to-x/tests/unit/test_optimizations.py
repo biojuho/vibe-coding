@@ -78,7 +78,6 @@ class TestNotionURLCache:
             "publishability_score": "발행 적합도 점수",
             "performance_score": "성과 예측 점수",
             "final_rank_score": "최종 랭크 점수",
-            "review_status": "승인 상태",
             "review_note": "검토 메모",
             "chosen_draft_type": "선택 초안 타입",
             "newsletter_body": "뉴스레터 초안",

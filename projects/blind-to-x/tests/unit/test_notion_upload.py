@@ -12,7 +12,6 @@ def mock_config():
         "notion.api_key": "test_api_key",
         "notion.database_id": "test_db_id",
         "notion.status_default": "Draft",
-        "notion.review_status_default": "Review",
         "dedup.cache_ttl_minutes": "30",
         "dedup.lookback_days": "14",
     }
@@ -24,7 +23,6 @@ def test_init_with_config(mock_config):
         assert uploader.api_key == "test_api_key"
         assert uploader.raw_database_id == "test_db_id"
         assert uploader.status_default == "Draft"
-        assert uploader.review_status_default == "Review"
         assert uploader._url_cache_ttl_seconds == 1800
         assert uploader._url_cache_lookback_days == 14
 
@@ -231,7 +229,7 @@ async def test_upload_success(mock_ensure_schema, mock_config):
     uploader.props = {"title": "이름", "url": "URL"}
     uploader._db_properties = {"이름": {"type": "title"}, "URL": {"type": "url"}}
 
-    post_data = {"title": "Test Title", "url": "https://test.com", "review_status": "approved"}
+    post_data = {"title": "Test Title", "url": "https://test.com", "status": "approved"}
     res_url, res_id = await uploader.upload(post_data, "https://img.com", {"twitter": "test"})
 
     assert res_url == "https://notion.so/test"

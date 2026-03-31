@@ -376,7 +376,7 @@ async def process_cross_source_insights(
                     except Exception as exc:
                         logger.debug("인사이트 이미지 생성 실패: %s", exc)
 
-                post_data_for_notion["review_status"] = "검토필요"
+                post_data_for_notion["status"] = "검토필요"
                 notion_url = await notion_uploader.upload(
                     post_data=post_data_for_notion,
                     image_url=image_url,

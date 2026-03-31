@@ -250,7 +250,7 @@ async def _run_pipeline(
         print(f"{'=' * 55}")
 
         if not args.dry_run:
-            review_ready = len([item for item in results if item.get("review_status") == "검토필요"])
+            review_ready = len([item for item in results if item.get("status") == "검토필요"])
             level = "INFO"
             if len(failed) > 0:
                 level = "WARNING"

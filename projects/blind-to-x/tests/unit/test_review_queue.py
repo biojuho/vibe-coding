@@ -38,7 +38,7 @@ def test_build_review_decision_accepts_ranked_items():
         {"final_rank_score": 78},
     )
     assert decision["should_queue"] is True
-    assert decision["review_status"] == "검토필요"
+    assert decision["status"] == "검토필요"
 
 
 def test_build_review_decision_rejects_missing_content():

@@ -274,9 +274,9 @@ class FeedbackLoop:
 
         for record in records:
             totals["total"] += 1
-            if record.get("review_status") == "검토필요":
+            if record.get("status") == "검토필요":
                 totals["review_queue"] += 1
-            if record.get("review_status") == "승인됨":
+            if record.get("status") == "승인됨":
                 totals["approved"] += 1
             if record.get("tweet_url"):
                 totals["published"] += 1

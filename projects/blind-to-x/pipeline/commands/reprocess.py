@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 async def run_reprocess_approved(config_mgr, notion_uploader, twitter_poster, limit):
-    """Re-publish Notion items with review_status == '승인됨'.
+    """Re-publish Notion items with status == '승인됨'.
 
     Args:
         config_mgr: ConfigManager instance.
@@ -26,7 +26,7 @@ async def run_reprocess_approved(config_mgr, notion_uploader, twitter_poster, li
         logger.warning("Twitter posting is disabled. Skipping approved reprocess flow.")
         return []
 
-    pages = await notion_uploader.get_pages_by_review_status("승인됨", limit=limit)
+    pages = await notion_uploader.get_pages_by_status("승인됨", limit=limit)
     results = []
     for page in pages:
         record = notion_uploader.extract_page_record(page)
@@ -50,7 +50,6 @@ async def run_reprocess_approved(config_mgr, notion_uploader, twitter_poster, li
                 record["page_id"],
                 {
                     "status": "발행완료",
-                    "review_status": "발행완료",
                 },
             )
             record_draft_event(

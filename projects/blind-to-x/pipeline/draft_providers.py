@@ -226,9 +226,7 @@ def init_provider_clients(instance: Any) -> None:
     instance.gemini_api_key = (
         os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or config.get("gemini.api_key")
     )
-    instance.xai_api_key = (
-        os.environ.get("XAI_API_KEY") or os.environ.get("GROK_API_KEY") or config.get("xai.api_key")
-    )
+    instance.xai_api_key = os.environ.get("XAI_API_KEY") or os.environ.get("GROK_API_KEY") or config.get("xai.api_key")
 
     instance.anthropic_model = config.get("anthropic.model", "claude-haiku-4-5-20251001")
     instance.openai_model = config.get("openai.chat_model", "gpt-4.1-mini")
@@ -243,7 +241,9 @@ def init_provider_clients(instance: Any) -> None:
     instance.xai_enabled = instance._provider_enabled("xai", instance.xai_api_key)
     instance.ollama_enabled = instance._check_ollama_enabled()
 
-    instance.anthropic_client = AsyncAnthropic(api_key=instance.anthropic_api_key) if instance.anthropic_enabled else None
+    instance.anthropic_client = (
+        AsyncAnthropic(api_key=instance.anthropic_api_key) if instance.anthropic_enabled else None
+    )
     instance.openai_client = AsyncOpenAI(api_key=instance.openai_api_key) if instance.openai_enabled else None
     instance.xai_client = (
         AsyncOpenAI(api_key=instance.xai_api_key, base_url="https://api.x.ai/v1") if instance.xai_enabled else None

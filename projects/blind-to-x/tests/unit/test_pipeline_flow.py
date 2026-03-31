@@ -188,7 +188,7 @@ def test_process_single_post_success_returns_notion_url_and_review_state():
     assert result["notion_url"] == "https://notion.so/page"
     assert result["error_code"] is None
     assert result["content_profile"]["topic_cluster"] in {"연봉", "이직", "회사문화", "상사", "기타"}
-    assert uploader.updated["updates"]["review_status"] == "검토필요"
+    assert uploader.updated["updates"]["status"] == "검토필요"
 
 
 def test_process_single_post_generation_failure_stops_before_upload():

@@ -102,7 +102,6 @@ def build_default_config():
                     "publishability_score": "발행 적합도 점수",
                     "performance_score": "성과 예측 점수",
                     "final_rank_score": "최종 랭크 점수",
-                    "review_status": "승인 상태",
                     "review_note": "검토 메모",
                     "chosen_draft_type": "선택 초안 타입",
                     "newsletter_body": "뉴스레터 초안",
@@ -232,7 +231,6 @@ def test_upload_payload_supports_status_and_select(monkeypatch, status_type):
         "이미지 필요": {"type": "checkbox"},
         "트윗 본문": {"type": "rich_text"},
         "Source URL": {"type": "url"},
-        "승인 상태": {"type": status_type},
         "토픽 클러스터": {"type": "select"},
         "훅 타입": {"type": "select"},
         "감정 축": {"type": "select"},
@@ -251,7 +249,7 @@ def test_upload_payload_supports_status_and_select(monkeypatch, status_type):
         "title": "제목",
         "url": "https://example.com/post?utm_source=a",
         "content": "본문",
-        "review_status": "검토필요",
+        "status": "검토필요",
     }
     notion_result = asyncio.run(
         uploader.upload(
@@ -278,10 +276,8 @@ def test_upload_payload_supports_status_and_select(monkeypatch, status_type):
     assert props["Source URL"]["url"] == "https://example.com/post"
     if status_type == "status":
         assert "status" in props["상태"]
-        assert "status" in props["승인 상태"]
     else:
         assert "select" in props["상태"]
-        assert "select" in props["승인 상태"]
 
 
 def test_duplicate_query_error_returns_none_and_error_code(monkeypatch):

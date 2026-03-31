@@ -109,17 +109,10 @@ class NotionUploadMixin:
                 memo_parts.append(f"🎯 운영자 해석: {creator_take}")
             self._append_property_if_present(properties, "memo", "\n".join(memo_parts))
 
-            self._append_property_if_present(
-                properties, "status", post_data.get("review_status") or self.status_default
-            )
+            self._append_property_if_present(properties, "status", post_data.get("status") or self.status_default)
             self._append_property_if_present(properties, "date", datetime.now().date())
             self._append_property_if_present(properties, "url", canonical_url)
             self._append_property_if_present(properties, "source", post_data.get("source", "blind"))
-            self._append_property_if_present(
-                properties,
-                "review_status",
-                post_data.get("review_status", self.review_status_default),
-            )
 
             if isinstance(drafts, dict):
                 self._append_property_if_present(properties, "tweet_body", drafts.get("twitter"))

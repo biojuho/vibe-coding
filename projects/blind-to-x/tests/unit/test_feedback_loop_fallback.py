@@ -58,13 +58,13 @@ def test_few_shot_prefers_performance_examples():
 def test_few_shot_falls_back_to_approved_examples():
     notion = FakeNotionUploader(
         performance=[],
-        approved=[{"text": "승인 예시", "review_status": "승인됨"}],
+        approved=[{"text": "승인 예시", "status": "승인됨"}],
     )
     loop = FeedbackLoop(notion, FakeConfig())
 
     result = asyncio.run(loop.get_few_shot_examples())
 
-    assert result == [{"text": "승인 예시", "review_status": "승인됨"}]
+    assert result == [{"text": "승인 예시", "status": "승인됨"}]
 
 
 def test_few_shot_falls_back_to_yaml_golden_examples():

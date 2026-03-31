@@ -105,7 +105,7 @@ class NotionQueryMixin:
         if not await self.ensure_schema():
             return []
         try:
-            pages = await self.get_pages_by_review_status("승인됨", limit=max(limit * 4, 20))
+            pages = await self.get_pages_by_status("승인됨", limit=max(limit * 4, 20))
             cutoff = datetime.utcnow() - timedelta(days=lookback_days)
             records: list[dict[str, Any]] = []
             for page in pages:
@@ -148,13 +148,15 @@ class NotionQueryMixin:
             for item in records
         ]
 
-    async def get_pages_by_review_status(self, status_name: str, limit=20):
+    async def get_pages_by_status(self, status_name: str, limit=20):
         """리뷰 상태별 페이지 목록 조회."""
         if not await self.ensure_schema():
             return []
 
-        semantic_key = "review_status" if self.props.get("review_status") in self._db_properties else "status"
-        prop_name = self.props[semantic_key]
+        semantic_key = "status"
+        prop_name = self.props.get(semantic_key)
+        if not prop_name:
+            return []
         prop_type = self._db_properties[prop_name]["type"]
         if prop_type == "status":
             filter_payload = {"property": prop_name, "status": {"equals": status_name}}

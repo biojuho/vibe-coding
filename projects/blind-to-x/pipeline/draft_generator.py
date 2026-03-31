@@ -234,7 +234,5 @@ class _ProxyModule(types.ModuleType):
 
 _self = sys.modules[__name__]
 _proxy = _ProxyModule(__name__, __doc__)
-_proxy.__dict__.update(
-    {k: v for k, v in _self.__dict__.items() if k not in ("__class__", "__dict__")}
-)
+_proxy.__dict__.update({k: v for k, v in _self.__dict__.items() if k not in ("__class__", "__dict__")})
 sys.modules[__name__] = _proxy

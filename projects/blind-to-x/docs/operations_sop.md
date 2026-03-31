@@ -19,8 +19,8 @@ type logs\pipeline.log | Select-String "ERROR" | Select-Object -Last 10
 
 1. Board 뷰에서 `검토필요` 카드 클릭
 2. 트윗 본문 / Threads 본문 품질 확인
-3. 승인 시: `승인 상태` → `승인됨`으로 변경
-4. 반려 시: `승인 상태` → `반려`로 변경 (사유 코멘트)
+3. 승인 시: `상태` → `승인됨`으로 변경
+4. 반려 시: `상태` → `반려`로 변경 (사유 코멘트)
 
 ### 발행 (11:00 ~ 12:00)
 
@@ -28,7 +28,7 @@ type logs\pipeline.log | Select-String "ERROR" | Select-Object -Last 10
 2. 승인된 카드의 `트윗 본문` 복사
 3. X (twitter.com)에 붙여넣기 → 발행
 4. 발행된 URL을 `트윗 링크` 속성에 기록
-5. `승인 상태` → `발행완료`로 변경
+5. `상태` → `발행완료`로 변경
 6. 필요 시 `🧵 Threads 큐`에서 동일 작업 반복
 
 ---

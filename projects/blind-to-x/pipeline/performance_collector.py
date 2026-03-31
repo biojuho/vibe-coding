@@ -263,7 +263,7 @@ async def _query_published_pages(
     filter_payload = {
         "and": [
             {
-                "property": notion_uploader.props.get("review_status", "승인 상태"),
+                "property": notion_uploader.props.get("status", "상태"),
                 "select": {"equals": "발행완료"},
             },
             {

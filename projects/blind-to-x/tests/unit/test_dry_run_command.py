@@ -39,7 +39,7 @@ async def test_run_dry_run_single_success(mock_deps, monkeypatch):
     monkeypatch.setattr(
         pipeline.commands.dry_run,
         "build_review_decision",
-        lambda c, pd, p: {"should_queue": True, "review_reason": "", "review_status": "approved"},
+        lambda c, pd, p: {"should_queue": True, "review_reason": "", "status": "approved"},
     )
 
     res = await run_dry_run_single(item, config, draft_gen, notion, [])
@@ -101,7 +101,7 @@ async def test_run_dry_run_single_filter_low_quality(mock_deps, monkeypatch):
     monkeypatch.setattr(
         pipeline.commands.dry_run,
         "build_review_decision",
-        lambda c, pd, p: {"should_queue": False, "review_reason": "low_score", "review_status": "rejected"},
+        lambda c, pd, p: {"should_queue": False, "review_reason": "low_score", "status": "rejected"},
     )
 
     res = await run_dry_run_single(item, config, draft_gen, notion, [])

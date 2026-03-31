@@ -22,7 +22,7 @@ def build_review_decision(
     if config.get("review.reject_on_missing_title", True) and not title:
         return {
             "should_queue": False,
-            "review_status": "보류",
+            "status": "보류",
             "review_reason": "missing_title",
             "review_priority": "low",
         }
@@ -30,7 +30,7 @@ def build_review_decision(
     if config.get("review.reject_on_missing_content", True) and not content:
         return {
             "should_queue": False,
-            "review_status": "보류",
+            "status": "보류",
             "review_reason": "missing_content",
             "review_priority": "low",
         }
@@ -39,7 +39,7 @@ def build_review_decision(
     if final_rank_score < effective_threshold:
         return {
             "should_queue": False,
-            "review_status": "보류",
+            "status": "보류",
             "review_reason": "final_rank_below_threshold",
             "review_priority": "low",
         }
@@ -53,7 +53,7 @@ def build_review_decision(
 
     return {
         "should_queue": True,
-        "review_status": "검토필요",
+        "status": "검토필요",
         "review_reason": "queued_for_review",
         "review_priority": priority,
     }

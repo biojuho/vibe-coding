@@ -56,7 +56,6 @@ class NotionUploader(
         self.database_id = self.normalize_notion_id(self.raw_database_id)
 
         self.status_default = config.get("notion.status_default", "검토필요")
-        self.review_status_default = config.get("notion.review_status_default", "검토필요")
         props_cfg = config.get("notion.properties", {}) or {}
         self._manual_props = {key: str(props_cfg.get(key, "")).strip() for key in self.DEFAULT_PROPS}
         self._env_props = {

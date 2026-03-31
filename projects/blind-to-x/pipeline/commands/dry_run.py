@@ -115,5 +115,5 @@ async def run_dry_run_single(item, config_mgr, draft_generator, notion_uploader,
         "publishability_score": profile["publishability_score"],
         "performance_score": profile["performance_score"],
         "final_rank_score": profile["final_rank_score"],
-        "review_status": decision["review_status"],
+        "status": decision.get("status", "검토필요"),
     }
