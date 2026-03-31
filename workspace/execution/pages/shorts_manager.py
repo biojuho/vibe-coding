@@ -172,6 +172,14 @@ def _ops_badge(status: str) -> str:
     )
 
 
+def _format_issue_labels(issues: list[str]) -> list[str]:
+    labels = []
+    for issue in issues:
+        label = issue.split(":", 1)[1] if ":" in issue else issue
+        labels.append(label.replace("_", " "))
+    return labels
+
+
 def _scan_manifests() -> None:
     """v2 output 폴더의 manifest.json을 스캔해서 content_db 업데이트."""
     output_dir = _V2_DIR / "output"
@@ -361,10 +369,7 @@ def _render_channel_readiness(channels: list[str]) -> None:
                 )
                 st.caption(f"다음 액션: {item['next_action']}")
             if item["issues"]:
-                issue_labels = [
-                    issue.split(":", 1)[1].replace("_", " ") if ":" in issue else issue.replace("_", " ")
-                    for issue in item["issues"]
-                ]
+                issue_labels = _format_issue_labels(item["issues"])
                 st.caption("이슈: " + ", ".join(issue_labels))
 
 
@@ -388,10 +393,7 @@ def _render_failure_triage(limit: int = 6) -> None:
             )
             st.caption(f"실패 원인: {item.get('failure_reason', '-')}")
             if item.get("issues"):
-                issue_labels = [
-                    issue.split(":", 1)[1].replace("_", " ") if ":" in issue else issue.replace("_", " ")
-                    for issue in item["issues"]
-                ]
+                issue_labels = _format_issue_labels(item["issues"])
                 st.caption("사전 점검: " + ", ".join(issue_labels))
             st.caption(f"다음 액션: {item.get('next_action', '-')}")
 
@@ -613,6 +615,126 @@ with right:
     tab_labels = [f"전체 ({len(all_items)})"] + CHANNELS
     tabs = st.tabs(tab_labels)
 
+    def _render_item_header(item: dict[str, Any]) -> None:
+        """항목 제목·배지·메타 정보 영역을 렌더링한다."""
+        status_html = _status_badge(item["status"])
+        yt_html = _youtube_badge(item.get("youtube_status", ""), item.get("youtube_url", ""))
+        title_display = _html.escape(item.get("title") or item["topic"])
+        ch_tag = ""
+        if item.get("channel"):
+            safe_ch = _html.escape(item["channel"])
+            ch_tag = (
+                f"<span style='background:#0d6efd;color:white;padding:2px 6px;"
+                f"border-radius:8px;font-size:0.7rem'>{safe_ch}</span> "
+            )
+        st.markdown(f"{ch_tag}{status_html} {yt_html} &nbsp; **{title_display}**", unsafe_allow_html=True)
+        if item.get("title") and item["title"] != item["topic"]:
+            st.caption(f"주제: {item['topic']}")
+
+        meta_parts = []
+        dur = _fmt_dur(item.get("duration_sec", 0))
+        cost = _fmt_cost(item.get("cost_usd", 0))
+        if dur != "-":
+            meta_parts.append(f"길이: {dur}")
+        if cost != "-":
+            meta_parts.append(f"비용: {cost}")
+        if item.get("created_at"):
+            meta_parts.append(f"생성: {item['created_at'][:16]}")
+        if meta_parts:
+            st.caption("  |  ".join(meta_parts))
+        if item.get("notes"):
+            st.caption(f"메모: {item['notes']}")
+        if item.get("youtube_error"):
+            st.caption(f"업로드 오류: {item['youtube_error']}")
+
+    def _render_item_buttons(item: dict[str, Any], key_prefix: str) -> None:
+        """실행·업로드·재시도·Notion·삭제 버튼 영역을 렌더링한다."""
+        btn_col1, btn_col2, btn_col3, btn_col4, btn_col5 = st.columns(5)
+        with btn_col1:
+            can_run = item["status"] in ("pending", "failed") and v2_ok
+            if st.button(
+                "실행",
+                key=f"run_{key_prefix}_{item['id']}",
+                disabled=not can_run,
+                help="v2 파이프라인 실행",
+                use_container_width=True,
+            ):
+                pid = _launch_v2(item["id"], item["topic"], item.get("channel", ""))
+                if pid:
+                    _set_flash("success", f"실행됨 (PID {pid})")
+                else:
+                    _set_flash("error", "실행 실패")
+                st.rerun()
+        with btn_col2:
+            can_upload = (
+                upload_allowed
+                and item["status"] == "success"
+                and item.get("video_path", "")
+                and not item.get("youtube_status")
+            )
+            if st.button(
+                "YT 업로드",
+                key=f"yt_{key_prefix}_{item['id']}",
+                disabled=not can_upload,
+                help="YouTube 업로드",
+                use_container_width=True,
+            ):
+                try:
+                    result = _upload_single(item, retry=False)
+                    _set_flash("success", f"업로드 완료: {result['youtube_url']}")
+                except Exception as exc:
+                    update_job(item["id"], youtube_status="failed", youtube_error=str(exc)[:300])
+                    _set_flash("error", f"업로드 실패: {exc}")
+                st.rerun()
+        with btn_col3:
+            can_retry = (
+                upload_allowed
+                and item["status"] == "success"
+                and item.get("video_path", "")
+                and item.get("youtube_status") == "failed"
+            )
+            if st.button(
+                "YT 재시도",
+                key=f"ytretry_{key_prefix}_{item['id']}",
+                disabled=not can_retry,
+                help="업로드 실패 건 재시도",
+                use_container_width=True,
+            ):
+                try:
+                    result = _upload_single(item, retry=True)
+                    _set_flash("success", f"재업로드 완료: {result['youtube_url']}")
+                except Exception as exc:
+                    update_job(item["id"], youtube_status="failed", youtube_error=str(exc)[:300])
+                    _set_flash("error", f"재업로드 실패: {exc}")
+                st.rerun()
+        with btn_col4:
+            notion_synced = bool(item.get("notion_page_id", ""))
+            notion_btn_label = "📋 Notion↑" if not notion_synced else "📋 Notion↻"
+            if st.button(
+                notion_btn_label,
+                key=f"notion_{key_prefix}_{item['id']}",
+                disabled=not (_NOTION_OK and notion_is_configured()),
+                help="Notion에 동기화" if not notion_synced else "Notion 업데이트",
+                use_container_width=True,
+            ):
+                result = notion_sync_item(item["id"])
+                action = result["action"]
+                if action in ("created", "updated"):
+                    _set_flash("success", f"Notion {action}: {result.get('page_id', '')[:8]}")
+                else:
+                    _set_flash("error", f"Notion 오류: {result.get('error', '')}")
+                st.rerun()
+        with btn_col5:
+            if st.button(
+                "삭제",
+                key=f"del_{key_prefix}_{item['id']}",
+                help="삭제",
+                use_container_width=True,
+            ):
+                delete_item(item["id"])
+                _set_flash("success", "항목 삭제 완료")
+                st.rerun()
+
     def _render_items(items_to_show: list[dict[str, Any]], key_prefix: str = "all") -> None:
         if not items_to_show:
             st.info("항목이 없습니다.")
@@ -621,122 +743,9 @@ with right:
             with st.container():
                 row1, row2 = st.columns([4, 1.4])
                 with row1:
-                    status_html = _status_badge(item["status"])
-                    yt_html = _youtube_badge(item.get("youtube_status", ""), item.get("youtube_url", ""))
-                    title_display = _html.escape(item.get("title") or item["topic"])
-                    ch_tag = ""
-                    if item.get("channel"):
-                        safe_ch = _html.escape(item["channel"])
-                        ch_tag = (
-                            f"<span style='background:#0d6efd;color:white;padding:2px 6px;"
-                            f"border-radius:8px;font-size:0.7rem'>{safe_ch}</span> "
-                        )
-                    st.markdown(f"{ch_tag}{status_html} {yt_html} &nbsp; **{title_display}**", unsafe_allow_html=True)
-                    if item.get("title") and item["title"] != item["topic"]:
-                        st.caption(f"주제: {item['topic']}")
-
-                    meta_parts = []
-                    dur = _fmt_dur(item.get("duration_sec", 0))
-                    cost = _fmt_cost(item.get("cost_usd", 0))
-                    if dur != "-":
-                        meta_parts.append(f"길이: {dur}")
-                    if cost != "-":
-                        meta_parts.append(f"비용: {cost}")
-                    if item.get("created_at"):
-                        meta_parts.append(f"생성: {item['created_at'][:16]}")
-                    if meta_parts:
-                        st.caption("  |  ".join(meta_parts))
-                    if item.get("notes"):
-                        st.caption(f"메모: {item['notes']}")
-                    if item.get("youtube_error"):
-                        st.caption(f"업로드 오류: {item['youtube_error']}")
-
+                    _render_item_header(item)
                 with row2:
-                    btn_col1, btn_col2, btn_col3, btn_col4, btn_col5 = st.columns(5)
-                    with btn_col1:
-                        can_run = item["status"] in ("pending", "failed") and v2_ok
-                        if st.button(
-                            "실행",
-                            key=f"run_{key_prefix}_{item['id']}",
-                            disabled=not can_run,
-                            help="v2 파이프라인 실행",
-                            use_container_width=True,
-                        ):
-                            pid = _launch_v2(item["id"], item["topic"], item.get("channel", ""))
-                            if pid:
-                                _set_flash("success", f"실행됨 (PID {pid})")
-                            else:
-                                _set_flash("error", "실행 실패")
-                            st.rerun()
-                    with btn_col2:
-                        can_upload = (
-                            upload_allowed
-                            and item["status"] == "success"
-                            and item.get("video_path", "")
-                            and not item.get("youtube_status")
-                        )
-                        if st.button(
-                            "YT 업로드",
-                            key=f"yt_{key_prefix}_{item['id']}",
-                            disabled=not can_upload,
-                            help="YouTube 업로드",
-                            use_container_width=True,
-                        ):
-                            try:
-                                result = _upload_single(item, retry=False)
-                                _set_flash("success", f"업로드 완료: {result['youtube_url']}")
-                            except Exception as exc:
-                                update_job(item["id"], youtube_status="failed", youtube_error=str(exc)[:300])
-                                _set_flash("error", f"업로드 실패: {exc}")
-                            st.rerun()
-                    with btn_col3:
-                        can_retry = (
-                            upload_allowed
-                            and item["status"] == "success"
-                            and item.get("video_path", "")
-                            and item.get("youtube_status") == "failed"
-                        )
-                        if st.button(
-                            "YT 재시도",
-                            key=f"ytretry_{key_prefix}_{item['id']}",
-                            disabled=not can_retry,
-                            help="업로드 실패 건 재시도",
-                            use_container_width=True,
-                        ):
-                            try:
-                                result = _upload_single(item, retry=True)
-                                _set_flash("success", f"재업로드 완료: {result['youtube_url']}")
-                            except Exception as exc:
-                                update_job(item["id"], youtube_status="failed", youtube_error=str(exc)[:300])
-                                _set_flash("error", f"재업로드 실패: {exc}")
-                            st.rerun()
-                    with btn_col4:
-                        notion_synced = bool(item.get("notion_page_id", ""))
-                        notion_btn_label = "📋 Notion↑" if not notion_synced else "📋 Notion↻"
-                        if st.button(
-                            notion_btn_label,
-                            key=f"notion_{key_prefix}_{item['id']}",
-                            disabled=not (_NOTION_OK and notion_is_configured()),
-                            help="Notion에 동기화" if not notion_synced else "Notion 업데이트",
-                            use_container_width=True,
-                        ):
-                            result = notion_sync_item(item["id"])
-                            action = result["action"]
-                            if action in ("created", "updated"):
-                                _set_flash("success", f"Notion {action}: {result.get('page_id', '')[:8]}")
-                            else:
-                                _set_flash("error", f"Notion 오류: {result.get('error', '')}")
-                            st.rerun()
-                    with btn_col5:
-                        if st.button(
-                            "삭제",
-                            key=f"del_{key_prefix}_{item['id']}",
-                            help="삭제",
-                            use_container_width=True,
-                        ):
-                            delete_item(item["id"])
-                            _set_flash("success", "항목 삭제 완료")
-                            st.rerun()
+                    _render_item_buttons(item, key_prefix)
 
                 thumb = item.get("thumbnail_path", "")
                 if thumb and Path(thumb).exists():

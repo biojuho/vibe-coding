@@ -1,5 +1,50 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-03-31 | Codex | T-114 shorts_manager debt reduction + test-gap heuristic fix
+
+### Work Summary
+
+Finished the next bounded workspace debt-reduction slice by targeting `workspace/execution/pages/shorts_manager.py` and then correcting a scoring bug exposed during verification.
+
+- Added `workspace/tests/test_shorts_manager.py` with 14 focused tests covering flash state, formatting helpers, upload/reset helpers, manifest scanning, v2 launch flow, auth rendering, readiness/failure/review panels, and manifest sync reporting.
+- Extracted `_format_issue_labels()` from `workspace/execution/pages/shorts_manager.py` so the readiness and failure-triage panels share the same issue-label formatting path instead of duplicating it.
+- While measuring the debt impact, found that `workspace/execution/vibe_debt_auditor.py` stopped scanning for tests after the first parent `tests/` directory, which caused false-positive `test_gap` scores for files under `workspace/execution/**` whose real tests live in `workspace/tests/`.
+- Fixed `score_test_gap()` to walk all parent `tests/` directories and added a regression test in `workspace/tests/test_vibe_debt_auditor.py`.
+- Latest rerun moved `workspace/execution/pages/shorts_manager.py` from **43.9 → 32.9**, workspace TDR from **37.31% → 29.25%**, and overall TDR from **40.87% → 38.9%**.
+
+Important note: part of that TDR drop comes from the corrected scoring heuristic, not only from the new tests.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| workspace/execution/pages/shorts_manager.py | refactor | Extracted shared `_format_issue_labels()` helper |
+| workspace/tests/test_shorts_manager.py | new | 14 focused tests for page helpers + panels |
+| workspace/execution/vibe_debt_auditor.py | fix | `score_test_gap()` now scans all parent `tests/` dirs |
+| workspace/tests/test_vibe_debt_auditor.py | update | Added regression test for nested `execution/tests` false-positive case |
+| .ai/HANDOFF.md | update | Rebased last-session summary and next priority on the corrected debt rerun |
+| .ai/TASKS.md | update | Recorded `T-114` as done and logged `T-115` |
+| .ai/CONTEXT.md | update | Added the corrected VibeDebt test-gap heuristic note |
+| .ai/SESSION_LOG.md | update | This entry |
+
+### Verification Results
+
+- `venv\Scripts\python.exe -m pytest workspace\tests\test_shorts_manager.py -q -o addopts=` -> **14 passed**
+- `venv\Scripts\python.exe -m pytest workspace\tests\test_shorts_manager.py workspace\tests\test_vibe_debt_auditor.py -q -o addopts=` -> **44 passed**
+- `venv\Scripts\python.exe -m py_compile workspace\execution\pages\shorts_manager.py workspace\tests\test_shorts_manager.py` -> **pass**
+- `venv\Scripts\python.exe -m coverage run --source=execution.pages.shorts_manager -m pytest workspace\tests\test_shorts_manager.py -q -o addopts=` + `coverage report -m --include="*shorts_manager.py"` -> `workspace/execution/pages/shorts_manager.py` **71%**
+- `venv\Scripts\python.exe -m ruff check workspace\execution\pages\shorts_manager.py workspace\tests\test_shorts_manager.py workspace\execution\vibe_debt_auditor.py workspace\tests\test_vibe_debt_auditor.py` -> **All checks passed**
+- `venv\Scripts\python.exe -m ruff format --check workspace\execution\pages\shorts_manager.py workspace\tests\test_shorts_manager.py workspace\execution\vibe_debt_auditor.py workspace\tests\test_vibe_debt_auditor.py` -> **All formatted**
+- Direct `score_test_gap()` check for `workspace/execution/pages/shorts_manager.py` -> **70.0 → 15.0**
+- `venv\Scripts\python.exe workspace\execution\vibe_debt_auditor.py --format json --top 10` -> **overall 38.9% / workspace 29.25% / `shorts_manager.py` 32.9**
+
+### Notes For Next Agent
+
+- `T-115` should use the corrected debt ranking, not the older pre-fix scan. Current workspace hotspots are `code_improver.py` (46.2), `workers.py` (37.7), and `result_tracker_db.py` (37.4).
+- Be careful when comparing VibeDebt snapshots from the same day: the `test_gap` heuristic changed midstream, so before/after scores are not a pure apples-to-apples measure of only code edits.
+
+---
+
 ## 2026-03-31 | Claude | T-113 VibeDebt 상위 부채 파일 리팩토링
 
 ### Work Summary
