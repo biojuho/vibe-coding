@@ -6,10 +6,11 @@
 ## Current State
 
 - Canonical layout: `workspace/` (root automation), `projects/` (product repos), `infrastructure/` (MCP servers)
-- QA/QC output: `projects/knowledge-dashboard/public/qaqc_result.json`
+- QA/QC output: `projects/knowledge-dashboard/data/qaqc_result.json`
 - `blind-to-x`: staged pipeline (`pipeline/process_stages/`), rules under `rules/`, X-first editorial filtering
 - `shorts-maker-v2`: 91% coverage, MoviePy + FFmpeg dual backend, golden render verification
 - `hanwoo-dashboard`: Next.js 16, Prisma 7.6, 0 npm vulnerabilities
+- `knowledge-dashboard`: internal `data/*.json` + authenticated `/api/data/*` delivery, `public/*.json` removed
 - Governance gate: `governance_checks.py` validates `.ai` files, relay claims, directive mapping, task backlog
 - Windows Task Scheduler: ASCII-safe `C:\btx\...` wrappers
 - Security: all f-string SQL validated (allowlist/regex), triaged as false positives
