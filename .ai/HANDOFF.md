@@ -5,8 +5,8 @@
 ## Relay Update
 
 | Date | 2026-04-01 |
-| Tool | Codex |
-| Work | Completed **T-118 active-project CI/workflow modernization** for the current repo layout. Updated `.github/workflows/full-test-matrix.yml` and `.github/workflows/root-quality-gate.yml` to target `workspace/` plus active projects under `projects/`, narrowed the workspace ruff gate to the actual control-plane files, fixed `projects/shorts-maker-v2/src/shorts_maker_v2/render/audio_postprocess.py` so pydub stays lazy and test-patchable, and mirrored lazy `run_cli` export in `projects/shorts-maker-v2/shorts_maker_v2/__init__.py`. Batched local verification passed for the workspace control-plane and `shorts-maker-v2`, and also exposed pre-existing `blind-to-x` unit failures now tracked as `T-119`. |
+| Tool | Antigravity (Gemini) |
+| Work | **제3자 코드 리뷰 기반 Critical Fix 2건 완료.** ① `tests/test_lyria_bgm_generator.py` → `tests/test_lyria_utils.py` 리네임으로 pytest 수집 오류(이름 충돌) 해소 — `execution/tests/`의 모든 테스트가 실질적으로 수집되지 않던 버그 수정. ② `execution/content_db.py` 954줄 전체 DB 함수(17개)를 `conn = _conn() / conn.close()` 패턴에서 `with _conn() as conn:` context manager 패턴으로 전환 — 예외 발생 시 SQLite 파일 잠금 누수 방지, WAL journal mode 및 `check_same_thread=False` 추가. 전후 비교: 이전 20-23 failed → 현재 **1207 passed / 1 failed** (실패 1건은 `fastapi` 미설치 환경 이슈로 우리 변경과 무관). |
 
 ## Last Session
 
@@ -110,15 +110,11 @@
 
 ## Next Priorities
 
-1. Fix `T-116` first so the shared root QC can return from `CONDITIONALLY_APPROVED` to a clean baseline.
-2. Tackle new `T-119`: repair the latent `blind-to-x` unit failures now exposed by the restored active-project CI (`test_cost_tracker_uses_persisted_daily_totals`, `TestDraftGeneratorCache::test_second_call_uses_cache`).
-3. Continue `T-100`: `blind-to-x` coverage is **71%** but still has follow-up room in analytics/scraper-heavy paths; `shorts-maker-v2` test execution is healthy after the bridge/import fixes.
-4. Tackle `T-115`: keep reducing workspace TDR in `code_improver.py`, `workers.py`, and `result_tracker_db.py`.
-
-1. Fix `T-116` first: shared QC는 `workspace/tests/test_shorts_manager_helpers.py`의 `sys.modules["path_contract"]` 오염이 해결될 때까지 `CONDITIONALLY_APPROVED` 유지.
-2. Continue `T-100`: `blind-to-x`는 **71%** (구 59.89%). 다음 후보: 잔여 저커버리지 모듈 (`analytics_tracker.py` sync_metrics 경로, 스크래퍼 모듈) 또는 `shorts-maker-v2` 커버리지 업리프트로 피벗.
-3. Tackle `T-115`: workspace TDR 감소 계속. 현 워크스페이스 핫스팟: `code_improver.py` (**46.2**), `workers.py` (**37.7**), `result_tracker_db.py` (**37.4**).
-4. `asyncio.ensure_future` screenshot task 누수 (blind-to-x 내) — 이번 개편 범위 외로 남겨둔 항목. 별도 T-번호 발급 후 처리 권장.
+1. Fix `T-116`: `workspace/tests/test_shorts_manager_helpers.py`의 `sys.modules["path_contract"]` 오염 패치 → 공유 QC를 `CONDITIONALLY_APPROVED` → `APPROVED`로 전환.
+2. Fix `T-120` (`fastapi` 미설치): `test_auto_schedule_paths.py::test_n8n_bridge_defaults_use_canonical_paths`가 `fastapi` 임포트 실패로 깨짐 → `pytest.importorskip('fastapi')` 적용 또는 dev deps에 추가.
+3. Fix `T-119`: `blind-to-x` latent unit regressions — `test_cost_tracker_uses_persisted_daily_totals`, `TestDraftGeneratorCache::test_second_call_uses_cache`.
+4. Continue `T-100`: `blind-to-x`는 **71%**. 다음 후보: 잔여 저커버리지 모듈 (`analytics_tracker.py` sync_metrics, 스크래퍼 모듈) 또는 `shorts-maker-v2` 커버리지 업리프트.
+5. Tackle `T-115`: workspace TDR 감소. 핫스팟: `code_improver.py` (**46.2**), `workers.py` (**37.7**), `result_tracker_db.py` (**37.4**).
 
 ## Notes
 

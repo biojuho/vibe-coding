@@ -60,9 +60,11 @@ UPDATABLE_COLUMNS = {
 
 
 def _conn() -> sqlite3.Connection:
+    """SQLite 연결 반환. `with _conn() as conn:` 패턴으로 사용하면 자동 close."""
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")  # 동시 읽기 허용
     return conn
 
 
@@ -129,51 +131,47 @@ def init_db() -> None:
 
 
 def add_topic(topic: str, notes: str = "", channel: str = "") -> int:
-    conn = _conn()
-    cur = conn.execute(
-        "INSERT INTO content_queue (topic, notes, channel) VALUES (?, ?, ?)",
-        (topic.strip(), notes.strip(), channel.strip()),
-    )
-    conn.commit()
-    row_id = cur.lastrowid or 0
-    conn.close()
-    return row_id
+    with _conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO content_queue (topic, notes, channel) VALUES (?, ?, ?)",
+            (topic.strip(), notes.strip(), channel.strip()),
+        )
+        conn.commit()
+        return cur.lastrowid or 0
 
 
 def get_all(channel: str | None = None) -> list[dict[str, Any]]:
-    conn = _conn()
-    if channel:
-        rows = conn.execute(
-            "SELECT * FROM content_queue WHERE channel = ? ORDER BY created_at DESC",
-            (channel,),
-        ).fetchall()
-    else:
-        rows = conn.execute("SELECT * FROM content_queue ORDER BY created_at DESC").fetchall()
-    conn.close()
+    with _conn() as conn:
+        if channel:
+            rows = conn.execute(
+                "SELECT * FROM content_queue WHERE channel = ? ORDER BY created_at DESC",
+                (channel,),
+            ).fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM content_queue ORDER BY created_at DESC").fetchall()
     return [dict(r) for r in rows]
 
 
 def get_by_id(item_id: int) -> dict[str, Any] | None:
     """단일 항목 조회. 없으면 None."""
-    conn = _conn()
-    row = conn.execute("SELECT * FROM content_queue WHERE id = ?", (item_id,)).fetchone()
-    conn.close()
+    with _conn() as conn:
+        row = conn.execute("SELECT * FROM content_queue WHERE id = ?", (item_id,)).fetchone()
     return dict(row) if row else None
 
 
 def get_channels() -> list[str]:
     """채널 목록 반환 (중복 제거, 알파벳 순)."""
-    conn = _conn()
-    rows = conn.execute("SELECT DISTINCT channel FROM content_queue WHERE channel != '' ORDER BY channel").fetchall()
-    conn.close()
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT channel FROM content_queue WHERE channel != '' ORDER BY channel"
+        ).fetchall()
     return [r["channel"] for r in rows]
 
 
 def get_channel_settings(channel: str) -> dict[str, Any] | None:
     """채널 설정 반환. 없으면 None."""
-    conn = _conn()
-    row = conn.execute("SELECT * FROM channel_settings WHERE channel = ?", (channel,)).fetchone()
-    conn.close()
+    with _conn() as conn:
+        row = conn.execute("SELECT * FROM channel_settings WHERE channel = ?", (channel,)).fetchone()
     return dict(row) if row else None
 
 
@@ -186,56 +184,55 @@ def upsert_channel_settings(channel: str, **kwargs: Any) -> None:
     if invalid:
         raise ValueError(f"Unsupported channel_settings fields: {', '.join(sorted(invalid))}")
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    conn = _conn()
-    existing = conn.execute("SELECT channel FROM channel_settings WHERE channel = ?", (channel,)).fetchone()
-    if existing:
-        if kwargs:
+    with _conn() as conn:
+        existing = conn.execute("SELECT channel FROM channel_settings WHERE channel = ?", (channel,)).fetchone()
+        if existing:
+            if kwargs:
+                conn.execute(
+                    """
+                    UPDATE channel_settings
+                    SET
+                        voice = COALESCE(?, voice),
+                        style_preset = COALESCE(?, style_preset),
+                        font_color = COALESCE(?, font_color),
+                        image_style_prefix = COALESCE(?, image_style_prefix),
+                        updated_at = ?
+                    WHERE channel = ?
+                    """,
+                    (
+                        kwargs.get("voice"),
+                        kwargs.get("style_preset"),
+                        kwargs.get("font_color"),
+                        kwargs.get("image_style_prefix"),
+                        now,
+                        channel,
+                    ),
+                )
+        else:
             conn.execute(
                 """
-                UPDATE channel_settings
-                SET
-                    voice = COALESCE(?, voice),
-                    style_preset = COALESCE(?, style_preset),
-                    font_color = COALESCE(?, font_color),
-                    image_style_prefix = COALESCE(?, image_style_prefix),
-                    updated_at = ?
-                WHERE channel = ?
+                INSERT INTO channel_settings (
+                    channel,
+                    voice,
+                    style_preset,
+                    font_color,
+                    image_style_prefix,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    kwargs.get("voice"),
-                    kwargs.get("style_preset"),
-                    kwargs.get("font_color"),
-                    kwargs.get("image_style_prefix"),
-                    now,
                     channel,
+                    kwargs.get("voice", "alloy"),
+                    kwargs.get("style_preset", "default"),
+                    kwargs.get("font_color", "#FFD700"),
+                    kwargs.get("image_style_prefix", ""),
+                    now,
+                    now,
                 ),
             )
-    else:
-        conn.execute(
-            """
-            INSERT INTO channel_settings (
-                channel,
-                voice,
-                style_preset,
-                font_color,
-                image_style_prefix,
-                created_at,
-                updated_at
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                channel,
-                kwargs.get("voice", "alloy"),
-                kwargs.get("style_preset", "default"),
-                kwargs.get("font_color", "#FFD700"),
-                kwargs.get("image_style_prefix", ""),
-                now,
-                now,
-            ),
-        )
-    conn.commit()
-    conn.close()
+        conn.commit()
 
 
 def update_job(item_id: int, **kwargs: Any) -> None:
@@ -249,21 +246,18 @@ def update_job(item_id: int, **kwargs: Any) -> None:
     set_clause = ", ".join(f"{k} = ?" for k in kwargs)
     values = list(kwargs.values()) + [item_id]
     query = f"UPDATE content_queue SET {set_clause} WHERE id = ?"  # noqa: S608 — keys whitelisted via UPDATABLE_COLUMNS
-    conn = _conn()
-    conn.execute(query, values)
-    conn.commit()
-    conn.close()
+    with _conn() as conn:
+        conn.execute(query, values)
+        conn.commit()
 
 
 def delete_item(item_id: int) -> None:
-    conn = _conn()
-    conn.execute("DELETE FROM content_queue WHERE id = ?", (item_id,))
-    conn.commit()
-    conn.close()
+    with _conn() as conn:
+        conn.execute("DELETE FROM content_queue WHERE id = ?", (item_id,))
+        conn.commit()
 
 
 def get_kpis(channel: str | None = None) -> dict[str, Any]:
-    conn = _conn()
     params = (channel,) if channel else ()
     base_query = """
         SELECT
@@ -278,53 +272,51 @@ def get_kpis(channel: str | None = None) -> dict[str, Any]:
     """
     if channel:
         base_query += " WHERE channel = ?"
-    row = conn.execute(base_query, params).fetchone()
-    conn.close()
+    with _conn() as conn:
+        row = conn.execute(base_query, params).fetchone()
     return dict(row) if row else {}
 
 
 def get_daily_stats(days: int = 30) -> list[dict[str, Any]]:
     """일별 생성 건수 + 비용 집계 (최근 N일)."""
-    conn = _conn()
-    rows = conn.execute(
-        """
-        SELECT
-            date(updated_at) AS day,
-            COUNT(*)                                            AS total,
-            SUM(CASE WHEN status='success' THEN 1 ELSE 0 END) AS success,
-            SUM(CASE WHEN status='failed'  THEN 1 ELSE 0 END) AS failed,
-            COALESCE(SUM(cost_usd), 0.0)                       AS cost_usd
-        FROM content_queue
-        WHERE updated_at >= date('now', 'localtime', ?)
-          AND status IN ('success', 'failed')
-        GROUP BY date(updated_at)
-        ORDER BY day
-    """,
-        (f"-{days} days",),
-    ).fetchall()
-    conn.close()
+    with _conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                date(updated_at) AS day,
+                COUNT(*)                                            AS total,
+                SUM(CASE WHEN status='success' THEN 1 ELSE 0 END) AS success,
+                SUM(CASE WHEN status='failed'  THEN 1 ELSE 0 END) AS failed,
+                COALESCE(SUM(cost_usd), 0.0)                       AS cost_usd
+            FROM content_queue
+            WHERE updated_at >= date('now', 'localtime', ?)
+              AND status IN ('success', 'failed')
+            GROUP BY date(updated_at)
+            ORDER BY day
+        """,
+            (f"-{days} days",),
+        ).fetchall()
     return [dict(r) for r in rows]
 
 
 def get_channel_stats() -> list[dict[str, Any]]:
     """채널별 성공/실패/비용/길이 집계."""
-    conn = _conn()
-    rows = conn.execute("""
-        SELECT
-            channel,
-            COUNT(*)                                            AS total,
-            SUM(CASE WHEN status='success' THEN 1 ELSE 0 END) AS success,
-            SUM(CASE WHEN status='failed'  THEN 1 ELSE 0 END) AS failed,
-            SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) AS pending,
-            COALESCE(SUM(cost_usd), 0.0)                       AS total_cost,
-            COALESCE(AVG(CASE WHEN status='success' THEN cost_usd END), 0.0)         AS avg_cost,
-            COALESCE(AVG(CASE WHEN status='success' THEN duration_sec END), 0.0)     AS avg_duration
-        FROM content_queue
-        WHERE channel != ''
-        GROUP BY channel
-        ORDER BY channel
-    """).fetchall()
-    conn.close()
+    with _conn() as conn:
+        rows = conn.execute("""
+            SELECT
+                channel,
+                COUNT(*)                                            AS total,
+                SUM(CASE WHEN status='success' THEN 1 ELSE 0 END) AS success,
+                SUM(CASE WHEN status='failed'  THEN 1 ELSE 0 END) AS failed,
+                SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) AS pending,
+                COALESCE(SUM(cost_usd), 0.0)                       AS total_cost,
+                COALESCE(AVG(CASE WHEN status='success' THEN cost_usd END), 0.0)         AS avg_cost,
+                COALESCE(AVG(CASE WHEN status='success' THEN duration_sec END), 0.0)     AS avg_duration
+            FROM content_queue
+            WHERE channel != ''
+            GROUP BY channel
+            ORDER BY channel
+        """).fetchall()
     return [dict(r) for r in rows]
 
 
@@ -333,7 +325,6 @@ def get_top_performing_topics(
     channel: str | None = None,
 ) -> list[dict[str, Any]]:
     """성공한 주제 중 비용 효율이 좋은 상위 N개 반환."""
-    conn = _conn()
     base_query = """
         SELECT topic, channel, cost_usd, duration_sec, title, notes, updated_at
         FROM content_queue
@@ -345,70 +336,67 @@ def get_top_performing_topics(
         params.append(channel)
     base_query += " ORDER BY cost_usd ASC, updated_at DESC LIMIT ?"
     params.append(limit)
-    rows = conn.execute(base_query, params).fetchall()  # noqa: S608
-    conn.close()
+    with _conn() as conn:
+        rows = conn.execute(base_query, params).fetchall()  # noqa: S608
     return [dict(r) for r in rows]
 
 
 def get_hourly_stats(days: int = 30) -> list[dict[str, Any]]:
     """시간대별 생성 성공률 집계."""
-    conn = _conn()
-    rows = conn.execute(
-        """
-        SELECT
-            CAST(strftime('%H', updated_at) AS INTEGER) AS hour,
-            COUNT(*)                                            AS total,
-            SUM(CASE WHEN status='success' THEN 1 ELSE 0 END) AS success,
-            SUM(CASE WHEN status='failed'  THEN 1 ELSE 0 END) AS failed,
-            ROUND(
-                CAST(SUM(CASE WHEN status='success' THEN 1 ELSE 0 END) AS REAL)
-                / MAX(COUNT(*), 1) * 100, 1
-            ) AS success_rate
-        FROM content_queue
-        WHERE updated_at >= date('now', 'localtime', ?)
-          AND status IN ('success', 'failed')
-        GROUP BY hour
-        ORDER BY hour
-    """,
-        (f"-{days} days",),
-    ).fetchall()
-    conn.close()
+    with _conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                CAST(strftime('%H', updated_at) AS INTEGER) AS hour,
+                COUNT(*)                                            AS total,
+                SUM(CASE WHEN status='success' THEN 1 ELSE 0 END) AS success,
+                SUM(CASE WHEN status='failed'  THEN 1 ELSE 0 END) AS failed,
+                ROUND(
+                    CAST(SUM(CASE WHEN status='success' THEN 1 ELSE 0 END) AS REAL)
+                    / MAX(COUNT(*), 1) * 100, 1
+                ) AS success_rate
+            FROM content_queue
+            WHERE updated_at >= date('now', 'localtime', ?)
+              AND status IN ('success', 'failed')
+            GROUP BY hour
+            ORDER BY hour
+        """,
+            (f"-{days} days",),
+        ).fetchall()
     return [dict(r) for r in rows]
 
 
 def get_youtube_stats() -> dict[str, int]:
     """YouTube 업로드 현황 집계."""
-    conn = _conn()
-    row = conn.execute("""
-        SELECT
-            SUM(CASE WHEN youtube_status = 'uploaded' THEN 1 ELSE 0 END) AS uploaded,
-            SUM(CASE WHEN youtube_status = 'failed'   THEN 1 ELSE 0 END) AS yt_failed,
-            SUM(CASE WHEN status = 'success' AND (youtube_status = '' OR youtube_status IS NULL) THEN 1 ELSE 0 END) AS awaiting
-        FROM content_queue
-    """).fetchone()
-    conn.close()
+    with _conn() as conn:
+        row = conn.execute("""
+            SELECT
+                SUM(CASE WHEN youtube_status = 'uploaded' THEN 1 ELSE 0 END) AS uploaded,
+                SUM(CASE WHEN youtube_status = 'failed'   THEN 1 ELSE 0 END) AS yt_failed,
+                SUM(CASE WHEN status = 'success' AND (youtube_status = '' OR youtube_status IS NULL) THEN 1 ELSE 0 END) AS awaiting
+            FROM content_queue
+        """).fetchone()
     if row:
         return {"uploaded": row["uploaded"] or 0, "failed": row["yt_failed"] or 0, "awaiting": row["awaiting"] or 0}
     return {"uploaded": 0, "failed": 0, "awaiting": 0}  # pragma: no cover — aggregate query always returns a row
 
 
 def _collect_channel_usage_stats() -> dict[str, dict[str, int]]:
-    conn = _conn()
-    rows = conn.execute(
-        """
-        SELECT
-            channel,
-            COUNT(*) AS total_count,
-            SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) AS pending_count,
-            SUM(CASE WHEN status='running' THEN 1 ELSE 0 END) AS running_count,
-            SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) AS failed_count,
-            SUM(CASE WHEN status='success' THEN 1 ELSE 0 END) AS success_count
-        FROM content_queue
-        WHERE channel != ''
-        GROUP BY channel
-        """
-    ).fetchall()
-    conn.close()
+    with _conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                channel,
+                COUNT(*) AS total_count,
+                SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) AS pending_count,
+                SUM(CASE WHEN status='running' THEN 1 ELSE 0 END) AS running_count,
+                SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) AS failed_count,
+                SUM(CASE WHEN status='success' THEN 1 ELSE 0 END) AS success_count
+            FROM content_queue
+            WHERE channel != ''
+            GROUP BY channel
+            """
+        ).fetchall()
     return {
         row["channel"]: {
             "total_count": int(row["total_count"] or 0),
@@ -721,7 +709,6 @@ def get_review_queue_items(
     channel: str | None = None,
     limit: int = 10,
 ) -> list[dict[str, Any]]:
-    conn = _conn()
     query = """
         SELECT *
         FROM content_queue
@@ -734,8 +721,8 @@ def get_review_queue_items(
         params.append(channel)
     query += " ORDER BY updated_at DESC, id DESC LIMIT ?"
     params.append(limit)
-    rows = conn.execute(query, params).fetchall()  # noqa: S608
-    conn.close()
+    with _conn() as conn:
+        rows = conn.execute(query, params).fetchall()  # noqa: S608
 
     queue: list[dict[str, Any]] = []
     for row in rows:
@@ -773,7 +760,6 @@ def get_uploadable_items(
     include_failed: bool = False,
 ) -> list[dict[str, Any]]:
     """업로드 가능한 항목 조회 (성공 + 영상 있음 + 미업로드, 필요 시 실패 재시도 포함)."""
-    conn = _conn()
     query = """
         SELECT * FROM content_queue
         WHERE status = 'success'
@@ -795,8 +781,8 @@ def get_uploadable_items(
         params.append(channel)
     query += " ORDER BY updated_at DESC LIMIT ?"
     params.append(limit)
-    rows = conn.execute(query, params).fetchall()  # noqa: S608
-    conn.close()
+    with _conn() as conn:
+        rows = conn.execute(query, params).fetchall()  # noqa: S608
     return [dict(r) for r in rows]
 
 
@@ -805,7 +791,6 @@ def get_performance_stats(
     min_views: int = 0,
 ) -> list[dict[str, Any]]:
     """YouTube 성과 데이터가 있는 항목 반환 (분석용)."""
-    conn = _conn()
     query = """
         SELECT id, topic, channel, title, hook_pattern,
                yt_views, yt_likes, yt_comments, yt_ctr, yt_avg_watch_sec,
@@ -819,52 +804,50 @@ def get_performance_stats(
         query += " AND channel = ?"
         params.append(channel)
     query += " ORDER BY yt_views DESC"
-    rows = conn.execute(query, params).fetchall()  # noqa: S608
-    conn.close()
+    with _conn() as conn:
+        rows = conn.execute(query, params).fetchall()  # noqa: S608
     return [dict(r) for r in rows]
 
 
 def get_hook_pattern_performance() -> list[dict[str, Any]]:
     """훅 패턴별 평균 성과 집계."""
-    conn = _conn()
-    rows = conn.execute("""
-        SELECT
-            hook_pattern,
-            COUNT(*) AS count,
-            COALESCE(AVG(yt_views), 0) AS avg_views,
-            COALESCE(AVG(yt_likes), 0) AS avg_likes,
-            COALESCE(AVG(yt_ctr), 0) AS avg_ctr,
-            COALESCE(AVG(yt_avg_watch_sec), 0) AS avg_watch_sec
-        FROM content_queue
-        WHERE youtube_status = 'uploaded'
-          AND hook_pattern != ''
-          AND yt_views > 0
-        GROUP BY hook_pattern
-        ORDER BY avg_views DESC
-    """).fetchall()
-    conn.close()
+    with _conn() as conn:
+        rows = conn.execute("""
+            SELECT
+                hook_pattern,
+                COUNT(*) AS count,
+                COALESCE(AVG(yt_views), 0) AS avg_views,
+                COALESCE(AVG(yt_likes), 0) AS avg_likes,
+                COALESCE(AVG(yt_ctr), 0) AS avg_ctr,
+                COALESCE(AVG(yt_avg_watch_sec), 0) AS avg_watch_sec
+            FROM content_queue
+            WHERE youtube_status = 'uploaded'
+              AND hook_pattern != ''
+              AND yt_views > 0
+            GROUP BY hook_pattern
+            ORDER BY avg_views DESC
+        """).fetchall()
     return [dict(r) for r in rows]
 
 
 def get_channel_performance_summary() -> list[dict[str, Any]]:
     """채널별 YouTube 성과 요약."""
-    conn = _conn()
-    rows = conn.execute("""
-        SELECT
-            channel,
-            COUNT(*) AS video_count,
-            COALESCE(SUM(yt_views), 0) AS total_views,
-            COALESCE(AVG(yt_views), 0) AS avg_views,
-            COALESCE(AVG(yt_ctr), 0) AS avg_ctr,
-            COALESCE(AVG(yt_avg_watch_sec), 0) AS avg_watch_sec,
-            COALESCE(SUM(cost_usd), 0) AS total_cost
-        FROM content_queue
-        WHERE youtube_status = 'uploaded'
-          AND channel != ''
-        GROUP BY channel
-        ORDER BY total_views DESC
-    """).fetchall()
-    conn.close()
+    with _conn() as conn:
+        rows = conn.execute("""
+            SELECT
+                channel,
+                COUNT(*) AS video_count,
+                COALESCE(SUM(yt_views), 0) AS total_views,
+                COALESCE(AVG(yt_views), 0) AS avg_views,
+                COALESCE(AVG(yt_ctr), 0) AS avg_ctr,
+                COALESCE(AVG(yt_avg_watch_sec), 0) AS avg_watch_sec,
+                COALESCE(SUM(cost_usd), 0) AS total_cost
+            FROM content_queue
+            WHERE youtube_status = 'uploaded'
+              AND channel != ''
+            GROUP BY channel
+            ORDER BY total_views DESC
+        """).fetchall()
     return [dict(r) for r in rows]
 
 
