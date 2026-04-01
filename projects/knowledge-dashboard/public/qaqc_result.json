@@ -1,23 +1,23 @@
 {
-  "timestamp": "2026-03-31T17:54:43",
+  "timestamp": "2026-04-01T18:05:59",
   "verdict": "APPROVED",
-  "elapsed_sec": 846.8,
+  "elapsed_sec": 927.2,
   "projects": {
     "blind-to-x": {
-      "passed": 594,
+      "passed": 873,
       "failed": 0,
-      "skipped": 16,
+      "skipped": 9,
       "errors": 0,
-      "duration_sec": 243.04,
+      "duration_sec": 313.68,
       "status": "PASS",
       "runs": [
         {
-          "passed": 531,
+          "passed": 810,
           "failed": 0,
-          "skipped": 15,
+          "skipped": 8,
           "errors": 0,
           "status": "PASS",
-          "duration_sec": 222.09
+          "duration_sec": 287.35
         },
         {
           "passed": 63,
@@ -25,7 +25,7 @@
           "skipped": 1,
           "errors": 0,
           "status": "PASS",
-          "duration_sec": 20.95
+          "duration_sec": 26.33
         }
       ],
       "message": "Ignored known env-specific curl_cffi CA Error 77 reproducer"
@@ -35,24 +35,24 @@
       "failed": 0,
       "skipped": 12,
       "errors": 0,
-      "duration_sec": 527.8,
+      "duration_sec": 513.74,
       "status": "PASS"
     },
     "root": {
-      "passed": 1066,
+      "passed": 1149,
       "failed": 0,
       "skipped": 1,
       "errors": 0,
-      "duration_sec": 50.66,
+      "duration_sec": 73.8,
       "status": "PASS",
       "runs": [
         {
-          "passed": 1041,
+          "passed": 1124,
           "failed": 0,
           "skipped": 1,
           "errors": 0,
           "status": "PASS",
-          "duration_sec": 50.06
+          "duration_sec": 73.0
         },
         {
           "passed": 25,
@@ -60,16 +60,16 @@
           "skipped": 0,
           "errors": 0,
           "status": "PASS",
-          "duration_sec": 0.6
+          "duration_sec": 0.8
         }
       ]
     }
   },
   "total": {
-    "passed": 2930,
+    "passed": 3292,
     "failed": 0,
     "errors": 0,
-    "skipped": 29,
+    "skipped": 22,
     "timeout": []
   },
   "ast_check": {
@@ -116,7 +116,7 @@
         "category": "governance",
         "status": "ok",
         "detail": "All 7 required AI context files are present",
-        "checked_at": "2026-03-31T18:08:45",
+        "checked_at": "2026-04-01T18:21:20",
         "count": 7
       },
       {
@@ -124,29 +124,29 @@
         "category": "governance",
         "status": "ok",
         "detail": "No targeted relay claims found in HANDOFF.md",
-        "checked_at": "2026-03-31T18:08:45",
+        "checked_at": "2026-04-01T18:21:20",
         "checked_claims": []
       },
       {
         "name": "directive_mapping",
         "category": "governance",
         "status": "ok",
-        "detail": "Checked 27 SOP mappings, 15 unmapped scripts; no mapping drift detected",
-        "checked_at": "2026-03-31T18:08:45",
+        "detail": "Checked 31 SOP mappings, 15 unmapped scripts; no mapping drift detected",
+        "checked_at": "2026-04-01T18:21:20",
         "issues": [],
-        "sop_count": 27,
+        "sop_count": 31,
         "unmapped_count": 15,
-        "actual_script_count": 55,
-        "actual_sop_count": 27
+        "actual_script_count": 59,
+        "actual_sop_count": 31
       },
       {
         "name": "task_backlog_alignment",
         "category": "governance",
         "status": "ok",
         "detail": "All 1 tracked follow-up(s) are linked to active task(s): T-100",
-        "checked_at": "2026-03-31T18:08:45",
+        "checked_at": "2026-04-01T18:21:20",
         "open_followup_count": 1,
-        "active_task_count": 2,
+        "active_task_count": 3,
         "linked_task_ids": [
           "T-100"
         ]
@@ -160,10 +160,36 @@
     },
     "total": 4
   },
+  "debt_audit": {
+    "overall_tdr": 39.03,
+    "overall_grade": "RED",
+    "total_files": 461,
+    "total_principal_hours": 313.6,
+    "total_interest_monthly_hours": 78.4,
+    "projects": [
+      {
+        "name": "workspace",
+        "tdr_percent": 29.25,
+        "tdr_grade": "RED",
+        "avg_score": 21.5
+      },
+      {
+        "name": "blind-to-x",
+        "tdr_percent": 47.87,
+        "tdr_grade": "RED",
+        "avg_score": 20.0
+      },
+      {
+        "name": "shorts-maker-v2",
+        "tdr_percent": 38.24,
+        "tdr_grade": "RED",
+        "avg_score": 20.3
+      }
+    ]
+  },
   "infrastructure": {
     "docker": true,
     "docker_containers": [
-      "inspiring_ptolemy",
       "n8n"
     ],
     "ollama": true,
@@ -171,6 +197,6 @@
       "ready": 6,
       "total": 6
     },
-    "disk_gb_free": 136.6
+    "disk_gb_free": 129.8
   }
 }

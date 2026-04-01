@@ -552,6 +552,115 @@ def _build_task_log(
     )
 
 
+def _execute_subprocess(
+    resolved_exec: str,
+    resolved_args: list,
+    target_cwd: Path,
+    timeout_sec: int,
+) -> tuple[int, str, str, str]:
+    """서브프로세스를 실행하고 (exit_code, stdout, stderr, error_type)을 반환."""
+    exit_code = -2
+    stdout = ""
+    stderr = ""
+    error_type = ""
+    proc = None
+    try:
+        popen_kwargs: dict = dict(
+            shell=False,
+            cwd=str(target_cwd),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            encoding="utf-8",
+            errors="replace",
+        )
+        if os.name == "nt":
+            # Windows: CREATE_NEW_PROCESS_GROUP prevents handle inheritance
+            # issues with pytest stdout capture (WinError 6).
+            import ctypes  # noqa: F401  – sanity import
+
+            popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+        proc = subprocess.Popen([resolved_exec, *resolved_args], **popen_kwargs)
+
+        try:
+            out, err = proc.communicate(timeout=timeout_sec)
+        except subprocess.TimeoutExpired:
+            try:
+                proc.kill()
+            except OSError:
+                pass
+            try:
+                out, err = proc.communicate()
+            except OSError:
+                out, err = "", ""
+            exit_code = -1
+            error_type = "timeout"
+            stderr = f"Timeout after {timeout_sec} seconds"
+        else:
+            exit_code = proc.returncode
+            stdout = out or ""
+            stderr = err or ""
+            if exit_code != 0:
+                error_type = "non_zero_exit"
+    except FileNotFoundError as exc:
+        exit_code = -4
+        error_type = "exec_not_found"
+        stderr = str(exc)
+    except OSError as exc:
+        # Non-FileNotFoundError OSError (e.g. WinError 6 on handle issues)
+        # — only map to exec_not_found when it's a "not found" style error
+        winerror = getattr(exc, "winerror", None)
+        if winerror in (2, 3):  # ERROR_FILE_NOT_FOUND, ERROR_PATH_NOT_FOUND
+            exit_code = -4
+            error_type = "exec_not_found"
+        else:
+            exit_code = -2
+            error_type = "exception"
+        stderr = str(exc)
+    except Exception as exc:  # pragma: no cover - defensive path
+        exit_code = -2
+        error_type = "exception"
+        stderr = str(exc)
+    return exit_code, stdout, stderr, error_type
+
+
+def _apply_failure_policy(
+    conn: sqlite3.Connection,
+    row: sqlite3.Row,
+    log: "TaskLog",
+    exit_code: int,
+) -> bool:
+    """연속 실패 카운트 업데이트 및 MAX_FAILURE_COUNT 초과 시 자동 비활성화.
+
+    Returns True if the task was auto-disabled.
+    """
+    failure_count = int(row["failure_count"] or 0)
+    enabled = int(row["enabled"])
+    auto_disabled = False
+    if exit_code == 0:
+        failure_count = 0
+    else:
+        failure_count += 1
+        if enabled and failure_count >= MAX_FAILURE_COUNT:
+            enabled = 0
+            auto_disabled = True
+            extra = f"\nTask auto-disabled after {failure_count} consecutive failures (threshold={MAX_FAILURE_COUNT})."
+            stderr = (log.stderr + extra).strip()
+            conn.execute(
+                "UPDATE task_logs SET stderr = ?, error_type = ? WHERE id = ?",
+                (stderr[:5000], "auto_disabled", log.id),
+            )
+            log.stderr = stderr[:5000]
+            log.error_type = "auto_disabled"
+
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    next_run = compute_next_run(row["cron_expression"])
+    conn.execute(
+        "UPDATE tasks SET last_run = ?, next_run = ?, failure_count = ?, enabled = ? WHERE id = ?",
+        (now_str, next_run, failure_count, enabled, row["id"]),
+    )
+    return auto_disabled
+
+
 def _maybe_notify_telegram_task(log: TaskLog, auto_disabled: bool = False) -> None:
     try:
         from execution.telegram_notifier import maybe_send_scheduler_notification
@@ -617,63 +726,9 @@ def run_task(task_id: int, trigger_type: str = "manual") -> TaskLog:
         resolved_exec, resolved_args = _resolve_executable(executable, args)
         timeout_sec = int(row["timeout_sec"] or DEFAULT_TIMEOUT_SEC)
         timeout_sec = timeout_sec if timeout_sec > 0 else DEFAULT_TIMEOUT_SEC
-        proc = None
-        try:
-            popen_kwargs: dict = dict(
-                shell=False,
-                cwd=str(target_cwd),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                encoding="utf-8",
-                errors="replace",
-            )
-            if os.name == "nt":
-                # Windows: CREATE_NEW_PROCESS_GROUP prevents handle inheritance
-                # issues with pytest stdout capture (WinError 6).
-                import ctypes  # noqa: F401  – sanity import
-
-                popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
-            proc = subprocess.Popen([resolved_exec, *resolved_args], **popen_kwargs)
-
-            try:
-                out, err = proc.communicate(timeout=timeout_sec)
-            except subprocess.TimeoutExpired:
-                try:
-                    proc.kill()
-                except OSError:
-                    pass
-                try:
-                    out, err = proc.communicate()
-                except OSError:
-                    out, err = "", ""
-                exit_code = -1
-                error_type = "timeout"
-                stderr = f"Timeout after {timeout_sec} seconds"
-            else:
-                exit_code = proc.returncode
-                stdout = out or ""
-                stderr = err or ""
-                if exit_code != 0:
-                    error_type = "non_zero_exit"
-        except FileNotFoundError as exc:
-            exit_code = -4
-            error_type = "exec_not_found"
-            stderr = str(exc)
-        except OSError as exc:
-            # Non-FileNotFoundError OSError (e.g. WinError 6 on handle issues)
-            # — only map to exec_not_found when it's a "not found" style error
-            winerror = getattr(exc, "winerror", None)
-            if winerror in (2, 3):  # ERROR_FILE_NOT_FOUND, ERROR_PATH_NOT_FOUND
-                exit_code = -4
-                error_type = "exec_not_found"
-            else:
-                exit_code = -2
-                error_type = "exception"
-            stderr = str(exc)
-        except Exception as exc:  # pragma: no cover - defensive path
-            exit_code = -2
-            error_type = "exception"
-            stderr = str(exc)
+        exit_code, stdout, stderr, error_type = _execute_subprocess(
+            resolved_exec, resolved_args, target_cwd, timeout_sec
+        )
 
     finished_dt = datetime.now()
     log = _build_task_log(
@@ -688,31 +743,8 @@ def run_task(task_id: int, trigger_type: str = "manual") -> TaskLog:
         error_type=error_type,
     )
 
-    failure_count = int(row["failure_count"] or 0)
-    enabled = int(row["enabled"])
-    auto_disabled = False
-    if exit_code == 0:
-        failure_count = 0
-    else:
-        failure_count += 1
-        if enabled and failure_count >= MAX_FAILURE_COUNT:
-            enabled = 0
-            auto_disabled = True
-            extra = f"\nTask auto-disabled after {failure_count} consecutive failures (threshold={MAX_FAILURE_COUNT})."
-            stderr = (stderr + extra).strip()
-            conn.execute(
-                "UPDATE task_logs SET stderr = ?, error_type = ? WHERE id = ?",
-                (stderr[:5000], "auto_disabled", log.id),
-            )
-            log.stderr = stderr[:5000]
-            log.error_type = "auto_disabled"
+    auto_disabled = _apply_failure_policy(conn, row, log, exit_code)
 
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    next_run = compute_next_run(row["cron_expression"])
-    conn.execute(
-        "UPDATE tasks SET last_run = ?, next_run = ?, failure_count = ?, enabled = ? WHERE id = ?",
-        (now_str, next_run, failure_count, enabled, task_id),
-    )
     heartbeat_status = OPS_STATUS_HEALTHY if exit_code == 0 else OPS_STATUS_WARNING
     heartbeat_note = (
         f"last_task_ok:{row['name']}" if exit_code == 0 else f"last_task_failed:{row['name']}:{error_type or exit_code}"

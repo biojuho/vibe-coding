@@ -1236,3 +1236,87 @@ def test_recent_failure_summary_disabled_task(monkeypatch, tmp_path):
     task_entry = next(item for item in summary if item["task_id"] == task_id)
     assert task_entry["enabled"] is False
     assert task_entry["next_action"] == "오류 수정 후 재활성화"
+
+
+# ---------------------------------------------------------------------------
+# _execute_subprocess tests (T-114)
+# ---------------------------------------------------------------------------
+
+
+def test_execute_subprocess_success(tmp_path):
+    script = tmp_path / "hello.py"
+    script.write_text("print('hello')\n", encoding="utf-8")
+    exit_code, stdout, stderr, error_type = se._execute_subprocess("python", [str(script)], tmp_path, 30)
+    assert exit_code == 0
+    assert "hello" in stdout
+    assert error_type == ""
+
+
+def test_execute_subprocess_non_zero_exit(tmp_path):
+    script = tmp_path / "fail.py"
+    script.write_text("import sys; sys.exit(42)\n", encoding="utf-8")
+    exit_code, stdout, stderr, error_type = se._execute_subprocess("python", [str(script)], tmp_path, 30)
+    assert exit_code == 42
+    assert error_type == "non_zero_exit"
+
+
+def test_execute_subprocess_exec_not_found(tmp_path):
+    exit_code, stdout, stderr, error_type = se._execute_subprocess(
+        "definitely_missing_executable_xyz", [], tmp_path, 10
+    )
+    assert exit_code == -4
+    assert error_type == "exec_not_found"
+
+
+def test_execute_subprocess_timeout(tmp_path):
+    script = tmp_path / "sleep.py"
+    script.write_text("import time; time.sleep(60)\n", encoding="utf-8")
+    exit_code, stdout, stderr, error_type = se._execute_subprocess("python", [str(script)], tmp_path, 1)
+    assert exit_code == -1
+    assert error_type == "timeout"
+    assert "Timeout" in stderr
+
+
+# ---------------------------------------------------------------------------
+# _apply_failure_policy tests (T-114)
+# ---------------------------------------------------------------------------
+
+
+def test_apply_failure_policy_resets_on_success(monkeypatch, tmp_path):
+    _configure_tmp_db(monkeypatch, tmp_path)
+    task_id = se.add_task(
+        name="policy_test",
+        executable="python",
+        args=["-c", "pass"],
+        cwd=".",
+        cron_expression="*/5 * * * *",
+        timeout_sec=30,
+    )
+    conn = se._conn()
+    # Pre-set failure count
+    conn.execute("UPDATE tasks SET failure_count = 3 WHERE id = ?", (task_id,))
+    conn.commit()
+    log = se.run_task(task_id)
+    conn.close()
+    assert log.exit_code == 0
+    updated = se._conn().execute("SELECT failure_count FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    assert updated["failure_count"] == 0
+
+
+def test_apply_failure_policy_auto_disables(monkeypatch, tmp_path):
+    _configure_tmp_db(monkeypatch, tmp_path)
+    task_id = se.add_task(
+        name="auto_dis",
+        executable="definitely_missing_xyz",
+        args=[],
+        cwd=".",
+        cron_expression="*/5 * * * *",
+        timeout_sec=10,
+    )
+    for _ in range(se.MAX_FAILURE_COUNT):
+        log = se.run_task(task_id)
+
+    assert log.error_type == "auto_disabled"
+    tasks = se.list_tasks()
+    task = next(t for t in tasks if t.id == task_id)
+    assert not task.enabled

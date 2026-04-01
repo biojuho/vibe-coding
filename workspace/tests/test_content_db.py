@@ -939,3 +939,97 @@ def test_get_recent_failure_items_bgm_missing_only(monkeypatch, tmp_path):
     failures = cdb.get_recent_failure_items(channel="testch")
     assert len(failures) >= 1
     assert failures[0]["next_action"] == "BGM 스킵 가능 여부 확인"
+
+
+# ---------------------------------------------------------------------------
+# _check_manifest_vs_db / _check_db_vs_manifests tests (T-114)
+# ---------------------------------------------------------------------------
+
+
+def test_check_manifest_vs_db_missing_in_db():
+    manifests = [
+        {"job_id": "j1", "title": "T1", "status": "success", "_manifest_path": "/p/m1.json"},
+    ]
+    missing_in_db, pending_sync = cdb._check_manifest_vs_db(manifests, {})
+    assert len(missing_in_db) == 1
+    assert missing_in_db[0]["job_id"] == "j1"
+    assert pending_sync == []
+
+
+def test_check_manifest_vs_db_pending_sync():
+    manifests = [
+        {
+            "job_id": "j2",
+            "title": "New Title",
+            "status": "success",
+            "output_path": "/new/video.mp4",
+            "_manifest_path": "/p/m2.json",
+        }
+    ]
+    job_lookup = {
+        "j2": {
+            "id": 10,
+            "job_id": "j2",
+            "status": "pending",
+            "title": "Old Title",
+            "video_path": "/old/video.mp4",
+            "topic": "T",
+            "channel": "CH",
+        }
+    }
+    missing_in_db, pending_sync = cdb._check_manifest_vs_db(manifests, job_lookup)
+    assert missing_in_db == []
+    assert len(pending_sync) == 1
+    assert "status" in pending_sync[0]["mismatches"]
+    assert "video_path" in pending_sync[0]["mismatches"]
+    assert "title" in pending_sync[0]["mismatches"]
+
+
+def test_check_manifest_vs_db_no_job_id_skipped():
+    manifests = [{"title": "NoId", "_manifest_path": "/p/m3.json"}]
+    missing_in_db, pending_sync = cdb._check_manifest_vs_db(manifests, {})
+    assert missing_in_db == []
+    assert pending_sync == []
+
+
+def test_check_db_vs_manifests_missing_manifest():
+    items = [{"id": 1, "job_id": "j3", "topic": "T", "channel": "C", "status": "pending", "video_path": ""}]
+    missing_output_file, missing_manifest = cdb._check_db_vs_manifests(items, set())
+    assert len(missing_manifest) == 1
+    assert missing_manifest[0]["job_id"] == "j3"
+    assert missing_output_file == []
+
+
+def test_check_db_vs_manifests_missing_output_file(tmp_path):
+    items = [
+        {
+            "id": 2,
+            "job_id": "j4",
+            "topic": "T",
+            "channel": "C",
+            "status": "success",
+            "video_path": str(tmp_path / "nonexistent.mp4"),
+        }
+    ]
+    missing_output_file, missing_manifest = cdb._check_db_vs_manifests(items, {"j4"})
+    assert len(missing_output_file) == 1
+    assert missing_output_file[0]["job_id"] == "j4"
+    assert missing_manifest == []
+
+
+def test_check_db_vs_manifests_no_issues(tmp_path):
+    video = tmp_path / "ok.mp4"
+    video.write_bytes(b"")
+    items = [
+        {
+            "id": 3,
+            "job_id": "j5",
+            "topic": "T",
+            "channel": "C",
+            "status": "success",
+            "video_path": str(video),
+        }
+    ]
+    missing_output_file, missing_manifest = cdb._check_db_vs_manifests(items, {"j5"})
+    assert missing_output_file == []
+    assert missing_manifest == []

@@ -31,7 +31,7 @@ class StubImageUploader:
 
 
 class StubDraftGenerator:
-    async def generate_drafts(self, _post_data):
+    async def generate_drafts(self, _post_data, _top_tweets=None, **_kwargs):
         return "drafts"
 
 
@@ -222,7 +222,9 @@ def test_rejected_emotion_axis_blocks_before_upload(monkeypatch):
                 "hook_type": "논쟁형",
             }
 
-    monkeypatch.setattr("pipeline.process.build_content_profile", lambda *args, **kwargs: DummyProfile())
+    monkeypatch.setattr(
+        "pipeline.process_stages.filter_profile_stage.build_content_profile", lambda *args, **kwargs: DummyProfile()
+    )
 
     result = asyncio.run(
         bs.process_single_post(

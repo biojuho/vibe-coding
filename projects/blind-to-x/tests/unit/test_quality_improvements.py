@@ -494,8 +494,9 @@ class TestClicheInjection(unittest.TestCase):
 
     def setUp(self):
         import pipeline.draft_generator as dg
+        import pipeline.draft_prompts as dp
 
-        dg._draft_rules_cache = {
+        _cache = {
             "cliche_watchlist": ["이거 실화?", "나만 이런 거 아니죠?", "공감하면 RT"],
             "brand_voice": {
                 "persona": "테스트",
@@ -504,11 +505,15 @@ class TestClicheInjection(unittest.TestCase):
                 "examples": {},
             },
         }
+        dg._draft_rules_cache = _cache
+        dp._draft_rules_cache = _cache
 
     def tearDown(self):
         import pipeline.draft_generator as dg
+        import pipeline.draft_prompts as dp
 
         dg._draft_rules_cache = None
+        dp._draft_rules_cache = None
 
     def test_cliche_list_in_prompt(self):
         from pipeline.draft_generator import TweetDraftGenerator
@@ -611,19 +616,24 @@ class TestAntiExamples(unittest.TestCase):
 
     def setUp(self):
         import pipeline.draft_generator as dg
+        import pipeline.draft_prompts as dp
 
-        dg._draft_rules_cache = {
+        _cache = {
             "anti_examples": {
                 "generic_bad": [
                     {"text": "많은 직장인들이...", "reason": "상투적"},
                 ],
             },
         }
+        dg._draft_rules_cache = _cache
+        dp._draft_rules_cache = _cache
 
     def tearDown(self):
         import pipeline.draft_generator as dg
+        import pipeline.draft_prompts as dp
 
         dg._draft_rules_cache = None
+        dp._draft_rules_cache = None
 
     def test_anti_examples_in_prompt(self):
         from pipeline.draft_generator import TweetDraftGenerator

@@ -604,15 +604,14 @@ def _load_manifest_payloads(output_dir: Path | None = None) -> list[dict[str, An
     return payloads
 
 
-def get_manifest_sync_diffs(
-    output_dir: Path | None = None,
-    limit: int = 10,
-) -> dict[str, Any]:
-    manifests = _load_manifest_payloads(output_dir=output_dir)
-    items = get_all()
-    job_lookup = {item.get("job_id"): item for item in items if item.get("job_id")}
-    manifest_job_ids = {manifest.get("job_id") for manifest in manifests if manifest.get("job_id")}
+def _check_manifest_vs_db(
+    manifests: list[dict[str, Any]],
+    job_lookup: dict[str, dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """매니페스트 → DB 방향 차이를 계산한다.
 
+    Returns (missing_in_db, pending_sync).
+    """
     missing_in_db: list[dict[str, Any]] = []
     pending_sync: list[dict[str, Any]] = []
     for manifest in manifests:
@@ -651,7 +650,17 @@ def get_manifest_sync_diffs(
                     "manifest_path": manifest["_manifest_path"],
                 }
             )
+    return missing_in_db, pending_sync
 
+
+def _check_db_vs_manifests(
+    items: list[dict[str, Any]],
+    manifest_job_ids: set[str],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """DB → 매니페스트 방향 차이를 계산한다.
+
+    Returns (missing_output_file, missing_manifest).
+    """
     missing_output_file: list[dict[str, Any]] = []
     missing_manifest: list[dict[str, Any]] = []
     for item in items:
@@ -677,6 +686,20 @@ def get_manifest_sync_diffs(
                     "status": item.get("status", ""),
                 }
             )
+    return missing_output_file, missing_manifest
+
+
+def get_manifest_sync_diffs(
+    output_dir: Path | None = None,
+    limit: int = 10,
+) -> dict[str, Any]:
+    manifests = _load_manifest_payloads(output_dir=output_dir)
+    items = get_all()
+    job_lookup = {item.get("job_id"): item for item in items if item.get("job_id")}
+    manifest_job_ids = {manifest.get("job_id") for manifest in manifests if manifest.get("job_id")}
+
+    missing_in_db, pending_sync = _check_manifest_vs_db(manifests, job_lookup)
+    missing_output_file, missing_manifest = _check_db_vs_manifests(items, manifest_job_ids)
 
     summary = {
         "missing_in_db_count": len(missing_in_db),
@@ -685,17 +708,12 @@ def get_manifest_sync_diffs(
         "missing_manifest_count": len(missing_manifest),
     }
 
-    missing_in_db = missing_in_db[:limit]
-    pending_sync = pending_sync[:limit]
-    missing_output_file = missing_output_file[:limit]
-    missing_manifest = missing_manifest[:limit]
-
     return {
         "summary": summary,
-        "missing_in_db": missing_in_db,
-        "pending_sync": pending_sync,
-        "missing_output_file": missing_output_file,
-        "missing_manifest": missing_manifest,
+        "missing_in_db": missing_in_db[:limit],
+        "pending_sync": pending_sync[:limit],
+        "missing_output_file": missing_output_file[:limit],
+        "missing_manifest": missing_manifest[:limit],
     }
 
 
