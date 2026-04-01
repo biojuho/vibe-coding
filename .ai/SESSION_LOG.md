@@ -1,6 +1,46 @@
 # SESSION_LOG - Recent 7 Days
 
-## 2026-04-01 | Codex | shared QC rerun -> CONDITIONALLY_APPROVED (root collection blocker)
+## 2026-04-01 | Antigravity (Gemini) | blind-to-x 내부 로직 개편 QA/QC ✅ APPROVED (T-117)
+
+### Work Summary
+
+이번 세션에서 `blind-to-x `파이프라인 아키텍처 리팩토링의 QA/QC 최종 완료 단계를 수행했습니다.
+
+**이전 세션에서 완료된 Phase 1~4 리팩토링:**
+- Phase 1: `process.py`에서 `_sync_runtime_overrides()` + 전역 별칭 10개 제거, `runtime.py`에서 `BLIND_DEBUG_DB_PATH` 환경변수 기반 `_try_load_debug_db()` 도입
+- Phase 2: `draft_generator.py`에서 `_ProxyModule` + `sys.modules[__name__] = _proxy` 완전 삭제
+- Phase 3: `filter_profile_stage.py` 245줄 모놀리식 함수 → 5개 순수 함수 분해
+- Phase 4: `generate_review_stage.py` 지연 임포트 실패 warn 격상 + `components_loaded` 추적
+
+**이번 세션에서 추가 수정한 QA 발견 사항 2건:**
+- `runtime.py`: `spec_from_file_location()` None 반환 방어 코드 추가 (AttributeError 방지)
+- `draft_generator.py`: 모듈 수준 `@property` dead code → 단순 모듈 참조 별칭으로 교체
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `projects/blind-to-x/pipeline/process_stages/runtime.py` | fix (QA) | `spec_from_file_location` None 체크 추가 |
+| `projects/blind-to-x/pipeline/draft_generator.py` | fix (QA) | 모듈 수준 `@property` dead code 제거 → 단순 별칭 |
+| `.ai/HANDOFF.md` | update | Last Session 및 Next Priorities 최신화 |
+| `.ai/TASKS.md` | update | T-117 DONE 기록 추가, T-100 notes 정리 |
+| `.ai/SESSION_LOG.md` | update | 이번 세션 기록 |
+
+### Verification Results
+
+- `python -m ruff check pipeline/process.py pipeline/process_stages/runtime.py pipeline/process_stages/filter_profile_stage.py pipeline/process_stages/generate_review_stage.py pipeline/draft_generator.py` → **All checks passed**
+- `python -m pytest tests/unit/test_process.py tests/unit/test_runtime.py tests/unit/test_pipeline_flow.py tests/unit/test_draft_generator_multi_provider.py -v` → **38 passed / 0 failed**, exit code 0
+
+### Notes For Next Agent
+
+- `blind-to-x` 파이프라인 리팩토링은 완전히 완료됨. 외부 API 시그니처 무변경, 하위 호환성 유지.
+- 잔여 이슈: `asyncio.ensure_future` screenshot task 누수 (이번 개편 범위 외). 별도 T-번호 발급 권장.
+- `BLIND_DEBUG_DB_PATH` 환경변수 미설정 시 no-op 폴백 — 기능 영향 없음.
+- 테스트에서 draft rules cache 패칭이 필요하면 `pipeline.draft_prompts._draft_rules_cache`를 직접 패치해야 함 (모듈 수준 @property 제거 이후).
+- 다음 우선순위: T-116 (root QC blocker), T-100 (coverage uplift), T-115 (workspace TDR 감소).
+
+---
+
 
 ### Work Summary
 
@@ -1453,3 +1493,24 @@ The baseline remained `APPROVED` and moved up again because the root suite now i
 - `workspace/tests/test_content_db.py` (appended)
 - `workspace/tests/test_shorts_manager_helpers.py` (NEW)
 - `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/SESSION_LOG.md`
+
+## 2026-04-01 | Claude | QC APPROVED (3292 passed, 0 failed, 0 errors)
+
+**Tasks completed:** QC bug fixes (no task ID — maintenance)
+
+**Root cause & fixes:**
+1. `blind-to-x tests/__init__.py` 없어서 `test_x_analytics.py` 모듈명 충돌 → `tests/__init__.py` + `tests/unit/__init__.py` 추가 → 873 passed (이전 144)
+2. `test_shorts_manager_helpers.py`가 `path_contract`를 MagicMock으로 stub 후 복구 안 함 → `global _STUBBED_MODULES` 패턴으로 teardown 복구 추가
+3. `TestClicheInjection`/`TestAntiExamples`: `draft_generator._draft_rules_cache`만 패치했으나 실제 호출은 `draft_prompts._draft_rules_cache` → 양쪽 모두 패치
+4. `test_rejected_emotion_axis_blocks_before_upload`: `pipeline.process.build_content_profile` 패치 대신 실제 호출 위치인 `pipeline.process_stages.filter_profile_stage.build_content_profile` 패치
+5. `StubDraftGenerator.generate_drafts` 시그니처에 `top_tweets` 파라미터 추가
+
+**Final result:** APPROVED — 3292 passed, 0 failed, 0 errors, 22 skipped
+
+**Changed files:**
+- `projects/blind-to-x/tests/__init__.py` (NEW)
+- `projects/blind-to-x/tests/unit/__init__.py` (NEW)
+- `projects/blind-to-x/tests/unit/test_quality_improvements.py`
+- `projects/blind-to-x/tests/unit/test_scrape_failure_classification.py`
+- `workspace/tests/test_shorts_manager_helpers.py`
+- `.ai/HANDOFF.md`, `.ai/SESSION_LOG.md`
