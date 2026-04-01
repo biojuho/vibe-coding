@@ -1,5 +1,51 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-04-01 | Codex | T-119 blind-to-x cache stabilization + sequential revalidation
+
+### Work Summary
+
+Closed the latent `blind-to-x` regression follow-up exposed by the restored active-project CI and revalidated the touched areas sequentially to avoid cache/file-state interference.
+
+- Updated `projects/blind-to-x/pipeline/draft_cache.py` so each SQLite connection uses `busy_timeout=5000` and performs a best-effort `wal_checkpoint(FULL)` after commit.
+- Re-ran the formerly failing `DraftCache` regression and confirmed the cache-hit path now passes again when executed sequentially.
+- Re-checked the other `T-119` target, `test_cost_tracker_uses_persisted_daily_totals`, and it also passes in the current worktree.
+- Confirmed the targeted `workspace/tests` slice for the former `T-116` blocker is green in the current dirty worktree.
+- Revalidated the touched `shorts-maker-v2` tests and workspace control-plane checks so the CI/workflow edits remain backed by fresh local evidence.
+- Logged `T-121` for a still-unresolved local `tests/unit/test_main.py` runner interruption that appears specific to this terminal wrapper.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `projects/blind-to-x/pipeline/draft_cache.py` | fix | Added SQLite `busy_timeout` + best-effort WAL checkpoint after commit |
+| `.ai/HANDOFF.md` | update | Added the latest relay entry, refreshed current state, verification notes, and next priorities |
+| `.ai/TASKS.md` | update | Moved `T-119` to DONE and logged `T-121` |
+| `.ai/SESSION_LOG.md` | update | This entry |
+| `.ai/CONTEXT.md` | update | Recorded the closed `T-119` state and the new local verification note |
+
+### Verification Results
+
+- `venv\Scripts\python.exe -X utf8 -m pytest workspace/tests/test_shorts_manager_helpers.py workspace/tests/test_topic_auto_generator.py workspace/tests/test_vibe_debt_auditor.py -q --tb=short -o addopts= --maxfail=10` -> **68 passed**
+- `venv\Scripts\python.exe -m pytest workspace/tests/test_governance_checks.py workspace/tests/test_doctor.py workspace/tests/test_health_check.py workspace/tests/test_qaqc_runner.py workspace/tests/test_qaqc_runner_extended.py workspace/tests/test_mcp_config.py -q -o addopts=` -> **79 passed**
+- `venv\Scripts\python.exe -m ruff check workspace/scripts/check_mapping.py workspace/execution/governance_checks.py workspace/execution/health_check.py workspace/execution/qaqc_runner.py workspace/execution/qaqc_history_db.py workspace/tests/test_governance_checks.py workspace/tests/test_doctor.py workspace/tests/test_health_check.py workspace/tests/test_qaqc_runner.py workspace/tests/test_qaqc_runner_extended.py workspace/tests/test_mcp_config.py` -> **All checks passed**
+- `venv\Scripts\python.exe -m pytest projects/shorts-maker-v2/tests/unit/test_audio_postprocess.py projects/shorts-maker-v2/tests/unit/test_package_entrypoints.py -q -o addopts=` -> **44 passed, 1 warning**
+- `..\..\venv\Scripts\python.exe -X utf8 -m pytest tests/unit/test_cost_controls.py::test_cost_tracker_uses_persisted_daily_totals -q --tb=short -o addopts= --maxfail=1` (`projects/blind-to-x`) -> **1 passed**
+- `..\..\venv\Scripts\python.exe -X utf8 -m pytest tests/unit/test_optimizations.py::TestDraftGeneratorCache::test_second_call_uses_cache -q --tb=short -o addopts= --maxfail=1` (`projects/blind-to-x`) -> **passed twice sequentially**
+- Sequential blind unit slices after the cache fix:
+  - `[0..15]` -> **163 passed, 1 skipped**
+  - `[16..19]` -> **34 passed**
+  - `[20..23]` -> **40 passed**
+  - `[24..27]` -> **98 passed**
+  - `[29..31]` -> **54 passed, 1 skipped**
+  - `[32..47]` -> **247 passed, 6 skipped**
+  - `[48..end]` -> **154 passed, 1 warning**
+
+### Notes For Next Agent
+
+- Do not trust earlier `blind-to-x` regression reports that came from overlapping pytest runs against the same cache DB; the reliable signal came from sequential reruns.
+- `T-116` is now a confirmation task more than an active repro: targeted root tests are green, but the next full shared QC should still validate the full root baseline.
+- `T-121` is the only new open verification gap from this session. The interruption currently looks harness-specific because adjacent blind unit slices pass.
+
 ## 2026-04-01 | Codex | T-118 active-project CI modernization + shorts-maker-v2 test stabilization
 
 ### Work Summary

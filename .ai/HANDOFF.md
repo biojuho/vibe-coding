@@ -2,6 +2,12 @@
 
 > See `SESSION_LOG.md` for session-by-session detail and `DECISIONS.md` for settled architecture decisions.
 
+## Latest Update
+
+| Date | 2026-04-01 |
+| Tool | Codex |
+| Work | Closed `T-119` in the current worktree. `projects/blind-to-x/pipeline/draft_cache.py` now applies `busy_timeout` plus a best-effort WAL checkpoint so cache writes are visible to fresh SQLite connections more reliably. Sequential reruns now pass for `tests/unit/test_cost_controls.py::test_cost_tracker_uses_persisted_daily_totals`, `tests/unit/test_optimizations.py::TestDraftGeneratorCache::test_second_call_uses_cache`, and the revalidated blind unit slices. Workspace control-plane checks and the touched `shorts-maker-v2` tests also remain green. Logged `T-121` for a local-only `tests/unit/test_main.py` runner interruption that still needs separate investigation. |
+
 ## Relay Update
 
 | Date | 2026-04-01 |
@@ -37,11 +43,13 @@
 - `workspace/execution/qaqc_runner.py` now includes an optional `[DEBT]` stage (skippable with `--skip-debt`) that runs the VibeDebt audit and persists results. The debt audit does not affect the pass/fail verdict; it reports TDR and grade as informational metrics.
 - First VibeDebt scan on `2026-03-31`: **452 files, overall TDR 41.4% (RED)**. Workspace TDR 37.9%, blind-to-x 48.8%, shorts-maker-v2 38.4%. Top debt factors: `test_gap` (33-64 avg) and `complexity` (30-38 avg). Top debtor files: `llm_client.py` (58.8), `blind-to-x/main.py` (59.2), `karaoke.py` (56.4).
 - Shared workspace QC latest rerun on `2026-04-01` is **`CONDITIONALLY_APPROVED`**: `blind-to-x 873 passed / 9 skipped`, `shorts-maker-v2 1270 passed / 12 skipped`, `root 25 passed / 2 errors / 1 skipped`, total `2168 passed / 0 failed / 2 errors / 22 skipped`, `AST 20/20`, security `CLEAR (2 triaged issue(s))`, governance `CLEAR`, infrastructure `6/6 Ready`, disk `137.0 GB free`.
-- The only active shared QC blocker from `2026-04-01` is in `workspace/tests`: `test_shorts_manager_helpers.py` installs a fake `path_contract` module into `sys.modules` during collection without `REPO_ROOT` / `TMP_ROOT`, so later imports fail in `test_topic_auto_generator.py` and `test_vibe_debt_auditor.py`. This is tracked as `T-116`.
+- Targeted reruns on `2026-04-01` no longer reproduce the old `T-116` root blocker in the current dirty worktree: `workspace/tests/test_shorts_manager_helpers.py`, `workspace/tests/test_topic_auto_generator.py`, and `workspace/tests/test_vibe_debt_auditor.py` now pass together locally. The next full shared QC should confirm whether the blocker is fully gone or was already fixed by parallel worktree changes.
+- `T-119` is now closed on `2026-04-01`: `projects/blind-to-x/pipeline/draft_cache.py` uses `busy_timeout` plus a best-effort WAL checkpoint, `test_cost_tracker_uses_persisted_daily_totals` passes, and the previously failing draft-cache regression plus the verified blind unit slices pass sequentially.
+- A new local-only follow-up `T-121` was logged on `2026-04-01`: `projects/blind-to-x/tests/unit/test_main.py` still hits a `KeyboardInterrupt` / runner interruption under this terminal wrapper, even though nearby blind unit slices are green. Treat it as a verification-harness issue until proven otherwise.
+- The former shared QC blocker from `2026-04-01` is still tracked as `T-116`, but the targeted rerun is green in the current dirty worktree. Treat the old collection/import-pollution diagnosis as historical context until the next full shared QC confirms whether any blocker remains.
 - Latest VibeDebt rerun on `2026-04-01` nudged overall TDR to **39.08%** with project split `workspace 29.25% / blind-to-x 48.06% / shorts-maker-v2 38.24%`.
 - `.github/workflows/full-test-matrix.yml` and `.github/workflows/root-quality-gate.yml` now match the live repo layout on `2026-04-01`: workspace validation runs from `workspace/`, Python project jobs run from `projects/blind-to-x` and `projects/shorts-maker-v2`, and frontend jobs target `projects/hanwoo-dashboard` plus `projects/knowledge-dashboard`.
 - `projects/shorts-maker-v2` still has a dual package shape on `2026-04-01`: the repo-root `shorts_maker_v2/` package is a namespace bridge in front of `src/shorts_maker_v2/`. Tests import the bridge first, so package-level entrypoints such as `run_cli` must be mirrored there, not only in `src/`.
-- CI modernization surfaced two pre-existing `blind-to-x` unit regressions on `2026-04-01`: `tests/unit/test_cost_controls.py::test_cost_tracker_uses_persisted_daily_totals` currently leaves `tracker.current_cost == 0.0`, and `tests/unit/test_optimizations.py::TestDraftGeneratorCache::test_second_call_uses_cache` currently makes an extra uncached call. Track these under `T-119`.
 - `projects/blind-to-x` project-only coverage rerun on `2026-03-31` now reports **`701 passed / 16 skipped / 71% coverage`** after the latest `T-100` uplift. New test files: `test_image_generator.py` (45 tests), `test_image_upload.py` (30 tests), `test_analytics_tracker.py` (20 tests), `test_draft_analytics.py` (7 tests). Module coverage: `draft_analytics.py` **100%**, `image_upload.py` **89%**, `image_generator.py` **77%**, `analytics_tracker.py` **59%**.
 - The 2 triaged security findings from the latest shared QC are both known false positives in `projects/blind-to-x/pipeline/cost_db.py` because the interpolated `table` names come only from the internal `_ARCHIVE_TABLES` allowlist.
 - `workspace/execution/governance_checks.py` is now part of the shared control plane on `2026-03-31`: it validates required `.ai` context files, targeted relay claims against live code, directive/INDEX ownership drift, and tracked audit follow-up linkage to `.ai/TASKS.md`.
@@ -95,9 +103,20 @@
 - `..\..\venv\Scripts\python.exe -m pytest tests\integration\test_golden_render.py -q -o addopts=` (`projects/shorts-maker-v2`) -> **2 passed, 2 warnings** in about **2m17s**
 - `venv\Scripts\python.exe -m ruff check workspace/scripts/check_mapping.py workspace/execution/governance_checks.py workspace/execution/health_check.py workspace/execution/qaqc_runner.py workspace/execution/qaqc_history_db.py workspace/tests/test_governance_checks.py workspace/tests/test_doctor.py workspace/tests/test_health_check.py workspace/tests/test_qaqc_runner.py workspace/tests/test_qaqc_runner_extended.py workspace/tests/test_mcp_config.py` -> **All checks passed**
 - `venv\Scripts\python.exe -m pytest workspace/tests/test_governance_checks.py workspace/tests/test_doctor.py workspace/tests/test_health_check.py workspace/tests/test_qaqc_runner.py workspace/tests/test_qaqc_runner_extended.py workspace/tests/test_mcp_config.py -q -o addopts=` -> **79 passed**
+- `venv\Scripts\python.exe -X utf8 -m pytest workspace/tests/test_shorts_manager_helpers.py workspace/tests/test_topic_auto_generator.py workspace/tests/test_vibe_debt_auditor.py -q --tb=short -o addopts= --maxfail=10` -> **68 passed**
 - `..\..\venv\Scripts\python.exe -m pytest tests/unit/test_audio_postprocess.py -q --tb=short --maxfail=1 -o addopts=` (`projects/shorts-maker-v2`) -> **41 passed**
+- `venv\Scripts\python.exe -m pytest projects/shorts-maker-v2/tests/unit/test_audio_postprocess.py projects/shorts-maker-v2/tests/unit/test_package_entrypoints.py -q -o addopts=` -> **44 passed, 1 warning**
 - Batched `..\..\venv\Scripts\python.exe -m pytest ... -q --tb=short --maxfail=1 -o addopts=` runs across the remaining `projects/shorts-maker-v2/tests/unit` and `tests/integration` files -> **all passing locally after the `audio_postprocess.py` and bridge-package fixes**
-- Batched `..\..\venv\Scripts\python.exe -m pytest ... -q --tb=short --maxfail=1 -o addopts=` runs across `projects/blind-to-x/tests/unit` exposed two pre-existing failures: `tests/unit/test_cost_controls.py::test_cost_tracker_uses_persisted_daily_totals` and `tests/unit/test_optimizations.py::TestDraftGeneratorCache::test_second_call_uses_cache`
+- `..\..\venv\Scripts\python.exe -X utf8 -m pytest tests/unit/test_cost_controls.py::test_cost_tracker_uses_persisted_daily_totals -q --tb=short -o addopts= --maxfail=1` (`projects/blind-to-x`) -> **1 passed**
+- `..\..\venv\Scripts\python.exe -X utf8 -m pytest tests/unit/test_optimizations.py::TestDraftGeneratorCache::test_second_call_uses_cache -q --tb=short -o addopts= --maxfail=1` (`projects/blind-to-x`) -> **2 consecutive isolated passes**
+- Verified sequential blind unit slices after the `draft_cache.py` fix:
+  - `tests/unit` files `[0..15]` -> **163 passed, 1 skipped**
+  - `tests/unit` files `[16..19]` -> **34 passed**
+  - `tests/unit` files `[20..23]` -> **40 passed**
+  - `tests/unit` files `[24..27]` -> **98 passed**
+  - `tests/unit` files `[29..31]` -> **54 passed, 1 skipped**
+  - `tests/unit` files `[32..47]` -> **247 passed, 6 skipped**
+  - `tests/unit` files `[48..end]` -> **154 passed, 1 warning**
 - `python -X utf8 -m pytest workspace\tests\test_mcp_config.py -q -o addopts=` -> **2 passed**
 - `powershell -ExecutionPolicy Bypass -File workspace\scripts\mcp_toggle.ps1 -Action Status` -> guard now reports overlapping AI tool clients and Tier 3 MCP status in one view
 - `venv\Scripts\python.exe workspace\execution\qaqc_runner.py -o .tmp/qaqc_system_check_2026-03-31.json` -> **`APPROVED`** / `2915 passed / 0 failed / 0 errors / 29 skipped`
@@ -110,11 +129,11 @@
 
 ## Next Priorities
 
-1. Fix `T-116`: `workspace/tests/test_shorts_manager_helpers.py`의 `sys.modules["path_contract"]` 오염 패치 → 공유 QC를 `CONDITIONALLY_APPROVED` → `APPROVED`로 전환.
-2. Fix `T-120` (`fastapi` 미설치): `test_auto_schedule_paths.py::test_n8n_bridge_defaults_use_canonical_paths`가 `fastapi` 임포트 실패로 깨짐 → `pytest.importorskip('fastapi')` 적용 또는 dev deps에 추가.
-3. Fix `T-119`: `blind-to-x` latent unit regressions — `test_cost_tracker_uses_persisted_daily_totals`, `TestDraftGeneratorCache::test_second_call_uses_cache`.
-4. Continue `T-100`: `blind-to-x`는 **71%**. 다음 후보: 잔여 저커버리지 모듈 (`analytics_tracker.py` sync_metrics, 스크래퍼 모듈) 또는 `shorts-maker-v2` 커버리지 업리프트.
-5. Tackle `T-115`: workspace TDR 감소. 핫스팟: `code_improver.py` (**46.2**), `workers.py` (**37.7**), `result_tracker_db.py` (**37.4**).
+1. Confirm `T-116` with the next full shared QC: the targeted root rerun is green in the current dirty worktree, but the shared baseline still needs one fresh end-to-end confirmation.
+2. Fix `T-120` (`fastapi` missing): `test_auto_schedule_paths.py::test_n8n_bridge_defaults_use_canonical_paths` still breaks on `ModuleNotFoundError`.
+3. Investigate `T-121`: determine whether the local `projects/blind-to-x/tests/unit/test_main.py` `KeyboardInterrupt` is a harness-only artifact or a real `main.py` problem.
+4. Continue `T-100`: `blind-to-x` is still **71%**. Next candidates are the remaining lower-coverage modules (`analytics_tracker.py` sync metrics, scraper modules) or a `shorts-maker-v2` coverage uplift.
+5. Tackle `T-115`: reduce workspace TDR further. Current hotspots are `code_improver.py` (**46.2**), `workers.py` (**37.7**), and `result_tracker_db.py` (**37.4**).
 
 ## Notes
 

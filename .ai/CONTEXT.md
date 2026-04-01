@@ -75,5 +75,7 @@ Vibe coding/
 - `infrastructure/` remains top-level and is not part of `workspace/`.
 - The active audit-owned coverage follow-up is still `T-100`: `projects/blind-to-x` improved to **71%** on `2026-03-31`, while `projects/shorts-maker-v2` remains above its floor at **91%**.
 - `projects/shorts-maker-v2` has a dual package shape: repo-root `shorts_maker_v2/` is a namespace bridge in front of `src/shorts_maker_v2/`. Tests import the bridge first, so package-level exports like `run_cli` must be kept aligned there.
-- CI modernization on `2026-04-01` surfaced two latent `blind-to-x` unit failures in `tests/unit/test_cost_controls.py` and `tests/unit/test_optimizations.py`; see `T-119` before assuming the restored blind job is green end-to-end.
+- `projects/blind-to-x/pipeline/draft_cache.py` now applies SQLite `busy_timeout` plus a best-effort WAL checkpoint after commit so cached draft writes are more visible to fresh connections in follow-up reads. `T-119` is closed in the current worktree after sequential reruns.
+- The former `T-116` root import-pollution blocker no longer reproduces in the targeted `workspace/tests` rerun on `2026-04-01`, but the next full shared QC should still confirm the end-to-end root baseline.
+- A new local-only follow-up `T-121` tracks `projects/blind-to-x/tests/unit/test_main.py` hitting `KeyboardInterrupt` under the current terminal wrapper. Treat it as a harness/verification issue until a clean reproduction proves a product regression.
 - Roadmap-style directives are reference context by default; active execution priority is expected to come from `.ai/TASKS.md` and `.ai/HANDOFF.md`.
