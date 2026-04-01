@@ -1,5 +1,52 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-04-01 | Codex | T-122 hanwoo-dashboard auth and payment boundary hardening
+
+### Work Summary
+
+Closed the highest-risk `hanwoo-dashboard` product gap by moving auth and payment trust decisions onto the server.
+
+- Added `projects/hanwoo-dashboard/src/lib/auth-guard.js` so server pages, actions, and route handlers share one `requireAuthenticatedSession()` gate.
+- Added `projects/hanwoo-dashboard/src/lib/subscription.js` to centralize premium-plan constants, `customerKey` generation, `orderId` generation/parsing, and recurring-date helpers.
+- Protected the dashboard page, diagnostics page, subscription page, all exported server actions, and both payment API routes with authenticated-session enforcement.
+- Replaced the old cookie-presence proxy with `Auth.js` authorization by re-exporting `auth` from `src/proxy.js`.
+- Added `/api/payments/prepare` so checkout metadata is issued by the server instead of being minted in the browser.
+- Reworked `/api/payments/confirm` so it validates `orderId` ownership against the current session, re-checks the premium amount, verifies Toss confirmation, and transactionally upserts both `PaymentLog` and `Subscription`.
+- Split the diagnostics page into a server gate plus client component and cleaned the broken subscription/success UI strings after the refactor.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `projects/hanwoo-dashboard/src/lib/auth-guard.js` | add | Shared server-side auth gate with redirect/error helpers |
+| `projects/hanwoo-dashboard/src/lib/subscription.js` | add | Central subscription constants and order/customer helper functions |
+| `projects/hanwoo-dashboard/src/app/page.js` | update | Added server-side auth gate before dashboard data loads |
+| `projects/hanwoo-dashboard/src/app/admin/diagnostics/page.js` | refactor | Converted to server wrapper that gates access before rendering client UI |
+| `projects/hanwoo-dashboard/src/components/admin/DiagnosticsPageClient.js` | add | Preserved diagnostics client UI after server-wrapper split |
+| `projects/hanwoo-dashboard/src/app/subscription/page.js` | refactor | Converted to server-side auth-gated subscription page with session-bound `customerKey` |
+| `projects/hanwoo-dashboard/src/components/payment/PaymentWidget.js` | update | Uses server-prepared payment payload and disables duplicate submits |
+| `projects/hanwoo-dashboard/src/app/api/payments/prepare/route.js` | add | Server-prepares order payload after session/amount validation |
+| `projects/hanwoo-dashboard/src/app/api/payments/confirm/route.js` | update | Validates session-bound ownership and upserts payment/subscription transactionally |
+| `projects/hanwoo-dashboard/src/app/subscription/success/page.js` | update | Cleaned result messaging after payment confirm flow |
+| `projects/hanwoo-dashboard/src/lib/actions.js` | update | Added auth gate to all exported server actions |
+| `projects/hanwoo-dashboard/src/auth.js` | update | Added `authorized()` callback for proxy/session authorization |
+| `projects/hanwoo-dashboard/src/proxy.js` | update | Delegates route protection to `Auth.js` instead of raw cookie checks |
+| `.ai/HANDOFF.md` | update | Refreshed relay and next priorities for product-hardening follow-ups |
+| `.ai/TASKS.md` | update | Added `T-122` done and logged `T-123`/`T-124` |
+| `.ai/CONTEXT.md` | update | Recorded the new hanwoo auth/payment boundaries and verification |
+| `.ai/DECISIONS.md` | update | Added ADR-022 for server-side auth/payment ownership |
+| `.ai/SESSION_LOG.md` | update | This entry |
+
+### Verification Results
+
+- `npm run lint` (`projects/hanwoo-dashboard`) -> **pass with 1 existing warning** (`@next/next/no-page-custom-font` in `src/app/layout.js`)
+- `npm run build` (`projects/hanwoo-dashboard`) -> **pass**
+
+### Notes For Next Agent
+
+- `hanwoo-dashboard` now has real server-side auth boundaries, so the next product-hardening step should move to `knowledge-dashboard` data exposure (`T-123`) and frontend smoke coverage (`T-124`) instead of reopening the same auth surface.
+- The remaining lint warning in `hanwoo-dashboard` is pre-existing and unrelated to the auth/payment refactor.
+
 ## 2026-04-01 | Codex | T-119 blind-to-x cache stabilization + sequential revalidation
 
 ### Work Summary

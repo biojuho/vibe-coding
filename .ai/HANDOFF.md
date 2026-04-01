@@ -6,7 +6,7 @@
 
 | Date | 2026-04-01 |
 | Tool | Codex |
-| Work | Closed `T-119` in the current worktree. `projects/blind-to-x/pipeline/draft_cache.py` now applies `busy_timeout` plus a best-effort WAL checkpoint so cache writes are visible to fresh SQLite connections more reliably. Sequential reruns now pass for `tests/unit/test_cost_controls.py::test_cost_tracker_uses_persisted_daily_totals`, `tests/unit/test_optimizations.py::TestDraftGeneratorCache::test_second_call_uses_cache`, and the revalidated blind unit slices. Workspace control-plane checks and the touched `shorts-maker-v2` tests also remain green. Logged `T-121` for a local-only `tests/unit/test_main.py` runner interruption that still needs separate investigation. |
+| Work | Completed `T-122` for `projects/hanwoo-dashboard`: auth enforcement now happens at the real server boundaries (`requireAuthenticatedSession()` on the dashboard page, diagnostics page, subscription page, payment APIs, and all exported server actions), the proxy now delegates to `Auth.js` session authorization instead of checking cookie presence, and the payment flow now uses a server-prepared order plus a transactional confirm step that upserts both `PaymentLog` and `Subscription`. Cleaned the broken subscription/diagnostics/success UI strings after the refactor. Local verification: `npm run lint` (warning-only existing font notice) and `npm run build` both pass. |
 
 ## Relay Update
 
@@ -46,6 +46,9 @@
 - Targeted reruns on `2026-04-01` no longer reproduce the old `T-116` root blocker in the current dirty worktree: `workspace/tests/test_shorts_manager_helpers.py`, `workspace/tests/test_topic_auto_generator.py`, and `workspace/tests/test_vibe_debt_auditor.py` now pass together locally. The next full shared QC should confirm whether the blocker is fully gone or was already fixed by parallel worktree changes.
 - `T-119` is now closed on `2026-04-01`: `projects/blind-to-x/pipeline/draft_cache.py` uses `busy_timeout` plus a best-effort WAL checkpoint, `test_cost_tracker_uses_persisted_daily_totals` passes, and the previously failing draft-cache regression plus the verified blind unit slices pass sequentially.
 - A new local-only follow-up `T-121` was logged on `2026-04-01`: `projects/blind-to-x/tests/unit/test_main.py` still hits a `KeyboardInterrupt` / runner interruption under this terminal wrapper, even though nearby blind unit slices are green. Treat it as a verification-harness issue until proven otherwise.
+- `projects/hanwoo-dashboard` now enforces server-side auth on `src/app/page.js`, `src/app/admin/diagnostics/page.js`, `src/app/subscription/page.js`, all exported server actions in `src/lib/actions.js`, and the payment APIs. `src/proxy.js` now re-exports `auth` as the Next.js 16 proxy surface so access decisions come from `Auth.js` sessions rather than raw cookie presence.
+- `projects/hanwoo-dashboard` subscription checkout now uses a server-prepared order (`src/app/api/payments/prepare/route.js`) and a transactional confirm path (`src/app/api/payments/confirm/route.js`) that binds `orderId` ownership to the authenticated user via `customerKey`, validates the premium amount, verifies Toss confirmation, and upserts `PaymentLog` plus `Subscription`.
+- Latest `hanwoo-dashboard` verification on `2026-04-01`: `npm run lint` passes with only the pre-existing `@next/next/no-page-custom-font` warning in `src/app/layout.js`, and `npm run build` passes after the auth/payment hardening.
 - The former shared QC blocker from `2026-04-01` is still tracked as `T-116`, but the targeted rerun is green in the current dirty worktree. Treat the old collection/import-pollution diagnosis as historical context until the next full shared QC confirms whether any blocker remains.
 - Latest VibeDebt rerun on `2026-04-01` nudged overall TDR to **39.08%** with project split `workspace 29.25% / blind-to-x 48.06% / shorts-maker-v2 38.24%`.
 - `.github/workflows/full-test-matrix.yml` and `.github/workflows/root-quality-gate.yml` now match the live repo layout on `2026-04-01`: workspace validation runs from `workspace/`, Python project jobs run from `projects/blind-to-x` and `projects/shorts-maker-v2`, and frontend jobs target `projects/hanwoo-dashboard` plus `projects/knowledge-dashboard`.
@@ -130,10 +133,10 @@
 ## Next Priorities
 
 1. Confirm `T-116` with the next full shared QC: the targeted root rerun is green in the current dirty worktree, but the shared baseline still needs one fresh end-to-end confirmation.
-2. Fix `T-120` (`fastapi` missing): `test_auto_schedule_paths.py::test_n8n_bridge_defaults_use_canonical_paths` still breaks on `ModuleNotFoundError`.
-3. Investigate `T-121`: determine whether the local `projects/blind-to-x/tests/unit/test_main.py` `KeyboardInterrupt` is a harness-only artifact or a real `main.py` problem.
-4. Continue `T-100`: `blind-to-x` is still **71%**. Next candidates are the remaining lower-coverage modules (`analytics_tracker.py` sync metrics, scraper modules) or a `shorts-maker-v2` coverage uplift.
-5. Tackle `T-115`: reduce workspace TDR further. Current hotspots are `code_improver.py` (**46.2**), `workers.py` (**37.7**), and `result_tracker_db.py` (**37.4**).
+2. Start `T-123`: move `projects/knowledge-dashboard` away from public `public/*.json` exposure and toward authenticated server/API delivery for dashboard + QA/QC data.
+3. Start `T-124`: add frontend smoke coverage for `hanwoo-dashboard` and `knowledge-dashboard` so CI validates auth/payment/dashboard flows instead of only `lint` + `build`.
+4. Fix `T-120` (`fastapi` missing): `test_auto_schedule_paths.py::test_n8n_bridge_defaults_use_canonical_paths` still breaks on `ModuleNotFoundError`.
+5. Investigate `T-121`: determine whether the local `projects/blind-to-x/tests/unit/test_main.py` `KeyboardInterrupt` is a harness-only artifact or a real `main.py` problem.
 
 ## Notes
 

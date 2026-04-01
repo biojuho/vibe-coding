@@ -121,6 +121,15 @@
 - ADR-019: blind-to-x staged process bridge (2026-03-30, 브리지 제거 완료 2026-03-31)
 -->
 
+## ADR-022: Hanwoo Dashboard auth and payment ownership must be enforced server-side
+
+| Item | Value |
+|------|------|
+| **Date** | 2026-04-01 |
+| **Status** | Accepted |
+| **Decision** | `projects/hanwoo-dashboard` must not rely on cookie-presence checks or client-generated order metadata for trust boundaries. Auth is enforced with `requireAuthenticatedSession()` on server pages/actions/routes plus `Auth.js` proxy authorization, while subscription checkout uses a server-prepared order and a transactional payment-confirm step that upserts both `PaymentLog` and `Subscription`. |
+| **Rationale** | The previous shape allowed logged-in UX without a durable authorization boundary and left payment ownership too loose. Moving trust decisions to server-side session checks and server-issued order data closes the easiest bypass paths and aligns the payment ledger with the subscription state. |
+
 <!--
 ## ADR 템플릿 (복사해서 사용)
 
