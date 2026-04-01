@@ -1,5 +1,46 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-04-01 | Codex | T-118 active-project CI modernization + shorts-maker-v2 test stabilization
+
+### Work Summary
+
+Restored the shared GitHub Actions workflows so they validate the live repo layout instead of stale top-level paths.
+
+- Rewrote `.github/workflows/full-test-matrix.yml` to run a focused workspace control-plane gate, Python jobs from `projects/blind-to-x` and `projects/shorts-maker-v2`, and frontend jobs from `projects/hanwoo-dashboard` and `projects/knowledge-dashboard`.
+- Rewrote `.github/workflows/root-quality-gate.yml` to use the real `workspace/` scripts/tests and a narrowed ruff target that reflects the validated control-plane files.
+- Fixed `projects/shorts-maker-v2/src/shorts_maker_v2/render/audio_postprocess.py` so pydub is resolved lazily, remains patchable in tests, and uses a stable compression formula.
+- Fixed the root bridge package `projects/shorts-maker-v2/shorts_maker_v2/__init__.py` so `run_cli` lazy export matches the src package.
+- Batched local verification showed the workspace control-plane passing and `shorts-maker-v2` green after the fixes.
+- The restored CI also exposed two pre-existing `blind-to-x` unit failures, now logged as `T-119`.
+
+### Changed Files
+
+| File | Change Type | Notes |
+|------|-------------|-------|
+| `.github/workflows/full-test-matrix.yml` | update | Repointed CI to `workspace/` and `projects/*`, refreshed install/test jobs |
+| `.github/workflows/root-quality-gate.yml` | update | Repointed root gate to real workspace scripts/tests and narrowed ruff scope |
+| `projects/shorts-maker-v2/src/shorts_maker_v2/render/audio_postprocess.py` | fix | Lazy pydub resolution, test-patch compatibility, stable compression math |
+| `projects/shorts-maker-v2/shorts_maker_v2/__init__.py` | fix | Mirrored lazy `run_cli` export in the bridge package |
+| `.ai/HANDOFF.md` | update | Added CI modernization relay and new follow-up note |
+| `.ai/TASKS.md` | update | Added `T-118` done + `T-119` todo |
+| `.ai/SESSION_LOG.md` | update | This entry |
+
+### Verification Results
+
+- `venv\Scripts\python.exe -m ruff check workspace/scripts/check_mapping.py workspace/execution/governance_checks.py workspace/execution/health_check.py workspace/execution/qaqc_runner.py workspace/execution/qaqc_history_db.py workspace/tests/test_governance_checks.py workspace/tests/test_doctor.py workspace/tests/test_health_check.py workspace/tests/test_qaqc_runner.py workspace/tests/test_qaqc_runner_extended.py workspace/tests/test_mcp_config.py` -> **All checks passed**
+- `venv\Scripts\python.exe -m pytest workspace/tests/test_governance_checks.py workspace/tests/test_doctor.py workspace/tests/test_health_check.py workspace/tests/test_qaqc_runner.py workspace/tests/test_qaqc_runner_extended.py workspace/tests/test_mcp_config.py -q -o addopts=` -> **79 passed**
+- `..\..\venv\Scripts\python.exe -m pytest tests/unit/test_audio_postprocess.py -q --tb=short --maxfail=1 -o addopts=` (`projects/shorts-maker-v2`) -> **41 passed**
+- Batched `..\..\venv\Scripts\python.exe -m pytest ... -q --tb=short --maxfail=1 -o addopts=` runs across the rest of `projects/shorts-maker-v2/tests/unit` and `tests/integration` -> **all passed locally**
+- Batched `..\..\venv\Scripts\python.exe -m pytest ... -q --tb=short --maxfail=1 -o addopts=` runs across `projects/blind-to-x/tests/unit` exposed `test_cost_tracker_uses_persisted_daily_totals` and `TestDraftGeneratorCache::test_second_call_uses_cache` as pre-existing failures
+
+### Notes For Next Agent
+
+- `shorts-maker-v2` has both a repo-root namespace bridge package and the real `src/shorts_maker_v2` package; tests import the bridge first, so package-level exports must stay aligned.
+- The long foreground pytest wrapper on this machine still tends to time out around the 2-minute mark; use batched test slices for local verification even though GitHub Actions itself is not subject to that local wrapper.
+- `blind-to-x` remains dirty/mid-merge; do not auto-fix the newly surfaced regressions unless the user explicitly wants that slice next.
+
+---
+
 ## 2026-04-01 | Antigravity (Gemini) | blind-to-x 내부 로직 개편 QA/QC ✅ APPROVED (T-117)
 
 ### Work Summary

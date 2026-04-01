@@ -2,7 +2,19 @@
 
 > See `SESSION_LOG.md` for session-by-session detail and `DECISIONS.md` for settled architecture decisions.
 
+## Relay Update
+
+| Date | 2026-04-01 |
+| Tool | Codex |
+| Work | Completed **T-118 active-project CI/workflow modernization** for the current repo layout. Updated `.github/workflows/full-test-matrix.yml` and `.github/workflows/root-quality-gate.yml` to target `workspace/` plus active projects under `projects/`, narrowed the workspace ruff gate to the actual control-plane files, fixed `projects/shorts-maker-v2/src/shorts_maker_v2/render/audio_postprocess.py` so pydub stays lazy and test-patchable, and mirrored lazy `run_cli` export in `projects/shorts-maker-v2/shorts_maker_v2/__init__.py`. Batched local verification passed for the workspace control-plane and `shorts-maker-v2`, and also exposed pre-existing `blind-to-x` unit failures now tracked as `T-119`. |
+
 ## Last Session
+
+| Date | 2026-04-01 |
+| Tool | Antigravity (Gemini) |
+| Work | **blind-to-x 내부 로직 개편 QA/QC 완료 (T-117) ✅ APPROVED** — QA 2건 추가 수정: ① `runtime.py`의 `spec_from_file_location()` None 반환 방어 코드 추가 (AttributeError 예방). ② `draft_generator.py`의 모듈 수준 `@property` dead code(동작하지 않는 코드) → 단순 모듈 참조 별칭으로 교체. 회귀 검증 38 passed / 0 failed (exit code 0), ruff All checks passed. 리팩토링 최종 산출물: Phase 1 (`_sync_runtime_overrides` 제거 + `BLIND_DEBUG_DB_PATH` 환경변수 기반 로드), Phase 2 (`_ProxyModule` + `sys.modules` 교체 삭제), Phase 3 (`filter_profile_stage.py` 5개 함수 분해), Phase 4 (`generate_review_stage.py` warning 격상 + `components_loaded` 추적), tests/conftest.py monkeypatch 타겟 이전. |
+
+### Previous Note
 
 | Date | 2026-04-01 |
 | Tool | Codex |
@@ -27,6 +39,9 @@
 - Shared workspace QC latest rerun on `2026-04-01` is **`CONDITIONALLY_APPROVED`**: `blind-to-x 873 passed / 9 skipped`, `shorts-maker-v2 1270 passed / 12 skipped`, `root 25 passed / 2 errors / 1 skipped`, total `2168 passed / 0 failed / 2 errors / 22 skipped`, `AST 20/20`, security `CLEAR (2 triaged issue(s))`, governance `CLEAR`, infrastructure `6/6 Ready`, disk `137.0 GB free`.
 - The only active shared QC blocker from `2026-04-01` is in `workspace/tests`: `test_shorts_manager_helpers.py` installs a fake `path_contract` module into `sys.modules` during collection without `REPO_ROOT` / `TMP_ROOT`, so later imports fail in `test_topic_auto_generator.py` and `test_vibe_debt_auditor.py`. This is tracked as `T-116`.
 - Latest VibeDebt rerun on `2026-04-01` nudged overall TDR to **39.08%** with project split `workspace 29.25% / blind-to-x 48.06% / shorts-maker-v2 38.24%`.
+- `.github/workflows/full-test-matrix.yml` and `.github/workflows/root-quality-gate.yml` now match the live repo layout on `2026-04-01`: workspace validation runs from `workspace/`, Python project jobs run from `projects/blind-to-x` and `projects/shorts-maker-v2`, and frontend jobs target `projects/hanwoo-dashboard` plus `projects/knowledge-dashboard`.
+- `projects/shorts-maker-v2` still has a dual package shape on `2026-04-01`: the repo-root `shorts_maker_v2/` package is a namespace bridge in front of `src/shorts_maker_v2/`. Tests import the bridge first, so package-level entrypoints such as `run_cli` must be mirrored there, not only in `src/`.
+- CI modernization surfaced two pre-existing `blind-to-x` unit regressions on `2026-04-01`: `tests/unit/test_cost_controls.py::test_cost_tracker_uses_persisted_daily_totals` currently leaves `tracker.current_cost == 0.0`, and `tests/unit/test_optimizations.py::TestDraftGeneratorCache::test_second_call_uses_cache` currently makes an extra uncached call. Track these under `T-119`.
 - `projects/blind-to-x` project-only coverage rerun on `2026-03-31` now reports **`701 passed / 16 skipped / 71% coverage`** after the latest `T-100` uplift. New test files: `test_image_generator.py` (45 tests), `test_image_upload.py` (30 tests), `test_analytics_tracker.py` (20 tests), `test_draft_analytics.py` (7 tests). Module coverage: `draft_analytics.py` **100%**, `image_upload.py` **89%**, `image_generator.py` **77%**, `analytics_tracker.py` **59%**.
 - The 2 triaged security findings from the latest shared QC are both known false positives in `projects/blind-to-x/pipeline/cost_db.py` because the interpolated `table` names come only from the internal `_ARCHIVE_TABLES` allowlist.
 - `workspace/execution/governance_checks.py` is now part of the shared control plane on `2026-03-31`: it validates required `.ai` context files, targeted relay claims against live code, directive/INDEX ownership drift, and tracked audit follow-up linkage to `.ai/TASKS.md`.
@@ -78,6 +93,11 @@
 - `venv\Scripts\python.exe -m compileall workspace\execution\repo_map.py workspace\execution\context_selector.py workspace\execution\graph_engine.py` -> **pass**
 - `venv\Scripts\python.exe -X utf8 -m pytest workspace\tests\test_governance_checks.py workspace\tests\test_health_check.py workspace\tests\test_qaqc_runner.py workspace\tests\test_qaqc_runner_extended.py -q -o addopts=` -> **74 passed**
 - `..\..\venv\Scripts\python.exe -m pytest tests\integration\test_golden_render.py -q -o addopts=` (`projects/shorts-maker-v2`) -> **2 passed, 2 warnings** in about **2m17s**
+- `venv\Scripts\python.exe -m ruff check workspace/scripts/check_mapping.py workspace/execution/governance_checks.py workspace/execution/health_check.py workspace/execution/qaqc_runner.py workspace/execution/qaqc_history_db.py workspace/tests/test_governance_checks.py workspace/tests/test_doctor.py workspace/tests/test_health_check.py workspace/tests/test_qaqc_runner.py workspace/tests/test_qaqc_runner_extended.py workspace/tests/test_mcp_config.py` -> **All checks passed**
+- `venv\Scripts\python.exe -m pytest workspace/tests/test_governance_checks.py workspace/tests/test_doctor.py workspace/tests/test_health_check.py workspace/tests/test_qaqc_runner.py workspace/tests/test_qaqc_runner_extended.py workspace/tests/test_mcp_config.py -q -o addopts=` -> **79 passed**
+- `..\..\venv\Scripts\python.exe -m pytest tests/unit/test_audio_postprocess.py -q --tb=short --maxfail=1 -o addopts=` (`projects/shorts-maker-v2`) -> **41 passed**
+- Batched `..\..\venv\Scripts\python.exe -m pytest ... -q --tb=short --maxfail=1 -o addopts=` runs across the remaining `projects/shorts-maker-v2/tests/unit` and `tests/integration` files -> **all passing locally after the `audio_postprocess.py` and bridge-package fixes**
+- Batched `..\..\venv\Scripts\python.exe -m pytest ... -q --tb=short --maxfail=1 -o addopts=` runs across `projects/blind-to-x/tests/unit` exposed two pre-existing failures: `tests/unit/test_cost_controls.py::test_cost_tracker_uses_persisted_daily_totals` and `tests/unit/test_optimizations.py::TestDraftGeneratorCache::test_second_call_uses_cache`
 - `python -X utf8 -m pytest workspace\tests\test_mcp_config.py -q -o addopts=` -> **2 passed**
 - `powershell -ExecutionPolicy Bypass -File workspace\scripts\mcp_toggle.ps1 -Action Status` -> guard now reports overlapping AI tool clients and Tier 3 MCP status in one view
 - `venv\Scripts\python.exe workspace\execution\qaqc_runner.py -o .tmp/qaqc_system_check_2026-03-31.json` -> **`APPROVED`** / `2915 passed / 0 failed / 0 errors / 29 skipped`
@@ -90,11 +110,15 @@
 
 ## Next Priorities
 
-1. Fix `T-116` first: shared QC is blocked by `workspace/tests/test_shorts_manager_helpers.py` polluting `sys.modules["path_contract"]` during collection. Until that is fixed, the shared verdict will stay below `APPROVED`.
-2. Continue `T-100`: `blind-to-x` is now at **71%** (from 59.89%). Next candidates: remaining low-coverage modules (`analytics_tracker.py` sync_metrics path, scraper modules) or pivot to `shorts-maker-v2` coverage uplift.
-3. Tackle `T-115`: continue workspace TDR reduction after the corrected test-gap heuristic. Current workspace hotspots are `workspace/execution/code_improver.py` (**46.2**), `workspace/execution/workers.py` (**37.7**), and `workspace/execution/result_tracker_db.py` (**37.4**).
-4. Continue trimming planning/backlog drift: large roadmap/audit directives should either map to active task IDs or stay clearly marked as reference-only so agents do not scan strategy docs as if they were execution queues.
-5. If the user wants a richer PR lane later, build it on top of `pr_triage_orchestrator.py` as the read-only/local-first entrypoint; keep GitHub write actions as a separately approved extension rather than bundling them into the baseline helper.
+1. Fix `T-116` first so the shared root QC can return from `CONDITIONALLY_APPROVED` to a clean baseline.
+2. Tackle new `T-119`: repair the latent `blind-to-x` unit failures now exposed by the restored active-project CI (`test_cost_tracker_uses_persisted_daily_totals`, `TestDraftGeneratorCache::test_second_call_uses_cache`).
+3. Continue `T-100`: `blind-to-x` coverage is **71%** but still has follow-up room in analytics/scraper-heavy paths; `shorts-maker-v2` test execution is healthy after the bridge/import fixes.
+4. Tackle `T-115`: keep reducing workspace TDR in `code_improver.py`, `workers.py`, and `result_tracker_db.py`.
+
+1. Fix `T-116` first: shared QC는 `workspace/tests/test_shorts_manager_helpers.py`의 `sys.modules["path_contract"]` 오염이 해결될 때까지 `CONDITIONALLY_APPROVED` 유지.
+2. Continue `T-100`: `blind-to-x`는 **71%** (구 59.89%). 다음 후보: 잔여 저커버리지 모듈 (`analytics_tracker.py` sync_metrics 경로, 스크래퍼 모듈) 또는 `shorts-maker-v2` 커버리지 업리프트로 피벗.
+3. Tackle `T-115`: workspace TDR 감소 계속. 현 워크스페이스 핫스팟: `code_improver.py` (**46.2**), `workers.py` (**37.7**), `result_tracker_db.py` (**37.4**).
+4. `asyncio.ensure_future` screenshot task 누수 (blind-to-x 내) — 이번 개편 범위 외로 남겨둔 항목. 별도 T-번호 발급 후 처리 권장.
 
 ## Notes
 
