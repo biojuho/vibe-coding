@@ -18,11 +18,11 @@
 
 | ID    | Task                                                                                                                                                                                                                                                                                                  | Completed By | Completed  |
 |-------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------|------------|
+| T-126 | Upgraded `knowledge-dashboard` analytics visualizations and insight logic to Pro-level UX with Recharts custom tooltips, robust long-tail language handling, robust division-by-zero checks, and passed `/qa-qc` pipeline. | Antigravity | 2026-04-02 |
 | T-124 | Add frontend smoke coverage for `projects/hanwoo-dashboard` and `projects/knowledge-dashboard` so CI validates auth, payment, and dashboard flows instead of only `lint` and `build`. | Codex | 2026-04-02 |
 | T-123 | Closed the `knowledge-dashboard` data exposure follow-up: dashboard and QA/QC payloads now come from internal `data/*.json` through authenticated API routes, the sync script uses repo-relative paths, and the internal payloads are gitignored instead of being served from `public/`. | Codex | 2026-04-02 |
 | T-116 | Closed the stale root QC blocker follow-up after confirming the later full shared QA/QC baseline is already `APPROVED`; the old `path_contract` import-pollution issue is now historical context, not an active blocker. | Codex | 2026-04-02 |
 | T-125 | Batch 1 debt remediation completed: SQLite `RLock` swaps, silent-failure logging, tighter coverage floors, safer dependency caps, and frontend `tsc --noEmit` CI coverage. | Claude | 2026-04-02 |
-| T-122 | Hardened `projects/hanwoo-dashboard` auth and payment boundaries: real server-side auth guards now protect dashboard/actions/payment routes, the proxy delegates to `Auth.js` session authorization, checkout uses a server-prepared order, and payment confirm transactionally upserts `PaymentLog` plus `Subscription`. | Codex | 2026-04-01 |
 
 ## Rules
 
