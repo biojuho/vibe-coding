@@ -1,5 +1,25 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-04-02 | Codex | T-129 design package
+
+### Work Summary
+
+Converted the earlier scale review into an implementation-ready design package for `projects/hanwoo-dashboard`.
+
+1. Created `docs/designs/2026-04-02-hanwoo-dashboard-scale-hardening-design.md`.
+2. Documented the chosen architecture: Redis cache, BullMQ worker, read models, paginated dashboard APIs, and route-level client splitting.
+3. Added concrete Redis keys, invalidation rules, queue job types, Prisma model draft, SQL index draft, and a day-by-day week-1 rollout.
+4. Moved `T-129` into `IN_PROGRESS` with the next step clearly defined as live index verification plus migration drafting.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `docs/designs/2026-04-02-hanwoo-dashboard-scale-hardening-design.md` | Added the implementation-ready scale-hardening design package |
+| `.ai/HANDOFF.md` | Updated relay notes with the design doc and next implementation step |
+| `.ai/TASKS.md` | Moved `T-129` to `IN_PROGRESS` |
+| `.ai/SESSION_LOG.md` | Logged this design-packaging session |
+
 ## 2026-04-02 | Codex | 100x scale architecture review
 
 ### Work Summary

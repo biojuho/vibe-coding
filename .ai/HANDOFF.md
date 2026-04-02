@@ -6,7 +6,7 @@
 
 | Date | 2026-04-02 |
 | Tool | Codex |
-| Work | **100x scale review for `hanwoo-dashboard` / `knowledge-dashboard`.** No product files changed. Main risks identified: (1) full-table dashboard reads plus broad `router.refresh()` invalidation, (2) synchronous write/read paths without queue-backed side-effect isolation, (3) monolithic client dashboard and large emitted JS chunks. Follow-up task `T-129` added for scale hardening. |
+| Work | **`T-129` design package created for `hanwoo-dashboard` 100x scale hardening.** Added `docs/designs/2026-04-02-hanwoo-dashboard-scale-hardening-design.md` with week-1 rollout, cache keys, read-model design, queue adoption plan, and Prisma/SQL migration draft. `T-129` is now in progress; next implementation step is live index verification plus migration drafting. |
 
 ## Previous Update
 
@@ -42,6 +42,7 @@
 - `projects/knowledge-dashboard/src/app/page.tsx` validates authenticated route payload shapes before calling `setData`, keeps QA/QC payload failures non-fatal, and renders a dedicated load-error state for non-auth failures.
 - `projects/knowledge-dashboard` now has local node tests for `src/lib/dashboard-insights.ts`, and the project smoke script verifies unauthorized requests plus session-cookie success paths against `/api/data/*`.
 - `projects/hanwoo-dashboard` and `projects/knowledge-dashboard` both have project-local runtime smoke scripts exposed as `npm run smoke`, and the frontend matrix job runs that step after build/lint.
+- `docs/designs/2026-04-02-hanwoo-dashboard-scale-hardening-design.md` now captures the actionable `T-129` week-1 scale-hardening plan for `hanwoo-dashboard`.
 - `projects/blind-to-x` still has unrelated user/WIP changes; avoid touching that tree unless the user explicitly redirects the session.
 
 ## Verification Highlights
