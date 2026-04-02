@@ -4,11 +4,10 @@
 
 ## TODO
 
-| ID | Task | Owner | Priority | Created |
-|----|------|-------|----------|---------|
-| T-124 | Add frontend smoke coverage for `projects/hanwoo-dashboard` and `projects/knowledge-dashboard` so CI validates auth, payment, and dashboard flows instead of only `lint` and `build`. | Codex | High | 2026-04-01 |
+| ID    | Task                                                                                                                                                                                                                                 | Owner       | Priority | Created      |
+|-------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------|----------|--------------|
 | T-121 | Investigate the local-only `KeyboardInterrupt` / runner interruption when `projects/blind-to-x/tests/unit/test_main.py` runs under this terminal wrapper, and confirm whether it is a harness artifact or a real `main.py` regression. | Codex | Medium | 2026-04-01 |
-| T-120 | Fix `test_auto_schedule_paths.py::test_n8n_bridge_defaults_use_canonical_paths` failing due to `ModuleNotFoundError: No module named 'fastapi'`; apply `pytest.importorskip("fastapi")` or add `fastapi` to the workspace dev dependencies. | Antigravity | Medium | 2026-04-01 |
+| T-100 | Raise `blind-to-x` coverage to ≥75% (shorts-maker-v2 already at 90% ✅). Current blind-to-x coverage TBD from latest run. | Claude | High | 2026-03-31 |
 
 ## IN_PROGRESS
 
@@ -17,13 +16,13 @@
 
 ## DONE (Latest 5)
 
-| ID | Task | Completed By | Completed |
-|----|------|--------------|-----------|
+| ID    | Task                                                                                                                                                                                                                                                                                                  | Completed By | Completed  |
+|-------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------|------------|
+| T-124 | Add frontend smoke coverage for `projects/hanwoo-dashboard` and `projects/knowledge-dashboard` so CI validates auth, payment, and dashboard flows instead of only `lint` and `build`. | Codex | 2026-04-02 |
 | T-123 | Closed the `knowledge-dashboard` data exposure follow-up: dashboard and QA/QC payloads now come from internal `data/*.json` through authenticated API routes, the sync script uses repo-relative paths, and the internal payloads are gitignored instead of being served from `public/`. | Codex | 2026-04-02 |
 | T-116 | Closed the stale root QC blocker follow-up after confirming the later full shared QA/QC baseline is already `APPROVED`; the old `path_contract` import-pollution issue is now historical context, not an active blocker. | Codex | 2026-04-02 |
 | T-125 | Batch 1 debt remediation completed: SQLite `RLock` swaps, silent-failure logging, tighter coverage floors, safer dependency caps, and frontend `tsc --noEmit` CI coverage. | Claude | 2026-04-02 |
 | T-122 | Hardened `projects/hanwoo-dashboard` auth and payment boundaries: real server-side auth guards now protect dashboard/actions/payment routes, the proxy delegates to `Auth.js` session authorization, checkout uses a server-prepared order, and payment confirm transactionally upserts `PaymentLog` plus `Subscription`. | Codex | 2026-04-01 |
-| T-119 | Closed the latent `blind-to-x` CI regression follow-up: `test_cost_tracker_uses_persisted_daily_totals` now passes in the current worktree, `DraftCache` now uses `busy_timeout` plus a best-effort WAL checkpoint for deterministic fresh-connection reads, and the previously failing cache test / verified blind unit slices pass sequentially. | Codex | 2026-04-01 |
 
 ## Rules
 
