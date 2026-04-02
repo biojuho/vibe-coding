@@ -1,5 +1,28 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-04-02 | Codex | knowledge-dashboard analytics action playbook
+
+### Work Summary
+
+Pushed the same analytics upgrade one step further so the dashboard now recommends what to do next instead of only visualizing the current state.
+
+1. Expanded `src/lib/dashboard-insights.ts` to derive a weighted health score plus recommended actions from diversity, concentration, coverage, and source-depth signals.
+2. Rebuilt `src/components/DashboardCharts.tsx` around that richer model so the page now shows KPI cards, recommendation playbooks, and more resilient empty states in one flow.
+3. Kept the search-aware analytics path intact so the recommendations stay aligned with the currently visible slice rather than the full dataset.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `projects/knowledge-dashboard/src/lib/dashboard-insights.ts` | Added health scoring and recommendation generation |
+| `projects/knowledge-dashboard/src/components/DashboardCharts.tsx` | Added action playbook UI on top of the chart analytics |
+| `.ai/HANDOFF.md`, `.ai/CONTEXT.md`, `.ai/STATUS.md` | Synced the new dashboard recommendation state |
+
+### Verification Results
+
+- `npm run lint` (`projects/knowledge-dashboard`) -> **pass**
+- `npm run build` (`projects/knowledge-dashboard`) -> **pass**
+
 ## 2026-04-02 | Codex | knowledge-dashboard analytics insight engine
 
 ### Work Summary

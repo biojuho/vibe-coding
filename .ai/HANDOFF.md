@@ -6,7 +6,7 @@
 
 | Date | 2026-04-02 |
 | Tool | Codex |
-| Work | Upgraded `projects/knowledge-dashboard` analytics toward a more Pro-grade dashboard experience. `src/lib/dashboard-insights.ts` now centralizes search-aware portfolio metrics, language concentration checks, documentation density scoring, and edge-case-safe chart shaping; `src/components/DashboardCharts.tsx` was rebuilt around those insights with richer stat cards and explanatory badges; and `src/app/page.tsx` now feeds charts from deferred filtered results instead of the full dataset. |
+| Work | Upgraded `projects/knowledge-dashboard` analytics again toward a more Pro-grade dashboard experience. `src/lib/dashboard-insights.ts` now computes search-aware health scores plus recommended actions in addition to diversity and coverage metrics, and `src/components/DashboardCharts.tsx` now renders a recommendation playbook so the dashboard moves from passive charts to actionable next steps. |
 
 ## Recent Completed
 
@@ -21,7 +21,7 @@
 - `projects/knowledge-dashboard` now serves internal dashboard + QA/QC data from `data/*.json` through authenticated route handlers under `src/app/api/data/*`.
 - `projects/knowledge-dashboard/public/dashboard_data.json` and `projects/knowledge-dashboard/public/qaqc_result.json` are removed from the delivery path.
 - `projects/knowledge-dashboard/scripts/sync_data.py` now resolves repo-relative paths for `data/`, `.ai/SESSION_LOG.md`, and `workspace/execution/qaqc_history_db.py`.
-- `projects/knowledge-dashboard` analytics now run through `src/lib/dashboard-insights.ts`, which buckets sparse/missing language metadata, computes diversity and coverage metrics, and produces insight badges for the chart UI.
+- `projects/knowledge-dashboard` analytics now run through `src/lib/dashboard-insights.ts`, which buckets sparse/missing language metadata, computes diversity and coverage metrics, derives a weighted health score, and emits recommendation cards for the chart UI.
 - `projects/hanwoo-dashboard` and `projects/knowledge-dashboard` now both have project-local runtime smoke scripts exposed as `npm run smoke`, and the frontend matrix job runs that step after build/lint.
 - `projects/blind-to-x` still has unrelated user/WIP changes; avoid touching that tree unless the user explicitly redirects the session.
 
