@@ -8,10 +8,13 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import logging
 import shutil
 import threading
 import time
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 class MediaCache:
@@ -66,8 +69,8 @@ class MediaCache:
                     mtime = f.stat().st_mtime
                     if now - mtime > ttl_sec:
                         f.unlink(missing_ok=True)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("[MediaCache] TTL 정리 중 파일 접근 실패 (%s): %s", f.name, exc)
 
     def _enforce_max_size(self) -> None:
         """max_size_mb 초과 시 가장 오래된 파일부터 삭제 (LRU 근사)."""
@@ -82,8 +85,8 @@ class MediaCache:
                     stat = f.stat()
                     files.append((f, stat.st_mtime, stat.st_size))
                     total_size += stat.st_size
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("[MediaCache] 파일 stat 실패 (%s): %s", f.name, exc)
 
         max_bytes = self.max_size_mb * 1024 * 1024
         if total_size <= max_bytes:
@@ -98,8 +101,8 @@ class MediaCache:
                 total_size -= size
                 if total_size <= max_bytes:
                     break
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("[MediaCache] 캐시 파일 삭제 실패 (%s): %s", f.name, exc)
 
     @staticmethod
     def _hash_prompt(prompt: str) -> str:

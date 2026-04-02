@@ -104,8 +104,8 @@ class RenderAudioMixin:
                 mood = str(result.get("mood", "")).strip().lower()
                 if mood in ("dramatic", "upbeat", "calm"):
                     return mood
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("[RenderAudio] LLMRouter mood 분류 실패 (OpenAI fallback 시도): %s", exc)
 
         # 2차 폴백: OpenAI 직접 (llm_router 없을 때)
         if openai_client:
@@ -119,8 +119,8 @@ class RenderAudioMixin:
                 mood = str(result.get("mood", "")).strip().lower()
                 if mood in ("dramatic", "upbeat", "calm"):
                     return mood
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("[RenderAudio] OpenAI mood 분류 실패 (키워드 fallback 사용): %s", exc)
 
         return None
 

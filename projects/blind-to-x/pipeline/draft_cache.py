@@ -23,7 +23,7 @@ class DraftCache:
         self.db_path = Path(db_path) if db_path else _DEFAULT_DB_PATH
         self.ttl_hours = ttl_hours
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._init_db()
 
     @contextmanager
@@ -33,9 +33,16 @@ class DraftCache:
             conn.row_factory = sqlite3.Row
             conn.execute("PRAGMA journal_mode=WAL")
             conn.execute("PRAGMA synchronous=NORMAL")
+            conn.execute("PRAGMA busy_timeout=5000")
             try:
                 yield conn
                 conn.commit()
+                try:
+                    # Flush recent WAL writes so follow-up reads from fresh
+                    # connections can see cache entries deterministically.
+                    conn.execute("PRAGMA wal_checkpoint(FULL)")
+                except sqlite3.DatabaseError:
+                    pass
             except Exception:
                 conn.rollback()
                 raise

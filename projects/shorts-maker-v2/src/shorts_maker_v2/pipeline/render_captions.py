@@ -61,8 +61,8 @@ class RenderCaptionsMixin:
                         role="hook",
                         output_path=output_path,
                     )
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("[RenderCaptions] 그라디언트 텍스트 실패 (glow fallback 사용): %s", exc)
                 # 폴백: 글로우 자막
                 return engine.render_subtitle_with_glow(
                     text,

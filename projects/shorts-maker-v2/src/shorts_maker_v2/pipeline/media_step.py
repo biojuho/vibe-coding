@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import random
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -20,6 +21,8 @@ from shorts_maker_v2.providers.pexels_client import PexelsClient
 from shorts_maker_v2.utils.cost_guard import CostGuard
 from shorts_maker_v2.utils.media_cache import MediaCache
 from shorts_maker_v2.utils.retry import retry_with_backoff
+
+logger = logging.getLogger(__name__)
 
 
 class MediaStep:
@@ -78,8 +81,8 @@ class MediaStep:
             audio = MP3(str(audio_path))
             if audio.info and audio.info.length > 0:
                 return float(audio.info.length)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("[MediaStep] MP3 duration 파싱 실패 (fallback 사용): %s", exc)
         return float(fallback_sec)
 
     def _generate_audio(self, narration_ko: str, output_path: Path, *, role: str = "body") -> Path:
@@ -142,8 +145,8 @@ class MediaStep:
                 words = self.openai_client.transcribe_audio(audio_result)
                 words_json_path = audio_result.parent / f"{audio_result.stem}_words.json"
                 words_json_path.write_text(json.dumps(words, ensure_ascii=False, indent=2), encoding="utf-8")
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("[MediaStep] Whisper sync 실패 (자막 동기화 스킵): %s", exc)
 
         return audio_result
 
@@ -415,6 +418,178 @@ class MediaStep:
             else scene.visual_prompt_en
         )
 
+    def _try_video_primary(
+        self,
+        visual_prompt: str,
+        duration_sec: float,
+        video_dir: Path,
+        scene_name: str,
+        cost_guard: CostGuard,
+        logger: Any,
+        scene_id: int,
+    ) -> tuple[str, str] | None:
+        """google-veo 비디오 생성 시도. 성공 시 (path, "video"), 실패/불가 시 None."""
+        if self.config.providers.visual_primary != "google-veo":
+            return None
+
+        if not cost_guard.can_use_video(duration_sec):
+            self._log(
+                logger,
+                "warning",
+                "video_downgraded_by_cost",
+                scene_id=scene_id,
+                estimated_cost_usd=cost_guard.estimated_cost_usd,
+                max_cost_usd=cost_guard.max_cost_usd,
+            )
+            return None
+
+        try:
+            path = retry_with_backoff(
+                lambda p=visual_prompt, vp=video_dir / f"{scene_name}.mp4": self._generate_video(p, duration_sec, vp),
+                max_attempts=self.config.limits.max_retries,
+                base_delay_sec=2.0,
+            )
+            cost_guard.add_video_cost(duration_sec)
+            return str(path), "video"
+        except Exception as exc:
+            self._log(logger, "warning", "video_failed_fallback_to_image", scene_id=scene_id, error=str(exc))
+            return None
+
+    def _try_stock_video(
+        self,
+        visual_prompt: str,
+        video_dir: Path,
+        scene_name: str,
+        cost_guard: CostGuard,
+        logger: Any,
+        scene_id: int,
+        *,
+        suffix: str = "_stock",
+        max_attempts: int = 2,
+    ) -> tuple[str, str] | None:
+        """Pexels 스톡 비디오 시도. 성공 시 (path, "video"), 실패/불가 시 None."""
+        if not self.pexels_client:
+            return None
+        try:
+            stock_path = video_dir / f"{scene_name}{suffix}.mp4"
+            path = retry_with_backoff(
+                lambda p=visual_prompt, sp=stock_path: self._generate_stock_video(p, sp),
+                max_attempts=max_attempts,
+                base_delay_sec=1.0,
+            )
+            cost_guard.add_stock_cost()
+            return str(path), "video"
+        except Exception as exc:
+            self._log(logger, "warning", "stock_video_failed_fallback_to_image", scene_id=scene_id, error=str(exc))
+            return None
+
+    def _try_image_chain(
+        self,
+        visual_prompt: str,
+        img_path: Path,
+        scene: ScenePlan,
+        cost_guard: CostGuard,
+        logger: Any,
+        use_paid_image: bool,
+    ) -> tuple[Path, bool, list[dict[str, str]]]:
+        """이미지 생성 폴백 체인: imagen3 → gemini → pollinations → dalle → placeholder.
+
+        Returns: (visual_path, image_ready, failures)
+        """
+        failures: list[dict[str, str]] = []
+        visual_path: Path = img_path
+        image_ready = False
+        scene_id = scene.scene_id
+        wants_imagen = self.config.providers.visual_primary == "google-imagen"
+
+        # 1. Imagen 3 (유료, visual_primary=="google-imagen" 시만)
+        if not image_ready and wants_imagen and use_paid_image and self.google_client:
+            try:
+                visual_path = retry_with_backoff(
+                    lambda p=visual_prompt, ip=img_path: self.google_client.generate_image_imagen3(
+                        prompt=p, output_path=ip
+                    ),
+                    max_attempts=self.config.limits.max_retries,
+                    base_delay_sec=1.0,
+                )
+                cost_guard.add_image_cost()
+                image_ready = True
+                self._log(logger, "info", "image_imagen3_success", scene_id=scene_id)
+            except Exception as exc:
+                failures.append({"step": "image_imagen3", "code": type(exc).__name__, "message": str(exc)[:120]})
+                self._log(logger, "warning", "image_imagen3_failed_fallback_to_free", scene_id=scene_id, error=str(exc))
+
+        # 2. Gemini 무료
+        if not image_ready and self.google_client:
+            try:
+                visual_path = retry_with_backoff(
+                    lambda p=visual_prompt, ip=img_path: self.google_client.generate_image(prompt=p, output_path=ip),
+                    max_attempts=self.config.limits.max_retries,
+                    base_delay_sec=1.0,
+                )
+                image_ready = True
+                self._log(logger, "info", "image_gemini_success", scene_id=scene_id)
+            except Exception as exc:
+                failures.append({"step": "image_gemini", "code": type(exc).__name__, "message": str(exc)[:120]})
+                self._log(
+                    logger, "warning", "image_gemini_failed_fallback_to_pollinations", scene_id=scene_id, error=str(exc)
+                )
+
+        # 3. Pollinations FLUX 무료
+        if not image_ready:
+            try:
+                visual_path = retry_with_backoff(
+                    lambda p=visual_prompt, ip=img_path: self._generate_image_pollinations(p, ip),
+                    max_attempts=min(2, self.config.limits.max_retries),
+                    base_delay_sec=1.0,
+                )
+                image_ready = True
+                self._log(logger, "info", "image_pollinations_flux_success", scene_id=scene_id)
+            except Exception as exc:
+                failures.append({"step": "image_pollinations", "code": type(exc).__name__, "message": str(exc)[:120]})
+                self._log(
+                    logger, "warning", "image_pollinations_failed_fallback_to_dalle", scene_id=scene_id, error=str(exc)
+                )
+
+        # 4. DALL-E 유료
+        if not image_ready and use_paid_image:
+            try:
+                visual_path = retry_with_backoff(
+                    lambda p=visual_prompt, ip=img_path: self._generate_image(p, ip),
+                    max_attempts=self.config.limits.max_retries,
+                    base_delay_sec=1.0,
+                )
+                cost_guard.add_image_cost()
+                image_ready = True
+            except BadRequestError as exc:
+                if "content_policy_violation" in str(exc):
+                    self._log(
+                        logger,
+                        "warning",
+                        "image_content_policy_blocked",
+                        scene_id=scene_id,
+                        original_prompt=visual_prompt[:80],
+                    )
+                    failures.append({"step": "image_policy", "code": "ContentPolicy", "message": str(exc)[:120]})
+                    try:
+                        safe_prompt = self._sanitize_visual_prompt(visual_prompt)
+                        self._log(
+                            logger, "info", "image_sanitized_retry", scene_id=scene_id, safe_prompt=safe_prompt[:80]
+                        )
+                        visual_path = self._generate_image(safe_prompt, img_path)
+                        cost_guard.add_image_cost()
+                        image_ready = True
+                    except Exception:
+                        pass
+                else:
+                    failures.append({"step": "image_dalle", "code": type(exc).__name__, "message": str(exc)[:120]})
+            except Exception as exc:
+                failures.append({"step": "image_dalle", "code": type(exc).__name__, "message": str(exc)[:120]})
+        elif not image_ready and not use_paid_image:
+            self._log(logger, "info", "image_paid_skipped_body_scene", scene_id=scene_id)
+
+        return visual_path, image_ready, failures
+
     def _generate_best_image(
         self,
         visual_prompt: str,
@@ -432,188 +607,57 @@ class MediaStep:
         Body 씬에서 비용 절감을 위해 사용합니다.
         """
         failures: list[dict[str, str]] = []
-        visual_type = "image"
-        visual_path: Path = img_path
         scene_name = f"scene_{scene.scene_id:02d}"
 
         # ── 캐시 조회 ──
         cached = self._cache.get(visual_prompt, dest_path=img_path)
         if cached is not None:
             self._log(logger, "info", "image_cache_hit", scene_id=scene.scene_id, cached_path=str(cached))
-            return str(cached), visual_type, failures
+            return str(cached), "image", failures
 
-        wants_video = self.config.providers.visual_primary == "google-veo"
-        video_allowed = wants_video and cost_guard.can_use_video(duration_sec)
+        # ── 1. google-veo 비디오 ──
+        result = self._try_video_primary(
+            visual_prompt, duration_sec, video_dir, scene_name, cost_guard, logger, scene.scene_id
+        )
+        if result:
+            return result[0], result[1], failures
 
-        if wants_video and not video_allowed:
-            self._log(
+        # ── 2. Pexels 스톡 영상 믹싱 (stock_mix_ratio 확률) ──
+        _stock_mix = self.config.video.stock_mix_ratio
+        if self.pexels_client and _stock_mix > 0 and random.random() < _stock_mix:
+            result = self._try_stock_video(visual_prompt, video_dir, scene_name, cost_guard, logger, scene.scene_id)
+            if result:
+                self._log(logger, "info", "stock_video_ready", scene_id=scene.scene_id, mixed=True)
+                return result[0], result[1], failures
+            failures.append({"step": "visual_stock", "code": "StockFailed", "message": "stock video failed"})
+
+        # ── 3. 이미지 체인: imagen3 → gemini → pollinations → dalle ──
+        visual_path, image_ready, img_failures = self._try_image_chain(
+            visual_prompt, img_path, scene, cost_guard, logger, use_paid_image
+        )
+        failures.extend(img_failures)
+
+        # ── 4. 전체 이미지 실패 시 Pexels 스톡 최종 폴백 ──
+        if not image_ready and self.pexels_client:
+            result = self._try_stock_video(
+                visual_prompt,
+                video_dir,
+                scene_name,
+                cost_guard,
                 logger,
-                "warning",
-                "video_downgraded_by_cost",
-                scene_id=scene.scene_id,
-                estimated_cost_usd=cost_guard.estimated_cost_usd,
-                max_cost_usd=cost_guard.max_cost_usd,
+                scene.scene_id,
+                suffix="_policy_fallback",
+                max_attempts=2,
+            )
+            if result:
+                self._log(logger, "info", "stock_fallback_after_policy_block", scene_id=scene.scene_id)
+                self._cache.put(visual_prompt, Path(result[0]))
+                return result[0], result[1], failures
+            failures.append(
+                {"step": "stock_policy_fallback", "code": "StockFailed", "message": "stock fallback failed"}
             )
 
-        if wants_video and video_allowed:
-            try:
-                visual_path = retry_with_backoff(
-                    lambda p=visual_prompt, vp=video_dir / f"{scene_name}.mp4": self._generate_video(
-                        p, duration_sec, vp
-                    ),
-                    max_attempts=self.config.limits.max_retries,
-                    base_delay_sec=2.0,
-                )
-                visual_type = "video"
-                cost_guard.add_video_cost(duration_sec)
-                return str(visual_path), visual_type, failures
-            except Exception as exc:
-                failures.append({"step": "visual_primary", "code": type(exc).__name__, "message": str(exc)})
-                self._log(logger, "warning", "video_failed_fallback_to_image", scene_id=scene.scene_id, error=str(exc))
-
-        # 스톡 영상 믹싱: stock_mix_ratio 확률로만 Pexels 스톡 우선 시도
-        # visual_stock="pexels"는 폴백 활성화 의미이지 무조건 사용이 아님
-        _stock_mix = self.config.video.stock_mix_ratio
-        _try_stock = visual_type == "image" and self.pexels_client and _stock_mix > 0 and random.random() < _stock_mix
-        if _try_stock:
-            stock_path = video_dir / f"{scene_name}_stock.mp4"
-            try:
-                visual_path = retry_with_backoff(
-                    lambda p=visual_prompt, sp=stock_path: self._generate_stock_video(p, sp),
-                    max_attempts=self.config.limits.max_retries,
-                    base_delay_sec=1.0,
-                )
-                visual_type = "video"
-                cost_guard.add_stock_cost()
-                self._log(logger, "info", "stock_video_ready", scene_id=scene.scene_id, mixed=True)
-                return str(visual_path), visual_type, failures
-            except Exception as exc:
-                failures.append({"step": "visual_stock", "code": type(exc).__name__, "message": str(exc)})
-                self._log(
-                    logger, "warning", "stock_video_failed_fallback_to_image", scene_id=scene.scene_id, error=str(exc)
-                )
-
-        # 이미지 생성 폴백 체인
-        # visual_primary == "google-imagen" 이면 Imagen 3(유료) 우선 시도.
-        # visual_primary == "gemini-image" (기본값) 이면 Imagen 스킵, Gemini 무료 직행.
-        # Gemini(무료) → Pollinations FLUX(무료) → DALL-E(유료) → Pexels 스톡 → placeholder 순
-        image_ready = False
-        wants_imagen = self.config.providers.visual_primary == "google-imagen"
-
-        if wants_imagen and use_paid_image and self.google_client:
-            try:
-                visual_path = retry_with_backoff(
-                    lambda p=visual_prompt, ip=img_path: self.google_client.generate_image_imagen3(
-                        prompt=p, output_path=ip
-                    ),
-                    max_attempts=self.config.limits.max_retries,
-                    base_delay_sec=1.0,
-                )
-                cost_guard.add_image_cost()  # Imagen 3 cost ($0.02)
-                image_ready = True
-                self._log(logger, "info", "image_imagen3_success", scene_id=scene.scene_id)
-            except Exception as exc:
-                failures.append({"step": "image_imagen3", "code": type(exc).__name__, "message": str(exc)[:120]})
-                self._log(
-                    logger, "warning", "image_imagen3_failed_fallback_to_free", scene_id=scene.scene_id, error=str(exc)
-                )
-
-        if not image_ready and self.google_client:
-            try:
-                visual_path = retry_with_backoff(
-                    lambda p=visual_prompt, ip=img_path: self.google_client.generate_image(prompt=p, output_path=ip),
-                    max_attempts=self.config.limits.max_retries,
-                    base_delay_sec=1.0,
-                )
-                image_ready = True
-                self._log(logger, "info", "image_gemini_success", scene_id=scene.scene_id)
-            except Exception as exc:
-                failures.append({"step": "image_gemini", "code": type(exc).__name__, "message": str(exc)[:120]})
-                self._log(
-                    logger,
-                    "warning",
-                    "image_gemini_failed_fallback_to_pollinations",
-                    scene_id=scene.scene_id,
-                    error=str(exc),
-                )
-
-        if not image_ready:
-            try:
-                visual_path = retry_with_backoff(
-                    lambda p=visual_prompt, ip=img_path: self._generate_image_pollinations(p, ip),
-                    max_attempts=min(2, self.config.limits.max_retries),
-                    base_delay_sec=1.0,
-                )
-                image_ready = True
-                self._log(logger, "info", "image_pollinations_flux_success", scene_id=scene.scene_id)
-            except Exception as exc:
-                failures.append({"step": "image_pollinations", "code": type(exc).__name__, "message": str(exc)[:120]})
-                self._log(
-                    logger,
-                    "warning",
-                    "image_pollinations_failed_fallback_to_dalle",
-                    scene_id=scene.scene_id,
-                    error=str(exc),
-                )
-
-        if not image_ready and use_paid_image:
-            try:
-                visual_path = retry_with_backoff(
-                    lambda p=visual_prompt, ip=img_path: self._generate_image(p, ip),
-                    max_attempts=self.config.limits.max_retries,
-                    base_delay_sec=1.0,
-                )
-                cost_guard.add_image_cost()  # DALL-E cost
-                image_ready = True
-            except BadRequestError as exc:
-                if "content_policy_violation" in str(exc):
-                    self._log(
-                        logger,
-                        "warning",
-                        "image_content_policy_blocked",
-                        scene_id=scene.scene_id,
-                        original_prompt=visual_prompt[:80],
-                    )
-                    failures.append({"step": "image_policy", "code": "ContentPolicy", "message": str(exc)[:120]})
-                    try:
-                        safe_prompt = self._sanitize_visual_prompt(visual_prompt)
-                        self._log(
-                            logger,
-                            "info",
-                            "image_sanitized_retry",
-                            scene_id=scene.scene_id,
-                            safe_prompt=safe_prompt[:80],
-                        )
-                        visual_path = self._generate_image(safe_prompt, img_path)
-                        cost_guard.add_image_cost()
-                        image_ready = True
-                    except Exception:
-                        pass
-                else:
-                    failures.append({"step": "image_dalle", "code": type(exc).__name__, "message": str(exc)[:120]})
-            except Exception as exc:
-                failures.append({"step": "image_dalle", "code": type(exc).__name__, "message": str(exc)[:120]})
-        elif not image_ready and not use_paid_image:
-            self._log(logger, "info", "image_paid_skipped_body_scene", scene_id=scene.scene_id)
-
-        # content_policy 등 전체 이미지 실패 시 Pexels 스톡 이미지 최종 시도
-        if not image_ready and self.pexels_client:
-            _stock_fallback_path = video_dir / f"{scene_name}_policy_fallback.mp4"
-            try:
-                visual_path = retry_with_backoff(
-                    lambda p=visual_prompt, sp=_stock_fallback_path: self._generate_stock_video(p, sp),
-                    max_attempts=2,
-                    base_delay_sec=1.0,
-                )
-                visual_type = "video"
-                cost_guard.add_stock_cost()
-                image_ready = True
-                self._log(logger, "info", "stock_fallback_after_policy_block", scene_id=scene.scene_id)
-            except Exception as stock_exc:
-                failures.append(
-                    {"step": "stock_policy_fallback", "code": type(stock_exc).__name__, "message": str(stock_exc)[:120]}
-                )
-
+        # ── 5. placeholder ──
         if not image_ready:
             self._log(logger, "warning", "image_all_failed_placeholder", scene_id=scene.scene_id)
             w, h = self.config.video.resolution
@@ -623,7 +667,7 @@ class MediaStep:
         if image_ready:
             self._cache.put(visual_prompt, Path(visual_path) if isinstance(visual_path, str) else visual_path)
 
-        return str(visual_path), visual_type, failures
+        return str(visual_path), "image", failures
 
     def _process_one_scene(
         self,
@@ -675,51 +719,35 @@ class MediaStep:
             ), failures
 
         # ── TTS + 이미지 생성 병렬 실행 ──
-        _pool = ThreadPoolExecutor(max_workers=2)
-        _pool_shutdown = False
-        _audio_future = _pool.submit(
-            lambda: (
-                audio_path
-                if audio_exists
-                else retry_with_backoff(
-                    lambda: self._generate_audio(scene.narration_ko, audio_path, role=scene.structure_role),
-                    max_attempts=self.config.limits.max_retries,
-                    base_delay_sec=1.0,
-                )
-            )
-        )
         # Body 씬은 무료 이미지만 사용 (비용 절감)
         _use_paid = scene.structure_role in ("hook", "cta", "closing")
 
-        def _get_visual():
+        def _get_audio() -> Path:
+            if audio_exists:
+                return audio_path
+            return retry_with_backoff(
+                lambda: self._generate_audio(scene.narration_ko, audio_path, role=scene.structure_role),
+                max_attempts=self.config.limits.max_retries,
+                base_delay_sec=1.0,
+            )
+
+        def _get_visual() -> tuple[str, str, list]:
             if visual_path_str:
                 return visual_path_str, visual_type, []
             return self._generate_best_image(
-                _visual_prompt,
-                img_path,
-                scene.target_sec,
-                cost_guard,
-                video_dir,
-                scene,
-                logger,
-                _use_paid,
+                _visual_prompt, img_path, scene.target_sec, cost_guard, video_dir, scene, logger, _use_paid
             )
 
-        _image_future = _pool.submit(_get_visual)
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            _audio_future = pool.submit(_get_audio)
+            _image_future = pool.submit(_get_visual)
 
-        # TTS 결과 수집 (이미지와 동시에 진행됨)
-        try:
-            audio_path = _audio_future.result()
-        except Exception as exc:
-            failures.append({"step": "audio", "code": type(exc).__name__, "message": str(exc)})
-            self._log(logger, "error", "audio_failed", scene_id=scene.scene_id, error=str(exc))
-            _pool.shutdown(wait=False, cancel_futures=True)
-            _pool_shutdown = True
-            raise
-        finally:
-            if not _pool_shutdown:
-                _pool.shutdown(wait=False)
-                _pool_shutdown = True
+            try:
+                audio_path = _audio_future.result()
+            except Exception as exc:
+                failures.append({"step": "audio", "code": type(exc).__name__, "message": str(exc)})
+                self._log(logger, "error", "audio_failed", scene_id=scene.scene_id, error=str(exc))
+                raise
 
         # 이미지 결과 수집
         visual_path_str, visual_type, img_failures = _image_future.result()

@@ -47,7 +47,7 @@ class ImageCache:
         self.db_path = Path(db_path) if db_path else _DEFAULT_DB_PATH
         self.ttl_hours = ttl_hours
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._init_db()
 
     @contextmanager

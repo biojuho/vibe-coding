@@ -556,8 +556,8 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
                     pip_clip = create_broll_pip(str(broll_path), duration_sec, target_width, target_height)
                     if pip_clip is not None:
                         base = CompositeVideoClip([base, pip_clip], size=(target_width, target_height))
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("[RenderStep] B-Roll PiP 생성 실패 (씬 %s, 스킵): %s", plan.scene_id, exc)
 
             # 7) HUD 오버레이 — 비활성화 (깔끔한 화면 유지)
             # 8) 제목 오버레이 — 비활성화

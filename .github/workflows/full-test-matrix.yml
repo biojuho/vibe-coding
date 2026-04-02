@@ -1,4 +1,4 @@
-name: full-test-matrix
+name: active-project-matrix
 
 on:
   push:
@@ -8,10 +8,10 @@ on:
 
 env:
   PYTHONUTF8: "1"
+  PYTHONIOENCODING: "utf-8"
 
 jobs:
-  # ── Job 1: Root project tests ──────────────────────────────────
-  root-tests:
+  workspace-quality:
     runs-on: ubuntu-latest
 
     steps:
@@ -23,21 +23,52 @@ jobs:
         with:
           python-version: "3.14"
           cache: pip
-          cache-dependency-path: requirements.txt
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest
+          pip install pytest ruff requests python-dotenv croniter Pillow
 
-      - name: Run root tests
-        run: pytest tests/ --tb=short -q
+      - name: Validate directive mapping
+        run: python workspace/scripts/check_mapping.py
 
-  # ── Job 2: blind-to-x tests ───────────────────────────────────
+      - name: Compile workspace modules
+        run: python -m compileall workspace/execution workspace/scripts
+
+      - name: Run workspace quality tests
+        run: >
+          python -m pytest
+          workspace/tests/test_governance_checks.py
+          workspace/tests/test_doctor.py
+          workspace/tests/test_health_check.py
+          workspace/tests/test_qaqc_runner.py
+          workspace/tests/test_qaqc_runner_extended.py
+          workspace/tests/test_mcp_config.py
+          -q
+          -o addopts=
+
+      - name: Ruff workspace checks
+        run: >
+          python -m ruff check
+          workspace/scripts/check_mapping.py
+          workspace/execution/governance_checks.py
+          workspace/execution/health_check.py
+          workspace/execution/qaqc_runner.py
+          workspace/execution/qaqc_history_db.py
+          workspace/tests/test_governance_checks.py
+          workspace/tests/test_doctor.py
+          workspace/tests/test_health_check.py
+          workspace/tests/test_qaqc_runner.py
+          workspace/tests/test_qaqc_runner_extended.py
+          workspace/tests/test_mcp_config.py
+
   blind-to-x-tests:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: projects/blind-to-x
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -47,23 +78,38 @@ jobs:
         with:
           python-version: "3.14"
           cache: pip
-          cache-dependency-path: blind-to-x/requirements.txt
+          cache-dependency-path: projects/blind-to-x/pyproject.toml
 
       - name: Install dependencies
-        working-directory: blind-to-x
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest
+          python - <<'PY'
+          import pathlib
+          import subprocess
+          import sys
+          import tomllib
 
-      - name: Run blind-to-x tests
-        working-directory: blind-to-x
-        run: pytest tests_unit/ --tb=short -q
+          data = tomllib.loads(pathlib.Path("pyproject.toml").read_text(encoding="utf-8"))
+          deps = list(data["project"]["dependencies"])
+          deps.extend(data["project"].get("optional-dependencies", {}).get("dev", []))
+          subprocess.check_call([sys.executable, "-m", "pip", "install", *deps])
+          PY
 
-  # ── Job 3: shorts-maker-v2 tests ──────────────────────────────
+      - name: Run blind-to-x unit tests
+        run: python -m pytest tests/unit -q --tb=short --maxfail=1 -o addopts=
+
+      - name: Run blind-to-x integration tests
+        run: >
+          python -m pytest tests/integration -q --tb=short --maxfail=1 -o addopts=
+          --ignore=tests/integration/test_curl_cffi.py
+
   shorts-maker-v2-tests:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: projects/shorts-maker-v2
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -73,23 +119,72 @@ jobs:
         with:
           python-version: "3.14"
           cache: pip
-          cache-dependency-path: shorts-maker-v2/pyproject.toml
+          cache-dependency-path: projects/shorts-maker-v2/pyproject.toml
 
       - name: Install dependencies
-        working-directory: shorts-maker-v2
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          python - <<'PY'
+          import pathlib
+          import subprocess
+          import sys
+          import tomllib
+
+          data = tomllib.loads(pathlib.Path("pyproject.toml").read_text(encoding="utf-8"))
+          deps = list(data["project"]["dependencies"])
+          deps.extend(data["project"].get("optional-dependencies", {}).get("dev", []))
+          subprocess.check_call([sys.executable, "-m", "pip", "install", *deps])
+          PY
 
       - name: Run shorts-maker-v2 tests
-        working-directory: shorts-maker-v2
-        run: pytest tests/ --tb=short -q
+        env:
+          PYTHONPATH: src
+        run: python -m pytest tests/unit tests/integration -q --tb=short --maxfail=1 -o addopts=
 
-  # ── Summary gate ──────────────────────────────────────────────
+  frontend-active-apps:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app:
+          - hanwoo-dashboard
+          - knowledge-dashboard
+
+    defaults:
+      run:
+        working-directory: projects/${{ matrix.app }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: projects/${{ matrix.app }}/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+      - name: Lint
+        run: npm run lint
+
   test-summary:
     runs-on: ubuntu-latest
     if: always()
-    needs: [root-tests, blind-to-x-tests, shorts-maker-v2-tests]
+    needs:
+      - workspace-quality
+      - blind-to-x-tests
+      - shorts-maker-v2-tests
+      - frontend-active-apps
 
     steps:
       - name: Report results
@@ -98,15 +193,17 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "| Job | Status |" >> "$GITHUB_STEP_SUMMARY"
           echo "|-----|--------|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| root-tests | ${{ needs.root-tests.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| workspace-quality | ${{ needs.workspace-quality.result }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| blind-to-x-tests | ${{ needs.blind-to-x-tests.result }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| shorts-maker-v2-tests | ${{ needs.shorts-maker-v2-tests.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| frontend-active-apps | ${{ needs.frontend-active-apps.result }} |" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Check all passed
         if: >-
-          needs.root-tests.result != 'success' ||
+          needs.workspace-quality.result != 'success' ||
           needs.blind-to-x-tests.result != 'success' ||
-          needs.shorts-maker-v2-tests.result != 'success'
+          needs.shorts-maker-v2-tests.result != 'success' ||
+          needs.frontend-active-apps.result != 'success'
         run: |
           echo "::error::One or more test jobs failed."
           exit 1

@@ -13,7 +13,7 @@ dependencies = [
   "google-genai>=1.0.0",
   "python-dotenv>=1.0.1",
   "PyYAML>=6.0.2",
-  "moviepy>=2.1.0",
+  "moviepy>=2.1.0,<3",
   "Pillow>=10.2.0",
   "mutagen>=1.47.0",
   "requests>=2.32.0",
@@ -76,7 +76,7 @@ quote-style = "double"
 # ── Pytest ──────────────────────────────────────────────────
 [tool.pytest.ini_options]
 testpaths = ["tests/unit", "tests/integration"]
-addopts = "--cov=src/shorts_maker_v2 --cov-report=term-missing --cov-fail-under=45"
+addopts = "--cov=src/shorts_maker_v2 --cov-report=term-missing --cov-fail-under=65"
 
 # ── Coverage ────────────────────────────────────────────────
 [tool.coverage.run]
@@ -85,7 +85,7 @@ omit = ["tests/*", "ShortsFactory/*"]
 
 [tool.coverage.report]
 show_missing = true
-fail_under = 45
+fail_under = 65
 exclude_lines = [
   "if __name__",
   "pragma: no cover",
