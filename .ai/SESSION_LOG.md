@@ -522,6 +522,44 @@ Reviewed `projects/hanwoo-dashboard` for structural defects and hallucination-st
 
 ---
 
+## 2026-04-02 | Codex | T-132 hanwoo-dashboard review-driven cleanup
+
+### Work Summary
+
+Closed `T-132` in `projects/hanwoo-dashboard`.
+
+1. Batched the dashboard page's initial reads with `Promise.all` and passed initial market-price data into the client shell.
+2. Added `src/lib/notifications.js` so alert notifications are derived from the live cattle list instead of a second client-side fetch, and updated the notification widget/modal surfaces to consume those derived records.
+3. Updated `MarketPriceWidget` and `SalesTab` so the market widget reuses server-provided data on first render instead of immediately refetching.
+4. Replaced manual Google font `<link>` tags with `next/font`, aligned the README stack docs with the live Next.js 16/Postgres/Auth.js setup, and bumped the `lodash` override so `npm audit --omit=dev` is now clean.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `projects/hanwoo-dashboard/src/app/page.js` | Batched initial dashboard reads and passed initial market-price data into the client shell |
+| `projects/hanwoo-dashboard/src/components/DashboardClient.js` | Removed the first-render notification refetch and threaded initial market/notification data through the UI |
+| `projects/hanwoo-dashboard/src/lib/notifications.js` | Added shared notification derivation from cattle state |
+| `projects/hanwoo-dashboard/src/components/widgets/NotificationWidget.js` | Switched from self-fetching to prop-driven rendering |
+| `projects/hanwoo-dashboard/src/components/widgets/MarketPriceWidget.js` | Reused server-provided initial data before background refresh |
+| `projects/hanwoo-dashboard/src/components/tabs/SalesTab.js` | Reused initial market-price data in the sales tab |
+| `projects/hanwoo-dashboard/src/components/ui/NotificationModal.js` | Updated critical-alert styling and safer time rendering |
+| `projects/hanwoo-dashboard/src/app/layout.js` | Migrated font loading to `next/font` |
+| `projects/hanwoo-dashboard/src/app/globals.css` | Pointed app font tokens at `next/font` CSS variables |
+| `projects/hanwoo-dashboard/src/lib/actions.js` | Added a `fetchedAt` timestamp to market-price responses |
+| `projects/hanwoo-dashboard/README.md` | Aligned docs with the live dev port and stack |
+| `projects/hanwoo-dashboard/package.json`, `projects/hanwoo-dashboard/package-lock.json` | Patched the `lodash` override/install resolution |
+
+### Verification Results
+
+- `npm install` (`projects/hanwoo-dashboard`) -> **pass**
+- `npm run lint` (`projects/hanwoo-dashboard`) -> **pass**
+- `npm run build` (`projects/hanwoo-dashboard`) -> **pass**
+- `npm audit --omit=dev` (`projects/hanwoo-dashboard`) -> **0 vulnerabilities**
+- `npm ls lodash --depth=2` (`projects/hanwoo-dashboard`) -> **`lodash@4.18.1` via `recharts@2.15.4`**
+
+---
+
 ## 2026-04-01 | Shared QA/QC | APPROVED baseline refreshed
 
 ### Work Summary
