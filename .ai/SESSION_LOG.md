@@ -1,5 +1,30 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-04-02 | Codex | knowledge-dashboard analytics insight engine
+
+### Work Summary
+
+Upgraded `projects/knowledge-dashboard` charting and analytics toward a more Pro-grade dashboard UX.
+
+1. Added `src/lib/dashboard-insights.ts` to centralize language bucketing, diversity scoring, dominant-stack share, notebook coverage, median source depth, and badge generation.
+2. Rebuilt `src/components/DashboardCharts.tsx` so the charts consume derived insight data instead of doing inline one-off transforms in the view.
+3. Updated `src/app/page.tsx` so analytics now respond to deferred filtered results, which keeps search interactions smoother and keeps the charts aligned with the visible list.
+4. Added richer empty states and explanatory insight badges so sparse datasets, missing languages, zero-source notebooks, and search-only slices are easier to interpret.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `projects/knowledge-dashboard/src/lib/dashboard-insights.ts` | Added shared dashboard insight engine |
+| `projects/knowledge-dashboard/src/components/DashboardCharts.tsx` | Rebuilt chart UI around derived insights |
+| `projects/knowledge-dashboard/src/app/page.tsx` | Made analytics search-aware with deferred filtering |
+| `.ai/HANDOFF.md`, `.ai/CONTEXT.md`, `.ai/STATUS.md` | Synced the upgraded analytics state |
+
+### Verification Results
+
+- `npm run lint` (`projects/knowledge-dashboard`) -> **pass**
+- `npm run build` (`projects/knowledge-dashboard`) -> **pass**
+
 ## 2026-04-02 | Codex | T-124 frontend runtime smoke coverage
 
 ### Work Summary
