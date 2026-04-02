@@ -100,7 +100,11 @@ def parse_index(index_path: Path = INDEX_FILE) -> tuple[dict[str, list[str]], di
         if in_sop_table and cells[0] and not cells[0].startswith("Directive"):
             sop_name = cells[0]
             scripts_raw = cells[1]
-            scripts = [s.strip() for s in re.split(r"[,;→]", scripts_raw) if s.strip() and s.strip().endswith(".py")]
+            scripts = [
+                re.sub(r"`", "", s).strip()
+                for s in re.split(r"[,;→]", scripts_raw)
+                if re.sub(r"`", "", s).strip().endswith(".py")
+            ]
             sop_map[sop_name] = scripts
 
         if in_unmapped_table and cells[0] and not cells[0].startswith("Script"):

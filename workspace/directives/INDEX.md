@@ -12,7 +12,7 @@
 | Directive | Execution Script(s) | 비고 |
 |-----------|---------------------|------|
 | api_monitoring.md | api_usage_tracker.py, health_check.py | API 사용량 추적 + 헬스체크 |
-| code_improvement.md | code_improver.py | AI 코드 개선 |
+| code_improvement.md | `code_improver.py`, `_ci_models.py`, `_ci_utils.py`, `_ci_analyzers.py`, `_ci_report.py` | AI 코드 개선 (slim orchestrator + 4 submodules) |
 | community_trends.md | community_trend_scraper.py | 커뮤니티 트렌드 스크래핑 |
 | daily_report.md | daily_report.py | 일일 보고서 생성 |
 | debugging_process.md | error_analyzer.py, debug_history_db.py | 에러 분석 + 디버그 이력 |
