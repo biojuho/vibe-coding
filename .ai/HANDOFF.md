@@ -6,7 +6,13 @@
 
 | Date | 2026-04-02 |
 | Tool | Claude |
-| Work | **Production-ready 코드 리뷰 + QC 완료.** ① `workspace/execution/content_db.py` 연결 누수 근본 수정: `_conn()`을 `@contextmanager` + `threading.RLock` + `finally: close()`로 전환. `init_db()` 마이그레이션 오류 묵살 → "duplicate column name"만 허용. `get_channel_readiness_summary`/`get_recent_failure_items` 날 연결 2곳 제거. 중복 `conn.commit()` 4곳 제거. ② `projects/blind-to-x/pipeline/cost_db.py`: `record_provider_failure()` datetime 이중 초기화 + import 중복 제거. WAL checkpoint `FULL` → `PASSIVE`. ③ quality_gate PASS: `execution/tests/__init__.py` 추가(이름 충돌), `test_frontends.py` 제외(Next.js spin-up 환경), ruff `--ignore=E402`, code_improver `-m` 방식 전환, E741 `l`→`ln` 4건, VACUUM INTO false positive 예외처리. 최종 **1233 passed / ruff All checks / 0 high severity**. |
+| Work | **QC 3라운드 → 전 영역 0 failed APPROVED.** 회귀 5건 수정: ① `governance_checks.py` backtick 파싱 + `INDEX.md` `_ci_*` 4개 등록. ② `test_notion_shorts_sync` `_conn()` context manager 수정. ③ `test_frontends` `_kill_stale_nextjs_server()` 추가 (Next.js lock PID 자동 정리). ④ `media_step` `visual_primary` failure 기록 추가. ⑤ `_last_video_primary_failed` 플래그로 비용 다운그레이드 vs 실제 실패 분기. 최종: workspace 1210 / blind-to-x 810 / shorts-maker-v2 1282 — 전부 passed. |
+
+## Previous Update
+
+| Date | 2026-04-02 |
+| Tool | Claude |
+| Work | **Production-ready 코드 리뷰 + QC 완료.** `content_db._conn()` @contextmanager 전환으로 연결 누수 해소, quality_gate STANDARD PASS. 최종 **1233 passed / ruff All checks / 0 high severity**. |
 
 
 ## Recent Completed

@@ -1,5 +1,47 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-04-02 | Claude | QC 전 영역 0 failed APPROVED
+
+### Work Summary
+
+묶음 1 적용 후 전체 QC 3라운드 진행, 발견된 회귀 모두 수정.
+
+**라운드 1 — QC runner (CONDITIONALLY_APPROVED):**
+- `governance_scan FAIL`: `_ci_*.py` 4개 INDEX.md 미등록 → `INDEX.md` 등록 + `governance_checks.py` backtick 파싱 수정
+- `test_notion_shorts_sync` 실패: `cdb._conn()` context manager인데 `.close()` 직접 호출 → `with` 패턴으로 수정
+- `shorts-maker-v2 test_media_fallback` 실패: `_try_video_primary` 실패 시 `failures`에 미기록 → `visual_primary` step 기록 추가
+
+**라운드 2 — 전체 재실행:**
+- `test_frontends` 2 errors: Next.js dev 서버 PID 31656 포트 충돌 → `_kill_stale_nextjs_server()` 추가 (`.next/dev/lock` PID 읽어 taskkill)
+- `test_content_db` 6 fails: 재실행 시 0 failed — qaqc_runner 동시 실행 중 타이밍 충돌이었음, 실제 버그 없음
+
+**라운드 3 — 최종 검증:**
+- `test_media_step_branches::test_generate_best_image_downgrades_video_then_uses_stock_mix` 실패: 비용 초과 다운그레이드도 `visual_primary` failure로 기록되는 문제 → `_last_video_primary_failed` 플래그 도입으로 실제 예외와 구분
+
+### 최종 결과
+
+| 항목 | 결과 |
+|------|------|
+| workspace | 1210 passed, 0 failed ✅ |
+| blind-to-x unit | 810 passed, 8 skipped ✅ |
+| shorts-maker-v2 | 1282 passed, 0 failed ✅ |
+| check_mapping | All valid ✅ |
+| ruff lint | All passed ✅ |
+| governance | OK ✅ |
+| security | CLEAR ✅ |
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `workspace/execution/governance_checks.py` | parse_index backtick 제거 지원 |
+| `workspace/directives/INDEX.md` | `_ci_*` 4개 파일 code_improvement.md에 등록 |
+| `workspace/tests/test_notion_shorts_sync.py` | `_conn()` context manager 패턴 수정 |
+| `workspace/tests/test_frontends.py` | `_kill_stale_nextjs_server()` 추가 |
+| `projects/shorts-maker-v2/.../media_step.py` | `_last_video_primary_failed` 플래그로 failure 분기 정확화 |
+
+---
+
 ## 2026-04-02 | Claude | Production 리뷰 + SQLite 연결 누수 수정 + Quality Gate PASS
 
 ### Work Summary
