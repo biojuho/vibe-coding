@@ -11,6 +11,7 @@
 - `shorts-maker-v2`: 91% coverage, MoviePy + FFmpeg dual backend, golden render verification
 - `hanwoo-dashboard`: Next.js 16, Prisma 7.6, 0 npm vulnerabilities
 - `knowledge-dashboard`: internal `data/*.json` + authenticated `/api/data/*` delivery, `public/*.json` removed
+- Frontend CI now includes runtime smoke checks for `hanwoo-dashboard` and `knowledge-dashboard`
 - Governance gate: `governance_checks.py` validates `.ai` files, relay claims, directive mapping, task backlog
 - Windows Task Scheduler: ASCII-safe `C:\btx\...` wrappers
 - Security: all f-string SQL validated (allowlist/regex), triaged as false positives

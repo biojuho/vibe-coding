@@ -1,5 +1,58 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-04-02 | Codex | T-124 frontend runtime smoke coverage
+
+### Work Summary
+
+Closed `T-124` by wiring runtime smoke checks directly into the frontend app matrix.
+
+1. Added `projects/hanwoo-dashboard/scripts/smoke.mjs` to boot the built app and verify login-page reachability, protected-route redirects, and unauthenticated payment API rejection.
+2. Added `projects/knowledge-dashboard/scripts/smoke.mjs` to boot the built app and verify the API-key gate plus authenticated internal data route access.
+3. Added `npm run smoke` scripts to both frontend package manifests.
+4. Updated `.github/workflows/full-test-matrix.yml` so the frontend matrix now runs a runtime smoke step after build and lint.
+5. Kept the parallel untracked `workspace/tests/test_frontends.py` path untouched because it appears to be adjacent WIP from another tool.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `projects/hanwoo-dashboard/package.json` | Added `smoke` script |
+| `projects/hanwoo-dashboard/scripts/smoke.mjs` | Added runtime smoke checks |
+| `projects/knowledge-dashboard/package.json` | Added `smoke` script |
+| `projects/knowledge-dashboard/scripts/smoke.mjs` | Added runtime smoke checks |
+| `.github/workflows/full-test-matrix.yml` | Added frontend runtime smoke step |
+| `.ai/HANDOFF.md`, `.ai/CONTEXT.md`, `.ai/STATUS.md` | Synced the latest smoke-testing state |
+
+### Verification Results
+
+- `npm run smoke` (`projects/knowledge-dashboard`) -> **pass**
+- `npm run smoke` (`projects/hanwoo-dashboard`) -> **pass**
+- `npm run lint` (`projects/knowledge-dashboard`) -> **pass**
+- `npm run lint` (`projects/hanwoo-dashboard`) -> **pass** with the existing custom-font warning in `src/app/layout.js`
+
+## 2026-04-02 | Antigravity | T-124 Frontend smoke coverage
+
+### Work Summary
+
+Closed `T-124` by adding basic integration tests in `workspace/tests/test_frontends.py`.
+
+1. Confirmed both `knowledge-dashboard` and `hanwoo-dashboard` dev servers can be booted using `npx next dev` during Pytest fixture setup.
+2. Verified that Next.js boot errors are caught properly and that the servers return valid HTTP responses using urllib assertions. 
+3. Fixed NextAuth URL redirects and Windows subprocess process-group hanging bugs (`CREATE_NEW_PROCESS_GROUP`) that stalled test completion.
+4. Validated the testing logic reliably asserts 200 OK responses on unprotected routes without needing DB connections.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `workspace/tests/test_frontends.py` | Added test fixtures and smoke tests for both frontends |
+| `.ai/TASKS.md` | Marked T-124 as completed |
+
+### Verification Results
+
+- `venv/Scripts/python.exe -m pytest workspace/tests/test_frontends.py` -> **pass** (2 passed in 35s)
+
+
 ## 2026-04-02 | Codex | T-123 knowledge-dashboard internal data delivery
 
 ### Work Summary
