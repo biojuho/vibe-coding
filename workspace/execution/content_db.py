@@ -11,11 +11,17 @@ Usage:
 
 import argparse
 import json
+import logging
 import sqlite3
 import sys
+import threading
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
+_db_lock = threading.RLock()
 
 WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 if str(WORKSPACE_ROOT) not in sys.path:
@@ -59,18 +65,34 @@ UPDATABLE_COLUMNS = {
 }
 
 
-def _conn() -> sqlite3.Connection:
-    """SQLite 연결 반환. `with _conn() as conn:` 패턴으로 사용하면 자동 close."""
+@contextmanager
+def _conn():
+    """SQLite 연결 context manager.
+
+    commit: 정상 종료 시 자동 커밋
+    rollback: 예외 발생 시 자동 롤백
+    close: 항상 연결 해제 (누수 방지)
+    lock: RLock으로 Streamlit 멀티스레드 안전 보장
+    """
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")  # 동시 읽기 허용
-    return conn
+    with _db_lock:
+        conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA busy_timeout=5000")
+        try:
+            yield conn
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
 
 def init_db() -> None:
-    conn = _conn()
-    try:
+    with _conn() as conn:
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS content_queue (
                 id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -123,11 +145,11 @@ def init_db() -> None:
         for stmt in _migrations:
             try:
                 conn.execute(stmt)
-            except sqlite3.OperationalError:
-                pass  # 이미 존재
-        conn.commit()
-    finally:
-        conn.close()
+            except sqlite3.OperationalError as exc:
+                # "duplicate column name"은 정상 — 다른 OperationalError는 실제 오류
+                if "duplicate column name" not in str(exc).lower():
+                    logger.error("Migration failed: %s — %s", stmt[:80], exc)
+                    raise
 
 
 def add_topic(topic: str, notes: str = "", channel: str = "") -> int:
@@ -136,7 +158,6 @@ def add_topic(topic: str, notes: str = "", channel: str = "") -> int:
             "INSERT INTO content_queue (topic, notes, channel) VALUES (?, ?, ?)",
             (topic.strip(), notes.strip(), channel.strip()),
         )
-        conn.commit()
         return cur.lastrowid or 0
 
 
@@ -232,7 +253,6 @@ def upsert_channel_settings(channel: str, **kwargs: Any) -> None:
                     now,
                 ),
             )
-        conn.commit()
 
 
 def update_job(item_id: int, **kwargs: Any) -> None:
@@ -248,13 +268,11 @@ def update_job(item_id: int, **kwargs: Any) -> None:
     query = f"UPDATE content_queue SET {set_clause} WHERE id = ?"  # noqa: S608 — keys whitelisted via UPDATABLE_COLUMNS
     with _conn() as conn:
         conn.execute(query, values)
-        conn.commit()
 
 
 def delete_item(item_id: int) -> None:
     with _conn() as conn:
         conn.execute("DELETE FROM content_queue WHERE id = ?", (item_id,))
-        conn.commit()
 
 
 def get_kpis(channel: str | None = None) -> dict[str, Any]:
@@ -446,9 +464,8 @@ def _derive_next_action(issues: list[str]) -> str:
 
 def get_channel_readiness_summary(channels: list[str] | None = None) -> list[dict[str, Any]]:
     settings_by_channel: dict[str, dict[str, Any]] = {}
-    conn = _conn()
-    rows = conn.execute("SELECT * FROM channel_settings ORDER BY channel").fetchall()
-    conn.close()
+    with _conn() as conn:
+        rows = conn.execute("SELECT * FROM channel_settings ORDER BY channel").fetchall()
     for row in rows:
         settings_by_channel[row["channel"]] = dict(row)
 
@@ -509,7 +526,6 @@ def get_recent_failure_items(
     channel: str | None = None,
     limit: int = 10,
 ) -> list[dict[str, Any]]:
-    conn = _conn()
     query = """
         SELECT *
         FROM content_queue
@@ -521,8 +537,8 @@ def get_recent_failure_items(
         params.append(channel)
     query += " ORDER BY updated_at DESC, id DESC LIMIT ?"
     params.append(limit)
-    rows = conn.execute(query, params).fetchall()  # noqa: S608
-    conn.close()
+    with _conn() as conn:
+        rows = conn.execute(query, params).fetchall()  # noqa: S608
 
     bgm_ready = _resolve_bgm_readiness()
     failures: list[dict[str, Any]] = []

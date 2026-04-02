@@ -100,8 +100,7 @@ def test_get_kpis_daily_stats_and_channel_stats(monkeypatch, tmp_path):
     failed_id = cdb.add_topic("Moon Topic", channel="space")
     pending_id = cdb.add_topic("History Topic", channel="history")
 
-    conn = cdb._conn()
-    try:
+    with cdb._conn() as conn:
         conn.execute(
             """
             UPDATE content_queue
@@ -126,9 +125,6 @@ def test_get_kpis_daily_stats_and_channel_stats(monkeypatch, tmp_path):
             """,
             (today, today, pending_id),
         )
-        conn.commit()
-    finally:
-        conn.close()
 
     kpis = cdb.get_kpis()
     assert kpis["total"] == 3
@@ -165,8 +161,7 @@ def test_get_top_performing_topics_and_hourly_stats(monkeypatch, tmp_path):
     pricey_id = cdb.add_topic("Expensive win", channel="space")
     other_channel_id = cdb.add_topic("History win", channel="history")
 
-    conn = cdb._conn()
-    try:
+    with cdb._conn() as conn:
         conn.execute(
             """
             UPDATE content_queue
@@ -191,9 +186,6 @@ def test_get_top_performing_topics_and_hourly_stats(monkeypatch, tmp_path):
             """,
             (other_channel_id,),
         )
-        conn.commit()
-    finally:
-        conn.close()
 
     top_topics = cdb.get_top_performing_topics(limit=2, channel="space")
     assert [item["topic"] for item in top_topics] == ["Cheap win", "Expensive win"]
@@ -213,8 +205,7 @@ def test_get_youtube_stats_and_uploadable_filters(monkeypatch, tmp_path):
     retry_id = cdb.add_topic("Retry upload", channel="space")
     uploaded_id = cdb.add_topic("Done upload", channel="history")
 
-    conn = cdb._conn()
-    try:
+    with cdb._conn() as conn:
         conn.execute(
             """
             UPDATE content_queue
@@ -239,9 +230,6 @@ def test_get_youtube_stats_and_uploadable_filters(monkeypatch, tmp_path):
             """,
             (uploaded_id,),
         )
-        conn.commit()
-    finally:
-        conn.close()
 
     yt_stats = cdb.get_youtube_stats()
     assert yt_stats == {"uploaded": 1, "failed": 1, "awaiting": 1}
@@ -797,8 +785,7 @@ def test_get_performance_stats_with_filters(monkeypatch, tmp_path):
     s3 = cdb.add_topic("History Views", channel="history")
     cdb.update_job(s1, status="success", video_path="a.mp4")
 
-    conn = cdb._conn()
-    try:
+    with cdb._conn() as conn:
         conn.execute(
             "UPDATE content_queue SET youtube_status='uploaded', yt_views=5000, hook_pattern='question' WHERE id=?",
             (s1,),
@@ -811,9 +798,6 @@ def test_get_performance_stats_with_filters(monkeypatch, tmp_path):
             "UPDATE content_queue SET status='success', youtube_status='uploaded', yt_views=3000, hook_pattern='question' WHERE id=?",
             (s3,),
         )
-        conn.commit()
-    finally:
-        conn.close()
 
     # Channel filter
     space_stats = cdb.get_performance_stats(channel="space")
@@ -844,17 +828,13 @@ def test_get_hook_pattern_performance(monkeypatch, tmp_path):
     for i, (hook, views) in enumerate(data):
         topic_ids.append(cdb.add_topic(f"Topic{i}", channel="space"))
 
-    conn = cdb._conn()
-    try:
+    with cdb._conn() as conn:
         for (hook, views), topic_id in zip(data, topic_ids):
             conn.execute(
                 "UPDATE content_queue SET status='success', youtube_status='uploaded', "
                 "yt_views=?, yt_likes=?, yt_ctr=?, yt_avg_watch_sec=?, hook_pattern=? WHERE id=?",
                 (views, views // 10, 5.0, 30.0, hook, topic_id),
             )
-        conn.commit()
-    finally:
-        conn.close()
 
     results = cdb.get_hook_pattern_performance()
     assert len(results) == 2
@@ -877,17 +857,13 @@ def test_get_channel_performance_summary(monkeypatch, tmp_path):
     for channel, views, cost in data:
         topic_ids.append(cdb.add_topic(f"T-{channel}-{views}", channel=channel))
 
-    conn = cdb._conn()
-    try:
+    with cdb._conn() as conn:
         for (channel, views, cost), topic_id in zip(data, topic_ids):
             conn.execute(
                 "UPDATE content_queue SET status='success', youtube_status='uploaded', "
                 "yt_views=?, cost_usd=?, yt_ctr=5.0, yt_avg_watch_sec=30.0 WHERE id=?",
                 (views, cost, topic_id),
             )
-        conn.commit()
-    finally:
-        conn.close()
 
     results = cdb.get_channel_performance_summary()
     assert len(results) == 2

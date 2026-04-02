@@ -15,7 +15,7 @@ import logging
 import sqlite3
 import threading
 from contextlib import contextmanager
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -88,9 +88,9 @@ class CostDatabase:
                 yield conn
                 conn.commit()
                 try:
-                    # Flush recent WAL writes so follow-up reads from fresh connections
-                    # observe just-recorded costs/draft analytics deterministically.
-                    conn.execute("PRAGMA wal_checkpoint(FULL)")
+                    # PASSIVE: 비블로킹 WAL flush — 활성 readers를 막지 않음.
+                    # FULL checkpoint는 write-intensive 환경에서 병목 유발하므로 제거.
+                    conn.execute("PRAGMA wal_checkpoint(PASSIVE)")
                 except sqlite3.DatabaseError:
                     pass
             except Exception:
@@ -524,17 +524,10 @@ class CostDatabase:
 
     def record_provider_failure(self, provider: str, skip_hours: float = 24.0) -> None:
         """비복구 불가 에러 발생 시 provider 실패 이력 기록 + skip_until 설정."""
-        from datetime import datetime as _dt, timezone as _fallback_tz
-
-        now = _dt.now(_fallback_tz.utc)
+        now = datetime.now(timezone.utc)
         now_iso = now.isoformat()
         skip_iso = (now + timedelta(hours=skip_hours)).isoformat()
         try:
-            from datetime import datetime as _dt2, timezone as _tz
-
-            now = _dt2.now(_tz.utc)
-            now_iso = now.isoformat()
-            skip_iso = (now + timedelta(hours=skip_hours)).isoformat()
             with self._conn() as conn:
                 conn.execute(
                     """INSERT INTO provider_failures (provider, fail_count, last_fail_at, skip_until)

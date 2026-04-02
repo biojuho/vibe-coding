@@ -5,12 +5,13 @@
 ## Latest Update
 
 | Date | 2026-04-02 |
-| Tool | Codex |
-| Work | Production-hardened `projects/knowledge-dashboard` after the analytics upgrade. Browser auth now exchanges `DASHBOARD_API_KEY` for a signed `httpOnly` session cookie via `src/app/api/auth/session/route.ts`, `src/app/page.tsx` validates payload shapes and separates auth failures from load failures, `src/lib/dashboard-insights.ts` is covered by node tests, and `scripts/smoke.mjs` verifies the cookie-based auth path end to end. |
+| Tool | Claude |
+| Work | **Production-ready 코드 리뷰 + QC 완료.** ① `workspace/execution/content_db.py` 연결 누수 근본 수정: `_conn()`을 `@contextmanager` + `threading.RLock` + `finally: close()`로 전환. `init_db()` 마이그레이션 오류 묵살 → "duplicate column name"만 허용. `get_channel_readiness_summary`/`get_recent_failure_items` 날 연결 2곳 제거. 중복 `conn.commit()` 4곳 제거. ② `projects/blind-to-x/pipeline/cost_db.py`: `record_provider_failure()` datetime 이중 초기화 + import 중복 제거. WAL checkpoint `FULL` → `PASSIVE`. ③ quality_gate PASS: `execution/tests/__init__.py` 추가(이름 충돌), `test_frontends.py` 제외(Next.js spin-up 환경), ruff `--ignore=E402`, code_improver `-m` 방식 전환, E741 `l`→`ln` 4건, VACUUM INTO false positive 예외처리. 최종 **1233 passed / ruff All checks / 0 high severity**. |
 
 
 ## Recent Completed
 
+- `T-128` (`2026-04-02`, Claude): `content_db._conn()` @contextmanager 전환으로 연결 누수 완전 해소, quality_gate STANDARD PASS.
 - `T-127` (`2026-04-02`, Codex): `knowledge-dashboard` auth moved to a signed `httpOnly` session cookie, the data routes now trust `src/lib/dashboard-auth.ts`, node tests cover the insight engine, and smoke coverage verifies the new session flow.
 - `T-126` (`2026-04-02`, Antigravity): `DashboardCharts.tsx` was hardened against dirty inputs (NaN/null/arrays) via query normalization, stable empty-array references, and notebook dataset capping.
 - `T-125` (`2026-04-02`, Claude): batch 1 debt remediation landed across `blind-to-x`, `shorts-maker-v2`, and CI, including SQLite `RLock` swaps, silent-failure logging, tighter coverage floors, safer dependency caps, and frontend `tsc --noEmit`.

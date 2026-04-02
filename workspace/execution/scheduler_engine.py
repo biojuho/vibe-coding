@@ -559,55 +559,85 @@ def _execute_subprocess(
     timeout_sec: int,
 ) -> tuple[int, str, str, str]:
     """서브프로세스를 실행하고 (exit_code, stdout, stderr, error_type)을 반환."""
+
     exit_code = -2
     stdout = ""
     stderr = ""
     error_type = ""
     proc = None
     try:
-        popen_kwargs: dict = dict(
-            shell=False,
-            cwd=str(target_cwd),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            encoding="utf-8",
-            errors="replace",
-        )
         if os.name == "nt":
-            # Windows: CREATE_NEW_PROCESS_GROUP prevents handle inheritance
-            # issues with pytest stdout capture (WinError 6).
-            import ctypes  # noqa: F401  – sanity import
-
-            popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
-        proc = subprocess.Popen([resolved_exec, *resolved_args], **popen_kwargs)
-
-        try:
-            out, err = proc.communicate(timeout=timeout_sec)
-        except subprocess.TimeoutExpired:
+            # Windows: close_fds=True로 부모 프로세스의 파일 핸들 상속을 차단.
+            # pytest capture, sqlite3 등 부모 핸들이 자식에 상속되면 WinError 6 발생.
+            # stdin=DEVNULL을 명시하여 닫힌 stdin fd 상속도 방지.
+            proc = subprocess.Popen(
+                [resolved_exec, *resolved_args],
+                shell=False,
+                cwd=str(target_cwd),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                stdin=subprocess.DEVNULL,
+                encoding="utf-8",
+                errors="replace",
+                close_fds=True,
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW,
+            )
             try:
-                proc.kill()
-            except OSError:
-                pass
-            try:
-                out, err = proc.communicate()
-            except OSError:
-                out, err = "", ""
-            exit_code = -1
-            error_type = "timeout"
-            stderr = f"Timeout after {timeout_sec} seconds"
+                out, err = proc.communicate(timeout=timeout_sec)
+            except subprocess.TimeoutExpired:
+                try:
+                    proc.kill()
+                except OSError:
+                    pass
+                try:
+                    out, err = proc.communicate()
+                except OSError:
+                    out, err = "", ""
+                exit_code = -1
+                error_type = "timeout"
+                stderr = f"Timeout after {timeout_sec} seconds"
+            else:
+                exit_code = proc.returncode
+                stdout = out or ""
+                stderr = err or ""
+                if exit_code != 0:
+                    error_type = "non_zero_exit"
         else:
-            exit_code = proc.returncode
-            stdout = out or ""
-            stderr = err or ""
-            if exit_code != 0:
-                error_type = "non_zero_exit"
+            popen_kwargs: dict = dict(
+                shell=False,
+                cwd=str(target_cwd),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                encoding="utf-8",
+                errors="replace",
+            )
+            proc = subprocess.Popen([resolved_exec, *resolved_args], **popen_kwargs)
+            try:
+                out, err = proc.communicate(timeout=timeout_sec)
+            except subprocess.TimeoutExpired:
+                try:
+                    proc.kill()
+                except OSError:
+                    pass
+                try:
+                    out, err = proc.communicate()
+                except OSError:
+                    out, err = "", ""
+                exit_code = -1
+                error_type = "timeout"
+                stderr = f"Timeout after {timeout_sec} seconds"
+            else:
+                exit_code = proc.returncode
+                stdout = out or ""
+                stderr = err or ""
+                if exit_code != 0:
+                    error_type = "non_zero_exit"
     except FileNotFoundError as exc:
         exit_code = -4
         error_type = "exec_not_found"
         stderr = str(exc)
     except OSError as exc:
-        # Non-FileNotFoundError OSError (e.g. WinError 6 on handle issues)
-        # — only map to exec_not_found when it's a "not found" style error
+        # Non-FileNotFoundError OSError — only map to exec_not_found when it's a "not found" style error
         winerror = getattr(exc, "winerror", None)
         if winerror in (2, 3):  # ERROR_FILE_NOT_FOUND, ERROR_PATH_NOT_FOUND
             exit_code = -4

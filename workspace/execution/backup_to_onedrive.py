@@ -119,7 +119,7 @@ def _snapshot_sqlite_dbs(dest: Path, *, dry_run: bool = False) -> list[dict]:
             try:
                 snapshot_path.parent.mkdir(parents=True, exist_ok=True)
                 conn = sqlite3.connect(str(db_path))
-                conn.execute(f"VACUUM INTO '{snapshot_path}'")
+                conn.execute(f"VACUUM INTO '{snapshot_path}'")  # noqa: S608 — snapshot_path is an internal Path, not user input
                 conn.close()
                 entry["ok"] = True
                 entry["size_mb"] = round(snapshot_path.stat().st_size / (1024 * 1024), 2)

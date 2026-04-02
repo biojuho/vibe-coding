@@ -7,7 +7,8 @@
 | ID    | Task                                                                                                                                                                                                                                 | Owner  | Priority | Created    |
 |-------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------|----------|------------|
 | T-121 | Investigate the local-only `KeyboardInterrupt` / runner interruption when `projects/blind-to-x/tests/unit/test_main.py` runs under this terminal wrapper, and confirm whether it is a harness artifact or a real `main.py` regression. | Codex  | Medium   | 2026-04-01 |
-| T-100 | Raise `blind-to-x` coverage to 75% (shorts-maker-v2 is already above 90%). Current blind-to-x coverage needs a fresh measurement from the latest run.                                                                                | Claude | High     | 2026-03-31 |
+| T-100 | Raise `blind-to-x` coverage to ≥75% (shorts-maker-v2 90% ✅, blind-to-x 69% — pipeline쪽 보강 필요, 스크래퍼는 브라우저 의존으로 제외). | Claude | High     | 2026-03-31 |
+| T-128 | `test_cost_tracker_uses_persisted_daily_totals` 전체 실행 시 fail, 단독 pass — 테스트 격리 문제. 실행 순서 의존성 원인 규명 및 수정. | Claude | Medium   | 2026-04-02 |
 
 ## IN_PROGRESS
 

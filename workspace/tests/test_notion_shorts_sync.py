@@ -415,7 +415,6 @@ def test_sync_all_filters_by_since(monkeypatch, tmp_path):
     with cdb._conn() as conn:
         conn.execute("UPDATE content_queue SET created_at = ? WHERE id = ?", ("2026-01-01 00:00:00", id_old))
         conn.execute("UPDATE content_queue SET created_at = ? WHERE id = ?", ("2026-03-02 00:00:00", id_new))
-        conn.commit()
 
     fake_resp = _make_response(200, {"id": "new-page"})
     with patch.object(ns, "_request", return_value=fake_resp):
