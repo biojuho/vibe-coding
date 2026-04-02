@@ -5,8 +5,8 @@
 ## Latest Update
 
 | Date | 2026-04-02 |
-| Tool | Antigravity |
-| Work | Fully upgraded `projects/knowledge-dashboard` analytics visualizations (`DashboardCharts.tsx`). Implemented Pro-level features including robust long-tail grouping, gracefully handled empty states, fully typed Recharts integration with custom tooltips, responsive Tailwind v4 classes, and successfully executed a `/qa-qc` pipeline to verify logic integrity around zero-data and Edge cases. |
+| Tool | Codex |
+| Work | Hardened the upgraded `projects/knowledge-dashboard` analytics path after QC. `src/app/page.tsx` now validates authenticated route payloads before setting dashboard state and separates auth failures from non-auth data-load failures, while `src/lib/dashboard-insights.ts` now treats large `Unspecified` language buckets as metadata gaps instead of a real dominant stack. |
 
 
 ## Recent Completed
@@ -22,7 +22,8 @@
 - `projects/knowledge-dashboard` now serves internal dashboard + QA/QC data from `data/*.json` through authenticated route handlers under `src/app/api/data/*`.
 - `projects/knowledge-dashboard/public/dashboard_data.json` and `projects/knowledge-dashboard/public/qaqc_result.json` are removed from the delivery path.
 - `projects/knowledge-dashboard/scripts/sync_data.py` now resolves repo-relative paths for `data/`, `.ai/SESSION_LOG.md`, and `workspace/execution/qaqc_history_db.py`.
-- `projects/knowledge-dashboard` analytics now run through `src/lib/dashboard-insights.ts`, which buckets sparse/missing language metadata, computes diversity and coverage metrics, derives a weighted health score, and emits recommendation cards for the chart UI.
+- `projects/knowledge-dashboard` analytics now run through `src/lib/dashboard-insights.ts`, which buckets sparse/missing language metadata, computes diversity and coverage metrics, derives a weighted health score, emits recommendation cards for the chart UI, and treats large `Unspecified` language buckets as metadata gaps instead of stack concentration.
+- `projects/knowledge-dashboard/src/app/page.tsx` now validates authenticated route payload shapes before calling `setData`, keeps QA/QC payload failures non-fatal, and renders a dedicated load-error state for non-auth failures.
 - `projects/hanwoo-dashboard` and `projects/knowledge-dashboard` now both have project-local runtime smoke scripts exposed as `npm run smoke`, and the frontend matrix job runs that step after build/lint.
 - `projects/blind-to-x` still has unrelated user/WIP changes; avoid touching that tree unless the user explicitly redirects the session.
 

@@ -1,5 +1,27 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-04-02 | Codex | knowledge-dashboard analytics QC hardening
+
+### Work Summary
+
+Closed the two highest-risk QC findings in the upgraded analytics flow.
+
+1. Hardened `src/app/page.tsx` so authenticated route responses are shape-validated before `setData`, QA/QC payload failures are non-fatal, and non-auth data-load failures render a dedicated retry state instead of crashing later in render.
+2. Updated `src/lib/dashboard-insights.ts` so large `Unspecified` language buckets are treated as metadata-quality gaps rather than a real dominant stack, which avoids misleading concentration badges and recommendations.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `projects/knowledge-dashboard/src/app/page.tsx` | Added payload validation and non-auth load-error handling |
+| `projects/knowledge-dashboard/src/lib/dashboard-insights.ts` | Reframed `Unspecified` language-heavy slices as metadata gaps |
+| `.ai/HANDOFF.md`, `.ai/CONTEXT.md`, `.ai/STATUS.md` | Synced the QC hardening state |
+
+### Verification Results
+
+- `npm run lint` (`projects/knowledge-dashboard`) -> **pass**
+- `npm run build` (`projects/knowledge-dashboard`) -> **pass**
+
 ## 2026-04-02 | Antigravity | knowledge-dashboard Pro-level Visualization & QA/QC
 
 ### Work Summary
