@@ -616,11 +616,16 @@ class MediaStep:
             return str(cached), "image", failures
 
         # ── 1. google-veo 비디오 ──
+        _is_veo = self.config.providers.visual_primary == "google-veo"
         result = self._try_video_primary(
             visual_prompt, duration_sec, video_dir, scene_name, cost_guard, logger, scene.scene_id
         )
         if result:
             return result[0], result[1], failures
+        if _is_veo:
+            failures.append(
+                {"step": "visual_primary", "code": "VideoFailed", "message": "google-veo unavailable or failed"}
+            )
 
         # ── 2. Pexels 스톡 영상 믹싱 (stock_mix_ratio 확률) ──
         _stock_mix = self.config.video.stock_mix_ratio
