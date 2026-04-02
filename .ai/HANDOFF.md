@@ -3,10 +3,21 @@
 > See `SESSION_LOG.md` for detailed session history and `DECISIONS.md` for settled architecture decisions.
 
 ## Latest Update
+| Date | 2026-04-02 |
+| Tool | Codex |
+| Work | **`T-129` foundation code now exists in `hanwoo-dashboard`.** Added `bullmq` + `ioredis`, `src/lib/redis.js`, `src/lib/queue.js`, `src/lib/dashboard/cache.js`, `src/lib/dashboard/events.js`, and `src/lib/dashboard/read-models.js`. Prisma now declares `OutboxEvent`, `DashboardSnapshot`, `NotificationSummary`, and `MarketPriceSnapshot`, with matching draft SQL in `projects/hanwoo-dashboard/prisma/manual/2026-04-02_read_models.sql`. Verification passed for `npm run db:generate`, `npx prisma validate`, targeted ESLint on the new helper files, and direct Node imports for the Redis/BullMQ surfaces. Current blocker remains the placeholder `DATABASE_URL`, so live DB index inventory / `EXPLAIN` is still pending. |
+
+## Previous Update
+
+| Date | 2026-04-02 |
+| Tool | Antigravity |
+| Work | **100x Scalability Phase 3-6 완료 + QC APPROVED.** `cost_db_pg.py` (PostgreSQL 연결 풀 2..10), `task_queue.py` (Celery 분산 큐 + LocalSemaphore 폴백), `observability.py` (OpenTelemetry 10 메트릭 + No-op 폴백) 생성. QC에서 4건 발견 (A-6 close 누락, A-3 SCAN 무한루프, A-8 walrus, A-7 싱글톤 리셋) → 전수 수정. 41 tests passed / 0 failed. |
+
+## Previous Update
 
 | Date | 2026-04-02 |
 | Tool | Codex |
-| Work | **`T-129` now has executable DB-audit tooling.** Added `projects/hanwoo-dashboard/scripts/verify-db-indexes.mjs`, wired `npm run db:verify-indexes`, and drafted `projects/hanwoo-dashboard/prisma/manual/2026-04-02_scale_index_backfill.sql`. The script inventories live indexes, checks schema-vs-live coverage, prints missing scale-candidate SQL, and runs `EXPLAIN` probes once a real `DATABASE_URL` is available. Current blocker: `projects/hanwoo-dashboard/.env` still contains the Supabase placeholder password, so live inventory / plan capture could not be completed yet. |
+| Work | **`T-129` now has executable DB-audit tooling.** Added `projects/hanwoo-dashboard/scripts/verify-db-indexes.mjs`, wired `npm run db:verify-indexes`, and drafted `projects/hanwoo-dashboard/prisma/manual/2026-04-02_scale_index_backfill.sql`. The script inventories live indexes, checks schema-vs-live coverage, prints missing `CREATE INDEX CONCURRENTLY` statements, and runs `EXPLAIN` probes once a real `DATABASE_URL` is available. Current blocker: `projects/hanwoo-dashboard/.env` still contains the Supabase placeholder password, so live inventory / plan capture could not be completed yet. |
 
 ## Previous Update
 
@@ -45,6 +56,10 @@
 - `docs/designs/2026-04-02-hanwoo-dashboard-scale-hardening-design.md` now captures the actionable `T-129` week-1 scale-hardening plan for `hanwoo-dashboard`.
 - `projects/hanwoo-dashboard/scripts/verify-db-indexes.mjs` now provides the Day-1 `T-129` audit path: it inventories `pg_indexes`, checks expected schema indexes, checks scale-candidate indexes, prints missing `CREATE INDEX CONCURRENTLY` statements, and runs targeted `EXPLAIN (ANALYZE, BUFFERS)` probes when the real DB URL is present.
 - `projects/hanwoo-dashboard/prisma/manual/2026-04-02_scale_index_backfill.sql` now contains the first-pass concurrent index backfill draft that should be trimmed to only live-missing indexes after the audit script runs against the real database.
+- `projects/hanwoo-dashboard/src/lib/redis.js` and `projects/hanwoo-dashboard/src/lib/queue.js` now establish the Redis/BullMQ foundation with cache-vs-queue connection separation, safe no-config behavior, queue names, and default retry/backoff settings.
+- `projects/hanwoo-dashboard/prisma/schema.prisma` now includes `OutboxStatus`, `OutboxEvent`, `DashboardSnapshot`, `NotificationSummary`, and `MarketPriceSnapshot`, with matching generated Prisma model files under `src/generated/prisma/models/`.
+- `projects/hanwoo-dashboard/src/lib/dashboard/cache.js`, `projects/hanwoo-dashboard/src/lib/dashboard/events.js`, and `projects/hanwoo-dashboard/src/lib/dashboard/read-models.js` now provide cache key builders, Redis JSON helpers, outbox CRUD helpers, and read-model persistence/cache wrappers for summary, notifications, and market prices.
+- `projects/hanwoo-dashboard/prisma/manual/2026-04-02_read_models.sql` now contains the first-pass SQL draft for the outbox and read-model tables.
 - `projects/blind-to-x` still has unrelated user/WIP changes; avoid touching that tree unless the user explicitly redirects the session.
 
 ## Verification Highlights
@@ -79,3 +94,4 @@
 - `projects/hanwoo-dashboard/src/lib/actions.js` still relies on full-list reads plus `revalidatePath('/')` for most mutations.
 - Post-build chunk listing showed a largest emitted chunk of about `868 KB` in `hanwoo-dashboard` and about `516 KB` in `knowledge-dashboard`, so bundle partitioning remains a live performance concern.
 - `npm run db:verify-indexes -- --skip-explain` is currently expected to stop early with a placeholder warning until the real pooled Postgres URL is supplied in `projects/hanwoo-dashboard/.env`.
+- Immediate `T-129` follow-up should wire `getNotifications()`, `getRealTimeMarketPrice()`, and the home summary path to the new cache/read-model helpers before tackling the larger route split.

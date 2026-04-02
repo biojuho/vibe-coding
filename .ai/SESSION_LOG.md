@@ -1,5 +1,75 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-04-02 | Codex | T-129 cache/queue/read-model foundations
+
+### Work Summary
+
+Extended `T-129` from design-only state into runnable scale-hardening foundations inside `projects/hanwoo-dashboard`.
+
+1. Installed `bullmq` and `ioredis`, then added `src/lib/redis.js` and `src/lib/queue.js` for cache-vs-queue Redis connection management, named BullMQ queues, and default retry/backoff settings.
+2. Added Prisma read-model/outbox declarations: `OutboxStatus`, `OutboxEvent`, `DashboardSnapshot`, `NotificationSummary`, and `MarketPriceSnapshot`.
+3. Added SQL drafts under `prisma/manual/` for both concurrent index backfill and the new outbox/read-model tables.
+4. Added `src/lib/dashboard/cache.js`, `src/lib/dashboard/events.js`, and `src/lib/dashboard/read-models.js` so future routes/actions can use cache keys, outbox helpers, and cached read-model persistence instead of raw full-table access patterns.
+5. Verified the new foundation code with `npm run db:generate`, `npx prisma validate`, targeted `npx eslint` on the new helper files, and direct Node imports for the Redis/BullMQ helper surfaces.
+6. Confirmed the live DB blocker still exists: `npm run db:verify-indexes -- --skip-explain` exits early because `projects/hanwoo-dashboard/.env` still contains the placeholder pooled Postgres password.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `projects/hanwoo-dashboard/package.json` | Added `db:verify-indexes` plus `bullmq` / `ioredis` dependencies |
+| `projects/hanwoo-dashboard/package-lock.json` | Updated lockfile for the new queue/cache dependencies |
+| `projects/hanwoo-dashboard/README.md` | Documented the optional Redis/BullMQ infrastructure and DB index verification command |
+| `projects/hanwoo-dashboard/src/lib/redis.js` | Added shared Redis helper with role-specific connection options |
+| `projects/hanwoo-dashboard/src/lib/queue.js` | Added BullMQ queue helper and named dashboard queues |
+| `projects/hanwoo-dashboard/prisma/schema.prisma` | Added outbox/read-model Prisma schema |
+| `projects/hanwoo-dashboard/prisma/manual/2026-04-02_read_models.sql` | Added SQL draft for outbox/read-model tables |
+| `projects/hanwoo-dashboard/prisma/manual/2026-04-02_scale_index_backfill.sql` | Added SQL draft for concurrent index backfill |
+| `projects/hanwoo-dashboard/scripts/verify-db-indexes.mjs` | Added live DB inventory / `EXPLAIN` audit script |
+| `projects/hanwoo-dashboard/src/lib/dashboard/cache.js` | Added dashboard cache key + TTL helpers |
+| `projects/hanwoo-dashboard/src/lib/dashboard/events.js` | Added outbox event helpers |
+| `projects/hanwoo-dashboard/src/lib/dashboard/read-models.js` | Added cached read-model persistence helpers |
+| `.ai/HANDOFF.md` | Updated relay notes with the new foundation work |
+| `.ai/TASKS.md` | Updated `T-129` notes |
+| `.ai/CONTEXT.md` | Added the new `hanwoo-dashboard` infra/code context |
+| `.ai/SESSION_LOG.md` | Logged this foundation session |
+
+## 2026-04-02 | Antigravity | 100x Scalability Phase 3-6 + QC APPROVED
+
+### Work Summary
+
+blind-to-x 파이프라인 100x 스케일 인프라 Phase 3-6 구현 + QA/QC 완료.
+
+1. **Phase 3 — PostgreSQL CostDatabase** (`cost_db_pg.py`): `psycopg3` 연결 풀(min=2, max=10), `CostDatabase` 퍼블릭 API 1:1 미러링, `get_cost_db()` 팩토리에 `BTX_DB_BACKEND=postgresql` 라우팅 + SQLite 자동 폴백 추가.
+2. **Phase 4 — Task Queue** (`task_queue.py`): `TaskQueue` Protocol + `LocalSemaphoreQueue` (기본) + `CeleryTaskQueue` (Redis-backed 분산). `BTX_TASK_QUEUE=celery` 시 전환, Celery 미설치 시 로컬 폴백.
+3. **Phase 6 — Observability** (`observability.py`): OpenTelemetry 10개 메트릭 + 트레이싱 + `@traced` 데코레이터. `BTX_OTEL_ENABLED=true` 미설정 시 No-op (제로 오버헤드).
+4. **QC 4건 수정**: A-6 `close()` 연결 풀 정리 누락, A-3 SCAN 무한 루프 방지, A-8 불필요 walrus 연산자, A-7 싱글톤 테스트 리셋 헬퍼.
+5. **검증**: 구문 검증 4/4 + 41 tests passed / 0 failed (회귀 없음).
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `projects/blind-to-x/pipeline/cost_db_pg.py` | PostgreSQL CostDatabase 신규 + `close()`/`__del__` 추가 (A-6) |
+| `projects/blind-to-x/pipeline/task_queue.py` | Celery/Local Task Queue 신규 + `_reset_singleton()` 추가 (A-7) |
+| `projects/blind-to-x/pipeline/observability.py` | OpenTelemetry 메트릭/트레이싱 신규 + walrus 제거 (A-8) |
+| `projects/blind-to-x/pipeline/db_backend.py` | Redis 캐시/Rate Limiter + SCAN max_iters 가드 (A-3) |
+| `projects/blind-to-x/pipeline/cost_db.py` | `get_cost_db()` 팩토리 PostgreSQL 라우팅 추가 |
+| `projects/blind-to-x/pipeline/draft_cache.py` | Redis 캐시 백엔드 통합 |
+| `projects/hanwoo-dashboard/src/components/DashboardClient.js` | `next/dynamic` 6개 컴포넌트 레이지 로딩 |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/SESSION_LOG.md` | 공유 컨텍스트 업데이트 |
+
+### Verification Results
+
+| 항목 | 결과 |
+|------|------|
+| 구문 검증 (ast) | 4/4 OK |
+| blind-to-x unit tests | 41 passed, 0 failed |
+| import 테스트 | singleton reset OK, traced OK |
+| QC 판정 | ✅ APPROVED (4건 수정 완료) |
+
+---
+
 ## 2026-04-02 | Codex | T-129 DB audit tooling bootstrap
 
 ### Work Summary
