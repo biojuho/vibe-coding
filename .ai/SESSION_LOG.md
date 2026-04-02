@@ -1,5 +1,64 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-04-02 | Codex | knowledge-dashboard signed-session auth hardening
+
+### Work Summary
+
+Production-hardened `projects/knowledge-dashboard` after the Pro analytics upgrade.
+
+1. Added `src/lib/dashboard-auth.ts` so the internal data routes can share a signed `httpOnly` session model instead of relying on a raw browser-stored API key.
+2. Added `src/app/api/auth/session/route.ts` to create, clear, and inspect dashboard auth sessions.
+3. Updated `src/app/page.tsx` so it authenticates through the session route, validates dashboard payload shapes before state updates, and keeps QA/QC failures non-fatal while distinguishing auth failures from generic load failures.
+4. Added node tests for `src/lib/dashboard-insights.ts` and updated `scripts/smoke.mjs` so smoke coverage now proves the session-cookie flow end to end.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `projects/knowledge-dashboard/src/lib/dashboard-auth.ts` | Added shared signed-session helpers for browser and API auth |
+| `projects/knowledge-dashboard/src/app/api/auth/session/route.ts` | Added login/logout/session-check route for dashboard access |
+| `projects/knowledge-dashboard/src/app/api/data/dashboard/route.ts` | Switched route auth to shared helper support |
+| `projects/knowledge-dashboard/src/app/api/data/qaqc/route.ts` | Switched route auth to shared helper support |
+| `projects/knowledge-dashboard/src/app/page.tsx` | Moved browser auth to session flow and tightened payload/error handling |
+| `projects/knowledge-dashboard/src/lib/dashboard-insights.ts` | Hardened metadata-gap heuristics and threshold centralization |
+| `projects/knowledge-dashboard/src/lib/dashboard-insights.test.mts` | Added node tests for insight-engine edge cases |
+| `projects/knowledge-dashboard/scripts/smoke.mjs` | Updated smoke verification to assert session-cookie auth |
+| `projects/knowledge-dashboard/package.json` | Added `npm test` and ESM package metadata |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/STATUS.md`, `.ai/DECISIONS.md` | Synced relay context and recorded the auth decision |
+
+### Verification Results
+
+- `npm run lint` (`projects/knowledge-dashboard`) -> **pass**
+- `npm run build` (`projects/knowledge-dashboard`) -> **pass**
+- `npm test` (`projects/knowledge-dashboard`) -> **pass**
+- `npm run smoke` (`projects/knowledge-dashboard`) -> **pass**
+
+## 2026-04-02 | Antigravity | knowledge-dashboard charts runtime hardening & QA/QC
+
+### Work Summary
+
+Hardened `projects/knowledge-dashboard/src/components/DashboardCharts.tsx` array and object references to prevent crashes and stop `useMemo` from constantly recalculating values on falsy defaults.
+Executed a complete QA/QC lifecycle validation confirming that malicious input or null state will not crash the component.
+
+1. Expanded `query` prop-type to `string | string[] | null` to account for raw Next.js router payloads natively in the component tree.
+2. Verified `Array.isArray()` inside the component so falsy bounds or object bugs evaluate gracefully into empty constants.
+3. Created `EMPTY_GITHUB_DATA` and `EMPTY_NOTEBOOK_DATA` constant bindings so `useMemo` compares references identically vs creating brand new `[]` arrays every single React render pass.
+4. Capped high-volume rendering loads with `notebookData.slice(0, 50)` down-sampling logic for performance limits matching Recharts boundaries.
+5. Successfully ran Phase 1 -> Phase 4 full regression testing validation (`/qa-qc` pipeline).
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `projects/knowledge-dashboard/src/components/DashboardCharts.tsx` | Added React array-safety referential fixes, query checks, and dataset virtualization bounds |
+| `.ai/SESSION_LOG.md`, `.ai/HANDOFF.md` | Recorded the QA/QC context logs |
+
+### Verification Results
+
+| Result | Details |
+|--------|---------|
+| `/qa-qc` | **PASS (APPROVED)** with 0 fatal findings in runtime checks |
+
 ## 2026-04-02 | Codex | knowledge-dashboard analytics QC hardening
 
 ### Work Summary

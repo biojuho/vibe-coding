@@ -1,7 +1,6 @@
 # Vibe Coding Status & Activity
 
-> 이 파일은 현재 시스템 구조와 활성 Minefield만 저장합니다.
-> 테스트 결과/Coverage는 `qaqc_history.db` 또는 `qaqc_result.json`을 참조하세요.
+> This file tracks the current repo state and recurring minefields. Use `qaqc_history.db` or the latest QA/QC artifact for detailed historical totals.
 
 ## Current State
 
@@ -12,29 +11,31 @@
 - `hanwoo-dashboard`: Next.js 16, Prisma 7.6, 0 npm vulnerabilities
 - `knowledge-dashboard`: internal `data/*.json` + authenticated `/api/data/*` delivery, `public/*.json` removed
 - `knowledge-dashboard`: chart analytics now flow through `src/lib/dashboard-insights.ts` with search-aware diversity, coverage, concentration, weighted health scoring, and recommendation playbooks
-- `knowledge-dashboard`: dashboard fetches now validate payload shape before `setData`, generic data-load failures render a separate recovery state, `Unspecified` language-heavy slices are treated as metadata gaps, and the dashboard bearer key is no longer persisted in `localStorage`
+- `knowledge-dashboard`: browser auth now exchanges `DASHBOARD_API_KEY` for a signed `httpOnly` session cookie via `src/app/api/auth/session/route.ts`, `src/lib/dashboard-auth.ts` is the shared gate for `/api/data/*`, and the raw key is no longer persisted in the browser
+- `knowledge-dashboard`: dashboard fetches now validate payload shape before `setData`, generic data-load failures render a separate recovery state, `Unspecified` language-heavy slices are treated as metadata gaps, and local node tests cover the insight engine
 - Frontend CI now includes runtime smoke checks for `hanwoo-dashboard` and `knowledge-dashboard`
 - Governance gate: `governance_checks.py` validates `.ai` files, relay claims, directive mapping, task backlog
 - Windows Task Scheduler: ASCII-safe `C:\btx\...` wrappers
-- Security: all f-string SQL validated (allowlist/regex), triaged as false positives
+- Security: all f-string SQL findings were reviewed and triaged as false positives with allowlist/regex validation still in place
 
 ## Minefield
 
 | Risk | Details | Safe Pattern |
 | --- | --- | --- |
-| Windows console encoding | cp949 paths/terminals에서 non-ASCII 출력 실패 | ASCII-safe logging 사용 |
-| Windows CA path + `curl_cffi` | Non-ASCII 경로에서 Error 77 | cert bundle을 ASCII 경로로 복사 + `CURL_CA_BUNDLE` 설정 |
-| pytest `addopts` conflicts | 프로젝트별 pytest 설정 충돌 | shared runner에서 `-o addopts=` 사용 |
-| Relay claim drift | HANDOFF.md가 실제 코드와 불일치할 수 있음 | `health_check.py --category governance --json` 실행 |
-| Dirty nested repos | 서브 프로젝트에 사용자 WIP 존재 가능 | 관련 없는 변경사항 절대 revert 금지 |
-| PowerShell ScheduledTasks | `Register-ScheduledTask` Access denied 가능 | `schtasks` fallback 사용 |
-| BTX draft contract | twitter `reply` 태그 필수, `creator_take`는 optional metadata | `draft_contract.py` helpers 사용 |
-| BTX `CostDatabase._connect()` | 일부 모듈이 `_connect()` alias 사용 중 | 마이그레이션 완료까지 alias 유지 |
-| Health check root split | workspace 디렉토리와 repo-root 파일 혼합 의도적 | `execution/`, `directives/`는 workspace, `.env` 등은 repo root |
-| Shared provider test mocks | TTS provider 테스트 공유 mock 누수 | 테스트별 mock reset |
-| Duplicate project roots | `projects/shorts-maker-v2`와 레거시 root 디렉토리 공존 | `projects/` 경로에서 실행 |
-| Hanwoo install peers | next-auth@5 beta가 Next 16 peer 미선언 | `npm install --legacy-peer-deps` |
+| Windows console encoding | cp949 terminals can mangle non-ASCII logs | Prefer ASCII-safe logging in scripts and verification output |
+| Windows CA path + `curl_cffi` | Non-ASCII certificate paths can trigger Error 77 | Copy the cert bundle to an ASCII path and set `CURL_CA_BUNDLE` |
+| pytest `addopts` conflicts | Repo and project pytest config can collide | Use `-o addopts=` in shared runner commands |
+| Relay claim drift | `HANDOFF.md` can diverge from the real worktree | Run `health_check.py --category governance --json` when in doubt |
+| Dirty nested repos | User/WIP changes already exist across several projects | Never revert unrelated changes; isolate work to the intended tree |
+| PowerShell ScheduledTasks | `Register-ScheduledTask` may fail with access denied | Fall back to `schtasks` |
+| BTX draft contract | Twitter `reply` is required and `creator_take` is optional metadata | Use `draft_contract.py` helpers |
+| BTX `CostDatabase._connect()` | Older call sites still depend on the alias | Keep the alias until that migration is fully closed |
+| Health check root split | `workspace/` content and repo-root files can be mixed accidentally | Keep `execution/` and `directives/` under `workspace/`, with `.env` at repo root |
+| Shared provider test mocks | TTS/provider mocks can leak between tests | Reset shared mocks between tests |
+| Duplicate project roots | `projects/shorts-maker-v2` coexists with older root-level paths | Run commands from `projects/` paths |
+| Hanwoo install peers | `next-auth@5` beta still reports a Next 16 peer mismatch | Use `npm install --legacy-peer-deps` |
 
 ## Recent Quality Notes
 
-- 테스트 통계/커버리지는 `workspace/execution/qaqc_history_db.py`로 쿼리하세요.
+- Use `workspace/execution/qaqc_history_db.py` when you need the detailed shared QA/QC totals or historical comparisons.
+- `projects/knowledge-dashboard` verification on `2026-04-02`: `npm run lint`, `npm run build`, `npm test`, and `npm run smoke` all passed after the signed-session auth refactor.

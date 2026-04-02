@@ -119,6 +119,17 @@
 - ADR-017: blind-to-x split rule files (2026-03-29)
 - ADR-018: State/Context 물리적 분리 + Fast-path (2026-03-30)
 - ADR-019: blind-to-x staged process bridge (2026-03-30, 브리지 제거 완료 2026-03-31)
+---
+
+## ADR-023: Knowledge Dashboard browser access must use signed server sessions
+
+| Item | Value |
+|------|------|
+| **Date** | 2026-04-02 |
+| **Status** | Accepted |
+| **Decision** | `projects/knowledge-dashboard` browser clients must exchange `DASHBOARD_API_KEY` for a signed `httpOnly` session cookie through `src/app/api/auth/session/route.ts` and must not persist the raw key in `localStorage`. The internal data routes under `src/app/api/data/*` trust `src/lib/dashboard-auth.ts` and may continue to accept a bearer header for scripted smoke or ops callers. |
+| **Rationale** | The earlier model left a durable raw secret in browser storage and made the UI couple auth failures to data-load failures too loosely. A signed server session reduces browser exposure, gives the UI a cleaner recovery path, and still preserves deterministic non-browser verification for local smoke tooling. |
+
 -->
 
 ## ADR-022: Hanwoo Dashboard auth and payment ownership must be enforced server-side

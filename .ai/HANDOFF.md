@@ -6,25 +6,29 @@
 
 | Date | 2026-04-02 |
 | Tool | Codex |
-| Work | Hardened the upgraded `projects/knowledge-dashboard` analytics path after QC. `src/app/page.tsx` now validates authenticated route payloads before setting dashboard state, separates auth failures from non-auth data-load failures, and no longer persists the dashboard bearer key in `localStorage`; `src/lib/dashboard-insights.ts` now treats large `Unspecified` language buckets as metadata gaps instead of a real dominant stack. |
+| Work | Production-hardened `projects/knowledge-dashboard` after the analytics upgrade. Browser auth now exchanges `DASHBOARD_API_KEY` for a signed `httpOnly` session cookie via `src/app/api/auth/session/route.ts`, `src/app/page.tsx` validates payload shapes and separates auth failures from load failures, `src/lib/dashboard-insights.ts` is covered by node tests, and `scripts/smoke.mjs` verifies the cookie-based auth path end to end. |
 
 
 ## Recent Completed
 
+- `T-127` (`2026-04-02`, Codex): `knowledge-dashboard` auth moved to a signed `httpOnly` session cookie, the data routes now trust `src/lib/dashboard-auth.ts`, node tests cover the insight engine, and smoke coverage verifies the new session flow.
+- `T-126` (`2026-04-02`, Antigravity): `DashboardCharts.tsx` was hardened against dirty inputs (NaN/null/arrays) via query normalization, stable empty-array references, and notebook dataset capping.
 - `T-125` (`2026-04-02`, Claude): batch 1 debt remediation landed across `blind-to-x`, `shorts-maker-v2`, and CI, including SQLite `RLock` swaps, silent-failure logging, tighter coverage floors, safer dependency caps, and frontend `tsc --noEmit`.
 - `T-124` (`2026-04-02`, Codex): runtime smoke scripts are now wired into the frontend CI matrix for `hanwoo-dashboard` and `knowledge-dashboard`.
-- `T-122` (`2026-04-01`, Codex): `projects/hanwoo-dashboard` auth and payment ownership now enforce real server-side trust boundaries.
+- `T-123` (`2026-04-02`, Codex): `knowledge-dashboard` now serves dashboard and QA/QC payloads from internal `data/*.json` via authenticated route handlers instead of `public/*.json`.
 - `T-116` is now historical context, not an active blocker: the later shared QA/QC baseline is already `APPROVED`, so the old `path_contract` import-pollution issue should no longer drive planning.
 
 ## Current State
 
 - Shared workspace QA/QC has a later approved baseline on `2026-04-01`: `3066 passed / 0 failed / 0 errors / 29 skipped`.
-- `projects/knowledge-dashboard` now serves internal dashboard + QA/QC data from `data/*.json` through authenticated route handlers under `src/app/api/data/*`.
+- `projects/knowledge-dashboard` now serves internal dashboard + QA/QC data from `data/*.json` through `src/app/api/data/*`.
 - `projects/knowledge-dashboard/public/dashboard_data.json` and `projects/knowledge-dashboard/public/qaqc_result.json` are removed from the delivery path.
 - `projects/knowledge-dashboard/scripts/sync_data.py` now resolves repo-relative paths for `data/`, `.ai/SESSION_LOG.md`, and `workspace/execution/qaqc_history_db.py`.
-- `projects/knowledge-dashboard` analytics now run through `src/lib/dashboard-insights.ts`, which buckets sparse/missing language metadata, computes diversity and coverage metrics, derives a weighted health score, emits recommendation cards for the chart UI, and treats large `Unspecified` language buckets as metadata gaps instead of stack concentration.
-- `projects/knowledge-dashboard/src/app/page.tsx` now validates authenticated route payload shapes before calling `setData`, keeps QA/QC payload failures non-fatal, renders a dedicated load-error state for non-auth failures, and keeps the dashboard bearer key in memory instead of persisting it in `localStorage`.
-- `projects/hanwoo-dashboard` and `projects/knowledge-dashboard` now both have project-local runtime smoke scripts exposed as `npm run smoke`, and the frontend matrix job runs that step after build/lint.
+- `projects/knowledge-dashboard` analytics run through `src/lib/dashboard-insights.ts`, which buckets sparse/missing language metadata, computes diversity and coverage metrics, derives a weighted health score, emits recommendation cards for the chart UI, and treats large `Unspecified` language buckets as metadata gaps instead of stack concentration.
+- `projects/knowledge-dashboard` browser auth now goes through `src/app/api/auth/session/route.ts` plus `src/lib/dashboard-auth.ts`; the UI exchanges `DASHBOARD_API_KEY` for a signed `httpOnly` session cookie instead of persisting the raw key in `localStorage`.
+- `projects/knowledge-dashboard/src/app/page.tsx` validates authenticated route payload shapes before calling `setData`, keeps QA/QC payload failures non-fatal, and renders a dedicated load-error state for non-auth failures.
+- `projects/knowledge-dashboard` now has local node tests for `src/lib/dashboard-insights.ts`, and the project smoke script verifies unauthorized requests plus session-cookie success paths against `/api/data/*`.
+- `projects/hanwoo-dashboard` and `projects/knowledge-dashboard` both have project-local runtime smoke scripts exposed as `npm run smoke`, and the frontend matrix job runs that step after build/lint.
 - `projects/blind-to-x` still has unrelated user/WIP changes; avoid touching that tree unless the user explicitly redirects the session.
 
 ## Verification Highlights
@@ -35,6 +39,7 @@
 - `npm run lint` (`projects/hanwoo-dashboard`) -> **pass** with the existing `@next/next/no-page-custom-font` warning in `src/app/layout.js`
 - `npm run lint` (`projects/knowledge-dashboard`) -> **pass**
 - `npm run build` (`projects/knowledge-dashboard`) -> **pass**
+- `npm test` (`projects/knowledge-dashboard`) -> **pass** (3 insight-engine tests)
 - `venv\Scripts\python.exe -X utf8 workspace\execution\qaqc_runner.py` -> **`APPROVED`** / `3066 passed / 0 failed / 0 errors / 29 skipped`
 - `venv\Scripts\python.exe -X utf8 -m pytest workspace/tests/test_shorts_manager_helpers.py workspace/tests/test_topic_auto_generator.py workspace/tests/test_vibe_debt_auditor.py -q --tb=short -o addopts= --maxfail=10` -> **68 passed**
 
@@ -47,6 +52,7 @@
 ## Notes
 
 - Keep `projects/knowledge-dashboard/data/*.json` internal-only; they are now gitignored and should not move back under `public/`.
+- `projects/knowledge-dashboard` still accepts a bearer header on `/api/data/*` for deterministic smoke/ops callers, but browser access should go through the signed session cookie path.
 - `workspace/tests/test_frontends.py` exists as a parallel untracked smoke-test approach from another tool; it was not wired into CI in this session, so treat it as adjacent WIP rather than part of the tracked frontend-smoke path.
 - On Windows, prefer `workspace/execution/health_check.py` for targeted environment diagnosis because it forces UTF-8 console output.
 - `coverage run` remains the reliable measurement path for `shorts-maker-v2`; `pytest-cov` can still misbehave with duplicate root/project paths on this machine.
