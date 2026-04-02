@@ -14,7 +14,7 @@
 
 | ID | Task | Owner | Started | Notes |
 |----|------|-------|---------|-------|
-| T-129 | Scale-harden `projects/hanwoo-dashboard` for 100x traffic: verify real DB indexes/migrations, add cached read models plus pagination, and split the monolithic dashboard client to reduce refresh and bundle pressure. | Codex | 2026-04-02 | Design doc created at `docs/designs/2026-04-02-hanwoo-dashboard-scale-hardening-design.md`; next step is live index verification plus migration drafting. |
+| T-129 | Scale-harden `projects/hanwoo-dashboard` for 100x traffic: verify real DB indexes/migrations, add cached read models plus pagination, and split the monolithic dashboard client to reduce refresh and bundle pressure. | Codex | 2026-04-02 | Design doc created at `docs/designs/2026-04-02-hanwoo-dashboard-scale-hardening-design.md`; `scripts/verify-db-indexes.mjs` plus `prisma/manual/2026-04-02_scale_index_backfill.sql` are now ready, but live inventory / `EXPLAIN` is blocked until a real `DATABASE_URL` replaces the placeholder in `projects/hanwoo-dashboard/.env`. |
 
 ## DONE (Latest 5)
 

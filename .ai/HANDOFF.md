@@ -6,7 +6,7 @@
 
 | Date | 2026-04-02 |
 | Tool | Codex |
-| Work | **`T-129` design package created for `hanwoo-dashboard` 100x scale hardening.** Added `docs/designs/2026-04-02-hanwoo-dashboard-scale-hardening-design.md` with week-1 rollout, cache keys, read-model design, queue adoption plan, and Prisma/SQL migration draft. `T-129` is now in progress; next implementation step is live index verification plus migration drafting. |
+| Work | **`T-129` now has executable DB-audit tooling.** Added `projects/hanwoo-dashboard/scripts/verify-db-indexes.mjs`, wired `npm run db:verify-indexes`, and drafted `projects/hanwoo-dashboard/prisma/manual/2026-04-02_scale_index_backfill.sql`. The script inventories live indexes, checks schema-vs-live coverage, prints missing scale-candidate SQL, and runs `EXPLAIN` probes once a real `DATABASE_URL` is available. Current blocker: `projects/hanwoo-dashboard/.env` still contains the Supabase placeholder password, so live inventory / plan capture could not be completed yet. |
 
 ## Previous Update
 
@@ -43,6 +43,8 @@
 - `projects/knowledge-dashboard` now has local node tests for `src/lib/dashboard-insights.ts`, and the project smoke script verifies unauthorized requests plus session-cookie success paths against `/api/data/*`.
 - `projects/hanwoo-dashboard` and `projects/knowledge-dashboard` both have project-local runtime smoke scripts exposed as `npm run smoke`, and the frontend matrix job runs that step after build/lint.
 - `docs/designs/2026-04-02-hanwoo-dashboard-scale-hardening-design.md` now captures the actionable `T-129` week-1 scale-hardening plan for `hanwoo-dashboard`.
+- `projects/hanwoo-dashboard/scripts/verify-db-indexes.mjs` now provides the Day-1 `T-129` audit path: it inventories `pg_indexes`, checks expected schema indexes, checks scale-candidate indexes, prints missing `CREATE INDEX CONCURRENTLY` statements, and runs targeted `EXPLAIN (ANALYZE, BUFFERS)` probes when the real DB URL is present.
+- `projects/hanwoo-dashboard/prisma/manual/2026-04-02_scale_index_backfill.sql` now contains the first-pass concurrent index backfill draft that should be trimmed to only live-missing indexes after the audit script runs against the real database.
 - `projects/blind-to-x` still has unrelated user/WIP changes; avoid touching that tree unless the user explicitly redirects the session.
 
 ## Verification Highlights
@@ -76,3 +78,4 @@
 - `projects/hanwoo-dashboard/src/app/page.js` still performs 8 serial dashboard reads on every dynamic request.
 - `projects/hanwoo-dashboard/src/lib/actions.js` still relies on full-list reads plus `revalidatePath('/')` for most mutations.
 - Post-build chunk listing showed a largest emitted chunk of about `868 KB` in `hanwoo-dashboard` and about `516 KB` in `knowledge-dashboard`, so bundle partitioning remains a live performance concern.
+- `npm run db:verify-indexes -- --skip-explain` is currently expected to stop early with a placeholder warning until the real pooled Postgres URL is supplied in `projects/hanwoo-dashboard/.env`.

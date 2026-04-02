@@ -1,5 +1,30 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-04-02 | Codex | T-129 DB audit tooling bootstrap
+
+### Work Summary
+
+Turned the first implementation step of `T-129` into runnable project-local tooling for `projects/hanwoo-dashboard`.
+
+1. Added `projects/hanwoo-dashboard/scripts/verify-db-indexes.mjs` to inventory live indexes through the existing Prisma stack, compare them against both schema-declared expectations and the proposed scale-hardening index set, print missing `CREATE INDEX CONCURRENTLY` statements, and run targeted `EXPLAIN (ANALYZE, BUFFERS)` probes.
+2. Added `npm run db:verify-indexes` to `projects/hanwoo-dashboard/package.json`, using Node's type-stripping path so the generated Prisma client can be reused without adding new dependencies.
+3. Added `projects/hanwoo-dashboard/prisma/manual/2026-04-02_scale_index_backfill.sql` as the first-pass concurrent-index backfill draft for the live DB verification phase.
+4. Updated the design doc so Day 1 now points directly at the new script and manual SQL draft.
+5. Verified the new script's guard path: it exits early with a clear message because `projects/hanwoo-dashboard/.env` still contains the Supabase placeholder password instead of a real pooled `DATABASE_URL`.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `projects/hanwoo-dashboard/scripts/verify-db-indexes.mjs` | Added project-local DB index inventory and `EXPLAIN` audit script |
+| `projects/hanwoo-dashboard/prisma/manual/2026-04-02_scale_index_backfill.sql` | Added first-pass concurrent index backfill draft |
+| `projects/hanwoo-dashboard/package.json` | Added `db:verify-indexes` npm script |
+| `docs/designs/2026-04-02-hanwoo-dashboard-scale-hardening-design.md` | Linked Day-1 rollout to the new audit script and manual SQL draft |
+| `.ai/HANDOFF.md` | Recorded the new DB-audit tooling and current blocker |
+| `.ai/TASKS.md` | Updated `T-129` notes with the new audit tooling and placeholder-DB blocker |
+| `.ai/CONTEXT.md` | Added the new `hanwoo-dashboard` DB-audit tool paths |
+| `.ai/SESSION_LOG.md` | Logged this tooling bootstrap session |
+
 ## 2026-04-02 | Codex | T-129 design package
 
 ### Work Summary
