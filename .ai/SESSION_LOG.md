@@ -495,6 +495,33 @@ Hardened `projects/hanwoo-dashboard` so auth and payment ownership are enforced 
 
 ---
 
+## 2026-04-02 | Codex | hanwoo-dashboard vibe-coding architecture audit
+
+### Work Summary
+
+Reviewed `projects/hanwoo-dashboard` for structural defects and hallucination-style drift.
+
+1. Verified the live app still builds and lints, which ruled out an immediate broken-import / nonexistent-library failure mode.
+2. Confirmed the main coupling hotspot is the `src/app/page.js` -> `src/lib/actions.js` -> `src/components/DashboardClient.js` flow, with duplicate widget fetches and repeated `router.refresh()` / `revalidatePath('/')`.
+3. Cross-checked current official docs and noted that `src/proxy.js` is aligned with the current Next.js 16 Proxy/Auth.js shape, while the manual Google font `<link>` tags should move to `next/font`.
+4. Logged review-driven follow-up `T-132` for the stale README stack docs and the `npm audit`-reported `lodash@4.17.23` path via `recharts`.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `.ai/HANDOFF.md` | Added the latest hanwoo-dashboard architecture-audit findings and verification notes |
+| `.ai/TASKS.md` | Added follow-up task `T-132` for review-driven cleanup |
+| `.ai/CONTEXT.md` | Recorded the verified coupling, doc-drift, and dependency-risk notes |
+
+### Verification Results
+
+- `npm run lint` (`projects/hanwoo-dashboard`) -> **pass** with `@next/next/no-page-custom-font` warning
+- `npm run build` (`projects/hanwoo-dashboard`) -> **pass**
+- `npm audit --omit=dev` (`projects/hanwoo-dashboard`) -> **1 high** (`lodash@4.17.23` via `recharts`)
+
+---
+
 ## 2026-04-01 | Shared QA/QC | APPROVED baseline refreshed
 
 ### Work Summary

@@ -5,6 +5,11 @@
 ## Latest Update
 | Date | 2026-04-02 |
 | Tool | Codex |
+| Work | **Architectural/vibe-coding audit completed for `hanwoo-dashboard`.** Local verification shows `npm run lint` and `npm run build` still pass, so there is no immediate build-breaking hallucinated import/library issue, but the review found a monolithic `DashboardClient` + `actions.js` pair, duplicate client-side fetch paths for notifications/market data, broad `router.refresh()` / `revalidatePath('/')` coupling, stale README stack claims (`Next.js 14` + `SQLite` vs the live `Next.js 16.2.1` + Postgres/Prisma stack), and `npm audit --omit=dev` still reports a high-severity `lodash@4.17.23` advisory via `recharts`. Official-doc cross-check also confirmed that `src/proxy.js` matches the current Next.js 16 Proxy surface, while the custom font `<link>` tags in `src/app/layout.js` should move to `next/font`. |
+
+## Previous Update
+| Date | 2026-04-02 |
+| Tool | Codex |
 | Work | **`T-129` foundation code now exists in `hanwoo-dashboard`.** Added `bullmq` + `ioredis`, `src/lib/redis.js`, `src/lib/queue.js`, `src/lib/dashboard/cache.js`, `src/lib/dashboard/events.js`, and `src/lib/dashboard/read-models.js`. Prisma now declares `OutboxEvent`, `DashboardSnapshot`, `NotificationSummary`, and `MarketPriceSnapshot`, with matching draft SQL in `projects/hanwoo-dashboard/prisma/manual/2026-04-02_read_models.sql`. Verification passed for `npm run db:generate`, `npx prisma validate`, targeted ESLint on the new helper files, and direct Node imports for the Redis/BullMQ surfaces. Current blocker remains the placeholder `DATABASE_URL`, so live DB index inventory / `EXPLAIN` is still pending. |
 
 ## Previous Update
@@ -60,6 +65,8 @@
 - `projects/hanwoo-dashboard/prisma/schema.prisma` now includes `OutboxStatus`, `OutboxEvent`, `DashboardSnapshot`, `NotificationSummary`, and `MarketPriceSnapshot`, with matching generated Prisma model files under `src/generated/prisma/models/`.
 - `projects/hanwoo-dashboard/src/lib/dashboard/cache.js`, `projects/hanwoo-dashboard/src/lib/dashboard/events.js`, and `projects/hanwoo-dashboard/src/lib/dashboard/read-models.js` now provide cache key builders, Redis JSON helpers, outbox CRUD helpers, and read-model persistence/cache wrappers for summary, notifications, and market prices.
 - `projects/hanwoo-dashboard/prisma/manual/2026-04-02_read_models.sql` now contains the first-pass SQL draft for the outbox and read-model tables.
+- `projects/hanwoo-dashboard` still has a review-confirmed vibe-coding debt cluster on `2026-04-02`: `src/app/page.js` does 8 serial reads, `src/components/DashboardClient.js` (667 lines) and `src/lib/actions.js` (682 lines) form a high-coupling hub, notifications/market widgets refetch data from client `useEffect`, and the README still describes `Next.js 14` + `SQLite` even though the live stack is `Next.js 16.2.1` + Postgres/Prisma.
+- `src/proxy.js` and `src/auth.js` are aligned with current Next.js 16/Auth.js guidance, so the clearest official-doc drift is the manual font-loading pattern in `src/app/layout.js` plus the stale README/dependency story, not the auth/proxy surface.
 - `projects/blind-to-x` still has unrelated user/WIP changes; avoid touching that tree unless the user explicitly redirects the session.
 
 ## Verification Highlights
@@ -68,6 +75,8 @@
 - `npm run smoke` (`projects/knowledge-dashboard`) -> **pass**
 - `npm run smoke` (`projects/hanwoo-dashboard`) -> **pass**
 - `npm run lint` (`projects/hanwoo-dashboard`) -> **pass** with the existing `@next/next/no-page-custom-font` warning in `src/app/layout.js`
+- `npm run build` (`projects/hanwoo-dashboard`) -> **pass** on `Next.js 16.2.1`
+- `npm audit --omit=dev` (`projects/hanwoo-dashboard`) -> **1 high** (`lodash@4.17.23` via `recharts`)
 - `npm run lint` (`projects/knowledge-dashboard`) -> **pass**
 - `npm run build` (`projects/knowledge-dashboard`) -> **pass**
 - `npm test` (`projects/knowledge-dashboard`) -> **pass** (3 insight-engine tests)
@@ -80,6 +89,7 @@
 2. Investigate `T-121`: determine whether `projects/blind-to-x/tests/unit/test_main.py` interruptions are a terminal-wrapper artifact or a real regression.
 3. Continue the remaining audit follow-up `T-100` for `blind-to-x` coverage.
 4. Review `T-129`: scale-harden `hanwoo-dashboard` before higher traffic lands by validating real DB indexes, introducing cached read models, and splitting the monolithic dashboard client.
+5. Pick up `T-132`: clean up the review-confirmed vibe-coding drift in `hanwoo-dashboard` (duplicate widget fetches, manual font links, stale README stack docs, vulnerable lodash path).
 
 ## Notes
 

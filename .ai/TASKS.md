@@ -11,6 +11,8 @@
 | T-128 | `test_cost_tracker_uses_persisted_daily_totals` 전체 실행 시 fail, 단독 pass — 테스트 격리 문제. 실행 순서 의존성 원인 규명 및 수정. | Claude | Medium   | 2026-04-02 |
 | T-130 | 100x 스케일 신규 모듈 (`cost_db_pg`, `task_queue`, `observability`, `db_backend`) 단위 테스트 작성 — T-100 하위 항목. | Claude | Normal   | 2026-04-02 |
 
+| T-132 | Review-driven cleanup for `projects/hanwoo-dashboard`: collapse duplicate widget fetch paths, replace manual Google font links with `next/font`, align README stack docs with the live Next.js 16/Postgres setup, and remove the vulnerable `lodash@4.17.23` path flagged by `npm audit`. | Codex  | High     | 2026-04-02 |
+
 ## IN_PROGRESS
 
 | ID | Task | Owner | Started | Notes |
