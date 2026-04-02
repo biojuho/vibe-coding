@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { startTransition, useDeferredValue, useEffect, useMemo, useState } from "react";
 import {
   Book, Code, Github, ExternalLink, RefreshCw, Smartphone,
   Search, FileText, PieChart, Layers, Shield, Clock
@@ -62,6 +62,37 @@ interface DashboardData {
 }
 
 type TabId = "knowledge" | "qaqc" | "activity";
+
+// Keep client-side API responses on a typed path before they reach render.
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isDashboardDataPayload(value: unknown): value is DashboardData {
+  return (
+    isObject(value) &&
+    typeof value.last_updated === "string" &&
+    Array.isArray(value.github) &&
+    Array.isArray(value.notebooklm)
+  );
+}
+
+function isQaQcPayload(value: unknown): value is QaQcData {
+  return (
+    isObject(value) &&
+    typeof value.timestamp === "string" &&
+    typeof value.verdict === "string" &&
+    isObject(value.total)
+  );
+}
+
+function getApiErrorMessage(value: unknown, fallback: string) {
+  if (isObject(value) && typeof value.error === "string") {
+    return value.error;
+  }
+
+  return fallback;
+}
 
 // ── Tab Component ────────────────────────────────────
 function TabBar({
@@ -127,18 +158,85 @@ export default function Dashboard() {
   const [selectedNotebook, setSelectedNotebook] = useState<Notebook | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>("knowledge");
 
+  const [authError, setAuthError] = useState(false);
+  const [authSubmitting, setAuthSubmitting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [sessionVersion, setSessionVersion] = useState(0);
+  const deferredSearchTerm = useDeferredValue(searchTerm);
+
   useEffect(() => {
-    Promise.all([
-      fetch("/dashboard_data.json").then(r => r.json()).catch(() => null),
-      fetch("/qaqc_result.json").then(r => r.json()).catch(() => null),
-    ]).then(([dashData, qaqcData]) => {
-      if (dashData) {
-        if (qaqcData) dashData.qaqc = qaqcData;
-        setData(dashData);
-      }
-      setLoading(false);
+    let isActive = true;
+    startTransition(() => {
+      setLoading(true);
+      setLoadError(null);
     });
-  }, []);
+
+    // Treat transport errors and shape errors separately so the UI can
+    // distinguish bad credentials from broken data.
+    const fetchJson = async (url: string) => {
+      const response = await fetch(url, { cache: "no-store" });
+      const payload = await response.json().catch(() => null);
+
+      if (response.status === 401) {
+        throw new Error("Unauthorized");
+      }
+
+      if (!response.ok) {
+        throw new Error(getApiErrorMessage(payload, `Request failed (${response.status})`));
+      }
+
+      return payload;
+    };
+
+    void (async () => {
+      try {
+        const dashboardPayload = await fetchJson("/api/data/dashboard");
+        if (!isDashboardDataPayload(dashboardPayload)) {
+          throw new Error("Dashboard payload is malformed.");
+        }
+
+        const nextData: DashboardData = { ...dashboardPayload };
+
+        try {
+          const qaqcPayload = await fetchJson("/api/data/qaqc");
+          if (isQaQcPayload(qaqcPayload)) {
+            nextData.qaqc = qaqcPayload;
+          }
+        } catch (error) {
+          if (error instanceof Error && error.message === "Unauthorized") {
+            throw error;
+          }
+
+          console.warn("QA/QC payload could not be loaded. Continuing without it.", error);
+        }
+
+        if (!isActive) return;
+
+        startTransition(() => {
+          setData(nextData);
+          setAuthError(false);
+          setLoadError(null);
+          setLoading(false);
+        });
+      } catch (error) {
+        if (!isActive) return;
+
+        const unauthorized = error instanceof Error && error.message === "Unauthorized";
+        const message = error instanceof Error ? error.message : "Dashboard data could not be loaded.";
+
+        startTransition(() => {
+          setData(null);
+          setAuthError(unauthorized);
+          setLoadError(unauthorized ? null : message);
+          setLoading(false);
+        });
+      }
+    })();
+
+    return () => {
+      isActive = false;
+    };
+  }, [sessionVersion]);
 
   // Smart Tagging Logic
   const getTags = (item: GithubRepo | Notebook) => {
@@ -158,25 +256,17 @@ export default function Dashboard() {
     return tags.slice(0, 3);
   };
 
-  // Stats Logic
-  const stats = useMemo(() => {
-    if (!data) return null;
-    const languages: { [key: string]: number } = {};
-    data.github.forEach(repo => {
-      if (repo.language) {
-        languages[repo.language] = (languages[repo.language] || 0) + 1;
-      }
-    });
-    const sortedLangs = Object.entries(languages).sort(([, a], [, b]) => b - a);
-    const totalSources = data.notebooklm.reduce((acc, curr) => acc + curr.source_count, 0);
-    return { sortedLangs, totalSources };
-  }, [data]);
-
   // Smart Search
   const filteredData = useMemo(() => {
     if (!data) return { github: [], notebooklm: [] };
-    if (!searchTerm.trim()) return data;
-    const lowerTerm = searchTerm.toLowerCase();
+    const lowerTerm = deferredSearchTerm.trim().toLowerCase();
+    if (!lowerTerm) {
+      return {
+        github: data.github,
+        notebooklm: data.notebooklm,
+      };
+    }
+
     return {
       github: data.github.filter(repo =>
         repo.name.toLowerCase().includes(lowerTerm) ||
@@ -187,10 +277,140 @@ export default function Dashboard() {
         nb.title.toLowerCase().includes(lowerTerm)
       ),
     };
-  }, [data, searchTerm]);
+  }, [data, deferredSearchTerm]);
 
-  const githubCount = data?.github.length ?? 0;
-  const notebookCount = data?.notebooklm.length ?? 0;
+  // Stats Logic
+  const stats = useMemo(() => {
+    if (!data) return null;
+    const languages: { [key: string]: number } = {};
+    filteredData.github.forEach(repo => {
+      if (repo.language) {
+        languages[repo.language] = (languages[repo.language] || 0) + 1;
+      }
+    });
+    const sortedLangs = Object.entries(languages).sort(([, a], [, b]) => b - a);
+    const totalSources = filteredData.notebooklm.reduce((acc, curr) => acc + curr.source_count, 0);
+    return { sortedLangs, totalSources };
+  }, [data, filteredData]);
+
+  const githubCount = filteredData.github.length;
+  const notebookCount = filteredData.notebooklm.length;
+
+  if (authError) {
+    return (
+      <div className="min-h-screen bg-[#0f172a] text-white flex items-center justify-center font-sans p-4 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-purple-600/20 blur-[120px] rounded-full -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+        <Card className="w-full max-w-md bg-slate-900/60 border-white/10 backdrop-blur-md z-10 p-2">
+          <CardContent className="pt-6 space-y-6">
+            <div className="text-center space-y-2">
+              <Shield className="w-12 h-12 text-blue-400 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold">인증이 필요합니다</h2>
+              <p className="text-sm text-slate-400">
+                대시보드 데이터를 조회하려면 API 키를 입력하세요.
+              </p>
+            </div>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                const apiKeyInput = String(fd.get("apiKey") ?? "").trim();
+                if (!apiKeyInput) {
+                  return;
+                }
+
+                setAuthSubmitting(true);
+                setLoadError(null);
+
+                try {
+                  const response = await fetch("/api/auth/session", {
+                    method: "POST",
+                    cache: "no-store",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({ apiKey: apiKeyInput }),
+                  });
+                  const payload = await response.json().catch(() => null);
+
+                  if (response.status === 401) {
+                    setAuthError(true);
+                    return;
+                  }
+
+                  if (!response.ok) {
+                    setAuthError(false);
+                    setLoadError(getApiErrorMessage(payload, "세션을 생성하지 못했습니다."));
+                    return;
+                  }
+
+                  setAuthError(false);
+                  setLoadError(null);
+                  setLoading(true);
+                  setSessionVersion((current) => current + 1);
+                } finally {
+                  setAuthSubmitting(false);
+                }
+              }}
+              className="space-y-4"
+            >
+              <Input
+                name="apiKey"
+                type="password"
+                placeholder="DASHBOARD_API_KEY 입력..."
+                className="bg-slate-800/50 border-white/10 text-white"
+                autoFocus
+              />
+              {authError && (
+                <p className="text-sm text-red-400 text-center">인증에 실패했습니다. 키를 확인하세요.</p>
+              )}
+              <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-500" disabled={authSubmitting}>
+                인증 후 접속
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-[#0f172a] text-white flex items-center justify-center font-sans p-4 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-blue-600/20 blur-[120px] rounded-full -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+        <Card className="w-full max-w-lg bg-slate-900/60 border-white/10 backdrop-blur-md z-10 p-2">
+          <CardContent className="pt-6 space-y-5">
+            <div className="space-y-2 text-center">
+              <Shield className="w-12 h-12 text-amber-400 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-white">데이터를 불러오지 못했습니다</h2>
+              <p className="text-sm text-slate-400">
+                인증은 통과했지만 대시보드 응답이 유효하지 않았습니다.
+              </p>
+            </div>
+            <div className="rounded-xl border border-amber-400/20 bg-amber-500/10 p-4 text-sm leading-6 text-amber-100">
+              {loadError}
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button
+                className="flex-1 bg-blue-600 hover:bg-blue-500"
+                onClick={() => window.location.reload()}
+              >
+                다시 시도
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1 border-white/10 bg-white/5 hover:bg-white/10"
+                onClick={async () => {
+                  await fetch("/api/auth/session", { method: "DELETE", cache: "no-store" }).catch(() => null);
+                  setLoadError(null);
+                  setAuthError(true);
+                }}
+              >
+                키 다시 입력
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-white p-8 relative overflow-hidden font-sans">
@@ -210,6 +430,17 @@ export default function Dashboard() {
               {data && (
                 <span className="text-xs text-slate-500 ml-2">
                   (업데이트: {new Date(data.last_updated).toLocaleString()})
+                  <button
+                    onClick={async () => {
+                      await fetch("/api/auth/session", { method: "DELETE", cache: "no-store" }).catch(() => null);
+                      setData(null);
+                      setLoadError(null);
+                      setAuthError(true);
+                    }}
+                    className="ml-4 hover:underline"
+                  >
+                    로그아웃
+                  </button>
                 </span>
               )}
             </p>
@@ -314,7 +545,13 @@ export default function Dashboard() {
                   </div>
                 )}
 
-                {data && <DashboardCharts githubData={data.github} notebookData={data.notebooklm} />}
+                {data && (
+                  <DashboardCharts
+                    githubData={filteredData.github}
+                    notebookData={filteredData.notebooklm}
+                    query={deferredSearchTerm}
+                  />
+                )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   {/* GitHub Section */}
