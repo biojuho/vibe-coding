@@ -6,7 +6,7 @@
 
 Closed the two highest-risk QC findings in the upgraded analytics flow.
 
-1. Hardened `src/app/page.tsx` so authenticated route responses are shape-validated before `setData`, QA/QC payload failures are non-fatal, and non-auth data-load failures render a dedicated retry state instead of crashing later in render.
+1. Hardened `src/app/page.tsx` so authenticated route responses are shape-validated before `setData`, QA/QC payload failures are non-fatal, non-auth data-load failures render a dedicated retry state instead of crashing later in render, and the dashboard bearer key is no longer persisted in `localStorage`.
 2. Updated `src/lib/dashboard-insights.ts` so large `Unspecified` language buckets are treated as metadata-quality gaps rather than a real dominant stack, which avoids misleading concentration badges and recommendations.
 
 ### Changed Files

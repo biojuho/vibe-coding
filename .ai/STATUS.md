@@ -12,7 +12,7 @@
 - `hanwoo-dashboard`: Next.js 16, Prisma 7.6, 0 npm vulnerabilities
 - `knowledge-dashboard`: internal `data/*.json` + authenticated `/api/data/*` delivery, `public/*.json` removed
 - `knowledge-dashboard`: chart analytics now flow through `src/lib/dashboard-insights.ts` with search-aware diversity, coverage, concentration, weighted health scoring, and recommendation playbooks
-- `knowledge-dashboard`: dashboard fetches now validate payload shape before `setData`, generic data-load failures render a separate recovery state, and `Unspecified` language-heavy slices are treated as metadata gaps
+- `knowledge-dashboard`: dashboard fetches now validate payload shape before `setData`, generic data-load failures render a separate recovery state, `Unspecified` language-heavy slices are treated as metadata gaps, and the dashboard bearer key is no longer persisted in `localStorage`
 - Frontend CI now includes runtime smoke checks for `hanwoo-dashboard` and `knowledge-dashboard`
 - Governance gate: `governance_checks.py` validates `.ai` files, relay claims, directive mapping, task backlog
 - Windows Task Scheduler: ASCII-safe `C:\btx\...` wrappers
