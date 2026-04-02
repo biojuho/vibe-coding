@@ -428,7 +428,15 @@ class MediaStep:
         logger: Any,
         scene_id: int,
     ) -> tuple[str, str] | None:
-        """google-veo 비디오 생성 시도. 성공 시 (path, "video"), 실패/불가 시 None."""
+        """google-veo 비디오 생성 시도.
+
+        Returns:
+            (path, "video") 성공 시
+            None            provider 불일치·비용 다운그레이드·실제 실패 모두 None 반환.
+            실제 예외로 실패한 경우 self._last_video_primary_failed = True 플래그 설정.
+        """
+        self._last_video_primary_failed = False
+
         if self.config.providers.visual_primary != "google-veo":
             return None
 
@@ -453,6 +461,7 @@ class MediaStep:
             return str(path), "video"
         except Exception as exc:
             self._log(logger, "warning", "video_failed_fallback_to_image", scene_id=scene_id, error=str(exc))
+            self._last_video_primary_failed = True
             return None
 
     def _try_stock_video(
@@ -616,13 +625,12 @@ class MediaStep:
             return str(cached), "image", failures
 
         # ── 1. google-veo 비디오 ──
-        _is_veo = self.config.providers.visual_primary == "google-veo"
         result = self._try_video_primary(
             visual_prompt, duration_sec, video_dir, scene_name, cost_guard, logger, scene.scene_id
         )
         if result:
             return result[0], result[1], failures
-        if _is_veo:
+        if self._last_video_primary_failed:
             failures.append(
                 {"step": "visual_primary", "code": "VideoFailed", "message": "google-veo unavailable or failed"}
             )
