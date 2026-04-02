@@ -1,5 +1,25 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-04-02 | Codex | 100x scale architecture review
+
+### Work Summary
+
+Reviewed the current traffic-bearing dashboard paths with a scale-up lens, focusing on `projects/hanwoo-dashboard` and the read-heavy `projects/knowledge-dashboard`.
+
+1. Identified the main DB/read bottleneck: `hanwoo-dashboard` still performs broad dashboard reads on every dynamic page request and several server actions still load whole tables or aggregate in application code.
+2. Identified the main backend bottleneck: most mutations still fan out through synchronous request paths plus broad `revalidatePath('/')` invalidation instead of queue-backed side-effect isolation or read-model refreshes.
+3. Identified the main frontend bottleneck: `DashboardClient` remains a monolithic client boundary that imports all tabs/widgets, recomputes large collections in render, and triggers expensive `router.refresh()` reloads after most writes.
+4. Verified build output to support the frontend concern: post-build chunk inspection showed a largest emitted JS chunk of about `868 KB` in `hanwoo-dashboard` and about `516 KB` in `knowledge-dashboard`.
+5. Added follow-up task `T-129` so the scale-hardening work is visible in the shared backlog.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `.ai/HANDOFF.md` | Recorded the scale-review relay and carry-forward notes |
+| `.ai/TASKS.md` | Added `T-129` scale-hardening follow-up |
+| `.ai/SESSION_LOG.md` | Logged this architecture-review session |
+
 ## 2026-04-02 | Claude | QC 전 영역 0 failed APPROVED
 
 ### Work Summary

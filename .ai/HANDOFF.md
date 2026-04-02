@@ -5,6 +5,12 @@
 ## Latest Update
 
 | Date | 2026-04-02 |
+| Tool | Codex |
+| Work | **100x scale review for `hanwoo-dashboard` / `knowledge-dashboard`.** No product files changed. Main risks identified: (1) full-table dashboard reads plus broad `router.refresh()` invalidation, (2) synchronous write/read paths without queue-backed side-effect isolation, (3) monolithic client dashboard and large emitted JS chunks. Follow-up task `T-129` added for scale hardening. |
+
+## Previous Update
+
+| Date | 2026-04-02 |
 | Tool | Claude |
 | Work | **QC 3라운드 → 전 영역 0 failed APPROVED.** 회귀 5건 수정: ① `governance_checks.py` backtick 파싱 + `INDEX.md` `_ci_*` 4개 등록. ② `test_notion_shorts_sync` `_conn()` context manager 수정. ③ `test_frontends` `_kill_stale_nextjs_server()` 추가 (Next.js lock PID 자동 정리). ④ `media_step` `visual_primary` failure 기록 추가. ⑤ `_last_video_primary_failed` 플래그로 비용 다운그레이드 vs 실제 실패 분기. 최종: workspace 1210 / blind-to-x 810 / shorts-maker-v2 1282 — 전부 passed. |
 
@@ -55,6 +61,7 @@
 1. Fix `T-120`: `workspace/tests/test_auto_schedule_paths.py::test_n8n_bridge_defaults_use_canonical_paths` still fails with `ModuleNotFoundError: No module named 'fastapi'`.
 2. Investigate `T-121`: determine whether `projects/blind-to-x/tests/unit/test_main.py` interruptions are a terminal-wrapper artifact or a real regression.
 3. Continue the remaining audit follow-up `T-100` for `blind-to-x` coverage.
+4. Review `T-129`: scale-harden `hanwoo-dashboard` before higher traffic lands by validating real DB indexes, introducing cached read models, and splitting the monolithic dashboard client.
 
 ## Notes
 
@@ -64,3 +71,7 @@
 - On Windows, prefer `workspace/execution/health_check.py` for targeted environment diagnosis because it forces UTF-8 console output.
 - `coverage run` remains the reliable measurement path for `shorts-maker-v2`; `pytest-cov` can still misbehave with duplicate root/project paths on this machine.
 - `CostDatabase._connect()` is still a live compatibility surface in `projects/blind-to-x`; do not remove it just because `_conn()` exists.
+- Scale-review evidence worth carrying forward:
+- `projects/hanwoo-dashboard/src/app/page.js` still performs 8 serial dashboard reads on every dynamic request.
+- `projects/hanwoo-dashboard/src/lib/actions.js` still relies on full-list reads plus `revalidatePath('/')` for most mutations.
+- Post-build chunk listing showed a largest emitted chunk of about `868 KB` in `hanwoo-dashboard` and about `516 KB` in `knowledge-dashboard`, so bundle partitioning remains a live performance concern.
