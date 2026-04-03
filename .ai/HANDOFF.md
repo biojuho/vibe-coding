@@ -5,7 +5,7 @@
 ## Latest Update
 | Date | 2026-04-03 |
 | Tool | Codex |
-| Work | **System QC completed and the shared gate is now `REJECTED` again.** `workspace/scripts/doctor.py` still passes, but `workspace/scripts/quality_gate.py` now fails with **46 root failures** concentrated in `workspace/tests/test_scheduler_engine.py` after `workspace/execution/scheduler_engine.py` switched its public task runners to async and memoized DB initialization across `DB_PATH` changes. `workspace/execution/qaqc_runner.py` also returns **`REJECTED`** (`2471 passed / 46 failed / 1 errors / 1 skipped`), and targeted reruns confirmed two live `blind-to-x` regressions: `pipeline/process_stages/fetch_stage.py` now assumes `scrape_post_with_retry()` exists, and `pipeline/draft_prompts.py` interpolates `newsletter_block` even when `newsletter` output was not requested. Separately, the DEEP runner currently under-exercises `blind-to-x` because it launches pytest from the project root while passing absolute test paths, which can exit `0` with no collected output on this Windows setup. |
+| Work | **Closed the 2026-04-03 QC regressions and refreshed the focused gates.** `workspace/execution/scheduler_engine.py` is sync-compatible again (`run_task()`, `run_due_tasks()`, `_execute_subprocess()`) and no longer skips DB schema init after `DB_PATH` changes, which brought `workspace/scripts/quality_gate.py` back to **pass** (`1233 passed / 1 skipped`). In `projects/blind-to-x`, `pipeline/process_stages/fetch_stage.py` again falls back to `scrape_post()`, `pipeline/draft_prompts.py` now guards `newsletter_block`, and `pipeline/image_generator.py` generic prompts once again include topic scenes such as `Korean office workers...`, which cleared the last integration failure. `workspace/execution/qaqc_runner.py --project blind-to-x` now returns **`APPROVED`** (`873 passed / 0 failed / 0 errors / 9 skipped`) after the Windows relative-path fix. Full all-project DEEP QC was not rerun in this session. |
 
 ## Previous Update
 | Date | 2026-04-02 |
@@ -54,10 +54,13 @@
 
 ## Current State
 
-- Latest shared QA/QC attempt on `2026-04-03` is **`REJECTED`**: `2471 passed / 46 failed / 1 errors / 1 skipped`. The last approved shared baseline is still `2026-04-01`: `3066 passed / 0 failed / 0 errors / 29 skipped`.
-- `workspace/execution/scheduler_engine.py` is currently a live minefield: `run_task()` / `run_due_tasks()` were changed to async without preserving the existing sync contract, `_execute_subprocess()` disappeared, and `_DB_INITIALIZED` now short-circuits schema setup across later `DB_PATH` changes, which is why `workspace/tests/test_scheduler_engine.py` now drives the 46-root-failure cluster.
-- `workspace/execution/qaqc_runner.py` currently launches `blind-to-x` pytest runs from `projects/blind-to-x` while also passing absolute `tests/unit` and `tests/integration` paths. On this Windows machine that can exit `0` with no collected output, so the DEEP report can silently miss real `blind-to-x` failures unless the paths are made project-relative or the cwd changes.
-- `projects/blind-to-x` now has two confirmed non-harness regressions from the latest QC pass: `pipeline/process_stages/fetch_stage.py` requires `scrape_post_with_retry()` and breaks compatibility with stub/caller implementations that only expose `scrape_post()`, and `pipeline/draft_prompts.py` interpolates `newsletter_block` even when `output_formats` excludes `newsletter`.
+| Tool | Status | Summary of Results | Next Priorities |
+| :--- | :--- | :--- | :--- |
+| **Codex** | **STABLE** | Root STANDARD gate passes (`1233 passed / 1 skipped`), `workspace/tests/test_scheduler_engine.py` is back to green (`71 passed`), and `workspace/execution/qaqc_runner.py --project blind-to-x` is `APPROVED` (`873 passed / 0 failed / 9 skipped`). | T-120 dependency gap, T-128 isolation bug, T-129 scale hardening, T-100 coverage. |
+
+- `T-133`: `scheduler_engine.py` sync contract is restored; no `_DB_INITIALIZED` short-circuit issues.
+- `T-134`: `blind-to-x` regressions (scraper and newsletter guards) are fixed and verified via targeted tests.
+- `T-135`: `qaqc_runner.py` discovery logic on Windows is confirmed to work from both root and project subdirectories.
 - `projects/knowledge-dashboard` now serves internal dashboard + QA/QC data from `data/*.json` through `src/app/api/data/*`.
 - `projects/knowledge-dashboard/public/dashboard_data.json` and `projects/knowledge-dashboard/public/qaqc_result.json` are removed from the delivery path.
 - `projects/knowledge-dashboard/scripts/sync_data.py` now resolves repo-relative paths for `data/`, `.ai/SESSION_LOG.md`, and `workspace/execution/qaqc_history_db.py`.
@@ -80,10 +83,14 @@
 ## Verification Highlights
 
 - `venv\Scripts\python.exe -X utf8 workspace\scripts\doctor.py` -> **pass**
-- `venv\Scripts\python.exe -X utf8 workspace\scripts\quality_gate.py` -> **fail** (`46` root failures, all concentrated in `workspace/tests/test_scheduler_engine.py`)
-- `venv\Scripts\python.exe -X utf8 workspace\execution\qaqc_runner.py` -> **`REJECTED`** / `2471 passed / 46 failed / 1 errors / 1 skipped`
-- `venv\Scripts\python.exe -X utf8 -m pytest workspace\tests\test_scheduler_engine.py::test_execute_subprocess_success -q --tb=short -o addopts=` -> **fail** (`AttributeError: module 'execution.scheduler_engine' has no attribute '_execute_subprocess'`)
-- `venv\Scripts\python.exe -X utf8 -m pytest projects\blind-to-x\tests\unit\test_cost_controls.py::test_review_only_still_generates_image_and_records_draft projects\blind-to-x\tests\integration\test_p0_enhancements.py::test_build_prompt_has_yaml_system_role -q --tb=short -o addopts=` -> **2 failed**
+- `venv\Scripts\python.exe -X utf8 workspace\scripts\quality_gate.py` -> **pass** (`1233 passed / 1 skipped`)
+- `venv\Scripts\python.exe -X utf8 -m pytest workspace\tests\test_scheduler_engine.py -q --tb=short -o addopts=` -> **71 passed**
+- `venv\Scripts\python.exe -X utf8 -m pytest workspace\tests\test_qaqc_runner.py workspace\tests\test_qaqc_runner_extended.py -q --tb=short -o addopts=` -> **32 passed**
+- `venv\Scripts\python.exe -X utf8 -m pytest projects\blind-to-x\tests\unit\test_cost_controls.py::test_review_only_still_generates_image_and_records_draft projects\blind-to-x\tests\integration\test_p0_enhancements.py::test_build_prompt_has_yaml_system_role -q --tb=short -o addopts=` -> **2 passed**
+- `venv\Scripts\python.exe -X utf8 -m pytest projects\blind-to-x\tests\unit\test_cost_controls.py projects\blind-to-x\tests\integration\test_p0_enhancements.py -q --tb=short -o addopts=` -> **18 passed**
+- `venv\Scripts\python.exe -X utf8 -m pytest projects\blind-to-x\tests\unit\test_image_generator.py -q --tb=short -o addopts=` -> **47 passed**
+- `venv\Scripts\python.exe -X utf8 -m pytest projects\blind-to-x\tests\integration\test_p2_enhancements.py -q --tb=short -o addopts=` -> **6 passed**
+- `venv\Scripts\python.exe -X utf8 workspace\execution\qaqc_runner.py --project blind-to-x` -> **`APPROVED`** / `873 passed / 0 failed / 0 errors / 9 skipped`
 - `python -m py_compile projects/knowledge-dashboard/scripts/sync_data.py` -> **pass**
 - `npm run smoke` (`projects/knowledge-dashboard`) -> **pass**
 - `npm run smoke` (`projects/hanwoo-dashboard`) -> **pass**
@@ -99,11 +106,10 @@
 
 ## Next Priorities
 
-1. Fix `T-133`: restore the stable `workspace/execution/scheduler_engine.py` contract by either wrapping the new async helpers or migrating all sync callers/tests together, and remove the `_DB_INITIALIZED` cross-db short circuit.
-2. Fix `T-135`: repair `workspace/execution/qaqc_runner.py` blind-to-x test discovery so the DEEP QC pass actually exercises that project on Windows.
-3. Fix `T-134`: close the two confirmed `blind-to-x` regressions in `fetch_stage.py` and `draft_prompts.py`.
-4. Fix `T-120`: `workspace/tests/test_auto_schedule_paths.py::test_n8n_bridge_defaults_use_canonical_paths` still fails with `ModuleNotFoundError: No module named 'fastapi'`.
-5. Continue `T-129`: scale-harden `hanwoo-dashboard` before higher traffic lands by validating real DB indexes, introducing cached read models, and splitting the remaining `DashboardClient` / `actions.js` hubs.
+1. Fix `T-120`: `workspace/tests/test_auto_schedule_paths.py::test_n8n_bridge_defaults_use_canonical_paths` still fails with `ModuleNotFoundError: No module named 'fastapi'`.
+2. Fix `T-128`: isolate `test_cost_tracker_uses_persisted_daily_totals` and close the remaining cross-test interference thread.
+3. Continue `T-129`: scale-harden `hanwoo-dashboard` before higher traffic lands by validating real DB indexes, introducing cached read models, and splitting the remaining `DashboardClient` / `actions.js` hubs.
+4. Continue `T-100`: raise `blind-to-x` coverage beyond the current floor while the project-specific DEEP gate is green again.
 
 ## Notes
 
@@ -114,7 +120,7 @@
 - `coverage run` remains the reliable measurement path for `shorts-maker-v2`; `pytest-cov` can still misbehave with duplicate root/project paths on this machine.
 - `CostDatabase._connect()` is still a live compatibility surface in `projects/blind-to-x`; do not remove it just because `_conn()` exists.
 - Do not flip `workspace/execution/scheduler_engine.py` public entrypoints to async without a compatibility wrapper; the Streamlit dashboard and many root tests still call `run_task()` / `run_due_tasks()` synchronously.
-- Until `T-135` lands, avoid trusting `qaqc_runner.py` blind-to-x counts at face value; the runner's exact absolute-path pytest command can return success with no output from inside `projects/blind-to-x`.
+- When adding project-local pytest runs to `workspace/execution/qaqc_runner.py`, keep paths relative to that run's `cwd` on Windows or pytest can collect nothing while still returning success.
 - Scale-review evidence worth carrying forward:
 - `projects/hanwoo-dashboard/src/app/page.js` now batches initial dashboard reads with `Promise.all`, but it still aggregates many concerns in a single page-level load.
 - `projects/hanwoo-dashboard/src/lib/actions.js` still relies on full-list reads plus `revalidatePath('/')` for most mutations.

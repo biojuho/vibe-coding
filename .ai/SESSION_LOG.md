@@ -590,3 +590,40 @@ Closed `T-132` in `projects/hanwoo-dashboard`.
 ### Work Summary
 
 The later shared QA/QC baseline is `APPROVED` with `3066 passed / 0 failed / 0 errors / 29 skipped`, which is the evidence used to close the stale `T-116` follow-up.
+
+---
+
+## 2026-04-03 | Codex | T-133/T-134/T-135 follow-through + T-136 blind-to-x image prompt repair
+
+### Work Summary
+
+Closed the 2026-04-03 QC regressions that were blocking the root scheduler path and the `blind-to-x` DEEP run.
+
+1. Restored `workspace/execution/scheduler_engine.py` sync compatibility for `run_task()`, `run_due_tasks()`, and `_execute_subprocess()`, and removed the stale DB-init memoization that skipped schema setup after `DB_PATH` changes.
+2. Updated `workspace/execution/scheduler_worker.py` to call the restored sync scheduler API directly.
+3. Fixed `workspace/execution/qaqc_runner.py` so project-local pytest runs can convert test paths to `cwd`-relative paths on Windows.
+4. Fixed `projects/blind-to-x/pipeline/process_stages/fetch_stage.py` to fall back to `scrape_post()` when `scrape_post_with_retry()` is unavailable.
+5. Fixed `projects/blind-to-x/pipeline/draft_prompts.py` so `newsletter_block` is initialized even when `newsletter` output is not requested.
+6. Restored generic topic scenes in `projects/blind-to-x/pipeline/image_generator.py`, which cleared the final DEEP integration failure and produced an `APPROVED` project-only QC result for `blind-to-x`.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `workspace/execution/scheduler_engine.py` | Restored sync public APIs, compatibility helper, and DB init behavior |
+| `workspace/execution/scheduler_worker.py` | Removed stale async entrypoint usage |
+| `workspace/execution/qaqc_runner.py` | Added `relative_to_cwd` handling for project-local pytest runs |
+| `projects/blind-to-x/pipeline/process_stages/fetch_stage.py` | Added scraper fallback and logger setup |
+| `projects/blind-to-x/pipeline/draft_prompts.py` | Guarded `newsletter_block` initialization |
+| `projects/blind-to-x/pipeline/image_generator.py` | Restored generic topic scene wording for DEEP integration expectations |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | Synced the repaired QC state and next priorities |
+
+### Verification Results
+
+- `venv\Scripts\python.exe -X utf8 -m pytest workspace\tests\test_scheduler_engine.py -q --tb=short -o addopts=` -> **71 passed**
+- `venv\Scripts\python.exe -X utf8 workspace\scripts\quality_gate.py` -> **pass** (`1233 passed / 1 skipped`)
+- `venv\Scripts\python.exe -X utf8 -m pytest workspace\tests\test_qaqc_runner.py workspace\tests\test_qaqc_runner_extended.py -q --tb=short -o addopts=` -> **32 passed**
+- `venv\Scripts\python.exe -X utf8 -m pytest projects\blind-to-x\tests\unit\test_cost_controls.py projects\blind-to-x\tests\integration\test_p0_enhancements.py -q --tb=short -o addopts=` -> **18 passed**
+- `venv\Scripts\python.exe -X utf8 -m pytest projects\blind-to-x\tests\unit\test_image_generator.py -q --tb=short -o addopts=` -> **47 passed**
+- `venv\Scripts\python.exe -X utf8 -m pytest projects\blind-to-x\tests\integration\test_p2_enhancements.py -q --tb=short -o addopts=` -> **6 passed**
+- `venv\Scripts\python.exe -X utf8 workspace\execution\qaqc_runner.py --project blind-to-x` -> **`APPROVED`** (`873 passed / 0 failed / 0 errors / 9 skipped`)
