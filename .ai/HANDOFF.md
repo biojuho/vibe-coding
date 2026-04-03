@@ -5,7 +5,7 @@
 ## Latest Update
 | Date | 2026-04-04 |
 | Tool | Codex |
-| Work | **Added focused `blind-to-x` unit coverage for the new queue and PostgreSQL cost backends.** `projects/blind-to-x/tests/unit/test_task_queue.py` now verifies `LocalSemaphoreQueue` order/progress handling, failure-to-`None` behavior, Celery-to-local fallback, and singleton fallback when Celery init fails. `projects/blind-to-x/tests/unit/test_cost_db_pg.py` now verifies `PostgresCostDatabase.record_draft()` update/insert branching, `get_today_summary()` aggregation + zero fallback, and `get_circuit_skip_hours()` threshold mapping using stubbed connections instead of a live PostgreSQL dependency. Targeted verification passed: **`4 passed`** for `test_task_queue.py` and **`10 passed`** for `test_cost_db_pg.py`. `pipeline.models` still emits a non-blocking Pydantic V1 `@validator` deprecation warning during these runs. Remaining `T-130` scope is now the other new `blind-to-x` modules such as `observability.py` / `db_backend.py`, not `task_queue.py` / `cost_db_pg.py`. |
+| Work | **Closed the remaining focused `blind-to-x` scale-module test gap locally.** Earlier in the session `projects/blind-to-x/tests/unit/test_task_queue.py` and `test_cost_db_pg.py` were added for the queue and PostgreSQL backends; this follow-up adds `projects/blind-to-x/tests/unit/test_db_backend.py` for `RedisCacheBackend`, `DistributedRateLimiter`, `DistributedLock`, and the cache/rate-limit factories using stubbed Redis clients, while also validating the existing local WIP file `projects/blind-to-x/tests/unit/test_observability_and_task_queue.py` (`48 passed`) so `observability.py` is already exercised without duplicating it. Targeted verification now passes for **`test_task_queue.py` (`4 passed`)**, **`test_cost_db_pg.py` (`10 passed`)**, **`test_db_backend.py` (`6 passed`)**, and **`test_observability_and_task_queue.py` (`48 passed`)**. Remaining note: `pipeline.models` still emits a Pydantic V1 `@validator` warning, and `pipeline/observability.py` emits an `asyncio.iscoroutinefunction` deprecation warning that should be migrated to `inspect.iscoroutinefunction` before Python 3.16. |
 
 ## Previous Update
 | Date | 2026-04-03 |
@@ -61,7 +61,7 @@
 
 | Tool | Status | Summary of Results | Next Priorities |
 | :--- | :--- | :--- | :--- |
-| **Codex** | **STABLE** | Root STANDARD gate passes (`1233 passed / 1 skipped`), `workspace/tests/test_scheduler_engine.py` is back to green (`71 passed`), `workspace/execution/qaqc_runner.py --project blind-to-x` is `APPROVED` (`873 passed / 0 failed / 9 skipped`), and the new focused `blind-to-x` tests for `task_queue.py` / `cost_db_pg.py` pass (`4 passed` + `10 passed`). | T-120 dependency gap, T-128 isolation bug, T-129 scale hardening, T-100 coverage, T-130 remaining module tests. |
+| **Codex** | **STABLE** | Root STANDARD gate passes (`1233 passed / 1 skipped`), `workspace/tests/test_scheduler_engine.py` is back to green (`71 passed`), `workspace/execution/qaqc_runner.py --project blind-to-x` is `APPROVED` (`873 passed / 0 failed / 9 skipped`), and the focused `blind-to-x` scale-module tests now pass for `task_queue.py`, `cost_db_pg.py`, `db_backend.py`, plus the existing local `observability.py` WIP suite. | T-120 dependency gap, T-128 isolation bug, T-129 scale hardening, T-100 coverage, T-138 warning cleanup. |
 
 - `T-133`: `scheduler_engine.py` sync contract is restored; no `_DB_INITIALIZED` short-circuit issues.
 - `T-134`: `blind-to-x` regressions (scraper and newsletter guards) are fixed and verified via targeted tests.
@@ -75,7 +75,10 @@
 - `projects/knowledge-dashboard` now has local node tests for `src/lib/dashboard-insights.ts`, and the project smoke script verifies unauthorized requests plus session-cookie success paths against `/api/data/*`.
 - `projects/blind-to-x/tests/unit/test_task_queue.py` now covers local queue ordering/progress, exception-to-`None` handling, Celery fallback, and singleton fallback when Celery boot fails.
 - `projects/blind-to-x/tests/unit/test_cost_db_pg.py` now covers `PostgresCostDatabase.record_draft()` update/insert branching, `get_today_summary()` aggregation + zero fallback, and `get_circuit_skip_hours()` threshold mapping using stubbed DB connections instead of a live PostgreSQL instance.
+- `projects/blind-to-x/tests/unit/test_db_backend.py` now covers `RedisCacheBackend` JSON/raw handling, scan-based clear behavior, `DistributedRateLimiter` script/fail-open logic, `DistributedLock` acquire/release, and the Redis-backed factory fallbacks using stub clients.
+- `projects/blind-to-x/tests/unit/test_observability_and_task_queue.py` already exists locally as adjacent WIP and currently passes (`48 passed`), so `observability.py` has local coverage even though this file is still untracked.
 - Targeted `blind-to-x` queue/PG test runs currently surface a non-blocking Pydantic V1 `@validator` deprecation warning from `projects/blind-to-x/pipeline/models.py`.
+- `projects/blind-to-x/pipeline/observability.py::_is_async()` currently triggers a deprecation warning on Python 3.14+ because it still uses `asyncio.iscoroutinefunction`; prefer `inspect.iscoroutinefunction` before Python 3.16.
 - `projects/hanwoo-dashboard` and `projects/knowledge-dashboard` both have project-local runtime smoke scripts exposed as `npm run smoke`, and the frontend matrix job runs that step after build/lint.
 - `docs/designs/2026-04-02-hanwoo-dashboard-scale-hardening-design.md` now captures the actionable `T-129` week-1 scale-hardening plan for `hanwoo-dashboard`.
 - `projects/hanwoo-dashboard/scripts/verify-db-indexes.mjs` now provides the Day-1 `T-129` audit path: it inventories `pg_indexes`, checks expected schema indexes, checks scale-candidate indexes, prints missing `CREATE INDEX CONCURRENTLY` statements, and runs targeted `EXPLAIN (ANALYZE, BUFFERS)` probes when the real DB URL is present.
@@ -100,6 +103,8 @@
 - `venv\Scripts\python.exe -X utf8 -m pytest projects\blind-to-x\tests\integration\test_p2_enhancements.py -q --tb=short -o addopts=` -> **6 passed**
 - `venv\Scripts\python.exe -X utf8 -m pytest projects\blind-to-x\tests\unit\test_task_queue.py -q --tb=short -o addopts=` -> **4 passed**
 - `venv\Scripts\python.exe -X utf8 -m pytest projects\blind-to-x\tests\unit\test_cost_db_pg.py -q --tb=short -o addopts=` -> **10 passed**
+- `venv\Scripts\python.exe -X utf8 -m pytest projects\blind-to-x\tests\unit\test_db_backend.py -q --tb=short -o addopts=` -> **6 passed**
+- `venv\Scripts\python.exe -X utf8 -m pytest projects\blind-to-x\tests\unit\test_observability_and_task_queue.py -q --tb=short -o addopts=` -> **48 passed**
 - `venv\Scripts\python.exe -X utf8 workspace\execution\qaqc_runner.py --project blind-to-x` -> **`APPROVED`** / `873 passed / 0 failed / 0 errors / 9 skipped`
 - `python -m py_compile projects/knowledge-dashboard/scripts/sync_data.py` -> **pass**
 - `npm run smoke` (`projects/knowledge-dashboard`) -> **pass**
@@ -120,7 +125,7 @@
 2. Fix `T-128`: isolate `test_cost_tracker_uses_persisted_daily_totals` and close the remaining cross-test interference thread.
 3. Continue `T-129`: scale-harden `hanwoo-dashboard` before higher traffic lands by validating real DB indexes, introducing cached read models, and splitting the remaining `DashboardClient` / `actions.js` hubs.
 4. Continue `T-100`: raise `blind-to-x` coverage beyond the current floor while the project-specific DEEP gate is green again.
-5. Continue `T-130`: extend the new focused `blind-to-x` module coverage from `task_queue.py` / `cost_db_pg.py` into the remaining scale modules such as `observability.py` and `db_backend.py`.
+5. Fix `T-138`: replace `asyncio.iscoroutinefunction` in `projects/blind-to-x/pipeline/observability.py` so the current deprecation warning does not turn into a future compatibility break.
 
 ## Notes
 

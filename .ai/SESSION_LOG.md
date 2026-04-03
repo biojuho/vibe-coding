@@ -1,5 +1,31 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-04-04 | Codex | blind-to-x db_backend coverage + observability validation
+
+### Work Summary
+
+Continued the same `blind-to-x` test-hardening session by closing the remaining module gap after the queue/PG backend tests.
+
+1. Found an existing local WIP file, `projects/blind-to-x/tests/unit/test_observability_and_task_queue.py`, and verified it already gives broad `observability.py` coverage plus overlapping queue coverage (`48 passed`), so I avoided creating a second duplicate observability test suite.
+2. Added `projects/blind-to-x/tests/unit/test_db_backend.py` to cover `RedisCacheBackend` JSON/raw handling, scan-based clearing, `DistributedRateLimiter` script/fail-open logic, `DistributedLock` acquire/release, and the Redis-backed factory fallbacks using stub Redis clients instead of live infrastructure.
+3. Confirmed the next follow-up is no longer missing test coverage but warning cleanup: `pipeline.models` still emits the known Pydantic V1 `@validator` warning, and `pipeline.observability._is_async()` emits a deprecation warning because it still uses `asyncio.iscoroutinefunction`.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `projects/blind-to-x/tests/unit/test_db_backend.py` | Added stubbed Redis/cache/rate-limit/lock/factory coverage |
+| `.ai/HANDOFF.md` | Updated the relay with the remaining scale-module coverage and warning follow-up |
+| `.ai/TASKS.md` | Closed `T-130` and added low-priority warning follow-up `T-138` |
+| `.ai/CONTEXT.md` | Recorded the new db_backend coverage and observability warning |
+| `.ai/SESSION_LOG.md` | Logged this follow-up session |
+
+### Verification Results
+
+- `venv\Scripts\python.exe -X utf8 -m pytest projects\blind-to-x\tests\unit\test_db_backend.py -q --tb=short -o addopts=` -> **6 passed**
+- `venv\Scripts\python.exe -X utf8 -m pytest projects\blind-to-x\tests\unit\test_observability_and_task_queue.py -q --tb=short -o addopts=` -> **48 passed**
+- The observability suite currently emits the existing `pipeline.models` Pydantic warning plus a deprecation warning from `pipeline.observability._is_async()`.
+
 ## 2026-04-04 | Codex | blind-to-x focused queue/PG test coverage
 
 ### Work Summary

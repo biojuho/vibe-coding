@@ -9,8 +9,8 @@
 | T-100 | Raise `blind-to-x` coverage to `>=75%` (currently ~71%).                                                      | Codex  | Med      | 2026-03-31 |
 | T-128 | `test_cost_tracker_uses_persisted_daily_totals` isolation bug: investigate and fix cross-test interference.    | Codex  | Med      | 2026-04-02 |
 | T-121 | Resolve `KeyboardInterrupt` in `test_main.py` when run under certain terminal wrappers.                        | Codex  | Low      | 2026-04-01 |
-| T-130 | Write unit tests for the remaining new `blind-to-x` modules (`observability`, `db_backend`, etc.) now that `cost_db_pg` and `task_queue` are covered. | Codex | Normal | 2026-04-02 |
 | T-120 | Fix `workspace/tests/test_auto_schedule_paths.py::test_n8n_bridge_defaults_use_canonical_paths` (`fastapi` missing in local env). | Codex | High | 2026-04-01 |
+| T-138 | Replace deprecated `asyncio.iscoroutinefunction` usage in `projects/blind-to-x/pipeline/observability.py` with `inspect.iscoroutinefunction`. | Codex | Low | 2026-04-04 |
 
 ## IN_PROGRESS
 
@@ -22,11 +22,11 @@
 
 | ID    | Task                                                                                                                                                                                                                                  | Completed By | Completed  |
 |-------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------|------------|
+| T-130 | Write unit tests for the remaining new `blind-to-x` modules (`observability`, `db_backend`, etc.) now that `cost_db_pg` and `task_queue` are covered.                                                                              | Codex        | 2026-04-04 |
 | T-137 | Add focused `blind-to-x` unit coverage for `pipeline.task_queue` and `pipeline.cost_db_pg`.                                                                                                                                          | Codex        | 2026-04-04 |
 | T-136 | Restore `blind-to-x` generic image prompt scene defaults and clear the last DEEP integration failure.                                                                                                                                | Codex        | 2026-04-03 |
 | T-133 | Restore sync contract & repair `scheduler_engine.py` (verified).                                                                                                                                                                     | Antigravity  | 2026-04-03 |
 | T-134 | Fix `blind-to-x` regressions (scraper compatibility and newsletter guard).                                                                                                                                                            | Antigravity  | 2026-04-03 |
-| T-135 | Fix `qaqc_runner.py` discovery failure on Windows subdirs.                                                                                                                                                                            | Antigravity  | 2026-04-03 |
 
 ## Rules
 
