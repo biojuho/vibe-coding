@@ -10,6 +10,8 @@
 | T-128 | `test_cost_tracker_uses_persisted_daily_totals` isolation bug: investigate and fix cross-test interference.    | Codex  | Med      | 2026-04-02 |
 | T-121 | Resolve `KeyboardInterrupt` in `test_main.py` when run under certain terminal wrappers.                        | Codex  | Low      | 2026-04-01 |
 | T-120 | Fix `workspace/tests/test_auto_schedule_paths.py::test_n8n_bridge_defaults_use_canonical_paths` (`fastapi` missing in local env). | Codex | High | 2026-04-01 |
+| T-139 | Fix `ruff` `F541` in `workspace/scripts/migrate_to_workspace_db.py` so `workspace/scripts/quality_gate.py` passes again. | Codex | High | 2026-04-04 |
+| T-140 | Fix or formally triage the actionable SQL-injection-style finding in `projects/blind-to-x/pipeline/escalation_queue.py` blocking full QA/QC approval. | Codex | High | 2026-04-04 |
 
 ## IN_PROGRESS
 

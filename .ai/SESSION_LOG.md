@@ -1,5 +1,32 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-04-04 | Codex | operator ladder QC run
+
+### Work Summary
+
+Ran the shared operator ladder after the latest `blind-to-x` and warning-cleanup work to measure the real workspace state rather than the earlier focused test subsets.
+
+1. Ran `workspace/scripts/doctor.py` and confirmed the `FAST` environment check is still clean (`PASS=9 / WARN=0 / FAIL=0`).
+2. Ran `workspace/scripts/quality_gate.py`; smoke and pytest passed (`1233 passed / 1 skipped`), but the `STANDARD` gate failed at `ruff` because `workspace/scripts/migrate_to_workspace_db.py` has two placeholder-free f-strings at lines 117 and 139 (`F541`).
+3. Ran `workspace/execution/qaqc_runner.py`; the full shared pass finished `CONDITIONALLY_APPROVED` with `3511 passed / 0 failed / 0 errors / 10 skipped`.
+4. Confirmed the remaining actionable DEEP issue is the security-scan finding in `projects/blind-to-x/pipeline/escalation_queue.py` (`Potential SQL injection via f-string` around `UPDATE escalation_events SET {', '.join(updates)}`), while governance stayed `CLEAR` and AST checks stayed `20/20`.
+5. Added follow-up tasks `T-139` and `T-140` so the current QC blockers are explicit in the shared backlog.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `.ai/HANDOFF.md` | Recorded the FAST/STANDARD/DEEP results and the current blockers |
+| `.ai/TASKS.md` | Added `T-139` and `T-140` for the lint and security follow-ups |
+| `.ai/CONTEXT.md` | Added the new QUALITY/DEEP QC state notes |
+| `.ai/SESSION_LOG.md` | Logged this QC run |
+
+### Verification Results
+
+- `venv\Scripts\python.exe -X utf8 workspace\scripts\doctor.py` -> **pass**
+- `venv\Scripts\python.exe -X utf8 workspace\scripts\quality_gate.py` -> **fail** (`ruff` `F541` at `workspace/scripts/migrate_to_workspace_db.py:117` and `:139`; pytest still **1233 passed / 1 skipped**)
+- `venv\Scripts\python.exe -X utf8 workspace\execution\qaqc_runner.py` -> **`CONDITIONALLY_APPROVED`** (`3511 passed / 0 failed / 0 errors / 10 skipped`)
+
 ## 2026-04-04 | Codex | blind-to-x warning cleanup for models/observability
 
 ### Work Summary

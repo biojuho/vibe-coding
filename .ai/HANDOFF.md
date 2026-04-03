@@ -5,6 +5,16 @@
 ## Latest Update
 | Date | 2026-04-04 |
 | Tool | Codex |
+| Work | **Ran the shared operator ladder after the latest `blind-to-x` work.** `workspace/scripts/doctor.py` stayed clean (`PASS=9 / WARN=0 / FAIL=0`). `workspace/scripts/quality_gate.py` still gets a green pytest run (`1233 passed / 1 skipped`) but the overall `STANDARD` gate currently **fails** on `ruff` because `workspace/scripts/migrate_to_workspace_db.py` has two placeholder-free f-strings (`F541` at lines 117 and 139). `workspace/execution/qaqc_runner.py` finished **`CONDITIONALLY_APPROVED`** with **`3511 passed / 0 failed / 0 errors / 10 skipped`**; the remaining actionable item is the security-scan finding on `projects/blind-to-x/pipeline/escalation_queue.py` (`Potential SQL injection via f-string` around `UPDATE escalation_events SET {', '.join(updates)}`), while governance is `CLEAR` and AST checks are `20/20`. |
+
+## Previous Update
+| Date | 2026-04-04 |
+| Tool | Antigravity |
+| Work | **Viral Escalation Engine 구현 완료 (blind-to-x).** 4-레이어 실시간 바이럴 감지 시스템 전체 구축: `spike_detector.py` (engagement velocity 추적, TTL/size eviction), `escalation_queue.py` (SQLite WAL 영속 큐, 7단계 상태머신), `express_draft.py` (60초 SLA 경량 초안, 기존 provider 체인 래핑), `escalation_runner.py` (독립 데몬, --once/--daemon/--dry-run). 기존 모듈 연동: `notification.py`에 `send_surge_alert()` 추가, `trend_monitor.py`에 velocity 메트릭 추가, `config.yaml`에 `escalation:` 블록(10 파라미터) 추가. 테스트 40/40 passed, 전체 스위트 958 passed / 0 failed 회귀 없음. |
+
+## Previous Update
+| Date | 2026-04-04 |
+| Tool | Codex |
 | Work | **Cleared the remaining targeted `blind-to-x` warning debt in the newly-covered scale modules.** `projects/blind-to-x/pipeline/models.py` now uses Pydantic v2 `@field_validator(..., mode="before")` instead of the deprecated v1 `@validator`, and `projects/blind-to-x/pipeline/observability.py::_is_async()` now uses `inspect.iscoroutinefunction` instead of the deprecated `asyncio.iscoroutinefunction`. Verification passed with no warnings on the targeted suites: **`48 passed`** for `projects/blind-to-x/tests/unit/test_observability_and_task_queue.py` and **`20 passed`** across `test_db_backend.py`, `test_task_queue.py`, and `test_cost_db_pg.py`, plus `py_compile` on both patched modules. |
 
 ## Previous Update
@@ -66,7 +76,7 @@
 
 | Tool | Status | Summary of Results | Next Priorities |
 | :--- | :--- | :--- | :--- |
-| **Codex** | **STABLE** | Root STANDARD gate passes (`1233 passed / 1 skipped`), `workspace/tests/test_scheduler_engine.py` is back to green (`71 passed`), `workspace/execution/qaqc_runner.py --project blind-to-x` is `APPROVED` (`873 passed / 0 failed / 9 skipped`), and the focused `blind-to-x` scale-module suites for `task_queue.py`, `cost_db_pg.py`, `db_backend.py`, and the local `observability.py` WIP file all pass cleanly with the earlier targeted warnings removed. | T-120 dependency gap, T-128 isolation bug, T-129 scale hardening, T-100 coverage. |
+| **Codex** | **STABLE** | `FAST` is green, root pytest inside `STANDARD` is green (`1233 passed / 1 skipped`), and `DEEP` is `CONDITIONALLY_APPROVED` (`3511 passed / 0 failed / 0 errors / 10 skipped`), but the current local `STANDARD` gate is blocked by a `ruff` `F541` lint failure in `workspace/scripts/migrate_to_workspace_db.py`. | T-139 STANDARD lint fix, T-140 escalation-queue security triage, T-120 dependency gap, T-128 isolation bug, T-129 scale hardening, T-100 coverage. |
 
 - `T-133`: `scheduler_engine.py` sync contract is restored; no `_DB_INITIALIZED` short-circuit issues.
 - `T-134`: `blind-to-x` regressions (scraper and newsletter guards) are fixed and verified via targeted tests.
@@ -84,6 +94,8 @@
 - `projects/blind-to-x/tests/unit/test_observability_and_task_queue.py` already exists locally as adjacent WIP and currently passes (`48 passed`), so `observability.py` has local coverage even though this file is still untracked.
 - `projects/blind-to-x/pipeline/models.py` warning cleanup is now landed: the shared models use Pydantic v2 `field_validator`, so the earlier V1 validator deprecation warning is gone from the focused suite.
 - `projects/blind-to-x/pipeline/observability.py::_is_async()` now uses `inspect.iscoroutinefunction`, so the earlier Python 3.14+ deprecation warning is gone from the focused suite.
+- `workspace/scripts/migrate_to_workspace_db.py` currently blocks `workspace/scripts/quality_gate.py` on two trivial `ruff` `F541` findings because lines 117 and 139 use f-strings without placeholders.
+- `workspace/execution/qaqc_runner.py` currently ends `CONDITIONALLY_APPROVED` rather than `APPROVED` because the security scan still flags an actionable `Potential SQL injection via f-string` in `projects/blind-to-x/pipeline/escalation_queue.py` around `UPDATE escalation_events SET {', '.join(updates)}`.
 - `projects/hanwoo-dashboard` and `projects/knowledge-dashboard` both have project-local runtime smoke scripts exposed as `npm run smoke`, and the frontend matrix job runs that step after build/lint.
 - `docs/designs/2026-04-02-hanwoo-dashboard-scale-hardening-design.md` now captures the actionable `T-129` week-1 scale-hardening plan for `hanwoo-dashboard`.
 - `projects/hanwoo-dashboard/scripts/verify-db-indexes.mjs` now provides the Day-1 `T-129` audit path: it inventories `pg_indexes`, checks expected schema indexes, checks scale-candidate indexes, prints missing `CREATE INDEX CONCURRENTLY` statements, and runs targeted `EXPLAIN (ANALYZE, BUFFERS)` probes when the real DB URL is present.
@@ -112,6 +124,9 @@
 - `venv\Scripts\python.exe -X utf8 -m pytest projects\blind-to-x\tests\unit\test_observability_and_task_queue.py -q --tb=short -o addopts=` -> **48 passed**
 - `venv\Scripts\python.exe -X utf8 -m py_compile projects\blind-to-x\pipeline\models.py projects\blind-to-x\pipeline\observability.py` -> **pass**
 - `venv\Scripts\python.exe -X utf8 -m pytest projects\blind-to-x\tests\unit\test_db_backend.py projects\blind-to-x\tests\unit\test_task_queue.py projects\blind-to-x\tests\unit\test_cost_db_pg.py -q --tb=short -o addopts=` -> **20 passed**
+- `venv\Scripts\python.exe -X utf8 workspace\scripts\doctor.py` -> **pass** (`PASS=9 / WARN=0 / FAIL=0`)
+- `venv\Scripts\python.exe -X utf8 workspace\scripts\quality_gate.py` -> **fail** (`ruff` `F541` at `workspace/scripts/migrate_to_workspace_db.py:117` and `:139`; pytest still **1233 passed / 1 skipped**)
+- `venv\Scripts\python.exe -X utf8 workspace\execution\qaqc_runner.py` -> **`CONDITIONALLY_APPROVED`** / `3511 passed / 0 failed / 0 errors / 10 skipped` / security actionable issue in `projects/blind-to-x/pipeline/escalation_queue.py`
 - `venv\Scripts\python.exe -X utf8 workspace\execution\qaqc_runner.py --project blind-to-x` -> **`APPROVED`** / `873 passed / 0 failed / 0 errors / 9 skipped`
 - `python -m py_compile projects/knowledge-dashboard/scripts/sync_data.py` -> **pass**
 - `npm run smoke` (`projects/knowledge-dashboard`) -> **pass**
@@ -128,10 +143,11 @@
 
 ## Next Priorities
 
-1. Fix `T-120`: `workspace/tests/test_auto_schedule_paths.py::test_n8n_bridge_defaults_use_canonical_paths` still fails with `ModuleNotFoundError: No module named 'fastapi'`.
-2. Fix `T-128`: isolate `test_cost_tracker_uses_persisted_daily_totals` and close the remaining cross-test interference thread.
-3. Continue `T-129`: scale-harden `hanwoo-dashboard` before higher traffic lands by validating real DB indexes, introducing cached read models, and splitting the remaining `DashboardClient` / `actions.js` hubs.
-4. Continue `T-100`: raise `blind-to-x` coverage beyond the current floor while the project-specific DEEP gate is green again.
+1. Fix `T-139`: clear the `ruff` `F541` lint failure in `workspace/scripts/migrate_to_workspace_db.py` so `workspace/scripts/quality_gate.py` returns green again.
+2. Fix or triage `T-140`: resolve the actionable SQL-injection-style security finding in `projects/blind-to-x/pipeline/escalation_queue.py` so `workspace/execution/qaqc_runner.py` can move from `CONDITIONALLY_APPROVED` to `APPROVED`.
+3. Fix `T-120`: `workspace/tests/test_auto_schedule_paths.py::test_n8n_bridge_defaults_use_canonical_paths` still fails with `ModuleNotFoundError: No module named 'fastapi'`.
+4. Fix `T-128`: isolate `test_cost_tracker_uses_persisted_daily_totals` and close the remaining cross-test interference thread.
+5. Continue `T-129`: scale-harden `hanwoo-dashboard` before higher traffic lands by validating real DB indexes, introducing cached read models, and splitting the remaining `DashboardClient` / `actions.js` hubs.
 
 ## Notes
 
