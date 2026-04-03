@@ -1,5 +1,32 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-04-04 | Codex | blind-to-x warning cleanup for models/observability
+
+### Work Summary
+
+Finished the follow-up that remained after the focused scale-module tests started passing: warning cleanup in the touched runtime code itself.
+
+1. Updated `projects/blind-to-x/pipeline/models.py` from Pydantic v1 `@validator(..., pre=True)` to Pydantic v2 `@field_validator(..., mode="before")`, which removes the `PydanticDeprecatedSince20` warning from the focused suites.
+2. Updated `projects/blind-to-x/pipeline/observability.py::_is_async()` to use `inspect.iscoroutinefunction` instead of `asyncio.iscoroutinefunction`, which removes the Python 3.14+ deprecation warning from the observability tests.
+3. Re-ran the focused test sets and confirmed they now pass cleanly without the earlier warnings.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `projects/blind-to-x/pipeline/models.py` | Migrated the string-cleaning validator to Pydantic v2 `field_validator` |
+| `projects/blind-to-x/pipeline/observability.py` | Replaced `asyncio.iscoroutinefunction` with `inspect.iscoroutinefunction` |
+| `.ai/HANDOFF.md` | Recorded the warning cleanup and clean verification state |
+| `.ai/TASKS.md` | Marked `T-138` as completed |
+| `.ai/CONTEXT.md` | Updated the warning notes to the new clean state |
+| `.ai/SESSION_LOG.md` | Logged this warning-cleanup session |
+
+### Verification Results
+
+- `venv\Scripts\python.exe -X utf8 -m py_compile projects\blind-to-x\pipeline\models.py projects\blind-to-x\pipeline\observability.py` -> **pass**
+- `venv\Scripts\python.exe -X utf8 -m pytest projects\blind-to-x\tests\unit\test_observability_and_task_queue.py -q --tb=short -o addopts=` -> **48 passed**
+- `venv\Scripts\python.exe -X utf8 -m pytest projects\blind-to-x\tests\unit\test_db_backend.py projects\blind-to-x\tests\unit\test_task_queue.py projects\blind-to-x\tests\unit\test_cost_db_pg.py -q --tb=short -o addopts=` -> **20 passed**
+
 ## 2026-04-04 | Codex | blind-to-x db_backend coverage + observability validation
 
 ### Work Summary
