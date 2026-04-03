@@ -6,6 +6,9 @@
 
 | ID    | Task                                                                                                                                                                                                                                 | Owner  | Priority | Created    |
 |-------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------|----------|------------|
+| T-133 | Repair `workspace/execution/scheduler_engine.py` after the async refactor: restore the public sync contract (or migrate all callers/tests together), bring back the subprocess helper surface, and remove the `_DB_INITIALIZED` cross-DB schema short circuit. | Codex  | High     | 2026-04-03 |
+| T-135 | Fix `workspace/execution/qaqc_runner.py` blind-to-x test discovery on Windows so the DEEP QA/QC pass does not silently exit `0` with no collected output when launched from `projects/blind-to-x`. | Codex  | High     | 2026-04-03 |
+| T-134 | Fix the two confirmed `blind-to-x` regressions from the 2026-04-03 QC pass: `fetch_stage.py` scraper compatibility (`scrape_post` vs `scrape_post_with_retry`) and `draft_prompts.py` `newsletter_block` initialization. | Claude | High     | 2026-04-03 |
 | T-121 | Investigate the local-only `KeyboardInterrupt` / runner interruption when `projects/blind-to-x/tests/unit/test_main.py` runs under this terminal wrapper, and confirm whether it is a harness artifact or a real `main.py` regression. | Codex  | Medium   | 2026-04-01 |
 | T-100 | Raise `blind-to-x` coverage to ≥75% (shorts-maker-v2 90% ✅, blind-to-x 69% — pipeline쪽 보강 필요, 스크래퍼는 브라우저 의존으로 제외). | Claude | High     | 2026-03-31 |
 | T-128 | `test_cost_tracker_uses_persisted_daily_totals` 전체 실행 시 fail, 단독 pass — 테스트 격리 문제. 실행 순서 의존성 원인 규명 및 수정. | Claude | Medium   | 2026-04-02 |

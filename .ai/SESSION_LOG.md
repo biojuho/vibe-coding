@@ -1,5 +1,30 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-04-03 | Codex | system QC review
+
+### Work Summary
+
+Ran the shared operator ladder to re-check current workspace health without changing product code.
+
+1. Verified `workspace/scripts/doctor.py` still passes.
+2. Ran `workspace/scripts/quality_gate.py` and confirmed the shared root gate is broken again by a concentrated `workspace/tests/test_scheduler_engine.py` failure cluster.
+3. Ran `workspace/execution/qaqc_runner.py` and recorded the current shared result as `REJECTED` (`2471 passed / 46 failed / 1 errors / 1 skipped`).
+4. Reproduced the main blocking regressions with targeted pytest runs:
+   - `workspace/execution/scheduler_engine.py` async API drift plus `_DB_INITIALIZED` cross-db caching.
+   - `projects/blind-to-x/pipeline/process_stages/fetch_stage.py` scraper compatibility regression.
+   - `projects/blind-to-x/pipeline/draft_prompts.py` `newsletter_block` initialization bug.
+5. Confirmed a QC-tooling problem in `workspace/execution/qaqc_runner.py`: when launched from `projects/blind-to-x` with absolute test paths, pytest can exit `0` with no collected output on this Windows setup, so blind-to-x is currently under-exercised by the DEEP runner.
+6. Updated shared AI context files and added follow-up tasks `T-133`, `T-134`, and `T-135`.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `.ai/HANDOFF.md` | Recorded the rejected 2026-04-03 QC state, repro commands, and next priorities |
+| `.ai/TASKS.md` | Added follow-up tasks `T-133`, `T-134`, and `T-135` |
+| `.ai/CONTEXT.md` | Added the new scheduler/QC runner/blind-to-x minefields |
+| `.ai/SESSION_LOG.md` | Logged this QC review session |
+
 ## 2026-04-02 | Codex | T-129 cache/queue/read-model foundations
 
 ### Work Summary
