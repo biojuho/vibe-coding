@@ -1,5 +1,32 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-04-04 | Codex | blind-to-x focused queue/PG test coverage
+
+### Work Summary
+
+Added targeted `pytest` coverage for two of the newest and riskiest `blind-to-x` scale modules without requiring live Redis or PostgreSQL services.
+
+1. Added `projects/blind-to-x/tests/unit/test_task_queue.py` to verify `LocalSemaphoreQueue` preserves input order, reports progress, converts worker failures to `None`, falls back from Celery to local execution for non-task workers, and returns a cached local singleton when Celery boot fails.
+2. Added `projects/blind-to-x/tests/unit/test_cost_db_pg.py` to verify `PostgresCostDatabase.record_draft()` update/insert branching, `get_today_summary()` aggregation and zero fallback behavior, and `get_circuit_skip_hours()` threshold mapping using stubbed connection objects instead of a live PostgreSQL dependency.
+3. Updated the shared AI context so the next session knows `task_queue.py` and `cost_db_pg.py` are now covered and `T-130` should focus on the remaining modules such as `observability.py` and `db_backend.py`.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `projects/blind-to-x/tests/unit/test_task_queue.py` | Added focused async queue tests for ordering, progress, failure handling, and Celery fallback |
+| `projects/blind-to-x/tests/unit/test_cost_db_pg.py` | Added stubbed PostgreSQL backend tests for summary, branching, and backoff logic |
+| `.ai/HANDOFF.md` | Recorded the new blind-to-x coverage and remaining T-130 scope |
+| `.ai/TASKS.md` | Added `T-137` and narrowed `T-130` to the remaining new modules |
+| `.ai/CONTEXT.md` | Added the new blind-to-x queue/PG test coverage notes |
+| `.ai/SESSION_LOG.md` | Logged this testing session |
+
+### Verification Results
+
+- `venv\Scripts\python.exe -X utf8 -m pytest projects\blind-to-x\tests\unit\test_task_queue.py -q --tb=short -o addopts=` -> **4 passed**
+- `venv\Scripts\python.exe -X utf8 -m pytest projects\blind-to-x\tests\unit\test_cost_db_pg.py -q --tb=short -o addopts=` -> **10 passed**
+- Both runs emitted the existing non-blocking Pydantic V1 `@validator` deprecation warning from `projects/blind-to-x/pipeline/models.py`.
+
 ## 2026-04-03 | Codex | system QC review
 
 ### Work Summary
