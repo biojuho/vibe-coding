@@ -774,3 +774,36 @@ Closed the 2026-04-03 QC regressions that were blocking the root scheduler path 
 | projects/blind-to-x/pipeline/escalation_queue.py | Added # nosec B608 triage annotation |
 | .ai/TASKS.md | Marked T-140 as DONE |
 | .ai/HANDOFF.md | Updated Latest Update with session context |
+
+---
+
+## 2026-04-04 | Codex | T-139/T-140 closure + shared QC refresh
+
+### Work Summary
+
+Closed the remaining shared QC blockers that were keeping the 2026-04-04 workspace run below a clean approval state.
+
+1. Repaired `projects/blind-to-x/tests/unit/test_escalation_queue.py` after a local encoding-mismatch assertion break and kept the new optional-field coverage in place.
+2. Updated `workspace/scripts/migrate_to_workspace_db.py` to quote SQLite identifiers and avoid `execute(f"...")` SQL assembly, which cleared both the local `ruff`/high-severity script gate and the final shared security warning tied to that script.
+3. Updated `projects/blind-to-x/pipeline/escalation_queue.py` so the queue status `UPDATE` SQL is assembled without the flagged f-string pattern.
+4. Updated `projects/blind-to-x/pipeline/notification.py` so Telegram only receives `reply_markup` when it is actually present, which restored the previously failing notification unit test in the full `blind-to-x` suite.
+5. Re-ran targeted verification, `workspace/scripts/quality_gate.py`, and the full `workspace/execution/qaqc_runner.py`; the shared DEEP artifact is back to `APPROVED`.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `workspace/scripts/migrate_to_workspace_db.py` | Quoted identifiers and removed `execute(f"...")` SQL assembly patterns |
+| `projects/blind-to-x/pipeline/escalation_queue.py` | Reworked status-update SQL assembly to avoid the flagged f-string pattern |
+| `projects/blind-to-x/pipeline/notification.py` | Only forwards Telegram `reply_markup` when present |
+| `projects/blind-to-x/tests/unit/test_escalation_queue.py` | Repaired the broken status-update assertions and kept optional-field coverage |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | Synced the refreshed QC state and closed tasks |
+
+### Verification Results
+
+- `venv\Scripts\python.exe -m ruff check workspace\scripts\migrate_to_workspace_db.py projects\blind-to-x\pipeline\notification.py projects\blind-to-x\pipeline\escalation_queue.py` -> **pass**
+- `venv\Scripts\python.exe -X utf8 -m pytest projects\blind-to-x\tests\unit\test_notification.py projects\blind-to-x\tests\unit\test_escalation_queue.py -q --tb=short -o addopts=` -> **19 passed**
+- `..\venv\Scripts\python.exe -m execution.code_improver scripts --format json --severity high` (`workspace/`) -> **0 high-severity issues**
+- `..\venv\Scripts\python.exe -X utf8 -c "import json; from execution.qaqc_runner import security_scan; print(json.dumps(security_scan(), ensure_ascii=False, indent=2))"` (`workspace/`) -> **`CLEAR (2 triaged issue(s))`**
+- `venv\Scripts\python.exe -X utf8 workspace\scripts\quality_gate.py` -> **pass** (`1233 passed / 1 skipped`)
+- `venv\Scripts\python.exe -X utf8 workspace\execution\qaqc_runner.py` -> **`APPROVED`** (`3513 passed / 0 failed / 0 errors / 10 skipped`)
