@@ -807,3 +807,34 @@ Closed the remaining shared QC blockers that were keeping the 2026-04-04 workspa
 - `..\venv\Scripts\python.exe -X utf8 -c "import json; from execution.qaqc_runner import security_scan; print(json.dumps(security_scan(), ensure_ascii=False, indent=2))"` (`workspace/`) -> **`CLEAR (2 triaged issue(s))`**
 - `venv\Scripts\python.exe -X utf8 workspace\scripts\quality_gate.py` -> **pass** (`1233 passed / 1 skipped`)
 - `venv\Scripts\python.exe -X utf8 workspace\execution\qaqc_runner.py` -> **`APPROVED`** (`3513 passed / 0 failed / 0 errors / 10 skipped`)
+
+---
+
+## 2026-04-04 | Codex | T-143 shorts-maker-v2 growth-loop scaffold
+
+### Work Summary
+
+Scaffolded the highest-ROI `shorts-maker-v2` scale-up target: a closed-loop growth engine that can ingest post-publish YouTube metrics and turn them into next-batch recommendations.
+
+1. Added `projects/shorts-maker-v2/docs/designs/2026-04-04-shorts-maker-v2-growth-feedback-loop-design.md` to capture the product rationale, commercial benchmarks, step-1 scope, and the integration path back to the shared YouTube collectors in `workspace/execution`.
+2. Added `projects/shorts-maker-v2/src/shorts_maker_v2/growth/models.py` with normalized post-publish metric and recommendation dataclasses (`VideoPerformanceSnapshot`, `VariantPerformance`, `GrowthAction`, `GrowthLoopReport`).
+3. Added `projects/shorts-maker-v2/src/shorts_maker_v2/growth/feedback_loop.py` with the new `GrowthLoopEngine`, `MetricsSource` protocol, and optional `SeriesPlanner` contract. The step-1 engine now updates `StyleTracker`, ranks variant arms such as `caption_combo`, and emits actionable recommendations.
+4. Added `projects/shorts-maker-v2/src/shorts_maker_v2/growth/__init__.py` plus `projects/shorts-maker-v2/tests/unit/test_growth_feedback_loop.py` for the initial test shape.
+5. Kept the series-follow-up integration injectable instead of hard-wiring the existing `series_engine` import path, because that direct path behaved inconsistently under this Windows terminal wrapper during the session.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `projects/shorts-maker-v2/docs/designs/2026-04-04-shorts-maker-v2-growth-feedback-loop-design.md` | Added the new growth-loop design and rollout plan |
+| `projects/shorts-maker-v2/src/shorts_maker_v2/growth/__init__.py` | Exported the growth-loop surface |
+| `projects/shorts-maker-v2/src/shorts_maker_v2/growth/models.py` | Added post-publish metric and recommendation dataclasses |
+| `projects/shorts-maker-v2/src/shorts_maker_v2/growth/feedback_loop.py` | Added the growth engine plus metrics/series interfaces |
+| `projects/shorts-maker-v2/tests/unit/test_growth_feedback_loop.py` | Added initial test coverage for ingestion, ranking, and follow-up recommendation shape |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | Synced the new shorts-maker-v2 planning/scaffolding context |
+
+### Verification Results
+
+- `..\..\venv\Scripts\python.exe -m py_compile src/shorts_maker_v2/growth/__init__.py src/shorts_maker_v2/growth/models.py src/shorts_maker_v2/growth/feedback_loop.py` (`projects/shorts-maker-v2`) -> **pass**
+- Manual UTF-8 smoke script invoking `GrowthLoopEngine.generate_report(...)` (`projects/shorts-maker-v2`) -> **`growth-loop-smoke: ok`**
+- `..\..\venv\Scripts\python.exe -X utf8 -m pytest tests/unit/test_growth_feedback_loop.py -q --tb=short -o addopts=` (`projects/shorts-maker-v2`) -> **hung under the current Windows wrapper** (treat as harness issue for now)
