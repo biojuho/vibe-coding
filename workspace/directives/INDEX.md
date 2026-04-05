@@ -56,6 +56,7 @@
 | channel_growth_tracker.py | utility | YouTube 채널 성장 추적 |
 | content_db.py | utility | 콘텐츠 DB (SQLite) |
 | gdrive_pdf_extractor.py | utility | Google Drive PDF 추출 |
+| harness_tool_registry.py | infrastructure | Agent harness tool allowlist + HITL permission registry |
 | joolife_hub.py | entrypoint | Streamlit 메인 허브 |
 | lyria_bgm_generator.py | utility | Lyria BGM 생성 |
 | result_tracker_db.py | utility | 결과 추적 DB |
@@ -67,4 +68,4 @@
 
 ---
 
-*마지막 업데이트: 2026-03-31*
+*마지막 업데이트: 2026-04-05*

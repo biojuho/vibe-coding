@@ -870,3 +870,28 @@ Connected the new `shorts-maker-v2` growth loop to the shared YouTube metrics pa
 - `..\..\venv\Scripts\python.exe -m ruff check src\shorts_maker_v2\growth\sync.py src\shorts_maker_v2\cli.py tests\unit\test_growth_sync.py tests\unit\test_cli.py` (`projects/shorts-maker-v2`) -> **pass**
 - `..\..\venv\Scripts\python.exe -X utf8 -m pytest tests\unit\test_growth_sync.py tests\unit\test_cli.py -q --tb=short -o addopts=` (`projects/shorts-maker-v2`) -> **15 passed**
 - `..\..\venv\Scripts\python.exe -X utf8 -m pytest tests\unit\test_growth_feedback_loop.py -q --tb=short -o addopts=` (`projects/shorts-maker-v2`) -> **3 passed**
+
+---
+
+## 2026-04-05 | Codex | shorts-maker-v2 DEEP QC rerun
+
+### Work Summary
+
+Ran the project-level DEEP QC pass for `shorts-maker-v2`, investigated the single governance blocker, fixed the indexing drift, and re-ran the pass to green.
+
+1. Executed `workspace/execution/qaqc_runner.py --project shorts-maker-v2`, which returned `CONDITIONALLY_APPROVED` even though tests, AST, and security were clean.
+2. Inspected the saved QA/QC JSON artifact and isolated the blocker to governance: `workspace/execution/harness_tool_registry.py` existed in `workspace/execution/` but was missing from `workspace/directives/INDEX.md`.
+3. Added `harness_tool_registry.py` to the "매핑 없는 Execution 스크립트" table in `workspace/directives/INDEX.md` and verified governance separately via `run_governance_checks()`.
+4. Re-ran the full DEEP QC pass for `shorts-maker-v2`; the result is now `APPROVED`.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `workspace/directives/INDEX.md` | Indexed `harness_tool_registry.py` under unmapped execution utilities/infrastructure |
+| `.ai/HANDOFF.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | Synced the latest QC result and governance-fix context |
+
+### Verification Results
+
+- `.\venv\Scripts\python.exe -X utf8 -c "import json; from workspace.execution.governance_checks import run_governance_checks, summarize_governance_results; results = run_governance_checks(); print(json.dumps(results, ensure_ascii=False, indent=2)); print(summarize_governance_results(results))"` (`repo root`) -> **overall `ok`**
+- `.\venv\Scripts\python.exe -X utf8 workspace\execution\qaqc_runner.py --project shorts-maker-v2 --output .tmp\qaqc_shorts-maker-v2_2026-04-05_rerun.json` (`repo root`) -> **`APPROVED`** / **`1288 passed / 0 failed / 0 errors / 0 skipped`** / AST **20/20** / security **`CLEAR (2 triaged issue(s))`** / governance **`CLEAR`**

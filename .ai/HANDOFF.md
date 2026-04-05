@@ -5,6 +5,11 @@
 ## Latest Update
 | Date | 2026-04-05 |
 | Tool | Codex |
+| Work | **Ran DEEP QC for `shorts-maker-v2` and cleared the only blocking governance drift.** Initial `workspace/execution/qaqc_runner.py --project shorts-maker-v2` came back `CONDITIONALLY_APPROVED` because `workspace/execution/harness_tool_registry.py` existed in `execution/` but was not indexed in `workspace/directives/INDEX.md`. Added that script to the unmapped execution table, verified governance separately (`overall: ok`), then re-ran the full project DEEP pass. Final result: **`APPROVED`** with **`1288 passed / 0 failed / 0 errors / 0 skipped`**, AST **20/20**, security **`CLEAR (2 triaged issue(s))`**, governance **`CLEAR`**. Note: VibeDebt remains red (`TDR 38.8%`) but did not block approval. |
+
+## Previous Update
+| Date | 2026-04-05 |
+| Tool | Codex |
 | Work | **Completed `T-144` for `shorts-maker-v2`: the growth loop now has a real project-local sync/decision path.** Added `projects/shorts-maker-v2/src/shorts_maker_v2/growth/sync.py` to join successful output manifests to `workspace.execution.content_db` via `job_id`, optionally refresh shared metrics through `workspace.execution.youtube_analytics_collector`, derive normalized `VideoPerformanceSnapshot`s, and write JSON reports under `projects/shorts-maker-v2/.tmp/growth_reports/`. Exposed the new `shorts-maker-v2 growth-sync` CLI command in `src/shorts_maker_v2/cli.py`, exported the sync surface from `growth/__init__.py`, and added unit coverage in `tests/unit/test_growth_sync.py` plus CLI coverage in `tests/unit/test_cli.py`. Verification: `py_compile` passed, root-venv `ruff` passed on the touched files, `pytest tests/unit/test_growth_sync.py tests/unit/test_cli.py -q --tb=short -o addopts=` passed (`15 passed`), and `pytest tests/unit/test_growth_feedback_loop.py -q --tb=short -o addopts=` also passed (`3 passed`). Note: `projects/shorts-maker-v2/.venv` currently lacks `pytest`/`ruff`, so use the repo-root `venv` for these checks unless that env changes. |
 
 ## Previous Update
