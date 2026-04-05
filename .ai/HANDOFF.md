@@ -5,6 +5,16 @@
 ## Latest Update
 | Date | 2026-04-05 |
 | Tool | Codex |
+| Work | **Completed `T-149` in `hanwoo-dashboard`: paginated dashboard API routes now exist.** Added `/api/dashboard/summary`, `/api/dashboard/cattle`, and `/api/dashboard/sales` route handlers with authenticated JSON responses, cache-backed summary/list reads, and cursor pagination for cattle (`updatedAt,id`) and sales (`saleDate,id`). Added reusable summary/list query helpers under `src/lib/dashboard/`, extended cache invalidation to clear summary/notification snapshots plus cattle/sales page caches, and updated `actions.js` to invalidate the new list caches for cattle/sales/expense/farm-setting mutations. Also hardened `scripts/smoke.mjs` so if Turbopack build output has no `.next/BUILD_ID`, it creates a webpack production build before running `next start`; smoke now covers unauthenticated rejection for the new dashboard routes. Verification: `npm run lint`, `npm run build`, and `npm run smoke` all passed. Remaining `T-129` work: wire the cattle/sales UI surfaces to these paginated route reads so they stop relying on full-array initial loads. |
+
+## Previous Update
+| Date | 2026-04-05 |
+| Tool | Claude (Opus 4.6) |
+| Work | **Closed T-100 (coverage 71→82%) and T-121 (test_main.py import fix).** (1) Added 93 new unit tests across 5 previously-uncovered modules: `test_draft_prompts.py` (14 tests: content essence extraction, deterministic example selection, retry prompt), `test_daily_digest.py` (28 tests: Telegram escape, Notion extractors, topic distribution, digest formatting), `test_draft_providers.py` (21 tests: provider order, enabled check, timeout, enabled list), `test_sentiment_tracker.py` (16 tests: keyword mapping, record, trending, snapshot), `test_editorial_reviewer.py` (14 tests: threshold lookup, review prompt). All 93 new tests pass, full suite 1157 passed / 3 pre-existing failures / 9 skipped. (2) Fixed T-121 root cause: `test_main.py` failed during full-suite collection because another project's `main` module shadowed `blind-to-x/main.py` in `sys.modules`. Fixed by detecting stale module and removing before import. (3) Also completed T-147 outbox worker and T-129 quick wins (outbox events, market price cache, notification read-model) earlier in the session. |
+
+## Previous Update
+| Date | 2026-04-05 |
+| Tool | Codex |
 | Work | **T-129 client-refactor follow-up is green in `hanwoo-dashboard`.** `src/components/DashboardClient.js` now lazy-loads heavy tabs/widgets with `next/dynamic`, derives notifications from local cattle state via `buildNotifications()`, keeps `MarketPriceWidget` on the server-provided initial snapshot, and updates local client state for cattle/sales/feed/inventory/schedule/buildings instead of broad `router.refresh()` after most mutations (the offline queue resync path still refreshes intentionally). `src/lib/actions.js` now returns created/updated payloads for those mutations and invalidates targeted dashboard caches for the key cattle/sales flows. Verification: `npm run lint`, `npm run build`, and `npm run smoke` all passed. Remaining `T-129` work: add `/api/dashboard/summary`, `/api/dashboard/cattle`, and `/api/dashboard/sales` with cursor pagination/read-model usage. |
 
 ## Previous Update
@@ -118,7 +128,7 @@
 
 | Tool | Status | Summary of Results | Next Priorities |
 | :--- | :--- | :--- | :--- |
-| **Codex** | **STABLE** | `T-120` is closed, `shorts-maker-v2` DEEP QC is `APPROVED`, and the latest `hanwoo-dashboard` `T-129` client-refactor follow-up is green (`npm run lint`, `npm run build`, `npm run smoke`). | T-149 dashboard pagination routes, T-129 scale hardening, T-100 coverage, T-121 harness issue, T-142 human migration. |
+| **Codex** | **STABLE** | `T-149` is now landed in `hanwoo-dashboard`: authenticated `/api/dashboard/summary`, `/api/dashboard/cattle`, and `/api/dashboard/sales` routes exist with cache-backed reads and cursor pagination, and the latest verification (`npm run lint`, `npm run build`, `npm run smoke`) is green. | T-151 wire cattle/sales UI to paginated routes, T-129 scale hardening, T-142 human migration. |
 
 - `T-133`: `scheduler_engine.py` sync contract is restored; no `_DB_INITIALIZED` short-circuit issues.
 - `T-134`: `blind-to-x` regressions (scraper and newsletter guards) are fixed and verified via targeted tests.
@@ -146,6 +156,7 @@
 - `projects/hanwoo-dashboard/prisma/schema.prisma` now includes `OutboxStatus`, `OutboxEvent`, `DashboardSnapshot`, `NotificationSummary`, and `MarketPriceSnapshot`, with matching generated Prisma model files under `src/generated/prisma/models/`.
 - `projects/hanwoo-dashboard/src/lib/dashboard/cache.js`, `projects/hanwoo-dashboard/src/lib/dashboard/events.js`, and `projects/hanwoo-dashboard/src/lib/dashboard/read-models.js` now provide cache key builders, Redis JSON helpers, outbox CRUD helpers, and read-model persistence/cache wrappers for summary, notifications, and market prices.
 - `projects/hanwoo-dashboard/src/components/DashboardClient.js` now lazy-loads heavy tabs/widgets with `next/dynamic`, derives notifications from `buildNotifications(cattleList)`, and keeps post-mutation state in sync locally instead of broadly refreshing the route. `src/lib/actions.js` now returns mutation payloads for the affected cattle/sales/feed/inventory/schedule/building flows and invalidates targeted dashboard caches for the key outbox-backed mutations. Verification on `2026-04-05`: `npm run lint`, `npm run build`, and `npm run smoke` all passed.
+- `projects/hanwoo-dashboard/src/app/api/dashboard/summary/route.js`, `src/app/api/dashboard/cattle/route.js`, and `src/app/api/dashboard/sales/route.js` now exist on `2026-04-05`. They enforce auth, serve JSON, use cache-backed summary/list helpers, and paginate cattle/sales with cursor tokens over `updatedAt,id` and `saleDate,id` respectively. `src/lib/dashboard/summary-service.js` and `src/lib/dashboard/list-queries.js` now hold the reusable server-side query logic, while `src/lib/dashboard/cache.js` + `src/lib/dashboard/read-models.js` can invalidate paginated list caches by prefix and drop stale summary/notification snapshot rows.
 - `projects/hanwoo-dashboard/prisma/manual/2026-04-02_read_models.sql` now contains the first-pass SQL draft for the outbox and read-model tables.
 - `projects/hanwoo-dashboard` still has a broader scale-hardening backlog on `2026-04-02`: `src/components/DashboardClient.js` and `src/lib/actions.js` remain large coupling hubs, but the first-render duplicate fetches for notifications/market data are now removed, README stack drift is corrected, and the font/dependency drift found in the review is closed.
 - `src/proxy.js` and `src/auth.js` remain aligned with current Next.js 16/Auth.js guidance, and `src/app/layout.js` now follows the recommended `next/font` path instead of manual font `<link>` tags.
@@ -187,11 +198,9 @@
 
 ## Next Priorities
 
-1. Continue `T-129` via `T-149`: add `/api/dashboard/summary`, `/api/dashboard/cattle`, and `/api/dashboard/sales` with cache/read-model-backed cursor pagination, then wire the interactive list surfaces to those routes.
-2. Continue `T-100`: push `blind-to-x` coverage from ~71% to at least 75% now that the new scale modules and shared gates are covered.
-3. Investigate `T-121`: reproduce the `test_main.py` terminal-wrapper `KeyboardInterrupt` cleanly enough to decide whether it is harness-only or product-level.
-4. Wait on `T-142`: run `workspace/scripts/migrate_to_workspace_db.py` against the live data set and delete `.bak` files only after human verification.
-5. Coordinate around `T-146`: the Antigravity harness PoC is queued, so keep root orchestration and path-contract changes friendly to disposable worktree/sandbox execution.
+1. Continue `T-129` via `T-151`: wire the cattle/sales interactive UI surfaces to `/api/dashboard/cattle` and `/api/dashboard/sales`, then stop depending on full-array initial loads for those screens.
+2. Wait on `T-142`: run `workspace/scripts/migrate_to_workspace_db.py` against the live data set and delete `.bak` files only after human verification.
+3. Keep `hanwoo-dashboard` scale work focused on route split + paginated reads before broader UI churn.
 
 ## Notes
 
@@ -208,4 +217,4 @@
 - `projects/hanwoo-dashboard/src/lib/actions.js` still relies on full-list reads plus `revalidatePath('/')` for most mutations.
 - Post-build chunk listing showed a largest emitted chunk of about `868 KB` in `hanwoo-dashboard` and about `516 KB` in `knowledge-dashboard`, so bundle partitioning remains a live performance concern.
 - `npm run db:verify-indexes -- --skip-explain` is currently expected to stop early with a placeholder warning until the real pooled Postgres URL is supplied in `projects/hanwoo-dashboard/.env`.
-- Immediate `T-129` follow-up should move the home summary plus cattle/sales list reads behind `/api/dashboard/*` routes with cursor pagination so the next client split can consume paged data instead of full arrays.
+- Immediate `T-129` follow-up should switch the cattle/sales UI from full-array server-action reads to the new `/api/dashboard/*` paginated route layer.

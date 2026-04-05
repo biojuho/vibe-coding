@@ -949,3 +949,39 @@ Completed the next `T-129` UI hardening slice in `projects/hanwoo-dashboard` by 
 - `npm run lint` (`projects/hanwoo-dashboard`) -> **pass**
 - `npm run build` (`projects/hanwoo-dashboard`) -> **pass**
 - `npm run smoke` (`projects/hanwoo-dashboard`) -> **pass**
+
+---
+
+## 2026-04-05 | Codex | T-149 hanwoo-dashboard dashboard routes + cursor pagination
+
+### Work Summary
+
+Implemented the next `T-129` backend slice in `projects/hanwoo-dashboard` by adding the paginated dashboard read routes that the client refactor can target next.
+
+1. Added authenticated route handlers at `src/app/api/dashboard/summary/route.js`, `src/app/api/dashboard/cattle/route.js`, and `src/app/api/dashboard/sales/route.js`.
+2. Added `src/lib/dashboard/summary-service.js` for reusable summary payload generation and `src/lib/dashboard/list-queries.js` for cache-backed cattle/sales list queries, validation, and cursor pagination over `updatedAt,id` and `saleDate,id`.
+3. Extended `src/lib/dashboard/cache.js` + `src/lib/dashboard/read-models.js` so dashboard list caches can be invalidated by prefix and summary/notification snapshot rows can be dropped when mutations make them stale.
+4. Updated `src/lib/actions.js` to invalidate the new cattle/sales list caches for the relevant mutation paths and to invalidate summary state for expense/farm-setting changes.
+5. Hardened `scripts/smoke.mjs` so the smoke check can self-build a webpack production artifact when the default Turbopack build output does not include `.next/BUILD_ID`, then added unauthenticated checks for the new dashboard routes.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `projects/hanwoo-dashboard/src/app/api/dashboard/summary/route.js` | Added authenticated dashboard summary JSON route |
+| `projects/hanwoo-dashboard/src/app/api/dashboard/cattle/route.js` | Added authenticated cattle list JSON route with cursor pagination |
+| `projects/hanwoo-dashboard/src/app/api/dashboard/sales/route.js` | Added authenticated sales list JSON route with cursor pagination |
+| `projects/hanwoo-dashboard/src/lib/dashboard/summary-service.js` | Added reusable summary payload builder |
+| `projects/hanwoo-dashboard/src/lib/dashboard/list-queries.js` | Added validated, cache-backed cattle/sales list query helpers |
+| `projects/hanwoo-dashboard/src/lib/dashboard/cache.js` | Added list-cache prefix helpers and prefix deletion support |
+| `projects/hanwoo-dashboard/src/lib/dashboard/read-models.js` | Added prefix invalidation + stale snapshot-row deletion |
+| `projects/hanwoo-dashboard/src/lib/actions.js` | Invalidated new list caches and summary state from relevant mutations |
+| `projects/hanwoo-dashboard/scripts/outbox-worker.mjs` | Reused the shared summary builder for snapshot refreshes |
+| `projects/hanwoo-dashboard/scripts/smoke.mjs` | Added BUILD_ID self-heal path and unauthenticated checks for the new dashboard routes |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | Synced shared context for `T-149` completion |
+
+### Verification Results
+
+- `npm run lint` (`projects/hanwoo-dashboard`) -> **pass**
+- `npm run build` (`projects/hanwoo-dashboard`) -> **pass** on `Next.js 16.2.1` (second run; the first failed on transient Google font fetch)
+- `npm run smoke` (`projects/hanwoo-dashboard`) -> **pass**
