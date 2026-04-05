@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import builtins
 import importlib.util
 import sys
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -77,6 +77,27 @@ def test_n8n_bridge_defaults_use_canonical_paths(monkeypatch):
         "execution.gdrive_pdf_extractor",
         "list-folder",
     ]
+
+
+def test_n8n_bridge_helper_imports_do_not_require_fastapi(monkeypatch):
+    monkeypatch.setenv("BRIDGE_TOKEN", "test-token")
+
+    original_import = builtins.__import__
+
+    def blocked_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name in {"fastapi", "pydantic"}:
+            raise ModuleNotFoundError(name)
+        return original_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", blocked_import)
+
+    module = load_module(
+        "test_n8n_bridge_server_no_fastapi",
+        ROOT / "infrastructure" / "n8n" / "bridge_server.py",
+    )
+
+    assert module.default_btx_dir() == ROOT / "projects" / "blind-to-x"
+    assert module.default_log_dir() == ROOT / "infrastructure" / "n8n" / "logs"
 
 
 def test_n8n_healthcheck_defaults_use_canonical_paths(monkeypatch):

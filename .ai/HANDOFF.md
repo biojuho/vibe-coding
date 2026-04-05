@@ -4,6 +4,16 @@
 
 ## Latest Update
 | Date | 2026-04-05 |
+| Tool | Claude (Opus 4.6) |
+| Work | **T-129 quick wins: wired outbox events + cache layers into `hanwoo-dashboard`.** (1) Added outbox event insertion (`createOutboxEvent`) to 5 key mutations in `src/lib/actions.js`: `createCattle`, `updateCattle`, `deleteCattle`, `recordCalving`, `createSalesRecord`. (2) Wired `getRealTimeMarketPrice()` with cache-through pattern: tries `getLatestMarketPriceSnapshot()` first (1hr TTL), falls back to KAPE API, then persists `saveMarketPriceSnapshot()` for future reads. (3) Wired `getNotifications()` with read-model fallback: tries `getNotificationSummary()` (1min TTL), falls back to O(n) cattle scan, then persists via `saveNotificationSummary()`. Verification: `npm run lint` clean, `npm run build` passed (Next.js 16.2.1). Created T-147 follow-up for the outbox worker script. |
+
+## Previous Update
+| Date | 2026-04-05 |
+| Tool | Codex |
+| Work | **Completed `T-120` by removing the import-time FastAPI dependency from the n8n bridge helper path.** `infrastructure/n8n/bridge_server.py` now wraps `fastapi` / `pydantic` imports, exposes lightweight fallback `Header` / `HTTPException` / `BaseModel` shims plus a decorator-only `_FallbackApp`, and still raises a clear runtime error if someone tries to launch the bridge without the real server dependencies installed. `workspace/tests/test_auto_schedule_paths.py` no longer skips the bridge path for missing FastAPI and now includes an explicit regression test that imports the helper with `fastapi` and `pydantic` blocked. Verification: `py_compile` passed, `ruff check infrastructure/n8n/bridge_server.py workspace/tests/test_auto_schedule_paths.py` passed, and `pytest workspace/tests/test_auto_schedule_paths.py -q --tb=short -o addopts=` passed (**`5 passed`**). |
+
+## Previous Update
+| Date | 2026-04-05 |
 | Tool | Codex |
 | Work | **Ran DEEP QC for `shorts-maker-v2` and cleared the only blocking governance drift.** Initial `workspace/execution/qaqc_runner.py --project shorts-maker-v2` came back `CONDITIONALLY_APPROVED` because `workspace/execution/harness_tool_registry.py` existed in `execution/` but was not indexed in `workspace/directives/INDEX.md`. Added that script to the unmapped execution table, verified governance separately (`overall: ok`), then re-ran the full project DEEP pass. Final result: **`APPROVED`** with **`1288 passed / 0 failed / 0 errors / 0 skipped`**, AST **20/20**, security **`CLEAR (2 triaged issue(s))`**, governance **`CLEAR`**. Note: VibeDebt remains red (`TDR 38.8%`) but did not block approval. |
 
@@ -89,6 +99,8 @@
 
 ## Recent Completed
 
+- `T-120` (`2026-04-05`, Codex): `infrastructure/n8n/bridge_server.py` helper imports now work without `fastapi` installed, while runtime startup still fails clearly if the real bridge dependencies are missing; `workspace/tests/test_auto_schedule_paths.py` now covers both paths.
+
 - `T-128` (`2026-04-02`, Claude): `content_db._conn()` @contextmanager 전환으로 연결 누수 완전 해소, quality_gate STANDARD PASS.
 - `T-127` (`2026-04-02`, Codex): `knowledge-dashboard` auth moved to a signed `httpOnly` session cookie, the data routes now trust `src/lib/dashboard-auth.ts`, node tests cover the insight engine, and smoke coverage verifies the new session flow.
 - `T-126` (`2026-04-02`, Antigravity): `DashboardCharts.tsx` was hardened against dirty inputs (NaN/null/arrays) via query normalization, stable empty-array references, and notebook dataset capping.
@@ -101,7 +113,7 @@
 
 | Tool | Status | Summary of Results | Next Priorities |
 | :--- | :--- | :--- | :--- |
-| **Codex** | **STABLE** | `FAST` is green, `STANDARD` is green (`1233 passed / 1 skipped`), and the full shared `DEEP` pass is back to **`APPROVED`** (`3513 passed / 0 failed / 0 errors / 10 skipped`) with security `CLEAR (2 triaged issue(s))`, governance `CLEAR`, and AST `20/20`. | T-120 dependency gap, T-128 isolation bug, T-129 scale hardening, T-100 coverage, T-121 harness issue. |
+| **Codex** | **STABLE** | `T-120` is now closed, targeted path tests are green (`workspace/tests/test_auto_schedule_paths.py`: `5 passed`), and the latest project-level DEEP check for `shorts-maker-v2` is also `APPROVED` (`1288 passed / 0 failed / 0 errors / 0 skipped`). | T-147 outbox worker follow-up, T-129 scale hardening, T-100 coverage, T-121 harness issue, T-142 human migration. |
 
 - `T-133`: `scheduler_engine.py` sync contract is restored; no `_DB_INITIALIZED` short-circuit issues.
 - `T-134`: `blind-to-x` regressions (scraper and newsletter guards) are fixed and verified via targeted tests.
@@ -169,11 +181,11 @@
 
 ## Next Priorities
 
-1. Fix `T-120`: `workspace/tests/test_auto_schedule_paths.py::test_n8n_bridge_defaults_use_canonical_paths` still fails with `ModuleNotFoundError: No module named 'fastapi'`.
-2. Fix `T-128`: isolate `test_cost_tracker_uses_persisted_daily_totals` and close the remaining cross-test interference thread.
-3. Continue `T-129`: scale-harden `hanwoo-dashboard` before higher traffic lands by validating real DB indexes, introducing cached read models, and splitting the remaining `DashboardClient` / `actions.js` hubs.
-4. Continue `T-100`: push `blind-to-x` coverage from ~71% to at least 75% now that the new scale modules and shared gates are covered.
-5. Investigate `T-121`: reproduce the `test_main.py` terminal-wrapper `KeyboardInterrupt` cleanly enough to decide whether it is harness-only or product-level.
+1. Continue `T-129` through `T-147`: add the `hanwoo-dashboard` outbox worker that consumes pending events and refreshes the new read-model snapshots.
+2. Continue `T-100`: push `blind-to-x` coverage from ~71% to at least 75% now that the new scale modules and shared gates are covered.
+3. Investigate `T-121`: reproduce the `test_main.py` terminal-wrapper `KeyboardInterrupt` cleanly enough to decide whether it is harness-only or product-level.
+4. Wait on `T-142`: run `workspace/scripts/migrate_to_workspace_db.py` against the live data set and delete `.bak` files only after human verification.
+5. Coordinate around `T-146`: the Antigravity harness PoC is queued, so keep root orchestration and path-contract changes friendly to disposable worktree/sandbox execution.
 
 ## Notes
 

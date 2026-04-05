@@ -895,3 +895,30 @@ Ran the project-level DEEP QC pass for `shorts-maker-v2`, investigated the singl
 
 - `.\venv\Scripts\python.exe -X utf8 -c "import json; from workspace.execution.governance_checks import run_governance_checks, summarize_governance_results; results = run_governance_checks(); print(json.dumps(results, ensure_ascii=False, indent=2)); print(summarize_governance_results(results))"` (`repo root`) -> **overall `ok`**
 - `.\venv\Scripts\python.exe -X utf8 workspace\execution\qaqc_runner.py --project shorts-maker-v2 --output .tmp\qaqc_shorts-maker-v2_2026-04-05_rerun.json` (`repo root`) -> **`APPROVED`** / **`1288 passed / 0 failed / 0 errors / 0 skipped`** / AST **20/20** / security **`CLEAR (2 triaged issue(s))`** / governance **`CLEAR`**
+
+---
+
+## 2026-04-05 | Codex | T-120 n8n bridge helper import hardening
+
+### Work Summary
+
+Closed the remaining local path-contract regression where the root scheduler-path test depended on `fastapi` being installed even though it only needed helper constants and command builders.
+
+1. Updated `infrastructure/n8n/bridge_server.py` to wrap `fastapi` / `pydantic` imports and expose lightweight fallback `Header`, `HTTPException`, `BaseModel`, and decorator-only app shims when those packages are absent.
+2. Kept the real runtime boundary explicit by raising a clear `RuntimeError` in `__main__` if someone tries to launch the bridge without the actual FastAPI dependencies installed.
+3. Removed the old implicit dependency from `workspace/tests/test_auto_schedule_paths.py` by keeping the canonical-path assertions active and adding a regression test that imports `bridge_server.py` while deliberately blocking `fastapi` and `pydantic`.
+4. Re-ran targeted compile, lint, and pytest checks from the repo-root `venv`; the focused suite is now green without skipping the bridge helper path.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `infrastructure/n8n/bridge_server.py` | Added graceful import fallbacks for helper-only imports while preserving a hard runtime error for real bridge startup without FastAPI |
+| `workspace/tests/test_auto_schedule_paths.py` | Removed the import-time FastAPI dependency and added a no-FastAPI regression test for the canonical helper path |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | Synced the shared context for `T-120` completion |
+
+### Verification Results
+
+- `.\venv\Scripts\python.exe -m py_compile infrastructure\n8n\bridge_server.py workspace\tests\test_auto_schedule_paths.py` (`repo root`) -> **pass**
+- `.\venv\Scripts\python.exe -m ruff check infrastructure\n8n\bridge_server.py workspace\tests\test_auto_schedule_paths.py` (`repo root`) -> **pass**
+- `.\venv\Scripts\python.exe -X utf8 -m pytest workspace\tests\test_auto_schedule_paths.py -q --tb=short -o addopts=` (`repo root`) -> **5 passed**

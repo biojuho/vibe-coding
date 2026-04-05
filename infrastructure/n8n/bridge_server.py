@@ -15,8 +15,35 @@ from pathlib import Path
 from typing import Optional
 
 import psutil
-from fastapi import FastAPI, Header, HTTPException
-from pydantic import BaseModel
+
+try:
+    from fastapi import FastAPI, Header, HTTPException
+    from pydantic import BaseModel
+
+    _FASTAPI_AVAILABLE = True
+    _FASTAPI_IMPORT_ERROR: Exception | None = None
+except ImportError as exc:
+    _FASTAPI_AVAILABLE = False
+    _FASTAPI_IMPORT_ERROR = exc
+    FastAPI = None  # type: ignore[assignment]
+
+    def Header(default=None):
+        return default
+
+    class HTTPException(RuntimeError):
+        def __init__(self, status_code: int, detail: str):
+            super().__init__(detail)
+            self.status_code = status_code
+            self.detail = detail
+
+    class BaseModel:
+        def __init__(self, **kwargs):
+            for key, value in kwargs.items():
+                setattr(self, key, value)
+
+        def model_dump(self) -> dict[str, object]:
+            return dict(self.__dict__)
+
 
 logger = logging.getLogger(__name__)
 
@@ -154,10 +181,33 @@ def build_allowed_commands(
 
 ALLOWED_COMMANDS = build_allowed_commands(btx_dir=BTX_DIR, python_exe=PYTHON_EXE)
 
-app = FastAPI(
-    title="n8n Bridge Server",
-    description="HTTP bridge between n8n and local pipelines",
-    version="1.2.0",
+
+class _FallbackApp:
+    """Lightweight decorator surface so helper imports work without FastAPI."""
+
+    @staticmethod
+    def get(*_args, **_kwargs):
+        def decorator(func):
+            return func
+
+        return decorator
+
+    @staticmethod
+    def post(*_args, **_kwargs):
+        def decorator(func):
+            return func
+
+        return decorator
+
+
+app = (
+    FastAPI(
+        title="n8n Bridge Server",
+        description="HTTP bridge between n8n and local pipelines",
+        version="1.2.0",
+    )
+    if _FASTAPI_AVAILABLE
+    else _FallbackApp()
 )
 
 _server_start_time = datetime.now()
@@ -418,6 +468,9 @@ async def notebooklm_create_notion_page(request: NotionArticleRequest, authoriza
 
 
 if __name__ == "__main__":
+    if not _FASTAPI_AVAILABLE:
+        raise RuntimeError("fastapi and pydantic are required to run bridge_server.py") from _FASTAPI_IMPORT_ERROR
+
     import uvicorn
 
     print("=" * 60)
