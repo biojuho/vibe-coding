@@ -3,6 +3,11 @@
 > See `SESSION_LOG.md` for detailed session history and `DECISIONS.md` for settled architecture decisions.
 
 ## Latest Update
+| Date | 2026-04-05 |
+| Tool | Codex |
+| Work | **Completed `T-144` for `shorts-maker-v2`: the growth loop now has a real project-local sync/decision path.** Added `projects/shorts-maker-v2/src/shorts_maker_v2/growth/sync.py` to join successful output manifests to `workspace.execution.content_db` via `job_id`, optionally refresh shared metrics through `workspace.execution.youtube_analytics_collector`, derive normalized `VideoPerformanceSnapshot`s, and write JSON reports under `projects/shorts-maker-v2/.tmp/growth_reports/`. Exposed the new `shorts-maker-v2 growth-sync` CLI command in `src/shorts_maker_v2/cli.py`, exported the sync surface from `growth/__init__.py`, and added unit coverage in `tests/unit/test_growth_sync.py` plus CLI coverage in `tests/unit/test_cli.py`. Verification: `py_compile` passed, root-venv `ruff` passed on the touched files, `pytest tests/unit/test_growth_sync.py tests/unit/test_cli.py -q --tb=short -o addopts=` passed (`15 passed`), and `pytest tests/unit/test_growth_feedback_loop.py -q --tb=short -o addopts=` also passed (`3 passed`). Note: `projects/shorts-maker-v2/.venv` currently lacks `pytest`/`ruff`, so use the repo-root `venv` for these checks unless that env changes. |
+
+## Previous Update
 | Date | 2026-04-04 |
 | Tool | Codex |
 | Work | **Scaffolded the `shorts-maker-v2` closed-loop growth engine as the highest-ROI scale-up target.** Added `projects/shorts-maker-v2/docs/designs/2026-04-04-shorts-maker-v2-growth-feedback-loop-design.md` plus the new `src/shorts_maker_v2/growth/` package (`VideoPerformanceSnapshot`, `VariantPerformance`, `GrowthAction`, `GrowthLoopReport`, `MetricsSource`, optional `SeriesPlanner`, `GrowthLoopEngine`). The step-1 engine ingests post-publish metrics, pushes caption-combo feedback into `StyleTracker`, ranks experimental variants, and emits next actions for the next batch. Verification: `py_compile` passed on the new growth modules and a manual UTF-8 smoke script passed (`growth-loop-smoke: ok`). Note: targeted `pytest tests/unit/test_growth_feedback_loop.py` currently hangs under this Windows wrapper even with plugin autoload disabled, so treat that as a harness issue and use inline smoke verification until isolated. |

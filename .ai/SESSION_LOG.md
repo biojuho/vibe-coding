@@ -838,3 +838,35 @@ Scaffolded the highest-ROI `shorts-maker-v2` scale-up target: a closed-loop grow
 - `..\..\venv\Scripts\python.exe -m py_compile src/shorts_maker_v2/growth/__init__.py src/shorts_maker_v2/growth/models.py src/shorts_maker_v2/growth/feedback_loop.py` (`projects/shorts-maker-v2`) -> **pass**
 - Manual UTF-8 smoke script invoking `GrowthLoopEngine.generate_report(...)` (`projects/shorts-maker-v2`) -> **`growth-loop-smoke: ok`**
 - `..\..\venv\Scripts\python.exe -X utf8 -m pytest tests/unit/test_growth_feedback_loop.py -q --tb=short -o addopts=` (`projects/shorts-maker-v2`) -> **hung under the current Windows wrapper** (treat as harness issue for now)
+
+---
+
+## 2026-04-05 | Codex | T-144 shorts-maker-v2 growth-sync integration
+
+### Work Summary
+
+Connected the new `shorts-maker-v2` growth loop to the shared YouTube metrics path and exposed it as a project-local CLI command.
+
+1. Added `projects/shorts-maker-v2/src/shorts_maker_v2/growth/sync.py`, which locates the repo root, imports `workspace.execution.content_db` plus `workspace.execution.youtube_analytics_collector`, optionally refreshes live metrics, joins uploaded DB rows to successful manifests by `job_id`, derives `VideoPerformanceSnapshot`s, and writes JSON growth reports under `.tmp/growth_reports/`.
+2. Exported the new sync surface from `projects/shorts-maker-v2/src/shorts_maker_v2/growth/__init__.py`.
+3. Extended `projects/shorts-maker-v2/src/shorts_maker_v2/cli.py` with `shorts-maker-v2 growth-sync`, including channel/since/min-views/variant-field/no-refresh/output options plus concise console summaries.
+4. Added focused coverage in `projects/shorts-maker-v2/tests/unit/test_growth_sync.py` for the manifest+DB join path and refresh-failure fallback, and extended `projects/shorts-maker-v2/tests/unit/test_cli.py` to cover the new CLI branch.
+5. Verified the new integration from the repo-root `venv`, because `projects/shorts-maker-v2/.venv` currently does not include `pytest` or `ruff`.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `projects/shorts-maker-v2/src/shorts_maker_v2/growth/sync.py` | Added the shared-metrics adapter, report writer, and `GrowthSyncResult` |
+| `projects/shorts-maker-v2/src/shorts_maker_v2/growth/__init__.py` | Exported the new growth-sync surface |
+| `projects/shorts-maker-v2/src/shorts_maker_v2/cli.py` | Added the `growth-sync` command and console summaries |
+| `projects/shorts-maker-v2/tests/unit/test_growth_sync.py` | Added unit coverage for refresh/join/report behavior |
+| `projects/shorts-maker-v2/tests/unit/test_cli.py` | Added CLI coverage for `growth-sync` |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | Synced task/context state for the new growth-sync path |
+
+### Verification Results
+
+- `.\.venv\Scripts\python.exe -m py_compile src\shorts_maker_v2\growth\sync.py src\shorts_maker_v2\cli.py tests\unit\test_growth_sync.py tests\unit\test_cli.py` (`projects/shorts-maker-v2`) -> **pass**
+- `..\..\venv\Scripts\python.exe -m ruff check src\shorts_maker_v2\growth\sync.py src\shorts_maker_v2\cli.py tests\unit\test_growth_sync.py tests\unit\test_cli.py` (`projects/shorts-maker-v2`) -> **pass**
+- `..\..\venv\Scripts\python.exe -X utf8 -m pytest tests\unit\test_growth_sync.py tests\unit\test_cli.py -q --tb=short -o addopts=` (`projects/shorts-maker-v2`) -> **15 passed**
+- `..\..\venv\Scripts\python.exe -X utf8 -m pytest tests\unit\test_growth_feedback_loop.py -q --tb=short -o addopts=` (`projects/shorts-maker-v2`) -> **3 passed**

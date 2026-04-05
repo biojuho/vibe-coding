@@ -259,6 +259,59 @@ def test_run_cli_costs_uses_configured_logs_dir(tmp_path: Path, monkeypatch) -> 
     assert tracker_calls["printed"] is True
 
 
+def test_run_cli_growth_sync_prints_report_summary(tmp_path: Path, monkeypatch, capsys) -> None:
+    config = _make_config(tmp_path)
+    fake_result = SimpleNamespace(
+        report_path=tmp_path / ".tmp" / "growth_reports" / "ai_tech.json",
+        snapshot_count=3,
+        channel="ai_tech",
+        refresh_summary={"status": "ok", "updated": 3, "skipped": 0, "errors": []},
+        report=SimpleNamespace(
+            ranked_variants=[SimpleNamespace(field="caption_combo", variant="winner", score=0.8123)],
+        ),
+    )
+
+    fake_growth_sync = ModuleType("shorts_maker_v2.growth.sync")
+    calls: dict[str, object] = {}
+
+    def sync_growth_report(**kwargs):
+        calls.update(kwargs)
+        return fake_result
+
+    fake_growth_sync.sync_growth_report = sync_growth_report
+
+    monkeypatch.setitem(sys.modules, "shorts_maker_v2.growth.sync", fake_growth_sync)
+    monkeypatch.setattr(cli, "_ensure_utf8_stdio", lambda: None)
+    monkeypatch.setattr(cli, "load_dotenv", lambda: None)
+    monkeypatch.setattr(cli, "load_config", lambda path: config)
+
+    result = cli.run_cli(
+        [
+            "growth-sync",
+            "--config",
+            str(tmp_path / "config.yaml"),
+            "--channel",
+            "ai_tech",
+            "--since-days",
+            "14",
+            "--min-views",
+            "500",
+            "--variant-field",
+            "caption_combo",
+            "--no-refresh",
+        ]
+    )
+
+    assert result == 0
+    assert calls["channel"] == "ai_tech"
+    assert calls["since_days"] == 14
+    assert calls["min_views"] == 500
+    assert calls["refresh_metrics"] is False
+    stdout = capsys.readouterr().out
+    assert "growth report saved" in stdout
+    assert "top caption_combo: winner" in stdout
+
+
 def test_run_cli_run_requires_topic_or_resume(monkeypatch, capsys) -> None:
     monkeypatch.setattr(cli, "_ensure_utf8_stdio", lambda: None)
     monkeypatch.setattr(cli, "load_dotenv", lambda: None)

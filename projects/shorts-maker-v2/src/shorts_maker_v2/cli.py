@@ -21,6 +21,7 @@ from shorts_maker_v2.utils.cost_tracker import CostTracker
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="YouTube Shorts one-click generator (MVP)")
     subparsers = parser.add_subparsers(dest="command", required=True)
+    variant_choices = ["caption_combo", "hook_pattern", "title_variant", "thumbnail_variant"]
 
     run_parser = subparsers.add_parser("run", help="Generate one shorts video")
     run_parser.add_argument(
@@ -87,6 +88,24 @@ def _build_parser() -> argparse.ArgumentParser:
     dashboard_parser = subparsers.add_parser("dashboard", help="Generate HTML statistics dashboard")
     dashboard_parser.add_argument("--config", type=str, default="config.yaml", help="Path to YAML config")
     dashboard_parser.add_argument("--out", type=str, default="dashboard.html", help="Path to output HTML file")
+
+    growth_parser = subparsers.add_parser(
+        "growth-sync",
+        help="Sync shared YouTube metrics into the project-local growth engine",
+    )
+    growth_parser.add_argument("--config", type=str, default="config.yaml", help="Path to YAML config")
+    growth_parser.add_argument("--channel", type=str, default="", help="채널 필터 (권장)")
+    growth_parser.add_argument("--since-days", type=int, default=30, help="최근 N일 성과만 분석 (기본: 30)")
+    growth_parser.add_argument("--min-views", type=int, default=0, help="최소 조회수 필터")
+    growth_parser.add_argument(
+        "--variant-field",
+        type=str,
+        default="caption_combo",
+        choices=variant_choices,
+        help="순위 분석에 사용할 A/B 필드",
+    )
+    growth_parser.add_argument("--no-refresh", action="store_true", help="shared YouTube collector refresh 생략")
+    growth_parser.add_argument("--out", type=str, default="", help="JSON report output path")
     return parser
 
 
@@ -538,6 +557,42 @@ def run_cli(argv: list[str] | None = None) -> int:
             logs_dir = (config_path.parent / config.paths.logs_dir).resolve()
         tracker = CostTracker(logs_dir=logs_dir)
         tracker.print_summary()
+        return 0
+
+    if args.command == "growth-sync":
+        try:
+            config = load_config(config_path)
+        except ConfigError as exc:
+            print(f"[FAIL] config: {exc}")
+            return 1
+
+        from shorts_maker_v2.growth.sync import sync_growth_report
+
+        out_path = Path(args.out)
+        if args.out and not out_path.is_absolute():
+            out_path = (config_path.parent / out_path).resolve()
+
+        result = sync_growth_report(
+            config=config,
+            base_dir=config_path.parent,
+            channel=getattr(args, "channel", ""),
+            since_days=max(0, getattr(args, "since_days", 30)),
+            min_views=max(0, getattr(args, "min_views", 0)),
+            variant_field=getattr(args, "variant_field", "caption_combo"),
+            refresh_metrics=not getattr(args, "no_refresh", False),
+            report_path=out_path if args.out else None,
+        )
+
+        print(f"[OK] growth report saved: {result.report_path}")
+        print(f"[OK] analyzed videos: {result.snapshot_count} (channel={result.channel})")
+        if result.refresh_summary.get("status") == "failed":
+            print(f"[WARN] collector refresh failed: {', '.join(result.refresh_summary.get('errors', []))}")
+
+        if result.report.ranked_variants:
+            top = result.report.ranked_variants[0]
+            print(f"[OK] top {top.field}: {top.variant} (score={top.score:.4f})")
+        else:
+            print("[INFO] no ranked variants were produced from the available metrics")
         return 0
 
     if args.command == "run":
