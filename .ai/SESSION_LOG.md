@@ -922,3 +922,30 @@ Closed the remaining local path-contract regression where the root scheduler-pat
 - `.\venv\Scripts\python.exe -m py_compile infrastructure\n8n\bridge_server.py workspace\tests\test_auto_schedule_paths.py` (`repo root`) -> **pass**
 - `.\venv\Scripts\python.exe -m ruff check infrastructure\n8n\bridge_server.py workspace\tests\test_auto_schedule_paths.py` (`repo root`) -> **pass**
 - `.\venv\Scripts\python.exe -X utf8 -m pytest workspace\tests\test_auto_schedule_paths.py -q --tb=short -o addopts=` (`repo root`) -> **5 passed**
+
+---
+
+## 2026-04-05 | Codex | T-129 hanwoo-dashboard client refresh/invalidation follow-up
+
+### Work Summary
+
+Completed the next `T-129` UI hardening slice in `projects/hanwoo-dashboard` by shrinking the amount of route-wide refresh work the dashboard does after common mutations.
+
+1. Reworked `projects/hanwoo-dashboard/src/components/DashboardClient.js` to lazy-load the heaviest tabs/widgets (`FeedTab`, `SalesTab`, `AnalysisTab`, `FinancialChartWidget`, `AIChatWidget`, `NotificationWidget`) with `next/dynamic`, derive notifications locally from `buildNotifications(cattleList)`, and reuse the initial market-price snapshot passed from the server.
+2. Removed most post-mutation `router.refresh()` calls from the cattle/sales/feed/inventory/schedule/building/settings flows and instead updated local React state with the server-action payloads. The offline queue resync path still refreshes intentionally after replaying pending work.
+3. Updated `projects/hanwoo-dashboard/src/lib/actions.js` so the related server actions return created/updated entities and invalidate targeted dashboard caches for the key cattle/sales read-model paths instead of forcing broad refreshes.
+4. Re-verified the dashboard after the refactor with lint/build/smoke; all three checks passed.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `projects/hanwoo-dashboard/src/components/DashboardClient.js` | Added dynamic imports for heavy tabs/widgets, local notification derivation, and local post-mutation state updates |
+| `projects/hanwoo-dashboard/src/lib/actions.js` | Returned mutation payloads for the main dashboard flows and invalidated targeted dashboard caches for cattle/sales paths |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md`, `.ai/SESSION_LOG.md` | Synced the new `T-129` progress and next-step context |
+
+### Verification Results
+
+- `npm run lint` (`projects/hanwoo-dashboard`) -> **pass**
+- `npm run build` (`projects/hanwoo-dashboard`) -> **pass**
+- `npm run smoke` (`projects/hanwoo-dashboard`) -> **pass**

@@ -4,6 +4,11 @@
 
 ## Latest Update
 | Date | 2026-04-05 |
+| Tool | Codex |
+| Work | **T-129 client-refactor follow-up is green in `hanwoo-dashboard`.** `src/components/DashboardClient.js` now lazy-loads heavy tabs/widgets with `next/dynamic`, derives notifications from local cattle state via `buildNotifications()`, keeps `MarketPriceWidget` on the server-provided initial snapshot, and updates local client state for cattle/sales/feed/inventory/schedule/buildings instead of broad `router.refresh()` after most mutations (the offline queue resync path still refreshes intentionally). `src/lib/actions.js` now returns created/updated payloads for those mutations and invalidates targeted dashboard caches for the key cattle/sales flows. Verification: `npm run lint`, `npm run build`, and `npm run smoke` all passed. Remaining `T-129` work: add `/api/dashboard/summary`, `/api/dashboard/cattle`, and `/api/dashboard/sales` with cursor pagination/read-model usage. |
+
+## Previous Update
+| Date | 2026-04-05 |
 | Tool | Claude (Opus 4.6) |
 | Work | **T-129 quick wins: wired outbox events + cache layers into `hanwoo-dashboard`.** (1) Added outbox event insertion (`createOutboxEvent`) to 5 key mutations in `src/lib/actions.js`: `createCattle`, `updateCattle`, `deleteCattle`, `recordCalving`, `createSalesRecord`. (2) Wired `getRealTimeMarketPrice()` with cache-through pattern: tries `getLatestMarketPriceSnapshot()` first (1hr TTL), falls back to KAPE API, then persists `saveMarketPriceSnapshot()` for future reads. (3) Wired `getNotifications()` with read-model fallback: tries `getNotificationSummary()` (1min TTL), falls back to O(n) cattle scan, then persists via `saveNotificationSummary()`. Verification: `npm run lint` clean, `npm run build` passed (Next.js 16.2.1). Created T-147 follow-up for the outbox worker script. |
 
@@ -113,7 +118,7 @@
 
 | Tool | Status | Summary of Results | Next Priorities |
 | :--- | :--- | :--- | :--- |
-| **Codex** | **STABLE** | `T-120` is now closed, targeted path tests are green (`workspace/tests/test_auto_schedule_paths.py`: `5 passed`), and the latest project-level DEEP check for `shorts-maker-v2` is also `APPROVED` (`1288 passed / 0 failed / 0 errors / 0 skipped`). | T-147 outbox worker follow-up, T-129 scale hardening, T-100 coverage, T-121 harness issue, T-142 human migration. |
+| **Codex** | **STABLE** | `T-120` is closed, `shorts-maker-v2` DEEP QC is `APPROVED`, and the latest `hanwoo-dashboard` `T-129` client-refactor follow-up is green (`npm run lint`, `npm run build`, `npm run smoke`). | T-149 dashboard pagination routes, T-129 scale hardening, T-100 coverage, T-121 harness issue, T-142 human migration. |
 
 - `T-133`: `scheduler_engine.py` sync contract is restored; no `_DB_INITIALIZED` short-circuit issues.
 - `T-134`: `blind-to-x` regressions (scraper and newsletter guards) are fixed and verified via targeted tests.
@@ -140,6 +145,7 @@
 - `projects/hanwoo-dashboard/src/lib/redis.js` and `projects/hanwoo-dashboard/src/lib/queue.js` now establish the Redis/BullMQ foundation with cache-vs-queue connection separation, safe no-config behavior, queue names, and default retry/backoff settings.
 - `projects/hanwoo-dashboard/prisma/schema.prisma` now includes `OutboxStatus`, `OutboxEvent`, `DashboardSnapshot`, `NotificationSummary`, and `MarketPriceSnapshot`, with matching generated Prisma model files under `src/generated/prisma/models/`.
 - `projects/hanwoo-dashboard/src/lib/dashboard/cache.js`, `projects/hanwoo-dashboard/src/lib/dashboard/events.js`, and `projects/hanwoo-dashboard/src/lib/dashboard/read-models.js` now provide cache key builders, Redis JSON helpers, outbox CRUD helpers, and read-model persistence/cache wrappers for summary, notifications, and market prices.
+- `projects/hanwoo-dashboard/src/components/DashboardClient.js` now lazy-loads heavy tabs/widgets with `next/dynamic`, derives notifications from `buildNotifications(cattleList)`, and keeps post-mutation state in sync locally instead of broadly refreshing the route. `src/lib/actions.js` now returns mutation payloads for the affected cattle/sales/feed/inventory/schedule/building flows and invalidates targeted dashboard caches for the key outbox-backed mutations. Verification on `2026-04-05`: `npm run lint`, `npm run build`, and `npm run smoke` all passed.
 - `projects/hanwoo-dashboard/prisma/manual/2026-04-02_read_models.sql` now contains the first-pass SQL draft for the outbox and read-model tables.
 - `projects/hanwoo-dashboard` still has a broader scale-hardening backlog on `2026-04-02`: `src/components/DashboardClient.js` and `src/lib/actions.js` remain large coupling hubs, but the first-render duplicate fetches for notifications/market data are now removed, README stack drift is corrected, and the font/dependency drift found in the review is closed.
 - `src/proxy.js` and `src/auth.js` remain aligned with current Next.js 16/Auth.js guidance, and `src/app/layout.js` now follows the recommended `next/font` path instead of manual font `<link>` tags.
@@ -181,7 +187,7 @@
 
 ## Next Priorities
 
-1. Continue `T-129` through `T-147`: add the `hanwoo-dashboard` outbox worker that consumes pending events and refreshes the new read-model snapshots.
+1. Continue `T-129` via `T-149`: add `/api/dashboard/summary`, `/api/dashboard/cattle`, and `/api/dashboard/sales` with cache/read-model-backed cursor pagination, then wire the interactive list surfaces to those routes.
 2. Continue `T-100`: push `blind-to-x` coverage from ~71% to at least 75% now that the new scale modules and shared gates are covered.
 3. Investigate `T-121`: reproduce the `test_main.py` terminal-wrapper `KeyboardInterrupt` cleanly enough to decide whether it is harness-only or product-level.
 4. Wait on `T-142`: run `workspace/scripts/migrate_to_workspace_db.py` against the live data set and delete `.bak` files only after human verification.
@@ -202,4 +208,4 @@
 - `projects/hanwoo-dashboard/src/lib/actions.js` still relies on full-list reads plus `revalidatePath('/')` for most mutations.
 - Post-build chunk listing showed a largest emitted chunk of about `868 KB` in `hanwoo-dashboard` and about `516 KB` in `knowledge-dashboard`, so bundle partitioning remains a live performance concern.
 - `npm run db:verify-indexes -- --skip-explain` is currently expected to stop early with a placeholder warning until the real pooled Postgres URL is supplied in `projects/hanwoo-dashboard/.env`.
-- Immediate `T-129` follow-up should wire the home summary path plus the remaining market/notification read surfaces to the new cache/read-model helpers before tackling the larger route split.
+- Immediate `T-129` follow-up should move the home summary plus cattle/sales list reads behind `/api/dashboard/*` routes with cursor pagination so the next client split can consume paged data instead of full arrays.
