@@ -234,6 +234,25 @@ def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
     return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
 
 
+def _scale_style(style: CaptionStyle, *, font_size: int | None = None, scale: int = 1) -> CaptionStyle:
+    """Create a new CaptionStyle with scaled dimensions."""
+    return CaptionStyle(
+        font_size=(font_size or style.font_size) * scale,
+        margin_x=style.margin_x * scale,
+        bottom_offset=style.bottom_offset * scale,
+        text_color=style.text_color,
+        stroke_color=style.stroke_color,
+        stroke_width=style.stroke_width * scale,
+        line_spacing=style.line_spacing * scale,
+        font_candidates=style.font_candidates,
+        mode=style.mode,
+        words_per_chunk=style.words_per_chunk,
+        bg_color=style.bg_color,
+        bg_opacity=style.bg_opacity,
+        bg_radius=style.bg_radius * scale,
+    )
+
+
 def _auto_scale_font(style: CaptionStyle, text: str, max_width: int) -> CaptionStyle:
     """텍스트가 max_width에 맞도록 폰트를 자동 축소.
 
@@ -245,47 +264,19 @@ def _auto_scale_font(style: CaptionStyle, text: str, max_width: int) -> CaptionS
     current_size = style.font_size
 
     while current_size > min_font_size:
-        test_style = CaptionStyle(
-            font_size=current_size,
-            margin_x=style.margin_x,
-            bottom_offset=style.bottom_offset,
-            text_color=style.text_color,
-            stroke_color=style.stroke_color,
-            stroke_width=style.stroke_width,
-            line_spacing=style.line_spacing,
-            font_candidates=style.font_candidates,
-            mode=style.mode,
-            words_per_chunk=style.words_per_chunk,
-            bg_color=style.bg_color,
-            bg_opacity=style.bg_opacity,
-            bg_radius=style.bg_radius,
-        )
+        test_style = _scale_style(style, font_size=current_size)
         font = _load_font(test_style)
         probe = Image.new("RGBA", (max_width * 2, 400), (0, 0, 0, 0))
         probe_draw = ImageDraw.Draw(probe)
         bbox = probe_draw.textbbox((0, 0), text, font=font, stroke_width=0)
         text_w = bbox[2] - bbox[0]
-        pad_x = 44  # padding
+        pad_x = 44
         if text_w + pad_x * 2 <= max_width:
             break
-        current_size -= 4  # 4px씩 축소
+        current_size -= 4
 
     if current_size != style.font_size:
-        return CaptionStyle(
-            font_size=current_size,
-            margin_x=style.margin_x,
-            bottom_offset=style.bottom_offset,
-            text_color=style.text_color,
-            stroke_color=style.stroke_color,
-            stroke_width=style.stroke_width,
-            line_spacing=style.line_spacing,
-            font_candidates=style.font_candidates,
-            mode=style.mode,
-            words_per_chunk=style.words_per_chunk,
-            bg_color=style.bg_color,
-            bg_opacity=style.bg_opacity,
-            bg_radius=style.bg_radius,
-        )
+        return _scale_style(style, font_size=current_size)
     return style
 
 
@@ -444,54 +435,94 @@ def render_karaoke_highlight_image(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     scale = 2
 
-    # 자동 폰트 축소: 전체 단어 텍스트가 캔버스를 초과하면 축소
+    # 자동 폰트 축소
     full_text = " ".join(words)
     style = _auto_scale_font(style, full_text, canvas_width)
 
-    hi_style = CaptionStyle(
-        font_size=style.font_size * scale,
-        margin_x=style.margin_x * scale,
-        bottom_offset=style.bottom_offset * scale,
-        text_color=style.text_color,
-        stroke_color=style.stroke_color,
-        stroke_width=style.stroke_width * scale,
-        line_spacing=style.line_spacing * scale,
-        font_candidates=style.font_candidates,
-        mode=style.mode,
-        words_per_chunk=style.words_per_chunk,
-        bg_color=style.bg_color,
-        bg_opacity=style.bg_opacity,
-        bg_radius=style.bg_radius * scale,
-    )
+    hi_style = _scale_style(style, scale=scale)
     hi_width = canvas_width * scale
     font = _load_font(hi_style)
+    active_font = _load_font(_scale_style(hi_style, font_size=int(hi_style.font_size * 1.15)))
     pad_x, pad_y = 44 * scale, 20 * scale
 
-    # 활성 단어용 1.15x 확대 폰트
-    active_font_size = int(hi_style.font_size * 1.15)
-    active_hi_style = CaptionStyle(
-        font_size=active_font_size,
-        margin_x=hi_style.margin_x,
-        bottom_offset=hi_style.bottom_offset,
-        text_color=hi_style.text_color,
-        stroke_color=hi_style.stroke_color,
-        stroke_width=hi_style.stroke_width,
-        line_spacing=hi_style.line_spacing,
-        font_candidates=hi_style.font_candidates,
-        mode=hi_style.mode,
-        words_per_chunk=hi_style.words_per_chunk,
-        bg_color=hi_style.bg_color,
-        bg_opacity=hi_style.bg_opacity,
-        bg_radius=hi_style.bg_radius,
+    # 단어 측정
+    word_widths, max_text_h, space_w, normal_ascent, active_ascent = _measure_words(
+        words,
+        active_word_index,
+        font,
+        active_font,
+        hi_width,
+        scale,
     )
-    active_font = _load_font(active_hi_style)
+    text_w = max(1, int(sum(word_widths) + space_w * max(0, len(words) - 1)))
+    text_h = max(1, max_text_h)
 
-    # 전체 텍스트 크기 측정 (단어별 폰트 고려)
+    image_w = hi_width - hi_style.margin_x * 2 if hi_style.bg_radius == 0 else min(hi_width, text_w + pad_x * 2)
+    image_h = text_h + pad_y * 2
+
+    # 배경 렌더링
+    image = Image.new("RGBA", (image_w, image_h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    r, g, b = _hex_to_rgb(style.bg_color)
+    draw.rounded_rectangle(
+        [(0, 0), (image_w - 1, image_h - 1)],
+        radius=hi_style.bg_radius,
+        fill=(r, g, b, style.bg_opacity),
+    )
+
+    # 단어별 렌더링
+    glow_position, glow_word = _render_words_on_image(
+        draw,
+        words,
+        active_word_index,
+        word_widths,
+        space_w,
+        font,
+        active_font,
+        hi_style,
+        style,
+        highlight_color,
+        keyword_colors,
+        image_w,
+        text_w,
+        pad_y,
+        normal_ascent,
+        active_ascent,
+        scale,
+    )
+
+    # 글로우 효과
+    if glow_position is not None and glow_word:
+        image = _render_word_glow(
+            image,
+            glow_position,
+            glow_word,
+            active_font,
+            highlight_color,
+            glow_radius=max(4, 6 * scale),
+        )
+
+    # 다운샘플
+    final_w = max(1, image_w // scale)
+    final_h = max(1, image_h // scale)
+    image = image.resize((final_w, final_h), Image.LANCZOS)
+    image.save(output_path, format="PNG")
+    return output_path
+
+
+def _measure_words(
+    words: list[str],
+    active_word_index: int,
+    font: ImageFont.FreeTypeFont,
+    active_font: ImageFont.FreeTypeFont,
+    hi_width: int,
+    scale: int,
+) -> tuple[list[float], int, float, int, int]:
+    """Measure word widths, heights, space width, and baseline ascents."""
     probe = Image.new("RGBA", (hi_width, 400 * scale), (0, 0, 0, 0))
     probe_draw = ImageDraw.Draw(probe)
     space_w = probe_draw.textlength(" ", font=font) if hasattr(probe_draw, "textlength") else font.getlength(" ")
 
-    # 단어별 너비·높이 사전 계산 (활성 단어는 확대 폰트 사용)
     word_widths: list[float] = []
     max_text_h = 0
     for i, word in enumerate(words):
@@ -502,71 +533,54 @@ def render_karaoke_highlight_image(
         if h > max_text_h:
             max_text_h = h
 
-    text_w = max(1, int(sum(word_widths) + space_w * max(0, len(words) - 1)))
-    text_h = max(1, max_text_h)
-
-    # 일반 폰트 baseline 측정 (비활성 단어 정렬 기준)
     normal_bbox = probe_draw.textbbox((0, 0), "Ag가", font=font, stroke_width=0)
     active_bbox = probe_draw.textbbox((0, 0), "Ag가", font=active_font, stroke_width=0)
-    normal_ascent = -normal_bbox[1]
-    active_ascent = -active_bbox[1]
+    return word_widths, max_text_h, space_w, -normal_bbox[1], -active_bbox[1]
 
-    image_w = hi_width - hi_style.margin_x * 2 if hi_style.bg_radius == 0 else min(hi_width, text_w + pad_x * 2)
-    image_h = text_h + pad_y * 2
 
-    image = Image.new("RGBA", (image_w, image_h), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(image)
-
-    # 배경 rounded rectangle
-    r, g, b = _hex_to_rgb(style.bg_color)
-    bg_rgba = (r, g, b, style.bg_opacity)
-    draw.rounded_rectangle(
-        [(0, 0), (image_w - 1, image_h - 1)],
-        radius=hi_style.bg_radius,
-        fill=bg_rgba,
-    )
-
-    # 텍스트 시작 위치 (가운데 정렬)
+def _render_words_on_image(
+    draw: ImageDraw.ImageDraw,
+    words: list[str],
+    active_word_index: int,
+    word_widths: list[float],
+    space_w: float,
+    font: ImageFont.FreeTypeFont,
+    active_font: ImageFont.FreeTypeFont,
+    hi_style: CaptionStyle,
+    style: CaptionStyle,
+    highlight_color: str,
+    keyword_colors: dict[str, tuple[int, int, int, int]] | None,
+    image_w: int,
+    text_w: int,
+    pad_y: int,
+    normal_ascent: int,
+    active_ascent: int,
+    scale: int,
+) -> tuple[tuple[float, float] | None, str]:
+    """Render each word with shadow, returns glow position and word."""
     base_x = (image_w - text_w) / 2
-
-    # dim 색상 (비활성 단어용 — 흰색, 잘 보이게)
     hr, hg, hb = _hex_to_rgb(highlight_color)
     dim_color = (255, 255, 255, 255)
     active_color = (hr, hg, hb, 255)
+    shadow_offset = max(2, scale)
 
-    # 키워드 하이라이트 색상 (keyword_highlight_color가 제공된 경우)
-    kw_color = None
-    if keyword_colors:
-        kw_color = keyword_colors  # dict[word_lower] -> (r,g,b,a)
-
-    # 활성 단어 글로우 위치 기록용
     glow_position: tuple[float, float] | None = None
     glow_word: str = ""
-
-    # 단어별 X 위치 계산 후 개별 렌더링
     x_cursor = base_x
-    shadow_offset = max(2, scale)
 
     for i, word in enumerate(words):
         is_active = i == active_word_index
         use_font = active_font if is_active else font
-
-        # baseline 정렬: 활성 단어는 더 큰 폰트이므로 y 보정
         base_y = pad_y + (normal_ascent - active_ascent) if is_active else pad_y
 
-        # 키워드 매칭 체크 (2글자 이상 단어만)
-        is_keyword = False
-        clean_word = word.rstrip(".,?!;:~").lower()
-        if kw_color and len(word) >= 2:
-            is_keyword = clean_word in kw_color
-        if is_active:
-            color = active_color
-        elif is_keyword:
-            color = kw_color[clean_word]
-        else:
-            color = dim_color
+        # Determine word color
+        color = active_color if is_active else dim_color
+        if not is_active and keyword_colors and len(word) >= 2:
+            clean_word = word.rstrip(".,?!;:~").lower()
+            if clean_word in keyword_colors:
+                color = keyword_colors[clean_word]
 
-        # 드롭 섀도우
+        # Drop shadow
         draw.text(
             (x_cursor + shadow_offset, base_y + shadow_offset),
             word,
@@ -574,8 +588,7 @@ def render_karaoke_highlight_image(
             fill=(0, 0, 0, 140),
             stroke_width=0,
         )
-
-        # 본문 텍스트
+        # Main text
         draw.text(
             (x_cursor, base_y),
             word,
@@ -585,32 +598,13 @@ def render_karaoke_highlight_image(
             stroke_fill=style.stroke_color if hi_style.stroke_width > 0 else None,
         )
 
-        # 활성 단어 글로우 위치 기록
         if is_active:
             glow_position = (x_cursor, base_y)
             glow_word = word
 
-        # 다음 단어 위치로 이동
         x_cursor += word_widths[i] + space_w
 
-    # 활성 단어 글로우 효과 합성
-    if glow_position is not None and glow_word:
-        glow_radius = max(4, 6 * scale)
-        image = _render_word_glow(
-            image,
-            glow_position,
-            glow_word,
-            active_font,
-            highlight_color,
-            glow_radius=glow_radius,
-        )
-
-    # 다운샘플 (LANCZOS)
-    final_w = max(1, image_w // scale)
-    final_h = max(1, image_h // scale)
-    image = image.resize((final_w, final_h), Image.LANCZOS)
-    image.save(output_path, format="PNG")
-    return output_path
+    return glow_position, glow_word
 
 
 def build_keyword_color_map(

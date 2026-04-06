@@ -569,7 +569,9 @@ def test_run_parallel_logs_failure_and_uses_hook_palette(tmp_path: Path) -> None
 
     assert [asset.scene_id for asset in assets] == [1]
     assert any(f["step"] == "scene_2" for f in failures)
-    assert captured_hints == ["", "#abcdef"]
+    assert captured_hints[0] == ""
+    assert captured_hints[1:] == ["#abcdef"] * (step.config.limits.max_retries)
+    logger.warning.assert_called()
     logger.error.assert_called_once()
 
 

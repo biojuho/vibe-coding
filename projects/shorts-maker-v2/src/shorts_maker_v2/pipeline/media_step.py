@@ -20,7 +20,7 @@ from shorts_maker_v2.providers.openai_client import OpenAIClient
 from shorts_maker_v2.providers.pexels_client import PexelsClient
 from shorts_maker_v2.utils.cost_guard import CostGuard
 from shorts_maker_v2.utils.media_cache import MediaCache
-from shorts_maker_v2.utils.retry import retry_with_backoff
+from shorts_maker_v2.utils.retry import retry_with_backoff, submit_retry_with_backoff
 
 logger = logging.getLogger(__name__)
 
@@ -371,6 +371,11 @@ class MediaStep:
         video_dir.mkdir(parents=True, exist_ok=True)
         return audio_dir, image_dir, video_dir
 
+    def _resolve_retry_attempts(self, override: int | None = None) -> int:
+        if override is None:
+            return self.config.limits.max_retries
+        return max(1, int(override))
+
     # ── 씬 역할별 비주얼 프롬프트 가이드 (5-ACT 아트 디렉션) ──
     _ROLE_VISUAL_GUIDE: dict[str, str] = {
         "hook": (
@@ -427,6 +432,7 @@ class MediaStep:
         cost_guard: CostGuard,
         logger: Any,
         scene_id: int,
+        provider_retry_attempts: int | None = None,
     ) -> tuple[str, str] | None:
         """google-veo 비디오 생성 시도.
 
@@ -454,7 +460,7 @@ class MediaStep:
         try:
             path = retry_with_backoff(
                 lambda p=visual_prompt, vp=video_dir / f"{scene_name}.mp4": self._generate_video(p, duration_sec, vp),
-                max_attempts=self.config.limits.max_retries,
+                max_attempts=self._resolve_retry_attempts(provider_retry_attempts),
                 base_delay_sec=2.0,
             )
             cost_guard.add_video_cost(duration_sec)
@@ -475,6 +481,7 @@ class MediaStep:
         *,
         suffix: str = "_stock",
         max_attempts: int = 2,
+        provider_retry_attempts: int | None = None,
     ) -> tuple[str, str] | None:
         """Pexels 스톡 비디오 시도. 성공 시 (path, "video"), 실패/불가 시 None."""
         if not self.pexels_client:
@@ -483,7 +490,7 @@ class MediaStep:
             stock_path = video_dir / f"{scene_name}{suffix}.mp4"
             path = retry_with_backoff(
                 lambda p=visual_prompt, sp=stock_path: self._generate_stock_video(p, sp),
-                max_attempts=max_attempts,
+                max_attempts=min(max_attempts, self._resolve_retry_attempts(provider_retry_attempts)),
                 base_delay_sec=1.0,
             )
             cost_guard.add_stock_cost()
@@ -500,6 +507,7 @@ class MediaStep:
         cost_guard: CostGuard,
         logger: Any,
         use_paid_image: bool,
+        provider_retry_attempts: int | None = None,
     ) -> tuple[Path, bool, list[dict[str, str]]]:
         """이미지 생성 폴백 체인: imagen3 → gemini → pollinations → dalle → placeholder.
 
@@ -510,6 +518,7 @@ class MediaStep:
         image_ready = False
         scene_id = scene.scene_id
         wants_imagen = self.config.providers.visual_primary == "google-imagen"
+        retry_attempts = self._resolve_retry_attempts(provider_retry_attempts)
 
         # 1. Imagen 3 (유료, visual_primary=="google-imagen" 시만)
         if not image_ready and wants_imagen and use_paid_image and self.google_client:
@@ -518,7 +527,7 @@ class MediaStep:
                     lambda p=visual_prompt, ip=img_path: self.google_client.generate_image_imagen3(
                         prompt=p, output_path=ip
                     ),
-                    max_attempts=self.config.limits.max_retries,
+                    max_attempts=retry_attempts,
                     base_delay_sec=1.0,
                 )
                 cost_guard.add_image_cost()
@@ -533,7 +542,7 @@ class MediaStep:
             try:
                 visual_path = retry_with_backoff(
                     lambda p=visual_prompt, ip=img_path: self.google_client.generate_image(prompt=p, output_path=ip),
-                    max_attempts=self.config.limits.max_retries,
+                    max_attempts=retry_attempts,
                     base_delay_sec=1.0,
                 )
                 image_ready = True
@@ -549,7 +558,7 @@ class MediaStep:
             try:
                 visual_path = retry_with_backoff(
                     lambda p=visual_prompt, ip=img_path: self._generate_image_pollinations(p, ip),
-                    max_attempts=min(2, self.config.limits.max_retries),
+                    max_attempts=min(2, retry_attempts),
                     base_delay_sec=1.0,
                 )
                 image_ready = True
@@ -565,7 +574,7 @@ class MediaStep:
             try:
                 visual_path = retry_with_backoff(
                     lambda p=visual_prompt, ip=img_path: self._generate_image(p, ip),
-                    max_attempts=self.config.limits.max_retries,
+                    max_attempts=retry_attempts,
                     base_delay_sec=1.0,
                 )
                 cost_guard.add_image_cost()
@@ -609,6 +618,7 @@ class MediaStep:
         scene: ScenePlan,
         logger: Any,
         use_paid_image: bool = True,
+        provider_retry_attempts: int | None = None,
     ) -> tuple[str, str, list[dict[str, str]]]:
         """이미지(또는 비디오) 생성 폴백 체인. (visual_path, visual_type, failures) 반환.
 
@@ -626,7 +636,14 @@ class MediaStep:
 
         # ── 1. google-veo 비디오 ──
         result = self._try_video_primary(
-            visual_prompt, duration_sec, video_dir, scene_name, cost_guard, logger, scene.scene_id
+            visual_prompt,
+            duration_sec,
+            video_dir,
+            scene_name,
+            cost_guard,
+            logger,
+            scene.scene_id,
+            provider_retry_attempts,
         )
         if result:
             return result[0], result[1], failures
@@ -638,7 +655,15 @@ class MediaStep:
         # ── 2. Pexels 스톡 영상 믹싱 (stock_mix_ratio 확률) ──
         _stock_mix = self.config.video.stock_mix_ratio
         if self.pexels_client and _stock_mix > 0 and random.random() < _stock_mix:
-            result = self._try_stock_video(visual_prompt, video_dir, scene_name, cost_guard, logger, scene.scene_id)
+            result = self._try_stock_video(
+                visual_prompt,
+                video_dir,
+                scene_name,
+                cost_guard,
+                logger,
+                scene.scene_id,
+                provider_retry_attempts=provider_retry_attempts,
+            )
             if result:
                 self._log(logger, "info", "stock_video_ready", scene_id=scene.scene_id, mixed=True)
                 return result[0], result[1], failures
@@ -646,7 +671,13 @@ class MediaStep:
 
         # ── 3. 이미지 체인: imagen3 → gemini → pollinations → dalle ──
         visual_path, image_ready, img_failures = self._try_image_chain(
-            visual_prompt, img_path, scene, cost_guard, logger, use_paid_image
+            visual_prompt,
+            img_path,
+            scene,
+            cost_guard,
+            logger,
+            use_paid_image,
+            provider_retry_attempts,
         )
         failures.extend(img_failures)
 
@@ -661,6 +692,7 @@ class MediaStep:
                 scene.scene_id,
                 suffix="_policy_fallback",
                 max_attempts=2,
+                provider_retry_attempts=provider_retry_attempts,
             )
             if result:
                 self._log(logger, "info", "stock_fallback_after_policy_block", scene_id=scene.scene_id)
@@ -691,6 +723,8 @@ class MediaStep:
         cost_guard: CostGuard,
         logger: Any = None,
         color_hint: str = "",
+        parallelize_provider_io: bool = True,
+        provider_retry_attempts: int | None = None,
     ) -> tuple[SceneAsset, list[dict[str, str]]]:
         """단일 씬의 TTS + 비주얼 생성. 스레드 안전.
 
@@ -734,13 +768,14 @@ class MediaStep:
         # ── TTS + 이미지 생성 병렬 실행 ──
         # Body 씬은 무료 이미지만 사용 (비용 절감)
         _use_paid = scene.structure_role in ("hook", "cta", "closing")
+        retry_attempts = self._resolve_retry_attempts(provider_retry_attempts)
 
         def _get_audio() -> Path:
             if audio_exists:
                 return audio_path
             return retry_with_backoff(
                 lambda: self._generate_audio(scene.narration_ko, audio_path, role=scene.structure_role),
-                max_attempts=self.config.limits.max_retries,
+                max_attempts=retry_attempts,
                 base_delay_sec=1.0,
             )
 
@@ -748,22 +783,41 @@ class MediaStep:
             if visual_path_str:
                 return visual_path_str, visual_type, []
             return self._generate_best_image(
-                _visual_prompt, img_path, scene.target_sec, cost_guard, video_dir, scene, logger, _use_paid
+                _visual_prompt,
+                img_path,
+                scene.target_sec,
+                cost_guard,
+                video_dir,
+                scene,
+                logger,
+                _use_paid,
+                retry_attempts,
             )
 
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            _audio_future = pool.submit(_get_audio)
-            _image_future = pool.submit(_get_visual)
+        if parallelize_provider_io:
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                _audio_future = pool.submit(_get_audio)
+                _image_future = pool.submit(_get_visual)
 
+                try:
+                    audio_path = _audio_future.result()
+                except Exception as exc:
+                    failures.append({"step": "audio", "code": type(exc).__name__, "message": str(exc)})
+                    self._log(logger, "error", "audio_failed", scene_id=scene.scene_id, error=str(exc))
+                    raise
+
+            # 이미지 결과 수집
+            visual_path_str, visual_type, img_failures = _image_future.result()
+        else:
             try:
-                audio_path = _audio_future.result()
+                audio_path = _get_audio()
             except Exception as exc:
                 failures.append({"step": "audio", "code": type(exc).__name__, "message": str(exc)})
                 self._log(logger, "error", "audio_failed", scene_id=scene.scene_id, error=str(exc))
                 raise
 
-        # 이미지 결과 수집
-        visual_path_str, visual_type, img_failures = _image_future.result()
+            visual_path_str, visual_type, img_failures = _get_visual()
+
         failures.extend(img_failures)
 
         duration_sec = self._read_audio_duration(audio_path, fallback_sec=scene.target_sec)
@@ -834,15 +888,30 @@ class MediaStep:
                 return
             with ThreadPoolExecutor(max_workers=min(len(scenes), max_workers)) as executor:
                 futures = {
-                    executor.submit(
-                        self._process_one_scene,
-                        scene,
-                        audio_dir,
-                        image_dir,
-                        video_dir,
-                        cost_guard,
-                        logger,
-                        color_hint,
+                    submit_retry_with_backoff(
+                        executor,
+                        lambda scene=scene: self._process_one_scene(
+                            scene,
+                            audio_dir,
+                            image_dir,
+                            video_dir,
+                            cost_guard,
+                            logger,
+                            color_hint,
+                            False,
+                            1,
+                        ),
+                        max_attempts=self.config.limits.max_retries,
+                        base_delay_sec=1.0,
+                        on_retry=lambda attempt, sleep_sec, exc, scene_id=scene.scene_id: self._log(
+                            logger,
+                            "warning",
+                            "parallel_scene_retry_scheduled",
+                            scene_id=scene_id,
+                            next_attempt=attempt + 1,
+                            delay_sec=round(sleep_sec, 3),
+                            error=str(exc),
+                        ),
                     ): scene.scene_id
                     for scene in scenes
                 }

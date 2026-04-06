@@ -10,6 +10,35 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+_PYDUB_UNSET = object()
+AudioSegment = _PYDUB_UNSET
+high_pass_filter = _PYDUB_UNSET
+low_pass_filter = _PYDUB_UNSET
+
+
+def _resolve_pydub():
+    audio_segment = None if AudioSegment is _PYDUB_UNSET else AudioSegment
+    high_pass = None if high_pass_filter is _PYDUB_UNSET else high_pass_filter
+    low_pass = None if low_pass_filter is _PYDUB_UNSET else low_pass_filter
+
+    if audio_segment is not None and high_pass is not None and low_pass is not None:
+        return audio_segment, high_pass, low_pass
+
+    try:
+        from pydub import AudioSegment as imported_audio_segment
+        from pydub.effects import (
+            high_pass_filter as imported_high_pass_filter,
+            low_pass_filter as imported_low_pass_filter,
+        )
+    except ImportError:
+        return audio_segment, high_pass, low_pass
+
+    return (
+        audio_segment or imported_audio_segment,
+        high_pass or imported_high_pass_filter,
+        low_pass or imported_low_pass_filter,
+    )
+
 
 def normalize_audio(
     audio_path: Path,
@@ -26,15 +55,14 @@ def normalize_audio(
     Returns:
         노멀라이즈된 오디오 파일 경로 (in-place).
     """
-    try:
-        from pydub import AudioSegment
-    except ImportError:
+    audio_segment, _, _ = _resolve_pydub()
+    if audio_segment is None:
         logger.debug("[AudioPost] pydub 없음, 노멀라이제이션 건너뜀")
         return audio_path
 
     try:
         ext = audio_path.suffix.lower().lstrip(".")
-        audio = AudioSegment.from_file(str(audio_path), format=ext if ext else "mp3")
+        audio = audio_segment.from_file(str(audio_path), format=ext if ext else "mp3")
 
         current_dbfs = audio.dBFS
         if current_dbfs == float("-inf"):
@@ -105,10 +133,8 @@ def apply_eq(
     Returns:
         EQ 적용된 오디오 파일 경로 (in-place).
     """
-    try:
-        from pydub import AudioSegment
-        from pydub.effects import high_pass_filter, low_pass_filter
-    except ImportError:
+    audio_segment, high_pass, low_pass = _resolve_pydub()
+    if audio_segment is None or high_pass is None or low_pass is None:
         logger.debug("[AudioPost] pydub 없음, EQ 건너뜀")
         return audio_path
 
@@ -118,7 +144,7 @@ def apply_eq(
 
     try:
         ext = audio_path.suffix.lower().lstrip(".")
-        audio = AudioSegment.from_file(str(audio_path), format=ext if ext else "mp3")
+        audio = audio_segment.from_file(str(audio_path), format=ext if ext else "mp3")
 
         # 간이 EQ: 전체 대역에 high_pass → low_pass 범위의 gain 적용
         # pydub 한계로 정밀 밴드 EQ는 불가, 주요 대역만 gain 조정
@@ -126,8 +152,8 @@ def apply_eq(
             if abs(gain_db) < 0.3:
                 continue
             # 해당 대역을 추출 (근사)
-            band = high_pass_filter(audio, low_freq)
-            band = low_pass_filter(band, high_freq)
+            band = high_pass(audio, low_freq)
+            band = low_pass(band, high_freq)
             band = band.apply_gain(gain_db)
             # 원본에 블렌딩 (overlay)
             audio = audio.overlay(band, gain_during_overlay=0)
@@ -170,11 +196,14 @@ def _apply_compression(
     pydub는 전문 컴프레서를 지원하지 않으므로,
     세그먼트 단위로 소프트 리미팅을 적용하는 근사 방식.
     """
-    try:
-        from pydub import AudioSegment
+    audio_segment, _, _ = _resolve_pydub()
+    if audio_segment is None:
+        logger.debug("[AudioPost] pydub 없음, 컴프레서 건너뜀")
+        return audio_path
 
+    try:
         ext = audio_path.suffix.lower().lstrip(".")
-        audio = AudioSegment.from_file(str(audio_path), format=ext if ext else "mp3")
+        audio = audio_segment.from_file(str(audio_path), format=ext if ext else "mp3")
 
         # 50ms 청크 단위로 소프트 리미팅
         chunk_ms = 50
@@ -184,7 +213,7 @@ def _apply_compression(
             if chunk.dBFS > threshold_db:
                 # threshold 초과분을 ratio로 감쇠
                 overshoot = chunk.dBFS - threshold_db
-                gain_reduction = overshoot * (1 - 1 / ratio)
+                gain_reduction = overshoot * (ratio - 1) / ratio
                 chunk = chunk.apply_gain(-gain_reduction)
             compressed_chunks.append(chunk)
 
@@ -195,9 +224,6 @@ def _apply_compression(
         )
         return audio_path
 
-    except ImportError:
-        logger.debug("[AudioPost] pydub 없음, 컴프레서 건너뜀")
-        return audio_path
     except Exception as exc:
         logger.warning("[AudioPost] 컴프레서 실패: %s — %s", audio_path.name, exc)
         return audio_path
@@ -214,15 +240,18 @@ def _apply_subtle_reverb(
     pydub 기반 간이 리버브 (원본에 0.08 비율로 살짝 딜레이된 복사본 믹스).
     전문 리버브 대비 품질은 낮지만, AI 음성의 '무무방향' 느낌을 줄여줌.
     """
-    try:
-        from pydub import AudioSegment
+    audio_segment, _, _ = _resolve_pydub()
+    if audio_segment is None:
+        logger.debug("[AudioPost] pydub 없음, 리버브 건너뜀")
+        return audio_path
 
+    try:
         ext = audio_path.suffix.lower().lstrip(".")
-        audio = AudioSegment.from_file(str(audio_path), format=ext if ext else "mp3")
+        audio = audio_segment.from_file(str(audio_path), format=ext if ext else "mp3")
 
         # 미세 딜레이(25ms, 50ms)를 겹쳐 공간감 생성
-        delay_1 = AudioSegment.silent(duration=25, frame_rate=audio.frame_rate) + audio
-        delay_2 = AudioSegment.silent(duration=50, frame_rate=audio.frame_rate) + audio
+        delay_1 = audio_segment.silent(duration=25, frame_rate=audio.frame_rate) + audio
+        delay_2 = audio_segment.silent(duration=50, frame_rate=audio.frame_rate) + audio
 
         # 원본 길이에 맞춰 트림
         target_len = len(audio)
@@ -235,9 +264,6 @@ def _apply_subtle_reverb(
         logger.info("[AudioPost] 리버브 적용: %s (room=%.2f, wet=%.2f)", audio_path.name, room_size, wet_mix)
         return audio_path
 
-    except ImportError:
-        logger.debug("[AudioPost] pydub 없음, 리버브 건너뜀")
-        return audio_path
     except Exception as exc:
         logger.warning("[AudioPost] 리버브 실패: %s — %s", audio_path.name, exc)
         return audio_path
