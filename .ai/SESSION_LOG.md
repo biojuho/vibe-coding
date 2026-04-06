@@ -7,7 +7,7 @@
 1. Added `projects/hanwoo-dashboard/src/lib/action-validation.mjs` so the riskiest server mutation payloads are validated and normalized before Prisma writes.
 2. Wired `projects/hanwoo-dashboard/src/lib/actions.js` through the new validators for `createCattle`, `updateCattle`, `createSalesRecord`, `recordFeed`, `addInventoryItem`, `updateInventoryQuantity`, `updateFarmSettings`, and `createExpenseRecord`.
 3. Added focused Node unit coverage in `projects/hanwoo-dashboard/src/lib/action-validation.test.mjs` and exposed it through `npm test`.
-4. Verified the first-priority hardening slice with `npm test` (`9 passed`) and `npm run lint` (`pass`).
+4. Verified the first-priority hardening slice with `npm test` (`9 passed`), `npm run lint` (`pass`), and `npm run build` (`pass`).
 
 ### Changed Files
 
@@ -23,6 +23,7 @@
 
 - `npm test` (`projects/hanwoo-dashboard`) -> **9 passed**
 - `npm run lint` (`projects/hanwoo-dashboard`) -> **pass**
+- `npm run build` (`projects/hanwoo-dashboard`) -> **pass**
 
 ## 2026-04-06 | Gemini (Antigravity) | T-152 harness integration, T-129 scale-hardening chunk, T-153 DB cleanup
 
