@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 # DB 파일 위치
-DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent / ".tmp" / "qaqc_history.db"
+DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent / ".tmp" / "workspace.db"
 
 
 class QaQcHistoryDB:

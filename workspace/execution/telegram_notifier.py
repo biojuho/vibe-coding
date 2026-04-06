@@ -165,13 +165,17 @@ def get_me(timeout: int = 15) -> Dict[str, Any]:
     return response.json()
 
 
-def get_updates(limit: int = 10, timeout: int = 0) -> List[Dict[str, Any]]:
+def get_updates(limit: int = 10, timeout: int = 0, offset: Optional[int] = None) -> List[Dict[str, Any]]:
     config = load_config()
     if not config.bot_token:
         raise ValueError("TELEGRAM_BOT_TOKEN is not configured.")
+    params = {"limit": max(1, min(int(limit), 100)), "timeout": max(0, int(timeout))}
+    if offset is not None:
+        params["offset"] = offset
+
     response = requests.get(
         _api_url(config.bot_token, "getUpdates"),
-        params={"limit": max(1, min(int(limit), 100)), "timeout": max(0, int(timeout))},
+        params=params,
         timeout=max(15, int(timeout) + 5),
     )
     _raise_for_telegram_error(response)
@@ -184,6 +188,7 @@ def send_message(
     *,
     chat_id: Optional[str] = None,
     disable_notification: bool = False,
+    reply_markup: Optional[Dict[str, Any]] = None,
     timeout: int = 15,
 ) -> Dict[str, Any]:
     config = load_config()
@@ -197,13 +202,17 @@ def send_message(
 
     validated_text = _validate_message(text)
     try:
+        payload = {
+            "chat_id": target_chat_id,
+            "text": validated_text,
+            "disable_notification": disable_notification,
+        }
+        if reply_markup is not None:
+            payload["reply_markup"] = reply_markup
+
         response = requests.post(
             _api_url(config.bot_token, "sendMessage"),
-            json={
-                "chat_id": target_chat_id,
-                "text": validated_text,
-                "disable_notification": disable_notification,
-            },
+            json=payload,
             timeout=timeout,
         )
         _raise_for_telegram_error(response)
@@ -215,12 +224,52 @@ def send_message(
         raise
 
 
+def answer_callback_query(
+    callback_query_id: str, text: str = "", show_alert: bool = False, timeout: int = 10
+) -> Dict[str, Any]:
+    config = load_config()
+    if not config.bot_token:
+        raise ValueError("TELEGRAM_BOT_TOKEN is not configured.")
+    # Not recording status for callbacks to keep it clean
+    response = requests.post(
+        _api_url(config.bot_token, "answerCallbackQuery"),
+        json={
+            "callback_query_id": callback_query_id,
+            "text": text,
+            "show_alert": show_alert,
+        },
+        timeout=timeout,
+    )
+    _raise_for_telegram_error(response)
+    return response.json()
+
+
+def edit_message_reply_markup(
+    chat_id: str, message_id: int, reply_markup: Optional[Dict[str, Any]] = None, timeout: int = 10
+) -> Dict[str, Any]:
+    config = load_config()
+    if not config.bot_token:
+        raise ValueError("TELEGRAM_BOT_TOKEN is not configured.")
+    payload = {"chat_id": chat_id, "message_id": message_id}
+    if reply_markup is not None:
+        payload["reply_markup"] = reply_markup
+    # Send empty markup if None to remove inline keyboard
+    response = requests.post(
+        _api_url(config.bot_token, "editMessageReplyMarkup"),
+        json=payload,
+        timeout=timeout,
+    )
+    _raise_for_telegram_error(response)
+    return response.json()
+
+
 def send_alert(
     text: str,
     level: str = "INFO",
     *,
     chat_id: Optional[str] = None,
     disable_notification: bool = False,
+    reply_markup: Optional[Dict[str, Any]] = None,
     timeout: int = 15,
 ) -> Dict[str, Any]:
     """Sends a tiered alert message to Telegram.
@@ -240,6 +289,7 @@ def send_alert(
         formatted_text,
         chat_id=chat_id,
         disable_notification=disable_notification,
+        reply_markup=reply_markup,
         timeout=timeout,
     )
 

@@ -110,7 +110,8 @@ class TestCheckSchedulerHealth:
         assert result["status"] == STATUS_SKIP
 
     def test_healthy_db(self, tmp_path):
-        db_path = tmp_path / "scheduler.db"
+        (tmp_path / ".tmp").mkdir(exist_ok=True)
+        db_path = tmp_path / ".tmp" / "workspace.db"
         conn = sqlite3.connect(str(db_path))
         conn.execute(
             "CREATE TABLE tasks (name TEXT, enabled INTEGER, failure_count INTEGER, last_run TEXT, next_run TEXT)"
@@ -121,15 +122,11 @@ class TestCheckSchedulerHealth:
 
         wd = PipelineWatchdog()
         with patch("execution.pipeline_watchdog._ROOT", tmp_path):
-            (tmp_path / ".tmp").mkdir(exist_ok=True)
-            import shutil
-
-            shutil.copy(str(db_path), str(tmp_path / ".tmp" / "scheduler.db"))
             result = wd.check_scheduler_health()
         assert result["status"] == STATUS_OK
 
     def test_high_fail_tasks(self, tmp_path):
-        db_path = tmp_path / ".tmp" / "scheduler.db"
+        db_path = tmp_path / ".tmp" / "workspace.db"
         db_path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(str(db_path))
         conn.execute(

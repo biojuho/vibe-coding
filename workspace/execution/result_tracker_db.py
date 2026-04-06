@@ -32,7 +32,7 @@ from execution._logging import logger  # noqa: E402
 _ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(_ROOT / ".env")
 
-DB_PATH = _ROOT / ".tmp" / "result_tracker.db"
+DB_PATH = _ROOT / ".tmp" / "workspace.db"
 
 # ── 지원 플랫폼 ─────────────────────────────────────────────
 PLATFORMS = {

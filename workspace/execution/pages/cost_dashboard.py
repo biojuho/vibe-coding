@@ -3,8 +3,8 @@ Unified Cost Dashboard - Joolife Hub.
 
 All LLM/TTS/Image costs across projects in one view.
 Data sources:
-  - api_usage.db (central api_calls table)
-  - blind-to-x cost_db (optional)
+  - workspace.db (api_calls 테이블 포함, 통합 DB)
+  - blind-to-x btx_costs.db (optional)
   - shorts-maker-v2 costs.jsonl (optional)
 """
 
@@ -427,4 +427,4 @@ else:
 # ── Footer ──
 st.divider()
 _now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-st.caption(f"마지막 갱신: {_now} | 데이터 소스: api_usage.db, btx_cost_db, shorts costs.jsonl")
+st.caption(f"마지막 갱신: {_now} | 데이터 소스: workspace.db, btx_costs.db, shorts costs.jsonl")

@@ -12,26 +12,6 @@ import pytest
 import execution.scheduler_engine as se
 
 
-# ---------------------------------------------------------------------------
-# Windows: pytest stdout 캡처가 subprocess PIPE와 충돌하여 WinError 6 발생.
-# 이 파일의 모든 테스트에서 캡처를 비활성화하여 해결.
-# ---------------------------------------------------------------------------
-
-if sys.platform == "win32":
-
-    @pytest.fixture(autouse=True)
-    def _disable_capture_for_subprocess(request):
-        capman = request.config.pluginmanager.getplugin("capturemanager")
-        if capman is None:
-            yield
-            return
-        capman.suspend_global_capture(in_=True)
-        try:
-            yield
-        finally:
-            capman.resume_global_capture()
-
-
 def _configure_tmp_db(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(se, "DB_PATH", tmp_path / "scheduler.db")
     monkeypatch.setattr(se, "WORKSPACE", tmp_path)
@@ -1246,7 +1226,7 @@ def test_recent_failure_summary_disabled_task(monkeypatch, tmp_path):
 def test_execute_subprocess_success(tmp_path):
     script = tmp_path / "hello.py"
     script.write_text("print('hello')\n", encoding="utf-8")
-    exit_code, stdout, stderr, error_type = se._execute_subprocess("python", [str(script)], tmp_path, 30)
+    exit_code, stdout, stderr, error_type = se._execute_subprocess(sys.executable, [str(script)], tmp_path, 30)
     assert exit_code == 0
     assert "hello" in stdout
     assert error_type == ""
@@ -1255,7 +1235,7 @@ def test_execute_subprocess_success(tmp_path):
 def test_execute_subprocess_non_zero_exit(tmp_path):
     script = tmp_path / "fail.py"
     script.write_text("import sys; sys.exit(42)\n", encoding="utf-8")
-    exit_code, stdout, stderr, error_type = se._execute_subprocess("python", [str(script)], tmp_path, 30)
+    exit_code, stdout, stderr, error_type = se._execute_subprocess(sys.executable, [str(script)], tmp_path, 30)
     assert exit_code == 42
     assert error_type == "non_zero_exit"
 
@@ -1271,7 +1251,7 @@ def test_execute_subprocess_exec_not_found(tmp_path):
 def test_execute_subprocess_timeout(tmp_path):
     script = tmp_path / "sleep.py"
     script.write_text("import time; time.sleep(60)\n", encoding="utf-8")
-    exit_code, stdout, stderr, error_type = se._execute_subprocess("python", [str(script)], tmp_path, 1)
+    exit_code, stdout, stderr, error_type = se._execute_subprocess(sys.executable, [str(script)], tmp_path, 1)
     assert exit_code == -1
     assert error_type == "timeout"
     assert "Timeout" in stderr

@@ -10,8 +10,8 @@ WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 if str(WORKSPACE_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_ROOT))
 
-from execution.context_selector import ContextSelector
-from execution.repo_map import RepoMapBuilder
+from execution.context_selector import ContextSelector, ContextProfile  # noqa: E402
+from execution.repo_map import RepoMapBuilder, RepoMapEntry  # noqa: E402
 
 
 def _write(path: Path, content: str) -> None:
@@ -127,3 +127,124 @@ def test_repo_map_persistent_cache_invalidates_on_file_change(tmp_path: Path) ->
     assert parser.call_count >= 1
     assert second_builder.cache_stats()["disk_hits"] == 0
     assert second_builder.cache_stats()["disk_writes"] >= 1
+
+
+def test_context_profile_overrides(tmp_path: Path) -> None:
+    _write(tmp_path / "workspace" / "foo.py", "def bar(): pass")
+    cb = ContextProfile.CODER.default_budget
+    assert cb == 4000
+    db = ContextProfile.DEFAULT.default_budget
+    assert db == 2800
+
+    selector = ContextSelector(repo_map=RepoMapBuilder(repo_root=tmp_path))
+    selected = selector.select("query", include_roots=("workspace",), profile=ContextProfile.CODER)
+    assert selected is not None
+
+
+def test_context_selector_adaptive_pruning(tmp_path: Path) -> None:
+    # Build a file with lots of summary, symbols, imports
+    content = '"""A very long summary ' + "x " * 50 + '"""\n'
+    for i in range(20):
+        content += f"import mod_{i}\n"
+    for i in range(20):
+        content += f"def func_{i}(): pass\n"
+
+    _write(tmp_path / "workspace" / "mega.py", content)
+
+    selector = ContextSelector(repo_map=RepoMapBuilder(repo_root=tmp_path))
+
+    # Try with a small budget that forces pruning but leaves just enough for basic info
+    selected_pruned = selector.select("mega", budget_chars=180, include_roots=("workspace",))
+    assert selected_pruned.files == ["workspace/mega.py"]
+    text = selected_pruned.text
+    # Symbols or imports should be pruned
+    assert "Imports:" not in text or "Symbols:" not in text
+    assert not selected_pruned.truncated
+
+
+def test_context_selector_truncates(tmp_path: Path) -> None:
+    _write(tmp_path / "workspace" / "aaa.py", "pass")
+    _write(tmp_path / "workspace" / "bbb.py", "pass")
+    selector = ContextSelector(repo_map=RepoMapBuilder(repo_root=tmp_path))
+
+    # Budget small enough that one file fits but two do not
+    selected = selector.select("aaa bbb", budget_chars=130, include_roots=("workspace",))
+    assert selected.truncated
+    assert len(selected.files) == 1
+
+
+def test_infer_roots(tmp_path: Path) -> None:
+    p_dir = tmp_path / "projects" / "testme"
+    p_dir.mkdir(parents=True)
+
+    selector = ContextSelector(repo_map=RepoMapBuilder(repo_root=tmp_path))
+    roots = selector._infer_roots("mcp handling in testme", "")
+    assert "infrastructure" in roots
+    assert "projects" in roots
+    assert "workspace" not in roots
+
+    roots_2 = selector._infer_roots("graph_engine and projects/some", "")
+    assert "workspace" in roots_2
+    assert "projects" in roots_2
+
+    roots_3 = selector._infer_roots("random stuff", "")
+    assert roots_3 == ("workspace",)
+
+
+def test_repo_map_scoring_profiles(tmp_path: Path) -> None:
+    builder = RepoMapBuilder(repo_root=tmp_path)
+    entry = RepoMapEntry(
+        relative_path="workspace/tests/test_x.py",
+        absolute_path=tmp_path,
+        language="python",
+        line_count=10,
+        module_summary="",
+        imports=["typing"],
+    )
+
+    score, reasons = builder._score_entry(entry, {"test", "typing"}, set(), profile_name="tester")
+    assert score >= 3.0
+    assert any("import" in r for r in reasons)
+
+    entry2 = RepoMapEntry(
+        relative_path="workspace/y.py", absolute_path=tmp_path, language="python", line_count=1, module_summary=""
+    )
+    score_rev, reasons_rev = builder._score_entry(entry2, {"something"}, {"workspace/y.py"}, profile_name="reviewer")
+    assert score_rev >= 5.0
+
+    score_def, _ = builder._score_entry(entry2, {"something"}, {"workspace/y.py"}, profile_name="")
+    assert score_def > 0
+
+
+def test_repo_map_non_python_and_file_root(tmp_path: Path) -> None:
+    target = tmp_path / "workspace" / "file.md"
+    _write(target, "# Title\nexport class Item {}\nimport { xyz } from 'mod';")
+
+    # Test setting include_roots to exactly a file
+    builder = RepoMapBuilder(repo_root=tmp_path, include_roots=["workspace/file.md"])
+    entries = builder.build("item xyz")
+
+    assert len(entries) == 1
+    assert "Item" in entries[0].symbols
+    assert "mod" in entries[0].imports
+
+
+def test_repo_map_fallback_changed(tmp_path: Path) -> None:
+    _write(tmp_path / "workspace" / "extra.py", "pass")
+    builder = RepoMapBuilder(repo_root=tmp_path, include_roots=("workspace",))
+
+    # query unmatched but changed_files forces it
+    entries = builder.build("unmatched_query", changed_files=["workspace/extra.py"])
+    assert len(entries) == 1
+    assert entries[0].relative_path == "workspace/extra.py"
+    assert "working tree change" in entries[0].reasons
+
+
+def test_limits_hit(tmp_path: Path) -> None:
+    for i in range(5):
+        _write(tmp_path / "workspace" / f"foo{i}.py", "pass")
+    selector = ContextSelector(repo_map=RepoMapBuilder(repo_root=tmp_path))
+    # Test limit directly
+    selected = selector.select("foo1 foo2 foo3", max_files=2, include_roots=("workspace",))
+    assert len(selected.files) == 2
+    assert selected.truncated

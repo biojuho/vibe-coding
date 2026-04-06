@@ -4,14 +4,15 @@ REM 매일 오전 9시 실행
 REM 관리자 권한으로 실행하세요
 
 SET TASK_NAME=YT_Analytics_To_Notion
-SET SCRIPT_PATH=C:\Users\박주호\Desktop\Vibe coding\execution\yt_analytics_to_notion.py
-SET PYTHON_PATH=C:\Users\박주호\Desktop\Vibe coding\venv\Scripts\python.exe
+SET WORKSPACE_DIR=C:\Users\박주호\Desktop\Vibe coding\workspace
+SET SCRIPT_PATH=execution\yt_analytics_to_notion.py
+SET UV_PATH=C:\Users\박주호\Desktop\Vibe coding\venv\Scripts\uv.exe
 SET LOG_PATH=C:\Users\박주호\Desktop\Vibe coding\logs\yt_analytics.log
 
 echo [%TIME%] YouTube Analytics 스케줄러 등록 시작...
 
 schtasks /create /tn "%TASK_NAME%" ^
-    /tr "\"%PYTHON_PATH%\" \"%SCRIPT_PATH%\" >> \"%LOG_PATH%\" 2>&1" ^
+    /tr "cmd.exe /c \"cd /d \"%WORKSPACE_DIR%\" && \"%UV_PATH%\" run \"%SCRIPT_PATH%\" >> \"%LOG_PATH%\" 2>&1\"" ^
     /sc DAILY ^
     /st 09:00 ^
     /ru "%USERNAME%" ^

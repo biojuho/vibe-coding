@@ -3,10 +3,18 @@
 Loads only the function-definition portion of the module (before the
 Streamlit page-rendering block that starts at ~line 457), so we can
 exercise pure helpers without a real Streamlit runtime.
+
+T-116 fix: module-level stubs are carefully restored BEFORE other test
+modules import from path_contract.  The key fix is that when
+``path_contract`` was not previously in sys.modules (i.e., the saved
+original is None), we import it explicitly from the real source instead
+of deleting the entry – otherwise downstream tests that do
+``from path_contract import REPO_ROOT`` would receive an ImportError.
 """
 
 from __future__ import annotations
 
+import importlib
 import sys
 import types
 from pathlib import Path
@@ -90,13 +98,34 @@ _style_index = _ns["_style_index"]
 VOICE_OPTIONS = _ns["VOICE_OPTIONS"]
 STYLE_OPTIONS = _ns["STYLE_OPTIONS"]
 
-# Restore original modules so other test files in the same session are not
-# affected by the stubs above. (pytest collects all tests in one process.)
+# ---------------------------------------------------------------------------
+# T-116 fix: Restore original modules so other test files in the same
+# pytest session are not affected by the stubs above.
+#
+# Previous behaviour: when the saved original was None (module was not in
+# sys.modules before we stubbed it), we called sys.modules.pop(name).
+# This left path_contract absent from sys.modules so that any subsequent
+# ``from path_contract import REPO_ROOT`` (e.g. inside
+# execution.topic_auto_generator) would fail with ImportError.
+#
+# Fix: when the saved original is None, import the real module via
+# importlib so it lands correctly in sys.modules with all expected attrs.
+# ---------------------------------------------------------------------------
 for _mod_name, _orig in _STUBBED_MODULES.items():
-    if _orig is None:
-        sys.modules.pop(_mod_name, None)
-    else:
+    if _orig is not None:
         sys.modules[_mod_name] = _orig
+    else:
+        # Remove the fake stub first
+        sys.modules.pop(_mod_name, None)
+        # Re-import the real module if it is importable (best-effort).
+        # Top-level packages like "path_contract" and "streamlit" are both
+        # handled: path_contract will succeed; streamlit may not be installed
+        # in CI but that is fine because no downstream test needs it.
+        try:
+            real = importlib.import_module(_mod_name)
+            sys.modules[_mod_name] = real
+        except ImportError:
+            pass  # Not installed / not on path — leave absent, which is correct.
 del _STUBBED_MODULES
 
 

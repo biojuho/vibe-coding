@@ -159,12 +159,12 @@ class PipelineWatchdog:
     # ── 스케줄러 태스크 상태 ────────────────────────────
 
     def check_scheduler_health(self) -> Dict[str, Any]:
-        """내부 스케줄러(scheduler.db) 태스크 상태 점검."""
-        db_path = _ROOT / ".tmp" / "scheduler.db"
+        """내부 스케줄러(workspace.db) 태스크 상태 점검."""
+        db_path = _ROOT / ".tmp" / "workspace.db"
         result = _check("scheduler_tasks", STATUS_SKIP, "")
 
         if not db_path.exists():
-            result["detail"] = "scheduler.db not found (may not be in use)"
+            result["detail"] = "workspace.db not found (may not be in use)"
             self.checks.append(result)
             return result
 

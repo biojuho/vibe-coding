@@ -49,9 +49,11 @@ PROJECTS = {
         "test_runs": [
             {
                 "paths": [BLIND_TO_X_DIR / "tests" / "unit"],
+                "relative_to_cwd": True,
             },
             {
                 "paths": [BLIND_TO_X_DIR / "tests" / "integration"],
+                "relative_to_cwd": True,
                 "extra_args": ["--ignore=tests/integration/test_curl_cffi.py"],
             },
         ],
@@ -208,13 +210,24 @@ def _run_pytest_once(project_name: str, cwd: Path, run_config: dict, timeout: in
             "message": f"Test directory not found: {', '.join(str(path) for path in test_paths)}",
         }
 
+    relative_to_cwd = bool(run_config.get("relative_to_cwd"))
+    cmd_paths: list[str] = []
+    for path in existing_paths:
+        if relative_to_cwd:
+            try:
+                cmd_paths.append(str(path.relative_to(cwd)))
+                continue
+            except ValueError:
+                pass
+        cmd_paths.append(str(path))
+
     cmd = [
         str(VENV_PYTHON),
         "-X",
         "utf8",
         "-m",
         "pytest",
-        *[str(path) for path in existing_paths],
+        *cmd_paths,
         "-q",
         "--tb=short",
         "--no-header",

@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
-DB_PATH = Path(__file__).resolve().parent.parent / ".tmp" / "debug_history.db"
+DB_PATH = Path(__file__).resolve().parent.parent / ".tmp" / "workspace.db"
 
 VALID_SEVERITIES = {"P0", "P1", "P2", "P3"}
 VALID_LAYERS = {"directive", "orchestration", "execution"}

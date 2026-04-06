@@ -195,11 +195,13 @@ class VibeCodingGraph:
             self.verifier = None
 
         try:
-            from execution.context_selector import ContextSelector
+            from execution.context_selector import ContextProfile, ContextSelector
 
             self.context_selector = ContextSelector()
+            self.context_profile = ContextProfile
         except Exception:
             self.context_selector = None
+            self.context_profile = None
 
         self._graph = self._build_graph()
 
@@ -216,9 +218,11 @@ class VibeCodingGraph:
 
         context = state.get("context", "")
         context_files: list[str] = []
-        if self.context_selector and vibe:
+        if self.context_selector and self.context_profile and vibe:
             try:
-                selected = self.context_selector.select(vibe, existing_context=context)
+                selected = self.context_selector.select(
+                    vibe, existing_context=context, profile=self.context_profile.CODER
+                )
                 if selected.text:
                     context = self._merge_context(context, selected.text)
                     context_files = selected.files

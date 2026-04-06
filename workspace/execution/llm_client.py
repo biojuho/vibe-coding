@@ -594,6 +594,226 @@ class LLMClient:
 
         raise RuntimeError(f"모든 프로바이더 실패: {' | '.join(all_errors)}")
 
+    def _bridged_generate(
+        self,
+        *,
+        system_prompt: str,
+        user_prompt: str,
+        temperature: float,
+        json_mode: bool,
+        policy: BridgePolicy,
+    ) -> str | dict[str, Any]:
+        """Shared bridged generation loop for both text and JSON modes."""
+        providers = (
+            preferred_provider_order(
+                self._enabled_from_order(list(policy.fallback_providers)),
+                policy=policy,
+            )
+            or self.enabled_providers()
+        )
+        if not providers:
+            raise RuntimeError(
+                "사용 가능한 LLM 프로바이더가 없습니다. API 키를 확인하세요: "
+                + ", ".join(f"{v[0]}" for v in API_KEY_ENV_VARS.values())
+            )
+
+        bridge_system = build_bridge_system_prompt(system_prompt, policy=policy, json_mode=json_mode)
+        bridge_user = normalize_prompt_text(user_prompt, json_mode=json_mode)
+        all_errors: list[str] = []
+        first_provider = providers[0]
+
+        for provider_index, provider in enumerate(providers):
+            model = self.models.get(provider, DEFAULT_MODELS.get(provider, ""))
+            fallback_used = provider != first_provider or provider_index > 0
+
+            result = self._bridged_attempt_provider(
+                provider=provider,
+                model=model,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                bridge_system=bridge_system,
+                bridge_user=bridge_user,
+                temperature=temperature,
+                json_mode=json_mode,
+                policy=policy,
+                fallback_used=fallback_used,
+                all_errors=all_errors,
+            )
+            if result is not None:
+                return result
+
+        raise RuntimeError(f"모든 브릿지 프로바이더 실패: {' | '.join(all_errors)}")
+
+    def _bridged_attempt_provider(
+        self,
+        *,
+        provider: str,
+        model: str,
+        system_prompt: str,
+        user_prompt: str,
+        bridge_system: str,
+        bridge_user: str,
+        temperature: float,
+        json_mode: bool,
+        policy: BridgePolicy,
+        fallback_used: bool,
+        all_errors: list[str],
+    ) -> str | dict[str, Any] | None:
+        """Try one provider with retries and repair loop. Returns result or None."""
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                content, in_tok, out_tok = self._generate_once(
+                    provider,
+                    bridge_system,
+                    bridge_user,
+                    temperature,
+                    json_mode=json_mode,
+                )
+                validation, payload = self._validate_bridged_content(content, json_mode, policy)
+                self._log_bridged_usage(provider, model, in_tok, out_tok, 0, fallback_used, policy, validation)
+
+                if self._is_bridged_accepted(validation, payload, json_mode, policy, provider, ""):
+                    return payload if json_mode else content
+
+                # Repair loop
+                repaired_result = self._bridged_repair_loop(
+                    provider=provider,
+                    model=model,
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    content=content,
+                    validation=validation,
+                    json_mode=json_mode,
+                    policy=policy,
+                    fallback_used=fallback_used,
+                )
+                if repaired_result is not None:
+                    return repaired_result
+
+                all_errors.append(
+                    f"{provider} attempt {attempt}: bridge validation failed - {','.join(validation.reason_codes)}"
+                )
+                break
+            except Exception as e:
+                all_errors.append(f"{provider} #{attempt}: {e}")
+                if self._is_non_retryable(e):
+                    break
+                if attempt < self.max_retries:
+                    time.sleep(min(2**attempt, 10))
+        return None
+
+    def _validate_bridged_content(
+        self,
+        content: str,
+        json_mode: bool,
+        policy: BridgePolicy,
+    ) -> tuple[BridgeValidationResult, dict | None]:
+        """Validate bridged content based on mode."""
+        if json_mode:
+            return self._validate_json_candidate(content, policy=policy)
+        return validate_text_content(content, policy=policy, json_mode=False), None
+
+    def _log_bridged_usage(
+        self,
+        provider: str,
+        model: str,
+        in_tok: int,
+        out_tok: int,
+        repair_count: int,
+        fallback_used: bool,
+        policy: BridgePolicy,
+        validation: BridgeValidationResult,
+    ) -> None:
+        metadata = build_execution_metadata(
+            provider_used=provider,
+            repair_count=repair_count,
+            fallback_used=fallback_used,
+            policy=policy,
+            validation=validation,
+        )
+        self._log_usage(provider, model, in_tok, out_tok, metadata=metadata.as_usage_metadata())
+
+    def _is_bridged_accepted(
+        self,
+        validation: BridgeValidationResult,
+        payload: dict | None,
+        json_mode: bool,
+        policy: BridgePolicy,
+        provider: str,
+        phase: str,
+    ) -> bool:
+        """Check if bridged result should be accepted."""
+        if json_mode:
+            if validation.passed and payload is not None:
+                return True
+            if policy.mode == "shadow" and validation.json_valid and payload is not None:
+                logger.warning(
+                    "LLM bridge shadow warning%s [%s]: %s", phase, provider, ",".join(validation.reason_codes)
+                )
+                return True
+        else:
+            if validation.passed:
+                return True
+            if policy.mode == "shadow" and not validation.is_empty:
+                logger.warning(
+                    "LLM bridge shadow warning%s [%s]: %s", phase, provider, ",".join(validation.reason_codes)
+                )
+                return True
+        return False
+
+    def _bridged_repair_loop(
+        self,
+        *,
+        provider: str,
+        model: str,
+        system_prompt: str,
+        user_prompt: str,
+        content: str,
+        validation: BridgeValidationResult,
+        json_mode: bool,
+        policy: BridgePolicy,
+        fallback_used: bool,
+    ) -> str | dict[str, Any] | None:
+        """Run repair attempts for a bridged generation."""
+        for repair_idx in range(policy.repair_attempts):
+            repair_system, repair_user = build_repair_messages(
+                original_system_prompt=system_prompt,
+                original_user_prompt=user_prompt,
+                raw_content=content,
+                validation=validation,
+                policy=policy,
+                json_mode=json_mode,
+            )
+            repaired, repair_in, repair_out = self._generate_once(
+                provider,
+                repair_system,
+                repair_user,
+                0.2,
+                json_mode=json_mode,
+            )
+            repair_validation, repaired_payload = self._validate_bridged_content(repaired, json_mode, policy)
+            self._log_bridged_usage(
+                provider,
+                model,
+                repair_in,
+                repair_out,
+                repair_idx + 1,
+                fallback_used,
+                policy,
+                repair_validation,
+            )
+            if self._is_bridged_accepted(
+                repair_validation,
+                repaired_payload,
+                json_mode,
+                policy,
+                provider,
+                " after repair",
+            ):
+                return repaired_payload if json_mode else repaired
+            validation = repair_validation
+        return None
+
     def generate_text_bridged(
         self,
         *,
@@ -609,121 +829,14 @@ class LLMClient:
                 user_prompt=user_prompt,
                 temperature=temperature,
             )
-
-        providers = (
-            preferred_provider_order(
-                self._enabled_from_order(list(policy.fallback_providers)),
-                policy=policy,
-            )
-            or self.enabled_providers()
-        )
-        if not providers:
-            raise RuntimeError("사용 가능한 LLM 프로바이더가 없습니다.")
-
-        bridge_system = build_bridge_system_prompt(
-            system_prompt,
-            policy=policy,
+        result = self._bridged_generate(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=temperature,
             json_mode=False,
+            policy=policy,
         )
-        bridge_user = normalize_prompt_text(user_prompt, json_mode=False)
-        all_errors: list[str] = []
-        first_provider = providers[0]
-
-        for provider_index, provider in enumerate(providers):
-            model = self.models.get(provider, DEFAULT_MODELS.get(provider, ""))
-            fallback_used = provider != first_provider or provider_index > 0
-            for attempt in range(1, self.max_retries + 1):
-                try:
-                    content, in_tok, out_tok = self._generate_once(
-                        provider,
-                        bridge_system,
-                        bridge_user,
-                        temperature,
-                        json_mode=False,
-                    )
-                    validation = validate_text_content(content, policy=policy, json_mode=False)
-                    metadata = build_execution_metadata(
-                        provider_used=provider,
-                        repair_count=0,
-                        fallback_used=fallback_used,
-                        policy=policy,
-                        validation=validation,
-                    )
-                    self._log_usage(
-                        provider,
-                        model,
-                        in_tok,
-                        out_tok,
-                        metadata=metadata.as_usage_metadata(),
-                    )
-                    if validation.passed:
-                        return content
-                    if policy.mode == "shadow" and not validation.is_empty:
-                        logger.warning(
-                            "LLM bridge shadow warning [%s]: %s",
-                            provider,
-                            ",".join(validation.reason_codes),
-                        )
-                        return content
-
-                    for repair_idx in range(policy.repair_attempts):
-                        repair_system, repair_user = build_repair_messages(
-                            original_system_prompt=system_prompt,
-                            original_user_prompt=user_prompt,
-                            raw_content=content,
-                            validation=validation,
-                            policy=policy,
-                            json_mode=False,
-                        )
-                        repaired, repair_in, repair_out = self._generate_once(
-                            provider,
-                            repair_system,
-                            repair_user,
-                            0.2,
-                            json_mode=False,
-                        )
-                        repair_validation = validate_text_content(
-                            repaired,
-                            policy=policy,
-                            json_mode=False,
-                        )
-                        repair_metadata = build_execution_metadata(
-                            provider_used=provider,
-                            repair_count=repair_idx + 1,
-                            fallback_used=fallback_used,
-                            policy=policy,
-                            validation=repair_validation,
-                        )
-                        self._log_usage(
-                            provider,
-                            model,
-                            repair_in,
-                            repair_out,
-                            metadata=repair_metadata.as_usage_metadata(),
-                        )
-                        if repair_validation.passed:
-                            return repaired
-                        if policy.mode == "shadow" and not repair_validation.is_empty:
-                            logger.warning(
-                                "LLM bridge shadow warning after repair [%s]: %s",
-                                provider,
-                                ",".join(repair_validation.reason_codes),
-                            )
-                            return repaired
-                        validation = repair_validation
-
-                    all_errors.append(
-                        f"{provider} attempt {attempt}: bridge validation failed - {','.join(validation.reason_codes)}"
-                    )
-                    break
-                except Exception as e:
-                    all_errors.append(f"{provider} #{attempt}: {e}")
-                    if self._is_non_retryable(e):
-                        break
-                    if attempt < self.max_retries:
-                        time.sleep(min(2**attempt, 10))
-
-        raise RuntimeError(f"모든 브릿지 프로바이더 실패: {' | '.join(all_errors)}")
+        return result
 
     def generate_json_bridged(
         self,
@@ -740,123 +853,14 @@ class LLMClient:
                 user_prompt=user_prompt,
                 temperature=temperature,
             )
-
-        providers = (
-            preferred_provider_order(
-                self._enabled_from_order(list(policy.fallback_providers)),
-                policy=policy,
-            )
-            or self.enabled_providers()
-        )
-        if not providers:
-            raise RuntimeError(
-                "사용 가능한 LLM 프로바이더가 없습니다. API 키를 확인하세요: "
-                + ", ".join(f"{v[0]}" for v in API_KEY_ENV_VARS.values())
-            )
-
-        bridge_system = build_bridge_system_prompt(
-            system_prompt,
-            policy=policy,
+        result = self._bridged_generate(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=temperature,
             json_mode=True,
+            policy=policy,
         )
-        bridge_user = normalize_prompt_text(user_prompt, json_mode=True)
-        all_errors: list[str] = []
-        first_provider = providers[0]
-
-        for provider_index, provider in enumerate(providers):
-            model = self.models.get(provider, DEFAULT_MODELS.get(provider, ""))
-            fallback_used = provider != first_provider or provider_index > 0
-            for attempt in range(1, self.max_retries + 1):
-                try:
-                    content, in_tok, out_tok = self._generate_once(
-                        provider,
-                        bridge_system,
-                        bridge_user,
-                        temperature,
-                        json_mode=True,
-                    )
-                    validation, payload = self._validate_json_candidate(content, policy=policy)
-                    metadata = build_execution_metadata(
-                        provider_used=provider,
-                        repair_count=0,
-                        fallback_used=fallback_used,
-                        policy=policy,
-                        validation=validation,
-                    )
-                    self._log_usage(
-                        provider,
-                        model,
-                        in_tok,
-                        out_tok,
-                        metadata=metadata.as_usage_metadata(),
-                    )
-                    if validation.passed and payload is not None:
-                        return payload
-                    if policy.mode == "shadow" and validation.json_valid and payload is not None:
-                        logger.warning(
-                            "LLM bridge shadow warning [%s]: %s",
-                            provider,
-                            ",".join(validation.reason_codes),
-                        )
-                        return payload
-
-                    for repair_idx in range(policy.repair_attempts):
-                        repair_system, repair_user = build_repair_messages(
-                            original_system_prompt=system_prompt,
-                            original_user_prompt=user_prompt,
-                            raw_content=content,
-                            validation=validation,
-                            policy=policy,
-                            json_mode=True,
-                        )
-                        repaired, repair_in, repair_out = self._generate_once(
-                            provider,
-                            repair_system,
-                            repair_user,
-                            0.2,
-                            json_mode=True,
-                        )
-                        repair_validation, repaired_payload = self._validate_json_candidate(
-                            repaired,
-                            policy=policy,
-                        )
-                        repair_metadata = build_execution_metadata(
-                            provider_used=provider,
-                            repair_count=repair_idx + 1,
-                            fallback_used=fallback_used,
-                            policy=policy,
-                            validation=repair_validation,
-                        )
-                        self._log_usage(
-                            provider,
-                            model,
-                            repair_in,
-                            repair_out,
-                            metadata=repair_metadata.as_usage_metadata(),
-                        )
-                        if repair_validation.passed and repaired_payload is not None:
-                            return repaired_payload
-                        if policy.mode == "shadow" and repair_validation.json_valid and repaired_payload is not None:
-                            logger.warning(
-                                "LLM bridge shadow warning after repair [%s]: %s",
-                                provider,
-                                ",".join(repair_validation.reason_codes),
-                            )
-                            return repaired_payload
-                        validation = repair_validation
-
-                    all_errors.append(
-                        f"{provider} attempt {attempt}: bridge validation failed - {','.join(validation.reason_codes)}"
-                    )
-                    break
-                except Exception as e:
-                    all_errors.append(f"{provider} attempt {attempt}: {e}")
-                    if self._is_non_retryable(e):
-                        break
-                    if attempt < self.max_retries:
-                        time.sleep(min(2**attempt, 10))
-
-        raise RuntimeError(f"모든 브릿지 프로바이더 실패.\nErrors: {' | '.join(all_errors)}")
+        return result
 
     def test_provider(self, provider: str) -> dict[str, Any]:
         """특정 프로바이더 연결 테스트. 간단한 프롬프트로 실제 API 호출."""

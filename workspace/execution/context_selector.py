@@ -3,8 +3,35 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import Enum
 
 from execution.repo_map import RepoMapBuilder
+
+
+class ContextProfile(Enum):
+    CODER = "coder"
+    REVIEWER = "reviewer"
+    TESTER = "tester"
+    DEBUGGER = "debugger"
+    DEFAULT = "default"
+
+    @property
+    def default_budget(self) -> int:
+        return {
+            ContextProfile.CODER: 4000,
+            ContextProfile.REVIEWER: 3000,
+            ContextProfile.TESTER: 3000,
+            ContextProfile.DEBUGGER: 3500,
+        }.get(self, 2800)
+
+    @property
+    def default_max_files(self) -> int:
+        return {
+            ContextProfile.CODER: 10,
+            ContextProfile.REVIEWER: 8,
+            ContextProfile.TESTER: 8,
+            ContextProfile.DEBUGGER: 10,
+        }.get(self, 6)
 
 
 @dataclass(slots=True)
@@ -22,8 +49,8 @@ class ContextSelector:
         self,
         repo_map: RepoMapBuilder | None = None,
         *,
-        budget_chars: int = 2800,
-        max_files: int = 6,
+        budget_chars: int | None = None,
+        max_files: int | None = None,
     ) -> None:
         self.repo_map = repo_map or RepoMapBuilder()
         self.budget_chars = budget_chars
@@ -37,9 +64,10 @@ class ContextSelector:
         budget_chars: int | None = None,
         max_files: int | None = None,
         include_roots: tuple[str, ...] | None = None,
+        profile: ContextProfile = ContextProfile.DEFAULT,
     ) -> SelectedContext:
-        budget = budget_chars or self.budget_chars
-        limit = max_files or self.max_files
+        budget = budget_chars or self.budget_chars or profile.default_budget
+        limit = max_files or self.max_files or profile.default_max_files
         roots = include_roots or self._infer_roots(query, existing_context)
         changed_files = sorted(self.repo_map.collect_changed_files())
         candidates = self.repo_map.build(
@@ -47,6 +75,7 @@ class ContextSelector:
             changed_files=changed_files,
             include_roots=roots,
             max_files=max(limit * 3, limit),
+            profile_name=profile.value,
         )
 
         blocks = ["Repository map relevant to the current task:"]
@@ -58,11 +87,19 @@ class ContextSelector:
             if len(selected_files) >= limit:
                 truncated = True
                 break
-            block = entry.to_context_block()
+
+            block = ""
+            for prune_level in range(4):
+                block = entry.to_context_block(prune_level=prune_level)
+                candidate_text = "\n\n".join([*blocks, block])
+                if len(candidate_text) <= budget:
+                    break
+
             candidate_text = "\n\n".join([*blocks, block])
             if len(candidate_text) > budget and selected_files:
                 truncated = True
                 break
+
             blocks.append(block)
             selected_files.append(entry.relative_path)
             if entry.relative_path in changed_files:

@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 _WORKSPACE_DIR = Path(__file__).resolve().parents[1]
 _TMP_ROOT = _WORKSPACE_DIR.parent / ".tmp"
 
-_DB_FILENAME = "debt_history.db"
+_DB_FILENAME = "workspace.db"
 
 
 class DebtHistoryDB:

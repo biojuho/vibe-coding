@@ -38,7 +38,7 @@ _SHORTS_V2_DIR = resolve_project_dir("shorts-maker-v2", required_paths=("config.
 _SHORTS_BGM_DIR = _SHORTS_V2_DIR / "assets" / "bgm"
 _SHORTS_BRAND_DIR = _SHORTS_V2_DIR / "assets" / "channels"
 _SHORTS_OUTPUT_DIR = _SHORTS_V2_DIR / "output"
-DB_PATH = TMP_ROOT / "content.db"
+DB_PATH = TMP_ROOT / "workspace.db"
 UPDATABLE_COLUMNS = {
     "status",
     "job_id",

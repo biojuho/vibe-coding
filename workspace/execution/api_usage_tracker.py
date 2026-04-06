@@ -24,7 +24,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DB_PATH = Path(__file__).resolve().parent.parent / ".tmp" / "api_usage.db"
+DB_PATH = Path(__file__).resolve().parent.parent / ".tmp" / "workspace.db"
 
 # API 키 이름 매핑
 API_KEYS = {

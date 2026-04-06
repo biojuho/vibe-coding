@@ -8,6 +8,7 @@ layer choose related files without sending full source files to the LLM.
 from __future__ import annotations
 
 import ast
+import contextlib
 import json
 import re
 import sqlite3
@@ -76,16 +77,16 @@ class RepoMapEntry:
     score: float = 0.0
     reasons: list[str] = field(default_factory=list)
 
-    def to_context_block(self) -> str:
+    def to_context_block(self, prune_level: int = 0) -> str:
         lines = [f"File: {self.relative_path}"]
         lines.append(f"Language: {self.language}, lines: {self.line_count}, score: {self.score:.1f}")
-        if self.module_summary:
+        if self.module_summary and prune_level < 3:
             lines.append(f"Summary: {self.module_summary}")
-        if self.symbols:
+        if self.symbols and prune_level < 2:
             lines.append("Symbols: " + ", ".join(self.symbols[:6]))
-        if self.imports:
+        if self.imports and prune_level < 1:
             lines.append("Imports: " + ", ".join(self.imports[:6]))
-        if self.reasons:
+        if self.reasons and prune_level < 3:
             lines.append("Matched by: " + ", ".join(self.reasons[:5]))
         return "\n".join(lines)
 
@@ -164,6 +165,7 @@ class RepoMapBuilder:
         changed_files: Iterable[str] | None = None,
         include_roots: Iterable[str] | None = None,
         max_files: int = 12,
+        profile_name: str = "",
     ) -> list[RepoMapEntry]:
         query_tokens = self._query_tokens(query)
         changed = {self._normalize_relative(path) for path in (changed_files or [])}
@@ -176,7 +178,7 @@ class RepoMapBuilder:
             entry = self._analyze_file(path)
             if entry is None:
                 continue
-            entry.score, entry.reasons = self._score_entry(entry, query_tokens, changed)
+            entry.score, entry.reasons = self._score_entry(entry, query_tokens, changed, profile_name)
             if entry.score > 0:
                 entries.append(entry)
 
@@ -336,7 +338,12 @@ class RepoMapBuilder:
         return summary_line, symbols, imports[:12]
 
     @staticmethod
-    def _score_entry(entry: RepoMapEntry, query_tokens: set[str], changed_files: set[str]) -> tuple[float, list[str]]:
+    def _score_entry(
+        entry: RepoMapEntry,
+        query_tokens: set[str],
+        changed_files: set[str],
+        profile_name: str = "",
+    ) -> tuple[float, list[str]]:
         path_text = entry.relative_path.lower()
         basename = Path(entry.relative_path).stem.lower()
         summary_text = entry.module_summary.lower()
@@ -364,13 +371,16 @@ class RepoMapBuilder:
                 reasons.append(f"import:{token}")
 
         if entry.relative_path in changed_files:
-            score += 2.0 if score > 0 else 0.5
+            if profile_name == "reviewer":
+                score += 5.0  # Reviewer deeply cares about changed files
+            else:
+                score += 2.0 if score > 0 else 0.5
             reasons.append("working tree change")
 
         if ("/tests/" in path_text or basename.startswith("test_")) and (
-            "test" in query_tokens or "pytest" in query_tokens
+            "test" in query_tokens or "pytest" in query_tokens or profile_name == "tester"
         ):
-            score += 1.5
+            score += 3.0 if profile_name == "tester" else 1.5
             reasons.append("test-adjacent")
 
         return score, list(dict.fromkeys(reasons))
@@ -381,7 +391,7 @@ class RepoMapBuilder:
 
         self._ensure_cache_db()
         try:
-            with sqlite3.connect(str(self.cache_db_path)) as conn:
+            with contextlib.closing(sqlite3.connect(str(self.cache_db_path))) as conn:
                 row = conn.execute(
                     """
                     SELECT payload_json
@@ -428,15 +438,16 @@ class RepoMapBuilder:
             ensure_ascii=False,
         )
         try:
-            with sqlite3.connect(str(self.cache_db_path)) as conn:
-                conn.execute(
-                    """
-                    INSERT OR REPLACE INTO repo_map_entries (
-                        relative_path, mtime_ns, file_size, payload_json
-                    ) VALUES (?, ?, ?, ?)
-                    """,
-                    (entry.relative_path, cache_key[0], cache_key[1], payload),
-                )
+            with contextlib.closing(sqlite3.connect(str(self.cache_db_path))) as conn:
+                with conn:
+                    conn.execute(
+                        """
+                        INSERT OR REPLACE INTO repo_map_entries (
+                            relative_path, mtime_ns, file_size, payload_json
+                        ) VALUES (?, ?, ?, ?)
+                        """,
+                        (entry.relative_path, cache_key[0], cache_key[1], payload),
+                    )
         except sqlite3.Error as exc:
             logger.debug("[RepoMap] persistent cache write failed: %s", exc)
             return
@@ -449,17 +460,18 @@ class RepoMapBuilder:
 
         self.cache_db_path.parent.mkdir(parents=True, exist_ok=True)
         try:
-            with sqlite3.connect(str(self.cache_db_path)) as conn:
-                conn.execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS repo_map_entries (
-                        relative_path TEXT PRIMARY KEY,
-                        mtime_ns INTEGER NOT NULL,
-                        file_size INTEGER NOT NULL,
-                        payload_json TEXT NOT NULL
+            with contextlib.closing(sqlite3.connect(str(self.cache_db_path))) as conn:
+                with conn:
+                    conn.execute(
+                        """
+                        CREATE TABLE IF NOT EXISTS repo_map_entries (
+                            relative_path TEXT PRIMARY KEY,
+                            mtime_ns INTEGER NOT NULL,
+                            file_size INTEGER NOT NULL,
+                            payload_json TEXT NOT NULL
+                        )
+                        """
                     )
-                    """
-                )
         except sqlite3.Error as exc:
             logger.debug("[RepoMap] persistent cache init failed: %s", exc)
             self.persistent_cache = False

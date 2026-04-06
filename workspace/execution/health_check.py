@@ -130,12 +130,9 @@ API_CHECKS = [
     },
 ]
 
-# Database checks
+# Database checks — 모든 워크스페이스 도메인은 workspace.db 단일 파일로 통합 (2026-04-04)
 DB_CHECKS = [
-    ("api_usage.db", _ROOT / ".tmp" / "api_usage.db"),
-    ("content.db", _ROOT / ".tmp" / "content.db"),
-    ("scheduler.db", _ROOT / ".tmp" / "scheduler.db"),
-    ("debug_history.db", _ROOT / ".tmp" / "debug_history.db"),
+    ("workspace.db", _ROOT / ".tmp" / "workspace.db"),
 ]
 
 

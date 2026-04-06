@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from croniter import croniter
 
-DB_PATH = Path(__file__).resolve().parent.parent / ".tmp" / "scheduler.db"
+DB_PATH = Path(__file__).resolve().parent.parent / ".tmp" / "workspace.db"
 WORKSPACE = Path(__file__).resolve().parent.parent
 DEFAULT_TIMEOUT_SEC = 300
 MAX_FAILURE_COUNT = int(os.getenv("SCHEDULER_MAX_FAILURES", "5"))
@@ -568,8 +568,7 @@ def _execute_subprocess(
     try:
         if os.name == "nt":
             # Windows: close_fds=True로 부모 프로세스의 파일 핸들 상속을 차단.
-            # pytest capture, sqlite3 등 부모 핸들이 자식에 상속되면 WinError 6 발생.
-            # stdin=DEVNULL을 명시하여 닫힌 stdin fd 상속도 방지.
+            # pytest capture, sqlite3 등 부모 핸들이 자식에 상속되면 WinError 6이 날 수 있다.
             proc = subprocess.Popen(
                 [resolved_exec, *resolved_args],
                 shell=False,
@@ -603,7 +602,8 @@ def _execute_subprocess(
                 if exit_code != 0:
                     error_type = "non_zero_exit"
         else:
-            popen_kwargs: dict = dict(
+            proc = subprocess.Popen(
+                [resolved_exec, *resolved_args],
                 shell=False,
                 cwd=str(target_cwd),
                 stdout=subprocess.PIPE,
@@ -611,7 +611,6 @@ def _execute_subprocess(
                 encoding="utf-8",
                 errors="replace",
             )
-            proc = subprocess.Popen([resolved_exec, *resolved_args], **popen_kwargs)
             try:
                 out, err = proc.communicate(timeout=timeout_sec)
             except subprocess.TimeoutExpired:
@@ -637,9 +636,8 @@ def _execute_subprocess(
         error_type = "exec_not_found"
         stderr = str(exc)
     except OSError as exc:
-        # Non-FileNotFoundError OSError — only map to exec_not_found when it's a "not found" style error
         winerror = getattr(exc, "winerror", None)
-        if winerror in (2, 3):  # ERROR_FILE_NOT_FOUND, ERROR_PATH_NOT_FOUND
+        if winerror in (2, 3):
             exit_code = -4
             error_type = "exec_not_found"
         else:
@@ -653,63 +651,14 @@ def _execute_subprocess(
     return exit_code, stdout, stderr, error_type
 
 
-def _apply_failure_policy(
-    conn: sqlite3.Connection,
-    row: sqlite3.Row,
-    log: "TaskLog",
-    exit_code: int,
-) -> bool:
-    """연속 실패 카운트 업데이트 및 MAX_FAILURE_COUNT 초과 시 자동 비활성화.
-
-    Returns True if the task was auto-disabled.
-    """
-    failure_count = int(row["failure_count"] or 0)
-    enabled = int(row["enabled"])
-    auto_disabled = False
-    if exit_code == 0:
-        failure_count = 0
-    else:
-        failure_count += 1
-        if enabled and failure_count >= MAX_FAILURE_COUNT:
-            enabled = 0
-            auto_disabled = True
-            extra = f"\nTask auto-disabled after {failure_count} consecutive failures (threshold={MAX_FAILURE_COUNT})."
-            stderr = (log.stderr + extra).strip()
-            conn.execute(
-                "UPDATE task_logs SET stderr = ?, error_type = ? WHERE id = ?",
-                (stderr[:5000], "auto_disabled", log.id),
-            )
-            log.stderr = stderr[:5000]
-            log.error_type = "auto_disabled"
-
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    next_run = compute_next_run(row["cron_expression"])
-    conn.execute(
-        "UPDATE tasks SET last_run = ?, next_run = ?, failure_count = ?, enabled = ? WHERE id = ?",
-        (now_str, next_run, failure_count, enabled, row["id"]),
-    )
-    return auto_disabled
+async def run_task_async(task_id: int, trigger_type: str = "manual") -> TaskLog:
+    """비동기 컨텍스트용 태스크 실행 래퍼."""
+    return run_task(task_id, trigger_type=trigger_type)
 
 
-def _maybe_notify_telegram_task(log: TaskLog, auto_disabled: bool = False) -> None:
-    try:
-        from execution.telegram_notifier import maybe_send_scheduler_notification
-    except Exception:
-        return
-
-    try:
-        maybe_send_scheduler_notification(
-            task_name=log.task_name,
-            exit_code=int(log.exit_code if log.exit_code is not None else -2),
-            trigger_type=log.trigger_type,
-            duration_ms=log.duration_ms,
-            error_type=log.error_type,
-            stderr=log.stderr,
-            auto_disabled=auto_disabled,
-        )
-    except Exception:
-        # Notifications must not break task persistence or scheduler flow.
-        return
+async def run_due_tasks_async() -> List[TaskLog]:
+    """비동기 컨텍스트용 due-task 실행 래퍼."""
+    return run_due_tasks()
 
 
 def run_task(task_id: int, trigger_type: str = "manual") -> TaskLog:
@@ -815,9 +764,68 @@ def run_due_tasks() -> List[TaskLog]:
     conn.close()
 
     logs: List[TaskLog] = []
-    for r in rows:
-        logs.append(run_task(r["id"], trigger_type="schedule"))
+    for row in rows:
+        logs.append(run_task(row["id"], trigger_type="schedule"))
     return logs
+
+
+def _maybe_notify_telegram_task(log: TaskLog, auto_disabled: bool = False) -> None:
+    try:
+        from execution.telegram_notifier import maybe_send_scheduler_notification
+    except Exception:
+        return
+
+    try:
+        maybe_send_scheduler_notification(
+            task_name=log.task_name,
+            exit_code=int(log.exit_code if log.exit_code is not None else -2),
+            trigger_type=log.trigger_type,
+            duration_ms=log.duration_ms,
+            error_type=log.error_type,
+            stderr=log.stderr,
+            auto_disabled=auto_disabled,
+        )
+    except Exception:
+        # Notifications must not break task persistence or scheduler flow.
+        return
+
+
+def _apply_failure_policy(
+    conn: sqlite3.Connection,
+    row: sqlite3.Row,
+    log: "TaskLog",
+    exit_code: int,
+) -> bool:
+    """연속 실패 카운트 업데이트 및 MAX_FAILURE_COUNT 초과 시 자동 비활성화.
+
+    Returns True if the task was auto-disabled.
+    """
+    failure_count = int(row["failure_count"] or 0)
+    enabled = int(row["enabled"])
+    auto_disabled = False
+    if exit_code == 0:
+        failure_count = 0
+    else:
+        failure_count += 1
+        if enabled and failure_count >= MAX_FAILURE_COUNT:
+            enabled = 0
+            auto_disabled = True
+            extra = f"\nTask auto-disabled after {failure_count} consecutive failures (threshold={MAX_FAILURE_COUNT})."
+            stderr = (log.stderr + extra).strip()
+            conn.execute(
+                "UPDATE task_logs SET stderr = ?, error_type = ? WHERE id = ?",
+                (stderr[:5000], "auto_disabled", log.id),
+            )
+            log.stderr = stderr[:5000]
+            log.error_type = "auto_disabled"
+
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    next_run = compute_next_run(row["cron_expression"])
+    conn.execute(
+        "UPDATE tasks SET last_run = ?, next_run = ?, failure_count = ?, enabled = ? WHERE id = ?",
+        (now_str, next_run, failure_count, enabled, row["id"]),
+    )
+    return auto_disabled
 
 
 def get_logs(task_id: Optional[int] = None, limit: int = 50) -> List[TaskLog]:

@@ -18,7 +18,7 @@ from datetime import date
 from pathlib import Path
 from typing import Dict, List
 
-DB_PATH = Path(__file__).resolve().parent.parent / ".tmp" / "finance.db"
+DB_PATH = Path(__file__).resolve().parent.parent / ".tmp" / "workspace.db"
 
 CATEGORIES = {
     "income": ["급여", "부업", "투자수익", "기타수입"],

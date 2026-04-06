@@ -1,0 +1,116 @@
+# Agent Permission Matrix — Harness Engineering AI Phase 1
+#
+# Declarative definition of per-agent tool and path permissions.
+# Loaded by ToolRegistry.from_yaml() and HarnessSession to enforce
+# the principle of least privilege.
+#
+# Structure:
+#   agents.<agent_id>:
+#     allowed_paths  - glob patterns for filesystem access
+#     denied_paths   - explicit deny (takes precedence over allowed)
+#     allowed_tools  - list of registered tool names
+#     budget:
+#       max_tokens_per_session  - total token cap (0 = unlimited)
+#       max_cost_per_session_usd - cost cap (0 = unlimited)
+#       max_calls_per_session    - call count cap (0 = unlimited)
+#     require_human_approval  - actions that always need HITL
+#
+# Notes:
+#   - denied_paths always overrides allowed_paths.
+#   - Unregistered tools are denied by default (ADR-025).
+#   - Agents not listed here get the 'default' profile.
+# -------------------------------------------------------------------
+
+defaults: &defaults
+  denied_paths:
+    - "**/.env"
+    - "**/credentials.json"
+    - "**/token.json"
+    - "**/.git/**"
+  require_human_approval:
+    - file_delete
+    - shell_command
+    - python_exec
+    - http_request
+
+agents:
+  # ── blind-to-x SNS 자동화 파이프라인 ────────────────────────
+  blind-to-x-pipeline:
+    <<: *defaults
+    allowed_paths:
+      - "projects/blind-to-x/**"
+      - ".tmp/**"
+    allowed_tools:
+      - file_read
+      - file_write
+      - file_create
+      - list_dir
+      - grep_search
+    budget:
+      max_tokens_per_session: 500000
+      max_cost_per_session_usd: 2.0
+      max_calls_per_session: 100
+
+  # ── shorts-maker-v2 영상 자동화 파이프라인 ──────────────────
+  shorts-maker-v2-pipeline:
+    <<: *defaults
+    allowed_paths:
+      - "projects/shorts-maker-v2/**"
+      - ".tmp/**"
+    allowed_tools:
+      - file_read
+      - file_write
+      - file_create
+      - list_dir
+      - grep_search
+      - shell_command      # ffmpeg, moviepy 실행 필요
+    budget:
+      max_tokens_per_session: 300000
+      max_cost_per_session_usd: 5.0  # 이미지/TTS 비용 포함
+      max_calls_per_session: 80
+
+  # ── workspace 공통 자동화 (스케줄러, 리포트 등) ─────────────
+  workspace-automation:
+    <<: *defaults
+    allowed_paths:
+      - "workspace/**"
+      - ".tmp/**"
+      - ".ai/**"
+    allowed_tools:
+      - file_read
+      - file_write
+      - file_create
+      - list_dir
+      - grep_search
+    budget:
+      max_tokens_per_session: 200000
+      max_cost_per_session_usd: 1.0
+      max_calls_per_session: 50
+
+  # ── 리서치 서브에이전트 (DeepAgents PoC용) ──────────────────
+  research-subagent:
+    <<: *defaults
+    allowed_paths:
+      - ".tmp/deepagents_sandbox/**"
+    allowed_tools:
+      - file_read
+      - list_dir
+      - grep_search
+    budget:
+      max_tokens_per_session: 100000
+      max_cost_per_session_usd: 0.5
+      max_calls_per_session: 20
+
+  # ── default: 목록에 없는 에이전트 ──────────────────────────
+  default:
+    <<: *defaults
+    allowed_paths:
+      - ".tmp/**"
+    allowed_tools:
+      - file_read
+      - list_dir
+      - grep_search
+    budget:
+      max_tokens_per_session: 100000
+      max_cost_per_session_usd: 0.5
+      max_calls_per_session: 30
