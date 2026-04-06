@@ -141,6 +141,29 @@
 | **Decision** | `projects/hanwoo-dashboard` must not rely on cookie-presence checks or client-generated order metadata for trust boundaries. Auth is enforced with `requireAuthenticatedSession()` on server pages/actions/routes plus `Auth.js` proxy authorization, while subscription checkout uses a server-prepared order and a transactional payment-confirm step that upserts both `PaymentLog` and `Subscription`. |
 | **Rationale** | The previous shape allowed logged-in UX without a durable authorization boundary and left payment ownership too loose. Moving trust decisions to server-side session checks and server-issued order data closes the easiest bypass paths and aligns the payment ledger with the subscription state. |
 
+---
+
+## ADR-025: Harness Engineering AI 도입 ("패턴 우선, 프레임워크 보류" 전략)
+
+| 항목 | 내용 |
+|------|------|
+| **날짜** | 2026-04-05 (Phase 1 구현 완료) |
+| **상태** | 확정 |
+| **결정** | "Agent = Model + Harness" 아키텍처를 **패턴 차용 + 자체 Harness 공식화** 전략으로 도입한다. 외부 프레임워크(OpenHarness/DeepAgents)를 통째로 도입하지 않고, 우리 3계층 구조(ADR-001) 위에 Harness 미들웨어를 자체 구축한다. DeepAgents SDK는 격리된 PoC로만 부분 검증. |
+| **Phase 0** | `harness_tool_registry.py` — deny-by-default 도구 권한 레지스트리 (완료) |
+| **Phase 1** | `harness_middleware.py` — HarnessSession(관측성·루프감지·예산제한), `agent_permissions.yaml` — 에이전트별 선언적 권한 매트릭스 (완료) |
+| **Phase 2** | DeepAgents SDK PoC (blind-to-x 리서치 서브에이전트, 격리 환경) |
+| **Phase 3** | 컨텍스트 압축, Generator-Evaluator 분리, 비용 인식 라우팅 |
+| **Phase 4** | OpenHarness/DeepAgents 안정화 재평가 (Month 3+) |
+| **선택 이유** | (1) 기존 3계층이 이미 Harness 핵심을 구현, 외부 전면 교체는 기존 투자 낭비. (2) 5개 후보 중 프로덕션 준비 완료된 것 없음 (DeepAgents만 성숙하나 LangChain 종속성 리스크). (3) Harness Engineering은 프레임워크가 아닌 디시플린 — 패턴 차용이 최적. |
+| **보안 원칙** | Tool allowlist + 경로 화이트리스트 + HITL(비가역 작업) + 에이전트별 토큰/비용 예산. 상세: `harness_tool_registry.py`, `harness_middleware.py`, `agent_permissions.yaml` |
+| **검토 시점** | Phase 2 PoC 완료 후 Go/No-Go 리뷰, OpenHarness v1.0 출시 시 재평가 |
+
+<!--
+아카이빙된 ADR (구현 상세/버전 업그레이드):
+- ADR-024: hanwoo-dashboard next-auth v5 beta 의존성 수용 (2026-04-03, 위험 인지 후 수용)
+-->
+
 <!--
 ## ADR 템플릿 (복사해서 사용)
 

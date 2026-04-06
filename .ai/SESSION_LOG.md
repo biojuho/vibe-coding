@@ -1,5 +1,121 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-04-06 | Gemini (Antigravity) | T-152 harness integration, T-129 scale-hardening chunk, T-153 DB cleanup
+
+### Work Summary
+
+1. **T-152 퍼편화 검증**: `test_express_draft.py`, `test_harness_sandbox.py`, `test_harness_security_checklist.py` 등 회귀 테스트 성공 확인 (13 passed, exit code 0).
+2. **T-129 번들 최적화 (Hanwoo Dashboard)**: `hanwoo-dashboard/next.config.mjs`에 Next.js 15+ 최적화인 `experimental.optimizePackageImports`에 `lucide-react`, `recharts` 지정. `npm run build` 결과 벤더 용량 크게 줄이고 정상 작동 확인.
+3. **T-153 구형 백업 파일 청소**: `.tmp` 경로 하위에 남아있던 `*.db.bak` 파일들 8개(`workspace.db` 전환 이후 불필요) 일괄 영구 삭제 완료.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `projects/hanwoo-dashboard/next.config.mjs` | Added `experimental.optimizePackageImports` for `lucide-react` and `recharts` |
+| `projects/hanwoo-dashboard/.next/*` | Build cache / build payloads size reduced |
+| `.tmp/*.db.bak` | 8 duplicated backup files deleted |
+
+### Verification Results
+- `npm run build` -> **Exit code 0** (Optimization verified)
+- Pytests -> **Passed (Exit code 0)**## 2026-04-06 | Gemini (Antigravity) | blind-to-x lint fix and QA/QC
+
+### Work Summary
+
+1. **F401 린트 오류 (미사용 라이브러리) 정리**: `execution/` 및 `tests/` 내부에서 더 이상 사용되지 않는 `json`, `field`, `Optional`, `patch`, `pytest`, `os`, `tempfile` 등의 미사용 import 코드 총 13건 일괄 제거.
+2. **단위/통합 테스트 검증**: `--select F401` ruff lint 검증에서 "All checks passed!" 확인. `--no-cov` 로 pytest 통과 여부 확인하여 총 78 Passed (exit code 0) 달성 확정. 변경에 따른 회귀 없음 검증 완료.
+3. **QA/QC Workflow 승인**: `qa-qc` 프로세스를 기반으로 F401 변경 건에 대해 `승인 (APPROVED)` 판정 완료.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `execution/harness_eval.py` | Removed unused `json` import |
+| `execution/harness_sandbox.py` | Removed unused `field`, `Optional`, `Sequence` imports |
+| `execution/harness_tool_registry.py` | Removed unused `field` |
+| `execution/tests/test_harness_sandbox.py` | Removed unused `patch` |
+| `execution/tests/test_harness_security_checklist.py` | Removed unused `os`, `tempfile`, `Path`, `pytest` |
+| `tests/test_harness_eval.py` | Removed unused `patch`, `pytest`, `GeneratorEvaluatorResult` |
+
+### Verification Results
+- `python -m ruff check execution/ tests/ --select F401` -> **All checks passed!**
+- `python -m pytest execution/tests/ tests/test_harness_eval.py -x -q --no-cov --tb=short` -> **78 passed in 0.81s**
+- QA/QC -> **✅ 승인 (Approved)**
+
+---
+
+## 2026-04-05 | Claude (Opus 4.6) | blind-to-x 커버리지 사각지대 자동 보강
+
+### Work Summary
+
+수석 QA 관점에서 blind-to-x 파이프라인의 가장 치명적인 커버리지 사각지대 2곳을 식별하고 즉시 방어 코드 + 테스트 추가.
+
+1. **ml_scorer.py**: (a) `predict_score()` heuristic fallback 시 매 호출 DB 재조회 → `_heuristic_row_count` 캐시 도입으로 제거, (b) `_build_feature_matrix()`의 오염 데이터 크래시 → `(ValueError, TypeError)` 안전 변환 추가, (c) `_load_training_data()`에 `PRAGMA busy_timeout = 5000` 추가로 DB 데드락 방지.
+2. **content_intelligence.py**: (a) `_yaml_rules_to_tuples()`에 `isinstance(entry, dict)` 타입 가드 추가, (b) `evaluate_candidate_editorial_fit()`에 `str(title or "")` 입력 정규화.
+3. 기존 테스트 1건 업데이트, 신규 테스트 28건 추가.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `projects/blind-to-x/pipeline/ml_scorer.py` | DB 재조회 제거, 오염 데이터 방어, busy_timeout 추가 |
+| `projects/blind-to-x/pipeline/content_intelligence.py` | YAML 타입 가드, None 입력 정규화 |
+| `projects/blind-to-x/tests/unit/test_ml_scorer_and_filters.py` | 기존 테스트 캐시 기반으로 업데이트 |
+| `projects/blind-to-x/tests/unit/test_ml_scorer_defensive.py` | 신규 10개 테스트 |
+| `projects/blind-to-x/tests/unit/test_content_intelligence_defensive.py` | 신규 18개 테스트 |
+
+### Verification Results
+- 신규 28개 테스트 전부 passed
+- 전체 blind-to-x: **1250 passed / 3 pre-existing failures / 9 skipped** (회귀 0건)
+
+---
+
+## 2026-04-05 | Claude (Opus 4.6) | T-129 quick wins + T-100 coverage + T-121 fix + T-147 outbox worker
+
+### Work Summary
+
+1. **T-129 quick wins (hanwoo-dashboard scale hardening)**:
+   - Added outbox event insertion (`createOutboxEvent`) to 5 key mutations in `src/lib/actions.js`: `createCattle`, `updateCattle`, `deleteCattle`, `recordCalving`, `createSalesRecord`.
+   - Wired `getRealTimeMarketPrice()` with cache-through: tries `getLatestMarketPriceSnapshot()` (1hr TTL) → KAPE API fallback → `saveMarketPriceSnapshot()`.
+   - Wired `getNotifications()` with read-model fallback: tries `getNotificationSummary()` (1min TTL) → O(n) cattle scan → `saveNotificationSummary()`.
+
+2. **T-147: Outbox worker script** — Created `scripts/outbox-worker.mjs` for hanwoo-dashboard. Polls PENDING OutboxEvents, refreshes notification/dashboard/market read-model snapshots, supports `--daemon` mode with configurable interval, retry with exponential backoff (max 5 attempts).
+
+3. **T-100: blind-to-x coverage 71% → 82%** — Added 93 unit tests across 5 previously-uncovered modules:
+   - `test_draft_prompts.py` (14 tests): content essence extraction, deterministic example selection, retry prompt
+   - `test_daily_digest.py` (28 tests): Telegram escape, Notion extractors, topic distribution, digest formatting
+   - `test_draft_providers.py` (21 tests): provider order resolution, enabled check, timeout logic
+   - `test_sentiment_tracker.py` (16 tests): keyword mapping, record, trending emotions, snapshot
+   - `test_editorial_reviewer.py` (14 tests): threshold lookup, review prompt construction
+
+4. **T-121: test_main.py import fix** — Root cause: `sys.modules['main']` collision in full-suite collection (another project's main.py shadowed blind-to-x/main.py). Fixed by detecting stale module path and removing before import.
+
+5. **T-120, T-144**: Confirmed already resolved by previous sessions, moved to DONE.
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `projects/hanwoo-dashboard/src/lib/actions.js` | Added outbox events to 5 mutations, market price cache layer, notification read-model fallback |
+| `projects/hanwoo-dashboard/scripts/outbox-worker.mjs` | New: outbox worker with daemon mode |
+| `projects/hanwoo-dashboard/package.json` | Added `outbox:once` and `outbox:daemon` scripts |
+| `projects/blind-to-x/tests/unit/test_draft_prompts.py` | New: 14 tests for draft prompts helpers |
+| `projects/blind-to-x/tests/unit/test_daily_digest.py` | New: 28 tests for daily digest formatting |
+| `projects/blind-to-x/tests/unit/test_draft_providers.py` | New: 21 tests for provider management |
+| `projects/blind-to-x/tests/unit/test_sentiment_tracker.py` | New: 16 tests for sentiment tracking |
+| `projects/blind-to-x/tests/unit/test_editorial_reviewer.py` | New: 14 tests for editorial reviewer |
+| `projects/blind-to-x/tests/unit/test_main.py` | Fixed sys.modules collision for full-suite collection |
+| `.ai/TASKS.md` | T-100, T-120, T-121, T-147 → DONE |
+| `.ai/HANDOFF.md` | Updated latest session summary |
+
+### Verification Results
+- `npm run lint` (hanwoo-dashboard) → **clean**
+- `npm run build` (hanwoo-dashboard) → **pass** (Next.js 16.2.1)
+- `pytest projects/blind-to-x/tests/ --cov=projects/blind-to-x/pipeline` → **82% coverage**, 1157 passed / 3 pre-existing / 9 skipped
+- `pytest projects/blind-to-x/tests/unit/test_draft_prompts.py ...test_editorial_reviewer.py` → **93 passed**
+
+---
+
 ## 2026-04-04 | Antigravity | blind-to-x QA/QC workflow validation
 
 ### Work Summary
