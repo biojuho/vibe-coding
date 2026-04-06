@@ -1,6 +1,6 @@
 @echo off
 echo ======================================================
-echo Vibe Coding Workspace Setup
+echo Vibe Coding Workspace Setup (uv based)
 echo ======================================================
 
 echo [1/4] Checking Python installation...
@@ -11,7 +11,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo [2/4] Setting up virtual environment...
+echo [2/4] Setting up root venv for uv runner...
 if not exist "venv" (
     echo Creating venv...
     py -3 -m venv venv
@@ -26,32 +26,43 @@ if not exist "%PY%" (
     exit /b 1
 )
 
-echo [3/4] Installing root dependencies...
-%PY% -m pip install --upgrade pip
-%PY% -m pip install -r requirements.txt
-%PY% -m pip install -r requirements-dev.txt
+echo [3/4] Installing uv and syncing sub-projects...
+%PY% -m pip install --upgrade pip uv
 if errorlevel 1 (
-    echo [ERROR] Root dependency installation failed.
+    echo [ERROR] uv installation failed.
     pause
     exit /b 1
 )
 
-echo [3.5/4] Installing shared editable project packages...
-%PY% -m pip install -e .\projects\shorts-maker-v2
-if errorlevel 1 (
-    echo [ERROR] shorts-maker-v2 editable install failed.
-    pause
-    exit /b 1
-)
+set "UV=venv\Scripts\uv.exe"
+
+echo Syncing workspace...
+cd workspace
+..\uv sync
+if errorlevel 1 exit /b 1
+cd ..
+
+echo Syncing projects/blind-to-x...
+cd projects\blind-to-x
+..\..\uv sync
+if errorlevel 1 exit /b 1
+cd ..\..
+
+echo Syncing projects/shorts-maker-v2...
+cd projects\shorts-maker-v2
+..\..\uv sync
+if errorlevel 1 exit /b 1
+cd ..\..
 
 echo [4/4] Running workspace doctor...
-%PY% workspace\scripts\doctor.py
+cd workspace
+..\uv run scripts\doctor.py
+cd ..
 
 echo ======================================================
 echo Setup complete.
 echo Canonical commands:
-echo 1. call venv\Scripts\activate
-echo 2. %PY% workspace\scripts\smoke_check.py
-echo 3. %PY% -m streamlit run workspace\execution\pages\shorts_manager.py
+echo 1. cd workspace ^&^& ..\venv\Scripts\uv.exe run scripts\doctor.py
+echo 2. cd projects\blind-to-x ^&^& ..\..\venv\Scripts\uv.exe run main.py
 echo ======================================================
 pause

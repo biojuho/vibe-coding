@@ -20,9 +20,11 @@ test_audio/
 backups/
 *.log
 coverage.xml
+coverage.json
 report.xml
 report_unit*.xml
 cov*.txt
+.cov_report.json
 result*.txt
 test_out*.txt
 *.tsbuildinfo
@@ -35,6 +37,13 @@ ruff*.json
 **/old_patch.txt
 **/.coverage_latest_report.txt
 test_errors.txt
+# 디버깅 임시 파일
+t121_*.txt
+tmp_*.txt
+tmp_*.py
+temp_*.txt
+node_err.txt
+o.txt
 
 # ===== Python 캐시/아티팩트 =====
 __pycache__/

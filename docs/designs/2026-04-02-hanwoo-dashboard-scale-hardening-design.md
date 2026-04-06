@@ -82,6 +82,7 @@ Worker
 ### Day 1: Database Verification and Safe Indexing
 
 - Verify live indexes with `pg_indexes`.
+- Use `projects/hanwoo-dashboard/scripts/verify-db-indexes.mjs` for the inventory, schema coverage diff, scale-candidate diff, and `EXPLAIN` probes once the real `DATABASE_URL` is available.
 - Run `EXPLAIN (ANALYZE, BUFFERS)` on:
   - active cattle list
   - sales list by date
@@ -89,6 +90,7 @@ Worker
   - cattle history by cattle and date
   - notification candidate query
 - Add missing indexes using `CREATE INDEX CONCURRENTLY`.
+- Start from `projects/hanwoo-dashboard/prisma/manual/2026-04-02_scale_index_backfill.sql`, then trim it down to only the indexes proven missing in the live inventory.
 - Add a new Prisma migration only after the live SQL diff is confirmed.
 
 ### Day 2: Read Model and Cache Foundations
@@ -568,4 +570,3 @@ Reason:
 
 - If indexes are missing, every other optimization will be hiding a real DB problem.
 - If read models are not defined first, frontend splitting can still end up consuming expensive raw queries.
-

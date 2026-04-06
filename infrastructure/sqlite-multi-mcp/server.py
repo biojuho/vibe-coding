@@ -1,15 +1,17 @@
 """
 SQLite Multi-DB MCP Server
 ===========================
-프로젝트 내 7개 SQLite 데이터베이스를 통합 접근하는 MCP 서버.
+워크스페이스 SQLite 데이터베이스를 통합 접근하는 MCP 서버.
 
 지원 DB:
-  - api_usage.db: API 호출/비용 추적
-  - scheduler.db: 스케줄러 실행 로그
-  - content.db: 콘텐츠 관리
-  - finance.db: 비용/수익 추적
-  - debug_history.db: 디버그 히스토리
-  - result_tracker.db: 콘텐츠 결과 추적
+  - workspace: 통합 워크스페이스 DB (api_usage, scheduler, content, finance,
+               debug_history, result_tracker, debt_history, qaqc_history 테이블 포함)
+  - btx_cost:  blind-to-x 전용 비용 추적 DB (별도 프로젝트)
+
+마이그레이션 (2026-04-04):
+  workspace.db 단일 파일로 통합 (기존 7개 → 1개).
+  기존 별칭(api_usage, scheduler, content, finance, debug_history, result_tracker)은
+  모두 workspace.db를 가리키며 하위 호환성을 유지합니다.
 
 Usage:
     python server.py
@@ -17,7 +19,6 @@ Usage:
 
 from __future__ import annotations
 
-import os
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -36,15 +37,21 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 load_dotenv(_PROJECT_ROOT / ".env")
 
 # DB 레지스트리: 별칭 → 실제 경로
+# 2026-04-04: 기존 7개 DB를 workspace.db 하나로 통합.
+# 기존 별칭(api_usage~result_tracker)은 하위 호환성을 위해 유지하며 모두 workspace.db를 가리킴.
+_WORKSPACE_DB = _PROJECT_ROOT / ".tmp" / "workspace.db"
 _DB_REGISTRY: dict[str, Path] = {
-    "api_usage": _PROJECT_ROOT / ".tmp" / "api_usage.db",
-    "scheduler": _PROJECT_ROOT / ".tmp" / "scheduler.db",
-    "content": _PROJECT_ROOT / ".tmp" / "content.db",
-    "finance": _PROJECT_ROOT / ".tmp" / "finance.db",
-    "debug_history": _PROJECT_ROOT / ".tmp" / "debug_history.db",
-    "result_tracker": _PROJECT_ROOT / ".tmp" / "result_tracker.db",
-    # blind-to-x 전용 DB
-    "btx_cost": _PROJECT_ROOT / "blind-to-x" / ".tmp" / "cost_db.db",
+    # 통합 워크스페이스 DB (단일 파일, 테이블로 도메인 분리)
+    "workspace": _WORKSPACE_DB,
+    # 하위 호환 별칭 — 기존 코드가 도메인별 이름을 사용해도 동일 파일로 라우팅
+    "api_usage": _WORKSPACE_DB,
+    "scheduler": _WORKSPACE_DB,
+    "content": _WORKSPACE_DB,
+    "finance": _WORKSPACE_DB,
+    "debug_history": _WORKSPACE_DB,
+    "result_tracker": _WORKSPACE_DB,
+    # blind-to-x 전용 DB (별도 프로젝트 경계 유지)
+    "btx_cost": _PROJECT_ROOT / "projects" / "blind-to-x" / ".tmp" / "btx_costs.db",
 }
 
 
@@ -229,8 +236,9 @@ if FastMCP is not None:
     mcp = FastMCP(
         "sqlite-multi",
         instructions=(
-            "프로젝트 내 7개 SQLite 데이터베이스에 통합 접근하는 MCP 서버. "
-            "api_usage, scheduler, content, finance, debug_history, result_tracker, btx_cost DB를 지원합니다. "
+            "워크스페이스 SQLite 데이터베이스 통합 MCP 서버. "
+            "workspace DB(api_usage·scheduler·content·finance·debug_history·result_tracker·debt_history·qaqc_history 테이블 통합)와 "
+            "btx_cost DB(blind-to-x 전용)를 지원합니다. "
             "모든 쿼리는 읽기 전용(SELECT)입니다."
         ),
     )

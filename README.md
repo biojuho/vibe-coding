@@ -13,30 +13,48 @@ Root workspace for shared AI tooling, automation, and multiple product projects.
 
 ## Installation
 
+This repository uses [uv](https://astral.sh/uv) to manage isolated environments for each project.
+
 ```bash
+# 1. Install uv in a root venv (or install globally: pip install uv)
 py -3 -m venv venv
-venv\Scripts\python.exe -m pip install --upgrade pip
-venv\Scripts\python.exe -m pip install -r requirements.txt
-venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-venv\Scripts\python.exe -m pip install -e .\projects\shorts-maker-v2
+venv\Scripts\python.exe -m pip install --upgrade pip uv
+
+# 2. Sync workspace environment (Control Plane)
+cd workspace
+..\venv\Scripts\uv.exe sync
+cd ..
+
+# 3. Sync blind-to-x environment (Dashboard / Pipeline)
+cd projects\blind-to-x
+..\..\venv\Scripts\uv.exe sync
+cd ..\..
+
+# 4. Sync shorts-maker-v2 environment (Video Automation)
+cd projects\shorts-maker-v2
+..\..\venv\Scripts\uv.exe sync
+cd ..\..
 ```
 
-## Common Commands
+## Common Commands (Workspace)
 
+Navigate to the `workspace` directory before running these:
 ```bash
-venv\Scripts\python.exe workspace\scripts\doctor.py
-venv\Scripts\python.exe workspace\scripts\smoke_check.py
-venv\Scripts\python.exe workspace\scripts\quality_gate.py
-venv\Scripts\python.exe workspace\execution\qaqc_runner.py
-venv\Scripts\python.exe -m streamlit run workspace\execution\pages\shorts_manager.py
+cd workspace
+..\venv\Scripts\uv.exe run scripts\doctor.py
+..\venv\Scripts\uv.exe run scripts\smoke_check.py
+..\venv\Scripts\uv.exe run scripts\quality_gate.py
+..\venv\Scripts\uv.exe run execution\qaqc_runner.py
+..\venv\Scripts\uv.exe run streamlit run execution\pages\shorts_manager.py
 ```
 
 ## Testing
 
+Navigate to the `workspace` directory before running these:
 ```bash
-venv\Scripts\python.exe -m pytest -q workspace\tests
-venv\Scripts\python.exe -m pytest -q workspace\execution\tests
-venv\Scripts\python.exe workspace\scripts\quality_gate.py
+cd workspace
+..\venv\Scripts\uv.exe run pytest -q tests
+..\venv\Scripts\uv.exe run pytest -q execution\tests
 ```
 
 ## Projects
@@ -50,10 +68,10 @@ venv\Scripts\python.exe workspace\scripts\quality_gate.py
 
 ## Shorts Workflow
 
-1. Add topics in `workspace/execution/pages/shorts_manager.py`.
+1. `cd workspace && ..\venv\Scripts\uv.exe run streamlit run execution\pages\shorts_manager.py`
 2. Save per-channel settings.
-3. Render from Shorts Manager or `python workspace/execution/shorts_daily_runner.py`.
-4. Review QA/QC in `workspace/execution/pages/qaqc_status.py`.
+3. Render from Shorts Manager or run `..\venv\Scripts\uv.exe run execution\shorts_daily_runner.py` from `workspace`.
+4. Review QA/QC in `..\venv\Scripts\uv.exe run streamlit run execution\pages\qaqc_status.py`.
 5. Upload from the manager when credentials are available.
 
 ## Notes

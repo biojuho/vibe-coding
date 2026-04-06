@@ -18,10 +18,11 @@ echo.
 REM --- Step 1: 브릿지 서버 시작 (백그라운드) ---
 echo [1/2] 브릿지 서버 시작 중...
 
-set "VENV_PYTHON=C:\Users\박주호\Desktop\Vibe coding\venv\Scripts\python.exe"
+set "VENV_UV=C:\Users\박주호\Desktop\Vibe coding\venv\Scripts\uv.exe"
+set "WORKSPACE_DIR=C:\Users\박주호\Desktop\Vibe coding\workspace"
 
 REM 브릿지 서버를 새 창에서 실행
-start "n8n-bridge" "%VENV_PYTHON%" "%~dp0bridge_server.py"
+start "n8n-bridge" cmd.exe /c "cd /d "%WORKSPACE_DIR%" && "%VENV_UV%" run "%~dp0bridge_server.py""
 echo   → 브릿지 서버: http://127.0.0.1:9876
 echo.
 

@@ -19,14 +19,43 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-          cache: "pip"
-          cache-dependency-path: requirements-quality.txt
+          python-version: "3.14"
+          cache: pip
 
       - name: Install quality dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements-quality.txt
+          python -m pip install pytest ruff requests python-dotenv croniter Pillow
 
-      - name: Run root quality gate
-        run: python scripts/quality_gate.py
+      - name: Check directive mapping
+        run: python workspace/scripts/check_mapping.py
+
+      - name: Compile workspace modules
+        run: python -m compileall workspace/execution workspace/scripts
+
+      - name: Run focused workspace regression tests
+        run: >
+          python -m pytest
+          workspace/tests/test_governance_checks.py
+          workspace/tests/test_doctor.py
+          workspace/tests/test_health_check.py
+          workspace/tests/test_qaqc_runner.py
+          workspace/tests/test_qaqc_runner_extended.py
+          workspace/tests/test_mcp_config.py
+          -q
+          -o addopts=
+
+      - name: Lint workspace control plane
+        run: >
+          python -m ruff check
+          workspace/scripts/check_mapping.py
+          workspace/execution/governance_checks.py
+          workspace/execution/health_check.py
+          workspace/execution/qaqc_runner.py
+          workspace/execution/qaqc_history_db.py
+          workspace/tests/test_governance_checks.py
+          workspace/tests/test_doctor.py
+          workspace/tests/test_health_check.py
+          workspace/tests/test_qaqc_runner.py
+          workspace/tests/test_qaqc_runner_extended.py
+          workspace/tests/test_mcp_config.py
