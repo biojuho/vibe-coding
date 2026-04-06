@@ -212,6 +212,37 @@ class NotionUploader(
             return {"data_source_id": self.database_id}
         return {"database_id": self.database_id}
 
+    @staticmethod
+    def _extract_status_code(exc: Exception) -> int | None:
+        for attr in ("status", "status_code", "code"):
+            value = getattr(exc, attr, None)
+            if isinstance(value, int):
+                return value
+
+        response = getattr(exc, "response", None)
+        for attr in ("status_code", "status", "code"):
+            value = getattr(response, attr, None)
+            if isinstance(value, int):
+                return value
+
+        return None
+
+    @staticmethod
+    def _extract_retry_after_seconds(exc: Exception) -> int | None:
+        response = getattr(exc, "response", None)
+        headers = getattr(response, "headers", None) or getattr(exc, "headers", None)
+        if not headers:
+            return None
+
+        retry_after = headers.get("Retry-After")
+        if retry_after is None:
+            return None
+
+        try:
+            return max(0, int(float(retry_after)))
+        except (TypeError, ValueError):
+            return None
+
     async def _safe_notion_call(self, fn, *args, max_retries: int = 3, **kwargs):
         """Notion API 호출 래퍼 — 429/5xx 시 지수 백오프로 최대 max_retries 재시도.
 
@@ -225,10 +256,11 @@ class NotionUploader(
                 return await fn(*args, **kwargs)
             except Exception as exc:
                 last_exc = exc
-                status = getattr(exc, "status", None) or getattr(exc, "code", None)
+                status = self._extract_status_code(exc)
+                retry_after = self._extract_retry_after_seconds(exc)
                 retryable = status in (429, 500, 502, 503, 504) or status is None
                 if retryable and attempt < max_retries - 1:
-                    delay = 2**attempt  # 1s, 2s, 4s
+                    delay = retry_after if retry_after is not None else 2**attempt  # 1s, 2s, 4s
                     logger.warning(
                         "Notion API error (status=%s), retrying in %ds (attempt %d/%d): %s",
                         status,

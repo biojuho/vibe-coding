@@ -41,6 +41,20 @@ _TOPIC_IMAGE_STYLES: dict[str, dict[str, str]] = {
     "자기계발": {"style": "motivational poster", "mood": "inspiring, ambitious", "colors": "sunrise orange and navy"},
 }
 _DEFAULT_IMAGE_STYLE = {"style": "modern illustration", "mood": "professional, relatable", "colors": "neutral tones"}
+_GENERIC_TOPIC_SCENES: dict[str, str] = {
+    "연봉": "Korean office workers comparing paychecks in a modern office",
+    "이직": "a Korean office worker standing at a crossroads between two career paths",
+    "회사문화": "Korean office workers navigating a hectic open office together",
+    "상사": "a Korean office worker facing a tense meeting with a stern manager",
+    "복지": "Korean office workers enjoying thoughtful company perks in a bright break room",
+    "재테크": "a Korean office worker studying charts and savings goals at a desk",
+    "직장개그": "Korean office workers sharing a relatable workplace joke",
+    "부동산": "a Korean office worker reacting to apartment listings and price charts",
+    "IT": "a Korean tech worker coding at a futuristic workstation",
+    "건강": "Korean office workers stretching and resetting during a work break",
+    "정치": "Korean office workers following major headlines on their phones at lunch",
+    "자기계발": "a Korean office worker studying after hours with focused determination",
+}
 
 # ── 블라인드 전용: 애니/삽화/Pixar 3D 캐릭터 스타일 ──────────────────
 _BLIND_ANIME_STYLE = {
@@ -233,8 +247,15 @@ class ImageGenerator:
         Returns:
             영문 이미지 생성 프롬프트.
         """
-        # [QA 수정 #5] source가 None으로 들어올 경우 방어
-        # [QA 수정 #6] 기존 호출처(source 미전달)는 기본값 ""으로 기존 로직 실행
+        # [V2.0 Phase 2] content_profile 데이터에서 킬링 포인트 추출
+        anchor = ""
+        if isinstance(draft_text, dict) and "content_profile" in draft_text:
+            profile = draft_text["content_profile"]
+            anchor = profile.get("empathy_anchor", "")
+        elif not topic_cluster and not emotion_axis and title:
+            # profile이 없고 제목만 있을 때의 최소한의 방어
+            anchor = title[:50]
+
         _source = (source or "").lower().strip()
 
         # ── 블라인드 전용: 애니/삽화/Pixar 3D 스타일 ────────────────────
@@ -307,7 +328,15 @@ class ImageGenerator:
         # 프롬프트 조합 — 한글 제목/초안 텍스트는 프롬프트에 포함하지 않음
         # (한글 텍스트가 이미지에 오타로 렌더링되는 문제 방지)
         _NO_TEXT = "absolutely no text, no letters, no numbers, no words, no captions, no writing of any kind, no watermark, clean image only"  # noqa: E501
-        return f"A {style} about Korean office workers with {mood} mood using {colors} color palette, {_NO_TEXT}, high quality, 16:9 aspect ratio"  # noqa: E501
+
+        # [V2.0 Phase 2] anchor가 있으면 장면에 추가
+        if anchor:
+            scene_detail = f"featuring {anchor}"
+        elif topic_cluster in _GENERIC_TOPIC_SCENES:
+            scene_detail = f"featuring {_GENERIC_TOPIC_SCENES[topic_cluster]}"
+        else:
+            scene_detail = f"about {topic_cluster or 'daily life'}"
+        return f"A {style} {scene_detail} with {mood} mood using {colors} color palette, {_NO_TEXT}, high quality, 16:9 aspect ratio"  # noqa: E501
 
     @staticmethod
     def _build_blind_anime_prompt(
@@ -452,13 +481,37 @@ class ImageGenerator:
                         logger.info("Image retry succeeded after quality check failure")
 
         # ── ImageCache 저장 ───────────────────────────────────────────
-        if result and _cache and topic_cluster:
+        if result and topic_cluster:
             try:
-                _cache.set(topic_cluster, emotion_axis, result, provider=provider_used)
+                from pipeline.image_cache import ImageCache
+
+                ImageCache().set(topic_cluster, emotion_axis, result, provider=provider_used)
             except Exception:
                 pass
 
+        # ── [V2.0 Phase 2] 최종 실패 시 보수적 폴백 (Default Image) ───
+        if not result:
+            result = self._get_fallback_image_url(topic_cluster)
+            logger.info(
+                "All image generation providers failed. Using fallback for topic '%s': %s", topic_cluster, result
+            )
+
         return result
+
+    def _get_fallback_image_url(self, topic: str) -> str:
+        """AI 생성 실패 시 사용할 정적 이미지 URL. (V2.0 Phase 2)"""
+        # 실제 운영 환경에서는 CDN이나 S3에 업로드된 카테고리별 기본 이미지 URL을 사용합니다.
+        # 여기서는 placeholder AI 서비스를 활용한 안정적인 URL 구조를 반환합니다.
+        base = "https://images.unsplash.com/photo-"
+        mapping = {
+            "연봉": "1554224158-1d4965a9d05d",  # Money
+            "이직": "1486312338219-ce68d2c6f44d",  # Career
+            "회사문화": "1522071823990-956038747e5b",  # Office
+            "연애": "1518199266791-38982405599a",  # Love
+            "IT": "1518770660439-4636190af475",  # Technology
+        }
+        photo_id = mapping.get(topic, "1497215728101-856f4ea42174")  # Default Office
+        return f"{base}{photo_id}?auto=format&fit=crop&w=1024&q=80"
 
     @staticmethod
     def _validate_image(path: str) -> tuple[bool, str]:

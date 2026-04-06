@@ -6,6 +6,7 @@ All data sources are free. Results are cached with configurable TTL.
 
 from __future__ import annotations
 
+import atexit
 import asyncio
 import logging
 import time
@@ -43,6 +44,9 @@ class TrendMonitor:
         config: ConfigManager 또는 dict-like 설정 객체.
     """
 
+    _shared_executor: ThreadPoolExecutor | None = None
+    _executor_shutdown_registered = False
+
     def __init__(self, config: Any = None):
         self._config = config or {}
         self.google_enabled: bool = self._get("trends.google_enabled", True)
@@ -64,8 +68,29 @@ class TrendMonitor:
         self._cache: dict[str, float] = {}
         self._cache_ts: float = 0.0
 
+        # velocity 추적 (SpikeDetector 연동용)
+        self._velocity_snapshots: dict[str, dict[str, Any]] = {}
+
         # ThreadPoolExecutor for sync pytrends calls
-        self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="trend")
+        self._executor = self._get_shared_executor()
+
+    @classmethod
+    def _get_shared_executor(cls) -> ThreadPoolExecutor:
+        if cls._shared_executor is None:
+            cls._shared_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="trend")
+
+        if not cls._executor_shutdown_registered:
+            atexit.register(cls.shutdown_shared_executor)
+            cls._executor_shutdown_registered = True
+
+        return cls._shared_executor
+
+    @classmethod
+    def shutdown_shared_executor(cls, wait: bool = False) -> None:
+        if cls._shared_executor is not None:
+            cls._shared_executor.shutdown(wait=wait, cancel_futures=True)
+            cls._shared_executor = None
+        cls._executor_shutdown_registered = False
 
     def _get(self, key: str, default: Any = None) -> Any:
         """config에서 dot-notation 키 조회."""
@@ -297,20 +322,45 @@ class TrendMonitor:
         return round(boost, 2)
 
     async def detect_spikes(self) -> list[dict[str, Any]]:
-        """급상승 키워드 감지 (threshold 초과).
+        """급상승 키워드 감지 (threshold 초과 + velocity 메트릭).
 
         Returns:
-            [{"keyword": str, "score": float, "source": "google"|"naver"}]
+            [{"keyword": str, "score": float, "source": str,
+              "velocity": float, "velocity_delta": float}]
+              - velocity: 이전 스캔 대비 점수 변화량/분
+              - velocity_delta: 이전 velocity와의 가속도 차이
         """
         keywords = await self.get_trending_keywords()
+        now = time.time()
+
         spikes = []
         for keyword, score in keywords.items():
             if score >= self.spike_threshold:
+                # velocity 계산 (이전 스냅샷과 비교)
+                prev = self._velocity_snapshots.get(keyword)
+                velocity = 0.0
+                velocity_delta = 0.0
+
+                if prev is not None:
+                    elapsed_min = (now - prev["ts"]) / 60.0
+                    if elapsed_min > 0.5:  # 최소 30초 경과
+                        velocity = (score - prev["score"]) / elapsed_min
+                        velocity_delta = velocity - prev.get("velocity", 0.0)
+
+                # 스냅샷 업데이트
+                self._velocity_snapshots[keyword] = {
+                    "score": score,
+                    "velocity": velocity,
+                    "ts": now,
+                }
+
                 spikes.append(
                     {
                         "keyword": keyword,
                         "score": score,
                         "source": "combined",
+                        "velocity": round(velocity, 3),
+                        "velocity_delta": round(velocity_delta, 3),
                     }
                 )
 
@@ -319,7 +369,7 @@ class TrendMonitor:
                 "트렌드 스파이크 %d개 감지 (threshold=%.0f): %s",
                 len(spikes),
                 self.spike_threshold,
-                ", ".join(s["keyword"] for s in spikes[:5]),
+                ", ".join(f"{s['keyword']}(v={s['velocity']:.1f})" for s in spikes[:5]),
             )
 
         return spikes

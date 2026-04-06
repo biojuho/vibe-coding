@@ -26,6 +26,7 @@ from pipeline import (
     TwitterPoster,
     calculate_run_metrics,
     process_single_post,
+    PipelineServices,
 )
 from pipeline.analytics_tracker import AnalyticsTracker
 from pipeline.commands import run_digest, run_dry_run_single, run_reprocess_approved, run_sentiment_report
@@ -131,20 +132,31 @@ async def _run_pipeline(
         output_formats = config_mgr.get("output_formats", ["twitter"])
         effective_review_only = args.review_only or config_mgr.get("content_strategy.require_human_approval", True)
 
+        services = PipelineServices(
+            scraper=None,  # Will be set per-item
+            image_uploader=image_uploader,
+            image_generator=image_generator,
+            draft_generator=draft_generator,
+            notion_uploader=notion_uploader,
+            twitter_poster=twitter_poster,
+        )
+
         if args.dry_run or args.parallel <= 1:
             for index, item in enumerate(urls_to_process, start=1):
                 print(f"  [{index}/{len(urls_to_process)}] [{item['source']}] {item['url']}")
                 if args.dry_run:
                     result = await run_dry_run_single(item, config_mgr, draft_generator, notion_uploader, top_examples)
                 else:
+                    item_services = PipelineServices(
+                        scraper=item["scraper"],
+                        image_uploader=services.image_uploader,
+                        image_generator=services.image_generator,
+                        draft_generator=services.draft_generator,
+                        notion_uploader=services.notion_uploader,
+                        twitter_poster=services.twitter_poster,
+                    )
                     result = await process_single_post(
                         url=item["url"],
-                        scraper=item["scraper"],
-                        image_uploader=image_uploader,
-                        image_generator=image_generator,
-                        draft_generator=draft_generator,
-                        notion_uploader=notion_uploader,
-                        twitter_poster=twitter_poster,
                         top_tweets=top_examples,
                         source_name=item["source"],
                         output_formats=output_formats,
@@ -152,6 +164,7 @@ async def _run_pipeline(
                         feed_mode=item["feed_mode"],
                         review_only=effective_review_only,
                         post_data_hint={"feed_title": item.get("feed_title", "")},
+                        services=item_services,
                     )
                 results.append(result)
         else:
@@ -165,14 +178,16 @@ async def _run_pipeline(
                         counter["done"] += 1
                         index = counter["done"]
                     print(f"  [{index}/{len(urls_to_process)}] [{item['source']}] {item['url']}")
+                    item_services = PipelineServices(
+                        scraper=item["scraper"],
+                        image_uploader=services.image_uploader,
+                        image_generator=services.image_generator,
+                        draft_generator=services.draft_generator,
+                        notion_uploader=services.notion_uploader,
+                        twitter_poster=services.twitter_poster,
+                    )
                     return await process_single_post(
                         url=item["url"],
-                        scraper=item["scraper"],
-                        image_uploader=image_uploader,
-                        image_generator=image_generator,
-                        draft_generator=draft_generator,
-                        notion_uploader=notion_uploader,
-                        twitter_poster=twitter_poster,
                         top_tweets=top_examples,
                         source_name=item["source"],
                         output_formats=output_formats,
@@ -180,6 +195,7 @@ async def _run_pipeline(
                         feed_mode=item["feed_mode"],
                         review_only=effective_review_only,
                         post_data_hint={"feed_title": item.get("feed_title", "")},
+                        services=item_services,
                     )
 
             results = await asyncio.gather(*[_bounded(item) for item in urls_to_process])
@@ -282,11 +298,8 @@ async def _run_pipeline(
 # ── 진입점 ───────────────────────────────────────────────────────────────────
 
 
-async def main():
-    parser = _build_parser()
-    args = parser.parse_args()
-
-    # ── 중복 실행 가드 ──────────────────────────────────────────────────────
+def _acquire_lock() -> bool:
+    """Acquire the run lock. Returns True if lock acquired, False if already running."""
     _LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
     if _LOCK_FILE.exists():
         try:
@@ -300,25 +313,17 @@ async def main():
                 logger.warning("Stale lock 감지 (%.0f초 경과, PID=%s). 덮어씁니다.", lock_age, pid)
             elif _is_process_alive(pid):
                 logger.warning("이미 실행 중인 프로세스가 있습니다 (PID=%s). 종료합니다.", pid)
-                return
+                return False
             else:
                 logger.info("프로세스 %s 종료됨. Stale lock 제거.", pid)
         except (ValueError, IndexError):
-            pass  # 잘못된 lock 파일 → 덮어쓰기
+            pass
     _LOCK_FILE.write_text(f"{os.getpid()}:{time.time()}")
+    return True
 
-    try:
-        config_mgr = ConfigManager(args.config)
-    except Exception:
-        logger.warning("Could not load %s. Using empty config.", args.config)
-        config_mgr = ConfigManager("nonexistent")
-        config_mgr.config = {}
 
-    notifier = NotificationManager(config_mgr)
-    notion_uploader = NotionUploader(config_mgr)
-    twitter_poster = TwitterPoster(config_mgr)
-
-    # ── 1회성 커맨드 처리 ────────────────────────────────────────────────────
+async def _handle_single_commands(args, config_mgr, notifier, notion_uploader, twitter_poster) -> bool:
+    """Handle one-shot commands (reprocess, digest, sentiment). Returns True if handled."""
     if args.reprocess_approved:
         results = await run_reprocess_approved(
             config_mgr,
@@ -332,17 +337,21 @@ async def main():
             logger.info("Approved reprocess completed. success=%s fail=%s", success_count, fail_count)
         if fail_count:
             await notifier.send_message(f"Blind-to-X 승인 재발행 완료\n성공 {success_count}건 / 실패 {fail_count}건")
-        return
+        return True
 
     if getattr(args, "digest", False):
         await run_digest(config_mgr, notion_uploader, date=args.digest_date)
-        return
+        return True
 
     if getattr(args, "sentiment_report", False):
         run_sentiment_report()
-        return
+        return True
 
-    # ── 스크래퍼 초기화 ──────────────────────────────────────────────────────
+    return False
+
+
+def _init_scrapers(config_mgr, args):
+    """Initialize scrapers from configured input sources."""
     input_sources = _resolve_input_sources(config_mgr, args)
     scrapers = {}
     for source in input_sources:
@@ -350,12 +359,11 @@ async def main():
             scrapers[source] = get_scraper(source)(config_mgr)
         except Exception as exc:
             logger.warning("Could not init scraper %s: %s", source, exc)
+    return scrapers
 
-    if not scrapers:
-        logger.error("No valid scrapers found.")
-        sys.exit(1)
 
-    # ── 예산 초과 가드 ────────────────────────────────────────────────────────
+async def _check_budget(config_mgr, notifier):
+    """Check if daily API budget is exceeded. Exits if over budget."""
     from pipeline.cost_tracker import CostTracker
 
     cost_tracker = CostTracker(config_mgr)
@@ -370,7 +378,11 @@ async def main():
             level="CRITICAL",
         )
         sys.exit(1)
+    return cost_tracker
 
+
+async def _init_components(args, config_mgr, scrapers, notion_uploader, cost_tracker):
+    """Initialize pipeline components (generators, trackers, monitors)."""
     image_uploader = ImageUploader(config_mgr)
     image_generator = None if args.dry_run else ImageGenerator(config_mgr, cost_tracker=cost_tracker)
     draft_generator = TweetDraftGenerator(config_mgr, cost_tracker=cost_tracker)
@@ -384,12 +396,10 @@ async def main():
             await analytics_tracker.sync_metrics()
         except Exception as exc:
             logger.warning("Analytics sync failed before run: %s", exc)
-    top_examples = await _load_feedback_examples(config_mgr, notion_uploader)
 
-    # Notion URL 캐시 웜업 (중복 체크 O(1) 확보)
+    top_examples = await _load_feedback_examples(config_mgr, notion_uploader)
     await notion_uploader.warm_cache()
 
-    # 실시간 트렌드 모니터 초기화 (opt-in)
     trend_monitor = None
     if config_mgr.get("trends.enabled", False):
         try:
@@ -401,7 +411,6 @@ async def main():
         except Exception as exc:
             logger.warning("TrendMonitor 초기화 실패 (무시): %s", exc)
 
-    # 성과 기반 가중치 자동 조정
     feedback_loop = FeedbackLoop(notion_uploader, config_mgr)
     adaptive_weights = await feedback_loop.compute_adaptive_weights()
     if adaptive_weights:
@@ -409,6 +418,62 @@ async def main():
         logger.info("랭킹 가중치 적응형으로 교체: %s", adaptive_weights)
     else:
         logger.info("기본 랭킹 가중치 유지 (성과 데이터 부족 또는 상관관계 없음)")
+
+    return image_uploader, image_generator, draft_generator, top_examples, trend_monitor
+
+
+async def main():
+    parser = _build_parser()
+    args = parser.parse_args()
+
+    if not _acquire_lock():
+        return
+
+    try:
+        config_mgr = ConfigManager(args.config)
+    except Exception:
+        logger.warning("Could not load %s. Using empty config.", args.config)
+        config_mgr = ConfigManager("nonexistent")
+        config_mgr.config = {}
+
+    notifier = NotificationManager(config_mgr)
+    notion_uploader = NotionUploader(config_mgr)
+    twitter_poster = TwitterPoster(config_mgr)
+
+    # ── Harness preflight security check ─────────────────────────────────
+    try:
+        from pipeline.harness_guard import run_preflight, is_harness_enabled
+
+        if is_harness_enabled():
+            preflight_result = run_preflight()
+            if not preflight_result["passed"]:
+                logger.error("Harness preflight failed. Aborting pipeline.")
+                await notifier.send_message(
+                    f"Blind-to-X harness preflight FAILED\nIssues: {len(preflight_result['issues'])}건",
+                    level="CRITICAL",
+                )
+                sys.exit(1)
+            elif not preflight_result["skipped"]:
+                logger.info("Harness preflight passed.")
+    except Exception as exc:
+        logger.warning("Harness preflight check error (non-fatal): %s", exc)
+
+    if await _handle_single_commands(args, config_mgr, notifier, notion_uploader, twitter_poster):
+        return
+
+    scrapers = _init_scrapers(config_mgr, args)
+    if not scrapers:
+        logger.error("No valid scrapers found.")
+        sys.exit(1)
+
+    cost_tracker = await _check_budget(config_mgr, notifier)
+    image_uploader, image_generator, draft_generator, top_examples, trend_monitor = await _init_components(
+        args,
+        config_mgr,
+        scrapers,
+        notion_uploader,
+        cost_tracker,
+    )
 
     try:
         await _run_pipeline(

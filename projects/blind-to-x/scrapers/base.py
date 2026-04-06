@@ -749,6 +749,42 @@ class BaseScraper:
         """Scrape a single post. Must be implemented by subclasses."""
         raise NotImplementedError
 
+    async def scrape_post_with_retry(self, url, max_retries=None, backoff=None):
+        """High-level wrapper for scrape_post with automatic retries and backoff. (V2.0 Phase 1)"""
+        retries = max_retries if max_retries is not None else self.request_retries
+        delay = backoff if backoff is not None else self.request_backoff
+        last_exc = None
+
+        for attempt in range(1, retries + 1):
+            try:
+                result = await self.scrape_post(url)
+                if result and not result.get("_scrape_error"):
+                    return result
+
+                # If it's a parse error (e.g. selector not found), we might want to fail early
+                # or try again in case of partial load.
+                error_msg = result.get("error_message", "Scrape error")
+                logger.warning("Scrape attempt %d/%d failed for %s: %s", attempt, retries, url, error_msg)
+                last_exc = Exception(error_msg)
+            except Exception as e:
+                last_exc = e
+                logger.warning("Scrape attempt %d/%d raised exception for %s: %s", attempt, retries, url, e)
+
+            if attempt < retries:
+                sleep_time = delay * (2 ** (attempt - 1))  # Exponential backoff
+                await asyncio.sleep(sleep_time)
+
+        # All retries failed
+        logger.error("Scrape failed after %d attempts for %s", retries, url)
+        return {
+            "_scrape_error": True,
+            "url": url,
+            "error_code": "SCRAPE_MAX_RETRIES_EXCEEDED",
+            "failure_stage": "post_fetch",
+            "failure_reason": "max_retries_exceeded",
+            "error_message": f"Failed after {retries} attempts: {str(last_exc)}",
+        }
+
     async def get_feed_urls(self, mode="default", limit=5):
         """Get feed URLs for the given mode. Must be implemented by subclasses."""
         raise NotImplementedError

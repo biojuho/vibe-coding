@@ -316,7 +316,7 @@ def format_digest_telegram(digest: DailyDigest) -> str:
 
     # Topic distribution
     if digest.topic_distribution:
-        topic_str = " | ".join(f"{k}: {v}" for k, v in list(digest.topic_distribution.items())[:5])
+        topic_str = " | ".join(f"{k}: {_v}" for k, _v in list(digest.topic_distribution.items())[:5])
         lines.append(f"*Topics:* {topic_str}")
 
     # Trending emotions

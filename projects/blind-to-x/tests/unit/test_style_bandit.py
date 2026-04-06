@@ -1,4 +1,5 @@
 """Tests for pipeline.style_bandit — 0% → 80%+ coverage target."""
+
 from __future__ import annotations
 
 import sqlite3
@@ -86,35 +87,26 @@ class TestStyleBandit:
             self.bandit.update("연봉", "공감형", reward=0.0)
 
         # Over many samples, the learned arm should win most times
-        wins = sum(
-            1 for _ in range(30)
-            if self.bandit.select_style("연봉", ["공감형", "논쟁형"]) == "논쟁형"
-        )
+        wins = sum(1 for _ in range(30) if self.bandit.select_style("연봉", ["공감형", "논쟁형"]) == "논쟁형")
         assert wins >= 20  # 논쟁형 should dominate
 
     def test_update_inserts_new_arm(self):
         self.bandit.update("연봉", "한줄팩폭형", reward=0.7)
-        row = self.conn.execute(
-            "SELECT * FROM bandit_arms WHERE draft_style = '한줄팩폭형'"
-        ).fetchone()
+        row = self.conn.execute("SELECT * FROM bandit_arms WHERE draft_style = '한줄팩폭형'").fetchone()
         assert row is not None
         assert int(row["total_trials"]) == 1
 
     def test_update_increments_existing(self):
         self.bandit.update("연봉", "공감형", reward=0.5)
         self.bandit.update("연봉", "공감형", reward=0.8)
-        row = self.conn.execute(
-            "SELECT * FROM bandit_arms WHERE draft_style = '공감형'"
-        ).fetchone()
+        row = self.conn.execute("SELECT * FROM bandit_arms WHERE draft_style = '공감형'").fetchone()
         assert int(row["total_trials"]) == 2
 
     def test_update_clamps_reward(self):
         """Reward outside [0,1] should be clamped."""
         self.bandit.update("연봉", "공감형", reward=-0.5)
         self.bandit.update("연봉", "공감형", reward=1.5)
-        row = self.conn.execute(
-            "SELECT * FROM bandit_arms WHERE draft_style = '공감형'"
-        ).fetchone()
+        row = self.conn.execute("SELECT * FROM bandit_arms WHERE draft_style = '공감형'").fetchone()
         assert int(row["total_trials"]) == 2
 
     def test_get_arm_stats_empty(self):

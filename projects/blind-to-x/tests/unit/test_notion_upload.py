@@ -1,5 +1,6 @@
 import os
 import pytest
+import httpx
 from unittest.mock import AsyncMock, patch, MagicMock
 
 from pipeline.notion_upload import NotionUploader
@@ -140,6 +141,48 @@ async def test_safe_notion_call_retry(mock_sleep, mock_config):
     assert res == "success"
     assert call_count == 3
     assert mock_sleep.call_count == 2
+
+
+@pytest.mark.asyncio
+@patch("asyncio.sleep", new_callable=AsyncMock)
+async def test_safe_notion_call_retries_httpx_status_error(mock_sleep, mock_config):
+    uploader = NotionUploader(mock_config)
+    call_count = 0
+
+    async def mock_fn():
+        nonlocal call_count
+        call_count += 1
+        if call_count < 2:
+            request = httpx.Request("POST", "https://api.notion.com/v1/pages")
+            response = httpx.Response(429, request=request)
+            raise httpx.HTTPStatusError("Too Many Requests", request=request, response=response)
+        return "success"
+
+    res = await uploader._safe_notion_call(mock_fn, max_retries=3)
+    assert res == "success"
+    assert call_count == 2
+    mock_sleep.assert_awaited_once_with(1)
+
+
+@pytest.mark.asyncio
+@patch("asyncio.sleep", new_callable=AsyncMock)
+async def test_safe_notion_call_uses_retry_after_header(mock_sleep, mock_config):
+    uploader = NotionUploader(mock_config)
+    call_count = 0
+
+    async def mock_fn():
+        nonlocal call_count
+        call_count += 1
+        if call_count < 2:
+            request = httpx.Request("POST", "https://api.notion.com/v1/pages")
+            response = httpx.Response(429, headers={"Retry-After": "7"}, request=request)
+            raise httpx.HTTPStatusError("Too Many Requests", request=request, response=response)
+        return "success"
+
+    res = await uploader._safe_notion_call(mock_fn, max_retries=3)
+    assert res == "success"
+    assert call_count == 2
+    mock_sleep.assert_awaited_once_with(7)
 
 
 @pytest.mark.asyncio

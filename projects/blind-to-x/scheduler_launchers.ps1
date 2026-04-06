@@ -73,14 +73,16 @@ import sys
 
 PROJECT_ROOT = r"$projectRoot"
 SCRIPT_PATH = os.path.join(PROJECT_ROOT, "run_scheduled.py")
-PYTHON = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Python", "pythoncore-3.14-64", "python.exe")
+UV = os.path.join(PROJECT_ROOT, "..", "..", "venv", "Scripts", "uv.exe")
 
-if not os.path.exists(PYTHON):
-    PYTHON = sys.executable
+if not os.path.exists(UV):
+    # Fallback if uv is somehow missing, try finding it
+    import shutil
+    UV = shutil.which("uv") or "uv"
 
 if __name__ == "__main__":
     os.chdir(PROJECT_ROOT)
-    result = subprocess.run([PYTHON, SCRIPT_PATH], cwd=PROJECT_ROOT)
+    result = subprocess.run([UV, "run", SCRIPT_PATH], cwd=PROJECT_ROOT)
     sys.exit(result.returncode)
 "@
 

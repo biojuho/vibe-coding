@@ -74,7 +74,7 @@ class TestEmbeddingCache:
         db_path.write_text("not a sqlite database")
         # Should handle gracefully
         try:
-            cache = _EmbeddingCache(db_path=db_path)
+            _EmbeddingCache(db_path=db_path)
         except Exception:
             pass  # init may fail, that's fine
 
@@ -158,6 +158,7 @@ class TestBuildMinhash:
     def test_builds_minhash(self):
         try:
             from datasketch import MinHash
+
             result = _build_minhash({"연봉", "적다"})
             assert result is not None
             assert isinstance(result, MinHash)
@@ -185,15 +186,17 @@ class TestFindSimilarInNotion:
         """When search_pages_by_title exists and returns results."""
         monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
         mock_notion = MagicMock()
-        mock_notion.search_pages_by_title = AsyncMock(return_value=[
-            {"id": "p1", "properties": {}},
-        ])
+        mock_notion.search_pages_by_title = AsyncMock(
+            return_value=[
+                {"id": "p1", "properties": {}},
+            ]
+        )
         # Use near-identical title to ensure similarity >= threshold (0.6)
         mock_notion.get_page_property_value = MagicMock(return_value="연봉 협상 실패했어요 후기")
 
-        result = asyncio.run(find_similar_in_notion(
-            mock_notion, "연봉 협상 실패했어요", threshold=0.3, use_semantic=False
-        ))
+        result = asyncio.run(
+            find_similar_in_notion(mock_notion, "연봉 협상 실패했어요", threshold=0.3, use_semantic=False)
+        )
         mock_notion.search_pages_by_title.assert_called_once()
         assert len(result) >= 1
         assert result[0]["similarity"] > 0.3
@@ -203,14 +206,14 @@ class TestFindSimilarInNotion:
         monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
         mock_notion = MagicMock()
         mock_notion.search_pages_by_title = AsyncMock(return_value=[])
-        mock_notion.get_recent_pages = AsyncMock(return_value=[
-            {"id": "p2"},
-        ])
+        mock_notion.get_recent_pages = AsyncMock(
+            return_value=[
+                {"id": "p2"},
+            ]
+        )
         mock_notion.get_page_property_value = MagicMock(return_value="완전 다른 주제")
 
-        result = asyncio.run(find_similar_in_notion(
-            mock_notion, "연봉 협상 실패했어요", use_semantic=False
-        ))
+        asyncio.run(find_similar_in_notion(mock_notion, "연봉 협상 실패했어요", use_semantic=False))
         mock_notion.get_recent_pages.assert_called_once()
 
     def test_recent_pages_exception(self, monkeypatch):
@@ -220,23 +223,23 @@ class TestFindSimilarInNotion:
         mock_notion.search_pages_by_title = AsyncMock(return_value=[])
         mock_notion.get_recent_pages = AsyncMock(side_effect=Exception("네트워크 오류"))
 
-        result = asyncio.run(find_similar_in_notion(
-            mock_notion, "연봉 협상 실패했어요", use_semantic=False
-        ))
+        result = asyncio.run(find_similar_in_notion(mock_notion, "연봉 협상 실패했어요", use_semantic=False))
         assert result == []
 
     def test_no_matching_pages(self, monkeypatch):
         """All pages have completely different titles."""
         monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
         mock_notion = MagicMock()
-        mock_notion.search_pages_by_title = AsyncMock(return_value=[
-            {"id": "p1"},
-        ])
+        mock_notion.search_pages_by_title = AsyncMock(
+            return_value=[
+                {"id": "p1"},
+            ]
+        )
         mock_notion.get_page_property_value = MagicMock(return_value="고양이 사진 모음")
 
-        result = asyncio.run(find_similar_in_notion(
-            mock_notion, "연봉 협상 실패했어요", threshold=0.6, use_semantic=False
-        ))
+        result = asyncio.run(
+            find_similar_in_notion(mock_notion, "연봉 협상 실패했어요", threshold=0.6, use_semantic=False)
+        )
         assert result == []
 
     def test_empty_existing_title_skipped(self, monkeypatch):
@@ -246,9 +249,7 @@ class TestFindSimilarInNotion:
         mock_notion.search_pages_by_title = AsyncMock(return_value=[{"id": "p1"}])
         mock_notion.get_page_property_value = MagicMock(return_value="")
 
-        result = asyncio.run(find_similar_in_notion(
-            mock_notion, "연봉 협상 실패했어요", use_semantic=False
-        ))
+        result = asyncio.run(find_similar_in_notion(mock_notion, "연봉 협상 실패했어요", use_semantic=False))
         assert result == []
 
 

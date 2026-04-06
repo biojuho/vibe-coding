@@ -62,12 +62,15 @@ async def run_generate_review_stage(
 
     max_qg_retries = 2
     qg_retry_count = 0
+    components_loaded: list[str] = []
 
     if isinstance(drafts, dict):
         for qg_attempt in range(max_qg_retries + 1):
             try:
                 from pipeline.draft_quality_gate import DraftQualityGate
 
+                if qg_attempt == 0:
+                    components_loaded.append("DraftQualityGate")
                 quality_gate = DraftQualityGate()
                 qg_results = quality_gate.validate_all(drafts)
                 qg_summary = quality_gate.format_summary(qg_results)
@@ -124,7 +127,7 @@ async def run_generate_review_stage(
                     continue
                 break
             except Exception as exc:
-                logger.debug("Quality gate skipped: %s", exc)
+                logger.warning("[generate_review] DraftQualityGate unavailable: %s", exc)
                 break
 
     ctx.post_data["quality_gate_retries"] = qg_retry_count
@@ -135,6 +138,7 @@ async def run_generate_review_stage(
         try:
             from pipeline.editorial_reviewer import EditorialReviewer
 
+            components_loaded.append("EditorialReviewer")
             reviewer = EditorialReviewer(config=config)
             editorial_result = await reviewer.review_and_polish(drafts, ctx.post_data)
             drafts = editorial_result.polished_drafts
@@ -149,11 +153,12 @@ async def run_generate_review_stage(
                     len(editorial_result.original_drafts),
                 )
         except Exception as exc:
-            logger.debug("Editorial review skipped: %s", exc)
+            logger.warning("[generate_review] EditorialReviewer unavailable: %s", exc)
 
         try:
             from pipeline.fact_checker import verify_facts
 
+            components_loaded.append("FactChecker")
             source_content = str(ctx.post_data.get("content", ""))
             for platform, draft_text in iter_publishable_drafts(drafts):
                 fact_check = verify_facts(source_content, draft_text)
@@ -166,11 +171,12 @@ async def run_generate_review_stage(
                     )
                     ctx.post_data.setdefault("fact_check_warnings", {})[platform] = fact_check.fabricated_items
         except Exception as exc:
-            logger.debug("Fact checker skipped: %s", exc)
+            logger.warning("[generate_review] FactChecker unavailable: %s", exc)
 
         try:
             from pipeline.text_polisher import TextPolisher
 
+            components_loaded.append("TextPolisher")
             polisher = TextPolisher(fix_spacing=False, fix_typo=False)
             if polisher.available:
                 readability_scores = {}
@@ -180,11 +186,12 @@ async def run_generate_review_stage(
                     ctx.post_data["readability_scores"] = readability_scores
                     logger.info("[Readability] %s", readability_scores)
         except Exception as exc:
-            logger.debug("Readability scoring skipped: %s", exc)
+            logger.warning("[generate_review] TextPolisher unavailable: %s", exc)
 
         try:
             from pipeline.draft_validator import validate_and_fix_drafts
 
+            components_loaded.append("DraftValidator")
             drafts = await validate_and_fix_drafts(
                 drafts,
                 ctx.post_data,
@@ -192,7 +199,11 @@ async def run_generate_review_stage(
                 config=config,
             )
         except Exception as exc:
-            logger.debug("Quality gate skipped: %s", exc)
+            logger.warning("[generate_review] DraftValidator unavailable: %s", exc)
+
+    ctx.result["components_loaded"] = components_loaded
+    if components_loaded:
+        logger.debug("[generate_review] loaded components: %s", components_loaded)
 
     ctx.drafts = drafts
     ctx.image_prompt = image_prompt

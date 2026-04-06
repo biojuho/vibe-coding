@@ -57,14 +57,16 @@ class TestAnalyzeEmotions:
 
     def test_classifier_returns_results(self):
         fake_clf = MagicMock()
-        fake_clf.return_value = [[
-            {"label": "화남/분노", "score": 0.92},
-            {"label": "짜증", "score": 0.75},
-            {"label": "슬픔", "score": 0.30},
-            {"label": "기쁨", "score": 0.10},
-            {"label": "놀람", "score": 0.05},
-            {"label": "유머", "score": 0.02},
-        ]]
+        fake_clf.return_value = [
+            [
+                {"label": "화남/분노", "score": 0.92},
+                {"label": "짜증", "score": 0.75},
+                {"label": "슬픔", "score": 0.30},
+                {"label": "기쁨", "score": 0.10},
+                {"label": "놀람", "score": 0.05},
+                {"label": "유머", "score": 0.02},
+            ]
+        ]
         with patch("pipeline.emotion_analyzer._get_classifier", return_value=fake_clf):
             result = analyze_emotions("연봉이 적어서 화가 나요", top_k=3)
             assert len(result) == 3
@@ -77,9 +79,13 @@ class TestAnalyzeEmotions:
             assert analyze_emotions("테스트") == []
 
     def test_text_truncated_to_512(self):
-        fake_clf = MagicMock(return_value=[[
-            {"label": "기쁨", "score": 0.5},
-        ]])
+        fake_clf = MagicMock(
+            return_value=[
+                [
+                    {"label": "기쁨", "score": 0.5},
+                ]
+            ]
+        )
         with patch("pipeline.emotion_analyzer._get_classifier", return_value=fake_clf):
             long_text = "가" * 1000
             analyze_emotions(long_text)
@@ -88,9 +94,11 @@ class TestAnalyzeEmotions:
 
     def test_non_nested_result_returns_empty(self):
         """If classifier returns non-list of list format → empty."""
-        fake_clf = MagicMock(return_value=[
-            {"label": "기쁨", "score": 0.5},
-        ])
+        fake_clf = MagicMock(
+            return_value=[
+                {"label": "기쁨", "score": 0.5},
+            ]
+        )
         with patch("pipeline.emotion_analyzer._get_classifier", return_value=fake_clf):
             result = analyze_emotions("테스트")
             # results[0] is a dict, not a list → should return []

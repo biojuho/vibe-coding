@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import uuid
+from dataclasses import dataclass
+from typing import Any, Optional
 
 from config import (
     ERROR_DUPLICATE_CONTENT,
@@ -13,6 +16,7 @@ from config import (
     ERROR_FILTERED_SPAM,
     ERROR_NOTION_DUPLICATE_CHECK_FAILED,
     ERROR_NOTION_SCHEMA_MISMATCH,
+    ERROR_SCRAPE_FAILED,
     ERROR_SCRAPE_FEED_FAILED,
     ERROR_SCRAPE_PARSE_FAILED,
 )
@@ -22,11 +26,14 @@ from pipeline.process_stages.fetch_stage import run_fetch_stage
 from pipeline.process_stages.filter_profile_stage import run_filter_profile_stage as run_filter_stage
 from pipeline.process_stages.generate_review_stage import run_generate_review_stage as run_generate_stage
 from pipeline.process_stages.persist_stage import run_persist_stage
-from pipeline.process_stages import runtime as _stage_runtime
 from pipeline.process_stages import filter_profile_stage as _filter_stage_module
+from pipeline.process_stages import runtime as _stage_runtime
 from pipeline.process_stages.runtime import SPAM_KEYWORDS, extract_preferred_tweet_text
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_FETCH_STAGE_TIMEOUT_SECONDS = 30
+DEFAULT_PROCESS_TIMEOUT_SECONDS = 180
 
 # P6: 성과 피드백 루프 (선택적 — 실패 시 무시)
 try:
@@ -36,45 +43,69 @@ try:
 except Exception:
     _perf_tracker = None
 
-# 파이프라인 에러 자동 캡처 (debug_history_db 연동)
-try:
-    import importlib.util as _ilu
-    import pathlib as _pl
-
-    _spec = _ilu.spec_from_file_location(
-        "workspace.execution.debug_history_db",
-        _pl.Path(__file__).resolve().parents[3] / "workspace" / "execution" / "debug_history_db.py",
-    )
-    _dbmod = _ilu.module_from_spec(_spec)  # type: ignore[arg-type]
-    _spec.loader.exec_module(_dbmod)  # type: ignore[union-attr]
-    _auto_log_error = _dbmod.auto_log_error
-except Exception:
-    _auto_log_error = None  # type: ignore[assignment]
-
-# Backward-compatible globals kept for test monkeypatches and runtime overrides.
-_ViralFilterCls = _stage_runtime._ViralFilterCls
-_viral_filter_instance = _stage_runtime._viral_filter_instance
-_sentiment_tracker = _stage_runtime.sentiment_tracker
-_nlm_enrich = _stage_runtime.notebooklm_enricher
+# Backward-compatible globals kept for external consumers / test monkeypatches.
+# These now point directly into the runtime module — no sync needed.
 build_content_profile = _filter_stage_module.build_content_profile
 build_review_decision = _filter_stage_module.build_review_decision
 
 
-def _sync_runtime_overrides() -> None:
-    """Propagate process-level monkeypatches into the staged runtime."""
+def _config_int(config: Any, key: str, default: int) -> int:
+    if config is None or not hasattr(config, "get"):
+        return default
 
-    _stage_runtime._ViralFilterCls = _ViralFilterCls
-    _stage_runtime._viral_filter_instance = _viral_filter_instance
-    _stage_runtime.sentiment_tracker = _sentiment_tracker
-    _stage_runtime.notebooklm_enricher = _nlm_enrich
-    _filter_stage_module.build_content_profile = build_content_profile
-    _filter_stage_module.build_review_decision = build_review_decision
+    try:
+        value = config.get(key, default)
+        parsed = int(value)
+        return parsed if parsed > 0 else default
+    except Exception:
+        return default
+
+
+def _resolve_fetch_timeout(config: Any) -> int:
+    return _config_int(
+        config,
+        "pipeline.fetch_timeout_seconds",
+        max(
+            DEFAULT_FETCH_STAGE_TIMEOUT_SECONDS,
+            _config_int(config, "request.timeout_seconds", DEFAULT_FETCH_STAGE_TIMEOUT_SECONDS) + 10,
+        ),
+    )
+
+
+def _resolve_process_timeout(config: Any) -> int:
+    return _config_int(
+        config,
+        "pipeline.process_timeout_seconds",
+        max(
+            DEFAULT_PROCESS_TIMEOUT_SECONDS,
+            _resolve_fetch_timeout(config) + _config_int(config, "llm.request_timeout_seconds", 45) + 60,
+        ),
+    )
+
+
+def _current_running_stage(ctx: ProcessRunContext) -> str:
+    for stage_name, stage_info in reversed(list(ctx.stage_status.items())):
+        if stage_info.get("status") == "running":
+            return stage_name
+    return "pipeline"
+
+
+@dataclass
+class PipelineServices:
+    """오케스트레이터 및 각 스테이지에 필요한 외부 의존성(Clients) 컨테이너"""
+
+    scraper: Any
+    image_uploader: Any
+    image_generator: Optional[Any] = None
+    draft_generator: Optional[Any] = None
+    notion_uploader: Optional[Any] = None
+    twitter_poster: Optional[Any] = None
 
 
 async def process_single_post(
     url,
-    scraper,
-    image_uploader,
+    scraper=None,
+    image_uploader=None,
     image_generator=None,
     draft_generator=None,
     notion_uploader=None,
@@ -86,16 +117,38 @@ async def process_single_post(
     feed_mode=None,
     review_only=False,
     post_data_hint=None,
+    services: Optional[PipelineServices] = None,
 ):
+    # 하위 호환성 및 명시적 의존성 묶음 적용
+    if services:
+        scraper = services.scraper
+        image_uploader = services.image_uploader
+        image_generator = services.image_generator
+        draft_generator = services.draft_generator
+        notion_uploader = services.notion_uploader
+        twitter_poster = services.twitter_poster
     trace_id = uuid.uuid4().hex[:8]
     result = build_process_result(url, trace_id)
     ctx = ProcessRunContext(url=url, trace_id=trace_id, result=result)
-    _sync_runtime_overrides()
+    fetch_timeout_seconds = _resolve_fetch_timeout(config)
+    process_timeout_seconds = _resolve_process_timeout(config)
 
-    try:
+    async def _run_pipeline() -> dict[str, Any]:
         if not await run_dedup_stage(ctx, notion_uploader, config, post_data_hint):
             return result
-        if not await run_fetch_stage(ctx, scraper, source_name, feed_mode):
+        try:
+            fetch_ok = await asyncio.wait_for(
+                run_fetch_stage(ctx, scraper, source_name, feed_mode),
+                timeout=fetch_timeout_seconds,
+            )
+        except asyncio.TimeoutError:
+            ctx.result["error"] = f"Fetch stage timed out after {fetch_timeout_seconds}s"
+            ctx.result["error_code"] = ERROR_SCRAPE_FAILED
+            ctx.result["failure_stage"] = "post_fetch"
+            ctx.result["failure_reason"] = "fetch_timeout"
+            mark_stage(ctx, "fetch", "failed", "fetch_timeout")
+            return result
+        if not fetch_ok:
             return result
         if not await run_filter_stage(ctx, scraper, config, top_tweets, review_only=review_only):
             return result
@@ -118,6 +171,17 @@ async def process_single_post(
             review_only,
         ):
             return result
+        return result
+
+    try:
+        await asyncio.wait_for(_run_pipeline(), timeout=process_timeout_seconds)
+    except asyncio.TimeoutError:
+        running_stage = _current_running_stage(ctx)
+        result["error"] = f"Process timed out after {process_timeout_seconds}s"
+        result["error_code"] = "PROCESS_TIMEOUT"
+        result["failure_stage"] = running_stage
+        result["failure_reason"] = "process_timeout"
+        mark_stage(ctx, running_stage, "failed", "process_timeout")
     except Exception as exc:  # pragma: no cover - defensive fallback
         logger.error("Error processing %s: %s", url, exc)
         result["error"] = str(exc)
@@ -128,11 +192,8 @@ async def process_single_post(
             if stage_info.get("status") == "running":
                 mark_stage(ctx, stage_name, "failed", "internal_exception")
                 break
-        if _auto_log_error is not None:
-            _auto_log_error(exc, module="blind-to-x/process", context=url[:80])
-    finally:
-        global _viral_filter_instance
-        _viral_filter_instance = _stage_runtime._viral_filter_instance
+        if _stage_runtime.auto_log_error is not None:
+            _stage_runtime.auto_log_error(exc, module="blind-to-x/process", context=url[:80])
 
     return result
 

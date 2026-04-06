@@ -14,13 +14,21 @@ from pipeline.notebooklm_enricher import (
     _write_article,
 )
 
+
 @pytest.fixture(autouse=True)
 def clean_env():
     # Remove env vars to have clean state
-    for k in ["NOTEBOOKLM_ENABLED", "NOTEBOOKLM_MODE", "NOTEBOOKLM_TIMEOUT", "GOOGLE_DRIVE_FOLDER_ID", "NOTEBOOKLM_CONTENT_PROJECT"]:
+    for k in [
+        "NOTEBOOKLM_ENABLED",
+        "NOTEBOOKLM_MODE",
+        "NOTEBOOKLM_TIMEOUT",
+        "GOOGLE_DRIVE_FOLDER_ID",
+        "NOTEBOOKLM_CONTENT_PROJECT",
+    ]:
         if k in os.environ:
             del os.environ[k]
     yield
+
 
 @pytest.mark.asyncio
 async def test_enrich_disabled():
@@ -28,6 +36,7 @@ async def test_enrich_disabled():
     res = await enrich_post_with_assets("topic")
     assert not res.has_assets
     assert len(res.errors) == 0
+
 
 @pytest.mark.asyncio
 @patch.dict(os.environ, {"NOTEBOOKLM_ENABLED": "true", "NOTEBOOKLM_TIMEOUT": "1"})
@@ -41,6 +50,7 @@ async def test_enrich_timeout():
         assert not res.has_assets
         assert any("타임아웃" in e for e in res.errors)
 
+
 @pytest.mark.asyncio
 @patch.dict(os.environ, {"NOTEBOOKLM_ENABLED": "true"})
 async def test_enrich_exception():
@@ -51,6 +61,7 @@ async def test_enrich_exception():
         res = await enrich_post_with_assets("topic")
         assert not res.has_assets
         assert any("Intentional crash" in e for e in res.errors)
+
 
 @pytest.mark.asyncio
 @patch.dict(os.environ, {"NOTEBOOKLM_ENABLED": "true"})
@@ -65,44 +76,52 @@ async def test_enrich_success():
         assert res.has_assets
         assert res.article == "Here is the article"
 
+
 @pytest.mark.asyncio
 @patch.dict(os.environ, {"NOTEBOOKLM_ENABLED": "true", "NOTEBOOKLM_MODE": "topic"})
 async def test_run_enricher_topic_mode():
     assets = NotebookLMAssets("test_topic")
 
     with patch("pipeline.notebooklm_enricher._write_article") as mock_write:
+
         def fake_write(a, t):
             a.article = "written"
             return a
+
         mock_write.side_effect = fake_write
 
         res = await _run_enricher("test_topic", assets)
         assert res.source_text.startswith("주제: test_topic")
         assert res.article == "written"
+
 
 @pytest.mark.asyncio
 @patch.dict(os.environ, {"NOTEBOOKLM_ENABLED": "true", "NOTEBOOKLM_MODE": "gdrive"})
 async def test_run_enricher_gdrive_fallback():
     assets = NotebookLMAssets("test_topic")
 
-    with patch("pipeline.notebooklm_enricher._gdrive_extract") as mock_extract, \
-         patch("pipeline.notebooklm_enricher._write_article") as mock_write:
-
+    with (
+        patch("pipeline.notebooklm_enricher._gdrive_extract") as mock_extract,
+        patch("pipeline.notebooklm_enricher._write_article") as mock_write,
+    ):
         # gdrive fails
         def fake_extract(a):
             a.errors.append("gdrive failed")
             return a
+
         mock_extract.side_effect = fake_extract
 
         def fake_write(a, t):
             a.article = "written"
             return a
+
         mock_write.side_effect = fake_write
 
         res = await _run_enricher("test_topic", assets)
         # Should fallback to topic mode
         assert res.source_text.startswith("주제: test_topic")
         assert res.article == "written"
+
 
 @patch.dict(os.environ, {"GOOGLE_DRIVE_FOLDER_ID": "f123"})
 def test_gdrive_extract_success():
@@ -117,10 +136,12 @@ def test_gdrive_extract_success():
         assert res.source_text == "pdf content"
         assert res.drive_url == "http://"
 
+
 def test_load_module_not_exists():
     path_mock = MagicMock()
     path_mock.exists.return_value = False
     assert _load_module("name", path_mock) is None
+
 
 def test_write_article_success():
     a = NotebookLMAssets("test")
@@ -135,6 +156,7 @@ def test_write_article_success():
         assert res.article_title == "my title"
         assert res.ai_provider == "openai"
         assert len(res.errors) == 0
+
 
 def test_write_article_no_module():
     a = NotebookLMAssets("test")

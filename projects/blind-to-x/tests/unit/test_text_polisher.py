@@ -13,6 +13,7 @@ from pipeline.text_polisher import (
 )
 import pipeline.text_polisher as tp
 
+
 @pytest.fixture(autouse=True)
 def reset_kiwi_state():
     """Reset global kiwi state before each test."""
@@ -22,11 +23,13 @@ def reset_kiwi_state():
     tp._kiwi_instance = None
     tp._kiwi_load_attempted = False
 
+
 def test_get_kiwi_fallback():
     with patch("pipeline.text_polisher.kiwipiepy", None, create=True):
         # Even if kiwipiepy isn't there, it shouldn't crash
         # Actually importing kiwipiepy will raise ImportError
         import builtins
+
         real_import = builtins.__import__
 
         def mock_import(name, *args, **kwargs):
@@ -39,6 +42,7 @@ def test_get_kiwi_fallback():
             assert kiwi is None
             assert tp._kiwi_load_attempted is True
 
+
 def test_split_sentences_fallback():
     with patch("pipeline.text_polisher._get_kiwi", return_value=None):
         sents = _split_sentences("안녕하세요. 반갑습니다! 내일 봐요.")
@@ -47,15 +51,18 @@ def test_split_sentences_fallback():
         assert sents[1] == "반갑습니다!"
         assert sents[2] == "내일 봐요."
 
+
 def test_fix_spacing_fallback():
     with patch("pipeline.text_polisher._get_kiwi", return_value=None):
         res = _fix_spacing("안녕 하세요")
         assert res == "안녕 하세요"  # No change without kiwi
 
+
 def test_fix_typos_fallback():
     with patch("pipeline.text_polisher._get_kiwi", return_value=None):
         res = _fix_typos("오랫만이야")
         assert res == "오랫만이야"  # No change
+
 
 def test_compute_readability_fallback():
     with patch("pipeline.text_polisher._get_kiwi", return_value=None):
@@ -65,10 +72,12 @@ def test_compute_readability_fallback():
         assert res["avg_sentence_length"] > 0
         assert res["sino_korean_ratio"] == 0.0
 
+
 def test_polish_text_empty():
     res = polish_text("   ")
     assert res.text == "   "
     assert res.original == "   "
+
 
 def test_text_polisher_class():
     with patch("pipeline.text_polisher._get_kiwi", return_value=None):
@@ -77,6 +86,7 @@ def test_text_polisher_class():
         res = polisher.polish("테스트입니다.")
         assert res.original == "테스트입니다."
         assert polisher.compute_readability("안녕") > 0
+
 
 @patch("pipeline.text_polisher._get_kiwi")
 def test_kiwi_available_path(mock_get_kiwi):

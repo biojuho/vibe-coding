@@ -28,12 +28,18 @@ def _load_rules() -> dict:
 
 
 def _yaml_rules_to_tuples(key: str, fallback: list[tuple]) -> list[tuple[str, tuple[str, ...]]]:
-    """YAML rules list → (label, keywords_tuple) 리스트 변환. 실패 시 fallback 반환."""
+    """YAML rules list → (label, keywords_tuple) 리스트 변환. 실패 시 fallback 반환.
+
+    YAML 엔트리가 dict가 아닌 경우(str/int/None 등) 안전하게 건너뜀.
+    """
     rules = _load_rules().get(key, [])
-    if not rules:
+    if not rules or not isinstance(rules, list):
         return fallback
     result = []
     for entry in rules:
+        if not isinstance(entry, dict):
+            logger.debug("_yaml_rules_to_tuples(%s): non-dict entry skipped: %r", key, entry)
+            continue
         label = entry.get("label", "")
         keywords = tuple(entry.get("keywords", []))
         if label and keywords:
@@ -241,8 +247,12 @@ def _humanize_performance_rationale(labels: list[str]) -> list[str]:
 
 
 def evaluate_candidate_editorial_fit(title: str, source: str = "", content: str = "") -> dict[str, Any]:
+    # None/비문자열 입력 방어 — 외부 스크래퍼 데이터에서 None이 들어올 수 있음
+    title = str(title or "")
+    content = str(content or "")
+    source = str(source or "")
     text = f"{title}\n{content}".strip()
-    normalized_title = (title or "").strip()
+    normalized_title = title.strip()
     topic_cluster = classify_topic_cluster(title, content)
     emotion_axis = classify_emotion_axis(title, content)
     audience_fit = classify_audience_fit(title, content)
@@ -1102,7 +1112,7 @@ def calibrate_weights(days: int = 30, min_rows: int = 30) -> dict[str, float] | 
 
         # 합 정규화
         w_sum = sum(weights.values())
-        weights = {k: round(v / w_sum, 4) for k, v in weights.items()}
+        weights = {k: round(_v / w_sum, 4) for k, _v in weights.items()}
 
         # 저장
         db.save_calibrated_weights(weights)

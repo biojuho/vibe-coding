@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib.util
 import logging
 import os
 import re
@@ -12,6 +11,7 @@ from pathlib import Path
 import aiohttp
 
 logger = logging.getLogger(__name__)
+AI_IMAGE_DOWNLOAD_TIMEOUT = aiohttp.ClientTimeout(total=15, connect=5, sock_read=10)
 
 try:
     from pipeline.sentiment_tracker import get_sentiment_tracker
@@ -38,17 +38,57 @@ try:
 except Exception:
     notebooklm_enricher = None  # type: ignore[assignment]
 
-repo_root = Path(__file__).resolve().parents[4]
-debug_history_path = repo_root / "workspace" / "execution" / "debug_history_db.py"
-try:
-    spec = importlib.util.spec_from_file_location("workspace.execution.debug_history_db", debug_history_path)
-    debug_history_module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
-    spec.loader.exec_module(debug_history_module)  # type: ignore[union-attr]
-    auto_log_error = debug_history_module.auto_log_error
-    log_scrape_quality = debug_history_module.log_scrape_quality
-except Exception:
-    auto_log_error = None  # type: ignore[assignment]
-    log_scrape_quality = None  # type: ignore[assignment]
+
+# ---------------------------------------------------------------------------
+# Debug history DB — optional, workspace-independent integration.
+#
+# Resolution order:
+#   1. BLIND_DEBUG_DB_PATH env-var → load that specific file
+#   2. Search the canonical workspace path (parents[4]/workspace/execution/...)
+#      as a convenience fallback *without* breaking if it doesn't exist.
+#   3. No-op callables if neither is available.
+# ---------------------------------------------------------------------------
+
+auto_log_error = None  # type: ignore[assignment]
+log_scrape_quality = None  # type: ignore[assignment]
+
+
+def _try_load_debug_db() -> None:
+    """Attempt to load debug_history_db and wire up auto_log_error / log_scrape_quality."""
+    global auto_log_error, log_scrape_quality
+
+    import importlib.util as _ilu
+
+    # 1) Explicit env-var path
+    env_path = os.environ.get("BLIND_DEBUG_DB_PATH", "")
+    candidate: Path | None = Path(env_path) if env_path else None
+
+    # 2) Conventional workspace path (best-effort, no error if missing)
+    if candidate is None or not candidate.exists():
+        conventional = Path(__file__).resolve().parents[4] / "workspace" / "execution" / "debug_history_db.py"
+        if conventional.exists():
+            candidate = conventional
+
+    if candidate is None or not candidate.exists():
+        logger.debug("debug_history_db not found — auto_log_error / log_scrape_quality disabled.")
+        return
+
+    try:
+        spec = _ilu.spec_from_file_location("workspace.execution.debug_history_db", candidate)
+        if spec is None:  # [QA 수정] spec_from_file_location이 None을 반환할 수 있음
+            logger.debug("debug_history_db spec could not be created for %s", candidate)
+            return
+        mod = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(mod)  # type: ignore[union-attr]
+        auto_log_error = mod.auto_log_error
+        log_scrape_quality = mod.log_scrape_quality
+        logger.debug("debug_history_db loaded from %s", candidate)
+    except Exception as exc:
+        logger.debug("debug_history_db load failed (non-fatal): %s", exc)
+
+
+_try_load_debug_db()
+
 
 SPAM_KEYWORDS = [
     "추천인",
@@ -127,7 +167,7 @@ async def post_to_twitter(twitter_poster, tweet_text: str, ai_temp_url: str | No
     try:
         if ai_temp_url:
             try:
-                async with aiohttp.ClientSession() as session:
+                async with aiohttp.ClientSession(timeout=AI_IMAGE_DOWNLOAD_TIMEOUT) as session:
                     async with session.get(ai_temp_url) as response:
                         if response.status == 200:
                             image_data = await response.read()

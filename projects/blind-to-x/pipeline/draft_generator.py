@@ -207,32 +207,11 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
 
 
 # ---------------------------------------------------------------------------
-# Backward-compat proxy: tests set ``dg._draft_rules_cache = {...}`` on this
-# module.  The real cache now lives in ``pipeline.draft_prompts``.  We swap
-# ``sys.modules[__name__]`` with a thin wrapper that intercepts get/set of
-# ``_draft_rules_cache`` and delegates to ``pipeline.draft_prompts``.
+# Cache access helper — tests that previously patched `dg._draft_rules_cache`
+# should now patch `pipeline.draft_prompts._draft_rules_cache` directly.
+# [QA 수정] @property는 모듈 수준에서 동작하지 않음 → 단순 모듈 참조 별칭으로 교체.
 # ---------------------------------------------------------------------------
 
-import sys  # noqa: E402
-import types  # noqa: E402
-
-
-class _ProxyModule(types.ModuleType):
-    """Module wrapper proxying ``_draft_rules_cache`` to *draft_prompts*."""
-
-    def __getattr__(self, name: str):
-        if name == "_draft_rules_cache":
-            return _draft_prompts_mod._draft_rules_cache
-        raise AttributeError(f"module {self.__name__!r} has no attribute {name!r}")
-
-    def __setattr__(self, name: str, value):
-        if name == "_draft_rules_cache":
-            _draft_prompts_mod._draft_rules_cache = value
-            return
-        super().__setattr__(name, value)
-
-
-_self = sys.modules[__name__]
-_proxy = _ProxyModule(__name__, __doc__)
-_proxy.__dict__.update({k: v for k, v in _self.__dict__.items() if k not in ("__class__", "__dict__")})
-sys.modules[__name__] = _proxy
+# 읽기 전용 별칭: draft_prompts 모듈의 캐시를 직접 가리킴.
+# 테스트에서 캐시 패칭이 필요하면 pipeline.draft_prompts._draft_rules_cache 를 직접 패치하세요.
+_draft_rules_cache = _draft_prompts_mod._draft_rules_cache

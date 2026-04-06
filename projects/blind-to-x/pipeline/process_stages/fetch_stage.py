@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
-from config import ERROR_SCRAPE_FAILED
+import logging
+
+from config import ERROR_SCRAPE_FAILED, ERROR_SCRAPE_PARSE_FAILED
+from pipeline.models import ScrapedPost
 
 from .context import ProcessRunContext, mark_stage
 from .runtime import log_scrape_quality
+
+logger = logging.getLogger(__name__)
 
 
 async def run_fetch_stage(
@@ -16,7 +21,11 @@ async def run_fetch_stage(
 ) -> bool:
     mark_stage(ctx, "fetch", "running")
 
-    post_data = await scraper.scrape_post(ctx.url)
+    scrape_with_retry = getattr(scraper, "scrape_post_with_retry", None)
+    if callable(scrape_with_retry):
+        post_data = await scrape_with_retry(ctx.url)
+    else:
+        post_data = await scraper.scrape_post(ctx.url)
     if not post_data:
         ctx.result["error"] = "Scraping failed"
         ctx.result["error_code"] = ERROR_SCRAPE_FAILED
@@ -36,8 +45,20 @@ async def run_fetch_stage(
     post_data["source"] = source_name or post_data.get("source") or "blind"
     post_data["feed_mode"] = feed_mode or post_data.get("feed_mode") or "trending"
 
-    ctx.post_data = post_data
-    ctx.content_text = post_data.get("content", "")
+    # Pydantic을 이용한 데이터 무결성 검증 (V2.0 Phase 1)
+    try:
+        validated_data = ScrapedPost(**post_data)
+        ctx.post_data = validated_data.dict()
+    except Exception as v_err:
+        logger.error("Scraped data validation failed for %s: %s", ctx.url, v_err)
+        ctx.result["error"] = f"Validation failed: {str(v_err)}"
+        ctx.result["error_code"] = ERROR_SCRAPE_PARSE_FAILED
+        ctx.result["failure_stage"] = "post_fetch_validation"
+        ctx.result["failure_reason"] = "data_validation_error"
+        mark_stage(ctx, "fetch", "failed", "data_validation_error")
+        return False
+
+    ctx.content_text = ctx.post_data.get("content", "")
     ctx.quality = scraper.assess_quality(post_data)
     ctx.result["quality_score"] = ctx.quality["score"]
 

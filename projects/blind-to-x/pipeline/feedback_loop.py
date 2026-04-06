@@ -106,7 +106,7 @@ class FeedbackLoop:
             return {}
 
         # 10%~60% 범위로 클리핑 후 재정규화
-        clipped = [max(0.10, min(0.60, v / total)) for v in raw]
+        clipped = [max(0.10, min(0.60, _v / total)) for _v in raw]
         total_clipped = sum(clipped)
         weights = {
             "scrape_quality": round(clipped[0] / total_clipped, 3),
@@ -226,7 +226,7 @@ class FeedbackLoop:
             combo_c[f"{topic}+{hook}"] += 1
             topic_c[topic] += 1
 
-        risky = [(k, v) for k, v in combo_c.most_common(10) if v >= min_occurrences]
+        risky = [(k, _v) for k, _v in combo_c.most_common(10) if _v >= min_occurrences]
 
         # 자동 필터 규칙 생성
         auto_filters = []

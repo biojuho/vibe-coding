@@ -61,12 +61,17 @@ RETRAIN_THRESHOLD = int(os.environ.get("BTX_ML_RETRAIN_ROWS", "20"))
 
 
 def _load_training_data() -> tuple[list[dict], int]:
-    """Load draft_analytics rows from CostDatabase. Returns (rows, total_count)."""
+    """Load draft_analytics rows from CostDatabase. Returns (rows, total_count).
+
+    DB 타임아웃 5초 설정으로 데드락/느린 쿼리 시 파이프라인 전체 블록 방지.
+    """
     try:
         from pipeline.cost_db import CostDatabase
 
         db = CostDatabase()
         with db._conn() as conn:
+            # SQLite busy_timeout 설정: 5초 이상 락 대기 방지
+            conn.execute("PRAGMA busy_timeout = 5000")
             rows = conn.execute(
                 """SELECT topic_cluster, hook_type, emotion_axis, draft_style,
                           provider_used, final_rank_score, published,
@@ -101,7 +106,7 @@ def _build_feature_matrix(rows: list[dict], use_views: bool = False):
             cat_values[col].add(val)
 
     # Sort for determinism
-    cat_sorted: dict[str, list] = {c: sorted(v) for c, v in cat_values.items()}
+    cat_sorted: dict[str, list] = {c: sorted(_v) for c, _v in cat_values.items()}
 
     X, y = [], []
     feature_names: list[str] = []
@@ -115,14 +120,22 @@ def _build_feature_matrix(rows: list[dict], use_views: bool = False):
         vec = []
         for col in cat_cols:
             val = row.get(col) or "unknown"
-            for v in cat_sorted[col]:
-                vec.append(1 if val == v else 0)
-        vec.append(float(row.get("final_rank_score") or 0.0))
+            for _v in cat_sorted[col]:
+                vec.append(1 if val == _v else 0)
+        # 안전한 float 변환 — DB 오염 데이터("N/A", None 등) 방어
+        try:
+            rank_val = float(row.get("final_rank_score") or 0.0)
+        except (ValueError, TypeError):
+            rank_val = 0.0
+        vec.append(rank_val)
         X.append(vec)
-        if use_views:
-            y.append(math.log1p(float(row.get("yt_views") or 0.0)))
-        else:
-            y.append(int(row.get("published") or 0))
+        try:
+            if use_views:
+                y.append(math.log1p(float(row.get("yt_views") or 0.0)))
+            else:
+                y.append(int(row.get("published") or 0))
+        except (ValueError, TypeError):
+            y.append(0)
 
     return X, y, feature_names, cat_sorted
 
@@ -166,8 +179,8 @@ class _ModelBundle:
         vec = []
         for col in cat_cols:
             val = inputs[col]
-            for v in self.cat_sorted.get(col, []):
-                vec.append(1 if val == v else 0)
+            for _v in self.cat_sorted.get(col, []):
+                vec.append(1 if val == _v else 0)
         vec.append(float(final_rank_score))
         return vec
 
@@ -209,6 +222,7 @@ class MLScorer:
         self._lock = threading.Lock()
         self._bundle: _ModelBundle | None = None
         self._last_row_count: int = 0
+        self._heuristic_row_count: int = 0  # 마지막 heuristic fallback 시 DB row 수 캐시
         self._load_or_train()
 
     def _load_or_train(self) -> None:
@@ -265,6 +279,7 @@ class MLScorer:
           - 100+ rows: GradientBoosting (full tier)
         """
         rows, count = _load_training_data()
+        self._heuristic_row_count = count  # DB row 수 캐시 (predict_score 에서 재조회 방지)
         if count < MIN_LOGISTIC_ROWS:
             logger.info(
                 "MLScorer: not enough data (%d/%d rows). Using heuristic fallback.",
@@ -368,15 +383,16 @@ class MLScorer:
     ) -> tuple[float, dict[str, Any]]:
         """Return (score 0–100, metadata dict).
 
-        Returns (None, {"method": "heuristic"}) when ML model not available.
+        Returns (0.0, {"method": "heuristic"}) when ML model not available.
         Caller should fall back to calculate_performance_score() in that case.
         """
         if self._bundle is None:
-            _, current_count = _load_training_data()
+            # 캐시된 row count 사용 — 매 호출마다 DB 조회 방지
+            cached_count = self._heuristic_row_count
             return 0.0, {
                 "method": "heuristic",
                 "model_tier": "heuristic",
-                "reason": f"insufficient_data ({current_count}/{MIN_LOGISTIC_ROWS})",
+                "reason": f"insufficient_data ({cached_count}/{MIN_LOGISTIC_ROWS})",
             }
 
         try:

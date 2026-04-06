@@ -97,10 +97,12 @@ class TestFetchManualWinners:
     @patch("pipeline.ab_feedback_loop.ImageABTester")
     def test_pages_without_topic(self, _):
         """Winner selected but no topic → ignored."""
-        page = {"properties": {
-            "A/B 위너": {"type": "select", "select": {"name": "공감형"}},
-            "토픽 클러스터": {"type": "select", "select": None},
-        }}
+        page = {
+            "properties": {
+                "A/B 위너": {"type": "select", "select": {"name": "공감형"}},
+                "토픽 클러스터": {"type": "select", "select": None},
+            }
+        }
         loop = ABFeedbackLoop(MagicMock(), FakeConfig())
         result = asyncio.run(loop.fetch_manual_winners([page]))
         assert result == {}
@@ -108,10 +110,12 @@ class TestFetchManualWinners:
     @patch("pipeline.ab_feedback_loop.ImageABTester")
     def test_dict_style_ab_prop(self, _):
         """Non-standard dict format with 'name' key directly."""
-        page = {"properties": {
-            "A/B 위너": {"name": "유머형"},
-            "토픽 클러스터": {"type": "select", "select": {"name": "야근"}},
-        }}
+        page = {
+            "properties": {
+                "A/B 위너": {"name": "유머형"},
+                "토픽 클러스터": {"type": "select", "select": {"name": "야근"}},
+            }
+        }
         loop = ABFeedbackLoop(MagicMock(), FakeConfig())
         result = asyncio.run(loop.fetch_manual_winners([page]))
         assert result == {"야근": "유머형"}
@@ -154,10 +158,15 @@ class TestRunFeedbackLoop:
         manual_page = _make_notion_page(ab_winner="논쟁형", topic_cluster="연봉")
         notion = MagicMock()
         notion.get_recent_pages = AsyncMock(return_value=[manual_page])
-        notion.extract_page_record = MagicMock(return_value={
-            "views": 500, "likes": 30, "retweets": 10,
-            "topic_cluster": "연봉", "chosen_draft_type": "공감형",
-        })
+        notion.extract_page_record = MagicMock(
+            return_value={
+                "views": 500,
+                "likes": 30,
+                "retweets": 10,
+                "topic_cluster": "연봉",
+                "chosen_draft_type": "공감형",
+            }
+        )
 
         loop = ABFeedbackLoop(notion, FakeConfig())
         result = asyncio.run(loop.run_feedback_loop(days=7))
@@ -188,10 +197,15 @@ class TestRunFeedbackLoop:
 
         # Mock AB tester to return a winner
         from pipeline.image_ab_tester import ABTestResult
+
         mock_tester = MagicMock()
         mock_tester.compare_results.return_value = ABTestResult(
-            test_id="test1", topic_cluster="이직", emotion_axis="공감",
-            variants=[], winner="공감형", winner_reason="높은 참여율",
+            test_id="test1",
+            topic_cluster="이직",
+            emotion_axis="공감",
+            variants=[],
+            winner="공감형",
+            winner_reason="높은 참여율",
         )
         mock_tester_cls.return_value = mock_tester
 
@@ -211,10 +225,15 @@ class TestRunFeedbackLoop:
         p1 = _make_notion_page(topic_cluster="야근")
         notion = MagicMock()
         notion.get_recent_pages = AsyncMock(return_value=[p1])
-        notion.extract_page_record = MagicMock(return_value={
-            "views": 500, "likes": 20, "retweets": 5,
-            "topic_cluster": "야근", "chosen_draft_type": "공감형",
-        })
+        notion.extract_page_record = MagicMock(
+            return_value={
+                "views": 500,
+                "likes": 20,
+                "retweets": 5,
+                "topic_cluster": "야근",
+                "chosen_draft_type": "공감형",
+            }
+        )
 
         loop = ABFeedbackLoop(notion, FakeConfig())
         result = asyncio.run(loop.run_feedback_loop(days=7))
@@ -238,10 +257,15 @@ class TestRunFeedbackLoop:
         notion.extract_page_record = MagicMock(side_effect=records)
 
         from pipeline.image_ab_tester import ABTestResult
+
         mock_tester = MagicMock()
         mock_tester.compare_results.return_value = ABTestResult(
-            test_id="test2", topic_cluster="", emotion_axis="",
-            variants=[], winner=None, winner_reason="차이 미미",
+            test_id="test2",
+            topic_cluster="",
+            emotion_axis="",
+            variants=[],
+            winner=None,
+            winner_reason="차이 미미",
         )
         mock_tester_cls.return_value = mock_tester
 

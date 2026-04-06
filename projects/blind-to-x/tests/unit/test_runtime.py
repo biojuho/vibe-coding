@@ -1,4 +1,5 @@
 """Tests for pipeline.process_stages.runtime — 57% → 80%+ coverage target."""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -55,6 +56,7 @@ class TestExtractPreferredTweet:
 class TestPostToTwitter:
     def test_disabled_poster(self):
         import asyncio
+
         poster = MagicMock()
         poster.enabled = False
         result = asyncio.run(post_to_twitter(poster, "text", None, None))
@@ -62,11 +64,13 @@ class TestPostToTwitter:
 
     def test_none_poster(self):
         import asyncio
+
         result = asyncio.run(post_to_twitter(None, "text", None, None))
         assert result is None
 
     def test_empty_text(self):
         import asyncio
+
         poster = MagicMock()
         poster.enabled = True
         result = asyncio.run(post_to_twitter(poster, "", None, None))
@@ -74,6 +78,7 @@ class TestPostToTwitter:
 
     def test_with_screenshot(self):
         import asyncio
+
         poster = MagicMock()
         poster.enabled = True
         poster.post_tweet = AsyncMock(return_value={"id": "t123"})
@@ -113,12 +118,14 @@ class TestPostToTwitter:
 class TestGetViralFilter:
     def test_returns_none_no_config(self):
         import pipeline.process_stages.runtime as rt
+
         rt._viral_filter_instance = None
         result = get_viral_filter(None)
         assert result is None
 
     def test_returns_none_no_class(self):
         import pipeline.process_stages.runtime as rt
+
         original = rt._ViralFilterCls
         rt._ViralFilterCls = None
         rt._viral_filter_instance = None
@@ -130,6 +137,7 @@ class TestGetViralFilter:
 
     def test_creates_instance(self):
         import pipeline.process_stages.runtime as rt
+
         rt._viral_filter_instance = None
         result = get_viral_filter({"viral_filter.enabled": False})
         if rt._ViralFilterCls is not None:

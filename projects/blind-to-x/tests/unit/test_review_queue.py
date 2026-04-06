@@ -51,6 +51,16 @@ def test_build_review_decision_rejects_missing_content():
     assert decision["review_reason"] == "missing_content"
 
 
+def test_build_review_decision_rejects_missing_title():
+    decision = build_review_decision(
+        FakeConfig(),
+        {"title": "", "content": "본문"},
+        {"final_rank_score": 90},
+    )
+    assert decision["should_queue"] is False
+    assert decision["review_reason"] == "missing_title"
+
+
 def test_build_review_decision_rejects_below_threshold():
     decision = build_review_decision(
         FakeConfig(),

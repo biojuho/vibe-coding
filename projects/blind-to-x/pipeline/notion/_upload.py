@@ -147,26 +147,69 @@ class NotionUploadMixin:
                     {
                         "object": "block",
                         "type": "heading_2",
-                        "heading_2": {"rich_text": [{"type": "text", "text": {"content": "콘텐츠 인텔리전스"}}]},
+                        "heading_2": {
+                            "rich_text": [{"type": "text", "text": {"content": "🧠 콘텐츠 인텔리전스 (V2.0)"}}]
+                        },
                     }
                 )
+
+                # ── [V2.0] 핵심 가치 강조 (Callout) ──
+                anchor = analysis.get("empathy_anchor")
+                if anchor:
+                    children.append(
+                        {
+                            "object": "block",
+                            "type": "callout",
+                            "callout": {
+                                "rich_text": [
+                                    {"type": "text", "text": {"content": f"🎯 공감 앵커 (킬링포인트): {anchor}"}}
+                                ],
+                                "icon": {"type": "emoji", "emoji": "🎯"},
+                                "color": "blue_background",
+                            },
+                        }
+                    )
+
+                spinoff = analysis.get("spinoff_angle")
+                if spinoff:
+                    children.append(
+                        {
+                            "object": "block",
+                            "type": "callout",
+                            "callout": {
+                                "rich_text": [{"type": "text", "text": {"content": f"💡 파생각 (Spinoff): {spinoff}"}}],
+                                "icon": {"type": "emoji", "emoji": "💡"},
+                                "color": "yellow_background",
+                            },
+                        }
+                    )
+
                 profile_lines = [
-                    f"토픽 클러스터: {analysis.get('topic_cluster', '기타')}",
-                    f"훅 타입: {analysis.get('hook_type', '공감형')}",
-                    f"감정 축: {analysis.get('emotion_axis', '공감')}",
-                    f"대상 독자: {analysis.get('audience_fit', '범용')}",
-                    f"왜 고름: {analysis.get('selection_summary', '')}",
-                    f"독자 욕구: {analysis.get('audience_need', '')}",
-                    f"감정선: {analysis.get('emotion_lane', '')}",
-                    f"공감 앵커: {analysis.get('empathy_anchor', '')}",
-                    f"파생각: {analysis.get('spinoff_angle', '')}",
-                    f"추천 초안 타입: {analysis.get('recommended_draft_type', '공감형')}",
-                    f"스크랩 품질 점수: {analysis.get('scrape_quality_score', 0)}",
-                    f"발행 적합도 점수: {analysis.get('publishability_score', 0)}",
-                    f"성과 예측 점수: {analysis.get('performance_score', 0)}",
-                    f"최종 랭크 점수: {analysis.get('final_rank_score', 0)}",
+                    f"📂 토픽 클러스터: {analysis.get('topic_cluster', '기타')}",
+                    f"🎣 훅 타입: {analysis.get('hook_type', '공감형')}",
+                    f"🎭 감정 축/선: {analysis.get('emotion_axis', '공감')} / {analysis.get('emotion_lane', '')}",
+                    f"👥 대상 독자: {analysis.get('audience_fit', '범용')}",
+                    f"🔍 선정 이유: {analysis.get('selection_summary', '')}",
+                    f"💝 독자 욕구: {analysis.get('audience_need', '')}",
+                    f"📝 추천 스타일: {analysis.get('recommended_draft_type', '공감형')}",
                 ]
                 children.extend(self._create_text_blocks("\n".join(profile_lines)))
+
+            # ── [V2.0] 품질 게이트 결과 노출 ──
+            qg_report = post_data.get("quality_gate_report")
+            if qg_report:
+                children.append({"object": "block", "type": "divider", "divider": {}})
+                children.append(
+                    {
+                        "object": "block",
+                        "type": "callout",
+                        "callout": {
+                            "rich_text": [{"type": "text", "text": {"content": f"🛡️ 품질 검증 리포트\n{qg_report}"}}],
+                            "icon": {"type": "emoji", "emoji": "🛡️"},
+                            "color": "gray_background",
+                        },
+                    }
+                )
 
             if drafts:
                 if isinstance(drafts, dict):

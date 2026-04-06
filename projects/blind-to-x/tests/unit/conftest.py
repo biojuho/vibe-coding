@@ -1,5 +1,6 @@
 """Shared pytest fixtures for blind-to-x unit tests."""
 
+import logging
 import pytest
 
 # Kiwi C 확장이 non-ASCII Windows 경로에서 segfault하므로 테스트 시 로드 방지.
@@ -25,26 +26,64 @@ if any(ord(c) > 127 for c in _os.path.expanduser("~")):
 
 
 @pytest.fixture(autouse=True)
-def clear_runtime_state():
-    """Reset in-memory and SQLite-backed caches between tests."""
-    from pipeline.cost_db import CostDatabase
-    from pipeline.draft_cache import DraftCache
+def _isolate_logging_handlers():
+    """Windows + Python 3.14에서 logging.shutdown() 중 KeyboardInterrupt 방지.
+
+    main.py import 시 setup_logging()이 실행되면 파일/스트림 핸들러가 root logger에
+    등록됩니다. 테스트 teardown 중 이 핸들러를 닫을 때 충돌이 발생하므로,
+    각 테스트 실행 전 root logger의 핸들러를 snapshot하고 테스트 후 복원합니다.
+    """
+    root_logger = logging.getLogger()
+    snapshot = root_logger.handlers[:]
+    yield
+    # 테스트 도중 추가된 핸들러를 안전하게 닫고 제거
+    for handler in root_logger.handlers[:]:
+        if handler not in snapshot:
+            try:
+                handler.close()
+            except Exception:
+                pass
+            try:
+                root_logger.removeHandler(handler)
+            except Exception:
+                pass
+
+
+@pytest.fixture(autouse=True)
+def clear_runtime_state(tmp_path, monkeypatch):
+    """각 테스트마다 SQLite DB를 tmp_path로 격리한다.
+
+    핵심 문제 (T-128):
+    - CostDatabase / DraftCache 모두 .tmp/*.db 공유 파일을 기본 경로로 사용
+    - 모듈 레벨 _db_singleton이 테스트 간에 살아남아 이전 테스트의 경로를 가리킴
+    - try/except:pass 방식의 DELETE는 SQLite 락 실패 시 조용히 누락
+
+    해결책:
+    - monkeypatch로 _DEFAULT_DB_PATH를 pytest tmp_path로 교체 → 파일 격리
+    - monkeypatch로 _db_singleton을 None으로 초기화 → get_cost_db()가
+      새 tmp_path 기반 인스턴스를 생성하도록 강제
+    - monkeypatch는 테스트 종료 시 자동으로 원래 값 복원
+    """
+    import pipeline.cost_db as _cost_db_mod
+    import pipeline.draft_cache as _draft_cache_mod
     from pipeline.ml_scorer import _MODEL_PATH
 
-    DraftCache().clear()
-    with CostDatabase()._conn() as conn:
-        conn.execute("DELETE FROM daily_text_costs")
-        conn.execute("DELETE FROM daily_image_costs")
-        conn.execute("DELETE FROM draft_analytics")
-        conn.execute("DELETE FROM provider_failures")
+    # DB 경로를 테스트 전용 tmp_path로 교체
+    monkeypatch.setattr(_cost_db_mod, "_DEFAULT_DB_PATH", tmp_path / "btx_costs.db")
+    monkeypatch.setattr(_draft_cache_mod, "_DEFAULT_DB_PATH", tmp_path / "draft_cache.db")
+    # 모듈 레벨 싱글톤 초기화 → 다음 get_cost_db() 호출 시 tmp_path 기반으로 재생성
+    monkeypatch.setattr(_cost_db_mod, "_db_singleton", None)
+
     if _MODEL_PATH.exists():
-        _MODEL_PATH.unlink()
+        try:
+            _MODEL_PATH.unlink()
+        except Exception:
+            pass
+
     yield
-    DraftCache().clear()
-    with CostDatabase()._conn() as conn:
-        conn.execute("DELETE FROM daily_text_costs")
-        conn.execute("DELETE FROM daily_image_costs")
-        conn.execute("DELETE FROM draft_analytics")
-        conn.execute("DELETE FROM provider_failures")
+
     if _MODEL_PATH.exists():
-        _MODEL_PATH.unlink()
+        try:
+            _MODEL_PATH.unlink()
+        except Exception:
+            pass

@@ -17,14 +17,30 @@ CACHE_TTL_HOURS = 72
 
 
 class DraftCache:
-    """Persistent draft cache keyed by prompt fingerprint."""
+    """Persistent draft cache keyed by prompt fingerprint.
+
+    Supports two backends:
+    - SQLite (default): local file-based, single-writer
+    - Redis (BTX_CACHE_BACKEND=redis): distributed, high-concurrency
+    """
 
     def __init__(self, db_path: str | Path | None = None, ttl_hours: int = CACHE_TTL_HOURS):
         self.db_path = Path(db_path) if db_path else _DEFAULT_DB_PATH
         self.ttl_hours = ttl_hours
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
-        self._init_db()
+
+        # Redis backend (Phase 2: 환경변수로 전환)
+        self._redis_backend = None
+        try:
+            from pipeline.db_backend import get_cache_backend
+
+            self._redis_backend = get_cache_backend(prefix="draft")
+        except Exception:
+            pass
+
+        if self._redis_backend is None:
+            self.db_path.parent.mkdir(parents=True, exist_ok=True)
+            self._init_db()
 
     @contextmanager
     def _conn(self):
@@ -72,6 +88,18 @@ class DraftCache:
         return (datetime.now(timezone.utc) + timedelta(hours=self.ttl_hours)).isoformat()
 
     def get(self, cache_key: str) -> tuple[dict, str | None] | None:
+        # Redis 경로
+        if self._redis_backend is not None:
+            try:
+                data = self._redis_backend.get(cache_key)
+                if data and isinstance(data, dict):
+                    return data.get("drafts", {}), data.get("image_prompt")
+                return None
+            except Exception as exc:
+                logger.warning("DraftCache.get() Redis failed: %s", exc)
+                return None
+
+        # SQLite 경로 (기존)
         now = self._now_iso()
         try:
             with self._conn() as conn:
@@ -90,6 +118,20 @@ class DraftCache:
             return None
 
     def set(self, cache_key: str, drafts: dict, image_prompt: str | None, provider: str = "") -> None:
+        # Redis 경로
+        if self._redis_backend is not None:
+            try:
+                self._redis_backend.set(
+                    cache_key,
+                    {"drafts": drafts, "image_prompt": image_prompt, "provider": provider},
+                    ttl_seconds=self.ttl_hours * 3600,
+                )
+                return
+            except Exception as exc:
+                logger.warning("DraftCache.set() Redis failed: %s", exc)
+                return
+
+        # SQLite 경로 (기존)
         try:
             with self._conn() as conn:
                 conn.execute(
@@ -111,6 +153,12 @@ class DraftCache:
             logger.warning("DraftCache.set() failed (graceful): %s", exc)
 
     def delete(self, cache_key: str) -> None:
+        if self._redis_backend is not None:
+            try:
+                self._redis_backend.delete(cache_key)
+            except Exception:
+                pass
+            return
         try:
             with self._conn() as conn:
                 conn.execute("DELETE FROM draft_cache WHERE cache_key = ?", (cache_key,))
@@ -118,6 +166,12 @@ class DraftCache:
             pass
 
     def clear(self) -> None:
+        if self._redis_backend is not None:
+            try:
+                self._redis_backend.clear()
+            except Exception:
+                pass
+            return
         try:
             with self._conn() as conn:
                 conn.execute("DELETE FROM draft_cache")

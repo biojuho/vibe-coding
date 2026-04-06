@@ -1,4 +1,5 @@
 """Tests for pipeline.performance_collector — 0% → 60%+ coverage target."""
+
 from __future__ import annotations
 
 import asyncio
@@ -67,7 +68,9 @@ class TestFetchPlatformMetrics:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {
-            "data": [{"public_metrics": {"like_count": 10, "retweet_count": 5, "impression_count": 100, "reply_count": 2}}]
+            "data": [
+                {"public_metrics": {"like_count": 10, "retweet_count": 5, "impression_count": 100, "reply_count": 2}}
+            ]
         }
         with patch("requests.get", return_value=mock_resp):
             result = _fetch_platform_metrics(
@@ -205,17 +208,19 @@ class TestRunPerformanceCollection:
     def test_metrics_none_skips(self, mock_fetch):
         notion = MagicMock()
         notion.props = {"status": "상태", "performance_grade": "성과 등급", "date": "생성일"}
-        notion.query_collection = AsyncMock(return_value={
-            "results": [
-                {
-                    "id": "p1",
-                    "properties": {
-                        "제목": {"type": "title", "title": [{"plain_text": "Test"}]},
-                        "플랫폼": {"type": "multi_select", "multi_select": [{"name": "twitter"}]},
-                    },
-                }
-            ]
-        })
+        notion.query_collection = AsyncMock(
+            return_value={
+                "results": [
+                    {
+                        "id": "p1",
+                        "properties": {
+                            "제목": {"type": "title", "title": [{"plain_text": "Test"}]},
+                            "플랫폼": {"type": "multi_select", "multi_select": [{"name": "twitter"}]},
+                        },
+                    }
+                ]
+            }
+        )
         result = asyncio.run(run_performance_collection(config={}, notion_uploader=notion))
         assert result["skipped"] >= 1
 
@@ -230,17 +235,19 @@ class TestRunPerformanceCollection:
 
         notion = MagicMock()
         notion.props = {"status": "상태", "performance_grade": "성과 등급", "date": "생성일"}
-        notion.query_collection = AsyncMock(return_value={
-            "results": [
-                {
-                    "id": "p1",
-                    "properties": {
-                        "제목": {"type": "title", "title": [{"plain_text": "Test"}]},
-                        "플랫폼": {"type": "multi_select", "multi_select": [{"name": "twitter"}]},
-                    },
-                }
-            ]
-        })
+        notion.query_collection = AsyncMock(
+            return_value={
+                "results": [
+                    {
+                        "id": "p1",
+                        "properties": {
+                            "제목": {"type": "title", "title": [{"plain_text": "Test"}]},
+                            "플랫폼": {"type": "multi_select", "multi_select": [{"name": "twitter"}]},
+                        },
+                    }
+                ]
+            }
+        )
         notion.update_page_properties = AsyncMock()
 
         with patch("pipeline.performance_tracker.PerformanceTracker", return_value=mock_tracker):
@@ -251,17 +258,19 @@ class TestRunPerformanceCollection:
         """Test that Korean platform names get mapped correctly."""
         notion = MagicMock()
         notion.props = {"status": "상태", "performance_grade": "성과 등급", "date": "생성일"}
-        notion.query_collection = AsyncMock(return_value={
-            "results": [
-                {
-                    "id": "p1",
-                    "properties": {
-                        "제목": {"type": "title", "title": [{"plain_text": "Test"}]},
-                        "플랫폼": {"type": "multi_select", "multi_select": [{"name": "X (트위터)"}]},
-                    },
-                }
-            ]
-        })
+        notion.query_collection = AsyncMock(
+            return_value={
+                "results": [
+                    {
+                        "id": "p1",
+                        "properties": {
+                            "제목": {"type": "title", "title": [{"plain_text": "Test"}]},
+                            "플랫폼": {"type": "multi_select", "multi_select": [{"name": "X (트위터)"}]},
+                        },
+                    }
+                ]
+            }
+        )
         with patch("pipeline.performance_collector._fetch_platform_metrics", return_value=None):
             with patch("pipeline.performance_tracker.PerformanceTracker"):
                 result = asyncio.run(run_performance_collection(config={}, notion_uploader=notion))

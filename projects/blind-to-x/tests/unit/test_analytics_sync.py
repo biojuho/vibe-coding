@@ -6,7 +6,6 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 
-
 class FakeConfig:
     def __init__(self, data: dict | None = None):
         self.data = data or {}
@@ -136,14 +135,14 @@ class TestSyncMetricsHappyPath:
             mock_notion.ensure_schema = AsyncMock(return_value=True)
             mock_notion.props = {"tweet_url": "트윗 URL"}
             mock_notion._db_properties = {"트윗 URL": {"type": "url"}}
-            mock_notion.query_collection = AsyncMock(return_value={
-                "results": [
-                    {"id": "page-1", "properties": {}},
-                ]
-            })
-            mock_notion.get_page_property_value = MagicMock(
-                return_value="https://x.com/user/status/111222333"
+            mock_notion.query_collection = AsyncMock(
+                return_value={
+                    "results": [
+                        {"id": "page-1", "properties": {}},
+                    ]
+                }
             )
+            mock_notion.get_page_property_value = MagicMock(return_value="https://x.com/user/status/111222333")
             mock_notion.update_page_properties = AsyncMock(return_value=True)
             mock_cls.return_value = mock_notion
 
@@ -212,9 +211,7 @@ class TestSyncMetricsHappyPath:
             mock_notion.ensure_schema = AsyncMock(return_value=True)
             mock_notion.props = {"tweet_url": "트윗 URL"}
             mock_notion._db_properties = {"트윗 URL": {"type": "url"}}
-            mock_notion.query_collection = AsyncMock(return_value={
-                "results": [{"id": "page-1", "properties": {}}]
-            })
+            mock_notion.query_collection = AsyncMock(return_value={"results": [{"id": "page-1", "properties": {}}]})
             mock_notion.get_page_property_value = MagicMock(return_value="https://example.com/no-tweet")
             mock_cls.return_value = mock_notion
 
@@ -238,12 +235,8 @@ class TestSyncMetricsHappyPath:
             mock_notion.ensure_schema = AsyncMock(return_value=True)
             mock_notion.props = {"tweet_url": "트윗 URL"}
             mock_notion._db_properties = {"트윗 URL": {"type": "url"}}
-            mock_notion.query_collection = AsyncMock(return_value={
-                "results": [{"id": "page-1"}]
-            })
-            mock_notion.get_page_property_value = MagicMock(
-                return_value="https://x.com/u/status/999"
-            )
+            mock_notion.query_collection = AsyncMock(return_value={"results": [{"id": "page-1"}]})
+            mock_notion.get_page_property_value = MagicMock(return_value="https://x.com/u/status/999")
             mock_cls.return_value = mock_notion
 
             with patch("pipeline.analytics_tracker.tweepy") as mock_tweepy:

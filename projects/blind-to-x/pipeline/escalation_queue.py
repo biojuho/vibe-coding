@@ -30,18 +30,20 @@ _DB_PATH = _BTX_ROOT / "data" / "escalation_queue.db"
 
 class EventStatus(Enum):
     """에스컬레이션 이벤트 상태."""
-    PENDING = "pending"            # 초안 생성 대기
-    DRAFTING = "drafting"          # 초안 생성 중
-    AWAITING_APPROVAL = "awaiting" # 텔레그램 승인 대기
-    APPROVED = "approved"          # 승인 완료
-    REJECTED = "rejected"          # 거부됨
-    EXPIRED = "expired"            # TTL 만료
-    PUBLISHED = "published"        # 발행 완료
+
+    PENDING = "pending"  # 초안 생성 대기
+    DRAFTING = "drafting"  # 초안 생성 중
+    AWAITING_APPROVAL = "awaiting"  # 텔레그램 승인 대기
+    APPROVED = "approved"  # 승인 완료
+    REJECTED = "rejected"  # 거부됨
+    EXPIRED = "expired"  # TTL 만료
+    PUBLISHED = "published"  # 발행 완료
 
 
 @dataclass
 class QueuedEvent:
     """큐에 저장된 에스컬레이션 이벤트."""
+
     id: int
     url: str
     title: str
@@ -130,6 +132,7 @@ class EscalationQueue:
         """URL 정규화 — 쿼리/프래그먼트 제거."""
         try:
             from urllib.parse import urlparse, urlunparse
+
             parsed = urlparse(url)
             return urlunparse((parsed.scheme, parsed.netloc, parsed.path.rstrip("/"), "", "", ""))
         except Exception:
@@ -167,7 +170,8 @@ class EscalationQueue:
             ).fetchone()[0]
             if pending_count >= self._max_pending:
                 logger.warning(
-                    "EscalationQueue: 최대 대기(%d) 초과. 이벤트 거부.", self._max_pending,
+                    "EscalationQueue: 최대 대기(%d) 초과. 이벤트 거부.",
+                    self._max_pending,
                 )
                 return None
 
@@ -191,7 +195,9 @@ class EscalationQueue:
             event_id = cursor.lastrowid
             logger.info(
                 "EscalationQueue: 이벤트 등록 #%d — [%s] %s (v=%.2f)",
-                event_id, spike_event.source, spike_event.title[:40],
+                event_id,
+                spike_event.source,
+                spike_event.title[:40],
                 spike_event.velocity_score,
             )
             return event_id

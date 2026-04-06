@@ -134,7 +134,7 @@ class StyleBandit:
                 "StyleBandit[%s]: selected=%s, samples=%s",
                 topic_cluster,
                 selected,
-                {k: round(v, 3) for k, v in samples.items()},
+                {k: round(_v, 3) for k, _v in samples.items()},
             )
             return selected
         except Exception as exc:

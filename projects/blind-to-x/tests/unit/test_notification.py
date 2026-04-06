@@ -43,7 +43,7 @@ async def test_send_message_sends_telegram_and_discord_with_github_link(monkeypa
     monkeypatch.setattr(
         notification_module,
         "telegram_send_alert",
-        lambda message, level="INFO": telegram_calls.append((level, message)),
+        lambda message, level="INFO", **_: telegram_calls.append((level, message)),
         raising=False,
     )
     monkeypatch.setenv("GITHUB_REPOSITORY", "team/repo")

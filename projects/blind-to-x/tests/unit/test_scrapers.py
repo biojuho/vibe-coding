@@ -421,8 +421,12 @@ class TestImageGeneratorFallback:
             assert result == "https://pollinations.ai/img/test.png"
 
     @pytest.mark.asyncio
-    async def test_both_free_none_returns_none_when_dalle_disabled(self):
-        """Both Gemini and Pollinations returning None yields None when DALL-E disabled."""
+    async def test_both_free_none_returns_fallback_when_dalle_disabled(self):
+        """Both Gemini and Pollinations returning None yields a static fallback URL when DALL-E disabled.
+
+        V2.0 Phase 2: generate_image() never returns None — it always falls back to a
+        static topic-keyed Unsplash URL via _get_fallback_image_url().
+        """
         gen = self._make_generator()
         mock_cache = MagicMock()
         mock_cache.return_value.get.return_value = None
@@ -436,7 +440,9 @@ class TestImageGeneratorFallback:
                 topic_cluster="회사문화",
                 emotion_axis="공감",
             )
-            assert result is None
+            # V2.0 Phase 2: 모든 AI 생성 실패 시 정적 Unsplash 폴백 URL 반환 (None 아님)
+            assert result is not None
+            assert "images.unsplash.com" in result
 
 
 # ════════════════════════════════════════════════════════════════════════

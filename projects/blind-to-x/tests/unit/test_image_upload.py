@@ -12,6 +12,7 @@ import pytest
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 class FakeConfig:
     def __init__(self, data: dict | None = None):
         self.data = data or {}
@@ -24,9 +25,11 @@ class FakeConfig:
 # _optimize_image_for_upload
 # ---------------------------------------------------------------------------
 
+
 class TestOptimizeImage:
     def test_small_file_returns_original(self, tmp_path):
         from pipeline.image_upload import _optimize_image_for_upload
+
         p = tmp_path / "small.png"
         p.write_bytes(b"x" * 1000)
         result = _optimize_image_for_upload(str(p), max_bytes=9 * 1024 * 1024)
@@ -110,7 +113,8 @@ class TestOptimizeImage:
 
         p = tmp_path / "broken.png"
         p.write_bytes(b"not a real image" * 1000000)  # >9MB of junk
-        result = _optimize_image_for_upload(str(p), max_bytes=100)
+        _optimize_image_for_upload(str(p), max_bytes=100)
+
     def test_save_exception_quality_loop(self, tmp_path, monkeypatch):
         from PIL import Image
         from pipeline.image_upload import _optimize_image_for_upload
@@ -139,6 +143,7 @@ class TestOptimizeImage:
 
         original_save = Image.Image.save
         save_calls = {"count": 0}
+
         def fake_save(self, *args, **kwargs):
             save_calls["count"] += 1
             if save_calls["count"] > 4:
@@ -155,6 +160,7 @@ class TestOptimizeImage:
 # ImageUploader.__init__
 # ---------------------------------------------------------------------------
 
+
 class TestImageUploaderInit:
     def test_imgur_default(self, monkeypatch):
         monkeypatch.delenv("IMGUR_CLIENT_ID", raising=False)
@@ -162,6 +168,7 @@ class TestImageUploaderInit:
         monkeypatch.delenv("CLOUDINARY_API_KEY", raising=False)
         monkeypatch.delenv("CLOUDINARY_API_SECRET", raising=False)
         from pipeline.image_upload import ImageUploader
+
         u = ImageUploader(FakeConfig({"image_hosting.provider": "imgur", "image_hosting.imgur.client_id": "abc123"}))
         assert u.provider == "imgur"
         assert u.imgur_client_id == "abc123"
@@ -173,6 +180,7 @@ class TestImageUploaderInit:
         monkeypatch.delenv("CLOUDINARY_API_KEY", raising=False)
         monkeypatch.delenv("CLOUDINARY_API_SECRET", raising=False)
         from pipeline.image_upload import ImageUploader
+
         u = ImageUploader(FakeConfig({"image_hosting.provider": "imgur", "image_hosting.imgur.client_id": "config-id"}))
         assert u.imgur_client_id == "env-id"
 
@@ -183,12 +191,14 @@ class TestImageUploaderInit:
         monkeypatch.delenv("IMGUR_CLIENT_ID", raising=False)
         with patch("pipeline.image_upload.cloudinary.config") as mock_cfg:
             from pipeline.image_upload import ImageUploader
+
             u = ImageUploader(FakeConfig({"image_hosting.provider": "cloudinary"}))
             assert u.cloudinary_ready is True
             mock_cfg.assert_called_once()
 
     def test_retry_config(self):
         from pipeline.image_upload import ImageUploader
+
         u = ImageUploader(FakeConfig({"request.retries": "5", "request.backoff_seconds": "2.0"}))
         assert u.max_retries == 5
         assert u.backoff == 2.0
@@ -198,6 +208,7 @@ class TestImageUploaderInit:
 # upload()
 # ---------------------------------------------------------------------------
 
+
 class TestUpload:
     @pytest.mark.asyncio
     async def test_missing_file(self, monkeypatch):
@@ -206,6 +217,7 @@ class TestUpload:
         monkeypatch.delenv("CLOUDINARY_API_SECRET", raising=False)
         monkeypatch.delenv("IMGUR_CLIENT_ID", raising=False)
         from pipeline.image_upload import ImageUploader
+
         u = ImageUploader(FakeConfig())
         result = await u.upload("/nonexistent/file.png")
         assert result is None
@@ -217,6 +229,7 @@ class TestUpload:
         monkeypatch.delenv("CLOUDINARY_API_SECRET", raising=False)
         monkeypatch.delenv("IMGUR_CLIENT_ID", raising=False)
         from pipeline.image_upload import ImageUploader
+
         p = tmp_path / "tiny.png"
         p.write_bytes(b"x" * 100)  # < 1000 bytes
         u = ImageUploader(FakeConfig())
@@ -234,10 +247,14 @@ class TestUpload:
         p = tmp_path / "test.png"
         p.write_bytes(b"x" * 2000)
 
-        u = ImageUploader(FakeConfig({
-            "image_hosting.provider": "imgur",
-            "image_hosting.imgur.client_id": "test-id",
-        }))
+        u = ImageUploader(
+            FakeConfig(
+                {
+                    "image_hosting.provider": "imgur",
+                    "image_hosting.imgur.client_id": "test-id",
+                }
+            )
+        )
 
         async def fake_retry(func, max_retries, backoff_seconds, action_name):
             return {"success": True, "data": {"link": "https://i.imgur.com/abc123.png"}}
@@ -257,10 +274,14 @@ class TestUpload:
         p = tmp_path / "test.png"
         p.write_bytes(b"x" * 2000)
 
-        u = ImageUploader(FakeConfig({
-            "image_hosting.provider": "imgur",
-            "image_hosting.imgur.client_id": "test-id",
-        }))
+        u = ImageUploader(
+            FakeConfig(
+                {
+                    "image_hosting.provider": "imgur",
+                    "image_hosting.imgur.client_id": "test-id",
+                }
+            )
+        )
 
         async def fake_retry(func, max_retries, backoff_seconds, action_name):
             return {"success": False, "data": {}}
@@ -320,10 +341,14 @@ class TestUpload:
         p = tmp_path / "test.png"
         p.write_bytes(b"x" * 2000)
 
-        u = ImageUploader(FakeConfig({
-            "image_hosting.provider": "unknown_cdn",
-            "image_hosting.imgur.client_id": "fallback-id",
-        }))
+        u = ImageUploader(
+            FakeConfig(
+                {
+                    "image_hosting.provider": "unknown_cdn",
+                    "image_hosting.imgur.client_id": "fallback-id",
+                }
+            )
+        )
         u.imgur_client_id = "fallback-id"
 
         async def fake_retry(func, max_retries, backoff_seconds, action_name):
@@ -344,9 +369,7 @@ class TestUpload:
         p = tmp_path / "test.png"
         p.write_bytes(b"x" * 2000)
 
-        u = ImageUploader(FakeConfig({
-            "image_hosting.provider": "unknown_cdn"
-        }))
+        u = ImageUploader(FakeConfig({"image_hosting.provider": "unknown_cdn"}))
         u.imgur_client_id = None
         result = await u.upload(str(p))
         assert result is None
@@ -355,6 +378,7 @@ class TestUpload:
 # ---------------------------------------------------------------------------
 # upload_from_url()
 # ---------------------------------------------------------------------------
+
 
 class TestUploadFromUrl:
     @pytest.mark.asyncio
@@ -366,6 +390,7 @@ class TestUploadFromUrl:
 
         with patch("pipeline.image_upload.cloudinary.config"):
             from pipeline.image_upload import ImageUploader
+
             u = ImageUploader(FakeConfig({"image_hosting.provider": "cloudinary"}))
 
             async def fake_retry(func, max_retries, backoff_seconds, action_name):
@@ -382,10 +407,15 @@ class TestUploadFromUrl:
         monkeypatch.delenv("CLOUDINARY_API_SECRET", raising=False)
         monkeypatch.delenv("IMGUR_CLIENT_ID", raising=False)
         from pipeline.image_upload import ImageUploader
-        u = ImageUploader(FakeConfig({
-            "image_hosting.provider": "imgur",
-            "image_hosting.imgur.client_id": "test-id",
-        }))
+
+        u = ImageUploader(
+            FakeConfig(
+                {
+                    "image_hosting.provider": "imgur",
+                    "image_hosting.imgur.client_id": "test-id",
+                }
+            )
+        )
 
         async def fake_retry(func, max_retries, backoff_seconds, action_name):
             return {"success": True, "data": {"link": "https://i.imgur.com/url_upload.png"}}
@@ -401,6 +431,7 @@ class TestUploadFromUrl:
         monkeypatch.delenv("CLOUDINARY_API_SECRET", raising=False)
         monkeypatch.delenv("IMGUR_CLIENT_ID", raising=False)
         from pipeline.image_upload import ImageUploader
+
         u = ImageUploader(FakeConfig({"image_hosting.provider": "imgur"}))
         result = await u.upload_from_url("https://example.com/image.png")
         assert result is None
@@ -412,10 +443,15 @@ class TestUploadFromUrl:
         monkeypatch.delenv("CLOUDINARY_API_SECRET", raising=False)
         monkeypatch.delenv("IMGUR_CLIENT_ID", raising=False)
         from pipeline.image_upload import ImageUploader
-        u = ImageUploader(FakeConfig({
-            "image_hosting.provider": "imgur",
-            "image_hosting.imgur.client_id": "test-id",
-        }))
+
+        u = ImageUploader(
+            FakeConfig(
+                {
+                    "image_hosting.provider": "imgur",
+                    "image_hosting.imgur.client_id": "test-id",
+                }
+            )
+        )
 
         async def fake_retry_raise(func, max_retries, backoff_seconds, action_name):
             raise ConnectionError("network down")
@@ -427,6 +463,7 @@ class TestUploadFromUrl:
     @pytest.mark.asyncio
     async def test_imgur_url_upload_no_link(self, monkeypatch):
         from pipeline.image_upload import ImageUploader
+
         u = ImageUploader(FakeConfig({"image_hosting.provider": "imgur", "image_hosting.imgur.client_id": "test"}))
         u.imgur_client_id = "test"
 
@@ -444,6 +481,7 @@ class TestUploadFromUrl:
         monkeypatch.delenv("CLOUDINARY_API_SECRET", raising=False)
         monkeypatch.delenv("IMGUR_CLIENT_ID", raising=False)
         from pipeline.image_upload import ImageUploader
+
         u = ImageUploader(FakeConfig({"image_hosting.provider": "unknown"}))
         u.imgur_client_id = None
         result = await u.upload_from_url("https://example.com/image.png")
@@ -454,6 +492,7 @@ class TestUploadFromUrl:
 # _upload_to_cloudinary
 # ---------------------------------------------------------------------------
 
+
 class TestCloudinaryDirect:
     @pytest.mark.asyncio
     async def test_not_ready_returns_none(self, monkeypatch):
@@ -462,6 +501,7 @@ class TestCloudinaryDirect:
         monkeypatch.delenv("CLOUDINARY_API_SECRET", raising=False)
         monkeypatch.delenv("IMGUR_CLIENT_ID", raising=False)
         from pipeline.image_upload import ImageUploader
+
         u = ImageUploader(FakeConfig({"image_hosting.provider": "cloudinary"}))
         assert u.cloudinary_ready is False
         result = await u._upload_to_cloudinary("/some/path.png")
@@ -476,6 +516,7 @@ class TestCloudinaryDirect:
 
         with patch("pipeline.image_upload.cloudinary.config"):
             from pipeline.image_upload import ImageUploader
+
             u = ImageUploader(FakeConfig({"image_hosting.provider": "cloudinary"}))
 
             async def fake_retry_raise(func, max_retries, backoff_seconds, action_name):
@@ -488,6 +529,7 @@ class TestCloudinaryDirect:
     @pytest.mark.asyncio
     async def test_cloudinary_unexpected_response(self, monkeypatch):
         from pipeline.image_upload import ImageUploader
+
         monkeypatch.setenv("CLOUDINARY_CLOUD_NAME", "test")
         monkeypatch.setenv("CLOUDINARY_API_KEY", "key")
         monkeypatch.setenv("CLOUDINARY_API_SECRET", "secret")
@@ -511,8 +553,10 @@ class TestCloudinaryDirect:
             def __init__(self):
                 self.text = "invalid json"
                 self.status_code = 200
+
             def raise_for_status(self):
                 pass
+
             def json(self):
                 raise ValueError("JSON decode error")
 

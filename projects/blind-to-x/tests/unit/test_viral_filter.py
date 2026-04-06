@@ -1,4 +1,5 @@
 """Tests for pipeline.viral_filter — 59% → 85%+ coverage target."""
+
 from __future__ import annotations
 
 import asyncio
@@ -73,14 +74,16 @@ class TestViralFilter:
         vf = ViralFilter({"viral_filter.enabled": True, "viral_filter.threshold": 40.0})
 
         mock_response = MagicMock()
-        mock_response.text = json.dumps({
-            "hook_strength": 7,
-            "relatability": 6,
-            "shareability": 5,
-            "controversy": 4,
-            "timeliness": 3,
-            "reasoning": "테스트 바이럴 가능성",
-        })
+        mock_response.text = json.dumps(
+            {
+                "hook_strength": 7,
+                "relatability": 6,
+                "shareability": 5,
+                "controversy": 4,
+                "timeliness": 3,
+                "reasoning": "테스트 바이럴 가능성",
+            }
+        )
 
         mock_client = MagicMock()
         mock_client.models.generate_content = MagicMock(return_value=mock_response)
@@ -98,10 +101,12 @@ class TestViralFilter:
 
     def test_score_timeout_returns_default(self, monkeypatch):
         monkeypatch.setenv("GEMINI_API_KEY", "test-key")
-        vf = ViralFilter({
-            "viral_filter.enabled": True,
-            "viral_filter.timeout_seconds": 0,  # instant timeout
-        })
+        vf = ViralFilter(
+            {
+                "viral_filter.enabled": True,
+                "viral_filter.timeout_seconds": 0,  # instant timeout
+            }
+        )
 
         async def slow_llm(*args, **kwargs):
             await asyncio.sleep(10)

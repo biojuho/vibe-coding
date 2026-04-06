@@ -1010,6 +1010,7 @@ def get_cost_db(db_path: "str | Path | None" = None) -> "CostDatabase":
     """모듈 레벨 CostDatabase 싱글톤 반환 (thread-safe 지연 초기화).
 
     동일 프로세스에서 매번 CostDatabase()를 생성하는 대신 이 함수를 사용하세요.
+    SQLite 단일 백엔드 사용 (Local-First 정책, ADR-002).
     """
     global _db_singleton
     if _db_singleton is None:

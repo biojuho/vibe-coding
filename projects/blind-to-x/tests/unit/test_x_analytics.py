@@ -16,9 +16,10 @@ from pipeline.x_analytics import (
     get_remaining_api_reads,
     prioritize_tweets,
     collect_tweet_stats,
-    get_performance_summary
+    get_performance_summary,
 )
 import pipeline.x_analytics as xa
+
 
 @pytest.fixture(autouse=True)
 def setup_test_db(tmp_path):
@@ -29,6 +30,7 @@ def setup_test_db(tmp_path):
     yield
 
     xa.DB_PATH = orig_path
+
 
 def test_add_and_get_tracked():
     # Insert new
@@ -50,6 +52,7 @@ def test_add_and_get_tracked():
     assert len(channel_tweets) == 1
     assert channel_tweets[0]["tweet_id"] == "123"
 
+
 def test_save_and_get_snapshot():
     db_id = add_tweet("111")
     save_snapshot(db_id, impressions=100, likes=5, snapshot_type="auto")
@@ -62,6 +65,7 @@ def test_save_and_get_snapshot():
     history = get_snapshot_history(db_id)
     assert len(history) == 2
 
+
 def test_api_usage_tracking():
     _log_api_usage(50)
     _log_api_usage(20)
@@ -71,6 +75,7 @@ def test_api_usage_tracking():
 
     remaining = get_remaining_api_reads()
     assert remaining == xa.MONTHLY_READ_LIMIT - 70
+
 
 def test_prioritize_tweets():
     # 1. 48시간 이내
@@ -89,6 +94,7 @@ def test_prioritize_tweets():
     res = prioritize_tweets([t_recent, t_mid, t_old_high], max_samples=2)
     assert len(res) == 2
 
+
 @patch("pipeline.x_analytics.os.getenv")
 @patch("pipeline.x_analytics.requests.get")
 def test_collect_tweet_stats(mock_get, mock_getenv):
@@ -101,9 +107,7 @@ def test_collect_tweet_stats(mock_get, mock_getenv):
     mock_resp = MagicMock()
     mock_resp.status_code = 200
     mock_resp.json.return_value = {
-        "data": [
-            {"id": "100", "public_metrics": {"impression_count": 1000, "like_count": 50}}
-        ]
+        "data": [{"id": "100", "public_metrics": {"impression_count": 1000, "like_count": 50}}]
     }
     mock_get.return_value = mock_resp
 
@@ -117,11 +121,13 @@ def test_collect_tweet_stats(mock_get, mock_getenv):
     assert latest["impressions"] == 1000
     assert latest["likes"] == 50
 
+
 @patch("pipeline.x_analytics.os.getenv")
 def test_collect_tweet_stats_no_token(mock_getenv):
     mock_getenv.return_value = ""
     res = collect_tweet_stats(tweet_ids=["100"])
     assert "error" in res
+
 
 def test_get_performance_summary():
     id1 = add_tweet("800")
