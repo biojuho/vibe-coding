@@ -39,7 +39,7 @@ npm install
 
 # 🇬🇧 Start development server / 🇰🇷 개발 서버 실행
 npm run dev
-# 🇬🇧 Access http://localhost:3000 / 🇰🇷 http://localhost:3000 접속
+# 🇬🇧 Access http://localhost:3001 / 🇰🇷 http://localhost:3001 접속
 ```
 
 #### 2. 🇬🇧 Production Build / 🇰🇷 프로덕션 빌드
@@ -59,10 +59,25 @@ npm start
 
 ### 🛠 Tech Stack (기술 스택)
 
-*   **Framework**: Next.js 14 (App Router)
-*   **Database**: SQLite (via Prisma ORM)
-*   **Styling**: Vanilla CSS (Variables, Animations), Tailwind CSS
+*   **Framework**: Next.js 16 (App Router, Proxy)
+*   **Runtime UI**: React 19
+*   **Database**: PostgreSQL (via Prisma ORM + `@prisma/adapter-pg`)
+*   **Auth**: Auth.js / `next-auth` v5 beta
+*   **Styling**: Tailwind CSS v4 + app-level CSS variables
 *   **Charts**: Recharts
+
+### Scale-Hardening Infra
+
+```bash
+# Optional Redis-backed cache and BullMQ queue
+REDIS_URL=redis://127.0.0.1:6379
+
+# Optional BullMQ prefix override
+BULLMQ_PREFIX=hd:jobs
+```
+
+- Local development still works without Redis.
+- Once the real pooled Postgres URL is configured, run `npm run db:verify-indexes` to capture the live index inventory and `EXPLAIN` plans.
 
 ---
 

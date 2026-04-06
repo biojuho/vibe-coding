@@ -34,8 +34,8 @@
   --radius-sm: calc(var(--radius) - 4px);
 
   /* Fonts */
-  --font-sans: "Noto Sans KR", -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-display: "Cormorant Garamond", "Noto Serif KR", serif;
+  --font-sans: var(--font-noto-sans-kr), -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: var(--font-cormorant-garamond), var(--font-noto-serif-kr), serif;
 
   /* Animations */
   --animate-accordion-down: accordion-down 0.2s ease-out;

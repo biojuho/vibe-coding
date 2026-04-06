@@ -40,5 +40,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
       return session;
     },
+    authorized({ auth }) {
+      return !!auth?.user;
+    },
   },
 });

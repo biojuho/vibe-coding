@@ -33,17 +33,23 @@ function PricePanel({ title, emoji, rows }) {
   );
 }
 
-export default function MarketPriceWidget() {
-  const [prices, setPrices] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState(null);
+export default function MarketPriceWidget({ initialData = null }) {
+  const [prices, setPrices] = useState(initialData);
+  const [loading, setLoading] = useState(!initialData);
+  const [lastUpdated, setLastUpdated] = useState(() => {
+    if (!initialData?.fetchedAt) {
+      return initialData ? new Date() : null;
+    }
+
+    return new Date(initialData.fetchedAt);
+  });
 
   const fetchPrices = async () => {
     setLoading(true);
     try {
       const data = await getRealTimeMarketPrice();
       setPrices(data);
-      setLastUpdated(new Date());
+      setLastUpdated(data?.fetchedAt ? new Date(data.fetchedAt) : new Date());
     } catch (error) {
       console.error('Failed to fetch market prices:', error);
     } finally {
@@ -52,10 +58,13 @@ export default function MarketPriceWidget() {
   };
 
   useEffect(() => {
-    fetchPrices();
+    if (!initialData) {
+      fetchPrices();
+    }
+
     const interval = setInterval(fetchPrices, 1000 * 60 * 60);
     return () => clearInterval(interval);
-  }, []);
+  }, [initialData]);
 
   if (loading && !prices) {
     return (

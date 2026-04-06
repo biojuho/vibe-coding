@@ -54,10 +54,10 @@ export default function NotificationModal({ notifications, onClose, onTestSMS })
                   key={i}
                   className="animate-fadeInUp"
                   style={{
-                    background: n.type==='urgent' ? "var(--color-danger-light)" : "var(--color-border-light)",
+                    background: n.level === 'critical' ? "var(--color-danger-light)" : "var(--color-border-light)",
                     padding:"14px 16px",
                     borderRadius:"var(--radius-md)",
-                    borderLeft: n.type==='urgent' ? "4px solid var(--color-danger)" : "4px solid var(--color-text-muted)",
+                    borderLeft: n.level === 'critical' ? "4px solid var(--color-danger)" : "4px solid var(--color-text-muted)",
                     transition:"all var(--transition-fast)",
                     animationDelay:`${i * 50}ms`
                   }}
@@ -75,7 +75,7 @@ export default function NotificationModal({ notifications, onClose, onTestSMS })
                     {n.title}
                   </div>
                   <div style={{fontSize:"13px", color:"var(--color-text-secondary)", lineHeight:"1.5"}}>{n.message}</div>
-                  <div style={{fontSize:"11px", color:"var(--color-text-muted)", marginTop:"8px", textAlign:"right"}}>{n.time}</div>
+                  <div style={{fontSize:"11px", color:"var(--color-text-muted)", marginTop:"8px", textAlign:"right"}}>{n.time || '-'}</div>
                 </div>
               ))}
             </div>

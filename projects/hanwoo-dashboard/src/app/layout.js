@@ -1,5 +1,27 @@
 import './globals.css';
+import { Cormorant_Garamond, Noto_Sans_KR, Noto_Serif_KR } from 'next/font/google';
 import { FeedbackProvider } from '@/components/feedback/FeedbackProvider';
+
+const notoSansKr = Noto_Sans_KR({
+  weight: ['400', '500', '700'],
+  variable: '--font-noto-sans-kr',
+  display: 'swap',
+  preload: false,
+});
+
+const notoSerifKr = Noto_Serif_KR({
+  weight: ['600', '700'],
+  variable: '--font-noto-serif-kr',
+  display: 'swap',
+  preload: false,
+});
+
+const cormorantGaramond = Cormorant_Garamond({
+  subsets: ['latin'],
+  weight: ['600', '700'],
+  variable: '--font-cormorant-garamond',
+  display: 'swap',
+});
 
 export const metadata = {
   title: 'Joolife Dashboard',
@@ -15,12 +37,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="ko" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@600;700&display=swap" rel="stylesheet" />
-      </head>
-      <body>
+      <body className={`${notoSansKr.variable} ${notoSerifKr.variable} ${cormorantGaramond.variable}`}>
         <FeedbackProvider>{children}</FeedbackProvider>
       </body>
     </html>

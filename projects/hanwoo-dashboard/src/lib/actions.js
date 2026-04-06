@@ -1,9 +1,12 @@
 'use server';
 
+import { requireAuthenticatedSession } from '@/lib/auth-guard';
 import prisma from './db';
 import { revalidatePath } from 'next/cache';
 import { isEstrusAlert, isCalvingAlert, getDaysUntilEstrus, getDaysUntilCalving } from './utils';
 import { fetchMarketPrice } from './kape';
+import { createOutboxEvent, DASHBOARD_EVENT_TOPICS } from './dashboard/events';
+import { getLatestMarketPriceSnapshot, saveMarketPriceSnapshot, getNotificationSummary, saveNotificationSummary, invalidateDashboardCaches } from './dashboard/read-models';
 
 // ============================================================
 // Helper: CattleHistory 기록 (실패해도 부모 작업 중단 안 함)
@@ -25,11 +28,23 @@ async function recordCattleHistory(cattleId, eventType, eventDate, description, 
   }
 }
 
+async function invalidateHomeCaches(options = {}) {
+  try {
+    await invalidateDashboardCaches({
+      farmId: 'default',
+      ...options,
+    });
+  } catch (error) {
+    console.error('Failed to invalidate dashboard caches:', error);
+  }
+}
+
 // ============================================================
 // Cattle Actions
 // ============================================================
 
 export async function getCattleList() {
+  await requireAuthenticatedSession();
   try {
     const cattle = await prisma.cattle.findMany({
       where: { isArchived: false },
@@ -43,6 +58,7 @@ export async function getCattleList() {
 }
 
 export async function getArchivedCattle() {
+  await requireAuthenticatedSession();
   try {
     return await prisma.cattle.findMany({
       where: { isArchived: true },
@@ -55,6 +71,7 @@ export async function getArchivedCattle() {
 }
 
 export async function createCattle(data) {
+  await requireAuthenticatedSession();
   try {
     if (!data.tagNumber || !data.name) {
       return { success: false, message: "이름과 이력번호는 필수입니다." };
@@ -85,8 +102,9 @@ export async function createCattle(data) {
       purchasePrice: data.purchasePrice ? parseInt(data.purchasePrice) : null,
     });
 
-    revalidatePath('/');
-    return { success: true };
+    await createOutboxEvent({ topic: DASHBOARD_EVENT_TOPICS.cattleCreated, aggregateId: created.id, payload: { tagNumber: data.tagNumber, name: data.name } });
+    await invalidateHomeCaches({ summary: true, notifications: true, cattleListPages: true });
+    return { success: true, data: created };
   } catch (error) {
     console.error("Failed to create cattle:", error);
     return { success: false, message: error.message };
@@ -94,11 +112,12 @@ export async function createCattle(data) {
 }
 
 export async function updateCattle(id, data) {
+  await requireAuthenticatedSession();
   try {
     // 변경 전 기존값 조회 (이력 비교용)
     const existing = await prisma.cattle.findUnique({ where: { id } });
 
-    await prisma.cattle.update({
+    const updated = await prisma.cattle.update({
       where: { id },
       data: {
         tagNumber: data.tagNumber,
@@ -140,8 +159,9 @@ export async function updateCattle(id, data) {
       });
     }
 
-    revalidatePath('/');
-    return { success: true };
+    await createOutboxEvent({ topic: DASHBOARD_EVENT_TOPICS.cattleUpdated, aggregateId: id, payload: { tagNumber: data.tagNumber, name: data.name } });
+    await invalidateHomeCaches({ summary: true, notifications: true, cattleListPages: true });
+    return { success: true, data: updated };
   } catch (error) {
     console.error("Failed to update cattle:", error);
     return { success: false, message: error.message };
@@ -149,6 +169,7 @@ export async function updateCattle(id, data) {
 }
 
 export async function recordCalving(data) {
+  await requireAuthenticatedSession();
   try {
     const mother = await prisma.cattle.findUnique({
       where: { id: data.motherId },
@@ -230,7 +251,8 @@ export async function recordCalving(data) {
       };
     });
 
-    revalidatePath('/');
+    await createOutboxEvent({ topic: DASHBOARD_EVENT_TOPICS.cattleUpdated, aggregateId: data.motherId, payload: { event: 'calving', calfTagNumber: data.calfTagNumber } });
+    await invalidateHomeCaches({ summary: true, notifications: true, cattleListPages: true });
     return { success: true, data: result };
   } catch (error) {
     console.error("Failed to record calving:", error);
@@ -239,6 +261,7 @@ export async function recordCalving(data) {
 }
 
 export async function deleteCattle(id) {
+  await requireAuthenticatedSession();
   try {
     // 판매기록 있으면 삭제 불가
     const salesCount = await prisma.salesRecord.count({ where: { cattleId: id } });
@@ -254,8 +277,9 @@ export async function deleteCattle(id) {
 
     await recordCattleHistory(id, 'status_change', new Date(), '아카이브 처리됨', { action: 'archive' });
 
-    revalidatePath('/');
-    return { success: true };
+    await createOutboxEvent({ topic: DASHBOARD_EVENT_TOPICS.cattleArchived, aggregateId: id, payload: { action: 'archive' } });
+    await invalidateHomeCaches({ summary: true, notifications: true, cattleListPages: true });
+    return { success: true, data: { id } };
   } catch (error) {
     console.error("Failed to archive cattle:", error);
     return { success: false, message: error.message };
@@ -267,6 +291,7 @@ export async function deleteCattle(id) {
 // ============================================================
 
 export async function getSalesRecords() {
+  await requireAuthenticatedSession();
   try {
     const sales = await prisma.salesRecord.findMany({
       orderBy: { saleDate: 'desc' }
@@ -279,6 +304,7 @@ export async function getSalesRecords() {
 }
 
 export async function createSalesRecord(data) {
+  await requireAuthenticatedSession();
   try {
     // cattleId 존재 검증
     if (data.cattleId) {
@@ -286,7 +312,7 @@ export async function createSalesRecord(data) {
       if (!cattle) return { success: false, message: "존재하지 않는 개체입니다." };
     }
 
-    await prisma.salesRecord.create({
+    const created = await prisma.salesRecord.create({
       data: {
         saleDate: new Date(data.saleDate),
         price: parseInt(data.price),
@@ -304,8 +330,9 @@ export async function createSalesRecord(data) {
       );
     }
 
-    revalidatePath('/');
-    return { success: true };
+    await createOutboxEvent({ topic: DASHBOARD_EVENT_TOPICS.saleRecorded, aggregateId: data.cattleId || null, payload: { price: parseInt(data.price), grade: data.grade } });
+    await invalidateHomeCaches({ summary: true, salesListPages: true });
+    return { success: true, data: created };
   } catch (error) {
     console.error("Failed to create sales record:", error);
     return { success: false, message: error.message };
@@ -317,6 +344,7 @@ export async function createSalesRecord(data) {
 // ============================================================
 
 export async function getFeedStandards() {
+  await requireAuthenticatedSession();
   try {
     return await prisma.feedStandard.findMany();
   } catch (error) {
@@ -326,8 +354,9 @@ export async function getFeedStandards() {
 }
 
 export async function recordFeed(data) {
+  await requireAuthenticatedSession();
   try {
-    await prisma.feedRecord.create({
+    const created = await prisma.feedRecord.create({
       data: {
         date: new Date(data.date),
         buildingId: data.buildingId,
@@ -337,14 +366,14 @@ export async function recordFeed(data) {
         note: data.note || null,
       }
     });
-    revalidatePath('/');
-    return { success: true };
+    return { success: true, data: created };
   } catch (e) {
     return { success: false, message: e.message };
   }
 }
 
 export async function getFeedHistory() {
+  await requireAuthenticatedSession();
   try {
     return await prisma.feedRecord.findMany({
       orderBy: { date: 'desc' },
@@ -361,6 +390,7 @@ export async function getFeedHistory() {
 // ============================================================
 
 export async function getInventory() {
+  await requireAuthenticatedSession();
   try {
     return await prisma.inventoryItem.findMany({ orderBy: { category: 'asc' } });
   } catch (error) {
@@ -370,8 +400,9 @@ export async function getInventory() {
 }
 
 export async function addInventoryItem(data) {
+  await requireAuthenticatedSession();
   try {
-    await prisma.inventoryItem.create({
+    const created = await prisma.inventoryItem.create({
       data: {
         name: data.name,
         category: data.category,
@@ -380,21 +411,20 @@ export async function addInventoryItem(data) {
         threshold: data.threshold ? parseFloat(data.threshold) : null,
       }
     });
-    revalidatePath('/');
-    return { success: true };
+    return { success: true, data: created };
   } catch (error) {
     return { success: false, message: error.message };
   }
 }
 
 export async function updateInventoryQuantity(id, quantity) {
+  await requireAuthenticatedSession();
   try {
-    await prisma.inventoryItem.update({
+    const updated = await prisma.inventoryItem.update({
       where: { id },
       data: { quantity: parseFloat(quantity) }
     });
-    revalidatePath('/');
-    return { success: true };
+    return { success: true, data: updated };
   } catch (error) {
     return { success: false, message: error.message };
   }
@@ -405,6 +435,7 @@ export async function updateInventoryQuantity(id, quantity) {
 // ============================================================
 
 export async function getScheduleEvents() {
+  await requireAuthenticatedSession();
   try {
     return await prisma.scheduleEvent.findMany({ orderBy: { date: 'asc' } });
   } catch (e) {
@@ -414,8 +445,9 @@ export async function getScheduleEvents() {
 }
 
 export async function createScheduleEvent(data) {
+  await requireAuthenticatedSession();
   try {
-    await prisma.scheduleEvent.create({
+    const created = await prisma.scheduleEvent.create({
       data: {
         title: data.title,
         date: new Date(data.date),
@@ -423,21 +455,20 @@ export async function createScheduleEvent(data) {
         cattleId: data.cattleId || null,
       }
     });
-    revalidatePath('/');
-    return { success: true };
+    return { success: true, data: created };
   } catch (e) {
     return { success: false, message: e.message };
   }
 }
 
 export async function toggleEventCompletion(id, isCompleted) {
+  await requireAuthenticatedSession();
   try {
-    await prisma.scheduleEvent.update({
+    const updated = await prisma.scheduleEvent.update({
       where: { id },
       data: { isCompleted }
     });
-    revalidatePath('/');
-    return { success: true };
+    return { success: true, data: updated };
   } catch (e) {
     return { success: false, message: e.message };
   }
@@ -448,6 +479,7 @@ export async function toggleEventCompletion(id, isCompleted) {
 // ============================================================
 
 export async function getBuildings() {
+  await requireAuthenticatedSession();
   try {
     return await prisma.building.findMany({ orderBy: { name: 'asc' } });
   } catch (e) {
@@ -457,26 +489,26 @@ export async function getBuildings() {
 }
 
 export async function createBuilding(data) {
+  await requireAuthenticatedSession();
   try {
-    await prisma.building.create({
+    const created = await prisma.building.create({
       data: { name: data.name, penCount: parseInt(data.penCount) }
     });
-    revalidatePath('/');
-    return { success: true };
+    return { success: true, data: created };
   } catch (e) {
     return { success: false, message: e.message };
   }
 }
 
 export async function deleteBuilding(id) {
+  await requireAuthenticatedSession();
   try {
     const cattleCount = await prisma.cattle.count({ where: { buildingId: id, isArchived: false } });
     if (cattleCount > 0) {
       return { success: false, message: `이 축사에 ${cattleCount}두의 소가 있어 삭제할 수 없습니다. 먼저 소를 이동해주세요.` };
     }
     await prisma.building.delete({ where: { id } });
-    revalidatePath('/');
-    return { success: true };
+    return { success: true, data: { id } };
   } catch (e) {
     return { success: false, message: e.message };
   }
@@ -487,6 +519,7 @@ export async function deleteBuilding(id) {
 // ============================================================
 
 export async function getFarmSettings() {
+  await requireAuthenticatedSession();
   try {
     let settings = await prisma.farmSettings.findUnique({ where: { id: "default" } });
     if (!settings) {
@@ -508,13 +541,14 @@ export async function getFarmSettings() {
 }
 
 export async function updateFarmSettings(data) {
+  await requireAuthenticatedSession();
   try {
     const settings = await prisma.farmSettings.upsert({
       where: { id: "default" },
       update: { name: data.name, location: data.location, latitude: parseFloat(data.latitude), longitude: parseFloat(data.longitude) },
       create: { id: "default", name: data.name, location: data.location, latitude: parseFloat(data.latitude), longitude: parseFloat(data.longitude) },
     });
-    revalidatePath('/');
+    await invalidateHomeCaches({ summary: true });
     return { success: true, data: settings };
   } catch (e) {
     return { success: false, message: e.message };
@@ -526,7 +560,59 @@ export async function updateFarmSettings(data) {
 // ============================================================
 
 export async function getRealTimeMarketPrice() {
-  return await fetchMarketPrice();
+  await requireAuthenticatedSession();
+  let staleSnapshot = null;
+
+  // Try cached snapshot first (avoids external KAPE API call)
+  try {
+    const cached = await getLatestMarketPriceSnapshot();
+    if (cached) {
+      staleSnapshot = {
+        date: cached.issueDate instanceof Date
+          ? cached.issueDate.toISOString().slice(0, 10)
+          : String(cached.issueDate).slice(0, 10),
+        isRealtime: false,
+        bull: { grade1pp: cached.bullGrade1pp, grade1p: cached.bullGrade1p, grade1: cached.bullGrade1 },
+        cow: { grade1pp: cached.cowGrade1pp, grade1p: cached.cowGrade1p, grade1: cached.cowGrade1 },
+        fetchedAt: cached.fetchedAt instanceof Date ? cached.fetchedAt.toISOString() : String(cached.fetchedAt),
+        isStale: true,
+      };
+
+      const age = Date.now() - new Date(cached.fetchedAt).getTime();
+      // Use cache if less than 1 hour old
+      if (age < 3600 * 1000) {
+        return {
+          ...staleSnapshot,
+          isRealtime: cached.isRealtime,
+          isStale: false,
+        };
+      }
+    }
+  } catch (err) {
+    console.error('Market price cache read failed (falling back to API):', err);
+  }
+
+  // Fallback: fetch from KAPE API, but prefer stale cached data over simulated values.
+  const marketPrice = await fetchMarketPrice({ fallbackData: staleSnapshot });
+  const result = { ...marketPrice, fetchedAt: new Date().toISOString() };
+
+  // Persist snapshot for future reads
+  try {
+    if (marketPrice.bull && marketPrice.cow && !marketPrice.isStale) {
+      await saveMarketPriceSnapshot({
+        issueDate: marketPrice.date || new Date().toISOString().slice(0, 10),
+        isRealtime: marketPrice.isRealtime ?? false,
+        bull: marketPrice.bull,
+        cow: marketPrice.cow,
+        source: 'KAPE',
+      });
+      await createOutboxEvent({ topic: DASHBOARD_EVENT_TOPICS.marketPriceRefreshed, payload: { date: marketPrice.date } });
+    }
+  } catch (err) {
+    console.error('Market price snapshot save failed:', err);
+  }
+
+  return result;
 }
 
 // ============================================================
@@ -534,6 +620,20 @@ export async function getRealTimeMarketPrice() {
 // ============================================================
 
 export async function getNotifications() {
+  await requireAuthenticatedSession();
+  try {
+    // Try pre-computed read model first
+    const cached = await getNotificationSummary('default');
+    if (cached?.payload) {
+      const age = Date.now() - new Date(cached.generatedAt).getTime();
+      if (age < 60 * 1000) {
+        return cached.payload;
+      }
+    }
+  } catch {
+    // Fall through to live computation
+  }
+
   try {
     const cattle = await prisma.cattle.findMany({ where: { isArchived: false } });
     const notifications = [];
@@ -570,6 +670,13 @@ export async function getNotifications() {
       return 0;
     });
 
+    // Persist for future cache hits
+    try {
+      await saveNotificationSummary({ farmId: 'default', payload: notifications });
+    } catch {
+      // Non-fatal: cache write failure
+    }
+
     return notifications;
   } catch (error) {
     console.error("Failed to get notifications:", error);
@@ -582,6 +689,7 @@ export async function getNotifications() {
 // ============================================================
 
 export async function getExpenseRecords(filters = {}) {
+  await requireAuthenticatedSession();
   try {
     const where = {};
     if (filters.cattleId) where.cattleId = filters.cattleId;
@@ -604,6 +712,7 @@ export async function getExpenseRecords(filters = {}) {
 }
 
 export async function createExpenseRecord(data) {
+  await requireAuthenticatedSession();
   try {
     if (!data.date || !data.category || !data.amount) {
       return { success: false, message: "날짜, 카테고리, 금액은 필수입니다." };
@@ -617,7 +726,7 @@ export async function createExpenseRecord(data) {
       if (!building) return { success: false, message: "존재하지 않는 축사입니다." };
     }
 
-    await prisma.expenseRecord.create({
+    const created = await prisma.expenseRecord.create({
       data: {
         date: new Date(data.date),
         cattleId: data.cattleId || null,
@@ -627,8 +736,14 @@ export async function createExpenseRecord(data) {
         description: data.description || null,
       }
     });
+    await createOutboxEvent({
+      topic: DASHBOARD_EVENT_TOPICS.expenseRecorded,
+      aggregateId: data.cattleId || data.buildingId || null,
+      payload: { category: data.category, amount: parseInt(data.amount) },
+    });
+    await invalidateHomeCaches({ summary: true });
     revalidatePath('/');
-    return { success: true };
+    return { success: true, data: created };
   } catch (error) {
     console.error("Failed to create expense:", error);
     return { success: false, message: error.message };
@@ -636,6 +751,7 @@ export async function createExpenseRecord(data) {
 }
 
 export async function getExpenseAggregation() {
+  await requireAuthenticatedSession();
   try {
     const expenses = await prisma.expenseRecord.findMany();
     const byCategory = {};
@@ -654,6 +770,7 @@ export async function getExpenseAggregation() {
 // ============================================================
 
 export async function getCattleHistory(cattleId) {
+  await requireAuthenticatedSession();
   try {
     const history = await prisma.cattleHistory.findMany({
       where: { cattleId },
@@ -674,6 +791,7 @@ export async function getCattleHistory(cattleId) {
 // ============================================================
 
 export async function getSystemDiagnostics() {
+  await requireAuthenticatedSession();
   try {
     const start = Date.now();
     const cattleCount = await prisma.cattle.count();
@@ -702,6 +820,7 @@ export async function getSystemDiagnostics() {
 }
 
 export async function getRawData(modelName) {
+  await requireAuthenticatedSession();
   try {
     const allowedModels = ['cattle', 'salesRecord', 'feedRecord', 'scheduleEvent', 'inventoryItem', 'building', 'farmSettings', 'expenseRecord', 'cattleHistory'];
     if (!allowedModels.includes(modelName)) {
@@ -718,6 +837,7 @@ export async function getRawData(modelName) {
 }
 
 export async function lookupCattleTag(tagNumber) {
+  await requireAuthenticatedSession();
   const { lookupCattleByTag } = await import('./mtrace');
   return lookupCattleByTag(tagNumber);
 }

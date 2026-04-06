@@ -16,7 +16,7 @@ const errorTextStyle = {
   fontWeight: 600,
 };
 
-export default function SalesTab({ saleRecords, cattleList, onCreateSale, expenseRecords = [] }) {
+export default function SalesTab({ saleRecords, cattleList, onCreateSale, expenseRecords = [], initialMarketPrice = null, salesPagination = null }) {
   const [isAdding, setIsAdding] = useState(false);
 
   const {
@@ -109,7 +109,7 @@ export default function SalesTab({ saleRecords, cattleList, onCreateSale, expens
 
   return (
     <div>
-      <MarketPriceWidget />
+      <MarketPriceWidget initialData={initialMarketPrice} />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
         <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--color-text)' }}>출하 및 매출 분석</div>
@@ -365,6 +365,29 @@ export default function SalesTab({ saleRecords, cattleList, onCreateSale, expens
           ))
         )}
       </div>
+
+      {salesPagination?.hasMore && (
+        <button
+          type="button"
+          onClick={() => salesPagination.loadMore()}
+          disabled={salesPagination.isLoading}
+          style={{
+            width: '100%',
+            padding: '12px',
+            marginTop: '12px',
+            background: 'var(--color-bg-card)',
+            color: 'var(--color-text-secondary)',
+            borderRadius: '12px',
+            border: '1px solid var(--color-border)',
+            fontWeight: 700,
+            fontSize: '13px',
+            cursor: salesPagination.isLoading ? 'wait' : 'pointer',
+            opacity: salesPagination.isLoading ? 0.6 : 1,
+          }}
+        >
+          {salesPagination.isLoading ? '불러오는 중...' : '이전 기록 더 보기'}
+        </button>
+      )}
     </div>
   );
 }

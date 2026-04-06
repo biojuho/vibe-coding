@@ -1,8 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { getNotifications } from '@/lib/actions';
-
 const TYPE_STYLES = {
   estrus: {
     accent: 'var(--color-estrus)',
@@ -34,26 +31,8 @@ const TYPE_STYLES = {
   },
 };
 
-export default function NotificationWidget() {
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await getNotifications();
-        setNotifications(data);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    load();
-  }, []);
-
-  if (loading || notifications.length === 0) return null;
+export default function NotificationWidget({ notifications = [] }) {
+  if (notifications.length === 0) return null;
 
   return (
     <section className="animate-fadeInDown mb-6">

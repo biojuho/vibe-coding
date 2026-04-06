@@ -7,6 +7,13 @@ datasource db {
   provider = "postgresql"
 }
 
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
 model User {
   id        String   @id @default(cuid())
   username  String   @unique
@@ -64,6 +71,10 @@ model Cattle {
   scheduleEvents ScheduleEvent[]
   histories      CattleHistory[]
   expenses       ExpenseRecord[]
+
+  @@index([buildingId, status])     // 동사별 상태 필터 (가장 빈번한 쿼리)
+  @@index([status, isArchived])     // 활성 소 필터링
+  @@index([buildingId, penNumber])  // 우사-우방 조회
 }
 
 model SalesRecord {
@@ -76,6 +87,9 @@ model SalesRecord {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   cattle    Cattle   @relation(fields: [cattleId], references: [id], onDelete: Restrict)
+
+  @@index([saleDate])               // 날짜 범위 쿼리
+  @@index([cattleId, saleDate])     // 소별 판매 이력
 }
 
 model FeedStandard {
@@ -99,6 +113,8 @@ model InventoryItem {
   threshold Float?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([category])               // 카테고리별 재고 조회
 }
 
 model ScheduleEvent {
@@ -111,6 +127,9 @@ model ScheduleEvent {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   cattle      Cattle?  @relation(fields: [cattleId], references: [id], onDelete: SetNull)
+
+  @@index([date, isCompleted])      // 일정 필터 (대시보드 메인)
+  @@index([cattleId, date])         // 소별 일정 조회
 }
 
 model FeedRecord {
@@ -124,6 +143,8 @@ model FeedRecord {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   building    Building @relation(fields: [buildingId], references: [id], onDelete: Restrict)
+
+  @@index([buildingId, date])       // 동사별 급이 이력 조회
 }
 
 model Subscription {
@@ -163,6 +184,10 @@ model ExpenseRecord {
   updatedAt   DateTime  @updatedAt
   cattle      Cattle?   @relation(fields: [cattleId], references: [id], onDelete: SetNull)
   building    Building? @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+
+  @@index([date])                   // 날짜 범위 비용 조회
+  @@index([cattleId, date])         // 소별 비용 이력
+  @@index([category, date])         // 카테고리별 비용 집계
 }
 
 model CattleHistory {
@@ -174,4 +199,54 @@ model CattleHistory {
   metadata    String?
   createdAt   DateTime @default(now())
   cattle      Cattle   @relation(fields: [cattleId], references: [id], onDelete: Cascade)
+
+  @@index([cattleId, eventDate])    // 소별 이력 조회 (시간순)
+  @@index([eventType, eventDate])   // 이벤트 유형별 목록
+}
+
+model OutboxEvent {
+  id          String       @id @default(cuid())
+  topic       String
+  aggregateId String?
+  payload     Json
+  status      OutboxStatus @default(PENDING)
+  attempts    Int          @default(0)
+  availableAt DateTime     @default(now())
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([status, availableAt, createdAt])
+  @@index([topic, createdAt])
+}
+
+model DashboardSnapshot {
+  key         String   @id
+  payload     Json
+  version     Int      @default(1)
+  generatedAt DateTime @default(now())
+  staleAt     DateTime
+
+  @@index([staleAt])
+}
+
+model NotificationSummary {
+  key         String   @id
+  payload     Json
+  generatedAt DateTime @default(now())
+}
+
+model MarketPriceSnapshot {
+  id           String   @id @default(cuid())
+  issueDate    DateTime @unique
+  isRealtime   Boolean  @default(false)
+  bullGrade1pp Int
+  bullGrade1p  Int
+  bullGrade1   Int
+  cowGrade1pp  Int
+  cowGrade1p   Int
+  cowGrade1    Int
+  source       String
+  fetchedAt    DateTime @default(now())
+
+  @@index([fetchedAt])
 }

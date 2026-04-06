@@ -1,63 +1,184 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { fetchWithTimeout, isTimeoutError } from '@/lib/fetchWithTimeout';
+import { isAuthenticationError, requireAuthenticatedSession } from '@/lib/auth-guard';
+import {
+  PREMIUM_SUBSCRIPTION,
+  addDays,
+  buildCustomerKey,
+  parseCustomerKeyFromOrderId,
+} from '@/lib/subscription';
 
 export const dynamic = 'force-dynamic';
+const TOSS_CONFIRM_TIMEOUT_MS = 15000;
 
 export async function POST(req) {
   try {
+    const session = await requireAuthenticatedSession();
     const body = await req.json();
-    const { paymentKey, orderId, amount } = body;
+    const { paymentKey, orderId } = body;
+    const amount = Number(body?.amount);
 
-    // 1. Verify payment with Toss Payments API
+    if (!paymentKey || !orderId || !Number.isFinite(amount)) {
+      return NextResponse.json(
+        { success: false, message: 'Missing payment confirmation fields.' },
+        { status: 400 }
+      );
+    }
+
+    const expectedCustomerKey = buildCustomerKey(session.user.id);
+    const orderCustomerKey = parseCustomerKeyFromOrderId(orderId);
+
+    if (!orderCustomerKey || orderCustomerKey !== expectedCustomerKey) {
+      return NextResponse.json(
+        { success: false, message: 'Order does not belong to the current user.' },
+        { status: 403 }
+      );
+    }
+
+    if (amount !== PREMIUM_SUBSCRIPTION.amount) {
+      return NextResponse.json(
+        { success: false, message: 'Unexpected payment amount.' },
+        { status: 400 }
+      );
+    }
+
     const secretKey = process.env.TOSS_PAYMENTS_SECRET_KEY;
-    const basicAuth = Buffer.from(secretKey + ":").toString('base64');
+    if (!secretKey) {
+      throw new Error('TOSS_PAYMENTS_SECRET_KEY is not configured.');
+    }
 
-    const response = await fetch("https://api.tosspayments.com/v1/payments/confirm", {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${basicAuth}`,
-        "Content-Type": "application/json",
+    await prisma.paymentLog.upsert({
+      where: { orderId },
+      update: {
+        paymentKey,
+        amount,
+        status: 'PENDING_CONFIRMATION',
       },
-      body: JSON.stringify({ paymentKey, orderId, amount }),
+      create: {
+        orderId,
+        paymentKey,
+        amount,
+        status: 'PENDING_CONFIRMATION',
+      },
     });
 
+    const basicAuth = Buffer.from(`${secretKey}:`).toString('base64');
+    let response;
+
+    try {
+      response = await fetchWithTimeout(
+        'https://api.tosspayments.com/v1/payments/confirm',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Basic ${basicAuth}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ paymentKey, orderId, amount }),
+          cache: 'no-store',
+        },
+        {
+          timeoutMs: TOSS_CONFIRM_TIMEOUT_MS,
+          errorMessage: `Payment confirmation timed out after ${TOSS_CONFIRM_TIMEOUT_MS}ms.`,
+        },
+      );
+    } catch (error) {
+      if (isTimeoutError(error)) {
+        return NextResponse.json(
+          {
+            success: false,
+            pending: true,
+            message: 'Payment confirmation is still in progress. Please retry in a few seconds.',
+          },
+          { status: 202 },
+        );
+      }
+
+      throw error;
+    }
+
     if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Payment verification failed");
+      const errorData = await response.json();
+      await prisma.paymentLog.upsert({
+        where: { orderId },
+        update: {
+          paymentKey,
+          amount,
+          status: 'FAILED',
+        },
+        create: {
+          orderId,
+          paymentKey,
+          amount,
+          status: 'FAILED',
+        },
+      });
+      throw new Error(errorData.message || 'Payment verification failed');
     }
 
     const paymentData = await response.json();
+    const confirmedAmount = Number(paymentData?.totalAmount ?? amount);
+    if (!Number.isFinite(confirmedAmount) || confirmedAmount !== amount) {
+      return NextResponse.json(
+        { success: false, message: 'Confirmed payment amount does not match the expected amount.' },
+        { status: 400 }
+      );
+    }
 
-    // 2. Save Payment Log
-    await prisma.paymentLog.upsert({
+    const approvedAt = paymentData?.approvedAt ? new Date(paymentData.approvedAt) : new Date();
+    const receiptUrl = paymentData?.receipt?.url || null;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.paymentLog.upsert({
         where: { orderId },
         update: {
-            paymentKey,
-            status: "DONE",
-            approvedAt: new Date(paymentData.approvedAt),
-            receiptUrl: paymentData.receipt.url
+          paymentKey,
+          amount,
+          status: 'DONE',
+          approvedAt,
+          receiptUrl,
         },
         create: {
-            orderId,
-            paymentKey,
-            amount,
-            status: "DONE",
-            approvedAt: new Date(paymentData.approvedAt),
-            receiptUrl: paymentData.receipt.url
-        }
+          orderId,
+          paymentKey,
+          amount,
+          status: 'DONE',
+          approvedAt,
+          receiptUrl,
+        },
+      });
+
+      await tx.subscription.upsert({
+        where: { customerKey: expectedCustomerKey },
+        update: {
+          userId: session.user.id,
+          status: 'ACTIVE',
+          planName: PREMIUM_SUBSCRIPTION.planName,
+          amount,
+          nextPaymentDate: addDays(approvedAt, 30),
+        },
+        create: {
+          userId: session.user.id,
+          customerKey: expectedCustomerKey,
+          status: 'ACTIVE',
+          planName: PREMIUM_SUBSCRIPTION.planName,
+          amount,
+          nextPaymentDate: addDays(approvedAt, 30),
+        },
+      });
     });
 
-    // 3. Activate Subscription (Simple Logic for MVP)
-    // Assumes orderId contains customerKey or we find via context. 
-    // For now, let's assume one user or we derive from orderId format "sub_USERID_TIMESTAMP"
-    
-    // Determine user/subscription from orderId implied logic or session
-    // For MVP, just updating status if we had a subscription record pending
-
     return NextResponse.json({ success: true });
-
   } catch (error) {
-    console.error("Payment Confirm Error:", error);
-    return NextResponse.json({ success: false, message: error.message }, { status: 400 });
+    if (isAuthenticationError(error)) {
+      return NextResponse.json({ success: false, message: error.message }, { status: 401 });
+    }
+
+    console.error('Payment Confirm Error:', error);
+    return NextResponse.json(
+      { success: false, message: error.message || 'Payment verification failed.' },
+      { status: 400 }
+    );
   }
 }
