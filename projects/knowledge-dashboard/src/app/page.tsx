@@ -166,6 +166,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     let isActive = true;
+    const controllers = new Set<AbortController>();
     startTransition(() => {
       setLoading(true);
       setLoadError(null);
@@ -173,9 +174,27 @@ export default function Dashboard() {
 
     // Treat transport errors and shape errors separately so the UI can
     // distinguish bad credentials from broken data.
-    const fetchJson = async (url: string) => {
-      const response = await fetch(url, { cache: "no-store" });
-      const payload = await response.json().catch(() => null);
+    const fetchJson = async (url: string, timeoutMs = 15000) => {
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+      controllers.add(controller);
+
+      let response: Response;
+      let payload: unknown = null;
+
+      try {
+        response = await fetch(url, { cache: "no-store", signal: controller.signal });
+        payload = await response.json().catch(() => null);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          throw new Error(`Request timed out while loading ${url}.`);
+        }
+
+        throw error;
+      } finally {
+        window.clearTimeout(timeoutId);
+        controllers.delete(controller);
+      }
 
       if (response.status === 401) {
         throw new Error("Unauthorized");
@@ -235,6 +254,8 @@ export default function Dashboard() {
 
     return () => {
       isActive = false;
+      controllers.forEach((controller) => controller.abort());
+      controllers.clear();
     };
   }, [sessionVersion]);
 

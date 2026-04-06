@@ -7,6 +7,15 @@ import { isEstrusAlert, isCalvingAlert, getDaysUntilEstrus, getDaysUntilCalving 
 import { fetchMarketPrice } from './kape';
 import { createOutboxEvent, DASHBOARD_EVENT_TOPICS } from './dashboard/events';
 import { getLatestMarketPriceSnapshot, saveMarketPriceSnapshot, getNotificationSummary, saveNotificationSummary, invalidateDashboardCaches } from './dashboard/read-models';
+import {
+  validateCattleMutationInput,
+  validateExpenseRecordInput,
+  validateFarmSettingsInput,
+  validateFeedRecordInput,
+  validateInventoryItemInput,
+  validateInventoryQuantityInput,
+  validateSalesRecordInput,
+} from './action-validation.mjs';
 
 // ============================================================
 // Helper: CattleHistory 기록 (실패해도 부모 작업 중단 안 함)
@@ -77,32 +86,38 @@ export async function createCattle(data) {
       return { success: false, message: "이름과 이력번호는 필수입니다." };
     }
 
+    const validation = validateCattleMutationInput(data);
+    if (!validation.success) {
+      return validation;
+    }
+
+    const payload = validation.data;
     const created = await prisma.cattle.create({
       data: {
-        tagNumber: data.tagNumber,
-        name: data.name,
-        birthDate: new Date(data.birthDate),
-        gender: data.gender,
-        status: data.status,
-        weight: parseFloat(data.weight),
-        buildingId: data.buildingId,
-        penNumber: parseInt(data.penNumber),
-        memo: data.memo || "",
-        geneticFather: data.geneticInfo?.father,
-        geneticMother: data.geneticInfo?.mother,
-        geneticGrade: data.geneticInfo?.grade,
-        lastEstrus: data.lastEstrus ? new Date(data.lastEstrus) : null,
-        pregnancyDate: data.pregnancyDate ? new Date(data.pregnancyDate) : null,
-        purchasePrice: data.purchasePrice ? parseInt(data.purchasePrice) : null,
-        purchaseDate: data.purchaseDate ? new Date(data.purchaseDate) : null,
+        tagNumber: payload.tagNumber,
+        name: payload.name,
+        birthDate: payload.birthDate,
+        gender: payload.gender,
+        status: payload.status,
+        weight: payload.weight,
+        buildingId: payload.buildingId,
+        penNumber: payload.penNumber,
+        memo: payload.memo,
+        geneticFather: payload.geneticInfo.father,
+        geneticMother: payload.geneticInfo.mother,
+        geneticGrade: payload.geneticInfo.grade,
+        lastEstrus: payload.lastEstrus,
+        pregnancyDate: payload.pregnancyDate,
+        purchasePrice: payload.purchasePrice,
+        purchaseDate: payload.purchaseDate,
       }
     });
 
     await recordCattleHistory(created.id, 'purchase', new Date(), `신규 등록: ${data.name} (${data.tagNumber})`, {
-      purchasePrice: data.purchasePrice ? parseInt(data.purchasePrice) : null,
+      purchasePrice: payload.purchasePrice,
     });
 
-    await createOutboxEvent({ topic: DASHBOARD_EVENT_TOPICS.cattleCreated, aggregateId: created.id, payload: { tagNumber: data.tagNumber, name: data.name } });
+    await createOutboxEvent({ topic: DASHBOARD_EVENT_TOPICS.cattleCreated, aggregateId: created.id, payload: { tagNumber: payload.tagNumber, name: payload.name } });
     await invalidateHomeCaches({ summary: true, notifications: true, cattleListPages: true });
     return { success: true, data: created };
   } catch (error) {
@@ -115,51 +130,57 @@ export async function updateCattle(id, data) {
   await requireAuthenticatedSession();
   try {
     // 변경 전 기존값 조회 (이력 비교용)
+    const validation = validateCattleMutationInput(data);
+    if (!validation.success) {
+      return validation;
+    }
+
+    const payload = validation.data;
     const existing = await prisma.cattle.findUnique({ where: { id } });
 
     const updated = await prisma.cattle.update({
       where: { id },
       data: {
-        tagNumber: data.tagNumber,
-        name: data.name,
-        birthDate: new Date(data.birthDate),
-        gender: data.gender,
-        status: data.status,
-        weight: parseFloat(data.weight),
-        buildingId: data.buildingId,
-        penNumber: parseInt(data.penNumber),
-        memo: data.memo || "",
-        geneticFather: data.geneticInfo?.father,
-        geneticMother: data.geneticInfo?.mother,
-        geneticGrade: data.geneticInfo?.grade,
-        lastEstrus: data.lastEstrus ? new Date(data.lastEstrus) : null,
-        pregnancyDate: data.pregnancyDate ? new Date(data.pregnancyDate) : null,
-        purchasePrice: data.purchasePrice ? parseInt(data.purchasePrice) : null,
-        purchaseDate: data.purchaseDate ? new Date(data.purchaseDate) : null,
+        tagNumber: payload.tagNumber,
+        name: payload.name,
+        birthDate: payload.birthDate,
+        gender: payload.gender,
+        status: payload.status,
+        weight: payload.weight,
+        buildingId: payload.buildingId,
+        penNumber: payload.penNumber,
+        memo: payload.memo,
+        geneticFather: payload.geneticInfo.father,
+        geneticMother: payload.geneticInfo.mother,
+        geneticGrade: payload.geneticInfo.grade,
+        lastEstrus: payload.lastEstrus,
+        pregnancyDate: payload.pregnancyDate,
+        purchasePrice: payload.purchasePrice,
+        purchaseDate: payload.purchaseDate,
       }
     });
 
     // 상태 변경 이력
-    if (existing && existing.status !== data.status) {
+    if (existing && existing.status !== payload.status) {
       await recordCattleHistory(id, 'status_change', new Date(), `상태 변경: ${existing.status} → ${data.status}`, {
-        from: existing.status, to: data.status,
+        from: existing.status, to: payload.status,
       });
     }
     // 체중 변경 이력
-    if (existing && existing.weight !== parseFloat(data.weight)) {
+    if (existing && existing.weight !== payload.weight) {
       await recordCattleHistory(id, 'weight', new Date(), `체중 변경: ${existing.weight}kg → ${data.weight}kg`, {
-        from: existing.weight, to: parseFloat(data.weight),
+        from: existing.weight, to: payload.weight,
       });
     }
     // 이동 이력
-    if (existing && (existing.buildingId !== data.buildingId || existing.penNumber !== parseInt(data.penNumber))) {
+    if (existing && (existing.buildingId !== payload.buildingId || existing.penNumber !== payload.penNumber)) {
       await recordCattleHistory(id, 'movement', new Date(), `이동: ${existing.buildingId} ${existing.penNumber}번 → ${data.buildingId} ${data.penNumber}번`, {
         fromBuilding: existing.buildingId, fromPen: existing.penNumber,
-        toBuilding: data.buildingId, toPen: parseInt(data.penNumber),
+        toBuilding: payload.buildingId, toPen: payload.penNumber,
       });
     }
 
-    await createOutboxEvent({ topic: DASHBOARD_EVENT_TOPICS.cattleUpdated, aggregateId: id, payload: { tagNumber: data.tagNumber, name: data.name } });
+    await createOutboxEvent({ topic: DASHBOARD_EVENT_TOPICS.cattleUpdated, aggregateId: id, payload: { tagNumber: payload.tagNumber, name: payload.name } });
     await invalidateHomeCaches({ summary: true, notifications: true, cattleListPages: true });
     return { success: true, data: updated };
   } catch (error) {
@@ -307,30 +328,36 @@ export async function createSalesRecord(data) {
   await requireAuthenticatedSession();
   try {
     // cattleId 존재 검증
-    if (data.cattleId) {
-      const cattle = await prisma.cattle.findUnique({ where: { id: data.cattleId } });
+    const validation = validateSalesRecordInput(data);
+    if (!validation.success) {
+      return validation;
+    }
+
+    const payload = validation.data;
+    if (payload.cattleId) {
+      const cattle = await prisma.cattle.findUnique({ where: { id: payload.cattleId } });
       if (!cattle) return { success: false, message: "존재하지 않는 개체입니다." };
     }
 
     const created = await prisma.salesRecord.create({
       data: {
-        saleDate: new Date(data.saleDate),
-        price: parseInt(data.price),
-        purchaser: data.purchaser,
-        grade: data.grade,
-        cattleId: data.cattleId,
+        saleDate: payload.saleDate,
+        price: payload.price,
+        purchaser: payload.purchaser,
+        grade: payload.grade,
+        cattleId: payload.cattleId,
       }
     });
 
     // 출하 이력
-    if (data.cattleId) {
-      await recordCattleHistory(data.cattleId, 'sale', new Date(data.saleDate),
+    if (payload.cattleId) {
+      await recordCattleHistory(payload.cattleId, 'sale', payload.saleDate,
         `출하: ${parseInt(data.price).toLocaleString()}원 (등급: ${data.grade || '-'})`,
-        { price: parseInt(data.price), grade: data.grade, purchaser: data.purchaser }
+        { price: payload.price, grade: payload.grade, purchaser: payload.purchaser }
       );
     }
 
-    await createOutboxEvent({ topic: DASHBOARD_EVENT_TOPICS.saleRecorded, aggregateId: data.cattleId || null, payload: { price: parseInt(data.price), grade: data.grade } });
+    await createOutboxEvent({ topic: DASHBOARD_EVENT_TOPICS.saleRecorded, aggregateId: payload.cattleId || null, payload: { price: payload.price, grade: payload.grade } });
     await invalidateHomeCaches({ summary: true, salesListPages: true });
     return { success: true, data: created };
   } catch (error) {
@@ -356,14 +383,20 @@ export async function getFeedStandards() {
 export async function recordFeed(data) {
   await requireAuthenticatedSession();
   try {
+    const validation = validateFeedRecordInput(data);
+    if (!validation.success) {
+      return validation;
+    }
+
+    const payload = validation.data;
     const created = await prisma.feedRecord.create({
       data: {
-        date: new Date(data.date),
-        buildingId: data.buildingId,
-        penNumber: data.penNumber ? parseInt(data.penNumber) : null,
-        roughage: parseFloat(data.roughage),
-        concentrate: parseFloat(data.concentrate),
-        note: data.note || null,
+        date: payload.date,
+        buildingId: payload.buildingId,
+        penNumber: payload.penNumber,
+        roughage: payload.roughage,
+        concentrate: payload.concentrate,
+        note: payload.note,
       }
     });
     return { success: true, data: created };
@@ -402,13 +435,19 @@ export async function getInventory() {
 export async function addInventoryItem(data) {
   await requireAuthenticatedSession();
   try {
+    const validation = validateInventoryItemInput(data);
+    if (!validation.success) {
+      return validation;
+    }
+
+    const payload = validation.data;
     const created = await prisma.inventoryItem.create({
       data: {
-        name: data.name,
-        category: data.category,
-        quantity: parseFloat(data.quantity),
-        unit: data.unit,
-        threshold: data.threshold ? parseFloat(data.threshold) : null,
+        name: payload.name,
+        category: payload.category,
+        quantity: payload.quantity,
+        unit: payload.unit,
+        threshold: payload.threshold,
       }
     });
     return { success: true, data: created };
@@ -420,9 +459,14 @@ export async function addInventoryItem(data) {
 export async function updateInventoryQuantity(id, quantity) {
   await requireAuthenticatedSession();
   try {
+    const validation = validateInventoryQuantityInput(quantity);
+    if (!validation.success) {
+      return validation;
+    }
+
     const updated = await prisma.inventoryItem.update({
       where: { id },
-      data: { quantity: parseFloat(quantity) }
+      data: { quantity: validation.data.quantity }
     });
     return { success: true, data: updated };
   } catch (error) {
@@ -543,10 +587,16 @@ export async function getFarmSettings() {
 export async function updateFarmSettings(data) {
   await requireAuthenticatedSession();
   try {
+    const validation = validateFarmSettingsInput(data);
+    if (!validation.success) {
+      return validation;
+    }
+
+    const payload = validation.data;
     const settings = await prisma.farmSettings.upsert({
       where: { id: "default" },
-      update: { name: data.name, location: data.location, latitude: parseFloat(data.latitude), longitude: parseFloat(data.longitude) },
-      create: { id: "default", name: data.name, location: data.location, latitude: parseFloat(data.latitude), longitude: parseFloat(data.longitude) },
+      update: { name: payload.name, location: payload.location, latitude: payload.latitude, longitude: payload.longitude },
+      create: { id: "default", name: payload.name, location: payload.location, latitude: payload.latitude, longitude: payload.longitude },
     });
     await invalidateHomeCaches({ summary: true });
     return { success: true, data: settings };
@@ -714,32 +764,38 @@ export async function getExpenseRecords(filters = {}) {
 export async function createExpenseRecord(data) {
   await requireAuthenticatedSession();
   try {
+    const validation = validateExpenseRecordInput(data);
+    if (!validation.success) {
+      return validation;
+    }
+
+    const payload = validation.data;
     if (!data.date || !data.category || !data.amount) {
       return { success: false, message: "날짜, 카테고리, 금액은 필수입니다." };
     }
-    if (data.cattleId) {
-      const cattle = await prisma.cattle.findUnique({ where: { id: data.cattleId } });
+    if (payload.cattleId) {
+      const cattle = await prisma.cattle.findUnique({ where: { id: payload.cattleId } });
       if (!cattle) return { success: false, message: "존재하지 않는 개체입니다." };
     }
-    if (data.buildingId) {
-      const building = await prisma.building.findUnique({ where: { id: data.buildingId } });
+    if (payload.buildingId) {
+      const building = await prisma.building.findUnique({ where: { id: payload.buildingId } });
       if (!building) return { success: false, message: "존재하지 않는 축사입니다." };
     }
 
     const created = await prisma.expenseRecord.create({
       data: {
-        date: new Date(data.date),
-        cattleId: data.cattleId || null,
-        buildingId: data.buildingId || null,
-        category: data.category,
-        amount: parseInt(data.amount),
-        description: data.description || null,
+        date: payload.date,
+        cattleId: payload.cattleId,
+        buildingId: payload.buildingId,
+        category: payload.category,
+        amount: payload.amount,
+        description: payload.description,
       }
     });
     await createOutboxEvent({
       topic: DASHBOARD_EVENT_TOPICS.expenseRecorded,
-      aggregateId: data.cattleId || data.buildingId || null,
-      payload: { category: data.category, amount: parseInt(data.amount) },
+      aggregateId: payload.cattleId || payload.buildingId || null,
+      payload: { category: payload.category, amount: payload.amount },
     });
     await invalidateHomeCaches({ summary: true });
     revalidatePath('/');

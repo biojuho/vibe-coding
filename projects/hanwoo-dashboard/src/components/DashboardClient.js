@@ -24,6 +24,8 @@ import { TabBar, WeatherWidget, EstrusAlertBanner, CalvingAlertBanner } from '@/
 import { StatCard, PenCard, CattleRow } from '@/components/ui/cards';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { PremiumInfoCard } from '@/components/ui/premium-card';
+import { PremiumButton } from '@/components/ui/premium-button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Bell, Plus, ArrowLeft, WifiOff } from 'lucide-react';
@@ -681,15 +683,15 @@ export default function DashboardClient({
           </div>
           <div className="flex gap-2.5">
             <ExcelExportButton cattleList={cattleList} />
-            <Button variant="outline" size="icon" onClick={() => setShowNotifications(true)} className="relative shadow-[var(--shadow-sm)]">
+            <PremiumButton variant="outline" size="icon" onClick={() => setShowNotifications(true)} className="relative shadow-[var(--shadow-sm)]">
               <Bell className="h-5 w-5" />
               {notifications.some((notification) => notification.level === 'critical') && (
                 <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-destructive border-2 border-background animate-pulse shadow-[0_0_8px_hsl(var(--destructive))]" />
               )}
-            </Button>
-            <Button size="icon" onClick={() => setShowAddModal(true)} className="shadow-[var(--shadow-button-primary)]">
+            </PremiumButton>
+            <PremiumButton size="icon" onClick={() => setShowAddModal(true)} className="shadow-[var(--shadow-button-primary)]">
               <Plus className="h-5 w-5" />
-            </Button>
+            </PremiumButton>
           </div>
         </div>
 
@@ -704,15 +706,14 @@ export default function DashboardClient({
 
         {widgetSettings.visible.stats && (
           <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '12px', marginBottom: '24px', scrollSnapType: 'x mandatory' }}>
-            <StatCard label="총 사육두수" value={`${totalHeadcount}두`} sub="전월 대비 +0" color="var(--color-primary-light)" delay={0} />
-            <StatCard
-              label="이번달 출하"
+            <PremiumInfoCard title="총 사육두수" value={`${totalHeadcount}두`} change="전월 대비 +0" changeType="positive" />
+            <PremiumInfoCard
+              title="이번달 출하"
               value={`${monthlySalesCount}두`}
-              sub={`매출 ${formatMoney(monthlySalesTotal / 10000)}만`}
-              color="var(--color-success)"
-              delay={50}
+              change={`매출 ${formatMoney(monthlySalesTotal / 10000)}만`}
+              changeType="positive"
             />
-            <StatCard label="평균 체중" value={`${avgWeight}kg`} sub="전체 평균" color="var(--color-warning)" delay={100} />
+            <PremiumInfoCard title="평균 체중" value={`${avgWeight}kg`} change="전체 평균 유지" changeType="positive" />
           </div>
         )}
 
@@ -744,9 +745,9 @@ export default function DashboardClient({
         ) : !selectedPenId ? (
           <div className="animate-fadeIn">
             <div className="flex items-center gap-3 mb-4">
-              <Button variant="ghost" size="icon" onClick={() => setSelectedBuildingId(null)} className="h-9 w-9">
+              <PremiumButton variant="ghost" size="icon" onClick={() => setSelectedBuildingId(null)} className="h-9 w-9">
                 <ArrowLeft className="h-5 w-5" />
-              </Button>
+              </PremiumButton>
               <h2 className="text-lg font-extrabold text-foreground">{buildings.find((building) => building.id === selectedBuildingId)?.name}</h2>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '12px' }}>
@@ -760,9 +761,9 @@ export default function DashboardClient({
         ) : (
           <div className="animate-fadeIn">
             <div className="flex items-center gap-3 mb-4">
-              <Button variant="ghost" size="icon" onClick={() => setSelectedPenId(null)} className="h-9 w-9">
+              <PremiumButton variant="ghost" size="icon" onClick={() => setSelectedPenId(null)} className="h-9 w-9">
                 <ArrowLeft className="h-5 w-5" />
-              </Button>
+              </PremiumButton>
               <h2 className="text-lg font-extrabold text-foreground">{selectedPenId}번 칸 상세</h2>
             </div>
             <div className="flex flex-col gap-3">
