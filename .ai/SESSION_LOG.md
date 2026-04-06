@@ -1,5 +1,30 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-04-07 | Codex | T-156 hanwoo-dashboard payment confirmation graceful-degradation hardening
+
+### Work Summary
+
+1. Added `projects/hanwoo-dashboard/src/lib/payment-confirmation.mjs` so Toss confirmation responses can be read safely without assuming `response.json()` will succeed.
+2. Updated `projects/hanwoo-dashboard/src/app/api/payments/confirm/route.js` to classify retryable gateway failures (`timeout`, network error, `5xx`, malformed or empty `200` body) as `pending`, while still marking definitive failures (`4xx`, amount mismatch) as `FAILED`.
+3. Added focused Node coverage in `projects/hanwoo-dashboard/src/lib/payment-confirmation.test.mjs` for malformed bodies, retryable failures, amount mismatch handling, and normalized success payloads, and expanded `npm test` to run both local `.mjs` suites.
+4. Re-verified the payment hardening slice with `npm test` (`17 passed`), `npm run lint` (`pass`), and `npm run build` (`pass`).
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `projects/hanwoo-dashboard/src/lib/payment-confirmation.mjs` | Added safe response parsing and retryable-vs-definitive payment confirmation classification helpers |
+| `projects/hanwoo-dashboard/src/lib/payment-confirmation.test.mjs` | Added focused unit coverage for malformed Toss responses and confirmation branching |
+| `projects/hanwoo-dashboard/src/app/api/payments/confirm/route.js` | Routed Toss confirmation through the safe parser/classifier and returned `pending` for retryable upstream failures |
+| `projects/hanwoo-dashboard/package.json` | Expanded `npm test` to include the new payment confirmation suite |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md` | Synced the latest relay/context/task state |
+
+### Verification Results
+
+- `npm test` (`projects/hanwoo-dashboard`) -> **17 passed**
+- `npm run lint` (`projects/hanwoo-dashboard`) -> **pass**
+- `npm run build` (`projects/hanwoo-dashboard`) -> **pass**
+
 ## 2026-04-06 | Codex | T-155 hanwoo-dashboard server-action validation hardening
 
 ### Work Summary

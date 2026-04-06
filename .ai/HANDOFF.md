@@ -3,6 +3,11 @@
 > See `SESSION_LOG.md` for detailed session history and `DECISIONS.md` for settled architecture decisions.
 
 ## Latest Update
+| Date | 2026-04-07 |
+| Tool | Codex |
+| Work | **Completed `T-156` in `hanwoo-dashboard`: Toss payment confirmation now degrades gracefully on retryable gateway failures and malformed bodies.** Added `src/lib/payment-confirmation.mjs` to safely read and classify gateway responses without assuming valid JSON, separating retryable states (`timeout`, network error, `5xx`, malformed or empty `200` body) from definitive failures (`4xx`, amount mismatch). Updated `src/app/api/payments/confirm/route.js` to keep retryable cases in `pending`, mark only definitive failures as `FAILED`, and return `500` for unexpected internal exceptions instead of collapsing them into `400`. Added focused unit coverage in `src/lib/payment-confirmation.test.mjs` and expanded `npm test`. Verification: `npm test` -> **17 passed**, `npm run lint` -> **pass**, and `npm run build` -> **pass**. Note: the unrelated pre-existing worktree changes in `projects/hanwoo-dashboard/src/components/DashboardClient.js`, `projects/knowledge-dashboard/src/app/page.tsx`, and the two untracked root text artifacts are still present and were not touched. |
+
+## Previous Update
 | Date | 2026-04-06 |
 | Tool | Codex |
 | Work | **Completed `T-155` in `hanwoo-dashboard`: server mutation payloads are now validated before Prisma writes.** Added shared validation/normalization in `src/lib/action-validation.mjs` and wired it into the highest-risk mutation actions in `src/lib/actions.js` (`createCattle`, `updateCattle`, `createSalesRecord`, `recordFeed`, `addInventoryItem`, `updateInventoryQuantity`, `updateFarmSettings`, `createExpenseRecord`). Added focused unit coverage in `src/lib/action-validation.test.mjs` plus a new `npm test` script. Verification: `npm test` -> **9 passed**, `npm run lint` -> **pass**, and `npm run build` -> **pass**. Note: the worktree still has unrelated pre-existing changes in `projects/hanwoo-dashboard/src/components/DashboardClient.js`, `projects/knowledge-dashboard/src/app/page.tsx`, and two untracked root text artifacts; do not revert them accidentally. |
@@ -225,7 +230,7 @@
 
 1. ~~`T-151`~~: **DONE** — cattle/sales UI now uses paginated API routes as primary data source.
 2. Wait on `T-153`: delete `.tmp/*.db.bak` files only after human verification.
-3. Consider further `hanwoo-dashboard` optimizations: bundle splitting, additional lazy loading, or real-time WebSocket updates if needed.
+3. Continue the `hanwoo-dashboard` QA hardening backlog, starting with market-price/KAPE degraded-state handling (`T-157`) and then mixed-validity history parsing guards.
 
 ## Notes
 
