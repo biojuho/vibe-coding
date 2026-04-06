@@ -4,6 +4,11 @@
 
 ## Latest Update
 | Date | 2026-04-06 |
+| Tool | Codex |
+| Work | **Completed `T-155` in `hanwoo-dashboard`: server mutation payloads are now validated before Prisma writes.** Added shared validation/normalization in `src/lib/action-validation.mjs` and wired it into the highest-risk mutation actions in `src/lib/actions.js` (`createCattle`, `updateCattle`, `createSalesRecord`, `recordFeed`, `addInventoryItem`, `updateInventoryQuantity`, `updateFarmSettings`, `createExpenseRecord`). Added focused unit coverage in `src/lib/action-validation.test.mjs` plus a new `npm test` script. Verification: `npm test` -> **9 passed** and `npm run lint` -> **pass**. Note: the worktree still has unrelated pre-existing changes in `projects/hanwoo-dashboard/src/components/DashboardClient.js`, `projects/knowledge-dashboard/src/app/page.tsx`, and two untracked root text artifacts; do not revert them accidentally. |
+
+## Previous Update
+| Date | 2026-04-06 |
 | Tool | Gemini (Antigravity) |
 | Work | **T-152 파편화 검증, T-129 후속 번들 최적화, T-153 정리 완료.** (1) `blind-to-x/tests/unit/test_express_draft.py` 및 `workspace/execution/tests/*` regression 수행 (13건 + 통합 통과). (2) `hanwoo-dashboard/next.config.mjs`에 `experimental.optimizePackageImports: ["lucide-react", "recharts"]` 추가 및 빌드 확인 (Bundle scale-hardening 처리). (3) T-153 마이그레이션 잔여물인 `.tmp/*.db.bak` 파일 8개 영구 삭제. QA/QC 완료. |
 

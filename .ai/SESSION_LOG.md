@@ -1,5 +1,29 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-04-06 | Codex | T-155 hanwoo-dashboard server-action validation hardening
+
+### Work Summary
+
+1. Added `projects/hanwoo-dashboard/src/lib/action-validation.mjs` so the riskiest server mutation payloads are validated and normalized before Prisma writes.
+2. Wired `projects/hanwoo-dashboard/src/lib/actions.js` through the new validators for `createCattle`, `updateCattle`, `createSalesRecord`, `recordFeed`, `addInventoryItem`, `updateInventoryQuantity`, `updateFarmSettings`, and `createExpenseRecord`.
+3. Added focused Node unit coverage in `projects/hanwoo-dashboard/src/lib/action-validation.test.mjs` and exposed it through `npm test`.
+4. Verified the first-priority hardening slice with `npm test` (`9 passed`) and `npm run lint` (`pass`).
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `projects/hanwoo-dashboard/src/lib/action-validation.mjs` | Added shared server-side validation and normalization helpers for mutation payloads |
+| `projects/hanwoo-dashboard/src/lib/action-validation.test.mjs` | Added focused unit coverage for malformed/edge-case payloads |
+| `projects/hanwoo-dashboard/src/lib/actions.js` | Routed high-risk mutation actions through the shared validators before Prisma writes |
+| `projects/hanwoo-dashboard/package.json` | Added `npm test` for the new focused unit suite |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md` | Synced the latest relay/context/task state |
+
+### Verification Results
+
+- `npm test` (`projects/hanwoo-dashboard`) -> **9 passed**
+- `npm run lint` (`projects/hanwoo-dashboard`) -> **pass**
+
 ## 2026-04-06 | Gemini (Antigravity) | T-152 harness integration, T-129 scale-hardening chunk, T-153 DB cleanup
 
 ### Work Summary
