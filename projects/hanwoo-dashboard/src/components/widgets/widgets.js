@@ -1,5 +1,6 @@
 import { calcTHI, getTHILevel, getWeatherIcon, getWeatherDesc, getLivestockWeatherAlerts, isEstrusAlert, isEstrusToday, getDaysUntilEstrus, isCalvingAlert, getDaysUntilCalving, getCalvingDate, formatDate } from '@/lib/utils';
 import { HeartIcon } from '@/components/ui/common';
+import { PremiumCard, PremiumCardContent } from '@/components/ui/premium-card';
 
 export function TabBar({ activeTab, onTabChange }) {
   const tabs = [
@@ -47,7 +48,8 @@ export function WeatherWidget({weather}){
 
   return (
     <div style={{marginBottom:"16px"}} className="animate-fadeInUp">
-      <div className="weather-card">
+      <PremiumCard className="overflow-visible bg-slate-800/60">
+        <PremiumCardContent className="p-5">
         <div className="weather-icon-bg">{icon}</div>
         <div style={{fontSize:"12px",opacity:0.8,marginBottom:"8px",position:"relative"}}>
           📍 {weather.locationName} · {new Date().toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'})} 기준
@@ -73,7 +75,8 @@ export function WeatherWidget({weather}){
             </div>
           )}
         </div>
-      </div>
+        </PremiumCardContent>
+      </PremiumCard>
       <div style={{
         background:thiLevel.bg,
         borderRadius:"var(--radius-lg)",
@@ -167,7 +170,8 @@ export function EstrusAlertBanner({cattle, buildings = []}){
   const tc=ac.filter(c=>isEstrusToday(c.lastEstrus)).length;
 
   return (
-    <div className="alert-banner alert-estrus animate-fadeInUp" style={{animationDelay:"100ms"}}>
+    <PremiumCard className="animate-fadeInUp mb-4 bg-pink-900/10 border-pink-500/20" style={{animationDelay:"100ms"}}>
+      <PremiumCardContent className="p-4">
       <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"10px"}}>
         <span className="alert-icon"><HeartIcon/></span>
         <span style={{fontWeight:700,fontSize:"15px",letterSpacing:"-0.3px"}}>
@@ -183,25 +187,25 @@ export function EstrusAlertBanner({cattle, buildings = []}){
               key={c.id}
               className="animate-fadeInUp"
               style={{
-                background:"rgba(255,255,255,0.2)",
+                background:"rgba(255,255,255,0.05)",
                 borderRadius:"var(--radius-md)",
                 padding:"8px 14px",
                 fontSize:"13px",
-                backdropFilter:"blur(4px)",
-                border:"1px solid rgba(255,255,255,0.3)",
+                border:"1px solid rgba(255,255,255,0.1)",
                 transition:"all var(--transition-fast)",
                 animationDelay:`${150 + idx*50}ms`
               }}
-              onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.35)"}
-              onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.2)"}
+              onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.1)"}
+              onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.05)"}
             >
-              <strong>{c.name}</strong> · {bl?.name || '미지정'} {c.penNumber}번 ·
-              <span style={{fontWeight:700}}>{d===0?" ⚡오늘!":` D-${d}`}</span>
+              <strong className="text-pink-300">{c.name}</strong> · <span className="text-slate-300">{bl?.name || '미지정'} {c.penNumber}번</span> ·
+              <span style={{fontWeight:700}} className="text-pink-400">{d===0?" ⚡오늘!":` D-${d}`}</span>
             </div>
           );
         })}
       </div>
-    </div>
+      </PremiumCardContent>
+    </PremiumCard>
   );
 }
 
@@ -210,7 +214,8 @@ export function CalvingAlertBanner({cattle, buildings = []}){
   if(ac.length===0)return null;
 
   return (
-    <div className="alert-banner alert-calving animate-fadeInUp" style={{animationDelay:"150ms"}}>
+    <PremiumCard className="animate-fadeInUp mb-4 bg-indigo-900/10 border-indigo-500/20" style={{animationDelay:"150ms"}}>
+      <PremiumCardContent className="p-4">
       <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"10px"}}>
         <span style={{fontSize:"18px"}} className="animate-bounce">🍼</span>
         <span style={{fontWeight:700,fontSize:"15px",letterSpacing:"-0.3px"}}>
@@ -226,24 +231,24 @@ export function CalvingAlertBanner({cattle, buildings = []}){
               key={c.id}
               className="animate-fadeInUp"
               style={{
-                background:"rgba(255,255,255,0.2)",
+                background:"rgba(255,255,255,0.05)",
                 borderRadius:"var(--radius-md)",
                 padding:"8px 14px",
                 fontSize:"13px",
-                backdropFilter:"blur(4px)",
-                border:"1px solid rgba(255,255,255,0.3)",
+                border:"1px solid rgba(255,255,255,0.1)",
                 transition:"all var(--transition-fast)",
                 animationDelay:`${200 + idx*50}ms`
               }}
-              onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.35)"}
-              onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.2)"}
+              onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.1)"}
+              onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.05)"}
             >
-              <strong>{c.name}</strong> · {bl?.name || '미지정'} {c.penNumber}번 ·
-              <span style={{fontWeight:700}}> D-{d}</span> · 예정 {formatDate(getCalvingDate(c.pregnancyDate))}
+              <strong className="text-indigo-300">{c.name}</strong> · <span className="text-slate-300">{bl?.name || '미지정'} {c.penNumber}번</span> ·
+              <span style={{fontWeight:700}} className="text-indigo-400"> D-{d}</span> <span className="text-slate-400">· 예정 {formatDate(getCalvingDate(c.pregnancyDate))}</span>
             </div>
           );
         })}
       </div>
-    </div>
+      </PremiumCardContent>
+    </PremiumCard>
   );
 }

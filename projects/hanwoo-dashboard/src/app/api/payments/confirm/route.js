@@ -3,6 +3,11 @@ import prisma from '@/lib/db';
 import { fetchWithTimeout, isTimeoutError } from '@/lib/fetchWithTimeout';
 import { isAuthenticationError, requireAuthenticatedSession } from '@/lib/auth-guard';
 import {
+  classifyPaymentConfirmationResult,
+  PAYMENT_CONFIRMATION_PENDING_MESSAGE,
+  readJsonResponseSafely,
+} from '@/lib/payment-confirmation.mjs';
+import {
   PREMIUM_SUBSCRIPTION,
   addDays,
   buildCustomerKey,
@@ -11,6 +16,34 @@ import {
 
 export const dynamic = 'force-dynamic';
 const TOSS_CONFIRM_TIMEOUT_MS = 15000;
+
+function buildPendingResponse(message = PAYMENT_CONFIRMATION_PENDING_MESSAGE) {
+  return NextResponse.json(
+    {
+      success: false,
+      pending: true,
+      message,
+    },
+    { status: 202 }
+  );
+}
+
+async function markPaymentLogFailed({ orderId, paymentKey, amount }) {
+  await prisma.paymentLog.upsert({
+    where: { orderId },
+    update: {
+      paymentKey,
+      amount,
+      status: 'FAILED',
+    },
+    create: {
+      orderId,
+      paymentKey,
+      amount,
+      status: 'FAILED',
+    },
+  });
+}
 
 export async function POST(req) {
   try {
@@ -85,56 +118,50 @@ export async function POST(req) {
       );
     } catch (error) {
       if (isTimeoutError(error)) {
-        return NextResponse.json(
-          {
-            success: false,
-            pending: true,
-            message: 'Payment confirmation is still in progress. Please retry in a few seconds.',
-          },
-          { status: 202 },
-        );
+        return buildPendingResponse();
       }
 
-      throw error;
+      console.error('Payment confirmation request failed before a response was received:', error);
+      return buildPendingResponse();
     }
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      await prisma.paymentLog.upsert({
-        where: { orderId },
-        update: {
-          paymentKey,
-          amount,
-          status: 'FAILED',
-        },
-        create: {
+    const { data: paymentData, rawText, parseError } = await readJsonResponseSafely(response);
+    const confirmationResult = classifyPaymentConfirmationResult({
+      status: response.status,
+      payload: paymentData,
+      rawText,
+      parseError,
+      expectedAmount: amount,
+    });
+
+    if (confirmationResult.kind === 'pending') {
+      if (response.status >= 500 || parseError) {
+        console.error('Payment confirmation deferred due to retryable gateway response.', {
           orderId,
-          paymentKey,
-          amount,
-          status: 'FAILED',
-        },
-      });
-      throw new Error(errorData.message || 'Payment verification failed');
+          status: response.status,
+          parseError: parseError?.message,
+        });
+      }
+
+      return buildPendingResponse(confirmationResult.message);
     }
 
-    const paymentData = await response.json();
-    const confirmedAmount = Number(paymentData?.totalAmount ?? amount);
-    if (!Number.isFinite(confirmedAmount) || confirmedAmount !== amount) {
+    if (confirmationResult.kind === 'failed') {
+      await markPaymentLogFailed({ orderId, paymentKey, amount });
       return NextResponse.json(
-        { success: false, message: 'Confirmed payment amount does not match the expected amount.' },
-        { status: 400 }
+        { success: false, message: confirmationResult.message },
+        { status: confirmationResult.httpStatus }
       );
     }
 
-    const approvedAt = paymentData?.approvedAt ? new Date(paymentData.approvedAt) : new Date();
-    const receiptUrl = paymentData?.receipt?.url || null;
+    const { approvedAt, confirmedAmount, receiptUrl } = confirmationResult;
 
     await prisma.$transaction(async (tx) => {
       await tx.paymentLog.upsert({
         where: { orderId },
         update: {
           paymentKey,
-          amount,
+          amount: confirmedAmount,
           status: 'DONE',
           approvedAt,
           receiptUrl,
@@ -142,7 +169,7 @@ export async function POST(req) {
         create: {
           orderId,
           paymentKey,
-          amount,
+          amount: confirmedAmount,
           status: 'DONE',
           approvedAt,
           receiptUrl,
@@ -155,7 +182,7 @@ export async function POST(req) {
           userId: session.user.id,
           status: 'ACTIVE',
           planName: PREMIUM_SUBSCRIPTION.planName,
-          amount,
+          amount: confirmedAmount,
           nextPaymentDate: addDays(approvedAt, 30),
         },
         create: {
@@ -163,7 +190,7 @@ export async function POST(req) {
           customerKey: expectedCustomerKey,
           status: 'ACTIVE',
           planName: PREMIUM_SUBSCRIPTION.planName,
-          amount,
+          amount: confirmedAmount,
           nextPaymentDate: addDays(approvedAt, 30),
         },
       });
@@ -178,7 +205,7 @@ export async function POST(req) {
     console.error('Payment Confirm Error:', error);
     return NextResponse.json(
       { success: false, message: error.message || 'Payment verification failed.' },
-      { status: 400 }
+      { status: 500 }
     );
   }
 }

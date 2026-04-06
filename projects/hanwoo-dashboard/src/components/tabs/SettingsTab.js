@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { MapPin, Settings } from 'lucide-react';
+import { PremiumButton } from '@/components/ui/premium-button';
+import { PremiumInput, PremiumSelect, PremiumLabel } from '@/components/ui/premium-input';
 
 import { useAppFeedback } from '@/components/feedback/FeedbackProvider';
 import {
@@ -300,105 +302,65 @@ export default function SettingsTab({
 
         <div style={{ display: 'grid', gap: '16px' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '6px' }}>
+            <PremiumLabel>
               농장 이름
-            </label>
-            <input
+            </PremiumLabel>
+            <PremiumInput
               {...registerFarm('name')}
               placeholder="예: 행복한 한우 농장"
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '8px',
-                border: '1px solid var(--color-border)',
-                fontSize: '14px',
-                background: 'var(--color-bg)',
-                color: 'var(--color-text)',
-              }}
+              hasError={!!farmErrors.name}
             />
             {farmErrors.name ? <div style={errorTextStyle}>{farmErrors.name.message}</div> : null}
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '6px' }}>
+            <PremiumLabel>
               지역 선택 (자동 입력)
-            </label>
-            <select
+            </PremiumLabel>
+            <PremiumSelect
               onChange={handleLocationSelect}
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '8px',
-                border: '1px solid var(--color-border)',
-                fontSize: '14px',
-                marginBottom: '10px',
-                background: 'var(--color-bg)',
-                color: 'var(--color-text)',
-              }}
+              className="mb-2"
+              hasError={false}
             >
-              <option value="">주요 지역 선택...</option>
+              <option value="" className="bg-slate-900">주요 지역 선택...</option>
               {koreanLocations.map((location) => (
-                <option key={location.name} value={location.name}>
+                <option key={location.name} value={location.name} className="bg-slate-900">
                   {location.name}
                 </option>
               ))}
-            </select>
-            <input
+            </PremiumSelect>
+            <PremiumInput
               {...registerFarm('location')}
               placeholder="지역명을 직접 입력해 주세요."
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '8px',
-                border: '1px solid var(--color-border)',
-                fontSize: '14px',
-                background: 'var(--color-bg)',
-                color: 'var(--color-text)',
-              }}
+              hasError={!!farmErrors.location}
             />
             {farmErrors.location ? <div style={errorTextStyle}>{farmErrors.location.message}</div> : null}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '6px' }}>
+              <PremiumLabel>
                 위도 (Latitude)
-              </label>
-              <input
+              </PremiumLabel>
+              <PremiumInput
                 type="number"
                 step="0.001"
                 {...registerFarm('latitude')}
                 placeholder="35.446"
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--color-border)',
-                  fontSize: '14px',
-                  background: 'var(--color-bg)',
-                  color: 'var(--color-text)',
-                }}
+                hasError={!!farmErrors.latitude}
               />
               {farmErrors.latitude ? <div style={errorTextStyle}>{farmErrors.latitude.message}</div> : null}
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '6px' }}>
+              <PremiumLabel>
                 경도 (Longitude)
-              </label>
-              <input
+              </PremiumLabel>
+              <PremiumInput
                 type="number"
                 step="0.001"
                 {...registerFarm('longitude')}
                 placeholder="127.344"
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--color-border)',
-                  fontSize: '14px',
-                  background: 'var(--color-bg)',
-                  color: 'var(--color-text)',
-                }}
+                hasError={!!farmErrors.longitude}
               />
               {farmErrors.longitude ? <div style={errorTextStyle}>{farmErrors.longitude.message}</div> : null}
             </div>
@@ -408,22 +370,9 @@ export default function SettingsTab({
             정확한 날씨 정보를 위해 좌표를 확인해 주세요.
           </div>
 
-          <button
-            type="submit"
-            style={{
-              width: '100%',
-              padding: '14px',
-              background: 'var(--color-primary)',
-              color: 'var(--color-bg)',
-              borderRadius: '10px',
-              border: 'none',
-              fontWeight: 700,
-              cursor: 'pointer',
-              marginTop: '4px',
-            }}
-          >
+          <PremiumButton type="submit" className="w-full mt-1 py-3.5 rounded-[10px]" glow>
             저장하기
-          </button>
+          </PremiumButton>
 
           <div style={{ marginTop: '10px', borderTop: '1px dashed var(--color-border)', paddingTop: '10px', textAlign: 'center' }}>
             <a href="/admin/diagnostics" style={{ fontSize: '12px', color: 'var(--color-text-muted)', textDecoration: 'none' }}>
@@ -435,8 +384,9 @@ export default function SettingsTab({
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text-secondary)' }}>축사 동 관리</div>
-        <button
-          type="button"
+        <PremiumButton
+          variant="secondary"
+          size="sm"
           onClick={() => {
             const next = !isAdding;
             setIsAdding(next);
@@ -444,19 +394,10 @@ export default function SettingsTab({
               resetBuilding(createBuildingFormValues());
             }
           }}
-          style={{
-            fontSize: '12px',
-            fontWeight: 700,
-            color: 'var(--color-text)',
-            background: 'var(--color-border-light)',
-            borderRadius: '8px',
-            padding: '6px 12px',
-            border: 'none',
-            cursor: 'pointer',
-          }}
+          className="text-xs px-3 py-1.5 rounded-lg font-bold"
         >
           {isAdding ? '취소' : '+ 동 추가'}
-        </button>
+        </PremiumButton>
       </div>
 
       {isAdding ? (
@@ -473,58 +414,32 @@ export default function SettingsTab({
           <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '12px', color: 'var(--color-text)' }}>새 축사 동 등록</div>
           <div style={{ display: 'grid', gap: '12px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+              <PremiumLabel>
                 동 이름
-              </label>
-              <input
+              </PremiumLabel>
+              <PremiumInput
                 {...registerBuilding('name')}
                 placeholder="동 이름을 입력해 주세요."
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--color-border)',
-                  background: 'var(--color-bg)',
-                  color: 'var(--color-text)',
-                }}
+                hasError={!!buildingErrors.name}
               />
               {buildingErrors.name ? <div style={errorTextStyle}>{buildingErrors.name.message}</div> : null}
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+              <PremiumLabel>
                 칸 수 (Pen Count)
-              </label>
-              <input
+              </PremiumLabel>
+              <PremiumInput
                 type="number"
                 {...registerBuilding('penCount')}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--color-border)',
-                  background: 'var(--color-bg)',
-                  color: 'var(--color-text)',
-                }}
+                hasError={!!buildingErrors.penCount}
               />
               {buildingErrors.penCount ? <div style={errorTextStyle}>{buildingErrors.penCount.message}</div> : null}
             </div>
 
-            <button
-              type="submit"
-              style={{
-                width: '100%',
-                padding: '12px',
-                background: 'var(--color-success)',
-                color: 'white',
-                borderRadius: '8px',
-                border: 'none',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
+            <PremiumButton type="submit" variant="primary" className="w-full py-3 rounded-lg" glow>
               등록하기
-            </button>
+            </PremiumButton>
           </div>
         </form>
       ) : null}
@@ -547,21 +462,14 @@ export default function SettingsTab({
               <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--color-text)' }}>{building.name}</div>
               <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>총 {building.penCount}칸</div>
             </div>
-            <button
-              type="button"
+            <PremiumButton
+              variant="outline"
+              size="sm"
               onClick={() => handleDeleteBuilding(building.id, building.name)}
-              style={{
-                fontSize: '12px',
-                color: 'var(--color-danger)',
-                background: 'none',
-                border: '1px solid var(--color-danger)',
-                padding: '4px 8px',
-                borderRadius: '4px',
-                cursor: 'pointer',
-              }}
+              className="text-xs text-red-500 border-red-500/50 hover:bg-red-500/10 px-2 py-1 rounded h-auto"
             >
               삭제
-            </button>
+            </PremiumButton>
           </div>
         ))}
       </div>

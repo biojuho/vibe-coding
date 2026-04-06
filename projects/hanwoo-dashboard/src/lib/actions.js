@@ -8,6 +8,12 @@ import { fetchMarketPrice } from './kape';
 import { createOutboxEvent, DASHBOARD_EVENT_TOPICS } from './dashboard/events';
 import { getLatestMarketPriceSnapshot, saveMarketPriceSnapshot, getNotificationSummary, saveNotificationSummary, invalidateDashboardCaches } from './dashboard/read-models';
 import {
+  buildUnavailableMarketPrice,
+  normalizeCachedMarketPrice,
+  normalizeLiveMarketPrice,
+  shouldPersistLiveMarketPrice,
+} from './market-price-state.mjs';
+import {
   validateCattleMutationInput,
   validateExpenseRecordInput,
   validateFarmSettingsInput,
@@ -611,58 +617,54 @@ export async function updateFarmSettings(data) {
 
 export async function getRealTimeMarketPrice() {
   await requireAuthenticatedSession();
-  let staleSnapshot = null;
+  let cachedMarketPrice = null;
 
-  // Try cached snapshot first (avoids external KAPE API call)
   try {
     const cached = await getLatestMarketPriceSnapshot();
-    if (cached) {
-      staleSnapshot = {
-        date: cached.issueDate instanceof Date
-          ? cached.issueDate.toISOString().slice(0, 10)
-          : String(cached.issueDate).slice(0, 10),
-        isRealtime: false,
-        bull: { grade1pp: cached.bullGrade1pp, grade1p: cached.bullGrade1p, grade1: cached.bullGrade1 },
-        cow: { grade1pp: cached.cowGrade1pp, grade1p: cached.cowGrade1p, grade1: cached.cowGrade1 },
-        fetchedAt: cached.fetchedAt instanceof Date ? cached.fetchedAt.toISOString() : String(cached.fetchedAt),
-        isStale: true,
-      };
+    cachedMarketPrice = normalizeCachedMarketPrice(cached);
 
-      const age = Date.now() - new Date(cached.fetchedAt).getTime();
-      // Use cache if less than 1 hour old
-      if (age < 3600 * 1000) {
-        return {
-          ...staleSnapshot,
-          isRealtime: cached.isRealtime,
-          isStale: false,
-        };
-      }
+    if (cached && !cachedMarketPrice) {
+      console.warn('Ignoring non-authoritative market price snapshot.', {
+        fetchedAt: cached.fetchedAt,
+        isRealtime: cached.isRealtime,
+        source: cached.source,
+      });
+    }
+
+    if (cachedMarketPrice && !cachedMarketPrice.isStale) {
+      return cachedMarketPrice;
     }
   } catch (err) {
     console.error('Market price cache read failed (falling back to API):', err);
   }
 
-  // Fallback: fetch from KAPE API, but prefer stale cached data over simulated values.
-  const marketPrice = await fetchMarketPrice({ fallbackData: staleSnapshot });
-  const result = { ...marketPrice, fetchedAt: new Date().toISOString() };
+  const marketPrice = normalizeLiveMarketPrice(await fetchMarketPrice());
 
-  // Persist snapshot for future reads
-  try {
-    if (marketPrice.bull && marketPrice.cow && !marketPrice.isStale) {
+  if (shouldPersistLiveMarketPrice(marketPrice)) {
+    try {
       await saveMarketPriceSnapshot({
-        issueDate: marketPrice.date || new Date().toISOString().slice(0, 10),
-        isRealtime: marketPrice.isRealtime ?? false,
+        issueDate: marketPrice.issueDate,
+        isRealtime: true,
         bull: marketPrice.bull,
         cow: marketPrice.cow,
         source: 'KAPE',
       });
-      await createOutboxEvent({ topic: DASHBOARD_EVENT_TOPICS.marketPriceRefreshed, payload: { date: marketPrice.date } });
+      await createOutboxEvent({
+        topic: DASHBOARD_EVENT_TOPICS.marketPriceRefreshed,
+        payload: { issueDate: marketPrice.issueDate, source: marketPrice.source },
+      });
+    } catch (err) {
+      console.error('Market price snapshot save failed:', err);
     }
-  } catch (err) {
-    console.error('Market price snapshot save failed:', err);
+
+    return marketPrice;
   }
 
-  return result;
+  if (cachedMarketPrice) {
+    return cachedMarketPrice;
+  }
+
+  return buildUnavailableMarketPrice();
 }
 
 // ============================================================

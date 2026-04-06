@@ -33,6 +33,47 @@ function PricePanel({ title, emoji, rows }) {
   );
 }
 
+function getSourcePresentation(prices) {
+  switch (prices?.source) {
+    case 'kape-live':
+      return {
+        label: 'Live KAPE',
+        style: {
+          background: 'color-mix(in srgb, var(--chart-clay-5) 18%, white 82%)',
+          color: 'var(--chart-clay-5)',
+          borderColor: 'color-mix(in srgb, var(--chart-clay-5) 32%, transparent)',
+        },
+      };
+    case 'kape-cache':
+      return {
+        label: 'Cached KAPE',
+        style: {
+          background: 'color-mix(in srgb, var(--chart-clay-3) 18%, white 82%)',
+          color: 'var(--chart-clay-3)',
+          borderColor: 'color-mix(in srgb, var(--chart-clay-3) 32%, transparent)',
+        },
+      };
+    case 'cache-stale':
+      return {
+        label: 'Stale Cache',
+        style: {
+          background: 'color-mix(in srgb, var(--chart-clay-2) 18%, white 82%)',
+          color: 'var(--chart-clay-2)',
+          borderColor: 'color-mix(in srgb, var(--chart-clay-2) 32%, transparent)',
+        },
+      };
+    default:
+      return {
+        label: 'Unavailable',
+        style: {
+          background: 'color-mix(in srgb, #9aa2ad 18%, white 82%)',
+          color: '#637083',
+          borderColor: 'color-mix(in srgb, #9aa2ad 32%, transparent)',
+        },
+      };
+  }
+}
+
 export default function MarketPriceWidget({ initialData = null }) {
   const [prices, setPrices] = useState(initialData);
   const [loading, setLoading] = useState(!initialData);

@@ -7,14 +7,13 @@ const KAPE_TOTAL_DEADLINE_MS = 12000;
 
 /**
  * Fetches real-time market price from KAPE.
- * Falls back to cached or simulated data when the upstream API is unavailable.
  */
-export async function fetchMarketPrice({ fallbackData = null } = {}) {
+export async function fetchMarketPrice() {
   const apiKey = process.env.KAPE_SERVICE_KEY;
 
   if (!apiKey) {
-    console.warn('KAPE_SERVICE_KEY not found in .env. Using fallback data.');
-    return fallbackData ?? getSimulatedData();
+    console.warn('KAPE_SERVICE_KEY not found in .env. Skipping live market price lookup.');
+    return null;
   }
 
   try {
@@ -54,22 +53,35 @@ export async function fetchMarketPrice({ fallbackData = null } = {}) {
         continue;
       }
 
-      const data = await res.json();
+      const bodyText = await res.text();
+      if (!bodyText.trim()) {
+        console.warn(`KAPE API returned an empty body for date ${issueDate}`);
+        continue;
+      }
+
+      let data;
+      try {
+        data = JSON.parse(bodyText);
+      } catch (error) {
+        console.warn(`KAPE API returned unreadable JSON for date ${issueDate}:`, error);
+        continue;
+      }
+
       const parsed = parseKapeResponse(data, issueDate);
       if (parsed) {
         return parsed;
       }
     }
 
-    console.warn('No KAPE data found for the last 7 days. Using fallback data.');
-    return fallbackData ?? getSimulatedData();
+    console.warn('No KAPE data found for the last 7 days.');
+    return null;
   } catch (error) {
     if (isTimeoutError(error)) {
-      console.warn('KAPE API timed out. Using fallback data.');
+      console.warn('KAPE API timed out.');
     }
 
     console.error('Failed to fetch from KAPE API:', error);
-    return fallbackData ?? getSimulatedData();
+    return null;
   }
 }
 
@@ -112,6 +124,8 @@ function parseKapeResponse(data, issueDate) {
 
     return {
       isRealtime: true,
+      source: 'KAPE',
+      issueDate: `${issueDate.slice(0, 4)}-${issueDate.slice(4, 6)}-${issueDate.slice(6, 8)}`,
       date: dateFormatted,
       bull,
       cow,
@@ -121,26 +135,4 @@ function parseKapeResponse(data, issueDate) {
     console.error('Failed to parse KAPE response:', error);
     return null;
   }
-}
-
-async function getSimulatedData() {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-
-  const todayStr = new Date().toLocaleDateString('ko-KR');
-
-  return {
-    isRealtime: false,
-    date: todayStr,
-    bull: {
-      grade1pp: 21500 + Math.floor(Math.random() * 1000 - 500),
-      grade1p: 19800 + Math.floor(Math.random() * 800 - 400),
-      grade1: 18500 + Math.floor(Math.random() * 600 - 300),
-    },
-    cow: {
-      grade1pp: 18500 + Math.floor(Math.random() * 1000 - 500),
-      grade1p: 17200 + Math.floor(Math.random() * 800 - 400),
-      grade1: 16000 + Math.floor(Math.random() * 600 - 300),
-    },
-    trend: Math.random() > 0.5 ? 'up' : 'down',
-  };
 }

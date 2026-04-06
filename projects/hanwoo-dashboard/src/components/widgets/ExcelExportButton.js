@@ -1,6 +1,7 @@
 'use client';
 
 import { useAppFeedback } from '@/components/feedback/FeedbackProvider';
+import { PremiumButton } from '@/components/ui/premium-button';
 
 export default function ExcelExportButton({ cattleList = [] }) {
   const { notify } = useAppFeedback();
@@ -51,24 +52,8 @@ export default function ExcelExportButton({ cattleList = [] }) {
   };
 
   return (
-    <button
-        onClick={handleDownload}
-        style={{
-            background: "var(--color-bg-card)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "8px",
-            padding: "8px 12px",
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-            cursor: "pointer",
-            fontSize: "12px",
-            color: "var(--color-text)",
-            fontWeight: 600,
-            boxShadow: "var(--shadow-sm)"
-        }}
-    >
-        <span style={{color:"#1D6F42", fontSize:"14px"}}>📑</span> 엑셀 다운로드
-    </button>
+    <PremiumButton variant="secondary" size="sm" onClick={handleDownload} className="gap-1.5 font-bold shadow-md">
+      <span className="text-[#1D6F42] text-[14px]">📑</span> 엑셀 다운로드
+    </PremiumButton>
   );
 }

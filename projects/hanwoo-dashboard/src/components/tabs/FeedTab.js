@@ -8,6 +8,8 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tool
 import { useAppFeedback } from '@/components/feedback/FeedbackProvider';
 import { BREED_STATUS_OPTIONS, BUILDINGS } from '@/lib/constants';
 import { createFeedRecordValues, feedRecordSchema } from '@/lib/formSchemas';
+import { PremiumButton } from '@/components/ui/premium-button';
+import { PremiumInput, PremiumTextarea, PremiumLabel } from '@/components/ui/premium-input';
 
 const errorTextStyle = {
   fontSize: '12px',
@@ -18,24 +20,14 @@ const errorTextStyle = {
 
 function FilterChip({ active, children, onClick }) {
   return (
-    <button
-      type="button"
+    <PremiumButton
+      variant={active ? "primary" : "secondary"}
+      size="sm"
       onClick={onClick}
-      style={{
-        padding: '8px 16px',
-        borderRadius: '999px',
-        border: '1px solid var(--color-surface-stroke)',
-        background: active ? 'var(--surface-gradient-primary)' : 'var(--surface-gradient)',
-        color: active ? 'white' : 'var(--color-text)',
-        fontWeight: 700,
-        fontSize: '13px',
-        cursor: 'pointer',
-        whiteSpace: 'nowrap',
-        boxShadow: active ? 'var(--shadow-button-primary)' : 'var(--shadow-sm)',
-      }}
+      className={`rounded-full px-4 py-2 font-bold text-[13px] whitespace-nowrap shadow-sm ${active ? "shadow-[var(--shadow-button-primary)] text-white" : ""}`}
     >
       {children}
-    </button>
+    </PremiumButton>
   );
 }
 
@@ -212,26 +204,14 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
           </div>
 
           <div style={{ marginBottom: '16px' }}>
-            <label
-              htmlFor="feed-date"
-              style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 600, marginBottom: '6px', display: 'block' }}
-            >
+            <PremiumLabel htmlFor="feed-date">
               기록 날짜
-            </label>
-            <input
+            </PremiumLabel>
+            <PremiumInput
               id="feed-date"
               type="date"
               {...register('date')}
-              style={{
-                width: '100%',
-                padding: '14px',
-                borderRadius: '16px',
-                border: '1px solid var(--color-surface-border)',
-                fontSize: '14px',
-                background: 'var(--surface-gradient)',
-                color: 'var(--color-text)',
-                boxShadow: 'var(--shadow-inset-soft)',
-              }}
+              hasError={!!errors.date}
             />
             {errors.date ? <div style={errorTextStyle}>{errors.date.message}</div> : null}
           </div>
@@ -252,51 +232,26 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
           </div>
 
           <div style={{ marginBottom: '16px' }}>
-            <label
-              htmlFor="feed-note"
-              style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 600, marginBottom: '6px', display: 'block' }}
-            >
+            <PremiumLabel htmlFor="feed-note">
               특이사항 메모
-            </label>
-            <textarea
+            </PremiumLabel>
+            <PremiumTextarea
               id="feed-note"
               {...register('note')}
               placeholder="사료 상태, 날씨 변화, 축사 메모를 적어 주세요."
-              style={{
-                width: '100%',
-                padding: '14px',
-                borderRadius: '16px',
-                border: '1px solid var(--color-surface-border)',
-                fontFamily: 'inherit',
-                fontSize: '14px',
-                resize: 'none',
-                height: '82px',
-                outline: 'none',
-                background: 'var(--surface-gradient)',
-                color: 'var(--color-text)',
-                boxShadow: 'var(--shadow-inset-soft)',
-              }}
+              hasError={!!errors.note}
+              className="h-[82px]"
             />
             {errors.note ? <div style={errorTextStyle}>{errors.note.message}</div> : null}
           </div>
 
-          <button
+          <PremiumButton
             type="submit"
-            style={{
-              width: '100%',
-              background: 'var(--surface-gradient-primary)',
-              color: 'white',
-              padding: '16px',
-              borderRadius: '18px',
-              fontWeight: 700,
-              fontSize: '15px',
-              border: '1px solid color-mix(in srgb, white 18%, transparent)',
-              cursor: 'pointer',
-              boxShadow: 'var(--shadow-button-primary)',
-            }}
+            className="w-full py-4 text-lg mt-3 bg-linear-to-b from-blue-500 to-blue-600 border-none shadow-(--shadow-button-primary) font-bold"
+            glow={true}
           >
             급여 기록 저장하기
-          </button>
+          </PremiumButton>
         </form>
       ) : null}
 
@@ -380,29 +335,16 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
 function Field({ label, suffix, error, inputProps }) {
   return (
     <div style={{ position: 'relative' }}>
-      <label
-        style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 600, marginBottom: '6px', display: 'block' }}
-      >
+      <PremiumLabel>
         {label}
-      </label>
+      </PremiumLabel>
       <div style={{ position: 'relative' }}>
-        <input
+        <PremiumInput
           type="number"
           placeholder="0.0"
           {...inputProps}
-          style={{
-            width: '100%',
-            padding: '14px',
-            borderRadius: '16px',
-            border: '1px solid var(--color-surface-border)',
-            fontSize: '16px',
-            fontWeight: 700,
-            fontFamily: 'var(--font-display-custom)',
-            color: 'var(--color-text)',
-            background: 'var(--surface-gradient)',
-            outline: 'none',
-            boxShadow: 'var(--shadow-inset-soft)',
-          }}
+          hasError={!!error}
+          className="text-[16px] font-bold font-['var(--font-display-custom)']"
         />
         <span
           style={{

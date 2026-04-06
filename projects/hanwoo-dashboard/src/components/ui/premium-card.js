@@ -63,7 +63,7 @@ const PremiumInfoCard = ({ title, value, change, changeType = "positive" }) => {
   return (
     <PremiumCard>
       {/* subtle gradient glow overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+      <div className="absolute inset-0 bg-linear-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
       
       <PremiumCardContent className="p-6">
         <h4 className="text-sm font-medium text-slate-400 mb-2">{title}</h4>
