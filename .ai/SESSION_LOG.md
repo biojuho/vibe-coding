@@ -1,5 +1,33 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-04-07 | Codex | T-157 hanwoo-dashboard market-price fallback integrity hardening
+
+### Work Summary
+
+1. Hardened the market-price state model so the app distinguishes trusted live KAPE data, recent trusted cache, stale cache, and fully unavailable states instead of falling through to synthetic values.
+2. Ensured legacy non-authoritative snapshots (`isRealtime: false`) are ignored for fallback reuse, which prevents previously-simulated rows from masquerading as real market data.
+3. Added focused Node coverage in `projects/hanwoo-dashboard/src/lib/market-price-state.test.mjs` for fresh cache, stale cache, legacy-snapshot rejection, live normalization, and explicit unavailable states, and expanded `npm test`.
+4. Updated `projects/hanwoo-dashboard/src/components/widgets/MarketPriceWidget.js` so the UI labels source trust explicitly (`Live KAPE`, `Cached KAPE`, `Stale Cache`, `Unavailable`) and no longer relies on a binary live/sample badge.
+5. Re-verified the market-price hardening slice with `npm test` (`23 passed`), `npm run lint` (`pass`), and `npm run build` (`pass`).
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `projects/hanwoo-dashboard/src/lib/market-price-state.mjs` | Added authoritative market-price state normalization helpers for live/cache/stale/unavailable flows |
+| `projects/hanwoo-dashboard/src/lib/market-price-state.test.mjs` | Added focused unit coverage for degraded-state and legacy-snapshot branches |
+| `projects/hanwoo-dashboard/src/lib/kape.js` | Removed synthetic production fallback and hardened KAPE response parsing |
+| `projects/hanwoo-dashboard/src/lib/actions.js` | Reworked `getRealTimeMarketPrice()` to reuse only trusted cache/live data and to return explicit unavailable states |
+| `projects/hanwoo-dashboard/src/components/widgets/MarketPriceWidget.js` | Surface source trust labels in the UI instead of ambiguous live/sample badges |
+| `projects/hanwoo-dashboard/package.json` | Expanded `npm test` to include the market-price state suite |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md` | Synced the latest relay/context/task state |
+
+### Verification Results
+
+- `npm test` (`projects/hanwoo-dashboard`) -> **23 passed**
+- `npm run lint` (`projects/hanwoo-dashboard`) -> **pass**
+- `npm run build` (`projects/hanwoo-dashboard`) -> **pass**
+
 ## 2026-04-07 | Codex | T-156 hanwoo-dashboard payment confirmation graceful-degradation hardening
 
 ### Work Summary

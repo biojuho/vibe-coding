@@ -5,6 +5,11 @@
 ## Latest Update
 | Date | 2026-04-07 |
 | Tool | Codex |
+| Work | **Completed `T-157` in `hanwoo-dashboard`: market-price/KAPE fallback no longer treats synthetic data as production data.** The market-price flow now separates the live KAPE client from fallback policy, ignores legacy non-authoritative snapshots (`isRealtime: false`), only persists trusted live KAPE payloads, and returns explicit `cached`, `stale cache`, or `unavailable` states instead of silently manufacturing prices. Added focused state coverage in `src/lib/market-price-state.test.mjs`, expanded `npm test` to **23 passed**, and updated `src/components/widgets/MarketPriceWidget.js` so the UI labels the source explicitly (`Live KAPE`, `Cached KAPE`, `Stale Cache`, `Unavailable`) instead of collapsing everything into a misleading sample/live badge. Verification: `npm test` -> **23 passed**, `npm run lint` -> **pass**, `npm run build` -> **pass**. Current worktree delta is limited to the `hanwoo-dashboard` widget/package test entrypoint changes from this slice. |
+
+## Previous Update
+| Date | 2026-04-07 |
+| Tool | Codex |
 | Work | **Completed `T-156` in `hanwoo-dashboard`: Toss payment confirmation now degrades gracefully on retryable gateway failures and malformed bodies.** Added `src/lib/payment-confirmation.mjs` to safely read and classify gateway responses without assuming valid JSON, separating retryable states (`timeout`, network error, `5xx`, malformed or empty `200` body) from definitive failures (`4xx`, amount mismatch). Updated `src/app/api/payments/confirm/route.js` to keep retryable cases in `pending`, mark only definitive failures as `FAILED`, and return `500` for unexpected internal exceptions instead of collapsing them into `400`. Added focused unit coverage in `src/lib/payment-confirmation.test.mjs` and expanded `npm test`. Verification: `npm test` -> **17 passed**, `npm run lint` -> **pass**, and `npm run build` -> **pass**. Note: the unrelated pre-existing worktree changes in `projects/hanwoo-dashboard/src/components/DashboardClient.js`, `projects/knowledge-dashboard/src/app/page.tsx`, and the two untracked root text artifacts are still present and were not touched. |
 
 ## Previous Update
@@ -230,7 +235,7 @@
 
 1. ~~`T-151`~~: **DONE** — cattle/sales UI now uses paginated API routes as primary data source.
 2. Wait on `T-153`: delete `.tmp/*.db.bak` files only after human verification.
-3. Continue the `hanwoo-dashboard` QA hardening backlog, starting with market-price/KAPE degraded-state handling (`T-157`) and then mixed-validity history parsing guards.
+3. Continue the `hanwoo-dashboard` QA hardening backlog with mixed-validity history parsing guards (`T-158`) and then the next external dependency edge-case slice.
 
 ## Notes
 
