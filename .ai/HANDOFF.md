@@ -5,7 +5,17 @@
 ## Latest Update
 | Date | 2026-04-07 |
 | Tool | Claude (Opus 4.6) |
-| Work | **전체 정리 + QC 2회차.** (1) 미커밋 112개 파일 → 10개 논리적 커밋 분할 (infra, workspace DB통합/Harness, btx escalation engine, hanwoo scale-hardening, shorts growth loop, T-155~T-158 hardening). (2) 루트 임시파일 43개+ 삭제, `.gitignore` 패턴 추가. (3) pre-commit ruff 위반 일괄 수정. (4) QC 결과: ruff lint 전체 통과, workspace 1267 passed, blind-to-x 474 passed / 1 flaky(test_batch_process 순서 의존), hanwoo npm test 0 fail. 워킹 트리 클린. |
+| Work | **hanwoo-dashboard UX/UI 상용 수준 고도화 + QC.** 22개 파일에 Apple-grade 디자인 디테일 적용: (1) globals.css — 노이즈 텍스처 오버레이, 6개 신규 keyframe(elastic-in, glow-breathe, tab-pill-morph 등), stat-card/tab-bar/modal/cattle-row 전면 리팩토링. (2) UI 프리미티브 10개 cubic-bezier 트랜지션+active press feedback. (3) PremiumCard/Button glow, 32px value+uppercase label. (4) CattleDetailModal SectionTitle 언더라인, InfoItem hover lift. (5) 6개 탭 페이지 section-header 통일. (6) footer frosted glass. **QC 6건 수정:** 깨진 한국어 텍스트 복원, 중복 CSS 2개 제거, duration-250→[250ms], 셰브론 터치 가시성(0.4→0.55), 번식관리 다크모드 대응. 빌드 통과. |
+
+## Previous Update
+| Date | 2026-04-07 |
+| Tool | Claude (Opus 4.6) |
+| Work | **blind-to-x 콘텐츠 고도화 리뷰 + Notion 반영.** "이 댓글 나만 이상하게 느껴지나" 페이지(33a90544) 3개 플랫폼 초안 전면 재작성. 톤: "시그널 해설자" → 냉소적 관찰자. 상태: 검토필요→발행승인. QC 2회 수행. |
+
+## Previous Update
+| Date | 2026-04-07 |
+| Tool | Claude (Opus 4.6) |
+| Work | **전체 정리 + QC 2회차.** (1) 미커밋 112개 파일 → 10개 논리적 커밋 분할 (infra, workspace DB통합/Harness, btx escalation engine, hanwoo scale-hardening, shorts growth loop, T-155~T-158 hardening). (2) 루트 임시파일 43개+ 삭제, `.gitignore` 패턴 추가. (3) pre-commit ruff 위반 일괄 수정. (4) QC 결과: ruff lint 전체 통과, workspace 1267 passed, blind-to-x 474 passed / 1 flaky, hanwoo npm test 0 fail. |
 
 ## Previous Update
 | Date | 2026-04-07 |
