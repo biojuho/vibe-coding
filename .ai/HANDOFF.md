@@ -5,7 +5,12 @@
 ## Latest Update
 | Date | 2026-04-07 |
 | Tool | Codex |
-| Work | **Completed `T-157` in `hanwoo-dashboard`: market-price/KAPE fallback no longer treats synthetic data as production data.** The market-price flow now separates the live KAPE client from fallback policy, ignores legacy non-authoritative snapshots (`isRealtime: false`), only persists trusted live KAPE payloads, and returns explicit `cached`, `stale cache`, or `unavailable` states instead of silently manufacturing prices. Added focused state coverage in `src/lib/market-price-state.test.mjs`, expanded `npm test` to **23 passed**, and updated `src/components/widgets/MarketPriceWidget.js` so the UI labels the source explicitly (`Live KAPE`, `Cached KAPE`, `Stale Cache`, `Unavailable`) instead of collapsing everything into a misleading sample/live badge. Verification: `npm test` -> **23 passed**, `npm run lint` -> **pass**, `npm run build` -> **pass**. Current worktree delta is limited to the `hanwoo-dashboard` widget/package test entrypoint changes from this slice. |
+| Work | **Completed `T-158` in `hanwoo-dashboard`: mixed-validity cattle history rows no longer fail the entire response.** Added `src/lib/cattle-history.mjs` so history metadata is parsed record-by-record, malformed JSON is quarantined as `metadataParseError` instead of crashing the whole array, and weight-history extraction now accepts the actual metadata shapes already written by the app (`to`, `newWeight`, `weight`, etc.). Updated `src/lib/actions.js#getCattleHistory` to use the shared normalizer and `src/components/forms/CattleDetailModal.js` to consume normalized metadata instead of re-parsing raw strings. Added focused unit coverage in `src/lib/cattle-history.test.mjs` and expanded `npm test` to **27 passed**. Verification: `npm test` -> **27 passed**, `npm run lint` -> **pass**, `npm run build` -> **pass**. Note: the worktree still contains unrelated pre-existing edits in `projects/blind-to-x/*` and multiple `hanwoo-dashboard` UI files; do not revert them accidentally. |
+
+## Previous Update
+| Date | 2026-04-07 |
+| Tool | Codex |
+| Work | **Completed `T-157` in `hanwoo-dashboard`: market-price/KAPE fallback no longer treats synthetic data as production data.** The market-price flow now separates the live KAPE client from fallback policy, ignores legacy non-authoritative snapshots (`isRealtime: false`), only persists trusted live KAPE payloads, and returns explicit `cached`, `stale cache`, or `unavailable` states instead of silently manufacturing prices. Added focused state coverage in `src/lib/market-price-state.test.mjs`, expanded `npm test` to **23 passed**, and updated `src/components/widgets/MarketPriceWidget.js` so the UI labels the source explicitly (`Live KAPE`, `Cached KAPE`, `Stale Cache`, `Unavailable`) instead of collapsing everything into a misleading sample/live badge. Verification: `npm test` -> **23 passed**, `npm run lint` -> **pass**, `npm run build` -> **pass**. |
 
 ## Previous Update
 | Date | 2026-04-07 |
@@ -235,7 +240,7 @@
 
 1. ~~`T-151`~~: **DONE** — cattle/sales UI now uses paginated API routes as primary data source.
 2. Wait on `T-153`: delete `.tmp/*.db.bak` files only after human verification.
-3. Continue the `hanwoo-dashboard` QA hardening backlog with mixed-validity history parsing guards (`T-158`) and then the next external dependency edge-case slice.
+3. Continue the `hanwoo-dashboard` QA hardening backlog with the weather widget fetch/shape guard slice (`T-159`) and then the next external dependency edge-case.
 
 ## Notes
 

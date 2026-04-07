@@ -1,5 +1,32 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-04-07 | Codex | T-158 hanwoo-dashboard cattle-history mixed-validity hardening
+
+### Work Summary
+
+1. Added `projects/hanwoo-dashboard/src/lib/cattle-history.mjs` so cattle-history metadata is parsed record-by-record instead of with a single all-or-nothing `JSON.parse()` pass.
+2. Updated `projects/hanwoo-dashboard/src/lib/actions.js#getCattleHistory` to return normalized rows where malformed metadata is quarantined as `metadataParseError` + `metadataRaw` instead of aborting the whole history response.
+3. Updated `projects/hanwoo-dashboard/src/components/forms/CattleDetailModal.js` to consume normalized history metadata directly, accept both raw-array and `{ data }` style action results safely, and derive weight chart points from the actual metadata field variants already written by the app.
+4. Added focused Node coverage in `projects/hanwoo-dashboard/src/lib/cattle-history.test.mjs` for valid JSON parsing, malformed JSON isolation, mixed-validity rows, and weight-point extraction, and expanded `npm test`.
+5. Re-verified the history hardening slice with `npm test` (`27 passed`), `npm run lint` (`pass`), and `npm run build` (`pass`).
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `projects/hanwoo-dashboard/src/lib/cattle-history.mjs` | Added safe metadata parsing/normalization and weight-history extraction helpers |
+| `projects/hanwoo-dashboard/src/lib/cattle-history.test.mjs` | Added focused unit coverage for mixed-validity history rows |
+| `projects/hanwoo-dashboard/src/lib/actions.js` | Routed `getCattleHistory()` through the safe normalizer |
+| `projects/hanwoo-dashboard/src/components/forms/CattleDetailModal.js` | Stopped reparsing normalized metadata and made weight-chart extraction tolerate real metadata variants |
+| `projects/hanwoo-dashboard/package.json` | Expanded `npm test` to include the cattle-history suite |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md` | Synced the latest relay/context/task state |
+
+### Verification Results
+
+- `npm test` (`projects/hanwoo-dashboard`) -> **27 passed**
+- `npm run lint` (`projects/hanwoo-dashboard`) -> **pass**
+- `npm run build` (`projects/hanwoo-dashboard`) -> **pass**
+
 ## 2026-04-07 | Codex | T-157 hanwoo-dashboard market-price fallback integrity hardening
 
 ### Work Summary

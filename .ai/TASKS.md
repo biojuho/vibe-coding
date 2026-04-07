@@ -6,7 +6,7 @@
 
 | ID    | Task                                                                                                                                                                                                                                 | Owner  | Priority | Created    |
 |-------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------|----------|------------|
-| T-158 | Harden `projects/hanwoo-dashboard/src/lib/actions.js#getCattleHistory` so one malformed `metadata` JSON row cannot fail the entire history response, and add mixed-validity coverage. | Codex | High | 2026-04-07 |
+| T-159 | Harden the `hanwoo-dashboard` weather fetch path in `DashboardClient` so timeouts and shape drift degrade cleanly instead of silently breaking the widget. | Codex | High | 2026-04-07 |
 
 ## IN_PROGRESS
 
@@ -17,11 +17,11 @@
 
 | ID    | Task                                                                                                                                                                                                                                  | Completed By | Completed  |
 |-------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------|------------|
+| T-158 | Harden `projects/hanwoo-dashboard/src/lib/actions.js#getCattleHistory` so one malformed `metadata` JSON row cannot fail the entire history response, and add mixed-validity coverage. | Codex | 2026-04-07 |
 | T-157 | Harden `projects/hanwoo-dashboard` market-price/KAPE fallback so synthetic data cannot masquerade as live production data, and add degraded/stale-state coverage. | Codex | 2026-04-07 |
 | T-156 | Harden `projects/hanwoo-dashboard/src/app/api/payments/confirm/route.js` against upstream timeout/non-JSON failure bodies and add focused regression tests. | Codex | 2026-04-07 |
 | T-155 | Harden `hanwoo-dashboard` server mutation inputs with shared server-side validation and focused unit tests for malformed payloads. | Codex | 2026-04-06 |
 | T-153 | Delete `.tmp/*.db.bak` files after verifying workspace.db migration is stable. | Gemini | 2026-04-06 |
-| T-154 | Clean up unused imports (F401) across `execution/` and `tests/` and verify with QA/QC pipeline (APPROVED) | Gemini | 2026-04-06 |
 
 ## Rules
 
