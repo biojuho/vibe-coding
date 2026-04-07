@@ -4,6 +4,11 @@
 
 ## Latest Update
 | Date | 2026-04-07 |
+| Tool | Claude (Opus 4.6) |
+| Work | **미커밋 변경사항 전체 정리 + QC 통과.** (1) 루트 임시/디버그 파일 43개+ 삭제 + `.gitignore`에 패턴 추가 (t121_*, tmp_*, etc). (2) 112개 수정 파일을 8개 논리적 커밋으로 분할 커밋: infra 정비, workspace DB통합+Harness, blind-to-x escalation engine+테스트, hanwoo-dashboard scale-hardening, shorts-maker-v2 growth loop, AI 컨텍스트 갱신 등. (3) pre-commit hook(ruff check+format) 위반 일괄 수정. (4) QC: ruff lint 전체 통과, workspace 1267 passed/0 failed, blind-to-x 474 passed/1 flaky(test_batch_process 순서 의존, 단독 통과). 워킹 트리 클린. |
+
+## Previous Update
+| Date | 2026-04-07 |
 | Tool | Codex |
 | Work | **Completed `T-158` in `hanwoo-dashboard`: mixed-validity cattle history rows no longer fail the entire response.** Added `src/lib/cattle-history.mjs` so history metadata is parsed record-by-record, malformed JSON is quarantined as `metadataParseError` instead of crashing the whole array, and weight-history extraction now accepts the actual metadata shapes already written by the app (`to`, `newWeight`, `weight`, etc.). Updated `src/lib/actions.js#getCattleHistory` to use the shared normalizer and `src/components/forms/CattleDetailModal.js` to consume normalized metadata instead of re-parsing raw strings. Added focused unit coverage in `src/lib/cattle-history.test.mjs` and expanded `npm test` to **27 passed**. Verification: `npm test` -> **27 passed**, `npm run lint` -> **pass**, `npm run build` -> **pass**. Note: the worktree still contains unrelated pre-existing edits in `projects/blind-to-x/*` and multiple `hanwoo-dashboard` UI files; do not revert them accidentally. |
 

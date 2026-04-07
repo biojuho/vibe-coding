@@ -1,5 +1,34 @@
 # SESSION_LOG - Recent 7 Days
 
+## 2026-04-07 | Claude (Opus 4.6) | 미커밋 변경사항 정리 + 전체 QC
+
+### Work Summary
+
+1. 루트 임시/디버그 파일 43개+ 삭제 (t121_*.txt, tmp_*.txt 등), `.gitignore`에 재발 방지 패턴 추가
+2. 서브프로젝트 임시파일 삭제 (coverage.json, .cov_report.json, tmp_tsc_err*.txt)
+3. 112개 수정 파일을 8개 논리적 커밋으로 분할:
+   - `chore: 인프라 정비` (gitignore, requirements 삭제, MCP/workflow 패치)
+   - `feat(workspace): SQLite 8→1 통합, Harness Phase 0-3, PR triage, scheduler 개선`
+   - `feat(blind-to-x): escalation engine, 방어코드 강화, 테스트 대폭 추가`
+   - `feat(hanwoo-dashboard): scale-hardening — 페이지네이션, 캐시, auth/결제`
+   - `feat(shorts-maker-v2): growth feedback loop + render 개선`
+   - `[ai-context] 세션 로그 업데이트`
+   - `fix(hanwoo/knowledge): actions validation + DashboardClient 후속`
+   - `fix(hanwoo-dashboard): 결제 확인 로직 분리 + UI 컴포넌트 패치`
+4. pre-commit hook (ruff check+format) 위반 일괄 수정
+5. QC: ruff lint 전체 통과, workspace 1267 passed, blind-to-x 474 passed / 1 flaky (test_batch_process)
+
+### Changed Files (key)
+
+- `.gitignore`, `setup.bat`, `.github/workflows/*`
+- `workspace/execution/*.py` (DB 경로, harness, scheduler 등 ~48 files)
+- `projects/blind-to-x/**` (~102 files)
+- `projects/hanwoo-dashboard/**` (~50 files)
+- `projects/shorts-maker-v2/**` (~11 files)
+- `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/SESSION_LOG.md`, `.ai/DECISIONS.md`
+
+---
+
 ## 2026-04-07 | Codex | T-158 hanwoo-dashboard cattle-history mixed-validity hardening
 
 ### Work Summary
