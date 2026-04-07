@@ -4,6 +4,11 @@
 
 ## Latest Update
 | Date | 2026-04-07 |
+| Tool | Claude (Opus 4.6) |
+| Work | **전체 정리 + QC 2회차.** (1) 미커밋 112개 파일 → 10개 논리적 커밋 분할 (infra, workspace DB통합/Harness, btx escalation engine, hanwoo scale-hardening, shorts growth loop, T-155~T-158 hardening). (2) 루트 임시파일 43개+ 삭제, `.gitignore` 패턴 추가. (3) pre-commit ruff 위반 일괄 수정. (4) QC 결과: ruff lint 전체 통과, workspace 1267 passed, blind-to-x 474 passed / 1 flaky(test_batch_process 순서 의존), hanwoo npm test 0 fail. 워킹 트리 클린. |
+
+## Previous Update
+| Date | 2026-04-07 |
 | Tool | Codex |
 | Work | **Completed `T-159` in `hanwoo-dashboard`: weather fetches now degrade cleanly on timeout, malformed bodies, and payload shape drift.** Added `src/lib/weather-state.mjs` so weather responses are parsed/normalized safely with explicit `available`, `degraded`, and `isStale` states plus `unavailable`, `stale`, and `partial forecast` messaging. Updated `src/components/DashboardClient.js` to fetch Open-Meteo through `fetchWithTimeout`, handle non-OK responses and parse failures without crashing the widget, and preserve the last good snapshot when the live request times out. Added focused unit coverage in `src/lib/weather-state.test.mjs`, expanded `npm test` to **34 passed**, and re-verified with `npm run lint` and `npm run build` (**pass/pass**). Next priority: harden the remaining client-side dashboard refresh/read paths so post-mutation summary updates fail softly instead of silently stalling. |
 
