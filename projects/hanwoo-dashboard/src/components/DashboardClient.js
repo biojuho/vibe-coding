@@ -674,19 +674,20 @@ export default function DashboardClient({
 
     return (
       <>
-        <div className="animate-fadeInDown flex justify-between items-center mb-5 py-1">
+        {/* Header — generous breathing room for visual hierarchy */}
+        <div className="animate-fadeInDown flex justify-between items-start mb-7 pt-2 pb-1">
           <div>
-            <h1 className="text-2xl font-extrabold text-foreground tracking-[0.04em] mb-1">
+            <h1 className="text-[26px] font-extrabold text-foreground tracking-[-0.02em] mb-1.5 leading-tight">
               {farmSettings.name || 'Joolife Dashboard'}
             </h1>
-            <p className="text-sm text-muted-foreground">오늘도 힘찬 하루 되세요! 🐮</p>
+            <p className="text-[13px] text-muted-foreground leading-relaxed">오늘도 힘찬 하루 되세요! 🐮</p>
           </div>
-          <div className="flex gap-2.5">
+          <div className="flex gap-2.5 pt-0.5">
             <ExcelExportButton cattleList={cattleList} />
             <PremiumButton variant="outline" size="icon" onClick={() => setShowNotifications(true)} className="relative shadow-[var(--shadow-sm)]">
               <Bell className="h-5 w-5" />
               {notifications.some((notification) => notification.level === 'critical') && (
-                <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-destructive border-2 border-background animate-pulse shadow-[0_0_8px_hsl(var(--destructive))]" />
+                <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-destructive border-2 border-background animate-pulse shadow-[0_0_10px_hsl(var(--destructive))]" />
               )}
             </PremiumButton>
             <PremiumButton size="icon" onClick={() => setShowAddModal(true)} className="shadow-[var(--shadow-button-primary)]">
@@ -705,7 +706,7 @@ export default function DashboardClient({
         {widgetSettings.visible.calving && <CalvingAlertBanner cattle={cattleList} buildings={buildings} />}
 
         {widgetSettings.visible.stats && (
-          <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '12px', marginBottom: '24px', scrollSnapType: 'x mandatory' }}>
+          <div style={{ display: 'flex', gap: '14px', overflowX: 'auto', paddingBottom: '14px', marginBottom: '28px', scrollSnapType: 'x mandatory', scrollPadding: '0 4px', WebkitOverflowScrolling: 'touch' }}>
             <PremiumInfoCard title="총 사육두수" value={`${totalHeadcount}두`} change="전월 대비 +0" changeType="positive" />
             <PremiumInfoCard
               title="이번달 출하"
@@ -719,23 +720,24 @@ export default function DashboardClient({
 
         {!selectedBuildingId ? (
           <div className="animate-fadeInUp" style={{ animationDelay: '200ms' }}>
-            <h2 className="text-[17px] font-extrabold text-foreground mb-3.5 flex items-center gap-2">
-              <span>🏠</span> 축사 현황
-            </h2>
+            <div className="section-header">
+              <span className="section-header-icon">🏠</span>
+              <h2 className="section-header-title">축사 현황</h2>
+            </div>
             <div className="grid gap-3">
               {buildings.map((building, index) => {
                 const buildingHeadcount = summary?.buildingOccupancy?.find((b) => b.buildingId === building.id)?.headcount
                   ?? cattleList.filter((cow) => cow.buildingId === building.id).length;
                 return (
-                  <Card key={building.id} onClick={() => setSelectedBuildingId(building.id)} className="animate-fadeInUp cursor-pointer hover:-translate-y-1 transition-all" style={{ animationDelay: `${250 + index * 50}ms` }}>
-                    <CardContent className="flex justify-between items-center p-4">
+                  <Card key={building.id} onClick={() => setSelectedBuildingId(building.id)} className="animate-fadeInUp cursor-pointer hover:-translate-y-1 hover:shadow-[var(--shadow-md)] group/building" style={{ animationDelay: `${250 + index * 50}ms` }}>
+                    <CardContent className="flex justify-between items-center p-5">
                       <div>
-                        <div className="font-bold text-base mb-1">{building.name}</div>
-                        <p className="text-sm text-muted-foreground">
-                          {building.description || `총 ${building.penCount}칸`} · <strong>{buildingHeadcount}두</strong>
+                        <div className="font-bold text-[15px] mb-1.5 tracking-[-0.01em]">{building.name}</div>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {building.description || `총 ${building.penCount}칸`} · <strong className="text-foreground">{buildingHeadcount}두</strong>
                         </p>
                       </div>
-                      <span className="text-xl text-muted-foreground transition-transform">›</span>
+                      <span className="text-xl text-muted-foreground transition-[transform,color,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] opacity-40 group-hover/building:translate-x-1 group-hover/building:text-[var(--color-primary-custom)] group-hover/building:opacity-100">›</span>
                     </CardContent>
                   </Card>
                 );
@@ -815,18 +817,18 @@ export default function DashboardClient({
         <CattleDetailModal cattle={selectedCow} onClose={() => setSelectedCow(null)} onEdit={() => setIsEditing(true)} onDelete={() => handleDeleteCattle(selectedCow.id)} onUpdate={handleUpdateCattle} />
       )}
 
-      <footer className="mt-12 px-5 pt-6 pb-4 text-center text-xs text-muted-foreground leading-relaxed">
-        <Separator className="mb-6" />
-        <div className="font-bold text-sm text-primary mb-2 flex items-center justify-center gap-1.5">🐄 Joolife (쥬라프)</div>
-        <p>대표: 박주호 | Business License: 000-00-00000</p>
-        <p>Contact: 010-3159-3708 | joolife@joolife.io.kr</p>
-        <p className="text-[11px] text-muted-foreground/70">Address: 경기 안양시 동안구 관평로212번길 21 공작부영아파트 309동 1312호</p>
-        <div className="mt-3 flex justify-center gap-4 flex-wrap">
-          <a href="/terms" className="no-underline text-muted-foreground hover:text-foreground transition-colors py-1">이용약관</a>
-          <a href="/privacy" className="no-underline text-muted-foreground hover:text-foreground transition-colors py-1">개인정보처리방침</a>
-          <a href="/subscription" className="no-underline text-primary font-semibold hover:text-foreground transition-colors py-1">⭐ 프리미엄 구독</a>
+      <footer className="footer-glass mt-16 mx-2 px-6 pt-8 pb-6 text-center text-xs text-muted-foreground leading-relaxed">
+        <div className="font-bold text-sm text-primary mb-3 flex items-center justify-center gap-2">🐄 Joolife (쥬라프)</div>
+        <p className="mb-1">대표: 박주호 | Business License: 000-00-00000</p>
+        <p className="mb-1">Contact: 010-3159-3708 | joolife@joolife.io.kr</p>
+        <p className="text-[11px] text-muted-foreground/60 mb-4">Address: 경기 안양시 동안구 관평로212번길 21 공작부영아파트 309동 1312호</p>
+        <Separator className="mb-4 opacity-40" />
+        <div className="flex justify-center gap-5 flex-wrap">
+          <a href="/terms" className="no-underline text-muted-foreground hover:text-foreground transition-[color,transform] duration-200 py-1 hover:-translate-y-px">이용약관</a>
+          <a href="/privacy" className="no-underline text-muted-foreground hover:text-foreground transition-[color,transform] duration-200 py-1 hover:-translate-y-px">개인정보처리방침</a>
+          <a href="/subscription" className="no-underline text-primary font-semibold hover:text-foreground transition-[color,transform] duration-200 py-1 hover:-translate-y-px">⭐ 프리미엄 구독</a>
         </div>
-        <p className="mt-3.5 text-[11px] text-muted-foreground/60">Copyright © 2026 Joolife. All rights reserved.</p>
+        <p className="mt-4 text-[11px] text-muted-foreground/50">Copyright &copy; 2026 Joolife. All rights reserved.</p>
       </footer>
     </div>
   );

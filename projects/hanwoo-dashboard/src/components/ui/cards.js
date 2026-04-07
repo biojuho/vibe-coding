@@ -8,14 +8,15 @@ export function StatCard({label,value,sub,color,delay=0}){
       className="stat-card animate-fadeInUp"
       style={{
         '--stat-color': color,
-        flex:"1 1 130px",
-        minWidth:"130px",
-        animationDelay:`${delay}ms`
+        flex:"1 1 140px",
+        minWidth:"140px",
+        animationDelay:`${delay}ms`,
+        scrollSnapAlign:"start"
       }}
     >
-      <div style={{fontSize:"11px",color:"var(--color-text-muted)",marginBottom:"4px",fontWeight:500}}>{label}</div>
+      <div style={{fontSize:"12px",color:"var(--color-text-muted)",marginBottom:"6px",fontWeight:600,letterSpacing:"0.03em",textTransform:"uppercase"}}>{label}</div>
       <div className="stat-value">{value}</div>
-      {sub && <div style={{fontSize:"11px",color:"var(--color-text-secondary)",marginTop:"4px"}}>{sub}</div>}
+      {sub && <div style={{fontSize:"12px",color:"var(--color-text-secondary)",marginTop:"6px",lineHeight:"1.4"}}>{sub}</div>}
     </div>
   );
 }
@@ -91,10 +92,13 @@ export function PenCard({penNumber,cattle,buildingId,onSelect,delay=0,onDrop}){
                   color:"white",
                   fontSize:"10px",
                   fontWeight:700,
-                  boxShadow:al ? "0 2px 8px rgba(255,23,68,0.4)" : "0 2px 6px rgba(0,0,0,0.15)",
+                  boxShadow:al ? "0 2px 10px rgba(255,23,68,0.45)" : "0 2px 8px rgba(0,0,0,0.15)",
                   animationDelay:`${delay + idx*30}ms`,
-                  transition:"transform var(--transition-fast)"
+                  transition:"transform 0.25s cubic-bezier(0.22,1,0.36,1), box-shadow 0.25s ease",
+                  cursor:"pointer"
                 }}
+                onMouseEnter={e=>{e.currentTarget.style.transform="scale(1.18)";e.currentTarget.style.boxShadow=al?"0 4px 14px rgba(255,23,68,0.55)":`0 4px 14px ${sc.dot}55`;}}
+                onMouseLeave={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow=al?"0 2px 10px rgba(255,23,68,0.45)":"0 2px 8px rgba(0,0,0,0.15)";}}
               >{c.gender==="암"?"♀":"♂"}</div>
             );
           })}
@@ -140,8 +144,8 @@ export function CattleRow({cow,onClick,delay=0,draggable=false}){
         {cow.gender==="암"?"♀":"♂"}
       </div>
       <div style={{flex:1,minWidth:0}}>
-        <div style={{display:"flex",alignItems:"center",gap:"6px",flexWrap:"wrap",marginBottom:"4px"}}>
-          <span style={{fontWeight:700,fontSize:"15px",color:"var(--color-text)"}}>{cow.name}</span>
+        <div style={{display:"flex",alignItems:"center",gap:"6px",flexWrap:"wrap",marginBottom:"5px"}}>
+          <span style={{fontWeight:700,fontSize:"15px",color:"var(--color-text)",letterSpacing:"-0.01em"}}>{cow.name}</span>
           <span className="badge" style={{background:sc.bg,color:sc.text}}>{cow.status}</span>
           {hasEstrusAlert && (
             <span className="badge badge-estrus" style={{animation:estrusD===0?"shake 0.5s ease-in-out":"none"}}>
@@ -152,15 +156,12 @@ export function CattleRow({cow,onClick,delay=0,draggable=false}){
             <span className="badge badge-calving">🍼분만D-{calvingDays}</span>
           )}
         </div>
-        <div style={{fontSize:"12px",color:"var(--color-text-secondary)"}}>
+        <div style={{fontSize:"12px",color:"var(--color-text-secondary)",lineHeight:"1.5"}}>
           {cow.tagNumber} · {monthAge}개월 · {cow.weight}kg · {cow.geneticInfo?.grade||"-"}
         </div>
       </div>
-      <div style={{
-        color:"var(--color-text-muted)",
-        fontSize:"20px",
-        transition:"transform var(--transition-fast)"
-      }}>›</div>
+      {/* Animated chevron — slides right on row hover */}
+      <div className="cattle-chevron">›</div>
     </div>
   );
 }

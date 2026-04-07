@@ -14,23 +14,29 @@ export function TabBar({ activeTab, onTabChange }) {
   ];
   return (
     <nav className="tab-bar">
-      {tabs.map((t, idx) => (
-        <button
-          key={t.id}
-          onClick={() => onTabChange(t.id)}
-          className={`tab-item ${activeTab === t.id ? 'active' : ''}`}
-          style={{
-            color: activeTab === t.id ? 'var(--color-primary)' : 'var(--color-text-muted)',
-            animationDelay: `${idx * 30}ms`
-          }}
-        >
-          <span className="tab-icon" style={{
-            transform: activeTab === t.id ? 'scale(1.15) translateY(-2px)' : 'scale(1)',
-            transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
-          }}>{t.icon}</span>
-          <span className="tab-label">{t.label}</span>
-        </button>
-      ))}
+      {tabs.map((t) => {
+        const isActive = activeTab === t.id;
+        return (
+          <button
+            key={t.id}
+            onClick={() => onTabChange(t.id)}
+            className={`tab-item ${isActive ? 'active' : ''}`}
+            style={{
+              color: isActive ? 'var(--color-primary-custom)' : 'var(--color-text-muted)',
+            }}
+          >
+            <span className="tab-icon" style={{
+              transform: isActive ? 'scale(1.2) translateY(-3px)' : 'scale(1)',
+              transition: 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
+              filter: isActive ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.15))' : 'none',
+            }}>{t.icon}</span>
+            <span className="tab-label" style={{
+              opacity: isActive ? 1 : 0.65,
+              transition: 'opacity 0.25s ease, font-weight 0.15s ease',
+            }}>{t.label}</span>
+          </button>
+        );
+      })}
     </nav>
   );
 }
@@ -68,10 +74,10 @@ export function WeatherWidget({weather}){
             {i:"🌡️",l:"최고/최저",v:`${Math.round(weather.tempMax)}°/${Math.round(weather.tempMin)}°`},
             {i:"🌧️",l:"강수",v:`${weather.precipitation}%`}
           ].map((item,idx)=>
-            <div key={idx} className="weather-stat" style={{animationDelay:`${idx*50}ms`}}>
-              <div style={{fontSize:"16px",marginBottom:"2px"}}>{item.i}</div>
-              <div style={{fontSize:"9px",opacity:0.7,marginBottom:"2px"}}>{item.l}</div>
-              <div style={{fontSize:"14px",fontWeight:700,fontFamily:"var(--font-display)"}}>{item.v}</div>
+            <div key={idx} className="weather-stat" style={{animationDelay:`${idx*60}ms`}}>
+              <div style={{fontSize:"18px",marginBottom:"3px",lineHeight:1}}>{item.i}</div>
+              <div style={{fontSize:"10px",opacity:0.65,marginBottom:"3px",letterSpacing:"0.02em"}}>{item.l}</div>
+              <div style={{fontSize:"15px",fontWeight:800,fontFamily:"var(--font-display)",letterSpacing:"-0.02em"}}>{item.v}</div>
             </div>
           )}
         </div>
@@ -195,8 +201,8 @@ export function EstrusAlertBanner({cattle, buildings = []}){
                 transition:"all var(--transition-fast)",
                 animationDelay:`${150 + idx*50}ms`
               }}
-              onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.1)"}
-              onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.05)"}
+              onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.12)";e.currentTarget.style.transform="translateY(-1px)";}}
+              onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.05)";e.currentTarget.style.transform="translateY(0)";}}
             >
               <strong className="text-pink-300">{c.name}</strong> · <span className="text-slate-300">{bl?.name || '미지정'} {c.penNumber}번</span> ·
               <span style={{fontWeight:700}} className="text-pink-400">{d===0?" ⚡오늘!":` D-${d}`}</span>
@@ -239,8 +245,8 @@ export function CalvingAlertBanner({cattle, buildings = []}){
                 transition:"all var(--transition-fast)",
                 animationDelay:`${200 + idx*50}ms`
               }}
-              onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.1)"}
-              onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.05)"}
+              onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.12)";e.currentTarget.style.transform="translateY(-1px)";}}
+              onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.05)";e.currentTarget.style.transform="translateY(0)";}}
             >
               <strong className="text-indigo-300">{c.name}</strong> · <span className="text-slate-300">{bl?.name || '미지정'} {c.penNumber}번</span> ·
               <span style={{fontWeight:700}} className="text-indigo-400"> D-{d}</span> <span className="text-slate-400">· 예정 {formatDate(getCalvingDate(c.pregnancyDate))}</span>

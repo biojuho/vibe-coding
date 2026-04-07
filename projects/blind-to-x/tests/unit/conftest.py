@@ -87,3 +87,18 @@ def clear_runtime_state(tmp_path, monkeypatch):
             _MODEL_PATH.unlink()
         except Exception:
             pass
+
+
+@pytest.fixture(autouse=True)
+def _block_external_api_keys(monkeypatch):
+    """테스트 중 외부 API 호출 유발 환경변수를 강제 제거.
+
+    T-BUG-SLOW-TEST 근본 원인 보완:
+    enrichment_engine.py의 asyncio.sleep(0.5) 제거 후에도
+    .env가 로드된 환경에서 EXA_API_KEY / PERPLEXITY_API_KEY가 주입되면
+    실제 네트워크 호출이 발생해 테스트가 느려질 수 있다.
+    이 픽스처로 모든 테스트에서 Fallback 경로(즉시 반환)를 강제한다.
+    """
+    monkeypatch.delenv("EXA_API_KEY", raising=False)
+    monkeypatch.delenv("PERPLEXITY_API_KEY", raising=False)
+    yield

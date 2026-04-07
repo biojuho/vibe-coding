@@ -5,6 +5,7 @@ import prisma from './db';
 import { revalidatePath } from 'next/cache';
 import { isEstrusAlert, isCalvingAlert, getDaysUntilEstrus, getDaysUntilCalving } from './utils';
 import { fetchMarketPrice } from './kape';
+import { normalizeCattleHistoryRows } from './cattle-history.mjs';
 import { createOutboxEvent, DASHBOARD_EVENT_TOPICS } from './dashboard/events';
 import { getLatestMarketPriceSnapshot, saveMarketPriceSnapshot, getNotificationSummary, saveNotificationSummary, invalidateDashboardCaches } from './dashboard/read-models';
 import {
@@ -834,10 +835,7 @@ export async function getCattleHistory(cattleId) {
       where: { cattleId },
       orderBy: { eventDate: 'desc' },
     });
-    return history.map(h => ({
-      ...h,
-      metadata: h.metadata ? JSON.parse(h.metadata) : null,
-    }));
+    return normalizeCattleHistoryRows(history);
   } catch (error) {
     console.error("Failed to fetch cattle history:", error);
     return [];

@@ -5,10 +5,10 @@ Blind-to-X Dynamic Context Enrichment Engine (Phase 7 Scale-up)
 실시간 글로벌 레퍼런스, 반응, 심층 데이터를 보강(Enrichment)하는 미들웨어.
 """
 
-import os
 import asyncio
 import logging
-from typing import List, Dict, Optional
+import os
+from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
 
 import httpx
@@ -78,9 +78,8 @@ class ContextEnrichmentEngine:
     async def _fetch_perplexity_synthesis(self, client: httpx.AsyncClient, topic: str, references: List[Dict]) -> str:
         """[내부] Perplexity API에 검색된 레퍼런스를 던져 심도 있는 전문가 수준의 인사이트를 합성합니다."""
         if not self.perplexity_api_key:
-            logger.warning("PERPLEXITY_API_KEY가 설정되지 않아 Perplexity 합성을 모의(Mock) 응답으로 대체합니다.")
-            await asyncio.sleep(0.5)
-            # 폴백 로직: 기본 정보 제공
+            logger.warning("PERPLEXITY_API_KEY가 설정되지 않아 Perplexity 합성을 스킵합니다 (Fallback Mode).")
+            # NOTE: sleep 제거 — 테스트 환경에서 불필요한 지연의 원인이었음 (T-BUG-SLOW-TEST)
             return f"{topic}에 대한 심층 인사이트를 분석 중입니다 (Fallback Mode)."
 
         logger.info(f"[{topic}] Perplexity API 컨텍스트 합성 시작...")

@@ -5,6 +5,7 @@ import { formatDate, getMonthAge, toInputDate, getDaysUntilEstrus, formatMoney }
 import { btnPrimary, btnSecondary, btnDanger, EditIcon, TrashIcon, BackIcon } from '@/components/ui/common';
 import QRCodeWidget from '@/components/widgets/QRCodeWidget';
 import { getCattleHistory } from '@/lib/actions';
+import { extractWeightHistoryPoints } from '@/lib/cattle-history.mjs';
 
 const HISTORY_ICONS = {
   status_change: "🔄",
@@ -21,7 +22,8 @@ export default function CattleDetailModal({ cattle, onClose, onEdit, onDelete, o
   useEffect(() => {
     if (cattle?.id) {
       getCattleHistory(cattle.id).then(res => {
-        if (res.success) setHistory(res.data);
+        const nextHistory = Array.isArray(res) ? res : res?.data;
+        setHistory(Array.isArray(nextHistory) ? nextHistory : []);
       });
     }
   }, [cattle?.id]);
@@ -33,12 +35,12 @@ export default function CattleDetailModal({ cattle, onClose, onEdit, onDelete, o
 
   // Build weight chart data from history or fallback to weightHistory field
   const weightChartData = (() => {
-    const weightEvents = history.filter(h => h.eventType === 'weight' && h.metadata);
+    const weightEvents = extractWeightHistoryPoints(history);
     if (weightEvents.length > 0) {
-      return weightEvents.map(h => {
-        try { const m = JSON.parse(h.metadata); return { date: formatDate(h.eventDate), weight: m.newWeight || m.weight }; }
-        catch { return null; }
-      }).filter(Boolean);
+      return weightEvents.map((entry) => ({
+        date: formatDate(entry.eventDate),
+        weight: entry.weight,
+      }));
     }
     if (Array.isArray(cattle.weightHistory)) return cattle.weightHistory;
     if (typeof cattle.weightHistory === 'string') {
