@@ -73,19 +73,21 @@ export default function CattleDetailModal({ cattle, onClose, onEdit, onDelete, o
           maxWidth:"600px",
           minHeight:"100vh",
           overflowY:"auto",
-          paddingBottom:"60px"
+          paddingBottom:"60px",
+          boxShadow:"0 -8px 40px rgba(0,0,0,0.15)"
         }}
       >
-        {/* Header Image Area */}
+        {/* Header Image Area — gradient with depth */}
         <div
           className="animate-fadeIn"
           style={{
-            height:"220px",
-            background:`linear-gradient(135deg, ${statusColor.bg}, ${statusColor.bg}ee)`,
+            height:"240px",
+            background:`linear-gradient(155deg, ${statusColor.bg}, ${statusColor.bg}dd, color-mix(in srgb, ${statusColor.bg} 80%, var(--color-bg-card)))`,
             position:"relative",
             display:"flex",
             alignItems:"flex-end",
-            padding:"24px"
+            padding:"28px 24px",
+            borderBottom:"1px solid color-mix(in srgb, var(--color-surface-stroke) 40%, transparent)"
           }}
         >
           <button
@@ -103,13 +105,15 @@ export default function CattleDetailModal({ cattle, onClose, onEdit, onDelete, o
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}>
               <div className="animate-fadeInUp">
                 <div style={{
-                  fontSize:"36px",
+                  fontSize:"38px",
                   fontWeight:800,
-                  marginBottom:"6px",
+                  marginBottom:"8px",
                   color:statusColor.text,
-                  fontFamily:"var(--font-display)"
+                  fontFamily:"var(--font-display)",
+                  letterSpacing:"-0.02em",
+                  lineHeight:1
                 }}>{cattle.name}</div>
-                <div style={{fontSize:"15px",opacity:0.85,fontWeight:600,color:statusColor.text}}>{cattle.tagNumber}</div>
+                <div style={{fontSize:"15px",opacity:0.8,fontWeight:600,color:statusColor.text,letterSpacing:"0.02em"}}>{cattle.tagNumber}</div>
               </div>
               <div
                 className="animate-fadeInUp"
@@ -242,14 +246,22 @@ export default function CattleDetailModal({ cattle, onClose, onEdit, onDelete, o
                     {idx < history.length - 1 && (
                       <div style={{position:"absolute",left:"15px",top:"32px",bottom:"-8px",width:"2px",background:"var(--color-border)"}} />
                     )}
-                    {/* Icon */}
-                    <div style={{width:"32px",height:"32px",borderRadius:"50%",background:"var(--color-border-light)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"16px",flexShrink:0,zIndex:1}}>
+                    {/* Icon — elevated with subtle shadow */}
+                    <div style={{
+                      width:"34px",height:"34px",borderRadius:"50%",
+                      background:"var(--color-surface-elevated)",
+                      border:"1px solid var(--color-surface-stroke)",
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      fontSize:"16px",flexShrink:0,zIndex:1,
+                      boxShadow:"var(--shadow-sm)",
+                      transition:"transform 0.2s ease"
+                    }}>
                       {HISTORY_ICONS[h.eventType] || "📌"}
                     </div>
                     {/* Content */}
-                    <div style={{paddingBottom:"16px",flex:1}}>
-                      <div style={{fontSize:"13px",fontWeight:700,color:"var(--color-text)"}}>{h.description || h.eventType}</div>
-                      <div style={{fontSize:"11px",color:"var(--color-text-muted)",marginTop:"2px"}}>{formatDate(h.eventDate)}</div>
+                    <div style={{paddingBottom:"18px",flex:1}}>
+                      <div style={{fontSize:"13px",fontWeight:700,color:"var(--color-text)",letterSpacing:"-0.01em"}}>{h.description || h.eventType}</div>
+                      <div style={{fontSize:"11px",color:"var(--color-text-muted)",marginTop:"3px"}}>{formatDate(h.eventDate)}</div>
                     </div>
                   </div>
                 ))}
@@ -297,13 +309,16 @@ function SectionTitle({icon, title, color = "var(--color-text)"}){
     <div style={{
       fontSize:"16px",
       fontWeight:800,
-      marginBottom:"14px",
+      marginBottom:"16px",
+      paddingBottom:"10px",
+      borderBottom:"1px solid color-mix(in srgb, var(--color-border-custom) 35%, transparent)",
       color,
       display:"flex",
       alignItems:"center",
-      gap:"8px"
+      gap:"10px",
+      letterSpacing:"-0.01em"
     }}>
-      <span>{icon}</span> {title}
+      <span style={{fontSize:"18px",lineHeight:1}}>{icon}</span> {title}
     </div>
   );
 }
@@ -316,17 +331,21 @@ function InfoItem({label,value,highlight=false,delay=0}){
         background:"var(--color-bg-card)",
         border:"1px solid var(--color-border)",
         borderRadius:"var(--radius-md)",
-        padding:"12px 14px",
-        transition:"all var(--transition-fast)",
-        animationDelay:`${delay}ms`
+        padding:"14px 16px",
+        transition:"all 0.25s cubic-bezier(0.22,1,0.36,1)",
+        animationDelay:`${delay}ms`,
+        cursor:"default"
       }}
+      onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="var(--shadow-sm)";}}
+      onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="none";}}
     >
-      <div style={{fontSize:"11px",color:"var(--color-text-muted)",marginBottom:"4px",fontWeight:500}}>{label}</div>
+      <div style={{fontSize:"11px",color:"var(--color-text-muted)",marginBottom:"5px",fontWeight:600,letterSpacing:"0.03em",textTransform:"uppercase"}}>{label}</div>
       <div style={{
-        fontSize:highlight ? "18px" : "14px",
-        fontWeight:700,
+        fontSize:highlight ? "20px" : "14px",
+        fontWeight:highlight ? 800 : 700,
         color:"var(--color-text)",
-        fontFamily: highlight ? "var(--font-display)" : "inherit"
+        fontFamily: highlight ? "var(--font-display)" : "inherit",
+        letterSpacing: highlight ? "-0.02em" : "0"
       }}>{value}</div>
     </div>
   );

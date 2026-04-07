@@ -75,8 +75,9 @@ export default function CalvingTab({ cattle, onRecordCalving }) {
 
   return (
     <div>
-      <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--color-text)', marginBottom: '14px' }}>
-        🐮 분만 예정 관리
+      <div className="section-header" style={{ marginBottom: '16px' }}>
+        <span className="section-header-icon">🐮</span>
+        <h2 className="section-header-title">분만 예정 관리</h2>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -101,6 +102,7 @@ export default function CalvingTab({ cattle, onRecordCalving }) {
                     : 'var(--surface-gradient)',
                   borderColor: alert ? 'var(--color-warning)' : 'var(--color-surface-stroke)',
                   boxShadow: isSelected ? 'var(--shadow-md)' : 'var(--shadow-sm)',
+                  transition: 'all 0.3s cubic-bezier(0.22,1,0.36,1)',
                 }}
               >
                 <div className="mb-4 flex items-start justify-between gap-3">

@@ -8,25 +8,24 @@ import { formatMoney } from '@/lib/utils';
 
 function PricePanel({ title, rows }) {
   return (
-    <div className="clay-inset rounded-[24px] p-4">
+    <div className="clay-inset rounded-[24px] p-4 transition-[box-shadow,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5">
       <div className="mb-3 border-b border-[color:var(--color-surface-border)] pb-3">
-        <span className="text-sm font-bold text-[color:var(--color-text)]">{title}</span>
+        <span className="text-sm font-bold text-[color:var(--color-text)] tracking-[-0.01em]">{title}</span>
       </div>
-      <div className="grid gap-2">
+      <div className="grid gap-2.5">
         {rows.map(([grade, value], index) => (
           <div
             key={grade}
-            className="flex items-center justify-between text-sm"
+            className="flex items-center justify-between text-sm transition-[background,transform] duration-200 rounded-lg px-2 py-1.5 -mx-2 hover:bg-[color:color-mix(in_srgb,var(--color-surface-elevated)_60%,transparent)]"
             style={{
-              paddingBottom: index === rows.length - 1 ? 0 : '8px',
               borderBottom:
                 index === rows.length - 1
                   ? 'none'
-                  : '1px solid color-mix(in srgb, var(--color-surface-border) 65%, transparent)',
+                  : '1px solid color-mix(in srgb, var(--color-surface-border) 45%, transparent)',
             }}
           >
             <span className="font-medium text-[color:var(--color-text-secondary)]">{grade}</span>
-            <span className="font-bold text-[color:var(--color-text)]">{formatMoney(value)} / kg</span>
+            <span className="font-bold text-[color:var(--color-text)] tabular-nums">{formatMoney(value)} / kg</span>
           </div>
         ))}
       </div>

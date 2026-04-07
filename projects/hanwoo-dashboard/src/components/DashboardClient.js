@@ -19,7 +19,15 @@ import {
 } from '@/lib/actions';
 import { useAppFeedback } from '@/components/feedback/FeedbackProvider';
 import { formatMoney } from '@/lib/utils';
+import { fetchWithTimeout, isTimeoutError } from '@/lib/fetchWithTimeout';
 import { buildNotifications } from '@/lib/notifications';
+import {
+  buildUnavailableWeatherState,
+  markWeatherAsStale,
+  normalizeWeatherPayload,
+  readWeatherApiResponseSafely,
+  WEATHER_UNAVAILABLE_MESSAGE,
+} from '@/lib/weather-state.mjs';
 import { TabBar, WeatherWidget, EstrusAlertBanner, CalvingAlertBanner } from '@/components/widgets/widgets';
 import { StatCard, PenCard, CattleRow } from '@/components/ui/cards';
 import { Button } from '@/components/ui/button';
@@ -119,13 +127,7 @@ export default function DashboardClient({
   const [farmSettings, setFarmSettings] = useState(initialFarmSettings);
   const [expenseRecords, setExpenseRecords] = useState(initialExpenses || []);
 
-  const [weather, setWeather] = useState({
-    temp: 20,
-    condition: 'Clear',
-    humidity: 50,
-    wind: 2,
-    locationName: initialFarmSettings.location || 'Seoul',
-  });
+  const [weather, setWeather] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedCow, setSelectedCow] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -181,7 +183,23 @@ export default function DashboardClient({
   const sortByDateDesc = (items, key) => [...items].sort((left, right) => new Date(right[key]) - new Date(left[key]));
 
   useEffect(() => {
+    let cancelled = false;
+
+    const applyWeatherDegradation = (locationName, message) => {
+      if (cancelled) {
+        return;
+      }
+
+      setWeather((previous) =>
+        previous?.available
+          ? markWeatherAsStale(previous, { locationName, message })
+          : buildUnavailableWeatherState({ locationName, message }),
+      );
+    };
+
     const fetchWeather = async (lat, lng) => {
+      const locationName = farmSettings.location || 'Seoul';
+
       try {
         const params = [
           `latitude=${lat}`,
@@ -191,34 +209,46 @@ export default function DashboardClient({
           'forecast_days=3',
           'timezone=Asia/Seoul',
         ].join('&');
-        const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
-        const data = await res.json();
-        const current = data.current;
-        const daily = data.daily;
+        const res = await fetchWithTimeout(
+          `https://api.open-meteo.com/v1/forecast?${params}`,
+          { cache: 'no-store' },
+          {
+            timeoutMs: 5000,
+            errorMessage: 'Weather lookup timed out after 5000ms.',
+          },
+        );
 
-        const forecast =
-          daily?.time?.map((date, index) => ({
-            date,
-            weatherCode: daily.weather_code[index],
-            tempMax: daily.temperature_2m_max[index],
-            tempMin: daily.temperature_2m_min[index],
-            precipProb: daily.precipitation_probability_max?.[index] || 0,
-          })) || [];
+        if (!res.ok) {
+          applyWeatherDegradation(locationName, WEATHER_UNAVAILABLE_MESSAGE);
+          return;
+        }
 
-        setWeather({
-          temp: current.temperature_2m,
-          humidity: current.relative_humidity_2m,
-          windSpeed: current.wind_speed_10m,
-          apparentTemp: current.apparent_temperature,
-          weatherCode: current.weather_code,
-          tempMax: forecast[0]?.tempMax ?? current.temperature_2m + 3,
-          tempMin: forecast[0]?.tempMin ?? current.temperature_2m - 3,
-          precipitation: forecast[0]?.precipProb ?? 0,
-          locationName: farmSettings.location || 'Seoul',
-          forecast,
-        });
+        const { data, parseError } = await readWeatherApiResponseSafely(res);
+        if (parseError) {
+          applyWeatherDegradation(locationName, WEATHER_UNAVAILABLE_MESSAGE);
+          return;
+        }
+
+        const normalized = normalizeWeatherPayload(data, { locationName });
+        if (!normalized) {
+          applyWeatherDegradation(locationName, WEATHER_UNAVAILABLE_MESSAGE);
+          return;
+        }
+
+        if (!cancelled) {
+          setWeather(normalized);
+        }
       } catch (error) {
+        if (isTimeoutError(error)) {
+          applyWeatherDegradation(
+            locationName,
+            'Showing the last available weather snapshot because the live weather request timed out.',
+          );
+          return;
+        }
+
         console.error('Weather fetch error', error);
+        applyWeatherDegradation(locationName, WEATHER_UNAVAILABLE_MESSAGE);
       }
     };
 
@@ -232,6 +262,10 @@ export default function DashboardClient({
     } else {
       fetchWeather(35.446, 127.344);
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [farmSettings.latitude, farmSettings.longitude, farmSettings.location]);
 
   useEffect(() => {

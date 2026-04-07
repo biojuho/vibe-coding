@@ -128,30 +128,23 @@ export default function SettingsTab({
 
   return (
     <div>
-      <div
-        style={{
-          fontSize: '18px',
-          fontWeight: 800,
-          color: 'var(--color-text)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          marginBottom: '20px',
-        }}
-      >
-        <Settings size={20} /> 환경 설정
+      <div className="section-header" style={{ marginBottom: '22px' }}>
+        <Settings size={20} className="text-[color:var(--color-text)]" />
+        <h2 className="section-header-title">환경 설정</h2>
       </div>
 
       <div
         style={{
           background: 'var(--color-bg-card)',
           padding: '18px 20px',
-          borderRadius: '16px',
+          borderRadius: '20px',
           boxShadow: 'var(--shadow-sm)',
+          border: '1px solid var(--color-surface-stroke)',
           marginBottom: '20px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          transition: 'all 0.3s cubic-bezier(0.22,1,0.36,1)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

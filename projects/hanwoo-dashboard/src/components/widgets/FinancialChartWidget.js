@@ -41,31 +41,34 @@ export default function FinancialChartWidget({ saleRecords = [], feedHistory = [
     <div
       className="card animate-fadeInUp"
       style={{
-        marginBottom: "20px",
-        padding: "22px",
+        marginBottom: "22px",
+        padding: "24px",
         animationDelay: "50ms"
       }}
     >
       <div style={{
         display: "flex",
         justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: "22px"
+        alignItems: "flex-start",
+        marginBottom: "24px",
+        paddingBottom: "16px",
+        borderBottom: "1px solid color-mix(in srgb, var(--color-border-custom) 30%, transparent)"
       }}>
-        <div style={{display: "flex", alignItems: "center", gap: "10px"}}>
-          <span style={{fontSize: "20px"}}>📈</span>
+        <div style={{display: "flex", alignItems: "center", gap: "12px"}}>
+          <span style={{fontSize: "22px", lineHeight: 1}}>📈</span>
           <div>
-            <div style={{fontWeight: 800, fontSize: "16px", color: "var(--color-text)"}}>농장 경영 분석</div>
-            <div style={{fontSize: "12px", color: "var(--color-text-muted)", marginTop: "2px"}}>최근 6개월 매출/비용/수익</div>
+            <div style={{fontWeight: 800, fontSize: "17px", color: "var(--color-text)", letterSpacing: "-0.01em"}}>농장 경영 분석</div>
+            <div style={{fontSize: "12px", color: "var(--color-text-muted)", marginTop: "3px"}}>최근 6개월 매출/비용/수익</div>
           </div>
         </div>
         <div style={{
           fontSize: "11px",
           color: "var(--color-text-secondary)",
           background: "var(--color-border-light)",
-          padding: "6px 10px",
+          padding: "6px 12px",
           borderRadius: "var(--radius-sm)",
-          fontWeight: 500
+          fontWeight: 600,
+          letterSpacing: "0.02em"
         }}>단위: 원</div>
       </div>
 

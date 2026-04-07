@@ -108,7 +108,7 @@ export default function CattleForm({ cattle, onSubmit, onCancel }) {
           style={{
             display: 'flex',
             alignItems: 'center',
-            marginBottom: '24px',
+            marginBottom: '28px',
             gap: '14px',
           }}
         >
@@ -116,12 +116,17 @@ export default function CattleForm({ cattle, onSubmit, onCancel }) {
             type="button"
             onClick={onCancel}
             className="btn btn-ghost btn-icon"
-            style={{ width: '40px', height: '40px' }}
+            style={{ width: '42px', height: '42px' }}
           >
             <BackIcon />
           </button>
-          <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-text)' }}>
-            {cattle ? '개체 정보 수정' : '새 개체 등록'}
+          <div>
+            <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-text)', letterSpacing: '-0.02em' }}>
+              {cattle ? '개체 정보 수정' : '새 개체 등록'}
+            </div>
+            <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginTop: '3px' }}>
+              {cattle ? '정보를 수정하고 저장하세요' : '새 개체의 기본 정보를 입력하세요'}
+            </div>
           </div>
         </div>
 
@@ -333,11 +338,11 @@ export default function CattleForm({ cattle, onSubmit, onCancel }) {
             {errors.memo ? <div style={errorTextStyle}>{errors.memo.message}</div> : null}
           </div>
 
-          <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-            <button type="button" onClick={onCancel} className="btn btn-secondary" style={btnSecondary}>
+          <div style={{ display: 'flex', gap: '12px', marginTop: '28px', paddingTop: '20px', borderTop: '1px solid color-mix(in srgb, var(--color-border-custom) 35%, transparent)' }}>
+            <button type="button" onClick={onCancel} className="btn btn-secondary" style={{...btnSecondary, transition: 'all 0.2s cubic-bezier(0.22,1,0.36,1)'}}>
               취소
             </button>
-            <button type="submit" className="btn btn-primary" style={btnPrimary}>
+            <button type="submit" className="btn btn-primary" style={{...btnPrimary, transition: 'all 0.2s cubic-bezier(0.22,1,0.36,1)'}}>
               저장하기
             </button>
           </div>

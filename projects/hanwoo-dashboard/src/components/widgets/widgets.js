@@ -47,6 +47,21 @@ export function WeatherWidget({weather}){
       <div className="skeleton" style={{height:"120px",width:"100%"}}></div>
     </div>
   );
+  if (weather.available === false) return (
+    <div className="weather-card animate-fadeInUp" style={{marginBottom:"16px"}}>
+      <PremiumCard className="bg-slate-800/40">
+        <PremiumCardContent className="p-5">
+          <div style={{fontSize:"14px",fontWeight:700,marginBottom:"8px"}}>Weather Unavailable</div>
+          <div style={{fontSize:"13px",opacity:0.82}}>
+            {weather.message || 'Weather data is temporarily unavailable.'}
+          </div>
+          <div style={{fontSize:"11px",opacity:0.6,marginTop:"8px"}}>
+            {weather.locationName || 'Seoul'}
+          </div>
+        </PremiumCardContent>
+      </PremiumCard>
+    </div>
+  );
   const thi=calcTHI(weather.temp,weather.humidity);
   const thiLevel=getTHILevel(thi);
   const icon=getWeatherIcon(weather.weatherCode);
@@ -81,6 +96,11 @@ export function WeatherWidget({weather}){
             </div>
           )}
         </div>
+        {weather.message ? (
+          <div style={{marginTop:"12px",padding:"10px 12px",borderRadius:"12px",background:"rgba(255,255,255,0.08)",fontSize:"12px",opacity:0.9}}>
+            {weather.message}
+          </div>
+        ) : null}
         </PremiumCardContent>
       </PremiumCard>
       <div style={{

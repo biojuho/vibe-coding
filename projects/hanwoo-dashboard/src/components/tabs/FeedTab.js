@@ -133,7 +133,10 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
 
   return (
     <div>
-      <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--color-text)', marginBottom: '14px' }}>사료 급여 모니터링</div>
+      <div className="section-header" style={{ marginBottom: '16px' }}>
+        <span className="section-header-icon">🌾</span>
+        <h2 className="section-header-title">사료 급여 모니터링</h2>
+      </div>
 
       <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', overflowX: 'auto', paddingBottom: '4px' }}>
         <FilterChip active={!selectedBuilding} onClick={() => setSelectedBuilding(null)}>

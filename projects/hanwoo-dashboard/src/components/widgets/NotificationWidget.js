@@ -48,7 +48,7 @@ export default function NotificationWidget({ notifications = [] }) {
           return (
             <div
               key={note.id}
-              className="rounded-[24px] border p-4"
+              className="rounded-[24px] border p-4 transition-[transform,box-shadow,border-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)]"
               style={{
                 background: style.surface,
                 borderColor: 'color-mix(in srgb, var(--color-surface-stroke) 80%, transparent)',

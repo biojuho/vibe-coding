@@ -8,15 +8,17 @@ export default function NotificationModal({ notifications, onClose, onTestSMS })
         onClick={e => e.stopPropagation()}
         style={{maxWidth:"400px", borderRadius:"var(--radius-xl)"}}
       >
-        {/* Modal Handle */}
-        <div className="modal-handle" />
+        {/* Modal Handle — wider for better grab affordance */}
+        <div className="modal-handle" style={{width:"48px",height:"5px",borderRadius:"3px"}} />
 
         {/* Header */}
         <div style={{
           display:"flex",
           justifyContent:"space-between",
           alignItems:"center",
-          marginBottom:"20px"
+          marginBottom:"22px",
+          paddingBottom:"14px",
+          borderBottom:"1px solid color-mix(in srgb, var(--color-border-custom) 30%, transparent)"
         }}>
           <div style={{
             fontSize:"19px",
@@ -24,14 +26,15 @@ export default function NotificationModal({ notifications, onClose, onTestSMS })
             color:"var(--color-text)",
             display:"flex",
             alignItems:"center",
-            gap:"8px"
+            gap:"10px",
+            letterSpacing:"-0.01em"
           }}>
-            <span className="animate-bounce">🔔</span> 알림 센터
+            <span className="animate-bounce" style={{fontSize:"22px"}}>🔔</span> 알림 센터
           </div>
           <button
             onClick={onClose}
             className="btn btn-ghost btn-icon"
-            style={{width:"32px", height:"32px", fontSize:"18px"}}
+            style={{width:"34px", height:"34px", fontSize:"18px", transition:"all 0.2s cubic-bezier(0.22,1,0.36,1)"}}
           >×</button>
         </div>
 
@@ -58,8 +61,9 @@ export default function NotificationModal({ notifications, onClose, onTestSMS })
                     padding:"14px 16px",
                     borderRadius:"var(--radius-md)",
                     borderLeft: n.level === 'critical' ? "4px solid var(--color-danger)" : "4px solid var(--color-text-muted)",
-                    transition:"all var(--transition-fast)",
-                    animationDelay:`${i * 50}ms`
+                    transition:"all 0.25s cubic-bezier(0.22,1,0.36,1)",
+                    animationDelay:`${i * 50}ms`,
+                    cursor:"default"
                   }}
                 >
                   <div style={{
