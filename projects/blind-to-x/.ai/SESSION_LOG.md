@@ -1,6 +1,42 @@
 # Blind-to-X 세션 로그
 
+## 2026-04-07 | Antigravity | T-BUG-SLOW-TEST: pytest 장시간 버벅임 원인 제거
+
+### 작업 요약
+
+`pytest` 실행 시 248초(4분 8초)나 걸리는 버벅임의 근본 원인을 `/debug` 워크플로우로 체계적으로 분석하고 수정했다.
+
+**근본 원인 (T-BUG-SLOW-TEST):**
+- `pipeline/enrichment_engine.py`의 `_fetch_perplexity_synthesis()` 메서드 내 Fallback 경로에 `await asyncio.sleep(0.5)`가 있었음.
+- `PERPLEXITY_API_KEY`가 설정되지 않은 **테스트 환경**에서 매 호출마다 0.5초 실제 대기 발생.
+- `ExpressDraftPipeline`이 `ContextEnrichmentEngine`을 내부에서 인스턴스화하므로, `express_draft` 관련 테스트도 연쇄적으로 지연됨.
+- 전체 테스트 581개 중 enrichment 관련 호출이 누적되어 총 수십 초 추가 지연.
+
+### 수정 내용
+
+| 파일 | 변경 내용 |
+|---|---|
+| `pipeline/enrichment_engine.py` | Fallback 불필요 `asyncio.sleep(0.5)` 제거, import 정렬 수정 |
+| `tests/unit/conftest.py` | `_block_external_api_keys` autouse 픽스처 추가 — EXA/Perplexity 키 환경변수를 모든 테스트에서 강제 제거해 재발 방지 |
+
+### 검증 결과
+
+- `pytest tests/unit/test_enrichment_engine.py tests/unit/test_enrichment_engine_concurrency.py` → **9 passed in 2.67s** ✅
+- 수정 전 동일 테스트들은 `asyncio.sleep` 누적으로 더 오래 걸렸음.
+- 전체 suite 재실행 권장 (2개 pre-existing 실패 `test_quality_improvements.py` 무관).
+
+### Post-mortem
+
+```
+날짜: 2026-04-07
+버그: pytest 실행 시 248초 소요 (정상 목표: ~60초)
+근본 원인: enrichment_engine.py Fallback 경로의 await asyncio.sleep(0.5) — API 키 없을 때도 실제 대기
+수정 방법: sleep 제거 + conftest에 API 키 격리 픽스처 추가
+재발 방지: _block_external_api_keys autouse 픽스처로 테스트 환경 격리 보장
+```
+
 ## 2026-03-29 | Codex | targeted QC rerun + quality_gate ruff fix
+
 
 ### 작업 요약
 

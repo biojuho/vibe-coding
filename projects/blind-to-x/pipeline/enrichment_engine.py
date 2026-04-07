@@ -50,8 +50,9 @@ class ContextEnrichmentEngine:
     ):
         self.exa_api_key = exa_api_key or os.getenv("EXA_API_KEY")
         self.perplexity_api_key = perplexity_api_key or os.getenv("PERPLEXITY_API_KEY")
-        # 타임아웃을 강제하여 파이프라인 전체 딜레이를 방지 (최대 15초)
-        self.timeout = httpx.Timeout(15.0)
+        # 타임아웃을 강제하여 파이프라인 전체 딜레이를 방지 (최대 5초)
+        # [QA 수정] 15초 → 5초: 실패 시 파이프라인 블로킹 최소화
+        self.timeout = httpx.Timeout(5.0)
         self.max_concurrency = max(1, int(max_concurrency))
 
     async def _fetch_exa_references(self, client: httpx.AsyncClient, topic: str) -> List[Dict]:
@@ -114,7 +115,15 @@ Provide:
             res.raise_for_status()
             data = res.json()
 
-            content = data["choices"][0]["message"]["content"]
+            # [QA 수정] 응답 형식 방어: choices가 비어있거나 키가 없을 경우 Fallback
+            choices = data.get("choices", [])
+            if not choices:
+                logger.warning("Perplexity 응답에 choices가 없습니다. Fallback 반환.")
+                return f"{topic}에 대한 심층 인사이트를 분석 중입니다 (Fallback Mode)."
+            content = choices[0].get("message", {}).get("content", "")
+            if not content:
+                logger.warning("Perplexity 응답 content가 비어 있습니다. Fallback 반환.")
+                return f"{topic}에 대한 심층 인사이트를 분석 중입니다 (Fallback Mode)."
             return content
         except Exception as e:
             logger.error(f"Perplexity API 합성 중 오류 발생: {e}")
