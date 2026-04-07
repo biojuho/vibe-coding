@@ -4,6 +4,11 @@
 
 ## Latest Update
 | Date | 2026-04-07 |
+| Tool | Codex |
+| Work | **Completed `T-159` in `hanwoo-dashboard`: weather fetches now degrade cleanly on timeout, malformed bodies, and payload shape drift.** Added `src/lib/weather-state.mjs` so weather responses are parsed/normalized safely with explicit `available`, `degraded`, and `isStale` states plus `unavailable`, `stale`, and `partial forecast` messaging. Updated `src/components/DashboardClient.js` to fetch Open-Meteo through `fetchWithTimeout`, handle non-OK responses and parse failures without crashing the widget, and preserve the last good snapshot when the live request times out. Added focused unit coverage in `src/lib/weather-state.test.mjs`, expanded `npm test` to **34 passed**, and re-verified with `npm run lint` and `npm run build` (**pass/pass**). Next priority: harden the remaining client-side dashboard refresh/read paths so post-mutation summary updates fail softly instead of silently stalling. |
+
+## Previous Update
+| Date | 2026-04-07 |
 | Tool | Claude (Opus 4.6) |
 | Work | **미커밋 변경사항 전체 정리 + QC 통과.** (1) 루트 임시/디버그 파일 43개+ 삭제 + `.gitignore`에 패턴 추가 (t121_*, tmp_*, etc). (2) 112개 수정 파일을 8개 논리적 커밋으로 분할 커밋: infra 정비, workspace DB통합+Harness, blind-to-x escalation engine+테스트, hanwoo-dashboard scale-hardening, shorts-maker-v2 growth loop, AI 컨텍스트 갱신 등. (3) pre-commit hook(ruff check+format) 위반 일괄 수정. (4) QC: ruff lint 전체 통과, workspace 1267 passed/0 failed, blind-to-x 474 passed/1 flaky(test_batch_process 순서 의존, 단독 통과). 워킹 트리 클린. |
 
@@ -245,7 +250,7 @@
 
 1. ~~`T-151`~~: **DONE** — cattle/sales UI now uses paginated API routes as primary data source.
 2. Wait on `T-153`: delete `.tmp/*.db.bak` files only after human verification.
-3. Continue the `hanwoo-dashboard` QA hardening backlog with the weather widget fetch/shape guard slice (`T-159`) and then the next external dependency edge-case.
+3. Continue the `hanwoo-dashboard` QA hardening backlog with the next client-side read/refresh resilience slice (`T-160`), focusing on post-mutation summary fetches and other soft-failure UI paths.
 
 ## Notes
 

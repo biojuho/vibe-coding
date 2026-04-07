@@ -1,4 +1,31 @@
 # SESSION_LOG - Recent 7 Days
+ 
+## 2026-04-07 | Codex | T-159 hanwoo-dashboard weather fetch graceful-degradation hardening
+
+### Work Summary
+
+1. Added `projects/hanwoo-dashboard/src/lib/weather-state.mjs` so Open-Meteo responses are parsed and normalized safely instead of assuming a valid JSON body and stable response shape.
+2. Updated `projects/hanwoo-dashboard/src/components/DashboardClient.js` to fetch weather through `fetchWithTimeout`, classify timeout/non-OK/parse-failure paths, and degrade to either an explicit unavailable state or the last known stale snapshot.
+3. Updated `projects/hanwoo-dashboard/src/components/widgets/widgets.js` so the weather widget can render loading, unavailable, stale, and partial-forecast states without crashing the dashboard surface.
+4. Added focused Node coverage in `projects/hanwoo-dashboard/src/lib/weather-state.test.mjs` for malformed JSON, valid normalization, partial forecast degradation, stale-state preservation, and unavailable-state construction, and expanded `npm test`.
+5. Re-verified the weather hardening slice with `npm test` (`34 passed`), `npm run lint` (`pass`), and `npm run build` (`pass`).
+
+### Changed Files
+
+| File | Change |
+|------|--------|
+| `projects/hanwoo-dashboard/src/lib/weather-state.mjs` | Added safe Open-Meteo response parsing and normalization helpers |
+| `projects/hanwoo-dashboard/src/lib/weather-state.test.mjs` | Added focused unit coverage for degraded weather branches |
+| `projects/hanwoo-dashboard/src/components/DashboardClient.js` | Routed weather fetches through timeout/error-aware degradation logic |
+| `projects/hanwoo-dashboard/src/components/widgets/widgets.js` | Rendered unavailable/stale/partial weather states safely in the widget |
+| `projects/hanwoo-dashboard/package.json` | Expanded `npm test` to include the weather state suite |
+| `.ai/HANDOFF.md`, `.ai/TASKS.md`, `.ai/CONTEXT.md` | Synced the latest relay/context/task state |
+
+### Verification Results
+
+- `npm test` (`projects/hanwoo-dashboard`) -> **34 passed**
+- `npm run lint` (`projects/hanwoo-dashboard`) -> **pass**
+- `npm run build` (`projects/hanwoo-dashboard`) -> **pass**
 
 ## 2026-04-07 | Claude (Opus 4.6) | 미커밋 변경사항 정리 + 전체 QC
 
