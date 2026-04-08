@@ -107,6 +107,42 @@
 - 7일 초과분은 `.ai/archive/SESSION_LOG_before_YYYY-MM-DD.md`로 이동
 - 로테이션은 세션 종료 시 자동 수행 (파일이 1000줄 초과 시)
 
+## 컨텍스트 계층 (Context Hierarchy)
+
+이 파일은 전역 지침입니다. 프로젝트별 추가 지침은 각 프로젝트 디렉터리의 `CLAUDE.md`를 참조합니다.
+Claude Code는 작업 중인 파일의 상위 디렉터리 `CLAUDE.md`를 자동으로 병합합니다.
+
+- 전역 지침: `./CLAUDE.md` (이 파일)
+- 프로젝트 지침: `projects/<name>/CLAUDE.md` (해당 프로젝트 작업 시 자동 로드)
+- 공유 컨텍스트: `.ai/CONTEXT.md`, `.ai/DECISIONS.md`
+
+## 컴팩션 보존 규칙 (Compaction Preservation)
+
+> 컨텍스트 압축(compaction) 발생 시 반드시 다음 정보를 보존할 것:
+
+1. **현재 작업 태스크** — `.ai/TASKS.md` IN_PROGRESS 항목
+2. **변경된 파일 전체 목록** — 수정/생성/삭제된 모든 파일 경로
+3. **실행한 테스트 커맨드와 결과** — 통과/실패 여부 포함
+4. **발견된 지뢰밭** — 알려진 버그, API 제약, 타이밍 이슈
+5. **다음 작업 컨텍스트** — HANDOFF 수준의 핵심 결정 사항
+6. **현재 프로젝트 상태** — 어느 단계(Explore/Plan/Code/Verify)에 있는지
+
+압축 시 명시적 지시: `"현재 IN_PROGRESS 태스크, 변경 파일 목록, 테스트 결과를 반드시 보존하라"`
+
+## 탐색-계획-코드-검증 워크플로우 (Explore → Plan → Code → Verify)
+
+모든 구현 작업은 이 4단계를 따른다:
+
+1. **Explore** — 관련 파일을 읽고 현재 패턴을 이해한다. **조사 없이 수정 금지.**
+   - 관련 파일 읽기, 기존 패턴 파악, 지뢰밭 확인
+   - 서브에이전트로 병렬 탐색 가능: `"서브에이전트로 X를 조사해"`
+2. **Plan** — 변경 계획을 수립한다 (Implementation Plan 작성).
+   - 어떤 파일이 바뀌는지, 왜 바뀌는지 명확히
+   - 불확실하면 사용자에게 확인 후 진행
+3. **Code** — 계획을 실행한다. 테스트를 함께 작성.
+4. **Verify** — 검증 커맨드를 실행하고 실패 시 자동 수정.
+   - 각 프로젝트의 `CLAUDE.md` → "검증 커맨드" 섹션 참조
+
 ## 바이브 코딩 어시스턴트 (Custom Instructions)
 
 프로젝트 규모의 코딩 요청을 받을 때는 `.agents/rules/vibe-coding-assistant.md`의 규칙을 반드시 따르십시오.

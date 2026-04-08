@@ -164,6 +164,22 @@
 - ADR-024: hanwoo-dashboard next-auth v5 beta 의존성 수용 (2026-04-03, 위험 인지 후 수용)
 -->
 
+---
+
+## ADR-026: Claude Code 7 Lessons 기반 멀티-AI 지침 계층화
+
+| 항목 | 내용 |
+|------|------|
+| **날짜** | 2026-04-09 |
+| **상태** | 확정 |
+| **결정** | Anthropic의 Claude Code 운영 방식(50만 줄 소스코드 유출 분석)에서 도출한 7가지 레슨을 우리 멀티-AI 시스템(Claude Code + Codex + Gemini)에 적용한다. Phase 1: 지침 계층화(프로젝트별 CLAUDE.md) + 컴팩션 보존 규칙 + Explore→Plan→Code→Verify 워크플로우 + /verify 워크플로우 신규 생성. |
+| **적용 범위** | CLAUDE.md / AGENTS.md / GEMINI.md (미러링 업데이트), projects/*/CLAUDE.md (신규 3개), .agents/workflows/verify.md (신규), .agents/workflows/start.md (강화) |
+| **선택 이유** | (1) CLAUDE.md 계층화로 프로젝트별 지침이 자동 로드, AI 컨텍스트 오염 방지. (2) 컴팩션 보존 규칙으로 세션 간 핵심 정보 유실 방지. (3) Explore→Plan→Code→Verify 4단계로 "조사 없이 수정 금지" 원칙 워크플로우화. (4) /verify로 검증 없는 완료 선언 방지. |
+| **Phase 2 예정** | 서브에이전트 정의 (.agents/agents/investigator.md 등), Plan Mode 워크플로우 |
+| **Phase 3 예정** | 비대화형 AI 배치 실행 (execution/ai_batch_runner.py), 멀티세션 패턴 |
+
+
+
 <!--
 ## ADR 템플릿 (복사해서 사용)
 

@@ -45,3 +45,7 @@
 - `projects/hanwoo-dashboard` still has many user-facing Korean strings; keep edits surgical to avoid encoding churn.
 - For `hanwoo-dashboard` Node-side unit tests, prefer `.mjs` helper/test files. The repo still does not set package-wide `"type": "module"`.
 - `projects/blind-to-x` and `projects/shorts-maker-v2` enforce broad coverage defaults; use `python -m pytest --no-cov ...` for focused local verification unless a full coverage run is intended.
+- **[ADR-026]** 각 프로젝트 `CLAUDE.md`가 새로 생성됨 (`projects/blind-to-x/CLAUDE.md`, `projects/hanwoo-dashboard/CLAUDE.md`, `projects/shorts-maker-v2/CLAUDE.md`). 작업 전 해당 파일의 "지뢰밭" 섹션 반드시 확인.
+- **[ADR-026]** `/verify` 워크플로우 신설: 코드 변경 후 반드시 실행. 검증 없는 완료 선언 금지.
+- **[Explore → Plan → Code → Verify]** 모든 구현 작업은 4단계 워크플로우 준수. "조사 없이 수정 금지."
+
