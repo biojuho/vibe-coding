@@ -25,6 +25,7 @@
 
 - `projects/hanwoo-dashboard` is the main active deep-debug target.
 - `DashboardClient` now reads cattle/sales through paginated dashboard APIs; full registries are loaded only on demand.
+- `projects/hanwoo-dashboard/src/lib/dashboard/pagination-guard.mjs` now prevents repeated-cursor and runaway page-loop conditions in the full-registry loader and the client pagination hooks.
 - `projects/hanwoo-dashboard/src/lib/actions.js#getNotifications()` now uses shared `buildNotifications(cattle)` and stable target-date timing from `src/lib/notification-timing.mjs`.
 - `projects/hanwoo-dashboard/src/lib/syncManager.js` now caps offline queue retries and moves poison items to the `localStorage` key `joolife-offline-dead-letter`.
 - `projects/hanwoo-dashboard/src/lib/offlineQueue.js` now persists retry metadata (`retryCount`, `lastAttemptAt`, `lastError`, `deadLetteredAt`) for offline mutations.
@@ -35,7 +36,7 @@
 
 ## Recent Verification
 
-- `npm run lint`, `npm test` (`43 passed`), and `npm run build` in `projects/hanwoo-dashboard` all passed on 2026-04-07 after `T-162`.
+- `npm run lint`, `npm test` (`48 passed`), and `npm run build` in `projects/hanwoo-dashboard` all passed on 2026-04-08 after `T-163`.
 - Earlier on 2026-04-07: `npm run lint` in `projects/knowledge-dashboard`, `pytest --no-cov tests/unit/test_daily_digest_extended.py` in `projects/blind-to-x`, and `pytest --no-cov tests/unit/test_cli.py tests/unit/test_orchestrator_unit.py` in `projects/shorts-maker-v2` all passed.
 
 ## Minefield
