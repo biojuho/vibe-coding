@@ -7,18 +7,19 @@
 | Field | Value |
 |---|---|
 | Date | 2026-04-09 |
-| Tool | Codex |
-| Work | Completed the cross-project deep-debug hardening pass and then finished the remaining repo-wide Ruff cleanup in `projects/shorts-maker-v2` without touching unrelated in-progress UI work. `blind-to-x`: `escalation_runner.py` now injects `TweetDraftGenerator`, `pipeline/express_draft.py` can reuse the generator's real provider chain, and `pipeline/daily_digest.py` now times out stuck Gemini summaries. `shorts-maker-v2`: Gate 4 now holds when `ffprobe`/`ffmpeg` probes are unavailable, Gemini thumbnails now receive the real `google_client` and use the Imagen3-capable path, paid visual generation is no longer parallelized ahead of audio success, Windows-unsafe punctuation was removed from thumbnail print paths, and repo-wide Ruff now passes after aligning legacy-test security ignores with the existing test policy plus fixing the remaining import-order hotspots. `hanwoo-dashboard`: the subscription success page and checkout widget now safely parse malformed/non-JSON payment responses, pagination hooks now abort on unmount and time out after 15s, and market-price refreshes no longer leak unhandled promise rejections. |
-| Next Priorities | 1. If the user wants another sweep, continue from the remaining lower-severity client fetch paths and admin diagnostics fallbacks. 2. Keep the shared payment-response parsing helpers canonical if the checkout flow is refactored further. 3. Preserve the current `shorts-maker-v2` Ruff policy if more legacy archive tests are restored or edited. |
+| Tool | Gemini (Antigravity) |
+| Work | **code-review-graph P0 도입 완료**. `pip install code-review-graph-2.2.2` → `blind-to-x` 그래프 빌드 (819 files, 11,083 nodes, 81,106 edges / python·ts·js·tsx) → `shorts-maker-v2` 그래프 빌드 (동일 규모) → `.mcp.json`에 MCP 서버 추가 (`python3.13 -m code_review_graph serve` + `PYTHONUTF8=1`) → `.code-review-graphignore` 생성 (두 프로젝트) → `/start` 워크플로우에 `get_architecture_overview` 그래프 로드 스텝 추가 → `/verify` 워크플로우에 Impact Radius 확인 스텝 추가. |
+| Next Priorities | 1. Antigravity 재시작(MCP 서버 활성화 확인). 2. `blind-to-x`에서 `get_impact_radius` 실제 호출 테스트. 3. P1: `/start` 세션 시작 시 그래프 status 자동 확인 검증. 4. P2: Google Embeddings 설치로 시맨틱 검색 개선. |
 
 ## Previous Update
 
 | Field | Value |
 |---|---|
 | Date | 2026-04-09 |
-| Tool | Gemini (Antigravity) |
-| Work | ADR-026 Phase 1: added root-level context-preservation rules, created project-level `CLAUDE.md` files for `blind-to-x`, `hanwoo-dashboard`, and `shorts-maker-v2`, added `/start` and `/verify` workflow guidance, and recorded ADR-026 in `.ai/DECISIONS.md`. |
-| Next Priorities | 1. Phase 2 investigator agent definition. 2. Phase 2 plan-mode workflow. 3. Phase 3 async AI batch runner. |
+| Tool | Codex |
+| Work | Completed the cross-project deep-debug hardening pass and then finished the remaining repo-wide Ruff cleanup in `projects/shorts-maker-v2` without touching unrelated in-progress UI work. `blind-to-x`: `escalation_runner.py` now injects `TweetDraftGenerator`, `pipeline/express_draft.py` can reuse the generator's real provider chain, and `pipeline/daily_digest.py` now times out stuck Gemini summaries. `shorts-maker-v2`: Gate 4 now holds when `ffprobe`/`ffmpeg` probes are unavailable, Gemini thumbnails now receive the real `google_client` and use the Imagen3-capable path, paid visual generation is no longer parallelized ahead of audio success, Windows-unsafe punctuation was removed from thumbnail print paths, and repo-wide Ruff now passes after aligning legacy-test security ignores with the existing test policy plus fixing the remaining import-order hotspots. `hanwoo-dashboard`: the subscription success page and checkout widget now safely parse malformed/non-JSON payment responses, pagination hooks now abort on unmount and time out after 15s, and market-price refreshes no longer leak unhandled promise rejections. |
+| Next Priorities | 1. If the user wants another sweep, continue from the remaining lower-severity client fetch paths and admin diagnostics fallbacks. 2. Keep the shared payment-response parsing helpers canonical if the checkout flow is refactored further. 3. Preserve the current `shorts-maker-v2` Ruff policy if more legacy archive tests are restored or edited. |
+
 
 ## Notes
 

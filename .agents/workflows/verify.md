@@ -33,16 +33,25 @@ description: 검증 워크플로우 — 프로젝트별 검증 커맨드 실행,
    - 통과 수, 실패 수, 경고 항목 요약
    - 실패가 남아 있으면 사용자에게 보고 후 중단
 
-5. **`.ai/TASKS.md` 업데이트** — 검증 완료 항목을 DONE으로 이동 (파일 위치: `c:\Users\박주호\Desktop\Vibe coding\.ai\TASKS.md`)
+5. **Impact Radius 확인** — 코드 그래프 활용 (Python 프로젝트)
+   ```bash
+   # 예시: pipeline/express_draft.py 수정 후
+   $env:PYTHONUTF8='1'; python3.13 -m code_review_graph impact pipeline/express_draft.py
+   ```
+   - 영향받는 파일 목록 자동 파악
+   - 해당 파일에 대한 테스트가 `/verify` 실행 목록에 포함되었는지 확인
+   - **참고**: `hanwoo-dashboard`는 JS flow detection이 제한적, IMPORTS_FROM 엣지만 활용
+
+6. **`.ai/TASKS.md` 업데이트** — 검증 완료 항목을 DONE으로 이동 (파일 위치: `c:\Users\박주호\Desktop\Vibe coding\.ai\TASKS.md`)
 
 ## 프로젝트별 검증 커맨드 빠른 참조
 
-| 프로젝트 | Lint | Test |
-|---------|------|------|
-| `blind-to-x` | `ruff check . --fix` | `python -m pytest --no-cov tests/unit/ -x` |
-| `hanwoo-dashboard` | `npm run lint` | `npm test` |
-| `shorts-maker-v2` | `ruff check . --fix` | `python -m pytest --no-cov tests/unit/ -x` |
-| `knowledge-dashboard` | `npm run lint` | (해당 없음) |
+| 프로젝트 | Lint | Test | Impact Radius |
+|---------|------|------|--------------|
+| `blind-to-x` | `ruff check . --fix` | `python -m pytest --no-cov tests/unit/ -x` | ✅ 활성 |
+| `hanwoo-dashboard` | `npm run lint` | `npm test` | ⚠️ JS 제한적 |
+| `shorts-maker-v2` | `ruff check . --fix` | `python -m pytest --no-cov tests/unit/ -x` | ✅ 활성 |
+| `knowledge-dashboard` | `npm run lint` | (해당 없음) | ❌ 미설치 |
 
 ## 자가 수정 루프
 

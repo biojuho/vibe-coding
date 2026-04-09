@@ -3,7 +3,10 @@
     "notion": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@notionhq/notion-mcp-server"],
+      "args": [
+        "-y",
+        "@notionhq/notion-mcp-server"
+      ],
       "env": {
         "NOTION_API_KEY": "${NOTION_API_KEY}"
       }
@@ -11,12 +14,17 @@
     "sqlite-multi": {
       "type": "stdio",
       "command": "python",
-      "args": ["infrastructure/sqlite-multi-mcp/server.py"]
+      "args": [
+        "infrastructure/sqlite-multi-mcp/server.py"
+      ]
     },
     "brave-search": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-brave-search"
+      ],
       "env": {
         "BRAVE_API_KEY": "${BRAVE_API_KEY}"
       }
@@ -24,7 +32,10 @@
     "github": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
       }
@@ -32,17 +43,35 @@
     "telegram": {
       "type": "stdio",
       "command": "python",
-      "args": ["infrastructure/telegram-mcp/server.py"]
+      "args": [
+        "infrastructure/telegram-mcp/server.py"
+      ]
     },
     "system-monitor": {
       "type": "stdio",
       "command": "python",
-      "args": ["infrastructure/system-monitor/server.py"]
+      "args": [
+        "infrastructure/system-monitor/server.py"
+      ]
     },
     "cloudinary": {
       "type": "stdio",
       "command": "python",
-      "args": ["infrastructure/cloudinary-mcp/server.py"]
+      "args": [
+        "infrastructure/cloudinary-mcp/server.py"
+      ]
+    },
+    "code-review-graph": {
+      "command": "python3.13",
+      "args": [
+        "-m",
+        "code_review_graph",
+        "serve"
+      ],
+      "env": {
+        "PYTHONUTF8": "1"
+      },
+      "type": "stdio"
     }
   }
 }

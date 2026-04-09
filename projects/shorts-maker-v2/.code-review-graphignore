@@ -1,0 +1,38 @@
+# shorts-maker-v2 code-review-graph ignore rules
+# 재생성 가능한 파일 및 불필요한 인덱싱 대상 제외
+
+# Python 빌드/캐시
+.venv/**
+__pycache__/**
+*.pyc
+*.pyd
+*.pyo
+.eggs/**
+*.egg-info/**
+dist/**
+build/**
+
+# 레거시 테스트 아카이브 (Ruff 정책 예외 파일, 인덱싱 노이즈 방지)
+archive/**
+archive/tests_legacy_v1/**
+
+# 임시 및 출력 파일
+.tmp/**
+tmp/**
+output/**
+*.mp4
+*.mp3
+*.wav
+*.png
+*.jpg
+*.webp
+
+# 그래프 자체 데이터
+.code-review-graph/**
+
+# 환경 설정
+.env
+.env.*
+
+# Git
+.git/**

@@ -1,0 +1,31 @@
+# blind-to-x code-review-graph ignore rules
+# 재생성 가능한 파일 및 불필요한 인덱싱 대상 제외
+
+# Python 빌드/캐시
+.venv/**
+__pycache__/**
+*.pyc
+*.pyd
+*.pyo
+.eggs/**
+*.egg-info/**
+dist/**
+build/**
+
+# 임시 파일
+.tmp/**
+tmp/**
+
+# 테스트 픽스처 및 데이터 (코드가 아닌 데이터)
+tests/fixtures/**
+tests/data/**
+
+# 그래프 자체 데이터
+.code-review-graph/**
+
+# 환경 설정
+.env
+.env.*
+
+# Git
+.git/**
