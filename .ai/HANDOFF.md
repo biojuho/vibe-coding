@@ -8,8 +8,8 @@
 |---|---|
 | Date | 2026-04-09 |
 | Tool | Codex |
-| Work | Completed a cross-project deep-debug hardening pass without touching unrelated in-progress UI work. `blind-to-x`: `escalation_runner.py` now injects `TweetDraftGenerator`, `pipeline/express_draft.py` can reuse the generator's real provider chain, and `pipeline/daily_digest.py` now times out stuck Gemini summaries. `shorts-maker-v2`: Gate 4 now holds when `ffprobe`/`ffmpeg` probes are unavailable, Gemini thumbnails now receive the real `google_client` and use the Imagen3-capable path, paid visual generation is no longer parallelized ahead of audio success, and Windows-unsafe punctuation was removed from thumbnail print paths. `hanwoo-dashboard`: the subscription success page and checkout widget now safely parse malformed/non-JSON payment responses, pagination hooks now abort on unmount and time out after 15s, and market-price refreshes no longer leak unhandled promise rejections. |
-| Next Priorities | 1. If the user wants another sweep, continue from the remaining lower-severity client fetch paths and admin diagnostics fallbacks. 2. Clean the remaining repo-wide Ruff debt in `projects/shorts-maker-v2` (`archive/tests_legacy_v1/*` plus import-order hotspots) so full-project lint passes again. 3. Keep the shared payment-response parsing helpers canonical if the checkout flow is refactored further. |
+| Work | Completed the cross-project deep-debug hardening pass and then finished the remaining repo-wide Ruff cleanup in `projects/shorts-maker-v2` without touching unrelated in-progress UI work. `blind-to-x`: `escalation_runner.py` now injects `TweetDraftGenerator`, `pipeline/express_draft.py` can reuse the generator's real provider chain, and `pipeline/daily_digest.py` now times out stuck Gemini summaries. `shorts-maker-v2`: Gate 4 now holds when `ffprobe`/`ffmpeg` probes are unavailable, Gemini thumbnails now receive the real `google_client` and use the Imagen3-capable path, paid visual generation is no longer parallelized ahead of audio success, Windows-unsafe punctuation was removed from thumbnail print paths, and repo-wide Ruff now passes after aligning legacy-test security ignores with the existing test policy plus fixing the remaining import-order hotspots. `hanwoo-dashboard`: the subscription success page and checkout widget now safely parse malformed/non-JSON payment responses, pagination hooks now abort on unmount and time out after 15s, and market-price refreshes no longer leak unhandled promise rejections. |
+| Next Priorities | 1. If the user wants another sweep, continue from the remaining lower-severity client fetch paths and admin diagnostics fallbacks. 2. Keep the shared payment-response parsing helpers canonical if the checkout flow is refactored further. 3. Preserve the current `shorts-maker-v2` Ruff policy if more legacy archive tests are restored or edited. |
 
 ## Previous Update
 
@@ -24,8 +24,7 @@
 
 - Verification from this session:
   - `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/test_express_draft.py tests/unit/test_daily_digest_extended.py tests/unit/test_escalation_runner.py -x`, `python -m ruff check .`
-  - `projects/shorts-maker-v2`: `python -m pytest --no-cov tests/unit/test_qc_step.py tests/unit/test_thumbnail_step.py tests/unit/test_media_step_branches.py tests/unit/test_orchestrator_unit.py -x`, `python -m ruff check <changed files>`
+  - `projects/shorts-maker-v2`: `python -m pytest --no-cov tests/unit/test_qc_step.py tests/unit/test_thumbnail_step.py tests/unit/test_media_step_branches.py tests/unit/test_orchestrator_unit.py -x`, `python -m pytest --no-cov tests/unit/test_retry.py tests/unit/test_cli.py tests/unit/test_orchestrator_unit.py -x`, `python -m ruff check .`
   - `projects/hanwoo-dashboard`: `npm test`, `npm run lint`
-- Full-project `python -m ruff check .` in `projects/shorts-maker-v2` still fails because of pre-existing archive/import-order debt outside the current patch set.
 - Do not revert unrelated in-progress edits elsewhere in the worktree.
 - The required AI-context commit for this session should stage only `.ai/*` files unless the user explicitly asks for a broader commit.

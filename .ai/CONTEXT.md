@@ -37,11 +37,12 @@
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/orchestrator.py` now passes `google_client` into `ThumbnailStep`, and `pipeline/thumbnail_step.py` now prefers the Imagen3-capable path for Gemini thumbnails.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/qc_step.py` now holds Gate 4 when `ffprobe` / `ffmpeg` inspection is unavailable instead of falsely passing on partial checks.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/media_step.py` now skips parallel paid-visual generation until audio succeeds, reducing wasted spend when paid scenes fail early.
+- `projects/shorts-maker-v2/pyproject.toml` now aligns `archive/tests_legacy_v1/**` with the existing test-only Ruff security-ignore policy, and the remaining import-order hotspots in `render/audio_postprocess.py`, `utils/retry.py`, and `tests/unit/test_retry.py` have been cleaned so repo-wide Ruff passes again.
 
 ## Recent Verification
 
 - `python -m pytest --no-cov tests/unit/test_express_draft.py tests/unit/test_daily_digest_extended.py tests/unit/test_escalation_runner.py -x` and `python -m ruff check .` passed in `projects/blind-to-x` on 2026-04-09.
-- `python -m pytest --no-cov tests/unit/test_qc_step.py tests/unit/test_thumbnail_step.py tests/unit/test_media_step_branches.py tests/unit/test_orchestrator_unit.py -x` passed in `projects/shorts-maker-v2` on 2026-04-09, and `python -m ruff check ...` passed for the changed files.
+- `python -m pytest --no-cov tests/unit/test_qc_step.py tests/unit/test_thumbnail_step.py tests/unit/test_media_step_branches.py tests/unit/test_orchestrator_unit.py -x`, `python -m pytest --no-cov tests/unit/test_retry.py tests/unit/test_cli.py tests/unit/test_orchestrator_unit.py -x`, and `python -m ruff check .` passed in `projects/shorts-maker-v2` on 2026-04-09.
 - `npm test` (`48 passed`) and `npm run lint` passed in `projects/hanwoo-dashboard` on 2026-04-09.
 - Earlier on 2026-04-08: `npm run lint`, `npm test`, and `npm run build` passed in `projects/hanwoo-dashboard` after `T-163`.
 
@@ -51,7 +52,6 @@
 - `projects/hanwoo-dashboard` still has many user-facing Korean strings; keep edits surgical to avoid encoding churn.
 - For `hanwoo-dashboard` Node-side unit tests, prefer `.mjs` helper/test files. The repo still does not set package-wide `"type": "module"`.
 - `projects/blind-to-x` and `projects/shorts-maker-v2` enforce broad coverage defaults; use `python -m pytest --no-cov ...` for focused local verification unless a full coverage run is intended.
-- `projects/shorts-maker-v2` still has pre-existing repo-wide Ruff debt outside the current patch set (`archive/tests_legacy_v1/*` plus a few import-order hotspots). Changed-file Ruff checks are currently the reliable verification path.
 - Windows `cp949` consoles can choke on `thumbnail_step.py` `print()` paths if they contain typographic punctuation; keep those strings ASCII-safe.
 - `[ADR-026]` Project-level `CLAUDE.md` files now exist for `blind-to-x`, `hanwoo-dashboard`, and `shorts-maker-v2`. Read the relevant project's minefield section before editing.
 - `[ADR-026]` `/verify` workflow is now explicit: do not claim completion without running the appropriate checks.
