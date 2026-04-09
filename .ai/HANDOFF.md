@@ -7,9 +7,9 @@
 | Field | Value |
 |---|---|
 | Date | 2026-04-09 |
-| Tool | Codex |
-| Work | Completed the `blind-to-x` reviewer-first Notion refresh. Added reviewer-centered properties to the Notion schema (`운영자 해석`, `검토 포인트`, `피드백 요청`, `근거 앵커`, `위험 신호`, `반려 사유`, `발행 플랫폼`), updated the uploader so new pages include a top-of-page review brief plus those properties automatically, and de-emphasized X-first wording in the review docs and page labels. Verified locally, then ran `py -3 scripts/sync_notion_review_schema.py --config config.yaml --apply` successfully against the real Notion database. |
-| Next Priorities | 1. If the user wants historical queue consistency, backfill existing Notion pages that predate the new review columns. 2. Clean the remaining X-first wording in `projects/blind-to-x/docs/operations_sop.md` and `projects/blind-to-x/scripts/check_notion_views.py`. 3. Wire `반려 사유` and `위험 신호` into `feedback_loop.py` so reviewer feedback improves future drafts. |
+| Tool | Gemini (Antigravity) |
+| Work | **ADR-026 Phase 2 완료**. T-172: code-review-graph status 검증 (11,083 nodes / 81,106 edges / 최신화 확인). T-165: `.agents/agents/investigator.md` 신규 생성 (Explore 단계 병렬 탐색 전담 서브에이전트 — 읽기 전용, Input/Output Schema, 그래프 우선 탐색 전략, 병렬 호출 패턴 포함). T-166: `.agents/workflows/plan.md` 신규 생성 (Plan Mode 공식 워크플로우 — Explore 완료 체크리스트, Implementation Plan 템플릿, 사용자 승인 게이트, ADR 충돌 검토, Code 단계 진입 조건 포함). |
+| Next Priorities | 1. T-168: `projects/knowledge-dashboard/CLAUDE.md` 신규 생성. 2. T-176: blind-to-x 과거 Notion 페이지 보정 및 feedback_loop.py 연동. 3. T-173: Google Embeddings 설치 (시맨틱 검색 개선). |
 
 ## Previous Update
 
