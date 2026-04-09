@@ -33,6 +33,9 @@
 - `projects/blind-to-x/escalation_runner.py` now injects `TweetDraftGenerator` into `ExpressDraftPipeline`, and `pipeline/express_draft.py` can reuse the generator's real provider chain instead of failing structurally when only `_enabled_providers()` / `_generate_once()` are available.
 - `projects/blind-to-x/pipeline/daily_digest.py` now guards repeated Notion cursors/runaway page counts and enforces a summary-generation timeout with fallback if Gemini hangs.
 - `projects/blind-to-x/escalation_runner.py` also applies polling breaker/backoff logic for extended external outages.
+- `projects/blind-to-x` Notion uploads are now reviewer-first: new pages include `운영자 해석`, `검토 포인트`, `피드백 요청`, `근거 앵커`, `위험 신호`, `반려 사유`, and `발행 플랫폼`, plus a top-of-page `검토 브리프` section so operators can judge quickly without parsing system metadata first.
+- `projects/blind-to-x/scripts/sync_notion_review_schema.py --config config.yaml --apply` was successfully run on 2026-04-09 against the live Notion database, so the reviewer-first columns now exist in the real DB as well as the codebase.
+- `projects/blind-to-x` review docs now avoid X-first phrasing where possible because the operator wants channel-neutral, manual publishing guidance by default.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/orchestrator.py` reports degraded-step state via `manifest.degraded_steps` and `status="degraded"`.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/orchestrator.py` now passes `google_client` into `ThumbnailStep`, and `pipeline/thumbnail_step.py` now prefers the Imagen3-capable path for Gemini thumbnails.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/qc_step.py` now holds Gate 4 when `ffprobe` / `ffmpeg` inspection is unavailable instead of falsely passing on partial checks.
@@ -42,6 +45,8 @@
 ## Recent Verification
 
 - `python -m pytest --no-cov tests/unit/test_express_draft.py tests/unit/test_daily_digest_extended.py tests/unit/test_escalation_runner.py -x` and `python -m ruff check .` passed in `projects/blind-to-x` on 2026-04-09.
+- `py -3 scripts/sync_notion_review_schema.py --config config.yaml` (dry run) and `py -3 scripts/sync_notion_review_schema.py --config config.yaml --apply` both succeeded in `projects/blind-to-x` on 2026-04-09.
+- `python -m pytest --no-cov tests/unit/test_notion_upload.py -q`, `python -m pytest --no-cov tests/unit/test_process_stages.py -q`, and `python -m ruff check pipeline/notion/_schema.py pipeline/notion/_query.py pipeline/notion/_upload.py pipeline/notion_upload.py scripts/notion_doctor.py scripts/sync_notion_review_schema.py tests/unit/test_notion_upload.py` passed in `projects/blind-to-x` on 2026-04-09.
 - `python -m pytest --no-cov tests/unit/test_qc_step.py tests/unit/test_thumbnail_step.py tests/unit/test_media_step_branches.py tests/unit/test_orchestrator_unit.py -x`, `python -m pytest --no-cov tests/unit/test_retry.py tests/unit/test_cli.py tests/unit/test_orchestrator_unit.py -x`, and `python -m ruff check .` passed in `projects/shorts-maker-v2` on 2026-04-09.
 - `npm test` (`48 passed`) and `npm run lint` passed in `projects/hanwoo-dashboard` on 2026-04-09.
 - Earlier on 2026-04-08: `npm run lint`, `npm test`, and `npm run build` passed in `projects/hanwoo-dashboard` after `T-163`.
@@ -52,6 +57,8 @@
 - `projects/hanwoo-dashboard` still has many user-facing Korean strings; keep edits surgical to avoid encoding churn.
 - For `hanwoo-dashboard` Node-side unit tests, prefer `.mjs` helper/test files. The repo still does not set package-wide `"type": "module"`.
 - `projects/blind-to-x` and `projects/shorts-maker-v2` enforce broad coverage defaults; use `python -m pytest --no-cov ...` for focused local verification unless a full coverage run is intended.
+- `projects/blind-to-x` can return empty database properties through `notion-client` on Windows/Python 3.14; the uploader now relies on an `httpx` fallback to recover schema and the review-schema sync script uses the direct REST patch path.
+- The new Notion columns exist in the live DB, but historical pages created before 2026-04-09 are not automatically backfilled yet.
 - Windows `cp949` consoles can choke on `thumbnail_step.py` `print()` paths if they contain typographic punctuation; keep those strings ASCII-safe.
 - `[ADR-026]` Project-level `CLAUDE.md` files now exist for `blind-to-x`, `hanwoo-dashboard`, and `shorts-maker-v2`. Read the relevant project's minefield section before editing.
 - `[ADR-026]` `/verify` workflow is now explicit: do not claim completion without running the appropriate checks.
