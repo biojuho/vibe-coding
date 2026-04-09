@@ -36,6 +36,8 @@
 - `projects/blind-to-x/pipeline/feedback_loop.py` now emits reviewer-memory summaries from `반려 사유` and `위험 신호`, and `pipeline/draft_prompts.py` injects those summaries into future draft prompts as anti-pattern guidance.
 - `projects/blind-to-x/pipeline/notion/_query.py#get_recent_pages()` now falls back to a database query when Notion search returns zero rows, which matters because the live DB can contain pages even when search does not surface them.
 - `projects/blind-to-x` review docs and helper scripts now default to channel-neutral, manual publishing guidance rather than X-first wording.
+- `projects/blind-to-x/pipeline/notion/_upload.py` now adds a reviewer-facing `지금 할 일` callout and rewrites `검토 포인트` / `피드백 요청` when no publishable draft exists, so empty draft cards are actionable.
+- `projects/blind-to-x/pipeline/regulation_checker.py` now phrases missing-draft warnings as “regulation check skipped because no draft exists,” which avoids implying a policy violation when generation failed or returned nothing.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/orchestrator.py` reports degraded-step state via `manifest.degraded_steps` and `status="degraded"`.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/orchestrator.py` now passes `google_client` into `ThumbnailStep`, and `pipeline/thumbnail_step.py` now prefers the Imagen3-capable path for Gemini thumbnails.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/qc_step.py` now holds Gate 4 when `ffprobe` / `ffmpeg` inspection is unavailable instead of falsely passing on partial checks.
@@ -44,7 +46,9 @@
 ## Recent Verification
 
 - `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/test_notion_query_mixin.py tests/unit/test_feedback_loop_fallback.py tests/unit/test_backfill_notion_review_columns.py tests/unit/test_notion_upload.py -q` passed on 2026-04-09.
+- `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/test_notion_upload.py tests/unit/test_regulation_checker.py -q` passed on 2026-04-09.
 - `projects/blind-to-x`: `python -m ruff check pipeline/notion/_query.py pipeline/feedback_loop.py pipeline/draft_prompts.py scripts/backfill_notion_review_columns.py scripts/check_notion_views.py docs/operations_sop.md tests/unit/test_notion_query_mixin.py tests/unit/test_feedback_loop_fallback.py tests/unit/test_backfill_notion_review_columns.py` passed on 2026-04-09.
+- `projects/blind-to-x`: `python -m ruff check pipeline/notion/_upload.py pipeline/regulation_checker.py tests/unit/test_notion_upload.py tests/unit/test_regulation_checker.py` passed on 2026-04-09.
 - `projects/blind-to-x`: `py -3 scripts/check_notion_views.py` passed on 2026-04-09.
 - `projects/blind-to-x`: `py -3 scripts/backfill_notion_review_columns.py --config config.yaml --apply` succeeded on 2026-04-09, and a second dry-run reported `candidates: 0`.
 - Earlier on 2026-04-09: `py -3 scripts/sync_notion_review_schema.py --config config.yaml --apply`, `python -m pytest --no-cov tests/unit/test_notion_upload.py -q`, `python -m pytest --no-cov tests/unit/test_process_stages.py -q`, and focused Ruff checks also passed in `projects/blind-to-x`.
