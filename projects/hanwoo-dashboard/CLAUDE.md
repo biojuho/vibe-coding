@@ -2,6 +2,12 @@
 
 > 이 파일은 `projects/hanwoo-dashboard/` 작업 시 자동 로드됩니다.
 > 전역 지침 (`../../CLAUDE.md`)과 함께 적용됩니다.
+>
+> | 도구 | 자동 로드 | 조치 |
+> |------|----------|------|
+> | Claude Code | ✅ 자동 | 없음 |
+> | Gemini (Antigravity) | ❌ 수동 | 세션 시작 시 이 파일 먼저 읽기 |
+> | Codex | ❌ 수동 | 세션 시작 시 이 파일 먼저 읽기 |
 
 ## 프로젝트 개요
 
@@ -25,6 +31,8 @@ npm run build
 npx jest src/__tests__/<filename>.test.js
 ```
 
+> ⚠️ 모든 커맨드는 `projects/hanwoo-dashboard/` 에서 실행할 것.
+
 ## 코드 컨벤션
 
 - **모듈 시스템**: ESM (`import/export`), CommonJS(`require`) 금지
@@ -46,6 +54,7 @@ npx jest src/__tests__/<filename>.test.js
 ## Explore 시 반드시 읽을 파일
 
 신규 기능 추가 전:
+
 1. `src/lib/actions.js` — 서버 액션 패턴
 2. `src/lib/dashboard/pagination-guard.mjs` — 페이지네이션 안전장치
 3. `src/app/api/auth/` — 인증 플로우
@@ -54,6 +63,7 @@ npx jest src/__tests__/<filename>.test.js
 ## 컴팩션 보존 컨텍스트
 
 이 프로젝트 관련 컴팩션 발생 시 추가로 보존:
+
 - 마지막 `npm test` 결과 (통과/실패 수)
 - 수정 중인 서버 액션 또는 API 라우트
 - Auth.js 세션 관련 작업 상태

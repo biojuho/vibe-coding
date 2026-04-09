@@ -2,6 +2,12 @@
 
 > 이 파일은 `projects/shorts-maker-v2/` 작업 시 자동 로드됩니다.
 > 전역 지침 (`../../CLAUDE.md`)과 함께 적용됩니다.
+>
+> | 도구 | 자동 로드 | 조치 |
+> |------|----------|------|
+> | Claude Code | ✅ 자동 | 없음 |
+> | Gemini (Antigravity) | ❌ 수동 | 세션 시작 시 이 파일 먼저 읽기 |
+> | Codex | ❌ 수동 | 세션 시작 시 이 파일 먼저 읽기 |
 
 ## 프로젝트 개요
 
@@ -22,6 +28,8 @@ python -m pytest --no-cov tests/unit/ -x
 ruff check . --fix
 ```
 
+> ⚠️ 모든 커맨드는 `projects/shorts-maker-v2/` 에서 실행할 것.
+
 ## 코드 컨벤션
 
 - **파이프라인 단계**: 각 단계는 독립 모듈 (`script_step.py`, `tts_step.py` 등)
@@ -33,6 +41,7 @@ ruff check . --fix
 ## 프로젝트 스킬 참조
 
 작업 전 반드시 확인:
+
 - **BGM 전략**: `.agents/skills/shorts-bgm-strategy/SKILL.md`
 - **대본 페르소나**: `.agents/skills/shorts-script-persona/SKILL.md`
 - **자막 안전 영역**: `.agents/skills/shorts-subtitle-safezone/SKILL.md`
@@ -49,6 +58,7 @@ ruff check . --fix
 ## Explore 시 반드시 읽을 파일
 
 신규 기능 추가 전:
+
 1. `src/shorts_maker_v2/pipeline/orchestrator.py` — 전체 파이프라인 플로우
 2. `src/shorts_maker_v2/pipeline/` 각 단계 파일
 3. 해당 `.agents/skills/shorts-*/SKILL.md`
@@ -56,6 +66,7 @@ ruff check . --fix
 ## 컴팩션 보존 컨텍스트
 
 이 프로젝트 관련 컴팩션 발생 시 추가로 보존:
+
 - 작업 중인 파이프라인 단계 (script/tts/video/subtitle/bgm)
 - 변경한 채널 설정
 - `manifest.degraded_steps` 관련 수정 사항
