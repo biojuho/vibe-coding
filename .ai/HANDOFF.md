@@ -6,10 +6,10 @@
 
 | Field | Value |
 |---|---|
-| Date | 2026-04-09 |
-| Tool | Codex |
-| Work | Re-checked the live `blind-to-x` Notion DB after the user's report that 2026-04-09 had no new cards. The real failure path was review-only draft generation: invalid draft-tag outputs and review-stage regeneration timeouts prevented pages from being persisted. `pipeline/process_stages/generate_review_stage.py` now lets review-only continue to Notion even when draft generation fails, `pipeline/process.py` passes the review-only flag through, `pipeline/notion/_upload.py` shows the generation error in the review memo, and review-only quality-gate retries are disabled so the queue does not burn 180s per item. After focused pytest + Ruff, two real review-only runs were executed and the live Notion count reached 5 cards on 2026-04-09 by 19:39 KST. |
-| Next Priorities | 1. Clean up the remaining Notion query 400 path in `pipeline/notion/_query.py` so direct status/date queries are reliable. 2. If review-only latency grows again, inspect whether any post-generation polish steps should also be skipped for review cards. 3. Keep an eye on provider output formatting because `invalid_draft_output:*` remains a common soft-failure class. |
+| Date | 2026-04-10 |
+| Tool | Gemini (Antigravity) |
+| Work | `T-181`: Refactored test setup in `test_quality_improvements.py` to use `unittest.mock.patch` instead of manual mutation of imported variables like `dg._draft_rules_cache`. This fixed false positive test failures during the full test suite run caused by the test cache contaminating subsequent tests. Noted that the remaining 9 test failures are separate timeout-related issues (`test_enrich_timeout`, `test_generate_timeout`, etc.). |
+| Next Priorities | 1. Address the 9 timeout-related unit test failures in `blind-to-x` to make the CI perfectly green. 2. Clean up the remaining Notion query 400 path in `pipeline/notion/_query.py` so direct status/date queries are reliable. |
 
 ## Previous Update
 
@@ -17,8 +17,8 @@
 |---|---|
 | Date | 2026-04-09 |
 | Tool | Codex |
-| Work | Added a daily review queue floor for `blind-to-x`. Review-only runs now count today's Notion pages, target a minimum of five cards per day, relax candidate collection and review-stage filters while the floor is unmet, and keep spam/length guards intact. Verified with targeted pytest, Ruff, and a live floor probe. |
-| Next Priorities | 1. Run the next real review-only pass and confirm today's Notion count climbs toward 5 in practice. 2. If the floor still under-fills, inspect whether length/spam or draft-generation failures are the remaining bottleneck. 3. Consider surfacing `daily_queue_floor_overrides` into the Notion memo if reviewers need extra context. |
+| Work | Re-checked the live `blind-to-x` Notion DB after the user's report that 2026-04-09 had no new cards. The real failure path was review-only draft generation: invalid draft-tag outputs and review-stage regeneration timeouts prevented pages from being persisted. `pipeline/process_stages/generate_review_stage.py` now lets review-only continue to Notion even when draft generation fails, `pipeline/process.py` passes the review-only flag through, `pipeline/notion/_upload.py` shows the generation error in the review memo, and review-only quality-gate retries are disabled so the queue does not burn 180s per item. After focused pytest + Ruff, two real review-only runs were executed and the live Notion count reached 5 cards on 2026-04-09 by 19:39 KST. |
+| Next Priorities | 1. Clean up the remaining Notion query 400 path in `pipeline/notion/_query.py` so direct status/date queries are reliable. 2. If review-only latency grows again, inspect whether any post-generation polish steps should also be skipped for review cards. 3. Keep an eye on provider output formatting because `invalid_draft_output:*` remains a common soft-failure class. |
 
 ## Notes
 
