@@ -30,6 +30,7 @@
 - `projects/hanwoo-dashboard/src/components/widgets/MarketPriceWidget.js` now swallows refresh failures after logging them so timer/button refreshes do not create unhandled promise rejections.
 - `projects/blind-to-x/escalation_runner.py` now injects `TweetDraftGenerator` into `ExpressDraftPipeline`, and `pipeline/express_draft.py` can reuse the generator's real provider chain instead of failing structurally when only `_enabled_providers()` / `_generate_once()` are available.
 - `projects/blind-to-x/pipeline/daily_digest.py` now guards repeated Notion cursors/runaway page counts and enforces a summary-generation timeout with fallback if Gemini hangs.
+- `projects/blind-to-x/tests/unit/conftest.py` now clears `NOTION_DATABASE_ID` and any `NOTION_PROP_*` env overrides before each test, preventing `.env`-loaded Notion values from leaking into `NotionUploader` unit expectations.
 - `projects/blind-to-x` Notion uploads are reviewer-first: new pages include operator-review columns and a top-of-page review brief section.
 - `projects/blind-to-x/scripts/sync_notion_review_schema.py --config config.yaml --apply` was successfully run on 2026-04-09, so the reviewer-first columns exist in the live Notion DB.
 - `projects/blind-to-x/scripts/backfill_notion_review_columns.py --config config.yaml --apply` was also successfully run on 2026-04-09, and a follow-up dry-run reported `candidates: 0`, so the historical Notion queue is backfilled too.
@@ -52,6 +53,8 @@
 - `workspace`: `python -m pytest --no-cov workspace/tests/test_health_check.py -q` and `python -m ruff check workspace/execution/health_check.py workspace/tests/test_health_check.py` both passed on 2026-04-11 after Moonshot optional-provider handling was added.
 - `workspace`: `python workspace/execution/health_check.py --json` reports overall `warn` on 2026-04-11 with `fail: 0`; Moonshot is now treated as an optional fallback provider, and the latest probe saw `MOONSHOT_API_KEY` unset rather than invalid.
 - `workspace`: `python3.13 -m code_review_graph status` ran on 2026-04-11 and reported `11095` nodes, `81218` edges, `819` files, and last graph update `2026-04-09T16:00:25` on commit `780b638fa8d2`.
+- `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/ -q` passed on 2026-04-11 (`1481 passed, 1 skipped`) after the unit-test env-isolation fixture was extended to clear `NOTION_DATABASE_ID` and `NOTION_PROP_*`.
+- `projects/blind-to-x`: `python -m ruff check tests/unit/conftest.py` passed on 2026-04-11.
 - `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/test_notion_query_mixin.py tests/unit/test_feedback_loop_fallback.py tests/unit/test_backfill_notion_review_columns.py tests/unit/test_notion_upload.py -q` passed on 2026-04-09.
 - `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/test_notion_upload.py tests/unit/test_regulation_checker.py -q` passed on 2026-04-09.
 - `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/test_feed_collector.py tests/unit/test_process_stages.py -q` passed on 2026-04-09.
@@ -77,6 +80,7 @@
 - `projects/blind-to-x` and `projects/shorts-maker-v2` enforce broad coverage defaults; use `python -m pytest --no-cov ...` for focused local verification unless a full coverage run is intended.
 - `projects/blind-to-x` can return empty database properties through `notion-client` on Windows/Python 3.14; the uploader now relies on an `httpx` fallback to recover schema, and the review-schema/backfill scripts use direct REST-backed paths.
 - `projects/blind-to-x` still has at least one direct Notion database-query path that can return HTTP 400 for some status/date filters even when `ensure_schema()` succeeds; use `get_recent_pages()` / collection fallbacks when re-checking live queue counts until `_query.py` is cleaned up.
+- `python3.13 -m code_review_graph detect-changes --repo projects/blind-to-x --brief` can still trip over Windows `cp949` encoding when the CLI tries to materialize `.code-review-graph/.gitignore`; if that happens, use a UTF-8 shell or fall back to direct reads.
 - Windows `cp949` consoles can still garble Korean in command output even when the underlying files and Notion payloads are UTF-8 clean.
 - Windows PowerShell `Get-Content` output can make UTF-8 markdown in `.ai/` and `workspace/directives/` look corrupted; confirm with Python/UTF-8-aware readers before treating it as file damage.
 - Moonshot is now treated as an optional fallback provider in shared health checks; if `MOONSHOT_API_KEY` is missing or invalid, the system should degrade to `warn` rather than `fail`.

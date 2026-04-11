@@ -6,6 +6,7 @@
 
 | ID | Task | Owner | Priority | Created |
 |---|---|---|---|---|
+| T-186 | [`blind-to-x`] Clean up the remaining direct Notion query HTTP 400 path in `pipeline/notion/_query.py` so live status/date filters stop depending on fallbacks. | Codex | High | 2026-04-11 |
 
 ## IN_PROGRESS
 
@@ -17,11 +18,11 @@
 
 | ID | Task | Completed By | Completed |
 |---|---|---|---|
+| T-185 | [`blind-to-x`] Fix unit-test environment leakage so `.env` or earlier `load_env()` calls cannot override `NotionUploader` test fixtures via `NOTION_DATABASE_ID` / `NOTION_PROP_*`. | Codex | 2026-04-11 |
 | T-184 | [`workspace`] Treat Moonshot as an optional degraded provider so shared `health_check.py` no longer hard-fails when that fallback is disabled or invalid. | Codex | 2026-04-11 |
 | T-183 | [`workspace`] Resolve the stale `[TASK: T-100]` follow-up in `workspace/directives/system_audit_action_plan.md` so governance alignment passes again. | Codex | 2026-04-11 |
 | T-182 | [`workspace`] Map the new harness execution scripts in `workspace/directives/INDEX.md` so governance checks stop flagging orphan files. | Codex | 2026-04-11 |
 | T-181 | [`blind-to-x`] Fix test suite cache interference by replacing manual `_draft_rules_cache` mutations with `unittest.mock.patch` for `_load_draft_rules`. | Gemini (Antigravity) | 2026-04-10 |
-| T-180 | [`blind-to-x`] Fix review-only generation failures so today's Notion queue backfills to five live cards. | Codex | 2026-04-09 |
 
 ## Rules
 

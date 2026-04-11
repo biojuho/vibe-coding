@@ -8,8 +8,8 @@
 |---|---|
 | Date | 2026-04-11 |
 | Tool | Codex |
-| Work | Continued the shared workspace reliability pass by updating `workspace/execution/health_check.py` and `workspace/tests/test_health_check.py`. Moonshot is now treated as an optional degraded fallback provider instead of a hard control-plane failure, the targeted health-check test file passes (`38 passed`), and the full `python workspace/execution/health_check.py --json` result is now `overall: warn` with `fail: 0`. In the latest runtime probe, `MOONSHOT_API_KEY` was not configured, so the system reports Moonshot as disabled/unset rather than broken. |
-| Next Priorities | 1. Return to the outstanding `blind-to-x` timeout-related unit test failures. 2. Clean up the remaining Notion query 400 path in `pipeline/notion/_query.py` so direct status/date queries are reliable. 3. If Moonshot should be re-enabled later, add a fresh key and re-run the shared health check. |
+| Work | Closed the remaining `blind-to-x` unit-suite blocker after the shared workspace audit. The real failure was not the old timeout tests: `NotionUploader` unit tests could still pick up `NOTION_DATABASE_ID` / `NOTION_PROP_*` values left behind by `.env`-loading code paths, so `tests/unit/conftest.py` now clears those env vars in the autouse isolation fixture before every test. Verified the ambient-env reproduction, kept `NOTION_PROP_*` override tests passing, and then ran the full `tests/unit` suite to green (`1481 passed, 1 skipped`). |
+| Next Priorities | 1. Clean up the remaining direct Notion query HTTP 400 path in `projects/blind-to-x/pipeline/notion/_query.py` so live status/date filters stop depending on fallbacks. 2. Leave `hanwoo-dashboard` UX/UI work alone unless the user explicitly redirects the session. 3. If Moonshot should be re-enabled later, add a fresh key and re-run the shared health check. |
 
 ## Previous Update
 
@@ -23,6 +23,10 @@
 ## Notes
 
 - Verification from this session:
+  - `projects/blind-to-x`: ambient-env reproduction now passes after the fixture hardening: `$env:NOTION_DATABASE_ID='...'; python -m pytest --no-cov tests/unit/test_notion_upload.py -q -k update_collection_properties_uses_database_endpoint -x`
+  - `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/test_notion_accuracy.py -q -k env_override_has_priority -x`
+  - `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/ -q` (`1481 passed, 1 skipped`)
+  - `projects/blind-to-x`: `python -m ruff check tests/unit/conftest.py`
   - `workspace`: `python workspace/execution/health_check.py --json`
   - `workspace`: `python3.13 -m code_review_graph status`
   - `workspace`: `python --version`
@@ -63,6 +67,7 @@
 - A direct Notion database query path can still return HTTP 400 for some status/date filter combinations; `get_recent_pages()` fallback queries still work and were used for the live count check.
 - `workspace/execution/health_check.py --json` no longer fails on governance drift or Moonshot auth; it currently reports `warn` because Moonshot and Groq are unset plus the root venv is not activated.
 - The code-review graph CLI is healthy in this shell via `python3.13`; use it or the MCP tools before broad file scans when graph coverage is enough.
+- `projects/blind-to-x/tests/unit/conftest.py` now clears `NOTION_DATABASE_ID` and any `NOTION_PROP_*` overrides before each unit test. If a test needs those values, set them explicitly inside the test with `monkeypatch.setenv()` / `patch.dict(...)`.
 - UTF-8 markdown files in `.ai/` and `workspace/directives/` are fine on disk; earlier garbling came from the Windows cp949 console path, not file corruption.
 - Do not revert unrelated in-progress edits elsewhere in the worktree.
 - The required AI-context commit for this session should stage only `.ai/*` files unless the user explicitly asks for a broader commit.
