@@ -215,6 +215,7 @@ class TestRegulationChecker(unittest.TestCase):
         self.assertIn("naver_blog", reports)
         # naver_blog는 빈 콘텐츠이므로 콘텐츠 존재 검증 실패
         self.assertFalse(reports["naver_blog"].items[0].passed)
+        self.assertIn("규제 검증을 건너뜀", reports["naver_blog"].items[0].detail)
 
     def test_format_validation_summary(self):
         """통합 검증 요약 포맷 확인."""

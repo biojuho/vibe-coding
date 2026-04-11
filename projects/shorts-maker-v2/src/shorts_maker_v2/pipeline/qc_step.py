@@ -221,14 +221,15 @@ class QCStep:
             issues.append(f"Duration {dur:.1f}s not in [{dur_min},{dur_max}]")
 
         # Check 2: 파일 존재 + 크기
-        if os.path.isfile(output_path):
+        output_exists = os.path.isfile(output_path)
+        checks["file_exists"] = output_exists
+        if output_exists:
             file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
             size_ok = 2.0 <= file_size_mb <= 50.0
             checks["file_size_ok"] = size_ok
             if not size_ok:
                 issues.append(f"File size {file_size_mb:.1f}MB outside [2,50]MB")
         else:
-            checks["file_exists"] = False
             issues.append(f"Output file missing: {output_path}")
 
         # Check 3: 실패 스텝 없음
@@ -238,7 +239,8 @@ class QCStep:
             issues.append(f"{len(manifest.failed_steps)} failed step(s)")
 
         # Check 4: 해상도/FPS (ffprobe 사용, 실패 시 skip)
-        probe = QCStep._probe_video(output_path)
+        probe = QCStep._probe_video(output_path) if output_exists else None
+        checks["video_probe_ok"] = probe is not None
         if probe:
             w, h = probe.get("width", 0), probe.get("height", 0)
             res_ok = w == 1080 and h == 1920
@@ -251,14 +253,19 @@ class QCStep:
             checks["fps_30"] = fps_ok
             if not fps_ok:
                 issues.append(f"FPS {fps}, expected ~30")
+        elif output_exists:
+            issues.append("Could not inspect video metadata with ffprobe")
 
         # Check 5: 오디오 피크 (ffprobe volumedetect)
-        peak_db = QCStep._check_audio_peak(output_path)
+        peak_db = QCStep._check_audio_peak(output_path) if output_exists else None
+        checks["audio_peak_probe_ok"] = peak_db is not None
         if peak_db is not None:
             peak_ok = peak_db <= -1.0  # -1dBFS 이하
             checks["audio_peak_ok"] = peak_ok
             if not peak_ok:
                 issues.append(f"Audio peak {peak_db:.1f}dBFS, too loud")
+        elif output_exists:
+            issues.append("Could not inspect audio peak with ffmpeg volumedetect")
 
         # Gate 4 verdict: HOLD (not FAIL_RETRY — 렌더 후 자동 재생성 안함)
         if all(checks.values()):

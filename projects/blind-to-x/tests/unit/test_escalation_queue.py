@@ -139,10 +139,15 @@ class TestEscalationQueue:
     def test_ttl_expiration_on_dequeue(self, tmp_path):
         q = _make_queue(tmp_path, event_ttl_seconds=1)
         event = _make_spike_event()
-        q.enqueue(event)
+        event_id = q.enqueue(event)
 
-        # TTL 초과 대기
-        time.sleep(1.5)
+        # _fast_sleeps 픽스처 영향 회피: DB created_at을 TTL 초과 과거로 직접 설정
+        import sqlite3
+        past_time = time.time() - 10  # 10초 전 → TTL(1초) 확실히 초과
+        conn = sqlite3.connect(str(q._db_path))
+        conn.execute("UPDATE escalation_events SET created_at = ? WHERE id = ?", (past_time, event_id))
+        conn.commit()
+        conn.close()
 
         events = q.dequeue_pending(limit=1)
         assert len(events) == 0, "TTL 만료 이벤트는 자동 EXPIRED 처리"
@@ -164,7 +169,14 @@ class TestEscalationQueue:
         first_id = q.enqueue(event)
         assert first_id is not None
 
-        time.sleep(1.5)
+        # _fast_sleeps 픽스처 영향 회피: DB created_at을 TTL 초과 과거로 직접 설정
+        import sqlite3
+        past_time = time.time() - 10
+        conn = sqlite3.connect(str(q._db_path))
+        conn.execute("UPDATE escalation_events SET created_at = ? WHERE id = ?", (past_time, first_id))
+        conn.commit()
+        conn.close()
+
         q.dequeue_pending()  # TTL 만료 트리거
 
         second_id = q.enqueue(event)

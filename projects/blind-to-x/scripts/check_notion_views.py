@@ -1,140 +1,124 @@
-"""Notion DB 뷰 설정에 필요한 속성 존재 여부 검증 스크립트.
+"""Review-first Notion property checker for blind-to-x.
 
 Usage:
     cd blind-to-x
     python scripts/check_notion_views.py
 """
 
+from __future__ import annotations
+
 import os
 import sys
 from pathlib import Path
 
-# 프로젝트 루트를 path에 추가
-_ROOT = Path(__file__).resolve().parent.parent
-if str(_ROOT) not in sys.path:
-    sys.path.insert(0, str(_ROOT))
+import httpx
+from dotenv import load_dotenv
 
-from dotenv import load_dotenv  # noqa: E402
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-load_dotenv(_ROOT / ".env")
-
-import httpx  # noqa: E402
+load_dotenv(ROOT / ".env")
 
 NOTION_API_KEY = os.getenv("NOTION_API_KEY", "")
-NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID", "")
+NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID", "").replace("-", "")
 
-# 뷰별 필수 속성 정의
-VIEW_REQUIREMENTS: dict[str, dict[str, list[str]]] = {
-    "📋 발행 워크플로우 (Board)": {
-        "required": ["승인 상태", "콘텐츠", "토픽 클러스터", "감정 축", "최종 랭크 점수", "원본 소스", "상태"],
-        "description": "Board view grouped by '승인 상태'",
+VIEW_REQUIREMENTS: dict[str, dict[str, list[str] | str]] = {
+    "검토 워크플로우 (Board)": {
+        "required": ["콘텐츠", "상태", "토픽 클러스터", "최종 랭크 점수", "위험 신호", "반려 사유"],
+        "description": "상태 기준 보드. 검토량과 반려 패턴을 빠르게 보는 뷰.",
     },
-    "🎴 X 트윗 큐 (Gallery)": {
+    "검토 큐 (Table)": {
         "required": [
-            "트윗 본문",
             "콘텐츠",
-            "토픽 클러스터",
-            "Source URL",
-            "승인 상태",
-            "발행 플랫폼",
-            "최종 랭크 점수",
-            "트윗 링크",
+            "원본 소스",
+            "운영자 해석",
+            "근거 앵커",
+            "검토 포인트",
+            "피드백 요청",
+            "위험 신호",
+            "반려 사유",
         ],
-        "description": "Gallery view for copying tweets",
+        "description": "운영자가 실제 판단과 피드백을 남기는 메인 뷰.",
     },
-    "🧵 Threads 큐 (Gallery)": {
-        "required": [
-            "Threads 본문",
-            "콘텐츠",
-            "감정 축",
-            "Source URL",
-            "승인 상태",
-            "발행 플랫폼",
-            "최종 랭크 점수",
-            "Threads 링크",
-        ],
-        "description": "Gallery view for copying Threads posts",
+    "반려 회고 (Table)": {
+        "required": ["콘텐츠", "상태", "위험 신호", "반려 사유", "토픽 클러스터", "생성일"],
+        "description": "어떤 유형이 반복적으로 잘리는지 회고하는 뷰.",
     },
-    "🗓️ 콘텐츠 캘린더 (Calendar)": {
-        "required": ["발행 예정일", "콘텐츠", "승인 상태", "발행 플랫폼", "토픽 클러스터"],
-        "description": "Calendar view by '발행 예정일'",
+    "발행 후보 (Optional)": {
+        "required": ["콘텐츠", "상태", "발행 플랫폼", "트윗 본문", "Threads 본문", "블로그 본문"],
+        "description": "승인된 초안을 채널별로 복사할 때 쓰는 선택 뷰.",
     },
 }
 
 
 def fetch_db_properties() -> dict[str, str]:
-    """Notion DB에서 현재 속성 목록을 가져옵니다."""
     if not NOTION_API_KEY or not NOTION_DATABASE_ID:
-        print("❌ NOTION_API_KEY 또는 NOTION_DATABASE_ID가 .env에 설정되지 않았습니다.")
-        sys.exit(1)
+        print("NOTION_API_KEY 또는 NOTION_DATABASE_ID가 .env에 설정되어 있지 않습니다.")
+        raise SystemExit(1)
 
-    # databases 엔드포인트 시도, 실패 시 data_sources 엔드포인트
     headers = {
         "Authorization": f"Bearer {NOTION_API_KEY}",
         "Notion-Version": "2022-06-28",
         "Content-Type": "application/json",
     }
 
-    clean_id = NOTION_DATABASE_ID.replace("-", "")
-
-    for endpoint in [f"databases/{clean_id}", f"data_sources/{clean_id}"]:
+    for endpoint in (f"databases/{NOTION_DATABASE_ID}", f"data_sources/{NOTION_DATABASE_ID}"):
         url = f"https://api.notion.com/v1/{endpoint}"
         try:
-            resp = httpx.get(url, headers=headers, timeout=15)
-            if resp.status_code == 200:
-                data = resp.json()
-                props = data.get("properties", {})
-                return {name: info.get("type", "unknown") for name, info in props.items()}
-        except Exception as e:
-            print(f"  ⚠️ {endpoint} 실패: {e}")
+            response = httpx.get(url, headers=headers, timeout=15)
+            if response.status_code == 200:
+                properties = response.json().get("properties", {})
+                return {name: info.get("type", "unknown") for name, info in properties.items()}
+        except Exception as exc:  # pragma: no cover - network dependent
+            print(f"  warning: {endpoint} 조회 실패: {exc}")
 
-    print("❌ Notion DB 조회 실패. DB ID와 API 키를 확인하세요.")
-    sys.exit(1)
+    print("Notion DB 조회에 실패했습니다. DB ID와 공유 권한을 다시 확인해주세요.")
+    raise SystemExit(1)
 
 
 def check_views(properties: dict[str, str]) -> bool:
-    """뷰별 필수 속성 존재 여부를 검증합니다."""
     all_ok = True
+    print(f"\n현재 DB 속성 수: {len(properties)}\n")
 
-    print(f"\n📊 현재 DB 속성: {len(properties)}개\n")
+    for view_name, requirement in VIEW_REQUIREMENTS.items():
+        print("=" * 60)
+        print(view_name)
+        print(requirement["description"])
+        print("=" * 60)
 
-    for view_name, req in VIEW_REQUIREMENTS.items():
-        print(f"{'=' * 60}")
-        print(f"🔍 {view_name}")
-        print(f"   {req['description']}")
-        print(f"{'=' * 60}")
-
-        missing = []
-        for prop_name in req["required"]:
+        missing: list[str] = []
+        for prop_name in requirement["required"]:
             if prop_name in properties:
-                print(f"  ✅ {prop_name} ({properties[prop_name]})")
+                print(f"  OK  {prop_name} ({properties[prop_name]})")
             else:
-                print(f"  ❌ {prop_name} — 누락!")
+                print(f"  MISS {prop_name}")
                 missing.append(prop_name)
                 all_ok = False
 
         if missing:
-            print(f"\n  ⚠️ 누락 속성 {len(missing)}개: {', '.join(missing)}")
-            print("  → Notion DB에서 해당 속성을 수동으로 추가하세요.")
+            print(f"\n  누락 속성: {', '.join(missing)}")
+            print("  먼저 review schema sync를 실행하세요.")
         else:
-            print("\n  ✅ 모든 필수 속성 존재 — 뷰 생성 가능!")
+            print("\n  필요한 속성이 모두 있습니다.")
         print()
 
     return all_ok
 
 
 def main() -> None:
-    """메인 실행."""
-    print("🔄 Notion DB 속성 확인 중...")
+    print("Notion 리뷰 뷰 기준 속성 점검 중...")
     properties = fetch_db_properties()
-    ok = check_views(properties)
+    all_ok = check_views(properties)
 
     print("=" * 60)
-    if ok:
-        print("✅ 모든 뷰에 필요한 속성이 존재합니다!")
-        print("   → docs/notion_view_setup_guide.md를 참조하여 뷰를 생성하세요.")
+    if all_ok:
+        print("모든 리뷰 뷰에 필요한 속성이 준비되어 있습니다.")
     else:
-        print("⚠️ 일부 속성이 누락되었습니다. 위의 안내를 따라 추가하세요.")
+        print("리뷰용 속성이 일부 비어 있습니다.")
+        print("권장 명령:")
+        print("  py -3 scripts/sync_notion_review_schema.py --config config.yaml --apply")
+        print("  py -3 scripts/backfill_notion_review_columns.py --config config.yaml --apply")
     print("=" * 60)
 
 

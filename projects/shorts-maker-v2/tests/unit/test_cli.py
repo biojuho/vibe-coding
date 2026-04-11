@@ -389,3 +389,30 @@ def test_run_cli_run_failure_prints_failed_steps(tmp_path: Path, monkeypatch, ca
     stdout = capsys.readouterr().out
     assert "generation failed" in stdout
     assert "render: ffmpeg_error - encode failed" in stdout
+
+
+def test_run_cli_run_degraded_prints_degraded_steps(tmp_path: Path, monkeypatch, capsys) -> None:
+    config = _make_config(tmp_path)
+    manifest = _make_manifest(status="degraded", failed_steps=[])
+    manifest.degraded_steps = [{"step": "research", "error_type": "network_error", "message": "research timeout"}]
+
+    class FakeOrchestrator:
+        def __init__(self, **kwargs):
+            pass
+
+        def run(self, **kwargs):
+            return manifest
+
+    monkeypatch.setattr(cli, "_ensure_utf8_stdio", lambda: None)
+    monkeypatch.setattr(cli, "load_dotenv", lambda: None)
+    monkeypatch.setattr(cli, "load_config", lambda path: config)
+    monkeypatch.setattr(cli, "validate_environment", lambda config: [])
+    monkeypatch.setattr(cli, "_apply_channel_overrides", lambda config, args: config)
+    monkeypatch.setattr(cli, "PipelineOrchestrator", FakeOrchestrator)
+
+    result = cli.run_cli(["run", "--topic", "AI topic", "--config", str(tmp_path / "config.yaml")])
+
+    assert result == 1
+    stdout = capsys.readouterr().out
+    assert "generation failed" in stdout
+    assert "research: network_error - research timeout" in stdout

@@ -512,6 +512,34 @@ def test_process_one_scene_audio_failure_logs_and_raises(tmp_path: Path) -> None
     logger.error.assert_called_once()
 
 
+def test_process_one_scene_paid_visual_waits_for_audio_before_generation(tmp_path: Path) -> None:
+    step = _make_step()
+    audio_dir = tmp_path / "audio"
+    image_dir = tmp_path / "images"
+    video_dir = tmp_path / "videos"
+    audio_dir.mkdir()
+    image_dir.mkdir()
+    video_dir.mkdir()
+    logger = MagicMock()
+
+    with (
+        patch("shorts_maker_v2.pipeline.media_step.retry_with_backoff", side_effect=_run_retry),
+        patch.object(step, "_generate_audio", side_effect=RuntimeError("tts failed")),
+        patch.object(step, "_generate_best_image") as best_image,
+        pytest.raises(RuntimeError, match="tts failed"),
+    ):
+        step._process_one_scene(
+            _scene(role="hook"),
+            audio_dir,
+            image_dir,
+            video_dir,
+            _make_cost_guard(),
+            logger=logger,
+        )
+
+    best_image.assert_not_called()
+
+
 def test_run_extracts_palette_from_hook_image(tmp_path: Path) -> None:
     step = _make_step()
     logger = MagicMock()

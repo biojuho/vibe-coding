@@ -67,6 +67,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S"]
+"archive/tests_legacy_v1/**" = ["S"]
 "ShortsFactory/**" = ["S"]
 "src/**/trend_discovery_step.py" = ["S314"]  # defusedxml tried first; stdlib fallback for trusted RSS only
 

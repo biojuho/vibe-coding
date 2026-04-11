@@ -173,9 +173,11 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
                             "permission denied",
                         )
                     )
+                    no_retry_only = "invalid_draft_output:" in error_text
                     should_retry = attempt < self.max_retries_per_provider
-                    if non_retryable:
+                    if non_retryable or no_retry_only:
                         should_retry = False
+                    if non_retryable:
                         # circuit breaker: 비복구 에러 시 provider 스킵 등록
                         try:
                             from pipeline.cost_db import get_cost_db

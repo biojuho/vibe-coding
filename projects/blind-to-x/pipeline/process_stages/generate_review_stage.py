@@ -18,6 +18,7 @@ async def run_generate_review_stage(
     top_tweets,
     output_formats,
     config,
+    review_only: bool = False,
 ) -> bool:
     mark_stage(ctx, "generate_review", "running")
     if draft_generator is None:
@@ -52,6 +53,21 @@ async def run_generate_review_stage(
             drafts["reply_text"] = reply_text.replace("(링크)", ctx.url)
 
     if isinstance(drafts, dict) and drafts.get("_generation_failed"):
+        generation_error = drafts.get("_generation_error", "Draft generation failed")
+        ctx.post_data["draft_generation_failed"] = True
+        ctx.post_data["draft_generation_error"] = generation_error
+        if review_only:
+            logger.warning(
+                "[%s] Draft generation failed for %s but continuing review-only upload: %s",
+                ctx.trace_id,
+                ctx.url,
+                generation_error,
+            )
+            ctx.drafts = drafts
+            ctx.image_prompt = image_prompt
+            ctx.post_data["image_prompt"] = image_prompt
+            mark_stage(ctx, "generate_review", "completed")
+            return True
         ctx.result["error"] = drafts.get("_generation_error", "Draft generation failed")
         ctx.result["error_code"] = ERROR_DRAFT_GENERATION_FAILED
         ctx.result["failure_stage"] = "generation"
@@ -60,7 +76,7 @@ async def run_generate_review_stage(
         mark_stage(ctx, "generate_review", "failed", "generation_failed")
         return False
 
-    max_qg_retries = 2
+    max_qg_retries = 0 if review_only else 2
     qg_retry_count = 0
     components_loaded: list[str] = []
 

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from concurrent.futures import Executor, Future
 import random
 import time
 from collections.abc import Callable
+from concurrent.futures import Executor, Future
 from threading import Lock, Timer
 from typing import TypeVar
 

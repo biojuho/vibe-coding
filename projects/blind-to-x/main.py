@@ -30,6 +30,7 @@ from pipeline import (
 )
 from pipeline.analytics_tracker import AnalyticsTracker
 from pipeline.commands import run_digest, run_dry_run_single, run_reprocess_approved, run_sentiment_report
+from pipeline.daily_queue_floor import resolve_daily_queue_floor
 from pipeline.feed_collector import collect_feed_items
 from scrapers import get_scraper
 
@@ -122,7 +123,15 @@ async def _run_pipeline(
         for scraper in scrapers.values():
             await stack.enter_async_context(scraper)
 
-        urls_to_process, feed_stats = await collect_feed_items(config_mgr, args, scrapers)
+        effective_review_only = args.review_only or config_mgr.get("content_strategy.require_human_approval", True)
+        daily_queue_floor = await resolve_daily_queue_floor(config_mgr, notion_uploader, effective_review_only)
+
+        urls_to_process, feed_stats = await collect_feed_items(
+            config_mgr,
+            args,
+            scrapers,
+            daily_queue_floor=daily_queue_floor,
+        )
         if not urls_to_process:
             logger.info("No valid posts to process.")
             return
@@ -130,7 +139,6 @@ async def _run_pipeline(
         results = []
         start_time = datetime.now()
         output_formats = config_mgr.get("output_formats", ["twitter"])
-        effective_review_only = args.review_only or config_mgr.get("content_strategy.require_human_approval", True)
 
         services = PipelineServices(
             scraper=None,  # Will be set per-item
@@ -165,6 +173,7 @@ async def _run_pipeline(
                         review_only=effective_review_only,
                         post_data_hint={"feed_title": item.get("feed_title", "")},
                         services=item_services,
+                        daily_queue_floor=daily_queue_floor,
                     )
                 results.append(result)
         else:
@@ -196,6 +205,7 @@ async def _run_pipeline(
                         review_only=effective_review_only,
                         post_data_hint={"feed_title": item.get("feed_title", "")},
                         services=item_services,
+                        daily_queue_floor=daily_queue_floor,
                     )
 
             results = await asyncio.gather(*[_bounded(item) for item in urls_to_process])

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import {
   createCattle,
@@ -16,11 +16,11 @@ import {
   createBuilding,
   deleteBuilding,
   updateFarmSettings,
+  getNotifications,
 } from '@/lib/actions';
 import { useAppFeedback } from '@/components/feedback/FeedbackProvider';
 import { formatMoney } from '@/lib/utils';
 import { fetchWithTimeout, isTimeoutError } from '@/lib/fetchWithTimeout';
-import { buildNotifications } from '@/lib/notifications';
 import {
   buildUnavailableWeatherState,
   markWeatherAsStale,
@@ -28,7 +28,8 @@ import {
   readWeatherApiResponseSafely,
   WEATHER_UNAVAILABLE_MESSAGE,
 } from '@/lib/weather-state.mjs';
-import { TabBar, WeatherWidget, EstrusAlertBanner, CalvingAlertBanner } from '@/components/widgets/widgets';
+import { TabBar, WeatherWidget } from '@/components/widgets/widgets';
+import { EstrusAlertBanner, CalvingAlertBanner } from '@/components/widgets/AlertBanners';
 import { StatCard, PenCard, CattleRow } from '@/components/ui/cards';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -48,6 +49,9 @@ import { useTheme } from '@/lib/useTheme';
 import { useOnlineStatus } from '@/lib/useOnlineStatus';
 import { enqueue, queueSize } from '@/lib/offlineQueue';
 import { syncOfflineQueue } from '@/lib/syncManager';
+import { useCattlePagination } from '@/lib/hooks/useCattlePagination';
+import { useSalesPagination } from '@/lib/hooks/useSalesPagination';
+import { getNextDashboardPaginationState } from '@/lib/dashboard/pagination-guard.mjs';
 
 import NotificationModal from '@/components/ui/NotificationModal';
 import ExcelExportButton from '@/components/widgets/ExcelExportButton';
@@ -71,6 +75,7 @@ const WIDGET_REGISTRY = [
 ];
 
 const WIDGETS_STORAGE_KEY = 'joolife-widgets';
+const DASHBOARD_PAGE_LIMIT = 100;
 
 function useWidgetSettings() {
   const [visible, setVisible] = useState(() => {
@@ -95,9 +100,10 @@ function useWidgetSettings() {
 }
 
 export default function DashboardClient({
-  initialCattleRegistry,
-  initialSalesLedger,
+  initialCattlePage,
+  initialSalesPage,
   initialSummary,
+  initialNotifications,
   initialFeedStandards,
   initialInventory,
   initialSchedule,
@@ -118,6 +124,7 @@ export default function DashboardClient({
 
   // Summary data from SSR (headcount, monthly rollup, building occupancy)
   const [summary, setSummary] = useState(initialSummary);
+  const [notifications, setNotifications] = useState(initialNotifications || []);
 
   const [feedStandards, setFeedStandards] = useState(initialFeedStandards);
   const [inventoryList, setInventoryList] = useState(initialInventory);
@@ -136,28 +143,81 @@ export default function DashboardClient({
   const [selectedPenId, setSelectedPenId] = useState(null);
 
   const [showNotifications, setShowNotifications] = useState(false);
-  const [cattleRegistry, setCattleRegistry] = useState(initialCattleRegistry || []);
-  const [salesLedger, setSalesLedger] = useState(initialSalesLedger || []);
+  const [allCattleRegistry, setAllCattleRegistry] = useState(null);
+  const [allSalesLedger, setAllSalesLedger] = useState(null);
+  const [isAllCattleLoading, setIsAllCattleLoading] = useState(false);
+  const [isAllSalesLoading, setIsAllSalesLoading] = useState(false);
+  const summaryRefreshRequestRef = useRef(0);
+  const fullCattleLoadRef = useRef(null);
+  const fullSalesLoadRef = useRef(null);
+  const {
+    items: pagedCattleItems,
+    setItems: setPagedCattleItems,
+    ...cattlePagination
+  } = useCattlePagination({
+    initialItems: initialCattlePage?.items ?? [],
+    initialPageInfo: initialCattlePage?.pageInfo ?? null,
+  });
+  const {
+    items: pagedSalesItems,
+    setItems: setPagedSalesItems,
+    ...salesPagination
+  } = useSalesPagination({
+    initialItems: initialSalesPage?.items ?? [],
+    initialPageInfo: initialSalesPage?.pageInfo ?? null,
+  });
 
-  // Full registries power alerts, analytics, forms, and pen occupancy.
-  const cattleList = cattleRegistry;
-  const saleRecords = salesLedger;
+  // Full registries remain optional and are loaded only when a view truly needs them.
+  const cattleList = allCattleRegistry ?? pagedCattleItems;
+  const saleRecords = allSalesLedger ?? pagedSalesItems;
 
-  // Notifications must consider the full active herd.
-  const notifications = buildNotifications(cattleList);
+  // Memoize: 발정/분만 알림은 cattleList 변경 시에만 재계산
+  const readJsonSafely = useCallback(async (response) => {
+    try {
+      return await response.json();
+    } catch {
+      return null;
+    }
+  }, []);
 
   // Helper to refresh summary from API (after mutations)
   const refreshSummary = useCallback(async () => {
+    const requestId = summaryRefreshRequestRef.current + 1;
+    summaryRefreshRequestRef.current = requestId;
+
     try {
-      const res = await fetch('/api/dashboard/summary?fresh=1');
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success) {
-          setSummary(json.data);
-        }
+      const res = await fetchWithTimeout(
+        '/api/dashboard/summary?fresh=1',
+        { cache: 'no-store' },
+        {
+          timeoutMs: 5000,
+          errorMessage: 'Dashboard summary refresh timed out after 5000ms.',
+        },
+      );
+      const json = await readJsonSafely(res);
+      if (!res.ok || !json?.success || !json?.data) {
+        return false;
       }
+
+      if (summaryRefreshRequestRef.current === requestId) {
+        setSummary(json.data);
+      }
+
+      return true;
     } catch (err) {
       console.error('Failed to refresh summary:', err);
+      return false;
+    }
+  }, [readJsonSafely]);
+
+  const refreshNotifications = useCallback(async () => {
+    try {
+      const nextNotifications = await getNotifications();
+      if (Array.isArray(nextNotifications)) {
+        setNotifications(nextNotifications);
+      }
+    } catch (error) {
+      console.error('Failed to refresh notifications:', error);
     }
   }, []);
 
@@ -179,8 +239,173 @@ export default function DashboardClient({
       (left, right) =>
         (left.category || '').localeCompare(right.category || '') || left.name.localeCompare(right.name),
     );
-  const sortByDateAsc = (items, key) => [...items].sort((left, right) => new Date(left[key]) - new Date(right[key]));
-  const sortByDateDesc = (items, key) => [...items].sort((left, right) => new Date(right[key]) - new Date(left[key]));
+  const sortByDateAsc = useCallback(
+    (items, key) => [...items].sort((left, right) => new Date(left[key]) - new Date(right[key])),
+    [],
+  );
+  const sortByDateDesc = useCallback(
+    (items, key) => [...items].sort((left, right) => new Date(right[key]) - new Date(left[key])),
+    [],
+  );
+  const refreshDashboardReadModels = useCallback(async () => {
+    await Promise.allSettled([refreshSummary(), refreshNotifications()]);
+  }, [refreshNotifications, refreshSummary]);
+
+  const fetchDashboardItems = useCallback(
+    async (pathname) => {
+      const items = [];
+      let nextCursor = null;
+      let hasMore = true;
+      let pageCount = 0;
+      const seenCursors = new Set();
+
+      while (hasMore) {
+        const params = new URLSearchParams();
+        params.set('limit', String(DASHBOARD_PAGE_LIMIT));
+        if (nextCursor) {
+          params.set('cursor', nextCursor);
+        }
+
+        const res = await fetchWithTimeout(
+          `${pathname}?${params.toString()}`,
+          { cache: 'no-store' },
+          {
+            timeoutMs: 10000,
+            errorMessage: `Loading ${pathname} timed out after 10000ms.`,
+          },
+        );
+        const json = await readJsonSafely(res);
+        if (!res.ok || !json?.success || !json?.data) {
+          throw new Error(json?.message || `Failed to load ${pathname}.`);
+        }
+
+        items.push(...(json.data.items || []));
+        pageCount += 1;
+
+        const nextPageState = getNextDashboardPaginationState({
+          currentCursor: nextCursor,
+          receivedPageInfo: json.data.pageInfo,
+          seenCursors,
+          pageCount,
+          source: pathname,
+        });
+
+        hasMore = nextPageState.hasMore;
+        nextCursor = nextPageState.nextCursor;
+        if (nextCursor) {
+          seenCursors.add(nextCursor);
+        }
+      }
+
+      return items;
+    },
+    [readJsonSafely],
+  );
+
+  const ensureAllCattleLoaded = useCallback(
+    async ({ silent = false } = {}) => {
+      if (Array.isArray(allCattleRegistry)) {
+        return allCattleRegistry;
+      }
+
+      if (fullCattleLoadRef.current) {
+        return fullCattleLoadRef.current;
+      }
+
+      setIsAllCattleLoading(true);
+      const promise = fetchDashboardItems('/api/dashboard/cattle')
+        .then((items) => {
+          setAllCattleRegistry(items);
+          return items;
+        })
+        .catch((error) => {
+          if (!silent) {
+            console.error('Failed to load complete cattle list:', error);
+          }
+          throw error;
+        })
+        .finally(() => {
+          setIsAllCattleLoading(false);
+          fullCattleLoadRef.current = null;
+        });
+
+      fullCattleLoadRef.current = promise;
+      return promise;
+    },
+    [allCattleRegistry, fetchDashboardItems],
+  );
+
+  const ensureAllSalesLoaded = useCallback(
+    async ({ silent = false } = {}) => {
+      if (Array.isArray(allSalesLedger)) {
+        return allSalesLedger;
+      }
+
+      if (fullSalesLoadRef.current) {
+        return fullSalesLoadRef.current;
+      }
+
+      setIsAllSalesLoading(true);
+      const promise = fetchDashboardItems('/api/dashboard/sales')
+        .then((items) => {
+          setAllSalesLedger(items);
+          return items;
+        })
+        .catch((error) => {
+          if (!silent) {
+            console.error('Failed to load complete sales list:', error);
+          }
+          throw error;
+        })
+        .finally(() => {
+          setIsAllSalesLoading(false);
+          fullSalesLoadRef.current = null;
+        });
+
+      fullSalesLoadRef.current = promise;
+      return promise;
+    },
+    [allSalesLedger, fetchDashboardItems],
+  );
+
+  const prependCattleRecord = useCallback((record) => {
+    setPagedCattleItems((prev) => [record, ...prev.filter((item) => item.id !== record.id)]);
+    setAllCattleRegistry((prev) =>
+      Array.isArray(prev) ? [record, ...prev.filter((item) => item.id !== record.id)] : prev,
+    );
+  }, [setPagedCattleItems]);
+
+  const replaceCattleRecord = useCallback((record) => {
+    setPagedCattleItems((prev) => prev.map((item) => (item.id === record.id ? record : item)));
+    setAllCattleRegistry((prev) =>
+      Array.isArray(prev) ? prev.map((item) => (item.id === record.id ? record : item)) : prev,
+    );
+  }, [setPagedCattleItems]);
+
+  const removeCattleRecord = useCallback((recordId) => {
+    setPagedCattleItems((prev) => prev.filter((item) => item.id !== recordId));
+    setAllCattleRegistry((prev) =>
+      Array.isArray(prev) ? prev.filter((item) => item.id !== recordId) : prev,
+    );
+  }, [setPagedCattleItems]);
+
+  const upsertCalvingRecords = useCallback((motherRecord, calfRecord) => {
+    setPagedCattleItems((prev) => [calfRecord, ...prev.map((item) => (item.id === motherRecord.id ? motherRecord : item))]);
+    setAllCattleRegistry((prev) =>
+      Array.isArray(prev)
+        ? [calfRecord, ...prev.map((item) => (item.id === motherRecord.id ? motherRecord : item))]
+        : prev,
+    );
+  }, [setPagedCattleItems]);
+
+  const prependSaleRecord = useCallback((record) => {
+    setPagedSalesItems((prev) => sortByDateDesc([record, ...prev.filter((item) => item.id !== record.id)], 'saleDate'));
+    setAllSalesLedger((prev) =>
+      Array.isArray(prev)
+        ? sortByDateDesc([record, ...prev.filter((item) => item.id !== record.id)], 'saleDate')
+        : prev,
+    );
+  }, [setPagedSalesItems, sortByDateDesc]);
 
   useEffect(() => {
     let cancelled = false;
@@ -277,8 +502,8 @@ export default function DashboardClient({
 
     void (async () => {
       try {
-        const { synced, failed, reused } = await syncOfflineQueue();
-        if (cancelled || reused || synced === 0) {
+        const { synced, failed, deadLettered, reused } = await syncOfflineQueue();
+        if (cancelled || reused || (synced === 0 && deadLettered === 0)) {
           return;
         }
         notify({
@@ -289,7 +514,9 @@ export default function DashboardClient({
                 : `${synced}건이 서버에 반영되었습니다.`,
             variant: failed > 0 ? 'warning' : 'success',
           });
-        router.refresh();
+        if (synced > 0) {
+          router.refresh();
+        }
       } catch (error) {
         if (cancelled) {
           return;
@@ -297,8 +524,8 @@ export default function DashboardClient({
 
         console.error('Offline queue sync failed:', error);
         notify({
-          title: '?ㅽ봽?쇱씤 ?묒뾽 ?숆린?붿뿉 ?ㅽ뙣?덉뒿?덈떎.',
-          description: '?좎떆 ???ㅼ떆 ?쒕룄?댁＜?몄슂.',
+          title: '오프라인 작업 동기화에 실패했습니다.',
+          description: '잠시 후 다시 시도해주세요.',
           variant: 'warning',
         });
       }
@@ -308,6 +535,25 @@ export default function DashboardClient({
       cancelled = true;
     };
   }, [isOnline, notify, router]);
+
+  const handleTabChange = useCallback((nextTab) => {
+    setActiveTab(nextTab);
+
+    if (nextTab === 'feed' || nextTab === 'calving' || nextTab === 'sales') {
+      void ensureAllCattleLoaded({ silent: true });
+    }
+
+    if (nextTab === 'analysis') {
+      void ensureAllCattleLoaded({ silent: true });
+      void ensureAllSalesLoaded({ silent: true });
+    }
+  }, [ensureAllCattleLoaded, ensureAllSalesLoaded]);
+
+  const handleSelectBuilding = useCallback((buildingId) => {
+    setSelectedBuildingId(buildingId);
+    setSelectedPenId(null);
+    void ensureAllCattleLoaded({ silent: true });
+  }, [ensureAllCattleLoaded]);
 
   const handleTestSMS = () => {
     showSuccess('테스트 SMS를 발송했습니다.', 'Joolife: 분만 임박 알림 - 순심이(0001) 예정일 3일 전입니다.');
@@ -337,7 +583,7 @@ export default function DashboardClient({
 
     if (!isOnline) {
       enqueue('createCattle', [newCattle]);
-      setCattleRegistry((prev) => [newCattle, ...prev]);
+      prependCattleRecord(newCattle);
       setShowAddModal(false);
       showWarning(offlineTitle, offlineDescription);
       return true;
@@ -347,9 +593,9 @@ export default function DashboardClient({
       const result = await createCattle(newCattle);
       if (result.success) {
         const savedCattle = result.data || newCattle;
-        setCattleRegistry((prev) => [savedCattle, ...prev]);
+        prependCattleRecord(savedCattle);
         setShowAddModal(false);
-        refreshSummary();
+        void refreshDashboardReadModels();
         if (!skipSuccessFeedback) {
           showSuccess(successTitle, successDescription);
         }
@@ -376,7 +622,7 @@ export default function DashboardClient({
 
     if (!isOnline) {
       enqueue('updateCattle', [updated.id, updated]);
-      setCattleRegistry((prev) => prev.map((cow) => (cow.id === updated.id ? updated : cow)));
+      replaceCattleRecord(updated);
       setIsEditing(false);
       if (selectedCow && selectedCow.id === updated.id) setSelectedCow(updated);
       showWarning(offlineTitle, offlineDescription);
@@ -387,10 +633,10 @@ export default function DashboardClient({
       const result = await updateCattle(updated.id, updated);
       if (result.success) {
         const savedCattle = result.data || updated;
-        setCattleRegistry((prev) => prev.map((cow) => (cow.id === savedCattle.id ? savedCattle : cow)));
+        replaceCattleRecord(savedCattle);
         setIsEditing(false);
         if (selectedCow && selectedCow.id === savedCattle.id) setSelectedCow(savedCattle);
-        refreshSummary();
+        void refreshDashboardReadModels();
         if (!skipSuccessFeedback) {
           showSuccess(successTitle, successDescription);
         }
@@ -424,9 +670,9 @@ export default function DashboardClient({
     try {
       const result = await deleteCattle(id);
       if (result.success) {
-        setCattleRegistry((prev) => prev.filter((cow) => cow.id !== id));
+        removeCattleRecord(id);
         setSelectedCow(null);
-        refreshSummary();
+        void refreshDashboardReadModels();
         showSuccess('개체를 삭제했습니다.');
         return true;
       }
@@ -500,8 +746,8 @@ export default function DashboardClient({
       return false;
     }
 
-    setSalesLedger((prev) => sortByDateDesc([res.data, ...prev], 'saleDate'));
-    refreshSummary();
+    prependSaleRecord(res.data);
+    void refreshDashboardReadModels();
     showSuccess('판매 기록이 등록되었습니다.');
     return true;
   };
@@ -590,7 +836,7 @@ export default function DashboardClient({
 
     if (!isOnline) {
       enqueue('recordCalving', [{ motherId, calvingDate, calfGender, calfTagNumber }]);
-      setCattleRegistry((prev) => [calfDraft, ...prev.map((cow) => (cow.id === motherId ? updatedMother : cow))]);
+      upsertCalvingRecords(updatedMother, calfDraft);
       showWarning('오프라인 상태입니다.', '분만 처리 요청이 대기열에 저장되었습니다.');
       return true;
     }
@@ -605,8 +851,8 @@ export default function DashboardClient({
     const savedMother = res.data?.mother || updatedMother;
     const savedCalf = res.data?.calf || calfDraft;
 
-    setCattleRegistry((prev) => [savedCalf, ...prev.map((cow) => (cow.id === motherId ? savedMother : cow))]);
-    refreshSummary();
+    upsertCalvingRecords(savedMother, savedCalf);
+    void refreshDashboardReadModels();
     showSuccess('분만 처리가 완료되었습니다.', `${mother.name}의 상태와 송아지 등록이 함께 반영되었습니다.`);
     return true;
   };
@@ -648,15 +894,49 @@ export default function DashboardClient({
   // Stats from summary (SSR-snapshot, refreshed after mutations)
   const totalHeadcount = summary?.headcount?.totalActive ?? cattleList.length;
   const monthlySalesTotal = summary?.monthlyRollup?.salesTotal ?? 0;
-  const monthlySalesCount = saleRecords.filter((record) => {
-    const saleMonth = new Date(record.saleDate).getMonth();
-    return saleMonth === new Date().getMonth();
-  }).length;
-  const avgWeight = cattleList.length > 0
-    ? Math.floor(cattleList.reduce((sum, cow) => sum + (cow.weight || 0), 0) / cattleList.length)
-    : 0;
+
+  // Memoize: Date 생성 + filter/reduce를 매 렌더가 아닌 데이터 변경 시에만 실행
+  const fallbackMonthlySalesCount = useMemo(() => {
+    const currentMonth = new Date().getMonth();
+    return saleRecords.filter((record) => new Date(record.saleDate).getMonth() === currentMonth).length;
+  }, [saleRecords]);
+
+  const fallbackAverageWeight = useMemo(() => {
+    if (cattleList.length === 0) return 0;
+    return Math.floor(cattleList.reduce((sum, cow) => sum + (cow.weight || 0), 0) / cattleList.length);
+  }, [cattleList]);
+
+  const monthlySalesCount = summary?.monthlyRollup?.salesCount ?? fallbackMonthlySalesCount;
+  const avgWeight = summary?.headcount?.averageWeight ?? fallbackAverageWeight;
 
   const renderContent = () => {
+    const needsCompleteCattleData =
+      activeTab === 'feed' ||
+      activeTab === 'calving' ||
+      activeTab === 'sales' ||
+      activeTab === 'analysis' ||
+      selectedBuildingId !== null;
+
+    if (needsCompleteCattleData && !Array.isArray(allCattleRegistry)) {
+      return (
+        <Card className="animate-fadeIn">
+          <CardContent className="py-12 text-center text-sm text-muted-foreground">
+            {isAllCattleLoading ? '개체 목록을 불러오는 중입니다...' : '개체 목록을 준비 중입니다...'}
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (activeTab === 'analysis' && !Array.isArray(allSalesLedger)) {
+      return (
+        <Card className="animate-fadeIn">
+          <CardContent className="py-12 text-center text-sm text-muted-foreground">
+            {isAllSalesLoading ? '매출 기록을 불러오는 중입니다...' : '매출 기록을 준비 중입니다...'}
+          </CardContent>
+        </Card>
+      );
+    }
+
     if (activeTab === 'feed') {
       return (
         <FeedTab
@@ -668,7 +948,7 @@ export default function DashboardClient({
         />
       );
     }
-    if (activeTab === 'calving') return <CalvingTab cattle={cattleList} onRecordCalving={handleRecordCalving} />;
+    if (activeTab === 'calving') return <CalvingTab cattle={cattleList} buildings={buildings} onRecordCalving={handleRecordCalving} />;
     if (activeTab === 'sales') {
       return (
         <SalesTab
@@ -677,6 +957,7 @@ export default function DashboardClient({
           onCreateSale={handleCreateSale}
           expenseRecords={expenseRecords}
           initialMarketPrice={initialMarketPrice}
+          salesPagination={Array.isArray(allSalesLedger) ? null : salesPagination}
         />
       );
     }
@@ -717,7 +998,7 @@ export default function DashboardClient({
             <p className="text-[13px] text-muted-foreground leading-relaxed">오늘도 힘찬 하루 되세요! 🐮</p>
           </div>
           <div className="flex gap-2.5 pt-0.5">
-            <ExcelExportButton cattleList={cattleList} />
+            <ExcelExportButton cattleList={cattleList} resolveCattleList={ensureAllCattleLoaded} />
             <PremiumButton variant="outline" size="icon" onClick={() => setShowNotifications(true)} className="relative shadow-[var(--shadow-sm)]">
               <Bell className="h-5 w-5" />
               {notifications.some((notification) => notification.level === 'critical') && (
@@ -735,9 +1016,9 @@ export default function DashboardClient({
         {widgetSettings.visible.weather && <WeatherWidget weather={weather} />}
         {widgetSettings.visible.market && <MarketPriceWidget initialData={initialMarketPrice} />}
         {widgetSettings.visible.notification && <NotificationWidget notifications={notifications} />}
-        {widgetSettings.visible.financial && <FinancialChartWidget saleRecords={saleRecords} feedHistory={feedHistory} expenseRecords={expenseRecords} />}
-        {widgetSettings.visible.estrus && <EstrusAlertBanner cattle={cattleList} buildings={buildings} />}
-        {widgetSettings.visible.calving && <CalvingAlertBanner cattle={cattleList} buildings={buildings} />}
+        {widgetSettings.visible.financial && <FinancialChartWidget saleRecords={saleRecords} expenseRecords={expenseRecords} seriesData={summary?.financialSeries} />}
+        {widgetSettings.visible.estrus && <EstrusAlertBanner notifications={notifications} buildings={buildings} />}
+        {widgetSettings.visible.calving && <CalvingAlertBanner notifications={notifications} buildings={buildings} />}
 
         {widgetSettings.visible.stats && (
           <div style={{ display: 'flex', gap: '14px', overflowX: 'auto', paddingBottom: '14px', marginBottom: '28px', scrollSnapType: 'x mandatory', scrollPadding: '0 4px', WebkitOverflowScrolling: 'touch' }}>
@@ -760,10 +1041,9 @@ export default function DashboardClient({
             </div>
             <div className="grid gap-3">
               {buildings.map((building, index) => {
-                const buildingHeadcount = summary?.buildingOccupancy?.find((b) => b.buildingId === building.id)?.headcount
-                  ?? cattleList.filter((cow) => cow.buildingId === building.id).length;
+                const buildingHeadcount = summary?.buildingOccupancy?.find((b) => b.buildingId === building.id)?.headcount ?? 0;
                 return (
-                  <Card key={building.id} onClick={() => setSelectedBuildingId(building.id)} className="animate-fadeInUp cursor-pointer hover:-translate-y-1 hover:shadow-[var(--shadow-md)] group/building" style={{ animationDelay: `${250 + index * 50}ms` }}>
+                  <Card key={building.id} onClick={() => handleSelectBuilding(building.id)} className="animate-fadeInUp cursor-pointer hover:-translate-y-1 hover:shadow-[var(--shadow-md)] group/building" style={{ animationDelay: `${250 + index * 50}ms` }}>
                     <CardContent className="flex justify-between items-center p-5">
                       <div>
                         <div className="font-bold text-[15px] mb-1.5 tracking-[-0.01em]">{building.name}</div>
@@ -771,7 +1051,7 @@ export default function DashboardClient({
                           {building.description || `총 ${building.penCount}칸`} · <strong className="text-foreground">{buildingHeadcount}두</strong>
                         </p>
                       </div>
-                      <span className="text-xl text-muted-foreground transition-[transform,color,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] opacity-40 group-hover/building:translate-x-1 group-hover/building:text-[var(--color-primary-custom)] group-hover/building:opacity-100">›</span>
+                      <span className="text-xl text-muted-foreground transition-[transform,color,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] opacity-55 group-hover/building:translate-x-1 group-hover/building:text-[var(--color-primary-custom)] group-hover/building:opacity-100">›</span>
                     </CardContent>
                   </Card>
                 );
@@ -802,19 +1082,8 @@ export default function DashboardClient({
               </PremiumButton>
               <h2 className="text-lg font-extrabold text-foreground">{selectedPenId}번 칸 상세</h2>
             </div>
-            <div className="flex flex-col gap-3">
-              {cattleList.filter((cow) => cow.buildingId === selectedBuildingId && cow.penNumber === selectedPenId).map((cow, index) => (
-                <CattleRow key={cow.id} cow={cow} onClick={setSelectedCow} delay={index * 50} draggable />
-              ))}
-              {cattleList.filter((cow) => cow.buildingId === selectedBuildingId && cow.penNumber === selectedPenId).length === 0 && (
-                <Card className="animate-fadeIn border-2 border-dashed">
-                  <CardContent className="text-center py-12 px-5">
-                    <div className="text-3xl mb-2">🐄</div>
-                    <p className="text-muted-foreground">이 칸은 비어있습니다.</p>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+            {/* filter 1회만 실행 후 분기 */}
+            <PenCattleList cattleList={cattleList} buildingId={selectedBuildingId} penId={selectedPenId} onSelect={setSelectedCow} />
           </div>
         )}
 
@@ -839,16 +1108,16 @@ export default function DashboardClient({
         )}
         {renderContent()}
       </div>
-      <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
+      <TabBar activeTab={activeTab} onTabChange={handleTabChange} />
 
-      {showAddModal && <CattleForm onSubmit={handleAddCattle} onCancel={() => setShowAddModal(false)} />}
+      {showAddModal && <CattleForm buildings={buildings} onSubmit={handleAddCattle} onCancel={() => setShowAddModal(false)} />}
 
       {isEditing && selectedCow && (
-        <CattleForm cattle={selectedCow} onSubmit={(updated) => { handleUpdateCattle(updated); setIsEditing(false); }} onCancel={() => setIsEditing(false)} />
+        <CattleForm cattle={selectedCow} buildings={buildings} onSubmit={(updated) => { handleUpdateCattle(updated); setIsEditing(false); }} onCancel={() => setIsEditing(false)} />
       )}
 
       {selectedCow && !isEditing && (
-        <CattleDetailModal cattle={selectedCow} onClose={() => setSelectedCow(null)} onEdit={() => setIsEditing(true)} onDelete={() => handleDeleteCattle(selectedCow.id)} onUpdate={handleUpdateCattle} />
+        <CattleDetailModal cattle={selectedCow} buildings={buildings} onClose={() => setSelectedCow(null)} onEdit={() => setIsEditing(true)} onDelete={() => handleDeleteCattle(selectedCow.id)} onUpdate={handleUpdateCattle} />
       )}
 
       <footer className="footer-glass mt-16 mx-2 px-6 pt-8 pb-6 text-center text-xs text-muted-foreground leading-relaxed">
@@ -864,6 +1133,30 @@ export default function DashboardClient({
         </div>
         <p className="mt-4 text-[11px] text-muted-foreground/50">Copyright &copy; 2026 Joolife. All rights reserved.</p>
       </footer>
+    </div>
+  );
+}
+
+/** 칸 상세 뷰 — filter 1회로 렌더/빈칸 분기 처리 */
+function PenCattleList({ cattleList, buildingId, penId, onSelect }) {
+  const penCattle = cattleList.filter(
+    (cow) => cow.buildingId === buildingId && cow.penNumber === penId,
+  );
+
+  return (
+    <div className="flex flex-col gap-3">
+      {penCattle.length > 0 ? (
+        penCattle.map((cow, index) => (
+          <CattleRow key={cow.id} cow={cow} onClick={onSelect} delay={index * 50} draggable />
+        ))
+      ) : (
+        <Card className="animate-fadeIn border-2 border-dashed">
+          <CardContent className="text-center py-12 px-5">
+            <div className="text-3xl mb-2">🐄</div>
+            <p className="text-muted-foreground">이 칸은 비어있습니다.</p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

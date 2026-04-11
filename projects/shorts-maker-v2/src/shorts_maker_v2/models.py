@@ -66,6 +66,7 @@ class ProductionPlan:
     reference_notes: str = ""  # 레퍼런스 참고 메모 (옵션)
     audience_profile: dict[str, Any] | None = None  # 청중 분석 결과
 
+
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
@@ -212,6 +213,8 @@ class JobManifest:
     qc_result: dict[str, Any] | None = None  # Gate 4 최종 QC 결과
     structure_outline: dict[str, Any] | None = None  # Gate 2 구성안
     scene_qc_results: list[dict[str, Any]] | None = None  # 씬별 QC 결과
+
+    degraded_steps: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

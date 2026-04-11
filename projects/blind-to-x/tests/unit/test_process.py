@@ -126,9 +126,9 @@ class _TimeoutConfig:
 
 @pytest.mark.asyncio
 async def test_process_fetch_timeout_sets_failure_reason():
-    async def _slow_fetch(*args, **kwargs):
-        await asyncio.sleep(1.1)
-        return True
+    """fetch 단계 타임아웃 시 SCRAPE_FAILED 에러 코드를 설정해야 함."""
+    import asyncio as _asyncio
+    from unittest.mock import patch as _patch
 
     config = _TimeoutConfig(
         {
@@ -137,9 +137,23 @@ async def test_process_fetch_timeout_sets_failure_reason():
         }
     )
 
+    # _fast_sleeps 픽스처가 asyncio.sleep을 즉시 반환하므로
+    # asyncio.wait_for를 직접 모킹하여 fetch 단계에서 TimeoutError 발생
+    _original_wait_for = _asyncio.wait_for
+    _call_count = 0
+
+    async def _patched_wait_for(coro, *, timeout=None):
+        nonlocal _call_count
+        _call_count += 1
+        # 첫 번째 호출이 fetch stage wait_for (timeout=fetch_timeout)
+        if _call_count == 1 and timeout is not None and timeout <= 1:
+            coro.close()
+            raise _asyncio.TimeoutError()
+        return await _original_wait_for(coro, timeout=timeout)
+
     with (
-        patch("pipeline.process.run_dedup_stage", new_callable=AsyncMock) as m_dedup,
-        patch("pipeline.process.run_fetch_stage", side_effect=_slow_fetch),
+        _patch("pipeline.process.run_dedup_stage", new_callable=AsyncMock) as m_dedup,
+        _patch("pipeline.process.asyncio.wait_for", side_effect=_patched_wait_for),
     ):
         m_dedup.return_value = True
         res = await process_single_post("http://test", None, None, config=config)
@@ -152,9 +166,9 @@ async def test_process_fetch_timeout_sets_failure_reason():
 
 @pytest.mark.asyncio
 async def test_process_timeout_marks_running_stage_failed():
-    async def _slow_generate(*args, **kwargs):
-        await asyncio.sleep(1.1)
-        return True
+    """전체 파이프라인 타임아웃 시 PROCESS_TIMEOUT 에러 코드를 설정해야 함."""
+    import asyncio as _asyncio
+    from unittest.mock import patch as _patch
 
     config = _TimeoutConfig(
         {
@@ -163,15 +177,33 @@ async def test_process_timeout_marks_running_stage_failed():
         }
     )
 
+    # _fast_sleeps 픽스처 회피: asyncio.wait_for를 모킹
+    _original_wait_for = _asyncio.wait_for
+    _call_count = 0
+
+    async def _patched_wait_for(coro, *, timeout=None):
+        nonlocal _call_count
+        _call_count += 1
+        # 첫 번째 호출 = fetch stage (타임아웃 5초 → 통과시킴)
+        if _call_count == 1:
+            return await _original_wait_for(coro, timeout=timeout)
+        # 두 번째 호출 = 전체 pipeline (타임아웃 1초 → TimeoutError)
+        if _call_count == 2 and timeout is not None and timeout <= 1:
+            coro.close()
+            raise _asyncio.TimeoutError()
+        return await _original_wait_for(coro, timeout=timeout)
+
     with (
-        patch("pipeline.process.run_dedup_stage", new_callable=AsyncMock) as m_dedup,
-        patch("pipeline.process.run_fetch_stage", new_callable=AsyncMock) as m_fetch,
-        patch("pipeline.process.run_filter_stage", new_callable=AsyncMock) as m_filter,
-        patch("pipeline.process.run_generate_stage", side_effect=_slow_generate),
+        _patch("pipeline.process.run_dedup_stage", new_callable=AsyncMock) as m_dedup,
+        _patch("pipeline.process.run_fetch_stage", new_callable=AsyncMock) as m_fetch,
+        _patch("pipeline.process.run_filter_stage", new_callable=AsyncMock) as m_filter,
+        _patch("pipeline.process.run_generate_stage", new_callable=AsyncMock) as m_gen,
+        _patch("pipeline.process.asyncio.wait_for", side_effect=_patched_wait_for),
     ):
         m_dedup.return_value = True
         m_fetch.return_value = True
         m_filter.return_value = True
+        m_gen.return_value = True
         res = await process_single_post("http://test", None, None, config=config)
 
     assert res["error_code"] == "PROCESS_TIMEOUT"

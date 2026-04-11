@@ -326,6 +326,11 @@ def _run_batch(args: argparse.Namespace, config_path: Path) -> int:
                 duration_sec=manifest.total_duration_sec,
             )
             if manifest.status != "success":
+                issue_messages = [
+                    issue.get("message", "")
+                    for issue in [*manifest.failed_steps, *getattr(manifest, "degraded_steps", [])]
+                    if issue.get("message")
+                ]
                 result = BatchResult(
                     topic=topic,
                     channel=channel,
@@ -333,7 +338,7 @@ def _run_batch(args: argparse.Namespace, config_path: Path) -> int:
                     job_id=manifest.job_id,
                     cost_usd=manifest.estimated_cost_usd,
                     duration_sec=manifest.total_duration_sec,
-                    error="; ".join(f["message"] for f in manifest.failed_steps),
+                    error="; ".join(issue_messages),
                 )
 
             if db_id is not None and db is not None:
@@ -648,7 +653,8 @@ def run_cli(argv: list[str] | None = None) -> int:
             return 0
 
         print("[FAIL] generation failed")
-        for failed in manifest.failed_steps:
+        issues = [*manifest.failed_steps, *getattr(manifest, "degraded_steps", [])]
+        for failed in issues:
             step = failed.get("step", "unknown")
             code = failed.get("code") or failed.get("error_type", "unknown")
             message = failed.get("message", "")

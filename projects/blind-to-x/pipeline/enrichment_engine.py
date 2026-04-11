@@ -9,11 +9,16 @@ import asyncio
 import logging
 import os
 from typing import Dict, List, Optional
-from pydantic import BaseModel, Field
 
 import httpx
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
+
+# ── 상수: Fallback 메시지 중복 제거 ──────────────────────────────
+_FALLBACK_INSIGHT = "{topic}에 대한 심층 인사이트를 분석 중입니다 (Fallback Mode)."
+_FALLBACK_SENTIMENT = "감정 분석 데이터 없음 (Deep Insights 참조)"
+_ERROR_INSIGHT = "오류로 인해 {topic} 심도 분석에 실패했습니다."
 
 
 class EnrichedContext(BaseModel):
@@ -28,7 +33,8 @@ class EnrichedContext(BaseModel):
 
     def to_prompt_context(self) -> str:
         """프롬프트 주입용 포맷팅"""
-        refs = "\n".join([f"- {url}" for url in self.global_references])
+        # [FIX-3] 불필요한 중간 리스트 제거 → 제너레이터
+        refs = "\n".join(f"- {url}" for url in self.global_references)
         return f"""
 [Enriched Deep Context]
 * Original Topic: {self.original_topic}
@@ -50,9 +56,9 @@ class ContextEnrichmentEngine:
     ):
         self.exa_api_key = exa_api_key or os.getenv("EXA_API_KEY")
         self.perplexity_api_key = perplexity_api_key or os.getenv("PERPLEXITY_API_KEY")
-        # 타임아웃을 강제하여 파이프라인 전체 딜레이를 방지 (최대 5초)
-        # [QA 수정] 15초 → 5초: 실패 시 파이프라인 블로킹 최소화
         self.timeout = httpx.Timeout(5.0)
+        # [FIX-2] 커넥션 풀 제한 명시 — 호스트당 최대 10, 전체 20
+        self._limits = httpx.Limits(max_connections=20, max_keepalive_connections=10)
         self.max_concurrency = max(1, int(max_concurrency))
 
     async def _fetch_exa_references(self, client: httpx.AsyncClient, topic: str) -> List[Dict]:
@@ -61,9 +67,8 @@ class ContextEnrichmentEngine:
             logger.warning("EXA_API_KEY가 설정되지 않아 Exa 검색을 스킵합니다.")
             return []
 
-        logger.info(f"[{topic}] 비동기 Exa API 검색 시작...")
+        logger.info("[%s] 비동기 Exa API 검색 시작...", topic)
         try:
-            # Exa Search API Endpoint
             headers = {"x-api-key": self.exa_api_key, "Content-Type": "application/json"}
             payload = {"query": topic, "numResults": 3, "useAutoprompt": True}
             res = await client.post("https://api.exa.ai/search", headers=headers, json=payload)
@@ -73,20 +78,23 @@ class ContextEnrichmentEngine:
             results = data.get("results", [])
             return [{"title": r.get("title", ""), "url": r.get("url", "")} for r in results]
         except Exception as e:
-            logger.error(f"Exa API 검색 중 오류 발생: {e}")
+            logger.error("Exa API 검색 중 오류 발생: %s", e)
             return []
 
-    async def _fetch_perplexity_synthesis(self, client: httpx.AsyncClient, topic: str, references: List[Dict]) -> str:
+    async def _fetch_perplexity_synthesis(
+        self, client: httpx.AsyncClient, topic: str, references: List[Dict]
+    ) -> str:
         """[내부] Perplexity API에 검색된 레퍼런스를 던져 심도 있는 전문가 수준의 인사이트를 합성합니다."""
         if not self.perplexity_api_key:
-            logger.warning("PERPLEXITY_API_KEY가 설정되지 않아 Perplexity 합성을 스킵합니다 (Fallback Mode).")
-            # NOTE: sleep 제거 — 테스트 환경에서 불필요한 지연의 원인이었음 (T-BUG-SLOW-TEST)
-            return f"{topic}에 대한 심층 인사이트를 분석 중입니다 (Fallback Mode)."
+            logger.warning("PERPLEXITY_API_KEY 미설정 — Fallback Mode.")
+            return _FALLBACK_INSIGHT.format(topic=topic)
 
-        logger.info(f"[{topic}] Perplexity API 컨텍스트 합성 시작...")
+        logger.info("[%s] Perplexity API 컨텍스트 합성 시작...", topic)
 
-        # Build prompt from topic and references
-        ref_text = "\n".join([f"- {r['title']} ({r['url']})" for r in references])
+        # [FIX-3] .get()으로 통일 — _fetch_exa_references와 동일한 방어적 접근
+        ref_text = "\n".join(
+            f"- {r.get('title', '?')} ({r.get('url', '?')})" for r in references
+        )
         prompt = f"""
 You are an expert tech/business analyst.
 Please provide deep strategic insights, current sentiment, and controversial angles for the following topic.
@@ -101,9 +109,12 @@ Provide:
 """
 
         try:
-            headers = {"Authorization": f"Bearer {self.perplexity_api_key}", "Content-Type": "application/json"}
+            headers = {
+                "Authorization": f"Bearer {self.perplexity_api_key}",
+                "Content-Type": "application/json",
+            }
             payload = {
-                "model": "sonar-pro",  # Perplexity's primary model
+                "model": "sonar-pro",
                 "messages": [
                     {"role": "system", "content": "You are a top-tier C-level strategy analyst."},
                     {"role": "user", "content": prompt},
@@ -111,41 +122,44 @@ Provide:
                 "temperature": 0.2,
             }
 
-            res = await client.post("https://api.perplexity.ai/chat/completions", headers=headers, json=payload)
+            res = await client.post(
+                "https://api.perplexity.ai/chat/completions", headers=headers, json=payload
+            )
             res.raise_for_status()
             data = res.json()
 
-            # [QA 수정] 응답 형식 방어: choices가 비어있거나 키가 없을 경우 Fallback
             choices = data.get("choices", [])
             if not choices:
                 logger.warning("Perplexity 응답에 choices가 없습니다. Fallback 반환.")
-                return f"{topic}에 대한 심층 인사이트를 분석 중입니다 (Fallback Mode)."
+                return _FALLBACK_INSIGHT.format(topic=topic)
             content = choices[0].get("message", {}).get("content", "")
             if not content:
                 logger.warning("Perplexity 응답 content가 비어 있습니다. Fallback 반환.")
-                return f"{topic}에 대한 심층 인사이트를 분석 중입니다 (Fallback Mode)."
+                return _FALLBACK_INSIGHT.format(topic=topic)
             return content
         except Exception as e:
-            logger.error(f"Perplexity API 합성 중 오류 발생: {e}")
-            return f"오류로 인해 {topic} 심도 분석에 실패했습니다."
+            logger.error("Perplexity API 합성 중 오류 발생: %s", e)
+            return _ERROR_INSIGHT.format(topic=topic)
 
-    async def process_topic(self, viral_topic: str) -> Optional[EnrichedContext]:
+    # [FIX-2] client를 외부에서 주입받을 수 있도록 변경.
+    # batch_process에서 공유 클라이언트를 넘기고, 단독 호출 시에는 자체 생성.
+    async def process_topic(
+        self,
+        viral_topic: str,
+        _client: Optional[httpx.AsyncClient] = None,
+    ) -> Optional[EnrichedContext]:
         """
         [Public API]
         단일 트렌드 토픽을 입력받아 데이터를 보강시킨 후 반환합니다.
-        성능 확보를 위해 비동기 I/O로 처리되며 실패 시 Graceful Degradation(원본만 반환)을 수행.
+        _client가 주어지면 재사용 (batch 모드), 없으면 자체 생성 (단건 모드).
         """
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
+
+        async def _run(client: httpx.AsyncClient) -> Optional[EnrichedContext]:
             try:
-                # 1단계: 고품질 출처 실시간 검색
                 references = await self._fetch_exa_references(client, viral_topic)
-
-                # 2단계: 검색 데이터를 기반으로 한 심층 분석 (RAG)
                 insights = await self._fetch_perplexity_synthesis(client, viral_topic, references)
-
-                # 3단계: 최종 데이터 취합 후 반환
-                # Note: 실제로 감정(Sentiment)은 Perplexity에서 함께 추출 가능
-                sentiment = "강한 찬반 양론 (Deep Insights 참조)"
+                # [FIX-3] 하드코딩 제거 → 상수 사용
+                sentiment = _FALLBACK_SENTIMENT
 
                 enriched = EnrichedContext(
                     original_topic=viral_topic,
@@ -153,21 +167,43 @@ Provide:
                     global_references=[ref["url"] for ref in references],
                     sentiment_angle=sentiment,
                 )
-                logger.info(f"✅ Topic '{viral_topic}' 컨텍스트 보강 완료.")
+                logger.info("Topic '%s' 컨텍스트 보강 완료.", viral_topic)
                 return enriched
-
             except Exception as e:
-                logger.error(f"❌ 컨텍스트 보강 실패, 로컬 정보를 사용합니다. ({str(e)})")
+                logger.error("컨텍스트 보강 실패 [%s]: %s", viral_topic, e)
                 return None
+
+        # [FIX-2] 외부 클라이언트가 있으면 그대로 사용 → TLS 핸드셰이크 1회로 수렴
+        if _client is not None:
+            return await _run(_client)
+
+        # 단건 호출: 자체 클라이언트 생성 후 정리
+        async with httpx.AsyncClient(timeout=self.timeout, limits=self._limits) as client:
+            return await _run(client)
 
     async def batch_process(self, viral_topics: List[str]) -> Dict[str, EnrichedContext]:
         """다수의 큐 항목을 병렬로 보강하여 파이프라인 병목(Bottleneck) 현상을 없앱니다."""
         semaphore = asyncio.Semaphore(self.max_concurrency)
 
-        async def _bounded_process(topic: str):
-            async with semaphore:
-                return await self.process_topic(topic)
+        # [FIX-2] 단일 공유 클라이언트 — 커넥션 풀 재사용, TLS 1회
+        async with httpx.AsyncClient(timeout=self.timeout, limits=self._limits) as shared_client:
 
-        tasks = [_bounded_process(topic) for topic in viral_topics]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        return {topic: res for topic, res in zip(viral_topics, results) if isinstance(res, EnrichedContext)}
+            async def _bounded_process(topic: str):
+                async with semaphore:
+                    return await self.process_topic(topic, _client=shared_client)
+
+            tasks = [_bounded_process(topic) for topic in viral_topics]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # [FIX-1] 실패한 토픽을 명시적으로 로깅 — 디버깅 블랙홀 제거
+        output: Dict[str, EnrichedContext] = {}
+        for topic, res in zip(viral_topics, results):
+            if isinstance(res, EnrichedContext):
+                output[topic] = res
+            elif isinstance(res, Exception):
+                logger.error("batch_process 예외 [%s]: %s", topic, res)
+            else:
+                # process_topic이 None을 반환한 경우
+                logger.warning("batch_process 보강 실패 (None) [%s]", topic)
+
+        return output

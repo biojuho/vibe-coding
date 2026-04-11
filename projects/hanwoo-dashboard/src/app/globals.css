@@ -433,7 +433,6 @@ body {
   margin: 0;
   padding: 0;
   font-family: var(--font-sans-custom);
-  background: var(--color-bg);
   color: var(--color-text);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -1233,23 +1232,6 @@ body {
   animation: float 4s ease-in-out infinite;
 }
 
-.weather-stat {
-  background: rgba(255, 255, 255, 0.14);
-  border-radius: var(--radius-custom-md);
-  padding: 8px 6px;
-  text-align: center;
-  backdrop-filter: blur(8px);
-  transition:
-    transform var(--transition-fast),
-    background var(--transition-fast);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-}
-
-.weather-stat:hover {
-  background: rgba(255, 255, 255, 0.22);
-  transform: translateY(-2px);
-}
-
 /* ============================================
    Stat Cards
    ============================================ */
@@ -1425,7 +1407,7 @@ body {
     transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
     color 0.3s ease,
     opacity 0.3s ease;
-  opacity: 0.4;
+  opacity: 0.55;
 }
 
 .cattle-row:hover .cattle-chevron {

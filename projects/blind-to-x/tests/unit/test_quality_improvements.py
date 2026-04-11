@@ -396,20 +396,20 @@ class TestExtractContentEssence(unittest.TestCase):
     """P0-1: 원문 핵심 추출 기능 테스트."""
 
     def setUp(self):
-        import pipeline.draft_generator as dg
+        from unittest.mock import patch
 
         # emotion_rules 모킹
-        dg._draft_rules_cache = {
+        self._cache = {
             "emotion_rules": [
                 {"label": "분노", "keywords": ["빡", "열받", "화나"]},
                 {"label": "공감", "keywords": ["공감", "맞말", "나만"]},
             ],
         }
+        self.patcher = patch("pipeline.draft_prompts._load_draft_rules", return_value=self._cache)
+        self.patcher.start()
 
     def tearDown(self):
-        import pipeline.draft_generator as dg
-
-        dg._draft_rules_cache = None
+        self.patcher.stop()
 
     def test_numbers_with_context(self):
         from pipeline.draft_generator import TweetDraftGenerator
@@ -466,14 +466,13 @@ class TestThinkingTagStrip(unittest.TestCase):
     """P0-2: _parse_response가 <thinking> 태그를 제거하는지 테스트."""
 
     def setUp(self):
-        import pipeline.draft_generator as dg
-
-        dg._draft_rules_cache = {}
+        from unittest.mock import patch
+        self._cache = {}
+        self.patcher = patch("pipeline.draft_prompts._load_draft_rules", return_value=self._cache)
+        self.patcher.start()
 
     def tearDown(self):
-        import pipeline.draft_generator as dg
-
-        dg._draft_rules_cache = None
+        self.patcher.stop()
 
     def test_thinking_stripped_from_response(self):
         from pipeline.draft_generator import TweetDraftGenerator
@@ -493,10 +492,8 @@ class TestClicheInjection(unittest.TestCase):
     """P0-3: _build_prompt에 클리셰 목록이 주입되는지 테스트."""
 
     def setUp(self):
-        import pipeline.draft_generator as dg
-        import pipeline.draft_prompts as dp
-
-        _cache = {
+        from unittest.mock import patch
+        self._cache = {
             "cliche_watchlist": ["이거 실화?", "나만 이런 거 아니죠?", "공감하면 RT"],
             "brand_voice": {
                 "persona": "테스트",
@@ -505,15 +502,11 @@ class TestClicheInjection(unittest.TestCase):
                 "examples": {},
             },
         }
-        dg._draft_rules_cache = _cache
-        dp._draft_rules_cache = _cache
+        self.patcher = patch("pipeline.draft_prompts._load_draft_rules", return_value=self._cache)
+        self.patcher.start()
 
     def tearDown(self):
-        import pipeline.draft_generator as dg
-        import pipeline.draft_prompts as dp
-
-        dg._draft_rules_cache = None
-        dp._draft_rules_cache = None
+        self.patcher.stop()
 
     def test_cliche_list_in_prompt(self):
         from pipeline.draft_generator import TweetDraftGenerator
@@ -534,14 +527,13 @@ class TestTargetedRetryInstructions(unittest.TestCase):
     """P0-4: 재시도 시 구체적 수정 지침이 포함되는지 테스트."""
 
     def setUp(self):
-        import pipeline.draft_generator as dg
-
-        dg._draft_rules_cache = {}
+        from unittest.mock import patch
+        self._cache = {}
+        self.patcher = patch("pipeline.draft_prompts._load_draft_rules", return_value=self._cache)
+        self.patcher.start()
 
     def tearDown(self):
-        import pipeline.draft_generator as dg
-
-        dg._draft_rules_cache = None
+        self.patcher.stop()
 
     def test_fix_instructions_for_min_length(self):
         from pipeline.draft_generator import TweetDraftGenerator
@@ -566,9 +558,8 @@ class TestTopicPromptStrategies(unittest.TestCase):
     """P1-1: 토픽별 프롬프트 전략이 프롬프트에 주입되는지 테스트."""
 
     def setUp(self):
-        import pipeline.draft_generator as dg
-
-        dg._draft_rules_cache = {
+        from unittest.mock import patch
+        self._cache = {
             "topic_prompt_strategies": {
                 "연봉": {
                     "emphasis": "구체적 숫자를 최대한 활용",
@@ -577,11 +568,11 @@ class TestTopicPromptStrategies(unittest.TestCase):
                 },
             },
         }
+        self.patcher = patch("pipeline.draft_prompts._load_draft_rules", return_value=self._cache)
+        self.patcher.start()
 
     def tearDown(self):
-        import pipeline.draft_generator as dg
-
-        dg._draft_rules_cache = None
+        self.patcher.stop()
 
     def test_topic_strategy_in_prompt(self):
         from pipeline.draft_generator import TweetDraftGenerator
@@ -615,25 +606,19 @@ class TestAntiExamples(unittest.TestCase):
     """P1-2: 나쁜 예시가 프롬프트에 주입되는지 테스트."""
 
     def setUp(self):
-        import pipeline.draft_generator as dg
-        import pipeline.draft_prompts as dp
-
-        _cache = {
+        from unittest.mock import patch
+        self._cache = {
             "anti_examples": {
                 "generic_bad": [
                     {"text": "많은 직장인들이...", "reason": "상투적"},
                 ],
             },
         }
-        dg._draft_rules_cache = _cache
-        dp._draft_rules_cache = _cache
+        self.patcher = patch("pipeline.draft_prompts._load_draft_rules", return_value=self._cache)
+        self.patcher.start()
 
     def tearDown(self):
-        import pipeline.draft_generator as dg
-        import pipeline.draft_prompts as dp
-
-        dg._draft_rules_cache = None
-        dp._draft_rules_cache = None
+        self.patcher.stop()
 
     def test_anti_examples_in_prompt(self):
         from pipeline.draft_generator import TweetDraftGenerator

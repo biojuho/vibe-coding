@@ -21,6 +21,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from pipeline.process_stages.context import ProcessRunContext, build_process_result
+from pipeline.daily_queue_floor import DailyQueueFloorState
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -353,6 +354,68 @@ class TestFilterProfileStage:
         assert result is False
         assert ctx.result["failure_reason"] == "viral_filter_below_threshold"
 
+    def test_daily_floor_overrides_low_quality_filter(self):
+        from pipeline.process_stages.filter_profile_stage import run_filter_profile_stage
+
+        ctx = self._ctx_with_content()
+        ctx.quality = {"score": 10, "reasons": ["low"], "metrics": {}}
+        profile = self._stub_profile()
+        floor_state = DailyQueueFloorState(target=5, current=1, remaining=4, active=True)
+
+        with (
+            patch("pipeline.process_stages.filter_profile_stage.build_content_profile") as mock_profile,
+            patch("pipeline.process_stages.filter_profile_stage.build_review_decision") as mock_decision,
+            patch("pipeline.process_stages.filter_profile_stage.get_viral_filter", return_value=None),
+        ):
+            mock_profile.return_value.to_dict.return_value = profile
+            mock_decision.return_value = {
+                "should_queue": True,
+                "status": "검토필요",
+                "review_reason": "queued",
+                "review_priority": "normal",
+            }
+            result = asyncio.run(
+                run_filter_profile_stage(ctx, _MinScraper(), self._Cfg(), None, review_only=True, daily_queue_floor=floor_state)
+            )
+
+        assert result is True
+        assert "low_quality_score" in ctx.post_data["daily_queue_floor_overrides"]
+
+    def test_daily_floor_overrides_viral_filter(self):
+        from pipeline.process_stages.filter_profile_stage import run_filter_profile_stage
+
+        ctx = self._ctx_with_content()
+        profile = self._stub_profile()
+        floor_state = DailyQueueFloorState(target=5, current=0, remaining=5, active=True)
+
+        mock_viral_score = MagicMock()
+        mock_viral_score.pass_filter = False
+        mock_viral_score.score = 20.0
+        mock_viral_score.reasoning = "low engagement"
+        mock_viral_score.to_dict.return_value = {"score": 20, "pass": False}
+
+        mock_vf = MagicMock()
+        mock_vf.score = AsyncMock(return_value=mock_viral_score)
+
+        with (
+            patch("pipeline.process_stages.filter_profile_stage.build_content_profile") as mock_profile,
+            patch("pipeline.process_stages.filter_profile_stage.build_review_decision") as mock_decision,
+            patch("pipeline.process_stages.filter_profile_stage.get_viral_filter", return_value=mock_vf),
+        ):
+            mock_profile.return_value.to_dict.return_value = profile
+            mock_decision.return_value = {
+                "should_queue": True,
+                "status": "검토필요",
+                "review_reason": "queued",
+                "review_priority": "normal",
+            }
+            result = asyncio.run(
+                run_filter_profile_stage(ctx, _MinScraper(), self._Cfg(), None, review_only=True, daily_queue_floor=floor_state)
+            )
+
+        assert result is True
+        assert "viral_filter_below_threshold" in ctx.post_data["daily_queue_floor_overrides"]
+
     # ── 바이럴 필터 통과 (lines 256-257: exception swallowed) ─────────────
     def test_viral_filter_exception_is_swallowed(self):
         from pipeline.process_stages.filter_profile_stage import run_filter_profile_stage
@@ -487,6 +550,25 @@ class TestGenerateReviewStage:
         assert result is False
         assert ctx.result["failure_reason"] == "generation_failed"
 
+    def test_generation_failed_flag_review_only_continues_to_persist(self):
+        from pipeline.process_stages.generate_review_stage import run_generate_review_stage
+
+        ctx = self._ctx_ready()
+
+        mock_gen = MagicMock()
+        mock_gen.generate_drafts = AsyncMock(
+            return_value=({"_generation_failed": True, "_generation_error": "api error"}, None)
+        )
+
+        result = asyncio.run(
+            run_generate_review_stage(ctx, mock_gen, MagicMock(), None, ["twitter"], None, review_only=True)
+        )
+
+        assert result is True
+        assert ctx.post_data["draft_generation_failed"] is True
+        assert ctx.post_data["draft_generation_error"] == "api error"
+        assert ctx.drafts["_generation_failed"] is True
+
     # ── quality gate: passed=False, no retry (line 99) ───────────────────
     def test_quality_gate_fail_no_retry_logs_warning(self):
         from pipeline.process_stages.generate_review_stage import run_generate_review_stage
@@ -548,6 +630,38 @@ class TestGenerateReviewStage:
         assert call_count["n"] >= 2  # 최소 1 initial + 1 retry
 
     # ── editorial reviewer 예외 무시 (lines 155-156) ──────────────────────
+    def test_quality_gate_retry_disabled_in_review_only(self):
+        from pipeline.process_stages.generate_review_stage import run_generate_review_stage
+
+        ctx = self._ctx_ready()
+
+        call_count = {"n": 0}
+
+        async def _gen_drafts(*args, **kwargs):
+            call_count["n"] += 1
+            return ({"twitter": "검토용 초안", "_provider_used": "gemini"}, "p")
+
+        mock_gen = MagicMock()
+        mock_gen.generate_drafts = _gen_drafts
+
+        retry_result = MagicMock()
+        retry_result.items = []
+        retry_result.score = 50
+        retry_result.passed = False
+        retry_result.should_retry = True
+
+        mock_qg_instance = MagicMock()
+        mock_qg_instance.validate_all.return_value = {"twitter": retry_result}
+        mock_qg_instance.format_summary.return_value = "RETRY"
+
+        with patch("pipeline.draft_quality_gate.DraftQualityGate", return_value=mock_qg_instance):
+            result = asyncio.run(
+                run_generate_review_stage(ctx, mock_gen, MagicMock(), None, ["twitter"], None, review_only=True)
+            )
+
+        assert result is True
+        assert call_count["n"] == 1
+
     def test_editorial_reviewer_exception_is_swallowed(self):
         from pipeline.process_stages.generate_review_stage import run_generate_review_stage
 

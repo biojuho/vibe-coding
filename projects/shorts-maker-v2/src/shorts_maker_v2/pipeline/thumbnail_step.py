@@ -477,7 +477,7 @@ class ThumbnailStep:
     def _run_pillow(self, title: str, output_path: Path, bg_image_path: str | None = None) -> str | None:
         clean_title = _sanitize_title(title)
         if len(clean_title) > 15:
-            print(f"[Thumbnail] WARNING: 제목 {len(clean_title)}자 — 15자 이하 권장 (모바일 가독성)")
+            print(f"[Thumbnail] WARNING: 제목 {len(clean_title)}자 - 15자 이하 권장 (모바일 가독성)")
         result = _generate_pillow_thumbnail(
             title,
             output_path,
@@ -562,11 +562,18 @@ class ThumbnailStep:
 
         bg_path = _temp_artifact_path(output_path, "gemini_bg", ".png")
         try:
-            self.google_client.generate_image(
-                prompt=gemini_prompt,
-                output_path=bg_path,
-                aspect_ratio="9:16",
-            )
+            generate_image_imagen3 = getattr(self.google_client, "generate_image_imagen3", None)
+            if callable(generate_image_imagen3):
+                generate_image_imagen3(
+                    prompt=gemini_prompt,
+                    output_path=bg_path,
+                    aspect_ratio="9:16",
+                )
+            else:
+                self.google_client.generate_image(
+                    prompt=gemini_prompt,
+                    output_path=bg_path,
+                )
         except Exception as exc:
             logger.warning("[Thumbnail] Gemini Imagen 실패 → DALL-E 폴백: %s", exc)
             return self._run_dalle(title, topic, output_path, channel_key, bg_image_path=bg_image_path)
@@ -586,7 +593,7 @@ class ThumbnailStep:
         bg_image_path: str | None = None,
     ) -> str | None:
         if not self.canva_config.enabled or not self.canva_config.design_id:
-            print("[Thumbnail] Canva 모드지만 설정 없음 → Pillow 폴백")
+            print("[Thumbnail] Canva 모드지만 설정 없음 -> Pillow 폴백")
             return self._run_pillow(title, output_path, bg_image_path=bg_image_path)
 
         token = _get_access_token(self.token_file)
@@ -596,7 +603,7 @@ class ThumbnailStep:
             download_url = _export_design(self.canva_config.design_id, token)
         except requests.HTTPError as http_err:
             if http_err.response is not None and http_err.response.status_code == 401:
-                print("[Canva] 토큰 만료 — 자동 갱신 시도...")
+                print("[Canva] 토큰 만료 - 자동 갱신 시도...")
                 token = _refresh_access_token(self.token_file)
                 download_url = _export_design(self.canva_config.design_id, token)
             else:

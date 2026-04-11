@@ -8,12 +8,18 @@ from __future__ import annotations
 import logging
 
 from pipeline.content_intelligence import evaluate_candidate_editorial_fit
+from pipeline.daily_queue_floor import (
+    DailyQueueFloorState,
+    is_daily_queue_floor_active,
+    relax_per_source_limits,
+    relaxed_pre_editorial_threshold,
+)
 from pipeline.dedup import check_cross_source_duplicates
 
 logger = logging.getLogger(__name__)
 
 
-async def collect_feed_items(config_mgr, args, scrapers) -> tuple[list[dict], dict]:
+async def collect_feed_items(config_mgr, args, scrapers, daily_queue_floor: DailyQueueFloorState | None = None) -> tuple[list[dict], dict]:
     """Collect, filter, dedup and limit candidate posts across all sources.
 
     Args:
@@ -28,12 +34,26 @@ async def collect_feed_items(config_mgr, args, scrapers) -> tuple[list[dict], di
     """
     input_sources = list(scrapers.keys())
     effective_limit = args.limit or config_mgr.get("scrape_limit", 5)
+    floor_active = is_daily_queue_floor_active(daily_queue_floor)
+    if floor_active:
+        effective_limit = max(effective_limit, daily_queue_floor.remaining)
+
     fetch_multiplier = int(config_mgr.get("feed_filter.fetch_multiplier", 3))
     min_engagement = float(config_mgr.get("feed_filter.min_engagement_score", 0))
     title_blacklist = [kw.lower() for kw in (config_mgr.get("feed_filter.title_blacklist") or [])]
     # Pre-screening (title-only) uses a lower bar than the full editorial
     # threshold; full scoring with content happens after scraping in process.py.
     min_pre_editorial_score = float(config_mgr.get("feed_filter.min_pre_editorial_score", 35))
+    if floor_active:
+        min_pre_editorial_score = relaxed_pre_editorial_threshold(config_mgr, min_pre_editorial_score)
+        logger.info(
+            "[daily_queue_floor] active: current=%d target=%d remaining=%d pre_editorial>=%.1f limit=%d",
+            daily_queue_floor.current,
+            daily_queue_floor.target,
+            daily_queue_floor.remaining,
+            min_pre_editorial_score,
+            effective_limit,
+        )
 
     low_engagement_skips = 0
     blacklist_skips = 0
@@ -155,9 +175,12 @@ async def collect_feed_items(config_mgr, args, scrapers) -> tuple[list[dict], di
     if per_source_limits:
         source_counts: dict[str, int] = {}
         limited_items: list[dict] = []
+        relax_source_limits = floor_active and relax_per_source_limits(config_mgr)
         for item in urls_to_process:
             src = item["source"]
             src_limit = int(per_source_limits.get(src, effective_limit))
+            if relax_source_limits:
+                src_limit = max(src_limit, effective_limit)
             source_counts[src] = source_counts.get(src, 0) + 1
             if source_counts[src] <= src_limit:
                 limited_items.append(item)

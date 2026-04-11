@@ -41,11 +41,20 @@ async def test_enrich_disabled():
 @pytest.mark.asyncio
 @patch.dict(os.environ, {"NOTEBOOKLM_ENABLED": "true", "NOTEBOOKLM_TIMEOUT": "1"})
 async def test_enrich_timeout():
-    async def slow_enricher(*args, **kwargs):
-        await asyncio.sleep(2.0)
-        return NotebookLMAssets("t")
+    # _fast_sleeps 픽스처가 asyncio.sleep을 즉시 반환하므로
+    # asyncio.wait_for를 직접 모킹하여 TimeoutError를 발생시킴
+    _original_wait_for = asyncio.wait_for
 
-    with patch("pipeline.notebooklm_enricher._run_enricher", side_effect=slow_enricher):
+    async def _patched_wait_for(coro, *, timeout=None):
+        try:
+            if timeout is not None and timeout <= 1:
+                coro.close()
+                raise asyncio.TimeoutError()
+            return await _original_wait_for(coro, timeout=timeout)
+        except asyncio.TimeoutError:
+            raise
+
+    with patch("pipeline.notebooklm_enricher.asyncio.wait_for", side_effect=_patched_wait_for):
         res = await enrich_post_with_assets("topic", timeout=1)
         assert not res.has_assets
         assert any("타임아웃" in e for e in res.errors)

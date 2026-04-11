@@ -9,7 +9,6 @@ import {
   calvingRecordSchema,
   createCalvingFormValues,
 } from '@/lib/formSchemas';
-import { BUILDINGS } from '@/lib/constants';
 import { getCalvingDate, getDaysUntilCalving, isCalvingAlert, formatDate } from '@/lib/utils';
 import { inputStyle, btnPrimary } from '@/components/ui/common';
 
@@ -20,7 +19,7 @@ const errorTextStyle = {
   fontWeight: 600,
 };
 
-export default function CalvingTab({ cattle, onRecordCalving }) {
+export default function CalvingTab({ cattle, buildings = [], onRecordCalving }) {
   const pregnantCows = cattle
     .filter((row) => row.status === '임신우')
     .sort((first, second) => new Date(first.pregnancyDate) - new Date(second.pregnancyDate));
@@ -90,7 +89,7 @@ export default function CalvingTab({ cattle, onRecordCalving }) {
             const daysLeft = getDaysUntilCalving(cow.pregnancyDate);
             const alert = isCalvingAlert(cow.pregnancyDate);
             const isSelected = selectedCowId === cow.id;
-            const buildingName = BUILDINGS.find((row) => row.id === cow.buildingId)?.name;
+            const buildingName = buildings.find((row) => row.id === cow.buildingId)?.name;
 
             return (
               <div

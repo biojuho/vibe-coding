@@ -794,7 +794,9 @@ class MediaStep:
                 retry_attempts,
             )
 
-        if parallelize_provider_io:
+        should_parallelize_provider_io = parallelize_provider_io and not _use_paid
+
+        if should_parallelize_provider_io:
             with ThreadPoolExecutor(max_workers=2) as pool:
                 _audio_future = pool.submit(_get_audio)
                 _image_future = pool.submit(_get_visual)

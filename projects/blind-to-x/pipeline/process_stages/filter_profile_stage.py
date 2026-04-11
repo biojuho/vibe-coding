@@ -18,6 +18,7 @@ from config import (
     QUALITY_SCORE_THRESHOLD,
 )
 from pipeline.content_intelligence import build_content_profile
+from pipeline.daily_queue_floor import DailyQueueFloorState, is_daily_queue_floor_active
 from pipeline.review_queue import build_review_decision
 
 from .context import ProcessRunContext, mark_stage
@@ -104,6 +105,18 @@ def _check_quality(ctx: ProcessRunContext, config) -> bool:
     effective_quality_threshold = QUALITY_SCORE_THRESHOLD - 20 if has_visual_content else QUALITY_SCORE_THRESHOLD
 
     if quality["score"] < effective_quality_threshold:
+        if is_daily_queue_floor_active(getattr(ctx, "daily_queue_floor", None)):
+            overrides = ctx.post_data.setdefault("daily_queue_floor_overrides", [])
+            if "low_quality_score" not in overrides:
+                overrides.append("low_quality_score")
+            logger.info(
+                "[daily_queue_floor] override quality filter for %s: score=%.1f < %.1f",
+                ctx.url,
+                quality["score"],
+                effective_quality_threshold,
+            )
+            return True
+
         ctx.result["error"] = "Low quality content"
         ctx.result["error_code"] = ERROR_FILTERED_LOW_QUALITY
         ctx.result["success"] = True
@@ -116,7 +129,12 @@ def _check_quality(ctx: ProcessRunContext, config) -> bool:
     return True
 
 
-def _build_profile_and_decision(ctx: ProcessRunContext, config, top_tweets, review_only: bool) -> bool:
+def _build_profile_and_decision(
+    ctx: ProcessRunContext,
+    config,
+    top_tweets,
+    review_only: bool,
+) -> bool:
     """콘텐츠 프로파일 생성 및 리뷰 결정, 감정 필터 적용.
 
     통과 시 ctx.profile, ctx.decision, ctx.result 업데이트.
@@ -193,12 +211,17 @@ def _build_profile_and_decision(ctx: ProcessRunContext, config, top_tweets, revi
 
     # review_only 오버라이드
     if review_only and not decision["should_queue"]:
+        override_prefix = (
+            "daily_queue_floor_override"
+            if is_daily_queue_floor_active(getattr(ctx, "daily_queue_floor", None))
+            else "review_only_override"
+        )
         logger.info("[review_only] overriding review queue decision for %s: %s", ctx.url, decision["review_reason"])
         decision = {
             **decision,
             "should_queue": True,
             "status": "검토필요",
-            "review_reason": f"review_only_override:{decision['review_reason']}",
+            "review_reason": f"{override_prefix}:{decision['review_reason']}",
         }
 
     ctx.decision = decision
@@ -239,19 +262,29 @@ async def _check_viral_and_calendar(ctx: ProcessRunContext, config) -> bool:
             )
             post_data["viral_score"] = viral_score.to_dict()
             if not viral_score.pass_filter:
-                ctx.result["error"] = (
-                    f"Viral filter: score {viral_score.score:.0f} < threshold ({viral_score.reasoning})"
-                )
-                ctx.result["error_code"] = ERROR_FILTERED_LOW_QUALITY
-                ctx.result["success"] = True
-                ctx.result["notion_url"] = "(skipped-viral-filter)"
-                ctx.result["failure_stage"] = "filter"
-                ctx.result["failure_reason"] = "viral_filter_below_threshold"
-                logger.info(
-                    "[ViralFilter] SKIP %s: score=%.0f reason=%s", ctx.url, viral_score.score, viral_score.reasoning
-                )
-                mark_stage(ctx, "filter_profile", "skipped", "viral_filter_below_threshold")
-                return False
+                if is_daily_queue_floor_active(getattr(ctx, "daily_queue_floor", None)):
+                    overrides = ctx.post_data.setdefault("daily_queue_floor_overrides", [])
+                    if "viral_filter_below_threshold" not in overrides:
+                        overrides.append("viral_filter_below_threshold")
+                    logger.info(
+                        "[daily_queue_floor] override viral filter for %s: score=%.0f",
+                        ctx.url,
+                        viral_score.score,
+                    )
+                else:
+                    ctx.result["error"] = (
+                        f"Viral filter: score {viral_score.score:.0f} < threshold ({viral_score.reasoning})"
+                    )
+                    ctx.result["error_code"] = ERROR_FILTERED_LOW_QUALITY
+                    ctx.result["success"] = True
+                    ctx.result["notion_url"] = "(skipped-viral-filter)"
+                    ctx.result["failure_stage"] = "filter"
+                    ctx.result["failure_reason"] = "viral_filter_below_threshold"
+                    logger.info(
+                        "[ViralFilter] SKIP %s: score=%.0f reason=%s", ctx.url, viral_score.score, viral_score.reasoning
+                    )
+                    mark_stage(ctx, "filter_profile", "skipped", "viral_filter_below_threshold")
+                    return False
         except Exception as viral_exc:
             logger.debug("Viral filter skipped: %s", viral_exc)
 
@@ -267,15 +300,21 @@ async def _check_viral_and_calendar(ctx: ProcessRunContext, config) -> bool:
             emotion_axis=profile.get("emotion_axis", ""),
         )
         if not calendar_ok:
-            ctx.result["error"] = f"Calendar skip: {calendar_reason}"
-            ctx.result["error_code"] = ERROR_FILTERED_LOW_QUALITY
-            ctx.result["success"] = True
-            ctx.result["notion_url"] = "(skipped-calendar)"
-            ctx.result["failure_stage"] = "filter"
-            ctx.result["failure_reason"] = "content_calendar_diversity"
-            logger.info("[Calendar] SKIP %s: %s", ctx.url, calendar_reason)
-            mark_stage(ctx, "filter_profile", "skipped", "content_calendar_diversity")
-            return False
+            if is_daily_queue_floor_active(getattr(ctx, "daily_queue_floor", None)):
+                overrides = ctx.post_data.setdefault("daily_queue_floor_overrides", [])
+                if "content_calendar_diversity" not in overrides:
+                    overrides.append("content_calendar_diversity")
+                logger.info("[daily_queue_floor] override calendar diversity for %s: %s", ctx.url, calendar_reason)
+            else:
+                ctx.result["error"] = f"Calendar skip: {calendar_reason}"
+                ctx.result["error_code"] = ERROR_FILTERED_LOW_QUALITY
+                ctx.result["success"] = True
+                ctx.result["notion_url"] = "(skipped-calendar)"
+                ctx.result["failure_stage"] = "filter"
+                ctx.result["failure_reason"] = "content_calendar_diversity"
+                logger.info("[Calendar] SKIP %s: %s", ctx.url, calendar_reason)
+                mark_stage(ctx, "filter_profile", "skipped", "content_calendar_diversity")
+                return False
     except Exception as exc:
         logger.debug("Content calendar check skipped: %s", exc)
 
@@ -309,6 +348,7 @@ async def run_filter_profile_stage(
     config,
     top_tweets,
     review_only: bool = False,
+    daily_queue_floor: DailyQueueFloorState | None = None,
 ) -> bool:
     """필터/프로파일 스테이지 오케스트레이터.
 
@@ -322,6 +362,7 @@ async def run_filter_profile_stage(
     각 단계가 False를 반환하면 즉시 중단합니다.
     """
     mark_stage(ctx, "filter_profile", "running")
+    ctx.daily_queue_floor = daily_queue_floor
 
     if not _check_length(ctx, scraper):
         return False

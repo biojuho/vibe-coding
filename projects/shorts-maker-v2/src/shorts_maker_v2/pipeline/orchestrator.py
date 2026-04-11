@@ -171,6 +171,7 @@ class PipelineOrchestrator:
             thumbnail_config=config.thumbnail,
             canva_config=config.canva,
             openai_client=openai_client,
+            google_client=google_client,
         )
 
         # Research Step (config.research.enabled=True 시 활성화)
@@ -319,9 +320,37 @@ class PipelineOrchestrator:
             created_at=datetime.now(timezone.utc).isoformat(),
         )
         failures: list[dict[str, str]] = []
+        degraded_steps: list[dict[str, Any]] = []
         step_timings: dict[str, float] = {}
         pipeline_start = time.perf_counter()
         jlog.info("job_started", job_id=job_id, topic=topic, channel=channel or "")
+
+        def record_degraded_step(step_name: str, exc: BaseException, *, blocking: bool = False) -> None:
+            error_type = classify_error(exc)
+            degraded_steps.append(
+                {
+                    "step": step_name,
+                    "message": str(exc),
+                    "error_type": error_type.value,
+                    "is_retryable": error_type.is_retryable,
+                    "blocking": blocking,
+                }
+            )
+            jlog.warning(
+                f"{step_name}_failed",
+                error=str(exc),
+                error_type=error_type.value,
+                blocking=blocking,
+            )
+            status.fail(step_name, detail=f"{error_type.icon} {error_type.value}")
+            if blocking:
+                raise PipelineError(
+                    message=str(exc),
+                    error_type=error_type,
+                    step=step_name,
+                    cause=exc,
+                    context={"blocking": True},
+                )
 
         try:
             checkpoint_path = run_dir / "checkpoint.json"
@@ -355,22 +384,26 @@ class PipelineOrchestrator:
                             request_timeout_sec=self.config.limits.request_timeout_sec,
                         ),
                     )
-                    production_plan = planning_step.run(topic=topic, channel=channel)
+                    planning_result = planning_step.run(topic=topic, channel_key=channel)
+                    if isinstance(planning_result, tuple):
+                        production_plan, planning_verdict = planning_result
+                    else:
+                        production_plan = planning_result
+                        planning_verdict = GateVerdict.PASS
                     manifest.production_plan = production_plan.to_dict()
                     step_timings["planning"] = round(time.perf_counter() - _t0, 2)
                     jlog.info(
                         "planning_done",
                         concept=production_plan.concept[:60],
                         persona=production_plan.target_persona[:40],
+                        verdict=planning_verdict.value,
                         perf_sec=step_timings["planning"],
                     )
                     status.complete("planning", detail=production_plan.concept[:40])
                 except Exception as exc:
                     # Planning은 실패해도 계속 진행 (optional enhancement)
                     step_timings["planning"] = round(time.perf_counter() - _t0, 2)
-                    error_type = classify_error(exc)
-                    jlog.warning("planning_failed", error=str(exc), error_type=error_type.value)
-                    status.fail("planning", detail=f"{error_type.icon} {error_type.value}")
+                    record_degraded_step("planning", exc, blocking=True)
                     production_plan = None
 
                 # ── Research Step (활성화 시) ──
@@ -391,9 +424,8 @@ class PipelineOrchestrator:
                         status.complete("research", detail=f"{len(research_context.facts)} facts")
                     except Exception as exc:
                         # 패턴 #5: 스마트 재시도 — research는 실패해도 계속 진행
-                        error_type = classify_error(exc)
-                        jlog.warning("research_failed", error=str(exc), error_type=error_type.value)
-                        status.fail("research", detail=f"{error_type.icon} {error_type.value}")
+                        step_timings["research"] = round(time.perf_counter() - _t0, 2)
+                        record_degraded_step("research", exc)
 
                 # ── NEW: StructureStep (Gate 2 — 구성안 설계) ──
                 structure_outline = None
@@ -432,9 +464,11 @@ class PipelineOrchestrator:
                         status.complete("structure", detail=f"{len(structure_outline.scenes)} scenes")
                     except Exception as exc:
                         step_timings["structure"] = round(time.perf_counter() - _t0, 2)
-                        error_type = classify_error(exc)
-                        jlog.warning("structure_failed", error=str(exc), error_type=error_type.value)
-                        status.fail("structure", detail=f"{error_type.icon} {error_type.value}")
+                        record_degraded_step(
+                            "structure",
+                            exc,
+                            blocking=self.config.project.structure_validation == "strict",
+                        )
                         structure_outline = None
 
                 status.start("script", detail="Generating script")
@@ -652,9 +686,14 @@ class PipelineOrchestrator:
                 "issues": gate4_report.issues,
             }
             if gate4_report.verdict == GateVerdict.PASS.value:
-                manifest.status = "success"
                 jlog.info("gate4_pass", checks=gate4_report.checks)
-                status.complete("gate4_final_qc")
+                if degraded_steps:
+                    manifest.status = "degraded"
+                    jlog.warning("job_degraded", degraded_steps=degraded_steps)
+                    status.fail("gate4_final_qc", detail=f"{len(degraded_steps)} degraded prerequisite(s)")
+                else:
+                    manifest.status = "success"
+                    status.complete("gate4_final_qc")
                 # ── 업로드 폴더로 복사 ──
                 upload_dir = self.config.project.upload_ready_dir
                 if upload_dir and manifest.status == "success":
@@ -769,6 +808,7 @@ class PipelineOrchestrator:
 
         manifest.estimated_cost_usd = round(cost_guard.estimated_cost_usd, 6)
         manifest.failed_steps = failures
+        manifest.degraded_steps = degraded_steps
 
         # ── 파이프라인 전체 소요 시간 ──
         step_timings["total"] = round(time.perf_counter() - pipeline_start, 2)

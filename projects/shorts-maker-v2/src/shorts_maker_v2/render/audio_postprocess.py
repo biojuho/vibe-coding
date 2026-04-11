@@ -28,6 +28,8 @@ def _resolve_pydub():
         from pydub import AudioSegment as imported_audio_segment
         from pydub.effects import (
             high_pass_filter as imported_high_pass_filter,
+        )
+        from pydub.effects import (
             low_pass_filter as imported_low_pass_filter,
         )
     except ImportError:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event
+
 import pytest
 
 from shorts_maker_v2.utils.retry import retry_with_backoff, submit_retry_with_backoff

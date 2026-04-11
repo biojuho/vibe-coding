@@ -191,7 +191,7 @@ def test_process_single_post_success_returns_notion_url_and_review_state():
     assert uploader.updated["updates"]["status"] == "검토필요"
 
 
-def test_process_single_post_generation_failure_stops_before_upload():
+def test_process_single_post_generation_failure_review_only_uploads_card():
     uploader = StubNotionUploaderOk()
     result = asyncio.run(
         bs.process_single_post(
@@ -204,6 +204,26 @@ def test_process_single_post_generation_failure_stops_before_upload():
             source_name="blind",
             feed_mode="popular",
             review_only=True,
+        )
+    )
+    assert result["success"] is True
+    assert result["error_code"] is None
+    assert result["notion_url"] == "https://notion.so/page"
+
+
+def test_process_single_post_generation_failure_non_review_stops_before_upload():
+    uploader = StubNotionUploaderOk()
+    result = asyncio.run(
+        bs.process_single_post(
+            "https://example.com/a",
+            StubScraper(),
+            StubImageUploader(),
+            draft_generator=StubDraftGeneratorFailure(),
+            notion_uploader=uploader,
+            config=FakeConfig(),
+            source_name="blind",
+            feed_mode="popular",
+            review_only=False,
         )
     )
     assert result["success"] is False

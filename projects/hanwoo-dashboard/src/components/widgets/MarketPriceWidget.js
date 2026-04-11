@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { RefreshCwIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getRealTimeMarketPrice } from '@/lib/actions';
@@ -77,6 +77,9 @@ function getSourcePresentation(prices) {
 export default function MarketPriceWidget({ initialData = null }) {
   const [prices, setPrices] = useState(initialData);
   const [loading, setLoading] = useState(!initialData);
+  const isMountedRef = useRef(false);
+  const inFlightRequestRef = useRef(null);
+  const requestSequenceRef = useRef(0);
   const [lastUpdated, setLastUpdated] = useState(() => {
     if (!initialData?.fetchedAt) {
       return initialData ? new Date() : null;
@@ -85,27 +88,73 @@ export default function MarketPriceWidget({ initialData = null }) {
     return new Date(initialData.fetchedAt);
   });
 
-  const fetchPrices = async () => {
-    setLoading(true);
-    try {
-      const data = await getRealTimeMarketPrice();
-      setPrices(data);
-      setLastUpdated(data?.fetchedAt ? new Date(data.fetchedAt) : new Date());
-    } catch (error) {
-      console.error('Failed to fetch market prices:', error);
-    } finally {
-      setLoading(false);
+  const applyPriceSnapshot = useCallback((data) => {
+    setPrices(data);
+    setLastUpdated(data?.fetchedAt ? new Date(data.fetchedAt) : new Date());
+  }, []);
+
+  const fetchPrices = useCallback(() => {
+    if (inFlightRequestRef.current) {
+      return inFlightRequestRef.current;
     }
-  };
+
+    const requestId = requestSequenceRef.current + 1;
+    requestSequenceRef.current = requestId;
+    setLoading(true);
+
+    const request = getRealTimeMarketPrice()
+      .then((data) => {
+        if (!data) {
+          return data;
+        }
+
+        if (!isMountedRef.current || requestSequenceRef.current !== requestId) {
+          return data;
+        }
+
+        applyPriceSnapshot(data);
+        return data;
+      })
+      .catch((error) => {
+        console.error('Failed to fetch market prices:', error);
+        return null;
+      })
+      .finally(() => {
+        if (inFlightRequestRef.current === request) {
+          inFlightRequestRef.current = null;
+        }
+
+        if (isMountedRef.current && requestSequenceRef.current === requestId) {
+          setLoading(false);
+        }
+      });
+
+    inFlightRequestRef.current = request;
+    return request;
+  }, [applyPriceSnapshot]);
 
   useEffect(() => {
+    isMountedRef.current = true;
+    let refreshTimer = null;
+
     if (!initialData) {
-      fetchPrices();
+      refreshTimer = window.setTimeout(() => {
+        void fetchPrices();
+      }, 0);
     }
 
-    const interval = setInterval(fetchPrices, 1000 * 60 * 60);
-    return () => clearInterval(interval);
-  }, [initialData]);
+    const interval = window.setInterval(() => {
+      void fetchPrices();
+    }, 1000 * 60 * 60);
+
+    return () => {
+      isMountedRef.current = false;
+      if (refreshTimer) {
+        window.clearTimeout(refreshTimer);
+      }
+      window.clearInterval(interval);
+    };
+  }, [fetchPrices, initialData]);
 
   if (loading && !prices) {
     return (
@@ -156,7 +205,9 @@ export default function MarketPriceWidget({ initialData = null }) {
             </span>
             <button
               type="button"
-              onClick={fetchPrices}
+              onClick={() => {
+                void fetchPrices();
+              }}
               disabled={loading}
               className="clay-pressable inline-flex h-10 w-10 items-center justify-center rounded-full text-[color:var(--color-text-secondary)]"
             >

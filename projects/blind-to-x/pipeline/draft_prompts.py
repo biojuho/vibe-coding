@@ -132,6 +132,11 @@ class DraftPromptsMixin:
     ) -> str:
         """성과 우수 예시 포맷팅. YAML 골든 예시도 자동 병합 (랜덤 로테이션)."""
         merged: list[dict[str, Any]] = []
+        runtime_examples = [
+            example
+            for example in (top_examples or [])
+            if example.get("example_source") != "reviewer_memory"
+        ]
         example_seed = f"{topic_cluster}|{seed_text or 'default'}"
 
         # 1. YAML 골든 예시에서 해당 토픽 예시 로드 (3개 이상이면 랜덤 2개)
@@ -179,8 +184,8 @@ class DraftPromptsMixin:
             pass  # cost_db 미가용 시 무시
 
         # 3. 실시간 성과 예시 추가
-        if top_examples:
-            merged.extend(top_examples)
+        if runtime_examples:
+            merged.extend(runtime_examples)
 
         if not merged:
             return ""
@@ -202,6 +207,32 @@ class DraftPromptsMixin:
                     f"  본문: {str(example.get('text', '')).strip()}",
                 ]
             )
+        return "\n".join(lines)
+
+    @staticmethod
+    def _format_reviewer_memory(top_examples: list[dict[str, Any]] | None) -> str:
+        reviewer_memory = [
+            example
+            for example in (top_examples or [])
+            if example.get("example_source") == "reviewer_memory"
+        ]
+        if not reviewer_memory:
+            return ""
+
+        lines = [
+            "[운영 메모 - 최근 검토에서 자주 걸린 패턴]",
+            "아래 패턴은 실제 운영 검토에서 반복적으로 멈춘 지점입니다. 이번 초안에서는 먼저 피하세요.",
+        ]
+        for item in reviewer_memory:
+            label = str(item.get("memory_label") or "운영 메모").strip()
+            text = str(item.get("text") or "").strip()
+            reason = str(item.get("reason") or "").strip()
+            if not text:
+                continue
+            lines.append(f"- {label}: {text}")
+            if reason:
+                lines.append(f"  이유: {reason}")
+
         return "\n".join(lines)
 
     @staticmethod
@@ -541,6 +572,7 @@ class DraftPromptsMixin:
             topic_cluster=topic_cluster,
             seed_text=f"{post_data.get('title', '')}|{profile.get('selection_summary', '')}",
         )
+        reviewer_memory_block = self._format_reviewer_memory(top_examples)
         return f"""{system_role}
 아래 게시글을 기반으로 발행 가능한 초안을 작성하세요.
 {voice_block}
@@ -566,6 +598,7 @@ class DraftPromptsMixin:
 {regulation_context}
 {thinking_block}
 {examples_block}
+{reviewer_memory_block}
 {anti_examples_block}
 {twitter_block}
 {threads_block}

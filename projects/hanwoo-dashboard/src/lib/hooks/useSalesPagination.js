@@ -1,6 +1,9 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { sanitizeDashboardPageInfoTransition } from '@/lib/dashboard/pagination-guard.mjs';
+
+const PAGINATION_REQUEST_TIMEOUT_MS = 15000;
 
 /**
  * Sales 목록의 cursor-based pagination을 관리하는 훅.
@@ -23,8 +26,21 @@ export function useSalesPagination({ initialItems = [], initialPageInfo = null }
   );
   const [isLoading, setIsLoading] = useState(false);
   const abortRef = useRef(null);
+  const mountedRef = useRef(true);
 
   const hasMore = pageInfo?.hasMore ?? false;
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+      if (abortRef.current) {
+        abortRef.current.abort();
+        abortRef.current = null;
+      }
+    };
+  }, []);
 
   const loadMore = useCallback(
     async ({ from, to } = {}) => {
@@ -34,6 +50,11 @@ export function useSalesPagination({ initialItems = [], initialPageInfo = null }
       if (abortRef.current) abortRef.current.abort();
       const controller = new AbortController();
       abortRef.current = controller;
+      let didTimeout = false;
+      const timeoutId = window.setTimeout(() => {
+        didTimeout = true;
+        controller.abort();
+      }, PAGINATION_REQUEST_TIMEOUT_MS);
 
       setIsLoading(true);
       try {
@@ -46,6 +67,9 @@ export function useSalesPagination({ initialItems = [], initialPageInfo = null }
         const res = await fetch(`/api/dashboard/sales?${params.toString()}`, {
           signal: controller.signal,
         });
+        if (!mountedRef.current || controller.signal.aborted) {
+          return;
+        }
 
         if (!res.ok) {
           console.error('Failed to load more sales:', res.status);
@@ -59,14 +83,38 @@ export function useSalesPagination({ initialItems = [], initialPageInfo = null }
         }
 
         const { items: newItems, pageInfo: newPageInfo } = json.data;
+        const safePageInfo = sanitizeDashboardPageInfoTransition({
+          currentPageInfo: pageInfo,
+          receivedPageInfo: newPageInfo,
+          source: '/api/dashboard/sales',
+        });
+
+        if (safePageInfo.paginationError) {
+          console.error(safePageInfo.paginationError);
+        }
+
+        if (!mountedRef.current || controller.signal.aborted) {
+          return;
+        }
+
         setItems((prev) => [...prev, ...newItems]);
-        setPageInfo(newPageInfo);
+        setPageInfo(safePageInfo);
       } catch (error) {
-        if (error.name !== 'AbortError') {
+        if (error.name === 'AbortError') {
+          if (didTimeout && mountedRef.current) {
+            console.error('Load more sales timed out.');
+          }
+        } else {
           console.error('Load more sales error:', error);
         }
       } finally {
-        setIsLoading(false);
+        window.clearTimeout(timeoutId);
+        if (abortRef.current === controller) {
+          abortRef.current = null;
+        }
+        if (mountedRef.current && (!controller.signal.aborted || didTimeout)) {
+          setIsLoading(false);
+        }
       }
     },
     [isLoading, hasMore, pageInfo],

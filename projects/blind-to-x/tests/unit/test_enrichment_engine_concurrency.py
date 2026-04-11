@@ -11,7 +11,7 @@ async def test_batch_process_respects_max_concurrency():
     active = 0
     max_seen = 0
 
-    async def slow_process(topic):
+    async def slow_process(topic, _client=None):
         nonlocal active, max_seen
         active += 1
         max_seen = max(max_seen, active)

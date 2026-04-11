@@ -6,14 +6,52 @@ Mixin: NotionQueryMixin — 조회·검색·레코드 추출.
 from __future__ import annotations
 
 import logging
+import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
+_STATUS_ALIASES: dict[str, tuple[str, ...]] = {
+    "검토필요": ("검토필요", "검토 필요", "검토대기", "대기", "보류"),
+    "승인됨": ("승인됨", "승인", "발행승인", "발행 승인", "게시승인"),
+    "업로드완료": ("업로드완료", "업로드 완료", "발행완료", "게시완료"),
+    "패스": ("패스", "반려", "거절"),
+    "초안생성": ("초안생성", "초안 생성", "초안", "생성됨"),
+    "수정중": ("수정중", "수정 중"),
+}
+
 
 def _utcnow_naive() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
+
+
+def _parse_isoish_naive(value: Any) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).replace(tzinfo=None)
+    except (TypeError, ValueError):
+        return None
+
+
+def _normalize_status_token(value: Any) -> str:
+    if value is None:
+        return ""
+    return re.sub(r"[\W_]+", "", str(value).strip(), flags=re.UNICODE).lower()
+
+
+def _canonical_status_name(value: Any) -> str:
+    normalized = _normalize_status_token(value)
+    if not normalized:
+        return ""
+
+    for canonical, aliases in _STATUS_ALIASES.items():
+        alias_tokens = {_normalize_status_token(alias) for alias in aliases}
+        if normalized in alias_tokens:
+            return canonical
+
+    return str(value).strip()
 
 
 class NotionQueryMixin:
@@ -44,12 +82,87 @@ class NotionQueryMixin:
         if prop_type == "url":
             return data.get("url", default)
         if prop_type == "status":
-            return (data.get("status") or {}).get("name", default)
+            value = (data.get("status") or {}).get("name", default)
+            if semantic_key == "status":
+                return _canonical_status_name(value) or default
+            return value
         if prop_type == "select":
-            return (data.get("select") or {}).get("name", default)
+            value = (data.get("select") or {}).get("name", default)
+            if semantic_key == "status":
+                return _canonical_status_name(value) or default
+            return value
+        if prop_type == "multi_select":
+            values = [item.get("name", "") for item in data.get("multi_select", []) if item.get("name")]
+            return values or default
         if prop_type == "date":
             return (data.get("date") or {}).get("start", default)
         return default
+
+    def _status_option_names(self) -> list[str]:
+        prop_name = self.props.get("status")
+        if not prop_name:
+            return []
+
+        meta = self._db_properties.get(prop_name) or {}
+        prop_type = meta.get("type")
+        if prop_type not in {"status", "select"}:
+            return []
+
+        raw_options = ((meta.get(prop_type) or {}).get("options")) or []
+        return [str(option.get("name", "")).strip() for option in raw_options if str(option.get("name", "")).strip()]
+
+    def _resolve_status_filter_value(self, requested_status: str) -> str:
+        option_names = self._status_option_names()
+        if not option_names:
+            return requested_status
+
+        requested_token = _normalize_status_token(requested_status)
+        for option_name in option_names:
+            if option_name == requested_status or _normalize_status_token(option_name) == requested_token:
+                return option_name
+
+        requested_canonical = _canonical_status_name(requested_status)
+        if requested_canonical:
+            for option_name in option_names:
+                if _canonical_status_name(option_name) == requested_canonical:
+                    return option_name
+
+        return requested_status
+
+    def _status_matches(self, actual_status: Any, requested_status: str) -> bool:
+        actual_token = _normalize_status_token(actual_status)
+        requested_token = _normalize_status_token(requested_status)
+        if actual_token and actual_token == requested_token:
+            return True
+
+        actual_canonical = _canonical_status_name(actual_status)
+        requested_canonical = _canonical_status_name(requested_status)
+        return bool(actual_canonical and requested_canonical and actual_canonical == requested_canonical)
+
+    async def _scan_pages_by_status(self, status_name: str, limit: int) -> list[dict[str, Any]]:
+        matched: list[dict[str, Any]] = []
+        start_cursor = None
+        page_size = min(100, max(limit * 5, 50))
+
+        for _ in range(5):
+            query_kwargs: dict[str, Any] = {"page_size": page_size}
+            if start_cursor:
+                query_kwargs["start_cursor"] = start_cursor
+
+            response = await self.query_collection(**query_kwargs)
+            for page in response.get("results", []):
+                actual_status = self.get_page_property_value(page, "status")
+                if self._status_matches(actual_status, status_name):
+                    matched.append(page)
+                    if len(matched) >= limit:
+                        return matched[:limit]
+
+            next_cursor = response.get("next_cursor")
+            if not response.get("has_more") or not next_cursor:
+                break
+            start_cursor = next_cursor
+
+        return matched[:limit]
 
     def extract_page_record(self, page: dict[str, Any]) -> dict[str, Any]:
         """Notion 페이지를 정제된 dict 레코드로 변환."""
@@ -162,12 +275,26 @@ class NotionQueryMixin:
         if not prop_name:
             return []
         prop_type = self._db_properties[prop_name]["type"]
+        resolved_status = self._resolve_status_filter_value(status_name)
         if prop_type == "status":
-            filter_payload = {"property": prop_name, "status": {"equals": status_name}}
+            filter_payload = {"property": prop_name, "status": {"equals": resolved_status}}
         else:
-            filter_payload = {"property": prop_name, "select": {"equals": status_name}}
-        response = await self.query_collection(filter=filter_payload, page_size=limit)
-        return response.get("results", [])
+            filter_payload = {"property": prop_name, "select": {"equals": resolved_status}}
+        try:
+            response = await self.query_collection(filter=filter_payload, page_size=limit)
+            return response.get("results", [])
+        except Exception as exc:
+            logger.warning(
+                "get_pages_by_status query failed (status=%s, resolved=%s): %s. Falling back to collection scan.",
+                status_name,
+                resolved_status,
+                exc,
+            )
+            try:
+                return await self._scan_pages_by_status(status_name, limit=limit)
+            except Exception as scan_exc:
+                logger.warning("get_pages_by_status fallback scan failed (status=%s): %s. Returning empty.", status_name, scan_exc)
+                return []
 
     async def search_pages_by_title(self, keyword: str, limit: int = 30) -> list:
         """서버사이드 제목 키워드 필터로 Jaccard 비교 후보를 좁힘.
@@ -193,8 +320,10 @@ class NotionQueryMixin:
         if not await self.ensure_schema():
             return []
 
+        cutoff = _utcnow_naive() - timedelta(days=days)
         try:
-            response = await self.client.search(
+            response = await self._safe_notion_call(
+                self.client.search,
                 query="",
                 filter={"value": "page", "property": "object"},
                 sort={"direction": "descending", "timestamp": "last_edited_time"},
@@ -203,7 +332,6 @@ class NotionQueryMixin:
 
             all_results = response.get("results", [])
             results = []
-            cutoff = _utcnow_naive() - timedelta(days=days)
 
             for r in all_results:
                 parent = r.get("parent", {})
@@ -215,21 +343,38 @@ class NotionQueryMixin:
                     "-", ""
                 ):
                     # Filter by date if applicable
-                    created_time = r.get("created_time")
-                    if created_time:
-                        try:
-                            normalized = datetime.fromisoformat(str(created_time).replace("Z", "+00:00")).replace(
-                                tzinfo=None
-                            )
-                            if normalized < cutoff:
-                                continue
-                        except Exception:
-                            pass
+                    normalized = _parse_isoish_naive(r.get("created_time"))
+                    if normalized and normalized < cutoff:
+                        continue
                     results.append(r)
 
-            return results[:limit]
+            if results:
+                return results[:limit]
         except Exception as exc:
             logger.warning("get_recent_pages search failed: %s", exc)
+
+        try:
+            date_prop = self.props.get("date")
+            sorts = (
+                [{"property": date_prop, "direction": "descending"}]
+                if date_prop and date_prop in self._db_properties
+                else [{"timestamp": "last_edited_time", "direction": "descending"}]
+            )
+            response = await self.query_collection(
+                page_size=min(100, max(limit, 20)),
+                sorts=sorts,
+            )
+            results = []
+            for page in response.get("results", []):
+                normalized = _parse_isoish_naive(self.get_page_property_value(page, "date"))
+                if normalized is None:
+                    normalized = _parse_isoish_naive(page.get("created_time") or page.get("last_edited_time"))
+                if normalized and normalized < cutoff:
+                    continue
+                results.append(page)
+            return results[:limit]
+        except Exception as exc:
+            logger.warning("get_recent_pages collection fallback failed: %s", exc)
             return []
 
     async def fetch_recent_records(self, lookback_days: int = 30, limit: int = 100) -> list[dict]:

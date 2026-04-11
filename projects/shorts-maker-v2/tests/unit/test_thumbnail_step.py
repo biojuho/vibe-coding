@@ -309,27 +309,27 @@ def test_run_dalle_with_client_calls_generate_image(tmp_path: Path) -> None:
 def test_run_gemini_with_client_calls_generate_image(tmp_path: Path) -> None:
     mock_google = MagicMock()
 
-    def fake_generate_image(*, prompt, output_path, aspect_ratio):
+    def fake_generate_image_imagen3(*, prompt, output_path, aspect_ratio):
         from PIL import Image
 
         img = Image.new("RGB", (100, 178), color=(70, 100, 120))
         img.save(str(output_path), "PNG")
 
-    mock_google.generate_image.side_effect = fake_generate_image
+    mock_google.generate_image_imagen3.side_effect = fake_generate_image_imagen3
 
     step = _make_step(mode="gemini", google_client=mock_google)
     result = step.run("Gemini 테스트", tmp_path, topic="space", channel_key="space")
 
     assert result is not None
-    mock_google.generate_image.assert_called_once()
-    kwargs = mock_google.generate_image.call_args.kwargs
+    mock_google.generate_image_imagen3.assert_called_once()
+    kwargs = mock_google.generate_image_imagen3.call_args.kwargs
     assert kwargs["aspect_ratio"] == "9:16"
 
 
 def test_run_gemini_client_failure_falls_back_to_pillow(tmp_path: Path) -> None:
     """Gemini generate_image 예외 → DALL-E 없으면 Pillow까지 폴백."""
     mock_google = MagicMock()
-    mock_google.generate_image.side_effect = RuntimeError("quota exceeded")
+    mock_google.generate_image_imagen3.side_effect = RuntimeError("quota exceeded")
 
     step = _make_step(mode="gemini", google_client=mock_google, openai_client=None)
     result = step.run("Gemini 실패 폴백", tmp_path, topic="space")
@@ -411,7 +411,7 @@ def test_run_gemini_cleans_up_unique_temp_bg(tmp_path: Path) -> None:
 
         Image.new("RGB", (100, 178), color=(70, 100, 120)).save(str(output_path), "PNG")
 
-    mock_google.generate_image.side_effect = fake_generate_image
+    mock_google.generate_image_imagen3.side_effect = fake_generate_image
 
     step = _make_step(mode="gemini", google_client=mock_google)
     result = step.run("temp bg cleanup", tmp_path, topic="space", channel_key="space", job_id="job42")

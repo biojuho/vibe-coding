@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 
 import { useAppFeedback } from '@/components/feedback/FeedbackProvider';
-import { BREED_STATUS_OPTIONS, BUILDINGS } from '@/lib/constants';
+import { BREED_STATUS_OPTIONS } from '@/lib/constants';
 import { createFeedRecordValues, feedRecordSchema } from '@/lib/formSchemas';
 import { PremiumButton } from '@/components/ui/premium-button';
 import { PremiumInput, PremiumTextarea, PremiumLabel } from '@/components/ui/premium-input';
@@ -31,7 +31,7 @@ function FilterChip({ active, children, onClick }) {
   );
 }
 
-export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], onRecordFeed, buildings = BUILDINGS }) {
+export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], onRecordFeed, buildings = [] }) {
   const [selectedBuilding, setSelectedBuilding] = useState(null);
   const { notify } = useAppFeedback();
 

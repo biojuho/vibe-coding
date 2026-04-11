@@ -42,15 +42,21 @@ export default function QRCodeWidget({ value, label }) {
     tag.append(name, qrContainer, info);
     doc.body.appendChild(tag);
 
-    printWindow.addEventListener('load', () => {
-      printWindow.print();
-      printWindow.close();
-    });
+    let printCommitted = false;
+    const finishPrint = () => {
+      if (printCommitted) {
+        return;
+      }
 
-    printWindow.setTimeout(() => {
+      printCommitted = true;
+      printWindow.focus();
       printWindow.print();
       printWindow.close();
-    }, 120);
+    };
+
+    printWindow.addEventListener('load', finishPrint, { once: true });
+    printWindow.setTimeout(finishPrint, 120);
+    doc.close();
   };
 
   return (

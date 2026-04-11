@@ -52,25 +52,35 @@ class TestExpressDraftPipeline:
     @pytest.mark.asyncio
     async def test_generate_timeout(self):
         """타임아웃 시 에러 메시지 반환."""
+        import asyncio
+        from unittest.mock import patch
+
         pipeline = self._make_pipeline(timeout=1)
 
-        # _call_llm이 오래 걸리도록 mock
-        async def slow_llm(*args, **kwargs):
-            import asyncio
+        # _fast_sleeps 픽스처가 asyncio.sleep을 즉시 반환하므로
+        # asyncio.wait_for를 직접 모킹하여 TimeoutError를 발생시킴
+        _original_wait_for = asyncio.wait_for
 
-            await asyncio.sleep(10)
-            return {"response": "too late"}
+        async def _patched_wait_for(coro, *, timeout=None):
+            """generate() 내부의 _generate_with_deadline 호출에만 TimeoutError 발생"""
+            try:
+                # 타임아웃 1초 이하 설정 시 즉시 TimeoutError
+                if timeout is not None and timeout <= 1:
+                    coro.close()  # 코루틴 정리
+                    raise asyncio.TimeoutError()
+                return await _original_wait_for(coro, timeout=timeout)
+            except asyncio.TimeoutError:
+                raise
 
-        pipeline._call_llm = slow_llm
-
-        result = await pipeline.generate(
-            title="테스트",
-            content_preview="내용",
-            source="blind",
-        )
+        with patch("pipeline.express_draft.asyncio.wait_for", side_effect=_patched_wait_for):
+            result = await pipeline.generate(
+                title="테스트",
+                content_preview="내용",
+                source="blind",
+            )
         assert result.success is False
         assert "타임아웃" in result.error
-        assert result.generation_time_sec > 0
+        assert result.generation_time_sec >= 0
 
     @pytest.mark.asyncio
     async def test_generate_success_with_mock_provider(self):
@@ -128,6 +138,35 @@ class TestExpressDraftPipeline:
             content_preview="",
         )
         assert result.success is False
+
+    @pytest.mark.asyncio
+    async def test_generate_reuses_tweet_draft_generator_provider_chain(self):
+        """TweetDraftGenerator-style provider chain도 재사용한다."""
+        cost_tracker = MagicMock()
+        mock_generator = MagicMock()
+        mock_generator.providers = None
+        mock_generator.cost_tracker = cost_tracker
+        mock_generator._enabled_providers.return_value = ["gemini"]
+        mock_generator._generate_once = AsyncMock(
+            return_value=('{"x": "급상승 초안", "threads": "스레드 초안"}', 11, 7)
+        )
+
+        pipeline = self._make_pipeline(draft_generator=mock_generator)
+
+        result = await pipeline.generate(
+            title="급상승 키워드",
+            content_preview="미리보기",
+            source="blind",
+        )
+
+        assert result.success is True
+        assert result.provider_used == "gemini"
+        mock_generator._generate_once.assert_awaited_once()
+        cost_tracker.add_text_generation_cost.assert_called_once_with(
+            "gemini",
+            input_tokens=11,
+            output_tokens=7,
+        )
 
     @pytest.mark.asyncio
     async def test_generate_with_enriched_context(self):

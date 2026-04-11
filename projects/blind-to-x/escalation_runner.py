@@ -68,6 +68,7 @@ async def _run_cycle(
         처리된 스파이크 이벤트 수.
     """
     from pipeline.spike_detector import SpikeDetector
+    from pipeline.draft_generator import TweetDraftGenerator
     from pipeline.escalation_queue import EscalationQueue, EventStatus
     from pipeline.express_draft import ExpressDraftPipeline
 
@@ -96,7 +97,8 @@ async def _run_cycle(
     logger.info("큐에 %d건 등록", enqueued_count)
 
     # ── 3단계: 급행 초안 생성 ────────────────────────────────────────
-    pipeline = ExpressDraftPipeline(config_mgr)
+    draft_generator = TweetDraftGenerator(config_mgr)
+    pipeline = ExpressDraftPipeline(config_mgr, draft_generator=draft_generator)
     pending_events = queue.dequeue_pending(limit=3)  # 최대 3건 동시 처리
 
     processed = 0
@@ -195,7 +197,6 @@ async def _process_callback(query: dict, queue) -> None:
         return
 
     loop = asyncio.get_running_loop()
-
     # "approve_123" / "reject_url"
     if data.startswith("approve_") or data.startswith("reject_"):
         action, event_key = data.split("_", 1)
@@ -230,7 +231,7 @@ async def _process_callback(query: dict, queue) -> None:
                 logger.error("Markup 초기화 실패: %s", e)
 
 
-async def _poll_and_wait(interval: int, config_mgr, dry_run: bool) -> None:
+async def _poll_and_wait(interval: int, config_mgr, dry_run: bool) -> bool:
     from execution.telegram_notifier import get_updates
     from pipeline.escalation_queue import EscalationQueue
 
@@ -249,10 +250,12 @@ async def _poll_and_wait(interval: int, config_mgr, dry_run: bool) -> None:
     start_time = time.monotonic()
     offset = None
     loop = asyncio.get_running_loop()
+    poll_error_streak = 0
 
     while time.monotonic() - start_time < interval:
         try:
             updates = await loop.run_in_executor(None, lambda: get_updates(limit=10, timeout=10, offset=offset))
+            poll_error_streak = 0
             for update in updates:
                 offset = update["update_id"] + 1
                 if "callback_query" in update:
@@ -260,7 +263,11 @@ async def _poll_and_wait(interval: int, config_mgr, dry_run: bool) -> None:
 
         except Exception as e:
             logger.debug("텔레그램 폴링 에러 (패스): %s", e)
-            await asyncio.sleep(2)
+            poll_error_streak += 1
+            if poll_error_streak >= 5:
+                logger.warning("텔레그램 polling circuit breaker open after %d consecutive errors", poll_error_streak)
+                return True
+            await asyncio.sleep(min(2 ** poll_error_streak, 10))
 
         # 남은 시간 정산
         elapsed = time.monotonic() - start_time
@@ -270,22 +277,34 @@ async def _poll_and_wait(interval: int, config_mgr, dry_run: bool) -> None:
             await asyncio.sleep(max(0.1, interval - elapsed))
             break
 
+    return False
+
 
 async def _daemon_loop(config_mgr, interval: int, dry_run: bool) -> None:
     """상시 모니터링 루프."""
     logger.info("에스컬레이션 데몬 시작 (간격: %d초, dry_run: %s)", interval, dry_run)
+    error_streak = 0
     while True:
         try:
             await _run_cycle(config_mgr, dry_run=dry_run)
+            error_streak = 0
         except KeyboardInterrupt:
             logger.info("에스컬레이션 데몬 종료 (KeyboardInterrupt)")
             break
         except Exception as exc:
+            error_streak += 1
             logger.error("사이클 에러 (계속 실행): %s", exc)
 
         logger.debug("다음 스캔까지 %d초 대기 & 텔레그램 콜백 모니터링...", interval)
         try:
-            await _poll_and_wait(interval, config_mgr, dry_run=dry_run)
+            poll_circuit_open = await _poll_and_wait(interval, config_mgr, dry_run=dry_run)
+            if poll_circuit_open:
+                error_streak = max(error_streak + 1, 3)
+            if error_streak >= 3:
+                cooldown_sec = min(max(interval, 30), 300)
+                logger.warning("에스컬레이션 circuit breaker open for %ds after %d consecutive failures", cooldown_sec, error_streak)
+                await asyncio.sleep(cooldown_sec)
+                error_streak = 0
         except KeyboardInterrupt:
             logger.info("에스컬레이션 데몬 종료 (KeyboardInterrupt)")
             break

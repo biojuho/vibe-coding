@@ -29,6 +29,7 @@ from pipeline.process_stages.persist_stage import run_persist_stage
 from pipeline.process_stages import filter_profile_stage as _filter_stage_module
 from pipeline.process_stages import runtime as _stage_runtime
 from pipeline.process_stages.runtime import SPAM_KEYWORDS, extract_preferred_tweet_text
+from pipeline.daily_queue_floor import DailyQueueFloorState
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +119,7 @@ async def process_single_post(
     review_only=False,
     post_data_hint=None,
     services: Optional[PipelineServices] = None,
+    daily_queue_floor: DailyQueueFloorState | None = None,
 ):
     # 하위 호환성 및 명시적 의존성 묶음 적용
     if services:
@@ -150,7 +152,14 @@ async def process_single_post(
             return result
         if not fetch_ok:
             return result
-        if not await run_filter_stage(ctx, scraper, config, top_tweets, review_only=review_only):
+        if not await run_filter_stage(
+            ctx,
+            scraper,
+            config,
+            top_tweets,
+            review_only=review_only,
+            daily_queue_floor=daily_queue_floor,
+        ):
             return result
         if not await run_generate_stage(
             ctx,
@@ -159,6 +168,7 @@ async def process_single_post(
             top_tweets,
             output_formats,
             config,
+            review_only=review_only,
         ):
             return result
         if not await run_persist_stage(

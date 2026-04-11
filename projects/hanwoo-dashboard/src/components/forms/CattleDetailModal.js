@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from 'recharts';
-import { STATUS_COLORS, BUILDINGS } from '@/lib/constants';
+import { STATUS_COLORS } from '@/lib/constants';
 import { formatDate, getMonthAge, toInputDate, getDaysUntilEstrus, formatMoney } from '@/lib/utils';
 import { btnPrimary, btnSecondary, btnDanger, EditIcon, TrashIcon, BackIcon } from '@/components/ui/common';
 import QRCodeWidget from '@/components/widgets/QRCodeWidget';
@@ -16,22 +16,30 @@ const HISTORY_ICONS = {
   sale: "💰",
 };
 
-export default function CattleDetailModal({ cattle, onClose, onEdit, onDelete, onUpdate }) {
+export default function CattleDetailModal({ cattle, buildings = [], onClose, onEdit, onDelete, onUpdate }) {
   const [history, setHistory] = useState([]);
 
   useEffect(() => {
-    if (cattle?.id) {
-      getCattleHistory(cattle.id).then(res => {
+    if (!cattle?.id) return;
+    let cancelled = false;
+    getCattleHistory(cattle.id)
+      .then((res) => {
+        if (cancelled) return;
         const nextHistory = Array.isArray(res) ? res : res?.data;
         setHistory(Array.isArray(nextHistory) ? nextHistory : []);
+      })
+      .catch(() => {
+        // API 실패 시 빈 이력으로 안전하게 폴백 — white screen 방지
+        if (!cancelled) setHistory([]);
       });
-    }
+    return () => { cancelled = true; };
   }, [cattle?.id]);
 
   if (!cattle) return null;
 
   const monthAge = getMonthAge(cattle.birthDate);
   const statusColor = STATUS_COLORS[cattle.status] || { bg: "#eee", text: "#333" };
+  const buildingName = buildings.find((building) => building.id === cattle.buildingId)?.name || cattle.buildingId;
 
   // Build weight chart data from history or fallback to weightHistory field
   const weightChartData = (() => {
@@ -153,7 +161,7 @@ export default function CattleDetailModal({ cattle, onClose, onEdit, onDelete, o
           <div className="animate-fadeInUp" style={{marginBottom:"28px",animationDelay:"150ms"}}>
             <SectionTitle icon="📋" title="기본 정보" />
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"14px"}}>
-              <InfoItem label="위치" value={`${BUILDINGS.find(b=>b.id===cattle.buildingId)?.name} ${cattle.penNumber}번 칸`} delay={0} />
+              <InfoItem label="위치" value={`${buildingName} ${cattle.penNumber}번 칸`} delay={0} />
               <InfoItem label="생년월일" value={formatDate(cattle.birthDate)} delay={50} />
               <InfoItem label="현재체중" value={`${cattle.weight} kg`} highlight delay={100} />
               <InfoItem label="유전능력" value={`부:${cattle.geneticInfo?.father || '-'} / 모:${cattle.geneticInfo?.mother || '-'}`} delay={150} />
@@ -168,13 +176,13 @@ export default function CattleDetailModal({ cattle, onClose, onEdit, onDelete, o
               className="animate-fadeInUp"
               style={{
                 marginBottom:"28px",
-                background:"linear-gradient(135deg, #FFF3E0, #FFE0B2)",
+                background:"linear-gradient(135deg, color-mix(in srgb, var(--color-warning-light) 78%, var(--color-surface-elevated)), var(--color-warning-light))",
                 borderRadius:"var(--radius-lg)",
                 padding:"20px",
                 animationDelay:"200ms"
               }}
             >
-              <SectionTitle icon="❤️" title="번식 관리" color="#E65100" />
+              <SectionTitle icon="❤️" title="번식 관리" color="var(--color-warning)" />
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"14px",marginBottom:"16px"}}>
                 <InfoItem label="최근 발정" value={cattle.lastEstrus ? formatDate(cattle.lastEstrus) : "-"} />
                 <InfoItem label="다음 발정 예정" value={cattle.lastEstrus ? `D-${getDaysUntilEstrus(cattle.lastEstrus)}` : "-"} />
@@ -189,7 +197,7 @@ export default function CattleDetailModal({ cattle, onClose, onEdit, onDelete, o
                     ...btnPrimary,
                     padding:"12px 16px",
                     fontSize:"13px",
-                    background:"linear-gradient(135deg, #FF9800, #F57C00)",
+                    background:"linear-gradient(135deg, var(--color-warning), color-mix(in srgb, var(--color-warning) 78%, #9b6e40 22%))",
                     flex:1
                   }}
                 >+ 발정 기록</button>
@@ -200,7 +208,7 @@ export default function CattleDetailModal({ cattle, onClose, onEdit, onDelete, o
                     ...btnPrimary,
                     padding:"12px 16px",
                     fontSize:"13px",
-                    background:"linear-gradient(135deg, #E65100, #BF360C)",
+                    background:"linear-gradient(135deg, var(--color-primary-custom), var(--color-primary-dark))",
                     flex:1
                   }}
                 >+ 수정 기록</button>

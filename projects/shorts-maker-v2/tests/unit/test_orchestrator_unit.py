@@ -251,6 +251,7 @@ class TestRendererModeValidation:
         media_cls.assert_called_once()
         render_cls.assert_called_once()
         thumbnail_cls.assert_called_once()
+        assert thumbnail_cls.call_args.kwargs["google_client"] is google_client
         research_cls.assert_called_once_with(config=cfg, google_client=google_client, llm_router=llm_router)
 
     def test_full_init_without_channel_profile_uses_plain_script_step(self, tmp_path: Path):
@@ -730,6 +731,31 @@ class TestRunErrorPaths:
         assert manifest.series_suggestion == {"series_id": "series-1", "episode": 2}
         assert copied_output.exists()
         tracker_cls.return_value.record.assert_called_once()
+
+    def test_run_marks_manifest_degraded_when_research_fails(self, tmp_path: Path):
+        cfg = _load_cfg(tmp_path)
+        orch = PipelineOrchestrator(
+            config=cfg,
+            base_dir=tmp_path,
+            script_step=StubScript(),
+            media_step=StubMedia(),
+            render_step=StubRender(),
+        )
+        orch.research_step = MagicMock()
+        orch.research_step.run.side_effect = RuntimeError("research timeout")
+        gate3_pass = SimpleNamespace(verdict="pass", checks={"duration_ok": True}, issues=[])
+        gate4_pass = SimpleNamespace(verdict="pass", checks={"final_ok": True}, issues=[])
+
+        with (
+            patch("shorts_maker_v2.pipeline.orchestrator.QCStep.gate3_media", return_value=gate3_pass),
+            patch("shorts_maker_v2.pipeline.orchestrator.QCStep.gate4_final", return_value=gate4_pass),
+            patch("shorts_maker_v2.pipeline.orchestrator.CostTracker"),
+        ):
+            manifest = orch.run(topic="research failure topic")
+
+        assert manifest.status == "degraded"
+        assert manifest.failed_steps == []
+        assert manifest.degraded_steps[0]["step"] == "research"
 
     def test_shorts_factory_mode_with_channel_fails_fast_when_adapter_fails(self, tmp_path: Path):
         cfg = _load_cfg(tmp_path)

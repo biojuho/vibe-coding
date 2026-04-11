@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
-import { BUILDINGS, BREED_STATUS_OPTIONS } from '@/lib/constants';
+import { BREED_STATUS_OPTIONS } from '@/lib/constants';
 import { inputStyle, labelStyle, btnPrimary, btnSecondary, BackIcon } from '@/components/ui/common';
 import { lookupCattleTag } from '@/lib/actions';
 import { cattleFormSchema, createCattleFormValues } from '@/lib/formSchemas';
@@ -14,7 +14,7 @@ const errorTextStyle = {
   fontWeight: 600,
 };
 
-export default function CattleForm({ cattle, onSubmit, onCancel }) {
+export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel }) {
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupMsg, setLookupMsg] = useState(null);
 
@@ -27,13 +27,13 @@ export default function CattleForm({ cattle, onSubmit, onCancel }) {
     formState: { errors },
   } = useForm({
     resolver: zodResolver(cattleFormSchema),
-    defaultValues: createCattleFormValues(cattle),
+    defaultValues: createCattleFormValues(cattle, buildings),
   });
 
   useEffect(() => {
-    reset(createCattleFormValues(cattle));
+    reset(createCattleFormValues(cattle, buildings));
     setLookupMsg(null);
-  }, [cattle, reset]);
+  }, [buildings, cattle, reset]);
 
   const handleLookup = async () => {
     const tagNumber = getValues('tagNumber');
@@ -204,7 +204,7 @@ export default function CattleForm({ cattle, onSubmit, onCancel }) {
             <div>
               <label style={labelStyle}>축사</label>
               <select className="input" style={inputStyle} {...register('buildingId')}>
-                {BUILDINGS.map((building) => (
+                {buildings.map((building) => (
                   <option key={building.id} value={building.id}>
                     {building.name}
                   </option>

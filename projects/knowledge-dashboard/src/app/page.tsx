@@ -94,6 +94,43 @@ function getApiErrorMessage(value: unknown, fallback: string) {
   return fallback;
 }
 
+const SESSION_REQUEST_TIMEOUT_MS = 10000;
+
+async function requestSession(
+  method: "POST" | "DELETE",
+  body?: { apiKey: string },
+): Promise<{ response: Response; payload: unknown }> {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), SESSION_REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch("/api/auth/session", {
+      method,
+      cache: "no-store",
+      signal: controller.signal,
+      headers: body ? { "content-type": "application/json" } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const payload = await response.json().catch(() => null);
+    return { response, payload };
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error(`Session request timed out after ${SESSION_REQUEST_TIMEOUT_MS}ms.`);
+    }
+
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
+async function clearSession(fallbackMessage: string) {
+  const { response, payload } = await requestSession("DELETE");
+  if (!response.ok) {
+    throw new Error(getApiErrorMessage(payload, fallbackMessage));
+  }
+}
+
 // ── Tab Component ────────────────────────────────────
 function TabBar({
   activeTab,
@@ -343,13 +380,7 @@ export default function Dashboard() {
                 setLoadError(null);
 
                 try {
-                  const response = await fetch("/api/auth/session", {
-                    method: "POST",
-                    cache: "no-store",
-                    headers: { "content-type": "application/json" },
-                    body: JSON.stringify({ apiKey: apiKeyInput }),
-                  });
-                  const payload = await response.json().catch(() => null);
+                  const { response, payload } = await requestSession("POST", { apiKey: apiKeyInput });
 
                   if (response.status === 401) {
                     setAuthError(true);
@@ -366,6 +397,9 @@ export default function Dashboard() {
                   setLoadError(null);
                   setLoading(true);
                   setSessionVersion((current) => current + 1);
+                } catch (error) {
+                  setAuthError(false);
+                  setLoadError(error instanceof Error ? error.message : "?몄뀡???앹꽦?섏? 紐삵뻽?듬땲??");
                 } finally {
                   setAuthSubmitting(false);
                 }
@@ -419,9 +453,13 @@ export default function Dashboard() {
                 variant="outline"
                 className="flex-1 border-white/10 bg-white/5 hover:bg-white/10"
                 onClick={async () => {
-                  await fetch("/api/auth/session", { method: "DELETE", cache: "no-store" }).catch(() => null);
-                  setLoadError(null);
-                  setAuthError(true);
+                  try {
+                    await clearSession("?꾩〈 ?몄쬆 ?몃? 留덉?瑜??앹젣?섏? 紐삵뻽?듬땲??");
+                    setLoadError(null);
+                    setAuthError(true);
+                  } catch (error) {
+                    setLoadError(error instanceof Error ? error.message : "?몄쬆 ?몃? 珥덇린?붿뿉 ?ㅽ뙣?덉뒿?덈떎.");
+                  }
                 }}
               >
                 키 다시 입력
@@ -453,10 +491,14 @@ export default function Dashboard() {
                   (업데이트: {new Date(data.last_updated).toLocaleString()})
                   <button
                     onClick={async () => {
-                      await fetch("/api/auth/session", { method: "DELETE", cache: "no-store" }).catch(() => null);
-                      setData(null);
-                      setLoadError(null);
-                      setAuthError(true);
+                      try {
+                        await clearSession("?몄쬆 ?몃? 醫낅즺?섏? 紐삵뻽?듬땲??");
+                        setData(null);
+                        setLoadError(null);
+                        setAuthError(true);
+                      } catch (error) {
+                        setLoadError(error instanceof Error ? error.message : "?몄쬆 ?몃? 醫낅즺?먯꽌 ?ㅽ뙣?덉뒿?덈떎.");
+                      }
                     }}
                     className="ml-4 hover:underline"
                   >

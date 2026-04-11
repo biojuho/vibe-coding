@@ -345,3 +345,24 @@ def test_gate4_final_missing_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 
     assert report.verdict == GateVerdict.HOLD.value
     assert any("Output file missing" in i for i in report.issues)
+
+
+def test_gate4_final_holds_when_media_probes_are_unavailable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    out = _write_bytes(tmp_path / "out.mp4", 5 * 1024 * 1024)
+    manifest = JobManifest(
+        job_id="probe-miss",
+        topic="t",
+        status="ok",
+        total_duration_sec=45.0,
+        failed_steps=[],
+    )
+    monkeypatch.setattr(QCStep, "_probe_video", staticmethod(lambda path: None))
+    monkeypatch.setattr(QCStep, "_check_audio_peak", staticmethod(lambda path: None))
+
+    report = QCStep.gate4_final(manifest, output_path=out)
+
+    assert report.verdict == GateVerdict.HOLD.value
+    assert report.checks["video_probe_ok"] is False
+    assert report.checks["audio_peak_probe_ok"] is False
+    assert any("ffprobe" in issue for issue in report.issues)
+    assert any("ffmpeg" in issue for issue in report.issues)

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -46,8 +46,15 @@ export function FeedbackProvider({ children }) {
   const [toasts, setToasts] = useState([]);
   const [confirmation, setConfirmation] = useState(DEFAULT_CONFIRMATION);
   const resolverRef = useRef(null);
+  const timeoutIdsRef = useRef(new Map());
 
   const dismiss = useCallback((id) => {
+    const timeoutId = timeoutIdsRef.current.get(id);
+    if (timeoutId) {
+      window.clearTimeout(timeoutId);
+      timeoutIdsRef.current.delete(id);
+    }
+
     setToasts((current) => current.filter((toast) => toast.id !== id));
   }, []);
 
@@ -56,10 +63,22 @@ export function FeedbackProvider({ children }) {
       const id = `toast_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
       setToasts((current) => [...current, { id, title, description, variant }]);
 
-      window.setTimeout(() => dismiss(id), duration);
+      const timeoutId = window.setTimeout(() => {
+        timeoutIdsRef.current.delete(id);
+        dismiss(id);
+      }, duration);
+      timeoutIdsRef.current.set(id, timeoutId);
     },
     [dismiss],
   );
+
+  useEffect(() => {
+    const timeoutIds = timeoutIdsRef.current;
+    return () => {
+      timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      timeoutIds.clear();
+    };
+  }, []);
 
   const confirm = useCallback((options) => {
     setConfirmation({

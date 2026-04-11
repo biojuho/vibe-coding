@@ -1,6 +1,5 @@
 import DashboardClient from '@/components/DashboardClient';
 import {
-  getCattleList,
   getFeedStandards,
   getInventory,
   getScheduleEvents,
@@ -9,8 +8,9 @@ import {
   getFarmSettings,
   getExpenseRecords,
   getRealTimeMarketPrice,
-  getSalesRecords,
+  getNotifications,
 } from '@/lib/actions';
+import { getCattleListPage, getSalesListPage } from '@/lib/dashboard/list-queries';
 import { buildDashboardSummaryPayload } from '@/lib/dashboard/summary-service';
 import { requireAuthenticatedSession } from '@/lib/auth-guard';
 import prisma from '@/lib/db';
@@ -22,9 +22,10 @@ export default async function Page() {
   await requireAuthenticatedSession({ redirectToLogin: true });
 
   const [
-    cattleRegistry,
-    salesLedger,
+    initialCattlePage,
+    initialSalesPage,
     summary,
+    notifications,
     feedStandards,
     inventory,
     schedule,
@@ -34,9 +35,10 @@ export default async function Page() {
     expenses,
     marketPrice,
   ] = await Promise.all([
-    getCattleList(),
-    getSalesRecords(),
+    getCattleListPage({ limit: 50 }),
+    getSalesListPage({ limit: 50 }),
     buildDashboardSummaryPayload({ client: prisma }),
+    getNotifications(),
     getFeedStandards(),
     getInventory(),
     getScheduleEvents(),
@@ -49,9 +51,10 @@ export default async function Page() {
 
   return (
       <DashboardClient
-        initialCattleRegistry={cattleRegistry}
-        initialSalesLedger={salesLedger}
+        initialCattlePage={initialCattlePage}
+        initialSalesPage={initialSalesPage}
         initialSummary={summary}
+        initialNotifications={notifications}
         initialFeedStandards={feedStandards}
         initialInventory={inventory}
         initialSchedule={schedule}

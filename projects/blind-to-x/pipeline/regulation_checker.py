@@ -388,7 +388,12 @@ class RegulationChecker:
             else:
                 # 콘텐츠가 비어 있거나 에러인 경우 스킵
                 report = ValidationReport(platform=platform)
-                report.add("콘텐츠 존재", False, "초안 없음 또는 생성 실패", severity="warning")
+                report.add(
+                    "콘텐츠 존재",
+                    False,
+                    "초안이 비어 있어 규제 검증을 건너뜀. 초안을 먼저 만들거나 직접 작성이 필요합니다.",
+                    severity="warning",
+                )
                 reports[key] = report
 
         return reports

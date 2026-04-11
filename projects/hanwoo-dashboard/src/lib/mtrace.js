@@ -1,70 +1,107 @@
+import { fetchWithTimeout, isTimeoutError } from './fetchWithTimeout';
 
-/**
- * MTRACE (축산물이력제) API Client
- *
- * API 문서: https://data.mtrace.go.kr/openapi/cattleinfo
- * - serviceKey: 공공데이터포털 발급키
- * - corpNo: 이력번호 (12자리)
- *
- * .env에 MTRACE_SERVICE_KEY 추가 필요 (data.go.kr에서 발급)
- */
+const MTRACE_API_BASE = 'https://data.mtrace.go.kr/openapi/cattleinfo';
 
-const MTRACE_API_BASE = "https://data.mtrace.go.kr/openapi/cattleinfo";
+async function readJsonSafely(response) {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
 
-/**
- * Lookup cattle info by tag number (이력번호).
- * @param {string} tagNumber - e.g. "002082037849"
- * @returns {{ success: boolean, data?: { birthDate, gender, breed, farmAddr }, message?: string }}
- */
 export async function lookupCattleByTag(tagNumber) {
   const apiKey = process.env.MTRACE_SERVICE_KEY;
 
   if (!apiKey) {
-    return { success: false, message: "MTRACE API 키가 설정되지 않았습니다. .env에 MTRACE_SERVICE_KEY를 추가하세요." };
+    return {
+      success: false,
+      message: 'MTRACE API key is missing. Set MTRACE_SERVICE_KEY in the environment.',
+    };
   }
 
-  if (!tagNumber || tagNumber.replace(/[-\s]/g, "").length < 10) {
-    return { success: false, message: "올바른 이력번호를 입력하세요." };
+  if (!tagNumber || tagNumber.replace(/[-\s]/g, '').length < 10) {
+    return {
+      success: false,
+      message: 'Enter a valid cattle tag number before running the lookup.',
+    };
   }
 
-  // Strip dashes/spaces for API call
-  const cleanTag = tagNumber.replace(/[-\s]/g, "");
+  const cleanTag = tagNumber.replace(/[-\s]/g, '');
 
   try {
     const url = new URL(MTRACE_API_BASE);
-    url.searchParams.set("serviceKey", apiKey);
-    url.searchParams.set("corpNo", cleanTag);
-    url.searchParams.set("_type", "json");
+    url.searchParams.set('serviceKey', apiKey);
+    url.searchParams.set('corpNo', cleanTag);
+    url.searchParams.set('_type', 'json');
 
-    const res = await fetch(url.toString(), {
-      next: { revalidate: 86400 } // Cache for 24h (cattle info doesn't change)
-    });
+    const response = await fetchWithTimeout(
+      url.toString(),
+      {
+        next: { revalidate: 86400 },
+      },
+      {
+        timeoutMs: 5000,
+        errorMessage: 'MTRACE lookup timed out after 5000ms.',
+      },
+    );
 
-    if (!res.ok) {
-      return { success: false, message: `API 응답 오류 (${res.status})` };
+    if (response.status === 429) {
+      const retryAfter = response.headers.get('retry-after');
+      return {
+        success: false,
+        message: retryAfter
+          ? `MTRACE lookup is rate-limited. Retry after ${retryAfter} seconds.`
+          : 'MTRACE lookup is temporarily rate-limited. Please retry shortly.',
+      };
     }
 
-    const json = await res.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: `MTRACE API returned ${response.status}.`,
+      };
+    }
+
+    const json = await readJsonSafely(response);
+    if (!json) {
+      return {
+        success: false,
+        message: 'MTRACE returned an unreadable response.',
+      };
+    }
+
     const item = json?.response?.body?.items?.item;
-
     if (!item) {
-      return { success: false, message: "해당 이력번호의 정보를 찾을 수 없습니다." };
+      return {
+        success: false,
+        message: 'No cattle information was found for that tag number.',
+      };
     }
 
-    // item can be array or single object
     const cattle = Array.isArray(item) ? item[0] : item;
 
     return {
       success: true,
       data: {
-        birthDate: cattle.birthYmd || null, // "20220315" format
-        gender: cattle.sexNm === "암" ? "암" : cattle.sexNm === "수" ? "수" : cattle.sexNm || null,
-        breed: cattle.lsTypeNm || "한우",
+        birthDate: cattle.birthYmd || null,
+        gender: cattle.sexNm || null,
+        breed: cattle.lsTypeNm || 'Hanwoo',
         farmAddr: cattle.farmAddr || null,
-      }
+      },
     };
   } catch (error) {
-    console.error("MTRACE API error:", error);
-    return { success: false, message: "이력제 조회 중 오류가 발생했습니다." };
+    if (isTimeoutError(error)) {
+      return {
+        success: false,
+        message: 'MTRACE lookup timed out. Please try again.',
+      };
+    }
+
+    console.error('MTRACE API error:', error);
+    return {
+      success: false,
+      message: 'An error occurred while looking up the cattle tag.',
+    };
   }
 }

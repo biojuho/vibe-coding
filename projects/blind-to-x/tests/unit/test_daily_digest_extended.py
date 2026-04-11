@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -105,6 +106,24 @@ class TestGenerateSummary:
         with patch("pipeline.daily_digest.asyncio.to_thread", side_effect=Exception("API error")):
             summary = await gen._generate_summary(digest)
             assert "10 posts collected" in summary  # fallback
+
+    @pytest.mark.asyncio
+    async def test_gemini_timeout_uses_fallback(self):
+        gen = DigestGenerator.__new__(DigestGenerator)
+        gen._config = _make_config(**{"digest.summary_timeout_seconds": 1})
+        gen._max_entries = 5
+        gen._gemini_key = "fake-key"
+        gen._summary_timeout_sec = 1
+
+        digest = _make_digest()
+
+        async def slow_to_thread(*args, **kwargs):  # noqa: ANN002, ANN003
+            del args, kwargs
+            await asyncio.sleep(10)
+
+        with patch("pipeline.daily_digest.asyncio.to_thread", side_effect=slow_to_thread):
+            summary = await gen._generate_summary(digest)
+            assert "10 posts collected" in summary
 
 
 # ── DigestGenerator._fetch_posts ─────────────────────────────────────
@@ -335,3 +354,51 @@ class TestQueryNotionByDate:
         with patch.object(_httpx, "AsyncClient", side_effect=Exception("connection refused")):
             result = await gen._query_notion_by_date("2026-04-05")
             assert result == []
+
+    @pytest.mark.asyncio
+    async def test_repeated_cursor_stops_pagination(self, monkeypatch):
+        monkeypatch.setenv("NOTION_API_KEY", "fake-key")
+        monkeypatch.setenv("NOTION_DATABASE_ID", "fake-db")
+
+        gen = DigestGenerator.__new__(DigestGenerator)
+        gen._config = _make_config()
+        gen._notion = MagicMock()
+
+        responses = [
+            {"results": [{"id": "page-1"}], "has_more": True, "next_cursor": "cursor-1"},
+            {"results": [{"id": "page-2"}], "has_more": True, "next_cursor": "cursor-1"},
+        ]
+
+        class FakeResponse:
+            def __init__(self, payload):
+                self._payload = payload
+
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return self._payload
+
+        class FakeAsyncClient:
+            def __init__(self, *args, **kwargs):
+                del args, kwargs
+                self.calls = 0
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                del exc_type, exc, tb
+
+            async def post(self, *args, **kwargs):
+                del args, kwargs
+                payload = responses[self.calls]
+                self.calls += 1
+                return FakeResponse(payload)
+
+        import httpx as _httpx
+
+        with patch.object(_httpx, "AsyncClient", FakeAsyncClient):
+            result = await gen._query_notion_by_date("2026-04-05")
+
+        assert result == [{"id": "page-1"}, {"id": "page-2"}]

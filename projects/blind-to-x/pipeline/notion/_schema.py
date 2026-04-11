@@ -12,8 +12,7 @@ import re
 class NotionSchemaMixin:
     """Notion DB 스키마 정의·자동감지·검증을 담당하는 Mixin."""
 
-    # ── 핵심 15개 속성 시맨틱 키 → 한국어 속성명 ──
-    # Pivot Phase 2: 37 → 15개로 경량화 (2026-03-22)
+    # ── 검토 중심 기본 속성 시맨틱 키 → 한국어 속성명 ──
     DEFAULT_PROPS = {
         "title": "콘텐츠",
         "memo": "메모",
@@ -24,6 +23,12 @@ class NotionSchemaMixin:
         "topic_cluster": "토픽 클러스터",
         "emotion_axis": "감정 축",
         "final_rank_score": "최종 랭크 점수",
+        "creator_take": "운영자 해석",
+        "review_focus": "검토 포인트",
+        "feedback_request": "피드백 요청",
+        "risk_flags": "위험 신호",
+        "evidence_anchor": "근거 앵커",
+        "rejection_reasons": "반려 사유",
         "tweet_body": "트윗 본문",
         "reply_text": "답글 텍스트",
         "threads_body": "Threads 본문",
@@ -70,6 +75,12 @@ class NotionSchemaMixin:
         "topic_cluster": {"select", "rich_text"},
         "emotion_axis": {"select", "rich_text"},
         "final_rank_score": {"number"},
+        "creator_take": {"rich_text"},
+        "review_focus": {"rich_text"},
+        "feedback_request": {"rich_text"},
+        "risk_flags": {"multi_select", "rich_text"},
+        "evidence_anchor": {"rich_text"},
+        "rejection_reasons": {"multi_select", "rich_text"},
         "tweet_body": {"rich_text"},
         "reply_text": {"rich_text"},
         "threads_body": {"rich_text"},
@@ -88,6 +99,12 @@ class NotionSchemaMixin:
         "topic_cluster": ("topic", "토픽"),
         "emotion_axis": ("emotion", "감정"),
         "final_rank_score": ("rank", "랭크", "score"),
+        "creator_take": ("creator", "운영자 해석", "한줄 해석"),
+        "review_focus": ("review focus", "검토 포인트", "판단 포인트"),
+        "feedback_request": ("feedback", "피드백 요청", "검토 요청"),
+        "risk_flags": ("risk", "위험 신호", "주의 라벨"),
+        "evidence_anchor": ("anchor", "근거 앵커", "근거"),
+        "rejection_reasons": ("reject", "반려 사유", "반려 이유"),
         "tweet_body": ("tweet", "트윗", "draft", "초안"),
         "reply_text": ("reply", "답글", "답글 텍스트"),
         "threads_body": ("threads", "쓰레드", "Threads 본문"),

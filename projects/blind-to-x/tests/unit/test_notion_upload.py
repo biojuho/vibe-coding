@@ -306,6 +306,160 @@ async def test_update_page_properties_success(mock_ensure_schema, mock_config):
     assert call_kwargs["properties"]["상태"]["status"]["name"] == "완료"
 
 
+def test_prepare_property_payload_multi_select(mock_config):
+    uploader = NotionUploader(mock_config)
+    uploader.props = {"risk_flags": "위험 신호"}
+    uploader._db_properties = {"위험 신호": {"type": "multi_select"}}
+
+    prop_name, payload = uploader._prepare_property_payload("risk_flags", ["팩트 경계", "클리셰"])
+
+    assert prop_name == "위험 신호"
+    assert payload == {"multi_select": [{"name": "팩트 경계"}, {"name": "클리셰"}]}
+
+
+@pytest.mark.asyncio
+@patch("pipeline.notion_upload.NotionUploader.ensure_schema", new_callable=AsyncMock)
+async def test_upload_populates_review_brief_properties(mock_ensure_schema, mock_config):
+    uploader = NotionUploader(mock_config)
+    mock_ensure_schema.return_value = True
+    uploader.client = AsyncMock()
+    uploader.client.pages.create.return_value = {"url": "https://notion.so/review", "id": "page_review"}
+    uploader._page_parent_payload = MagicMock(return_value={"database_id": "test_db_id"})
+    uploader._register_url_in_cache = MagicMock()
+
+    uploader.props = {
+        "title": "콘텐츠",
+        "url": "원본 URL",
+        "memo": "메모",
+        "creator_take": "운영자 해석",
+        "review_focus": "검토 포인트",
+        "feedback_request": "피드백 요청",
+        "risk_flags": "위험 신호",
+        "evidence_anchor": "근거 앵커",
+        "publish_platforms": "발행 플랫폼",
+        "tweet_body": "트윗 본문",
+        "threads_body": "Threads 본문",
+        "status": "상태",
+        "date": "생성일",
+        "source": "원본 소스",
+    }
+    uploader._db_properties = {
+        "콘텐츠": {"type": "title"},
+        "원본 URL": {"type": "url"},
+        "메모": {"type": "rich_text"},
+        "운영자 해석": {"type": "rich_text"},
+        "검토 포인트": {"type": "rich_text"},
+        "피드백 요청": {"type": "rich_text"},
+        "위험 신호": {"type": "multi_select"},
+        "근거 앵커": {"type": "rich_text"},
+        "발행 플랫폼": {"type": "multi_select"},
+        "트윗 본문": {"type": "rich_text"},
+        "Threads 본문": {"type": "rich_text"},
+        "상태": {"type": "status"},
+        "생성일": {"type": "date"},
+        "원본 소스": {"type": "select"},
+    }
+
+    post_data = {
+        "title": "연봉 이야기",
+        "url": "https://example.com/post",
+        "source": "blind",
+        "draft_generation_error": "openai: invalid_draft_output:missing_tags:naver_blog",
+        "quality_gate_report": "passed — 구체 장면 있음 / CTA 포함",
+    }
+    drafts = {
+        "twitter": "숏폼 초안입니다.",
+        "threads": "쓰레드 초안입니다.",
+        "creator_take": "연봉 숫자가 직장인의 비교 심리를 바로 건드립니다.",
+    }
+    analysis = {
+        "selection_summary": "직장인이 자기 일처럼 받아들일 숫자 비교 글",
+        "empathy_anchor": "연봉 1800 깎고 이직",
+        "hard_reject_reasons": ["직장인 맥락 약함"],
+    }
+
+    result = await uploader.upload(post_data, None, drafts, analysis=analysis)
+    assert result == ("https://notion.so/review", "page_review")
+
+    props = uploader.client.pages.create.call_args.kwargs["properties"]
+    assert "invalid_draft_output" in props["메모"]["rich_text"][0]["text"]["content"]
+    assert props["운영자 해석"]["rich_text"][0]["text"]["content"].startswith("연봉 숫자가")
+    assert "근거 앵커 '연봉 1800 깎고 이직'" in props["검토 포인트"]["rich_text"][0]["text"]["content"]
+    assert "반려 사유" in props["피드백 요청"]["rich_text"][0]["text"]["content"]
+    assert props["위험 신호"]["multi_select"] == [{"name": "독자 핏 약함"}]
+    assert props["발행 플랫폼"]["multi_select"] == [{"name": "숏폼"}, {"name": "Threads"}]
+
+
+@pytest.mark.asyncio
+@patch("pipeline.notion_upload.NotionUploader.ensure_schema", new_callable=AsyncMock)
+async def test_upload_surfaces_missing_draft_next_steps(mock_ensure_schema, mock_config):
+    uploader = NotionUploader(mock_config)
+    mock_ensure_schema.return_value = True
+    uploader.client = AsyncMock()
+    uploader.client.pages.create.return_value = {"url": "https://notion.so/review", "id": "page_missing_draft"}
+    uploader._page_parent_payload = MagicMock(return_value={"database_id": "test_db_id"})
+    uploader._register_url_in_cache = MagicMock()
+
+    uploader.props = {
+        "title": "콘텐츠",
+        "url": "원본 URL",
+        "memo": "메모",
+        "creator_take": "운영자 해석",
+        "review_focus": "검토 포인트",
+        "feedback_request": "피드백 요청",
+        "risk_flags": "위험 신호",
+        "evidence_anchor": "근거 앵커",
+        "publish_platforms": "발행 플랫폼",
+        "tweet_body": "트윗 본문",
+        "status": "상태",
+        "date": "생성일",
+        "source": "원본 소스",
+    }
+    uploader._db_properties = {
+        "콘텐츠": {"type": "title"},
+        "원본 URL": {"type": "url"},
+        "메모": {"type": "rich_text"},
+        "운영자 해석": {"type": "rich_text"},
+        "검토 포인트": {"type": "rich_text"},
+        "피드백 요청": {"type": "rich_text"},
+        "위험 신호": {"type": "multi_select"},
+        "근거 앵커": {"type": "rich_text"},
+        "발행 플랫폼": {"type": "multi_select"},
+        "트윗 본문": {"type": "rich_text"},
+        "상태": {"type": "status"},
+        "생성일": {"type": "date"},
+        "원본 소스": {"type": "select"},
+    }
+
+    post_data = {
+        "title": "주식 수익률 이야기",
+        "url": "https://example.com/post",
+        "source": "blind",
+    }
+    drafts = {
+        "creator_take": "숫자 체감 비교를 잘 살리면 반응이 날 글감입니다.",
+    }
+    analysis = {
+        "selection_summary": "내 돈 감각과 비교해보고 싶은 욕구를 건드리는 글",
+        "empathy_anchor": "한달에 20-30%만 꾸준히",
+    }
+
+    result = await uploader.upload(post_data, None, drafts, analysis=analysis)
+    assert result == ("https://notion.so/review", "page_missing_draft")
+
+    props = uploader.client.pages.create.call_args.kwargs["properties"]
+    assert "초안이 비어 있습니다" in props["피드백 요청"]["rich_text"][0]["text"]["content"]
+    assert "직접 쓰고 싶은 글감인지" in props["검토 포인트"]["rich_text"][0]["text"]["content"]
+
+    children = uploader.client.pages.create.call_args.kwargs["children"]
+    callout_texts = [
+        block["callout"]["rich_text"][0]["text"]["content"]
+        for block in children
+        if block.get("type") == "callout"
+    ]
+    assert any("지금 할 일" in text and "규제 위반이 아니라" in text for text in callout_texts)
+
+
 # ── 추가 커버리지 테스트 ──────────────────────────────────────────────────────
 
 
@@ -581,3 +735,27 @@ async def test_update_page_properties_retries_on_502(mock_sleep, mock_ensure_sch
     res = await uploader.update_page_properties("page_123", {"status": "완료"})
     assert res is True
     assert call_count == 2
+
+
+@pytest.mark.asyncio
+@patch("pipeline.notion_upload.NotionUploader.ensure_schema", new_callable=AsyncMock)
+@patch("httpx.AsyncClient.patch")
+async def test_update_collection_properties_uses_database_endpoint(mock_patch, mock_ensure_schema, mock_config):
+    with patch.dict(os.environ, {"NOTION_DATABASE_ID": "test_db_id"}, clear=True):
+        uploader = NotionUploader(mock_config)
+    mock_ensure_schema.return_value = True
+    uploader.collection_kind = "database"
+
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {"id": "test_db_id"}
+    mock_resp.raise_for_status = MagicMock()
+    mock_patch.return_value = mock_resp
+
+    payload = {"검토 포인트": {"rich_text": {}}}
+    result = await uploader.update_collection_properties(payload)
+
+    assert result == {"id": "test_db_id"}
+    args, kwargs = mock_patch.call_args
+    assert "databases/test_db_id" in args[0]
+    assert kwargs["json"] == {"properties": payload}
+    assert mock_ensure_schema.await_count == 2

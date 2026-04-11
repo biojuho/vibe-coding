@@ -1,6 +1,5 @@
 import { z } from 'zod';
 
-import { BUILDINGS } from '@/lib/constants';
 import { toInputDate } from '@/lib/utils';
 
 const emptyToUndefined = (value) => {
@@ -109,11 +108,13 @@ export const farmSettingsSchema = z.object({
   longitude: z.coerce.number().min(-180, '경도를 확인해 주세요.').max(180, '경도를 확인해 주세요.'),
 });
 
-export function createCattleFormValues(cattle) {
+export function createCattleFormValues(cattle, buildings = []) {
+  const defaultBuildingId = cattle?.buildingId ?? buildings[0]?.id ?? '';
+
   return {
     name: cattle?.name ?? '',
     tagNumber: cattle?.tagNumber ?? '',
-    buildingId: cattle?.buildingId ?? BUILDINGS[0]?.id ?? '',
+    buildingId: defaultBuildingId,
     penNumber: cattle?.penNumber ?? 1,
     gender: cattle?.gender ?? '암',
     birthDate: cattle?.birthDate ? toInputDate(cattle.birthDate) : '',

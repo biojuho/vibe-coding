@@ -120,6 +120,7 @@ class FeedbackLoop:
         lookback_days = int(self.config.get("analytics.lookback_days", 30))
         top_limit = limit or int(self.config.get("analytics.top_examples_limit", 5))
         minimum_posts = int(self.config.get("analytics.minimum_posts_for_feedback", 20))
+        reviewer_memory = await self.get_reviewer_memory(limit=2, lookback_days=lookback_days)
         performance_examples = await self.notion_uploader.get_top_performing_posts(
             limit=top_limit,
             lookback_days=lookback_days,
@@ -127,7 +128,9 @@ class FeedbackLoop:
             allow_fallback_examples=False,
         )
         if performance_examples:
-            return performance_examples
+            if reviewer_memory:
+                logger.info("Few-shot add-on: using %d reviewer-memory items", len(reviewer_memory))
+            return performance_examples + reviewer_memory
 
         approved_examples = await self.notion_uploader.get_recent_approved_posts(
             limit=top_limit,
@@ -135,12 +138,94 @@ class FeedbackLoop:
         )
         if approved_examples:
             logger.info("Few-shot fallback: using %d approved examples", len(approved_examples))
-            return approved_examples
+            if reviewer_memory:
+                logger.info("Few-shot add-on: using %d reviewer-memory items", len(reviewer_memory))
+            return approved_examples + reviewer_memory
 
         yaml_examples = self._load_yaml_golden_examples(top_limit)
         if yaml_examples:
             logger.info("Few-shot fallback: using %d YAML golden examples", len(yaml_examples))
-        return yaml_examples
+        if reviewer_memory:
+            logger.info("Few-shot add-on: using %d reviewer-memory items", len(reviewer_memory))
+        return yaml_examples + reviewer_memory
+
+    async def get_reviewer_memory(
+        self,
+        limit: int = 2,
+        lookback_days: int = 30,
+    ) -> list[dict[str, Any]]:
+        try:
+            pages = await self.notion_uploader.get_recent_pages(days=lookback_days, limit=100)
+            records = [self.notion_uploader.extract_page_record(page) for page in pages]
+        except Exception as exc:
+            logger.warning("Failed to fetch reviewer memory records: %s", exc)
+            return []
+
+        status_markers = {"반려", "반려됨", "보류"}
+        candidate_records = [
+            record
+            for record in records
+            if record.get("rejection_reasons")
+            or record.get("risk_flags")
+            or str(record.get("status", "")).strip() in status_markers
+        ]
+        if not candidate_records:
+            return []
+
+        rejection_counter: Counter[str] = Counter()
+        risk_counter: Counter[str] = Counter()
+        combo_counter: Counter[str] = Counter()
+
+        for record in candidate_records:
+            topic = record.get("topic_cluster", "기타")
+            hook = record.get("hook_type", "공감형")
+            combo_counter[f"{topic}+{hook}"] += 1
+
+            rejections = record.get("rejection_reasons") or []
+            if isinstance(rejections, str):
+                rejections = [item.strip() for item in rejections.split(",") if item.strip()]
+            rejection_counter.update(rejections)
+
+            risks = record.get("risk_flags") or []
+            if isinstance(risks, str):
+                risks = [item.strip() for item in risks.split(",") if item.strip()]
+            risk_counter.update(risks)
+
+        memory_items: list[dict[str, Any]] = []
+        top_rejections = rejection_counter.most_common(3)
+        if top_rejections:
+            memory_items.append(
+                {
+                    "example_source": "reviewer_memory",
+                    "memory_label": "최근 반려 상위",
+                    "text": ", ".join(f"{name} {count}회" for name, count in top_rejections),
+                    "reason": "이 이유로 자주 잘린 표현과 구조를 먼저 피하세요.",
+                }
+            )
+
+        top_risks = risk_counter.most_common(3)
+        if top_risks:
+            memory_items.append(
+                {
+                    "example_source": "reviewer_memory",
+                    "memory_label": "최근 위험 신호",
+                    "text": ", ".join(f"{name} {count}회" for name, count in top_risks),
+                    "reason": "초안이 이 신호를 띠면 검토자가 바로 멈춥니다.",
+                }
+            )
+
+        top_combos = combo_counter.most_common(2)
+        if top_combos:
+            memory_items.append(
+                {
+                    "example_source": "reviewer_memory",
+                    "memory_label": "주의 토픽·훅 조합",
+                    "text": ", ".join(f"{name} {count}회" for name, count in top_combos),
+                    "reason": "이 조합은 최근 운영 검토에서 반복적으로 막혔습니다.",
+                }
+            )
+
+        return memory_items[:limit]
 
     # ── P1-B2: 성공/실패 패턴 분석 ────────────────────────────────────
 
@@ -204,27 +289,44 @@ class FeedbackLoop:
         records: list[dict[str, Any]],
         min_occurrences: int = 3,
     ) -> dict[str, Any]:
-        """D등급 반복 실패 패턴 식별 및 필터 규칙 생성 (P1-B2).
+        """D등급 및 반려된 트윗 반복 패턴 식별 (P1-B2).
 
         Returns:
             {
                 "count": int,
                 "risky_combos": [(combo_key, count), ...],
                 "auto_filters": [{"type": ..., "value": ..., "reason": ...}, ...],
+                "top_rejection_reasons": [(reason, count), ...],
+                "top_risk_flags": [(flag, count), ...],
             }
         """
-        losers = [r for r in records if r.get("performance_grade") == "D"]
+        losers = [r for r in records if r.get("performance_grade") == "D" or r.get("status") == "반려됨"]
         if not losers:
-            return {"count": 0, "risky_combos": [], "auto_filters": []}
+            return {"count": 0, "risky_combos": [], "auto_filters": [], "top_rejection_reasons": [], "top_risk_flags": []}
 
         # 토픽+훅 조합별 실패 빈도
         combo_c: Counter = Counter()
         topic_c: Counter = Counter()
+        rejection_c: Counter = Counter()
+        risk_c: Counter = Counter()
+
         for r in losers:
             topic = r.get("topic_cluster", "기타")
             hook = r.get("hook_type", "공감형")
             combo_c[f"{topic}+{hook}"] += 1
             topic_c[topic] += 1
+
+            rejections = r.get("rejection_reasons")
+            if isinstance(rejections, list):
+                rejection_c.update(rejections)
+            elif isinstance(rejections, str) and rejections.strip():
+                rejection_c.update(x.strip() for x in rejections.split(","))
+
+            risks = r.get("risk_flags")
+            if isinstance(risks, list):
+                risk_c.update(risks)
+            elif isinstance(risks, str) and risks.strip():
+                risk_c.update(x.strip() for x in risks.split(","))
 
         risky = [(k, _v) for k, _v in combo_c.most_common(10) if _v >= min_occurrences]
 
@@ -236,7 +338,7 @@ class FeedbackLoop:
                     "type": "topic_hook_combo",
                     "value": combo,
                     "count": cnt,
-                    "reason": f"{combo} 조합이 {cnt}회 D등급 — 발행 전 추가 검토 권장",
+                    "reason": f"{combo} 조합이 {cnt}회 D등급/반려 — 발행 전 예방 검토 권장",
                 }
             )
 
@@ -249,7 +351,7 @@ class FeedbackLoop:
                         "type": "topic_risk",
                         "value": topic,
                         "fail_rate": round(cnt / total_with_topic * 100, 1),
-                        "reason": f"'{topic}' 토픽 D등급 비율 {cnt}/{total_with_topic} ({cnt / total_with_topic * 100:.0f}%)",
+                        "reason": f"'{topic}' 토픽 실패 비율 ({cnt / total_with_topic * 100:.0f}%)",
                     }
                 )
 
@@ -257,6 +359,8 @@ class FeedbackLoop:
             "count": len(losers),
             "risky_combos": risky,
             "auto_filters": auto_filters,
+            "top_rejection_reasons": rejection_c.most_common(5),
+            "top_risk_flags": risk_c.most_common(5),
         }
 
     async def build_weekly_report_payload(self, days: int = 7) -> dict[str, Any]:

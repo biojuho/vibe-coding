@@ -95,7 +95,7 @@ class NotionUploader(
             return []
         items = []
         try:
-            response = await self.client.search(page_size=max(limit * 2, 10))
+            response = await self._safe_notion_call(self.client.search, page_size=max(limit * 2, 10))
             for raw in response.get("results", []):
                 obj_type = raw.get("object")
                 if obj_type not in {"database", "data_source"}:
@@ -212,6 +212,12 @@ class NotionUploader(
             return {"data_source_id": self.database_id}
         return {"database_id": self.database_id}
 
+    def _collection_schema_endpoint(self) -> tuple[str, str]:
+        """스키마 갱신용 REST endpoint와 Notion-Version 반환."""
+        if self.collection_kind == "data_source":
+            return f"https://api.notion.com/v1/data_sources/{self.database_id}", "2025-09-03"
+        return f"https://api.notion.com/v1/databases/{self.database_id}", "2022-06-28"
+
     @staticmethod
     def _extract_status_code(exc: Exception) -> int | None:
         for attr in ("status", "status_code", "code"):
@@ -273,6 +279,36 @@ class NotionUploader(
                 else:
                     raise
         raise last_exc  # type: ignore[misc]
+
+    async def update_collection_properties(self, properties: dict[str, Any]):
+        """Notion DB/Data Source 스키마에 속성을 추가/수정."""
+        if not properties:
+            return {}
+        if not await self.ensure_schema():
+            return None
+
+        import httpx as _httpx
+
+        endpoint, api_version = self._collection_schema_endpoint()
+
+        async def _do_patch():
+            async with _httpx.AsyncClient(timeout=30) as http:
+                resp = await http.patch(
+                    endpoint,
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Notion-Version": api_version,
+                        "Content-Type": "application/json",
+                    },
+                    json={"properties": properties},
+                )
+                resp.raise_for_status()
+                return resp.json()
+
+        result = await self._safe_notion_call(_do_patch)
+        self._schema_ready = False
+        await self.ensure_schema()
+        return result
 
     async def ensure_schema(self):
         if self._schema_ready:

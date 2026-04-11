@@ -56,6 +56,12 @@ class DigestGenerator:
         self._notion = notion_uploader
         self._max_entries = int(config.get("digest.max_entries", 10))
         self._gemini_key = os.environ.get("GEMINI_API_KEY") or config.get("gemini.api_key", "")
+        self._summary_timeout_sec = int(
+            config.get(
+                "digest.summary_timeout_seconds",
+                config.get("llm.request_timeout_seconds", 45),
+            )
+        )
 
     async def generate(self, date: str | None = None) -> DailyDigest:
         """Generate a daily digest for the given date (default: today KST).
@@ -159,8 +165,21 @@ class DigestGenerator:
             }
 
             all_results: list[dict] = []
+            next_cursor: str | None = None
+            seen_cursors: set[str] = set()
+            max_pages = 100
+            page_count = 0
             async with httpx.AsyncClient(timeout=30) as client:
                 while True:
+                    if next_cursor:
+                        if next_cursor in seen_cursors:
+                            logger.warning("Digest Notion query aborted due to repeated cursor: %s", next_cursor)
+                            break
+                        seen_cursors.add(next_cursor)
+                        body["start_cursor"] = next_cursor
+                    else:
+                        body.pop("start_cursor", None)
+
                     resp = await client.post(
                         f"https://api.notion.com/v1/databases/{db_id}/query",
                         headers=headers,
@@ -169,9 +188,13 @@ class DigestGenerator:
                     resp.raise_for_status()
                     data = resp.json()
                     all_results.extend(data.get("results", []))
-                    if not data.get("has_more") or not data.get("next_cursor"):
+                    page_count += 1
+                    next_cursor = data.get("next_cursor")
+                    if page_count >= max_pages:
+                        logger.warning("Digest Notion query aborted after %d pages.", page_count)
                         break
-                    body["start_cursor"] = data["next_cursor"]
+                    if not data.get("has_more") or not next_cursor:
+                        break
             return all_results
         except Exception as exc:
             logger.error("Notion query for digest failed: %s", exc)
@@ -233,11 +256,24 @@ class DigestGenerator:
                 "Keep it under 200 chars."
             )
 
-            response = await asyncio.to_thread(
-                client.models.generate_content,
-                model="gemini-2.5-flash",
-                contents=prompt,
-                config={"temperature": 0.7, "max_output_tokens": 300},
+            timeout_sec = getattr(
+                self,
+                "_summary_timeout_sec",
+                int(
+                    self._config.get(
+                        "digest.summary_timeout_seconds",
+                        self._config.get("llm.request_timeout_seconds", 45),
+                    )
+                ),
+            )
+            response = await asyncio.wait_for(
+                asyncio.to_thread(
+                    client.models.generate_content,
+                    model="gemini-2.5-flash",
+                    contents=prompt,
+                    config={"temperature": 0.7, "max_output_tokens": 300},
+                ),
+                timeout=timeout_sec,
             )
             return response.text.strip()
 

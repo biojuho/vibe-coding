@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { loadPaymentWidget } from '@tosspayments/payment-widget-sdk';
 import { fetchWithTimeout, isTimeoutError, TimeoutError } from '@/lib/fetchWithTimeout';
+import { buildGatewayErrorMessage, readJsonResponseSafely } from '@/lib/payment-confirmation.mjs';
 
 const PAYMENT_WIDGET_TIMEOUT_MS = 15000;
 const PAYMENT_PREPARE_TIMEOUT_MS = 10000;
@@ -111,9 +112,15 @@ export default function PaymentWidget({
         },
       );
 
-      const preparedPayment = await prepareResponse.json();
-      if (!prepareResponse.ok || !preparedPayment.success) {
-        throw new Error(preparedPayment.message || 'Failed to prepare payment request.');
+      const { data: preparedPayment, rawText } = await readJsonResponseSafely(prepareResponse);
+      if (!prepareResponse.ok || !preparedPayment?.success) {
+        throw new Error(
+          buildGatewayErrorMessage({
+            payload: preparedPayment,
+            rawText,
+            fallbackMessage: 'Failed to prepare payment request.',
+          }),
+        );
       }
 
       const requestPayload = {

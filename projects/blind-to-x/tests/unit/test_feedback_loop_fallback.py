@@ -32,15 +32,22 @@ class FakeConfig:
 
 
 class FakeNotionUploader:
-    def __init__(self, performance=None, approved=None):
+    def __init__(self, performance=None, approved=None, recent_pages=None):
         self.performance = performance or []
         self.approved = approved or []
+        self.recent_pages = recent_pages or []
 
     async def get_top_performing_posts(self, **kwargs):  # noqa: ARG002
         return self.performance
 
     async def get_recent_approved_posts(self, **kwargs):  # noqa: ARG002
         return self.approved
+
+    async def get_recent_pages(self, **kwargs):  # noqa: ARG002
+        return self.recent_pages
+
+    def extract_page_record(self, page):
+        return page
 
 
 def test_few_shot_prefers_performance_examples():
@@ -52,7 +59,7 @@ def test_few_shot_prefers_performance_examples():
 
     result = asyncio.run(loop.get_few_shot_examples())
 
-    assert result == [{"text": "성과형 예시", "views": 1000, "topic_cluster": "연봉"}]
+    assert result[0] == {"text": "성과형 예시", "views": 1000, "topic_cluster": "연봉"}
 
 
 def test_few_shot_falls_back_to_approved_examples():
@@ -64,7 +71,7 @@ def test_few_shot_falls_back_to_approved_examples():
 
     result = asyncio.run(loop.get_few_shot_examples())
 
-    assert result == [{"text": "승인 예시", "status": "승인됨"}]
+    assert result[0] == {"text": "승인 예시", "status": "승인됨"}
 
 
 def test_few_shot_falls_back_to_yaml_golden_examples():
@@ -79,3 +86,52 @@ def test_few_shot_falls_back_to_yaml_golden_examples():
     assert len(result) == 2
     assert all(item["example_source"] == "yaml_golden" for item in result)
     assert all(item["text"] for item in result)
+
+
+def test_get_reviewer_memory_builds_review_guardrails():
+    notion = FakeNotionUploader(
+        recent_pages=[
+            {
+                "status": "반려됨",
+                "topic_cluster": "연봉",
+                "hook_type": "공감형",
+                "rejection_reasons": ["팩트 경계", "클리셰"],
+                "risk_flags": ["팩트 경계"],
+            },
+            {
+                "status": "보류",
+                "topic_cluster": "연봉",
+                "hook_type": "공감형",
+                "rejection_reasons": ["클리셰"],
+                "risk_flags": ["근거 약함"],
+            },
+        ]
+    )
+    loop = FeedbackLoop(notion, FakeConfig())
+
+    result = asyncio.run(loop.get_reviewer_memory(limit=3, lookback_days=30))
+
+    assert len(result) >= 2
+    assert all(item["example_source"] == "reviewer_memory" for item in result)
+    assert any("클리셰" in item["text"] for item in result)
+
+
+def test_few_shot_examples_append_reviewer_memory():
+    notion = FakeNotionUploader(
+        performance=[{"text": "성과형 예시", "views": 1000, "topic_cluster": "연봉"}],
+        recent_pages=[
+            {
+                "status": "반려됨",
+                "topic_cluster": "연봉",
+                "hook_type": "공감형",
+                "rejection_reasons": ["팩트 경계"],
+                "risk_flags": ["근거 약함"],
+            }
+        ],
+    )
+    loop = FeedbackLoop(notion, FakeConfig())
+
+    result = asyncio.run(loop.get_few_shot_examples())
+
+    assert result[0]["text"] == "성과형 예시"
+    assert any(item.get("example_source") == "reviewer_memory" for item in result[1:])

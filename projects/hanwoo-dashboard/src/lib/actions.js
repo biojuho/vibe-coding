@@ -3,7 +3,6 @@
 import { requireAuthenticatedSession } from '@/lib/auth-guard';
 import prisma from './db';
 import { revalidatePath } from 'next/cache';
-import { isEstrusAlert, isCalvingAlert, getDaysUntilEstrus, getDaysUntilCalving } from './utils';
 import { fetchMarketPrice } from './kape';
 import { normalizeCattleHistoryRows } from './cattle-history.mjs';
 import { createOutboxEvent, DASHBOARD_EVENT_TOPICS } from './dashboard/events';
@@ -23,6 +22,7 @@ import {
   validateInventoryQuantityInput,
   validateSalesRecordInput,
 } from './action-validation.mjs';
+import { buildNotifications } from './notifications';
 
 // ============================================================
 // Helper: CattleHistory 기록 (실패해도 부모 작업 중단 안 함)
@@ -689,7 +689,8 @@ export async function getNotifications() {
 
   try {
     const cattle = await prisma.cattle.findMany({ where: { isArchived: false } });
-    const notifications = [];
+    const notifications = buildNotifications(cattle);
+    /*
 
     cattle.forEach(cow => {
       if ((cow.status === "번식우" || cow.status === "육성우") && cow.lastEstrus && isEstrusAlert(cow.lastEstrus)) {
@@ -700,7 +701,15 @@ export async function getNotifications() {
           level: daysLeft <= 1 ? 'critical' : 'warning',
           title: daysLeft === 0 ? '🔥 발정 예정일' : '💕 발정 임박',
           message: `${cow.name} (${cow.tagNumber}) 발정 예정일이 ${daysLeft}일 남았습니다.`,
-          date: new Date(),
+          cattleId: cow.id,
+          cattleName: cow.name,
+          tagNumber: cow.tagNumber,
+          buildingId: cow.buildingId,
+          penNumber: cow.penNumber,
+          daysLeft,
+          targetDate: cow.lastEstrus,
+          date: createdAt.toISOString(),
+          time: formattedTime,
         });
       }
 
@@ -712,7 +721,15 @@ export async function getNotifications() {
           level: daysLeft <= 3 ? 'critical' : 'warning',
           title: daysLeft === 0 ? '🚨 분만 예정일' : '👶 분만 임박',
           message: `${cow.name} (${cow.tagNumber}) 분만 예정일이 ${daysLeft}일 남았습니다!`,
-          date: new Date(),
+          cattleId: cow.id,
+          cattleName: cow.name,
+          tagNumber: cow.tagNumber,
+          buildingId: cow.buildingId,
+          penNumber: cow.penNumber,
+          daysLeft,
+          targetDate: cow.pregnancyDate,
+          date: createdAt.toISOString(),
+          time: formattedTime,
         });
       }
     });
@@ -722,6 +739,8 @@ export async function getNotifications() {
       if (a.level !== 'critical' && b.level === 'critical') return 1;
       return 0;
     });
+
+    */
 
     // Persist for future cache hits
     try {

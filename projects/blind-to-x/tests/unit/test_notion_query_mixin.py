@@ -269,6 +269,36 @@ async def test_search_pages_by_title_and_recent_pages_filters_results():
 
 
 @pytest.mark.asyncio
+async def test_get_recent_pages_falls_back_to_collection_query_when_search_is_empty():
+    host = FakeQueryHost()
+    host._db_properties["date"] = {"type": "date"}
+    host.client.search.return_value = {"results": []}
+    host.query_response = {
+        "results": [
+            _page_with_properties(
+                date={"type": "date", "date": {"start": _now_iso()}},
+                tweet_body={"type": "rich_text", "rich_text": [{"plain_text": "recent"}]},
+            ),
+            _page_with_properties(
+                date={
+                    "type": "date",
+                    "date": {"start": (datetime.now(UTC) - timedelta(days=14)).isoformat()},
+                },
+                tweet_body={"type": "rich_text", "rich_text": [{"plain_text": "old"}]},
+            ),
+        ]
+    }
+
+    recent_pages = await host.get_recent_pages(days=7, limit=10)
+
+    assert len(recent_pages) == 1
+    assert host.last_query_kwargs == {
+        "page_size": 20,
+        "sorts": [{"property": "date", "direction": "descending"}],
+    }
+
+
+@pytest.mark.asyncio
 async def test_search_pages_by_title_handles_query_failure_and_fetch_recent_records_maps_pages():
     host = FakeQueryHost()
     host.query_collection = AsyncMock(side_effect=RuntimeError("boom"))

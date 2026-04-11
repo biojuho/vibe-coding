@@ -1,4 +1,4 @@
-import { STATUS_COLORS, BUILDINGS } from '@/lib/constants';
+import { STATUS_COLORS } from '@/lib/constants';
 import { isEstrusAlert, getDaysUntilEstrus, getMonthAge, isCalvingAlert, getDaysUntilCalving } from '@/lib/utils';
 import { HeartIcon } from './common';
 

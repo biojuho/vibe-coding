@@ -125,15 +125,20 @@ class TestTakeScreenshot:
 
     @pytest.mark.asyncio
     async def test_timeout_returns_false(self, tmp_path):
+        from unittest.mock import patch
+
         scraper = _make_scraper()
         path = str(tmp_path / "shot.png")
-
-        async def slow_screenshot(**kwargs):
-            await asyncio.sleep(10)
-
         fake_page = AsyncMock()
-        fake_page.screenshot = slow_screenshot
-        result = await scraper._take_screenshot(fake_page, path, timeout_seconds=0.01)
+
+        # _fast_sleeps 픽스처가 asyncio.sleep을 즉시 반환하므로
+        # asyncio.wait_for를 직접 모킹하여 TimeoutError 발생
+        async def _raise_timeout(coro, *, timeout=None):
+            coro.close()
+            raise asyncio.TimeoutError()
+
+        with patch("scrapers.base.asyncio.wait_for", side_effect=_raise_timeout):
+            result = await scraper._take_screenshot(fake_page, path, timeout_seconds=1)
         assert result is False
 
     @pytest.mark.asyncio

@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 from argparse import Namespace
 
+from pipeline.daily_queue_floor import DailyQueueFloorState
 from pipeline.feed_collector import collect_feed_items
 
 
@@ -140,5 +141,51 @@ async def test_collect_feed_items_filters_abstract_titles(mock_config, mock_scra
 
     # All three pass the lenient title-only pre-screen (threshold=35);
     # full editorial scoring with content runs later in process.py.
+    assert len(items) == 3
+    assert stats["editorial_skips"] == 0
+
+
+@pytest.mark.asyncio
+async def test_collect_feed_items_relaxes_daily_floor_thresholds():
+    config = MagicMock()
+    config_dict = {
+        "scrape_limit": 2,
+        "feed_filter.fetch_multiplier": 3,
+        "feed_filter.min_engagement_score": 0.0,
+        "feed_filter.min_pre_editorial_score": 40.0,
+        "feed_filter.title_blacklist": [],
+        "schedule.enabled": True,
+        "dedup.cross_source_enabled": False,
+        "scrape_limits_per_source": {"blind": 1},
+        "review.minimum_daily_queue_pre_editorial_score": 20.0,
+        "review.minimum_daily_queue_relax_per_source_limits": True,
+    }
+    config.get.side_effect = lambda key, default=None: config_dict.get(key, default)
+
+    scraper = AsyncMock()
+    scraper.get_feed_candidates.return_value = [
+        MockCandidate("후보 1", "https://teamblind.com/1", score=15.0),
+        MockCandidate("후보 2", "https://teamblind.com/2", score=15.0),
+        MockCandidate("후보 3", "https://teamblind.com/3", score=15.0),
+    ]
+
+    args = Namespace(urls=None, popular=False, trending=True, limit=2)
+    floor_state = DailyQueueFloorState(target=5, current=0, remaining=5, active=True)
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(
+            "pipeline.feed_collector.evaluate_candidate_editorial_fit",
+            lambda **kwargs: {
+                "score": 25.0,
+                "reason_labels": ["daily floor"],
+                "dimensions": {},
+                "topic_cluster": "기타",
+                "empathy_anchor": "",
+                "spinoff_angle": "",
+            },
+        )
+        items, stats = await collect_feed_items(config, args, {"blind": scraper}, daily_queue_floor=floor_state)
+
+    scraper.get_feed_candidates.assert_awaited_once_with(mode="trending", limit=15)
     assert len(items) == 3
     assert stats["editorial_skips"] == 0

@@ -1,4 +1,8 @@
-import { getQueue, setQueue } from './offlineQueue';
+import { appendDeadLetterQueue, getQueue, setQueue } from './offlineQueue';
+import {
+  createFailedQueueItemState,
+  isPermanentOfflineQueueFailure,
+} from './offline-sync-state.mjs';
 import {
   createCattle, updateCattle, deleteCattle,
   recordCalving,
@@ -36,17 +40,20 @@ function mergeRemainingQueue(snapshotQueue, latestQueue, failedItems) {
 
 async function syncOfflineQueueInternal() {
   const queueSnapshot = getQueue();
-  if (queueSnapshot.length === 0) return { synced: 0, failed: 0 };
+  if (queueSnapshot.length === 0) return { synced: 0, failed: 0, deadLettered: 0 };
 
   let synced = 0;
-  let failed = 0;
   const failedItems = [];
+  const deadLetterItems = [];
 
   for (const item of queueSnapshot) {
     const handler = ACTION_MAP[item.action];
     if (!handler) {
-      failed++;
-      failedItems.push(item);
+      const failureState = createFailedQueueItemState(item, {
+        errorMessage: `No offline sync handler is registered for action "${item.action}".`,
+        permanent: true,
+      });
+      deadLetterItems.push(failureState.item);
       continue;
     }
 
@@ -54,22 +61,51 @@ async function syncOfflineQueueInternal() {
       const args = Array.isArray(item.args) ? item.args : [item.args];
       const result = await handler(args);
       if (result?.success === false) {
-        failed++;
-        failedItems.push(item);
+        const errorMessage =
+          typeof result?.message === 'string' && result.message.length > 0
+            ? result.message
+            : `Offline sync action "${item.action}" returned an unsuccessful result.`;
+        const failureState = createFailedQueueItemState(item, {
+          errorMessage,
+          permanent: isPermanentOfflineQueueFailure(errorMessage),
+        });
+        if (failureState.disposition === 'dead-letter') {
+          deadLetterItems.push(failureState.item);
+        } else {
+          failedItems.push(failureState.item);
+        }
       } else {
         synced++;
       }
-    } catch {
-      failed++;
-      failedItems.push(item);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error && error.message
+          ? error.message
+          : `Offline sync action "${item.action}" threw an unknown error.`;
+      const failureState = createFailedQueueItemState(item, {
+        errorMessage,
+        permanent: isPermanentOfflineQueueFailure(errorMessage),
+      });
+      if (failureState.disposition === 'dead-letter') {
+        deadLetterItems.push(failureState.item);
+      } else {
+        failedItems.push(failureState.item);
+      }
     }
   }
 
   const latestQueue = getQueue();
   const nextQueue = mergeRemainingQueue(queueSnapshot, latestQueue, failedItems);
   setQueue(nextQueue);
+  if (deadLetterItems.length > 0) {
+    appendDeadLetterQueue(deadLetterItems);
+  }
 
-  return { synced, failed };
+  return {
+    synced,
+    failed: failedItems.length + deadLetterItems.length,
+    deadLettered: deadLetterItems.length,
+  };
 }
 
 export async function syncOfflineQueue() {

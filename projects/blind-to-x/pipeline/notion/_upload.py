@@ -13,6 +13,7 @@ from config import (
     ERROR_NOTION_SCHEMA_MISMATCH,
     ERROR_NOTION_UPLOAD_FAILED,
 )
+from pipeline.draft_contract import iter_publishable_drafts
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,14 @@ class NotionUploadMixin:
     _page_parent_payload, canonicalize_url, _register_url_in_cache 등이
     동일 클래스(NotionUploader)에 합쳐져 있어야 합니다.
     """
+
+    REVIEW_FLAG_ALIASES = {
+        "문자 깨짐 또는 비한글 비율 과다": "품질 이상",
+        "너무 추상적": "근거 약함",
+        "파생각 부족": "후속 반응 약함",
+        "직장인 맥락 약함": "독자 핏 약함",
+        "갈등 낚시 과다": "갈등 과열",
+    }
 
     def _prepare_property_payload(self, semantic_key: str, value: Any):
         """시맨틱 키 + 값 → Notion API 속성 payload 변환."""
@@ -46,6 +55,14 @@ class NotionUploadMixin:
             return prop_name, {"status": {"name": str(value)}}
         if prop_type == "select":
             return prop_name, {"select": {"name": str(value)}}
+        if prop_type == "multi_select":
+            if isinstance(value, (list, tuple, set)):
+                names = [str(item).strip() for item in value if str(item).strip()]
+            else:
+                names = [str(value).strip()] if str(value).strip() else []
+            if not names:
+                return None, None
+            return prop_name, {"multi_select": [{"name": name[:100]} for name in names]}
         if prop_type == "date":
             if value == "now":
                 iso_value = datetime.utcnow().isoformat()
@@ -78,6 +95,152 @@ class NotionUploadMixin:
             )
         return blocks
 
+    def _derive_publish_platforms(self, drafts: Any) -> list[str]:
+        if not isinstance(drafts, dict):
+            return ["숏폼"]
+
+        platforms: list[str] = []
+        if drafts.get("twitter"):
+            platforms.append("숏폼")
+        if drafts.get("threads"):
+            platforms.append("Threads")
+        if drafts.get("newsletter"):
+            platforms.append("뉴스레터")
+        if drafts.get("naver_blog"):
+            platforms.append("블로그")
+        return platforms
+
+    def _list_publishable_draft_keys(self, drafts: Any) -> list[str]:
+        if isinstance(drafts, dict):
+            return [key for key, _value in iter_publishable_drafts(drafts)]
+        if isinstance(drafts, str) and drafts.strip():
+            return ["twitter"]
+        return []
+
+    def _extract_review_risk_flags(self, post_data: dict[str, Any], drafts: Any, analysis: dict[str, Any] | None) -> list[str]:
+        flags: list[str] = []
+
+        for reason in (analysis or {}).get("hard_reject_reasons", []) or []:
+            flags.append(self.REVIEW_FLAG_ALIASES.get(str(reason), str(reason)))
+
+        qg_report = str(post_data.get("quality_gate_report", "") or "")
+        if "클리셰" in qg_report and "클리셰 0건" not in qg_report:
+            flags.append("클리셰")
+        if "구체 장면 없음" in qg_report or "구체성 부족" in qg_report:
+            flags.append("근거 약함")
+        if "CTA" in qg_report and "CTA 포함" not in qg_report:
+            flags.append("CTA 약함")
+        if "날조" in qg_report or "팩트" in qg_report:
+            flags.append("팩트 경계")
+
+        if isinstance(drafts, dict) and not str(drafts.get("creator_take", "") or "").strip():
+            flags.append("해석 약함")
+
+        deduped: list[str] = []
+        for flag in flags:
+            clean_flag = str(flag).strip()
+            if clean_flag and clean_flag not in deduped:
+                deduped.append(clean_flag)
+        return deduped[:5]
+
+    @staticmethod
+    def _truncate_for_brief(text: str, limit: int = 42) -> str:
+        clean = " ".join(str(text or "").split())
+        if len(clean) <= limit:
+            return clean
+        return clean[: limit - 1].rstrip() + "…"
+
+    def _build_review_focus(
+        self,
+        analysis: dict[str, Any] | None,
+        evidence_anchor: str,
+        risk_flags: list[str],
+        has_publishable_draft: bool,
+    ) -> str:
+        focus_items: list[str] = []
+
+        if not has_publishable_draft:
+            if evidence_anchor:
+                focus_items.append(f"근거 앵커 '{self._truncate_for_brief(evidence_anchor)}' 자체가 살릴 만한지")
+            if analysis and analysis.get("selection_summary"):
+                focus_items.append("선정 이유만으로도 다시 써볼 가치가 있는지")
+            focus_items.append("초안 없이도 운영자가 직접 쓰고 싶은 글감인지")
+            return " / ".join(focus_items[:3])
+
+        if evidence_anchor:
+            focus_items.append(f"근거 앵커 '{self._truncate_for_brief(evidence_anchor)}'가 초안에 살아 있는지")
+        if analysis and analysis.get("selection_summary"):
+            focus_items.append("왜 이 글을 골랐는지 선정 이유가 납득되는지")
+        if "팩트 경계" in risk_flags:
+            focus_items.append("숫자·댓글·인용 해석이 과장되지 않았는지")
+        elif "근거 약함" in risk_flags:
+            focus_items.append("첫 문장에서 장면과 근거가 바로 잡히는지")
+        elif "독자 핏 약함" in risk_flags:
+            focus_items.append("직장인 독자가 자기 일처럼 느낄 만한지")
+        elif "클리셰" in risk_flags:
+            focus_items.append("문장이 뻔하지 않고 실제 사람 말처럼 들리는지")
+
+        if not focus_items:
+            focus_items.append("첫 문장 훅, 근거 보존, 톤 자연스러움 이 3가지만 보면 됩니다")
+
+        return " / ".join(focus_items[:3])
+
+    def _build_feedback_request(self, risk_flags: list[str], has_publishable_draft: bool) -> str:
+        if not has_publishable_draft:
+            return (
+                "초안이 비어 있습니다. 승인/보류/반려 중 하나만 고른 뒤, "
+                "살릴 거면 재생성 또는 직접 작성, 아니면 '반려 사유'만 체크해주세요."
+            )
+
+        primary_check = "승인/보류/반려 중 하나만 고르고, 가장 먼저 고칠 1개만 남겨주세요"
+        if "팩트 경계" in risk_flags:
+            secondary = "특히 과장되거나 추론이 튄 문장이 있으면 바로 표시해주세요"
+        elif "근거 약함" in risk_flags or "훅 약함" in risk_flags:
+            secondary = "특히 첫 문장이 약한지, 근거가 흐린지 봐주세요"
+        elif "클리셰" in risk_flags:
+            secondary = "특히 기계적으로 들리는 문장이 있으면 표시해주세요"
+        else:
+            secondary = "문제 없으면 살릴 포인트 1개만 적어주세요"
+        return f"{primary_check}. {secondary}. 반려면 '반려 사유' 컬럼만 체크해도 충분합니다."
+
+    def _build_action_steps(self, has_publishable_draft: bool) -> list[str]:
+        if has_publishable_draft:
+            return [
+                "지금 할 일",
+                "1. '검토 포인트'와 '피드백 요청'만 먼저 읽습니다.",
+                "2. 아래 초안을 보고 승인됨 / 보류 / 반려 중 하나로 상태를 고릅니다.",
+                "3. 승인이라면 필요한 채널용으로 조금만 다듬고, 반려라면 '반려 사유'만 체크합니다.",
+            ]
+
+        return [
+            "지금 할 일",
+            "1. 규제 리포트의 '초안 없음' 경고는 규제 위반이 아니라 초안 비어 있음 안내입니다.",
+            "2. 원문과 공감 앵커가 살릴 만하면 파이프라인을 다시 돌리거나 초안을 직접 씁니다.",
+            "3. 살릴 가치가 낮으면 '반려 사유'만 체크하고 반려로 끝냅니다.",
+        ]
+
+    def _build_review_brief(self, post_data: dict[str, Any], drafts: Any, analysis: dict[str, Any] | None) -> dict[str, Any]:
+        creator_take = ""
+        if isinstance(drafts, dict):
+            creator_take = str(drafts.get("creator_take", "") or "").strip()
+
+        evidence_anchor = str((analysis or {}).get("empathy_anchor", "") or "").strip()
+        risk_flags = self._extract_review_risk_flags(post_data, drafts, analysis)
+        publishable_draft_keys = self._list_publishable_draft_keys(drafts)
+        has_publishable_draft = bool(publishable_draft_keys)
+        publish_platforms = self._derive_publish_platforms(drafts)
+
+        return {
+            "creator_take": creator_take,
+            "evidence_anchor": evidence_anchor,
+            "risk_flags": risk_flags,
+            "has_publishable_draft": has_publishable_draft,
+            "review_focus": self._build_review_focus(analysis, evidence_anchor, risk_flags, has_publishable_draft),
+            "feedback_request": self._build_feedback_request(risk_flags, has_publishable_draft),
+            "action_steps": self._build_action_steps(has_publishable_draft),
+            "publish_platforms": publish_platforms,
+        }
+
     async def upload(self, post_data, image_url, drafts, analysis=None, screenshot_url=None):
         """Notion DB에 새 페이지 생성 (본문 + 초안 + 분석 결과)."""
         if not await self.ensure_schema():
@@ -87,32 +250,33 @@ class NotionUploadMixin:
         try:
             canonical_url = self.canonicalize_url(post_data.get("url", ""))
             properties: dict[str, Any] = {}
+            review_brief = self._build_review_brief(post_data, drafts, analysis)
+            draft_generation_error = str(post_data.get("draft_generation_error", "") or "").strip()
 
             self._append_property_if_present(properties, "title", post_data.get("title", ""))
 
-            # memo: 원본 링크 + creator_take (있으면)
+            # memo: 원본 링크 + 핵심 판단 정보만 간결하게 유지
             memo_parts = [f"원본 링크: {canonical_url or post_data.get('url', '')}"]
             if analysis and analysis.get("selection_summary"):
-                memo_parts.append(f"왜 고름: {analysis['selection_summary']}")
-            if analysis and analysis.get("selection_reason_labels"):
-                memo_parts.append(f"선정 포인트: {', '.join(analysis['selection_reason_labels'])}")
-            elif analysis and analysis.get("rationale"):
-                memo_parts.append(f"선정 포인트: {', '.join(analysis['rationale'])}")
-            if analysis and analysis.get("emotion_lane"):
-                memo_parts.append(f"감정선: {analysis['emotion_lane']}")
-            if analysis and analysis.get("spinoff_angle"):
-                memo_parts.append(f"파생각: {analysis['spinoff_angle']}")
-            creator_take = ""
-            if isinstance(drafts, dict):
-                creator_take = drafts.get("creator_take", "")
-            if creator_take:
-                memo_parts.append(f"🎯 운영자 해석: {creator_take}")
+                memo_parts.append(f"선정 요약: {analysis['selection_summary']}")
+            if review_brief["creator_take"]:
+                memo_parts.append(f"운영자 해석: {review_brief['creator_take']}")
+            if review_brief["risk_flags"]:
+                memo_parts.append(f"위험 신호: {', '.join(review_brief['risk_flags'])}")
+            if draft_generation_error:
+                memo_parts.append(f"초안 생성 오류: {self._truncate_for_brief(draft_generation_error, limit=140)}")
             self._append_property_if_present(properties, "memo", "\n".join(memo_parts))
 
             self._append_property_if_present(properties, "status", post_data.get("status") or self.status_default)
             self._append_property_if_present(properties, "date", datetime.now().date())
             self._append_property_if_present(properties, "url", canonical_url)
             self._append_property_if_present(properties, "source", post_data.get("source", "blind"))
+            self._append_property_if_present(properties, "creator_take", review_brief["creator_take"])
+            self._append_property_if_present(properties, "review_focus", review_brief["review_focus"])
+            self._append_property_if_present(properties, "feedback_request", review_brief["feedback_request"])
+            self._append_property_if_present(properties, "risk_flags", review_brief["risk_flags"])
+            self._append_property_if_present(properties, "evidence_anchor", review_brief["evidence_anchor"])
+            self._append_property_if_present(properties, "publish_platforms", review_brief["publish_platforms"])
 
             if isinstance(drafts, dict):
                 self._append_property_if_present(properties, "tweet_body", drafts.get("twitter"))
@@ -142,6 +306,64 @@ class NotionUploadMixin:
                 )
 
             if analysis:
+                children.append({"object": "block", "type": "divider", "divider": {}})
+                children.append(
+                    {
+                        "object": "block",
+                        "type": "heading_2",
+                        "heading_2": {"rich_text": [{"type": "text", "text": {"content": "검토 브리프"}}]},
+                    }
+                )
+
+                children.append(
+                    {
+                        "object": "block",
+                        "type": "callout",
+                        "callout": {
+                            "rich_text": [
+                                {
+                                    "type": "text",
+                                    "text": {"content": "\n".join(review_brief["action_steps"])},
+                                }
+                            ],
+                            "icon": {
+                                "type": "emoji",
+                                "emoji": "📝" if review_brief["has_publishable_draft"] else "⚠️",
+                            },
+                            "color": "green_background" if review_brief["has_publishable_draft"] else "yellow_background",
+                        },
+                    }
+                )
+
+                if review_brief["creator_take"]:
+                    children.append(
+                        {
+                            "object": "block",
+                            "type": "callout",
+                            "callout": {
+                                "rich_text": [
+                                    {"type": "text", "text": {"content": f"한줄 해석: {review_brief['creator_take']}"}}
+                                ],
+                                "icon": {"type": "emoji", "emoji": "🧭"},
+                                "color": "blue_background",
+                            },
+                        }
+                    )
+
+                brief_lines = [
+                    f"검토 포인트: {review_brief['review_focus']}",
+                    f"피드백 요청: {review_brief['feedback_request']}",
+                ]
+                if review_brief["evidence_anchor"]:
+                    brief_lines.append(f"근거 앵커: {review_brief['evidence_anchor']}")
+                if review_brief["risk_flags"]:
+                    brief_lines.append(f"위험 신호: {', '.join(review_brief['risk_flags'])}")
+                if review_brief["publish_platforms"]:
+                    brief_lines.append(f"권장 채널: {', '.join(review_brief['publish_platforms'])}")
+                if draft_generation_error:
+                    brief_lines.append(f"초안 생성 오류: {self._truncate_for_brief(draft_generation_error, limit=140)}")
+                children.extend(self._create_text_blocks("\n".join(brief_lines)))
+
                 children.append({"object": "block", "type": "divider", "divider": {}})
                 children.append(
                     {
@@ -219,7 +441,7 @@ class NotionUploadMixin:
                             {
                                 "object": "block",
                                 "type": "heading_2",
-                                "heading_2": {"rich_text": [{"type": "text", "text": {"content": "X(Twitter) 초안"}}]},
+                                "heading_2": {"rich_text": [{"type": "text", "text": {"content": "숏폼 초안"}}]},
                             }
                         )
                         children.extend(self._create_text_blocks(drafts["twitter"]))
@@ -230,7 +452,7 @@ class NotionUploadMixin:
                                 "object": "block",
                                 "type": "heading_3",
                                 "heading_3": {
-                                    "rich_text": [{"type": "text", "text": {"content": "X 답글 (링크+해시태그)"}}]
+                                    "rich_text": [{"type": "text", "text": {"content": "링크 메모"}}]
                                 },
                             }
                         )
@@ -273,7 +495,7 @@ class NotionUploadMixin:
                         {
                             "object": "block",
                             "type": "heading_2",
-                            "heading_2": {"rich_text": [{"type": "text", "text": {"content": "X(Twitter) 초안"}}]},
+                            "heading_2": {"rich_text": [{"type": "text", "text": {"content": "숏폼 초안"}}]},
                         }
                     )
                     children.extend(self._create_text_blocks(str(drafts)))

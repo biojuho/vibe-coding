@@ -5,10 +5,12 @@
 - 60초 SLA 강제 (타임아웃)
 - X + Threads 2채널만 생성 (블로그/뉴스레터 생략)
 - 비용 추적 자동 연동
+- [Phase 8] PerformancePromptAdapter로 성과 기반 프롬프트 자동 강화
 
 Architecture:
     EscalationQueue ──▶ ExpressDraftPipeline ──▶ Notification (텔레그램)
     (escalation_queue.py)   (이 모듈)               (notification.py)
+    PerformancePromptAdapter ↗ (성과 학습 컨텍스트 주입)
 """
 
 from __future__ import annotations
@@ -20,6 +22,10 @@ from dataclasses import dataclass
 from typing import Any
 
 from pipeline.enrichment_engine import ContextEnrichmentEngine, EnrichedContext
+from pipeline.performance_prompt_adapter import (
+    PerformanceInsight,
+    get_performance_prompt_adapter,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +86,9 @@ class ExpressDraftPipeline:
         # [Phase 7] 실시간 RAG 인리치먼트 엔진 초기화
         self._enrichment_engine = ContextEnrichmentEngine()
 
+        # [Phase 8] 성과 기반 프롬프트 강화 어댑터
+        self._perf_adapter = get_performance_prompt_adapter()
+
     async def generate(
         self,
         title: str,
@@ -101,12 +110,26 @@ class ExpressDraftPipeline:
         start = time.time()
         result = ExpressDraftResult()
 
+        # [Phase 8] 성과 인사이트 선제 조회 (fail-open — 실패해도 빈 인사이트)
+        try:
+            perf_insight: PerformanceInsight = await asyncio.wait_for(
+                self._perf_adapter.get_insight(source=source),
+                timeout=3.0,  # 인사이트 조회는 최대 3초만 허용 (SLA 보호)
+            )
+        except Exception:
+            logger.debug("ExpressDraft: 성과 인사이트 조회 실패 (무시) — source=%s", source)
+            from pipeline.performance_prompt_adapter import PerformanceInsight
+            perf_insight = PerformanceInsight(source=source)
+
         # [Phase 7] 0단계: 실시간 외부 컨텍스트 보강 (Exa + Perplexity RAG)
         try:
 
             async def _generate_with_deadline():
                 enriched = await self._enrichment_engine.process_topic(title)
-                user_prompt = self._build_user_prompt(title, content_preview, source, velocity_score, enriched)
+                user_prompt = self._build_user_prompt(
+                    title, content_preview, source, velocity_score,
+                    enriched=enriched, perf_insight=perf_insight,
+                )
                 return await self._call_llm(user_prompt)
 
             raw_response = await asyncio.wait_for(_generate_with_deadline(), timeout=self._timeout)
@@ -119,9 +142,10 @@ class ExpressDraftPipeline:
             result.cost_usd = float(raw_response.get("_cost", 0.0))
 
             logger.info(
-                "ExpressDraft: 생성 완료 (%.1f초, provider=%s)",
+                "ExpressDraft: 생성 완료 (%.1f초, provider=%s, perf_insight=%s)",
                 result.generation_time_sec,
                 result.provider_used,
+                "있음" if perf_insight.has_data else "없음",
             )
 
         except asyncio.TimeoutError:
@@ -143,8 +167,13 @@ class ExpressDraftPipeline:
         source: str,
         velocity_score: float,
         enriched: EnrichedContext | None = None,
+        perf_insight: "PerformanceInsight | None" = None,
     ) -> str:
-        """급행 사용자 프롬프트 구성."""
+        """급행 사용자 프롬프트 구성.
+
+        [Phase 8] perf_insight가 있으면 성과 기반 가이드를 시스템 프롬프트 뒤에 주입.
+        데이터가 없으면 기존 동작 그대로 (fail-open).
+        """
         source_label = {
             "blind": "블라인드",
             "ppomppu": "뽐뿌",
@@ -161,6 +190,13 @@ class ExpressDraftPipeline:
         if enriched:
             logger.info("보강된 컨텍스트(Enriched Context)를 프롬프트에 주입합니다.")
             base_prompt += enriched.to_prompt_context()
+
+        # [Phase 8] 성과 기반 가이드 인젝션
+        if perf_insight is not None:
+            perf_ctx = perf_insight.to_prompt_context()
+            if perf_ctx:
+                logger.info("성과 인사이트를 프롬프트에 주입합니다 (source=%s).", source)
+                base_prompt += perf_ctx
 
         base_prompt += "\n이 글로 X(트위터)와 Threads 초안을 즉시 만들어."
         return base_prompt
@@ -196,6 +232,32 @@ class ExpressDraftPipeline:
                                 getattr(provider, "name", "?"),
                                 exc,
                             )
+                            continue
+
+                enabled_providers = getattr(self._draft_generator, "_enabled_providers", None)
+                generate_once = getattr(self._draft_generator, "_generate_once", None)
+                if callable(enabled_providers) and callable(generate_once):
+                    combined_prompt = f"{_SURGE_SYSTEM_PROMPT}\n\n{user_prompt}"
+                    for provider_name in enabled_providers():
+                        try:
+                            response_text, input_tokens, output_tokens = await generate_once(
+                                provider_name,
+                                combined_prompt,
+                            )
+                            cost_tracker = getattr(self._draft_generator, "cost_tracker", None)
+                            if cost_tracker is not None:
+                                cost_tracker.add_text_generation_cost(
+                                    provider_name,
+                                    input_tokens=input_tokens,
+                                    output_tokens=output_tokens,
+                                )
+                            return {
+                                "response": str(response_text),
+                                "_provider": str(provider_name),
+                                "_cost": 0.0,
+                            }
+                        except Exception as exc:
+                            logger.debug("ExpressDraft: provider %s 실패: %s", provider_name, exc)
                             continue
             except Exception as exc:
                 logger.warning("ExpressDraft: draft_generator 연동 실패: %s", exc)
