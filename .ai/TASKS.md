@@ -6,6 +6,8 @@
 
 | ID | Task | Owner | Priority | Created |
 |---|---|---|---|---|
+| T-182 | [`workspace`] Map the new harness execution scripts in `workspace/directives/INDEX.md` so governance checks stop flagging orphan files. | Codex | High | 2026-04-11 |
+| T-183 | [`workspace`] Resolve the stale `[TASK: T-100]` follow-up in `workspace/directives/system_audit_action_plan.md` or reopen a matching active backlog item so governance alignment passes. | Codex | Medium | 2026-04-11 |
 
 ## IN_PROGRESS
 

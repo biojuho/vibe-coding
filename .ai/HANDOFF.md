@@ -6,23 +6,33 @@
 
 | Field | Value |
 |---|---|
-| Date | 2026-04-10 |
-| Tool | Gemini (Antigravity) |
-| Work | `T-181`: Refactored test setup in `test_quality_improvements.py` to use `unittest.mock.patch` instead of manual mutation of imported variables like `dg._draft_rules_cache`. This fixed false positive test failures during the full test suite run caused by the test cache contaminating subsequent tests. Noted that the remaining 9 test failures are separate timeout-related issues (`test_enrich_timeout`, `test_generate_timeout`, etc.). |
-| Next Priorities | 1. Address the 9 timeout-related unit test failures in `blind-to-x` to make the CI perfectly green. 2. Clean up the remaining Notion query 400 path in `pipeline/notion/_query.py` so direct status/date queries are reliable. |
+| Date | 2026-04-11 |
+| Tool | Codex |
+| Work | Ran a shared workspace system audit with `python workspace/execution/health_check.py --json`, `python3.13 -m code_review_graph status`, and core toolchain probes. The runtime stack is broadly healthy, the code-review graph database is live (`11095` nodes / `81218` edges / `819` files), and `python -m pytest` works even though bare `pytest` is not on `PATH` without an activated venv. The audit still failed on three operator issues: `MOONSHOT_API_KEY` returns `401 Unauthorized`, five new harness scripts are missing from `workspace/directives/INDEX.md`, and `workspace/directives/system_audit_action_plan.md` still has an unchecked `[TASK: T-100]` follow-up that no longer maps to an active `.ai/TASKS.md` item. |
+| Next Priorities | 1. Fix the shared governance drift by updating `workspace/directives/INDEX.md` and clearing or relinking the stale `T-100` follow-up. 2. Refresh or disable the invalid Moonshot credential before any workflow relies on it. 3. Then return to the outstanding `blind-to-x` timeout failures and Notion query cleanup. |
 
 ## Previous Update
 
 | Field | Value |
 |---|---|
-| Date | 2026-04-09 |
-| Tool | Codex |
-| Work | Re-checked the live `blind-to-x` Notion DB after the user's report that 2026-04-09 had no new cards. The real failure path was review-only draft generation: invalid draft-tag outputs and review-stage regeneration timeouts prevented pages from being persisted. `pipeline/process_stages/generate_review_stage.py` now lets review-only continue to Notion even when draft generation fails, `pipeline/process.py` passes the review-only flag through, `pipeline/notion/_upload.py` shows the generation error in the review memo, and review-only quality-gate retries are disabled so the queue does not burn 180s per item. After focused pytest + Ruff, two real review-only runs were executed and the live Notion count reached 5 cards on 2026-04-09 by 19:39 KST. |
-| Next Priorities | 1. Clean up the remaining Notion query 400 path in `pipeline/notion/_query.py` so direct status/date queries are reliable. 2. If review-only latency grows again, inspect whether any post-generation polish steps should also be skipped for review cards. 3. Keep an eye on provider output formatting because `invalid_draft_output:*` remains a common soft-failure class. |
+| Date | 2026-04-10 |
+| Tool | Gemini (Antigravity) |
+| Work | `T-181`: Refactored test setup in `test_quality_improvements.py` to use `unittest.mock.patch` instead of manual mutation of imported variables like `dg._draft_rules_cache`. This fixed false positive test failures during the full test suite run caused by the test cache contaminating subsequent tests. Noted that the remaining 9 test failures are separate timeout-related issues (`test_enrich_timeout`, `test_generate_timeout`, etc.). |
+| Next Priorities | 1. Address the 9 timeout-related unit test failures in `blind-to-x` to make the CI perfectly green. 2. Clean up the remaining Notion query 400 path in `pipeline/notion/_query.py` so direct status/date queries are reliable. |
 
 ## Notes
 
 - Verification from this session:
+  - `workspace`: `python workspace/execution/health_check.py --json`
+  - `workspace`: `python3.13 -m code_review_graph status`
+  - `workspace`: `python --version`
+  - `workspace`: `python -m pytest --version`
+  - `workspace`: `python -m ruff --version`
+  - `workspace`: `node --version`
+  - `workspace`: `npm --version`
+  - `workspace`: `git --version`
+  - `workspace`: bare `pytest --version` failed because the current shell does not have the venv on `PATH`
+- Earlier verification from recent `blind-to-x` sessions:
   - `projects/blind-to-x`: `python -m ruff check pipeline/draft_generator.py pipeline/process.py pipeline/process_stages/generate_review_stage.py pipeline/notion/_upload.py tests/unit/test_process_stages.py tests/unit/test_pipeline_flow.py tests/unit/test_notion_upload.py`
   - `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/test_process_stages.py -q -x`
   - `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/test_pipeline_flow.py::test_process_single_post_generation_failure_review_only_uploads_card tests/unit/test_pipeline_flow.py::test_process_single_post_generation_failure_non_review_stops_before_upload -q -x`
@@ -46,5 +56,8 @@
 - Review-only runs now try to maintain a minimum of 5 Notion cards per day.
 - Review-only runs now persist fallback cards even when draft generation fails, and those cards include the draft-generation error in the Notion memo for reviewers.
 - A direct Notion database query path can still return HTTP 400 for some status/date filter combinations; `get_recent_pages()` fallback queries still work and were used for the live count check.
+- `workspace/execution/health_check.py --json` currently fails on operator governance drift (`INDEX.md` mappings + stale `T-100` linkage) and on an invalid `MOONSHOT_API_KEY`.
+- The code-review graph CLI is healthy in this shell via `python3.13`; use it or the MCP tools before broad file scans when graph coverage is enough.
+- UTF-8 markdown files in `.ai/` and `workspace/directives/` are fine on disk; earlier garbling came from the Windows cp949 console path, not file corruption.
 - Do not revert unrelated in-progress edits elsewhere in the worktree.
 - The required AI-context commit for this session should stage only `.ai/*` files unless the user explicitly asks for a broader commit.

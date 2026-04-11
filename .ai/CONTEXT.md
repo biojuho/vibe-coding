@@ -48,6 +48,8 @@
 
 ## Recent Verification
 
+- `workspace`: `python workspace/execution/health_check.py --json` ran on 2026-04-11 and reported overall `fail` because `MOONSHOT_API_KEY` returned `401`, `workspace/directives/INDEX.md` missed five harness-script mappings, and `workspace/directives/system_audit_action_plan.md` still references inactive task `T-100`.
+- `workspace`: `python3.13 -m code_review_graph status` ran on 2026-04-11 and reported `11095` nodes, `81218` edges, `819` files, and last graph update `2026-04-09T16:00:25` on commit `780b638fa8d2`.
 - `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/test_notion_query_mixin.py tests/unit/test_feedback_loop_fallback.py tests/unit/test_backfill_notion_review_columns.py tests/unit/test_notion_upload.py -q` passed on 2026-04-09.
 - `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/test_notion_upload.py tests/unit/test_regulation_checker.py -q` passed on 2026-04-09.
 - `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/test_feed_collector.py tests/unit/test_process_stages.py -q` passed on 2026-04-09.
@@ -67,12 +69,14 @@
 ## Minefield
 
 - The worktree is dirty across multiple projects. Do not revert unrelated edits.
+- Bare `pytest` is not on `PATH` in the current root shell unless the venv is activated; prefer `python -m pytest`.
 - `projects/hanwoo-dashboard` still has many user-facing Korean strings; keep edits surgical to avoid encoding churn.
 - For `hanwoo-dashboard` Node-side unit tests, prefer `.mjs` helper/test files. The repo still does not set package-wide `"type": "module"`.
 - `projects/blind-to-x` and `projects/shorts-maker-v2` enforce broad coverage defaults; use `python -m pytest --no-cov ...` for focused local verification unless a full coverage run is intended.
 - `projects/blind-to-x` can return empty database properties through `notion-client` on Windows/Python 3.14; the uploader now relies on an `httpx` fallback to recover schema, and the review-schema/backfill scripts use direct REST-backed paths.
 - `projects/blind-to-x` still has at least one direct Notion database-query path that can return HTTP 400 for some status/date filters even when `ensure_schema()` succeeds; use `get_recent_pages()` / collection fallbacks when re-checking live queue counts until `_query.py` is cleaned up.
 - Windows `cp949` consoles can still garble Korean in command output even when the underlying files and Notion payloads are UTF-8 clean.
+- Windows PowerShell `Get-Content` output can make UTF-8 markdown in `.ai/` and `workspace/directives/` look corrupted; confirm with Python/UTF-8-aware readers before treating it as file damage.
 - `[ADR-026]` Project-level `CLAUDE.md` files now exist for `blind-to-x`, `hanwoo-dashboard`, and `shorts-maker-v2`. Read the relevant project's minefield section before editing.
 - `[ADR-026]` `/verify` workflow is explicit: do not claim completion without running the appropriate checks.
 - `[Explore -> Plan -> Code -> Verify]` All implementation work follows the 4-step workflow. Never patch blindly without prior inspection.
