@@ -51,6 +51,9 @@ class FakeQueryHost(NotionQueryMixin):
         self.last_query_kwargs = kwargs
         return self.query_response
 
+    async def _safe_notion_call(self, fn, *args, **kwargs):
+        return await fn(*args, **kwargs)
+
 
 def _now_iso() -> str:
     return datetime.now(UTC).isoformat()
@@ -82,6 +85,15 @@ def test_get_page_property_value_supports_common_notion_types():
     assert host.get_page_property_value(page, "stage") == "Draft"
     assert host.get_page_property_value(page, "published_at") == "2026-03-31"
     assert host.get_page_property_value(page, "missing", default="fallback") == "fallback"
+
+
+def test_get_page_property_value_normalizes_known_korean_status_aliases():
+    host = FakeQueryHost()
+    page = _page_with_properties(
+        status={"type": "select", "select": {"name": "발행승인"}},
+    )
+
+    assert host.get_page_property_value(page, "status") == "승인됨"
 
 
 def test_extract_page_record_maps_core_fields():
@@ -226,6 +238,56 @@ async def test_get_pages_by_status_switches_between_status_and_select_filters():
         "filter": {"property": "status", "select": {"equals": "Queued"}},
         "page_size": 2,
     }
+
+
+@pytest.mark.asyncio
+async def test_get_pages_by_status_resolves_live_status_option_alias():
+    host = FakeQueryHost()
+    host._db_properties["status"] = {
+        "type": "select",
+        "select": {"options": [{"name": "검토필요"}, {"name": "발행승인"}]},
+    }
+    host.query_response = {"results": [{"id": "page-1"}]}
+
+    await host.get_pages_by_status("승인됨", limit=3)
+
+    assert host.last_query_kwargs == {
+        "filter": {"property": "status", "select": {"equals": "발행승인"}},
+        "page_size": 3,
+    }
+
+
+@pytest.mark.asyncio
+async def test_get_pages_by_status_falls_back_to_collection_scan_when_filtered_query_fails():
+    host = FakeQueryHost()
+    host._db_properties["status"] = {
+        "type": "select",
+        "select": {"options": [{"name": "검토필요"}, {"name": "발행승인"}]},
+    }
+    calls: list[dict] = []
+
+    async def _mock_query_collection(**kwargs):
+        calls.append(kwargs)
+        if "filter" in kwargs:
+            raise RuntimeError("400 Bad Request")
+        return {
+            "results": [
+                _page_with_properties(status={"type": "select", "select": {"name": "검토필요"}}),
+                _page_with_properties(status={"type": "select", "select": {"name": "발행승인"}}),
+            ]
+        }
+
+    host.query_collection = AsyncMock(side_effect=_mock_query_collection)
+
+    pages = await host.get_pages_by_status("승인됨", limit=1)
+
+    assert len(pages) == 1
+    assert host.get_page_property_value(pages[0], "status") == "승인됨"
+    assert calls[0] == {
+        "filter": {"property": "status", "select": {"equals": "발행승인"}},
+        "page_size": 1,
+    }
+    assert calls[1] == {"page_size": 50}
 
 
 @pytest.mark.asyncio

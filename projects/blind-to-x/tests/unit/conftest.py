@@ -105,8 +105,12 @@ def _block_external_api_keys(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("NOTION_API_KEY", raising=False)
+    monkeypatch.delenv("NOTION_DATABASE_ID", raising=False)
     monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
     monkeypatch.delenv("SUPABASE_KEY", raising=False)
+    for env_name in tuple(_os.environ):
+        if env_name.startswith("NOTION_PROP_"):
+            monkeypatch.delenv(env_name, raising=False)
     yield
 
 
@@ -115,20 +119,20 @@ def _fast_sleeps(monkeypatch):
     """테스트 속도를 높이기 위해 기나긴 time.sleep과 asyncio.sleep을 0에 가깝게 패치합니다."""
     import time
     import asyncio
-    
+
     _original_time_sleep = time.sleep
     _original_asyncio_sleep = asyncio.sleep
-    
+
     def _mock_time_sleep(delay):
         if delay > 0.01:
             return _original_time_sleep(0)
         return _original_time_sleep(delay)
-        
+
     async def _mock_asyncio_sleep(delay, result=None):
         if delay > 0.01:
             return await _original_asyncio_sleep(0, result=result)
         return await _original_asyncio_sleep(delay, result=result)
-        
+
     monkeypatch.setattr(time, "sleep", _mock_time_sleep)
     monkeypatch.setattr(asyncio, "sleep", _mock_asyncio_sleep)
     yield

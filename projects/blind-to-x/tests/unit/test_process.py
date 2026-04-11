@@ -1,6 +1,5 @@
 """Tests for pipeline.process."""
 
-import asyncio
 import pytest
 from unittest.mock import AsyncMock, patch
 
@@ -145,8 +144,8 @@ async def test_process_fetch_timeout_sets_failure_reason():
     async def _patched_wait_for(coro, *, timeout=None):
         nonlocal _call_count
         _call_count += 1
-        # 첫 번째 호출이 fetch stage wait_for (timeout=fetch_timeout)
-        if _call_count == 1 and timeout is not None and timeout <= 1:
+        # timeout이 1 이하로 설정된 경우 (이 테스트에서는 fetch timeout) 타임아웃 발생시킴
+        if timeout is not None and timeout <= 1:
             coro.close()
             raise _asyncio.TimeoutError()
         return await _original_wait_for(coro, timeout=timeout)
@@ -184,11 +183,8 @@ async def test_process_timeout_marks_running_stage_failed():
     async def _patched_wait_for(coro, *, timeout=None):
         nonlocal _call_count
         _call_count += 1
-        # 첫 번째 호출 = fetch stage (타임아웃 5초 → 통과시킴)
-        if _call_count == 1:
-            return await _original_wait_for(coro, timeout=timeout)
-        # 두 번째 호출 = 전체 pipeline (타임아웃 1초 → TimeoutError)
-        if _call_count == 2 and timeout is not None and timeout <= 1:
+        # timeout이 1 이하이면 전체 pipeline 타임아웃으로 간주
+        if timeout is not None and timeout <= 1:
             coro.close()
             raise _asyncio.TimeoutError()
         return await _original_wait_for(coro, timeout=timeout)
