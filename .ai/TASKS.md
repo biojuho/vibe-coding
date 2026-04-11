@@ -6,8 +6,7 @@
 
 | ID | Task | Owner | Priority | Created |
 |---|---|---|---|---|
-| T-182 | [`workspace`] Map the new harness execution scripts in `workspace/directives/INDEX.md` so governance checks stop flagging orphan files. | Codex | High | 2026-04-11 |
-| T-183 | [`workspace`] Resolve the stale `[TASK: T-100]` follow-up in `workspace/directives/system_audit_action_plan.md` or reopen a matching active backlog item so governance alignment passes. | Codex | Medium | 2026-04-11 |
+| T-184 | [`workspace`] Refresh or disable the invalid Moonshot credential so shared `health_check.py` stops failing on `401 Unauthorized`. | Codex | Medium | 2026-04-11 |
 
 ## IN_PROGRESS
 
@@ -19,11 +18,11 @@
 
 | ID | Task | Completed By | Completed |
 |---|---|---|---|
+| T-183 | [`workspace`] Resolve the stale `[TASK: T-100]` follow-up in `workspace/directives/system_audit_action_plan.md` so governance alignment passes again. | Codex | 2026-04-11 |
+| T-182 | [`workspace`] Map the new harness execution scripts in `workspace/directives/INDEX.md` so governance checks stop flagging orphan files. | Codex | 2026-04-11 |
 | T-181 | [`blind-to-x`] Fix test suite cache interference by replacing manual `_draft_rules_cache` mutations with `unittest.mock.patch` for `_load_draft_rules`. | Gemini (Antigravity) | 2026-04-10 |
 | T-180 | [`blind-to-x`] Fix review-only generation failures so today's Notion queue backfills to five live cards. | Codex | 2026-04-09 |
 | T-179 | [`blind-to-x`] Add a daily review queue floor so Notion gets at least five cards per day. | Codex | 2026-04-09 |
-| T-178 | [`blind-to-x`] Make empty-draft Notion review cards actionable with explicit next-step copy. | Codex | 2026-04-09 |
-| T-177 | [`blind-to-x`] Backfilled historical Notion review columns, added reviewer-memory prompt input, and applied the backfill to the live Notion DB. | Codex | 2026-04-09 |
 
 ## Rules
 
