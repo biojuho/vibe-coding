@@ -8,8 +8,8 @@
 |---|---|
 | Date | 2026-04-11 |
 | Tool | Codex |
-| Work | Finished the remaining `blind-to-x` Notion reliability cleanup after the shared workspace audit. `pipeline/notion/_query.py` now maps logical status labels like `승인됨` to the live Notion select options (for this DB, `발행승인`), canonicalizes returned status values back to the shared logical labels, and falls back to an unfiltered collection scan only if the filtered query still fails. Verified the focused query mixin tests, confirmed on the live DB that raw `승인됨` still 400s while `get_pages_by_status("승인됨")` now succeeds, and re-ran the full `tests/unit` suite to green (`1484 passed, 1 skipped`). |
-| Next Priorities | 1. Leave `hanwoo-dashboard` UX/UI work alone unless the user explicitly redirects the session. 2. If Moonshot should be re-enabled later, add a fresh key and re-run the shared health check. 3. Only revisit `blind-to-x` Notion querying if a new live symptom appears outside `_query.py`. |
+| Work | Patched the local Python 3.13 `code-review-graph` package under site-packages so its Windows text I/O is UTF-8-safe. `incremental.py` now writes/reads with explicit UTF-8, and the git subprocess calls used by `detect-changes` decode stdout/stderr as UTF-8 with replacement instead of relying on the shell's `cp949` locale. Reproduced the original crash, confirmed `python3.13 -m code_review_graph detect-changes --repo projects/blind-to-x --brief` now succeeds without `PYTHONUTF8=1`, and cleaned up the temporary `projects/blind-to-x/.code-review-graph` artifact afterward. |
+| Next Priorities | 1. Leave `hanwoo-dashboard` UX/UI work alone unless the user explicitly redirects the session. 2. If Moonshot should be re-enabled later, add a fresh key and re-run the shared health check. 3. If Python 3.13 packages are reinstalled on this machine, reapply the local `code-review-graph` UTF-8 patch unless it lands upstream first. |
 
 ## Previous Update
 
@@ -23,6 +23,9 @@
 ## Notes
 
 - Verification from this session:
+  - `workspace`: `python3.13 -m code_review_graph detect-changes --repo projects/blind-to-x --brief` now passes without `PYTHONUTF8=1`
+  - `workspace`: `python3.13 -m code_review_graph status --repo projects/blind-to-x`
+  - `workspace`: pre-fix workaround confirmed `PYTHONUTF8=1` was sufficient, which matched the root cause around locale-dependent decoding/writing
   - `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/test_notion_query_mixin.py -q`
   - `projects/blind-to-x`: `python -m ruff check pipeline/notion/_query.py tests/unit/test_notion_query_mixin.py`
   - `projects/blind-to-x`: live read-only probe confirmed `select.equals="승인됨"` still 400s against the current DB, `select.equals="발행승인"` succeeds, and `get_pages_by_status("승인됨")` now resolves the alias and returns approved pages with canonicalized status values
@@ -70,6 +73,7 @@
 - `projects/blind-to-x/pipeline/notion/_query.py` now resolves logical status labels to live select options and canonicalizes the values back on read, so approved/review flows no longer depend on hardcoded Notion option names.
 - `workspace/execution/health_check.py --json` no longer fails on governance drift or Moonshot auth; it currently reports `warn` because Moonshot and Groq are unset plus the root venv is not activated.
 - The code-review graph CLI is healthy in this shell via `python3.13`; use it or the MCP tools before broad file scans when graph coverage is enough.
+- The local Python 3.13 `code-review-graph` package on this machine now has an unversioned UTF-8 patch in `site-packages`. If the package is reinstalled or upgraded, the old Windows `cp949` crash can return until the same fix is reapplied upstream.
 - `projects/blind-to-x/tests/unit/conftest.py` now clears `NOTION_DATABASE_ID` and any `NOTION_PROP_*` overrides before each unit test. If a test needs those values, set them explicitly inside the test with `monkeypatch.setenv()` / `patch.dict(...)`.
 - UTF-8 markdown files in `.ai/` and `workspace/directives/` are fine on disk; earlier garbling came from the Windows cp949 console path, not file corruption.
 - Do not revert unrelated in-progress edits elsewhere in the worktree.
