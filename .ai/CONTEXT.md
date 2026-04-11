@@ -49,7 +49,8 @@
 ## Recent Verification
 
 - `workspace`: `python workspace/execution/health_check.py --category governance --json` passed on 2026-04-11 after `workspace/directives/INDEX.md` was updated with the missing harness scripts and `workspace/directives/system_audit_action_plan.md` closed the archived `T-100` checkbox.
-- `workspace`: `python workspace/execution/health_check.py --json` still reports overall `fail` on 2026-04-11, but governance is now clean and the remaining hard failure is `MOONSHOT_API_KEY` returning `401 Unauthorized`.
+- `workspace`: `python -m pytest --no-cov workspace/tests/test_health_check.py -q` and `python -m ruff check workspace/execution/health_check.py workspace/tests/test_health_check.py` both passed on 2026-04-11 after Moonshot optional-provider handling was added.
+- `workspace`: `python workspace/execution/health_check.py --json` reports overall `warn` on 2026-04-11 with `fail: 0`; Moonshot is now treated as an optional fallback provider, and the latest probe saw `MOONSHOT_API_KEY` unset rather than invalid.
 - `workspace`: `python3.13 -m code_review_graph status` ran on 2026-04-11 and reported `11095` nodes, `81218` edges, `819` files, and last graph update `2026-04-09T16:00:25` on commit `780b638fa8d2`.
 - `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/test_notion_query_mixin.py tests/unit/test_feedback_loop_fallback.py tests/unit/test_backfill_notion_review_columns.py tests/unit/test_notion_upload.py -q` passed on 2026-04-09.
 - `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/test_notion_upload.py tests/unit/test_regulation_checker.py -q` passed on 2026-04-09.
@@ -78,7 +79,7 @@
 - `projects/blind-to-x` still has at least one direct Notion database-query path that can return HTTP 400 for some status/date filters even when `ensure_schema()` succeeds; use `get_recent_pages()` / collection fallbacks when re-checking live queue counts until `_query.py` is cleaned up.
 - Windows `cp949` consoles can still garble Korean in command output even when the underlying files and Notion payloads are UTF-8 clean.
 - Windows PowerShell `Get-Content` output can make UTF-8 markdown in `.ai/` and `workspace/directives/` look corrupted; confirm with Python/UTF-8-aware readers before treating it as file damage.
-- `MOONSHOT_API_KEY` currently fails shared health checks with `401 Unauthorized`; do not rely on Moonshot-backed flows until the credential is refreshed or intentionally disabled.
+- Moonshot is now treated as an optional fallback provider in shared health checks; if `MOONSHOT_API_KEY` is missing or invalid, the system should degrade to `warn` rather than `fail`.
 - `[ADR-026]` Project-level `CLAUDE.md` files now exist for `blind-to-x`, `hanwoo-dashboard`, and `shorts-maker-v2`. Read the relevant project's minefield section before editing.
 - `[ADR-026]` `/verify` workflow is explicit: do not claim completion without running the appropriate checks.
 - `[Explore -> Plan -> Code -> Verify]` All implementation work follows the 4-step workflow. Never patch blindly without prior inspection.
