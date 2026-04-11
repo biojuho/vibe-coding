@@ -1022,14 +1022,14 @@ export default function DashboardClient({
 
         {widgetSettings.visible.stats && (
           <div style={{ display: 'flex', gap: '14px', overflowX: 'auto', paddingBottom: '14px', marginBottom: '28px', scrollSnapType: 'x mandatory', scrollPadding: '0 4px', WebkitOverflowScrolling: 'touch' }}>
-            <PremiumInfoCard title="총 사육두수" value={`${totalHeadcount}두`} change="전월 대비 +0" changeType="positive" />
+            <PremiumInfoCard title="총 사육두수" value={`${totalHeadcount}두`} />
             <PremiumInfoCard
               title="이번달 출하"
               value={`${monthlySalesCount}두`}
-              change={`매출 ${formatMoney(monthlySalesTotal / 10000)}만`}
+              change={monthlySalesTotal > 0 ? `${formatMoney(monthlySalesTotal / 10000)}만` : null}
               changeType="positive"
             />
-            <PremiumInfoCard title="평균 체중" value={`${avgWeight}kg`} change="전체 평균 유지" changeType="positive" />
+            <PremiumInfoCard title="평균 체중" value={`${avgWeight}kg`} />
           </div>
         )}
 
@@ -1039,24 +1039,32 @@ export default function DashboardClient({
               <span className="section-header-icon">🏠</span>
               <h2 className="section-header-title">축사 현황</h2>
             </div>
-            <div className="grid gap-3">
-              {buildings.map((building, index) => {
-                const buildingHeadcount = summary?.buildingOccupancy?.find((b) => b.buildingId === building.id)?.headcount ?? 0;
-                return (
-                  <Card key={building.id} onClick={() => handleSelectBuilding(building.id)} className="animate-fadeInUp cursor-pointer hover:-translate-y-1 hover:shadow-[var(--shadow-md)] group/building" style={{ animationDelay: `${250 + index * 50}ms` }}>
-                    <CardContent className="flex justify-between items-center p-5">
-                      <div>
-                        <div className="font-bold text-[15px] mb-1.5 tracking-[-0.01em]">{building.name}</div>
-                        <p className="text-sm text-muted-foreground leading-relaxed">
-                          {building.description || `총 ${building.penCount}칸`} · <strong className="text-foreground">{buildingHeadcount}두</strong>
-                        </p>
-                      </div>
-                      <span className="text-xl text-muted-foreground transition-[transform,color,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] opacity-55 group-hover/building:translate-x-1 group-hover/building:text-[var(--color-primary-custom)] group-hover/building:opacity-100">›</span>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
+            {buildings.length === 0 ? (
+              <div className="empty-state-cta animate-fadeInUp" style={{ animationDelay: '250ms' }} onClick={() => setShowAddModal(true)}>
+                <span className="cta-icon">🏠</span>
+                <div className="cta-title">첫 번째 축사를 추가해보세요</div>
+                <div className="cta-desc">축사를 등록하면 칸별 두수 관리, 발정·분만 알림을 시작할 수 있습니다.</div>
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {buildings.map((building, index) => {
+                  const buildingHeadcount = summary?.buildingOccupancy?.find((b) => b.buildingId === building.id)?.headcount ?? 0;
+                  return (
+                    <Card key={building.id} onClick={() => handleSelectBuilding(building.id)} className="animate-fadeInUp cursor-pointer hover:-translate-y-1 hover:shadow-[var(--shadow-md)] group/building" style={{ animationDelay: `${250 + index * 50}ms` }}>
+                      <CardContent className="flex justify-between items-center p-5">
+                        <div>
+                          <div className="font-bold text-[15px] mb-1.5 tracking-[-0.01em]">{building.name}</div>
+                          <p className="text-sm text-muted-foreground leading-relaxed">
+                            {building.description || `총 ${building.penCount}칸`} · <strong className="text-foreground">{buildingHeadcount}두</strong>
+                          </p>
+                        </div>
+                        <span className="text-xl text-muted-foreground transition-[transform,color,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] opacity-55 group-hover/building:translate-x-1 group-hover/building:text-[var(--color-primary-custom)] group-hover/building:opacity-100">›</span>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
           </div>
         ) : !selectedPenId ? (
           <div className="animate-fadeIn">
@@ -1121,17 +1129,20 @@ export default function DashboardClient({
       )}
 
       <footer className="footer-glass mt-16 mx-2 px-6 pt-8 pb-6 text-center text-xs text-muted-foreground leading-relaxed">
-        <div className="font-bold text-sm text-primary mb-3 flex items-center justify-center gap-2">🐄 Joolife (쥬라프)</div>
-        <p className="mb-1">대표: 박주호 | Business License: 000-00-00000</p>
-        <p className="mb-1">Contact: 010-3159-3708 | joolife@joolife.io.kr</p>
-        <p className="text-[11px] text-muted-foreground/60 mb-4">Address: 경기 안양시 동안구 관평로212번길 21 공작부영아파트 309동 1312호</p>
-        <Separator className="mb-4 opacity-40" />
-        <div className="flex justify-center gap-5 flex-wrap">
-          <a href="/terms" className="no-underline text-muted-foreground hover:text-foreground transition-[color,transform] duration-200 py-1 hover:-translate-y-px">이용약관</a>
-          <a href="/privacy" className="no-underline text-muted-foreground hover:text-foreground transition-[color,transform] duration-200 py-1 hover:-translate-y-px">개인정보처리방침</a>
-          <a href="/subscription" className="no-underline text-primary font-semibold hover:text-foreground transition-[color,transform] duration-200 py-1 hover:-translate-y-px">⭐ 프리미엄 구독</a>
+        <div className="font-bold text-sm text-primary mb-4 flex items-center justify-center gap-2">🐄 Joolife (쥬라프)</div>
+        <div className="flex justify-center gap-6 flex-wrap mb-5">
+          <a href="/terms" className="no-underline text-muted-foreground hover:text-foreground transition-[color,transform] duration-200 py-1.5 px-1 hover:-translate-y-px">이용약관</a>
+          <span className="text-muted-foreground/30 select-none">·</span>
+          <a href="/privacy" className="no-underline text-muted-foreground hover:text-foreground transition-[color,transform] duration-200 py-1.5 px-1 hover:-translate-y-px">개인정보처리방침</a>
+          <span className="text-muted-foreground/30 select-none">·</span>
+          <a href="/subscription" className="no-underline text-primary font-semibold hover:text-foreground transition-[color,transform] duration-200 py-1.5 px-1 hover:-translate-y-px">⭐ 프리미엄</a>
         </div>
-        <p className="mt-4 text-[11px] text-muted-foreground/50">Copyright &copy; 2026 Joolife. All rights reserved.</p>
+        <Separator className="mb-4 opacity-30" />
+        <div className="text-[10px] text-muted-foreground/40 leading-loose space-y-0.5">
+          <p>대표: 박주호 · 사업자등록번호: 000-00-00000</p>
+          <p>joolife@joolife.io.kr</p>
+          <p className="mt-2 text-muted-foreground/30">Copyright &copy; 2026 Joolife. All rights reserved.</p>
+        </div>
       </footer>
     </div>
   );

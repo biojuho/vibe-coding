@@ -9,6 +9,7 @@ export function TabBar({ activeTab, onTabChange }) {
     { id: "calving", label: "분만", icon: "🍼" },
     { id: "sales", label: "출하", icon: "💰" },
     { id: "inventory", label: "재고", icon: "📦" },
+    { id: "analysis", label: "분석", icon: "📊" },
     { id: "schedule", label: "일정", icon: "🗓️" },
     { id: "settings", label: "설정", icon: "⚙️" },
   ];
@@ -43,13 +44,27 @@ export function TabBar({ activeTab, onTabChange }) {
 
 export function WeatherWidget({weather}){
   if(!weather) return (
-    <div className="weather-card animate-fadeInUp" style={{marginBottom:"16px",textAlign:"center"}}>
-      <div className="skeleton" style={{height:"120px",width:"100%"}}></div>
+    <div className="weather-skeleton animate-fadeInUp" style={{marginBottom:"16px"}}>
+      {/* Temperature row hint */}
+      <div className="skel-row">
+        <div className="skel-block" style={{width:"80px",height:"52px",borderRadius:"12px"}} />
+        <div style={{display:"flex",flexDirection:"column",gap:"6px"}}>
+          <div className="skel-block" style={{width:"100px",height:"16px"}} />
+          <div className="skel-block" style={{width:"70px",height:"12px"}} />
+        </div>
+      </div>
+      {/* Stats grid hint */}
+      <div className="skel-grid">
+        <div className="skel-stat" style={{animationDelay:"0ms"}} />
+        <div className="skel-stat" style={{animationDelay:"100ms"}} />
+        <div className="skel-stat" style={{animationDelay:"200ms"}} />
+        <div className="skel-stat" style={{animationDelay:"300ms"}} />
+      </div>
     </div>
   );
   if (weather.available === false) return (
     <div className="weather-card animate-fadeInUp" style={{marginBottom:"16px"}}>
-      <PremiumCard className="bg-slate-800/40">
+      <PremiumCard>
         <PremiumCardContent className="p-5">
           <div style={{fontSize:"14px",fontWeight:700,marginBottom:"8px"}}>Weather Unavailable</div>
           <div style={{fontSize:"13px",opacity:0.82}}>
@@ -69,7 +84,7 @@ export function WeatherWidget({weather}){
 
   return (
     <div style={{marginBottom:"16px"}} className="animate-fadeInUp">
-      <PremiumCard className="overflow-visible bg-slate-800/60">
+      <PremiumCard className="overflow-visible">
         <PremiumCardContent className="p-5">
         <div className="weather-icon-bg">{icon}</div>
         <div style={{fontSize:"12px",opacity:0.8,marginBottom:"8px",position:"relative"}}>
@@ -196,7 +211,7 @@ export function EstrusAlertBanner({cattle, buildings = []}){
   const tc=ac.filter(c=>isEstrusToday(c.lastEstrus)).length;
 
   return (
-    <PremiumCard className="animate-fadeInUp mb-4 bg-pink-900/10 border-pink-500/20" style={{animationDelay:"100ms"}}>
+    <PremiumCard className="animate-fadeInUp mb-4" style={{animationDelay:"100ms",borderColor:"var(--premium-card-badge-negative-border)"}}>
       <PremiumCardContent className="p-4">
       <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"10px"}}>
         <span className="alert-icon"><HeartIcon/></span>
@@ -240,7 +255,7 @@ export function CalvingAlertBanner({cattle, buildings = []}){
   if(ac.length===0)return null;
 
   return (
-    <PremiumCard className="animate-fadeInUp mb-4 bg-indigo-900/10 border-indigo-500/20" style={{animationDelay:"150ms"}}>
+    <PremiumCard className="animate-fadeInUp mb-4" style={{animationDelay:"150ms",borderColor:"color-mix(in srgb, var(--color-calving) 24%, transparent)"}}>
       <PremiumCardContent className="p-4">
       <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"10px"}}>
         <span style={{fontSize:"18px"}} className="animate-bounce">🍼</span>

@@ -5,7 +5,7 @@ const PremiumCard = React.forwardRef(({ className, ...props }, ref) => (
   <div
     ref={ref}
     className={cn(
-      "relative group bg-slate-800/80 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-xl overflow-hidden transition-[border-color,box-shadow,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-slate-600 hover:shadow-[0_8px_32px_rgba(0,0,0,0.24),0_0_0_1px_rgba(255,255,255,0.06)] hover:-translate-y-0.5",
+      "premium-card-clay group",
       className
     )}
     {...props}
@@ -26,9 +26,10 @@ const PremiumCardTitle = React.forwardRef(({ className, ...props }, ref) => (
   <h3
     ref={ref}
     className={cn(
-      "text-2xl font-bold leading-none tracking-tight text-slate-100",
+      "text-2xl font-bold leading-none tracking-tight",
       className
     )}
+    style={{ color: 'var(--premium-card-title)' }}
     {...props}
   />
 ))
@@ -37,7 +38,8 @@ PremiumCardTitle.displayName = "PremiumCardTitle"
 const PremiumCardDescription = React.forwardRef(({ className, ...props }, ref) => (
   <p
     ref={ref}
-    className={cn("text-sm text-slate-400 mt-1", className)}
+    className={cn("text-sm mt-1", className)}
+    style={{ color: 'var(--premium-card-subtitle)' }}
     {...props}
   />
 ))
@@ -62,25 +64,40 @@ const PremiumInfoCard = ({ title, value, change, changeType = "positive" }) => {
   
   return (
     <PremiumCard>
-      {/* Radial glow overlay — reacts to hover */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(99,137,255,0.06)_0%,transparent_60%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+      {/* Ambient radial glow — matches clay theme */}
+      <div
+        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse at top left, color-mix(in srgb, var(--color-primary-light) 8%, transparent) 0%, transparent 60%)',
+        }}
+      />
 
       <PremiumCardContent className="p-6">
-        <h4 className="text-[13px] font-medium text-slate-400 mb-3 tracking-wide uppercase">{title}</h4>
+        <h4
+          className="text-[13px] font-medium mb-3 tracking-wide uppercase"
+          style={{ color: 'var(--premium-card-subtitle)' }}
+        >
+          {title}
+        </h4>
         <div className="flex items-end justify-between gap-3">
-          <div className="text-[32px] font-extrabold text-slate-100 tracking-tight leading-none">
+          <div
+            className="text-[32px] font-extrabold tracking-tight leading-none"
+            style={{ color: 'var(--premium-card-value)', fontFamily: 'var(--font-display)' }}
+          >
             {value}
           </div>
-          <div
-            className={cn(
-              "flex items-center gap-1 text-[13px] font-semibold rounded-full px-2.5 py-1 transition-transform duration-200 hover:scale-105",
-              isPositive
-                ? "text-emerald-400 bg-emerald-400/10 border border-emerald-400/20"
-                : "text-rose-400 bg-rose-400/10 border border-rose-400/20"
-            )}
-          >
-            <span className="text-[10px]">{isPositive ? "▲" : "▼"}</span> {change}
-          </div>
+          {change && (
+            <div
+              className="flex items-center gap-1 text-[13px] font-semibold rounded-full px-2.5 py-1 transition-transform duration-200 hover:scale-105"
+              style={{
+                color: isPositive ? 'var(--premium-card-badge-positive-text)' : 'var(--premium-card-badge-negative-text)',
+                background: isPositive ? 'var(--premium-card-badge-positive-bg)' : 'var(--premium-card-badge-negative-bg)',
+                border: `1px solid ${isPositive ? 'var(--premium-card-badge-positive-border)' : 'var(--premium-card-badge-negative-border)'}`,
+              }}
+            >
+              <span className="text-[10px]">{isPositive ? "▲" : "▼"}</span> {change}
+            </div>
+          )}
         </div>
       </PremiumCardContent>
     </PremiumCard>
@@ -96,3 +113,4 @@ export {
   PremiumCardContent,
   PremiumInfoCard
 }
+

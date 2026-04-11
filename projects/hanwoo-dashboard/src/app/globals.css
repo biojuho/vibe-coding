@@ -262,6 +262,23 @@ body::after {
     color-mix(in srgb, var(--color-primary-light) 88%, white 12%),
     var(--color-primary-custom)
   );
+
+  /* Premium card – clay-integrated tokens */
+  --premium-card-bg: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--color-surface-elevated) 88%, var(--color-primary-light) 12%),
+    color-mix(in srgb, var(--color-bg-card) 92%, var(--color-primary-custom) 8%)
+  );
+  --premium-card-border: color-mix(in srgb, var(--color-primary-light) 20%, var(--color-surface-stroke));
+  --premium-card-title: var(--color-text);
+  --premium-card-subtitle: var(--color-text-secondary);
+  --premium-card-value: var(--color-primary-custom);
+  --premium-card-badge-positive-bg: color-mix(in srgb, var(--color-success) 14%, transparent);
+  --premium-card-badge-positive-border: color-mix(in srgb, var(--color-success) 28%, transparent);
+  --premium-card-badge-positive-text: var(--color-success);
+  --premium-card-badge-negative-bg: color-mix(in srgb, var(--color-danger) 14%, transparent);
+  --premium-card-badge-negative-border: color-mix(in srgb, var(--color-danger) 28%, transparent);
+  --premium-card-badge-negative-text: var(--color-danger);
 }
 
 /* Dark Mode Variables */
@@ -341,6 +358,23 @@ body::after {
     color-mix(in srgb, var(--color-primary-light) 66%, white 10%),
     var(--color-primary-custom)
   );
+
+  /* Premium card – dark-mode clay tokens */
+  --premium-card-bg: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--color-surface-elevated) 92%, var(--color-primary-custom) 8%),
+    color-mix(in srgb, var(--color-bg-card) 94%, var(--color-primary-dark) 6%)
+  );
+  --premium-card-border: color-mix(in srgb, var(--color-primary-custom) 16%, var(--color-border-custom));
+  --premium-card-title: var(--color-text);
+  --premium-card-subtitle: var(--color-text-secondary);
+  --premium-card-value: var(--color-primary-custom);
+  --premium-card-badge-positive-bg: color-mix(in srgb, var(--color-success) 16%, transparent);
+  --premium-card-badge-positive-border: color-mix(in srgb, var(--color-success) 24%, transparent);
+  --premium-card-badge-positive-text: var(--color-success);
+  --premium-card-badge-negative-bg: color-mix(in srgb, var(--color-danger) 16%, transparent);
+  --premium-card-badge-negative-border: color-mix(in srgb, var(--color-danger) 24%, transparent);
+  --premium-card-badge-negative-text: var(--color-danger);
 }
 
 [data-theme="dark"] .tab-bar {
@@ -1577,6 +1611,125 @@ body {
 .weather-stat:active {
   transform: translateY(0) scale(0.98);
   transition-duration: 100ms;
+}
+
+/* ============================================
+   Weather Skeleton — layout-hint variant
+   ============================================ */
+
+.weather-skeleton {
+  border-radius: var(--radius-custom-xl);
+  padding: 20px;
+  background: var(--surface-gradient);
+  border: 1px solid var(--color-surface-stroke);
+  box-shadow: var(--shadow-sm);
+}
+
+.weather-skeleton .skel-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.weather-skeleton .skel-block {
+  border-radius: var(--radius-custom-sm);
+  animation: shimmer 1.5s infinite;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-surface-elevated) 72%, transparent) 0%,
+    color-mix(in srgb, var(--color-bg-card) 88%, white 12%) 50%,
+    color-mix(in srgb, var(--color-surface-elevated) 72%, transparent) 100%
+  );
+  background-size: 200% 100%;
+}
+
+.weather-skeleton .skel-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.weather-skeleton .skel-stat {
+  border-radius: var(--radius-custom-md);
+  animation: shimmer 1.5s infinite;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-surface-elevated) 72%, transparent) 0%,
+    color-mix(in srgb, var(--color-bg-card) 88%, white 12%) 50%,
+    color-mix(in srgb, var(--color-surface-elevated) 72%, transparent) 100%
+  );
+  background-size: 200% 100%;
+  height: 72px;
+}
+
+/* ============================================
+   Premium Card — Clay-integrated base
+   ============================================ */
+
+.premium-card-clay {
+  background: var(--premium-card-bg);
+  border: 1px solid var(--premium-card-border);
+  border-radius: var(--radius-custom-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.3s ease;
+  position: relative;
+}
+
+.premium-card-clay:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--color-primary-custom) 32%, var(--premium-card-border));
+}
+
+/* ============================================
+   Empty State CTA Card
+   ============================================ */
+
+.empty-state-cta {
+  background: var(--surface-gradient);
+  border: 2px dashed color-mix(in srgb, var(--color-primary-custom) 30%, var(--color-border-custom));
+  border-radius: var(--radius-custom-xl);
+  padding: 40px 24px;
+  text-align: center;
+  transition:
+    border-color 0.3s ease,
+    background 0.3s ease,
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  cursor: pointer;
+}
+
+.empty-state-cta:hover {
+  border-color: var(--color-primary-custom);
+  background: color-mix(in srgb, var(--color-primary-custom) 4%, var(--color-bg-card));
+  transform: translateY(-2px);
+}
+
+.empty-state-cta .cta-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  display: block;
+  animation: float 3s ease-in-out infinite;
+}
+
+.empty-state-cta .cta-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--color-text);
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+}
+
+.empty-state-cta .cta-desc {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  max-width: 260px;
+  margin: 0 auto;
 }
 
 /* ============================================
