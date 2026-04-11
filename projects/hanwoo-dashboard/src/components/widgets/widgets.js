@@ -228,19 +228,19 @@ export function EstrusAlertBanner({cattle, buildings = []}){
               key={c.id}
               className="animate-fadeInUp"
               style={{
-                background:"rgba(255,255,255,0.05)",
+                background:"color-mix(in srgb, var(--color-surface-elevated) 80%, transparent)",
                 borderRadius:"var(--radius-md)",
                 padding:"8px 14px",
                 fontSize:"13px",
-                border:"1px solid rgba(255,255,255,0.1)",
+                border:"1px solid var(--color-surface-stroke, rgba(255,255,255,0.1))",
                 transition:"all var(--transition-fast)",
                 animationDelay:`${150 + idx*50}ms`
               }}
-              onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.12)";e.currentTarget.style.transform="translateY(-1px)";}}
-              onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.05)";e.currentTarget.style.transform="translateY(0)";}}
+              onMouseEnter={e=>{e.currentTarget.style.background="color-mix(in srgb, var(--color-surface-elevated) 90%, transparent)";e.currentTarget.style.transform="translateY(-1px)";}}
+              onMouseLeave={e=>{e.currentTarget.style.background="color-mix(in srgb, var(--color-surface-elevated) 80%, transparent)";e.currentTarget.style.transform="translateY(0)";}}
             >
-              <strong className="text-pink-300">{c.name}</strong> · <span className="text-slate-300">{bl?.name || '미지정'} {c.penNumber}번</span> ·
-              <span style={{fontWeight:700}} className="text-pink-400">{d===0?" ⚡오늘!":` D-${d}`}</span>
+              <strong style={{color:"var(--color-estrus)"}}>{c.name}</strong> · <span style={{color:"var(--color-text-secondary)"}}>{bl?.name || '미지정'} {c.penNumber}번</span> ·
+              <span style={{fontWeight:700,color:"var(--color-estrus)"}}>{d===0?" ⚡오늘!":` D-${d}`}</span>
             </div>
           );
         })}
@@ -272,19 +272,19 @@ export function CalvingAlertBanner({cattle, buildings = []}){
               key={c.id}
               className="animate-fadeInUp"
               style={{
-                background:"rgba(255,255,255,0.05)",
+                background:"color-mix(in srgb, var(--color-surface-elevated) 80%, transparent)",
                 borderRadius:"var(--radius-md)",
                 padding:"8px 14px",
                 fontSize:"13px",
-                border:"1px solid rgba(255,255,255,0.1)",
+                border:"1px solid var(--color-surface-stroke, rgba(255,255,255,0.1))",
                 transition:"all var(--transition-fast)",
                 animationDelay:`${200 + idx*50}ms`
               }}
-              onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.12)";e.currentTarget.style.transform="translateY(-1px)";}}
-              onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.05)";e.currentTarget.style.transform="translateY(0)";}}
+              onMouseEnter={e=>{e.currentTarget.style.background="color-mix(in srgb, var(--color-surface-elevated) 90%, transparent)";e.currentTarget.style.transform="translateY(-1px)";}}
+              onMouseLeave={e=>{e.currentTarget.style.background="color-mix(in srgb, var(--color-surface-elevated) 80%, transparent)";e.currentTarget.style.transform="translateY(0)";}}
             >
-              <strong className="text-indigo-300">{c.name}</strong> · <span className="text-slate-300">{bl?.name || '미지정'} {c.penNumber}번</span> ·
-              <span style={{fontWeight:700}} className="text-indigo-400"> D-{d}</span> <span className="text-slate-400">· 예정 {formatDate(getCalvingDate(c.pregnancyDate))}</span>
+              <strong style={{color:"var(--color-calving)"}}>{c.name}</strong> · <span style={{color:"var(--color-text-secondary)"}}>{bl?.name || '미지정'} {c.penNumber}번</span> ·
+              <span style={{fontWeight:700,color:"var(--color-calving)"}}> D-{d}</span> <span style={{color:"var(--color-text-muted)"}}>· 예정 {formatDate(getCalvingDate(c.pregnancyDate))}</span>
             </div>
           );
         })}
