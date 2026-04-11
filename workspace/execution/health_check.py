@@ -105,6 +105,10 @@ API_CHECKS = [
         "env_key": "MOONSHOT_API_KEY",
         "url": "https://api.moonshot.cn/v1/models",
         "auth_header": "Bearer",
+        "auth_failure_status": STATUS_WARN,
+        "auth_failure_detail": "401 Unauthorized - optional fallback provider disabled until key is refreshed",
+        "permission_failure_status": STATUS_WARN,
+        "permission_failure_detail": "403 Forbidden - optional fallback provider disabled until permissions are fixed",
     },
     {
         "name": "Zhipu AI",
@@ -190,9 +194,19 @@ def _check_single_api(api: Dict) -> Dict:
         if resp.status_code == 200:
             return _check_result(name, "api", STATUS_OK, "connected")
         elif resp.status_code == 401:
-            return _check_result(name, "api", STATUS_FAIL, "401 Unauthorized - token invalid/expired")
+            return _check_result(
+                name,
+                "api",
+                api.get("auth_failure_status", STATUS_FAIL),
+                api.get("auth_failure_detail", "401 Unauthorized - token invalid/expired"),
+            )
         elif resp.status_code == 403:
-            return _check_result(name, "api", STATUS_FAIL, "403 Forbidden - insufficient permissions")
+            return _check_result(
+                name,
+                "api",
+                api.get("permission_failure_status", STATUS_FAIL),
+                api.get("permission_failure_detail", "403 Forbidden - insufficient permissions"),
+            )
         elif resp.status_code == 429:
             return _check_result(name, "api", STATUS_WARN, "429 Rate Limited")
         else:
@@ -313,6 +327,10 @@ _KEY_VALIDATION_ENDPOINTS: Dict[str, Dict] = {
     "MOONSHOT_API_KEY": {
         "url": "https://api.moonshot.cn/v1/models",
         "auth_header": "Bearer",
+        "auth_failure_status": STATUS_WARN,
+        "auth_failure_detail": "invalid or expired (401) - optional fallback provider disabled",
+        "permission_failure_status": STATUS_WARN,
+        "permission_failure_detail": "forbidden (403) - optional fallback provider disabled",
     },
     "XAI_API_KEY": {
         "url": "https://api.x.ai/v1/models",
@@ -389,9 +407,23 @@ def check_api_key_health() -> List[Dict]:
                 if resp.status_code == 200:
                     results.append(_check_result(check_name, "api", STATUS_OK, "valid (auth ok)"))
                 elif resp.status_code == 401:
-                    results.append(_check_result(check_name, "api", STATUS_FAIL, "invalid or expired (401)"))
+                    results.append(
+                        _check_result(
+                            check_name,
+                            "api",
+                            ep.get("auth_failure_status", STATUS_FAIL),
+                            ep.get("auth_failure_detail", "invalid or expired (401)"),
+                        )
+                    )
                 elif resp.status_code == 403:
-                    results.append(_check_result(check_name, "api", STATUS_FAIL, "forbidden (403) - check permissions"))
+                    results.append(
+                        _check_result(
+                            check_name,
+                            "api",
+                            ep.get("permission_failure_status", STATUS_FAIL),
+                            ep.get("permission_failure_detail", "forbidden (403) - check permissions"),
+                        )
+                    )
                 elif resp.status_code == 429:
                     results.append(
                         _check_result(check_name, "api", STATUS_WARN, "rate limited (429) - key likely valid")

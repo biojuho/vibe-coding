@@ -67,6 +67,17 @@ def test_check_api_connection_401(monkeypatch):
     assert "401" in oai[0]["detail"]
 
 
+def test_check_api_connection_401_optional_provider_warn(monkeypatch):
+    monkeypatch.setenv("MOONSHOT_API_KEY", "sk-test-moonshot-valid-format-1234567890")
+    mock_resp = MagicMock()
+    mock_resp.status_code = 401
+    with patch.object(hc.requests, "get", return_value=mock_resp):
+        results = hc.check_api_connections()
+    moonshot = [r for r in results if r["name"] == "Moonshot"]
+    assert moonshot[0]["status"] == hc.STATUS_WARN
+    assert "optional fallback provider" in moonshot[0]["detail"]
+
+
 def test_check_api_connection_timeout(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     import requests as req
@@ -415,3 +426,14 @@ def test_check_git_not_found(monkeypatch, tmp_path):
     monkeypatch.setattr(hc, "_ROOT", tmp_path)
     result = hc.check_git()
     assert result[0]["status"] == hc.STATUS_FAIL
+
+
+def test_check_api_key_health_401_optional_provider_warn(monkeypatch):
+    monkeypatch.setenv("MOONSHOT_API_KEY", "sk-test-moonshot-valid-format-1234567890")
+    mock_resp = MagicMock()
+    mock_resp.status_code = 401
+    with patch.object(hc.requests, "get", return_value=mock_resp):
+        results = hc.check_api_key_health()
+    moonshot = [r for r in results if r["name"] == "key:MOONSHOT_API_KEY"]
+    assert moonshot[0]["status"] == hc.STATUS_WARN
+    assert "optional fallback provider" in moonshot[0]["detail"]

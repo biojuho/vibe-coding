@@ -56,6 +56,11 @@
 | channel_growth_tracker.py | utility | YouTube 채널 성장 추적 |
 | content_db.py | utility | 콘텐츠 DB (SQLite) |
 | gdrive_pdf_extractor.py | utility | Google Drive PDF 추출 |
+| harness_context.py | infrastructure | Context window compaction + oversized tool-output offloading |
+| harness_eval.py | infrastructure | Generator-evaluator quality loop for LLM output validation |
+| harness_middleware.py | infrastructure | HarnessSession observability + loop detection + budget enforcement |
+| harness_sandbox.py | infrastructure | Agent sandbox profiles with Docker/subprocess isolation |
+| harness_security_checklist.py | infrastructure | Pre-flight/runtime security validation with secret and path guards |
 | harness_tool_registry.py | infrastructure | Agent harness tool allowlist + HITL permission registry |
 | joolife_hub.py | entrypoint | Streamlit 메인 허브 |
 | lyria_bgm_generator.py | utility | Lyria BGM 생성 |

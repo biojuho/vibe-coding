@@ -25,7 +25,7 @@
 - **조치**:
   - [x] `projects/shorts-maker-v2/pyproject.toml`에 `--cov=src/shorts_maker_v2` 설정
   - [x] `projects/blind-to-x/pytest.ini`에 `--cov=pipeline --cov=scrapers` 설정
-  - [ ] 목표: shorts ≥ 80%, blind-to-x ≥ 75% [TASK: T-100]
+  - [x] 목표: shorts ≥ 80%, blind-to-x ≥ 75% [TASK: T-100] (archived completion noted 2026-04-05)
 - **예상 소요**: 2~3시간
 
 ### P1-2. 워치독 이중화 (heartbeat + 자동 재시작)
