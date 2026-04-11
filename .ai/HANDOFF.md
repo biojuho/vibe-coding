@@ -8,8 +8,8 @@
 |---|---|
 | Date | 2026-04-11 |
 | Tool | Codex |
-| Work | Patched the local Python 3.13 `code-review-graph` package under site-packages so its Windows text I/O is UTF-8-safe. `incremental.py` now writes/reads with explicit UTF-8, and the git subprocess calls used by `detect-changes` decode stdout/stderr as UTF-8 with replacement instead of relying on the shell's `cp949` locale. Reproduced the original crash, confirmed `python3.13 -m code_review_graph detect-changes --repo projects/blind-to-x --brief` now succeeds without `PYTHONUTF8=1`, and cleaned up the temporary `projects/blind-to-x/.code-review-graph` artifact afterward. |
-| Next Priorities | 1. Leave `hanwoo-dashboard` UX/UI work alone unless the user explicitly redirects the session. 2. If Moonshot should be re-enabled later, add a fresh key and re-run the shared health check. 3. If Python 3.13 packages are reinstalled on this machine, reapply the local `code-review-graph` UTF-8 patch unless it lands upstream first. |
+| Work | Cleaned up the remaining `blind-to-x` timeout-test worktree diff in `tests/unit/test_process.py` by removing the last unused `asyncio` import, then re-ran the focused process tests plus Ruff. The timeout-targeting edits already present in that file now verify cleanly (`5 passed`), and the `blind-to-x` test trio touched in this session (`test_process.py`, `conftest.py`, `test_notion_query_mixin.py`) is Ruff-clean together. |
+| Next Priorities | 1. Leave `hanwoo-dashboard` UX/UI work alone unless the user explicitly redirects the session. 2. If Moonshot or Groq should be re-enabled later, add fresh keys and re-run the shared health check. 3. If Python 3.13 packages are reinstalled on this machine, reapply the local `code-review-graph` UTF-8 patch unless it lands upstream first. |
 
 ## Previous Update
 
@@ -17,12 +17,14 @@
 |---|---|
 | Date | 2026-04-11 |
 | Tool | Codex |
-| Work | Started with a shared workspace system audit (`python workspace/execution/health_check.py --json`, `python3.13 -m code_review_graph status`, and core toolchain probes), then fixed the two governance failures it exposed. `workspace/directives/INDEX.md` now indexes the five missing harness scripts, `workspace/directives/system_audit_action_plan.md` no longer leaves archived task `T-100` open, and `python workspace/execution/health_check.py --category governance --json` passes cleanly. |
-| Next Priorities | 1. Handle the remaining Moonshot-related health-check failure path. 2. Return to the outstanding `blind-to-x` timeout failures. 3. Then clean up the remaining Notion query 400 path in `pipeline/notion/_query.py`. |
+| Work | Patched the local Python 3.13 `code-review-graph` package under site-packages so its Windows text I/O is UTF-8-safe. `incremental.py` now writes/reads with explicit UTF-8, and the git subprocess calls used by `detect-changes` decode stdout/stderr as UTF-8 with replacement instead of relying on the shell's `cp949` locale. Reproduced the original crash, confirmed `python3.13 -m code_review_graph detect-changes --repo projects/blind-to-x --brief` now succeeds without `PYTHONUTF8=1`, and cleaned up the temporary `projects/blind-to-x/.code-review-graph` artifact afterward. |
+| Next Priorities | 1. Leave `hanwoo-dashboard` UX/UI work alone unless the user explicitly redirects the session. 2. If Moonshot should be re-enabled later, add a fresh key and re-run the shared health check. 3. If Python 3.13 packages are reinstalled on this machine, reapply the local `code-review-graph` UTF-8 patch unless it lands upstream first. |
 
 ## Notes
 
 - Verification from this session:
+  - `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/test_process.py -q`
+  - `projects/blind-to-x`: `python -m ruff check tests/unit/test_process.py tests/unit/conftest.py tests/unit/test_notion_query_mixin.py`
   - `workspace`: `python3.13 -m code_review_graph detect-changes --repo projects/blind-to-x --brief` now passes without `PYTHONUTF8=1`
   - `workspace`: `python3.13 -m code_review_graph status --repo projects/blind-to-x`
   - `workspace`: pre-fix workaround confirmed `PYTHONUTF8=1` was sufficient, which matched the root cause around locale-dependent decoding/writing
