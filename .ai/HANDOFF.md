@@ -8,8 +8,8 @@
 |---|---|
 | Date | 2026-04-11 |
 | Tool | Codex |
-| Work | Closed the remaining `blind-to-x` unit-suite blocker after the shared workspace audit. The real failure was not the old timeout tests: `NotionUploader` unit tests could still pick up `NOTION_DATABASE_ID` / `NOTION_PROP_*` values left behind by `.env`-loading code paths, so `tests/unit/conftest.py` now clears those env vars in the autouse isolation fixture before every test. Verified the ambient-env reproduction, kept `NOTION_PROP_*` override tests passing, and then ran the full `tests/unit` suite to green (`1481 passed, 1 skipped`). |
-| Next Priorities | 1. Clean up the remaining direct Notion query HTTP 400 path in `projects/blind-to-x/pipeline/notion/_query.py` so live status/date filters stop depending on fallbacks. 2. Leave `hanwoo-dashboard` UX/UI work alone unless the user explicitly redirects the session. 3. If Moonshot should be re-enabled later, add a fresh key and re-run the shared health check. |
+| Work | Finished the remaining `blind-to-x` Notion reliability cleanup after the shared workspace audit. `pipeline/notion/_query.py` now maps logical status labels like `승인됨` to the live Notion select options (for this DB, `발행승인`), canonicalizes returned status values back to the shared logical labels, and falls back to an unfiltered collection scan only if the filtered query still fails. Verified the focused query mixin tests, confirmed on the live DB that raw `승인됨` still 400s while `get_pages_by_status("승인됨")` now succeeds, and re-ran the full `tests/unit` suite to green (`1484 passed, 1 skipped`). |
+| Next Priorities | 1. Leave `hanwoo-dashboard` UX/UI work alone unless the user explicitly redirects the session. 2. If Moonshot should be re-enabled later, add a fresh key and re-run the shared health check. 3. Only revisit `blind-to-x` Notion querying if a new live symptom appears outside `_query.py`. |
 
 ## Previous Update
 
@@ -23,9 +23,12 @@
 ## Notes
 
 - Verification from this session:
+  - `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/test_notion_query_mixin.py -q`
+  - `projects/blind-to-x`: `python -m ruff check pipeline/notion/_query.py tests/unit/test_notion_query_mixin.py`
+  - `projects/blind-to-x`: live read-only probe confirmed `select.equals="승인됨"` still 400s against the current DB, `select.equals="발행승인"` succeeds, and `get_pages_by_status("승인됨")` now resolves the alias and returns approved pages with canonicalized status values
+  - `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/ -q` (`1484 passed, 1 skipped`)
   - `projects/blind-to-x`: ambient-env reproduction now passes after the fixture hardening: `$env:NOTION_DATABASE_ID='...'; python -m pytest --no-cov tests/unit/test_notion_upload.py -q -k update_collection_properties_uses_database_endpoint -x`
   - `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/test_notion_accuracy.py -q -k env_override_has_priority -x`
-  - `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/ -q` (`1481 passed, 1 skipped`)
   - `projects/blind-to-x`: `python -m ruff check tests/unit/conftest.py`
   - `workspace`: `python workspace/execution/health_check.py --json`
   - `workspace`: `python3.13 -m code_review_graph status`
@@ -64,7 +67,7 @@
 - Empty-draft review cards now tell the operator what to do instead of only showing a vague regulation warning.
 - Review-only runs now try to maintain a minimum of 5 Notion cards per day.
 - Review-only runs now persist fallback cards even when draft generation fails, and those cards include the draft-generation error in the Notion memo for reviewers.
-- A direct Notion database query path can still return HTTP 400 for some status/date filter combinations; `get_recent_pages()` fallback queries still work and were used for the live count check.
+- `projects/blind-to-x/pipeline/notion/_query.py` now resolves logical status labels to live select options and canonicalizes the values back on read, so approved/review flows no longer depend on hardcoded Notion option names.
 - `workspace/execution/health_check.py --json` no longer fails on governance drift or Moonshot auth; it currently reports `warn` because Moonshot and Groq are unset plus the root venv is not activated.
 - The code-review graph CLI is healthy in this shell via `python3.13`; use it or the MCP tools before broad file scans when graph coverage is enough.
 - `projects/blind-to-x/tests/unit/conftest.py` now clears `NOTION_DATABASE_ID` and any `NOTION_PROP_*` overrides before each unit test. If a test needs those values, set them explicitly inside the test with `monkeypatch.setenv()` / `patch.dict(...)`.
