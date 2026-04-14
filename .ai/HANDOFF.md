@@ -7,21 +7,23 @@
 | Field | Value |
 |---|---|
 | Date | 2026-04-14 |
-| Tool | Codex |
-| Work | **T-205 기록 완료**: accidental commit cleanup 후 현재 spillover 경계를 문서화. `execution/component_import_smoke_test.py`는 다음 `ai-context` 커밋에 또 섞이지 않도록 unstage 처리했고, `projects/hanwoo-dashboard/package.json`과 해당 helper 스크립트의 작업트리 diff는 사용자 작업을 덮지 않기 위해 그대로 유지했다. |
-| Next Priorities | 1. **T-199** GitHub branch protection (Owner: User). 2. Google Gemini API 403 문제 별도 확인. |
+| Tool | Claude Code (Opus 4.6 1M) |
+| Work | **QC pass + T-199 플랜 블로커 확인**. 최근 4건 교차 검증: T-197 `component-imports.test.mjs` (eslint 0, npm test 51/51, 네거티브 테스트로 broken import 정확 검출), T-198 `pr_self_review.py` (py_compile/ruff/--help OK), T-202 `.amazonq/mcp.json` ↔ `.mcp.json` 완전 동기화(8서버), test_mcp_config.py 3/3 통과, 부수적으로 `execution/component_import_smoke_test.py` (Python판) `--strict` 146/146 resolved + ruff clean. **T-199**는 기술 블로커: `gh api repos/biojuho/vibe-coding/branches/main/protection` → HTTP 403 `"Upgrade to GitHub Pro or make this repository public"`. private + 무료 플랜 조합으로는 branch protection API 자체가 차단됨. |
+| Next Priorities | 1. **T-199 unblock 결정**: GitHub Pro 업그레이드($4/월) vs public 전환 vs 로컬 게이트(T-195/T-206) 유지. 2. Google Gemini API 403 문제 별도 확인. |
 
 ## Previous Update
 
 | Field | Value |
 |---|---|
 | Date | 2026-04-14 |
-| Tool | Gemini (Antigravity) |
-| Work | **T-204 완료**: `shorts-maker-v2` 5건 테스트 실패 수정. 근본 원인: (A) `ShortsFactory` 외부 모듈이 `sys.path`에 없어 `unittest.mock.patch()` 실패 (4건), (B) Pillow 최신 버전에서 `load_default()` 내부의 `truetype()` 호출로 전역 mock 충돌 (1건). 테스트 코드의 mock 전략만 수정하여 1,300 passed / 0 failed 달성. |
+| Tool | Codex |
+| Work | **T-206 완료**: `[ai-context]` spillover 재발 방지 가드 추가. `execution/ai_context_guard.py`와 `.githooks/commit-msg`를 만들어 context-only 커밋에 비문맥 파일이 섞이면 커밋 자체를 차단하도록 했고, `workspace/tests/test_ai_context_guard.py`로 허용/차단/BOM/훅 배선 케이스를 고정했다. |
 | Next Priorities | 1. **T-199** GitHub branch protection (Owner: User). 2. Google Gemini API 403 문제 별도 확인. |
 
 ## Notes
 
+- **T-206 변경 파일 (2026-04-14)**: `execution/ai_context_guard.py` [NEW], `.githooks/commit-msg` [NEW], `workspace/tests/test_ai_context_guard.py` [NEW]
+- **T-206 검증 (2026-04-14)**: `python -m pytest --no-cov workspace/tests/test_ai_context_guard.py -q` -> `5 passed`. 샘플 실행에서 `[ai-context]` + `projects/hanwoo-dashboard/package.json` 조합은 exit 1로 차단, 일반 커밋 메시지는 exit 0 통과 확인.
 - **T-205 기록 메모 (2026-04-14)**: `execution/component_import_smoke_test.py`는 현재 unstaged 상태이며, 다음 context-only 커밋 spillover 방지 목적의 조치다.
 - **T-205 남은 dirty 파일 (2026-04-14)**: `projects/hanwoo-dashboard/package.json`, `execution/component_import_smoke_test.py`, `.ai/archive/SESSION_LOG_before_2026-03-23.md`는 작업트리 변경이 남아 있다. 이번 기록 작업에서는 의도적으로 미정리.
 - **T-204 변경 파일 (2026-04-14)**: `tests/unit/test_render_step.py` (sys.modules 주입 헬퍼 + 2개 테스트 수정), `tests/unit/test_render_step_phase5.py` (sys.modules 주입 헬퍼 + 2개 테스트 수정), `tests/unit/test_thumbnail_step_sweep.py` (load_default mock 추가)

@@ -52,6 +52,7 @@
 - Antigravity local state for Amazon Q was patched on 2026-04-14: `C:\Users\박주호\AppData\Roaming\Antigravity\User\globalStorage\state.vscdb` now marks downloaded AmazonQ LSP `1.64.0` as delisted in `aws.toolkit.lsp.manifest`, so the next resolver target is `1.63.0`. Backup: `C:\Temp\codex-debug\backups\state.vscdb.20260414-194311.bak`.
 - A full Antigravity restart at `2026-04-14 19:57 KST` confirmed the Amazon Q workaround held: the session prepared `AmazonQ/1.63.0`, launched `AWS CodeWhisperer` `1.63.0`, and did not repeat the earlier `1.64.0` crash/fallback signature.
 - Amazon Q IDE does not read the repo-root `.mcp.json` directly in this workspace; it expects the legacy workspace file at `.amazonq/mcp.json`. The workspace now mirrors the root MCP config there, and touching `~/.aws/amazonq/agents/default.json` is enough to trigger a live MCP reload without restarting Antigravity.
+- `[ai-context]` commits are now guarded by `.githooks/commit-msg` via `execution/ai_context_guard.py`. If staged files extend beyond approved `.ai/*` context paths, the commit is blocked before completion.
 
 ## Recent Verification
 
@@ -63,6 +64,7 @@
 - `workspace`: `C:\Users\박주호\AppData\Roaming\Antigravity\logs\20260414T195624\window1\exthost\amazonwebservices.amazon-q-vscode\Amazon Q Logs.log` showed a clean Amazon Q startup on 2026-04-14 with `Finished preparing "AmazonQ" LSP server: '...AmazonQ/1.63.0'` followed by `Runtime: Initializing server "AWS CodeWhisperer" version "1.63.0"`.
 - `workspace`: `python -m pytest --no-cov workspace/tests/test_mcp_config.py -q` passed on 2026-04-14 (`3 passed`) after `.amazonq/mcp.json` was added as the Amazon Q legacy workspace config mirror.
 - `workspace`: `C:\Users\박주호\AppData\Roaming\Antigravity\logs\20260414T202420\window1\exthost\amazonwebservices.amazon-q-vscode\Amazon Q Logs.log` showed a live MCP reload on 2026-04-14 at `20:30:26 KST`, loading 8 servers from `.amazonq/mcp.json` and beginning tool discovery/registration.
+- `workspace`: `python -m pytest --no-cov workspace/tests/test_ai_context_guard.py -q` passed on 2026-04-14 (`5 passed`) after the `[ai-context]` commit-msg spillover guard was added.
 - `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/test_notion_query_mixin.py -q` and `python -m ruff check pipeline/notion/_query.py tests/unit/test_notion_query_mixin.py` both passed on 2026-04-11 after logical-status alias handling was added to `_query.py`.
 - `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/test_process.py -q` and `python -m ruff check tests/unit/test_process.py tests/unit/conftest.py tests/unit/test_notion_query_mixin.py` both passed on 2026-04-11 after the lingering `test_process.py` lint cleanup.
 - `projects/blind-to-x`: a live read-only probe on 2026-04-11 confirmed the current DB still rejects `select.equals="승인됨"` with HTTP 400, accepts `select.equals="발행승인"`, and now returns approved pages correctly through `get_pages_by_status("승인됨")`.
@@ -99,6 +101,7 @@
 - On this machine, Python/SQLite scripts can fail on the Korean home path when targeting Antigravity or AWS Toolkit state directly. Use an ASCII junction such as `C:\Temp\pjh -> C:\Users\박주호` for scripted access if needed.
 - Antigravity keeps the current Amazon Q LSP choice in memory for the running session, so `state.vscdb` edits do not take effect until the app is fully restarted.
 - Amazon Q IDE watches its legacy MCP paths, not the repo-root `.mcp.json`; if `.amazonq/` does not exist, MCP can stay at `Total servers: 0` even while the root config looks correct.
+- The new `[ai-context]` guard only blocks commits whose subject starts with `[ai-context]`; regular feature/fix commits are intentionally unaffected.
 - Moonshot is now treated as an optional fallback provider in shared health checks; if `MOONSHOT_API_KEY` is missing or invalid, the system should degrade to `warn` rather than `fail`.
 - `[ADR-026]` Project-level `CLAUDE.md` files now exist for `blind-to-x`, `hanwoo-dashboard`, and `shorts-maker-v2`. Read the relevant project's minefield section before editing.
 - `[ADR-026]` `/verify` workflow is explicit: do not claim completion without running the appropriate checks.
