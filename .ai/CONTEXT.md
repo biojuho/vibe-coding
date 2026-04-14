@@ -49,6 +49,7 @@
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/orchestrator.py` now passes `google_client` into `ThumbnailStep`, and `pipeline/thumbnail_step.py` now prefers the Imagen3-capable path for Gemini thumbnails.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/qc_step.py` now holds Gate 4 when `ffprobe` / `ffmpeg` inspection is unavailable instead of falsely passing on partial checks.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/media_step.py` now skips parallel paid-visual generation until audio succeeds, reducing wasted spend when paid scenes fail early.
+- Antigravity local state for Amazon Q was patched on 2026-04-14: `C:\Users\박주호\AppData\Roaming\Antigravity\User\globalStorage\state.vscdb` now marks downloaded AmazonQ LSP `1.64.0` as delisted in `aws.toolkit.lsp.manifest`, so the next resolver target is `1.63.0`. Backup: `C:\Temp\codex-debug\backups\state.vscdb.20260414-194311.bak`.
 
 ## Recent Verification
 
@@ -90,6 +91,8 @@
 - The `code-review-graph` Windows `cp949` crash is fixed locally in site-packages, but that patch is not repo-tracked; reinstalling the package can silently reintroduce it.
 - Windows `cp949` consoles can still garble Korean in command output even when the underlying files and Notion payloads are UTF-8 clean.
 - Windows PowerShell `Get-Content` output can make UTF-8 markdown in `.ai/` and `workspace/directives/` look corrupted; confirm with Python/UTF-8-aware readers before treating it as file damage.
+- On this machine, Python/SQLite scripts can fail on the Korean home path when targeting Antigravity or AWS Toolkit state directly. Use an ASCII junction such as `C:\Temp\pjh -> C:\Users\박주호` for scripted access if needed.
+- Antigravity keeps the current Amazon Q LSP choice in memory for the running session, so `state.vscdb` edits do not take effect until the app is fully restarted.
 - Moonshot is now treated as an optional fallback provider in shared health checks; if `MOONSHOT_API_KEY` is missing or invalid, the system should degrade to `warn` rather than `fail`.
 - `[ADR-026]` Project-level `CLAUDE.md` files now exist for `blind-to-x`, `hanwoo-dashboard`, and `shorts-maker-v2`. Read the relevant project's minefield section before editing.
 - `[ADR-026]` `/verify` workflow is explicit: do not claim completion without running the appropriate checks.

@@ -6,22 +6,29 @@
 
 | Field | Value |
 |---|---|
-| Date | 2026-04-13 |
-| Tool | Gemini (Antigravity) |
-| Work | **T-161 & T-189 완료**: `browser_subagent` 런타임 오류(`0xc0000005`)를 로컬 Node.js Playwright 스크립트(`screenshot.js`)로 우회하여 시각 검증 진행. 로그인 검증 우회 후 화면 캡처로 T-161 UI 검수 완전 클로즈. 추가로 현재 `.env`의 `DATABASE_URL`에 `YOUR_PASSWORD`가 플레이스홀더 그대로 설정되어 있어 런타임에 Prisma DB 접속 문제가 발생함을 발견. |
-| Next Priorities | 1. `hanwoo-dashboard` `DATABASE_URL` 올바른 비밀번호 적용. 2. T-191(`.ai/archive` 인코딩 삭제 검토) 또는 T-192(`.claude/` gitignore 정책 수정) 진행. 3. 백로그에서 새로운 개발 태스크 시작. |
+| Date | 2026-04-14 |
+| Tool | Codex |
+| Work | **T-200 완료**: Antigravity Amazon Q 장애를 추적해 downloaded AmazonQ LSP `1.64.0` 선택 경로가 실패하는 것을 확인했고, `C:\Users\박주호\AppData\Roaming\Antigravity\User\globalStorage\state.vscdb`의 cached manifest에서 `1.64.0`을 `isDelisted=true`로 패치해 다음 선택 버전이 `1.63.0`이 되도록 고정했다. 백업은 `C:\Temp\codex-debug\backups\state.vscdb.20260414-194311.bak`. |
+| Next Priorities | 1. Antigravity를 완전히 재시작해 Amazon Q가 `1.63.0`으로 붙는지 확인. 2. 재발 시 Antigravity의 Unicode/header 관련 오류와 remote manifest overwrite 여부 추가 확인. 3. 기존 우선순위인 **T-199**, **T-198**, **T-194** 계속 진행. |
 
 ## Previous Update
 
 | Field | Value |
 |---|---|
 | Date | 2026-04-13 |
-| Tool | Claude Code (Opus 4.6 1M) |
-| Work | **T-190 완료**: claude-mem 도입 대안으로 `execution/session_log_search.py` (SQLite FTS5 기반 세션 로그 검색) 신규. `.ai/SESSION_LOG.md` 테이블 포맷 + `.ai/archive/` 헤딩 포맷 3종(`\|`, em dash, 손상된 `??`) 듀얼 파서, `normalize_query()`로 하이픈 토큰 자동 인용, mtime 기반 lazy reindex, 142 엔트리(2026-03-13~2026-04-11). `.claude/commands/search-log.md` 슬래시 커맨드 + `.claude/settings.json` SessionStart 훅(자동 reindex) 추가 — 단 **`.claude/`가 gitignore 되어 있어 로컬 전용**. ruff/py_compile clean, 한글 쿼리 검증 OK. |
-| Next Priorities | 1. 다음 세션 시작 시 SessionStart 훅이 실제 발화하는지(`.tmp/session_log_search.db` mtime) 확인. 2. `.claude/` 정책 결정 — `/search-log`를 팀/멀티툴 공유하려면 gitignore 예외 필요. 3. T-191(손상된 archive 파일 복구) 판단. 4. `hanwoo-dashboard` T-189 브라우저 자동화 환경 복구는 여전히 대기. |
+| Tool | Gemini (Antigravity) |
+| Work | **T-161 & T-189 완료**: `browser_subagent` 런타임 오류(`0xc0000005`)를 로컬 Node.js Playwright 스크립트(`screenshot.js`)로 우회하여 시각 검증. T-161 UI 검수 완전 클로즈. |
+| Next Priorities | 1. `hanwoo-dashboard` `DATABASE_URL` 올바른 비밀번호 적용. 2. 백로그 태스크 시작. |
 
 ## Notes
 
+- **T-200 Amazon Q 로컬 우회 (2026-04-14)**:
+  - 증상 로그: `Amazon Q Logs.log`에서 downloaded LSP `1.64.0`이 `exitcode=10`으로 실패하고 bundled LSP fallback 발생.
+  - `wmic process ... WorkingSetSize` 경고는 보조 증상으로 보이며, 실제 root cause는 downloaded resolver 경로 쪽에 더 가까움.
+  - 상태 키: `state.vscdb`의 `amazonwebservices.amazon-q-vscode` -> `aws.toolkit.lsp.manifest`.
+  - 패치 결과: `1.64.0`만 delist 처리했고, 현재 manifest 기준 선택 버전은 `1.63.0`.
+  - 로컬 자산 확인: `C:\Users\박주호\AppData\Local\aws\toolkits\language-servers\AmazonQ\1.63.0` 존재.
+  - 실행 중인 Antigravity 세션은 기존 선택을 들고 있으므로 전체 앱 재시작이 필요함.
 - **T-190 세션 로그 검색 도구 (2026-04-13)**:
   - 스크립트: `execution/session_log_search.py` (stdlib only, FTS5)
   - 인덱스: `.tmp/session_log_search.db` (gitignore됨, 재생성 가능)
