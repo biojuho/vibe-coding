@@ -17,11 +17,11 @@
 
 | ID | Task | Completed By | Completed |
 |---|---|---|---|
+| T-203 | `[workspace]` accidental `ai-context` spillover 정리 — archived session log 삭제 복구, 충돌 위험 파일은 보류 | Codex | 2026-04-14 |
 | T-202 | `[workspace]` Amazon Q IDE MCP legacy workspace config 복구 — `.amazonq/mcp.json` 추가, 회귀 테스트 보강, 라이브 로그에서 MCP 서버 8개 로드 확인 | Codex | 2026-04-14 |
 | T-198 | `[workspace]` PR 셀프 리뷰 자동화 스크립트 — `execution/pr_self_review.py` (LLMClient 재사용, quick/standard/deep 3단계) | Gemini (Antigravity) | 2026-04-14 |
 | T-201 | `[workspace]` Antigravity Amazon Q 재시작 후 `1.63.0` 적용 확인 — 로그에서 `serverInfo.version: 1.63.0` 확인 완료 | Gemini (Antigravity) | 2026-04-14 |
 | T-194 | `[workspace]` Smart Continue Lite 도입 — TASKS.md Auto 컬럼, CLAUDE/AGENTS/GEMINI.md Boundary 규칙, plan.md 분기 추가 완료 | Gemini (Antigravity) | 2026-04-14 |
-| T-200 | `[workspace]` Antigravity Amazon Q triage: downloaded LSP `1.64.0` delist workaround 적용으로 다음 선택 버전을 `1.63.0`으로 롤백 | Codex | 2026-04-14 |
 
 ## Rules
 
