@@ -6,15 +6,22 @@
 
 | Field | Value |
 |---|---|
-| Date | 2026-04-14 |
+| Date | 2026-04-15 |
 | Tool | Codex |
-| Work | **T-207 완료**: `execution/github_branch_protection.py`를 추가해 GitHub branch protection payload를 결정론적으로 고정했다. 현재 워크플로 기준 required checks를 `root-quality-gate` + `test-summary`로 설정하고, `--check-live`/`--apply` 경로에서 repo metadata 조회, live 보호 상태 조회, private + free 플랜의 GitHub 403 블로커 감지를 자동화했다. `workspace/tests/test_github_branch_protection.py`로 payload, repo slug 파싱, 차단 경로, apply 성공 요약을 고정했고, 2026-04-14 기준 live 재검증에서도 `gh api repos/biojuho/vibe-coding/branches/main/protection`는 여전히 HTTP 403 `"Upgrade to GitHub Pro or make this repository public"` 상태였다. |
-| Next Priorities | 1. **T-199 사용자 액션**: GitHub Pro 업그레이드 또는 public 전환 후 `python execution/github_branch_protection.py --apply` 실행. 2. 적용 후 `python execution/github_branch_protection.py --check-live`로 보호 규칙 확인. |
+| Work | **T-209 완료**: `workspace/execution/health_check.py --json`로 시스템 스크리닝을 다시 수행해 유일한 fail 원인이 `workspace/execution/pr_self_review.py`의 INDEX 누락임을 확인했다. `workspace/directives/INDEX.md`의 "매핑 없는 Execution 스크립트" 섹션에 `pr_self_review.py`를 등록해 directive mapping drift를 복구했고, 이후 `python workspace/execution/health_check.py --category governance --json`는 `overall: ok`, 전체 헬스체크는 `fail: 0`, `overall: warn`로 회복됐다. |
+| Next Priorities | 1. Optional env 경고(`GROQ_API_KEY`, `MOONSHOT_API_KEY`, `BRAVE_API_KEY`, Telegram/Bridge 계열) 정리 여부 사용자 확인. 2. T-199는 여전히 사용자 승인/플랜 결정 필요. |
 
 ## Previous Update
 
 | Field | Value |
 |---|---|
+| Date | 2026-04-15 |
+| Tool | Gemini (Antigravity) |
+| Work | **T-208 완료**: `hanwoo-dashboard` 내 `premium-input.js`, `premium-button.js` 등 하위 UI 컴포넌트들에 하드코딩되어 있던 `slate` 클래스들을 `globals.css` 테마 변수로 완벽히 동기화. 1~4차 UX/UI 개선 완전 완료. Lint 오류 없음. |
+| Next Priorities | 1. User의 T-199 진행 상황 체크. 2. 대기. |
+| Date | 2026-04-14 |
+| Tool | Codex |
+| Work | **T-207 완료**: `execution/github_branch_protection.py`를 추가하고 GitHub branch protection payload를 결정론적으로 고정했다. 현재 워크플로 기준 required checks를 `root-quality-gate` + `test-summary`로 설정하고, `--check-live`/`--apply` 경로에서 repo metadata 조회, live 보호 상태 조회, private + free 플랜의 GitHub 403 블로킹 감지를 자동화했다. `workspace/tests/test_github_branch_protection.py`로 payload, repo slug 파싱, 차단 경로, apply 성공 모의를 고정하고, 2026-04-14 기준 live 호출에서도 `gh api repos/biojuho/vibe-coding/branches/main/protection`의 완전한 HTTP 403 `"Upgrade to GitHub Pro or make this repository public"` 상태를 확인. |
 | Date | 2026-04-14 |
 | Tool | Claude Code (Opus 4.6 1M) |
 | Work | **QC pass + T-199 플랜 블로커 확인**. 최근 4건 교차 검증: T-197 `component-imports.test.mjs` (eslint 0, npm test 51/51, 네거티브 테스트로 broken import 정확 검출), T-198 `pr_self_review.py` (py_compile/ruff/--help OK), T-202 `.amazonq/mcp.json` ↔ `.mcp.json` 완전 동기화(8서버), test_mcp_config.py 3/3 통과, 부수적으로 `execution/component_import_smoke_test.py` (Python판) `--strict` 146/146 resolved + ruff clean. **T-199**는 기술 블로커: `gh api repos/biojuho/vibe-coding/branches/main/protection` → HTTP 403 `"Upgrade to GitHub Pro or make this repository public"`. private + 무료 플랜 조합으로는 branch protection API 자체가 차단됨. |
@@ -22,6 +29,8 @@
 
 ## Notes
 
+- **T-209 변경 파일 (2026-04-15)**: `workspace/directives/INDEX.md`
+- **T-209 검증 (2026-04-15)**: `python workspace/execution/health_check.py --category governance --json` -> `overall: ok`, `python workspace/execution/health_check.py --json` -> `overall: warn`, `fail: 0`
 - **T-207 변경 파일 (2026-04-14)**: `execution/github_branch_protection.py` [NEW], `workspace/tests/test_github_branch_protection.py` [NEW]
 - **T-207 검증 (2026-04-14)**: `python -m pytest --no-cov workspace/tests/test_github_branch_protection.py -q` -> `5 passed`
 - **T-207 라이브 확인 (2026-04-14)**: `python execution/github_branch_protection.py --check-live` -> `status: blocked`, repo `biojuho/vibe-coding`, branch `main`, message `Upgrade to GitHub Pro or make this repository public to enable this feature.`

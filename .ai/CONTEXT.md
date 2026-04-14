@@ -56,6 +56,8 @@
 
 ## Recent Verification
 
+- `workspace`: `python workspace/execution/health_check.py --category governance --json` passed on 2026-04-15 after `workspace/directives/INDEX.md` was updated to register `pr_self_review.py` as an explicitly unmapped execution utility, clearing the last directive-mapping drift fail.
+- `workspace`: `python workspace/execution/health_check.py --json` reported `overall: warn` with `fail: 0` on 2026-04-15; the remaining warnings are optional env completeness gaps plus the root `venv` existing but not being activated in the current shell.
 - `workspace`: `python workspace/execution/health_check.py --category governance --json` passed on 2026-04-11 after `workspace/directives/INDEX.md` was updated with the missing harness scripts and `workspace/directives/system_audit_action_plan.md` closed the archived `T-100` checkbox.
 - `workspace`: `python -m pytest --no-cov workspace/tests/test_health_check.py -q` and `python -m ruff check workspace/execution/health_check.py workspace/tests/test_health_check.py` both passed on 2026-04-11 after Moonshot optional-provider handling was added.
 - `workspace`: `python workspace/execution/health_check.py --json` reports overall `warn` on 2026-04-11 with `fail: 0`; Moonshot is now treated as an optional fallback provider, and the latest probe saw `MOONSHOT_API_KEY` unset rather than invalid.

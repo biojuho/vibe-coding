@@ -17,17 +17,11 @@
 
 | ID | Task | Completed By | Completed |
 |---|---|---|---|
-| T-207 | `[workspace]` GitHub branch protection helper 추가 — `execution/github_branch_protection.py` + 회귀 테스트, private/free blocker 자동 판별 | Codex | 2026-04-14 |
+| T-209 | `[workspace]` shared health-check screening 후 directive mapping drift 복구 (`pr_self_review.py` INDEX 등록) | Codex | 2026-04-15 |
+| T-208 | `[hanwoo-dashboard]` UX/UI 4차 개선 (premium 컴포넌트 하드코딩 제거 및 테마 동기화) | Gemini (Antigravity) | 2026-04-15 |
+| T-207 | `[workspace]` GitHub branch protection helper 추가 — `execution/github_branch_protection.py` + 단위 테스트 + private/free blocker 자동 판별 | Codex | 2026-04-14 |
 | T-206 | `[workspace]` `[ai-context]` commit spillover guard 추가 — commit-msg hook + deterministic guard script + 회귀 테스트 | Codex | 2026-04-14 |
 | T-205 | `[workspace]` spillover 상태 기록 — helper script unstage, 남은 dirty 경계 문서화 | Codex | 2026-04-14 |
-| T-204 | `[shorts-maker-v2]` 5건 테스트 실패 수정 — ShortsFactory sys.modules 주입 + Pillow load_default mock 추가. 1,300 passed, 0 failed | Gemini (Antigravity) | 2026-04-14 |
-| T-203 | `[workspace]` accidental `ai-context` spillover 정리 — archived session log 삭제 복구, 충돌 위험 파일은 보류 | Codex | 2026-04-14 |
-
-## Rules
-
-- Use IDs in the form `T-XXX`.
-- Move tasks from `TODO` -> `IN_PROGRESS` when started.
-- Move tasks from `IN_PROGRESS` -> `DONE` when completed.
 - Keep only the latest 5 items in `DONE`.
 - Add newly discovered follow-up work to `TODO`.
 
