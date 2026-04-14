@@ -8,8 +8,8 @@
 |---|---|
 | Date | 2026-04-15 |
 | Tool | Codex |
-| Work | **T-209 완료**: `workspace/execution/health_check.py --json`로 시스템 스크리닝을 다시 수행해 유일한 fail 원인이 `workspace/execution/pr_self_review.py`의 INDEX 누락임을 확인했다. `workspace/directives/INDEX.md`의 "매핑 없는 Execution 스크립트" 섹션에 `pr_self_review.py`를 등록해 directive mapping drift를 복구했고, 이후 `python workspace/execution/health_check.py --category governance --json`는 `overall: ok`, 전체 헬스체크는 `fail: 0`, `overall: warn`로 회복됐다. |
-| Next Priorities | 1. Optional env 경고(`GROQ_API_KEY`, `MOONSHOT_API_KEY`, `BRAVE_API_KEY`, Telegram/Bridge 계열) 정리 여부 사용자 확인. 2. T-199는 여전히 사용자 승인/플랜 결정 필요. |
+| Work | **T-211 완료**: shared health-check 경고를 다시 분류해 `workspace/execution/health_check.py`의 `.env` completeness 로직이 feature-specific optional 키까지 일괄 warn 하던 부분을 정리했다. `BRAVE_API_KEY`, `BRIDGE_*`, `GITHUB_PERSONAL_ACCESS_TOKEN`, `MOONSHOT_API_KEY`, `TELEGRAM_*`를 optional completeness 항목으로 분리하고, `workspace/tests/test_health_check.py`에 회귀 테스트 2건을 추가했다. 재검증 기준 `python -m pytest --no-cov workspace/tests/test_health_check.py -q` -> `40 passed`, `python workspace/execution/health_check.py --json` -> `overall: warn`, `fail: 0`, 남은 warn은 실제 optional provider 미설정(`GROQ_API_KEY`, `MOONSHOT_API_KEY`)과 비활성 `venv`뿐이다. |
+| Next Priorities | 1. 완전한 green을 원하면 `GROQ_API_KEY`/`MOONSHOT_API_KEY` 설정 여부와 root `venv` 활성화 정책 결정. 2. T-199는 여전히 사용자 승인 대기. |
 
 ## Previous Update
 
@@ -17,8 +17,12 @@
 |---|---|
 | Date | 2026-04-15 |
 | Tool | Gemini (Antigravity) |
-| Work | **T-208 완료**: `hanwoo-dashboard` 내 `premium-input.js`, `premium-button.js` 등 하위 UI 컴포넌트들에 하드코딩되어 있던 `slate` 클래스들을 `globals.css` 테마 변수로 완벽히 동기화. 1~4차 UX/UI 개선 완전 완료. Lint 오류 없음. |
-| Next Priorities | 1. User의 T-199 진행 상황 체크. 2. 대기. |
+| Work | **T-210 완료**: `hanwoo-dashboard/src/lib/actions.js` (929줄) 리팩토링. 12개 도메인별 파일(`actions/cattle.js`, `sales.js`, `feed.js`, `inventory.js`, `schedule.js`, `building.js`, `farm-settings.js`, `market.js`, `notification.js`, `expense.js`, `system.js`, `_helpers.js`)로 분리하고 `actions.js`를 barrel re-export (90줄)로 교체. 기존 `import { … } from '@/lib/actions'` 계약 100% 유지. Lint 0 errors, 51/51 tests pass (component-imports 포함). `DashboardClient.js`는 분석 결과 탭이 이미 분리되어 있고 30+ state/handler가 밀접 결합되어 추출 시 risk > benefit → 현행 유지 결정. |
+| Next Priorities | 1. Phase 2: shorts-maker-v2 리팩토링 (media_step.py, test_render_step.py). 2. T-199 사용자 승인 대기. |
+| Date | 2026-04-15 |
+| Tool | Codex |
+| Work | **T-209 완료**: `workspace/execution/health_check.py --json`로 시스템 스크리닝을 다시 수행해 유일한 fail 원인이 `workspace/execution/pr_self_review.py`의 INDEX 누락임을 확인했다. directive mapping drift 복구 후 `overall: warn`, `fail: 0`로 회복. |
+| Next Priorities | 1. Optional env 경고 정리 여부 사용자 확인. 2. T-199는 여전히 사용자 승인/플랜 결정 필요. |
 | Date | 2026-04-14 |
 | Tool | Codex |
 | Work | **T-207 완료**: `execution/github_branch_protection.py`를 추가하고 GitHub branch protection payload를 결정론적으로 고정했다. 현재 워크플로 기준 required checks를 `root-quality-gate` + `test-summary`로 설정하고, `--check-live`/`--apply` 경로에서 repo metadata 조회, live 보호 상태 조회, private + free 플랜의 GitHub 403 블로킹 감지를 자동화했다. `workspace/tests/test_github_branch_protection.py`로 payload, repo slug 파싱, 차단 경로, apply 성공 모의를 고정하고, 2026-04-14 기준 live 호출에서도 `gh api repos/biojuho/vibe-coding/branches/main/protection`의 완전한 HTTP 403 `"Upgrade to GitHub Pro or make this repository public"` 상태를 확인. |
@@ -29,6 +33,11 @@
 
 ## Notes
 
+- **T-211 변경 파일 (2026-04-15)**: `workspace/execution/health_check.py`, `workspace/tests/test_health_check.py`
+- **T-211 검증 (2026-04-15)**: `python -m pytest --no-cov workspace/tests/test_health_check.py -q` -> `40 passed`, `python workspace/execution/health_check.py --category env --json` -> `overall: warn`, `python workspace/execution/health_check.py --json` -> `overall: warn`, `fail: 0`
+- **T-210 변경 파일 (2026-04-15)**: `projects/hanwoo-dashboard/src/lib/actions.js` [OVERWRITE→barrel], `projects/hanwoo-dashboard/src/lib/actions/_helpers.js` [NEW], `actions/cattle.js` [NEW], `actions/sales.js` [NEW], `actions/feed.js` [NEW], `actions/inventory.js` [NEW], `actions/schedule.js` [NEW], `actions/building.js` [NEW], `actions/farm-settings.js` [NEW], `actions/market.js` [NEW], `actions/notification.js` [NEW], `actions/expense.js` [NEW], `actions/system.js` [NEW]
+- **T-210 검증 (2026-04-15)**: `npm run lint` → exit 0 (0 errors), `npm test` → 51/51 pass
+- **T-210 DashboardClient 판단 (2026-04-15)**: 1,184줄이지만 탭 7개 이미 분리됨. 30+ state + pagination hooks가 밀접 결합 → 핸들러 추출 시 오히려 복잡도 증가. 현행 유지.
 - **T-209 변경 파일 (2026-04-15)**: `workspace/directives/INDEX.md`
 - **T-209 검증 (2026-04-15)**: `python workspace/execution/health_check.py --category governance --json` -> `overall: ok`, `python workspace/execution/health_check.py --json` -> `overall: warn`, `fail: 0`
 - **T-207 변경 파일 (2026-04-14)**: `execution/github_branch_protection.py` [NEW], `workspace/tests/test_github_branch_protection.py` [NEW]

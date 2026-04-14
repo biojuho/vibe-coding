@@ -53,9 +53,13 @@
 - A full Antigravity restart at `2026-04-14 19:57 KST` confirmed the Amazon Q workaround held: the session prepared `AmazonQ/1.63.0`, launched `AWS CodeWhisperer` `1.63.0`, and did not repeat the earlier `1.64.0` crash/fallback signature.
 - Amazon Q IDE does not read the repo-root `.mcp.json` directly in this workspace; it expects the legacy workspace file at `.amazonq/mcp.json`. The workspace now mirrors the root MCP config there, and touching `~/.aws/amazonq/agents/default.json` is enough to trigger a live MCP reload without restarting Antigravity.
 - `[ai-context]` commits are now guarded by `.githooks/commit-msg` via `execution/ai_context_guard.py`. If staged files extend beyond approved `.ai/*` context paths, the commit is blocked before completion.
+- `workspace/execution/health_check.py` now treats feature-specific root `.env` gaps (`BRAVE_API_KEY`, `BRIDGE_*`, `GITHUB_PERSONAL_ACCESS_TOKEN`, `MOONSHOT_API_KEY`, `TELEGRAM_*`) as optional completeness omissions instead of warning-level drift, so shared health checks stay focused on required config and active-provider issues.
 
 ## Recent Verification
 
+- `workspace`: `python -m pytest --no-cov workspace/tests/test_health_check.py -q` passed on 2026-04-15 (`40 passed`) after optional env completeness handling was added to `workspace/execution/health_check.py`.
+- `workspace`: `python workspace/execution/health_check.py --category env --json` reported `overall: warn` on 2026-04-15 with completeness downgraded to `env_completeness:missing_optional`; the remaining env warnings are only `GROQ_API_KEY` and `MOONSHOT_API_KEY` being unset.
+- `workspace`: `python workspace/execution/health_check.py --json` reported `overall: warn`, `fail: 0` on 2026-04-15 after the optional env cleanup; the remaining shared warnings are optional provider gaps plus an inactive root `venv`.
 - `workspace`: `python workspace/execution/health_check.py --category governance --json` passed on 2026-04-15 after `workspace/directives/INDEX.md` was updated to register `pr_self_review.py` as an explicitly unmapped execution utility, clearing the last directive-mapping drift fail.
 - `workspace`: `python workspace/execution/health_check.py --json` reported `overall: warn` with `fail: 0` on 2026-04-15; the remaining warnings are optional env completeness gaps plus the root `venv` existing but not being activated in the current shell.
 - `workspace`: `python workspace/execution/health_check.py --category governance --json` passed on 2026-04-11 after `workspace/directives/INDEX.md` was updated with the missing harness scripts and `workspace/directives/system_audit_action_plan.md` closed the archived `T-100` checkbox.
