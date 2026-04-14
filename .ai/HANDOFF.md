@@ -7,8 +7,8 @@
 | Field | Value |
 |---|---|
 | Date | 2026-04-14 |
-| Tool | Gemini (Antigravity) |
-| Work | **T-204 완료**: `shorts-maker-v2` 5건 테스트 실패 수정. 근본 원인: (A) `ShortsFactory` 외부 모듈이 `sys.path`에 없어 `unittest.mock.patch()` 실패 (4건), (B) Pillow 최신 버전에서 `load_default()` 내부의 `truetype()` 호출로 전역 mock 충돌 (1건). 테스트 코드의 mock 전략만 수정하여 1,300 passed / 0 failed 달성. |
+| Tool | Codex |
+| Work | **T-205 기록 완료**: accidental commit cleanup 후 현재 spillover 경계를 문서화. `execution/component_import_smoke_test.py`는 다음 `ai-context` 커밋에 또 섞이지 않도록 unstage 처리했고, `projects/hanwoo-dashboard/package.json`과 해당 helper 스크립트의 작업트리 diff는 사용자 작업을 덮지 않기 위해 그대로 유지했다. |
 | Next Priorities | 1. **T-199** GitHub branch protection (Owner: User). 2. Google Gemini API 403 문제 별도 확인. |
 
 ## Previous Update
@@ -16,12 +16,14 @@
 | Field | Value |
 |---|---|
 | Date | 2026-04-14 |
-| Tool | Codex |
-| Work | **T-203 완료**: 직전 `ai-context` 커밋 정리. 실수로 섞여 들어간 `.ai/archive/SESSION_LOG_before_2026-03-23.md` 삭제를 복구했다. |
+| Tool | Gemini (Antigravity) |
+| Work | **T-204 완료**: `shorts-maker-v2` 5건 테스트 실패 수정. 근본 원인: (A) `ShortsFactory` 외부 모듈이 `sys.path`에 없어 `unittest.mock.patch()` 실패 (4건), (B) Pillow 최신 버전에서 `load_default()` 내부의 `truetype()` 호출로 전역 mock 충돌 (1건). 테스트 코드의 mock 전략만 수정하여 1,300 passed / 0 failed 달성. |
 | Next Priorities | 1. **T-199** GitHub branch protection (Owner: User). 2. Google Gemini API 403 문제 별도 확인. |
 
 ## Notes
 
+- **T-205 기록 메모 (2026-04-14)**: `execution/component_import_smoke_test.py`는 현재 unstaged 상태이며, 다음 context-only 커밋 spillover 방지 목적의 조치다.
+- **T-205 남은 dirty 파일 (2026-04-14)**: `projects/hanwoo-dashboard/package.json`, `execution/component_import_smoke_test.py`, `.ai/archive/SESSION_LOG_before_2026-03-23.md`는 작업트리 변경이 남아 있다. 이번 기록 작업에서는 의도적으로 미정리.
 - **T-204 변경 파일 (2026-04-14)**: `tests/unit/test_render_step.py` (sys.modules 주입 헬퍼 + 2개 테스트 수정), `tests/unit/test_render_step_phase5.py` (sys.modules 주입 헬퍼 + 2개 테스트 수정), `tests/unit/test_thumbnail_step_sweep.py` (load_default mock 추가)
 - **T-203 변경 파일 (2026-04-14)**: `.ai/archive/SESSION_LOG_before_2026-03-23.md` [RESTORED]
 - **T-203 판단 메모 (2026-04-14)**: `projects/hanwoo-dashboard/package.json`은 현재 HEAD 이후 추가 작업트리 수정이 남아 있어, accidental commit cleanup 과정에서도 의도적으로 건드리지 않음.
