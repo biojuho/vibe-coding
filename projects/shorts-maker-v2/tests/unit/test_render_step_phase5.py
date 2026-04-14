@@ -223,7 +223,22 @@ def test_caption_y_uses_bottom_offset_without_safe_zone() -> None:
     assert RenderStep._caption_y(clip, target_height=1920, style=style) == 1320
 
 
+def _ensure_fake_shorts_factory():
+    """ShortsFactory가 sys.path에 없을 때 가짜 모듈을 sys.modules에 주입."""
+    import sys
+
+    if "ShortsFactory" not in sys.modules:
+        fake_sf = MagicMock()
+        sys.modules["ShortsFactory"] = fake_sf
+    fake_sf = sys.modules["ShortsFactory"]
+    if "ShortsFactory.engines" not in sys.modules:
+        sys.modules["ShortsFactory.engines"] = fake_sf.engines
+    if "ShortsFactory.engines.text_engine" not in sys.modules:
+        sys.modules["ShortsFactory.engines.text_engine"] = fake_sf.engines.text_engine
+
+
 def test_render_static_caption_hook_uses_glow_fallback_when_gradient_fails(tmp_path: Path) -> None:
+    _ensure_fake_shorts_factory()
     step = _make_render_step(channel_key="ai_tech")
     step._channel_profile = {"theme": "tech"}
     output = tmp_path / "hook.png"
@@ -240,6 +255,7 @@ def test_render_static_caption_hook_uses_glow_fallback_when_gradient_fails(tmp_p
 
 
 def test_render_static_caption_falls_back_to_render_caption_image_when_text_engine_fails(tmp_path: Path) -> None:
+    _ensure_fake_shorts_factory()
     step = _make_render_step(channel_key="ai_tech")
     output = tmp_path / "fallback.png"
 

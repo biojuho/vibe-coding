@@ -183,8 +183,19 @@ def test_load_audio_clip_uses_moviepy_native_renderer_when_ffmpeg_backend_enable
     step._output_renderer.load_audio.assert_not_called()
 
 
+def _ensure_fake_shorts_factory():
+    """ShortsFactory가 sys.path에 없을 때 가짜 모듈을 sys.modules에 주입."""
+    import sys
+
+    if "ShortsFactory" not in sys.modules:
+        fake_sf = MagicMock()
+        sys.modules["ShortsFactory"] = fake_sf
+        sys.modules["ShortsFactory.interfaces"] = fake_sf.interfaces
+
+
 def test_try_render_with_adapter_success(tmp_path: Path) -> None:
     """RenderAdapter 성공 시 (True, None)과 올바른 payload를 반환한다."""
+    _ensure_fake_shorts_factory()
     scene_plans = [
         ScenePlan(
             scene_id=1,
@@ -230,6 +241,7 @@ def test_try_render_with_adapter_success(tmp_path: Path) -> None:
 
 def test_try_render_with_adapter_failure_returns_error(tmp_path: Path) -> None:
     """RenderAdapter 실패 시 native render_step 폴백용 에러를 반환한다."""
+    _ensure_fake_shorts_factory()
     mock_logger = MagicMock()
     mock_result = MagicMock(success=False, error="sf failed")
 
