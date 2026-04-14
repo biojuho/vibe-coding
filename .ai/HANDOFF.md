@@ -8,40 +8,30 @@
 |---|---|
 | Date | 2026-04-14 |
 | Tool | Codex |
-| Work | **T-200 완료**: Antigravity Amazon Q 장애를 추적해 downloaded AmazonQ LSP `1.64.0` 선택 경로가 실패하는 것을 확인했고, `C:\Users\박주호\AppData\Roaming\Antigravity\User\globalStorage\state.vscdb`의 cached manifest에서 `1.64.0`을 `isDelisted=true`로 패치해 다음 선택 버전이 `1.63.0`이 되도록 고정했다. 백업은 `C:\Temp\codex-debug\backups\state.vscdb.20260414-194311.bak`. |
-| Next Priorities | 1. Antigravity를 완전히 재시작해 Amazon Q가 `1.63.0`으로 붙는지 확인. 2. 재발 시 Antigravity의 Unicode/header 관련 오류와 remote manifest overwrite 여부 추가 확인. 3. 기존 우선순위인 **T-199**, **T-198**, **T-194** 계속 진행. |
+| Work | **T-202 완료**: Amazon Q IDE MCP 경로 문제 해결. 루트 `.mcp.json`을 Amazon Q가 실제로 읽는 워크스페이스 레거시 경로 `.amazonq/mcp.json`으로 미러링하고, `workspace/tests/test_mcp_config.py`에 동기화 회귀 테스트를 추가. 이어서 `~/.aws/amazonq/agents/default.json` 타임스탬프 갱신으로 라이브 재초기화를 유도했고, 최신 Antigravity 로그에서 `.amazonq/mcp.json`로부터 8개 MCP 서버를 로드하고 초기화하는 것까지 확인. |
+| Next Priorities | 1. **T-199** GitHub branch protection (Owner: User -- 사용자 직접 설정). 2. Google Gemini API 403 문제 별도 확인. |
 
 ## Previous Update
 
 | Field | Value |
 |---|---|
-| Date | 2026-04-13 |
+| Date | 2026-04-14 |
 | Tool | Gemini (Antigravity) |
-| Work | **T-161 & T-189 완료**: `browser_subagent` 런타임 오류(`0xc0000005`)를 로컬 Node.js Playwright 스크립트(`screenshot.js`)로 우회하여 시각 검증. T-161 UI 검수 완전 클로즈. |
-| Next Priorities | 1. `hanwoo-dashboard` `DATABASE_URL` 올바른 비밀번호 적용. 2. 백로그 태스크 시작. |
+| Work | **T-201 완료**: Amazon Q 로그에서 `serverInfo.version: 1.63.0` 확인. **T-194 완료**: Smart Continue Lite Boundary 규칙을 CLAUDE/AGENTS/GEMINI.md에 삽입, plan.md에 safe/approval 분기 추가. **T-198 완료**: `execution/pr_self_review.py` 신규 작성 -- LLMClient 재사용, quick/standard/deep 3단계, plain/markdown/json 출력. Ruff 통과, DeepSeek 프로바이더 실동작 확인. |
+| Next Priorities | 1. **T-199** GitHub branch protection (Owner: User -- 사용자 직접 설정). 2. Google Gemini API 403 문제 별도 확인. |
 
 ## Notes
 
-- **T-200 Amazon Q 로컬 우회 (2026-04-14)**:
-  - 증상 로그: `Amazon Q Logs.log`에서 downloaded LSP `1.64.0`이 `exitcode=10`으로 실패하고 bundled LSP fallback 발생.
-  - `wmic process ... WorkingSetSize` 경고는 보조 증상으로 보이며, 실제 root cause는 downloaded resolver 경로 쪽에 더 가까움.
-  - 상태 키: `state.vscdb`의 `amazonwebservices.amazon-q-vscode` -> `aws.toolkit.lsp.manifest`.
-  - 패치 결과: `1.64.0`만 delist 처리했고, 현재 manifest 기준 선택 버전은 `1.63.0`.
-  - 로컬 자산 확인: `C:\Users\박주호\AppData\Local\aws\toolkits\language-servers\AmazonQ\1.63.0` 존재.
-  - 실행 중인 Antigravity 세션은 기존 선택을 들고 있으므로 전체 앱 재시작이 필요함.
+- **T-202 변경 파일 (2026-04-14)**: `.amazonq/mcp.json` [NEW], `workspace/tests/test_mcp_config.py`
+- **T-202 검증 (2026-04-14)**: `workspace/tests/test_mcp_config.py` 3개 테스트 통과. Antigravity 로그 `20260414T202420/.../Amazon Q Logs.log` 에서 `.amazonq/mcp.json` 기반 MCP 서버 8개 로드 확인.
+- **T-198 변경 파일 (2026-04-14)**: `workspace/execution/pr_self_review.py` [NEW]
+- **T-194 변경 파일 (2026-04-14)**: `CLAUDE.md`, `AGENTS.md`, `GEMINI.md` (Smart Continue Lite Boundary 규칙 삽입), `.agents/workflows/plan.md` (safe/approval 분기 추가)
+- **T-201 검증 (2026-04-14)**: Amazon Q 로그 `serverInfo.version: 1.63.0`, auth connection valid.
+- **Google Gemini API (2026-04-14)**: `GOOGLE_API_KEY` 사용 시 403 PERMISSION_DENIED 발생. 프로젝트 액세스 거부. LLMClient fallback으로 DeepSeek 등 다른 프로바이더에서 정상 동작.
 - **T-190 세션 로그 검색 도구 (2026-04-13)**:
   - 스크립트: `execution/session_log_search.py` (stdlib only, FTS5)
-  - 인덱스: `.tmp/session_log_search.db` (gitignore됨, 재생성 가능)
-  - 로컬 전용 자산: `.claude/commands/search-log.md`, `.claude/settings.json` SessionStart 훅 — `.gitignore:78`이 `.claude/` 전체 제외
-  - 쿼리 예: `python execution/session_log_search.py notion timeout`, `/search-log --tool Codex --since 2026-04-01 feedback loop`
-  - 알려진 제약: `.ai/archive/SESSION_LOG_before_2026-03-23.md`는 파일 자체 인코딩 손상(em dash→`??`), 5개 엔트리만 잡힘
-- **T-161 QC 결과 (2026-04-13)**:
-  - QA STEP 2에서 FAIL — `DashboardClient.js:32`가 `AlertBanners.js`에서 import하나 CSS 변수 전환은 `widgets.js` dead export에만 적용
-  - STEP 3에서 수정: `AlertBanners.js` 전면 재작성, `widgets.js` dead code 제거
-  - 커밋: `f2448a4`, `ef02a60`, `46a2349` (3개 T-161 관련)
-  - 서버 검증: `200 OK` on `http://localhost:3001`
-  - 시각 검증: blocked (`0xc0000005` Playwright)
-- The local Python 3.13 `code-review-graph` package on this machine now has an unversioned UTF-8 patch in `site-packages`. If the package is reinstalled or upgraded, the old Windows `cp949` crash can return until the same fix is reapplied upstream.
+  - 인덱스: `.tmp/session_log_search.db`
+- The local Python 3.13 `code-review-graph` package on this machine now has an unversioned UTF-8 patch in `site-packages`.
 - `projects/blind-to-x/tests/unit/conftest.py` now clears `NOTION_DATABASE_ID` and any `NOTION_PROP_*` overrides before each unit test.
 - UTF-8 markdown files in `.ai/` and `workspace/directives/` are fine on disk; earlier garbling came from the Windows cp949 console path, not file corruption.
 - Do not revert unrelated in-progress edits elsewhere in the worktree.
