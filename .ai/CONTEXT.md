@@ -65,6 +65,9 @@
 - `workspace`: `python -m pytest --no-cov workspace/tests/test_mcp_config.py -q` passed on 2026-04-14 (`3 passed`) after `.amazonq/mcp.json` was added as the Amazon Q legacy workspace config mirror.
 - `workspace`: `C:\Users\박주호\AppData\Roaming\Antigravity\logs\20260414T202420\window1\exthost\amazonwebservices.amazon-q-vscode\Amazon Q Logs.log` showed a live MCP reload on 2026-04-14 at `20:30:26 KST`, loading 8 servers from `.amazonq/mcp.json` and beginning tool discovery/registration.
 - `workspace`: `python -m pytest --no-cov workspace/tests/test_ai_context_guard.py -q` passed on 2026-04-14 (`5 passed`) after the `[ai-context]` commit-msg spillover guard was added.
+- `workspace`: `python -m pytest --no-cov workspace/tests/test_github_branch_protection.py -q` passed on 2026-04-14 (`5 passed`) after `execution/github_branch_protection.py` was added for T-199 follow-up.
+- `workspace`: `python execution/github_branch_protection.py` produced the deterministic dry-run payload on 2026-04-14, targeting `root-quality-gate` and `test-summary` as the required `main` checks.
+- `workspace`: `python execution/github_branch_protection.py --check-live` still reported `status: blocked` on 2026-04-14 because `biojuho/vibe-coding` remains `PRIVATE` and GitHub returned `Upgrade to GitHub Pro or make this repository public to enable this feature.`
 - `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/test_notion_query_mixin.py -q` and `python -m ruff check pipeline/notion/_query.py tests/unit/test_notion_query_mixin.py` both passed on 2026-04-11 after logical-status alias handling was added to `_query.py`.
 - `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/test_process.py -q` and `python -m ruff check tests/unit/test_process.py tests/unit/conftest.py tests/unit/test_notion_query_mixin.py` both passed on 2026-04-11 after the lingering `test_process.py` lint cleanup.
 - `projects/blind-to-x`: a live read-only probe on 2026-04-11 confirmed the current DB still rejects `select.equals="승인됨"` with HTTP 400, accepts `select.equals="발행승인"`, and now returns approved pages correctly through `get_pages_by_status("승인됨")`.
@@ -102,6 +105,7 @@
 - Antigravity keeps the current Amazon Q LSP choice in memory for the running session, so `state.vscdb` edits do not take effect until the app is fully restarted.
 - Amazon Q IDE watches its legacy MCP paths, not the repo-root `.mcp.json`; if `.amazonq/` does not exist, MCP can stay at `Total servers: 0` even while the root config looks correct.
 - The new `[ai-context]` guard only blocks commits whose subject starts with `[ai-context]`; regular feature/fix commits are intentionally unaffected.
+- `execution/github_branch_protection.py` is now the canonical T-199 follow-up helper. It fixes the desired protection payload to `root-quality-gate` + `test-summary`, supports dry-run / live check / apply modes, and reports the current GitHub private+free plan blocker as structured output instead of a raw `gh` failure.
 - Moonshot is now treated as an optional fallback provider in shared health checks; if `MOONSHOT_API_KEY` is missing or invalid, the system should degrade to `warn` rather than `fail`.
 - `[ADR-026]` Project-level `CLAUDE.md` files now exist for `blind-to-x`, `hanwoo-dashboard`, and `shorts-maker-v2`. Read the relevant project's minefield section before editing.
 - `[ADR-026]` `/verify` workflow is explicit: do not claim completion without running the appropriate checks.

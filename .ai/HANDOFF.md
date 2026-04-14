@@ -7,21 +7,24 @@
 | Field | Value |
 |---|---|
 | Date | 2026-04-14 |
-| Tool | Claude Code (Opus 4.6 1M) |
-| Work | **QC pass + T-199 플랜 블로커 확인**. 최근 4건 교차 검증: T-197 `component-imports.test.mjs` (eslint 0, npm test 51/51, 네거티브 테스트로 broken import 정확 검출), T-198 `pr_self_review.py` (py_compile/ruff/--help OK), T-202 `.amazonq/mcp.json` ↔ `.mcp.json` 완전 동기화(8서버), test_mcp_config.py 3/3 통과, 부수적으로 `execution/component_import_smoke_test.py` (Python판) `--strict` 146/146 resolved + ruff clean. **T-199**는 기술 블로커: `gh api repos/biojuho/vibe-coding/branches/main/protection` → HTTP 403 `"Upgrade to GitHub Pro or make this repository public"`. private + 무료 플랜 조합으로는 branch protection API 자체가 차단됨. |
-| Next Priorities | 1. **T-199 unblock 결정**: GitHub Pro 업그레이드($4/월) vs public 전환 vs 로컬 게이트(T-195/T-206) 유지. 2. Google Gemini API 403 문제 별도 확인. |
+| Tool | Codex |
+| Work | **T-207 완료**: `execution/github_branch_protection.py`를 추가해 GitHub branch protection payload를 결정론적으로 고정했다. 현재 워크플로 기준 required checks를 `root-quality-gate` + `test-summary`로 설정하고, `--check-live`/`--apply` 경로에서 repo metadata 조회, live 보호 상태 조회, private + free 플랜의 GitHub 403 블로커 감지를 자동화했다. `workspace/tests/test_github_branch_protection.py`로 payload, repo slug 파싱, 차단 경로, apply 성공 요약을 고정했고, 2026-04-14 기준 live 재검증에서도 `gh api repos/biojuho/vibe-coding/branches/main/protection`는 여전히 HTTP 403 `"Upgrade to GitHub Pro or make this repository public"` 상태였다. |
+| Next Priorities | 1. **T-199 사용자 액션**: GitHub Pro 업그레이드 또는 public 전환 후 `python execution/github_branch_protection.py --apply` 실행. 2. 적용 후 `python execution/github_branch_protection.py --check-live`로 보호 규칙 확인. |
 
 ## Previous Update
 
 | Field | Value |
 |---|---|
 | Date | 2026-04-14 |
-| Tool | Codex |
-| Work | **T-206 완료**: `[ai-context]` spillover 재발 방지 가드 추가. `execution/ai_context_guard.py`와 `.githooks/commit-msg`를 만들어 context-only 커밋에 비문맥 파일이 섞이면 커밋 자체를 차단하도록 했고, `workspace/tests/test_ai_context_guard.py`로 허용/차단/BOM/훅 배선 케이스를 고정했다. |
-| Next Priorities | 1. **T-199** GitHub branch protection (Owner: User). 2. Google Gemini API 403 문제 별도 확인. |
+| Tool | Claude Code (Opus 4.6 1M) |
+| Work | **QC pass + T-199 플랜 블로커 확인**. 최근 4건 교차 검증: T-197 `component-imports.test.mjs` (eslint 0, npm test 51/51, 네거티브 테스트로 broken import 정확 검출), T-198 `pr_self_review.py` (py_compile/ruff/--help OK), T-202 `.amazonq/mcp.json` ↔ `.mcp.json` 완전 동기화(8서버), test_mcp_config.py 3/3 통과, 부수적으로 `execution/component_import_smoke_test.py` (Python판) `--strict` 146/146 resolved + ruff clean. **T-199**는 기술 블로커: `gh api repos/biojuho/vibe-coding/branches/main/protection` → HTTP 403 `"Upgrade to GitHub Pro or make this repository public"`. private + 무료 플랜 조합으로는 branch protection API 자체가 차단됨. |
+| Next Priorities | 1. **T-199 unblock 결정**: GitHub Pro 업그레이드($4/월) vs public 전환 vs 로컬 게이트(T-195/T-206) 유지. 2. Google Gemini API 403 문제 별도 확인. |
 
 ## Notes
 
+- **T-207 변경 파일 (2026-04-14)**: `execution/github_branch_protection.py` [NEW], `workspace/tests/test_github_branch_protection.py` [NEW]
+- **T-207 검증 (2026-04-14)**: `python -m pytest --no-cov workspace/tests/test_github_branch_protection.py -q` -> `5 passed`
+- **T-207 라이브 확인 (2026-04-14)**: `python execution/github_branch_protection.py --check-live` -> `status: blocked`, repo `biojuho/vibe-coding`, branch `main`, message `Upgrade to GitHub Pro or make this repository public to enable this feature.`
 - **T-206 변경 파일 (2026-04-14)**: `execution/ai_context_guard.py` [NEW], `.githooks/commit-msg` [NEW], `workspace/tests/test_ai_context_guard.py` [NEW]
 - **T-206 검증 (2026-04-14)**: `python -m pytest --no-cov workspace/tests/test_ai_context_guard.py -q` -> `5 passed`. 샘플 실행에서 `[ai-context]` + `projects/hanwoo-dashboard/package.json` 조합은 exit 1로 차단, 일반 커밋 메시지는 exit 0 통과 확인.
 - **T-205 기록 메모 (2026-04-14)**: `execution/component_import_smoke_test.py`는 현재 unstaged 상태이며, 다음 context-only 커밋 spillover 방지 목적의 조치다.

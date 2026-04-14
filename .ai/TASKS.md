@@ -6,7 +6,7 @@
 
 | ID | Task | Owner | Priority | Auto | Created |
 |---|---|---|---|---|---|
-| T-199 | `[workspace]` GitHub branch protection 설정 (main 브랜치 require CI pass) — **BLOCKED**: repo가 private + 무료 플랜이라 `gh api repos/biojuho/vibe-coding/branches/main/protection` HTTP 403. GitHub Pro 업그레이드 또는 public 전환 필요. 로컬 pre-commit(T-195)이 현재 유일한 강제 게이트. | User | P1 | 🔴 approval | 2026-04-14 |
+| T-199 | `[workspace]` GitHub branch protection 설정 (main 브랜치 require CI pass) — **BLOCKED**: 2026-04-14 live check 기준 repo가 private + 무료 플랜이라 `gh api repos/biojuho/vibe-coding/branches/main/protection`가 HTTP 403. GitHub Pro 업그레이드 또는 public 전환 필요. 준비된 적용 명령: `python execution/github_branch_protection.py --apply` | User | P1 | 🔴 approval | 2026-04-14 |
 
 ## IN_PROGRESS
 
@@ -17,11 +17,11 @@
 
 | ID | Task | Completed By | Completed |
 |---|---|---|---|
+| T-207 | `[workspace]` GitHub branch protection helper 추가 — `execution/github_branch_protection.py` + 회귀 테스트, private/free blocker 자동 판별 | Codex | 2026-04-14 |
 | T-206 | `[workspace]` `[ai-context]` commit spillover guard 추가 — commit-msg hook + deterministic guard script + 회귀 테스트 | Codex | 2026-04-14 |
 | T-205 | `[workspace]` spillover 상태 기록 — helper script unstage, 남은 dirty 경계 문서화 | Codex | 2026-04-14 |
 | T-204 | `[shorts-maker-v2]` 5건 테스트 실패 수정 — ShortsFactory sys.modules 주입 + Pillow load_default mock 추가. 1,300 passed, 0 failed | Gemini (Antigravity) | 2026-04-14 |
 | T-203 | `[workspace]` accidental `ai-context` spillover 정리 — archived session log 삭제 복구, 충돌 위험 파일은 보류 | Codex | 2026-04-14 |
-| T-202 | `[workspace]` Amazon Q IDE MCP legacy workspace config 복구 — `.amazonq/mcp.json` 추가, 회귀 테스트 보강, 라이브 로그에서 MCP 서버 8개 로드 확인 | Codex | 2026-04-14 |
 
 ## Rules
 
