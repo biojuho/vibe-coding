@@ -111,6 +111,7 @@ function sliceTopImportBlock(source) {
 
 const FROM_RE = /(import|export)\s+(?:type\s+)?([\s\S]*?)\bfrom\s+['"]([^'"]+)['"]/g;
 const SIDE_EFFECT_RE = /(?:^|\n|;)\s*import\s+['"]([^'"]+)['"]/g;
+const DYNAMIC_IMPORT_RE = /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
 const NAMED_BLOCK_RE = /{([\s\S]*?)}/;
 const DEFAULT_BINDING_RE = /^\s*([A-Za-z_$][\w$]*)\s*(?:,|$)/;
 const NAMESPACE_RE = /\*\s+as\s+([A-Za-z_$][\w$]*)/;
@@ -160,6 +161,18 @@ function parseImportStatements(source) {
 
   SIDE_EFFECT_RE.lastIndex = 0;
   while ((match = SIDE_EFFECT_RE.exec(block)) !== null) {
+    statements.push({
+      keyword: 'import',
+      specifier: match[1],
+      named: [],
+      hasDefault: false,
+      hasNamespace: false,
+      sideEffect: true,
+    });
+  }
+
+  DYNAMIC_IMPORT_RE.lastIndex = 0;
+  while ((match = DYNAMIC_IMPORT_RE.exec(source)) !== null) {
     statements.push({
       keyword: 'import',
       specifier: match[1],
