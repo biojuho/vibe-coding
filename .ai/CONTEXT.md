@@ -54,9 +54,13 @@
 - Amazon Q IDE does not read the repo-root `.mcp.json` directly in this workspace; it expects the legacy workspace file at `.amazonq/mcp.json`. The workspace now mirrors the root MCP config there, and touching `~/.aws/amazonq/agents/default.json` is enough to trigger a live MCP reload without restarting Antigravity.
 - `[ai-context]` commits are now guarded by `.githooks/commit-msg` via `execution/ai_context_guard.py`. If staged files extend beyond approved `.ai/*` context paths, the commit is blocked before completion.
 - `workspace/execution/health_check.py` now treats feature-specific root `.env` gaps (`BRAVE_API_KEY`, `BRIDGE_*`, `GITHUB_PERSONAL_ACCESS_TOKEN`, `MOONSHOT_API_KEY`, `TELEGRAM_*`) as optional completeness omissions instead of warning-level drift, so shared health checks stay focused on required config and active-provider issues.
+- `workspace/execution/health_check.py` now also treats optional fallback providers (`GROQ_API_KEY`, `MOONSHOT_API_KEY`) as healthy when unset and considers a present-but-inactive root `venv` healthy for this workspace because the standard verification path uses explicit `python -m ...` commands instead of assuming shell activation.
 
 ## Recent Verification
 
+- `workspace`: `python -m pytest --no-cov workspace/tests/test_health_check.py -q` passed on 2026-04-15 (`43 passed`) after optional provider + root venv status handling was aligned with the actual workspace execution model.
+- `workspace`: `python workspace/execution/health_check.py --category env --json` reported `overall: ok` on 2026-04-15 after `GROQ_API_KEY` / `MOONSHOT_API_KEY` were downgraded to optional-provider OK states when unset.
+- `workspace`: `python workspace/execution/health_check.py --json` reported `overall: ok`, `warn: 0`, `fail: 0` on 2026-04-15 after the final health-check status cleanup.
 - `workspace`: `python -m pytest --no-cov workspace/tests/test_health_check.py -q` passed on 2026-04-15 (`40 passed`) after optional env completeness handling was added to `workspace/execution/health_check.py`.
 - `workspace`: `python workspace/execution/health_check.py --category env --json` reported `overall: warn` on 2026-04-15 with completeness downgraded to `env_completeness:missing_optional`; the remaining env warnings are only `GROQ_API_KEY` and `MOONSHOT_API_KEY` being unset.
 - `workspace`: `python workspace/execution/health_check.py --json` reported `overall: warn`, `fail: 0` on 2026-04-15 after the optional env cleanup; the remaining shared warnings are optional provider gaps plus an inactive root `venv`.
