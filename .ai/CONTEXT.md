@@ -50,6 +50,7 @@
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/qc_step.py` now holds Gate 4 when `ffprobe` / `ffmpeg` inspection is unavailable instead of falsely passing on partial checks.
 - `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/media_step.py` now skips parallel paid-visual generation until audio succeeds, reducing wasted spend when paid scenes fail early.
 - Antigravity local state for Amazon Q was patched on 2026-04-14: `C:\Users\박주호\AppData\Roaming\Antigravity\User\globalStorage\state.vscdb` now marks downloaded AmazonQ LSP `1.64.0` as delisted in `aws.toolkit.lsp.manifest`, so the next resolver target is `1.63.0`. Backup: `C:\Temp\codex-debug\backups\state.vscdb.20260414-194311.bak`.
+- A full Antigravity restart at `2026-04-14 19:57 KST` confirmed the Amazon Q workaround held: the session prepared `AmazonQ/1.63.0`, launched `AWS CodeWhisperer` `1.63.0`, and did not repeat the earlier `1.64.0` crash/fallback signature.
 
 ## Recent Verification
 
@@ -58,6 +59,7 @@
 - `workspace`: `python workspace/execution/health_check.py --json` reports overall `warn` on 2026-04-11 with `fail: 0`; Moonshot is now treated as an optional fallback provider, and the latest probe saw `MOONSHOT_API_KEY` unset rather than invalid.
 - `workspace`: `python3.13 -m code_review_graph status` ran on 2026-04-11 and reported `11095` nodes, `81218` edges, `819` files, and last graph update `2026-04-09T16:00:25` on commit `780b638fa8d2`.
 - `workspace`: `python3.13 -m code_review_graph detect-changes --repo projects/blind-to-x --brief` passed on 2026-04-11 after the local package was patched to force UTF-8 for file I/O and git subprocess decoding on Windows.
+- `workspace`: `C:\Users\박주호\AppData\Roaming\Antigravity\logs\20260414T195624\window1\exthost\amazonwebservices.amazon-q-vscode\Amazon Q Logs.log` showed a clean Amazon Q startup on 2026-04-14 with `Finished preparing "AmazonQ" LSP server: '...AmazonQ/1.63.0'` followed by `Runtime: Initializing server "AWS CodeWhisperer" version "1.63.0"`.
 - `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/test_notion_query_mixin.py -q` and `python -m ruff check pipeline/notion/_query.py tests/unit/test_notion_query_mixin.py` both passed on 2026-04-11 after logical-status alias handling was added to `_query.py`.
 - `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/test_process.py -q` and `python -m ruff check tests/unit/test_process.py tests/unit/conftest.py tests/unit/test_notion_query_mixin.py` both passed on 2026-04-11 after the lingering `test_process.py` lint cleanup.
 - `projects/blind-to-x`: a live read-only probe on 2026-04-11 confirmed the current DB still rejects `select.equals="승인됨"` with HTTP 400, accepts `select.equals="발행승인"`, and now returns approved pages correctly through `get_pages_by_status("승인됨")`.
