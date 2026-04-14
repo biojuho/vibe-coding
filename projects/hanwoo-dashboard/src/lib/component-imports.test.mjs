@@ -20,6 +20,7 @@ const IGNORED_SOURCE_EXTS = new Set([
 const SCAN_ROOTS = [
   path.join(SRC_ROOT, 'components'),
   path.join(SRC_ROOT, 'app'),
+  path.join(SRC_ROOT, 'lib'),
 ];
 const SKIP_NAMES = new Set(['node_modules', '.next', '.turbo', '__snapshots__']);
 
