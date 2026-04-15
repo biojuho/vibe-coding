@@ -19,11 +19,11 @@
 
 | ID | Task | Completed By | Completed |
 |---|---|---|---|
+| T-214 | `[blind-to-x]` test_optimizations.py mock 패치 경로 버그 수정(`pipeline.content_intelligence.rules`)으로 유닛 테스트 정상 복구 (13/13 passeed) | Gemini (Antigravity) | 2026-04-15 |
 | T-212 | `[workspace]` health_check optional provider/venv 상태 재분류로 shared health check `overall: ok` 달성 | Codex | 2026-04-15 |
 | T-211 | `[workspace]` health_check optional env completeness 정리 (`BRAVE/BRIDGE/GitHub/Telegram/Moonshot` 누락을 optional로 분류) + 회귀 테스트 2건 추가 | Codex | 2026-04-15 |
 | T-210 | `[hanwoo-dashboard]` actions.js 리팩토링 (929줄 → 12개 도메인 파일 + barrel re-export 90줄). Lint 0 errors, 51/51 tests pass. DashboardClient는 분석 후 현행 유지 결정. | Gemini (Antigravity) | 2026-04-15 |
 | T-209 | `[workspace]` shared health-check screening 후 directive mapping drift 복구 (`pr_self_review.py` INDEX 등록) | Codex | 2026-04-15 |
-| T-208 | `[hanwoo-dashboard]` UX/UI 4차 개선 (premium 컴포넌트 하드코딩 제거 및 테마 동기화) | Gemini (Antigravity) | 2026-04-15 |
 - Keep only the latest 5 items in `DONE`.
 - Add newly discovered follow-up work to `TODO`.
 
