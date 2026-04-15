@@ -156,7 +156,7 @@ class TestClassificationRulesYAML:
 
     def _reset_caches(self):
         """content_intelligence와 rules_loader의 캐시를 모두 초기화."""
-        import pipeline.content_intelligence as ci
+        import pipeline.content_intelligence.rules as ci
         import pipeline.rules_loader as rl
 
         ci._loaded_rules = None
@@ -169,7 +169,7 @@ class TestClassificationRulesYAML:
         _yaml_rules_to_tuples()의 get("topic_rules", [])가 []를 반환 →
         fallback(_TOPIC_RULES_FALLBACK)이 사용되는지 검증.
         """
-        import pipeline.content_intelligence as ci
+        import pipeline.content_intelligence.rules as ci
 
         # 빈 dict 주입: topic_rules 키가 없으므로 fallback 사용
         monkeypatch.setattr(ci, "_loaded_rules", {})
@@ -185,7 +185,7 @@ class TestClassificationRulesYAML:
 
         [QA 수정] _loaded_rules에 fake topic_rules를 직접 주입.
         """
-        import pipeline.content_intelligence as ci
+        import pipeline.content_intelligence.rules as ci
 
         fake_rules = {"topic_rules": [{"label": "테스트토픽", "keywords": ["테스트", "키워드"]}]}
         monkeypatch.setattr(ci, "_loaded_rules", fake_rules)
@@ -200,10 +200,11 @@ class TestClassificationRulesYAML:
 
         [QA 수정] _loaded_rules에 직접 커스텀 topic_rules 주입.
         """
+        import pipeline.content_intelligence.rules as rules
         import pipeline.content_intelligence as ci
 
         fake_rules = {"topic_rules": [{"label": "커스텀주제", "keywords": ["커스텀키워드1"]}]}
-        monkeypatch.setattr(ci, "_loaded_rules", fake_rules)
+        monkeypatch.setattr(rules, "_loaded_rules", fake_rules)
 
         result = ci.classify_topic_cluster("커스텀키워드1 포함된 제목", "내용")
         assert result == "커스텀주제"
