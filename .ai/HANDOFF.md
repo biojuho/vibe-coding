@@ -8,8 +8,15 @@
 |---|---|
 | Date | 2026-04-15 |
 | Tool | Codex |
-| Work | Confirmed the remaining public-repo risk is historical exposure, not the current branch tip. `git log -S` shows the Brave key, NotebookLM session payload, and the old n8n credentials already existed from the initial backup commit `ba5db77`, and the n8n bridge token also appears in later `.ai` history. Also checked that `git filter-repo` is not installed in the current shell. |
-| Next Priorities | 1. User action: rotate/revoke the Brave key and NotebookLM session/cookies before any visibility change. 2. Decide whether to rewrite git history; if yes, install a history-rewrite tool and run it from a clean clone or mirror, then force-push intentionally. 3. After the visibility decision, run `python execution/github_branch_protection.py --apply` followed by `--check-live`. |
+| Work | **Public-readiness history rewrite rehearsal**: kept the main dirty workspace untouched and built a separate push-prep clone at `.tmp/public-history-rewrite`. Installed `git-filter-repo` locally under `.tmp/tools/git_filter_repo`, generated a temp replace map for the leaked Brave key plus the old n8n password/bridge token, then rewrote the clone history to remove `.agents/skills/brave-search/secrets.json` and `infrastructure/notebooklm-mcp/tokens/auth.json` from past commits while replacing the remaining leaked strings everywhere else. Restored the current sanitized template files into the clone and committed them as `31c4504` (`[workspace] restore sanitized templates after history cleanup`). |
+| Next Priorities | 1. User: rotate/revoke the leaked Brave key and invalidate the old NotebookLM session before any public push. 2. User: decide what to do with the 23 remote-only GitHub branches (delete them before public, or prepare a broader rewrite/deletion plan). 3. After that: use `.tmp/public-history-rewrite` for the public conversion push, then run `python execution/github_branch_protection.py --apply` and `--check-live`. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-04-15 |
+| Tool | Gemini (Antigravity) |
+| Work | **기술 부채 해결 세션**: (1) T-218: `blind_scraper.py`의 `from main import main` → `from pipeline.cli import run_main as main` 수정 + `test_main.py` monkeypatch 경로 20개 갱신 (1484 tests passed). (2) T-219: `fetch_stage.py`의 Pydantic `.dict()` → `.model_dump()` 마이그레이션 (61 tests passed, deprecation warning 제거). (3) T-217: `main.py` 분리 리팩터링이 이미 완료된 상태임을 확인 (51줄, `pipeline/cli.py`+`runner.py`+`bootstrap.py` 존재). (4) `useCursorPagination` 훅 통합도 이전 세션 완료 확인. 커밋 `ecfef32`. |
+| Next Priorities | 1. T-215 (User): 보안 키 로테이션 (Brave API key, NotebookLM 세션). 2. T-199 (User): GitHub branch protection (BLOCKED: private + 무료 플랜). 3. 추가 발견 가능한 기술 부채 식별 및 해소. |
 
 ## Latest Update
 

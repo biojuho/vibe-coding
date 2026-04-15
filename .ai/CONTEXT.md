@@ -61,6 +61,9 @@
 
 ## Recent Verification
 
+- `workspace`: prepared a separate rewrite sandbox at `.tmp/public-history-rewrite` on 2026-04-15 and ran `git-filter-repo` there with a temp replace map for the leaked Brave key and old n8n secrets. The clone now has a follow-up restore commit `31c4504` (`[workspace] restore sanitized templates after history cleanup`) that re-adds only the safe tracked templates for `secrets.json` and `auth.json`.
+- `workspace`: a post-rewrite probe on 2026-04-15 confirmed `git log --all -S <leaked-value>` hits are `0` in `.tmp/public-history-rewrite` for the Brave key, the old n8n password, and the old n8n bridge token.
+- `workspace`: `python -m detect_secrets scan .tmp/public-history-rewrite/.agents/skills/brave-search/secrets.json .tmp/public-history-rewrite/infrastructure/notebooklm-mcp/tokens/auth.json .tmp/public-history-rewrite/infrastructure/n8n/docker-compose.yml .tmp/public-history-rewrite/infrastructure/n8n/README.md` returned empty `results` on 2026-04-15 after the history rewrite rehearsal.
 - `workspace`: a safe `git show HEAD:...` probe on 2026-04-15 confirmed the current feature commit `e5122b1` no longer contains the tracked Brave key, NotebookLM auth payload, or the old hard-coded n8n credentials.
 - `workspace`: `python -m pytest --no-cov projects/knowledge-dashboard/tests/test_sync_data.py -q` passed on 2026-04-15 (`4 passed`) after `sync_data.py` was taught to prefer local NotebookLM token paths and reject checked-in template payloads.
 - `workspace`: `python -m ruff check projects/knowledge-dashboard/scripts/sync_data.py projects/knowledge-dashboard/tests/test_sync_data.py` passed on 2026-04-15 after the NotebookLM token-path cleanup.
@@ -110,6 +113,8 @@
 
 ## Minefield
 
+- `.tmp/public-history-rewrite` is now the prepared sandbox for any eventual secret-history push. Keep the main repo history untouched unless the user explicitly approves a destructive rewrite/push sequence.
+- The rewrite sandbox currently has only local `main` and `codex/dashboard-refresh` branches. GitHub still has 23 remote-only branches (`dependabot/*` plus `fix/notion-review-status`) that must be deleted before a public flip or handled in a broader rewrite plan.
 - The current worktree secret blockers are sanitized, but the Brave key and NotebookLM auth payload previously existed in committed history. Do not make the repo public until those credentials are rotated/revoked and you decide whether history rewrite is needed.
 - `git-filter-repo` is not installed in the current shell. If history rewrite is approved, prefer running it from a clean clone or mirror after tooling setup rather than inside the current dirty workspace.
 - `.secrets.baseline` already suppressed `.agents/skills/brave-search/secrets.json` and `infrastructure/notebooklm-mcp/tokens/auth.json`; baseline allowlisting is not a fix.
