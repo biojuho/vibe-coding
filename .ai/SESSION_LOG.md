@@ -36,7 +36,7 @@
 | 2026-04-10 | Gemini (Antigravity) | `T-181`: Fixed test integration interference in `test_quality_improvements.py` by replacing hardcoded object mutation (`dg._draft_rules_cache`) with `unittest.mock.patch("pipeline.draft_prompts._load_draft_rules")`. Eliminated false failures caused by cache bleeding across test boundaries when running the full pytest suite. Evaluated remaining failures: identified 9 separate timeout-related issues (`test_enrich_timeout`, `test_generate_timeout`, etc.) due to slow machine emulation. | `projects/blind-to-x/tests/unit/test_quality_improvements.py`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/SESSION_LOG.md` |
 | 2026-04-09 | Codex | `T-180`: investigated the user's live Notion complaint for `blind-to-x`, confirmed 2026-04-09 initially had zero same-day cards, traced the real blocker to review-only draft-generation failures plus review-stage timeout retries, then changed review-only generation handling to persist fallback cards and expose draft-generation errors in Notion. After focused pytest + Ruff, ran real review-only jobs until the live Notion queue reached 5 cards by 19:39 KST. | `projects/blind-to-x/pipeline/draft_generator.py`; `projects/blind-to-x/pipeline/process.py`; `projects/blind-to-x/pipeline/process_stages/generate_review_stage.py`; `projects/blind-to-x/pipeline/notion/_upload.py`; `projects/blind-to-x/tests/unit/test_process_stages.py`; `projects/blind-to-x/tests/unit/test_pipeline_flow.py`; `projects/blind-to-x/tests/unit/test_notion_upload.py`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/CONTEXT.md`; `.ai/SESSION_LOG.md` |
 | 2026-04-09 | Codex | `T-179`: added a daily review queue floor for `blind-to-x`. Review-only runs now count today's Notion pages, target a minimum of five cards per day, relax candidate collection and review-stage filters while the floor is unmet, and keep spam/length guards intact. Verified with targeted pytest, Ruff, and a live floor probe. | `projects/blind-to-x/main.py`; `projects/blind-to-x/pipeline/daily_queue_floor.py`; `projects/blind-to-x/pipeline/feed_collector.py`; `projects/blind-to-x/pipeline/process.py`; `projects/blind-to-x/pipeline/process_stages/filter_profile_stage.py`; `projects/blind-to-x/tests/unit/test_feed_collector.py`; `projects/blind-to-x/tests/unit/test_process_stages.py`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/CONTEXT.md`; `.ai/SESSION_LOG.md` |
-| 2026-04-09 | Codex | `T-178`: made `blind-to-x` empty-draft review cards actionable by adding a `吏湲????? callout, tailoring review copy when no publishable draft exists, and clarifying that the regulation warning means the check was skipped because no draft was generated. | `projects/blind-to-x/pipeline/notion/_upload.py`; `projects/blind-to-x/pipeline/regulation_checker.py`; `projects/blind-to-x/tests/unit/test_notion_upload.py`; `projects/blind-to-x/tests/unit/test_regulation_checker.py`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/CONTEXT.md`; `.ai/SESSION_LOG.md` |
+| 2026-04-09 | Codex | `T-178`: made `blind-to-x` empty-draft review cards actionable by adding a `吏€湲????? callout, tailoring review copy when no publishable draft exists, and clarifying that the regulation warning means the check was skipped because no draft was generated. | `projects/blind-to-x/pipeline/notion/_upload.py`; `projects/blind-to-x/pipeline/regulation_checker.py`; `projects/blind-to-x/tests/unit/test_notion_upload.py`; `projects/blind-to-x/tests/unit/test_regulation_checker.py`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/CONTEXT.md`; `.ai/SESSION_LOG.md` |
 | 2026-04-09 | Codex | `T-177`: finished the `blind-to-x` reviewer-first Notion follow-through. Added `scripts/backfill_notion_review_columns.py`, wired reviewer-memory summaries into `pipeline/feedback_loop.py` and `pipeline/draft_prompts.py`, added a `get_recent_pages()` collection-query fallback, rewrote the remaining review-first docs/scripts, verified the new code paths, and applied the backfill to the live Notion DB. | `projects/blind-to-x/pipeline/notion/_query.py`; `projects/blind-to-x/pipeline/feedback_loop.py`; `projects/blind-to-x/pipeline/draft_prompts.py`; `projects/blind-to-x/scripts/backfill_notion_review_columns.py`; `projects/blind-to-x/scripts/check_notion_views.py`; `projects/blind-to-x/docs/operations_sop.md`; `projects/blind-to-x/README.md`; `projects/blind-to-x/docs/ops-runbook.md`; `projects/blind-to-x/docs/notion_view_setup_guide.md`; `projects/blind-to-x/tests/unit/test_notion_query_mixin.py`; `projects/blind-to-x/tests/unit/test_feedback_loop_fallback.py`; `projects/blind-to-x/tests/unit/test_backfill_notion_review_columns.py`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/SESSION_LOG.md`; `.ai/CONTEXT.md` |
 | 2026-04-09 | Gemini (Antigravity) | `T-167`, `T-173`, `T-174`, `T-176`: created `execution/ai_batch_runner.py`, installed Google Embeddings support for `code-review-graph`, verified `IMPORTS_FROM` edges in `hanwoo-dashboard`, and updated `blind-to-x` feedback-loop handling for rejection and risk metadata. | `execution/ai_batch_runner.py`; `projects/blind-to-x/pipeline/feedback_loop.py`; `.ai/TASKS.md`; `.ai/HANDOFF.md`; `.ai/SESSION_LOG.md` |
 | 2026-04-09 | Codex | `T-175`: refocused `blind-to-x` Notion review around operator judgment. Added reviewer-first schema keys, upload-time review briefs, `multi_select` support, review-schema sync tooling, and review-centric docs/config updates; then verified the code paths and applied the new reviewer columns to the live Notion database. | `projects/blind-to-x/pipeline/notion/_schema.py`; `projects/blind-to-x/pipeline/notion/_query.py`; `projects/blind-to-x/pipeline/notion/_upload.py`; `projects/blind-to-x/pipeline/notion_upload.py`; `projects/blind-to-x/scripts/sync_notion_review_schema.py`; `projects/blind-to-x/scripts/notion_doctor.py`; `projects/blind-to-x/config.example.yaml`; `projects/blind-to-x/config.ci.yaml`; `projects/blind-to-x/README.md`; `projects/blind-to-x/docs/ops-runbook.md`; `projects/blind-to-x/docs/notion_view_setup_guide.md`; `projects/blind-to-x/tests/unit/test_notion_upload.py`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/CONTEXT.md`; `.ai/SESSION_LOG.md` |
@@ -44,12 +44,46 @@
 | 2026-04-09 | Codex | `T-170`: cleaned the remaining repo-wide Ruff debt in `projects/shorts-maker-v2` and kept runtime behavior unchanged. | `projects/shorts-maker-v2/pyproject.toml`; `projects/shorts-maker-v2/src/shorts_maker_v2/render/audio_postprocess.py`; `projects/shorts-maker-v2/src/shorts_maker_v2/utils/retry.py`; `projects/shorts-maker-v2/tests/unit/test_retry.py`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/CONTEXT.md`; `.ai/SESSION_LOG.md` |
 | 2026-04-09 | Codex | `T-169` + `T-164`: fixed the confirmed deep-debug reliability regressions across `blind-to-x`, `shorts-maker-v2`, and `hanwoo-dashboard`. | `projects/blind-to-x/...`; `projects/shorts-maker-v2/...`; `projects/hanwoo-dashboard/...`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/CONTEXT.md`; `.ai/SESSION_LOG.md` |
 | 2026-04-08 | Codex | `T-163`: reran the post-fix SRE scan and closed a new `hanwoo-dashboard` pagination-loop risk. | `projects/hanwoo-dashboard/...`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/CONTEXT.md`; `.ai/SESSION_LOG.md` |
-- **2026-04-13 | Gemini (Antigravity)**
-  - T-189: Playwright 0xc0000005 Access Violation - Root-caused to agent backend wrapper. Bypassed successfully using local Node.js screenshot.js.
-  - T-161: Bypassed uth.js temporarily to verify UI visually via Node.js script. Identified .env DB connection string error (YOUR_PASSWORD). Tasks closed.
+
+## 2026-04-15 KST — Antigravity (Gemini) — Tech Debt QC Session
+
+### 작업 요약
+기술 부채 분석 → 실행 → QC 완료. (1) T-218: `blind_scraper.py`의 순환 import 에러 수정 + `test_main.py` monkeypatch 경로 20개 갱신. (2) T-219: Pydantic V2 `.dict()` → `.model_dump()` 마이그레이션. (3) T-217: `main.py` 분리 리팩터링 이전 세션 완료 확인. (4) QC 최종 승인: 3개 프로젝트 전체 2828 tests passed.
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `blind_scraper.py` | `from main import main` → `from pipeline.cli import run_main as main` |
+| `pipeline/process_stages/fetch_stage.py` | `.dict()` → `.model_dump()` |
+| `tests/unit/test_main.py` | monkeypatch 경로 20개를 `pipeline.cli`/`runner`/`bootstrap`으로 갱신 |
+| `.ai/TASKS.md` | T-217/218/219 완료 반영 |
+| `.ai/HANDOFF.md` | 세션 릴레이 갱신 |
+
+### QC 결과
+- **Blind-to-X**: 1484 passed, 1 skipped
+- **Hanwoo Dashboard**: 51 passed
+- **Shorts Maker V2**: 1293 passed, 12 skipped
+- **커밋**: `ecfef32`
+- **최종 판정**: ✅ 승인 (APPROVED)
+
+---
 
 ## 2026-04-15 KST — Antigravity (Gemini)
 
+### 작업 요약
+프로젝트 내 pytest 실행 시 발생하던 3개의 test_optimizations.py failure를 해결. pipeline.content_intelligence.rules import 경로 이슈를 올바르게 수정하여 100% 테스트 무결성(13/13 passeed)을 회복함.
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| tests/unit/test_optimizations.py | import pipeline.content_intelligence as ci 모의(mocking) 부분을 import pipeline.content_intelligence.rules as ci로 교체 반영 및 test_classify_topic_cluster_uses_yaml_rules 의존성 패치 |
+
+### QA/QC 결과
+- **테스트 환경 격리**: pytest monkeypatch를 통해 모의 상태가 기존 룰 엔진에 영향을 미치지 않는지 확인 완료.
+- **최종 판정**: ✅ 승인 (APPROVED)
+
+- **2026-04-13 | Gemini (Antigravity)**
+  - T-189: Playwright 0xc0000005 Access Violation - Root-caused to agent backend wrapper. Bypassed successfully using local Node.js screenshot.js.
 ### 작업 요약
 프로젝트 내 pytest 실행 시 발생하던 3개의 	est_optimizations.py failure를 해결. pipeline.content_intelligence.rules import 경로 이슈를 올바르게 수정하여 100% 테스트 무결성(13/13 passeed)을 회복함.
 
