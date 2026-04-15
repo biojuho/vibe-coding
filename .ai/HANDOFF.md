@@ -8,13 +8,17 @@
 |---|---|
 | Date | 2026-04-15 |
 | Tool | Codex |
-| Work | **T-212 완료**: `workspace/execution/health_check.py`에서 남은 shared warn(`GROQ_API_KEY`, `MOONSHOT_API_KEY`, inactive root `venv`)를 실제 운영 의미에 맞게 재분류했다. Groq/Moonshot 미설정은 optional provider 상태로, root `venv` 비활성은 현재 표준 실행 패턴(`python -m ...`)에 맞는 정상 상태로 취급하도록 정리했고, `workspace/tests/test_health_check.py`에 회귀 테스트 3건을 추가했다. 재검증 결과 `python -m pytest --no-cov workspace/tests/test_health_check.py -q` -> `43 passed`, `python workspace/execution/health_check.py --json` -> `overall: ok`, `warn: 0`, `fail: 0`. |
-| Next Priorities | 1. 남은 TODO는 `T-199`뿐이며 사용자 측 GitHub 플랜/공개 여부 결정이 필요. 2. 코드 변경(`workspace/execution/health_check.py`, `workspace/tests/test_health_check.py`)은 아직 워킹트리에 남아 있다. |
+| Work | **T-199 라이브 재확인**: `python execution/github_branch_protection.py --check-live`를 다시 실행해 `biojuho/vibe-coding` / `main`의 branch protection 차단 상태를 2026-04-15 기준으로 재검증했다. 결과는 여전히 `status: blocked`, 저장소는 `PRIVATE`, GitHub 응답 메시지는 `Upgrade to GitHub Pro or make this repository public to enable this feature.`였고, 준비된 payload(`root-quality-gate`, `test-summary`) 자체는 dry-run으로 정상 생성됨을 함께 확인했다. |
+| Next Priorities | 1. `T-199`는 기술 문제가 아니라 GitHub 플랜/가시성 결정 대기 상태. 2. 결정 후 `python execution/github_branch_protection.py --apply` 실행, 이어서 `--check-live` 재검증. |
 
 ## Previous Update
 
 | Field | Value |
 |---|---|
+| Date | 2026-04-15 |
+| Tool | Codex |
+| Work | **T-212 완료**: `workspace/execution/health_check.py`에서 남은 shared warn(`GROQ_API_KEY`, `MOONSHOT_API_KEY`, inactive root `venv`)를 실제 운영 의미에 맞게 재분류했다. Groq/Moonshot 미설정은 optional provider 상태로, root `venv` 비활성은 현재 표준 실행 패턴(`python -m ...`)에 맞는 정상 상태로 취급하도록 정리했고, `workspace/tests/test_health_check.py`에 회귀 테스트 3건을 추가했다. 재검증 결과 `python -m pytest --no-cov workspace/tests/test_health_check.py -q` -> `43 passed`, `python workspace/execution/health_check.py --json` -> `overall: ok`, `warn: 0`, `fail: 0`. |
+| Next Priorities | 1. 남은 TODO는 `T-199`뿐이며 사용자 측 GitHub 플랜/공개 여부 결정이 필요. 2. 코드 변경(`workspace/execution/health_check.py`, `workspace/tests/test_health_check.py`)은 아직 워킹트리에 남아 있다. |
 | Date | 2026-04-15 |
 | Tool | Codex |
 | Work | **T-211 완료**: shared health-check 경고를 다시 분류해 `workspace/execution/health_check.py`의 `.env` completeness 로직이 feature-specific optional 키까지 일괄 warn 하던 부분을 정리했다. `BRAVE_API_KEY`, `BRIDGE_*`, `GITHUB_PERSONAL_ACCESS_TOKEN`, `MOONSHOT_API_KEY`, `TELEGRAM_*`를 optional completeness 항목으로 분리하고, `workspace/tests/test_health_check.py`에 회귀 테스트 2건을 추가했다. 재검증 기준 `python -m pytest --no-cov workspace/tests/test_health_check.py -q` -> `40 passed`, `python workspace/execution/health_check.py --json` -> `overall: warn`, `fail: 0`, 남은 warn은 실제 optional provider 미설정(`GROQ_API_KEY`, `MOONSHOT_API_KEY`)과 비활성 `venv`뿐이다. |
@@ -33,6 +37,8 @@
 
 ## Notes
 
+- **T-199 라이브 재확인 (2026-04-15)**: `python execution/github_branch_protection.py --check-live` -> `status: blocked`, repo `biojuho/vibe-coding`, branch `main`, visibility `PRIVATE`, message `Upgrade to GitHub Pro or make this repository public to enable this feature.`
+- **T-199 dry-run 재확인 (2026-04-15)**: `python execution/github_branch_protection.py` -> payload generated locally with required checks `root-quality-gate`, `test-summary`
 - **T-212 변경 파일 (2026-04-15)**: `workspace/execution/health_check.py`, `workspace/tests/test_health_check.py`
 - **T-212 검증 (2026-04-15)**: `python -m pytest --no-cov workspace/tests/test_health_check.py -q` -> `43 passed`, `python workspace/execution/health_check.py --category env --json` -> `overall: ok`, `python workspace/execution/health_check.py --json` -> `overall: ok`, `warn: 0`, `fail: 0`
 - **T-211 변경 파일 (2026-04-15)**: `workspace/execution/health_check.py`, `workspace/tests/test_health_check.py`
