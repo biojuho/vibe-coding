@@ -110,9 +110,17 @@ class AnalyticsTracker:
 
         try:
             kst_hour = (_dt.datetime.now(_dt.timezone.utc).hour + 9) % 24
-        except Exception:
+        except Exception as exc:
             import time as _time
 
+            from pipeline._debt_log import swallowed
+
+            swallowed(
+                "analytics_tracker.kst_time_slot",
+                exc,
+                fallback="time.gmtime()",
+                action="degraded kst hour",
+            )
             kst_hour = (_time.gmtime().tm_hour + 9) % 24
         if 6 <= kst_hour < 12:
             return "오전"

@@ -53,12 +53,26 @@ def _try_get_cost_db():
         from pipeline.cost_db import CostDatabase
 
         return CostDatabase()
-    except Exception:
+    except Exception as primary_exc:
         try:
             from blind_to_x_cost_db import CostDatabase  # fallback alias
 
             return CostDatabase()
-        except Exception:
+        except Exception as fallback_exc:
+            from pipeline._debt_log import swallowed
+
+            swallowed(
+                "cost_tracker.load_cost_db.primary",
+                primary_exc,
+                fallback="alias import",
+                action="attempted fallback",
+            )
+            swallowed(
+                "cost_tracker.load_cost_db.fallback",
+                fallback_exc,
+                fallback="None (in-memory only)",
+                action="cost persistence disabled",
+            )
             return None
 
 

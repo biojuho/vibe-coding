@@ -52,7 +52,10 @@ def _get_windows_short_path(path: str) -> str:
         if resolved <= 0:
             return ""
         return buffer.value
-    except Exception:
+    except Exception as exc:
+        from pipeline._debt_log import swallowed
+
+        swallowed("config.windows_short_path", exc, fallback='""', action="try next candidate")
         return ""
 
 
