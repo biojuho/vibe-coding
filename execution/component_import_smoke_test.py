@@ -28,16 +28,11 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent / "projects" / "hanwoo-dashboard"
 SRC_DIR = PROJECT_ROOT / "src"
 
-# Regex to capture import paths from ES module imports
-# Matches: import ... from '@/...' and import ... from "@/..."
+# Regex to capture import paths from ES module imports.
+# Covers both static `import X from '@/...'` and dynamic `import('@/...')`
+# in a single alternation so each site is reported exactly once.
 IMPORT_PATTERN = re.compile(
     r"""(?:import\s+.*?\s+from\s+|import\s*\()['"](@/[^'"]+)['"]""",
-    re.MULTILINE,
-)
-
-# Also capture dynamic imports: dynamic(() => import('@/...'))
-DYNAMIC_IMPORT_PATTERN = re.compile(
-    r"""import\s*\(\s*['"](@/[^'"]+)['"]\s*\)""",
     re.MULTILINE,
 )
 
@@ -87,11 +82,7 @@ def extract_imports(file_path: Path) -> list[tuple[str, int]]:
 
     imports = []
     for line_num, line in enumerate(content.split("\n"), 1):
-        # Static imports
         for match in IMPORT_PATTERN.finditer(line):
-            imports.append((match.group(1), line_num))
-        # Dynamic imports
-        for match in DYNAMIC_IMPORT_PATTERN.finditer(line):
             imports.append((match.group(1), line_num))
 
     return imports
@@ -179,10 +170,7 @@ def format_results(
         lines.append("")
         lines.append("  [FAILURES]")
         for item in unresolved:
-            lines.append(
-                f"    X {item['source']}:{item['line']}"
-                f" -> {item['import']}"
-            )
+            lines.append(f"    X {item['source']}:{item['line']} -> {item['import']}")
         lines.append("")
         lines.append("  Fix: Check that the imported file exists in src/")
     else:
@@ -193,19 +181,14 @@ def format_results(
         lines.append("")
         lines.append("  [RESOLVED IMPORTS]")
         for item in resolved:
-            lines.append(
-                f"    {item['source']}:{item['line']}"
-                f" -> {item['resolved_to']}"
-            )
+            lines.append(f"    {item['source']}:{item['line']} -> {item['resolved_to']}")
 
     lines.append("=" * 60)
     return "\n".join(lines)
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Verify @/ imports in hanwoo-dashboard resolve to files"
-    )
+    parser = argparse.ArgumentParser(description="Verify @/ imports in hanwoo-dashboard resolve to files")
     parser.add_argument(
         "--strict",
         action="store_true",
