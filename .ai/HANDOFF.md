@@ -2,6 +2,15 @@
 
 > See `SESSION_LOG.md` for recent session history and `DECISIONS.md` for stable architecture decisions.
 
+## Current Addendum
+
+| Field | Value |
+|---|---|
+| Date | 2026-04-15 |
+| Tool | Codex |
+| Work | Ran a real pre-public secret scan before any repository visibility change. The actionable blockers are tracked secret-bearing files `.agents/skills/brave-search/secrets.json` and `infrastructure/notebooklm-mcp/tokens/auth.json`, plus hard-coded n8n credentials repeated in `infrastructure/n8n/docker-compose.yml` and `infrastructure/n8n/README.md`. |
+| Next Priorities | 1. Approve `T-213` to sanitize tracked secrets and replace hard-coded placeholders before any public switch. 2. After sanitation, decide whether to flip the repo public and then run `python execution/github_branch_protection.py --apply` followed by `--check-live`. |
+
 ## Latest Update
 
 | Field | Value |
@@ -36,6 +45,9 @@
 | Next Priorities | 1. **T-199 unblock 결정**: GitHub Pro 업그레이드($4/월) vs public 전환 vs 로컬 게이트(T-195/T-206) 유지. 2. Google Gemini API 403 문제 별도 확인. |
 
 ## Notes
+
+- **Public conversion blocker scan (2026-04-15)**: tracked secret-bearing files found at `.agents/skills/brave-search/secrets.json`, `infrastructure/notebooklm-mcp/tokens/auth.json`, and hard-coded n8n credentials in `infrastructure/n8n/docker-compose.yml` / `infrastructure/n8n/README.md`.
+- **detect-secrets baseline note (2026-04-15)**: `.secrets.baseline` already suppresses `.agents/skills/brave-search/secrets.json` and `infrastructure/notebooklm-mcp/tokens/auth.json`, so baseline presence must not be mistaken for an actual fix.
 
 - **T-199 라이브 재확인 (2026-04-15)**: `python execution/github_branch_protection.py --check-live` -> `status: blocked`, repo `biojuho/vibe-coding`, branch `main`, visibility `PRIVATE`, message `Upgrade to GitHub Pro or make this repository public to enable this feature.`
 - **T-199 dry-run 재확인 (2026-04-15)**: `python execution/github_branch_protection.py` -> payload generated locally with required checks `root-quality-gate`, `test-summary`

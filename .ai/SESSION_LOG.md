@@ -4,6 +4,7 @@
 
 | Date | Tool | Summary | Changed Files |
 |---|---|---|---|
+| 2026-04-15 | Codex | Ran the real pre-public secret scan before any repository visibility change. `detect-secrets` tooling plus a tracked-file pattern review narrowed the actionable blockers to four tracked files: `.agents/skills/brave-search/secrets.json`, `infrastructure/notebooklm-mcp/tokens/auth.json`, `infrastructure/n8n/docker-compose.yml`, and `infrastructure/n8n/README.md`. Also confirmed `.secrets.baseline` already suppresses the first two files, so the repo should not be made public until those tracked secrets/default credentials are sanitized and rotated as needed. No product code changes; updated shared AI context only. | `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/CONTEXT.md`; `.ai/SESSION_LOG.md` |
 | 2026-04-15 | Codex | Re-ran the live `T-199` branch-protection probe to confirm the blocker state before asking the user for a plan decision. `python execution/github_branch_protection.py --check-live` still reports `status: blocked` for `biojuho/vibe-coding` / `main` because the repo is private and GitHub returns `Upgrade to GitHub Pro or make this repository public to enable this feature.` Also rechecked the deterministic dry-run payload for the desired `root-quality-gate` + `test-summary` required checks. No code changes; updated shared AI context only. | `.ai/HANDOFF.md`; `.ai/SESSION_LOG.md` |
 | 2026-04-15 | Codex | `T-212`: finished the shared health-check cleanup by reclassifying the remaining `GROQ_API_KEY`, `MOONSHOT_API_KEY`, and root `venv` warnings in `workspace/execution/health_check.py` to match actual workspace semantics. Optional provider absence is now reported as OK-with-detail, and a present-but-inactive root `venv` is treated as healthy because the workspace standard is explicit `python -m ...` execution. Added three more regression tests in `workspace/tests/test_health_check.py`, then re-ran `python -m pytest --no-cov workspace/tests/test_health_check.py -q` (`43 passed`) and `python workspace/execution/health_check.py --json` (`overall: ok`, `warn: 0`, `fail: 0`). | `workspace/execution/health_check.py`; `workspace/tests/test_health_check.py`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/CONTEXT.md`; `.ai/SESSION_LOG.md` |
 | 2026-04-15 | Claude Code (Opus 4.6 1M) | T-197 개선안 2차: Node 스캐너에 `DYNAMIC_IMPORT_RE` 추가하여 `import('@/...')` 형태의 동적 import 감지. `DashboardClient.js`가 `dynamic(() => import('@/components/tabs/FeedTab'))` 등 6건의 dynamic import로 tab/widget lazy loading을 하는데 기존 Node 스캐너는 이를 완전히 건너뛰고 있었음 (Python 스캐너는 이미 `DYNAMIC_IMPORT_PATTERN`으로 처리 중). `parseImportStatements()`가 전체 source를 추가 스캔하여 sideEffect statement로 append — named export 검증은 skip, resolve 검증만 수행. 51/51 테스트 통과, 커밋 `1464040`. | `projects/hanwoo-dashboard/src/lib/component-imports.test.mjs`; `.ai/SESSION_LOG.md` |
@@ -40,3 +41,17 @@
 - **2026-04-13 | Gemini (Antigravity)**
   - T-189: Playwright 0xc0000005 Access Violation - Root-caused to agent backend wrapper. Bypassed successfully using local Node.js screenshot.js.
   - T-161: Bypassed uth.js temporarily to verify UI visually via Node.js script. Identified .env DB connection string error (YOUR_PASSWORD). Tasks closed.
+
+## 2026-04-15 KST — Antigravity (Gemini)
+
+### 작업 요약
+프로젝트 내 pytest 실행 시 발생하던 3개의 	est_optimizations.py failure를 해결. pipeline.content_intelligence.rules import 경로 이슈를 올바르게 수정하여 100% 테스트 무결성(13/13 passeed)을 회복함.
+
+### 변경한 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| 	ests/unit/test_optimizations.py | import pipeline.content_intelligence as ci 모의(mocking) 부분을 import pipeline.content_intelligence.rules as ci로 교체 반영 및 	est_classify_topic_cluster_uses_yaml_rules 의존성 패치 |
+
+### QA/QC 결과
+- **테스트 환경 격리**: pytest monkeypatch를 통해 모의 상태가 기존 룰 엔진에 영향을 미치지 않는지 확인 완료.
+- **최종 판정**: ✅ 승인 (APPROVED)

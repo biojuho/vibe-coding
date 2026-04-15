@@ -6,6 +6,8 @@
 
 | ID | Task | Owner | Priority | Auto | Created |
 |---|---|---|---|---|---|
+| T-213 | `[workspace]` Public 전환 전 tracked secret sanitation: `.agents/skills/brave-search/secrets.json`, `infrastructure/notebooklm-mcp/tokens/auth.json`, `infrastructure/n8n/docker-compose.yml`, `infrastructure/n8n/README.md`를 placeholder/env 기반으로 정리하고 실제 값 rotate 여부를 확인 | Codex | P0 | 🔴 approval | 2026-04-15 |
+
 | T-199 | `[workspace]` GitHub branch protection 설정 (main 브랜치 require CI pass) — **BLOCKED**: 2026-04-14 live check 기준 repo가 private + 무료 플랜이라 `gh api repos/biojuho/vibe-coding/branches/main/protection`가 HTTP 403. GitHub Pro 업그레이드 또는 public 전환 필요. 준비된 적용 명령: `python execution/github_branch_protection.py --apply` | User | P1 | 🔴 approval | 2026-04-14 |
 
 ## IN_PROGRESS

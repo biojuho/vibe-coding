@@ -58,6 +58,7 @@
 
 ## Recent Verification
 
+- `workspace`: a real pre-public secret scan on 2026-04-15 found tracked secret-bearing files at `.agents/skills/brave-search/secrets.json` and `infrastructure/notebooklm-mcp/tokens/auth.json`, plus hard-coded n8n credentials in `infrastructure/n8n/docker-compose.yml` / `infrastructure/n8n/README.md`. Do not make the repo public until those files are sanitized and any real credentials are rotated.
 - `workspace`: `python -m pytest --no-cov workspace/tests/test_health_check.py -q` passed on 2026-04-15 (`43 passed`) after optional provider + root venv status handling was aligned with the actual workspace execution model.
 - `workspace`: `python workspace/execution/health_check.py --category env --json` reported `overall: ok` on 2026-04-15 after `GROQ_API_KEY` / `MOONSHOT_API_KEY` were downgraded to optional-provider OK states when unset.
 - `workspace`: `python workspace/execution/health_check.py --json` reported `overall: ok`, `warn: 0`, `fail: 0` on 2026-04-15 after the final health-check status cleanup.
@@ -102,6 +103,8 @@
 
 ## Minefield
 
+- Public repo conversion is currently blocked by tracked secret-bearing files: `.agents/skills/brave-search/secrets.json`, `infrastructure/notebooklm-mcp/tokens/auth.json`, and hard-coded/default n8n credentials in `infrastructure/n8n/docker-compose.yml` / `infrastructure/n8n/README.md`.
+- `.secrets.baseline` already suppresses `.agents/skills/brave-search/secrets.json` and `infrastructure/notebooklm-mcp/tokens/auth.json`; that baseline entry is not a fix and will let those files slip through unless they are explicitly cleaned up.
 - The worktree is dirty across multiple projects. Do not revert unrelated edits.
 - Bare `pytest` is not on `PATH` in the current root shell unless the venv is activated; prefer `python -m pytest`.
 - `projects/hanwoo-dashboard` still has many user-facing Korean strings; keep edits surgical to avoid encoding churn.
