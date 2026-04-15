@@ -55,9 +55,15 @@
 - `[ai-context]` commits are now guarded by `.githooks/commit-msg` via `execution/ai_context_guard.py`. If staged files extend beyond approved `.ai/*` context paths, the commit is blocked before completion.
 - `workspace/execution/health_check.py` now treats feature-specific root `.env` gaps (`BRAVE_API_KEY`, `BRIDGE_*`, `GITHUB_PERSONAL_ACCESS_TOKEN`, `MOONSHOT_API_KEY`, `TELEGRAM_*`) as optional completeness omissions instead of warning-level drift, so shared health checks stay focused on required config and active-provider issues.
 - `workspace/execution/health_check.py` now also treats optional fallback providers (`GROQ_API_KEY`, `MOONSHOT_API_KEY`) as healthy when unset and considers a present-but-inactive root `venv` healthy for this workspace because the standard verification path uses explicit `python -m ...` commands instead of assuming shell activation.
+- `projects/knowledge-dashboard/scripts/sync_data.py` now prefers `NOTEBOOKLM_AUTH_TOKEN_PATH`, then `infrastructure/notebooklm-mcp/tokens/auth.local.json`, and only then the checked-in `auth.json` template. Template token payloads are treated as intentionally non-runnable instead of causing a live NotebookLM call.
+- `infrastructure/notebooklm-mcp/authenticate_notebooklm.bat` now moves any generated `tokens/auth.json` file to `tokens/auth.local.json` so re-authentication does not re-dirty the tracked template.
+- `infrastructure/n8n/docker-compose.yml` and `infrastructure/n8n/README.md` no longer carry committed n8n credentials; they now rely on `N8N_BASIC_AUTH_PASSWORD` and `BRIDGE_TOKEN` placeholders from the local environment.
 
 ## Recent Verification
 
+- `workspace`: `python -m pytest --no-cov projects/knowledge-dashboard/tests/test_sync_data.py -q` passed on 2026-04-15 (`4 passed`) after `sync_data.py` was taught to prefer local NotebookLM token paths and reject checked-in template payloads.
+- `workspace`: `python -m ruff check projects/knowledge-dashboard/scripts/sync_data.py projects/knowledge-dashboard/tests/test_sync_data.py` passed on 2026-04-15 after the NotebookLM token-path cleanup.
+- `workspace`: `python -m detect_secrets scan .agents/skills/brave-search/secrets.json infrastructure/notebooklm-mcp/tokens/auth.json infrastructure/n8n/docker-compose.yml infrastructure/n8n/README.md` returned empty `results` on 2026-04-15 after tracked secret values were sanitized from the current tree.
 - `workspace`: a real pre-public secret scan on 2026-04-15 found tracked secret-bearing files at `.agents/skills/brave-search/secrets.json` and `infrastructure/notebooklm-mcp/tokens/auth.json`, plus hard-coded n8n credentials in `infrastructure/n8n/docker-compose.yml` / `infrastructure/n8n/README.md`. Do not make the repo public until those files are sanitized and any real credentials are rotated.
 - `workspace`: `python -m pytest --no-cov workspace/tests/test_health_check.py -q` passed on 2026-04-15 (`43 passed`) after optional provider + root venv status handling was aligned with the actual workspace execution model.
 - `workspace`: `python workspace/execution/health_check.py --category env --json` reported `overall: ok` on 2026-04-15 after `GROQ_API_KEY` / `MOONSHOT_API_KEY` were downgraded to optional-provider OK states when unset.
@@ -103,8 +109,8 @@
 
 ## Minefield
 
-- Public repo conversion is currently blocked by tracked secret-bearing files: `.agents/skills/brave-search/secrets.json`, `infrastructure/notebooklm-mcp/tokens/auth.json`, and hard-coded/default n8n credentials in `infrastructure/n8n/docker-compose.yml` / `infrastructure/n8n/README.md`.
-- `.secrets.baseline` already suppresses `.agents/skills/brave-search/secrets.json` and `infrastructure/notebooklm-mcp/tokens/auth.json`; that baseline entry is not a fix and will let those files slip through unless they are explicitly cleaned up.
+- The current worktree secret blockers are sanitized, but the Brave key and NotebookLM auth payload previously existed in committed history. Do not make the repo public until those credentials are rotated/revoked and you decide whether history rewrite is needed.
+- `.secrets.baseline` already suppressed `.agents/skills/brave-search/secrets.json` and `infrastructure/notebooklm-mcp/tokens/auth.json`; baseline allowlisting is not a fix.
 - The worktree is dirty across multiple projects. Do not revert unrelated edits.
 - Bare `pytest` is not on `PATH` in the current root shell unless the venv is activated; prefer `python -m pytest`.
 - `projects/hanwoo-dashboard` still has many user-facing Korean strings; keep edits surgical to avoid encoding churn.
