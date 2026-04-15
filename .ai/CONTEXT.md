@@ -111,6 +111,7 @@
 ## Minefield
 
 - The current worktree secret blockers are sanitized, but the Brave key and NotebookLM auth payload previously existed in committed history. Do not make the repo public until those credentials are rotated/revoked and you decide whether history rewrite is needed.
+- `git-filter-repo` is not installed in the current shell. If history rewrite is approved, prefer running it from a clean clone or mirror after tooling setup rather than inside the current dirty workspace.
 - `.secrets.baseline` already suppressed `.agents/skills/brave-search/secrets.json` and `infrastructure/notebooklm-mcp/tokens/auth.json`; baseline allowlisting is not a fix.
 - The worktree is dirty across multiple projects. Do not revert unrelated edits.
 - Bare `pytest` is not on `PATH` in the current root shell unless the venv is activated; prefer `python -m pytest`.

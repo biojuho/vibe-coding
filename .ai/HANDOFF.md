@@ -8,8 +8,8 @@
 |---|---|
 | Date | 2026-04-15 |
 | Tool | Codex |
-| Work | Completed and committed `T-213` in feature commit `e5122b1`. The current `HEAD` no longer contains the tracked Brave key, NotebookLM auth payload, or the hard-coded n8n credentials; NotebookLM now prefers `auth.local.json` / `NOTEBOOKLM_AUTH_TOKEN_PATH`, and the edited files were re-verified with `detect-secrets`, pytest, and Ruff. |
-| Next Priorities | 1. Before any public switch, rotate or revoke the Brave API key and NotebookLM session/cookies that existed in earlier git history, then decide whether history rewrite is required. 2. After the visibility decision, run `python execution/github_branch_protection.py --apply` followed by `--check-live`. |
+| Work | Confirmed the remaining public-repo risk is historical exposure, not the current branch tip. `git log -S` shows the Brave key, NotebookLM session payload, and the old n8n credentials already existed from the initial backup commit `ba5db77`, and the n8n bridge token also appears in later `.ai` history. Also checked that `git filter-repo` is not installed in the current shell. |
+| Next Priorities | 1. User action: rotate/revoke the Brave key and NotebookLM session/cookies before any visibility change. 2. Decide whether to rewrite git history; if yes, install a history-rewrite tool and run it from a clean clone or mirror, then force-push intentionally. 3. After the visibility decision, run `python execution/github_branch_protection.py --apply` followed by `--check-live`. |
 
 ## Latest Update
 
@@ -55,6 +55,8 @@
 
 - **T-213 feature commit (2026-04-15)**: `e5122b1` - `[workspace] sanitize tracked secret templates for public readiness`
 - **HEAD safety recheck (2026-04-15)**: current `HEAD` no longer contains the tracked Brave key, NotebookLM auth payload, or the old hard-coded n8n credentials.
+- **History exposure range (2026-04-15)**: Brave / NotebookLM / n8n README secrets trace back to initial commit `ba5db77`; `infrastructure/n8n/docker-compose.yml` also carried the old password through `3418fe1`; the old n8n bridge token appears in `.ai` history as well.
+- **History rewrite tooling (2026-04-15)**: `git filter-repo --version` failed because `git-filter-repo` is not installed in the current environment.
 - **T-213 complete (2026-04-15)**: current tracked files no longer contain the live Brave key, NotebookLM auth payload, or the hard-coded n8n credentials.
 - **Public conversion warning (2026-04-15)**: sanitizing the current tree does not remove secrets from past commits. Public visibility still needs credential rotation and possibly git-history cleanup.
 - **Public conversion blocker scan (2026-04-15)**: tracked secret-bearing files found at `.agents/skills/brave-search/secrets.json`, `infrastructure/notebooklm-mcp/tokens/auth.json`, and hard-coded n8n credentials in `infrastructure/n8n/docker-compose.yml` / `infrastructure/n8n/README.md`.
