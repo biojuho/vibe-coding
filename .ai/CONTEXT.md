@@ -23,6 +23,7 @@
 
 ## Current Reliability Notes
 
+- `execution/remote_branch_cleanup.py` now inventories remote-only GitHub branches relative to a sanitized local clone, annotates open PR blockers, and can generate a PowerShell delete script containing only safe branch deletions.
 - `projects/hanwoo-dashboard` is still the main active deep-debug target outside the current Notion work.
 - `projects/hanwoo-dashboard/src/lib/dashboard/pagination-guard.mjs` prevents repeated-cursor and runaway page-loop conditions in full-registry loaders and client pagination hooks.
 - `projects/hanwoo-dashboard/src/app/subscription/success/page.js` and `src/components/payment/PaymentWidget.js` now safely parse malformed or non-JSON payment responses so checkout UI stays deterministic.
@@ -61,6 +62,9 @@
 
 ## Recent Verification
 
+- `workspace`: `python -m pytest --no-cov workspace/tests/test_remote_branch_cleanup.py -q` passed on 2026-04-15 (`3 passed`) after `execution/remote_branch_cleanup.py` was added to inventory remote-only GitHub branches against the sanitized rewrite clone.
+- `workspace`: `python -m ruff check execution/remote_branch_cleanup.py workspace/tests/test_remote_branch_cleanup.py` passed on 2026-04-15 after the remote-branch cleanup helper landed.
+- `workspace`: `python execution/remote_branch_cleanup.py --repo biojuho/vibe-coding --local-repo .tmp/public-history-rewrite --write-delete-script .tmp/public-history-rewrite/delete_remote_only_branches.ps1` reported on 2026-04-15 that the live GitHub remote currently has 4 remote-only branches. Three are blocked by open PRs (`dependabot/...` PRs #1, #2, #3), and only `fix/notion-review-status` is immediately safe to delete. The generated delete script now lives at `.tmp/public-history-rewrite/delete_remote_only_branches.ps1`.
 - `workspace`: prepared a separate rewrite sandbox at `.tmp/public-history-rewrite` on 2026-04-15 and ran `git-filter-repo` there with a temp replace map for the leaked Brave key and old n8n secrets. The clone now has a follow-up restore commit `31c4504` (`[workspace] restore sanitized templates after history cleanup`) that re-adds only the safe tracked templates for `secrets.json` and `auth.json`.
 - `workspace`: a post-rewrite probe on 2026-04-15 confirmed `git log --all -S <leaked-value>` hits are `0` in `.tmp/public-history-rewrite` for the Brave key, the old n8n password, and the old n8n bridge token.
 - `workspace`: `python -m detect_secrets scan .tmp/public-history-rewrite/.agents/skills/brave-search/secrets.json .tmp/public-history-rewrite/infrastructure/notebooklm-mcp/tokens/auth.json .tmp/public-history-rewrite/infrastructure/n8n/docker-compose.yml .tmp/public-history-rewrite/infrastructure/n8n/README.md` returned empty `results` on 2026-04-15 after the history rewrite rehearsal.
@@ -114,7 +118,7 @@
 ## Minefield
 
 - `.tmp/public-history-rewrite` is now the prepared sandbox for any eventual secret-history push. Keep the main repo history untouched unless the user explicitly approves a destructive rewrite/push sequence.
-- The rewrite sandbox currently has only local `main` and `codex/dashboard-refresh` branches. GitHub still has 23 remote-only branches (`dependabot/*` plus `fix/notion-review-status`) that must be deleted before a public flip or handled in a broader rewrite plan.
+- Earlier `23 remote-only branches` was a stale local remote-tracking estimate. Live `git ls-remote --heads` on 2026-04-15 showed only 4 remote-only branches still exist on GitHub; 3 are tied to open PRs and 1 (`fix/notion-review-status`) is currently safe to delete.
 - The current worktree secret blockers are sanitized, but the Brave key and NotebookLM auth payload previously existed in committed history. Do not make the repo public until those credentials are rotated/revoked and you decide whether history rewrite is needed.
 - `git-filter-repo` is not installed in the current shell. If history rewrite is approved, prefer running it from a clean clone or mirror after tooling setup rather than inside the current dirty workspace.
 - `.secrets.baseline` already suppressed `.agents/skills/brave-search/secrets.json` and `infrastructure/notebooklm-mcp/tokens/auth.json`; baseline allowlisting is not a fix.
