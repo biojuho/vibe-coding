@@ -61,6 +61,7 @@
 
 ## Recent Verification
 
+- `workspace`: a safe `git show HEAD:...` probe on 2026-04-15 confirmed the current feature commit `e5122b1` no longer contains the tracked Brave key, NotebookLM auth payload, or the old hard-coded n8n credentials.
 - `workspace`: `python -m pytest --no-cov projects/knowledge-dashboard/tests/test_sync_data.py -q` passed on 2026-04-15 (`4 passed`) after `sync_data.py` was taught to prefer local NotebookLM token paths and reject checked-in template payloads.
 - `workspace`: `python -m ruff check projects/knowledge-dashboard/scripts/sync_data.py projects/knowledge-dashboard/tests/test_sync_data.py` passed on 2026-04-15 after the NotebookLM token-path cleanup.
 - `workspace`: `python -m detect_secrets scan .agents/skills/brave-search/secrets.json infrastructure/notebooklm-mcp/tokens/auth.json infrastructure/n8n/docker-compose.yml infrastructure/n8n/README.md` returned empty `results` on 2026-04-15 after tracked secret values were sanitized from the current tree.

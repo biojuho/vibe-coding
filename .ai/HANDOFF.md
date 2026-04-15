@@ -8,8 +8,8 @@
 |---|---|
 | Date | 2026-04-15 |
 | Tool | Codex |
-| Work | Completed `T-213` secret sanitation for the current worktree. Replaced tracked Brave / NotebookLM secret payloads with safe templates, moved NotebookLM runtime usage to `auth.local.json` or `NOTEBOOKLM_AUTH_TOKEN_PATH`, switched n8n docs + compose to env-driven placeholders, and verified the edited files with `detect-secrets`, pytest, and Ruff. |
-| Next Priorities | 1. Before any public switch, rotate the Brave API key and NotebookLM session/cookies that already existed in git history, and decide whether history rewrite is required. 2. After the visibility decision, run `python execution/github_branch_protection.py --apply` followed by `--check-live`. |
+| Work | Completed and committed `T-213` in feature commit `e5122b1`. The current `HEAD` no longer contains the tracked Brave key, NotebookLM auth payload, or the hard-coded n8n credentials; NotebookLM now prefers `auth.local.json` / `NOTEBOOKLM_AUTH_TOKEN_PATH`, and the edited files were re-verified with `detect-secrets`, pytest, and Ruff. |
+| Next Priorities | 1. Before any public switch, rotate or revoke the Brave API key and NotebookLM session/cookies that existed in earlier git history, then decide whether history rewrite is required. 2. After the visibility decision, run `python execution/github_branch_protection.py --apply` followed by `--check-live`. |
 
 ## Latest Update
 
@@ -53,6 +53,8 @@
 
 ## Notes
 
+- **T-213 feature commit (2026-04-15)**: `e5122b1` - `[workspace] sanitize tracked secret templates for public readiness`
+- **HEAD safety recheck (2026-04-15)**: current `HEAD` no longer contains the tracked Brave key, NotebookLM auth payload, or the old hard-coded n8n credentials.
 - **T-213 complete (2026-04-15)**: current tracked files no longer contain the live Brave key, NotebookLM auth payload, or the hard-coded n8n credentials.
 - **Public conversion warning (2026-04-15)**: sanitizing the current tree does not remove secrets from past commits. Public visibility still needs credential rotation and possibly git-history cleanup.
 - **Public conversion blocker scan (2026-04-15)**: tracked secret-bearing files found at `.agents/skills/brave-search/secrets.json`, `infrastructure/notebooklm-mcp/tokens/auth.json`, and hard-coded n8n credentials in `infrastructure/n8n/docker-compose.yml` / `infrastructure/n8n/README.md`.
