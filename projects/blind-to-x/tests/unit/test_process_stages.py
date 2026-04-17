@@ -375,7 +375,9 @@ class TestFilterProfileStage:
                 "review_priority": "normal",
             }
             result = asyncio.run(
-                run_filter_profile_stage(ctx, _MinScraper(), self._Cfg(), None, review_only=True, daily_queue_floor=floor_state)
+                run_filter_profile_stage(
+                    ctx, _MinScraper(), self._Cfg(), None, review_only=True, daily_queue_floor=floor_state
+                )
             )
 
         assert result is True
@@ -410,7 +412,9 @@ class TestFilterProfileStage:
                 "review_priority": "normal",
             }
             result = asyncio.run(
-                run_filter_profile_stage(ctx, _MinScraper(), self._Cfg(), None, review_only=True, daily_queue_floor=floor_state)
+                run_filter_profile_stage(
+                    ctx, _MinScraper(), self._Cfg(), None, review_only=True, daily_queue_floor=floor_state
+                )
             )
 
         assert result is True

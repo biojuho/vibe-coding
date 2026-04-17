@@ -48,7 +48,7 @@ async def run_fetch_stage(
     # Pydantic을 이용한 데이터 무결성 검증 (V2.0 Phase 1)
     try:
         validated_data = ScrapedPost(**post_data)
-        ctx.post_data = validated_data.dict()
+        ctx.post_data = validated_data.model_dump()
     except Exception as v_err:
         logger.error("Scraped data validation failed for %s: %s", ctx.url, v_err)
         ctx.result["error"] = f"Validation failed: {str(v_err)}"

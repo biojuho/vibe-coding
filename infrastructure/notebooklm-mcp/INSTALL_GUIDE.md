@@ -1,51 +1,63 @@
-# NotebookLM MCP 설치 가이드
+# NotebookLM MCP Install Guide
 
-## 다른 컴퓨터에 설치하기
+## Copy To Another Machine
 
-### 1단계: 폴더 복사
-```
-notebooklm-mcp 폴더 전체를 복사 (venv 제외)
-필요 파일:
-- credentials.json
-- install.bat
-- requirements.txt
-- authenticate_notebooklm.bat
-- run_notebooklm.bat
-```
+Copy the `notebooklm-mcp` folder without the virtual environment.
 
-### 2단계: 설치 실행
+Required files:
+- `credentials.json`
+- `install.bat`
+- `requirements.txt`
+- `authenticate_notebooklm.bat`
+- `run_notebooklm.bat`
+
+## Setup
+
+### 1. Install dependencies
+
 ```batch
 cd notebooklm-mcp
 install.bat
 ```
 
-### 3단계: 인증
+### 2. Authenticate
+
 ```batch
 authenticate_notebooklm.bat
 ```
-브라우저가 열리면 Google 계정으로 로그인
 
-### 4단계: MCP 설정 (settings.json)
+When the browser opens, sign in with the Google account that can access NotebookLM.
+
+### 3. Keep tokens local-only
+
+- The checked-in `tokens/auth.json` file is a template.
+- Real cached tokens should live in `tokens/auth.local.json`.
+- You can also point tools at a custom file with `NOTEBOOKLM_AUTH_TOKEN_PATH`.
+
+### 4. Configure MCP
+
 ```json
 {
   "mcpServers": {
     "notebooklm": {
       "command": "python",
       "args": ["-m", "notebooklm_mcp"],
-      "cwd": "C:/경로/notebooklm-mcp",
+      "cwd": "C:/path/to/notebooklm-mcp",
       "env": {
-        "GOOGLE_APPLICATION_CREDENTIALS": "C:/경로/notebooklm-mcp/credentials.json"
+        "GOOGLE_APPLICATION_CREDENTIALS": "C:/path/to/notebooklm-mcp/credentials.json"
       }
     }
   }
 }
 ```
 
-### 5단계: 테스트
+### 5. Run
+
 ```batch
 run_notebooklm.bat
 ```
 
-## 필수 조건
+## Requirements
+
 - Python 3.10+
-- Google Cloud 프로젝트 (동일 credentials.json 사용 가능)
+- Google Cloud project credentials in `credentials.json`

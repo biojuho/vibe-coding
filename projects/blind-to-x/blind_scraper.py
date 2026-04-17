@@ -44,7 +44,7 @@ from pipeline.notification import NotificationManager  # noqa: E402, F401
 from pipeline.process import process_single_post, calculate_run_metrics  # noqa: E402, F401
 
 # Delegate to main entry point
-from main import main  # noqa: E402, F401
+from pipeline.cli import run_main as main  # noqa: E402, F401
 
 if __name__ == "__main__":
     import asyncio

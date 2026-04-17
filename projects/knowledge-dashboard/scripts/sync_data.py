@@ -17,7 +17,8 @@ OUTPUT_FILE = DATA_DIR / "dashboard_data.json"
 QAQC_FILE = DATA_DIR / "qaqc_result.json"
 SESSION_LOG_PATH = REPO_ROOT / ".ai" / "SESSION_LOG.md"
 NOTEBOOKLM_VENV_LIB = REPO_ROOT / "infrastructure" / "notebooklm-mcp" / "venv" / "Lib" / "site-packages"
-NOTEBOOKLM_TOKEN_PATH = REPO_ROOT / "infrastructure" / "notebooklm-mcp" / "tokens" / "auth.json"
+NOTEBOOKLM_TOKEN_DIR = REPO_ROOT / "infrastructure" / "notebooklm-mcp" / "tokens"
+NOTEBOOKLM_AUTH_TOKEN_ENV_VAR = "NOTEBOOKLM_AUTH_TOKEN_PATH"
 GITHUB_TOKEN = os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN", "")
 
 if NOTEBOOKLM_VENV_LIB.exists():
@@ -31,13 +32,76 @@ try:
     from notebooklm_mcp.api_client import NotebookLMClient
     from notebooklm_mcp.auth import AuthTokens
 except ImportError as exc:
-    print(f"Error importing modules: {exc}")
-    print("Please run this script with the correct python environment")
-    sys.exit(1)
+    httpx = None
+    NotebookLMClient = None
+    AuthTokens = None
+    NOTEBOOKLM_IMPORT_ERROR = exc
+else:
+    NOTEBOOKLM_IMPORT_ERROR = None
+
+
+def _candidate_notebooklm_token_paths(repo_root: Path = REPO_ROOT) -> list[Path]:
+    token_dir = repo_root / "infrastructure" / "notebooklm-mcp" / "tokens"
+    configured = os.environ.get(NOTEBOOKLM_AUTH_TOKEN_ENV_VAR, "").strip()
+    candidates: list[Path] = []
+
+    if configured:
+        configured_path = Path(configured)
+        if not configured_path.is_absolute():
+            configured_path = repo_root / configured_path
+        candidates.append(configured_path)
+
+    candidates.append(token_dir / "auth.local.json")
+    candidates.append(token_dir / "auth.json")
+
+    unique_candidates: list[Path] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        key = str(candidate)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_candidates.append(candidate)
+    return unique_candidates
+
+
+def resolve_notebooklm_token_path(repo_root: Path = REPO_ROOT) -> Path | None:
+    for candidate in _candidate_notebooklm_token_paths(repo_root):
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def is_notebooklm_token_template(data: dict) -> bool:
+    markers = ("replace-with", "placeholder", "example", "set-via")
+
+    def is_template_string(value: object) -> bool:
+        return isinstance(value, str) and any(marker in value.lower() for marker in markers)
+
+    cookies = data.get("cookies")
+    if not isinstance(cookies, dict) or not cookies:
+        return True
+
+    cookie_values = [value for value in cookies.values() if isinstance(value, str)]
+    if not cookie_values:
+        return True
+
+    if all((not value) or is_template_string(value) for value in cookie_values):
+        return True
+
+    for key in ("csrf_token", "session_id"):
+        value = data.get(key, "")
+        if value and is_template_string(value):
+            return True
+
+    return False
 
 
 def fetch_github_repos():
     print("Fetching GitHub repositories...")
+    if httpx is None:
+        print(f"  - httpx is not available: {NOTEBOOKLM_IMPORT_ERROR}")
+        return []
     if not GITHUB_TOKEN:
         print("  - GITHUB_PERSONAL_ACCESS_TOKEN is not configured")
         return []
@@ -74,13 +138,26 @@ def fetch_github_repos():
 
 def fetch_notebooklm_notebooks():
     print("Fetching NotebookLM notebooks...")
-    if not NOTEBOOKLM_TOKEN_PATH.exists():
-        print(f"  - Token file not found at {NOTEBOOKLM_TOKEN_PATH}")
+    if NOTEBOOKLM_IMPORT_ERROR is not None or NotebookLMClient is None or AuthTokens is None:
+        print(f"  - NotebookLM dependencies are not available: {NOTEBOOKLM_IMPORT_ERROR}")
+        return []
+
+    token_path = resolve_notebooklm_token_path()
+    if token_path is None:
+        checked = ", ".join(str(path) for path in _candidate_notebooklm_token_paths())
+        print(f"  - Token file not found. Checked: {checked}")
         return []
 
     try:
-        with NOTEBOOKLM_TOKEN_PATH.open("r", encoding="utf-8") as file_obj:
+        with token_path.open("r", encoding="utf-8") as file_obj:
             data = json.load(file_obj)
+
+        if is_notebooklm_token_template(data):
+            print(
+                "  - NotebookLM token file is still a checked-in template. "
+                "Create tokens/auth.local.json or set NOTEBOOKLM_AUTH_TOKEN_PATH."
+            )
+            return []
 
         tokens = AuthTokens.from_dict(data)
         client = NotebookLMClient(cookies=tokens.cookies, csrf_token=tokens.csrf_token, session_id=tokens.session_id)

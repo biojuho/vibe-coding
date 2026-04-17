@@ -52,7 +52,9 @@ async def run(config_path: str) -> int:
     print("    1) Verify NOTION_DATABASE_ID is a real database/data_source ID")
     print("    2) Share the target Notion DB/Data Source with the integration")
     print("    3) Ensure URL property exists (url or rich_text type)")
-    print("    4) If reviewer columns are missing, run: py -3 scripts/sync_notion_review_schema.py --config config.yaml --apply")
+    print(
+        "    4) If reviewer columns are missing, run: py -3 scripts/sync_notion_review_schema.py --config config.yaml --apply"
+    )
     return 2
 
 

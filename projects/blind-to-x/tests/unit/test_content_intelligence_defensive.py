@@ -46,7 +46,7 @@ class TestYamlRulesToTuplesDefensive:
                 {"label": "연봉", "keywords": ["연봉", "월급"]},  # 유효
             ]
         }
-        with patch("pipeline.content_intelligence._load_rules", return_value=malformed_rules):
+        with patch("pipeline.content_intelligence.rules._load_rules", return_value=malformed_rules):
             result = _yaml_rules_to_tuples("test_rules", self.FALLBACK)
 
         assert len(result) == 1
@@ -56,7 +56,7 @@ class TestYamlRulesToTuplesDefensive:
     def test_all_non_dict_entries_returns_fallback(self):
         """모든 엔트리가 non-dict 이면 fallback 반환."""
         malformed_rules = {"test_rules": ["string1", "string2", 123]}
-        with patch("pipeline.content_intelligence._load_rules", return_value=malformed_rules):
+        with patch("pipeline.content_intelligence.rules._load_rules", return_value=malformed_rules):
             result = _yaml_rules_to_tuples("test_rules", self.FALLBACK)
 
         assert result == self.FALLBACK
@@ -64,14 +64,14 @@ class TestYamlRulesToTuplesDefensive:
     def test_rules_not_a_list_returns_fallback(self):
         """규칙 값이 list 가 아닌 dict 이면 fallback 반환."""
         malformed_rules = {"test_rules": {"not": "a list"}}
-        with patch("pipeline.content_intelligence._load_rules", return_value=malformed_rules):
+        with patch("pipeline.content_intelligence.rules._load_rules", return_value=malformed_rules):
             result = _yaml_rules_to_tuples("test_rules", self.FALLBACK)
 
         assert result == self.FALLBACK
 
     def test_missing_key_returns_fallback(self):
         """키가 없으면 fallback 반환."""
-        with patch("pipeline.content_intelligence._load_rules", return_value={}):
+        with patch("pipeline.content_intelligence.rules._load_rules", return_value={}):
             result = _yaml_rules_to_tuples("nonexistent_key", self.FALLBACK)
 
         assert result == self.FALLBACK
@@ -79,7 +79,7 @@ class TestYamlRulesToTuplesDefensive:
     def test_entry_missing_label_is_skipped(self):
         """label 이 빈 문자열인 엔트리는 건너뜀."""
         rules = {"test_rules": [{"label": "", "keywords": ["kw"]}, {"label": "유효", "keywords": ["ok"]}]}
-        with patch("pipeline.content_intelligence._load_rules", return_value=rules):
+        with patch("pipeline.content_intelligence.rules._load_rules", return_value=rules):
             result = _yaml_rules_to_tuples("test_rules", self.FALLBACK)
 
         assert len(result) == 1
@@ -88,7 +88,7 @@ class TestYamlRulesToTuplesDefensive:
     def test_entry_missing_keywords_is_skipped(self):
         """keywords 가 빈 리스트인 엔트리는 건너뜀."""
         rules = {"test_rules": [{"label": "라벨", "keywords": []}, {"label": "유효", "keywords": ["ok"]}]}
-        with patch("pipeline.content_intelligence._load_rules", return_value=rules):
+        with patch("pipeline.content_intelligence.rules._load_rules", return_value=rules):
             result = _yaml_rules_to_tuples("test_rules", self.FALLBACK)
 
         assert len(result) == 1

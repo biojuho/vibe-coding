@@ -1,65 +1,66 @@
-# n8n 워크플로우 자동화 시스템
+# n8n Workflow Automation
 
-## 아키텍처
+## Architecture
 
+```text
+n8n (Docker:5678) -> HTTP -> Bridge Server (Host:9876) -> subprocess -> Python pipelines
 ```
-n8n (Docker:5678) ──HTTP──> Bridge Server (Host:9876) ──subprocess──> Python 파이프라인
-```
 
-- **n8n**: Docker 컨테이너에서 워크플로우 오케스트레이션
-- **Bridge Server**: 호스트 Windows에서 실행되는 FastAPI 서버 (보안 게이트웨이)
-- **파이프라인**: 기존 Blind-to-X / Shorts Maker Python 스크립트 (변경 없음)
+- `n8n`: Docker container that runs the workflow UI and scheduler.
+- `Bridge Server`: local FastAPI bridge that exposes a small allowlist of commands.
+- `Pipelines`: existing Blind-to-X and Shorts Maker Python entrypoints.
 
-## 빠른 시작
+## Quick Start
 
 ```bash
-# 1. 의존성 설치 (최초 1회)
+# 1. Install bridge dependencies (first time only)
 pip install fastapi uvicorn
 
-# 2. n8n 시스템 시작
+# 2. Export local credentials before startup
+# BRIDGE_TOKEN=<your-bridge-token>
+# N8N_BASIC_AUTH_PASSWORD=<strong-local-password>
+
+# 3. Start the system
 start_n8n.bat
 
-# 3. n8n UI 접속
-# http://localhost:5678 (admin / N8N_BASIC_AUTH_PASSWORD_PLACEHOLDER)
+# 4. Open n8n UI
+# http://localhost:5678
+# Username: ${N8N_BASIC_AUTH_USER:-admin}
+# Password: your local N8N_BASIC_AUTH_PASSWORD value
 
-# 4. 워크플로우 import
-# n8n UI → Settings → Import → workflows/ 폴더의 JSON 파일 선택
+# 5. Import workflows from infrastructure/n8n/workflows/
 ```
 
-## 종료
+## Stop
 
 ```bash
 stop_n8n.bat
 ```
 
-## 파일 구조
+## File Layout
 
-```
+```text
 infrastructure/n8n/
-├── docker-compose.yml     # n8n 컨테이너 설정
-├── bridge_server.py       # HTTP 브릿지 서버
-├── healthcheck.py         # 시스템 헬스체크 스크립트
-├── start_n8n.bat          # 원클릭 시작
-├── stop_n8n.bat           # 원클릭 종료
-├── logs/                  # 실행 로그 (자동 생성)
+├── docker-compose.yml
+├── bridge_server.py
+├── healthcheck.py
+├── start_n8n.bat
+├── stop_n8n.bat
+├── logs/
 └── workflows/
-    ├── btx_pipeline_schedule.json   # BTX 스케줄링 워크플로우
-    └── system_healthcheck.json      # 헬스체크 워크플로우
 ```
 
-## 보안
+## Security Notes
 
-- Bridge Server: Bearer 토큰 인증 (`N8N_BRIDGE_TOKEN_PLACEHOLDER`)
-- n8n UI: 기본 인증 (`admin` / `N8N_BASIC_AUTH_PASSWORD_PLACEHOLDER`)
-- 커맨드 화이트리스트: 사전 등록된 명령어만 실행 가능
-- localhost 전용: 외부 접근 불가
+- Bridge requests are authenticated with the `BRIDGE_TOKEN` environment variable.
+- n8n basic auth reads `N8N_BASIC_AUTH_USER` and `N8N_BASIC_AUTH_PASSWORD`.
+- The checked-in compose file only contains placeholders and safe defaults.
+- Keep live credentials in your local shell or local `.env`, not in this README.
 
-## n8n 최초 설정
+## First-Time n8n Setup
 
-1. n8n UI 접속 → 계정 생성
-2. **Settings → Credentials**: `Header Auth` 추가
-   - Name: `Bridge Auth`
-   - Header Name: `Authorization`
-   - Header Value: `Bearer N8N_BRIDGE_TOKEN_PLACEHOLDER`
-3. **Settings → Import**: `workflows/` 폴더의 JSON 파일 import
-4. 각 워크플로우 활성화
+1. Start the stack and create your n8n account if prompted.
+2. In `Settings -> Credentials`, add `Header Auth`.
+3. Use `Authorization` as the header name.
+4. Use `Bearer <your BRIDGE_TOKEN>` as the header value.
+5. Import the JSON workflows from `infrastructure/n8n/workflows/`.

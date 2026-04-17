@@ -16,22 +16,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-# When collected alongside other projects, sys.modules['main'] may point to
-# a different main module.  Force-reload from the correct path.
-_main_path = PROJECT_ROOT / "main.py"
-if "main" in sys.modules:
-    _existing = getattr(sys.modules["main"], "__file__", "") or ""
-    if str(_main_path) not in _existing:
-        del sys.modules["main"]
-
-import main as _btx_main  # noqa: E402
-
-_acquire_lock = _btx_main._acquire_lock
-_build_parser = _btx_main._build_parser
-_handle_single_commands = _btx_main._handle_single_commands
-_init_scrapers = _btx_main._init_scrapers
-_is_process_alive = _btx_main._is_process_alive
-_resolve_input_sources = _btx_main._resolve_input_sources
+from pipeline.cli import acquire_lock as _acquire_lock, _is_process_alive, build_parser as _build_parser
+from pipeline.runner import handle_single_commands as _handle_single_commands
+from pipeline.bootstrap import init_scrapers as _init_scrapers, resolve_input_sources as _resolve_input_sources
 
 
 # ---------------------------------------------------------------------------
@@ -85,7 +72,7 @@ class TestIsProcessAlive:
         # Windows + Python 3.14에서 os.kill(pid, 0)이 asyncio signal handler와
         # 간섭하여 이후 Future.result() 호출 시 SIGINT가 propagate됨.
         # os.kill을 모킹하여 _is_process_alive 로직만 격리 테스트.
-        monkeypatch.setattr("main.os.kill", lambda pid, sig: None)
+        monkeypatch.setattr("pipeline.cli.os.kill", lambda pid, sig: None)
         assert _is_process_alive(os.getpid()) is True
 
     def test_nonexistent_pid(self, monkeypatch):
@@ -96,7 +83,7 @@ class TestIsProcessAlive:
         def fake_kill(pid, sig):
             raise ProcessLookupError(errno.ESRCH, "No such process")
 
-        monkeypatch.setattr("main.os.kill", fake_kill)
+        monkeypatch.setattr("pipeline.cli.os.kill", fake_kill)
         assert _is_process_alive(999999) is False
 
 
@@ -140,7 +127,7 @@ class TestResolveInputSources:
 class TestAcquireLock:
     def test_acquire_fresh(self, tmp_path, monkeypatch):
         lock_file = tmp_path / "test.lock"
-        monkeypatch.setattr("main._LOCK_FILE", lock_file)
+        monkeypatch.setattr("pipeline.cli._LOCK_FILE", lock_file)
         assert _acquire_lock() is True
         assert lock_file.exists()
 
@@ -149,16 +136,16 @@ class TestAcquireLock:
         lock_file.parent.mkdir(parents=True, exist_ok=True)
         # Write a stale lock (1 hour + 1 second ago)
         lock_file.write_text(f"99999:{time.time() - 3601}")
-        monkeypatch.setattr("main._LOCK_FILE", lock_file)
-        monkeypatch.setattr("main._is_process_alive", lambda pid: False)
+        monkeypatch.setattr("pipeline.cli._LOCK_FILE", lock_file)
+        monkeypatch.setattr("pipeline.cli._is_process_alive", lambda pid: False)
         assert _acquire_lock() is True
 
     def test_active_lock_blocks(self, tmp_path, monkeypatch):
         lock_file = tmp_path / "test.lock"
         lock_file.parent.mkdir(parents=True, exist_ok=True)
         lock_file.write_text(f"{os.getpid()}:{time.time()}")
-        monkeypatch.setattr("main._LOCK_FILE", lock_file)
-        monkeypatch.setattr("main._is_process_alive", lambda pid: True)
+        monkeypatch.setattr("pipeline.cli._LOCK_FILE", lock_file)
+        monkeypatch.setattr("pipeline.cli._is_process_alive", lambda pid: True)
         assert _acquire_lock() is False
 
 
@@ -171,9 +158,9 @@ class TestInitScrapers:
     def test_init_with_valid_scraper(self, monkeypatch):
         mock_scraper_cls = MagicMock()
         mock_scraper_cls.return_value = MagicMock()
-        monkeypatch.setattr("main.get_scraper", lambda name: mock_scraper_cls)
+        monkeypatch.setattr("pipeline.bootstrap.get_scraper", lambda name: mock_scraper_cls)
         monkeypatch.setattr(
-            "main._resolve_input_sources",
+            "pipeline.bootstrap.resolve_input_sources",
             lambda config, args: ["blind"],
         )
         config = MagicMock()
@@ -185,9 +172,9 @@ class TestInitScrapers:
         def fail_scraper(name):
             raise RuntimeError("no scraper")
 
-        monkeypatch.setattr("main.get_scraper", fail_scraper)
+        monkeypatch.setattr("pipeline.bootstrap.get_scraper", fail_scraper)
         monkeypatch.setattr(
-            "main._resolve_input_sources",
+            "pipeline.bootstrap.resolve_input_sources",
             lambda config, args: ["broken"],
         )
         config = MagicMock()
@@ -211,7 +198,7 @@ class TestHandleSingleCommands:
         notion = AsyncMock()
         twitter = AsyncMock()
         mock_reprocess = AsyncMock(return_value=[{"success": True}])
-        monkeypatch.setattr("main.run_reprocess_approved", mock_reprocess)
+        monkeypatch.setattr("pipeline.runner.run_reprocess_approved", mock_reprocess)
 
         result = await _handle_single_commands(args, config, notifier, notion, twitter)
         assert result is True
@@ -225,7 +212,7 @@ class TestHandleSingleCommands:
         notion = AsyncMock()
         twitter = AsyncMock()
         mock_digest = AsyncMock()
-        monkeypatch.setattr("main.run_digest", mock_digest)
+        monkeypatch.setattr("pipeline.runner.run_digest", mock_digest)
 
         result = await _handle_single_commands(args, config, notifier, notion, twitter)
         assert result is True
@@ -238,7 +225,7 @@ class TestHandleSingleCommands:
         notion = AsyncMock()
         twitter = AsyncMock()
         mock_report = MagicMock()
-        monkeypatch.setattr("main.run_sentiment_report", mock_report)
+        monkeypatch.setattr("pipeline.runner.run_sentiment_report", mock_report)
 
         result = await _handle_single_commands(args, config, notifier, notion, twitter)
         assert result is True

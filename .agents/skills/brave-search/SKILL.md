@@ -8,7 +8,9 @@ description: Enhanced web search capabilities using Brave Search API.
 This skill enables the agent to perform high-quality, privacy-focused web searches.
 
 ## Configuration
-- **API Key**: Managed in `secrets.json`
+- **API Key**: Prefer `BRAVE_API_KEY` from the environment.
+- **Tracked Template**: `secrets.json` is a checked-in template only.
+- **Optional Local Override**: keep live credentials in an untracked `secrets.local.json` if you need a file-based workflow.
 - **Model**: Brave Search API
 
 ## Usage Instructions

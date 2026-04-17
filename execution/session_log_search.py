@@ -32,7 +32,15 @@ ARCHIVE_DIR = AI_DIR / "archive"
 DB_PATH = ROOT / ".tmp" / "session_log_search.db"
 
 ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-HEADING_RE = re.compile(r"^##\s+(?P<date>\d{4}-\d{2}-\d{2})\s*\|\s*(?P<tool>[^|]+?)\s*\|\s*(?P<title>.+?)\s*$")
+# Archive headings use '|', '—' (em dash), or '??' as separators between
+# date, tool, and title. The '??' variant exists because one archive file's
+# em-dashes were lossily re-encoded at some point; keep it searchable anyway.
+_SEP = r"(?:\||\u2014|\?\?)"
+HEADING_RE = re.compile(
+    r"^##\s+(?P<date>\d{4}-\d{2}-\d{2})\s*" + _SEP + r"\s*"
+    r"(?P<tool>.+?)\s*" + _SEP + r"\s*"
+    r"(?P<title>.+?)\s*$"
+)
 
 
 @dataclass
@@ -155,8 +163,33 @@ def ensure_index() -> None:
         build_index()
 
 
+_FTS_SAFE_TOKEN = re.compile(r"^\w+\*?$", re.UNICODE)
+
+
+def normalize_query(q: str) -> str:
+    """Auto-quote tokens with punctuation so `hanwoo-dashboard` etc. work.
+
+    Leaves explicit FTS5 syntax untouched if the user already used quotes,
+    parentheses, or a column filter (`col:term`).
+    """
+    if '"' in q or "(" in q or ":" in q:
+        return q
+    out: list[str] = []
+    for token in q.split():
+        if token in ("AND", "OR", "NOT") or token.upper().startswith("NEAR"):
+            out.append(token)
+            continue
+        if _FTS_SAFE_TOKEN.match(token):
+            out.append(token)
+            continue
+        # Wrap as a quoted phrase to escape FTS5 punctuation semantics.
+        out.append('"' + token.replace('"', "") + '"')
+    return " ".join(out)
+
+
 def search(query: str, *, tool: str | None, since: str | None, limit: int) -> list[sqlite3.Row]:
     ensure_index()
+    query = normalize_query(query)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     sql = [
@@ -232,7 +265,7 @@ def main() -> int:
             "  blind*                 (prefix)\n"
         ),
     )
-    p.add_argument("query", nargs="?", help="검색어 (FTS5 MATCH 문법)")
+    p.add_argument("query", nargs="*", help="검색어 (여러 단어 허용, FTS5 MATCH 문법)")
     p.add_argument("--tool", help="도구명 필터 (예: Codex, Claude, Gemini)")
     p.add_argument("--since", help="YYYY-MM-DD 이후만")
     p.add_argument("--limit", type=int, default=10, help="결과 개수 (default 10)")
@@ -240,20 +273,22 @@ def main() -> int:
     p.add_argument("--stats", action="store_true", help="인덱스 통계 출력")
     args = p.parse_args()
 
+    query_str = " ".join(args.query).strip() if args.query else ""
+
     if args.reindex:
         n = build_index()
         print(f"Rebuilt index: {n} entries -> {DB_PATH}")
-        if not args.query and not args.stats:
+        if not query_str and not args.stats:
             return 0
 
     if args.stats:
         print(stats())
         return 0
 
-    if not args.query:
+    if not query_str:
         p.error("query is required (or use --stats / --reindex)")
 
-    rows = search(args.query, tool=args.tool, since=args.since, limit=args.limit)
+    rows = search(query_str, tool=args.tool, since=args.since, limit=args.limit)
     print(format_results(rows))
     return 0
 

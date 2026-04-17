@@ -332,7 +332,9 @@ async def run(config_path: str, apply_changes: bool, limit: int | None) -> int:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Backfill reviewer-first Notion columns for existing blind-to-x pages.")
+    parser = argparse.ArgumentParser(
+        description="Backfill reviewer-first Notion columns for existing blind-to-x pages."
+    )
     parser.add_argument("--config", default="config.yaml", help="Path to config file")
     parser.add_argument("--limit", type=int, default=None, help="Optional max page count to scan")
     parser.add_argument("--apply", action="store_true", help="Actually update Notion pages")

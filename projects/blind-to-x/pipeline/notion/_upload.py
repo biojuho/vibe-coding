@@ -117,7 +117,9 @@ class NotionUploadMixin:
             return ["twitter"]
         return []
 
-    def _extract_review_risk_flags(self, post_data: dict[str, Any], drafts: Any, analysis: dict[str, Any] | None) -> list[str]:
+    def _extract_review_risk_flags(
+        self, post_data: dict[str, Any], drafts: Any, analysis: dict[str, Any] | None
+    ) -> list[str]:
         flags: list[str] = []
 
         for reason in (analysis or {}).get("hard_reject_reasons", []) or []:
@@ -219,7 +221,9 @@ class NotionUploadMixin:
             "3. 살릴 가치가 낮으면 '반려 사유'만 체크하고 반려로 끝냅니다.",
         ]
 
-    def _build_review_brief(self, post_data: dict[str, Any], drafts: Any, analysis: dict[str, Any] | None) -> dict[str, Any]:
+    def _build_review_brief(
+        self, post_data: dict[str, Any], drafts: Any, analysis: dict[str, Any] | None
+    ) -> dict[str, Any]:
         creator_take = ""
         if isinstance(drafts, dict):
             creator_take = str(drafts.get("creator_take", "") or "").strip()
@@ -330,7 +334,9 @@ class NotionUploadMixin:
                                 "type": "emoji",
                                 "emoji": "📝" if review_brief["has_publishable_draft"] else "⚠️",
                             },
-                            "color": "green_background" if review_brief["has_publishable_draft"] else "yellow_background",
+                            "color": "green_background"
+                            if review_brief["has_publishable_draft"]
+                            else "yellow_background",
                         },
                     }
                 )
@@ -451,9 +457,7 @@ class NotionUploadMixin:
                             {
                                 "object": "block",
                                 "type": "heading_3",
-                                "heading_3": {
-                                    "rich_text": [{"type": "text", "text": {"content": "링크 메모"}}]
-                                },
+                                "heading_3": {"rich_text": [{"type": "text", "text": {"content": "링크 메모"}}]},
                             }
                         )
                         children.extend(self._create_text_blocks(drafts["reply_text"]))

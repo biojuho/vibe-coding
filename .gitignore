@@ -11,6 +11,8 @@ credentials.json
 token.json
 *.pem
 *.key
+.agents/skills/brave-search/secrets.local.json
+infrastructure/notebooklm-mcp/tokens/auth.local.json
 
 # ===== 런타임 출력물 =====
 .tmp/
@@ -75,7 +77,8 @@ venv/
 # ===== AI 도구 로컬 설정 (각 도구 고유) =====
 .agent/
 .agents/skills/_archive/
-.claude/
+.claude/*
+!.claude/commands/
 .codex/
 .vscode/
 .gemini/

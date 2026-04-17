@@ -391,7 +391,9 @@ def get_youtube_stats() -> dict[str, int]:
             SELECT
                 SUM(CASE WHEN youtube_status = 'uploaded' THEN 1 ELSE 0 END) AS uploaded,
                 SUM(CASE WHEN youtube_status = 'failed'   THEN 1 ELSE 0 END) AS yt_failed,
-                SUM(CASE WHEN status = 'success' AND (youtube_status = '' OR youtube_status IS NULL) THEN 1 ELSE 0 END) AS awaiting
+                SUM(CASE WHEN status = 'success'
+                          AND (youtube_status = '' OR youtube_status IS NULL)
+                         THEN 1 ELSE 0 END) AS awaiting
             FROM content_queue
         """).fetchone()
     if row:

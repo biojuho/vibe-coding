@@ -302,7 +302,13 @@ class FeedbackLoop:
         """
         losers = [r for r in records if r.get("performance_grade") == "D" or r.get("status") == "반려됨"]
         if not losers:
-            return {"count": 0, "risky_combos": [], "auto_filters": [], "top_rejection_reasons": [], "top_risk_flags": []}
+            return {
+                "count": 0,
+                "risky_combos": [],
+                "auto_filters": [],
+                "top_rejection_reasons": [],
+                "top_risk_flags": [],
+            }
 
         # 토픽+훅 조합별 실패 빈도
         combo_c: Counter = Counter()

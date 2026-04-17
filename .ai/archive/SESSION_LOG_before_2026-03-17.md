@@ -1054,7 +1054,7 @@ n8n Phase 1 도입 완료 — Docker Desktop + n8n 컨테이너 + HTTP 브릿지
 
 ### 다음 도구에게 전달할 메모
 - n8n UI: `http://localhost:5678` (계정은 사용자가 직접 설정)
-- 브릿지 서버: `http://127.0.0.1:9876` (토큰: `Bearer N8N_BRIDGE_TOKEN_PLACEHOLDER`)
+- 브릿지 서버: `http://127.0.0.1:9876` (토큰: `Bearer n8n-bridge-secret-2026`)
 - n8n에서 호스트 접근: `http://host.docker.internal:9876`
 - 워크플로우 ID: BTX=`D0rhgz3Gm4GMnlVy`, Healthcheck=`m9lnmfWHgcAQVGFW`
 - Credential ID: `GDHnGurtIfPtiGMq` (Header Auth)

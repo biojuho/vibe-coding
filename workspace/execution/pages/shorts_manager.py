@@ -126,7 +126,7 @@ def _status_badge(status: str) -> str:
     labels = {"pending": "대기", "running": "생성중", "success": "완료", "failed": "실패"}
     color = colors.get(status, "#6c757d")
     label = labels.get(status, status)
-    return f"<span style='background:{color};color:white;padding:2px 8px;border-radius:10px;font-size:0.75rem'>{label}</span>"
+    return f"<span style='background:{color};color:white;padding:2px 8px;border-radius:10px;font-size:0.75rem'>{label}</span>"  # noqa: E501
 
 
 def _fmt_dur(sec: float) -> str:
@@ -143,11 +143,14 @@ def _fmt_cost(usd: float) -> str:
 def _youtube_badge(yt_status: str, yt_url: str = "") -> str:
     if yt_status == "uploaded" and yt_url:
         safe_url = _html.escape(yt_url, quote=True)
-        return f"<a href='{safe_url}' target='_blank' style='background:#ff0000;color:white;padding:2px 8px;border-radius:10px;font-size:0.7rem;text-decoration:none'>▶ YT</a>"
+        _style = (
+            "background:#ff0000;color:white;padding:2px 8px;border-radius:10px;font-size:0.7rem;text-decoration:none"  # noqa: E501
+        )
+        return f"<a href='{safe_url}' target='_blank' style='{_style}'>▶ YT</a>"
     if yt_status == "uploaded":
-        return "<span style='background:#ff0000;color:white;padding:2px 8px;border-radius:10px;font-size:0.7rem'>▶ YT</span>"
+        return "<span style='background:#ff0000;color:white;padding:2px 8px;border-radius:10px;font-size:0.7rem'>▶ YT</span>"  # noqa: E501
     if yt_status == "failed":
-        return "<span style='background:#6c757d;color:white;padding:2px 8px;border-radius:10px;font-size:0.7rem'>YT 실패</span>"
+        return "<span style='background:#6c757d;color:white;padding:2px 8px;border-radius:10px;font-size:0.7rem'>YT 실패</span>"  # noqa: E501
     return ""
 
 

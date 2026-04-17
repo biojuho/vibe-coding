@@ -120,37 +120,56 @@ SECURITY_TRIAGE_RULES = [
         "file": "projects/blind-to-x/pipeline/cost_db.py",
         "match_preview": 'f"SELECT * FROM {table}',
         "classification": "false_positive",
-        "reason": "archive_old_data only interpolates table names from the internal _ARCHIVE_TABLES frozenset; the date cutoff remains parameterized.",
+        "reason": (
+            "archive_old_data only interpolates table names from the internal"
+            " _ARCHIVE_TABLES frozenset; the date cutoff remains parameterized."
+        ),
     },
     {
         "file": "projects/blind-to-x/pipeline/cost_db.py",
         "match_preview": 'f"INSERT OR IGNORE INTO {table} VALUES ({placeholders}',
         "classification": "false_positive",
-        "reason": "archive_old_data only copies between archive tables chosen from the internal _ARCHIVE_TABLES frozenset; row values stay parameterized via executemany().",
+        "reason": (
+            "archive_old_data only copies between archive tables chosen from the"
+            " internal _ARCHIVE_TABLES frozenset; row values stay parameterized"
+            " via executemany()."
+        ),
     },
     {
         "file": "projects/blind-to-x/pipeline/cost_db.py",
         "match_preview": 'f"DELETE FROM {table}',
         "classification": "false_positive",
-        "reason": "archive_old_data only deletes from archive tables chosen from the internal _ARCHIVE_TABLES frozenset, with the cutoff value parameterized.",
+        "reason": (
+            "archive_old_data only deletes from archive tables chosen from the"
+            " internal _ARCHIVE_TABLES frozenset, with the cutoff value parameterized."
+        ),
     },
     {
         "file": "workspace/execution/content_db.py",
         "match_preview": 'f"UPDATE content_queue SET {set_clause}',
         "classification": "false_positive",
-        "reason": "update_job validates every update key against UPDATABLE_COLUMNS before composing the SET clause, and all values remain parameterized.",
+        "reason": (
+            "update_job validates every update key against UPDATABLE_COLUMNS before"
+            " composing the SET clause, and all values remain parameterized."
+        ),
     },
     {
         "file": "infrastructure/sqlite-multi-mcp/server.py",
         "match_preview": 'f"SELECT COUNT(*) FROM {safe_name}',
         "classification": "false_positive",
-        "reason": "get_table_schema interpolates a table identifier only after _validate_table_name restricts it to safe SQLite identifier characters.",
+        "reason": (
+            "get_table_schema interpolates a table identifier only after"
+            " _validate_table_name restricts it to safe SQLite identifier characters."
+        ),
     },
     {
         "file": "infrastructure/sqlite-multi-mcp/server.py",
         "match_preview": 'f"SELECT COUNT(*) FROM {safe_t}',
         "classification": "false_positive",
-        "reason": "quick_stats interpolates table identifiers only after _validate_table_name restricts them to safe SQLite identifier characters.",
+        "reason": (
+            "quick_stats interpolates table identifiers only after"
+            " _validate_table_name restricts them to safe SQLite identifier characters."
+        ),
     },
 ]
 
@@ -629,9 +648,9 @@ def run_qaqc(
                 ],
             }
             print(f"   TDR: {audit.overall_tdr:.1f}% [{audit.overall_grade}]")
-            print(
-                f"   Principal: {audit.total_principal_hours:.1f}h | Interest: {audit.total_interest_monthly_hours:.1f}h/mo"
-            )
+            principal = f"{audit.total_principal_hours:.1f}h"
+            interest = f"{audit.total_interest_monthly_hours:.1f}h/mo"
+            print(f"   Principal: {principal} | Interest: {interest}")
 
             try:
                 from execution.debt_history_db import DebtHistoryDB

@@ -78,14 +78,18 @@ class DraftProvidersMixin:
         explicit = self.config.get("ollama.enabled", None)
         if explicit is False:
             return False
+        base_url = self.config.get("ollama.base_url", "http://localhost:11434/v1")
+        # `/v1` 은 OpenAI-호환 경로 — health check 은 루트 `/api/tags` 사용
+        host = base_url.rstrip("/").removesuffix("/v1")
+        health_url = f"{host}/api/tags"
         try:
             import urllib.request
 
-            req = urllib.request.Request("http://localhost:11434/api/tags", method="GET")
+            req = urllib.request.Request(health_url, method="GET")
             with urllib.request.urlopen(req, timeout=2) as resp:
                 return resp.status == 200
         except Exception:
-            logger.debug("Ollama not available at localhost:11434 — disabled as fallback.")
+            logger.debug("Ollama not available at %s — disabled as fallback.", health_url)
             return False
 
     def _enabled_providers(self) -> list[str]:

@@ -4,8 +4,10 @@ cron 기반 태스크 스케줄링을 SQLite로 관리.
 
 Usage:
     python workspace/execution/scheduler_engine.py list
-    python workspace/execution/scheduler_engine.py add --name "Daily Backup" --exec python --args "workspace/scripts/backup_data.py" --cron "0 9 * * *"
-    python workspace/execution/scheduler_engine.py add --name "Legacy Cmd" --command "python workspace/scripts/backup_data.py" --cron "0 9 * * *"
+    python workspace/execution/scheduler_engine.py add --name "Daily Backup" \\
+        --exec python --args "workspace/scripts/backup_data.py" --cron "0 9 * * *"
+    python workspace/execution/scheduler_engine.py add --name "Legacy Cmd" \\
+        --command "python workspace/scripts/backup_data.py" --cron "0 9 * * *"
     python workspace/execution/scheduler_engine.py run-due
     python workspace/execution/scheduler_engine.py logs --limit 50
     python workspace/execution/scheduler_engine.py kpis

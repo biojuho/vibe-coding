@@ -4,9 +4,10 @@
 
 ## TODO
 
-| ID | Task | Owner | Priority | Created |
-|---|---|---|---|---|
-| T-189 | `hanwoo-dashboard` 브라우저 자동화 환경 복구 (Playwright `0xc0000005` Access Violation) | Any | Medium | 2026-04-13 |
+| ID | Task | Owner | Priority | Auto | Created |
+|---|---|---|---|---|---|
+| T-223 | `[workspace]` Public flip rollout from `.tmp/public-history-rewrite`: resolve or close dependabot PRs `#1`, `#2`, `#3`, then perform the user-approved destructive rewritten-history push / visibility change from the sanitized clone. | User | P0 | 🔴 approval | 2026-04-17 |
+| T-199 | `[workspace]` GitHub branch protection for `main` requiring CI pass. Blocked because the repo is private on a free plan and the live API check returned HTTP 403. | User | P1 | 🔴 approval | 2026-04-14 |
 
 ## IN_PROGRESS
 
@@ -17,16 +18,18 @@
 
 | ID | Task | Completed By | Completed |
 |---|---|---|---|
-| T-161 | `hanwoo-dashboard` UX/UI polish pass + QC (PremiumCard clay, alert banners CSS 변수 전환, footer 접근성, dead code 제거) | Gemini | 2026-04-13 |
-| T-188 | [`blind-to-x`] Clean up the remaining `tests/unit/test_process.py` lint issue after the timeout-targeting edits and re-verify the focused process tests. | Codex | 2026-04-11 |
-| T-187 | [`workspace`] Patch the local `code-review-graph` Python 3.13 package for UTF-8-safe file and git subprocess handling so `detect-changes` no longer crashes on Windows `cp949`. | Codex | 2026-04-11 |
-| T-186 | [`blind-to-x`] Resolve the live Notion status-query 400 path in `pipeline/notion/_query.py` by mapping logical status labels to actual select options and canonicalizing the returned labels. | Codex | 2026-04-11 |
-| T-185 | [`blind-to-x`] Fix unit-test environment leakage so `.env` or earlier `load_env()` calls cannot override `NotionUploader` test fixtures via `NOTION_DATABASE_ID` / `NOTION_PROP_*`. | Codex | 2026-04-11 |
+| T-215 | `[workspace]` Public-history decision recorded: because rotated Brave / NotebookLM secrets still exist in past commits, any future public visibility change must use the sanitized `.tmp/public-history-rewrite` history rather than exposing the current unre-written repo history. | Codex | 2026-04-17 |
+| T-222 | `[hanwoo-dashboard]` DashboardClient 훅 분리 (useWeather, useOfflineSyncQueue 등) 및 위젯/분석 탭 UI 폴리싱 (PremiumCard, 다국어 처리) 적용. `npm test` 51/51 통과. | Gemini (Antigravity) | 2026-04-17 |
+| T-221 | `[hanwoo-dashboard]` Next 16 production build restored by switching the build script to `next build --webpack` after Turbopack failed on `next/font/google` in `src/app/layout.js`; `npm run build` and `npm test` passed. | Codex | 2026-04-17 |
+| T-220 | `[shorts-maker-v2]` Phase 2 render test split finished: `test_render_step_*.py` import issue fixed via `conftest_render`, full split suite green. | Gemini (Antigravity) | 2026-04-17 |
+| T-217 | `[blind-to-x]` `main.py` split confirmed complete with `pipeline/cli.py`, `runner.py`, and `bootstrap.py`; `test_main.py` 20/20 passed. | Gemini (Antigravity) | 2026-04-15 |
 
-## Rules
-
-- Use IDs in the form `T-XXX`.
-- Move tasks from `TODO` -> `IN_PROGRESS` when started.
-- Move tasks from `IN_PROGRESS` -> `DONE` when completed.
 - Keep only the latest 5 items in `DONE`.
 - Add newly discovered follow-up work to `TODO`.
+
+### Smart Continue Lite - Auto Column Rules
+
+- `🟢 safe`: can proceed immediately on a short “continue/go” command.
+- `🔴 approval`: requires explicit user confirmation before execution.
+- `🟢 safe` limit: at most 7 files changed, roughly 250 added lines, same feature/module boundary, and no package install, DB schema, auth/security, public API, stack, infra, or CI changes.
+- If only `🔴 approval` tasks remain, stop and ask which one the user wants next.

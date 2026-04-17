@@ -19,7 +19,9 @@ from pipeline.dedup import check_cross_source_duplicates
 logger = logging.getLogger(__name__)
 
 
-async def collect_feed_items(config_mgr, args, scrapers, daily_queue_floor: DailyQueueFloorState | None = None) -> tuple[list[dict], dict]:
+async def collect_feed_items(
+    config_mgr, args, scrapers, daily_queue_floor: DailyQueueFloorState | None = None
+) -> tuple[list[dict], dict]:
     """Collect, filter, dedup and limit candidate posts across all sources.
 
     Args:
