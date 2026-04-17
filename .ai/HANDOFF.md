@@ -6,6 +6,14 @@
 
 | Field | Value |
 |---|---|
+| Date | 2026-04-17 |
+| Tool | Gemini (Antigravity) |
+| Work | **T-220 완료**: `shorts-maker-v2` Phase 2 test split import fix. `tests/unit/__init__.py` 미존재로 `from tests.unit.conftest_render import ...` 절대 경로가 `ModuleNotFoundError`를 유발. 4개 파일(`test_render_step_core/captions/effects/audio_mix.py`)을 `from conftest_render import ...`로 수정. `ruff format` 적용 후 커밋 `24a4434`. 검증: `1293 passed, 12 skipped`. |
+| Next Priorities | 1. T-215 (User): Brave API key / NotebookLM 세션 rotate/revoke (보안). 2. T-199 (User): GitHub branch protection — private+무료 플랜 블로킹. 3. 추가 기술 부채 식별 필요 (shorts-maker-v2 media_step.py mixin 분리 등). |
+
+
+| Field | Value |
+|---|---|
 | Date | 2026-04-15 |
 | Tool | Codex |
 | Work | **Remote-branch cleanup executed**: used the generated safe command from `.tmp/public-history-rewrite` to delete `fix/notion-review-status` on GitHub. Re-ran `python execution/remote_branch_cleanup.py --repo biojuho/vibe-coding --local-repo .tmp/public-history-rewrite` plus `git ls-remote --heads` / `gh pr list` and confirmed the remote now has only 3 remote-only branches left, all blocked by open dependabot PRs: `#1`, `#2`, `#3`. There are no remaining immediately safe remote-only deletions. |
