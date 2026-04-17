@@ -70,6 +70,13 @@
 | Work | **T-199 라이브 재확인**: `python execution/github_branch_protection.py --check-live`를 다시 실행해 `biojuho/vibe-coding` / `main`의 branch protection 차단 상태를 2026-04-15 기준으로 재검증했다. 결과는 여전히 `status: blocked`, 저장소는 `PRIVATE`, GitHub 응답 메시지는 `Upgrade to GitHub Pro or make this repository public to enable this feature.`였고, 준비된 payload(`root-quality-gate`, `test-summary`) 자체는 dry-run으로 정상 생성됨을 함께 확인했다. |
 | Next Priorities | 1. `T-199`는 기술 문제가 아니라 GitHub 플랜/가시성 결정 대기 상태. 2. 결정 후 `python execution/github_branch_protection.py --apply` 실행, 이어서 `--check-live` 재검증. |
 
+| Field | Value |
+|---|---|
+| Date | 2026-04-17 |
+| Tool | Codex |
+| Work | **T-224 continued**: kept the cleanup work isolated in `.tmp/public-hygiene-cleanup`, updated PR `#25` (`chore/public-repo-cleanup`) beyond the original `.code-review-graph/graph.db` untracking so the branch can actually merge under the new protection rules, and pushed follow-up commits through `9c296a9`. The branch now includes: CI matrix fixes in `.github/workflows/full-test-matrix.yml`, `knowledge-dashboard` smoke/typecheck stability updates, `hanwoo-dashboard` CI/smoke hardening, `blind-to-x` deterministic timezone test fixtures, and `shorts-maker-v2` dependency declarations for `edge-tts`, `anthropic`, and `pytrends`. Local verification on the clean worktree passed for `knowledge-dashboard` (`npm exec -- tsc --noEmit`, `node --test src/lib/dashboard-insights.test.mts`, `npm run build`, `npm run smoke`), `hanwoo-dashboard` (`npm ci` with `DATABASE_URL`, `npm run smoke` with `DATABASE_URL`), and `blind-to-x` (`python -m pytest tests/unit/test_content_calendar_branches.py -q --tb=short --maxfail=1 -o addopts=`). |
+| Next Priorities | 1. Re-check GitHub PR `#25` once the platform reflects remote head `9c296a9`; current PR metadata is still showing previous head `ebfaec9`. 2. If the new run still fails, inspect the next surfaced blocker instead of re-tracing the already-fixed `knowledge-dashboard` path. 3. Even after checks pass, PR `#25` still needs one non-author approval before merge. |
+
 ## Previous Update
 
 | Field | Value |
