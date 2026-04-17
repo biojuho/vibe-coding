@@ -1,13 +1,16 @@
 import asyncio
 from unittest.mock import AsyncMock
 
+
 async def main():
     try:
         title_el = AsyncMock()
         title_el.inner_text = AsyncMock(return_value="뽐뿌 할인!")
 
         content_el = AsyncMock()
-        content_el.inner_text = AsyncMock(return_value="내용입니다.     이것은 10자 이상입니다.") # Length should be > 10 for ppomppu check!
+        content_el.inner_text = AsyncMock(
+            return_value="내용입니다.     이것은 10자 이상입니다."
+        )  # Length should be > 10 for ppomppu check!
         content_el.query_selector_all = AsyncMock(return_value=[])
 
         main_container_mock = AsyncMock()
@@ -22,7 +25,6 @@ async def main():
         page_mock = AsyncMock()
         page_mock.query_selector.side_effect = qs_map
         main_container_mock.query_selector.side_effect = lambda sel: content_el
-
 
         # Now simulate the scraper code
         # 1. title
@@ -51,6 +53,8 @@ async def main():
 
     except Exception:
         import traceback
+
         traceback.print_exc()
+
 
 asyncio.run(main())

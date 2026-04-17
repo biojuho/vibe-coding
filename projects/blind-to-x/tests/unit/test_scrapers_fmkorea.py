@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from scrapers.fmkorea import FMKoreaScraper
 
+
 @pytest.fixture
 def mock_config():
     return {
@@ -10,9 +11,11 @@ def mock_config():
         "scrape_quality.save_failure_snapshot": False,
     }
 
+
 @pytest.fixture
 def scraper(mock_config):
     return FMKoreaScraper(mock_config)
+
 
 @pytest.mark.asyncio
 async def test_normalize_url(scraper):
@@ -20,6 +23,7 @@ async def test_normalize_url(scraper):
     assert scraper._normalize_url("https://www.fmkorea.com/humor/67890") == "https://www.fmkorea.com/humor/67890"
     assert scraper._normalize_url(None) is None
     assert scraper._normalize_url("https://example.com/post") is None
+
 
 @pytest.mark.asyncio
 async def test_determine_category(scraper):
@@ -29,6 +33,7 @@ async def test_determine_category(scraper):
     assert scraper._determine_category("롤 게임 후기", "존잼") == "gaming"
     assert scraper._determine_category("최신 뉴스 속보", "정치 이슈") == "news"
     assert scraper._determine_category("일반적인 글", "별내용없음") == "general"
+
 
 @pytest.mark.asyncio
 @patch("scrapers.fmkorea.FMKoreaScraper._fetch_html_via_session", new_callable=AsyncMock)
@@ -49,6 +54,7 @@ async def test_fetch_post_urls(mock_fetch, scraper):
 
     urls = await scraper._fetch_post_urls("http://dummy_feed")
     assert "https://www.fmkorea.com/best/12345" in urls
+
 
 @pytest.mark.asyncio
 @patch("scrapers.fmkorea.FMKoreaScraper._fetch_html_via_session", new_callable=AsyncMock)
@@ -71,6 +77,7 @@ async def test_get_feed_candidates(mock_fetch, scraper):
     assert candidates[0].url == "https://www.fmkorea.com/best/12345"
     assert candidates[0].title == "테스트 게시글"
     assert candidates[0].comments == 42
+
 
 @pytest.mark.asyncio
 @patch("scrapers.fmkorea.os.makedirs")
@@ -112,6 +119,7 @@ async def test_scrape_post_success(mock_fetch, mock_mkdir, scraper):
     assert result["content"] == "이렇게 플레이했습니다."
     assert result["category"] == "gaming"
     assert "screenshot_path" in result
+
 
 @pytest.mark.asyncio
 @patch("scrapers.fmkorea.FMKoreaScraper._fetch_html_via_session", new_callable=AsyncMock)

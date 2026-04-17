@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from scrapers.base import BaseScraper, FeedCandidate
 
+
 @pytest.fixture
 def mock_config():
     return {
@@ -11,8 +12,9 @@ def mock_config():
         "request.retries": 1,
         "request.backoff_seconds": 0.1,
         "browser.pool_size": 1,
-        "browser.engine": "chromium"
+        "browser.engine": "chromium",
     }
+
 
 class DummyScraper(BaseScraper):
     async def scrape_post(self, url):
@@ -20,6 +22,7 @@ class DummyScraper(BaseScraper):
 
     async def get_feed_urls(self, mode="default", limit=5):
         return [f"http://example.com/{i}" for i in range(limit)]
+
 
 @pytest.mark.asyncio
 async def test_feed_candidate_engagement():
@@ -30,11 +33,13 @@ async def test_feed_candidate_engagement():
     # total = 98.5
     assert score == 98.5
 
+
 @pytest.mark.asyncio
 async def test_base_scraper_init(mock_config):
     scraper = DummyScraper(mock_config)
     assert scraper.headless is True
     assert scraper.request_retries == 1
+
 
 @pytest.mark.asyncio
 async def test_quality_assessment(mock_config):
@@ -42,27 +47,26 @@ async def test_quality_assessment(mock_config):
 
     post_data = {
         "title": "정상적인 제목입니다",
-        "content": "이것은 충분히 긴 형태의 한글 본문 컨텐츠입니다. 길이와 한글 비율 모두 양호합니다."
+        "content": "이것은 충분히 긴 형태의 한글 본문 컨텐츠입니다. 길이와 한글 비율 모두 양호합니다.",
     }
 
     result = scraper.assess_quality(post_data)
     assert result["score"] == 100
     assert len(result["reasons"]) == 0
 
+
 @pytest.mark.asyncio
 async def test_quality_assessment_poor(mock_config):
     scraper = DummyScraper(mock_config)
 
-    post_data = {
-        "title": "",
-        "content": "a?#"
-    }
+    post_data = {"title": "", "content": "a?#"}
 
     result = scraper.assess_quality(post_data)
     assert result["score"] < 100
     assert "missing_title" in result["reasons"]
     assert "short_content" in result["reasons"]
     assert "low_korean_ratio" in result["reasons"]
+
 
 @pytest.mark.asyncio
 async def test_suggest_selectors(mock_config):
@@ -76,17 +80,23 @@ async def test_suggest_selectors(mock_config):
     # should suggest .post-content
     assert ".post-content" in candidates or ".main-content" in candidates
 
+
 @pytest.mark.asyncio
 async def test_suggest_selectors_from_html():
-    html = """
+    html = (
+        """
     <div>
         <article class="board-contents">
-        """ + ("이것은 긴 한글 의미 없는 텍스트입니다. " * 20) + """
+        """
+        + ("이것은 긴 한글 의미 없는 텍스트입니다. " * 20)
+        + """
         </article>
     </div>
     """
+    )
     candidates = BaseScraper._suggest_selectors_from_html(html)
     assert ".board-contents" in candidates
+
 
 @pytest.mark.asyncio
 async def test_clean_text_extraction(mock_config):
@@ -97,6 +107,7 @@ async def test_clean_text_extraction(mock_config):
     except Exception:
         # allow pass if trafilatura is not installed
         pass
+
 
 @pytest.mark.asyncio
 @patch("scrapers.base.async_playwright")
@@ -128,6 +139,7 @@ async def test_scraper_open_close(mock_pw, mock_config):
         browser_mock.close.assert_called_once()
         pw_instance.stop.assert_called_once()
 
+
 @pytest.mark.asyncio
 @patch("scrapers.base.AsyncSession")
 async def test_fetch_html_via_session(mock_session_cls, mock_config):
@@ -144,6 +156,7 @@ async def test_fetch_html_via_session(mock_session_cls, mock_config):
     assert html == "<html><body>Test</body></html>"
     session_instance.get.assert_called_once()
 
+
 @pytest.mark.asyncio
 async def test_scrape_post_with_retry(mock_config):
     scraper = DummyScraper(mock_config)
@@ -151,6 +164,7 @@ async def test_scrape_post_with_retry(mock_config):
     res = await scraper.scrape_post_with_retry("http://example.com")
     assert res["url"] == "http://example.com"
     assert res["title"] == "Dummy"
+
 
 @pytest.mark.asyncio
 async def test_take_screenshot(mock_config):

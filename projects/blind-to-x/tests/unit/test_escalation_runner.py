@@ -3,10 +3,12 @@ from unittest.mock import AsyncMock, patch, MagicMock
 
 import escalation_runner
 
+
 @pytest.fixture
 def mock_config():
     config = MagicMock()
     return config
+
 
 @pytest.mark.asyncio
 @patch("pipeline.spike_detector.SpikeDetector")
@@ -20,6 +22,7 @@ async def test_run_cycle_no_spikes(mock_draft_gen, mock_pipeline, mock_queue, mo
     processed = await escalation_runner._run_cycle(mock_config, dry_run=True)
     assert processed == 0
     mock_queue.return_value.enqueue.assert_not_called()
+
 
 @pytest.mark.asyncio
 @patch("pipeline.spike_detector.SpikeDetector")
@@ -59,6 +62,7 @@ async def test_run_cycle_with_spikes(mock_draft_gen, mock_pipeline, mock_queue, 
         1, escalation_runner.EventStatus.AWAITING_APPROVAL, draft_x="My draft", draft_threads=[]
     )
 
+
 @pytest.mark.asyncio
 @patch("execution.telegram_notifier.answer_callback_query")
 @patch("execution.telegram_notifier.edit_message_reply_markup")
@@ -68,14 +72,7 @@ async def test_process_callback(mock_edit, mock_answer):
     event_mock.id = 123
     queue_mock.get_event.return_value = event_mock
 
-    query = {
-        "id": "cb1",
-        "data": "approve_123",
-        "message": {
-            "chat": {"id": 999},
-            "message_id": 888
-        }
-    }
+    query = {"id": "cb1", "data": "approve_123", "message": {"chat": {"id": 999}, "message_id": 888}}
 
     await escalation_runner._process_callback(query, queue_mock)
 

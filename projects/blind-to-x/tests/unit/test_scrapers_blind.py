@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import AsyncMock, patch
 from scrapers.blind import BlindScraper
 
+
 @pytest.fixture
 def mock_config():
     return {
@@ -9,22 +10,26 @@ def mock_config():
         "screenshot_dir": "./mock_screenshots",
         "scrape_quality.save_failure_snapshot": False,
         "blind.email": "test@test.com",
-        "blind.password": "password123"
+        "blind.password": "password123",
     }
+
 
 @pytest.fixture
 def scraper(mock_config):
     return BlindScraper(mock_config)
+
 
 def test_extract_count():
     assert BlindScraper._extract_count("좋아요 1,234 댓글 56", ["좋아요"]) == 1234
     assert BlindScraper._extract_count("조회 100", ["좋아요"]) == 0
     assert BlindScraper._extract_count(None, ["좋아요"]) == 0
 
+
 def test_determine_category(scraper):
     assert scraper._determine_category("소개팅 남친", "고민입니다") == "relationship"
     assert scraper._determine_category("주식 투자 가이드", "떡상") == "money"
     assert scraper._determine_category("이직", "이력서") == "career"
+
 
 @pytest.mark.asyncio
 async def test_login_success(scraper):
@@ -38,6 +43,7 @@ async def test_login_success(scraper):
     page_mock.fill.assert_any_call('input[type="password"]', "password123")
     page_mock.click.assert_called_with('button[type="submit"]')
 
+
 @pytest.mark.asyncio
 async def test_login_skip(mock_config):
     # If no credentials
@@ -49,6 +55,7 @@ async def test_login_skip(mock_config):
     success = await scraper._login(page_mock)
     assert success is True
     page_mock.goto.assert_not_called()
+
 
 @pytest.mark.asyncio
 @patch("scrapers.blind.BlindScraper._fetch_html_via_session", new_callable=AsyncMock)
@@ -68,6 +75,7 @@ async def test_fetch_post_urls(mock_fetch, scraper):
     assert len(urls) == 1
     assert urls[0] == "https://www.teamblind.com/kr/topic/123"
     scraper._login.assert_called_once_with(page_mock)
+
 
 @pytest.mark.asyncio
 @patch("scrapers.blind.BlindScraper._fetch_html_via_session", new_callable=AsyncMock)
@@ -91,6 +99,7 @@ async def test_get_feed_candidates(mock_fetch, scraper):
     assert len(candidates) == 1
     assert candidates[0].url == "https://www.teamblind.com/kr/topic/123"
     assert candidates[0].title == "블라인드글"
+
 
 @pytest.mark.asyncio
 @patch("scrapers.blind.os.makedirs")
