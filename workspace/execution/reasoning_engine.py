@@ -692,6 +692,10 @@ class ReasoningAdapter:
             try:
                 from execution.reasoning_chain import ReasoningChain
 
+                _patterns_json = json.dumps(
+                    [p.get("pattern_text", "") for p in new_patterns],
+                    ensure_ascii=False,
+                )
                 chain = ReasoningChain(llm_client=self.llm, n_samples=3)
                 chain_result = chain.reason(
                     system_prompt="당신은 추론 결과를 검증하는 전문가입니다.",
@@ -699,8 +703,8 @@ class ReasoningAdapter:
                         f"카테고리: {category}\n"
                         f"추출된 사실 수: {len(facts)}\n"
                         f"생성된 가설 수: {len(hypotheses)}\n"
-                        f"발견된 패턴: {json.dumps([p.get('pattern_text', '') for p in new_patterns], ensure_ascii=False)}\n\n"
-                        f"이 추론 결과의 품질과 일관성을 0~10으로 평가하고 간단히 설명하세요."
+                        f"발견된 패턴: {_patterns_json}\n\n"
+                        "이 추론 결과의 품질과 일관성을 0~10으로 평가하고 간단히 설명하세요."
                     ),
                 )
                 advanced_info["chain_review"] = {

@@ -234,7 +234,7 @@ def get_stats() -> Dict:
 
         by_module = {}
         for row in conn.execute(
-            "SELECT module, COUNT(*) as cnt FROM debug_entries WHERE module != '' GROUP BY module ORDER BY cnt DESC LIMIT 10"
+            "SELECT module, COUNT(*) as cnt FROM debug_entries WHERE module != '' GROUP BY module ORDER BY cnt DESC LIMIT 10"  # noqa: E501
         ).fetchall():
             by_module[row["module"]] = row["cnt"]
 
