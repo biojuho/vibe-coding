@@ -24,6 +24,7 @@
 ## Current Reliability Notes
 
 - `execution/remote_branch_cleanup.py` now inventories remote-only GitHub branches relative to a sanitized local clone, annotates open PR blockers, and can generate a PowerShell delete script containing only safe branch deletions.
+- As of 2026-04-17, T-215 is resolved as a policy decision: if `biojuho/vibe-coding` is ever made public, the rollout must use the sanitized `.tmp/public-history-rewrite` history rather than exposing the current unre-written repo history, because rotated Brave / NotebookLM secrets still exist in past commits.
 - `projects/hanwoo-dashboard` is still the main active deep-debug target outside the current Notion work.
 - `projects/hanwoo-dashboard/package.json` now pins the production build path to `next build --webpack` because the default Next 16 Turbopack build currently fails on the Google fonts loaded from `src/app/layout.js`; `npm run build` is green again after the opt-out.
 - `projects/hanwoo-dashboard/src/lib/dashboard/pagination-guard.mjs` prevents repeated-cursor and runaway page-loop conditions in full-registry loaders and client pagination hooks.
@@ -63,6 +64,8 @@
 
 ## Recent Verification
 
+- `workspace`: `python execution/remote_branch_cleanup.py --repo biojuho/vibe-coding --local-repo .tmp/public-history-rewrite` re-ran on 2026-04-17 and still reports 3 remote-only branches, all blocked by open dependabot PRs `#1`, `#2`, `#3`.
+- `workspace`: `python execution/github_branch_protection.py --check-live` re-ran on 2026-04-17 and still reported `status: blocked` because `biojuho/vibe-coding` remains `PRIVATE` on GitHub Free.
 - `projects/hanwoo-dashboard`: QC re-ran on 2026-04-17 after the T-221 build-script fix, and both `npm run build` and `npm test` passed again with no new regression in the validated release path.
 - `projects/hanwoo-dashboard`: `npm run build` passed on 2026-04-17 after `package.json` was updated to run `next build --webpack` instead of the default Turbopack build, which had been failing on `next/font/google` resolution in `src/app/layout.js`.
 - `projects/hanwoo-dashboard`: `npm test` passed on 2026-04-17 (`51 passed`) after the build-script fix, confirming no local regression in the existing Node-side checks.
@@ -124,8 +127,8 @@
 
 - `.tmp/public-history-rewrite` is now the prepared sandbox for any eventual secret-history push. Keep the main repo history untouched unless the user explicitly approves a destructive rewrite/push sequence.
 - Earlier `23 remote-only branches` was a stale local remote-tracking estimate. Live `git ls-remote --heads` on 2026-04-15 first showed 4 remote-only branches, and after deleting `fix/notion-review-status` the live remote is down to 3 remote-only branches, all tied to open dependabot PRs.
-- The current worktree secret blockers are sanitized, but the Brave key and NotebookLM auth payload previously existed in committed history. Do not make the repo public until those credentials are rotated/revoked and you decide whether history rewrite is needed.
-- `git-filter-repo` is not installed in the current shell. If history rewrite is approved, prefer running it from a clean clone or mirror after tooling setup rather than inside the current dirty workspace.
+- The current worktree secret blockers are sanitized, but the Brave key and NotebookLM auth payload previously existed in committed history. Per the 2026-04-17 T-215 decision, do not make the repo public from the current unre-written history; only use `.tmp/public-history-rewrite` (or a freshly regenerated equivalent clean clone).
+- `git-filter-repo` is not installed in the current root shell. Do not attempt a fresh rewrite inside the dirty main workspace; reuse `.tmp/public-history-rewrite` or another clean clone if the rewrite must be regenerated.
 - `.secrets.baseline` already suppressed `.agents/skills/brave-search/secrets.json` and `infrastructure/notebooklm-mcp/tokens/auth.json`; baseline allowlisting is not a fix.
 - The worktree is dirty across multiple projects. Do not revert unrelated edits.
 - Bare `pytest` is not on `PATH` in the current root shell unless the venv is activated; prefer `python -m pytest`.

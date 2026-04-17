@@ -7,6 +7,13 @@
 | Field | Value |
 |---|---|
 | Date | 2026-04-17 |
+| Tool | Codex |
+| Work | **T-215 decision recorded**: revalidated the public-readiness path before any visibility change. `python execution/remote_branch_cleanup.py --repo biojuho/vibe-coding --local-repo .tmp/public-history-rewrite` still reports 3 remote-only branches, all blocked by open dependabot PRs `#1`, `#2`, `#3`. `python execution/github_branch_protection.py --check-live` still returns `status: blocked` because `biojuho/vibe-coding` is `PRIVATE` on GitHub Free. Decision: if the repository is ever made public, it must use the rewritten history from `.tmp/public-history-rewrite`; do not expose the current unre-written history. |
+| Next Priorities | 1. T-223 (User): resolve or close dependabot PRs `#1`, `#2`, `#3`, then approve the destructive rewritten-history push / visibility flip from `.tmp/public-history-rewrite`. 2. T-199 (User): once the repo is public or GitHub Pro is enabled, run `python execution/github_branch_protection.py --apply` and `--check-live`. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-04-17 |
 | Tool | Gemini (Antigravity) |
 | Work | **T-222 완료**: `hanwoo-dashboard` 프론트엔드 모듈화 및 폴리싱 완료. `DashboardClient.js`의 역할(날씨, 오프라인 큐, 위젯 설정)을 3개의 Custom Hooks로 분리. `FinancialChartWidget.js`, `MarketPriceWidget.js`, `ProfitabilityWidget.js`, `AnalysisTab.js`의 인라인 스타일을 `PremiumCard` 및 Tailwind 클래스로 통일하고 다국어(영문)를 한글로 현지화. `npm test` 51/51 통과. |
 | Next Priorities | 1. T-215 (User): Brave API key / NotebookLM 세션 rotate/revoke (보안). 2. T-199 (User): GitHub branch protection — private+무료 플랜 블로킹. |
