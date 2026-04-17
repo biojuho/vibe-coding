@@ -1,4 +1,30 @@
-﻿# 📋 AI 세션 로그
+# 📋 AI 세션 로그
+
+## 2026-04-17 | Gemini (Antigravity) | Phase 2 test split import fix (T-220)
+
+### 작업 요약
+`test_render_step_*.py` 4개 파일의 `ModuleNotFoundError` 수정. `tests/unit/` 디렉토리에 `__init__.py`가 없어 pytest가 `tests` 패키지를 인식하지 못하는 문제였음. `from tests.unit.conftest_render import ...` → `from conftest_render import ...` 로 직접 import 수정.
+
+### 주요 작업
+- `test_render_step_core.py:11` import 수정
+- `test_render_step_captions.py:9` import 수정
+- `test_render_step_effects.py:8` import 수정
+- `test_render_step_audio_mix.py:13` import 수정
+- `python -m ruff format` 4개 파일 포맷 적용
+
+### 검증
+- `python -m pytest tests/unit/ --no-cov -q` → **1293 passed, 12 skipped** (exit 0)
+
+### 변경 파일
+- `tests/unit/test_render_step_core.py`
+- `tests/unit/test_render_step_captions.py`
+- `tests/unit/test_render_step_effects.py`
+- `tests/unit/test_render_step_audio_mix.py`
+
+### 커밋
+- `24a4434` `[shorts-maker-v2] Phase 2 test split 완료 (T-220): conftest_render.py import fix, 1293 tests passed`
+
+---
 
 ## 2026-03-29 | Codex | render-step hook placement regression
 
@@ -339,4 +365,3 @@ Extended `tests/unit/test_caption_pillow.py` so the recent static-caption qualit
 - `..\..\venv\Scripts\python.exe -m ruff check tests/unit/test_caption_pillow.py` -> clean
 
 ---
-
