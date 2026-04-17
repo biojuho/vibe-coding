@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3001",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
     "test": "node --test src/lib/action-validation.test.mjs src/lib/payment-confirmation.test.mjs src/lib/market-price-state.test.mjs src/lib/cattle-history.test.mjs src/lib/weather-state.test.mjs src/lib/offline-sync-state.test.mjs src/lib/notification-timing.test.mjs src/lib/dashboard/pagination-guard.test.mjs src/lib/component-imports.test.mjs",
