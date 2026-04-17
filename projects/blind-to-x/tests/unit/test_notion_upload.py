@@ -453,9 +453,7 @@ async def test_upload_surfaces_missing_draft_next_steps(mock_ensure_schema, mock
 
     children = uploader.client.pages.create.call_args.kwargs["children"]
     callout_texts = [
-        block["callout"]["rich_text"][0]["text"]["content"]
-        for block in children
-        if block.get("type") == "callout"
+        block["callout"]["rich_text"][0]["text"]["content"] for block in children if block.get("type") == "callout"
     ]
     assert any("지금 할 일" in text and "규제 위반이 아니라" in text for text in callout_texts)
 

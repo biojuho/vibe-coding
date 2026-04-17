@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import asdict, dataclass, field
-import math
 import re
 from typing import Any
 
@@ -13,12 +11,20 @@ logger = logging.getLogger(__name__)
 
 from pipeline.content_intelligence.rules import _get_topic_editorial_rule
 from pipeline.content_intelligence.utils import (
-    _contains_any, _korean_ratio, _extract_empathy_anchor, _build_spinoff_angle,
-    _round_score, _build_selection_summary, _engagement_signal
+    _contains_any,
+    _korean_ratio,
+    _extract_empathy_anchor,
+    _build_spinoff_angle,
+    _round_score,
+    _build_selection_summary,
+    _engagement_signal,
 )
 from pipeline.content_intelligence.classifiers import (
-    classify_topic_cluster, classify_emotion_axis, classify_audience_fit
+    classify_topic_cluster,
+    classify_emotion_axis,
+    classify_audience_fit,
 )
+
 
 def evaluate_candidate_editorial_fit(title: str, source: str = "", content: str = "") -> dict[str, Any]:
     # None/비문자열 입력 방어 — 외부 스크래퍼 데이터에서 None이 들어올 수 있음
@@ -191,6 +197,8 @@ def evaluate_candidate_editorial_fit(title: str, source: str = "", content: str 
         "audience_need": str(topic_rule.get("reader_desire", "직장인이 자기 얘기로 받아들일 만한 현실감")),
         "emotion_lane": str(topic_rule.get("emotion_lane", "공감과 웃음이 함께 남는 톤")),
     }
+
+
 def calculate_publishability_score(
     post_data: dict[str, Any], topic_cluster: str, hook_type: str, emotion_axis: str
 ) -> tuple[float, list[str], dict[str, Any]]:

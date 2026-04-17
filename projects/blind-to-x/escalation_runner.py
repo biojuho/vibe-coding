@@ -267,7 +267,7 @@ async def _poll_and_wait(interval: int, config_mgr, dry_run: bool) -> bool:
             if poll_error_streak >= 5:
                 logger.warning("텔레그램 polling circuit breaker open after %d consecutive errors", poll_error_streak)
                 return True
-            await asyncio.sleep(min(2 ** poll_error_streak, 10))
+            await asyncio.sleep(min(2**poll_error_streak, 10))
 
         # 남은 시간 정산
         elapsed = time.monotonic() - start_time
@@ -302,7 +302,11 @@ async def _daemon_loop(config_mgr, interval: int, dry_run: bool) -> None:
                 error_streak = max(error_streak + 1, 3)
             if error_streak >= 3:
                 cooldown_sec = min(max(interval, 30), 300)
-                logger.warning("에스컬레이션 circuit breaker open for %ds after %d consecutive failures", cooldown_sec, error_streak)
+                logger.warning(
+                    "에스컬레이션 circuit breaker open for %ds after %d consecutive failures",
+                    cooldown_sec,
+                    error_streak,
+                )
                 await asyncio.sleep(cooldown_sec)
                 error_streak = 0
         except KeyboardInterrupt:

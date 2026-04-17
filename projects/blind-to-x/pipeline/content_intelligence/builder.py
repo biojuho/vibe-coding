@@ -3,9 +3,6 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import asdict, dataclass, field
-import math
-import re
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -13,14 +10,18 @@ logger = logging.getLogger(__name__)
 
 from pipeline.content_intelligence.models import ContentProfile
 from pipeline.content_intelligence.classifiers import (
-    classify_topic_cluster, classify_emotion_axis, classify_audience_fit,
-    classify_hook_type, recommend_draft_type
+    classify_topic_cluster,
+    classify_emotion_axis,
+    classify_audience_fit,
+    classify_hook_type,
+    recommend_draft_type,
 )
 from pipeline.content_intelligence.scoring_editorial import calculate_publishability_score
 from pipeline.content_intelligence.scoring_performance import calculate_performance_score
 from pipeline.content_intelligence.scoring_6d import calculate_6d_score
 from pipeline.content_intelligence.boosting import estimate_viral_boost_llm
 from pipeline.content_intelligence.utils import _round_score, _humanize_performance_rationale
+
 
 def build_content_profile(
     post_data: dict[str, Any],

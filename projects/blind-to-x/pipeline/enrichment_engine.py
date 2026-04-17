@@ -81,9 +81,7 @@ class ContextEnrichmentEngine:
             logger.error("Exa API 검색 중 오류 발생: %s", e)
             return []
 
-    async def _fetch_perplexity_synthesis(
-        self, client: httpx.AsyncClient, topic: str, references: List[Dict]
-    ) -> str:
+    async def _fetch_perplexity_synthesis(self, client: httpx.AsyncClient, topic: str, references: List[Dict]) -> str:
         """[내부] Perplexity API에 검색된 레퍼런스를 던져 심도 있는 전문가 수준의 인사이트를 합성합니다."""
         if not self.perplexity_api_key:
             logger.warning("PERPLEXITY_API_KEY 미설정 — Fallback Mode.")
@@ -92,9 +90,7 @@ class ContextEnrichmentEngine:
         logger.info("[%s] Perplexity API 컨텍스트 합성 시작...", topic)
 
         # [FIX-3] .get()으로 통일 — _fetch_exa_references와 동일한 방어적 접근
-        ref_text = "\n".join(
-            f"- {r.get('title', '?')} ({r.get('url', '?')})" for r in references
-        )
+        ref_text = "\n".join(f"- {r.get('title', '?')} ({r.get('url', '?')})" for r in references)
         prompt = f"""
 You are an expert tech/business analyst.
 Please provide deep strategic insights, current sentiment, and controversial angles for the following topic.
@@ -122,9 +118,7 @@ Provide:
                 "temperature": 0.2,
             }
 
-            res = await client.post(
-                "https://api.perplexity.ai/chat/completions", headers=headers, json=payload
-            )
+            res = await client.post("https://api.perplexity.ai/chat/completions", headers=headers, json=payload)
             res.raise_for_status()
             data = res.json()
 

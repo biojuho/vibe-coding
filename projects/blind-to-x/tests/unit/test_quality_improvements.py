@@ -467,6 +467,7 @@ class TestThinkingTagStrip(unittest.TestCase):
 
     def setUp(self):
         from unittest.mock import patch
+
         self._cache = {}
         self.patcher = patch("pipeline.draft_prompts._load_draft_rules", return_value=self._cache)
         self.patcher.start()
@@ -493,6 +494,7 @@ class TestClicheInjection(unittest.TestCase):
 
     def setUp(self):
         from unittest.mock import patch
+
         self._cache = {
             "cliche_watchlist": ["이거 실화?", "나만 이런 거 아니죠?", "공감하면 RT"],
             "brand_voice": {
@@ -528,6 +530,7 @@ class TestTargetedRetryInstructions(unittest.TestCase):
 
     def setUp(self):
         from unittest.mock import patch
+
         self._cache = {}
         self.patcher = patch("pipeline.draft_prompts._load_draft_rules", return_value=self._cache)
         self.patcher.start()
@@ -559,6 +562,7 @@ class TestTopicPromptStrategies(unittest.TestCase):
 
     def setUp(self):
         from unittest.mock import patch
+
         self._cache = {
             "topic_prompt_strategies": {
                 "연봉": {
@@ -607,6 +611,7 @@ class TestAntiExamples(unittest.TestCase):
 
     def setUp(self):
         from unittest.mock import patch
+
         self._cache = {
             "anti_examples": {
                 "generic_bad": [

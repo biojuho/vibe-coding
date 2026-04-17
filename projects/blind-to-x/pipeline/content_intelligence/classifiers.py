@@ -3,18 +3,13 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import asdict, dataclass, field
-import math
-import re
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-from pipeline.content_intelligence.rules import (
-    get_topic_rules, get_emotion_rules, get_audience_rules, _load_rules
-)
+from pipeline.content_intelligence.rules import get_topic_rules, get_emotion_rules, get_audience_rules, _load_rules
 from pipeline.content_intelligence.utils import _match_first
+
 
 def classify_topic_cluster(title: str, content: str) -> str:
     return _match_first(f"{title} {content}", get_topic_rules(), "기타")

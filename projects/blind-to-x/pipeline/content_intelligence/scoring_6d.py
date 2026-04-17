@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import asdict, dataclass, field
 import math
-import re
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -13,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 from pipeline.content_intelligence.rules import get_season_boost, get_source_hint
 from pipeline.content_intelligence.utils import _round_score
+
 
 def calculate_6d_score(
     post_data: dict[str, Any],
@@ -166,6 +165,8 @@ def calculate_6d_score(
         "viral_potential_score": _round_score(viral),
     }
     return rank_6d, dims
+
+
 # ── 6D 가중치 자동 보정 (Phase 3-A) ──────────────────────────────────
 
 

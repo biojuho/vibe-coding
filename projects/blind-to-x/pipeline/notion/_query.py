@@ -293,7 +293,9 @@ class NotionQueryMixin:
             try:
                 return await self._scan_pages_by_status(status_name, limit=limit)
             except Exception as scan_exc:
-                logger.warning("get_pages_by_status fallback scan failed (status=%s): %s. Returning empty.", status_name, scan_exc)
+                logger.warning(
+                    "get_pages_by_status fallback scan failed (status=%s): %s. Returning empty.", status_name, scan_exc
+                )
                 return []
 
     async def search_pages_by_title(self, keyword: str, limit: int = 30) -> list:

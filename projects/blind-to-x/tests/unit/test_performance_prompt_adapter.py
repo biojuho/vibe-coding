@@ -89,7 +89,6 @@ def sample_posts():
 
 
 class TestPerformanceInsight:
-
     def test_is_stale_false_when_fresh(self):
         """갓 생성된 인사이트는 stale이 아님."""
         insight = PerformanceInsight(source="blind")
@@ -161,7 +160,6 @@ class TestPerformanceInsight:
 
 
 class TestNormalizeFunctions:
-
     def test_normalize_x_analytics_row_returns_none_without_snapshot(self):
         """스냅샷 없으면 None 반환."""
         tweet = {"id": 1, "text_preview": "테스트", "published_at": "2026-04-01 09:00:00"}
@@ -202,7 +200,6 @@ class TestNormalizeFunctions:
 
 
 class TestAdapterHelpers:
-
     def test_extract_top_hooks_returns_at_most_top_n(self, adapter, sample_posts):
         """TOP_N (3) 이하로 반환."""
         hooks = adapter._extract_top_hooks(sample_posts, "blind")
@@ -244,7 +241,6 @@ class TestAdapterHelpers:
 
 
 class TestGetInsight:
-
     @pytest.mark.asyncio
     async def test_get_insight_returns_insight_object(self, adapter):
         """항상 PerformanceInsight를 반환해야 함."""
@@ -260,9 +256,11 @@ class TestGetInsight:
 
         called = {"count": 0}
         original = adapter._fetch_insight_sync
+
         def counting_fetch(source):
             called["count"] += 1
             return original(source)
+
         adapter._fetch_insight_sync = counting_fetch
 
         await adapter.get_insight("blind")
@@ -271,8 +269,10 @@ class TestGetInsight:
     @pytest.mark.asyncio
     async def test_get_insight_fail_open_on_exception(self, adapter):
         """_fetch_insight_sync 예외 시 빈 PerformanceInsight 반환."""
+
         def raise_on_fetch(source):
             raise RuntimeError("DB 연결 실패 테스트")
+
         adapter._fetch_insight_sync = raise_on_fetch
 
         insight = await adapter.get_insight("blind")
@@ -284,7 +284,6 @@ class TestGetInsight:
 
 
 class TestFactory:
-
     def test_singleton_same_instance(self):
         """_reset 없이 두 번 호출하면 동일 인스턴스."""
         a = get_performance_prompt_adapter()
@@ -302,7 +301,6 @@ class TestFactory:
 
 
 class TestExpressDraftIntegration:
-
     def test_build_user_prompt_with_perf_insight_injection(self):
         """perf_insight가 있으면 프롬프트에 성과 컨텍스트 포함."""
         from pipeline.express_draft import ExpressDraftPipeline

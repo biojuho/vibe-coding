@@ -3,12 +3,9 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import asdict, dataclass, field
-import math
-import re
-from typing import Any
 
 logger = logging.getLogger(__name__)
+
 
 def estimate_viral_boost_llm(title: str, content: str, topic_cluster: str, emotion_axis: str) -> float:
     """LLM으로 바이럴 잠재력을 추가 추정, 0~15점 반환.

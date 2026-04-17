@@ -7,6 +7,13 @@
 | Field | Value |
 |---|---|
 | Date | 2026-04-17 |
+| Tool | Gemini (Antigravity) |
+| Work | **T-222 완료**: `hanwoo-dashboard` 프론트엔드 모듈화 및 폴리싱 완료. `DashboardClient.js`의 역할(날씨, 오프라인 큐, 위젯 설정)을 3개의 Custom Hooks로 분리. `FinancialChartWidget.js`, `MarketPriceWidget.js`, `ProfitabilityWidget.js`, `AnalysisTab.js`의 인라인 스타일을 `PremiumCard` 및 Tailwind 클래스로 통일하고 다국어(영문)를 한글로 현지화. `npm test` 51/51 통과. |
+| Next Priorities | 1. T-215 (User): Brave API key / NotebookLM 세션 rotate/revoke (보안). 2. T-199 (User): GitHub branch protection — private+무료 플랜 블로킹. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-04-17 |
 | Tool | Codex |
 | Work | **T-221 QC recorded**: re-ran the `hanwoo-dashboard` release-path checks after the Next 16 build-script fix. `npm run build` completed successfully with `next build --webpack`, and `npm test` passed again (`51/51`). No new regression was found in the validated build/test path. |
 | Next Priorities | 1. Keep using `npm run build` as the production verification path for `hanwoo-dashboard` while Turbopack remains incompatible with the current `next/font/google` setup in `src/app/layout.js`. 2. If Turbopack becomes required again, revisit the font-loading path and retest on a newer Next.js release. |

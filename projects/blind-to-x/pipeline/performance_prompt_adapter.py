@@ -37,13 +37,13 @@ logger = logging.getLogger(__name__)
 # ── 상수 ──────────────────────────────────────────────────────────────────
 
 DEFAULT_CACHE_TTL_SECONDS: int = 6 * 60 * 60  # 6시간
-MIN_SAMPLE_SIZE: int = 5                        # 최소 샘플 수
-TOP_N_PATTERNS: int = 3                         # 프롬프트 인젝션 훅 패턴 수
-PERFORMANCE_LOOKBACK_DAYS: int = 14             # 성과 학습 기간 (일)
+MIN_SAMPLE_SIZE: int = 5  # 최소 샘플 수
+TOP_N_PATTERNS: int = 3  # 프롬프트 인젝션 훅 패턴 수
+PERFORMANCE_LOOKBACK_DAYS: int = 14  # 성과 학습 기간 (일)
 
 # PerformanceTracker platform 키 → source 키 매핑
 _PLATFORM_TO_SOURCE: dict[str, str] = {
-    "twitter": "blind",   # X는 다중 소스에서 발행되므로 twitter 기록 전부 학습
+    "twitter": "blind",  # X는 다중 소스에서 발행되므로 twitter 기록 전부 학습
     "threads": "blind",
 }
 
@@ -76,7 +76,7 @@ class PerformanceInsight:
 
     source: str
     top_hooks: list[HookPattern] = field(default_factory=list)
-    best_posting_hours: list[int] = field(default_factory=list)   # 0-23 시
+    best_posting_hours: list[int] = field(default_factory=list)  # 0-23 시
     avg_optimal_length: int = 280
     high_ctr_tone: str = "informative"
     fetched_at: float = field(default_factory=time.time)
@@ -239,9 +239,7 @@ class PerformancePromptAdapter:
             return cached
 
         try:
-            insight = await asyncio.get_event_loop().run_in_executor(
-                None, self._fetch_insight_sync, source
-            )
+            insight = await asyncio.get_event_loop().run_in_executor(None, self._fetch_insight_sync, source)
         except Exception:
             logger.exception(
                 "get_insight: executor level exception — source=%s, returning empty insight",
@@ -267,7 +265,9 @@ class PerformancePromptAdapter:
             if len(posts) < MIN_SAMPLE_SIZE:
                 logger.info(
                     "Not enough data for insight: source=%s, n=%d (min=%d)",
-                    source, len(posts), MIN_SAMPLE_SIZE,
+                    source,
+                    len(posts),
+                    MIN_SAMPLE_SIZE,
                 )
                 return PerformanceInsight(source=source)
 
@@ -285,7 +285,11 @@ class PerformancePromptAdapter:
             )
             logger.info(
                 "PerformanceInsight built: source=%s hooks=%d hours=%s tone=%s n=%d",
-                source, len(top_hooks), best_hours[:3], dominant_tone, len(posts),
+                source,
+                len(top_hooks),
+                best_hours[:3],
+                dominant_tone,
+                len(posts),
             )
             return insight
 
@@ -307,6 +311,7 @@ class PerformancePromptAdapter:
         # ── 소스 A: x_analytics SQLite DB ─────────────────────────────
         try:
             from pipeline.x_analytics import get_tracked_tweets, get_latest_snapshot
+
             tweets = get_tracked_tweets(limit=200)
             for tw in tweets:
                 # 기간 필터
@@ -329,6 +334,7 @@ class PerformancePromptAdapter:
         # ── 소스 B: performance_tracker JSONL ─────────────────────────
         try:
             from pipeline.performance_tracker import PerformanceTracker
+
             tracker = PerformanceTracker(data_dir=self._performance_data_dir)
             # twitter + threads 플랫폼 모두 수집 (소스 불문)
             for platform in ("twitter", "threads"):
@@ -350,7 +356,7 @@ class PerformancePromptAdapter:
 
         # impression_rate 내림차순 정렬
         sorted_posts = sorted(posts, key=lambda p: p.get("impression_rate", 0.0), reverse=True)
-        top_posts = sorted_posts[:TOP_N_PATTERNS * 2]  # 여유 있게 수집 후 dedup
+        top_posts = sorted_posts[: TOP_N_PATTERNS * 2]  # 여유 있게 수집 후 dedup
 
         patterns: list[HookPattern] = []
         seen_patterns: set[str] = set()
@@ -390,11 +396,7 @@ class PerformancePromptAdapter:
         if not hour_scores:
             return []
 
-        avg_by_hour = {
-            h: statistics.mean(scores)
-            for h, scores in hour_scores.items()
-            if scores
-        }
+        avg_by_hour = {h: statistics.mean(scores) for h, scores in hour_scores.items() if scores}
         return sorted(avg_by_hour, key=lambda h: avg_by_hour[h], reverse=True)[:5]
 
     def _compute_optimal_length(self, posts: list[dict]) -> int:
@@ -419,17 +421,15 @@ class PerformancePromptAdapter:
     def _infer_dominant_tone(self, posts: list[dict]) -> str:
         """상위 33% 고성과 게시물에서 지배적 감성 톤 추론."""
         tone_keywords: dict[str, list[str]] = {
-            "shocking":    ["충격", "경악", "믿기지", "실화", "OMG", "대박"],
-            "humorous":    ["ㅋㅋ", "웃음", "웃긴", "개웃김", "ㅎㅎ", "빵터"],
-            "empathetic":  ["공감", "위로", "힘내", "같이", "우리", "맞아"],
+            "shocking": ["충격", "경악", "믿기지", "실화", "OMG", "대박"],
+            "humorous": ["ㅋㅋ", "웃음", "웃긴", "개웃김", "ㅎㅎ", "빵터"],
+            "empathetic": ["공감", "위로", "힘내", "같이", "우리", "맞아"],
             "informative": ["정보", "방법", "팁", "가이드", "정리", "알아두면"],
         }
 
         tone_counts: dict[str, int] = {t: 0 for t in tone_keywords}
         top_count = max(1, len(posts) // 3)
-        high_perf = sorted(
-            posts, key=lambda p: p.get("impression_rate", 0.0), reverse=True
-        )[:top_count]
+        high_perf = sorted(posts, key=lambda p: p.get("impression_rate", 0.0), reverse=True)[:top_count]
 
         for post in high_perf:
             content = post.get("content") or ""

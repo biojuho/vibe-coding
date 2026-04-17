@@ -119,6 +119,7 @@ class ExpressDraftPipeline:
         except Exception:
             logger.debug("ExpressDraft: 성과 인사이트 조회 실패 (무시) — source=%s", source)
             from pipeline.performance_prompt_adapter import PerformanceInsight
+
             perf_insight = PerformanceInsight(source=source)
 
         # [Phase 7] 0단계: 실시간 외부 컨텍스트 보강 (Exa + Perplexity RAG)
@@ -127,8 +128,12 @@ class ExpressDraftPipeline:
             async def _generate_with_deadline():
                 enriched = await self._enrichment_engine.process_topic(title)
                 user_prompt = self._build_user_prompt(
-                    title, content_preview, source, velocity_score,
-                    enriched=enriched, perf_insight=perf_insight,
+                    title,
+                    content_preview,
+                    source,
+                    velocity_score,
+                    enriched=enriched,
+                    perf_insight=perf_insight,
                 )
                 return await self._call_llm(user_prompt)
 

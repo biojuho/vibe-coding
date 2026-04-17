@@ -3,9 +3,6 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import asdict, dataclass, field
-import math
-import re
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -45,6 +42,7 @@ def _yaml_rules_to_tuples(key: str, fallback: list[tuple]) -> list[tuple[str, tu
         if label and keywords:
             result.append((label, keywords))
     return result or fallback
+
 
 # 코드 내장 fallback 규칙 (classification_rules.yaml 없을 때 사용)
 _TOPIC_RULES_FALLBACK: list[tuple[str, tuple[str, ...]]] = [
@@ -93,6 +91,7 @@ TOPIC_RULES = property(get_topic_rules)
 EMOTION_RULES = property(get_emotion_rules)
 AUDIENCE_RULES = property(get_audience_rules)
 
+
 def _load_x_editorial_rules() -> dict[str, Any]:
     return _load_rules().get("x_editorial_rules", {}) or {}
 
@@ -102,6 +101,7 @@ def _get_topic_editorial_rule(topic_cluster: str) -> dict[str, Any]:
     defaults = dict(rules.get("defaults", {}) or {})
     topic_rule = dict((rules.get("topics", {}) or {}).get(topic_cluster, {}) or {})
     return {**defaults, **topic_rule}
+
 
 def get_time_context() -> dict[str, str]:
     """현재 KST 시간대에 맞는 프롬프트 접두어·톤 힌트 반환 (Phase 4-C).
@@ -149,6 +149,7 @@ def get_time_context() -> dict[str, str]:
         "tone_hint": ctx.get("tone_hint", _FALLBACK[slot]["tone_hint"]),
     }
 
+
 def get_topic_hook(topic_cluster: str) -> dict[str, str]:
     """토픽 클러스터별 훅 오프너·CTA 반환 (Phase 4-C).
 
@@ -162,6 +163,7 @@ def get_topic_hook(topic_cluster: str) -> dict[str, str]:
         "cta": entry.get("cta", "댓글로 의견 나눠주세요 👇"),
     }
 
+
 def get_source_hint(source: str) -> dict:
     """소스별 분류 힌트 반환 (P3).
 
@@ -174,6 +176,7 @@ def get_source_hint(source: str) -> dict:
     hints = _load_rules().get("source_hints", {})
     default = {"display_name": source, "description": "", "topic_bias": [], "emotion_bias": [], "quality_boost": 1.0}
     return hints.get(source, default)
+
 
 def get_season_boost(topic_cluster: str, month: int | None = None) -> float:
     """시즌 트렌드 가중치 반환 (P0-A2).

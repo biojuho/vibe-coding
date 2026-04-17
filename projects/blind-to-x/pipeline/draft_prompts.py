@@ -133,9 +133,7 @@ class DraftPromptsMixin:
         """성과 우수 예시 포맷팅. YAML 골든 예시도 자동 병합 (랜덤 로테이션)."""
         merged: list[dict[str, Any]] = []
         runtime_examples = [
-            example
-            for example in (top_examples or [])
-            if example.get("example_source") != "reviewer_memory"
+            example for example in (top_examples or []) if example.get("example_source") != "reviewer_memory"
         ]
         example_seed = f"{topic_cluster}|{seed_text or 'default'}"
 
@@ -212,9 +210,7 @@ class DraftPromptsMixin:
     @staticmethod
     def _format_reviewer_memory(top_examples: list[dict[str, Any]] | None) -> str:
         reviewer_memory = [
-            example
-            for example in (top_examples or [])
-            if example.get("example_source") == "reviewer_memory"
+            example for example in (top_examples or []) if example.get("example_source") == "reviewer_memory"
         ]
         if not reviewer_memory:
             return ""

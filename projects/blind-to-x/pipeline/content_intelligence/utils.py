@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import asdict, dataclass, field
 import math
 import re
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
 
 def _round_score(value: float) -> float:
     return round(max(0.0, min(100.0, value)), 2)
@@ -25,6 +25,7 @@ def _korean_ratio(text: str) -> float:
     korean_chars = sum(1 for c in text if "\uac00" <= c <= "\ud7a3")
     visible_chars = sum(1 for c in text if not c.isspace())
     return korean_chars / visible_chars if visible_chars > 0 else 0.0
+
 
 def _extract_first_sentence(text: str) -> str:
     sentences = [s.strip() for s in re.split(r"(?<=[.!?\n])\s+|\n+", text or "") if s.strip()]
@@ -71,6 +72,8 @@ def _build_spinoff_angle(topic_cluster: str, title: str, content: str, rule: dic
         detected = list((rule.get("spinoff_patterns", []) or [])[:2])
 
     return ", ".join(dict.fromkeys(detected[:3]))
+
+
 def _build_selection_summary(
     topic_cluster: str,
     audience_need: str,
@@ -87,6 +90,8 @@ def _build_selection_summary(
     if spinoff_angle:
         summary += f". 파생각은 {spinoff_angle}"
     return summary
+
+
 def _humanize_performance_rationale(labels: list[str]) -> list[str]:
     mapping = {
         "topic_match": "비슷한 주제가 실제로 반응했던 이력",
@@ -106,12 +111,16 @@ def _humanize_performance_rationale(labels: list[str]) -> list[str]:
             continue
         humanized.append(mapping.get(label, label))
     return list(dict.fromkeys(humanized))
+
+
 def _match_first(text: str, rules: list[tuple[str, tuple[str, ...]]], default: str) -> str:
     lowered = text.lower()
     for label, keywords in rules:
         if any(keyword.lower() in lowered for keyword in keywords):
             return label
     return default
+
+
 def _engagement_signal(post_data: dict[str, Any]) -> float:
     likes = float(post_data.get("likes", 0) or 0)
     comments = float(post_data.get("comments", 0) or 0)
