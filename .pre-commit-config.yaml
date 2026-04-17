@@ -1,0 +1,66 @@
+# .pre-commit-config.yaml — Vibe Coding monorepo
+# QC 진단 결과에 따른 로컬 위생 게이트 (2026-04-14)
+#
+# 막는 실패 모드:
+#   1. 린트 위반 / 포맷 오류가 커밋에 포함 → ruff
+#   2. Windows CRLF / trailing-ws / BOM 혼재 → pre-commit-hooks
+#   3. API 키/비밀이 코드에 하드코딩 → detect-secrets
+#
+# 설치: pip install pre-commit && pre-commit install
+# 전체 실행: pre-commit run --all-files
+
+repos:
+  # ── Python 린트/포맷 ──
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.3
+    hooks:
+      - id: ruff
+        args: [--fix, --config, ruff.toml]
+        types_or: [python]
+      - id: ruff-format
+        types_or: [python]
+
+  # ── 파일 위생 ──
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: '\.md$'  # Markdown 의도적 trailing space 보존
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+      - id: check-merge-conflict
+      - id: check-byte-order-marker
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+      # main 직접 커밋 방지 — 브랜치 워크플로우 전환 시 활성화
+      # - id: no-commit-to-branch
+      #   args: ['--branch', 'main']
+
+  # ── 민감 정보 누출 방지 ──
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: '(\.lock|\.svg|\.png|\.jpg|\.woff|\.woff2|\.ttf|\.eot|node_modules)$'
+
+  # ── AI 커밋 범위 가드 (T-196) ──
+  - repo: local
+    hooks:
+      - id: commit-scope-guard
+        name: Commit scope guard
+        entry: python execution/commit_scope_guard.py --quiet
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # ── hanwoo-dashboard import 정합성 (T-197) ──
+      - id: component-import-smoke
+        name: Component import smoke test
+        entry: python execution/component_import_smoke_test.py --strict
+        language: system
+        pass_filenames: false
+        files: 'projects/hanwoo-dashboard/src/.*\.(js|jsx|ts|tsx|mjs)$'
+
