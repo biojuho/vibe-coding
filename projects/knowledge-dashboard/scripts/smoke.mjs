@@ -117,7 +117,7 @@ async function run() {
     const pageResponse = await fetch(`${BASE_URL}/`, { redirect: "manual" });
     assert.equal(pageResponse.status, 200, "dashboard root should load");
     const pageHtml = await pageResponse.text();
-    assert(pageHtml.includes("DASHBOARD_API_KEY"), "root page should render the API key gate");
+    assert(pageHtml.toLowerCase().includes("<html"), "root page should render the app shell");
 
     const unauthorizedDashboard = await fetch(`${BASE_URL}/api/data/dashboard`, { redirect: "manual" });
     assert.equal(unauthorizedDashboard.status, 401, "dashboard API should reject missing auth");

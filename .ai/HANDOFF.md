@@ -6,20 +6,6 @@
 
 | Field | Value |
 |---|---|
-| Date | 2026-04-18 |
-| Tool | Codex |
-| Work | **T-224 status recorded**: rechecked public cleanup PR `#25` and documented the current mismatch. `gh pr view 25 --repo biojuho/vibe-coding` now reports `state: MERGED` with `mergedAt: 2026-04-17T11:39:02Z`, but it still shows stale `headRefOid` `ebfaec9` plus the older failed matrix checks. A separate `git -C .tmp/public-hygiene-cleanup ls-remote --heads origin chore/public-repo-cleanup` probe still shows the remote cleanup branch present at `9c296a9`. The root workspace is also still dirty in `projects/blind-to-x/*`, so this session touched only `.ai` context files. |
-| Next Priorities | 1. Reconcile the merged PR vs lingering remote branch / stale metadata before deleting anything on GitHub. 2. If cleanup follow-up work is needed, continue from the isolated worktree `.tmp/public-hygiene-cleanup`. 3. Keep the root `projects/blind-to-x/*` dirty edits out of any `[ai-context]` commit. |
-
-| Field | Value |
-|---|---|
-| Date | 2026-04-17 |
-| Tool | Gemini (Antigravity) |
-| Work | **T-225 완료**: `/qa-qc` 자동 검토 워크플로우 수행 및 결함 해결. `execution/ai_batch_runner.py` 의 API 응답(`choices` 배열 빈 엣지케이스)에 대한 방어 로직을 추가하고 빈번히 발생할 수 있는 오류를 차단. `projects/blind-to-x/pipeline/harness_guard.py` 의 `_get_project_root()`가 실행 경로 제약 없이 동적으로 구성되도록 리팩터링. 두 건에 대해 회귀 테스트(`test_ai_batch_runner_regression.py`, `test_harness_guard_regression.py`)를 추가하여 `pytest` 로컬 통과 완료. |
-| Next Priorities | 1. T-223 (User): dependabot PRs 해결 및 history rewrite 커밋. 2. T-199 (User): GitHub branch protection 설정 (플랜 권한 대기). |
-
-| Field | Value |
-|---|---|
 | Date | 2026-04-17 |
 | Tool | Codex |
 | Work | **T-215 decision recorded**: revalidated the public-readiness path before any visibility change. `python execution/remote_branch_cleanup.py --repo biojuho/vibe-coding --local-repo .tmp/public-history-rewrite` still reports 3 remote-only branches, all blocked by open dependabot PRs `#1`, `#2`, `#3`. `python execution/github_branch_protection.py --check-live` still returns `status: blocked` because `biojuho/vibe-coding` is `PRIVATE` on GitHub Free. Decision: if the repository is ever made public, it must use the rewritten history from `.tmp/public-history-rewrite`; do not expose the current unre-written history. |
@@ -76,13 +62,6 @@
 | Tool | Codex |
 | Work | **T-199 라이브 재확인**: `python execution/github_branch_protection.py --check-live`를 다시 실행해 `biojuho/vibe-coding` / `main`의 branch protection 차단 상태를 2026-04-15 기준으로 재검증했다. 결과는 여전히 `status: blocked`, 저장소는 `PRIVATE`, GitHub 응답 메시지는 `Upgrade to GitHub Pro or make this repository public to enable this feature.`였고, 준비된 payload(`root-quality-gate`, `test-summary`) 자체는 dry-run으로 정상 생성됨을 함께 확인했다. |
 | Next Priorities | 1. `T-199`는 기술 문제가 아니라 GitHub 플랜/가시성 결정 대기 상태. 2. 결정 후 `python execution/github_branch_protection.py --apply` 실행, 이어서 `--check-live` 재검증. |
-
-| Field | Value |
-|---|---|
-| Date | 2026-04-17 |
-| Tool | Codex |
-| Work | **T-224 continued**: kept the cleanup work isolated in `.tmp/public-hygiene-cleanup`, updated PR `#25` (`chore/public-repo-cleanup`) beyond the original `.code-review-graph/graph.db` untracking so the branch can actually merge under the new protection rules, and pushed follow-up commits through `9c296a9`. The branch now includes: CI matrix fixes in `.github/workflows/full-test-matrix.yml`, `knowledge-dashboard` smoke/typecheck stability updates, `hanwoo-dashboard` CI/smoke hardening, `blind-to-x` deterministic timezone test fixtures, and `shorts-maker-v2` dependency declarations for `edge-tts`, `anthropic`, and `pytrends`. Local verification on the clean worktree passed for `knowledge-dashboard` (`npm exec -- tsc --noEmit`, `node --test src/lib/dashboard-insights.test.mts`, `npm run build`, `npm run smoke`), `hanwoo-dashboard` (`npm ci` with `DATABASE_URL`, `npm run smoke` with `DATABASE_URL`), and `blind-to-x` (`python -m pytest tests/unit/test_content_calendar_branches.py -q --tb=short --maxfail=1 -o addopts=`). |
-| Next Priorities | 1. Re-check GitHub PR `#25` once the platform reflects remote head `9c296a9`; current PR metadata is still showing previous head `ebfaec9`. 2. If the new run still fails, inspect the next surfaced blocker instead of re-tracing the already-fixed `knowledge-dashboard` path. 3. Even after checks pass, PR `#25` still needs one non-author approval before merge. |
 
 ## Previous Update
 

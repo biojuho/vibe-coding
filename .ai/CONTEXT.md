@@ -64,11 +64,6 @@
 
 ## Recent Verification
 
-- `workspace`: on 2026-04-18, `gh pr view 25 --repo biojuho/vibe-coding --json number,title,url,state,mergeStateStatus,reviewDecision,headRefName,headRefOid,mergedAt,statusCheckRollup` reported PR `#25` as `MERGED` at `2026-04-17T11:39:02Z`, but it still showed stale metadata: `headRefOid` remained `ebfaec9` and the attached failed checks were the older pre-fix matrix runs.
-- `workspace`: on 2026-04-18, `git -C .tmp/public-hygiene-cleanup ls-remote --heads origin chore/public-repo-cleanup` still showed the remote cleanup branch present at `9c296a9` even after PR `#25` appeared merged, so the post-merge branch state must be reconciled explicitly instead of assumed from the PR UI alone.
-- `projects/knowledge-dashboard`: on the clean cleanup worktree, `npm exec -- tsc --noEmit`, `node --test src/lib/dashboard-insights.test.mts`, `npm run build`, and `npm run smoke` all passed on 2026-04-17 after enabling `allowImportingTsExtensions` and relaxing the stale smoke assertion to validate the app shell plus authenticated API flow instead of a specific server-rendered gate string.
-- `projects/hanwoo-dashboard`: on the clean cleanup worktree, `npm ci` passed on 2026-04-17 when `DATABASE_URL` was supplied, and `npm run smoke` with the same `DATABASE_URL` also passed locally after the smoke helper was updated to treat unauthenticated protected routes as blocked on either `401` JSON or a manual redirect response.
-- `projects/blind-to-x`: `python -m pytest tests/unit/test_content_calendar_branches.py -q --tb=short --maxfail=1 -o addopts=` passed on 2026-04-17 (`6 passed`) after the test fixture timestamps were made explicitly KST-aware, removing the UTC-vs-KST flake that only showed up on GitHub runners.
 - `workspace`: `python execution/remote_branch_cleanup.py --repo biojuho/vibe-coding --local-repo .tmp/public-history-rewrite` re-ran on 2026-04-17 and still reports 3 remote-only branches, all blocked by open dependabot PRs `#1`, `#2`, `#3`.
 - `workspace`: `python execution/github_branch_protection.py --check-live` re-ran on 2026-04-17 and still reported `status: blocked` because `biojuho/vibe-coding` remains `PRIVATE` on GitHub Free.
 - `projects/hanwoo-dashboard`: QC re-ran on 2026-04-17 after the T-221 build-script fix, and both `npm run build` and `npm test` passed again with no new regression in the validated release path.
@@ -130,9 +125,6 @@
 
 ## Minefield
 
-- PR `#25` is no longer just a `.code-review-graph/graph.db` cleanup. Because branch protection requires `test-summary`, the cleanup branch now also carries repo-wide CI stabilization commits. Keep using the isolated worktree `.tmp/public-hygiene-cleanup` for that branch to avoid colliding with the dirty main workspace.
-- GitHub now shows PR `#25` as merged, but the metadata mismatch did not fully clear: `gh pr view 25` still reports old `headRefOid` `ebfaec9` and stale failed checks, while `git ls-remote` still shows `chore/public-repo-cleanup` alive at `9c296a9`. Reconcile the branch state before deleting or reusing that branch.
-- The root workspace is currently dirty in `projects/blind-to-x/pytest.ini`, `projects/blind-to-x/scrapers/*`, and multiple `projects/blind-to-x/tests/unit/test_scrapers*.py` files. Do not fold those edits into `.ai` context commits or any follow-up on the cleanup branch.
 - `.tmp/public-history-rewrite` is now the prepared sandbox for any eventual secret-history push. Keep the main repo history untouched unless the user explicitly approves a destructive rewrite/push sequence.
 - Earlier `23 remote-only branches` was a stale local remote-tracking estimate. Live `git ls-remote --heads` on 2026-04-15 first showed 4 remote-only branches, and after deleting `fix/notion-review-status` the live remote is down to 3 remote-only branches, all tied to open dependabot PRs.
 - The current worktree secret blockers are sanitized, but the Brave key and NotebookLM auth payload previously existed in committed history. Per the 2026-04-17 T-215 decision, do not make the repo public from the current unre-written history; only use `.tmp/public-history-rewrite` (or a freshly regenerated equivalent clean clone).
