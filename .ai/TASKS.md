@@ -11,7 +11,7 @@
 
 | ID | Task | Owner | Started | Notes |
 |---|---|---|---|---|
-| T-224 | `[workspace]` Public-repo cleanup PR `#25`: stop tracking `.code-review-graph/graph.db` and unblock merge by fixing repo-wide CI drift exposed on `chore/public-repo-cleanup`. Latest remote head is `9c296a9`, while GitHub PR metadata is still showing the previous head `ebfaec9` (trigger lag under observation). | AI | 2026-04-17 | Local checks now pass for `knowledge-dashboard` (`npm run build`, `npm run smoke`), `hanwoo-dashboard` (`npm run smoke` with `DATABASE_URL`), and `blind-to-x` targeted `test_content_calendar_branches.py`; PR review is still required. |
+| T-224 | `[workspace]` Public-repo cleanup PR `#25`: stop tracking `.code-review-graph/graph.db` and reconcile the post-merge branch/metadata mismatch on `chore/public-repo-cleanup`. GitHub now reports the PR as `MERGED`, but the remote cleanup branch still exists at `9c296a9` while `gh pr view` keeps showing the older head `ebfaec9`. | AI | 2026-04-17 | The CI-unblock local checks were already green on 2026-04-17 for `knowledge-dashboard` (`npm run build`, `npm run smoke`), `hanwoo-dashboard` (`npm run smoke` with `DATABASE_URL`), and `blind-to-x` targeted `test_content_calendar_branches.py`; the next pass should verify whether the lingering branch can be safely deleted or whether GitHub metadata is simply stale. |
 
 ## DONE (Latest 5)
 

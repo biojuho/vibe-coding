@@ -6,6 +6,13 @@
 
 | Field | Value |
 |---|---|
+| Date | 2026-04-18 |
+| Tool | Codex |
+| Work | **T-224 status recorded**: rechecked public cleanup PR `#25` and documented the current mismatch. `gh pr view 25 --repo biojuho/vibe-coding` now reports `state: MERGED` with `mergedAt: 2026-04-17T11:39:02Z`, but it still shows stale `headRefOid` `ebfaec9` plus the older failed matrix checks. A separate `git -C .tmp/public-hygiene-cleanup ls-remote --heads origin chore/public-repo-cleanup` probe still shows the remote cleanup branch present at `9c296a9`. The root workspace is also still dirty in `projects/blind-to-x/*`, so this session touched only `.ai` context files. |
+| Next Priorities | 1. Reconcile the merged PR vs lingering remote branch / stale metadata before deleting anything on GitHub. 2. If cleanup follow-up work is needed, continue from the isolated worktree `.tmp/public-hygiene-cleanup`. 3. Keep the root `projects/blind-to-x/*` dirty edits out of any `[ai-context]` commit. |
+
+| Field | Value |
+|---|---|
 | Date | 2026-04-17 |
 | Tool | Gemini (Antigravity) |
 | Work | **T-225 완료**: `/qa-qc` 자동 검토 워크플로우 수행 및 결함 해결. `execution/ai_batch_runner.py` 의 API 응답(`choices` 배열 빈 엣지케이스)에 대한 방어 로직을 추가하고 빈번히 발생할 수 있는 오류를 차단. `projects/blind-to-x/pipeline/harness_guard.py` 의 `_get_project_root()`가 실행 경로 제약 없이 동적으로 구성되도록 리팩터링. 두 건에 대해 회귀 테스트(`test_ai_batch_runner_regression.py`, `test_harness_guard_regression.py`)를 추가하여 `pytest` 로컬 통과 완료. |
