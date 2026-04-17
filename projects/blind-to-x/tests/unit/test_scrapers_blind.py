@@ -112,10 +112,10 @@ async def test_scrape_post_success(mock_fetch, mock_mkdir, scraper):
     page_mock.query_selector.return_value = main_container_mock
 
     title_el = AsyncMock()
-    title_el.inner_text.return_value = "연봉 협상 어떻게 하나요"
+    title_el.inner_text.return_value = "이직 면접 연봉 협상 어떻게 하나요"
 
     content_el = AsyncMock()
-    content_el.inner_text.return_value = "팁좀"
+    content_el.inner_text.return_value = "이직 면접에서 연봉 협상할 때 꿀팁 좀요. 자세히 알려주세요."
 
     def side_effect(sel):
         if "h2" in sel or "h1" in sel:
@@ -135,7 +135,37 @@ async def test_scrape_post_success(mock_fetch, mock_mkdir, scraper):
     result = await scraper.scrape_post("https://www.teamblind.com/kr/topic/111")
 
     assert result.get("_scrape_error") is None
-    assert result["title"] == "연봉 협상 어떻게 하나요"
-    assert result["content"] == "팁좀"
+    assert result["title"] == "이직 면접 연봉 협상 어떻게 하나요"
+    assert "이직 면접에서 연봉 협상할 때 꿀팁" in result["content"]
     assert result["category"] == "career"
     assert "screenshot_path" in result
+
+
+@pytest.mark.asyncio
+@patch("scrapers.blind.os.makedirs")
+@patch("scrapers.blind.BlindScraper._fetch_html_via_session", new_callable=AsyncMock)
+async def test_scrape_post_insufficient_length(mock_fetch, mock_mkdir, scraper):
+    mock_fetch.return_value = "<html><body></body></html>"
+    page_mock = AsyncMock()
+
+    main_container_mock = AsyncMock()
+    page_mock.query_selector.return_value = main_container_mock
+
+    title_el = AsyncMock()
+    title_el.inner_text.return_value = "짧은 글"
+
+    content_el = AsyncMock()
+    content_el.inner_text.return_value = "ㅋㅋ"
+
+    def side_effect(sel):
+        if "h2" in sel or "h1" in sel:
+            return title_el
+        return content_el
+
+    main_container_mock.query_selector.side_effect = side_effect
+    scraper._new_page = AsyncMock(return_value=page_mock)
+
+    result = await scraper.scrape_post("https://www.teamblind.com/kr/topic/111")
+
+    assert result.get("_scrape_error") is True
+    assert result["failure_reason"] == "insufficient_content_length"
