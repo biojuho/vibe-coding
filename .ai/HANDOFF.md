@@ -7,6 +7,13 @@
 | Field | Value |
 |---|---|
 | Date | 2026-04-17 |
+| Tool | Gemini (Antigravity) |
+| Work | **T-225 완료**: `/qa-qc` 자동 검토 워크플로우 수행 및 결함 해결. `execution/ai_batch_runner.py` 의 API 응답(`choices` 배열 빈 엣지케이스)에 대한 방어 로직을 추가하고 빈번히 발생할 수 있는 오류를 차단. `projects/blind-to-x/pipeline/harness_guard.py` 의 `_get_project_root()`가 실행 경로 제약 없이 동적으로 구성되도록 리팩터링. 두 건에 대해 회귀 테스트(`test_ai_batch_runner_regression.py`, `test_harness_guard_regression.py`)를 추가하여 `pytest` 로컬 통과 완료. |
+| Next Priorities | 1. T-223 (User): dependabot PRs 해결 및 history rewrite 커밋. 2. T-199 (User): GitHub branch protection 설정 (플랜 권한 대기). |
+
+| Field | Value |
+|---|---|
+| Date | 2026-04-17 |
 | Tool | Codex |
 | Work | **T-215 decision recorded**: revalidated the public-readiness path before any visibility change. `python execution/remote_branch_cleanup.py --repo biojuho/vibe-coding --local-repo .tmp/public-history-rewrite` still reports 3 remote-only branches, all blocked by open dependabot PRs `#1`, `#2`, `#3`. `python execution/github_branch_protection.py --check-live` still returns `status: blocked` because `biojuho/vibe-coding` is `PRIVATE` on GitHub Free. Decision: if the repository is ever made public, it must use the rewritten history from `.tmp/public-history-rewrite`; do not expose the current unre-written history. |
 | Next Priorities | 1. T-223 (User): resolve or close dependabot PRs `#1`, `#2`, `#3`, then approve the destructive rewritten-history push / visibility flip from `.tmp/public-history-rewrite`. 2. T-199 (User): once the repo is public or GitHub Pro is enabled, run `python execution/github_branch_protection.py --apply` and `--check-live`. |
