@@ -6,6 +6,13 @@
 
 | Field | Value |
 |---|---|
+| Date | 2026-04-18 |
+| Tool | Codex |
+| Work | **Priority reset + PR-27 local validation recorded**: `python3.13 -m code_review_graph status` in the current shell now reports `Nodes: 0`, `Edges: 0`, `Files: 0`, `Last updated: never`, so this session fell back to direct file inspection instead of graph-first exploration. The working tree currently sits on `fix/pr25-post-merge-stabilization` at `2ca97a9` (same commit as `origin/main`) and `git status --short --branch` now shows the branch is `behind 3` versus `origin/fix/pr25-post-merge-stabilization`, with local edits across `blind-to-x`, `hanwoo-dashboard`, `shorts-maker-v2`, `workspace/directives/INDEX.md`, and untracked `projects/blind-to-x/tests/unit/test_scrapers_jobplanet.py` plus `workspace/tests/__init__.py`. The targeted local checks run against this dirty worktree were green: `python -m pytest --no-cov tests/unit/test_content_calendar_branches.py -q` -> `6 passed`, `python -m pytest --no-cov tests/unit/test_trend_discovery_step.py -q` -> `37 passed`, `node scripts/smoke.mjs` -> exit `0`. No rebase, merge, or push was performed. |
+| Next Priorities | 1. Decide whether to keep or discard the current dirty worktree on `fix/pr25-post-merge-stabilization` before syncing it with the remote branch that is ahead by 3 commits. 2. If the user wants PR `#27` advanced, reconcile the local worktree with `origin/fix/pr25-post-merge-stabilization`, then rerun GitHub Actions from a refreshed branch state. 3. Rebuild/reindex `code-review-graph` before relying on graph-first exploration again. |
+
+| Field | Value |
+|---|---|
 | Date | 2026-04-17 |
 | Tool | Codex |
 | Work | **T-215 decision recorded**: revalidated the public-readiness path before any visibility change. `python execution/remote_branch_cleanup.py --repo biojuho/vibe-coding --local-repo .tmp/public-history-rewrite` still reports 3 remote-only branches, all blocked by open dependabot PRs `#1`, `#2`, `#3`. `python execution/github_branch_protection.py --check-live` still returns `status: blocked` because `biojuho/vibe-coding` is `PRIVATE` on GitHub Free. Decision: if the repository is ever made public, it must use the rewritten history from `.tmp/public-history-rewrite`; do not expose the current unre-written history. |

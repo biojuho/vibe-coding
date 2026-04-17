@@ -23,6 +23,7 @@
 
 ## Current Reliability Notes
 
+- As of 2026-04-18, `biojuho/vibe-coding` is `PUBLIC`, and `python execution/github_branch_protection.py --check-live` reports `status: configured` for `main` with required checks `root-quality-gate` and `test-summary`.
 - `execution/remote_branch_cleanup.py` now inventories remote-only GitHub branches relative to a sanitized local clone, annotates open PR blockers, and can generate a PowerShell delete script containing only safe branch deletions.
 - As of 2026-04-17, T-215 is resolved as a policy decision: if `biojuho/vibe-coding` is ever made public, the rollout must use the sanitized `.tmp/public-history-rewrite` history rather than exposing the current unre-written repo history, because rotated Brave / NotebookLM secrets still exist in past commits.
 - `projects/hanwoo-dashboard` is still the main active deep-debug target outside the current Notion work.
@@ -33,6 +34,7 @@
 - `projects/hanwoo-dashboard/src/components/widgets/MarketPriceWidget.js` now swallows refresh failures after logging them so timer/button refreshes do not create unhandled promise rejections.
 - `projects/blind-to-x/escalation_runner.py` now injects `TweetDraftGenerator` into `ExpressDraftPipeline`, and `pipeline/express_draft.py` can reuse the generator's real provider chain instead of failing structurally when only `_enabled_providers()` / `_generate_once()` are available.
 - `projects/blind-to-x/pipeline/daily_digest.py` now guards repeated Notion cursors/runaway page counts and enforces a summary-generation timeout with fallback if Gemini hangs.
+- `projects/blind-to-x/scrapers/blind.py`, `scrapers/fmkorea.py`, and `scrapers/jobplanet.py` now treat parsed content shorter than 10 characters as a structured parse failure (`failure_reason="insufficient_content_length"`), and the unit tests cover the short-content failure path for all three sources.
 - `projects/blind-to-x/tests/unit/conftest.py` now clears `NOTION_DATABASE_ID` and any `NOTION_PROP_*` env overrides before each test, preventing `.env`-loaded Notion values from leaking into `NotionUploader` unit expectations.
 - `projects/blind-to-x/pipeline/notion/_query.py` now resolves logical status names like `승인됨` against the live Notion select options (for the current DB, `발행승인`) and canonicalizes the returned status values back to the shared logical labels so feedback/reprocess flows stay stable across schema wording changes.
 - `projects/blind-to-x/tests/unit/test_process.py` is back to a clean local test-helper state after the timeout-targeting edits; the unused `asyncio` import was removed and the focused process tests plus Ruff now pass together.
@@ -64,6 +66,16 @@
 
 ## Recent Verification
 
+- `workspace`: `gh repo view biojuho/vibe-coding --json nameWithOwner,isPrivate,defaultBranchRef` showed on 2026-04-18 that the repo is now public (`isPrivate: false`) and still uses `main` as the default branch.
+- `workspace`: `python execution/github_branch_protection.py --check-live` showed on 2026-04-18 that branch protection is now fully configured on `main` with required checks `root-quality-gate` and `test-summary`.
+- `workspace`: `python3.13 -m code_review_graph status` ran on 2026-04-18 in the current shell and returned `Nodes: 0`, `Edges: 0`, `Files: 0`, `Last updated: never`, so graph-first exploration is currently unavailable until the index is rebuilt or restored.
+- `workspace`: `git status --short --branch` showed on 2026-04-18 that local `fix/pr25-post-merge-stabilization` currently points at `2ca97a9`, is `behind 3` versus `origin/fix/pr25-post-merge-stabilization`, and still has a dirty worktree across `blind-to-x`, `hanwoo-dashboard`, `shorts-maker-v2`, `workspace/directives/INDEX.md`, plus untracked `projects/blind-to-x/tests/unit/test_scrapers_jobplanet.py` and `workspace/tests/__init__.py`.
+- `workspace`: `gh pr view 27 --repo biojuho/vibe-coding --json number,title,url,state,isDraft,headRefName,headRefOid,baseRefName,mergeStateStatus,reviewDecision,statusCheckRollup,mergedAt` showed on 2026-04-18 that follow-up PR `#27` is `OPEN`, `BEHIND`, `REVIEW_REQUIRED`, and currently red: `blind-to-x-tests`, `shorts-maker-v2-tests`, and `test-summary` failed, while `workspace-quality`, `root-quality-gate`, and both frontend app checks succeeded.
+- `workspace`: local `git log --oneline --decorate -5` on 2026-04-18 showed `origin/main` has advanced to `2ca97a9` (`#26`) while PR `#27` head remains `00b0504`, explaining the current `BEHIND` merge state.
+- `workspace`: `gh pr view 25 --repo biojuho/vibe-coding --json number,title,url,state,mergeCommit,mergedAt,headRefName,headRefOid` still showed stale old cleanup-branch head metadata (`ebfaec9`) on 2026-04-18 even though the PR itself is already `MERGED` as `cf912ba`.
+- `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/test_content_calendar_branches.py -q` passed on 2026-04-18 (`6 passed`) on `fix/pr25-post-merge-stabilization`.
+- `projects/shorts-maker-v2`: `python -m pytest --no-cov tests/unit/test_trend_discovery_step.py -q` passed on 2026-04-18 (`37 passed`) on `fix/pr25-post-merge-stabilization`.
+- `projects/hanwoo-dashboard`: `node scripts/smoke.mjs` exited `0` on 2026-04-18 on `fix/pr25-post-merge-stabilization`, confirming the unauthenticated route smoke checks still pass locally.
 - `workspace`: `python execution/remote_branch_cleanup.py --repo biojuho/vibe-coding --local-repo .tmp/public-history-rewrite` re-ran on 2026-04-17 and still reports 3 remote-only branches, all blocked by open dependabot PRs `#1`, `#2`, `#3`.
 - `workspace`: `python execution/github_branch_protection.py --check-live` re-ran on 2026-04-17 and still reported `status: blocked` because `biojuho/vibe-coding` remains `PRIVATE` on GitHub Free.
 - `projects/hanwoo-dashboard`: QC re-ran on 2026-04-17 after the T-221 build-script fix, and both `npm run build` and `npm test` passed again with no new regression in the validated release path.
@@ -125,13 +137,19 @@
 
 ## Minefield
 
+- `code-review-graph` is currently empty in the active root shell (`Nodes: 0`, `Edges: 0`, `Files: 0`, `Last updated: never` on 2026-04-18). Rebuild or restore the graph before relying on graph-first exploration.
+- Local `fix/pr25-post-merge-stabilization` is currently at `2ca97a9`, `behind 3` versus `origin/fix/pr25-post-merge-stabilization`, and dirty across multiple product files. Check `git status --short --branch` before assuming the local PR branch matches GitHub.
 - `.tmp/public-history-rewrite` is now the prepared sandbox for any eventual secret-history push. Keep the main repo history untouched unless the user explicitly approves a destructive rewrite/push sequence.
+- Cleanup follow-up PR `#27` is no longer at the tip of `main`; GitHub reports it as `BEHIND` after `main` advanced to `2ca97a9`. Do not trust its old CI results without refreshing the branch first.
+- PR `#25` still exposes stale old head metadata (`ebfaec9`) in GitHub even after merge. Compare the merge commit and live branch heads directly before deciding a stale cleanup branch can be deleted.
 - Earlier `23 remote-only branches` was a stale local remote-tracking estimate. Live `git ls-remote --heads` on 2026-04-15 first showed 4 remote-only branches, and after deleting `fix/notion-review-status` the live remote is down to 3 remote-only branches, all tied to open dependabot PRs.
 - The current worktree secret blockers are sanitized, but the Brave key and NotebookLM auth payload previously existed in committed history. Per the 2026-04-17 T-215 decision, do not make the repo public from the current unre-written history; only use `.tmp/public-history-rewrite` (or a freshly regenerated equivalent clean clone).
 - `git-filter-repo` is not installed in the current root shell. Do not attempt a fresh rewrite inside the dirty main workspace; reuse `.tmp/public-history-rewrite` or another clean clone if the rewrite must be regenerated.
 - `.secrets.baseline` already suppressed `.agents/skills/brave-search/secrets.json` and `infrastructure/notebooklm-mcp/tokens/auth.json`; baseline allowlisting is not a fix.
 - The worktree is dirty across multiple projects. Do not revert unrelated edits.
+- The current root workspace also has untracked `projects/blind-to-x/tests/unit/test_scrapers_jobplanet.py` and `workspace/tests/__init__.py`; leave them alone unless the user explicitly asks to handle them.
 - Bare `pytest` is not on `PATH` in the current root shell unless the venv is activated; prefer `python -m pytest`.
+- PowerShell does not expand pytest file globs like `tests/unit/test_scrapers_*.py`; use explicit file lists or `pytest -k ...` when targeting subsets.
 - `projects/hanwoo-dashboard` still has many user-facing Korean strings; keep edits surgical to avoid encoding churn.
 - For `hanwoo-dashboard` Node-side unit tests, prefer `.mjs` helper/test files. The repo still does not set package-wide `"type": "module"`.
 - `projects/blind-to-x` and `projects/shorts-maker-v2` enforce broad coverage defaults; use `python -m pytest --no-cov ...` for focused local verification unless a full coverage run is intended.
