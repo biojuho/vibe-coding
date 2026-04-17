@@ -27,7 +27,7 @@
 | notion_integration.md | notion_client.py, notion_shorts_sync.py, notion_article_uploader.py | Notion API 연동 |
 | operator_workflow.md | scripts/doctor.py, health_check.py, scripts/quality_gate.py, qaqc_runner.py | Canonical fast/standard/deep operator ladder for the shared control plane |
 | process_management.md | process_manager.py, scheduler_engine.py, scheduler_worker.py | 프로세스/스케줄러 관리 |
-| pr_triage_orchestrator.md | pr_triage_orchestrator.py, pr_triage_worktree.py | Read-only PR triage orchestration with repo-specific validation |
+| pr_triage_orchestrator.md | pr_self_review.py, pr_triage_orchestrator.py, pr_triage_worktree.py | Read-only PR triage orchestration with repo-specific validation |
 | pr_triage_worktree.md | pr_triage_worktree.py | Isolated git worktree prep for PR-style validation |
 | qa_qc_workflow.md | qaqc_runner.py, qaqc_history_db.py, governance_checks.py | QA/QC 자동화 + control-plane governance |
 | vibe_debt_audit.md | vibe_debt_auditor.py, debt_history_db.py | 기술 부채 정량화 + TDR 추이 추적 |
