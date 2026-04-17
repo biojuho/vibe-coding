@@ -77,11 +77,15 @@ venv/
 # ===== AI 도구 로컬 설정 (각 도구 고유) =====
 .agent/
 .agents/skills/_archive/
+.amazonq/agents/
 .claude/*
 !.claude/commands/
 .codex/
 .vscode/
 .gemini/
+
+# ===== Scratch / 임시 실험 =====
+scratch/
 
 # ===== Nested Git Repos (renamed for root backup) =====
 **/.git.bak/
