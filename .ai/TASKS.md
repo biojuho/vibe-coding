@@ -6,7 +6,7 @@
 
 | ID | Task | Owner | Priority | Auto | Created |
 |---|---|---|---|---|---|
-| T-215 | `[workspace]` Public conversion follow-up: rotate/revoke the previously exposed Brave API key and NotebookLM session, then decide whether a history rewrite is still required before making the repo public. | User | P0 | 🔴 approval | 2026-04-15 |
+| T-215 | `[workspace]` Git history rewrite: past commits still contain the old Brave key and NotebookLM session. Decide whether to run `git filter-repo` before making the repo public. (Key rotation itself is DONE as of 2026-04-17.) | User | P0 | 🔴 approval | 2026-04-15 |
 | T-199 | `[workspace]` GitHub branch protection for `main` requiring CI pass. Blocked because the repo is private on a free plan and the live API check returned HTTP 403. | User | P1 | 🔴 approval | 2026-04-14 |
 
 ## IN_PROGRESS

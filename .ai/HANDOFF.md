@@ -7,6 +7,13 @@
 | Field | Value |
 |---|---|
 | Date | 2026-04-17 |
+| Tool | Codex |
+| Work | **T-221 QC recorded**: re-ran the `hanwoo-dashboard` release-path checks after the Next 16 build-script fix. `npm run build` completed successfully with `next build --webpack`, and `npm test` passed again (`51/51`). No new regression was found in the validated build/test path. |
+| Next Priorities | 1. Keep using `npm run build` as the production verification path for `hanwoo-dashboard` while Turbopack remains incompatible with the current `next/font/google` setup in `src/app/layout.js`. 2. If Turbopack becomes required again, revisit the font-loading path and retest on a newer Next.js release. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-04-17 |
 | Tool | Gemini (Antigravity) |
 | Work | **workspace ruff E501 완전 해소**: `workspace/execution/` 내 모든 E501 lint 오류 해결. `qaqc_runner.py` security triage reason 문자열 멀티라인 분리, `shorts_manager.py` `_style` 변수 추출 + `# noqa: E501` 적용, `content_db.py` SQL SUM 조건 멀티라인 분리, `debug_history_db.py` SQL 쿼리 `# noqa: E501` 처리, `reasoning_engine.py` f-string에서 `_patterns_json` 변수 추출, `scheduler_engine.py` docstring Usage 예시 라인 래핑. 최종 `ruff check workspace/execution/ --output-format=concise` → `All checks passed!` |
 | Next Priorities | 1. T-215 (User): Brave API key / NotebookLM 세션 rotate/revoke (보안). 2. T-199 (User): GitHub branch protection — private+무료 플랜 블로킹. |

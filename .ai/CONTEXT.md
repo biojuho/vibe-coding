@@ -63,6 +63,7 @@
 
 ## Recent Verification
 
+- `projects/hanwoo-dashboard`: QC re-ran on 2026-04-17 after the T-221 build-script fix, and both `npm run build` and `npm test` passed again with no new regression in the validated release path.
 - `projects/hanwoo-dashboard`: `npm run build` passed on 2026-04-17 after `package.json` was updated to run `next build --webpack` instead of the default Turbopack build, which had been failing on `next/font/google` resolution in `src/app/layout.js`.
 - `projects/hanwoo-dashboard`: `npm test` passed on 2026-04-17 (`51 passed`) after the build-script fix, confirming no local regression in the existing Node-side checks.
 - `workspace`: `python -m pytest --no-cov workspace/tests/test_remote_branch_cleanup.py -q` passed on 2026-04-15 (`3 passed`) after `execution/remote_branch_cleanup.py` was added to inventory remote-only GitHub branches against the sanitized rewrite clone.
