@@ -18,11 +18,11 @@
 
 | ID | Task | Completed By | Completed |
 |---|---|---|---|
+| T-220 | `[shorts-maker-v2]` Phase 2 리팩토링 완료: `test_render_step_*.py` 4개 파일 import `ModuleNotFoundError` 수정 (`from conftest_render import ...`), 1293 passed 달성 | Gemini (Antigravity) | 2026-04-17 |
 | T-217 | `[blind-to-x]` `main.py` 분리 리팩터링 완료 확인: `pipeline/cli.py`, `runner.py`, `bootstrap.py`로 역할 분리 + `test_main.py` 20/20 passed | Gemini (Antigravity) | 2026-04-15 |
 | T-219 | `[blind-to-x]` Pydantic V2 마이그레이션: `fetch_stage.py`의 `.dict()` → `.model_dump()` 전환, deprecation warning 제거 (61 tests passed) | Gemini (Antigravity) | 2026-04-15 |
 | T-218 | `[blind-to-x]` `blind_scraper.py` import 에러 수정 + `test_main.py` monkeypatch 경로 갱신 (1484 tests passed) | Gemini (Antigravity) | 2026-04-15 |
 | T-216 | `[hanwoo-dashboard]` 기술 부채 해결 (Phase 1): `useCursorPagination` 추상화를 통한 `useCattle/useSales` 중복 로직 90% 제거 | Gemini (Antigravity) | 2026-04-15 |
-| T-213 | `[workspace]` Public 전환 전 tracked secret sanitation 완료 | Codex | 2026-04-15 |
 
 - Keep only the latest 5 items in `DONE`.
 - Add newly discovered follow-up work to `TODO`.
