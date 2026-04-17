@@ -25,6 +25,7 @@
 
 - `execution/remote_branch_cleanup.py` now inventories remote-only GitHub branches relative to a sanitized local clone, annotates open PR blockers, and can generate a PowerShell delete script containing only safe branch deletions.
 - `projects/hanwoo-dashboard` is still the main active deep-debug target outside the current Notion work.
+- `projects/hanwoo-dashboard/package.json` now pins the production build path to `next build --webpack` because the default Next 16 Turbopack build currently fails on the Google fonts loaded from `src/app/layout.js`; `npm run build` is green again after the opt-out.
 - `projects/hanwoo-dashboard/src/lib/dashboard/pagination-guard.mjs` prevents repeated-cursor and runaway page-loop conditions in full-registry loaders and client pagination hooks.
 - `projects/hanwoo-dashboard/src/app/subscription/success/page.js` and `src/components/payment/PaymentWidget.js` now safely parse malformed or non-JSON payment responses so checkout UI stays deterministic.
 - `projects/hanwoo-dashboard/src/lib/hooks/useCattlePagination.js` and `src/lib/hooks/useSalesPagination.js` now abort on unmount, enforce a 15s client timeout, and avoid late state writes after disposal.
@@ -62,6 +63,8 @@
 
 ## Recent Verification
 
+- `projects/hanwoo-dashboard`: `npm run build` passed on 2026-04-17 after `package.json` was updated to run `next build --webpack` instead of the default Turbopack build, which had been failing on `next/font/google` resolution in `src/app/layout.js`.
+- `projects/hanwoo-dashboard`: `npm test` passed on 2026-04-17 (`51 passed`) after the build-script fix, confirming no local regression in the existing Node-side checks.
 - `workspace`: `python -m pytest --no-cov workspace/tests/test_remote_branch_cleanup.py -q` passed on 2026-04-15 (`3 passed`) after `execution/remote_branch_cleanup.py` was added to inventory remote-only GitHub branches against the sanitized rewrite clone.
 - `workspace`: `python -m ruff check execution/remote_branch_cleanup.py workspace/tests/test_remote_branch_cleanup.py` passed on 2026-04-15 after the remote-branch cleanup helper landed.
 - `workspace`: `python execution/remote_branch_cleanup.py --repo biojuho/vibe-coding --local-repo .tmp/public-history-rewrite --write-delete-script .tmp/public-history-rewrite/delete_remote_only_branches.ps1` reported on 2026-04-15 that the live GitHub remote currently has 4 remote-only branches. Three are blocked by open PRs (`dependabot/...` PRs #1, #2, #3), and only `fix/notion-review-status` is immediately safe to delete. The generated delete script now lives at `.tmp/public-history-rewrite/delete_remote_only_branches.ps1`.

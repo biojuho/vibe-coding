@@ -7,6 +7,13 @@
 | Field | Value |
 |---|---|
 | Date | 2026-04-17 |
+| Tool | Codex |
+| Work | **T-221 build fix**: traced the active `hanwoo-dashboard` production failure to `next/font/google` inside `projects/hanwoo-dashboard/src/app/layout.js` when `npm run build` used Next 16's default Turbopack path. Verified that `npx next build --webpack` succeeded, then updated `projects/hanwoo-dashboard/package.json` so `build` now runs `next build --webpack`. Re-verified with `npm run build` and `npm test`, both green. |
+| Next Priorities | 1. If the project later needs Turbopack builds again, revisit the `next/font/google` usage in `src/app/layout.js` or retest after a Next.js upgrade. 2. Keep using `npm run build` as the release-path check for `hanwoo-dashboard`; it now intentionally opts out of Turbopack. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-04-17 |
 | Tool | Gemini (Antigravity) |
 | Work | **T-220 완료**: `shorts-maker-v2` Phase 2 test split import fix. `tests/unit/__init__.py` 미존재로 `from tests.unit.conftest_render import ...` 절대 경로가 `ModuleNotFoundError`를 유발. 4개 파일(`test_render_step_core/captions/effects/audio_mix.py`)을 `from conftest_render import ...`로 수정. `ruff format` 적용 후 커밋 `24a4434`. 검증: `1293 passed, 12 skipped`. |
 | Next Priorities | 1. T-215 (User): Brave API key / NotebookLM 세션 rotate/revoke (보안). 2. T-199 (User): GitHub branch protection — private+무료 플랜 블로킹. 3. 추가 기술 부채 식별 필요 (shorts-maker-v2 media_step.py mixin 분리 등). |
