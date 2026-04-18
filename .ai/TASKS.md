@@ -5,39 +5,23 @@
 ## TODO
 
 | ID | Task | Owner | Priority | Auto | Created |
-|---| T-224 | [workspace] GitHub Action Quality Gate 에러(매핑 누락, 모듈 충돌) 해결 및 QC 테스트 완료 | Gemini (Antigravity) | 2026-04-18 |
-|---| T-224 | [workspace] GitHub Action Quality Gate 에러(매핑 누락, 모듈 충돌) 해결 및 QC 테스트 완료 | Gemini (Antigravity) | 2026-04-18 |
-|---| T-224 | [workspace] GitHub Action Quality Gate 에러(매핑 누락, 모듈 충돌) 해결 및 QC 테스트 완료 | Gemini (Antigravity) | 2026-04-18 |
-|---| T-224 | [workspace] GitHub Action Quality Gate 에러(매핑 누락, 모듈 충돌) 해결 및 QC 테스트 완료 | Gemini (Antigravity) | 2026-04-18 |
-|---| T-224 | [workspace] GitHub Action Quality Gate 에러(매핑 누락, 모듈 충돌) 해결 및 QC 테스트 완료 | Gemini (Antigravity) | 2026-04-18 |
-|---| T-224 | [workspace] GitHub Action Quality Gate 에러(매핑 누락, 모듈 충돌) 해결 및 QC 테스트 완료 | Gemini (Antigravity) | 2026-04-18 |
-|
-| T-223 | `[workspace]` Public flip rollout from `.tmp/public-history-rewrite`: resolve or close dependabot PRs `#1`, `#2`, `#3`, then perform the user-approved destructive rewritten-history push / visibility change from the sanitized clone. | User | P0 | 🔴 approval | 2026-04-17 |
-| T-199 | `[workspace]` GitHub branch protection for `main` requiring CI pass. Blocked because the repo is private on a free plan and the live API check returned HTTP 403. | User | P1 | 🔴 approval | 2026-04-14 |
+|---|---|---|---|---|---|
+| T-229 | `[workspace]` Publish the local `main` recovery commits (`96e6daf`, `7c56a15`) by either pushing `main` or opening a new PR. PR `#27` is closed/unmerged and its remote head branch is gone. | User | P0 | 🔴 approval | 2026-04-18 |
 
 ## IN_PROGRESS
 
 | ID | Task | Owner | Started | Notes |
-|---| T-224 | [workspace] GitHub Action Quality Gate 에러(매핑 누락, 모듈 충돌) 해결 및 QC 테스트 완료 | Gemini (Antigravity) | 2026-04-18 |
-|---| T-224 | [workspace] GitHub Action Quality Gate 에러(매핑 누락, 모듈 충돌) 해결 및 QC 테스트 완료 | Gemini (Antigravity) | 2026-04-18 |
-|---| T-224 | [workspace] GitHub Action Quality Gate 에러(매핑 누락, 모듈 충돌) 해결 및 QC 테스트 완료 | Gemini (Antigravity) | 2026-04-18 |
-|---| T-224 | [workspace] GitHub Action Quality Gate 에러(매핑 누락, 모듈 충돌) 해결 및 QC 테스트 완료 | Gemini (Antigravity) | 2026-04-18 |
-|---| T-224 | [workspace] GitHub Action Quality Gate 에러(매핑 누락, 모듈 충돌) 해결 및 QC 테스트 완료 | Gemini (Antigravity) | 2026-04-18 |
-|
+|---|---|---|---|---|
 
 ## DONE (Latest 5)
 
 | ID | Task | Completed By | Completed |
-|---| T-224 | [workspace] GitHub Action Quality Gate 에러(매핑 누락, 모듈 충돌) 해결 및 QC 테스트 완료 | Gemini (Antigravity) | 2026-04-18 |
-|---| T-224 | [workspace] GitHub Action Quality Gate 에러(매핑 누락, 모듈 충돌) 해결 및 QC 테스트 완료 | Gemini (Antigravity) | 2026-04-18 |
-|---| T-224 | [workspace] GitHub Action Quality Gate 에러(매핑 누락, 모듈 충돌) 해결 및 QC 테스트 완료 | Gemini (Antigravity) | 2026-04-18 |
-|---| T-224 | [workspace] GitHub Action Quality Gate 에러(매핑 누락, 모듈 충돌) 해결 및 QC 테스트 완료 | Gemini (Antigravity) | 2026-04-18 |
-|
-| T-215 | `[workspace]` Public-history decision recorded: because rotated Brave / NotebookLM secrets still exist in past commits, any future public visibility change must use the sanitized `.tmp/public-history-rewrite` history rather than exposing the current unre-written repo history. | Codex | 2026-04-17 |
-| T-222 | `[hanwoo-dashboard]` DashboardClient 훅 분리 (useWeather, useOfflineSyncQueue 등) 및 위젯/분석 탭 UI 폴리싱 (PremiumCard, 다국어 처리) 적용. `npm test` 51/51 통과. | Gemini (Antigravity) | 2026-04-17 |
-| T-221 | `[hanwoo-dashboard]` Next 16 production build restored by switching the build script to `next build --webpack` after Turbopack failed on `next/font/google` in `src/app/layout.js`; `npm run build` and `npm test` passed. | Codex | 2026-04-17 |
-| T-220 | `[shorts-maker-v2]` Phase 2 render test split finished: `test_render_step_*.py` import issue fixed via `conftest_render`, full split suite green. | Gemini (Antigravity) | 2026-04-17 |
-| T-217 | `[blind-to-x]` `main.py` split confirmed complete with `pipeline/cli.py`, `runner.py`, and `bootstrap.py`; `test_main.py` 20/20 passed. | Gemini (Antigravity) | 2026-04-15 |
+|---|---|---|---|
+| T-228 | `[workspace]` Local CI stabilization recovery completed on `main`: `blind-to-x`, `shorts-maker-v2`, and `hanwoo-dashboard` failing checks were fixed locally and revalidated green. Feature commit: `7c56a15`. | Codex | 2026-04-18 |
+| T-227 | `[blind-to-x]` Scraper short-content failure handling and unit coverage were stabilized across Blind / FMKorea / Jobplanet, and the focused scraper + escalation checks were revalidated green. | Codex | 2026-04-18 |
+| T-224 | `[workspace]` GitHub Action Quality Gate 에러(매핑 누락, 모듈 충돌) 해결 및 QC 테스트 완료. | Gemini (Antigravity) | 2026-04-18 |
+| T-223 | `[workspace]` Public flip rollout completed: sanitized `.tmp/public-history-rewrite` was force-pushed to `origin/main`, the repo became public, and the old private-plan blocker was removed. | Gemini (Antigravity) | 2026-04-17 |
+| T-199 | `[workspace]` GitHub branch protection for `main` was applied successfully; the latest live check now reports `status: configured` with required checks `root-quality-gate` and `test-summary`. | Gemini (Antigravity) | 2026-04-17 |
 
 - Keep only the latest 5 items in `DONE`.
 - Add newly discovered follow-up work to `TODO`.
