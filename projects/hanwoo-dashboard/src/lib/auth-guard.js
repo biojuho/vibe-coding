@@ -10,7 +10,15 @@ export class AuthenticationError extends Error {
 
 export async function requireAuthenticatedSession(options = {}) {
   const { redirectToLogin = false } = options;
-  const session = await auth();
+
+  let session;
+  try {
+    session = await auth();
+  } catch (infraError) {
+    // When the backing store (DB) is unreachable, treat as unauthenticated
+    // rather than surfacing an infrastructure error to the caller.
+    throw new AuthenticationError();
+  }
 
   if (!session?.user?.id) {
     if (redirectToLogin) {
