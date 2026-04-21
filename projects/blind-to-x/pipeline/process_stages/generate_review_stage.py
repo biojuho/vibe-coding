@@ -36,6 +36,7 @@ async def run_generate_review_stage(
         ctx.post_data,
         top_tweets=top_tweets,
         output_formats=output_formats,
+        allow_partial=review_only,
     )
     if isinstance(drafts_output, tuple):
         drafts = drafts_output[0]
@@ -134,6 +135,7 @@ async def run_generate_review_stage(
                         top_tweets=top_tweets,
                         output_formats=output_formats,
                         quality_feedback=retry_platforms,
+                        allow_partial=review_only,
                     )
                     if isinstance(drafts_output, tuple):
                         drafts = drafts_output[0]

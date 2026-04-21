@@ -322,7 +322,7 @@ class TestGoogleTrendsFetch:
         assert result == []
 
     def test_trends_returns_candidates(self, step):
-        import pandas as pd
+        pd = pytest.importorskip("pandas", reason="pandas not installed")
 
         mock_df = pd.DataFrame({"query": ["AI 트렌드", "Claude"], "value": [100, 80]})
         mock_pytrends_instance = MagicMock()

@@ -1,17 +1,22 @@
 """P3 소스 확장 단위 테스트."""
 
+import os
+import pytest
+
+_BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_CONFIG_EXISTS = os.path.exists(os.path.join(_BASE, "config.yaml"))
+
 
 class TestSourceHintsConfig:
     """classification_rules.yaml source_hints 정합성."""
 
+    @pytest.mark.skipif(not _CONFIG_EXISTS, reason="config.yaml is gitignored; not available in CI")
     def test_all_sources_in_hints(self):
         """config.yaml input_sources에 등록된 모든 소스가 source_hints에 존재."""
         import yaml
-        import os
         from pipeline.rules_loader import load_rules
 
-        base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        with open(os.path.join(base, "config.yaml"), encoding="utf-8") as f:
+        with open(os.path.join(_BASE, "config.yaml"), encoding="utf-8") as f:
             config = yaml.safe_load(f)
         rules = load_rules()
         hints = rules.get("source_hints", {})
@@ -85,12 +90,11 @@ class TestScraperRegistry:
 class TestConfigInputSources:
     """config.yaml input_sources에 4개 소스 등록 확인."""
 
+    @pytest.mark.skipif(not _CONFIG_EXISTS, reason="config.yaml is gitignored; not available in CI")
     def test_four_sources_enabled(self):
         import yaml
-        import os
 
-        base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        with open(os.path.join(base, "config.yaml"), encoding="utf-8") as f:
+        with open(os.path.join(_BASE, "config.yaml"), encoding="utf-8") as f:
             config = yaml.safe_load(f)
         sources = config.get("input_sources", [])
         for s in ["blind", "ppomppu", "fmkorea", "jobplanet"]:

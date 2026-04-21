@@ -88,17 +88,38 @@ async def test_scrape_post_success(mock_fetch, mock_mkdir, scraper):
 
     # Mock container for post content
     main_container_mock = AsyncMock()
-    page_mock.query_selector.return_value = main_container_mock
+    page_mock.wait_for_selector = AsyncMock()
 
     # Mock title
     title_el = AsyncMock()
     title_el.inner_text.return_value = "오버워치 플레이 영상"
-    page_mock.query_selector.side_effect = lambda sel: title_el if "h1" in sel else None
+
+    def page_query_selector(sel):
+        if sel == ".rd_body":
+            return main_container_mock
+        if "h1" in sel:
+            return title_el
+        return None
+
+    page_mock.query_selector.side_effect = page_query_selector
 
     # Mock content
     content_el = AsyncMock()
-    content_el.inner_text.return_value = "이렇게 플레이했습니다."
-    main_container_mock.query_selector.return_value = content_el
+    content_el.inner_text.return_value = (
+        "이 오버워치 영상은 어떻게 플레이했는지 자세히 보여주는 영상입니다. 10자가 넘어야 합니다."
+    )
+    main_container_mock.query_selector.side_effect = lambda sel: (
+        content_el
+        if sel
+        in {
+            ".xe_content",
+            ".rd_body .xe_content",
+            ".document_read .xe_content",
+            ".rd_body",
+            "p",
+        }
+        else None
+    )
 
     # Mock likes and comments
     # To return different things for different selectors, we can just let 'likes' default to 0
@@ -116,9 +137,55 @@ async def test_scrape_post_success(mock_fetch, mock_mkdir, scraper):
 
     assert result.get("_scrape_error") is None
     assert result["title"] == "오버워치 플레이 영상"
-    assert result["content"] == "이렇게 플레이했습니다."
+    assert "이 오버워치 영상은 어떻게 플레이했는지 자세히 보여주는 영상입니다" in result["content"]
     assert result["category"] == "gaming"
     assert "screenshot_path" in result
+
+
+@pytest.mark.asyncio
+@patch("scrapers.fmkorea.FMKoreaScraper._fetch_html_via_session", new_callable=AsyncMock)
+async def test_scrape_post_insufficient_length(mock_fetch, scraper):
+    mock_fetch.return_value = "<html><body></body></html>"
+    page_mock = AsyncMock()
+
+    main_container_mock = AsyncMock()
+    page_mock.wait_for_selector = AsyncMock()
+
+    title_el = AsyncMock()
+    title_el.inner_text.return_value = "오버워치 플레이 영상"
+
+    def page_query_selector(sel):
+        if sel == ".rd_body":
+            return main_container_mock
+        if "h1" in sel:
+            return title_el
+        return None
+
+    page_mock.query_selector.side_effect = page_query_selector
+
+    content_el = AsyncMock()
+    content_el.inner_text.return_value = "짧은내용"
+    main_container_mock.query_selector.side_effect = lambda sel: (
+        content_el
+        if sel
+        in {
+            ".xe_content",
+            ".rd_body .xe_content",
+            ".document_read .xe_content",
+            ".rd_body",
+            "p",
+        }
+        else None
+    )
+
+    cm_mock = MagicMock()
+    cm_mock.__aenter__.return_value = page_mock
+    scraper._new_page_cm = MagicMock(return_value=cm_mock)
+
+    result = await scraper.scrape_post("https://www.fmkorea.com/best/9999")
+
+    assert result.get("_scrape_error") is True
+    assert result["failure_reason"] == "insufficient_content_length"
 
 
 @pytest.mark.asyncio

@@ -395,11 +395,16 @@ class TestImageGeneratorFallback:
     @pytest.mark.asyncio
     async def test_gemini_success(self):
         gen = self._make_generator()
+        # CI may lack google.genai, causing __init__ to switch provider to
+        # 'pollinations'. Force it back so the gemini code path is tested.
+        gen.provider = "gemini"
         mock_cache = MagicMock()
         mock_cache.return_value.get.return_value = None  # cache miss
         with (
             patch("pipeline.image_cache.ImageCache", mock_cache),
             patch.object(gen, "_generate_gemini", new_callable=AsyncMock) as mock_g,
+            patch.object(gen, "_validate_image", return_value=(True, "")),
+            patch("pipeline.image_generator.os.path.exists", return_value=True),
         ):
             mock_g.return_value = "/tmp/image.png"
             result = await gen.generate_image(

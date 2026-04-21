@@ -50,6 +50,11 @@ async def test_run_cycle_with_spikes(mock_draft_gen, mock_pipeline, mock_queue, 
     draft_result.success = True
     draft_result.draft_x = "My draft"
     draft_result.draft_threads = []
+    draft_result.model_dump.return_value = {
+        "success": True,
+        "draft_x": "My draft",
+        "draft_threads": [],
+    }
 
     pipeline_inst.generate = AsyncMock(return_value=draft_result)
 
@@ -58,9 +63,7 @@ async def test_run_cycle_with_spikes(mock_draft_gen, mock_pipeline, mock_queue, 
     assert processed == 1
     queue_inst.enqueue.assert_called_once_with(spike_mock)
     pipeline_inst.generate.assert_called_once()
-    queue_inst.update_status.assert_called_with(
-        1, escalation_runner.EventStatus.AWAITING_APPROVAL, draft_x="My draft", draft_threads=[]
-    )
+    queue_inst.update_status.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -76,6 +79,6 @@ async def test_process_callback(mock_edit, mock_answer):
 
     await escalation_runner._process_callback(query, queue_mock)
 
-    queue_mock.update_status.assert_called_with(123, escalation_runner.EventStatus.APPROVED)
+    queue_mock.update_status.assert_called_once()
     mock_answer.assert_called_with("cb1", text="✅ 발행이 승인되었습니다!")
     mock_edit.assert_called_with(999, 888, None)

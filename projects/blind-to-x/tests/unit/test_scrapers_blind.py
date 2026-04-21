@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock, patch
+from scrapers.base import BrowserUnavailableError
 from scrapers.blind import BlindScraper
 
 
@@ -112,10 +113,10 @@ async def test_scrape_post_success(mock_fetch, mock_mkdir, scraper):
     page_mock.query_selector.return_value = main_container_mock
 
     title_el = AsyncMock()
-    title_el.inner_text.return_value = "연봉 협상 어떻게 하나요"
+    title_el.inner_text.return_value = "이직 면접 연봉 협상 어떻게 하나요"
 
     content_el = AsyncMock()
-    content_el.inner_text.return_value = "팁좀"
+    content_el.inner_text.return_value = "이직 면접에서 연봉 협상할 때 꿀팁 좀요. 자세히 알려주세요."
 
     def side_effect(sel):
         if "h2" in sel or "h1" in sel:
@@ -135,7 +136,88 @@ async def test_scrape_post_success(mock_fetch, mock_mkdir, scraper):
     result = await scraper.scrape_post("https://www.teamblind.com/kr/topic/111")
 
     assert result.get("_scrape_error") is None
-    assert result["title"] == "연봉 협상 어떻게 하나요"
-    assert result["content"] == "팁좀"
+    assert result["title"] == "이직 면접 연봉 협상 어떻게 하나요"
+    assert "이직 면접에서 연봉 협상할 때 꿀팁" in result["content"]
     assert result["category"] == "career"
     assert "screenshot_path" in result
+
+
+@pytest.mark.asyncio
+@patch("scrapers.blind.os.makedirs")
+@patch("scrapers.blind.BlindScraper._fetch_html_via_session", new_callable=AsyncMock)
+async def test_scrape_post_insufficient_length(mock_fetch, mock_mkdir, scraper):
+    mock_fetch.return_value = "<html><body></body></html>"
+    page_mock = AsyncMock()
+
+    main_container_mock = AsyncMock()
+    page_mock.query_selector.return_value = main_container_mock
+
+    title_el = AsyncMock()
+    title_el.inner_text.return_value = "짧은 글"
+
+    content_el = AsyncMock()
+    content_el.inner_text.return_value = "ㅋㅋ"
+
+    def side_effect(sel):
+        if "h2" in sel or "h1" in sel:
+            return title_el
+        return content_el
+
+    main_container_mock.query_selector.side_effect = side_effect
+    scraper._new_page = AsyncMock(return_value=page_mock)
+
+    result = await scraper.scrape_post("https://www.teamblind.com/kr/topic/111")
+
+    assert result.get("_scrape_error") is True
+    assert result["failure_reason"] == "insufficient_content_length"
+
+
+@pytest.mark.asyncio
+async def test_fetch_post_urls_browser_unavailable_uses_html_only_fallback(scraper):
+    scraper._new_page = AsyncMock(side_effect=BrowserUnavailableError("browser missing"))
+    scraper._fetch_html_via_session = AsyncMock(
+        return_value="""
+        <html>
+          <body>
+            <a href="/kr/post/test-a-123">첫 번째 글</a>
+            <a href="/kr/post/test-b-456">두 번째 글</a>
+          </body>
+        </html>
+        """
+    )
+
+    urls = await scraper._fetch_post_urls("https://www.teamblind.com/kr/topics/trending", limit=2)
+
+    assert urls == [
+        "https://www.teamblind.com/kr/post/test-a-123",
+        "https://www.teamblind.com/kr/post/test-b-456",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_scrape_post_browser_unavailable_uses_html_only_fallback(scraper):
+    scraper._new_page = AsyncMock(side_effect=BrowserUnavailableError("browser missing"))
+    scraper._fetch_html_via_session = AsyncMock(
+        return_value="""
+        <html>
+          <head>
+            <meta property="og:title" content="연봉 협상 팁" />
+          </head>
+          <body>
+            <article>
+              <h1>연봉 협상 팁</h1>
+              <p>이직 직전에 꼭 체크해야 할 연봉 협상 포인트를 정리했습니다.</p>
+            </article>
+          </body>
+        </html>
+        """
+    )
+    scraper._extract_with_crawl4ai = AsyncMock(return_value=None)
+    scraper._extract_clean_text = lambda _html: "이직 직전에 꼭 체크해야 할 연봉 협상 포인트를 정리했습니다."
+
+    result = await scraper.scrape_post("https://www.teamblind.com/kr/post/test-a-123")
+
+    assert result.get("_scrape_error") is None
+    assert result["title"] == "연봉 협상 팁"
+    assert "연봉 협상 포인트" in result["content"]
+    assert result["screenshot_path"] is None

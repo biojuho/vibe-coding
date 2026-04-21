@@ -58,7 +58,7 @@ class StubImageGenerator:
 
 
 class StubDraftGenerator:
-    async def generate_drafts(self, _post_data, top_tweets=None, output_formats=None):  # noqa: ARG002
+    async def generate_drafts(self, _post_data, top_tweets=None, output_formats=None, allow_partial=False):  # noqa: ARG002
         return {
             "twitter": "[공감형 트윗]\n초안",
             "newsletter": "뉴스레터 초안",

@@ -64,6 +64,7 @@
 | harness_tool_registry.py | infrastructure | Agent harness tool allowlist + HITL permission registry |
 | joolife_hub.py | entrypoint | Streamlit 메인 허브 |
 | lyria_bgm_generator.py | utility | Lyria BGM 생성 |
+| pr_self_review.py | utility | AI 기반 PR 셀프 리뷰 |
 | result_tracker_db.py | utility | 결과 추적 DB |
 | roi_calculator.py | utility | ROI 계산기 |
 | selector_validator.py | utility | CSS 셀렉터 검증 |

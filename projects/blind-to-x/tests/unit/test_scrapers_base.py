@@ -112,18 +112,19 @@ async def test_clean_text_extraction(mock_config):
 @pytest.mark.asyncio
 @patch("scrapers.base.async_playwright")
 async def test_scraper_open_close(mock_pw, mock_config):
-    pw_instance = AsyncMock()
-    mock_pw.return_value.start.return_value = pw_instance
+    pw_instance = MagicMock()
+    mock_pw.return_value.start = AsyncMock(return_value=pw_instance)
     pw_instance.devices = {"iPhone 14 Pro": {}}
 
-    browser_mock = AsyncMock()
-    pw_instance.chromium.launch.return_value = browser_mock
-    context_mock = AsyncMock()
-    browser_mock.new_context.return_value = context_mock
+    browser_mock = MagicMock()
+    pw_instance.chromium.launch = AsyncMock(return_value=browser_mock)
+    context_mock = MagicMock()
+    browser_mock.new_context = AsyncMock(return_value=context_mock)
 
     # Needs patch for Stealth
     with patch("scrapers.base.Stealth") as MockStealth:
-        stealth_instance = AsyncMock()
+        stealth_instance = MagicMock()
+        stealth_instance.apply_stealth_async = AsyncMock()
         MockStealth.return_value = stealth_instance
 
         scraper = DummyScraper(mock_config)
@@ -134,6 +135,10 @@ async def test_scraper_open_close(mock_pw, mock_config):
         stealth_instance.apply_stealth_async.assert_called_once()
 
         # Test close
+        context_mock.close = AsyncMock()
+        browser_mock.close = AsyncMock()
+        pw_instance.stop = AsyncMock()
+
         await scraper.close()
         context_mock.close.assert_called_once()
         browser_mock.close.assert_called_once()

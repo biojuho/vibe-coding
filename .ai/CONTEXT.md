@@ -23,6 +23,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-04-18, `biojuho/vibe-coding` is `PUBLIC`, and `python execution/github_branch_protection.py --check-live` reports `status: configured` for `main` with required checks `root-quality-gate` and `test-summary`.
+- Local `main` now includes `7c56a15` (`fix(ci): stabilize project test and build expectations`) on top of the public/protected baseline, but the commit has not been pushed yet.
 - `execution/remote_branch_cleanup.py` now inventories remote-only GitHub branches relative to a sanitized local clone, annotates open PR blockers, and can generate a PowerShell delete script containing only safe branch deletions.
 - As of 2026-04-17, T-215 is resolved as a policy decision: if `biojuho/vibe-coding` is ever made public, the rollout must use the sanitized `.tmp/public-history-rewrite` history rather than exposing the current unre-written repo history, because rotated Brave / NotebookLM secrets still exist in past commits.
 - `projects/hanwoo-dashboard` is still the main active deep-debug target outside the current Notion work.
@@ -31,6 +33,8 @@
 - `projects/hanwoo-dashboard/src/app/subscription/success/page.js` and `src/components/payment/PaymentWidget.js` now safely parse malformed or non-JSON payment responses so checkout UI stays deterministic.
 - `projects/hanwoo-dashboard/src/lib/hooks/useCattlePagination.js` and `src/lib/hooks/useSalesPagination.js` now abort on unmount, enforce a 15s client timeout, and avoid late state writes after disposal.
 - `projects/hanwoo-dashboard/src/components/widgets/MarketPriceWidget.js` now swallows refresh failures after logging them so timer/button refreshes do not create unhandled promise rejections.
+- `projects/blind-to-x/scrapers/base.py` now preserves the underlying browser-launch exception as `BrowserUnavailableError`, and `scrapers/blind.py` falls back to HTML-only feed/post extraction when Playwright/Camoufox is unavailable instead of hard-failing the whole run.
+- `projects/blind-to-x/pipeline/draft_validation.py` now accepts JSON/plaintext drift from providers, preserves single-platform outputs without raw tags, tracks missing requested formats, and allows partial bundles when `review_only` generation explicitly opts in. `pipeline/draft_generator.py` now also exposes `_call_llm_with_fallback()` again so `pipeline/draft_validator.py` retry repair paths work.
 - `projects/blind-to-x/escalation_runner.py` now injects `TweetDraftGenerator` into `ExpressDraftPipeline`, and `pipeline/express_draft.py` can reuse the generator's real provider chain instead of failing structurally when only `_enabled_providers()` / `_generate_once()` are available.
 - `projects/blind-to-x/pipeline/daily_digest.py` now guards repeated Notion cursors/runaway page counts and enforces a summary-generation timeout with fallback if Gemini hangs.
 - `projects/blind-to-x/tests/unit/conftest.py` now clears `NOTION_DATABASE_ID` and any `NOTION_PROP_*` env overrides before each test, preventing `.env`-loaded Notion values from leaking into `NotionUploader` unit expectations.
@@ -64,8 +68,21 @@
 
 ## Recent Verification
 
+- `workspace`: `gh repo view biojuho/vibe-coding --json nameWithOwner,isPrivate,defaultBranchRef` showed on 2026-04-18 that the repo is now public (`isPrivate: false`) and still uses `main` as the default branch.
+- `workspace`: `python execution/github_branch_protection.py --check-live` showed on 2026-04-18 that branch protection is now fully configured on `main` with required checks `root-quality-gate` and `test-summary`.
+- `workspace`: `python3.13 -m code_review_graph status` ran on 2026-04-18 in the current shell and returned `Nodes: 0`, `Edges: 0`, `Files: 0`, `Last updated: never`, so graph-first exploration is currently unavailable until the index is rebuilt or restored.
+- `workspace`: `gh pr view 27 --repo biojuho/vibe-coding --json number,title,state,closedAt,mergedAt,headRefName,headRefOid,baseRefName,url` showed on 2026-04-18 that PR `#27` is now `CLOSED` (not merged) with `closedAt: 2026-04-17T23:33:00Z`; its last head SHA was `6f1f45d`.
+- `workspace`: `git ls-remote --heads origin fix/pr25-post-merge-stabilization` returned no branch head on 2026-04-18, so the old PR branch no longer exists on the remote.
+- `workspace`: `git status --short --branch` showed on 2026-04-18 that local `main` is now `ahead 2` versus `origin/main` (`96e6daf` `[ai-context]`, `7c56a15` feature fix) with a clean worktree after the feature commit.
+- `projects/blind-to-x`: `python -m ruff check scrapers/base.py scrapers/blind.py pipeline/draft_validation.py pipeline/draft_generator.py pipeline/draft_validator.py pipeline/process_stages/generate_review_stage.py tests/unit/test_scrapers_blind.py tests/unit/test_draft_generator_multi_provider.py` passed on 2026-04-21 after the browser-unavailable fallback and draft-output hardening changes.
+- `projects/blind-to-x`: `python -m py_compile scrapers/base.py scrapers/blind.py pipeline/draft_validation.py pipeline/draft_generator.py pipeline/draft_validator.py pipeline/process_stages/generate_review_stage.py tests/unit/test_scrapers_blind.py tests/unit/test_draft_generator_multi_provider.py` passed on 2026-04-21.
+- `projects/blind-to-x`: a direct smoke script passed on 2026-04-21, covering JSON draft parsing, review-only partial-output acceptance, retry fallback generation, and Blind HTML-only feed/post fallback when browsers are unavailable.
+- `projects/blind-to-x`: focused `python -m pytest --no-cov tests/unit/test_scrapers_blind.py tests/unit/test_draft_generator_multi_provider.py -q` remained blocked on 2026-04-21 by Windows temp-dir permission failures (`%LOCALAPPDATA%\\Temp\\pytest-of-user` and project-local `.tmp/pytest-temp`).
 - `workspace`: `python execution/remote_branch_cleanup.py --repo biojuho/vibe-coding --local-repo .tmp/public-history-rewrite` re-ran on 2026-04-17 and still reports 3 remote-only branches, all blocked by open dependabot PRs `#1`, `#2`, `#3`.
 - `workspace`: `python execution/github_branch_protection.py --check-live` re-ran on 2026-04-17 and still reported `status: blocked` because `biojuho/vibe-coding` remains `PRIVATE` on GitHub Free.
+- `projects/blind-to-x`: `python -m pytest tests/unit -q --tb=short --maxfail=1 -o addopts=` passed on 2026-04-18 (`1527 passed, 1 skipped`) after the scraper/error-handling test alignment landed locally.
+- `projects/shorts-maker-v2`: `python -m pytest tests/unit tests/integration -q --tb=short --maxfail=1 -o addopts=` passed on 2026-04-18 (`1300 passed, 12 skipped`) after the dependency/test-path stabilization was rechecked locally.
+- `projects/hanwoo-dashboard`: `npm run build`, `npm run lint`, and `node scripts/smoke.mjs` all passed on 2026-04-18 after `@google/generative-ai` was added to `package.json` / `package-lock.json`.
 - `projects/hanwoo-dashboard`: QC re-ran on 2026-04-17 after the T-221 build-script fix, and both `npm run build` and `npm test` passed again with no new regression in the validated release path.
 - `projects/hanwoo-dashboard`: `npm run build` passed on 2026-04-17 after `package.json` was updated to run `next build --webpack` instead of the default Turbopack build, which had been failing on `next/font/google` resolution in `src/app/layout.js`.
 - `projects/hanwoo-dashboard`: `npm test` passed on 2026-04-17 (`51 passed`) after the build-script fix, confirming no local regression in the existing Node-side checks.
@@ -125,6 +142,8 @@
 
 ## Minefield
 
+- `code-review-graph` is currently empty in the active root shell (`Nodes: 0`, `Edges: 0`, `Files: 0`, `Last updated: never` on 2026-04-18). Rebuild or restore the graph before relying on graph-first exploration.
+- PR `#27` is closed/unmerged and its remote head branch no longer exists. If the local recovery commit `7c56a15` needs to reach GitHub, it must be pushed from `main` or carried by a new branch/PR.
 - `.tmp/public-history-rewrite` is now the prepared sandbox for any eventual secret-history push. Keep the main repo history untouched unless the user explicitly approves a destructive rewrite/push sequence.
 - Earlier `23 remote-only branches` was a stale local remote-tracking estimate. Live `git ls-remote --heads` on 2026-04-15 first showed 4 remote-only branches, and after deleting `fix/notion-review-status` the live remote is down to 3 remote-only branches, all tied to open dependabot PRs.
 - The current worktree secret blockers are sanitized, but the Brave key and NotebookLM auth payload previously existed in committed history. Per the 2026-04-17 T-215 decision, do not make the repo public from the current unre-written history; only use `.tmp/public-history-rewrite` (or a freshly regenerated equivalent clean clone).
@@ -135,6 +154,8 @@
 - `projects/hanwoo-dashboard` still has many user-facing Korean strings; keep edits surgical to avoid encoding churn.
 - For `hanwoo-dashboard` Node-side unit tests, prefer `.mjs` helper/test files. The repo still does not set package-wide `"type": "module"`.
 - `projects/blind-to-x` and `projects/shorts-maker-v2` enforce broad coverage defaults; use `python -m pytest --no-cov ...` for focused local verification unless a full coverage run is intended.
+- `projects/blind-to-x` scheduled logs on 2026-04-20/21 showed missing Playwright browser binaries (`chrome-headless-shell.exe`). The scraper now degrades to HTML-only extraction, but screenshots and browser-dependent selectors still need the actual browser runtime installed.
+- On this machine, focused `projects/blind-to-x` pytest runs are currently blocked by temp-directory permission errors in both `%LOCALAPPDATA%\\Temp\\pytest-of-user` and the project-local `.tmp/pytest-temp` path.
 - `projects/blind-to-x` can return empty database properties through `notion-client` on Windows/Python 3.14; the uploader now relies on an `httpx` fallback to recover schema, and the review-schema/backfill scripts use direct REST-backed paths.
 - The `code-review-graph` Windows `cp949` crash is fixed locally in site-packages, but that patch is not repo-tracked; reinstalling the package can silently reintroduce it.
 - Windows `cp949` consoles can still garble Korean in command output even when the underlying files and Notion payloads are UTF-8 clean.

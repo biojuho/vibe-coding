@@ -192,9 +192,9 @@ class JobplanetScraper(BaseScraper):
                 if len(title) > 50:
                     title = title[:47] + "..."
 
-            if title == "제목 없음" and not content:
-                failure_reason = "title_and_content_missing"
-                raise Exception(f"Could not parse title/content on {url}")
+            if len(content) < 10:
+                failure_reason = "insufficient_content_length"
+                raise Exception("Insufficient text content (minimum 10 chars).")
 
             likes = post_data.get("likes_count", 0)
             comments = post_data.get("comments_count", 0)

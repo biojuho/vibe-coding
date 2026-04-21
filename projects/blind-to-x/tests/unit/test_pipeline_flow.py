@@ -57,7 +57,7 @@ class StubImageUploader:
 
 
 class StubDraftGenerator:
-    async def generate_drafts(self, _post_data, top_tweets=None, output_formats=None):  # noqa: ARG002
+    async def generate_drafts(self, _post_data, top_tweets=None, output_formats=None, allow_partial=False):  # noqa: ARG002
         return {
             "twitter": "실수령 280 얘기 나오자 회의실이 조용해졌다. 다들 웃는 척했지만 속으로는 한숨 쉬던 날이 있잖아요. 3% 인상 버티기 vs 이직 준비, 지금 더 현실적인 쪽은 뭐였나요?",
             "reply_text": "원문: (링크)\n#연봉 #직장인",
@@ -66,7 +66,7 @@ class StubDraftGenerator:
 
 
 class StubDraftGeneratorFailure:
-    async def generate_drafts(self, _post_data, top_tweets=None, output_formats=None):  # noqa: ARG002
+    async def generate_drafts(self, _post_data, top_tweets=None, output_formats=None, allow_partial=False):  # noqa: ARG002
         return {
             "_provider_used": "none",
             "_generation_failed": True,

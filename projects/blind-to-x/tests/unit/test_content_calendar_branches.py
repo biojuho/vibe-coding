@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import sqlite3
 import sys
 from pathlib import Path
@@ -57,8 +57,11 @@ class FakeDB:
             pass
 
 
+_KST = timezone(timedelta(hours=9))
+
+
 def _recent_row(topic: str, hook: str, emotion: str) -> tuple[str, str, str, str]:
-    return (topic, hook, emotion, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    return (topic, hook, emotion, datetime.now(_KST).strftime("%Y-%m-%d %H:%M:%S"))
 
 
 def test_get_recent_posts_reads_from_db() -> None:

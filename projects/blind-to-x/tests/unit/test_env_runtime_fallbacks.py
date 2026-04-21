@@ -99,8 +99,16 @@ def test_resolve_ascii_curl_ca_bundle_prefers_public_ascii_copy(monkeypatch):
 
     result = config_module._resolve_ascii_curl_ca_bundle(r"C:\Users\박주호\venv\cacert.pem")
 
-    assert result == r"C:\Public\btx-cert\certifi-cacert.pem"
-    assert copied["dir"] == r"C:\Public\btx-cert"
+    # Normalize paths for cross-platform comparison: Linux uses '/' and
+    # Windows uses '\\' when os.path.join constructs the path.
+    # os.path.normpath does NOT convert \\ to / on Linux, so we normalize
+    # both separators to '/' for a truly platform-agnostic check.
+    def _norm(p: str) -> str:
+        return p.replace("\\", "/")
+
+    expected = _norm(r"C:\Public\btx-cert\certifi-cacert.pem")
+    assert _norm(result) == expected
+    assert _norm(copied["dir"]) == _norm(r"C:\Public\btx-cert")
     assert copied["dst"] == result
 
 

@@ -145,6 +145,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: postgresql://smoke:smoke@127.0.0.1:5432/hanwoo_smoke?sslmode=disable
+      AUTH_SECRET: ci-smoke-test-secret-not-for-production
     strategy:
       fail-fast: false
       matrix:
