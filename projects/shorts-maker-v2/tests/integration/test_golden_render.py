@@ -33,6 +33,27 @@ from shorts_maker_v2.render.video_renderer import (
     create_renderer,
 )
 
+# ── ffprobe availability check ─────────────────────────────────────────────
+
+_ffprobe_available = shutil.which("ffprobe") is not None
+if not _ffprobe_available:
+    try:
+        import imageio_ffmpeg
+
+        _ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+        if _ffmpeg_exe:
+            candidate = Path(_ffmpeg_exe).parent / "ffprobe"
+            if not candidate.exists():
+                candidate = Path(_ffmpeg_exe).parent / "ffprobe.exe"
+            _ffprobe_available = candidate.exists()
+    except Exception:
+        pass
+
+pytestmark = pytest.mark.skipif(
+    not _ffprobe_available,
+    reason="ffprobe not available in this environment",
+)
+
 # ── Helpers ────────────────────────────────────────────────────────────────
 
 TARGET_W, TARGET_H = 1080, 1920

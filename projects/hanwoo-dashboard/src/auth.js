@@ -1,7 +1,5 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import prisma from "@/lib/db";
-import bcrypt from "bcrypt";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -12,6 +10,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
       authorize: async (credentials) => {
         if (!credentials?.username || !credentials?.password) return null;
+
+        // Dynamic imports: prisma and bcrypt are only needed during login,
+        // not for JWT validation. This prevents module-level crashes in CI
+        // environments where no database is available.
+        const { default: prisma } = await import("@/lib/db");
+        const { default: bcrypt } = await import("bcrypt");
 
         const user = await prisma.user.findUnique({
           where: { username: credentials.username },
