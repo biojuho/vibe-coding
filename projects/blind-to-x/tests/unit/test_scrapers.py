@@ -400,6 +400,8 @@ class TestImageGeneratorFallback:
         with (
             patch("pipeline.image_cache.ImageCache", mock_cache),
             patch.object(gen, "_generate_gemini", new_callable=AsyncMock) as mock_g,
+            patch.object(gen, "_validate_image", return_value=(True, "")),
+            patch("pipeline.image_generator.os.path.exists", return_value=True),
         ):
             mock_g.return_value = "/tmp/image.png"
             result = await gen.generate_image(
