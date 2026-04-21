@@ -3,6 +3,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  serverExternalPackages: ["bcrypt", "@prisma/adapter-pg"],
   experimental: {
     optimizePackageImports: ["lucide-react", "recharts"],
   },
