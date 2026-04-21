@@ -231,6 +231,8 @@ class TestConfigMultiPlatform:
         from pathlib import Path
 
         config_path = Path(__file__).resolve().parents[2] / "config.yaml"
+        if not config_path.exists():
+            pytest.skip("config.yaml not available (CI or clean checkout)")
         with open(config_path, encoding="utf-8") as f:
             return yaml.safe_load(f)
 
