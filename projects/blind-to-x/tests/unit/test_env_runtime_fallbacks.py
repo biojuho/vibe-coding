@@ -101,11 +101,14 @@ def test_resolve_ascii_curl_ca_bundle_prefers_public_ascii_copy(monkeypatch):
 
     # Normalize paths for cross-platform comparison: Linux uses '/' and
     # Windows uses '\\' when os.path.join constructs the path.
-    import os
+    # os.path.normpath does NOT convert \\ to / on Linux, so we normalize
+    # both separators to '/' for a truly platform-agnostic check.
+    def _norm(p: str) -> str:
+        return p.replace("\\", "/")
 
-    expected = os.path.normpath(r"C:\Public\btx-cert\certifi-cacert.pem")
-    assert os.path.normpath(result) == expected
-    assert os.path.normpath(copied["dir"]) == os.path.normpath(r"C:\Public\btx-cert")
+    expected = _norm(r"C:\Public\btx-cert\certifi-cacert.pem")
+    assert _norm(result) == expected
+    assert _norm(copied["dir"]) == _norm(r"C:\Public\btx-cert")
     assert copied["dst"] == result
 
 
