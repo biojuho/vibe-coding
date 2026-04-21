@@ -98,7 +98,7 @@ async def validate_and_fix_drafts(
                     platform,
                     post_data,
                 )
-                retried = await generator._call_llm_with_fallback(retry_prompt)
+                retried = await generator._call_llm_with_fallback(retry_prompt, platform=platform)
                 if not retried or not retried.strip():
                     break
 

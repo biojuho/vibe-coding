@@ -178,6 +178,80 @@ def test_generator_allows_missing_creator_take(monkeypatch):
     assert drafts.get("creator_take", "") == ""
 
 
+def test_generator_accepts_json_payload_without_tags(monkeypatch):
+    config = _build_config()
+    config.data["llm"]["providers"] = ["gemini"]
+    generator = TweetDraftGenerator(config)
+
+    async def _fake_generate_once(provider, prompt):
+        del provider, prompt
+        return (
+            '{"twitter": "연봉 협상에서 가장 먼저 확인할 숫자는 기준연봉입니다.", '
+            '"reply": "원문: (링크)", '
+            '"creator_take": "숫자 비교의 기준점을 먼저 잡아주는 글입니다."}',
+            8,
+            4,
+        )
+
+    monkeypatch.setattr(generator, "_generate_once", _fake_generate_once)
+
+    drafts, _image_prompt = asyncio.run(
+        generator.generate_drafts(
+            {"title": "연봉 협상", "content": "직장인 공감 본문", "content_profile": {}},
+            output_formats=["twitter"],
+        )
+    )
+
+    assert drafts["_provider_used"] == "gemini"
+    assert "기준연봉" in drafts["twitter"]
+    assert drafts["reply_text"] == "원문: (링크)"
+    assert "creator_take" in drafts
+
+
+def test_generator_allows_partial_output_when_requested(monkeypatch):
+    config = _build_config()
+    config.data["llm"]["providers"] = ["gemini"]
+    generator = TweetDraftGenerator(config)
+
+    async def _fake_generate_once(provider, prompt):
+        del provider, prompt
+        return (
+            "<twitter>연봉 협상에서 숫자 기준점부터 맞추는 게 핵심입니다.</twitter><reply>원문: (링크)</reply>",
+            8,
+            4,
+        )
+
+    monkeypatch.setattr(generator, "_generate_once", _fake_generate_once)
+
+    drafts, _image_prompt = asyncio.run(
+        generator.generate_drafts(
+            {"title": "연봉 협상", "content": "직장인 공감 본문", "content_profile": {}},
+            output_formats=["twitter", "threads", "naver_blog"],
+            allow_partial=True,
+        )
+    )
+
+    assert drafts["_provider_used"] == "gemini"
+    assert "숫자 기준점" in drafts["twitter"]
+    assert drafts["_missing_requested_formats"] == ["threads", "naver_blog"]
+
+
+def test_call_llm_with_fallback_returns_requested_platform_text(monkeypatch):
+    config = _build_config()
+    config.data["llm"]["providers"] = ["gemini"]
+    generator = TweetDraftGenerator(config)
+
+    async def _fake_generate_once(provider, prompt):
+        del provider, prompt
+        return ("리트라이 이후에는 한 문단의 초안만 반환합니다.", 3, 2)
+
+    monkeypatch.setattr(generator, "_generate_once", _fake_generate_once)
+
+    draft_text = asyncio.run(generator._call_llm_with_fallback("retry prompt", platform="twitter"))
+
+    assert "한 문단의 초안" in draft_text
+
+
 def test_prompt_includes_editorial_brief():
     generator = TweetDraftGenerator(_build_config())
     prompt = generator._build_prompt(

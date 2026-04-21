@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 
 
@@ -57,6 +58,57 @@ class DraftValidationMixin:
         visible_chars = sum(1 for c in text if not c.isspace())
         return korean_chars / visible_chars if visible_chars else 0.0
 
+    @staticmethod
+    def _normalize_response_key(key: str) -> str | None:
+        normalized = str(key or "").strip().lower().replace("-", "_").replace(" ", "_")
+        mapping = {
+            "x": "twitter",
+            "tweet": "twitter",
+            "tweet_body": "twitter",
+            "twitter": "twitter",
+            "reply": "reply_text",
+            "reply_text": "reply_text",
+            "threads": "threads",
+            "thread": "threads",
+            "newsletter": "newsletter",
+            "naver_blog": "naver_blog",
+            "blog": "naver_blog",
+            "blog_body": "naver_blog",
+            "creator_take": "creator_take",
+            "operator_take": "creator_take",
+            "image_prompt": "image_prompt",
+        }
+        return mapping.get(normalized)
+
+    @classmethod
+    def _extract_json_payload(cls, response_text: str) -> dict[str, str]:
+        candidates = []
+        fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", response_text, re.DOTALL | re.IGNORECASE)
+        if fenced:
+            candidates.append(fenced.group(1))
+        inline = re.search(r"(\{.*?\})", response_text, re.DOTALL)
+        if inline:
+            candidates.append(inline.group(1))
+
+        for candidate in candidates:
+            try:
+                payload = json.loads(candidate)
+            except Exception:
+                continue
+            if not isinstance(payload, dict):
+                continue
+            mapped: dict[str, str] = {}
+            for raw_key, raw_value in payload.items():
+                key = cls._normalize_response_key(raw_key)
+                if not key or raw_value is None:
+                    continue
+                value = str(raw_value).strip()
+                if value:
+                    mapped[key] = value
+            if mapped:
+                return mapped
+        return {}
+
     # ------------------------------------------------------------------
     # Validation
     # ------------------------------------------------------------------
@@ -66,34 +118,30 @@ class DraftValidationMixin:
         response_text: str,
         drafts_dict: dict[str, str],
         output_formats: list[str],
+        allow_partial: bool = False,
     ) -> str | None:
         if self._looks_like_error_response(response_text):
             return "provider_error_text"
 
-        lowered_response = (response_text or "").lower()
-        missing_tags = [tag for tag in self._required_tags(output_formats) if f"<{tag}>" not in lowered_response]
-        if missing_tags:
-            return f"missing_tags:{','.join(missing_tags)}"
-
+        missing_publishable: list[str] = []
         for platform in output_formats:
             draft_text = str(drafts_dict.get(platform, "") or "").strip()
             if not draft_text:
-                return f"empty_{platform}"
+                missing_publishable.append(platform)
+                continue
             if self._looks_like_error_response(draft_text):
                 return f"error_like_{platform}"
             if self._korean_ratio(draft_text) < 0.25:
                 return f"low_korean_ratio_{platform}"
 
-        required_auxiliary_keys: list[str] = []
-        if "twitter" in output_formats:
-            required_auxiliary_keys.append("reply_text")
+        if missing_publishable:
+            drafts_dict["_missing_requested_formats"] = missing_publishable
+            if not allow_partial or len(missing_publishable) == len(output_formats):
+                return f"missing_sections:{','.join(missing_publishable)}"
 
-        for extra_key in required_auxiliary_keys:
-            extra_text = str(drafts_dict.get(extra_key, "") or "").strip()
-            if not extra_text:
-                return f"empty_{extra_key}"
-            if self._looks_like_error_response(extra_text):
-                return f"error_like_{extra_key}"
+        reply_text = str(drafts_dict.get("reply_text", "") or "").strip()
+        if reply_text and self._looks_like_error_response(reply_text):
+            return "error_like_reply_text"
 
         creator_take = str(drafts_dict.get("creator_take", "") or "").strip()
         if creator_take and self._looks_like_error_response(creator_take):
@@ -112,6 +160,10 @@ class DraftValidationMixin:
 
         # ── P0-2: <thinking> 태그 제거 (사고 과정은 출력에 포함하지 않음) ──
         response_text = re.sub(r"<thinking>.*?</thinking>", "", response_text, flags=re.DOTALL).strip()
+        json_payload = self._extract_json_payload(response_text)
+        image_prompt = json_payload.pop("image_prompt", None) if json_payload else None
+        if json_payload:
+            drafts_dict.update(json_payload)
 
         # ── 스레드형 파싱 (P0-A1) ──────────────────────────────────────
         thread_match = re.search(r"<twitter_thread>(.*?)</twitter_thread>", response_text, re.DOTALL)
@@ -148,9 +200,8 @@ class DraftValidationMixin:
             drafts_dict["reply_text"] = reply_match.group(1).strip()
         elif "twitter" in output_formats:
             # reply 태그가 없으면 placeholder — process.py에서 원문 URL 주입
-            drafts_dict["reply_text"] = ""
+            drafts_dict.setdefault("reply_text", "")
 
-        image_prompt = None
         prompt_match = re.search(r"<image_prompt>(.*?)</image_prompt>", response_text, re.DOTALL)
         if prompt_match:
             image_prompt = prompt_match.group(1).strip()
@@ -170,5 +221,12 @@ class DraftValidationMixin:
                 drafts_dict["twitter"] = response_text.replace(prompt_match.group(0), "").strip()
             else:
                 drafts_dict["twitter"] = response_text.strip()
+
+        if len(output_formats) == 1:
+            only_platform = output_formats[0]
+            if only_platform not in drafts_dict:
+                cleaned = response_text.strip()
+                if cleaned:
+                    drafts_dict[only_platform] = cleaned
 
         return drafts_dict, image_prompt

@@ -1,6 +1,7 @@
 """Blind (teamblind.com) scraper implementation."""
 
 import asyncio
+import html
 import logging
 import os
 import re
@@ -12,7 +13,7 @@ except ImportError:
     from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
 from config import ERROR_SCRAPE_FAILED, ERROR_SCRAPE_PARSE_FAILED
-from scrapers.base import BaseScraper, FeedCandidate
+from scrapers.base import BaseScraper, BrowserUnavailableError, FeedCandidate
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +50,96 @@ class BlindScraper(BaseScraper):
                 return int(match.group(1).replace(",", ""))
         return 0
 
+    @staticmethod
+    def _strip_html_tags(fragment: str) -> str:
+        text = re.sub(r"<[^>]+>", " ", fragment or "")
+        text = html.unescape(text)
+        return re.sub(r"\s+", " ", text).strip()
+
+    def _extract_feed_candidates_from_html(self, html_content: str, limit: int = 5) -> list[FeedCandidate]:
+        candidates: list[FeedCandidate] = []
+        seen: set[str] = set()
+        pattern = re.compile(r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>(.*?)</a>', flags=re.IGNORECASE | re.DOTALL)
+        for href, label_html in pattern.findall(html_content or ""):
+            normalized = self._normalize_url(html.unescape(href))
+            if not normalized or normalized in seen:
+                continue
+            if "/post/" not in normalized and "/topic/" not in normalized:
+                continue
+            label = self._strip_html_tags(label_html)
+            if not label or len(label) < 2:
+                continue
+            seen.add(normalized)
+            candidates.append(
+                FeedCandidate(
+                    url=normalized,
+                    title=label,
+                    source=self.SOURCE_NAME,
+                )
+            )
+            if len(candidates) >= limit:
+                break
+        return candidates
+
+    def _extract_urls_from_feed_html(self, html_content: str, limit: int = 5) -> list[str]:
+        return [candidate.url for candidate in self._extract_feed_candidates_from_html(html_content, limit=limit)]
+
+    @staticmethod
+    def _extract_title_from_html(html_content: str) -> str:
+        patterns = (
+            r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\']([^"\']+)["\']',
+            r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:title["\']',
+            r"<title[^>]*>(.*?)</title>",
+            r"<h1[^>]*>(.*?)</h1>",
+            r"<h2[^>]*>(.*?)</h2>",
+        )
+        for pattern in patterns:
+            match = re.search(pattern, html_content or "", flags=re.IGNORECASE | re.DOTALL)
+            if match:
+                title = BlindScraper._strip_html_tags(match.group(1))
+                if title:
+                    return title
+        return "제목 없음"
+
+    async def _scrape_post_without_browser(self, url: str, html_content: str):
+        crawl4ai_result = await self._extract_with_crawl4ai(url, html_content)
+        if crawl4ai_result and crawl4ai_result.get("content"):
+            crawl4ai_result.setdefault("screenshot_path", None)
+            crawl4ai_result.setdefault("likes", 0)
+            crawl4ai_result.setdefault("comments", 0)
+            crawl4ai_result.setdefault("source", self.SOURCE_NAME)
+            crawl4ai_result.setdefault(
+                "category",
+                self._determine_category(crawl4ai_result.get("title", ""), crawl4ai_result.get("content", "")),
+            )
+            return crawl4ai_result
+
+        title = self._extract_title_from_html(html_content)
+        content = self._extract_clean_text(html_content)
+        if not content:
+            content = self._strip_html_tags(html_content)
+        if len(content.strip()) < 10:
+            return {
+                "_scrape_error": True,
+                "url": url,
+                "error_code": ERROR_SCRAPE_PARSE_FAILED,
+                "failure_stage": "parse",
+                "failure_reason": "browser_unavailable_html_parse_failed",
+                "error_message": "Browser unavailable and HTML-only extraction returned insufficient content.",
+            }
+
+        return {
+            "url": url,
+            "title": title.strip(),
+            "content": content.strip(),
+            "category": self._determine_category(title, content),
+            "likes": 0,
+            "comments": 0,
+            "screenshot_path": None,
+            "source": self.SOURCE_NAME,
+            "extraction_method": "html_only_fallback",
+        }
+
     # ── Login ────────────────────────────────────────────────────────
     async def _login(self, page):
         if not self.email or not self.password:
@@ -80,7 +171,7 @@ class BlindScraper(BaseScraper):
         urls = []
         self.last_feed_fetch_error = None
         self.last_feed_fetch_reason = None
-        page = await self._new_page()
+        page = None
 
         async def _collect_urls():
             # .tit h3 a: 제목 링크만 선택 (.tit 안에는 h3>a(제목)와 p.pre-txt>a(미리보기)가
@@ -97,6 +188,26 @@ class BlindScraper(BaseScraper):
             return collected
 
         try:
+            try:
+                page = await self._new_page()
+            except BrowserUnavailableError as exc:
+                logger.warning(
+                    "Browser unavailable for %s; using HTML-only feed fallback: %s",
+                    label,
+                    exc,
+                )
+                html_content = await self._fetch_html_via_session(feed_url)
+                urls = self._extract_urls_from_feed_html(html_content, limit=limit)
+                if urls:
+                    logger.info(f"Found {len(urls)} {label} (HTML-only fallback).")
+                    return urls
+                self.last_feed_fetch_error = (
+                    f"Feed fetch failed ({label}): browser unavailable and HTML parse yielded no URLs"
+                )
+                self.last_feed_fetch_reason = "browser_unavailable_no_feed_urls"
+                logger.error(self.last_feed_fetch_error)
+                return []
+
             await self._login(page)
 
             html_content = None
@@ -149,7 +260,8 @@ class BlindScraper(BaseScraper):
             self.last_feed_fetch_reason = "feed_fetch_failed"
             logger.error(self.last_feed_fetch_error)
         finally:
-            await page.close()
+            if page is not None:
+                await page.close()
 
         return urls
 
@@ -181,8 +293,24 @@ class BlindScraper(BaseScraper):
             else "https://www.teamblind.com/kr/topics/trending"
         )
         candidates = []
-        page = await self._new_page()
+        page = None
         try:
+            try:
+                page = await self._new_page()
+            except BrowserUnavailableError as exc:
+                logger.warning(
+                    "Browser unavailable for feed candidates (%s); using HTML-only fallback: %s",
+                    mode,
+                    exc,
+                )
+                html_content = await self._fetch_html_via_session(feed_url)
+                candidates = self._extract_feed_candidates_from_html(html_content, limit=limit)
+                if candidates:
+                    logger.info("Blind feed candidates: %d collected (HTML-only fallback).", len(candidates))
+                    return candidates
+                urls = self._extract_urls_from_feed_html(html_content, limit=limit)
+                return [FeedCandidate(url=u, source=self.SOURCE_NAME) for u in urls]
+
             await self._login(page)
             html_content = None
             try:
@@ -262,7 +390,8 @@ class BlindScraper(BaseScraper):
             urls = await self.get_feed_urls(mode=mode, limit=limit)
             return [FeedCandidate(url=u, source=self.SOURCE_NAME) for u in urls]
         finally:
-            await page.close()
+            if page is not None:
+                await page.close()
 
         candidates.sort(key=lambda c: c.engagement_score, reverse=True)
         return candidates[:limit]
@@ -285,10 +414,17 @@ class BlindScraper(BaseScraper):
     # ── Post scraping ────────────────────────────────────────────────
     async def scrape_post(self, url):
         logger.info(f"Scraping post: {url}")
-        page = await self._new_page()
+        page = None
         failure_stage = "post_fetch"
         failure_reason = "unknown"
         try:
+            try:
+                page = await self._new_page()
+            except BrowserUnavailableError as exc:
+                logger.warning("Browser unavailable for %s; using HTML-only post fallback: %s", url, exc)
+                html_content = await self._fetch_html_via_session(url)
+                return await self._scrape_post_without_browser(url, html_content)
+
             delay = self.config.get("delay_seconds", 5)
             if delay > 0:
                 await asyncio.sleep(delay)
@@ -509,4 +645,5 @@ class BlindScraper(BaseScraper):
                 "error_message": str(e),
             }
         finally:
-            await page.close()
+            if page is not None:
+                await page.close()

@@ -81,6 +81,7 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
         top_tweets=None,
         output_formats=None,
         quality_feedback: list[dict[str, Any]] | None = None,
+        allow_partial: bool = False,
     ):
         if output_formats is None:
             output_formats = ["twitter"]
@@ -142,7 +143,12 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
                             output_tokens=output_tokens,
                         )
                     drafts_dict, image_prompt = self._parse_response(response_text, output_formats, provider)
-                    validation_error = self._validate_provider_output(response_text, drafts_dict, output_formats)
+                    validation_error = self._validate_provider_output(
+                        response_text,
+                        drafts_dict,
+                        output_formats,
+                        allow_partial=allow_partial,
+                    )
                     if validation_error:
                         raise RuntimeError(f"invalid_draft_output:{validation_error}")
                     logger.info("Successfully generated drafts using %s.", provider)
@@ -206,6 +212,39 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
             "_generation_failed": True,
             "_generation_error": error_text,
         }, None
+
+    async def _call_llm_with_fallback(self, prompt: str, *, platform: str = "twitter") -> str:
+        """Return the best-effort text for a single platform using the provider chain."""
+        output_formats = [platform]
+        provider_errors = []
+        for provider in self._enabled_providers():
+            for attempt in range(1, self.max_retries_per_provider + 1):
+                try:
+                    response_text, input_tokens, output_tokens = await self._generate_once(provider, prompt)
+                    if self.cost_tracker:
+                        self.cost_tracker.add_text_generation_cost(
+                            provider,
+                            input_tokens=input_tokens,
+                            output_tokens=output_tokens,
+                        )
+                    drafts_dict, _image_prompt = self._parse_response(response_text, output_formats, provider)
+                    draft_text = str(drafts_dict.get(platform, "") or "").strip()
+                    if draft_text:
+                        return draft_text
+                    raise RuntimeError(f"empty_retry_output:{platform}")
+                except Exception as exc:  # pragma: no cover - remote API dependent
+                    provider_errors.append(f"{provider}: {exc}")
+                    logger.warning(
+                        "Retry draft generation failed via %s (%s/%s): %s",
+                        provider,
+                        attempt,
+                        self.max_retries_per_provider,
+                        exc,
+                    )
+                    if attempt < self.max_retries_per_provider:
+                        await asyncio.sleep(min(2**attempt, 10))
+            logger.info("Retry provider %s exhausted. Trying next provider.", provider)
+        raise RuntimeError(" | ".join(provider_errors) or "No enabled LLM providers available.")
 
 
 # ---------------------------------------------------------------------------

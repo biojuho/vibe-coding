@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock, patch
+from scrapers.base import BrowserUnavailableError
 from scrapers.blind import BlindScraper
 
 
@@ -169,3 +170,54 @@ async def test_scrape_post_insufficient_length(mock_fetch, mock_mkdir, scraper):
 
     assert result.get("_scrape_error") is True
     assert result["failure_reason"] == "insufficient_content_length"
+
+
+@pytest.mark.asyncio
+async def test_fetch_post_urls_browser_unavailable_uses_html_only_fallback(scraper):
+    scraper._new_page = AsyncMock(side_effect=BrowserUnavailableError("browser missing"))
+    scraper._fetch_html_via_session = AsyncMock(
+        return_value="""
+        <html>
+          <body>
+            <a href="/kr/post/test-a-123">첫 번째 글</a>
+            <a href="/kr/post/test-b-456">두 번째 글</a>
+          </body>
+        </html>
+        """
+    )
+
+    urls = await scraper._fetch_post_urls("https://www.teamblind.com/kr/topics/trending", limit=2)
+
+    assert urls == [
+        "https://www.teamblind.com/kr/post/test-a-123",
+        "https://www.teamblind.com/kr/post/test-b-456",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_scrape_post_browser_unavailable_uses_html_only_fallback(scraper):
+    scraper._new_page = AsyncMock(side_effect=BrowserUnavailableError("browser missing"))
+    scraper._fetch_html_via_session = AsyncMock(
+        return_value="""
+        <html>
+          <head>
+            <meta property="og:title" content="연봉 협상 팁" />
+          </head>
+          <body>
+            <article>
+              <h1>연봉 협상 팁</h1>
+              <p>이직 직전에 꼭 체크해야 할 연봉 협상 포인트를 정리했습니다.</p>
+            </article>
+          </body>
+        </html>
+        """
+    )
+    scraper._extract_with_crawl4ai = AsyncMock(return_value=None)
+    scraper._extract_clean_text = lambda _html: "이직 직전에 꼭 체크해야 할 연봉 협상 포인트를 정리했습니다."
+
+    result = await scraper.scrape_post("https://www.teamblind.com/kr/post/test-a-123")
+
+    assert result.get("_scrape_error") is None
+    assert result["title"] == "연봉 협상 팁"
+    assert "연봉 협상 포인트" in result["content"]
+    assert result["screenshot_path"] is None

@@ -25,6 +25,10 @@ logger = logging.getLogger(__name__)
 _crawl4ai_extractor = None
 
 
+class BrowserUnavailableError(RuntimeError):
+    """Raised when no Playwright-capable browser runtime is available."""
+
+
 def _get_crawl4ai_extractor(config):
     """Singleton accessor for Crawl4AI extractor."""
     global _crawl4ai_extractor
@@ -103,6 +107,7 @@ class BaseScraper:
         self._pw = None
         self._browser = None
         self._context = None
+        self._browser_launch_error: Exception | None = None
 
         if not os.path.exists(self.screenshot_dir):
             os.makedirs(self.screenshot_dir)
@@ -121,12 +126,24 @@ class BaseScraper:
             except ImportError:
                 from browser_pool import BrowserContextPool
             self._pool = BrowserContextPool(self.config, size=self._pool_size)
-            await self._pool.open()
+            try:
+                await self._pool.open()
+            except Exception as exc:
+                self._pool = None
+                self._browser_launch_error = exc
+                logger.warning(
+                    "Browser pool unavailable; continuing with non-browser fallbacks where possible: %s",
+                    exc,
+                )
+                return
+            self._browser_launch_error = None
             logger.info("Browser opened (pool mode, size=%d).", self._pool_size)
             return
 
         # Single-context mode (original behaviour)
-        if self._browser:
+        if self._browser or self._context:
+            return
+        if self._browser_launch_error is not None:
             return
 
         proxy_url = self.proxy_manager.get_random_proxy()
@@ -148,24 +165,51 @@ class BaseScraper:
                 self._camo_ctx = AsyncCamoufox(**camo_kwargs)
                 self._browser = await self._camo_ctx.__aenter__()
                 self._context = self._browser  # Camoufox context = browser
+                self._browser_launch_error = None
                 logger.info("Browser opened (Camoufox stealth Firefox).")
                 return
             except Exception as exc:
                 logger.info("Camoufox unavailable (%s), falling back to Chromium.", exc)
 
         # ── Patchright/Playwright Chromium 폴백 ──────────────────────
-        self._pw = await async_playwright().start()
-        iphone_14_pro = self._pw.devices["iPhone 14 Pro"]
+        try:
+            self._pw = await async_playwright().start()
+            iphone_14_pro = self._pw.devices["iPhone 14 Pro"]
 
-        launch_kwargs = {"headless": self.headless}
-        if proxy_config:
-            launch_kwargs["proxy"] = proxy_config
-            logger.info("Playwright launching with proxy.")
+            launch_kwargs = {"headless": self.headless}
+            if proxy_config:
+                launch_kwargs["proxy"] = proxy_config
+                logger.info("Playwright launching with proxy.")
 
-        self._browser = await self._pw.chromium.launch(**launch_kwargs)
-        self._context = await self._browser.new_context(**iphone_14_pro, locale="ko-KR")
-        await Stealth().apply_stealth_async(self._context)
-        logger.info("Browser opened (Chromium + stealth).")
+            self._browser = await self._pw.chromium.launch(**launch_kwargs)
+            self._context = await self._browser.new_context(**iphone_14_pro, locale="ko-KR")
+            await Stealth().apply_stealth_async(self._context)
+            self._browser_launch_error = None
+            logger.info("Browser opened (Chromium + stealth).")
+        except Exception as exc:
+            self._browser_launch_error = exc
+            logger.warning(
+                "Playwright browser unavailable; continuing with non-browser fallbacks where possible: %s",
+                exc,
+            )
+            if self._context:
+                try:
+                    await self._context.close()
+                except Exception:
+                    pass
+            self._context = None
+            if self._browser:
+                try:
+                    await self._browser.close()
+                except Exception:
+                    pass
+            self._browser = None
+            if self._pw:
+                try:
+                    await self._pw.stop()
+                except Exception:
+                    pass
+            self._pw = None
 
     async def close(self):
         """Shut down the shared browser and context (or pool)."""
@@ -223,10 +267,16 @@ class BaseScraper:
             page = await self._context.new_page()
             page.set_default_timeout(30000)
             return page
+        if self._browser_launch_error is not None:
+            raise BrowserUnavailableError(str(self._browser_launch_error)) from self._browser_launch_error
         logger.warning("_new_page called before open(). Opening shared browser now.")
         await self.open()
         if self._pool is not None:
             return await self._pool.acquire_page()
+        if self._context is None:
+            if self._browser_launch_error is not None:
+                raise BrowserUnavailableError(str(self._browser_launch_error)) from self._browser_launch_error
+            raise BrowserUnavailableError("browser context unavailable")
         page = await self._context.new_page()
         return page
 
