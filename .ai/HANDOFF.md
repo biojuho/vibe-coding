@@ -6,6 +6,13 @@
 
 | Field | Value |
 |---|---|
+| Date | 2026-04-30 |
+| Tool | Gemini (Antigravity) |
+| Work | **Workspace cleanup completed**: (1) Merged Dependabot PRs #28 (actions/setup-node 4→6) and #29 (dependabot/fetch-metadata 2→3) — both CI all-green, squash-merged. (2) Synced local `main` with origin — resolved 5 ahead commits by `git reset --hard origin/main` since all feature changes were already in origin via PR #30 squash merge. (3) Confirmed 0 open PRs remain. (4) Branch protection verified working: required review + required status checks (`root-quality-gate`, `test-summary`) enforced. (5) TASKS.md updated: T-232→DONE, T-233 created for Dependabot merge. |
+| Next Priorities | 1. T-231 (User): Decide whether to install Playwright browser binaries for `blind-to-x` or continue with HTML-only fallback. 2. No active TODO items requiring immediate AI work — workspace is clean. |
+
+| Field | Value |
+|---|---|
 | Date | 2026-04-21 |
 | Tool | Codex |
 | Work | **`blind-to-x` reliability pass completed locally**: investigated the user's report that Blind collection/output quality had degraded. Recent scheduler logs showed the immediate runtime failure was missing Playwright browser binaries, and historical generation logs showed brittle draft parsing plus a broken retry path. Added `BrowserUnavailableError` handling in `projects/blind-to-x/scrapers/base.py` and HTML-only fallbacks in `scrapers/blind.py` so feed collection and post extraction can still proceed when Chromium/Camoufox is unavailable. Hardened `pipeline/draft_validation.py` to accept JSON/plaintext drift, preserve single-platform outputs, and allow partial draft bundles in review-only mode; restored retry generation by implementing `TweetDraftGenerator._call_llm_with_fallback()` and wiring the platform-specific retry call in `pipeline/draft_validator.py`; passed `allow_partial=review_only` through `pipeline/process_stages/generate_review_stage.py`. Added focused unit coverage for the browser-unavailable and flexible-output paths. Verification passed with `python -m ruff check ...`, `python -m py_compile ...`, and a direct smoke script covering JSON parsing, partial outputs, retry fallback, and Blind HTML-only scraping. Focused `python -m pytest --no-cov tests/unit/test_scrapers_blind.py tests/unit/test_draft_generator_multi_provider.py -q` remained blocked in this environment by temp-dir permission failures (`%LOCALAPPDATA%\\Temp\\pytest-of-user` and project-local `.tmp/pytest-temp`). |
