@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-06 |
 | Tool | Codex |
+| Work | **Project-by-project code review completed**: reviewed local `main` vs `origin/main` by project. `shorts-maker-v2` has only test stabilization/formatting changes, with no runtime code changes and no blocking findings. `blind-to-x`, `hanwoo-dashboard`, and `knowledge-dashboard` have no project-file diff in the reviewed range. Workspace changes are limited to exact Ruff E402 ignores for direct-run bootstrap scripts/tests plus graph WAL/SHM ignores. Graph detect-changes still reports risk `0.00`. |
+| Next Priorities | 1. T-234 (User): PR #31 still needs review/merge or closure, and local `main` is ahead of `origin/main`. 2. T-231 (User): install Playwright browsers if browser-only Blind scraping/screenshots are required. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-06 |
+| Tool | Codex |
 | Work | **Code review completed for local `main` vs `origin/main`**: reviewed the 7 local commits ahead of origin. Scope was mostly `.ai` context updates, `.code-review-graph/.gitignore`, `workspace/pyproject.toml` E402 per-file ignores, and `shorts-maker-v2` unit-test stabilization. No blocking code-review findings were identified. Supporting checks: `python3.13 -m code_review_graph detect-changes --repo . --brief` risk `0.00`, `git diff --check origin/main..HEAD`, workspace Ruff, and focused `shorts-maker-v2` growth-sync pytest all passed. |
 | Next Priorities | 1. T-234 (User): PR #31 still needs review/merge or closure, and local `main` is ahead of `origin/main`. 2. T-231 (User): install Playwright browsers if browser-only Blind scraping/screenshots are required. |
 
