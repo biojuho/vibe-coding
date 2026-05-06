@@ -42,8 +42,9 @@ def test_headers_creates_correct_auth_header() -> None:
 
 
 def test_get_access_token(tmp_path: Path) -> None:
-    from shorts_maker_v2.pipeline.thumbnail_step import _get_access_token
     import json
+
+    from shorts_maker_v2.pipeline.thumbnail_step import _get_access_token
 
     token_file = tmp_path / "token.json"
     token_file.write_text(json.dumps({"access_token": "token123"}), encoding="utf-8")
@@ -51,25 +52,28 @@ def test_get_access_token(tmp_path: Path) -> None:
 
 
 def test_refresh_access_token_missing_env(tmp_path: Path) -> None:
-    from shorts_maker_v2.pipeline.thumbnail_step import _refresh_access_token
     import json
+
+    from shorts_maker_v2.pipeline.thumbnail_step import _refresh_access_token
 
     token_file = tmp_path / "token.json"
     token_file.write_text(json.dumps({"refresh_token": "foo"}), encoding="utf-8")
-    with patch.dict("os.environ", {}, clear=True):
-        with pytest.raises(RuntimeError, match="CANVA_CLIENT_ID .*"):
-            _refresh_access_token(token_file)
+    with patch.dict("os.environ", {}, clear=True), pytest.raises(RuntimeError, match="CANVA_CLIENT_ID .*"):
+        _refresh_access_token(token_file)
 
 
 def test_refresh_access_token_missing_refresh_token(tmp_path: Path) -> None:
-    from shorts_maker_v2.pipeline.thumbnail_step import _refresh_access_token
     import json
+
+    from shorts_maker_v2.pipeline.thumbnail_step import _refresh_access_token
 
     token_file = tmp_path / "token.json"
     token_file.write_text(json.dumps({"access_token": "foo"}), encoding="utf-8")
-    with patch.dict("os.environ", {"CANVA_CLIENT_ID": "cid", "CANVA_CLIENT_SECRET": "csec"}):
-        with pytest.raises(RuntimeError, match="refresh_token 없음"):
-            _refresh_access_token(token_file)
+    with (
+        patch.dict("os.environ", {"CANVA_CLIENT_ID": "cid", "CANVA_CLIENT_SECRET": "csec"}),
+        pytest.raises(RuntimeError, match="refresh_token 없음"),
+    ):
+        _refresh_access_token(token_file)
 
 
 def test_poll_timeout() -> None:
@@ -77,10 +81,12 @@ def test_poll_timeout() -> None:
 
     resp = MagicMock()
     resp.json.return_value = {"job": {"status": "in_progress"}}
-    with patch("shorts_maker_v2.pipeline.thumbnail_step.requests.get", return_value=resp):
-        with patch("time.sleep"):
-            with pytest.raises(TimeoutError):
-                _poll("http://example.com/api", "token", timeout=0)
+    with (
+        patch("shorts_maker_v2.pipeline.thumbnail_step.requests.get", return_value=resp),
+        patch("time.sleep"),
+        pytest.raises(TimeoutError),
+    ):
+        _poll("http://example.com/api", "token", timeout=0)
 
 
 def test_poll_success() -> None:
@@ -98,9 +104,11 @@ def test_poll_failed() -> None:
 
     resp = MagicMock()
     resp.json.return_value = {"job": {"status": "failed", "error": "bad"}}
-    with patch("shorts_maker_v2.pipeline.thumbnail_step.requests.get", return_value=resp):
-        with pytest.raises(RuntimeError, match="Canva 작업 실패"):
-            _poll("url", "token", timeout=10)
+    with (
+        patch("shorts_maker_v2.pipeline.thumbnail_step.requests.get", return_value=resp),
+        pytest.raises(RuntimeError, match="Canva 작업 실패"),
+    ):
+        _poll("url", "token", timeout=10)
 
 
 def test_export_design() -> None:
@@ -108,14 +116,14 @@ def test_export_design() -> None:
 
     post_resp = MagicMock()
     post_resp.json.return_value = {"job": {"id": "job456"}}
-    with patch("shorts_maker_v2.pipeline.thumbnail_step.requests.post", return_value=post_resp) as post_mock:
-        with patch(
-            "shorts_maker_v2.pipeline.thumbnail_step._poll", return_value={"urls": ["http://download"]}
-        ) as poll_mock:
-            url = _export_design("design123", "token")
-            assert url == "http://download"
-            post_mock.assert_called_once()
-            poll_mock.assert_called_once()
+    with (
+        patch("shorts_maker_v2.pipeline.thumbnail_step.requests.post", return_value=post_resp) as post_mock,
+        patch("shorts_maker_v2.pipeline.thumbnail_step._poll", return_value={"urls": ["http://download"]}) as poll_mock,
+    ):
+        url = _export_design("design123", "token")
+        assert url == "http://download"
+        post_mock.assert_called_once()
+        poll_mock.assert_called_once()
 
 
 def test_http_download_success(tmp_path: Path) -> None:
@@ -133,16 +141,19 @@ def test_load_font_for_thumb_exception() -> None:
     from shorts_maker_v2.pipeline.thumbnail_step import _load_font_for_thumb
 
     default_font = MagicMock(name="default_font")
-    with patch("shorts_maker_v2.pipeline.thumbnail_step.Path.exists", return_value=True):
-        with patch("PIL.ImageFont.truetype", side_effect=OSError):
-            with patch("PIL.ImageFont.load_default", return_value=default_font):
-                font = _load_font_for_thumb(30)
-                assert font is default_font
+    with (
+        patch("shorts_maker_v2.pipeline.thumbnail_step.Path.exists", return_value=True),
+        patch("PIL.ImageFont.truetype", side_effect=OSError),
+        patch("PIL.ImageFont.load_default", return_value=default_font),
+    ):
+        font = _load_font_for_thumb(30)
+        assert font is default_font
 
 
 def test_wrap_text_current_append() -> None:
-    from shorts_maker_v2.pipeline.thumbnail_step import _wrap_text
     from PIL import Image, ImageDraw, ImageFont
+
+    from shorts_maker_v2.pipeline.thumbnail_step import _wrap_text
 
     img = Image.new("RGB", (100, 100))
     draw = ImageDraw.Draw(img)

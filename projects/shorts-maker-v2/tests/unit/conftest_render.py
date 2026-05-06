@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-
 from shorts_maker_v2.pipeline.render_step import RenderStep
 
 

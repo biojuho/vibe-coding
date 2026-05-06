@@ -1,17 +1,14 @@
 from __future__ import annotations
 
+from contextlib import ExitStack
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+from conftest_render import _configure_render_step_for_run, _DummyAudioClip, _DummyClip, _make_render_step
 
 from shorts_maker_v2.models import SceneAsset, ScenePlan
 from shorts_maker_v2.pipeline.render_step import RenderStep
-from contextlib import ExitStack
-
-
-from conftest_render import _make_render_step, _DummyClip, _DummyAudioClip, _configure_render_step_for_run
-
 
 # ─── 무드 분류 테스트 ────────────────────────────────────────────────────────
 

@@ -3,11 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-
-from shorts_maker_v2.pipeline.render_step import RenderStep
-
 from conftest_render import _make_render_step
 
+from shorts_maker_v2.pipeline.render_step import RenderStep
 
 # ─── 자막 콤보 로테이션 테스트 ──────────────────────────────────────────────
 

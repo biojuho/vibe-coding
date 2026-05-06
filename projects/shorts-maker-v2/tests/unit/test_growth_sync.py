@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 
 from shorts_maker_v2.growth.sync import sync_growth_report
+
+
+def _recent_timestamp() -> str:
+    return (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _make_config() -> SimpleNamespace:
@@ -25,7 +30,7 @@ def _write_manifest(
         "job_id": job_id,
         "topic": topic,
         "status": status,
-        "created_at": "2026-04-05T00:00:00+00:00",
+        "created_at": _recent_timestamp(),
         "ab_variant": ab_variant or {"caption_combo": "bold_white"},
     }
     (output_dir / f"{job_id}_manifest.json").write_text(
@@ -37,6 +42,7 @@ def _write_manifest(
 def test_sync_growth_report_refreshes_and_writes_ranked_report(tmp_path: Path, monkeypatch) -> None:
     output_dir = tmp_path / "output"
     output_dir.mkdir(parents=True)
+    recent = _recent_timestamp()
     _write_manifest(
         output_dir,
         job_id="job-1",
@@ -66,9 +72,9 @@ def test_sync_growth_report_refreshes_and_writes_ranked_report(tmp_path: Path, m
                 "yt_avg_watch_sec": 27.0,
                 "yt_ctr": 0.045,
                 "duration_sec": 36.0,
-                "yt_stats_updated_at": "2026-04-05 10:00:00",
-                "youtube_uploaded_at": "2026-04-04 10:00:00",
-                "updated_at": "2026-04-05 10:00:00",
+                "yt_stats_updated_at": recent,
+                "youtube_uploaded_at": recent,
+                "updated_at": recent,
             },
             {
                 "job_id": "job-missing",
@@ -82,9 +88,9 @@ def test_sync_growth_report_refreshes_and_writes_ranked_report(tmp_path: Path, m
                 "yt_avg_watch_sec": 5.0,
                 "yt_ctr": 0.01,
                 "duration_sec": 40.0,
-                "yt_stats_updated_at": "2026-04-05 10:00:00",
-                "youtube_uploaded_at": "2026-04-04 10:00:00",
-                "updated_at": "2026-04-05 10:00:00",
+                "yt_stats_updated_at": recent,
+                "youtube_uploaded_at": recent,
+                "updated_at": recent,
             },
         ],
     )
@@ -117,6 +123,7 @@ def test_sync_growth_report_refreshes_and_writes_ranked_report(tmp_path: Path, m
 def test_sync_growth_report_keeps_existing_metrics_when_refresh_fails(tmp_path: Path, monkeypatch) -> None:
     output_dir = tmp_path / "output"
     output_dir.mkdir(parents=True)
+    recent = _recent_timestamp()
     _write_manifest(output_dir, job_id="job-1", topic="AI agents")
 
     fake_db = SimpleNamespace(
@@ -134,9 +141,9 @@ def test_sync_growth_report_keeps_existing_metrics_when_refresh_fails(tmp_path: 
                 "yt_avg_watch_sec": 16.0,
                 "yt_ctr": 0.031,
                 "duration_sec": 32.0,
-                "yt_stats_updated_at": "2026-04-05 10:00:00",
-                "youtube_uploaded_at": "2026-04-04 10:00:00",
-                "updated_at": "2026-04-05 10:00:00",
+                "yt_stats_updated_at": recent,
+                "youtube_uploaded_at": recent,
+                "updated_at": recent,
             }
         ],
     )

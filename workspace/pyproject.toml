@@ -32,6 +32,35 @@ dev = [
 target-version = "py310"
 line-length = 120
 
+[tool.ruff.lint.per-file-ignores]
+# These scripts prepend the workspace root to sys.path before importing
+# shared execution modules so they can run directly from Windows shells.
+"execution/benchmark_local.py" = ["E402"]
+"execution/bgm_downloader.py" = ["E402"]
+"execution/brand_asset_generator.py" = ["E402"]
+"execution/content_db.py" = ["E402"]
+"execution/joolife_hub.py" = ["E402"]
+"execution/llm_client.py" = ["E402"]
+"execution/lyria_bgm_generator.py" = ["E402"]
+"execution/pages/api_monitor.py" = ["E402"]
+"execution/pages/cost_dashboard.py" = ["E402"]
+"execution/pages/debt_dashboard.py" = ["E402"]
+"execution/pages/qaqc_status.py" = ["E402"]
+"execution/pages/shorts_manager.py" = ["E402"]
+"execution/pipeline_watchdog.py" = ["E402"]
+"execution/shorts_daily_runner.py" = ["E402"]
+"execution/topic_auto_generator.py" = ["E402"]
+"execution/vibe_debt_auditor.py" = ["E402"]
+"tests/legacy_manual/manual_desktop_robustness.py" = ["E402"]
+"tests/legacy_manual/manual_logging.py" = ["E402"]
+"tests/test_local_inference.py" = ["E402"]
+"tests/test_reasoning_chain.py" = ["E402"]
+"tests/test_reasoning_engine.py" = ["E402"]
+"tests/test_result_tracker_db.py" = ["E402"]
+"tests/test_smart_router.py" = ["E402"]
+"tests/test_vibe_debt_auditor.py" = ["E402"]
+"tests/test_workers.py" = ["E402"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests", "execution/tests"]
 addopts = "--cov=execution --cov-report=term-missing"

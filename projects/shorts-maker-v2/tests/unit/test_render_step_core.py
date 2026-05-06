@@ -4,12 +4,10 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from conftest_render import _make_fake_clip, _make_render_step
 
 from shorts_maker_v2.models import SceneAsset, ScenePlan
 from shorts_maker_v2.pipeline.render_step import RenderStep
-
-from conftest_render import _make_render_step, _make_fake_clip
-
 
 # ─── 전환 스타일 테스트 ────────────────────────────────────────────────────────
 

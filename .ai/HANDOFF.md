@@ -6,6 +6,55 @@
 
 | Field | Value |
 |---|---|
+| Date | 2026-05-06 |
+| Tool | Codex |
+| Work | **Project-by-project code review completed**: reviewed local `main` vs `origin/main` by project. `shorts-maker-v2` has only test stabilization/formatting changes, with no runtime code changes and no blocking findings. `blind-to-x`, `hanwoo-dashboard`, and `knowledge-dashboard` have no project-file diff in the reviewed range. Workspace changes are limited to exact Ruff E402 ignores for direct-run bootstrap scripts/tests plus graph WAL/SHM ignores. Graph detect-changes still reports risk `0.00`. |
+| Next Priorities | 1. T-234 (User): PR #31 still needs review/merge or closure, and local `main` is ahead of `origin/main`. 2. T-231 (User): install Playwright browsers if browser-only Blind scraping/screenshots are required. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-06 |
+| Tool | Codex |
+| Work | **Code review completed for local `main` vs `origin/main`**: reviewed the 7 local commits ahead of origin. Scope was mostly `.ai` context updates, `.code-review-graph/.gitignore`, `workspace/pyproject.toml` E402 per-file ignores, and `shorts-maker-v2` unit-test stabilization. No blocking code-review findings were identified. Supporting checks: `python3.13 -m code_review_graph detect-changes --repo . --brief` risk `0.00`, `git diff --check origin/main..HEAD`, workspace Ruff, and focused `shorts-maker-v2` growth-sync pytest all passed. |
+| Next Priorities | 1. T-234 (User): PR #31 still needs review/merge or closure, and local `main` is ahead of `origin/main`. 2. T-231 (User): install Playwright browsers if browser-only Blind scraping/screenshots are required. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-06 |
+| Tool | Codex |
+| Work | **Full system recheck completed with no hard failures**: reran graph/git change detection, shared health/governance, GitHub branch protection, PR/remote-branch inventory, targeted secret scan, workspace Ruff/pytest, `blind-to-x` full unit suite + Ruff, `shorts-maker-v2` full pytest + Ruff, and both Next app test/lint/build paths. All product/workspace verification commands passed. Shared health remains `overall: warn` with `fail: 0`; the warnings are optional provider/env gaps plus inactive root `venv`. `python3.13 -m code_review_graph detect-changes --repo . --brief` reported 0 affected flows, 0 test gaps, risk `0.00`. |
+| Next Priorities | 1. T-234 (User): PR #31 still needs review/merge or closure, and local `main` is ahead 6 of `origin/main`. 2. T-231 (User): install Playwright browsers if browser-only Blind scraping/screenshots are required. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-06 |
+| Tool | Codex |
+| Work | **Remaining broad workspace Ruff QC resolved**: `python -m ruff check workspace/execution workspace/tests --output-format=concise` now passes. The root cause was intentional Windows/direct-run `sys.path` bootstrapping before shared imports; added exact E402 per-file ignores in `workspace/pyproject.toml` instead of moving runtime bootstrap code. Verification also passed for targeted workspace pytest (`54 passed`), governance health, and `git diff --check`. Feature commit: `d14e897` (`fix(workspace): align broad ruff QC with bootstrap scripts`). |
+| Next Priorities | 1. T-234 (User): PR #31 still needs review/merge or closure, and local `main` is ahead of `origin/main`. 2. T-231 (User): install Playwright browsers if browser-only Blind scraping/screenshots are required. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-06 |
+| Tool | Codex |
+| Work | **Full QC pass executed and repaired**: broadened checks beyond the earlier smoke set. `blind-to-x` full unit suite and Ruff passed; `hanwoo-dashboard` and `knowledge-dashboard` test/lint/build passed. `shorts-maker-v2` full pytest initially failed because `test_growth_sync.py` used April 2026 fixed timestamps that had aged out of the 30-day filter; fixed the fixture to use recent timestamps, cleaned the remaining Ruff test-format debt, and added `.code-review-graph` WAL/SHM ignores. Feature commit: `611d151` (`fix(shorts-maker-v2): stabilize QC test suite`). Revalidation: `shorts-maker-v2` full pytest and full Ruff passed, plus focused growth/thumbnail tests passed. |
+| Next Priorities | 1. T-234 (User): PR #31 still needs review/merge or closure, and local `main` is ahead of `origin/main`. 2. T-231 (User): install Playwright browsers if browser-only Blind scraping/screenshots are required. 3. T-235: broad workspace Ruff was still reporting E402 path-bootstrap issues at this point; resolved later in commit `d14e897`. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-06 |
+| Tool | Codex |
+| Work | **Full system check completed**: ran the shared health check, governance/env probes, GitHub branch protection checks, PR/remote-branch inventory, targeted secret scan, active project tests/lints/builds, and rebuilt `code-review-graph`. Current shared health is `overall: warn` with `fail: 0`; warnings are optional env/provider gaps plus inactive root `venv`. Governance is OK. Branch protection is configured on public `biojuho/vibe-coding/main` with required checks `root-quality-gate` and `test-summary`. Active project checks passed: `blind-to-x` focused Ruff/pytest, `shorts-maker-v2` focused pytest + targeted Ruff, `hanwoo-dashboard` test/lint/build, and `knowledge-dashboard` test/lint/build. `code-review-graph` was rebuilt to 11,567 nodes / 85,100 edges / 898 files. |
+| Next Priorities | 1. T-234 (User): review/merge/close open PR #31 and sync `main`; local `main` is ahead 1 at `b5fcb7c`. 2. T-231 (User): install Playwright browser binaries if browser-only Blind scraping/screenshots are needed. 3. T-235 (AI/User): decide whether to clean broad Ruff debt or keep using targeted canonical checks. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-04-30 |
+| Tool | Gemini (Antigravity) |
+| Work | **Workspace cleanup completed**: (1) Merged Dependabot PRs #28 (actions/setup-node 4→6) and #29 (dependabot/fetch-metadata 2→3) — both CI all-green, squash-merged. (2) Synced local `main` with origin — resolved 5 ahead commits by `git reset --hard origin/main` since all feature changes were already in origin via PR #30 squash merge. (3) Confirmed 0 open PRs remain. (4) Branch protection verified working: required review + required status checks (`root-quality-gate`, `test-summary`) enforced. (5) TASKS.md updated: T-232→DONE, T-233 created for Dependabot merge. |
+| Next Priorities | 1. T-231 (User): Decide whether to install Playwright browser binaries for `blind-to-x` or continue with HTML-only fallback. 2. No active TODO items requiring immediate AI work — workspace is clean. |
+
+| Field | Value |
+|---|---|
 | Date | 2026-04-21 |
 | Tool | Codex |
 | Work | **`blind-to-x` reliability pass completed locally**: investigated the user's report that Blind collection/output quality had degraded. Recent scheduler logs showed the immediate runtime failure was missing Playwright browser binaries, and historical generation logs showed brittle draft parsing plus a broken retry path. Added `BrowserUnavailableError` handling in `projects/blind-to-x/scrapers/base.py` and HTML-only fallbacks in `scrapers/blind.py` so feed collection and post extraction can still proceed when Chromium/Camoufox is unavailable. Hardened `pipeline/draft_validation.py` to accept JSON/plaintext drift, preserve single-platform outputs, and allow partial draft bundles in review-only mode; restored retry generation by implementing `TweetDraftGenerator._call_llm_with_fallback()` and wiring the platform-specific retry call in `pipeline/draft_validator.py`; passed `allow_partial=review_only` through `pipeline/process_stages/generate_review_stage.py`. Added focused unit coverage for the browser-unavailable and flexible-output paths. Verification passed with `python -m ruff check ...`, `python -m py_compile ...`, and a direct smoke script covering JSON parsing, partial outputs, retry fallback, and Blind HTML-only scraping. Focused `python -m pytest --no-cov tests/unit/test_scrapers_blind.py tests/unit/test_draft_generator_multi_provider.py -q` remained blocked in this environment by temp-dir permission failures (`%LOCALAPPDATA%\\Temp\\pytest-of-user` and project-local `.tmp/pytest-temp`). |
