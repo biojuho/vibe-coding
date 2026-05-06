@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-06 |
 | Tool | Codex |
+| Work | **Full QC pass executed and repaired**: broadened checks beyond the earlier smoke set. `blind-to-x` full unit suite and Ruff passed; `hanwoo-dashboard` and `knowledge-dashboard` test/lint/build passed. `shorts-maker-v2` full pytest initially failed because `test_growth_sync.py` used April 2026 fixed timestamps that had aged out of the 30-day filter; fixed the fixture to use recent timestamps, cleaned the remaining Ruff test-format debt, and added `.code-review-graph` WAL/SHM ignores. Feature commit: `611d151` (`fix(shorts-maker-v2): stabilize QC test suite`). Revalidation: `shorts-maker-v2` full pytest and full Ruff passed, plus focused growth/thumbnail tests passed. |
+| Next Priorities | 1. T-234 (User): PR #31 still needs review/merge or closure, and local `main` is ahead of `origin/main`. 2. T-231 (User): install Playwright browsers if browser-only Blind scraping/screenshots are required. 3. T-235: broad workspace Ruff still reports existing E402 path-bootstrap issues; decide whether to make that broad sweep canonical or keep targeted gates. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-06 |
+| Tool | Codex |
 | Work | **Full system check completed**: ran the shared health check, governance/env probes, GitHub branch protection checks, PR/remote-branch inventory, targeted secret scan, active project tests/lints/builds, and rebuilt `code-review-graph`. Current shared health is `overall: warn` with `fail: 0`; warnings are optional env/provider gaps plus inactive root `venv`. Governance is OK. Branch protection is configured on public `biojuho/vibe-coding/main` with required checks `root-quality-gate` and `test-summary`. Active project checks passed: `blind-to-x` focused Ruff/pytest, `shorts-maker-v2` focused pytest + targeted Ruff, `hanwoo-dashboard` test/lint/build, and `knowledge-dashboard` test/lint/build. `code-review-graph` was rebuilt to 11,567 nodes / 85,100 edges / 898 files. |
 | Next Priorities | 1. T-234 (User): review/merge/close open PR #31 and sync `main`; local `main` is ahead 1 at `b5fcb7c`. 2. T-231 (User): install Playwright browser binaries if browser-only Blind scraping/screenshots are needed. 3. T-235 (AI/User): decide whether to clean broad Ruff debt or keep using targeted canonical checks. |
 
