@@ -8,8 +8,15 @@
 |---|---|
 | Date | 2026-05-06 |
 | Tool | Codex |
+| Work | **Remaining broad workspace Ruff QC resolved**: `python -m ruff check workspace/execution workspace/tests --output-format=concise` now passes. The root cause was intentional Windows/direct-run `sys.path` bootstrapping before shared imports; added exact E402 per-file ignores in `workspace/pyproject.toml` instead of moving runtime bootstrap code. Verification also passed for targeted workspace pytest (`54 passed`), governance health, and `git diff --check`. Feature commit: `d14e897` (`fix(workspace): align broad ruff QC with bootstrap scripts`). |
+| Next Priorities | 1. T-234 (User): PR #31 still needs review/merge or closure, and local `main` is ahead of `origin/main`. 2. T-231 (User): install Playwright browsers if browser-only Blind scraping/screenshots are required. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-06 |
+| Tool | Codex |
 | Work | **Full QC pass executed and repaired**: broadened checks beyond the earlier smoke set. `blind-to-x` full unit suite and Ruff passed; `hanwoo-dashboard` and `knowledge-dashboard` test/lint/build passed. `shorts-maker-v2` full pytest initially failed because `test_growth_sync.py` used April 2026 fixed timestamps that had aged out of the 30-day filter; fixed the fixture to use recent timestamps, cleaned the remaining Ruff test-format debt, and added `.code-review-graph` WAL/SHM ignores. Feature commit: `611d151` (`fix(shorts-maker-v2): stabilize QC test suite`). Revalidation: `shorts-maker-v2` full pytest and full Ruff passed, plus focused growth/thumbnail tests passed. |
-| Next Priorities | 1. T-234 (User): PR #31 still needs review/merge or closure, and local `main` is ahead of `origin/main`. 2. T-231 (User): install Playwright browsers if browser-only Blind scraping/screenshots are required. 3. T-235: broad workspace Ruff still reports existing E402 path-bootstrap issues; decide whether to make that broad sweep canonical or keep targeted gates. |
+| Next Priorities | 1. T-234 (User): PR #31 still needs review/merge or closure, and local `main` is ahead of `origin/main`. 2. T-231 (User): install Playwright browsers if browser-only Blind scraping/screenshots are required. 3. T-235: broad workspace Ruff was still reporting E402 path-bootstrap issues at this point; resolved later in commit `d14e897`. |
 
 | Field | Value |
 |---|---|

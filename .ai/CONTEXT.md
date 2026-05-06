@@ -23,10 +23,11 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-06, broad workspace Ruff is clean for `workspace/execution` and `workspace/tests` after commit `d14e897`; intentional Windows/direct-run `sys.path` bootstraps are documented as exact E402 per-file ignores in `workspace/pyproject.toml`.
 - As of the later 2026-05-06 QC pass, `shorts-maker-v2` full pytest and full Ruff are clean again after commit `611d151` (`fix(shorts-maker-v2): stabilize QC test suite`). The failure was a stale date fixture in `tests/unit/test_growth_sync.py`, not a runtime growth-sync regression.
 - As of 2026-05-06, a full local system check completed with no hard failures in the checked paths. Shared `workspace/execution/health_check.py --json` reported `overall: warn`, `fail: 0`; warnings are optional env/provider gaps (`GROQ_API_KEY`, `MOONSHOT_API_KEY`, feature-specific `.env.example` keys) plus inactive root `venv`.
 - As of 2026-05-06, `code-review-graph` has been rebuilt and is usable again: `python3.13 -m code_review_graph status` reports `11,567` nodes, `85,100` edges, `898` files, last updated `2026-05-06T11:09:07` on commit `b5fcb7ced976`.
-- As of 2026-05-06, GitHub has one open PR: `#31` (`ai-context/2026-04-30-cleanup`) is `MERGEABLE`, all checks pass, but `reviewDecision` is `REVIEW_REQUIRED`. Local `main` is ahead 1 vs `origin/main` at the same commit (`b5fcb7c`).
+- As of 2026-05-06, GitHub has one open PR: `#31` (`ai-context/2026-04-30-cleanup`) is `MERGEABLE`, all checks pass, but `reviewDecision` is `REVIEW_REQUIRED`. Local `main` is ahead 6 vs `origin/main` after the latest QC/context commits.
 - As of 2026-04-18, `biojuho/vibe-coding` is `PUBLIC`, and `python execution/github_branch_protection.py --check-live` reports `status: configured` for `main` with required checks `root-quality-gate` and `test-summary`.
 - Local `main` now includes `7c56a15` (`fix(ci): stabilize project test and build expectations`) on top of the public/protected baseline, but the commit has not been pushed yet.
 - `execution/remote_branch_cleanup.py` now inventories remote-only GitHub branches relative to a sanitized local clone, annotates open PR blockers, and can generate a PowerShell delete script containing only safe branch deletions.
@@ -72,9 +73,11 @@
 
 ## Recent Verification
 
+- `workspace`: after commit `d14e897`, `python -m ruff check workspace/execution workspace/tests --output-format=concise` passed on 2026-05-06. The E402 findings were resolved by exact per-file ignores for intentional path-bootstrap scripts/tests in `workspace/pyproject.toml`.
+- `workspace`: `python -m pytest --no-cov workspace/tests/test_health_check.py workspace/tests/test_mcp_config.py workspace/tests/test_ai_context_guard.py workspace/tests/test_github_branch_protection.py workspace/tests/test_remote_branch_cleanup.py -q` passed on 2026-05-06 after the broad Ruff cleanup (`54 passed`), and `python workspace/execution/health_check.py --category governance --json` reported `overall: ok`.
 - `projects/shorts-maker-v2`: full QC on 2026-05-06 initially failed in `tests/unit/test_growth_sync.py::test_sync_growth_report_refreshes_and_writes_ranked_report` (`snapshot_count` was 0 because fixed April 2026 timestamps had aged out of the 30-day filter). Commit `611d151` changed the fixture to use recent timestamps and cleaned Ruff formatting/import debt in split render/thumbnail/caption tests.
 - `projects/shorts-maker-v2`: after commit `611d151`, `python -m pytest --no-cov tests/unit tests/integration -q --tb=short --maxfail=1` and `python -m ruff check .` passed on 2026-05-06. Focused `python -m pytest --no-cov tests/unit/test_growth_sync.py tests/unit/test_thumbnail_step_sweep.py -q` also passed (`18 passed`, 2 warnings).
-- `workspace`: `python -m ruff check workspace/execution workspace/tests --output-format=concise` still failed on 2026-05-06 with 39 existing E402 path-bootstrap issues in shared scripts and legacy/manual tests. Targeted canonical Ruff checks remain green.
+- `workspace`: before commit `d14e897`, `python -m ruff check workspace/execution workspace/tests --output-format=concise` failed on 2026-05-06 with 39 existing E402 path-bootstrap issues in shared scripts and legacy/manual tests.
 - `workspace`: `python3.13 -m code_review_graph update --repo .` timed out after updating the graph metadata to commit `383128f`; `python3.13 -m code_review_graph status` then reported `11,568` nodes, `85,103` edges, `898` files. The timed-out update process was stopped, and `.code-review-graph/.gitignore` now ignores generated `graph.db-shm` / `graph.db-wal` files.
 - `workspace`: `git diff --check` passed on 2026-05-06 after the QC fixes, with only Windows LF-to-CRLF warnings.
 - `workspace`: `python3.13 -m code_review_graph build --repo .` completed on 2026-05-06 (`898 files`, `11,875 nodes`, `86,285 edges`, full postprocess), and a follow-up `python3.13 -m code_review_graph status` reported `11,567` nodes, `85,100` edges, `898` files, last updated `2026-05-06T11:09:07`.
@@ -165,8 +168,8 @@
 ## Minefield
 
 - `code-review-graph` was rebuilt successfully on 2026-05-06. If `python3.13 -m code_review_graph status` ever regresses to `Nodes: 0`, rebuild with `python3.13 -m code_review_graph build --repo .` before relying on graph-first exploration.
-- Broad Ruff sweeps are not currently clean in every historical path. On 2026-05-06, targeted canonical checks passed and full `projects/shorts-maker-v2` Ruff was repaired, but `python -m ruff check workspace/execution workspace/tests` still reports existing E402 path-bootstrap/legacy issues.
-- PR `#31` is open as of 2026-05-06 despite the prior 2026-04-30 handoff saying there were 0 open PRs. It is mergeable and checks pass, but branch protection requires review; local `main` is ahead 1 at the PR head commit `b5fcb7c`.
+- Broad Ruff sweeps for `workspace/execution`, `workspace/tests`, and full `projects/shorts-maker-v2` are clean as of 2026-05-06. If new E402 issues appear in direct-run workspace scripts, first check whether they intentionally bootstrap `sys.path`; if yes, add an exact per-file ignore in `workspace/pyproject.toml` with the existing pattern.
+- PR `#31` is open as of 2026-05-06 despite the prior 2026-04-30 handoff saying there were 0 open PRs. It is mergeable and checks pass, but branch protection requires review; local `main` has additional unpushed QC/context commits beyond the PR head.
 - PR `#27` is closed/unmerged and its remote head branch no longer exists. If the local recovery commit `7c56a15` needs to reach GitHub, it must be pushed from `main` or carried by a new branch/PR.
 - `.tmp/public-history-rewrite` is now the prepared sandbox for any eventual secret-history push. Keep the main repo history untouched unless the user explicitly approves a destructive rewrite/push sequence.
 - Earlier `23 remote-only branches` was a stale local remote-tracking estimate. Live `git ls-remote --heads` on 2026-04-15 first showed 4 remote-only branches, and after deleting `fix/notion-review-status` the live remote is down to 3 remote-only branches, all tied to open dependabot PRs.
