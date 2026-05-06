@@ -18,11 +18,11 @@
 
 | ID | Task | Completed By | Completed |
 |---|---|---|---|
+| T-237 | `[workspace]` Full system recheck passed with no hard failures across shared health/governance, active project test/lint/build paths, graph change detection, PR/branch inventory, and targeted secret scan. | Codex | 2026-05-06 |
 | T-235 | `[workspace]` Broad workspace Ruff sweep is now canonical-clean for `workspace/execution` and `workspace/tests`; expected path-bootstrap E402 exceptions are documented in `workspace/pyproject.toml`. Feature commit: `d14e897`. | Codex | 2026-05-06 |
 | T-236 | `[shorts-maker-v2]` Full QC failure fixed: growth-sync date fixture no longer expires, full Ruff is clean, and graph SQLite WAL files are ignored. Feature commit: `611d151`. | Codex | 2026-05-06 |
 | T-233 | `[workspace]` Dependabot PRs #28 (actions/setup-node 4→6) and #29 (dependabot/fetch-metadata 2→3) merged. All CI green. | Gemini (Antigravity) | 2026-04-30 |
 | T-232 | `[workspace]` PR #30 CI 통과 후 merge 완료. Local main synced with origin. | Gemini (Antigravity) | 2026-04-30 |
-| T-229 | `[workspace]` Published local recovery commits via PR #30 (`fix/blind-to-x-reliability-pass`). Direct push blocked by branch protection; 4 commits including CI stabilization + blind-to-x reliability pass. | Gemini (Antigravity) | 2026-04-21 |
 
 - Keep only the latest 5 items in `DONE`.
 - Add newly discovered follow-up work to `TODO`.

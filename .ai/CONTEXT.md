@@ -23,10 +23,11 @@
 
 ## Current Reliability Notes
 
+- As of the final 2026-05-06 recheck, the active workspace has no hard failures in the checked paths. Shared health is still `overall: warn` with `fail: 0` because of optional provider/env omissions and inactive root `venv`; workspace Ruff/pytest, active project Ruff/pytest/npm test/lint/build paths, branch-protection checks, targeted secret scan, and graph change detection all passed.
 - As of 2026-05-06, broad workspace Ruff is clean for `workspace/execution` and `workspace/tests` after commit `d14e897`; intentional Windows/direct-run `sys.path` bootstraps are documented as exact E402 per-file ignores in `workspace/pyproject.toml`.
 - As of the later 2026-05-06 QC pass, `shorts-maker-v2` full pytest and full Ruff are clean again after commit `611d151` (`fix(shorts-maker-v2): stabilize QC test suite`). The failure was a stale date fixture in `tests/unit/test_growth_sync.py`, not a runtime growth-sync regression.
 - As of 2026-05-06, a full local system check completed with no hard failures in the checked paths. Shared `workspace/execution/health_check.py --json` reported `overall: warn`, `fail: 0`; warnings are optional env/provider gaps (`GROQ_API_KEY`, `MOONSHOT_API_KEY`, feature-specific `.env.example` keys) plus inactive root `venv`.
-- As of 2026-05-06, `code-review-graph` has been rebuilt and is usable again: `python3.13 -m code_review_graph status` reports `11,567` nodes, `85,100` edges, `898` files, last updated `2026-05-06T11:09:07` on commit `b5fcb7ced976`.
+- As of 2026-05-06, `code-review-graph` is usable again: `python3.13 -m code_review_graph status` reports `11,568` nodes, `85,103` edges, `898` files, last updated `2026-05-06T11:36:33` on commit `383128f85f41`. It may trail the newest context-only commits, but `detect-changes --brief` currently reports risk `0.00`.
 - As of 2026-05-06, GitHub has one open PR: `#31` (`ai-context/2026-04-30-cleanup`) is `MERGEABLE`, all checks pass, but `reviewDecision` is `REVIEW_REQUIRED`. Local `main` is ahead 6 vs `origin/main` after the latest QC/context commits.
 - As of 2026-04-18, `biojuho/vibe-coding` is `PUBLIC`, and `python execution/github_branch_protection.py --check-live` reports `status: configured` for `main` with required checks `root-quality-gate` and `test-summary`.
 - Local `main` now includes `7c56a15` (`fix(ci): stabilize project test and build expectations`) on top of the public/protected baseline, but the commit has not been pushed yet.
@@ -73,6 +74,11 @@
 
 ## Recent Verification
 
+- `workspace`: final 2026-05-06 recheck passed with no hard failures. Commands included `python3.13 -m code_review_graph detect-changes --repo . --brief` (0 affected flows, 0 test gaps, risk `0.00`), `git diff --check`, shared health/governance, GitHub branch protection, PR/remote branch inventory, targeted `detect-secrets`, workspace Ruff, and targeted workspace pytest (`54 passed`).
+- `projects/blind-to-x`: `python -m pytest --no-cov tests/unit -q --tb=short --maxfail=1` passed on the final 2026-05-06 recheck (`1532 passed`, 1 skipped), and `python -m ruff check .` passed.
+- `projects/shorts-maker-v2`: `python -m pytest --no-cov tests/unit tests/integration -q --tb=short --maxfail=1` and `python -m ruff check .` passed on the final 2026-05-06 recheck.
+- `projects/hanwoo-dashboard`: `npm test` (`51 passed`), `npm run lint`, and `npm run build` passed on the final 2026-05-06 recheck.
+- `projects/knowledge-dashboard`: `npm test` (`3 passed`), `npm run lint`, and `npm run build` passed on the final 2026-05-06 recheck.
 - `workspace`: after commit `d14e897`, `python -m ruff check workspace/execution workspace/tests --output-format=concise` passed on 2026-05-06. The E402 findings were resolved by exact per-file ignores for intentional path-bootstrap scripts/tests in `workspace/pyproject.toml`.
 - `workspace`: `python -m pytest --no-cov workspace/tests/test_health_check.py workspace/tests/test_mcp_config.py workspace/tests/test_ai_context_guard.py workspace/tests/test_github_branch_protection.py workspace/tests/test_remote_branch_cleanup.py -q` passed on 2026-05-06 after the broad Ruff cleanup (`54 passed`), and `python workspace/execution/health_check.py --category governance --json` reported `overall: ok`.
 - `projects/shorts-maker-v2`: full QC on 2026-05-06 initially failed in `tests/unit/test_growth_sync.py::test_sync_growth_report_refreshes_and_writes_ranked_report` (`snapshot_count` was 0 because fixed April 2026 timestamps had aged out of the 30-day filter). Commit `611d151` changed the fixture to use recent timestamps and cleaned Ruff formatting/import debt in split render/thumbnail/caption tests.
