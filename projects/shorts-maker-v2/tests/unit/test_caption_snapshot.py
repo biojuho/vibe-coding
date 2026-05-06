@@ -1,9 +1,11 @@
 import os
 import shutil
-import pytest
 from pathlib import Path
+
 from PIL import Image
-from shorts_maker_v2.render.caption_pillow import render_caption_image, CaptionStyle
+
+from shorts_maker_v2.render.caption_pillow import CaptionStyle, render_caption_image
+
 
 def test_hook_caption_snapshot(tmp_path: Path) -> None:
     """
@@ -13,7 +15,7 @@ def test_hook_caption_snapshot(tmp_path: Path) -> None:
     # Arrange
     text = "실제 이미지 기반의 훅(Hook) 자막 테스트"
     output_path = tmp_path / "hook_snapshot.png"
-    
+
     style = CaptionStyle(
         font_size=80,
         margin_x=50,
@@ -30,23 +32,18 @@ def test_hook_caption_snapshot(tmp_path: Path) -> None:
         bg_opacity=128,
         bg_radius=10,
         safe_zone_enabled=True,
-        center_hook=False
+        center_hook=False,
     )
-    
+
     # Act
-    res_path = render_caption_image(
-        text=text,
-        canvas_width=1080,
-        style=style,
-        output_path=output_path
-    )
-    
+    res_path = render_caption_image(text=text, canvas_width=1080, style=style, output_path=output_path)
+
     # Assert
     assert res_path.exists()
     img = Image.open(res_path)
     assert img.size[0] > 0
     assert img.size[1] > 0
-    
+
     # Save a copy to artifacts for visual QA
     os.makedirs(".tmp/snapshots", exist_ok=True)
     shutil.copy(res_path, ".tmp/snapshots/hook_snapshot.png")
