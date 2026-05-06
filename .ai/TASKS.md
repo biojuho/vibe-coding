@@ -6,6 +6,8 @@
 
 | ID | Task | Owner | Priority | Auto | Created |
 |---|---|---|---|---|---|
+| T-234 | `[workspace]` Resolve open PR #31 (`ai-context/2026-04-30-cleanup`) and sync local `main` with `origin/main`. The PR is mergeable and all checks pass, but branch protection still requires review; local `main` is ahead 1 at `b5fcb7c`. | User | P1 | `approval` | 2026-05-06 |
+| T-235 | `[workspace]` Decide whether broad Ruff sweeps should be canonical. Targeted checks are green, but `python -m ruff check workspace/execution workspace/tests` still reports existing E402 path-bootstrap/legacy issues and full `shorts-maker-v2` Ruff reports import-format debt in older tests. | AI | P3 | `approval` | 2026-05-06 |
 | T-231 | `[blind-to-x]` Provision Playwright browser binaries in the runtime if screenshot/browser-only Blind scraping is still required. The code now falls back to HTML-only extraction when the executable is missing. | User | P1 | `approval` | 2026-04-21 |
 
 ## IN_PROGRESS

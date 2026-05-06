@@ -23,6 +23,9 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-06, a full local system check completed with no hard failures in the checked paths. Shared `workspace/execution/health_check.py --json` reported `overall: warn`, `fail: 0`; warnings are optional env/provider gaps (`GROQ_API_KEY`, `MOONSHOT_API_KEY`, feature-specific `.env.example` keys) plus inactive root `venv`.
+- As of 2026-05-06, `code-review-graph` has been rebuilt and is usable again: `python3.13 -m code_review_graph status` reports `11,567` nodes, `85,100` edges, `898` files, last updated `2026-05-06T11:09:07` on commit `b5fcb7ced976`.
+- As of 2026-05-06, GitHub has one open PR: `#31` (`ai-context/2026-04-30-cleanup`) is `MERGEABLE`, all checks pass, but `reviewDecision` is `REVIEW_REQUIRED`. Local `main` is ahead 1 vs `origin/main` at the same commit (`b5fcb7c`).
 - As of 2026-04-18, `biojuho/vibe-coding` is `PUBLIC`, and `python execution/github_branch_protection.py --check-live` reports `status: configured` for `main` with required checks `root-quality-gate` and `test-summary`.
 - Local `main` now includes `7c56a15` (`fix(ci): stabilize project test and build expectations`) on top of the public/protected baseline, but the commit has not been pushed yet.
 - `execution/remote_branch_cleanup.py` now inventories remote-only GitHub branches relative to a sanitized local clone, annotates open PR blockers, and can generate a PowerShell delete script containing only safe branch deletions.
@@ -68,6 +71,19 @@
 
 ## Recent Verification
 
+- `workspace`: `python3.13 -m code_review_graph build --repo .` completed on 2026-05-06 (`898 files`, `11,875 nodes`, `86,285 edges`, full postprocess), and a follow-up `python3.13 -m code_review_graph status` reported `11,567` nodes, `85,100` edges, `898` files, last updated `2026-05-06T11:09:07`.
+- `workspace`: `python3.13 -m code_review_graph detect-changes --repo . --brief` passed on 2026-05-06, reporting 2 changed files, 0 changed functions/classes, 0 affected flows, 0 test gaps, risk score `0.00`.
+- `workspace`: `python workspace/execution/health_check.py --json` on 2026-05-06 reported `overall: warn`, `ok: 41`, `warn: 8`, `fail: 0`; `--category governance --json` reported `overall: ok`.
+- `workspace`: `python -m pytest --no-cov workspace/tests/test_health_check.py workspace/tests/test_mcp_config.py workspace/tests/test_ai_context_guard.py workspace/tests/test_github_branch_protection.py workspace/tests/test_remote_branch_cleanup.py -q` passed on 2026-05-06 (`54 passed`), and the matching targeted Ruff command passed.
+- `workspace`: `python execution/github_branch_protection.py --check-live` on 2026-05-06 reported `status: configured`, repo `biojuho/vibe-coding`, visibility `PUBLIC`, required checks `root-quality-gate` and `test-summary`.
+- `workspace`: `gh pr view 31 --repo biojuho/vibe-coding --json ...` on 2026-05-06 reported PR `#31` open, mergeable, non-draft, `reviewDecision: REVIEW_REQUIRED`; `gh pr checks 31` showed all required checks passing.
+- `workspace`: `python execution/remote_branch_cleanup.py --repo biojuho/vibe-coding --local-repo .tmp/public-history-rewrite` on 2026-05-06 reported 1 remote-only branch (`ai-context/2026-04-30-cleanup`), blocked by open PR `#31`, with no safe-to-delete branches.
+- `workspace`: `python -m detect_secrets scan .agents/skills/brave-search/secrets.json infrastructure/notebooklm-mcp/tokens/auth.json infrastructure/n8n/docker-compose.yml infrastructure/n8n/README.md` returned empty `results` on 2026-05-06.
+- `projects/blind-to-x`: `python -m ruff check scrapers/base.py scrapers/blind.py pipeline/draft_validation.py pipeline/draft_generator.py pipeline/draft_validator.py pipeline/process_stages/generate_review_stage.py tests/unit/test_scrapers_blind.py tests/unit/test_draft_generator_multi_provider.py` and `python -m pytest --no-cov tests/unit/test_scrapers_blind.py tests/unit/test_draft_generator_multi_provider.py -q` passed on 2026-05-06 (`18 passed`, 1 warning).
+- `projects/blind-to-x`: a Playwright launch probe on 2026-05-06 still failed because `chrome-headless-shell.exe` is missing at the expected `ms-playwright` path.
+- `projects/shorts-maker-v2`: `python -m pytest --no-cov tests/unit/test_cli.py tests/unit/test_orchestrator_unit.py -q -x` passed on 2026-05-06 (`52 passed`, 2 warnings), and targeted `python -m ruff check src tests/unit/test_cli.py tests/unit/test_orchestrator_unit.py` passed.
+- `projects/hanwoo-dashboard`: `npm test`, `npm run lint`, and `npm run build` all passed on 2026-05-06.
+- `projects/knowledge-dashboard`: `npm test`, `npm run lint`, and `npm run build` all passed on 2026-05-06.
 - `workspace`: `gh repo view biojuho/vibe-coding --json nameWithOwner,isPrivate,defaultBranchRef` showed on 2026-04-18 that the repo is now public (`isPrivate: false`) and still uses `main` as the default branch.
 - `workspace`: `python execution/github_branch_protection.py --check-live` showed on 2026-04-18 that branch protection is now fully configured on `main` with required checks `root-quality-gate` and `test-summary`.
 - `workspace`: `python3.13 -m code_review_graph status` ran on 2026-04-18 in the current shell and returned `Nodes: 0`, `Edges: 0`, `Files: 0`, `Last updated: never`, so graph-first exploration is currently unavailable until the index is rebuilt or restored.
@@ -142,7 +158,9 @@
 
 ## Minefield
 
-- `code-review-graph` is currently empty in the active root shell (`Nodes: 0`, `Edges: 0`, `Files: 0`, `Last updated: never` on 2026-04-18). Rebuild or restore the graph before relying on graph-first exploration.
+- `code-review-graph` was rebuilt successfully on 2026-05-06. If `python3.13 -m code_review_graph status` ever regresses to `Nodes: 0`, rebuild with `python3.13 -m code_review_graph build --repo .` before relying on graph-first exploration.
+- Broad Ruff sweeps are not currently clean in every historical path. On 2026-05-06, targeted canonical checks passed, but `python -m ruff check workspace/execution workspace/tests` reported existing E402 path-bootstrap/legacy issues, and full `projects/shorts-maker-v2` Ruff reported import-format debt in older tests.
+- PR `#31` is open as of 2026-05-06 despite the prior 2026-04-30 handoff saying there were 0 open PRs. It is mergeable and checks pass, but branch protection requires review; local `main` is ahead 1 at the PR head commit `b5fcb7c`.
 - PR `#27` is closed/unmerged and its remote head branch no longer exists. If the local recovery commit `7c56a15` needs to reach GitHub, it must be pushed from `main` or carried by a new branch/PR.
 - `.tmp/public-history-rewrite` is now the prepared sandbox for any eventual secret-history push. Keep the main repo history untouched unless the user explicitly approves a destructive rewrite/push sequence.
 - Earlier `23 remote-only branches` was a stale local remote-tracking estimate. Live `git ls-remote --heads` on 2026-04-15 first showed 4 remote-only branches, and after deleting `fix/notion-review-status` the live remote is down to 3 remote-only branches, all tied to open dependabot PRs.
@@ -155,7 +173,7 @@
 - For `hanwoo-dashboard` Node-side unit tests, prefer `.mjs` helper/test files. The repo still does not set package-wide `"type": "module"`.
 - `projects/blind-to-x` and `projects/shorts-maker-v2` enforce broad coverage defaults; use `python -m pytest --no-cov ...` for focused local verification unless a full coverage run is intended.
 - `projects/blind-to-x` scheduled logs on 2026-04-20/21 showed missing Playwright browser binaries (`chrome-headless-shell.exe`). The scraper now degrades to HTML-only extraction, but screenshots and browser-dependent selectors still need the actual browser runtime installed.
-- On this machine, focused `projects/blind-to-x` pytest runs are currently blocked by temp-directory permission errors in both `%LOCALAPPDATA%\\Temp\\pytest-of-user` and the project-local `.tmp/pytest-temp` path.
+- Earlier focused `projects/blind-to-x` pytest runs were blocked by temp-directory permission errors, but the 2026-05-06 focused scraper/generator pytest passed. Recheck before treating the temp-dir issue as active.
 - `projects/blind-to-x` can return empty database properties through `notion-client` on Windows/Python 3.14; the uploader now relies on an `httpx` fallback to recover schema, and the review-schema/backfill scripts use direct REST-backed paths.
 - The `code-review-graph` Windows `cp949` crash is fixed locally in site-packages, but that patch is not repo-tracked; reinstalling the package can silently reintroduce it.
 - Windows `cp949` consoles can still garble Korean in command output even when the underlying files and Notion payloads are UTF-8 clean.
