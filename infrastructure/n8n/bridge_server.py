@@ -14,7 +14,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-import psutil
+try:
+    import psutil
+
+    _PSUTIL_AVAILABLE = True
+except ImportError:
+    psutil = None  # type: ignore[assignment]
+    _PSUTIL_AVAILABLE = False
 
 try:
     from fastapi import FastAPI, Header, HTTPException
@@ -263,14 +269,17 @@ async def root():
 async def health():
     now = datetime.now()
     uptime_seconds = round((now - _server_start_time).total_seconds(), 2)
-    process = psutil.Process(os.getpid())
-    memory_mb = round(process.memory_info().rss / (1024 * 1024), 2)
+    if _PSUTIL_AVAILABLE:
+        process = psutil.Process(os.getpid())
+        memory_mb: Optional[float] = round(process.memory_info().rss / (1024 * 1024), 2)
+    else:
+        memory_mb = None
     total_executions = len(_execution_history)
     last_execution_at = _execution_history[-1].get("timestamp") if _execution_history else None
 
-    if memory_mb > 512:
+    if memory_mb is not None and memory_mb > 512:
         status = "unhealthy"
-    elif memory_mb > 256:
+    elif memory_mb is not None and memory_mb > 256:
         status = "degraded"
     elif total_executions >= 3 and all(item.get("status") != "success" for item in _execution_history[-3:]):
         status = "degraded"

@@ -42,6 +42,7 @@ jobs:
           workspace/tests/test_qaqc_runner.py
           workspace/tests/test_qaqc_runner_extended.py
           workspace/tests/test_mcp_config.py
+          workspace/tests/test_auto_schedule_paths.py
           -q
           -o addopts=
 

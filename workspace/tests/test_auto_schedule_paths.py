@@ -79,25 +79,29 @@ def test_n8n_bridge_defaults_use_canonical_paths(monkeypatch):
     ]
 
 
-def test_n8n_bridge_helper_imports_do_not_require_fastapi(monkeypatch):
+def test_n8n_bridge_helper_imports_do_not_require_runtime_only_deps(monkeypatch):
+    """bridge_server must import on CI envs that lack fastapi/pydantic/psutil."""
     monkeypatch.setenv("BRIDGE_TOKEN", "test-token")
 
     original_import = builtins.__import__
+    runtime_only = {"fastapi", "pydantic", "psutil"}
 
     def blocked_import(name, globals=None, locals=None, fromlist=(), level=0):
-        if name in {"fastapi", "pydantic"}:
+        if name in runtime_only or name.split(".")[0] in runtime_only:
             raise ModuleNotFoundError(name)
         return original_import(name, globals, locals, fromlist, level)
 
     monkeypatch.setattr(builtins, "__import__", blocked_import)
 
     module = load_module(
-        "test_n8n_bridge_server_no_fastapi",
+        "test_n8n_bridge_server_no_runtime_deps",
         ROOT / "infrastructure" / "n8n" / "bridge_server.py",
     )
 
     assert module.default_btx_dir() == ROOT / "projects" / "blind-to-x"
     assert module.default_log_dir() == ROOT / "infrastructure" / "n8n" / "logs"
+    assert module._FASTAPI_AVAILABLE is False
+    assert module._PSUTIL_AVAILABLE is False
 
 
 def test_n8n_healthcheck_defaults_use_canonical_paths(monkeypatch):

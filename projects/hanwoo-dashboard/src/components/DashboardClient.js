@@ -124,6 +124,9 @@ export default function DashboardClient({
 
   // Summary data from SSR (headcount, monthly rollup, building occupancy)
   const [summary, setSummary] = useState(initialSummary);
+  // Cache metadata from /api/dashboard/summary (source: 'snapshot'|'rebuilt'|'live', staleAt, ageSeconds).
+  // Null until the first client-side refresh — SSR seeds `summary` only.
+  const [summaryMeta, setSummaryMeta] = useState(null);
   const [notifications, setNotifications] = useState(initialNotifications || []);
 
   const [feedStandards, setFeedStandards] = useState(initialFeedStandards);
@@ -201,6 +204,9 @@ export default function DashboardClient({
 
       if (summaryRefreshRequestRef.current === requestId) {
         setSummary(json.data);
+        if (json.meta) {
+          setSummaryMeta(json.meta);
+        }
       }
 
       return true;
