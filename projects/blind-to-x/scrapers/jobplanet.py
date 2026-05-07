@@ -40,37 +40,34 @@ class JobplanetScraper(BaseScraper):
         urls = []
         self.last_feed_fetch_error = None
         self.last_feed_fetch_reason = None
-        page = await self._new_page()
+        async with self._new_page_cm() as page:
+            try:
+                logger.info(f"Fetching {label} from API: {feed_url}...")
+                response = await page.goto(feed_url, timeout=30000)
+                if response and response.status == 200:
+                    json_data = await response.json()
 
-        try:
-            logger.info(f"Fetching {label} from API: {feed_url}...")
-            response = await page.goto(feed_url, timeout=30000)
-            if response and response.status == 200:
-                json_data = await response.json()
+                    items = json_data.get("data", {}).get("items", [])
+                    for item in items[:limit]:
+                        post_id = item.get("id")
+                        if post_id:
+                            urls.append(f"{self.BASE_URL}/community/posts/{post_id}")
 
-                items = json_data.get("data", {}).get("items", [])
-                for item in items[:limit]:
-                    post_id = item.get("id")
-                    if post_id:
-                        urls.append(f"{self.BASE_URL}/community/posts/{post_id}")
-
-                logger.info(f"Found {len(urls)} {label} from JSON API.")
-            elif response and response.status in [403, 404]:
-                logger.warning(f"API fetch returned status {response.status} for {label}")
-                self.last_feed_fetch_error = f"API fetch blocked ({label}): Status {response.status}"
-                self.last_feed_fetch_reason = "api_fetch_blocked"
-            else:
-                self.last_feed_fetch_error = (
-                    f"API fetch failed ({label}): Status {response.status if response else 'Unknown'}"
-                )
-                self.last_feed_fetch_reason = "api_fetch_failed"
-                logger.error(self.last_feed_fetch_error)
-        except Exception as e:
-            self.last_feed_fetch_error = f"Feed fetch failed ({label}): {e}"
-            self.last_feed_fetch_reason = "feed_fetch_failed"
-            logger.warning(self.last_feed_fetch_error)
-        finally:
-            await page.close()
+                    logger.info(f"Found {len(urls)} {label} from JSON API.")
+                elif response and response.status in [403, 404]:
+                    logger.warning(f"API fetch returned status {response.status} for {label}")
+                    self.last_feed_fetch_error = f"API fetch blocked ({label}): Status {response.status}"
+                    self.last_feed_fetch_reason = "api_fetch_blocked"
+                else:
+                    self.last_feed_fetch_error = (
+                        f"API fetch failed ({label}): Status {response.status if response else 'Unknown'}"
+                    )
+                    self.last_feed_fetch_reason = "api_fetch_failed"
+                    logger.error(self.last_feed_fetch_error)
+            except Exception as e:
+                self.last_feed_fetch_error = f"Feed fetch failed ({label}): {e}"
+                self.last_feed_fetch_reason = "feed_fetch_failed"
+                logger.warning(self.last_feed_fetch_error)
 
         return urls
 
@@ -105,37 +102,35 @@ class JobplanetScraper(BaseScraper):
             else f"{self.BASE_URL}/api/v5/community/posts?limit={max(20, limit)}&order_by=recent"
         )
         candidates: list[FeedCandidate] = []
-        page = await self._new_page()
-        try:
-            response = await page.goto(api_url, timeout=30000)
-            if response and response.status == 200:
-                json_data = await response.json()
-                items = json_data.get("data", {}).get("items", [])
-                for item in items[:limit]:
-                    post_id = item.get("id")
-                    if not post_id:
-                        continue
-                    url = f"{self.BASE_URL}/community/posts/{post_id}"
-                    title = (item.get("title") or item.get("content", ""))[:120].strip()
-                    likes = int(item.get("like_count", 0) or 0)
-                    comments = int(item.get("comment_count", 0) or 0)
-                    views = int(item.get("view_count", 0) or 0)
-                    c = FeedCandidate(
-                        url=url,
-                        title=title,
-                        likes=likes,
-                        comments=comments,
-                        views=views,
-                        source=self.SOURCE_NAME,
-                    )
-                    c.compute_engagement()
-                    candidates.append(c)
-            else:
-                logger.warning("JobPlanet API returned status %s", response.status if response else "N/A")
-        except Exception as e:
-            logger.warning("JobPlanet feed candidates failed: %s", e)
-        finally:
-            await page.close()
+        async with self._new_page_cm() as page:
+            try:
+                response = await page.goto(api_url, timeout=30000)
+                if response and response.status == 200:
+                    json_data = await response.json()
+                    items = json_data.get("data", {}).get("items", [])
+                    for item in items[:limit]:
+                        post_id = item.get("id")
+                        if not post_id:
+                            continue
+                        url = f"{self.BASE_URL}/community/posts/{post_id}"
+                        title = (item.get("title") or item.get("content", ""))[:120].strip()
+                        likes = int(item.get("like_count", 0) or 0)
+                        comments = int(item.get("comment_count", 0) or 0)
+                        views = int(item.get("view_count", 0) or 0)
+                        c = FeedCandidate(
+                            url=url,
+                            title=title,
+                            likes=likes,
+                            comments=comments,
+                            views=views,
+                            source=self.SOURCE_NAME,
+                        )
+                        c.compute_engagement()
+                        candidates.append(c)
+                else:
+                    logger.warning("JobPlanet API returned status %s", response.status if response else "N/A")
+            except Exception as e:
+                logger.warning("JobPlanet feed candidates failed: %s", e)
         candidates.sort(key=lambda c: c.engagement_score, reverse=True)
         return candidates[:limit]
 
@@ -155,99 +150,97 @@ class JobplanetScraper(BaseScraper):
     # ── Post scraping ────────────────────────────────────────────────
     async def scrape_post(self, url):
         logger.info(f"Scraping Jobplanet post (API + Screenshot): {url}")
-        page = await self._new_page()
         failure_stage = "post_fetch"
         failure_reason = "unknown"
 
-        try:
-            delay = self.config.get("delay_seconds", 5)
-            if delay > 0:
-                await asyncio.sleep(delay)
+        async with self._new_page_cm() as page:
+            try:
+                delay = self.config.get("delay_seconds", 5)
+                if delay > 0:
+                    await asyncio.sleep(delay)
 
-            # 1. Fetch data from JSON API
-            match = re.search(r"/posts/(\d+)", url)
-            if not match:
-                failure_reason = "invalid_url_format"
-                raise ValueError(f"Could not extract post ID from URL: {url}")
+                # 1. Fetch data from JSON API
+                match = re.search(r"/posts/(\d+)", url)
+                if not match:
+                    failure_reason = "invalid_url_format"
+                    raise ValueError(f"Could not extract post ID from URL: {url}")
 
-            post_id = match.group(1)
-            api_url = f"{self.BASE_URL}/api/v5/community/posts/{post_id}"
+                post_id = match.group(1)
+                api_url = f"{self.BASE_URL}/api/v5/community/posts/{post_id}"
 
-            logger.info(f"Fetching post detail from API: {api_url}")
-            response = await page.goto(api_url, timeout=30000)
+                logger.info(f"Fetching post detail from API: {api_url}")
+                response = await page.goto(api_url, timeout=30000)
 
-            if not response or response.status in [403, 404]:
-                failure_reason = f"http_{response.status if response else 'unknown'}"
-                raise Exception(f"API fetch failed with status {response.status if response else 'unknown'}")
+                if not response or response.status in [403, 404]:
+                    failure_reason = f"http_{response.status if response else 'unknown'}"
+                    raise Exception(f"API fetch failed with status {response.status if response else 'unknown'}")
 
-            json_data = await response.json()
-            post_data = json_data.get("data", {})
+                json_data = await response.json()
+                post_data = json_data.get("data", {})
 
-            content = post_data.get("content", "").strip()
-            title = post_data.get("title", "").strip()
+                content = post_data.get("content", "").strip()
+                title = post_data.get("title", "").strip()
 
-            if not title:
-                lines = [line.strip() for line in content.split("\n") if line.strip()]
-                title = lines[0] if lines else "제목 없음"
-                if len(title) > 50:
-                    title = title[:47] + "..."
+                if not title:
+                    lines = [line.strip() for line in content.split("\n") if line.strip()]
+                    title = lines[0] if lines else "제목 없음"
+                    if len(title) > 50:
+                        title = title[:47] + "..."
 
-            if len(content) < 10:
-                failure_reason = "insufficient_content_length"
-                raise Exception("Insufficient text content (minimum 10 chars).")
+                if len(content) < 10:
+                    failure_reason = "insufficient_content_length"
+                    raise Exception("Insufficient text content (minimum 10 chars).")
 
-            likes = post_data.get("likes_count", 0)
-            comments = post_data.get("comments_count", 0)
-            _views = post_data.get("views_count", 0)
+                likes = post_data.get("likes_count", 0)
+                comments = post_data.get("comments_count", 0)
+                _views = post_data.get("views_count", 0)
 
-            cat_info = post_data.get("community_category")
-            category = cat_info.get("name", "기타") if isinstance(cat_info, dict) else "기타"
+                cat_info = post_data.get("community_category")
+                category = cat_info.get("name", "기타") if isinstance(cat_info, dict) else "기타"
 
-            failure_stage = "screenshot"
-            # 2. Navigate to actual URL just to take a screenshot
-            logger.info(f"Navigating to HTML page for screenshot: {url}")
-            await page.goto(url, wait_until="domcontentloaded", timeout=30000)
-            await asyncio.sleep(3)  # Wait for SPA to render
+                failure_stage = "screenshot"
+                # 2. Navigate to actual URL just to take a screenshot
+                logger.info(f"Navigating to HTML page for screenshot: {url}")
+                await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                await asyncio.sleep(3)  # Wait for SPA to render
 
-            await self._clean_ui_for_screenshot(page)
+                await self._clean_ui_for_screenshot(page)
 
-            short_id = uuid.uuid4().hex[:8]
-            safe_title = "".join(x for x in title[:20] if x.isalnum() or x in " -_").strip()
-            if not safe_title:
-                safe_title = "post"
-            filename = f"jobplanet_{safe_title}_{short_id}.png"
-            filepath = os.path.join(self.screenshot_dir, filename)
+                short_id = uuid.uuid4().hex[:8]
+                safe_title = "".join(x for x in title[:20] if x.isalnum() or x in " -_").strip()
+                if not safe_title:
+                    safe_title = "post"
+                filename = f"jobplanet_{safe_title}_{short_id}.png"
+                filepath = os.path.join(self.screenshot_dir, filename)
 
-            body = await page.query_selector("body")
-            if body:
-                await asyncio.wait_for(body.screenshot(path=filepath), timeout=30)
-            else:
-                await asyncio.wait_for(page.screenshot(path=filepath, full_page=True), timeout=30)
+                body = await page.query_selector("body")
+                if body:
+                    await asyncio.wait_for(body.screenshot(path=filepath), timeout=30)
+                else:
+                    await asyncio.wait_for(page.screenshot(path=filepath, full_page=True), timeout=30)
 
-            logger.info(f"Saved screenshot: {filepath}")
+                logger.info(f"Saved screenshot: {filepath}")
 
-            return {
-                "url": url,
-                "title": title.strip(),
-                "content": content,
-                "category": category,
-                "likes": likes,
-                "comments": comments,
-                "screenshot_path": filepath,
-                "source": self.SOURCE_NAME,
-            }
+                return {
+                    "url": url,
+                    "title": title.strip(),
+                    "content": content,
+                    "category": category,
+                    "likes": likes,
+                    "comments": comments,
+                    "screenshot_path": filepath,
+                    "source": self.SOURCE_NAME,
+                }
 
-        except Exception as e:
-            logger.error(f"Error scraping {url}: {e}")
-            await self._save_failure_snapshot(page, url, failure_stage, failure_reason)
-            error_code = ERROR_SCRAPE_PARSE_FAILED if failure_stage == "parse" else ERROR_SCRAPE_FAILED
-            return {
-                "_scrape_error": True,
-                "url": url,
-                "error_code": error_code,
-                "failure_stage": failure_stage,
-                "failure_reason": failure_reason,
-                "error_message": str(e),
-            }
-        finally:
-            await page.close()
+            except Exception as e:
+                logger.error(f"Error scraping {url}: {e}")
+                await self._save_failure_snapshot(page, url, failure_stage, failure_reason)
+                error_code = ERROR_SCRAPE_PARSE_FAILED if failure_stage == "parse" else ERROR_SCRAPE_FAILED
+                return {
+                    "_scrape_error": True,
+                    "url": url,
+                    "error_code": error_code,
+                    "failure_stage": failure_stage,
+                    "failure_reason": failure_reason,
+                    "error_message": str(e),
+                }
