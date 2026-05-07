@@ -61,10 +61,15 @@ npm start
 
 *   **Framework**: Next.js 16 (App Router, Proxy)
 *   **Runtime UI**: React 19
-*   **Database**: PostgreSQL (via Prisma ORM + `@prisma/adapter-pg`)
+*   **Language**: JavaScript with TypeScript available for typed helpers/tests
+*   **Database**: PostgreSQL/Supabase-compatible URLs via Prisma ORM + `@prisma/adapter-pg`
 *   **Auth**: Auth.js / `next-auth` v5 beta
+*   **Cache / Queue**: Redis + BullMQ for scale-hardening paths
+*   **HTTP Client**: native Fetch API wrapped by local helpers such as `src/lib/fetchWithTimeout.js`
 *   **Styling**: Tailwind CSS v4 + app-level CSS variables
 *   **Charts**: Recharts
+
+Not installed here by default: Svelte, TanStack Query, RabbitMQ, Go, Rust, Flutter, or native mobile runtimes. Treat them as candidate-only technologies and document a migration/design note before adoption.
 
 ### Scale-Hardening Infra
 

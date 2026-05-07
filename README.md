@@ -66,6 +66,15 @@ cd workspace
 - `projects/suika-game-v2`
 - `projects/word-chain`
 
+## Technology Stack
+
+See `docs/technology-stack.md` for the workspace stack policy.
+
+- Current web default: React/Next.js with JavaScript or TypeScript.
+- Current SaaS data path: PostgreSQL/Supabase-compatible database access through Prisma where applicable.
+- Current async/cache path: Redis/BullMQ for internal jobs, plus native Fetch API wrappers for HTTP calls.
+- Candidate-only: Svelte/SvelteKit, Go, Rust, Flutter/native mobile, RabbitMQ, and TanStack Query require an explicit design note before adoption.
+
 ## Shorts Workflow
 
 1. `cd workspace && ..\venv\Scripts\uv.exe run streamlit run execution\pages\shorts_manager.py`

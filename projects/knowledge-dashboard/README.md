@@ -33,10 +33,13 @@ Open `http://localhost:3000` in your browser and enter the configured API key wh
 
 ## Tech Stack
 
-- Framework: Next.js 16
+- Framework: Next.js 16 + React 19
+- Language: TypeScript
 - Styling: Tailwind CSS
 - Components: Radix UI + Lucide React
 - Data sync: Python script + internal API routes
+
+This project does not currently use Svelte, TanStack Query, Supabase/PostgreSQL, Redis, RabbitMQ, Go, Rust, Flutter, or native mobile runtimes. Follow the workspace policy in `../../docs/technology-stack.md` before introducing any of those.
 
 ## Folder Structure
 
