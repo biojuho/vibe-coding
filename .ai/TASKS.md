@@ -6,6 +6,7 @@
 
 | ID | Task | Owner | Priority | Auto | Created |
 |---|---|---|---|---|---|
+| T-246 | `[workspace]` Review or finish remaining unrelated WIP: `projects/blind-to-x/scrapers/jobplanet.py`, `projects/hanwoo-dashboard/public/manifest.json`, `projects/shorts-maker-v2/src/shorts_maker_v2/render/karaoke.py`, and `projects/shorts-maker-v2/src/shorts_maker_v2/utils/channel_router.py`. | User/AI | Medium | 🔴 approval | 2026-05-07 |
 
 ## IN_PROGRESS
 
@@ -16,11 +17,11 @@
 
 | ID | Task | Completed By | Completed |
 |---|---|---|---|
+| T-245 | `[projects]` Surge queue and Hanwoo AI chat stabilized: `blind-to-x` queue persists `content_preview` with migration/tests, escalation runner passes previews into express drafts, Hanwoo chat streams `/api/ai/chat` with abort/offline fallback, and PWA config is opt-in so build stays green. | Codex | 2026-05-07 |
 | T-244 | `[workspace]` Project verification docs aligned: project-level `CLAUDE.md` files and `.agents/workflows/start.md`/`verify.md` now reference canonical `execution/project_qc_runner.py` checks and current project stacks. | Codex | 2026-05-07 |
 | T-243 | `[workspace]` Project-by-project QC runner added: deterministic `execution/project_qc_runner.py` now wraps canonical checks for `blind-to-x`, `shorts-maker-v2`, `hanwoo-dashboard`, and `knowledge-dashboard`, with unit tests and Windows command/UTF-8 handling. | Codex | 2026-05-07 |
 | T-242 | `[workspace]` Full QC pass completed: graph risk `0.00`, `git diff --check` clean, shared health `overall: warn` with `fail: 0`, governance OK, branch protection configured, 0 open PRs, targeted secret scan clean, workspace Ruff/pytest passed, active project test/lint/build paths passed, and Playwright Chromium smoke passed. | Codex | 2026-05-07 |
 | T-241 | `[workspace]` QC pass recorded: shared health `warn 7 / fail 0` (expected optional providers), governance `ok`, graph detect-changes risk `0.00`, workspace Ruff clean, workspace pytest `1283 passed / 1 skipped`, `blind-to-x` & `shorts-maker-v2` Ruff clean, `git diff --check` clean, 0 open PRs. | Claude Code (Opus 4.7 1M) | 2026-05-07 |
-| T-231 | `[blind-to-x]` Playwright Chromium browser binary installed (`chromium-headless-shell v1208`, 108.8 MiB). Smoke test passed. Browser-only scraping now fully functional. | Gemini (Antigravity) | 2026-05-06 |
 
 - Keep only the latest 5 items in `DONE`.
 - Add newly discovered follow-up work to `TODO`.
