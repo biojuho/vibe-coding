@@ -16,10 +16,20 @@
 |---|---|---|---|
 | `blind-to-x` | Active | Python pipeline, Notion, Cloudinary | `projects/blind-to-x` |
 | `shorts-maker-v2` | Active | Python, MoviePy, Edge TTS, OpenAI, Google GenAI, Pillow | `projects/shorts-maker-v2` |
-| `hanwoo-dashboard` | Active | Next.js, React, Prisma, Tailwind | `projects/hanwoo-dashboard` |
-| `knowledge-dashboard` | Maintenance | Next.js, TypeScript, Tailwind | `projects/knowledge-dashboard` |
+| `hanwoo-dashboard` | Active | Next.js, React, Prisma 7, PostgreSQL/Supabase, Redis/BullMQ, Tailwind | `projects/hanwoo-dashboard` |
+| `knowledge-dashboard` | Maintenance | Next.js, React, TypeScript, Tailwind | `projects/knowledge-dashboard` |
 | `suika-game-v2` | Frozen | Vite, Vanilla JS, Matter.js | `projects/suika-game-v2` |
 | `word-chain` | Frozen | React, Vite, Tailwind | `projects/word-chain` |
+
+## Technology Adoption Policy
+
+- Workspace stack policy is documented in `docs/technology-stack.md`.
+- Current frontend default is React/Next.js with JavaScript or TypeScript; Svelte/SvelteKit is candidate-only for new standalone apps.
+- Current backend/runtime default is Python pipelines plus Next.js server routes/actions; Go/Rust are candidate-only for measured high-throughput or CPU-bound services.
+- Current SaaS data direction is PostgreSQL/Supabase; `hanwoo-dashboard` uses Prisma with `@prisma/adapter-pg`.
+- Current queue/cache direction is Redis/BullMQ for single-app internal async work; RabbitMQ is candidate-only for multi-service broker semantics.
+- Current HTTP client direction is native Fetch API via local helpers such as `fetchWithTimeout`; TanStack Query is candidate-only for interactive client lists and mutation invalidation.
+- Mobile is not implemented in active code. Flutter is the preferred candidate for shared cross-platform mobile; native iOS/Android is reserved for platform-specific needs.
 
 ## Current Reliability Notes
 

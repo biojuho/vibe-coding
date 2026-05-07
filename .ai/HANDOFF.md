@@ -6,6 +6,20 @@
 
 | Field | Value |
 |---|---|
+| Date | 2026-05-08 |
+| Tool | Codex |
+| Work | **T-249 workspace technology stack policy reflected**: checked the requested stack list against the repository. Confirmed active usage of React/Next.js, JavaScript/TypeScript, PostgreSQL/Supabase-compatible Prisma access, Redis/BullMQ, and native Fetch API wrappers. Confirmed Svelte/SvelteKit, Go, Rust, Flutter/native mobile, RabbitMQ, and TanStack Query are not installed in active product code and should remain candidate-only until a design note exists. Added `docs/technology-stack.md`, linked it from root `README.md`, updated `projects/hanwoo-dashboard/README.md` and `projects/knowledge-dashboard/README.md`, and expanded `.ai/CONTEXT.md` with the adoption policy. Verification passed: `git diff --check` (LF/CRLF warnings only), governance `overall: ok`, graph detect-changes risk `0.00`. |
+| Next Priorities | If actual runtime adoption is desired later, start with a design note per stack: TanStack Query for Hanwoo interactive lists, Flutter for a separate mobile app, or Go/Rust only for measured worker bottlenecks. Do not replace existing React/Next/Python/Redis-BullMQ paths without that plan. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-07 |
+| Tool | Claude Code (Opus 4.7 1M) |
+| Work | **시스템 고도화 Phase A — tech-debt cleanup (T-120/T-121/T-129)**. T-120: `psutil` was the actual CI blocker in `infrastructure/n8n/bridge_server.py` (fastapi/pydantic already had try/except fallbacks). Made `psutil` import optional and made `/health` endpoint psutil-aware (`memory_mb=None` when unavailable). Extended `workspace/tests/test_auto_schedule_paths.py` regression to block fastapi+pydantic+psutil together (renamed to `test_n8n_bridge_helper_imports_do_not_require_runtime_only_deps`) and wired the test file into both `.github/workflows/root-quality-gate.yml` and `.github/workflows/full-test-matrix.yml`. T-121: confirmed already mitigated by `_isolate_logging_handlers` autouse fixture in `projects/blind-to-x/tests/unit/conftest.py`; full unit suite 1523 passed + 3× targeted 20/20 runs all clean; memory entry was stale. T-129: deeper DashboardClient split was previously deemed risk>benefit (T-210), and the read-model cache is already wired at API layer (`/api/dashboard/summary` uses snapshot via `read-models.js`). Surgical contribution: piped the API's cache `meta` (`source`/`isStale`/`ageSeconds`) into a new `summaryMeta` state in `DashboardClient` so staleness info isn't dropped. Verification: workspace 87 tests pass, ruff clean across canonical + bridge_server, hanwoo-dashboard 51/51 tests + lint 0 + build green. **Note:** of the WIP files Codex flagged in the previous addendum, the bridge_server / both workflow YAMLs / `test_auto_schedule_paths.py` are now this session's intentional T-120 changes. |
+| Next Priorities | Phase A is committable as its own PR. Then proceed to Phase C (code-graph utilization expansion + HANDOFF rotation rules) → Phase B (content-pipeline upgrades, e.g. shorts-maker-v2 multi-provider TTS + n8n automation). |
+
+| Field | Value |
+|---|---|
 | Date | 2026-05-07 |
 | Tool | Codex |
 | Work | **T-247 project-by-project debug triage completed**: ran graph-first status/change checks and the full `execution/project_qc_runner.py --json` matrix. Initial QC showed only one real failure: `shorts-maker-v2` Ruff `B007` in `src/shorts_maker_v2/render/karaoke.py` from an unused `enumerate()` index inside existing Phase 3 WIP. Fixed that single lint issue by iterating directly over `words`. Reverification passed: `shorts-maker-v2` full project runner (`1300 passed, 12 skipped` plus Ruff), and the earlier same-run matrix had `blind-to-x` test/lint, `hanwoo-dashboard` test/lint/build, and `knowledge-dashboard` test/lint/build all green. `git diff --check` reported only LF/CRLF warnings, and graph detect-changes risk stayed `0.00`. |

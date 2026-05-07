@@ -6,7 +6,6 @@
 
 | ID | Task | Owner | Priority | Auto | Created |
 |---|---|---|---|---|---|
-| T-248 | `[workspace]` Review newly surfaced unrelated WIP after debug triage: `.github/workflows/full-test-matrix.yml`, `.github/workflows/root-quality-gate.yml`, `infrastructure/n8n/bridge_server.py`, `projects/hanwoo-dashboard/package.json`, `projects/hanwoo-dashboard/scripts/prisma7-runtime-test.mjs`, and `workspace/tests/test_auto_schedule_paths.py`. | User/AI | Medium | ?뵶 approval | 2026-05-07 |
 | T-246 | `[workspace]` Review or finish remaining unrelated WIP: `projects/blind-to-x/scrapers/jobplanet.py`, `projects/hanwoo-dashboard/public/manifest.json`, `projects/shorts-maker-v2/src/shorts_maker_v2/render/karaoke.py`, and `projects/shorts-maker-v2/src/shorts_maker_v2/utils/channel_router.py`. | User/AI | Medium | 🔴 approval | 2026-05-07 |
 
 ## IN_PROGRESS
@@ -18,11 +17,11 @@
 
 | ID | Task | Completed By | Completed |
 |---|---|---|---|
+| T-249 | `[workspace]` Reflected requested stack policy: current defaults are React/Next.js, JS/TS, PostgreSQL/Supabase-compatible Prisma access, Redis/BullMQ, and Fetch API wrappers; Svelte, Go, Rust, Flutter/native, RabbitMQ, and TanStack Query are candidate-only until a design note exists. | Codex | 2026-05-08 |
+| T-120 | `[infrastructure/n8n]` Made `psutil` optional in `bridge_server.py` (real CI blocker — fastapi/pydantic already had fallbacks); extended `test_auto_schedule_paths.py` regression to block fastapi+pydantic+psutil together; wired the test file into `root-quality-gate.yml` and `full-test-matrix.yml`. | Claude Code (Opus 4.7 1M) | 2026-05-07 |
+| T-121 | `[blind-to-x]` Confirmed `test_main.py` KeyboardInterrupt already mitigated by `_isolate_logging_handlers` autouse fixture in `tests/unit/conftest.py`; full unit suite (1523 passed, 12 skipped) and 3 back-to-back targeted runs (20/20 each) all clean. Memory entry was stale. | Claude Code (Opus 4.7 1M) | 2026-05-07 |
+| T-129 | `[hanwoo-dashboard]` Wired the read-model cache `meta` (source/isStale/ageSeconds) from `/api/dashboard/summary` through to a new `summaryMeta` state in `DashboardClient`. Deeper DashboardClient split previously deemed risk>benefit (T-210). | Claude Code (Opus 4.7 1M) | 2026-05-07 |
 | T-247 | `[projects]` Project-by-project debug triage completed: full QC found only `shorts-maker-v2` Ruff `B007` in `render/karaoke.py`; fixed the unused `enumerate()` index and revalidated `shorts-maker-v2` test/lint plus graph/diff checks. | Codex | 2026-05-07 |
-| T-245 | `[projects]` Surge queue and Hanwoo AI chat stabilized: `blind-to-x` queue persists `content_preview` with migration/tests, escalation runner passes previews into express drafts, Hanwoo chat streams `/api/ai/chat` with abort/offline fallback, and PWA config is opt-in so build stays green. | Codex | 2026-05-07 |
-| T-244 | `[workspace]` Project verification docs aligned: project-level `CLAUDE.md` files and `.agents/workflows/start.md`/`verify.md` now reference canonical `execution/project_qc_runner.py` checks and current project stacks. | Codex | 2026-05-07 |
-| T-243 | `[workspace]` Project-by-project QC runner added: deterministic `execution/project_qc_runner.py` now wraps canonical checks for `blind-to-x`, `shorts-maker-v2`, `hanwoo-dashboard`, and `knowledge-dashboard`, with unit tests and Windows command/UTF-8 handling. | Codex | 2026-05-07 |
-| T-242 | `[workspace]` Full QC pass completed: graph risk `0.00`, `git diff --check` clean, shared health `overall: warn` with `fail: 0`, governance OK, branch protection configured, 0 open PRs, targeted secret scan clean, workspace Ruff/pytest passed, active project test/lint/build paths passed, and Playwright Chromium smoke passed. | Codex | 2026-05-07 |
 
 - Keep only the latest 5 items in `DONE`.
 - Add newly discovered follow-up work to `TODO`.
