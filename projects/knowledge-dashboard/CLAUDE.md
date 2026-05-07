@@ -19,10 +19,19 @@
 
 ## 검증 커맨드
 
-```bash
-# 개발 서버
-npm run dev
+표준 검증은 워크스페이스 루트에서 `execution/project_qc_runner.py`를 사용한다.
 
+```bash
+# 워크스페이스 루트에서 실행
+python execution/project_qc_runner.py --project knowledge-dashboard --json
+python execution/project_qc_runner.py --project knowledge-dashboard --check test --json
+python execution/project_qc_runner.py --project knowledge-dashboard --check lint --json
+python execution/project_qc_runner.py --project knowledge-dashboard --check build --json
+```
+
+프로젝트 루트에서 직접 실행해야 할 때의 동일 커맨드:
+
+```bash
 # 단위 테스트 (Node test runner)
 npm test
 # → src/lib/dashboard-insights.test.mts 실행
@@ -30,12 +39,18 @@ npm test
 # Lint
 npm run lint
 
+# 빌드 검증
+npm run build
+
+# 개발 서버
+npm run dev
+
 # Smoke 테스트 (로컬 서버 대상)
 npm run smoke
 # → scripts/smoke.mjs 실행 (서버 먼저 실행 필요)
 ```
 
-> ⚠️ 모든 커맨드는 `projects/knowledge-dashboard/` 에서 실행할 것.
+> ⚠️ `project_qc_runner.py`는 워크스페이스 루트에서, 직접 실행 커맨드는 `projects/knowledge-dashboard/`에서 실행할 것.
 
 ## 인증 아키텍처 (ADR-023 필수)
 

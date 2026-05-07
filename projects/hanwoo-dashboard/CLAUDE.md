@@ -12,32 +12,44 @@
 ## 프로젝트 개요
 
 - **목적**: 한우 농가 관리 대시보드 (SaaS)
-- **스택**: Next.js 15, React, Prisma, Auth.js (v5 beta), TailwindCSS v4, Supabase
+- **스택**: Next.js 16, React 19, Prisma 7, Auth.js (v5 beta), TailwindCSS v4, Supabase
 - **핵심 파일**: `src/app/`, `src/lib/`, `src/components/`
 
 ## 검증 커맨드
 
-```bash
-# Lint
-npm run lint
+표준 검증은 워크스페이스 루트에서 `execution/project_qc_runner.py`를 사용한다.
 
+```bash
+# 워크스페이스 루트에서 실행
+python execution/project_qc_runner.py --project hanwoo-dashboard --json
+python execution/project_qc_runner.py --project hanwoo-dashboard --check test --json
+python execution/project_qc_runner.py --project hanwoo-dashboard --check lint --json
+python execution/project_qc_runner.py --project hanwoo-dashboard --check build --json
+```
+
+프로젝트 루트에서 직접 실행해야 할 때의 동일 커맨드:
+
+```bash
 # 단위 테스트
 npm test
 
-# 빌드 검증 (배포 전에만)
+# Lint
+npm run lint
+
+# 빌드 검증
 npm run build
 
 # 특정 테스트 파일
 npx jest src/__tests__/<filename>.test.js
 ```
 
-> ⚠️ 모든 커맨드는 `projects/hanwoo-dashboard/` 에서 실행할 것.
+> ⚠️ `project_qc_runner.py`는 워크스페이스 루트에서, 직접 실행 커맨드는 `projects/hanwoo-dashboard/`에서 실행할 것.
 
 ## 코드 컨벤션
 
 - **모듈 시스템**: ESM (`import/export`), CommonJS(`require`) 금지
 - **Node 단위 테스트**: `.mjs` 확장자 사용 (패키지 `"type": "module"` 없음)
-- **Server Actions**: `src/lib/actions.js` — 반드시 서버사이드 인증 거침
+- **Server Actions**: `src/lib/actions.js`는 barrel re-export, 도메인별 구현은 `src/lib/actions/` 아래에 두며 반드시 서버사이드 인증 거침
 - **API 라우트**: `src/app/api/` — `requireAuthenticatedSession()` 필수 (ADR-022)
 - **한국어 문자열**: 수정 최소화, 인코딩 문제 주의
 
@@ -55,7 +67,7 @@ npx jest src/__tests__/<filename>.test.js
 
 신규 기능 추가 전:
 
-1. `src/lib/actions.js` — 서버 액션 패턴
+1. `src/lib/actions.js`, `src/lib/actions/` — 서버 액션 barrel/도메인 구현 패턴
 2. `src/lib/dashboard/pagination-guard.mjs` — 페이지네이션 안전장치
 3. `src/app/api/auth/` — 인증 플로우
 4. `.ai/DECISIONS.md` — ADR-022, ADR-024 확인

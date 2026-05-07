@@ -17,18 +17,32 @@
 
 ## 검증 커맨드
 
+표준 검증은 워크스페이스 루트에서 `execution/project_qc_runner.py`를 사용한다.
+
 ```bash
-# 단위 테스트 (coverage 제외 — 기본값이 느림)
-python -m pytest --no-cov tests/unit/test_cli.py tests/unit/test_orchestrator_unit.py -x
-
-# 전체 단위 테스트
-python -m pytest --no-cov tests/unit/ -x
-
-# Lint
-ruff check . --fix
+# 워크스페이스 루트에서 실행
+python execution/project_qc_runner.py --project shorts-maker-v2 --json
+python execution/project_qc_runner.py --project shorts-maker-v2 --check test --json
+python execution/project_qc_runner.py --project shorts-maker-v2 --check lint --json
 ```
 
-> ⚠️ 모든 커맨드는 `projects/shorts-maker-v2/` 에서 실행할 것.
+프로젝트 루트에서 직접 실행해야 할 때의 동일 커맨드:
+
+```bash
+# 전체 단위/통합 테스트
+python -m pytest --no-cov tests/unit tests/integration -q --tb=short --maxfail=1
+
+# Lint
+python -m ruff check .
+
+# 빠른 단위 테스트 (현재 작업 파일 중심)
+python -m pytest --no-cov tests/unit/test_<current>.py -q --tb=short --maxfail=1
+
+# Lint 자동 수정은 변경사항 확인 후에만
+python -m ruff check . --fix
+```
+
+> ⚠️ `project_qc_runner.py`는 워크스페이스 루트에서, 직접 실행 커맨드는 `projects/shorts-maker-v2/`에서 실행할 것.
 
 ## 코드 컨벤션
 

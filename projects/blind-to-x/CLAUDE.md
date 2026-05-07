@@ -17,21 +17,35 @@
 
 ## 검증 커맨드
 
-```bash
-# 빠른 단위 테스트 (현재 작업 파일 중심)
-python -m pytest --no-cov tests/unit/test_<current>.py -x
+표준 검증은 워크스페이스 루트에서 `execution/project_qc_runner.py`를 사용한다.
 
+```bash
+# 워크스페이스 루트에서 실행
+python execution/project_qc_runner.py --project blind-to-x --json
+python execution/project_qc_runner.py --project blind-to-x --check test --json
+python execution/project_qc_runner.py --project blind-to-x --check lint --json
+```
+
+프로젝트 루트에서 직접 실행해야 할 때의 동일 커맨드:
+
+```bash
 # 전체 단위 테스트
-python -m pytest --no-cov tests/unit/ -x
+python -m pytest --no-cov tests/unit -q --tb=short --maxfail=1
 
 # Lint
-ruff check . --fix
+python -m ruff check .
+
+# 빠른 단위 테스트 (현재 작업 파일 중심)
+python -m pytest --no-cov tests/unit/test_<current>.py -q --tb=short --maxfail=1
+
+# Lint 자동 수정은 변경사항 확인 후에만
+python -m ruff check . --fix
 
 # E2E 테스트 (주의: 실제 Notion API 호출 발생 가능)
 python -m pytest tests/test_escalation_e2e.py -x --no-cov
 ```
 
-> ⚠️ 모든 커맨드는 `projects/blind-to-x/` 에서 실행할 것.
+> ⚠️ `project_qc_runner.py`는 워크스페이스 루트에서, 직접 실행 커맨드는 `projects/blind-to-x/`에서 실행할 것.
 
 ## 코드 컨벤션
 
