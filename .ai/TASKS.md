@@ -6,7 +6,7 @@
 
 | ID | Task | Owner | Priority | Auto | Created |
 |---|---|---|---|---|---|
-| T-246 | `[workspace]` Review or finish remaining unrelated WIP: `projects/blind-to-x/scrapers/jobplanet.py`, `projects/hanwoo-dashboard/public/manifest.json`, `projects/shorts-maker-v2/src/shorts_maker_v2/render/karaoke.py`, and `projects/shorts-maker-v2/src/shorts_maker_v2/utils/channel_router.py`. | User/AI | Medium | 🔴 approval | 2026-05-07 |
+| T-251 | `[hanwoo-dashboard]` Run Prisma 7 live CRUD E2E once the Supabase project is active: `npm run db:prisma7-test -- --live`. | User/AI | Medium | 🔴 approval | 2026-05-08 |
 
 ## IN_PROGRESS
 
@@ -17,11 +17,11 @@
 
 | ID | Task | Completed By | Completed |
 |---|---|---|---|
+| T-246 | `[workspace]` Finished remaining approved WIP by project: JobPlanet `_new_page_cm()` page lifecycle, Shorts Maker V2 karaoke timing/channel branding, Hanwoo Prisma 7 stability script and manifest icons, plus tracked `find-skills` registry entry. | Codex | 2026-05-08 |
+| T-250 | `[hanwoo-dashboard]` Prisma 7 런타임 안정성 테스트 (H-5): `prisma7-runtime-test.mjs` 신규 생성, 14/14 offline passed (Client Gen 4, Adapter 4, Pool 3, Errors 3), Live CRUD E2E 준비 완료 (`--live` 플래그). `npm run db:prisma7-test` 스크립트 추가. | Gemini (Antigravity) | 2026-05-08 |
 | T-249 | `[workspace]` Reflected requested stack policy: current defaults are React/Next.js, JS/TS, PostgreSQL/Supabase-compatible Prisma access, Redis/BullMQ, and Fetch API wrappers; Svelte, Go, Rust, Flutter/native, RabbitMQ, and TanStack Query are candidate-only until a design note exists. | Codex | 2026-05-08 |
 | T-120 | `[infrastructure/n8n]` Made `psutil` optional in `bridge_server.py` (real CI blocker — fastapi/pydantic already had fallbacks); extended `test_auto_schedule_paths.py` regression to block fastapi+pydantic+psutil together; wired the test file into `root-quality-gate.yml` and `full-test-matrix.yml`. | Claude Code (Opus 4.7 1M) | 2026-05-07 |
 | T-121 | `[blind-to-x]` Confirmed `test_main.py` KeyboardInterrupt already mitigated by `_isolate_logging_handlers` autouse fixture in `tests/unit/conftest.py`; full unit suite (1523 passed, 12 skipped) and 3 back-to-back targeted runs (20/20 each) all clean. Memory entry was stale. | Claude Code (Opus 4.7 1M) | 2026-05-07 |
-| T-129 | `[hanwoo-dashboard]` Wired the read-model cache `meta` (source/isStale/ageSeconds) from `/api/dashboard/summary` through to a new `summaryMeta` state in `DashboardClient`. Deeper DashboardClient split previously deemed risk>benefit (T-210). | Claude Code (Opus 4.7 1M) | 2026-05-07 |
-| T-247 | `[projects]` Project-by-project debug triage completed: full QC found only `shorts-maker-v2` Ruff `B007` in `render/karaoke.py`; fixed the unused `enumerate()` index and revalidated `shorts-maker-v2` test/lint plus graph/diff checks. | Codex | 2026-05-07 |
 
 - Keep only the latest 5 items in `DONE`.
 - Add newly discovered follow-up work to `TODO`.

@@ -8,6 +8,20 @@
 |---|---|
 | Date | 2026-05-08 |
 | Tool | Codex |
+| Work | Continued after the user approved additional work. Committed the previously verified Phase A reliability WIP as `dccd4b6` (`psutil` optional, CI path tests wired, Hanwoo summary cache meta retained). Finished and committed T-246 project WIP by project: `18c5223` JobPlanet pages now use `_new_page_cm()` consistently, `d11d0a9` Shorts Maker V2 adds word timing snapping, short chunk merging, and channel branding overrides, `0352c44` Hanwoo adds Prisma 7 runtime stability testing plus manifest icon corrections, and `d128e0d` adds the tracked `find-skills` skill registry entry. Verification passed: graph risk `0.00`; `workspace/tests/test_auto_schedule_paths.py` 5 passed; Ruff clean for touched Python; Hanwoo project QC test/lint/build passed and `npm run db:prisma7-test` passed offline 14/14 with 1 live skip; Blind project QC passed `1534 passed, 1 skipped`; Shorts project QC passed `1300 passed, 12 skipped`; `git diff --check` only reported LF/CRLF warnings. |
+| Next Priorities | Only live/external follow-up remains: after the Supabase project is active, run `npm run db:prisma7-test -- --live` in `projects/hanwoo-dashboard` to verify Live CRUD E2E. Broader future items from the prior Gemini note remain optional: Shorts viewer feedback loop, real video E2E generation, and Knowledge Dashboard automatic sync scheduling. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-08 |
+| Tool | Gemini (Antigravity) |
+| Work | **프로젝트별 고도화 세션 (3 세션)**: 3개 프로젝트의 안정성 고도화를 완료. **S-2**: Shorts Maker V2 word-level 싱크 정밀도 — `snap_word_timings` + `min_chunk_duration` 로직 구현. **S-3**: 채널별 브랜딩 파이프라인 — `ChannelRouter.apply()`에 transition_style, caption_style, highlight_color, hook_animation, intro/outro 전파 구현. **B-5**: JobPlanet 스크레이퍼 리소스 누수 — `_new_page_cm()` 컨텍스트 매니저 리팩토링으로 페이지 누수 차단. **H-5**: Prisma 7 런타임 안정성 테스트 — `scripts/prisma7-runtime-test.mjs` 신규 생성 (14/14 offline passed: Client Generation 4, PrismaPg Adapter 4, Connection Pool 3, Graceful Errors 3; Live CRUD E2E는 Supabase INACTIVE로 스킵). `npm run db:prisma7-test` 스크립트 추가. Knowledge Item 검증 체크리스트 업데이트 완료. 검증: hanwoo-dashboard prisma7 14/14 + unit tests 51/51, shorts-maker-v2 1300 passed (88.62%), blind-to-x 1608 passed (81.19%). |
+| Next Priorities | 1. Supabase 프로젝트 활성화 후 `npm run db:prisma7-test -- --live`로 Live CRUD E2E 검증. 2. S-4: 시청자 피드백 루프 구현. 3. S-5: 실 영상 E2E 생성 테스트. 4. K-2: Knowledge Dashboard 자동 동기화 스케줄링. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-08 |
+| Tool | Codex |
 | Work | **T-249 workspace technology stack policy reflected**: checked the requested stack list against the repository. Confirmed active usage of React/Next.js, JavaScript/TypeScript, PostgreSQL/Supabase-compatible Prisma access, Redis/BullMQ, and native Fetch API wrappers. Confirmed Svelte/SvelteKit, Go, Rust, Flutter/native mobile, RabbitMQ, and TanStack Query are not installed in active product code and should remain candidate-only until a design note exists. Added `docs/technology-stack.md`, linked it from root `README.md`, updated `projects/hanwoo-dashboard/README.md` and `projects/knowledge-dashboard/README.md`, and expanded `.ai/CONTEXT.md` with the adoption policy. Verification passed: `git diff --check` (LF/CRLF warnings only), governance `overall: ok`, graph detect-changes risk `0.00`. |
 | Next Priorities | If actual runtime adoption is desired later, start with a design note per stack: TanStack Query for Hanwoo interactive lists, Flutter for a separate mobile app, or Go/Rust only for measured worker bottlenecks. Do not replace existing React/Next/Python/Redis-BullMQ paths without that plan. |
 
