@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-07 |
 | Tool | Codex |
+| Work | **T-243 project-by-project QC runner added**: created `execution/project_qc_runner.py` to run the canonical verification commands for `blind-to-x`, `shorts-maker-v2`, `hanwoo-dashboard`, and `knowledge-dashboard` from one deterministic entry point. It supports `--project`, `--check`, `--dry-run`, `--list`, JSON output, per-command timeouts, Windows `.cmd/.bat/.exe` executable resolution, and UTF-8 console output. Added `workspace/tests/test_project_qc_runner.py`. Feature commit: `0c25272` (`chore(workspace): add project qc runner`). Verification passed: `python -m pytest --no-cov workspace\tests\test_project_qc_runner.py -q` (`6 passed`), `python -m ruff check execution\project_qc_runner.py workspace\tests\test_project_qc_runner.py`, `python execution\project_qc_runner.py --dry-run --json`, `python execution\project_qc_runner.py --project knowledge-dashboard --check test --json` (`3` Node tests passed), `git diff --check` clean except existing LF/CRLF warning in an unrelated Hanwoo file, and graph detect-changes risk `0.00`. |
+| Next Priorities | No active TODO. Preserve unrelated in-progress worktree edits currently present in `projects/blind-to-x/escalation_runner.py`, `projects/blind-to-x/pipeline/escalation_queue.py`, `projects/blind-to-x/pipeline/express_draft.py`, and `projects/hanwoo-dashboard/src/components/widgets/AIChatWidget.js`; they were not part of T-243. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-07 |
+| Tool | Codex |
 | Work | **T-242 full QC completed and recorded**: ran graph/git/shared/workspace/active-project checks. Results: `python3.13 -m code_review_graph detect-changes --repo . --brief` risk `0.00`; `git diff --check` clean; shared health `overall: warn`, `fail: 0` (8 expected warnings from optional provider/env gaps plus inactive root `venv`); governance `ok`; branch protection `configured`; open PRs `[]`; targeted secret scan `results: {}`; workspace Ruff clean and focused workspace pytest `54 passed`; `blind-to-x` Ruff clean and full unit pytest `1532 passed, 1 skipped`; Playwright Chromium launch smoke passed (`145.0.7632.6`); `shorts-maker-v2` Ruff clean and full unit/integration pytest passed; `hanwoo-dashboard` test/lint/build passed (`51` tests); `knowledge-dashboard` test/lint/build passed (`3` tests). |
 | Next Priorities | No active TODO. Optional observation: `execution/remote_branch_cleanup.py` still reports remote-only branch `ai-context/2026-04-30-cleanup` as `safe_to_delete: true`, but it is not blocking QC. |
 
