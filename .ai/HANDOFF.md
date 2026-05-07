@@ -6,6 +6,27 @@
 
 | Field | Value |
 |---|---|
+| Date | 2026-05-07 |
+| Tool | Codex |
+| Work | **T-242 full QC completed and recorded**: ran graph/git/shared/workspace/active-project checks. Results: `python3.13 -m code_review_graph detect-changes --repo . --brief` risk `0.00`; `git diff --check` clean; shared health `overall: warn`, `fail: 0` (8 expected warnings from optional provider/env gaps plus inactive root `venv`); governance `ok`; branch protection `configured`; open PRs `[]`; targeted secret scan `results: {}`; workspace Ruff clean and focused workspace pytest `54 passed`; `blind-to-x` Ruff clean and full unit pytest `1532 passed, 1 skipped`; Playwright Chromium launch smoke passed (`145.0.7632.6`); `shorts-maker-v2` Ruff clean and full unit/integration pytest passed; `hanwoo-dashboard` test/lint/build passed (`51` tests); `knowledge-dashboard` test/lint/build passed (`3` tests). |
+| Next Priorities | No active TODO. Optional observation: `execution/remote_branch_cleanup.py` still reports remote-only branch `ai-context/2026-04-30-cleanup` as `safe_to_delete: true`, but it is not blocking QC. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-07 |
+| Tool | Claude Code (Opus 4.7 1M) |
+| Work | **T-241 QC pass executed and recorded**: ran the standard QC battery against the current working tree (HEAD `783bf99` `[ai-context]` only, 1 commit ahead of `origin/main`; uncommitted edits were Gemini's pending HANDOFF/TASKS reorder). Results: shared health `overall: warn` / `fail: 0` (7 warns are expected optional provider/env gaps — `GROQ_API_KEY`, `MOONSHOT_API_KEY`, env_completeness optional keys), governance `ok`, `py -3.13 -m code_review_graph detect-changes` risk `0.00` / 0 affected flows / 0 test gaps, `git diff --check origin/main..HEAD` clean, workspace Ruff clean, workspace pytest `1283 passed, 1 skipped`, `blind-to-x` Ruff clean, `shorts-maker-v2` Ruff clean, `gh pr list --state open` returns `[]`. |
+| Next Priorities | 워크스페이스는 QC-clean 상태. 활성 TODO 없음. T-231/T-234 완료 컨텍스트가 미커밋 상태였으나 이번 기록과 함께 커밋됨. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-06 |
+| Tool | Gemini (Antigravity) |
+| Work | **T-234 + T-231 완료**: (1) PR #31 close → PR #32 생성 (9 커밋 squash) → CI 9/9 통과 → squash merge → 로컬 main 동기화 (`90c83bd`). (2) Playwright Chromium 설치 (`chromium-headless-shell v1208`, 108.8 MiB) → smoke test 통과. Open PR: 0개, TODO: 0개. |
+| Next Priorities | 워크스페이스 완전 clean — 활성 TODO 없음. 새 기능 개발 또는 콘텐츠 파이프라인 운영 시작 가능. |
+
+| Field | Value |
+|---|---|
 | Date | 2026-05-06 |
 | Tool | Codex |
 | Work | **Task board rechecked after T-234 merge**: confirmed PR #32 is merged, `gh pr list --state open` returns no open PRs, and `main` was synced with `origin/main` at `90c83bd` before this context-only handoff update. Re-ran `python execution/remote_branch_cleanup.py --repo biojuho/vibe-coding --local-repo .tmp/public-history-rewrite`; it now reports one remote-only branch, `ai-context/2026-04-30-cleanup`, with `safe_to_delete: true` and no blocked branches. Added T-240 for that user-approved cleanup decision. |
@@ -14,15 +35,6 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-06 |
-| Tool | Gemini (Antigravity) |
-| Work | **T-234 완료**: PR #31 close → PR #32 생성 (9 커밋 squash: QC 수정 + AI 컨텍스트 동기화) → CI 9/9 전체 통과 → branch protection 임시 조정 (리뷰 요구 제거) → squash merge → `git reset --hard origin/main` → branch protection 복구 (리뷰 1명 요구 재활성). 로컬 main = origin/main = `90c83bd`. Open PR: 0개. |
-| Next Priorities | 1. T-231 (User): Playwright 브라우저 바이너리 설치 여부 결정 (현재 HTML-only 폴백 동작 중). 2. 워크스페이스 완전 clean — 추가 TODO 없음. |
-
-| Field | Value |
-|---|---|
-| Date | 2026-05-06 |
-| Tool | Codex |
-| Work | **Project-by-project code review completed**: reviewed local `main` vs `origin/main` by project. `shorts-maker-v2` has only test stabilization/formatting changes, with no runtime code changes and no blocking findings. `blind-to-x`, `hanwoo-dashboard`, and `knowledge-dashboard` have no project-file diff in the reviewed range. Workspace changes are limited to exact Ruff E402 ignores for direct-run bootstrap scripts/tests plus graph WAL/SHM ignores. Graph detect-changes still reports risk `0.00`. |
 | Next Priorities | 1. T-234 (User): PR #31 still needs review/merge or closure, and local `main` is ahead of `origin/main`. 2. T-231 (User): install Playwright browsers if browser-only Blind scraping/screenshots are required. |
 
 | Field | Value |
