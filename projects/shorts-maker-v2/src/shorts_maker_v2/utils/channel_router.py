@@ -138,11 +138,32 @@ class ChannelRouter:
                 vid_kwargs["target_duration_sec"] = (int(val[0]), int(val[1]))
             else:
                 vid_kwargs["target_duration_sec"] = (int(val), int(val))
+        if "transition" in profile:
+            vid_kwargs["transition_style"] = str(profile["transition"])
 
         new_video = dc_replace(config.video, **vid_kwargs) if vid_kwargs else config.video
 
         # ── captions 오버라이드 ───────────────────────────────────────────
-        new_captions = config.captions
+        cap_kwargs: dict[str, Any] = {}
+        if "caption_style" in profile:
+            cap_kwargs["style_preset"] = str(profile["caption_style"])
+        if "highlight_color" in profile:
+            cap_kwargs["highlight_color"] = str(profile["highlight_color"])
+        if "hook_style" in profile:
+            cap_kwargs["hook_animation"] = str(profile["hook_style"])
+
+        new_captions = dc_replace(config.captions, **cap_kwargs) if cap_kwargs else config.captions
+
+        # ── intro/outro 오버라이드 ────────────────────────────────────────
+        io_kwargs: dict[str, Any] = {}
+        if "intro_path" in profile and profile["intro_path"]:
+            io_kwargs["intro_path"] = str(profile["intro_path"])
+        if "outro_path" in profile and profile["outro_path"]:
+            io_kwargs["outro_path"] = str(profile["outro_path"])
+        if "intro_duration" in profile:
+            io_kwargs["intro_duration"] = float(profile["intro_duration"])
+
+        new_io = dc_replace(config.intro_outro, **io_kwargs) if io_kwargs else config.intro_outro
 
         # ── 최종 config 조합 ────────────────────────────────────────────
         new_config = dc_replace(
@@ -150,6 +171,7 @@ class ChannelRouter:
             providers=new_providers,
             video=new_video,
             captions=new_captions,
+            intro_outro=new_io,
         )
 
         # 구조 프리셋

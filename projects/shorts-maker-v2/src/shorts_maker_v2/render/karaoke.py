@@ -28,13 +28,18 @@ class WordSegment:
 
 
 def load_words_json(json_path: Path) -> list[WordSegment]:
-    """Whisper / EdgeTTS WordBoundary 타임스탬프 JSON 로드."""
+    """Whisper / EdgeTTS WordBoundary 타임스탬프 JSON 로드.
+
+    Phase 3: 로드 시 자동으로 snap_word_timings를 적용하여
+    갭/겹침을 보정합니다.
+    """
     data = json.loads(json_path.read_text(encoding="utf-8"))
-    return [
+    raw = [
         WordSegment(word=w["word"].strip(), start=float(w["start"]), end=float(w["end"]))
         for w in data
         if w.get("word", "").strip()
     ]
+    return snap_word_timings(raw)
 
 
 # ── Phase 2: SSML break offset 보정 ─────────────────────────────────────────
@@ -93,10 +98,74 @@ def apply_ssml_break_correction(
     ]
 
 
+# ── Phase 3: 타이밍 갭/겹침 보정 ─────────────────────────────────────────────
+
+
+def snap_word_timings(
+    words: list[WordSegment],
+    max_gap: float = 0.05,
+    min_duration: float = 0.04,
+) -> list[WordSegment]:
+    """연속된 단어 사이의 갭/겹침을 보정하여 자막 전환을 부드럽게 합니다.
+
+    - 갭(gap): 이전 단어의 end < 다음 단어의 start 이고 그 차이가
+      max_gap 이하이면 이전 단어의 end를 다음 단어의 start로 확장.
+    - 겹침(overlap): 이전 단어의 end > 다음 단어의 start 이면
+      이전 단어의 end를 다음 단어의 start로 잘라냄.
+    - 최소 지속시간: 단어의 duration이 min_duration 미만이면 확장.
+
+    Args:
+        words: 원본 WordSegment 목록.
+        max_gap: 자동으로 연결할 최대 갭 크기 (초).
+        min_duration: 단어당 최소 지속시간 (초).
+
+    Returns:
+        보정된 WordSegment 목록 (새 객체).
+    """
+    if not words:
+        return words
+
+    result: list[WordSegment] = []
+    for w in words:
+        start = w.start
+        end = w.end
+
+        # 최소 지속시간 보장
+        if end - start < min_duration:
+            end = round(start + min_duration, 4)
+
+        result.append(WordSegment(word=w.word, start=round(start, 4), end=round(end, 4)))
+
+    # 갭/겹침 보정 (앞→뒤 순서)
+    for i in range(1, len(result)):
+        prev = result[i - 1]
+        curr = result[i]
+        gap = curr.start - prev.end
+        if gap < 0:
+            # 겹침: 이전 단어의 end를 현재 start로 잘라냄
+            result[i - 1] = WordSegment(
+                word=prev.word,
+                start=prev.start,
+                end=curr.start,
+            )
+        elif gap <= max_gap:
+            # 작은 갭: 이전 단어를 확장하여 연결
+            result[i - 1] = WordSegment(
+                word=prev.word,
+                start=prev.start,
+                end=curr.start,
+            )
+
+    return result
+
+
 # ── Phase 2: 자연어 경계 기반 청크 분할 ──────────────────────────────────────
 
 # 한국어 구두점 + 영어 구두점 경계 패턴
 _BOUNDARY_CHARS = frozenset(".!?,。！？，")
+
+# 최소 청크 지속시간 (초) — 이보다 짧은 청크는 다음 청크와 병합
+_MIN_CHUNK_DURATION = 0.3
 
 
 def sentence_boundary_chunks(
@@ -155,11 +224,15 @@ def group_word_segments(
     *,
     boundary_aware: bool = True,
 ) -> list[tuple[float, float, str, list[WordSegment]]]:
-    """단어 세그먼트를 청크 단위로 묶어 원본 타이밍까지 유지합니다."""
+    """단어 세그먼트를 청크 단위로 묶어 원본 타이밍까지 유지합니다.
+
+    Phase 3 개선: 지속시간이 _MIN_CHUNK_DURATION 미만인 청크는
+    다음 청크와 자동 병합하여 자막 깜빡임을 방지합니다.
+    """
     if not words:
         return []
 
-    grouped: list[tuple[float, float, str, list[WordSegment]]] = []
+    raw: list[tuple[float, float, str, list[WordSegment]]] = []
 
     if boundary_aware:
         current: list[WordSegment] = []
@@ -175,7 +248,7 @@ def group_word_segments(
 
             end = words[i + 1].start if not is_last else current[-1].end
             chunk_words = list(current)
-            grouped.append(
+            raw.append(
                 (
                     chunk_words[0].start,
                     end,
@@ -184,20 +257,40 @@ def group_word_segments(
                 )
             )
             current = []
-        return grouped
-
-    for i in range(0, len(words), chunk_size):
-        chunk_words = words[i : i + chunk_size]
-        end = words[i + chunk_size].start if i + chunk_size < len(words) else chunk_words[-1].end
-        grouped.append(
-            (
-                chunk_words[0].start,
-                end,
-                " ".join(w.word for w in chunk_words),
-                list(chunk_words),
+    else:
+        for i in range(0, len(words), chunk_size):
+            chunk_words = words[i : i + chunk_size]
+            end = words[i + chunk_size].start if i + chunk_size < len(words) else chunk_words[-1].end
+            raw.append(
+                (
+                    chunk_words[0].start,
+                    end,
+                    " ".join(w.word for w in chunk_words),
+                    list(chunk_words),
+                )
             )
-        )
-    return grouped
+
+    # 최소 지속시간 미만 청크 병합 (자막 깜빡임 방지)
+    if len(raw) <= 1:
+        return raw
+
+    merged: list[tuple[float, float, str, list[WordSegment]]] = [raw[0]]
+    for chunk in raw[1:]:
+        prev = merged[-1]
+        prev_duration = prev[1] - prev[0]
+        if prev_duration < _MIN_CHUNK_DURATION:
+            # 이전 청크가 너무 짧으면 현재와 병합
+            combined_words = list(prev[3]) + list(chunk[3])
+            merged[-1] = (
+                prev[0],
+                chunk[1],
+                " ".join(w.word for w in combined_words),
+                combined_words,
+            )
+        else:
+            merged.append(chunk)
+
+    return merged
 
 
 def group_into_chunks(
