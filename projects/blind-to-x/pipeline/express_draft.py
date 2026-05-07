@@ -267,8 +267,9 @@ class ExpressDraftPipeline:
             except Exception as exc:
                 logger.warning("ExpressDraft: draft_generator 연동 실패: %s", exc)
 
-        # Fallback: 직접 API 호출 (TODO: 구현)
-        raise RuntimeError("사용 가능한 LLM provider 없음")
+        # Fallback: draft_generator가 반드시 주입되어야 함.
+        # ExpressDraftPipeline은 항상 TweetDraftGenerator를 통해 LLM 호출.
+        raise RuntimeError("사용 가능한 LLM provider 없음 — draft_generator가 주입되지 않았습니다")
 
     @staticmethod
     def _parse_response(raw: dict[str, Any]) -> dict[str, str]:

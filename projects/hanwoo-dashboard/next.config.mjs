@@ -1,4 +1,6 @@
-// import withSerwist from "@serwist/next";  // Disabled: Turbopack incompatibility in Next.js 16
+import withSerwist from "@serwist/next";
+
+const enablePWA = process.env.NEXT_ENABLE_PWA === "1";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -9,10 +11,12 @@ const nextConfig = {
   },
 };
 
-// const withPWA = withSerwist({
-//   swSrc: "src/sw.js",
-//   swDest: "public/sw.js",
-//   disable: process.env.NODE_ENV === "development",
-// });
+const withPWA = enablePWA
+  ? withSerwist({
+      swSrc: "src/sw.js",
+      swDest: "public/sw.js",
+      disable: process.env.NODE_ENV === "development",
+    })
+  : (config) => config;
 
-export default nextConfig;
+export default withPWA(nextConfig);

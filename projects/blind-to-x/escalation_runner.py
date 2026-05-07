@@ -112,7 +112,7 @@ async def _run_cycle(
 
         result = await pipeline.generate(
             title=event.title,
-            content_preview="",  # TODO: 큐에서 content_preview 가져오기
+            content_preview=event.content_preview,
             source=event.source,
             velocity_score=event.velocity_score,
         )
@@ -166,7 +166,8 @@ async def _send_surge_notification(
 ) -> None:
     """텔레그램으로 Surge 알림 전송.
 
-    TODO: inline keyboard 버튼으로 1-click 승인 구현 (Phase 2).
+    inline keyboard 1-click 승인은 notification.py의
+    send_surge_alert()에서 구현 완료.
     """
     try:
         from pipeline.notification import NotificationManager

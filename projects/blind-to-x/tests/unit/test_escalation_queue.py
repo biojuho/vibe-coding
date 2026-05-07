@@ -16,13 +16,20 @@ def _make_queue(tmp_path: Path, **kwargs) -> EscalationQueue:
     return EscalationQueue(db_path=db_path, **kwargs)
 
 
-def _make_spike_event(url="https://blind.com/1", title="테스트", source="blind", velocity=10.0):
+def _make_spike_event(
+    url="https://blind.com/1",
+    title="테스트",
+    source="blind",
+    velocity=10.0,
+    content_preview="",
+):
     """간이 SpikeEvent mock."""
     event = MagicMock()
     event.url = url
     event.title = title
     event.source = source
     event.velocity_score = velocity
+    event.content_preview = content_preview
     return event
 
 
@@ -131,6 +138,48 @@ class TestEscalationQueue:
         assert saved.notion_page_id == "page-123"
         assert saved.telegram_message_id == "msg-456"
 
+    def test_enqueue_persists_content_preview(self, tmp_path):
+        q = _make_queue(tmp_path)
+        preview = "본문 미리보기 " * 30
+        event_id = q.enqueue(_make_spike_event(content_preview=preview))
+
+        saved = q.get_event(event_id)
+        assert saved is not None
+        assert saved.content_preview == preview[:200]
+
+    def test_schema_migrates_legacy_content_preview_column(self, tmp_path):
+        import sqlite3
+
+        db_path = tmp_path / "legacy.db"
+        conn = sqlite3.connect(str(db_path))
+        conn.execute("""
+            CREATE TABLE escalation_events (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                url              TEXT NOT NULL,
+                url_canonical    TEXT NOT NULL,
+                title            TEXT NOT NULL DEFAULT '',
+                source           TEXT NOT NULL DEFAULT 'unknown',
+                velocity_score   REAL NOT NULL DEFAULT 0.0,
+                status           TEXT NOT NULL DEFAULT 'pending',
+                created_at       REAL NOT NULL,
+                updated_at       REAL NOT NULL,
+                draft_x          TEXT NOT NULL DEFAULT '',
+                draft_threads    TEXT NOT NULL DEFAULT '',
+                notion_page_id   TEXT NOT NULL DEFAULT '',
+                telegram_msg_id  TEXT NOT NULL DEFAULT '',
+                metadata_json    TEXT NOT NULL DEFAULT '{}'
+            )
+        """)
+        conn.commit()
+        conn.close()
+
+        q = EscalationQueue(db_path=db_path)
+        event_id = q.enqueue(_make_spike_event(content_preview="레거시 DB 미리보기"))
+
+        saved = q.get_event(event_id)
+        assert saved is not None
+        assert saved.content_preview == "레거시 DB 미리보기"
+
     def test_update_status_nonexistent_id(self, tmp_path):
         q = _make_queue(tmp_path)
         success = q.update_status(99999, EventStatus.APPROVED)
@@ -143,6 +192,7 @@ class TestEscalationQueue:
 
         # _fast_sleeps 픽스처 영향 회피: DB created_at을 TTL 초과 과거로 직접 설정
         import sqlite3
+
         past_time = time.time() - 10  # 10초 전 → TTL(1초) 확실히 초과
         conn = sqlite3.connect(str(q._db_path))
         conn.execute("UPDATE escalation_events SET created_at = ? WHERE id = ?", (past_time, event_id))
@@ -171,6 +221,7 @@ class TestEscalationQueue:
 
         # _fast_sleeps 픽스처 영향 회피: DB created_at을 TTL 초과 과거로 직접 설정
         import sqlite3
+
         past_time = time.time() - 10
         conn = sqlite3.connect(str(q._db_path))
         conn.execute("UPDATE escalation_events SET created_at = ? WHERE id = ?", (past_time, first_id))

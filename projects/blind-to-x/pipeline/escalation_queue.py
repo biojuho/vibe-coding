@@ -52,6 +52,7 @@ class QueuedEvent:
     status: EventStatus
     created_at: float
     updated_at: float
+    content_preview: str = ""
     draft_x: str = ""
     draft_threads: str = ""
     notion_page_id: str = ""
@@ -111,6 +112,7 @@ class EscalationQueue:
                     status           TEXT NOT NULL DEFAULT 'pending',
                     created_at       REAL NOT NULL,
                     updated_at       REAL NOT NULL,
+                    content_preview  TEXT NOT NULL DEFAULT '',
                     draft_x          TEXT NOT NULL DEFAULT '',
                     draft_threads    TEXT NOT NULL DEFAULT '',
                     notion_page_id   TEXT NOT NULL DEFAULT '',
@@ -118,6 +120,10 @@ class EscalationQueue:
                     metadata_json    TEXT NOT NULL DEFAULT '{}'
                 )
             """)
+            columns = {row["name"] for row in conn.execute("PRAGMA table_info(escalation_events)").fetchall()}
+            if "content_preview" not in columns:
+                conn.execute("ALTER TABLE escalation_events ADD COLUMN content_preview TEXT NOT NULL DEFAULT ''")
+                logger.info("EscalationQueue: content_preview 컬럼 마이그레이션 완료")
             conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_esc_status
                 ON escalation_events(status)
@@ -175,11 +181,12 @@ class EscalationQueue:
                 )
                 return None
 
+            content_preview = getattr(spike_event, "content_preview", "") or ""
             cursor = conn.execute(
                 """INSERT INTO escalation_events
                    (url, url_canonical, title, source, velocity_score,
-                    status, created_at, updated_at, metadata_json)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    status, created_at, updated_at, content_preview, metadata_json)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     spike_event.url,
                     canonical,
@@ -189,6 +196,7 @@ class EscalationQueue:
                     EventStatus.PENDING.value,
                     now,
                     now,
+                    content_preview[:200],  # 200자 제한 (경량 초안용)
                     "{}",
                 ),
             )
@@ -294,6 +302,11 @@ class EscalationQueue:
 
     @staticmethod
     def _row_to_event(row: sqlite3.Row, override_status: EventStatus | None = None) -> QueuedEvent:
+        # content_preview가 없는 레거시 DB 행 대응
+        try:
+            content_preview = row["content_preview"]
+        except (IndexError, KeyError):
+            content_preview = ""
         return QueuedEvent(
             id=row["id"],
             url=row["url"],
@@ -303,6 +316,7 @@ class EscalationQueue:
             status=override_status or EventStatus(row["status"]),
             created_at=row["created_at"],
             updated_at=row["updated_at"],
+            content_preview=content_preview,
             draft_x=row["draft_x"],
             draft_threads=row["draft_threads"],
             notion_page_id=row["notion_page_id"],
