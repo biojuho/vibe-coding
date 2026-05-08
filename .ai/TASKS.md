@@ -5,8 +5,11 @@
 ## TODO
 
 | ID | Task | Owner | Priority | Auto | Created |
-|---|---|---|---|---|---|
-| T-251 | `[hanwoo-dashboard]` Run Prisma 7 live CRUD E2E once the Supabase project is active: `npm run db:prisma7-test -- --live`. | User/AI | Medium | 🔴 approval | 2026-05-08 |
+| --- | --- | --- | --- | --- | --- |
+| T-251 | `[hanwoo-dashboard]` Run Prisma 7 live CRUD E2E once a real Supabase `DATABASE_URL` is configured. Current `--live` run is blocked by placeholder `projects/hanwoo-dashboard/.env`; script guard now fails clearly on that state (`512496c`). | User/AI | Medium | 🔴 approval | 2026-05-08 |
+| T-253 | `[infra/llm]` Implement `directives/llm_observability_langfuse.md` — self-hosted Langfuse stack under `infrastructure/langfuse/`, opt-in `LANGFUSE_ENABLED` env, trace hooks in `workspace/execution/llm_client.py` and `projects/blind-to-x/pipeline/draft_providers.py`. Includes Docker compose + new test. | AI | High | 🔴 approval | 2026-05-08 |
+| T-254 | `[workspace/eval]` Implement `directives/llm_eval_promptfoo.md` — Notion-driven golden/rejected case extractor (`execution/blind_to_x_eval_extract.py`), promptfoo config at `tests/eval/blind-to-x/`, weekly runner with regression alert via Telegram. | AI | Medium | 🔴 approval | 2026-05-08 |
+| T-255 | `[workspace/llm_client]` Implement `directives/anthropic_prompt_caching.md` — `cache_strategy` parameter on `LLMClient.generate_*`, anthropic-only `cache_control` injection, `api_usage` schema migration (`cache_creation_tokens`, `cache_read_tokens`), regression test. | AI | High | 🔴 approval | 2026-05-08 |
 
 ## IN_PROGRESS
 
