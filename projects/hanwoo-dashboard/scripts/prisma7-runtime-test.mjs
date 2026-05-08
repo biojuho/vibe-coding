@@ -62,6 +62,16 @@ function isPlaceholderUrl(url) {
   );
 }
 
+function describeRunMode() {
+  if (!LIVE_MODE) {
+    return "OFFLINE (no DB)";
+  }
+
+  return isPlaceholderUrl(process.env.DATABASE_URL)
+    ? "LIVE requested (DATABASE_URL missing/placeholder)"
+    : "LIVE (DB connected)";
+}
+
 // ============================================================
 // 1. Client Generation
 // ============================================================
@@ -361,10 +371,13 @@ async function testLiveCrud() {
   const databaseUrl = process.env.DATABASE_URL;
 
   if (isPlaceholderUrl(databaseUrl)) {
-    skip(
-      "Live CRUD tests",
-      "DATABASE_URL is placeholder — set real Supabase URL and pass --live"
-    );
+    const reason =
+      "DATABASE_URL is missing or placeholder — set a real Supabase URL before running --live";
+    if (LIVE_MODE) {
+      fail("Live CRUD tests", new Error(reason));
+    } else {
+      skip("Live CRUD tests", reason);
+    }
     return;
   }
 
@@ -592,7 +605,7 @@ async function main() {
   console.log("║  Prisma 7 Runtime Stability Test       ║");
   console.log("║  hanwoo-dashboard                      ║");
   console.log("╚════════════════════════════════════════╝");
-  console.log(`Mode: ${LIVE_MODE ? "LIVE (DB connected)" : "OFFLINE (no DB)"}`);
+  console.log(`Mode: ${describeRunMode()}`);
 
   await testClientGeneration();
   await testAdapterConstruction();
