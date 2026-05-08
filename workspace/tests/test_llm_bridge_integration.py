@@ -36,8 +36,8 @@ def test_llm_client_generate_json_bridged_repairs_invalid_language(monkeypatch) 
 
     responses = iter(
         [
-            ('{"topics":["中文 제목"]}', 11, 4),
-            ('{"topics":["한국어 제목"]}', 7, 3),
+            ('{"topics":["中文 제목"]}', 11, 4, 0, 0),
+            ('{"topics":["한국어 제목"]}', 7, 3, 0, 0),
         ]
     )
 
@@ -67,8 +67,8 @@ def test_llm_client_generate_json_bridged_falls_back_after_invalid_json(monkeypa
 
     calls = []
     responses = {
-        "deepseek": [("not json at all", 5, 2), ("still not json", 4, 2)],
-        "google": [('{"topics":["한국어 주제"]}', 6, 2)],
+        "deepseek": [("not json at all", 5, 2, 0, 0), ("still not json", 4, 2, 0, 0)],
+        "google": [('{"topics":["한국어 주제"]}', 6, 2, 0, 0)],
     }
 
     def fake_generate_once(provider, system_prompt, user_prompt, temperature, json_mode):

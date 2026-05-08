@@ -44,6 +44,7 @@ PRICING = {
     "gpt-4o": {"input": 0.0025, "output": 0.01},
     "gpt-4o-mini": {"input": 0.00015, "output": 0.0006},
     "claude-sonnet-4": {"input": 0.003, "output": 0.015},
+    "claude-sonnet-4-20250514": {"input": 0.003, "output": 0.015},
     "claude-haiku-3.5": {"input": 0.0008, "output": 0.004},
     "gemini-pro": {"input": 0.00025, "output": 0.0005},
     "gemini-2.5-flash": {"input": 0.0, "output": 0.0},
@@ -130,6 +131,8 @@ def init_db() -> None:
             "fallback_used": "INTEGER DEFAULT 0",
             "language_score": "REAL DEFAULT NULL",
             "provider_used": "TEXT DEFAULT ''",
+            "cache_creation_tokens": "INTEGER DEFAULT 0",
+            "cache_read_tokens": "INTEGER DEFAULT 0",
         },
     )
     conn.commit()
@@ -162,19 +165,33 @@ def log_api_call(
     fallback_used: bool = False,
     language_score: float | None = None,
     provider_used: str = "",
+    cache_creation_tokens: int = 0,
+    cache_read_tokens: int = 0,
+    cache_creation_multiplier: float = 1.25,
 ) -> None:
-    """API 호출 기록. 다른 execution 스크립트에서 import해서 사용."""
+    """API 호출 기록. 다른 execution 스크립트에서 import해서 사용.
+
+    cache_creation_tokens / cache_read_tokens 는 Anthropic prompt caching 사용 시
+    채워지며, 그 외 프로바이더는 0으로 유지된다 (5m write 1.25×,
+    1h write 2.0×, read 0.10× 가중).
+    """
     init_db()
-    # 비용 자동 계산 (명시하지 않은 경우)
+    # 비용 자동 계산 (명시하지 않은 경우) — 캐시 토큰도 포함
     if cost_usd == 0 and model in PRICING:
         p = PRICING[model]
-        cost_usd = (tokens_input / 1000 * p["input"]) + (tokens_output / 1000 * p["output"])
+        cost_usd = (
+            (tokens_input / 1000 * p["input"])
+            + (tokens_output / 1000 * p["output"])
+            + (cache_creation_tokens / 1000 * p["input"] * cache_creation_multiplier)
+            + (cache_read_tokens / 1000 * p["input"] * 0.10)
+        )
 
     conn = _conn()
     conn.execute(
         "INSERT INTO api_calls (provider, model, endpoint, tokens_input, tokens_output, cost_usd, caller_script, "
-        "bridge_mode, reason_codes, repair_count, fallback_used, language_score, provider_used) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "bridge_mode, reason_codes, repair_count, fallback_used, language_score, provider_used, "
+        "cache_creation_tokens, cache_read_tokens) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             provider,
             model,
@@ -189,6 +206,8 @@ def log_api_call(
             int(fallback_used),
             language_score,
             provider_used or provider,
+            cache_creation_tokens,
+            cache_read_tokens,
         ),
     )
     conn.commit()

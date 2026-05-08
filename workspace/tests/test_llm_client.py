@@ -247,10 +247,12 @@ class TestGenerateOnce:
         mock_openai.chat.completions.create.return_value = mock_resp
         mock_get_client.return_value = mock_openai
 
-        content, in_tok, out_tok = client._generate_once("openai", "sys", "user", 0.7, json_mode=True)
+        content, in_tok, out_tok, cache_w, cache_r = client._generate_once("openai", "sys", "user", 0.7, json_mode=True)
         assert content == '{"ok":true}'
         assert in_tok == 10
         assert out_tok == 20
+        assert cache_w == 0
+        assert cache_r == 0
 
     @patch.object(LLMClient, "_get_client")
     def test_generate_json_success(self, mock_get_client):
@@ -322,7 +324,7 @@ class TestTestProvider:
         client._clients = {}
         client.request_timeout_sec = 30
 
-        mock_gen.return_value = ('{"status":"ok"}', 5, 3)
+        mock_gen.return_value = ('{"status":"ok"}', 5, 3, 0, 0)
         result = client.test_provider("openai")
         assert result["status"] == "ok"
 
@@ -484,7 +486,7 @@ class TestGenerateOnceProviders:
                 "google.genai.types": mock_types,
             },
         ):
-            content, in_tok, out_tok = client._generate_once(
+            content, in_tok, out_tok, _cache_w, _cache_r = client._generate_once(
                 "google",
                 "sys",
                 "user",
@@ -502,11 +504,16 @@ class TestGenerateOnceProviders:
         mock_client = MagicMock()
         mock_resp = MagicMock()
         mock_resp.content = [MagicMock(text="Hello from Claude")]
-        mock_resp.usage = MagicMock(input_tokens=12, output_tokens=18)
+        mock_resp.usage = MagicMock(
+            input_tokens=12,
+            output_tokens=18,
+            cache_creation_input_tokens=0,
+            cache_read_input_tokens=0,
+        )
         mock_client.messages.create.return_value = mock_resp
         mock_get_client.return_value = mock_client
 
-        content, in_tok, out_tok = client._generate_once(
+        content, in_tok, out_tok, cache_w, cache_r = client._generate_once(
             "anthropic",
             "sys prompt",
             "user prompt",
@@ -516,13 +523,15 @@ class TestGenerateOnceProviders:
         assert content == "Hello from Claude"
         assert in_tok == 12
         assert out_tok == 18
-        mock_client.messages.create.assert_called_once_with(
-            model=DEFAULT_MODELS["anthropic"],
-            system="sys prompt",
-            messages=[{"role": "user", "content": "user prompt"}],
-            max_tokens=2000,
-            temperature=0.5,
-        )
+        assert (cache_w, cache_r) == (0, 0)
+        # cache_strategy="off" 기본값일 때 system은 string 그대로 전달
+        kwargs = mock_client.messages.create.call_args.kwargs
+        assert kwargs["model"] == DEFAULT_MODELS["anthropic"]
+        assert kwargs["system"] == "sys prompt"
+        assert kwargs["messages"] == [{"role": "user", "content": "user prompt"}]
+        assert kwargs["max_tokens"] == 2000
+        assert kwargs["temperature"] == 0.5
+        assert "extra_headers" not in kwargs
 
     @patch.object(LLMClient, "_get_client")
     def test_google_no_usage_metadata(self, mock_get_client):
@@ -544,7 +553,7 @@ class TestGenerateOnceProviders:
                 "google.genai.types": mock_types,
             },
         ):
-            content, in_tok, out_tok = client._generate_once(
+            content, in_tok, out_tok, _cache_w, _cache_r = client._generate_once(
                 "google",
                 "s",
                 "u",
@@ -699,7 +708,7 @@ class TestGenerateTextRetryFallback:
     def test_text_retries_then_succeeds(self, mock_sleep, mock_gen):
         """generate_text retries on failure then succeeds."""
         client = self._make_client()
-        mock_gen.side_effect = [Exception("fail"), ("success text", 5, 10)]
+        mock_gen.side_effect = [Exception("fail"), ("success text", 5, 10, 0, 0)]
         result = client.generate_text(system_prompt="s", user_prompt="u")
         assert result == "success text"
 
@@ -717,7 +726,7 @@ class TestGenerateTextRetryFallback:
         """generate_text returns cached content on second call."""
         client = self._make_client()
         client.cache_ttl_sec = 3600
-        mock_gen.return_value = ("cached text", 5, 10)
+        mock_gen.return_value = ("cached text", 5, 10, 0, 0)
         with patch("execution.llm_client._CACHE_DB_PATH", tmp_path / "cache.db"):
             r1 = client.generate_text(system_prompt="s", user_prompt="u")
             r2 = client.generate_text(system_prompt="s", user_prompt="u")
@@ -748,7 +757,7 @@ class TestGenerateTextBridged:
         from execution.language_bridge import BridgePolicy
 
         client = self._make_client()
-        mock_gen.return_value = ("plain text", 5, 10)
+        mock_gen.return_value = ("plain text", 5, 10, 0, 0)
         policy = BridgePolicy(mode="off")
         result = client.generate_text_bridged(
             system_prompt="s",
@@ -764,7 +773,7 @@ class TestGenerateTextBridged:
 
         client = self._make_client()
         # Return English text (will fail Korean validation)
-        mock_gen.return_value = ("This is English text only", 5, 10)
+        mock_gen.return_value = ("This is English text only", 5, 10, 0, 0)
         policy = BridgePolicy(mode="shadow", repair_attempts=0, fallback_providers=("openai",))
         result = client.generate_text_bridged(
             system_prompt="s",
@@ -780,7 +789,7 @@ class TestGenerateTextBridged:
         from execution.language_bridge import BridgePolicy
 
         client = self._make_client()
-        mock_gen.return_value = ("English only text", 5, 10)
+        mock_gen.return_value = ("English only text", 5, 10, 0, 0)
         policy = BridgePolicy(mode="enforce", repair_attempts=0, fallback_providers=("openai",))
         with pytest.raises(RuntimeError, match="브릿지 프로바이더 실패"):
             client.generate_text_bridged(
@@ -842,7 +851,7 @@ class TestGenerateJsonBridged:
         from execution.language_bridge import BridgePolicy
 
         client = self._make_client()
-        mock_gen.return_value = ('{"key":"value"}', 5, 10)
+        mock_gen.return_value = ('{"key":"value"}', 5, 10, 0, 0)
         policy = BridgePolicy(mode="off")
         result = client.generate_json_bridged(
             system_prompt="s",
@@ -857,7 +866,7 @@ class TestGenerateJsonBridged:
         from execution.language_bridge import BridgePolicy
 
         client = self._make_client()
-        mock_gen.return_value = ('{"key":"English value"}', 5, 10)
+        mock_gen.return_value = ('{"key":"English value"}', 5, 10, 0, 0)
         policy = BridgePolicy(mode="shadow", repair_attempts=0, fallback_providers=("openai",))
         result = client.generate_json_bridged(
             system_prompt="s",
@@ -886,7 +895,7 @@ class TestGenerateJsonBridged:
         from execution.language_bridge import BridgePolicy
 
         client = self._make_client()
-        mock_gen.return_value = ('{"key":"English"}', 5, 10)
+        mock_gen.return_value = ('{"key":"English"}', 5, 10, 0, 0)
         policy = BridgePolicy(mode="enforce", repair_attempts=0, fallback_providers=("openai",))
         with pytest.raises(RuntimeError, match="브릿지 프로바이더 실패"):
             client.generate_json_bridged(
@@ -1104,7 +1113,7 @@ class TestTextBridgedRepairLoop:
 
         client = self._make_client()
         # Return Korean text that passes validation
-        mock_gen.return_value = ("한국어 응답입니다. 테스트 결과를 확인하세요.", 5, 10)
+        mock_gen.return_value = ("한국어 응답입니다. 테스트 결과를 확인하세요.", 5, 10, 0, 0)
         policy = BridgePolicy(mode="enforce", repair_attempts=1, fallback_providers=("openai",))
         result = client.generate_text_bridged(
             system_prompt="s",
@@ -1122,8 +1131,8 @@ class TestTextBridgedRepairLoop:
         client = self._make_client()
         # First call: English (fails validation), second call (repair): Korean (passes)
         mock_gen.side_effect = [
-            ("English only text", 5, 10),
-            ("수리된 한국어 응답입니다. 이것은 테스트입니다.", 5, 10),
+            ("English only text", 5, 10, 0, 0),
+            ("수리된 한국어 응답입니다. 이것은 테스트입니다.", 5, 10, 0, 0),
         ]
         policy = BridgePolicy(mode="enforce", repair_attempts=1, fallback_providers=("openai",))
         result = client.generate_text_bridged(
@@ -1142,9 +1151,9 @@ class TestTextBridgedRepairLoop:
 
         client = self._make_client()
         mock_gen.side_effect = [
-            ("English only text", 5, 10),  # initial: fails
-            ("Still English text", 5, 10),  # repair 1: fails → line 656 hit
-            ("두 번째 수리된 한국어 응답입니다. 이것은 테스트입니다.", 5, 10),  # repair 2: passes
+            ("English only text", 5, 10, 0, 0),  # initial: fails
+            ("Still English text", 5, 10, 0, 0),  # repair 1: fails → line 656 hit
+            ("두 번째 수리된 한국어 응답입니다. 이것은 테스트입니다.", 5, 10, 0, 0),  # repair 2: passes
         ]
         policy = BridgePolicy(mode="enforce", repair_attempts=2, fallback_providers=("openai",))
         result = client.generate_text_bridged(
@@ -1164,8 +1173,8 @@ class TestTextBridgedRepairLoop:
         client = self._make_client()
         # First call: English (fails), repair: also English (still fails but shadow)
         mock_gen.side_effect = [
-            ("", 5, 10),  # empty → is_empty=True
-            ("English repaired text", 5, 10),  # non-empty but fails Korean
+            ("", 5, 10, 0, 0),  # empty → is_empty=True
+            ("English repaired text", 5, 10, 0, 0),  # non-empty but fails Korean
         ]
         policy = BridgePolicy(mode="shadow", repair_attempts=1, fallback_providers=("openai",))
         result = client.generate_text_bridged(
@@ -1242,8 +1251,8 @@ class TestJsonBridgedRepairLoop:
         client = self._make_client()
         # First call: empty (fails), repair: English JSON (json_valid but fails Korean)
         mock_gen.side_effect = [
-            ("", 5, 10),  # empty → fails
-            ('{"key":"English value"}', 5, 10),  # valid JSON, fails Korean
+            ("", 5, 10, 0, 0),  # empty → fails
+            ('{"key":"English value"}', 5, 10, 0, 0),  # valid JSON, fails Korean
         ]
         policy = BridgePolicy(mode="shadow", repair_attempts=1, fallback_providers=("openai",))
         result = client.generate_json_bridged(

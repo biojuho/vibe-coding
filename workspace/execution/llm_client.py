@@ -323,20 +323,26 @@ class LLMClient:
         user_prompt: str,
         temperature: float,
         json_mode: bool,
-    ) -> tuple[str, int, int]:
-        """단일 프로바이더로 1회 생성. (content, input_tokens, output_tokens) 반환."""
+        cache_strategy: str = "off",
+    ) -> tuple[str, int, int, int, int]:
+        """단일 프로바이더로 1회 생성.
+
+        Returns:
+            content, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens
+        """
         client = self._get_client(provider)
         model = self.models.get(provider, DEFAULT_MODELS.get(provider, ""))
 
         if provider == "ollama":
             # Ollama 로컬 추론
-            return client.generate(
+            content, input_tokens, output_tokens = client.generate(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 model=model,
                 temperature=temperature,
                 json_mode=json_mode,
             )
+            return content, input_tokens, output_tokens, 0, 0
 
         elif provider in ("openai", "xai", "deepseek", "moonshot", "zhipuai", "groq"):
             # OpenAI-compatible API
@@ -355,7 +361,7 @@ class LLMClient:
             usage = getattr(resp, "usage", None)
             input_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
             output_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
-            return content, input_tokens, output_tokens
+            return content, input_tokens, output_tokens, 0, 0
 
         elif provider == "google":
             from google.genai import types
@@ -377,20 +383,36 @@ class LLMClient:
             usage_meta = getattr(resp, "usage_metadata", None)
             input_tokens = getattr(usage_meta, "prompt_token_count", 0) if usage_meta else 0
             output_tokens = getattr(usage_meta, "candidates_token_count", 0) if usage_meta else 0
-            return content, input_tokens, output_tokens
+            return content, input_tokens, output_tokens, 0, 0
 
         elif provider == "anthropic":
-            resp = client.messages.create(
-                model=model,
-                system=system_prompt,
-                messages=[{"role": "user", "content": user_prompt}],
-                max_tokens=2000,
-                temperature=temperature,
-            )
+            create_kwargs: dict[str, Any] = {
+                "model": model,
+                "messages": [{"role": "user", "content": user_prompt}],
+                "max_tokens": 2000,
+                "temperature": temperature,
+            }
+            if cache_strategy in ("5m", "1h"):
+                cache_control: dict[str, Any] = {"type": "ephemeral"}
+                if cache_strategy == "1h":
+                    cache_control["ttl"] = "1h"
+                create_kwargs["system"] = [
+                    {
+                        "type": "text",
+                        "text": system_prompt,
+                        "cache_control": cache_control,
+                    }
+                ]
+            else:
+                create_kwargs["system"] = system_prompt
+
+            resp = client.messages.create(**create_kwargs)
             content = resp.content[0].text
             input_tokens = getattr(resp.usage, "input_tokens", 0)
             output_tokens = getattr(resp.usage, "output_tokens", 0)
-            return content, input_tokens, output_tokens
+            cache_creation_tokens = getattr(resp.usage, "cache_creation_input_tokens", 0) or 0
+            cache_read_tokens = getattr(resp.usage, "cache_read_input_tokens", 0) or 0
+            return content, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens
 
         raise ValueError(f"Unsupported provider: {provider}")  # pragma: no cover — _get_client raises first
 
@@ -403,15 +425,25 @@ class LLMClient:
         *,
         endpoint: str = "chat.completions",
         metadata: dict[str, Any] | None = None,
+        cache_creation_tokens: int = 0,
+        cache_read_tokens: int = 0,
+        cache_creation_multiplier: float = 1.25,
     ) -> None:
         """API 사용량 추적 (api_usage_tracker 연동)."""
         if not self.track_usage:
             return
+        cost = 0.0
         try:
             from execution.api_usage_tracker import log_api_call
 
             pricing = PRICING.get(model, {})
-            cost = (input_tokens / 1000 * pricing.get("input", 0)) + (output_tokens / 1000 * pricing.get("output", 0))
+            input_price = pricing.get("input", 0)
+            cost = (
+                (input_tokens / 1000 * input_price)
+                + (output_tokens / 1000 * pricing.get("output", 0))
+                + (cache_creation_tokens / 1000 * input_price * cache_creation_multiplier)
+                + (cache_read_tokens / 1000 * input_price * 0.10)
+            )
             log_api_call(
                 provider=provider,
                 model=model,
@@ -426,6 +458,9 @@ class LLMClient:
                 fallback_used=bool((metadata or {}).get("fallback_used", False)),
                 language_score=(metadata or {}).get("language_score"),
                 provider_used=str((metadata or {}).get("provider_used", provider)),
+                cache_creation_tokens=cache_creation_tokens,
+                cache_read_tokens=cache_read_tokens,
+                cache_creation_multiplier=cache_creation_multiplier,
             )
         except Exception:
             pass  # 추적 실패는 무시
@@ -470,6 +505,7 @@ class LLMClient:
         system_prompt: str,
         user_prompt: str,
         temperature: float = 0.7,
+        cache_strategy: str = "off",
     ) -> dict[str, Any]:
         """JSON 응답 생성 (자동 fallback + 재시도).
 
@@ -503,17 +539,26 @@ class LLMClient:
                         attempt,
                         self.max_retries,
                     )
-                    content, in_tok, out_tok = self._generate_once(
+                    content, in_tok, out_tok, cache_w, cache_r = self._generate_once(
                         provider,
                         system_prompt,
                         user_prompt,
                         temperature,
                         json_mode=True,
+                        cache_strategy=cache_strategy,
                     )
                     content = self._clean_json(content)
                     result = json.loads(content)
 
-                    self._log_usage(provider, model, in_tok, out_tok)
+                    self._log_usage(
+                        provider,
+                        model,
+                        in_tok,
+                        out_tok,
+                        cache_creation_tokens=cache_w,
+                        cache_read_tokens=cache_r,
+                        cache_creation_multiplier=2.0 if cache_strategy == "1h" else 1.25,
+                    )
                     logger.info("LLM 성공: %s (in=%d, out=%d)", provider, in_tok, out_tok)
                     if self.cache_ttl_sec > 0:
                         _cache_set(key, json.dumps(result, ensure_ascii=False))
@@ -547,6 +592,7 @@ class LLMClient:
         system_prompt: str,
         user_prompt: str,
         temperature: float = 0.7,
+        cache_strategy: str = "off",
     ) -> str:
         """텍스트 응답 생성 (자동 fallback + 재시도)."""
         providers = self.enabled_providers()
@@ -573,14 +619,23 @@ class LLMClient:
                         attempt,
                         self.max_retries,
                     )
-                    content, in_tok, out_tok = self._generate_once(
+                    content, in_tok, out_tok, cache_w, cache_r = self._generate_once(
                         provider,
                         system_prompt,
                         user_prompt,
                         temperature,
                         json_mode=False,
+                        cache_strategy=cache_strategy,
                     )
-                    self._log_usage(provider, model, in_tok, out_tok)
+                    self._log_usage(
+                        provider,
+                        model,
+                        in_tok,
+                        out_tok,
+                        cache_creation_tokens=cache_w,
+                        cache_read_tokens=cache_r,
+                        cache_creation_multiplier=2.0 if cache_strategy == "1h" else 1.25,
+                    )
                     if self.cache_ttl_sec > 0:
                         _cache_set(key, content)
                     return content
@@ -662,7 +717,7 @@ class LLMClient:
         """Try one provider with retries and repair loop. Returns result or None."""
         for attempt in range(1, self.max_retries + 1):
             try:
-                content, in_tok, out_tok = self._generate_once(
+                content, in_tok, out_tok, _cache_w, _cache_r = self._generate_once(
                     provider,
                     bridge_system,
                     bridge_user,
@@ -784,7 +839,7 @@ class LLMClient:
                 policy=policy,
                 json_mode=json_mode,
             )
-            repaired, repair_in, repair_out = self._generate_once(
+            repaired, repair_in, repair_out, _cache_w, _cache_r = self._generate_once(
                 provider,
                 repair_system,
                 repair_user,
@@ -875,7 +930,7 @@ class LLMClient:
             return result
 
         try:
-            content, in_tok, out_tok = self._generate_once(
+            content, in_tok, out_tok, _cache_w, _cache_r = self._generate_once(
                 provider,
                 system_prompt="You are a test bot.",
                 user_prompt='Respond with exactly: {"status":"ok"}',
@@ -919,6 +974,7 @@ def generate_json(
     temperature: float = 0.7,
     providers: list[str] | None = None,
     caller_script: str = "",
+    cache_strategy: str = "off",
 ) -> dict[str, Any]:
     """간편 JSON 생성 함수. 매번 새 클라이언트 생성 없이 사용."""
     client = (
@@ -930,6 +986,7 @@ def generate_json(
         system_prompt=system_prompt,
         user_prompt=user_prompt,
         temperature=temperature,
+        cache_strategy=cache_strategy,
     )
 
 
@@ -940,6 +997,7 @@ def generate_text(
     temperature: float = 0.7,
     providers: list[str] | None = None,
     caller_script: str = "",
+    cache_strategy: str = "off",
 ) -> str:
     """간편 텍스트 생성 함수."""
     client = (
@@ -951,6 +1009,7 @@ def generate_text(
         system_prompt=system_prompt,
         user_prompt=user_prompt,
         temperature=temperature,
+        cache_strategy=cache_strategy,
     )
 
 

@@ -96,6 +96,98 @@ def test_log_multiple_calls(monkeypatch, tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# Anthropic prompt-caching (T-255): cache_creation_tokens / cache_read_tokens
+# ---------------------------------------------------------------------------
+
+
+def test_init_db_creates_cache_token_columns(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+    import sqlite3
+
+    conn = sqlite3.connect(str(tmp_path / "api_usage.db"))
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(api_calls)").fetchall()}
+    conn.close()
+
+    assert "cache_creation_tokens" in columns
+    assert "cache_read_tokens" in columns
+
+
+def test_log_api_call_persists_cache_tokens(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+    aut.log_api_call(
+        provider="anthropic",
+        model="claude-sonnet-4",
+        tokens_input=100,
+        tokens_output=50,
+        cache_creation_tokens=900,
+        cache_read_tokens=120,
+    )
+
+    import sqlite3
+
+    conn = sqlite3.connect(str(tmp_path / "api_usage.db"))
+    row = conn.execute("SELECT cache_creation_tokens, cache_read_tokens FROM api_calls").fetchone()
+    conn.close()
+    assert row == (900, 120)
+
+
+def test_log_api_call_auto_cost_includes_cache_pricing(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+    # claude-sonnet-4-20250514: input=0.003/1K
+    # 1000 input + 0 output + 1000 cache_create (1.25×) + 1000 cache_read (0.10×)
+    # = 0.003 + 0 + 0.00375 + 0.0003 = 0.00705
+    aut.log_api_call(
+        provider="anthropic",
+        model="claude-sonnet-4-20250514",
+        tokens_input=1000,
+        tokens_output=0,
+        cache_creation_tokens=1000,
+        cache_read_tokens=1000,
+    )
+
+    # get_usage_summary rounds to 4 decimals — query raw column for full precision
+    import sqlite3
+
+    conn = sqlite3.connect(str(tmp_path / "api_usage.db"))
+    raw_cost = conn.execute("SELECT cost_usd FROM api_calls").fetchone()[0]
+    conn.close()
+    assert abs(raw_cost - 0.00705) < 1e-9
+
+
+def test_log_api_call_auto_cost_supports_one_hour_cache_write(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+    # 1h cache writes cost 2.0x base input tokens.
+    aut.log_api_call(
+        provider="anthropic",
+        model="claude-sonnet-4-20250514",
+        tokens_input=0,
+        tokens_output=0,
+        cache_creation_tokens=1000,
+        cache_creation_multiplier=2.0,
+    )
+
+    import sqlite3
+
+    conn = sqlite3.connect(str(tmp_path / "api_usage.db"))
+    raw_cost = conn.execute("SELECT cost_usd FROM api_calls").fetchone()[0]
+    conn.close()
+    assert abs(raw_cost - 0.006) < 1e-9
+
+
+def test_log_api_call_default_cache_tokens_zero(monkeypatch, tmp_path):
+    """기존 호출자(cache_*_tokens 미지정)는 영향받지 않아야 한다."""
+    _patch_db(monkeypatch, tmp_path)
+    aut.log_api_call(provider="openai", model="gpt-4o-mini", tokens_input=100, tokens_output=50)
+
+    import sqlite3
+
+    conn = sqlite3.connect(str(tmp_path / "api_usage.db"))
+    row = conn.execute("SELECT cache_creation_tokens, cache_read_tokens FROM api_calls").fetchone()
+    conn.close()
+    assert row == (0, 0)
+
+
+# ---------------------------------------------------------------------------
 # get_usage_summary
 # ---------------------------------------------------------------------------
 

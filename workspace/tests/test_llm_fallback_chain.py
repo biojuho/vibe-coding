@@ -158,7 +158,7 @@ class TestFullCascadeFallback:
 
         def fake_gen(provider, *a, **kw):
             calls.append(provider)
-            return '{"result": "ok"}', 10, 5
+            return '{"result": "ok"}', 10, 5, 0, 0
 
         with patch.object(client, "_generate_once", side_effect=fake_gen):
             result = client.generate_json(system_prompt="s", user_prompt="u")
@@ -177,7 +177,7 @@ class TestFullCascadeFallback:
         def fake_gen(provider, *a, **kw):
             calls.append(provider)
             if provider == last_provider:
-                return '{"answer": "from last provider"}', 20, 10
+                return '{"answer": "from last provider"}', 20, 10, 0, 0
             raise Exception(f"{provider} timeout")
 
         with patch.object(client, "_generate_once", side_effect=fake_gen):
@@ -211,7 +211,7 @@ class TestFullCascadeFallback:
             if provider == "google":
                 raise Exception("invalid api key")  # non-retryable
             if provider == "openai":
-                return '{"ok": true}', 5, 3
+                return '{"ok": true}', 5, 3, 0, 0
             raise Exception("should not reach")
 
         with patch.object(client, "_generate_once", side_effect=fake_gen):
@@ -232,7 +232,7 @@ class TestFullCascadeFallback:
             calls.append(provider)
             if provider == "google":
                 raise Exception("rate limit")
-            return "success text", 5, 3
+            return "success text", 5, 3, 0, 0
 
         with patch.object(client, "_generate_once", side_effect=fake_gen):
             result = client.generate_text(system_prompt="s", user_prompt="u")
@@ -251,7 +251,7 @@ class TestFullCascadeFallback:
             if provider not in tried:
                 tried.append(provider)
             if provider == "anthropic":
-                return '{"done": true}', 5, 3
+                return '{"done": true}', 5, 3, 0, 0
             raise Exception("fail")
 
         with patch.object(client, "_generate_once", side_effect=fake_gen):
@@ -273,7 +273,7 @@ class TestFullCascadeFallback:
                 raise Exception("insufficient_quota")  # non-retryable
             if provider == "openai":
                 raise ConnectionError("network unreachable")
-            return '{"result": "anthropic wins"}', 10, 5
+            return '{"result": "anthropic wins"}', 10, 5, 0, 0
 
         with patch.object(client, "_generate_once", side_effect=fake_gen):
             result = client.generate_json(system_prompt="s", user_prompt="u")
