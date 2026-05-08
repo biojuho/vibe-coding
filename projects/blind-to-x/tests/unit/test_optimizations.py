@@ -256,6 +256,8 @@ class TestDraftGeneratorCache:
                 "<twitter>테스트 트윗</twitter><reply>테스트 댓글</reply><creator_take>테스트 해석</creator_take>",
                 100,
                 50,
+                0,
+                0,
             )
 
         gen._generate_with_gemini = mock_gemini
@@ -289,6 +291,8 @@ class TestDraftGeneratorCache:
                 "<twitter>트윗 내용</twitter><reply>후속 댓글</reply><creator_take>운영자 관점</creator_take>",
                 100,
                 50,
+                0,
+                0,
             )
 
         gen._generate_with_gemini = mock_gemini

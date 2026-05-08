@@ -225,6 +225,8 @@ def test_draft_cache_persists_across_generator_instances(tmp_path):
             "<image_prompt>prompt</image_prompt>",
             10,
             5,
+            0,
+            0,
         )
 
     gen1 = TweetDraftGenerator(config)
