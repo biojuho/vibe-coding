@@ -22,6 +22,7 @@
 | github_dashboard.md | github_stats.py | GitHub 통계 |
 | llm_fallback.md | llm_client.py | 9단계 LLM 폴백 체인 |
 | llm_observability_langfuse.md | llm_client.py, llm_metrics.py, projects/blind-to-x/pipeline/draft_providers.py | LLM 호출 셀프호스트 트레이싱 (T-253) |
+| llm_eval_promptfoo.md | blind_to_x_eval_extract.py, run_eval_blind_to_x.py | blind-to-x 드래프트 회귀 평가 (T-254) |
 | anthropic_prompt_caching.md | llm_client.py, api_usage_tracker.py | Claude prompt caching 비용 절감 (T-255) |
 | local_inference.md | local_inference.py, smart_router.py, reasoning_chain.py, reasoning_engine.py, thought_decomposer.py, confidence_verifier.py, benchmark_local.py, graph_engine.py, workers.py, code_evaluator.py, repo_map.py, context_selector.py | 로컬 추론 + 추론/평가 오케스트레이션 |
 | mcp_skill_expansion_plan.md | *(계획 문서, 직접 매핑 없음)* | MCP 확장 계획 참조용 |

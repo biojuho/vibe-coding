@@ -1,0 +1,55 @@
+# promptfoo 설정 — blind-to-x 드래프트 회귀 평가 (T-254)
+# 실행: npx promptfoo eval -c tests/eval/blind-to-x/promptfooconfig.yaml
+# 또는: python execution/run_eval_blind_to_x.py
+#
+# 데이터셋은 execution/blind_to_x_eval_extract.py 가 Notion에서 자동 생성한다.
+# golden_cases.yaml / rejected_cases.yaml 은 .gitignore되며 매주 갱신.
+
+description: blind-to-x draft regression eval
+
+prompts:
+  - file://prompts/draft_v_current.txt
+  # 새 버전을 비교하려면 prompts/draft_v_next.txt 추가 후 여기 등록.
+
+providers:
+  - id: anthropic:messages:claude-haiku-3-5
+    label: anthropic-haiku
+    config:
+      temperature: 0.4
+      max_tokens: 600
+  - id: openai:chat:gpt-4o-mini
+    label: openai-mini
+    config:
+      temperature: 0.4
+      max_tokens: 600
+  - id: deepseek:deepseek-chat
+    label: deepseek-chat
+    config:
+      temperature: 0.4
+      max_tokens: 600
+
+# Notion 추출본을 직접 import — 두 데이터셋의 tests 항목을 합친 형태.
+tests:
+  - file://golden_cases.yaml
+  - file://rejected_cases.yaml
+
+defaultTest:
+  assert:
+    # platform 길이 가드 (X / Threads 280자 한도 가정)
+    - type: javascript
+      value: |
+        output.length <= 280
+    # 규제 키워드 미포함 (확정 매도/추천 단정 표현)
+    - type: not-contains
+      value: "확정 수익"
+    - type: not-contains
+      value: "보장된"
+    # 채택 사례에는 reviewer가 좋아한 톤이 유지되어야 함
+    - type: llm-rubric
+      value: |
+        원문 의도를 유지하면서 한국어로 자연스럽고 짧게(200자 이하)
+        작성됐는가? CTA(구매 유도, 클릭 유도)를 포함하지 않는가?
+      threshold: 0.7
+
+# 결과 출력
+outputPath: .tmp/eval/blind-to-x/last_run.json

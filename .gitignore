@@ -16,6 +16,11 @@ infrastructure/notebooklm-mcp/tokens/auth.local.json
 
 # ===== 런타임 출력물 =====
 .tmp/
+
+# T-254 — Notion에서 자동 생성되는 평가 데이터셋 (콘텐츠 민감)
+tests/eval/blind-to-x/golden_cases.yaml
+tests/eval/blind-to-x/rejected_cases.yaml
+
 .tmp/reports/
 **/logs/
 test_audio/
