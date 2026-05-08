@@ -167,6 +167,22 @@
 - `T-251` remains blocked until a real Supabase PostgreSQL `DATABASE_URL` is configured.
 - Live Anthropic cache-hit validation was not run; it requires real API calls and should check for `cache_read_input_tokens > 0` on the second same-preamble call inside the cache TTL.
 
+## 2026-05-08 KST - Codex
+
+### Summary
+- Rechecked `T-251` after the user said "ㄱㄱ".
+- Confirmed without exposing secrets that root `.env` has no `DATABASE_URL`; `projects/hanwoo-dashboard/.env` has a Supabase pooler host but still matches placeholder patterns.
+- No code changes were required.
+
+### Verification
+- `node --check scripts/prisma7-runtime-test.mjs` -> passed
+- `npm run db:prisma7-test` -> offline `14 passed`, `0 failed`, `1 skipped`
+- `npm test` -> `51` tests passed
+- `npm run db:prisma7-test -- --live` -> failed as designed at config guard, `14 passed`, `1 failed`, message `DATABASE_URL is missing or placeholder`
+
+### Follow-up
+- Replace the placeholder project `DATABASE_URL` with a real Supabase PostgreSQL URL, then rerun `npm run db:prisma7-test -- --live`.
+
 ## 2026-05-08 KST - Gemini (Antigravity)
 
 ### Summary

@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-08 |
 | Tool | Codex |
+| Work | **T-251 rechecked after user "ㄱㄱ"**. Checked DB config without printing secrets: root `.env` still has no `DATABASE_URL`; `projects/hanwoo-dashboard/.env` has a Supabase pooler host but still matches placeholder patterns, so it is not treated as a runnable live DB URL. Verification run: `node --check scripts/prisma7-runtime-test.mjs` passed; `npm run db:prisma7-test` passed offline (`14 passed, 0 failed, 1 skipped`); `npm test` passed (`51` tests); `npm run db:prisma7-test -- --live` failed exactly at the guard (`14 passed, 1 failed`) with `DATABASE_URL is missing or placeholder`. No code changes were needed. |
+| Next Priorities | T-251 remains blocked until a real Supabase PostgreSQL `DATABASE_URL` is configured in `projects/hanwoo-dashboard/.env` or the shell environment. After that, rerun `npm run db:prisma7-test -- --live`; the Live CRUD E2E section should execute instead of failing at configuration. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-08 |
+| Tool | Codex |
 | Work | **T-257 completed — blind-to-x direct AsyncAnthropic prompt caching path**. During this session a concurrent commit `74a585b` landed broad workspace work and included the T-257 implementation: `DraftPrompt` now keeps string compatibility while exposing Anthropic system/user split metadata; reviewer memory and stable system preamble move into the cacheable Anthropic `system` block; `_generate_with_anthropic` injects `cache_control` for `5m` default / `1h` opt-in; provider calls now return cache write/read tokens; Langfuse trace forwarding and `CostTracker`/`CostDatabase` record cache token usage. Codex preserved that commit and added `ef78fb0` to align remaining draft-cache provider mocks with the new 5-tuple token contract. Verification: focused T-257/regression set `84 passed`; full `blind-to-x` unit suite `1541 passed, 1 skipped`; follow-up formatted-test check `17 passed`; `python -m ruff check .` and `python -m ruff format --check .` clean; graph detect-changes risk `0.00`; `git diff --check -- projects/blind-to-x` clean. |
 | Next Priorities | T-251 remains blocked until a real Supabase PostgreSQL `DATABASE_URL` is configured. For T-257 live validation, run two Anthropic draft generations with the same reviewer-memory/system preamble inside the 5-minute TTL and confirm `cache_read_input_tokens > 0` in provider usage/trace data; no live Anthropic calls were made in this session. |
 
