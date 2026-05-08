@@ -342,6 +342,178 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
             base = self._load_image_clip(asset.visual_path, duration=duration_sec)
         return self._fit_vertical(base, target_width, target_height)
 
+    def _render_single_scene(
+        self,
+        *,
+        plan: ScenePlan,
+        asset: SceneAsset,
+        run_dir: Path,
+        target_width: int,
+        target_height: int,
+        previous_effect: str = "",
+        audio_clips_to_close: list[Any] | None = None,
+        caption_clips_to_close: list[Any] | None = None,
+    ) -> tuple[Any, str]:
+        duration_sec = asset.duration_sec
+        role = plan.structure_role
+
+        base = self._build_base_clip(asset, duration_sec, target_width, target_height)
+
+        if asset.visual_type == "image":
+            base, previous_effect = self._apply_channel_image_motion(
+                base,
+                role=role,
+                target_width=target_width,
+                target_height=target_height,
+                exclude=previous_effect,
+            )
+
+        try:
+            base = color_grade_clip(base, self._channel_key, role)
+        except Exception as cg_exc:
+            logger.warning("[ColorGrade] failed, using ungraded clip: %s", cg_exc)
+
+        try:
+            postprocess_tts_audio(
+                Path(asset.audio_path),
+                voice_name=self.config.providers.tts_voice,
+            )
+        except Exception as pp_exc:
+            logger.warning("[AudioPost] postprocess failed, using original audio: %s", pp_exc)
+
+        audio = self._load_audio_clip(asset.audio_path)
+        if audio_clips_to_close is not None:
+            audio_clips_to_close.append(audio)
+        if audio.duration != duration_sec and audio.duration > duration_sec:
+            audio = audio.subclipped(0, duration_sec)
+        base = base.with_audio(audio)
+
+        if role == "hook":
+            style = self.hook_style
+        elif role == "cta":
+            style = self.cta_style
+        elif role == "closing":
+            style = self.closing_style
+        else:
+            style = self.body_style
+
+        if style.mode == "karaoke":
+            words_json_path = Path(asset.audio_path).parent / f"{Path(asset.audio_path).stem}_words.json"
+            ssml_txt_path = words_json_path.parent / f"{words_json_path.stem}_ssml.txt"
+            try:
+                raw_words = load_words_json(words_json_path)
+                if ssml_txt_path.exists():
+                    ssml_text = ssml_txt_path.read_text(encoding="utf-8")
+                    corrected_words = apply_ssml_break_correction(raw_words, ssml_text)
+                else:
+                    corrected_words = raw_words
+                chunk_groups = group_word_segments(corrected_words, style.words_per_chunk)
+                chunks = [(start, end, text) for start, end, text, _ in chunk_groups]
+
+                if self.config.captions.highlight_mode == "word":
+                    caption_clips = []
+                    for _chunk_start, _chunk_end, _chunk_text, chunk_words in chunk_groups:
+                        chunk_text_words = [word.word for word in chunk_words]
+                        for wi, word_segment in enumerate(chunk_words):
+                            ws = word_segment.start
+                            wd = max(0.05, word_segment.end - word_segment.start)
+                            highlight_out = run_dir / f"kh_{plan.scene_id:02d}_{word_segment.start:.2f}_{wi}.png"
+                            render_karaoke_highlight_image(
+                                words=chunk_text_words,
+                                active_word_index=wi,
+                                canvas_width=target_width,
+                                style=style,
+                                highlight_color=self.config.captions.highlight_color,
+                                output_path=highlight_out,
+                                keyword_colors=self._keyword_color_map,
+                            )
+                            highlight_clip = ImageClip(str(highlight_out), transparent=True)
+                            if caption_clips_to_close is not None:
+                                caption_clips_to_close.append(highlight_clip)
+                            cap_clip = (
+                                highlight_clip.with_duration(wd)
+                                .with_start(ws)
+                                .with_position(("center", self._caption_y(highlight_clip, target_height, style, role)))
+                            )
+                            caption_clips.append(cap_clip)
+                else:
+                    caption_clips = []
+                    for chunk_start, chunk_end, chunk_text in chunks:
+                        cd = max(0.1, chunk_end - chunk_start)
+                        cap_out = run_dir / f"kc_{plan.scene_id:02d}_{chunk_start:.2f}.png"
+                        render_karaoke_image(chunk_text, target_width, style, cap_out)
+                        caption_image = ImageClip(str(cap_out), transparent=True)
+                        if caption_clips_to_close is not None:
+                            caption_clips_to_close.append(caption_image)
+                        cap_clip = (
+                            caption_image.with_duration(cd)
+                            .with_start(chunk_start)
+                            .with_position(("center", self._caption_y(caption_image, target_height, style, role)))
+                        )
+                        caption_clips.append(cap_clip)
+
+                if caption_clips:
+                    base = CompositeVideoClip([base] + caption_clips, size=(target_width, target_height))
+
+            except Exception as kex:
+                logger.warning("[Karaoke] failed, falling back to static caption: %s", kex)
+                cap_out = run_dir / f"caption_fallback_{plan.scene_id:02d}.png"
+                cap_img = self._render_static_caption(
+                    plan.narration_ko,
+                    target_width,
+                    style,
+                    cap_out,
+                    role,
+                )
+                cap_clip_img = ImageClip(str(cap_img), transparent=True)
+                if caption_clips_to_close is not None:
+                    caption_clips_to_close.append(cap_clip_img)
+                cap_clip = cap_clip_img.with_duration(duration_sec).with_position(
+                    ("center", self._caption_y(cap_clip_img, target_height, style, role))
+                )
+                base = CompositeVideoClip([base, cap_clip], size=(target_width, target_height))
+        else:
+            cap_out = run_dir / f"caption_static_{plan.scene_id:02d}.png"
+            cap_img = self._render_static_caption(
+                plan.narration_ko,
+                target_width,
+                style,
+                cap_out,
+                role,
+            )
+            cap_clip_img = ImageClip(str(cap_img), transparent=True)
+            if caption_clips_to_close is not None:
+                caption_clips_to_close.append(cap_clip_img)
+            cap_clip = cap_clip_img.with_duration(duration_sec).with_position(
+                ("center", self._caption_y(cap_clip_img, target_height, style, role))
+            )
+            base = CompositeVideoClip([base, cap_clip], size=(target_width, target_height))
+
+        if role == "hook":
+            try:
+                base = apply_text_animation(
+                    base,
+                    animation_type=self.config.captions.hook_animation,
+                    duration=duration_sec,
+                )
+            except Exception as aex:
+                logger.warning("[Animation] hook animation failed: %s", aex)
+
+        broll_path = run_dir / f"broll_{plan.scene_id:02d}.mp4"
+        if broll_path.exists():
+            try:
+                pip_clip = create_broll_pip(str(broll_path), duration_sec, target_width, target_height)
+                if pip_clip is not None:
+                    base = CompositeVideoClip([base, pip_clip], size=(target_width, target_height))
+            except Exception as exc:
+                logger.warning("[RenderStep] B-Roll PiP failed (scene %s, skipped): %s", plan.scene_id, exc)
+
+        if role == "closing":
+            fade_dur = min(1.5, duration_sec * 0.4)
+            base = base.with_effects([vfx.FadeOut(fade_dur)])
+
+        return base, previous_effect
+
     # ── 메인 렌더링 ──────────────────────────────────────────────────────────
 
     def run(
@@ -393,180 +565,18 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
 
         # ── 씬별 클립 빌드 ──
         for plan, asset in zip(scene_plans, scene_assets, strict=False):
-            duration_sec = asset.duration_sec
             role = plan.structure_role
             scene_roles.append(role)
-
-            # 1) 베이스 비주얼 클립
-            base = self._build_base_clip(asset, duration_sec, target_width, target_height)
-
-            # 2) 카메라 효과 (Ken Burns 등)
-            if asset.visual_type == "image":
-                base, last_effect = self._apply_channel_image_motion(
-                    base,
-                    role=role,
-                    target_width=target_width,
-                    target_height=target_height,
-                    exclude=last_effect,
-                )
-
-            # 2.5) 색보정 (채널별 컬러 그레이딩 + 비네트)
-            try:
-                base = color_grade_clip(base, self._channel_key, role)
-            except Exception as cg_exc:
-                logger.warning("[ColorGrade] 색보정 실패: %s", cg_exc)
-
-            # 2.9) TTS 오디오 후처리 (노멀라이즈 + EQ)
-            try:
-                postprocess_tts_audio(
-                    Path(asset.audio_path),
-                    voice_name=self.config.providers.tts_voice,
-                )
-            except Exception as pp_exc:
-                logger.warning("[AudioPost] 후처리 실패, 원본 사용: %s", pp_exc)
-
-            # 3) 오디오 합성
-            audio = self._load_audio_clip(asset.audio_path)
-            _audio_clips_to_close.append(audio)  # 생성 직후 등록 → 예외 시에도 close 보장
-            if audio.duration != duration_sec and audio.duration > duration_sec:
-                audio = audio.subclipped(0, duration_sec)
-                # audio shorter than visual → visual에 맞춤 (음성 끝 자연 종료)
-            base = base.with_audio(audio)
-
-            # 4) 자막 오버레이
-            if role == "hook":
-                style = self.hook_style
-            elif role == "cta":
-                style = self.cta_style
-            elif role == "closing":
-                style = self.closing_style
-            else:
-                style = self.body_style
-
-            # 카라오케 모드
-            if style.mode == "karaoke":
-                words_json_path = Path(asset.audio_path).parent / f"{Path(asset.audio_path).stem}_words.json"
-                ssml_txt_path = words_json_path.parent / f"{words_json_path.stem}_ssml.txt"
-                try:
-                    raw_words = load_words_json(words_json_path)
-                    # SSML break 보정 (ssml 텍스트 파일이 있을 때만)
-                    if ssml_txt_path.exists():
-                        ssml_text = ssml_txt_path.read_text(encoding="utf-8")
-                        corrected_words = apply_ssml_break_correction(raw_words, ssml_text)
-                    else:
-                        corrected_words = raw_words
-                    # group_into_chunks → list[tuple[start, end, text]]
-                    chunk_groups = group_word_segments(corrected_words, style.words_per_chunk)
-                    chunks = [(start, end, text) for start, end, text, _ in chunk_groups]
-
-                    # Word-level highlight 모드
-                    if self.config.captions.highlight_mode == "word":
-                        caption_clips = []
-                        for _chunk_start, _chunk_end, _chunk_text, chunk_words in chunk_groups:
-                            chunk_text_words = [word.word for word in chunk_words]
-                            for wi, word_segment in enumerate(chunk_words):
-                                ws = word_segment.start
-                                wd = max(0.05, word_segment.end - word_segment.start)
-                                highlight_out = run_dir / f"kh_{plan.scene_id:02d}_{word_segment.start:.2f}_{wi}.png"
-                                render_karaoke_highlight_image(
-                                    words=chunk_text_words,
-                                    active_word_index=wi,
-                                    canvas_width=target_width,
-                                    style=style,
-                                    highlight_color=self.config.captions.highlight_color,
-                                    output_path=highlight_out,
-                                    keyword_colors=self._keyword_color_map,
-                                )
-                                highlight_clip = ImageClip(str(highlight_out), transparent=True)
-                                _caption_clips_to_close.append(highlight_clip)
-                                cap_clip = (
-                                    highlight_clip.with_duration(wd)
-                                    .with_start(ws)
-                                    .with_position(
-                                        ("center", self._caption_y(highlight_clip, target_height, style, role))
-                                    )
-                                )
-                                caption_clips.append(cap_clip)
-                    else:
-                        caption_clips = []
-                        for chunk_start, chunk_end, chunk_text in chunks:
-                            cd = max(0.1, chunk_end - chunk_start)
-                            cap_out = run_dir / f"kc_{plan.scene_id:02d}_{chunk_start:.2f}.png"
-                            render_karaoke_image(chunk_text, target_width, style, cap_out)
-                            caption_image = ImageClip(str(cap_out), transparent=True)
-                            _caption_clips_to_close.append(caption_image)
-                            cap_clip = (
-                                caption_image.with_duration(cd)
-                                .with_start(chunk_start)
-                                .with_position(("center", self._caption_y(caption_image, target_height, style, role)))
-                            )
-                            caption_clips.append(cap_clip)
-
-                    if caption_clips:
-                        base = CompositeVideoClip([base] + caption_clips, size=(target_width, target_height))
-
-                except Exception as kex:
-                    logger.warning("[Karaoke] 카라오케 실패, 정적 자막 폴백: %s", kex)
-                    cap_out = run_dir / f"caption_fallback_{plan.scene_id:02d}.png"
-                    cap_img = self._render_static_caption(
-                        plan.narration_ko,
-                        target_width,
-                        style,
-                        cap_out,
-                        role,
-                    )
-                    cap_clip_img = ImageClip(str(cap_img), transparent=True)
-                    _caption_clips_to_close.append(cap_clip_img)
-                    cap_clip = cap_clip_img.with_duration(duration_sec).with_position(
-                        ("center", self._caption_y(cap_clip_img, target_height, style, role))
-                    )
-                    base = CompositeVideoClip([base, cap_clip], size=(target_width, target_height))
-            else:
-                # 정적 자막 모드 — hook 씬에서 TextEngine glow 시도
-                cap_out = run_dir / f"caption_static_{plan.scene_id:02d}.png"
-                cap_img = self._render_static_caption(
-                    plan.narration_ko,
-                    target_width,
-                    style,
-                    cap_out,
-                    role,
-                )
-                cap_clip_img = ImageClip(str(cap_img), transparent=True)
-                _caption_clips_to_close.append(cap_clip_img)
-                cap_clip = cap_clip_img.with_duration(duration_sec).with_position(
-                    ("center", self._caption_y(cap_clip_img, target_height, style, role))
-                )
-                base = CompositeVideoClip([base, cap_clip], size=(target_width, target_height))
-
-            # 5) 텍스트 애니메이션 (Hook 씬)
-            if role == "hook":
-                try:
-                    base = apply_text_animation(
-                        base,
-                        animation_type=self.config.captions.hook_animation,
-                        duration=duration_sec,
-                    )
-                except Exception as aex:
-                    logger.warning("[Animation] Hook 애니메이션 실패: %s", aex)
-
-            # 6) B-Roll 오버레이 (PiP)
-            broll_path = run_dir / f"broll_{plan.scene_id:02d}.mp4"
-            if broll_path.exists():
-                try:
-                    pip_clip = create_broll_pip(str(broll_path), duration_sec, target_width, target_height)
-                    if pip_clip is not None:
-                        base = CompositeVideoClip([base, pip_clip], size=(target_width, target_height))
-                except Exception as exc:
-                    logger.warning("[RenderStep] B-Roll PiP 생성 실패 (씬 %s, 스킵): %s", plan.scene_id, exc)
-
-            # 7) HUD 오버레이 — 비활성화 (깔끔한 화면 유지)
-            # 8) 제목 오버레이 — 비활성화
-
-            # 9) Closing 씬: 부드러운 페이드아웃 (여운 연출)
-            if role == "closing":
-                fade_dur = min(1.5, duration_sec * 0.4)
-                base = base.with_effects([vfx.FadeOut(fade_dur)])
-
+            base, last_effect = self._render_single_scene(
+                plan=plan,
+                asset=asset,
+                run_dir=run_dir,
+                target_width=target_width,
+                target_height=target_height,
+                previous_effect=last_effect,
+                audio_clips_to_close=_audio_clips_to_close,
+                caption_clips_to_close=_caption_clips_to_close,
+            )
             all_clips.append(base)
 
         # ── 전환 효과 적용 ──
