@@ -13,6 +13,7 @@ from pipeline.feed_collector import collect_feed_items
 
 logger = logging.getLogger(__name__)
 
+
 async def handle_single_commands(args, config_mgr, notifier, notion_uploader, twitter_poster) -> bool:
     """Handle one-shot commands (reprocess, digest, sentiment). Returns True if handled."""
     if getattr(args, "reprocess_approved", False):
@@ -60,7 +61,9 @@ async def execute_pipeline(
         for scraper in scrapers.values():
             await stack.enter_async_context(scraper)
 
-        effective_review_only = getattr(args, "review_only", False) or config_mgr.get("content_strategy.require_human_approval", True)
+        effective_review_only = getattr(args, "review_only", False) or config_mgr.get(
+            "content_strategy.require_human_approval", True
+        )
         daily_queue_floor = await resolve_daily_queue_floor(config_mgr, notion_uploader, effective_review_only)
 
         urls_to_process, feed_stats = await collect_feed_items(

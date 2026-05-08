@@ -294,6 +294,44 @@ def calculate_safe_position(
     return max(safe_area_top, min(max_y, y))
 
 
+def validate_safe_zone(
+    y_position: int,
+    caption_height: int,
+    canvas_height: int = 1920,
+) -> dict[str, Any]:
+    """Validate that a caption fits within the YouTube Shorts safe zone.
+
+    Returns a dict with:
+        in_safe_zone: bool — True if fully within safe boundaries
+        top_overflow_px: int — pixels above safe zone top (0 if OK)
+        bottom_overflow_px: int — pixels below safe zone bottom (0 if OK)
+        safe_area_top: int
+        safe_area_bottom: int
+
+    Safe zones:
+        - Top 15%: channel name/title overlay
+        - Bottom 20%: like/comment/share buttons
+    """
+    top_safe = int(canvas_height * 0.15)
+    bottom_safe = int(canvas_height * 0.20)
+    safe_area_top = top_safe
+    safe_area_bottom = canvas_height - bottom_safe
+
+    caption_bottom = y_position + caption_height
+    top_overflow = max(0, safe_area_top - y_position)
+    bottom_overflow = max(0, caption_bottom - safe_area_bottom)
+
+    return {
+        "in_safe_zone": top_overflow == 0 and bottom_overflow == 0,
+        "top_overflow_px": top_overflow,
+        "bottom_overflow_px": bottom_overflow,
+        "safe_area_top": safe_area_top,
+        "safe_area_bottom": safe_area_bottom,
+        "caption_y": y_position,
+        "caption_bottom": caption_bottom,
+    }
+
+
 def complementary_color(hex_color: str) -> str:
     """Return the complementary (opposite hue) hex color for maximum contrast."""
     hex_color = hex_color.lstrip("#")

@@ -14,7 +14,6 @@ import {
   parseCustomerKeyFromOrderId,
 } from '@/lib/subscription';
 
-export const dynamic = 'force-dynamic';
 const TOSS_CONFIRM_TIMEOUT_MS = 15000;
 
 function buildPendingResponse(message = PAYMENT_CONFIRMATION_PENDING_MESSAGE) {

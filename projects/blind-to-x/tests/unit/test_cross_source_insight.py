@@ -197,7 +197,7 @@ async def test_generate_insight_draft_success():
     mock_generator._enabled_providers.return_value = ["gemini"]
     mock_generator.max_retries_per_provider = 1
     mock_generator._generate_once = AsyncMock(
-        return_value=("<twitter>트렌드 분석 트윗</twitter><image_prompt>office scene</image_prompt>", 100, 200)
+        return_value=("<twitter>트렌드 분석 트윗</twitter><image_prompt>office scene</image_prompt>", 100, 200, 0, 0)
     )
     mock_generator._parse_response.return_value = (
         {"twitter": "트렌드 분석 트윗", "_provider_used": "gemini"},
@@ -263,7 +263,7 @@ async def test_process_with_trends():
     mock_generator = MagicMock()
     mock_generator._enabled_providers.return_value = ["gemini"]
     mock_generator.max_retries_per_provider = 1
-    mock_generator._generate_once = AsyncMock(return_value=("<twitter>인사이트</twitter>", 100, 200))
+    mock_generator._generate_once = AsyncMock(return_value=("<twitter>인사이트</twitter>", 100, 200, 0, 0))
     mock_generator._parse_response.return_value = (
         {"twitter": "인사이트", "_provider_used": "gemini"},
         None,
@@ -303,7 +303,7 @@ async def test_process_notion_upload_error_handled():
     mock_generator = MagicMock()
     mock_generator._enabled_providers.return_value = ["gemini"]
     mock_generator.max_retries_per_provider = 1
-    mock_generator._generate_once = AsyncMock(return_value=("<twitter>t</twitter>", 10, 20))
+    mock_generator._generate_once = AsyncMock(return_value=("<twitter>t</twitter>", 10, 20, 0, 0))
     mock_generator._parse_response.return_value = ({"twitter": "t", "_provider_used": "g"}, None)
     mock_generator.cost_tracker = None
 

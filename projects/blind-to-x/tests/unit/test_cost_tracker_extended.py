@@ -52,6 +52,39 @@ def test_cost_tracker_uses_configured_pricing_and_summary(monkeypatch, tmp_path)
     assert "Avg Cost/Post (30d): $0.33000 (1 posts)" in summary
 
 
+def test_cost_tracker_records_anthropic_cache_tokens(monkeypatch, tmp_path) -> None:
+    db = CostDatabase(tmp_path / "costs.db")
+    monkeypatch.setattr("pipeline.cost_tracker._try_get_cost_db", lambda: db)
+
+    tracker = CostTracker(
+        FakeConfig(
+            {
+                "limits": {"daily_api_budget_usd": 10.0},
+                "llm": {"pricing": {"anthropic": {"input_per_1m": 3.0, "output_per_1m": 15.0}}},
+            }
+        )
+    )
+
+    tracker.add_text_generation_cost(
+        "anthropic",
+        input_tokens=1_000,
+        output_tokens=100,
+        cache_creation_tokens=1_000,
+        cache_read_tokens=1_000,
+        cache_creation_multiplier=2.0,
+    )
+
+    assert round(tracker.current_cost, 4) == 0.0108
+    with db._conn() as conn:
+        row = conn.execute(
+            "SELECT cache_creation_tokens, cache_read_tokens, usd_estimated FROM daily_text_costs"
+        ).fetchone()
+
+    assert row["cache_creation_tokens"] == 1_000
+    assert row["cache_read_tokens"] == 1_000
+    assert round(row["usd_estimated"], 4) == 0.0108
+
+
 def test_cost_tracker_sends_gemini_threshold_alerts_once(monkeypatch) -> None:
     alerts: list[tuple[str, str]] = []
 

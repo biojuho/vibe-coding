@@ -37,6 +37,8 @@ def _emit_workspace_langfuse_trace(
     model: str,
     input_tokens: int = 0,
     output_tokens: int = 0,
+    cache_creation_tokens: int = 0,
+    cache_read_tokens: int = 0,
     latency_ms: float = 0.0,
     success: bool = True,
     error: str = "",
@@ -56,6 +58,8 @@ def _emit_workspace_langfuse_trace(
             endpoint="blind-to-x.draft_provider",
             input_tokens=input_tokens,
             output_tokens=output_tokens,
+            cache_creation_tokens=cache_creation_tokens,
+            cache_read_tokens=cache_read_tokens,
             caller_script="projects/blind-to-x/pipeline/draft_providers.py",
             metadata={
                 "project": "blind-to-x",
@@ -158,18 +162,72 @@ class DraftProvidersMixin:
     # Per-provider generation helpers
     # ------------------------------------------------------------------
 
-    async def _generate_with_anthropic(self, prompt: str) -> tuple[str, int, int]:
-        response = await self.anthropic_client.messages.create(
-            model=self.anthropic_model,
-            max_tokens=1500,
-            messages=[{"role": "user", "content": prompt}],
-        )
+    def _anthropic_cache_strategy(self, prompt: str) -> str:
+        """Return the configured Anthropic prompt-cache strategy for split prompts."""
+        if not getattr(prompt, "anthropic_system_prompt", ""):
+            return "off"
+
+        configured = self.config.get("anthropic.cache_strategy", None)
+        if configured is None:
+            configured = self.config.get("llm.anthropic_cache_strategy", "5m")
+        strategy = str(configured or "off").strip().lower()
+        aliases = {"enabled": "5m", "true": "5m", "on": "5m"}
+        strategy = aliases.get(strategy, strategy)
+        if strategy not in {"off", "5m", "1h"}:
+            logger.warning("Invalid anthropic cache strategy %r; using off.", configured)
+            return "off"
+        return strategy
+
+    def _cache_creation_multiplier_for(self, provider: str, prompt: str) -> float:
+        if provider == "anthropic" and self._anthropic_cache_strategy(prompt) == "1h":
+            return 2.0
+        return 1.25
+
+    async def _generate_with_anthropic(self, prompt: str) -> tuple[str, int, int, int, int]:
+        """Anthropic 호출.
+
+        Returns:
+            (text, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens)
+
+        cache_strategy="off" 또는 분리된 system/user prompt가 없으면 캐시 토큰은 0.
+        """
+        create_kwargs: dict[str, Any] = {
+            "model": self.anthropic_model,
+            "max_tokens": 1500,
+            "messages": [{"role": "user", "content": str(prompt)}],
+        }
+        cache_strategy = self._anthropic_cache_strategy(prompt)
+        system_prompt = str(getattr(prompt, "anthropic_system_prompt", "") or "").strip()
+        user_prompt = str(getattr(prompt, "anthropic_user_prompt", "") or "").strip()
+        if cache_strategy in {"5m", "1h"} and system_prompt and user_prompt:
+            cache_control: dict[str, Any] = {"type": "ephemeral"}
+            if cache_strategy == "1h":
+                cache_control["ttl"] = "1h"
+            create_kwargs["system"] = [
+                {
+                    "type": "text",
+                    "text": system_prompt,
+                    "cache_control": cache_control,
+                }
+            ]
+            create_kwargs["messages"] = [{"role": "user", "content": user_prompt}]
+
+        response = await self.anthropic_client.messages.create(**create_kwargs)
         text = response.content[0].text
         input_tokens = getattr(response.usage, "input_tokens", 0)
         output_tokens = getattr(response.usage, "output_tokens", 0)
-        return text, input_tokens, output_tokens
+        cache_creation_tokens = getattr(response.usage, "cache_creation_input_tokens", 0) or 0
+        cache_read_tokens = getattr(response.usage, "cache_read_input_tokens", 0) or 0
+        if cache_creation_tokens or cache_read_tokens:
+            logger.debug(
+                "Anthropic prompt cache usage: created=%s read=%s strategy=%s",
+                cache_creation_tokens,
+                cache_read_tokens,
+                cache_strategy,
+            )
+        return text, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens
 
-    async def _generate_with_openai(self, prompt: str) -> tuple[str, int, int]:
+    async def _generate_with_openai(self, prompt: str) -> tuple[str, int, int, int, int]:
         response = await self.openai_client.chat.completions.create(
             model=self.openai_model,
             messages=[{"role": "user", "content": prompt}],
@@ -178,9 +236,9 @@ class DraftProvidersMixin:
         usage = getattr(response, "usage", None)
         input_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
         output_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
-        return text, input_tokens, output_tokens
+        return text, input_tokens, output_tokens, 0, 0
 
-    async def _generate_with_xai(self, prompt: str) -> tuple[str, int, int]:
+    async def _generate_with_xai(self, prompt: str) -> tuple[str, int, int, int, int]:
         response = await self.xai_client.chat.completions.create(
             model=self.xai_model,
             messages=[{"role": "user", "content": prompt}],
@@ -189,9 +247,9 @@ class DraftProvidersMixin:
         usage = getattr(response, "usage", None)
         input_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
         output_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
-        return text, input_tokens, output_tokens
+        return text, input_tokens, output_tokens, 0, 0
 
-    async def _generate_with_ollama(self, prompt: str) -> tuple[str, int, int]:
+    async def _generate_with_ollama(self, prompt: str) -> tuple[str, int, int, int, int]:
         """Ollama 로컬 LLM으로 초안 생성 (OpenAI 호환 API, CPU 추론)."""
         response = await self.ollama_client.chat.completions.create(
             model=self.ollama_model,
@@ -202,9 +260,9 @@ class DraftProvidersMixin:
         usage = getattr(response, "usage", None)
         input_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
         output_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
-        return text, input_tokens, output_tokens
+        return text, input_tokens, output_tokens, 0, 0
 
-    async def _generate_with_gemini(self, prompt: str) -> tuple[str, int, int]:
+    async def _generate_with_gemini(self, prompt: str) -> tuple[str, int, int, int, int]:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.gemini_model}:generateContent"
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
@@ -232,7 +290,7 @@ class DraftProvidersMixin:
         usage = data.get("usageMetadata", {}) or {}
         input_tokens = int(usage.get("promptTokenCount", 0) or 0)
         output_tokens = int(usage.get("candidatesTokenCount", 0) or 0)
-        return text, input_tokens, output_tokens
+        return text, input_tokens, output_tokens, 0, 0
 
     # ------------------------------------------------------------------
     # Unified generation dispatcher
@@ -249,7 +307,7 @@ class DraftProvidersMixin:
             }.get(provider, provider)
         )
 
-    async def _generate_once(self, provider: str, prompt: str) -> tuple[str, int, int]:
+    async def _generate_once(self, provider: str, prompt: str) -> tuple[str, int, int, int, int]:
         timeout = self._timeout_for(provider)
         coro = None
         if provider == "anthropic":
@@ -266,7 +324,9 @@ class DraftProvidersMixin:
             raise RuntimeError(f"Unsupported provider: {provider}")
         start = time.monotonic()
         try:
-            text, input_tokens, output_tokens = await asyncio.wait_for(coro, timeout=timeout)
+            text, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens = await asyncio.wait_for(
+                coro, timeout=timeout
+            )
         except Exception as exc:
             _emit_workspace_langfuse_trace(
                 provider=provider,
@@ -282,10 +342,12 @@ class DraftProvidersMixin:
             model=self._model_for_provider(provider),
             input_tokens=input_tokens,
             output_tokens=output_tokens,
+            cache_creation_tokens=cache_creation_tokens,
+            cache_read_tokens=cache_read_tokens,
             latency_ms=(time.monotonic() - start) * 1000,
             success=True,
         )
-        return text, input_tokens, output_tokens
+        return text, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens
 
 
 def init_provider_clients(instance: Any) -> None:

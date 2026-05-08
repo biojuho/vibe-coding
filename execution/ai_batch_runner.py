@@ -59,7 +59,9 @@ async def process_item(
                 output_text = response.choices[0].message.content
                 return {**item, "output": output_text, "status": "success"}
             except Exception as e:
-                logger.warning("Attempt %d/%d failed for task %s: %s", attempt + 1, max_retries, item.get("id", "unknown"), e)
+                logger.warning(
+                    "Attempt %d/%d failed for task %s: %s", attempt + 1, max_retries, item.get("id", "unknown"), e
+                )
                 if attempt == max_retries:
                     return {
                         **item,
@@ -71,9 +73,7 @@ async def process_item(
     return {**item, "error": "Unknown error", "status": "failed"}
 
 
-async def main_async(
-    input_file: str, output_file: str, model: str, concurrency: int, max_retries: int
-):
+async def main_async(input_file: str, output_file: str, model: str, concurrency: int, max_retries: int):
     if not os.path.exists(input_file):
         logger.error("Input file not found: %s", input_file)
         sys.exit(1)
@@ -100,19 +100,14 @@ async def main_async(
 
     sem = asyncio.Semaphore(concurrency)
 
-    tasks = [
-        asyncio.create_task(process_item(item, client, model, sem, max_retries))
-        for item in tasks_data
-    ]
+    tasks = [asyncio.create_task(process_item(item, client, model, sem, max_retries)) for item in tasks_data]
 
     results = await asyncio.gather(*tasks)
 
     success_count = sum(1 for r in results if r.get("status") == "success")
     fail_count = sum(1 for r in results if r.get("status") == "failed")
 
-    logger.info(
-        "Completed processing. Success: %d, Failed: %d", success_count, fail_count
-    )
+    logger.info("Completed processing. Success: %d, Failed: %d", success_count, fail_count)
 
     # 상위 디렉터리가 없으면 생성 (output_file 기준)
     os.makedirs(os.path.dirname(os.path.abspath(output_file)), exist_ok=True)
@@ -129,21 +124,13 @@ def main():
     parser.add_argument("--input", required=True, help="Input JSONL file")
     parser.add_argument("--output", required=True, help="Output JSONL file")
     parser.add_argument("--model", default="gpt-4o-mini", help="Model name to use")
-    parser.add_argument(
-        "--concurrency", type=int, default=5, help="Maximum concurrent requests"
-    )
-    parser.add_argument(
-        "--max-retries", type=int, default=3, help="Max retries per task"
-    )
+    parser.add_argument("--concurrency", type=int, default=5, help="Maximum concurrent requests")
+    parser.add_argument("--max-retries", type=int, default=3, help="Max retries per task")
 
     args = parser.parse_args()
 
     try:
-        asyncio.run(
-            main_async(
-                args.input, args.output, args.model, args.concurrency, args.max_retries
-            )
-        )
+        asyncio.run(main_async(args.input, args.output, args.model, args.concurrency, args.max_retries))
     except KeyboardInterrupt:
         logger.info("Batch runner interrupted by user.")
         sys.exit(130)

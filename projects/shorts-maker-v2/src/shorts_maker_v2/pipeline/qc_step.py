@@ -280,6 +280,62 @@ class QCStep:
 
         return QCReport(checks=checks, verdict=verdict, issues=issues)
 
+    # ── Safe Zone QC ──────────────────────────────────────────────────────────
+
+    @staticmethod
+    def gate_safe_zone(
+        scene_plans: list[ScenePlan],
+        scene_assets: list[SceneAsset],
+        canvas_height: int = 1920,
+    ) -> QCReport:
+        """Safe Zone 검증: 자막이 YouTube Shorts UI 영역을 침범하지 않는지 확인.
+
+        caption_pillow.calculate_safe_position으로 예상 위치를 계산하고,
+        validate_safe_zone으로 안전 영역 내 배치 여부를 검증한다.
+        """
+        from shorts_maker_v2.render.caption_pillow import (
+            CaptionStyle,
+            calculate_safe_position,
+            validate_safe_zone,
+        )
+
+        checks: dict[str, bool] = {}
+        issues: list[str] = []
+
+        default_style = CaptionStyle(
+            font_size=76,
+            margin_x=40,
+            bottom_offset=200,
+            text_color="#FFFFFF",
+            stroke_color="#000000",
+            stroke_width=4,
+            line_spacing=12,
+            font_candidates=(),
+        )
+
+        for plan in scene_plans:
+            role = plan.structure_role
+            estimated_lines = max(1, len(plan.narration_ko) // 20)
+            estimated_height = estimated_lines * (default_style.font_size + default_style.line_spacing)
+
+            y_pos = calculate_safe_position(canvas_height, estimated_height, default_style, role=role)
+            result = validate_safe_zone(y_pos, estimated_height, canvas_height)
+
+            is_safe = result["in_safe_zone"]
+            checks[f"safe_zone_s{plan.scene_id}"] = is_safe
+            if not is_safe:
+                overflow_details = []
+                if result["top_overflow_px"] > 0:
+                    overflow_details.append(f"top overflow {result['top_overflow_px']}px")
+                if result["bottom_overflow_px"] > 0:
+                    overflow_details.append(f"bottom overflow {result['bottom_overflow_px']}px")
+                issues.append(
+                    f"Scene {plan.scene_id} [{role}]: caption outside safe zone ({', '.join(overflow_details)})"
+                )
+
+        verdict = GateVerdict.PASS.value if not issues else GateVerdict.HOLD.value
+        return QCReport(checks=checks, verdict=verdict, issues=issues)
+
     # ── ffprobe 유틸리티 ──────────────────────────────────────────────────────
 
     @staticmethod

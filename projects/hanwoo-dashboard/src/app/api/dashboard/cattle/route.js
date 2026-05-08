@@ -7,7 +7,6 @@ import {
   parseCattleListQuery,
 } from '@/lib/dashboard/list-queries';
 
-export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
   try {

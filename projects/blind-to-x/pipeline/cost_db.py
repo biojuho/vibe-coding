@@ -36,7 +36,11 @@ _MIGRATION_COLUMNS: dict[str, dict[str, str]] = {
         "yt_views": "INTEGER DEFAULT 0",
         "engagement_rate": "REAL DEFAULT 0.0",
         "impression_count": "INTEGER DEFAULT 0",
-    }
+    },
+    "daily_text_costs": {
+        "cache_creation_tokens": "INTEGER DEFAULT 0",
+        "cache_read_tokens": "INTEGER DEFAULT 0",
+    },
 }
 _PRAGMA_TABLE_INFO_SQL = {table_name: f"PRAGMA table_info({table_name})" for table_name in _MIGRATION_COLUMNS}
 _ALTER_TABLE_ADD_SQL = {
@@ -189,6 +193,9 @@ class CostDatabase:
             self._ensure_column(conn, "draft_analytics", "yt_views", "INTEGER DEFAULT 0")
             self._ensure_column(conn, "draft_analytics", "engagement_rate", "REAL DEFAULT 0.0")
             self._ensure_column(conn, "draft_analytics", "impression_count", "INTEGER DEFAULT 0")
+            # T-257: Anthropic prompt-cache 토큰 별도 추적
+            self._ensure_column(conn, "daily_text_costs", "cache_creation_tokens", "INTEGER DEFAULT 0")
+            self._ensure_column(conn, "daily_text_costs", "cache_read_tokens", "INTEGER DEFAULT 0")
 
     @staticmethod
     def _ensure_column(conn: sqlite3.Connection, table_name: str, column_name: str, ddl: str) -> None:
@@ -208,15 +215,27 @@ class CostDatabase:
         tokens_input: int = 0,
         tokens_output: int = 0,
         usd: float = 0.0,
+        *,
+        cache_creation_tokens: int = 0,
+        cache_read_tokens: int = 0,
     ) -> None:
         today = date.today().isoformat()
         try:
             with self._conn() as conn:
                 conn.execute(
                     """INSERT INTO daily_text_costs
-                       (date, provider, tokens_input, tokens_output, usd_estimated)
-                       VALUES (?, ?, ?, ?, ?)""",
-                    (today, provider, int(tokens_input), int(tokens_output), float(usd)),
+                       (date, provider, tokens_input, tokens_output, usd_estimated,
+                        cache_creation_tokens, cache_read_tokens)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        today,
+                        provider,
+                        int(tokens_input),
+                        int(tokens_output),
+                        float(usd),
+                        int(cache_creation_tokens),
+                        int(cache_read_tokens),
+                    ),
                 )
         except Exception as exc:
             logger.warning("CostDB: failed to record text cost: %s", exc)

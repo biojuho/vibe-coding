@@ -14,6 +14,25 @@ logger = logging.getLogger(__name__)
 _draft_rules_cache: dict | None = None
 
 
+class DraftPrompt(str):
+    """String prompt with optional Anthropic system/user split metadata."""
+
+    anthropic_system_prompt: str
+    anthropic_user_prompt: str
+
+    def __new__(
+        cls,
+        value: str,
+        *,
+        anthropic_system_prompt: str = "",
+        anthropic_user_prompt: str = "",
+    ) -> "DraftPrompt":
+        obj = str.__new__(cls, value)
+        obj.anthropic_system_prompt = anthropic_system_prompt
+        obj.anthropic_user_prompt = anthropic_user_prompt
+        return obj
+
+
 def _load_draft_rules() -> dict:
     """Load merged rule sections with in-module caching."""
     global _draft_rules_cache
@@ -569,11 +588,18 @@ class DraftPromptsMixin:
             seed_text=f"{post_data.get('title', '')}|{profile.get('selection_summary', '')}",
         )
         reviewer_memory_block = self._format_reviewer_memory(top_examples)
-        return f"""{system_role}
-아래 게시글을 기반으로 발행 가능한 초안을 작성하세요.
-{voice_block}
 
-[게시글 정보]
+        anthropic_system_prompt = "\n\n".join(
+            part
+            for part in (
+                str(system_role).strip(),
+                "아래 게시글을 기반으로 발행 가능한 초안을 작성하세요.",
+                voice_block.strip(),
+                reviewer_memory_block.strip(),
+            )
+            if part
+        )
+        anthropic_user_prompt = f"""[게시글 정보]
 출처: {source}
 제목: {post_data.get("title", "")}
 본문: {content}
@@ -594,7 +620,6 @@ class DraftPromptsMixin:
 {regulation_context}
 {thinking_block}
 {examples_block}
-{reviewer_memory_block}
 {anti_examples_block}
 {twitter_block}
 {threads_block}
@@ -605,6 +630,11 @@ class DraftPromptsMixin:
 [톤 가이드]
 {tone}
 """
+        return DraftPrompt(
+            f"{anthropic_system_prompt}\n\n{anthropic_user_prompt}".strip(),
+            anthropic_system_prompt=anthropic_system_prompt,
+            anthropic_user_prompt=anthropic_user_prompt,
+        )
 
     # ------------------------------------------------------------------
     # Retry prompt

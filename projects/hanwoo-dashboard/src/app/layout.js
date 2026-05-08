@@ -1,4 +1,5 @@
 import './globals.css';
+import { Suspense } from 'react';
 import { Cormorant_Garamond, Noto_Sans_KR, Noto_Serif_KR } from 'next/font/google';
 import { FeedbackProvider } from '@/components/feedback/FeedbackProvider';
 
@@ -38,7 +39,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="ko" suppressHydrationWarning>
       <body className={`${notoSansKr.variable} ${notoSerifKr.variable} ${cormorantGaramond.variable}`}>
-        <FeedbackProvider>{children}</FeedbackProvider>
+        <FeedbackProvider><Suspense>{children}</Suspense></FeedbackProvider>
       </body>
     </html>
   );

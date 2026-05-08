@@ -135,12 +135,21 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
             for attempt in range(1, self.max_retries_per_provider + 1):
                 try:
                     logger.info("Generating drafts via %s (%s/%s)...", provider, attempt, self.max_retries_per_provider)
-                    response_text, input_tokens, output_tokens = await self._generate_once(provider, prompt)
+                    (
+                        response_text,
+                        input_tokens,
+                        output_tokens,
+                        cache_creation_tokens,
+                        cache_read_tokens,
+                    ) = await self._generate_once(provider, prompt)
                     if self.cost_tracker:
                         self.cost_tracker.add_text_generation_cost(
                             provider,
                             input_tokens=input_tokens,
                             output_tokens=output_tokens,
+                            cache_creation_tokens=cache_creation_tokens,
+                            cache_read_tokens=cache_read_tokens,
+                            cache_creation_multiplier=self._cache_creation_multiplier_for(provider, prompt),
                         )
                     drafts_dict, image_prompt = self._parse_response(response_text, output_formats, provider)
                     validation_error = self._validate_provider_output(
@@ -220,12 +229,21 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
         for provider in self._enabled_providers():
             for attempt in range(1, self.max_retries_per_provider + 1):
                 try:
-                    response_text, input_tokens, output_tokens = await self._generate_once(provider, prompt)
+                    (
+                        response_text,
+                        input_tokens,
+                        output_tokens,
+                        cache_creation_tokens,
+                        cache_read_tokens,
+                    ) = await self._generate_once(provider, prompt)
                     if self.cost_tracker:
                         self.cost_tracker.add_text_generation_cost(
                             provider,
                             input_tokens=input_tokens,
                             output_tokens=output_tokens,
+                            cache_creation_tokens=cache_creation_tokens,
+                            cache_read_tokens=cache_read_tokens,
+                            cache_creation_multiplier=self._cache_creation_multiplier_for(provider, prompt),
                         )
                     drafts_dict, _image_prompt = self._parse_response(response_text, output_formats, provider)
                     draft_text = str(drafts_dict.get(platform, "") or "").strip()

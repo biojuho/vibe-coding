@@ -235,12 +235,21 @@ async def generate_insight_draft(
                     draft_generator.max_retries_per_provider,
                     trend_group["topic_cluster"],
                 )
-                response_text, input_tokens, output_tokens = await draft_generator._generate_once(provider, prompt)
+                (
+                    response_text,
+                    input_tokens,
+                    output_tokens,
+                    cache_creation_tokens,
+                    cache_read_tokens,
+                ) = await draft_generator._generate_once(provider, prompt)
                 if draft_generator.cost_tracker:
                     draft_generator.cost_tracker.add_text_generation_cost(
                         provider,
                         input_tokens=input_tokens,
                         output_tokens=output_tokens,
+                        cache_creation_tokens=cache_creation_tokens,
+                        cache_read_tokens=cache_read_tokens,
+                        cache_creation_multiplier=draft_generator._cache_creation_multiplier_for(provider, prompt),
                     )
                 drafts, image_prompt = draft_generator._parse_response(response_text, output_formats, provider)
                 # 태그 파싱 검증: 주요 플랫폼 키가 비어있으면 경고

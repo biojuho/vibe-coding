@@ -6,6 +6,7 @@ const enablePWA = process.env.NEXT_ENABLE_PWA === "1";
 const nextConfig = {
   reactStrictMode: true,
   serverExternalPackages: ["bcrypt", "@prisma/adapter-pg"],
+  cacheComponents: true,
   experimental: {
     optimizePackageImports: ["lucide-react", "recharts"],
   },

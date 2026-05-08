@@ -5,8 +5,10 @@ from __future__ import annotations
 import asyncio
 import sys
 from types import ModuleType, SimpleNamespace
+from unittest.mock import AsyncMock
 
 
+from pipeline.draft_prompts import DraftPrompt
 from pipeline.draft_providers import (
     DEFAULT_PROVIDER_ORDER,
     DraftProvidersMixin,
@@ -149,6 +151,66 @@ class TestEnabledProviders:
         assert result[1] == "anthropic"
 
 
+class TestAnthropicPromptCaching:
+    @staticmethod
+    def _response(cache_creation: int = 0, cache_read: int = 0):
+        return SimpleNamespace(
+            content=[SimpleNamespace(text="draft")],
+            usage=SimpleNamespace(
+                input_tokens=120,
+                output_tokens=30,
+                cache_creation_input_tokens=cache_creation,
+                cache_read_input_tokens=cache_read,
+            ),
+        )
+
+    def _anthropic_instance(self, config: dict | None = None, cache_creation: int = 0, cache_read: int = 0):
+        obj = _make_provider_instance(config)
+        obj.anthropic_model = "claude-test"
+        create = AsyncMock(return_value=self._response(cache_creation=cache_creation, cache_read=cache_read))
+        obj.anthropic_client = SimpleNamespace(messages=SimpleNamespace(create=create))
+        return obj, create
+
+    def test_split_prompt_defaults_to_5m_cache_control(self):
+        obj, create = self._anthropic_instance(cache_creation=900)
+        prompt = DraftPrompt(
+            "SYSTEM\n\nUSER",
+            anthropic_system_prompt="SYSTEM",
+            anthropic_user_prompt="USER",
+        )
+
+        result = asyncio.run(obj._generate_with_anthropic(prompt))
+
+        assert result == ("draft", 120, 30, 900, 0)
+        kwargs = create.await_args.kwargs
+        assert kwargs["messages"] == [{"role": "user", "content": "USER"}]
+        assert kwargs["system"][0]["text"] == "SYSTEM"
+        assert kwargs["system"][0]["cache_control"] == {"type": "ephemeral"}
+
+    def test_split_prompt_supports_1h_cache_control(self):
+        obj, create = self._anthropic_instance({"anthropic.cache_strategy": "1h"}, cache_creation=900)
+        prompt = DraftPrompt(
+            "SYSTEM\n\nUSER",
+            anthropic_system_prompt="SYSTEM",
+            anthropic_user_prompt="USER",
+        )
+
+        asyncio.run(obj._generate_with_anthropic(prompt))
+
+        kwargs = create.await_args.kwargs
+        assert kwargs["system"][0]["cache_control"] == {"type": "ephemeral", "ttl": "1h"}
+
+    def test_plain_string_prompt_keeps_legacy_user_only_payload(self):
+        obj, create = self._anthropic_instance()
+
+        result = asyncio.run(obj._generate_with_anthropic("plain prompt"))
+
+        assert result == ("draft", 120, 30, 0, 0)
+        kwargs = create.await_args.kwargs
+        assert "system" not in kwargs
+        assert kwargs["messages"] == [{"role": "user", "content": "plain prompt"}]
+
+
 class TestLangfuseTraceHook:
     def test_generate_once_emits_workspace_trace_when_enabled(self, monkeypatch):
         obj = _make_provider_instance()
@@ -156,7 +218,7 @@ class TestLangfuseTraceHook:
 
         async def fake_gemini(prompt: str):
             assert prompt == "draft prompt"
-            return "draft", 11, 7
+            return "draft", 11, 7, 0, 0
 
         obj._generate_with_gemini = fake_gemini
         calls: list[dict] = []
@@ -170,7 +232,7 @@ class TestLangfuseTraceHook:
 
         result = asyncio.run(obj._generate_once("gemini", "draft prompt"))
 
-        assert result == ("draft", 11, 7)
+        assert result == ("draft", 11, 7, 0, 0)
         assert calls
         assert calls[0]["provider"] == "gemini"
         assert calls[0]["model"] == "gemini-test"
@@ -184,11 +246,11 @@ class TestLangfuseTraceHook:
 
         async def fake_openai(prompt: str):
             assert prompt == "draft prompt"
-            return "draft", 3, 4
+            return "draft", 3, 4, 0, 0
 
         obj._generate_with_openai = fake_openai
         monkeypatch.setenv("LANGFUSE_ENABLED", "0")
 
         result = asyncio.run(obj._generate_once("openai", "draft prompt"))
 
-        assert result == ("draft", 3, 4)
+        assert result == ("draft", 3, 4, 0, 0)

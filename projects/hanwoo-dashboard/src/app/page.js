@@ -10,13 +10,12 @@ import {
   getRealTimeMarketPrice,
   getNotifications,
 } from '@/lib/actions';
-import { getCattleListPage, getSalesListPage } from '@/lib/dashboard/list-queries';
-import { buildDashboardSummaryPayload } from '@/lib/dashboard/summary-service';
+import {
+  getCachedDashboardSummary,
+  getCachedCattleList,
+  getCachedSalesList,
+} from '@/lib/dashboard/cached-queries';
 import { requireAuthenticatedSession } from '@/lib/auth-guard';
-import prisma from '@/lib/db';
-
-// Force dynamic because we are fetching data from DB that changes
-export const dynamic = 'force-dynamic';
 
 export default async function Page() {
   await requireAuthenticatedSession({ redirectToLogin: true });
@@ -35,9 +34,9 @@ export default async function Page() {
     expenses,
     marketPrice,
   ] = await Promise.all([
-    getCattleListPage({ limit: 50 }),
-    getSalesListPage({ limit: 50 }),
-    buildDashboardSummaryPayload({ client: prisma }),
+    getCachedCattleList({ limit: 50 }),
+    getCachedSalesList({ limit: 50 }),
+    getCachedDashboardSummary(),
     getNotifications(),
     getFeedStandards(),
     getInventory(),
@@ -66,3 +65,4 @@ export default async function Page() {
     />
   );
 }
+

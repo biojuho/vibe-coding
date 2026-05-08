@@ -68,12 +68,14 @@ def test_generator_falls_back_to_next_provider(monkeypatch):
             ),
             10,
             20,
+            0,
+            0,
         )
 
     async def _openai(prompt):
         del prompt
         called["openai"] += 1
-        return _valid_twitter_payload("openai fallback"), 1, 1
+        return _valid_twitter_payload("openai fallback"), 1, 1, 0, 0
 
     monkeypatch.setattr(generator, "_generate_with_anthropic", _fail)
     monkeypatch.setattr(generator, "_generate_with_gemini", _gemini)
@@ -129,11 +131,13 @@ def test_generator_rejects_missing_tags_and_uses_next_provider(monkeypatch):
     async def _fake_generate_once(provider, prompt):
         del prompt
         if provider == "gemini":
-            return "<twitter>reply tag missing</twitter>", 8, 4
+            return "<twitter>reply tag missing</twitter>", 8, 4, 0, 0
         return (
             _valid_twitter_payload("연봉 300 찍고도 승진은 막혔더라. 버티기 vs 이직 준비, 어디에 더 마음이 가세요?"),
             6,
             3,
+            0,
+            0,
         )
 
     monkeypatch.setattr(generator, "_generate_once", _fake_generate_once)
@@ -161,6 +165,8 @@ def test_generator_allows_missing_creator_take(monkeypatch):
             "<reply>원문: (링크)</reply>",
             8,
             4,
+            0,
+            0,
         )
 
     monkeypatch.setattr(generator, "_generate_once", _fake_generate_once)
@@ -191,6 +197,8 @@ def test_generator_accepts_json_payload_without_tags(monkeypatch):
             '"creator_take": "숫자 비교의 기준점을 먼저 잡아주는 글입니다."}',
             8,
             4,
+            0,
+            0,
         )
 
     monkeypatch.setattr(generator, "_generate_once", _fake_generate_once)
@@ -219,6 +227,8 @@ def test_generator_allows_partial_output_when_requested(monkeypatch):
             "<twitter>연봉 협상에서 숫자 기준점부터 맞추는 게 핵심입니다.</twitter><reply>원문: (링크)</reply>",
             8,
             4,
+            0,
+            0,
         )
 
     monkeypatch.setattr(generator, "_generate_once", _fake_generate_once)
@@ -243,7 +253,7 @@ def test_call_llm_with_fallback_returns_requested_platform_text(monkeypatch):
 
     async def _fake_generate_once(provider, prompt):
         del provider, prompt
-        return ("리트라이 이후에는 한 문단의 초안만 반환합니다.", 3, 2)
+        return ("리트라이 이후에는 한 문단의 초안만 반환합니다.", 3, 2, 0, 0)
 
     monkeypatch.setattr(generator, "_generate_once", _fake_generate_once)
 
@@ -282,3 +292,32 @@ def test_prompt_includes_editorial_brief():
     assert "씁쓸하지만 공감" in prompt
     assert "이직 전후 체감, 댓글 반응" in prompt
     assert "generic CTA" in prompt
+    assert "아래 게시글을 기반으로 발행 가능한 초안을 작성하세요." in prompt.anthropic_system_prompt
+    assert "[게시글 정보]" in prompt.anthropic_user_prompt
+    assert "연봉 280 찍고 회의가 조용해진 줄 알았는데" in prompt.anthropic_user_prompt
+    assert "연봉 280 찍고 회의가 조용해진 줄 알았는데" not in prompt.anthropic_system_prompt
+
+
+def test_reviewer_memory_moves_to_anthropic_system_prompt():
+    generator = TweetDraftGenerator(_build_config())
+    prompt = generator._build_prompt(
+        {
+            "title": "회의가 갑자기 조용해진 이유",
+            "content": "연봉 이야기가 나오자 모두가 말이 없어졌다.",
+            "source": "blind",
+            "content_profile": {"topic_cluster": "연봉"},
+        },
+        top_examples=[
+            {
+                "example_source": "reviewer_memory",
+                "memory_label": "최근 패스 사유",
+                "text": "원문에 없는 숫자를 만들지 말 것",
+                "reason": "팩트 오류로 보류됨",
+            }
+        ],
+        output_formats=["twitter"],
+    )
+
+    assert "원문에 없는 숫자를 만들지 말 것" in prompt
+    assert "원문에 없는 숫자를 만들지 말 것" in prompt.anthropic_system_prompt
+    assert "원문에 없는 숫자를 만들지 말 것" not in prompt.anthropic_user_prompt

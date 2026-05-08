@@ -18,11 +18,11 @@
 
 | ID | Task | Completed By | Completed |
 |---|---|---|---|
+| T-259 | `[shorts-maker-v2 & hanwoo-dashboard]` 콘텐츠 인텔리전스(C-1), Safe Zone QC(B-3), 파이프라인 메트릭(C-2), Next.js 16 `use cache`(A-3) 구현 완료. 1,359개 테스트 통과. | Gemini (Antigravity) | 2026-05-08 |
+| T-258 | `[workspace]` Phase C AI context infra: `execution/handoff_rotator.py` (HANDOFF.md 7-day rotation, idempotent, --check/--json/--keep-days), `execution/code_review_gate.py` (deterministic risk gate wrapping code_review_graph with auto impact_radius on warn/fail, optional architecture_overview, --strict). 24 unit tests added (12 + 12). CLAUDE/AGENTS/GEMINI.md updated with rotation policy and gate workflow. First rotation applied: HANDOFF.md 279→216 줄, 9 stale addenda archived. | Claude Code (Opus 4.7 1M) | 2026-05-08 |
 | T-255 | `[workspace/llm_client]` Anthropic prompt caching landed in `4303474`: `cache_strategy` (off / 5m / 1h), anthropic-only `cache_control`, cache token capture, and cost weighting for 5m writes (`1.25x`), 1h writes (`2.0x`), and cache reads (`0.10x`). Verification: relevant LLM/cache suite `181 passed`, Ruff/py_compile clean. | Codex | 2026-05-08 |
 | T-253 | `[infra/llm]` Langfuse opt-in observability landed in `57c38bd`: localhost-bound v3 self-host stack, `_emit_langfuse_trace` no-op-by-default hook, JSONL metrics helper, and blind-to-x async provider attempt tracing. Verification: workspace Langfuse suite `104 passed`, blind-to-x draft provider suite `24 passed`, compose config validated. | Codex | 2026-05-08 |
 | T-254 | `[workspace/eval]` Promptfoo regression eval landed in `6634d82`: Notion golden/rejected YAML extractor, promptfoo runner with baseline comparison and Telegram alert option, prompt/test assets, and generated dataset ignores. Verification: extractor tests `6 passed`, Ruff/py_compile/YAML parse clean, dry-run smoke returns expected dataset warnings. | Codex | 2026-05-08 |
-| T-256 | `[workspace/skills]` Installed 3 agent skills via `npx skills add`: `bash-defensive-patterns`, `accessibility`, `seo`. All linked to Claude Code; `skills-lock.json` updated. | Claude Code (Opus 4.7 1M) | 2026-05-08 |
-| T-246 | `[workspace]` Finished remaining approved WIP by project: JobPlanet `_new_page_cm()` page lifecycle, Shorts Maker V2 karaoke timing/channel branding, Hanwoo Prisma 7 stability script and manifest icons, plus tracked `find-skills` registry entry. | Codex | 2026-05-08 |
 
 - Keep only the latest 5 items in `DONE`.
 - Add newly discovered follow-up work to `TODO`.

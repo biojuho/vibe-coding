@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server';
 import { requireAuthenticatedSession, isAuthenticationError } from '@/lib/auth-guard';
 import { PREMIUM_SUBSCRIPTION, buildCustomerKey, buildOrderId } from '@/lib/subscription';
 
-export const dynamic = 'force-dynamic';
 
 export async function POST(req) {
   try {

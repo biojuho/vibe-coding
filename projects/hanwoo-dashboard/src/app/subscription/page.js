@@ -5,7 +5,6 @@ import { PREMIUM_SUBSCRIPTION, buildCustomerKey } from '@/lib/subscription';
 const clientKey =
   process.env.NEXT_PUBLIC_TOSS_PAYMENTS_CLIENT_KEY || 'test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq';
 
-export const dynamic = 'force-dynamic';
 
 export default async function SubscriptionPage() {
   const session = await requireAuthenticatedSession({ redirectToLogin: true });

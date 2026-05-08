@@ -147,8 +147,9 @@ class TestExpressDraftPipeline:
         mock_generator.providers = None
         mock_generator.cost_tracker = cost_tracker
         mock_generator._enabled_providers.return_value = ["gemini"]
+        mock_generator._cache_creation_multiplier_for.return_value = 1.25
         mock_generator._generate_once = AsyncMock(
-            return_value=('{"x": "급상승 초안", "threads": "스레드 초안"}', 11, 7)
+            return_value=('{"x": "급상승 초안", "threads": "스레드 초안"}', 11, 7, 0, 0)
         )
 
         pipeline = self._make_pipeline(draft_generator=mock_generator)
@@ -166,6 +167,9 @@ class TestExpressDraftPipeline:
             "gemini",
             input_tokens=11,
             output_tokens=7,
+            cache_creation_tokens=0,
+            cache_read_tokens=0,
+            cache_creation_multiplier=1.25,
         )
 
     @pytest.mark.asyncio

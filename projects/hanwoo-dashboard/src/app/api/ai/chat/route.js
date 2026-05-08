@@ -1,7 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import prisma from '@/lib/db';
 
-export const dynamic = 'force-dynamic';
 
 // ------------------------------------------------------------------
 // Gemini AI Chat Endpoint — Streaming SSE

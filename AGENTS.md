@@ -107,6 +107,13 @@
 - 7일 초과분은 `.ai/archive/SESSION_LOG_before_YYYY-MM-DD.md`로 이동
 - 로테이션은 세션 종료 시 자동 수행 (파일이 1000줄 초과 시)
 
+### HANDOFF 로테이션 규칙
+
+- HANDOFF.md의 "Current Addendum" 스택은 **최근 7일**만 유지 (이전엔 무한 누적되어 280줄까지 비대화)
+- 7일 초과분은 `.ai/archive/HANDOFF_archive_<rotation_date>.md`로 자동 이동
+- 도구: `python execution/handoff_rotator.py` (dry-run: `--check`, JSON: `--json`, 보존 기간 조정: `--keep-days N`)
+- 세션 종료 시 HANDOFF.md가 200줄 넘으면 실행 권장. 멱등이므로 부담 없이 반복 가능
+
 ## 바이브 코딩 어시스턴트 (Custom Instructions)
 
 프로젝트 규모의 코딩 요청을 받을 때는 `.agents/rules/vibe-coding-assistant.md`의 규칙을 반드시 따르십시오.
@@ -187,3 +194,21 @@ Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
 2. Use `detect_changes` for code review.
 3. Use `get_affected_flows` to understand impact.
 4. Use `query_graph` pattern="tests_for" to check coverage.
+
+### 결정론적 게이트 (Deterministic Gate)
+
+`detect_changes` MCP 호출이 ad-hoc 라면, 같은 분석을 결정론적으로 강제하는 게이트가 있다:
+
+```bash
+# 멱등 risk 평가 (HEAD~1 대비) — pre-commit/CI 양쪽에서 사용 가능
+py -3.13 execution/code_review_gate.py --base HEAD~1
+# JSON 모드 (자동화용)
+py -3.13 execution/code_review_gate.py --base HEAD~1 --json
+# warn까지 차단하려면 --strict
+py -3.13 execution/code_review_gate.py --base HEAD~1 --strict
+```
+
+- exit 0 = pass, 1 = warn(+`--strict`), 2 = fail, 3 = error
+- 기본 임계값: warn 0.30, fail 0.70 (조정: `--warn-threshold`, `--fail-threshold`)
+- warn/fail 시 `get_impact_radius`를 자동 호출해 변경 반경을 함께 보고
+- `--include-architecture`로 monthly drift check용 architecture overview 포함 가능

@@ -40,6 +40,11 @@ from shorts_maker_v2.utils.pipeline_status import (
     PipelineStatusTracker,
     StepStatus,
 )
+from shorts_maker_v2.utils.retention_hints import (
+    RetentionReport,
+    SceneInfo,
+    analyze_retention,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -494,6 +499,29 @@ class PipelineOrchestrator:
                 cost_guard.add_llm_cost()
                 status.complete("script", detail=f"{manifest.scene_count} scenes, {manifest.title[:30]}")
 
+                # ── Hook Strength Scoring (optional, non-blocking) ──
+                try:
+                    from shorts_maker_v2.pipeline.hook_scorer import score_hook
+
+                    hook_scenes = [sp for sp in scene_plans if sp.structure_role == "hook"]
+                    if hook_scenes:
+                        hook_score = score_hook(hook_scenes[0].narration_ko)
+                        manifest.hook_score = hook_score.to_dict()
+                        jlog.info(
+                            "hook_score_done",
+                            hook_strength=hook_score.hook_strength,
+                            passed=hook_score.passed,
+                        )
+                        if not hook_score.passed:
+                            jlog.warning(
+                                "hook_score_weak",
+                                strength=hook_score.hook_strength,
+                                feedback=hook_score.feedback,
+                            )
+                except Exception as exc:
+                    jlog.warning("hook_score_error", error=str(exc)[:100])
+                    logger.debug("Hook scoring failed: %s", exc)
+
                 # 체크포인트 저장
                 cp_data = {
                     "title": title,
@@ -511,6 +539,25 @@ class PipelineOrchestrator:
                     hook_pattern=hook_pattern,
                     perf_sec=step_timings["script"],
                 )
+
+            # ── Content Intelligence: 감성 분석 (optional, non-blocking) ──
+            try:
+                from shorts_maker_v2.utils.content_intelligence import (
+                    analyze_sentiment,
+                )
+
+                narrations = [sp.narration_ko for sp in scene_plans]
+                sentiment_result = analyze_sentiment(narrations)
+                manifest.sentiment = sentiment_result.to_dict()
+                jlog.info(
+                    "sentiment_analysis_done",
+                    primary_emotion=sentiment_result.primary_emotion,
+                    intensity=sentiment_result.intensity,
+                    tag_count=len(sentiment_result.tags),
+                )
+            except Exception as exc:
+                jlog.warning("sentiment_analysis_error", error=str(exc)[:100])
+                logger.debug("Sentiment analysis failed: %s", exc)
 
             status.start("media", detail="Generating media assets")
             _t0 = time.perf_counter()
@@ -595,6 +642,47 @@ class PipelineOrchestrator:
                     issues=gate3_report.issues,
                 )
                 status.fail("gate3_media_qc", detail="; ".join(gate3_report.issues[:2]))
+
+            # ── Retention Hints (optional, non-blocking) ──
+            try:
+                scene_infos = [
+                    SceneInfo(
+                        scene_id=sp.scene_id,
+                        duration_sec=sa.duration_sec,
+                        structure_role=sp.structure_role,
+                        narration_length=len(sp.narration_ko),
+                    )
+                    for sp, sa in zip(scene_plans, scene_assets, strict=False)
+                ]
+                retention_report: RetentionReport = analyze_retention(scene_infos)
+                manifest.retention_hints = retention_report.to_dict()
+                jlog.info(
+                    "retention_hints_done",
+                    retention_score=retention_report.estimated_retention_score,
+                    loop_potential=retention_report.loop_potential,
+                    hint_count=len(retention_report.hints),
+                )
+            except Exception as exc:
+                jlog.warning("retention_hints_error", error=str(exc)[:100])
+                logger.debug("Retention hints failed: %s", exc)
+
+            # ── Safe Zone QC (optional, non-blocking) ──
+            try:
+                sz_report = QCStep.gate_safe_zone(
+                    scene_plans=scene_plans,
+                    scene_assets=scene_assets,
+                )
+                if sz_report.verdict == GateVerdict.PASS.value:
+                    jlog.info("safe_zone_pass", checks=sz_report.checks)
+                else:
+                    jlog.warning(
+                        "safe_zone_issues",
+                        verdict=sz_report.verdict,
+                        issues=sz_report.issues,
+                    )
+            except Exception as exc:
+                jlog.warning("safe_zone_error", error=str(exc)[:100])
+                logger.debug("Safe zone QC failed: %s", exc)
 
             # ── 영상 길이 점검: 총 오디오가 MAX_SHORTS_SEC 초과 시 경고만 출력 ──
             # (씬 삭제 대신 경고 로그만 남겨 영상이 완전한 형태로 렌더링되도록 함)

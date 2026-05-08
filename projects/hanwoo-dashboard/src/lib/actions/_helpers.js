@@ -1,4 +1,5 @@
 import prisma from '../db';
+import { revalidateTag } from 'next/cache';
 import { createOutboxEvent, DASHBOARD_EVENT_TOPICS } from '../dashboard/events';
 import { invalidateDashboardCaches } from '../dashboard/read-models';
 
@@ -28,6 +29,8 @@ export async function recordCattleHistory(cattleId, eventType, eventDate, descri
 
 /**
  * Invalidate dashboard read-model caches for the default farm.
+ * Also invalidates Next.js framework-level "use cache" entries
+ * via revalidateTag() so both cache layers stay consistent.
  */
 export async function invalidateHomeCaches(options = {}) {
   try {
@@ -38,6 +41,22 @@ export async function invalidateHomeCaches(options = {}) {
   } catch (error) {
     console.error('Failed to invalidate dashboard caches:', error);
   }
+
+  // Invalidate Next.js "use cache" tags based on mutation scope
+  try {
+    revalidateTag('dashboard-summary');
+
+    if (options.cattleListPages) {
+      revalidateTag('cattle-list');
+    }
+
+    if (options.salesListPages) {
+      revalidateTag('sales-list');
+    }
+  } catch (error) {
+    console.error('Failed to revalidate cache tags:', error);
+  }
 }
 
 export { prisma, createOutboxEvent, DASHBOARD_EVENT_TOPICS };
+

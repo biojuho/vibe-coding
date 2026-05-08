@@ -11,6 +11,7 @@ from pipeline.cost_tracker import CostTracker
 
 logger = logging.getLogger(__name__)
 
+
 def resolve_input_sources(config_mgr, args):
     configured_sources = config_mgr.get("input_sources", ["blind"])
     primary_source = config_mgr.get("content_strategy.primary_source", "blind")

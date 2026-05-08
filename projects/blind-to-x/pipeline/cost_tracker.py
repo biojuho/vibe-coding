@@ -132,10 +132,28 @@ class CostTracker:
             "output_per_1m": float(configured.get("output_per_1m", defaults["output_per_1m"])),
         }
 
-    def add_text_generation_cost(self, provider: str, input_tokens: int = 0, output_tokens: int = 0):
+    def add_text_generation_cost(
+        self,
+        provider: str,
+        input_tokens: int = 0,
+        output_tokens: int = 0,
+        *,
+        cache_creation_tokens: int = 0,
+        cache_read_tokens: int = 0,
+        cache_creation_multiplier: float = 1.25,
+    ):
+        """Record a text-generation call cost.
+
+        Anthropic prompt caching: cache writes use ``cache_creation_multiplier`` of the
+        normal input price (1.25× for 5m TTL, 2.0× for 1h), and cache reads use 0.10×
+        (90% discount). When both cache args are 0 the math reduces to the legacy path.
+        """
         pricing = self._pricing_for(provider)
-        cost = (input_tokens / 1_000_000) * pricing["input_per_1m"]
+        input_per_token = pricing["input_per_1m"] / 1_000_000
+        cost = input_tokens * input_per_token
         cost += (output_tokens / 1_000_000) * pricing["output_per_1m"]
+        cost += cache_creation_tokens * input_per_token * cache_creation_multiplier
+        cost += cache_read_tokens * input_per_token * 0.10
         self.current_cost += cost
         self.provider_calls.setdefault(provider, 0)
         self.provider_calls[provider] += 1
@@ -143,9 +161,11 @@ class CostTracker:
         self.provider_tokens[provider]["input"] += int(input_tokens or 0)
         self.provider_tokens[provider]["output"] += int(output_tokens or 0)
         logger.debug(
-            "Added %s text generation cost: $%.5f. Total cost so far: $%.5f",
+            "Added %s text generation cost: $%.5f (cache_w=%d cache_r=%d). Total cost so far: $%.5f",
             provider,
             cost,
+            cache_creation_tokens,
+            cache_read_tokens,
             self.current_cost,
         )
         # SQLite 영속화
@@ -155,6 +175,8 @@ class CostTracker:
                 tokens_input=int(input_tokens or 0),
                 tokens_output=int(output_tokens or 0),
                 usd=cost,
+                cache_creation_tokens=int(cache_creation_tokens or 0),
+                cache_read_tokens=int(cache_read_tokens or 0),
             )
 
     def add_claude_cost(self, input_tokens: int, output_tokens: int):

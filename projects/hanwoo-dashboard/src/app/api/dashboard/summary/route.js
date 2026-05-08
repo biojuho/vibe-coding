@@ -6,7 +6,6 @@ import { getDashboardSummarySnapshot, saveDashboardSummarySnapshot } from '@/lib
 import { buildDashboardSummaryPayload } from '@/lib/dashboard/summary-service';
 import prisma from '@/lib/db';
 
-export const dynamic = 'force-dynamic';
 
 function buildMeta(snapshot, source) {
   const generatedAt = new Date(snapshot.generatedAt);

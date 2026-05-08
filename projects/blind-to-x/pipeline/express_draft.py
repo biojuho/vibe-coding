@@ -245,16 +245,26 @@ class ExpressDraftPipeline:
                     combined_prompt = f"{_SURGE_SYSTEM_PROMPT}\n\n{user_prompt}"
                     for provider_name in enabled_providers():
                         try:
-                            response_text, input_tokens, output_tokens = await generate_once(
-                                provider_name,
-                                combined_prompt,
-                            )
+                            (
+                                response_text,
+                                input_tokens,
+                                output_tokens,
+                                cache_creation_tokens,
+                                cache_read_tokens,
+                            ) = await generate_once(provider_name, combined_prompt)
                             cost_tracker = getattr(self._draft_generator, "cost_tracker", None)
                             if cost_tracker is not None:
+                                multiplier_for = getattr(self._draft_generator, "_cache_creation_multiplier_for", None)
+                                cache_creation_multiplier = (
+                                    multiplier_for(provider_name, combined_prompt) if callable(multiplier_for) else 1.25
+                                )
                                 cost_tracker.add_text_generation_cost(
                                     provider_name,
                                     input_tokens=input_tokens,
                                     output_tokens=output_tokens,
+                                    cache_creation_tokens=cache_creation_tokens,
+                                    cache_read_tokens=cache_read_tokens,
+                                    cache_creation_multiplier=cache_creation_multiplier,
                                 )
                             return {
                                 "response": str(response_text),
