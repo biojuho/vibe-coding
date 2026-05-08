@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from types import SimpleNamespace
+import asyncio
+import sys
+from types import ModuleType, SimpleNamespace
 
 
 from pipeline.draft_providers import (
@@ -145,3 +147,48 @@ class TestEnabledProviders:
         result = obj._enabled_providers()
         assert result[0] == "xai"
         assert result[1] == "anthropic"
+
+
+class TestLangfuseTraceHook:
+    def test_generate_once_emits_workspace_trace_when_enabled(self, monkeypatch):
+        obj = _make_provider_instance()
+        obj.gemini_model = "gemini-test"
+
+        async def fake_gemini(prompt: str):
+            assert prompt == "draft prompt"
+            return "draft", 11, 7
+
+        obj._generate_with_gemini = fake_gemini
+        calls: list[dict] = []
+        fake_execution = ModuleType("execution")
+        fake_llm_client = ModuleType("execution.llm_client")
+        fake_llm_client._emit_langfuse_trace = lambda **kwargs: calls.append(kwargs)
+
+        monkeypatch.setenv("LANGFUSE_ENABLED", "1")
+        monkeypatch.setitem(sys.modules, "execution", fake_execution)
+        monkeypatch.setitem(sys.modules, "execution.llm_client", fake_llm_client)
+
+        result = asyncio.run(obj._generate_once("gemini", "draft prompt"))
+
+        assert result == ("draft", 11, 7)
+        assert calls
+        assert calls[0]["provider"] == "gemini"
+        assert calls[0]["model"] == "gemini-test"
+        assert calls[0]["endpoint"] == "blind-to-x.draft_provider"
+        assert calls[0]["input_tokens"] == 11
+        assert calls[0]["output_tokens"] == 7
+        assert calls[0]["metadata"]["success"] is True
+
+    def test_generate_once_disabled_trace_does_not_require_workspace_import(self, monkeypatch):
+        obj = _make_provider_instance()
+
+        async def fake_openai(prompt: str):
+            assert prompt == "draft prompt"
+            return "draft", 3, 4
+
+        obj._generate_with_openai = fake_openai
+        monkeypatch.setenv("LANGFUSE_ENABLED", "0")
+
+        result = asyncio.run(obj._generate_once("openai", "draft prompt"))
+
+        assert result == ("draft", 3, 4)

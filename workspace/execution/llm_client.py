@@ -164,6 +164,59 @@ PRICING: dict[str, dict[str, float]] = {
 _CACHE_DB_PATH = Path(__file__).resolve().parent.parent / ".tmp" / "llm_cache.db"
 
 
+def _emit_langfuse_trace(
+    *,
+    provider: str,
+    model: str,
+    endpoint: str,
+    input_tokens: int,
+    output_tokens: int,
+    cache_creation_tokens: int = 0,
+    cache_read_tokens: int = 0,
+    cost_usd: float = 0.0,
+    caller_script: str = "",
+    metadata: dict[str, Any] | None = None,
+) -> None:
+    """Send one trace+observation to a self-hosted Langfuse if opt-in.
+
+    Activated only when `LANGFUSE_ENABLED=1` and both `LANGFUSE_PUBLIC_KEY` /
+    `LANGFUSE_SECRET_KEY` are set. Any failure (SDK missing, network, etc.)
+    is silently dropped — LLM calls must never be blocked by observability.
+    See `directives/llm_observability_langfuse.md` for the operational SOP.
+    """
+    if os.getenv("LANGFUSE_ENABLED", "0").strip() != "1":
+        return
+    if not os.getenv("LANGFUSE_PUBLIC_KEY") or not os.getenv("LANGFUSE_SECRET_KEY"):
+        return
+    try:
+        from langfuse import get_client  # type: ignore[import-not-found]
+
+        os.environ.setdefault("LANGFUSE_HOST", "http://127.0.0.1:3030")
+        client = get_client()
+        observation = client.start_observation(
+            name=endpoint,
+            as_type="generation",
+            model=model,
+            usage_details={
+                "input": input_tokens,
+                "output": output_tokens,
+                "total": input_tokens + output_tokens,
+                "input_cache_creation": cache_creation_tokens,
+                "input_cache_read": cache_read_tokens,
+            },
+            metadata={
+                "provider": provider,
+                "cost_usd": cost_usd,
+                "caller_script": caller_script,
+                **(metadata or {}),
+            },
+        )
+        observation.end()
+    except Exception:
+        # Any failure (SDK not installed, network, wrong keys) — silent.
+        return
+
+
 def _cache_key(providers: list[str], system_prompt: str, user_prompt: str, temperature: float) -> str:
     raw = json.dumps([providers, system_prompt, user_prompt, round(temperature, 4)], ensure_ascii=False)
     return hashlib.sha256(raw.encode()).hexdigest()
@@ -464,6 +517,37 @@ class LLMClient:
             )
         except Exception:
             pass  # 추적 실패는 무시
+
+        # JSONL 메트릭 수집 (llm_metrics 레이어)
+        try:
+            from execution.llm_metrics import record_llm_call
+
+            record_llm_call(
+                step=endpoint,
+                provider=provider,
+                model=model,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                cost_usd=cost,
+                metadata=metadata,
+            )
+        except Exception:
+            pass  # 메트릭 기록 실패는 무시
+
+        # Langfuse 셀프호스트 trace 송신 (T-253, opt-in via LANGFUSE_ENABLED=1).
+        # 비활성/SDK 미설치/네트워크 실패 시 silent drop, LLM 호출 자체는 영향 없음.
+        _emit_langfuse_trace(
+            provider=provider,
+            model=model,
+            endpoint=endpoint,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            cache_creation_tokens=cache_creation_tokens,
+            cache_read_tokens=cache_read_tokens,
+            cost_usd=cost,
+            caller_script=self.caller_script,
+            metadata=metadata,
+        )
 
     @staticmethod
     def _is_non_retryable(error: Exception) -> bool:

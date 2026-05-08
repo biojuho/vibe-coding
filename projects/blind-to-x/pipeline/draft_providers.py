@@ -6,6 +6,9 @@ import asyncio
 import json
 import logging
 import os
+import sys
+import time
+from pathlib import Path
 from typing import Any
 
 import aiohttp
@@ -26,6 +29,43 @@ PROVIDER_ALIASES: dict[str, str] = {
 }
 
 DEFAULT_PROVIDER_ORDER: list[str] = ["anthropic", "gemini", "xai", "openai", "ollama"]
+
+
+def _emit_workspace_langfuse_trace(
+    *,
+    provider: str,
+    model: str,
+    input_tokens: int = 0,
+    output_tokens: int = 0,
+    latency_ms: float = 0.0,
+    success: bool = True,
+    error: str = "",
+) -> None:
+    """Forward blind-to-x draft provider attempts to the workspace Langfuse hook."""
+    if os.getenv("LANGFUSE_ENABLED", "0").strip() != "1":
+        return
+    try:
+        workspace_root = Path(__file__).resolve().parents[3] / "workspace"
+        if workspace_root.is_dir() and str(workspace_root) not in sys.path:
+            sys.path.insert(0, str(workspace_root))
+        from execution.llm_client import _emit_langfuse_trace
+
+        _emit_langfuse_trace(
+            provider=provider,
+            model=model,
+            endpoint="blind-to-x.draft_provider",
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            caller_script="projects/blind-to-x/pipeline/draft_providers.py",
+            metadata={
+                "project": "blind-to-x",
+                "latency_ms": round(latency_ms, 1),
+                "success": success,
+                "error": error[:200],
+            },
+        )
+    except Exception:
+        return
 
 
 class DraftProvidersMixin:
@@ -198,6 +238,17 @@ class DraftProvidersMixin:
     # Unified generation dispatcher
     # ------------------------------------------------------------------
 
+    def _model_for_provider(self, provider: str) -> str:
+        return str(
+            {
+                "anthropic": getattr(self, "anthropic_model", provider),
+                "openai": getattr(self, "openai_model", provider),
+                "gemini": getattr(self, "gemini_model", provider),
+                "xai": getattr(self, "xai_model", provider),
+                "ollama": getattr(self, "ollama_model", provider),
+            }.get(provider, provider)
+        )
+
     async def _generate_once(self, provider: str, prompt: str) -> tuple[str, int, int]:
         timeout = self._timeout_for(provider)
         coro = None
@@ -213,7 +264,28 @@ class DraftProvidersMixin:
             coro = self._generate_with_ollama(prompt)
         else:
             raise RuntimeError(f"Unsupported provider: {provider}")
-        return await asyncio.wait_for(coro, timeout=timeout)
+        start = time.monotonic()
+        try:
+            text, input_tokens, output_tokens = await asyncio.wait_for(coro, timeout=timeout)
+        except Exception as exc:
+            _emit_workspace_langfuse_trace(
+                provider=provider,
+                model=self._model_for_provider(provider),
+                latency_ms=(time.monotonic() - start) * 1000,
+                success=False,
+                error=str(exc),
+            )
+            raise
+
+        _emit_workspace_langfuse_trace(
+            provider=provider,
+            model=self._model_for_provider(provider),
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            latency_ms=(time.monotonic() - start) * 1000,
+            success=True,
+        )
+        return text, input_tokens, output_tokens
 
 
 def init_provider_clients(instance: Any) -> None:
