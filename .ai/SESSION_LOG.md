@@ -150,6 +150,23 @@
 - `T-257` remains the next LLM cost follow-up for the direct `AsyncAnthropic` blind-to-x async draft path.
 - Live Langfuse activation and real Notion eval extraction were not run because they require local services/secrets and live Notion data.
 
+## 2026-05-08 KST - Codex
+
+### Summary
+- Completed `T-257` after a concurrent broad workspace commit `74a585b` landed the implementation: `blind-to-x` now splits draft prompts into cacheable Anthropic system preamble and variable user suffix while preserving string compatibility for other providers.
+- The cached Anthropic preamble includes reviewer memory and stable system guidance; `_generate_with_anthropic` injects `cache_control` (`5m` default, `1h` opt-in), returns cache write/read tokens, and forwards them through Langfuse and cost tracking.
+- Added commit `ef78fb0` to align the remaining provider mocks in draft cache tests with the new 5-tuple token contract.
+
+### Verification
+- Focused T-257/regression set: `84 passed`
+- Full `blind-to-x` unit suite: `1541 passed, 1 skipped`
+- Post-format focused cache tests: `17 passed`
+- `python -m ruff check .`, `python -m ruff format --check .`, graph detect-changes risk `0.00`, and `git diff --check -- projects/blind-to-x` all passed.
+
+### Follow-up
+- `T-251` remains blocked until a real Supabase PostgreSQL `DATABASE_URL` is configured.
+- Live Anthropic cache-hit validation was not run; it requires real API calls and should check for `cache_read_input_tokens > 0` on the second same-preamble call inside the cache TTL.
+
 ## 2026-05-08 KST - Gemini (Antigravity)
 
 ### Summary

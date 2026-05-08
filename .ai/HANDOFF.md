@@ -7,6 +7,13 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-08 |
+| Tool | Codex |
+| Work | **T-257 completed — blind-to-x direct AsyncAnthropic prompt caching path**. During this session a concurrent commit `74a585b` landed broad workspace work and included the T-257 implementation: `DraftPrompt` now keeps string compatibility while exposing Anthropic system/user split metadata; reviewer memory and stable system preamble move into the cacheable Anthropic `system` block; `_generate_with_anthropic` injects `cache_control` for `5m` default / `1h` opt-in; provider calls now return cache write/read tokens; Langfuse trace forwarding and `CostTracker`/`CostDatabase` record cache token usage. Codex preserved that commit and added `ef78fb0` to align remaining draft-cache provider mocks with the new 5-tuple token contract. Verification: focused T-257/regression set `84 passed`; full `blind-to-x` unit suite `1541 passed, 1 skipped`; follow-up formatted-test check `17 passed`; `python -m ruff check .` and `python -m ruff format --check .` clean; graph detect-changes risk `0.00`; `git diff --check -- projects/blind-to-x` clean. |
+| Next Priorities | T-251 remains blocked until a real Supabase PostgreSQL `DATABASE_URL` is configured. For T-257 live validation, run two Anthropic draft generations with the same reviewer-memory/system preamble inside the 5-minute TTL and confirm `cache_read_input_tokens > 0` in provider usage/trace data; no live Anthropic calls were made in this session. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-08 |
 | Tool | Gemini (Antigravity) |
 | Work | **T-259 완료 — 콘텐츠 품질 + 프론트엔드 캐싱 강화**: (1) `shorts-maker-v2`: **C-1** 감성 분석/토픽 클러스터링을 추가해 채널/감성에 맞는 BGM 다양성 확보(`pipeline.content_intelligence`). **B-3** 9:16 비율 내 자막 텍스트와 UI 오버랩 방지를 위한 Safe Zone QC 추가(`CaptionSafeZoneValidator`). **C-2** 렌더링/싱크/오디오 성능을 분석하는 `metrics_cli.py` 파이프라인 메트릭 리포트 툴 추가. (2) `hanwoo-dashboard`: **A-3** Next.js 16의 `use cache` 지시어 적용 (`src/lib/cache.js`, `FeedTab.js`, `AnalysisTab.js`) 및 캐시 무효화(`revalidateTag`, `revalidatePath`) 패턴 정립. 검증: `shorts-maker-v2` 1,308 passed, `hanwoo-dashboard` 51 passed (총 1,359 passed). |
 | Next Priorities | 다음 세션에서는 T-251(Supabase DB 연동을 통한 Prisma 7 Live CRUD E2E) 또는 T-257(blind-to-x AsyncAnthropic 경로 프롬프트 캐싱) 진행을 고려. |
