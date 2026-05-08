@@ -129,3 +129,22 @@
 - **관련 파일**: projects/hanwoo-dashboard/src/components/DashboardClient.js, projects/hanwoo-dashboard/src/components/widgets/FinancialChartWidget.js, projects/hanwoo-dashboard/src/components/widgets/MarketPriceWidget.js, projects/hanwoo-dashboard/src/components/widgets/ProfitabilityWidget.js, projects/hanwoo-dashboard/src/components/tabs/AnalysisTab.js 등
 - **상태**: npm test 51/51 통과.
 - **다음 단계**: T-215, T-199 대기 (사용자 필요)
+
+## 2026-05-08 KST - Codex
+
+### Summary
+- Completed and committed `T-255` as `4303474`: Anthropic prompt caching in `workspace/execution/llm_client.py`, including `cache_strategy`, anthropic-only `cache_control`, cache token capture, and API usage cost accounting for 5m writes (`1.25x`), 1h writes (`2.0x`), and cache reads (`0.10x`).
+- Completed and committed `T-253` as `57c38bd`: opt-in Langfuse v3 observability, JSONL metrics, blind-to-x async provider attempt tracing, self-host compose stack, README, env examples, and directive.
+- Completed and committed `T-254` as `6634d82`: Notion-to-golden/rejected eval extractor, promptfoo runner with baseline comparison and Telegram alert option, prompt assets, directive, and generated dataset ignores.
+
+### Verification
+- `python -m pytest --no-cov workspace/tests/test_llm_client.py workspace/tests/test_llm_client_anthropic_cache.py workspace/tests/test_api_usage_tracker.py workspace/tests/test_llm_bridge_integration.py workspace/tests/test_llm_fallback_chain.py workspace/tests/test_harness_middleware.py -q` -> `181 passed`
+- `python -m pytest --no-cov workspace/tests/test_llm_client_langfuse.py workspace/tests/test_llm_client.py workspace/tests/test_llm_client_anthropic_cache.py -q` -> `104 passed`
+- From `projects/blind-to-x`: `python -m pytest --no-cov tests/unit/test_draft_providers.py -q` -> `24 passed`
+- `python -m pytest --no-cov workspace/tests/test_eval_extract.py -q` -> `6 passed`
+- Ruff/format/py_compile clean on touched files; Langfuse compose config validated with dummy env; promptfoo dry-run returned expected missing-dataset warnings.
+
+### Follow-up
+- `T-251` is still blocked until a real Supabase PostgreSQL `DATABASE_URL` is configured.
+- `T-257` remains the next LLM cost follow-up for the direct `AsyncAnthropic` blind-to-x async draft path.
+- Live Langfuse activation and real Notion eval extraction were not run because they require local services/secrets and live Notion data.
