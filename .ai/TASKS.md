@@ -6,7 +6,7 @@
 
 | ID | Task | Owner | Priority | Auto | Created |
 | --- | --- | --- | --- | --- | --- |
-| T-251 | `[hanwoo-dashboard]` Run Prisma 7 live CRUD E2E once a real Supabase `DATABASE_URL` is configured. Rechecked on 2026-05-08 after user "ㄱㄱ": root `.env` has no `DATABASE_URL`, project `.env` still matches placeholder patterns; offline `db:prisma7-test` passed `14 passed, 1 skipped`, live `--live` failed clearly at config guard. | User/AI | Medium | 🔴 approval | 2026-05-08 |
+| T-251 | `[hanwoo-dashboard]` Run Prisma 7 live CRUD E2E once a real Supabase `DATABASE_URL` is configured. Root cause pinpointed 2026-05-11: `projects/hanwoo-dashboard/.env` has the Supabase template URL with `YOUR_PASSWORD` placeholder still unreplaced — host/user are real, only the password literal needs substitution from Supabase console. | User | Medium | 🔴 approval | 2026-05-08 |
 
 ## IN_PROGRESS
 
