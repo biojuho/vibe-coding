@@ -313,6 +313,7 @@ class FFmpegRenderer(VideoRendererBackend):
                     str(path),
                 ],
                 capture_output=True,
+                stdin=subprocess.DEVNULL,
                 text=True,
                 timeout=10,
             )
@@ -326,7 +327,14 @@ class FFmpegRenderer(VideoRendererBackend):
 
         cmd = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "warning"] + args
         logger.debug("[FFmpeg] %s", " ".join(cmd))
-        subprocess.run(cmd, check=True, timeout=timeout)
+        subprocess.run(
+            cmd,
+            capture_output=True,
+            check=True,
+            stdin=subprocess.DEVNULL,
+            text=True,
+            timeout=timeout,
+        )
 
     def load_video(self, path: str | Path, audio: bool = True) -> ClipHandle:
         dur = self._probe_duration(path)

@@ -156,7 +156,7 @@ async def test_scrape_post_insufficient_length(mock_fetch, mock_mkdir, scraper):
     title_el.inner_text.return_value = "짧은 글"
 
     content_el = AsyncMock()
-    content_el.inner_text.return_value = "ㅋㅋ"
+    content_el.inner_text.return_value = "ㅋㅋ"  # Less than 10 chars
 
     def side_effect(sel):
         if "h2" in sel or "h1" in sel:

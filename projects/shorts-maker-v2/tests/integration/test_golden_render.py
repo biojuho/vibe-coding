@@ -124,6 +124,7 @@ def _ffprobe(video_path: Path) -> dict[str, Any]:
         capture_output=True,
         encoding="utf-8",
         errors="replace",
+        stdin=subprocess.DEVNULL,
         timeout=30,
     )
     assert result.returncode == 0, f"ffprobe failed (rc={result.returncode}): {result.stderr}"

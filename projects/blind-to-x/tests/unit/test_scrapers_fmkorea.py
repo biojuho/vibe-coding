@@ -163,6 +163,7 @@ async def test_scrape_post_insufficient_length(mock_fetch, scraper):
 
     page_mock.query_selector.side_effect = page_query_selector
 
+    # Length is less than 10
     content_el = AsyncMock()
     content_el.inner_text.return_value = "짧은내용"
     main_container_mock.query_selector.side_effect = lambda sel: (

@@ -121,7 +121,6 @@ async def test_scraper_open_close(mock_pw, mock_config):
     context_mock = MagicMock()
     browser_mock.new_context = AsyncMock(return_value=context_mock)
 
-    # Needs patch for Stealth
     with patch("scrapers.base.Stealth") as MockStealth:
         stealth_instance = MagicMock()
         stealth_instance.apply_stealth_async = AsyncMock()

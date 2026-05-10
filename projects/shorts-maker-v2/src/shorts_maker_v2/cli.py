@@ -477,7 +477,17 @@ def _resolve_auto_topic(
         return ""
 
     try:
-        llm_router = LLMRouter(cfg)
+        default_provider = cfg.providers.llm
+        llm_providers = list(cfg.providers.llm_providers) if cfg.providers.llm_providers else [default_provider]
+        llm_models = dict(cfg.providers.llm_models) if cfg.providers.llm_models else {}
+        if cfg.providers.llm_model:
+            llm_models.setdefault(default_provider, cfg.providers.llm_model)
+        llm_router = LLMRouter(
+            providers=llm_providers,
+            models=llm_models,
+            max_retries=cfg.limits.max_retries,
+            request_timeout_sec=cfg.limits.request_timeout_sec,
+        )
     except Exception as exc:
         logger.warning("LLM Router 초기화 실패 (fallback 사용): %s", exc)
         llm_router = None

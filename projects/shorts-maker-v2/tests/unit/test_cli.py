@@ -322,6 +322,77 @@ def test_run_cli_run_requires_topic_or_resume(monkeypatch, capsys) -> None:
     assert "--topic is required unless --resume or --auto-topic is specified" in capsys.readouterr().out
 
 
+def test_resolve_auto_topic_uses_configured_llm_router(tmp_path: Path, monkeypatch) -> None:
+    config = SimpleNamespace(
+        providers=SimpleNamespace(
+            llm="google",
+            llm_model="gemini-test",
+            llm_providers=(),
+            llm_models=None,
+        ),
+        limits=SimpleNamespace(max_retries=4, request_timeout_sec=77),
+    )
+    captured: dict[str, object] = {}
+
+    fake_config = ModuleType("shorts_maker_v2.config")
+    fake_config.load_config = lambda path: config
+
+    fake_llm_router = ModuleType("shorts_maker_v2.providers.llm_router")
+
+    class FakeLLMRouter:
+        def __init__(self, *, providers, models, max_retries, request_timeout_sec):
+            captured["router_kwargs"] = {
+                "providers": providers,
+                "models": models,
+                "max_retries": max_retries,
+                "request_timeout_sec": request_timeout_sec,
+            }
+
+    fake_llm_router.LLMRouter = FakeLLMRouter
+
+    fake_discovery = ModuleType("shorts_maker_v2.pipeline.trend_discovery_step")
+
+    class FakeTrendDiscoveryStep:
+        def __init__(self, cfg, *, llm_router):
+            captured["discovery_router"] = llm_router
+
+        def run(self, channel_key: str, n: int):
+            captured["discovery_args"] = {"channel_key": channel_key, "n": n}
+            return [SimpleNamespace(title="Trend", topic="seed")]
+
+    fake_discovery.TrendDiscoveryStep = FakeTrendDiscoveryStep
+
+    fake_generator = ModuleType("shorts_maker_v2.pipeline.topic_angle_generator")
+
+    class FakeTopicAngleGenerator:
+        def __init__(self, cfg, *, llm_router):
+            captured["generator_router"] = llm_router
+
+        def run(self, candidates, channel_key: str, n: int):
+            captured["generator_args"] = {"candidate_count": len(candidates), "channel_key": channel_key, "n": n}
+            return [SimpleNamespace(topic="auto topic", title="Angle", viral_score=91.5)]
+
+    fake_generator.TopicAngleGenerator = FakeTopicAngleGenerator
+
+    monkeypatch.setitem(sys.modules, "shorts_maker_v2.config", fake_config)
+    monkeypatch.setitem(sys.modules, "shorts_maker_v2.providers.llm_router", fake_llm_router)
+    monkeypatch.setitem(sys.modules, "shorts_maker_v2.pipeline.trend_discovery_step", fake_discovery)
+    monkeypatch.setitem(sys.modules, "shorts_maker_v2.pipeline.topic_angle_generator", fake_generator)
+
+    topic = cli._resolve_auto_topic(tmp_path / "config.yaml", "ai_tech", n=3)
+
+    assert topic == "auto topic"
+    assert captured["router_kwargs"] == {
+        "providers": ["google"],
+        "models": {"google": "gemini-test"},
+        "max_retries": 4,
+        "request_timeout_sec": 77,
+    }
+    assert captured["discovery_args"] == {"channel_key": "ai_tech", "n": 6}
+    assert captured["generator_args"] == {"candidate_count": 1, "channel_key": "ai_tech", "n": 3}
+    assert captured["discovery_router"] is captured["generator_router"]
+
+
 def test_run_cli_run_success(tmp_path: Path, monkeypatch, capsys) -> None:
     config = _make_config(tmp_path)
     manifest = _make_manifest(status="success", output_path="out/video.mp4", estimated_cost_usd=0.42)
