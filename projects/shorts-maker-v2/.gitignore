@@ -4,6 +4,19 @@ logs/
 runs/
 .pytest_cache/
 __pycache__/
+.tmp/
+MagicMock/
+
+# Test reports and stray logs
+*.txt
+*.xml
+*.json
+
+# Exceptions to above wildcards (allow config files)
+!config.yaml
+!channel_profiles.yaml
+!package.json
+!tsconfig.json
 
 # MoviePy 임시 파일
 *TEMP_MPY_*.mp4
@@ -12,4 +25,3 @@ TEMP_*.mp4
 
 # 캐시
 .cache/
-MagicMock/

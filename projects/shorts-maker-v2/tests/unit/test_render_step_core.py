@@ -9,6 +9,7 @@ from conftest_render import _DummyAudioClip, _DummyClip, _make_fake_clip, _make_
 
 from shorts_maker_v2.models import SceneAsset, ScenePlan
 from shorts_maker_v2.pipeline.render_step import RenderStep
+from shorts_maker_v2.render.video_renderer import ClipHandle
 
 # ─── 전환 스타일 테스트 ────────────────────────────────────────────────────────
 
@@ -381,6 +382,64 @@ def test_render_single_scene_static_caption_tracks_resources(tmp_path: Path) -> 
     composite.assert_called_once()
     assert audio_to_close == [audio_clip]
     assert captions_to_close == [caption_clip]
+
+
+def test_concatenate_scene_clips_uses_moviepy_by_default() -> None:
+    step = _make_render_step()
+    clips = [_DummyClip("a", duration=1.0), _DummyClip("b", duration=2.0)]
+    joined = _DummyClip("joined", duration=3.0)
+
+    with patch("shorts_maker_v2.pipeline.render_step.concatenate_videoclips", return_value=joined) as concat:
+        result = step._concatenate_scene_clips(clips, fps=24)
+
+    assert result is joined
+    concat.assert_called_once_with(clips, method="compose")
+
+
+def test_concatenate_scene_clips_materializes_with_ffmpeg_backend() -> None:
+    step = _make_render_step(video_renderer_backend="ffmpeg")
+    clips = [
+        _DummyClip("a", duration=1.0, audio=object()),
+        _DummyClip("b", duration=2.0),
+    ]
+    segment_handles = [
+        ClipHandle(backend="ffmpeg", native="seg_a.mp4", duration=1.0, has_audio=True),
+        ClipHandle(backend="ffmpeg", native="seg_b.mp4", duration=2.0),
+    ]
+    joined_handle = ClipHandle(backend="ffmpeg", native="joined.mp4", duration=3.0)
+    reloaded = _DummyClip("joined", duration=3.0)
+
+    step._output_renderer.materialize_clip = MagicMock(side_effect=segment_handles)
+    step._output_renderer.concatenate = MagicMock(return_value=joined_handle)
+    step._load_video_clip = MagicMock(return_value=reloaded)
+
+    with patch("shorts_maker_v2.pipeline.render_step.concatenate_videoclips") as moviepy_concat:
+        result = step._concatenate_scene_clips(clips, fps=24)
+
+    assert result is reloaded
+    assert step._output_renderer.materialize_clip.call_count == 2
+    first_handle = step._output_renderer.materialize_clip.call_args_list[0].args[0]
+    assert first_handle.backend == "moviepy"
+    assert first_handle.native is clips[0]
+    assert first_handle.duration == 1.0
+    assert first_handle.has_audio is True
+    step._output_renderer.concatenate.assert_called_once_with(segment_handles)
+    step._load_video_clip.assert_called_once_with("joined.mp4")
+    moviepy_concat.assert_not_called()
+
+
+def test_concatenate_scene_clips_falls_back_when_ffmpeg_concat_fails() -> None:
+    step = _make_render_step(video_renderer_backend="ffmpeg")
+    clips = [_DummyClip("a", duration=1.0), _DummyClip("b", duration=2.0)]
+    joined = _DummyClip("joined", duration=3.0)
+
+    step._output_renderer.materialize_clip = MagicMock(side_effect=RuntimeError("ffmpeg failed"))
+
+    with patch("shorts_maker_v2.pipeline.render_step.concatenate_videoclips", return_value=joined) as concat:
+        result = step._concatenate_scene_clips(clips, fps=24)
+
+    assert result is joined
+    concat.assert_called_once_with(clips, method="compose")
 
 
 def test_build_base_clip_video_type_shorter() -> None:

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "shorts-maker-v2"
-version = "0.1.0"
+version = "1.0.0"
 description = "One-click YouTube Shorts generator CLI"
 readme = "docs/README.md"
 requires-python = ">=3.11"

@@ -514,6 +514,33 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
 
         return base, previous_effect
 
+    def _concatenate_scene_clips(self, clips: list, *, fps: int):
+        if self._renderer_backend != "ffmpeg" or not hasattr(self._output_renderer, "materialize_clip"):
+            return concatenate_videoclips(clips, method="compose")
+
+        try:
+            segment_handles = [
+                self._output_renderer.materialize_clip(
+                    ClipHandle(
+                        backend="moviepy",
+                        native=clip,
+                        duration=getattr(clip, "duration", 0.0) or 0.0,
+                        width=getattr(clip, "w", 0) or 0,
+                        height=getattr(clip, "h", 0) or 0,
+                        has_audio=getattr(clip, "audio", None) is not None,
+                    ),
+                    fps=fps,
+                    audio_codec="aac",
+                )
+                for clip in clips
+            ]
+            joined = self._output_renderer.concatenate(segment_handles)
+            logger.info("[RenderStep] FFmpeg scene concat used (%d segments)", len(segment_handles))
+            return self._load_video_clip(joined.native)
+        except Exception as exc:
+            logger.warning("[RenderStep] FFmpeg scene concat failed; falling back to MoviePy concat: %s", exc)
+            return concatenate_videoclips(clips, method="compose")
+
     # ── 메인 렌더링 ──────────────────────────────────────────────────────────
 
     def run(
@@ -593,7 +620,7 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
                 logger.info("[Outro] 아웃트로 삽입 (%.1fs): %s", io_cfg.outro_duration, outro_path)
 
         output_path = output_dir / output_filename
-        final_video = concatenate_videoclips(all_clips, method="compose")
+        final_video = self._concatenate_scene_clips(all_clips, fps=self.config.video.fps)
 
         # ── YouTube Shorts 하드 리밋 (59초) ──
         MAX_SHORTS_DURATION = 59.0  # YouTube Shorts 최대 60초, 1초 마진
