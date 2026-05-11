@@ -7,6 +7,13 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-11 |
+| Tool | Codex |
+| Work | **Product-readiness finalization after user asked to proceed by judgment**. Added a workspace API usage anomaly alert path: `workspace/execution/api_usage_tracker.py alerts` now detects high provider fallback rate, cost spikes versus the prior window, and expected providers with no recent calls; it returns JSON and exits `1` when alerts exist. Added 9 focused tests plus the `workspace/directives/api_monitoring.md` daily alert flow. Also synchronized `projects/shorts-maker-v2` Google Trends runtime dependency by adding `pytrends>=4.9.2` and regenerating `uv.lock` with a temporary `.tmp/uv-runner` uv install. Final verification: API tracker tests `43 passed`; Ruff check/format clean; `uv lock --check` clean; full `python execution\project_qc_runner.py --json` passed across all active projects (`blind-to-x` 1541 passed / 1 skipped, `shorts-maker-v2` 1365 passed / 12 skipped, `hanwoo-dashboard` 51 passed + lint/build, `knowledge-dashboard` 3 passed + lint/build); graph detect-changes risk `0.00`. Local `main` is ahead of `origin/main` by 2 feature commits (`75897bd`, `6c95a31`). No push/deploy was performed. |
+| Next Priorities | T-251 remains the only known product-readiness blocker: replace the literal `YOUR_PASSWORD` in `projects/hanwoo-dashboard/.env` `DATABASE_URL` with the real Supabase DB password, then run `npm run db:prisma7-test -- --live` from `projects/hanwoo-dashboard`. After that, optionally wire `api_usage_tracker.py alerts --expected-providers openai,anthropic,google` into cron/n8n for daily monitoring. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-11 |
 | Tool | Claude Code (Opus 4.7 1M) |
 | Work | **T-251 차단 원인 정확히 식별**: 사용자 "ㄱㄱ"에 따라 `npm run db:prisma7-test -- --live` 재실행했으나 가드에서 즉시 `DATABASE_URL is missing or placeholder` 로 실패. dotenv 로딩 자체는 정상이고 host/user는 실제 Supabase pooler 값인데, 비밀번호 자리에 Supabase 템플릿 문자열 `YOUR_PASSWORD`가 그대로 남아있어 `scripts/prisma7-runtime-test.mjs:56` 의 `isPlaceholderUrl` 가 정확히 차단. 즉 .env 미설정이 아니라 **사용자가 Supabase 콘솔에서 실제 비밀번호를 치환해 붙여넣지 않은 상태**. 추가로 작업 트리는 깨끗하고 origin/main 과 동기화 완료 (직전 푸시 `5a73e57..8cc2c11` 5 커밋 반영, brc 보호 admin bypass). |
 | Next Priorities | T-251은 사용자 측 단일 조치만 남음 — Supabase Settings → Database → Transaction Pooler의 실제 비밀번호 포함 URL을 `projects/hanwoo-dashboard/.env` 의 `DATABASE_URL=` 라인에 붙여넣어 `YOUR_PASSWORD` 자리 치환. 그 후 같은 명령 재실행하면 Live CRUD E2E 섹션이 실행됨. 다른 활성 TODO 없음. |
