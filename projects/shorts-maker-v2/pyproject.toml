@@ -19,6 +19,7 @@ dependencies = [
   "Pillow>=10.2.0",
   "mutagen>=1.47.0",
   "requests>=2.32.0",
+  "pytrends>=4.9.2",
 ]
 
 [project.optional-dependencies]
