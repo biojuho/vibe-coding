@@ -196,3 +196,26 @@
 
 ### Follow-up
 - 세션 종료 기록 완료.
+
+## 2026-05-11 KST - Codex
+
+### Summary
+- Completed `T-265` product-readiness monitoring finish and committed `c856f35` (`feat(workspace): improve product readiness monitoring`).
+- Added `workspace/execution/llm_usage_summary.py` to summarize LLM JSONL metrics and SQLite `api_calls` usage together.
+- Wired API anomaly alerts into `workspace/execution/daily_report.py`, including `DAILY_REPORT_API_ALERT_EXPECTED_PROVIDERS` and `DAILY_REPORT_API_ALERT_DAYS`.
+- Added staged advisory code-review-gate support (`execution/code_review_gate.py --staged`) and a non-blocking pre-commit hook path with `PYTHONUTF8=1`.
+- Resolved governance mapping drift for current INDEX table headers and repo-root execution targets.
+- Fixed `projects/shorts-maker-v2/src/shorts_maker_v2/cli.py` so direct `_resolve_auto_topic()` calls are UTF-8-safe on Windows.
+
+### Verification
+- Workspace focused suite: `105 passed`.
+- Shorts focused CLI/structure suite passed.
+- Ruff check/format and `py_compile` clean for changed files.
+- `python workspace\execution\daily_report.py --format markdown` showed `API alerts: 0`.
+- `python workspace\execution\llm_usage_summary.py --json` reported 22 records and `$0.005445`.
+- Governance health: `overall: ok`.
+- Full active-project QC: `python execution\project_qc_runner.py --json` returned `status: passed`.
+
+### Follow-up
+- `T-251` remains blocked until the real Supabase password replaces `YOUR_PASSWORD` in `projects/hanwoo-dashboard/.env` `DATABASE_URL`; then run `npm run db:prisma7-test -- --live`.
+- No push or deploy was performed.
