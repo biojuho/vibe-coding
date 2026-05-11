@@ -8,6 +8,20 @@
 |---|---|
 | Date | 2026-05-11 |
 | Tool | Codex |
+| Work | **T-266 pre-commit code-review gate noise reduction**. Committed `cb6c3c9` (`fix(workspace): quiet docs-only code review gate`): `execution/code_review_gate.py --staged` now filters staged paths to code/config candidates before invoking `code_review_graph`, so `.ai` / Markdown-only commits return PASS instead of inheriting stale graph test-gap warnings. Added focused tests for docs-only skip and mixed docs+code staged filtering. Verification: `workspace/tests/test_code_review_gate.py` now `20 passed`; Ruff check/format and `py_compile` clean; `git diff --cached --check` clean before commit; post-commit `python execution\code_review_gate.py --staged --json` returns `status: pass`. The gate can still warn on real code changes as intended. No push/deploy was performed. |
+| Next Priorities | T-251 remains the only product-readiness blocker requiring user action: replace `YOUR_PASSWORD` in `projects/hanwoo-dashboard/.env` `DATABASE_URL` with the real Supabase DB password, then run `npm run db:prisma7-test -- --live`. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-11 |
+| Tool | Gemini (Antigravity) |
+| Work | **Session Ended for T-251 blocker**. Evaluated user's instruction to "Make it a completed product version" but found that T-251 requires a live Supabase DB password to execute the Prisma 7 Live CRUD E2E tests, which is only accessible by the user. Monitored background QC runs to ensure offline stability (`hanwoo-dashboard` build and offline tests passed). No code changes were made; updated the session logs to hand off the single remaining action to the user. |
+| Next Priorities | User must manually insert the actual `DATABASE_URL` password in `projects/hanwoo-dashboard/.env` and execute `npm run db:prisma7-test -- --live` to finalize T-251. Once successful, the Hanwoo Dashboard is fully product-ready for live deployment. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-11 |
+| Tool | Codex |
 | Work | **T-265 product-readiness monitoring finish**. Committed `c856f35` (`feat(workspace): improve product readiness monitoring`): added `workspace/execution/llm_usage_summary.py` for JSONL + SQLite LLM usage summaries, wired API anomaly alerts into `workspace/execution/daily_report.py`, added staged `execution/code_review_gate.py --staged` plus advisory pre-commit integration, resolved governance INDEX parser/path drift, and fixed `shorts-maker-v2` direct auto-topic UTF-8 output on Windows. Final verification: workspace focused suite `105 passed`; Shorts focused CLI/structure suite passed; Ruff/format/py_compile clean; `python workspace\execution\daily_report.py --format markdown` shows `API alerts: 0`; `python workspace\execution\llm_usage_summary.py --json` reports 22 records / `$0.005445`; governance health `overall: ok`; full `python execution\project_qc_runner.py --json` passed across all active projects (`blind-to-x` 1541 passed / 1 skipped, `shorts-maker-v2` unit+integration passed, `hanwoo-dashboard` 51 passed + lint/build, `knowledge-dashboard` 3 passed + lint/build). The staged code-review gate still reports advisory WARN due graph test-gap heuristics, but it is non-blocking and covered by tests. No push/deploy was performed. |
 | Next Priorities | Only known product-readiness blocker remains T-251: replace the literal `YOUR_PASSWORD` in `projects/hanwoo-dashboard/.env` `DATABASE_URL` with the real Supabase DB password, then run `npm run db:prisma7-test -- --live` from `projects/hanwoo-dashboard`. Optional follow-up: wire daily report/API alert output into cron or n8n once deployment cadence is chosen. |
 

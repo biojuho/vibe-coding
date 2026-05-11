@@ -219,3 +219,22 @@
 ### Follow-up
 - `T-251` remains blocked until the real Supabase password replaces `YOUR_PASSWORD` in `projects/hanwoo-dashboard/.env` `DATABASE_URL`; then run `npm run db:prisma7-test -- --live`.
 - No push or deploy was performed.
+
+## 2026-05-11 KST - Codex
+
+### Summary
+- Completed `T-266` and committed `cb6c3c9` (`fix(workspace): quiet docs-only code review gate`).
+- `execution/code_review_gate.py --staged` now filters staged paths to code/config candidates before invoking `code_review_graph`.
+- `.ai`/Markdown-only commits now return PASS instead of showing stale graph test-gap warnings, while real code changes still receive advisory risk output.
+- Added tests for docs-only skip and mixed docs+code staged filtering.
+
+### Verification
+- `python -m pytest --no-cov workspace/tests/test_code_review_gate.py -q --tb=short --maxfail=1` -> `20 passed`
+- `python -m ruff check execution/code_review_gate.py workspace/tests/test_code_review_gate.py` -> passed
+- `python -m ruff format --check execution/code_review_gate.py workspace/tests/test_code_review_gate.py` -> passed
+- `python -m py_compile execution/code_review_gate.py` -> passed
+- `python execution\code_review_gate.py --staged --json` after commit -> `status: pass`
+
+### Follow-up
+- `T-251` remains blocked on the real Supabase DB password in `projects/hanwoo-dashboard/.env`.
+- No push or deploy was performed.

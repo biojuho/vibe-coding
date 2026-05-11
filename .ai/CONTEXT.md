@@ -33,6 +33,7 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-11, staged code-review gate noise reduction is committed as `cb6c3c9`: `execution/code_review_gate.py --staged` filters staged paths to code/config candidates before invoking `code_review_graph`, so `.ai`/Markdown-only commits pass without stale graph warnings while real code changes still receive advisory risk output.
 - As of 2026-05-11, product-readiness monitoring finish is committed as `c856f35`: daily reports now include API anomaly alert summaries, `workspace/execution/llm_usage_summary.py` summarizes JSONL + SQLite LLM usage, staged code-review-graph checks run advisory in pre-commit, governance mapping parsing accepts current INDEX table shapes and repo-root targets, and `shorts-maker-v2` auto-topic output is UTF-8-safe when called directly on Windows.
 - As of 2026-05-11, full active-project QC passed after `c856f35`: `python execution\project_qc_runner.py --json` returned `status: passed` across `blind-to-x`, `shorts-maker-v2`, `hanwoo-dashboard`, and `knowledge-dashboard`; governance health returned `overall: ok`. No push or deploy was performed.
 - As of 2026-05-11, product-readiness finalization added `workspace/execution/api_usage_tracker.py alerts` for daily LLM/API anomaly detection (fallback-rate, cost-spike, dead expected-provider checks) and documented the cron/n8n flow in `workspace/directives/api_monitoring.md`. `shorts-maker-v2` now declares `pytrends>=4.9.2` directly and has a regenerated `uv.lock` matching the current `pyproject.toml`.
@@ -95,6 +96,8 @@
 - `infrastructure/n8n/docker-compose.yml` and `infrastructure/n8n/README.md` no longer carry committed n8n credentials; they now rely on `N8N_BASIC_AUTH_PASSWORD` and `BRIDGE_TOKEN` placeholders from the local environment.
 
 ## Recent Verification
+
+- `workspace`: staged code-review gate noise reduction on 2026-05-11. Verification passed: `python -m pytest --no-cov workspace/tests/test_code_review_gate.py -q --tb=short --maxfail=1` (`20 passed`); `python -m ruff check execution/code_review_gate.py workspace/tests/test_code_review_gate.py`; `python -m ruff format --check execution/code_review_gate.py workspace/tests/test_code_review_gate.py`; `python -m py_compile execution/code_review_gate.py`; `git diff --cached --check`; post-commit `python execution\code_review_gate.py --staged --json` returned `status: pass`.
 
 - `workspace/projects`: product-readiness monitoring finish on 2026-05-11. Verification passed: `python -m pytest --no-cov workspace/tests/test_llm_usage_summary.py workspace/tests/test_code_review_gate.py workspace/tests/test_governance_checks.py workspace/tests/test_daily_report.py workspace/tests/test_api_usage_tracker.py -q --tb=short --maxfail=1` (`105 passed`); from `projects/shorts-maker-v2`, `python -m pytest --no-cov tests/unit/test_structure_step.py tests/unit/test_cli.py -q --tb=short --maxfail=1` passed; Ruff check/format and `py_compile` clean for changed files; `python workspace\execution\daily_report.py --format markdown` produced `API alerts: 0`; `python workspace\execution\llm_usage_summary.py --json` reported 22 records and `$0.005445`; `python workspace\execution\health_check.py --category governance --json` returned `overall: ok`; `python execution\project_qc_runner.py --json` returned `status: passed` across all active projects.
 
