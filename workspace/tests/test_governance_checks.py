@@ -86,6 +86,49 @@ def test_audit_directive_mapping_passes_when_index_is_complete(tmp_path: Path) -
     assert result["issues"] == []
 
 
+def test_audit_directive_mapping_accepts_repo_root_execution_scripts(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    workspace_root = repo_root / "workspace"
+    directives_dir = workspace_root / "directives"
+    workspace_execution_dir = workspace_root / "execution"
+    root_execution_dir = repo_root / "execution"
+    directives_dir.mkdir(parents=True)
+    workspace_execution_dir.mkdir()
+    root_execution_dir.mkdir()
+
+    (directives_dir / "INDEX.md").write_text(
+        "\n".join(
+            [
+                "## SOP → Execution 매핑",
+                "",
+                "| Directive | Execution Script(s) | 비고 |",
+                "|-----------|---------------------|------|",
+                "| root_tooling.md | root_tool.py | root execution script |",
+                "",
+                "---",
+                "",
+                "## 매핑 없는 Execution 스크립트 (유틸리티/인프라)",
+                "",
+                "| Script | 분류 | 용도 |",
+                "|--------|------|------|",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (directives_dir / "root_tooling.md").write_text("# root tooling", encoding="utf-8")
+    (root_execution_dir / "root_tool.py").write_text("print('ok')\n", encoding="utf-8")
+
+    result = gc.audit_directive_mapping(
+        index_path=directives_dir / "INDEX.md",
+        directives_dir=directives_dir,
+        execution_dir=workspace_execution_dir,
+        root=workspace_root,
+    )
+
+    assert result["status"] == gc.STATUS_OK
+    assert result["issues"] == []
+
+
 def test_audit_relay_claim_consistency_fails_on_stale_claim(tmp_path: Path) -> None:
     ai_dir = tmp_path / ".ai"
     execution_dir = tmp_path / "execution"

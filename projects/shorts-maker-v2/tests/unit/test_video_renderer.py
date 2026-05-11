@@ -502,8 +502,16 @@ class TestFFmpegRendererExtended:
         args = run_ffmpeg.call_args.args[0]
         list_file = Path(args[5])
         assert list_file.exists()
-        assert "file 'first.mp4'" in list_file.read_text()
+        assert FFmpegRenderer._concat_file_line("first.mp4") in list_file.read_text(encoding="utf-8")
         assert result.duration == 4.0
+
+    def test_concat_file_line_escapes_special_paths(self, tmp_path: Path):
+        source = tmp_path / "scene owner's cut.mp4"
+        expected_path = source.resolve().as_posix().replace("\\", "\\\\").replace("'", "\\'")
+
+        result = FFmpegRenderer._concat_file_line(source)
+
+        assert result == f"file '{expected_path}'"
 
     def test_set_audio_runs_ffmpeg(self, tmp_path: Path):
         r = FFmpegRenderer(tmp_dir=tmp_path / ".tmp_ffmpeg")
@@ -611,6 +619,28 @@ class TestFFmpegRendererExtended:
         )
 
         assert result == "native.mp4"
+
+    def test_materialize_clip_returns_ffmpeg_file_handle(self, tmp_path: Path):
+        r = FFmpegRenderer(tmp_dir=tmp_path / ".tmp_ffmpeg")
+        source = ClipHandle(
+            backend="moviepy",
+            native=MagicMock(),
+            duration=2.5,
+            width=1080,
+            height=1920,
+            has_audio=True,
+            metadata={"scene": 1},
+        )
+
+        with patch.object(r, "_ensure_input_path", return_value=str(tmp_path / "scene.mp4")) as ensure_path:
+            result = r.materialize_clip(source, fps=24, audio_codec="aac")
+
+        ensure_path.assert_called_once_with(source, fps=24, audio_codec="aac")
+        assert result.backend == "ffmpeg"
+        assert result.native == str(tmp_path / "scene.mp4")
+        assert result.duration == 2.5
+        assert result.has_audio is True
+        assert result.metadata == {"scene": 1}
 
     def test_write_without_optional_preset_or_extra_params(self, tmp_path: Path):
         r = FFmpegRenderer(tmp_dir=tmp_path / ".tmp_ffmpeg")

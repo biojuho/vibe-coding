@@ -291,6 +291,12 @@ class FFmpegRenderer(VideoRendererBackend):
         self._counter += 1
         return self._tmp / f"_seg_{self._counter:04d}{ext}"
 
+    @staticmethod
+    def _concat_file_line(path: str | Path) -> str:
+        normalized = Path(path).resolve().as_posix()
+        escaped = normalized.replace("\\", "\\\\").replace("'", "\\'")
+        return f"file '{escaped}'"
+
     def _probe_duration(self, path: str | Path) -> float:
         import json
         import subprocess
@@ -378,9 +384,9 @@ class FFmpegRenderer(VideoRendererBackend):
             return clips[0]
         # Use concat demuxer
         list_file = self._next_tmp(ext=".txt")
-        with open(list_file, "w") as f:
+        with open(list_file, "w", encoding="utf-8", newline="\n") as f:
             for c in clips:
-                f.write(f"file '{c.native}'\n")
+                f.write(f"{self._concat_file_line(c.native)}\n")
         out = self._next_tmp()
         self._run_ffmpeg(["-f", "concat", "-safe", "0", "-i", str(list_file), "-c", "copy", str(out)])
         total_dur = sum(c.duration for c in clips)
@@ -530,6 +536,24 @@ class FFmpegRenderer(VideoRendererBackend):
         }
         native.write_videofile(str(intermediate), **write_kwargs)
         return str(intermediate)
+
+    def materialize_clip(
+        self,
+        clip: ClipHandle,
+        *,
+        fps: int = 30,
+        audio_codec: str = "aac",
+    ) -> ClipHandle:
+        input_path = self._ensure_input_path(clip, fps=fps, audio_codec=audio_codec)
+        return ClipHandle(
+            backend="ffmpeg",
+            native=input_path,
+            duration=clip.duration,
+            width=clip.width,
+            height=clip.height,
+            has_audio=clip.has_audio,
+            metadata=dict(clip.metadata),
+        )
 
     def write(
         self,

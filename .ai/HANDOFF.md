@@ -6,6 +6,13 @@
 
 | Field | Value |
 |---|---|
+| Date | 2026-05-11 |
+| Tool | Claude Code (Opus 4.7 1M) |
+| Work | **T-251 차단 원인 정확히 식별**: 사용자 "ㄱㄱ"에 따라 `npm run db:prisma7-test -- --live` 재실행했으나 가드에서 즉시 `DATABASE_URL is missing or placeholder` 로 실패. dotenv 로딩 자체는 정상이고 host/user는 실제 Supabase pooler 값인데, 비밀번호 자리에 Supabase 템플릿 문자열 `YOUR_PASSWORD`가 그대로 남아있어 `scripts/prisma7-runtime-test.mjs:56` 의 `isPlaceholderUrl` 가 정확히 차단. 즉 .env 미설정이 아니라 **사용자가 Supabase 콘솔에서 실제 비밀번호를 치환해 붙여넣지 않은 상태**. 추가로 작업 트리는 깨끗하고 origin/main 과 동기화 완료 (직전 푸시 `5a73e57..8cc2c11` 5 커밋 반영, brc 보호 admin bypass). |
+| Next Priorities | T-251은 사용자 측 단일 조치만 남음 — Supabase Settings → Database → Transaction Pooler의 실제 비밀번호 포함 URL을 `projects/hanwoo-dashboard/.env` 의 `DATABASE_URL=` 라인에 붙여넣어 `YOUR_PASSWORD` 자리 치환. 그 후 같은 명령 재실행하면 Live CRUD E2E 섹션이 실행됨. 다른 활성 TODO 없음. |
+
+| Field | Value |
+|---|---|
 | Date | 2026-05-08 |
 | Tool | Codex |
 | Work | **T-251 rechecked after user "ㄱㄱ"**. Checked DB config without printing secrets: root `.env` still has no `DATABASE_URL`; `projects/hanwoo-dashboard/.env` has a Supabase pooler host but still matches placeholder patterns, so it is not treated as a runnable live DB URL. Verification run: `node --check scripts/prisma7-runtime-test.mjs` passed; `npm run db:prisma7-test` passed offline (`14 passed, 0 failed, 1 skipped`); `npm test` passed (`51` tests); `npm run db:prisma7-test -- --live` failed exactly at the guard (`14 passed, 1 failed`) with `DATABASE_URL is missing or placeholder`. No code changes were needed. |

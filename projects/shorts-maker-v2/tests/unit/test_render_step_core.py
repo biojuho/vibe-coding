@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from conftest_render import _make_fake_clip, _make_render_step
+from conftest_render import _DummyAudioClip, _DummyClip, _make_fake_clip, _make_render_step
 
 from shorts_maker_v2.models import SceneAsset, ScenePlan
 from shorts_maker_v2.pipeline.render_step import RenderStep
+from shorts_maker_v2.render.video_renderer import ClipHandle
 
 # ─── 전환 스타일 테스트 ────────────────────────────────────────────────────────
 
@@ -320,6 +322,124 @@ def test_build_base_clip_image_type() -> None:
     asset.visual_path = "/tmp/test.png"
     result = step._build_base_clip(asset, 3.0, 1080, 1920)
     assert result is not None
+
+
+def test_render_single_scene_static_caption_tracks_resources(tmp_path: Path) -> None:
+    """_render_single_scene keeps per-scene composition isolated from run()."""
+    step = _make_render_step()
+    step.hook_style = replace(step.hook_style, mode="static")
+    base_clip = _DummyClip("base", duration=3.0)
+    audio_clip = _DummyAudioClip("audio", duration=4.0)
+    caption_clip = _DummyClip("caption", duration=0.1, h=120)
+    composed_clip = _DummyClip("composed", duration=3.0, audio=audio_clip)
+
+    plan = ScenePlan(
+        scene_id=1,
+        narration_ko="테스트 나레이션",
+        visual_prompt_en="test visual",
+        target_sec=3.0,
+        structure_role="hook",
+    )
+    asset = SceneAsset(
+        scene_id=1,
+        audio_path=str(tmp_path / "audio.wav"),
+        visual_type="image",
+        visual_path=str(tmp_path / "visual.png"),
+        duration_sec=3.0,
+    )
+    audio_to_close: list[object] = []
+    captions_to_close: list[object] = []
+
+    with (
+        patch.object(step, "_build_base_clip", return_value=base_clip) as build_base,
+        patch.object(step, "_apply_channel_image_motion", return_value=(base_clip, "ken_burns")) as motion,
+        patch.object(step, "_load_audio_clip", return_value=audio_clip) as load_audio,
+        patch.object(step, "_render_static_caption", return_value=tmp_path / "caption.png") as render_caption,
+        patch("shorts_maker_v2.pipeline.render_step.ImageClip", return_value=caption_clip) as image_clip,
+        patch("shorts_maker_v2.pipeline.render_step.CompositeVideoClip", return_value=composed_clip) as composite,
+        patch("shorts_maker_v2.pipeline.render_step.color_grade_clip", side_effect=lambda clip, *_: clip),
+        patch("shorts_maker_v2.pipeline.render_step.postprocess_tts_audio", return_value=None),
+        patch("shorts_maker_v2.pipeline.render_step.apply_text_animation", side_effect=lambda clip, **_: clip),
+    ):
+        result, effect = step._render_single_scene(
+            plan=plan,
+            asset=asset,
+            run_dir=tmp_path,
+            target_width=1080,
+            target_height=1920,
+            previous_effect="pan_left",
+            audio_clips_to_close=audio_to_close,
+            caption_clips_to_close=captions_to_close,
+        )
+
+    assert result is composed_clip
+    assert effect == "ken_burns"
+    build_base.assert_called_once_with(asset, 3.0, 1080, 1920)
+    motion.assert_called_once()
+    load_audio.assert_called_once_with(str(tmp_path / "audio.wav"))
+    render_caption.assert_called_once()
+    image_clip.assert_called_once_with(str(tmp_path / "caption.png"), transparent=True)
+    composite.assert_called_once()
+    assert audio_to_close == [audio_clip]
+    assert captions_to_close == [caption_clip]
+
+
+def test_concatenate_scene_clips_uses_moviepy_by_default() -> None:
+    step = _make_render_step()
+    clips = [_DummyClip("a", duration=1.0), _DummyClip("b", duration=2.0)]
+    joined = _DummyClip("joined", duration=3.0)
+
+    with patch("shorts_maker_v2.pipeline.render_step.concatenate_videoclips", return_value=joined) as concat:
+        result = step._concatenate_scene_clips(clips, fps=24)
+
+    assert result is joined
+    concat.assert_called_once_with(clips, method="compose")
+
+
+def test_concatenate_scene_clips_materializes_with_ffmpeg_backend() -> None:
+    step = _make_render_step(video_renderer_backend="ffmpeg")
+    clips = [
+        _DummyClip("a", duration=1.0, audio=object()),
+        _DummyClip("b", duration=2.0),
+    ]
+    segment_handles = [
+        ClipHandle(backend="ffmpeg", native="seg_a.mp4", duration=1.0, has_audio=True),
+        ClipHandle(backend="ffmpeg", native="seg_b.mp4", duration=2.0),
+    ]
+    joined_handle = ClipHandle(backend="ffmpeg", native="joined.mp4", duration=3.0)
+    reloaded = _DummyClip("joined", duration=3.0)
+
+    step._output_renderer.materialize_clip = MagicMock(side_effect=segment_handles)
+    step._output_renderer.concatenate = MagicMock(return_value=joined_handle)
+    step._load_video_clip = MagicMock(return_value=reloaded)
+
+    with patch("shorts_maker_v2.pipeline.render_step.concatenate_videoclips") as moviepy_concat:
+        result = step._concatenate_scene_clips(clips, fps=24)
+
+    assert result is reloaded
+    assert step._output_renderer.materialize_clip.call_count == 2
+    first_handle = step._output_renderer.materialize_clip.call_args_list[0].args[0]
+    assert first_handle.backend == "moviepy"
+    assert first_handle.native is clips[0]
+    assert first_handle.duration == 1.0
+    assert first_handle.has_audio is True
+    step._output_renderer.concatenate.assert_called_once_with(segment_handles)
+    step._load_video_clip.assert_called_once_with("joined.mp4")
+    moviepy_concat.assert_not_called()
+
+
+def test_concatenate_scene_clips_falls_back_when_ffmpeg_concat_fails() -> None:
+    step = _make_render_step(video_renderer_backend="ffmpeg")
+    clips = [_DummyClip("a", duration=1.0), _DummyClip("b", duration=2.0)]
+    joined = _DummyClip("joined", duration=3.0)
+
+    step._output_renderer.materialize_clip = MagicMock(side_effect=RuntimeError("ffmpeg failed"))
+
+    with patch("shorts_maker_v2.pipeline.render_step.concatenate_videoclips", return_value=joined) as concat:
+        result = step._concatenate_scene_clips(clips, fps=24)
+
+    assert result is joined
+    concat.assert_called_once_with(clips, method="compose")
 
 
 def test_build_base_clip_video_type_shorter() -> None:

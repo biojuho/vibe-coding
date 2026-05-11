@@ -199,6 +199,7 @@ def audit_directive_mapping(
 ) -> dict[str, object]:
     sop_map, unmapped = parse_index(index_path=index_path)
     issues: list[str] = []
+    repo_root = root.parent
 
     for sop in sop_map:
         if not (directives_dir / sop).exists():
@@ -211,6 +212,8 @@ def audit_directive_mapping(
             candidates = [
                 execution_dir / script,
                 root / script,
+                repo_root / "execution" / script,
+                repo_root / script,
             ]
             if not any(candidate.exists() for candidate in candidates):
                 issues.append(f"[SCRIPT MISSING] {script} (mapped by {sop})")
