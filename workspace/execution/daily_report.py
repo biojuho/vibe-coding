@@ -9,15 +9,23 @@ import argparse
 import json
 import os
 import subprocess
+import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 WORKSPACE = Path(__file__).resolve().parent.parent
+if str(WORKSPACE) not in sys.path:
+    sys.path.insert(0, str(WORKSPACE))
 REPORT_DIR = WORKSPACE / ".tmp" / "reports"
 
 REPO_SCAN_EXCLUDED_DIRS = {"node_modules", "venv", ".tmp", "__pycache__"}
 FILE_SCAN_EXCLUDED_DIRS = REPO_SCAN_EXCLUDED_DIRS | {".git"}
+DEFAULT_API_ALERT_DAYS = 7
+
+
+def _parse_csv_env(name: str) -> List[str]:
+    return [item.strip() for item in os.getenv(name, "").split(",") if item.strip()]
 
 
 def _target_time_window(target_date: date) -> Tuple[datetime, datetime]:
@@ -167,6 +175,36 @@ def collect_llm_bridge_activity(target_date: date) -> Dict:
     return get_bridge_activity_for_date(target_date)
 
 
+def collect_api_alerts() -> Dict:
+    expected_providers = _parse_csv_env("DAILY_REPORT_API_ALERT_EXPECTED_PROVIDERS")
+    try:
+        days_window = int(os.getenv("DAILY_REPORT_API_ALERT_DAYS", str(DEFAULT_API_ALERT_DAYS)))
+    except ValueError:
+        days_window = DEFAULT_API_ALERT_DAYS
+
+    try:
+        from execution.api_usage_tracker import detect_alerts
+    except Exception as exc:
+        return {
+            "alert_count": 0,
+            "alerts": [],
+            "expected_providers": expected_providers,
+            "window_days": days_window,
+            "error": str(exc),
+        }
+
+    alerts = detect_alerts(
+        days_window=days_window,
+        expected_providers=expected_providers or None,
+    )
+    return {
+        "alert_count": len(alerts),
+        "alerts": alerts,
+        "expected_providers": expected_providers,
+        "window_days": days_window,
+    }
+
+
 def _summarize_commits_by_repo(commit_entries: List[Dict]) -> Dict[str, int]:
     commits_by_repo: Dict[str, int] = {}
     for commit_entry in commit_entries:
@@ -181,6 +219,7 @@ def _build_summary(
     file_changes: Dict,
     scheduler_logs: List[Dict],
     llm_bridge: Dict,
+    api_alerts: Dict,
 ) -> Dict:
     return {
         "total_commits": len(commit_entries),
@@ -190,6 +229,7 @@ def _build_summary(
         "llm_bridge_calls": llm_bridge.get("total_calls", 0),
         "llm_bridge_repairs": llm_bridge.get("repair_calls", 0),
         "llm_bridge_fallbacks": llm_bridge.get("fallback_calls", 0),
+        "api_alerts": api_alerts.get("alert_count", 0),
     }
 
 
@@ -199,9 +239,10 @@ def _build_report_payload(
     file_changes: Dict,
     scheduler_logs: List[Dict],
     llm_bridge: Dict,
+    api_alerts: Dict,
 ) -> Dict:
     commits_by_repo = _summarize_commits_by_repo(commit_entries)
-    summary = _build_summary(commit_entries, commits_by_repo, file_changes, scheduler_logs, llm_bridge)
+    summary = _build_summary(commit_entries, commits_by_repo, file_changes, scheduler_logs, llm_bridge, api_alerts)
     return {
         "date": report_date.isoformat(),
         "generated_at": datetime.now().isoformat(timespec="seconds"),
@@ -213,6 +254,7 @@ def _build_report_payload(
         "file_changes": file_changes,
         "scheduler_logs": scheduler_logs,
         "llm_bridge": llm_bridge,
+        "api_alerts": api_alerts,
     }
 
 
@@ -232,6 +274,7 @@ def generate_report(target_date: Optional[date] = None) -> Dict:
     file_changes = collect_file_changes(report_date)
     scheduler_logs = collect_scheduler_logs(report_date)
     llm_bridge = collect_llm_bridge_activity(report_date)
+    api_alerts = collect_api_alerts()
 
     report_payload = _build_report_payload(
         report_date,
@@ -239,6 +282,7 @@ def generate_report(target_date: Optional[date] = None) -> Dict:
         file_changes,
         scheduler_logs,
         llm_bridge,
+        api_alerts,
     )
     _save_report(report_date, report_payload)
     return report_payload
@@ -263,6 +307,7 @@ def _print_markdown_report(report: Dict) -> None:
     print(f"- LLM bridge calls: {summary.get('llm_bridge_calls', 0)}")
     print(f"- LLM bridge repairs: {summary.get('llm_bridge_repairs', 0)}")
     print(f"- LLM bridge fallbacks: {summary.get('llm_bridge_fallbacks', 0)}")
+    print(f"- API alerts: {summary.get('api_alerts', 0)}")
     commits = report["git_activity"]["commits"]
     if commits:
         print("\n## Git Commits")
@@ -278,6 +323,11 @@ def _print_markdown_report(report: Dict) -> None:
             print(f"- Avg language score: {avg_score}")
         for item in bridge.get("top_reason_codes", [])[:5]:
             print(f"- Reason: {item['reason_code']} ({item['count']})")
+    api_alerts = report.get("api_alerts", {})
+    if api_alerts.get("alert_count", 0):
+        print("\n## API Alerts")
+        for alert in api_alerts.get("alerts", [])[:10]:
+            print(f"- {alert.get('type')}: {alert.get('detail')}")
 
 
 if __name__ == "__main__":

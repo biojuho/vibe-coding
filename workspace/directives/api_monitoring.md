@@ -37,3 +37,6 @@ python workspace/execution/api_usage_tracker.py alerts --expected-providers open
 - Run `alerts` from cron or n8n once per day.
 - Exit code `0` means no alerts; exit code `1` means at least one anomaly was found.
 - Current anomaly checks: high fallback rate, total cost spike versus the prior window, and configured-but-dead expected providers.
+- `workspace/execution/daily_report.py` includes the same alert summary automatically.
+- Set `DAILY_REPORT_API_ALERT_EXPECTED_PROVIDERS=openai,anthropic,google` to enable dead-provider checks in daily reports.
+- Set `DAILY_REPORT_API_ALERT_DAYS=<days>` to adjust the default 7-day report window.

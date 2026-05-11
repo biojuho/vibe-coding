@@ -305,10 +305,10 @@ class StructureStep:
                 desire = ap.get("desire", "")
                 if desire and len(desire) >= 10:
                     # 최소한 하나의 씬 intent에 desire 키워드가 반영되어야 함
-                    desire_words = set(desire.lower().split())
+                    desire_words = {w for w in desire.lower().split() if len(w) >= 2}
                     intent_text = " ".join(s.intent.lower() for s in scenes)
-                    overlap = desire_words & set(intent_text.split())
-                    if len(overlap) < 2:
+                    matched = sum(1 for w in desire_words if w in intent_text)
+                    if matched < 1 and desire_words:
                         issues.append("Outline intents don't reflect audience desire")
 
         verdict = GateVerdict.PASS if not issues else GateVerdict.FAIL_RETRY

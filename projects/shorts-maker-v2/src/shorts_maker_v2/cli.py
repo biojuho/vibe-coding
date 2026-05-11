@@ -457,6 +457,8 @@ def _resolve_auto_topic(
     Returns:
         선택된 주제 문자열 (실패 시 빈 문자열)
     """
+    _ensure_utf8_stdio()
+
     try:
         from shorts_maker_v2.config import load_config
         from shorts_maker_v2.pipeline.topic_angle_generator import TopicAngleGenerator

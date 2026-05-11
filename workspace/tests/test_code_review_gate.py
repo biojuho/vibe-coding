@@ -217,3 +217,66 @@ def test_to_dict_serializable(tmp_path):
     parsed = json.loads(blob)
     assert parsed["status"] == "warn"
     assert parsed["risk_score"] == 0.4
+
+
+def test_evaluate_with_explicit_changed_files_bypasses_base(tmp_path):
+    """When `changed_files` is provided, detect_changes is called with it (not `base`)."""
+    tools, calls = _fake_tools(risk_score=0.0, changed_files=["a.py"])
+    _evaluate(tmp_path, tools, changed_files=["a.py", "b.py"])
+    assert len(calls["detect"]) == 1
+    detect_kwargs = calls["detect"][0]
+    assert detect_kwargs.get("changed_files") == ["a.py", "b.py"]
+    assert "base" not in detect_kwargs, "base must not be passed when changed_files is provided"
+
+
+def test_evaluate_without_changed_files_passes_base(tmp_path):
+    """Default behavior still passes `base` (not `changed_files`) to detect_changes."""
+    tools, calls = _fake_tools(risk_score=0.0)
+    _evaluate(tmp_path, tools)
+    detect_kwargs = calls["detect"][0]
+    assert detect_kwargs.get("base") == "HEAD~1"
+    assert "changed_files" not in detect_kwargs
+
+
+def test_get_staged_files_returns_list(tmp_path, monkeypatch):
+    """get_staged_files invokes git and returns clean lines."""
+    import subprocess
+
+    class FakeCompleted:
+        returncode = 0
+        stdout = "a.py\nb/c.py\n\n  \n"
+
+    def fake_run(*args, **kwargs):
+        assert kwargs["encoding"] == "utf-8"
+        assert kwargs["errors"] == "replace"
+        return FakeCompleted()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    result = gate.get_staged_files(tmp_path)
+    assert result == ["a.py", "b/c.py"]
+
+
+def test_get_staged_files_returns_empty_on_git_failure(tmp_path, monkeypatch):
+    """If git invocation fails or returns nonzero, return an empty list."""
+    import subprocess
+
+    class FakeCompleted:
+        returncode = 128
+        stdout = "fatal: not a git repository"
+
+    def fake_run(*args, **kwargs):
+        return FakeCompleted()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    assert gate.get_staged_files(tmp_path) == []
+
+
+def test_get_staged_files_handles_missing_git_binary(tmp_path, monkeypatch):
+    """When git is not installed, return an empty list instead of raising."""
+    import subprocess
+
+    def fake_run(*args, **kwargs):
+        raise FileNotFoundError("git not on PATH")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    assert gate.get_staged_files(tmp_path) == []

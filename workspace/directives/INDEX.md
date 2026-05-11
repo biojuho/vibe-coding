@@ -66,6 +66,8 @@
 | harness_security_checklist.py | infrastructure | Pre-flight/runtime security validation with secret and path guards |
 | harness_tool_registry.py | infrastructure | Agent harness tool allowlist + HITL permission registry |
 | joolife_hub.py | entrypoint | Streamlit 메인 허브 |
+| llm_metrics.py | infrastructure | LLM 호출 JSONL 메트릭 수집 (cache_creation/read 포함) |
+| llm_usage_summary.py | utility | api_calls + llm_metrics JSONL 통합 사용량 리포터 (text/json, --by provider/model/caller, cache hit ratio) |
 | lyria_bgm_generator.py | utility | Lyria BGM 생성 |
 | pr_self_review.py | utility | AI 기반 PR 셀프 리뷰 |
 | result_tracker_db.py | utility | 결과 추적 DB |

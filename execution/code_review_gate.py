@@ -100,6 +100,27 @@ def _summarize_test_gaps(gaps: list[Any]) -> list[str]:
     return out
 
 
+def get_staged_files(repo_root: Path) -> list[str]:
+    """Return staged file paths (Added/Copied/Modified/Renamed) for pre-commit use."""
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            cwd=str(repo_root),
+            check=False,
+        )
+    except (OSError, FileNotFoundError):
+        return []
+    if result.returncode != 0:
+        return []
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
 def evaluate(
     *,
     base: str,
@@ -108,12 +129,15 @@ def evaluate(
     fail_threshold: float,
     include_architecture: bool,
     detail_level: str = "standard",
+    changed_files: list[str] | None = None,
     tools: tuple | None = None,
 ) -> GateReport:
     """Run the underlying graph queries and classify the result.
 
     `tools` is exposed so unit tests can inject mocks without monkey-patching
-    the import path.
+    the import path. `changed_files`, when provided, overrides `base` and asks
+    `detect_changes_func` to analyze that explicit list (e.g. for staged
+    pre-commit use).
     """
     if warn_threshold > fail_threshold:
         raise ValueError("warn-threshold must be <= fail-threshold")
@@ -136,12 +160,17 @@ def evaluate(
 
     detect_changes_func, get_impact_radius, get_architecture_overview_func = tools
 
+    detect_kwargs: dict[str, Any] = {
+        "repo_root": str(repo_root),
+        "detail_level": detail_level,
+    }
+    if changed_files is not None:
+        detect_kwargs["changed_files"] = changed_files
+    else:
+        detect_kwargs["base"] = base
+
     try:
-        change_result = detect_changes_func(
-            base=base,
-            repo_root=str(repo_root),
-            detail_level=detail_level,
-        )
+        change_result = detect_changes_func(**detect_kwargs)
     except Exception as exc:  # graph backend may raise FileNotFoundError, sqlite, etc.
         return GateReport(
             status="error",
@@ -294,7 +323,35 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Emit the report as JSON (suppresses the text summary).",
     )
+    parser.add_argument(
+        "--staged",
+        action="store_true",
+        help=(
+            "Use staged changes (`git diff --cached --name-only`) instead of `--base`. Intended for pre-commit hooks."
+        ),
+    )
     args = parser.parse_args(argv)
+
+    changed_files: list[str] | None = None
+    if args.staged:
+        changed_files = get_staged_files(args.repo_root)
+        if not changed_files:
+            # Nothing staged -> trivial pass without invoking the graph.
+            trivial = GateReport(
+                status="pass",
+                risk_score=0.0,
+                warn_threshold=args.warn_threshold,
+                fail_threshold=args.fail_threshold,
+                changed_files=[],
+                affected_flows=[],
+                test_gaps=[],
+                review_priorities=[],
+            )
+            if args.json:
+                print(json.dumps(trivial.to_dict(), ensure_ascii=False))
+            else:
+                print("[code-review-gate] PASS (no staged files)")
+            return 0
 
     report = evaluate(
         base=args.base,
@@ -303,6 +360,7 @@ def main(argv: list[str] | None = None) -> int:
         fail_threshold=args.fail_threshold,
         include_architecture=args.include_architecture,
         detail_level=args.detail_level,
+        changed_files=changed_files,
     )
 
     if args.json:

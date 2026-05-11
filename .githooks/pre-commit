@@ -31,3 +31,15 @@ for f in .ai/CONTEXT.md .ai/DECISIONS.md .ai/SESSION_LOG.md; do
         fi
     fi
 done
+
+# code-review-graph 게이트 (advisory — 절대 차단 안 함)
+# Phase C item 2의 자연스러운 자동화. risk/test gap 정보를 알려주기만 하고
+# 항상 exit 0. 차단을 원하면 SKIP 해제 + --strict 추가.
+if [ "${SKIP_CODE_REVIEW_GATE:-0}" != "1" ]; then
+    if command -v py >/dev/null 2>&1; then
+        PY_CMD="py -3.13"
+    else
+        PY_CMD="python"
+    fi
+    PYTHONUTF8=1 $PY_CMD execution/code_review_gate.py --staged 2>/dev/null || true
+fi

@@ -77,6 +77,15 @@ def parse_index(index_path: Path = INDEX_FILE) -> tuple[dict[str, list[str]], di
     for line in text.splitlines():
         line = line.strip()
 
+        if line.startswith("|") and "Directive" in line and "Execution Script" in line:
+            in_sop_table = True
+            in_unmapped_table = False
+            continue
+        if line.startswith("|") and re.match(r"\|\s*Script\s*\|", line):
+            in_sop_table = False
+            in_unmapped_table = True
+            continue
+
         if "SOP → Execution" in line:
             in_sop_table = True
             in_unmapped_table = False
@@ -206,14 +215,15 @@ def audit_directive_mapping(
             issues.append(f"[SOP MISSING] {sop} listed in INDEX but not found")
 
     all_mapped_scripts: set[str] = set()
+    repo_root = root.parent if root.name == "workspace" else root
     for sop, scripts in sop_map.items():
         for script in scripts:
             all_mapped_scripts.add(script)
             candidates = [
                 execution_dir / script,
                 root / script,
-                repo_root / "execution" / script,
                 repo_root / script,
+                repo_root / "execution" / script,
             ]
             if not any(candidate.exists() for candidate in candidates):
                 issues.append(f"[SCRIPT MISSING] {script} (mapped by {sop})")

@@ -5,6 +5,25 @@ from pathlib import Path
 import execution.governance_checks as gc
 
 
+def _index_text(rows: list[str]) -> str:
+    return "\n".join(
+        [
+            "## SOP to Execution Mapping",
+            "",
+            "| Directive | Execution Script(s) | Notes |",
+            "|-----------|---------------------|------|",
+            *rows,
+            "",
+            "---",
+            "",
+            "## Unmapped Execution Scripts",
+            "",
+            "| Script | Type | Purpose |",
+            "|--------|------|------|",
+        ]
+    )
+
+
 def test_audit_directive_mapping_detects_orphan_script(tmp_path: Path) -> None:
     directives_dir = tmp_path / "directives"
     execution_dir = tmp_path / "execution"
@@ -12,22 +31,7 @@ def test_audit_directive_mapping_detects_orphan_script(tmp_path: Path) -> None:
     execution_dir.mkdir()
 
     (directives_dir / "INDEX.md").write_text(
-        "\n".join(
-            [
-                "## SOP → Execution 매핑",
-                "",
-                "| Directive | Execution Script(s) | 비고 |",
-                "|-----------|---------------------|------|",
-                "| local_inference.md | local_inference.py | test |",
-                "",
-                "---",
-                "",
-                "## 매핑 없는 Execution 스크립트 (유틸리티/인프라)",
-                "",
-                "| Script | 분류 | 용도 |",
-                "|--------|------|------|",
-            ]
-        ),
+        _index_text(["| local_inference.md | local_inference.py | test |"]),
         encoding="utf-8",
     )
     (directives_dir / "local_inference.md").write_text("# local inference", encoding="utf-8")
@@ -51,26 +55,9 @@ def test_audit_directive_mapping_passes_when_index_is_complete(tmp_path: Path) -
     directives_dir.mkdir()
     execution_dir.mkdir()
 
-    (directives_dir / "INDEX.md").write_text(
-        "\n".join(
-            [
-                "## SOP → Execution 매핑",
-                "",
-                "| Directive | Execution Script(s) | 비고 |",
-                "|-----------|---------------------|------|",
-                "| local_inference.md | local_inference.py | test |",
-                "",
-                "---",
-                "",
-                "## 매핑 없는 Execution 스크립트 (유틸리티/인프라)",
-                "",
-                "| Script | 분류 | 용도 |",
-                "|--------|------|------|",
-                "| helper.py | utility | helper |",
-            ]
-        ),
-        encoding="utf-8",
-    )
+    index_text = _index_text(["| local_inference.md | local_inference.py | test |"])
+    index_text += "\n| helper.py | utility | helper |"
+    (directives_dir / "INDEX.md").write_text(index_text, encoding="utf-8")
     (directives_dir / "local_inference.md").write_text("# local inference", encoding="utf-8")
     (execution_dir / "local_inference.py").write_text("print('ok')\n", encoding="utf-8")
     (execution_dir / "helper.py").write_text("print('helper')\n", encoding="utf-8")
@@ -97,22 +84,7 @@ def test_audit_directive_mapping_accepts_repo_root_execution_scripts(tmp_path: P
     root_execution_dir.mkdir()
 
     (directives_dir / "INDEX.md").write_text(
-        "\n".join(
-            [
-                "## SOP → Execution 매핑",
-                "",
-                "| Directive | Execution Script(s) | 비고 |",
-                "|-----------|---------------------|------|",
-                "| root_tooling.md | root_tool.py | root execution script |",
-                "",
-                "---",
-                "",
-                "## 매핑 없는 Execution 스크립트 (유틸리티/인프라)",
-                "",
-                "| Script | 분류 | 용도 |",
-                "|--------|------|------|",
-            ]
-        ),
+        _index_text(["| root_tooling.md | root_tool.py | root execution script |"]),
         encoding="utf-8",
     )
     (directives_dir / "root_tooling.md").write_text("# root tooling", encoding="utf-8")
@@ -122,6 +94,37 @@ def test_audit_directive_mapping_accepts_repo_root_execution_scripts(tmp_path: P
         index_path=directives_dir / "INDEX.md",
         directives_dir=directives_dir,
         execution_dir=workspace_execution_dir,
+        root=workspace_root,
+    )
+
+    assert result["status"] == gc.STATUS_OK
+    assert result["issues"] == []
+
+
+def test_audit_directive_mapping_accepts_repo_root_targets(tmp_path: Path) -> None:
+    repo_root = tmp_path
+    workspace_root = repo_root / "workspace"
+    directives_dir = workspace_root / "directives"
+    execution_dir = workspace_root / "execution"
+    root_execution_dir = repo_root / "execution"
+    project_dir = repo_root / "projects" / "blind-to-x" / "pipeline"
+    directives_dir.mkdir(parents=True)
+    execution_dir.mkdir()
+    root_execution_dir.mkdir()
+    project_dir.mkdir(parents=True)
+
+    (directives_dir / "INDEX.md").write_text(
+        _index_text(["| eval.md | execution/run_eval.py, projects/blind-to-x/pipeline/draft_providers.py | test |"]),
+        encoding="utf-8",
+    )
+    (directives_dir / "eval.md").write_text("# eval", encoding="utf-8")
+    (root_execution_dir / "run_eval.py").write_text("print('ok')\n", encoding="utf-8")
+    (project_dir / "draft_providers.py").write_text("print('ok')\n", encoding="utf-8")
+
+    result = gc.audit_directive_mapping(
+        index_path=directives_dir / "INDEX.md",
+        directives_dir=directives_dir,
+        execution_dir=execution_dir,
         root=workspace_root,
     )
 
