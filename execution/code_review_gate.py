@@ -30,6 +30,34 @@ from pathlib import Path
 from typing import Any
 
 REPO_ROOT_DEFAULT = Path(__file__).resolve().parents[1]
+GRAPH_RELEVANT_SUFFIXES = {
+    ".py",
+    ".js",
+    ".jsx",
+    ".ts",
+    ".tsx",
+    ".mjs",
+    ".cjs",
+    ".go",
+    ".rs",
+    ".svelte",
+    ".vue",
+    ".sh",
+    ".bash",
+    ".ps1",
+    ".bat",
+    ".cmd",
+    ".json",
+    ".toml",
+    ".yaml",
+    ".yml",
+}
+GRAPH_RELEVANT_FILENAMES = {
+    "Dockerfile",
+    "Makefile",
+    "commit-msg",
+    "pre-commit",
+}
 
 
 @dataclass
@@ -119,6 +147,20 @@ def get_staged_files(repo_root: Path) -> list[str]:
     if result.returncode != 0:
         return []
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def is_graph_relevant_file(path: str) -> bool:
+    """Return True when a staged path is useful input for the code graph gate."""
+    normalized = path.replace("\\", "/")
+    name = Path(normalized).name
+    if name in GRAPH_RELEVANT_FILENAMES:
+        return True
+    return Path(normalized).suffix.lower() in GRAPH_RELEVANT_SUFFIXES
+
+
+def filter_graph_relevant_files(paths: list[str]) -> list[str]:
+    """Keep code/config files and skip docs-only changes that make graph output noisy."""
+    return [path for path in paths if is_graph_relevant_file(path)]
 
 
 def evaluate(
@@ -334,8 +376,9 @@ def main(argv: list[str] | None = None) -> int:
 
     changed_files: list[str] | None = None
     if args.staged:
-        changed_files = get_staged_files(args.repo_root)
-        if not changed_files:
+        staged_files = get_staged_files(args.repo_root)
+        changed_files = filter_graph_relevant_files(staged_files)
+        if not staged_files:
             # Nothing staged -> trivial pass without invoking the graph.
             trivial = GateReport(
                 status="pass",
@@ -351,6 +394,24 @@ def main(argv: list[str] | None = None) -> int:
                 print(json.dumps(trivial.to_dict(), ensure_ascii=False))
             else:
                 print("[code-review-gate] PASS (no staged files)")
+            return 0
+        if not changed_files:
+            # Docs-only/context-only commits should not inherit stale graph gaps.
+            trivial = GateReport(
+                status="pass",
+                risk_score=0.0,
+                warn_threshold=args.warn_threshold,
+                fail_threshold=args.fail_threshold,
+                changed_files=[],
+                affected_flows=[],
+                test_gaps=[],
+                review_priorities=[],
+                reasons=[f"{len(staged_files)} staged file(s) ignored as non-code"],
+            )
+            if args.json:
+                print(json.dumps(trivial.to_dict(), ensure_ascii=False))
+            else:
+                print("[code-review-gate] PASS (no staged code files)")
             return 0
 
     report = evaluate(

@@ -280,3 +280,62 @@ def test_get_staged_files_handles_missing_git_binary(tmp_path, monkeypatch):
 
     monkeypatch.setattr(subprocess, "run", fake_run)
     assert gate.get_staged_files(tmp_path) == []
+
+
+def test_filter_graph_relevant_files_skips_docs_only_paths():
+    result = gate.filter_graph_relevant_files(
+        [
+            ".ai/HANDOFF.md",
+            "workspace/directives/api_monitoring.md",
+            "execution/code_review_gate.py",
+            "projects/app/package.json",
+            ".githooks/pre-commit",
+            "README.md",
+        ]
+    )
+    assert result == [
+        "execution/code_review_gate.py",
+        "projects/app/package.json",
+        ".githooks/pre-commit",
+    ]
+
+
+def test_main_staged_docs_only_skips_graph(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(gate, "get_staged_files", lambda repo_root: [".ai/HANDOFF.md"])
+
+    def fail_evaluate(**kwargs):
+        raise AssertionError("docs-only staged changes must not call evaluate")
+
+    monkeypatch.setattr(gate, "evaluate", fail_evaluate)
+
+    exit_code = gate.main(["--staged", "--repo-root", str(tmp_path)])
+
+    assert exit_code == 0
+    assert "no staged code files" in capsys.readouterr().out
+
+
+def test_main_staged_filters_docs_before_evaluate(tmp_path, monkeypatch):
+    seen = {}
+    monkeypatch.setattr(
+        gate,
+        "get_staged_files",
+        lambda repo_root: [".ai/HANDOFF.md", "execution/code_review_gate.py"],
+    )
+
+    def fake_evaluate(**kwargs):
+        seen.update(kwargs)
+        return gate.GateReport(
+            status="pass",
+            risk_score=0.0,
+            warn_threshold=kwargs["warn_threshold"],
+            fail_threshold=kwargs["fail_threshold"],
+            changed_files=kwargs["changed_files"],
+            affected_flows=[],
+            test_gaps=[],
+            review_priorities=[],
+        )
+
+    monkeypatch.setattr(gate, "evaluate", fake_evaluate)
+
+    assert gate.main(["--staged", "--repo-root", str(tmp_path)]) == 0
+    assert seen["changed_files"] == ["execution/code_review_gate.py"]
