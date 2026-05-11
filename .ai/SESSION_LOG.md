@@ -238,3 +238,25 @@
 ### Follow-up
 - `T-251` remains blocked on the real Supabase DB password in `projects/hanwoo-dashboard/.env`.
 - No push or deploy was performed.
+
+## 2026-05-11 KST - Codex
+
+### Summary
+- Ran full active-project QC per user request.
+- No code changes were made by Codex for this QC run.
+- After QC, unrelated dirty files were present and intentionally preserved: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `projects/blind-to-x/pipeline/content_intelligence/boosting.py`, `projects/blind-to-x/tests/unit/test_viral_boost_llm.py`, and `qc_results.json`.
+
+### Verification
+- `python execution\project_qc_runner.py --json` -> `status: passed`
+- `blind-to-x`: test/lint passed; unit tests `1541 passed`, `1 skipped`, `2 warnings`
+- `shorts-maker-v2`: test/lint passed
+- `hanwoo-dashboard`: test/lint/build passed; `npm test` `51 passed`
+- `knowledge-dashboard`: test/lint/build passed; `npm test` `3 passed`
+- `PYTHONUTF8=1 python -m code_review_graph detect-changes --repo . --brief` -> risk `0.00`
+- `python workspace\execution\health_check.py --category governance --json` -> `overall: ok`
+- `python execution\code_review_gate.py --staged --json` -> `status: pass`
+
+### Follow-up
+- `T-251` remains blocked until the real Supabase password replaces `YOUR_PASSWORD` in `projects/hanwoo-dashboard/.env` `DATABASE_URL`.
+- Preserve the unrelated dirty files unless the user explicitly asks to finish or discard them.
+- No push or deploy was performed.

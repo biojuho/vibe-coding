@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-11 |
 | Tool | Codex |
+| Work | **T-267 full QC re-run per user request**. Ran the canonical active-project QC with `python execution\project_qc_runner.py --json`; result `status: passed`. Results: `blind-to-x` test/lint passed (`1541 passed, 1 skipped, 2 warnings` for unit tests); `shorts-maker-v2` test/lint passed; `hanwoo-dashboard` test/lint/build passed (`npm test` 51 passed); `knowledge-dashboard` test/lint/build passed (`npm test` 3 passed). Supporting checks before the long QC: `PYTHONUTF8=1 python -m code_review_graph detect-changes --repo . --brief` risk `0.00`; `python workspace\execution\health_check.py --category governance --json` `overall: ok`; `python execution\code_review_gate.py --staged --json` `status: pass`. No code changes were made by Codex for this QC run. After QC, unrelated dirty files were present (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `projects/blind-to-x/pipeline/content_intelligence/boosting.py`, `projects/blind-to-x/tests/unit/test_viral_boost_llm.py`, `qc_results.json`); they were not staged or reverted. |
+| Next Priorities | T-251 remains the only product-readiness blocker requiring user action: replace `YOUR_PASSWORD` in `projects/hanwoo-dashboard/.env` `DATABASE_URL` with the real Supabase DB password, then run `npm run db:prisma7-test -- --live`. Preserve unrelated dirty files unless the user explicitly asks to finish or discard them. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-11 |
+| Tool | Codex |
 | Work | **T-266 pre-commit code-review gate noise reduction**. Committed `cb6c3c9` (`fix(workspace): quiet docs-only code review gate`): `execution/code_review_gate.py --staged` now filters staged paths to code/config candidates before invoking `code_review_graph`, so `.ai` / Markdown-only commits return PASS instead of inheriting stale graph test-gap warnings. Added focused tests for docs-only skip and mixed docs+code staged filtering. Verification: `workspace/tests/test_code_review_gate.py` now `20 passed`; Ruff check/format and `py_compile` clean; `git diff --cached --check` clean before commit; post-commit `python execution\code_review_gate.py --staged --json` returns `status: pass`. The gate can still warn on real code changes as intended. No push/deploy was performed. |
 | Next Priorities | T-251 remains the only product-readiness blocker requiring user action: replace `YOUR_PASSWORD` in `projects/hanwoo-dashboard/.env` `DATABASE_URL` with the real Supabase DB password, then run `npm run db:prisma7-test -- --live`. |
 
