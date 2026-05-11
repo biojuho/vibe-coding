@@ -9,6 +9,7 @@ Usage (as library):
 Usage (CLI):
     python workspace/execution/api_usage_tracker.py summary [--days 30]
     python workspace/execution/api_usage_tracker.py check-keys
+    python workspace/execution/api_usage_tracker.py alerts --expected-providers openai,anthropic,google
 """
 
 import argparse
@@ -16,6 +17,7 @@ import json
 import os
 import re
 import sqlite3
+import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List
@@ -601,7 +603,125 @@ def check_api_keys() -> Dict[str, bool]:
     return result
 
 
+def detect_alerts(
+    days_window: int = 7,
+    *,
+    fallback_rate_pct: float = 50.0,
+    cost_spike_pct: float = 100.0,
+    dead_provider_days: int = 14,
+    min_calls_for_rate: int = 5,
+    expected_providers: List[str] | None = None,
+) -> List[Dict]:
+    """현재 LLM 스택의 단발성 anomaly 검출 — cron / n8n 일간 트리거용.
+
+    한 함수가 3가지 신호를 모두 확인한다. 각 신호는 dict로 반환:
+      {"type": ..., "provider": ..., "detail": "...", "value": ..., "threshold": ...}
+
+    검출 조건:
+      1. fallback_rate_pct 초과 (1순위 provider 만성 실패 의심)
+      2. 직전 days_window 평균 비용 대비 최근 days_window 평균 +cost_spike_pct% 증가
+      3. expected_providers 중 dead_provider_days 동안 호출 0인 provider (dead config)
+
+    min_calls_for_rate: rate 계산이 의미 있으려면 최소 콜 수 (노이즈 컷)
+    """
+    init_db()
+    conn = _conn()
+    now = datetime.now()
+    recent_since = (now - timedelta(days=days_window)).strftime("%Y-%m-%d %H:%M:%S")
+    prev_since = (now - timedelta(days=days_window * 2)).strftime("%Y-%m-%d %H:%M:%S")
+    prev_until = recent_since
+
+    alerts: List[Dict] = []
+
+    # 1. provider-level fallback rate
+    rows = conn.execute(
+        "SELECT provider_used, "
+        "       COUNT(*) AS calls, "
+        "       SUM(CASE WHEN fallback_used=1 THEN 1 ELSE 0 END) AS fallback_calls "
+        "FROM api_calls WHERE timestamp >= ? AND provider_used != '' "
+        "GROUP BY provider_used",
+        (recent_since,),
+    ).fetchall()
+    for r in rows:
+        calls = r["calls"] or 0
+        fb = r["fallback_calls"] or 0
+        if calls < min_calls_for_rate:
+            continue
+        rate = fb / calls * 100
+        if rate > fallback_rate_pct:
+            alerts.append(
+                {
+                    "type": "fallback_rate",
+                    "provider": r["provider_used"],
+                    "value_pct": round(rate, 2),
+                    "threshold_pct": fallback_rate_pct,
+                    "window_days": days_window,
+                    "calls": calls,
+                    "detail": f"{r['provider_used']} fallback rate {rate:.1f}% > {fallback_rate_pct}% over last {days_window}d",
+                }
+            )
+
+    # 2. cost spike: 최근 vs 직전 window
+    recent_cost = (
+        conn.execute(
+            "SELECT COALESCE(SUM(cost_usd), 0) FROM api_calls WHERE timestamp >= ?",
+            (recent_since,),
+        ).fetchone()[0]
+        or 0.0
+    )
+    prev_cost = (
+        conn.execute(
+            "SELECT COALESCE(SUM(cost_usd), 0) FROM api_calls WHERE timestamp >= ? AND timestamp < ?",
+            (prev_since, prev_until),
+        ).fetchone()[0]
+        or 0.0
+    )
+    if prev_cost > 0:
+        spike_pct = (recent_cost - prev_cost) / prev_cost * 100
+        if spike_pct > cost_spike_pct:
+            alerts.append(
+                {
+                    "type": "cost_spike",
+                    "provider": "*",
+                    "value_pct": round(spike_pct, 2),
+                    "threshold_pct": cost_spike_pct,
+                    "window_days": days_window,
+                    "prev_cost_usd": round(prev_cost, 6),
+                    "recent_cost_usd": round(recent_cost, 6),
+                    "detail": f"total cost +{spike_pct:.1f}% (${prev_cost:.4f} → ${recent_cost:.4f}) over last {days_window}d vs prior {days_window}d",
+                }
+            )
+
+    # 3. dead providers
+    if expected_providers:
+        dead_since = (now - timedelta(days=dead_provider_days)).strftime("%Y-%m-%d %H:%M:%S")
+        active_rows = conn.execute(
+            "SELECT DISTINCT provider_used FROM api_calls WHERE timestamp >= ?",
+            (dead_since,),
+        ).fetchall()
+        active = {r["provider_used"] for r in active_rows if r["provider_used"]}
+        for prov in expected_providers:
+            if prov not in active:
+                alerts.append(
+                    {
+                        "type": "dead_provider",
+                        "provider": prov,
+                        "threshold_days": dead_provider_days,
+                        "detail": f"{prov}: no calls in last {dead_provider_days}d — config may be stale or key revoked",
+                    }
+                )
+
+    conn.close()
+    return alerts
+
+
 if __name__ == "__main__":
+    # Windows cp949 콘솔에서도 em-dash·한국어 출력 가능하도록 stdout reconfigure
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
+    except (AttributeError, ValueError):
+        pass
+
     parser = argparse.ArgumentParser(description="Joolife API Usage Tracker")
     sub = parser.add_subparsers(dest="cmd")
 
@@ -611,6 +731,20 @@ if __name__ == "__main__":
     sub.add_parser("check-keys")
     sub.add_parser("daily")
     sub.add_parser("providers")
+
+    p_alert = sub.add_parser(
+        "alerts",
+        help="단발성 anomaly 검출 (fallback rate / cost spike / dead provider). cron/n8n 일간 트리거용.",
+    )
+    p_alert.add_argument("--days", type=int, default=7, help="비교 window (default: 7)")
+    p_alert.add_argument("--fallback-pct", type=float, default=50.0)
+    p_alert.add_argument("--cost-spike-pct", type=float, default=100.0)
+    p_alert.add_argument("--dead-days", type=int, default=14)
+    p_alert.add_argument(
+        "--expected-providers",
+        default="",
+        help="콤마 구분 예상 provider 목록 (dead config 검출용, 예: openai,anthropic,google)",
+    )
 
     args = parser.parse_args()
 
@@ -622,5 +756,16 @@ if __name__ == "__main__":
         print(json.dumps(get_daily_breakdown(), indent=2))
     elif args.cmd == "providers":
         print(json.dumps(get_provider_breakdown(), indent=2))
+    elif args.cmd == "alerts":
+        expected = [p.strip() for p in (args.expected_providers or "").split(",") if p.strip()] or None
+        alerts = detect_alerts(
+            days_window=args.days,
+            fallback_rate_pct=args.fallback_pct,
+            cost_spike_pct=args.cost_spike_pct,
+            dead_provider_days=args.dead_days,
+            expected_providers=expected,
+        )
+        print(json.dumps({"alert_count": len(alerts), "alerts": alerts}, ensure_ascii=False, indent=2))
+        sys.exit(1 if alerts else 0)
     else:
         parser.print_help()

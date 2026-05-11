@@ -667,3 +667,151 @@ def test_bridge_provider_breakdown_malformed_reason_codes(monkeypatch, tmp_path)
     assert len(result) == 1
     assert result[0]["provider"] == "openai"
     assert result[0]["issue_calls"] == 0  # malformed → empty reason_codes → no issue
+
+
+# ---------------------------------------------------------------------------
+# detect_alerts (anomaly detection for cron / n8n)
+# ---------------------------------------------------------------------------
+
+
+def _insert_call(
+    tmp_path,
+    *,
+    provider: str = "openai",
+    provider_used: str | None = None,
+    cost_usd: float = 0.001,
+    fallback_used: int = 0,
+    timestamp: str | None = None,
+) -> None:
+    """Insert a single api_calls row with explicit timestamp for window-sensitive tests."""
+    import sqlite3
+    from datetime import datetime
+
+    if timestamp is None:
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn = sqlite3.connect(str(tmp_path / "api_usage.db"))
+    conn.execute(
+        "INSERT INTO api_calls (provider, model, tokens_input, tokens_output, cost_usd, "
+        "fallback_used, provider_used, timestamp) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (provider, "x", 100, 50, cost_usd, fallback_used, provider_used or provider, timestamp),
+    )
+    conn.commit()
+    conn.close()
+
+
+def test_detect_alerts_empty_db_returns_empty(monkeypatch, tmp_path):
+    _patch_db(monkeypatch, tmp_path)
+    assert aut.detect_alerts() == []
+
+
+def test_detect_alerts_fallback_rate_threshold(monkeypatch, tmp_path):
+    """openai with 6/10 fallback (60%) should alert at threshold 50%."""
+    _patch_db(monkeypatch, tmp_path)
+    for _ in range(6):
+        _insert_call(tmp_path, provider="openai", provider_used="openai", fallback_used=1)
+    for _ in range(4):
+        _insert_call(tmp_path, provider="openai", provider_used="openai", fallback_used=0)
+
+    alerts = aut.detect_alerts(days_window=7, fallback_rate_pct=50.0, min_calls_for_rate=5)
+    fallback_alerts = [a for a in alerts if a["type"] == "fallback_rate"]
+    assert len(fallback_alerts) == 1
+    a = fallback_alerts[0]
+    assert a["provider"] == "openai"
+    assert a["value_pct"] == 60.0
+    assert a["calls"] == 10
+
+
+def test_detect_alerts_fallback_skipped_under_min_calls(monkeypatch, tmp_path):
+    """Below min_calls_for_rate → no alert even if 100% fallback (noise cut)."""
+    _patch_db(monkeypatch, tmp_path)
+    for _ in range(2):
+        _insert_call(tmp_path, provider="openai", provider_used="openai", fallback_used=1)
+
+    alerts = aut.detect_alerts(days_window=7, fallback_rate_pct=50.0, min_calls_for_rate=5)
+    assert [a for a in alerts if a["type"] == "fallback_rate"] == []
+
+
+def test_detect_alerts_cost_spike(monkeypatch, tmp_path):
+    """Recent 7d cost $0.10 vs prior 7d $0.01 = +900% > 100% threshold → cost_spike alert."""
+    from datetime import datetime, timedelta
+
+    _patch_db(monkeypatch, tmp_path)
+    now = datetime.now()
+    _insert_call(
+        tmp_path,
+        cost_usd=0.01,
+        timestamp=(now - timedelta(days=10)).strftime("%Y-%m-%d %H:%M:%S"),
+    )
+    _insert_call(
+        tmp_path,
+        cost_usd=0.10,
+        timestamp=(now - timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S"),
+    )
+
+    alerts = aut.detect_alerts(days_window=7, cost_spike_pct=100.0)
+    spikes = [a for a in alerts if a["type"] == "cost_spike"]
+    assert len(spikes) == 1
+    s = spikes[0]
+    assert s["value_pct"] == 900.0
+    assert abs(s["prev_cost_usd"] - 0.01) < 1e-6
+    assert abs(s["recent_cost_usd"] - 0.10) < 1e-6
+
+
+def test_detect_alerts_cost_spike_skipped_when_prior_zero(monkeypatch, tmp_path):
+    """No prior data → cannot compute ratio → no spike alert (avoid div-by-zero)."""
+    _patch_db(monkeypatch, tmp_path)
+    _insert_call(tmp_path, cost_usd=0.10)
+    alerts = aut.detect_alerts(days_window=7)
+    assert [a for a in alerts if a["type"] == "cost_spike"] == []
+
+
+def test_detect_alerts_dead_provider(monkeypatch, tmp_path):
+    """expected_providers includes 'gemini'/'anthropic' but only openai has calls → dead alerts."""
+    _patch_db(monkeypatch, tmp_path)
+    _insert_call(tmp_path, provider="openai", provider_used="openai")
+
+    alerts = aut.detect_alerts(
+        days_window=7,
+        dead_provider_days=14,
+        expected_providers=["openai", "gemini", "anthropic"],
+    )
+    dead_names = {a["provider"] for a in alerts if a["type"] == "dead_provider"}
+    assert dead_names == {"gemini", "anthropic"}
+
+
+def test_detect_alerts_dead_provider_no_expected_list_skipped(monkeypatch, tmp_path):
+    """Without expected_providers param → dead check is skipped entirely."""
+    _patch_db(monkeypatch, tmp_path)
+    _insert_call(tmp_path, provider="openai", provider_used="openai")
+    alerts = aut.detect_alerts(days_window=7)
+    assert [a for a in alerts if a["type"] == "dead_provider"] == []
+
+
+def test_detect_alerts_combined_multiple_signals(monkeypatch, tmp_path):
+    """All three anomaly types should surface in the same call."""
+    from datetime import datetime, timedelta
+
+    _patch_db(monkeypatch, tmp_path)
+    now = datetime.now()
+    # baseline (prior window): small cost
+    _insert_call(
+        tmp_path,
+        cost_usd=0.001,
+        timestamp=(now - timedelta(days=10)).strftime("%Y-%m-%d %H:%M:%S"),
+    )
+    # recent window: high cost + 60% fallback
+    for _ in range(6):
+        _insert_call(tmp_path, provider="openai", provider_used="openai", fallback_used=1, cost_usd=0.02)
+    for _ in range(4):
+        _insert_call(tmp_path, provider="openai", provider_used="openai", fallback_used=0, cost_usd=0.02)
+
+    alerts = aut.detect_alerts(
+        days_window=7,
+        fallback_rate_pct=50.0,
+        cost_spike_pct=100.0,
+        expected_providers=["openai", "missing_provider"],
+        min_calls_for_rate=5,
+    )
+    types = {a["type"] for a in alerts}
+    assert types == {"fallback_rate", "cost_spike", "dead_provider"}
