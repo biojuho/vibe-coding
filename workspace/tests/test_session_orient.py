@@ -111,6 +111,35 @@ def test_tasks_snapshot_missing_file(tmp_path):
     assert snap["available"] is False
 
 
+# ----- goal_snapshot ---------------------------------------------------------
+
+
+def test_goal_snapshot_reads_active_goal(tmp_path):
+    ai = tmp_path / ".ai"
+    ai.mkdir(parents=True)
+    (ai / "GOAL.md").write_text(
+        "# GOAL\n\n"
+        "## Active Goal\n\n"
+        "- Status: active\n"
+        "- Goal: Keep the current goal visible.\n"
+        "- Owner: Codex\n"
+        "- Started: 2026-05-12\n"
+        "- Success: Session orientation shows it.\n",
+        encoding="utf-8",
+    )
+    snap = orient.goal_snapshot(tmp_path)
+    assert snap["available"] is True
+    assert snap["active"] is True
+    assert snap["goal"] == "Keep the current goal visible."
+    assert snap["owner"] == "Codex"
+
+
+def test_goal_snapshot_missing_file(tmp_path):
+    snap = orient.goal_snapshot(tmp_path)
+    assert snap["available"] is False
+    assert "not found" in snap["reason"]
+
+
 # ----- workspace_db_snapshot ------------------------------------------------
 
 
@@ -135,6 +164,7 @@ def test_collect_snapshot_smoke(tmp_path, monkeypatch):
         "pull_requests",
         "handoff",
         "tasks",
+        "goal",
         "workspace_db",
         "graph",
         "ci",
@@ -146,6 +176,7 @@ def test_collect_snapshot_smoke(tmp_path, monkeypatch):
         "pull_requests",
         "handoff",
         "tasks",
+        "goal",
         "workspace_db",
         "graph",
         "ci",
@@ -156,8 +187,30 @@ def test_collect_snapshot_smoke(tmp_path, monkeypatch):
 def test_render_text_includes_each_section(tmp_path):
     snap = orient.collect_snapshot(tmp_path)
     text = orient.render_text(snap)
-    for marker in ("git", "PRs", "HANDOFF", "TASKS", "workspace.db", "code-review-graph", "CI"):
+    for marker in ("git", "PRs", "HANDOFF", "TASKS", "GOAL", "workspace.db", "code-review-graph", "CI"):
         assert marker in text, f"render_text missing section marker: {marker}"
+
+
+def test_render_text_includes_active_goal():
+    text = orient.render_text(
+        {
+            "git": {"available": False},
+            "pull_requests": {"available": False, "reason": "x"},
+            "handoff": {"available": False, "reason": "x"},
+            "tasks": {"available": True, "todo": 0, "in_progress": 0},
+            "goal": {
+                "available": True,
+                "active": True,
+                "goal": "Keep focus.",
+                "owner": "Codex",
+                "status": "active",
+            },
+            "workspace_db": {"available": False, "reason": "x"},
+            "graph": {"available": False, "reason": "x"},
+            "ci": {"available": False, "reason": "x"},
+        }
+    )
+    assert "GOAL: active (Codex) - Keep focus." in text
 
 
 # ----- git_snapshot (uses real git but tmp_path has no .git) ----------------

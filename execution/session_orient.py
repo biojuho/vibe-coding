@@ -33,6 +33,7 @@ from typing import Any
 
 REPO_ROOT_DEFAULT = Path(__file__).resolve().parents[1]
 DATE_LINE_RE = re.compile(r"^\|\s*Date\s*\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*$")
+GOAL_FIELD_RE = re.compile(r"^-\s*(Status|Goal|Owner|Started|Success):\s*(.*?)\s*$", re.IGNORECASE)
 
 
 def _run(
@@ -212,6 +213,38 @@ def tasks_snapshot(repo_root: Path) -> dict[str, Any]:
     return {"available": True, "todo": todo, "in_progress": in_progress}
 
 
+def goal_snapshot(repo_root: Path) -> dict[str, Any]:
+    """Read the shared active goal file if present."""
+    goal_file = repo_root / ".ai" / "GOAL.md"
+    if not goal_file.exists():
+        return {"available": False, "reason": "GOAL.md not found"}
+
+    text = goal_file.read_text(encoding="utf-8")
+    fields: dict[str, str] = {}
+    in_active_goal = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("## "):
+            in_active_goal = stripped.lower() == "## active goal"
+            continue
+        if not in_active_goal:
+            continue
+        match = GOAL_FIELD_RE.match(stripped)
+        if match:
+            fields[match.group(1).lower()] = match.group(2).strip()
+
+    status = fields.get("status", "inactive").lower()
+    return {
+        "available": True,
+        "active": status in {"active", "enabled", "in_progress", "in-progress"},
+        "status": fields.get("status", "inactive"),
+        "goal": fields.get("goal", ""),
+        "owner": fields.get("owner", ""),
+        "started": fields.get("started", ""),
+        "success": fields.get("success", ""),
+    }
+
+
 def workspace_db_snapshot(repo_root: Path) -> dict[str, Any]:
     """Reuse existing `workspace_db_audit` to surface missing recommended indexes."""
     import importlib.util
@@ -304,6 +337,7 @@ def collect_snapshot(repo_root: Path, today: date | None = None) -> dict[str, An
         "pull_requests": pr_snapshot(repo_root),
         "handoff": handoff_snapshot(repo_root, today=today),
         "tasks": tasks_snapshot(repo_root),
+        "goal": goal_snapshot(repo_root),
         "workspace_db": workspace_db_snapshot(repo_root),
         "graph": graph_snapshot(repo_root),
         "ci": ci_snapshot(repo_root),
@@ -358,6 +392,16 @@ def render_text(snap: dict[str, Any]) -> str:
         lines.append(f"  TASKS: TODO={t.get('todo')}, IN_PROGRESS={t.get('in_progress')}")
     else:
         lines.append(f"  TASKS: unavailable ({t.get('reason', '?')})")
+
+    goal = snap.get("goal", {})
+    if goal.get("available"):
+        if goal.get("active") and goal.get("goal"):
+            owner = f" ({goal.get('owner')})" if goal.get("owner") else ""
+            lines.append(f"  GOAL: active{owner} - {goal.get('goal')}")
+        else:
+            lines.append(f"  GOAL: {goal.get('status', 'inactive')}")
+    else:
+        lines.append(f"  GOAL: unavailable ({goal.get('reason', '?')})")
 
     db = snap.get("workspace_db", {})
     if db.get("available"):
