@@ -15,12 +15,18 @@ def estimate_viral_boost_llm(title: str, content: str, topic_cluster: str, emoti
     비용: Gemini/Groq 무료 tier 사용 시 $0.
     """
     try:
-        # 루트 경로에서 LLMClient 접근 (blind-to-x는 루트 venv 사용)
+        # repo_root/workspace/execution/llm_client.py 를 직접 로드
+        # (이전: parent.parent.parent 가 projects/blind-to-x/ 까지만 가서 execution/llm_client.py
+        #  탐지에 실패하고 silent except 로 항상 0.0 반환하던 dead-code 상태였음)
         import importlib.util
         import pathlib
 
-        _root = pathlib.Path(__file__).resolve().parent.parent.parent
-        spec = importlib.util.spec_from_file_location("execution.llm_client", _root / "execution" / "llm_client.py")
+        _repo_root = pathlib.Path(__file__).resolve().parents[4]
+        _target = _repo_root / "workspace" / "execution" / "llm_client.py"
+        if not _target.exists():
+            logger.debug("LLM 바이럴 부스트 비활성: %s 없음", _target)
+            return 0.0
+        spec = importlib.util.spec_from_file_location("execution.llm_client", _target)
         if spec is None or spec.loader is None:
             return 0.0
         mod = importlib.util.module_from_spec(spec)
