@@ -16,6 +16,8 @@ from execution.llm_usage_summary import (
     Aggregate,
     CallRecord,
     _parse_timestamp,
+    _record_from_jsonl_obj,
+    _record_from_sqlite_row,
     aggregate,
     load_jsonl_records,
     load_sqlite_records,
@@ -202,6 +204,16 @@ def test_load_jsonl_records_missing_dir(tmp_path: Path):
     assert records == []
 
 
+def test_record_from_jsonl_obj_normalizes_defaults():
+    rec = _record_from_jsonl_obj({"timestamp": "2026-05-08T00:00:00Z", "metadata": {"fallback_used": True}})
+    assert rec is not None
+    assert rec.provider == "unknown"
+    assert rec.model == "unknown"
+    assert rec.fallback_used is True
+
+    assert _record_from_jsonl_obj({"timestamp": "bad"}) is None
+
+
 # ── load_sqlite_records ─────────────────────────────────────────────────────
 
 
@@ -275,6 +287,31 @@ def test_load_sqlite_records_without_cache_columns_returns_zeros(tmp_path: Path)
 
 def test_load_sqlite_records_missing_db(tmp_path: Path):
     assert list(load_sqlite_records(tmp_path / "nonexistent.db")) == []
+
+
+def test_record_from_sqlite_row_handles_cache_flag(tmp_path: Path):
+    db = _make_db_with_api_calls(tmp_path, with_cache_cols=True)
+    conn = sqlite3.connect(str(db))
+    conn.row_factory = sqlite3.Row
+    conn.execute(
+        "INSERT INTO api_calls (provider, model, tokens_input, tokens_output, cost_usd, "
+        "cache_creation_tokens, cache_read_tokens, fallback_used, timestamp) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        ("anthropic", "claude", 10, 5, 0.01, 3, 7, 1, "2026-05-08 12:00:00"),
+    )
+    row = conn.execute("SELECT * FROM api_calls").fetchone()
+    conn.close()
+
+    rec = _record_from_sqlite_row(row, has_cache=True)
+    assert rec is not None
+    assert rec.cache_creation_tokens == 3
+    assert rec.cache_read_tokens == 7
+    assert rec.fallback_used is True
+
+    legacy_rec = _record_from_sqlite_row(row, has_cache=False)
+    assert legacy_rec is not None
+    assert legacy_rec.cache_creation_tokens == 0
+    assert legacy_rec.cache_read_tokens == 0
 
 
 # ── merge_dedup ─────────────────────────────────────────────────────────────

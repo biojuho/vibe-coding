@@ -58,6 +58,42 @@ def _run(
     return result.returncode, result.stdout
 
 
+def _worktree_counts(status: str) -> dict[str, Any]:
+    staged = 0
+    modified = 0
+    untracked = 0
+    unmerged = 0
+    for line in status.splitlines():
+        if not line:
+            continue
+        head = line[:2]
+        if head == "??":
+            untracked += 1
+        elif "U" in head:
+            unmerged += 1
+        else:
+            if head[0] != " ":
+                staged += 1
+            if head[1] != " ":
+                modified += 1
+    return {
+        "staged": staged,
+        "modified": modified,
+        "untracked": untracked,
+        "unmerged": unmerged,
+        "clean": (staged + modified + untracked + unmerged) == 0,
+    }
+
+
+def _parse_recent_commits(log_out: str) -> list[dict[str, str]]:
+    commits = []
+    for line in log_out.splitlines():
+        parts = line.split("\t", 2)
+        if len(parts) == 3:
+            commits.append({"sha": parts[0], "author": parts[1], "subject": parts[2]})
+    return commits
+
+
 def git_snapshot(repo_root: Path) -> dict[str, Any]:
     """Branch name, ahead/behind origin, worktree counts, recent commits."""
     snap: dict[str, Any] = {"available": False}
@@ -84,30 +120,7 @@ def git_snapshot(repo_root: Path) -> dict[str, Any]:
 
     rc, status = _run(["git", "status", "--porcelain"], repo_root)
     if rc == 0:
-        modified = 0
-        staged = 0
-        untracked = 0
-        unmerged = 0
-        for line in status.splitlines():
-            if not line:
-                continue
-            head = line[:2]
-            if head == "??":
-                untracked += 1
-            elif "U" in head:
-                unmerged += 1
-            else:
-                if head[0] != " ":
-                    staged += 1
-                if head[1] != " ":
-                    modified += 1
-        snap["worktree"] = {
-            "staged": staged,
-            "modified": modified,
-            "untracked": untracked,
-            "unmerged": unmerged,
-            "clean": (staged + modified + untracked + unmerged) == 0,
-        }
+        snap["worktree"] = _worktree_counts(status)
 
     rc, stash_list = _run(["git", "stash", "list"], repo_root)
     snap["stash_count"] = len([line for line in stash_list.splitlines() if line.strip()]) if rc == 0 else 0
@@ -117,12 +130,7 @@ def git_snapshot(repo_root: Path) -> dict[str, Any]:
         repo_root,
     )
     if rc == 0 and log_out.strip():
-        commits = []
-        for line in log_out.splitlines():
-            parts = line.split("\t", 2)
-            if len(parts) == 3:
-                commits.append({"sha": parts[0], "author": parts[1], "subject": parts[2]})
-        snap["recent_commits"] = commits
+        snap["recent_commits"] = _parse_recent_commits(log_out)
 
     return snap
 
@@ -344,94 +352,105 @@ def collect_snapshot(repo_root: Path, today: date | None = None) -> dict[str, An
     }
 
 
-def render_text(snap: dict[str, Any]) -> str:
-    lines: list[str] = ["[session-orient] multi-tool snapshot"]
-    g = snap.get("git", {})
+def _format_worktree(worktree: dict[str, Any]) -> str:
+    if worktree.get("clean"):
+        return "clean"
+    return (
+        f"staged={worktree.get('staged', 0)} modified={worktree.get('modified', 0)} "
+        f"untracked={worktree.get('untracked', 0)} unmerged={worktree.get('unmerged', 0)}"
+    )
+
+
+def _render_git_section(g: dict[str, Any]) -> list[str]:
     if g.get("available"):
         ahead = g.get("ahead", "?")
         behind = g.get("behind", "?")
-        worktree = g.get("worktree", {})
-        clean = (
-            "clean"
-            if worktree.get("clean")
-            else (
-                f"staged={worktree.get('staged', 0)} modified={worktree.get('modified', 0)} "
-                f"untracked={worktree.get('untracked', 0)} unmerged={worktree.get('unmerged', 0)}"
-            )
-        )
-        lines.append(
+        lines = [
             f"  git: {g.get('branch')} (ahead {ahead} / behind {behind}), "
-            f"stash {g.get('stash_count', 0)}, worktree {clean}"
-        )
+            f"stash {g.get('stash_count', 0)}, worktree {_format_worktree(g.get('worktree', {}))}"
+        ]
         for c in g.get("recent_commits", [])[:5]:
             lines.append(f"    {c['sha']} {c['author']:<20} {c['subject']}")
-    else:
-        lines.append("  git: unavailable")
+        return lines
+    return ["  git: unavailable"]
 
-    pr = snap.get("pull_requests", {})
+
+def _render_pr_section(pr: dict[str, Any]) -> list[str]:
     if pr.get("available"):
-        lines.append(f"  PRs open: {pr.get('open_count', 0)}")
+        lines = [f"  PRs open: {pr.get('open_count', 0)}"]
         for item in pr.get("open", [])[:5]:
             lines.append(f"    #{item.get('number')} {item.get('title', '')} [{item.get('mergeStateStatus', '?')}]")
-    else:
-        lines.append(f"  PRs: unavailable ({pr.get('reason', '?')})")
+        return lines
+    return [f"  PRs: unavailable ({pr.get('reason', '?')})"]
 
-    h = snap.get("handoff", {})
+
+def _render_handoff_section(h: dict[str, Any]) -> list[str]:
     if h.get("available"):
         rotation = " (rotation suggested)" if h.get("rotation_suggested") else ""
-        lines.append(
+        return [
             f"  HANDOFF.md: {h.get('line_count')} lines, "
             f"{h.get('current_addendum_count')} addenda, "
             f"oldest {h.get('oldest_addendum', '-')} ({h.get('oldest_age_days', 0)}d){rotation}"
-        )
-    else:
-        lines.append(f"  HANDOFF: unavailable ({h.get('reason', '?')})")
+        ]
+    return [f"  HANDOFF: unavailable ({h.get('reason', '?')})"]
 
-    t = snap.get("tasks", {})
+
+def _render_tasks_section(t: dict[str, Any]) -> list[str]:
     if t.get("available"):
-        lines.append(f"  TASKS: TODO={t.get('todo')}, IN_PROGRESS={t.get('in_progress')}")
-    else:
-        lines.append(f"  TASKS: unavailable ({t.get('reason', '?')})")
+        return [f"  TASKS: TODO={t.get('todo')}, IN_PROGRESS={t.get('in_progress')}"]
+    return [f"  TASKS: unavailable ({t.get('reason', '?')})"]
 
-    goal = snap.get("goal", {})
+
+def _render_goal_section(goal: dict[str, Any]) -> list[str]:
     if goal.get("available"):
         if goal.get("active") and goal.get("goal"):
             owner = f" ({goal.get('owner')})" if goal.get("owner") else ""
-            lines.append(f"  GOAL: active{owner} - {goal.get('goal')}")
-        else:
-            lines.append(f"  GOAL: {goal.get('status', 'inactive')}")
-    else:
-        lines.append(f"  GOAL: unavailable ({goal.get('reason', '?')})")
+            return [f"  GOAL: active{owner} - {goal.get('goal')}"]
+        return [f"  GOAL: {goal.get('status', 'inactive')}"]
+    return [f"  GOAL: unavailable ({goal.get('reason', '?')})"]
 
-    db = snap.get("workspace_db", {})
+
+def _render_workspace_db_section(db: dict[str, Any]) -> list[str]:
     if db.get("available"):
         missing = db.get("missing_recommended", [])
         suffix = f" (missing {len(missing)})" if missing else ""
-        lines.append(f"  workspace.db: {db.get('table_count')} tables, {db.get('index_count')} indexes{suffix}")
-    else:
-        lines.append(f"  workspace.db: unavailable ({db.get('reason', '?')})")
+        return [f"  workspace.db: {db.get('table_count')} tables, {db.get('index_count')} indexes{suffix}"]
+    return [f"  workspace.db: unavailable ({db.get('reason', '?')})"]
 
-    graph = snap.get("graph", {})
+
+def _render_graph_section(graph: dict[str, Any]) -> list[str]:
     if graph.get("available"):
-        lines.append(
+        return [
             f"  code-review-graph: nodes={graph.get('nodes')}, "
             f"edges={graph.get('edges')}, files={graph.get('files')}, "
             f"updated {graph.get('last_updated', '?')}"
-        )
-    else:
-        lines.append(f"  code-review-graph: unavailable ({graph.get('reason', '?')})")
+        ]
+    return [f"  code-review-graph: unavailable ({graph.get('reason', '?')})"]
 
-    ci = snap.get("ci", {})
+
+def _render_ci_section(ci: dict[str, Any]) -> list[str]:
     if ci.get("available"):
         runs = ci.get("recent_runs", [])
         if runs:
+            lines = []
             for r in runs[:3]:
                 status = r.get("conclusion") or r.get("status") or "?"
                 lines.append(f"  CI [{r.get('name', '?')}]: {status}")
-        else:
-            lines.append("  CI: no recent runs")
-    else:
-        lines.append(f"  CI: unavailable ({ci.get('reason', '?')})")
+            return lines
+        return ["  CI: no recent runs"]
+    return [f"  CI: unavailable ({ci.get('reason', '?')})"]
+
+
+def render_text(snap: dict[str, Any]) -> str:
+    lines: list[str] = ["[session-orient] multi-tool snapshot"]
+    lines.extend(_render_git_section(snap.get("git", {})))
+    lines.extend(_render_pr_section(snap.get("pull_requests", {})))
+    lines.extend(_render_handoff_section(snap.get("handoff", {})))
+    lines.extend(_render_tasks_section(snap.get("tasks", {})))
+    lines.extend(_render_goal_section(snap.get("goal", {})))
+    lines.extend(_render_workspace_db_section(snap.get("workspace_db", {})))
+    lines.extend(_render_graph_section(snap.get("graph", {})))
+    lines.extend(_render_ci_section(snap.get("ci", {})))
 
     return "\n".join(lines)
 

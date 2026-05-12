@@ -137,6 +137,28 @@ def _parse_timestamp(raw: str) -> datetime | None:
         return None
 
 
+def _record_from_jsonl_obj(obj: dict[str, Any]) -> CallRecord | None:
+    ts = _parse_timestamp(obj.get("timestamp", ""))
+    if ts is None:
+        return None
+    md = obj.get("metadata") or {}
+    return CallRecord(
+        timestamp=ts,
+        provider=str(obj.get("provider", "") or "unknown"),
+        model=str(obj.get("model", "") or "unknown"),
+        input_tokens=int(obj.get("input_tokens", 0) or 0),
+        output_tokens=int(obj.get("output_tokens", 0) or 0),
+        cache_creation_tokens=int(obj.get("cache_creation_tokens", 0) or 0),
+        cache_read_tokens=int(obj.get("cache_read_tokens", 0) or 0),
+        cost_usd=float(obj.get("cost_usd", 0.0) or 0.0),
+        latency_ms=float(obj.get("latency_ms", 0.0) or 0.0),
+        success=bool(obj.get("success", True)),
+        error=str(obj.get("error", "") or ""),
+        caller=str(obj.get("caller", "") or ""),
+        fallback_used=bool(md.get("fallback_used", False)),
+    )
+
+
 def load_jsonl_records(
     metrics_dir: Path,
     *,
@@ -156,29 +178,36 @@ def load_jsonl_records(
                         obj = json.loads(line)
                     except json.JSONDecodeError:
                         continue
-                    ts = _parse_timestamp(obj.get("timestamp", ""))
-                    if ts is None:
+                    rec = _record_from_jsonl_obj(obj)
+                    if rec is None:
                         continue
-                    if since and ts < since:
+                    if since and rec.timestamp < since:
                         continue
-                    md = obj.get("metadata") or {}
-                    yield CallRecord(
-                        timestamp=ts,
-                        provider=str(obj.get("provider", "") or "unknown"),
-                        model=str(obj.get("model", "") or "unknown"),
-                        input_tokens=int(obj.get("input_tokens", 0) or 0),
-                        output_tokens=int(obj.get("output_tokens", 0) or 0),
-                        cache_creation_tokens=int(obj.get("cache_creation_tokens", 0) or 0),
-                        cache_read_tokens=int(obj.get("cache_read_tokens", 0) or 0),
-                        cost_usd=float(obj.get("cost_usd", 0.0) or 0.0),
-                        latency_ms=float(obj.get("latency_ms", 0.0) or 0.0),
-                        success=bool(obj.get("success", True)),
-                        error=str(obj.get("error", "") or ""),
-                        caller=str(obj.get("caller", "") or ""),
-                        fallback_used=bool(md.get("fallback_used", False)),
-                    )
+                    yield rec
         except OSError:
             continue
+
+
+def _record_from_sqlite_row(row: sqlite3.Row, *, has_cache: bool) -> CallRecord | None:
+    # SQLite timestamp is local 'YYYY-MM-DD HH:MM:SS' (api_usage_tracker uses 'localtime')
+    ts = _parse_timestamp(row["timestamp"])
+    if ts is None:
+        return None
+    return CallRecord(
+        timestamp=ts,
+        provider=str(row["provider"] or "unknown"),
+        model=str(row["model"] or "unknown"),
+        input_tokens=int(row["tokens_input"] or 0),
+        output_tokens=int(row["tokens_output"] or 0),
+        cache_creation_tokens=int(row["cache_creation_tokens"] or 0) if has_cache else 0,
+        cache_read_tokens=int(row["cache_read_tokens"] or 0) if has_cache else 0,
+        cost_usd=float(row["cost_usd"] or 0.0),
+        latency_ms=0.0,  # api_calls has no latency
+        success=True,  # api_calls only logs successful calls
+        error="",
+        caller=str(row["caller_script"] or ""),
+        fallback_used=bool(int(row["fallback_used"] or 0)),
+    )
 
 
 def load_sqlite_records(
@@ -204,27 +233,12 @@ def load_sqlite_records(
     conn.close()
 
     for row in rows:
-        # SQLite timestamp is local 'YYYY-MM-DD HH:MM:SS' (api_usage_tracker uses 'localtime')
-        ts = _parse_timestamp(row["timestamp"])
-        if ts is None:
+        rec = _record_from_sqlite_row(row, has_cache=has_cache)
+        if rec is None:
             continue
-        if since and ts < since:
+        if since and rec.timestamp < since:
             continue
-        yield CallRecord(
-            timestamp=ts,
-            provider=str(row["provider"] or "unknown"),
-            model=str(row["model"] or "unknown"),
-            input_tokens=int(row["tokens_input"] or 0),
-            output_tokens=int(row["tokens_output"] or 0),
-            cache_creation_tokens=int(row["cache_creation_tokens"] or 0) if has_cache else 0,
-            cache_read_tokens=int(row["cache_read_tokens"] or 0) if has_cache else 0,
-            cost_usd=float(row["cost_usd"] or 0.0),
-            latency_ms=0.0,  # api_calls has no latency
-            success=True,  # api_calls only logs successful calls
-            error="",
-            caller=str(row["caller_script"] or ""),
-            fallback_used=bool(int(row["fallback_used"] or 0)),
-        )
+        yield rec
 
 
 def merge_dedup(

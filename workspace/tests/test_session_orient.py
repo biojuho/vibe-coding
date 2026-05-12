@@ -140,6 +140,58 @@ def test_goal_snapshot_missing_file(tmp_path):
     assert "not found" in snap["reason"]
 
 
+# ----- render helpers --------------------------------------------------------
+
+
+def test_git_helpers_parse_and_render_status():
+    counts = orient._worktree_counts(" M modified.py\nA  staged.py\n?? new.py\nUU conflict.py\n")
+    assert counts == {
+        "staged": 1,
+        "modified": 1,
+        "untracked": 1,
+        "unmerged": 1,
+        "clean": False,
+    }
+    assert orient._format_worktree(counts) == "staged=1 modified=1 untracked=1 unmerged=1"
+
+    commits = orient._parse_recent_commits("abc123\tCodex\trefactor helpers\nbad line\n")
+    assert commits == [{"sha": "abc123", "author": "Codex", "subject": "refactor helpers"}]
+
+    lines = orient._render_git_section(
+        {
+            "available": True,
+            "branch": "main",
+            "ahead": 1,
+            "behind": 0,
+            "stash_count": 2,
+            "worktree": counts,
+            "recent_commits": commits,
+        }
+    )
+    assert lines[0] == "  git: main (ahead 1 / behind 0), stash 2, worktree staged=1 modified=1 untracked=1 unmerged=1"
+    assert lines[1] == "    abc123 Codex                refactor helpers"
+
+
+def test_render_section_helpers_cover_available_and_unavailable_states():
+    assert orient._render_pr_section({"available": False, "reason": "no gh"}) == ["  PRs: unavailable (no gh)"]
+    assert orient._render_handoff_section({"available": False, "reason": "missing"}) == [
+        "  HANDOFF: unavailable (missing)"
+    ]
+    assert orient._render_tasks_section({"available": True, "todo": 2, "in_progress": 1}) == [
+        "  TASKS: TODO=2, IN_PROGRESS=1"
+    ]
+    assert orient._render_goal_section({"available": True, "active": False, "status": "inactive"}) == [
+        "  GOAL: inactive"
+    ]
+    assert orient._render_workspace_db_section({"available": True, "table_count": 1, "index_count": 2}) == [
+        "  workspace.db: 1 tables, 2 indexes"
+    ]
+    assert orient._render_graph_section(
+        {"available": True, "nodes": "1", "edges": "2", "files": "3", "last_updated": "now"}
+    ) == ["  code-review-graph: nodes=1, edges=2, files=3, updated now"]
+    assert orient._render_ci_section({"available": True, "recent_runs": []}) == ["  CI: no recent runs"]
+
+
 # ----- workspace_db_snapshot ------------------------------------------------
 
 

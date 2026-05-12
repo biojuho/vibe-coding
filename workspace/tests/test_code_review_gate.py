@@ -8,6 +8,7 @@ deterministic and do not require a real graph build.
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 from typing import Any
@@ -206,6 +207,20 @@ def test_render_text_includes_status_and_reasons(tmp_path):
     assert "risk=0.50" in text
     assert "+ 1 more" in text  # truncation suffix
     assert "test gaps: 1" in text
+
+
+def test_trivial_pass_report_and_print_report(capsys):
+    report = gate._trivial_pass_report(warn_threshold=0.3, fail_threshold=0.7, reasons=["docs-only"])
+    assert report.status == "pass"
+    assert report.reasons == ["docs-only"]
+
+    gate._print_report(report, as_json=False, text_override="custom pass")
+    assert capsys.readouterr().out == "custom pass\n"
+
+    gate._print_report(report, as_json=True)
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "pass"
+    assert payload["reasons"] == ["docs-only"]
 
 
 def test_to_dict_serializable(tmp_path):

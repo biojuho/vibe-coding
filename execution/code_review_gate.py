@@ -294,6 +294,32 @@ def status_to_exit_code(status: str, *, strict: bool) -> int:
     return 3  # error
 
 
+def _trivial_pass_report(
+    *,
+    warn_threshold: float,
+    fail_threshold: float,
+    reasons: list[str] | None = None,
+) -> GateReport:
+    return GateReport(
+        status="pass",
+        risk_score=0.0,
+        warn_threshold=warn_threshold,
+        fail_threshold=fail_threshold,
+        changed_files=[],
+        affected_flows=[],
+        test_gaps=[],
+        review_priorities=[],
+        reasons=reasons or [],
+    )
+
+
+def _print_report(report: GateReport, *, as_json: bool, text_override: str | None = None) -> None:
+    if as_json:
+        print(json.dumps(report.to_dict(), ensure_ascii=False))
+    else:
+        print(text_override or render_text(report))
+
+
 def render_text(report: GateReport) -> str:
     if report.status == "error":
         return f"[code-review-gate] error: {report.error}"
@@ -380,38 +406,20 @@ def main(argv: list[str] | None = None) -> int:
         changed_files = filter_graph_relevant_files(staged_files)
         if not staged_files:
             # Nothing staged -> trivial pass without invoking the graph.
-            trivial = GateReport(
-                status="pass",
-                risk_score=0.0,
+            trivial = _trivial_pass_report(
                 warn_threshold=args.warn_threshold,
                 fail_threshold=args.fail_threshold,
-                changed_files=[],
-                affected_flows=[],
-                test_gaps=[],
-                review_priorities=[],
             )
-            if args.json:
-                print(json.dumps(trivial.to_dict(), ensure_ascii=False))
-            else:
-                print("[code-review-gate] PASS (no staged files)")
+            _print_report(trivial, as_json=args.json, text_override="[code-review-gate] PASS (no staged files)")
             return 0
         if not changed_files:
             # Docs-only/context-only commits should not inherit stale graph gaps.
-            trivial = GateReport(
-                status="pass",
-                risk_score=0.0,
+            trivial = _trivial_pass_report(
                 warn_threshold=args.warn_threshold,
                 fail_threshold=args.fail_threshold,
-                changed_files=[],
-                affected_flows=[],
-                test_gaps=[],
-                review_priorities=[],
                 reasons=[f"{len(staged_files)} staged file(s) ignored as non-code"],
             )
-            if args.json:
-                print(json.dumps(trivial.to_dict(), ensure_ascii=False))
-            else:
-                print("[code-review-gate] PASS (no staged code files)")
+            _print_report(trivial, as_json=args.json, text_override="[code-review-gate] PASS (no staged code files)")
             return 0
 
     report = evaluate(
@@ -424,10 +432,7 @@ def main(argv: list[str] | None = None) -> int:
         changed_files=changed_files,
     )
 
-    if args.json:
-        print(json.dumps(report.to_dict(), ensure_ascii=False))
-    else:
-        print(render_text(report))
+    _print_report(report, as_json=args.json)
 
     return status_to_exit_code(report.status, strict=args.strict)
 
