@@ -215,3 +215,14 @@ py -3.13 execution/code_review_gate.py --base HEAD~1 --strict
 - warn/fail 시 `get_impact_radius`를 자동 호출해 변경 반경을 함께 보고
 - `--include-architecture`로 monthly drift check용 architecture overview 포함 가능
 - **자동화 (advisory)**: `.githooks/pre-commit`이 `--staged`로 호출하지만 절대 차단 안 함 (정보 제공만). 비활성화하려면 `SKIP_CODE_REVIEW_GATE=1 git commit ...`. 차단까지 원하면 훅에서 `--strict`를 추가하고 exit code를 그대로 전파하도록 수정.
+
+### 멀티 도구 세션 오리엔테이션
+
+여러 AI 도구가 병렬로 같은 repo를 편집할 때 "방금 누가 뭘 했는지"가 모호해지는 문제를 줄이기 위한 빠른 스냅샷 도구:
+
+```bash
+python execution/session_orient.py            # 텍스트 요약
+python execution/session_orient.py --json     # 자동화용
+```
+
+한 화면에 모이는 정보: git 브랜치/ahead-behind/worktree/stash/최근 5개 커밋, 오픈 PR, HANDOFF.md 줄 수 + Current Addendum 통계 + rotation 권장 여부, TASKS TODO/IN_PROGRESS 수, `workspace.db` 테이블/인덱스/누락 권장, code-review-graph nodes/edges/files, 최근 CI 실행 결과. 각 섹션은 독립이라 부분 실패 시 해당 섹션만 `unavailable`로 표시.

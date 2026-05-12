@@ -562,16 +562,22 @@ class NotionUploadMixin:
                         "heading_2": {"rich_text": [{"type": "text", "text": {"content": "✍️ AI 자동 아티클"}}]},
                     }
                 )
-                # markdown_to_notion_blocks 동적 로드 (execution/ 단일 소스 유지)
+                # markdown_to_notion_blocks 동적 로드 (workspace/execution/ 단일 소스 유지)
+                # 이전: parent.parent.parent.parent 가 projects/ 까지만 가서
+                # projects/execution/notion_article_uploader.py 를 찾다가 항상 실패하던 dead-code 였음.
+                # parents[4] = repo root → workspace/execution/ 로 정정.
                 try:
                     import importlib.util as _ilu
                     import pathlib as _pl
 
                     _uploader_path = (
-                        _pl.Path(__file__).resolve().parent.parent.parent.parent
+                        _pl.Path(__file__).resolve().parents[4]
+                        / "workspace"
                         / "execution"
                         / "notion_article_uploader.py"
                     )
+                    if not _uploader_path.exists():
+                        raise FileNotFoundError(_uploader_path)
                     _spec = _ilu.spec_from_file_location("notion_article_uploader", str(_uploader_path))
                     _uploader_mod = _ilu.module_from_spec(_spec)
                     _spec.loader.exec_module(_uploader_mod)

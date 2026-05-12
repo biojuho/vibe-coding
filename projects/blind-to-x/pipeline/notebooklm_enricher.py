@@ -28,10 +28,14 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
-# ── 공유 스크립트 경로 (root execution/ 폴더) ──────────────────────────────
-_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
-_CONTENT_WRITER_PATH = _ROOT / "execution" / "content_writer.py"
-_GDRIVE_EXTRACTOR_PATH = _ROOT / "execution" / "gdrive_pdf_extractor.py"
+# ── 공유 스크립트 경로 (workspace/execution/ 폴더) ─────────────────────────
+# 이전: parent.parent.parent 가 projects/blind-to-x/ 까지만 가서
+# projects/blind-to-x/execution/{content_writer,gdrive_pdf_extractor}.py 를
+# 찾다가 항상 실패. _load_module()의 warning 만 남고 NotebookLM enrichment
+# 전체가 silent degraded 상태였음. parents[3] = repo root → workspace/execution/.
+_REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
+_CONTENT_WRITER_PATH = _REPO_ROOT / "workspace" / "execution" / "content_writer.py"
+_GDRIVE_EXTRACTOR_PATH = _REPO_ROOT / "workspace" / "execution" / "gdrive_pdf_extractor.py"
 
 
 def _load_module(name: str, path: pathlib.Path):

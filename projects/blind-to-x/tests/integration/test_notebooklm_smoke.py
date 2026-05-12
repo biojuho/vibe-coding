@@ -23,11 +23,12 @@ import pytest
 _PROJECT_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
+_REPO_ROOT = _PROJECT_ROOT.parents[1]
 
 from pipeline.notebooklm_enricher import NotebookLMAssets, enrich_post_with_assets  # noqa: E402
 
-# content_writer.py 경로
-_CONTENT_WRITER = _PROJECT_ROOT / "execution" / "content_writer.py"
+# shared content_writer.py 경로
+_CONTENT_WRITER = _REPO_ROOT / "workspace" / "execution" / "content_writer.py"
 
 
 # ── 헬퍼 ─────────────────────────────────────────────────────────────────
@@ -60,16 +61,16 @@ class TestNotebookLMContentWriterPath:
     """content_writer.py 경로 탐색 검증."""
 
     def test_content_writer_path_constant(self):
-        """_CONTENT_WRITER_PATH 상수가 execution/ 폴더를 가리키는지 확인."""
+        """_CONTENT_WRITER_PATH 상수가 workspace/execution/ 폴더를 가리키는지 확인."""
         from pipeline.notebooklm_enricher import _CONTENT_WRITER_PATH
 
-        assert "execution" in str(_CONTENT_WRITER_PATH).lower()
+        assert _CONTENT_WRITER_PATH.parent == _REPO_ROOT / "workspace" / "execution"
         assert _CONTENT_WRITER_PATH.name == "content_writer.py"
 
     def test_content_writer_file_info(self):
         """content_writer.py 파일 경로 정보 출력."""
         if not _CONTENT_WRITER.exists():
-            pytest.skip(f"content_writer.py 없음: {_CONTENT_WRITER}  execution/ 폴더에 content_writer.py를 생성하세요.")
+            pytest.skip(f"content_writer.py 없음: {_CONTENT_WRITER}  workspace/execution/ 폴더를 확인하세요.")
         assert _CONTENT_WRITER.is_file()
 
 
@@ -86,7 +87,7 @@ class TestNotebookLMTopicMode:
         mock_cw = MagicMock()
         mock_cw.write_article.return_value = {
             "title": "번아웃 극복법 완벽 가이드",
-            "content": "# 번아웃 극복\n\n직장인 번아웃을 극복하는 실용적인 방법 5가지를 소개합니다.",
+            "article": "# 번아웃 극복\n\n직장인 번아웃을 극복하는 실용적인 방법 5가지를 소개합니다.",
             "provider": "mock",
         }
 
@@ -95,6 +96,9 @@ class TestNotebookLMTopicMode:
 
         assert isinstance(assets, NotebookLMAssets)
         assert assets.topic == "번아웃 극복"
+        assert assets.has_assets
+        assert assets.article_title == "번아웃 극복법 완벽 가이드"
+        assert assets.ai_provider == "mock"
         assert isinstance(assets.elapsed_sec, float)
         assert assets.elapsed_sec >= 0
 
