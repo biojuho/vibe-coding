@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "smoke": "node scripts/smoke.mjs",
-    "test": "node --test src/lib/dashboard-insights.test.mts"
+    "test": "node --test \"src/**/*.test.mts\""
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

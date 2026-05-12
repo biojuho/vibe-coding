@@ -180,6 +180,9 @@ jobs:
             echo "No tsconfig.json; skipping standalone TypeScript check."
           fi
 
+      - name: Test
+        run: npm test
+
       - name: Build
         run: npm run build
 
