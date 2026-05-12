@@ -8,7 +8,7 @@
 - Goal: None
 - Owner: n/a
 - Started: n/a
-- Success: T-280 completed locally on 2026-05-12: PR #35 Langfuse smoke false-positive was fixed on `recover/langfuse-preflight-from-stash`; publication remains approval-gated as T-281.
+- Success: T-281 completed on 2026-05-12: PR #35 branch was updated to `a663565` and all checks are green; remaining blockers are human PR review (T-282) and Supabase password replacement (T-251).
 
 ## Notes
 
