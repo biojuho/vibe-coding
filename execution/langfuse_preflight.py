@@ -30,6 +30,8 @@ import os
 import sys
 import urllib.error
 import urllib.request
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -155,7 +157,47 @@ def check_health_endpoint(host: str) -> CheckResult:
     return CheckResult("health_endpoint", "ok", detail=f"{url} -> 200 OK")
 
 
-def check_smoke_trace(host: str) -> CheckResult:
+def _resolve_smoke_env(env: Mapping[str, str] | None, host: str) -> tuple[dict[str, str], list[str]]:
+    env = env or {}
+    public = env.get("LANGFUSE_PUBLIC_KEY") or os.getenv("LANGFUSE_PUBLIC_KEY", "")
+    secret = env.get("LANGFUSE_SECRET_KEY") or os.getenv("LANGFUSE_SECRET_KEY", "")
+    base_url = (
+        env.get("LANGFUSE_BASE_URL")
+        or os.getenv("LANGFUSE_BASE_URL", "")
+        or env.get("LANGFUSE_HOST")
+        or os.getenv("LANGFUSE_HOST", "")
+        or host
+    )
+    missing = [
+        key for key, value in {"LANGFUSE_PUBLIC_KEY": public, "LANGFUSE_SECRET_KEY": secret}.items() if not value
+    ]
+    return (
+        {
+            "LANGFUSE_ENABLED": "1",
+            "LANGFUSE_PUBLIC_KEY": public,
+            "LANGFUSE_SECRET_KEY": secret,
+            "LANGFUSE_HOST": base_url,
+            "LANGFUSE_BASE_URL": base_url,
+        },
+        missing,
+    )
+
+
+@contextmanager
+def _temporary_env(overrides: Mapping[str, str]) -> Iterator[None]:
+    previous = {key: os.environ.get(key) for key in overrides}
+    os.environ.update({key: value for key, value in overrides.items() if value})
+    try:
+        yield
+    finally:
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+
+def check_smoke_trace(host: str, env: Mapping[str, str] | None = None) -> CheckResult:
     """실제 trace 1건 송신 + flush — workspace LLMClient의 _emit_langfuse_trace 와 동일 경로."""
     workspace_root = REPO_ROOT / "workspace"
     if str(workspace_root) not in sys.path:
@@ -165,27 +207,29 @@ def check_smoke_trace(host: str) -> CheckResult:
     except ImportError as exc:
         return CheckResult("smoke_trace", "fail", detail=f"workspace LLMClient import 실패: {exc}")
 
-    # opt-in이 OFF인 상태에서도 강제 호출하기 위해 임시로 env 우회
-    saved_enabled = os.environ.get("LANGFUSE_ENABLED", "")
-    os.environ["LANGFUSE_ENABLED"] = "1"
-    try:
-        _emit_langfuse_trace(
-            provider="preflight",
-            model="preflight-noop",
-            endpoint="langfuse_preflight",
-            input_tokens=0,
-            output_tokens=0,
-            cost_usd=0.0,
-            caller_script="execution/langfuse_preflight.py",
-            metadata={"preflight": True, "host": host},
+    smoke_env, missing = _resolve_smoke_env(env, host)
+    if missing:
+        return CheckResult(
+            "smoke_trace",
+            "fail",
+            detail=f"missing env for smoke: {', '.join(missing)}",
+            hint="root .env 또는 현재 프로세스 환경에 Langfuse public/secret key를 설정",
         )
+
+    try:
+        with _temporary_env(smoke_env):
+            _emit_langfuse_trace(
+                provider="preflight",
+                model="preflight-noop",
+                endpoint="langfuse_preflight",
+                input_tokens=0,
+                output_tokens=0,
+                cost_usd=0.0,
+                caller_script="execution/langfuse_preflight.py",
+                metadata={"preflight": True, "host": host},
+            )
     except Exception as exc:
         return CheckResult("smoke_trace", "fail", detail=f"trace 송신 중 예외: {exc}")
-    finally:
-        if saved_enabled:
-            os.environ["LANGFUSE_ENABLED"] = saved_enabled
-        else:
-            os.environ.pop("LANGFUSE_ENABLED", None)
 
     # SDK는 비동기 flush — 즉시 UI 조회는 보장 안 함. 송신 호출 자체에 예외 없으면 ok.
     return CheckResult(
@@ -230,7 +274,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # 5. smoke trace
     if not args.skip_smoke:
-        results.append(check_smoke_trace(host))
+        results.append(check_smoke_trace(host, env))
 
     exit_code = 0 if all(r.status != "fail" for r in results) else 1
     return _emit(results, args.json, exit_code=exit_code)
