@@ -8,7 +8,7 @@
 - Goal: None
 - Owner: n/a
 - Started: n/a
-- Success: T-277 completed on 2026-05-12: medium-risk internal workspace automation refactors were applied and verified without product-facing behavior changes.
+- Success: T-279 completed on 2026-05-12: low-risk validation/testability refactors were applied and verified without product behavior changes.
 
 ## Notes
 
