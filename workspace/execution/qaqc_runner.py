@@ -188,6 +188,8 @@ SECURITY_EXCLUDE_PATTERNS = [
     r"[\\/]build[\\/]",
 ]
 
+SECURITY_SCAN_EXTENSIONS = {".py", ".ts", ".tsx", ".js", ".jsx"}
+
 
 def run_pytest(project_name: str, project_config: dict) -> dict:
     """Run pytest for a configured project."""
@@ -220,41 +222,14 @@ def _run_pytest_once(project_name: str, cwd: Path, run_config: dict, timeout: in
     test_paths = [Path(path) for path in run_config.get("paths", [])]
     existing_paths = [path for path in test_paths if path.exists()]
     if not existing_paths:
-        return {
-            "passed": 0,
-            "failed": 0,
-            "skipped": 0,
-            "errors": 0,
-            "status": "SKIP",
-            "message": f"Test directory not found: {', '.join(str(path) for path in test_paths)}",
-        }
+        return _pytest_skip_result(f"Test directory not found: {', '.join(str(path) for path in test_paths)}")
 
-    relative_to_cwd = bool(run_config.get("relative_to_cwd"))
-    cmd_paths: list[str] = []
-    for path in existing_paths:
-        if relative_to_cwd:
-            try:
-                cmd_paths.append(str(path.relative_to(cwd)))
-                continue
-            except ValueError:
-                pass
-        cmd_paths.append(str(path))
-
-    cmd = [
-        str(VENV_PYTHON),
-        "-X",
-        "utf8",
-        "-m",
-        "pytest",
-        *cmd_paths,
-        "-q",
-        "--tb=short",
-        "--no-header",
-        "-o",
-        "addopts=",
-        "-x" if project_name != "root" else "--maxfail=50",
-        *run_config.get("extra_args", []),
-    ]
+    cmd_paths = _pytest_command_paths(
+        existing_paths,
+        cwd,
+        relative_to_cwd=bool(run_config.get("relative_to_cwd")),
+    )
+    cmd = _build_pytest_command(project_name, cmd_paths, run_config.get("extra_args", []))
 
     try:
         result = subprocess.run(
@@ -267,38 +242,92 @@ def _run_pytest_once(project_name: str, cwd: Path, run_config: dict, timeout: in
             timeout=timeout,
         )
         output = result.stdout + result.stderr
-
-        passed = _parse_count(output, "passed")
-        failed = _parse_count(output, "failed")
-        skipped = _parse_count(output, "skipped")
-        errors = _parse_count(output, "error")
-
-        if result.returncode != 0:
-            status = "FAIL"
-        elif passed == 0 and failed == 0 and errors == 0:
-            status = "FAIL"
-        else:
-            status = "PASS" if failed == 0 and errors == 0 else "FAIL"
-
-        return {
-            "passed": passed,
-            "failed": failed,
-            "skipped": skipped,
-            "errors": errors,
-            "status": status,
-            "duration_sec": _parse_duration(output),
-        }
+        return _pytest_result_from_output(output, returncode=result.returncode)
     except subprocess.TimeoutExpired:
-        return {
-            "passed": 0,
-            "failed": 0,
-            "skipped": 0,
-            "errors": 1,
-            "status": "TIMEOUT",
-            "message": f"pytest timed out after {timeout}s",
-        }
+        return _pytest_timeout_result(timeout)
     except Exception as exc:
-        return {"passed": 0, "failed": 0, "skipped": 0, "errors": 1, "status": "ERROR", "message": str(exc)}
+        return _pytest_error_result(str(exc))
+
+
+def _pytest_skip_result(message: str) -> dict:
+    return {
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "errors": 0,
+        "status": "SKIP",
+        "message": message,
+    }
+
+
+def _pytest_timeout_result(timeout: int) -> dict:
+    return {
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "errors": 1,
+        "status": "TIMEOUT",
+        "message": f"pytest timed out after {timeout}s",
+    }
+
+
+def _pytest_error_result(message: str) -> dict:
+    return {"passed": 0, "failed": 0, "skipped": 0, "errors": 1, "status": "ERROR", "message": message}
+
+
+def _pytest_command_paths(existing_paths: list[Path], cwd: Path, *, relative_to_cwd: bool) -> list[str]:
+    cmd_paths: list[str] = []
+    for path in existing_paths:
+        if relative_to_cwd:
+            try:
+                cmd_paths.append(str(path.relative_to(cwd)))
+                continue
+            except ValueError:
+                pass
+        cmd_paths.append(str(path))
+    return cmd_paths
+
+
+def _build_pytest_command(project_name: str, cmd_paths: list[str], extra_args: list[str]) -> list[str]:
+    return [
+        str(VENV_PYTHON),
+        "-X",
+        "utf8",
+        "-m",
+        "pytest",
+        *cmd_paths,
+        "-q",
+        "--tb=short",
+        "--no-header",
+        "-o",
+        "addopts=",
+        "-x" if project_name != "root" else "--maxfail=50",
+        *extra_args,
+    ]
+
+
+def _pytest_status(*, returncode: int, passed: int, failed: int, errors: int) -> str:
+    if returncode != 0:
+        return "FAIL"
+    if passed == 0 and failed == 0 and errors == 0:
+        return "FAIL"
+    return "PASS" if failed == 0 and errors == 0 else "FAIL"
+
+
+def _pytest_result_from_output(output: str, *, returncode: int) -> dict:
+    passed = _parse_count(output, "passed")
+    failed = _parse_count(output, "failed")
+    skipped = _parse_count(output, "skipped")
+    errors = _parse_count(output, "error")
+
+    return {
+        "passed": passed,
+        "failed": failed,
+        "skipped": skipped,
+        "errors": errors,
+        "status": _pytest_status(returncode=returncode, passed=passed, failed=failed, errors=errors),
+        "duration_sec": _parse_duration(output),
+    }
 
 
 def _merge_pytest_results(results: list[dict]) -> dict:
@@ -371,69 +400,74 @@ def _triage_security_issue(issue: dict[str, str]) -> dict[str, object]:
     return {**issue, "actionable": True}
 
 
-def check_ast(modules: list[str]) -> dict:
-    results = {"total": 0, "ok": 0, "failures": []}
-
-    for module_path in modules:
-        full_path = ROOT_DIR / module_path
-        results["total"] += 1
-
-        if not full_path.exists():
-            results["failures"].append({"file": module_path, "error": "File not found"})
-            continue
-
-        try:
-            source = full_path.read_text(encoding="utf-8")
-            ast.parse(source, filename=str(full_path))
-            results["ok"] += 1
-        except SyntaxError as exc:
-            results["failures"].append({"file": module_path, "error": f"SyntaxError at line {exc.lineno}: {exc.msg}"})
-
-    return results
-
-
-def security_scan() -> dict:
-    raw_issues = []
-    scan_extensions = {".py", ".ts", ".tsx", ".js", ".jsx"}
-    exclude_pattern = re.compile("|".join(SECURITY_EXCLUDE_PATTERNS))
-
-    for root, _dirs, files in os.walk(ROOT_DIR):
+def _iter_security_scan_files(root_dir: Path, exclude_pattern: re.Pattern):
+    for root, _dirs, files in os.walk(root_dir):
         if exclude_pattern.search(root.replace("\\", "/")):
             continue
 
         for filename in files:
-            if Path(filename).suffix not in scan_extensions:
-                continue
+            if Path(filename).suffix in SECURITY_SCAN_EXTENSIONS:
+                yield Path(root) / filename
 
-            filepath = Path(root) / filename
-            try:
-                content = filepath.read_text(encoding="utf-8", errors="replace")
-            except (OSError, UnicodeDecodeError):
-                continue
 
-            lines = content.splitlines()
-            for pattern_str, description, flags in SECURITY_PATTERNS:
-                for match in re.finditer(pattern_str, content, flags):
-                    matched_text = match.group()
-                    if "example" in filename.lower() or "test" in filename.lower():
-                        continue
-                    if matched_text.strip().startswith("#") or matched_text.strip().startswith("//"):
-                        continue
+def _read_security_file(filepath: Path) -> str | None:
+    try:
+        return filepath.read_text(encoding="utf-8", errors="replace")
+    except (OSError, UnicodeDecodeError):
+        return None
 
-                    match_line_no = content[: match.start()].count("\n")
-                    full_line = lines[match_line_no] if match_line_no < len(lines) else ""
-                    if "# noqa" in full_line or '"match_preview":' in full_line:
-                        continue
 
-                    rel_path = str(filepath.relative_to(ROOT_DIR))
-                    raw_issues.append(
-                        {
-                            "file": rel_path,
-                            "pattern": description,
-                            "match_preview": matched_text[:80],
-                        }
-                    )
+def _security_issue_from_match(
+    *,
+    filepath: Path,
+    root_dir: Path,
+    description: str,
+    content: str,
+    lines: list[str],
+    match: re.Match,
+) -> dict[str, str] | None:
+    filename = filepath.name
+    matched_text = match.group()
+    if "example" in filename.lower() or "test" in filename.lower():
+        return None
+    if matched_text.strip().startswith("#") or matched_text.strip().startswith("//"):
+        return None
 
+    match_line_no = content[: match.start()].count("\n")
+    full_line = lines[match_line_no] if match_line_no < len(lines) else ""
+    if "# noqa" in full_line or '"match_preview":' in full_line:
+        return None
+
+    return {
+        "file": str(filepath.relative_to(root_dir)),
+        "pattern": description,
+        "match_preview": matched_text[:80],
+    }
+
+
+def _scan_security_file(filepath: Path, root_dir: Path) -> list[dict[str, str]]:
+    content = _read_security_file(filepath)
+    if content is None:
+        return []
+
+    lines = content.splitlines()
+    issues = []
+    for pattern_str, description, flags in SECURITY_PATTERNS:
+        for match in re.finditer(pattern_str, content, flags):
+            issue = _security_issue_from_match(
+                filepath=filepath,
+                root_dir=root_dir,
+                description=description,
+                content=content,
+                lines=lines,
+                match=match,
+            )
+            if issue:
+                issues.append(issue)
+    return issues
+
+
+def _security_scan_result(raw_issues: list[dict[str, str]]) -> dict:
     triaged = [_triage_security_issue(issue) for issue in raw_issues]
     actionable_issues = [issue for issue in triaged if issue.get("actionable", True)]
     triaged_issues = [issue for issue in triaged if not issue.get("actionable", True)]
@@ -457,6 +491,37 @@ def security_scan() -> dict:
         "actionable_issue_count": len(actionable_issues),
         "triaged_issue_count": len(triaged_issues),
     }
+
+
+def check_ast(modules: list[str]) -> dict:
+    results = {"total": 0, "ok": 0, "failures": []}
+
+    for module_path in modules:
+        full_path = ROOT_DIR / module_path
+        results["total"] += 1
+
+        if not full_path.exists():
+            results["failures"].append({"file": module_path, "error": "File not found"})
+            continue
+
+        try:
+            source = full_path.read_text(encoding="utf-8")
+            ast.parse(source, filename=str(full_path))
+            results["ok"] += 1
+        except SyntaxError as exc:
+            results["failures"].append({"file": module_path, "error": f"SyntaxError at line {exc.lineno}: {exc.msg}"})
+
+    return results
+
+
+def security_scan() -> dict:
+    raw_issues = []
+    exclude_pattern = re.compile("|".join(SECURITY_EXCLUDE_PATTERNS))
+
+    for filepath in _iter_security_scan_files(ROOT_DIR, exclude_pattern):
+        raw_issues.extend(_scan_security_file(filepath, ROOT_DIR))
+
+    return _security_scan_result(raw_issues)
 
 
 def governance_scan() -> dict:
@@ -485,9 +550,7 @@ def governance_scan() -> dict:
     }
 
 
-def check_infrastructure() -> dict:
-    infra: dict[str, object] = {}
-
+def _check_docker() -> tuple[bool, list[str]]:
     try:
         result = subprocess.run(
             ["docker", "ps", "--format", "{{.Names}}"],
@@ -496,61 +559,81 @@ def check_infrastructure() -> dict:
             timeout=5,
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
-        infra["docker"] = result.returncode == 0
-        infra["docker_containers"] = (
+        containers = (
             [item.strip() for item in result.stdout.strip().split("\n") if item.strip()]
             if result.returncode == 0
             else []
         )
+        return result.returncode == 0, containers
     except (FileNotFoundError, subprocess.TimeoutExpired):
-        infra["docker"] = False
-        infra["docker_containers"] = []
+        return False, []
 
+
+def _check_ollama() -> bool:
     try:
         import urllib.request
 
         request = urllib.request.Request("http://localhost:11434/api/tags", method="GET")
         with urllib.request.urlopen(request, timeout=3) as response:
-            infra["ollama"] = response.status == 200
+            return response.status == 200
     except Exception:
-        infra["ollama"] = False
+        return False
 
+
+def _scheduler_encoding() -> str:
+    scheduler_encoding_fn = getattr(locale, "getencoding", None)
+    if callable(scheduler_encoding_fn):
+        return scheduler_encoding_fn() or "utf-8"
+    return locale.getpreferredencoding(False) or "utf-8"
+
+
+def _parse_scheduler_csv(output: str) -> dict[str, int]:
+    blind_tasks = []
+    ready_count = 0
+    for row in csv.reader(line for line in output.splitlines() if line.strip()):
+        if not row or "BlindToX" not in row[0]:
+            continue
+        blind_tasks.append(row)
+        status = row[2].strip() if len(row) > 2 else ""
+        if status.casefold() == "ready" or status == "준비":
+            ready_count += 1
+    return {"ready": ready_count, "total": len(blind_tasks)}
+
+
+def _check_scheduler() -> dict[str, int]:
     try:
-        scheduler_encoding_fn = getattr(locale, "getencoding", None)
-        if callable(scheduler_encoding_fn):
-            scheduler_encoding = scheduler_encoding_fn() or "utf-8"
-        else:
-            scheduler_encoding = locale.getpreferredencoding(False) or "utf-8"
-
         result = subprocess.run(
             ["schtasks", "/query", "/fo", "CSV", "/nh"],
             capture_output=True,
             text=True,
-            encoding=scheduler_encoding,
+            encoding=_scheduler_encoding(),
             errors="replace",
             timeout=10,
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
-        blind_tasks = []
-        ready_count = 0
-        for row in csv.reader(line for line in result.stdout.splitlines() if line.strip()):
-            if not row or "BlindToX" not in row[0]:
-                continue
-            blind_tasks.append(row)
-            status = row[2].strip() if len(row) > 2 else ""
-            if status.casefold() == "ready" or status == "준비":
-                ready_count += 1
-        infra["scheduler"] = {"ready": ready_count, "total": len(blind_tasks)}
+        return _parse_scheduler_csv(result.stdout)
     except Exception:
-        infra["scheduler"] = {"ready": 0, "total": 0}
+        return {"ready": 0, "total": 0}
 
+
+def _disk_free_gb(root_dir: Path) -> float:
     try:
-        usage = shutil.disk_usage(str(ROOT_DIR))
-        infra["disk_gb_free"] = round(usage.free / (1024**3), 1)
+        usage = shutil.disk_usage(str(root_dir))
+        return round(usage.free / (1024**3), 1)
     except Exception:
-        infra["disk_gb_free"] = -1
+        return -1
 
-    return infra
+
+def check_infrastructure() -> dict:
+    docker_ok, docker_containers = _check_docker()
+
+    return {
+        "docker": docker_ok,
+        "docker_containers": docker_containers,
+        "ollama": _check_ollama(),
+        "scheduler": _check_scheduler(),
+        "disk_gb_free": _disk_free_gb(ROOT_DIR),
+    }
 
 
 def determine_verdict(
@@ -586,6 +669,161 @@ def determine_verdict(
     return "APPROVED"
 
 
+def _run_project_checks(projects_to_run: list[str]) -> dict:
+    project_results = {}
+    for name in projects_to_run:
+        if name not in PROJECTS:
+            print(f"[WARN] Unknown project: {name}")
+            continue
+
+        print(f"\n[TEST] Running pytest for {name}...")
+        result = run_pytest(name, PROJECTS[name])
+        project_results[name] = result
+        print(
+            f"   [{result['status']}] {result['passed']} passed, {result['failed']} failed, {result['skipped']} skipped"
+        )
+    return project_results
+
+
+def _run_ast_scan() -> dict:
+    print(f"\n[AST] Checking {len(CORE_MODULES)} core modules...")
+    ast_result = check_ast(CORE_MODULES)
+    ast_status = "PASS" if ast_result["ok"] == ast_result["total"] else "FAIL"
+    print(f"   [{ast_status}] {ast_result['ok']}/{ast_result['total']} OK")
+    return ast_result
+
+
+def _run_security_scan() -> dict:
+    print("\n[SEC] Running security scan...")
+    security_result = security_scan()
+    sec_status = security_result.get("status_detail", security_result["status"])
+    print(f"   [{security_result['status']}] {sec_status}")
+    return security_result
+
+
+def _run_governance_scan() -> dict:
+    print("\n[GOV] Running governance scan...")
+    governance_result = governance_scan()
+    gov_status = governance_result.get("status_detail", governance_result["status"])
+    print(f"   [{governance_result['status']}] {gov_status}")
+    return governance_result
+
+
+def _run_debt_audit() -> dict[str, object]:
+    print("\n[DEBT] Running VibeDebt audit...")
+    try:
+        from execution.vibe_debt_auditor import run_audit
+
+        audit = run_audit()
+        debt_result = {
+            "overall_tdr": audit.overall_tdr,
+            "overall_grade": audit.overall_grade,
+            "total_files": audit.total_files,
+            "total_principal_hours": audit.total_principal_hours,
+            "total_interest_monthly_hours": audit.total_interest_monthly_hours,
+            "projects": [
+                {"name": p.name, "tdr_percent": p.tdr_percent, "tdr_grade": p.tdr_grade, "avg_score": p.avg_score}
+                for p in audit.projects
+            ],
+        }
+        print(f"   TDR: {audit.overall_tdr:.1f}% [{audit.overall_grade}]")
+        principal = f"{audit.total_principal_hours:.1f}h"
+        interest = f"{audit.total_interest_monthly_hours:.1f}h/mo"
+        print(f"   Principal: {principal} | Interest: {interest}")
+
+        try:
+            from execution.debt_history_db import DebtHistoryDB
+
+            db = DebtHistoryDB()
+            db.record_audit(audit)
+        except Exception:
+            pass
+        return debt_result
+    except Exception as exc:
+        print(f"   [WARN] Debt audit failed: {exc}")
+        return {"error": str(exc)}
+
+
+def _run_infrastructure_scan() -> dict[str, object]:
+    print("\n[INFRA] Checking local infrastructure...")
+    infra_result = check_infrastructure()
+    print(f"   Docker: {'yes' if infra_result.get('docker') else 'no'}")
+    print(f"   Ollama: {'yes' if infra_result.get('ollama') else 'no'}")
+    scheduler = infra_result.get("scheduler", {})
+    print(f"   Scheduler: {scheduler.get('ready', 0)}/{scheduler.get('total', 0)} Ready")
+    print(f"   Disk: {infra_result.get('disk_gb_free', '?')} GB free")
+    return infra_result
+
+
+def _project_totals(project_results: dict) -> dict[str, object]:
+    timeout_projects = [name for name, project in project_results.items() if project.get("status") == "TIMEOUT"]
+    return {
+        "passed": sum(project.get("passed", 0) for project in project_results.values()),
+        "failed": sum(project.get("failed", 0) for project in project_results.values()),
+        "errors": sum(project.get("errors", 0) for project in project_results.values()),
+        "skipped": sum(project.get("skipped", 0) for project in project_results.values()),
+        "timeout": timeout_projects,
+    }
+
+
+def _print_verdict_summary(verdict: str, totals: dict[str, object], elapsed: float) -> None:
+    print("\n" + "=" * 60)
+    print(f"[VERDICT] {verdict}")
+    print(
+        f"   Total: {totals['passed']} passed, {totals['failed']} failed, "
+        f"{totals['errors']} errors, {totals['skipped']} skipped"
+    )
+    if totals["timeout"]:
+        print(f"   Timed out: {', '.join(totals['timeout'])}")
+    print(f"   Elapsed: {elapsed}s")
+
+
+def _build_report(
+    *,
+    timestamp: str,
+    verdict: str,
+    elapsed: float,
+    project_results: dict,
+    totals: dict[str, object],
+    ast_result: dict,
+    security_result: dict,
+    governance_result: dict,
+    debt_result: dict[str, object],
+    infra_result: dict[str, object],
+) -> dict:
+    return {
+        "timestamp": timestamp,
+        "verdict": verdict,
+        "elapsed_sec": elapsed,
+        "projects": project_results,
+        "total": totals,
+        "ast_check": ast_result,
+        "security_scan": security_result,
+        "governance_scan": governance_result,
+        "debt_audit": debt_result,
+        "infrastructure": infra_result,
+    }
+
+
+def _save_report(report: dict, output_file: str | None) -> Path:
+    out_path = Path(output_file) if output_file else KNOWLEDGE_DIR / "public" / "qaqc_result.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(f"\n[SAVED] {out_path}")
+    return out_path
+
+
+def _save_history(report: dict) -> None:
+    from execution.qaqc_history_db import QaQcHistoryDB
+
+    try:
+        db = QaQcHistoryDB()
+        db.save_run(report)
+        print("[SAVED] QA/QC history database")
+    except Exception:
+        pass
+
+
 def run_qaqc(
     target_projects: list[str] | None = None,
     skip_infra: bool = False,
@@ -600,126 +838,32 @@ def run_qaqc(
     print("=" * 60)
 
     projects_to_run = target_projects or list(PROJECTS.keys())
-    project_results = {}
-
-    for name in projects_to_run:
-        if name not in PROJECTS:
-            print(f"[WARN] Unknown project: {name}")
-            continue
-
-        print(f"\n[TEST] Running pytest for {name}...")
-        result = run_pytest(name, PROJECTS[name])
-        project_results[name] = result
-        print(
-            f"   [{result['status']}] {result['passed']} passed, {result['failed']} failed, {result['skipped']} skipped"
-        )
-
-    print(f"\n[AST] Checking {len(CORE_MODULES)} core modules...")
-    ast_result = check_ast(CORE_MODULES)
-    ast_status = "PASS" if ast_result["ok"] == ast_result["total"] else "FAIL"
-    print(f"   [{ast_status}] {ast_result['ok']}/{ast_result['total']} OK")
-
-    print("\n[SEC] Running security scan...")
-    security_result = security_scan()
-    sec_status = security_result.get("status_detail", security_result["status"])
-    print(f"   [{security_result['status']}] {sec_status}")
-
-    print("\n[GOV] Running governance scan...")
-    governance_result = governance_scan()
-    gov_status = governance_result.get("status_detail", governance_result["status"])
-    print(f"   [{governance_result['status']}] {gov_status}")
-
-    debt_result: dict[str, object] = {}
-    if not skip_debt:
-        print("\n[DEBT] Running VibeDebt audit...")
-        try:
-            from execution.vibe_debt_auditor import run_audit
-
-            audit = run_audit()
-            debt_result = {
-                "overall_tdr": audit.overall_tdr,
-                "overall_grade": audit.overall_grade,
-                "total_files": audit.total_files,
-                "total_principal_hours": audit.total_principal_hours,
-                "total_interest_monthly_hours": audit.total_interest_monthly_hours,
-                "projects": [
-                    {"name": p.name, "tdr_percent": p.tdr_percent, "tdr_grade": p.tdr_grade, "avg_score": p.avg_score}
-                    for p in audit.projects
-                ],
-            }
-            print(f"   TDR: {audit.overall_tdr:.1f}% [{audit.overall_grade}]")
-            principal = f"{audit.total_principal_hours:.1f}h"
-            interest = f"{audit.total_interest_monthly_hours:.1f}h/mo"
-            print(f"   Principal: {principal} | Interest: {interest}")
-
-            try:
-                from execution.debt_history_db import DebtHistoryDB
-
-                db = DebtHistoryDB()
-                db.record_audit(audit)
-            except Exception:
-                pass
-        except Exception as exc:
-            print(f"   [WARN] Debt audit failed: {exc}")
-            debt_result = {"error": str(exc)}
-
-    infra_result: dict[str, object] = {}
-    if not skip_infra:
-        print("\n[INFRA] Checking local infrastructure...")
-        infra_result = check_infrastructure()
-        print(f"   Docker: {'yes' if infra_result.get('docker') else 'no'}")
-        print(f"   Ollama: {'yes' if infra_result.get('ollama') else 'no'}")
-        scheduler = infra_result.get("scheduler", {})
-        print(f"   Scheduler: {scheduler.get('ready', 0)}/{scheduler.get('total', 0)} Ready")
-        print(f"   Disk: {infra_result.get('disk_gb_free', '?')} GB free")
+    project_results = _run_project_checks(projects_to_run)
+    ast_result = _run_ast_scan()
+    security_result = _run_security_scan()
+    governance_result = _run_governance_scan()
+    debt_result = {} if skip_debt else _run_debt_audit()
+    infra_result = {} if skip_infra else _run_infrastructure_scan()
 
     verdict = determine_verdict(project_results, ast_result, security_result, governance_result)
-    total_passed = sum(project.get("passed", 0) for project in project_results.values())
-    total_failed = sum(project.get("failed", 0) for project in project_results.values())
-    total_errors = sum(project.get("errors", 0) for project in project_results.values())
-    total_skipped = sum(project.get("skipped", 0) for project in project_results.values())
-    timeout_projects = [name for name, project in project_results.items() if project.get("status") == "TIMEOUT"]
+    totals = _project_totals(project_results)
     elapsed = round(time.time() - start_time, 1)
 
-    print("\n" + "=" * 60)
-    print(f"[VERDICT] {verdict}")
-    print(f"   Total: {total_passed} passed, {total_failed} failed, {total_errors} errors, {total_skipped} skipped")
-    if timeout_projects:
-        print(f"   Timed out: {', '.join(timeout_projects)}")
-    print(f"   Elapsed: {elapsed}s")
-
-    report = {
-        "timestamp": timestamp,
-        "verdict": verdict,
-        "elapsed_sec": elapsed,
-        "projects": project_results,
-        "total": {
-            "passed": total_passed,
-            "failed": total_failed,
-            "errors": total_errors,
-            "skipped": total_skipped,
-            "timeout": timeout_projects,
-        },
-        "ast_check": ast_result,
-        "security_scan": security_result,
-        "governance_scan": governance_result,
-        "debt_audit": debt_result,
-        "infrastructure": infra_result,
-    }
-
-    out_path = Path(output_file) if output_file else KNOWLEDGE_DIR / "public" / "qaqc_result.json"
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(f"\n[SAVED] {out_path}")
-
-    from execution.qaqc_history_db import QaQcHistoryDB
-
-    try:
-        db = QaQcHistoryDB()
-        db.save_run(report)
-        print("[SAVED] QA/QC history database")
-    except Exception:
-        pass
+    _print_verdict_summary(verdict, totals, elapsed)
+    report = _build_report(
+        timestamp=timestamp,
+        verdict=verdict,
+        elapsed=elapsed,
+        project_results=project_results,
+        totals=totals,
+        ast_result=ast_result,
+        security_result=security_result,
+        governance_result=governance_result,
+        debt_result=debt_result,
+        infra_result=infra_result,
+    )
+    _save_report(report, output_file)
+    _save_history(report)
 
     return report
 

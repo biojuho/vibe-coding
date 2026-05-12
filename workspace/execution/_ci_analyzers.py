@@ -48,6 +48,31 @@ class _Rule(NamedTuple):
     comment_prefix: str = "//"
 
 
+def _make_issue(
+    *,
+    file: str,
+    line: int,
+    column: int = 0,
+    category: str,
+    severity: str,
+    rule_id: str,
+    message: str,
+    code_snippet: str,
+    suggestion_hint: str,
+) -> Issue:
+    return Issue(
+        file=file,
+        line=line,
+        column=column,
+        category=category,
+        severity=severity,
+        rule_id=rule_id,
+        message=message,
+        code_snippet=code_snippet,
+        suggestion_hint=suggestion_hint,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Base Analyzer (cross-language rules)
 # ---------------------------------------------------------------------------
@@ -96,10 +121,9 @@ class BaseAnalyzer:
             if check_comment and _in_comment_or_string(line, m.start(), comment_prefix):
                 continue
             issues.append(
-                Issue(
+                _make_issue(
                     file=fp,
                     line=i,
-                    column=0,
                     category=category,
                     severity=severity,
                     rule_id=rule_id,
@@ -135,7 +159,7 @@ class BaseAnalyzer:
         for i, line in enumerate(lines, 1):
             if len(line) > limit:
                 issues.append(
-                    Issue(
+                    _make_issue(
                         file=fp,
                         line=i,
                         column=limit,
@@ -177,7 +201,7 @@ class BaseAnalyzer:
             m = pattern.search(line)
             if m:
                 issues.append(
-                    Issue(
+                    _make_issue(
                         file=fp,
                         line=i,
                         column=m.start(),
@@ -198,10 +222,9 @@ class BaseAnalyzer:
             for pat in SECRET_PATTERNS:
                 if pat.search(line):
                     issues.append(
-                        Issue(
+                        _make_issue(
                             file=fp,
                             line=i,
-                            column=0,
                             category="security",
                             severity="high",
                             rule_id="GEN004",
@@ -218,10 +241,9 @@ class BaseAnalyzer:
             credential_url = _find_embedded_credential_url(line)
             if credential_url:
                 issues.append(
-                    Issue(
+                    _make_issue(
                         file=fp,
                         line=i,
-                        column=0,
                         category="security",
                         severity="high",
                         rule_id="GEN004",

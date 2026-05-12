@@ -218,27 +218,59 @@ class ToolRegistry:
         perm = self._permissions.get(tool_name)
         risk = perm.risk_level if perm else RiskLevel.DANGEROUS
 
+        result, status = self._resolve_authorization_result(tool_name, path, result)
+        self._record_invocation(
+            tool_name=tool_name,
+            agent_id=agent_id,
+            path=path,
+            risk=risk,
+            status=status,
+            reason=result.reason,
+        )
+
+        if result.allowed:
+            self._session_counts[tool_name] = self._session_counts.get(tool_name, 0) + 1
+
+        return result
+
+    def _resolve_authorization_result(
+        self,
+        tool_name: str,
+        path: str | None,
+        result: CheckResult,
+    ) -> tuple[CheckResult, str]:
         if result.allowed and result.requires_hitl:
-            if self._hitl_handler is None:
-                result = CheckResult(
+            return self._resolve_hitl_result(tool_name, path)
+        if result.allowed:
+            return result, "allowed"
+        return result, "denied"
+
+    def _resolve_hitl_result(self, tool_name: str, path: str | None) -> tuple[CheckResult, str]:
+        if self._hitl_handler is None:
+            return (
+                CheckResult(
                     allowed=False,
                     reason="HITL required but no handler registered",
                     requires_hitl=True,
-                )
-                status = "denied"
-            else:
-                approved = self._hitl_handler(tool_name, path)
-                if not approved:
-                    result = CheckResult(allowed=False, reason="HITL denied by human", requires_hitl=True)
-                    status = "denied"
-                else:
-                    status = "allowed"
-        elif result.allowed:
-            status = "allowed"
-        else:
-            status = "denied"
+                ),
+                "denied",
+            )
 
-        # Record
+        approved = self._hitl_handler(tool_name, path)
+        if not approved:
+            return CheckResult(allowed=False, reason="HITL denied by human", requires_hitl=True), "denied"
+        return CheckResult(allowed=True, requires_hitl=True, reason="Requires human approval"), "allowed"
+
+    def _record_invocation(
+        self,
+        *,
+        tool_name: str,
+        agent_id: str,
+        path: str | None,
+        risk: RiskLevel,
+        status: str,
+        reason: str,
+    ) -> None:
         self._invocation_log.append(
             InvocationRecord(
                 tool_name=tool_name,
@@ -247,14 +279,9 @@ class ToolRegistry:
                 path=path,
                 risk_level=risk,
                 result=status,
-                reason=result.reason,
+                reason=reason,
             )
         )
-
-        if result.allowed:
-            self._session_counts[tool_name] = self._session_counts.get(tool_name, 0) + 1
-
-        return result
 
     def reset_session(self) -> None:
         """Reset per-session counters (e.g. at the start of a new agent run)."""
@@ -298,7 +325,15 @@ def _build_default_permissions(workspace_root: str) -> list[ToolPermission]:
     ai_glob = f"{root}/.ai/*"
 
     return [
-        # ── READ_SAFE ──────────────────────────────────────────────
+        *_read_safe_permissions(root),
+        *_write_moderate_permissions(projects_glob, workspace_glob, tmp_glob, ai_glob),
+        *_execute_dangerous_permissions(),
+        *_network_dangerous_permissions(),
+    ]
+
+
+def _read_safe_permissions(root: str) -> list[ToolPermission]:
+    return [
         ToolPermission(
             name="file_read",
             risk_level=RiskLevel.SAFE,
@@ -317,18 +352,28 @@ def _build_default_permissions(workspace_root: str) -> list[ToolPermission]:
             description="Search file contents",
             allowed_path_globs=(f"{root}/*",),
         ),
-        # ── WRITE_MODERATE ─────────────────────────────────────────
+    ]
+
+
+def _write_moderate_permissions(
+    projects_glob: str,
+    workspace_glob: str,
+    tmp_glob: str,
+    ai_glob: str,
+) -> list[ToolPermission]:
+    writable_globs = (projects_glob, workspace_glob, tmp_glob, ai_glob)
+    return [
         ToolPermission(
             name="file_write",
             risk_level=RiskLevel.MODERATE,
-            allowed_path_globs=(projects_glob, workspace_glob, tmp_glob, ai_glob),
+            allowed_path_globs=writable_globs,
             max_invocations_per_session=50,
             description="Write files within project/workspace/tmp/.ai directories",
         ),
         ToolPermission(
             name="file_create",
             risk_level=RiskLevel.MODERATE,
-            allowed_path_globs=(projects_glob, workspace_glob, tmp_glob, ai_glob),
+            allowed_path_globs=writable_globs,
             max_invocations_per_session=30,
             description="Create new files within project/workspace/tmp/.ai directories",
         ),
@@ -340,7 +385,11 @@ def _build_default_permissions(workspace_root: str) -> list[ToolPermission]:
             max_invocations_per_session=10,
             description="Delete files — only in .tmp, requires human approval",
         ),
-        # ── EXECUTE_DANGEROUS ──────────────────────────────────────
+    ]
+
+
+def _execute_dangerous_permissions() -> list[ToolPermission]:
+    return [
         ToolPermission(
             name="shell_command",
             risk_level=RiskLevel.DANGEROUS,
@@ -355,7 +404,11 @@ def _build_default_permissions(workspace_root: str) -> list[ToolPermission]:
             max_invocations_per_session=10,
             description="Execute Python scripts — requires human approval",
         ),
-        # ── NETWORK_DANGEROUS ─────────────────────────────────────
+    ]
+
+
+def _network_dangerous_permissions() -> list[ToolPermission]:
+    return [
         ToolPermission(
             name="http_request",
             risk_level=RiskLevel.DANGEROUS,

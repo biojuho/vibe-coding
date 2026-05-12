@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -91,6 +92,32 @@ def test_run_pytest_aggregates_split_runs_and_passes_extra_args(tmp_path, monkey
     assert len(calls) == 2
     assert all(call_kwargs["timeout"] == 123 for _, call_kwargs in calls)
     assert "--ignore=execution/tests/test_sample.py" in calls[1][0]
+
+
+def test_pytest_command_and_result_helpers(tmp_path, monkeypatch) -> None:
+    nested = tmp_path / "tests" / "unit"
+    nested.mkdir(parents=True)
+    external = tmp_path.parent / "external-tests"
+
+    monkeypatch.setattr(qaqc_runner, "VENV_PYTHON", Path("python"))
+
+    paths = qaqc_runner._pytest_command_paths([nested, external], tmp_path, relative_to_cwd=True)
+    cmd = qaqc_runner._build_pytest_command("root", paths, ["--ignore=x.py"])
+    result = qaqc_runner._pytest_result_from_output("4 passed, 1 skipped in 2.5s", returncode=0)
+
+    assert paths == [str(Path("tests") / "unit"), str(external)]
+    assert cmd[:5] == ["python", "-X", "utf8", "-m", "pytest"]
+    assert "--maxfail=50" in cmd
+    assert "--ignore=x.py" in cmd
+    assert result == {
+        "passed": 4,
+        "failed": 0,
+        "skipped": 1,
+        "errors": 0,
+        "status": "PASS",
+        "duration_sec": 2.5,
+    }
+    assert qaqc_runner._pytest_status(returncode=0, passed=0, failed=0, errors=0) == "FAIL"
 
 
 def test_check_infrastructure_handles_missing_tools(monkeypatch) -> None:
@@ -206,6 +233,51 @@ def test_security_scan_keeps_machine_status_clear_for_triaged_only_issue(tmp_pat
     assert result["triaged_issue_count"] == 1
 
 
+def test_security_scan_helpers_filter_and_build_issue(tmp_path) -> None:
+    sample = tmp_path / "sample.py"
+    content = "api_key = 'abcdefghijklmnopqrst'\n"
+    sample.write_text(content, encoding="utf-8")
+    pattern_str, description, flags = qaqc_runner.SECURITY_PATTERNS[0]
+    match = re.search(pattern_str, content, flags)
+    assert match is not None
+
+    issue = qaqc_runner._security_issue_from_match(
+        filepath=sample,
+        root_dir=tmp_path,
+        description=description,
+        content=content,
+        lines=content.splitlines(),
+        match=match,
+    )
+
+    assert issue == {
+        "file": "sample.py",
+        "pattern": "Hardcoded secret detected",
+        "match_preview": "api_key = 'abcdefghijklmnopqrst'",
+    }
+
+    test_file = tmp_path / "test_sample.py"
+    test_file.write_text(content, encoding="utf-8")
+    assert qaqc_runner._scan_security_file(test_file, tmp_path) == []
+
+
+def test_security_scan_result_summarizes_actionable_and_triaged(monkeypatch) -> None:
+    raw_issues = [{"file": "a.py"}, {"file": "b.py"}]
+
+    def fake_triage(issue):
+        if issue["file"] == "a.py":
+            return {**issue, "actionable": False}
+        return {**issue, "actionable": True}
+
+    monkeypatch.setattr(qaqc_runner, "_triage_security_issue", fake_triage)
+
+    result = qaqc_runner._security_scan_result(raw_issues)
+
+    assert result["status"] == "WARNING"
+    assert result["actionable_issue_count"] == 1
+    assert result["triaged_issue_count"] == 1
+
+
 def test_governance_scan_reports_failures(monkeypatch) -> None:
     monkeypatch.setattr(
         qaqc_runner,
@@ -225,3 +297,33 @@ def test_governance_scan_reports_failures(monkeypatch) -> None:
 
     assert result["status"] == "FAIL"
     assert len(result["flagged_checks"]) == 1
+
+
+def test_scheduler_and_report_helpers() -> None:
+    scheduler = qaqc_runner._parse_scheduler_csv(
+        '"\\\\BlindToX_0500","time","준비"\n"\\\\Other","time","Ready"\n"\\\\BlindToX_Pipeline","time","Ready"\n'
+    )
+    assert scheduler == {"ready": 2, "total": 2}
+
+    totals = qaqc_runner._project_totals(
+        {
+            "root": {"passed": 3, "failed": 0, "errors": 0, "skipped": 1},
+            "slow": {"passed": 0, "failed": 0, "errors": 1, "skipped": 0, "status": "TIMEOUT"},
+        }
+    )
+    assert totals == {"passed": 3, "failed": 0, "errors": 1, "skipped": 1, "timeout": ["slow"]}
+
+    report = qaqc_runner._build_report(
+        timestamp="2026-05-12T00:00:00",
+        verdict="APPROVED",
+        elapsed=1.2,
+        project_results={"root": {"status": "PASS"}},
+        totals=totals,
+        ast_result={"ok": 1},
+        security_result={"status": "CLEAR"},
+        governance_result={"status": "CLEAR"},
+        debt_result={},
+        infra_result={},
+    )
+    assert report["total"] == totals
+    assert report["projects"]["root"]["status"] == "PASS"
