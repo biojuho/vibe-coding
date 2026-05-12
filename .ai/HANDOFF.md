@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-12 |
 | Tool | Codex |
+| Work | **Follow-up recheck after the user repeated "다 끝날때까지 진행해"**. Re-ran orientation and PR checks. `main` is still clean except the pre-existing untracked `claude-goal/` directory and remains ahead of `origin/main` by 20 local commits. Rebuilt the code-review graph on `main` so graph status now matches commit `1175311`. PR #35 is still `mergeable: MERGEABLE` but `mergeStateStatus: BLOCKED` / `reviewDecision: REVIEW_REQUIRED`; active GitHub auth is `biojuho`, which is also the PR author, and branch protection requires 1 approving review. No self-approval, admin bypass, direct main push, or deploy was performed. T-251 was already rechecked this session and still fails only at the placeholder `DATABASE_URL` guard. |
+| Next Priorities | External/manual blockers remain: a non-author reviewer must approve and merge PR #35 (T-282), and the user must replace `YOUR_PASSWORD` in `projects/hanwoo-dashboard/.env` before the live Prisma CRUD E2E can pass (T-251). |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-12 |
+| Tool | Codex |
 | Work | **T-281 completed: PR #35 fix published and verified**. User said "다 끝날때까지 진행해", so Codex reconciled PR #35 after T-280. Remote branch `recover/langfuse-preflight-from-stash` now points to `a663565`: `670859f` recovered Langfuse preflight + Blind-to-X eval example files, `2061d4b fix(workspace): honor dotenv langfuse smoke keys`, and an `origin/main` merge commit to clear the behind state. Local validation on the PR branch: `python -m pytest --no-cov workspace/tests/test_langfuse_preflight.py workspace/tests/test_eval_extract.py -q` -> `16 passed`; targeted Ruff check/format clean; `py_compile` clean; `git diff --check origin/recover/langfuse-preflight-from-stash..HEAD` clean; `py -3.13 execution/code_review_gate.py --base origin/recover/langfuse-preflight-from-stash --json` risk `0.00`. GitHub PR checks after push are all green: `root-quality-gate`, `workspace-quality`, `blind-to-x-tests`, `shorts-maker-v2-tests`, both `frontend-active-apps`, `test-summary`, and GitGuardian. PR #35 state is now `mergeStateStatus: BLOCKED` only because `reviewDecision: REVIEW_REQUIRED`. |
 | Next Priorities | T-282 is the remaining human step: review/approve and merge PR #35. T-251 was rechecked and remains blocked: `projects/hanwoo-dashboard/.env` still contains `YOUR_PASSWORD` in `DATABASE_URL`, and `npm run db:prisma7-test -- --live` fails at the intended guard (`14 passed, 1 failed`). Root branch is back on `main`, ahead of `origin/main`, with untracked `claude-goal/` preserved. No deploy was performed. |
 

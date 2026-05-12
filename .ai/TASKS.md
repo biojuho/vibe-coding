@@ -7,7 +7,7 @@
 | ID | Task | Owner | Priority | Auto | Created |
 | --- | --- | --- | --- | --- | --- |
 | T-251 | `[hanwoo-dashboard]` Run Prisma 7 live CRUD E2E once a real Supabase `DATABASE_URL` is configured. Root cause pinpointed 2026-05-11 and rechecked 2026-05-12: `projects/hanwoo-dashboard/.env` has the Supabase template URL with `YOUR_PASSWORD` placeholder still unreplaced — host/user are real, only the password literal needs substitution from Supabase console. Latest `npm run db:prisma7-test -- --live` again failed at the intended config guard. | User | Medium | 🔴 approval | 2026-05-08 |
-| T-282 | `[workspace]` Human review/merge PR #35. The PR branch is now updated to `a663565`, includes the T-280 fix and `origin/main`, and all GitHub checks are green. GitHub still reports `reviewDecision: REVIEW_REQUIRED` / `mergeStateStatus: BLOCKED`, so a real reviewer must approve before merge. | User | High | 🔴 approval | 2026-05-12 |
+| T-282 | `[workspace]` Human review/merge PR #35. Latest recheck after the user asked to continue: the PR branch is still `a663565`, includes the T-280 fix and `origin/main`, and all GitHub checks are green. GitHub still reports `reviewDecision: REVIEW_REQUIRED` / `mergeStateStatus: BLOCKED`; active auth is the PR author, so a non-author reviewer must approve before merge. | User | High | 🔴 approval | 2026-05-12 |
 
 ## IN_PROGRESS
 
