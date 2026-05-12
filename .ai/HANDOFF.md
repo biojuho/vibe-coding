@@ -6,6 +6,13 @@
 
 | Field | Value |
 |---|---|
+| Date | 2026-05-13 |
+| Tool | Codex |
+| Work | **/goal 기능 작동 여부 확인 완료**. User asked "/goal 기능작동여부". Re-read shared context and verified the workspace goal feature added in T-274. `.ai/GOAL.md` is present and currently `Status: inactive`; `python execution/session_orient.py` surfaces this correctly as `GOAL: inactive`; `python execution/session_orient.py --json` returns `goal.available: true`, `goal.active: false`, `status: "inactive"`, and the expected success note from T-281. Focused regression check `python -m pytest --no-cov workspace/tests/test_session_orient.py -q` passed with `16 passed`. `py -3.13 -m code_review_graph detect-changes --repo . --base HEAD --brief` reported risk `0.00`. No product/source code was changed. |
+| Next Priorities | `/goal`/GOAL tracking is operational. Remaining external blockers are unchanged: T-282 needs a non-author review/merge for PR #35, and T-251 needs the real Supabase password before live Prisma CRUD E2E can pass. Existing untracked `claude-goal/` remains untouched. |
+
+| Field | Value |
+|---|---|
 | Date | 2026-05-12 |
 | Tool | Codex |
 | Work | **Follow-up recheck after the user repeated "다 끝날때까지 진행해"**. Re-ran orientation and PR checks. `main` is still clean except the pre-existing untracked `claude-goal/` directory and remains ahead of `origin/main` by 20 local commits. Rebuilt the code-review graph on `main` so graph status now matches commit `1175311`. PR #35 is still `mergeable: MERGEABLE` but `mergeStateStatus: BLOCKED` / `reviewDecision: REVIEW_REQUIRED`; active GitHub auth is `biojuho`, which is also the PR author, and branch protection requires 1 approving review. No self-approval, admin bypass, direct main push, or deploy was performed. T-251 was already rechecked this session and still fails only at the placeholder `DATABASE_URL` guard. |
