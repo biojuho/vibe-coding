@@ -7,6 +7,13 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-12 |
+| Tool | Codex |
+| Work | **T-274 workspace goal feature activation**. User asked to activate the `goal` feature. Graph-first exploration plus repo text search found no existing `goal` symbol/flag, so Codex activated a shared workspace goal path instead: added `.ai/GOAL.md`, taught `execution/session_orient.py` to collect/render a `GOAL` section, and added focused tests for active/missing/render behavior. Feature commit: `1c5f341 feat(workspace): surface active goal in session orientation`. Verification: `python -m pytest --no-cov workspace/tests/test_session_orient.py -q` -> `14 passed`; `python -m ruff check execution/session_orient.py workspace/tests/test_session_orient.py` clean; `python execution/session_orient.py` prints `GOAL: active (Codex) ...`; `py -3.13 -m code_review_graph update --repo . --skip-flows` succeeded; `py -3.13 -m code_review_graph detect-changes --repo . --brief` risk `0.00`; `git diff --check` clean aside from standard LF/CRLF warnings. Pre-commit advisory code-review gate warned risk `0.55` due graph test-gap mapping even though direct tests cover the changed paths. |
+| Next Priorities | Future tools should read/update `.ai/GOAL.md` when the active user goal changes; `python execution/session_orient.py` now surfaces it at startup. Existing user-side blockers remain unchanged: T-251 Supabase password replacement and T-273 PR #35 review. No push/deploy performed. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-12 |
 | Tool | Claude Code (Opus 4.7 1M) |
 | Work | **T-272 dropped-stash recovery → PR #35**. T-268 직후 stash@{0}이 다른 도구에 의해 자동 prune됐는데, `git fsck --unreachable`로 stash 커밋(`e9ce5cd`)을 찾아 그 3rd parent(`65ff5ee`)에서 untracked 파일 blob들을 추출. unique work 4개 복원 — `execution/langfuse_preflight.py` (264줄, T-253 라이브 활성화 전 안전 체크리스트 자동화), `workspace/tests/test_langfuse_preflight.py` (7 hermetic tests), `tests/eval/blind-to-x/golden_cases.example.yaml`, `rejected_cases.example.yaml` (promptfoo 시작 데이터셋). stash의 modified-tracked 변경분(`code_review_gate.py` 88줄 등)은 upstream `cb6c3c9`에 이미 흡수됐다고 판단하여 제외. `recover/langfuse-preflight-from-stash` 브랜치에 커밋(`670859f`)하고 origin에 푸시 후 **PR #35** 생성. 검증: Ruff clean, `test_langfuse_preflight.py` `7 passed`, pre-commit code-review gate `PASS risk=0.00`. |
 | Next Priorities | **PR #35** 사용자 리뷰 대기 — Langfuse preflight 체크리스트 적절성 + eval example 스키마가 promptfoo extractor와 호환되는지 확인. T-251은 여전히 `YOUR_PASSWORD` 치환 필요. 다른 활성 TODO 없음. |
