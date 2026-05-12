@@ -8,7 +8,7 @@
 - Goal: None
 - Owner: n/a
 - Started: n/a
-- Success: T-279 completed on 2026-05-12: low-risk validation/testability refactors were applied and verified without product behavior changes.
+- Success: T-280 completed locally on 2026-05-12: PR #35 Langfuse smoke false-positive was fixed on `recover/langfuse-preflight-from-stash`; publication remains approval-gated as T-281.
 
 ## Notes
 
