@@ -199,8 +199,10 @@ Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
 `detect_changes` MCP 호출이 ad-hoc 라면, 같은 분석을 결정론적으로 강제하는 게이트가 있다:
 
 ```bash
-# 멱등 risk 평가 (HEAD~1 대비) — pre-commit/CI 양쪽에서 사용 가능
+# 멱등 risk 평가 (HEAD~1 대비) — CI 용
 py -3.13 execution/code_review_gate.py --base HEAD~1
+# 스테이지된 변경만 평가 — pre-commit 훅이 이 모드를 사용
+py -3.13 execution/code_review_gate.py --staged
 # JSON 모드 (자동화용)
 py -3.13 execution/code_review_gate.py --base HEAD~1 --json
 # warn까지 차단하려면 --strict
@@ -211,3 +213,4 @@ py -3.13 execution/code_review_gate.py --base HEAD~1 --strict
 - 기본 임계값: warn 0.30, fail 0.70 (조정: `--warn-threshold`, `--fail-threshold`)
 - warn/fail 시 `get_impact_radius`를 자동 호출해 변경 반경을 함께 보고
 - `--include-architecture`로 monthly drift check용 architecture overview 포함 가능
+- **자동화 (advisory)**: `.githooks/pre-commit`이 `--staged`로 호출하지만 절대 차단 안 함 (정보 제공만). 비활성화하려면 `SKIP_CODE_REVIEW_GATE=1 git commit ...`. 차단까지 원하면 훅에서 `--strict`를 추가하고 exit code를 그대로 전파하도록 수정.
