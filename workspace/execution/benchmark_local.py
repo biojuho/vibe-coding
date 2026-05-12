@@ -101,6 +101,16 @@ BENCHMARK_PROMPTS = [
 # ── 벤치마크 실행기 ──────────────────────────────────────────
 
 
+def _match_expected_keywords(content: str, expected_keywords: list[str]) -> tuple[list[str], float]:
+    """Return matched expected keywords and normalized accuracy."""
+    if not expected_keywords:
+        return [], 0.0
+
+    content_lower = content.lower()
+    matched = [kw for kw in expected_keywords if kw.lower() in content_lower]
+    return matched, len(matched) / len(expected_keywords)
+
+
 def run_single_benchmark(
     client: OllamaClient,
     prompt_data: dict[str, Any],
@@ -125,9 +135,7 @@ def run_single_benchmark(
         elapsed = time.perf_counter() - start
 
         # 키워드 매칭 정확도
-        content_lower = content.lower()
-        matched = [kw for kw in prompt_data["expected_keywords"] if kw.lower() in content_lower]
-        accuracy = len(matched) / len(prompt_data["expected_keywords"])
+        matched, accuracy = _match_expected_keywords(content, prompt_data["expected_keywords"])
 
         result.update(
             {
@@ -166,82 +174,87 @@ def run_single_benchmark(
     return result
 
 
-def run_benchmark(
-    model: str | None = None,
-    compare_provider: str | None = None,
-) -> dict[str, Any]:
-    """전체 벤치마크 실행."""
-    client = OllamaClient()
-
-    # 서버 확인
-    if not client.is_available():
-        logger.error("Ollama 서버 연결 실패. 'ollama serve'를 실행하세요.")
-        return {"error": "Ollama server not available"}
-
-    # 모델 확인
-    available_models = client.list_models()
-    target_model = model or client.default_model
-    logger.info("=== 벤치마크 시작 ===")
-    logger.info("모델: %s", target_model)
-    logger.info("프롬프트: %d개", len(BENCHMARK_PROMPTS))
-    logger.info("사용 가능한 모델: %s", available_models)
-
-    # SmartRouter 분류 테스트
-    router = SmartRouter()
-    router_results = []
-    for p in BENCHMARK_PROMPTS:
-        classified = router.classify(p["prompt"])
-        router_results.append(
+def _collect_router_results(
+    router: SmartRouter,
+    prompts: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Classify benchmark prompts with SmartRouter."""
+    results = []
+    for prompt_data in prompts:
+        classified = router.classify(prompt_data["prompt"])
+        results.append(
             {
-                "id": p["id"],
-                "expected": p["complexity"],
+                "id": prompt_data["id"],
+                "expected": prompt_data["complexity"],
                 "classified": classified.complexity.value,
-                "match": p["complexity"].lower() == classified.complexity.value.lower(),
+                "match": prompt_data["complexity"].lower() == classified.complexity.value.lower(),
                 "score": round(classified.score, 3),
             }
         )
+    return results
 
-    # Ollama 생성 벤치마크
-    ollama_results = []
-    for p in BENCHMARK_PROMPTS:
-        result = run_single_benchmark(client, p, model=target_model)
-        ollama_results.append(result)
 
-    # 통계 계산
-    successful = [r for r in ollama_results if r["status"] == "success"]
-    stats = {
-        "total_prompts": len(BENCHMARK_PROMPTS),
-        "successful": len(successful),
-        "failed": len(ollama_results) - len(successful),
-    }
+def _run_ollama_benchmarks(
+    client: OllamaClient,
+    prompts: list[dict[str, Any]],
+    target_model: str,
+) -> list[dict[str, Any]]:
+    """Run every benchmark prompt against the target Ollama model."""
+    return [run_single_benchmark(client, prompt_data, model=target_model) for prompt_data in prompts]
 
-    if successful:
-        stats["avg_elapsed_sec"] = round(sum(r["elapsed_sec"] for r in successful) / len(successful), 2)
-        stats["avg_tokens_per_sec"] = round(sum(r["tokens_per_sec"] for r in successful) / len(successful), 1)
-        stats["avg_keyword_accuracy"] = round(sum(r["keyword_accuracy"] for r in successful) / len(successful), 2)
 
-        # 복잡도별 통계
-        for level in ("SIMPLE", "MODERATE", "COMPLEX"):
-            level_results = [r for r in successful if r["complexity"] == level]
-            if level_results:
-                stats[f"avg_elapsed_{level.lower()}"] = round(
-                    sum(r["elapsed_sec"] for r in level_results) / len(level_results), 2
-                )
-                stats[f"avg_accuracy_{level.lower()}"] = round(
-                    sum(r["keyword_accuracy"] for r in level_results) / len(level_results), 2
-                )
+def _average_metric(results: list[dict[str, Any]], metric: str, ndigits: int) -> float:
+    return round(sum(result[metric] for result in results) / len(results), ndigits)
 
-    # 클라우드 비용 비교 추정
-    total_tokens = sum(r.get("input_tokens", 0) + r.get("output_tokens", 0) for r in successful)
-    stats["estimated_cloud_cost"] = {
+
+def _estimate_cloud_cost(total_tokens: int) -> dict[str, float]:
+    return {
         "openai_gpt4o_mini": round(total_tokens * 0.00015 / 1000, 4),  # $0.15/1M
         "anthropic_claude_sonnet": round(total_tokens * 0.003 / 1000, 4),  # $3/1M
         "google_gemini_flash": round(total_tokens * 0.000075 / 1000, 4),  # $0.075/1M
         "ollama_local": 0.0,
     }
 
-    # 결과 저장
-    output = {
+
+def _summarize_ollama_results(
+    ollama_results: list[dict[str, Any]],
+    *,
+    total_prompts: int,
+) -> dict[str, Any]:
+    """Build aggregate statistics for benchmark output."""
+    successful = [result for result in ollama_results if result["status"] == "success"]
+    stats: dict[str, Any] = {
+        "total_prompts": total_prompts,
+        "successful": len(successful),
+        "failed": len(ollama_results) - len(successful),
+    }
+
+    if successful:
+        stats["avg_elapsed_sec"] = _average_metric(successful, "elapsed_sec", 2)
+        stats["avg_tokens_per_sec"] = _average_metric(successful, "tokens_per_sec", 1)
+        stats["avg_keyword_accuracy"] = _average_metric(successful, "keyword_accuracy", 2)
+
+        # 복잡도별 통계
+        for level in ("SIMPLE", "MODERATE", "COMPLEX"):
+            level_results = [result for result in successful if result["complexity"] == level]
+            if level_results:
+                stats[f"avg_elapsed_{level.lower()}"] = _average_metric(level_results, "elapsed_sec", 2)
+                stats[f"avg_accuracy_{level.lower()}"] = _average_metric(level_results, "keyword_accuracy", 2)
+
+    total_tokens = sum(result.get("input_tokens", 0) + result.get("output_tokens", 0) for result in successful)
+    stats["estimated_cloud_cost"] = _estimate_cloud_cost(total_tokens)
+    return stats
+
+
+def _build_benchmark_output(
+    *,
+    target_model: str,
+    available_models: list[str],
+    stats: dict[str, Any],
+    router_results: list[dict[str, Any]],
+    ollama_results: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return {
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "ollama_version": "0.18.2",
         "model": target_model,
@@ -251,17 +264,55 @@ def run_benchmark(
         "ollama_results": ollama_results,
     }
 
+
+def _write_benchmark_output(output: dict[str, Any]) -> Path:
     output_dir = WORKSPACE_ROOT / ".tmp"
     output_dir.mkdir(exist_ok=True)
     output_path = output_dir / "benchmark_results.json"
     output_path.write_text(json.dumps(output, indent=2, ensure_ascii=False), encoding="utf-8")
-    logger.info("결과 저장: %s", output_path)
+    return output_path
 
-    # 요약 출력
-    _print_summary(stats, router_results, target_model)
 
-    client.close()
-    return output
+def run_benchmark(
+    model: str | None = None,
+    compare_provider: str | None = None,
+) -> dict[str, Any]:
+    """전체 벤치마크 실행."""
+    client = OllamaClient()
+
+    try:
+        # 서버 확인
+        if not client.is_available():
+            logger.error("Ollama 서버 연결 실패. 'ollama serve'를 실행하세요.")
+            return {"error": "Ollama server not available"}
+
+        # 모델 확인
+        available_models = client.list_models()
+        target_model = model or client.default_model
+        logger.info("=== 벤치마크 시작 ===")
+        logger.info("모델: %s", target_model)
+        logger.info("프롬프트: %d개", len(BENCHMARK_PROMPTS))
+        logger.info("사용 가능한 모델: %s", available_models)
+
+        router_results = _collect_router_results(SmartRouter(), BENCHMARK_PROMPTS)
+        ollama_results = _run_ollama_benchmarks(client, BENCHMARK_PROMPTS, target_model)
+        stats = _summarize_ollama_results(ollama_results, total_prompts=len(BENCHMARK_PROMPTS))
+        output = _build_benchmark_output(
+            target_model=target_model,
+            available_models=available_models,
+            stats=stats,
+            router_results=router_results,
+            ollama_results=ollama_results,
+        )
+
+        output_path = _write_benchmark_output(output)
+        logger.info("결과 저장: %s", output_path)
+
+        # 요약 출력
+        _print_summary(stats, router_results, target_model)
+        return output
+    finally:
+        client.close()
 
 
 def _print_summary(
