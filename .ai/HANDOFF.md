@@ -6,6 +6,13 @@
 
 | Field | Value |
 |---|---|
+| Date | 2026-05-12 |
+| Tool | Claude Code (Opus 4.7 1M) |
+| Work | **T-268 multi-branch consolidation → main 단일화 ("완성형")**. 세션 중 동시 작업하던 여러 AI 도구가 만든 3 브랜치(`main`, `feat/workspace-governance-root-execution`, `refactor/shorts-maker-v2-single-scene-rendering`)가 중복/분기 상태였고 중간에 `AUTO_MERGE`/conflict가 반복 발생. PR #33이 origin에서 squash-merged 되어 제 T-251 root cause `[ai-context]` 커밋 `9262f5c` 가 `8a691a4` 안에 자동 보존됨을 확인 (안전성 검증 완료). 이후 origin/main 위에서 unique work 2건을 cherry-pick으로 복원: `47b6590 fix(workspace): stabilize product readiness checks` (→ `9e58483`)와 `b29b967 feat(workspace): add LLM usage summary reporting`은 동시 작업으로 `c856f35 feat(workspace): improve product readiness monitoring`에 이미 흡수 확인. 최종 origin/main = `ae60610` 으로 푸시 완료(8 → 9 commits 반영, brc admin bypass). 검증: workspace Ruff clean, `test_llm_usage_summary.py`+`test_code_review_gate.py`+`test_governance_checks.py` `61 passed`, `git diff --check` clean. 로컬에서 `feat/workspace-governance-root-execution` + `refactor/shorts-maker-v2-single-scene-rendering` 브랜치 모두 정리됨(origin에서도 삭제됨). |
+| Next Priorities | **stash@{0}** ("preserve concurrent tool WIP before cherry-pick")에 unique 264줄 `execution/langfuse_preflight.py` + tests 가 남아있음 — 사용자 검토 후 `git stash pop` 또는 `git stash drop` 결정 필요. 현재 워킹 트리에는 다른 도구의 새 WIP (`AGENTS.md`/`CLAUDE.md`/`GEMINI.md`, `projects/blind-to-x/pipeline/content_intelligence/boosting.py`, `tests/unit/test_viral_boost_llm.py`, `qc_results.json`) 존재 — 진행 중 작업이라 손대지 않음. T-251은 여전히 `YOUR_PASSWORD` 치환 필요. |
+
+| Field | Value |
+|---|---|
 | Date | 2026-05-11 |
 | Tool | Codex |
 | Work | **T-267 full QC re-run per user request**. Ran the canonical active-project QC with `python execution\project_qc_runner.py --json`; result `status: passed`. Results: `blind-to-x` test/lint passed (`1541 passed, 1 skipped, 2 warnings` for unit tests); `shorts-maker-v2` test/lint passed; `hanwoo-dashboard` test/lint/build passed (`npm test` 51 passed); `knowledge-dashboard` test/lint/build passed (`npm test` 3 passed). Supporting checks before the long QC: `PYTHONUTF8=1 python -m code_review_graph detect-changes --repo . --brief` risk `0.00`; `python workspace\execution\health_check.py --category governance --json` `overall: ok`; `python execution\code_review_gate.py --staged --json` `status: pass`. No code changes were made by Codex for this QC run. After QC, unrelated dirty files were present (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `projects/blind-to-x/pipeline/content_intelligence/boosting.py`, `projects/blind-to-x/tests/unit/test_viral_boost_llm.py`, `qc_results.json`); they were not staged or reverted. |
