@@ -266,3 +266,27 @@
 - `T-251` remains blocked until the real Supabase password replaces `YOUR_PASSWORD` in `projects/hanwoo-dashboard/.env` `DATABASE_URL`.
 - Preserve the unrelated dirty files unless the user explicitly asks to finish or discard them.
 - No push or deploy was performed.
+
+## 2026-05-12 KST - Codex
+
+### Summary
+- Completed the active goal: reproduced the Hanwoo Dashboard login failure, fixed the root cause, and verified related tests.
+- Reproduction used a built `next start` server with an unreachable PostgreSQL `DATABASE_URL`; the credentials callback previously returned `Configuration` because a Prisma connection error escaped Auth.js `authorize`.
+- Added `authorizeCredentials()` in `projects/hanwoo-dashboard/src/lib/auth-credentials.mjs`, wired `src/auth.js` to use it, and added regression tests in `src/lib/auth-credentials.test.mjs`.
+- Feature commit: `d5f7e2e fix(hanwoo-dashboard): handle login database failures`.
+- `.ai/GOAL.md` is now inactive after completion.
+
+### Verification
+- `npm test` -> `55 passed`
+- `npm run lint` -> passed
+- `npm run build` -> passed
+- `npm run smoke` -> passed with accepted CI warnings
+- Targeted login POST under DB outage -> `CredentialsSignin&code=credentials`, `hasConfigurationError: false`
+- `python execution/project_qc_runner.py --project hanwoo-dashboard --json` -> `status: passed`
+- `py -3.13 -m code_review_graph detect-changes --repo . --brief` -> risk `0.00`
+- `git diff --check` -> clean aside from LF/CRLF warnings
+
+### Follow-up
+- `T-251` remains blocked until the real Supabase password replaces `YOUR_PASSWORD` in `projects/hanwoo-dashboard/.env` `DATABASE_URL`.
+- Untracked nested repo `claude-goal/` was present and intentionally left untouched/uncommitted.
+- No push or deploy was performed.
