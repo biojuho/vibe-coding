@@ -4,11 +4,11 @@
 
 ## Active Goal
 
-- Status: active
-- Goal: Keep the user's current goal visible at session start and across handoffs.
-- Owner: Codex
-- Started: 2026-05-12
-- Success: `python execution/session_orient.py` reports this active goal, and future tools can update this file when the goal changes.
+- Status: inactive
+- Goal: None
+- Owner: n/a
+- Started: n/a
+- Success: No active goal.
 
 ## Notes
 
