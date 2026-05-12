@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import { authorizeCredentials } from "@/lib/auth-credentials.mjs";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -8,29 +9,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         username: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" },
       },
-      authorize: async (credentials) => {
-        if (!credentials?.username || !credentials?.password) return null;
-
-        // Dynamic imports: prisma and bcrypt are only needed during login,
-        // not for JWT validation. This prevents module-level crashes in CI
-        // environments where no database is available.
-        const { default: prisma } = await import("@/lib/db");
-        const { default: bcrypt } = await import("bcrypt");
-
-        const user = await prisma.user.findUnique({
-          where: { username: credentials.username },
-        });
-
-        if (!user) return null;
-
-        const isValid = await bcrypt.compare(
-          credentials.password,
-          user.password
-        );
-        if (!isValid) return null;
-
-        return { id: user.id, name: user.username };
-      },
+      authorize: authorizeCredentials,
     }),
   ],
   session: { strategy: "jwt" },
