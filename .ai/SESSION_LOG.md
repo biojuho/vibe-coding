@@ -358,3 +358,28 @@
 - Restart Codex for the global MCP config to reload.
 - If hosted Notion MCP is preferred later, re-add `https://mcp.notion.com/mcp` only after completing a fresh OAuth login.
 - Existing unrelated dirty files from other sessions were preserved.
+
+## 2026-05-13 KST - Codex
+
+### Summary
+- Completed `T-289` for `projects/hanwoo-dashboard`.
+- User asked to implement the backend API described in `API_SPEC.md`; no `API_SPEC.md` existed, so Codex proceeded with the safest existing backend surface and created the contract.
+- Added `projects/hanwoo-dashboard/API_SPEC.md` documenting the `/api/ai/chat` request, SSE response, auth requirement, validation limits, and failure responses.
+- Refactored `projects/hanwoo-dashboard/src/app/api/ai/chat/route.js` so `requireAuthenticatedSession()` runs before reading `GEMINI_API_KEY`, farm DB context, or Gemini.
+- Added `projects/hanwoo-dashboard/src/lib/ai-chat-api.mjs` for request parsing, validation, Gemini history normalization, SSE stream handling, and consistent JSON error envelopes.
+- Added `projects/hanwoo-dashboard/src/lib/ai-chat-api.test.mjs` covering success, validation failures, auth failures, missing config, provider chunks, and provider errors.
+- Updated `projects/hanwoo-dashboard/README.md` to point to the local API contract.
+
+### Verification
+- `npm test` -> `75 passed`
+- `npm run lint` -> passed
+- `npm run build` -> passed
+- `npm run db:prisma7-test` -> `14 passed, 1 skipped`
+- `python execution/project_qc_runner.py --project hanwoo-dashboard --json` -> `status: passed`
+- `git diff --check -- projects/hanwoo-dashboard` -> clean aside from standard LF/CRLF warnings
+- `npm run db:verify-indexes` -> blocked by existing placeholder `DATABASE_URL`, same root cause as T-251.
+
+### Follow-up
+- `T-251` remains blocked until the real Supabase password replaces `YOUR_PASSWORD` in `projects/hanwoo-dashboard/.env` `DATABASE_URL`.
+- Project code changes remain uncommitted unless the user asks for a feature commit.
+- Existing unrelated dirty files from other sessions were preserved.
