@@ -8,7 +8,7 @@
 - Goal: None
 - Owner: n/a
 - Started: n/a
-- Success: T-281 completed on 2026-05-12: PR #35 branch was updated to `a663565` and all checks are green; remaining blockers are human PR review (T-282) and Supabase password replacement (T-251).
+- Success: T-284 completed on 2026-05-13: blind-to-x Notion uploads now use a reviewer-first folded layout with visible summary and draft sections, diagnostics/raw/assets moved into toggles, recursive backfill support for nested blocks, and updated reviewer-focused Notion docs. Local feature commit: `bbe23bb`.
 
 ## Notes
 
