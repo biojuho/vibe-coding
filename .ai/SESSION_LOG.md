@@ -4,6 +4,7 @@
 
 | Date | Tool | Summary | Changed Files |
 |---|---|---|---|
+| 2026-05-13 | Claude Code (Opus 4.7 1M) | Two goals in one session. **Goal 1 (`/goal 시스템 전체 안정화`)**: staged Codex's T-283 MCP launcher draft as `74b687e fix(workspace): use python -m for code-review-graph MCP launcher` + `0229f9e [ai-context]`, observed Codex concurrently land `bbe23bb` (T-284), `acc346a`, `b52d4d6` without conflict; the `_upload.py` 400-line WIP that appeared mid-session resolved automatically when T-284 committed. **Goal 2 (`/goal Refactor REFACTOR.md target`)**: REFACTOR.md was missing → user chose `자동 추천` → selected `workspace/execution/llm_client.py` (1199 lines, 18 public symbols, 11 production importers + 5 test files). Authored REFACTOR.md (frozen API surface, 3 checkpoint plan, out-of-scope rationale) and shipped `ade1cef refactor(workspace): dedupe llm_client helpers without behavior change`: extracted `_cache_creation_multiplier`, `_resolve_client`, and `LLMClient._no_providers_error_message`. Net 1199→1194 lines but ~30 duplicated lines collapsed into named single-source helpers. Verification: `pytest workspace/tests/{test_llm_client*,test_llm_fallback_chain,test_llm_bridge_integration,test_api_usage_tracker,test_topic_auto_generator}.py` -> `184 passed`; ruff clean; 18-symbol public-API import smoke OK; `code_review_gate --base HEAD` PASS risk=0.00. Stayed out of scope per REFACTOR.md: `_generate_once`/`_get_client` split (blocked by 141 test patches) and `generate_json`/`generate_text` full loop fusion (observable log-label / error-format / JSONDecodeError-branch differences). | `workspace/execution/llm_client.py`; `REFACTOR.md`; `.mcp.json`; `.amazonq/mcp.json`; `execution/session_orient.py`; `workspace/tests/test_mcp_config.py`; `workspace/tests/test_session_orient.py`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/CONTEXT.md`; `.ai/SESSION_LOG.md` |
 | 2026-05-13 | Codex | Fixed the Windows MCP launcher regression affecting `code-review-graph`. Root `.mcp.json` and `.amazonq/mcp.json` now run `python -m code_review_graph serve` instead of the broken WindowsApps `python3.13` shim, and `execution/session_orient.py` now prefers `python` before `py -3.13` so graph status does not false-negative when the launcher is unhealthy. Added regression coverage in the MCP config and session-orient tests. Verification: `python -m pytest --no-cov workspace/tests/test_mcp_config.py workspace/tests/test_session_orient.py -q --basetemp .tmp/pytest-mcp-fix` -> `21 passed`; `python execution/session_orient.py` again reports live graph stats. | `.mcp.json`; `.amazonq/mcp.json`; `execution/session_orient.py`; `workspace/tests/test_mcp_config.py`; `workspace/tests/test_session_orient.py`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/CONTEXT.md`; `.ai/SESSION_LOG.md` |
 | 2026-05-13 | Codex | Checked `/goal` workspace feature operation after the user asked "/goal 기능작동여부". Confirmed `.ai/GOAL.md` exists and is currently inactive; `execution/session_orient.py` reports `GOAL: inactive` in text output and returns `goal.available: true`, `goal.active: false`, `status: "inactive"` in JSON. Focused regression test passed (`workspace/tests/test_session_orient.py` 16 passed), code-review graph status was available, and detect-changes risk was `0.00`. No product/source code changes were made. | `.ai/HANDOFF.md`; `.ai/SESSION_LOG.md` |
 | 2026-05-12 | Codex | Rechecked the remaining blockers after the user repeated "다 끝날때까지 진행해". Rebuilt the code-review graph on `main`, confirmed the worktree is clean except the pre-existing untracked `claude-goal/`, and verified PR #35 is still `MERGEABLE` but blocked by `REVIEW_REQUIRED`; active GitHub auth is the PR author, so no self-approval, admin bypass, direct main push, or deploy was performed. Remaining work is external/manual only: non-author review/merge for PR #35 and replacing the Hanwoo Supabase `YOUR_PASSWORD` placeholder before live Prisma CRUD E2E. | `.ai/HANDOFF.md`; `.ai/SESSION_LOG.md`; `.ai/TASKS.md` |
@@ -322,3 +323,20 @@
 - If the user wants more blind-to-x cleanup, the next highest-value pass is to inspect a few live Notion pages and trim any still-overlong diagnostic subsections using production samples.
 - Existing untracked `claude-goal/` was left untouched/uncommitted.
 - No push or deploy was performed.
+
+## 2026-05-13 KST - Codex
+
+### Summary
+- Mitigated the reported Codex MCP startup failure for `notion`.
+- Root cause: global `C:\Users\박주호\.codex\config.toml` had hosted Notion MCP configured as `https://mcp.notion.com/mcp`, and the saved OAuth refresh token was rejected with `invalid_grant`.
+- Workspace `.mcp.json` / `.amazonq/mcp.json` still contain the separate stdio Notion MCP entry using `npx @notionhq/notion-mcp-server` and `NOTION_API_KEY`.
+- Backed up the global config to `C:\Users\박주호\.codex\config.toml.bak-notion-oauth-20260513110733` and removed only the hosted `[mcp_servers.notion]` block.
+
+### Verification
+- Parsed `C:\Users\박주호\.codex\config.toml` with Python `tomllib` -> `toml_ok`.
+- Confirmed remaining global MCP servers are `figma,linear,playwright`.
+
+### Follow-up
+- Restart Codex for the global config change to take effect.
+- To use hosted Notion MCP again, re-add the Notion block and complete a fresh OAuth login; alternatively use the workspace stdio Notion MCP with `NOTION_API_KEY`.
+- Existing unrelated dirty files were preserved.
