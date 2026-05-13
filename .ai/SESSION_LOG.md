@@ -299,3 +299,26 @@
 - `T-251` remains blocked until the real Supabase password replaces `YOUR_PASSWORD` in `projects/hanwoo-dashboard/.env` `DATABASE_URL`.
 - Untracked nested repo `claude-goal/` was present and intentionally left untouched/uncommitted.
 - No push or deploy was performed.
+
+## 2026-05-13 KST - Codex
+
+### Summary
+- Completed `T-284` and committed `bbe23bb` (`fix(blind-to-x): declutter reviewer notion pages`).
+- `projects/blind-to-x/pipeline/notion/_upload.py` now builds reviewer-first Notion pages: `검토 요약` and `채널 초안` stay visible, while `진단 펼치기`, `원문 펼치기`, and `부가 산출물 펼치기` fold diagnostics, raw source, and NotebookLM extras into toggles.
+- Visible summary bullets now include review focus, feedback request, evidence anchor, risk flags, publish platforms, final rank, editorial average, quality-gate retries and scores, and fact-check warnings.
+- `projects/blind-to-x/scripts/backfill_notion_review_columns.py` now recursively reads child blocks so derived review columns still work after toggle nesting.
+- `projects/blind-to-x/README.md` and `projects/blind-to-x/docs/ops-runbook.md` now recommend a smaller reviewer-focused Notion schema instead of a sprawling stale property set.
+
+### Verification
+- `python -m ruff check pipeline/notion/_upload.py scripts/backfill_notion_review_columns.py tests/unit/test_notion_upload.py tests/unit/test_backfill_notion_review_columns.py` -> passed
+- `python -m pytest --no-cov tests/unit/test_notion_upload.py tests/unit/test_backfill_notion_review_columns.py -q` -> `42 passed, 1 warning`
+- `python -m pytest --no-cov tests/unit/test_notion_accuracy.py -q` -> `8 passed, 1 warning`
+- `python -m py_compile pipeline/notion/_upload.py scripts/backfill_notion_review_columns.py` -> passed
+- `git diff --check -- <changed files>` -> clean aside from LF/CRLF warnings
+- `py -3.13 -m code_review_graph update --repo . --skip-flows` -> succeeded
+- `py -3.13 execution/code_review_gate.py --staged --json` -> advisory `warn`, `risk=0.40`, caused by graph test-gap heuristics around the new helper methods rather than failing tests or runtime errors
+
+### Follow-up
+- If the user wants more blind-to-x cleanup, the next highest-value pass is to inspect a few live Notion pages and trim any still-overlong diagnostic subsections using production samples.
+- Existing untracked `claude-goal/` was left untouched/uncommitted.
+- No push or deploy was performed.
