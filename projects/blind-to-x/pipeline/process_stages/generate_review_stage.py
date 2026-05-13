@@ -11,6 +11,22 @@ from .context import ProcessRunContext, mark_stage
 from .runtime import logger
 
 
+def _config_int(config, key: str, default: int) -> int:
+    if config is None or not hasattr(config, "get"):
+        return default
+    try:
+        value = int(config.get(key, default))
+    except (TypeError, ValueError):
+        return default
+    return max(0, value)
+
+
+def _resolve_quality_gate_retries(config, review_only: bool) -> int:
+    if review_only:
+        return _config_int(config, "quality_gate.review_only_max_retries", 1)
+    return _config_int(config, "quality_gate.max_retries", 2)
+
+
 async def run_generate_review_stage(
     ctx: ProcessRunContext,
     draft_generator,
@@ -77,7 +93,7 @@ async def run_generate_review_stage(
         mark_stage(ctx, "generate_review", "failed", "generation_failed")
         return False
 
-    max_qg_retries = 0 if review_only else 2
+    max_qg_retries = _resolve_quality_gate_retries(config, review_only)
     qg_retry_count = 0
     components_loaded: list[str] = []
 

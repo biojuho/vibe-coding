@@ -66,6 +66,10 @@ review:
   reject_on_missing_title: true
   reject_on_missing_content: true
 
+quality_gate:
+  max_retries: 2
+  review_only_max_retries: 1
+
 analytics:
   lookback_days: 30
   success_window_hours: 24

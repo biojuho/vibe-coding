@@ -33,7 +33,7 @@ class TestBuildParser:
         assert args.config == "config.yaml"
         assert args.dry_run is False
         assert args.parallel == 3
-        assert args.source == "blind"
+        assert args.source == "auto"
 
     def test_urls_arg(self):
         parser = _build_parser()
@@ -98,13 +98,31 @@ class TestResolveInputSources:
         args = MagicMock(source="fmkorea")
         assert _resolve_input_sources(config, args) == ["fmkorea"]
 
+    def test_explicit_blind_overrides_multi_config(self):
+        config = MagicMock()
+        config.get.side_effect = lambda key, default=None: {
+            "input_sources": ["blind", "fmkorea", "ppomppu"],
+            "content_strategy.primary_source": "multi",
+        }.get(key, default)
+        args = MagicMock(source="blind")
+        assert _resolve_input_sources(config, args) == ["blind"]
+
+    def test_multi_source_uses_configured_sources(self):
+        config = MagicMock()
+        config.get.side_effect = lambda key, default=None: {
+            "input_sources": ["blind", "fmkorea", "ppomppu"],
+            "content_strategy.primary_source": "blind",
+        }.get(key, default)
+        args = MagicMock(source="multi")
+        assert _resolve_input_sources(config, args) == ["blind", "fmkorea", "ppomppu"]
+
     def test_default_blind(self):
         config = MagicMock()
         config.get.side_effect = lambda key, default=None: {
             "input_sources": ["blind"],
             "content_strategy.primary_source": "blind",
         }.get(key, default)
-        args = MagicMock(source="blind")
+        args = MagicMock(source="auto")
         result = _resolve_input_sources(config, args)
         assert "blind" in result
 
@@ -114,7 +132,7 @@ class TestResolveInputSources:
             "input_sources": ["fmkorea", "ppomppu"],
             "content_strategy.primary_source": "multi",
         }.get(key, default)
-        args = MagicMock(source="blind")
+        args = MagicMock(source="auto")
         result = _resolve_input_sources(config, args)
         assert result == ["fmkorea", "ppomppu"]
 

@@ -29,7 +29,11 @@ def build_parser():
     parser.add_argument(
         "--parallel", type=int, default=3, metavar="N", help="Process up to N posts concurrently (default: 3)"
     )
-    parser.add_argument("--source", default="blind", help="Source scraper to use")
+    parser.add_argument(
+        "--source",
+        default="auto",
+        help="Source scraper to use. Use 'auto' for configured primary/input_sources, or 'multi' for all input_sources.",
+    )
     parser.add_argument("--review-only", action="store_true", help="Queue items for review without publishing")
     parser.add_argument("--reprocess-approved", action="store_true", help="Publish approved Notion items only")
     parser.add_argument(

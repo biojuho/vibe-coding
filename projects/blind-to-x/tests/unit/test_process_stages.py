@@ -634,7 +634,7 @@ class TestGenerateReviewStage:
         assert call_count["n"] >= 2  # 최소 1 initial + 1 retry
 
     # ── editorial reviewer 예외 무시 (lines 155-156) ──────────────────────
-    def test_quality_gate_retry_disabled_in_review_only(self):
+    def test_quality_gate_retry_runs_once_in_review_only_by_default(self):
         from pipeline.process_stages.generate_review_stage import run_generate_review_stage
 
         ctx = self._ctx_ready()
@@ -661,6 +661,44 @@ class TestGenerateReviewStage:
         with patch("pipeline.draft_quality_gate.DraftQualityGate", return_value=mock_qg_instance):
             result = asyncio.run(
                 run_generate_review_stage(ctx, mock_gen, MagicMock(), None, ["twitter"], None, review_only=True)
+            )
+
+        assert result is True
+        assert call_count["n"] == 2
+        assert ctx.post_data["quality_gate_retries"] == 1
+
+    def test_quality_gate_retry_can_be_disabled_in_review_only_by_config(self):
+        from pipeline.process_stages.generate_review_stage import run_generate_review_stage
+
+        ctx = self._ctx_ready()
+
+        call_count = {"n": 0}
+
+        async def _gen_drafts(*args, **kwargs):
+            call_count["n"] += 1
+            return ({"twitter": "寃?좎슜 珥덉븞", "_provider_used": "gemini"}, "p")
+
+        mock_gen = MagicMock()
+        mock_gen.generate_drafts = _gen_drafts
+
+        retry_result = MagicMock()
+        retry_result.items = []
+        retry_result.score = 50
+        retry_result.passed = False
+        retry_result.should_retry = True
+
+        mock_qg_instance = MagicMock()
+        mock_qg_instance.validate_all.return_value = {"twitter": retry_result}
+        mock_qg_instance.format_summary.return_value = "RETRY"
+
+        config = MagicMock()
+        config.get.side_effect = lambda key, default=None: {
+            "quality_gate.review_only_max_retries": 0,
+        }.get(key, default)
+
+        with patch("pipeline.draft_quality_gate.DraftQualityGate", return_value=mock_qg_instance):
+            result = asyncio.run(
+                run_generate_review_stage(ctx, mock_gen, MagicMock(), None, ["twitter"], config, review_only=True)
             )
 
         assert result is True

@@ -15,9 +15,13 @@ logger = logging.getLogger(__name__)
 def resolve_input_sources(config_mgr, args):
     configured_sources = config_mgr.get("input_sources", ["blind"])
     primary_source = config_mgr.get("content_strategy.primary_source", "blind")
+    requested_source = getattr(args, "source", "auto") or "auto"
 
-    if getattr(args, "source", "blind") != "blind":
-        return [args.source]
+    if requested_source == "multi":
+        return configured_sources or ["blind"]
+
+    if requested_source != "auto":
+        return [requested_source]
 
     if primary_source in configured_sources and primary_source != "multi":
         return [primary_source]

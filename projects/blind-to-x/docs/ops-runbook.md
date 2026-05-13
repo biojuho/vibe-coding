@@ -95,7 +95,7 @@
 검토 큐 적재:
 
 ```powershell
-py -3 main.py --source blind --popular --review-only --limit 5
+py -3 main.py --source auto --popular --review-only --limit 5
 ```
 
 `review-only` 실행은 텍스트 초안과 점수 계산까지만 수행합니다. AI 이미지는 승인 이후 발행 단계에서만 생성하도록 비용을 늦춥니다.
