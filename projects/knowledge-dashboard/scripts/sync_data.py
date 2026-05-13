@@ -16,6 +16,7 @@ DATA_DIR = PROJECT_ROOT / "data"
 OUTPUT_FILE = DATA_DIR / "dashboard_data.json"
 QAQC_FILE = DATA_DIR / "qaqc_result.json"
 READINESS_FILE = DATA_DIR / "product_readiness.json"
+SKILL_LINT_FILE = DATA_DIR / "skill_lint.json"
 SESSION_LOG_PATH = REPO_ROOT / ".ai" / "SESSION_LOG.md"
 NOTEBOOKLM_VENV_LIB = REPO_ROOT / "infrastructure" / "notebooklm-mcp" / "venv" / "Lib" / "site-packages"
 NOTEBOOKLM_TOKEN_DIR = REPO_ROOT / "infrastructure" / "notebooklm-mcp" / "tokens"
@@ -271,6 +272,21 @@ def build_product_readiness() -> dict:
         return {}
 
 
+def build_skill_lint() -> dict:
+    print("Building skill lint report...")
+    try:
+        from skill_lint import build_report
+
+        report = build_report(REPO_ROOT)
+        with SKILL_LINT_FILE.open("w", encoding="utf-8") as file_obj:
+            json.dump(report, file_obj, indent=2, ensure_ascii=False)
+        print(f"  - Skill lint: {report['summary']['status']} ({report['summary']['issue_count']} issue(s))")
+        return report
+    except Exception as exc:
+        print(f"  - Error building skill lint report: {exc}")
+        return {}
+
+
 def main():
     print(f"Starting data sync at {datetime.now().isoformat()}...")
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -296,6 +312,10 @@ def main():
     readiness = build_product_readiness()
     if readiness:
         data["readiness"] = readiness
+
+    skill_lint = build_skill_lint()
+    if skill_lint:
+        data["skill_lint"] = skill_lint
 
     with OUTPUT_FILE.open("w", encoding="utf-8") as file_obj:
         json.dump(data, file_obj, indent=2, ensure_ascii=False)

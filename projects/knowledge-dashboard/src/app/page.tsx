@@ -18,7 +18,10 @@ import {
 import DashboardCharts from "../components/DashboardCharts";
 import QaQcPanel, { type QaQcData } from "../components/QaQcPanel";
 import ActivityTimeline from "../components/ActivityTimeline";
-import ProductReadinessPanel, { type ProductReadinessData } from "../components/ProductReadinessPanel";
+import ProductReadinessPanel, {
+  type ProductReadinessData,
+  type SkillLintData,
+} from "../components/ProductReadinessPanel";
 
 // ── Types ────────────────────────────────────────────
 interface GithubRepo {
@@ -60,6 +63,7 @@ interface DashboardData {
   notebooklm: Notebook[];
   qaqc?: QaQcData;
   readiness?: ProductReadinessData;
+  skill_lint?: SkillLintData;
   sessions?: SessionEntry[];
 }
 
@@ -95,6 +99,15 @@ function isProductReadinessPayload(value: unknown): value is ProductReadinessDat
     isObject(value.overall) &&
     Array.isArray(value.projects) &&
     Array.isArray(value.next_actions)
+  );
+}
+
+function isSkillLintPayload(value: unknown): value is SkillLintData {
+  return (
+    isObject(value) &&
+    typeof value.generated_at === "string" &&
+    isObject(value.summary) &&
+    Array.isArray(value.issues)
   );
 }
 
@@ -295,6 +308,19 @@ export default function Dashboard() {
           }
 
           console.warn("Product readiness payload could not be loaded. Continuing without it.", error);
+        }
+
+        try {
+          const skillLintPayload = await fetchJson("/api/data/skills");
+          if (isSkillLintPayload(skillLintPayload)) {
+            nextData.skill_lint = skillLintPayload;
+          }
+        } catch (error) {
+          if (error instanceof Error && error.message === "Unauthorized") {
+            throw error;
+          }
+
+          console.warn("Skill lint payload could not be loaded. Continuing without it.", error);
         }
 
         if (!isActive) return;
@@ -577,7 +603,7 @@ export default function Dashboard() {
           <>
             {activeTab === "operations" && (
               data?.readiness ? (
-                <ProductReadinessPanel data={data.readiness} />
+                <ProductReadinessPanel data={data.readiness} skillLint={data.skill_lint} />
               ) : (
                 <div className="text-center py-16 text-slate-500">
                   <SquareActivity className="w-16 h-16 mx-auto mb-4 opacity-20" />

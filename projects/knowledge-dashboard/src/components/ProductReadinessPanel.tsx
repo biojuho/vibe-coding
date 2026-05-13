@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   SquareActivity,
   XCircle,
+  Wrench,
 } from "lucide-react";
 
 
@@ -64,8 +65,30 @@ export interface ProductReadinessData {
   next_actions: NextAction[];
 }
 
+export interface SkillLintData {
+  generated_at: string;
+  summary: {
+    status: "pass" | "warn" | "fail";
+    score: number;
+    skill_count: number;
+    healthy_count: number;
+    warning_count: number;
+    error_count: number;
+    issue_count: number;
+  };
+  top_issues: Array<{ code: string; count: number }>;
+  issues: Array<{
+    skill: string;
+    path: string;
+    severity: "warning" | "error";
+    code: string;
+    message: string;
+  }>;
+}
+
 interface ProductReadinessPanelProps {
   data: ProductReadinessData;
+  skillLint?: SkillLintData;
 }
 
 const stateConfig: Record<ReadinessState, { label: string; border: string; text: string; bar: string; icon: React.ReactNode }> = {
@@ -127,8 +150,15 @@ function MetricTile({ label, value, tone }: { label: string; value: string; tone
   );
 }
 
-export default function ProductReadinessPanel({ data }: ProductReadinessPanelProps) {
+export default function ProductReadinessPanel({ data, skillLint }: ProductReadinessPanelProps) {
   const generatedAt = new Date(data.generated_at).toLocaleString();
+  const skillStatusState: ReadinessState = !skillLint
+    ? "needs-review"
+    : skillLint.summary.status === "pass"
+      ? "ready"
+      : skillLint.summary.status === "warn"
+        ? "needs-review"
+        : "blocked";
 
   return (
     <div className="space-y-6">
@@ -169,6 +199,58 @@ export default function ProductReadinessPanel({ data }: ProductReadinessPanelPro
           tone="text-emerald-300"
         />
       </div>
+
+      <section className="rounded-lg border border-white/5 bg-slate-900/40 p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
+              <Wrench className="h-5 w-5 text-cyan-300" />
+              Agent skill health
+            </h3>
+            <p className="mt-1 text-sm leading-6 text-slate-400">
+              Skill metadata, trigger guidance, duplicate names, and local references are checked before they become automation drift.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <StatePill state={skillStatusState} />
+            <span className="text-3xl font-semibold text-white">{skillLint?.summary.score ?? "--"}</span>
+          </div>
+        </div>
+
+        {skillLint ? (
+          <div className="mt-5 grid gap-3 lg:grid-cols-[0.8fr_1.2fr]">
+            <div className="grid grid-cols-2 gap-3">
+              <MetricTile label="Skills" value={`${skillLint.summary.skill_count}`} tone="text-cyan-300" />
+              <MetricTile label="Healthy" value={`${skillLint.summary.healthy_count}`} tone="text-emerald-300" />
+              <MetricTile label="Warnings" value={`${skillLint.summary.warning_count}`} tone="text-amber-300" />
+              <MetricTile label="Errors" value={`${skillLint.summary.error_count}`} tone="text-rose-300" />
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              {skillLint.issues.slice(0, 4).map((issue) => (
+                <div key={`${issue.path}-${issue.code}-${issue.message}`} className="rounded-lg border border-white/5 bg-slate-950/35 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="truncate text-sm font-medium text-white">{issue.skill}</span>
+                    <span className={issue.severity === "error" ? "text-xs text-rose-300" : "text-xs text-amber-300"}>
+                      {issue.code}
+                    </span>
+                  </div>
+                  <p className="mt-1 truncate text-xs text-slate-500">{issue.path}</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-400">{issue.message}</p>
+                </div>
+              ))}
+              {skillLint.issues.length === 0 && (
+                <p className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-sm leading-6 text-emerald-200">
+                  All local skills passed the metadata and reference checks.
+                </p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <p className="mt-4 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-sm text-amber-100">
+            Skill lint data has not been generated yet.
+          </p>
+        )}
+      </section>
 
       <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
         <div className="space-y-4">
