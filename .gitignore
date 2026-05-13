@@ -95,6 +95,10 @@ scratch/
 # ===== Nested Git Repos (renamed for root backup) =====
 **/.git.bak/
 
+# ===== 외부 클론된 도구 인스톨러 소스 =====
+# claude-goal: /goal skill 인스톨러 (jthack/claude-goal). ~/.claude/skills/goal로 설치 후 워크스페이스 외부에 두면 됨.
+claude-goal/
+
 # ===== OS =====
 .DS_Store
 Thumbs.db
