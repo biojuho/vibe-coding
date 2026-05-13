@@ -248,6 +248,14 @@ def _cache_set(key: str, content: str) -> None:
         pass
 
 
+def _cache_creation_multiplier(cache_strategy: str) -> float:
+    """Anthropic prompt-cache pricing multiplier for cache-creation tokens.
+
+    1h cache trades a 2.0× write surcharge for longer reuse; 5m / off use 1.25×.
+    """
+    return 2.0 if cache_strategy == "1h" else 1.25
+
+
 def cache_cleanup(ttl_sec: int = 259200) -> int:
     """만료된 캐시 항목 삭제. 삭제 건수 반환."""
     try:
@@ -323,6 +331,12 @@ class LLMClient:
     def all_provider_status(self) -> dict[str, bool]:
         """모든 프로바이더의 활성화 상태."""
         return {p: bool(self.api_keys.get(p)) for p in DEFAULT_PROVIDER_ORDER}
+
+    @staticmethod
+    def _no_providers_error_message() -> str:
+        return "사용 가능한 LLM 프로바이더가 없습니다. API 키를 확인하세요: " + ", ".join(
+            f"{v[0]}" for v in API_KEY_ENV_VARS.values()
+        )
 
     def _get_client(self, provider: str) -> Any:
         """프로바이더별 클라이언트 lazy 초기화."""
@@ -597,10 +611,7 @@ class LLMClient:
         """
         providers = self.enabled_providers()
         if not providers:
-            raise RuntimeError(
-                "사용 가능한 LLM 프로바이더가 없습니다. API 키를 확인하세요: "
-                + ", ".join(f"{v[0]}" for v in API_KEY_ENV_VARS.values())
-            )
+            raise RuntimeError(self._no_providers_error_message())
 
         # 캐시 조회
         if self.cache_ttl_sec > 0:
@@ -641,7 +652,7 @@ class LLMClient:
                         out_tok,
                         cache_creation_tokens=cache_w,
                         cache_read_tokens=cache_r,
-                        cache_creation_multiplier=2.0 if cache_strategy == "1h" else 1.25,
+                        cache_creation_multiplier=_cache_creation_multiplier(cache_strategy),
                     )
                     logger.info("LLM 성공: %s (in=%d, out=%d)", provider, in_tok, out_tok)
                     if self.cache_ttl_sec > 0:
@@ -718,7 +729,7 @@ class LLMClient:
                         out_tok,
                         cache_creation_tokens=cache_w,
                         cache_read_tokens=cache_r,
-                        cache_creation_multiplier=2.0 if cache_strategy == "1h" else 1.25,
+                        cache_creation_multiplier=_cache_creation_multiplier(cache_strategy),
                     )
                     if self.cache_ttl_sec > 0:
                         _cache_set(key, content)
@@ -751,10 +762,7 @@ class LLMClient:
             or self.enabled_providers()
         )
         if not providers:
-            raise RuntimeError(
-                "사용 가능한 LLM 프로바이더가 없습니다. API 키를 확인하세요: "
-                + ", ".join(f"{v[0]}" for v in API_KEY_ENV_VARS.values())
-            )
+            raise RuntimeError(self._no_providers_error_message())
 
         bridge_system = build_bridge_system_prompt(system_prompt, policy=policy, json_mode=json_mode)
         bridge_user = normalize_prompt_text(user_prompt, json_mode=json_mode)
@@ -1051,6 +1059,13 @@ def get_default_client(**kwargs: Any) -> LLMClient:
     return _default_client
 
 
+def _resolve_client(providers: list[str] | None, caller_script: str) -> LLMClient:
+    """Pick a fresh client when providers are overridden, else the shared default."""
+    if providers:
+        return LLMClient(providers=providers, caller_script=caller_script)
+    return get_default_client(caller_script=caller_script)
+
+
 def generate_json(
     *,
     system_prompt: str,
@@ -1061,12 +1076,7 @@ def generate_json(
     cache_strategy: str = "off",
 ) -> dict[str, Any]:
     """간편 JSON 생성 함수. 매번 새 클라이언트 생성 없이 사용."""
-    client = (
-        LLMClient(providers=providers, caller_script=caller_script)
-        if providers
-        else get_default_client(caller_script=caller_script)
-    )
-    return client.generate_json(
+    return _resolve_client(providers, caller_script).generate_json(
         system_prompt=system_prompt,
         user_prompt=user_prompt,
         temperature=temperature,
@@ -1084,12 +1094,7 @@ def generate_text(
     cache_strategy: str = "off",
 ) -> str:
     """간편 텍스트 생성 함수."""
-    client = (
-        LLMClient(providers=providers, caller_script=caller_script)
-        if providers
-        else get_default_client(caller_script=caller_script)
-    )
-    return client.generate_text(
+    return _resolve_client(providers, caller_script).generate_text(
         system_prompt=system_prompt,
         user_prompt=user_prompt,
         temperature=temperature,
@@ -1106,12 +1111,7 @@ def generate_json_bridged(
     caller_script: str = "",
     policy: BridgePolicy | None = None,
 ) -> dict[str, Any]:
-    client = (
-        LLMClient(providers=providers, caller_script=caller_script)
-        if providers
-        else get_default_client(caller_script=caller_script)
-    )
-    return client.generate_json_bridged(
+    return _resolve_client(providers, caller_script).generate_json_bridged(
         system_prompt=system_prompt,
         user_prompt=user_prompt,
         temperature=temperature,
@@ -1128,12 +1128,7 @@ def generate_text_bridged(
     caller_script: str = "",
     policy: BridgePolicy | None = None,
 ) -> str:
-    client = (
-        LLMClient(providers=providers, caller_script=caller_script)
-        if providers
-        else get_default_client(caller_script=caller_script)
-    )
-    return client.generate_text_bridged(
+    return _resolve_client(providers, caller_script).generate_text_bridged(
         system_prompt=system_prompt,
         user_prompt=user_prompt,
         temperature=temperature,
