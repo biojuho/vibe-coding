@@ -8,7 +8,7 @@
 - Goal: None
 - Owner: n/a
 - Started: n/a
-- Success: T-284 completed on 2026-05-13: blind-to-x Notion uploads now use a reviewer-first folded layout with visible summary and draft sections, diagnostics/raw/assets moved into toggles, recursive backfill support for nested blocks, and updated reviewer-focused Notion docs. Local feature commit: `bbe23bb`.
+- Success: T-288 completed 2026-05-13: shorts-maker-v2 gained `project.qc_strictness` (strict/lenient/off) and `project.scene_qc_max_retries` config. T-287 completed same session: `claude-goal/` added to `.gitignore` and `.ai/GOAL.md` activation sync verified via `session_orient`. `project_qc_runner.py --project shorts-maker-v2 --json` passed (test 126.9s + lint).
 
 ## Notes
 
