@@ -10,16 +10,26 @@ env:
   PYTHONUTF8: "1"
   PYTHONIOENCODING: "utf-8"
 
+# 기본 권한: 읽기만.
+permissions:
+  contents: read
+
+# PR 재push 시 진행 중 실행 취소. main 푸시는 보존.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   workspace-quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.14"
           cache: pip
@@ -65,6 +75,7 @@ jobs:
 
   blind-to-x-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     defaults:
       run:
@@ -72,10 +83,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -106,6 +117,7 @@ jobs:
 
   shorts-maker-v2-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
 
     defaults:
       run:
@@ -113,10 +125,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.14"
           cache: pip
@@ -144,6 +156,7 @@ jobs:
 
   frontend-active-apps:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     env:
       DATABASE_URL: postgresql://smoke:smoke@127.0.0.1:5432/hanwoo_smoke?sslmode=disable
       AUTH_SECRET: ci-smoke-test-secret-not-for-production
@@ -160,7 +173,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -194,6 +207,7 @@ jobs:
 
   test-summary:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     if: always()
     needs:
       - workspace-quality

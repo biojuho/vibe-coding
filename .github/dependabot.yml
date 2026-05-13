@@ -1,9 +1,13 @@
 # Dependabot configuration for automated dependency updates
 # Docs: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+#
+# directory 경로는 repo root 기준이며, 패키지 매니페스트(requirements.txt /
+# pyproject.toml / package.json 등)가 실제로 존재하는 디렉터리여야 한다.
+# 이 repo의 sub-project는 모두 projects/<name>/ 하위에 있으므로 그 경로를 사용한다.
 
 version: 2
 updates:
-  # Root workspace - Python dependencies
+  # Root workspace - Python dependencies (workspace/requirements*.txt)
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
@@ -17,7 +21,7 @@ updates:
 
   # blind-to-x - Python
   - package-ecosystem: "pip"
-    directory: "/blind-to-x"
+    directory: "/projects/blind-to-x"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -29,7 +33,7 @@ updates:
 
   # shorts-maker-v2 - Python
   - package-ecosystem: "pip"
-    directory: "/shorts-maker-v2"
+    directory: "/projects/shorts-maker-v2"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -41,7 +45,7 @@ updates:
 
   # hanwoo-dashboard - npm
   - package-ecosystem: "npm"
-    directory: "/hanwoo-dashboard"
+    directory: "/projects/hanwoo-dashboard"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -59,9 +63,21 @@ updates:
         patterns:
           - "@radix-ui/*"
 
+  # knowledge-dashboard - npm (frontend matrix에 포함되어 있어 dependabot 보장 필요)
+  - package-ecosystem: "npm"
+    directory: "/projects/knowledge-dashboard"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "knowledge-dashboard"
+
   # word-chain - npm
   - package-ecosystem: "npm"
-    directory: "/word-chain"
+    directory: "/projects/word-chain"
     schedule:
       interval: "weekly"
       day: "monday"

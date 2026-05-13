@@ -8,16 +8,27 @@ on:
     branches:
       - main
 
+# 기본 권한: 읽기만. 권한이 필요한 step은 job/step 단위로 명시.
+permissions:
+  contents: read
+
+# 동일 PR/브랜치에 새 push가 오면 진행 중인 실행은 취소해 CI 분 절약.
+# main 브랜치 push는 cancel하지 않는다(릴리스 흐름 보호).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   root-quality-gate:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.14"
           cache: pip

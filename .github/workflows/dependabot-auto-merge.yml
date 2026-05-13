@@ -13,14 +13,22 @@ name: Dependabot auto-merge
 
 on: pull_request
 
+# 기본은 read. dependabot job은 자체적으로 contents/pull-requests write 필요.
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   dependabot:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     if: github.actor == 'dependabot[bot]'
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Fetch Dependabot metadata
         id: metadata
