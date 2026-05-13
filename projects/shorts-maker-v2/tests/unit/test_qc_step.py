@@ -5,8 +5,15 @@ from types import SimpleNamespace
 
 import pytest
 
-from shorts_maker_v2.models import GateVerdict, JobManifest, SceneAsset, ScenePlan
-from shorts_maker_v2.pipeline.qc_step import QCStep
+from shorts_maker_v2.models import (
+    GateVerdict,
+    JobManifest,
+    SceneAsset,
+    SceneOutline,
+    ScenePlan,
+    StructureOutline,
+)
+from shorts_maker_v2.pipeline.qc_step import QCStep, SemanticQCStep
 
 
 def _write_bytes(path: Path, size: int) -> str:
@@ -597,3 +604,427 @@ class TestSceneQCIntegrity:
         assert result.checks["visual_ok"] is True
         assert result.checks["duration_ok"] is True
         assert result.checks["chars_per_sec_ok"] is True
+
+
+# ── 씬별 RMS 오디오 (audio_mean_volume_ok) ──────────────────────────────────
+
+
+def _write_png_color(path: Path, color: tuple[int, int, int], size: tuple[int, int] = (720, 1280)) -> str:
+    """지정 색상의 PNG. visual continuity 테스트용 — 평균 RGB 가 정확히 ``color`` 가 된다."""
+    from PIL import Image
+
+    Image.new("RGB", size, color=color).save(path, "PNG")
+    return str(path)
+
+
+class TestSceneQCAudioMeanVolume:
+    """T-288 FEATURE.md non-goal #2: 씬별 RMS 오디오. 파일 존재만으로는
+    silent TTS 를 못 잡는다 — mean_volume 으로 잡는다."""
+
+    def _plan(self) -> ScenePlan:
+        return ScenePlan(
+            scene_id=1,
+            narration_ko="씬별 RMS 회귀 보호용 나레이션",
+            visual_prompt_en="prompt",
+            target_sec=5.0,
+            structure_role="body",
+        )
+
+    def _asset(self, audio_path: str, visual_path: str, dur: float = 5.0) -> SceneAsset:
+        return SceneAsset(
+            scene_id=1,
+            audio_path=audio_path,
+            visual_type="image",
+            visual_path=visual_path,
+            duration_sec=dur,
+        )
+
+    def test_mean_volume_in_range_passes(self, tmp_path: Path, monkeypatch) -> None:
+        # -20 dBFS — 일반 TTS-1-HD 출력 범위 안. ok=True, issue 없음.
+        audio = _write_bytes(tmp_path / "a.wav", 20_000)
+        visual = _write_png(tmp_path / "v.png")
+        monkeypatch.setattr(
+            QCStep,
+            "_run_volumedetect",
+            staticmethod(lambda path, **kw: {"mean_db": -20.0, "max_db": -5.0}),
+        )
+
+        result = QCStep.gate_scene_qc(self._plan(), self._asset(audio, visual))
+
+        assert result.checks["audio_mean_volume_ok"] is True
+        assert not any("mean volume" in i.lower() for i in result.issues)
+
+    def test_mean_volume_too_quiet_flags(self, tmp_path: Path, monkeypatch) -> None:
+        # -45 dBFS — silent TTS 신호. ok=False + "silent" 키워드 issue.
+        audio = _write_bytes(tmp_path / "a.wav", 20_000)
+        visual = _write_png(tmp_path / "v.png")
+        monkeypatch.setattr(
+            QCStep,
+            "_run_volumedetect",
+            staticmethod(lambda path, **kw: {"mean_db": -45.0}),
+        )
+
+        result = QCStep.gate_scene_qc(self._plan(), self._asset(audio, visual))
+
+        assert result.checks["audio_mean_volume_ok"] is False
+        assert any("silent" in i.lower() for i in result.issues)
+        # strict 모드: 이슈가 있으니 fail_retry — regen 트리거 의도.
+        assert result.verdict == "fail_retry"
+
+    def test_mean_volume_clipping_flags(self, tmp_path: Path, monkeypatch) -> None:
+        # -0.1 dBFS — clipping 가까움. ok=False + "clipping" 키워드.
+        audio = _write_bytes(tmp_path / "a.wav", 20_000)
+        visual = _write_png(tmp_path / "v.png")
+        monkeypatch.setattr(
+            QCStep,
+            "_run_volumedetect",
+            staticmethod(lambda path, **kw: {"mean_db": -0.1}),
+        )
+
+        result = QCStep.gate_scene_qc(self._plan(), self._asset(audio, visual))
+
+        assert result.checks["audio_mean_volume_ok"] is False
+        assert any("clipping" in i.lower() for i in result.issues)
+
+    def test_mean_volume_ffmpeg_unavailable_silently_skipped(
+        self,
+        tmp_path: Path,
+        monkeypatch,
+    ) -> None:
+        # _run_volumedetect 가 None 을 반환 (ffmpeg 미설치/실패) → 가짜 fail 만들지 않는다.
+        # checks dict 에 audio_mean_volume_ok 자체가 들어가지 않아야 한다.
+        audio = _write_bytes(tmp_path / "a.wav", 20_000)
+        visual = _write_png(tmp_path / "v.png")
+        monkeypatch.setattr(
+            QCStep,
+            "_run_volumedetect",
+            staticmethod(lambda path, **kw: None),
+        )
+
+        result = QCStep.gate_scene_qc(self._plan(), self._asset(audio, visual))
+
+        assert "audio_mean_volume_ok" not in result.checks
+        assert not any("mean volume" in i.lower() for i in result.issues)
+
+    def test_mean_volume_skipped_when_essential_audio_fails(
+        self,
+        tmp_path: Path,
+        monkeypatch,
+    ) -> None:
+        # essential audio_ok 가 깨졌으면 volumedetect 자체를 안 부른다 (비용 절약).
+        # 미설정 sentinel 로 검증.
+        called: list[str] = []
+        monkeypatch.setattr(
+            QCStep,
+            "_run_volumedetect",
+            staticmethod(lambda path, **kw: called.append(path) or {"mean_db": -20.0}),
+        )
+        # 50 byte → audio_ok essential 실패
+        audio = _write_bytes(tmp_path / "a.wav", 50)
+        visual = _write_png(tmp_path / "v.png")
+
+        result = QCStep.gate_scene_qc(self._plan(), self._asset(audio, visual))
+
+        assert result.checks["audio_ok"] is False
+        assert "audio_mean_volume_ok" not in result.checks
+        assert called == []  # ffmpeg 호출 자체가 없어야 한다
+
+
+# ── 시각 연속성 (visual_continuity_ok) ──────────────────────────────────────
+
+
+class TestSceneQCVisualContinuity:
+    """T-288 FEATURE.md non-goal #1: abrupt transition 감지. 씬-씬 평균 RGB
+    거리가 임계값 초과하면 issues 로 표면화."""
+
+    def _plan(self, sid: int = 2) -> ScenePlan:
+        return ScenePlan(
+            scene_id=sid,
+            narration_ko="씬별 연속성 회귀 보호용 나레이션",
+            visual_prompt_en="prompt",
+            target_sec=5.0,
+            structure_role="body",
+        )
+
+    def _img_asset(self, sid: int, audio_path: str, visual_path: str) -> SceneAsset:
+        return SceneAsset(
+            scene_id=sid,
+            audio_path=audio_path,
+            visual_type="image",
+            visual_path=visual_path,
+            duration_sec=5.0,
+        )
+
+    def _video_asset(self, sid: int, audio_path: str, visual_path: str) -> SceneAsset:
+        return SceneAsset(
+            scene_id=sid,
+            audio_path=audio_path,
+            visual_type="video",
+            visual_path=visual_path,
+            duration_sec=5.0,
+        )
+
+    def test_first_scene_no_prev_skipped(self, tmp_path: Path) -> None:
+        audio = _write_bytes(tmp_path / "a.wav", 20_000)
+        visual = _write_png(tmp_path / "v.png")
+        # prev_asset=None → 연속성 체크 skip (key 자체가 안 들어감)
+        result = QCStep.gate_scene_qc(
+            self._plan(sid=1),
+            self._img_asset(1, audio, visual),
+            prev_asset=None,
+        )
+        assert "visual_continuity_ok" not in result.checks
+
+    def test_similar_scenes_pass(self, tmp_path: Path) -> None:
+        audio = _write_bytes(tmp_path / "a.wav", 20_000)
+        # 둘 다 동일한 어두운 회색 톤 — 평균 RGB 거리 0 근처
+        prev_v = _write_png_color(tmp_path / "prev.png", color=(40, 40, 40))
+        curr_v = _write_png_color(tmp_path / "curr.png", color=(50, 50, 50))
+        prev = self._img_asset(1, audio, prev_v)
+        curr = self._img_asset(2, audio, curr_v)
+
+        result = QCStep.gate_scene_qc(self._plan(), curr, prev_asset=prev)
+
+        assert result.checks["visual_continuity_ok"] is True
+        assert not any("abrupt transition" in i for i in result.issues)
+
+    def test_abrupt_transition_flags(self, tmp_path: Path) -> None:
+        audio = _write_bytes(tmp_path / "a.wav", 20_000)
+        # 어두운 검정 vs 밝은 핑크 — RGB 거리 ~ sqrt(255^2 + 192^2 + 203^2) ≈ 379
+        prev_v = _write_png_color(tmp_path / "prev.png", color=(0, 0, 0))
+        curr_v = _write_png_color(tmp_path / "curr.png", color=(255, 192, 203))
+        prev = self._img_asset(1, audio, prev_v)
+        curr = self._img_asset(2, audio, curr_v)
+
+        result = QCStep.gate_scene_qc(self._plan(), curr, prev_asset=prev)
+
+        assert result.checks["visual_continuity_ok"] is False
+        assert any("abrupt transition" in i.lower() for i in result.issues)
+
+    def test_video_prev_asset_silently_passes(self, tmp_path: Path) -> None:
+        # prev 가 video 면 첫 프레임 추출 비용 들이지 않고 자연 통과. 가짜 fail 막음.
+        audio = _write_bytes(tmp_path / "a.wav", 20_000)
+        prev_v = str(tmp_path / "prev.mp4")  # 실제 파일 만들 필요 없음 (skip path)
+        curr_v = _write_png(tmp_path / "curr.png")
+        prev = self._video_asset(1, audio, prev_v)
+        curr = self._img_asset(2, audio, curr_v)
+
+        result = QCStep.gate_scene_qc(self._plan(), curr, prev_asset=prev)
+
+        # skip 경로: ok=True, issue 없음 (False positive 방지)
+        assert result.checks["visual_continuity_ok"] is True
+        assert not any("abrupt transition" in i for i in result.issues)
+
+    def test_skipped_when_essential_visual_fails(self, tmp_path: Path) -> None:
+        # essential visual_ok 가 깨졌으면 연속성 체크 자체를 안 돌린다.
+        audio = _write_bytes(tmp_path / "a.wav", 20_000)
+        prev_v = _write_png_color(tmp_path / "prev.png", color=(40, 40, 40))
+        # 깨진 visual — 100바이트 garbage, Pillow 디코드 실패 → visual_ok=False
+        bad_curr = _write_bytes(tmp_path / "curr.png", 100)
+        prev = self._img_asset(1, audio, prev_v)
+        curr = self._img_asset(2, audio, bad_curr)
+
+        result = QCStep.gate_scene_qc(self._plan(), curr, prev_asset=prev)
+
+        assert result.checks["visual_ok"] is False
+        assert "visual_continuity_ok" not in result.checks
+
+
+# ── SemanticQCStep: LLM 기반 씬-씬 의미 QC (T-288 non-goal #3) ───────────────
+
+
+class _StubLLMRouter:
+    """SemanticQCStep 테스트용 generate_json stub."""
+
+    def __init__(self, *, response=None, raise_exc=None):
+        self.response = response
+        self.raise_exc = raise_exc
+        self.calls: list[dict] = []
+
+    def generate_json(self, *, system_prompt, user_prompt, temperature=0.7):
+        self.calls.append(
+            {
+                "system_prompt": system_prompt,
+                "user_prompt": user_prompt,
+                "temperature": temperature,
+            }
+        )
+        if self.raise_exc is not None:
+            raise self.raise_exc
+        return self.response
+
+
+class TestSemanticQCStep:
+    """SemanticQCStep: post-asset LLM judge of scene flow + tone consistency."""
+
+    def _plans(self) -> list[ScenePlan]:
+        return [
+            ScenePlan(scene_id=1, narration_ko="첫 단서", visual_prompt_en="p1", target_sec=5.0, structure_role="hook"),
+            ScenePlan(
+                scene_id=2, narration_ko="이어지는 결", visual_prompt_en="p2", target_sec=5.0, structure_role="body"
+            ),
+            ScenePlan(
+                scene_id=3,
+                narration_ko="조용한 여운",
+                visual_prompt_en="p3",
+                target_sec=5.0,
+                structure_role="closing",
+            ),
+        ]
+
+    def test_high_scores_yield_pass_and_full_manifest(self) -> None:
+        stub = _StubLLMRouter(
+            response={
+                "scene_flow_score": 9,
+                "tone_consistency_score": 8,
+                "overall_score": 9,
+                "weak_transitions": [],
+                "feedback": "흐름과 톤 모두 일관됨",
+            }
+        )
+        step = SemanticQCStep(llm_router=stub, min_score=6)
+
+        result = step.run(scene_plans=self._plans())
+
+        assert result.verdict == "pass"
+        assert result.scene_flow_score == 9
+        assert result.tone_consistency_score == 8
+        assert result.overall_score == 9
+        assert result.weak_transitions == []
+        assert "일관" in result.feedback
+        # 프롬프트가 실제 씬 narration 을 포함하는지 확인 — generic 호출 방어
+        assert len(stub.calls) == 1
+        assert "첫 단서" in stub.calls[0]["user_prompt"]
+        assert "Scene 3 [closing]" in stub.calls[0]["user_prompt"]
+
+    def test_low_scene_flow_degraded(self) -> None:
+        stub = _StubLLMRouter(
+            response={
+                "scene_flow_score": 4,
+                "tone_consistency_score": 8,
+                "overall_score": 5,
+                "weak_transitions": [
+                    {"from": 2, "to": 3, "reason": "절벽 같은 단절"},
+                ],
+                "feedback": "씬 2→3 단절",
+            }
+        )
+        step = SemanticQCStep(llm_router=stub, min_score=6)
+
+        result = step.run(scene_plans=self._plans())
+
+        assert result.verdict == "degraded"
+        assert result.scene_flow_score == 4
+        assert len(result.weak_transitions) == 1
+        assert result.weak_transitions[0]["from"] == 2
+        assert result.weak_transitions[0]["to"] == 3
+
+    def test_low_tone_consistency_degraded(self) -> None:
+        # tone 만 떨어져도 두 차원 중 최소값이 임계값 미만이면 degraded.
+        stub = _StubLLMRouter(
+            response={
+                "scene_flow_score": 9,
+                "tone_consistency_score": 3,
+                "overall_score": 6,
+                "weak_transitions": [],
+                "feedback": "톤 일관성 부족",
+            }
+        )
+        step = SemanticQCStep(llm_router=stub, min_score=6)
+
+        result = step.run(scene_plans=self._plans())
+
+        assert result.verdict == "degraded"
+        assert result.tone_consistency_score == 3
+
+    def test_llm_exception_returns_error_verdict(self) -> None:
+        # LLM 예외는 catch — opt-in 기능이 영상 ship 을 막으면 안 됨.
+        stub = _StubLLMRouter(raise_exc=RuntimeError("rate limit"))
+        step = SemanticQCStep(llm_router=stub, min_score=6)
+
+        result = step.run(scene_plans=self._plans())
+
+        assert result.verdict == "error"
+        assert "rate limit" not in result.feedback  # 클래스명만 노출, 메시지는 로그로만
+        assert "RuntimeError" in result.feedback
+
+    def test_non_dict_response_returns_error(self) -> None:
+        stub = _StubLLMRouter(response="not a dict")
+        step = SemanticQCStep(llm_router=stub, min_score=6)
+
+        result = step.run(scene_plans=self._plans())
+
+        assert result.verdict == "error"
+        assert "non-dict" in result.feedback
+
+    def test_empty_scene_plans_short_circuits(self) -> None:
+        stub = _StubLLMRouter(response={"scene_flow_score": 10})
+        step = SemanticQCStep(llm_router=stub, min_score=6)
+
+        result = step.run(scene_plans=[])
+
+        assert result.verdict == "error"
+        # LLM 자체를 부르지 않는다 — 비용 절감 + 의미 없는 채점 방지.
+        assert stub.calls == []
+
+    def test_missing_scores_coerced_to_zero_and_fail(self) -> None:
+        # LLM 이 키를 누락하거나 None 을 주면 모두 0 으로 강제 → degraded.
+        stub = _StubLLMRouter(
+            response={"feedback": "incomplete response", "weak_transitions": "not a list"},
+        )
+        step = SemanticQCStep(llm_router=stub, min_score=6)
+
+        result = step.run(scene_plans=self._plans())
+
+        assert result.verdict == "degraded"
+        assert result.scene_flow_score == 0
+        assert result.tone_consistency_score == 0
+        # weak_transitions 가 list 가 아닐 때 빈 리스트로 정리되어야 함
+        assert result.weak_transitions == []
+
+    def test_structure_outline_included_in_prompt_when_provided(self) -> None:
+        stub = _StubLLMRouter(
+            response={
+                "scene_flow_score": 8,
+                "tone_consistency_score": 8,
+                "overall_score": 8,
+                "weak_transitions": [],
+                "feedback": "ok",
+            }
+        )
+        step = SemanticQCStep(llm_router=stub, min_score=6)
+        outline = StructureOutline(
+            scenes=[
+                SceneOutline(1, "hook", "Grab attention", "Dark bg", "curiosity", 5.0),
+                SceneOutline(2, "body", "Build the thought", "Soft mood", "noticing", 5.0),
+                SceneOutline(3, "closing", "Leave a lingering thought", "Wide sky", "quiet", 5.0),
+            ],
+            total_estimated_sec=15.0,
+        )
+
+        result = step.run(scene_plans=self._plans(), structure_outline=outline)
+
+        assert result.verdict == "pass"
+        prompt = stub.calls[0]["user_prompt"]
+        assert "INTENDED STRUCTURE" in prompt
+        assert "Grab attention" in prompt
+        assert "lingering thought" in prompt
+
+    def test_string_score_coerced_to_int(self) -> None:
+        # 일부 LLM 은 점수를 "7" 처럼 문자열로 줄 수 있음 — 강제 변환.
+        stub = _StubLLMRouter(
+            response={
+                "scene_flow_score": "7",
+                "tone_consistency_score": "8.4",  # float string
+                "overall_score": "7",
+                "weak_transitions": [],
+                "feedback": "ok",
+            }
+        )
+        step = SemanticQCStep(llm_router=stub, min_score=6)
+
+        result = step.run(scene_plans=self._plans())
+
+        assert result.scene_flow_score == 7
+        assert result.tone_consistency_score == 8
+        assert result.verdict == "pass"

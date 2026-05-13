@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import subprocess
@@ -17,6 +18,8 @@ from shorts_maker_v2.models import (
     SceneAsset,
     ScenePlan,
     SceneQCResult,
+    SemanticQCResult,
+    StructureOutline,
 )
 
 logger = logging.getLogger(__name__)
@@ -114,6 +117,18 @@ class QCStep:
     # 10↑는 트런케이션 신호(긴 나레이션이 1~2초로 합성).
     _CHARS_PER_SEC_RANGE: tuple[float, float] = (1.5, 10.0)
 
+    # 씬별 mean volume(dBFS) 허용 범위. -40↓ 면 사실상 silence(TTS 합성 실패),
+    # -0.5↑ 면 clipping 가까움. 정상 TTS-1-HD 출력은 -25 ~ -10 dBFS 부근.
+    # T-288 FEATURE.md non-goal #2: 씬별 RMS 오디오 검사 — file 존재만으로는
+    # "silent 한 파일"을 잡지 못한다.
+    _AUDIO_MEAN_VOLUME_RANGE: tuple[float, float] = (-40.0, -0.5)
+
+    # 씬-씬 평균 RGB 거리 한계. 최대 sqrt(3*255^2) ≈ 441. 130 은 명백히 다른
+    # 색조(예: 어두운 시네마틱 → 채도 높은 anime) 만 잡는 보수적 임계값.
+    # T-288 FEATURE.md non-goal #1: abrupt transition 감지 — 시각적으로
+    # 튀는 씬-씬 컷이 silently ship 되는 것을 막는다.
+    _VISUAL_CONTINUITY_MAX_RGB_DIST: float = 130.0
+
     # closing/cta 역할에서 금지하는 CTA 표현. user_shorts_philosophy(시간을 훔치는 이야기) 준수.
     # 영어 + 한국어 변형 다수 포함.
     _FORBIDDEN_CTA: tuple[str, ...] = (
@@ -142,6 +157,7 @@ class QCStep:
         next_scene: ScenePlan | None = None,
         *,
         strictness: str = "strict",
+        prev_asset: SceneAsset | None = None,
     ) -> SceneQCResult:
         """씬별 품질 검수 (구조적 체크만, LLM 없음).
 
@@ -153,6 +169,8 @@ class QCStep:
             strictness: ``"strict"``(기본, 이슈 1개도 허용 안함) /
                 ``"lenient"`` (audio/visual 파일 존재만 essential, 그 외 이슈는 통과) /
                 ``"off"`` (모든 체크를 스킵하고 즉시 pass).
+            prev_asset: 이전 씬의 미디어 자산. 시각 연속성(abrupt transition)
+                감지에 사용. 없으면 (=첫 씬) 해당 체크는 자연 통과.
 
         Returns:
             SceneQCResult with verdict
@@ -222,6 +240,30 @@ class QCStep:
                     break
             else:
                 checks["no_cta_words"] = True
+
+        # 7. 씬별 mean volume(dBFS) — silent TTS / clipping 감지.
+        # essential audio_ok 가 통과한 경우에만 ffmpeg 호출 (비용 절약).
+        # essential 이 아님: 일시적 ffmpeg 실패가 verdict 를 흔들지 않게.
+        if audio_ok and scene_asset.duration_sec > 0:
+            levels = QCStep._run_volumedetect(scene_asset.audio_path, timeout=15)
+            if levels and "mean_db" in levels:
+                mean_db = levels["mean_db"]
+                rms_min, rms_max = QCStep._AUDIO_MEAN_VOLUME_RANGE
+                rms_ok = rms_min <= mean_db <= rms_max
+                checks["audio_mean_volume_ok"] = rms_ok
+                if not rms_ok:
+                    issues.append(
+                        f"Audio mean volume {mean_db:.1f}dBFS outside "
+                        f"[{rms_min},{rms_max}] (likely silent TTS or clipping)"
+                    )
+
+        # 8. 시각 연속성 — 이전 씬과의 평균 RGB 거리. abrupt transition 감지.
+        # essential 아님: 디코드/Pillow 실패는 silently True 로 통과(가짜 fail 안 만듦).
+        if prev_asset is not None and visual_ok:
+            cont_ok, cont_issue = QCStep._check_visual_continuity(scene_asset, prev_asset)
+            checks["visual_continuity_ok"] = cont_ok
+            if cont_issue:
+                issues.append(cont_issue)
 
         # Verdict 계산.
         # strict: 이슈가 1개라도 있으면 fail_retry.
@@ -503,8 +545,13 @@ class QCStep:
         return None
 
     @staticmethod
-    def _check_audio_peak(path: str) -> float | None:
-        """ffmpeg volumedetect로 오디오 피크 측정. 실패 시 None."""
+    def _run_volumedetect(path: str, *, timeout: int = 30) -> dict[str, float] | None:
+        """ffmpeg volumedetect 한 번 돌려서 mean/max(dBFS) 둘 다 파싱.
+
+        Gate 4 의 audio peak 체크와 씬별 RMS 체크가 같은 ffmpeg 호출을
+        공유하도록 정리한 헬퍼. 둘 중 하나만 파싱되어도 그 키만 채워 반환.
+        스트림이 비어있거나 ffmpeg 자체가 실패하면 None.
+        """
         if not os.path.isfile(path):
             return None
         try:
@@ -524,16 +571,261 @@ class QCStep:
                 ],
                 capture_output=True,
                 text=True,
-                timeout=30,
+                timeout=timeout,
+                # Windows 한글 코드페이지(cp949) 기본 디코드는 ffmpeg UTF-8
+                # stderr 의 한글 경로/메시지에서 깨진다 (`UnicodeDecodeError`).
+                # 파싱은 ASCII 라인(`max_volume:`/`mean_volume:`)만 보므로
+                # 다른 바이트는 replace 로 흘려보낸다.
+                encoding="utf-8",
+                errors="replace",
             )
-            # Parse max_volume from stderr
+            levels: dict[str, float] = {}
             for line in result.stderr.splitlines():
-                if "max_volume" in line:
-                    # e.g. "[Parsed_volumedetect_0 ... max_volume: -3.2 dB"
+                # e.g. "[Parsed_volumedetect_0 ...] max_volume: -3.2 dB"
+                if "max_volume:" in line:
                     parts = line.split("max_volume:")
                     if len(parts) == 2:
                         val = parts[1].strip().replace("dB", "").strip()
-                        return float(val)
+                        with contextlib.suppress(ValueError):
+                            levels["max_db"] = float(val)
+                elif "mean_volume:" in line:
+                    parts = line.split("mean_volume:")
+                    if len(parts) == 2:
+                        val = parts[1].strip().replace("dB", "").strip()
+                        with contextlib.suppress(ValueError):
+                            levels["mean_db"] = float(val)
+            return levels or None
         except Exception as exc:
             logger.debug("[QC] volumedetect failed: %s", exc)
         return None
+
+    @staticmethod
+    def _check_audio_peak(path: str) -> float | None:
+        """ffmpeg volumedetect 의 max_volume(dBFS) 만 단일 값으로 반환. 실패 시 None.
+
+        Gate 4 의 기존 호출 시그니처 보존을 위해 남겨둠 — 내부는 공용 헬퍼 위임.
+        """
+        levels = QCStep._run_volumedetect(path)
+        if levels and "max_db" in levels:
+            return levels["max_db"]
+        return None
+
+    # ── 시각 연속성 헬퍼 ────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _mean_rgb(path: str) -> tuple[float, float, float] | None:
+        """이미지 thumbnail 평균 RGB. Pillow 없거나 디코드 실패면 None.
+
+        64x64 로 다운샘플 후 산술 평균. 씬별 RMS 비교 비용을 millis 단위로 유지.
+        """
+        try:
+            from PIL import Image, UnidentifiedImageError
+        except ImportError:
+            return None
+        try:
+            with Image.open(path) as img:
+                img.thumbnail((64, 64))
+                rgb = img.convert("RGB")
+                pixels = list(rgb.getdata())
+        except (UnidentifiedImageError, OSError, ValueError):
+            return None
+        if not pixels:
+            return None
+        n = len(pixels)
+        r = sum(p[0] for p in pixels) / n
+        g = sum(p[1] for p in pixels) / n
+        b = sum(p[2] for p in pixels) / n
+        return (r, g, b)
+
+    @staticmethod
+    def _check_visual_continuity(
+        curr: SceneAsset,
+        prev: SceneAsset | None,
+    ) -> tuple[bool, str | None]:
+        """현재 씬과 이전 씬의 평균 RGB 거리로 abrupt transition 감지.
+
+        첫 씬, 비디오 자산, 또는 디코드 실패 시 ``True`` 로 자연 통과 — 가짜
+        실패를 만들지 않는다. 거리 한계는 ``_VISUAL_CONTINUITY_MAX_RGB_DIST``.
+
+        Returns:
+            ``(ok, issue_text_or_None)``
+        """
+        if prev is None:
+            return True, None
+        if curr.visual_type != "image" or prev.visual_type != "image":
+            # video 자산은 첫 프레임 추출 비용을 들이지 않고 스킵. T-288 scope.
+            return True, None
+        curr_mean = QCStep._mean_rgb(curr.visual_path)
+        prev_mean = QCStep._mean_rgb(prev.visual_path)
+        if curr_mean is None or prev_mean is None:
+            # 디코드 실패는 _check_visual_integrity 가 audio/visual essential 로 잡는다.
+            return True, None
+        dist = (
+            (curr_mean[0] - prev_mean[0]) ** 2 + (curr_mean[1] - prev_mean[1]) ** 2 + (curr_mean[2] - prev_mean[2]) ** 2
+        ) ** 0.5
+        if dist > QCStep._VISUAL_CONTINUITY_MAX_RGB_DIST:
+            return False, (
+                f"Visual abrupt transition (RGB distance {dist:.1f} > {QCStep._VISUAL_CONTINUITY_MAX_RGB_DIST})"
+            )
+        return True, None
+
+
+# ── SemanticQCStep: LLM 기반 씬-씬 의미 QC (T-288 non-goal #3) ────────────────
+
+
+class SemanticQCStep:
+    """Post-asset 의미 QC: 씬-씬 연결성 + 톤 일관성 LLM judge.
+
+    script_review 가 *script 단계* 의 글로벌 점수(hook/flow/cta/...)를 매기는
+    반면, SemanticQCStep 은 scene_qc 의 retry 가 끝난 *최종 상태* 의 narration
+    리스트를 보고 어느 씬 전환이 약한지 구체적으로 잡는다. 단일 LLM 호출 —
+    per-scene 호출이 아니라 비용/지연이 한 번에 고정된다.
+
+    이 게이트는 verdict 만 보고하고 regen 을 트리거하지 않는다 (씬 narration
+    재생성은 script 단계 책임). 결과가 임계값 미만이면 orchestrator 가
+    ``manifest.degraded_steps`` 로 표면화한다.
+    """
+
+    _SYSTEM_PROMPT = (
+        "You are a YouTube Shorts narrative quality judge. "
+        "Read the full scene-by-scene narration and score:\n"
+        "  - scene_flow_score (0-10): How logically does each scene connect "
+        "to the previous and next? Score harshly if any transition feels abrupt, "
+        "non-sequitur, or repetitive.\n"
+        "  - tone_consistency_score (0-10): Is the emotional tone consistent "
+        "throughout? Score harshly if any scene tonally clashes with the rest.\n"
+        "  - overall_score (0-10): Your single-number judgment.\n"
+        "\nIDENTIFY weak transitions: list the specific scene_id pairs where "
+        "the connection feels weakest, with a short reason each.\n"
+        "\nThe channel philosophy is 'quiet storytelling — stealing the viewer's "
+        "time'. Avoid CTAs, action demands. The closing scene should leave a "
+        "lingering thought, not a call to action.\n"
+        "\nOutput ONLY valid JSON:\n"
+        "{\n"
+        '  "scene_flow_score": <0-10>,\n'
+        '  "tone_consistency_score": <0-10>,\n'
+        '  "overall_score": <0-10>,\n'
+        '  "weak_transitions": [\n'
+        '    {"from": <scene_id>, "to": <scene_id>, "reason": "<short>"}\n'
+        "  ],\n"
+        '  "feedback": "<one-line summary>"\n'
+        "}"
+    )
+
+    def __init__(self, llm_router: Any, min_score: int = 6):
+        self.llm_router = llm_router
+        self.min_score = min_score
+
+    def run(
+        self,
+        scene_plans: list[ScenePlan],
+        structure_outline: StructureOutline | None = None,
+    ) -> SemanticQCResult:
+        """씬 의미 QC 한 번 실행. LLM 실패는 verdict='error' 로 반환 — raise 안 함."""
+        if not scene_plans:
+            return SemanticQCResult(
+                verdict="error",
+                feedback="No scene_plans provided",
+            )
+
+        user_prompt = self._build_user_prompt(scene_plans, structure_outline)
+        raw_response = ""
+        try:
+            response = self.llm_router.generate_json(
+                system_prompt=self._SYSTEM_PROMPT,
+                user_prompt=user_prompt,
+                temperature=0.2,  # 채점은 deterministic 쪽이 안전
+            )
+        except Exception as exc:
+            logger.warning("[SemanticQC] LLM call failed: %s", exc)
+            return SemanticQCResult(
+                verdict="error",
+                feedback=f"LLM error: {exc.__class__.__name__}",
+            )
+
+        if not isinstance(response, dict):
+            return SemanticQCResult(
+                verdict="error",
+                feedback=f"LLM returned non-dict: {type(response).__name__}",
+                raw_response=str(response)[:500],
+            )
+
+        # 안전한 정수 추출 (LLM 이 문자열이나 None 줄 수 있음)
+        scene_flow = self._coerce_score(response.get("scene_flow_score"))
+        tone_consistency = self._coerce_score(response.get("tone_consistency_score"))
+        overall = self._coerce_score(response.get("overall_score"))
+
+        raw_transitions = response.get("weak_transitions", [])
+        weak_transitions: list[dict[str, Any]] = []
+        if isinstance(raw_transitions, list):
+            for t in raw_transitions[:20]:  # 비정상 응답 방어
+                if isinstance(t, dict):
+                    weak_transitions.append(
+                        {
+                            "from": self._coerce_int(t.get("from"), default=0),
+                            "to": self._coerce_int(t.get("to"), default=0),
+                            "reason": str(t.get("reason", ""))[:200],
+                        }
+                    )
+
+        feedback = str(response.get("feedback", ""))[:300]
+        raw_response = str(response)[:1000]
+
+        # Verdict: 두 핵심 차원의 최소값이 임계값 미만이면 degraded.
+        weakest = min(scene_flow, tone_consistency)
+        verdict = "pass" if weakest >= self.min_score else "degraded"
+
+        logger.info(
+            "[SemanticQC] flow=%d tone=%d overall=%d verdict=%s weak_count=%d",
+            scene_flow,
+            tone_consistency,
+            overall,
+            verdict,
+            len(weak_transitions),
+        )
+
+        return SemanticQCResult(
+            scene_flow_score=scene_flow,
+            tone_consistency_score=tone_consistency,
+            overall_score=overall,
+            weak_transitions=weak_transitions,
+            verdict=verdict,
+            feedback=feedback,
+            raw_response=raw_response,
+        )
+
+    @staticmethod
+    def _coerce_score(value: Any, *, lo: int = 0, hi: int = 10) -> int:
+        """0..10 정수로 강제. 비정상 값은 0."""
+        v = SemanticQCStep._coerce_int(value, default=0)
+        return max(lo, min(hi, v))
+
+    @staticmethod
+    def _coerce_int(value: Any, *, default: int = 0) -> int:
+        if isinstance(value, bool):
+            return default
+        if isinstance(value, int):
+            return value
+        if isinstance(value, float):
+            return int(value)
+        if isinstance(value, str):
+            with contextlib.suppress(ValueError):
+                return int(float(value))
+        return default
+
+    @staticmethod
+    def _build_user_prompt(
+        scene_plans: list[ScenePlan],
+        structure_outline: StructureOutline | None,
+    ) -> str:
+        lines = ["=== FULL SCENE-BY-SCENE NARRATION ==="]
+        for plan in scene_plans:
+            lines.append(f"Scene {plan.scene_id} [{plan.structure_role}]: narration_ko: {plan.narration_ko!r}")
+        if structure_outline is not None:
+            lines.append("")
+            lines.append("=== INTENDED STRUCTURE ===")
+            for s in structure_outline.scenes:
+                lines.append(f"Scene {s.scene_id} [{s.role}]: intent={s.intent!r} emotional_beat={s.emotional_beat!r}")
+        lines.append("")
+        lines.append("Score now. Output JSON only.")
+        return "\n".join(lines)

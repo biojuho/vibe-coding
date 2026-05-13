@@ -500,6 +500,12 @@ class TestSmartRetryStrategy:
 class TestRunErrorPaths:
     def _make_orchestrator(self, tmp_path, script=None, media=None, render=None):
         cfg = _load_cfg(tmp_path)
+        # Error-path tests don't ship API keys, so StructureStep would
+        # always exhaust LLM retries and trip the new fallback-degraded
+        # signal — that flips happy-path runs to status="degraded".
+        # Disable structure validation here; the dedicated structure
+        # tests below opt in explicitly with "strict".
+        _set_frozen_attr(cfg.project, "structure_validation", "off")
         return PipelineOrchestrator(
             config=cfg,
             base_dir=tmp_path,
@@ -686,6 +692,10 @@ class TestRunErrorPaths:
     def test_run_success_path_covers_upload_thumbnail_srt_and_series(self, tmp_path: Path):
         cfg = _load_cfg(tmp_path)
         _set_frozen_attr(cfg.project, "upload_ready_dir", str(tmp_path / "upload-ready"))
+        # No LLM API keys are provided in tests, so StructureStep would
+        # exhaust its retries and trip the fallback-degraded signal.
+        # This test asserts a clean happy path; disable structure here.
+        _set_frozen_attr(cfg.project, "structure_validation", "off")
         orch = PipelineOrchestrator(
             config=cfg,
             base_dir=tmp_path,
@@ -731,6 +741,100 @@ class TestRunErrorPaths:
         assert manifest.series_suggestion == {"series_id": "series-1", "episode": 2}
         assert copied_output.exists()
         tracker_cls.return_value.record.assert_called_once()
+
+    def test_run_marks_manifest_degraded_when_structure_falls_back(self, tmp_path: Path):
+        # Quality regression guard for the 2026-05-11 silent-fallback case:
+        # StructureStep 이 LLM 재시도 모두 실패해 결정론 폴백을 반환하면,
+        # 영상은 ship 되지만 manifest.status 는 "success" 가 아닌 "degraded" 로
+        # 떨어져야 한다. silently 보일러플레이트 outline 으로 영상이 ship
+        # 되는 사례가 production 에서 한 번 잡혔다 (runs/20260511-003133-*).
+        cfg = _load_cfg(tmp_path)
+        _set_frozen_attr(cfg.project, "structure_validation", "strict")
+        orch = PipelineOrchestrator(
+            config=cfg,
+            base_dir=tmp_path,
+            script_step=StubScript(),
+            media_step=StubMedia(),
+            render_step=StubRender(),
+        )
+
+        production_plan = SimpleNamespace(
+            concept="quiet topic",
+            target_persona="curious viewer",
+            to_dict=lambda: {"concept": "quiet topic"},
+        )
+        fallback_outline = SimpleNamespace(
+            scenes=[SimpleNamespace(role="hook")],
+            narrative_arc="quiet_storytelling",
+            is_fallback=True,
+            to_dict=lambda: {
+                "narrative_arc": "quiet_storytelling",
+                "is_fallback": True,
+            },
+        )
+        gate3_pass = SimpleNamespace(verdict="pass", checks={"duration_ok": True}, issues=[])
+        gate4_pass = SimpleNamespace(verdict="pass", checks={"final_ok": True}, issues=[])
+
+        with (
+            patch("shorts_maker_v2.pipeline.orchestrator.PlanningStep") as planning_cls,
+            patch("shorts_maker_v2.pipeline.orchestrator.StructureStep") as structure_cls,
+            patch("shorts_maker_v2.pipeline.orchestrator.QCStep.gate3_media", return_value=gate3_pass),
+            patch("shorts_maker_v2.pipeline.orchestrator.QCStep.gate4_final", return_value=gate4_pass),
+            patch("shorts_maker_v2.pipeline.orchestrator.CostTracker"),
+        ):
+            planning_cls.return_value.run.return_value = production_plan
+            structure_cls.return_value.run.return_value = fallback_outline
+            manifest = orch.run(topic="structure fallback topic")
+
+        assert manifest.status == "degraded"
+        structure_dgr = [d for d in manifest.degraded_steps if d.get("step") == "structure"]
+        assert len(structure_dgr) == 1, manifest.degraded_steps
+        assert structure_dgr[0]["error_type"] == "outline_fallback"
+        assert structure_dgr[0]["blocking"] is False
+
+    def test_run_does_not_mark_structure_degraded_on_normal_outline(self, tmp_path: Path):
+        # 정상 outline (is_fallback=False) 일 때는 structure entry 가 degraded_steps
+        # 에 들어가면 안 된다 — false positive 가 새지 않게 한다.
+        cfg = _load_cfg(tmp_path)
+        _set_frozen_attr(cfg.project, "structure_validation", "strict")
+        orch = PipelineOrchestrator(
+            config=cfg,
+            base_dir=tmp_path,
+            script_step=StubScript(),
+            media_step=StubMedia(),
+            render_step=StubRender(),
+        )
+
+        production_plan = SimpleNamespace(
+            concept="quiet topic",
+            target_persona="curious viewer",
+            to_dict=lambda: {"concept": "quiet topic"},
+        )
+        good_outline = SimpleNamespace(
+            scenes=[SimpleNamespace(role="hook")],
+            narrative_arc="quiet_storytelling",
+            is_fallback=False,
+            to_dict=lambda: {
+                "narrative_arc": "quiet_storytelling",
+                "is_fallback": False,
+            },
+        )
+        gate3_pass = SimpleNamespace(verdict="pass", checks={"duration_ok": True}, issues=[])
+        gate4_pass = SimpleNamespace(verdict="pass", checks={"final_ok": True}, issues=[])
+
+        with (
+            patch("shorts_maker_v2.pipeline.orchestrator.PlanningStep") as planning_cls,
+            patch("shorts_maker_v2.pipeline.orchestrator.StructureStep") as structure_cls,
+            patch("shorts_maker_v2.pipeline.orchestrator.QCStep.gate3_media", return_value=gate3_pass),
+            patch("shorts_maker_v2.pipeline.orchestrator.QCStep.gate4_final", return_value=gate4_pass),
+            patch("shorts_maker_v2.pipeline.orchestrator.CostTracker"),
+        ):
+            planning_cls.return_value.run.return_value = production_plan
+            structure_cls.return_value.run.return_value = good_outline
+            manifest = orch.run(topic="structure happy topic")
+
+        assert manifest.status == "success"
+        assert not any(d.get("step") == "structure" for d in manifest.degraded_steps)
 
     def test_run_marks_manifest_degraded_when_research_fails(self, tmp_path: Path):
         cfg = _load_cfg(tmp_path)

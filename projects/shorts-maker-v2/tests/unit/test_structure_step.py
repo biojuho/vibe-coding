@@ -177,6 +177,67 @@ class TestFallbackOutline:
         assert outline.scenes[-1].role == "closing"
         assert len(outline.scenes) == 7  # default_scene_count
 
+    def test_fallback_marks_is_fallback_true(self, _config, _plan):
+        step = StructureStep(config=_config, llm_router=MagicMock())
+        outline_no_plan = step._fallback_outline("블랙홀", None)
+        outline_with_plan = step._fallback_outline("블랙홀", _plan)
+        # 두 경로 모두 결정론 폴백이므로 is_fallback=True 가 박혀야 한다 —
+        # orchestrator 가 degraded_steps 로 표면화하는 신호가 사라지면 안 됨.
+        assert outline_no_plan.is_fallback is True
+        assert outline_with_plan.is_fallback is True
+
+    def test_fallback_avoids_legacy_boilerplate_intent(self, _config):
+        # 2026-05-11 production run 에서 ship 됐던 보일러플레이트:
+        # "{topic}의 핵심 포인트 N을 설명한다". 이 패턴이 다시 새지 않게 막는다.
+        step = StructureStep(config=_config, llm_router=MagicMock())
+        outline = step._fallback_outline("블랙홀", None)
+        for scene in outline.scenes:
+            assert "핵심 포인트" not in scene.intent, (
+                f"Scene {scene.scene_id} regressed to legacy boilerplate: {scene.intent!r}"
+            )
+
+    def test_fallback_emotional_beats_vary_for_gate2(self, _config):
+        # Gate 2 의 _gate2_validate 는 최소 3개 unique emotional_beat 를 요구한다.
+        # 폴백이 그 기준을 자체적으로 만족해야 사람이 다시 손볼 일이 줄어든다.
+        step = StructureStep(config=_config, llm_router=MagicMock())
+        outline = step._fallback_outline("블랙홀", None)
+        beats = {s.emotional_beat for s in outline.scenes if s.emotional_beat}
+        assert len(beats) >= 3, f"Fallback beats not varied enough: {beats}"
+
+    def test_fallback_uses_production_plan_visual_keywords(self, _config, _plan):
+        # production_plan.visual_keywords 가 들어있으면 그 키워드들이 씬별
+        # visual_direction 에 직접 실려야 한다 — "Clean informational visual" 같은
+        # generic placeholder 가 다시 새지 않게 막는다.
+        step = StructureStep(config=_config, llm_router=MagicMock())
+        outline = step._fallback_outline("블랙홀", _plan)
+        kw_set = {kw.lower() for kw in _plan.visual_keywords}
+        joined = " ".join(s.visual_direction.lower() for s in outline.scenes)
+        # 최소 하나 이상의 키워드가 어딘가 씬 visual_direction 에 실려야 한다
+        assert any(kw in joined for kw in kw_set), f"None of {kw_set} appeared in visual_directions: {joined}"
+        # 그리고 옛 generic 텍스트가 모든 body 씬에 똑같이 박혀있으면 안 된다
+        body_visuals = {s.visual_direction for s in outline.scenes if s.role == "body"}
+        assert len(body_visuals) > 1, f"Body visual_directions collapsed to one generic line: {body_visuals}"
+
+    def test_fallback_uses_core_message_in_closing(self, _config, _plan):
+        # production_plan.core_message 가 있으면 마지막 body 또는 closing 의
+        # intent 에 그 문구가 반영되어야 한다 — 폴백도 "이야기가 어디로
+        # 향하는지" 보여주는 신호를 보존해야 한다.
+        step = StructureStep(config=_config, llm_router=MagicMock())
+        outline = step._fallback_outline("블랙홀", _plan)
+        msg_frag = _plan.core_message[:30]
+        last_two = outline.scenes[-2:]
+        assert any(msg_frag in s.intent for s in last_two), (
+            f"core_message fragment {msg_frag!r} not surfaced in closing arc: {[s.intent for s in last_two]}"
+        )
+
+    def test_fallback_closing_has_no_cta_word(self, _config, _plan):
+        # 폴백이라도 user_shorts_philosophy(CTA 금지) 는 지켜야 한다.
+        step = StructureStep(config=_config, llm_router=MagicMock())
+        outline = step._fallback_outline("블랙홀", _plan)
+        closing_text = (outline.scenes[-1].intent + " " + outline.scenes[-1].emotional_beat).lower()
+        for forbidden in ("구독", "좋아요", "알림", "subscribe", "like", "click"):
+            assert forbidden not in closing_text, f"Fallback closing leaked CTA word {forbidden!r}: {closing_text!r}"
+
 
 class TestStructureOutlinePromptBlock:
     """StructureOutline.to_prompt_block() 테스트."""

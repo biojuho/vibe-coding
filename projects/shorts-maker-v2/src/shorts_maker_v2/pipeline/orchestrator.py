@@ -22,7 +22,7 @@ from shorts_maker_v2.pipeline.error_types import (
 )
 from shorts_maker_v2.pipeline.media_step import MediaStep
 from shorts_maker_v2.pipeline.planning_step import PlanningStep
-from shorts_maker_v2.pipeline.qc_step import QCStep
+from shorts_maker_v2.pipeline.qc_step import QCStep, SemanticQCStep
 from shorts_maker_v2.pipeline.render_step import RenderStep
 from shorts_maker_v2.pipeline.research_step import ResearchStep
 from shorts_maker_v2.pipeline.script_step import ScriptStep, TopicUnsuitableError
@@ -460,10 +460,32 @@ class PipelineOrchestrator:
                         )
                         manifest.structure_outline = structure_outline.to_dict()
                         step_timings["structure"] = round(time.perf_counter() - _t0, 2)
+                        # LLM 재시도가 모두 실패해 결정론 폴백으로 떨어졌다면
+                        # silently ship 되지 않도록 degraded_steps 로 표면화.
+                        # Gate 4 가 PASS 여도 manifest.status 가 "degraded" 로 강등된다.
+                        if getattr(structure_outline, "is_fallback", False):
+                            degraded_steps.append(
+                                {
+                                    "step": "structure",
+                                    "message": (
+                                        "Structure outline fell back to deterministic template "
+                                        "after LLM retries — scene intents/visuals may be reduced."
+                                    ),
+                                    "error_type": "outline_fallback",
+                                    "is_retryable": False,
+                                    "blocking": False,
+                                }
+                            )
+                            jlog.warning(
+                                "structure_fallback_used",
+                                scene_count=len(structure_outline.scenes),
+                                narrative_arc=structure_outline.narrative_arc,
+                            )
                         jlog.info(
                             "structure_done",
                             scene_count=len(structure_outline.scenes),
                             narrative_arc=structure_outline.narrative_arc,
+                            is_fallback=getattr(structure_outline, "is_fallback", False),
                             perf_sec=step_timings["structure"],
                         )
                         status.complete("structure", detail=f"{len(structure_outline.scenes)} scenes")
@@ -595,7 +617,17 @@ class PipelineOrchestrator:
                 for idx, (plan, asset) in enumerate(zip(scene_plans, scene_assets, strict=False)):
                     prev_plan = scene_plans[idx - 1] if idx > 0 else None
                     next_plan = scene_plans[idx + 1] if idx < len(scene_plans) - 1 else None
-                    qc_result = QCStep.gate_scene_qc(plan, asset, prev_plan, next_plan, strictness=scene_qc_strictness)
+                    # 시각 연속성 체크용 prev_asset. scene_assets[idx-1] 는 이전 iteration 에서
+                    # 이미 (필요시) regen 된 최신 자산이므로 그대로 사용.
+                    prev_asset = scene_assets[idx - 1] if idx > 0 else None
+                    qc_result = QCStep.gate_scene_qc(
+                        plan,
+                        asset,
+                        prev_plan,
+                        next_plan,
+                        strictness=scene_qc_strictness,
+                        prev_asset=prev_asset,
+                    )
                     retry = 0
                     for retry in range(max_scene_retries):
                         if qc_result.verdict == "pass":
@@ -619,7 +651,12 @@ class PipelineOrchestrator:
                         scene_assets[idx] = new_asset
                         failures.extend(regen_failures)
                         qc_result = QCStep.gate_scene_qc(
-                            plan, new_asset, prev_plan, next_plan, strictness=scene_qc_strictness
+                            plan,
+                            new_asset,
+                            prev_plan,
+                            next_plan,
+                            strictness=scene_qc_strictness,
+                            prev_asset=prev_asset,
                         )
                     qc_result.retry_count = retry + 1 if qc_result.verdict != "pass" else 0
                     all_scene_qc_results.append(qc_result.to_dict())
@@ -645,6 +682,82 @@ class PipelineOrchestrator:
                     )
                 jlog.info("scene_qc_done", passed=summary["passed"], total=summary["total"])
                 status.complete("scene_qc", detail=f"{summary['passed']}/{summary['total']} passed")
+
+            # ── SemanticQC: LLM 기반 씬-씬 의미 QC (opt-in, T-288 non-goal #3) ──
+            # script_review 의 글로벌 점수 외에, 최종 narration 상태(scene_qc retry 후)
+            # 에서 어느 씬 전환이 약한지를 LLM judge 가 specific 하게 잡는다.
+            # 단일 LLM 호출. regen 트리거하지 않고 manifest 와 degraded_steps 로만
+            # 표면화 — 씬 narration 재생성은 script 단계 책임.
+            if self.config.project.semantic_qc_enabled:
+                status.start("semantic_qc", detail="LLM scene-flow + tone judge")
+                _t0 = time.perf_counter()
+                try:
+                    _llm_router_for_semantic = LLMRouter(
+                        providers=(
+                            list(self.config.providers.llm_providers)
+                            if self.config.providers.llm_providers
+                            else [self.config.providers.llm]
+                        ),
+                        models=dict(self.config.providers.llm_models) if self.config.providers.llm_models else {},
+                        max_retries=self.config.limits.max_retries,
+                        request_timeout_sec=self.config.limits.request_timeout_sec,
+                    )
+                    semantic_step = SemanticQCStep(
+                        llm_router=_llm_router_for_semantic,
+                        min_score=self.config.project.semantic_qc_min_score,
+                    )
+                    structure_outline_for_semantic = locals().get("structure_outline")
+                    semantic_result = semantic_step.run(
+                        scene_plans=scene_plans,
+                        structure_outline=structure_outline_for_semantic,
+                    )
+                    manifest.semantic_qc = semantic_result.to_dict()
+                    step_timings["semantic_qc"] = round(time.perf_counter() - _t0, 2)
+                    if semantic_result.verdict == "degraded":
+                        degraded_steps.append(
+                            {
+                                "step": "semantic_qc",
+                                "message": (
+                                    f"Scene flow / tone consistency below threshold "
+                                    f"(flow={semantic_result.scene_flow_score}, "
+                                    f"tone={semantic_result.tone_consistency_score}, "
+                                    f"min={self.config.project.semantic_qc_min_score}): "
+                                    f"{semantic_result.feedback}"
+                                ),
+                                "error_type": "semantic_below_threshold",
+                                "is_retryable": False,
+                                "blocking": False,
+                                "weak_transitions": semantic_result.weak_transitions,
+                            }
+                        )
+                        jlog.warning(
+                            "semantic_qc_degraded",
+                            scene_flow=semantic_result.scene_flow_score,
+                            tone_consistency=semantic_result.tone_consistency_score,
+                            weak_count=len(semantic_result.weak_transitions),
+                        )
+                        status.fail(
+                            "semantic_qc",
+                            detail=f"flow={semantic_result.scene_flow_score} tone={semantic_result.tone_consistency_score}",
+                        )
+                    elif semantic_result.verdict == "error":
+                        jlog.warning("semantic_qc_error", feedback=semantic_result.feedback)
+                        status.update("semantic_qc", StepStatus.SKIPPED, detail="LLM error")
+                    else:
+                        jlog.info(
+                            "semantic_qc_pass",
+                            scene_flow=semantic_result.scene_flow_score,
+                            tone_consistency=semantic_result.tone_consistency_score,
+                        )
+                        status.complete(
+                            "semantic_qc",
+                            detail=f"flow={semantic_result.scene_flow_score} tone={semantic_result.tone_consistency_score}",
+                        )
+                except Exception as exc:
+                    # 의미 QC 자체 실패는 영상 ship 을 막지 않는다. opt-in 기능.
+                    step_timings["semantic_qc"] = round(time.perf_counter() - _t0, 2)
+                    jlog.warning("semantic_qc_skipped", error=str(exc)[:200])
+                    status.update("semantic_qc", StepStatus.SKIPPED, detail=str(exc)[:60])
 
             # ── Gate 3: 미디어 QC ──
             status.start("gate3_media_qc", detail="Validating media assets")

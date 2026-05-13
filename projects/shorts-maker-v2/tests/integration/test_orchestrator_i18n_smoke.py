@@ -102,6 +102,11 @@ def _write_config(tmp_path: Path) -> Path:
                     "language": "en-US",
                     "default_scene_count": 3,
                     "script_review_enabled": False,
+                    # No LLM API keys in test env → structure step would fall back
+                    # and the new fallback-degraded signal would surface as
+                    # status="degraded". This smoke test asserts a happy en-US
+                    # render, so skip structure entirely.
+                    "structure_validation": "off",
                 },
                 "video": {
                     "target_duration_sec": [8, 14],

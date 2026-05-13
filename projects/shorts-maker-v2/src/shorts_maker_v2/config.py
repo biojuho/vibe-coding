@@ -29,6 +29,11 @@ class ProjectSettings:
     qc_strictness: str = "strict"  # "strict" | "lenient" | "off" — gate_scene_qc 판정 강도
     scene_qc_max_retries: int = 2  # scene_qc_enabled=True 시 씬당 미디어 재생성 최대 횟수
     structure_validation: str = "strict"  # "strict" | "lenient" | "off"
+    # Post-asset 씬-씬 의미 QC (LLM judge 1회 호출). T-288 non-goal #3 해소.
+    # script_review (script 단계 글로벌 채점) 와 달리 어느 *씬 전환* 이 약한지
+    # specific 하게 잡는다. 기본 False — opt-in (지연/비용 추가).
+    semantic_qc_enabled: bool = False
+    semantic_qc_min_score: int = 6  # 0..10. 이 미만이면 degraded_steps 로 표면화.
     upload_ready_dir: str = ""  # 설정 시 완성 영상을 이 폴더에 복사
 
 
@@ -293,6 +298,9 @@ def load_config(config_path: str | Path) -> AppConfig:
     scene_qc_max_retries_val = int(project_raw.get("scene_qc_max_retries", 2))
     if scene_qc_max_retries_val < 0:
         raise ConfigError("project.scene_qc_max_retries must be >= 0.")
+    semantic_qc_min_score_val = int(project_raw.get("semantic_qc_min_score", 6))
+    if not 0 <= semantic_qc_min_score_val <= 10:
+        raise ConfigError("project.semantic_qc_min_score must be in [0, 10].")
     project = ProjectSettings(
         language=str(project_raw.get("language", "ko-KR")),
         default_scene_count=int(project_raw.get("default_scene_count", 7)),
@@ -308,6 +316,8 @@ def load_config(config_path: str | Path) -> AppConfig:
         qc_strictness=qc_strictness_val,
         scene_qc_max_retries=scene_qc_max_retries_val,
         structure_validation=structure_validation_val,
+        semantic_qc_enabled=bool(project_raw.get("semantic_qc_enabled", False)),
+        semantic_qc_min_score=semantic_qc_min_score_val,
         upload_ready_dir=str(project_raw.get("upload_ready_dir", "")),
     )
     if project.default_scene_count <= 0:

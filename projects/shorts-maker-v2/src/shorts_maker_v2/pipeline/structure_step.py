@@ -314,46 +314,139 @@ class StructureStep:
         verdict = GateVerdict.PASS if not issues else GateVerdict.FAIL_RETRY
         return verdict, issues
 
+    # 폴백 body 씬용 감정 아크. 6개 이상이면 cycle 한다. Gate 2의
+    # "감정 3가지 이상" 체크를 자동으로 만족시킨다.
+    _FALLBACK_BODY_BEATS: tuple[str, ...] = (
+        "noticing",
+        "questioning",
+        "leaning in",
+        "small surprise",
+        "understanding",
+        "gentle clarity",
+    )
+
     def _fallback_outline(
         self,
         topic: str,
         production_plan: Any | None,
     ) -> StructureOutline:
-        """폴백 구성안 (모든 재시도 실패 시)."""
+        """결정론 폴백 구성안.
+
+        LLM 재시도가 모두 실패해도 영상은 ship 되어야 하지만, 과거 폴백은
+        ``"{topic}의 핵심 포인트 N을 설명한다"`` 보일러플레이트라 영상
+        품질이 통째로 무너졌다 (2026-05-11 manifest 케이스). 새 폴백은:
+
+        1. ``production_plan`` 의 ``visual_keywords`` / ``core_message`` /
+           ``audience_profile.desire`` 를 씬별로 주입해 generic 텍스트 제거.
+        2. body 씬 intent 가 단순 카운트("핵심 포인트 1/2/3")가 아니라
+           조용한 스토리 아크(첫 단서 → 의문 → 풀이 → 의미)를 따른다.
+        3. 반환된 outline 에 ``is_fallback=True`` 를 박아서 orchestrator
+           가 ``manifest.degraded_steps`` 로 표면화할 수 있게 한다.
+        """
         scene_count = self.config.project.default_scene_count
-        scenes = [
+        body_count = max(scene_count - 2, 1)  # hook + closing 제외
+
+        # production_plan 에서 사용 가능한 단서 수집
+        visual_keywords: list[str] = []
+        core_message = ""
+        audience_desire = ""
+        tone_hint = ""
+        if production_plan is not None:
+            raw_kw = getattr(production_plan, "visual_keywords", None)
+            if isinstance(raw_kw, (list, tuple)):
+                visual_keywords = [str(k).strip() for k in raw_kw if str(k).strip()]
+            core_message = str(getattr(production_plan, "core_message", "") or "").strip()
+            ap = getattr(production_plan, "audience_profile", None)
+            if isinstance(ap, dict):
+                audience_desire = str(ap.get("desire", "") or "").strip()
+            tone_hint = str(getattr(production_plan, "tone", "") or "").strip()
+
+        # hook 씬
+        hook_visual = (
+            f"Cinematic visualization of {visual_keywords[0]}, dramatic lighting, shallow depth of field"
+            if visual_keywords
+            else "Dark dramatic background with a single focal point, cinematic mood"
+        )
+        scenes: list[SceneOutline] = [
             SceneOutline(
                 scene_id=1,
                 role="hook",
-                intent=f"{topic}에 대한 놀라운 사실로 주의를 끈다",
-                visual_direction="Dark dramatic background with spotlight on subject",
-                emotional_beat="curiosity",
+                intent=f"{topic}을(를) 바라보던 흔한 인상에 작은 균열을 낸다",
+                visual_direction=hook_visual,
+                emotional_beat="curiosity, soft pull",
                 target_sec=5.0,
             ),
         ]
-        for i in range(2, scene_count):
+
+        # body 씬 — 카운트가 아닌 흐름. 5단계 아크를 body_count 에 맞춰 펴서 배치.
+        for i in range(1, body_count + 1):
+            sid = i + 1
+            kw = visual_keywords[(i - 1) % len(visual_keywords)] if visual_keywords else ""
+            visual_dir = (
+                f"Cinematic visualization of {kw}, soft ambient mood, layered detail"
+                if kw
+                else "Layered visual that lingers on a single mood, soft ambient light"
+            )
+
+            if i == 1:
+                intent = f"{topic} 이야기의 첫 단서를 차분히 보여준다"
+            elif i == 2:
+                intent = "보이는 것 너머의 작은 의문을 슬쩍 제시한다"
+            elif i == body_count and core_message:
+                intent = f"앞의 결들이 '{core_message[:80]}'로 모이는 것을 조용히 비춘다"
+            elif i == body_count - 1 and body_count >= 4:
+                intent = "흔히 놓치는 의외의 결 하나를 짧게 비춘다"
+            elif kw:
+                intent = f"{topic} 속 또 다른 결을 {kw}의 관점에서 따라간다"
+            elif audience_desire:
+                intent = f"'{audience_desire[:60]}'에 가까이 다가가는 한 결을 짚는다"
+            else:
+                intent = f"{topic}의 또 다른 결을 천천히 따라간다"
+
+            beat = self._FALLBACK_BODY_BEATS[(i - 1) % len(self._FALLBACK_BODY_BEATS)]
             scenes.append(
                 SceneOutline(
-                    scene_id=i,
+                    scene_id=sid,
                     role="body",
-                    intent=f"{topic}의 핵심 포인트 {i - 1}을 설명한다",
-                    visual_direction="Clean informational visual with relevant imagery",
-                    emotional_beat="understanding" if i % 2 == 0 else "surprise",
+                    intent=intent,
+                    visual_direction=visual_dir,
+                    emotional_beat=beat,
                     target_sec=5.0,
                 )
             )
+
+        # closing 씬 — CTA 금지, 여운 우선
+        closing_visual = (
+            f"Wide quiet landscape evoking {visual_keywords[-1]}, gentle ambient light"
+            if visual_keywords
+            else "Wide peaceful landscape at twilight, soft ambient light"
+        )
+        closing_intent = (
+            f"'{core_message[:80]}'를 한 호흡으로 다시 흘려보내는 여운을 남긴다"
+            if core_message
+            else "여운이 남는 한 호흡으로 조용히 마무리한다"
+        )
         scenes.append(
             SceneOutline(
                 scene_id=scene_count,
                 role="closing",
-                intent="여운이 남는 한 문장으로 조용히 마무리한다",
-                visual_direction="Wide peaceful landscape, soft ambient light",
-                emotional_beat="quiet contemplation",
+                intent=closing_intent,
+                visual_direction=closing_visual,
+                emotional_beat="quiet afterimage",
                 target_sec=5.0,
             )
         )
+
+        logger.info(
+            "[Structure] Fallback outline composed (kw=%d, core_msg=%s, tone=%s)",
+            len(visual_keywords),
+            "yes" if core_message else "no",
+            "yes" if tone_hint else "no",
+        )
+
         return StructureOutline(
             scenes=scenes,
             total_estimated_sec=float(scene_count * 5),
             narrative_arc="quiet_storytelling",
+            is_fallback=True,
         )

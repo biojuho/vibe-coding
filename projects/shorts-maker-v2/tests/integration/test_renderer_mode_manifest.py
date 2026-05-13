@@ -65,7 +65,14 @@ class StubRenderStep:
 
 def _make_config_file(tmp_path: Path) -> Path:
     payload = {
-        "project": {"language": "ko-KR", "default_scene_count": 1},
+        "project": {
+            "language": "ko-KR",
+            "default_scene_count": 1,
+            # No LLM API keys in tests → structure step would fall back and
+            # the new fallback-degraded signal would flip status to "degraded".
+            # This file asserts renderer-mode bookkeeping on a happy run.
+            "structure_validation": "off",
+        },
         "video": {
             "target_duration_sec": [35, 45],
             "resolution": [1080, 1920],

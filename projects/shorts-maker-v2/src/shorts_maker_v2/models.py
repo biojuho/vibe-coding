@@ -124,12 +124,17 @@ class StructureOutline:
     scenes: list[SceneOutline]
     total_estimated_sec: float
     narrative_arc: str = "quiet_storytelling"  # 내러티브 아크 유형
+    # True iff StructureStep fell back to a deterministic template after
+    # LLM retries were exhausted. Orchestrator surfaces this as a degraded
+    # step so silently-shipped boilerplate outlines stop counting as success.
+    is_fallback: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "scenes": [s.to_dict() for s in self.scenes],
             "total_estimated_sec": self.total_estimated_sec,
             "narrative_arc": self.narrative_arc,
+            "is_fallback": self.is_fallback,
         }
 
     def to_prompt_block(self) -> str:
@@ -161,6 +166,27 @@ class SceneQCResult:
     verdict: str = "pass"  # "pass" | "fail_retry"
     issues: list[str] = field(default_factory=list)
     retry_count: int = 0
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class SemanticQCResult:
+    """LLM 기반 의미 QC 결과 (씬-씬 연결성 + 톤 일관성).
+
+    Post-asset/post-scene_qc 단계에서 영상의 전체 흐름을 LLM judge 가 한 번에
+    채점. 개별 씬 QC(`SceneQCResult`)나 script_review 의 글로벌 점수와 달리,
+    어느 씬 전환이 약한지 specific 하게 잡아낸다.
+    """
+
+    scene_flow_score: int = 0  # 0..10
+    tone_consistency_score: int = 0  # 0..10
+    overall_score: int = 0  # 0..10
+    weak_transitions: list[dict[str, Any]] = field(default_factory=list)  # [{from, to, reason}]
+    verdict: str = "pass"  # "pass" | "degraded" | "error"
+    feedback: str = ""  # 한 줄 요약
+    raw_response: str = ""  # 디버깅용 LLM 원문 (실패 시 비어있을 수 있음)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -216,6 +242,7 @@ class JobManifest:
     hook_score: dict[str, Any] | None = None  # Hook Strength Scorer 결과
     retention_hints: dict[str, Any] | None = None  # Retention Hints 분석 결과
     sentiment: dict[str, Any] | None = None  # Content Intelligence 감성 분석
+    semantic_qc: dict[str, Any] | None = None  # LLM 기반 씬-씬 의미 QC 결과 (opt-in)
 
     degraded_steps: list[dict[str, Any]] = field(default_factory=list)
 
