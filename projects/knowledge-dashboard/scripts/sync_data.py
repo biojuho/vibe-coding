@@ -15,6 +15,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = PROJECT_ROOT / "data"
 OUTPUT_FILE = DATA_DIR / "dashboard_data.json"
 QAQC_FILE = DATA_DIR / "qaqc_result.json"
+READINESS_FILE = DATA_DIR / "product_readiness.json"
 SESSION_LOG_PATH = REPO_ROOT / ".ai" / "SESSION_LOG.md"
 NOTEBOOKLM_VENV_LIB = REPO_ROOT / "infrastructure" / "notebooklm-mcp" / "venv" / "Lib" / "site-packages"
 NOTEBOOKLM_TOKEN_DIR = REPO_ROOT / "infrastructure" / "notebooklm-mcp" / "tokens"
@@ -26,6 +27,7 @@ if NOTEBOOKLM_VENV_LIB.exists():
 
 # Shared QA/QC helpers live in the repo-wide workspace control plane.
 sys.path.insert(0, str(REPO_ROOT / "workspace" / "execution"))
+sys.path.insert(0, str(REPO_ROOT / "execution"))
 
 try:
     import httpx
@@ -254,6 +256,21 @@ def fetch_qaqc_trend() -> list[dict]:
         return []
 
 
+def build_product_readiness() -> dict:
+    print("Building product readiness score...")
+    try:
+        from product_readiness_score import build_report
+
+        report = build_report(REPO_ROOT, qaqc_path=QAQC_FILE)
+        with READINESS_FILE.open("w", encoding="utf-8") as file_obj:
+            json.dump(report, file_obj, indent=2, ensure_ascii=False)
+        print(f"  - Readiness score: {report['overall']['score']} ({report['overall']['state']})")
+        return report
+    except Exception as exc:
+        print(f"  - Error building readiness score: {exc}")
+        return {}
+
+
 def main():
     print(f"Starting data sync at {datetime.now().isoformat()}...")
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -275,6 +292,10 @@ def main():
             print("  - QA/QC result loaded")
         except Exception as exc:
             print(f"  - Error loading QA/QC result: {exc}")
+
+    readiness = build_product_readiness()
+    if readiness:
+        data["readiness"] = readiness
 
     with OUTPUT_FILE.open("w", encoding="utf-8") as file_obj:
         json.dump(data, file_obj, indent=2, ensure_ascii=False)

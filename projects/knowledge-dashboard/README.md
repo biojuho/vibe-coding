@@ -16,8 +16,14 @@ The sync job writes internal data files to `data/`:
 
 - `data/dashboard_data.json`
 - `data/qaqc_result.json`
+- `data/product_readiness.json`
 
 It also reads shared repo context from `.ai/SESSION_LOG.md` and QA/QC trend history from `workspace/execution/qaqc_history_db.py`.
+Product readiness can also be refreshed directly from the workspace root:
+
+```bash
+python execution/product_readiness_score.py
+```
 
 ### 2. Configure dashboard access
 
@@ -54,3 +60,4 @@ This project does not currently use Svelte, TanStack Query, Supabase/PostgreSQL,
 - `public/` should only contain static assets, not dashboard or QA/QC JSON payloads.
 - The API routes return `401` when the bearer key is missing or invalid.
 - The API routes return `503` when `DASHBOARD_API_KEY` is not configured.
+- The operations console reads `data/product_readiness.json`; regenerate it after QC runs, task-board changes, or release-blocker updates.

@@ -4,7 +4,7 @@
 import { startTransition, useDeferredValue, useEffect, useMemo, useState } from "react";
 import {
   Book, Code, Github, ExternalLink, RefreshCw, Smartphone,
-  Search, FileText, PieChart, Layers, Shield, Clock
+  Search, FileText, PieChart, Layers, Shield, Clock, SquareActivity
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,6 +18,7 @@ import {
 import DashboardCharts from "../components/DashboardCharts";
 import QaQcPanel, { type QaQcData } from "../components/QaQcPanel";
 import ActivityTimeline from "../components/ActivityTimeline";
+import ProductReadinessPanel, { type ProductReadinessData } from "../components/ProductReadinessPanel";
 
 // ── Types ────────────────────────────────────────────
 interface GithubRepo {
@@ -58,10 +59,11 @@ interface DashboardData {
   github: GithubRepo[];
   notebooklm: Notebook[];
   qaqc?: QaQcData;
+  readiness?: ProductReadinessData;
   sessions?: SessionEntry[];
 }
 
-type TabId = "knowledge" | "qaqc" | "activity";
+type TabId = "operations" | "knowledge" | "qaqc" | "activity";
 
 // Keep client-side API responses on a typed path before they reach render.
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -83,6 +85,16 @@ function isQaQcPayload(value: unknown): value is QaQcData {
     typeof value.timestamp === "string" &&
     typeof value.verdict === "string" &&
     isObject(value.total)
+  );
+}
+
+function isProductReadinessPayload(value: unknown): value is ProductReadinessData {
+  return (
+    isObject(value) &&
+    typeof value.generated_at === "string" &&
+    isObject(value.overall) &&
+    Array.isArray(value.projects) &&
+    Array.isArray(value.next_actions)
   );
 }
 
@@ -143,6 +155,12 @@ function TabBar({
 }) {
   const tabs: { id: TabId; label: string; icon: React.ReactNode; count?: number }[] = [
     {
+      id: "operations",
+      label: "운영 콘솔",
+      icon: <SquareActivity className="w-4 h-4" />,
+      count: data?.readiness?.overall?.blocked_count,
+    },
+    {
       id: "knowledge",
       label: "지식 현황",
       icon: <Layers className="w-4 h-4" />,
@@ -193,7 +211,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedNotebook, setSelectedNotebook] = useState<Notebook | null>(null);
-  const [activeTab, setActiveTab] = useState<TabId>("knowledge");
+  const [activeTab, setActiveTab] = useState<TabId>("operations");
 
   const [authError, setAuthError] = useState(false);
   const [authSubmitting, setAuthSubmitting] = useState(false);
@@ -264,6 +282,19 @@ export default function Dashboard() {
           }
 
           console.warn("QA/QC payload could not be loaded. Continuing without it.", error);
+        }
+
+        try {
+          const readinessPayload = await fetchJson("/api/data/readiness");
+          if (isProductReadinessPayload(readinessPayload)) {
+            nextData.readiness = readinessPayload;
+          }
+        } catch (error) {
+          if (error instanceof Error && error.message === "Unauthorized") {
+            throw error;
+          }
+
+          console.warn("Product readiness payload could not be loaded. Continuing without it.", error);
         }
 
         if (!isActive) return;
@@ -544,6 +575,23 @@ export default function Dashboard() {
           </div>
         ) : (
           <>
+            {activeTab === "operations" && (
+              data?.readiness ? (
+                <ProductReadinessPanel data={data.readiness} />
+              ) : (
+                <div className="text-center py-16 text-slate-500">
+                  <SquareActivity className="w-16 h-16 mx-auto mb-4 opacity-20" />
+                  <p className="text-lg">제품 출시 점수 데이터가 아직 없습니다</p>
+                  <p className="text-sm mt-2">
+                    <code className="bg-slate-800 px-2 py-1 rounded text-xs">
+                      python execution/product_readiness_score.py
+                    </code>
+                    를 실행해 최신 운영 데이터를 생성하세요.
+                  </p>
+                </div>
+              )
+            )}
+
             {/* ── TAB: 지식 현황 ──────────────── */}
             {activeTab === "knowledge" && (
               <>
