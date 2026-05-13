@@ -340,3 +340,21 @@
 - Restart Codex for the global config change to take effect.
 - To use hosted Notion MCP again, re-add the Notion block and complete a fresh OAuth login; alternatively use the workspace stdio Notion MCP with `NOTION_API_KEY`.
 - Existing unrelated dirty files were preserved.
+
+## 2026-05-13 KST - Codex
+
+### Summary
+- Continued the Notion MCP repair after the user said "진행해".
+- Added `infrastructure/notion-mcp/start_notion_mcp.ps1`.
+- The launcher resolves `NOTION_API_KEY` from process env, root `.env`, or `projects/blind-to-x/.env`, then starts `npx.cmd -y @notionhq/notion-mcp-server`.
+- Updated global `C:\Users\박주호\.codex\config.toml` so `[mcp_servers.notion]` uses the local PowerShell launcher instead of hosted `https://mcp.notion.com/mcp` OAuth.
+
+### Verification
+- Python `tomllib` parse of global Codex config -> `toml_ok`.
+- Confirmed global MCP servers include `figma`, `linear`, `notion`, and `playwright`.
+- Invoked the configured Notion command with `-Check` -> exit `0`, stdout `notion_mcp_launcher_ok`.
+
+### Follow-up
+- Restart Codex for the global MCP config to reload.
+- If hosted Notion MCP is preferred later, re-add `https://mcp.notion.com/mcp` only after completing a fresh OAuth login.
+- Existing unrelated dirty files from other sessions were preserved.
