@@ -384,3 +384,23 @@
 - `T-251` remains blocked until the real Supabase password replaces `YOUR_PASSWORD` in `projects/hanwoo-dashboard/.env` `DATABASE_URL`.
 - Project code changes remain uncommitted unless the user asks for a feature commit.
 - Existing unrelated dirty files from other sessions were preserved.
+
+## 2026-05-13 KST - Codex
+
+### Summary
+- Completed `T-292` for `projects/blind-to-x` in local feature commit `20c398d` (`feat(blind-to-x): clarify source routing and review quality retries`).
+- Source expansion routing is now explicit: `--source auto` follows `content_strategy.primary_source` / `input_sources`, `--source multi` forces every configured source, and `--source blind` or another source name forces a single-source run.
+- Review-only generation now uses `quality_gate.review_only_max_retries` with default `1`, while normal generation uses `quality_gate.max_retries` with default `2`. This brings the draft quality retry loop into the main Notion review-queue path without changing publish automation.
+- Updated `config.example.yaml`, `config.ci.yaml`, README, ops runbook, `pipeline/bootstrap.py`, `pipeline/cli.py`, `pipeline/process_stages/generate_review_stage.py`, and focused tests.
+
+### Verification
+- `python -m ruff check pipeline/cli.py pipeline/bootstrap.py pipeline/process_stages/generate_review_stage.py tests/unit/test_main.py tests/unit/test_process_stages.py` -> passed.
+- `python -m pytest --no-cov tests/unit/test_main.py tests/unit/test_process_stages.py -q --tb=short --maxfail=1 --basetemp .tmp/pytest-btx-after-format` -> `50 passed`.
+- Broader source/quality slice -> `119 passed`.
+- Full `blind-to-x` unit suite with repo-local basetemp -> `1554 passed, 1 skipped`.
+- `python execution/project_qc_runner.py --project blind-to-x --json` -> passed after setting `TEMP`/`TMP` to project `.tmp` to avoid the existing Windows user-temp permission issue.
+- Pre-commit code-review gate emitted advisory `WARN risk=0.40` from graph test-gap heuristics, but direct tests covered the changed helpers.
+
+### Follow-up
+- No live Notion upload, external scraping run, or paid LLM call was performed.
+- Existing unrelated dirty files from other sessions were preserved (`.agents/skills/*`, Hanwoo AI chat WIP).
