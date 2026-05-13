@@ -255,28 +255,34 @@ async def _fetch_all_pages(notion: NotionUploader, limit: int | None) -> list[di
 
 async def _fetch_page_sections(notion: NotionUploader, page_id: str) -> dict[str, list[str]]:
     sections: dict[str, list[str]] = {}
-    cursor = None
-    current_heading = "ROOT"
 
-    while True:
-        response = await notion.client.blocks.children.list(
-            block_id=page_id,
-            page_size=100,
-            start_cursor=cursor,
-        )
-        for block in response.get("results", []):
-            block_type = block.get("type")
-            text = _plain_text_from_block(block)
-            if block_type in {"heading_1", "heading_2", "heading_3"} and text:
-                current_heading = text
-                sections.setdefault(current_heading, [])
-                continue
-            if text:
-                sections.setdefault(current_heading, []).append(text)
+    async def _walk(block_id: str, current_heading: str) -> None:
+        cursor = None
+        local_heading = current_heading
 
-        if not response.get("has_more") or not response.get("next_cursor"):
-            break
-        cursor = response.get("next_cursor")
+        while True:
+            response = await notion.client.blocks.children.list(
+                block_id=block_id,
+                page_size=100,
+                start_cursor=cursor,
+            )
+            for block in response.get("results", []):
+                block_type = block.get("type")
+                text = _plain_text_from_block(block)
+                if block_type in {"heading_1", "heading_2", "heading_3"} and text:
+                    local_heading = text
+                    sections.setdefault(local_heading, [])
+                elif block_type != "toggle" and text:
+                    sections.setdefault(local_heading, []).append(text)
+
+                if block.get("has_children"):
+                    await _walk(block["id"], local_heading)
+
+            if not response.get("has_more") or not response.get("next_cursor"):
+                break
+            cursor = response.get("next_cursor")
+
+    await _walk(page_id, "ROOT")
 
     return sections
 

@@ -458,6 +458,144 @@ async def test_upload_surfaces_missing_draft_next_steps(mock_ensure_schema, mock
     assert any("지금 할 일" in text and "규제 위반이 아니라" in text for text in callout_texts)
 
 
+@pytest.mark.asyncio
+@patch("pipeline.notion_upload.NotionUploader.ensure_schema", new_callable=AsyncMock)
+async def test_upload_groups_diagnostics_and_raw_content_into_toggles(mock_ensure_schema, mock_config):
+    uploader = NotionUploader(mock_config)
+    mock_ensure_schema.return_value = True
+    uploader.client = AsyncMock()
+    uploader.client.pages.create.return_value = {"url": "https://notion.so/layout", "id": "page_layout"}
+    uploader._page_parent_payload = MagicMock(return_value={"database_id": "test_db_id"})
+    uploader._register_url_in_cache = MagicMock()
+
+    uploader.props = {
+        "title": "콘텐츠",
+        "url": "원본 URL",
+        "memo": "메모",
+        "creator_take": "운영자 해석",
+        "review_focus": "검토 포인트",
+        "feedback_request": "피드백 요청",
+        "risk_flags": "위험 신호",
+        "evidence_anchor": "근거 앵커",
+        "publish_platforms": "발행 플랫폼",
+        "tweet_body": "트윗 본문",
+        "reply_text": "답글 텍스트",
+        "status": "상태",
+        "date": "생성일",
+        "source": "원본 소스",
+        "topic_cluster": "토픽 클러스터",
+        "emotion_axis": "감정 축",
+        "final_rank_score": "최종 랭크 점수",
+    }
+    uploader._db_properties = {
+        "콘텐츠": {"type": "title"},
+        "원본 URL": {"type": "url"},
+        "메모": {"type": "rich_text"},
+        "운영자 해석": {"type": "rich_text"},
+        "검토 포인트": {"type": "rich_text"},
+        "피드백 요청": {"type": "rich_text"},
+        "위험 신호": {"type": "multi_select"},
+        "근거 앵커": {"type": "rich_text"},
+        "발행 플랫폼": {"type": "multi_select"},
+        "트윗 본문": {"type": "rich_text"},
+        "답글 텍스트": {"type": "rich_text"},
+        "상태": {"type": "status"},
+        "생성일": {"type": "date"},
+        "원본 소스": {"type": "select"},
+        "토픽 클러스터": {"type": "select"},
+        "감정 축": {"type": "select"},
+        "최종 랭크 점수": {"type": "number"},
+    }
+
+    post_data = {
+        "title": "팀장보다 먼저 퇴근하면 안 된대",
+        "url": "https://example.com/post",
+        "source": "blind",
+        "content": "신입인데 팀장보다 먼저 퇴근하면 안 된다고 들었다.",
+        "quality_gate_report": "passed — 구체 장면 있음 / CTA 포함",
+        "quality_gate_scores": {"twitter": 84, "threads": 79},
+        "quality_gate_retries": 1,
+        "editorial_avg_score": 8.62,
+        "editorial_scores": {"hook": 9.0, "voice": 8.2},
+        "readability_scores": {"twitter": 7.8},
+        "fact_check_warnings": {"twitter": ["'절반이 이직해'는 과한 추론일 수 있음"]},
+        "regulation_report": "전체 플랫폼 규제 검증 통과",
+    }
+    drafts = {
+        "twitter": "신입이 먼저 퇴근했다가 팀장한테 혼났다.",
+        "reply_text": "원문: https://example.com/post\n#직장문화",
+        "creator_take": "직장인이라면 바로 자기 일처럼 느낄 소재다.",
+    }
+    analysis = {
+        "selection_summary": "신입/팀장 갈등이 직장인 현실감과 논쟁을 동시에 건드림",
+        "empathy_anchor": "팀장보다 먼저 퇴근하면 안 된다",
+        "spinoff_angle": "팀별 문화 차이, 세대 갈등",
+        "topic_cluster": "직장문화",
+        "hook_type": "논쟁형",
+        "emotion_axis": "분노",
+        "emotion_lane": "공감",
+        "audience_fit": "2030 신입",
+        "audience_need": "내 회사도 이런지 비교하고 싶음",
+        "recommended_draft_type": "controversy_hook",
+        "final_rank_score": 87,
+    }
+
+    result = await uploader.upload(
+        post_data,
+        "https://img.com/thumb.png",
+        drafts,
+        analysis=analysis,
+        screenshot_url="https://img.com/screenshot.png",
+    )
+    assert result == ("https://notion.so/layout", "page_layout")
+
+    children = uploader.client.pages.create.call_args.kwargs["children"]
+    heading_titles = [
+        block[block["type"]]["rich_text"][0]["text"]["content"]
+        for block in children
+        if block.get("type") in {"heading_2", "heading_3"}
+    ]
+    assert "검토 요약" in heading_titles
+    assert "채널 초안" in heading_titles
+    assert "진단 상세" in heading_titles
+    assert "원문" in heading_titles
+
+    top_level_bullets = [
+        block["bulleted_list_item"]["rich_text"][0]["text"]["content"]
+        for block in children
+        if block.get("type") == "bulleted_list_item"
+    ]
+    assert "에디토리얼 평균 점수: 8.62" in top_level_bullets
+    assert "품질 재시도: 1회" in top_level_bullets
+
+    toggles = {
+        block["toggle"]["rich_text"][0]["text"]["content"]: block["toggle"]["children"]
+        for block in children
+        if block.get("type") == "toggle"
+    }
+    assert "진단 펼치기" in toggles
+    assert "원문 펼치기" in toggles
+
+    diagnostic_children = toggles["진단 펼치기"]
+    diagnostic_headings = [
+        block[block["type"]]["rich_text"][0]["text"]["content"]
+        for block in diagnostic_children
+        if block.get("type") in {"heading_1", "heading_2", "heading_3"}
+    ]
+    assert "콘텐츠 인텔리전스" in diagnostic_headings
+    assert "품질 검증 리포트" in diagnostic_headings
+    assert "규제 검증 리포트" in diagnostic_headings
+
+    raw_children = toggles["원문 펼치기"]
+    raw_headings = [
+        block[block["type"]]["rich_text"][0]["text"]["content"]
+        for block in raw_children
+        if block.get("type") in {"heading_1", "heading_2", "heading_3"}
+    ]
+    assert "원문 스크린샷" in raw_headings
+    assert "원문 내용" in raw_headings
+
+
 # ── 추가 커버리지 테스트 ──────────────────────────────────────────────────────
 
 

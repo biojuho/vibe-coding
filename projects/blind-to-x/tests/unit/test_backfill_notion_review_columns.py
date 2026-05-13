@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
 import sys
 from pathlib import Path
 
@@ -8,7 +12,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from pipeline.notion_upload import NotionUploader  # noqa: E402
-from scripts.backfill_notion_review_columns import build_review_backfill_updates  # noqa: E402
+from scripts.backfill_notion_review_columns import (  # noqa: E402
+    _fetch_page_sections,
+    build_review_backfill_updates,
+)
 
 
 def _mock_config() -> dict:
@@ -78,3 +85,48 @@ def test_build_review_backfill_updates_infers_rejection_reasons_for_rejected_pag
     updates = build_review_backfill_updates(notion, record, sections)
 
     assert updates["rejection_reasons"] == ["근거 약함"]
+
+
+@pytest.mark.asyncio
+async def test_fetch_page_sections_recurses_toggle_children():
+    notion = MagicMock()
+    notion.client = MagicMock()
+    notion.client.blocks.children.list = AsyncMock(
+        side_effect=[
+            {
+                "results": [
+                    {
+                        "id": "toggle-1",
+                        "type": "toggle",
+                        "has_children": True,
+                        "toggle": {"rich_text": [{"plain_text": "진단 펼치기"}]},
+                    }
+                ],
+                "has_more": False,
+                "next_cursor": None,
+            },
+            {
+                "results": [
+                    {
+                        "id": "heading-1",
+                        "type": "heading_3",
+                        "has_children": False,
+                        "heading_3": {"rich_text": [{"plain_text": "콘텐츠 인텔리전스"}]},
+                    },
+                    {
+                        "id": "paragraph-1",
+                        "type": "paragraph",
+                        "has_children": False,
+                        "paragraph": {"rich_text": [{"plain_text": "공감 앵커: 연봉 1800 깎고 이직"}]},
+                    },
+                ],
+                "has_more": False,
+                "next_cursor": None,
+            },
+        ]
+    )
+
+    sections = await _fetch_page_sections(notion, "page-1")
+
+    assert sections["콘텐츠 인텔리전스"] == ["공감 앵커: 연봉 1800 깎고 이직"]
+    assert "진단 펼치기" not in sections

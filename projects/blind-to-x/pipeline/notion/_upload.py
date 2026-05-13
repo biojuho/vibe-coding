@@ -86,13 +86,71 @@ class NotionUploadMixin:
         blocks = []
         for start in range(0, len(text), 2000):
             chunk = text[start : start + 2000]
-            blocks.append(
-                {
-                    "object": "block",
-                    "type": "paragraph",
-                    "paragraph": {"rich_text": [{"type": "text", "text": {"content": chunk}}]},
-                }
-            )
+            blocks.append(self._create_paragraph_block(chunk))
+        return blocks
+
+    @staticmethod
+    def _rich_text(content: str, *, limit: int = 1990) -> list[dict[str, Any]]:
+        return [{"type": "text", "text": {"content": str(content)[:limit]}}]
+
+    def _create_paragraph_block(self, text: str) -> dict[str, Any]:
+        return {
+            "object": "block",
+            "type": "paragraph",
+            "paragraph": {"rich_text": self._rich_text(text)},
+        }
+
+    def _create_heading_block(self, level: int, text: str) -> dict[str, Any]:
+        block_type = f"heading_{level}"
+        return {
+            "object": "block",
+            "type": block_type,
+            block_type: {"rich_text": self._rich_text(text)},
+        }
+
+    def _create_callout_block(self, text: str, emoji: str, color: str = "default") -> dict[str, Any]:
+        return {
+            "object": "block",
+            "type": "callout",
+            "callout": {
+                "rich_text": self._rich_text(text),
+                "icon": {"type": "emoji", "emoji": emoji},
+                "color": color,
+            },
+        }
+
+    def _create_toggle_block(
+        self,
+        title: str,
+        children: list[dict[str, Any]],
+        *,
+        color: str = "gray_background",
+    ) -> dict[str, Any]:
+        return {
+            "object": "block",
+            "type": "toggle",
+            "toggle": {
+                "rich_text": self._rich_text(title),
+                "color": color,
+                "children": children,
+            },
+        }
+
+    def _create_bulleted_list_blocks(self, lines: list[str]) -> list[dict[str, Any]]:
+        blocks: list[dict[str, Any]] = []
+        for line in lines:
+            clean_line = str(line or "").strip()
+            if not clean_line:
+                continue
+            for start in range(0, len(clean_line), 2000):
+                chunk = clean_line[start : start + 2000]
+                blocks.append(
+                    {
+                        "object": "block",
+                        "type": "bulleted_list_item",
+                        "bulleted_list_item": {"rich_text": self._rich_text(chunk)},
+                    }
+                )
         return blocks
 
     def _derive_publish_platforms(self, drafts: Any) -> list[str]:
@@ -151,6 +209,18 @@ class NotionUploadMixin:
         if len(clean) <= limit:
             return clean
         return clean[: limit - 1].rstrip() + "…"
+
+    @staticmethod
+    def _format_metric_value(value: Any) -> str:
+        if isinstance(value, bool):
+            return "Yes" if value else "No"
+        if isinstance(value, int):
+            return str(value)
+        if isinstance(value, float):
+            if value.is_integer():
+                return str(int(value))
+            return f"{value:.2f}".rstrip("0").rstrip(".")
+        return str(value)
 
     def _build_review_focus(
         self,
@@ -245,6 +315,335 @@ class NotionUploadMixin:
             "publish_platforms": publish_platforms,
         }
 
+    def _build_summary_metric_lines(self, post_data: dict[str, Any], analysis: dict[str, Any] | None) -> list[str]:
+        metric_lines: list[str] = []
+
+        if analysis and analysis.get("final_rank_score") not in (None, ""):
+            metric_lines.append(f"최종 랭크 점수: {self._format_metric_value(analysis['final_rank_score'])}")
+
+        editorial_avg_score = post_data.get("editorial_avg_score")
+        if editorial_avg_score not in (None, ""):
+            metric_lines.append(f"에디토리얼 평균 점수: {self._format_metric_value(editorial_avg_score)}")
+
+        quality_gate_retries = post_data.get("quality_gate_retries")
+        if quality_gate_retries not in (None, "", 0):
+            metric_lines.append(f"품질 재시도: {self._format_metric_value(quality_gate_retries)}회")
+
+        quality_gate_scores = post_data.get("quality_gate_scores")
+        if isinstance(quality_gate_scores, dict) and quality_gate_scores:
+            scores = ", ".join(
+                f"{platform}={self._format_metric_value(score)}"
+                for platform, score in quality_gate_scores.items()
+                if score not in (None, "")
+            )
+            if scores:
+                metric_lines.append(f"품질 점수: {scores}")
+
+        fact_check_warnings = post_data.get("fact_check_warnings")
+        if isinstance(fact_check_warnings, dict) and fact_check_warnings:
+            warning_summary = ", ".join(
+                f"{platform} {len(items)}건"
+                for platform, items in fact_check_warnings.items()
+                if isinstance(items, list) and items
+            )
+            if warning_summary:
+                metric_lines.append(f"팩트 체크 경고: {warning_summary}")
+
+        return metric_lines
+
+    def _build_content_intelligence_lines(
+        self, post_data: dict[str, Any], analysis: dict[str, Any] | None
+    ) -> list[str]:
+        if not analysis:
+            return []
+
+        lines = [
+            f"토픽 클러스터: {analysis.get('topic_cluster', '기타')}",
+            f"훅 타입: {analysis.get('hook_type', '공감형')}",
+            f"감정 축/선: {analysis.get('emotion_axis', '공감')} / {analysis.get('emotion_lane', '')}",
+            f"대상 독자: {analysis.get('audience_fit', '범용')}",
+            f"선정 이유: {analysis.get('selection_summary', '')}",
+            f"독자 욕구: {analysis.get('audience_need', '')}",
+            f"추천 스타일: {analysis.get('recommended_draft_type', '공감형')}",
+        ]
+
+        emotion_profile = post_data.get("emotion_profile")
+        if isinstance(emotion_profile, dict):
+            top_emotions = emotion_profile.get("top_emotions") or []
+            if top_emotions:
+                formatted = ", ".join(
+                    f"{name}={self._format_metric_value(score)}" for name, score in top_emotions if name
+                )
+                if formatted:
+                    lines.append(f"세부 감정 프로필: {formatted}")
+            dominant_group = str(emotion_profile.get("dominant_group", "") or "").strip()
+            if dominant_group:
+                lines.append(f"지배 감정 그룹: {dominant_group}")
+
+        spinoff_angle = str(analysis.get("spinoff_angle", "") or "").strip()
+        if spinoff_angle:
+            lines.append(f"파생각: {spinoff_angle}")
+
+        editorial_scores = post_data.get("editorial_scores")
+        if isinstance(editorial_scores, dict) and editorial_scores:
+            formatted = ", ".join(
+                f"{name}={self._format_metric_value(score)}"
+                for name, score in editorial_scores.items()
+                if score not in (None, "")
+            )
+            if formatted:
+                lines.append(f"에디토리얼 점수: {formatted}")
+
+        readability_scores = post_data.get("readability_scores")
+        if isinstance(readability_scores, dict) and readability_scores:
+            formatted = ", ".join(
+                f"{platform}={self._format_metric_value(score)}"
+                for platform, score in readability_scores.items()
+                if score not in (None, "")
+            )
+            if formatted:
+                lines.append(f"가독성 점수: {formatted}")
+
+        quality_gate_scores = post_data.get("quality_gate_scores")
+        if isinstance(quality_gate_scores, dict) and quality_gate_scores:
+            formatted = ", ".join(
+                f"{platform}={self._format_metric_value(score)}"
+                for platform, score in quality_gate_scores.items()
+                if score not in (None, "")
+            )
+            if formatted:
+                lines.append(f"품질 게이트 점수: {formatted}")
+
+        quality_gate_retries = post_data.get("quality_gate_retries")
+        if quality_gate_retries not in (None, "", 0):
+            lines.append(f"품질 재시도: {self._format_metric_value(quality_gate_retries)}회")
+
+        fact_check_warnings = post_data.get("fact_check_warnings")
+        if isinstance(fact_check_warnings, dict) and fact_check_warnings:
+            summaries = []
+            for platform, items in fact_check_warnings.items():
+                if isinstance(items, list) and items:
+                    preview = self._truncate_for_brief(items[0], limit=80)
+                    summaries.append(f"{platform} {len(items)}건 ({preview})")
+            if summaries:
+                lines.append(f"팩트 체크 경고: {'; '.join(summaries)}")
+
+        draft_generation_error = str(post_data.get("draft_generation_error", "") or "").strip()
+        if draft_generation_error:
+            lines.append(f"초안 생성 오류: {self._truncate_for_brief(draft_generation_error, limit=140)}")
+
+        return [line for line in lines if line.split(":", 1)[-1].strip()]
+
+    def _build_summary_section_blocks(
+        self,
+        post_data: dict[str, Any],
+        review_brief: dict[str, Any],
+        analysis: dict[str, Any] | None,
+        draft_generation_error: str,
+    ) -> list[dict[str, Any]]:
+        if not analysis:
+            return []
+
+        blocks = [
+            {"object": "block", "type": "divider", "divider": {}},
+            self._create_heading_block(2, "검토 요약"),
+            self._create_callout_block(
+                "\n".join(review_brief["action_steps"]),
+                "📝" if review_brief["has_publishable_draft"] else "⚠️",
+                "green_background" if review_brief["has_publishable_draft"] else "yellow_background",
+            ),
+        ]
+
+        if review_brief["creator_take"]:
+            blocks.append(
+                self._create_callout_block(
+                    f"한줄 해석: {review_brief['creator_take']}",
+                    "🧭",
+                    "blue_background",
+                )
+            )
+
+        summary_lines = [
+            f"검토 포인트: {review_brief['review_focus']}",
+            f"피드백 요청: {review_brief['feedback_request']}",
+        ]
+        if review_brief["evidence_anchor"]:
+            summary_lines.append(f"근거 앵커: {review_brief['evidence_anchor']}")
+        if review_brief["risk_flags"]:
+            summary_lines.append(f"위험 신호: {', '.join(review_brief['risk_flags'])}")
+        if review_brief["publish_platforms"]:
+            summary_lines.append(f"권장 채널: {', '.join(review_brief['publish_platforms'])}")
+        if draft_generation_error:
+            summary_lines.append(f"초안 생성 오류: {self._truncate_for_brief(draft_generation_error, limit=140)}")
+        summary_lines.extend(self._build_summary_metric_lines(post_data, analysis))
+
+        blocks.extend(self._create_bulleted_list_blocks(summary_lines))
+        return blocks
+
+    def _build_draft_section_blocks(self, drafts: Any) -> list[dict[str, Any]]:
+        if not drafts:
+            return []
+
+        draft_blocks: list[dict[str, Any]] = []
+
+        if isinstance(drafts, dict):
+            if drafts.get("twitter"):
+                draft_blocks.append(self._create_heading_block(3, "숏폼 초안"))
+                draft_blocks.extend(self._create_text_blocks(drafts["twitter"]))
+            if drafts.get("reply_text"):
+                draft_blocks.append(self._create_heading_block(3, "링크 메모"))
+                draft_blocks.extend(self._create_text_blocks(drafts["reply_text"]))
+            if drafts.get("threads"):
+                draft_blocks.append(self._create_heading_block(3, "Threads 초안"))
+                draft_blocks.extend(self._create_text_blocks(drafts["threads"]))
+            if drafts.get("newsletter"):
+                draft_blocks.append(self._create_heading_block(3, "뉴스레터 초안"))
+                draft_blocks.extend(self._create_text_blocks(drafts["newsletter"]))
+            if drafts.get("naver_blog"):
+                draft_blocks.append(self._create_heading_block(3, "네이버 블로그 초안"))
+                draft_blocks.extend(self._create_text_blocks(drafts["naver_blog"]))
+        else:
+            draft_blocks.append(self._create_heading_block(3, "숏폼 초안"))
+            draft_blocks.extend(self._create_text_blocks(str(drafts)))
+
+        if not draft_blocks:
+            return []
+
+        return [
+            {"object": "block", "type": "divider", "divider": {}},
+            self._create_heading_block(2, "채널 초안"),
+            *draft_blocks,
+        ]
+
+    def _build_diagnostic_section_blocks(
+        self,
+        post_data: dict[str, Any],
+        review_brief: dict[str, Any],
+        analysis: dict[str, Any] | None,
+    ) -> list[dict[str, Any]]:
+        diagnostic_children: list[dict[str, Any]] = []
+        intelligence_lines = self._build_content_intelligence_lines(post_data, analysis)
+        if intelligence_lines:
+            diagnostic_children.append(self._create_heading_block(3, "콘텐츠 인텔리전스"))
+            if review_brief["evidence_anchor"]:
+                diagnostic_children.append(
+                    self._create_callout_block(
+                        f"공감 앵커 (킬링포인트): {review_brief['evidence_anchor']}",
+                        "🎯",
+                        "blue_background",
+                    )
+                )
+            if analysis and analysis.get("spinoff_angle"):
+                diagnostic_children.append(
+                    self._create_callout_block(
+                        f"파생각 (Spinoff): {analysis['spinoff_angle']}",
+                        "💡",
+                        "yellow_background",
+                    )
+                )
+            diagnostic_children.extend(self._create_bulleted_list_blocks(intelligence_lines))
+
+        qg_report = str(post_data.get("quality_gate_report", "") or "").strip()
+        if qg_report:
+            diagnostic_children.append(self._create_heading_block(3, "품질 검증 리포트"))
+            diagnostic_children.extend(self._create_text_blocks(qg_report))
+
+        regulation_report = str(post_data.get("regulation_report", "") or "").strip()
+        if regulation_report:
+            diagnostic_children.append(self._create_heading_block(3, "규제 검증 리포트"))
+            diagnostic_children.extend(self._create_text_blocks(regulation_report))
+
+        if not diagnostic_children:
+            return []
+
+        return [
+            {"object": "block", "type": "divider", "divider": {}},
+            self._create_heading_block(2, "진단 상세"),
+            self._create_toggle_block("진단 펼치기", diagnostic_children),
+        ]
+
+    def _build_raw_source_section_blocks(
+        self, post_data: dict[str, Any], screenshot_url: str | None
+    ) -> list[dict[str, Any]]:
+        raw_children: list[dict[str, Any]] = []
+
+        if screenshot_url:
+            raw_children.append(self._create_heading_block(3, "원문 스크린샷"))
+            raw_children.append(
+                {
+                    "object": "block",
+                    "type": "image",
+                    "image": {"type": "external", "external": {"url": screenshot_url}},
+                }
+            )
+
+        raw_content = str(post_data.get("content", "") or "").strip()
+        if raw_content:
+            raw_children.append(self._create_heading_block(3, "원문 내용"))
+            raw_children.extend(self._create_text_blocks(raw_content))
+
+        if not raw_children:
+            return []
+
+        return [
+            {"object": "block", "type": "divider", "divider": {}},
+            self._create_heading_block(2, "원문"),
+            self._create_toggle_block("원문 펼치기", raw_children),
+        ]
+
+    def _build_nlm_article_blocks(self, nlm_article: str) -> list[dict[str, Any]]:
+        try:
+            import importlib.util as _ilu
+            import pathlib as _pl
+
+            _uploader_path = (
+                _pl.Path(__file__).resolve().parents[4] / "workspace" / "execution" / "notion_article_uploader.py"
+            )
+            if not _uploader_path.exists():
+                raise FileNotFoundError(_uploader_path)
+            _spec = _ilu.spec_from_file_location("notion_article_uploader", str(_uploader_path))
+            _uploader_mod = _ilu.module_from_spec(_spec)
+            _spec.loader.exec_module(_uploader_mod)
+            return list(_uploader_mod.markdown_to_notion_blocks(nlm_article))
+        except Exception as exc:
+            logger.debug("[NLM Article] 블록 변환 실패, plain text 폴백: %s", exc)
+            return self._create_text_blocks(nlm_article)
+
+    def _build_asset_section_blocks(
+        self, post_data: dict[str, Any], properties: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        asset_children: list[dict[str, Any]] = []
+
+        nlm_article = str(post_data.get("nlm_article", "") or "").strip()
+        if nlm_article:
+            asset_children.append(self._create_heading_block(3, "AI 자동 아티클"))
+            asset_children.extend(self._build_nlm_article_blocks(nlm_article))
+
+        nlm_infographic = str(post_data.get("nlm_infographic_url", "") or "").strip()
+        nlm_slides = str(post_data.get("nlm_slides_path", "") or "").strip()
+        if nlm_infographic or nlm_slides:
+            asset_children.append(self._create_heading_block(3, "NotebookLM 리서치 자산"))
+            if nlm_infographic:
+                asset_children.append(
+                    {
+                        "object": "block",
+                        "type": "image",
+                        "image": {"type": "external", "external": {"url": nlm_infographic}},
+                    }
+                )
+                self._append_property_if_present(properties, "nlm_infographic_url", nlm_infographic)
+            if nlm_slides:
+                asset_children.extend(self._create_text_blocks(f"📊 슬라이드 파일: {nlm_slides}"))
+
+        if not asset_children:
+            return []
+
+        return [
+            {"object": "block", "type": "divider", "divider": {}},
+            self._create_heading_block(2, "부가 산출물"),
+            self._create_toggle_block("부가 산출물 펼치기", asset_children),
+        ]
+
     async def upload(self, post_data, image_url, drafts, analysis=None, screenshot_url=None):
         """Notion DB에 새 페이지 생성 (본문 + 초안 + 분석 결과)."""
         if not await self.ensure_schema():
@@ -267,6 +666,13 @@ class NotionUploadMixin:
                 memo_parts.append(f"운영자 해석: {review_brief['creator_take']}")
             if review_brief["risk_flags"]:
                 memo_parts.append(f"위험 신호: {', '.join(review_brief['risk_flags'])}")
+            if review_brief["publish_platforms"]:
+                memo_parts.append(f"권장 채널: {', '.join(review_brief['publish_platforms'])}")
+            if analysis and analysis.get("final_rank_score") not in (None, ""):
+                memo_parts.append(f"최종 랭크: {self._format_metric_value(analysis['final_rank_score'])}")
+            editorial_avg_score = post_data.get("editorial_avg_score")
+            if editorial_avg_score not in (None, ""):
+                memo_parts.append(f"에디토리얼 평균: {self._format_metric_value(editorial_avg_score)}")
             if draft_generation_error:
                 memo_parts.append(f"초안 생성 오류: {self._truncate_for_brief(draft_generation_error, limit=140)}")
             self._append_property_if_present(properties, "memo", "\n".join(memo_parts))
@@ -309,311 +715,26 @@ class NotionUploadMixin:
                     }
                 )
 
-            if analysis:
-                children.append({"object": "block", "type": "divider", "divider": {}})
-                children.append(
-                    {
-                        "object": "block",
-                        "type": "heading_2",
-                        "heading_2": {"rich_text": [{"type": "text", "text": {"content": "검토 브리프"}}]},
-                    }
-                )
-
-                children.append(
-                    {
-                        "object": "block",
-                        "type": "callout",
-                        "callout": {
-                            "rich_text": [
-                                {
-                                    "type": "text",
-                                    "text": {"content": "\n".join(review_brief["action_steps"])},
-                                }
-                            ],
-                            "icon": {
-                                "type": "emoji",
-                                "emoji": "📝" if review_brief["has_publishable_draft"] else "⚠️",
-                            },
-                            "color": "green_background"
-                            if review_brief["has_publishable_draft"]
-                            else "yellow_background",
-                        },
-                    }
-                )
-
-                if review_brief["creator_take"]:
-                    children.append(
-                        {
-                            "object": "block",
-                            "type": "callout",
-                            "callout": {
-                                "rich_text": [
-                                    {"type": "text", "text": {"content": f"한줄 해석: {review_brief['creator_take']}"}}
-                                ],
-                                "icon": {"type": "emoji", "emoji": "🧭"},
-                                "color": "blue_background",
-                            },
-                        }
-                    )
-
-                brief_lines = [
-                    f"검토 포인트: {review_brief['review_focus']}",
-                    f"피드백 요청: {review_brief['feedback_request']}",
-                ]
-                if review_brief["evidence_anchor"]:
-                    brief_lines.append(f"근거 앵커: {review_brief['evidence_anchor']}")
-                if review_brief["risk_flags"]:
-                    brief_lines.append(f"위험 신호: {', '.join(review_brief['risk_flags'])}")
-                if review_brief["publish_platforms"]:
-                    brief_lines.append(f"권장 채널: {', '.join(review_brief['publish_platforms'])}")
-                if draft_generation_error:
-                    brief_lines.append(f"초안 생성 오류: {self._truncate_for_brief(draft_generation_error, limit=140)}")
-                children.extend(self._create_text_blocks("\n".join(brief_lines)))
-
-                children.append({"object": "block", "type": "divider", "divider": {}})
-                children.append(
-                    {
-                        "object": "block",
-                        "type": "heading_2",
-                        "heading_2": {
-                            "rich_text": [{"type": "text", "text": {"content": "🧠 콘텐츠 인텔리전스 (V2.0)"}}]
-                        },
-                    }
-                )
-
-                # ── [V2.0] 핵심 가치 강조 (Callout) ──
-                anchor = analysis.get("empathy_anchor")
-                if anchor:
-                    children.append(
-                        {
-                            "object": "block",
-                            "type": "callout",
-                            "callout": {
-                                "rich_text": [
-                                    {"type": "text", "text": {"content": f"🎯 공감 앵커 (킬링포인트): {anchor}"}}
-                                ],
-                                "icon": {"type": "emoji", "emoji": "🎯"},
-                                "color": "blue_background",
-                            },
-                        }
-                    )
-
-                spinoff = analysis.get("spinoff_angle")
-                if spinoff:
-                    children.append(
-                        {
-                            "object": "block",
-                            "type": "callout",
-                            "callout": {
-                                "rich_text": [{"type": "text", "text": {"content": f"💡 파생각 (Spinoff): {spinoff}"}}],
-                                "icon": {"type": "emoji", "emoji": "💡"},
-                                "color": "yellow_background",
-                            },
-                        }
-                    )
-
-                profile_lines = [
-                    f"📂 토픽 클러스터: {analysis.get('topic_cluster', '기타')}",
-                    f"🎣 훅 타입: {analysis.get('hook_type', '공감형')}",
-                    f"🎭 감정 축/선: {analysis.get('emotion_axis', '공감')} / {analysis.get('emotion_lane', '')}",
-                    f"👥 대상 독자: {analysis.get('audience_fit', '범용')}",
-                    f"🔍 선정 이유: {analysis.get('selection_summary', '')}",
-                    f"💝 독자 욕구: {analysis.get('audience_need', '')}",
-                    f"📝 추천 스타일: {analysis.get('recommended_draft_type', '공감형')}",
-                ]
-                children.extend(self._create_text_blocks("\n".join(profile_lines)))
-
-            # ── [V2.0] 품질 게이트 결과 노출 ──
-            qg_report = post_data.get("quality_gate_report")
-            if qg_report:
-                children.append({"object": "block", "type": "divider", "divider": {}})
-                children.append(
-                    {
-                        "object": "block",
-                        "type": "callout",
-                        "callout": {
-                            "rich_text": [{"type": "text", "text": {"content": f"🛡️ 품질 검증 리포트\n{qg_report}"}}],
-                            "icon": {"type": "emoji", "emoji": "🛡️"},
-                            "color": "gray_background",
-                        },
-                    }
-                )
-
-            if drafts:
-                if isinstance(drafts, dict):
-                    if drafts.get("twitter"):
-                        children.append({"object": "block", "type": "divider", "divider": {}})
-                        children.append(
-                            {
-                                "object": "block",
-                                "type": "heading_2",
-                                "heading_2": {"rich_text": [{"type": "text", "text": {"content": "숏폼 초안"}}]},
-                            }
-                        )
-                        children.extend(self._create_text_blocks(drafts["twitter"]))
-                    if drafts.get("reply_text"):
-                        children.append({"object": "block", "type": "divider", "divider": {}})
-                        children.append(
-                            {
-                                "object": "block",
-                                "type": "heading_3",
-                                "heading_3": {"rich_text": [{"type": "text", "text": {"content": "링크 메모"}}]},
-                            }
-                        )
-                        children.extend(self._create_text_blocks(drafts["reply_text"]))
-                    if drafts.get("threads"):
-                        children.append({"object": "block", "type": "divider", "divider": {}})
-                        children.append(
-                            {
-                                "object": "block",
-                                "type": "heading_2",
-                                "heading_2": {"rich_text": [{"type": "text", "text": {"content": "Threads 초안"}}]},
-                            }
-                        )
-                        children.extend(self._create_text_blocks(drafts["threads"]))
-                    if drafts.get("newsletter"):
-                        children.append({"object": "block", "type": "divider", "divider": {}})
-                        children.append(
-                            {
-                                "object": "block",
-                                "type": "heading_2",
-                                "heading_2": {"rich_text": [{"type": "text", "text": {"content": "뉴스레터 초안"}}]},
-                            }
-                        )
-                        children.extend(self._create_text_blocks(drafts["newsletter"]))
-                    if drafts.get("naver_blog"):
-                        children.append({"object": "block", "type": "divider", "divider": {}})
-                        children.append(
-                            {
-                                "object": "block",
-                                "type": "heading_2",
-                                "heading_2": {
-                                    "rich_text": [{"type": "text", "text": {"content": "네이버 블로그 초안"}}]
-                                },
-                            }
-                        )
-                        children.extend(self._create_text_blocks(drafts["naver_blog"]))
-                else:
-                    children.append({"object": "block", "type": "divider", "divider": {}})
-                    children.append(
-                        {
-                            "object": "block",
-                            "type": "heading_2",
-                            "heading_2": {"rich_text": [{"type": "text", "text": {"content": "숏폼 초안"}}]},
-                        }
-                    )
-                    children.extend(self._create_text_blocks(str(drafts)))
-
-            if screenshot_url:
-                children.append({"object": "block", "type": "divider", "divider": {}})
-                children.append(
-                    {
-                        "object": "block",
-                        "type": "heading_2",
-                        "heading_2": {"rich_text": [{"type": "text", "text": {"content": "원문 스크린샷"}}]},
-                    }
-                )
-                children.append(
-                    {
-                        "object": "block",
-                        "type": "image",
-                        "image": {"type": "external", "external": {"url": screenshot_url}},
-                    }
-                )
-
-            children.append({"object": "block", "type": "divider", "divider": {}})
-            children.append(
-                {
-                    "object": "block",
-                    "type": "heading_2",
-                    "heading_2": {"rich_text": [{"type": "text", "text": {"content": "원문 내용"}}]},
-                }
-            )
-            if post_data.get("content"):
-                children.extend(self._create_text_blocks(str(post_data["content"])))
-
-            # P7: 규제 검증 리포트 저장
             regulation_report = post_data.get("regulation_report", "")
             if regulation_report:
-                children.append({"object": "block", "type": "divider", "divider": {}})
-                children.append(
-                    {
-                        "object": "block",
-                        "type": "heading_2",
-                        "heading_2": {"rich_text": [{"type": "text", "text": {"content": "📋 규제 검증 리포트"}}]},
-                    }
-                )
-                children.extend(self._create_text_blocks(regulation_report))
-                # 규제 검증 상태 요약을 속성에도 저장
                 self._append_property_if_present(
                     properties,
                     "regulation_status",
                     "통과" if "전체 플랫폼 규제 검증 통과" in regulation_report else "경고",
                 )
 
-            # ── NotebookLM AI 아티클 (content_writer 자동 생성) ──────────────────
-            nlm_article = post_data.get("nlm_article", "")
-            if nlm_article:
-                children.append({"object": "block", "type": "divider", "divider": {}})
-                children.append(
-                    {
-                        "object": "block",
-                        "type": "heading_2",
-                        "heading_2": {"rich_text": [{"type": "text", "text": {"content": "✍️ AI 자동 아티클"}}]},
-                    }
+            children.extend(
+                self._build_summary_section_blocks(
+                    post_data,
+                    review_brief,
+                    analysis,
+                    draft_generation_error,
                 )
-                # markdown_to_notion_blocks 동적 로드 (workspace/execution/ 단일 소스 유지)
-                # 이전: parent.parent.parent.parent 가 projects/ 까지만 가서
-                # projects/execution/notion_article_uploader.py 를 찾다가 항상 실패하던 dead-code 였음.
-                # parents[4] = repo root → workspace/execution/ 로 정정.
-                try:
-                    import importlib.util as _ilu
-                    import pathlib as _pl
-
-                    _uploader_path = (
-                        _pl.Path(__file__).resolve().parents[4]
-                        / "workspace"
-                        / "execution"
-                        / "notion_article_uploader.py"
-                    )
-                    if not _uploader_path.exists():
-                        raise FileNotFoundError(_uploader_path)
-                    _spec = _ilu.spec_from_file_location("notion_article_uploader", str(_uploader_path))
-                    _uploader_mod = _ilu.module_from_spec(_spec)
-                    _spec.loader.exec_module(_uploader_mod)
-                    _article_blocks = _uploader_mod.markdown_to_notion_blocks(nlm_article)
-                    for _i in range(0, len(_article_blocks), 100):
-                        children.extend(_article_blocks[_i : _i + 100])
-                except Exception as _exc:
-                    logger.debug("[NLM Article] 블록 변환 실패, plain text 폴백: %s", _exc)
-                    children.extend(self._create_text_blocks(nlm_article))
-
-            # ── NotebookLM 리서치 자산 (인포그래픽·슬라이드) ─────────────────
-            nlm_infographic = post_data.get("nlm_infographic_url", "")
-            nlm_slides = post_data.get("nlm_slides_path", "")
-            if nlm_infographic or nlm_slides:
-                children.append({"object": "block", "type": "divider", "divider": {}})
-                children.append(
-                    {
-                        "object": "block",
-                        "type": "heading_2",
-                        "heading_2": {
-                            "rich_text": [{"type": "text", "text": {"content": "🔬 NotebookLM 리서치 자산"}}]
-                        },
-                    }
-                )
-                if nlm_infographic:
-                    children.append(
-                        {
-                            "object": "block",
-                            "type": "image",
-                            "image": {"type": "external", "external": {"url": nlm_infographic}},
-                        }
-                    )
-                if nlm_slides:
-                    children.extend(self._create_text_blocks(f"📊 슬라이드 파일: {nlm_slides}"))
-                # NLM infographic URL을 Notion 속성에도 저장
-                self._append_property_if_present(properties, "nlm_infographic_url", nlm_infographic)
+            )
+            children.extend(self._build_draft_section_blocks(drafts))
+            children.extend(self._build_diagnostic_section_blocks(post_data, review_brief, analysis))
+            children.extend(self._build_raw_source_section_blocks(post_data, screenshot_url))
+            children.extend(self._build_asset_section_blocks(post_data, properties))
 
             response = await self._safe_notion_call(
                 self.client.pages.create,
