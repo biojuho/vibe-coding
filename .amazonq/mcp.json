@@ -62,7 +62,7 @@
       ]
     },
     "code-review-graph": {
-      "command": "python3.13",
+      "command": "python",
       "args": [
         "-m",
         "code_review_graph",

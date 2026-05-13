@@ -288,20 +288,23 @@ def workspace_db_snapshot(repo_root: Path) -> dict[str, Any]:
 def graph_snapshot(repo_root: Path) -> dict[str, Any]:
     """code_review_graph status (node/edge/file counts). Lazy import."""
     snap: dict[str, Any] = {"available": False}
+    commands = [["python", "-m", "code_review_graph", "status"]]
     if shutil.which("py") is not None:
-        cmd = ["py", "-3.13", "-m", "code_review_graph", "status"]
-    else:
-        cmd = ["python", "-m", "code_review_graph", "status"]
-    rc, out = _run(cmd, repo_root, timeout=15.0)
-    if rc != 0 or not out.strip():
-        snap["reason"] = "code_review_graph status failed (graph not built?)"
-        return snap
-    snap["available"] = True
-    for line in out.splitlines():
-        if ":" not in line:
+        commands.append(["py", "-3.13", "-m", "code_review_graph", "status"])
+
+    for cmd in commands:
+        rc, out = _run(cmd, repo_root, timeout=15.0)
+        if rc != 0 or not out.strip():
             continue
-        key, _, value = line.partition(":")
-        snap[key.strip().lower().replace(" ", "_")] = value.strip()
+        snap["available"] = True
+        for line in out.splitlines():
+            if ":" not in line:
+                continue
+            key, _, value = line.partition(":")
+            snap[key.strip().lower().replace(" ", "_")] = value.strip()
+        return snap
+
+    snap["reason"] = "code_review_graph status failed (graph not built?)"
     return snap
 
 

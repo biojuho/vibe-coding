@@ -280,3 +280,22 @@ def test_run_handles_missing_binary(tmp_path):
     rc, out = orient._run(["this-binary-does-not-exist-12345"], tmp_path, timeout=2.0)
     assert rc == 1
     assert out == ""
+
+
+def test_graph_snapshot_prefers_python_before_py_launcher(tmp_path, monkeypatch):
+    seen: list[list[str]] = []
+
+    def fake_run(cmd, cwd, timeout=10.0):
+        seen.append(cmd)
+        if cmd[:2] == ["python", "-m"]:
+            return 0, "Nodes: 1\nEdges: 2\nFiles: 3\nLast updated: now\n"
+        return 1, ""
+
+    monkeypatch.setattr(orient, "_run", fake_run)
+    monkeypatch.setattr(orient.shutil, "which", lambda name: "C:/fake/py.exe" if name == "py" else None)
+
+    snap = orient.graph_snapshot(tmp_path)
+
+    assert snap["available"] is True
+    assert snap["nodes"] == "1"
+    assert seen == [["python", "-m", "code_review_graph", "status"]]

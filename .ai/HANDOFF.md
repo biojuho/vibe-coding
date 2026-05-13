@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-13 |
 | Tool | Codex |
+| Work | **MCP/code-review-graph launcher regression fixed**. User asked "MCP 해결해줘". Root cause was the WindowsApps `python3.13.exe` shim used by both `.mcp.json` and `.amazonq/mcp.json` for the `code-review-graph` MCP server; in this shell it fails with `지정한 로그온 세션이 없습니다`, so the server could not start. Updated both MCP configs to run `python -m code_review_graph serve` instead, and changed `execution/session_orient.py` to try `python -m code_review_graph status` before falling back to `py -3.13`, preventing false `graph unavailable` reports when the launcher shim is broken. Added regression coverage in `workspace/tests/test_mcp_config.py` and `workspace/tests/test_session_orient.py`. Verification: `python -m pytest --no-cov workspace/tests/test_mcp_config.py workspace/tests/test_session_orient.py -q --basetemp .tmp/pytest-mcp-fix` -> `21 passed`; `python execution/session_orient.py` now reports live graph counts again (`nodes=12038`, `edges=88702`, `files=927`). |
+| Next Priorities | MCP graph startup is fixed for the current Windows shell. Remaining external blockers are unchanged: T-282 still needs a non-author review/merge for PR #35, and T-251 still needs the real Supabase password before the Hanwoo live Prisma CRUD E2E can pass. Existing untracked `claude-goal/` remains untouched. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-13 |
+| Tool | Codex |
 | Work | **/goal 기능 작동 여부 확인 완료**. User asked "/goal 기능작동여부". Re-read shared context and verified the workspace goal feature added in T-274. `.ai/GOAL.md` is present and currently `Status: inactive`; `python execution/session_orient.py` surfaces this correctly as `GOAL: inactive`; `python execution/session_orient.py --json` returns `goal.available: true`, `goal.active: false`, `status: "inactive"`, and the expected success note from T-281. Focused regression check `python -m pytest --no-cov workspace/tests/test_session_orient.py -q` passed with `16 passed`. `py -3.13 -m code_review_graph detect-changes --repo . --base HEAD --brief` reported risk `0.00`. No product/source code was changed. |
 | Next Priorities | `/goal`/GOAL tracking is operational. Remaining external blockers are unchanged: T-282 needs a non-author review/merge for PR #35, and T-251 needs the real Supabase password before live Prisma CRUD E2E can pass. Existing untracked `claude-goal/` remains untouched. |
 

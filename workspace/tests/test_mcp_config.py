@@ -29,3 +29,12 @@ def test_mcp_toggle_script_supports_guard_action() -> None:
     assert 'ValidateSet("Enable", "Disable", "Status", "Guard")' in script_text
     assert "function Show-AiToolStatus" in script_text
     assert '"Guard" {' in script_text
+
+
+def test_code_review_graph_mcp_uses_portable_python_command() -> None:
+    config = json.loads((REPO_ROOT / ".mcp.json").read_text(encoding="utf-8"))
+    server = config["mcpServers"]["code-review-graph"]
+
+    assert server["command"] == "python"
+    assert server["args"] == ["-m", "code_review_graph", "serve"]
+    assert server["env"] == {"PYTHONUTF8": "1"}
