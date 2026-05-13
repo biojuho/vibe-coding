@@ -585,16 +585,19 @@ class PipelineOrchestrator:
                 )
 
             # ── 씬별 QC + 재시도 (scene_qc_enabled=True일 때) ──
-            if self.config.project.scene_qc_enabled:
+            # qc_strictness="off"이면 enabled여도 블록 자체를 스킵해 비용을 들이지 않는다.
+            scene_qc_strictness = self.config.project.qc_strictness
+            if self.config.project.scene_qc_enabled and scene_qc_strictness != "off":
                 status.start("scene_qc", detail="Per-scene quality check")
                 _t0 = time.perf_counter()
-                MAX_SCENE_RETRIES = 2
+                max_scene_retries = self.config.project.scene_qc_max_retries
                 all_scene_qc_results = []
                 for idx, (plan, asset) in enumerate(zip(scene_plans, scene_assets, strict=False)):
                     prev_plan = scene_plans[idx - 1] if idx > 0 else None
                     next_plan = scene_plans[idx + 1] if idx < len(scene_plans) - 1 else None
-                    qc_result = QCStep.gate_scene_qc(plan, asset, prev_plan, next_plan)
-                    for retry in range(MAX_SCENE_RETRIES):
+                    qc_result = QCStep.gate_scene_qc(plan, asset, prev_plan, next_plan, strictness=scene_qc_strictness)
+                    retry = 0
+                    for retry in range(max_scene_retries):
                         if qc_result.verdict == "pass":
                             break
                         # 실패한 컴포넌트 판별
@@ -615,14 +618,33 @@ class PipelineOrchestrator:
                         )
                         scene_assets[idx] = new_asset
                         failures.extend(regen_failures)
-                        qc_result = QCStep.gate_scene_qc(plan, new_asset, prev_plan, next_plan)
+                        qc_result = QCStep.gate_scene_qc(
+                            plan, new_asset, prev_plan, next_plan, strictness=scene_qc_strictness
+                        )
                     qc_result.retry_count = retry + 1 if qc_result.verdict != "pass" else 0
                     all_scene_qc_results.append(qc_result.to_dict())
                 manifest.scene_qc_results = all_scene_qc_results
                 step_timings["scene_qc"] = round(time.perf_counter() - _t0, 2)
-                passed = sum(1 for r in all_scene_qc_results if r["verdict"] == "pass")
-                jlog.info("scene_qc_done", passed=passed, total=len(all_scene_qc_results))
-                status.complete("scene_qc", detail=f"{passed}/{len(all_scene_qc_results)} passed")
+                summary = PipelineOrchestrator._aggregate_scene_qc_summary(all_scene_qc_results)
+                manifest.scene_qc_summary = summary
+                if summary["unresolved"]:
+                    jlog.warning(
+                        "scene_qc_unresolved",
+                        unresolved_count=len(summary["unresolved"]),
+                        scene_ids=[u["scene_id"] for u in summary["unresolved"]],
+                    )
+                    degraded_steps.append(
+                        {
+                            "step": "scene_qc",
+                            "message": f"{len(summary['unresolved'])} scene(s) still failing after retries",
+                            "scene_ids": [u["scene_id"] for u in summary["unresolved"]],
+                            "error_type": "qc_unresolved",
+                            "is_retryable": False,
+                            "blocking": False,
+                        }
+                    )
+                jlog.info("scene_qc_done", passed=summary["passed"], total=summary["total"])
+                status.complete("scene_qc", detail=f"{summary['passed']}/{summary['total']} passed")
 
             # ── Gate 3: 미디어 QC ──
             status.start("gate3_media_qc", detail="Validating media assets")
@@ -933,6 +955,32 @@ class PipelineOrchestrator:
             logger.warning("비용 추적 실패: %s", exc)
 
         return manifest
+
+    # ── Scene QC 집계 ───────────────────────────────────────────────────
+
+    @staticmethod
+    def _aggregate_scene_qc_summary(scene_qc_results: list[dict[str, Any]]) -> dict[str, Any]:
+        """씬별 QC 결과 리스트를 manifest용 요약 dict로 집계.
+
+        재시도 후에도 fail로 남은 씬은 ``unresolved``에 모아 manifest로 표면화하고
+        오케스트레이터가 degraded_steps에 등록할 수 있도록 한다.
+        """
+        passed = sum(1 for r in scene_qc_results if r.get("verdict") == "pass")
+        unresolved = [
+            {
+                "scene_id": r.get("scene_id"),
+                "retry_count": r.get("retry_count", 0),
+                "issues": r.get("issues", []),
+            }
+            for r in scene_qc_results
+            if r.get("verdict") != "pass"
+        ]
+        return {
+            "passed": passed,
+            "total": len(scene_qc_results),
+            "unresolved": unresolved,
+            "verdict": "pass" if not unresolved else "degraded",
+        }
 
     # ── Phase 3: ShortsFactory 렌더링 브리지 ────────────────────────────
 

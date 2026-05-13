@@ -816,3 +816,62 @@ def test_shorts_factory_mode_without_channel_raises(tmp_path: Path):
     # channel="" triggers the error branch
     manifest = orch.run(topic="test", channel="")
     assert manifest.status == "failed"
+
+
+# ── Scene QC summary aggregation ────────────────────────────────────────────
+
+
+class TestAggregateSceneQCSummary:
+    """_aggregate_scene_qc_summary: 재시도 후 잔여 실패를 manifest로 표면화한다."""
+
+    def test_empty_list_returns_zero_totals(self):
+        summary = PipelineOrchestrator._aggregate_scene_qc_summary([])
+        assert summary == {"passed": 0, "total": 0, "unresolved": [], "verdict": "pass"}
+
+    def test_all_pass_returns_pass_verdict(self):
+        results = [
+            {"scene_id": 1, "verdict": "pass", "issues": [], "retry_count": 0},
+            {"scene_id": 2, "verdict": "pass", "issues": [], "retry_count": 1},
+        ]
+        summary = PipelineOrchestrator._aggregate_scene_qc_summary(results)
+        assert summary["passed"] == 2
+        assert summary["total"] == 2
+        assert summary["unresolved"] == []
+        assert summary["verdict"] == "pass"
+
+    def test_partial_fail_lists_unresolved_scenes(self):
+        results = [
+            {"scene_id": 1, "verdict": "pass", "issues": [], "retry_count": 0},
+            {
+                "scene_id": 2,
+                "verdict": "fail_retry",
+                "issues": ["Audio file missing", "Visual dimensions 320x240 below minimum 540px"],
+                "retry_count": 2,
+            },
+            {
+                "scene_id": 3,
+                "verdict": "fail_retry",
+                "issues": ["Narration/audio rate 50.0 chars/s outside [1.5,10.0]"],
+                "retry_count": 2,
+            },
+        ]
+        summary = PipelineOrchestrator._aggregate_scene_qc_summary(results)
+        assert summary["passed"] == 1
+        assert summary["total"] == 3
+        assert summary["verdict"] == "degraded"
+        assert [u["scene_id"] for u in summary["unresolved"]] == [2, 3]
+        assert summary["unresolved"][0]["retry_count"] == 2
+        assert "Audio file missing" in summary["unresolved"][0]["issues"]
+
+    def test_missing_keys_are_tolerated(self):
+        # FakeQcResult.to_dict()처럼 scene_id 누락된 케이스도 KeyError 없이 처리.
+        results = [
+            {"verdict": "pass"},
+            {"verdict": "fail_retry", "issues": ["x"]},
+        ]
+        summary = PipelineOrchestrator._aggregate_scene_qc_summary(results)
+        assert summary["passed"] == 1
+        assert summary["total"] == 2
+        assert summary["verdict"] == "degraded"
+        assert summary["unresolved"][0]["scene_id"] is None
+        assert summary["unresolved"][0]["retry_count"] == 0

@@ -26,6 +26,8 @@ class ProjectSettings:
     script_review_min_score: int = 6  # 10점 만점 최소 기준 (hook/flow/cta 각각)
     structure_presets: dict[str, list[str]] | None = None  # YPP: 콘텐츠 구조 프리셋
     scene_qc_enabled: bool = False  # 씬별 QC (LLM 기반, 추가 비용 발생)
+    qc_strictness: str = "strict"  # "strict" | "lenient" | "off" — gate_scene_qc 판정 강도
+    scene_qc_max_retries: int = 2  # scene_qc_enabled=True 시 씬당 미디어 재생성 최대 횟수
     structure_validation: str = "strict"  # "strict" | "lenient" | "off"
     upload_ready_dir: str = ""  # 설정 시 완성 영상을 이 폴더에 복사
 
@@ -285,6 +287,12 @@ def load_config(config_path: str | Path) -> AppConfig:
     structure_validation_val = str(project_raw.get("structure_validation", "strict"))
     if structure_validation_val not in {"strict", "lenient", "off"}:
         raise ConfigError("project.structure_validation must be one of: strict, lenient, off.")
+    qc_strictness_val = str(project_raw.get("qc_strictness", "strict"))
+    if qc_strictness_val not in {"strict", "lenient", "off"}:
+        raise ConfigError("project.qc_strictness must be one of: strict, lenient, off.")
+    scene_qc_max_retries_val = int(project_raw.get("scene_qc_max_retries", 2))
+    if scene_qc_max_retries_val < 0:
+        raise ConfigError("project.scene_qc_max_retries must be >= 0.")
     project = ProjectSettings(
         language=str(project_raw.get("language", "ko-KR")),
         default_scene_count=int(project_raw.get("default_scene_count", 7)),
@@ -297,6 +305,8 @@ def load_config(config_path: str | Path) -> AppConfig:
         }
         or None,
         scene_qc_enabled=bool(project_raw.get("scene_qc_enabled", False)),
+        qc_strictness=qc_strictness_val,
+        scene_qc_max_retries=scene_qc_max_retries_val,
         structure_validation=structure_validation_val,
         upload_ready_dir=str(project_raw.get("upload_ready_dir", "")),
     )

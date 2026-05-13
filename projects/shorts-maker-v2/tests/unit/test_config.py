@@ -197,3 +197,32 @@ def test_config_rejects_invalid_rendering_engine(tmp_path: Path) -> None:
     )
     with pytest.raises(ConfigError, match="rendering.engine"):
         load_config(path)
+
+
+def test_config_qc_strictness_defaults_to_strict_and_retries_to_2(tmp_path: Path) -> None:
+    path = _write_config(tmp_path, _base_config())
+    config = load_config(path)
+    assert config.project.qc_strictness == "strict"
+    assert config.project.scene_qc_max_retries == 2
+
+
+def test_config_loads_qc_strictness_override(tmp_path: Path) -> None:
+    path = _write_config(
+        tmp_path,
+        _base_config(**{"project.qc_strictness": "lenient", "project.scene_qc_max_retries": 5}),
+    )
+    config = load_config(path)
+    assert config.project.qc_strictness == "lenient"
+    assert config.project.scene_qc_max_retries == 5
+
+
+def test_config_rejects_invalid_qc_strictness(tmp_path: Path) -> None:
+    path = _write_config(tmp_path, _base_config(**{"project.qc_strictness": "bogus"}))
+    with pytest.raises(ConfigError, match="qc_strictness"):
+        load_config(path)
+
+
+def test_config_rejects_negative_scene_qc_max_retries(tmp_path: Path) -> None:
+    path = _write_config(tmp_path, _base_config(**{"project.scene_qc_max_retries": -1}))
+    with pytest.raises(ConfigError, match="scene_qc_max_retries"):
+        load_config(path)

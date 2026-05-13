@@ -100,12 +100,48 @@ class QCStep:
         "closing": (2.0, 8.0),
     }
 
+    # essential check 이름 — lenient 모드에서도 실패하면 fail_retry로 판정.
+    # 나머지(duration/hook_concise/no_cta_words/chars_per_sec_ok)는 lenient에서 issues로만 남기고 통과.
+    _ESSENTIAL_CHECKS: frozenset[str] = frozenset({"audio_ok", "visual_ok"})
+
+    # TTS가 트런케이션·헤더손상으로 거의 빈 오디오를 만들었을 때 잡기 위한 하한.
+    _AUDIO_MIN_DURATION_SEC: float = 0.5
+
+    # Shorts에 쓸 만한 비주얼의 최소 해상도(가로/세로 둘 다). 썸네일 잘못 다운로드된 경우 탈락.
+    _VISUAL_MIN_DIM: int = 540
+
+    # 한국어 자연 TTS 속도의 합리적 범위(자/초). 1.5↓는 음성 과느림/공백,
+    # 10↑는 트런케이션 신호(긴 나레이션이 1~2초로 합성).
+    _CHARS_PER_SEC_RANGE: tuple[float, float] = (1.5, 10.0)
+
+    # closing/cta 역할에서 금지하는 CTA 표현. user_shorts_philosophy(시간을 훔치는 이야기) 준수.
+    # 영어 + 한국어 변형 다수 포함.
+    _FORBIDDEN_CTA: tuple[str, ...] = (
+        "구독",
+        "좋아요",
+        "알림",
+        "팔로우",
+        "공유",
+        "댓글",
+        "지금 클릭",
+        "지금 누르세요",
+        "눌러주세요",
+        "꼭 보세요",
+        "subscribe",
+        "like",
+        "comment",
+        "follow",
+        "share",
+    )
+
     @staticmethod
     def gate_scene_qc(
         scene_plan: ScenePlan,
         scene_asset: SceneAsset,
         prev_scene: ScenePlan | None = None,
         next_scene: ScenePlan | None = None,
+        *,
+        strictness: str = "strict",
     ) -> SceneQCResult:
         """씬별 품질 검수 (구조적 체크만, LLM 없음).
 
@@ -114,31 +150,35 @@ class QCStep:
             scene_asset: 생성된 미디어 자산
             prev_scene: 이전 씬 (톤 일관성 체크용)
             next_scene: 다음 씬
+            strictness: ``"strict"``(기본, 이슈 1개도 허용 안함) /
+                ``"lenient"`` (audio/visual 파일 존재만 essential, 그 외 이슈는 통과) /
+                ``"off"`` (모든 체크를 스킵하고 즉시 pass).
 
         Returns:
             SceneQCResult with verdict
         """
-        checks: dict[str, bool] = {}
-        issues: list[str] = []
         sid = scene_plan.scene_id
 
-        # 1. 오디오 파일 존재 + 최소 크기
-        if os.path.isfile(scene_asset.audio_path):
-            size = os.path.getsize(scene_asset.audio_path)
-            ok = size > 10_000
-            checks["audio_ok"] = ok
-            if not ok:
-                issues.append(f"Audio too small ({size}B)")
-        else:
-            checks["audio_ok"] = False
-            issues.append("Audio file missing")
+        if strictness == "off":
+            return SceneQCResult(scene_id=sid, checks={}, verdict="pass", issues=[])
 
-        # 2. 비주얼 파일 존재
-        if os.path.isfile(scene_asset.visual_path):
-            checks["visual_ok"] = True
-        else:
-            checks["visual_ok"] = False
-            issues.append("Visual file missing")
+        if strictness not in {"strict", "lenient"}:
+            raise ValueError(f"gate_scene_qc: strictness must be 'strict' | 'lenient' | 'off', got {strictness!r}")
+
+        checks: dict[str, bool] = {}
+        issues: list[str] = []
+
+        # 1. 오디오 정합성: 파일 존재 + 최소 크기 + 최소 듀레이션
+        audio_ok, audio_issue = QCStep._check_audio_integrity(scene_asset)
+        checks["audio_ok"] = audio_ok
+        if audio_issue:
+            issues.append(audio_issue)
+
+        # 2. 비주얼 정합성: 파일 존재 + 디코딩 가능 + 최소 해상도
+        visual_ok, visual_issue = QCStep._check_visual_integrity(scene_asset)
+        checks["visual_ok"] = visual_ok
+        if visual_issue:
+            issues.append(visual_issue)
 
         # 3. 오디오 길이 적합성 (역할별 기준)
         role = scene_plan.structure_role
@@ -149,7 +189,21 @@ class QCStep:
         if not dur_ok:
             issues.append(f"Duration {dur:.1f}s outside [{dur_min},{dur_max}]s for role '{role}'")
 
-        # 4. hook 씬: 대본이 충분히 짧고 강렬한지 (글자수 기반 경험적 체크)
+        # 4. 나레이션-오디오 합성 속도 정합성(자/초).
+        # 비어있는 나레이션이나 0초 오디오는 위 체크에서 잡으므로 여기선 skip.
+        narration_text = scene_plan.narration_ko.strip()
+        if narration_text and dur > 0:
+            cps = len(narration_text) / dur
+            cps_min, cps_max = QCStep._CHARS_PER_SEC_RANGE
+            cps_ok = cps_min <= cps <= cps_max
+            checks["chars_per_sec_ok"] = cps_ok
+            if not cps_ok:
+                issues.append(
+                    f"Narration/audio rate {cps:.1f} chars/s outside "
+                    f"[{cps_min},{cps_max}] (likely TTS truncation or empty audio)"
+                )
+
+        # 5. hook 씬: 대본이 충분히 짧고 강렬한지 (글자수 기반 경험적 체크)
         if role == "hook":
             narration_len = len(scene_plan.narration_ko)
             # hook은 너무 길면 안 됨 (200자 이하 권장)
@@ -158,11 +212,10 @@ class QCStep:
             if not hook_concise:
                 issues.append(f"Hook narration too long ({narration_len} chars, max 200)")
 
-        # 5. closing 씬: CTA 금지어 체크
+        # 6. closing/cta 씬: CTA 금지어 체크 (한국어 변형 포함)
         if role in ("closing", "cta"):
-            _FORBIDDEN = ("구독", "좋아요", "알림", "subscribe", "like", "comment", "follow")
             text = scene_plan.narration_ko.lower()
-            for word in _FORBIDDEN:
+            for word in QCStep._FORBIDDEN_CTA:
                 if word.lower() in text:
                     checks["no_cta_words"] = False
                     issues.append(f"Closing contains forbidden CTA word: '{word}'")
@@ -170,13 +223,84 @@ class QCStep:
             else:
                 checks["no_cta_words"] = True
 
-        verdict = "pass" if not issues else "fail_retry"
+        # Verdict 계산.
+        # strict: 이슈가 1개라도 있으면 fail_retry.
+        # lenient: essential check(audio_ok / visual_ok)가 실패한 경우에만 fail_retry,
+        #          그 외 이슈는 issues 리스트로만 보존하고 통과.
+        if strictness == "lenient":
+            essential_failed = any(not checks.get(name, True) for name in QCStep._ESSENTIAL_CHECKS)
+            verdict = "fail_retry" if essential_failed else "pass"
+        else:
+            verdict = "pass" if not issues else "fail_retry"
+
         return SceneQCResult(
             scene_id=sid,
             checks=checks,
             verdict=verdict,
             issues=issues,
         )
+
+    # ── 정합성 헬퍼 ────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _check_audio_integrity(asset: SceneAsset) -> tuple[bool, str | None]:
+        """오디오 자산의 essential 정합성 체크.
+
+        파일 존재 + 최소 크기(10KB) + 최소 듀레이션(0.5s). 셋 중 하나라도
+        실패하면 audio_ok=False. duration_sec은 SceneAsset이 신뢰할 만한
+        값을 가지고 있다는 전제 — TTS 스텝에서 정확히 측정되므로 ffprobe
+        재확인은 비용 대비 효익이 낮다.
+        """
+        path = asset.audio_path
+        if not os.path.isfile(path):
+            return False, "Audio file missing"
+        size = os.path.getsize(path)
+        if size <= 10_000:
+            return False, f"Audio too small ({size}B)"
+        if asset.duration_sec < QCStep._AUDIO_MIN_DURATION_SEC:
+            return False, (
+                f"Audio duration {asset.duration_sec:.2f}s below "
+                f"minimum {QCStep._AUDIO_MIN_DURATION_SEC}s (likely TTS truncation)"
+            )
+        return True, None
+
+    @staticmethod
+    def _check_visual_integrity(asset: SceneAsset) -> tuple[bool, str | None]:
+        """비주얼 자산의 essential 정합성 체크.
+
+        - image: Pillow로 열고 width/height >= _VISUAL_MIN_DIM.
+        - video: ffprobe로 첫 비디오 스트림의 width/height >= _VISUAL_MIN_DIM.
+        Pillow/ffprobe 자체 실패는 fail 처리 — 깨진 자산을 통과시키지 않는다.
+        """
+        path = asset.visual_path
+        if not os.path.isfile(path):
+            return False, "Visual file missing"
+
+        if asset.visual_type == "image":
+            try:
+                from PIL import Image, UnidentifiedImageError
+            except ImportError:
+                logger.warning("[QC] Pillow not installed — skipping visual integrity check")
+                return True, None
+            try:
+                with Image.open(path) as img:
+                    img.verify()
+                with Image.open(path) as img:
+                    w, h = img.size
+            except (UnidentifiedImageError, OSError, ValueError) as exc:
+                return False, f"Visual image unreadable: {exc.__class__.__name__}"
+            if w < QCStep._VISUAL_MIN_DIM or h < QCStep._VISUAL_MIN_DIM:
+                return False, (f"Visual dimensions {w}x{h} below minimum {QCStep._VISUAL_MIN_DIM}px")
+            return True, None
+
+        # video
+        probe = QCStep._probe_video(path)
+        if probe is None:
+            return False, "Visual video unreadable (ffprobe failed)"
+        w, h = probe.get("width", 0), probe.get("height", 0)
+        if w < QCStep._VISUAL_MIN_DIM or h < QCStep._VISUAL_MIN_DIM:
+            return False, (f"Visual dimensions {w}x{h} below minimum {QCStep._VISUAL_MIN_DIM}px")
+        return True, None
 
     # ── Gate 4: 최종 QC ───────────────────────────────────────────────────────
 

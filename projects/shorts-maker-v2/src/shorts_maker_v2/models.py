@@ -212,6 +212,7 @@ class JobManifest:
     qc_result: dict[str, Any] | None = None  # Gate 4 최종 QC 결과
     structure_outline: dict[str, Any] | None = None  # Gate 2 구성안
     scene_qc_results: list[dict[str, Any]] | None = None  # 씬별 QC 결과
+    scene_qc_summary: dict[str, Any] | None = None  # 씬별 QC 집계: 재시도 후 잔여 실패 표면화
     hook_score: dict[str, Any] | None = None  # Hook Strength Scorer 결과
     retention_hints: dict[str, Any] | None = None  # Retention Hints 분석 결과
     sentiment: dict[str, Any] | None = None  # Content Intelligence 감성 분석
