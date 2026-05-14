@@ -6,6 +6,13 @@
 
 | Field | Value |
 |---|---|
+| Date | 2026-05-15 |
+| Tool | Codex |
+| Work | **Linear MCP hosted OAuth startup failure mitigated**. User reported Codex startup failure for MCP client `linear`: hosted streamable HTTP transport failed during initialize because OAuth refresh returned `invalid_grant: Invalid refresh token`. Confirmed global `C:\Users\박주호\.codex\config.toml` had `[mcp_servers.linear] url = "https://mcp.linear.app/mcp"`, matching the failing hosted OAuth path. Backed up the global config to `C:\Users\박주호\.codex\config.toml.bak-linear-oauth-20260515065735` and removed only the hosted Linear MCP block. |
+| Next Priorities | Verification passed: Python `tomllib` parsed the global Codex config; remaining global MCP servers are `figma,notion,playwright`; no `mcp_servers.linear` or `mcp.linear.app` entry remains. Restart Codex to reload the global MCP config. If Linear tools are needed again, re-add `[mcp_servers.linear] url = "https://mcp.linear.app/mcp"` and complete a fresh OAuth login. |
+
+| Field | Value |
+|---|---|
 | Date | 2026-05-13 |
 | Tool | Codex |
 | Work | **T-294 knowledge-dashboard Agent Skill health completed**. User asked to keep progressing on product-quality improvements. Feature commit `ef94a7d` (`feat(knowledge-dashboard): surface skill health`) adds `execution/skill_lint.py`, focused tests, an authenticated Next route at `projects/knowledge-dashboard/src/app/api/data/skills/route.ts`, and an Agent skill health section inside `ProductReadinessPanel`. The linter scans active `.agents/skills/**/SKILL.md` files, excludes `_archive` by default, checks frontmatter, name/description quality, trigger guidance, duplicate skill names, and local reference drift, then writes ignored `projects/knowledge-dashboard/data/skill_lint.json`. `projects/knowledge-dashboard/scripts/sync_data.py` now includes `skill_lint` in the dashboard bundle, and README documents `python execution/skill_lint.py`. Current local skill health is `warn`, score `37`, 42 active skills, 21 healthy, 63 warnings, 0 errors. |
