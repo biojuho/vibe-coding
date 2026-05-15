@@ -45,7 +45,16 @@ function ok(name) {
 function fail(name, error) {
   failed++;
   console.error(`  ✗ ${name}`);
-  console.error(`    ${error.message ?? error}`);
+  const message = error?.message || error?.toString?.() || String(error);
+  console.error(`    ${message}`);
+  if (error?.name) console.error(`    name: ${error.name}`);
+  if (error?.code) console.error(`    code: ${error.code}`);
+  if (error?.meta) console.error(`    meta: ${JSON.stringify(error.meta)}`);
+  if (error?.cause) {
+    const causeMessage = error.cause?.message || error.cause?.toString?.() || String(error.cause);
+    console.error(`    cause: ${causeMessage}`);
+    if (error.cause?.code) console.error(`    cause code: ${error.cause.code}`);
+  }
 }
 
 function skip(name, reason) {
