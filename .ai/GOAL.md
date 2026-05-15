@@ -8,7 +8,7 @@
 - Goal: None.
 - Owner: None.
 - Started: None.
-- Success: Completed 2026-05-15 by Codex. Skill health is `pass`, score `100`, with 42 healthy / 42 active skills and 0 warnings. Feature commit: `65cbe47`.
+- Success: Completed 2026-05-15 by Codex. Skill health is `pass`, score `100`, with 42 healthy / 42 active skills and 0 warnings. Feature commits: `65cbe47` + `bcfa2e5`.
 
 ## Notes
 
