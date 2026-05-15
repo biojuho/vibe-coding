@@ -54,6 +54,12 @@ def _write_qaqc(root: Path) -> Path:
     return path
 
 
+def _write_qaqc_timestamp(path: Path, timestamp: str) -> None:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["timestamp"] = timestamp
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+
 def _write_tasks(root: Path, body: str) -> None:
     ai = root / ".ai"
     ai.mkdir(parents=True, exist_ok=True)
@@ -133,3 +139,29 @@ def test_dirty_paths_lower_the_matching_project_only(tmp_path: Path):
     shorts = next(project for project in report["projects"] if project["name"] == "shorts-maker-v2")
     assert blind["dirty_paths"] == ["projects/blind-to-x/pipeline/process.py"]
     assert shorts["dirty_paths"] == []
+
+
+def test_stale_qc_data_lowers_scores_and_recommends_refresh(tmp_path: Path):
+    _write_project_files(tmp_path)
+    qaqc_path = _write_qaqc(tmp_path)
+    _write_qaqc_timestamp(qaqc_path, "2026-04-01T00:00:00+00:00")
+    _write_tasks(
+        tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
+    )
+    (tmp_path / "projects" / "hanwoo-dashboard" / ".env").write_text(
+        "DATABASE_URL=postgres://user:secret@example/db\n",
+        encoding="utf-8",
+    )
+
+    report = readiness.build_report(
+        tmp_path,
+        qaqc_path=qaqc_path,
+        git_status_text="",
+        now=datetime(2026, 5, 13, tzinfo=timezone.utc),
+    )
+
+    blind = next(project for project in report["projects"] if project["name"] == "blind-to-x")
+    assert blind["qc"]["stale"] is True
+    assert blind["qc"]["age_days"] == 42
+    assert blind["score"] < 85
+    assert "Refresh project QC" in blind["recommendations"][0]

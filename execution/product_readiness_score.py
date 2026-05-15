@@ -23,6 +23,7 @@ ACTIVE_PROJECTS = (
     "hanwoo-dashboard",
     "knowledge-dashboard",
 )
+QC_FRESH_DAYS = 7
 
 
 @dataclass(frozen=True)
@@ -151,17 +152,46 @@ def _tasks_by_project(repo_root: Path) -> dict[str, list[dict[str, str]]]:
     return by_project
 
 
-def _project_qc_status(qaqc_data: dict[str, Any], project_name: str) -> dict[str, Any]:
+def _parse_timestamp(value: Any) -> datetime | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _qc_freshness(qaqc_data: dict[str, Any], now: datetime) -> dict[str, Any]:
+    checked_at = _parse_timestamp(qaqc_data.get("timestamp"))
+    if checked_at is None:
+        return {"checked_at": None, "age_days": None, "stale": False}
+
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    age = now.astimezone(timezone.utc) - checked_at.astimezone(timezone.utc)
+    age_days = max(0, age.days)
+    return {
+        "checked_at": checked_at.isoformat(),
+        "age_days": age_days,
+        "stale": age_days > QC_FRESH_DAYS,
+    }
+
+
+def _project_qc_status(qaqc_data: dict[str, Any], project_name: str, now: datetime) -> dict[str, Any]:
+    freshness = _qc_freshness(qaqc_data, now)
     projects = qaqc_data.get("projects")
     if not isinstance(projects, dict):
-        return {"available": False, "status": "UNKNOWN", "passed": 0, "failed": 0, "skipped": 0}
+        return {"available": False, "status": "UNKNOWN", "passed": 0, "failed": 0, "skipped": 0, **freshness}
 
     result = projects.get(project_name)
     if not isinstance(result, dict):
         if project_name == "knowledge-dashboard" and isinstance(projects.get("root"), dict):
             result = projects["root"]
         else:
-            return {"available": False, "status": "UNKNOWN", "passed": 0, "failed": 0, "skipped": 0}
+            return {"available": False, "status": "UNKNOWN", "passed": 0, "failed": 0, "skipped": 0, **freshness}
 
     status = str(result.get("status") or "UNKNOWN").upper()
     return {
@@ -170,6 +200,7 @@ def _project_qc_status(qaqc_data: dict[str, Any], project_name: str) -> dict[str
         "passed": int(result.get("passed") or 0),
         "failed": int(result.get("failed") or 0) + int(result.get("errors") or 0),
         "skipped": int(result.get("skipped") or 0),
+        **freshness,
     }
 
 
@@ -223,8 +254,9 @@ def _score_project(
     qaqc_data: dict[str, Any],
     project_tasks: list[dict[str, str]],
     dirty_paths: list[str],
+    now: datetime,
 ) -> dict[str, Any]:
-    qc = _project_qc_status(qaqc_data, profile.name)
+    qc = _project_qc_status(qaqc_data, profile.name, now)
     docs = _required_file_status(repo_root, profile)
     env = _env_status(repo_root, profile)
 
@@ -235,6 +267,8 @@ def _score_project(
         qc_score = 25
     elif qc["available"]:
         qc_score = 0
+    if qc.get("stale"):
+        qc_score = min(qc_score, 20)
 
     active_blockers = [
         task
@@ -262,7 +296,11 @@ def _score_project(
         recommendations.append("Replace the Supabase password placeholder and run the live Prisma check.")
     if active_blockers:
         recommendations.append(f"Resolve {len(active_blockers)} open task blocker(s).")
-    if qc_score < 35:
+    if qc.get("stale"):
+        age = qc.get("age_days")
+        suffix = f" ({age} days old)" if isinstance(age, int) else ""
+        recommendations.append(f"Refresh project QC; latest recorded run is stale{suffix}.")
+    elif qc_score < 35:
         recommendations.append("Refresh project QC so the score reflects the latest test/lint/build state.")
     if any(not item["present"] for item in docs):
         recommendations.append("Add or repair the missing product documentation files.")
@@ -294,7 +332,8 @@ def build_report(
 ) -> dict[str, Any]:
     repo_root = repo_root.resolve()
     qaqc_path = qaqc_path or repo_root / "projects" / "knowledge-dashboard" / "data" / "qaqc_result.json"
-    generated_at = (now or datetime.now(timezone.utc)).astimezone().isoformat()
+    now = now or datetime.now(timezone.utc)
+    generated_at = now.astimezone().isoformat()
     qaqc_data = _read_json(qaqc_path)
     tasks = _tasks_by_project(repo_root)
     dirty = _dirty_paths_by_project(git_status_text if git_status_text is not None else _run_git_status(repo_root))
@@ -306,6 +345,7 @@ def build_report(
             qaqc_data=qaqc_data,
             project_tasks=tasks.get(name, []),
             dirty_paths=dirty.get(name, []),
+            now=now,
         )
         for name in ACTIVE_PROJECTS
     ]

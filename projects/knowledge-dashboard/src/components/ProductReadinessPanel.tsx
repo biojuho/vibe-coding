@@ -32,6 +32,9 @@ interface ReadinessProject {
     passed: number;
     failed: number;
     skipped: number;
+    checked_at?: string | null;
+    age_days?: number | null;
+    stale?: boolean;
   };
   tasks: ReadinessTask[];
   dirty_paths: string[];
@@ -148,6 +151,20 @@ function MetricTile({ label, value, tone }: { label: string; value: string; tone
       <p className={`mt-1 text-2xl font-semibold ${tone}`}>{value}</p>
     </div>
   );
+}
+
+function QcFreshness({ qc }: { qc: ReadinessProject["qc"] }) {
+  if (!qc.available) {
+    return <p className="text-xs text-slate-500">No QC run</p>;
+  }
+  if (qc.stale) {
+    const age = typeof qc.age_days === "number" ? `${qc.age_days}d old` : "stale";
+    return <p className="text-xs text-amber-300">{age}</p>;
+  }
+  if (typeof qc.age_days === "number") {
+    return <p className="text-xs text-emerald-300">{qc.age_days}d old</p>;
+  }
+  return <p className="text-xs text-slate-500">Freshness unknown</p>;
 }
 
 export default function ProductReadinessPanel({ data, skillLint }: ProductReadinessPanelProps) {
@@ -278,6 +295,7 @@ export default function ProductReadinessPanel({ data, skillLint }: ProductReadin
                   <p className="text-xs text-slate-500">QC</p>
                   <p className="mt-1 text-sm font-medium text-white">{project.qc.status}</p>
                   <p className="text-xs text-slate-500">{project.qc.passed} passed / {project.qc.failed} failed</p>
+                  <QcFreshness qc={project.qc} />
                 </div>
                 <div className="rounded-lg border border-white/5 bg-slate-950/35 p-3">
                   <p className="text-xs text-slate-500">Open tasks</p>
