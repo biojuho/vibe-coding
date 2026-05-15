@@ -1,14 +1,14 @@
 {
-  "timestamp": "2026-05-15T14:01:42",
+  "timestamp": "2026-05-15T14:53:13",
   "verdict": "APPROVED",
-  "elapsed_sec": 797.3,
+  "elapsed_sec": 26.8,
   "projects": {
     "blind-to-x": {
       "passed": 1610,
       "failed": 0,
       "skipped": 12,
       "errors": 0,
-      "duration_sec": 252.28,
+      "duration_sec": 152.65,
       "status": "PASS",
       "runs": [
         {
@@ -17,7 +17,7 @@
           "skipped": 12,
           "errors": 0,
           "status": "PASS",
-          "duration_sec": 227.08
+          "duration_sec": 132.66
         },
         {
           "passed": 64,
@@ -25,7 +25,7 @@
           "skipped": 0,
           "errors": 0,
           "status": "PASS",
-          "duration_sec": 25.2
+          "duration_sec": 19.99
         }
       ],
       "message": "Ignored known env-specific curl_cffi CA Error 77 reproducer"
@@ -70,7 +70,7 @@
       "skipped": 0,
       "errors": 0,
       "status": "PASS",
-      "duration_sec": 1.01
+      "duration_sec": 1.74
     },
     "knowledge-dashboard": {
       "passed": 3,
@@ -132,7 +132,7 @@
         "category": "governance",
         "status": "ok",
         "detail": "All 7 required AI context files are present",
-        "checked_at": "2026-05-15T14:14:59",
+        "checked_at": "2026-05-15T14:53:39",
         "count": 7
       },
       {
@@ -140,7 +140,7 @@
         "category": "governance",
         "status": "ok",
         "detail": "No targeted relay claims found in HANDOFF.md",
-        "checked_at": "2026-05-15T14:14:59",
+        "checked_at": "2026-05-15T14:53:39",
         "checked_claims": []
       },
       {
@@ -148,7 +148,7 @@
         "category": "governance",
         "status": "ok",
         "detail": "Checked 34 SOP mappings, 24 unmapped scripts; no mapping drift detected",
-        "checked_at": "2026-05-15T14:14:59",
+        "checked_at": "2026-05-15T14:53:40",
         "issues": [],
         "sop_count": 34,
         "unmapped_count": 24,
@@ -160,7 +160,7 @@
         "category": "governance",
         "status": "ok",
         "detail": "No unchecked follow-ups found in tracked planning directives",
-        "checked_at": "2026-05-15T14:14:59",
+        "checked_at": "2026-05-15T14:53:40",
         "open_followup_count": 0,
         "active_task_count": 0
       }
