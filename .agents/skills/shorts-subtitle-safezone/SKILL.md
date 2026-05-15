@@ -8,6 +8,10 @@ description: >
 
 # Shorts Subtitle Safe Zone Skill
 
+## When to Use
+
+Use this skill when editing Shorts Maker V2 subtitle rendering, safe-zone placement, karaoke captions, Pillow caption layout, or tests around YouTube Shorts UI overlap.
+
 ## Shorts UI 안전 영역 (1920×1080 기준)
 
 ```

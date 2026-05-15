@@ -1,6 +1,7 @@
 ---
 name: blind-to-x
-description: 블라인드 인기글 스크래핑 → AI 트윗 초안 생성 → Notion 업로드 자동화 파이프라인. Playwright + Claude API + Imgur/Cloudinary + Notion API 연동. 트리거: "블라인드", "blind scraper", "트윗 초안", "tweet draft", "콘텐츠 큐레이션", "content curation".
+description: >-
+  블라인드 인기글 스크래핑 → AI 트윗 초안 생성 → Notion 업로드 자동화 파이프라인. Playwright + Claude API + Imgur/Cloudinary + Notion API 연동. 트리거: "블라인드", "blind scraper", "트윗 초안", "tweet draft", "콘텐츠 큐레이션", "content curation".
 ---
 
 # Blind to X

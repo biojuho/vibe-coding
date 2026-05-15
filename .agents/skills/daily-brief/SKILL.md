@@ -1,6 +1,7 @@
 ---
 name: daily-brief
-description: 시스템 전체 일일 브리핑을 생성하는 스킬. API 비용, 스케줄러, YouTube 성과, 에러 요약, 시스템 헬스를 한번에 확인. 트리거: "브리핑", "daily brief", "오늘 상태", "시스템 요약", "일일 리포트".
+description: >-
+  시스템 전체 일일 브리핑을 생성하는 스킬. API 비용, 스케줄러, YouTube 성과, 에러 요약, 시스템 헬스를 한번에 확인. 트리거: "브리핑", "daily brief", "오늘 상태", "시스템 요약", "일일 리포트".
 ---
 
 # 📊 Daily Brief (v2 — MCP 통합)

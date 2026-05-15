@@ -1,6 +1,7 @@
 ---
 name: cost-check
-description: API 비용 실시간 확인 및 예산 알림 스킬 (Multi-DB 연동). 프로바이더별 사용량, 월간 추세, 예산 초과 경고, 프로젝트별 비용 분리 제공. 트리거: "비용 확인", "cost check", "API 비용", "얼마 썼어", "예산".
+description: >-
+  API 비용 실시간 확인 및 예산 알림 스킬 (Multi-DB 연동). 프로바이더별 사용량, 월간 추세, 예산 초과 경고, 프로젝트별 비용 분리 제공. 트리거: "비용 확인", "cost check", "API 비용", "얼마 썼어", "예산".
 ---
 
 # 💰 Cost Check (v2 — Multi-DB 연동)

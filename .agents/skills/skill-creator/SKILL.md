@@ -88,7 +88,7 @@ Every SKILL.md consists of:
 Executable code (Python/Bash/etc.) for tasks that require deterministic reliability or are repeatedly rewritten.
 
 - **When to include**: When the same code is being rewritten repeatedly or deterministic reliability is needed
-- **Example**: `scripts/rotate_pdf.py` for PDF rotation tasks
+- **Example**: a `rotate_pdf` utility script for PDF rotation tasks
 - **Benefits**: Token efficient, deterministic, may be executed without loading into context
 - **Note**: Scripts may still need to be read by Codex for patching or environment-specific adjustments
 
@@ -97,7 +97,7 @@ Executable code (Python/Bash/etc.) for tasks that require deterministic reliabil
 Documentation and reference material intended to be loaded as needed into context to inform Codex's process and thinking.
 
 - **When to include**: For documentation that Codex should reference while working
-- **Examples**: `references/finance.md` for financial schemas, `references/mnda.md` for company NDA template, `references/policies.md` for company policies, `references/api_docs.md` for API specifications
+- **Examples**: finance reference notes for financial schemas, an MNDA reference for company NDA templates, policy references for company policies, or API reference notes for service specifications
 - **Use cases**: Database schemas, API documentation, domain knowledge, company policies, detailed workflow guides
 - **Benefits**: Keeps SKILL.md lean, loaded only when Codex determines it's needed
 - **Best practice**: If files are large (>10k words), include grep search patterns in SKILL.md
@@ -150,12 +150,12 @@ Extract text with pdfplumber:
 
 ## Advanced features
 
-- **Form filling**: See [FORMS.md](FORMS.md) for complete guide
-- **API reference**: See [REFERENCE.md](REFERENCE.md) for all methods
-- **Examples**: See [EXAMPLES.md](EXAMPLES.md) for common patterns
+- **Form filling**: point to a forms reference file for the complete guide
+- **API reference**: point to an API reference file for all methods
+- **Examples**: point to an examples file for common patterns
 ```
 
-Codex loads FORMS.md, REFERENCE.md, or EXAMPLES.md only when needed.
+Codex loads the forms, reference, or examples files only when needed.
 
 **Pattern 2: Domain-specific organization**
 
@@ -195,17 +195,17 @@ Show basic content, link to advanced content:
 
 ## Creating documents
 
-Use docx-js for new documents. See [DOCX-JS.md](DOCX-JS.md).
+Use docx-js for new documents. Point to a DOCX-JS reference file when the skill includes one.
 
 ## Editing documents
 
 For simple edits, modify the XML directly.
 
-**For tracked changes**: See [REDLINING.md](REDLINING.md)
-**For OOXML details**: See [OOXML.md](OOXML.md)
+**For tracked changes**: point to a redlining reference file
+**For OOXML details**: point to an OOXML reference file
 ```
 
-Codex reads REDLINING.md or OOXML.md only when the user needs those features.
+Codex reads the redlining or OOXML references only when the user needs those features.
 
 **Important guidelines:**
 
@@ -260,7 +260,7 @@ To turn concrete examples into an effective skill, analyze each example by:
 Example: When building a `pdf-editor` skill to handle queries like "Help me rotate this PDF," the analysis shows:
 
 1. Rotating a PDF requires re-writing the same code each time
-2. A `scripts/rotate_pdf.py` script would be helpful to store in the skill
+2. A rotate-PDF utility script would be helpful to store in the skill
 
 Example: When designing a `frontend-webapp-builder` skill for queries like "Build me a todo app" or "Build me a dashboard to track my steps," the analysis shows:
 
@@ -270,7 +270,7 @@ Example: When designing a `frontend-webapp-builder` skill for queries like "Buil
 Example: When building a `big-query` skill to handle queries like "How many users have logged in today?" the analysis shows:
 
 1. Querying BigQuery requires re-discovering the table schemas and relationships each time
-2. A `references/schema.md` file documenting the table schemas would be helpful to store in the skill
+2. A schema reference file documenting the table schemas would be helpful to store in the skill
 
 To establish the skill's contents, analyze each concrete example to create a list of the reusable resources to include: scripts, references, and assets.
 

@@ -1,4 +1,5 @@
 ---
+name: persona-qa-jieun
 description: 테스터 지은(Jieun) 종합 프롬프트 v1 (버그 사냥꾼 + 따뜻한 피드백 + 과정 공유 + 최신 버전)
 ---
 1. 공통 언어/공유 규칙(반드시 준수)

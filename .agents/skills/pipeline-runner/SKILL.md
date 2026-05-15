@@ -1,6 +1,7 @@
 ---
 name: pipeline-runner
-description: blind-to-x + shorts-maker-v2 파이프라인을 통합 실행하는 스킬 (MCP 연동). 조건부 실행, 비용 가드, 시스템 헬스 사전 검증 포함. 트리거: "파이프라인 실행", "pipeline run", "btx 실행", "shorts 생성", "파이프라인 상태".
+description: >-
+  blind-to-x + shorts-maker-v2 파이프라인을 통합 실행하는 스킬 (MCP 연동). 조건부 실행, 비용 가드, 시스템 헬스 사전 검증 포함. 트리거: "파이프라인 실행", "pipeline run", "btx 실행", "shorts 생성", "파이프라인 상태".
 ---
 
 # 🏭 Pipeline Runner (v2 — MCP 통합)

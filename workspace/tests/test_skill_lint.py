@@ -79,3 +79,78 @@ def test_duplicate_names_and_broken_references_warn(tmp_path: Path):
     assert report["summary"]["status"] == "warn"
     assert "duplicate_name" in codes
     assert "broken_reference" in codes
+
+
+def test_reference_resolution_checks_common_skill_subdirectories(tmp_path: Path):
+    skill_path = _write_skill(
+        tmp_path,
+        "tooling",
+        "---\n"
+        "name: tooling\n"
+        "description: Use when validating bundled skill reference resolution.\n"
+        "---\n\n"
+        "Run `helper.py`, inspect `examples.md`, and call `skills/tooling/scripts/helper.py`.\n",
+    )
+    (skill_path.parent / "scripts").mkdir()
+    (skill_path.parent / "scripts" / "helper.py").write_text("print('ok')\n", encoding="utf-8")
+    (skill_path.parent / "references").mkdir()
+    (skill_path.parent / "references" / "examples.md").write_text("# Examples\n", encoding="utf-8")
+
+    report = skill_lint.build_report(tmp_path, now=datetime(2026, 5, 13, tzinfo=timezone.utc))
+
+    assert report["summary"]["status"] == "pass"
+    assert report["issues"] == []
+
+
+def test_bare_inline_filenames_are_not_treated_as_required_bundled_files(tmp_path: Path):
+    _write_skill(
+        tmp_path,
+        "artifact-skill",
+        "---\n"
+        "name: artifact-skill\n"
+        "description: Use when validating generated artifact mentions in skill prose.\n"
+        "---\n\n"
+        "The workflow may create `draft.json`, `outline.md`, or `robots.txt` in the user's project.\n",
+    )
+
+    report = skill_lint.build_report(tmp_path, now=datetime(2026, 5, 13, tzinfo=timezone.utc))
+
+    assert report["summary"]["status"] == "pass"
+    assert report["issues"] == []
+
+
+def test_references_inside_fenced_code_are_examples_not_required_files(tmp_path: Path):
+    _write_skill(
+        tmp_path,
+        "example-links",
+        "---\n"
+        "name: example-links\n"
+        "description: Use when validating example links inside fenced code blocks.\n"
+        "---\n\n"
+        "```markdown\n"
+        "See [FORMS.md](FORMS.md) and `scripts/generated.py` in generated output.\n"
+        "```\n",
+    )
+
+    report = skill_lint.build_report(tmp_path, now=datetime(2026, 5, 13, tzinfo=timezone.utc))
+
+    assert report["summary"]["status"] == "pass"
+    assert report["issues"] == []
+
+
+def test_trigger_guidance_accepts_common_heading_variants(tmp_path: Path):
+    _write_skill(
+        tmp_path,
+        "triggered",
+        "---\n"
+        "name: triggered\n"
+        "description: Validates trigger guidance that uses common headings.\n"
+        "---\n\n"
+        "## When to Use This Skill\n\n"
+        "Apply it when the user asks for this workflow.\n",
+    )
+
+    report = skill_lint.build_report(tmp_path, now=datetime(2026, 5, 13, tzinfo=timezone.utc))
+
+    assert report["summary"]["status"] == "pass"
+    assert report["issues"] == []

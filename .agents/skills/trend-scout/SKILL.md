@@ -1,5 +1,6 @@
 ---
-description: 실시간 트렌드 탐지 및 콘텐츠 토픽 자동 제안
+name: trend-scout
+description: 실시간 트렌드를 탐지하고 Shorts/블로그용 콘텐츠 토픽을 자동 제안할 때 사용.
 ---
 
 # 🔍 Trend Scout Skill

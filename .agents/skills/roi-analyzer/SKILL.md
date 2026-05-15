@@ -1,4 +1,5 @@
 ---
+name: roi-analyzer
 description: 콘텐츠 ROI 분석 — API 비용 vs 수익 대비, 채널별 손익분기점 산출
 ---
 

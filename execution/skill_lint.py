@@ -19,7 +19,23 @@ if hasattr(sys.stdout, "reconfigure"):
 
 REFERENCE_PATTERN = re.compile(r"`([^`\n]+\.(?:md|py|yaml|yml|json|toml|txt|ps1|bat|mjs|ts|tsx|js))`")
 MARKDOWN_LINK_PATTERN = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+FENCED_CODE_PATTERN = re.compile(r"```.*?```", re.DOTALL)
 MIN_DESCRIPTION_LENGTH = 40
+TRIGGER_MARKERS = (
+    "trigger",
+    "use when",
+    "use this skill",
+    "apply this skill",
+    "when to use",
+    "when the user",
+    "when asked",
+    "when to apply",
+    "activates on",
+    "사용",
+    "트리거",
+    "수정 시",
+    "?ъ슜",
+)
 
 
 @dataclass(frozen=True)
@@ -127,7 +143,12 @@ def _issue(skill: SkillFile, severity: str, code: str, message: str) -> dict[str
 
 
 def _candidate_refs(text: str) -> set[str]:
-    refs = set(REFERENCE_PATTERN.findall(text))
+    text = FENCED_CODE_PATTERN.sub("", text)
+    refs = {
+        ref
+        for ref in REFERENCE_PATTERN.findall(text)
+        if not ref.startswith("/") and ("/" in ref or "\\" in ref or ref.startswith("."))
+    }
     for link in MARKDOWN_LINK_PATTERN.findall(text):
         if "://" in link or link.startswith("#"):
             continue
@@ -151,7 +172,22 @@ def _reference_exists(repo_root: Path, skill_path: Path, reference: str) -> bool
         candidate = repo_root / clean.lstrip("/")
         return candidate.exists()
 
-    return (skill_path.parent / clean).exists() or (repo_root / clean).exists()
+    candidates = [
+        skill_path.parent / clean,
+        repo_root / clean,
+    ]
+    if clean.startswith("skills/"):
+        candidates.append(repo_root / ".agents" / clean)
+    if clean.startswith("execution/"):
+        candidates.append(repo_root / "workspace" / clean)
+
+    if any(candidate.exists() for candidate in candidates):
+        return True
+
+    if "/" not in clean:
+        return any(skill_path.parent.rglob(clean))
+
+    return False
 
 
 def lint_skills(repo_root: Path, skills: list[SkillFile]) -> list[dict[str, str]]:
@@ -185,7 +221,7 @@ def lint_skills(repo_root: Path, skills: list[SkillFile]) -> list[dict[str, str]
             issues.append(_issue(skill, "warning", "duplicate_name", f"`{name}` is used by multiple skills."))
 
         trigger_text = f"{description}\n{skill.body}".lower()
-        if "trigger" not in trigger_text and "use when" not in trigger_text and "사용" not in trigger_text:
+        if not any(marker in trigger_text for marker in TRIGGER_MARKERS):
             issues.append(
                 _issue(
                     skill,

@@ -1,5 +1,6 @@
 ---
-description: Firebase/Supabase 배포 및 DB 관리 자동화
+name: deployment-helper
+description: Firebase/Supabase 배포, DB 검증, 환경 설정 점검이 필요한 작업에 사용.
 ---
 
 # 🚀 Deployment Helper Skill

@@ -20,7 +20,7 @@ Search ranking factors (approximate influence):
 | Content quality & relevance | ~40% | Partial (structure) |
 | Backlinks & authority | ~25% | ✗ |
 | Technical SEO | ~15% | ✓ |
-| Page experience (Core Web Vitals) | ~10% | See [Core Web Vitals](../core-web-vitals/SKILL.md) |
+| Page experience (Core Web Vitals) | ~10% | Check Core Web Vitals with local performance tooling when available. |
 | On-page SEO | ~10% | ✓ |
 
 ---
@@ -404,7 +404,7 @@ A class of AI search engines (ChatGPT search, Perplexity, Gemini Overviews) cite
 
 ### `llms.txt` — emerging, unproven
 
-[`llms.txt`](https://llmstxt.org/) is a proposed convention (a Markdown index of your site's important pages, served at `/llms.txt`) for LLMs to consume. As of mid-2026 adoption is ~0.015% of sites and **no major AI vendor has confirmed they read it**. Treat it as a 5-minute speculative add for content sites — not a meaningful ranking or citation factor — and don't reorganize content around it.
+[`llms.txt`](https://llmstxt.org/) is a proposed convention (a Markdown index of your site's important pages, served from the site root as llms.txt) for LLMs to consume. As of mid-2026 adoption is ~0.015% of sites and **no major AI vendor has confirmed they read it**. Treat it as a 5-minute speculative add for content sites — not a meaningful ranking or citation factor — and don't reorganize content around it.
 
 ---
 
@@ -523,5 +523,5 @@ body {
 
 - [Google Search Central](https://developers.google.com/search)
 - [Schema.org](https://schema.org/)
-- [Core Web Vitals](../core-web-vitals/SKILL.md)
-- [Web Quality Audit](../web-quality-audit/SKILL.md)
+- Core Web Vitals checks from local performance tooling
+- Web quality audit workflows when a local audit skill is installed

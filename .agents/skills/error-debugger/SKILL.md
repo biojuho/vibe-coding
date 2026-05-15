@@ -1,5 +1,6 @@
 ---
-description: 파이프라인 에러 자동 진단, 분류, 복구 제안 및 자가 수정
+name: error-debugger
+description: 파이프라인 에러를 자동 진단, 분류하고 복구 제안과 안전한 자가 수정을 수행할 때 사용.
 ---
 
 # 🔧 Error Debugger Skill

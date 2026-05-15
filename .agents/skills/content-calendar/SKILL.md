@@ -1,5 +1,6 @@
 ---
-description: 5채널 YouTube Shorts 콘텐츠 캘린더 관리 자동화
+name: content-calendar
+description: 5채널 YouTube Shorts 콘텐츠 캘린더를 관리하고 예약 콘텐츠 흐름을 점검할 때 사용.
 ---
 
 # 📅 Content Calendar Skill
