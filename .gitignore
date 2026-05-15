@@ -91,6 +91,8 @@ venv/
 
 # ===== Scratch / 임시 실험 =====
 scratch/
+scratch.*
+**/scratch.*
 
 # ===== Nested Git Repos (renamed for root backup) =====
 **/.git.bak/
