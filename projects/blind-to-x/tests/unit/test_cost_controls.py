@@ -137,7 +137,7 @@ from unittest.mock import patch  # noqa: E402
 
 
 @patch("pipeline.editorial_reviewer.EditorialReviewer")
-def test_review_only_still_generates_image_and_records_draft(mock_reviewer_class):
+def test_review_only_skips_ai_image_by_default_and_records_draft(mock_reviewer_class):
     mock_reviewer = mock_reviewer_class.return_value
 
     # AsyncMock is automatically used if the patched method is async in 3.8+, but let's be safe:
@@ -175,6 +175,11 @@ def test_review_only_still_generates_image_and_records_draft(mock_reviewer_class
                         "auto_move_to_review_threshold": 65,
                         "reject_on_missing_title": True,
                         "reject_on_missing_content": True,
+                        "require_twitter_quality_pass": False,
+                    },
+                    "image": {
+                        "generate_ai_for_review": False,
+                        "generate_ai_for_blind": False,
                     },
                 }
             ),
@@ -185,7 +190,7 @@ def test_review_only_still_generates_image_and_records_draft(mock_reviewer_class
     )
 
     assert result["success"] is True
-    assert image_generator.called == 1  # review_only여도 이미지 생성은 실행
+    assert image_generator.called == 0
 
     with CostDatabase()._conn() as conn:
         row = conn.execute(

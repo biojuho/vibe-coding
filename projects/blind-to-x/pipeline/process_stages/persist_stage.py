@@ -12,6 +12,17 @@ from .context import ProcessRunContext, mark_stage
 from .runtime import extract_preferred_tweet_text, logger, notebooklm_enricher, post_to_twitter, regulation_checker
 
 
+def _config_bool(config, key: str, default: bool) -> bool:
+    if config is None or not hasattr(config, "get"):
+        return default
+    value = config.get(key, default)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return bool(value)
+
+
 async def run_persist_stage(
     ctx: ProcessRunContext,
     image_uploader,
@@ -68,6 +79,9 @@ async def run_persist_stage(
     is_blind = source in {"blind", "블라인드"}
     is_community = source in {"ppomppu", "뽐뿌", "fmkorea", "에펨코리아"}
     image_urls = post_data.get("image_urls")
+    allow_review_ai_image = _config_bool(config, "image.generate_ai_for_review", False)
+    allow_blind_ai_image = _config_bool(config, "image.generate_ai_for_blind", False)
+    allow_ai_image = image_generator is not None and (not review_only or allow_review_ai_image)
 
     if is_community:
         if image_urls and isinstance(image_urls, list):
@@ -75,7 +89,7 @@ async def run_persist_stage(
             logger.info("[%s] Using original image from post: %s", source, original_image_url)
         else:
             logger.info("[%s] No original image found, will use screenshot only.", source)
-    elif is_blind and image_generator:
+    elif is_blind and allow_ai_image and allow_blind_ai_image:
         topic_cluster = profile.get("topic_cluster", "")
         emotion_axis = profile.get("emotion_axis", "")
 
@@ -122,7 +136,7 @@ async def run_persist_stage(
     elif image_urls and isinstance(image_urls, list):
         original_image_url = image_urls[0]
         logger.info("Found original image URL: %s", original_image_url)
-    elif image_prompt and image_generator:
+    elif image_prompt and allow_ai_image:
         topic_cluster = profile.get("topic_cluster", "")
         emotion_axis = profile.get("emotion_axis", "")
         ai_image_task = asyncio.ensure_future(

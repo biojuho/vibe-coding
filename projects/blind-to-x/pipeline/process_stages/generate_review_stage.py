@@ -21,10 +21,46 @@ def _config_int(config, key: str, default: int) -> int:
     return max(0, value)
 
 
+def _config_bool(config, key: str, default: bool) -> bool:
+    if config is None or not hasattr(config, "get"):
+        return default
+    value = config.get(key, default)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return bool(value)
+
+
 def _resolve_quality_gate_retries(config, review_only: bool) -> int:
     if review_only:
         return _config_int(config, "quality_gate.review_only_max_retries", 1)
     return _config_int(config, "quality_gate.max_retries", 2)
+
+
+def _twitter_quality_failure(drafts: dict, quality_gate, config) -> str | None:
+    if not _config_bool(config, "review.require_twitter_quality_pass", False):
+        return None
+
+    twitter_text = str(drafts.get("twitter") or "").strip()
+    try:
+        result = quality_gate.validate("twitter", twitter_text)
+        score = int(result.score)
+    except Exception:
+        return None
+    min_score = _config_int(config, "review.min_twitter_quality_score", 80)
+
+    if result.passed and score >= min_score:
+        return None
+
+    issues = [
+        f"{item.rule}: {item.detail}"
+        for item in result.items
+        if not item.passed and item.severity in {"error", "warning"}
+    ]
+    if not issues:
+        issues = [f"score {score} below minimum {min_score}"]
+    return f"twitter_quality_gate_failed score={score} min={min_score}; " + "; ".join(issues[:3])
 
 
 async def run_generate_review_stage(
@@ -98,6 +134,7 @@ async def run_generate_review_stage(
     components_loaded: list[str] = []
 
     if isinstance(drafts, dict):
+        quality_gate = None
         for qg_attempt in range(max_qg_retries + 1):
             try:
                 from pipeline.draft_quality_gate import DraftQualityGate
@@ -234,6 +271,18 @@ async def run_generate_review_stage(
             )
         except Exception as exc:
             logger.warning("[generate_review] DraftValidator unavailable: %s", exc)
+
+        if quality_gate is not None and "twitter" in (output_formats or ["twitter"]):
+            failure = _twitter_quality_failure(drafts, quality_gate, config)
+            if failure:
+                ctx.post_data["twitter_quality_failure"] = failure
+                ctx.result["error"] = "Twitter draft did not meet review quality gate"
+                ctx.result["error_code"] = ERROR_DRAFT_GENERATION_FAILED
+                ctx.result["failure_stage"] = "generation"
+                ctx.result["failure_reason"] = "twitter_quality_gate_failed"
+                logger.warning("[%s] %s: %s", ctx.trace_id, ctx.url, failure)
+                mark_stage(ctx, "generate_review", "failed", "twitter_quality_gate_failed")
+                return False
 
     ctx.result["components_loaded"] = components_loaded
     if components_loaded:

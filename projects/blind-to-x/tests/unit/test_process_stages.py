@@ -704,6 +704,73 @@ class TestGenerateReviewStage:
         assert result is True
         assert call_count["n"] == 1
 
+    def test_twitter_quality_gate_blocks_low_quality_review_candidate(self):
+        from pipeline.process_stages.generate_review_stage import run_generate_review_stage
+
+        ctx = self._ctx_ready()
+
+        mock_gen = MagicMock()
+        mock_gen.generate_drafts = AsyncMock(return_value=({"twitter": "too short", "_provider_used": "gemini"}, "p"))
+
+        failed_item = MagicMock()
+        failed_item.rule = "hook"
+        failed_item.detail = "weak opening"
+        failed_item.passed = False
+        failed_item.severity = "error"
+
+        low_quality = MagicMock()
+        low_quality.should_retry = False
+        low_quality.passed = False
+        low_quality.score = 40
+        low_quality.items = [failed_item]
+
+        mock_qg_instance = MagicMock()
+        mock_qg_instance.validate_all.return_value = {"twitter": low_quality}
+        mock_qg_instance.validate.return_value = low_quality
+        mock_qg_instance.format_summary.return_value = "FAIL"
+
+        config = MagicMock()
+        config.get.side_effect = lambda key, default=None: {
+            "review.require_twitter_quality_pass": True,
+            "review.min_twitter_quality_score": 80,
+        }.get(key, default)
+
+        with patch("pipeline.draft_quality_gate.DraftQualityGate", return_value=mock_qg_instance):
+            result = asyncio.run(run_generate_review_stage(ctx, mock_gen, MagicMock(), None, ["twitter"], config))
+
+        assert result is False
+        assert ctx.result["failure_reason"] == "twitter_quality_gate_failed"
+        assert "twitter_quality_gate_failed" in ctx.post_data["twitter_quality_failure"]
+
+    def test_twitter_quality_gate_can_be_disabled_for_manual_backfill(self):
+        from pipeline.process_stages.generate_review_stage import run_generate_review_stage
+
+        ctx = self._ctx_ready()
+
+        mock_gen = MagicMock()
+        mock_gen.generate_drafts = AsyncMock(return_value=({"twitter": "too short", "_provider_used": "gemini"}, "p"))
+
+        low_quality = MagicMock()
+        low_quality.should_retry = False
+        low_quality.passed = False
+        low_quality.score = 40
+        low_quality.items = []
+
+        mock_qg_instance = MagicMock()
+        mock_qg_instance.validate_all.return_value = {"twitter": low_quality}
+        mock_qg_instance.validate.return_value = low_quality
+        mock_qg_instance.format_summary.return_value = "FAIL"
+
+        config = MagicMock()
+        config.get.side_effect = lambda key, default=None: {
+            "review.require_twitter_quality_pass": False,
+        }.get(key, default)
+
+        with patch("pipeline.draft_quality_gate.DraftQualityGate", return_value=mock_qg_instance):
+            result = asyncio.run(run_generate_review_stage(ctx, mock_gen, MagicMock(), None, ["twitter"], config))
+
+        assert result is True
+
     def test_editorial_reviewer_exception_is_swallowed(self):
         from pipeline.process_stages.generate_review_stage import run_generate_review_stage
 
@@ -751,3 +818,65 @@ class TestGenerateReviewStage:
 
         assert result is True
         assert ctx.result.get("components_loaded") is not None
+
+
+class TestPersistStage:
+    """pipeline/process_stages/persist_stage.py"""
+
+    def _ctx_ready(self):
+        ctx = _ctx("https://example.com/community-post")
+        ctx.post_data = {
+            "title": "community title",
+            "content": "source content",
+            "source": "fmkorea",
+            "image_urls": ["https://source.example/original.jpg"],
+        }
+        ctx.profile = {
+            "topic_cluster": "work",
+            "emotion_axis": "empathy",
+            "final_rank_score": 88,
+        }
+        ctx.drafts = {"twitter": "source faithful draft", "_provider_used": "gemini"}
+        ctx.image_prompt = "generated image prompt"
+        ctx.decision = {"status": "review"}
+        return ctx
+
+    def test_community_original_image_is_used_before_ai_generation(self):
+        from pipeline.process_stages.persist_stage import run_persist_stage
+
+        ctx = self._ctx_ready()
+        image_generator = MagicMock()
+        image_generator.generate_image = AsyncMock(return_value="https://ai.example/generated.png")
+
+        notion_uploader = MagicMock()
+        notion_uploader.last_error_code = None
+        notion_uploader.upload = AsyncMock(return_value=("https://notion.example/page", "page-1"))
+        notion_uploader.update_page_properties = AsyncMock(return_value=True)
+
+        config = MagicMock()
+        config.get.side_effect = lambda key, default=None: {
+            "content_strategy.require_human_approval": True,
+            "image.generate_ai_for_review": True,
+            "image.generate_ai_for_blind": True,
+        }.get(key, default)
+
+        with (
+            patch("pipeline.process_stages.persist_stage.record_draft_event"),
+            patch("pipeline.process_stages.persist_stage.refresh_ml_scorer_if_needed"),
+        ):
+            result = asyncio.run(
+                run_persist_stage(
+                    ctx,
+                    image_uploader=MagicMock(),
+                    image_generator=image_generator,
+                    notion_uploader=notion_uploader,
+                    twitter_poster=None,
+                    config=config,
+                    review_only=True,
+                )
+            )
+
+        assert result is True
+        image_generator.generate_image.assert_not_called()
+        notion_uploader.upload.assert_awaited_once()
+        assert notion_uploader.upload.await_args.args[1] == "https://source.example/original.jpg"

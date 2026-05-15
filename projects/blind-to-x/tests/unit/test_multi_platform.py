@@ -236,9 +236,10 @@ class TestConfigMultiPlatform:
         with open(config_path, encoding="utf-8") as f:
             return yaml.safe_load(f)
 
-    def test_output_formats_include_threads(self, config_data):
-        """output_formats에 'threads'가 포함되어 있는지 검증."""
-        assert "threads" in config_data["output_formats"]
+    def test_output_formats_default_to_twitter_only(self, config_data):
+        """Default review generation stays X-first; secondary formats remain opt-in."""
+        assert config_data["output_formats"] == ["twitter"]
+        assert config_data.get("content_strategy", {}).get("support_channels") == []
 
     @pytest.mark.skip(reason="naver_blog output is currently disabled in config.yaml")
     def test_output_formats_include_naver_blog(self, config_data):

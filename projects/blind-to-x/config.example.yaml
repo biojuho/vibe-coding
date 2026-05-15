@@ -5,13 +5,11 @@ input_sources:
 
 output_formats:
   - "twitter"
-  - "newsletter"
 
 content_strategy:
   primary_source: "blind"
   primary_channel: "twitter"
-  support_channels:
-    - "newsletter"
+  support_channels: []
   require_human_approval: true
 
 llm:
@@ -67,6 +65,8 @@ review:
   auto_move_to_review_threshold: 60
   reject_on_missing_title: true
   reject_on_missing_content: true
+  require_twitter_quality_pass: true
+  min_twitter_quality_score: 80
 
 quality_gate:
   max_retries: 2
@@ -175,6 +175,8 @@ image:
   provider: "gemini"   # gemini (free) > pollinations (free) > dalle ($0.04/image)
   # 이미지 프롬프트 최소 단어 수 (미달 시 생성 스킵)
   min_prompt_words: 5
+  generate_ai_for_review: false
+  generate_ai_for_blind: false
 
 image_hosting:
   provider: "imgur"
