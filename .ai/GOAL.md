@@ -8,7 +8,7 @@
 - Goal: None
 - Owner: n/a
 - Started: n/a
-- Success: 2026-05-15 blind-to-x X-first review quality and source-faithful image policy completed. Focused tests passed: `50 passed, 1 skipped`; full unit runner passed: `1557 passed, 1 skipped`; targeted Ruff and project lint passed.
+- Success: 2026-05-15 blind-to-x X-first review quality and source-faithful image policy completed. Focused tests passed: `51 passed, 1 skipped`; full unit runner passed: `1557 passed, 1 skipped`; targeted Ruff and project lint passed.
 
 ## Notes
 
