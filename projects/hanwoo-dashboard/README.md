@@ -71,6 +71,10 @@ npm start
 
 Not installed here by default: Svelte, TanStack Query, RabbitMQ, Go, Rust, Flutter, or native mobile runtimes. Treat them as candidate-only technologies and document a migration/design note before adoption.
 
+### Backend API Contract
+
+The local API contract lives in [`API_SPEC.md`](./API_SPEC.md). API routes under `src/app/api/` should use the documented response envelope, validate request input before touching external providers, and require `requireAuthenticatedSession()` unless an endpoint is explicitly public.
+
 ### Scale-Hardening Infra
 
 ```bash
