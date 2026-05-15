@@ -327,3 +327,58 @@ def test_scheduler_and_report_helpers() -> None:
     )
     assert report["total"] == totals
     assert report["projects"]["root"]["status"] == "PASS"
+
+
+def test_parse_npm_count_handles_tap_and_spec_reporters() -> None:
+    tap = "# tests 75\n# pass 75\n# fail 0\n# skipped 0\n# duration_ms 1818.83\n"
+    spec = "ℹ tests 75\nℹ pass 73\nℹ fail 2\nℹ skipped 1\nℹ duration_ms 900.5\n"
+
+    assert qaqc_runner._parse_npm_count(tap, "pass") == 75
+    assert qaqc_runner._parse_npm_count(tap, "fail") == 0
+    assert qaqc_runner._parse_npm_count(spec, "pass") == 73
+    assert qaqc_runner._parse_npm_count(spec, "fail") == 2
+    assert qaqc_runner._parse_npm_count(spec, "skipped") == 1
+    # A test title containing the keyword must not be miscounted.
+    assert qaqc_runner._parse_npm_count("ok 1 - pass the payload through\n", "pass") == 0
+
+
+def test_npm_result_from_output_maps_status_and_duration() -> None:
+    passing = "# pass 75\n# fail 0\n# skipped 0\n# duration_ms 2000\n"
+    result = qaqc_runner._npm_result_from_output(passing, returncode=0)
+    assert result == {
+        "passed": 75,
+        "failed": 0,
+        "skipped": 0,
+        "errors": 0,
+        "status": "PASS",
+        "duration_sec": 2.0,
+    }
+
+    failing = "# pass 70\n# fail 5\n# skipped 0\n"
+    failed = qaqc_runner._npm_result_from_output(failing, returncode=1)
+    assert failed["status"] == "FAIL"
+    assert failed["failed"] == 5
+
+
+def test_run_npm_test_skips_when_package_json_missing(tmp_path) -> None:
+    result = qaqc_runner.run_npm_test("hanwoo-dashboard", {"cwd": tmp_path})
+    assert result["status"] == "SKIP"
+
+
+def test_run_npm_test_parses_subprocess_output(tmp_path, monkeypatch) -> None:
+    (tmp_path / "package.json").write_text("{}", encoding="utf-8")
+    calls: dict[str, object] = {}
+
+    def fake_run(cmd, **kwargs):
+        calls["cmd"] = cmd
+        calls["cwd"] = kwargs["cwd"]
+        return SimpleNamespace(stdout="# pass 75\n# fail 0\n# skipped 0\n", stderr="", returncode=0)
+
+    monkeypatch.setattr(qaqc_runner.subprocess, "run", fake_run)
+
+    result = qaqc_runner.run_npm_test("hanwoo-dashboard", {"cwd": tmp_path, "timeout": 600})
+
+    assert result["status"] == "PASS"
+    assert result["passed"] == 75
+    assert calls["cmd"][1:] == ["test"]
+    assert calls["cwd"] == str(tmp_path)

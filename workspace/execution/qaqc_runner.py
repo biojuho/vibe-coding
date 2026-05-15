@@ -43,6 +43,7 @@ if not VENV_PYTHON.exists():
 BLIND_TO_X_DIR = resolve_project_dir("blind-to-x", required_paths=("tests",))
 SHORTS_DIR = resolve_project_dir("shorts-maker-v2", required_paths=("tests",))
 KNOWLEDGE_DIR = resolve_project_dir("knowledge-dashboard", required_paths=("public",))
+HANWOO_DIR = resolve_project_dir("hanwoo-dashboard", required_paths=("package.json",))
 
 PROJECTS = {
     "blind-to-x": {
@@ -80,6 +81,11 @@ PROJECTS = {
         ],
         "cwd": WORKSPACE_DIR,
         "timeout": 300,
+    },
+    "hanwoo-dashboard": {
+        "runner": "npm",
+        "cwd": HANWOO_DIR,
+        "timeout": 600,
     },
 }
 
@@ -273,6 +279,59 @@ def _pytest_timeout_result(timeout: int) -> dict:
 
 def _pytest_error_result(message: str) -> dict:
     return {"passed": 0, "failed": 0, "skipped": 0, "errors": 1, "status": "ERROR", "message": message}
+
+
+def run_npm_test(project_name: str, project_config: dict) -> dict:
+    """Run the Node test suite for an npm-based project (e.g. hanwoo-dashboard)."""
+    cwd = project_config["cwd"]
+    timeout = project_config.get("timeout", 600)
+    if not (cwd / "package.json").exists():
+        return _pytest_skip_result(f"package.json not found: {cwd}")
+
+    npm = shutil.which("npm") or shutil.which("npm.cmd") or "npm"
+    try:
+        result = subprocess.run(
+            [npm, "test"],
+            cwd=str(cwd),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+        )
+        output = result.stdout + result.stderr
+        return _npm_result_from_output(output, returncode=result.returncode)
+    except subprocess.TimeoutExpired:
+        return _pytest_timeout_result(timeout)
+    except Exception as exc:  # noqa: BLE001 - surface launcher failures as ERROR status
+        return _pytest_error_result(str(exc))
+
+
+def _npm_result_from_output(output: str, *, returncode: int) -> dict:
+    """Parse the node:test summary block (tap or spec reporter) into a result dict."""
+    passed = _parse_npm_count(output, "pass")
+    failed = _parse_npm_count(output, "fail")
+    skipped = _parse_npm_count(output, "skipped")
+    return {
+        "passed": passed,
+        "failed": failed,
+        "skipped": skipped,
+        "errors": 0,
+        "status": _pytest_status(returncode=returncode, passed=passed, failed=failed, errors=0),
+        "duration_sec": _parse_npm_duration(output),
+    }
+
+
+def _parse_npm_count(output: str, keyword: str) -> int:
+    # node:test summary lines look like "# pass 75" (tap) or "ℹ pass 75" (spec).
+    # Anchor on the known summary prefixes so test titles containing the keyword are ignored.
+    match = re.search(rf"(?m)^[#ℹ\s]*{keyword}\s+(\d+)\s*$", output)
+    return int(match.group(1)) if match else 0
+
+
+def _parse_npm_duration(output: str) -> float:
+    match = re.search(r"duration_ms\s+([\d.]+)", output)
+    return round(float(match.group(1)) / 1000, 2) if match else 0.0
 
 
 def _pytest_command_paths(existing_paths: list[Path], cwd: Path, *, relative_to_cwd: bool) -> list[str]:
@@ -676,8 +735,13 @@ def _run_project_checks(projects_to_run: list[str]) -> dict:
             print(f"[WARN] Unknown project: {name}")
             continue
 
-        print(f"\n[TEST] Running pytest for {name}...")
-        result = run_pytest(name, PROJECTS[name])
+        config = PROJECTS[name]
+        if config.get("runner") == "npm":
+            print(f"\n[TEST] Running npm test for {name}...")
+            result = run_npm_test(name, config)
+        else:
+            print(f"\n[TEST] Running pytest for {name}...")
+            result = run_pytest(name, config)
         project_results[name] = result
         print(
             f"   [{result['status']}] {result['passed']} passed, {result['failed']} failed, {result['skipped']} skipped"

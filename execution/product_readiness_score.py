@@ -331,7 +331,8 @@ def build_report(
     now: datetime | None = None,
 ) -> dict[str, Any]:
     repo_root = repo_root.resolve()
-    qaqc_path = qaqc_path or repo_root / "projects" / "knowledge-dashboard" / "data" / "qaqc_result.json"
+    # qaqc_runner.py writes the canonical (git-tracked) artifact to public/; data/ is a gitignored orphan.
+    qaqc_path = qaqc_path or repo_root / "projects" / "knowledge-dashboard" / "public" / "qaqc_result.json"
     now = now or datetime.now(timezone.utc)
     generated_at = now.astimezone().isoformat()
     qaqc_data = _read_json(qaqc_path)

@@ -14,7 +14,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = PROJECT_ROOT / "data"
 OUTPUT_FILE = DATA_DIR / "dashboard_data.json"
-QAQC_FILE = DATA_DIR / "qaqc_result.json"
+# qaqc_runner.py writes the canonical artifact to public/; data/qaqc_result.json is a gitignored orphan.
+QAQC_FILE = PROJECT_ROOT / "public" / "qaqc_result.json"
 READINESS_FILE = DATA_DIR / "product_readiness.json"
 SKILL_LINT_FILE = DATA_DIR / "skill_lint.json"
 SESSION_LOG_PATH = REPO_ROOT / ".ai" / "SESSION_LOG.md"
