@@ -400,6 +400,8 @@ class TesterWorker:
         task_id = task.get("id", "unknown")
         code = task.get("code", "")
         tmp_path: str | None = None
+        stdout_path: str | None = None
+        stderr_path: str | None = None
 
         if not code.strip():
             return WorkerResult(
@@ -422,20 +424,38 @@ class TesterWorker:
                 handle.write(clean_code)
                 tmp_path = handle.name
 
+            with tempfile.NamedTemporaryFile(delete=False) as stdout_handle:
+                stdout_path = stdout_handle.name
+            with tempfile.NamedTemporaryFile(delete=False) as stderr_handle:
+                stderr_path = stderr_handle.name
+
             child_env = os.environ.copy()
             child_env.setdefault("PYTHONUTF8", "1")
-            proc = subprocess.run(
-                [sys.executable, "-X", "utf8", tmp_path],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=self.TIMEOUT_SEC,
-                cwd=str(WORKSPACE_ROOT),
-                env=child_env,
-            )
+            with (
+                open(os.devnull, "rb") as stdin_handle,
+                open(stdout_path, "wb") as stdout_handle,
+                open(stderr_path, "wb") as stderr_handle,
+            ):
+                proc = subprocess.run(
+                    [sys.executable, "-X", "utf8", tmp_path],
+                    stdin=stdin_handle,
+                    stdout=stdout_handle,
+                    stderr=stderr_handle,
+                    timeout=self.TIMEOUT_SEC,
+                    cwd=str(WORKSPACE_ROOT),
+                    env=child_env,
+                )
 
-            Path(tmp_path).unlink(missing_ok=True)
+            stdout_text = getattr(proc, "stdout", None)
+            stderr_text = getattr(proc, "stderr", None)
+            if stdout_text is None:
+                stdout_text = Path(stdout_path).read_text(encoding="utf-8", errors="replace")
+            if stderr_text is None:
+                stderr_text = Path(stderr_path).read_text(encoding="utf-8", errors="replace")
+
+            _safe_unlink(tmp_path)
+            _safe_unlink(stdout_path)
+            _safe_unlink(stderr_path)
 
             if proc.returncode == 0:
                 logger.info("[TesterWorker] Execution passed (task=%s)", task_id)
@@ -443,7 +463,7 @@ class TesterWorker:
                     worker_type="tester",
                     task_id=task_id,
                     status="success",
-                    content=proc.stdout[:2000] if proc.stdout else "(no output)",
+                    content=stdout_text[:2000] if stdout_text else "(no output)",
                     confidence=0.9,
                     metadata={"returncode": 0},
                 )
@@ -453,14 +473,15 @@ class TesterWorker:
                 worker_type="tester",
                 task_id=task_id,
                 status="needs_revision",
-                content=f"STDERR:\n{proc.stderr[:2000]}",
+                content=f"STDERR:\n{stderr_text[:2000]}",
                 confidence=0.2,
                 metadata={"returncode": proc.returncode},
             )
 
         except subprocess.TimeoutExpired:
-            if tmp_path:
-                Path(tmp_path).unlink(missing_ok=True)
+            _safe_unlink(tmp_path)
+            _safe_unlink(stdout_path)
+            _safe_unlink(stderr_path)
             return WorkerResult(
                 worker_type="tester",
                 task_id=task_id,
@@ -469,8 +490,9 @@ class TesterWorker:
                 confidence=0.0,
             )
         except Exception as exc:
-            if tmp_path:
-                Path(tmp_path).unlink(missing_ok=True)
+            _safe_unlink(tmp_path)
+            _safe_unlink(stdout_path)
+            _safe_unlink(stderr_path)
             return WorkerResult(
                 worker_type="tester",
                 task_id=task_id,
@@ -486,6 +508,15 @@ class TesterWorker:
         if matches:
             return "\n\n".join(matches)
         return text
+
+
+def _safe_unlink(path: str | None) -> None:
+    if not path:
+        return
+    try:
+        Path(path).unlink(missing_ok=True)
+    except PermissionError:
+        logger.debug("Temp file still locked during cleanup: %s", path)
 
 
 class ReviewerWorker:

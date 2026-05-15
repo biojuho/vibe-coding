@@ -60,11 +60,24 @@ def spin_up_nextjs_server(app_dir: str, port: str, env_vars: dict):
     merged_env = os.environ.copy()
     merged_env.update(env_vars)
 
+    log_dir = ROOT / ".tmp" / "frontend-smoke"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    stdout_path = log_dir / f"{app_dir}-{port}.stdout.log"
+    stderr_path = log_dir / f"{app_dir}-{port}.stderr.log"
+    stdin_handle = open(os.devnull, "rb")
+    stdout_handle = stdout_path.open("wb")
+    stderr_handle = stderr_path.open("wb")
+
+    command = [npx_cmd, "next", "dev", "-p", port]
+    if app_dir == "hanwoo-dashboard":
+        command.append("--webpack")
+
     process = subprocess.Popen(
-        [npx_cmd, "next", "dev", "-p", port],
+        command,
         cwd=str(cwd),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stdin=stdin_handle,
+        stdout=stdout_handle,
+        stderr=stderr_handle,
         env=merged_env,
         creationflags=creationflags,
     )
@@ -75,10 +88,15 @@ def spin_up_nextjs_server(app_dir: str, port: str, env_vars: dict):
 
     while time.time() - start_time < 70:
         if process.poll() is not None:
-            out, err = process.communicate()
-            msg_out = out.decode("utf-8", "replace")
-            msg_err = err.decode("utf-8", "replace")
-            pytest.fail(f"server crashed with exit code {process.returncode}.\nSTDOUT: {msg_out}\nSTDERR: {msg_err}")
+            stdin_handle.close()
+            stdout_handle.close()
+            stderr_handle.close()
+            msg_out = stdout_path.read_text(encoding="utf-8", errors="replace")
+            msg_err = stderr_path.read_text(encoding="utf-8", errors="replace")
+            pytest.fail(
+                f"server crashed with exit code {process.returncode}.\n"
+                f"STDOUT: {msg_out[-2000:]}\nSTDERR: {msg_err[-2000:]}"
+            )
 
         try:
             # Login/Root 등 정적 렌더링 경로를 대상으로 폴링 (DB 의존성 제거)
@@ -97,6 +115,9 @@ def spin_up_nextjs_server(app_dir: str, port: str, env_vars: dict):
 
     if not ready:
         _kill_process_group(process)
+        stdin_handle.close()
+        stdout_handle.close()
+        stderr_handle.close()
         pytest.fail(f"{app_dir} dev server failed to start in 70 seconds.")
 
     try:

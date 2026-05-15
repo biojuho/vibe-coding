@@ -23,8 +23,13 @@ def pytest_collection_modifyitems(items):
     """scheduler_engine 테스트에 no-capture 마커 자동 적용 (Windows 한정)."""
     if sys.platform != "win32":
         return
+    no_capture_files = (
+        "test_scheduler_engine",
+        "test_frontends",
+        "test_graph_engine",
+    )
     for item in items:
-        if "test_scheduler_engine" in str(item.fspath):
+        if any(name in str(item.fspath) for name in no_capture_files):
             item.add_marker(pytest.mark.usefixtures("_disable_capture"))
 
 
