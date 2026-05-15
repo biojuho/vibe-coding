@@ -438,3 +438,7 @@
 - T-300 is complete.
 - T-251 remains user-owned: reset/resync the Supabase database password in the dashboard, update `projects/hanwoo-dashboard/.env` if needed, then rerun the live Prisma E2E.
 - Existing unrelated WIP was preserved, including `projects/blind-to-x/pipeline/notion/_upload.py` and other tool edits under `workspace/conftest.py` / frontend test files.
+
+### Goal Closeout
+- Thread goal `개선이 필요한 프로젝트 찾 다 개선해` was marked complete after local safe work was exhausted.
+- `.ai/GOAL.md` remains inactive and now records the T-300/root QA/QC completion state instead of the older skill-health success.

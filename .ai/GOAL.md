@@ -8,7 +8,7 @@
 - Goal: None.
 - Owner: None.
 - Started: None.
-- Success: Completed 2026-05-15 by Codex. Skill health is `pass`, score `100`, with 42 healthy / 42 active skills and 0 warnings. Feature commits: `65cbe47` + `bcfa2e5`.
+- Success: Completed 2026-05-15 by Codex. Broad local improvement pass closed with root QA/QC stabilized in `846cf5a`: T-300 DONE, root `qaqc_runner` `APPROVED` with 1525 passed / 1 skipped. Remaining T-251 is user-owned Supabase password reset/live Prisma verification.
 
 ## Notes
 
