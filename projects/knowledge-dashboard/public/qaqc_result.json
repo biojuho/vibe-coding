@@ -1,75 +1,83 @@
 {
-  "timestamp": "2026-04-04T07:53:09",
-  "verdict": "APPROVED",
-  "elapsed_sec": 1056.5,
+  "timestamp": "2026-05-15T10:47:42",
+  "verdict": "CONDITIONALLY_APPROVED",
+  "elapsed_sec": 680.9,
   "projects": {
     "blind-to-x": {
-      "passed": 996,
+      "passed": 1610,
       "failed": 0,
-      "skipped": 9,
+      "skipped": 12,
       "errors": 0,
-      "duration_sec": 375.81,
+      "duration_sec": 237.96,
       "status": "PASS",
       "runs": [
         {
-          "passed": 933,
+          "passed": 1546,
           "failed": 0,
-          "skipped": 8,
+          "skipped": 12,
           "errors": 0,
           "status": "PASS",
-          "duration_sec": 353.41
+          "duration_sec": 218.22
         },
         {
-          "passed": 63,
+          "passed": 64,
           "failed": 0,
-          "skipped": 1,
+          "skipped": 0,
           "errors": 0,
           "status": "PASS",
-          "duration_sec": 22.4
+          "duration_sec": 19.74
         }
       ],
       "message": "Ignored known env-specific curl_cffi CA Error 77 reproducer"
     },
     "shorts-maker-v2": {
-      "passed": 1282,
+      "passed": 1429,
       "failed": 0,
       "skipped": 0,
       "errors": 0,
-      "duration_sec": 536.03,
+      "duration_sec": 289.78,
       "status": "PASS"
     },
     "root": {
-      "passed": 1235,
+      "passed": 1452,
       "failed": 0,
       "skipped": 1,
-      "errors": 0,
-      "duration_sec": 108.24,
-      "status": "PASS",
+      "errors": 1,
+      "duration_sec": 123.82,
+      "status": "FAIL",
       "runs": [
         {
-          "passed": 1210,
+          "passed": 1452,
           "failed": 0,
           "skipped": 1,
           "errors": 0,
           "status": "PASS",
-          "duration_sec": 107.33
+          "duration_sec": 123.51
         },
         {
-          "passed": 25,
+          "passed": 0,
           "failed": 0,
           "skipped": 0,
-          "errors": 0,
-          "status": "PASS",
-          "duration_sec": 0.91
+          "errors": 1,
+          "status": "FAIL",
+          "duration_sec": 0.31
         }
       ]
+    },
+    "hanwoo-dashboard": {
+      "passed": 75,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "status": "PASS",
+      "duration_sec": 0.49
     }
   },
   "total": {
-    "passed": 3513,
+    "passed": 4566,
     "failed": 0,
-    "errors": 0,
-    "skipped": 10,
+    "errors": 1,
+    "skipped": 13,
     "timeout": []
   },
   "ast_check": {
@@ -78,9 +86,16 @@
     "failures": []
   },
   "security_scan": {
-    "status": "CLEAR",
-    "status_detail": "CLEAR (2 triaged issue(s))",
-    "issues": [],
+    "status": "WARNING",
+    "status_detail": "WARNING (1 actionable issue(s))",
+    "issues": [
+      {
+        "file": "execution\\workspace_db_audit.py",
+        "pattern": "Potential SQL injection via f-string",
+        "match_preview": "f\"CREATE INDEX IF NOT EXISTS {self.name} ON {self.table}{self.columns}",
+        "actionable": true
+      }
+    ],
     "triaged_issues": [
       {
         "file": "projects\\blind-to-x\\pipeline\\cost_db.py",
@@ -103,8 +118,8 @@
         }
       }
     ],
-    "raw_issue_count": 2,
-    "actionable_issue_count": 0,
+    "raw_issue_count": 3,
+    "actionable_issue_count": 1,
     "triaged_issue_count": 2
   },
   "governance_scan": {
@@ -116,7 +131,7 @@
         "category": "governance",
         "status": "ok",
         "detail": "All 7 required AI context files are present",
-        "checked_at": "2026-04-04T08:10:38",
+        "checked_at": "2026-05-15T10:59:03",
         "count": 7
       },
       {
@@ -124,32 +139,29 @@
         "category": "governance",
         "status": "ok",
         "detail": "No targeted relay claims found in HANDOFF.md",
-        "checked_at": "2026-04-04T08:10:38",
+        "checked_at": "2026-05-15T10:59:03",
         "checked_claims": []
       },
       {
         "name": "directive_mapping",
         "category": "governance",
         "status": "ok",
-        "detail": "Checked 31 SOP mappings, 15 unmapped scripts; no mapping drift detected",
-        "checked_at": "2026-04-04T08:10:38",
+        "detail": "Checked 34 SOP mappings, 24 unmapped scripts; no mapping drift detected",
+        "checked_at": "2026-05-15T10:59:03",
         "issues": [],
-        "sop_count": 31,
-        "unmapped_count": 15,
-        "actual_script_count": 63,
-        "actual_sop_count": 31
+        "sop_count": 34,
+        "unmapped_count": 24,
+        "actual_script_count": 72,
+        "actual_sop_count": 34
       },
       {
         "name": "task_backlog_alignment",
         "category": "governance",
         "status": "ok",
-        "detail": "All 1 tracked follow-up(s) are linked to active task(s): T-100",
-        "checked_at": "2026-04-04T08:10:38",
-        "open_followup_count": 1,
-        "active_task_count": 6,
-        "linked_task_ids": [
-          "T-100"
-        ]
+        "detail": "No unchecked follow-ups found in tracked planning directives",
+        "checked_at": "2026-05-15T10:59:03",
+        "open_followup_count": 0,
+        "active_task_count": 0
       }
     ],
     "flagged_checks": [],
@@ -160,41 +172,6 @@
     },
     "total": 4
   },
-  "debt_audit": {
-    "overall_tdr": 38.81,
-    "overall_grade": "RED",
-    "total_files": 483,
-    "total_principal_hours": 323.4,
-    "total_interest_monthly_hours": 80.8,
-    "projects": [
-      {
-        "name": "workspace",
-        "tdr_percent": 30.42,
-        "tdr_grade": "RED",
-        "avg_score": 21.1
-      },
-      {
-        "name": "blind-to-x",
-        "tdr_percent": 45.89,
-        "tdr_grade": "RED",
-        "avg_score": 19.5
-      },
-      {
-        "name": "shorts-maker-v2",
-        "tdr_percent": 37.96,
-        "tdr_grade": "RED",
-        "avg_score": 20.2
-      }
-    ]
-  },
-  "infrastructure": {
-    "docker": false,
-    "docker_containers": [],
-    "ollama": true,
-    "scheduler": {
-      "ready": 6,
-      "total": 6
-    },
-    "disk_gb_free": 139.7
-  }
+  "debt_audit": {},
+  "infrastructure": {}
 }
