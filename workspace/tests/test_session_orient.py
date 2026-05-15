@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import sys
 from datetime import date
 from pathlib import Path
@@ -263,6 +264,30 @@ def test_render_text_includes_active_goal():
         }
     )
     assert "GOAL: active (Codex) - Keep focus." in text
+
+
+def test_main_json_survives_cp949_stdout(monkeypatch, tmp_path):
+    snapshot = {
+        "repo_root": str(tmp_path),
+        "git": {"available": False, "reason": "unicode — reason"},
+        "pull_requests": {"available": False, "reason": "x"},
+        "handoff": {"available": False, "reason": "x"},
+        "tasks": {"available": True, "todo": 0, "in_progress": 0},
+        "goal": {"available": True, "active": False, "status": "inactive"},
+        "workspace_db": {"available": False, "reason": "x"},
+        "graph": {"available": False, "reason": "x"},
+        "ci": {"available": False, "reason": "x"},
+    }
+    monkeypatch.setattr(orient, "collect_snapshot", lambda _repo_root: snapshot)
+
+    buffer = io.BytesIO()
+    cp949_stdout = io.TextIOWrapper(buffer, encoding="cp949")
+    monkeypatch.setattr(sys, "stdout", cp949_stdout)
+
+    assert orient.main(["--repo-root", str(tmp_path), "--json"]) == 0
+    cp949_stdout.flush()
+
+    assert "\\u2014" in buffer.getvalue().decode("cp949")
 
 
 # ----- git_snapshot (uses real git but tmp_path has no .git) ----------------

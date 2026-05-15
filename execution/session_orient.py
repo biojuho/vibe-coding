@@ -27,6 +27,7 @@ import json
 import re
 import shutil
 import subprocess
+import sys
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -458,6 +459,15 @@ def render_text(snap: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _safe_print(text: str) -> None:
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        encoding = sys.stdout.encoding or "utf-8"
+        safe_text = text.encode(encoding, errors="replace").decode(encoding, errors="replace")
+        print(safe_text)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Multi-tool session orientation snapshot for parallel AI workflows.",
@@ -471,9 +481,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     snap = collect_snapshot(args.repo_root)
     if args.json:
-        print(json.dumps(snap, ensure_ascii=False))
+        _safe_print(json.dumps(snap, ensure_ascii=True))
     else:
-        print(render_text(snap))
+        _safe_print(render_text(snap))
     return 0
 
 
