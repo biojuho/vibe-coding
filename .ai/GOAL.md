@@ -8,7 +8,7 @@
 - Goal: None
 - Owner: n/a
 - Started: n/a
-- Success: T-288 completed 2026-05-13: shorts-maker-v2 gained `project.qc_strictness` (strict/lenient/off) and `project.scene_qc_max_retries` config. T-287 completed same session: `claude-goal/` added to `.gitignore` and `.ai/GOAL.md` activation sync verified via `session_orient`. `project_qc_runner.py --project shorts-maker-v2 --json` passed (test 126.9s + lint).
+- Success: 2026-05-15 safe local context cleanup completed: `execution/handoff_rotator.py --json` archived 15 stale HANDOFF addenda to `.ai/archive/HANDOFF_archive_2026-05-15.md`; `--check --json` now returns noop; `session_orient.py --json` verified shared orientation state.
 
 ## Notes
 
