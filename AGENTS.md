@@ -119,6 +119,11 @@
 프로젝트 규모의 코딩 요청을 받을 때는 `.agents/rules/vibe-coding-assistant.md`의 규칙을 반드시 따르십시오.
 핵심: 프로젝트 감지 → 사용자 레벨 파악 → 기능 분할 → 로드맵 확인 → 스텝별 실행 → 이어하기 문서 생성.
 
+## AI 상호작용 및 요약 가이드라인 (AI Interaction Guidelines)
+
+대화 타이틀 생성, 프로젝트 목표 요약, 행동 지향적인 응답(Action-Oriented)과 관련하여서는 `.agents/rules/ai-interaction-guidelines.md`의 규칙을 반드시 따르십시오. 
+미래의 모든 응답은 불필요한 사족을 빼고, 정확하고, 현재 태스크 맥락에 엄격하게 기반을 두어야 합니다.
+
 ## 컨텍스트 계층 (Context Hierarchy)
 
 이 파일은 전역 지침입니다. 프로젝트별 추가 지침은 각 프로젝트 디렉터리의 `CLAUDE.md`를 참조합니다.
