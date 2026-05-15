@@ -27,6 +27,7 @@ from shorts_maker_v2.models import (
     JobManifest,
     SceneAsset,
     ScenePlan,
+    SemanticQCResult,
 )
 from shorts_maker_v2.pipeline.error_types import PipelineErrorType
 from shorts_maker_v2.pipeline.orchestrator import (
@@ -979,3 +980,109 @@ class TestAggregateSceneQCSummary:
         assert summary["verdict"] == "degraded"
         assert summary["unresolved"][0]["scene_id"] is None
         assert summary["unresolved"][0]["retry_count"] == 0
+
+
+# ── SemanticQCStep orchestrator integration ─────────────────────────────────
+
+
+class TestSemanticQCIntegration:
+    """SemanticQCStep wiring inside PipelineOrchestrator.run().
+
+    Covers the opt-in semantic_qc block: default-disabled skip, pass populates
+    manifest, degraded adds a non-blocking degraded_steps entry with weak
+    transitions, error swallows silently, and exceptions never crash the run.
+    """
+
+    def _make_orchestrator(self, tmp_path: Path):
+        cfg = _load_cfg(tmp_path)
+        _set_frozen_attr(cfg.project, "structure_validation", "off")
+        orch = PipelineOrchestrator(
+            config=cfg,
+            base_dir=tmp_path,
+            script_step=StubScript(),
+            media_step=StubMedia(),
+            render_step=StubRender(),
+        )
+        return cfg, orch
+
+    def test_disabled_skips_semantic_qc_block(self, tmp_path: Path):
+        cfg, orch = self._make_orchestrator(tmp_path)
+        assert cfg.project.semantic_qc_enabled is False
+        with patch("shorts_maker_v2.pipeline.orchestrator.SemanticQCStep") as semantic_cls:
+            manifest = orch.run(topic="off path")
+        semantic_cls.assert_not_called()
+        assert manifest.semantic_qc is None
+        assert "semantic_qc" not in manifest.step_timings
+        assert not any(d.get("step") == "semantic_qc" for d in manifest.degraded_steps)
+
+    def test_enabled_pass_populates_manifest_and_records_timing(self, tmp_path: Path):
+        cfg, orch = self._make_orchestrator(tmp_path)
+        _set_frozen_attr(cfg.project, "semantic_qc_enabled", True)
+        _set_frozen_attr(cfg.project, "semantic_qc_min_score", 6)
+        fake_result = SemanticQCResult(
+            scene_flow_score=8,
+            tone_consistency_score=7,
+            overall_score=8,
+            verdict="pass",
+            feedback="cohesive",
+        )
+        with patch("shorts_maker_v2.pipeline.orchestrator.SemanticQCStep") as semantic_cls:
+            semantic_cls.return_value.run.return_value = fake_result
+            manifest = orch.run(topic="pass path")
+        semantic_cls.assert_called_once()
+        _, kwargs = semantic_cls.call_args
+        assert kwargs["min_score"] == 6
+        assert manifest.semantic_qc is not None
+        assert manifest.semantic_qc["verdict"] == "pass"
+        assert manifest.semantic_qc["scene_flow_score"] == 8
+        assert not any(d.get("step") == "semantic_qc" for d in manifest.degraded_steps)
+        assert "semantic_qc" in manifest.step_timings
+
+    def test_enabled_degraded_adds_non_blocking_step_with_weak_transitions(self, tmp_path: Path):
+        cfg, orch = self._make_orchestrator(tmp_path)
+        _set_frozen_attr(cfg.project, "semantic_qc_enabled", True)
+        _set_frozen_attr(cfg.project, "semantic_qc_min_score", 7)
+        weak = [{"from": 1, "to": 2, "reason": "abrupt tone shift"}]
+        fake_result = SemanticQCResult(
+            scene_flow_score=4,
+            tone_consistency_score=3,
+            overall_score=3,
+            weak_transitions=weak,
+            verdict="degraded",
+            feedback="flow weak",
+        )
+        with patch("shorts_maker_v2.pipeline.orchestrator.SemanticQCStep") as semantic_cls:
+            semantic_cls.return_value.run.return_value = fake_result
+            manifest = orch.run(topic="degraded path")
+        assert manifest.semantic_qc["verdict"] == "degraded"
+        matches = [d for d in manifest.degraded_steps if d.get("step") == "semantic_qc"]
+        assert len(matches) == 1
+        entry = matches[0]
+        assert entry["error_type"] == "semantic_below_threshold"
+        assert entry["is_retryable"] is False
+        assert entry["blocking"] is False
+        assert entry["weak_transitions"] == weak
+        assert "min=7" in entry["message"]
+        assert "flow=4" in entry["message"]
+        assert "tone=3" in entry["message"]
+
+    def test_enabled_error_verdict_records_manifest_but_no_degraded_step(self, tmp_path: Path):
+        cfg, orch = self._make_orchestrator(tmp_path)
+        _set_frozen_attr(cfg.project, "semantic_qc_enabled", True)
+        fake_result = SemanticQCResult(verdict="error", feedback="LLM returned non-dict")
+        with patch("shorts_maker_v2.pipeline.orchestrator.SemanticQCStep") as semantic_cls:
+            semantic_cls.return_value.run.return_value = fake_result
+            manifest = orch.run(topic="error path")
+        assert manifest.semantic_qc["verdict"] == "error"
+        assert not any(d.get("step") == "semantic_qc" for d in manifest.degraded_steps)
+        assert "semantic_qc" in manifest.step_timings
+
+    def test_enabled_run_exception_is_swallowed(self, tmp_path: Path):
+        cfg, orch = self._make_orchestrator(tmp_path)
+        _set_frozen_attr(cfg.project, "semantic_qc_enabled", True)
+        with patch("shorts_maker_v2.pipeline.orchestrator.SemanticQCStep") as semantic_cls:
+            semantic_cls.return_value.run.side_effect = RuntimeError("LLM died")
+            manifest = orch.run(topic="exception path")
+        assert manifest.semantic_qc is None
+        assert not any(d.get("step") == "semantic_qc" for d in manifest.degraded_steps)
+        assert "semantic_qc" in manifest.step_timings
