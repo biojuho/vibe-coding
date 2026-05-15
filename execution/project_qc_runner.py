@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -165,6 +166,21 @@ def resolve_command(command: tuple[str, ...]) -> tuple[str, ...]:
     return command
 
 
+def _is_pytest_command(command: tuple[str, ...]) -> bool:
+    return len(command) >= 3 and command[1:3] == ("-m", "pytest")
+
+
+def build_subprocess_env(item: PlanItem) -> dict[str, str]:
+    env = os.environ.copy()
+    if _is_pytest_command(item.check.command):
+        temp_dir = REPO_ROOT / ".tmp" / "project-qc-temp" / item.project
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        env["TMP"] = str(temp_dir)
+        env["TEMP"] = str(temp_dir)
+        env.setdefault("PYTHONUTF8", "1")
+    return env
+
+
 def tail_text(text: str | None, limit: int = OUTPUT_TAIL_CHARS) -> str:
     if not text:
         return ""
@@ -193,6 +209,7 @@ def run_item(item: PlanItem, timeout_seconds: int) -> dict[str, object]:
         completed = subprocess.run(
             resolved_command,
             cwd=item.cwd,
+            env=build_subprocess_env(item),
             capture_output=True,
             text=True,
             encoding="utf-8",

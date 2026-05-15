@@ -64,6 +64,24 @@ def test_run_plan_reports_subprocess_failures(monkeypatch) -> None:
     assert results[0]["stdout_tail"] == "failed stdout"
 
 
+def test_pytest_checks_use_repo_local_temp(monkeypatch) -> None:
+    plan = MODULE.build_plan(["blind-to-x"], ["test"])
+    captured: dict[str, object] = {}
+
+    def fake_run(*args, **kwargs):
+        captured["env"] = kwargs["env"]
+        return MODULE.subprocess.CompletedProcess(args[0], 0, stdout="ok", stderr="")
+
+    monkeypatch.setattr(MODULE.subprocess, "run", fake_run)
+
+    results = MODULE.run_plan(plan, timeout_seconds=5, stop_on_failure=False)
+
+    env = captured["env"]
+    assert results[0]["status"] == "passed"
+    assert env["TMP"].endswith(str(Path(".tmp") / "project-qc-temp" / "blind-to-x"))
+    assert env["TEMP"] == env["TMP"]
+
+
 def test_run_plan_reports_missing_executable(monkeypatch) -> None:
     plan = MODULE.build_plan(["knowledge-dashboard"], ["test"])
 

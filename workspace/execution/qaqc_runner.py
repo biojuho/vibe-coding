@@ -88,6 +88,11 @@ PROJECTS = {
         "cwd": HANWOO_DIR,
         "timeout": 600,
     },
+    "knowledge-dashboard": {
+        "runner": "npm",
+        "cwd": KNOWLEDGE_DIR,
+        "timeout": 600,
+    },
 }
 
 CORE_MODULES = [
@@ -887,8 +892,37 @@ def _build_report(
     }
 
 
-def _save_report(report: dict, output_file: str | None) -> Path:
+def _merge_existing_projects_for_targeted_run(report: dict, out_path: Path, target_projects: list[str] | None) -> dict:
+    if not target_projects or set(target_projects) == set(PROJECTS):
+        return report
+    if not out_path.exists():
+        return report
+
+    try:
+        existing = json.loads(out_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return report
+
+    existing_projects = existing.get("projects")
+    current_projects = report.get("projects")
+    if not isinstance(existing_projects, dict) or not isinstance(current_projects, dict):
+        return report
+
+    merged_projects = {**existing_projects, **current_projects}
+    merged = {**report, "projects": merged_projects, "total": _project_totals(merged_projects)}
+    merged["verdict"] = determine_verdict(
+        merged_projects,
+        report.get("ast_check", {}),
+        report.get("security_scan", {}),
+        report.get("governance_scan", {}),
+    )
+    return merged
+
+
+def _save_report(report: dict, output_file: str | None, target_projects: list[str] | None = None) -> Path:
     out_path = Path(output_file) if output_file else KNOWLEDGE_DIR / "public" / "qaqc_result.json"
+    if output_file is None:
+        report = _merge_existing_projects_for_targeted_run(report, out_path, target_projects)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"\n[SAVED] {out_path}")
@@ -944,7 +978,7 @@ def run_qaqc(
         debt_result=debt_result,
         infra_result=infra_result,
     )
-    _save_report(report, output_file)
+    _save_report(report, output_file, target_projects)
     _save_history(report)
 
     return report

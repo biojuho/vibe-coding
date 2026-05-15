@@ -1,14 +1,14 @@
 {
-  "timestamp": "2026-05-15T10:47:42",
-  "verdict": "CONDITIONALLY_APPROVED",
-  "elapsed_sec": 680.9,
+  "timestamp": "2026-05-15T14:01:42",
+  "verdict": "APPROVED",
+  "elapsed_sec": 797.3,
   "projects": {
     "blind-to-x": {
       "passed": 1610,
       "failed": 0,
       "skipped": 12,
       "errors": 0,
-      "duration_sec": 237.96,
+      "duration_sec": 252.28,
       "status": "PASS",
       "runs": [
         {
@@ -17,7 +17,7 @@
           "skipped": 12,
           "errors": 0,
           "status": "PASS",
-          "duration_sec": 218.22
+          "duration_sec": 227.08
         },
         {
           "passed": 64,
@@ -25,7 +25,7 @@
           "skipped": 0,
           "errors": 0,
           "status": "PASS",
-          "duration_sec": 19.74
+          "duration_sec": 25.2
         }
       ],
       "message": "Ignored known env-specific curl_cffi CA Error 77 reproducer"
@@ -35,32 +35,32 @@
       "failed": 0,
       "skipped": 0,
       "errors": 0,
-      "duration_sec": 289.78,
+      "duration_sec": 343.17,
       "status": "PASS"
     },
     "root": {
-      "passed": 1452,
+      "passed": 1529,
       "failed": 0,
       "skipped": 1,
-      "errors": 1,
-      "duration_sec": 123.82,
-      "status": "FAIL",
+      "errors": 0,
+      "duration_sec": 152.18,
+      "status": "PASS",
       "runs": [
         {
-          "passed": 1452,
+          "passed": 1457,
           "failed": 0,
           "skipped": 1,
           "errors": 0,
           "status": "PASS",
-          "duration_sec": 123.51
+          "duration_sec": 149.43
         },
         {
-          "passed": 0,
+          "passed": 72,
           "failed": 0,
           "skipped": 0,
-          "errors": 1,
-          "status": "FAIL",
-          "duration_sec": 0.31
+          "errors": 0,
+          "status": "PASS",
+          "duration_sec": 2.75
         }
       ]
     },
@@ -70,13 +70,21 @@
       "skipped": 0,
       "errors": 0,
       "status": "PASS",
-      "duration_sec": 0.49
+      "duration_sec": 1.01
+    },
+    "knowledge-dashboard": {
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "status": "PASS",
+      "duration_sec": 0.26
     }
   },
   "total": {
-    "passed": 4566,
+    "passed": 4646,
     "failed": 0,
-    "errors": 1,
+    "errors": 0,
     "skipped": 13,
     "timeout": []
   },
@@ -86,16 +94,9 @@
     "failures": []
   },
   "security_scan": {
-    "status": "WARNING",
-    "status_detail": "WARNING (1 actionable issue(s))",
-    "issues": [
-      {
-        "file": "execution\\workspace_db_audit.py",
-        "pattern": "Potential SQL injection via f-string",
-        "match_preview": "f\"CREATE INDEX IF NOT EXISTS {self.name} ON {self.table}{self.columns}",
-        "actionable": true
-      }
-    ],
+    "status": "CLEAR",
+    "status_detail": "CLEAR (2 triaged issue(s))",
+    "issues": [],
     "triaged_issues": [
       {
         "file": "projects\\blind-to-x\\pipeline\\cost_db.py",
@@ -118,8 +119,8 @@
         }
       }
     ],
-    "raw_issue_count": 3,
-    "actionable_issue_count": 1,
+    "raw_issue_count": 2,
+    "actionable_issue_count": 0,
     "triaged_issue_count": 2
   },
   "governance_scan": {
@@ -131,7 +132,7 @@
         "category": "governance",
         "status": "ok",
         "detail": "All 7 required AI context files are present",
-        "checked_at": "2026-05-15T10:59:03",
+        "checked_at": "2026-05-15T14:14:59",
         "count": 7
       },
       {
@@ -139,7 +140,7 @@
         "category": "governance",
         "status": "ok",
         "detail": "No targeted relay claims found in HANDOFF.md",
-        "checked_at": "2026-05-15T10:59:03",
+        "checked_at": "2026-05-15T14:14:59",
         "checked_claims": []
       },
       {
@@ -147,7 +148,7 @@
         "category": "governance",
         "status": "ok",
         "detail": "Checked 34 SOP mappings, 24 unmapped scripts; no mapping drift detected",
-        "checked_at": "2026-05-15T10:59:03",
+        "checked_at": "2026-05-15T14:14:59",
         "issues": [],
         "sop_count": 34,
         "unmapped_count": 24,
@@ -159,7 +160,7 @@
         "category": "governance",
         "status": "ok",
         "detail": "No unchecked follow-ups found in tracked planning directives",
-        "checked_at": "2026-05-15T10:59:03",
+        "checked_at": "2026-05-15T14:14:59",
         "open_followup_count": 0,
         "active_task_count": 0
       }

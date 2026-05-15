@@ -188,10 +188,7 @@ def _project_qc_status(qaqc_data: dict[str, Any], project_name: str, now: dateti
 
     result = projects.get(project_name)
     if not isinstance(result, dict):
-        if project_name == "knowledge-dashboard" and isinstance(projects.get("root"), dict):
-            result = projects["root"]
-        else:
-            return {"available": False, "status": "UNKNOWN", "passed": 0, "failed": 0, "skipped": 0, **freshness}
+        return {"available": False, "status": "UNKNOWN", "passed": 0, "failed": 0, "skipped": 0, **freshness}
 
     status = str(result.get("status") or "UNKNOWN").upper()
     return {

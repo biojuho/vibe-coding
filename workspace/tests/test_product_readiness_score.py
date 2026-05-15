@@ -45,6 +45,7 @@ def _write_qaqc(root: Path) -> Path:
                     "blind-to-x": {"status": "PASS", "passed": 10, "failed": 0, "errors": 0},
                     "shorts-maker-v2": {"status": "PASS", "passed": 20, "failed": 0, "errors": 0},
                     "hanwoo-dashboard": {"status": "PASS", "passed": 30, "failed": 0, "errors": 0},
+                    "knowledge-dashboard": {"status": "PASS", "passed": 3, "failed": 0, "errors": 0},
                     "root": {"status": "PASS", "passed": 40, "failed": 0, "errors": 0},
                 }
             },
@@ -165,3 +166,32 @@ def test_stale_qc_data_lowers_scores_and_recommends_refresh(tmp_path: Path):
     assert blind["qc"]["age_days"] == 42
     assert blind["score"] < 85
     assert "Refresh project QC" in blind["recommendations"][0]
+
+
+def test_missing_project_qc_is_unknown_instead_of_root_fallback(tmp_path: Path):
+    _write_project_files(tmp_path)
+    qaqc_path = _write_qaqc(tmp_path)
+    data = json.loads(qaqc_path.read_text(encoding="utf-8"))
+    data["projects"].pop("knowledge-dashboard")
+    data["projects"]["root"] = {"status": "PASS", "passed": 1452, "failed": 0, "errors": 0}
+    qaqc_path.write_text(json.dumps(data), encoding="utf-8")
+    _write_tasks(
+        tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
+    )
+    (tmp_path / "projects" / "hanwoo-dashboard" / ".env").write_text(
+        "DATABASE_URL=postgres://user:secret@example/db\n",
+        encoding="utf-8",
+    )
+
+    report = readiness.build_report(
+        tmp_path,
+        qaqc_path=qaqc_path,
+        git_status_text="",
+        now=datetime(2026, 5, 13, tzinfo=timezone.utc),
+    )
+
+    knowledge = next(project for project in report["projects"] if project["name"] == "knowledge-dashboard")
+    assert knowledge["qc"]["available"] is False
+    assert knowledge["qc"]["status"] == "UNKNOWN"
+    assert knowledge["qc"]["passed"] == 0
+    assert "Refresh project QC" in knowledge["recommendations"][0]

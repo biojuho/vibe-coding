@@ -392,3 +392,46 @@ def test_run_npm_test_parses_subprocess_output(tmp_path, monkeypatch) -> None:
     assert result["passed"] == 75
     assert calls["cmd"][1:] == ["test"]
     assert calls["cwd"] == str(tmp_path)
+
+
+def test_deep_qaqc_registers_both_npm_dashboards() -> None:
+    assert qaqc_runner.PROJECTS["hanwoo-dashboard"]["runner"] == "npm"
+    assert qaqc_runner.PROJECTS["knowledge-dashboard"]["runner"] == "npm"
+    assert qaqc_runner.PROJECTS["knowledge-dashboard"]["cwd"] == qaqc_runner.KNOWLEDGE_DIR
+
+
+def test_default_targeted_qaqc_save_preserves_existing_project_results(tmp_path, monkeypatch) -> None:
+    public_dir = tmp_path / "public"
+    public_dir.mkdir()
+    output_path = public_dir / "qaqc_result.json"
+    output_path.write_text(
+        json.dumps(
+            {
+                "projects": {
+                    "blind-to-x": {"status": "PASS", "passed": 10, "failed": 0, "errors": 0, "skipped": 0},
+                    "knowledge-dashboard": {"status": "FAIL", "passed": 3, "failed": 1, "errors": 0, "skipped": 0},
+                },
+                "total": {"passed": 13, "failed": 1, "errors": 0, "skipped": 0, "timeout": []},
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(qaqc_runner, "KNOWLEDGE_DIR", tmp_path)
+
+    qaqc_runner._save_report(
+        {
+            "projects": {
+                "knowledge-dashboard": {"status": "PASS", "passed": 4, "failed": 0, "errors": 0, "skipped": 0}
+            },
+            "ast_check": {"failures": []},
+            "security_scan": {"status": "CLEAR"},
+            "governance_scan": {"status": "CLEAR"},
+        },
+        output_file=None,
+        target_projects=["knowledge-dashboard"],
+    )
+
+    persisted = json.loads(output_path.read_text(encoding="utf-8"))
+    assert persisted["projects"]["blind-to-x"]["passed"] == 10
+    assert persisted["projects"]["knowledge-dashboard"]["status"] == "PASS"
+    assert persisted["total"]["passed"] == 14

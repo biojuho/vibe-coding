@@ -450,3 +450,25 @@
 - **Changes**: 
   - Created `.agents/rules/ai-interaction-guidelines.md`.
   - Updated `CLAUDE.md`, `AGENTS.md`, and `GEMINI.md` to enforce the new interaction guidelines.
+
+## 2026-05-15 KST - Codex
+
+### Summary
+- Completed T-301 after the user asked to find and improve the project most needing attention.
+- Selected `knowledge-dashboard` because product readiness showed it as at-risk from a stale/mis-mapped QA/QC signal.
+- Added `knowledge-dashboard` to the deep `workspace/execution/qaqc_runner.py` project registry.
+- Removed the `root` -> `knowledge-dashboard` fallback from `execution/product_readiness_score.py` so missing project QC is surfaced as `UNKNOWN` instead of borrowing unrelated root failures.
+- Preserved existing project results when a default targeted deep QA/QC run updates the canonical `projects/knowledge-dashboard/public/qaqc_result.json`.
+- Regenerated the canonical QA/QC artifact with all active projects present.
+
+### Verification
+- `python -m pytest --no-cov workspace/tests/test_qaqc_runner_extended.py workspace/tests/test_product_readiness_score.py workspace/tests/test_project_qc_runner.py -q` -> `31 passed`.
+- `python -m ruff check workspace/execution/qaqc_runner.py execution/product_readiness_score.py execution/project_qc_runner.py workspace/tests/test_qaqc_runner_extended.py workspace/tests/test_product_readiness_score.py workspace/tests/test_project_qc_runner.py` -> passed.
+- `python workspace/execution/qaqc_runner.py --skip-infra --skip-debt` -> `APPROVED`, `4646 passed`, `0 failed`, `0 errors`, `13 skipped`.
+- `python execution/product_readiness_score.py --json` -> overall `92 / blocked`, with `knowledge-dashboard` `94 / ready`; the remaining blocker is T-251.
+- `python execution/project_qc_runner.py --project knowledge-dashboard --json` -> passed.
+- `python execution/code_review_gate.py --base HEAD --json` -> advisory `warn risk=0.40` from graph test-gap heuristics despite focused coverage.
+
+### Follow-up
+- T-251 remains user-owned: reset/resync the Supabase database password, update `projects/hanwoo-dashboard/.env` if needed, then rerun live Prisma E2E.
+- Preserve unrelated `projects/blind-to-x/pipeline/notion/_upload.py` EOL-only dirty state unless its owner asks for cleanup.
