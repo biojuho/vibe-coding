@@ -172,4 +172,4 @@ def test_render_text_apply_summary(tmp_path):
 
 def test_index_spec_create_sql_is_idempotent_capable():
     spec = audit.IndexSpec("idx_foo", "tbl", "(col)")
-    assert spec.create_sql() == "CREATE INDEX IF NOT EXISTS idx_foo ON tbl(col)"
+    assert spec.create_sql() == 'CREATE INDEX IF NOT EXISTS "idx_foo" ON "tbl"(col)'

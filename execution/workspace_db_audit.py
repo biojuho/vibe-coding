@@ -46,7 +46,19 @@ class IndexSpec:
     columns: str  # raw SQL fragment after the table name, e.g. "(timestamp)"
 
     def create_sql(self) -> str:
-        return f"CREATE INDEX IF NOT EXISTS {self.name} ON {self.table}{self.columns}"
+        return (
+            "CREATE INDEX IF NOT EXISTS "
+            + _quote_identifier(self.name)
+            + " ON "
+            + _quote_identifier(self.table)
+            + self.columns
+        )
+
+
+def _quote_identifier(value: str) -> str:
+    if not value.replace("_", "").isalnum():
+        raise ValueError(f"Unsafe SQLite identifier: {value}")
+    return '"' + value.replace('"', '""') + '"'
 
 
 RECOMMENDED_INDEXES: tuple[IndexSpec, ...] = (

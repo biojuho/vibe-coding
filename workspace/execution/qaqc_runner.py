@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import ast
 import csv
+import hashlib
 import json
 import locale
 import os
@@ -348,6 +349,7 @@ def _pytest_command_paths(existing_paths: list[Path], cwd: Path, *, relative_to_
 
 
 def _build_pytest_command(project_name: str, cmd_paths: list[str], extra_args: list[str]) -> list[str]:
+    basetemp = _pytest_basetemp(project_name, cmd_paths)
     return [
         str(VENV_PYTHON),
         "-X",
@@ -360,9 +362,20 @@ def _build_pytest_command(project_name: str, cmd_paths: list[str], extra_args: l
         "--no-header",
         "-o",
         "addopts=",
+        "--basetemp",
+        str(basetemp),
         "-x" if project_name != "root" else "--maxfail=50",
         *extra_args,
     ]
+
+
+def _pytest_basetemp(project_name: str, cmd_paths: list[str]) -> Path:
+    digest = hashlib.sha1("\n".join(cmd_paths).encode("utf-8")).hexdigest()[:10]
+    slug = re.sub(r"[^A-Za-z0-9_.-]+", "-", project_name).strip("-") or "pytest"
+    unique = f"{os.getpid()}-{time.time_ns()}"
+    base = ROOT_DIR / ".tmp" / "pytest-qaqc" / f"{slug}-{digest}-{unique}"
+    base.parent.mkdir(parents=True, exist_ok=True)
+    return base
 
 
 def _pytest_status(*, returncode: int, passed: int, failed: int, errors: int) -> str:
@@ -461,12 +474,17 @@ def _triage_security_issue(issue: dict[str, str]) -> dict[str, object]:
 
 def _iter_security_scan_files(root_dir: Path, exclude_pattern: re.Pattern):
     for root, _dirs, files in os.walk(root_dir):
-        if exclude_pattern.search(root.replace("\\", "/")):
+        root_path = Path(root)
+        try:
+            scoped_root = root_path.relative_to(root_dir).as_posix()
+        except ValueError:
+            scoped_root = root_path.as_posix()
+        if scoped_root and exclude_pattern.search(scoped_root):
             continue
 
         for filename in files:
             if Path(filename).suffix in SECURITY_SCAN_EXTENSIONS:
-                yield Path(root) / filename
+                yield root_path / filename
 
 
 def _read_security_file(filepath: Path) -> str | None:

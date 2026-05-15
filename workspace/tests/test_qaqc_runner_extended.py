@@ -107,6 +107,7 @@ def test_pytest_command_and_result_helpers(tmp_path, monkeypatch) -> None:
 
     assert paths == [str(Path("tests") / "unit"), str(external)]
     assert cmd[:5] == ["python", "-X", "utf8", "-m", "pytest"]
+    assert "--basetemp" in cmd
     assert "--maxfail=50" in cmd
     assert "--ignore=x.py" in cmd
     assert result == {
@@ -118,6 +119,15 @@ def test_pytest_command_and_result_helpers(tmp_path, monkeypatch) -> None:
         "duration_sec": 2.5,
     }
     assert qaqc_runner._pytest_status(returncode=0, passed=0, failed=0, errors=0) == "FAIL"
+
+
+def test_pytest_basetemp_creates_parent_directory(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(qaqc_runner, "ROOT_DIR", tmp_path)
+
+    basetemp = qaqc_runner._pytest_basetemp("root", ["tests"])
+
+    assert basetemp.parent == tmp_path / ".tmp" / "pytest-qaqc"
+    assert basetemp.parent.is_dir()
 
 
 def test_check_infrastructure_handles_missing_tools(monkeypatch) -> None:

@@ -56,7 +56,14 @@ async def process_item(
                     temperature=item.get("temperature", 0.7),
                     max_tokens=item.get("max_tokens", 1024),
                 )
-                output_text = response.choices[0].message.content
+                choices = getattr(response, "choices", None)
+                if not choices:
+                    raise ValueError("empty choices list")
+
+                output_text = choices[0].message.content
+                if output_text is None:
+                    raise ValueError("null content")
+
                 return {**item, "output": output_text, "status": "success"}
             except Exception as e:
                 logger.warning(

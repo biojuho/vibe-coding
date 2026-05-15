@@ -415,3 +415,25 @@
 ### Follow-up
 - No live Notion upload, external scraping run, or paid LLM call was performed.
 - Existing unrelated dirty files from other sessions were preserved (`.agents/skills/*`, Hanwoo AI chat WIP).
+
+## 2026-05-15 KST - Codex
+
+### Summary
+- Completed T-300 root QA/QC repair after the fresh QA/QC artifact surfaced `root` collection/runtime failures.
+- Added root `execution/` import coverage for `workspace/execution/tests` so `test_ai_batch_runner_regression.py` can import `ai_batch_runner` under the `qaqc_runner` cwd.
+- Hardened `execution/ai_batch_runner.py::process_item` so empty OpenAI `choices` and `None` content fail with explicit errors instead of incidental `IndexError` or false success.
+- Fixed two QA/QC harness issues found during verification: repo/security scan exclusions now apply relative to their scan root, and `qaqc_runner` uses unique repo-local pytest basetemp directories to avoid Windows temp permission failures.
+- Quoted workspace DB audit index/table identifiers to remove the actionable security-scan warning.
+
+### Verification
+- `python -m pytest --no-cov execution/tests/test_ai_batch_runner_regression.py -q --tb=short --maxfail=1 --basetemp ../.tmp/pytest-root-qc-ai-batch` from `workspace/` -> `2 passed`.
+- Focused `test_qaqc_runner_extended.py`, `test_context_selector.py`, `test_workspace_db_audit.py` -> `37 passed`.
+- `workspace/tests` -> `1452 passed, 1 skipped`.
+- `workspace/execution/tests` -> `72 passed`.
+- Targeted Ruff and `py_compile` passed.
+- `python workspace/execution/qaqc_runner.py --project root --skip-infra --skip-debt --output .tmp/qaqc-root-t300-fixed.json` -> `APPROVED`, `1525 passed`, `1 skipped`.
+
+### Follow-up
+- T-300 is complete.
+- T-251 remains user-owned: reset/resync the Supabase database password in the dashboard, update `projects/hanwoo-dashboard/.env` if needed, then rerun the live Prisma E2E.
+- Existing unrelated WIP was preserved, including `projects/blind-to-x/pipeline/notion/_upload.py` and other tool edits under `workspace/conftest.py` / frontend test files.

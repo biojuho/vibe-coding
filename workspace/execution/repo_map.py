@@ -213,7 +213,11 @@ class RepoMapBuilder:
             return False
         if path.stat().st_size > self.max_file_bytes:
             return False
-        if any(part in _EXCLUDED_DIRS for part in path.parts):
+        try:
+            scoped_parts = path.relative_to(self.repo_root).parts
+        except ValueError:
+            scoped_parts = path.parts
+        if any(part in _EXCLUDED_DIRS for part in scoped_parts):
             return False
         return True
 
