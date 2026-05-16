@@ -48,13 +48,14 @@ py -3 scripts/recompute_scores.py --days 30
 py -3 scripts/build_weekly_report.py --days 7
 
 # 전체 단위 테스트
-py -3 -m pytest -q tests_unit
+py -3 -m pytest --no-cov -q tests/unit
 ```
 
 ## 설치
 
 ```bash
-pip install -r requirements.txt
+# 의존성은 pyproject.toml에 정의되어 있습니다. 프로젝트 루트에서:
+pip install -e .[dev]
 playwright install chromium
 ```
 
@@ -207,13 +208,18 @@ py -3 scripts/recompute_scores.py --days 30
 
 ## GitHub Actions
 
-현재 GitHub Actions 워크플로는 3시간마다 아래 명령을 실행합니다.
+현재 CI는 워크스페이스 매트릭스 워크플로 (`.github/workflows/full-test-matrix.yml`)의 `blind-to-x-tests` 잡으로 통합되어 있으며, `main` 푸시 / PR 시 자동 실행됩니다.
 
-```bash
-python main.py --source auto --popular --review-only --limit 5
-```
+- 단위 테스트: `python -m pytest tests/unit -q --tb=short --maxfail=1`
+- 통합 테스트: `python -m pytest tests/integration ... --ignore=tests/integration/test_curl_cffi.py`
 
-즉, 기본 자동화 범위는 `검토 큐 적재`까지입니다.
+크론/스케줄 실행은 현재 활성화되어 있지 않습니다. 정기 적재가 필요하면 별도 스케줄러(예: workspace `execution/scheduler_engine.py`)를 사용합니다.
+
+## 관측성 (Observability)
+
+- **Langfuse 트레이스**: `LANGFUSE_ENABLED=1` 환경변수가 설정되면 `pipeline/draft_providers.py`가 워크스페이스 Langfuse 훅으로 LLM 호출 메타데이터(프로바이더, 모델, 토큰, 지연, 성공 여부)를 전송합니다.
+- **워크스페이스 사용량 미러링**: `BTX_USAGE_FORWARD=1` 일 때 `pipeline/cost_tracker.py`가 프로젝트 로컬 `btx_costs.db` 기록과 동시에 워크스페이스 `.tmp/workspace.db`의 `api_calls` 테이블에도 사용량을 미러링합니다. 워크스페이스 알림(`api_usage_tracker alerts` — fallback rate / cost spike / dead provider)이 blind-to-x 호출까지 감지하도록 활성화합니다.
+- 프로젝트 로컬 cost db (`btx_costs.db`)는 항상 기록되며 진실의 원천(authoritative source)입니다. 미러링은 부가 관측 채널입니다.
 
 ## 장애 대응
 

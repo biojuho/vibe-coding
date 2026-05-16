@@ -29,7 +29,7 @@
 - `projects/blind-to-x/README.md`
 - `projects/blind-to-x/directives/x_content_curation.md`
 - `projects/blind-to-x/config.example.yaml`
-- `projects/blind-to-x/classification_rules.yaml`
+- `projects/blind-to-x/rules/` (D-031 분할: `classification.yaml`, `examples.yaml`, `prompts.yaml`, `platforms.yaml`, `editorial.yaml`)
 - `projects/blind-to-x/main.py`
 - `projects/blind-to-x/pipeline/process.py`
 - `projects/blind-to-x/pipeline/content_intelligence.py`

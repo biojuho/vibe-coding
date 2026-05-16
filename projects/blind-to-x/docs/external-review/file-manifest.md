@@ -30,8 +30,8 @@
 
 ## Tier 2: 콘텐츠 품질 리뷰 핵심 파일
 
-- `projects/blind-to-x/classification_rules.yaml`
-  - 토픽/감정/오디언스 규칙, 골든 예시, 안티 예시, 브랜드 보이스, 편집 규칙
+- `projects/blind-to-x/rules/` (D-031 분할: `classification.yaml`, `examples.yaml`, `prompts.yaml`, `platforms.yaml`, `editorial.yaml`)
+  - 토픽/감정/오디언스 규칙, 골든 예시, 안티 예시, 브랜드 보이스, 편집 규칙. 런타임 로더: `pipeline/rules_loader.py`
 - `projects/blind-to-x/pipeline/draft_generator.py`
   - 초안 프롬프트 생성과 LLM fallback
 - `projects/blind-to-x/pipeline/editorial_reviewer.py`
@@ -71,7 +71,7 @@
 
 - Tier 0 전부
 - Tier 1에서 `main.py`, `process.py`, `content_intelligence.py`
-- Tier 2에서 `classification_rules.yaml`, `draft_generator.py`, `editorial_reviewer.py`, `draft_quality_gate.py`
+- Tier 2에서 `rules/` (5개), `draft_generator.py`, `editorial_reviewer.py`, `draft_quality_gate.py`
 
 ## Deep Review 추천 조합
 

@@ -185,8 +185,14 @@ py -3 scripts/backfill_notion_review_columns.py --config config.yaml --apply
 전체 테스트:
 
 ```powershell
-py -3 -m pytest -q tests_unit
+py -3 -m pytest --no-cov -q tests/unit
 ```
+
+> 경로는 `tests/unit/` 입니다. 워크스페이스 표준 검증은 루트에서:
+>
+> ```powershell
+> py -3 execution\project_qc_runner.py --project blind-to-x --json
+> ```
 
 ## 7. 현재 범위 밖
 

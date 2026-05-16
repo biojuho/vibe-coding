@@ -3,11 +3,14 @@
 Changes:
   - CostDatabase 연동: 비용 기록을 SQLite에 영속화
   - Telegram 알림: Gemini RPD 80% / 100% 도달 시 경고
+  - workspace api_usage_tracker forward: BTX_USAGE_FORWARD=1 일 때 워크스페이스
+    `.tmp/workspace.db`의 api_calls 테이블에도 동시 기록 (alerts/대시보드 연동용)
 """
 
 from __future__ import annotations
 
 import logging
+import os
 import time
 from pathlib import Path
 import sys
@@ -30,6 +33,45 @@ DALLE3_COST_PER_IMAGE = 0.040
 GEMINI_IMAGE_DAILY_LIMIT = 500
 _GEMINI_RPD_WARN_THRESHOLD = 400  # 80% → Telegram 경고
 _GEMINI_RPD_CRIT_THRESHOLD = 500  # 100% → Telegram 위험
+
+
+def _maybe_forward_to_workspace_usage(
+    *,
+    provider: str,
+    input_tokens: int,
+    output_tokens: int,
+    cost_usd: float,
+    cache_creation_tokens: int = 0,
+    cache_read_tokens: int = 0,
+    model: str = "",
+    endpoint: str = "blind-to-x.cost_tracker",
+) -> None:
+    """블라인드-투-엑스 텍스트 비용을 워크스페이스 api_usage_tracker에 미러링.
+
+    BTX_USAGE_FORWARD 환경변수가 "1" 일 때만 동작. 실패는 무음 처리하여
+    프로젝트 로컬 cost_db가 항상 진실의 원천을 유지하도록 한다.
+    """
+    if os.getenv("BTX_USAGE_FORWARD", "0").strip() != "1":
+        return
+    try:
+        workspace_root = Path(__file__).resolve().parents[3] / "workspace"
+        if workspace_root.is_dir() and str(workspace_root) not in sys.path:
+            sys.path.insert(0, str(workspace_root))
+        from execution.api_usage_tracker import log_api_call
+
+        log_api_call(
+            provider=provider,
+            model=model,
+            endpoint=endpoint,
+            tokens_input=int(input_tokens or 0),
+            tokens_output=int(output_tokens or 0),
+            cost_usd=float(cost_usd or 0.0),
+            caller_script="projects/blind-to-x/pipeline/cost_tracker.py",
+            cache_creation_tokens=int(cache_creation_tokens or 0),
+            cache_read_tokens=int(cache_read_tokens or 0),
+        )
+    except Exception as exc:  # pragma: no cover - silent forward
+        logger.debug("workspace api_usage forward 실패 (무시됨): %s", exc)
 
 
 def _try_send_telegram(message: str, level: str = "INFO") -> None:
@@ -178,6 +220,15 @@ class CostTracker:
                 cache_creation_tokens=int(cache_creation_tokens or 0),
                 cache_read_tokens=int(cache_read_tokens or 0),
             )
+        # workspace api_usage_tracker 미러 (BTX_USAGE_FORWARD=1 일 때만)
+        _maybe_forward_to_workspace_usage(
+            provider=provider,
+            input_tokens=int(input_tokens or 0),
+            output_tokens=int(output_tokens or 0),
+            cost_usd=cost,
+            cache_creation_tokens=int(cache_creation_tokens or 0),
+            cache_read_tokens=int(cache_read_tokens or 0),
+        )
 
     def add_claude_cost(self, input_tokens: int, output_tokens: int):
         self.add_text_generation_cost("anthropic", input_tokens=input_tokens, output_tokens=output_tokens)
@@ -189,6 +240,14 @@ class CostTracker:
         logger.debug("Added DALL-E cost: $%.5f. Total cost so far: $%.5f", cost, self.current_cost)
         if self._cost_db:
             self._cost_db.record_image_cost(provider="dalle", image_count=num_images, usd=cost)
+        _maybe_forward_to_workspace_usage(
+            provider="openai",
+            input_tokens=0,
+            output_tokens=0,
+            cost_usd=cost,
+            model="dall-e-3",
+            endpoint="blind-to-x.dalle_image",
+        )
 
     def add_gemini_image_count(self, count: int = 1):
         self.gemini_image_count += count
