@@ -4,11 +4,11 @@
 
 ## Active Goal
 
-- Status: inactive
-- Goal: None.
-- Owner: None.
-- Started: None.
-- Success: Completed 2026-05-15 by Codex. Workspace hygiene goal closed: HANDOFF rotated to 160 lines, SESSION_LOG remains under 1000 lines, EOL-only blind-to-x dirty state cleared, QA/QC artifact includes all active projects, and local commits are ready for an explicit user-approved push.
+- Status: active
+- Goal: hanwoo-dashboard quality uplift so other people would want to use it.
+- Owner: Codex
+- Started: 2026-05-18
+- Success: First pass completed 2026-05-18 by Codex: added a home-screen Today Brief panel that turns critical alerts, next schedules, low-stock items, offline state, and monthly sales into immediate actions. Goal remains active for additional Hanwoo polish; keep T-251 separate.
 
 ## Notes
 

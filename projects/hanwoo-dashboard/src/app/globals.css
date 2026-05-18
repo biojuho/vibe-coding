@@ -1664,6 +1664,175 @@ body {
 }
 
 /* ============================================
+   Today Focus Panel
+   ============================================ */
+
+.today-focus-panel {
+  margin-bottom: 18px;
+  padding: 18px;
+  border: 1px solid var(--color-surface-stroke);
+  border-radius: var(--radius-custom-xl);
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--color-surface-elevated) 92%, var(--chart-clay-1) 8%),
+      color-mix(in srgb, var(--color-bg-card) 88%, var(--chart-clay-5) 12%)
+    );
+  box-shadow: var(--shadow-md);
+}
+
+.today-focus-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.today-focus-title {
+  margin: 3px 0 0;
+  color: var(--color-text);
+  font-size: 19px;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.today-focus-count {
+  flex: 0 0 auto;
+  min-width: 42px;
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--color-primary-custom) 20%, var(--color-surface-stroke));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary-custom) 10%, var(--color-surface-elevated));
+  color: var(--color-primary-custom);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.today-focus-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.today-focus-item {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 70px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--focus-color, var(--color-primary-custom)) 18%, var(--color-surface-stroke));
+  border-radius: var(--radius-custom-lg);
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--focus-color, var(--color-primary-custom)) 9%, var(--color-surface-elevated)),
+      color-mix(in srgb, var(--color-bg-card) 94%, var(--focus-color, var(--color-primary-custom)) 6%)
+    );
+  color: var(--color-text);
+  cursor: pointer;
+  text-align: left;
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.2s ease;
+}
+
+.today-focus-item:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--focus-color, var(--color-primary-custom)) 34%, var(--color-surface-stroke));
+  box-shadow: var(--shadow-md);
+}
+
+.today-focus-item:active {
+  transform: translateY(0);
+}
+
+.today-focus-item-danger {
+  --focus-color: var(--color-danger);
+}
+
+.today-focus-item-warning {
+  --focus-color: var(--color-warning);
+}
+
+.today-focus-item-info {
+  --focus-color: var(--color-info);
+}
+
+.today-focus-item-success {
+  --focus-color: var(--color-success);
+}
+
+.today-focus-item-neutral {
+  --focus-color: var(--color-primary-custom);
+}
+
+.today-focus-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--focus-color, var(--color-primary-custom)) 14%, var(--color-surface-elevated));
+  color: var(--focus-color, var(--color-primary-custom));
+  box-shadow: var(--shadow-inset-soft);
+}
+
+.today-focus-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.today-focus-item-title {
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.today-focus-item-detail {
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.today-focus-meta {
+  align-self: center;
+  justify-self: end;
+  padding: 6px 9px;
+  border: 1px solid color-mix(in srgb, var(--focus-color, var(--color-primary-custom)) 22%, transparent);
+  border-radius: 999px;
+  color: var(--focus-color, var(--color-primary-custom));
+  font-size: 11px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+@media (max-width: 420px) {
+  .today-focus-item {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .today-focus-meta {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
+/* ============================================
    Premium Card — Clay-integrated base
    ============================================ */
 

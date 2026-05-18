@@ -31,13 +31,12 @@ import {
 import { TabBar, WeatherWidget } from '@/components/widgets/widgets';
 import { EstrusAlertBanner, CalvingAlertBanner } from '@/components/widgets/AlertBanners';
 import { StatCard, PenCard, CattleRow } from '@/components/ui/cards';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { PremiumInfoCard } from '@/components/ui/premium-card';
 import { PremiumButton } from '@/components/ui/premium-button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Bell, Plus, ArrowLeft, WifiOff } from 'lucide-react';
+import { AlertTriangle, Bell, CalendarDays, ChartSpline, ClipboardList, PackageCheck, Plus, ArrowLeft, WifiOff } from 'lucide-react';
 import CalvingTab from '@/components/tabs/CalvingTab';
 import InventoryTab from '@/components/tabs/InventoryTab';
 import ScheduleTab from '@/components/tabs/ScheduleTab';
@@ -52,6 +51,7 @@ import { syncOfflineQueue } from '@/lib/syncManager';
 import { useCattlePagination } from '@/lib/hooks/useCattlePagination';
 import { useSalesPagination } from '@/lib/hooks/useSalesPagination';
 import { getNextDashboardPaginationState } from '@/lib/dashboard/pagination-guard.mjs';
+import { buildTodayFocusItems } from '@/lib/dashboard/today-focus.mjs';
 
 import NotificationModal from '@/components/ui/NotificationModal';
 import ExcelExportButton from '@/components/widgets/ExcelExportButton';
@@ -76,6 +76,14 @@ const WIDGET_REGISTRY = [
 
 const WIDGETS_STORAGE_KEY = 'joolife-widgets';
 const DASHBOARD_PAGE_LIMIT = 100;
+
+const FOCUS_ICON_BY_TYPE = {
+  alert: AlertTriangle,
+  offline: WifiOff,
+  schedule: CalendarDays,
+  stock: PackageCheck,
+  sales: ChartSpline,
+};
 
 function useWidgetSettings() {
   const [visible, setVisible] = useState(() => {
@@ -914,6 +922,17 @@ export default function DashboardClient({
 
   const monthlySalesCount = summary?.monthlyRollup?.salesCount ?? fallbackMonthlySalesCount;
   const avgWeight = summary?.headcount?.averageWeight ?? fallbackAverageWeight;
+  const todayFocusItems = useMemo(
+    () =>
+      buildTodayFocusItems({
+        notifications,
+        scheduleEvents,
+        inventoryList,
+        monthlySalesCount,
+        isOnline,
+      }),
+    [inventoryList, isOnline, monthlySalesCount, notifications, scheduleEvents],
+  );
 
   const renderContent = () => {
     const needsCompleteCattleData =
@@ -1018,6 +1037,12 @@ export default function DashboardClient({
         </div>
 
         {showNotifications && <NotificationModal notifications={notifications} onClose={() => setShowNotifications(false)} onTestSMS={handleTestSMS} />}
+
+        <TodayFocusPanel
+          items={todayFocusItems}
+          onOpenNotifications={() => setShowNotifications(true)}
+          onNavigate={setActiveTab}
+        />
 
         {widgetSettings.visible.weather && <WeatherWidget weather={weather} />}
         {widgetSettings.visible.market && <MarketPriceWidget initialData={initialMarketPrice} />}
@@ -1151,6 +1176,59 @@ export default function DashboardClient({
         </div>
       </footer>
     </div>
+  );
+}
+
+function TodayFocusPanel({ items, onOpenNotifications, onNavigate }) {
+  if (!items.length) {
+    return null;
+  }
+
+  const handleClick = (item) => {
+    if (item.type === 'alert') {
+      onOpenNotifications();
+      return;
+    }
+
+    if (item.targetTab) {
+      onNavigate(item.targetTab);
+    }
+  };
+
+  return (
+    <section className="today-focus-panel animate-fadeInUp" aria-labelledby="today-focus-title">
+      <div className="today-focus-header">
+        <div>
+          <div className="clay-page-eyebrow">Today Brief</div>
+          <h2 id="today-focus-title" className="today-focus-title">오늘 바로 볼 일</h2>
+        </div>
+        <div className="today-focus-count">{items.length}개</div>
+      </div>
+
+      <div className="today-focus-grid">
+        {items.map((item) => {
+          const Icon = FOCUS_ICON_BY_TYPE[item.type] || ClipboardList;
+
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={`today-focus-item today-focus-item-${item.tone}`}
+              onClick={() => handleClick(item)}
+            >
+              <span className="today-focus-icon" aria-hidden="true">
+                <Icon size={18} strokeWidth={2.2} />
+              </span>
+              <span className="today-focus-copy">
+                <span className="today-focus-item-title">{item.title}</span>
+                <span className="today-focus-item-detail">{item.detail}</span>
+              </span>
+              <span className="today-focus-meta">{item.meta}</span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

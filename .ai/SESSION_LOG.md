@@ -496,3 +496,32 @@
 ### Follow-up
 - T-251 remains user-owned: reset/resync the Supabase database password in the Supabase Dashboard, update `projects/hanwoo-dashboard/.env` if the connection string changes, then rerun the live Prisma E2E.
 - No code changes were made.
+
+## 2026-05-18 KST - Codex
+
+### Summary
+- Activated the new `/goal`: raise `hanwoo-dashboard` quality until other people would want to use it.
+- Completed the first safe product-quality pass as T-307.
+- Added a home-screen Today Brief panel that converts operational state into next actions: offline sync, critical alerts, next schedule, low-stock inventory, and monthly sales.
+- Extracted deterministic focus-item prioritization into `src/lib/dashboard/today-focus.mjs` with regression coverage.
+- Preserved unrelated dirty `projects/blind-to-x/uv.lock`.
+
+### Changed Files
+- `.ai/GOAL.md`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `projects/hanwoo-dashboard/src/components/DashboardClient.js`
+- `projects/hanwoo-dashboard/src/app/globals.css`
+- `projects/hanwoo-dashboard/src/lib/dashboard/today-focus.mjs`
+- `projects/hanwoo-dashboard/src/lib/dashboard/today-focus.test.mjs`
+
+### Verification
+- `npm.cmd test` from `projects/hanwoo-dashboard` -> `77 passed`.
+- `npm.cmd run lint` from `projects/hanwoo-dashboard` -> passed.
+- `npm.cmd run build` from `projects/hanwoo-dashboard` -> passed.
+- Dev server started at `http://127.0.0.1:3001`.
+
+### Follow-up
+- T-308 is the next safe goal task: browser visual QA of the Today Brief panel, then consider lucide-icon polish for remaining emoji-heavy navigation/widget affordances.
+- T-251 remains user-owned: reset/resync the Supabase database password in the Supabase Dashboard, update `.env` if needed, then rerun live Prisma E2E.
