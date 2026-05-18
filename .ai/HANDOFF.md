@@ -7,6 +7,13 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-18 |
+| Tool | Claude Code (Opus 4.7 1M) |
+| Work | **T-306 completed**: open-PR audit + cleanup. With `T-251` the only TODO and IN_PROGRESS empty, signal was 20 Dependabot PRs all `BLOCKED` (REVIEW_REQUIRED, not CI) plus weekly `pip in /.` Dependabot run failing with `dependency_file_not_found: No files found in /`. Triaged into Tier A (11 safe minors/patches, all CI green), Tier B (#51/#54 React pair where the FAIL was only the `dependabot` auto-merge workflow, not the build), Tier C (#50 typescript 5→6 MAJOR + #52 react-dom solo bump diverging from react peer — both real build failures), Tier D (#37/#39/#41 MAJOR risk), Grouped (#48 next-ecosystem). User approved: squash-merge Tier A+B+#48 via `--admin`, close Tier C, diagnose root pip failure. Squash-merged 14 PRs in 3 project-disjoint batches; #47 (word-chain tailwindcss) and #54 (hanwoo react) hit lockfile drift after sibling merges → `@dependabot rebase` + 60 s wait + re-merge worked. Picked up the missed #44 pyyaml after. Closed 5 PRs with sourced rationale (#37/#41 frozen word-chain MAJOR not worth migration; #39 backlogged as T-305 epic — `pipeline/draft_providers.py` + `pipeline/image_generator.py` already use v1+ `AsyncOpenAI` so v2 migration is feasible but needs 4 mock-file refresh + live smoke, ~½–1 day). Root pip Dependabot diagnosis: `.github/dependabot.yml` entry 1 had `directory: "/"` but no Python manifest at repo root — the intended workspace is `workspace/pyproject.toml`. Fixed to `directory: "/workspace"` (PEP 621 project) in commit `32269c2`. Local main now `ahead 2` of `origin/main` (`b94c66c` prior-session ai-context + `32269c2` dependabot.yml fix); push not performed pending user approval. |
+| Next Priorities | Push pending: `b94c66c` + `32269c2` + this session's ai-context commit need explicit user approval before `git push`. T-305 (openai 2 migration epic) is the only new TODO. T-251 remains the lone external blocker (user-owned Supabase password reset). Code-review gate PASSed risk=0.00 on the dependabot.yml change; the 15 merged Dependabot PRs' CIs ran on `origin/main` post-merge. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-18 |
 | Tool | Gemini (Antigravity) |
 | Work | **전체 QC 재검증 완료**. 4개 프로젝트 전수 검증: blind-to-x (1560 passed, 1 skipped), shorts-maker-v2 (1422 passed, 12 skipped), hanwoo-dashboard (ESLint 0 warnings + Build OK), knowledge-dashboard (ESLint 0 warnings + Build OK). code_review_gate.py PASS (risk=0.00). PowerShell stderr NativeCommandError로 인한 shorts-maker false negative 현상 확인 및 정리. |
 | Next Priorities | T-251 사용자 조치 대기 (Supabase 비밀번호 리셋). 기술 부채: google.generativeai→google.genai 마이그레이션, Pydantic V1 Python 3.14 호환성. |
