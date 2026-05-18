@@ -7,6 +7,13 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-18 |
+| Tool | Gemini (Antigravity) |
+| Work | **전체 QC 재검증 완료**. 4개 프로젝트 전수 검증: blind-to-x (1560 passed, 1 skipped), shorts-maker-v2 (1422 passed, 12 skipped), hanwoo-dashboard (ESLint 0 warnings + Build OK), knowledge-dashboard (ESLint 0 warnings + Build OK). code_review_gate.py PASS (risk=0.00). PowerShell stderr NativeCommandError로 인한 shorts-maker false negative 현상 확인 및 정리. |
+| Next Priorities | T-251 사용자 조치 대기 (Supabase 비밀번호 리셋). 기술 부채: google.generativeai→google.genai 마이그레이션, Pydantic V1 Python 3.14 호환성. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-18 |
 | Tool | Codex |
 | Work | Re-oriented the workspace after the user asked to understand and proceed. Confirmed `main` is clean and synchronized with `origin/main` (`ahead=0`, `behind=0`, no dirty files), no active goal, one TODO, and product readiness `94 / blocked` only because `hanwoo-dashboard` T-251 is still open. Retried `projects/hanwoo-dashboard` live Prisma E2E with `npm.cmd run db:prisma7-test -- --live`; local Prisma/client/adapter checks passed, but live connection health still failed with `P2010` / `XX000` / `(ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`. |
 | Next Priorities | No repo-side fix is available for T-251. User must reset/resync the Supabase database password in the Supabase Dashboard, update `projects/hanwoo-dashboard/.env` if the connection string changes, then rerun `npm.cmd run db:prisma7-test -- --live`. |
