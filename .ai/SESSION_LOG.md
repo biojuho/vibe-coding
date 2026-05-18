@@ -504,6 +504,7 @@
 - Completed the first safe product-quality pass as T-307.
 - Added a home-screen Today Brief panel that converts operational state into next actions: offline sync, critical alerts, next schedule, low-stock inventory, and monthly sales.
 - Extracted deterministic focus-item prioritization into `src/lib/dashboard/today-focus.mjs` with regression coverage.
+- Feature commit: `f222385` (`feat(hanwoo-dashboard): add today brief focus panel`).
 - Preserved unrelated dirty `projects/blind-to-x/uv.lock`.
 
 ### Changed Files
@@ -520,6 +521,7 @@
 - `npm.cmd test` from `projects/hanwoo-dashboard` -> `77 passed`.
 - `npm.cmd run lint` from `projects/hanwoo-dashboard` -> passed.
 - `npm.cmd run build` from `projects/hanwoo-dashboard` -> passed.
+- `python execution/code_review_gate.py --staged --json` -> pass risk `0.0`; pre-commit graph gate later emitted advisory WARN risk `0.35` for `DashboardClient` test-gap heuristics despite direct helper coverage and full Hanwoo checks.
 - Dev server started at `http://127.0.0.1:3001`.
 
 ### Follow-up
