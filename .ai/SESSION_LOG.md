@@ -558,3 +558,66 @@
 ### Follow-up
 - Continue T-308 when asked.
 - Do not retry T-251 live Prisma until Supabase credentials are reset/resynced.
+
+## 2026-05-19 KST - Codex
+
+### Summary
+- Continued the active Hanwoo quality goal after the user asked for UX/UI optimized for users.
+- Reworked `/login` into an operator-first login flow with labelled fields, lucide icons, password visibility toggle, disabled/pending submit states, clearer error feedback, and mobile-safe spacing.
+- Replaced bottom dashboard tab emoji navigation with lucide icons and `aria-current` for more stable, scan-friendly navigation.
+- Added `public/favicon.ico` from the existing app icon so `/favicon.ico` no longer 404s.
+- Feature commit: `94d043e` (`feat(hanwoo-dashboard): polish operator login ux`).
+
+### Changed Files
+- `projects/hanwoo-dashboard/src/app/login/page.js`
+- `projects/hanwoo-dashboard/src/app/globals.css`
+- `projects/hanwoo-dashboard/src/components/widgets/widgets.js`
+- `projects/hanwoo-dashboard/public/favicon.ico`
+- `.ai/GOAL.md`
+- `.ai/HANDOFF.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/TASKS.md`
+
+### Verification
+- `npm.cmd test` from `projects/hanwoo-dashboard` -> `77 passed`.
+- `npm.cmd run lint` from `projects/hanwoo-dashboard` -> passed.
+- `npm.cmd run build` from `projects/hanwoo-dashboard` -> passed.
+- Playwright CLI `/login` snapshot and mobile/desktop visual checks -> passed.
+- Playwright console after favicon fix -> errors `0`, warnings `0`.
+- `python execution/code_review_gate.py --staged --json` -> pass risk `0.0`; pre-commit graph gate later emitted advisory WARN risk `0.50`, partly polluted by unrelated dirty `blind-to-x` WIP.
+
+### Follow-up
+- Authenticated dashboard visual QA still needs working DB/auth state; keep T-251 separate until Supabase credentials are reset/resynced.
+
+## 2026-05-19 KST - Codex
+
+### Summary
+- Completed T-310 for the active thread goal: make blind-to-x Notion output more suitable for direct X upload.
+- Added a top-level `X 업로드 카드` to Notion pages with copy-ready `X 본문`, optional `첫 답글 / 출처 메모`, 280-character count, link/hashtag separation, and upload order.
+- Changed future Twitter publish-platform labeling from `숏폼` to `X` while preserving legacy `숏폼` recognition in backfill/schema helpers.
+- Moved non-X formats under `보조 채널 초안` so the reviewer-facing page is X-first instead of a generic multi-platform dump.
+- Updated README, ops-runbook, and Notion view setup docs to point reviewers at `X 업로드 카드` / `X 후보`.
+
+### Changed Files
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `projects/blind-to-x/README.md`
+- `projects/blind-to-x/docs/notion_view_setup_guide.md`
+- `projects/blind-to-x/docs/ops-runbook.md`
+- `projects/blind-to-x/pipeline/notion/_upload.py`
+- `projects/blind-to-x/scripts/backfill_notion_review_columns.py`
+- `projects/blind-to-x/scripts/sync_notion_review_schema.py`
+- `projects/blind-to-x/tests/unit/test_backfill_notion_review_columns.py`
+- `projects/blind-to-x/tests/unit/test_notion_upload.py`
+
+### Verification
+- `python -m pytest --no-cov tests/unit/test_notion_upload.py tests/unit/test_backfill_notion_review_columns.py -q --tb=short --maxfail=1` from `projects/blind-to-x` -> `42 passed`, 1 Pydantic/Python 3.14 warning.
+- `python -m pytest --no-cov tests/unit/test_process_stages.py tests/unit/test_cost_controls.py -q --tb=short --maxfail=1` from `projects/blind-to-x` -> `35 passed`, 1 Pydantic/Python 3.14 warning.
+- `python -m ruff check --no-cache pipeline/notion/_upload.py scripts/backfill_notion_review_columns.py scripts/sync_notion_review_schema.py tests/unit/test_notion_upload.py tests/unit/test_backfill_notion_review_columns.py` from `projects/blind-to-x` -> passed.
+- `PYTHONUTF8=1 python -m code_review_graph detect-changes --repo projects/blind-to-x --brief` -> risk `0.00`.
+
+### Follow-up
+- Live Notion upload was not run because it would use the real Notion API.
+- If the actual Notion DB needs the new `X` multi-select option synced, run `py -3 scripts/sync_notion_review_schema.py --config config.yaml --apply` from `projects/blind-to-x`.
+- Preserve unrelated current worktree changes: `projects/blind-to-x/uv.lock`, `projects/hanwoo-dashboard/src/app/globals.css`, `projects/hanwoo-dashboard/src/app/login/page.js`, `.playwright-cli/`, and `output/`.
