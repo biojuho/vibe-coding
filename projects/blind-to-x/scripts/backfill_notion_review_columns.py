@@ -119,6 +119,35 @@ def _detect_publish_platforms(record: dict[str, Any], sections: dict[str, list[s
     return deduped
 
 
+def _needs_x_upload_card(record: dict[str, Any], sections: dict[str, list[str]]) -> bool:
+    if "X 업로드 카드" in sections:
+        return False
+    return bool(str(record.get("tweet_body") or "").strip())
+
+
+async def _append_x_upload_card(notion: NotionUploader, record: dict[str, Any]) -> bool:
+    page_id = str(record.get("page_id") or "").strip()
+    tweet_body = str(record.get("tweet_body") or "").strip()
+    if not page_id or not tweet_body:
+        return False
+
+    blocks = notion._build_x_upload_card_blocks(
+        {
+            "twitter": tweet_body,
+            "reply_text": str(record.get("reply_text") or "").strip(),
+        }
+    )
+    if not blocks:
+        return False
+
+    await notion._safe_notion_call(
+        notion.client.blocks.children.append,
+        block_id=page_id,
+        children=blocks,
+    )
+    return True
+
+
 def _infer_rejection_reasons(
     record: dict[str, Any],
     review_brief: dict[str, Any],
@@ -287,7 +316,7 @@ async def _fetch_page_sections(notion: NotionUploader, page_id: str) -> dict[str
     return sections
 
 
-async def run(config_path: str, apply_changes: bool, limit: int | None) -> int:
+async def run(config_path: str, apply_changes: bool, limit: int | None, append_x_upload_card: bool) -> int:
     load_env()
     config = ConfigManager(config_path)
     notion = NotionUploader(config)
@@ -301,28 +330,48 @@ async def run(config_path: str, apply_changes: bool, limit: int | None) -> int:
     scanned = len(pages)
     candidates = 0
     updated = 0
+    x_card_candidates = 0
+    x_cards_appended = 0
     samples: list[str] = []
 
     for page in pages:
         record = notion.extract_page_record(page)
         sections = await _fetch_page_sections(notion, page["id"])
         updates = build_review_backfill_updates(notion, record, sections)
+        needs_x_card = append_x_upload_card and _needs_x_upload_card(record, sections)
+        if needs_x_card:
+            x_card_candidates += 1
+            publish_platforms = list(record.get("publish_platforms") or [])
+            if "X" not in publish_platforms:
+                updates["publish_platforms"] = ["X", *[item for item in publish_platforms if item != "숏폼"]]
         if not updates:
-            continue
+            if not needs_x_card:
+                continue
+        else:
+            candidates += 1
 
-        candidates += 1
         if len(samples) < 5:
-            samples.append(f"{record.get('title', '(untitled)')} -> {', '.join(updates.keys())}")
+            actions = list(updates.keys())
+            if needs_x_card:
+                actions.append("append_x_upload_card")
+            samples.append(f"{record.get('title', '(untitled)')} -> {', '.join(actions)}")
 
-        if apply_changes:
+        if apply_changes and updates:
             success = await notion.update_page_properties(page["id"], updates)
             if success:
                 updated += 1
+        if apply_changes and needs_x_card:
+            success = await _append_x_upload_card(notion, record)
+            if success:
+                x_cards_appended += 1
 
     print("[BACKFILL REVIEW COLUMNS]")
     print(f"  scanned: {scanned}")
     print(f"  candidates: {candidates}")
     print(f"  updated: {updated if apply_changes else 0}")
+    if append_x_upload_card:
+        print(f"  x_card_candidates: {x_card_candidates}")
+        print(f"  x_cards_appended: {x_cards_appended if apply_changes else 0}")
     if samples:
         print("  samples:")
         for sample in samples:
@@ -330,7 +379,7 @@ async def run(config_path: str, apply_changes: bool, limit: int | None) -> int:
 
     if not apply_changes:
         print("  status: DRY-RUN")
-        print("  action: rerun with --apply to write the derived review columns")
+        print("  action: rerun with --apply to write the derived review columns/cards")
     else:
         print("  status: APPLIED")
 
@@ -344,12 +393,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", default="config.yaml", help="Path to config file")
     parser.add_argument("--limit", type=int, default=None, help="Optional max page count to scan")
     parser.add_argument("--apply", action="store_true", help="Actually update Notion pages")
+    parser.add_argument(
+        "--append-x-upload-card",
+        action="store_true",
+        help="Append copy-ready X upload cards to pages that have a tweet body but no X card",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    return asyncio.run(run(args.config, args.apply, args.limit))
+    return asyncio.run(run(args.config, args.apply, args.limit, args.append_x_upload_card))
 
 
 if __name__ == "__main__":

@@ -623,3 +623,35 @@
 - Live Notion upload was not run because it would use the real Notion API.
 - If the actual Notion DB needs the new `X` multi-select option synced, run `py -3 scripts/sync_notion_review_schema.py --config config.yaml --apply` from `projects/blind-to-x`.
 - Preserve unrelated current worktree changes: `projects/blind-to-x/uv.lock`, `projects/hanwoo-dashboard/src/app/globals.css`, `projects/hanwoo-dashboard/src/app/login/page.js`, `.playwright-cli/`, and `output/`.
+
+## 2026-05-19 KST - Codex
+
+### Summary
+- Continued the active blind-to-x thread goal through live Notion verification and backfill.
+- Confirmed `scripts/notion_doctor.py --config config.yaml` passes against the real Notion database.
+- Confirmed `scripts/sync_notion_review_schema.py --config config.yaml` is `NOOP`; the live DB already has the reviewer columns and `X` publish-platform option.
+- Added `--append-x-upload-card` to `scripts/backfill_notion_review_columns.py` so existing pages with a `tweet_body` can receive the new copy-ready X card without running the LLM generation path.
+- Applied the backfill to the newest 5 Notion pages: properties updated from legacy `숏폼` to `X`, and 5 `X 업로드 카드` blocks were appended.
+- Read-only verification confirmed the newest 5 pages are X-ready: `verified_x_ready=5/5`, each with `platforms=['X']`, `X 업로드 카드`, `X 본문`, and `첫 답글 / 출처 메모`.
+
+### Changed Files
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `projects/blind-to-x/scripts/backfill_notion_review_columns.py`
+- `projects/blind-to-x/tests/unit/test_backfill_notion_review_columns.py`
+
+### Verification
+- `python scripts/notion_doctor.py --config config.yaml` from `projects/blind-to-x` -> PASS.
+- `python scripts/sync_notion_review_schema.py --config config.yaml` from `projects/blind-to-x` -> NOOP.
+- `python scripts/backfill_notion_review_columns.py --config config.yaml --limit 5 --append-x-upload-card` -> dry-run found 5 candidates.
+- `python scripts/backfill_notion_review_columns.py --config config.yaml --limit 5 --append-x-upload-card --apply` -> updated 5 pages and appended 5 X cards.
+- Read-only verification script -> `verified_x_ready=5/5`.
+- `python -m pytest --no-cov tests/unit/test_notion_upload.py tests/unit/test_backfill_notion_review_columns.py -q --tb=short --maxfail=1` -> `44 passed`, 1 Pydantic/Python 3.14 warning.
+- `python -m ruff check --no-cache scripts/backfill_notion_review_columns.py tests/unit/test_backfill_notion_review_columns.py tests/unit/test_notion_upload.py` -> passed.
+- `PYTHONUTF8=1 python -m code_review_graph detect-changes --repo projects/blind-to-x --brief` -> risk `0.00`.
+
+### Follow-up
+- Future blind-to-x uploads should now create `X 업로드 카드` during normal upload, while the latest existing review queue is also X-ready.
+- Live LLM generation was not run in this continuation; this was Notion read/write plus deterministic tests.
+- Preserve unrelated current `projects/shorts-maker-v2/**` dirty WIP.

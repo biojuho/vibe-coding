@@ -13,7 +13,9 @@ if str(ROOT) not in sys.path:
 
 from pipeline.notion_upload import NotionUploader  # noqa: E402
 from scripts.backfill_notion_review_columns import (  # noqa: E402
+    _append_x_upload_card,
     _fetch_page_sections,
+    _needs_x_upload_card,
     build_review_backfill_updates,
 )
 
@@ -85,6 +87,43 @@ def test_build_review_backfill_updates_infers_rejection_reasons_for_rejected_pag
     updates = build_review_backfill_updates(notion, record, sections)
 
     assert updates["rejection_reasons"] == ["근거 약함"]
+
+
+def test_needs_x_upload_card_detects_missing_card_with_tweet_body():
+    record = {"tweet_body": "바로 올릴 X 본문"}
+
+    assert _needs_x_upload_card(record, {"검토 요약": []}) is True
+    assert _needs_x_upload_card(record, {"X 업로드 카드": []}) is False
+    assert _needs_x_upload_card({"tweet_body": ""}, {"검토 요약": []}) is False
+
+
+@pytest.mark.asyncio
+async def test_append_x_upload_card_appends_copy_ready_blocks():
+    notion = NotionUploader(_mock_config())
+    notion._safe_notion_call = AsyncMock(return_value={})
+    notion.client = MagicMock()
+    notion.client.blocks.children.append = AsyncMock()
+
+    record = {
+        "page_id": "page-1",
+        "tweet_body": "팀장보다 먼저 퇴근했다가 혼났다.",
+        "reply_text": "원문: https://example.com/post\n#직장문화",
+    }
+
+    result = await _append_x_upload_card(notion, record)
+
+    assert result is True
+    notion._safe_notion_call.assert_awaited_once()
+    kwargs = notion._safe_notion_call.await_args.kwargs
+    assert kwargs["block_id"] == "page-1"
+    headings = [
+        block[block["type"]]["rich_text"][0]["text"]["content"]
+        for block in kwargs["children"]
+        if block.get("type") in {"heading_2", "heading_3"}
+    ]
+    assert "X 업로드 카드" in headings
+    assert "X 본문" in headings
+    assert "첫 답글 / 출처 메모" in headings
 
 
 @pytest.mark.asyncio
