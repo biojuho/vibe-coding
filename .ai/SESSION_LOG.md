@@ -527,3 +527,33 @@
 ### Follow-up
 - T-308 is the next safe goal task: browser visual QA of the Today Brief panel, then consider lucide-icon polish for remaining emoji-heavy navigation/widget affordances.
 - T-251 remains user-owned: reset/resync the Supabase database password in the Supabase Dashboard, update `.env` if needed, then rerun live Prisma E2E.
+
+## 2026-05-19 KST - Codex
+
+### Summary
+- Record-only checkpoint after the user said `기록해`.
+- Confirmed Hanwoo quality-uplift work is already committed in `f222385` and ai-context closeout is committed in `4a8ece5`.
+- Confirmed active goal remains `hanwoo-dashboard quality uplift so other people would want to use it`.
+- Confirmed local `main` is ahead 2 of `origin/main`.
+- Preserved unrelated dirty `blind-to-x` WIP without staging or editing it.
+
+### Current Dirty Files To Preserve
+- `projects/blind-to-x/pipeline/content_intelligence/rules.py`
+- `projects/blind-to-x/pipeline/draft_prompts.py`
+- `projects/blind-to-x/pipeline/draft_quality_gate.py`
+- `projects/blind-to-x/rules/editorial.yaml`
+- `projects/blind-to-x/rules/examples.yaml`
+- `projects/blind-to-x/rules/prompts.yaml`
+- `projects/blind-to-x/tests/unit/test_draft_generator_multi_provider.py`
+- `projects/blind-to-x/tests/unit/test_draft_quality_gate_deep.py`
+- `projects/blind-to-x/tests/unit/test_quality_gate_and_scenes.py`
+- `projects/blind-to-x/tests/unit/test_quality_improvements.py`
+- `projects/blind-to-x/uv.lock`
+
+### Verification
+- `git status --short --branch` -> `main...origin/main [ahead 2]`, only the unrelated `blind-to-x` WIP plus this record update before commit.
+- `python execution/session_orient.py --json` -> active goal present, TODO count 3, no staged files, graph available.
+
+### Follow-up
+- Continue T-308 when asked.
+- Do not retry T-251 live Prisma until Supabase credentials are reset/resynced.

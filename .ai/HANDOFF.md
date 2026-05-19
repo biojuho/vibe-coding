@@ -6,6 +6,13 @@
 
 | Field | Value |
 |---|---|
+| Date | 2026-05-19 |
+| Tool | Codex |
+| Work | Record-only checkpoint after user said `기록해`. Confirmed the Hanwoo quality-uplift work is already recorded and committed: `f222385` (`feat(hanwoo-dashboard): add today brief focus panel`) plus `4a8ece5` (`[ai-context] hanwoo 품질 개선 세션 기록`). `session_orient.py --json` shows active goal still set to `hanwoo-dashboard quality uplift so other people would want to use it`, `main` ahead 2 of `origin/main`, and no staged files. |
+| Next Priorities | Preserve current unrelated `blind-to-x` dirty WIP: `pipeline/content_intelligence/rules.py`, `pipeline/draft_prompts.py`, `pipeline/draft_quality_gate.py`, `rules/editorial.yaml`, `rules/examples.yaml`, `rules/prompts.yaml`, four `tests/unit/test_*quality*`/multi-provider files, and `uv.lock`. Continue T-308 when asked: browser visual QA of Today Brief and safe UI polish. T-251 remains external/user-owned Supabase pooler credential reset. |
+
+| Field | Value |
+|---|---|
 | Date | 2026-05-18 |
 | Tool | Codex |
 | Work | Activated the new `/goal` in `.ai/GOAL.md`: `hanwoo-dashboard` quality uplift so other people would want to use it. Completed first safe UX/product pass as **T-307** in commit `f222385`. Added `projects/hanwoo-dashboard/src/lib/dashboard/today-focus.mjs` and tests, then rendered a home-screen Today Brief panel in `DashboardClient.js` with CSS in `globals.css`. The panel prioritizes offline sync state, critical breeding/calving alerts, next open schedule item, low-stock inventory, and monthly sales into clickable actions. Preserved unrelated dirty `projects/blind-to-x/uv.lock`. |
