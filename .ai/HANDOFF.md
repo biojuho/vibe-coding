@@ -8,8 +8,8 @@
 |---|---|
 | Date | 2026-05-19 |
 | Tool | Gemini (Antigravity) |
-| Work | **워크스페이스 위생 정비**. (1) 미푸시 커밋 3개(`b15ccf6` blind-to-x Notion 구조 변경 + `677a545` hanwoo 로그인 리팩토링 + `94d043e` hanwoo UX 폴리시) origin/main에 push 완료. (2) HANDOFF.md 로테이션(`--keep-days 3`): 5/15~5/16 addenda 4개 → `.ai/archive/HANDOFF_archive_2026-05-19.md`로 이동, 8개 유지. (3) SESSION_LOG 업데이트. |
-| Next Priorities | Git worktree 깨끗, origin/main 완전 동기화. 남은 TODO: T-251(Supabase 비밀번호 — 사용자 조치), T-305(openai 2.x — 저우선). IN_PROGRESS 없음. |
+| Work | **Shorts Maker V2 + Hanwoo Dashboard 고도화**. (1) shorts-maker-v2: scene QC 활성화(`scene_qc_enabled: true`, strict 모드), 영상 길이 완화(`[38,52]`초), 한국어 훅 품질 가이드라인 강화(조건부 `hook_rules_ko`), 감정 키워드 5도메인 확장 → 커밋 `f119b30`. (2) hanwoo-dashboard: Quick Action Panel(개체등록/출하/일정/재고 퀵액션) + 탭 연동(`quickActionIntent`) → 커밋 `e0c80d1`. (3) 전체 검증 통과(shorts pytest OK, hanwoo test 77 passed + lint + build). (4) `git push origin main` 완료(`7913df0..e0c80d1`). |
+| Next Priorities | Git worktree 깨끗, origin/main 완전 동기화(`e0c80d1`). 남은 TODO: T-251(Supabase 비밀번호 — 사용자 조치), T-305(openai 2.x — 저우선). IN_PROGRESS 없음. |
 
 | Field | Value |
 |---|---|
