@@ -1,26 +1,30 @@
 import { calcTHI, getTHILevel, getWeatherIcon, getWeatherDesc, getLivestockWeatherAlerts } from '@/lib/utils';
 import { PremiumCard, PremiumCardContent } from '@/components/ui/premium-card';
+import { BarChart3, Boxes, CalendarDays, Home, Settings, Sprout, Stethoscope, Truck } from 'lucide-react';
 
 export function TabBar({ activeTab, onTabChange }) {
   const tabs = [
-    { id: "home", label: "홈", icon: "🏠" },
-    { id: "feed", label: "사료", icon: "🌾" },
-    { id: "calving", label: "분만", icon: "🍼" },
-    { id: "sales", label: "출하", icon: "💰" },
-    { id: "inventory", label: "재고", icon: "📦" },
-    { id: "analysis", label: "분석", icon: "📊" },
-    { id: "schedule", label: "일정", icon: "🗓️" },
-    { id: "settings", label: "설정", icon: "⚙️" },
+    { id: "home", label: "홈", icon: Home },
+    { id: "feed", label: "사료", icon: Sprout },
+    { id: "calving", label: "분만", icon: Stethoscope },
+    { id: "sales", label: "출하", icon: Truck },
+    { id: "inventory", label: "재고", icon: Boxes },
+    { id: "analysis", label: "분석", icon: BarChart3 },
+    { id: "schedule", label: "일정", icon: CalendarDays },
+    { id: "settings", label: "설정", icon: Settings },
   ];
   return (
-    <nav className="tab-bar">
+    <nav className="tab-bar" aria-label="대시보드 메뉴">
       {tabs.map((t) => {
         const isActive = activeTab === t.id;
+        const Icon = t.icon;
         return (
           <button
             key={t.id}
+            type="button"
             onClick={() => onTabChange(t.id)}
             className={`tab-item ${isActive ? 'active' : ''}`}
+            aria-current={isActive ? 'page' : undefined}
             style={{
               color: isActive ? 'var(--color-primary-custom)' : 'var(--color-text-muted)',
             }}
@@ -29,7 +33,9 @@ export function TabBar({ activeTab, onTabChange }) {
               transform: isActive ? 'scale(1.2) translateY(-3px)' : 'scale(1)',
               transition: 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
               filter: isActive ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.15))' : 'none',
-            }}>{t.icon}</span>
+            }}>
+              <Icon size={22} strokeWidth={isActive ? 2.5 : 2} aria-hidden="true" />
+            </span>
             <span className="tab-label" style={{
               opacity: isActive ? 1 : 0.65,
               transition: 'opacity 0.25s ease, font-weight 0.15s ease',

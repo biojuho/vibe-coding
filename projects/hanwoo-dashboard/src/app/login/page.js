@@ -1,103 +1,117 @@
 'use client';
-import { signIn } from "next-auth/react";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+
+import { Eye, EyeOff, Loader2, LockKeyhole, ShieldCheck, UserRound } from 'lucide-react';
+import { signIn } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const res = await signIn("credentials", {
-      username,
+  const canSubmit = username.trim().length > 0 && password.length > 0 && !isSubmitting;
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!canSubmit) return;
+
+    setError('');
+    setIsSubmitting(true);
+
+    const result = await signIn('credentials', {
+      username: username.trim(),
       password,
       redirect: false,
     });
 
-    if (res?.error) {
-      setError("로그인 실패: 아이디 또는 비밀번호를 확인하세요.");
-    } else {
-      router.push("/");
+    setIsSubmitting(false);
+
+    if (result?.error) {
+      setError('아이디 또는 비밀번호를 다시 확인해 주세요.');
+      return;
     }
+
+    router.push('/');
+    router.refresh();
   };
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      background: "var(--color-bg)",
-      fontFamily: "var(--font-sans-custom)"
-    }}>
-      <div style={{
-        background: "var(--surface-gradient)",
-        padding: "40px",
-        borderRadius: "32px",
-        boxShadow: "var(--shadow-lg)",
-        border: "1px solid var(--color-surface-stroke)",
-        width: "100%",
-        maxWidth: "400px"
-      }}>
-        <h1 style={{fontSize:"24px", fontWeight:800, marginBottom:"8px", color:"var(--color-text)", textAlign:"center", letterSpacing:"0.04em", fontFamily:"var(--font-display-custom)"}}>한우 대시보드</h1>
-        <p style={{fontSize:"14px", color:"var(--color-text-secondary)", marginBottom:"24px", textAlign:"center"}}>관리자 계정으로 로그인하세요.</p>
-        
-        <form onSubmit={handleSubmit} style={{display:"flex", flexDirection:"column", gap:"16px"}}>
-          <input
-            type="text"
-            placeholder="아이디"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            style={{
-              padding: "16px",
-              borderRadius: "18px",
-              border: "1px solid var(--color-surface-border)",
-              fontSize: "16px",
-              outline: "none",
-              background: "var(--surface-gradient)",
-              color: "var(--color-text)",
-              boxShadow: "var(--shadow-inset-soft)"
-            }}
-          />
-          <input
-            type="password"
-            placeholder="비밀번호"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{
-              padding: "16px",
-              borderRadius: "18px",
-              border: "1px solid var(--color-surface-border)",
-              fontSize: "16px",
-              outline: "none",
-              background: "var(--surface-gradient)",
-              color: "var(--color-text)",
-              boxShadow: "var(--shadow-inset-soft)"
-            }}
-          />
-          {error && <div style={{color:"var(--color-danger)", fontSize:"13px", textAlign:"center"}}>{error}</div>}
-          <button
-            type="submit"
-            style={{
-              padding: "16px",
-              borderRadius: "18px",
-              background: "var(--surface-gradient-primary)",
-              color: "white",
-              fontSize: "16px",
-              fontWeight: 700,
-              border: "1px solid var(--color-surface-stroke)",
-              cursor: "pointer",
-              transition: "background 0.2s",
-              boxShadow: "var(--shadow-button-primary)"
-            }}
-          >
-            로그인
+    <main className="login-shell">
+      <section className="login-card" aria-labelledby="login-title">
+        <div className="login-brand">
+          <div className="login-mark" aria-hidden="true">
+            <ShieldCheck size={26} strokeWidth={2.2} />
+          </div>
+          <div>
+            <p className="login-eyebrow">Joolife Operations</p>
+            <h1 id="login-title" className="login-title">한우 대시보드</h1>
+          </div>
+        </div>
+
+        <p className="login-copy">오늘의 사육, 재고, 출하 업무를 이어서 관리하세요.</p>
+
+        <form className="login-form" onSubmit={handleSubmit}>
+          <label className="login-field">
+            <span className="login-label">아이디</span>
+            <span className="login-input-wrap">
+              <UserRound className="login-input-icon" size={18} aria-hidden="true" />
+              <input
+                type="text"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                autoComplete="username"
+                inputMode="text"
+                placeholder="관리자 아이디"
+                className="login-input"
+              />
+            </span>
+          </label>
+
+          <label className="login-field">
+            <span className="login-label">비밀번호</span>
+            <span className="login-input-wrap">
+              <LockKeyhole className="login-input-icon" size={18} aria-hidden="true" />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete="current-password"
+                placeholder="비밀번호"
+                className="login-input login-input-password"
+              />
+              <button
+                type="button"
+                className="login-password-toggle"
+                onClick={() => setShowPassword((current) => !current)}
+                aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </span>
+          </label>
+
+          {error ? (
+            <div className="login-error" role="alert">
+              {error}
+            </div>
+          ) : null}
+
+          <button type="submit" className="login-submit" disabled={!canSubmit}>
+            {isSubmitting ? <Loader2 className="animate-spin" size={18} aria-hidden="true" /> : null}
+            {isSubmitting ? '확인 중...' : '대시보드 열기'}
           </button>
         </form>
-      </div>
-    </div>
+
+        <div className="login-status-row" aria-label="운영 상태">
+          <span>보안 세션</span>
+          <span>모바일 최적화</span>
+          <span>오프라인 대기열</span>
+        </div>
+      </section>
+    </main>
   );
 }
