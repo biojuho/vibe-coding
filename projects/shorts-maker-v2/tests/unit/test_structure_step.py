@@ -166,6 +166,84 @@ class TestGate2Validation:
         assert verdict == GateVerdict.FAIL_RETRY
         assert any("few" in i.lower() for i in issues)
 
+    # ── Phase 1 #3: production_plan 정합성 강화 회귀 ───────────────────────
+    # 2026-05-19 history/ai_tech run 에서 Gate 2 가 매번 "Outline intents don't
+    # reflect audience desire" 로 실패해 결정론 fallback 으로 떨어지던 패턴.
+    # 한국어 조사("이/가/은/는/의/...") 가 토큰에 붙어 substring 매치가 실패.
+
+    def test_korean_particle_stem_matches_desire(self, _config):
+        """조사 붙은 desire 토큰이 stem 으로 환원되어 intent 와 매칭된다."""
+        plan = ProductionPlan(
+            concept="기억 상실과 언어 능력",
+            target_persona="32세 직장인",
+            core_message="기억은 사라져도 언어는 남는다",
+            visual_keywords=["brain neural network"],
+            forbidden_elements=[],
+            tone="quiet",
+            audience_profile={
+                # 모든 토큰에 조사 부착: 기억이, 사라져도, 능력이, 보존
+                "desire": "기억이 사라져도 능력이 보존되는지 알고 싶다",
+                "emotional_state": "anxiety",
+                "knowledge_level": "intermediate",
+                "consumption_context": "commute",
+            },
+        )
+        step = StructureStep(config=_config, llm_router=MagicMock())
+        data = _make_valid_llm_response(7)
+        # intent 에 'desire 의 stem(기억/능력/보존)' 중 하나도 안 들어 있으면
+        # 이전 코드는 통과시켰고(시간/우주 등으로 fake 매치), 새 코드는 정확히
+        # plan 키워드에 의존. 명시적으로 plan 의 core_message stem("기억") 을
+        # intent 에 넣어 매칭이 production_plan 다중 필드를 통해서도 성립함을 검증.
+        for scene in data["scenes"]:
+            scene["intent"] = "기억과 언어의 결을 조용히 따라간다"
+        outline = step._parse_outline(data)
+        verdict, issues = step._gate2_validate(outline, plan)
+        assert verdict == GateVerdict.PASS
+        assert not any("audience desire" in i for i in issues)
+
+    def test_intent_totally_unrelated_fails(self, _config):
+        """plan 어느 필드와도 매칭 안 되면 여전히 실패."""
+        plan = ProductionPlan(
+            concept="블랙홀의 시간 왜곡",
+            target_persona="우주 시청자",
+            core_message="블랙홀 근처 시간 느려짐",
+            visual_keywords=["black hole"],
+            forbidden_elements=[],
+            tone="awe",
+            audience_profile={
+                "desire": "블랙홀의 시간 왜곡 원리를 알고 싶다",
+                "emotional_state": "curious",
+                "knowledge_level": "beginner",
+                "consumption_context": "evening",
+            },
+        )
+        step = StructureStep(config=_config, llm_router=MagicMock())
+        data = _make_valid_llm_response(7)
+        # intent 전체를 무관 주제(요리/육아)로 교체
+        for scene in data["scenes"]:
+            scene["intent"] = "오늘 저녁 식탁 위에 올린 김치찌개의 향수"
+        outline = step._parse_outline(data)
+        verdict, issues = step._gate2_validate(outline, plan)
+        assert verdict == GateVerdict.FAIL_RETRY
+        assert any("audience desire" in i or "core message" in i for i in issues)
+
+    def test_extract_match_stems_korean(self):
+        """_extract_match_stems 가 한국어 조사를 정확히 제거한다."""
+        stems = StructureStep._extract_match_stems("기억이 사라져도 능력이 보존되는지에 대한 위안을 얻고 싶다")
+        assert "기억" in stems
+        assert "능력" in stems
+        # `위안을` → `위안` (을 제거). `대한` 은 조사 없어서 그대로.
+        assert "위안" in stems
+        # 1자 토큰은 버려지므로 stems 에 1자 짜리 없음
+        assert all(len(s) >= 2 for s in stems)
+
+    def test_extract_match_stems_english_preserved(self):
+        """영어/숫자 토큰은 lowercase 로 그대로 보존."""
+        stems = StructureStep._extract_match_stems("GPT-5 release in 2026")
+        assert "gpt-5" in stems
+        assert "2026" in stems
+        assert "release" in stems
+
 
 class TestFallbackOutline:
     """폴백 구성안 테스트."""

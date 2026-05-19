@@ -874,6 +874,15 @@ class PipelineOrchestrator:
                 )
             step_timings["render"] = round(time.perf_counter() - _t0, 2)
 
+            # RenderStep silent-fail (karaoke fallback / color grade / audio post)
+            # drain → degraded_steps. 이전엔 logger.warning 만 찍히고 manifest 에
+            # 안 남아 카라오케 깨짐을 사용자가 영상 보고서야 알았음 (2026-05-11).
+            _pending_render = getattr(self.render_step, "_pending_render_warnings", None)
+            if _pending_render:
+                degraded_steps.extend(_pending_render)
+                # 이미 흘려보냈으니 RenderStep 인스턴스 재사용 시 중복 방지.
+                self.render_step._pending_render_warnings = []
+
             manifest.output_path = output_path.resolve().as_posix()
             manifest.total_duration_sec = round(sum(item.duration_sec for item in scene_assets), 3)
             # YouTube Shorts 상한 (45초) 체크

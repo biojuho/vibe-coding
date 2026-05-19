@@ -298,21 +298,99 @@ class StructureStep:
         if empty_intents:
             issues.append(f"Scenes with empty/short intent: {empty_intents}")
 
-        # 8. 청중 desire 정합성 (production_plan이 있을 때)
-        if production_plan and hasattr(production_plan, "audience_profile"):
-            ap = production_plan.audience_profile
-            if ap and isinstance(ap, dict):
-                desire = ap.get("desire", "")
-                if desire and len(desire) >= 10:
-                    # 최소한 하나의 씬 intent에 desire 키워드가 반영되어야 함
-                    desire_words = {w for w in desire.lower().split() if len(w) >= 2}
-                    intent_text = " ".join(s.intent.lower() for s in scenes)
-                    matched = sum(1 for w in desire_words if w in intent_text)
-                    if matched < 1 and desire_words:
-                        issues.append("Outline intents don't reflect audience desire")
+        # 8. production_plan 정합성 (audience desire + core_message + visual_keywords)
+        # ─────────────────────────────────────────────────────────────────────
+        # 이전(2026-05-19 까지): desire 만 lower().split() 토큰 substring 매칭.
+        # 한국어 조사("이/가/은/는/을/를/의/에/에서/...")가 토큰에 붙어 있어
+        # `desire="기억이 사라져도..."` 의 `기억이` 가 intent `기억` 와 매치 실패.
+        # 그 결과 Gate 2 가 만성 실패 → 결정론 fallback outline 사용 (T-260 케이스).
+        # 새 매칭:
+        #   1) desire/core_message 에서 한국어 조사 제거한 2자+ stem 키워드 추출.
+        #   2) visual_keywords 도 합쳐서 매칭 후보 확장.
+        #   3) 어떤 한 stem 이 intent_text 안에 substring 으로 들어 있으면 통과.
+        # 여전히 단어 하나도 안 닿으면 issues 추가 (LLM 이 주제 이탈한 경우).
+        if production_plan is not None:
+            production_keywords: set[str] = set()
+            ap = getattr(production_plan, "audience_profile", None)
+            if isinstance(ap, dict):
+                desire_str = str(ap.get("desire", "") or "")
+                if len(desire_str) >= 10:
+                    production_keywords |= self._extract_match_stems(desire_str)
+            core_msg = str(getattr(production_plan, "core_message", "") or "")
+            if len(core_msg) >= 5:
+                production_keywords |= self._extract_match_stems(core_msg)
+            raw_vis = getattr(production_plan, "visual_keywords", None)
+            if isinstance(raw_vis, (list, tuple)):
+                for k in raw_vis:
+                    ks = str(k).strip().lower()
+                    if len(ks) >= 2:
+                        production_keywords.add(ks)
+
+            if production_keywords:
+                intent_text = " ".join(s.intent.lower() for s in scenes)
+                matched = sum(1 for w in production_keywords if w in intent_text)
+                if matched < 1:
+                    issues.append("Outline intents don't reflect audience desire / core message")
 
         verdict = GateVerdict.PASS if not issues else GateVerdict.FAIL_RETRY
         return verdict, issues
+
+    # 한국어 조사 — Gate 2 의 production_plan 정합성 체크에서 stem 추출용.
+    # 길이 긴 것부터 먼저 매치(`에서` 가 `에` 보다 먼저).
+    _KOREAN_PARTICLES: tuple[str, ...] = (
+        "에서",
+        "에게",
+        "에는",
+        "에도",
+        "에만",
+        "으로",
+        "보다",
+        "처럼",
+        "까지",
+        "부터",
+        "조차",
+        "마저",
+        "이라",
+        "이라고",
+        "라고",
+        "이",
+        "가",
+        "을",
+        "를",
+        "은",
+        "는",
+        "에",
+        "의",
+        "와",
+        "과",
+        "도",
+        "만",
+        "로",
+        "야",
+        "여",
+        "이여",
+    )
+
+    @classmethod
+    def _extract_match_stems(cls, text: str) -> set[str]:
+        """한국어 조사 제거 후 매칭 가능한 2자+ stem 집합 반환.
+
+        `"기억이 사라져도 능력이 보존"` →
+        `{"기억", "사라져도", "능력", "보존"}` (`이` 조사 제거).
+        영어/숫자는 lowercase 그대로 유지.
+        """
+        stems: set[str] = set()
+        for raw in text.lower().split():
+            w = raw.strip().strip(",.;:!?\"'()[]{}")
+            if len(w) < 2:
+                continue
+            for p in cls._KOREAN_PARTICLES:
+                if w.endswith(p) and len(w) - len(p) >= 2:
+                    w = w[: -len(p)]
+                    break
+            if len(w) >= 2:
+                stems.add(w)
+        return stems
 
     # 폴백 body 씬용 감정 아크. 6개 이상이면 cycle 한다. Gate 2의
     # "감정 3가지 이상" 체크를 자동으로 만족시킨다.

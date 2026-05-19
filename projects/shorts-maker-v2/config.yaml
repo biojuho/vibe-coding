@@ -60,7 +60,10 @@ providers:
     moonshot: "moonshot-v1-8k"
     zhipuai: "glm-4-flash"
     groq: "llama-3.3-70b-versatile"
-  tts: "openai"                      # "edge-tts"(무료) | "openai"(유료 $0.0008/s)
+  tts: "edge-tts"                    # "edge-tts"(무료, 기본) | "openai"(유료 $0.0008/s) | "chatterbox" | "cosyvoice"
+  # ⚠ channel_profiles.yaml 의 모든 채널 voice 가 Azure/Edge 포맷(`ko-KR-*Neural`)이므로
+  # `openai` 로 바꿀 때는 채널별 voice 도 OpenAI 호환(nova/onyx/echo/fable/alloy/shimmer/ash/sage/coral)
+  # 으로 동시 교체해야 한다. (2026-05-19 mismatch 실증)
   visual_primary: "gemini-image"    # Gemini 무료 이미지 생성 (Imagen 3 API 404 이슈로 전환)
   visual_fallback: "openai-image"
   llm_model: "gpt-4o-mini"         # 단일 provider 사용 시 기본 모델

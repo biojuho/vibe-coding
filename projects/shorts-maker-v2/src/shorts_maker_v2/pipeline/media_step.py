@@ -13,6 +13,7 @@ from PIL import Image, ImageDraw
 
 from shorts_maker_v2.config import AppConfig
 from shorts_maker_v2.models import SceneAsset, ScenePlan
+from shorts_maker_v2.pipeline.media._prompt_filters import with_text_suppression
 from shorts_maker_v2.providers.edge_tts_client import EdgeTTSClient
 from shorts_maker_v2.providers.google_client import GoogleClient
 from shorts_maker_v2.providers.llm_router import LLMRouter
@@ -66,6 +67,14 @@ class MediaStep:
             enabled=config.cache.enabled,
             max_size_mb=config.cache.max_size_mb,
         )
+
+        # Silent-fail propagation 버퍼.
+        # _generate_audio 의 Whisper word-sync 실패 같이 "audio 자체는 성공했지만
+        # 단어 타이밍이 비어서 카라오케 자막이 깨질 위험" 같은 경고를 모은다.
+        # run/run_parallel 종료 시 all_failures 에 합쳐서 orchestrator
+        # degraded_steps 에 노출시킨다(2026-05-19 검증: 이전엔 logger.warning
+        # 만 찍히고 manifest.degraded_steps 가 빈 채로 ship 되어 사용자 가시성 0).
+        self._pending_audio_warnings: list[dict[str, str]] = []
 
     @staticmethod
     def _log(logger: Any, level: str, event: str, **fields: Any) -> None:
@@ -147,6 +156,13 @@ class MediaStep:
                 words_json_path.write_text(json.dumps(words, ensure_ascii=False, indent=2), encoding="utf-8")
             except Exception as exc:
                 logger.warning("[MediaStep] Whisper sync 실패 (자막 동기화 스킵): %s", exc)
+                self._pending_audio_warnings.append(
+                    {
+                        "step": "whisper_word_sync",
+                        "code": type(exc).__name__,
+                        "message": str(exc)[:160],
+                    }
+                )
 
         return audio_result
 
@@ -250,7 +266,7 @@ class MediaStep:
     def _generate_image(self, prompt: str, output_path: Path) -> Path:
         return self.openai_client.generate_image(
             model=self.config.providers.image_model,
-            prompt=prompt,
+            prompt=with_text_suppression(prompt),
             size=self.config.providers.image_size,
             quality=self.config.providers.image_quality,
             output_path=output_path,
@@ -262,6 +278,7 @@ class MediaStep:
 
         if output_path.exists():
             return output_path
+        prompt = with_text_suppression(prompt)
         w, h = self.config.video.resolution
         url = f"https://image.pollinations.ai/prompt/{quote(prompt[:1500])}"
         params = {"model": "flux", "width": str(w), "height": str(h), "nologo": "true"}
@@ -520,11 +537,14 @@ class MediaStep:
         wants_imagen = self.config.providers.visual_primary == "google-imagen"
         retry_attempts = self._resolve_retry_attempts(provider_retry_attempts)
 
+        # 모든 Google 이미지 호출 직전에도 텍스트 억제 negative 부착(외국어 텍스트 artifact 방지).
+        visual_prompt_no_text = with_text_suppression(visual_prompt)
+
         # 1. Imagen 3 (유료, visual_primary=="google-imagen" 시만)
         if not image_ready and wants_imagen and use_paid_image and self.google_client:
             try:
                 visual_path = retry_with_backoff(
-                    lambda p=visual_prompt, ip=img_path: self.google_client.generate_image_imagen3(
+                    lambda p=visual_prompt_no_text, ip=img_path: self.google_client.generate_image_imagen3(
                         prompt=p, output_path=ip
                     ),
                     max_attempts=retry_attempts,
@@ -541,7 +561,9 @@ class MediaStep:
         if not image_ready and self.google_client:
             try:
                 visual_path = retry_with_backoff(
-                    lambda p=visual_prompt, ip=img_path: self.google_client.generate_image(prompt=p, output_path=ip),
+                    lambda p=visual_prompt_no_text, ip=img_path: self.google_client.generate_image(
+                        prompt=p, output_path=ip
+                    ),
                     max_attempts=retry_attempts,
                     base_delay_sec=1.0,
                 )
@@ -860,6 +882,10 @@ class MediaStep:
             )
             assets.append(asset)
             all_failures.extend(failures)
+            # silent-fail 버퍼(Whisper word-sync 등) 도 같이 흘려보낸다.
+            if self._pending_audio_warnings:
+                all_failures.extend(self._pending_audio_warnings)
+                self._pending_audio_warnings = []
             # Hook 씬 처리 후 색상 팔레트 추출 → 이후 씬에 주입
             if scene.structure_role == "hook" and not palette_hint and asset.visual_type == "image":
                 palette_hint = self._extract_palette(Path(asset.visual_path))
@@ -949,6 +975,10 @@ class MediaStep:
 
         # scene_id 순으로 정렬하여 반환
         assets = [results[s.scene_id] for s in scene_plans if s.scene_id in results]
+        # Whisper word-sync 등 silent-fail 누적 경고 drain.
+        if self._pending_audio_warnings:
+            all_failures.extend(self._pending_audio_warnings)
+            self._pending_audio_warnings = []
         return assets, all_failures
 
     def regenerate_scene(

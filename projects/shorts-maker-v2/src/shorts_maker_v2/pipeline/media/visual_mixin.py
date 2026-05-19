@@ -13,6 +13,8 @@ from urllib.parse import quote
 
 from PIL import Image, ImageDraw
 
+from shorts_maker_v2.pipeline.media._prompt_filters import with_text_suppression
+
 if TYPE_CHECKING:
     from shorts_maker_v2.config import AppConfig
     from shorts_maker_v2.providers.google_client import GoogleClient
@@ -50,7 +52,7 @@ class MediaVisualMixin:
     def _generate_image(self, prompt: str, output_path: Path) -> Path:
         return self.openai_client.generate_image(
             model=self.config.providers.image_model,
-            prompt=prompt,
+            prompt=with_text_suppression(prompt),
             size=self.config.providers.image_size,
             quality=self.config.providers.image_quality,
             output_path=output_path,
@@ -62,6 +64,7 @@ class MediaVisualMixin:
 
         if output_path.exists():
             return output_path
+        prompt = with_text_suppression(prompt)
         w, h = self.config.video.resolution
         url = f"https://image.pollinations.ai/prompt/{quote(prompt[:1500])}"
         params = {"model": "flux", "width": str(w), "height": str(h), "nologo": "true"}

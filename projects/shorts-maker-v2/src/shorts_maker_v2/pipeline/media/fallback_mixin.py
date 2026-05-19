@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 from openai import BadRequestError
 
+from shorts_maker_v2.pipeline.media._prompt_filters import with_text_suppression
 from shorts_maker_v2.utils.retry import retry_with_backoff
 
 if TYPE_CHECKING:
@@ -126,11 +127,14 @@ class MediaFallbackMixin:
         wants_imagen = self.config.providers.visual_primary == "google-imagen"
         retry_attempts = self._resolve_retry_attempts(provider_retry_attempts)
 
+        # Google 이미지 호출에도 텍스트 억제 negative 동일 적용
+        visual_prompt_no_text = with_text_suppression(visual_prompt)
+
         # 1. Imagen 3 (유료, visual_primary=="google-imagen" 시만)
         if not image_ready and wants_imagen and use_paid_image and self.google_client:
             try:
                 visual_path = retry_with_backoff(
-                    lambda p=visual_prompt, ip=img_path: self.google_client.generate_image_imagen3(
+                    lambda p=visual_prompt_no_text, ip=img_path: self.google_client.generate_image_imagen3(
                         prompt=p, output_path=ip
                     ),
                     max_attempts=retry_attempts,
@@ -147,7 +151,9 @@ class MediaFallbackMixin:
         if not image_ready and self.google_client:
             try:
                 visual_path = retry_with_backoff(
-                    lambda p=visual_prompt, ip=img_path: self.google_client.generate_image(prompt=p, output_path=ip),
+                    lambda p=visual_prompt_no_text, ip=img_path: self.google_client.generate_image(
+                        prompt=p, output_path=ip
+                    ),
                     max_attempts=retry_attempts,
                     base_delay_sec=1.0,
                 )

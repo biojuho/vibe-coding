@@ -112,6 +112,39 @@ class TestTrimHookToLimit:
     def test_single_char_within_limit(self):
         assert ScriptStep._trim_hook_to_limit("가") == "가"
 
+    # ── 새 기본값 (limit=40) + 단어 경계 우선 회귀 ───────────────────────────
+    # Phase 1 #5: 38~55자 hook 이 통째로 잘리던 사례 (2026-05-19 history run).
+    # `로마는 하루아침에 무너지지 않았다 — 그 진짜 이유` 같은 의미 있는 hook 이
+    # `로마는 하루아침에 무너` 14자로 잘려 의미가 깨졌다.
+
+    def test_default_limit_is_40(self):
+        """Default limit 은 40 (이전 15 에서 상향, hook_scorer 의 0.4점 임계)."""
+        narration = "x" * 41
+        result = ScriptStep._trim_hook_to_limit(narration)
+        assert len(result) <= 40
+
+    def test_38char_korean_hook_preserved(self):
+        """38자 한국어 hook 은 default limit=40 이내라 그대로 유지."""
+        narration = "로마는 하루아침에 무너지지 않았다 그 진짜 이유는"  # 24자
+        # 24자 < 40 → 변형 없음
+        assert ScriptStep._trim_hook_to_limit(narration) == narration
+
+    def test_word_boundary_preferred_when_close(self):
+        """공백이 limit 근처(≥ limit-8)에 있으면 단어 경계 기준 절단."""
+        # limit=15, head="짧은 후크가 강렬해야" → 마지막 공백이 8번 인덱스(>= 15-8=7).
+        narration = "짧은 후크가 강렬해야 합니다요"
+        result = ScriptStep._trim_hook_to_limit(narration, limit=15)
+        assert result == "짧은 후크가 강렬해야"  # 공백 기준 12자
+        assert " " not in result[-1:]  # trailing 공백 없음
+
+    def test_word_boundary_skipped_when_space_too_early(self):
+        """공백이 limit-8 보다 앞에 있으면 단어 경계 무시하고 문자 트림."""
+        # limit=20. 마지막 공백이 인덱스 4 (< 20-8=12). 단어 경계 적용 안 함.
+        narration = "abcd efghijklmnopqrstuvwxyz12345"
+        result = ScriptStep._trim_hook_to_limit(narration, limit=20)
+        # 첫 공백은 4번 → 단어 경계 너무 이른 → 문자 트림 (앞 20)
+        assert result == narration[:20].rstrip()
+
 
 # ── 2. CTA 금지어 감지 ────────────────────────────────────────────────────────
 
@@ -210,8 +243,17 @@ class TestScorePersonaMatch:
 
 class TestParseScriptPayloadHookTrim:
     def test_long_hook_trimmed_in_parse(self):
-        """parse_script_payload에서 15자 초과 Hook이 자동 트림된다."""
-        long_hook = "이것은매우긴후크문장으로열다섯자를훨씬넘어갑니다"  # 30자 이상
+        """parse_script_payload 에서 40자 초과 Hook 이 자동 트림된다.
+
+        Phase 1 #5 에서 hard cap 을 15→40 으로 상향했음(hook_scorer 의
+        brevity_score 0.4 임계와 정합). 30자짜리 hook 은 그대로 유지된다.
+        """
+        # 새 한도(40) 초과를 명시적으로 보장하기 위해 60자 이상으로 잡는다.
+        long_hook = (
+            "이것은매우긴후크문장으로마흔자를훨씬넘어가서반드시잘리는내용입니다그래야합니다"
+            "추가로더많은단어를덧붙여서절대로한도안에들지않게만든다"
+        )  # 65+ 자
+        assert len(long_hook) > 40  # 테스트 데이터 자체 검증
         payload = {
             "title": "Hook Trim Test",
             "scenes": [
@@ -235,9 +277,11 @@ class TestParseScriptPayloadHookTrim:
             tts_speed=1.05,
         )
         hook_scene = next(s for s in scenes if s.structure_role == "hook")
-        assert len(hook_scene.narration_ko) <= 15, (
-            f"Hook should be trimmed to <=15 chars but got {len(hook_scene.narration_ko)}"
+        assert len(hook_scene.narration_ko) <= 40, (
+            f"Hook should be trimmed to <=40 chars but got {len(hook_scene.narration_ko)}"
         )
+        # 그리고 실제로 트림이 일어났는지(원본보다 짧아졌는지) 검증
+        assert len(hook_scene.narration_ko) < len(long_hook)
 
     def test_short_hook_unchanged_in_parse(self):
         """15자 이하 Hook은 parse에서 변경 없이 유지된다."""
@@ -365,8 +409,11 @@ class TestRunIntegration:
         assert score == 0.5
 
     def test_hook_trimmed_in_run_output(self):
-        """run() 결과에서 Hook 씬의 narration이 15자 이하임을 확인한다."""
-        long_hook = "정말 충격적인 사실을 알려드릴게요 지금 바로 확인하세요"  # 30자 이상
+        """run() 결과에서 Hook 씬의 narration 이 40자 이하임을 확인한다.
+
+        Phase 1 #5: hard cap 15→40 으로 상향. 40+ 자 hook 만 트림된다.
+        """
+        long_hook = "정말 충격적인 사실 하나를 지금 바로 들려드릴게요 그러니 끝까지 보세요 부탁드립니다"
         cta = self._CLEAN_CTA
         payload = self._make_payload(cta, hook=long_hook)
         _, scenes, _ = self._run_with_payload(payload)
@@ -374,6 +421,7 @@ class TestRunIntegration:
         hook_scenes = [s for s in scenes if s.structure_role == "hook"]
         assert hook_scenes, "Hook scene should exist"
         for hook in hook_scenes:
-            assert len(hook.narration_ko) <= 15, (
-                f"Hook should be <=15 chars but got {len(hook.narration_ko)}: '{hook.narration_ko}'"
+            assert len(hook.narration_ko) <= 40, (
+                f"Hook should be <=40 chars but got {len(hook.narration_ko)}: '{hook.narration_ko}'"
             )
+            assert len(hook.narration_ko) < len(long_hook)

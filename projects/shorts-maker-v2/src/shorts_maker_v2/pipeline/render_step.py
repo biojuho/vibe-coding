@@ -199,6 +199,12 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
         self.cta_style = apply_preset(base_style, cta_preset)
         self.closing_style = apply_preset(base_style, closing_preset)
 
+        # Silent-fail propagation 버퍼. 카라오케 fallback → static caption,
+        # color grade 실패, audio postprocess 실패 같은 "rendered 됐지만 약속한
+        # 품질이 안 나온" 케이스를 orchestrator 가 manifest.degraded_steps 로
+        # 노출시킬 수 있게 모은다. run() 끝나면 orchestrator 가 drain.
+        self._pending_render_warnings: list[dict[str, Any]] = []
+
         logger.info(
             "[RenderStep] 자막 combo — hook=%s, body=%s, cta=%s, closing=%s (channel=%r)",
             combo[0],
@@ -372,6 +378,16 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
             base = color_grade_clip(base, self._channel_key, role)
         except Exception as cg_exc:
             logger.warning("[ColorGrade] failed, using ungraded clip: %s", cg_exc)
+            self._pending_render_warnings.append(
+                {
+                    "step": "color_grade",
+                    "code": type(cg_exc).__name__,
+                    "message": f"scene {plan.scene_id}: {str(cg_exc)[:140]}",
+                    "scene_id": plan.scene_id,
+                    "error_type": "ungraded_clip",
+                    "is_retryable": False,
+                }
+            )
 
         try:
             postprocess_tts_audio(
@@ -380,6 +396,16 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
             )
         except Exception as pp_exc:
             logger.warning("[AudioPost] postprocess failed, using original audio: %s", pp_exc)
+            self._pending_render_warnings.append(
+                {
+                    "step": "audio_postprocess",
+                    "code": type(pp_exc).__name__,
+                    "message": f"scene {plan.scene_id}: {str(pp_exc)[:140]}",
+                    "scene_id": plan.scene_id,
+                    "error_type": "unprocessed_audio",
+                    "is_retryable": False,
+                }
+            )
 
         audio = self._load_audio_clip(asset.audio_path)
         if audio_clips_to_close is not None:
@@ -457,6 +483,17 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
 
             except Exception as kex:
                 logger.warning("[Karaoke] failed, falling back to static caption: %s", kex)
+                # silent-fail 노출: orchestrator 가 degraded_steps 로 ship.
+                self._pending_render_warnings.append(
+                    {
+                        "step": "karaoke_caption",
+                        "code": type(kex).__name__,
+                        "message": f"scene {plan.scene_id}: {str(kex)[:140]}",
+                        "scene_id": plan.scene_id,
+                        "error_type": "caption_fallback",
+                        "is_retryable": False,
+                    }
+                )
                 cap_out = run_dir / f"caption_fallback_{plan.scene_id:02d}.png"
                 cap_img = self._render_static_caption(
                     plan.narration_ko,
