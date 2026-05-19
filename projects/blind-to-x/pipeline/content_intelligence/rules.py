@@ -160,7 +160,7 @@ def get_topic_hook(topic_cluster: str) -> dict[str, str]:
     entry = rules.get(topic_cluster, {})
     return {
         "opener": entry.get("opener", ""),
-        "cta": entry.get("cta", "댓글로 의견 나눠주세요 👇"),
+        "cta": entry.get("cta", ""),
     }
 
 

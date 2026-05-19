@@ -39,7 +39,7 @@ PLATFORM_RULES: dict[str, dict[str, Any]] = {
     "twitter": {
         "min_len": 60,
         "max_len": 280,
-        "require_cta": True,
+        "require_cta": False,
         "cta_patterns": [
             r"[?？]",  # 질문으로 끝나는지
             r"(어떻게|어떰|공감|RT|리트윗|생각|의견|댓글|여러분|나만)",
@@ -53,13 +53,13 @@ PLATFORM_RULES: dict[str, dict[str, Any]] = {
     "threads": {
         "min_len": 80,
         "max_len": 500,
-        "require_cta": True,
+        "require_cta": False,
         "cta_patterns": [
             r"[?？]",
             r"(댓글|저장|공감|여러분|어떻게|어떤|의견|생각)",
         ],
         "max_hashtags": 5,
-        "min_hashtags": 1,
+        "min_hashtags": 0,
         "forbidden_patterns": [],
         "min_korean_ratio": 0.3,
     },
@@ -69,7 +69,7 @@ PLATFORM_RULES: dict[str, dict[str, Any]] = {
         "require_headings": True,
         "min_headings": 2,
         "min_seo_tags": 5,
-        "require_cta": True,
+        "require_cta": False,
         "cta_patterns": [
             r"(이웃|공감|좋아요|구독|댓글|의견|팔로우)",
         ],
@@ -337,8 +337,11 @@ class DraftQualityGate:
                 "CTA 패턴 감지됨" if has else "CTA(질문, 유도 문구)가 없습니다",
                 "warning",
             )
-            if _has_generic_cta(text):
-                result.add("상투적 CTA", False, "'여러분 생각은?'류의 generic CTA는 금지입니다", "error")
+
+        # 상투적 CTA('여러분 생각은?' 등)는 require_cta 여부와 무관하게 항상 차단.
+        # 새 톤(여운 마무리)의 핵심 위반 패턴이라 require_cta=False여도 검사 유지.
+        if _has_generic_cta(text):
+            result.add("상투적 CTA", False, "'여러분 생각은?'류의 generic CTA는 금지입니다", "error")
 
         # ── 4. 해시태그 검증 ─────────────────────────────────────────
         hashtag_count = _count_hashtags(text)

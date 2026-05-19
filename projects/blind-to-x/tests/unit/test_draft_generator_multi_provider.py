@@ -291,7 +291,9 @@ def test_prompt_includes_editorial_brief():
     assert "직장인 박탈감과 비교 심리를 바로 건드리는 연봉 글" in prompt
     assert "씁쓸하지만 공감" in prompt
     assert "이직 전후 체감, 댓글 반응" in prompt
-    assert "generic CTA" in prompt
+    # 새 톤(shorts 철학): selection_brief가 CTA 금지를 명시해야 함
+    assert "여운이 남는 한 줄" in prompt
+    assert "인플루언서 어휘" in prompt
     assert "아래 게시글을 기반으로 발행 가능한 초안을 작성하세요." in prompt.anthropic_system_prompt
     assert "[게시글 정보]" in prompt.anthropic_user_prompt
     assert "연봉 280 찍고 회의가 조용해진 줄 알았는데" in prompt.anthropic_user_prompt

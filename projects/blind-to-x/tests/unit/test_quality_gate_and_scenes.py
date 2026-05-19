@@ -68,19 +68,19 @@ class TestDraftQualityGate(unittest.TestCase):
         forbidden_items = [i for i in result.items if i.rule == "금지 패턴" and not i.passed]
         self.assertTrue(len(forbidden_items) > 0)
 
-    def test_twitter_cta_detected(self):
-        """CTA가 있는 트위터 초안에서 CTA 검출이 되어야 한다."""
-        draft = "면담에서 '올해는 동결' 듣고 다들 멍해진 날이었다. 웃프지만 진짜 다들 그 표정 나오더라. 동결 버티기 vs 바로 이직 준비, 뭐부터 했나요?"
+    def test_twitter_no_longer_requires_cta(self):
+        """새 톤(여운 마무리)에서는 CTA가 없어도 'CTA 포함' 룰 자체가 추가되지 않아야 한다."""
+        draft = "오늘도 출근했다. 회사에서 점심을 먹었다. 퇴근해서 집에 갔다. 하루가 그렇게 지나갔다." + "가" * 20
         result = self.gate.validate("twitter", draft)
         cta_items = [i for i in result.items if i.rule == "CTA 포함"]
-        self.assertTrue(any(i.passed for i in cta_items))
+        self.assertEqual(len(cta_items), 0)
 
-    def test_twitter_no_cta_warns(self):
-        """CTA가 없는 트위터 초안에서 CTA 경고가 발생해야 한다."""
-        draft = "오늘도 출근했다. 회사에서 점심을 먹었다. 퇴근해서 집에 갔다. 하루가 지나갔네." + "가" * 20
+    def test_twitter_generic_cta_still_flagged(self):
+        """require_cta는 풀렸지만 '여러분 생각은?' 같은 generic CTA는 여전히 error로 잡혀야 한다."""
+        draft = "면담에서 '올해는 동결' 듣고 다들 멍해진 날이었다. 여러분은 어떻게 생각하시나요?" + "가" * 20
         result = self.gate.validate("twitter", draft)
-        cta_items = [i for i in result.items if i.rule == "CTA 포함" and not i.passed]
-        self.assertTrue(len(cta_items) > 0)
+        generic_items = [i for i in result.items if i.rule == "상투적 CTA" and not i.passed]
+        self.assertTrue(len(generic_items) > 0)
 
     # ── Threads 플랫폼 ─────────────────────────────────────────────
 
@@ -100,13 +100,12 @@ class TestDraftQualityGate(unittest.TestCase):
         result = self.gate.validate("threads", draft)
         self.assertFalse(result.passed)
 
-    def test_threads_min_hashtag_check(self):
-        """Threads 초안은 최소 1개 해시태그가 있어야 한다."""
-        draft = "여러분 요즘 회사 어떠세요 공감하시면 댓글 남겨주세요. 진짜 힘든 하루였어요." + "가" * 30
+    def test_threads_no_longer_requires_hashtags(self):
+        """새 톤에서는 Threads 해시태그 하한이 0이라 해시태그 없어도 경고가 없어야 한다."""
+        draft = "퇴근길에 단톡방을 봤다. 다들 비슷한 하루를 보냈다. 그래도 어떻게든 한 주는 또 끝난다." + "가" * 30
         result = self.gate.validate("threads", draft)
-        hashtag_items = [i for i in result.items if i.rule == "해시태그 하한"]
-        has_warning = any(not i.passed for i in hashtag_items)
-        self.assertTrue(has_warning)
+        hashtag_fail_items = [i for i in result.items if i.rule == "해시태그 하한" and not i.passed]
+        self.assertEqual(len(hashtag_fail_items), 0)
 
     # ── Naver Blog 플랫폼 ──────────────────────────────────────────
 

@@ -226,9 +226,9 @@ class TestDraftQualityGateEdgeCases:
     def test_strict_mode_warning_becomes_failure(self, mock_cliche):
         """strict_mode에서는 경고도 실패 처리."""  # [QA 수정] Q2 vacuous truth 제거
         strict_gate = DraftQualityGate(strict_mode=True)
-        # CTA 없는 twitter 초안 (warning 발생) — 하지만 장면 훅은 포함
-        # NOTE: "생각"은 CTA 패턴에 매치되므로 CTA 미포함 텍스트를 사용
-        text = '"실수령 600만원" 받는 3년차 개발자가 말하길. 이것저것 뒤죽박죽이었다고 한다. 참 세상 어렵다.'
+        # 해시태그 상한(twitter max=3) 초과로 warning을 의도적으로 발생시킴.
+        # 새 톤(require_cta=False)에서도 일관되게 warning이 떨어지는 시나리오.
+        text = '"실수령 600만원" 받는 3년차 개발자가 말하길. #직장인 #연봉 #이직 #실수령 #개발자'
         if len(text) < 60:
             text += "가" * (60 - len(text))
         result = strict_gate.validate("twitter", text)

@@ -554,7 +554,9 @@ class TestTargetedRetryInstructions(unittest.TestCase):
         feedback = [{"platform": "twitter", "score": 60, "issues": ["CTA 패턴 미포함"]}]
         retry = gen._build_retry_prompt("원래 프롬프트", feedback)
         self.assertIn("수정 방법:", retry)
-        self.assertIn("구체적인 질문", retry)
+        # 새 톤(shorts 철학): CTA는 추가가 아니라 제거 + 여운으로 대체
+        self.assertIn("CTA 문장", retry)
+        self.assertIn("여운", retry)
 
 
 class TestTopicPromptStrategies(unittest.TestCase):
