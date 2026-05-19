@@ -7,6 +7,13 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-19 |
+| Tool | Codex |
+| Work | **Hanwoo PWA asset routing polish**. While validating the new quick-action UX, Playwright surfaced a login-page console error: `/manifest.json` was being routed through the auth proxy and returned login HTML instead of JSON. Updated `projects/hanwoo-dashboard/src/proxy.js` so manifest/icons/service-worker assets bypass auth before login. |
+| Next Priorities | Verification passed: Hanwoo `npm.cmd test` (`77 passed`), `npm.cmd run lint`, `npm.cmd run build`; direct `Invoke-WebRequest http://127.0.0.1:3001/manifest.json` returns `200 application/json`. Quick Action Panel itself is already committed and pushed in `e0c80d1`. Remaining Hanwoo blocker is still T-251, user-owned Supabase credential resync. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-19 |
 | Tool | Gemini (Antigravity) |
 | Work | **Shorts Maker V2 + Hanwoo Dashboard 고도화**. (1) shorts-maker-v2: scene QC 활성화(`scene_qc_enabled: true`, strict 모드), 영상 길이 완화(`[38,52]`초), 한국어 훅 품질 가이드라인 강화(조건부 `hook_rules_ko`), 감정 키워드 5도메인 확장 → 커밋 `f119b30`. (2) hanwoo-dashboard: Quick Action Panel(개체등록/출하/일정/재고 퀵액션) + 탭 연동(`quickActionIntent`) → 커밋 `e0c80d1`. (3) 전체 검증 통과(shorts pytest OK, hanwoo test 77 passed + lint + build). (4) `git push origin main` 완료(`7913df0..e0c80d1`). |
 | Next Priorities | Git worktree 깨끗, origin/main 완전 동기화(`e0c80d1`). 남은 TODO: T-251(Supabase 비밀번호 — 사용자 조치), T-305(openai 2.x — 저우선). IN_PROGRESS 없음. |
