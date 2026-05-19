@@ -7,6 +7,13 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-19 |
+| Tool | Claude Code (Opus 4.7 1M) |
+| Work | **shorts-maker-v2 Phase 1+2 품질 개선 완료** (commit `2b09759`). `/goal "shorts-maker-v2 결과물이 바로 유튜브에 올릴 수 있을 정도 고퀄"` 진행. 2회 실험 run 으로 8개 갭 식별 후 6개 해소. 해소된 갭: (#5) hook hard cap 15→40자 + 단어 경계 트림, (#3) Structure Gate 2 가 한국어 조사 stem + core_message/visual_keywords 다중 신호로 chronic 실패 해소, (#6) 4개 image entry-point에 "No text/letters" negative 자동 부착, (#1) TTS provider openai→edge-tts 전환으로 모든 채널 Azure-voice 호환 + 무료 + _words.json 자동 생성, (#2) 5개 채널 topic 50개 사실 기반 재설계, (#4+#8) Whisper/karaoke/color/audio post silent-fail이 manifest.degraded_steps 로 drain. 검증: 1447 unit tests pass (+20 신규), ruff clean, ai_tech run 진행 중 — Gate 2 FAIL 0회, kc_*.png 25개 / caption_fallback 0개, 이미지 영어 텍스트 artifact 없음. 새 갭 발견: gate3_media_qc duration 채널 target (35±0) 너무 엄격해 49.8s 오디오와 충돌. |
+| Next Priorities | (1) 진행 중인 validation run(`runs/20260519-014816-a37f7826`) 완료 시 manifest.json + 최종 .mp4 확인. render는 frame 172/1553(11%)에서 백그라운드 진행 중. (2) Phase 3 후보: gate3_media_qc duration 임계 완화(channel target ±10초 마진), scene_qc 디폴트 ON 검토, hook_score<0.6 시 재생성 강제 게이트, 채널별 TTS 속도 미세조정. (3) 다른 도구의 미커밋 WIP 보존: `.github/workflows/full-test-matrix.yml`, `projects/hanwoo-dashboard/**` (package.json/lock + InventoryTab/SalesTab/ScheduleTab + middleware/manifest), `projects/blind-to-x/uv.lock`. (4) shorts-maker-v2 `2b09759` push 사용자 승인 필요. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-19 |
 | Tool | Codex |
 | Work | **T-316 완료**: user requested GitHub idea search + blind-to-x 고도화. Checked comparable public workflows: `langchain-ai/social-media-agent` emphasizes human-in-the-loop review/scheduling, and NotionToTwitter keeps post date/status/error/URL tracking inside Notion. Applied that pattern to blind-to-x instead of adding risky auto-posting: added X publishing operation metadata (`X Publish Status`, `X Scheduled At`, `X Published At`, `X Post URL`, `X Publish Error`) to the Notion schema resolver/sync script, future upload payloads, the `X 업로드 카드` `게시 운영` checklist, and backfill defaults. Live Notion schema was patched from 43 to 48 properties, latest 5 pages were backfilled to `Ready to Post`, then schema sync returned NOOP and backfill dry-run returned candidates 0. |
 | Next Priorities | Verification passed: `test_notion_upload.py + test_backfill_notion_review_columns.py` 44 passed, targeted Ruff passed, `PYTHONUTF8=1 python -m code_review_graph detect-changes --repo projects/blind-to-x --brief` risk 0.00. This was Notion read/write plus deterministic tests, not a live X posting run. Preserve unrelated current dirty WIP in `projects/shorts-maker-v2/**`, root package files, and `projects/hanwoo-dashboard/package.json`. |
