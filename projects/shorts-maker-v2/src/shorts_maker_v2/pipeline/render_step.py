@@ -730,6 +730,12 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
             ffmpeg_extra = list(hw_params)
             preset = None
 
+        # 출력 해상도 강제 (YouTube Shorts 권장 정확히 1080x1920).
+        # 일부 HW 인코더(특히 h264_qsv)가 source resolution을 미세하게 scale-up
+        # 하는 케이스(1080x1920 → 1134x2016, +5%)가 관찰됨. -s 강제로 차단.
+        # 2026-05-19 1차 quality run에서 1134x2016 출력 → QC hold 사유였음.
+        ffmpeg_extra.extend(["-s", f"{target_width}x{target_height}"])
+
         write_kwargs: dict = {
             "fps": self.config.video.fps,
             "codec": hw_codec,
