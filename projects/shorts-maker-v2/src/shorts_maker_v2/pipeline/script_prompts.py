@@ -216,6 +216,21 @@ class ScriptPromptsMixin:
             "  - Stop the scroll within 3 seconds. One or two punchy spoken sentences.\n"
             "  - {narration_field}: up to {hook_max} English characters (short and punchy).\n"
         ),
+        "hook_rules_ko": (
+            "Korean Hook Quality Rules (CRITICAL — the Korean hook scorer rejects hooks scoring below 0.6):\n"
+            "  - The hook MUST include at least 2 of these 4 elements:\n"
+            "    1) A specific number (year, %, count, scale — e.g. '38조 개', '0.3초', '1996년')\n"
+            "    2) A direct question or shock word\n"
+            "       (놀랍게도, 충격적, 진실, 비밀, 사실은, 어떻게, 왜, 진짜)\n"
+            "    3) An information gap framing\n"
+            "       (~인 이유, ~하는 방법, ~의 비결, ~의 원인, ~의 진실)\n"
+            "    4) A specific proper noun (named person, org, place, brand —\n"
+            "       e.g. NASA, MIT, 하버드, 일론 머스크, 1500년대 베네치아)\n"
+            "  - Vague openers are FORBIDDEN: '오늘은', '한번', '이번에는', '여러분',\n"
+            "    '지금부터', '잠깐만' — start with the most concrete element instead.\n"
+            "  - Keep {narration_field} ≤ 25 characters when possible (the brevity scorer\n"
+            "    rewards ≤15 chars maximally and penalizes ≥40 chars).\n"
+        ),
         "body_rules": (
             "Body rules:\n"
             "  - Build depth in this order: analogy first -> fact or data -> cause or solution.\n"
@@ -441,6 +456,11 @@ class ScriptPromptsMixin:
                 hook_rule=hook_rule,
                 hook_max=hook_max,
                 narration_field=narration_field,
+            )
+            + (
+                self._prompt_copy.get("hook_rules_ko", "").format(narration_field=narration_field)
+                if language.lower().startswith("ko")
+                else ""
             )
             + "\n"
             + self._prompt_copy["body_rules"].format(

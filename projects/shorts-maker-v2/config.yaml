@@ -3,6 +3,12 @@ project:
   default_scene_count: 8
   script_review_enabled: true    # GPT가 Hook/Flow/CTA 채점 후 미달 시 재생성
   script_review_min_score: 7     # 10점 만점 최소 기준 (6→7 강화)
+  # T-290 씬별 QC 활성화 (자동 발행 가능한 품질 보장).
+  # strict: 자막/오디오/이미지 essential 검사 모두 통과해야 다음 단계로.
+  # 씬당 LLM 호출 약 1회 추가 → 영상당 비용 +$0.01~0.02 수준.
+  scene_qc_enabled: true
+  qc_strictness: "strict"
+  scene_qc_max_retries: 2
   structure_presets:             # YPP: 콘텐츠 구조 다양화 (rotate)
     premium:
       flow: [hook, problem, problem, insight, insight, solution, solution, cta]
@@ -18,7 +24,10 @@ project:
       flow: [hook, pro1, con1, pro2, con2, verdict, cta]
 
 video:
-  target_duration_sec: [40, 50]      # 40-50초 목표 (워크플로우 기준)
+  # YouTube Shorts 자동 발행 안전 구간(38~52s)으로 살짝 완화.
+  # 38.8s 같은 1초 미달도 QC hold로 막혀 발행이 안 되는 케이스를 흡수.
+  # 실제 시청 호흡은 38~50초 사이 모두 정상.
+  target_duration_sec: [38, 52]
   resolution: [1080, 1920]
   fps: 30
   scene_video_duration_sec: 5
