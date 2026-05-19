@@ -35,6 +35,11 @@ class NotionSchemaMixin:
         "blog_body": "블로그 본문",
         "publish_platforms": "발행 플랫폼",
         "performance_grade": "성과 등급",
+        "x_publish_status": "X Publish Status",
+        "x_scheduled_at": "X Scheduled At",
+        "x_published_at": "X Published At",
+        "x_post_url": "X Post URL",
+        "x_publish_error": "X Publish Error",
     }
 
     # Deprecated: 이전에 사용하던 속성들. Notion DB에는 남아 있을 수 있으나 코드에서 참조하지 않음.
@@ -87,6 +92,11 @@ class NotionSchemaMixin:
         "blog_body": {"rich_text"},
         "publish_platforms": {"multi_select", "rich_text"},
         "performance_grade": {"select", "rich_text"},
+        "x_publish_status": {"select", "rich_text"},
+        "x_scheduled_at": {"date", "rich_text"},
+        "x_published_at": {"date", "rich_text"},
+        "x_post_url": {"url", "rich_text"},
+        "x_publish_error": {"rich_text"},
     }
 
     AUTO_DETECT_KEYWORDS = {
@@ -111,6 +121,11 @@ class NotionSchemaMixin:
         "blog_body": ("blog", "블로그", "블로그 본문"),
         "publish_platforms": ("platforms", "플랫폼", "발행 플랫폼"),
         "performance_grade": ("grade", "성과 등급"),
+        "x_publish_status": ("x publish status", "publish status", "x status"),
+        "x_scheduled_at": ("x scheduled", "scheduled", "post date"),
+        "x_published_at": ("x published", "published at"),
+        "x_post_url": ("x post url", "tweet url", "post url"),
+        "x_publish_error": ("x publish error", "publish error", "error message"),
     }
 
     TRACKING_QUERY_KEYS = {"fbclid", "gclid", "igshid", "ref", "ref_src", "ref_url", "feature"}

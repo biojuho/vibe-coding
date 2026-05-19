@@ -43,6 +43,7 @@ def test_build_review_backfill_updates_derives_reviewer_columns():
         "risk_flags": [],
         "rejection_reasons": [],
         "publish_platforms": [],
+        "x_publish_status": "",
         "tweet_body": "",
         "threads_body": "",
         "blog_body": "",
@@ -61,6 +62,7 @@ def test_build_review_backfill_updates_derives_reviewer_columns():
     assert updates["creator_take"] == "월급 얘기가 바로 직장인 현실로 연결되는 글"
     assert updates["evidence_anchor"] == "연봉 1800 깎고 이직"
     assert updates["publish_platforms"] == ["X", "Threads"]
+    assert updates["x_publish_status"] == "Ready to Post"
     assert "근거 앵커" in updates["review_focus"]
     assert "반려 사유" in updates["feedback_request"]
 

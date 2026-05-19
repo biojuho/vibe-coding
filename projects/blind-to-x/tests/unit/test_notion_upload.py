@@ -337,6 +337,9 @@ async def test_upload_populates_review_brief_properties(mock_ensure_schema, mock
         "risk_flags": "위험 신호",
         "evidence_anchor": "근거 앵커",
         "publish_platforms": "발행 플랫폼",
+        "x_publish_status": "X Publish Status",
+        "x_scheduled_at": "X Scheduled At",
+        "x_post_url": "X Post URL",
         "tweet_body": "트윗 본문",
         "threads_body": "Threads 본문",
         "status": "상태",
@@ -353,6 +356,9 @@ async def test_upload_populates_review_brief_properties(mock_ensure_schema, mock
         "위험 신호": {"type": "multi_select"},
         "근거 앵커": {"type": "rich_text"},
         "발행 플랫폼": {"type": "multi_select"},
+        "X Publish Status": {"type": "select"},
+        "X Scheduled At": {"type": "date"},
+        "X Post URL": {"type": "url"},
         "트윗 본문": {"type": "rich_text"},
         "Threads 본문": {"type": "rich_text"},
         "상태": {"type": "status"},
@@ -366,6 +372,7 @@ async def test_upload_populates_review_brief_properties(mock_ensure_schema, mock
         "source": "blind",
         "draft_generation_error": "openai: invalid_draft_output:missing_tags:naver_blog",
         "quality_gate_report": "passed — 구체 장면 있음 / CTA 포함",
+        "x_scheduled_at": "2026-05-20T09:00:00+09:00",
     }
     drafts = {
         "twitter": "숏폼 초안입니다.",
@@ -388,6 +395,8 @@ async def test_upload_populates_review_brief_properties(mock_ensure_schema, mock
     assert "반려 사유" in props["피드백 요청"]["rich_text"][0]["text"]["content"]
     assert props["위험 신호"]["multi_select"] == [{"name": "독자 핏 약함"}]
     assert props["발행 플랫폼"]["multi_select"] == [{"name": "X"}, {"name": "Threads"}]
+    assert props["X Publish Status"]["select"]["name"] == "Ready to Post"
+    assert props["X Scheduled At"]["date"]["start"] == "2026-05-20T09:00:00+09:00"
 
 
 @pytest.mark.asyncio
@@ -410,6 +419,11 @@ async def test_upload_surfaces_missing_draft_next_steps(mock_ensure_schema, mock
         "risk_flags": "위험 신호",
         "evidence_anchor": "근거 앵커",
         "publish_platforms": "발행 플랫폼",
+        "x_publish_status": "X Publish Status",
+        "x_scheduled_at": "X Scheduled At",
+        "x_published_at": "X Published At",
+        "x_post_url": "X Post URL",
+        "x_publish_error": "X Publish Error",
         "tweet_body": "트윗 본문",
         "status": "상태",
         "date": "생성일",
@@ -425,6 +439,11 @@ async def test_upload_surfaces_missing_draft_next_steps(mock_ensure_schema, mock
         "위험 신호": {"type": "multi_select"},
         "근거 앵커": {"type": "rich_text"},
         "발행 플랫폼": {"type": "multi_select"},
+        "X Publish Status": {"type": "select"},
+        "X Scheduled At": {"type": "date"},
+        "X Published At": {"type": "date"},
+        "X Post URL": {"type": "url"},
+        "X Publish Error": {"type": "rich_text"},
         "트윗 본문": {"type": "rich_text"},
         "상태": {"type": "status"},
         "생성일": {"type": "date"},
@@ -478,6 +497,11 @@ async def test_upload_groups_diagnostics_and_raw_content_into_toggles(mock_ensur
         "risk_flags": "위험 신호",
         "evidence_anchor": "근거 앵커",
         "publish_platforms": "발행 플랫폼",
+        "x_publish_status": "X Publish Status",
+        "x_scheduled_at": "X Scheduled At",
+        "x_published_at": "X Published At",
+        "x_post_url": "X Post URL",
+        "x_publish_error": "X Publish Error",
         "tweet_body": "트윗 본문",
         "reply_text": "답글 텍스트",
         "status": "상태",
@@ -497,6 +521,11 @@ async def test_upload_groups_diagnostics_and_raw_content_into_toggles(mock_ensur
         "위험 신호": {"type": "multi_select"},
         "근거 앵커": {"type": "rich_text"},
         "발행 플랫폼": {"type": "multi_select"},
+        "X Publish Status": {"type": "select"},
+        "X Scheduled At": {"type": "date"},
+        "X Published At": {"type": "date"},
+        "X Post URL": {"type": "url"},
+        "X Publish Error": {"type": "rich_text"},
         "트윗 본문": {"type": "rich_text"},
         "답글 텍스트": {"type": "rich_text"},
         "상태": {"type": "status"},
@@ -569,6 +598,8 @@ async def test_upload_groups_diagnostics_and_raw_content_into_toggles(mock_ensur
     assert "권장 채널: X" in top_level_bullets
     assert "본문 글자 수: 22/280자 (OK)" in top_level_bullets
     assert any("업로드 순서: X 본문 복사" in text for text in top_level_bullets)
+    assert "운영 상태: Ready to Post" in top_level_bullets
+    assert any("X Post URL" in text for text in top_level_bullets)
     assert "에디토리얼 평균 점수: 8.62" in top_level_bullets
     assert "품질 재시도: 1회" in top_level_bullets
 

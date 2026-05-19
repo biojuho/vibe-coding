@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-19 |
 | Tool | Codex |
+| Work | **T-316 완료**: user requested GitHub idea search + blind-to-x 고도화. Checked comparable public workflows: `langchain-ai/social-media-agent` emphasizes human-in-the-loop review/scheduling, and NotionToTwitter keeps post date/status/error/URL tracking inside Notion. Applied that pattern to blind-to-x instead of adding risky auto-posting: added X publishing operation metadata (`X Publish Status`, `X Scheduled At`, `X Published At`, `X Post URL`, `X Publish Error`) to the Notion schema resolver/sync script, future upload payloads, the `X 업로드 카드` `게시 운영` checklist, and backfill defaults. Live Notion schema was patched from 43 to 48 properties, latest 5 pages were backfilled to `Ready to Post`, then schema sync returned NOOP and backfill dry-run returned candidates 0. |
+| Next Priorities | Verification passed: `test_notion_upload.py + test_backfill_notion_review_columns.py` 44 passed, targeted Ruff passed, `PYTHONUTF8=1 python -m code_review_graph detect-changes --repo projects/blind-to-x --brief` risk 0.00. This was Notion read/write plus deterministic tests, not a live X posting run. Preserve unrelated current dirty WIP in `projects/shorts-maker-v2/**`, root package files, and `projects/hanwoo-dashboard/package.json`. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-19 |
+| Tool | Codex |
 | Work | **T-315 완료**: active thread goal `blind-to-x 의 결과물이 좀더 x에 업로드에 적합한 형태로 출력되어 노션에 업로드 되었으면 좋겠어`의 live Notion 반영까지 진행. Notion doctor PASS, `sync_notion_review_schema.py --config config.yaml` NOOP로 실제 DB가 43개 속성과 `X` multi-select 옵션을 이미 갖춘 것을 확인. 최근 Notion 5개 페이지를 read-only 점검했더니 모두 과거 `숏폼`/`채널 초안` 구조라서 `scripts/backfill_notion_review_columns.py`에 `--append-x-upload-card` 옵션을 추가하고, 최근 5개 페이지에 `publish_platforms=['X']`와 copy-ready `X 업로드 카드`/`X 본문`/`첫 답글 / 출처 메모` 블록을 실제 append. 재검증에서 최근 5개 모두 `platforms=['X']; has_x_card=True; has_x_body=True; has_reply=True`, `verified_x_ready=5/5`. |
 | Next Priorities | 새 backfill 옵션 검증 통과: `test_notion_upload.py + test_backfill_notion_review_columns.py` 44 passed, targeted Ruff passed, graph risk 0.00. Live LLM 생성은 하지 않았고 Notion read/write만 수행. 현재 unrelated dirty WIP는 `projects/shorts-maker-v2/**` 여러 파일과 신규 `_prompt_filters.py`/`test_prompt_filters.py`; 이번 blind-to-x 작업과 섞지 말 것. |
 

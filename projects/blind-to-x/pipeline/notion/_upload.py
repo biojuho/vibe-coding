@@ -201,6 +201,15 @@ class NotionUploadMixin:
             lines.append(f"첫 답글 메모: {self._truncate_for_brief(parts['reply'], limit=120)}")
         return lines
 
+    def _build_x_publish_ops_lines(self, post_data: dict[str, Any]) -> list[str]:
+        lines = ["운영 상태: Ready to Post"]
+        scheduled_at = str(post_data.get("x_scheduled_at") or post_data.get("publish_scheduled_at") or "").strip()
+        if scheduled_at:
+            lines.append(f"예약 후보: {scheduled_at}")
+        lines.append("게시 후 X Post URL과 X Published At을 채우고 상태를 Published로 변경")
+        lines.append("실패하면 X Publish Error에 원문 오류를 남기고 상태를 Blocked로 변경")
+        return lines
+
     def _extract_review_risk_flags(
         self, post_data: dict[str, Any], drafts: Any, analysis: dict[str, Any] | None
     ) -> list[str]:
@@ -508,7 +517,7 @@ class NotionUploadMixin:
         blocks.extend(self._create_bulleted_list_blocks(summary_lines))
         return blocks
 
-    def _build_x_upload_card_blocks(self, drafts: Any) -> list[dict[str, Any]]:
+    def _build_x_upload_card_blocks(self, drafts: Any, post_data: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         parts = self._extract_x_upload_parts(drafts)
         body = parts["body"]
         if not body:
@@ -532,6 +541,8 @@ class NotionUploadMixin:
                     *self._create_text_blocks(parts["reply"]),
                 ]
             )
+        blocks.append(self._create_heading_block(3, "게시 운영"))
+        blocks.extend(self._create_bulleted_list_blocks(self._build_x_publish_ops_lines(post_data or {})))
         blocks.extend(self._create_bulleted_list_blocks(self._build_x_upload_check_lines(drafts)))
         return blocks
 
@@ -735,6 +746,20 @@ class NotionUploadMixin:
             self._append_property_if_present(properties, "risk_flags", review_brief["risk_flags"])
             self._append_property_if_present(properties, "evidence_anchor", review_brief["evidence_anchor"])
             self._append_property_if_present(properties, "publish_platforms", review_brief["publish_platforms"])
+            if "X" in review_brief["publish_platforms"]:
+                self._append_property_if_present(
+                    properties,
+                    "x_publish_status",
+                    post_data.get("x_publish_status") or "Ready to Post",
+                )
+                self._append_property_if_present(
+                    properties,
+                    "x_scheduled_at",
+                    post_data.get("x_scheduled_at") or post_data.get("publish_scheduled_at"),
+                )
+                self._append_property_if_present(properties, "x_post_url", post_data.get("x_post_url"))
+                self._append_property_if_present(properties, "x_published_at", post_data.get("x_published_at"))
+                self._append_property_if_present(properties, "x_publish_error", post_data.get("x_publish_error"))
 
             if isinstance(drafts, dict):
                 self._append_property_if_present(properties, "tweet_body", drafts.get("twitter"))
@@ -780,7 +805,7 @@ class NotionUploadMixin:
                     drafts,
                 )
             )
-            children.extend(self._build_x_upload_card_blocks(drafts))
+            children.extend(self._build_x_upload_card_blocks(drafts, post_data))
             children.extend(self._build_draft_section_blocks(drafts))
             children.extend(self._build_diagnostic_section_blocks(post_data, review_brief, analysis))
             children.extend(self._build_raw_source_section_blocks(post_data, screenshot_url))

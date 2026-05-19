@@ -655,3 +655,37 @@
 - Future blind-to-x uploads should now create `X 업로드 카드` during normal upload, while the latest existing review queue is also X-ready.
 - Live LLM generation was not run in this continuation; this was Notion read/write plus deterministic tests.
 - Preserve unrelated current `projects/shorts-maker-v2/**` dirty WIP.
+
+## 2026-05-19 KST - Codex
+
+### Summary
+- Searched GitHub/public examples for blind-to-x improvement ideas and selected the lowest-risk useful pattern: keep human-in-the-loop publishing operations in Notion.
+- Used `langchain-ai/social-media-agent` as the human review/scheduling reference and NotionToTwitter as the Notion post date/status/error/URL tracking reference.
+- Added X publishing operations fields to blind-to-x: `X Publish Status`, `X Scheduled At`, `X Published At`, `X Post URL`, and `X Publish Error`.
+- Future X-ready Notion uploads now default `X Publish Status` to `Ready to Post` and show a `게시 운영` checklist inside the `X 업로드 카드`.
+- Applied the live Notion schema update; the database moved from 43 to 48 recovered properties.
+- Backfilled the latest 5 Notion review pages to `Ready to Post`; follow-up dry-run returned `candidates: 0`.
+
+### Changed Files
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `projects/blind-to-x/pipeline/notion/_schema.py`
+- `projects/blind-to-x/pipeline/notion/_upload.py`
+- `projects/blind-to-x/scripts/backfill_notion_review_columns.py`
+- `projects/blind-to-x/scripts/sync_notion_review_schema.py`
+- `projects/blind-to-x/tests/unit/test_backfill_notion_review_columns.py`
+- `projects/blind-to-x/tests/unit/test_notion_upload.py`
+
+### Verification
+- `python -m pytest --no-cov tests/unit/test_notion_upload.py tests/unit/test_backfill_notion_review_columns.py -q --tb=short --maxfail=1` from `projects/blind-to-x` -> `44 passed`, 1 Pydantic/Python 3.14 warning.
+- `python -m ruff check --no-cache scripts/sync_notion_review_schema.py scripts/backfill_notion_review_columns.py pipeline/notion/_schema.py pipeline/notion/_upload.py tests/unit/test_notion_upload.py tests/unit/test_backfill_notion_review_columns.py` from `projects/blind-to-x` -> passed.
+- `python scripts/sync_notion_review_schema.py --config config.yaml --apply` from `projects/blind-to-x` -> APPLIED.
+- `python scripts/sync_notion_review_schema.py --config config.yaml` from `projects/blind-to-x` -> NOOP.
+- `python scripts/backfill_notion_review_columns.py --config config.yaml --limit 5 --apply` from `projects/blind-to-x` -> updated 5.
+- `python scripts/backfill_notion_review_columns.py --config config.yaml --limit 5` from `projects/blind-to-x` -> `candidates: 0`.
+- `PYTHONUTF8=1 python -m code_review_graph detect-changes --repo projects/blind-to-x --brief` -> risk `0.00`.
+
+### Follow-up
+- No automatic X posting was added; this intentionally keeps human approval before publication.
+- Preserve unrelated current WIP in `projects/shorts-maker-v2/**`, root package files, and `projects/hanwoo-dashboard/package.json`.

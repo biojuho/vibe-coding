@@ -243,6 +243,9 @@ def build_review_backfill_updates(
         if inferred_rejections:
             updates["rejection_reasons"] = inferred_rejections
 
+    if "X" in publish_platforms and record.get("x_publish_status") in (None, "", []):
+        updates["x_publish_status"] = "Ready to Post"
+
     return updates
 
 

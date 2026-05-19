@@ -63,11 +63,47 @@ REVIEW_SCHEMA: dict[str, dict] = {
             ]
         }
     },
+    "x_publish_status": {
+        "select": {
+            "options": [
+                _option("Ready to Post", "blue"),
+                _option("Scheduled", "purple"),
+                _option("Published", "green"),
+                _option("Needs Edit", "yellow"),
+                _option("Blocked", "red"),
+            ]
+        }
+    },
+    "x_scheduled_at": {"date": {}},
+    "x_published_at": {"date": {}},
+    "x_post_url": {"url": {}},
+    "x_publish_error": {"rich_text": {}},
 }
 
 
 def _merge_multi_select_options(current_prop: dict, desired_options: list[dict[str, str]]) -> list[dict[str, str]]:
     current_options = list((current_prop.get("multi_select") or {}).get("options") or [])
+    merged_by_name: dict[str, dict[str, str]] = {}
+
+    for option in current_options:
+        name = option.get("name")
+        if name:
+            merged_by_name[name] = {k: v for k, v in option.items() if k in {"id", "name", "color"} and v}
+
+    for option in desired_options:
+        name = option.get("name")
+        if not name:
+            continue
+        existing = merged_by_name.get(name, {})
+        existing.setdefault("name", name)
+        existing.setdefault("color", option.get("color", "default"))
+        merged_by_name[name] = existing
+
+    return list(merged_by_name.values())
+
+
+def _merge_select_options(current_prop: dict, desired_options: list[dict[str, str]]) -> list[dict[str, str]]:
+    current_options = list((current_prop.get("select") or {}).get("options") or [])
     merged_by_name: dict[str, dict[str, str]] = {}
 
     for option in current_options:
@@ -112,6 +148,13 @@ def build_schema_patch(notion: NotionUploader) -> tuple[dict[str, dict], list[st
             merged_names = {item.get("name") for item in merged}
             if merged_names != current_names:
                 patch[prop_name] = {"multi_select": {"options": merged}}
+        elif expected_type == "select":
+            desired_options = definition["select"].get("options") or []
+            merged = _merge_select_options(current, desired_options)
+            current_names = {item.get("name") for item in (current.get("select") or {}).get("options") or []}
+            merged_names = {item.get("name") for item in merged}
+            if merged_names != current_names:
+                patch[prop_name] = {"select": {"options": merged}}
 
     return patch, skipped
 
