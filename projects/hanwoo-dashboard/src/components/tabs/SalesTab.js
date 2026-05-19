@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { ReceiptText } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 
 import MarketPriceWidget from '@/components/widgets/MarketPriceWidget';
@@ -11,6 +12,7 @@ import { createSalesFormValues, salesFormSchema } from '@/lib/formSchemas';
 import { PremiumButton } from '@/components/ui/premium-button';
 import { PremiumInput, PremiumSelect, PremiumLabel } from '@/components/ui/premium-input';
 import { PremiumCard, PremiumCardContent } from '@/components/ui/premium-card';
+import EmptyState from '@/components/ui/empty-state';
 
 const errorTextStyle = {
   fontSize: '12px',
@@ -278,7 +280,18 @@ export default function SalesTab({
       <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '10px', color: 'var(--color-text)' }}>출하 이력</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {processedRecords.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-muted)' }}>출하 내역이 없습니다.</div>
+          <EmptyState
+            icon={ReceiptText}
+            title="출하 내역이 없습니다"
+            description={
+              cattleList?.length
+                ? '첫 출하 기록을 남기면 매출, 등급, 수익 분석 차트가 바로 채워집니다.'
+                : '개체를 먼저 등록하면 출하 기록과 수익 분석을 연결할 수 있습니다.'
+            }
+            actionLabel={cattleList?.length ? '매출 기록' : '개체 등록 필요'}
+            onAction={() => setIsAdding(true)}
+            disabled={!cattleList?.length}
+          />
         ) : (
           processedRecords.map((record, index) => (
             <PremiumCard key={record.id || index} className="p-0">

@@ -3,9 +3,10 @@
 import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ChevronLeft, ChevronRight, PlusCircle } from 'lucide-react';
+import { CalendarPlus, ChevronLeft, ChevronRight, PlusCircle } from 'lucide-react';
 
 import { createScheduleFormValues, scheduleEventSchema } from '@/lib/formSchemas';
+import EmptyState from '@/components/ui/empty-state';
 
 const TYPE_STYLES = {
   Vaccination: { label: '백신', color: 'var(--chart-clay-4)' },
@@ -276,9 +277,13 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
             );
           })
         ) : (
-          <div className="clay-inset rounded-[24px] px-6 py-10 text-center text-sm text-[color:var(--color-text-muted)]">
-            예정된 일정이 없습니다.
-          </div>
+          <EmptyState
+            icon={CalendarPlus}
+            title="예정된 일정이 없습니다"
+            description="검진, 접종, 번식 일정을 먼저 올려두면 오늘 브리프와 알림에서 바로 이어집니다."
+            actionLabel="일정 추가"
+            onAction={() => setIsAdding(true)}
+          />
         )}
       </div>
     </div>

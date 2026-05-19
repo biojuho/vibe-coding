@@ -7,6 +7,13 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-19 |
+| Tool | Codex |
+| Work | **T-319 completed**: continued the active Hanwoo quality goal with a low-risk first-run UX pass. Added `components/ui/empty-state.js`, replaced passive empty messages in Sales/Schedule/Inventory tabs with icon-led CTA states (`매출 기록`, `일정 추가`, `재고 등록`), and added `src/lib/empty-state-wiring.test.mjs` so the wiring stays covered without browser-only assumptions. |
+| Next Priorities | Verification passed: Hanwoo `npm.cmd test` (`79 passed`), `npm.cmd run lint`, `npm.cmd run build`, code-review graph risk `0.00`, and dev server `/login` returned `200` at `http://127.0.0.1:3001/login`. `node_modules` had to be repaired with `npm.cmd ci --ignore-scripts`; npm reported existing audit warnings (6 moderate, 2 high). A locked broken install folder was moved under `.tmp/node_modules.broken-20260519110922` and may disappear after the OS releases the native Tailwind binary lock. Preserve unrelated dirty WIP in root package files, `.github/workflows/full-test-matrix.yml`, package locks for other projects, and `projects/hanwoo-dashboard/package.json`. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-19 |
 | Tool | Claude Code (Opus 4.7 1M) |
 | Work | **shorts-maker-v2 Phase 1+2 품질 개선 완료** (commits `2b09759` feat + `8c90b36` ai-context). `/goal "shorts-maker-v2 결과물이 바로 유튜브에 올릴 수 있을 정도 고퀄"` 진행. 2회 실험 run 으로 8개 갭 식별 후 6개 해소. 해소된 갭: (#5) hook hard cap 15→40자 + 단어 경계 트림, (#3) Structure Gate 2 가 한국어 조사 stem + core_message/visual_keywords 다중 신호로 chronic 실패 해소, (#6) 4개 image entry-point에 "No text/letters" negative 자동 부착, (#1) TTS provider openai→edge-tts 전환으로 모든 채널 Azure-voice 호환 + 무료 + _words.json 자동 생성, (#2) 5개 채널 topic 50개 사실 기반 재설계, (#4+#8) Whisper/karaoke/color/audio post silent-fail이 manifest.degraded_steps 로 drain. **Validation run 완료** (`runs/20260519-014816-a37f7826`, 1110s total, $0.04): pipeline FAIL이지만 영상·썸네일·SRT·manifest 전부 생성. Before/After 비교 — scene_qc_results null→8/8 pass, audio_peak_probe_ok false→true, caption_fallback 8→0, karaoke kc_*.png 0→25, structure intent 보일러플레이트→LLM-quality, tone generic→rich. 썸네일에 영어 텍스트 artifact 없음. 잔여 hold 원인은 ship 차단 임계(Duration 49.8s vs channel target [35,35] + 파일크기 50.4MB vs [2,50]MB) — Phase 3 영역. |
 | Next Priorities | (1) shorts-maker-v2 commits `2b09759` + `8c90b36` push 사용자 승인 필요(local main 2 ahead). (2) Phase 3 후보 (T-318): gate3/gate4 duration 임계 완화(channel target ±10초 마진), file size 상한 60MB로 올리거나 bitrate 조정, hook_score<0.6 시 재생성 강제 게이트(현재 advisory만), 채널별 TTS 속도 미세조정. (3) 다른 도구의 미커밋 WIP 보존: `.github/workflows/full-test-matrix.yml`, `projects/hanwoo-dashboard/**` (package.json/lock + InventoryTab/SalesTab/ScheduleTab + middleware/manifest), `projects/blind-to-x/uv.lock`. |

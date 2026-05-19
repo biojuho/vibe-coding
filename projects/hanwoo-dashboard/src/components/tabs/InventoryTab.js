@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { PackagePlus } from 'lucide-react';
 
 import { createInventoryFormValues, inventoryItemSchema } from '@/lib/formSchemas';
 import { PremiumButton } from '@/components/ui/premium-button';
 import { PremiumInput, PremiumSelect, PremiumLabel } from '@/components/ui/premium-input';
 import { PremiumCard, PremiumCardContent } from '@/components/ui/premium-card';
+import EmptyState from '@/components/ui/empty-state';
 
 const errorTextStyle = {
   fontSize: '12px',
@@ -233,7 +235,13 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
         })}
 
         {inventory.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '30px', color: 'var(--color-text-muted)' }}>등록된 재고가 없습니다.</div>
+          <EmptyState
+            icon={PackagePlus}
+            title="등록된 재고가 없습니다"
+            description="사료, 약품, 기자재를 등록하면 부족 경고와 오늘 브리프에서 먼저 챙길 항목을 보여줍니다."
+            actionLabel="재고 등록"
+            onAction={() => setIsAdding(true)}
+          />
         ) : null}
       </div>
     </div>
