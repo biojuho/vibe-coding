@@ -35,7 +35,9 @@ channels:
       - "AI neural network visualization, glowing nodes, dark space background, ultra HD"
 
     # 스크립트 생성 파라미터 (채널 최적화)
-    target_duration_sec: 35          # 상한 45초 내 목표 (CPS 4.2 보정)
+    target_duration_sec: 35          # 생성 목표. QC는 아래 qc_* 구간으로 판정한다.
+    qc_min_duration_sec: 38          # 실제 TTS/렌더 검수 허용 하한
+    qc_max_duration_sec: 52          # 실제 TTS/렌더 검수 허용 상한
     target_chars: "130-160"          # 35초 x 4.2cps x 1.15speed
     hook_pattern: "shocking_stat"    # 충격 통계/수치로 시작
 

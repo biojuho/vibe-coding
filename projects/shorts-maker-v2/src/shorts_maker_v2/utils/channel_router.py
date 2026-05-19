@@ -137,7 +137,19 @@ class ChannelRouter:
             if isinstance(val, (list, tuple)):
                 vid_kwargs["target_duration_sec"] = (int(val[0]), int(val[1]))
             else:
-                vid_kwargs["target_duration_sec"] = (int(val), int(val))
+                target = int(val)
+                tolerance = int(profile.get("duration_tolerance_sec", 10))
+                dur_min = int(profile.get("qc_min_duration_sec", max(1, target - tolerance)))
+                dur_max = int(profile.get("qc_max_duration_sec", target + tolerance))
+                if dur_min > dur_max:
+                    logger.warning(
+                        "[ChannelRouter] '%s' duration bounds reversed (%s > %s); using exact target.",
+                        channel_key,
+                        dur_min,
+                        dur_max,
+                    )
+                    dur_min, dur_max = target, target
+                vid_kwargs["target_duration_sec"] = (dur_min, dur_max)
         if "transition" in profile:
             vid_kwargs["transition_style"] = str(profile["transition"])
 

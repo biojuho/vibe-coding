@@ -124,6 +124,40 @@ def test_channel_router_apply_merges_profile_overrides(tmp_path: Path) -> None:
     assert config.providers.tts_voice == "base-voice"
 
 
+def test_channel_router_scalar_duration_uses_qc_bounds(tmp_path: Path) -> None:
+    profile_path = _write_profiles(tmp_path)
+    payload = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile = payload["channels"]["ai_tech"]
+    profile["target_duration_sec"] = 35
+    profile["qc_min_duration_sec"] = 38
+    profile["qc_max_duration_sec"] = 52
+    profile_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    router = ChannelRouter(profile_path)
+    config = load_config(_write_config(tmp_path))
+
+    updated = router.apply(config, "ai_tech")
+
+    assert updated.video.target_duration_sec == (38, 52)
+
+
+def test_channel_router_scalar_duration_defaults_to_tolerance_window(tmp_path: Path) -> None:
+    profile_path = _write_profiles(tmp_path)
+    payload = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile = payload["channels"]["ai_tech"]
+    profile["target_duration_sec"] = 35
+    profile.pop("qc_min_duration_sec", None)
+    profile.pop("qc_max_duration_sec", None)
+    profile_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    router = ChannelRouter(profile_path)
+    config = load_config(_write_config(tmp_path))
+
+    updated = router.apply(config, "ai_tech")
+
+    assert updated.video.target_duration_sec == (25, 45)
+
+
 def test_channel_router_apply_returns_original_for_empty_or_unknown_channel(tmp_path: Path) -> None:
     router = ChannelRouter(_write_profiles(tmp_path))
     config = load_config(_write_config(tmp_path))
