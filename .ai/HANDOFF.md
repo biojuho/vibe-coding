@@ -7,6 +7,13 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-19 |
+| Tool | Claude Code (Opus 4.7 1M) |
+| Work | **T-320 backlog 등록**: 사용자 "GitHub의 다른 아이디어 중 도움될 것들 검색해서 고도화하자" 요청으로 6개 영역(숏폼 자동화/TTS/자막·word-timing/이미지/비디오/BGM) GitHub OSS 리서치 + 사용자 환경(Intel Iris Xe iGPU, NVIDIA 없음, RAM 15.75GB) 호환성 평가 + Replicate API 클라우드 옵션 결정. **로컬 가능**: WhisperX(BSD-2, CPU int8+medium, T-19 직접 해결) + OpenVoice v2(MIT, 한국어 native). **Replicate 필요**: LTX-Video(Apache 2.0, ~$0.05/clip) + ACE-Step v1.5(Apache 2.0, ~$0.10/track). **제외**: Fish Speech("FISH AUDIO RESEARCH LICENSE" 위반 시 조치 경고). 같은 세션에서 영상 1건(`20260519-013539-134a5783`) 추가 생성·검증으로 내 commit `49668c8`(해상도 1080x1920 강제) 효과 확인 — status hold→pass, scene_qc 7/8→8/8, sentiment neutral→awe i=3, audio_peak 정상. 잔존 약점은 Hook curiosity 0.0(non-blocking). 사용자 결정: 원 goal 달성으로 보고 OSS 도입은 새 goal로, Replicate 소액 테스트 $1~5/월 OK. |
+| Next Priorities | T-320 우선순위 (다음 세션): (1) WhisperX `pip install whisperx` → `pipeline/media/audio_mixin.py`의 OpenAI Whisper transcribe_audio() drop-in 교체 → 영상 1건으로 karaoke 정상 검증(T-19 자동 해소). (2) OpenVoice v2 providers cascade `edge-tts → openvoice → openai` 추가. (3) Replicate 가입 후 LTX-Video 1건 테스트($0.05) → hook/closing 씬만 영상화 cascade. (4) ACE-Step BGM Lyria cascade에 추가. 메모리 `shorts_v2_oss_shortlist_20260519`에 4개 OSS 디테일(install/license/통합 패턴/한계) 보존. 내 이번 세션 commit `49668c8`는 다른 도구 commit과 분리되어 origin 대비 ahead 상태(push 사용자 승인 별도). 같은 세션 다른 도구 작업: Codex T-319 Hanwoo empty states, Claude T-317 shorts-maker-v2 Phase 1+2 — 모두 commit + ai-context 정착됨. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-19 |
 | Tool | Codex |
 | Work | **T-319 completed**: continued the active Hanwoo quality goal with a low-risk first-run UX pass. Added `components/ui/empty-state.js`, replaced passive empty messages in Sales/Schedule/Inventory tabs with icon-led CTA states (`매출 기록`, `일정 추가`, `재고 등록`), and added `src/lib/empty-state-wiring.test.mjs` so the wiring stays covered without browser-only assumptions. |
 | Next Priorities | Verification passed: Hanwoo `npm.cmd test` (`79 passed`), `npm.cmd run lint`, `npm.cmd run build`, code-review graph risk `0.00`, and dev server `/login` returned `200` at `http://127.0.0.1:3001/login`. `node_modules` had to be repaired with `npm.cmd ci --ignore-scripts`; npm reported existing audit warnings (6 moderate, 2 high). A locked broken install folder was moved under `.tmp/node_modules.broken-20260519110922` and may disappear after the OS releases the native Tailwind binary lock. Preserve unrelated dirty WIP in root package files, `.github/workflows/full-test-matrix.yml`, package locks for other projects, and `projects/hanwoo-dashboard/package.json`. |
