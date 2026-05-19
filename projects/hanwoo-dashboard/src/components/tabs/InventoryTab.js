@@ -16,8 +16,8 @@ const errorTextStyle = {
   fontWeight: 600,
 };
 
-export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity }) {
-  const [isAdding, setIsAdding] = useState(false);
+export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, quickActionIntent = null }) {
+  const [isAdding, setIsAdding] = useState(() => quickActionIntent?.actionId === 'add-inventory');
   const [editId, setEditId] = useState(null);
   const [editQty, setEditQty] = useState('');
 

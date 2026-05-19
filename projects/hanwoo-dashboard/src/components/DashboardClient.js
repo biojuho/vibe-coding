@@ -36,7 +36,20 @@ import { PremiumInfoCard } from '@/components/ui/premium-card';
 import { PremiumButton } from '@/components/ui/premium-button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { AlertTriangle, Bell, CalendarDays, ChartSpline, ClipboardList, PackageCheck, Plus, ArrowLeft, WifiOff } from 'lucide-react';
+import {
+  AlertTriangle,
+  Bell,
+  CalendarDays,
+  ChartSpline,
+  ClipboardList,
+  ClipboardPlus,
+  PackageCheck,
+  PackagePlus,
+  Plus,
+  ReceiptText,
+  ArrowLeft,
+  WifiOff,
+} from 'lucide-react';
 import CalvingTab from '@/components/tabs/CalvingTab';
 import InventoryTab from '@/components/tabs/InventoryTab';
 import ScheduleTab from '@/components/tabs/ScheduleTab';
@@ -84,6 +97,40 @@ const FOCUS_ICON_BY_TYPE = {
   stock: PackageCheck,
   sales: ChartSpline,
 };
+
+const QUICK_ACTIONS = [
+  {
+    id: 'add-cattle',
+    label: '개체 등록',
+    detail: '새 송아지·입식우',
+    icon: ClipboardPlus,
+    tone: 'primary',
+  },
+  {
+    id: 'record-sale',
+    label: '출하 기록',
+    detail: '매출 바로 입력',
+    icon: ReceiptText,
+    tone: 'success',
+    targetTab: 'sales',
+  },
+  {
+    id: 'add-schedule',
+    label: '일정 추가',
+    detail: '검진·백신·번식',
+    icon: CalendarDays,
+    tone: 'info',
+    targetTab: 'schedule',
+  },
+  {
+    id: 'add-inventory',
+    label: '재고 등록',
+    detail: '사료·약품 보충',
+    icon: PackagePlus,
+    tone: 'warning',
+    targetTab: 'inventory',
+  },
+];
 
 function useWidgetSettings() {
   const [visible, setVisible] = useState(() => {
@@ -147,6 +194,7 @@ export default function DashboardClient({
 
   const [weather, setWeather] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [quickActionIntent, setQuickActionIntent] = useState(null);
   const [selectedCow, setSelectedCow] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -562,6 +610,24 @@ export default function DashboardClient({
       void ensureAllSalesLoaded({ silent: true });
     }
   }, [ensureAllCattleLoaded, ensureAllSalesLoaded]);
+
+  const handleQuickAction = useCallback((action) => {
+    if (action.id === 'add-cattle') {
+      setShowAddModal(true);
+      return;
+    }
+
+    if (action.targetTab) {
+      setSelectedBuildingId(null);
+      setSelectedPenId(null);
+      setActiveTab(action.targetTab);
+      setQuickActionIntent({
+        actionId: action.id,
+        targetTab: action.targetTab,
+        nonce: Date.now(),
+      });
+    }
+  }, []);
 
   const handleSelectBuilding = useCallback((buildingId) => {
     setSelectedBuildingId(buildingId);
@@ -983,14 +1049,29 @@ export default function DashboardClient({
           expenseRecords={expenseRecords}
           initialMarketPrice={initialMarketPrice}
           salesPagination={Array.isArray(allSalesLedger) ? null : salesPagination}
+          quickActionIntent={quickActionIntent}
         />
       );
     }
     if (activeTab === 'inventory') {
-      return <InventoryTab inventory={inventoryList} onAddItem={handleAddItem} onUpdateQuantity={handleUpdateQuantity} />;
+      return (
+        <InventoryTab
+          inventory={inventoryList}
+          onAddItem={handleAddItem}
+          onUpdateQuantity={handleUpdateQuantity}
+          quickActionIntent={quickActionIntent}
+        />
+      );
     }
     if (activeTab === 'schedule') {
-      return <ScheduleTab events={scheduleEvents} onCreateEvent={handleCreateEvent} onToggleEvent={handleToggleEvent} />;
+      return (
+        <ScheduleTab
+          events={scheduleEvents}
+          onCreateEvent={handleCreateEvent}
+          onToggleEvent={handleToggleEvent}
+          quickActionIntent={quickActionIntent}
+        />
+      );
     }
     if (activeTab === 'analysis') {
       return <AnalysisTab saleRecords={saleRecords} feedHistory={feedHistory} cattleList={cattleList} expenseRecords={expenseRecords} />;
@@ -1043,6 +1124,8 @@ export default function DashboardClient({
           onOpenNotifications={() => setShowNotifications(true)}
           onNavigate={setActiveTab}
         />
+
+        <QuickActionPanel actions={QUICK_ACTIONS} onAction={handleQuickAction} />
 
         {widgetSettings.visible.weather && <WeatherWidget weather={weather} />}
         {widgetSettings.visible.market && <MarketPriceWidget initialData={initialMarketPrice} />}
@@ -1233,6 +1316,43 @@ function TodayFocusPanel({ items, onOpenNotifications, onNavigate }) {
 }
 
 /** 칸 상세 뷰 — filter 1회로 렌더/빈칸 분기 처리 */
+function QuickActionPanel({ actions, onAction }) {
+  return (
+    <section className="quick-action-panel animate-fadeInUp" aria-labelledby="quick-action-title">
+      <div className="quick-action-header">
+        <div>
+          <div className="clay-page-eyebrow">Quick Record</div>
+          <h2 id="quick-action-title" className="quick-action-title">자주 쓰는 기록</h2>
+        </div>
+        <span className="quick-action-hint">1탭 시작</span>
+      </div>
+
+      <div className="quick-action-grid">
+        {actions.map((action) => {
+          const Icon = action.icon;
+
+          return (
+            <button
+              key={action.id}
+              type="button"
+              className={`quick-action-button quick-action-${action.tone}`}
+              onClick={() => onAction(action)}
+            >
+              <span className="quick-action-icon" aria-hidden="true">
+                <Icon size={18} strokeWidth={2.2} />
+              </span>
+              <span className="quick-action-copy">
+                <span className="quick-action-label">{action.label}</span>
+                <span className="quick-action-detail">{action.detail}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function PenCattleList({ cattleList, buildingId, penId, onSelect }) {
   const penCattle = cattleList.filter(
     (cow) => cow.buildingId === buildingId && cow.penNumber === penId,

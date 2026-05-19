@@ -19,8 +19,16 @@ const errorTextStyle = {
   fontWeight: 600,
 };
 
-export default function SalesTab({ saleRecords, cattleList, onCreateSale, expenseRecords = [], initialMarketPrice = null, salesPagination = null }) {
-  const [isAdding, setIsAdding] = useState(false);
+export default function SalesTab({
+  saleRecords,
+  cattleList,
+  onCreateSale,
+  expenseRecords = [],
+  initialMarketPrice = null,
+  salesPagination = null,
+  quickActionIntent = null,
+}) {
+  const [isAdding, setIsAdding] = useState(() => quickActionIntent?.actionId === 'record-sale');
 
   const {
     register,

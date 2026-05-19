@@ -1904,6 +1904,168 @@ body {
 }
 
 /* ============================================
+   Quick Action Panel
+   ============================================ */
+
+.quick-action-panel {
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid var(--color-surface-stroke);
+  border-radius: var(--radius-custom-xl);
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--color-surface-elevated) 94%, var(--chart-clay-2) 6%),
+      color-mix(in srgb, var(--color-bg-card) 92%, var(--chart-clay-4) 8%)
+    );
+  box-shadow: var(--shadow-sm);
+}
+
+.quick-action-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.quick-action-title {
+  margin: 3px 0 0;
+  color: var(--color-text);
+  font-size: 18px;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.quick-action-hint {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border: 1px solid color-mix(in srgb, var(--color-primary-custom) 16%, var(--color-surface-stroke));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary-custom) 8%, var(--color-surface-elevated));
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.quick-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.quick-action-button {
+  --quick-color: var(--color-primary-custom);
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 72px;
+  padding: 11px;
+  border: 1px solid color-mix(in srgb, var(--quick-color) 18%, var(--color-surface-stroke));
+  border-radius: var(--radius-custom-lg);
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--quick-color) 8%, var(--color-surface-elevated)),
+      color-mix(in srgb, var(--color-bg-card) 95%, var(--quick-color) 5%)
+    );
+  color: var(--color-text);
+  cursor: pointer;
+  text-align: left;
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.2s ease;
+}
+
+.quick-action-button:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--quick-color) 34%, var(--color-surface-stroke));
+  box-shadow: var(--shadow-md);
+}
+
+.quick-action-button:active {
+  transform: translateY(0);
+}
+
+.quick-action-primary {
+  --quick-color: var(--color-primary-custom);
+}
+
+.quick-action-success {
+  --quick-color: var(--color-success);
+}
+
+.quick-action-info {
+  --quick-color: var(--color-info);
+}
+
+.quick-action-warning {
+  --quick-color: var(--color-warning);
+}
+
+.quick-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--quick-color) 13%, var(--color-surface-elevated));
+  color: var(--quick-color);
+  box-shadow: var(--shadow-inset-soft);
+}
+
+.quick-action-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.quick-action-label {
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-action-detail {
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 420px) {
+  .quick-action-panel {
+    padding: 14px;
+  }
+
+  .quick-action-grid {
+    gap: 8px;
+  }
+
+  .quick-action-button {
+    grid-template-columns: 34px minmax(0, 1fr);
+    min-height: 68px;
+    padding: 10px;
+  }
+
+  .quick-action-icon {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+/* ============================================
    Today Focus Panel
    ============================================ */
 

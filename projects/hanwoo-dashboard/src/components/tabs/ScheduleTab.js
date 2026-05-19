@@ -22,8 +22,8 @@ const errorTextStyle = {
   fontWeight: 600,
 };
 
-export default function ScheduleTab({ events, onCreateEvent, onToggleEvent }) {
-  const [isAdding, setIsAdding] = useState(false);
+export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quickActionIntent = null }) {
+  const [isAdding, setIsAdding] = useState(() => quickActionIntent?.actionId === 'add-schedule');
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const {
