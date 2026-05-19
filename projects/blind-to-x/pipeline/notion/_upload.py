@@ -33,6 +33,7 @@ class NotionUploadMixin:
         "직장인 맥락 약함": "독자 핏 약함",
         "갈등 낚시 과다": "갈등 과열",
     }
+    X_MAX_CHARS = 280
 
     def _prepare_property_payload(self, semantic_key: str, value: Any):
         """시맨틱 키 + 값 → Notion API 속성 payload 변환."""
@@ -155,11 +156,11 @@ class NotionUploadMixin:
 
     def _derive_publish_platforms(self, drafts: Any) -> list[str]:
         if not isinstance(drafts, dict):
-            return ["숏폼"]
+            return ["X"]
 
         platforms: list[str] = []
         if drafts.get("twitter"):
-            platforms.append("숏폼")
+            platforms.append("X")
         if drafts.get("threads"):
             platforms.append("Threads")
         if drafts.get("newsletter"):
@@ -174,6 +175,31 @@ class NotionUploadMixin:
         if isinstance(drafts, str) and drafts.strip():
             return ["twitter"]
         return []
+
+    def _extract_x_upload_parts(self, drafts: Any) -> dict[str, str]:
+        if isinstance(drafts, dict):
+            return {
+                "body": str(drafts.get("twitter") or "").strip(),
+                "reply": str(drafts.get("reply_text") or "").strip(),
+            }
+        return {"body": str(drafts or "").strip(), "reply": ""}
+
+    def _build_x_upload_check_lines(self, drafts: Any) -> list[str]:
+        parts = self._extract_x_upload_parts(drafts)
+        body = parts["body"]
+        if not body:
+            return []
+
+        char_count = len(body)
+        length_status = "OK" if char_count <= self.X_MAX_CHARS else "초과"
+        lines = [
+            f"본문 글자 수: {char_count}/{self.X_MAX_CHARS}자 ({length_status})",
+            "본문에는 원문 링크와 해시태그를 넣지 않고, 필요하면 첫 답글로 분리",
+            "업로드 순서: X 본문 복사 → 이미지 첨부 → 게시 → 첫 답글에 원문/해시태그 추가",
+        ]
+        if parts["reply"]:
+            lines.append(f"첫 답글 메모: {self._truncate_for_brief(parts['reply'], limit=120)}")
+        return lines
 
     def _extract_review_risk_flags(
         self, post_data: dict[str, Any], drafts: Any, analysis: dict[str, Any] | None
@@ -440,6 +466,7 @@ class NotionUploadMixin:
         review_brief: dict[str, Any],
         analysis: dict[str, Any] | None,
         draft_generation_error: str,
+        drafts: Any,
     ) -> list[dict[str, Any]]:
         if not analysis:
             return []
@@ -473,11 +500,39 @@ class NotionUploadMixin:
             summary_lines.append(f"위험 신호: {', '.join(review_brief['risk_flags'])}")
         if review_brief["publish_platforms"]:
             summary_lines.append(f"권장 채널: {', '.join(review_brief['publish_platforms'])}")
+        summary_lines.extend(self._build_x_upload_check_lines(drafts))
         if draft_generation_error:
             summary_lines.append(f"초안 생성 오류: {self._truncate_for_brief(draft_generation_error, limit=140)}")
         summary_lines.extend(self._build_summary_metric_lines(post_data, analysis))
 
         blocks.extend(self._create_bulleted_list_blocks(summary_lines))
+        return blocks
+
+    def _build_x_upload_card_blocks(self, drafts: Any) -> list[dict[str, Any]]:
+        parts = self._extract_x_upload_parts(drafts)
+        body = parts["body"]
+        if not body:
+            return []
+
+        blocks: list[dict[str, Any]] = [
+            {"object": "block", "type": "divider", "divider": {}},
+            self._create_heading_block(2, "X 업로드 카드"),
+            self._create_callout_block(
+                "아래 X 본문을 그대로 복사하고, 링크와 해시태그는 첫 답글로 분리합니다.",
+                "✍️",
+                "green_background",
+            ),
+            self._create_heading_block(3, "X 본문"),
+            *self._create_text_blocks(body),
+        ]
+        if parts["reply"]:
+            blocks.extend(
+                [
+                    self._create_heading_block(3, "첫 답글 / 출처 메모"),
+                    *self._create_text_blocks(parts["reply"]),
+                ]
+            )
+        blocks.extend(self._create_bulleted_list_blocks(self._build_x_upload_check_lines(drafts)))
         return blocks
 
     def _build_draft_section_blocks(self, drafts: Any) -> list[dict[str, Any]]:
@@ -487,12 +542,6 @@ class NotionUploadMixin:
         draft_blocks: list[dict[str, Any]] = []
 
         if isinstance(drafts, dict):
-            if drafts.get("twitter"):
-                draft_blocks.append(self._create_heading_block(3, "숏폼 초안"))
-                draft_blocks.extend(self._create_text_blocks(drafts["twitter"]))
-            if drafts.get("reply_text"):
-                draft_blocks.append(self._create_heading_block(3, "링크 메모"))
-                draft_blocks.extend(self._create_text_blocks(drafts["reply_text"]))
             if drafts.get("threads"):
                 draft_blocks.append(self._create_heading_block(3, "Threads 초안"))
                 draft_blocks.extend(self._create_text_blocks(drafts["threads"]))
@@ -503,15 +552,14 @@ class NotionUploadMixin:
                 draft_blocks.append(self._create_heading_block(3, "네이버 블로그 초안"))
                 draft_blocks.extend(self._create_text_blocks(drafts["naver_blog"]))
         else:
-            draft_blocks.append(self._create_heading_block(3, "숏폼 초안"))
-            draft_blocks.extend(self._create_text_blocks(str(drafts)))
+            return []
 
         if not draft_blocks:
             return []
 
         return [
             {"object": "block", "type": "divider", "divider": {}},
-            self._create_heading_block(2, "채널 초안"),
+            self._create_heading_block(2, "보조 채널 초안"),
             *draft_blocks,
         ]
 
@@ -729,8 +777,10 @@ class NotionUploadMixin:
                     review_brief,
                     analysis,
                     draft_generation_error,
+                    drafts,
                 )
             )
+            children.extend(self._build_x_upload_card_blocks(drafts))
             children.extend(self._build_draft_section_blocks(drafts))
             children.extend(self._build_diagnostic_section_blocks(post_data, review_brief, analysis))
             children.extend(self._build_raw_source_section_blocks(post_data, screenshot_url))

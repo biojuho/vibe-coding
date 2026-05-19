@@ -55,7 +55,8 @@ REVIEW_SCHEMA: dict[str, dict] = {
     "publish_platforms": {
         "multi_select": {
             "options": [
-                _option("숏폼", "blue"),
+                _option("X", "blue"),
+                _option("숏폼", "gray"),
                 _option("Threads", "purple"),
                 _option("뉴스레터", "green"),
                 _option("블로그", "orange"),

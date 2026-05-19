@@ -387,7 +387,7 @@ async def test_upload_populates_review_brief_properties(mock_ensure_schema, mock
     assert "근거 앵커 '연봉 1800 깎고 이직'" in props["검토 포인트"]["rich_text"][0]["text"]["content"]
     assert "반려 사유" in props["피드백 요청"]["rich_text"][0]["text"]["content"]
     assert props["위험 신호"]["multi_select"] == [{"name": "독자 핏 약함"}]
-    assert props["발행 플랫폼"]["multi_select"] == [{"name": "숏폼"}, {"name": "Threads"}]
+    assert props["발행 플랫폼"]["multi_select"] == [{"name": "X"}, {"name": "Threads"}]
 
 
 @pytest.mark.asyncio
@@ -556,7 +556,8 @@ async def test_upload_groups_diagnostics_and_raw_content_into_toggles(mock_ensur
         if block.get("type") in {"heading_2", "heading_3"}
     ]
     assert "검토 요약" in heading_titles
-    assert "채널 초안" in heading_titles
+    assert "X 업로드 카드" in heading_titles
+    assert "X 본문" in heading_titles
     assert "진단 상세" in heading_titles
     assert "원문" in heading_titles
 
@@ -565,6 +566,9 @@ async def test_upload_groups_diagnostics_and_raw_content_into_toggles(mock_ensur
         for block in children
         if block.get("type") == "bulleted_list_item"
     ]
+    assert "권장 채널: X" in top_level_bullets
+    assert "본문 글자 수: 22/280자 (OK)" in top_level_bullets
+    assert any("업로드 순서: X 본문 복사" in text for text in top_level_bullets)
     assert "에디토리얼 평균 점수: 8.62" in top_level_bullets
     assert "품질 재시도: 1회" in top_level_bullets
 

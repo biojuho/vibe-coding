@@ -96,15 +96,15 @@ def _detect_publish_platforms(record: dict[str, Any], sections: dict[str, list[s
     blog_body = str(record.get("blog_body") or "").strip()
 
     if tweet_body:
-        platforms.append("숏폼")
+        platforms.append("X")
     if threads_body:
         platforms.append("Threads")
     if blog_body:
         platforms.append("블로그")
 
     for heading in sections:
-        if "숏폼 초안" in heading or "X(Twitter) 초안" in heading:
-            platforms.append("숏폼")
+        if "숏폼 초안" in heading or "X(Twitter) 초안" in heading or "X 업로드 카드" in heading:
+            platforms.append("X")
         elif "Threads 초안" in heading:
             platforms.append("Threads")
         elif "뉴스레터 초안" in heading:
@@ -164,7 +164,7 @@ def build_review_backfill_updates(
     publish_platforms = _detect_publish_platforms(record, sections)
 
     drafts: dict[str, Any] = {"creator_take": creator_take}
-    if "숏폼" in publish_platforms:
+    if "X" in publish_platforms or "숏폼" in publish_platforms:
         drafts["twitter"] = "__present__"
     if "Threads" in publish_platforms:
         drafts["threads"] = "__present__"
