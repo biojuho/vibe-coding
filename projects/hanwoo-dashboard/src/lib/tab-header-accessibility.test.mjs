@@ -33,3 +33,20 @@ test('schedule form fields expose labels and validation state', () => {
   assert.match(scheduleSource, /<label htmlFor="schedule-type"[\s\S]*?>\s*일정 종류\s*<\/label>/);
   assert.match(scheduleSource, /id="schedule-type"[\s\S]*?aria-invalid=\{Boolean\(errors\.type\)\}/);
 });
+
+test('schedule form validation messages are announced with their controls', () => {
+  const scheduleSource = readSource('components/tabs/ScheduleTab.js');
+  const fields = [
+    ['title', 'schedule-title-error'],
+    ['date', 'schedule-date-error'],
+    ['type', 'schedule-type-error'],
+  ];
+
+  for (const [errorPath, errorId] of fields) {
+    assert.match(
+      scheduleSource,
+      new RegExp(`aria-describedby=\\{errors\\.${errorPath} \\? "${errorId}" : undefined\\}`),
+    );
+    assert.match(scheduleSource, new RegExp(`<div id="${errorId}" role="alert"`));
+  }
+});

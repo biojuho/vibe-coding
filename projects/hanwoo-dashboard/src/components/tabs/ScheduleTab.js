@@ -126,10 +126,11 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
                 id="schedule-title"
                 placeholder="예: 1번 구제역 백신"
                 aria-invalid={Boolean(errors.title)}
+                aria-describedby={errors.title ? "schedule-title-error" : undefined}
                 {...register('title')}
                 className="clay-inset w-full rounded-[16px] px-4 py-3 text-sm text-[color:var(--color-text)] outline-none"
               />
-              {errors.title ? <div style={errorTextStyle}>{errors.title.message}</div> : null}
+              {errors.title ? <div id="schedule-title-error" role="alert" style={errorTextStyle}>{errors.title.message}</div> : null}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -141,10 +142,11 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
                   id="schedule-date"
                   type="date"
                   aria-invalid={Boolean(errors.date)}
+                  aria-describedby={errors.date ? "schedule-date-error" : undefined}
                   {...register('date')}
                   className="clay-inset w-full rounded-[16px] px-4 py-3 text-sm text-[color:var(--color-text)] outline-none"
                 />
-                {errors.date ? <div style={errorTextStyle}>{errors.date.message}</div> : null}
+                {errors.date ? <div id="schedule-date-error" role="alert" style={errorTextStyle}>{errors.date.message}</div> : null}
               </div>
 
               <div>
@@ -154,6 +156,7 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
                 <select
                   id="schedule-type"
                   aria-invalid={Boolean(errors.type)}
+                  aria-describedby={errors.type ? "schedule-type-error" : undefined}
                   {...register('type')}
                   className="clay-inset w-full rounded-[16px] px-4 py-3 text-sm text-[color:var(--color-text)] outline-none"
                 >
@@ -163,7 +166,7 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
                   <option value="Breeding">번식</option>
                   <option value="Other">기타</option>
                 </select>
-                {errors.type ? <div style={errorTextStyle}>{errors.type.message}</div> : null}
+                {errors.type ? <div id="schedule-type-error" role="alert" style={errorTextStyle}>{errors.type.message}</div> : null}
               </div>
             </div>
 
