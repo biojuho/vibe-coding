@@ -89,7 +89,7 @@ test('cattle form and detail icon-only navigation controls have Korean labels', 
   assert.match(detailSource, /aria-label=\{`\$\{cattle\.name\} 개체 보관 처리`\}/);
   assert.match(detailSource, /title="개체 보관 처리"/);
   assert.match(detailSource, /> 보관<\/button>/);
-  assert.match(detailSource, /type="button"\s+onClick=\{onDelete\}/);
+  assert.match(detailSource, /type="button"[\s\S]*?onClick=\{onDelete\}/);
   assert.match(detailSource, /role="dialog"/);
   assert.match(detailSource, /aria-modal="true"/);
   assert.match(detailSource, /aria-labelledby="cattle-detail-title"/);
@@ -101,6 +101,20 @@ test('cattle form and detail icon-only navigation controls have Korean labels', 
   assert.match(detailSource, /id="cattle-detail-title"/);
   assert.doesNotMatch(formSource, /aria-label="Back"/);
   assert.doesNotMatch(detailSource, /aria-label="Close"/);
+});
+
+test('cattle detail archive actions wait for async deletes before re-enabling submit actions', () => {
+  const dashboardSource = readSource('components/DashboardClient.js');
+  const detailSource = readSource('components/forms/CattleDetailModal.js');
+
+  assert.match(dashboardSource, /const \[deletingCattleId, setDeletingCattleId\] = useState\(null\)/);
+  assert.match(dashboardSource, /if \(deletingCattleId\) \{\s+return false;\s+\}/);
+  assert.match(dashboardSource, /setDeletingCattleId\(id\);/);
+  assert.match(dashboardSource, /await deleteCattle\(id\);/);
+  assert.match(dashboardSource, /finally \{\s+setDeletingCattleId\(null\);/);
+  assert.match(dashboardSource, /isDeleting=\{deletingCattleId === selectedCow\.id\}/);
+  assert.match(detailSource, /isDeleting = false/);
+  assert.match(detailSource, /onClick=\{onDelete\}[\s\S]*?disabled=\{isDeleting\}[\s\S]*?aria-busy=\{isDeleting\}/);
 });
 
 test('cattle form validation messages are announced with their controls', () => {

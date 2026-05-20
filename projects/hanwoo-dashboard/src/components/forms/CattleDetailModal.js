@@ -17,7 +17,15 @@ const HISTORY_ICONS = {
   sale: "💰",
 };
 
-export default function CattleDetailModal({ cattle, buildings = [], onClose, onEdit, onDelete, onUpdate }) {
+export default function CattleDetailModal({
+  cattle,
+  buildings = [],
+  isDeleting = false,
+  onClose,
+  onEdit,
+  onDelete,
+  onUpdate,
+}) {
   const dialogRef = useRef(null);
   const [history, setHistory] = useState([]);
   const [activeBreedingAction, setActiveBreedingAction] = useState(null);
@@ -225,6 +233,8 @@ export default function CattleDetailModal({ cattle, buildings = [], onClose, onE
               onClick={onDelete}
               aria-label={`${cattle.name} 개체 보관 처리`}
               title="개체 보관 처리"
+              disabled={isDeleting}
+              aria-busy={isDeleting}
               className="btn btn-danger"
               style={{...btnDanger,flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:"8px"}}
             ><TrashIcon/> 보관</button>

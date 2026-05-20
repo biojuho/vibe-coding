@@ -207,6 +207,7 @@ export default function DashboardClient({
   const [quickActionIntent, setQuickActionIntent] = useState(null);
   const [selectedCow, setSelectedCow] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [deletingCattleId, setDeletingCattleId] = useState(null);
 
   const [selectedBuildingId, setSelectedBuildingId] = useState(null);
   const [selectedPenId, setSelectedPenId] = useState(null);
@@ -753,22 +754,29 @@ export default function DashboardClient({
   };
 
   const handleDeleteCattle = async (id) => {
-    const targetCattle = cattleList.find((cow) => cow.id === id);
-    const shouldDelete = await confirm({
-      title: '개체를 보관 처리할까요?',
-      description: targetCattle
-        ? `${targetCattle.name} (${targetCattle.tagNumber}) 정보가 활성 목록에서 숨겨지고 보관 기록으로 남습니다.`
-        : '활성 목록에서 숨기고 보관 기록으로 남깁니다.',
-      confirmLabel: '보관 처리',
-      cancelLabel: '취소',
-      variant: 'destructive',
-    });
-
-    if (!shouldDelete) {
+    if (deletingCattleId) {
       return false;
     }
 
+    setDeletingCattleId(id);
+
+    const targetCattle = cattleList.find((cow) => cow.id === id);
+
     try {
+      const shouldDelete = await confirm({
+        title: '개체를 보관 처리할까요?',
+        description: targetCattle
+          ? `${targetCattle.name} (${targetCattle.tagNumber}) 정보가 활성 목록에서 숨겨지고 보관 기록으로 남습니다.`
+          : '활성 목록에서 숨기고 보관 기록으로 남깁니다.',
+        confirmLabel: '보관 처리',
+        cancelLabel: '취소',
+        variant: 'destructive',
+      });
+
+      if (!shouldDelete) {
+        return false;
+      }
+
       const result = await deleteCattle(id);
       if (result.success) {
         removeCattleRecord(id);
@@ -783,6 +791,8 @@ export default function DashboardClient({
     } catch {
       showError('개체 보관 처리 중 오류가 발생했습니다.');
       return false;
+    } finally {
+      setDeletingCattleId(null);
     }
   };
 
@@ -1390,7 +1400,15 @@ export default function DashboardClient({
       )}
 
       {selectedCow && !isEditing && (
-        <CattleDetailModal cattle={selectedCow} buildings={buildings} onClose={() => setSelectedCow(null)} onEdit={() => setIsEditing(true)} onDelete={() => handleDeleteCattle(selectedCow.id)} onUpdate={handleUpdateCattle} />
+        <CattleDetailModal
+          cattle={selectedCow}
+          buildings={buildings}
+          isDeleting={deletingCattleId === selectedCow.id}
+          onClose={() => setSelectedCow(null)}
+          onEdit={() => setIsEditing(true)}
+          onDelete={() => handleDeleteCattle(selectedCow.id)}
+          onUpdate={handleUpdateCattle}
+        />
       )}
 
       <footer className="footer-glass mt-16 mx-2 px-6 pt-8 pb-6 text-center text-xs text-muted-foreground leading-relaxed">
