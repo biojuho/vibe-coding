@@ -18,12 +18,14 @@ const errorTextStyle = {
   fontWeight: 600,
 };
 
-function FilterChip({ active, children, onClick }) {
+function FilterChip({ active, children, onClick, label }) {
   return (
     <PremiumButton
       variant={active ? "primary" : "secondary"}
       size="sm"
       onClick={onClick}
+      aria-pressed={active}
+      aria-label={label}
       className={`rounded-full px-4 py-2 font-bold text-[13px] whitespace-nowrap shadow-sm ${active ? "shadow-[var(--shadow-button-primary)] text-white" : ""}`}
     >
       {children}
@@ -143,11 +145,16 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
       </div>
 
       <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', overflowX: 'auto', paddingBottom: '4px' }}>
-        <FilterChip active={!selectedBuilding} onClick={() => setSelectedBuilding(null)}>
+        <FilterChip active={!selectedBuilding} onClick={() => setSelectedBuilding(null)} label="전체 축사 급여 보기">
           전체
         </FilterChip>
         {buildings.map((building) => (
-          <FilterChip key={building.id} active={selectedBuilding === building.id} onClick={() => setSelectedBuilding(building.id)}>
+          <FilterChip
+            key={building.id}
+            active={selectedBuilding === building.id}
+            onClick={() => setSelectedBuilding(building.id)}
+            label={`${building.name} 급여 보기`}
+          >
             {building.name}
           </FilterChip>
         ))}
