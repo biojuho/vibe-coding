@@ -535,6 +535,21 @@ class PipelineOrchestrator:
                             passed=hook_score.passed,
                         )
                         if not hook_score.passed:
+                            degraded_steps.append(
+                                {
+                                    "step": "hook_score",
+                                    "message": (
+                                        f"Hook strength below threshold "
+                                        f"(strength={hook_score.hook_strength:.3f}): "
+                                        f"{'; '.join(hook_score.feedback) or 'no specific feedback'}"
+                                    ),
+                                    "error_type": "hook_below_threshold",
+                                    "is_retryable": True,
+                                    "blocking": False,
+                                    "hook_strength": hook_score.hook_strength,
+                                    "feedback": hook_score.feedback,
+                                }
+                            )
                             jlog.warning(
                                 "hook_score_weak",
                                 strength=hook_score.hook_strength,

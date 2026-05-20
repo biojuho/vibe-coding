@@ -113,6 +113,23 @@ class StubScript:
         )
 
 
+class WeakHookScript:
+    def run(self, topic, **kw):
+        return (
+            "title",
+            [
+                ScenePlan(
+                    scene_id=1,
+                    narration_ko="평범한 설명입니다",
+                    visual_prompt_en="p",
+                    target_sec=5.0,
+                    structure_role="hook",
+                )
+            ],
+            "hook",
+        )
+
+
 class StubMedia:
     def run(self, scene_plans, run_dir, cost_guard, logger=None):
         run_dir.mkdir(parents=True, exist_ok=True)
@@ -836,6 +853,35 @@ class TestRunErrorPaths:
 
         assert manifest.status == "success"
         assert not any(d.get("step") == "structure" for d in manifest.degraded_steps)
+
+    def test_run_marks_manifest_degraded_when_hook_score_is_weak(self, tmp_path: Path):
+        cfg = _load_cfg(tmp_path)
+        _set_frozen_attr(cfg.project, "structure_validation", "off")
+        orch = PipelineOrchestrator(
+            config=cfg,
+            base_dir=tmp_path,
+            script_step=WeakHookScript(),
+            media_step=StubMedia(),
+            render_step=StubRender(),
+        )
+        gate3_pass = SimpleNamespace(verdict="pass", checks={"duration_ok": True}, issues=[])
+        gate4_pass = SimpleNamespace(verdict="pass", checks={"final_ok": True}, issues=[])
+
+        with (
+            patch("shorts_maker_v2.pipeline.orchestrator.QCStep.gate3_media", return_value=gate3_pass),
+            patch("shorts_maker_v2.pipeline.orchestrator.QCStep.gate4_final", return_value=gate4_pass),
+            patch("shorts_maker_v2.pipeline.orchestrator.CostTracker"),
+        ):
+            manifest = orch.run(topic="weak hook topic")
+
+        assert manifest.status == "degraded"
+        assert manifest.hook_score is not None
+        assert manifest.hook_score["passed"] is False
+        matches = [d for d in manifest.degraded_steps if d.get("step") == "hook_score"]
+        assert len(matches) == 1, manifest.degraded_steps
+        assert matches[0]["error_type"] == "hook_below_threshold"
+        assert matches[0]["is_retryable"] is True
+        assert matches[0]["blocking"] is False
 
     def test_run_marks_manifest_degraded_when_research_fails(self, tmp_path: Path):
         cfg = _load_cfg(tmp_path)

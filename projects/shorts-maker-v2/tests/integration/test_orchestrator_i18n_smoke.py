@@ -165,7 +165,7 @@ def test_orchestrator_en_us_smoke_reaches_render_and_srt_export(tmp_path: Path) 
                 "title": "Tiny chips, big savings",
                 "scenes": [
                     {
-                        "narration": "Tiny chips win.",
+                        "narration": "Tiny chips, big savings.",
                         "visual_prompt": "Close-up of a compact processor glowing in cool studio light",
                         "structure_role": "hook",
                     },
@@ -230,7 +230,7 @@ def test_orchestrator_en_us_smoke_reaches_render_and_srt_export(tmp_path: Path) 
     srt_path = Path(manifest.srt_path)
     assert srt_path.exists()
     srt_text = srt_path.read_text(encoding="utf-8")
-    assert "Tiny chips win." in srt_text
+    assert "Tiny chips, big savings." in srt_text
     assert "That slashed power use for phones." in srt_text
     assert "Check your model size tonight." in srt_text
 

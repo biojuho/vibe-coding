@@ -53,6 +53,14 @@ class TestScoreHook:
         assert result.passed is True
         assert result.hook_strength >= 0.6
 
+    def test_english_contrast_tech_hook_passes(self):
+        result = score_hook("Tiny chips, big savings")
+        assert result.passed is True
+        assert result.hook_strength >= 0.6
+        assert result.punch_score >= 0.7
+        assert result.curiosity_score >= 0.5
+        assert result.specificity_score >= 0.4
+
     def test_to_dict_structure(self):
         """to_dict() 출력 구조 확인."""
         result = score_hook("테스트")

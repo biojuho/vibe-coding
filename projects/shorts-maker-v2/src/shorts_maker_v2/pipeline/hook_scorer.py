@@ -63,6 +63,18 @@ _CURIOSITY_PATTERNS = re.compile(
 )
 
 
+_ENGLISH_CONTRAST_PATTERN = re.compile(
+    r"\b(tiny|small|little|short|cheap|simple)\b[^.!?]{0,28},[^.!?]{0,28}"
+    r"\b(big|huge|massive|major|savings?|wins?|impact|results?)\b",
+    re.IGNORECASE,
+)
+
+_ENGLISH_TECH_SPECIFICITY_PATTERN = re.compile(
+    r"\b(chip|chips|processor|processors|ai|model|models|battery|phone|phones|gpu|cpu)\b",
+    re.IGNORECASE,
+)
+
+
 @dataclass
 class HookScore:
     """Hook 씬 평가 결과."""
@@ -130,6 +142,8 @@ def score_hook(narration: str, *, threshold: float = _PASS_THRESHOLD) -> HookSco
     punch = 0.0
     if _QUESTION_PATTERNS.search(text):
         punch += 0.4
+    if _ENGLISH_CONTRAST_PATTERN.search(text):
+        punch += 0.7
     shock_hits = sum(1 for w in _SHOCK_WORDS if w in text)
     punch += min(shock_hits * 0.3, 0.6)
     result.punch_score = min(punch, 1.0)
@@ -139,6 +153,8 @@ def score_hook(narration: str, *, threshold: float = _PASS_THRESHOLD) -> HookSco
     # 3. Curiosity (호기심)
     curiosity = 0.0
     if _CURIOSITY_PATTERNS.search(text):
+        curiosity += 0.5
+    if _ENGLISH_CONTRAST_PATTERN.search(text):
         curiosity += 0.5
     # 정보 갭: "~인 이유", "~하는 방법" 패턴
     if re.search(r"(이유|방법|비결|원인|진실)", text):
@@ -151,6 +167,8 @@ def score_hook(narration: str, *, threshold: float = _PASS_THRESHOLD) -> HookSco
         specificity += 0.6
     # 고유명사나 구체적 대상 (따옴표, 이름 등)
     if re.search(r"['\"]|NASA|MIT|WHO|한국|미국|일본|중국", text):
+        specificity += 0.4
+    if _ENGLISH_TECH_SPECIFICITY_PATTERN.search(text):
         specificity += 0.4
     result.specificity_score = min(specificity, 1.0)
 

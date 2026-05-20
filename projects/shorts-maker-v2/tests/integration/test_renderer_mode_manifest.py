@@ -17,7 +17,7 @@ class StubScriptStep:
             [
                 ScenePlan(
                     scene_id=1,
-                    narration_ko=f"{topic} narration",
+                    narration_ko="Tiny chips, big savings",
                     visual_prompt_en="prompt",
                     target_sec=5.0,
                     structure_role="hook",
