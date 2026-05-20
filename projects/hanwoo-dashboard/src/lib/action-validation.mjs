@@ -205,6 +205,11 @@ const calvingRecordSchema = z.object({
   calfTagNumber: requiredText('송아지 이력번호를 입력해 주세요.', 30),
 });
 
+const buildingMutationSchema = z.object({
+  name: requiredText('동 이름을 입력해 주세요.', 40),
+  penCount: requiredPositiveInt('칸 수는 1 이상이어야 합니다.', 200),
+});
+
 const inventoryItemSchema = z
   .object({
     name: requiredText('자재 이름을 입력해 주세요.', 80),
@@ -262,6 +267,10 @@ export function validateFeedRecordInput(input) {
 
 export function validateCalvingRecordInput(input) {
   return validateActionInput(calvingRecordSchema, input);
+}
+
+export function validateBuildingInput(input) {
+  return validateActionInput(buildingMutationSchema, input);
 }
 
 export function validateInventoryItemInput(input) {

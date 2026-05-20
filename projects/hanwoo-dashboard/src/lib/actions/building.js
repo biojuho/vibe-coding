@@ -1,6 +1,7 @@
 'use server';
 
 import { requireAuthenticatedSession } from '@/lib/auth-guard';
+import { validateBuildingInput } from '../action-validation.mjs';
 import { prisma } from './_helpers';
 
 // ============================================================
@@ -20,8 +21,14 @@ export async function getBuildings() {
 export async function createBuilding(data) {
   await requireAuthenticatedSession();
   try {
+    const validation = validateBuildingInput(data);
+    if (!validation.success) {
+      return validation;
+    }
+
+    const payload = validation.data;
     const created = await prisma.building.create({
-      data: { name: data.name, penCount: parseInt(data.penCount) }
+      data: { name: payload.name, penCount: payload.penCount }
     });
     return { success: true, data: created };
   } catch (e) {

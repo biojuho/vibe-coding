@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  validateBuildingInput,
   validateCalvingRecordInput,
   validateCattleMutationInput,
   validateExpenseRecordInput,
@@ -134,6 +135,26 @@ test('validateCalvingRecordInput requires a real calf tag number', () => {
   assert.equal(valid.success, true);
   assert.equal(valid.data.calfTagNumber, '002-1234-5678');
   assert.ok(valid.data.calvingDate instanceof Date);
+});
+
+test('validateBuildingInput trims names and blocks invalid pen counts', () => {
+  const invalid = validateBuildingInput({
+    name: ' ',
+    penCount: '0',
+  });
+
+  assert.equal(invalid.success, false);
+  assert.ok(invalid.validationErrors.name?.length);
+  assert.ok(invalid.validationErrors.penCount?.length);
+
+  const valid = validateBuildingInput({
+    name: '  3동  ',
+    penCount: '48',
+  });
+
+  assert.equal(valid.success, true);
+  assert.equal(valid.data.name, '3동');
+  assert.equal(valid.data.penCount, 48);
 });
 
 test('validateInventoryItemInput rejects invalid categories and normalizes threshold', () => {
