@@ -33,7 +33,7 @@
 
 ## Current Reliability Notes
 
-- As of 2026-05-20, `hanwoo-dashboard` no longer carries the unused legacy sample-data module. `src/lib/data.js` only exported random demo cattle/sales/market generators, had no remaining imports, and could be mistaken for product runtime data. Verification passed: no remaining references to its exported helpers, Hanwoo tests (`153 passed`), ESLint, and full Hanwoo QC (`test` 153, lint, build).
+- As of 2026-05-20, `hanwoo-dashboard` no longer carries the unused legacy sample-data module. `src/lib/data.js` only exported random demo cattle/sales/market generators, had no remaining imports, and could be mistaken for product runtime data. Verification passed: no remaining `generateSampleData`, `generateSaleRecords`, `getMarketPrice`, or `@/lib/data` references, direct graph risk `0.00`, and full Hanwoo QC (`test` 153, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` notification modal SMS surface copy is localized and its phone glyph is decorative. The modal now renders `<span aria-hidden="true">📱</span> 문자 알림 서비스` instead of exposing `📱 SMS 알림 서비스` as mixed English/glyph content. Verification passed: focused notification modal copy test, targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 153, lint, build); staged `code_review_gate` WARN was the known graph/test-gap heuristic.
 
