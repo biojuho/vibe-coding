@@ -110,7 +110,7 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
     ? filteredCattle.reduce((sum, row) => sum + (standardsMap[row.status]?.concentrateKg || 0), 0).toFixed(1)
     : totalStandardConcentrate;
 
-  const submitFeedRecord = (values) => {
+  const submitFeedRecord = async (values) => {
     if (!selectedBuilding) {
       notify({
         title: '축사를 먼저 선택해 주세요.',
@@ -120,10 +120,14 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
       return;
     }
 
-    onRecordFeed({
+    const recorded = await onRecordFeed({
       ...values,
       buildingId: selectedBuilding,
     });
+
+    if (!recorded) {
+      return;
+    }
 
     reset({
       ...createFeedRecordValues(),

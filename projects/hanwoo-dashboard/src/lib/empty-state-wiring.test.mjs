@@ -95,3 +95,12 @@ test('cattle edit form delegates close behavior to the async update handler', ()
   assert.match(source, /if \(result\.success\) \{[\s\S]*?setIsEditing\(false\);/);
   assert.doesNotMatch(source, /onSubmit=\{\(updated\) => \{ handleUpdateCattle\(updated\); setIsEditing\(false\); \}\}/);
 });
+
+test('feed record form preserves input when async save fails', () => {
+  const source = readSource('components/tabs/FeedTab.js');
+
+  assert.match(source, /const submitFeedRecord = async \(values\) => \{/);
+  assert.match(source, /const recorded = await onRecordFeed\(\{\s+\.\.\.values,\s+buildingId: selectedBuilding,\s+\}\);/);
+  assert.match(source, /if \(!recorded\) \{\s+return;\s+\}/);
+  assert.match(source, /reset\(\{\s+\.\.\.createFeedRecordValues\(\),\s+date: values\.date,\s+\}\);/);
+});
