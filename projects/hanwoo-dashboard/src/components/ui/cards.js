@@ -33,6 +33,7 @@ export function StatCard({label,value,sub,color,delay=0}){
 export function PenCard({penNumber,cattle,buildingId,onSelect,delay=0,onDrop}){
   const hasAlert=cattle.some(c=>c.lastEstrus&&isEstrusAlert(c.lastEstrus));
   const isEmpty=cattle.length===0;
+  const penAlertLabel = hasAlert ? ', 발정 알림 있음' : '';
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -58,7 +59,7 @@ export function PenCard({penNumber,cattle,buildingId,onSelect,delay=0,onDrop}){
       onKeyDown={(event) => runOnKeyboardActivation(event, () => onSelect(buildingId, penNumber))}
       role="button"
       tabIndex={0}
-      aria-label={`${penNumber}번 칸 상세 보기, ${cattle.length}두 배치됨`}
+      aria-label={`${penNumber}번 칸 상세 보기, ${cattle.length}두 배치됨${penAlertLabel}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -128,6 +129,13 @@ export function CattleRow({cow,onClick,delay=0,draggable=false}){
   const monthAge=getMonthAge(cow.birthDate);
   const hasCalvingAlert = cow.status==="임신우"&&cow.pregnancyDate&&isCalvingAlert(cow.pregnancyDate);
   const calvingDays = getDaysUntilCalving(cow.pregnancyDate);
+  const cattleAlertSummary = [
+    hasEstrusAlert ? (estrusD===0 ? '오늘 발정 알림' : `발정 ${estrusD}일 전 알림`) : null,
+    hasCalvingAlert ? `분만 ${calvingDays}일 전 알림` : null,
+  ].filter(Boolean).join(', ');
+  const cattleAccessibleLabel = cattleAlertSummary
+    ? `${cow.name} 개체 상세 보기, ${cattleAlertSummary}`
+    : `${cow.name} 개체 상세 보기`;
 
   const handleDragStart = (e) => {
     e.dataTransfer.setData('text/plain', JSON.stringify({ cattleId: cow.id, name: cow.name }));
@@ -144,7 +152,7 @@ export function CattleRow({cow,onClick,delay=0,draggable=false}){
       onKeyDown={(event) => runOnKeyboardActivation(event, () => onClick(cow))}
       role="button"
       tabIndex={0}
-      aria-label={`${cow.name} 개체 상세 보기`}
+      aria-label={cattleAccessibleLabel}
       draggable={draggable}
       onDragStart={draggable ? handleDragStart : undefined}
       onDragEnd={draggable ? handleDragEnd : undefined}
