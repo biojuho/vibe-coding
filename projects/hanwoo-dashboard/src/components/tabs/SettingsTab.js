@@ -36,6 +36,7 @@ export default function SettingsTab({
   quickActionIntent = null,
 }) {
   const [isAdding, setIsAdding] = useState(() => quickActionIntent?.actionId === 'add-building');
+  const [isSavingFarm, setIsSavingFarm] = useState(false);
   const [isSavingBuilding, setIsSavingBuilding] = useState(false);
   const [deletingBuildingId, setDeletingBuildingId] = useState(null);
   const { confirm } = useAppFeedback();
@@ -117,8 +118,14 @@ export default function SettingsTab({
     }
   };
 
-  const submitFarmSettings = (values) => {
-    onUpdateFarmSettings(values);
+  const submitFarmSettings = async (values) => {
+    setIsSavingFarm(true);
+
+    try {
+      await onUpdateFarmSettings(values);
+    } finally {
+      setIsSavingFarm(false);
+    }
   };
 
   const handleDeleteBuilding = async (id, name) => {
@@ -412,7 +419,13 @@ export default function SettingsTab({
             정확한 날씨 정보를 위해 좌표를 확인해 주세요.
           </div>
 
-          <PremiumButton type="submit" className="w-full mt-1 py-3.5 rounded-[10px]" glow>
+          <PremiumButton
+            type="submit"
+            disabled={isSavingFarm}
+            aria-busy={isSavingFarm}
+            className="w-full mt-1 py-3.5 rounded-[10px]"
+            glow
+          >
             저장하기
           </PremiumButton>
 

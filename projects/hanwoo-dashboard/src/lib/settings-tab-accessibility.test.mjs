@@ -92,6 +92,17 @@ test('settings building form waits for async saves before re-enabling actions', 
   assert.match(source, /type="submit"\s+variant="primary"\s+disabled=\{isSavingBuilding\}\s+aria-busy=\{isSavingBuilding\}/);
 });
 
+test('settings farm form waits for async saves before re-enabling submit', () => {
+  const source = readSource('components/tabs/SettingsTab.js');
+
+  assert.match(source, /const \[isSavingFarm, setIsSavingFarm\] = useState\(false\)/);
+  assert.match(source, /const submitFarmSettings = async \(values\) => \{/);
+  assert.match(source, /setIsSavingFarm\(true\);/);
+  assert.match(source, /await onUpdateFarmSettings\(values\);/);
+  assert.match(source, /finally \{\s+setIsSavingFarm\(false\);/);
+  assert.match(source, /type="submit"\s+disabled=\{isSavingFarm\}\s+aria-busy=\{isSavingFarm\}/);
+});
+
 test('settings building delete action waits for async deletes before re-enabling the row action', () => {
   const source = readSource('components/tabs/SettingsTab.js');
 
