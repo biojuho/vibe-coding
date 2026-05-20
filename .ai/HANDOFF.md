@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-514 completed**: Hanwoo money formatting now degrades non-finite values safely instead of allowing `NaN` or `Infinity` to reach user-facing won amounts. `formatMoney()` now converts input with `Number(value)` and formats only finite numbers, otherwise returning `0`. Code commit `a95c700`. |
+| Next Priorities | Verification passed: focused utils/payment/profitability tests (`10 passed`), targeted ESLint passed, path-limited `git diff --check` passed, non-finite money scan found no remaining runtime matches, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 206, lint, build). Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-513 completed**: Hanwoo date utilities now degrade invalid date inputs safely instead of allowing `Invalid Date` or `NaN` values to reach month age, estrus, calving, or date formatting surfaces. `utils.js` adds `toValidDate()` and returns `0`, `null`, `-`, or empty input-date strings for invalid inputs. Code commit `5ddc811`. |
 | Next Priorities | Verification passed: focused utils/cattle-detail tests (`11 passed`), targeted ESLint passed, path-limited `git diff --check` passed, invalid-date risk scan found no remaining runtime matches, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 206, lint, build). Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 

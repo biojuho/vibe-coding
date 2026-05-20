@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` money formatting safely degrades non-finite inputs instead of letting `NaN` or `Infinity` reach user-facing won amounts. `formatMoney()` now converts input with `Number(value)` and formats only finite numbers, otherwise returning `0`. Verification passed: focused utils/payment/profitability tests (`10 passed`), targeted ESLint, path-limited `git diff --check`, non-finite money scan, and full Hanwoo QC (`test` 206, lint, build).
+
 - As of 2026-05-21, `hanwoo-dashboard` date utilities safely degrade invalid date inputs instead of letting `Invalid Date` or `NaN` values reach month-age, estrus, calving, or date formatting surfaces. `utils.js` now normalizes through `toValidDate()` and returns `0`, `null`, `-`, or empty input-date strings for invalid inputs. Verification passed: focused utils/cattle-detail tests (`11 passed`), targeted ESLint, path-limited `git diff --check`, invalid-date risk scan, and full Hanwoo QC (`test` 206, lint, build).
 
 - As of 2026-05-21, `hanwoo-dashboard` cattle age, estrus, and calving D-day helpers no longer depend on a module-load `TODAY` constant. `utils.js` computes the current date per call and accepts injected `now` values for date-sensitive helpers, so long-running dashboard sessions do not keep stale D-day/month-age values after midnight. Verification passed: focused utils/cattle-detail tests (`11 passed`), targeted ESLint, path-limited `git diff --check`, `TODAY` scan, and full Hanwoo QC (`test` 206, lint, build).
