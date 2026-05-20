@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-421 completed**: continued Hanwoo cattle-detail modal semantics hardening. `CattleDetailModal` now gives the modal back/edit/delete action buttons explicit `type="button"` semantics and hides decorative section/timeline icons from assistive technology, so the meaningful Korean titles and record text remain the accessible content. `cattle-detail-modal-wiring.test.mjs` guards the contract. Code commit `06959be`. |
+| Next Priorities | Verification passed: focused Hanwoo tests passed (`149 passed`), targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk was `0.00`, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 149, lint, build). Staged/commit `code_review_gate` WARN was the known graph/test-gap heuristic plus unrelated VibeDebt WIP; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-420 completed**: continued Hanwoo tab accessibility hardening by hiding primary tab header decorative emoji icons from assistive technology. Inventory, Sales, and Schedule tab header glyphs now use `aria-hidden="true"` while the adjacent Korean titles remain the meaningful accessible content. Added `tab-header-accessibility.test.mjs`. Code commit `83f7c01`. |
 | Next Priorities | Verification passed: focused Hanwoo test run passed (`148 passed`), targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk was `0.00`, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 148, lint, build). Staged/commit `code_review_gate` WARN was the known graph/test-gap heuristic plus unrelated VibeDebt WIP; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
 

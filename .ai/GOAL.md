@@ -12,6 +12,8 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-421 hardened Hanwoo `CattleDetailModal` semantics by adding explicit `type="button"` to modal back/edit/delete action buttons and hiding decorative section/timeline icons from assistive technology; verification passed with focused Hanwoo tests `149 passed`, targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 149, lint, build). Staged/commit code-review gate WARN came from the known graph/test-gap heuristic plus unrelated VibeDebt WIP.
+
 - 2026-05-20: T-420 hid Hanwoo Inventory, Sales, and Schedule primary tab header decorative emoji icons from assistive technology. The tab header glyphs now use `aria-hidden="true"` while adjacent Korean titles remain the meaningful accessible content; verification passed with focused Hanwoo tests `148 passed`, targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 148, lint, build). Staged/commit code-review gate WARN came from the known graph/test-gap heuristic plus unrelated VibeDebt WIP.
 
 - 2026-05-20: T-419 hid Hanwoo SettingsTab decorative text icons from assistive technology. The theme glyph, dashboard-widget section glyph, and per-widget glyphs now use `aria-hidden="true"` while visible Korean labels and switch accessible names remain the meaningful content; verification passed with focused Hanwoo tests `147 passed`, targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 147, lint, build). Staged/commit code-review gate WARN came from the known graph/test-gap heuristic plus unrelated VibeDebt WIP.
