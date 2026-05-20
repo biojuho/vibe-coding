@@ -319,8 +319,9 @@ export default function SettingsTab({
               placeholder="예: 행복한 한우 농장"
               hasError={!!farmErrors.name}
               aria-invalid={Boolean(farmErrors.name)}
+              aria-describedby={farmErrors.name ? "farm-name-error" : undefined}
             />
-            {farmErrors.name ? <div style={errorTextStyle}>{farmErrors.name.message}</div> : null}
+            {farmErrors.name ? <div id="farm-name-error" role="alert" style={errorTextStyle}>{farmErrors.name.message}</div> : null}
           </div>
 
           <div>
@@ -349,8 +350,9 @@ export default function SettingsTab({
               placeholder="지역명을 직접 입력해 주세요."
               hasError={!!farmErrors.location}
               aria-invalid={Boolean(farmErrors.location)}
+              aria-describedby={farmErrors.location ? "farm-location-error" : undefined}
             />
-            {farmErrors.location ? <div style={errorTextStyle}>{farmErrors.location.message}</div> : null}
+            {farmErrors.location ? <div id="farm-location-error" role="alert" style={errorTextStyle}>{farmErrors.location.message}</div> : null}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -366,8 +368,9 @@ export default function SettingsTab({
                 placeholder="35.446"
                 hasError={!!farmErrors.latitude}
                 aria-invalid={Boolean(farmErrors.latitude)}
+                aria-describedby={farmErrors.latitude ? "farm-latitude-error" : undefined}
               />
-              {farmErrors.latitude ? <div style={errorTextStyle}>{farmErrors.latitude.message}</div> : null}
+              {farmErrors.latitude ? <div id="farm-latitude-error" role="alert" style={errorTextStyle}>{farmErrors.latitude.message}</div> : null}
             </div>
             <div>
               <PremiumLabel htmlFor="farm-longitude">
@@ -381,8 +384,9 @@ export default function SettingsTab({
                 placeholder="127.344"
                 hasError={!!farmErrors.longitude}
                 aria-invalid={Boolean(farmErrors.longitude)}
+                aria-describedby={farmErrors.longitude ? "farm-longitude-error" : undefined}
               />
-              {farmErrors.longitude ? <div style={errorTextStyle}>{farmErrors.longitude.message}</div> : null}
+              {farmErrors.longitude ? <div id="farm-longitude-error" role="alert" style={errorTextStyle}>{farmErrors.longitude.message}</div> : null}
             </div>
           </div>
 
@@ -443,8 +447,9 @@ export default function SettingsTab({
                 placeholder="동 이름을 입력해 주세요."
                 hasError={!!buildingErrors.name}
                 aria-invalid={Boolean(buildingErrors.name)}
+                aria-describedby={buildingErrors.name ? "building-name-error" : undefined}
               />
-              {buildingErrors.name ? <div style={errorTextStyle}>{buildingErrors.name.message}</div> : null}
+              {buildingErrors.name ? <div id="building-name-error" role="alert" style={errorTextStyle}>{buildingErrors.name.message}</div> : null}
             </div>
 
             <div>
@@ -457,8 +462,9 @@ export default function SettingsTab({
                 {...registerBuilding('penCount')}
                 hasError={!!buildingErrors.penCount}
                 aria-invalid={Boolean(buildingErrors.penCount)}
+                aria-describedby={buildingErrors.penCount ? "building-pen-count-error" : undefined}
               />
-              {buildingErrors.penCount ? <div style={errorTextStyle}>{buildingErrors.penCount.message}</div> : null}
+              {buildingErrors.penCount ? <div id="building-pen-count-error" role="alert" style={errorTextStyle}>{buildingErrors.penCount.message}</div> : null}
             </div>
 
             <PremiumButton type="submit" variant="primary" className="w-full py-3 rounded-lg" glow>

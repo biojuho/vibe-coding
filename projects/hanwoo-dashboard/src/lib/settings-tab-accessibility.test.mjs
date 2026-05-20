@@ -60,3 +60,23 @@ test('settings forms expose explicit labels and invalid state', () => {
   assert.match(source, /<PremiumLabel htmlFor="building-pen-count">[\s\S]*?칸 수 \(Pen Count\)[\s\S]*?<\/PremiumLabel>/);
   assert.match(source, /id="building-pen-count"[\s\S]*?aria-invalid=\{Boolean\(buildingErrors\.penCount\)\}/);
 });
+
+test('settings form validation messages are announced with their controls', () => {
+  const source = readSource('components/tabs/SettingsTab.js');
+  const fields = [
+    ['farmErrors', 'name', 'farm-name-error'],
+    ['farmErrors', 'location', 'farm-location-error'],
+    ['farmErrors', 'latitude', 'farm-latitude-error'],
+    ['farmErrors', 'longitude', 'farm-longitude-error'],
+    ['buildingErrors', 'name', 'building-name-error'],
+    ['buildingErrors', 'penCount', 'building-pen-count-error'],
+  ];
+
+  for (const [errorObject, errorPath, errorId] of fields) {
+    assert.match(
+      source,
+      new RegExp(`aria-describedby=\\{${errorObject}\\.${errorPath} \\? "${errorId}" : undefined\\}`),
+    );
+    assert.match(source, new RegExp(`<div id="${errorId}" role="alert"`));
+  }
+});
