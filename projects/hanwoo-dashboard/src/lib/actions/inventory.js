@@ -38,7 +38,8 @@ export async function addInventoryItem(data) {
     });
     return { success: true, data: created };
   } catch (error) {
-    return { success: false, message: error.message };
+    console.error("Failed to create inventory item:", error);
+    return { success: false, message: "재고 항목을 추가하지 못했습니다." };
   }
 }
 
@@ -56,6 +57,7 @@ export async function updateInventoryQuantity(id, quantity) {
     });
     return { success: true, data: updated };
   } catch (error) {
-    return { success: false, message: error.message };
+    console.error("Failed to update inventory quantity:", error);
+    return { success: false, message: "재고 수량을 수정하지 못했습니다." };
   }
 }

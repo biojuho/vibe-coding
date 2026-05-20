@@ -30,7 +30,8 @@ export async function createScheduleEvent(data) {
     });
     return { success: true, data: created };
   } catch (e) {
-    return { success: false, message: e.message };
+    console.error("Failed to create schedule event:", e);
+    return { success: false, message: "일정을 등록하지 못했습니다." };
   }
 }
 
@@ -43,6 +44,7 @@ export async function toggleEventCompletion(id, isCompleted) {
     });
     return { success: true, data: updated };
   } catch (e) {
-    return { success: false, message: e.message };
+    console.error("Failed to update schedule event:", e);
+    return { success: false, message: "일정 상태를 변경하지 못했습니다." };
   }
 }

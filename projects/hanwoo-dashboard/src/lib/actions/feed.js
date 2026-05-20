@@ -39,7 +39,8 @@ export async function recordFeed(data) {
     });
     return { success: true, data: created };
   } catch (e) {
-    return { success: false, message: e.message };
+    console.error("Failed to record feed:", e);
+    return { success: false, message: "급여 기록을 저장하지 못했습니다." };
   }
 }
 
