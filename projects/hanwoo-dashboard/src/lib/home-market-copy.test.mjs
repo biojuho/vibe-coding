@@ -359,6 +359,9 @@ test('dashboard API fallback messages stay operator-facing Korean', () => {
   assert.match(salesRoute, /판매 기록을 불러오지 못했습니다/);
   assert.match(summaryRoute, /대시보드 요약을 불러오지 못했습니다/);
   assert.match(listQueries, /목록 개수는 1 이상 숫자로 입력해 주세요/);
+  assert.match(cattleRoute, /AUTHENTICATION_REQUIRED_MESSAGE/);
+  assert.match(salesRoute, /AUTHENTICATION_REQUIRED_MESSAGE/);
+  assert.match(summaryRoute, /AUTHENTICATION_REQUIRED_MESSAGE/);
   assert.match(listQueries, /const normalized = String\(value\)\.trim\(\);/);
   assert.match(listQueries, /Number\.parseInt\(normalized, 10\)/);
   assert.match(listQueries, /목록 위치 정보가 올바르지 않습니다/);
@@ -369,6 +372,9 @@ test('dashboard API fallback messages stay operator-facing Korean', () => {
   assert.doesNotMatch(cattleRoute, /message: error\.message \|\|/);
   assert.doesNotMatch(salesRoute, /message: error\.message \|\|/);
   assert.doesNotMatch(summaryRoute, /message: error\.message \|\|/);
+  assert.doesNotMatch(cattleRoute, /message: error\.message \}, \{ status: 401/);
+  assert.doesNotMatch(salesRoute, /message: error\.message \}, \{ status: 401/);
+  assert.doesNotMatch(summaryRoute, /message: error\.message \}, \{ status: 401/);
   assert.doesNotMatch(cattleRoute, /Failed to load cattle list/);
   assert.doesNotMatch(salesRoute, /Failed to load sales list/);
   assert.doesNotMatch(summaryRoute, /Failed to load dashboard summary/);

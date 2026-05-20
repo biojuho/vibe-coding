@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 
-import { requireAuthenticatedSession, isAuthenticationError } from '@/lib/auth-guard';
+import {
+  AUTHENTICATION_REQUIRED_MESSAGE,
+  requireAuthenticatedSession,
+  isAuthenticationError,
+} from '@/lib/auth-guard';
 import {
   DashboardQueryValidationError,
   getCattleListPage,
@@ -30,7 +34,7 @@ export async function GET(request) {
     });
   } catch (error) {
     if (isAuthenticationError(error)) {
-      return NextResponse.json({ success: false, message: error.message }, { status: 401 });
+      return NextResponse.json({ success: false, message: AUTHENTICATION_REQUIRED_MESSAGE }, { status: 401 });
     }
 
     if (error instanceof DashboardQueryValidationError) {

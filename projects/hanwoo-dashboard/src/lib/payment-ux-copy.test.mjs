@@ -97,21 +97,26 @@ test('payment API routes avoid English fallback copy in user responses', () => {
   assert.match(prepareRoute, /Joolife 사용자/);
   assert.match(prepareRoute, /function parsePaymentAmount\(value\)/);
   assert.match(prepareRoute, /AMOUNT_INPUT_PATTERN\.test\(value\)/);
+  assert.match(prepareRoute, /AUTHENTICATION_REQUIRED_MESSAGE/);
   assert.match(confirmRoute, /결제 승인에 필요한 정보가 부족합니다/);
   assert.match(confirmRoute, /결제 확인을 완료하지 못했습니다/);
   assert.match(confirmRoute, /function parsePaymentAmount\(value\)/);
   assert.match(confirmRoute, /AMOUNT_INPUT_PATTERN\.test\(value\)/);
   assert.match(confirmRoute, /Number\.isSafeInteger\(amount\)/);
+  assert.match(confirmRoute, /AUTHENTICATION_REQUIRED_MESSAGE/);
+  assert.match(authGuard, /AUTHENTICATION_REQUIRED_MESSAGE/);
   assert.match(authGuard, /로그인이 필요합니다/);
   assert.doesNotMatch(
     prepareRoute,
     /Joolife User|Customer key mismatch|Unexpected payment amount|Payment preparation failed/,
   );
+  assert.doesNotMatch(prepareRoute, /message: error\.message/);
   assert.doesNotMatch(prepareRoute, /Number\(body\?\.amount \?\? PREMIUM_SUBSCRIPTION\.amount\)/);
   assert.doesNotMatch(
     confirmRoute,
     /Missing payment confirmation fields|Order does not belong|Unexpected payment amount|Payment verification failed|TOSS_PAYMENTS_SECRET_KEY is not configured/,
   );
+  assert.doesNotMatch(confirmRoute, /message: error\.message/);
   assert.doesNotMatch(confirmRoute, /const amount = Number\(body\?\.amount\)/);
   assert.doesNotMatch(authGuard, /Authentication required/);
 });

@@ -1,8 +1,10 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 
+export const AUTHENTICATION_REQUIRED_MESSAGE = "로그인이 필요합니다.";
+
 export class AuthenticationError extends Error {
-  constructor(message = "로그인이 필요합니다.") {
+  constructor(message = AUTHENTICATION_REQUIRED_MESSAGE) {
     super(message);
     this.name = "AuthenticationError";
   }

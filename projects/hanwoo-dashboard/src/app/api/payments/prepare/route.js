@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 
-import { requireAuthenticatedSession, isAuthenticationError } from '@/lib/auth-guard';
+import {
+  AUTHENTICATION_REQUIRED_MESSAGE,
+  requireAuthenticatedSession,
+  isAuthenticationError,
+} from '@/lib/auth-guard';
 import { PREMIUM_SUBSCRIPTION, buildCustomerKey, buildOrderId } from '@/lib/subscription';
 
 const AMOUNT_INPUT_PATTERN = /^\d+$/;
@@ -49,7 +53,7 @@ export async function POST(req) {
     });
   } catch (error) {
     if (isAuthenticationError(error)) {
-      return NextResponse.json({ success: false, message: error.message }, { status: 401 });
+      return NextResponse.json({ success: false, message: AUTHENTICATION_REQUIRED_MESSAGE }, { status: 401 });
     }
 
     console.error('결제 준비 처리 실패:', error);

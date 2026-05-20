@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { fetchWithTimeout, isTimeoutError } from '@/lib/fetchWithTimeout';
-import { isAuthenticationError, requireAuthenticatedSession } from '@/lib/auth-guard';
+import {
+  AUTHENTICATION_REQUIRED_MESSAGE,
+  isAuthenticationError,
+  requireAuthenticatedSession,
+} from '@/lib/auth-guard';
 import {
   classifyPaymentConfirmationResult,
   PAYMENT_CONFIRMATION_PENDING_MESSAGE,
@@ -212,7 +216,7 @@ export async function POST(req) {
     return NextResponse.json({ success: true });
   } catch (error) {
     if (isAuthenticationError(error)) {
-      return NextResponse.json({ success: false, message: error.message }, { status: 401 });
+      return NextResponse.json({ success: false, message: AUTHENTICATION_REQUIRED_MESSAGE }, { status: 401 });
     }
 
     console.error('결제 승인 확인 처리 실패:', error);
