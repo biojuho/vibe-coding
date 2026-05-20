@@ -16,7 +16,9 @@ test('qr widget print action uses Korean operator copy and icon button', () => {
 
   assert.match(source, /QR 출력/);
   assert.match(source, /QR 라벨 인쇄/);
+  assert.match(source, /Joolife 한우 스마트팜/);
   assert.match(source, /import \{ Printer \} from 'lucide-react'/);
   assert.doesNotMatch(source, /QR Code/);
+  assert.doesNotMatch(source, /Smart Farm/);
   assert.doesNotMatch(source, /🖨️/);
 });

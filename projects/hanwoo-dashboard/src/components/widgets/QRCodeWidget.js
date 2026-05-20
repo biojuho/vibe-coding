@@ -38,7 +38,7 @@ export default function QRCodeWidget({ value, label }) {
 
     const info = doc.createElement('div');
     info.className = 'info';
-    info.textContent = 'Joolife Smart Farm';
+    info.textContent = 'Joolife 한우 스마트팜';
 
     tag.append(name, qrContainer, info);
     doc.body.appendChild(tag);
