@@ -104,6 +104,24 @@ test('classifyPaymentConfirmationResult rejects mismatched totals as a definitiv
   assert.equal(result.message, PAYMENT_CONFIRMATION_AMOUNT_MISMATCH_MESSAGE);
 });
 
+test('classifyPaymentConfirmationResult rejects non-decimal total strings before coercion', () => {
+  const result = classifyPaymentConfirmationResult({
+    status: 200,
+    payload: {
+      totalAmount: '0x26ac',
+      approvedAt: '2026-04-07T10:00:00.000Z',
+    },
+    rawText: '',
+    parseError: null,
+    expectedAmount: 9900,
+  });
+
+  assert.equal(result.kind, 'failed');
+  assert.equal(result.httpStatus, 400);
+  assert.equal(result.message, PAYMENT_CONFIRMATION_AMOUNT_MISMATCH_MESSAGE);
+  assert.equal(result.reason, 'amount_mismatch');
+});
+
 test('classifyPaymentConfirmationResult normalizes a successful confirmation payload', () => {
   const fallbackNow = new Date('2026-04-07T12:30:00.000Z');
   const result = classifyPaymentConfirmationResult({
