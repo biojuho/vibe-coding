@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-353 completed**: continued the active Hanwoo product-completeness goal by localizing cattle tag lookup (MTRACE) fallback copy. `lookupCattleByTag()` now returns Korean operator-facing messages for missing API key, invalid tag number, rate limits, upstream failures, unreadable responses, no-match results, timeouts, and generic lookup errors; the default breed fallback is now `한우` instead of `Hanwoo`. Added mocked MTRACE behavior coverage in `mtrace.test.mjs`. |
+| Next Priorities | Verification passed: focused Hanwoo tests passed (`106 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 106 passed, lint passed, build passed), `git diff --check` passed, English MTRACE fallback scan passed, and UTF-8 graph risk `0.00`. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-352 completed**: continued the active Hanwoo product-completeness goal by localizing dashboard API fallback/error copy. `DashboardClient` now uses Korean timeout/failure messages for dashboard list loads, Korean console diagnostics for summary/notification/list refresh failures, and a Korean footer rights line. `/api/dashboard/{summary,cattle,sales}` now return Korean default 500 fallback messages when the app-authored fallback path is used. |
 | Next Priorities | Verification passed: focused Hanwoo home/import tests passed (`103 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 103 passed, lint passed, build passed), `git diff --check` passed, and direct Hanwoo graph risk `0.00`. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |
 
