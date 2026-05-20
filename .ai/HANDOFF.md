@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-482 completed**: Hanwoo settings building creation now waits for the async building creation handler before re-enabling actions. `SettingsTab` tracks `isSavingBuilding`, awaits `onCreateBuilding`, disables the add/cancel toggle and submit control while saving, and exposes `aria-busy` on the submit button so slow network saves cannot trigger duplicate building submissions. `settings-tab-accessibility.test.mjs` guards the contract. Code commit `d328121`. |
+| Next Priorities | Verification passed: focused settings accessibility test (`6 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 187, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known advisory graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-481 completed**: Hanwoo feed record form saves now wait for the async feed recording handler before re-enabling submit. `FeedTab` tracks `isSaving`, awaits `onRecordFeed`, disables the submit control while saving, and exposes `aria-busy` on the submit button so slow network saves cannot trigger duplicate feed submissions. `empty-state-wiring.test.mjs` guards the contract. Code commit `6fb2f26`. |
 | Next Priorities | Verification passed: focused empty-state wiring test (`11 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 186, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known advisory graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 
