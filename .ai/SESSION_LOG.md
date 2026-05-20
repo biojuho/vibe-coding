@@ -978,3 +978,17 @@
 ### Follow-up
 - Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
 - Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts.
+
+## 2026-05-20 — Claude Code (Opus 4.7 1M)
+
+**T-376 완료** — shorts-maker-v2 렌더 성능 최적화 (`/goal "뭐라도 제대로 완성 해봐"`).
+
+- 대상 선정: AskUserQuestion으로 shorts-maker-v2 렌더 최적화 확정 (T-337/T-350 후속).
+- 핫스팟 재측정: `bench_render.py --profile` → 실제 #1·#2는 `astype`(5.1s)·MoviePy `compose_mask`(4.6s).
+- 근본 원인: 씬 `CompositeVideoClip`이 기본 `transparent=True`라 매 프레임 알파 마스크를 계산하지만 최종 영상은 완전 불투명 → 마스크 폐기.
+- 수정: `RenderStep._render_single_scene`의 씬 컴포지트 4곳 + `bench_render.py`에 `use_bgclip=True` 전달. concat은 크로스페이드 때문에 `method="compose"` 유지.
+- 측정: render 147.0s→96.4s (34% 단축, 3×3s 벤치, h264_qsv).
+- 변경 파일: `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/render_step.py`, `scripts/bench_render.py`, `tests/unit/test_render_step_audio_mix.py` (mock 시그니처).
+- 검증: 전체 스위트 `1471 passed / 0 failed / 12 skipped` (206s), 렌더 단위 243 pass, ruff 클린, `git diff --check` 클린.
+- commit `42f6434` (`@'` here-string 누수로 메시지 1차 오염 → guard 후 amend).
+- 경합: 분석 로컬라이즈 WIP를 Codex가 `666ddf3`로 선점 커밋. TASKS.md는 병렬 편집으로 Edit 레이스 → 스크립트로 원자적 갱신.
