@@ -91,7 +91,7 @@ export function WeatherWidget({weather}){
     <div style={{marginBottom:"16px"}} className="animate-fadeInUp">
       <PremiumCard className="overflow-visible">
         <PremiumCardContent className="p-5">
-        <div className="weather-icon-bg">{icon}</div>
+        <div className="weather-icon-bg" aria-hidden="true">{icon}</div>
         <div style={{fontSize:"12px",opacity:0.8,marginBottom:"8px",position:"relative"}}>
           📍 {weather.locationName} · {new Date().toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'})} 기준
         </div>

@@ -151,6 +151,7 @@ test('weather widget uses Korean product copy for unavailable state', () => {
   assert.match(hookSource, /'서울'/);
   assert.doesNotMatch(source, /Weather Unavailable/);
   assert.doesNotMatch(source, /Weather data is temporarily unavailable/);
+  assert.match(source, /<div className="weather-icon-bg" aria-hidden="true">\{icon\}<\/div>/);
   assert.match(dashboardSource, /WEATHER_STALE_MESSAGE/);
   assert.match(hookSource, /WEATHER_STALE_MESSAGE/);
   assert.doesNotMatch(dashboardSource, /Showing the last available weather snapshot/);
