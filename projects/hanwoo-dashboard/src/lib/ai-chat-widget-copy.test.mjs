@@ -18,6 +18,10 @@ test('AI chat widget handles Korean configuration errors and exposes an accessib
   assert.match(source, /설정 키/);
   assert.match(source, /aria-label="AI 농장 비서 열기"/);
   assert.match(source, /title="AI 농장 비서"/);
+  assert.match(source, /role="dialog"/);
+  assert.match(source, /aria-label="AI 농장 비서 채팅"/);
+  assert.match(source, /if \(event\.key === 'Escape'\)/);
+  assert.match(source, /closeWidget\(\)/);
   assert.match(source, /aria-label="AI 농장 비서에게 보낼 질문"/);
   assert.match(source, /title="AI 농장 비서에게 보낼 질문"/);
   assert.match(source, /aria-label=\{isStreaming \? '답변 생성 중' : '질문 보내기'\}/);

@@ -225,6 +225,13 @@ export default function AIChatWidget() {
     }
   };
 
+  const handlePanelKeyDown = (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeWidget();
+    }
+  };
+
   if (!isOpen) {
     return (
       <button
@@ -261,6 +268,9 @@ export default function AIChatWidget() {
   return (
     <div
       className="animate-scaleIn"
+      role="dialog"
+      aria-label="AI 농장 비서 채팅"
+      onKeyDown={handlePanelKeyDown}
       style={{
         position: 'fixed',
         bottom: '90px',
