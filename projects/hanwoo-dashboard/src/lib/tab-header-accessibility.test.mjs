@@ -50,3 +50,15 @@ test('schedule form validation messages are announced with their controls', () =
     assert.match(scheduleSource, new RegExp(`<div id="${errorId}" role="alert"`));
   }
 });
+
+test('schedule form waits for async saves before re-enabling actions', () => {
+  const scheduleSource = readSource('components/tabs/ScheduleTab.js');
+
+  assert.match(scheduleSource, /const \[isSaving, setIsSaving\] = useState\(false\)/);
+  assert.match(scheduleSource, /if \(isSaving\) \{\s+return;\s+\}/);
+  assert.match(scheduleSource, /setIsSaving\(true\);/);
+  assert.match(scheduleSource, /await onCreateEvent\(values\)/);
+  assert.match(scheduleSource, /finally \{\s+setIsSaving\(false\);/);
+  assert.match(scheduleSource, /onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}/);
+  assert.match(scheduleSource, /type="submit"\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}/);
+});

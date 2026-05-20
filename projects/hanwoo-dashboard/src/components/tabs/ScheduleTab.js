@@ -25,6 +25,7 @@ const errorTextStyle = {
 
 export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quickActionIntent = null }) {
   const [isAdding, setIsAdding] = useState(() => quickActionIntent?.actionId === 'add-schedule');
+  const [isSaving, setIsSaving] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const {
@@ -74,27 +75,42 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
   }, [events]);
 
   const toggleAddForm = () => {
+    if (isSaving) {
+      return;
+    }
+
     const next = !isAdding;
     setIsAdding(next);
 
     if (!next) {
+      setIsSaving(false);
       reset(createScheduleFormValues());
     }
   };
 
   const openFormForDate = (dateString) => {
+    if (isSaving) {
+      return;
+    }
+
     setValue('date', dateString, { shouldDirty: true, shouldValidate: true });
     setIsAdding(true);
   };
 
   const submitSchedule = async (values) => {
-    const saved = await onCreateEvent(values);
-    if (!saved) {
-      return;
-    }
+    setIsSaving(true);
 
-    setIsAdding(false);
-    reset(createScheduleFormValues());
+    try {
+      const saved = await onCreateEvent(values);
+      if (!saved) {
+        return;
+      }
+
+      setIsAdding(false);
+      reset(createScheduleFormValues());
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -107,6 +123,7 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
         <button
           type="button"
           onClick={toggleAddForm}
+          disabled={isSaving}
           className="clay-pressable inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-[color:var(--color-text)]"
         >
           <PlusCircle size={14} aria-hidden="true" />
@@ -172,6 +189,8 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
 
             <button
               type="submit"
+              disabled={isSaving}
+              aria-busy={isSaving}
               className="rounded-[18px] px-4 py-3 text-sm font-bold text-white"
               style={{
                 background: 'var(--surface-gradient-primary)',
