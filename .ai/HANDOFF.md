@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-463 completed**: Hanwoo ScheduleTab validation messages are now announced with their controls. `ScheduleTab` connects schedule title, date, and type controls to field-specific error messages through conditional `aria-describedby`, keeps `aria-invalid`, and renders each validation message as `role="alert"`. `tab-header-accessibility.test.mjs` guards the contract. Code commit `d12a5f4`. |
+| Next Priorities | Verification passed: focused tab-header accessibility test (`3 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 175, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-462 completed**: Hanwoo InventoryTab validation messages are now announced with their controls. `InventoryTab` connects inventory name, category, quantity, unit, and threshold controls to field-specific error messages through conditional `aria-describedby`, keeps `aria-invalid`, and renders each validation message as `role="alert"`. `home-market-copy.test.mjs` guards the contract. Code commit `cf2ae47`. |
 | Next Priorities | Verification passed: focused home-market copy test (`18 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 174, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 
