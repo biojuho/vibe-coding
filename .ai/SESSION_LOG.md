@@ -1061,3 +1061,27 @@
 ### Follow-up
 - Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
 - T-320 and T-372 remain approval-scoped. Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, package locks, and shorts-maker-v2 files.
+
+## 2026-05-20 KST - Codex
+
+### Summary
+- Completed T-394 for `hanwoo-dashboard` while continuing the active product-completeness goal.
+- Made Today Focus and Setup Progress panel navigation call `handleTabChange`, so those home-panel tab changes trigger the same preload path as bottom navigation.
+- Extended source regression coverage in `home-market-copy.test.mjs`.
+
+### Changed Files
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/CONTEXT.md`
+- `.ai/GOAL.md`
+- `projects/hanwoo-dashboard/src/components/DashboardClient.js`
+- `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs`
+
+### Verification
+- `python execution/project_qc_runner.py --project hanwoo-dashboard --json` -> passed (`test` 130, lint passed, build passed).
+- `python execution/code_review_gate.py --staged --json` -> WARN from known graph/test-gap heuristics and unrelated shorts WIP; direct Hanwoo QC passed.
+
+### Follow-up
+- Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
+- T-320 and T-372 remain approval-scoped. Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, package locks, and shorts-maker-v2 files.
