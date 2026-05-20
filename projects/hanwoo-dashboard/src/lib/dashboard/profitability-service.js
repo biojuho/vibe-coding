@@ -24,7 +24,7 @@ export async function getProfitabilityEstimates() {
     });
 
     if (!latestSnapshot) {
-      throw new Error('No market price data available for profitability simulation.');
+      throw new Error('수익성 시뮬레이션에 사용할 시세 데이터가 없습니다.');
     }
 
     // Normalize market price state
@@ -36,7 +36,7 @@ export async function getProfitabilityEstimates() {
     });
 
     if (!priceData || !priceData.bull || !priceData.cow) {
-      throw new Error('Price data parsing failed');
+      throw new Error('시세 데이터를 해석하지 못했습니다.');
     }
 
     // 2. Fetch active cattle approaching or in the slaughter window (e.g. older than 24 months, active)
@@ -105,7 +105,7 @@ export async function getProfitabilityEstimates() {
       error: null,
     };
   } catch (err) {
-    console.error('getProfitabilityEstimates Error:', err);
+    console.error('수익성 추정 오류:', err);
     return {
       success: false,
       data: null,
