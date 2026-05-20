@@ -51,8 +51,11 @@ test('subscription result pages avoid bare English loading and status copy', () 
   assert.match(failSource, /결제를 완료하지 못했습니다/);
   assert.match(failSource, /결제 실패 정보를 불러오는 중입니다/);
   assert.match(failSource, /오류 코드/);
+  assert.match(failSource, /const PAYMENT_FAILURE_MESSAGE/);
+  assert.match(failSource, /type="button"\s+onClick=\{\(\) => router\.back\(\)\}/);
   assert.doesNotMatch(failSource, /Loading\.\.\./);
   assert.doesNotMatch(failSource, /Code:/);
+  assert.doesNotMatch(failSource, /searchParams\.get\(['"]message['"]\)/);
 });
 
 test('payment confirmation fallback messages use Korean product copy', () => {

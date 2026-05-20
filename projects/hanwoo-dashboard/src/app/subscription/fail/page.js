@@ -1,21 +1,28 @@
 'use client';
 
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
+
+const PAYMENT_FAILURE_MESSAGE = '결제 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.';
+const PAYMENT_FAILURE_LOADING_MESSAGE = '결제 실패 정보를 불러오는 중입니다.';
 
 function FailContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const errorCode = searchParams.get('code') || '-';
 
   return (
-    <div style={{ padding: "56px 24px", textAlign: "center", fontFamily: "var(--font-sans-custom)", color: "var(--color-text)" }}>
-      <h1 style={{ fontSize: "28px", fontWeight: 700, color: "var(--color-danger)", fontFamily: "var(--font-display-custom)" }}>결제를 완료하지 못했습니다</h1>
-      <p style={{ marginTop: "10px", color: "var(--color-text-secondary)" }}>{searchParams.get("message") || "알 수 없는 오류가 발생했습니다."}</p>
-      <p style={{ marginTop: "4px", fontSize: "12px", color: "var(--color-text-muted)" }}>오류 코드: {searchParams.get("code") || "-"}</p>
-      
-      <button 
+    <div style={{ padding: '56px 24px', textAlign: 'center', fontFamily: 'var(--font-sans-custom)', color: 'var(--color-text)' }}>
+      <h1 style={{ fontSize: '28px', fontWeight: 700, color: 'var(--color-danger)', fontFamily: 'var(--font-display-custom)' }}>
+        결제를 완료하지 못했습니다
+      </h1>
+      <p style={{ marginTop: '10px', color: 'var(--color-text-secondary)' }}>{PAYMENT_FAILURE_MESSAGE}</p>
+      <p style={{ marginTop: '4px', fontSize: '12px', color: 'var(--color-text-muted)' }}>오류 코드: {errorCode}</p>
+
+      <button
+        type="button"
         onClick={() => router.back()}
-        style={{ marginTop: "20px", padding: "12px 22px", background: "var(--surface-gradient-primary)", color: "white", borderRadius: "18px", border: "1px solid var(--color-surface-stroke)", cursor: "pointer", boxShadow: "var(--shadow-button-primary)" }}
+        style={{ marginTop: '20px', padding: '12px 22px', background: 'var(--surface-gradient-primary)', color: 'white', borderRadius: '18px', border: '1px solid var(--color-surface-stroke)', cursor: 'pointer', boxShadow: 'var(--shadow-button-primary)' }}
       >
         다시 시도하기
       </button>
@@ -24,16 +31,16 @@ function FailContent() {
 }
 
 export default function FailPage() {
-    return (
-        <Suspense fallback={<SubscriptionFallback message="결제 실패 정보를 불러오는 중입니다." />}>
-            <FailContent />
-        </Suspense>
-    );
+  return (
+    <Suspense fallback={<SubscriptionFallback message={PAYMENT_FAILURE_LOADING_MESSAGE} />}>
+      <FailContent />
+    </Suspense>
+  );
 }
 
 function SubscriptionFallback({ message }) {
   return (
-    <div style={{ padding: "56px 24px", textAlign: "center", fontFamily: "var(--font-sans-custom)", color: "var(--color-text-secondary)", fontWeight: 700 }}>
+    <div style={{ padding: '56px 24px', textAlign: 'center', fontFamily: 'var(--font-sans-custom)', color: 'var(--color-text-secondary)', fontWeight: 700 }}>
       {message}
     </div>
   );
