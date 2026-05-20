@@ -1065,6 +1065,36 @@
 ## 2026-05-20 KST - Codex
 
 ### Summary
+- Completed T-395 for `hanwoo-dashboard` while continuing the active product-completeness goal.
+- Kept Sales, Inventory, Schedule, and Settings create forms open when async submit handlers fail.
+- The create submit paths now await their save handler and only close/reset after a truthy saved result, preserving typed values for retry on rejected or failed mutations.
+
+### Changed Files
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/CONTEXT.md`
+- `.ai/GOAL.md`
+- `projects/hanwoo-dashboard/src/components/tabs/SalesTab.js`
+- `projects/hanwoo-dashboard/src/components/tabs/InventoryTab.js`
+- `projects/hanwoo-dashboard/src/components/tabs/ScheduleTab.js`
+- `projects/hanwoo-dashboard/src/components/tabs/SettingsTab.js`
+- `projects/hanwoo-dashboard/src/lib/empty-state-wiring.test.mjs`
+
+### Verification
+- `npm.cmd test -- src/lib/empty-state-wiring.test.mjs src/lib/component-imports.test.mjs` from `projects/hanwoo-dashboard` -> `131 passed`.
+- `npx.cmd eslint src/components/tabs/SalesTab.js src/components/tabs/InventoryTab.js src/components/tabs/ScheduleTab.js src/components/tabs/SettingsTab.js src/lib/empty-state-wiring.test.mjs` from `projects/hanwoo-dashboard` -> passed.
+- `python execution/project_qc_runner.py --project hanwoo-dashboard --json` -> passed (`test` 131, lint passed, build passed).
+- `git diff --check -- projects/hanwoo-dashboard/src/components/tabs/SalesTab.js projects/hanwoo-dashboard/src/components/tabs/InventoryTab.js projects/hanwoo-dashboard/src/components/tabs/ScheduleTab.js projects/hanwoo-dashboard/src/components/tabs/SettingsTab.js projects/hanwoo-dashboard/src/lib/empty-state-wiring.test.mjs` -> passed.
+- `python execution/code_review_gate.py --staged --json` -> PASS; trailing cp949 reader-thread exception is known Windows output noise.
+
+### Follow-up
+- Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
+- T-320 and T-372 remain approval-scoped. Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, package locks, and shorts-maker-v2 files.
+
+## 2026-05-20 KST - Codex
+
+### Summary
 - Completed T-394 for `hanwoo-dashboard` while continuing the active product-completeness goal.
 - Made Today Focus and Setup Progress panel navigation call `handleTabChange`, so those home-panel tab changes trigger the same preload path as bottom navigation.
 - Extended source regression coverage in `home-market-copy.test.mjs`.
