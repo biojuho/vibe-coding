@@ -7,6 +7,20 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-20 |
+| Tool | Codex |
+| Work | **T-338 completed**: continued the active Hanwoo quality goal and fixed a remaining English fallback-copy path in the market price state layer. `market-price-state.mjs` now emits Korean product copy for unavailable market prices, stale-cache notices, and live/cache/unavailable source labels, so degraded KAPE states cannot surface English fallback text in `MarketPriceWidget`. |
+| Next Priorities | Verification passed: focused market-price tests passed, targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 92 passed, lint passed, build passed), `git diff --check` passed, and graph risk `0.00`. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Blind-to-X locks, Hanwoo `package.json`, shorts-maker-v2 render/bench files, package locks, and setup scripts. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Claude Code (Opus 4.7 1M) |
+| Work | **T-337 완료**: `/goal "최적화 시켜줘"` — AskUserQuestion으로 대상=shorts-maker-v2, 방향=실행/렌더 성능. run manifest `step_timings` 분석으로 렌더가 전체 wall time의 85~89%(990/1110초) 확인, `detect_hw_encoder('auto')`로 이 머신은 h264_qsv 하드웨어 인코딩 사용 확정 → 990초는 인코딩이 아닌 MoviePy 프레임별 Python 합성. 신규 `scripts/bench_render.py`(합성 에셋 결정론적 렌더 핫패스 벤치마크/cProfile, LLM 불필요)로 측정: `color_grade_clip`이 렌더의 ~40%. micro-bench로 `_grade_inplace`가 1080×1920 numpy elementwise 패스 ~10회로 163.5 ms/frame임을 확인 → 패스 ~10→~5로 재작성(밝기+대비 affine 융합 / 채도 3→2패스 / 틴트 strided 3회→벡터 1회 / 프레임당 uint8↔float32 왕복 제거). **`_grade_inplace` 163.5→61.0 ms/frame(2.7배), end-to-end 렌더 ~10% 단축**, 출력 6채널 전부 naive 레퍼런스 대비 max abs diff ≤0.0001(수학적 동일). 검증: color_grading 29 pass(회귀 2건 신규) + 렌더 단위 210 pass + ruff. commit `0930e4a`+`504c709`. |
+| Next Priorities | **렌더 최적화 후속(다음 우선순위)**: 컬러 그레이딩 외 잔여 ~65초(4초 벤치)는 ken-burns 모션 per-frame 리샘플 + `CompositeVideoClip.compose_on` 레이어 합성 + MoviePy `transform`/`get_frame` 디코레이터 오버헤드. `python scripts/bench_render.py --scenes N --duration S --profile`로 재현·측정 가능 — 이 벤치마크가 향후 렌더 최적화의 검증 게이트다. 후보: (a) MoviePy `transform` 디코레이터 체인 오버헤드(프레임당 ~35 디코레이터 콜), (b) 캡션 합성 레이어 수 축소, (c) `write_videofile`에 `threads` 전달(qsv엔 무효, libx264 CPU 폴백 경로엔 유효). 경합 주의: 병렬 도구와 공유 인덱스 경합이 잦으므로 부분 커밋은 `git commit -- <pathspec>` 사용. T-251은 여전히 사용자 소유 외부 차단. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
 | Tool | Claude Code (Opus 4.7 1M) |
 | Work | **T-305 완료**: blind-to-x `openai` 1.59.9 → 2.37.0 마이그레이션. 탐색 결과 PR #39 triage 당시의 "4개 mock fixture 갱신 필요" 추정은 보수적이었음 — 실제로는 (a) 코드가 `chat.completions.create` / `images.generate` / `AsyncOpenAI` 생성자 등 openai 2.x에서 **변경 없는 안정 API**만 사용하고 `getattr` 방어 접근까지 되어 있으며, (b) 테스트 mock은 클라이언트 생성자를 fake로 교체하는 방식이라 SDK 버전 무관. openai 2.0.0의 실제 breaking change는 Responses API tool-call output 형태뿐인데 blind-to-x는 미사용. **결과: 코드/테스트 변경 0건, 버전 핀만 변경.** `pyproject.toml` openai 핀 갱신 + `projects/blind-to-x/uv.lock` 재생성(openai 항목만 1.59.9→2.37.0, transitive 변화 없음). 검증: openai 2.37.0 설치 후 단위+통합 전체 `1626 passed, 1 skipped, 0 failed`(241s), `ruff check .` 통과. |
 | Next Priorities | 라이브 스모크(실 LLM fallback 체인 호출)는 유료 API라 미실행 — mock 기반 1626 테스트 + 안정 API 사용 사실로 갈음. 필요 시 사용자가 `OPENAI_API_KEY` 설정 후 `python main.py --limit 1 --dry-run`으로 확인 가능. **주의**: 로컬에 워크스페이스 uv 마이그레이션 WIP(루트 `pyproject.toml`+`uv.lock`, 둘 다 untracked)가 있어 `projects/blind-to-x`에서 `uv lock` 실행 시 루트 워크스페이스 락이 대상이 됨 — blind-to-x 단독 락 재생성은 루트 `pyproject.toml`을 일시 숨긴 뒤 실행함(복원 완료). 커밋은 `projects/blind-to-x/pyproject.toml`+`uv.lock`+`.ai/*`만 선택 스테이징. T-251은 여전히 사용자 소유 외부 차단. |
