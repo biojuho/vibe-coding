@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-423 completed**: continued Hanwoo cattle form accessibility hardening. `CattleForm` now connects the visible labels for name, tag number, building, pen, gender, status, birth date, weight, purchase info, pedigree, and memo fields to stable control ids, and exposes validation state through `aria-invalid` where it was missing. `cattle-detail-modal-wiring.test.mjs` guards the contract. Code commit `8ae7886`. |
+| Next Priorities | Verification passed: focused Hanwoo tests passed (`150 passed`), targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk was `0.00`, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 150, lint, build). Staged/commit `code_review_gate` WARN was the known graph/test-gap heuristic plus unrelated VibeDebt WIP; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-422 completed**: continued Hanwoo calving form accessibility hardening. `CalvingTab` now connects 분만일 and 송아지 성별 labels to their date/select controls with stable ids, exposes validation state through `aria-invalid`, and hides the section header cow glyph from assistive technology. Added `calving-tab-accessibility.test.mjs`. Code commit `c410f5a`. |
 | Next Priorities | Verification passed: focused Hanwoo tests passed (`150 passed`), targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk was `0.00`, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 150, lint, build). Staged/commit `code_review_gate` WARN was the known graph/test-gap heuristic plus unrelated VibeDebt WIP; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
 

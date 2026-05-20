@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` CattleForm fields expose stronger label/control associations. Visible labels for name, tag number, building, pen, gender, status, birth date, weight, purchase info, pedigree, and memo fields now connect to stable control ids, and missing `aria-invalid` state was added. Verification passed: focused Hanwoo tests (`150 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 150, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` CalvingTab form fields expose stronger accessibility metadata. The 분만일 and 송아지 성별 labels now connect to their date/select controls through stable ids, both controls expose validation state with `aria-invalid`, and the section header cow glyph is hidden from assistive technology. Verification passed: focused Hanwoo tests (`150 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 150, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` cattle-detail modal controls and decorative icons are more robust. `CattleDetailModal` now gives back/edit/delete action buttons explicit `type="button"` semantics and hides decorative section/timeline icons from assistive technology, keeping Korean titles and record text as the meaningful accessible content. Verification passed: focused Hanwoo tests (`149 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 149, lint, build).

@@ -12,6 +12,8 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-423 hardened Hanwoo `CattleForm` field accessibility by connecting visible labels for name, tag number, building, pen, gender, status, birth date, weight, purchase info, pedigree, and memo fields to stable control ids, and adding missing `aria-invalid` state; verification passed with focused Hanwoo tests `150 passed`, targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 150, lint, build). Staged/commit code-review gate WARN came from the known graph/test-gap heuristic plus unrelated VibeDebt WIP.
+
 - 2026-05-20: T-422 hardened Hanwoo `CalvingTab` form accessibility by connecting 분만일 and 송아지 성별 labels to their date/select controls with stable ids, exposing validation state through `aria-invalid`, and hiding the section header cow glyph from assistive technology; verification passed with focused Hanwoo tests `150 passed`, targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 150, lint, build). Staged/commit code-review gate WARN came from the known graph/test-gap heuristic plus unrelated VibeDebt WIP.
 
 - 2026-05-20: T-421 hardened Hanwoo `CattleDetailModal` semantics by adding explicit `type="button"` to modal back/edit/delete action buttons and hiding decorative section/timeline icons from assistive technology; verification passed with focused Hanwoo tests `149 passed`, targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 149, lint, build). Staged/commit code-review gate WARN came from the known graph/test-gap heuristic plus unrelated VibeDebt WIP.
