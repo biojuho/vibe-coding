@@ -33,7 +33,7 @@
 
 ## Current Reliability Notes
 
-- As of 2026-05-20, `hanwoo-dashboard` cattle tag lookup fallbacks are localized at the MTRACE helper layer. `lookupCattleByTag()` returns Korean operator messages for missing service key, invalid input, rate limits, upstream failures, unreadable responses, no-match results, timeouts, and generic errors, and the default breed fallback is `한우`. Verification passed: Hanwoo tests `106 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json`, English fallback scan, and direct Hanwoo graph risk `0.00`.
+- As of 2026-05-20, `hanwoo-dashboard` cattle tag lookup fallbacks are localized at the MTRACE helper layer. `lookupCattleByTag()` returns Korean operator messages for missing service key, invalid input, rate limits, upstream failures, unreadable responses, no-match results, timeouts, and generic errors, the default breed fallback is `한우`, and the internal API diagnostic label is Korean. Verification passed: Hanwoo tests `107 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json`, `git diff --check`, and direct Hanwoo graph risk `0.00`.
 
 - As of 2026-05-20, `hanwoo-dashboard` dashboard API fallback/error copy is localized. `DashboardClient` uses Korean timeout/failure messages for dashboard list loads, Korean diagnostics for summary/notification/list refresh failures, and a Korean footer rights line; `/api/dashboard/{summary,cattle,sales}` default 500 fallback messages are Korean. Verification passed: Hanwoo tests `103 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json`, `git diff --check`, and direct Hanwoo graph risk `0.00`.
 
