@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-411 completed**: continued Hanwoo product-completeness/accessibility work by making clickable dropdown actions keyboard-accessible. `DropdownMenuItem` now renders entries with `onClick` as native `button type="button"` elements with full-width text alignment and focus-ring styling, while static entries remain `div`s. This fixes notification read actions that were clickable `div`s. `notification-system-copy.test.mjs` guards the contract. Code commit `56e6c3d`. |
+| Next Priorities | Verification passed: focused Hanwoo tests passed (`139 passed`), targeted ESLint passed, path-limited `git diff --check` passed, staged `code_review_gate --staged --json` passed with known cp949 reader-thread noise, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 140, lint, build). Commit hook emitted advisory graph/test-gap WARN that included unrelated VibeDebt dirty WIP; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-410 completed**: continued Hanwoo product-completeness/accessibility work by labeling cattle-detail edit/delete actions with cattle-specific context. `CattleDetailModal` now includes the current cattle name in the edit/delete button `aria-label` values and Korean `title` copy. `cattle-detail-modal-wiring.test.mjs` guards the labels. Code commit `3f180c5`. |
 | Next Priorities | Verification passed: focused Hanwoo tests passed (`138 passed`), targeted ESLint passed, path-limited `git diff --check` passed, staged `code_review_gate --staged --json` passed, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 138, lint, build). Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
 
