@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-510 completed**: Hanwoo sales cattle-history text now uses the validated sales payload instead of reparsing raw form input. `createSalesRecord()` formats `payload.price` and `payload.grade` for the history entry, removing `parseInt(data.price)` and raw `data.grade` reuse after validation. Code commit `105ed3d`. |
+| Next Priorities | Verification passed: focused action/copy validation tests (`15 passed`), targeted ESLint passed, path-limited `git diff --check` passed, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 205, lint, build). Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-509 completed**: Hanwoo inline inventory quantity edits now reject malformed non-plain numeric values before sending update actions. `InventoryTab` parses the editor with a plain nonnegative decimal pattern and passes the parsed number to `onUpdateQuantity`, so values like `1e3` or `0x10` cannot bypass the client guard. Code commit `5187080`. |
 | Next Priorities | Verification passed: focused home/empty-state tests (`34 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 204, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known advisory graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 

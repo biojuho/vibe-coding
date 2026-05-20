@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` sales cattle-history text uses the validated sales payload instead of reparsing raw form input. `createSalesRecord()` now formats `payload.price` and `payload.grade` in the history entry, so the post-validation path cannot drift back to `parseInt(data.price)` or raw `data.grade`. Verification passed: focused action/copy validation tests (`15 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 205, lint, build).
+
 - As of 2026-05-21, `hanwoo-dashboard` inline inventory quantity edits reject malformed non-plain numeric values before sending update actions. `InventoryTab` now parses the editor with a plain nonnegative decimal pattern and passes the parsed number to `onUpdateQuantity`, so `1e3` or `0x10` cannot bypass the client guard. Verification passed: focused home/empty-state tests (`34 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 204, lint, build).
 
 - As of 2026-05-21, `hanwoo-dashboard` payment confirmation classification rejects malformed gateway `totalAmount` values before treating confirmation as successful. `classifyPaymentConfirmationResult()` now parses `payload.totalAmount` only as a safe integer number or all-digit string before comparing with the expected subscription amount, so `0x26ac` cannot be coerced to `9900`. Verification passed: focused payment confirmation test (`10 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 204, lint, build).
