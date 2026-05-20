@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` printed cattle QR labels no longer include the English `Joolife Smart Farm` footer. `QRCodeWidget` now prints `Joolife 한우 스마트팜`, and `src/lib/qr-widget-copy.test.mjs` guards the printed footer copy. Verification passed: Hanwoo tests `102 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json`, `git diff --check`, staged code-review gate PASS, and direct Hanwoo graph risk `0.00`.
+
 - As of 2026-05-20, `hanwoo-dashboard` fallback surfaces are more fully localized. Login, route-error, global-error, and not-found screens use `Joolife 한우 운영` instead of `Joolife Operations`, and weather fallback location labels default to `서울` instead of `Seoul` across the dashboard weather path. Verification passed: Hanwoo tests `102 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json`, `git diff --check`, staged code-review gate PASS, and direct Hanwoo graph risk `0.00`.
 
 - As of 2026-05-20, `hanwoo-dashboard` cattle QR print controls use operator-facing Korean copy and a lucide icon button. `QRCodeWidget` prints with `QR 출력`, exposes `QR 라벨 인쇄`, and is covered by `src/lib/qr-widget-copy.test.mjs` so English `QR Code` print copy and the emoji-only print affordance do not return. Verification passed: Hanwoo tests `100 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json`, and direct Hanwoo graph risk `0.00`.
