@@ -1262,17 +1262,28 @@ export default function DashboardClient({
               <h2 className="section-header-title">축사 현황</h2>
             </div>
             {buildings.length === 0 ? (
-              <div className="empty-state-cta animate-fadeInUp" style={{ animationDelay: '250ms' }} onClick={() => setActiveTab('settings')}>
+              <button
+                type="button"
+                className="empty-state-cta animate-fadeInUp block w-full"
+                style={{ animationDelay: '250ms' }}
+                onClick={() => handleTabChange('settings')}
+              >
                 <span className="cta-icon">🏠</span>
                 <div className="cta-title">첫 번째 축사를 추가해보세요</div>
                 <div className="cta-desc">축사를 등록하면 칸별 두수 관리, 발정·분만 알림을 시작할 수 있습니다.</div>
-              </div>
+              </button>
             ) : (
               <div className="grid gap-3">
                 {buildings.map((building, index) => {
                   const buildingHeadcount = summary?.buildingOccupancy?.find((b) => b.buildingId === building.id)?.headcount ?? 0;
                   return (
-                    <Card key={building.id} onClick={() => handleSelectBuilding(building.id)} className="animate-fadeInUp cursor-pointer hover:-translate-y-1 hover:shadow-[var(--shadow-md)] group/building" style={{ animationDelay: `${250 + index * 50}ms` }}>
+                    <button
+                      key={building.id}
+                      type="button"
+                      onClick={() => handleSelectBuilding(building.id)}
+                      className="clay-surface rounded-[28px] text-card-foreground backdrop-blur-md transition-[box-shadow,border-color,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] animate-fadeInUp cursor-pointer hover:-translate-y-1 hover:shadow-[var(--shadow-md)] group/building w-full text-left"
+                      style={{ animationDelay: `${250 + index * 50}ms` }}
+                    >
                       <CardContent className="flex justify-between items-center p-5">
                         <div>
                           <div className="font-bold text-[15px] mb-1.5 tracking-[-0.01em]">{building.name}</div>
@@ -1282,7 +1293,7 @@ export default function DashboardClient({
                         </div>
                         <span className="text-xl text-muted-foreground transition-[transform,color,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] opacity-55 group-hover/building:translate-x-1 group-hover/building:text-[var(--color-primary-custom)] group-hover/building:opacity-100">›</span>
                       </CardContent>
-                    </Card>
+                    </button>
                   );
                 })}
               </div>

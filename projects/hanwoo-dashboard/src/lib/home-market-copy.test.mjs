@@ -57,6 +57,19 @@ test('dashboard full-list loading failures show retry feedback instead of silent
   assert.doesNotMatch(source, /void ensureAllSalesLoaded\(\{ silent: true \}\);/);
 });
 
+test('home building navigation uses semantic buttons', () => {
+  const source = readSource('components/DashboardClient.js');
+  const css = readSource('app/globals.css');
+
+  assert.match(source, /<button\s+type="button"\s+className="empty-state-cta/);
+  assert.match(source, /onClick=\{\(\) => handleTabChange\('settings'\)\}/);
+  assert.match(source, /type="button"\s+onClick=\{\(\) => handleSelectBuilding\(building\.id\)\}/);
+  assert.match(source, /className="clay-surface rounded-\[28px\][^"]*group\/building w-full text-left"/);
+  assert.match(css, /\.empty-state-cta \{\s+background:[\s\S]*?font: inherit;/);
+  assert.doesNotMatch(source, /<div className="empty-state-cta[^"]*"[^>]*onClick/);
+  assert.doesNotMatch(source, /<Card key=\{building\.id\} onClick/);
+});
+
 test('home dashboard icon-only actions expose Korean accessible labels', () => {
   const source = readSource('components/DashboardClient.js');
 

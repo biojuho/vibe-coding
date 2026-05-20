@@ -2477,6 +2477,8 @@ body {
   background: var(--surface-gradient);
   border: 2px dashed color-mix(in srgb, var(--color-primary-custom) 30%, var(--color-border-custom));
   border-radius: var(--radius-custom-xl);
+  color: inherit;
+  font: inherit;
   padding: 40px 24px;
   text-align: center;
   transition:
