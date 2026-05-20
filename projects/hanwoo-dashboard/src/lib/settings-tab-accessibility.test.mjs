@@ -103,6 +103,17 @@ test('settings farm form waits for async saves before re-enabling submit', () =>
   assert.match(source, /type="submit"\s+disabled=\{isSavingFarm\}\s+aria-busy=\{isSavingFarm\}/);
 });
 
+test('settings farm form locks editable fields while saving', () => {
+  const source = readSource('components/tabs/SettingsTab.js');
+
+  assert.match(source, /const handleLocationSelect = \(event\) => \{\s+if \(isSavingFarm\) \{\s+return;\s+\}/);
+  assert.match(source, /id="farm-name"[\s\S]*?disabled=\{isSavingFarm\}/);
+  assert.match(source, /id="farm-location-select"[\s\S]*?disabled=\{isSavingFarm\}/);
+  assert.match(source, /id="farm-location"[\s\S]*?disabled=\{isSavingFarm\}/);
+  assert.match(source, /id="farm-latitude"[\s\S]*?disabled=\{isSavingFarm\}/);
+  assert.match(source, /id="farm-longitude"[\s\S]*?disabled=\{isSavingFarm\}/);
+});
+
 test('settings building delete action waits for async deletes before re-enabling the row action', () => {
   const source = readSource('components/tabs/SettingsTab.js');
 

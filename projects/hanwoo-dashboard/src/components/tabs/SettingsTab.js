@@ -92,6 +92,10 @@ export default function SettingsTab({
   );
 
   const handleLocationSelect = (event) => {
+    if (isSavingFarm) {
+      return;
+    }
+
     const selected = koreanLocations.find((location) => location.name === event.target.value);
     if (!selected) {
       return;
@@ -343,6 +347,7 @@ export default function SettingsTab({
               {...registerFarm('name')}
               placeholder="예: 행복한 한우 농장"
               hasError={!!farmErrors.name}
+              disabled={isSavingFarm}
               aria-invalid={Boolean(farmErrors.name)}
               aria-describedby={farmErrors.name ? "farm-name-error" : undefined}
             />
@@ -358,6 +363,7 @@ export default function SettingsTab({
               onChange={handleLocationSelect}
               className="mb-2"
               hasError={false}
+              disabled={isSavingFarm}
             >
               <option value="" className="bg-slate-900">주요 지역 선택...</option>
               {koreanLocations.map((location) => (
@@ -374,6 +380,7 @@ export default function SettingsTab({
               {...registerFarm('location')}
               placeholder="지역명을 직접 입력해 주세요."
               hasError={!!farmErrors.location}
+              disabled={isSavingFarm}
               aria-invalid={Boolean(farmErrors.location)}
               aria-describedby={farmErrors.location ? "farm-location-error" : undefined}
             />
@@ -392,6 +399,7 @@ export default function SettingsTab({
                 {...registerFarm('latitude')}
                 placeholder="35.446"
                 hasError={!!farmErrors.latitude}
+                disabled={isSavingFarm}
                 aria-invalid={Boolean(farmErrors.latitude)}
                 aria-describedby={farmErrors.latitude ? "farm-latitude-error" : undefined}
               />
@@ -408,6 +416,7 @@ export default function SettingsTab({
                 {...registerFarm('longitude')}
                 placeholder="127.344"
                 hasError={!!farmErrors.longitude}
+                disabled={isSavingFarm}
                 aria-invalid={Boolean(farmErrors.longitude)}
                 aria-describedby={farmErrors.longitude ? "farm-longitude-error" : undefined}
               />
