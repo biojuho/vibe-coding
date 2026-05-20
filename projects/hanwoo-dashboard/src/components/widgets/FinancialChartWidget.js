@@ -81,10 +81,10 @@ export default function FinancialChartWidget({
                 letterSpacing: '-0.01em',
               }}
             >
-              Farm Financial Overview
+              농장 재무 흐름
             </div>
             <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '3px' }}>
-              Recent 6-month revenue, expense, and profit
+              최근 6개월 매출, 비용, 이익 추이
             </div>
           </div>
         </div>
@@ -99,7 +99,7 @@ export default function FinancialChartWidget({
             letterSpacing: '0.02em',
           }}
         >
-          Unit: KRW
+          단위: 원
         </div>
       </div>
 
@@ -132,9 +132,9 @@ export default function FinancialChartWidget({
               cursor={{ fill: 'rgba(0,0,0,0.03)' }}
             />
             <Legend wrapperStyle={{ paddingTop: '14px' }} iconType="circle" iconSize={8} />
-            <Bar dataKey={REVENUE_KEY} fill="var(--color-success)" radius={[6, 6, 0, 0]} barSize={14} name="Revenue" />
-            <Bar dataKey={EXPENSE_KEY} fill="var(--color-warning)" radius={[6, 6, 0, 0]} barSize={14} name="Expense" />
-            <Bar dataKey={PROFIT_KEY} fill="var(--color-primary)" radius={[6, 6, 0, 0]} barSize={14} name="Profit" />
+            <Bar dataKey={REVENUE_KEY} fill="var(--color-success)" radius={[6, 6, 0, 0]} barSize={14} name="매출" />
+            <Bar dataKey={EXPENSE_KEY} fill="var(--color-warning)" radius={[6, 6, 0, 0]} barSize={14} name="비용" />
+            <Bar dataKey={PROFIT_KEY} fill="var(--color-primary)" radius={[6, 6, 0, 0]} barSize={14} name="이익" />
           </BarChart>
         </ResponsiveContainer>
       </div>

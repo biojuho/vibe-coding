@@ -95,7 +95,7 @@ export default function AnalysisTab({
   return (
     <div className="animate-fadeIn">
       <div className="mb-5 flex items-center gap-3">
-        <div className="clay-page-eyebrow">Financial Analysis</div>
+        <div className="clay-page-eyebrow">경영 분석</div>
         <div className="clay-stat-chip">두수 {cattleList.length}두</div>
         <div className="clay-stat-chip">월평균 급여 {monthlyAverageFeed}kg</div>
       </div>
@@ -110,7 +110,7 @@ export default function AnalysisTab({
       <section className="clay-page-section mb-6 p-5 md:p-6">
         <div className="mb-4 flex items-center justify-between gap-4">
           <div>
-            <div className="clay-page-eyebrow mb-3">Monthly Flow</div>
+            <div className="clay-page-eyebrow mb-3">월별 흐름</div>
             <h2 className="text-xl font-bold text-[color:var(--color-text)]">월별 매출 · 비용 · 순이익 추이</h2>
           </div>
           <div className="text-right text-xs text-[color:var(--color-text-muted)]">최근 12개월 기준</div>
@@ -149,7 +149,7 @@ export default function AnalysisTab({
         <section className="clay-page-section p-5 md:p-6">
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
-              <div className="clay-page-eyebrow mb-3">Cost Mix</div>
+              <div className="clay-page-eyebrow mb-3">비용 구성</div>
               <h2 className="text-xl font-bold text-[color:var(--color-text)]">비용 구조 분석</h2>
             </div>
             <div className="text-right text-xs text-[color:var(--color-text-muted)]">
@@ -189,7 +189,7 @@ export default function AnalysisTab({
         <section className="clay-page-section p-5 md:p-6">
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
-              <div className="clay-page-eyebrow mb-3">Top Sales</div>
+              <div className="clay-page-eyebrow mb-3">상위 판매</div>
               <h2 className="text-xl font-bold text-[color:var(--color-text)]">최고가 판매 이력</h2>
             </div>
             <div className="text-right text-xs text-[color:var(--color-text-muted)]">상위 5건</div>
