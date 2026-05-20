@@ -12,6 +12,10 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-430 hid Hanwoo `WeatherWidget` temperature, wind, and precipitation stat glyphs from assistive technology with `aria-hidden="true"`, preserving the adjacent Korean stat labels and values as meaningful content; verification passed with direct graph risk `0.00`, focused home-market copy test, targeted ESLint, and full Hanwoo QC (`test` 152, lint, build).
+
+- 2026-05-20: T-429 hid Hanwoo `WeatherWidget` decorative background weather glyph from assistive technology with `aria-hidden="true"`, preserving the visible weather description as meaningful content; verification passed with focused home-market copy test, Hanwoo tests `152 passed`, ESLint, and full Hanwoo QC (`test` 152, lint, build).
+
 - 2026-05-20: T-428 exposed Hanwoo FeedTab building filter selected state with `aria-pressed={active}` and Korean task labels for all-buildings/per-building feed views; verification passed with focused empty-state/feed wiring test, targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 152, lint, build). Staged/commit code-review gate WARN came from the known graph/test-gap heuristic plus unrelated workspace WIP.
 
 - 2026-05-20: T-427 hid Hanwoo `PenCard` decorative heart alert badge and `CattleRow` hover chevron from assistive technology while preserving alert meaning in the card/row accessible labels; verification passed with focused cards test, Hanwoo tests `151 passed`, ESLint, and full Hanwoo QC (`test` 151, lint, build).
