@@ -289,6 +289,18 @@ test('inventory form validation messages are announced by their controls', () =>
   }
 });
 
+test('inventory form waits for async saves before re-enabling actions', () => {
+  const source = readSource('components/tabs/InventoryTab.js');
+
+  assert.match(source, /const \[isSaving, setIsSaving\] = useState\(false\)/);
+  assert.match(source, /if \(isSaving\) \{\s+return;\s+\}/);
+  assert.match(source, /setIsSaving\(true\);/);
+  assert.match(source, /await onAddItem\(values\)/);
+  assert.match(source, /finally \{\s+setIsSaving\(false\);/);
+  assert.match(source, /onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}/);
+  assert.match(source, /type="submit" disabled=\{isSaving\} aria-busy=\{isSaving\}/);
+});
+
 test('inventory inline quantity editor exposes item-specific input label', () => {
   const source = readSource('components/tabs/InventoryTab.js');
 

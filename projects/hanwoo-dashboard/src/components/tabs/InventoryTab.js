@@ -20,6 +20,7 @@ const errorTextStyle = {
 
 export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, quickActionIntent = null }) {
   const [isAdding, setIsAdding] = useState(() => quickActionIntent?.actionId === 'add-inventory');
+  const [isSaving, setIsSaving] = useState(false);
   const [editId, setEditId] = useState(null);
   const [editQty, setEditQty] = useState('');
 
@@ -41,22 +42,33 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
   };
 
   const toggleAddForm = () => {
+    if (isSaving) {
+      return;
+    }
+
     const next = !isAdding;
     setIsAdding(next);
 
     if (!next) {
+      setIsSaving(false);
       reset(createInventoryFormValues());
     }
   };
 
   const submitNewItem = async (values) => {
-    const saved = await onAddItem(values);
-    if (!saved) {
-      return;
-    }
+    setIsSaving(true);
 
-    setIsAdding(false);
-    reset(createInventoryFormValues());
+    try {
+      const saved = await onAddItem(values);
+      if (!saved) {
+        return;
+      }
+
+      setIsAdding(false);
+      reset(createInventoryFormValues());
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleUpdate = async (id) => {
@@ -84,6 +96,7 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
           variant="outline"
           size="sm"
           onClick={toggleAddForm}
+          disabled={isSaving}
           className="text-[13px] text-green-400 border-green-500/50 hover:bg-green-500/10 px-3 py-1.5 rounded-lg font-bold"
         >
           {isAdding ? '취소' : '+재고 등록'}
@@ -171,7 +184,7 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
                   </div>
                 </div>
 
-                <PremiumButton type="submit" variant="primary" glow className="w-full py-3 mt-2 rounded-lg">
+                <PremiumButton type="submit" disabled={isSaving} aria-busy={isSaving} variant="primary" glow className="w-full py-3 mt-2 rounded-lg">
                   등록하기
                 </PremiumButton>
               </div>
