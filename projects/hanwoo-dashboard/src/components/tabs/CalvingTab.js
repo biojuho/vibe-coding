@@ -160,9 +160,10 @@ export default function CalvingTab({ cattle, buildings = [], onRecordCalving }) 
                           type="date"
                           {...register('calvingDate')}
                           aria-invalid={Boolean(errors.calvingDate)}
+                          aria-describedby={errors.calvingDate ? "calving-date-error" : undefined}
                           style={{ ...inputStyle, width: '100%' }}
                         />
-                        {errors.calvingDate ? <div style={errorTextStyle}>{errors.calvingDate.message}</div> : null}
+                        {errors.calvingDate ? <div id="calving-date-error" role="alert" style={errorTextStyle}>{errors.calvingDate.message}</div> : null}
                       </div>
                       <div>
                         <label htmlFor="calf-gender" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', display: 'block', marginBottom: '4px' }}>
@@ -172,12 +173,13 @@ export default function CalvingTab({ cattle, buildings = [], onRecordCalving }) 
                           id="calf-gender"
                           {...register('calfGender')}
                           aria-invalid={Boolean(errors.calfGender)}
+                          aria-describedby={errors.calfGender ? "calf-gender-error" : undefined}
                           style={{ ...inputStyle, width: '100%' }}
                         >
                           <option value="암">암송아지</option>
                           <option value="수">수송아지</option>
                         </select>
-                        {errors.calfGender ? <div style={errorTextStyle}>{errors.calfGender.message}</div> : null}
+                        {errors.calfGender ? <div id="calf-gender-error" role="alert" style={errorTextStyle}>{errors.calfGender.message}</div> : null}
                       </div>
                       <div>
                         <label htmlFor="calf-tag-number" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', display: 'block', marginBottom: '4px' }}>
@@ -189,9 +191,10 @@ export default function CalvingTab({ cattle, buildings = [], onRecordCalving }) 
                           placeholder="예: 002-1234-5678"
                           {...register('calfTagNumber')}
                           aria-invalid={Boolean(errors.calfTagNumber)}
+                          aria-describedby={errors.calfTagNumber ? "calf-tag-number-error" : undefined}
                           style={{ ...inputStyle, width: '100%' }}
                         />
-                        {errors.calfTagNumber ? <div style={errorTextStyle}>{errors.calfTagNumber.message}</div> : null}
+                        {errors.calfTagNumber ? <div id="calf-tag-number-error" role="alert" style={errorTextStyle}>{errors.calfTagNumber.message}</div> : null}
                       </div>
                     </div>
 

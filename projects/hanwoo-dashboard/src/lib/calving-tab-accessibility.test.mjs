@@ -22,3 +22,14 @@ test('calving tab form fields expose explicit labels and invalid states', () => 
   assert.match(source, /id="calf-gender"\s+\{\.\.\.register\('calfGender'\)\}/);
   assert.match(source, /aria-invalid=\{Boolean\(errors\.calfGender\)\}/);
 });
+
+test('calving tab validation messages are announced with their controls', () => {
+  const source = readSource('components/tabs/CalvingTab.js');
+
+  assert.match(source, /aria-describedby=\{errors\.calvingDate \? "calving-date-error" : undefined\}/);
+  assert.match(source, /<div id="calving-date-error" role="alert"/);
+  assert.match(source, /aria-describedby=\{errors\.calfGender \? "calf-gender-error" : undefined\}/);
+  assert.match(source, /<div id="calf-gender-error" role="alert"/);
+  assert.match(source, /aria-describedby=\{errors\.calfTagNumber \? "calf-tag-number-error" : undefined\}/);
+  assert.match(source, /<div id="calf-tag-number-error" role="alert"/);
+});
