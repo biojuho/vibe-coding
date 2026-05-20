@@ -114,6 +114,7 @@ test('cattle detail archive actions wait for async deletes before re-enabling su
   assert.match(dashboardSource, /finally \{\s+setDeletingCattleId\(null\);/);
   assert.match(dashboardSource, /isDeleting=\{deletingCattleId === selectedCow\.id\}/);
   assert.match(detailSource, /isDeleting = false/);
+  assert.match(detailSource, /onClick=\{onEdit\}[\s\S]*?disabled=\{isDeleting\}[\s\S]*?aria-busy=\{isDeleting\}/);
   assert.match(detailSource, /onClick=\{onDelete\}[\s\S]*?disabled=\{isDeleting\}[\s\S]*?aria-busy=\{isDeleting\}/);
 });
 

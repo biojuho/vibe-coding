@@ -225,6 +225,8 @@ export default function CattleDetailModal({
               onClick={onEdit}
               aria-label={`${cattle.name} 개체 정보 수정`}
               title="개체 정보 수정"
+              disabled={isDeleting}
+              aria-busy={isDeleting}
               className="btn btn-secondary"
               style={{...btnSecondary,flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:"8px"}}
             ><EditIcon/> 수정</button>
