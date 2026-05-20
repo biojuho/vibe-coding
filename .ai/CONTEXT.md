@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` payment confirmation classification rejects malformed gateway `totalAmount` values before treating confirmation as successful. `classifyPaymentConfirmationResult()` now parses `payload.totalAmount` only as a safe integer number or all-digit string before comparing with the expected subscription amount, so `0x26ac` cannot be coerced to `9900`. Verification passed: focused payment confirmation test (`10 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 204, lint, build).
+
 - As of 2026-05-21, `hanwoo-dashboard` subscription payment preparation amount validation rejects malformed partial/non-decimal values before order preparation. `app/api/payments/prepare/route.js` now parses `body.amount` only as a safe integer number or all-digit string before comparing against `PREMIUM_SUBSCRIPTION.amount`, matching the confirm-route guard. Verification passed: focused payment UX copy test (`5 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 203, lint, build).
 
 - As of 2026-05-21, `hanwoo-dashboard` subscription payment confirmation amount validation rejects malformed partial/non-decimal values before payment confirmation. `app/subscription/success/page.js` now parses URL `amount` only as an all-digit safe integer before sending `/api/payments/confirm`, and `app/api/payments/confirm/route.js` accepts only safe integer numbers or all-digit strings before comparing against `PREMIUM_SUBSCRIPTION.amount`. Verification passed: focused payment UX copy test (`5 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 203, lint, build).
