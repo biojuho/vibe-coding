@@ -1342,6 +1342,24 @@ export default function DashboardClient({
           </div>
         )}
 
+        {!allCattleRegistry && cattlePagination.hasMore ? (
+          <div className="mt-5 flex flex-col items-center gap-2">
+            <button
+              type="button"
+              onClick={() => cattlePagination.loadMore()}
+              disabled={cattlePagination.isLoading}
+              className="clay-pressable w-full rounded-[18px] px-4 py-3 text-sm font-semibold text-[color:var(--color-text-secondary)]"
+            >
+              {cattlePagination.isLoading ? '개체 목록을 불러오는 중입니다...' : '개체 더 보기'}
+            </button>
+            {cattlePagination.loadError ? (
+              <p className="m-0 text-center text-xs font-semibold text-[color:var(--color-danger)]" role="status">
+                {cattlePagination.loadError}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         <AIChatWidget />
       </>
     );

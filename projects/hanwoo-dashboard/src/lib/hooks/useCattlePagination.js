@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { sanitizeDashboardPageInfoTransition } from '@/lib/dashboard/pagination-guard.mjs';
 
 const PAGINATION_REQUEST_TIMEOUT_MS = 15000;
+const CATTLE_PAGINATION_TIMEOUT_MESSAGE = '이전 개체 목록을 불러오는 데 시간이 오래 걸리고 있습니다. 잠시 후 다시 시도해 주세요.';
+const CATTLE_PAGINATION_ERROR_MESSAGE = '이전 개체 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
 
 /**
  * Cattle 목록의 cursor-based pagination을 관리하는 훅.
@@ -25,6 +27,7 @@ export function useCattlePagination({ initialItems = [], initialPageInfo = null 
     initialPageInfo ?? { hasMore: false, nextCursor: null, limit: 50, returnedCount: 0 },
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const abortRef = useRef(null);
   const mountedRef = useRef(true);
 
@@ -57,6 +60,7 @@ export function useCattlePagination({ initialItems = [], initialPageInfo = null 
       }, PAGINATION_REQUEST_TIMEOUT_MS);
 
       setIsLoading(true);
+      setLoadError('');
       try {
         const params = new URLSearchParams();
         if (pageInfo.nextCursor) params.set('cursor', pageInfo.nextCursor);
@@ -74,12 +78,14 @@ export function useCattlePagination({ initialItems = [], initialPageInfo = null 
 
         if (!res.ok) {
           console.error('Failed to load more cattle:', res.status);
+          setLoadError(CATTLE_PAGINATION_ERROR_MESSAGE);
           return;
         }
 
         const json = await res.json();
         if (!json.success) {
           console.error('Cattle API error:', json.message);
+          setLoadError(CATTLE_PAGINATION_ERROR_MESSAGE);
           return;
         }
 
@@ -92,6 +98,7 @@ export function useCattlePagination({ initialItems = [], initialPageInfo = null 
 
         if (safePageInfo.paginationError) {
           console.error(safePageInfo.paginationError);
+          setLoadError(CATTLE_PAGINATION_ERROR_MESSAGE);
         }
 
         if (!mountedRef.current || controller.signal.aborted) {
@@ -104,9 +111,11 @@ export function useCattlePagination({ initialItems = [], initialPageInfo = null 
         if (error.name === 'AbortError') {
           if (didTimeout && mountedRef.current) {
             console.error('Load more cattle timed out.');
+            setLoadError(CATTLE_PAGINATION_TIMEOUT_MESSAGE);
           }
         } else {
           console.error('Load more cattle error:', error);
+          setLoadError(CATTLE_PAGINATION_ERROR_MESSAGE);
         }
       } finally {
         window.clearTimeout(timeoutId);
@@ -121,5 +130,5 @@ export function useCattlePagination({ initialItems = [], initialPageInfo = null 
     [isLoading, hasMore, pageInfo],
   );
 
-  return { items, setItems, pageInfo, isLoading, hasMore, loadMore };
+  return { items, setItems, pageInfo, isLoading, hasMore, loadMore, loadError };
 }
