@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` sales form saves wait for the async sale creation handler before re-enabling actions. `SalesTab` now tracks `isSaving`, guards the add/cancel toggle while saving, awaits `onCreateSale`, disables add/cancel and submit controls while saving, and exposes `aria-busy` on the submit button so slow network saves cannot trigger duplicate sales submissions. Verification passed: focused home-market copy test (`19 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 184, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` schedule form saves wait for the async schedule creation handler before re-enabling actions. `ScheduleTab` now tracks `isSaving`, guards add-form/date-cell interactions while saving, awaits `onCreateEvent`, disables add/cancel and submit controls while saving, and exposes `aria-busy` on the submit button so slow network saves cannot trigger duplicate schedule submissions. Verification passed: focused tab-header accessibility test (`4 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 183, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` calving form saves wait for the async calving/calf registration handler before re-enabling actions. `CalvingTab` now tracks `isSaving`, awaits `onRecordCalving`, disables cancel/submit while saving, and exposes `aria-busy` on the submit button so slow network saves cannot trigger duplicate calving submissions. Verification passed: focused calving accessibility test (`3 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 182, lint, build).

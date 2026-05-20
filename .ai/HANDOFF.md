@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-479 completed**: Hanwoo sales form saves now wait for the async sale creation handler before re-enabling actions. `SalesTab` tracks `isSaving`, guards the add/cancel toggle while saving, awaits `onCreateSale`, disables the add/cancel and submit controls while saving, and exposes `aria-busy` on the submit button so slow network saves cannot trigger duplicate sales submissions. `home-market-copy.test.mjs` guards the contract. Code commit `d9491da`. |
+| Next Priorities | Verification passed: focused home-market copy test (`19 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 184, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-478 completed**: Hanwoo schedule form saves now wait for the async schedule creation handler before re-enabling actions. `ScheduleTab` tracks `isSaving`, guards add-form/date-cell interactions while saving, awaits `onCreateEvent`, disables the add/cancel and submit controls while saving, and exposes `aria-busy` on the submit button so slow network saves cannot trigger duplicate schedule submissions. `tab-header-accessibility.test.mjs` guards the contract. Code commit `25fe68f`. |
 | Next Priorities | Verification passed: focused tab-header accessibility test (`4 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 183, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 
