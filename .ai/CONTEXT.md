@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` CalvingTab form fields expose stronger accessibility metadata. The 분만일 and 송아지 성별 labels now connect to their date/select controls through stable ids, both controls expose validation state with `aria-invalid`, and the section header cow glyph is hidden from assistive technology. Verification passed: focused Hanwoo tests (`150 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 150, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` cattle-detail modal controls and decorative icons are more robust. `CattleDetailModal` now gives back/edit/delete action buttons explicit `type="button"` semantics and hides decorative section/timeline icons from assistive technology, keeping Korean titles and record text as the meaningful accessible content. Verification passed: focused Hanwoo tests (`149 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 149, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` primary tab header decorative emoji icons are hidden from assistive technology. Inventory, Sales, and Schedule tab header glyphs now use `aria-hidden="true"` while adjacent Korean titles remain the meaningful accessible content. Verification passed: focused Hanwoo tests (`148 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 148, lint, build).
