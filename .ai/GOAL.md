@@ -12,6 +12,7 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-395 kept Sales, Inventory, Schedule, and Settings create forms open when async submit handlers fail, preserving typed values for retry until the save handler returns a truthy saved result; verification passed with focused Hanwoo tests `131 passed`, targeted ESLint, full Hanwoo QC (`test` 131, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
 - 2026-05-20: T-394 made Today Focus and Setup Progress panel navigation use `handleTabChange`, so home-panel tab changes trigger the same preload path as bottom navigation; verification passed with full Hanwoo QC (`test` 130, lint, build).
 - 2026-05-20: T-393 fixed the Quick Action sales path so `record-sale` reuses the shared tab preloading path and starts the full cattle registry load before Sales renders; verification passed with focused Hanwoo tests `130 passed`, targeted ESLint, full Hanwoo QC (`test` 130, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
 - 2026-05-20: T-392 localized the weather timeout degradation path so `DashboardClient` and `useWeather` reuse Korean `WEATHER_STALE_MESSAGE` instead of the old English stale-weather fallback; verification passed with focused Hanwoo tests `130 passed`, targeted ESLint, full Hanwoo QC (`test` 130, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
