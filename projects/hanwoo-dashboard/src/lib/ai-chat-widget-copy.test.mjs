@@ -25,6 +25,7 @@ test('AI chat widget handles Korean configuration errors and exposes an accessib
   assert.match(source, /ref=\{launcherRef\}/);
   assert.match(source, /role="dialog"/);
   assert.match(source, /aria-modal="true"/);
+  assert.match(source, /<span\s+aria-hidden="true"[\s\S]*?animation: 'pulse 1s infinite'/);
   assert.match(source, /aria-label="AI 농장 비서 채팅"/);
   assert.match(source, /const panelRef = useRef\(null\)/);
   assert.match(source, /panelRef\.current\?\.focus\(\)/);

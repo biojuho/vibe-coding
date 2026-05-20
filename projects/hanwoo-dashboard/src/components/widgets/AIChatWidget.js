@@ -323,6 +323,7 @@ export default function AIChatWidget() {
           <span>AI 농장 비서</span>
           {isStreaming && (
             <span
+              aria-hidden="true"
               style={{
                 width: '8px',
                 height: '8px',
