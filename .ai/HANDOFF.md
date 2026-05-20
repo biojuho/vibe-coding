@@ -7,6 +7,13 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-20 |
+| Tool | Claude Code (Opus 4.7 1M) |
+| Work | **T-366 완료** (고아 위젯 마운트). 사용자가 `/goal resume` 후 진행. `ProfitabilityWidget` + `getProfitabilityData`(서버 액션) + `getProfitabilityEstimates`(서비스)가 다 구현됐고 `WIDGET_REGISTRY`에 `defaultOn:true`로 등록됐지만 `<ProfitabilityWidget />`이 어디에도 렌더 안 되던 미완 기능. SSR 데이터 흐름에 연결: `app/page.js`가 `Promise.all`에 `getProfitabilityData()` 추가 → `initialProfitability` prop → `DashboardClient`가 `widgetSettings.visible.profitability` 게이트로 위젯 렌더. (주의: DashboardClient는 자체 `WIDGET_REGISTRY`를 쓰며 `lib/hooks/useWidgetSettings.js`의 동명 레지스트리와 별개 — 이번에 DashboardClient 쪽 레지스트리에도 profitability 항목이 들어가야 `visible.profitability`가 truthy가 됨.) `profitability-copy.test.mjs`에 마운트 회귀 가드 추가. 커밋 `1047f01`. |
+| Next Priorities | 검증 통과: profitability 테스트 3/3, full `project_qc_runner --project hanwoo-dashboard --json` 통과(test/lint/build). 이번 세션 누적: T-365(profitability 영어 에러 카피 한글화, `172e998`) + T-366(`1047f01`). 남은 Hanwoo TODO는 T-367(formSchemas enum, DB 마이그레이션 동반, approval)뿐 — T-251은 외부/사용자 차단. **모노레포 마이그레이션은 T-372로 재번호**(구 T-368이 DONE의 Codex T-368과 ID 충돌) — `pnpm install` 로컬 exit 127 블로커로 보류, TASKS.md T-372 참조. Active Hanwoo goal 유지. 무관한 root monorepo/package-lock/shorts WIP 보존. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
 | Tool | Codex |
 | Work | **T-371 completed**: continued the active Hanwoo product-completeness goal by finishing another accessibility polish pass. `CattleForm` and `CattleDetailModal` now expose `role="dialog"`, `aria-modal`, visible-title `aria-labelledby`, and Korean icon-button labels; `AIChatWidget` now labels the icon-only send button as `질문 보내기` / `답변 생성 중`. Commit `001621d`. |
 | Next Priorities | Verification passed: focused Hanwoo cattle/AI/component tests passed (`119 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 119, lint, build), `git diff --check` passed, direct UTF-8 graph risk `0.00`, and staged code-review gate PASS. Commit hook emitted the known component test-gap WARN while direct source regression coverage and full QC passed. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Remaining Hanwoo TODOs T-366/T-367 are approval-gated; preserve unrelated root monorepo/package-lock/shorts WIP. |
