@@ -7,6 +7,13 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-20 |
+| Tool | Codex |
+| Work | **T-371 completed**: continued the active Hanwoo product-completeness goal by finishing another accessibility polish pass. `CattleForm` and `CattleDetailModal` now expose `role="dialog"`, `aria-modal`, visible-title `aria-labelledby`, and Korean icon-button labels; `AIChatWidget` now labels the icon-only send button as `질문 보내기` / `답변 생성 중`. Commit `001621d`. |
+| Next Priorities | Verification passed: focused Hanwoo cattle/AI/component tests passed (`119 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 119, lint, build), `git diff --check` passed, direct UTF-8 graph risk `0.00`, and staged code-review gate PASS. Commit hook emitted the known component test-gap WARN while direct source regression coverage and full QC passed. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Remaining Hanwoo TODOs T-366/T-367 are approval-gated; preserve unrelated root monorepo/package-lock/shorts WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
 | Tool | Claude Code (Opus 4.7 1M) |
 | Work | **T-368 진단 (모노레포 마이그레이션 마무리 시도)**. 사용자가 `/goal` 후속으로 모노레포 마이그레이션(pnpm+turbo+biome+uv) 마무리를 선택. 조사 결과 마이그레이션 WIP가 예상보다 덜 끝났고 **로컬 환경 하드 블로커** 발견: `pnpm install`(full, with scripts)이 이 머신(Windows 11 + 한글 홈 `박주호`)에서 linking 단계에 `exit 127`·에러 출력 없이 **6회 연속 중단**. `--ignore-scripts`는 exit 0이나 node_modules 불완전, `--lockfile-only`(linking 없음)만 정상 exit 0. 한글 경로 툴링 취약성(메모리 `windows_korean_path_encode_strict`)과 일치. → 로컬에서 `turbo`/`biome`/`pnpm lint` 검증 불가. **성과**: 부재했던 `pnpm-lock.yaml`을 `pnpm install --lockfile-only`로 생성(루트, 336KB, untracked) — `.gitignore`에 lockfile 제외 없음. **미커밋**: 로컬 검증 불가 + 미해결 설계 결정 때문에 마이그레이션 관련 파일은 일절 커밋하지 않음. WIP 전부 untracked 보존. |
 | Next Priorities | **T-368** TASKS.md에 상세 등록(approval). 미해결 결정: (a) `biome.json` `recommended` + 전 코드베이스 `biome check .` → `pnpm lint` 적색 가능성(blast radius 미측정 — 로컬 install 불가로 못 잼), biome 채택 범위/advisory 결정 필요. (b) hanwoo `package.json` `postinstall: prisma generate` 제거됨 → CI fresh build prisma client 미생성 위험, 복원 또는 turbo/CI에 `prisma generate` 단계 추가 필요. 잔존 정리: suika-game-v2·word-chain `package-lock.json` 미삭제, CI `actions/setup-node@v6→v4` 다운그레이드. **권장 경로**: 마이그레이션 검증은 CI(ubuntu-latest, exit 127은 Windows 한정일 가능성 큼)에서 진행하거나, 로컬 검증이 필요하면 비한글 경로 작업 디렉터리 사용. 이번 세션에서 별도로 **T-365 완료**(profitability widget 영어 에러 카피 한글화, 커밋 `172e998`). Active Hanwoo goal 유지. |
