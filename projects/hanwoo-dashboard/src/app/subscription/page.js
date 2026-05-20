@@ -30,10 +30,10 @@ export default async function SubscriptionPage() {
           letterSpacing: '0.04em',
         }}
       >
-        Joolife Premium Subscription
+        Joolife 프리미엄 구독
       </h1>
       <p style={{ marginBottom: '30px', color: 'var(--color-text-secondary)' }}>
-        Start smarter farm management for KRW 9,900 per month.
+        월 9,900원으로 농장 운영 기록과 AI 보조 기능을 더 안정적으로 사용하세요.
       </p>
 
       <PaymentWidget
@@ -41,7 +41,7 @@ export default async function SubscriptionPage() {
         customerKey={customerKey}
         amount={PREMIUM_SUBSCRIPTION.amount}
         orderName={PREMIUM_SUBSCRIPTION.displayName}
-        customerName={session.user.name || session.user.username || 'Joolife User'}
+        customerName={session.user.name || session.user.username || 'Joolife 사용자'}
       />
     </div>
   );

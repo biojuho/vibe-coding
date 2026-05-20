@@ -25,8 +25,17 @@ test('payment widget exposes Korean product copy for checkout states', () => {
 });
 
 test('subscription result pages avoid bare English loading and status copy', () => {
+  const subscriptionSource = readSource('app/subscription/page.js');
   const successSource = readSource('app/subscription/success/page.js');
   const failSource = readSource('app/subscription/fail/page.js');
+
+  assert.match(subscriptionSource, /Joolife 프리미엄 구독/);
+  assert.match(subscriptionSource, /월 9,900원/);
+  assert.match(subscriptionSource, /Joolife 사용자/);
+  assert.doesNotMatch(subscriptionSource, /Premium Subscription/);
+  assert.doesNotMatch(subscriptionSource, /Start smarter farm management/);
+  assert.doesNotMatch(subscriptionSource, /KRW 9,900 per month/);
+  assert.doesNotMatch(subscriptionSource, /Joolife User/);
 
   assert.match(successSource, /결제가 완료되었습니다/);
   assert.match(successSource, /결제 정보를 불러오는 중입니다/);
