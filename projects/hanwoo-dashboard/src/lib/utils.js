@@ -148,7 +148,8 @@ export function getWeatherDesc(code) {
 }
 
 export function formatMoney(value) {
-  return new Intl.NumberFormat('ko-KR').format(value);
+  const amount = Number(value);
+  return Number.isFinite(amount) ? new Intl.NumberFormat('ko-KR').format(amount) : '0';
 }
 
 export function getLivestockWeatherAlerts(forecast = []) {
