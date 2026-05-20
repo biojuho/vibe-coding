@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-391 completed**: continued Hanwoo product-completeness work by making full-list preload failures recoverable. When feed/calving/sales/analysis or building views need the complete cattle registry or sales ledger, failed background loads now set Korean retry feedback, swallow the background promise rejection, and render a "다시 불러오기" retry action instead of leaving users at a passive loading/ready placeholder. `home-market-copy.test.mjs` guards the contract. Code commit `4748282`. |
+| Next Priorities | Verification passed: focused home/component tests passed (`130 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 130, lint, build), path-limited `git diff --check` passed, and staged code-review gate PASS with the known trailing cp949 reader-thread noise. Commit hook WARN came from heuristic test-gap noise while direct tests covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync. Preserve T-372 monorepo/package-lock WIP and dirty Hanwoo `package.json` unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-390 completed**: continued Hanwoo product-completeness work by localizing the remaining notification/payment user-facing copy. Subscription success confirmation catch paths now log diagnostics and show stable Korean retry copy instead of rendering `error.message`, and `NotificationWidget` no longer shows the English `Priority Alerts` heading. Existing copy tests guard both contracts. Code commit `0d4a395`. |
 | Next Priorities | Verification passed: focused payment/notification/component tests passed (`129 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 129, lint, build), path-limited `git diff --check` passed, and staged code-review gate PASS with the known trailing cp949 reader-thread noise. Commit hook WARN came from heuristic test-gap noise while direct tests covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync. Preserve unrelated root monorepo/package-lock WIP and dirty Hanwoo `package.json` unless explicitly authorized. |
 
