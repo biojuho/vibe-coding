@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` AI chat panel exposes dialog semantics and keyboard dismissal. `AIChatWidget` now marks the open panel as `role="dialog"`, labels it as `AI 농장 비서 채팅`, and closes on `Escape`. Verification passed: focused AI chat widget copy test (`1 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 167, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` AI chat question input exposes an explicit accessible name. `AIChatWidget` now uses `AI 농장 비서에게 보낼 질문` for the input `aria-label` and `title`, so the field no longer relies on placeholder text alone. Verification passed: focused AI chat widget copy test (`1 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 167, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` Inventory inline quantity editor exposes an item-specific accessible name. The edit-mode numeric `PremiumInput` now uses `${item.name} 재고 수량 입력` for `aria-label` and `title`, so operators using assistive technology can distinguish which inventory item quantity is being edited. Verification passed: focused home-market copy test (`16 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 167, lint, build).
