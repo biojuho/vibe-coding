@@ -37,6 +37,7 @@ export default function PaymentWidget({
   customerEmail,
 }) {
   const paymentWidgetRef = useRef(null);
+  const paymentRequestInFlightRef = useRef(false);
   const [price] = useState(amount);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isWidgetReady, setIsWidgetReady] = useState(false);
@@ -89,9 +90,11 @@ export default function PaymentWidget({
   }, [clientKey, customerKey, price]);
 
   const handlePayment = async () => {
-    if (isSubmitting) {
+    if (paymentRequestInFlightRef.current) {
       return;
     }
+
+    paymentRequestInFlightRef.current = true;
 
     try {
       setErrorMessage('');
@@ -154,6 +157,7 @@ export default function PaymentWidget({
           : PAYMENT_REQUEST_ERROR_MESSAGE,
       );
     } finally {
+      paymentRequestInFlightRef.current = false;
       setIsSubmitting(false);
     }
   };

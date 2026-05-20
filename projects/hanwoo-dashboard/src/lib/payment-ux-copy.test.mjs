@@ -29,11 +29,13 @@ test('payment widget exposes Korean product copy for checkout states', () => {
 test('payment widget waits for async payment requests before re-enabling checkout', () => {
   const source = readSource('components/payment/PaymentWidget.js');
 
+  assert.match(source, /const paymentRequestInFlightRef = useRef\(false\)/);
   assert.match(source, /const \[isSubmitting, setIsSubmitting\] = useState\(false\)/);
-  assert.match(source, /const handlePayment = async \(\) => \{\s+if \(isSubmitting\) \{\s+return;\s+\}/);
+  assert.match(source, /const handlePayment = async \(\) => \{\s+if \(paymentRequestInFlightRef\.current\) \{\s+return;\s+\}/);
+  assert.match(source, /paymentRequestInFlightRef\.current = true;/);
   assert.match(source, /setIsSubmitting\(true\);/);
   assert.match(source, /await paymentWidget\.requestPayment\(requestPayload\);/);
-  assert.match(source, /finally \{\s+setIsSubmitting\(false\);/);
+  assert.match(source, /finally \{\s+paymentRequestInFlightRef\.current = false;\s+setIsSubmitting\(false\);/);
   assert.match(source, /disabled=\{isSubmitting \|\| !isWidgetReady\}/);
   assert.match(source, /aria-busy=\{isSubmitting\}/);
 });
