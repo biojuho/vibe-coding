@@ -9,6 +9,21 @@ import { prisma, createOutboxEvent, DASHBOARD_EVENT_TOPICS, recordCattleHistory,
 // Cattle Actions
 // ============================================================
 
+const CATTLE_TAG_DUPLICATE_MESSAGE = "이미 등록된 이력번호입니다. 다른 이력번호를 입력해 주세요.";
+
+function isCattleTagDuplicateError(error) {
+  if (error?.code !== 'P2002') {
+    return false;
+  }
+
+  const target = error?.meta?.target;
+  if (Array.isArray(target)) {
+    return target.includes('tagNumber');
+  }
+
+  return typeof target === 'string' && target.includes('tagNumber');
+}
+
 export async function getCattleList() {
   await requireAuthenticatedSession();
   try {
@@ -79,6 +94,9 @@ export async function createCattle(data) {
     return { success: true, data: created };
   } catch (error) {
     console.error("Failed to create cattle:", error);
+    if (isCattleTagDuplicateError(error)) {
+      return { success: false, message: CATTLE_TAG_DUPLICATE_MESSAGE };
+    }
     return { success: false, message: "개체를 등록하지 못했습니다." };
   }
 }
@@ -142,6 +160,9 @@ export async function updateCattle(id, data) {
     return { success: true, data: updated };
   } catch (error) {
     console.error("Failed to update cattle:", error);
+    if (isCattleTagDuplicateError(error)) {
+      return { success: false, message: CATTLE_TAG_DUPLICATE_MESSAGE };
+    }
     return { success: false, message: "개체 정보를 수정하지 못했습니다." };
   }
 }
@@ -240,6 +261,9 @@ export async function recordCalving(data) {
     return { success: true, data: result };
   } catch (error) {
     console.error("Failed to record calving:", error);
+    if (isCattleTagDuplicateError(error)) {
+      return { success: false, message: CATTLE_TAG_DUPLICATE_MESSAGE };
+    }
     return { success: false, message: "분만 처리를 완료하지 못했습니다." };
   }
 }
