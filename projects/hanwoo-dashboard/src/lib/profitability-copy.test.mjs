@@ -14,15 +14,18 @@ function readSource(relativePath) {
 test('profitability service surfaces Korean operator-facing error copy', () => {
   const source = readSource('lib/dashboard/profitability-service.js');
 
-  // These thrown messages flow through `error: err.message` into
+  // These known business-state messages can flow through to
   // ProfitabilityWidget, which renders `{error}` as visible UI text.
   assert.match(source, /수익성 시뮬레이션에 사용할 시세 데이터가 없습니다/);
   assert.match(source, /시세 데이터를 해석하지 못했습니다/);
   assert.match(source, /수익성 추정 오류/);
+  assert.match(source, /수익성 예측을 불러오지 못했습니다\. 잠시 후 다시 시도해 주세요\./);
+  assert.match(source, /OPERATOR_FACING_ERROR_MESSAGES\.has/);
 
   assert.doesNotMatch(source, /No market price data available/);
   assert.doesNotMatch(source, /Price data parsing failed/);
   assert.doesNotMatch(source, /getProfitabilityEstimates Error/);
+  assert.doesNotMatch(source, /error:\s*err\.message/);
 });
 
 test('profitability widget renders the error message verbatim', () => {
