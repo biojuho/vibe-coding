@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Download } from 'lucide-react';
 
 import { useAppFeedback } from '@/components/feedback/FeedbackProvider';
@@ -12,8 +12,12 @@ const EXCEL_EXPORT_ERROR_MESSAGE = '내보내기 파일을 만들지 못했습�
 export default function ExcelExportButton({ cattleList = [], resolveCattleList = null }) {
   const { notify } = useAppFeedback();
   const [isPreparing, setIsPreparing] = useState(false);
+  const preparingRef = useRef(false);
 
   const handleDownload = async () => {
+    if (preparingRef.current) return;
+
+    preparingRef.current = true;
     setIsPreparing(true);
 
     try {
@@ -49,6 +53,7 @@ export default function ExcelExportButton({ cattleList = [], resolveCattleList =
         variant: 'error',
       });
     } finally {
+      preparingRef.current = false;
       setIsPreparing(false);
     }
   };
