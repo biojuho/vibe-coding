@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` cattle-detail archive actions guard against duplicate async archive requests. `DashboardClient` now tracks `deletingCattleId`, returns early while an archive/delete flow is already active, and clears the lock after confirm/delete completion; `CattleDetailModal` receives `isDeleting` and disables/exposes `aria-busy` on the archive button while active. Verification passed: focused cattle-detail modal wiring test (`10 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 195, lint, build).
+
 - As of 2026-05-21, `hanwoo-dashboard` settings farm information controls stay locked while a farm-settings save is in flight. `SettingsTab` ignores location preset changes when `isSavingFarm` is already true and disables the farm name/location/latitude/longitude controls plus the preset selector while saving, so slow saves cannot race with visible farm settings edits. Verification passed: focused settings accessibility test (`9 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 194, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` cattle-detail breeding record saves guard against duplicate async submissions. `CattleDetailModal` now returns early when `isBreedingSaving` is already true and exposes `aria-busy` on the breeding record submit button, so slow 발정/수정 record saves cannot be submitted twice through rapid submit/Enter paths. Verification passed: focused cattle-detail modal wiring test (`9 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 193, lint, build).
