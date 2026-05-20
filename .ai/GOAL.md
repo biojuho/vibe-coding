@@ -12,6 +12,8 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-410 made Hanwoo cattle-detail edit/delete actions cattle-specific for assistive technology by adding the current cattle name to the edit/delete `aria-label` values and Korean `title` copy; verification passed with focused Hanwoo tests `138 passed`, targeted ESLint, path-limited `git diff --check`, staged code-review gate pass, and full Hanwoo QC (`test` 138, lint, build).
+
 - 2026-05-20: T-409 made Hanwoo schedule calendar date cells keyboard-accessible by replacing clickable date `<div>` cards with native buttons and date-specific Korean `aria-label`/`title` copy; verification passed with focused Hanwoo tests `138 passed`, targeted ESLint, path-limited `git diff --check`, code-review gate WARN from the known graph/test-gap heuristic with unrelated workspace WIP, and full Hanwoo QC (`test` 138, lint, build).
 
 - 2026-05-20: T-408 made Hanwoo QR print actions cattle-specific for assistive technology by exposing `${label} QR 라벨 인쇄` as the print button accessible name; verification passed with focused Hanwoo tests `137 passed`, targeted ESLint, path-limited `git diff --check`, staged review gate JSON pass, and full Hanwoo QC (`test` 137, lint, build after stale Next build lock cleared).

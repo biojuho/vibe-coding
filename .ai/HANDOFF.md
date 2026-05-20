@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-410 completed**: continued Hanwoo product-completeness/accessibility work by labeling cattle-detail edit/delete actions with cattle-specific context. `CattleDetailModal` now includes the current cattle name in the edit/delete button `aria-label` values and Korean `title` copy. `cattle-detail-modal-wiring.test.mjs` guards the labels. Code commit `3f180c5`. |
+| Next Priorities | Verification passed: focused Hanwoo tests passed (`138 passed`), targeted ESLint passed, path-limited `git diff --check` passed, staged `code_review_gate --staged --json` passed, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 138, lint, build). Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-409 completed**: continued Hanwoo product-completeness/accessibility work by making schedule calendar date cells keyboard-accessible. `ScheduleTab` now renders monthly date cells as native `button` elements with `type="button"`, date-specific Korean `aria-label`/`title` copy (`${dateStr} 일정 등록 열기`), and left-aligned inherited text styling while preserving the existing card layout. `home-market-copy.test.mjs` guards against returning to `<div onClick>`. Code commit `e756acd`. |
 | Next Priorities | Verification passed: focused Hanwoo tests passed (`138 passed`), targeted ESLint passed, path-limited `git diff --check` passed, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 138, lint, build). Staged `code_review_gate --staged --json` WARN was the known graph/test-gap heuristic with unrelated workspace WIP; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
 
