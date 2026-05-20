@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-393 completed**: continued Hanwoo product-completeness work by fixing the Quick Action sales path. The `record-sale` quick action now uses the same tab preloading path as bottom-tab navigation, so opening Sales from the home quick action starts the full cattle registry load instead of leaving the Sales form blocked behind a passive preparing state. `home-market-copy.test.mjs` guards that both normal tab navigation and quick actions call `preloadForTab`. Code commit `f38aed9`. |
+| Next Priorities | Verification passed: focused Hanwoo tests passed (`130 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 130, lint, build), path-limited `git diff --check` passed, and staged code-review gate PASS with the known trailing cp949 reader-thread noise. Commit hook WARN was heuristic and included unrelated dirty shorts WIP while direct Hanwoo tests covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, T-320 and T-372 remain approval-scoped. Preserve unrelated T-372/shorts WIP and dirty Hanwoo `package.json` unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-392 completed**: continued Hanwoo product-completeness work by localizing the weather timeout degradation path. `DashboardClient` and `useWeather` now reuse the Korean `WEATHER_STALE_MESSAGE` when Open-Meteo times out instead of showing the old English "Showing the last available weather snapshot..." fallback. `home-market-copy.test.mjs` now guards both paths against that English regression. Code commit `e9030e0`. |
 | Next Priorities | Verification passed: focused Hanwoo tests passed (`130 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 130, lint, build), path-limited `git diff --check` passed, and staged code-review gate PASS with the known trailing cp949 reader-thread noise. Commit hook WARN came from heuristic test-gap noise while direct tests covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, T-320 and T-372 remain approval-scoped. Preserve T-372 monorepo/package-lock WIP and dirty Hanwoo `package.json` unless explicitly authorized. |
 

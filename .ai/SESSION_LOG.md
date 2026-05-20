@@ -1035,3 +1035,29 @@
 ### Follow-up
 - Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
 - T-320 and T-372 remain approval-scoped. Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts.
+## 2026-05-20 KST - Codex
+
+### Summary
+- Completed T-393 for `hanwoo-dashboard` while continuing the active product-completeness goal.
+- Fixed the home Quick Action sales path: `record-sale` now uses the same `preloadForTab` path as bottom-tab navigation, so Sales starts the full cattle registry load instead of opening into a passive preparing state.
+- Added source regression coverage in `home-market-copy.test.mjs` for normal tab navigation and quick-action preloading.
+
+### Changed Files
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/CONTEXT.md`
+- `.ai/GOAL.md`
+- `projects/hanwoo-dashboard/src/components/DashboardClient.js`
+- `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs`
+
+### Verification
+- `npm.cmd test -- src/lib/home-market-copy.test.mjs src/lib/component-imports.test.mjs` from `projects/hanwoo-dashboard` -> `130 passed`.
+- `npx.cmd eslint src/components/DashboardClient.js src/lib/home-market-copy.test.mjs` from `projects/hanwoo-dashboard` -> passed.
+- `python execution/project_qc_runner.py --project hanwoo-dashboard --json` -> passed (`test` 130, lint passed, build passed).
+- `git diff --check -- projects/hanwoo-dashboard/src/components/DashboardClient.js projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` -> passed.
+- `python execution/code_review_gate.py --staged --json` -> PASS; trailing cp949 reader-thread exception is known Windows output noise.
+
+### Follow-up
+- Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
+- T-320 and T-372 remain approval-scoped. Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, package locks, and shorts-maker-v2 files.

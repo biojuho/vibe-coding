@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` Quick Action navigation preloads the data required by its target tab. The `record-sale` home quick action now calls the shared `preloadForTab` path, matching bottom-tab navigation, so Sales no longer opens into a passive preparing state without starting the full cattle registry load. Verification passed: focused tests (`130 passed`), targeted ESLint, full Hanwoo QC (`test` 130, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
+
 - As of 2026-05-20, `hanwoo-dashboard` weather timeout degradation no longer exposes the old English stale-weather fallback. `DashboardClient` and `useWeather` reuse Korean `WEATHER_STALE_MESSAGE` for Open-Meteo timeouts, and `home-market-copy.test.mjs` guards both paths against `Showing the last available weather snapshot...`. Verification passed: focused tests (`130 passed`), targeted ESLint, full Hanwoo QC (`test` 130, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
 
 - As of 2026-05-20, `hanwoo-dashboard` full-list preload failures are recoverable in the UI. Feed/calving/sales/analysis and building views that require complete cattle/sales datasets now set Korean retry feedback, swallow background promise rejections, and render a `다시 불러오기` action instead of leaving users at a passive loading/ready placeholder. Verification passed: focused tests (`130 passed`), targeted ESLint, full Hanwoo QC (`test` 130, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.

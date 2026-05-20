@@ -12,6 +12,7 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-393 fixed the Quick Action sales path so `record-sale` reuses the shared tab preloading path and starts the full cattle registry load before Sales renders; verification passed with focused Hanwoo tests `130 passed`, targeted ESLint, full Hanwoo QC (`test` 130, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
 - 2026-05-20: T-392 localized the weather timeout degradation path so `DashboardClient` and `useWeather` reuse Korean `WEATHER_STALE_MESSAGE` instead of the old English stale-weather fallback; verification passed with focused Hanwoo tests `130 passed`, targeted ESLint, full Hanwoo QC (`test` 130, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
 - 2026-05-20: T-391 made full-list preload failures recoverable in the UI so feed/calving/sales/analysis and building views show Korean retry feedback plus a `다시 불러오기` action instead of passive placeholders; verification passed with focused Hanwoo tests `130 passed`, targeted ESLint, full Hanwoo QC (`test` 130, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
 - 2026-05-20: T-390 localized remaining notification/payment user-facing copy: subscription success catch paths no longer render raw `error.message`, and notification widget priority heading is Korean; verification passed with focused Hanwoo tests `129 passed`, targeted ESLint, full Hanwoo QC (`test` 129, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
