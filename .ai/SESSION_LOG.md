@@ -895,6 +895,36 @@
 ## 2026-05-21 KST - Codex
 
 ### Summary
+- Completed T-509 for `hanwoo-dashboard` while continuing the active quality-uplift goal.
+- Rejected malformed inline inventory quantity edits before update actions.
+- `InventoryTab` now parses the inline quantity editor with a plain nonnegative decimal pattern and passes the parsed number to `onUpdateQuantity`, so values such as `1e3` or `0x10` cannot bypass the client guard.
+
+### Changed Files
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/CONTEXT.md`
+- `.ai/GOAL.md`
+- `projects/hanwoo-dashboard/src/components/tabs/InventoryTab.js`
+- `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs`
+- `projects/hanwoo-dashboard/src/lib/empty-state-wiring.test.mjs`
+
+### Verification
+- `node --test src/lib/home-market-copy.test.mjs src/lib/empty-state-wiring.test.mjs` from `projects/hanwoo-dashboard` -> `34 passed`.
+- `npm.cmd exec eslint src/components/tabs/InventoryTab.js src/lib/home-market-copy.test.mjs src/lib/empty-state-wiring.test.mjs` from `projects/hanwoo-dashboard` -> passed.
+- `git diff --check -- projects/hanwoo-dashboard/src/components/tabs/InventoryTab.js projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs projects/hanwoo-dashboard/src/lib/empty-state-wiring.test.mjs` -> passed.
+- First full `python execution/project_qc_runner.py --project hanwoo-dashboard --json` run failed because `empty-state-wiring.test.mjs` still expected the old `editQty` contract; after updating that regression assertion, the focused tests passed.
+- Final `python execution/project_qc_runner.py --project hanwoo-dashboard --json` -> passed (`test` 204, lint passed, build passed).
+- `python execution/code_review_gate.py --staged --json` -> PASS (`risk_score 0.0`); trailing cp949 reader-thread exception is known Windows output noise.
+- Commit hook advisory gate reported WARN (`risk=0.40`, graph/test-gap heuristic), but the focused tests plus full Hanwoo QC passed.
+
+### Follow-up
+- Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
+- T-320, T-372, and T-407 remain approval-scoped. Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, package locks, setup files, workspace debt auditor files, and shorts-maker-v2 files.
+
+## 2026-05-21 KST - Codex
+
+### Summary
 - Completed T-508 for `hanwoo-dashboard` while continuing the active quality-uplift goal.
 - Rejected malformed gateway `totalAmount` values before treating payment confirmation as successful.
 - `classifyPaymentConfirmationResult()` now parses `payload.totalAmount` only as a safe integer number or all-digit string before comparing with the expected subscription amount, so values such as `0x26ac` cannot be coerced to `9900`.
