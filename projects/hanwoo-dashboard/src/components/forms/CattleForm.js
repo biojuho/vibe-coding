@@ -18,6 +18,8 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
   const dialogRef = useRef(null);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupMsg, setLookupMsg] = useState(null);
+  const tagNumberErrorId = 'cattle-tag-number-error';
+  const tagLookupMessageId = 'cattle-tag-lookup-message';
 
   const {
     register,
@@ -102,6 +104,11 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
     });
   };
 
+  const tagNumberDescriptionIds = [
+    errors.tagNumber ? tagNumberErrorId : null,
+    lookupMsg ? tagLookupMessageId : null,
+  ].filter(Boolean).join(' ') || undefined;
+
   return (
     <div className="modal-overlay" style={{ alignItems: 'flex-start', paddingTop: '20px' }}>
       <div
@@ -184,13 +191,14 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
                 style={{ ...inputStyle, flex: 1 }}
                 placeholder="002082037849"
                 aria-invalid={Boolean(errors.tagNumber)}
-                aria-describedby={errors.tagNumber ? "cattle-tag-number-error" : undefined}
+                aria-describedby={tagNumberDescriptionIds}
                 {...register('tagNumber')}
               />
               <button
                 type="button"
                 onClick={handleLookup}
                 disabled={lookupLoading}
+                aria-busy={lookupLoading}
                 style={{
                   padding: '10px 14px',
                   borderRadius: 'var(--radius-md)',
@@ -208,9 +216,12 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
                 {lookupLoading ? '조회 중...' : '태그 조회'}
               </button>
             </div>
-            {errors.tagNumber ? <div id="cattle-tag-number-error" role="alert" style={errorTextStyle}>{errors.tagNumber.message}</div> : null}
+            {errors.tagNumber ? <div id={tagNumberErrorId} role="alert" style={errorTextStyle}>{errors.tagNumber.message}</div> : null}
             {lookupMsg ? (
               <div
+                id={tagLookupMessageId}
+                role={lookupMsg.ok ? 'status' : 'alert'}
+                aria-live={lookupMsg.ok ? 'polite' : 'assertive'}
                 style={{
                   fontSize: '12px',
                   marginTop: '6px',

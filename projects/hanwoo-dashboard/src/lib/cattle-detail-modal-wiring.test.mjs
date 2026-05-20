@@ -108,7 +108,6 @@ test('cattle form validation messages are announced with their controls', () => 
 
   [
     ['name', 'errors.name'],
-    ['tag-number', 'errors.tagNumber'],
     ['building', 'errors.buildingId'],
     ['pen-number', 'errors.penNumber'],
     ['gender', 'errors.gender'],
@@ -130,6 +129,21 @@ test('cattle form validation messages are announced with their controls', () => 
     );
     assert.match(formSource, new RegExp(`<div id="${errorId}" role="alert"`));
   });
+});
+
+test('cattle tag lookup progress and results are announced', () => {
+  const formSource = readSource('components/forms/CattleForm.js');
+
+  assert.match(formSource, /const tagNumberErrorId = 'cattle-tag-number-error'/);
+  assert.match(formSource, /const tagLookupMessageId = 'cattle-tag-lookup-message'/);
+  assert.match(formSource, /const tagNumberDescriptionIds = \[/);
+  assert.match(formSource, /errors\.tagNumber \? tagNumberErrorId : null/);
+  assert.match(formSource, /lookupMsg \? tagLookupMessageId : null/);
+  assert.match(formSource, /aria-describedby=\{tagNumberDescriptionIds\}/);
+  assert.match(formSource, /aria-busy=\{lookupLoading\}/);
+  assert.match(formSource, /id=\{tagLookupMessageId\}/);
+  assert.match(formSource, /role=\{lookupMsg\.ok \? 'status' : 'alert'\}/);
+  assert.match(formSource, /aria-live=\{lookupMsg\.ok \? 'polite' : 'assertive'\}/);
 });
 
 test('cattle detail decorative icons are hidden from assistive tech', () => {
