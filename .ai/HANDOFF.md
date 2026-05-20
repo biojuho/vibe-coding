@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-496 completed**: Hanwoo Settings building deletion now guards the pre-confirmation race. `SettingsTab` uses `deleteBuildingInFlightRef` as an immediate lock before the async confirmation dialog opens, so rapid repeated delete clicks cannot stack multiple confirms before `deletingBuildingId` is set. The visible row disabled/`aria-busy` state still follows the active building id, and `settings-tab-accessibility.test.mjs` guards the contract. Code commit `bab52fa`. |
+| Next Priorities | Verification passed: focused settings accessibility test (`9 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 199, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known advisory graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-495 completed**: Hanwoo cattle detail edit action now stays locked while an archive/delete request is in flight. `CattleDetailModal` applies the existing `isDeleting` lock to the edit button as well as the archive button, so operators cannot switch into edit mode while a slow archive flow is still resolving. `cattle-detail-modal-wiring.test.mjs` guards the contract. Code commit `52b3ed1`. |
 | Next Priorities | Verification passed: focused cattle-detail modal wiring test (`10 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 199, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known advisory graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 
