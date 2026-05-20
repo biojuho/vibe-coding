@@ -1123,13 +1123,26 @@ export default function DashboardClient({
           </div>
           <div className="flex gap-2.5 pt-0.5">
             <ExcelExportButton cattleList={cattleList} resolveCattleList={ensureAllCattleLoaded} />
-            <PremiumButton variant="outline" size="icon" onClick={() => setShowNotifications(true)} className="relative shadow-[var(--shadow-sm)]">
+            <PremiumButton
+              variant="outline"
+              size="icon"
+              onClick={() => setShowNotifications(true)}
+              aria-label="알림 센터 열기"
+              title="알림 센터"
+              className="relative shadow-[var(--shadow-sm)]"
+            >
               <Bell className="h-5 w-5" />
               {notifications.some((notification) => notification.level === 'critical') && (
                 <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-destructive border-2 border-background animate-pulse shadow-[0_0_10px_hsl(var(--destructive))]" />
               )}
             </PremiumButton>
-            <PremiumButton size="icon" onClick={() => setShowAddModal(true)} className="shadow-[var(--shadow-button-primary)]">
+            <PremiumButton
+              size="icon"
+              onClick={() => setShowAddModal(true)}
+              aria-label="개체 등록 열기"
+              title="개체 등록"
+              className="shadow-[var(--shadow-button-primary)]"
+            >
               <Plus className="h-5 w-5" />
             </PremiumButton>
           </div>
@@ -1207,7 +1220,14 @@ export default function DashboardClient({
         ) : !selectedPenId ? (
           <div className="animate-fadeIn">
             <div className="flex items-center gap-3 mb-4">
-              <PremiumButton variant="ghost" size="icon" onClick={() => setSelectedBuildingId(null)} className="h-9 w-9">
+              <PremiumButton
+                variant="ghost"
+                size="icon"
+                onClick={() => setSelectedBuildingId(null)}
+                aria-label="축사 목록으로 돌아가기"
+                title="축사 목록으로 돌아가기"
+                className="h-9 w-9"
+              >
                 <ArrowLeft className="h-5 w-5" />
               </PremiumButton>
               <h2 className="text-lg font-extrabold text-foreground">{buildings.find((building) => building.id === selectedBuildingId)?.name}</h2>
@@ -1223,7 +1243,14 @@ export default function DashboardClient({
         ) : (
           <div className="animate-fadeIn">
             <div className="flex items-center gap-3 mb-4">
-              <PremiumButton variant="ghost" size="icon" onClick={() => setSelectedPenId(null)} className="h-9 w-9">
+              <PremiumButton
+                variant="ghost"
+                size="icon"
+                onClick={() => setSelectedPenId(null)}
+                aria-label="칸 목록으로 돌아가기"
+                title="칸 목록으로 돌아가기"
+                className="h-9 w-9"
+              >
                 <ArrowLeft className="h-5 w-5" />
               </PremiumButton>
               <h2 className="text-lg font-extrabold text-foreground">{selectedPenId}번 칸 상세</h2>

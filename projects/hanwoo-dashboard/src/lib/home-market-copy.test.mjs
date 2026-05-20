@@ -30,6 +30,20 @@ test('home dashboard fallback and panel labels use Korean product copy', () => {
   assert.doesNotMatch(source, /All rights reserved/);
 });
 
+test('home dashboard icon-only actions expose Korean accessible labels', () => {
+  const source = readSource('components/DashboardClient.js');
+
+  assert.match(source, /aria-label="알림 센터 열기"/);
+  assert.match(source, /title="알림 센터"/);
+  assert.match(source, /aria-label="개체 등록 열기"/);
+  assert.match(source, /title="개체 등록"/);
+  assert.match(source, /aria-label="축사 목록으로 돌아가기"/);
+  assert.match(source, /aria-label="칸 목록으로 돌아가기"/);
+  assert.doesNotMatch(source, /aria-label="Notifications"/);
+  assert.doesNotMatch(source, /aria-label="Add cattle"/);
+  assert.doesNotMatch(source, /aria-label="Back"/);
+});
+
 test('market price widget uses Korean product copy for visible states', () => {
   const source = readSource('components/widgets/MarketPriceWidget.js');
 
