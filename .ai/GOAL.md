@@ -12,7 +12,7 @@
 
 ## Progress Notes
 
-- 2026-05-20: T-454 announced Hanwoo cattle-detail breeding date validation with the date input. `CattleDetailModal` now connects the breeding record date input to `breeding-record-date-error` through conditional `aria-describedby`, keeps `aria-invalid` tied to `breedingError`, and renders the validation message as `role="alert"`. Verification passed with focused cattle-detail modal wiring test (`5 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 168, lint, build), and staged code-review gate JSON (`risk_score 0.0`). Commit `5ffe7a8`.
+- 2026-05-20: T-456 announced Hanwoo cattle-detail breeding date validation with the date input. `CattleDetailModal` now connects the breeding record date input to `breeding-record-date-error` through conditional `aria-describedby`, keeps `aria-invalid` tied to `breedingError`, and renders the validation message as `role="alert"`. Verification passed with focused cattle-detail modal wiring test (`5 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 168, lint, build), and staged code-review gate JSON (`risk_score 0.0`). Commit `5ffe7a8`.
 
 - 2026-05-20: T-455 labeled the Hanwoo admin diagnostics raw-data selector. The model selector now exposes `검사할 원본 데이터 선택` via `aria-label` and `title`, so it has a direct accessible name instead of relying on nearby section copy. Verification passed with focused diagnostics copy test (`1 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 167, lint, build), and staged code-review gate JSON (`risk_score 0.0`). Commit `6c350c2`.
 
