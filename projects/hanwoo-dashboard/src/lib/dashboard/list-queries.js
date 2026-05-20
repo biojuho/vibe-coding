@@ -59,9 +59,13 @@ function parseDateParam(value, fieldName) {
     return null;
   }
 
+  const label = fieldName === 'from' ? '시작일' : '종료일';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    throw new DashboardQueryValidationError(`${label}은 YYYY-MM-DD 형식으로 입력해 주세요.`);
+  }
+
   const parsed = new Date(`${normalized}T00:00:00.000Z`);
-  if (Number.isNaN(parsed.getTime())) {
-    const label = fieldName === 'from' ? '시작일' : '종료일';
+  if (Number.isNaN(parsed.getTime()) || toDateKey(parsed) !== normalized) {
     throw new DashboardQueryValidationError(`${label}은 YYYY-MM-DD 형식으로 입력해 주세요.`);
   }
 

@@ -347,6 +347,8 @@ test('dashboard API fallback messages stay operator-facing Korean', () => {
   assert.match(listQueries, /목록 개수는 1 이상 숫자로 입력해 주세요/);
   assert.match(listQueries, /목록 위치 정보가 올바르지 않습니다/);
   assert.match(listQueries, /시작일은 종료일보다 늦을 수 없습니다/);
+  assert.match(listQueries, /\/\^\\d\{4\}-\\d\{2\}-\\d\{2\}\$\/\.test/);
+  assert.match(listQueries, /toDateKey\(parsed\) !== normalized/);
   assert.doesNotMatch(cattleRoute, /message: error\.message \|\|/);
   assert.doesNotMatch(salesRoute, /message: error\.message \|\|/);
   assert.doesNotMatch(summaryRoute, /message: error\.message \|\|/);
