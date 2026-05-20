@@ -153,6 +153,14 @@ test('weather widget uses Korean product copy for unavailable state', () => {
   assert.doesNotMatch(source, /Weather data is temporarily unavailable/);
   assert.match(source, /<div className="weather-icon-bg" aria-hidden="true">\{icon\}<\/div>/);
   assert.match(source, /<div aria-hidden="true" style=\{\{fontSize:"18px",marginBottom:"3px",lineHeight:1\}\}>\{item\.i\}<\/div>/);
+  assert.match(source, /<span aria-hidden="true">📍<\/span> \{weather\.locationName\}/);
+  assert.match(source, /<span aria-hidden="true">\{icon\}<\/span> \{desc\}/);
+  assert.match(source, /<span aria-hidden="true">🐂<\/span> 온열지수: \{thiLevel\.label\}/);
+  assert.match(source, /<span aria-hidden="true">📅<\/span> 3일 예보/);
+  assert.match(source, /<div aria-label=\{getWeatherDesc\(day\.weatherCode\)\} style=\{\{fontSize:"24px",marginBottom:"4px"\}\}>\{getWeatherIcon\(day\.weatherCode\)\}<\/div>/);
+  assert.match(source, /<span aria-hidden="true">🌧<\/span> 강수 \{day\.precipProb\}%/);
+  assert.match(source, /<span aria-hidden="true">🐄<\/span> 가축 기상 경고/);
+  assert.match(source, /<span aria-hidden="true">\{a\.icon\}<\/span> \{a\.msg\}/);
   assert.match(dashboardSource, /WEATHER_STALE_MESSAGE/);
   assert.match(hookSource, /WEATHER_STALE_MESSAGE/);
   assert.doesNotMatch(dashboardSource, /Showing the last available weather snapshot/);

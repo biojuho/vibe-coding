@@ -46,3 +46,18 @@ test('profitability widget is mounted on the dashboard, not orphaned', () => {
   assert.match(page, /getProfitabilityData/);
   assert.match(page, /initialProfitability=\{profitability\}/);
 });
+
+test('premium card header renders profitability widget title props as visible content', () => {
+  const source = readSource('components/ui/premium-card.js');
+  const headerSource = source.slice(
+    source.indexOf('const PremiumCardHeader'),
+    source.indexOf('PremiumCardHeader.displayName'),
+  );
+
+  assert.match(headerSource, /\(\{ className, title, icon, description, children, \.\.\.props \}/);
+  assert.match(headerSource, /<h3[\s\S]*\{title\}[\s\S]*<\/h3>/);
+  assert.match(headerSource, /<p[\s\S]*\{description\}[\s\S]*<\/p>/);
+  assert.match(headerSource, /<span aria-hidden="true"[\s\S]*\{icon\}[\s\S]*<\/span>/);
+  assert.match(headerSource, /\{children\}/);
+  assert.doesNotMatch(headerSource, /\{\.\.\.props\}\s*\/>/);
+});

@@ -93,12 +93,12 @@ export function WeatherWidget({weather}){
         <PremiumCardContent className="p-5">
         <div className="weather-icon-bg" aria-hidden="true">{icon}</div>
         <div style={{fontSize:"12px",opacity:0.8,marginBottom:"8px",position:"relative"}}>
-          📍 {weather.locationName} · {new Date().toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'})} 기준
+          <span aria-hidden="true">📍</span> {weather.locationName} · {new Date().toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'})} 기준
         </div>
         <div style={{display:"flex",alignItems:"flex-end",gap:"14px",marginBottom:"16px",position:"relative"}}>
           <span style={{fontSize:"52px",fontWeight:800,fontFamily:"var(--font-display)",lineHeight:1,textShadow:"0 4px 12px rgba(0,0,0,0.2)"}}>{Math.round(weather.temp)}°</span>
           <div style={{paddingBottom:"6px"}}>
-            <div style={{fontSize:"22px",marginBottom:"2px"}}>{icon} {desc}</div>
+            <div style={{fontSize:"22px",marginBottom:"2px"}}><span aria-hidden="true">{icon}</span> {desc}</div>
             <div style={{fontSize:"13px",opacity:0.75}}>체감 {Math.round(weather.apparentTemp)}°C</div>
           </div>
         </div>
@@ -144,7 +144,7 @@ export function WeatherWidget({weather}){
           <span style={{fontSize:"8px",fontWeight:600,opacity:0.9}}>THI</span>
         </div>
         <div>
-          <div style={{fontWeight:700,fontSize:"15px",color:thiLevel.color}}>🐂 온열지수: {thiLevel.label}</div>
+          <div style={{fontWeight:700,fontSize:"15px",color:thiLevel.color}}><span aria-hidden="true">🐂</span> 온열지수: {thiLevel.label}</div>
           <div style={{fontSize:"12px",color:"var(--color-text-secondary)",marginTop:"2px"}}>{thiLevel.desc}</div>
         </div>
       </div>
@@ -158,7 +158,7 @@ export function WeatherWidget({weather}){
           marginTop:"12px",
           border:"1px solid var(--color-border)"
         }}>
-          <div style={{fontSize:"13px",fontWeight:700,color:"var(--color-text)",marginBottom:"10px"}}>📅 3일 예보</div>
+          <div style={{fontSize:"13px",fontWeight:700,color:"var(--color-text)",marginBottom:"10px"}}><span aria-hidden="true">📅</span> 3일 예보</div>
           <div style={{display:"grid",gridTemplateColumns:`repeat(${weather.forecast.length},1fr)`,gap:"10px"}}>
             {weather.forecast.map((day, idx) => {
               const dayLabel = idx === 0 ? "오늘" : new Date(day.date).toLocaleDateString('ko-KR', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -171,12 +171,12 @@ export function WeatherWidget({weather}){
                   transition:"all var(--transition-fast)"
                 }}>
                   <div style={{fontSize:"11px",color:"var(--color-text-muted)",marginBottom:"4px"}}>{dayLabel}</div>
-                  <div style={{fontSize:"24px",marginBottom:"4px"}}>{getWeatherIcon(day.weatherCode)}</div>
+                  <div aria-label={getWeatherDesc(day.weatherCode)} style={{fontSize:"24px",marginBottom:"4px"}}>{getWeatherIcon(day.weatherCode)}</div>
                   <div style={{fontSize:"13px",fontWeight:700,fontFamily:"var(--font-display)",color:"var(--color-text)"}}>
                     {Math.round(day.tempMax)}° / {Math.round(day.tempMin)}°
                   </div>
                   {day.precipProb > 0 && (
-                    <div style={{fontSize:"10px",color:"var(--color-info)",marginTop:"2px"}}>🌧 {day.precipProb}%</div>
+                    <div style={{fontSize:"10px",color:"var(--color-info)",marginTop:"2px"}}><span aria-hidden="true">🌧</span> 강수 {day.precipProb}%</div>
                   )}
                 </div>
               );
@@ -197,10 +197,10 @@ export function WeatherWidget({weather}){
             padding:"12px 16px",
             marginTop:"10px"
           }}>
-            <div style={{fontSize:"12px",fontWeight:700,color:"var(--color-warning)",marginBottom:"6px"}}>🐄 가축 기상 경고</div>
+            <div style={{fontSize:"12px",fontWeight:700,color:"var(--color-warning)",marginBottom:"6px"}}><span aria-hidden="true">🐄</span> 가축 기상 경고</div>
             {alerts.map((a, i) => (
               <div key={i} style={{fontSize:"12px",color:"var(--color-text)",padding:"3px 0"}}>
-                {a.icon} {a.msg}
+                <span aria-hidden="true">{a.icon}</span> {a.msg}
               </div>
             ))}
           </div>

@@ -13,12 +13,41 @@ const PremiumCard = React.forwardRef(({ className, ...props }, ref) => (
 ))
 PremiumCard.displayName = "PremiumCard"
 
-const PremiumCardHeader = React.forwardRef(({ className, ...props }, ref) => (
+const PremiumCardHeader = React.forwardRef(({ className, title, icon, description, children, ...props }, ref) => (
   <div
     ref={ref}
     className={cn("flex flex-col space-y-1.5 p-6 relative z-10", className)}
     {...props}
-  />
+  >
+    {(title || icon || description) && (
+      <div className="flex items-start gap-3">
+        {icon ? (
+          <span aria-hidden="true" className="text-xl leading-none shrink-0">
+            {icon}
+          </span>
+        ) : null}
+        <div className="min-w-0">
+          {title ? (
+            <h3
+              className="text-lg font-bold leading-tight"
+              style={{ color: 'var(--premium-card-title)' }}
+            >
+              {title}
+            </h3>
+          ) : null}
+          {description ? (
+            <p
+              className="text-sm mt-1"
+              style={{ color: 'var(--premium-card-subtitle)' }}
+            >
+              {description}
+            </p>
+          ) : null}
+        </div>
+      </div>
+    )}
+    {children}
+  </div>
 ))
 PremiumCardHeader.displayName = "PremiumCardHeader"
 
