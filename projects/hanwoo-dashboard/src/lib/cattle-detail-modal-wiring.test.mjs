@@ -149,6 +149,10 @@ test('cattle form validation messages are announced with their controls', () => 
 test('cattle tag lookup progress and results are announced', () => {
   const formSource = readSource('components/forms/CattleForm.js');
 
+  assert.match(formSource, /const lookupInFlightRef = useRef\(false\)/);
+  assert.match(formSource, /if \(lookupInFlightRef\.current\) \{\s+return;\s+\}/);
+  assert.match(formSource, /lookupInFlightRef\.current = true;/);
+  assert.match(formSource, /lookupInFlightRef\.current = false;/);
   assert.match(formSource, /const tagNumberErrorId = 'cattle-tag-number-error'/);
   assert.match(formSource, /const tagLookupMessageId = 'cattle-tag-lookup-message'/);
   assert.match(formSource, /const tagNumberDescriptionIds = \[/);

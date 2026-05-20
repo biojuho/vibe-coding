@@ -16,6 +16,7 @@ const errorTextStyle = {
 
 export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel }) {
   const dialogRef = useRef(null);
+  const lookupInFlightRef = useRef(false);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupMsg, setLookupMsg] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -51,6 +52,10 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
   };
 
   const handleLookup = async () => {
+    if (lookupInFlightRef.current) {
+      return;
+    }
+
     const tagNumber = getValues('tagNumber');
 
     if (!tagNumber) {
@@ -58,6 +63,7 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
       return;
     }
 
+    lookupInFlightRef.current = true;
     setLookupLoading(true);
     setLookupMsg(null);
 
@@ -88,6 +94,7 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
     } catch {
       setLookupMsg({ ok: false, text: '조회 중 오류가 발생했습니다.' });
     } finally {
+      lookupInFlightRef.current = false;
       setLookupLoading(false);
     }
   };
