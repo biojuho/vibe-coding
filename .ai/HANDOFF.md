@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-466 completed**: Hanwoo notification modal now focuses the dialog surface on open so Escape dismissal is reliable for keyboard users. `NotificationModal` uses `useRef`/`useEffect` to focus the `role="dialog"` container when mounted, preserving the existing overlay click close and close button. `notification-modal-copy.test.mjs` guards the focus + Escape contract. Code commit `81bdf3d`. |
+| Next Priorities | Verification passed: focused notification modal copy test (`5 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 177, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-465 completed**: Hanwoo clickable pen cards and cattle rows now use native button semantics. `PenCard` and `CattleRow` render as `<button type="button">` instead of `div role="button"` plus custom keyboard handling, preserving their accessible labels, drag/drop hooks, and visual card styling through reset CSS. `cards-accessibility.test.mjs` guards the native-button contract and CSS reset. Code commit `d8c3abc`. |
 | Next Priorities | Verification passed: focused cards accessibility test (`2 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 177, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 
