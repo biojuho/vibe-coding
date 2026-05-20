@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Download } from 'lucide-react';
 
 import { useAppFeedback } from '@/components/feedback/FeedbackProvider';
 import { PremiumButton } from '@/components/ui/premium-button';
@@ -55,9 +56,10 @@ export default function ExcelExportButton({ cattleList = [], resolveCattleList =
       size="sm"
       onClick={handleDownload}
       disabled={isPreparing}
+      aria-busy={isPreparing}
       className="gap-1.5 font-bold shadow-md"
     >
-      <span className="text-[#1D6F42] text-[14px]">?</span>
+      <Download size={14} className="text-[#1D6F42]" aria-hidden="true" />
       {isPreparing ? '준비 중...' : '엑셀 다운로드'}
     </PremiumButton>
   );
