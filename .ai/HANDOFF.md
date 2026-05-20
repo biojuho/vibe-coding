@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-381 completed**: continued Hanwoo product-completeness work by preventing raw runtime/Prisma exception messages from leaking through tab action toast failures. `recordFeed`, `addInventoryItem`, `updateInventoryQuantity`, `createScheduleEvent`, and `toggleEventCompletion` now log diagnostics and return Korean product fallback copy for user-facing failures. `actions-copy.test.mjs` guards the Korean fallbacks and rejects raw `e.message`/`error.message` returns in these actions. Code commit `517daef`. |
+| Next Priorities | Verification passed: focused action/component tests passed (`126 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 126, lint, build), path-limited `git diff --check` passed, direct graph risk `0.00`, and staged code-review gate PASS. Commit hook WARN came from dirty-WIP/test-gap heuristics while direct tests covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync. Preserve unrelated root monorepo/package-lock/shorts WIP plus dirty Hanwoo `package.json` unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-380 completed**: continued Hanwoo product-completeness work by replacing the broken `?` glyph in the cattle Excel export button with a real lucide `Download` icon. The icon is decorative (`aria-hidden`) and the button now exposes `aria-busy` while preparing the export. Added `excel-export-button-copy.test.mjs` to prevent the placeholder glyph from returning. Code commit `a65c6ed`. |
 | Next Priorities | Verification passed: focused Excel export/component tests passed (`126 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 126, lint, build), path-limited `git diff --check` passed, direct graph risk `0.00`, and staged code-review gate PASS. Commit hook WARN came from dirty-WIP/test-gap heuristics while direct tests covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync. Preserve unrelated root monorepo/package-lock/shorts WIP plus dirty Hanwoo `package.json` unless explicitly authorized. |
 
