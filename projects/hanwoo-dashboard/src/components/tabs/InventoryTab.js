@@ -21,6 +21,7 @@ const errorTextStyle = {
 export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, quickActionIntent = null }) {
   const [isAdding, setIsAdding] = useState(() => quickActionIntent?.actionId === 'add-inventory');
   const [isSaving, setIsSaving] = useState(false);
+  const [savingQuantityId, setSavingQuantityId] = useState(null);
   const [editId, setEditId] = useState(null);
   const [editQty, setEditQty] = useState('');
 
@@ -72,17 +73,27 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
   };
 
   const handleUpdate = async (id) => {
+    if (savingQuantityId) {
+      return;
+    }
+
     if (editQty === '' || Number(editQty) < 0) {
       return;
     }
 
-    const saved = await onUpdateQuantity(id, editQty);
-    if (!saved) {
-      return;
-    }
+    setSavingQuantityId(id);
 
-    setEditId(null);
-    setEditQty('');
+    try {
+      const saved = await onUpdateQuantity(id, editQty);
+      if (!saved) {
+        return;
+      }
+
+      setEditId(null);
+      setEditQty('');
+    } finally {
+      setSavingQuantityId(null);
+    }
   };
 
   return (
@@ -236,6 +247,7 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
                           type="number"
                           value={editQty}
                           onChange={(event) => setEditQty(event.target.value)}
+                          disabled={savingQuantityId === item.id}
                           aria-label={`${item.name} 재고 수량 입력`}
                           title={`${item.name} 재고 수량 입력`}
                           className="w-[80px] px-2 py-1.5 h-auto text-sm bg-slate-900 border-slate-700"
@@ -245,6 +257,8 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
                         <PremiumButton
                           variant="secondary"
                           onClick={() => handleUpdate(item.id)}
+                          disabled={savingQuantityId === item.id}
+                          aria-busy={savingQuantityId === item.id}
                           aria-label={`${item.name} 재고 수량 저장`}
                           className="px-2 py-1.5 h-auto text-xs"
                         >

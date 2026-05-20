@@ -308,6 +308,18 @@ test('inventory inline quantity editor exposes item-specific input label', () =>
   assert.match(source, /title=\{`\$\{item\.name\} 재고 수량 입력`\}/);
 });
 
+test('inventory inline quantity updates wait for async saves before re-enabling controls', () => {
+  const source = readSource('components/tabs/InventoryTab.js');
+
+  assert.match(source, /const \[savingQuantityId, setSavingQuantityId\] = useState\(null\)/);
+  assert.match(source, /if \(savingQuantityId\) \{\s+return;\s+\}/);
+  assert.match(source, /setSavingQuantityId\(id\);/);
+  assert.match(source, /await onUpdateQuantity\(id, editQty\);/);
+  assert.match(source, /finally \{\s+setSavingQuantityId\(null\);/);
+  assert.match(source, /disabled=\{savingQuantityId === item\.id\}/);
+  assert.match(source, /aria-busy=\{savingQuantityId === item\.id\}/);
+});
+
 test('dashboard API fallback messages stay operator-facing Korean', () => {
   const cattleRoute = readSource('app/api/dashboard/cattle/route.js');
   const salesRoute = readSource('app/api/dashboard/sales/route.js');
