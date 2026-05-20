@@ -12,6 +12,8 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-412 surfaced Hanwoo cattle pagination failures in the UI by adding Korean timeout/general `loadError` state to `useCattlePagination` and rendering it below the home cattle "load more" control; verification passed with focused Hanwoo tests `140 passed`, targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 140, lint, build), and code-review gate WARN from the known graph/test-gap heuristic plus unrelated workspace WIP.
+
 - 2026-05-20: T-411 made Hanwoo dropdown actions keyboard-accessible by rendering clickable `DropdownMenuItem` entries as native `button` elements with focus-ring styling while leaving static entries as `div`; verification passed with focused Hanwoo tests `139 passed`, targeted ESLint, path-limited `git diff --check`, staged code-review gate pass with known cp949 reader-thread noise, and full Hanwoo QC (`test` 140, lint, build).
 
 - 2026-05-20: T-410 made Hanwoo cattle-detail edit/delete actions cattle-specific for assistive technology by adding the current cattle name to the edit/delete `aria-label` values and Korean `title` copy; verification passed with focused Hanwoo tests `138 passed`, targeted ESLint, path-limited `git diff --check`, staged code-review gate pass, and full Hanwoo QC (`test` 138, lint, build).

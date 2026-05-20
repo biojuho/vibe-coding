@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` cattle pagination failures are visible to operators. `useCattlePagination` now returns Korean timeout/general `loadError` copy and the home cattle "load more" control renders that message as a status region instead of failing with console-only diagnostics. Verification passed: focused tests (`140 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 140, lint, build), and code-review gate WARN from the known graph/test-gap heuristic plus unrelated workspace WIP.
+
 - As of 2026-05-20, `hanwoo-dashboard` clickable dropdown menu items are keyboard-accessible. `DropdownMenuItem` now renders entries with `onClick` as native `button type="button"` elements with full-width text alignment and focus-ring styling, while static menu entries remain `div`s. This makes notification read actions reachable by Tab/Enter/Space. Verification passed: focused tests (`139 passed`), targeted ESLint, path-limited `git diff --check`, staged code-review gate pass with known cp949 reader-thread noise, and full Hanwoo QC (`test` 140, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` cattle-detail edit/delete actions include cattle-specific accessible context. `CattleDetailModal` now exposes the current cattle name in the edit and delete button `aria-label` values, with Korean `title` text, so assistive-technology users can distinguish which cattle record will be edited or deleted. Verification passed: focused tests (`138 passed`), targeted ESLint, path-limited `git diff --check`, staged code-review gate pass, and full Hanwoo QC (`test` 138, lint, build).
