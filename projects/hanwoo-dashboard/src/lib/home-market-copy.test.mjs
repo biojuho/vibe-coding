@@ -46,6 +46,9 @@ test('dashboard full-list loading failures show retry feedback instead of silent
   assert.match(source, /FULL_SALES_LOAD_ERROR_MESSAGE/);
   assert.match(source, /setAllCattleLoadError\(FULL_CATTLE_LOAD_ERROR_MESSAGE\)/);
   assert.match(source, /setAllSalesLoadError\(FULL_SALES_LOAD_ERROR_MESSAGE\)/);
+  assert.match(source, /const preloadForTab = useCallback/);
+  assert.match(source, /preloadForTab\(nextTab\)/);
+  assert.match(source, /preloadForTab\(action\.targetTab\)/);
   assert.match(source, /ensureAllCattleLoaded\(\{ silent: true \}\)\.catch\(\(\) => \{\}\)/);
   assert.match(source, /ensureAllSalesLoaded\(\{ silent: true \}\)\.catch\(\(\) => \{\}\)/);
   assert.match(source, /다시 불러오기/);

@@ -613,9 +613,7 @@ export default function DashboardClient({
     };
   }, [isOnline, notify, router]);
 
-  const handleTabChange = useCallback((nextTab) => {
-    setActiveTab(nextTab);
-
+  const preloadForTab = useCallback((nextTab) => {
     if (nextTab === 'feed' || nextTab === 'calving' || nextTab === 'sales') {
       void ensureAllCattleLoaded({ silent: true }).catch(() => {});
     }
@@ -625,6 +623,11 @@ export default function DashboardClient({
       void ensureAllSalesLoaded({ silent: true }).catch(() => {});
     }
   }, [ensureAllCattleLoaded, ensureAllSalesLoaded]);
+
+  const handleTabChange = useCallback((nextTab) => {
+    setActiveTab(nextTab);
+    preloadForTab(nextTab);
+  }, [preloadForTab]);
 
   const handleQuickAction = useCallback((action) => {
     if (action.id === 'add-cattle') {
@@ -636,13 +639,14 @@ export default function DashboardClient({
       setSelectedBuildingId(null);
       setSelectedPenId(null);
       setActiveTab(action.targetTab);
+      preloadForTab(action.targetTab);
       setQuickActionIntent({
         actionId: action.id,
         targetTab: action.targetTab,
         nonce: Date.now(),
       });
     }
-  }, []);
+  }, [preloadForTab]);
 
   const handleSelectBuilding = useCallback((buildingId) => {
     setSelectedBuildingId(buildingId);
