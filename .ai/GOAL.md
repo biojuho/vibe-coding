@@ -12,6 +12,7 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-374 labeled the shared notification system trigger in both JS and TSX mirrors with Korean accessible copy for unread counts; verification passed with Hanwoo tests `123 passed`, targeted ESLint, full Hanwoo QC, path-limited `git diff --check`, and graph risk `0.00`.
 - 2026-05-20: T-355 localized subscription entry-page title, monthly price/value line, and customer fallback; verification passed with Hanwoo tests `109 passed`, targeted ESLint, full Hanwoo QC, source English subscription scan, and graph risk `0.00`.
 - 2026-05-20: T-356 polished the AI chat widget fallback/launcher surface; localized setup errors now trigger the guided fallback, the closed launcher uses a lucide Bot icon with accessible label/title, and verification passed with Hanwoo tests `109 passed`, targeted ESLint, full Hanwoo QC, `git diff --check`, and graph risk `0.00`.
 - 2026-05-20: T-357 localized payment API fallback responses for prepare/confirm routes, including customer mismatch, amount mismatch, missing fields, Toss configuration, timeout diagnostics, and generic preparation/verification failures; verification passed with Hanwoo tests `110 passed`, targeted ESLint, full Hanwoo QC, `git diff --check`, and graph risk `0.00`.

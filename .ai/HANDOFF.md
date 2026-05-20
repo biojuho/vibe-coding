@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-374 completed**: continued the active Hanwoo quality goal by finishing notification-system trigger accessibility. `NotificationSystem.js` and the tracked `NotificationSystem.tsx` mirror now compute Korean unread-count-aware trigger labels, expose them through `aria-label`/`title`, and hide decorative bell/badge visuals from assistive tech. Added `notification-system-copy.test.mjs`. Code commit `56e1e9e`; context commit pending/this addendum records it. |
+| Next Priorities | Verification passed: Hanwoo `npm test` (`123 passed`), targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json` (`test` 123, lint, build), path-limited `git diff --check`, and direct graph risk `0.00`. Staged/commit graph gate WARN came from heuristic test-gap/dirty-WIP noise while direct tests covered the committed files. Active Hanwoo goal remains open. Remaining TODOs are approval/user-blocked: T-251 Supabase control-plane resync, T-367 DB enum migration, T-372 monorepo migration, and T-320 shorts OSS adoption. Preserve unrelated root monorepo/package-lock/shorts WIP plus dirty Hanwoo `package.json` postinstall removal unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-373 completed**: continued the active Hanwoo product-completeness goal by labeling remaining calendar/market icon actions. `ScheduleTab` now labels previous/next month controls as `이전 달 보기` / `다음 달 보기`, and `MarketPriceWidget` labels the refresh button as `한우 시세 새로고침` / `시세 갱신 중`. `home-market-copy.test.mjs` guards both surfaces. Commit `4609453`. |
 | Next Priorities | Verification passed: focused Hanwoo home/market tests passed (`7 passed`), targeted ESLint passed, full Hanwoo QC test/lint passed and build passed on retry after a concurrent Next build lock (`test` 121), path-limited `git diff --check` passed, and direct UTF-8 graph risk `0.00`. Full `git diff --check` is still blocked by unrelated dirty shorts-maker-v2 whitespace; staged/commit graph gate WARN came from dirty WIP heuristics while direct checks covered the committed files. T-366 profitability widget mount also completed in commit `1047f01` and is recorded. Remaining TODOs are approval/user-blocked: T-251 Supabase control-plane resync, T-367 DB enum migration, T-372 monorepo migration, and T-320 shorts OSS adoption. Preserve unrelated root monorepo/package-lock/shorts WIP. |
 
