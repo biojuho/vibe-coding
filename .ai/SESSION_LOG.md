@@ -837,13 +837,11 @@
 - `projects/hanwoo-dashboard/src/components/widgets/widgets.js`
 
 ### Verification
-- `npm.cmd test -- --test-name-pattern "weather degraded-state copy|Weather|weather"` from `projects/hanwoo-dashboard` -> `94 passed`.
-- `npx.cmd eslint src/lib/weather-state.mjs src/lib/weather-state.test.mjs src/lib/home-market-copy.test.mjs src/components/widgets/widgets.js` from `projects/hanwoo-dashboard` -> passed.
-- `python execution/project_qc_runner.py --project hanwoo-dashboard --check test --json` -> passed (`93 passed`).
-- `python execution/project_qc_runner.py --project hanwoo-dashboard --check lint --json` -> passed.
-- `python execution/project_qc_runner.py --project hanwoo-dashboard --check build --json` -> passed.
-- `PYTHONUTF8=1 python -m code_review_graph detect-changes --repo projects/hanwoo-dashboard --brief` -> risk `0.00`.
-- `git diff --check -- projects/hanwoo-dashboard/src/lib/weather-state.mjs projects/hanwoo-dashboard/src/lib/weather-state.test.mjs projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs projects/hanwoo-dashboard/src/components/widgets/widgets.js` -> passed.
+- `npm.cmd test -- src/lib/weather-state.test.mjs src/lib/home-market-copy.test.mjs src/lib/component-imports.test.mjs` from `projects/hanwoo-dashboard` -> `94 passed`.
+- `npm.cmd run lint` from `projects/hanwoo-dashboard` -> passed.
+- `npm.cmd run build` from `projects/hanwoo-dashboard` -> passed.
+- `git diff --check -- projects/hanwoo-dashboard/src/components/widgets/widgets.js projects/hanwoo-dashboard/src/lib/weather-state.mjs projects/hanwoo-dashboard/src/lib/weather-state.test.mjs projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` -> passed.
+- `PYTHONUTF8=1 python -m code_review_graph detect-changes --repo projects/hanwoo-dashboard --base HEAD --brief` -> risk `0.00`.
 
 ### Follow-up
 - Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
