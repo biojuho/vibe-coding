@@ -15,6 +15,20 @@ import {
 } from '@/lib/subscription';
 
 const TOSS_CONFIRM_TIMEOUT_MS = 15000;
+const AMOUNT_INPUT_PATTERN = /^\d+$/;
+
+function parsePaymentAmount(value) {
+  if (typeof value === 'number') {
+    return Number.isSafeInteger(value) ? value : Number.NaN;
+  }
+
+  if (typeof value === 'string' && AMOUNT_INPUT_PATTERN.test(value)) {
+    const amount = Number(value);
+    return Number.isSafeInteger(amount) ? amount : Number.NaN;
+  }
+
+  return Number.NaN;
+}
 
 function buildPendingResponse(message = PAYMENT_CONFIRMATION_PENDING_MESSAGE) {
   return NextResponse.json(
@@ -49,9 +63,9 @@ export async function POST(req) {
     const session = await requireAuthenticatedSession();
     const body = await req.json();
     const { paymentKey, orderId } = body;
-    const amount = Number(body?.amount);
+    const amount = parsePaymentAmount(body?.amount);
 
-    if (!paymentKey || !orderId || !Number.isFinite(amount)) {
+    if (!paymentKey || !orderId || !Number.isSafeInteger(amount)) {
       return NextResponse.json(
         { success: false, message: '결제 승인에 필요한 정보가 부족합니다.' },
         { status: 400 }

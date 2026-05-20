@@ -11,7 +11,19 @@ import {
 
 const CONFIRM_RETRY_DELAY_MS = 3000;
 const CONFIRM_RETRY_LIMIT = 3;
+const AMOUNT_INPUT_PATTERN = /^\d+$/;
 const PAYMENT_CONFIRMATION_ERROR_MESSAGE = '결제 확인 중 오류가 발생했습니다. 잠시 후 다시 확인해 주세요.';
+
+const PAYMENT_AMOUNT_ERROR_MESSAGE = '결제 금액 정보를 확인해 주세요.';
+
+function parsePaymentAmount(value) {
+  if (!value || !AMOUNT_INPUT_PATTERN.test(value)) {
+    return null;
+  }
+
+  const amount = Number(value);
+  return Number.isSafeInteger(amount) ? amount : null;
+}
 
 function SuccessContent() {
   const searchParams = useSearchParams();
@@ -27,6 +39,12 @@ function SuccessContent() {
       return;
     }
 
+    const paymentAmount = parsePaymentAmount(amount);
+    if (paymentAmount === null) {
+      const invalidAmountTimer = setTimeout(() => setStatus(PAYMENT_AMOUNT_ERROR_MESSAGE), 0);
+      return () => clearTimeout(invalidAmountTimer);
+    }
+
     let cancelled = false;
     let retryTimer = null;
 
@@ -37,7 +55,7 @@ function SuccessContent() {
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ paymentKey, orderId, amount: parseInt(amount, 10) }),
+            body: JSON.stringify({ paymentKey, orderId, amount: paymentAmount }),
           },
           {
             timeoutMs: 15000,
