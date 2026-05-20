@@ -139,3 +139,54 @@ test('buildUnavailableWeatherState returns an explicit unavailable payload', () 
   assert.equal(result.sourceLabel, '확인 불가');
   assert.equal(result.message, WEATHER_UNAVAILABLE_MESSAGE);
 });
+
+test('weather degraded-state copy avoids English placeholder labels', () => {
+  const unavailable = buildUnavailableWeatherState({ locationName: 'Namwon' });
+  const stale = markWeatherAsStale({
+    available: true,
+    degraded: false,
+    isStale: false,
+    source: 'weather-live',
+    sourceLabel: 'Open-Meteo',
+    temp: 20,
+    humidity: 55,
+    windSpeed: 2,
+    apparentTemp: 19,
+    weatherCode: 1,
+    tempMax: 23,
+    tempMin: 14,
+    precipitation: 0,
+    locationName: 'Namwon',
+    forecast: [],
+  });
+  const partial = normalizeWeatherPayload({
+    current: {
+      temperature_2m: 20,
+      relative_humidity_2m: 55,
+      weather_code: 1,
+      wind_speed_10m: 2,
+      apparent_temperature: 19,
+    },
+    daily: {
+      time: ['2026-04-07', '2026-04-08'],
+      weather_code: [1],
+      temperature_2m_max: [23, 21],
+      temperature_2m_min: [14, 12],
+      precipitation_probability_max: [0, 20],
+    },
+  });
+
+  const visibleCopy = [
+    unavailable.sourceLabel,
+    unavailable.message,
+    stale.sourceLabel,
+    stale.message,
+    partial.sourceLabel,
+    partial.message,
+  ].join(' ');
+
+  assert.doesNotMatch(
+    visibleCopy,
+    /Weather data|temporarily unavailable|Stale Weather|Partial Forecast|Unavailable/,
+  );
+});
