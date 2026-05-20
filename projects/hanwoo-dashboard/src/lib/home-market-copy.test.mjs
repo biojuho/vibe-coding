@@ -134,7 +134,7 @@ test('market price widget uses Korean product copy for visible states', () => {
   assert.match(source, /가중평균 거래가/);
   assert.match(source, /실시간 KAPE/);
   assert.match(source, /저장된 KAPE/);
-  assert.match(source, /이전 저장가/);
+  assert.match(source, /이전 저장값/);
   assert.match(source, /수소 \/ kg/);
   assert.match(source, /암소 \/ kg/);
   assert.match(source, /갱신/);
@@ -151,6 +151,8 @@ test('market price widget uses Korean product copy for visible states', () => {
   assert.doesNotMatch(source, />Updated /);
   assert.doesNotMatch(source, />Source: KAPE/);
   assert.doesNotMatch(source, /aria-label="Refresh"/);
+  assert.doesNotMatch(source, /[吏媛異諛湲]/);
+  assert.doesNotMatch(source, /\?[가-힣]/);
 });
 
 test('schedule calendar navigation exposes Korean accessible labels', () => {

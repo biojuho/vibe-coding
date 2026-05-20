@@ -55,7 +55,7 @@ function getSourcePresentation(prices) {
       };
     case 'cache-stale':
       return {
-        label: '이전 저장가',
+        label: '이전 저장값',
         style: {
           background: 'color-mix(in srgb, var(--chart-clay-2) 18%, white 82%)',
           color: 'var(--chart-clay-2)',
