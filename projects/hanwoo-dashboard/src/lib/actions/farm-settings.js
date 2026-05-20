@@ -47,6 +47,7 @@ export async function updateFarmSettings(data) {
     await invalidateHomeCaches({ summary: true });
     return { success: true, data: settings };
   } catch (e) {
-    return { success: false, message: e.message };
+    console.error("Failed to update farm settings:", e);
+    return { success: false, message: "농장 정보를 저장하지 못했습니다." };
   }
 }

@@ -25,7 +25,8 @@ export async function createBuilding(data) {
     });
     return { success: true, data: created };
   } catch (e) {
-    return { success: false, message: e.message };
+    console.error("Failed to create building:", e);
+    return { success: false, message: "축사 정보를 추가하지 못했습니다." };
   }
 }
 
@@ -39,6 +40,7 @@ export async function deleteBuilding(id) {
     await prisma.building.delete({ where: { id } });
     return { success: true, data: { id } };
   } catch (e) {
-    return { success: false, message: e.message };
+    console.error("Failed to delete building:", e);
+    return { success: false, message: "축사를 삭제하지 못했습니다." };
   }
 }
