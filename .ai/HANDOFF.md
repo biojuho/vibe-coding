@@ -7,6 +7,20 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-20 |
+| Tool | Claude Code (Opus 4.7 1M) |
+| Work | **T-367 false positive로 종결 (코드 변경 없음)**. 사용자 "T-367 진행해" 지시 → `formSchemas.js` enum 영어 값 조사. 결론: 영어 enum 값(스케줄 `type`, 재고 `category`)은 표준 **내부 코드**이고 `ScheduleTab.TYPE_STYLES`·`InventoryTab.categories` 맵 + `<option>` 라벨이 전부 코드→한글로 변환 — 운영자는 영어를 한 번도 안 봄. 양 `<select>`에 `Other`(기타) 옵션도 이미 존재. "운영자 노출 영어 카피 누수"라는 원 전제(서브에이전트 감사의 HIGH 분류)가 오탐. enum 한글화는 이득 0 + 전 DB 행 마이그레이션 위험 + Supabase 다운(T-251)으로 불가 → 코드 변경 없이 TASKS.md DONE에 판정 기록. |
+| Next Priorities | 이번 `/goal` 세션 누적: **T-365**(profitability 영어 에러 카피 한글화, `172e998`) + **T-366**(고아 profitability 위젯 마운트, `1047f01`) 완료, **T-367** false-positive 종결. hanwoo-dashboard 제품 완성도 goal에서 자율 처리 가능한 in-scope 작업은 모두 소진 — 남은 건 T-251(사용자가 Supabase 비번 재설정해야 하는 외부 차단)뿐. T-372(모노레포 마이그레이션)는 `pnpm install` 로컬 exit 127 블로커로 보류 중. 감사(서브에이전트 3개 전수) 결과 추가 미완 기능/empty-catch 0건. goal은 사용자 판단(`/goal complete` 또는 `/goal clear`)을 기다리며 일시정지 권장. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Claude Code (Opus 4.7 1M) |
+| Work | **T-376 완료**: `/goal "뭐라도 제대로 완성 해봐"` — AskUserQuestion으로 대상=shorts-maker-v2 렌더 최적화 선택. T-337(색보정)·T-350(켄번즈) 후속. `bench_render.py --profile`로 핫스팟 재측정 → 핸드오프 가설(compose_on/transform 오버헤드)과 달리 실제 1·2위는 `astype`(5.1s)·MoviePy `compose_mask`(4.6s). 근본 원인: `RenderStep._render_single_scene`의 씬 `CompositeVideoClip`이 기본 `transparent=True`라 매 프레임 알파 마스크(compose_mask + astype + 별도 is_mask 클립그래프)를 계산하지만 **결과는 폐기**됨 — 최종 Shorts는 완전 불투명, `frame_function`이 알파 채널을 버림. 씬 base 클립은 `_fit_vertical` cover-fit으로 풀프레임 불투명 → `use_bgclip=True` 전달 시 MoviePy가 base를 배경으로 직접 사용하고 마스크 파이프라인 전체를 건너뜀(픽셀 동일, 캡션 알파는 compose_on이 처리). 씬 컴포지트 4곳(karaoke/karaoke fallback/static/B-roll PiP) 적용. concat은 크로스페이드 전환이 씬을 겹치므로 `method="compose"` 유지. **측정: render 147.0s→96.4s, 34% 단축**(per-video-sec 16.3→10.7s). commit `42f6434`. |
+| Next Priorities | 검증 완료: 전체 스위트 `1471 passed / 0 failed / 12 skipped`(206s), 렌더 단위 243 pass, ruff 클린, `git diff --check` 클린. 커밋훅 WARN은 그래프 test-gap 휴리스틱이 무관한 dirty Hanwoo WIP를 함께 스캔한 잡음(test gap 목록이 DashboardClient/SettingsTab 등 내 변경 외 파일). **렌더 최적화 후속**: 남은 #1 비용은 `color_grading._grade_inplace`(이미 T-337에서 2.7배 최적화됨)와 ken-burns `resize`(T-350 완료). concat 레벨 compose_mask 1×/frame은 크로스페이드 때문에 불가피. `python scripts/bench_render.py --profile`이 회귀 게이트. 병렬 도구(Codex)가 Hanwoo goal 진행 중 — T-376 커밋 전 분석 로컬라이즈 WIP를 Codex가 `666ddf3`로 선점 커밋함(경합 정상). T-251은 여전히 외부/사용자 차단. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
 | Tool | Codex |
 | Work | **T-374 completed**: continued the active Hanwoo quality goal by finishing notification-system trigger accessibility. `NotificationSystem.js` and the tracked `NotificationSystem.tsx` mirror now compute Korean unread-count-aware trigger labels, expose them through `aria-label`/`title`, and hide decorative bell/badge visuals from assistive tech. Added `notification-system-copy.test.mjs`. Code commit `56e1e9e`; context commit pending/this addendum records it. |
 | Next Priorities | Verification passed: Hanwoo `npm test` (`123 passed`), targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json` (`test` 123, lint, build), path-limited `git diff --check`, and direct graph risk `0.00`. Staged/commit graph gate WARN came from heuristic test-gap/dirty-WIP noise while direct tests covered the committed files. Active Hanwoo goal remains open. Remaining TODOs are approval/user-blocked: T-251 Supabase control-plane resync, T-367 DB enum migration, T-372 monorepo migration, and T-320 shorts OSS adoption. Preserve unrelated root monorepo/package-lock/shorts WIP plus dirty Hanwoo `package.json` postinstall removal unless explicitly authorized. |
