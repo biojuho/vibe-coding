@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` cattle Excel export button no longer renders a broken `?` placeholder glyph. `ExcelExportButton.js` now uses a real lucide `Download` icon, hides it from assistive tech, and exposes `aria-busy` while preparing the export; `excel-export-button-copy.test.mjs` guards the contract. Verification passed: focused tests, targeted ESLint, full Hanwoo QC (`test` 126, lint, build), path-limited `git diff --check`, staged code-review gate PASS, and direct graph risk `0.00`.
+
 - As of 2026-05-20, `hanwoo-dashboard` Settings server-action failure fallbacks no longer expose raw exception messages. `createBuilding`, `deleteBuilding`, and `updateFarmSettings` log diagnostics and return Korean product copy instead of `e.message`, and `actions-copy.test.mjs` guards against `message: e.message` returning in these actions. Verification passed: Hanwoo tests `125 passed`, targeted ESLint, full Hanwoo QC (`test` 125, lint, build), path-limited `git diff --check`, and direct graph risk `0.00`.
 
 - As of 2026-05-20, `hanwoo-dashboard` global feedback toasts announce to assistive-tech users. `FeedbackProvider.js` exposes urgent error/warning toasts as assertive `alert` live regions, success/info toasts as polite `status` live regions, marks them atomic, hides decorative accent dots, and labels dismiss buttons with Korean toast-specific copy. `feedback-provider-copy.test.mjs` guards the contract. Verification passed: focused tests, targeted ESLint, full Hanwoo QC (`test` 125, lint, build), path-limited `git diff --check`, and direct graph risk `0.00`.
