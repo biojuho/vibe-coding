@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` admin diagnostics database status values are localized. `lib/actions/system.js` now returns `정상`, `연결 실패`, and `확인 불가` instead of `Online`, `Offline`, and `N/A`; `diagnostics-copy.test.mjs` guards against the English status values returning. Verification passed: focused diagnostics/action/component tests `115 passed`, targeted ESLint, full Hanwoo QC test/lint passed and build passed on retry after a concurrent Next build lock, `git diff --check`, source scan, direct Hanwoo graph risk `0.00`, and staged code-review gate PASS.
+
 - As of 2026-05-20, `hanwoo-dashboard` shared dialog close control is localized for screen-reader users. `components/ui/dialog.js` now exposes `닫기` instead of `Close` in the sr-only close label, guarded by `dialog-copy.test.mjs`. Verification passed: Hanwoo dialog-copy tests `113 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json`, accessibility-copy source scan, `git diff --check`, and direct Hanwoo graph risk `0.00`.
 
 - As of 2026-05-20, `hanwoo-dashboard` server-action fallback errors are localized for remaining user-facing paths. `getCattleList()`, `getSalesRecords()`, and admin `getRawData()` invalid-model failures no longer expose `Failed to fetch cattle data.`, `Failed to fetch sales records.`, or `Invalid model name`. Verification passed: Hanwoo server-action copy tests `112 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json`, `git diff --check`, and direct Hanwoo graph risk `0.00`.
