@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-328 completed**: continued the active Hanwoo product-completeness goal after confirming T-251 is still external. `npm.cmd run db:prisma7-test -- --live` passed local Prisma/client/adapter checks (`15 passed`) but live health still failed with the same `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`. Then tightened the first-run setup flow: the Farm Setup / 운영 준비도 missing-building item now emits `add-building`, `DashboardClient` forwards that quick-action intent, and `SettingsTab` opens the 축사 registration form immediately on arrival. Commit `cc32b52`. |
+| Next Priorities | Verification passed: focused Hanwoo tests `85 passed`, `npm.cmd run lint`, `npm.cmd run build`, and direct Hanwoo graph risk `0.00`. Staged code-review gate emitted advisory WARN from broad graph heuristics/unrelated dirty WIP, but direct Hanwoo checks are green. Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, shorts-maker-v2 files, and setup scripts. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-327 completed**: continued the "프로젝트 하나 디버깅" goal by selecting the safe `shorts-maker-v2` Phase 3 hook-score issue from T-318. Root cause: `PipelineOrchestrator` calculated `manifest.hook_score` but weak hooks only emitted `hook_score_weak` warnings, so Gate 4 PASS could still mark the job `success`. Added a retryable non-blocking `hook_score` degraded step whenever `score_hook(...).passed` is false, so weak-hook renders no longer enter the upload-ready success path. Full-suite verification exposed two weak test fixtures; preserved the stricter gate by updating fixture hook narration, and extended `hook_scorer` with narrow English contrast/tech specificity support for valid hooks like `Tiny chips, big savings`. |
 | Next Priorities | Verification passed: `test_hook_scorer.py + test_orchestrator_unit.py + test_renderer_mode_manifest.py + i18n smoke` `63 passed`; targeted Ruff passed; `project_qc_runner --project shorts-maker-v2 --check lint --json` passed; `PYTHONUTF8=1 python -m code_review_graph detect-changes --repo projects/shorts-maker-v2 --brief` risk `0.00`; full `python -m pytest --no-cov tests/unit tests/integration -q --tb=short --maxfail=1 --basetemp .tmp/pytest-hook-score-full-3` passed. Remaining T-318 items are file-size boundary policy/bitrate, scene_qc strict-default safety analysis, and channel TTS voice/speed tuning. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo files, package locks, and setup scripts. |
 
