@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # Ken Burns / 줌 효과의 리샘플 필터. MoviePy 의 resized() 는 LANCZOS 를
 # 하드코딩하지만(1080x1920 한 패스 ~68ms 로 가장 느림), Ken Burns 의 미세 줌
 # (<=1.12x) 에서는 BICUBIC(~53ms)과 육안 차이가 사실상 없다. render hot path
-# 최적화 (T-346). 더 빠른 BILINEAR 로 바꿀 수도 있으나 약간 더 부드러워진다.
+# 최적화 (T-350). 더 빠른 BILINEAR 로 바꿀 수도 있으나 약간 더 부드러워진다.
 _ZOOM_RESAMPLE = Image.Resampling.BICUBIC
 
 
@@ -31,7 +31,7 @@ def _zoom_crop(clip: Any, target_width: int, target_height: int, scale_fn: Any) 
     `clip.resized(시간함수)` 는 매 프레임 MoviePy 가 전체 프레임을 LANCZOS 로
     리샘플한다 (~68ms/frame). 동일한 중심 줌 결과를 PIL `Image.resize(box=...)`
     호출 한 번으로 얻되 BICUBIC 을 써서 더 빠르게 만든다 — 중심 정렬 줌에서
-    crop-then-resize 는 resize-then-crop 과 수학적으로 동등하다 (T-346).
+    crop-then-resize 는 resize-then-crop 과 수학적으로 동등하다 (T-350).
 
     `scale_fn`: 정규화 진행도 p∈[0,1] → 배율(>=1.0).
     """

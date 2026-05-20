@@ -20,7 +20,7 @@ def _capture_scale_fn(monkeypatch, effect, *args):
     """줌 효과를 `_zoom_crop` 스텁으로 실행해 효과가 넘긴 scale_fn 을 회수.
 
     줌 효과들은 시간 가변 줌을 `_zoom_crop(clip, tw, th, scale_fn)` 로 위임한다
-    (T-346). scale_fn 은 정규화 진행도 p∈[0,1] → 배율 함수다.
+    (T-350). scale_fn 은 정규화 진행도 p∈[0,1] → 배율 함수다.
     """
     captured = {}
 
