@@ -7,6 +7,11 @@ import { buildGatewayErrorMessage, readJsonResponseSafely } from '@/lib/payment-
 
 const PAYMENT_WIDGET_TIMEOUT_MS = 15000;
 const PAYMENT_PREPARE_TIMEOUT_MS = 10000;
+const PAYMENT_WIDGET_TIMEOUT_MESSAGE = '결제창을 불러오는 시간이 길어지고 있습니다. 새로고침 후 다시 시도해 주세요.';
+const PAYMENT_WIDGET_LOAD_ERROR_MESSAGE = '결제창을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.';
+const PAYMENT_WIDGET_PENDING_MESSAGE = '결제 수단을 불러오는 중입니다.';
+const PAYMENT_PREPARING_MESSAGE = '결제를 준비하고 있습니다.';
+const PAYMENT_BUTTON_PREFIX = '결제하기';
 
 function withTimeout(promise, timeoutMs, message) {
   let timeoutId = null;
@@ -48,7 +53,7 @@ export default function PaymentWidget({
         const paymentWidget = await withTimeout(
           loadPaymentWidget(clientKey, customerKey),
           PAYMENT_WIDGET_TIMEOUT_MS,
-          'Payment widget initialization timed out.',
+          PAYMENT_WIDGET_TIMEOUT_MESSAGE,
         );
         if (cancelled) {
           return;
@@ -71,8 +76,8 @@ export default function PaymentWidget({
         console.error('Payment widget initialization failed', error);
         setErrorMessage(
           isTimeoutError(error)
-            ? 'Payment widget initialization timed out. Please refresh and try again.'
-            : 'Could not load the payment widget. Please refresh and try again.',
+            ? PAYMENT_WIDGET_TIMEOUT_MESSAGE
+            : PAYMENT_WIDGET_LOAD_ERROR_MESSAGE,
         );
       }
     })();
@@ -88,7 +93,7 @@ export default function PaymentWidget({
 
       const paymentWidget = paymentWidgetRef.current;
       if (!paymentWidget) {
-        throw new Error('Payment widget is still loading.');
+        throw new Error(PAYMENT_WIDGET_PENDING_MESSAGE);
       }
 
       setIsSubmitting(true);
@@ -108,7 +113,7 @@ export default function PaymentWidget({
         },
         {
           timeoutMs: PAYMENT_PREPARE_TIMEOUT_MS,
-          errorMessage: 'Payment preparation timed out.',
+          errorMessage: '결제 준비 시간이 길어지고 있습니다.',
         },
       );
 
@@ -118,7 +123,7 @@ export default function PaymentWidget({
           buildGatewayErrorMessage({
             payload: preparedPayment,
             rawText,
-            fallbackMessage: 'Failed to prepare payment request.',
+            fallbackMessage: '결제 요청을 준비하지 못했습니다.',
           }),
         );
       }
@@ -138,7 +143,7 @@ export default function PaymentWidget({
       await paymentWidget.requestPayment(requestPayload);
     } catch (error) {
       console.error('Payment Request Failed', error);
-      setErrorMessage(error.message || 'Payment request failed.');
+      setErrorMessage(error.message || '결제 요청에 실패했습니다.');
     } finally {
       setIsSubmitting(false);
     }
@@ -155,7 +160,7 @@ export default function PaymentWidget({
       }}
     >
       <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '20px' }}>
-        Subscription checkout
+        구독 결제
       </h2>
       {errorMessage ? (
         <p
@@ -195,10 +200,10 @@ export default function PaymentWidget({
         }}
       >
         {isSubmitting
-          ? 'Preparing payment...'
+          ? PAYMENT_PREPARING_MESSAGE
           : !isWidgetReady
-            ? 'Loading payment methods...'
-            : `Pay KRW ${price.toLocaleString()}`}
+            ? PAYMENT_WIDGET_PENDING_MESSAGE
+            : `${PAYMENT_BUTTON_PREFIX} ${price.toLocaleString()}원`}
       </button>
     </div>
   );

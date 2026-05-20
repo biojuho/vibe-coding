@@ -15,7 +15,7 @@ const CONFIRM_RETRY_LIMIT = 3;
 function SuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [status, setStatus] = useState('Processing...');
+  const [status, setStatus] = useState('결제를 확인하고 있습니다.');
 
   useEffect(() => {
     const paymentKey = searchParams.get('paymentKey');
@@ -40,7 +40,7 @@ function SuccessContent() {
           },
           {
             timeoutMs: 15000,
-            errorMessage: 'Payment verification timed out.',
+            errorMessage: '결제 확인 시간이 길어지고 있습니다.',
           },
         );
 
@@ -50,7 +50,7 @@ function SuccessContent() {
         }
 
         if (data?.success) {
-          setStatus('Success');
+          setStatus('success');
           retryTimer = setTimeout(() => router.push('/'), 3000);
           return;
         }
@@ -64,7 +64,7 @@ function SuccessContent() {
         });
 
         if (shouldTreatAsPending && attempt < CONFIRM_RETRY_LIMIT) {
-          setStatus(`Verification pending. Retrying in ${CONFIRM_RETRY_DELAY_MS / 1000} seconds...`);
+          setStatus(`결제 확인을 다시 시도합니다. ${CONFIRM_RETRY_DELAY_MS / 1000}초 후 재확인합니다.`);
           retryTimer = setTimeout(() => {
             void confirmPayment(attempt + 1);
           }, CONFIRM_RETRY_DELAY_MS);
@@ -77,14 +77,14 @@ function SuccessContent() {
         }
 
         setStatus(
-          `Verification Failed: ${buildGatewayErrorMessage({
+          `결제 확인 실패: ${buildGatewayErrorMessage({
             payload: data,
             rawText,
           })}`,
         );
       } catch (error) {
         if (!cancelled) {
-          setStatus(`Error: ${error.message}`);
+          setStatus(`결제 확인 오류: ${error.message}`);
         }
       }
     };
@@ -108,7 +108,7 @@ function SuccessContent() {
         color: 'var(--color-text)',
       }}
     >
-      {status === 'Success' ? (
+      {status === 'success' ? (
         <div>
           <h1
             style={{
@@ -118,10 +118,10 @@ function SuccessContent() {
               fontFamily: 'var(--font-display-custom)',
             }}
           >
-            Payment confirmed
+            결제가 완료되었습니다
           </h1>
-          <p>Your Joolife subscription is now active.</p>
-          <p>Returning to the dashboard in 3 seconds.</p>
+          <p>Joolife 구독이 활성화되었습니다.</p>
+          <p>3초 후 대시보드로 이동합니다.</p>
         </div>
       ) : (
         <div>
@@ -142,8 +142,24 @@ function SuccessContent() {
 
 export default function SuccessPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<SubscriptionFallback message="결제 정보를 불러오는 중입니다." />}>
       <SuccessContent />
     </Suspense>
+  );
+}
+
+function SubscriptionFallback({ message }) {
+  return (
+    <div
+      style={{
+        padding: '56px 24px',
+        textAlign: 'center',
+        fontFamily: 'var(--font-sans-custom)',
+        color: 'var(--color-text-secondary)',
+        fontWeight: 700,
+      }}
+    >
+      {message}
+    </div>
   );
 }
