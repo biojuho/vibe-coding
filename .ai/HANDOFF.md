@@ -7,6 +7,13 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-20 |
+| Tool | Codex |
+| Work | **T-377 completed**: continued Hanwoo accessibility cleanup. `DashboardClient` now marks home notification/add/back icons and the critical notification badge as decorative with `aria-hidden`, while preserving Korean button labels. `SettingsTab` theme/widget toggles now expose `role="switch"`, `aria-checked`, Korean `aria-label`/`title`, and decorative thumb `aria-hidden`. Added `settings-tab-accessibility.test.mjs`; extended `home-market-copy.test.mjs`. Code commit `4d8fcf6`; context commit pending/this addendum records it. |
+| Next Priorities | Verification passed: Hanwoo `npm test` (`124 passed`), targeted ESLint, full Hanwoo QC test/lint plus build retry pass, path-limited `git diff --check`, and direct graph risk `0.00`. Active Hanwoo goal remains open only because T-251 is still external/user-owned Supabase control-plane resync. Preserve unrelated root monorepo/package-lock/shorts WIP plus dirty Hanwoo `package.json` postinstall removal unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
 | Tool | Claude Code (Opus 4.7 1M) |
 | Work | **T-367 false positive로 종결 (코드 변경 없음)**. 사용자 "T-367 진행해" 지시 → `formSchemas.js` enum 영어 값 조사. 결론: 영어 enum 값(스케줄 `type`, 재고 `category`)은 표준 **내부 코드**이고 `ScheduleTab.TYPE_STYLES`·`InventoryTab.categories` 맵 + `<option>` 라벨이 전부 코드→한글로 변환 — 운영자는 영어를 한 번도 안 봄. 양 `<select>`에 `Other`(기타) 옵션도 이미 존재. "운영자 노출 영어 카피 누수"라는 원 전제(서브에이전트 감사의 HIGH 분류)가 오탐. enum 한글화는 이득 0 + 전 DB 행 마이그레이션 위험 + Supabase 다운(T-251)으로 불가 → 코드 변경 없이 TASKS.md DONE에 판정 기록. |
 | Next Priorities | 이번 `/goal` 세션 누적: **T-365**(profitability 영어 에러 카피 한글화, `172e998`) + **T-366**(고아 profitability 위젯 마운트, `1047f01`) 완료, **T-367** false-positive 종결. hanwoo-dashboard 제품 완성도 goal에서 자율 처리 가능한 in-scope 작업은 모두 소진 — 남은 건 T-251(사용자가 Supabase 비번 재설정해야 하는 외부 차단)뿐. T-372(모노레포 마이그레이션)는 `pnpm install` 로컬 exit 127 블로커로 보류 중. 감사(서브에이전트 3개 전수) 결과 추가 미완 기능/empty-catch 0건. goal은 사용자 판단(`/goal complete` 또는 `/goal clear`)을 기다리며 일시정지 권장. |
