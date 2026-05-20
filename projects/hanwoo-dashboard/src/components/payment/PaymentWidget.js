@@ -89,6 +89,10 @@ export default function PaymentWidget({
   }, [clientKey, customerKey, price]);
 
   const handlePayment = async () => {
+    if (isSubmitting) {
+      return;
+    }
+
     try {
       setErrorMessage('');
 
@@ -189,6 +193,7 @@ export default function PaymentWidget({
         type="button"
         onClick={handlePayment}
         disabled={isSubmitting || !isWidgetReady}
+        aria-busy={isSubmitting}
         style={{
           width: '100%',
           padding: '16px',

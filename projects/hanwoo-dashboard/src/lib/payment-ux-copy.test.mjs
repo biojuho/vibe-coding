@@ -26,6 +26,18 @@ test('payment widget exposes Korean product copy for checkout states', () => {
   assert.doesNotMatch(source, /setErrorMessage\(error\.message/);
 });
 
+test('payment widget waits for async payment requests before re-enabling checkout', () => {
+  const source = readSource('components/payment/PaymentWidget.js');
+
+  assert.match(source, /const \[isSubmitting, setIsSubmitting\] = useState\(false\)/);
+  assert.match(source, /const handlePayment = async \(\) => \{\s+if \(isSubmitting\) \{\s+return;\s+\}/);
+  assert.match(source, /setIsSubmitting\(true\);/);
+  assert.match(source, /await paymentWidget\.requestPayment\(requestPayload\);/);
+  assert.match(source, /finally \{\s+setIsSubmitting\(false\);/);
+  assert.match(source, /disabled=\{isSubmitting \|\| !isWidgetReady\}/);
+  assert.match(source, /aria-busy=\{isSubmitting\}/);
+});
+
 test('subscription result pages avoid bare English loading and status copy', () => {
   const subscriptionSource = readSource('app/subscription/page.js');
   const successSource = readSource('app/subscription/success/page.js');
