@@ -97,6 +97,37 @@ test('validateSalesRecordInput rejects malformed sales payloads', () => {
   assert.ok(result.validationErrors.grade?.length);
 });
 
+test('action validators reject rollover date strings', () => {
+  const sale = validateSalesRecordInput({
+    saleDate: '2026-02-31',
+    price: '9900000',
+    cattleId: 'cattle-1',
+    grade: '1+',
+  });
+
+  assert.equal(sale.success, false);
+  assert.ok(sale.validationErrors.saleDate?.length);
+
+  const feed = validateFeedRecordInput({
+    date: '2026-04-31',
+    buildingId: 'building-1',
+    roughage: '18.5',
+    concentrate: '7.25',
+  });
+
+  assert.equal(feed.success, false);
+  assert.ok(feed.validationErrors.date?.length);
+
+  const expense = validateExpenseRecordInput({
+    date: '2026-06-31',
+    category: 'feed',
+    amount: '120000',
+  });
+
+  assert.equal(expense.success, false);
+  assert.ok(expense.validationErrors.date?.length);
+});
+
 test('validateFeedRecordInput normalizes optional pen and note fields', () => {
   const result = validateFeedRecordInput({
     date: '2026-04-02',

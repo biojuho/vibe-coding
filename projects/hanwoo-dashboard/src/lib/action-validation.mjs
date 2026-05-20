@@ -4,6 +4,7 @@ const CATTLE_GENDERS = ['암', '수'];
 const CATTLE_STATUSES = ['송아지', '육성우', '번식우', '임신우', '비육우', '씨수소'];
 const SALES_GRADES = ['1++', '1+', '1', '2', '3'];
 const INVENTORY_CATEGORIES = ['Feed', 'Medicine', 'Equipment', 'Other'];
+const DATE_INPUT_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const emptyToUndefined = (value) => {
   if (value === '' || value === null || value === undefined) {
@@ -41,7 +42,20 @@ const toDate = (value) => {
     return normalized;
   }
 
-  if (typeof normalized === 'string' || typeof normalized === 'number') {
+  if (typeof normalized === 'string') {
+    if (!DATE_INPUT_PATTERN.test(normalized)) {
+      return new Date(Number.NaN);
+    }
+
+    const parsed = new Date(`${normalized}T00:00:00.000Z`);
+    if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== normalized) {
+      return new Date(Number.NaN);
+    }
+
+    return parsed;
+  }
+
+  if (typeof normalized === 'number') {
     return new Date(normalized);
   }
 

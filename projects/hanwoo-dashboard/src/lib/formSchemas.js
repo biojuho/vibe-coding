@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 import { toInputDate } from '@/lib/utils';
 
+const DATE_INPUT_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
 const emptyToUndefined = (value) => {
   if (value === '' || value === null || value === undefined) {
     return undefined;
@@ -15,6 +17,15 @@ const emptyToUndefined = (value) => {
   return value;
 };
 
+const isDateInputString = (value) => {
+  if (!DATE_INPUT_PATTERN.test(value)) {
+    return false;
+  }
+
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+};
+
 const requiredText = (message, max = 100) =>
   z.string().trim().min(1, message).max(max, `${max}자 이하로 입력해 주세요.`);
 
@@ -22,7 +33,7 @@ const validDateString = (message) =>
   z
     .string()
     .min(1, message)
-    .refine((value) => !Number.isNaN(new Date(value).getTime()), '올바른 날짜를 입력해 주세요.');
+    .refine(isDateInputString, '올바른 날짜를 입력해 주세요.');
 
 const optionalText = (max = 300) =>
   z.preprocess(emptyToUndefined, z.string().max(max, `${max}자 이하로 입력해 주세요.`).optional());
@@ -38,7 +49,7 @@ const optionalDate = () =>
     emptyToUndefined,
     z
       .string()
-      .refine((value) => !Number.isNaN(new Date(value).getTime()), '올바른 날짜를 입력해 주세요.')
+      .refine(isDateInputString, '올바른 날짜를 입력해 주세요.')
       .optional(),
   );
 
