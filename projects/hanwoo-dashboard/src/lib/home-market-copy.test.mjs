@@ -335,13 +335,18 @@ test('inventory inline quantity editor exposes item-specific input label', () =>
 test('inventory inline quantity updates wait for async saves before re-enabling controls', () => {
   const source = readSource('components/tabs/InventoryTab.js');
 
+  assert.match(source, /const PLAIN_NONNEGATIVE_NUMBER_INPUT_PATTERN = \/\^\(\?:\\d\+\|\\d\+\\\.\\d\+\|\\\.\\d\+\)\$\/;/);
+  assert.match(source, /function parseInlineQuantityInput\(value\)/);
+  assert.match(source, /const parsedQuantity = parseInlineQuantityInput\(editQty\);/);
+  assert.match(source, /if \(!Number\.isFinite\(parsedQuantity\)\) \{/);
   assert.match(source, /const \[savingQuantityId, setSavingQuantityId\] = useState\(null\)/);
   assert.match(source, /if \(savingQuantityId\) \{\s+return;\s+\}/);
   assert.match(source, /setSavingQuantityId\(id\);/);
-  assert.match(source, /await onUpdateQuantity\(id, editQty\);/);
+  assert.match(source, /await onUpdateQuantity\(id, parsedQuantity\);/);
   assert.match(source, /finally \{\s+setSavingQuantityId\(null\);/);
   assert.match(source, /disabled=\{savingQuantityId === item\.id\}/);
   assert.match(source, /aria-busy=\{savingQuantityId === item\.id\}/);
+  assert.doesNotMatch(source, /Number\(editQty\) < 0/);
 });
 
 test('dashboard API fallback messages stay operator-facing Korean', () => {

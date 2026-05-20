@@ -18,6 +18,18 @@ const errorTextStyle = {
   fontWeight: 600,
 };
 
+const PLAIN_NONNEGATIVE_NUMBER_INPUT_PATTERN = /^(?:\d+|\d+\.\d+|\.\d+)$/;
+
+function parseInlineQuantityInput(value) {
+  const normalized = String(value).trim();
+  if (!PLAIN_NONNEGATIVE_NUMBER_INPUT_PATTERN.test(normalized)) {
+    return Number.NaN;
+  }
+
+  const quantity = Number(normalized);
+  return Number.isFinite(quantity) ? quantity : Number.NaN;
+}
+
 export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, quickActionIntent = null }) {
   const [isAdding, setIsAdding] = useState(() => quickActionIntent?.actionId === 'add-inventory');
   const [isSaving, setIsSaving] = useState(false);
@@ -77,14 +89,15 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
       return;
     }
 
-    if (editQty === '' || Number(editQty) < 0) {
+    const parsedQuantity = parseInlineQuantityInput(editQty);
+    if (!Number.isFinite(parsedQuantity)) {
       return;
     }
 
     setSavingQuantityId(id);
 
     try {
-      const saved = await onUpdateQuantity(id, editQty);
+      const saved = await onUpdateQuantity(id, parsedQuantity);
       if (!saved) {
         return;
       }
