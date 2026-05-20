@@ -22,14 +22,26 @@ const STATUS_STYLES = {
   },
 };
 
+const RETRY_MESSAGE = '잠시 후 다시 시도해 주세요.';
+
+const MODEL_OPTIONS = [
+  { value: 'cattle', label: '개체' },
+  { value: 'salesRecord', label: '출하 기록' },
+  { value: 'feedRecord', label: '급여 기록' },
+  { value: 'scheduleEvent', label: '일정' },
+  { value: 'inventoryItem', label: '재고' },
+  { value: 'building', label: '축사' },
+  { value: 'farmSettings', label: '농장 설정' },
+];
+
 const EMPTY_DIAGNOSTICS = {
   success: false,
   database: {
-    status: 'Unavailable',
-    latency: 'n/a',
+    status: '확인 불가',
+    latency: '-',
     recordCounts: {},
   },
-  nodeVersion: 'Unavailable',
+  nodeVersion: '확인 불가',
   uptime: 0,
   memory: {
     heapUsed: 0,
@@ -73,8 +85,8 @@ export default function DiagnosticsPageClient() {
 
         setStats(EMPTY_DIAGNOSTICS);
         notify({
-          title: 'Could not load diagnostics.',
-          description: error.message || 'Please try again in a moment.',
+          title: '진단 정보를 불러오지 못했습니다.',
+          description: error.message || RETRY_MESSAGE,
           variant: 'error',
         });
       } finally {
@@ -106,8 +118,8 @@ export default function DiagnosticsPageClient() {
           setRawData(result.data);
         } else {
           notify({
-            title: 'Could not load data.',
-            description: result.message || 'Please try again in a moment.',
+            title: '원본 데이터를 불러오지 못했습니다.',
+            description: result.message || RETRY_MESSAGE,
             variant: 'error',
           });
         }
@@ -117,8 +129,8 @@ export default function DiagnosticsPageClient() {
         }
 
         notify({
-          title: 'Could not load data.',
-          description: error.message || 'Please try again in a moment.',
+          title: '원본 데이터를 불러오지 못했습니다.',
+          description: error.message || RETRY_MESSAGE,
           variant: 'error',
         });
       } finally {
@@ -137,9 +149,9 @@ export default function DiagnosticsPageClient() {
     return (
       <div className="clay-shell">
         <div className="clay-page-card p-8 text-center">
-          <div className="clay-page-eyebrow mb-4">Diagnostics</div>
-          <h1 className="clay-page-title mb-3">Running diagnostics</h1>
-          <p className="clay-page-subtitle">Checking database connectivity and runtime health.</p>
+          <div className="clay-page-eyebrow mb-4">운영 진단</div>
+          <h1 className="clay-page-title mb-3">시스템 상태를 확인하고 있습니다</h1>
+          <p className="clay-page-subtitle">데이터베이스 연결과 런타임 상태를 점검하는 중입니다.</p>
         </div>
       </div>
     );
@@ -150,10 +162,10 @@ export default function DiagnosticsPageClient() {
       <div className="clay-page-card p-6 md:p-8">
         <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="max-w-2xl">
-            <div className="clay-page-eyebrow mb-4">System Diagnostics</div>
-            <h1 className="clay-page-title mb-3">Operations diagnostics</h1>
+            <div className="clay-page-eyebrow mb-4">운영 진단</div>
+            <h1 className="clay-page-title mb-3">시스템 상태 점검</h1>
             <p className="clay-page-subtitle">
-              Review database status, memory use, and raw records from a single screen.
+              데이터베이스 연결, 메모리 사용량, 원본 레코드를 한 화면에서 확인합니다.
             </p>
           </div>
 
@@ -163,29 +175,29 @@ export default function DiagnosticsPageClient() {
             className="clay-pressable inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-[color:var(--color-text)]"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to dashboard
+            대시보드로 돌아가기
           </button>
         </div>
 
         <div className="mb-6 grid gap-4 md:grid-cols-3">
           <StatusCard
-            title="Database Status"
+            title="데이터베이스 상태"
             value={stats.database.status}
             sub={stats.database.latency}
             icon={<Database className="h-5 w-5" />}
             status={stats.success ? 'good' : 'bad'}
           />
           <StatusCard
-            title="Node.js Runtime"
+            title="Node.js 런타임"
             value={stats.nodeVersion}
-            sub={`Uptime ${Math.floor(stats.uptime / 60)}m`}
+            sub={`가동 ${Math.floor(stats.uptime / 60)}분`}
             icon={<Cpu className="h-5 w-5" />}
             status="neutral"
           />
           <StatusCard
-            title="Memory Usage"
+            title="메모리 사용량"
             value={`${Math.round(stats.memory.heapUsed / 1024 / 1024)} MB`}
-            sub={`Total ${Math.round(stats.memory.heapTotal / 1024 / 1024)} MB`}
+            sub={`전체 ${Math.round(stats.memory.heapTotal / 1024 / 1024)} MB`}
             icon={<Activity className="h-5 w-5" />}
             status="neutral"
           />
@@ -194,10 +206,10 @@ export default function DiagnosticsPageClient() {
         <section className="clay-page-section mb-6 p-5 md:p-6">
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
-              <div className="clay-page-eyebrow mb-3">Database Ledger</div>
-              <h2 className="text-xl font-bold text-[color:var(--color-text)]">Database record overview</h2>
+              <div className="clay-page-eyebrow mb-3">데이터 원장</div>
+              <h2 className="text-xl font-bold text-[color:var(--color-text)]">테이블별 레코드 현황</h2>
             </div>
-            <div className="clay-stat-chip">{recordCounts.length} models</div>
+            <div className="clay-stat-chip">{recordCounts.length}개 모델</div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -224,8 +236,8 @@ export default function DiagnosticsPageClient() {
         <section className="clay-page-section p-5 md:p-6">
           <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <div className="clay-page-eyebrow mb-3">Raw Data</div>
-              <h2 className="text-xl font-bold text-[color:var(--color-text)]">Record inspector</h2>
+              <div className="clay-page-eyebrow mb-3">원본 데이터</div>
+              <h2 className="text-xl font-bold text-[color:var(--color-text)]">레코드 검사기</h2>
             </div>
 
             <select
@@ -233,19 +245,17 @@ export default function DiagnosticsPageClient() {
               onChange={(event) => setSelectedModel(event.target.value)}
               className="clay-inset rounded-full px-4 py-3 text-sm font-medium text-[color:var(--color-text)] outline-none"
             >
-              <option value="cattle">Cattle</option>
-              <option value="salesRecord">Sales</option>
-              <option value="feedRecord">Feed</option>
-              <option value="scheduleEvent">Schedule</option>
-              <option value="inventoryItem">Inventory</option>
-              <option value="building">Buildings</option>
-              <option value="farmSettings">Settings</option>
+              {MODEL_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </div>
 
           {dataLoading ? (
             <div className="clay-inset rounded-[24px] px-6 py-14 text-center text-sm text-[color:var(--color-text-muted)]">
-              Loading records.
+              레코드를 불러오는 중입니다.
             </div>
           ) : (
             <div className="clay-console h-96 overflow-auto p-5 text-sm leading-6">
