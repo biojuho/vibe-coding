@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-343 completed**: hardened the Hanwoo cattle CSV export after the Korean-header localization. `cattle-csv-export.mjs` now uses fully Korean headers (`개체 번호`, `축사 번호` instead of mixed `ID` labels), quotes CSV cells containing commas/quotes/newlines, and preserves normalized memo text. Added regression coverage for quoted names such as `복"실,이`. |
+| Next Priorities | Verification passed: focused CSV tests passed (`98 passed`), targeted ESLint passed, full Hanwoo project QC passed for test/lint and build passed on retry after a transient concurrent Next build lock, `git diff --check` passed, and UTF-8 graph risk `0.00`. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-342 completed**: continued the active Hanwoo quality goal by localizing the cattle Excel/CSV export result. `ExcelExportButton` now delegates CSV generation to `src/lib/cattle-csv-export.mjs`; the exported spreadsheet keeps the UTF-8 BOM, uses Korean headers (`이름`, `이력번호`, `생년월일`, `성별`, `상태`, `축사 ID`, `칸 번호`, `메모`), and normalizes memo commas/extra whitespace. |
 | Next Priorities | Verification passed: focused export/import tests passed (`97 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 97 passed, lint passed, build passed), `git diff --check` passed, and UTF-8 graph risk `0.00`. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |
 
