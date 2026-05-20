@@ -41,3 +41,22 @@ test('settings tab building delete buttons identify the target building', () => 
   assert.match(source, /aria-label=\{`\$\{building\.name\} 동 삭제`\}/);
   assert.match(source, /title=\{`\$\{building\.name\} 동 삭제`\}/);
 });
+
+test('settings forms expose explicit labels and invalid state', () => {
+  const source = readSource('components/tabs/SettingsTab.js');
+
+  assert.match(source, /<PremiumLabel htmlFor="farm-name">[\s\S]*?농장 이름[\s\S]*?<\/PremiumLabel>/);
+  assert.match(source, /id="farm-name"[\s\S]*?aria-invalid=\{Boolean\(farmErrors\.name\)\}/);
+  assert.match(source, /<PremiumLabel htmlFor="farm-location-select">[\s\S]*?지역 선택 \(자동 입력\)[\s\S]*?<\/PremiumLabel>/);
+  assert.match(source, /id="farm-location-select"/);
+  assert.match(source, /<PremiumLabel htmlFor="farm-location">[\s\S]*?지역명[\s\S]*?<\/PremiumLabel>/);
+  assert.match(source, /id="farm-location"[\s\S]*?aria-invalid=\{Boolean\(farmErrors\.location\)\}/);
+  assert.match(source, /<PremiumLabel htmlFor="farm-latitude">[\s\S]*?위도 \(Latitude\)[\s\S]*?<\/PremiumLabel>/);
+  assert.match(source, /id="farm-latitude"[\s\S]*?aria-invalid=\{Boolean\(farmErrors\.latitude\)\}/);
+  assert.match(source, /<PremiumLabel htmlFor="farm-longitude">[\s\S]*?경도 \(Longitude\)[\s\S]*?<\/PremiumLabel>/);
+  assert.match(source, /id="farm-longitude"[\s\S]*?aria-invalid=\{Boolean\(farmErrors\.longitude\)\}/);
+  assert.match(source, /<PremiumLabel htmlFor="building-name">[\s\S]*?동 이름[\s\S]*?<\/PremiumLabel>/);
+  assert.match(source, /id="building-name"[\s\S]*?aria-invalid=\{Boolean\(buildingErrors\.name\)\}/);
+  assert.match(source, /<PremiumLabel htmlFor="building-pen-count">[\s\S]*?칸 수 \(Pen Count\)[\s\S]*?<\/PremiumLabel>/);
+  assert.match(source, /id="building-pen-count"[\s\S]*?aria-invalid=\{Boolean\(buildingErrors\.penCount\)\}/);
+});

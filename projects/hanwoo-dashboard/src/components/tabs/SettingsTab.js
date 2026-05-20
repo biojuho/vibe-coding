@@ -310,22 +310,25 @@ export default function SettingsTab({
 
         <div style={{ display: 'grid', gap: '16px' }}>
           <div>
-            <PremiumLabel>
+            <PremiumLabel htmlFor="farm-name">
               농장 이름
             </PremiumLabel>
             <PremiumInput
+              id="farm-name"
               {...registerFarm('name')}
               placeholder="예: 행복한 한우 농장"
               hasError={!!farmErrors.name}
+              aria-invalid={Boolean(farmErrors.name)}
             />
             {farmErrors.name ? <div style={errorTextStyle}>{farmErrors.name.message}</div> : null}
           </div>
 
           <div>
-            <PremiumLabel>
+            <PremiumLabel htmlFor="farm-location-select">
               지역 선택 (자동 입력)
             </PremiumLabel>
             <PremiumSelect
+              id="farm-location-select"
               onChange={handleLocationSelect}
               className="mb-2"
               hasError={false}
@@ -337,38 +340,47 @@ export default function SettingsTab({
                 </option>
               ))}
             </PremiumSelect>
+            <PremiumLabel htmlFor="farm-location">
+              지역명
+            </PremiumLabel>
             <PremiumInput
+              id="farm-location"
               {...registerFarm('location')}
               placeholder="지역명을 직접 입력해 주세요."
               hasError={!!farmErrors.location}
+              aria-invalid={Boolean(farmErrors.location)}
             />
             {farmErrors.location ? <div style={errorTextStyle}>{farmErrors.location.message}</div> : null}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <div>
-              <PremiumLabel>
+              <PremiumLabel htmlFor="farm-latitude">
                 위도 (Latitude)
               </PremiumLabel>
               <PremiumInput
+                id="farm-latitude"
                 type="number"
                 step="0.001"
                 {...registerFarm('latitude')}
                 placeholder="35.446"
                 hasError={!!farmErrors.latitude}
+                aria-invalid={Boolean(farmErrors.latitude)}
               />
               {farmErrors.latitude ? <div style={errorTextStyle}>{farmErrors.latitude.message}</div> : null}
             </div>
             <div>
-              <PremiumLabel>
+              <PremiumLabel htmlFor="farm-longitude">
                 경도 (Longitude)
               </PremiumLabel>
               <PremiumInput
+                id="farm-longitude"
                 type="number"
                 step="0.001"
                 {...registerFarm('longitude')}
                 placeholder="127.344"
                 hasError={!!farmErrors.longitude}
+                aria-invalid={Boolean(farmErrors.longitude)}
               />
               {farmErrors.longitude ? <div style={errorTextStyle}>{farmErrors.longitude.message}</div> : null}
             </div>
@@ -422,25 +434,29 @@ export default function SettingsTab({
           <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '12px', color: 'var(--color-text)' }}>새 축사 동 등록</div>
           <div style={{ display: 'grid', gap: '12px' }}>
             <div>
-              <PremiumLabel>
+              <PremiumLabel htmlFor="building-name">
                 동 이름
               </PremiumLabel>
               <PremiumInput
+                id="building-name"
                 {...registerBuilding('name')}
                 placeholder="동 이름을 입력해 주세요."
                 hasError={!!buildingErrors.name}
+                aria-invalid={Boolean(buildingErrors.name)}
               />
               {buildingErrors.name ? <div style={errorTextStyle}>{buildingErrors.name.message}</div> : null}
             </div>
 
             <div>
-              <PremiumLabel>
+              <PremiumLabel htmlFor="building-pen-count">
                 칸 수 (Pen Count)
               </PremiumLabel>
               <PremiumInput
+                id="building-pen-count"
                 type="number"
                 {...registerBuilding('penCount')}
                 hasError={!!buildingErrors.penCount}
+                aria-invalid={Boolean(buildingErrors.penCount)}
               />
               {buildingErrors.penCount ? <div style={errorTextStyle}>{buildingErrors.penCount.message}</div> : null}
             </div>
