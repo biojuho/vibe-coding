@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-332 completed**: continued the active Hanwoo product-completeness goal by polishing checkout/subscription UX copy. `PaymentWidget` now uses Korean product copy for checkout title, widget loading, payment preparing, button amount, timeout, and fallback errors. Subscription success/fail pages no longer expose bare `Loading...`, `Processing...`, `Payment confirmed`, or `Code:` strings; they now render Korean status/fallback copy aligned with the app tone. Commit `8937eb1`. |
+| Next Priorities | Verification passed: Hanwoo test suite `88 passed`, `npm.cmd run lint`, `npm.cmd run build`, `git diff --check`, direct Hanwoo graph risk `0.00`, and staged `code_review_gate --json` PASS. Commit hook emitted advisory WARN from graph heuristics, but direct Hanwoo checks cover the change. Active Hanwoo goal remains open; T-251 is still user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-331 completed**: continued T-318 for `shorts-maker-v2` and fixed the Gate 4 file-size boundary that held otherwise valid Shorts renders at 50.4MB. `QCStep.gate4_final` now uses named final-size policy bounds `[2,60]MB` instead of a hard-coded 50MB ceiling, aligning QC with the existing standard/premium renderer bitrate caps while still holding oversized files. Added regressions for a 50.4MB pass and a 60.1MB hold. |
 | Next Priorities | Verification passed: `python -m pytest --no-cov tests/unit/test_qc_step.py -q --tb=short --maxfail=1 --basetemp .tmp/pytest-qc-size-policy` (`60 passed`), targeted Ruff passed, full `python -m pytest --no-cov tests/unit tests/integration -q --tb=short --maxfail=1 --basetemp .tmp/pytest-qc-size-full` passed, `project_qc_runner --project shorts-maker-v2 --check lint --json` passed, and `PYTHONUTF8=1 python -m code_review_graph detect-changes --repo projects/shorts-maker-v2 --brief` risk `0.00`. Remaining T-318 items are scene_qc strict-default safety analysis and channel TTS voice/speed tuning. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |
 
