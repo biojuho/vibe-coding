@@ -12,6 +12,7 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-390 localized remaining notification/payment user-facing copy: subscription success catch paths no longer render raw `error.message`, and notification widget priority heading is Korean; verification passed with focused Hanwoo tests `129 passed`, targeted ESLint, full Hanwoo QC (`test` 129, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
 - 2026-05-20: T-389 surfaced sales pagination failures in the UI so previous-record load failures no longer fail silently with console-only diagnostics; verification passed with focused Hanwoo tests `129 passed`, targeted ESLint, full Hanwoo QC (`test` 129, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
 - 2026-05-20: T-388 localized dashboard API/admin fallback failures so dashboard 500 paths, list validation errors, and admin system/raw-data failures no longer expose raw DB/runtime messages; verification passed with Hanwoo tests `127 passed`, lint, full Hanwoo QC (`test` 127, lint, build), path-limited `git diff --check`, and graph risk `0.00`.
 - 2026-05-20: T-387 localized Excel export failure feedback so browser/runtime `error.message` text no longer appears in export failure toasts; verification passed with Hanwoo tests `127 passed`, targeted ESLint, full Hanwoo QC (`test` 127, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.

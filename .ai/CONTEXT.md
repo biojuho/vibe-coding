@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` subscription success and notification widget copy avoid remaining raw/English user-facing text. The subscription success confirmation catch path logs diagnostics and shows stable Korean retry copy instead of `error.message`, and `NotificationWidget` uses Korean product copy for its priority-alert heading. Verification passed: focused tests (`129 passed`), targeted ESLint, full Hanwoo QC (`test` 129, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
+
 - As of 2026-05-20, `hanwoo-dashboard` sales pagination failures are visible to operators instead of failing silently. `useSalesPagination` now tracks safe Korean `loadError` copy for timeout, HTTP/API, pagination-safety, and unexpected failures, and `SalesTab` renders that message as a polite status region below the "load more" button. Verification passed: focused tests (`129 passed`), targeted ESLint, full Hanwoo QC (`test` 129, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
 
 - As of 2026-05-20, `hanwoo-dashboard` dashboard API/admin fallback failures no longer expose arbitrary raw exception messages. `/api/dashboard/{summary,cattle,sales}` 500 paths log diagnostics and return stable Korean fallback copy, dashboard list validation errors use Korean operator copy, and admin system/raw-data actions avoid returning DB/runtime messages except the known unsupported-data-type copy. Verification passed: focused tests, lint, full Hanwoo QC (`test` 127, lint, build), path-limited `git diff --check`, and direct graph risk `0.00`.
