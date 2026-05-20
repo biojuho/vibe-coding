@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-383 completed**: continued Hanwoo product-completeness work by preventing raw client-side cattle mutation exceptions from leaking through operator-facing toasts. `handleAddCattle` and `handleUpdateCattle` now log diagnostics and show a safe Korean fallback description instead of `error.message`. `home-market-copy.test.mjs` guards the fallback and rejects `showError(errorTitle, error.message)`. Code commit `dd2bff4`. |
+| Next Priorities | Verification passed: focused home/component tests passed (`127 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 127, lint, build), path-limited `git diff --check` passed, and direct graph risk `0.00`. Staged/commit graph gate WARN came from dirty-WIP/test-gap heuristics while direct tests covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync. Preserve unrelated root monorepo/package-lock/shorts WIP plus dirty Hanwoo `package.json` unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-382 completed**: continued Hanwoo product-completeness work by replacing the financial chart header's broken `?` placeholder glyph with a real lucide `BarChart3` icon. The icon is decorative (`aria-hidden`) and `analysis-copy.test.mjs` now guards against the placeholder glyph returning. Code commit `ba1f757`. |
 | Next Priorities | Verification passed: focused analysis/component tests passed (`126 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 126, lint, build), path-limited `git diff --check` passed, and direct graph risk `0.00`. Staged/commit graph gate WARN came from dirty-WIP/test-gap heuristics while direct tests covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync. Preserve unrelated root monorepo/package-lock/shorts WIP plus dirty Hanwoo `package.json` unless explicitly authorized. |
 
