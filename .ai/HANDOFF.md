@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-519 completed**: Hanwoo cattle and sales pagination now reject duplicate load-more requests before React re-renders the loading state. `useCattlePagination` and `useSalesPagination` use `loadInFlightRef` as an immediate lock around fetch/append flows, clear it on unmount and in `finally`, and keep the existing disabled/`aria-busy` UI intact. Code commit `3475d8d0`. |
+| Next Priorities | Verification passed: focused pagination feedback tests (`2 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 210, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-518 completed**: Hanwoo cattle tag lookup now has an immediate in-flight guard. `CattleForm` adds `lookupInFlightRef` so rapid repeated lookup clicks return before a second `lookupCattleTag()` call can start, while the existing `lookupLoading` disabled/`aria-busy` UI remains visible and the ref is cleared in `finally`. Code commit `023e237`. |
 | Next Priorities | Verification passed: focused cattle detail modal wiring test (`10 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 210, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct checks and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 
