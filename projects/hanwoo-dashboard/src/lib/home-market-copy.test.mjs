@@ -49,3 +49,12 @@ test('market price widget uses Korean product copy for visible states', () => {
   assert.doesNotMatch(source, />Updated /);
   assert.doesNotMatch(source, />Source: KAPE/);
 });
+
+test('weather widget uses Korean product copy for unavailable state', () => {
+  const source = readSource('components/widgets/widgets.js');
+
+  assert.match(source, /날씨 확인 불가/);
+  assert.match(source, /지금은 날씨 데이터를 확인할 수 없습니다/);
+  assert.doesNotMatch(source, /Weather Unavailable/);
+  assert.doesNotMatch(source, /Weather data is temporarily unavailable/);
+});

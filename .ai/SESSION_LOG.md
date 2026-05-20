@@ -818,3 +818,33 @@
 ### Follow-up
 - Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
 - Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts.
+
+## 2026-05-20 KST - Codex
+
+### Summary
+- Completed T-340 for `hanwoo-dashboard` while continuing the active product-completeness goal.
+- Localized the remaining weather fallback path: `weather-state.mjs` now returns Korean unavailable, stale, partial-forecast messages and Korean source labels, and `WeatherWidget` no longer exposes English unavailable copy.
+- Added regression coverage to keep weather unavailable copy from returning to `Weather Unavailable` / `Weather data is temporarily unavailable`.
+
+### Changed Files
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/CONTEXT.md`
+- `projects/hanwoo-dashboard/src/lib/weather-state.mjs`
+- `projects/hanwoo-dashboard/src/lib/weather-state.test.mjs`
+- `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs`
+- `projects/hanwoo-dashboard/src/components/widgets/widgets.js`
+
+### Verification
+- `npm.cmd test -- --test-name-pattern "weather|Weather|product copy"` from `projects/hanwoo-dashboard` -> `93 passed`.
+- `npx.cmd eslint src/lib/weather-state.mjs src/lib/weather-state.test.mjs src/lib/home-market-copy.test.mjs src/components/widgets/widgets.js` from `projects/hanwoo-dashboard` -> passed.
+- `python execution/project_qc_runner.py --project hanwoo-dashboard --check test --json` -> passed (`93 passed`).
+- `python execution/project_qc_runner.py --project hanwoo-dashboard --check lint --json` -> passed.
+- `python execution/project_qc_runner.py --project hanwoo-dashboard --check build --json` -> passed.
+- `PYTHONUTF8=1 python -m code_review_graph detect-changes --repo projects/hanwoo-dashboard --brief` -> risk `0.00`.
+- `git diff --check -- projects/hanwoo-dashboard/src/lib/weather-state.mjs projects/hanwoo-dashboard/src/lib/weather-state.test.mjs projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs projects/hanwoo-dashboard/src/components/widgets/widgets.js` -> passed.
+
+### Follow-up
+- Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
+- Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts.

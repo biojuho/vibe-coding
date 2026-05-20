@@ -60,6 +60,7 @@ test('normalizeWeatherPayload normalizes a valid Open-Meteo response', () => {
 
   assert.equal(result.available, true);
   assert.equal(result.degraded, false);
+  assert.equal(result.sourceLabel, '실시간 Open-Meteo');
   assert.equal(result.locationName, 'Namwon');
   assert.equal(result.forecast.length, 2);
   assert.equal(result.tempMax, 24.1);
@@ -85,6 +86,7 @@ test('normalizeWeatherPayload degrades cleanly when forecast arrays are partial'
 
   assert.equal(result.available, true);
   assert.equal(result.degraded, true);
+  assert.equal(result.sourceLabel, '부분 예보');
   assert.equal(result.message, WEATHER_PARTIAL_MESSAGE);
   assert.equal(result.forecast.length, 1);
   assert.equal(result.precipitation, 0);
@@ -125,6 +127,7 @@ test('markWeatherAsStale preserves the last snapshot while surfacing a degraded 
   assert.equal(result.degraded, true);
   assert.equal(result.isStale, true);
   assert.equal(result.source, 'weather-stale');
+  assert.equal(result.sourceLabel, '이전 날씨');
   assert.equal(result.message, WEATHER_STALE_MESSAGE);
 });
 
@@ -133,5 +136,6 @@ test('buildUnavailableWeatherState returns an explicit unavailable payload', () 
 
   assert.equal(result.available, false);
   assert.equal(result.locationName, 'Namwon');
+  assert.equal(result.sourceLabel, '확인 불가');
   assert.equal(result.message, WEATHER_UNAVAILABLE_MESSAGE);
 });

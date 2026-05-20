@@ -1,11 +1,11 @@
 export const WEATHER_UNAVAILABLE_MESSAGE =
-  'Weather data is temporarily unavailable. Please retry shortly.';
+  '지금은 날씨 데이터를 확인할 수 없습니다. 잠시 후 다시 시도해 주세요.';
 
 export const WEATHER_STALE_MESSAGE =
-  'Showing the last available weather snapshot because the live weather service is unavailable.';
+  '실시간 날씨를 불러오지 못해 마지막으로 확인한 날씨 정보를 표시합니다.';
 
 export const WEATHER_PARTIAL_MESSAGE =
-  'Showing current conditions with a reduced forecast because part of the weather feed was unavailable.';
+  '일부 예보 데이터를 불러오지 못해 현재 날씨와 확인된 예보만 표시합니다.';
 
 function toNumberOrNull(value) {
   const next = Number(value);
@@ -103,7 +103,7 @@ export function normalizeWeatherPayload(payload, options = {}) {
     degraded,
     isStale: false,
     source: degraded ? 'weather-partial' : 'weather-live',
-    sourceLabel: degraded ? 'Partial Forecast' : 'Open-Meteo',
+    sourceLabel: degraded ? '부분 예보' : '실시간 Open-Meteo',
     message: degraded ? WEATHER_PARTIAL_MESSAGE : null,
     temp,
     humidity,
@@ -124,7 +124,7 @@ export function buildUnavailableWeatherState(options = {}) {
     degraded: true,
     isStale: true,
     source: 'weather-unavailable',
-    sourceLabel: 'Unavailable',
+    sourceLabel: '확인 불가',
     message: options.message ?? WEATHER_UNAVAILABLE_MESSAGE,
     locationName: options.locationName ?? 'Seoul',
     forecast: [],
@@ -141,7 +141,7 @@ export function markWeatherAsStale(previousWeather, options = {}) {
     degraded: true,
     isStale: true,
     source: 'weather-stale',
-    sourceLabel: 'Stale Weather',
+    sourceLabel: '이전 날씨',
     locationName: options.locationName ?? previousWeather.locationName ?? 'Seoul',
     message: options.message ?? WEATHER_STALE_MESSAGE,
   };

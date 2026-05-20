@@ -71,9 +71,9 @@ export function WeatherWidget({weather}){
     <div className="weather-card animate-fadeInUp" style={{marginBottom:"16px"}}>
       <PremiumCard>
         <PremiumCardContent className="p-5">
-          <div style={{fontSize:"14px",fontWeight:700,marginBottom:"8px"}}>Weather Unavailable</div>
+          <div style={{fontSize:"14px",fontWeight:700,marginBottom:"8px"}}>날씨 확인 불가</div>
           <div style={{fontSize:"13px",opacity:0.82}}>
-            {weather.message || 'Weather data is temporarily unavailable.'}
+            {weather.message || '지금은 날씨 데이터를 확인할 수 없습니다.'}
           </div>
           <div style={{fontSize:"11px",opacity:0.6,marginTop:"8px"}}>
             {weather.locationName || 'Seoul'}
