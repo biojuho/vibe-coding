@@ -73,6 +73,7 @@ import { buildSetupProgressItems } from '@/lib/dashboard/setup-progress.mjs';
 import NotificationModal from '@/components/ui/NotificationModal';
 import ExcelExportButton from '@/components/widgets/ExcelExportButton';
 import MarketPriceWidget from '@/components/widgets/MarketPriceWidget';
+import { ProfitabilityWidget } from '@/components/widgets/ProfitabilityWidget';
 
 const FeedTab = dynamic(() => import('@/components/tabs/FeedTab'), { ssr: false });
 const SalesTab = dynamic(() => import('@/components/tabs/SalesTab'), { ssr: false });
@@ -86,6 +87,7 @@ const WIDGET_REGISTRY = [
   { id: 'market', label: '시세 정보', icon: '💰', defaultOn: true },
   { id: 'notification', label: '알림 (발정/분만)', icon: '🔔', defaultOn: true },
   { id: 'financial', label: '경영 분석 차트', icon: '📊', defaultOn: true },
+  { id: 'profitability', label: '출하 수익성 예측', icon: '📈', defaultOn: true },
   { id: 'estrus', label: '발정 알림 배너', icon: '💕', defaultOn: true },
   { id: 'calving', label: '분만 알림 배너', icon: '🍼', defaultOn: true },
   { id: 'stats', label: '핵심 통계', icon: '📈', defaultOn: true },
@@ -171,6 +173,7 @@ export default function DashboardClient({
   initialFarmSettings,
   initialExpenses,
   initialMarketPrice,
+  initialProfitability,
 }) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
@@ -1168,6 +1171,13 @@ export default function DashboardClient({
         {widgetSettings.visible.market && <MarketPriceWidget initialData={initialMarketPrice} />}
         {widgetSettings.visible.notification && <NotificationWidget notifications={notifications} />}
         {widgetSettings.visible.financial && <FinancialChartWidget saleRecords={saleRecords} expenseRecords={expenseRecords} seriesData={summary?.financialSeries} />}
+        {widgetSettings.visible.profitability && (
+          <ProfitabilityWidget
+            data={initialProfitability?.data}
+            error={initialProfitability?.error}
+            isLoading={false}
+          />
+        )}
         {widgetSettings.visible.estrus && <EstrusAlertBanner notifications={notifications} buildings={buildings} />}
         {widgetSettings.visible.calving && <CalvingAlertBanner notifications={notifications} buildings={buildings} />}
 

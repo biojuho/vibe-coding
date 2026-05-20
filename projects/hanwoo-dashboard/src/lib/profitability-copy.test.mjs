@@ -32,3 +32,17 @@ test('profitability widget renders the error message verbatim', () => {
   // without re-introducing an English fallback.
   assert.match(source, /\{error\}/);
 });
+
+test('profitability widget is mounted on the dashboard, not orphaned', () => {
+  // T-366: the widget is registered in WIDGET_REGISTRY with defaultOn:true,
+  // so it must actually be wired into the render path and fed SSR data.
+  const dashboard = readSource('components/DashboardClient.js');
+  assert.match(dashboard, /import \{ ProfitabilityWidget \}/);
+  assert.match(dashboard, /\{ id: 'profitability', label: '출하 수익성 예측', icon: '📈', defaultOn: true \}/);
+  assert.match(dashboard, /widgetSettings\.visible\.profitability/);
+  assert.match(dashboard, /<ProfitabilityWidget/);
+
+  const page = readSource('app/page.js');
+  assert.match(page, /getProfitabilityData/);
+  assert.match(page, /initialProfitability=\{profitability\}/);
+});

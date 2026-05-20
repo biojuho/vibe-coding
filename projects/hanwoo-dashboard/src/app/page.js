@@ -9,6 +9,7 @@ import {
   getExpenseRecords,
   getRealTimeMarketPrice,
   getNotifications,
+  getProfitabilityData,
 } from '@/lib/actions';
 import {
   getCachedDashboardSummary,
@@ -33,6 +34,7 @@ export default async function Page() {
     farmSettings,
     expenses,
     marketPrice,
+    profitability,
   ] = await Promise.all([
     getCachedCattleList({ limit: 50 }),
     getCachedSalesList({ limit: 50 }),
@@ -46,6 +48,7 @@ export default async function Page() {
     getFarmSettings(),
     getExpenseRecords(),
     getRealTimeMarketPrice(),
+    getProfitabilityData(),
   ]);
 
   return (
@@ -62,6 +65,7 @@ export default async function Page() {
         initialFarmSettings={farmSettings}
         initialExpenses={expenses}
         initialMarketPrice={marketPrice}
+        initialProfitability={profitability}
     />
   );
 }
