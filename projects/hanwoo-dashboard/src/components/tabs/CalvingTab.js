@@ -25,6 +25,7 @@ export default function CalvingTab({ cattle, buildings = [], onRecordCalving }) 
     .sort((first, second) => new Date(first.pregnancyDate) - new Date(second.pregnancyDate));
 
   const [selectedCowId, setSelectedCowId] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
   const { notify } = useAppFeedback();
 
   const {
@@ -38,11 +39,13 @@ export default function CalvingTab({ cattle, buildings = [], onRecordCalving }) 
   });
 
   const closeCalvingForm = () => {
+    setIsSaving(false);
     setSelectedCowId(null);
     reset(createCalvingFormValues());
   };
 
   const openCalvingForm = (cowId) => {
+    setIsSaving(false);
     setSelectedCowId(cowId);
     reset(createCalvingFormValues());
   };
@@ -59,18 +62,24 @@ export default function CalvingTab({ cattle, buildings = [], onRecordCalving }) 
       return;
     }
 
-    const recorded = await onRecordCalving({
-      motherId: cow.id,
-      calvingDate: values.calvingDate,
-      calfGender: values.calfGender,
-      calfTagNumber: values.calfTagNumber,
-    });
+    setIsSaving(true);
 
-    if (!recorded) {
-      return;
+    try {
+      const recorded = await onRecordCalving({
+        motherId: cow.id,
+        calvingDate: values.calvingDate,
+        calfGender: values.calfGender,
+        calfTagNumber: values.calfTagNumber,
+      });
+
+      if (!recorded) {
+        return;
+      }
+
+      closeCalvingForm();
+    } finally {
+      setIsSaving(false);
     }
-
-    closeCalvingForm();
   };
 
   return (
@@ -199,12 +208,13 @@ export default function CalvingTab({ cattle, buildings = [], onRecordCalving }) 
                     </div>
 
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      <button type="submit" style={{ ...btnPrimary, flex: 1, padding: '12px' }}>
+                      <button type="submit" disabled={isSaving} aria-busy={isSaving} style={{ ...btnPrimary, flex: 1, padding: '12px' }}>
                         분만 완료 및 송아지 등록
                       </button>
                       <button
                         type="button"
                         onClick={closeCalvingForm}
+                        disabled={isSaving}
                         style={{
                           ...btnPrimary,
                           background: 'var(--surface-gradient)',
