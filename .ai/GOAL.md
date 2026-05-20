@@ -12,6 +12,8 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-432 localized Hanwoo notification modal SMS surface copy to `문자 알림 서비스` and hid the phone glyph from assistive technology; verification passed with focused notification modal copy test, targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 153, lint, build). Staged `code_review_gate` WARN was the known graph/test-gap heuristic. Commit `13d281d`.
+
 - 2026-05-20: T-431 restored Hanwoo profitability card header rendering by making `PremiumCardHeader` render `title`, `description`, and decorative `icon` props as visible structured content instead of inert DOM props, and cleaned up remaining WeatherWidget glyph semantics; verification passed with focused profitability copy test, targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, full Hanwoo tests `153 passed`, and full Hanwoo QC (`test` 153, lint, build). HEAD-range `code_review_gate` WARN was the known graph/test-gap heuristic plus unrelated workspace WIP. Commit `9230de6`.
 
 - 2026-05-20: T-430 hid Hanwoo `WeatherWidget` temperature, wind, and precipitation stat glyphs from assistive technology with `aria-hidden="true"`, preserving the adjacent Korean stat labels and values as meaningful content; verification passed with direct graph risk `0.00`, focused home-market copy test, targeted ESLint, and full Hanwoo QC (`test` 152, lint, build).
