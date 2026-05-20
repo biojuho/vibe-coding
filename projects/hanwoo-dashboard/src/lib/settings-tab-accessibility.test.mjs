@@ -80,3 +80,14 @@ test('settings form validation messages are announced with their controls', () =
     assert.match(source, new RegExp(`<div id="${errorId}" role="alert"`));
   }
 });
+
+test('settings building form waits for async saves before re-enabling actions', () => {
+  const source = readSource('components/tabs/SettingsTab.js');
+
+  assert.match(source, /const \[isSavingBuilding, setIsSavingBuilding\] = useState\(false\)/);
+  assert.match(source, /setIsSavingBuilding\(true\);/);
+  assert.match(source, /const saved = await onCreateBuilding\(values\);/);
+  assert.match(source, /finally \{\s+setIsSavingBuilding\(false\);/);
+  assert.match(source, /size="sm"\s+disabled=\{isSavingBuilding\}/);
+  assert.match(source, /type="submit"\s+variant="primary"\s+disabled=\{isSavingBuilding\}\s+aria-busy=\{isSavingBuilding\}/);
+});

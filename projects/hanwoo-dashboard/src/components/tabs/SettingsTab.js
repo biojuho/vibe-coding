@@ -36,6 +36,7 @@ export default function SettingsTab({
   quickActionIntent = null,
 }) {
   const [isAdding, setIsAdding] = useState(() => quickActionIntent?.actionId === 'add-building');
+  const [isSavingBuilding, setIsSavingBuilding] = useState(false);
   const { confirm } = useAppFeedback();
 
   const {
@@ -100,13 +101,19 @@ export default function SettingsTab({
   };
 
   const submitBuilding = async (values) => {
-    const saved = await onCreateBuilding(values);
-    if (!saved) {
-      return;
-    }
+    setIsSavingBuilding(true);
 
-    setIsAdding(false);
-    resetBuilding(createBuildingFormValues());
+    try {
+      const saved = await onCreateBuilding(values);
+      if (!saved) {
+        return;
+      }
+
+      setIsAdding(false);
+      resetBuilding(createBuildingFormValues());
+    } finally {
+      setIsSavingBuilding(false);
+    }
   };
 
   const submitFarmSettings = (values) => {
@@ -411,6 +418,7 @@ export default function SettingsTab({
         <PremiumButton
           variant="secondary"
           size="sm"
+          disabled={isSavingBuilding}
           onClick={() => {
             const next = !isAdding;
             setIsAdding(next);
@@ -467,7 +475,14 @@ export default function SettingsTab({
               {buildingErrors.penCount ? <div id="building-pen-count-error" role="alert" style={errorTextStyle}>{buildingErrors.penCount.message}</div> : null}
             </div>
 
-            <PremiumButton type="submit" variant="primary" className="w-full py-3 rounded-lg" glow>
+            <PremiumButton
+              type="submit"
+              variant="primary"
+              disabled={isSavingBuilding}
+              aria-busy={isSavingBuilding}
+              className="w-full py-3 rounded-lg"
+              glow
+            >
               등록하기
             </PremiumButton>
           </div>
