@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-335 completed**: continued the active Hanwoo product-completeness goal by localizing app-level metadata and PWA install copy. `src/app/layout.js` and `public/manifest.json` now use Korean product-ready title/description/short name for browser title, install prompt, and app metadata instead of `Joolife Dashboard` / `Premium Hanwoo Farm Management System`. Commit `62020ec`. |
+| Next Priorities | Verification passed: Hanwoo test suite `90 passed`, `npm.cmd run lint`, `npm.cmd run build` (first sandboxed run failed only because Google Fonts fetch was blocked; approved rerun passed), `git diff --check`, direct Hanwoo graph risk `0.00`, and staged `code_review_gate --json` PASS. Commit hook emitted advisory WARN from graph heuristics/unrelated shorts-maker WIP, but direct Hanwoo checks cover the change. Active Hanwoo goal remains open; T-251 is still user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Blind-to-X `pyproject.toml`, Hanwoo `package.json`, shorts-maker-v2 media_step files, package locks, and setup scripts. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-334 completed**: continued T-318 for `shorts-maker-v2` and fixed a strict `scene_qc` retry routing bug. Before this pass, any scene with `audio_ok=True` retried as `component="visual"`, so duration/CPS/audio-volume failures reused the same old audio checkpoint and could waste retries without addressing the failing check. `PipelineOrchestrator` now derives the retry component from failed QC checks: audio integrity/timing/volume routes to `audio` or `both`, visual failures route to `visual`, and script-only failures skip media retry and remain surfaced as unresolved. Retry counts now reflect actual regeneration attempts. |
 | Next Priorities | Verification passed: focused `test_orchestrator_unit.py + test_qc_step.py` `115 passed`, targeted Ruff and format checks passed, full `python -m pytest --no-cov tests/unit tests/integration -q --tb=short --maxfail=1 --basetemp .tmp/pytest-scene-qc-routing-full` passed, `project_qc_runner --project shorts-maker-v2 --check lint --json` passed, and graph risk `0.00`. Remaining T-318 item is channel TTS speed/voice role tuning. Preserve unrelated dirty WIP in `.ai/GOAL.md`, root package/workflow files, Blind-to-X `pyproject.toml`, Hanwoo `package.json`, package locks, and setup scripts. |
 
