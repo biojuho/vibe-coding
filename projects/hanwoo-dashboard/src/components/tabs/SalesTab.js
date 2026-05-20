@@ -130,7 +130,7 @@ export default function SalesTab({
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '20px', lineHeight: 1 }}>💰</span>
+          <span aria-hidden="true" style={{ fontSize: '20px', lineHeight: 1 }}>💰</span>
           <span style={{ fontSize: '17px', fontWeight: 800, color: 'var(--color-text)', letterSpacing: '-0.01em' }}>출하 및 매출 분석</span>
         </div>
         <PremiumButton

@@ -101,7 +101,7 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
     <div>
       <div className="mb-4 flex items-center justify-between gap-3">
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '20px', lineHeight: 1 }}>🗓️</span>
+          <span aria-hidden="true" style={{ fontSize: '20px', lineHeight: 1 }}>🗓️</span>
           <span style={{ fontSize: '17px', fontWeight: 800, color: 'var(--color-text)', letterSpacing: '-0.01em' }}>목장 일정 관리</span>
         </div>
         <button
