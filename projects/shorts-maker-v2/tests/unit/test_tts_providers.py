@@ -1026,11 +1026,29 @@ class TestMediaStepTTSRouting:
         config.providers.tts_ref_audio = ""
         config.providers.tts_ref_audio_text = ""
         config.project.language = "ko-KR"
+        config._channel_key = "ai_tech"
         config.audio.sync_with_whisper = False
         config.cache.dir = "/tmp/test_cache"
         config.cache.enabled = False
         config.cache.max_size_mb = 100
         return config
+
+    @patch("shorts_maker_v2.pipeline.media_step.MediaCache")
+    @patch("shorts_maker_v2.pipeline.media_step.EdgeTTSClient")
+    def test_channel_key_reaches_edge_tts_fallback(self, mock_edge_cls, mock_cache_cls, tmp_path):
+        """Premium TTS fallback must keep channel-specific Edge prosody."""
+        from shorts_maker_v2.pipeline.media_step import MediaStep
+
+        mock_edge = MagicMock()
+        mock_edge.generate_tts.return_value = tmp_path / "out.mp3"
+        mock_edge_cls.return_value = mock_edge
+
+        config = self._make_config("cosyvoice")
+        ms = MediaStep(config, MagicMock())
+        ms._generate_audio("hello", tmp_path / "out.mp3")
+
+        mock_edge.generate_tts.assert_called_once()
+        assert mock_edge.generate_tts.call_args.kwargs["channel_key"] == "ai_tech"
 
     @patch("shorts_maker_v2.pipeline.media_step.MediaCache")
     @patch("shorts_maker_v2.pipeline.media_step.EdgeTTSClient")
@@ -1047,6 +1065,7 @@ class TestMediaStepTTSRouting:
         ms._generate_audio("안녕하세요", tmp_path / "out.mp3")
 
         mock_edge.generate_tts.assert_called_once()
+        assert mock_edge.generate_tts.call_args.kwargs["channel_key"] == "ai_tech"
 
     @patch("shorts_maker_v2.pipeline.media_step.MediaCache")
     @patch("shorts_maker_v2.pipeline.media_step.EdgeTTSClient")
@@ -1064,6 +1083,7 @@ class TestMediaStepTTSRouting:
 
         # chatterbox 미설치 → edge-tts fallback 호출
         mock_edge.generate_tts.assert_called_once()
+        assert mock_edge.generate_tts.call_args.kwargs["channel_key"] == "ai_tech"
 
     @patch("shorts_maker_v2.pipeline.media_step.MediaCache")
     @patch("shorts_maker_v2.pipeline.media_step.EdgeTTSClient")

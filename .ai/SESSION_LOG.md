@@ -735,3 +735,31 @@
 ### Follow-up
 - No automatic X posting was added; this intentionally keeps human approval before publication.
 - Preserve unrelated current WIP in `projects/shorts-maker-v2/**`, root package files, and `projects/hanwoo-dashboard/package.json`.
+
+## 2026-05-20 KST - Codex
+
+### Summary
+- Completed T-336 for `shorts-maker-v2`, closing the last safe T-318 Phase 3 item.
+- Fixed channel-specific TTS tuning propagation: `MediaStep` now captures `AppConfig._channel_key` and passes it through direct Edge TTS, Chatterbox/CosyVoice premium TTS calls, and Edge fallback calls.
+- Added/updated regression coverage so direct Edge routing and premium fallback retain `channel_key`, while empty-channel calls remain explicit.
+
+### Changed Files
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/CONTEXT.md`
+- `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/media_step.py`
+- `projects/shorts-maker-v2/tests/unit/test_media_step_branches.py`
+- `projects/shorts-maker-v2/tests/unit/test_tts_providers.py`
+
+### Verification
+- `python -m pytest --no-cov tests/unit/test_media_step_branches.py::test_generate_audio_edge_tts_uses_role_voice tests/unit/test_tts_providers.py::TestMediaStepTTSRouting -q --tb=short --maxfail=1 --basetemp .tmp/pytest-tts-channel-key-focused3` from `projects/shorts-maker-v2` -> `5 passed`, 2 warnings.
+- `python -m ruff check src/shorts_maker_v2/pipeline/media_step.py tests/unit/test_tts_providers.py tests/unit/test_media_step_branches.py` from `projects/shorts-maker-v2` -> passed.
+- `python -m ruff format --check src/shorts_maker_v2/pipeline/media_step.py tests/unit/test_tts_providers.py tests/unit/test_media_step_branches.py` from `projects/shorts-maker-v2` -> passed.
+- `python -m pytest --no-cov tests/unit tests/integration -q --tb=short --maxfail=1 --basetemp .tmp/pytest-tts-channel-key-full-final` from `projects/shorts-maker-v2` -> passed.
+- `python execution/project_qc_runner.py --project shorts-maker-v2 --check lint --json` -> passed.
+- `PYTHONUTF8=1 python -m code_review_graph detect-changes --repo projects/shorts-maker-v2 --brief` -> risk `0.00`.
+
+### Follow-up
+- T-318 is closed. Remaining `shorts-maker-v2` backlog is approval-gated T-320 OSS integration.
+- Preserve unrelated current WIP in root package/workflow files, Blind-to-X `pyproject.toml`, Hanwoo `package.json`, shorts-maker-v2 `render/color_grading.py` and `scripts/bench_render.py`, package locks, and setup scripts.

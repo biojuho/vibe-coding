@@ -247,6 +247,7 @@
 
 ## Minefield
 
+- `projects/shorts-maker-v2`: as of 2026-05-20, T-318 Phase 3 safe backlog is closed. The final TTS fix is that `MediaStep` must pass `AppConfig._channel_key` into direct Edge TTS and premium-provider Edge fallback calls; otherwise `EdgeTTSClient` silently uses default prosody instead of channel-specific jitter/pitch.
 - When running Node project checks from Python on Windows, resolve `npm`/similar executables through PATHEXT or explicit `.cmd/.bat/.exe`; plain `subprocess.run(["npm", ...])` can raise `FileNotFoundError` even when PowerShell can run `npm`.
 - The repo currently has no top-level `directives/` directory. Do not run recursive PowerShell scans against a missing `directives` path; `Get-ChildItem -Recurse -File directives` can spill into broader traversal and surface unrelated permission/path errors.
 - `code-review-graph` was rebuilt successfully on 2026-05-06. If `python3.13 -m code_review_graph status` ever regresses to `Nodes: 0`, rebuild with `python3.13 -m code_review_graph build --repo .` before relying on graph-first exploration.

@@ -165,6 +165,7 @@ def test_generate_audio_edge_tts_uses_role_voice(tmp_path: Path) -> None:
         output_path=output_path,
         words_json_path=tmp_path / "scene_01_words.json",
         role="hook",
+        channel_key="",
         language="ko-KR",
     )
 

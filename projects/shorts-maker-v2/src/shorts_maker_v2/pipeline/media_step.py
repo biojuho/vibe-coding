@@ -43,6 +43,8 @@ class MediaStep:
         self.pexels_client = pexels_client
         self._llm_router = llm_router
         self._job_index = job_index
+        raw_channel_key = getattr(config, "_channel_key", "")
+        self._channel_key = raw_channel_key if isinstance(raw_channel_key, str) else ""
 
         # YPP: TTS voice selection (rotate/random/fixed)
         pool = config.providers.tts_voice_pool
@@ -130,6 +132,7 @@ class MediaStep:
                 output_path=output_path,
                 words_json_path=words_json_path,
                 role=role,
+                channel_key=self._channel_key,
                 language=self.config.project.language,
             )
         else:
@@ -201,7 +204,7 @@ class MediaStep:
                     output_path=output_path,
                     words_json_path=words_json_path,
                     role=role,
-                    channel_key=getattr(self, "_channel_key", ""),
+                    channel_key=self._channel_key,
                     language=self.config.project.language,
                 )
 
@@ -225,7 +228,7 @@ class MediaStep:
                     output_path=output_path,
                     words_json_path=words_json_path,
                     role=role,
-                    channel_key=getattr(self, "_channel_key", ""),
+                    channel_key=self._channel_key,
                     language=self.config.project.language,
                 )
 
@@ -246,6 +249,7 @@ class MediaStep:
             output_path=output_path,
             words_json_path=words_json_path,
             role=role,
+            channel_key=self._channel_key,
             language=self.config.project.language,
         )
 
