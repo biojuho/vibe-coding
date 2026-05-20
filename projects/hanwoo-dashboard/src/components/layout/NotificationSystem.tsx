@@ -38,10 +38,12 @@ export function NotificationSystem({ initialNotifications = [] } = {}) {
           title={notificationLabel}
         >
           <Bell className="h-4 w-4" aria-hidden="true" />
-          <span
-            className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 animate-pulse"
-            aria-hidden="true"
-          />
+          {unreadCount > 0 && (
+            <span
+              className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 animate-pulse"
+              aria-hidden="true"
+            />
+          )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80">

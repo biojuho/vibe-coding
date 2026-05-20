@@ -46,9 +46,29 @@ test('typescript notification system mirror keeps the same accessible trigger co
   assert.match(source, /aria-label=\{notificationLabel\}/);
   assert.match(source, /title=\{notificationLabel\}/);
   assert.match(source, /Bell className="h-4 w-4" aria-hidden="true"/);
+  assert.match(source, /\{unreadCount > 0 && \(/);
   assert.match(source, /aria-hidden="true"/);
   assert.doesNotMatch(source, /aria-label="Notifications"/);
   assert.doesNotMatch(source, /title="Notifications"/);
+});
+
+test('notification systems only show unread badges when there are unread items', () => {
+  const source = readSource('components/layout/NotificationSystem.js');
+  const tsxSource = readSource('components/layout/NotificationSystem.tsx');
+
+  for (const candidate of [source, tsxSource]) {
+    assert.match(candidate, /\{unreadCount > 0 && \(/);
+    assert.match(candidate, /aria-hidden="true"/);
+  }
+});
+
+test('notification mark-all actions use safe button semantics', () => {
+  const source = readSource('components/layout/NotificationSystem.js');
+  const tsxSource = readSource('components/layout/NotificationSystem.tsx');
+
+  for (const candidate of [source, tsxSource]) {
+    assert.match(candidate, /<button\s+type="button"\s+onClick=\{markAllAsRead\}/);
+  }
 });
 
 test('notification system does not seed demo farm alerts by default', () => {

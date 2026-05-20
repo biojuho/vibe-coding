@@ -53,7 +53,8 @@ export function NotificationSystem({ initialNotifications = [] } = {}) {
         <DropdownMenuLabel className="flex items-center justify-between">
           <span>알림 ({unreadCount})</span>
           {unreadCount > 0 && (
-            <button 
+            <button
+              type="button"
               onClick={markAllAsRead}
               className="text-xs text-blue-500 hover:text-blue-700 font-normal"
             >
