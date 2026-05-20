@@ -104,8 +104,9 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
                     {...register('name')}
                     hasError={!!errors.name}
                     aria-invalid={Boolean(errors.name)}
+                    aria-describedby={errors.name ? "inventory-name-error" : undefined}
                   />
-                  {errors.name ? <div style={errorTextStyle}>{errors.name.message}</div> : null}
+                  {errors.name ? <div id="inventory-name-error" role="alert" style={errorTextStyle}>{errors.name.message}</div> : null}
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -116,13 +117,14 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
                       {...register('category')}
                       hasError={!!errors.category}
                       aria-invalid={Boolean(errors.category)}
+                      aria-describedby={errors.category ? "inventory-category-error" : undefined}
                     >
                       <option value="Feed" className="bg-slate-900">사료/조사료</option>
                       <option value="Medicine" className="bg-slate-900">약품/영양제</option>
                       <option value="Equipment" className="bg-slate-900">기자재</option>
                       <option value="Other" className="bg-slate-900">기타</option>
                     </PremiumSelect>
-                    {errors.category ? <div style={errorTextStyle}>{errors.category.message}</div> : null}
+                    {errors.category ? <div id="inventory-category-error" role="alert" style={errorTextStyle}>{errors.category.message}</div> : null}
                   </div>
 
                   <div>
@@ -134,8 +136,9 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
                       {...register('quantity')}
                       hasError={!!errors.quantity}
                       aria-invalid={Boolean(errors.quantity)}
+                      aria-describedby={errors.quantity ? "inventory-quantity-error" : undefined}
                     />
-                    {errors.quantity ? <div style={errorTextStyle}>{errors.quantity.message}</div> : null}
+                    {errors.quantity ? <div id="inventory-quantity-error" role="alert" style={errorTextStyle}>{errors.quantity.message}</div> : null}
                   </div>
                 </div>
 
@@ -148,8 +151,9 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
                       {...register('unit')}
                       hasError={!!errors.unit}
                       aria-invalid={Boolean(errors.unit)}
+                      aria-describedby={errors.unit ? "inventory-unit-error" : undefined}
                     />
-                    {errors.unit ? <div style={errorTextStyle}>{errors.unit.message}</div> : null}
+                    {errors.unit ? <div id="inventory-unit-error" role="alert" style={errorTextStyle}>{errors.unit.message}</div> : null}
                   </div>
 
                   <div>
@@ -161,8 +165,9 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
                       {...register('threshold')}
                       hasError={!!errors.threshold}
                       aria-invalid={Boolean(errors.threshold)}
+                      aria-describedby={errors.threshold ? "inventory-threshold-error" : undefined}
                     />
-                    {errors.threshold ? <div style={errorTextStyle}>{errors.threshold.message}</div> : null}
+                    {errors.threshold ? <div id="inventory-threshold-error" role="alert" style={errorTextStyle}>{errors.threshold.message}</div> : null}
                   </div>
                 </div>
 

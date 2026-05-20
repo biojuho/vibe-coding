@@ -258,6 +258,25 @@ test('inventory form fields expose explicit labels and invalid state', () => {
   assert.match(source, /id="inventory-threshold"[\s\S]*?aria-invalid=\{Boolean\(errors\.threshold\)\}/);
 });
 
+test('inventory form validation messages are announced by their controls', () => {
+  const source = readSource('components/tabs/InventoryTab.js');
+  const fields = [
+    ['name', 'inventory-name-error'],
+    ['category', 'inventory-category-error'],
+    ['quantity', 'inventory-quantity-error'],
+    ['unit', 'inventory-unit-error'],
+    ['threshold', 'inventory-threshold-error'],
+  ];
+
+  for (const [errorPath, errorId] of fields) {
+    assert.match(
+      source,
+      new RegExp(`aria-describedby=\\{errors\\.${errorPath} \\? "${errorId}" : undefined\\}`),
+    );
+    assert.match(source, new RegExp(`<div id="${errorId}" role="alert"`));
+  }
+});
+
 test('inventory inline quantity editor exposes item-specific input label', () => {
   const source = readSource('components/tabs/InventoryTab.js');
 
