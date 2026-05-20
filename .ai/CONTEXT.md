@@ -33,7 +33,7 @@
 
 ## Current Reliability Notes
 
-- As of 2026-05-20, `hanwoo-dashboard` AI chat widget fallback and launcher copy are polished. `AIChatWidget` treats localized Gemini setup/configuration messages as guided setup errors, and the closed floating launcher uses a lucide `Bot` icon with explicit accessible label/title instead of a bare `AI` text button. Verification passed: Hanwoo AI chat/widget tests `109 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json` after retrying a transient concurrent Next build lock, `git diff --check`, and direct Hanwoo graph risk `0.00`.
+- As of 2026-05-20, `hanwoo-dashboard` AI chat widget fallback and launcher copy are polished. `AIChatWidget` treats localized Gemini setup/configuration messages as guided setup errors, and the closed floating launcher uses a lucide `Bot` icon with explicit accessible label/title instead of a bare `AI` text button. Verification passed: Hanwoo AI chat/widget tests `109 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json`, `git diff --check`, and direct Hanwoo graph risk `0.00`.
 
 - As of 2026-05-20, `hanwoo-dashboard` subscription entry-page copy is localized. `/subscription` now uses Korean product copy for the title, monthly price/value line, and customer-name fallback, and `payment-ux-copy.test.mjs` guards against `Joolife Premium Subscription`, `Start smarter farm management`, `KRW 9,900 per month`, and `Joolife User` returning. Verification passed: Hanwoo tests `109 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json`, source English subscription scan, and direct Hanwoo graph risk `0.00`.
 

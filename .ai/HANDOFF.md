@@ -9,7 +9,7 @@
 | Date | 2026-05-20 |
 | Tool | Codex |
 | Work | **T-356 completed**: continued the active Hanwoo product-completeness goal by polishing the AI chat widget fallback surface. `AIChatWidget` now treats the localized Gemini configuration messages from `/api/ai/chat` as setup errors, so missing setup still shows the guided fallback instead of a generic failure. The closed floating launcher now uses a lucide `Bot` icon with explicit accessible label/title instead of a bare `AI` text button. Added `ai-chat-widget-copy.test.mjs` to guard the Korean setup-error patterns and accessible launcher wiring. |
-| Next Priorities | Verification passed: focused Hanwoo AI chat/widget tests passed (`109 passed`), targeted ESLint passed, full Hanwoo QC passed after a transient concurrent Next build lock was retried successfully (`test` 109 passed, lint passed, build passed), `git diff --check` passed, and UTF-8 graph risk `0.00`. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |
+| Next Priorities | Verification passed: focused Hanwoo AI chat/widget tests passed (`109 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 109 passed, lint passed, build passed), `git diff --check` passed, and UTF-8 graph risk `0.00`. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |
 
 | Field | Value |
 |---|---|
