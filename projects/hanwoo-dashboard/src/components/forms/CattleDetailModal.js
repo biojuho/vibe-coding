@@ -194,11 +194,15 @@ export default function CattleDetailModal({ cattle, buildings = [], onClose, onE
           <div className="animate-fadeInUp" style={{display:"flex",gap:"12px",marginBottom:"28px",animationDelay:"100ms"}}>
             <button
               onClick={onEdit}
+              aria-label={`${cattle.name} 개체 정보 수정`}
+              title="개체 정보 수정"
               className="btn btn-secondary"
               style={{...btnSecondary,flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:"8px"}}
             ><EditIcon/> 수정</button>
             <button
               onClick={onDelete}
+              aria-label={`${cattle.name} 개체 삭제`}
+              title="개체 삭제"
               className="btn btn-danger"
               style={{...btnDanger,flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:"8px"}}
             ><TrashIcon/> 삭제</button>

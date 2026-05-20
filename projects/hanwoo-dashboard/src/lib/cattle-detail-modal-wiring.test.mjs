@@ -34,6 +34,10 @@ test('cattle form and detail icon-only navigation controls have Korean labels', 
   assert.match(formSource, /id="cattle-form-title"/);
   assert.match(detailSource, /aria-label="개체 상세 닫기"/);
   assert.match(detailSource, /title="개체 상세 닫기"/);
+  assert.match(detailSource, /aria-label=\{`\$\{cattle\.name\} 개체 정보 수정`\}/);
+  assert.match(detailSource, /title="개체 정보 수정"/);
+  assert.match(detailSource, /aria-label=\{`\$\{cattle\.name\} 개체 삭제`\}/);
+  assert.match(detailSource, /title="개체 삭제"/);
   assert.match(detailSource, /role="dialog"/);
   assert.match(detailSource, /aria-modal="true"/);
   assert.match(detailSource, /aria-labelledby="cattle-detail-title"/);
