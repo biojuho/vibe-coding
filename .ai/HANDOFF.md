@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-442 completed**: Hanwoo building creation now validates input server-side before Prisma. `createBuilding` uses `validateBuildingInput()` instead of `parseInt(data.penCount)`, so empty building names and invalid pen counts return field-level Korean validation errors instead of falling through to generic DB failure. `action-validation.test.mjs` guards trimming and invalid pen-count behavior. Code commit `c2ef819`. |
+| Next Priorities | Verification passed: focused action-validation/actions copy tests (`12 passed`), targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk `0.00`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 159, lint, build), and staged `code_review_gate --staged --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-441 completed**: Hanwoo cattle detail now shows an actual 분만 예정일 instead of the placeholder `계산중...`. `CattleDetailModal` reuses the existing `getCalvingDate()` + `formatDate()` path, and `cattle-detail-modal-wiring.test.mjs` guards against the placeholder returning. Code commit `0483c50`. |
 | Next Priorities | Verification passed: focused cattle detail modal wiring test (`4 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 158, lint, build), and staged `code_review_gate --staged --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Direct `code_review_graph detect-changes` still hits the known Windows cp949 reader failure. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP and concurrent Hanwoo action-validation/building edits. |
 

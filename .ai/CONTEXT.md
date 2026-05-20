@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` building creation validates input server-side before Prisma. `createBuilding` uses `validateBuildingInput()` instead of `parseInt(data.penCount)`, so empty building names and invalid pen counts return field-level Korean validation errors instead of generic DB failure. Verification passed: focused action-validation/actions copy tests (`12 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 159, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` notification test-send and cattle archive copy match product behavior. Test 문자 feedback no longer exposes sample cattle data (`순심이(0001)`), and cattle soft-delete UI/server messages consistently say 보관 처리 instead of destructive 삭제. Verification passed: focused notification/home/actions copy tests (`18 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 157, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` `NotificationSystem` no longer seeds demo farm alerts. The JS and TSX mirrors default to `initialNotifications = []`, render the empty state when no real alerts are supplied, and only show provided notifications. Verification passed: focused notification system test (`5 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 157, lint, build).
