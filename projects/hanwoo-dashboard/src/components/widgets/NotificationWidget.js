@@ -37,7 +37,7 @@ export default function NotificationWidget({ notifications = [] }) {
   return (
     <section className="animate-fadeInDown mb-6">
       <div className="mb-3 flex items-center gap-3">
-        <div className="clay-page-eyebrow">Priority Alerts</div>
+        <div className="clay-page-eyebrow">우선 확인 알림</div>
         <div className="clay-stat-chip">{notifications.length}건</div>
       </div>
 

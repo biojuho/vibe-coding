@@ -11,6 +11,7 @@ import {
 
 const CONFIRM_RETRY_DELAY_MS = 3000;
 const CONFIRM_RETRY_LIMIT = 3;
+const PAYMENT_CONFIRMATION_ERROR_MESSAGE = '결제 확인 중 오류가 발생했습니다. 잠시 후 다시 확인해 주세요.';
 
 function SuccessContent() {
   const searchParams = useSearchParams();
@@ -84,7 +85,8 @@ function SuccessContent() {
         );
       } catch (error) {
         if (!cancelled) {
-          setStatus(`결제 확인 오류: ${error.message}`);
+          console.error('Payment confirmation failed:', error);
+          setStatus(PAYMENT_CONFIRMATION_ERROR_MESSAGE);
         }
       }
     };

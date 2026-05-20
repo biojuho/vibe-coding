@@ -42,9 +42,11 @@ test('subscription result pages avoid bare English loading and status copy', () 
   assert.match(successSource, /결제가 완료되었습니다/);
   assert.match(successSource, /결제 정보를 불러오는 중입니다/);
   assert.match(successSource, /결제 확인을 다시 시도합니다/);
+  assert.match(successSource, /결제 확인 중 오류가 발생했습니다/);
   assert.doesNotMatch(successSource, /Loading\.\.\./);
   assert.doesNotMatch(successSource, /Payment confirmed/);
   assert.doesNotMatch(successSource, /Processing\.\.\./);
+  assert.doesNotMatch(successSource, /setStatus\(`결제 확인 오류: \$\{error\.message\}`\)/);
 
   assert.match(failSource, /결제를 완료하지 못했습니다/);
   assert.match(failSource, /결제 실패 정보를 불러오는 중입니다/);

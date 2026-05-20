@@ -29,6 +29,13 @@ test('notification system trigger exposes a Korean accessible label', () => {
   assert.match(tsxSource, /Bell className="h-4 w-4" aria-hidden="true"/);
 });
 
+test('notification widget visible heading uses Korean product copy', () => {
+  const source = readSource('components/widgets/NotificationWidget.js');
+
+  assert.match(source, /우선 확인 알림/);
+  assert.doesNotMatch(source, /Priority Alerts/);
+});
+
 test('typescript notification system mirror keeps the same accessible trigger contract', () => {
   const source = readSource('components/layout/NotificationSystem.tsx');
 
