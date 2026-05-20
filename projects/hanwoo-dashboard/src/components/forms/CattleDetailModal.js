@@ -52,6 +52,7 @@ export default function CattleDetailModal({ cattle, buildings = [], onClose, onE
   const monthAge = getMonthAge(cattle.birthDate);
   const statusColor = STATUS_COLORS[cattle.status] || { bg: "#eee", text: "#333" };
   const buildingName = buildings.find((building) => building.id === cattle.buildingId)?.name || cattle.buildingId;
+  const breedingDateErrorId = "breeding-record-date-error";
 
   // Build weight chart data from history or fallback to weightHistory field
   const weightChartData = (() => {
@@ -312,6 +313,7 @@ export default function CattleDetailModal({ cattle, buildings = [], onClose, onE
                         setBreedingError('');
                       }}
                       aria-invalid={Boolean(breedingError)}
+                      aria-describedby={breedingError ? breedingDateErrorId : undefined}
                       style={{
                         flex:"1 1 170px",
                         minHeight:"42px",
@@ -342,7 +344,7 @@ export default function CattleDetailModal({ cattle, buildings = [], onClose, onE
                     </button>
                   </div>
                   {breedingError ? (
-                    <div style={{fontSize:"12px",fontWeight:700,color:"var(--color-danger)",marginTop:"8px"}}>
+                    <div id={breedingDateErrorId} role="alert" style={{fontSize:"12px",fontWeight:700,color:"var(--color-danger)",marginTop:"8px"}}>
                       {breedingError}
                     </div>
                   ) : null}

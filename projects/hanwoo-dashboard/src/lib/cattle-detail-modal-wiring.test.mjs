@@ -22,6 +22,15 @@ test('cattle detail breeding actions use an in-app date form instead of browser 
   assert.match(source, /successTitle: activeBreedingAction === 'pregnancy'/);
 });
 
+test('cattle detail breeding date validation is announced with the date input', () => {
+  const source = readSource('components/forms/CattleDetailModal.js');
+
+  assert.match(source, /const breedingDateErrorId = "breeding-record-date-error"/);
+  assert.match(source, /aria-invalid=\{Boolean\(breedingError\)\}/);
+  assert.match(source, /aria-describedby=\{breedingError \? breedingDateErrorId : undefined\}/);
+  assert.match(source, /<div id=\{breedingDateErrorId\} role="alert"/);
+});
+
 test('cattle detail shows a real calving due date from pregnancy date', () => {
   const source = readSource('components/forms/CattleDetailModal.js');
 
