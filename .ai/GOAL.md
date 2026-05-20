@@ -20,6 +20,7 @@
 - 2026-05-20: T-359 localized the financial analysis surface labels and chart legend copy; verification passed with Hanwoo tests `111 passed`, targeted ESLint, full Hanwoo QC, source scan, `git diff --check`, and graph risk `0.00`.
 - 2026-05-20: T-360 localized server-action fallback errors for cattle list, sales records, and admin raw-data invalid-model paths; verification passed with Hanwoo tests `112 passed`, targeted ESLint, full Hanwoo QC, `git diff --check`, and graph risk `0.00`.
 - 2026-05-20: T-361 localized the shared dialog close screen-reader label from `Close` to `닫기`; verification passed with Hanwoo tests `113 passed`, targeted ESLint, full Hanwoo QC, accessibility-copy source scan, `git diff --check`, and graph risk `0.00`.
+- 2026-05-20: T-362 localized admin diagnostics database status values from `Online`/`Offline`/`N/A` to `정상`/`연결 실패`/`확인 불가`; verification passed with Hanwoo tests `115 passed`, targeted ESLint, full Hanwoo QC test/lint plus build retry pass, source scan, `git diff --check`, staged code-review gate PASS, and graph risk `0.00`.
 
 ## Notes
 
