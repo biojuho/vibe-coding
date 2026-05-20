@@ -6,6 +6,9 @@ export default function NotificationModal({ notifications, onClose, onTestSMS })
       <div
         className="modal-content animate-slideInUp"
         onClick={e => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="notification-modal-title"
         style={{maxWidth:"400px", borderRadius:"var(--radius-xl)"}}
       >
         {/* Modal Handle — wider for better grab affordance */}
@@ -20,7 +23,9 @@ export default function NotificationModal({ notifications, onClose, onTestSMS })
           paddingBottom:"14px",
           borderBottom:"1px solid color-mix(in srgb, var(--color-border-custom) 30%, transparent)"
         }}>
-          <div style={{
+          <div
+            id="notification-modal-title"
+            style={{
             fontSize:"19px",
             fontWeight:800,
             color:"var(--color-text)",

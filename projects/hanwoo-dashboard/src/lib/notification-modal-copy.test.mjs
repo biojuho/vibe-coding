@@ -19,3 +19,13 @@ test('notification modal close button has Korean accessible copy', () => {
   assert.doesNotMatch(source, /aria-label="Close"/);
   assert.doesNotMatch(source, /title="Close"/);
 });
+
+test('notification modal exposes dialog semantics with a visible title label', () => {
+  const source = readSource('components/ui/NotificationModal.js');
+
+  assert.match(source, /role="dialog"/);
+  assert.match(source, /aria-modal="true"/);
+  assert.match(source, /aria-labelledby="notification-modal-title"/);
+  assert.match(source, /id="notification-modal-title"/);
+  assert.match(source, /알림 센터/);
+});
