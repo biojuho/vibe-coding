@@ -54,7 +54,8 @@ test('buildGatewayErrorMessage falls back to a safe response snippet for malform
     rawText: '<html><body>Service temporarily unavailable</body></html>',
   });
 
-  assert.match(message, /Payment verification failed\./);
+  assert.match(message, /결제 확인에 실패했습니다/);
+  assert.match(message, /게이트웨이 응답/);
   assert.match(message, /Service temporarily unavailable/);
 });
 
@@ -124,4 +125,23 @@ test('classifyPaymentConfirmationResult normalizes a successful confirmation pay
   assert.equal(result.confirmedAmount, 9900);
   assert.equal(result.receiptUrl, 'https://receipt.example/123');
   assert.equal(result.approvedAt.toISOString(), fallbackNow.toISOString());
+});
+
+test('payment confirmation fallback messages use Korean product copy', () => {
+  const failed = buildGatewayErrorMessage({
+    payload: { code: 'INVALID_ORDER' },
+    rawText: '',
+  });
+
+  assert.equal(PAYMENT_CONFIRMATION_PENDING_MESSAGE, '결제 승인을 확인하고 있습니다. 잠시 후 다시 시도해 주세요.');
+  assert.equal(PAYMENT_CONFIRMATION_AMOUNT_MISMATCH_MESSAGE, '승인된 결제 금액이 요청 금액과 일치하지 않습니다.');
+  assert.match(failed, /결제 확인에 실패했습니다/);
+  assert.doesNotMatch(
+    [
+      PAYMENT_CONFIRMATION_PENDING_MESSAGE,
+      PAYMENT_CONFIRMATION_AMOUNT_MISMATCH_MESSAGE,
+      failed,
+    ].join(' '),
+    /Payment confirmation|Payment verification|Confirmed payment amount|Gateway response/,
+  );
 });

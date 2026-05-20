@@ -41,3 +41,16 @@ test('subscription result pages avoid bare English loading and status copy', () 
   assert.doesNotMatch(failSource, /Loading\.\.\./);
   assert.doesNotMatch(failSource, /Code:/);
 });
+
+test('payment confirmation fallback messages use Korean product copy', () => {
+  const source = readSource('lib/payment-confirmation.mjs');
+
+  assert.match(source, /결제 승인을 확인하고 있습니다/);
+  assert.match(source, /결제 확인에 실패했습니다/);
+  assert.match(source, /승인된 결제 금액이 요청 금액과 일치하지 않습니다/);
+  assert.match(source, /게이트웨이 응답/);
+  assert.doesNotMatch(source, /Payment confirmation is still being verified/);
+  assert.doesNotMatch(source, /Payment verification failed/);
+  assert.doesNotMatch(source, /Confirmed payment amount does not match/);
+  assert.doesNotMatch(source, /Gateway response:/);
+});

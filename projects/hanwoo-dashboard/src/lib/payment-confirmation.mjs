@@ -1,10 +1,10 @@
 export const PAYMENT_CONFIRMATION_PENDING_MESSAGE =
-  'Payment confirmation is still being verified. Please retry in a few seconds.';
+  '결제 승인을 확인하고 있습니다. 잠시 후 다시 시도해 주세요.';
 
-export const PAYMENT_CONFIRMATION_FAILURE_MESSAGE = 'Payment verification failed.';
+export const PAYMENT_CONFIRMATION_FAILURE_MESSAGE = '결제 확인에 실패했습니다.';
 
 export const PAYMENT_CONFIRMATION_AMOUNT_MISMATCH_MESSAGE =
-  'Confirmed payment amount does not match the expected amount.';
+  '승인된 결제 금액이 요청 금액과 일치하지 않습니다.';
 
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -61,7 +61,7 @@ export function buildGatewayErrorMessage({
 
   const snippet = buildGatewaySnippet(rawText);
   if (snippet) {
-    return `${fallbackMessage} Gateway response: ${snippet}`;
+    return `${fallbackMessage} 게이트웨이 응답: ${snippet}`;
   }
 
   return fallbackMessage;
