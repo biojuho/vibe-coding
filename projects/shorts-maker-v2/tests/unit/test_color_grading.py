@@ -226,7 +226,7 @@ class TestColorGradeClip:
         assert result.dtype == np.uint8
 
 
-# ── _grade_inplace fused-pass optimization (T-333) ────────────────────────────
+# ── _grade_inplace fused-pass optimization (T-337) ────────────────────────────
 
 
 def _reference_grade(result: np.ndarray, profile: dict) -> None:

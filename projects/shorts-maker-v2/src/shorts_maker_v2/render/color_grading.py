@@ -3,7 +3,7 @@
 채널별 컬러 그레이딩 프로파일, 비네트 효과, 밝기/대비/채도 조정.
 PIL ImageEnhance 기반 — 추가 의존성 없음.
 
-성능 메모 (2026-05-20, T-333):
+성능 메모 (2026-05-20, T-337):
   컬러 그레이딩은 렌더 단계 wall time 의 ~40% 를 차지한다
   (bench_render.py A/B: 4s 영상에서 71.1s → 42.7s, 색보정 28.4s).
   `transform` 으로 프레임마다 호출되므로 핫패스다. 따라서:
@@ -98,7 +98,7 @@ def _grade_inplace(result: np.ndarray, profile: dict) -> None:
 
     `result` 는 float32 (H, W, 3) 여야 하며 호출 후 덮어쓰여진다.
 
-    핫패스 최적화 (T-333): 프레임당 비용은 거의 전부 전체 프레임을 훑는
+    핫패스 최적화 (T-337): 프레임당 비용은 거의 전부 전체 프레임을 훑는
     elementwise 패스 횟수에 비례한다 (micro-bench: 1080x1920 패스당 ~14ms).
     그래서 패스를 최소화한다:
       - 밝기+대비를 단일 affine `A*x + B` 로 융합 (4패스 → 2패스).
@@ -191,7 +191,7 @@ def color_grade_clip(clip, channel_key: str = "", role: str = "body"):
     """MoviePy 클립에 컬러 그레이딩 + 비네트 적용.
 
     프레임 함수는 색보정과 비네트를 단일 float32 패스로 융합한다 —
-    프레임당 uint8↔float32 왕복 변환을 제거한다 (T-333).
+    프레임당 uint8↔float32 왕복 변환을 제거한다 (T-337).
     """
     profile = _resolve_profile(channel_key, role, None)
     vignette_strength = float(profile.get("vignette_strength", 0.2))
