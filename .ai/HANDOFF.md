@@ -6,6 +6,13 @@
 
 | Field | Value |
 |---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
+| Work | **T-489 completed**: Hanwoo settings farm information controls now stay locked while a farm-settings save is in flight. `SettingsTab` ignores location preset changes when `isSavingFarm` is already true and disables the farm name/location/latitude/longitude controls plus the preset selector while saving, so slow saves cannot race with visible farm settings edits. `settings-tab-accessibility.test.mjs` guards the contract. Code commit `981d5f0`. |
+| Next Priorities | Verification passed: focused settings accessibility test (`9 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 194, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known advisory graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
 | Work | **T-488 completed**: Hanwoo cattle-detail breeding record saves now guard against duplicate async submissions. `CattleDetailModal` returns early when `isBreedingSaving` is already true and exposes `aria-busy` on the breeding record submit button, so slow 발정/수정 record saves cannot be submitted twice through rapid submit/Enter paths. `cattle-detail-modal-wiring.test.mjs` guards the contract. Code commit `e5cfb25`. |
