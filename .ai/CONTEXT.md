@@ -33,6 +33,10 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` public login/error/not-found decorative icons are hidden from assistive technology. Login status icons, route-error/not-found status icons, and password visibility toggle icons now use `aria-hidden="true"` while Korean `aria-label` copy remains the accessible name. Verification passed: focused tests (`132 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 132, lint, build).
+
+- As of 2026-05-20, `hanwoo-dashboard` home building navigation uses semantic buttons. The empty-building CTA routes through `handleTabChange('settings')`, and building cards are native buttons with the existing clay-card visual treatment, so keyboard users get the same navigation as pointer users. Verification passed: focused tests (`132 passed`), targeted ESLint, full Hanwoo QC (`test` 132, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
+
 - As of 2026-05-20, `hanwoo-dashboard` tab/page decorative icons are hidden from assistive technology. Analysis KPI icons, the Schedule add-form icon, and Settings section icons now use `aria-hidden="true"` while Korean text labels remain the accessible names. Verification passed: focused tests (`131 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 131, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` operational create forms preserve user input when async saves fail. Sales, Inventory, Schedule, and Settings create forms now await their save handlers and only close/reset after a truthy saved result, so failed mutations keep the form open for retry. Verification passed: focused tests (`131 passed`), targeted ESLint, full Hanwoo QC (`test` 131, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.

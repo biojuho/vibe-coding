@@ -7,6 +7,20 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-20 |
+| Tool | Codex |
+| Work | **T-400 completed**: continued Hanwoo product-completeness work by hiding decorative public-page icons from assistive technology. Login, route-error, and not-found status icons now carry `aria-hidden="true"`, and the password visibility toggle icons are hidden so the button's Korean `aria-label` remains the accessible name. `error-pages-wiring.test.mjs` guards the contract. Code commit `3da2221`. |
+| Next Priorities | Verification passed: focused Hanwoo tests passed (`132 passed`), targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk `0.00`, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 132, lint, build). Staged/commit code-review gate WARN was heuristic/test-gap noise while direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-398 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package WIP unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
+| Work | **T-399 completed**: continued Hanwoo product-completeness work by making home building navigation semantic and keyboard-accessible. The empty-building CTA is now a real button that routes through `handleTabChange('settings')`, and each building card is a real button preserving the clay-card visual treatment while exposing native keyboard activation. `home-market-copy.test.mjs` guards the contract. Code commit `c8473ca`. |
+| Next Priorities | Verification passed: focused Hanwoo tests passed (`132 passed`), targeted ESLint passed, path-limited `git diff --check` passed, staged code-review gate PASS with known trailing cp949 reader-thread noise, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 132, lint, build). Commit hook WARN was heuristic test-gap noise while direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, T-320/T-372/T-398 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package WIP unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
 | Tool | Claude |
 | Work | **T-396 completed** (goal: "기술 부채 정리" — 사용자가 선택한 1단계 범위): Dependabot PR 백로그 21건을 트리아지·드레인. 안전 13건(`#56 #57 #58 #59 #61 #62 #66 #67 #69 #73 #74 #75 #76` — patch/minor 및 의존성 범위 확장)을 전부 머지. 처리 절차: 13건 모두 실 CI 그린·`MERGEABLE` 확인 → `@dependabot squash and merge` 코맨드 무응답(약 8분) → ADMIN 권한으로 `gh pr merge --squash --admin` 직접 머지(`BEHIND` 규칙만 우회, GitHub 3-way 머지는 그대로 적용). `#62`(cloudinary, blind-to-x)는 동일 manifest 형제 PR 머지로 일시 conflict 발생 → dependabot이 백그라운드에서 자동 rebase 후 머지 완료. 위험 메이저 8건은 머지하지 않고 **T-398**로 분리(`#60` anthropic 0.43→0.103, `#63` vite-plugin-react 6, `#64` lucide-react 1 — CI 빌드 실패 확인, `#65` pytest-asyncio 1, `#68` typescript 6, `#70`/`#72` react major, `#71` recharts 3). |
 | Next Priorities | 검증 완료: 머지 후 `main`(`7fceede`)에서 `active-project-matrix` 5개 잡 전부 success(shorts-maker-v2 / workspace / blind-to-x / hanwoo-dashboard / knowledge-dashboard) + `root-quality-gate` success — 13건 누적 의존성 변경이 main을 깨지 않음을 확인. 남은 오픈 PR은 위험 메이저 8건(T-398)뿐. T-398은 각 메이저가 자체 마이그레이션·런타임 검증을 요하므로 approval. `#64` lucide-react는 CI 빌드가 이미 깨져 있어 단순 머지 불가. T-251/T-320/T-372는 기존대로 approval/external. 미커밋 로컬 WIP(shorts-maker-v2 audio_mixin/openvoice, 루트 모노레포 파일, hanwoo `package.json`)는 손대지 않음 — 보존. |

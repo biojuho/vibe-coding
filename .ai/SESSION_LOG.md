@@ -1066,6 +1066,63 @@
 ## 2026-05-20 KST - Codex
 
 ### Summary
+- Completed T-400 for `hanwoo-dashboard` while continuing the active product-completeness goal.
+- Hid decorative public login/error/not-found icons from assistive technology.
+- Login status icons, route-error/not-found status icons, and password visibility toggle icons now use `aria-hidden="true"` so Korean labels remain the meaningful accessible names.
+
+### Changed Files
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/CONTEXT.md`
+- `.ai/GOAL.md`
+- `projects/hanwoo-dashboard/src/app/login/page.js`
+- `projects/hanwoo-dashboard/src/app/error.js`
+- `projects/hanwoo-dashboard/src/app/not-found.js`
+- `projects/hanwoo-dashboard/src/lib/error-pages-wiring.test.mjs`
+
+### Verification
+- `npm.cmd test -- src/lib/error-pages-wiring.test.mjs` from `projects/hanwoo-dashboard` -> `132 passed`.
+- `npx.cmd eslint src/app/login/page.js src/app/error.js src/app/not-found.js src/lib/error-pages-wiring.test.mjs` from `projects/hanwoo-dashboard` -> passed.
+- `git diff --check -- <changed Hanwoo paths>` -> passed.
+- `python -m code_review_graph detect-changes --repo projects/hanwoo-dashboard --brief` -> risk `0.00`.
+- `python execution/project_qc_runner.py --project hanwoo-dashboard --json` -> passed (`test` 132, lint passed, build passed).
+
+### Follow-up
+- Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
+- T-320, T-372, and T-398 remain approval-scoped. Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, package locks, and shorts-maker-v2 files.
+
+## 2026-05-20 KST - Codex
+
+### Summary
+- Completed T-399 for `hanwoo-dashboard` while continuing the active product-completeness goal.
+- Made home building navigation semantic and keyboard-accessible: the empty-building CTA now uses a real button routed through `handleTabChange('settings')`, and each building card is a native button preserving the existing clay-card styling.
+- Added source regression coverage in `home-market-copy.test.mjs`.
+
+### Changed Files
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/CONTEXT.md`
+- `.ai/GOAL.md`
+- `projects/hanwoo-dashboard/src/components/DashboardClient.js`
+- `projects/hanwoo-dashboard/src/app/globals.css`
+- `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs`
+
+### Verification
+- `npm.cmd test -- src/lib/home-market-copy.test.mjs src/lib/component-imports.test.mjs` from `projects/hanwoo-dashboard` -> `132 passed`.
+- `npx.cmd eslint src/components/DashboardClient.js src/lib/home-market-copy.test.mjs` from `projects/hanwoo-dashboard` -> passed.
+- `python execution/project_qc_runner.py --project hanwoo-dashboard --json` -> passed (`test` 132, lint passed, build passed).
+- `git diff --check -- projects/hanwoo-dashboard/src/components/DashboardClient.js projects/hanwoo-dashboard/src/app/globals.css projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` -> passed.
+- `python execution/code_review_gate.py --staged --json` -> PASS; trailing cp949 reader-thread exception is known Windows output noise.
+
+### Follow-up
+- Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
+- T-320, T-372, and T-398 remain approval-scoped. Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, package locks, error-page WIP, and shorts-maker-v2 files.
+
+## 2026-05-20 KST - Codex
+
+### Summary
 - Completed T-397 for `hanwoo-dashboard` while continuing the active product-completeness goal.
 - Hid decorative Analysis KPI, Schedule add-form, and Settings section icons from assistive technology with `aria-hidden="true"` so Korean text labels remain the meaningful accessible content.
 - Extended source regression coverage in `analysis-copy.test.mjs`, `home-market-copy.test.mjs`, and `settings-tab-accessibility.test.mjs`.

@@ -12,6 +12,9 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-400 hid decorative public login/error/not-found icons and password-toggle icons from assistive technology so Korean labels remain the accessible names; verification passed with focused Hanwoo tests `132 passed`, targeted ESLint, path-limited `git diff --check`, graph risk `0.00`, and full Hanwoo QC (`test` 132, lint, build).
+
+- 2026-05-20: T-399 made home building navigation semantic and keyboard-accessible by converting the empty-building CTA and building cards to real buttons while preserving the visual treatment; verification passed with focused Hanwoo tests `132 passed`, targeted ESLint, full Hanwoo QC (`test` 132, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
 - 2026-05-20: T-397 hid decorative tab/page icons from assistive technology in Analysis, Schedule, and Settings so screen readers focus on Korean text labels; verification passed with focused Hanwoo tests `131 passed`, targeted ESLint, path-limited `git diff --check`, graph risk `0.00`, and full Hanwoo QC (`test` 131, lint, build).
 - 2026-05-20: T-395 kept Sales, Inventory, Schedule, and Settings create forms open when async submit handlers fail, preserving typed values for retry until the save handler returns a truthy saved result; verification passed with focused Hanwoo tests `131 passed`, targeted ESLint, full Hanwoo QC (`test` 131, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
 - 2026-05-20: T-394 made Today Focus and Setup Progress panel navigation use `handleTabChange`, so home-panel tab changes trigger the same preload path as bottom navigation; verification passed with full Hanwoo QC (`test` 130, lint, build).
