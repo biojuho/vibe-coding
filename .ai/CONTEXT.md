@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` AI chat no longer presents blank sends as actionable. `AIChatWidget` now derives `canSend` from trimmed input plus streaming state, disables the send button until a non-empty question is ready, and mirrors the inactive state in opacity/cursor styling. Verification passed: focused AI chat widget copy test (`2 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 207, lint, build).
+
 - As of 2026-05-21, `hanwoo-dashboard` money formatting safely degrades non-finite inputs instead of letting `NaN` or `Infinity` reach user-facing won amounts. `formatMoney()` now converts input with `Number(value)` and formats only finite numbers, otherwise returning `0`. Verification passed: focused utils/payment/profitability tests (`10 passed`), targeted ESLint, path-limited `git diff --check`, non-finite money scan, and full Hanwoo QC (`test` 206, lint, build).
 
 - As of 2026-05-21, `hanwoo-dashboard` date utilities safely degrade invalid date inputs instead of letting `Invalid Date` or `NaN` values reach month-age, estrus, calving, or date formatting surfaces. `utils.js` now normalizes through `toValidDate()` and returns `0`, `null`, `-`, or empty input-date strings for invalid inputs. Verification passed: focused utils/cattle-detail tests (`11 passed`), targeted ESLint, path-limited `git diff --check`, invalid-date risk scan, and full Hanwoo QC (`test` 206, lint, build).

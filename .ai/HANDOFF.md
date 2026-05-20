@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-515 completed**: Hanwoo AI chat send action now stays disabled until the operator has entered a non-empty question and no response is streaming. `AIChatWidget` derives `canSend` from trimmed input plus streaming state, uses it for the send button disabled state, and mirrors the inactive state in opacity/cursor styling so empty sends no longer look actionable. Code commit `0697b40`. |
+| Next Priorities | Verification passed: focused AI chat widget copy test (`2 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 207, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct checks and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-514 completed**: Hanwoo money formatting now degrades non-finite values safely instead of allowing `NaN` or `Infinity` to reach user-facing won amounts. `formatMoney()` now converts input with `Number(value)` and formats only finite numbers, otherwise returning `0`. Code commit `a95c700`. |
 | Next Priorities | Verification passed: focused utils/payment/profitability tests (`10 passed`), targeted ESLint passed, path-limited `git diff --check` passed, non-finite money scan found no remaining runtime matches, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 206, lint, build). Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 
