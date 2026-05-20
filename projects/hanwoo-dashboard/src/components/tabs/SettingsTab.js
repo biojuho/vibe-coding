@@ -160,6 +160,10 @@ export default function SettingsTab({
         <button
           type="button"
           onClick={onToggleTheme}
+          role="switch"
+          aria-checked={isDark}
+          aria-label={isDark ? '다크모드 끄기' : '다크모드 켜기'}
+          title={isDark ? '다크모드 끄기' : '다크모드 켜기'}
           style={{
             width: '52px',
             height: '28px',
@@ -183,6 +187,7 @@ export default function SettingsTab({
               transition: 'left 0.3s ease',
               boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
             }}
+            aria-hidden="true"
           />
         </button>
       </div>
@@ -238,6 +243,10 @@ export default function SettingsTab({
                   <button
                     type="button"
                     onClick={() => onToggleWidget(widget.id)}
+                    role="switch"
+                    aria-checked={isOn}
+                    aria-label={`${widget.label} 위젯 ${isOn ? '숨기기' : '보이기'}`}
+                    title={`${widget.label} 위젯 ${isOn ? '숨기기' : '보이기'}`}
                     style={{
                       width: '44px',
                       height: '24px',
@@ -261,6 +270,7 @@ export default function SettingsTab({
                         transition: 'left 0.3s ease',
                         boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
                       }}
+                      aria-hidden="true"
                     />
                   </button>
                 </div>

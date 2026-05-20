@@ -39,6 +39,10 @@ test('home dashboard icon-only actions expose Korean accessible labels', () => {
   assert.match(source, /title="개체 등록"/);
   assert.match(source, /aria-label="축사 목록으로 돌아가기"/);
   assert.match(source, /aria-label="칸 목록으로 돌아가기"/);
+  assert.match(source, /<Bell className="h-5 w-5" aria-hidden="true" \/>/);
+  assert.match(source, /<Plus className="h-5 w-5" aria-hidden="true" \/>/);
+  assert.match(source, /<ArrowLeft className="h-5 w-5" aria-hidden="true" \/>/);
+  assert.match(source, /shadow-\[0_0_10px_hsl\(var\(--destructive\)\)\]"\s+aria-hidden="true"/);
   assert.doesNotMatch(source, /aria-label="Notifications"/);
   assert.doesNotMatch(source, /aria-label="Add cattle"/);
   assert.doesNotMatch(source, /aria-label="Back"/);

@@ -1134,9 +1134,12 @@ export default function DashboardClient({
               title="알림 센터"
               className="relative shadow-[var(--shadow-sm)]"
             >
-              <Bell className="h-5 w-5" />
+              <Bell className="h-5 w-5" aria-hidden="true" />
               {notifications.some((notification) => notification.level === 'critical') && (
-                <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-destructive border-2 border-background animate-pulse shadow-[0_0_10px_hsl(var(--destructive))]" />
+                <span
+                  className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-destructive border-2 border-background animate-pulse shadow-[0_0_10px_hsl(var(--destructive))]"
+                  aria-hidden="true"
+                />
               )}
             </PremiumButton>
             <PremiumButton
@@ -1146,7 +1149,7 @@ export default function DashboardClient({
               title="개체 등록"
               className="shadow-[var(--shadow-button-primary)]"
             >
-              <Plus className="h-5 w-5" />
+              <Plus className="h-5 w-5" aria-hidden="true" />
             </PremiumButton>
           </div>
         </div>
@@ -1238,7 +1241,7 @@ export default function DashboardClient({
                 title="축사 목록으로 돌아가기"
                 className="h-9 w-9"
               >
-                <ArrowLeft className="h-5 w-5" />
+                <ArrowLeft className="h-5 w-5" aria-hidden="true" />
               </PremiumButton>
               <h2 className="text-lg font-extrabold text-foreground">{buildings.find((building) => building.id === selectedBuildingId)?.name}</h2>
             </div>
@@ -1261,7 +1264,7 @@ export default function DashboardClient({
                 title="칸 목록으로 돌아가기"
                 className="h-9 w-9"
               >
-                <ArrowLeft className="h-5 w-5" />
+                <ArrowLeft className="h-5 w-5" aria-hidden="true" />
               </PremiumButton>
               <h2 className="text-lg font-extrabold text-foreground">{selectedPenId}번 칸 상세</h2>
             </div>
