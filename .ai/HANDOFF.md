@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-341 completed**: continued the active Hanwoo quality goal by localizing payment confirmation fallback copy. `payment-confirmation.mjs` now returns Korean pending, failure, amount-mismatch, and malformed gateway-response messages while still preserving explicit gateway-provided messages. Added direct behavior coverage and source-copy coverage so `Payment confirmation`, `Payment verification`, `Confirmed payment amount`, and `Gateway response:` do not return as app-authored user-facing fallback copy. Commit `535839a`. |
+| Next Priorities | Verification passed: Hanwoo node tests `96 passed`, `npm.cmd run lint`, `npm.cmd run build`, `git diff --check`, staged code-review gate PASS, and direct Hanwoo graph risk `0.00`. Commit hook emitted advisory WARN from graph heuristics that also mentioned concurrent dirty `ExcelExportButton.js`, but the committed path set was only payment confirmation files. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, `ExcelExportButton.js` / `cattle-csv-export.mjs`, package locks, and setup scripts. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-340 completed**: continued the active Hanwoo quality goal by localizing the remaining weather fallback path. `weather-state.mjs` now emits Korean unavailable, stale, and partial-forecast messages plus Korean source labels (`실시간 Open-Meteo`, `부분 예보`, `이전 날씨`, `확인 불가`), and `WeatherWidget` no longer renders `Weather Unavailable` / `Weather data is temporarily unavailable` fallback copy. Extra state regression coverage also blocks stale/partial English labels from returning. |
 | Next Priorities | Verification passed: Hanwoo node tests `94 passed`, `npm.cmd run lint`, `npm.cmd run build`, `git diff --check`, and UTF-8 graph risk `0.00`. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |
 

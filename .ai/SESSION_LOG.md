@@ -822,6 +822,34 @@
 ## 2026-05-20 KST - Codex
 
 ### Summary
+- Completed T-341 for `hanwoo-dashboard` while continuing the active product-completeness goal.
+- Localized app-authored payment confirmation fallback messages: pending verification, generic failure, amount mismatch, and malformed gateway response snippets now use Korean product copy.
+- Preserved explicit gateway-provided messages instead of rewriting third-party payloads.
+- Added behavior and source-copy regression coverage for the payment confirmation fallback path.
+
+### Changed Files
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/CONTEXT.md`
+- `projects/hanwoo-dashboard/src/lib/payment-confirmation.mjs`
+- `projects/hanwoo-dashboard/src/lib/payment-confirmation.test.mjs`
+- `projects/hanwoo-dashboard/src/lib/payment-ux-copy.test.mjs`
+
+### Verification
+- `npm.cmd test -- src/lib/payment-confirmation.test.mjs src/lib/payment-ux-copy.test.mjs src/lib/component-imports.test.mjs` from `projects/hanwoo-dashboard` -> `96 passed`.
+- `npm.cmd run lint` from `projects/hanwoo-dashboard` -> passed.
+- `npm.cmd run build` from `projects/hanwoo-dashboard` -> passed.
+- `git diff --check -- projects/hanwoo-dashboard/src/lib/payment-confirmation.mjs projects/hanwoo-dashboard/src/lib/payment-confirmation.test.mjs projects/hanwoo-dashboard/src/lib/payment-ux-copy.test.mjs` -> passed.
+- `PYTHONUTF8=1 python -m code_review_graph detect-changes --repo projects/hanwoo-dashboard --base HEAD --brief` -> risk `0.00`.
+
+### Follow-up
+- Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
+- Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, `ExcelExportButton.js` / `cattle-csv-export.mjs`, package locks, and setup scripts.
+
+## 2026-05-20 KST - Codex
+
+### Summary
 - Completed T-340 for `hanwoo-dashboard` while continuing the active product-completeness goal.
 - Localized the remaining weather fallback path: `weather-state.mjs` now returns Korean unavailable, stale, partial-forecast messages and Korean source labels, and `WeatherWidget` no longer exposes English unavailable copy.
 - Added regression coverage to keep weather unavailable, stale, and partial degraded-state copy from returning to `Weather Unavailable`, `Weather data is temporarily unavailable`, `Stale Weather`, or `Partial Forecast`.
