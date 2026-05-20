@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 
 export class AuthenticationError extends Error {
-  constructor(message = "Authentication required.") {
+  constructor(message = "로그인이 필요합니다.") {
     super(message);
     this.name = "AuthenticationError";
   }
