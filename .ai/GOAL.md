@@ -13,6 +13,7 @@
 ## Progress Notes
 
 - 2026-05-20: T-355 localized subscription entry-page title, monthly price/value line, and customer fallback; verification passed with Hanwoo tests `109 passed`, targeted ESLint, full Hanwoo QC, source English subscription scan, and graph risk `0.00`.
+- 2026-05-20: T-356 polished the AI chat widget fallback/launcher surface; localized setup errors now trigger the guided fallback, the closed launcher uses a lucide Bot icon with accessible label/title, and verification passed with Hanwoo tests `109 passed`, targeted ESLint, full Hanwoo QC after retrying a transient concurrent build lock, `git diff --check`, and graph risk `0.00`.
 
 ## Notes
 
