@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-512 completed**: Hanwoo date utility calculations no longer depend on a module-load `TODAY` constant. `utils.js` now computes the current date per call, supports injected `now` values for month age, estrus, and calving D-day helpers, and `constants.js` no longer exports `TODAY`. Code commit `8cb0809`. |
+| Next Priorities | Verification passed: focused utils/cattle-detail tests (`11 passed`), targeted ESLint passed, path-limited `git diff --check` passed, `TODAY` scan found only the regression test guards, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 206, lint, build). Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-511 completed**: Hanwoo API authentication failures now return a stable operator-facing login message instead of echoing raw `error.message`. `auth-guard.js` exports `AUTHENTICATION_REQUIRED_MESSAGE`, and dashboard cattle/sales/summary plus payment prepare/confirm routes use it for 401 responses. Code commit `fedb706`. |
 | Next Priorities | Verification passed: focused payment/home copy tests (`27 passed`), targeted ESLint passed, path-limited `git diff --check` passed, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 205, lint, build). Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 

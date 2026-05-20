@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` cattle age, estrus, and calving D-day helpers no longer depend on a module-load `TODAY` constant. `utils.js` computes the current date per call and accepts injected `now` values for date-sensitive helpers, so long-running dashboard sessions do not keep stale D-day/month-age values after midnight. Verification passed: focused utils/cattle-detail tests (`11 passed`), targeted ESLint, path-limited `git diff --check`, `TODAY` scan, and full Hanwoo QC (`test` 206, lint, build).
+
 - As of 2026-05-21, `hanwoo-dashboard` API authentication failures return stable operator-facing login copy instead of echoing raw `error.message`. `auth-guard.js` now exports `AUTHENTICATION_REQUIRED_MESSAGE`, and dashboard cattle/sales/summary plus payment prepare/confirm routes use it for 401 responses while leaving validation-specific 400 messages intact. Verification passed: focused payment/home copy tests (`27 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 205, lint, build).
 
 - As of 2026-05-21, `hanwoo-dashboard` sales cattle-history text uses the validated sales payload instead of reparsing raw form input. `createSalesRecord()` now formats `payload.price` and `payload.grade` in the history entry, so the post-validation path cannot drift back to `parseInt(data.price)` or raw `data.grade`. Verification passed: focused action/copy validation tests (`15 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 205, lint, build).
