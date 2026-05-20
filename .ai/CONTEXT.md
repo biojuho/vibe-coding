@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` FeedTab record form controls expose explicit labels and validation state. Feed date/note plus roughage/concentrate numeric controls now connect to stable ids and report `aria-invalid` from React Hook Form errors. Verification passed: focused empty-state wiring test (`9 passed`), expanded empty-state/home-market tests (`24 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 165, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` SalesTab form controls expose explicit labels and validation state. Sale date, price, cattle, grade, and purchaser controls now connect to `PremiumLabel htmlFor`/stable ids and report `aria-invalid` from React Hook Form errors. Verification passed on current HEAD: direct graph risk `0.00` and full Hanwoo QC (`test` 163, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` ScheduleTab form controls expose explicit labels and validation state. Schedule title/date/type fields now have visible labels, stable ids, and `aria-invalid` tied to React Hook Form errors instead of relying on placeholder-only context. Verification passed: focused tab-header/home-market accessibility tests (`15 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 162, lint, build).
