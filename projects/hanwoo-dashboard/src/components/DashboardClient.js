@@ -95,6 +95,8 @@ const WIDGET_REGISTRY = [
 
 const WIDGETS_STORAGE_KEY = 'joolife-widgets';
 const DASHBOARD_PAGE_LIMIT = 100;
+const FULL_CATTLE_LOAD_ERROR_MESSAGE = '전체 개체 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
+const FULL_SALES_LOAD_ERROR_MESSAGE = '전체 매출 기록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
 
 const FOCUS_ICON_BY_TYPE = {
   alert: AlertTriangle,
@@ -213,6 +215,8 @@ export default function DashboardClient({
   const [allSalesLedger, setAllSalesLedger] = useState(null);
   const [isAllCattleLoading, setIsAllCattleLoading] = useState(false);
   const [isAllSalesLoading, setIsAllSalesLoading] = useState(false);
+  const [allCattleLoadError, setAllCattleLoadError] = useState('');
+  const [allSalesLoadError, setAllSalesLoadError] = useState('');
   const summaryRefreshRequestRef = useRef(0);
   const fullCattleLoadRef = useRef(null);
   const fullSalesLoadRef = useRef(null);
@@ -384,12 +388,14 @@ export default function DashboardClient({
       }
 
       setIsAllCattleLoading(true);
+      setAllCattleLoadError('');
       const promise = fetchDashboardItems('/api/dashboard/cattle')
         .then((items) => {
           setAllCattleRegistry(items);
           return items;
         })
         .catch((error) => {
+          setAllCattleLoadError(FULL_CATTLE_LOAD_ERROR_MESSAGE);
           if (!silent) {
             console.error('전체 개체 목록 로딩 실패:', error);
           }
@@ -417,12 +423,14 @@ export default function DashboardClient({
       }
 
       setIsAllSalesLoading(true);
+      setAllSalesLoadError('');
       const promise = fetchDashboardItems('/api/dashboard/sales')
         .then((items) => {
           setAllSalesLedger(items);
           return items;
         })
         .catch((error) => {
+          setAllSalesLoadError(FULL_SALES_LOAD_ERROR_MESSAGE);
           if (!silent) {
             console.error('전체 판매 기록 로딩 실패:', error);
           }
@@ -611,12 +619,12 @@ export default function DashboardClient({
     setActiveTab(nextTab);
 
     if (nextTab === 'feed' || nextTab === 'calving' || nextTab === 'sales') {
-      void ensureAllCattleLoaded({ silent: true });
+      void ensureAllCattleLoaded({ silent: true }).catch(() => {});
     }
 
     if (nextTab === 'analysis') {
-      void ensureAllCattleLoaded({ silent: true });
-      void ensureAllSalesLoaded({ silent: true });
+      void ensureAllCattleLoaded({ silent: true }).catch(() => {});
+      void ensureAllSalesLoaded({ silent: true }).catch(() => {});
     }
   }, [ensureAllCattleLoaded, ensureAllSalesLoaded]);
 
@@ -641,7 +649,7 @@ export default function DashboardClient({
   const handleSelectBuilding = useCallback((buildingId) => {
     setSelectedBuildingId(buildingId);
     setSelectedPenId(null);
-    void ensureAllCattleLoaded({ silent: true });
+    void ensureAllCattleLoaded({ silent: true }).catch(() => {});
   }, [ensureAllCattleLoaded]);
 
   const handleTestSMS = () => {
@@ -1031,11 +1039,55 @@ export default function DashboardClient({
       activeTab === 'analysis' ||
       selectedBuildingId !== null;
 
+    if (needsCompleteCattleData && !Array.isArray(allCattleRegistry) && allCattleLoadError && !isAllCattleLoading) {
+      return (
+        <Card className="animate-fadeIn">
+          <CardContent className="py-12 text-center text-sm text-muted-foreground">
+            <div className="mx-auto flex max-w-sm flex-col items-center gap-3">
+              <p className="m-0 font-semibold text-[color:var(--color-danger)]">{allCattleLoadError}</p>
+              <PremiumButton
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  void ensureAllCattleLoaded({ silent: false }).catch(() => {});
+                }}
+              >
+                다시 불러오기
+              </PremiumButton>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
     if (needsCompleteCattleData && !Array.isArray(allCattleRegistry)) {
       return (
         <Card className="animate-fadeIn">
           <CardContent className="py-12 text-center text-sm text-muted-foreground">
             {isAllCattleLoading ? '개체 목록을 불러오는 중입니다...' : '개체 목록을 준비 중입니다...'}
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (activeTab === 'analysis' && !Array.isArray(allSalesLedger) && allSalesLoadError && !isAllSalesLoading) {
+      return (
+        <Card className="animate-fadeIn">
+          <CardContent className="py-12 text-center text-sm text-muted-foreground">
+            <div className="mx-auto flex max-w-sm flex-col items-center gap-3">
+              <p className="m-0 font-semibold text-[color:var(--color-danger)]">{allSalesLoadError}</p>
+              <PremiumButton
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  void ensureAllSalesLoaded({ silent: false }).catch(() => {});
+                }}
+              >
+                다시 불러오기
+              </PremiumButton>
+            </div>
           </CardContent>
         </Card>
       );

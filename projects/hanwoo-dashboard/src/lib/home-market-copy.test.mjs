@@ -39,6 +39,20 @@ test('dashboard cattle mutation catch paths use safe Korean fallback copy', () =
   assert.doesNotMatch(source, /showError\(errorTitle, error\.message\)/);
 });
 
+test('dashboard full-list loading failures show retry feedback instead of silent placeholders', () => {
+  const source = readSource('components/DashboardClient.js');
+
+  assert.match(source, /FULL_CATTLE_LOAD_ERROR_MESSAGE/);
+  assert.match(source, /FULL_SALES_LOAD_ERROR_MESSAGE/);
+  assert.match(source, /setAllCattleLoadError\(FULL_CATTLE_LOAD_ERROR_MESSAGE\)/);
+  assert.match(source, /setAllSalesLoadError\(FULL_SALES_LOAD_ERROR_MESSAGE\)/);
+  assert.match(source, /ensureAllCattleLoaded\(\{ silent: true \}\)\.catch\(\(\) => \{\}\)/);
+  assert.match(source, /ensureAllSalesLoaded\(\{ silent: true \}\)\.catch\(\(\) => \{\}\)/);
+  assert.match(source, /다시 불러오기/);
+  assert.doesNotMatch(source, /void ensureAllCattleLoaded\(\{ silent: true \}\);/);
+  assert.doesNotMatch(source, /void ensureAllSalesLoaded\(\{ silent: true \}\);/);
+});
+
 test('home dashboard icon-only actions expose Korean accessible labels', () => {
   const source = readSource('components/DashboardClient.js');
 
