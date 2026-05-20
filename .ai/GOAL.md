@@ -12,6 +12,7 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-382 replaced the financial chart header placeholder glyph with a lucide BarChart3 icon and decorative icon semantics; verification passed with Hanwoo tests `126 passed`, targeted ESLint, full Hanwoo QC (`test` 126, lint, build), path-limited `git diff --check`, and graph risk `0.00`.
 - 2026-05-20: T-381 localized feed, inventory, and schedule tab action failure fallbacks so raw runtime/Prisma exception messages no longer leak into operator-facing toasts; verification passed with Hanwoo tests `126 passed`, targeted ESLint, full Hanwoo QC (`test` 126, lint, build), path-limited `git diff --check`, staged code-review gate PASS, and graph risk `0.00`.
 - 2026-05-20: T-380 replaced the broken `?` glyph in the cattle Excel export button with a real lucide `Download` icon, marked it decorative, and added `aria-busy` for export preparation; verification passed with Hanwoo tests `126 passed`, targeted ESLint, full Hanwoo QC (`test` 126, lint, build), path-limited `git diff --check`, staged code-review gate PASS, and graph risk `0.00`.
 - 2026-05-20: T-379 localized Settings server-action fallback failures for building create/delete and farm-settings update paths; verification passed with Hanwoo tests `125 passed`, targeted ESLint, full Hanwoo QC (`test` 125, lint, build), path-limited `git diff --check`, and graph risk `0.00`.

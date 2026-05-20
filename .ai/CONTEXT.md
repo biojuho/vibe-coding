@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` financial chart header no longer renders a broken `?` placeholder glyph. `FinancialChartWidget.js` uses a real lucide `BarChart3` icon, hides it from assistive tech, and `analysis-copy.test.mjs` guards the contract. Verification passed: focused tests, targeted ESLint, full Hanwoo QC (`test` 126, lint, build), path-limited `git diff --check`, and direct graph risk `0.00`.
+
 - As of 2026-05-20, `hanwoo-dashboard` feed, inventory, and schedule tab action failures no longer expose raw runtime/Prisma exception messages in operator-facing toasts. `recordFeed`, `addInventoryItem`, `updateInventoryQuantity`, `createScheduleEvent`, and `toggleEventCompletion` log diagnostics and return Korean product fallback copy, and `actions-copy.test.mjs` guards against raw `e.message`/`error.message` returns in these actions. Verification passed: focused tests, targeted ESLint, full Hanwoo QC (`test` 126, lint, build), path-limited `git diff --check`, staged code-review gate PASS, and direct graph risk `0.00`.
 
 - As of 2026-05-20, `hanwoo-dashboard` cattle Excel export button no longer renders a broken `?` placeholder glyph. `ExcelExportButton.js` now uses a real lucide `Download` icon, hides it from assistive tech, and exposes `aria-busy` while preparing the export; `excel-export-button-copy.test.mjs` guards the contract. Verification passed: focused tests, targeted ESLint, full Hanwoo QC (`test` 126, lint, build), path-limited `git diff --check`, staged code-review gate PASS, and direct graph risk `0.00`.
