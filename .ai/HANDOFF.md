@@ -7,6 +7,20 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-20 |
+| Tool | Claude Code (Opus 4.7 1M) |
+| Work | **T-365 completed** + 제품 완성도 감사. 사용자가 `/goal` 호출 시 이 세션 goal 텍스트가 DB(`~/.claude/goal/goals.sqlite`)에 손상된 채(`���� ����� �ϼ� �غ�`) 저장돼 있었음 — HANDOFF 문맥상 "Hanwoo product-completeness goal"임을 확인하고 DB objective를 정상 한국어로 복구(목표 자체는 유지). 병렬 서브에이전트 3개로 hanwoo-dashboard 전체 감사: (1) 영어 카피 누수 HIGH 2/MEDIUM 5/LOW 18, (2) 미완 기능 — TODO/stub/empty-catch 0건, (3) 모노레포 마이그레이션 WIP(pnpm+turbo+biome+uv) 70~80%. 감사 중 MEDIUM 후보 검증: `kape.js` throw는 같은 함수 catch에서 잡혀 사용자 미노출(스킵), `FeedbackProvider`/`queue.js`는 dev/infra(스킵). `profitability-service.js`만 실제 노출 확정 — `error: err.message`가 `ProfitabilityWidget`의 `{error}`로 렌더됨. **T-365**: 영어 throw 2건 + console 진단 한글화, `profitability-copy.test.mjs` 회귀 가드 추가. 커밋 `172e998`. |
+| Next Priorities | 검증 통과: 신규 profitability-copy 테스트 2/2, full `project_qc_runner --project hanwoo-dashboard --json` 통과(test 115 / lint / build — build 1차는 `Another next build process is already running` 동시잠금으로 실패, 재시도 통과). **신규 TODO**: T-366 = `ProfitabilityWidget`이 컴포넌트/액션/서비스 다 있고 `WIDGET_REGISTRY`에 `defaultOn:true`인데 어디에도 마운트 안 됨(고아 위젯) — 연결 필요(approval). T-367 = `formSchemas.js` enum 값 영어이나 DB 저장값이라 데이터 마이그레이션 동반(approval). LOW 18건(서버 액션 `console.error` 영어 진단)은 가치 낮아 미등록 — 필요 시 일괄 처리. **모노레포 마이그레이션 WIP**: 루트 `package.json`/`pnpm-workspace.yaml`/`turbo.json`/`biome.json`/`pyproject.toml`/`uv.lock`/`.npmrc` 등 untracked — `pnpm-log.txt`는 에러 없음. 미완 위험: hanwoo `postinstall: prisma generate` 제거됨(CI에서 처리되는지 확인 필요), suika/word-chain `package-lock.json` 잔존, 워크플로 end-to-end 미검증. 이 WIP는 보존할 것. Active Hanwoo goal 유지(T-251 외부/사용자 차단). |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
+| Work | **T-361 completed**: continued the active Hanwoo product-completeness goal by localizing the shared dialog close label for screen-reader users. The Radix dialog close control in `components/ui/dialog.js` now exposes `닫기` instead of `Close`, and `dialog-copy.test.mjs` guards against the English sr-only label returning. |
+| Next Priorities | Verification passed: focused Hanwoo dialog-copy tests passed (`113 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 113 passed, lint passed, build passed), accessibility-copy source scan passed, `git diff --check` passed, direct UTF-8 graph risk `0.00`, and staged code-review gate PASS before commit. Commit hook emitted an advisory graph WARN polluted by unrelated dirty `system`/`profitability` WIP, but direct focused/full checks cover the two-file dialog change. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, system/profitability files, package locks, and setup scripts. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
 | Tool | Codex |
 | Work | **T-360 completed**: continued the active Hanwoo product-completeness goal by localizing remaining user-facing server action fallback errors. `getCattleList()` now throws `개체 목록을 불러오지 못했습니다.`, `getSalesRecords()` now throws `판매 기록을 불러오지 못했습니다.`, and admin raw-data validation now returns `지원하지 않는 데이터 유형입니다.` instead of `Failed to fetch cattle data.`, `Failed to fetch sales records.`, and `Invalid model name`. Added `actions-copy.test.mjs` to guard these server-action fallback strings. |
 | Next Priorities | Verification passed: focused Hanwoo server-action copy tests passed (`112 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 112 passed, lint passed, build passed), `git diff --check` passed, direct UTF-8 graph risk `0.00`, and staged code-review gate PASS before commit. Commit hook emitted an advisory graph WARN from broad heuristics, but direct focused/full checks cover the four-file change. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |

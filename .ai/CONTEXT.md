@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` shared dialog close control is localized for screen-reader users. `components/ui/dialog.js` now exposes `닫기` instead of `Close` in the sr-only close label, guarded by `dialog-copy.test.mjs`. Verification passed: Hanwoo dialog-copy tests `113 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json`, accessibility-copy source scan, `git diff --check`, and direct Hanwoo graph risk `0.00`.
+
 - As of 2026-05-20, `hanwoo-dashboard` server-action fallback errors are localized for remaining user-facing paths. `getCattleList()`, `getSalesRecords()`, and admin `getRawData()` invalid-model failures no longer expose `Failed to fetch cattle data.`, `Failed to fetch sales records.`, or `Invalid model name`. Verification passed: Hanwoo server-action copy tests `112 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json`, `git diff --check`, and direct Hanwoo graph risk `0.00`.
 
 - As of 2026-05-20, `hanwoo-dashboard` financial analysis copy is localized. `AnalysisTab` uses Korean section labels for the analysis overview, monthly flow, cost mix, and top-sales blocks; `FinancialChartWidget` uses Korean title/subtitle/unit and Korean legend labels for revenue, expense, and profit. Verification passed: Hanwoo analysis-copy tests `111 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json`, source scan, `git diff --check`, and direct Hanwoo graph risk `0.00`.
