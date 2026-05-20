@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` feed-record forms no longer reset before async save results are known. `FeedTab` awaits `onRecordFeed` and only resets after a truthy result, preserving entered feed data when mutations fail. Verification passed: focused tests (`135 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 135, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` cattle edit forms no longer close before async update results are known. The edit modal delegates submit handling directly to `handleUpdateCattle`, so success/offline queue closes the form but failed mutations preserve the user's edits for retry. Verification passed: focused tests (`133 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 133, lint, build).
 
 - As of 2026-05-20, all four active/maintenance projects (`blind-to-x`, `shorts-maker-v2`, `hanwoo-dashboard`, `knowledge-dashboard`) pass full QC. A full `project_qc_runner.py --json` sweep surfaced two failures, both now cleared: (1) `shorts-maker-v2`'s untracked T-320 OpenVoice WIP `test_openvoice_client.py` had 4 test failures masked by `--maxfail=1` plus 8 ruff errors — repaired (openvoice-not-installed mocking, real `ProjectSettings` API, function-local-import monkeypatch target) and committed `8ba2850`, full QC green (1467 passed, ruff clean); (2) `knowledge-dashboard`'s `node_modules` was empty (`next`/`eslint` missing) because the T-372 monorepo-migration WIP deleted `package-lock.json` — fixed by restoring the lockfile from git and running `npm ci` (435 packages), QC test/lint/build green.

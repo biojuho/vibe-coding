@@ -1067,6 +1067,34 @@
 ## 2026-05-20 KST - Codex
 
 ### Summary
+- Completed T-402 for `hanwoo-dashboard` while continuing the active product-completeness goal.
+- Fixed feed-record form failure handling: `FeedTab` now awaits `onRecordFeed` and only resets after a truthy result.
+- Failed async feed saves now preserve entered feed data for retry; success/offline queue paths keep the existing reset behavior.
+
+### Changed Files
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/CONTEXT.md`
+- `.ai/GOAL.md`
+- `projects/hanwoo-dashboard/src/components/tabs/FeedTab.js`
+- `projects/hanwoo-dashboard/src/lib/empty-state-wiring.test.mjs`
+
+### Verification
+- `npm.cmd test -- src/lib/empty-state-wiring.test.mjs src/lib/component-imports.test.mjs` from `projects/hanwoo-dashboard` -> `135 passed`.
+- `npx.cmd eslint src/components/tabs/FeedTab.js src/lib/empty-state-wiring.test.mjs` from `projects/hanwoo-dashboard` -> passed.
+- `git diff --check -- projects/hanwoo-dashboard/src/components/tabs/FeedTab.js projects/hanwoo-dashboard/src/lib/empty-state-wiring.test.mjs` -> passed.
+- `python -m code_review_graph detect-changes --repo projects/hanwoo-dashboard --brief` -> risk `0.00`.
+- `python execution/project_qc_runner.py --project hanwoo-dashboard --json` -> passed (`test` 135, lint passed, build passed).
+- `python execution/code_review_gate.py --staged --json` -> WARN from known graph/test-gap heuristics and unrelated dirty `cards.js` WIP; direct Hanwoo verification covered the changed files.
+
+### Follow-up
+- Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
+- T-320, T-372, and T-398 remain approval-scoped. Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, Hanwoo `cards.js`/`cards-accessibility.test.mjs`, package locks, and shorts-maker-v2 files.
+
+## 2026-05-20 KST - Codex
+
+### Summary
 - Completed T-401 for `hanwoo-dashboard` while continuing the active product-completeness goal.
 - Fixed cattle edit form failure handling: the edit modal now delegates submit handling directly to `handleUpdateCattle`.
 - Failed async update mutations now keep the edit form open with typed values preserved; success/offline queue paths still close through the existing handler.

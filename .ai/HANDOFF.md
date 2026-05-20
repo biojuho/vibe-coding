@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-402 completed**: continued Hanwoo product-completeness debugging by fixing feed-record form failure handling. `FeedTab` now awaits `onRecordFeed` and only resets the form after a truthy result, so failed async saves preserve the user's feed input for retry while success/offline queue paths keep the existing reset behavior. `empty-state-wiring.test.mjs` guards the contract. Code commit `774b5c0`. |
+| Next Priorities | Verification passed: focused Hanwoo tests passed (`135 passed`), targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk `0.00`, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 135, lint, build). Staged/commit code-review gate WARN was the known graph/test-gap heuristic and included unrelated dirty `cards.js` WIP; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-398 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/cards WIP unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-401 completed**: continued Hanwoo product-completeness debugging by fixing cattle edit form failure handling. The edit modal now passes `handleUpdateCattle` directly to `CattleForm`, so the async update handler remains the single owner of close behavior: success/offline queue closes the form, but failed mutations keep the user's edits visible for retry. `empty-state-wiring.test.mjs` guards against reintroducing the immediate-close wrapper. Code commit `8d8a9dd`. |
 | Next Priorities | Verification passed: focused Hanwoo tests passed (`133 passed`), targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk `0.00`, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 133, lint, build). Staged/commit code-review gate WARN was the known graph/test-gap heuristic while direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-398 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package WIP unless explicitly authorized. |
 

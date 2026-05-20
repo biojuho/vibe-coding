@@ -12,6 +12,8 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-402 kept the feed-record form from resetting when async saves fail by awaiting `onRecordFeed` and requiring a truthy result before reset; verification passed with focused Hanwoo tests `135 passed`, targeted ESLint, path-limited `git diff --check`, graph risk `0.00`, and full Hanwoo QC (`test` 135, lint, build).
+
 - 2026-05-20: T-401 kept the cattle edit form open when async update mutations fail by delegating close behavior to `handleUpdateCattle`; verification passed with focused Hanwoo tests `133 passed`, targeted ESLint, path-limited `git diff --check`, graph risk `0.00`, and full Hanwoo QC (`test` 133, lint, build).
 
 - 2026-05-20: T-400 hid decorative public login/error/not-found icons and password-toggle icons from assistive technology so Korean labels remain the accessible names; verification passed with focused Hanwoo tests `132 passed`, targeted ESLint, path-limited `git diff --check`, graph risk `0.00`, and full Hanwoo QC (`test` 132, lint, build).

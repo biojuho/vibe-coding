@@ -2,6 +2,15 @@ import { STATUS_COLORS } from '@/lib/constants';
 import { isEstrusAlert, getDaysUntilEstrus, getMonthAge, isCalvingAlert, getDaysUntilCalving } from '@/lib/utils';
 import { HeartIcon } from './common';
 
+function runOnKeyboardActivation(event, callback) {
+  if (event.key !== 'Enter' && event.key !== ' ') {
+    return;
+  }
+
+  event.preventDefault();
+  callback();
+}
+
 export function StatCard({label,value,sub,color,delay=0}){
   return (
     <div
@@ -46,6 +55,10 @@ export function PenCard({penNumber,cattle,buildingId,onSelect,delay=0,onDrop}){
   return (
     <div
       onClick={()=>onSelect(buildingId,penNumber)}
+      onKeyDown={(event) => runOnKeyboardActivation(event, () => onSelect(buildingId, penNumber))}
+      role="button"
+      tabIndex={0}
+      aria-label={`${penNumber}번 칸 상세 보기, ${cattle.length}두 배치됨`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -128,6 +141,10 @@ export function CattleRow({cow,onClick,delay=0,draggable=false}){
   return (
     <div
       onClick={()=>onClick(cow)}
+      onKeyDown={(event) => runOnKeyboardActivation(event, () => onClick(cow))}
+      role="button"
+      tabIndex={0}
+      aria-label={`${cow.name} 개체 상세 보기`}
       draggable={draggable}
       onDragStart={draggable ? handleDragStart : undefined}
       onDragEnd={draggable ? handleDragEnd : undefined}
