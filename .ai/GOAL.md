@@ -12,6 +12,8 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-420 hid Hanwoo Inventory, Sales, and Schedule primary tab header decorative emoji icons from assistive technology. The tab header glyphs now use `aria-hidden="true"` while adjacent Korean titles remain the meaningful accessible content; verification passed with focused Hanwoo tests `148 passed`, targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 148, lint, build). Staged/commit code-review gate WARN came from the known graph/test-gap heuristic plus unrelated VibeDebt WIP.
+
 - 2026-05-20: T-419 hid Hanwoo SettingsTab decorative text icons from assistive technology. The theme glyph, dashboard-widget section glyph, and per-widget glyphs now use `aria-hidden="true"` while visible Korean labels and switch accessible names remain the meaningful content; verification passed with focused Hanwoo tests `147 passed`, targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 147, lint, build). Staged/commit code-review gate WARN came from the known graph/test-gap heuristic plus unrelated VibeDebt WIP.
 
 - 2026-05-20: T-418 hardened Hanwoo `/subscription/fail` by replacing raw URL `message` display with stable Korean failure copy, keeping only the error code visible, and making the back action an explicit `type="button"`; verification passed with focused Hanwoo tests `146 passed`, targeted ESLint, path-limited `git diff --check`, staged code-review gate pass with known cp949 reader-thread noise, and full Hanwoo QC (`test` 146, lint, build). Commit hook WARN came from the known graph/test-gap heuristic plus unrelated VibeDebt WIP.

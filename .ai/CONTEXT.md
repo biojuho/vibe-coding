@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` primary tab header decorative emoji icons are hidden from assistive technology. Inventory, Sales, and Schedule tab header glyphs now use `aria-hidden="true"` while adjacent Korean titles remain the meaningful accessible content. Verification passed: focused Hanwoo tests (`148 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 148, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` SettingsTab decorative text icons are hidden from assistive technology. The theme glyph, dashboard-widget section glyph, and per-widget glyphs now use `aria-hidden="true"` while visible Korean labels and switch accessible names remain the meaningful content. Verification passed: focused Hanwoo tests (`147 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 147, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` subscription failure page avoids raw URL-message exposure. `/subscription/fail` now renders stable Korean failure copy instead of echoing `searchParams.get('message')`, keeps only the error code visible, and marks the back action as `type="button"`. Verification passed: focused Hanwoo tests (`146 passed`), targeted ESLint, path-limited `git diff --check`, staged code-review gate pass with known cp949 reader-thread noise, and full Hanwoo QC (`test` 146, lint, build).
