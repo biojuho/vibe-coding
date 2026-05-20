@@ -162,6 +162,13 @@ test('schedule calendar date cells are semantic buttons', () => {
   assert.doesNotMatch(source, /<div\s+key=\{dateStr\}\s+onClick=\{\(\) => openFormForDate\(dateStr\)\}/);
 });
 
+test('upcoming schedule toggle identifies the target event', () => {
+  const source = readSource('components/tabs/ScheduleTab.js');
+
+  assert.match(source, /aria-label=\{`\$\{event\.title\} 일정 완료 상태 변경`\}/);
+  assert.match(source, /title=\{`\$\{event\.title\} 일정 완료 상태 변경`\}/);
+});
+
 test('weather widget uses Korean product copy for unavailable state', () => {
   const source = readSource('components/widgets/widgets.js');
   const dashboardSource = readSource('components/DashboardClient.js');

@@ -273,6 +273,8 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
                   type="checkbox"
                   checked={event.isCompleted}
                   onChange={() => onToggleEvent(event.id, !event.isCompleted)}
+                  aria-label={`${event.title} 일정 완료 상태 변경`}
+                  title={`${event.title} 일정 완료 상태 변경`}
                   style={{ width: '18px', height: '18px', accentColor: 'var(--chart-clay-1)', cursor: 'pointer' }}
                 />
                 <div className="min-w-0 flex-1">
