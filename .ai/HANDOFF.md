@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-447 completed**: Hanwoo Inventory registration form fields now expose proper labels and validation state. `InventoryTab` links 자재명, 분류, 수량, 단위, and 경고 기준값 controls to stable ids and reports `aria-invalid` from React Hook Form errors. `home-market-copy.test.mjs` guards the contract. Code commit `26c6529`. |
+| Next Priorities | Verification passed: focused home-market copy test (`15 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 165, lint, build), and staged `code_review_gate --staged --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Direct `code_review_graph detect-changes` still hits the known Windows cp949 reader failure. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-446 completed**: Hanwoo Sales registration form fields now expose proper labels and validation state. `SalesTab` links 출하일자, 판매 가격, 출하 개체, 등급, and 구매처 controls to stable ids and reports `aria-invalid` from React Hook Form errors. `home-market-copy.test.mjs` guards the contract. Code commit `18a55e8`. |
 | Next Priorities | Verification passed: focused home-market copy test (`14 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 163, lint, build), and staged `code_review_gate --staged --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 
