@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` dashboard sales date filters reject impossible calendar dates instead of silently rolling them forward. `parseDateParam()` now requires strict `YYYY-MM-DD` input and verifies the parsed date round-trips to the original value, so `2026-02-31` cannot become `2026-03-03` in list queries. Verification passed: focused home/dashboard copy test (`22 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 201, lint, build).
+
 - As of 2026-05-21, `hanwoo-dashboard` profitability widget errors are guarded against raw unexpected runtime/Prisma message exposure. `getProfitabilityEstimates()` now allows only known operator-facing business-state messages through and maps unknown failures to stable Korean retry copy before `ProfitabilityWidget` renders `{error}`. Verification passed: focused profitability copy test (`4 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 201, lint, build).
 
 - As of 2026-05-21, `hanwoo-dashboard` market-price widget stale source copy is natural Korean and guarded against mojibake regressions. `MarketPriceWidget` now renders `이전 저장값` for stale cache states, and `home-market-copy.test.mjs` asserts the corrected label plus broken-fragment exclusions. Verification passed: focused market/home copy tests (`28 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 201, lint, build).
