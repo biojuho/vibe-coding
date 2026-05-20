@@ -347,6 +347,10 @@ export default function AIChatWidget() {
       {/* Messages */}
       <div
         ref={scrollRef}
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions text"
+        aria-label="AI 농장 비서 대화 내용"
         style={{
           flex: 1,
           padding: '18px',

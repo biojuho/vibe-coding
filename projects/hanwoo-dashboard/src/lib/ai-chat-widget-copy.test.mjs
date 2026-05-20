@@ -24,6 +24,10 @@ test('AI chat widget handles Korean configuration errors and exposes an accessib
   assert.match(source, /panelRef\.current\?\.focus\(\)/);
   assert.match(source, /ref=\{panelRef\}/);
   assert.match(source, /tabIndex=\{-1\}/);
+  assert.match(source, /role="log"/);
+  assert.match(source, /aria-live="polite"/);
+  assert.match(source, /aria-relevant="additions text"/);
+  assert.match(source, /aria-label="AI 농장 비서 대화 내용"/);
   assert.match(source, /if \(event\.key === 'Escape'\)/);
   assert.match(source, /closeWidget\(\)/);
   assert.match(source, /aria-label="AI 농장 비서에게 보낼 질문"/);
