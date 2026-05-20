@@ -29,6 +29,7 @@ export function useSalesPagination({ initialItems = [], initialPageInfo = null }
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const abortRef = useRef(null);
+  const loadInFlightRef = useRef(false);
   const mountedRef = useRef(true);
 
   const hasMore = pageInfo?.hasMore ?? false;
@@ -38,6 +39,7 @@ export function useSalesPagination({ initialItems = [], initialPageInfo = null }
 
     return () => {
       mountedRef.current = false;
+      loadInFlightRef.current = false;
       if (abortRef.current) {
         abortRef.current.abort();
         abortRef.current = null;
@@ -47,7 +49,8 @@ export function useSalesPagination({ initialItems = [], initialPageInfo = null }
 
   const loadMore = useCallback(
     async ({ from, to } = {}) => {
-      if (isLoading || !hasMore) return;
+      if (loadInFlightRef.current || isLoading || !hasMore) return;
+      loadInFlightRef.current = true;
 
       // Abort 이전 요청
       if (abortRef.current) abortRef.current.abort();
@@ -118,6 +121,7 @@ export function useSalesPagination({ initialItems = [], initialPageInfo = null }
         }
       } finally {
         window.clearTimeout(timeoutId);
+        loadInFlightRef.current = false;
         if (abortRef.current === controller) {
           abortRef.current = null;
         }

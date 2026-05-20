@@ -19,6 +19,10 @@ test('sales pagination failures surface Korean retry feedback', () => {
   assert.match(hookSource, /SALES_PAGINATION_ERROR_MESSAGE/);
   assert.match(hookSource, /setLoadError\(SALES_PAGINATION_TIMEOUT_MESSAGE\)/);
   assert.match(hookSource, /setLoadError\(SALES_PAGINATION_ERROR_MESSAGE\)/);
+  assert.match(hookSource, /const loadInFlightRef = useRef\(false\);/);
+  assert.match(hookSource, /if \(loadInFlightRef\.current \|\| isLoading \|\| !hasMore\) return;/);
+  assert.match(hookSource, /loadInFlightRef\.current = true;/);
+  assert.match(hookSource, /loadInFlightRef\.current = false;\s+if \(abortRef\.current === controller\)/);
   assert.match(hookSource, /loadMore, loadError/);
   assert.match(tabSource, /salesPagination\.loadError/);
   assert.match(tabSource, /aria-busy=\{salesPagination\.isLoading\}/);

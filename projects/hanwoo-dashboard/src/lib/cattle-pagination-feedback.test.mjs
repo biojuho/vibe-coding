@@ -19,6 +19,10 @@ test('cattle pagination failures surface Korean retry feedback', () => {
   assert.match(hookSource, /CATTLE_PAGINATION_ERROR_MESSAGE/);
   assert.match(hookSource, /setLoadError\(CATTLE_PAGINATION_TIMEOUT_MESSAGE\)/);
   assert.match(hookSource, /setLoadError\(CATTLE_PAGINATION_ERROR_MESSAGE\)/);
+  assert.match(hookSource, /const loadInFlightRef = useRef\(false\);/);
+  assert.match(hookSource, /if \(loadInFlightRef\.current \|\| isLoading \|\| !hasMore\) return;/);
+  assert.match(hookSource, /loadInFlightRef\.current = true;/);
+  assert.match(hookSource, /loadInFlightRef\.current = false;\s+if \(abortRef\.current === controller\)/);
   assert.match(hookSource, /loadMore, loadError/);
   assert.match(dashboardSource, /cattlePagination\.loadError/);
   assert.match(dashboardSource, /aria-busy=\{cattlePagination\.isLoading\}/);
