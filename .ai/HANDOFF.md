@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-405 completed**: continued Hanwoo product-completeness/accessibility polish by localizing the inventory quantity edit controls. The quantity edit action now exposes Korean item-specific accessible labels for edit/save, and the visible English `OK` button is replaced with `저장`. `empty-state-wiring.test.mjs` guards the labels and prevents the English control from returning. Code commit `df5c76d`. |
+| Next Priorities | Verification passed: focused Hanwoo tests passed (`137 passed`), targeted ESLint passed, path-limited `git diff --check` passed, staged review gate JSON passed though it printed the known Windows cp949 reader exception after JSON, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 137, lint, build). Pre-commit advisory WARN was the known graph/test-gap heuristic while direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package WIP unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-404 completed**: continued Hanwoo product-completeness debugging by fixing inventory quantity edit failure handling. `InventoryTab` now awaits `onUpdateQuantity` and only exits edit mode after a truthy result, so failed async saves preserve the edited quantity for retry while successful saves keep the existing close behavior. `empty-state-wiring.test.mjs` guards the contract. Code commit `1b90641`. |
 | Next Priorities | Verification passed: focused Hanwoo tests passed (`136 passed`), targeted ESLint passed, path-limited `git diff --check` passed, staged review gate JSON passed, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 136, lint, build). Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package WIP unless explicitly authorized. |
 
