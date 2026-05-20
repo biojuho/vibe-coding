@@ -409,6 +409,7 @@
 
 ## Minefield
 
+- `projects/hanwoo-dashboard`: `Cattle.tagNumber` is unique. Keep duplicate create/update/calving failures actionable by mapping Prisma `P2002` errors targeting `tagNumber` to Korean operator copy; `src/lib/actions-copy.test.mjs` guards this branch.
 - `projects/hanwoo-dashboard`: public legal pages should expose stable support channels, not personal mobile numbers or home addresses. `src/lib/legal-pages-copy.test.mjs` guards `/privacy` and `/terms` against reintroducing raw phone/address/name details.
 - `projects/hanwoo-dashboard`: as of 2026-05-20, market-price degraded states must keep product copy Korean at the state layer (`market-price-state.mjs`), not only inside `MarketPriceWidget`; stale-cache and unavailable messages are directly renderable.
 - `projects/hanwoo-dashboard`: as of 2026-05-20, weather degraded/unavailable states must also keep Korean product copy at the state layer (`weather-state.mjs`) and in `WeatherWidget`; stale, partial, unavailable messages and source labels are directly renderable on the home surface.

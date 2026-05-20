@@ -12,6 +12,8 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-438 made Hanwoo cattle create/update/calving duplicate 이력번호 conflicts actionable. `createCattle`, `updateCattle`, and `recordCalving` now recognize Prisma `P2002` unique-constraint errors targeting `tagNumber` and return `이미 등록된 이력번호입니다. 다른 이력번호를 입력해 주세요.` instead of a generic failure. Verification passed with focused actions-copy test, targeted ESLint, full Hanwoo tests `157 passed`, full Hanwoo QC (`test` 157, lint, build), and staged code-review gate JSON (`risk_score 0.0`). Commit `84d536e`.
+
 - 2026-05-20: T-437 removed seeded demo farm alerts from Hanwoo `NotificationSystem`. The JS and TSX mirrors now default to `initialNotifications = []`, show the empty state when no real alerts are supplied, and only render provided notifications. Verification passed with focused notification system test (`5 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, full Hanwoo QC (`test` 157, lint, build), and staged code-review gate JSON (`risk_score 0.0`). Commit `70ac7d0`.
 
 - 2026-05-20: T-436 hardened Hanwoo 분만 처리 by removing the client-generated fake `KR0000-...` calf tag number. `CalvingTab` now requires an operator-entered 송아지 이력번호, the client/offline flow passes that value through, and `recordCalving` validates it server-side before creating calf records/history/outbox events. Verification passed with focused action-validation/home-market copy tests (`22 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, direct build retry after transient Next lock, full Hanwoo QC (`test` 156, lint, build), and staged code-review gate JSON (`risk_score 0.0`). Commit `88da9e7`.
