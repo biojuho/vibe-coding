@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` notification-system JS/TSX mirrors are client-safe and product-copy clean. `NotificationSystem.tsx` now declares `"use client"` before using `useState`/event handlers, the JS mirror drops the unused `CheckIcon` import, and `notification-system-copy.test.mjs` guards the Korean notification trigger, empty state, mark-all copy, and TSX client boundary. Verification passed: focused notification-system copy test (`7 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 199, lint, build).
+
 - As of 2026-05-21, `hanwoo-dashboard` Settings building deletion also guards the pre-confirmation race. `SettingsTab` now uses `deleteBuildingInFlightRef` as an immediate lock before the async confirmation dialog opens, so rapid repeated delete clicks cannot stack multiple confirms before `deletingBuildingId` is set. Verification passed: focused settings accessibility test (`9 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 199, lint, build).
 
 - As of 2026-05-21, `hanwoo-dashboard` cattle detail edit actions stay locked while archive/delete is in flight. `CattleDetailModal` now applies the existing `isDeleting` lock to the edit button as well as the archive button, so operators cannot switch into edit mode while a slow archive flow is still resolving. Verification passed: focused cattle-detail modal wiring test (`10 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 199, lint, build).
