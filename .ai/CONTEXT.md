@@ -33,6 +33,10 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` server-action fallback errors are localized for remaining user-facing paths. `getCattleList()`, `getSalesRecords()`, and admin `getRawData()` invalid-model failures no longer expose `Failed to fetch cattle data.`, `Failed to fetch sales records.`, or `Invalid model name`. Verification passed: Hanwoo server-action copy tests `112 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json`, `git diff --check`, and direct Hanwoo graph risk `0.00`.
+
+- As of 2026-05-20, `hanwoo-dashboard` financial analysis copy is localized. `AnalysisTab` uses Korean section labels for the analysis overview, monthly flow, cost mix, and top-sales blocks; `FinancialChartWidget` uses Korean title/subtitle/unit and Korean legend labels for revenue, expense, and profit. Verification passed: Hanwoo analysis-copy tests `111 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json`, source scan, `git diff --check`, and direct Hanwoo graph risk `0.00`.
+
 - As of 2026-05-20, `hanwoo-dashboard` shared authentication fallback copy is localized. `AuthenticationError` defaults to `로그인이 필요합니다.` instead of `Authentication required.`, so API routes using `requireAuthenticatedSession()` do not expose English auth copy when no route-specific override is present. Verification passed: Hanwoo payment/auth source tests `110 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json`, `git diff --check`, and direct Hanwoo graph risk `0.00`.
 
 - As of 2026-05-20, `hanwoo-dashboard` payment API fallback responses are localized. `/api/payments/prepare` no longer returns `Customer key mismatch`, `Unexpected payment amount`, `Joolife User`, or `Payment preparation failed`; `/api/payments/confirm` no longer returns missing-field, wrong-user, amount-mismatch, missing Toss configuration, timeout, or generic verification failures in English. Verification passed: Hanwoo payment tests `110 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json`, `git diff --check`, and direct Hanwoo graph risk `0.00`.

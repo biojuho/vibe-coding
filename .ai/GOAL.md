@@ -17,6 +17,8 @@
 - 2026-05-20: T-357 localized payment API fallback responses for prepare/confirm routes, including customer mismatch, amount mismatch, missing fields, Toss configuration, timeout diagnostics, and generic preparation/verification failures; verification passed with Hanwoo tests `110 passed`, targeted ESLint, full Hanwoo QC, `git diff --check`, and graph risk `0.00`.
 - 2026-05-20: T-358 localized the shared auth fallback from `Authentication required.` to `로그인이 필요합니다.`; verification passed with Hanwoo tests `110 passed`, targeted ESLint, full Hanwoo QC, `git diff --check`, and graph risk `0.00`.
 
+- 2026-05-20: T-359 localized the financial analysis surface labels and chart legend copy; verification passed with Hanwoo tests `111 passed`, targeted ESLint, full Hanwoo QC, source scan, `git diff --check`, and graph risk `0.00`.
+
 ## Notes
 
 - Keep exactly one active goal here.

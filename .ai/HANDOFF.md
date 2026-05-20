@@ -8,6 +8,20 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-360 completed**: continued the active Hanwoo product-completeness goal by localizing remaining user-facing server action fallback errors. `getCattleList()` now throws `개체 목록을 불러오지 못했습니다.`, `getSalesRecords()` now throws `판매 기록을 불러오지 못했습니다.`, and admin raw-data validation now returns `지원하지 않는 데이터 유형입니다.` instead of `Failed to fetch cattle data.`, `Failed to fetch sales records.`, and `Invalid model name`. Added `actions-copy.test.mjs` to guard these server-action fallback strings. |
+| Next Priorities | Verification passed: focused Hanwoo server-action copy tests passed (`112 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 112 passed, lint passed, build passed), `git diff --check` passed, direct UTF-8 graph risk `0.00`, and staged code-review gate PASS before commit. Commit hook emitted an advisory graph WARN from broad heuristics, but direct focused/full checks cover the four-file change. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
+| Work | **T-359 completed**: continued the active Hanwoo product-completeness goal by localizing the financial analysis surface. `AnalysisTab` no longer renders English section labels (`Financial Analysis`, `Monthly Flow`, `Cost Mix`, `Top Sales`), and `FinancialChartWidget` no longer renders `Farm Financial Overview`, `Recent 6-month revenue, expense, and profit`, `Unit: KRW`, or English chart legend labels. Added `analysis-copy.test.mjs` to guard this financial-analysis copy. |
+| Next Priorities | Verification passed: focused Hanwoo analysis-copy tests passed (`111 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 111 passed, lint passed, build passed), source scan passed, `git diff --check` passed, direct UTF-8 graph risk `0.00`, and staged code-review gate PASS before commit. Commit hook emitted an advisory graph WARN from component test-gap heuristics, but direct focused/full checks cover the three-file copy change. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-358 completed**: continued the active Hanwoo product-completeness goal by localizing the shared authentication fallback. `AuthenticationError` now defaults to `로그인이 필요합니다.` instead of `Authentication required.`, so authenticated API routes that pass through `requireAuthenticatedSession()` do not leak English auth copy when no route-specific override is provided. |
 | Next Priorities | Verification passed in the same Hanwoo pass: focused payment/auth source tests passed (`110 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 110 passed, lint passed, build passed), `git diff --check` passed, direct UTF-8 graph risk `0.00`, and staged code-review gate PASS before commit. Commit hook emitted a graph test-gap WARN for the tiny constructor copy change, but the route/source regression test covers the user-facing fallback string. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |
 
