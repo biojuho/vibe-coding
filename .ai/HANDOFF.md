@@ -8,6 +8,20 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-409 completed**: continued Hanwoo product-completeness/accessibility work by making schedule calendar date cells keyboard-accessible. `ScheduleTab` now renders monthly date cells as native `button` elements with `type="button"`, date-specific Korean `aria-label`/`title` copy (`${dateStr} 일정 등록 열기`), and left-aligned inherited text styling while preserving the existing card layout. `home-market-copy.test.mjs` guards against returning to `<div onClick>`. Code commit `e756acd`. |
+| Next Priorities | Verification passed: focused Hanwoo tests passed (`138 passed`), targeted ESLint passed, path-limited `git diff --check` passed, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 138, lint, build). Staged `code_review_gate --staged --json` WARN was the known graph/test-gap heuristic with unrelated workspace WIP; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Claude |
+| Work | **T-406 completed — VibeDebt 감사기 측정 정확도 수정** (goal "기술 부채 정리" 사용자 선택 4단계 "VibeDebt RED 계속 진행"). `workspace/execution/vibe_debt_auditor.py`의 두 휴리스틱 버그 교정: (1) `score_test_gap`이 `test_<module>.py` 정확 일치만 봐서 blind-to-x/shorts의 주력 컨벤션 `test_<module>_<qualifier>.py`(`test_cost_db_extended.py` 등 110개 blind-to-x 테스트 파일)를 못 찾아 잘 테스트된 모듈을 70/severe로 오판 → suffix glob 추가. (2) `score_doc_sync`가 workspace 전용 directive↔script 매핑(`directives/INDEX.md`)을 전 repo에 적용해 blind-to-x/shorts 전 파일에 40점 일괄 페널티 → `project_name=="workspace"` 한정. 회귀 테스트 2건 추가. **결과: overall TDR 38.0%→33.9%(principal 384→342h) — 차이 −42h는 순수 측정 오류였음.** T-372 백로그도 재검토로 2개 블로커 측정 해소(biome `check .` = 796 진단, prisma generate는 postinstall 단독 의존 → 제거 시 CI 파손 확정). |
+| Next Priorities | 검증: `test_vibe_debt_auditor.py` 32 passed(신규 2건 포함). 잔여 VibeDebt 33.9% RED는 측정오류 아닌 **진짜 복잡도/중복/테스트갭 부채** — 최악 채무자 `audio_mixin.py`/`ai_tech_shorts.py`/`text_engine.py`/`blind.py`/`ppomppu.py`/`orchestrator.py`(798줄 함수). 거대 함수 분해+dedup이라 멀티 도구 동시 편집 중엔 충돌 위험 → 단독 구간 다중 세션 작업으로 **T-407** 신규 등록. `workspace/execution/vibe_debt_auditor.py`와 `workspace/tests/test_vibe_debt_auditor.py`는 현재 미커밋 WIP로 보존됨. 남은 부채는 전부 approval/external(T-251/T-320/T-372/T-407). |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-405 completed**: continued Hanwoo product-completeness/accessibility polish by localizing the inventory quantity edit controls. The quantity edit action now exposes Korean item-specific accessible labels for edit/save, and the visible English `OK` button is replaced with `저장`. `empty-state-wiring.test.mjs` guards the labels and prevents the English control from returning. Code commit `df5c76d`. |
 | Next Priorities | Verification passed: focused Hanwoo tests passed (`137 passed`), targeted ESLint passed, path-limited `git diff --check` passed, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 137, lint, build). Staged `code_review_gate --staged --json` WARN was the known graph/test-gap heuristic while direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package WIP unless explicitly authorized. |
 
