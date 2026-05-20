@@ -8,6 +8,20 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-403 completed**: continued Hanwoo product-completeness/accessibility work by making pen and cattle row cards keyboard reachable. `PenCard` and `CattleRow` now expose button semantics, focus order, Korean accessible labels, and Enter/Space activation through a shared keyboard handler. `cards-accessibility.test.mjs` guards the contract. Code commit `89f2a29`. |
+| Next Priorities | Verification passed: focused Hanwoo tests passed (`135 passed`), targeted ESLint passed, path-limited `git diff --check` passed, staged review gate JSON passed before commit, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 135, lint, build). Pre-commit advisory WARN was the known graph/test-gap heuristic after commit; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package WIP unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Claude |
+| Work | **T-398 completed — Dependabot PR 백로그 21건 전량 정리 완료, 오픈 PR 0건** (goal "기술 부채 정리"의 사용자 선택 2단계). T-396(안전 13건)에 이어 메이저 버전 8건 처리: ① `#70`/`#72`는 제목이 `bump react`였으나 PR diff 확인 결과 React `19.2.x` patch 범위 → 즉시 머지. ② 빌드/테스트 툴링 메이저 `#63`(@vitejs/plugin-react 6)·`#65`(pytest-asyncio 1.3)·`#68`(typescript 6)은 `gh pr update-branch`로 rebase → 프로젝트 CI(build+test) 그린 확인 → admin 머지. ③ `#60` anthropic 0.43→0.103: blind-to-x `pipeline/draft_providers.py` 사용처가 stable core API(`AsyncAnthropic`/`messages.create` + prompt-cache `cache_control` 파라미터)만 사용함을 코드로 확인 → rebase → CI 그린 → 머지. ④ `#71` recharts 2→3: hanwoo 5개 차트 컴포넌트(CattleDetailModal/FinancialChartWidget/AnalysisTab/FeedTab/SalesTab)가 전부 core 컴포넌트만 사용·`'use client'` → rebase → CI 그린 → 머지. ⑤ `#64` lucide-react 0.563→1.16: lucide v1이 `Github` brand icon 제거(`TS2305`) → knowledge-dashboard `src/app/page.tsx`의 `Github`→`FolderGit2`(non-brand functional icon, 0.563/1.x 양쪽 export 확인) 교체 fix를 worktree로 PR 브랜치에 직접 커밋(`707edf0`) → CI 그린 → 머지. |
+| Next Priorities | 검증 완료: 최종 머지 후 `main`(`11e9acb`) `active-project-matrix` 5개 잡 전부 success(shorts-maker-v2/workspace/blind-to-x/hanwoo/knowledge) + `root-quality-gate` success. **오픈 PR 0건.** 처리 메모: dependabot이 `@dependabot squash and merge` 코맨드에 무응답이라 전 과정 ADMIN `gh pr merge --squash --admin`로 직접 드레인(`BEHIND`만 우회). 주의 — knowledge-dashboard `page.tsx`의 FolderGit2 fix는 #64 PR 브랜치(`707edf0`)와 **로컬 main 커밋(`3e7a096`) 양쪽에 존재**: 내용 동일이라 origin↔로컬 sync 시 무충돌이나 인지할 것. 남은 기술 부채: VibeDebt 감사 RED(TDR 38%, 384h), T-251/T-320/T-372(external/approval). 미커밋 로컬 WIP(shorts/루트 모노레포/hanwoo·cards)는 미수정 보존. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-402 completed**: continued Hanwoo product-completeness debugging by fixing feed-record form failure handling. `FeedTab` now awaits `onRecordFeed` and only resets the form after a truthy result, so failed async saves preserve the user's feed input for retry while success/offline queue paths keep the existing reset behavior. `empty-state-wiring.test.mjs` guards the contract. Code commit `774b5c0`. |
 | Next Priorities | Verification passed: focused Hanwoo tests passed (`135 passed`), targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk `0.00`, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 135, lint, build). Staged/commit code-review gate WARN was the known graph/test-gap heuristic and included unrelated dirty `cards.js` WIP; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-398 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/cards WIP unless explicitly authorized. |
 
