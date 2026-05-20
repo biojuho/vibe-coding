@@ -362,6 +362,7 @@ export default function SalesTab({
             variant="secondary"
             onClick={() => salesPagination.loadMore()}
             disabled={salesPagination.isLoading}
+            aria-busy={salesPagination.isLoading}
             className="w-full mt-3 py-3"
           >
             {salesPagination.isLoading ? '불러오는 중...' : '이전 기록 더 보기'}

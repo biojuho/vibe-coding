@@ -1347,12 +1347,13 @@ export default function DashboardClient({
               type="button"
               onClick={() => cattlePagination.loadMore()}
               disabled={cattlePagination.isLoading}
+              aria-busy={cattlePagination.isLoading}
               className="clay-pressable w-full rounded-[18px] px-4 py-3 text-sm font-semibold text-[color:var(--color-text-secondary)]"
             >
               {cattlePagination.isLoading ? '개체 목록을 불러오는 중입니다...' : '개체 더 보기'}
             </button>
             {cattlePagination.loadError ? (
-              <p className="m-0 text-center text-xs font-semibold text-[color:var(--color-danger)]" role="status">
+              <p className="m-0 text-center text-xs font-semibold text-[color:var(--color-danger)]" role="status" aria-live="polite">
                 {cattlePagination.loadError}
               </p>
             ) : null}

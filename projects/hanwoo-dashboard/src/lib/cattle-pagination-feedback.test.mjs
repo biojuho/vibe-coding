@@ -21,7 +21,9 @@ test('cattle pagination failures surface Korean retry feedback', () => {
   assert.match(hookSource, /setLoadError\(CATTLE_PAGINATION_ERROR_MESSAGE\)/);
   assert.match(hookSource, /loadMore, loadError/);
   assert.match(dashboardSource, /cattlePagination\.loadError/);
+  assert.match(dashboardSource, /aria-busy=\{cattlePagination\.isLoading\}/);
   assert.match(dashboardSource, /role="status"/);
+  assert.match(dashboardSource, /aria-live="polite"/);
   assert.match(dashboardSource, /개체 더 보기/);
   assert.doesNotMatch(hookSource, /setLoadError\(error\.message\)/);
 });

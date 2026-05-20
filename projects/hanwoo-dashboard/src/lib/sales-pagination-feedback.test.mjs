@@ -21,6 +21,7 @@ test('sales pagination failures surface Korean retry feedback', () => {
   assert.match(hookSource, /setLoadError\(SALES_PAGINATION_ERROR_MESSAGE\)/);
   assert.match(hookSource, /loadMore, loadError/);
   assert.match(tabSource, /salesPagination\.loadError/);
+  assert.match(tabSource, /aria-busy=\{salesPagination\.isLoading\}/);
   assert.match(tabSource, /role="status"/);
   assert.match(tabSource, /aria-live="polite"/);
   assert.doesNotMatch(hookSource, /setLoadError\(error\.message\)/);
