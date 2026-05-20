@@ -127,6 +127,18 @@ test('feed record form fields expose labels and validation state', () => {
   assert.match(source, /id=\{fieldId\}[\s\S]*?aria-invalid=\{Boolean\(error\)\}/);
 });
 
+test('feed record form validation messages are announced with their controls', () => {
+  const source = readSource('components/tabs/FeedTab.js');
+
+  assert.match(source, /id="feed-date"[\s\S]*?aria-describedby=\{errors\.date \? "feed-date-error" : undefined\}/);
+  assert.match(source, /id="feed-date-error" role="alert"[\s\S]*?\{errors\.date\.message\}/);
+  assert.match(source, /id="feed-note"[\s\S]*?aria-describedby=\{errors\.note \? "feed-note-error" : undefined\}/);
+  assert.match(source, /id="feed-note-error" role="alert"[\s\S]*?\{errors\.note\.message\}/);
+  assert.match(source, /const errorId = `\$\{fieldId\}-error`;/);
+  assert.match(source, /aria-describedby=\{error \? errorId : undefined\}/);
+  assert.match(source, /<div id=\{errorId\} role="alert" style=\{errorTextStyle\}>\{error\}<\/div>/);
+});
+
 test('inventory quantity edit preserves input when async save fails', () => {
   const source = readSource('components/tabs/InventoryTab.js');
 

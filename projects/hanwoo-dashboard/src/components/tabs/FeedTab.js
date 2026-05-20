@@ -226,9 +226,10 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
               type="date"
               {...register('date')}
               aria-invalid={Boolean(errors.date)}
+              aria-describedby={errors.date ? "feed-date-error" : undefined}
               hasError={!!errors.date}
             />
-            {errors.date ? <div style={errorTextStyle}>{errors.date.message}</div> : null}
+            {errors.date ? <div id="feed-date-error" role="alert" style={errorTextStyle}>{errors.date.message}</div> : null}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
@@ -254,11 +255,12 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
               id="feed-note"
               {...register('note')}
               aria-invalid={Boolean(errors.note)}
+              aria-describedby={errors.note ? "feed-note-error" : undefined}
               placeholder="사료 상태, 날씨 변화, 축사 메모를 적어 주세요."
               hasError={!!errors.note}
               className="h-[82px]"
             />
-            {errors.note ? <div style={errorTextStyle}>{errors.note.message}</div> : null}
+            {errors.note ? <div id="feed-note-error" role="alert" style={errorTextStyle}>{errors.note.message}</div> : null}
           </div>
 
           <PremiumButton
@@ -350,6 +352,7 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
 
 function Field({ label, suffix, error, inputProps }) {
   const fieldId = `feed-${inputProps.name}`;
+  const errorId = `${fieldId}-error`;
 
   return (
     <div style={{ position: 'relative' }}>
@@ -363,6 +366,7 @@ function Field({ label, suffix, error, inputProps }) {
           placeholder="0.0"
           {...inputProps}
           aria-invalid={Boolean(error)}
+          aria-describedby={error ? errorId : undefined}
           hasError={!!error}
           className="text-[16px] font-bold font-['var(--font-display-custom)']"
         />
@@ -380,7 +384,7 @@ function Field({ label, suffix, error, inputProps }) {
           {suffix}
         </span>
       </div>
-      {error ? <div style={errorTextStyle}>{error}</div> : null}
+      {error ? <div id={errorId} role="alert" style={errorTextStyle}>{error}</div> : null}
     </div>
   );
 }
