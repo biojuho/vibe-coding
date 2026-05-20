@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-435 completed**: removed personal phone/address details from Hanwoo public legal pages. `/privacy` now lists `Joolife 운영팀`, support email, and service inquiry channel; `/terms` now keeps company name, support email, and website without exposing a personal mobile number or home address. Added `legal-pages-copy.test.mjs` to guard the public legal-page contact contract. Code commit `8e893b0`. |
+| Next Priorities | Verification passed: focused `node --test src/lib/legal-pages-copy.test.mjs`, targeted ESLint, path-limited `git diff --check`, full Hanwoo `npm.cmd test` (`154 passed` before concurrent WIP), `npm.cmd run lint`, full `project_qc_runner --project hanwoo-dashboard --json` (`test` 156 in current worktree, lint, build), and staged `code_review_gate --staged --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic plus unrelated workspace WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated current WIP in root package/workflow files, Hanwoo package and concurrent Hanwoo source edits, shorts-maker-v2 tests, package locks, and workspace debt-auditor files. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-434 completed**: removed the placeholder business registration number from the Hanwoo dashboard footer. The footer no longer displays `사업자등록번호: 000-00-00000`; it now shows a stable 운영 문의 email line and keeps the legal links. `home-market-copy.test.mjs` guards against the dummy registration returning. Code commit `442e570`. |
 | Next Priorities | Verification passed: focused home-market copy test passed, targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo tests passed (`153 passed`), ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 153, lint, build), and staged `code_review_gate --staged --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN came from the known graph/test-gap heuristic plus unrelated workspace WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
 
