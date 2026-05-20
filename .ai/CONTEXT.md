@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` InventoryTab validation messages are announced with their controls. `InventoryTab` now connects inventory name, category, quantity, unit, and threshold controls to field-specific error messages through conditional `aria-describedby`, keeps `aria-invalid`, and renders each validation message as `role="alert"`. Verification passed: focused home-market copy test (`18 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 174, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` SalesTab validation messages are announced with their controls. `SalesTab` now connects sale date, price, cattle, grade, and purchaser controls to field-specific error messages through conditional `aria-describedby`, keeps `aria-invalid`, and renders each validation message as `role="alert"`. Verification passed: focused home-market copy test (`17 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 173, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` FeedTab validation messages are announced with their controls. `FeedTab` now connects feed date, roughage, concentrate, and memo controls to field-specific error messages through conditional `aria-describedby`, keeps `aria-invalid`, and renders each validation message as `role="alert"`. Verification passed: focused empty-state wiring test (`10 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 173, lint, build).
