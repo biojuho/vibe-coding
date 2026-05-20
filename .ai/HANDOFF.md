@@ -7,6 +7,13 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-21 |
+| Tool | Antigravity |
+| Work | **T-320 completed**: Integrated OpenVoice v2 local high-quality voice cloning provider in `[shorts-maker-v2]`. `openvoice_client.py` implements MeloTTS KR default speaker and ToneColorConverter cloning cascading down to `edge-tts` and `openai-tts`. Also resolved critical Pytest global moviepy mock pollution using `importlib.util.find_spec("moviepy")` conditional mocking in unit tests (`test_openvoice_client.py` and `test_render_step_effects.py`), which previously caused `TypeError` when actual moviepy library was present in the virtual environment. |
+| Next Priorities | Verification passed: focused openvoice/render effect tests passed (`37 passed` across touched modules), full shorts-maker-v2 QC passed, and staged code-review gate passed. Ensure all unit tests remain stable. For future deployment stages, place real MeloTTS model and OpenVoice v2 weights checkpoints inside `checkpoints_v2` and `pretrained_models` directories and verify end-to-end voice cloning. Unrelated root/shorts/Hanwoo package/workspace WIP remains preserved. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
 | Tool | Codex |
 | Work | **T-517 completed**: Hanwoo notification modal test-message action now waits for the current send attempt before re-enabling. `NotificationModal` tracks `isTestingSMS`, routes the button through `handleTestSMSClick`, awaits sync or async `onTestSMS` handlers through `Promise.resolve`, and exposes disabled/`aria-busy` plus wait cursor styling while the action is in flight. Code commit `986cd8d`. |
 | Next Priorities | Verification passed: focused notification modal copy test (`7 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 210, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Direct `code_review_graph detect-changes` still hits the known Windows cp949 reader failure; commit hook WARN was the known graph/test-gap heuristic while direct checks and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
