@@ -22,6 +22,8 @@ test('admin diagnostics page uses Korean operations copy for visible states', ()
   assert.match(source, /대시보드로 돌아가기/);
   assert.match(source, /원본 데이터를 불러오지 못했습니다/);
   assert.match(source, /진단 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요/);
+  assert.match(source, /aria-label="검사할 원본 데이터 선택"/);
+  assert.match(source, /title="검사할 원본 데이터 선택"/);
   assert.match(source, /MODEL_OPTIONS/);
   assert.match(systemActions, /status: '정상'/);
   assert.match(systemActions, /status: '연결 실패'/);

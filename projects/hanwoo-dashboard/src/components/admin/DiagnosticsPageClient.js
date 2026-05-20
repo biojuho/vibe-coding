@@ -245,6 +245,8 @@ export default function DiagnosticsPageClient() {
             </div>
 
             <select
+              aria-label="검사할 원본 데이터 선택"
+              title="검사할 원본 데이터 선택"
               value={selectedModel}
               onChange={(event) => setSelectedModel(event.target.value)}
               className="clay-inset rounded-full px-4 py-3 text-sm font-medium text-[color:var(--color-text)] outline-none"
