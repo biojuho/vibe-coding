@@ -117,11 +117,16 @@ test('settings farm form locks editable fields while saving', () => {
 test('settings building delete action waits for async deletes before re-enabling the row action', () => {
   const source = readSource('components/tabs/SettingsTab.js');
 
+  assert.match(source, /import \{ useEffect, useMemo, useRef, useState \} from 'react';/);
   assert.match(source, /const \[deletingBuildingId, setDeletingBuildingId\] = useState\(null\)/);
-  assert.match(source, /if \(deletingBuildingId\) \{\s+return;\s+\}/);
+  assert.match(source, /const deleteBuildingInFlightRef = useRef\(false\);/);
+  assert.match(source, /if \(deleteBuildingInFlightRef\.current\) \{\s+return;\s+\}/);
+  assert.match(source, /deleteBuildingInFlightRef\.current = true;/);
+  assert.match(source, /if \(!shouldDelete\) \{\s+deleteBuildingInFlightRef\.current = false;\s+return;\s+\}/);
   assert.match(source, /setDeletingBuildingId\(id\);/);
   assert.match(source, /await onDeleteBuilding\(id\);/);
   assert.match(source, /finally \{\s+setDeletingBuildingId\(null\);/);
+  assert.match(source, /setDeletingBuildingId\(null\);\s+deleteBuildingInFlightRef\.current = false;/);
   assert.match(source, /disabled=\{deletingBuildingId === building\.id\}/);
   assert.match(source, /aria-busy=\{deletingBuildingId === building\.id\}/);
 });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { MapPin, Settings } from 'lucide-react';
@@ -39,6 +39,7 @@ export default function SettingsTab({
   const [isSavingFarm, setIsSavingFarm] = useState(false);
   const [isSavingBuilding, setIsSavingBuilding] = useState(false);
   const [deletingBuildingId, setDeletingBuildingId] = useState(null);
+  const deleteBuildingInFlightRef = useRef(false);
   const { confirm } = useAppFeedback();
 
   const {
@@ -133,9 +134,11 @@ export default function SettingsTab({
   };
 
   const handleDeleteBuilding = async (id, name) => {
-    if (deletingBuildingId) {
+    if (deleteBuildingInFlightRef.current) {
       return;
     }
+
+    deleteBuildingInFlightRef.current = true;
 
     const shouldDelete = await confirm({
       title: `${name} 동을 삭제할까요?`,
@@ -146,6 +149,7 @@ export default function SettingsTab({
     });
 
     if (!shouldDelete) {
+      deleteBuildingInFlightRef.current = false;
       return;
     }
 
@@ -155,6 +159,7 @@ export default function SettingsTab({
       await onDeleteBuilding(id);
     } finally {
       setDeletingBuildingId(null);
+      deleteBuildingInFlightRef.current = false;
     }
   };
 
