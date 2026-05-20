@@ -11,11 +11,50 @@ from moviepy import (
     VideoClip,
     vfx,
 )
+from PIL import Image
 
 if TYPE_CHECKING:
     from shorts_maker_v2.config import AppConfig
 
 logger = logging.getLogger(__name__)
+
+# Ken Burns / 줌 효과의 리샘플 필터. MoviePy 의 resized() 는 LANCZOS 를
+# 하드코딩하지만(1080x1920 한 패스 ~68ms 로 가장 느림), Ken Burns 의 미세 줌
+# (<=1.12x) 에서는 BICUBIC(~53ms)과 육안 차이가 사실상 없다. render hot path
+# 최적화 (T-346). 더 빠른 BILINEAR 로 바꿀 수도 있으나 약간 더 부드러워진다.
+_ZOOM_RESAMPLE = Image.Resampling.BICUBIC
+
+
+def _zoom_crop(clip: Any, target_width: int, target_height: int, scale_fn: Any) -> Any:
+    """시간 가변 줌(Ken Burns 류)을 per-frame crop+resize 로 적용한 클립 반환.
+
+    `clip.resized(시간함수)` 는 매 프레임 MoviePy 가 전체 프레임을 LANCZOS 로
+    리샘플한다 (~68ms/frame). 동일한 중심 줌 결과를 PIL `Image.resize(box=...)`
+    호출 한 번으로 얻되 BICUBIC 을 써서 더 빠르게 만든다 — 중심 정렬 줌에서
+    crop-then-resize 는 resize-then-crop 과 수학적으로 동등하다 (T-346).
+
+    `scale_fn`: 정규화 진행도 p∈[0,1] → 배율(>=1.0).
+    """
+    dur = max(getattr(clip, "duration", 0.0) or 0.0, 0.001)
+    src_w, src_h = clip.w, clip.h
+
+    def make_frame(get_frame: Any, t: float) -> Any:
+        frame = get_frame(t)
+        scale = max(float(scale_fn(t / dur)), 1.0)
+        # resize(s) 후 중심 target 크롭 == 중심 (target/s) 크롭 후 target 으로 resize
+        crop_w = min(float(src_w), target_width / scale)
+        crop_h = min(float(src_h), target_height / scale)
+        x1 = (src_w - crop_w) / 2.0
+        y1 = (src_h - crop_h) / 2.0
+        resized = Image.fromarray(frame).resize(
+            (target_width, target_height),
+            _ZOOM_RESAMPLE,
+            box=(x1, y1, x1 + crop_w, y1 + crop_h),
+        )
+        return np.asarray(resized)
+
+    return clip.transform(make_frame).with_duration(clip.duration)
+
 
 # Role-pair → candidate transition styles (module-level constant)
 _STRUCTURAL_MAPPING: dict[tuple[str, str], list[str]] = {
@@ -111,47 +150,17 @@ class RenderEffectsMixin:
     @staticmethod
     def _ken_burns(clip: Any, target_width: int, target_height: int, zoom: float = 0.06) -> Any:
         """이미지 클립에 서서히 줌인하는 켄번스 효과 적용."""
-
-        def resize_func(t: float) -> float:
-            return 1.0 + zoom * (t / max(clip.duration, 0.001))
-
-        zoomed = clip.resized(resize_func)
-        return zoomed.cropped(
-            x_center=zoomed.w / 2,
-            y_center=zoomed.h / 2,
-            width=target_width,
-            height=target_height,
-        )
+        return _zoom_crop(clip, target_width, target_height, lambda p: 1.0 + zoom * p)
 
     @staticmethod
     def _dramatic_ken_burns(clip: Any, target_width: int, target_height: int, zoom: float = 0.12) -> Any:
         """Hook 씬용 빠르고 강렬한 줌인 효과 (기본 zoom 2배)."""
-
-        def resize_func(t: float) -> float:
-            return 1.0 + zoom * (t / max(clip.duration, 0.001))
-
-        zoomed = clip.resized(resize_func)
-        return zoomed.cropped(
-            x_center=zoomed.w / 2,
-            y_center=zoomed.h / 2,
-            width=target_width,
-            height=target_height,
-        )
+        return _zoom_crop(clip, target_width, target_height, lambda p: 1.0 + zoom * p)
 
     @staticmethod
     def _zoom_out(clip: Any, target_width: int, target_height: int, zoom: float = 0.06) -> Any:
         """이미지 클립에 서서히 줌아웃하는 효과 적용."""
-
-        def resize_func(t: float) -> float:
-            return 1.0 + zoom * (1.0 - t / max(clip.duration, 0.001))
-
-        zoomed = clip.resized(resize_func)
-        return zoomed.cropped(
-            x_center=zoomed.w / 2,
-            y_center=zoomed.h / 2,
-            width=target_width,
-            height=target_height,
-        )
+        return _zoom_crop(clip, target_width, target_height, lambda p: 1.0 + zoom * (1.0 - p))
 
     @staticmethod
     def _pan_horizontal(clip: Any, target_width: int, target_height: int, direction: int = 1) -> Any:
@@ -195,18 +204,11 @@ class RenderEffectsMixin:
     @staticmethod
     def _push_in(clip: Any, target_width: int, target_height: int, zoom: float = 0.08) -> Any:
         """CTA 씬용 점진적 줌인 (긴박감 연출). ease-out 커브 적용."""
-
-        def resize_func(t: float) -> float:
-            progress = t / max(clip.duration, 0.001)
-            eased = 1.0 - (1.0 - progress) ** 2
-            return 1.0 + zoom * eased
-
-        zoomed = clip.resized(resize_func)
-        return zoomed.cropped(
-            x_center=zoomed.w / 2,
-            y_center=zoomed.h / 2,
-            width=target_width,
-            height=target_height,
+        return _zoom_crop(
+            clip,
+            target_width,
+            target_height,
+            lambda p: 1.0 + zoom * (1.0 - (1.0 - p) ** 2),
         )
 
     @staticmethod
@@ -238,18 +240,11 @@ class RenderEffectsMixin:
     def _ease_ken_burns(clip: Any, target_width: int, target_height: int, zoom: float = 0.08) -> Any:
         """ease-in-out Ken Burns (부드러운 시작/끝). Body 씬에 적합."""
 
-        def resize_func(t: float) -> float:
-            progress = t / max(clip.duration, 0.001)
-            eased = 4 * progress**3 if progress < 0.5 else 1 - (-2 * progress + 2) ** 3 / 2
+        def eased_scale(p: float) -> float:
+            eased = 4 * p**3 if p < 0.5 else 1 - (-2 * p + 2) ** 3 / 2
             return 1.0 + zoom * eased
 
-        zoomed = clip.resized(resize_func)
-        return zoomed.cropped(
-            x_center=zoomed.w / 2,
-            y_center=zoomed.h / 2,
-            width=target_width,
-            height=target_height,
-        )
+        return _zoom_crop(clip, target_width, target_height, eased_scale)
 
     # ── Fit / resize helper ───────────────────────────────────────────────────
 

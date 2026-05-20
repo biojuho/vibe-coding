@@ -16,52 +16,78 @@ def test_apply_random_effect_has_method() -> None:
     assert callable(step._apply_random_effect)
 
 
-def test_ken_burns_calls_resized_and_cropped() -> None:
-    """_ken_burns가 resized와 cropped를 호출한다."""
+def _capture_scale_fn(monkeypatch, effect, *args):
+    """줌 효과를 `_zoom_crop` 스텁으로 실행해 효과가 넘긴 scale_fn 을 회수.
+
+    줌 효과들은 시간 가변 줌을 `_zoom_crop(clip, tw, th, scale_fn)` 로 위임한다
+    (T-346). scale_fn 은 정규화 진행도 p∈[0,1] → 배율 함수다.
+    """
+    captured = {}
+
+    def spy(clip, target_width, target_height, scale_fn):
+        captured["scale_fn"] = scale_fn
+        return clip
+
+    monkeypatch.setattr("shorts_maker_v2.pipeline.render_effects._zoom_crop", spy)
+    effect(*args)
+    return captured["scale_fn"]
+
+
+def test_ken_burns_scale_curve(monkeypatch) -> None:
+    """_ken_burns는 진행도에 따라 1.0 → 1.06 선형 줌인."""
     clip = _make_fake_clip()
-    RenderStep._ken_burns(clip, 1080, 1920)
-    clip.resized.assert_called_once()
+    scale_fn = _capture_scale_fn(monkeypatch, RenderStep._ken_burns, clip, 1080, 1920)
+    assert abs(scale_fn(0.0) - 1.0) < 0.001
+    assert abs(scale_fn(1.0) - 1.06) < 0.001
 
 
-def test_dramatic_ken_burns_stronger_zoom() -> None:
-    """_dramatic_ken_burns는 기본 zoom=0.12로 더 강한 효과."""
+def test_dramatic_ken_burns_stronger_zoom(monkeypatch) -> None:
+    """_dramatic_ken_burns는 기본 zoom=0.12로 더 강한 효과 (end scale 1.12)."""
     clip = _make_fake_clip()
-    RenderStep._dramatic_ken_burns(clip, 1080, 1920)
-    clip.resized.assert_called_once()
-    resize_func = clip.resized.call_args[0][0]
-    assert callable(resize_func)
-    end_scale = resize_func(clip.duration)
-    assert abs(end_scale - 1.12) < 0.001
+    scale_fn = _capture_scale_fn(monkeypatch, RenderStep._dramatic_ken_burns, clip, 1080, 1920)
+    assert abs(scale_fn(1.0) - 1.12) < 0.001
 
 
-def test_zoom_out_decreasing_scale() -> None:
-    """_zoom_out는 시간이 지남에 따라 scale이 감소한다."""
+def test_zoom_out_decreasing_scale(monkeypatch) -> None:
+    """_zoom_out는 진행도가 늘수록 scale이 감소한다."""
     clip = _make_fake_clip()
-    RenderStep._zoom_out(clip, 1080, 1920)
-    resize_func = clip.resized.call_args[0][0]
-    start_scale = resize_func(0.0)
-    end_scale = resize_func(clip.duration)
-    assert start_scale > end_scale
+    scale_fn = _capture_scale_fn(monkeypatch, RenderStep._zoom_out, clip, 1080, 1920)
+    assert scale_fn(0.0) > scale_fn(1.0)
 
 
-def test_push_in_ease_out_curve() -> None:
-    """_push_in은 ease-out 커브를 적용한다."""
+def test_push_in_ease_out_curve(monkeypatch) -> None:
+    """_push_in은 ease-out 커브로 줌인한다 (end scale 1.08)."""
     clip = _make_fake_clip()
-    RenderStep._push_in(clip, 1080, 1920)
-    resize_func = clip.resized.call_args[0][0]
-    start = resize_func(0.0)
-    end = resize_func(clip.duration)
+    scale_fn = _capture_scale_fn(monkeypatch, RenderStep._push_in, clip, 1080, 1920)
+    start = scale_fn(0.0)
+    end = scale_fn(1.0)
     assert start < end
     assert abs(end - 1.08) < 0.001
 
 
-def test_ease_ken_burns_cubic() -> None:
-    """_ease_ken_burns는 ease-in-out cubic 함수 적용."""
+def test_ease_ken_burns_cubic(monkeypatch) -> None:
+    """_ease_ken_burns는 ease-in-out cubic으로 1.0 → 1.08."""
     clip = _make_fake_clip()
-    RenderStep._ease_ken_burns(clip, 1080, 1920)
-    resize_func = clip.resized.call_args[0][0]
-    assert abs(resize_func(0.0) - 1.0) < 0.001
-    assert abs(resize_func(clip.duration) - 1.08) < 0.001
+    scale_fn = _capture_scale_fn(monkeypatch, RenderStep._ease_ken_burns, clip, 1080, 1920)
+    assert abs(scale_fn(0.0) - 1.0) < 0.001
+    assert abs(scale_fn(1.0) - 1.08) < 0.001
+
+
+def test_zoom_crop_outputs_target_size() -> None:
+    """_zoom_crop은 소스 크기와 무관하게 target 크기 프레임을 내고, 줌인한다."""
+    import numpy as np
+    from moviepy import ImageClip
+
+    from shorts_maker_v2.pipeline.render_effects import _zoom_crop
+
+    src = ImageClip((np.random.rand(1920, 1080, 3) * 255).astype(np.uint8)).with_duration(2.0)
+    zoomed = _zoom_crop(src, 1080, 1920, lambda p: 1.0 + 0.06 * p)
+    frame_start = zoomed.get_frame(0.0)
+    frame_end = zoomed.get_frame(1.99)
+    assert frame_start.shape == (1920, 1080, 3)
+    assert frame_end.shape == (1920, 1080, 3)
+    # 줌인 → 끝 프레임은 시작 프레임과 다르다
+    assert not np.array_equal(frame_start, frame_end)
 
 
 def test_pan_horizontal_calls_resized() -> None:
