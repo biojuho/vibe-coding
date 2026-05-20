@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-417 completed**: continued Hanwoo notification-modal accessibility debugging by adding an Escape-key dismissal path to the custom `NotificationModal` dialog surface. The dialog now handles `Escape`, stops propagation, calls `onClose`, and exposes `tabIndex={-1}` so the key handler can live on the dialog container. `notification-modal-copy.test.mjs` guards the contract. Code commit `1aceb99`. |
+| Next Priorities | Verification passed: focused Hanwoo test run passed (`146 passed`), targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk was `0.00`, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 146, lint, build). Staged/commit `code_review_gate` WARN was the known graph/test-gap heuristic plus unrelated VibeDebt WIP; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-416 completed**: continued Hanwoo product-completeness hardening by defaulting the shared `Button` to safe non-submit semantics. `components/ui/button.js` now passes `type="button"` to native buttons unless a caller explicitly provides a type, while leaving `asChild` untouched. This prevents generic action buttons from accidentally submitting forms when reused in form layouts. `feedback-provider-copy.test.mjs` guards the contract. Code commit `7ce65b0`. |
 | Next Priorities | Verification passed: focused Hanwoo tests passed (`145 passed`), targeted ESLint passed, path-limited `git diff --check` passed, staged `code_review_gate --staged --json` passed with known cp949 reader-thread noise, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 145, lint, build). Commit hook emitted advisory graph/test-gap WARN that included unrelated VibeDebt dirty WIP; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
 

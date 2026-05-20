@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` notification modal can be dismissed by keyboard. The custom `NotificationModal` dialog surface now handles `Escape`, stops propagation, calls `onClose`, and exposes `tabIndex={-1}` so keyboard users have a standard modal exit path in addition to the visible close button and overlay click. Verification passed: focused tests (`146 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 146, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` shared `Button` defaults to safe non-submit semantics. The component now emits `type="button"` for normal native buttons unless callers explicitly pass a type, while `asChild` remains untouched. This prevents generic action buttons from accidentally submitting forms if reused inside form layouts. Verification passed: focused tests (`145 passed`), targeted ESLint, path-limited `git diff --check`, staged code-review gate pass with known cp949 reader-thread noise, and full Hanwoo QC (`test` 145, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` shared premium buttons default to safe non-submit semantics. `PremiumButton` now renders native buttons with `type="button"` unless callers explicitly pass another type, while `asChild` avoids leaking button-only props. This prevents secondary/custom controls embedded in forms from accidentally submitting forms. Verification passed: focused tests (`144 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC in the current worktree (`test` 145, lint, build).
