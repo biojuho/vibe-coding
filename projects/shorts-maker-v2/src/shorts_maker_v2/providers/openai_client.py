@@ -68,7 +68,29 @@ class OpenAIClient:
         return output_path
 
     def transcribe_audio(self, audio_path: Path) -> list[dict]:
-        """Whisper-1로 오디오 전사, 단어 단위 타임스탬프 반환."""
+        """로컬 WhisperX/faster-whisper로 우선 전사 시도하고, 실패 시 OpenAI whisper-1 API로 fallback."""
+        logger.info("[OpenAIClient] 로컬 WhisperX/faster-whisper 전사 우선 시도…")
+        try:
+            from shorts_maker_v2.providers.whisper_aligner import transcribe_to_word_timings
+
+            # CPU 환경의 밸런스를 고려하여 "medium" 모델로 우선 정밀 분석 시도
+            local_words = transcribe_to_word_timings(audio_path, model_size="medium", language="ko")
+            if local_words:
+                logger.info("[OpenAIClient] 로컬 전사 성공 (단어 수: %d)", len(local_words))
+                return local_words
+
+            # "medium"이 실패하거나 빈 결과를 반환한 경우, "base" 모델로 한 번 더 fallback 시도
+            logger.info("[OpenAIClient] 로컬 'medium' 전사 결과 없음. 'base' 모델로 재시도…")
+            local_words_base = transcribe_to_word_timings(audio_path, model_size="base", language="ko")
+            if local_words_base:
+                logger.info("[OpenAIClient] 로컬 'base' 전사 성공 (단어 수: %d)", len(local_words_base))
+                return local_words_base
+
+        except Exception as local_exc:
+            logger.warning("[OpenAIClient] 로컬 전사 시도 중 오류 발생: %s", local_exc)
+
+        # 로컬 분석 실패 시 OpenAI API fallback
+        logger.warning("[OpenAIClient] 로컬 전사 실패 -> OpenAI whisper-1 API Fallback 수행")
         with audio_path.open("rb") as f:
             response = self.client.audio.transcriptions.create(
                 model="whisper-1",

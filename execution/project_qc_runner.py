@@ -150,6 +150,8 @@ def command_to_string(command: tuple[str, ...]) -> str:
 
 def resolve_command(command: tuple[str, ...]) -> tuple[str, ...]:
     executable = command[0]
+    if executable == "python":
+        return (sys.executable, *command[1:])
     if Path(executable).suffix or "/" in executable or "\\" in executable:
         return command
 
@@ -173,10 +175,11 @@ def _is_pytest_command(command: tuple[str, ...]) -> bool:
 def build_subprocess_env(item: PlanItem) -> dict[str, str]:
     env = os.environ.copy()
     if _is_pytest_command(item.check.command):
-        temp_dir = REPO_ROOT / ".tmp" / "project-qc-temp" / item.project
-        temp_dir.mkdir(parents=True, exist_ok=True)
-        env["TMP"] = str(temp_dir)
-        env["TEMP"] = str(temp_dir)
+        if sys.platform != "win32":
+            temp_dir = REPO_ROOT / ".tmp" / "project-qc-temp" / item.project
+            temp_dir.mkdir(parents=True, exist_ok=True)
+            env["TMP"] = str(temp_dir)
+            env["TEMP"] = str(temp_dir)
         env.setdefault("PYTHONUTF8", "1")
     return env
 

@@ -150,8 +150,54 @@ class TestTranscribeAudio:
         audio.write_bytes(b"x")
 
         client = openai_client.OpenAIClient(api_key="sk-test")
-        result = client.transcribe_audio(audio)
-        assert result == []
+
+        # 로컬 전사 실패로 만들기 위해 mock 패치
+        with patch("shorts_maker_v2.providers.whisper_aligner.transcribe_to_word_timings", return_value=[]):
+            result = client.transcribe_audio(audio)
+            assert result == []
+
+    @patch("shorts_maker_v2.providers.openai_client.OpenAI")
+    def test_local_transcription_success_skips_openai_api(self, MockOpenAI, tmp_path: Path):
+        mock_client_inst = MagicMock()
+        MockOpenAI.return_value = mock_client_inst
+
+        audio = tmp_path / "audio.mp3"
+        audio.write_bytes(b"fake-audio")
+
+        client = openai_client.OpenAIClient(api_key="sk-test")
+
+        expected_words = [{"word": "로컬", "start": 0.0, "end": 1.0}]
+
+        # 로컬 전사 성공으로 모킹
+        with patch("shorts_maker_v2.providers.whisper_aligner.transcribe_to_word_timings", return_value=expected_words) as mock_local:
+            result = client.transcribe_audio(audio)
+            assert result == expected_words
+            # 로컬 전사가 성공했으므로 OpenAI transcribe API는 호출되지 않아야 함
+            mock_client_inst.audio.transcriptions.create.assert_not_called()
+            mock_local.assert_called_with(audio, model_size="medium", language="ko")
+
+    @patch("shorts_maker_v2.providers.openai_client.OpenAI")
+    def test_local_transcription_fail_falls_back_to_openai_api(self, MockOpenAI, tmp_path: Path):
+        mock_client_inst = MagicMock()
+        MockOpenAI.return_value = mock_client_inst
+
+        word1 = MagicMock(word="hello", start=0.0, end=0.5)
+        mock_resp = MagicMock()
+        mock_resp.words = [word1]
+        mock_client_inst.audio.transcriptions.create.return_value = mock_resp
+
+        audio = tmp_path / "audio.mp3"
+        audio.write_bytes(b"fake-audio")
+
+        client = openai_client.OpenAIClient(api_key="sk-test")
+
+        # 로컬 전사 실패(빈 배열 반환) 모킹 → OpenAI API로 폴백
+        with patch("shorts_maker_v2.providers.whisper_aligner.transcribe_to_word_timings", return_value=[]) as mock_local:
+            result = client.transcribe_audio(audio)
+            assert result == [{"word": "hello", "start": 0.0, "end": 0.5}]
+            mock_client_inst.audio.transcriptions.create.assert_called_once()
+            # medium이 실패했으므로 base로 재시도했는지 확인
+            assert mock_local.call_count == 2
 
 
 # ═══════════════════════════════════════════════════════════════════
