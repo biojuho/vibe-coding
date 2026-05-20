@@ -113,3 +113,12 @@ test('inventory quantity edit preserves input when async save fails', () => {
   assert.match(source, /if \(!saved\) \{\s+return;\s+\}/);
   assert.match(source, /setEditId\(null\);\s+setEditQty\(''\);/);
 });
+
+test('inventory quantity edit controls use Korean task labels', () => {
+  const source = readSource('components/tabs/InventoryTab.js');
+
+  assert.match(source, /aria-label=\{`\$\{item\.name\} 재고 수량 수정`\}/);
+  assert.match(source, /aria-label=\{`\$\{item\.name\} 재고 수량 저장`\}/);
+  assert.match(source, />\s*저장\s*<\/PremiumButton>/);
+  assert.doesNotMatch(source, />\s*OK\s*<\/PremiumButton>/);
+});

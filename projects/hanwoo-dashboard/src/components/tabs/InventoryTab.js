@@ -210,14 +210,16 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
                         <PremiumButton
                           variant="secondary"
                           onClick={() => handleUpdate(item.id)}
+                          aria-label={`${item.name} 재고 수량 저장`}
                           className="px-2 py-1.5 h-auto text-xs"
                         >
-                          OK
+                          저장
                         </PremiumButton>
                       </div>
                     ) : (
                       <button
                         type="button"
+                        aria-label={`${item.name} 재고 수량 수정`}
                         onClick={() => {
                           setEditId(item.id);
                           setEditQty(String(item.quantity));
