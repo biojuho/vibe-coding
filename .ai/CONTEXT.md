@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` subscription entry-page copy is localized. `/subscription` now uses Korean product copy for the title, monthly price/value line, and customer-name fallback, and `payment-ux-copy.test.mjs` guards against `Joolife Premium Subscription`, `Start smarter farm management`, `KRW 9,900 per month`, and `Joolife User` returning. Verification passed: Hanwoo tests `109 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json`, source English subscription scan, and direct Hanwoo graph risk `0.00`.
+
 - As of 2026-05-20, `hanwoo-dashboard` AI chat API errors and model-context fallbacks are localized. `/api/ai/chat` validation/auth/config/provider/startup failures return Korean operator-facing messages, and the farm-context payload avoids English labels such as `unknown`, `No recent sales records`, `Current farm context`, and `man KRW`. Verification passed: Hanwoo AI chat tests `108 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json`, source English fallback scan, and direct Hanwoo graph risk `0.00`.
 
 - As of 2026-05-20, `hanwoo-dashboard` cattle tag lookup fallbacks are localized at the MTRACE helper layer. `lookupCattleByTag()` returns Korean operator messages for missing service key, invalid input, rate limits, upstream failures, unreadable responses, no-match results, timeouts, and generic errors, the default breed fallback is `한우`, and the internal API diagnostic label is Korean. Verification passed: Hanwoo tests `107 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json`, `git diff --check`, and direct Hanwoo graph risk `0.00`.

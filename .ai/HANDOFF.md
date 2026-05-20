@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-355 completed**: continued the active Hanwoo product-completeness goal by localizing the subscription entry page. `/subscription` now uses Korean product copy for the page title, monthly price/value description, and customer-name fallback (`Joolife 사용자`) instead of `Joolife Premium Subscription`, `Start smarter farm management for KRW 9,900 per month.`, and `Joolife User`. Extended `payment-ux-copy.test.mjs` to cover the entry page as well as checkout/result pages. |
+| Next Priorities | Verification passed: focused Hanwoo payment/subscription tests passed (`108 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 109 passed, lint passed, build passed), `git diff --check` passed, source English subscription scan passed, and UTF-8 graph risk `0.00`. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-354 completed**: continued the active Hanwoo product-completeness goal by localizing AI chat API error/fallback copy. `/api/ai/chat` validation, authentication, missing Gemini configuration, provider SSE errors, and start-chat failures now return Korean operator-facing messages instead of English API/debug text. The AI farm-context payload also avoids English fallback labels such as `unknown`, `No recent sales records`, `Current farm context`, and `man KRW`. Added/updated regression coverage in `ai-chat-api.test.mjs`. |
 | Next Priorities | Verification passed: focused Hanwoo AI chat tests passed (`108 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 108 passed, lint passed, build passed), `git diff --check` passed, source English fallback scan passed, and UTF-8 graph risk `0.00`. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |
 

@@ -12,7 +12,7 @@
 
 ## Progress Notes
 
-- 2026-05-20: T-354 localized AI chat API error/fallback messages and farm-context copy; verification passed with Hanwoo tests `108 passed`, targeted ESLint, full Hanwoo QC, source English fallback scan, and graph risk `0.00`.
+- 2026-05-20: T-355 localized subscription entry-page title, monthly price/value line, and customer fallback; verification passed with Hanwoo tests `109 passed`, targeted ESLint, full Hanwoo QC, source English subscription scan, and graph risk `0.00`.
 
 ## Notes
 
