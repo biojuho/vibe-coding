@@ -34,7 +34,7 @@ test('notification modal exposes dialog semantics with a visible title label', (
 test('notification modal can be dismissed with Escape from the dialog surface', () => {
   const source = readSource('components/ui/NotificationModal.js');
 
-  assert.match(source, /import \{ useEffect, useRef \} from 'react';/);
+  assert.match(source, /import \{ useEffect, useRef, useState \} from 'react';/);
   assert.match(source, /const dialogRef = useRef\(null\);/);
   assert.match(source, /useEffect\(\(\) => \{/);
   assert.match(source, /dialogRef\.current\?\.focus\(\);/);
@@ -58,7 +58,7 @@ test('notification modal SMS action uses safe button semantics and Korean copy',
   const source = readSource('components/ui/NotificationModal.js');
   const dashboardSource = readSource('components/DashboardClient.js');
 
-  assert.match(source, /<button\s+type="button"\s+onClick=\{onTestSMS\}/);
+  assert.match(source, /<button\s+type="button"\s+onClick=\{handleTestSMSClick\}/);
   assert.match(source, /<span aria-hidden="true">📱<\/span>[\s\S]*?문자 알림 서비스/);
   assert.match(source, /중요한 알림을 문자로 받아보시겠습니까\?/);
   assert.match(source, /테스트 전송/);
@@ -68,6 +68,20 @@ test('notification modal SMS action uses safe button semantics and Korean copy',
   assert.doesNotMatch(source, /Twilio \/ Kakao API/);
   assert.doesNotMatch(source, /SMS 알림 서비스/);
   assert.doesNotMatch(dashboardSource, /테스트 SMS를 발송했습니다/);
+});
+
+test('notification modal SMS test action waits for async sends before re-enabling', () => {
+  const source = readSource('components/ui/NotificationModal.js');
+
+  assert.match(source, /const \[isTestingSMS, setIsTestingSMS\] = useState\(false\)/);
+  assert.match(source, /const handleTestSMSClick = async \(\) => \{/);
+  assert.match(source, /if \(isTestingSMS\) \{\s+return;\s+\}/);
+  assert.match(source, /setIsTestingSMS\(true\);/);
+  assert.match(source, /await Promise\.resolve\(onTestSMS\?\.\(\)\);/);
+  assert.match(source, /finally \{\s+setIsTestingSMS\(false\);/);
+  assert.match(source, /disabled=\{isTestingSMS\}/);
+  assert.match(source, /aria-busy=\{isTestingSMS\}/);
+  assert.match(source, /cursor: isTestingSMS \? 'wait' : 'pointer'/);
 });
 
 test('notification modal visible copy is readable Korean product copy', () => {

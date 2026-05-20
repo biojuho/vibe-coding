@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export default function NotificationModal({ notifications, onClose, onTestSMS }) {
   const dialogRef = useRef(null);
+  const [isTestingSMS, setIsTestingSMS] = useState(false);
 
   useEffect(() => {
     dialogRef.current?.focus();
@@ -13,6 +14,20 @@ export default function NotificationModal({ notifications, onClose, onTestSMS })
     if (event.key === 'Escape') {
       event.stopPropagation();
       onClose();
+    }
+  };
+
+  const handleTestSMSClick = async () => {
+    if (isTestingSMS) {
+      return;
+    }
+
+    setIsTestingSMS(true);
+
+    try {
+      await Promise.resolve(onTestSMS?.());
+    } finally {
+      setIsTestingSMS(false);
     }
   };
 
@@ -154,9 +169,11 @@ export default function NotificationModal({ notifications, onClose, onTestSMS })
             </span>
             <button
               type="button"
-              onClick={onTestSMS}
+              onClick={handleTestSMSClick}
+              disabled={isTestingSMS}
+              aria-busy={isTestingSMS}
               className="btn btn-primary"
-              style={{ padding: '8px 14px', fontSize: '12px', width: 'auto' }}
+              style={{ padding: '8px 14px', fontSize: '12px', width: 'auto', opacity: isTestingSMS ? 0.72 : 1, cursor: isTestingSMS ? 'wait' : 'pointer' }}
             >
               테스트 전송
             </button>
