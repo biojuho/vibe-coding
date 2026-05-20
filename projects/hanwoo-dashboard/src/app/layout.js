@@ -25,13 +25,13 @@ const cormorantGaramond = Cormorant_Garamond({
 });
 
 export const metadata = {
-  title: 'Joolife Dashboard',
-  description: 'Premium Hanwoo Farm Management System',
+  title: 'Joolife 한우 농장 관리',
+  description: '한우 농장의 개체, 번식, 출하, 재고, 일정을 한곳에서 관리하는 운영 대시보드',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Joolife',
+    title: 'Joolife 한우',
   },
 };
 
