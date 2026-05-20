@@ -105,10 +105,21 @@ test('feed record form preserves input when async save fails', () => {
   assert.match(source, /reset\(\{\s+\.\.\.createFeedRecordValues\(\),\s+date: values\.date,\s+\}\);/);
 });
 
+test('feed record form waits for async saves before re-enabling submit', () => {
+  const source = readSource('components/tabs/FeedTab.js');
+
+  assert.match(source, /const \[isSaving, setIsSaving\] = useState\(false\)/);
+  assert.match(source, /setIsSaving\(true\);/);
+  assert.match(source, /await onRecordFeed\(\{/);
+  assert.match(source, /finally \{\s+setIsSaving\(false\);/);
+  assert.match(source, /type="submit"\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}/);
+});
+
 test('feed building filter chips expose selected state and Korean labels', () => {
   const source = readSource('components/tabs/FeedTab.js');
 
-  assert.match(source, /function FilterChip\(\{ active, children, onClick, label \}\)/);
+  assert.match(source, /function FilterChip\(\{ active, children, onClick, label, disabled = false \}\)/);
+  assert.match(source, /disabled=\{disabled\}/);
   assert.match(source, /aria-pressed=\{active\}/);
   assert.match(source, /aria-label=\{label\}/);
   assert.match(source, /label="전체 축사 급여 보기"/);

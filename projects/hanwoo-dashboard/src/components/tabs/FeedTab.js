@@ -18,12 +18,13 @@ const errorTextStyle = {
   fontWeight: 600,
 };
 
-function FilterChip({ active, children, onClick, label }) {
+function FilterChip({ active, children, onClick, label, disabled = false }) {
   return (
     <PremiumButton
       variant={active ? "primary" : "secondary"}
       size="sm"
       onClick={onClick}
+      disabled={disabled}
       aria-pressed={active}
       aria-label={label}
       className={`rounded-full px-4 py-2 font-bold text-[13px] whitespace-nowrap shadow-sm ${active ? "shadow-[var(--shadow-button-primary)] text-white" : ""}`}
@@ -35,6 +36,7 @@ function FilterChip({ active, children, onClick, label }) {
 
 export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], onRecordFeed, buildings = [] }) {
   const [selectedBuilding, setSelectedBuilding] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
   const { notify } = useAppFeedback();
 
   const {
@@ -122,19 +124,25 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
       return;
     }
 
-    const recorded = await onRecordFeed({
-      ...values,
-      buildingId: selectedBuilding,
-    });
+    setIsSaving(true);
 
-    if (!recorded) {
-      return;
+    try {
+      const recorded = await onRecordFeed({
+        ...values,
+        buildingId: selectedBuilding,
+      });
+
+      if (!recorded) {
+        return;
+      }
+
+      reset({
+        ...createFeedRecordValues(),
+        date: values.date,
+      });
+    } finally {
+      setIsSaving(false);
     }
-
-    reset({
-      ...createFeedRecordValues(),
-      date: values.date,
-    });
   };
 
   return (
@@ -265,6 +273,8 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
 
           <PremiumButton
             type="submit"
+            disabled={isSaving}
+            aria-busy={isSaving}
             className="w-full py-4 text-lg mt-3 bg-linear-to-b from-blue-500 to-blue-600 border-none shadow-(--shadow-button-primary) font-bold"
             glow={true}
           >
