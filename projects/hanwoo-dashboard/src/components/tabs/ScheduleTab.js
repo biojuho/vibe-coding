@@ -109,7 +109,7 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
           onClick={toggleAddForm}
           className="clay-pressable inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-[color:var(--color-text)]"
         >
-          <PlusCircle size={14} />
+          <PlusCircle size={14} aria-hidden="true" />
           {isAdding ? '취소' : '새 일정'}
         </button>
       </div>

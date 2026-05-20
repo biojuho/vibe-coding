@@ -236,6 +236,7 @@ function KpiCard({ title, value, icon, accent }) {
         {icon ? (
           <span
             className="inline-flex h-9 w-9 items-center justify-center rounded-full"
+            aria-hidden="true"
             style={{
               color: accent,
               background: `color-mix(in srgb, ${accent} 16%, white 84%)`,

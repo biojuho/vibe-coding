@@ -21,7 +21,8 @@ test('settings tab switch controls expose Korean accessible names and checked st
   assert.match(source, /aria-checked=\{isOn\}/);
   assert.match(source, /aria-label=\{`\$\{widget\.label\} 위젯 \$\{isOn \? '숨기기' : '보이기'\}`\}/);
   assert.match(source, /title=\{`\$\{widget\.label\} 위젯 \$\{isOn \? '숨기기' : '보이기'\}`\}/);
-  assert.match(source, /aria-hidden="true"/);
+  assert.match(source, /<Settings size=\{20\} className="text-\[color:var\(--color-text\)\]" aria-hidden="true" \/>/);
+  assert.match(source, /<MapPin size=\{16\} aria-hidden="true" \/>/);
   assert.doesNotMatch(source, /aria-label="Theme"/);
   assert.doesNotMatch(source, /aria-label="Widget"/);
 });

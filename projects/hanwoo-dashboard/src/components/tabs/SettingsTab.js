@@ -134,7 +134,7 @@ export default function SettingsTab({
   return (
     <div>
       <div className="section-header" style={{ marginBottom: '22px' }}>
-        <Settings size={20} className="text-[color:var(--color-text)]" />
+        <Settings size={20} className="text-[color:var(--color-text)]" aria-hidden="true" />
         <h2 className="section-header-title">환경 설정</h2>
       </div>
 
@@ -305,7 +305,7 @@ export default function SettingsTab({
             gap: '6px',
           }}
         >
-          <MapPin size={16} /> 농장 정보 설정
+          <MapPin size={16} aria-hidden="true" /> 농장 정보 설정
         </div>
 
         <div style={{ display: 'grid', gap: '16px' }}>

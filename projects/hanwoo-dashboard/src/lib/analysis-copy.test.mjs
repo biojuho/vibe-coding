@@ -17,6 +17,7 @@ test('analysis and financial widgets use Korean operator copy', () => {
 
   assert.match(financialWidgetSource, /import \{ BarChart3 \} from 'lucide-react';/);
   assert.match(financialWidgetSource, /<BarChart3 size=\{22\} aria-hidden="true"/);
+  assert.match(analysisSource, /className="inline-flex h-9 w-9 items-center justify-center rounded-full"\s+aria-hidden="true"/);
   assert.match(analysisSource, /경영 분석/);
   assert.match(analysisSource, /월별 흐름/);
   assert.match(analysisSource, /비용 구성/);

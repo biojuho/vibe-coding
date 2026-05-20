@@ -111,6 +111,7 @@ test('schedule calendar navigation exposes Korean accessible labels', () => {
   assert.match(source, /title="이전 달 보기"/);
   assert.match(source, /aria-label="다음 달 보기"/);
   assert.match(source, /title="다음 달 보기"/);
+  assert.match(source, /<PlusCircle size=\{14\} aria-hidden="true" \/>/);
   assert.doesNotMatch(source, /aria-label="Previous month"/);
   assert.doesNotMatch(source, /aria-label="Next month"/);
 });
