@@ -31,7 +31,12 @@ function parseLimit(value) {
     return DEFAULT_LIMIT;
   }
 
-  const parsed = Number.parseInt(String(value), 10);
+  const normalized = String(value).trim();
+  if (!/^\d+$/.test(normalized)) {
+    throw new DashboardQueryValidationError('목록 개수는 1 이상 숫자로 입력해 주세요.');
+  }
+
+  const parsed = Number.parseInt(normalized, 10);
   if (!Number.isInteger(parsed) || parsed <= 0) {
     throw new DashboardQueryValidationError('목록 개수는 1 이상 숫자로 입력해 주세요.');
   }
@@ -43,6 +48,10 @@ function parsePenNumber(value) {
   const normalized = normalizeOptionalString(value);
   if (normalized === null) {
     return null;
+  }
+
+  if (!/^\d+$/.test(normalized)) {
+    throw new DashboardQueryValidationError('칸 번호는 1 이상 숫자로 입력해 주세요.');
   }
 
   const parsed = Number.parseInt(normalized, 10);
