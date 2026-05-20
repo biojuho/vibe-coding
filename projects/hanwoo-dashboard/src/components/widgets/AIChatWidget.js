@@ -119,6 +119,7 @@ export default function AIChatWidget() {
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const scrollRef = useRef(null);
+  const panelRef = useRef(null);
   const abortRef = useRef(null);
 
   useEffect(() => {
@@ -126,6 +127,12 @@ export default function AIChatWidget() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [isOpen, messages]);
+
+  useEffect(() => {
+    if (isOpen) {
+      panelRef.current?.focus();
+    }
+  }, [isOpen]);
 
   const closeWidget = useCallback(() => {
     if (abortRef.current) {
@@ -267,9 +274,11 @@ export default function AIChatWidget() {
 
   return (
     <div
+      ref={panelRef}
       className="animate-scaleIn"
       role="dialog"
       aria-label="AI 농장 비서 채팅"
+      tabIndex={-1}
       onKeyDown={handlePanelKeyDown}
       style={{
         position: 'fixed',
