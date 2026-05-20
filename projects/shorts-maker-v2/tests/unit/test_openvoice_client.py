@@ -1,13 +1,15 @@
 """Unit tests for OpenVoice v2 TTS Client and MediaAudioMixin routing."""
 
+import importlib.util
 import sys
 from unittest.mock import MagicMock
 
 # Mock moviepy to prevent import failures in environments without it
-sys.modules["moviepy"] = MagicMock()
-sys.modules["moviepy.editor"] = MagicMock()
-sys.modules["moviepy.audio"] = MagicMock()
-sys.modules["moviepy.audio.fx"] = MagicMock()
+if importlib.util.find_spec("moviepy") is None:
+    sys.modules["moviepy"] = MagicMock()
+    sys.modules["moviepy.editor"] = MagicMock()
+    sys.modules["moviepy.audio"] = MagicMock()
+    sys.modules["moviepy.audio.fx"] = MagicMock()
 
 import types
 from unittest.mock import patch
