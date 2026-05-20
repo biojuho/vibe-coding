@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-488 completed**: Hanwoo cattle-detail breeding record saves now guard against duplicate async submissions. `CattleDetailModal` returns early when `isBreedingSaving` is already true and exposes `aria-busy` on the breeding record submit button, so slow 발정/수정 record saves cannot be submitted twice through rapid submit/Enter paths. `cattle-detail-modal-wiring.test.mjs` guards the contract. Code commit `e5cfb25`. |
+| Next Priorities | Verification passed: focused cattle-detail modal wiring test (`9 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 193, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known advisory graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-487 completed**: Hanwoo inventory inline quantity updates now wait for the async quantity update handler before re-enabling the editor controls. `InventoryTab` tracks `savingQuantityId`, awaits `onUpdateQuantity`, disables the active quantity input and save button while saving, and exposes `aria-busy` on the save button so slow network updates cannot trigger duplicate quantity update requests. `home-market-copy.test.mjs` guards the contract. Code commit `d1d33c3`. |
 | Next Priorities | Verification passed: focused home-market copy test (`21 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 192, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known advisory graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 
