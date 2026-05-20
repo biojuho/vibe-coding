@@ -66,8 +66,8 @@ export default function SalesTab({
 
         return {
           ...record,
-          name: cow.name || 'Unknown',
-          tagNumber: cow.tagNumber || '000-0000-0000',
+          name: cow.name || '개체명 미등록',
+          tagNumber: cow.tagNumber || '이력번호 미등록',
           costs: {
             purchase: purchaseCost,
             feed: feedCost,

@@ -58,3 +58,12 @@ test('weather widget uses Korean product copy for unavailable state', () => {
   assert.doesNotMatch(source, /Weather Unavailable/);
   assert.doesNotMatch(source, /Weather data is temporarily unavailable/);
 });
+
+test('sales tab missing cattle fallback copy stays Korean', () => {
+  const source = readSource('components/tabs/SalesTab.js');
+
+  assert.match(source, /개체명 미등록/);
+  assert.match(source, /이력번호 미등록/);
+  assert.doesNotMatch(source, /Unknown/);
+  assert.doesNotMatch(source, /000-0000-0000/);
+});
