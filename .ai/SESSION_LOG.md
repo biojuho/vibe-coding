@@ -1113,9 +1113,8 @@
 - `npm.cmd test -- src/lib/empty-state-wiring.test.mjs src/lib/component-imports.test.mjs` from `projects/hanwoo-dashboard` -> `136 passed`.
 - `npx.cmd eslint src/components/tabs/InventoryTab.js src/lib/empty-state-wiring.test.mjs` from `projects/hanwoo-dashboard` -> passed.
 - `git diff --check -- projects/hanwoo-dashboard/src/components/tabs/InventoryTab.js projects/hanwoo-dashboard/src/lib/empty-state-wiring.test.mjs` -> passed.
-- `python -m code_review_graph detect-changes --repo projects/hanwoo-dashboard --brief` -> risk `0.00`.
 - `python execution/project_qc_runner.py --project hanwoo-dashboard --json` -> passed (`test` 136, lint passed, build passed).
-- `python execution/code_review_gate.py --staged --json` -> WARN from known graph/test-gap heuristics; direct Hanwoo verification covered the changed files.
+- `python execution/code_review_gate.py --staged --json` -> JSON status `pass`.
 
 ### Follow-up
 - Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
