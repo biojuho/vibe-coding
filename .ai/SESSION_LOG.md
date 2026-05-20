@@ -535,6 +535,38 @@
 - T-308 is the next safe goal task: browser visual QA of the Today Brief panel, then consider lucide-icon polish for remaining emoji-heavy navigation/widget affordances.
 - T-251 remains user-owned: reset/resync the Supabase database password in the Supabase Dashboard, update `.env` if needed, then rerun live Prisma E2E.
 
+## 2026-05-20 KST - Codex
+
+### Summary
+- Continued the active `hanwoo-dashboard` product-completeness goal.
+- Added a deterministic setup-progress helper that scores first-run readiness across farm profile, buildings, cattle, inventory, and schedule setup.
+- Rendered a home-screen `Farm Setup / 운영 준비도` panel so new operators can see remaining setup gaps and jump directly to the right action.
+- Fixed the home empty 축사 CTA: it now opens Settings, where building creation actually exists, instead of opening the cattle registration modal.
+
+### Changed Files
+- `.ai/GOAL.md`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `projects/hanwoo-dashboard/src/components/DashboardClient.js`
+- `projects/hanwoo-dashboard/src/app/globals.css`
+- `projects/hanwoo-dashboard/src/lib/dashboard/setup-progress.mjs`
+- `projects/hanwoo-dashboard/src/lib/dashboard/setup-progress.test.mjs`
+
+### Verification
+- `npm.cmd test` from `projects/hanwoo-dashboard` -> `84 passed`.
+- `npm.cmd run lint` from `projects/hanwoo-dashboard` -> passed.
+- `npm.cmd run build` from `projects/hanwoo-dashboard` -> passed.
+- `PYTHONUTF8=1 python -m code_review_graph detect-changes --repo projects/hanwoo-dashboard --base HEAD --brief` -> risk `0.00`.
+- `git diff --check -- projects/hanwoo-dashboard/src/components/DashboardClient.js projects/hanwoo-dashboard/src/app/globals.css projects/hanwoo-dashboard/src/lib/dashboard/setup-progress.mjs projects/hanwoo-dashboard/src/lib/dashboard/setup-progress.test.mjs` -> passed, with only the standard LF-to-CRLF warning.
+- Dev server check: `http://127.0.0.1:3001/login` returned `200`; `/manifest.json` returned `application/json`.
+
+### Follow-up
+- Active Hanwoo quality goal remains open for additional polish.
+- T-251 remains external: user must reset/resync Supabase DB credentials before live Prisma CRUD E2E can prove production DB readiness.
+- Preserve unrelated dirty WIP in root package/workflow files, package locks for other projects, `setup.bat`, and `projects/hanwoo-dashboard/package.json`.
+- `projects/hanwoo-dashboard/src/app/globals.css` includes unrelated status-page style changes in the current diff; review/stage hunks carefully before committing product code.
+
 ## 2026-05-19 KST - Codex
 
 ### Summary

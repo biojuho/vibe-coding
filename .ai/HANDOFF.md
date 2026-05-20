@@ -6,6 +6,13 @@
 
 | Field | Value |
 |---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
+| Work | **T-322 completed**: continued the active Hanwoo product-completeness goal. Added `src/lib/dashboard/setup-progress.mjs` + tests and rendered a home-screen Farm Setup / 운영 준비도 panel in `DashboardClient.js`. The panel tracks 농장 기본 정보, 축사 구조, 개체 등록, 재고 기준, and 첫 일정, shows progress, and routes incomplete items directly to Settings, cattle add, Inventory, or Schedule. Also corrected the home empty 축사 CTA so it opens Settings instead of the cattle modal. |
+| Next Priorities | Verification passed: Hanwoo `npm.cmd test` (`84 passed`), `npm.cmd run lint`, `npm.cmd run build`, `PYTHONUTF8=1 python -m code_review_graph detect-changes --repo projects/hanwoo-dashboard --base HEAD --brief` risk `0.00`, `git diff --check` passed, dev server `/login` returned `200`, and `/manifest.json` returned `application/json`. Active Hanwoo goal remains open; T-251 is still external/user-owned Supabase credential resync. Preserve unrelated dirty WIP in root package/workflow files, package locks for other projects, `setup.bat`, and the pre-existing Hanwoo `package.json` postinstall removal. Note: `globals.css` already contained unrelated status-page styles before/alongside this pass, so review hunks before staging. |
+
+| Field | Value |
+|---|---|
 | Date | 2026-05-19 |
 | Tool | Codex |
 | Work | **T-321 completed**: continued from TODO and fixed the safest `shorts-maker-v2` Phase 3 issue. Root cause from `runs/20260519-014816-a37f7826`: `ai_tech` profile used scalar `target_duration_sec: 35`, and `ChannelRouter` converted that into hard QC bounds `[35,35]`, so the otherwise valid 49.8s render was held for duration. Updated `ChannelRouter` so scalar duration remains a generation target while QC uses `qc_min_duration_sec`/`qc_max_duration_sec` or a default ±10s tolerance. Added explicit `ai_tech` QC window `[38,52]` and unit coverage for explicit bounds plus default tolerance. |
