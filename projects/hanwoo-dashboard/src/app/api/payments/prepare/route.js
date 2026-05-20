@@ -3,12 +3,26 @@ import { NextResponse } from 'next/server';
 import { requireAuthenticatedSession, isAuthenticationError } from '@/lib/auth-guard';
 import { PREMIUM_SUBSCRIPTION, buildCustomerKey, buildOrderId } from '@/lib/subscription';
 
+const AMOUNT_INPUT_PATTERN = /^\d+$/;
+
+function parsePaymentAmount(value) {
+  if (typeof value === 'number') {
+    return Number.isSafeInteger(value) ? value : Number.NaN;
+  }
+
+  if (typeof value === 'string' && AMOUNT_INPUT_PATTERN.test(value)) {
+    const amount = Number(value);
+    return Number.isSafeInteger(amount) ? amount : Number.NaN;
+  }
+
+  return Number.NaN;
+}
 
 export async function POST(req) {
   try {
     const session = await requireAuthenticatedSession();
     const body = await req.json();
-    const amount = Number(body?.amount ?? PREMIUM_SUBSCRIPTION.amount);
+    const amount = parsePaymentAmount(body?.amount ?? PREMIUM_SUBSCRIPTION.amount);
     const customerKey = buildCustomerKey(session.user.id);
 
     if (customerKey !== body?.customerKey) {
