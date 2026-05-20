@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` cattle tag lookup progress and result feedback is announced to assistive technology. `CattleForm` now connects the tag-number input to validation and lookup feedback, marks the lookup button `aria-busy` while checking, and renders successful lookup results as `status` and failed lookup results as `alert`. Verification passed: focused cattle detail modal wiring test (`7 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 180, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` cattle form and cattle detail dialogs focus their dialog surfaces on open and close with Escape. `CattleForm` and `CattleDetailModal` now use focused dialog refs with `tabIndex={-1}` and key handlers, matching the established notification/AI chat modal pattern. Verification passed: focused cattle detail modal wiring test (`6 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 179, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` cattle and sales pagination loading states are announced to assistive technology. The cattle and sales "more" controls now expose `aria-busy` while loading, and cattle pagination retry feedback now uses `role="status"` plus `aria-live="polite"` like the sales flow. Verification passed: focused cattle/sales pagination feedback tests (`2 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 179, lint, build).
