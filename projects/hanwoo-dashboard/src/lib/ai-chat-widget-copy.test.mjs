@@ -18,6 +18,9 @@ test('AI chat widget handles Korean configuration errors and exposes an accessib
   assert.match(source, /설정 키/);
   assert.match(source, /aria-label="AI 농장 비서 열기"/);
   assert.match(source, /title="AI 농장 비서"/);
+  assert.match(source, /aria-label=\{isStreaming \? '답변 생성 중' : '질문 보내기'\}/);
+  assert.match(source, /title=\{isStreaming \? '답변 생성 중' : '질문 보내기'\}/);
   assert.match(source, /<Bot size=\{25\} aria-hidden="true" \/>/);
   assert.doesNotMatch(source, />AI\s*<\/button>/);
+  assert.doesNotMatch(source, /aria-label="Send"/);
 });

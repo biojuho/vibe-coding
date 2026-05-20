@@ -117,6 +117,9 @@ export default function CattleDetailModal({ cattle, buildings = [], onClose, onE
     <div className="modal-overlay" style={{alignItems:"flex-start"}}>
       <div
         className="animate-slideInUp"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cattle-detail-title"
         style={{
           background:"var(--color-bg-card)",
           width:"100%",
@@ -142,6 +145,8 @@ export default function CattleDetailModal({ cattle, buildings = [], onClose, onE
         >
           <button
             onClick={onClose}
+            aria-label="개체 상세 닫기"
+            title="개체 상세 닫기"
             className="btn btn-icon animate-scaleIn"
             style={{
               position:"absolute",
@@ -154,7 +159,7 @@ export default function CattleDetailModal({ cattle, buildings = [], onClose, onE
           <div style={{width:"100%"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}>
               <div className="animate-fadeInUp">
-                <div style={{
+                <div id="cattle-detail-title" style={{
                   fontSize:"38px",
                   fontWeight:800,
                   marginBottom:"8px",

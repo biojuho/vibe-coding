@@ -21,3 +21,23 @@ test('cattle detail breeding actions use an in-app date form instead of browser 
   assert.match(source, /onUpdate\(nextCattle/);
   assert.match(source, /successTitle: activeBreedingAction === 'pregnancy'/);
 });
+
+test('cattle form and detail icon-only navigation controls have Korean labels', () => {
+  const formSource = readSource('components/forms/CattleForm.js');
+  const detailSource = readSource('components/forms/CattleDetailModal.js');
+
+  assert.match(formSource, /aria-label="개체 목록으로 돌아가기"/);
+  assert.match(formSource, /title="개체 목록으로 돌아가기"/);
+  assert.match(formSource, /role="dialog"/);
+  assert.match(formSource, /aria-modal="true"/);
+  assert.match(formSource, /aria-labelledby="cattle-form-title"/);
+  assert.match(formSource, /id="cattle-form-title"/);
+  assert.match(detailSource, /aria-label="개체 상세 닫기"/);
+  assert.match(detailSource, /title="개체 상세 닫기"/);
+  assert.match(detailSource, /role="dialog"/);
+  assert.match(detailSource, /aria-modal="true"/);
+  assert.match(detailSource, /aria-labelledby="cattle-detail-title"/);
+  assert.match(detailSource, /id="cattle-detail-title"/);
+  assert.doesNotMatch(formSource, /aria-label="Back"/);
+  assert.doesNotMatch(detailSource, /aria-label="Close"/);
+});

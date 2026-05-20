@@ -95,6 +95,9 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
     <div className="modal-overlay" style={{ alignItems: 'flex-start', paddingTop: '20px' }}>
       <div
         className="animate-slideInUp"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cattle-form-title"
         style={{
           background: 'var(--color-bg)',
           width: '100%',
@@ -115,13 +118,15 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
           <button
             type="button"
             onClick={onCancel}
+            aria-label="개체 목록으로 돌아가기"
+            title="개체 목록으로 돌아가기"
             className="btn btn-ghost btn-icon"
             style={{ width: '42px', height: '42px' }}
           >
             <BackIcon />
           </button>
           <div>
-            <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-text)', letterSpacing: '-0.02em' }}>
+            <div id="cattle-form-title" style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-text)', letterSpacing: '-0.02em' }}>
               {cattle ? '개체 정보 수정' : '새 개체 등록'}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginTop: '3px' }}>

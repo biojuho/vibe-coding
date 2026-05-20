@@ -393,6 +393,8 @@ export default function AIChatWidget() {
           type="button"
           onClick={handleSend}
           disabled={isStreaming}
+          aria-label={isStreaming ? '답변 생성 중' : '질문 보내기'}
+          title={isStreaming ? '답변 생성 중' : '질문 보내기'}
           className="btn btn-primary btn-icon"
           style={{
             width: '42px',
