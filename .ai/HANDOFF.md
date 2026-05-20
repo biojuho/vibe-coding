@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-444 completed**: Hanwoo upcoming schedule completion toggles now identify the target event. `ScheduleTab` adds `${event.title} 일정 완료 상태 변경` as both `aria-label` and `title` on each checkbox, and `home-market-copy.test.mjs` guards the contract. Code commit `1bdf5aa`. |
+| Next Priorities | Verification passed: focused home-market copy test (`13 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 161, lint, build), and staged `code_review_gate --staged --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic plus unrelated VibeDebt WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP and concurrent Schedule form label edits. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-443 completed**: Hanwoo Settings 축사 목록의 삭제 버튼이 이제 대상 축사를 명확히 식별합니다. 각 row action now has `${building.name} 동 삭제` as both `aria-label` and `title`, so repeated `삭제` buttons are no longer ambiguous for assistive technology or tooltips. `settings-tab-accessibility.test.mjs` guards the contract. Code commit `33420fd`. |
 | Next Priorities | Verification passed: focused SettingsTab accessibility test (`3 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 160, lint, build), and staged `code_review_gate --staged --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic plus unrelated VibeDebt WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 
