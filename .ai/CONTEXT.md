@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` form and server-action date validation rejects impossible calendar dates instead of silently rolling them forward through JavaScript Date rollover. `action-validation.mjs` and `formSchemas.js` now require strict `YYYY-MM-DD` strings and verify the parsed date round-trips to the original input, so `2026-02-31`, `2026-04-31`, or `2026-06-31` cannot become later valid dates. Verification passed: focused action-validation/home tests (`34 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 202, lint, build).
+
 - As of 2026-05-21, `hanwoo-dashboard` dashboard numeric list filters reject partial numeric strings instead of truncating them through `parseInt`. `parseLimit()` and `parsePenNumber()` now trim input, require all digits, and only then parse, so `10abc` or `3동` cannot silently become `10` or `3`. Verification passed: focused home/dashboard copy test (`22 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 201, lint, build).
 
 - As of 2026-05-21, `hanwoo-dashboard` dashboard sales date filters reject impossible calendar dates instead of silently rolling them forward. `parseDateParam()` now requires strict `YYYY-MM-DD` input and verifies the parsed date round-trips to the original value, so `2026-02-31` cannot become `2026-03-03` in list queries. Verification passed: focused home/dashboard copy test (`22 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 201, lint, build).

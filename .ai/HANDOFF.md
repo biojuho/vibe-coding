@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-504 completed**: Hanwoo form/server action date validation now rejects impossible calendar dates instead of accepting JavaScript Date rollover. `action-validation.mjs` and `formSchemas.js` now require strict `YYYY-MM-DD` strings and verify the parsed date round-trips, so inputs like `2026-02-31`, `2026-04-31`, or `2026-06-31` cannot silently become later dates. Code commit `f8d33a1`. |
+| Next Priorities | Verification passed: focused action-validation/home tests (`34 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 202, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known advisory graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-503 completed**: Hanwoo dashboard numeric list filters now reject partial numeric strings instead of truncating them through `parseInt`. `parseLimit()` and `parsePenNumber()` now trim input, require all digits, and only then parse, so values like `10abc` or `3동` cannot silently become `10` or `3`. Code commit `a3cffa6`. |
 | Next Priorities | Verification passed: focused home/dashboard copy test (`22 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 201, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known advisory graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 
