@@ -18,8 +18,27 @@ test('buildCattleCsvRows exports cattle data with Korean headers', () => {
     },
   ]);
 
-  assert.match(csv, /^\uFEFFID,이름,이력번호,생년월일,성별,상태,축사 ID,칸 번호,메모/);
+  assert.match(csv, /^\uFEFF개체 번호,이름,이력번호,생년월일,성별,상태,축사 번호,칸 번호,메모/);
   assert.match(csv, /복순이/);
   assert.match(csv, /예방접종 확인/);
-  assert.doesNotMatch(csv, /Name|Tag Number|Birth Date|Gender|Status|Building ID|Pen Number|Memo/);
+  assert.doesNotMatch(csv, /\bID\b|Name|Tag Number|Birth Date|Gender|Status|Building ID|Pen Number|Memo/);
+});
+
+test('buildCattleCsvRows quotes cells that would otherwise break CSV columns', () => {
+  const csv = buildCattleCsvRows([
+    {
+      id: 'cow-2',
+      name: '복"실,이',
+      tagNumber: '410009999999',
+      birthDate: null,
+      gender: '암',
+      status: '관찰중',
+      buildingId: 'barn-2',
+      penNumber: 'B-1',
+      memo: '사료, 조정',
+    },
+  ]);
+
+  assert.match(csv, /"복""실,이"/);
+  assert.match(csv, /사료 조정/);
 });

@@ -1,5 +1,5 @@
 export function buildCattleCsvRows(cattleList) {
-  const headers = ['ID', '이름', '이력번호', '생년월일', '성별', '상태', '축사 ID', '칸 번호', '메모'];
+  const headers = ['개체 번호', '이름', '이력번호', '생년월일', '성별', '상태', '축사 번호', '칸 번호', '메모'];
 
   const rows = cattleList.map((cattle) => [
     cattle.id,
@@ -13,5 +13,13 @@ export function buildCattleCsvRows(cattleList) {
     (cattle.memo || '').replace(/,/g, ' ').replace(/\s+/g, ' ').trim(),
   ]);
 
-  return ['\uFEFF' + headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
+  return ['\uFEFF' + headers.join(','), ...rows.map((row) => row.map(formatCsvCell).join(','))].join('\n');
+}
+
+function formatCsvCell(value) {
+  const text = String(value ?? '');
+  if (!/[",\r\n]/.test(text)) {
+    return text;
+  }
+  return `"${text.replace(/"/g, '""')}"`;
 }
