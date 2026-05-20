@@ -20,6 +20,9 @@ export function NotificationSystem() {
   ]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
+  const notificationLabel = unreadCount > 0
+    ? `알림 열기, 읽지 않은 알림 ${unreadCount}개`
+    : '알림 열기';
 
   const markAsRead = (id) => {
     setNotifications(notifications.map(n => 
@@ -34,10 +37,19 @@ export function NotificationSystem() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
-          <BellIcon className="h-5 w-5" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative"
+          aria-label={notificationLabel}
+          title={notificationLabel}
+        >
+          <BellIcon className="h-5 w-5" aria-hidden="true" />
           {unreadCount > 0 && (
-            <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-600 animate-pulse" />
+            <span
+              className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-600 animate-pulse"
+              aria-hidden="true"
+            />
           )}
         </Button>
       </DropdownMenuTrigger>

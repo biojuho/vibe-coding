@@ -17,12 +17,26 @@ const NOTIFICATIONS = [
 ];
 
 export function NotificationSystem() {
+  const unreadCount = NOTIFICATIONS.length;
+  const notificationLabel = unreadCount > 0
+    ? `알림 열기, 읽지 않은 알림 ${unreadCount}개`
+    : '알림 열기';
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon" className="relative">
-          <Bell className="h-4 w-4" />
-          <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 animate-pulse" />
+        <Button
+          variant="outline"
+          size="icon"
+          className="relative"
+          aria-label={notificationLabel}
+          title={notificationLabel}
+        >
+          <Bell className="h-4 w-4" aria-hidden="true" />
+          <span
+            className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 animate-pulse"
+            aria-hidden="true"
+          />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80">
