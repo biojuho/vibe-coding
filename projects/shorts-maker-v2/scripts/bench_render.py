@@ -84,7 +84,9 @@ def _build_scene(bg_png: Path, caption_pngs: list[Path], duration: float, *, col
             .with_position(("center", TH - 420))
         )
         caption_clips.append(clip)
-    return CompositeVideoClip([base] + caption_clips, size=(TW, TH))
+    # use_bgclip mirrors RenderStep._render_single_scene: the opaque full-frame
+    # base is the background, so MoviePy skips the discarded per-frame mask.
+    return CompositeVideoClip([base] + caption_clips, size=(TW, TH), use_bgclip=True)
 
 
 def _build_final(tmp: Path, scenes: int, duration: float, *, color_grade: bool):

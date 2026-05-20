@@ -479,7 +479,13 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
                         caption_clips.append(cap_clip)
 
                 if caption_clips:
-                    base = CompositeVideoClip([base] + caption_clips, size=(target_width, target_height))
+                    # use_bgclip: base is full-frame and opaque, so it serves as
+                    # the background directly. This skips MoviePy's per-frame mask
+                    # composite (compose_mask) whose result is discarded anyway --
+                    # the final video has no transparency. (T-376 render perf)
+                    base = CompositeVideoClip(
+                        [base] + caption_clips, size=(target_width, target_height), use_bgclip=True
+                    )
 
             except Exception as kex:
                 logger.warning("[Karaoke] failed, falling back to static caption: %s", kex)
@@ -508,7 +514,7 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
                 cap_clip = cap_clip_img.with_duration(duration_sec).with_position(
                     ("center", self._caption_y(cap_clip_img, target_height, style, role))
                 )
-                base = CompositeVideoClip([base, cap_clip], size=(target_width, target_height))
+                base = CompositeVideoClip([base, cap_clip], size=(target_width, target_height), use_bgclip=True)
         else:
             cap_out = run_dir / f"caption_static_{plan.scene_id:02d}.png"
             cap_img = self._render_static_caption(
@@ -524,7 +530,7 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
             cap_clip = cap_clip_img.with_duration(duration_sec).with_position(
                 ("center", self._caption_y(cap_clip_img, target_height, style, role))
             )
-            base = CompositeVideoClip([base, cap_clip], size=(target_width, target_height))
+            base = CompositeVideoClip([base, cap_clip], size=(target_width, target_height), use_bgclip=True)
 
         if role == "hook":
             try:
@@ -541,7 +547,7 @@ class RenderStep(RenderEffectsMixin, RenderAudioMixin, RenderCaptionsMixin):
             try:
                 pip_clip = create_broll_pip(str(broll_path), duration_sec, target_width, target_height)
                 if pip_clip is not None:
-                    base = CompositeVideoClip([base, pip_clip], size=(target_width, target_height))
+                    base = CompositeVideoClip([base, pip_clip], size=(target_width, target_height), use_bgclip=True)
             except Exception as exc:
                 logger.warning("[RenderStep] B-Roll PiP failed (scene %s, skipped): %s", plan.scene_id, exc)
 

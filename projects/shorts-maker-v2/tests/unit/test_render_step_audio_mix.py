@@ -528,7 +528,7 @@ def test_run_handles_full_karaoke_lyria_and_sfx_flow(tmp_path: Path) -> None:
     def _image_clip_factory(*args, **kwargs):  # noqa: ARG001
         return _DummyClip("image", duration=0.1, w=400, h=120)
 
-    def _composite_video_factory(clips, size=None):  # noqa: ARG001
+    def _composite_video_factory(clips, size=None, use_bgclip=False):  # noqa: ARG001
         duration = max((getattr(clip, "duration", 0.0) for clip in clips), default=0.0)
         audio = next((clip.audio for clip in clips if getattr(clip, "audio", None) is not None), None)
         return _DummyClip("composite-video", duration=duration, audio=audio)
@@ -730,7 +730,7 @@ def test_run_uses_static_caption_fallback_and_local_bgm_when_karaoke_fails(tmp_p
     def _image_clip_factory(*args, **kwargs):  # noqa: ARG001
         return _DummyClip("caption", duration=0.1, w=500, h=120)
 
-    def _composite_video_factory(clips, size=None):  # noqa: ARG001
+    def _composite_video_factory(clips, size=None, use_bgclip=False):  # noqa: ARG001
         audio = next((clip.audio for clip in clips if getattr(clip, "audio", None) is not None), None)
         duration = max((getattr(clip, "duration", 0.0) for clip in clips), default=0.0)
         return _DummyClip("composite-video", duration=duration, audio=audio)
