@@ -29,7 +29,9 @@ test('server action user-facing failures use Korean product copy', () => {
   assert.match(cattleActions, /이미 등록된 이력번호입니다\. 다른 이력번호를 입력해 주세요\./);
   assert.match(cattleActions, /error\?\.code !== 'P2002'/);
   assert.match(cattleActions, /target\.includes\('tagNumber'\)/);
-  assert.match(cattleActions, /개체 삭제에 실패했습니다/);
+  assert.match(cattleActions, /판매 기록이 있어 보관 처리할 수 없습니다/);
+  assert.match(cattleActions, /개체 보관 처리에 실패했습니다/);
+  assert.doesNotMatch(cattleActions, /개체 삭제에 실패했습니다/);
   assert.match(salesActions, /판매 기록을 불러오지 못했습니다/);
   assert.match(salesActions, /판매 기록을 등록하지 못했습니다/);
   assert.match(buildingActions, /축사 정보를 추가하지 못했습니다/);

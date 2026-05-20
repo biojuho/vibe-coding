@@ -204,11 +204,11 @@ export default function CattleDetailModal({ cattle, buildings = [], onClose, onE
             <button
               type="button"
               onClick={onDelete}
-              aria-label={`${cattle.name} 개체 삭제`}
-              title="개체 삭제"
+              aria-label={`${cattle.name} 개체 보관 처리`}
+              title="개체 보관 처리"
               className="btn btn-danger"
               style={{...btnDanger,flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:"8px"}}
-            ><TrashIcon/> 삭제</button>
+            ><TrashIcon/> 보관</button>
           </div>
 
           {/* Basic Info */}
