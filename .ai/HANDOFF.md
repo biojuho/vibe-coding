@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-358 completed**: continued the active Hanwoo product-completeness goal by localizing the shared authentication fallback. `AuthenticationError` now defaults to `로그인이 필요합니다.` instead of `Authentication required.`, so authenticated API routes that pass through `requireAuthenticatedSession()` do not leak English auth copy when no route-specific override is provided. |
+| Next Priorities | Verification passed in the same Hanwoo pass: focused payment/auth source tests passed (`110 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 110 passed, lint passed, build passed), `git diff --check` passed, direct UTF-8 graph risk `0.00`, and staged code-review gate PASS before commit. Commit hook emitted a graph test-gap WARN for the tiny constructor copy change, but the route/source regression test covers the user-facing fallback string. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-357 completed**: continued the active Hanwoo product-completeness goal by localizing payment API fallback responses. `/api/payments/prepare` now returns Korean operator-facing messages for customer-key mismatches, amount mismatches, generic preparation failures, and the customer-name fallback (`Joolife 사용자`). `/api/payments/confirm` now returns Korean messages for missing confirmation fields, wrong-user orders, amount mismatches, missing Toss configuration, timeout diagnostics, retryable gateway deferrals, and generic verification failures instead of leaking English fallback/API text. Extended `payment-ux-copy.test.mjs` to guard these route-level fallback strings. |
 | Next Priorities | Verification passed: focused Hanwoo payment tests passed (`110 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 110 passed, lint passed, build passed), `git diff --check` passed, direct UTF-8 graph risk `0.00`, and staged code-review gate PASS before commit. Commit hook emitted an advisory graph WARN polluted by an unrelated dirty `auth-guard.js` change, but direct focused/full checks cover the committed three-file payment change. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json` and `auth-guard.js`, package locks, and setup scripts. |
 

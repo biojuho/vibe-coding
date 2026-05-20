@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` shared authentication fallback copy is localized. `AuthenticationError` defaults to `로그인이 필요합니다.` instead of `Authentication required.`, so API routes using `requireAuthenticatedSession()` do not expose English auth copy when no route-specific override is present. Verification passed: Hanwoo payment/auth source tests `110 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json`, `git diff --check`, and direct Hanwoo graph risk `0.00`.
+
 - As of 2026-05-20, `hanwoo-dashboard` payment API fallback responses are localized. `/api/payments/prepare` no longer returns `Customer key mismatch`, `Unexpected payment amount`, `Joolife User`, or `Payment preparation failed`; `/api/payments/confirm` no longer returns missing-field, wrong-user, amount-mismatch, missing Toss configuration, timeout, or generic verification failures in English. Verification passed: Hanwoo payment tests `110 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json`, `git diff --check`, and direct Hanwoo graph risk `0.00`.
 
 - As of 2026-05-20, `hanwoo-dashboard` AI chat widget fallback and launcher copy are polished. `AIChatWidget` treats localized Gemini setup/configuration messages as guided setup errors, and the closed floating launcher uses a lucide `Bot` icon with explicit accessible label/title instead of a bare `AI` text button. Verification passed: Hanwoo AI chat/widget tests `109 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json`, `git diff --check`, and direct Hanwoo graph risk `0.00`.
