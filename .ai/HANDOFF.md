@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-513 completed**: Hanwoo date utilities now degrade invalid date inputs safely instead of allowing `Invalid Date` or `NaN` values to reach month age, estrus, calving, or date formatting surfaces. `utils.js` adds `toValidDate()` and returns `0`, `null`, `-`, or empty input-date strings for invalid inputs. Code commit `5ddc811`. |
+| Next Priorities | Verification passed: focused utils/cattle-detail tests (`11 passed`), targeted ESLint passed, path-limited `git diff --check` passed, invalid-date risk scan found no remaining runtime matches, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 206, lint, build). Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-512 completed**: Hanwoo date utility calculations no longer depend on a module-load `TODAY` constant. `utils.js` now computes the current date per call, supports injected `now` values for month age, estrus, and calving D-day helpers, and `constants.js` no longer exports `TODAY`. Code commit `8cb0809`. |
 | Next Priorities | Verification passed: focused utils/cattle-detail tests (`11 passed`), targeted ESLint passed, path-limited `git diff --check` passed, `TODAY` scan found only the regression test guards, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 206, lint, build). Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 

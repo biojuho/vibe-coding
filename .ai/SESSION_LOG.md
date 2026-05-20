@@ -895,6 +895,34 @@
 ## 2026-05-21 KST - Codex
 
 ### Summary
+- Completed T-513 for `hanwoo-dashboard` while continuing the active quality uplift goal.
+- Hardened date utilities against invalid inputs so `Invalid Date` and `NaN` values do not reach month-age, estrus, calving, or date formatting surfaces.
+- `utils.js` now normalizes through `toValidDate()` and returns `0`, `null`, `-`, or empty input-date strings for invalid inputs.
+
+### Changed Files
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/CONTEXT.md`
+- `.ai/GOAL.md`
+- `projects/hanwoo-dashboard/src/lib/utils.js`
+- `projects/hanwoo-dashboard/src/lib/utils-date.test.mjs`
+
+### Verification
+- `node --test src/lib/utils-date.test.mjs src/lib/cattle-detail-modal-wiring.test.mjs` from `projects/hanwoo-dashboard` -> `11 passed`.
+- `npm.cmd exec eslint src/lib/utils.js src/lib/utils-date.test.mjs src/lib/cattle-detail-modal-wiring.test.mjs` from `projects/hanwoo-dashboard` -> passed.
+- `git diff --check -- projects/hanwoo-dashboard/src/lib/utils.js projects/hanwoo-dashboard/src/lib/utils-date.test.mjs` -> passed.
+- `rg -n "Invalid Date|NaN개월|new Date\\(pregnancyDate\\)\\.getTime|toLocaleDateString\\('ko-KR'\\);" projects/hanwoo-dashboard/src/lib projects/hanwoo-dashboard/src/components -g "*.js" -g "*.mjs"` -> no runtime matches.
+- `python execution/project_qc_runner.py --project hanwoo-dashboard --json` -> passed (`test` 206, lint passed, build passed).
+- `python execution/code_review_gate.py --staged --json` -> PASS; trailing cp949 reader-thread exception is known Windows output noise. Code commit `5ddc811`; commit hook WARN came from the known advisory graph/test-gap heuristic while direct tests and full QC covered the changed files.
+
+### Follow-up
+- Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
+- T-320, T-372, and T-407 remain approval-scoped. Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, package locks, shorts-maker-v2 files, and workspace VibeDebt files.
+
+## 2026-05-21 KST - Codex
+
+### Summary
 - Completed T-512 for `hanwoo-dashboard` while continuing the active quality uplift goal.
 - Removed the module-load `TODAY` constant from cattle age, estrus, and calving date calculations.
 - `utils.js` now computes the current date per call and accepts injected `now` values for date-sensitive helpers, so long-running dashboard sessions do not keep stale D-day/month-age values after midnight.
