@@ -1078,6 +1078,33 @@
 ## 2026-05-20 KST - Codex
 
 ### Summary
+- Completed T-418 for `hanwoo-dashboard` while continuing the active product-completeness goal.
+- Hardened `/subscription/fail` so the page no longer echoes a URL-provided `message`, keeps only the error code visible, and uses an explicit `type="button"` back action.
+- Added static regression coverage in `payment-ux-copy.test.mjs`.
+
+### Changed Files
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/CONTEXT.md`
+- `.ai/GOAL.md`
+- `projects/hanwoo-dashboard/src/app/subscription/fail/page.js`
+- `projects/hanwoo-dashboard/src/lib/payment-ux-copy.test.mjs`
+
+### Verification
+- `npm.cmd test -- src/lib/payment-ux-copy.test.mjs` -> passed (`146 passed` because the package script runs the full test glob plus the target).
+- `npx.cmd eslint src/app/subscription/fail/page.js src/lib/payment-ux-copy.test.mjs` -> passed.
+- `git diff --check -- projects/hanwoo-dashboard/src/app/subscription/fail/page.js projects/hanwoo-dashboard/src/lib/payment-ux-copy.test.mjs` -> passed.
+- `python execution/project_qc_runner.py --project hanwoo-dashboard --json` -> passed (`test` 146, lint, build).
+- `python execution/code_review_gate.py --staged --json` -> PASS; trailing cp949 reader-thread exception is known Windows output noise.
+
+### Follow-up
+- Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
+- T-320, T-372, and T-407 remain approval-scoped. Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, package locks, shorts-maker-v2, and VibeDebt files.
+
+## 2026-05-20 KST - Codex
+
+### Summary
 - Completed T-403 for `hanwoo-dashboard` while continuing the active product-completeness goal.
 - Made pen and cattle row cards keyboard reachable with button semantics, tab focus, Korean accessible labels, and Enter/Space activation.
 - Added a source-level accessibility guard for the card interaction contract.

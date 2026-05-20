@@ -12,6 +12,8 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-418 hardened Hanwoo `/subscription/fail` by replacing raw URL `message` display with stable Korean failure copy, keeping only the error code visible, and making the back action an explicit `type="button"`; verification passed with focused Hanwoo tests `146 passed`, targeted ESLint, path-limited `git diff --check`, staged code-review gate pass with known cp949 reader-thread noise, and full Hanwoo QC (`test` 146, lint, build). Commit hook WARN came from the known graph/test-gap heuristic plus unrelated VibeDebt WIP.
+
 - 2026-05-20: T-417 made Hanwoo `NotificationModal` dismissible with Escape from the dialog surface and added `tabIndex={-1}` for the key handler; verification passed with focused Hanwoo tests `146 passed`, targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 146, lint, build). Staged/commit code-review gate WARN came from the known graph/test-gap heuristic plus unrelated VibeDebt WIP.
 
 - 2026-05-20: T-416 made the shared Hanwoo `Button` default to `type="button"` unless callers explicitly pass a type, preventing accidental form submits from generic action buttons while preserving `asChild` behavior; verification passed with focused Hanwoo tests `145 passed`, targeted ESLint, path-limited `git diff --check`, staged code-review gate pass with known cp949 reader-thread noise, and full Hanwoo QC (`test` 145, lint, build).
