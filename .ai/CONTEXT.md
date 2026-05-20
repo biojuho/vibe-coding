@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` upcoming schedule completion toggles wait for the async schedule status update handler before re-enabling the checkbox. `ScheduleTab` now tracks `savingEventId`, awaits `onToggleEvent`, disables only the active event checkbox while saving, and exposes `aria-busy` on that checkbox so slow network toggles cannot trigger duplicate completion requests. Verification passed: focused tab-header accessibility test (`5 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 191, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` settings farm information saves wait for the async farm-settings update handler before re-enabling submit. `SettingsTab` now tracks `isSavingFarm`, awaits `onUpdateFarmSettings`, disables the farm settings submit button while saving, and exposes `aria-busy` on that button so slow network saves cannot trigger duplicate farm settings updates. Verification passed: focused settings accessibility test (`8 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 190, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` settings building delete actions wait for the async delete handler before re-enabling the row action. `SettingsTab` now tracks `deletingBuildingId`, ignores additional delete clicks while a delete is in progress, awaits `onDeleteBuilding`, disables only the active row delete button, and exposes `aria-busy` on that button so slow network deletes cannot trigger duplicate building delete requests. Verification passed: focused settings accessibility test (`7 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 189, lint, build).
