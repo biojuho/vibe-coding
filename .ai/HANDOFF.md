@@ -7,6 +7,13 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-20 |
+| Tool | Claude Code (Opus 4.7 1M) |
+| Work | **T-324 완료**: `/goal "제품완성형으로 만들어봐"` — AskUserQuestion으로 대상=blind-to-x, 완료기준=테스트·CI 통과 + 문서·온보딩으로 좁힘. 완성도 감사(completion audit) 수행: blind-to-x는 T-304(2026-05-16)에서 이미 release-ready였고 이번 세션은 검증 + 온보딩 갭 1건 보완. **검증 전부 green**: 단위 `1562 passed, 1 skipped`(247s), 통합 `64 passed`(test_curl_cffi 제외 — CI와 동일), `ruff check .` All checks passed. CI(`full-test-matrix.yml`의 `blind-to-x-tests` 잡)는 동일 unit+integration 커맨드를 main push/PR마다 실행 — 워크스페이스 pnpm WIP diff는 `node-apps` 잡만 수정하고 `blind-to-x-tests`(Python) 잡 무손상 확인. **갭 보완**: `.env.example`이 README "관측성" 섹션이 문서화한 토글 3개(`OPENAI_IMAGE_ENABLED`, `LANGFUSE_ENABLED`, `BTX_USAGE_FORWARD`)를 누락 → 주석과 함께 추가(+5줄). 문서는 이미 충실(README 257 + ops-runbook 204 + operations_sop 97 + notion_view_setup_guide 137 + external-review/). |
+| Next Priorities | blind-to-x는 선택 기준(테스트·CI·문서·온보딩) 기준 제품완성형 충족. 비차단 후속: README/ops-runbook의 LLM fallback 목록이 `Moonshot/ZhipuAI`를 포함하나 `pipeline/draft_providers.py`는 anthropic/openai/gemini/xai/ollama만 실제 wiring(DeepSeek은 editorial_reviewer fallback에만 존재) — 문서 정확도 nuance라 범위 밖. 커밋은 `.env.example` + `.ai/*`만 선택 스테이징(루트 pnpm/turbo 마이그레이션 WIP·다른 프로젝트 dirty 파일 손대지 말 것). `.ai/GOAL.md`의 hanwoo 목표는 Codex 소유로 유지. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
 | Tool | Codex |
 | Work | **T-323 completed**: continued the active Hanwoo product-completeness goal. Added `src/lib/dashboard/setup-progress.mjs` + tests and rendered a home-screen Farm Setup / 운영 준비도 panel in `DashboardClient.js`. The panel tracks 농장 기본 정보, 축사 구조, 개체 등록, 재고 기준, and 첫 일정, shows progress, and routes incomplete items directly to Settings, cattle add, Inventory, or Schedule. Also corrected the home empty 축사 CTA so it opens Settings instead of the cattle modal. |
 | Next Priorities | Verification passed: Hanwoo `npm.cmd test` (`84 passed`), `npm.cmd run lint`, `npm.cmd run build`, `PYTHONUTF8=1 python -m code_review_graph detect-changes --repo projects/hanwoo-dashboard --base HEAD --brief` risk `0.00`, `git diff --check` passed, dev server `/login` returned `200`, and `/manifest.json` returned `application/json`. Active Hanwoo goal remains open; T-251 is still external/user-owned Supabase credential resync. Preserve unrelated dirty WIP in root package/workflow files, package locks for other projects, `setup.bat`, and the pre-existing Hanwoo `package.json` postinstall removal. Note: `globals.css` already contained unrelated status-page styles before/alongside this pass, so review hunks before staging. |
