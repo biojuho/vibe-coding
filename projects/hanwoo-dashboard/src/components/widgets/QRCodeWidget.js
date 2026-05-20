@@ -1,5 +1,6 @@
 'use client';
 import { useRef } from 'react';
+import { Printer } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
 export default function QRCodeWidget({ value, label }) {
@@ -12,7 +13,7 @@ export default function QRCodeWidget({ value, label }) {
     }
 
     const doc = printWindow.document;
-    doc.title = `${label} - QR Code`;
+    doc.title = `${label} - QR 출력`;
 
     const style = doc.createElement('style');
     style.textContent =
@@ -64,8 +65,24 @@ export default function QRCodeWidget({ value, label }) {
       <div ref={qrContainerRef} style={{background:"white", padding:"10px", border:"1px solid #EEE", borderRadius:"8px"}}>
         <QRCodeSVG value={value} size={120} />
       </div>
-      <button onClick={handlePrint} style={{fontSize:"11px", padding:"4px 8px", background:"#3E2F1C", color:"white", border:"none", borderRadius:"4px", cursor:"pointer"}}>
-        🖨️ QR 인쇄
+      <button
+        onClick={handlePrint}
+        title="QR 라벨 인쇄"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          fontSize: '11px',
+          padding: '4px 8px',
+          background: '#3E2F1C',
+          color: 'white',
+          border: 'none',
+          borderRadius: '4px',
+          cursor: 'pointer',
+        }}
+      >
+        <Printer size={12} aria-hidden="true" />
+        <span>QR 라벨 인쇄</span>
       </button>
     </div>
   );
