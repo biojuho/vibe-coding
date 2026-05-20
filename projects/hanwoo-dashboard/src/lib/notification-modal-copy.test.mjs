@@ -31,6 +31,14 @@ test('notification modal exposes dialog semantics with a visible title label', (
   assert.match(source, /알림 센터/);
 });
 
+test('notification modal decorative status icons are hidden from assistive tech', () => {
+  const source = readSource('components/ui/NotificationModal.js');
+
+  assert.match(source, /className="animate-bounce" aria-hidden="true"/);
+  assert.match(source, /<div aria-hidden="true" style=\{\{fontSize:"40px"/);
+  assert.match(source, /className="animate-pulse" aria-hidden="true"/);
+});
+
 test('notification modal SMS action uses safe button semantics and Korean copy', () => {
   const source = readSource('components/ui/NotificationModal.js');
 

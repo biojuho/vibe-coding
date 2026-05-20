@@ -34,7 +34,7 @@ export default function NotificationModal({ notifications, onClose, onTestSMS })
             gap:"10px",
             letterSpacing:"-0.01em"
           }}>
-            <span className="animate-bounce" style={{fontSize:"22px"}}>🔔</span> 알림 센터
+            <span className="animate-bounce" aria-hidden="true" style={{fontSize:"22px"}}>🔔</span> 알림 센터
           </div>
           <button
             type="button"
@@ -55,7 +55,7 @@ export default function NotificationModal({ notifications, onClose, onTestSMS })
               padding:"40px 20px",
               fontSize:"14px"
             }}>
-              <div style={{fontSize:"40px", marginBottom:"12px"}}>🎉</div>
+              <div aria-hidden="true" style={{fontSize:"40px", marginBottom:"12px"}}>🎉</div>
               새로운 알림이 없습니다.
             </div>
           ) : (
@@ -83,7 +83,7 @@ export default function NotificationModal({ notifications, onClose, onTestSMS })
                     alignItems:"center",
                     gap:"6px"
                   }}>
-                    {n.type==='urgent' && <span className="animate-pulse">🚨</span>}
+                    {n.type==='urgent' && <span className="animate-pulse" aria-hidden="true">🚨</span>}
                     {n.title}
                   </div>
                   <div style={{fontSize:"13px", color:"var(--color-text-secondary)", lineHeight:"1.5"}}>{n.message}</div>
