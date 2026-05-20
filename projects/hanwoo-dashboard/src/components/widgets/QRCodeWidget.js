@@ -1,14 +1,25 @@
 'use client';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Printer } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
 export default function QRCodeWidget({ value, label }) {
   const qrContainerRef = useRef(null);
+  const printInFlightRef = useRef(false);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   const handlePrint = () => {
+    if (printInFlightRef.current) {
+      return;
+    }
+
+    printInFlightRef.current = true;
+    setIsPrinting(true);
+
     const printWindow = window.open('', '', 'width=600,height=600');
     if (!printWindow) {
+      printInFlightRef.current = false;
+      setIsPrinting(false);
       return;
     }
 
@@ -53,6 +64,8 @@ export default function QRCodeWidget({ value, label }) {
       printWindow.focus();
       printWindow.print();
       printWindow.close();
+      printInFlightRef.current = false;
+      setIsPrinting(false);
     };
 
     printWindow.addEventListener('load', finishPrint, { once: true });
@@ -66,7 +79,10 @@ export default function QRCodeWidget({ value, label }) {
         <QRCodeSVG value={value} size={120} />
       </div>
       <button
+        type="button"
         onClick={handlePrint}
+        disabled={isPrinting}
+        aria-busy={isPrinting}
         aria-label={`${label} QR 라벨 인쇄`}
         title="QR 라벨 인쇄"
         style={{
@@ -79,7 +95,8 @@ export default function QRCodeWidget({ value, label }) {
           color: 'white',
           border: 'none',
           borderRadius: '4px',
-          cursor: 'pointer',
+          cursor: isPrinting ? 'wait' : 'pointer',
+          opacity: isPrinting ? 0.7 : 1,
         }}
       >
         <Printer size={12} aria-hidden="true" />
