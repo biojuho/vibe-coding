@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-443 completed**: Hanwoo Settings 축사 목록의 삭제 버튼이 이제 대상 축사를 명확히 식별합니다. 각 row action now has `${building.name} 동 삭제` as both `aria-label` and `title`, so repeated `삭제` buttons are no longer ambiguous for assistive technology or tooltips. `settings-tab-accessibility.test.mjs` guards the contract. Code commit `33420fd`. |
+| Next Priorities | Verification passed: focused SettingsTab accessibility test (`3 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 160, lint, build), and staged `code_review_gate --staged --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic plus unrelated VibeDebt WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-442 completed**: Hanwoo building creation now validates input server-side before Prisma. `createBuilding` uses `validateBuildingInput()` instead of `parseInt(data.penCount)`, so empty building names and invalid pen counts return field-level Korean validation errors instead of falling through to generic DB failure. `action-validation.test.mjs` guards trimming and invalid pen-count behavior. Code commit `c2ef819`. |
 | Next Priorities | Verification passed: focused action-validation/actions copy tests (`12 passed`), targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk `0.00`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 159, lint, build), and staged `code_review_gate --staged --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 
