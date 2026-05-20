@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-460 completed**: Hanwoo FeedTab validation messages are now announced with their controls. `FeedTab` connects feed date, roughage, concentrate, and memo controls to field-specific error messages through conditional `aria-describedby`, keeps `aria-invalid`, and renders each validation message as `role="alert"`. `empty-state-wiring.test.mjs` guards the contract. Code commit `aa78c39`. |
+| Next Priorities | Verification passed: focused empty-state wiring test (`10 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 173, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP plus existing SalesTab/home-market WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-459 completed**: Hanwoo cattle registration form validation messages are now announced with their controls. `CattleForm` connects name, tag number, building, pen, gender, status, birth date, weight, purchase info, pedigree, and memo controls to field-specific errors via conditional `aria-describedby`, keeps `aria-invalid`, and renders messages as `role="alert"`. `cattle-detail-modal-wiring.test.mjs` guards the contract. Code commit `327a0a9`. |
 | Next Priorities | Verification passed: focused cattle-detail wiring test (`6 passed`), targeted ESLint passed, path-limited `git diff --check` passed, Hanwoo tests/lint passed and build passed on retry after a transient Next build lock, and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Direct `code_review_graph detect-changes` still hits the known Windows cp949 reader failure. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 
