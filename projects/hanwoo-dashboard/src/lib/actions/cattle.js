@@ -19,7 +19,7 @@ export async function getCattleList() {
     return cattle;
   } catch (error) {
     console.error("Failed to fetch cattle:", error);
-    throw new Error("Failed to fetch cattle data.");
+    throw new Error("개체 목록을 불러오지 못했습니다.");
   }
 }
 

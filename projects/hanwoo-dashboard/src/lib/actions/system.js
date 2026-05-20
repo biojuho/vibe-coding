@@ -42,7 +42,7 @@ export async function getRawData(modelName) {
   try {
     const allowedModels = ['cattle', 'salesRecord', 'feedRecord', 'scheduleEvent', 'inventoryItem', 'building', 'farmSettings', 'expenseRecord', 'cattleHistory'];
     if (!allowedModels.includes(modelName)) {
-      throw new Error("Invalid model name");
+      throw new Error("지원하지 않는 데이터 유형입니다.");
     }
     const data = await prisma[modelName].findMany({
       take: 50,

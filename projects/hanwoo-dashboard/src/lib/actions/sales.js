@@ -17,7 +17,7 @@ export async function getSalesRecords() {
     return sales;
   } catch (error) {
     console.error("Failed to fetch sales:", error);
-    throw new Error("Failed to fetch sales records.");
+    throw new Error("판매 기록을 불러오지 못했습니다.");
   }
 }
 
