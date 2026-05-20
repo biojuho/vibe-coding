@@ -4,6 +4,7 @@
 
 | Date | Tool | Summary | Changed Files |
 |---|---|---|---|
+| 2026-05-20 | Codex | **T-472 Hanwoo AI chat focus return**. Active Hanwoo quality uplift continuation. `AIChatWidget` now restores focus to the floating launcher after the dialog closes by keeping a `launcherRef`, setting a restore-focus flag in the abort-safe `closeWidget()` path, and focusing the launcher after `isOpen` returns to false. `ai-chat-widget-copy.test.mjs` guards the contract. Verification: focused AI chat widget copy test passed (`1 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 179, lint, build), staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only), and commit hook WARN was the known advisory graph/test-gap heuristic. Code commit `75b9135`. | `projects/hanwoo-dashboard/src/components/widgets/AIChatWidget.js`; `projects/hanwoo-dashboard/src/lib/ai-chat-widget-copy.test.mjs`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/SESSION_LOG.md`; `.ai/CONTEXT.md`; `.ai/GOAL.md` |
 | 2026-05-20 | Codex | **T-471 Hanwoo AI chat modal dialog semantics**. Active Hanwoo quality uplift continuation. `AIChatWidget` now adds `aria-modal="true"` to its focused `role="dialog"` panel, aligning it with the established notification-dialog pattern and making the floating assistant dialog semantics explicit for assistive technology. `ai-chat-widget-copy.test.mjs` guards the contract. Verification: focused AI chat widget copy test passed (`1 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 179, lint, build), staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only), and commit hook WARN was the known advisory graph/test-gap heuristic. Code commit `d6d9f3d`. | `projects/hanwoo-dashboard/src/components/widgets/AIChatWidget.js`; `projects/hanwoo-dashboard/src/lib/ai-chat-widget-copy.test.mjs`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/SESSION_LOG.md`; `.ai/CONTEXT.md`; `.ai/GOAL.md` |
 | 2026-05-20 | Codex | **T-470 Hanwoo AI chat live message announcements**. Active Hanwoo quality uplift continuation. `AIChatWidget` now marks the message stream as `role="log"` with `aria-live="polite"`, `aria-relevant="additions text"`, and a Korean accessible label, so streamed assistant responses are announced as conversation updates instead of remaining visual-only. `ai-chat-widget-copy.test.mjs` guards the contract. Verification: focused AI chat widget copy test passed (`1 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 179, lint, build), staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only), and commit hook WARN was the known advisory graph/test-gap heuristic. Code commit `e22a0a0`. | `projects/hanwoo-dashboard/src/components/widgets/AIChatWidget.js`; `projects/hanwoo-dashboard/src/lib/ai-chat-widget-copy.test.mjs`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/SESSION_LOG.md`; `.ai/CONTEXT.md`; `.ai/GOAL.md` |
 | 2026-05-20 | Codex | **T-469 Hanwoo AI chat dialog focus**. Active Hanwoo quality uplift continuation. `AIChatWidget` now focuses the open `role="dialog"` panel through `panelRef` and `tabIndex={-1}`, so Escape dismissal works immediately after opening the floating assistant. `ai-chat-widget-copy.test.mjs` guards the focus contract. Verification: focused AI chat widget copy test passed (`1 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 179, lint, build), staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only), and commit hook WARN was the known advisory graph/test-gap heuristic. Code commit `f79d677`. | `projects/hanwoo-dashboard/src/components/widgets/AIChatWidget.js`; `projects/hanwoo-dashboard/src/lib/ai-chat-widget-copy.test.mjs`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/SESSION_LOG.md`; `.ai/CONTEXT.md`; `.ai/GOAL.md` |
@@ -647,6 +648,33 @@
 ### Follow-up
 - T-308 is the next safe goal task: browser visual QA of the Today Brief panel, then consider lucide-icon polish for remaining emoji-heavy navigation/widget affordances.
 - T-251 remains user-owned: reset/resync the Supabase database password in the Supabase Dashboard, update `.env` if needed, then rerun live Prisma E2E.
+
+## 2026-05-20 KST - Codex
+
+### Summary
+- Completed T-472 for `hanwoo-dashboard` while continuing the active quality uplift goal.
+- Restored focus to the floating AI chat launcher after the dialog closes, so keyboard users return to the control that opened the assistant.
+- Extended the AI chat source contract test to guard the launcher ref and restore-focus path.
+
+### Changed Files
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/CONTEXT.md`
+- `.ai/GOAL.md`
+- `projects/hanwoo-dashboard/src/components/widgets/AIChatWidget.js`
+- `projects/hanwoo-dashboard/src/lib/ai-chat-widget-copy.test.mjs`
+
+### Verification
+- `node --test src/lib/ai-chat-widget-copy.test.mjs` from `projects/hanwoo-dashboard` -> `1 passed`.
+- `npm.cmd exec eslint src/components/widgets/AIChatWidget.js src/lib/ai-chat-widget-copy.test.mjs` from `projects/hanwoo-dashboard` -> passed.
+- `git diff --check -- projects/hanwoo-dashboard/src/components/widgets/AIChatWidget.js projects/hanwoo-dashboard/src/lib/ai-chat-widget-copy.test.mjs` -> passed (LF/CRLF warnings only).
+- `python execution/project_qc_runner.py --project hanwoo-dashboard --json` -> passed (`test` 179, lint passed, build passed).
+- `python execution/code_review_gate.py --staged --json` -> PASS; trailing cp949 reader-thread exception is known Windows output noise.
+
+### Follow-up
+- Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
+- T-320, T-372, and T-407 remain approval-scoped. Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, package locks, setup scripts, and shorts-maker-v2/workspace files.
 
 ## 2026-05-20 KST - Codex
 
