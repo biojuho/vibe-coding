@@ -66,7 +66,7 @@ export function PenCard({penNumber,cattle,buildingId,onSelect,delay=0,onDrop}){
       className={`pen-card animate-fadeInUp ${isEmpty?'empty':''} ${hasAlert?'alert':''}`}
       style={{animationDelay:`${delay}ms`}}
     >
-      {hasAlert && <div className="pen-alert-badge">❤️</div>}
+      {hasAlert && <div className="pen-alert-badge" aria-hidden="true">❤️</div>}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}}>
         <span style={{
           fontFamily:"var(--font-display)",
@@ -186,7 +186,7 @@ export function CattleRow({cow,onClick,delay=0,draggable=false}){
         </div>
       </div>
       {/* Animated chevron — slides right on row hover */}
-      <div className="cattle-chevron">›</div>
+      <div className="cattle-chevron" aria-hidden="true">›</div>
     </div>
   );
 }
