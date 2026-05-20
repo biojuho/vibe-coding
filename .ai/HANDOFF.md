@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-430 completed**: continued Hanwoo weather widget accessibility hardening. `WeatherWidget` now hides the small temperature, wind, and precipitation stat glyphs from assistive technology with `aria-hidden="true"` while preserving the adjacent Korean stat labels and values as meaningful content. `home-market-copy.test.mjs` guards the contract. Code commit `f3d7bc0`. |
+| Next Priorities | Verification passed: direct graph risk `0.00`, focused home-market copy test passed, targeted ESLint passed, path-limited `git diff --check` passed, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 152, lint, build). Commit-time `code_review_gate` WARN was the known graph/test-gap heuristic plus unrelated workspace WIP; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-429 completed**: continued Hanwoo weather widget accessibility hardening. `WeatherWidget` now hides the large ambient `weather-icon-bg` glyph from assistive technology with `aria-hidden="true"` while preserving the visible weather description as meaningful content. `home-market-copy.test.mjs` guards the contract. |
 | Next Priorities | Verification passed: focused home-market copy test passed, `npm test` passed (`152 passed`), `npm run lint` passed, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 152, lint, build) after retrying a transient Next build lock. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
 

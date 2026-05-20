@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` WeatherWidget stat glyph noise is hidden from assistive technology. The small temperature, wind, and precipitation stat glyphs now use `aria-hidden="true"` while their adjacent Korean stat labels and values remain the meaningful content. Verification passed: focused home-market copy test, targeted ESLint, direct graph risk `0.00`, and full Hanwoo QC (`test` 152, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` WeatherWidget decorative background icon noise is hidden from assistive technology. The ambient `weather-icon-bg` glyph is now `aria-hidden="true"` while the visible weather description remains meaningful content. Verification passed: focused home-market copy test, Hanwoo tests (`152 passed`), ESLint, and full Hanwoo QC (`test` 152, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` FeedTab building filter chips expose selected state to assistive technology. `FilterChip` now forwards `aria-pressed={active}` plus Korean task labels for all-buildings and per-building feed views, so the active feed filter is not visual-only. Verification passed: focused empty-state/feed wiring test, targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 152, lint, build).
