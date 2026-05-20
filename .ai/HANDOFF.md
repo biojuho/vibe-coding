@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-449 completed**: Hanwoo Settings farm/building form fields now expose proper labels and validation state. `SettingsTab` links 농장 이름, 지역 선택, 지역명, 위도, 경도, 동 이름, and 칸 수 controls to stable ids and reports `aria-invalid` from React Hook Form errors where validation applies. `settings-tab-accessibility.test.mjs` guards the contract. Code commit `19a2ea3`. |
+| Next Priorities | Verification passed: focused Settings accessibility test (`4 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 166, lint, build), and staged `code_review_gate --staged --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Direct `code_review_graph detect-changes` still hits the known Windows cp949 reader failure. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-448 completed**: Hanwoo Feed record form fields now expose proper labels and validation state. `FeedTab` links feed date/note plus roughage/concentrate numeric controls to stable ids and reports `aria-invalid` from React Hook Form errors. `empty-state-wiring.test.mjs` guards the contract. Code commit `4ecc1c5`. |
 | Next Priorities | Verification passed: focused empty-state wiring test (`9 passed`), expanded empty-state/home-market tests (`24 passed`), targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk `0.00`, full `project_qc_runner --project hanwoo-dashboard --json` passed on retry after a transient Next build lock (`test` 165, lint, build), and staged `code_review_gate --staged --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 
