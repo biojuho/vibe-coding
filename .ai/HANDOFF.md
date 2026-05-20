@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-379 completed**: continued Hanwoo product-completeness work by localizing Settings server-action failure fallbacks. `createBuilding`, `deleteBuilding`, and `updateFarmSettings` no longer return raw `e.message` to user-facing toast paths; they now log diagnostics and return Korean product copy. `actions-copy.test.mjs` guards the Korean fallbacks and rejects `message: e.message` in these actions. Code commit `6c91449`. |
+| Next Priorities | Verification passed before commit: Hanwoo tests passed (`125 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 125, lint, build), path-limited `git diff --check` passed, and direct graph risk `0.00`. Staged/commit graph gate WARN came from dirty-WIP/test-gap heuristics while direct tests covered the committed files. Active Hanwoo goal remains open; T-251 is still external/user-owned Supabase control-plane resync. Preserve unrelated root monorepo/package-lock/shorts WIP plus dirty Hanwoo `package.json` unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-378 completed**: continued Hanwoo product-completeness work by making global feedback toasts announce reliably to assistive-tech users. `FeedbackProvider.js` now marks error/warning toasts as `role="alert"` with assertive live updates, success/info toasts as `role="status"` with polite live updates, uses `aria-atomic="true"`, hides the decorative accent dot, and gives each dismiss button a Korean toast-specific label. Added `feedback-provider-copy.test.mjs`. Code commit `980bfb7`. |
 | Next Priorities | Verification passed: focused feedback/component tests passed, targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 125, lint, build), path-limited `git diff --check` passed, and direct graph risk `0.00`. Commit hook WARN came from graph dirty-WIP/test-gap heuristics while direct tests covered the committed files. Active Hanwoo goal remains open; T-251 is still external/user-owned Supabase control-plane resync. Preserve unrelated root monorepo/package-lock/shorts WIP plus dirty Hanwoo action/package changes unless explicitly authorized. |
 

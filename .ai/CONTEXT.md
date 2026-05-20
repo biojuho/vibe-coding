@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` Settings server-action failure fallbacks no longer expose raw exception messages. `createBuilding`, `deleteBuilding`, and `updateFarmSettings` log diagnostics and return Korean product copy instead of `e.message`, and `actions-copy.test.mjs` guards against `message: e.message` returning in these actions. Verification passed: Hanwoo tests `125 passed`, targeted ESLint, full Hanwoo QC (`test` 125, lint, build), path-limited `git diff --check`, and direct graph risk `0.00`.
+
 - As of 2026-05-20, `hanwoo-dashboard` global feedback toasts announce to assistive-tech users. `FeedbackProvider.js` exposes urgent error/warning toasts as assertive `alert` live regions, success/info toasts as polite `status` live regions, marks them atomic, hides decorative accent dots, and labels dismiss buttons with Korean toast-specific copy. `feedback-provider-copy.test.mjs` guards the contract. Verification passed: focused tests, targeted ESLint, full Hanwoo QC (`test` 125, lint, build), path-limited `git diff --check`, and direct graph risk `0.00`.
 
 - As of 2026-05-20, `hanwoo-dashboard` home-action buttons and Settings toggles expose cleaner assistive-tech semantics. `DashboardClient` hides decorative notification/add/back icons and the critical notification badge with `aria-hidden`, while `SettingsTab` theme/widget toggles expose `role="switch"`, `aria-checked`, Korean `aria-label`/`title`, and decorative thumb `aria-hidden`. Verification passed: Hanwoo tests `124 passed`, targeted ESLint, full Hanwoo QC test/lint plus build retry pass, path-limited `git diff --check`, and direct graph risk `0.00`.
