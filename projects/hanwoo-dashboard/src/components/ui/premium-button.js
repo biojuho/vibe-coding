@@ -34,12 +34,13 @@ const premiumButtonVariants = cva(
 )
 
 const PremiumButton = React.forwardRef(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, type = "button", ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
     return (
       <Comp
         className={cn(premiumButtonVariants({ variant, size, className }))}
         ref={ref}
+        type={asChild ? undefined : type}
         {...props}
       />
     )
