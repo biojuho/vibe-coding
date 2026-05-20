@@ -7,6 +7,13 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-20 |
+| Tool | Claude Code (Opus 4.7 1M) |
+| Work | **T-350 완료**: 사용자 요청 "ken-burns 모션도 최적화" (T-337 렌더 최적화 후속). `bench_render.py` micro-bench 로 `_ken_burns` ~70ms/frame 격리 측정 → 원인은 5개 줌 효과의 `clip.resized(시간함수)` 가 MoviePy `Resize.py` 의 하드코딩 `LANCZOS` 로 매 프레임 전체 리샘플(LANCZOS 68ms vs BICUBIC 53). 신규 헬퍼 `_zoom_crop` 이 per-frame 줌을 PIL `Image.resize(box=..., BICUBIC)` 단일 호출로 수행(중심 줌에서 crop↔resize 순서 항등). 5개 효과를 `_zoom_crop`+scale_fn 람다로 재작성. **micro-bench: `_ken_burns` 72.5→54.9 ms/frame(-24%).** 검증: 렌더 단위 240 pass, ruff 클린. commit `352880d`(perf)+`020edd7`(id fix). |
+| Next Priorities | **렌더 최적화 후속**: 색보정(T-337)·Ken Burns(T-350) 완료. 남은 후보는 `CompositeVideoClip.compose_on` 레이어 합성 + MoviePy `transform`/`get_frame` 디코레이터 오버헤드. `python scripts/bench_render.py --profile` 로 측정. **git 경합 심함**: 이 세션에서 perf 커밋 `7f350a2` 가 병렬 도구 git 작업으로 orphan 되고 task ID 가 T-339→T-346 두 번 선점당함 — 부분 커밋은 `git commit -- <pathspec>`, amend 는 `git rev-parse HEAD` 가드, task ID 는 현재 max+여러 칸 위로(T-350 사용). 줌 필터는 BICUBIC; 더 빠른 BILINEAR 도 `_ZOOM_RESAMPLE` 한 줄로 전환 가능하나 약간 더 부드러워짐. T-251 은 여전히 외부/사용자 차단. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
 | Tool | Codex |
 | Work | **T-346 completed**: continued the active Hanwoo product-completeness goal by localizing remaining fallback surface copy. Login, route-error, global-error, and not-found screens now use `Joolife 한우 운영` instead of `Joolife Operations`; weather fallback location labels now default to `서울` instead of `Seoul` across `DashboardClient`, `WeatherWidget`, `useWeather`, and `weather-state.mjs`. |
 | Next Priorities | Verification passed: focused Hanwoo tests passed (`102 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 102 passed, lint passed, build passed), `git diff --check` passed, staged code-review gate PASS, and UTF-8 graph risk `0.00`. Commit hook emitted advisory WARN from broad dirty-worktree graph heuristics, but the committed path set was only the fallback surface copy files. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, shorts-maker-v2 render effects files, and setup scripts. |
