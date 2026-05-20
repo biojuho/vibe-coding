@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` login authentication errors are associated with both credential fields. `LoginPage` now uses a stable `login-error-message` id, marks username/password inputs invalid after failed sign-in, and connects both fields to the alert message with conditional `aria-describedby`. Verification passed: focused error-pages wiring test (`5 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 169, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` cattle-detail breeding date validation is announced with the date input. `CattleDetailModal` now connects the breeding record date input to `breeding-record-date-error` through conditional `aria-describedby`, keeps `aria-invalid` tied to validation state, and renders the validation message as `role="alert"`. Verification passed: focused cattle-detail modal wiring test (`5 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 168, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` admin diagnostics raw-data selector exposes an explicit accessible name. `DiagnosticsPageClient` now uses `검사할 원본 데이터 선택` for the selector `aria-label` and `title`, so the model selector is not dependent on nearby section copy for assistive technology. Verification passed: focused diagnostics copy test (`1 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 167, lint, build).

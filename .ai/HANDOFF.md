@@ -8,6 +8,20 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-458 completed**: Hanwoo calving form validation messages are now announced with their controls. `CalvingTab` connects calving date, calf gender, and calf tag number controls to their field-specific error messages through conditional `aria-describedby`, keeps `aria-invalid`, and renders each validation message as `role="alert"`. `calving-tab-accessibility.test.mjs` guards the contract. Code commit `9040e63`. |
+| Next Priorities | Verification passed: focused calving accessibility test (`2 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 170, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Direct `code_review_graph detect-changes` still hits the known Windows cp949 reader failure. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
+| Work | **T-457 completed**: Hanwoo login authentication errors are now linked to both credential fields. `LoginPage` adds a stable `login-error-message` id, marks the username/password inputs invalid after a failed sign-in, and connects both fields to the alert message with conditional `aria-describedby`. `error-pages-wiring.test.mjs` guards the contract. Code commit `b5f27e9`. |
+| Next Priorities | Verification passed: focused error-pages wiring test (`5 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 169, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was advisory graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP plus existing CalvingTab WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-456 completed**: Hanwoo cattle-detail breeding date validation is now announced with the date input. `CattleDetailModal` connects the breeding record date input to `breeding-record-date-error` through conditional `aria-describedby`, marks invalid state with `aria-invalid`, and renders the validation message as `role="alert"`. `cattle-detail-modal-wiring.test.mjs` guards the contract. Code commit `5ffe7a8`. |
 | Next Priorities | Verification passed: focused cattle-detail modal wiring test (`5 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 168, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Direct `code_review_graph detect-changes` still hits the known Windows cp949 reader failure. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 
