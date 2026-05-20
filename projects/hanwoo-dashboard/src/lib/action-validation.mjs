@@ -198,6 +198,13 @@ const feedRecordSchema = z
     note: payload.note ?? null,
   }));
 
+const calvingRecordSchema = z.object({
+  motherId: requiredText('분만 대상 개체를 선택해 주세요.', 80),
+  calvingDate: requiredDate('분만일을 입력해 주세요.'),
+  calfGender: z.enum(CATTLE_GENDERS),
+  calfTagNumber: requiredText('송아지 이력번호를 입력해 주세요.', 30),
+});
+
 const inventoryItemSchema = z
   .object({
     name: requiredText('자재 이름을 입력해 주세요.', 80),
@@ -251,6 +258,10 @@ export function validateSalesRecordInput(input) {
 
 export function validateFeedRecordInput(input) {
   return validateActionInput(feedRecordSchema, input);
+}
+
+export function validateCalvingRecordInput(input) {
+  return validateActionInput(calvingRecordSchema, input);
 }
 
 export function validateInventoryItemInput(input) {

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  validateCalvingRecordInput,
   validateCattleMutationInput,
   validateExpenseRecordInput,
   validateFarmSettingsInput,
@@ -110,6 +111,29 @@ test('validateFeedRecordInput normalizes optional pen and note fields', () => {
   assert.equal(result.data.note, null);
   assert.equal(result.data.roughage, 18.5);
   assert.equal(result.data.concentrate, 7.25);
+});
+
+test('validateCalvingRecordInput requires a real calf tag number', () => {
+  const invalid = validateCalvingRecordInput({
+    motherId: 'cow-1',
+    calvingDate: '2026-05-20',
+    calfGender: '암',
+    calfTagNumber: '',
+  });
+
+  assert.equal(invalid.success, false);
+  assert.ok(invalid.validationErrors.calfTagNumber?.length);
+
+  const valid = validateCalvingRecordInput({
+    motherId: 'cow-1',
+    calvingDate: '2026-05-20',
+    calfGender: '수',
+    calfTagNumber: ' 002-1234-5678 ',
+  });
+
+  assert.equal(valid.success, true);
+  assert.equal(valid.data.calfTagNumber, '002-1234-5678');
+  assert.ok(valid.data.calvingDate instanceof Date);
 });
 
 test('validateInventoryItemInput rejects invalid categories and normalizes threshold', () => {

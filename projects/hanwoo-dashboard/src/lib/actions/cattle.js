@@ -2,7 +2,7 @@
 
 import { requireAuthenticatedSession } from '@/lib/auth-guard';
 import { normalizeCattleHistoryRows } from '../cattle-history.mjs';
-import { validateCattleMutationInput } from '../action-validation.mjs';
+import { validateCalvingRecordInput, validateCattleMutationInput } from '../action-validation.mjs';
 import { prisma, createOutboxEvent, DASHBOARD_EVENT_TOPICS, recordCattleHistory, invalidateHomeCaches } from './_helpers';
 
 // ============================================================
@@ -149,20 +149,26 @@ export async function updateCattle(id, data) {
 export async function recordCalving(data) {
   await requireAuthenticatedSession();
   try {
+    const validation = validateCalvingRecordInput(data);
+    if (!validation.success) {
+      return validation;
+    }
+
+    const payload = validation.data;
     const mother = await prisma.cattle.findUnique({
-      where: { id: data.motherId },
+      where: { id: payload.motherId },
     });
 
     if (!mother || mother.isArchived) {
       return { success: false, message: "분만 대상 개체를 찾을 수 없습니다." };
     }
 
-    const calvingDate = new Date(data.calvingDate);
-    const calfTagNumber = data.calfTagNumber;
-    const calfGender = data.calfGender;
+    const calvingDate = payload.calvingDate;
+    const calfTagNumber = payload.calfTagNumber;
+    const calfGender = payload.calfGender;
     const nextMemo = mother.memo
-      ? `${mother.memo}\n[분만] ${data.calvingDate} ${calfGender} 송아지 분만`
-      : `[분만] ${data.calvingDate} ${calfGender} 송아지 분만`;
+      ? `${mother.memo}\n[분만] ${calvingDate.toISOString().split('T')[0]} ${calfGender} 송아지 분만`
+      : `[분만] ${calvingDate.toISOString().split('T')[0]} ${calfGender} 송아지 분만`;
 
     const result = await prisma.$transaction(async (tx) => {
       const updatedMother = await tx.cattle.update({
@@ -229,7 +235,7 @@ export async function recordCalving(data) {
       };
     });
 
-    await createOutboxEvent({ topic: DASHBOARD_EVENT_TOPICS.cattleUpdated, aggregateId: data.motherId, payload: { event: 'calving', calfTagNumber: data.calfTagNumber } });
+    await createOutboxEvent({ topic: DASHBOARD_EVENT_TOPICS.cattleUpdated, aggregateId: payload.motherId, payload: { event: 'calving', calfTagNumber } });
     await invalidateHomeCaches({ summary: true, notifications: true, cattleListPages: true });
     return { success: true, data: result };
   } catch (error) {

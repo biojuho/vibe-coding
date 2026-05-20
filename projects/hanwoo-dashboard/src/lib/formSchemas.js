@@ -94,6 +94,7 @@ export const feedRecordSchema = z.object({
 export const calvingRecordSchema = z.object({
   calvingDate: validDateString('분만일을 입력해 주세요.'),
   calfGender: z.enum(['암', '수']),
+  calfTagNumber: requiredText('송아지 이력번호를 입력해 주세요.', 30),
 });
 
 export const buildingFormSchema = z.object({
@@ -175,6 +176,7 @@ export function createCalvingFormValues(date = new Date()) {
   return {
     calvingDate: toInputDate(date),
     calfGender: '암',
+    calfTagNumber: '',
   };
 }
 

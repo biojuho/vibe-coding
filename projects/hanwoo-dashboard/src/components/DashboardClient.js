@@ -899,7 +899,7 @@ export default function DashboardClient({
     return true;
   };
 
-  const handleRecordCalving = async ({ motherId, calvingDate, calfGender }) => {
+  const handleRecordCalving = async ({ motherId, calvingDate, calfGender, calfTagNumber }) => {
     const mother = cattleList.find((cow) => cow.id === motherId);
 
     if (!mother) {
@@ -907,7 +907,6 @@ export default function DashboardClient({
       return false;
     }
 
-    const calfTagNumber = `KR0000-${String(Math.floor(Math.random() * 900000) + 100000)}`;
     const updatedMother = {
       ...mother,
       status: '번식우',

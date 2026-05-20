@@ -63,6 +63,7 @@ export default function CalvingTab({ cattle, buildings = [], onRecordCalving }) 
       motherId: cow.id,
       calvingDate: values.calvingDate,
       calfGender: values.calfGender,
+      calfTagNumber: values.calfTagNumber,
     });
 
     if (!recorded) {
@@ -149,7 +150,7 @@ export default function CalvingTab({ cattle, buildings = [], onRecordCalving }) 
                     style={{ borderColor: 'var(--color-surface-stroke)' }}
                   >
                     <div className="mb-3 text-sm font-bold text-[color:var(--color-text)]">분만 처리</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '14px' }}>
                       <div>
                         <label htmlFor="calving-date" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', display: 'block', marginBottom: '4px' }}>
                           분만일
@@ -177,6 +178,20 @@ export default function CalvingTab({ cattle, buildings = [], onRecordCalving }) 
                           <option value="수">수송아지</option>
                         </select>
                         {errors.calfGender ? <div style={errorTextStyle}>{errors.calfGender.message}</div> : null}
+                      </div>
+                      <div>
+                        <label htmlFor="calf-tag-number" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', display: 'block', marginBottom: '4px' }}>
+                          송아지 이력번호
+                        </label>
+                        <input
+                          id="calf-tag-number"
+                          type="text"
+                          placeholder="예: 002-1234-5678"
+                          {...register('calfTagNumber')}
+                          aria-invalid={Boolean(errors.calfTagNumber)}
+                          style={{ ...inputStyle, width: '100%' }}
+                        />
+                        {errors.calfTagNumber ? <div style={errorTextStyle}>{errors.calfTagNumber.message}</div> : null}
                       </div>
                     </div>
 
