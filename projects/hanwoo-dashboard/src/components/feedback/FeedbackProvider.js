@@ -119,10 +119,14 @@ export function FeedbackProvider({ children }) {
         <div className="flex w-full max-w-sm flex-col gap-3">
           {toasts.map((toast) => {
             const style = TOAST_STYLES[toast.variant] || TOAST_STYLES.info;
+            const isUrgent = toast.variant === 'error' || toast.variant === 'warning';
 
             return (
               <div
                 key={toast.id}
+                role={isUrgent ? 'alert' : 'status'}
+                aria-live={isUrgent ? 'assertive' : 'polite'}
+                aria-atomic="true"
                 className="pointer-events-auto rounded-[24px] border px-4 py-3 shadow-[var(--shadow-md)] backdrop-blur-md"
                 style={{
                   borderColor: `color-mix(in srgb, ${style.accent} 24%, transparent)`,
@@ -133,6 +137,7 @@ export function FeedbackProvider({ children }) {
                   <span
                     className="mt-1 h-2.5 w-2.5 flex-shrink-0 rounded-full"
                     style={{ background: style.accent }}
+                    aria-hidden="true"
                   />
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-bold text-[color:var(--color-text)]">{toast.title}</div>
@@ -143,6 +148,7 @@ export function FeedbackProvider({ children }) {
                   <button
                     type="button"
                     onClick={() => dismiss(toast.id)}
+                    aria-label={`${toast.title} 알림 닫기`}
                     className="text-xs font-semibold text-[color:var(--color-text-muted)]"
                   >
                     닫기
