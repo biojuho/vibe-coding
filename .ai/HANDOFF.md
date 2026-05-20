@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-429 completed**: continued Hanwoo weather widget accessibility hardening. `WeatherWidget` now hides the large ambient `weather-icon-bg` glyph from assistive technology with `aria-hidden="true"` while preserving the visible weather description as meaningful content. `home-market-copy.test.mjs` guards the contract. |
+| Next Priorities | Verification passed: focused home-market copy test passed, `npm test` passed (`152 passed`), `npm run lint` passed, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 152, lint, build) after retrying a transient Next build lock. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-428 completed**: continued Hanwoo FeedTab accessibility hardening. Feed building filter chips now expose `aria-pressed` selected state and Korean task labels (`전체 축사 급여 보기`, `${building.name} 급여 보기`) instead of relying only on visual styling. `empty-state-wiring.test.mjs` guards the contract. Code commit `febabcc`. |
 | Next Priorities | Verification passed: focused empty-state/feed wiring test passed, targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk was `0.00`, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 152, lint, build). Staged/commit `code_review_gate` WARN was the known graph/test-gap heuristic plus unrelated workspace WIP; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
 
