@@ -10,6 +10,8 @@ const INITIAL_MESSAGES = [
   },
 ];
 
+const CHAT_CONNECTION_ERROR_MESSAGE = 'AI 비서 연결이 잠시 불안정합니다. 잠시 후 다시 질문해 주세요.';
+
 function buildOfflineReply(question) {
   const q = question.toLowerCase();
   if (q.includes('발정')) {
@@ -105,7 +107,8 @@ async function streamChat({
     onDone();
   } catch (error) {
     if (error.name !== 'AbortError') {
-      onError(error.message || '연결 오류가 발생했습니다.');
+      console.error('AI chat stream failed:', error);
+      onError(CHAT_CONNECTION_ERROR_MESSAGE);
     }
   }
 }

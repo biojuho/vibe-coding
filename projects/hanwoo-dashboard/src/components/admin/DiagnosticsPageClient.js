@@ -23,6 +23,8 @@ const STATUS_STYLES = {
 };
 
 const RETRY_MESSAGE = '잠시 후 다시 시도해 주세요.';
+const DIAGNOSTICS_LOAD_ERROR_MESSAGE = '진단 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
+const RAW_DATA_LOAD_ERROR_MESSAGE = '원본 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
 
 const MODEL_OPTIONS = [
   { value: 'cattle', label: '개체' },
@@ -83,10 +85,11 @@ export default function DiagnosticsPageClient() {
           return;
         }
 
+        console.error('Failed to load system diagnostics:', error);
         setStats(EMPTY_DIAGNOSTICS);
         notify({
           title: '진단 정보를 불러오지 못했습니다.',
-          description: error.message || RETRY_MESSAGE,
+          description: DIAGNOSTICS_LOAD_ERROR_MESSAGE,
           variant: 'error',
         });
       } finally {
@@ -128,9 +131,10 @@ export default function DiagnosticsPageClient() {
           return;
         }
 
+        console.error('Failed to load raw diagnostics data:', error);
         notify({
           title: '원본 데이터를 불러오지 못했습니다.',
-          description: error.message || RETRY_MESSAGE,
+          description: RAW_DATA_LOAD_ERROR_MESSAGE,
           variant: 'error',
         });
       } finally {

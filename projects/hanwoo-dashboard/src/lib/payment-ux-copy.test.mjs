@@ -17,11 +17,13 @@ test('payment widget exposes Korean product copy for checkout states', () => {
   assert.match(source, /구독 결제/);
   assert.match(source, /결제 수단을 불러오는 중입니다/);
   assert.match(source, /결제를 준비하고 있습니다/);
+  assert.match(source, /결제 요청을 완료하지 못했습니다/);
   assert.match(source, /결제하기/);
   assert.doesNotMatch(source, /Subscription checkout/);
   assert.doesNotMatch(source, /Loading payment methods/);
   assert.doesNotMatch(source, /Preparing payment/);
   assert.doesNotMatch(source, /Pay KRW/);
+  assert.doesNotMatch(source, /setErrorMessage\(error\.message/);
 });
 
 test('subscription result pages avoid bare English loading and status copy', () => {
