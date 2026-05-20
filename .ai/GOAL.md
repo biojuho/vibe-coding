@@ -24,6 +24,7 @@
 - 2026-05-20: T-368 labeled the notification modal's icon-only close action with Korean accessible copy (`닫기`); verification passed with Hanwoo tests `116 passed`, targeted ESLint, full Hanwoo QC, source confirmation, `git diff --check`, and graph risk `0.00`.
 - 2026-05-20: T-370 labeled home-screen icon-only actions for notification center, cattle registration, building back, and pen back controls; verification passed with Hanwoo tests `118 passed`, targeted ESLint, full Hanwoo QC test/lint plus build retry pass, `git diff --check`, staged code-review gate PASS, and graph risk `0.00`.
 - 2026-05-20: T-369 added dialog semantics to the notification modal (`role="dialog"`, `aria-modal`, visible title label); verification passed with Hanwoo tests `117 passed`, targeted ESLint, full Hanwoo QC, source confirmation, `git diff --check`, and graph risk `0.00`.
+- 2026-05-20: T-371 added dialog semantics and Korean accessible labels to cattle modals and the AI chat send action; verification passed with Hanwoo tests `119 passed`, targeted ESLint, full Hanwoo QC, `git diff --check`, staged code-review gate PASS, and graph risk `0.00`.
 
 ## Notes
 
