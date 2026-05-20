@@ -33,6 +33,8 @@ export default function NotificationModal({ notifications, onClose, onTestSMS })
           </div>
           <button
             onClick={onClose}
+            aria-label="닫기"
+            title="닫기"
             className="btn btn-ghost btn-icon"
             style={{width:"34px", height:"34px", fontSize:"18px", transition:"all 0.2s cubic-bezier(0.22,1,0.36,1)"}}
           >×</button>
