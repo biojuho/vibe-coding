@@ -156,9 +156,10 @@ export default function SalesTab({
                     type="date"
                     {...register('saleDate')}
                     aria-invalid={Boolean(errors.saleDate)}
+                    aria-describedby={errors.saleDate ? "sale-date-error" : undefined}
                     hasError={!!errors.saleDate}
                   />
-                  {errors.saleDate ? <div style={errorTextStyle}>{errors.saleDate.message}</div> : null}
+                  {errors.saleDate ? <div id="sale-date-error" role="alert" style={errorTextStyle}>{errors.saleDate.message}</div> : null}
                 </div>
 
                 <div>
@@ -169,9 +170,10 @@ export default function SalesTab({
                     {...register('price')}
                     placeholder="예: 8500000"
                     aria-invalid={Boolean(errors.price)}
+                    aria-describedby={errors.price ? "sale-price-error" : undefined}
                     hasError={!!errors.price}
                   />
-                  {errors.price ? <div style={errorTextStyle}>{errors.price.message}</div> : null}
+                  {errors.price ? <div id="sale-price-error" role="alert" style={errorTextStyle}>{errors.price.message}</div> : null}
                 </div>
 
                 <div>
@@ -180,6 +182,7 @@ export default function SalesTab({
                     id="sale-cattle"
                     {...register('cattleId')}
                     aria-invalid={Boolean(errors.cattleId)}
+                    aria-describedby={errors.cattleId ? "sale-cattle-error" : undefined}
                     hasError={!!errors.cattleId}
                   >
                     <option value="" className="bg-slate-900">선택해 주세요</option>
@@ -189,7 +192,7 @@ export default function SalesTab({
                       </option>
                     ))}
                   </PremiumSelect>
-                  {errors.cattleId ? <div style={errorTextStyle}>{errors.cattleId.message}</div> : null}
+                  {errors.cattleId ? <div id="sale-cattle-error" role="alert" style={errorTextStyle}>{errors.cattleId.message}</div> : null}
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -199,6 +202,7 @@ export default function SalesTab({
                       id="sale-grade"
                       {...register('grade')}
                       aria-invalid={Boolean(errors.grade)}
+                      aria-describedby={errors.grade ? "sale-grade-error" : undefined}
                       hasError={!!errors.grade}
                     >
                       <option value="1++" className="bg-slate-900">1++</option>
@@ -207,7 +211,7 @@ export default function SalesTab({
                       <option value="2" className="bg-slate-900">2</option>
                       <option value="3" className="bg-slate-900">3</option>
                     </PremiumSelect>
-                    {errors.grade ? <div style={errorTextStyle}>{errors.grade.message}</div> : null}
+                    {errors.grade ? <div id="sale-grade-error" role="alert" style={errorTextStyle}>{errors.grade.message}</div> : null}
                   </div>
 
                   <div>
@@ -217,9 +221,10 @@ export default function SalesTab({
                       {...register('purchaser')}
                       placeholder="예: 남원축협"
                       aria-invalid={Boolean(errors.purchaser)}
+                      aria-describedby={errors.purchaser ? "sale-purchaser-error" : undefined}
                       hasError={!!errors.purchaser}
                     />
-                    {errors.purchaser ? <div style={errorTextStyle}>{errors.purchaser.message}</div> : null}
+                    {errors.purchaser ? <div id="sale-purchaser-error" role="alert" style={errorTextStyle}>{errors.purchaser.message}</div> : null}
                   </div>
                 </div>
 

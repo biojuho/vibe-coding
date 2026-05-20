@@ -224,6 +224,25 @@ test('sales form fields expose explicit labels and invalid state', () => {
   assert.match(source, /id="sale-purchaser"[\s\S]*?aria-invalid=\{Boolean\(errors\.purchaser\)\}/);
 });
 
+test('sales form validation messages are announced by their controls', () => {
+  const source = readSource('components/tabs/SalesTab.js');
+  const fields = [
+    ['saleDate', 'sale-date-error'],
+    ['price', 'sale-price-error'],
+    ['cattleId', 'sale-cattle-error'],
+    ['grade', 'sale-grade-error'],
+    ['purchaser', 'sale-purchaser-error'],
+  ];
+
+  for (const [errorPath, errorId] of fields) {
+    assert.match(
+      source,
+      new RegExp(`aria-describedby=\\{errors\\.${errorPath} \\? "${errorId}" : undefined\\}`),
+    );
+    assert.match(source, new RegExp(`<div id="${errorId}" role="alert"`));
+  }
+});
+
 test('inventory form fields expose explicit labels and invalid state', () => {
   const source = readSource('components/tabs/InventoryTab.js');
 
