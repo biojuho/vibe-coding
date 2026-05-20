@@ -9,7 +9,7 @@
 | Date | 2026-05-20 |
 | Tool | Codex |
 | Work | **T-414 completed**: continued Hanwoo product-completeness/accessibility polish by hiding decorative notification modal status icons from assistive technology. `NotificationModal` now marks the title glyph, empty-state glyph, and urgent alert glyph with `aria-hidden="true"`, so screen readers get the dialog title and notification text without decorative noise. `notification-modal-copy.test.mjs` guards the contract. Code commit `18d90a6`. |
-| Next Priorities | Verification passed: focused Hanwoo tests passed (`142 passed`), targeted ESLint passed, path-limited `git diff --check` passed, staged `code_review_gate --staged --json` passed with known cp949 reader-thread noise, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 142, lint, build). Commit hook emitted advisory graph/test-gap WARN that included unrelated VibeDebt dirty WIP; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
+| Next Priorities | Verification passed: focused Hanwoo tests passed (`142 passed`), targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk was `0.00`, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 142, lint, build). Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
 
 | Field | Value |
 |---|---|
