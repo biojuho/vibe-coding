@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-494 completed**: Hanwoo cattle QR label printing now guards against duplicate print windows. `QRCodeWidget` uses `printInFlightRef` plus `isPrinting` to block repeated print activations while the generated print window is being prepared/printed, and the print button now has explicit `type="button"`, disabled state, and `aria-busy`. `qr-widget-copy.test.mjs` guards the contract. Code commit `e9b87c8`. |
+| Next Priorities | Verification passed: focused QR widget copy test (`2 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 199, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known advisory graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-493 completed**: Hanwoo cattle CSV export now guards against duplicate async export/download preparation. `ExcelExportButton` uses `preparingRef` as an immediate in-flight lock before `resolveCattleList()` and CSV blob creation, so rapid repeated activation cannot produce duplicate list resolution or duplicate downloads before React re-renders the disabled state. `excel-export-button-copy.test.mjs` guards the contract. Code commit `e8680c5`. |
 | Next Priorities | Verification passed: focused excel export button copy test (`2 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 198, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known advisory graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 

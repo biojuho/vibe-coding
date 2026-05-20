@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` cattle QR label printing guards against duplicate print windows. `QRCodeWidget` now uses `printInFlightRef` plus `isPrinting` to block repeated print activations while the generated print window is being prepared/printed, and the print button exposes explicit `type="button"`, disabled state, and `aria-busy`. Verification passed: focused QR widget copy test (`2 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 199, lint, build).
+
 - As of 2026-05-21, `hanwoo-dashboard` cattle CSV export/download preparation guards against duplicate async export runs. `ExcelExportButton` now uses `preparingRef` as an immediate in-flight lock before `resolveCattleList()` and CSV blob creation, so rapid repeated activation cannot produce duplicate list resolution or duplicate downloads before React re-renders the disabled state. Verification passed: focused excel export button copy test (`2 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 198, lint, build).
 
 - As of 2026-05-21, `hanwoo-dashboard` drag-and-drop cattle moves guard against duplicate async move requests. `DashboardClient` now uses `movingCattleIdRef` as an immediate in-flight lock around the confirm + `handleUpdateCattle` move flow, so repeated drop events cannot open overlapping move confirms or send duplicate move updates before the first flow finishes. Verification passed: focused home-market copy test (`22 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 197, lint, build).
