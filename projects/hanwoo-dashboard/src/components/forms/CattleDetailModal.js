@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { CalendarCheck2, CheckCircle2 } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from 'recharts';
 import { STATUS_COLORS } from '@/lib/constants';
 import { formatDate, getMonthAge, toInputDate, getDaysUntilEstrus, formatMoney } from '@/lib/utils';
@@ -18,6 +19,10 @@ const HISTORY_ICONS = {
 
 export default function CattleDetailModal({ cattle, buildings = [], onClose, onEdit, onDelete, onUpdate }) {
   const [history, setHistory] = useState([]);
+  const [activeBreedingAction, setActiveBreedingAction] = useState(null);
+  const [breedingDate, setBreedingDate] = useState(toInputDate(new Date()));
+  const [breedingError, setBreedingError] = useState('');
+  const [isBreedingSaving, setIsBreedingSaving] = useState(false);
 
   useEffect(() => {
     if (!cattle?.id) return;
@@ -33,6 +38,13 @@ export default function CattleDetailModal({ cattle, buildings = [], onClose, onE
         if (!cancelled) setHistory([]);
       });
     return () => { cancelled = true; };
+  }, [cattle?.id]);
+
+  useEffect(() => {
+    setActiveBreedingAction(null);
+    setBreedingDate(toInputDate(new Date()));
+    setBreedingError('');
+    setIsBreedingSaving(false);
   }, [cattle?.id]);
 
   if (!cattle) return null;
@@ -57,17 +69,47 @@ export default function CattleDetailModal({ cattle, buildings = [], onClose, onE
     return [];
   })();
 
-  const handleAddEstrus = () => {
-    const date = prompt("발정 관찰일을 입력하세요 (YYYY-MM-DD)", toInputDate(new Date()));
-    if (date) {
-      onUpdate({ ...cattle, lastEstrus: new Date(date).toISOString() });
-    }
+  const openBreedingForm = (action) => {
+    setActiveBreedingAction(action);
+    setBreedingDate(toInputDate(new Date()));
+    setBreedingError('');
   };
 
-  const handleAddPregnancy = () => {
-    const date = prompt("수정(인공수정)일을 입력하세요 (YYYY-MM-DD)", toInputDate(new Date()));
-    if (date) {
-      onUpdate({ ...cattle, status: "임신우", pregnancyDate: new Date(date).toISOString() });
+  const handleSaveBreedingRecord = async (event) => {
+    event.preventDefault();
+
+    if (!breedingDate) {
+      setBreedingError('기록할 날짜를 선택해 주세요.');
+      return;
+    }
+
+    const selectedDate = new Date(`${breedingDate}T00:00:00`);
+
+    if (Number.isNaN(selectedDate.getTime())) {
+      setBreedingError('올바른 날짜를 선택해 주세요.');
+      return;
+    }
+
+    const nextCattle = activeBreedingAction === 'pregnancy'
+      ? { ...cattle, status: "임신우", pregnancyDate: selectedDate.toISOString() }
+      : { ...cattle, lastEstrus: selectedDate.toISOString() };
+
+    setIsBreedingSaving(true);
+    setBreedingError('');
+
+    try {
+      const saved = await onUpdate(nextCattle, {
+        successTitle: activeBreedingAction === 'pregnancy' ? '수정 기록을 저장했습니다.' : '발정 기록을 저장했습니다.',
+        successDescription: `${formatDate(selectedDate)} 기록이 반영되었습니다.`,
+        errorTitle: '번식 기록 저장에 실패했습니다.',
+        offlineDescription: '번식 기록 수정 요청이 대기열에 저장되었습니다.',
+      });
+
+      if (saved !== false) {
+        setActiveBreedingAction(null);
+      }
+    } finally {
+      setIsBreedingSaving(false);
     }
   };
 
@@ -191,28 +233,109 @@ export default function CattleDetailModal({ cattle, buildings = [], onClose, onE
               </div>
               <div style={{display:"flex",gap:"10px"}}>
                 <button
-                  onClick={handleAddEstrus}
+                  type="button"
+                  onClick={() => openBreedingForm('estrus')}
                   className="btn"
                   style={{
                     ...btnPrimary,
                     padding:"12px 16px",
                     fontSize:"13px",
                     background:"linear-gradient(135deg, var(--color-warning), color-mix(in srgb, var(--color-warning) 78%, #9b6e40 22%))",
-                    flex:1
+                    flex:1,
+                    display:"flex",
+                    alignItems:"center",
+                    justifyContent:"center",
+                    gap:"8px"
                   }}
-                >+ 발정 기록</button>
+                ><CalendarCheck2 size={16} aria-hidden="true" /> 발정 기록</button>
                 <button
-                  onClick={handleAddPregnancy}
+                  type="button"
+                  onClick={() => openBreedingForm('pregnancy')}
                   className="btn"
                   style={{
                     ...btnPrimary,
                     padding:"12px 16px",
                     fontSize:"13px",
                     background:"linear-gradient(135deg, var(--color-primary-custom), var(--color-primary-dark))",
-                    flex:1
+                    flex:1,
+                    display:"flex",
+                    alignItems:"center",
+                    justifyContent:"center",
+                    gap:"8px"
                   }}
-                >+ 수정 기록</button>
+                ><CheckCircle2 size={16} aria-hidden="true" /> 수정 기록</button>
               </div>
+              {activeBreedingAction ? (
+                <form
+                  onSubmit={handleSaveBreedingRecord}
+                  style={{
+                    marginTop:"14px",
+                    background:"var(--color-bg-card)",
+                    border:"1px solid color-mix(in srgb, var(--color-warning) 28%, var(--color-border-custom))",
+                    borderRadius:"var(--radius-md)",
+                    padding:"14px",
+                    boxShadow:"var(--shadow-sm)"
+                  }}
+                >
+                  <label
+                    htmlFor="breeding-record-date"
+                    style={{
+                      display:"block",
+                      fontSize:"12px",
+                      fontWeight:800,
+                      color:"var(--color-text-secondary)",
+                      marginBottom:"8px"
+                    }}
+                  >
+                    {activeBreedingAction === 'pregnancy' ? '수정일' : '발정 관찰일'}
+                  </label>
+                  <div style={{display:"flex",gap:"10px",alignItems:"center",flexWrap:"wrap"}}>
+                    <input
+                      id="breeding-record-date"
+                      type="date"
+                      className="input"
+                      value={breedingDate}
+                      onChange={(event) => {
+                        setBreedingDate(event.target.value);
+                        setBreedingError('');
+                      }}
+                      aria-invalid={Boolean(breedingError)}
+                      style={{
+                        flex:"1 1 170px",
+                        minHeight:"42px",
+                        border:"1px solid var(--color-border)",
+                        borderRadius:"var(--radius-md)",
+                        padding:"0 12px",
+                        background:"var(--color-surface-elevated)",
+                        color:"var(--color-text)",
+                        fontWeight:700
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => setActiveBreedingAction(null)}
+                      disabled={isBreedingSaving}
+                      style={{...btnSecondary,padding:"10px 14px",fontSize:"13px"}}
+                    >
+                      취소
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      disabled={isBreedingSaving}
+                      style={{...btnPrimary,padding:"10px 14px",fontSize:"13px"}}
+                    >
+                      {isBreedingSaving ? '저장 중...' : '저장'}
+                    </button>
+                  </div>
+                  {breedingError ? (
+                    <div style={{fontSize:"12px",fontWeight:700,color:"var(--color-danger)",marginTop:"8px"}}>
+                      {breedingError}
+                    </div>
+                  ) : null}
+                </form>
+              ) : null}
             </div>
           }
 
