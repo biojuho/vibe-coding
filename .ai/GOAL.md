@@ -12,6 +12,8 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-436 hardened Hanwoo 분만 처리 by removing the client-generated fake `KR0000-...` calf tag number. `CalvingTab` now requires an operator-entered 송아지 이력번호, the client/offline flow passes that value through, and `recordCalving` validates it server-side before creating calf records/history/outbox events. Verification passed with focused action-validation/home-market copy tests (`22 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, direct build retry after transient Next lock, full Hanwoo QC (`test` 156, lint, build), and staged code-review gate JSON (`risk_score 0.0`). Commit `88da9e7`.
+
 - 2026-05-20: T-435 removed personal phone/address details from Hanwoo public legal pages. `/privacy` now lists `Joolife 운영팀`, support email, and service inquiry channel; `/terms` keeps the company name, support email, and website without exposing a personal mobile number or home address. Verification passed with focused legal-page copy test, targeted ESLint, full Hanwoo tests `154 passed` before concurrent WIP, full Hanwoo QC (`test` 156 in current worktree, lint, build), and staged code-review gate JSON (`risk_score 0.0`). Commit `8e893b0`.
 
 - 2026-05-20: T-434 removed the Hanwoo dashboard footer placeholder `사업자등록번호: 000-00-00000` and replaced it with `운영 문의: joolife@joolife.io.kr` while preserving legal links; verification passed with focused home-market copy test, targeted ESLint, Hanwoo tests `153 passed`, full Hanwoo QC (`test` 153, lint, build), and staged code-review gate JSON (`risk_score 0.0`). Commit `442e570`.
