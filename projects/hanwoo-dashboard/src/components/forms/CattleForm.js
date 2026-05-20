@@ -148,8 +148,9 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
           <input type="hidden" {...register('geneticInfo.grade')} />
 
           <div>
-            <label style={labelStyle}>이름 (별명)</label>
+            <label htmlFor="cattle-name" style={labelStyle}>이름 (별명)</label>
             <input
+              id="cattle-name"
               className="input"
               style={inputStyle}
               placeholder="예: 순심이"
@@ -160,9 +161,10 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
           </div>
 
           <div>
-            <label style={labelStyle}>이력번호</label>
+            <label htmlFor="cattle-tag-number" style={labelStyle}>이력번호</label>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <input
+                id="cattle-tag-number"
                 className="input"
                 style={{ ...inputStyle, flex: 1 }}
                 placeholder="002082037849"
@@ -207,8 +209,8 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <div>
-              <label style={labelStyle}>축사</label>
-              <select className="input" style={inputStyle} {...register('buildingId')}>
+              <label htmlFor="cattle-building" style={labelStyle}>축사</label>
+              <select id="cattle-building" className="input" style={inputStyle} aria-invalid={Boolean(errors.buildingId)} {...register('buildingId')}>
                 {buildings.map((building) => (
                   <option key={building.id} value={building.id}>
                     {building.name}
@@ -219,8 +221,8 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
             </div>
 
             <div>
-              <label style={labelStyle}>칸 번호</label>
-              <select className="input" style={inputStyle} {...register('penNumber')}>
+              <label htmlFor="cattle-pen-number" style={labelStyle}>칸 번호</label>
+              <select id="cattle-pen-number" className="input" style={inputStyle} aria-invalid={Boolean(errors.penNumber)} {...register('penNumber')}>
                 {[...Array(12)].map((_, index) => (
                   <option key={index + 1} value={index + 1}>
                     {index + 1}번 칸
@@ -233,8 +235,8 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <div>
-              <label style={labelStyle}>성별</label>
-              <select className="input" style={inputStyle} {...register('gender')}>
+              <label htmlFor="cattle-gender" style={labelStyle}>성별</label>
+              <select id="cattle-gender" className="input" style={inputStyle} aria-invalid={Boolean(errors.gender)} {...register('gender')}>
                 <option value="암">암</option>
                 <option value="수">수</option>
               </select>
@@ -242,8 +244,8 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
             </div>
 
             <div>
-              <label style={labelStyle}>상태</label>
-              <select className="input" style={inputStyle} {...register('status')}>
+              <label htmlFor="cattle-status" style={labelStyle}>상태</label>
+              <select id="cattle-status" className="input" style={inputStyle} aria-invalid={Boolean(errors.status)} {...register('status')}>
                 {BREED_STATUS_OPTIONS.map((option) => (
                   <option key={option} value={option}>
                     {option}
@@ -255,33 +257,35 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
           </div>
 
           <div>
-            <label style={labelStyle}>생년월일</label>
-            <input type="date" className="input" style={inputStyle} {...register('birthDate')} />
+            <label htmlFor="cattle-birth-date" style={labelStyle}>생년월일</label>
+            <input id="cattle-birth-date" type="date" className="input" style={inputStyle} aria-invalid={Boolean(errors.birthDate)} {...register('birthDate')} />
             {errors.birthDate ? <div style={errorTextStyle}>{errors.birthDate.message}</div> : null}
           </div>
 
           <div>
-            <label style={labelStyle}>현재 체중 (kg)</label>
-            <input type="number" className="input" style={inputStyle} {...register('weight')} />
+            <label htmlFor="cattle-weight" style={labelStyle}>현재 체중 (kg)</label>
+            <input id="cattle-weight" type="number" className="input" style={inputStyle} aria-invalid={Boolean(errors.weight)} {...register('weight')} />
             {errors.weight ? <div style={errorTextStyle}>{errors.weight.message}</div> : null}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <div>
-              <label style={labelStyle}>구입가격 (원)</label>
+              <label htmlFor="cattle-purchase-price" style={labelStyle}>구입가격 (원)</label>
               <input
+                id="cattle-purchase-price"
                 type="number"
                 className="input"
                 style={inputStyle}
                 placeholder="예: 3500000"
+                aria-invalid={Boolean(errors.purchasePrice)}
                 {...register('purchasePrice')}
               />
               {errors.purchasePrice ? <div style={errorTextStyle}>{errors.purchasePrice.message}</div> : null}
             </div>
 
             <div>
-              <label style={labelStyle}>구입일자</label>
-              <input type="date" className="input" style={inputStyle} {...register('purchaseDate')} />
+              <label htmlFor="cattle-purchase-date" style={labelStyle}>구입일자</label>
+              <input id="cattle-purchase-date" type="date" className="input" style={inputStyle} aria-invalid={Boolean(errors.purchaseDate)} {...register('purchaseDate')} />
               {errors.purchaseDate ? <div style={errorTextStyle}>{errors.purchaseDate.message}</div> : null}
             </div>
           </div>
@@ -309,10 +313,12 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
-                <label style={labelStyle}>부 (KPN)</label>
+                <label htmlFor="cattle-genetic-father" style={labelStyle}>부 (KPN)</label>
                 <input
+                  id="cattle-genetic-father"
                   className="input"
                   style={{ ...inputStyle, padding: '10px 12px' }}
+                  aria-invalid={Boolean(errors.geneticInfo?.father)}
                   {...register('geneticInfo.father')}
                 />
                 {errors.geneticInfo?.father ? (
@@ -320,10 +326,12 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
                 ) : null}
               </div>
               <div>
-                <label style={labelStyle}>모 (이력)</label>
+                <label htmlFor="cattle-genetic-mother" style={labelStyle}>모 (이력)</label>
                 <input
+                  id="cattle-genetic-mother"
                   className="input"
                   style={{ ...inputStyle, padding: '10px 12px' }}
+                  aria-invalid={Boolean(errors.geneticInfo?.mother)}
                   {...register('geneticInfo.mother')}
                 />
                 {errors.geneticInfo?.mother ? (
@@ -334,10 +342,12 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
           </div>
 
           <div>
-            <label style={labelStyle}>메모</label>
+            <label htmlFor="cattle-memo" style={labelStyle}>메모</label>
             <textarea
+              id="cattle-memo"
               className="input"
               style={{ ...inputStyle, height: '90px', resize: 'none' }}
+              aria-invalid={Boolean(errors.memo)}
               {...register('memo')}
             />
             {errors.memo ? <div style={errorTextStyle}>{errors.memo.message}</div> : null}
