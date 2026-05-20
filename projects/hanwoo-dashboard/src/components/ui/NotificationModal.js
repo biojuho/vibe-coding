@@ -117,7 +117,7 @@ export default function NotificationModal({ notifications, onClose, onTestSMS })
             alignItems:"center",
             gap:"6px"
           }}>
-            📱 SMS 알림 서비스
+            <span aria-hidden="true">📱</span> 문자 알림 서비스
           </div>
           <div style={{
             display:"flex",
