@@ -12,6 +12,8 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-413 polished Hanwoo notification SMS modal controls by adding explicit `type="button"` semantics to close/test actions and replacing the vendor/API-facing setup note with Korean operator copy; verification passed with focused Hanwoo tests `141 passed`, targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 141, lint, build), and code-review gate WARN from the known graph/test-gap heuristic plus unrelated workspace WIP.
+
 - 2026-05-20: T-412 surfaced Hanwoo cattle pagination failures in the UI by adding Korean timeout/general `loadError` state to `useCattlePagination` and rendering it below the home cattle "load more" control; verification passed with focused Hanwoo tests `140 passed`, targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 140, lint, build), and code-review gate WARN from the known graph/test-gap heuristic plus unrelated workspace WIP.
 
 - 2026-05-20: T-411 made Hanwoo dropdown actions keyboard-accessible by rendering clickable `DropdownMenuItem` entries as native `button` elements with focus-ring styling while leaving static entries as `div`; verification passed with focused Hanwoo tests `139 passed`, targeted ESLint, path-limited `git diff --check`, staged code-review gate pass with known cp949 reader-thread noise, and full Hanwoo QC (`test` 140, lint, build).

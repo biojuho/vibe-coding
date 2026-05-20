@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-413 completed**: continued Hanwoo product-completeness polish by tightening the notification SMS modal. `NotificationModal` now gives close/SMS test buttons explicit `type="button"` semantics and replaces the vendor/API-facing SMS setup note with Korean operator copy about 문자 알림 연동 and possible sending costs. `notification-modal-copy.test.mjs` guards the contract. Code commit `ed3d1c5`. |
+| Next Priorities | Verification passed: focused Hanwoo tests passed (`141 passed`), targeted ESLint passed, path-limited `git diff --check` passed, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 141, lint, build). Staged/commit `code_review_gate` WARN was the known graph/test-gap heuristic and also saw unrelated dirty VibeDebt WIP; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-412 completed**: continued Hanwoo product-completeness debugging by surfacing cattle pagination failures. `useCattlePagination` now tracks Korean timeout/general `loadError` states, returns `loadError`, and `DashboardClient` renders a home "개체 더 보기" control plus status feedback when loading additional cattle fails instead of leaving the failure in console-only diagnostics. `cattle-pagination-feedback.test.mjs` guards the contract. Code commit `757c440`. |
 | Next Priorities | Verification passed: focused Hanwoo tests passed (`140 passed`), targeted ESLint passed, path-limited `git diff --check` passed, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 140, lint, build). Staged/commit `code_review_gate` WARN was the known graph/test-gap heuristic and also saw unrelated dirty dropdown/VibeDebt WIP; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/dropdown/workspace WIP unless explicitly authorized. |
 
