@@ -2,7 +2,6 @@ export const ESTRUS_CYCLE_DAYS = 21;
 export const ESTRUS_ALERT_WINDOW = 3;
 export const CALVING_DAYS = 285;
 export const CALVING_ALERT_WINDOW = 14;
-export const TODAY = new Date();
 
 export const BREED_STATUS_OPTIONS = ['송아지', '육성우', '번식우', '임신우', '비육우', '씨수소'];
 

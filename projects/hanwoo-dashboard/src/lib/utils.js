@@ -1,44 +1,52 @@
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import {
-  TODAY,
   ESTRUS_CYCLE_DAYS,
   ESTRUS_ALERT_WINDOW,
   CALVING_DAYS,
   CALVING_ALERT_WINDOW,
 } from './constants';
 
+const DAY_MS = 86400000;
+
 export function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
-export function getMonthAge(birthDate) {
-  if (!birthDate) return 0;
-  const date = birthDate instanceof Date ? birthDate : new Date(birthDate);
-  return Math.max(1, (TODAY.getFullYear() - date.getFullYear()) * 12 + TODAY.getMonth() - date.getMonth());
+function toDate(value) {
+  return value instanceof Date ? new Date(value.getTime()) : new Date(value);
 }
 
-export function getNextEstrusDate(lastEstrus) {
-  if (!lastEstrus) return null;
-  const next = new Date(lastEstrus instanceof Date ? lastEstrus : new Date(lastEstrus));
+export function getMonthAge(birthDate, now = new Date()) {
+  if (!birthDate) return 0;
+  const date = toDate(birthDate);
+  const today = toDate(now);
+  return Math.max(1, (today.getFullYear() - date.getFullYear()) * 12 + today.getMonth() - date.getMonth());
+}
 
-  while (next <= TODAY) next.setDate(next.getDate() + ESTRUS_CYCLE_DAYS);
+export function getNextEstrusDate(lastEstrus, now = new Date()) {
+  if (!lastEstrus) return null;
+  const today = toDate(now);
+  const next = toDate(lastEstrus);
+
+  while (next <= today) next.setDate(next.getDate() + ESTRUS_CYCLE_DAYS);
 
   return next;
 }
 
-export function getDaysUntilEstrus(lastEstrus) {
-  const next = getNextEstrusDate(lastEstrus);
-  return next ? Math.ceil((next - TODAY) / 86400000) : null;
+export function getDaysUntilEstrus(lastEstrus, now = new Date()) {
+  const today = toDate(now);
+  const next = getNextEstrusDate(lastEstrus, today);
+  return next ? Math.ceil((next - today) / DAY_MS) : null;
 }
 
-export function isEstrusAlert(lastEstrus) {
-  const days = getDaysUntilEstrus(lastEstrus);
+export function isEstrusAlert(lastEstrus, now = new Date()) {
+  const days = getDaysUntilEstrus(lastEstrus, now);
   return days !== null && days >= 0 && days <= ESTRUS_ALERT_WINDOW;
 }
 
-export function isEstrusToday(lastEstrus) {
-  return getDaysUntilEstrus(lastEstrus) === 0;
+export function isEstrusToday(lastEstrus, now = new Date()) {
+  return getDaysUntilEstrus(lastEstrus, now) === 0;
 }
 
 export function getCalvingDate(pregnancyDate) {
@@ -46,13 +54,14 @@ export function getCalvingDate(pregnancyDate) {
   return new Date(new Date(pregnancyDate).getTime() + CALVING_DAYS * 86400000);
 }
 
-export function getDaysUntilCalving(pregnancyDate) {
+export function getDaysUntilCalving(pregnancyDate, now = new Date()) {
+  const today = toDate(now);
   const calvingDate = getCalvingDate(pregnancyDate);
-  return calvingDate ? Math.ceil((calvingDate - TODAY) / 86400000) : null;
+  return calvingDate ? Math.ceil((calvingDate - today) / DAY_MS) : null;
 }
 
-export function isCalvingAlert(pregnancyDate) {
-  const days = getDaysUntilCalving(pregnancyDate);
+export function isCalvingAlert(pregnancyDate, now = new Date()) {
+  const days = getDaysUntilCalving(pregnancyDate, now);
   return days !== null && days >= 0 && days <= CALVING_ALERT_WINDOW;
 }
 
