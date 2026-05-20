@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` inventory quantity edits no longer close before async save results are known. `InventoryTab` awaits `onUpdateQuantity` and only exits edit mode after a truthy result, preserving edited quantity input when mutations fail. Verification passed: focused tests (`136 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 136, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` pen and cattle row cards are keyboard reachable. `PenCard` and `CattleRow` now expose button semantics, tab focus, Korean accessible labels, and Enter/Space activation through a shared keyboard handler. Verification passed: focused tests (`135 passed`), targeted ESLint, path-limited `git diff --check`, staged graph gate JSON pass, and full Hanwoo QC (`test` 135, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` feed-record forms no longer reset before async save results are known. `FeedTab` awaits `onRecordFeed` and only resets after a truthy result, preserving entered feed data when mutations fail. Verification passed: focused tests (`135 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 135, lint, build).

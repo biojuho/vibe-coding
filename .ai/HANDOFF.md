@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-404 completed**: continued Hanwoo product-completeness debugging by fixing inventory quantity edit failure handling. `InventoryTab` now awaits `onUpdateQuantity` and only exits edit mode after a truthy result, so failed async saves preserve the edited quantity for retry while successful saves keep the existing close behavior. `empty-state-wiring.test.mjs` guards the contract. Code commit `1b90641`. |
+| Next Priorities | Verification passed: focused Hanwoo tests passed (`136 passed`), targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk `0.00`, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 136, lint, build). Staged/commit code-review gate WARN was the known graph/test-gap heuristic while direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package WIP unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-403 completed**: continued Hanwoo product-completeness/accessibility work by making pen and cattle row cards keyboard reachable. `PenCard` and `CattleRow` now expose button semantics, focus order, Korean accessible labels, and Enter/Space activation through a shared keyboard handler. `cards-accessibility.test.mjs` guards the contract. Code commit `89f2a29`. |
 | Next Priorities | Verification passed: focused Hanwoo tests passed (`135 passed`), targeted ESLint passed, path-limited `git diff --check` passed, staged review gate JSON passed before commit, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 135, lint, build). Pre-commit advisory WARN was the known graph/test-gap heuristic after commit; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package WIP unless explicitly authorized. |
 
