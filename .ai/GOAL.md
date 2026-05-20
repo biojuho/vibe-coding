@@ -12,6 +12,8 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-409 made Hanwoo schedule calendar date cells semantic keyboard-accessible buttons with Korean add-schedule labels; verification passed with focused Hanwoo tests `138 passed`, targeted ESLint, staged `git diff --check`, staged review gate JSON pass, and full Hanwoo QC (`test` 138, lint, build).
+
 - 2026-05-20: T-408 made Hanwoo QR print actions cattle-specific for assistive technology by exposing `${label} QR 라벨 인쇄` as the print button accessible name; verification passed with focused Hanwoo tests `137 passed`, targeted ESLint, path-limited `git diff --check`, staged review gate JSON pass, and full Hanwoo QC (`test` 137, lint, build after stale Next build lock cleared).
 
 - 2026-05-20: T-405 localized Hanwoo inventory quantity edit controls by replacing the visible English `OK` button with `저장` and adding item-specific Korean edit/save accessible labels; verification passed with focused Hanwoo tests `137 passed`, targeted ESLint, path-limited `git diff --check`, code-review gate WARN from the known graph/test-gap heuristic, and full Hanwoo QC (`test` 137, lint, build).

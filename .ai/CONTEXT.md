@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` schedule calendar date cells are semantic buttons instead of clickable divs. Each date cell now exposes keyboard activation plus Korean `aria-label`/`title` copy for opening the add-schedule flow, guarded by `home-market-copy.test.mjs`. Verification passed: focused tests (`138 passed`), targeted ESLint, staged `git diff --check`, staged review gate JSON pass, and full Hanwoo QC (`test` 138, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` QR print actions include cattle-specific accessible context. `QRCodeWidget` now exposes `${label} QR 라벨 인쇄` as the print button's accessible name, so assistive-technology users can tell which cattle label will print. Verification passed: focused tests (`137 passed`), targeted ESLint, path-limited `git diff --check`, staged review gate JSON pass, and full Hanwoo QC (`test` 137, lint, build after a stale Next build lock cleared).
 
 - As of 2026-05-20, `hanwoo-dashboard` inventory quantity edit controls use Korean task labels. The quantity edit and save controls now expose item-specific Korean `aria-label` values, and the visible English `OK` save button is replaced with `저장`. Verification passed: focused tests (`137 passed`), targeted ESLint, path-limited `git diff --check`, code-review gate WARN from the known graph/test-gap heuristic, and full Hanwoo QC (`test` 137, lint, build).
