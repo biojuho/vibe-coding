@@ -153,7 +153,7 @@ export default function SettingsTab({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '20px' }}>{isDark ? '야' : '주'}</span>
+          <span aria-hidden="true" style={{ fontSize: '20px' }}>{isDark ? '야' : '주'}</span>
           <div>
             <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text)' }}>다크모드</div>
             <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
@@ -217,7 +217,7 @@ export default function SettingsTab({
               gap: '8px',
             }}
           >
-            <span style={{ fontSize: '18px' }}>위젯</span> 대시보드 위젯
+            <span aria-hidden="true" style={{ fontSize: '18px' }}>위젯</span> 대시보드 위젯
           </div>
           <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginBottom: '12px' }}>
             홈 화면에 표시할 위젯을 선택해 주세요.
@@ -241,7 +241,7 @@ export default function SettingsTab({
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '16px' }}>{widget.icon}</span>
+                    <span aria-hidden="true" style={{ fontSize: '16px' }}>{widget.icon}</span>
                     <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)' }}>{widget.label}</span>
                   </div>
                   <button

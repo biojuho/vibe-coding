@@ -26,3 +26,11 @@ test('settings tab switch controls expose Korean accessible names and checked st
   assert.doesNotMatch(source, /aria-label="Theme"/);
   assert.doesNotMatch(source, /aria-label="Widget"/);
 });
+
+test('settings tab decorative text icons are hidden from assistive tech', () => {
+  const source = readSource('components/tabs/SettingsTab.js');
+
+  assert.match(source, /<span aria-hidden="true" style=\{\{ fontSize: '20px' \}\}>\{isDark \? '야' : '주'\}<\/span>/);
+  assert.match(source, /<span aria-hidden="true" style=\{\{ fontSize: '18px' \}\}>위젯<\/span>/);
+  assert.match(source, /<span aria-hidden="true" style=\{\{ fontSize: '16px' \}\}>\{widget\.icon\}<\/span>/);
+});
