@@ -110,7 +110,7 @@ export function WeatherWidget({weather}){
             {i:"🌧️",l:"강수",v:`${weather.precipitation}%`}
           ].map((item,idx)=>
             <div key={idx} className="weather-stat" style={{animationDelay:`${idx*60}ms`}}>
-              <div style={{fontSize:"18px",marginBottom:"3px",lineHeight:1}}>{item.i}</div>
+              <div aria-hidden="true" style={{fontSize:"18px",marginBottom:"3px",lineHeight:1}}>{item.i}</div>
               <div style={{fontSize:"10px",opacity:0.65,marginBottom:"3px",letterSpacing:"0.02em"}}>{item.l}</div>
               <div style={{fontSize:"15px",fontWeight:800,fontFamily:"var(--font-display)",letterSpacing:"-0.02em"}}>{item.v}</div>
             </div>
