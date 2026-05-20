@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-432 completed**: continued Hanwoo notification modal polish. The SMS service label now uses Korean operator copy (`문자 알림 서비스`) and marks the phone glyph `aria-hidden="true"` so it does not pollute assistive-technology output. Code commit `13d281d`. |
+| Next Priorities | Verification passed: focused notification modal copy test passed, targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk `0.00`, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 153, lint, build). Staged/commit `code_review_gate` WARN was the known graph/test-gap heuristic; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP and the unrelated `projects/hanwoo-dashboard/src/lib/data.js` deletion unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-431 completed**: continued Hanwoo product-completeness polish. `PremiumCardHeader` now renders its `title`, `description`, and decorative `icon` props as visible structured header content, fixing the profitability widget header path that previously passed those props without visible header text. The remaining WeatherWidget location/current-condition/THI/forecast/alert glyphs are now either hidden from assistive technology or given meaningful weather descriptions. Code commit `9230de6`. |
 | Next Priorities | Verification passed: direct graph risk `0.00`, focused profitability copy test passed, focused home-market copy contract is covered by full Hanwoo tests, targeted ESLint passed, path-limited `git diff --check` passed, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 153, lint, build). HEAD-range `code_review_gate` WARN came from the known graph/test-gap heuristic plus unrelated workspace WIP; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
 
