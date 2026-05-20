@@ -12,6 +12,8 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-458 announced Hanwoo CalvingTab validation messages with their controls. Calving date, calf gender, and calf tag number controls now use conditional `aria-describedby` to point at field-specific error messages, keep `aria-invalid`, and render each validation message as `role="alert"`. Verification passed with focused calving accessibility test (`2 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 170, lint, build), and staged code-review gate JSON (`risk_score 0.0`). Commit `9040e63`.
+
 - 2026-05-20: T-457 linked Hanwoo login authentication errors to both credential fields. `LoginPage` now creates a stable `login-error-message` id, marks the username/password inputs with `aria-invalid` after failed sign-in, and connects both fields to the alert message with conditional `aria-describedby`. Verification passed with focused error-pages wiring test (`5 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 169, lint, build), and staged code-review gate JSON (`risk_score 0.0`). Commit `b5f27e9`.
 
 - 2026-05-20: T-456 announced Hanwoo cattle-detail breeding date validation with the date input. `CattleDetailModal` now connects the breeding record date input to `breeding-record-date-error` through conditional `aria-describedby`, keeps `aria-invalid` tied to `breedingError`, and renders the validation message as `role="alert"`. Verification passed with focused cattle-detail modal wiring test (`5 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 168, lint, build), and staged code-review gate JSON (`risk_score 0.0`). Commit `5ffe7a8`.
