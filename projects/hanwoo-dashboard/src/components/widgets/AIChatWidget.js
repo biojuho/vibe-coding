@@ -277,6 +277,7 @@ export default function AIChatWidget() {
       ref={panelRef}
       className="animate-scaleIn"
       role="dialog"
+      aria-modal="true"
       aria-label="AI 농장 비서 채팅"
       tabIndex={-1}
       onKeyDown={handlePanelKeyDown}
