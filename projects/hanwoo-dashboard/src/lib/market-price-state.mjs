@@ -1,6 +1,6 @@
 export const MARKET_PRICE_FRESH_TTL_MS = 60 * 60 * 1000;
 export const MARKET_PRICE_UNAVAILABLE_MESSAGE =
-  'Market price data is temporarily unavailable. Please retry shortly.';
+  '지금은 한우 시세 데이터를 확인할 수 없습니다. 잠시 후 다시 시도해 주세요.';
 
 function toValidDate(value) {
   if (value instanceof Date && Number.isFinite(value.getTime())) {
@@ -119,13 +119,11 @@ export function normalizeCachedMarketPrice(snapshot, options = {}) {
     fetchedAt,
     issueDate,
     source: isStale ? 'cache-stale' : 'kape-cache',
-    sourceLabel: isStale ? 'Stale Cache' : 'Cached KAPE',
+    sourceLabel: isStale ? '이전 저장값' : '저장된 KAPE',
     degraded: isStale,
     isRealtime: !isStale,
     isStale,
-    message: isStale
-      ? 'Showing the latest trusted KAPE snapshot because a fresh quote was unavailable.'
-      : null,
+    message: isStale ? '최신 시세를 불러오지 못해 마지막으로 확인한 KAPE 시세를 표시합니다.' : null,
   });
 }
 
@@ -151,7 +149,7 @@ export function normalizeLiveMarketPrice(payload, options = {}) {
     fetchedAt,
     issueDate,
     source: 'kape-live',
-    sourceLabel: 'Live KAPE',
+    sourceLabel: '실시간 KAPE',
     degraded: false,
     isRealtime: true,
     isStale: false,
@@ -167,7 +165,7 @@ export function buildUnavailableMarketPrice(options = {}) {
     isRealtime: false,
     isStale: true,
     source: 'unavailable',
-    sourceLabel: 'Unavailable',
+    sourceLabel: '확인 불가',
     message: options.message ?? MARKET_PRICE_UNAVAILABLE_MESSAGE,
     fetchedAt: now.toISOString(),
     issueDate: null,

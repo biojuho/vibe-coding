@@ -52,7 +52,8 @@ test('normalizeCachedMarketPrice marks old trusted snapshots as degraded stale c
   assert.equal(result.source, 'cache-stale');
   assert.equal(result.degraded, true);
   assert.equal(result.isRealtime, false);
-  assert.match(result.message, /trusted KAPE snapshot/i);
+  assert.equal(result.sourceLabel, '이전 저장값');
+  assert.match(result.message, /마지막으로 확인한 KAPE 시세/);
 });
 
 test('normalizeCachedMarketPrice rejects legacy non-realtime snapshots so synthetic rows are ignored', () => {
@@ -83,6 +84,7 @@ test('normalizeLiveMarketPrice returns a persistable live KAPE state', () => {
   );
 
   assert.equal(result.source, 'kape-live');
+  assert.equal(result.sourceLabel, '실시간 KAPE');
   assert.equal(result.available, true);
   assert.equal(result.issueDate, '2026-04-06');
   assert.equal(shouldPersistLiveMarketPrice(result), true);
@@ -104,6 +106,8 @@ test('buildUnavailableMarketPrice returns an explicit degraded unavailable state
 
   assert.equal(result.available, false);
   assert.equal(result.source, 'unavailable');
+  assert.equal(result.sourceLabel, '확인 불가');
+  assert.match(result.message, /한우 시세 데이터를 확인할 수 없습니다/);
   assert.equal(result.degraded, true);
   assert.equal(result.bull, null);
 });

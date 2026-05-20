@@ -247,6 +247,7 @@
 
 ## Minefield
 
+- `projects/hanwoo-dashboard`: as of 2026-05-20, market-price degraded states must keep product copy Korean at the state layer (`market-price-state.mjs`), not only inside `MarketPriceWidget`; stale-cache and unavailable messages are directly renderable.
 - `projects/shorts-maker-v2`: as of 2026-05-20, T-318 Phase 3 safe backlog is closed. The final TTS fix is that `MediaStep` must pass `AppConfig._channel_key` into direct Edge TTS and premium-provider Edge fallback calls; otherwise `EdgeTTSClient` silently uses default prosody instead of channel-specific jitter/pitch.
 - When running Node project checks from Python on Windows, resolve `npm`/similar executables through PATHEXT or explicit `.cmd/.bat/.exe`; plain `subprocess.run(["npm", ...])` can raise `FileNotFoundError` even when PowerShell can run `npm`.
 - The repo currently has no top-level `directives/` directory. Do not run recursive PowerShell scans against a missing `directives` path; `Get-ChildItem -Recurse -File directives` can spill into broader traversal and surface unrelated permission/path errors.
