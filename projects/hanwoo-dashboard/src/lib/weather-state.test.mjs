@@ -90,6 +90,7 @@ test('normalizeWeatherPayload degrades cleanly when forecast arrays are partial'
   assert.equal(result.message, WEATHER_PARTIAL_MESSAGE);
   assert.equal(result.forecast.length, 1);
   assert.equal(result.precipitation, 0);
+  assert.equal(result.locationName, '서울');
 });
 
 test('normalizeWeatherPayload returns null when required current fields are missing', () => {
@@ -138,6 +139,31 @@ test('buildUnavailableWeatherState returns an explicit unavailable payload', () 
   assert.equal(result.locationName, 'Namwon');
   assert.equal(result.sourceLabel, '확인 불가');
   assert.equal(result.message, WEATHER_UNAVAILABLE_MESSAGE);
+});
+
+test('weather fallback location labels default to Korean copy', () => {
+  const unavailable = buildUnavailableWeatherState();
+  const stale = markWeatherAsStale({
+    available: true,
+    degraded: false,
+    isStale: false,
+    source: 'weather-live',
+    sourceLabel: '실시간 Open-Meteo',
+    temp: 20,
+    humidity: 55,
+    windSpeed: 2,
+    apparentTemp: 19,
+    weatherCode: 1,
+    tempMax: 23,
+    tempMin: 14,
+    precipitation: 0,
+    forecast: [],
+  });
+
+  assert.equal(unavailable.locationName, '서울');
+  assert.equal(stale.locationName, '서울');
+  assert.notEqual(unavailable.locationName, 'Seoul');
+  assert.notEqual(stale.locationName, 'Seoul');
 });
 
 test('weather degraded-state copy avoids English placeholder labels', () => {

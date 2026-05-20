@@ -489,7 +489,7 @@ export default function DashboardClient({
     };
 
     const fetchWeather = async (lat, lng) => {
-      const locationName = farmSettings.location || 'Seoul';
+      const locationName = farmSettings.location || '서울';
 
       try {
         const params = [

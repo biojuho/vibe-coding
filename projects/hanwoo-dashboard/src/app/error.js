@@ -17,7 +17,7 @@ export default function RouteError({ error, reset }) {
             <TriangleAlert size={26} strokeWidth={2.2} />
           </div>
           <div>
-            <p className="login-eyebrow">Joolife Operations</p>
+            <p className="login-eyebrow">Joolife 한우 운영</p>
             <h1 id="route-error-title" className="login-title">잠시 문제가 생겼어요</h1>
           </div>
         </div>

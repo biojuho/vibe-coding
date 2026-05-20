@@ -113,7 +113,7 @@ export function normalizeWeatherPayload(payload, options = {}) {
     tempMax: forecast[0]?.tempMax ?? temp + 3,
     tempMin: forecast[0]?.tempMin ?? temp - 3,
     precipitation: forecast[0]?.precipProb ?? 0,
-    locationName: options.locationName ?? 'Seoul',
+    locationName: options.locationName ?? '서울',
     forecast,
   };
 }
@@ -126,7 +126,7 @@ export function buildUnavailableWeatherState(options = {}) {
     source: 'weather-unavailable',
     sourceLabel: '확인 불가',
     message: options.message ?? WEATHER_UNAVAILABLE_MESSAGE,
-    locationName: options.locationName ?? 'Seoul',
+    locationName: options.locationName ?? '서울',
     forecast: [],
   };
 }
@@ -142,7 +142,7 @@ export function markWeatherAsStale(previousWeather, options = {}) {
     isStale: true,
     source: 'weather-stale',
     sourceLabel: '이전 날씨',
-    locationName: options.locationName ?? previousWeather.locationName ?? 'Seoul',
+    locationName: options.locationName ?? previousWeather.locationName ?? '서울',
     message: options.message ?? WEATHER_STALE_MESSAGE,
   };
 }

@@ -52,11 +52,19 @@ test('market price widget uses Korean product copy for visible states', () => {
 
 test('weather widget uses Korean product copy for unavailable state', () => {
   const source = readSource('components/widgets/widgets.js');
+  const dashboardSource = readSource('components/DashboardClient.js');
+  const hookSource = readSource('lib/hooks/useWeather.js');
 
   assert.match(source, /날씨 확인 불가/);
   assert.match(source, /지금은 날씨 데이터를 확인할 수 없습니다/);
+  assert.match(source, /'서울'/);
+  assert.match(dashboardSource, /'서울'/);
+  assert.match(hookSource, /'서울'/);
   assert.doesNotMatch(source, /Weather Unavailable/);
   assert.doesNotMatch(source, /Weather data is temporarily unavailable/);
+  assert.doesNotMatch(source, /'Seoul'/);
+  assert.doesNotMatch(dashboardSource, /'Seoul'/);
+  assert.doesNotMatch(hookSource, /locationName.*'Seoul'/);
 });
 
 test('sales tab missing cattle fallback copy stays Korean', () => {

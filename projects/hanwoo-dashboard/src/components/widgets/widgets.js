@@ -76,7 +76,7 @@ export function WeatherWidget({weather}){
             {weather.message || '지금은 날씨 데이터를 확인할 수 없습니다.'}
           </div>
           <div style={{fontSize:"11px",opacity:0.6,marginTop:"8px"}}>
-            {weather.locationName || 'Seoul'}
+            {weather.locationName || '서울'}
           </div>
         </PremiumCardContent>
       </PremiumCard>

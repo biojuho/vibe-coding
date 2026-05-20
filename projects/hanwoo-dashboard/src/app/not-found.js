@@ -14,7 +14,7 @@ export default function NotFound() {
             <Compass size={26} strokeWidth={2.2} />
           </div>
           <div>
-            <p className="login-eyebrow">Joolife Operations</p>
+            <p className="login-eyebrow">Joolife 한우 운영</p>
             <h1 id="not-found-title" className="login-title">페이지를 찾을 수 없어요</h1>
           </div>
         </div>

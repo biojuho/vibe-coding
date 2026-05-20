@@ -46,7 +46,7 @@ export default function GlobalError({ error, reset }) {
               color: '#9b9488',
             }}
           >
-            Joolife Operations
+            Joolife 한우 운영
           </p>
           <h1 style={{ margin: '0 0 12px', fontSize: '24px', fontWeight: 900 }}>
             앱을 불러오지 못했어요

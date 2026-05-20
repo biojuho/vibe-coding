@@ -47,7 +47,7 @@ export default function LoginPage() {
             <ShieldCheck size={26} strokeWidth={2.2} />
           </div>
           <div>
-            <p className="login-eyebrow">Joolife Operations</p>
+            <p className="login-eyebrow">Joolife 한우 운영</p>
             <h1 id="login-title" className="login-title">한우 대시보드</h1>
           </div>
         </div>
