@@ -7,6 +7,13 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-20 |
+| Tool | Codex |
+| Work | **T-401 completed**: continued Hanwoo product-completeness debugging by fixing cattle edit form failure handling. The edit modal now passes `handleUpdateCattle` directly to `CattleForm`, so the async update handler remains the single owner of close behavior: success/offline queue closes the form, but failed mutations keep the user's edits visible for retry. `empty-state-wiring.test.mjs` guards against reintroducing the immediate-close wrapper. Code commit `8d8a9dd`. |
+| Next Priorities | Verification passed: focused Hanwoo tests passed (`133 passed`), targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk `0.00`, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 133, lint, build). Staged/commit code-review gate WARN was the known graph/test-gap heuristic while direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-398 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package WIP unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
 | Tool | Claude Code (Opus 4.7 1M) |
 | Work | **전체 프로젝트 QC 실행 + QC 실패 부채 2건 제거**. `/goal` 활성 목표(기술 부채 제거)의 후속으로 `project_qc_runner.py --json` 4개 프로젝트 전수 QC. 초기 결과: blind-to-x·hanwoo-dashboard green, shorts-maker-v2 test+lint FAIL, knowledge-dashboard lint+build FAIL. ① shorts-maker-v2: T-320 OpenVoice WIP `test_openvoice_client.py`가 미검증 상태(`--maxfail=1`에 가려진 4 test fail + 8 ruff). openvoice 미설치 대응 mock·`ProjectSettings` API 정합·함수 내부 import 대응 monkeypatch 타겟 수정·ruff 정리 → full QC green(1467 passed). 커밋 `8ba2850`(사용자 승인). ② knowledge-dashboard: T-372 마이그레이션이 `package-lock.json` 삭제 → `node_modules` 빈 상태(`next`/`eslint` 부재). 사용자 선택대로 lock 복원 + `npm ci`(435 pkg) → QC green. **4개 활성 프로젝트 전부 QC green.** |
 | Next Priorities | 검증 완료: shorts-maker-v2 full QC(1467 passed/12 skipped, ruff clean), knowledge-dashboard QC(test/lint/build pass). **주의**: 커밋 `8ba2850` 직후 병렬 도구가 `test_openvoice_client.py`에 moviepy mock을 추가(미커밋, ruff 통과) — 해당 도구 WIP라 미수정 보존. 남은 기술 부채는 전부 approval/외부 차단: T-251(외부 Supabase), T-320(OpenVoice 구현은 커밋됨 — 패키지 선언/모델 다운로드/라이브 검증 잔여), T-372(모노레포 마이그레이션 — 사용자가 롤백 대신 WIP 유지 선택), T-398(Dependabot 메이저 8건). 무관한 root/shorts/Hanwoo WIP 보존. |

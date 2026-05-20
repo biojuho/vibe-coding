@@ -12,6 +12,8 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-401 kept the cattle edit form open when async update mutations fail by delegating close behavior to `handleUpdateCattle`; verification passed with focused Hanwoo tests `133 passed`, targeted ESLint, path-limited `git diff --check`, graph risk `0.00`, and full Hanwoo QC (`test` 133, lint, build).
+
 - 2026-05-20: T-400 hid decorative public login/error/not-found icons and password-toggle icons from assistive technology so Korean labels remain the accessible names; verification passed with focused Hanwoo tests `132 passed`, targeted ESLint, path-limited `git diff --check`, graph risk `0.00`, and full Hanwoo QC (`test` 132, lint, build).
 
 - 2026-05-20: T-399 made home building navigation semantic and keyboard-accessible by converting the empty-building CTA and building cards to real buttons while preserving the visual treatment; verification passed with focused Hanwoo tests `132 passed`, targeted ESLint, full Hanwoo QC (`test` 132, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
