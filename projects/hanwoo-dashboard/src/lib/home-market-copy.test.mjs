@@ -37,9 +37,16 @@ test('dashboard cattle mutation catch paths use safe Korean fallback copy', () =
   const source = readSource('components/DashboardClient.js');
 
   assert.match(source, /요청 처리 중 오류가 발생했습니다\. 잠시 후 다시 시도해 주세요\./);
+  assert.match(source, /개체를 보관 처리할까요\?/);
+  assert.match(source, /보관 기록으로 남습니다/);
+  assert.match(source, /개체를 보관 처리했습니다/);
+  assert.match(source, /개체 보관 처리에 실패했습니다/);
   assert.match(source, /console\.error\('Failed to add cattle:', error\);/);
   assert.match(source, /console\.error\('Failed to update cattle:', error\);/);
   assert.doesNotMatch(source, /showError\(errorTitle, error\.message\)/);
+  assert.doesNotMatch(source, /개체를 삭제할까요/);
+  assert.doesNotMatch(source, /개체를 삭제했습니다/);
+  assert.doesNotMatch(source, /개체 삭제에 실패했습니다/);
 });
 
 test('calving flow requires an operator-entered calf tag number', () => {

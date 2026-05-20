@@ -655,7 +655,7 @@ export default function DashboardClient({
   }, [ensureAllCattleLoaded]);
 
   const handleTestSMS = () => {
-    showSuccess('테스트 SMS를 발송했습니다.', 'Joolife: 분만 임박 알림 - 순심이(0001) 예정일 3일 전입니다.');
+    showSuccess('테스트 문자를 발송했습니다.', 'Joolife 알림 예시가 등록된 연락처로 전송되었습니다.');
   };
 
   const handleUpdateFarmSettings = async (data) => {
@@ -755,11 +755,11 @@ export default function DashboardClient({
   const handleDeleteCattle = async (id) => {
     const targetCattle = cattleList.find((cow) => cow.id === id);
     const shouldDelete = await confirm({
-      title: '개체를 삭제할까요?',
+      title: '개체를 보관 처리할까요?',
       description: targetCattle
-        ? `${targetCattle.name} (${targetCattle.tagNumber}) 정보가 목록에서 제거됩니다.`
-        : '삭제한 데이터는 되돌릴 수 없습니다.',
-      confirmLabel: '삭제',
+        ? `${targetCattle.name} (${targetCattle.tagNumber}) 정보가 활성 목록에서 숨겨지고 보관 기록으로 남습니다.`
+        : '활성 목록에서 숨기고 보관 기록으로 남깁니다.',
+      confirmLabel: '보관 처리',
       cancelLabel: '취소',
       variant: 'destructive',
     });
@@ -774,14 +774,14 @@ export default function DashboardClient({
         removeCattleRecord(id);
         setSelectedCow(null);
         void refreshDashboardReadModels();
-        showSuccess('개체를 삭제했습니다.');
+        showSuccess('개체를 보관 처리했습니다.');
         return true;
       }
 
-      showError('개체 삭제에 실패했습니다.', result.message);
+      showError('개체 보관 처리에 실패했습니다.', result.message);
       return false;
     } catch {
-      showError('개체 삭제 중 오류가 발생했습니다.');
+      showError('개체 보관 처리 중 오류가 발생했습니다.');
       return false;
     }
   };

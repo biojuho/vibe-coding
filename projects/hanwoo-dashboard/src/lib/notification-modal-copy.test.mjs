@@ -51,10 +51,15 @@ test('notification modal decorative status icons are hidden from assistive tech'
 
 test('notification modal SMS action uses safe button semantics and Korean copy', () => {
   const source = readSource('components/ui/NotificationModal.js');
+  const dashboardSource = readSource('components/DashboardClient.js');
 
   assert.match(source, /<button\s+type="button"\s+onClick=\{onTestSMS\}/);
   assert.match(source, /<span aria-hidden="true">📱<\/span> 문자 알림 서비스/);
   assert.match(source, /문자 알림 연동이 필요하며 발송 비용이 발생할 수 있습니다\./);
+  assert.match(dashboardSource, /테스트 문자를 발송했습니다/);
+  assert.match(dashboardSource, /등록된 연락처로 전송되었습니다/);
   assert.doesNotMatch(source, /Twilio \/ Kakao API 연동 필요/);
   assert.doesNotMatch(source, /📱 SMS 알림 서비스/);
+  assert.doesNotMatch(dashboardSource, /순심이\(0001\)/);
+  assert.doesNotMatch(dashboardSource, /테스트 SMS를 발송했습니다/);
 });

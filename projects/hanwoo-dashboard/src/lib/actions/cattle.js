@@ -274,7 +274,7 @@ export async function deleteCattle(id) {
     // 판매기록 있으면 삭제 불가
     const salesCount = await prisma.salesRecord.count({ where: { cattleId: id } });
     if (salesCount > 0) {
-      return { success: false, message: `이 개체에 ${salesCount}건의 판매 기록이 있어 삭제할 수 없습니다.` };
+      return { success: false, message: `이 개체에 ${salesCount}건의 판매 기록이 있어 보관 처리할 수 없습니다.` };
     }
 
     // 소프트 삭제
@@ -290,7 +290,7 @@ export async function deleteCattle(id) {
     return { success: true, data: { id } };
   } catch (error) {
     console.error("Failed to archive cattle:", error);
-    return { success: false, message: "개체 삭제에 실패했습니다." };
+    return { success: false, message: "개체 보관 처리에 실패했습니다." };
   }
 }
 
