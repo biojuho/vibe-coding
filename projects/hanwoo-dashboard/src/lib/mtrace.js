@@ -1,4 +1,4 @@
-import { fetchWithTimeout, isTimeoutError } from './fetchWithTimeout';
+import { fetchWithTimeout, isTimeoutError } from './fetchWithTimeout.js';
 
 const MTRACE_API_BASE = 'https://data.mtrace.go.kr/openapi/cattleinfo';
 
@@ -16,14 +16,14 @@ export async function lookupCattleByTag(tagNumber) {
   if (!apiKey) {
     return {
       success: false,
-      message: 'MTRACE API key is missing. Set MTRACE_SERVICE_KEY in the environment.',
+      message: '축산물이력제 조회 키가 설정되지 않았습니다. 관리자에게 문의해 주세요.',
     };
   }
 
   if (!tagNumber || tagNumber.replace(/[-\s]/g, '').length < 10) {
     return {
       success: false,
-      message: 'Enter a valid cattle tag number before running the lookup.',
+      message: '올바른 이력번호를 입력한 뒤 조회해 주세요.',
     };
   }
 
@@ -42,7 +42,7 @@ export async function lookupCattleByTag(tagNumber) {
       },
       {
         timeoutMs: 5000,
-        errorMessage: 'MTRACE lookup timed out after 5000ms.',
+        errorMessage: '축산물이력제 조회 시간이 초과되었습니다.',
       },
     );
 
@@ -51,15 +51,15 @@ export async function lookupCattleByTag(tagNumber) {
       return {
         success: false,
         message: retryAfter
-          ? `MTRACE lookup is rate-limited. Retry after ${retryAfter} seconds.`
-          : 'MTRACE lookup is temporarily rate-limited. Please retry shortly.',
+          ? `축산물이력제 조회가 일시적으로 제한되었습니다. ${retryAfter}초 후 다시 시도해 주세요.`
+          : '축산물이력제 조회가 일시적으로 제한되었습니다. 잠시 후 다시 시도해 주세요.',
       };
     }
 
     if (!response.ok) {
       return {
         success: false,
-        message: `MTRACE API returned ${response.status}.`,
+        message: `축산물이력제 조회가 실패했습니다. 상태 코드: ${response.status}`,
       };
     }
 
@@ -67,7 +67,7 @@ export async function lookupCattleByTag(tagNumber) {
     if (!json) {
       return {
         success: false,
-        message: 'MTRACE returned an unreadable response.',
+        message: '축산물이력제 응답을 읽을 수 없습니다. 잠시 후 다시 시도해 주세요.',
       };
     }
 
@@ -75,7 +75,7 @@ export async function lookupCattleByTag(tagNumber) {
     if (!item) {
       return {
         success: false,
-        message: 'No cattle information was found for that tag number.',
+        message: '해당 이력번호로 등록된 개체 정보를 찾지 못했습니다.',
       };
     }
 
@@ -86,7 +86,7 @@ export async function lookupCattleByTag(tagNumber) {
       data: {
         birthDate: cattle.birthYmd || null,
         gender: cattle.sexNm || null,
-        breed: cattle.lsTypeNm || 'Hanwoo',
+        breed: cattle.lsTypeNm || '한우',
         farmAddr: cattle.farmAddr || null,
       },
     };
@@ -94,14 +94,14 @@ export async function lookupCattleByTag(tagNumber) {
     if (isTimeoutError(error)) {
       return {
         success: false,
-        message: 'MTRACE lookup timed out. Please try again.',
+        message: '축산물이력제 조회 시간이 초과되었습니다. 다시 시도해 주세요.',
       };
     }
 
-    console.error('MTRACE API error:', error);
+    console.error('축산물이력제 API 오류:', error);
     return {
       success: false,
-      message: 'An error occurred while looking up the cattle tag.',
+      message: '이력번호 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
     };
   }
 }
