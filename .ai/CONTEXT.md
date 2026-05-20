@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` cattle and sales pagination loading states are announced to assistive technology. The cattle and sales "more" controls now expose `aria-busy` while loading, and cattle pagination retry feedback now uses `role="status"` plus `aria-live="polite"` like the sales flow. Verification passed: focused cattle/sales pagination feedback tests (`2 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 179, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` notification badge/button semantics are aligned across JS/TSX mirrors. `NotificationSystem.js` now marks the "mark all as read" control as `type="button"`, and `NotificationSystem.tsx` only renders the unread red-dot badge when `unreadCount > 0`, matching the runtime JS mirror. Verification passed: focused notification system copy test (`7 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 179, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` NotificationModal focuses the dialog surface on open so Escape dismissal is reliable for keyboard users. `NotificationModal` now uses `useRef`/`useEffect` to focus the `role="dialog"` container when mounted, preserving overlay click close and the explicit close button. Verification passed: focused notification modal copy test (`5 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 177, lint, build).
