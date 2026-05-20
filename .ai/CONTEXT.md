@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` shared premium buttons default to safe non-submit semantics. `PremiumButton` now renders native buttons with `type="button"` unless callers explicitly pass another type, while `asChild` avoids leaking button-only props. This prevents secondary/custom controls embedded in forms from accidentally submitting forms. Verification passed: focused tests (`144 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC in the current worktree (`test` 145, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` notification modal decorative status icons are hidden from assistive technology. The modal title icon, empty-state icon, and urgent alert glyph now use `aria-hidden="true"`, keeping the dialog title and notification text as the meaningful accessible content. Verification passed: focused tests (`142 passed`), targeted ESLint, path-limited `git diff --check`, staged code-review gate pass with known cp949 reader-thread noise, and full Hanwoo QC (`test` 142, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` notification SMS modal controls are safer and cleaner. `NotificationModal` now gives the close and SMS test buttons explicit `type="button"` semantics and replaces the vendor/API-facing SMS setup note with Korean operator copy about 문자 알림 연동 and possible sending costs. Verification passed: focused tests (`141 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 141, lint, build), and code-review gate WARN from the known graph/test-gap heuristic plus unrelated workspace WIP.

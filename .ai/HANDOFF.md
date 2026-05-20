@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-415 completed**: continued Hanwoo form-safety debugging by making shared `PremiumButton` default to `type="button"` when it renders a native button. This prevents secondary/custom controls inside forms from accidentally submitting forms, while explicit `type="submit"` buttons still opt into submission and `asChild` avoids leaking button-only props. Added `premium-button-semantics.test.mjs`. Code commit `e36a09d`. |
+| Next Priorities | Verification passed: focused Hanwoo test run passed (`144 passed`), targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk was `0.00`, and full `project_qc_runner --project hanwoo-dashboard --json` passed in the current worktree (`test` 145, lint, build). Staged/commit `code_review_gate` WARN was the known graph/test-gap heuristic from unrelated VibeDebt WIP; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP plus the existing dirty Hanwoo `button.js`/`feedback-provider-copy.test.mjs` unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-414 completed**: continued Hanwoo product-completeness/accessibility polish by hiding decorative notification modal status icons from assistive technology. `NotificationModal` now marks the title glyph, empty-state glyph, and urgent alert glyph with `aria-hidden="true"`, so screen readers get the dialog title and notification text without decorative noise. `notification-modal-copy.test.mjs` guards the contract. Code commit `18d90a6`. |
 | Next Priorities | Verification passed: focused Hanwoo tests passed (`142 passed`), targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk was `0.00`, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 142, lint, build). Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
 

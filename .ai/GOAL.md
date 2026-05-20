@@ -12,6 +12,8 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-415 made Hanwoo `PremiumButton` default to non-submit semantics so secondary/custom controls inside forms cannot accidentally submit forms; explicit submit buttons still opt in with `type="submit"` and `asChild` avoids button-only props. Verification passed with focused Hanwoo tests `144 passed`, targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC in the current worktree (`test` 145, lint, build); staged/commit code-review gate WARN came from the known graph/test-gap heuristic plus unrelated VibeDebt WIP.
+
 - 2026-05-20: T-414 hid Hanwoo notification modal decorative status icons from assistive technology so the dialog title, empty state, and urgent alert labels are not polluted by glyph-only content; verification passed with focused Hanwoo tests `142 passed`, targeted ESLint, path-limited `git diff --check`, staged code-review gate pass with known cp949 reader-thread noise, and full Hanwoo QC (`test` 142, lint, build).
 
 - 2026-05-20: T-413 polished Hanwoo notification SMS modal controls by adding explicit `type="button"` semantics to close/test actions and replacing the vendor/API-facing setup note with Korean operator copy; verification passed with focused Hanwoo tests `141 passed`, targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 141, lint, build), and code-review gate WARN from the known graph/test-gap heuristic plus unrelated workspace WIP.
