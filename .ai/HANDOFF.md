@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-433 completed**: removed the unused Hanwoo legacy sample-data module. `src/lib/data.js` only exported random demo cattle/sales/market generators, had no remaining imports, and carried obsolete sample/demo state that could be mistaken for product runtime data. Code commit `e05cd58`. |
+| Next Priorities | Verification passed: no remaining references to `generateSampleData`, `generateSaleRecords`, `getMarketPrice`, or `@/lib/data`; full Hanwoo tests passed (`153 passed`), ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 153, lint, build) after retrying a transient Next build lock, path-limited deletion diff was clean, and staged `code_review_gate --staged --json` passed (`risk_score 0.0`). Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-432 completed**: continued Hanwoo notification modal polish. The SMS service label now uses Korean operator copy (`문자 알림 서비스`) and marks the phone glyph `aria-hidden="true"` so it does not pollute assistive-technology output. Code commit `13d281d`. |
 | Next Priorities | Verification passed: focused notification modal copy test passed, targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk `0.00`, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 153, lint, build). Staged/commit `code_review_gate` WARN was the known graph/test-gap heuristic; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP and the unrelated `projects/hanwoo-dashboard/src/lib/data.js` deletion unless explicitly authorized. |
 

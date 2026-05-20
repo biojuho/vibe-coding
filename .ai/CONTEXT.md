@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` no longer carries the unused legacy sample-data module. `src/lib/data.js` only exported random demo cattle/sales/market generators, had no remaining imports, and could be mistaken for product runtime data. Verification passed: no remaining references to its exported helpers, Hanwoo tests (`153 passed`), ESLint, and full Hanwoo QC (`test` 153, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` notification modal SMS surface copy is localized and its phone glyph is decorative. The modal now renders `<span aria-hidden="true">📱</span> 문자 알림 서비스` instead of exposing `📱 SMS 알림 서비스` as mixed English/glyph content. Verification passed: focused notification modal copy test, targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 153, lint, build); staged `code_review_gate` WARN was the known graph/test-gap heuristic.
 
 - As of 2026-05-20, `hanwoo-dashboard` profitability widget headers render visible structured content again. `PremiumCardHeader` now supports the `title`, `description`, and decorative `icon` props used by `ProfitabilityWidget`, so the card no longer passes header copy through as inert DOM props. The remaining WeatherWidget location/current-condition/THI/forecast/alert glyphs are also hidden from assistive technology or paired with meaningful weather descriptions. Verification passed: focused profitability copy test, targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, full Hanwoo tests (`153 passed`), and full Hanwoo QC (`test` 153, lint, build); HEAD-range `code_review_gate` WARN was the known graph/test-gap heuristic plus unrelated workspace WIP.
