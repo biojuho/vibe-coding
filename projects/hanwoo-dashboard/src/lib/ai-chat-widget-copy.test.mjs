@@ -18,6 +18,11 @@ test('AI chat widget handles Korean configuration errors and exposes an accessib
   assert.match(source, /설정 키/);
   assert.match(source, /aria-label="AI 농장 비서 열기"/);
   assert.match(source, /title="AI 농장 비서"/);
+  assert.match(source, /const launcherRef = useRef\(null\)/);
+  assert.match(source, /const shouldRestoreLauncherFocusRef = useRef\(false\)/);
+  assert.match(source, /shouldRestoreLauncherFocusRef\.current = true/);
+  assert.match(source, /launcherRef\.current\?\.focus\(\)/);
+  assert.match(source, /ref=\{launcherRef\}/);
   assert.match(source, /role="dialog"/);
   assert.match(source, /aria-modal="true"/);
   assert.match(source, /aria-label="AI 농장 비서 채팅"/);

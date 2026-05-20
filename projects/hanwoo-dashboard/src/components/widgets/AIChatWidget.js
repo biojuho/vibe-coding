@@ -119,8 +119,10 @@ export default function AIChatWidget() {
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const scrollRef = useRef(null);
+  const launcherRef = useRef(null);
   const panelRef = useRef(null);
   const abortRef = useRef(null);
+  const shouldRestoreLauncherFocusRef = useRef(false);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -131,6 +133,12 @@ export default function AIChatWidget() {
   useEffect(() => {
     if (isOpen) {
       panelRef.current?.focus();
+      return;
+    }
+
+    if (shouldRestoreLauncherFocusRef.current) {
+      shouldRestoreLauncherFocusRef.current = false;
+      launcherRef.current?.focus();
     }
   }, [isOpen]);
 
@@ -140,6 +148,7 @@ export default function AIChatWidget() {
       abortRef.current = null;
     }
     setIsStreaming(false);
+    shouldRestoreLauncherFocusRef.current = true;
     setIsOpen(false);
   }, []);
 
@@ -242,6 +251,7 @@ export default function AIChatWidget() {
   if (!isOpen) {
     return (
       <button
+        ref={launcherRef}
         type="button"
         onClick={() => setIsOpen(true)}
         className="animate-scaleIn"
