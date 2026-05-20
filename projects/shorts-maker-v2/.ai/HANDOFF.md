@@ -10,9 +10,11 @@
   - Added new configuration profile parameters in `ProviderSettings` data-class parsed defaults mapping to `"checkpoints_v2"`.
   - Added `"openvoice"` router step inside `MediaAudioMixin` cascade fallback routing pipeline in `audio_mixin.py`.
   - Created a robust mock-heavy unit test suite `test_openvoice_client.py` verifying full routing pipelines and fail-safe fallback recovery.
+  - **[Pollution Fix]** Resolved a serious unit test mock pollution issue. When `moviepy` was installed in the local environment, the global mock `sys.modules["moviepy"] = MagicMock()` in `test_openvoice_client.py` corrupted other tests (e.g., `test_render_step_effects.py` failing with `TypeError`). Refactored this to use `importlib.util.find_spec` so it only mocks when `moviepy` is physically missing.
 - **Verification**:
-  - `.venv\Scripts\python -m pytest --no-cov projects/shorts-maker-v2/tests/unit/test_openvoice_client.py` -> **8 passed in 6.96s** (100% Green)
-  - `.venv\Scripts\python execution/project_qc_runner.py --project shorts-maker-v2 --check lint` -> **shorts-maker-v2:lint passed (0.67s)** (100% clean)
+  - `.venv\Scripts\python -m pytest --no-cov projects/shorts-maker-v2/tests/unit/test_openvoice_client.py` -> **8 passed in 11.36s** (100% Green)
+  - `.venv\Scripts\python -m pytest --no-cov projects/shorts-maker-v2/tests/unit/test_render_step_effects.py` -> **29 passed in 11.69s** (100% Green, TypeError resolved)
+  - `.venv\Scripts\python execution/project_qc_runner.py --project shorts-maker-v2 --check lint` -> **shorts-maker-v2:lint passed** (100% clean)
 
 ## Next Steps
 
