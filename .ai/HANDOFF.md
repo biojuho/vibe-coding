@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-426 completed**: continued Hanwoo card accessibility hardening. `PenCard` now includes 발정 alert state in its accessible label, and `CattleRow` now includes 발정/분만 alert summaries in the row accessible label instead of exposing only the cattle name. `cards-accessibility.test.mjs` guards the contract. Code commit `1919bc7`. |
+| Next Priorities | Verification passed: focused cards accessibility test passed, targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk was `0.00`, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 151, lint, build). Staged/commit `code_review_gate` WARN was the known graph/test-gap heuristic plus unrelated workspace WIP; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-425 completed**: continued Hanwoo tab accessibility hardening. `FeedTab` now hides the decorative section-header grain glyph from assistive technology with `aria-hidden="true"`, so the Korean heading remains the meaningful accessible content. `tab-header-accessibility.test.mjs` now covers FeedTab alongside Inventory, Sales, and Schedule. |
 | Next Priorities | Verification passed: focused tab-header test passed, `npm test` passed (`151 passed`), `npm run lint` passed, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 151, lint, build). Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP, including current `projects/hanwoo-dashboard/src/components/ui/cards.js`, unless explicitly authorized. |
 

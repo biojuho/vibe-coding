@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` pen and cattle row card accessible labels include visible alert state. `PenCard` now appends 발정 alert state to its accessible label, and `CattleRow` now announces 발정/분만 alert summaries alongside the cattle name so visible warning badges are not lost to assistive-technology users. Verification passed: focused cards accessibility test, targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 151, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` FeedTab header decorative icon noise is hidden from assistive technology. `FeedTab` marks the section-header grain glyph `aria-hidden="true"` while the Korean heading remains the meaningful accessible content. Verification passed: focused tab-header test, Hanwoo tests (`151 passed`), ESLint, and full Hanwoo QC (`test` 151, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` calving alert banner decorative icon noise is hidden from assistive technology. `CalvingAlertBanner` marks the animated bottle glyph `aria-hidden="true"` while the adjacent Korean alert title remains the meaningful accessible content. Verification passed: focused test, Hanwoo tests (`151 passed`), ESLint, and full Hanwoo QC (`test` 151, lint, build).
