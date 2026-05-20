@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` notification modal close action is accessible for assistive-technology users. `components/ui/NotificationModal.js` now gives the icon-only `×` close button Korean `aria-label`/`title` copy (`닫기`), guarded by `notification-modal-copy.test.mjs`. Verification passed: focused notification modal copy test (`116 passed`), targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json` (`test` 116, lint, build), source confirmation, `git diff --check`, direct graph risk `0.00`; staged code-review gate WARN was the known component test-gap heuristic while the source-level regression test and full QC passed.
+
 - As of 2026-05-20, `hanwoo-dashboard` admin diagnostics database status values are localized. `lib/actions/system.js` now returns `정상`, `연결 실패`, and `확인 불가` instead of `Online`, `Offline`, and `N/A`; `diagnostics-copy.test.mjs` guards against the English status values returning. Verification passed: focused diagnostics/action/component tests `115 passed`, targeted ESLint, full Hanwoo QC test/lint passed and build passed on retry after a concurrent Next build lock, `git diff --check`, source scan, direct Hanwoo graph risk `0.00`, and staged code-review gate PASS.
 
 - As of 2026-05-20, `hanwoo-dashboard` shared dialog close control is localized for screen-reader users. `components/ui/dialog.js` now exposes `닫기` instead of `Close` in the sr-only close label, guarded by `dialog-copy.test.mjs`. Verification passed: Hanwoo dialog-copy tests `113 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json`, accessibility-copy source scan, `git diff --check`, and direct Hanwoo graph risk `0.00`.

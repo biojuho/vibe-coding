@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-368 completed**: continued the active Hanwoo product-completeness goal with a safe accessibility polish. `components/ui/NotificationModal.js` now labels the icon-only `×` close button with Korean `aria-label="닫기"` and `title="닫기"`, and `notification-modal-copy.test.mjs` guards against English close labels returning. Code commit: `aa80799`. |
+| Next Priorities | Verification passed: focused Hanwoo notification modal copy test passed (`116 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 116, lint passed, build passed), source confirmation passed, `git diff --check` passed, direct graph risk `0.00`. The commit hook/staged gate emitted the known graph test-gap WARN for `NotificationModal`, but the new source-level regression test and full QC cover the two-file accessibility change. Active Hanwoo goal remains open; T-251 is still external/user-owned Supabase password/control-plane resync. Remaining `.ai/TASKS.md` TODO entries are approval-gated (T-251, T-320, T-366, T-367), so ask before executing those unless the user explicitly authorizes one. Preserve unrelated monorepo/package-lock/setup WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-362 completed**: continued the active Hanwoo product-completeness goal by localizing admin diagnostics database status values. `lib/actions/system.js` now returns Korean status copy (`정상`, `연결 실패`, `확인 불가`) instead of `Online`, `Offline`, and `N/A`, and `diagnostics-copy.test.mjs` guards against those English status values returning. Commit `6efaeba`. |
 | Next Priorities | Verification passed: focused Hanwoo diagnostics/action/component tests passed (`115 passed`), targeted ESLint passed, full Hanwoo QC test/lint passed and build passed on retry after a concurrent Next build lock, source scan found no live `Online`/`Offline`/`N/A` diagnostics status usage, `git diff --check` passed, direct UTF-8 graph risk `0.00`, and staged code-review gate PASS. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty root monorepo migration WIP and approval-only TODOs T-366/T-367. |
 
