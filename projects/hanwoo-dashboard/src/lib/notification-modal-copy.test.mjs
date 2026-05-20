@@ -31,6 +31,16 @@ test('notification modal exposes dialog semantics with a visible title label', (
   assert.match(source, /알림 센터/);
 });
 
+test('notification modal can be dismissed with Escape from the dialog surface', () => {
+  const source = readSource('components/ui/NotificationModal.js');
+
+  assert.match(source, /const handleDialogKeyDown = \(event\) => \{/);
+  assert.match(source, /event\.key === 'Escape'/);
+  assert.match(source, /event\.stopPropagation\(\);/);
+  assert.match(source, /onKeyDown=\{handleDialogKeyDown\}/);
+  assert.match(source, /tabIndex=\{-1\}/);
+});
+
 test('notification modal decorative status icons are hidden from assistive tech', () => {
   const source = readSource('components/ui/NotificationModal.js');
 

@@ -1,14 +1,23 @@
 'use client';
 
 export default function NotificationModal({ notifications, onClose, onTestSMS }) {
+  const handleDialogKeyDown = (event) => {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      onClose();
+    }
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
         className="modal-content animate-slideInUp"
         onClick={e => e.stopPropagation()}
+        onKeyDown={handleDialogKeyDown}
         role="dialog"
         aria-modal="true"
         aria-labelledby="notification-modal-title"
+        tabIndex={-1}
         style={{maxWidth:"400px", borderRadius:"var(--radius-xl)"}}
       >
         {/* Modal Handle — wider for better grab affordance */}
