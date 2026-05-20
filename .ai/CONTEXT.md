@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` SalesTab form controls expose explicit labels and validation state. Sale date, price, cattle, grade, and purchaser controls now connect to `PremiumLabel htmlFor`/stable ids and report `aria-invalid` from React Hook Form errors. Verification passed on current HEAD: direct graph risk `0.00` and full Hanwoo QC (`test` 163, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` ScheduleTab form controls expose explicit labels and validation state. Schedule title/date/type fields now have visible labels, stable ids, and `aria-invalid` tied to React Hook Form errors instead of relying on placeholder-only context. Verification passed: focused tab-header/home-market accessibility tests (`15 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 162, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` building creation validates input server-side before Prisma. `createBuilding` uses `validateBuildingInput()` instead of `parseInt(data.penCount)`, so empty building names and invalid pen counts return field-level Korean validation errors instead of generic DB failure. Verification passed: focused action-validation/actions copy tests (`12 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 159, lint, build).

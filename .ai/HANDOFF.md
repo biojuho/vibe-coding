@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-446 completed**: Hanwoo sales registration form fields now expose explicit labels and validation state. `SalesTab` connects sale date, price, cattle, grade, and purchaser controls to `PremiumLabel htmlFor`/stable ids and reports `aria-invalid` from React Hook Form errors. `home-market-copy.test.mjs` guards the contract. Code commit `18a55e8`. |
+| Next Priorities | Verification passed on current HEAD: direct graph risk `0.00` and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 163, lint, build). The earlier focused accessibility run covered the shared tab/home-market tests; keep T-251 separate as the external Supabase control-plane blocker. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-445 completed**: Hanwoo schedule registration form fields now expose proper labels and validation state. `ScheduleTab` adds visible labels and stable ids for schedule title/date/type, and each field now reports `aria-invalid` from React Hook Form errors instead of relying on placeholder-only context. `tab-header-accessibility.test.mjs` guards the contract. Code commit `005410f`. |
 | Next Priorities | Verification passed: focused tab-header/home-market accessibility tests (`15 passed`), targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk `0.00`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 162, lint, build), and staged `code_review_gate --staged --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic plus unrelated VibeDebt WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 
