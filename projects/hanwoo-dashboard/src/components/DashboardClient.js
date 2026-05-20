@@ -1404,8 +1404,7 @@ export default function DashboardClient({
         </div>
         <Separator className="mb-4 opacity-30" />
         <div className="text-[10px] text-muted-foreground/40 leading-loose space-y-0.5">
-          <p>대표: 박주호 · 사업자등록번호: 000-00-00000</p>
-          <p>joolife@joolife.io.kr</p>
+          <p>운영 문의: joolife@joolife.io.kr</p>
           <p className="mt-2 text-muted-foreground/30">&copy; 2026 Joolife. 모든 권리 보유.</p>
         </div>
       </footer>

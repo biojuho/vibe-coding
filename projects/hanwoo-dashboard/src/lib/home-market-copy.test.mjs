@@ -25,6 +25,9 @@ test('home dashboard fallback and panel labels use Korean product copy', () => {
   assert.match(source, /대시보드 데이터를 불러오지 못했습니다/);
   assert.match(source, /대시보드 데이터를 불러오는 데 시간이 오래 걸리고 있습니다/);
   assert.match(source, /모든 권리 보유/);
+  assert.match(source, /운영 문의: joolife@joolife\.io\.kr/);
+  assert.doesNotMatch(source, /000-00-00000/);
+  assert.doesNotMatch(source, /사업자등록번호: 000/);
   assert.doesNotMatch(source, /Failed to load/);
   assert.doesNotMatch(source, /Loading .* timed out/);
   assert.doesNotMatch(source, /All rights reserved/);
