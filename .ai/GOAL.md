@@ -12,6 +12,8 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-431 restored Hanwoo profitability card header rendering by making `PremiumCardHeader` render `title`, `description`, and decorative `icon` props as visible structured content instead of inert DOM props, and cleaned up remaining WeatherWidget glyph semantics; verification passed with focused profitability copy test, targeted ESLint, path-limited `git diff --check`, staged code-review gate JSON (`risk_score 0.0`; cp949 reader-thread noise only), full Hanwoo tests `153 passed`, and full Hanwoo QC (`test` 153, lint, build). Commit `9230de6`.
+
 - 2026-05-20: T-430 hid Hanwoo `WeatherWidget` temperature, wind, and precipitation stat glyphs from assistive technology with `aria-hidden="true"`, preserving the adjacent Korean stat labels and values as meaningful content; verification passed with direct graph risk `0.00`, focused home-market copy test, targeted ESLint, and full Hanwoo QC (`test` 152, lint, build).
 
 - 2026-05-20: T-429 hid Hanwoo `WeatherWidget` decorative background weather glyph from assistive technology with `aria-hidden="true"`, preserving the visible weather description as meaningful content; verification passed with focused home-market copy test, Hanwoo tests `152 passed`, ESLint, and full Hanwoo QC (`test` 152, lint, build).

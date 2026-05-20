@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-431 completed**: continued Hanwoo product-completeness polish. `PremiumCardHeader` now renders its `title`, `description`, and decorative `icon` props as visible structured header content, fixing the profitability widget header path that previously passed those props without visible header text. The remaining WeatherWidget location/current-condition/THI/forecast/alert glyphs are now either hidden from assistive technology or given meaningful weather descriptions. Code commit `9230de6`. |
+| Next Priorities | Verification passed: focused profitability copy test passed, focused home-market copy contract is covered by full Hanwoo tests, targeted ESLint passed, path-limited `git diff --check` passed, staged `code_review_gate --staged --json` passed (`risk_score 0.0`; cp949 reader-thread noise only), and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 153, lint, build). Commit hook WARN came from the known graph/test-gap heuristic plus unrelated workspace WIP; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-430 completed**: continued Hanwoo weather widget accessibility hardening. `WeatherWidget` now hides the small temperature, wind, and precipitation stat glyphs from assistive technology with `aria-hidden="true"` while preserving the adjacent Korean stat labels and values as meaningful content. `home-market-copy.test.mjs` guards the contract. Code commit `f3d7bc0`. |
 | Next Priorities | Verification passed: direct graph risk `0.00`, focused home-market copy test passed, targeted ESLint passed, path-limited `git diff --check` passed, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 152, lint, build). Commit-time `code_review_gate` WARN was the known graph/test-gap heuristic plus unrelated workspace WIP; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
 
