@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-439 completed**: Hanwoo notification test-send and cattle archive copy now match product behavior. Test 문자 feedback no longer exposes sample cattle data (`순심이(0001)`), and cattle soft-delete UI/server messages now consistently say 보관 처리 instead of destructive 삭제. Code commit `82bcb75`. |
+| Next Priorities | Verification passed: focused notification/home/actions copy tests (`18 passed`), targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk `0.00`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 157, lint, build), and staged `code_review_gate --staged --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-438 completed**: Hanwoo cattle create/update/calving actions now return actionable Korean copy when Prisma rejects a duplicate cattle `tagNumber`. `cattle.js` recognizes Prisma `P2002` unique-constraint errors targeting `tagNumber` and returns `이미 등록된 이력번호입니다. 다른 이력번호를 입력해 주세요.` instead of the generic create/update/calving failure. `actions-copy.test.mjs` guards the duplicate-tag branch. Code commit `84d536e`. |
 | Next Priorities | Verification passed: focused `node --test src/lib/actions-copy.test.mjs`, targeted ESLint, path-limited `git diff --check`, full Hanwoo `npm.cmd test` (`157 passed`), `npm.cmd run lint`, full `project_qc_runner --project hanwoo-dashboard --json` passed on retry after a transient Next build lock (`test` 157, lint, build), and staged `code_review_gate --staged --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Direct `code_review_graph detect-changes` hit the known Windows cp949 reader failure, so the staged deterministic gate was used. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 
