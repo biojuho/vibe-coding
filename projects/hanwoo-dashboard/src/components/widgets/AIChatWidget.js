@@ -176,6 +176,8 @@ export default function AIChatWidget() {
       onError: (errorMsg) => {
         const isApiKeyError =
           errorMsg.includes('API') ||
+          errorMsg.includes('AI 비서 설정') ||
+          errorMsg.includes('설정 키') ||
           errorMsg.includes('설정되지') ||
           errorMsg.includes('500');
 
@@ -245,8 +247,10 @@ export default function AIChatWidget() {
           alignItems: 'center',
           justifyContent: 'center',
         }}
+        aria-label="AI 농장 비서 열기"
+        title="AI 농장 비서"
       >
-        AI
+        <Bot size={25} aria-hidden="true" />
       </button>
     );
   }
