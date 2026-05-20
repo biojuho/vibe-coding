@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-424 completed**: continued Hanwoo alert-banner accessibility hardening. `CalvingAlertBanner` now hides the decorative animated bottle glyph from assistive technology with `aria-hidden="true"`, leaving the adjacent Korean alert title as the meaningful accessible content. Added `alert-banners-accessibility.test.mjs`. |
+| Next Priorities | Verification passed: focused alert-banner test passed, `npm test` passed (`151 passed`), `npm run lint` passed, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 151, lint, build). Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-423 completed**: continued Hanwoo cattle form accessibility hardening. `CattleForm` now connects the visible labels for name, tag number, building, pen, gender, status, birth date, weight, purchase info, pedigree, and memo fields to stable control ids, and exposes validation state through `aria-invalid` where it was missing. `cattle-detail-modal-wiring.test.mjs` guards the contract. Code commit `8ae7886`. |
 | Next Priorities | Verification passed: focused Hanwoo tests passed (`150 passed`), targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk was `0.00`, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 150, lint, build). Staged/commit `code_review_gate` WARN was the known graph/test-gap heuristic plus unrelated VibeDebt WIP; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP unless explicitly authorized. |
 

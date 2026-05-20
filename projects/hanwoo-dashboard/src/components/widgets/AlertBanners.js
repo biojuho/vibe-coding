@@ -82,7 +82,7 @@ export function CalvingAlertBanner({ notifications = [], buildings = [] }) {
     >
       <PremiumCardContent className="p-4">
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-          <span style={{ fontSize: '18px' }} className="animate-bounce">🍼</span>
+          <span aria-hidden="true" style={{ fontSize: '18px' }} className="animate-bounce">🍼</span>
           <span style={{ fontWeight: 700, fontSize: '15px', letterSpacing: '-0.3px' }}>
             분만 알림 — {calvingNotifications.length}두 분만 임박 (14일 이내)
           </span>
