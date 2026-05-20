@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-450 completed**: Hanwoo Inventory inline quantity editor now has an item-specific accessible name. The edit-mode numeric `PremiumInput` exposes `${item.name} 재고 수량 입력` through `aria-label` and `title`, so the unlabeled inline input is no longer announced as a generic number field. `home-market-copy.test.mjs` guards the contract. Code commit `8aa9412`. |
+| Next Priorities | Verification passed: focused home-market copy test (`16 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 167, lint, build), and staged `code_review_gate --staged --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-449 completed**: Hanwoo Settings farm/building form fields now expose proper labels and validation state. `SettingsTab` links 농장 이름, 지역 선택, 지역명, 위도, 경도, 동 이름, and 칸 수 controls to stable ids and reports `aria-invalid` from React Hook Form errors where validation applies. `settings-tab-accessibility.test.mjs` guards the contract. Code commit `19a2ea3`. |
 | Next Priorities | Verification passed: focused Settings accessibility test (`4 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 166, lint, build), and staged `code_review_gate --staged --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Direct `code_review_graph detect-changes` still hits the known Windows cp949 reader failure. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 
