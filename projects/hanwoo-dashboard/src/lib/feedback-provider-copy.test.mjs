@@ -22,3 +22,10 @@ test('feedback toasts expose live-region semantics and Korean dismiss labels', (
   assert.match(source, /aria-hidden="true"/);
   assert.doesNotMatch(source, /aria-label="Close"/);
 });
+
+test('shared Button defaults to safe non-submit semantics', () => {
+  const source = readSource('components/ui/button.js');
+
+  assert.match(source, /type=\{asChild \? undefined : \(type \?\? "button"\)\}/);
+  assert.match(source, /\(\{ className, variant, size, asChild = false, type, \.\.\.props \}/);
+});
