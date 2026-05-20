@@ -1352,6 +1352,10 @@ body {
   position: relative;
   min-height: 80px;
   box-shadow: var(--shadow-sm);
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  text-align: left;
 }
 
 .pen-card:hover {
@@ -1430,6 +1434,10 @@ body {
     box-shadow 0.3s cubic-bezier(0.22, 1, 0.36, 1),
     border-color 0.3s ease;
   box-shadow: var(--shadow-sm);
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  text-align: left;
 }
 
 .cattle-row:hover {
