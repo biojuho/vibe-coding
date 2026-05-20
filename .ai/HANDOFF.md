@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-386 completed**: continued Hanwoo product-completeness work by hiding raw async UI failure messages from diagnostics, payment, and AI chat surfaces. Diagnostics/raw-data loads now log details and show stable Korean retry copy, `PaymentWidget` no longer renders arbitrary payment SDK exception text except its own pending state, and `AIChatWidget` logs stream failures while showing a Korean connection fallback. Copy tests now reject the raw `error.message` paths. Code commit `e1b1459`. |
+| Next Priorities | Verification passed: focused diagnostics/payment/AI/component tests passed (`127 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 127, lint, build), path-limited `git diff --check` passed, and staged code-review gate PASS with the known trailing cp949 reader-thread noise. Commit hook WARN came from dirty-WIP/test-gap heuristics while direct tests covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync. Preserve unrelated root monorepo/package-lock/shorts WIP and current unstaged WIP unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-385 completed**: continued Hanwoo product-completeness work by localizing the expense server-action mutation failure fallback. `createExpenseRecord` now logs diagnostics and returns Korean product copy instead of raw `error.message`, preventing Prisma/runtime internals from leaking into offline-sync or future expense-entry feedback paths. `actions-copy.test.mjs` now covers expense actions and rejects `message: error.message` there. Code commit `6f6d819`. |
 | Next Priorities | Verification passed: focused action/component tests passed (`127 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 127, lint, build), path-limited `git diff --check` passed, and staged code-review gate PASS. Commit hook WARN came from dirty-WIP/test-gap heuristic noise while direct tests covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync. Preserve unrelated root monorepo/package-lock/shorts WIP and current unstaged Hanwoo WIP unless explicitly authorized. |
 

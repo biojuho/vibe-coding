@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` diagnostics, payment, and AI chat async UI failures no longer expose arbitrary raw exception messages. Diagnostics/raw-data loads log details and show stable Korean retry copy, `PaymentWidget` preserves only its own pending message while replacing SDK failures with Korean retry copy, and `AIChatWidget` logs stream errors while showing a Korean connection fallback. Verification passed: focused tests, targeted ESLint, full Hanwoo QC (`test` 127, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
+
 - As of 2026-05-20, `hanwoo-dashboard` expense server-action mutation failures no longer expose raw `error.message` strings. `createExpenseRecord` logs diagnostics and returns Korean product fallback copy, and `actions-copy.test.mjs` guards against `message: error.message` returning from expense actions. Verification passed: focused tests, targeted ESLint, full Hanwoo QC (`test` 127, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
 
 - As of 2026-05-20, `hanwoo-dashboard` cattle/sales server-action mutation failures no longer expose raw `error.message` strings. `createCattle`, `updateCattle`, `recordCalving`, `deleteCattle`, and `createSalesRecord` log diagnostics and return Korean product fallback copy, and `actions-copy.test.mjs` guards against `message: error.message` returning in cattle/sales actions. Verification passed: focused tests, targeted ESLint, full Hanwoo QC test/lint with build passing on retry after a concurrent Next build lock, path-limited `git diff --check`, staged code-review gate PASS, and direct graph risk `0.00`.
