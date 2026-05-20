@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-483 completed**: Hanwoo login submit state now recovers when the credential sign-in request fails unexpectedly. `LoginPage` wraps `signIn('credentials')` in `try/catch/finally`, surfaces a Korean retryable network/auth failure message on thrown errors, always clears `isSubmitting`, and exposes `aria-busy` on the submit button while authentication is in progress. `error-pages-wiring.test.mjs` guards the contract. Code commit `09cb3df`. |
+| Next Priorities | Verification passed: focused error-pages wiring test (`6 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 188, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known advisory graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-482 completed**: Hanwoo settings building creation now waits for the async building creation handler before re-enabling actions. `SettingsTab` tracks `isSavingBuilding`, awaits `onCreateBuilding`, disables the add/cancel toggle and submit control while saving, and exposes `aria-busy` on the submit button so slow network saves cannot trigger duplicate building submissions. `settings-tab-accessibility.test.mjs` guards the contract. Code commit `d328121`. |
 | Next Priorities | Verification passed: focused settings accessibility test (`6 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 187, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known advisory graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 

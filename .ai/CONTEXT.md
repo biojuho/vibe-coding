@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` login submit state recovers when credential sign-in fails unexpectedly. `LoginPage` now wraps `signIn('credentials')` in `try/catch/finally`, surfaces a Korean retryable network/auth failure message on thrown errors, always clears `isSubmitting`, and exposes `aria-busy` on the submit button while authentication is in progress. Verification passed: focused error-pages wiring test (`6 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 188, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` settings building creation waits for the async building creation handler before re-enabling actions. `SettingsTab` now tracks `isSavingBuilding`, awaits `onCreateBuilding`, disables the add/cancel toggle and submit control while saving, and exposes `aria-busy` on the submit button so slow network saves cannot trigger duplicate building submissions. Verification passed: focused settings accessibility test (`6 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 187, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` feed record saves wait for the async feed recording handler before re-enabling submit. `FeedTab` now tracks `isSaving`, awaits `onRecordFeed`, disables the submit control while saving, and exposes `aria-busy` on the submit button so slow network saves cannot trigger duplicate feed submissions. Verification passed: focused empty-state wiring test (`11 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 186, lint, build).
