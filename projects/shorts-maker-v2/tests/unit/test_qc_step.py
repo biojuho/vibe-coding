@@ -430,6 +430,59 @@ def test_gate4_final_pass_all_checks(tmp_path: Path, monkeypatch: pytest.MonkeyP
     assert report.issues == []
 
 
+def test_gate4_final_accepts_near_boundary_shorts_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    out = _write_bytes(tmp_path / "out.mp4", 32)
+    manifest = JobManifest(
+        job_id="size-boundary",
+        topic="t",
+        status="ok",
+        total_duration_sec=45.0,
+        failed_steps=[],
+    )
+    monkeypatch.setattr(
+        QCStep,
+        "_probe_video",
+        staticmethod(lambda path: {"width": 1080, "height": 1920, "fps": 30.0}),
+    )
+    monkeypatch.setattr(QCStep, "_check_audio_peak", staticmethod(lambda path: -3.0))
+    monkeypatch.setattr(
+        "shorts_maker_v2.pipeline.qc_step.os.path.getsize",
+        lambda path: int(50.4 * 1024 * 1024),
+    )
+
+    report = QCStep.gate4_final(manifest, output_path=out)
+
+    assert report.verdict == GateVerdict.PASS.value
+    assert report.checks["file_size_ok"] is True
+
+
+def test_gate4_final_holds_when_file_exceeds_policy_limit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    out = _write_bytes(tmp_path / "out.mp4", 32)
+    manifest = JobManifest(
+        job_id="size-too-large",
+        topic="t",
+        status="ok",
+        total_duration_sec=45.0,
+        failed_steps=[],
+    )
+    monkeypatch.setattr(
+        QCStep,
+        "_probe_video",
+        staticmethod(lambda path: {"width": 1080, "height": 1920, "fps": 30.0}),
+    )
+    monkeypatch.setattr(QCStep, "_check_audio_peak", staticmethod(lambda path: -3.0))
+    monkeypatch.setattr(
+        "shorts_maker_v2.pipeline.qc_step.os.path.getsize",
+        lambda path: int(60.1 * 1024 * 1024),
+    )
+
+    report = QCStep.gate4_final(manifest, output_path=out)
+
+    assert report.verdict == GateVerdict.HOLD.value
+    assert report.checks["file_size_ok"] is False
+    assert report.issues == ["File size 60.1MB outside [2,60]MB"]
+
+
 def test_gate4_final_missing_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     manifest = JobManifest(
         job_id="miss-1",

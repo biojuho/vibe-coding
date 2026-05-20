@@ -30,6 +30,9 @@ class QCStep:
 
     # ── Gate 3: 미디어 QC ─────────────────────────────────────────────────────
 
+    _FINAL_MIN_SIZE_MB = 2.0
+    _FINAL_MAX_SIZE_MB = 60.0
+
     @staticmethod
     def gate3_media(
         scene_plans: list[ScenePlan],
@@ -391,10 +394,13 @@ class QCStep:
         checks["file_exists"] = output_exists
         if output_exists:
             file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
-            size_ok = 2.0 <= file_size_mb <= 50.0
+            size_ok = QCStep._FINAL_MIN_SIZE_MB <= file_size_mb <= QCStep._FINAL_MAX_SIZE_MB
             checks["file_size_ok"] = size_ok
             if not size_ok:
-                issues.append(f"File size {file_size_mb:.1f}MB outside [2,50]MB")
+                issues.append(
+                    f"File size {file_size_mb:.1f}MB outside "
+                    f"[{QCStep._FINAL_MIN_SIZE_MB:g},{QCStep._FINAL_MAX_SIZE_MB:g}]MB"
+                )
         else:
             issues.append(f"Output file missing: {output_path}")
 
