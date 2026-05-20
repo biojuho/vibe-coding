@@ -209,6 +209,8 @@ export default function MarketPriceWidget({ initialData = null }) {
                 void fetchPrices();
               }}
               disabled={loading}
+              aria-label={loading ? '시세 갱신 중' : '한우 시세 새로고침'}
+              title={loading ? '시세 갱신 중' : '한우 시세 새로고침'}
               className="clay-pressable inline-flex h-10 w-10 items-center justify-center rounded-full text-[color:var(--color-text-secondary)]"
             >
               <RefreshCwIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />

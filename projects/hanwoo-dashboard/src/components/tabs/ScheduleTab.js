@@ -163,13 +163,23 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
       ) : null}
 
       <div className="mb-3 flex items-center justify-between px-1">
-        <button type="button" onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}>
+        <button
+          type="button"
+          onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}
+          aria-label="이전 달 보기"
+          title="이전 달 보기"
+        >
           <ChevronLeft className="text-[color:var(--color-text-secondary)]" />
         </button>
         <div className="text-2xl font-bold text-[color:var(--color-text)]" style={{ fontFamily: 'var(--font-display-custom)' }}>
           {currentDate.getFullYear()}년 {currentDate.getMonth() + 1}월
         </div>
-        <button type="button" onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))}>
+        <button
+          type="button"
+          onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))}
+          aria-label="다음 달 보기"
+          title="다음 달 보기"
+        >
           <ChevronRight className="text-[color:var(--color-text-secondary)]" />
         </button>
       </div>

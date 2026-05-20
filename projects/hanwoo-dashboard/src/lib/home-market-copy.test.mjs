@@ -59,6 +59,8 @@ test('market price widget uses Korean product copy for visible states', () => {
   assert.match(source, /암소 \/ kg/);
   assert.match(source, /갱신/);
   assert.match(source, /출처: KAPE/);
+  assert.match(source, /aria-label=\{loading \? '시세 갱신 중' : '한우 시세 새로고침'\}/);
+  assert.match(source, /title=\{loading \? '시세 갱신 중' : '한우 시세 새로고침'\}/);
   assert.doesNotMatch(source, /Loading market prices/);
   assert.doesNotMatch(source, /Market price data is unavailable/);
   assert.doesNotMatch(source, /Market Pulse/);
@@ -68,6 +70,18 @@ test('market price widget uses Korean product copy for visible states', () => {
   assert.doesNotMatch(source, /Bull \/ kg|Cow \/ kg/);
   assert.doesNotMatch(source, />Updated /);
   assert.doesNotMatch(source, />Source: KAPE/);
+  assert.doesNotMatch(source, /aria-label="Refresh"/);
+});
+
+test('schedule calendar navigation exposes Korean accessible labels', () => {
+  const source = readSource('components/tabs/ScheduleTab.js');
+
+  assert.match(source, /aria-label="이전 달 보기"/);
+  assert.match(source, /title="이전 달 보기"/);
+  assert.match(source, /aria-label="다음 달 보기"/);
+  assert.match(source, /title="다음 달 보기"/);
+  assert.doesNotMatch(source, /aria-label="Previous month"/);
+  assert.doesNotMatch(source, /aria-label="Next month"/);
 });
 
 test('weather widget uses Korean product copy for unavailable state', () => {
