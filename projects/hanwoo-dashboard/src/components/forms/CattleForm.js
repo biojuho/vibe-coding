@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
@@ -15,6 +15,7 @@ const errorTextStyle = {
 };
 
 export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel }) {
+  const dialogRef = useRef(null);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupMsg, setLookupMsg] = useState(null);
 
@@ -34,6 +35,16 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
     reset(createCattleFormValues(cattle, buildings));
     setLookupMsg(null);
   }, [buildings, cattle, reset]);
+
+  useEffect(() => {
+    dialogRef.current?.focus();
+  }, [cattle?.id]);
+
+  const handleDialogKeyDown = (event) => {
+    if (event.key === 'Escape') {
+      onCancel();
+    }
+  };
 
   const handleLookup = async () => {
     const tagNumber = getValues('tagNumber');
@@ -94,10 +105,13 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
   return (
     <div className="modal-overlay" style={{ alignItems: 'flex-start', paddingTop: '20px' }}>
       <div
+        ref={dialogRef}
         className="animate-slideInUp"
         role="dialog"
         aria-modal="true"
         aria-labelledby="cattle-form-title"
+        tabIndex={-1}
+        onKeyDown={handleDialogKeyDown}
         style={{
           background: 'var(--color-bg)',
           width: '100%',

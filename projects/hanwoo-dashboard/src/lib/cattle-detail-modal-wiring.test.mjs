@@ -48,6 +48,11 @@ test('cattle form and detail icon-only navigation controls have Korean labels', 
   assert.match(formSource, /role="dialog"/);
   assert.match(formSource, /aria-modal="true"/);
   assert.match(formSource, /aria-labelledby="cattle-form-title"/);
+  assert.match(formSource, /const dialogRef = useRef\(null\)/);
+  assert.match(formSource, /dialogRef\.current\?\.focus\(\)/);
+  assert.match(formSource, /tabIndex=\{-1\}/);
+  assert.match(formSource, /onKeyDown=\{handleDialogKeyDown\}/);
+  assert.match(formSource, /if \(event\.key === 'Escape'\) \{\s*onCancel\(\);/);
   assert.match(formSource, /id="cattle-form-title"/);
   assert.match(formSource, /<label htmlFor="cattle-name"/);
   assert.match(formSource, /id="cattle-name"/);
@@ -88,6 +93,11 @@ test('cattle form and detail icon-only navigation controls have Korean labels', 
   assert.match(detailSource, /role="dialog"/);
   assert.match(detailSource, /aria-modal="true"/);
   assert.match(detailSource, /aria-labelledby="cattle-detail-title"/);
+  assert.match(detailSource, /const dialogRef = useRef\(null\)/);
+  assert.match(detailSource, /dialogRef\.current\?\.focus\(\)/);
+  assert.match(detailSource, /tabIndex=\{-1\}/);
+  assert.match(detailSource, /onKeyDown=\{handleDialogKeyDown\}/);
+  assert.match(detailSource, /if \(event\.key === 'Escape'\) \{\s*onClose\(\);/);
   assert.match(detailSource, /id="cattle-detail-title"/);
   assert.doesNotMatch(formSource, /aria-label="Back"/);
   assert.doesNotMatch(detailSource, /aria-label="Close"/);

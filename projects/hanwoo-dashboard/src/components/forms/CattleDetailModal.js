@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { CalendarCheck2, CheckCircle2 } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from 'recharts';
 import { STATUS_COLORS } from '@/lib/constants';
@@ -18,6 +18,7 @@ const HISTORY_ICONS = {
 };
 
 export default function CattleDetailModal({ cattle, buildings = [], onClose, onEdit, onDelete, onUpdate }) {
+  const dialogRef = useRef(null);
   const [history, setHistory] = useState([]);
   const [activeBreedingAction, setActiveBreedingAction] = useState(null);
   const [breedingDate, setBreedingDate] = useState(toInputDate(new Date()));
@@ -45,6 +46,10 @@ export default function CattleDetailModal({ cattle, buildings = [], onClose, onE
     setBreedingDate(toInputDate(new Date()));
     setBreedingError('');
     setIsBreedingSaving(false);
+  }, [cattle?.id]);
+
+  useEffect(() => {
+    dialogRef.current?.focus();
   }, [cattle?.id]);
 
   if (!cattle) return null;
@@ -114,13 +119,22 @@ export default function CattleDetailModal({ cattle, buildings = [], onClose, onE
     }
   };
 
+  const handleDialogKeyDown = (event) => {
+    if (event.key === 'Escape') {
+      onClose();
+    }
+  };
+
   return (
     <div className="modal-overlay" style={{alignItems:"flex-start"}}>
       <div
+        ref={dialogRef}
         className="animate-slideInUp"
         role="dialog"
         aria-modal="true"
         aria-labelledby="cattle-detail-title"
+        tabIndex={-1}
+        onKeyDown={handleDialogKeyDown}
         style={{
           background:"var(--color-bg-card)",
           width:"100%",
