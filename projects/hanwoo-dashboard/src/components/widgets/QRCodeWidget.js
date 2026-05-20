@@ -67,6 +67,7 @@ export default function QRCodeWidget({ value, label }) {
       </div>
       <button
         onClick={handlePrint}
+        aria-label={`${label} QR 라벨 인쇄`}
         title="QR 라벨 인쇄"
         style={{
           display: 'inline-flex',

@@ -13,6 +13,7 @@ function readSource(relativePath) {
 
 test('qr widget print action uses Korean operator copy and icon button', () => {
   const source = readSource('components/widgets/QRCodeWidget.js');
+  assert.match(source, /aria-label=\{`\$\{label\} QR 라벨 인쇄`\}/);
 
   assert.match(source, /QR 출력/);
   assert.match(source, /QR 라벨 인쇄/);
