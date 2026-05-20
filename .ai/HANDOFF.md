@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-339 completed**: continued the active Hanwoo quality goal by localizing the remaining visible English copy on the home surface and market price widget. The home fallback farm name now reads `Joolife 한우 농장`, home panel eyebrows use Korean labels (`오늘 요약`, `빠른 기록`, `운영 준비`), and `MarketPriceWidget` now renders Korean loading, unavailable, source, heading, grade, updated, and KAPE source labels. Commit `cd99fb8`. |
+| Next Priorities | Verification passed on current HEAD after the adjacent T-338 market-state fallback work: Hanwoo test suite `92 passed`, `npm.cmd run lint`, `npm.cmd run build`, `git diff --check`, and direct Hanwoo graph risk `0.00`. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-338 completed**: continued the active Hanwoo quality goal and fixed a remaining English fallback-copy path in the market price state layer. `market-price-state.mjs` now emits Korean product copy for unavailable market prices, stale-cache notices, and live/cache/unavailable source labels, so degraded KAPE states cannot surface English fallback text in `MarketPriceWidget`. |
 | Next Priorities | Verification passed: focused market-price tests passed, targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 92 passed, lint passed, build passed), `git diff --check` passed, and graph risk `0.00`. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Blind-to-X locks, Hanwoo `package.json`, shorts-maker-v2 render/bench files, package locks, and setup scripts. |
 

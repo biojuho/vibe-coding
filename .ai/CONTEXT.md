@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` home and market-price widget surfaces no longer expose the remaining visible English placeholder copy. The home fallback farm name and panel eyebrows use Korean product copy, while `MarketPriceWidget` uses Korean loading, unavailable, source, heading, grade, updated, and KAPE source labels. Verification passed on current HEAD: Hanwoo tests `92 passed`, `npm.cmd run lint`, `npm.cmd run build`, `git diff --check`, and direct Hanwoo graph risk `0.00`.
+
 - As of 2026-05-20, `shorts-maker-v2` hook-score gating no longer lets weak hooks ship as `success`. `PipelineOrchestrator` records a retryable non-blocking `hook_score` degraded step when `score_hook(...).passed` is false, and `hook_scorer` recognizes narrow English contrast/tech hooks such as `Tiny chips, big savings`. Verification passed: focused hook/orchestrator/renderer/i18n tests, targeted Ruff, project QC lint, graph risk `0.00`, and full `tests/unit tests/integration` with repo-local basetemp.
 
 - As of 2026-05-20, `shorts-maker-v2` Gate 4 final file-size QC uses named final-size policy bounds `[2,60]MB` instead of the older hard-coded 50MB ceiling. This prevents otherwise valid 1080x1920 Shorts renders such as 50.4MB from entering manual HOLD while still holding oversized files. Verification passed: `test_qc_step.py` `60 passed`, targeted Ruff, project QC lint, graph risk `0.00`, and full `tests/unit tests/integration` with repo-local basetemp.

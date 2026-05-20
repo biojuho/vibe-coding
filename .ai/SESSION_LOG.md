@@ -790,3 +790,31 @@
 ### Follow-up
 - Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
 - Preserve unrelated current WIP in root package/workflow files, Blind-to-X locks, Hanwoo `package.json`, shorts-maker-v2 render/bench files, package locks, and setup scripts.
+
+## 2026-05-20 KST - Codex
+
+### Summary
+- Completed T-339 for `hanwoo-dashboard` while continuing the active product-completeness goal.
+- Localized remaining visible English copy on the home surface: fallback farm name, Today Brief, Quick Record, and Farm Setup labels now read as Korean product copy.
+- Localized `MarketPriceWidget` visible states: loading, unavailable fallback, source badges, heading, grade labels, updated timestamp, and KAPE source label.
+- Added `src/lib/home-market-copy.test.mjs` so the home and market widget copy does not regress back to English placeholders.
+
+### Changed Files
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/CONTEXT.md`
+- `projects/hanwoo-dashboard/src/components/DashboardClient.js`
+- `projects/hanwoo-dashboard/src/components/widgets/MarketPriceWidget.js`
+- `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs`
+
+### Verification
+- `npm.cmd test -- src/lib/home-market-copy.test.mjs src/lib/market-price-state.test.mjs src/lib/component-imports.test.mjs` from `projects/hanwoo-dashboard` -> `92 passed`.
+- `npm.cmd run lint` from `projects/hanwoo-dashboard` -> passed.
+- `npm.cmd run build` from `projects/hanwoo-dashboard` -> passed.
+- `git diff --check` -> passed.
+- `PYTHONUTF8=1 python -m code_review_graph detect-changes --repo projects/hanwoo-dashboard --base HEAD --brief` -> risk `0.00`.
+
+### Follow-up
+- Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
+- Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts.
