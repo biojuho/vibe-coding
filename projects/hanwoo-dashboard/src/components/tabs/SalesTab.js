@@ -338,14 +338,25 @@ export default function SalesTab({
       </div>
 
       {salesPagination?.hasMore && (
-        <PremiumButton
-          variant="secondary"
-          onClick={() => salesPagination.loadMore()}
-          disabled={salesPagination.isLoading}
-          className="w-full mt-3 py-3"
-        >
-          {salesPagination.isLoading ? '불러오는 중...' : '이전 기록 더 보기'}
-        </PremiumButton>
+        <>
+          <PremiumButton
+            variant="secondary"
+            onClick={() => salesPagination.loadMore()}
+            disabled={salesPagination.isLoading}
+            className="w-full mt-3 py-3"
+          >
+            {salesPagination.isLoading ? '불러오는 중...' : '이전 기록 더 보기'}
+          </PremiumButton>
+          {salesPagination.loadError ? (
+            <p
+              role="status"
+              aria-live="polite"
+              className="mt-2 text-center text-xs font-semibold text-red-300"
+            >
+              {salesPagination.loadError}
+            </p>
+          ) : null}
+        </>
       )}
     </div>
   );
