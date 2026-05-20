@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { BellIcon, CheckIcon } from 'lucide-react';
+import { BellIcon } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,19 +15,19 @@ import { Button } from '@/components/ui/button';
 export function NotificationSystem({ initialNotifications = [] } = {}) {
   const [notifications, setNotifications] = useState(initialNotifications);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter((notification) => !notification.read).length;
   const notificationLabel = unreadCount > 0
     ? `알림 열기, 읽지 않은 알림 ${unreadCount}개`
     : '알림 열기';
 
   const markAsRead = (id) => {
-    setNotifications(notifications.map(n => 
-      n.id === id ? { ...n, read: true } : n
-    ));
+    setNotifications(notifications.map((notification) => (
+      notification.id === id ? { ...notification, read: true } : notification
+    )));
   };
 
   const markAllAsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, read: true })));
+    setNotifications(notifications.map((notification) => ({ ...notification, read: true })));
   };
 
   return (
@@ -70,8 +70,8 @@ export function NotificationSystem({ initialNotifications = [] } = {}) {
             </div>
           ) : (
             notifications.map((notification) => (
-              <DropdownMenuItem 
-                key={notification.id} 
+              <DropdownMenuItem
+                key={notification.id}
                 className={`flex flex-col items-start gap-1 p-3 cursor-pointer ${notification.read ? 'opacity-60' : 'bg-blue-50/50'}`}
                 onClick={() => markAsRead(notification.id)}
               >
