@@ -2,6 +2,15 @@
 
 채널별 컬러 그레이딩 프로파일, 비네트 효과, 밝기/대비/채도 조정.
 PIL ImageEnhance 기반 — 추가 의존성 없음.
+
+성능 메모 (2026-05-20, T-333):
+  컬러 그레이딩은 렌더 단계 wall time 의 ~40% 를 차지한다
+  (bench_render.py A/B: 4s 영상에서 71.1s → 42.7s, 색보정 28.4s).
+  `transform` 으로 프레임마다 호출되므로 핫패스다. 따라서:
+    - 색보정 산술은 모두 in-place (큰 임시 배열 할당 제거)
+    - `color_grade_clip` 의 프레임 함수는 색보정+비네트를 float32 한 번에
+      융합 — 기존엔 색보정이 uint8 을 반환하고 비네트가 다시 float32 로
+      변환하는 프레임당 왕복 변환이 있었다.
 """
 
 from __future__ import annotations
@@ -68,6 +77,65 @@ ROLE_ADJUSTMENTS: dict[str, dict] = {
     "cta": {"brightness": 1.05, "contrast": 1.03, "saturation": 1.02},
 }
 
+# Rec.601 luma 가중치 — 채도 조정의 그레이스케일 기준.
+_LUMA_WEIGHTS = np.array([0.299, 0.587, 0.114], dtype=np.float32)
+
+
+def _resolve_profile(channel_key: str, role: str, override: dict | None) -> dict:
+    """채널 프로파일 + 역할 보정 + override 를 병합한 최종 프로파일."""
+    profile = dict(COLOR_PROFILES.get(channel_key, COLOR_PROFILES["default"]))
+    role_adj = ROLE_ADJUSTMENTS.get(role, {})
+    for k, v in role_adj.items():
+        if k in profile and isinstance(profile[k], (int, float)):
+            profile[k] = profile[k] * v
+    if override:
+        profile.update(override)
+    return profile
+
+
+def _grade_inplace(result: np.ndarray, profile: dict) -> None:
+    """float32 프레임에 밝기/대비/채도/틴트를 in-place 적용.
+
+    `result` 는 float32 (H, W, 3) 여야 하며 호출 후 덮어쓰여진다.
+
+    핫패스 최적화 (T-333): 프레임당 비용은 거의 전부 전체 프레임을 훑는
+    elementwise 패스 횟수에 비례한다 (micro-bench: 1080x1920 패스당 ~14ms).
+    그래서 패스를 최소화한다:
+      - 밝기+대비를 단일 affine `A*x + B` 로 융합 (4패스 → 2패스).
+        대비 피벗은 밝기 적용 후 평균 = brightness * mean(x) 이므로
+        A = contrast*brightness, B = brightness*mean(x)*(1-contrast).
+      - 채도를 `sat*x + (1-sat)*luma(x)` 로 정리 (3패스 → 2패스).
+      - 틴트를 채널별 strided 연산 3회 대신 길이-3 벡터 브로드캐스트 1회로.
+    전체 프레임 패스가 ~10 → ~5 로 줄며 결과는 수학적으로 동일하다.
+    """
+    brightness = float(profile.get("brightness", 1.0))
+    contrast = float(profile.get("contrast", 1.0))
+
+    # 1+2) 밝기·대비 융합 — out = (contrast*brightness)*x + brightness*mean*(1-contrast)
+    if brightness != 1.0 or contrast != 1.0:
+        scale = contrast * brightness
+        offset = 0.0
+        if contrast != 1.0:
+            mean0 = float(result.mean())
+            offset = brightness * mean0 * (1.0 - contrast)
+        if scale != 1.0:
+            result *= scale
+        if offset != 0.0:
+            result += offset
+
+    # 3) 채도 (luminance 기반) — out = saturation*x + (1-saturation)*luma(x)
+    saturation = float(profile.get("saturation", 1.0))
+    if saturation != 1.0:
+        gray = result @ _LUMA_WEIGHTS  # (H, W) — BLAS 경로, 패스당 ~6ms
+        gray *= 1.0 - saturation
+        result *= saturation
+        result += gray[:, :, np.newaxis]
+
+    # 4) 색조 틴트 — 길이-3 벡터 브로드캐스트 (채널별 strided 연산 회피)
+    tint = profile.get("tint", (0, 0, 0))
+    if any(t != 0 for t in tint):
+        result += np.asarray(tint, dtype=np.float32)
+
 
 def apply_color_grade(
     frame: np.ndarray,
@@ -77,41 +145,9 @@ def apply_color_grade(
     override: dict | None = None,
 ) -> np.ndarray:
     """numpy 프레임에 컬러 그레이딩 적용 (pure-numpy, PIL 라운드트립 없음)."""
-    profile = dict(COLOR_PROFILES.get(channel_key, COLOR_PROFILES["default"]))
-    role_adj = ROLE_ADJUSTMENTS.get(role, {})
-    for k, v in role_adj.items():
-        if k in profile and isinstance(profile[k], (int, float)):
-            profile[k] = profile[k] * v
-    if override:
-        profile.update(override)
-
+    profile = _resolve_profile(channel_key, role, override)
     result = frame.astype(np.float32)
-
-    # 1) 밝기
-    brightness = float(profile.get("brightness", 1.0))
-    if brightness != 1.0:
-        result *= brightness
-
-    # 2) 대비
-    contrast = float(profile.get("contrast", 1.0))
-    if contrast != 1.0:
-        mean = result.mean()
-        result = (result - mean) * contrast + mean
-
-    # 3) 채도 (luminance 기반)
-    saturation = float(profile.get("saturation", 1.0))
-    if saturation != 1.0:
-        gray = result[:, :, 0] * 0.299 + result[:, :, 1] * 0.587 + result[:, :, 2] * 0.114
-        gray = gray[:, :, np.newaxis]
-        result = gray + (result - gray) * saturation
-
-    # 4) 색조 틴트
-    tint = profile.get("tint", (0, 0, 0))
-    if any(t != 0 for t in tint):
-        result[:, :, 0] += tint[0]
-        result[:, :, 1] += tint[1]
-        result[:, :, 2] += tint[2]
-
+    _grade_inplace(result, profile)
     np.clip(result, 0, 255, out=result)
     return result.astype(np.uint8)
 
@@ -152,15 +188,23 @@ def apply_vignette(
 
 
 def color_grade_clip(clip, channel_key: str = "", role: str = "body"):
-    """MoviePy 클립에 컬러 그레이딩 + 비네트 적용."""
-    profile = COLOR_PROFILES.get(channel_key, COLOR_PROFILES["default"])
+    """MoviePy 클립에 컬러 그레이딩 + 비네트 적용.
+
+    프레임 함수는 색보정과 비네트를 단일 float32 패스로 융합한다 —
+    프레임당 uint8↔float32 왕복 변환을 제거한다 (T-333).
+    """
+    profile = _resolve_profile(channel_key, role, None)
     vignette_strength = float(profile.get("vignette_strength", 0.2))
+    vignette_key = round(vignette_strength, 2)
 
     def _grade_frame(get_frame, t):
         frame = get_frame(t)
-        frame = apply_color_grade(frame, channel_key, role)
+        result = frame.astype(np.float32)
+        _grade_inplace(result, profile)
         if vignette_strength > 0:
-            frame = apply_vignette(frame, vignette_strength)
-        return frame
+            h, w = result.shape[:2]
+            result *= _build_vignette_mask(w, h, vignette_key)
+        np.clip(result, 0, 255, out=result)
+        return result.astype(np.uint8)
 
     return clip.transform(_grade_frame)

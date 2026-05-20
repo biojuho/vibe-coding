@@ -9,6 +9,8 @@ from shorts_maker_v2.render.color_grading import (
     COLOR_PROFILES,
     ROLE_ADJUSTMENTS,
     _build_vignette_mask,
+    _grade_inplace,
+    _resolve_profile,
     apply_color_grade,
     apply_vignette,
     color_grade_clip,
@@ -222,3 +224,62 @@ class TestColorGradeClip:
         result = captured_fn["fn"](get_frame, 0.0)
         assert result.shape == (64, 64, 3)
         assert result.dtype == np.uint8
+
+
+# ── _grade_inplace fused-pass optimization (T-333) ────────────────────────────
+
+
+def _reference_grade(result: np.ndarray, profile: dict) -> None:
+    """Naive, pre-optimization reference: one array op per step.
+
+    `_grade_inplace` fuses brightness+contrast into a single affine and
+    collapses saturation/tint passes for speed (render hot path). This
+    reference locks in that the fused result stays mathematically identical.
+    """
+    brightness = float(profile.get("brightness", 1.0))
+    if brightness != 1.0:
+        result *= brightness
+    contrast = float(profile.get("contrast", 1.0))
+    if contrast != 1.0:
+        mean = result.mean()
+        result[:] = (result - mean) * contrast + mean
+    saturation = float(profile.get("saturation", 1.0))
+    if saturation != 1.0:
+        gray = (result[:, :, 0] * 0.299 + result[:, :, 1] * 0.587 + result[:, :, 2] * 0.114)[:, :, np.newaxis]
+        result[:] = gray + (result - gray) * saturation
+    tint = profile.get("tint", (0, 0, 0))
+    if any(t != 0 for t in tint):
+        result[:, :, 0] += tint[0]
+        result[:, :, 1] += tint[1]
+        result[:, :, 2] += tint[2]
+
+
+class TestGradeInplaceOptimization:
+    def test_matches_naive_reference_all_profiles(self):
+        """Fused _grade_inplace must match the naive per-step reference."""
+        rng = np.random.default_rng(42)
+        for channel_key in COLOR_PROFILES:
+            for role in ("hook", "body", "cta"):
+                profile = _resolve_profile(channel_key, role, None)
+                frame = (rng.random((96, 72, 3)) * 255).astype(np.uint8)
+
+                expected = frame.astype(np.float32)
+                _reference_grade(expected, profile)
+
+                actual = frame.astype(np.float32)
+                _grade_inplace(actual, profile)
+
+                max_diff = float(np.abs(expected - actual).max())
+                assert max_diff < 0.01, (
+                    f"{channel_key}/{role}: fused grade diverged from reference by {max_diff}"
+                )
+
+    def test_operates_in_place(self):
+        """_grade_inplace must mutate the passed array, not return a copy."""
+        profile = _resolve_profile("ai_tech", "body", None)
+        frame = np.full((32, 32, 3), 100, dtype=np.float32)
+        original_id = id(frame)
+        _grade_inplace(frame, profile)
+        assert id(frame) == original_id
+        # ai_tech darkens (brightness 0.95) → mean should drop from 100
+        assert frame.mean() != 100.0
