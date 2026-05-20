@@ -71,9 +71,13 @@ test('calving flow requires an operator-entered calf tag number', () => {
   assert.match(calvingTabSource, /register\('calfTagNumber'\)/);
   assert.match(calvingTabSource, /calfTagNumber: values\.calfTagNumber/);
   assert.match(formSchemaSource, /const DATE_INPUT_PATTERN = \/\^\\d\{4\}-\\d\{2\}-\\d\{2\}\$\/;/);
+  assert.match(formSchemaSource, /const PLAIN_NUMBER_INPUT_PATTERN = \/\^-\?\(\?:\\d\+\|\\d\+\\\.\\d\+\|\\\.\\d\+\)\$\/;/);
+  assert.match(formSchemaSource, /const toPlainNumber = \(value\) =>/);
+  assert.match(formSchemaSource, /PLAIN_NUMBER_INPUT_PATTERN\.test\(normalized\)/);
   assert.match(formSchemaSource, /const isDateInputString = \(value\) =>/);
   assert.match(formSchemaSource, /parsed\.toISOString\(\)\.slice\(0, 10\) === value/);
   assert.match(formSchemaSource, /\.refine\(isDateInputString,/);
+  assert.doesNotMatch(formSchemaSource, /z\.coerce\.number/);
   assert.doesNotMatch(formSchemaSource, /new Date\(value\)\.getTime\(\)/);
   assert.match(formSchemaSource, /calfTagNumber: requiredText\('송아지 이력번호를 입력해 주세요\.', 30\)/);
   assert.doesNotMatch(dashboardSource, /KR0000/);

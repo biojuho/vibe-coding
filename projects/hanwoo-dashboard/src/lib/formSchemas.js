@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { toInputDate } from '@/lib/utils';
 
 const DATE_INPUT_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const PLAIN_NUMBER_INPUT_PATTERN = /^-?(?:\d+|\d+\.\d+|\.\d+)$/;
 
 const emptyToUndefined = (value) => {
   if (value === '' || value === null || value === undefined) {
@@ -15,6 +16,27 @@ const emptyToUndefined = (value) => {
   }
 
   return value;
+};
+
+const toPlainNumber = (value) => {
+  const normalized = emptyToUndefined(value);
+  if (normalized === undefined) {
+    return undefined;
+  }
+
+  if (typeof normalized === 'string') {
+    if (!PLAIN_NUMBER_INPUT_PATTERN.test(normalized)) {
+      return Number.NaN;
+    }
+
+    return Number(normalized);
+  }
+
+  if (typeof normalized === 'number') {
+    return Number(normalized);
+  }
+
+  return normalized;
 };
 
 const isDateInputString = (value) => {
@@ -40,8 +62,8 @@ const optionalText = (max = 300) =>
 
 const optionalNumber = () =>
   z.preprocess(
-    emptyToUndefined,
-    z.coerce.number().nonnegative('0 이상 값을 입력해 주세요.').optional(),
+    toPlainNumber,
+    z.number().nonnegative('0 이상 값을 입력해 주세요.').optional(),
   );
 
 const optionalDate = () =>
@@ -57,11 +79,11 @@ export const cattleFormSchema = z.object({
   name: requiredText('개체 이름을 입력해 주세요.', 40),
   tagNumber: requiredText('이력번호를 입력해 주세요.', 30),
   buildingId: requiredText('축사를 선택해 주세요.', 40),
-  penNumber: z.coerce.number().int().min(1, '칸 번호를 선택해 주세요.').max(99, '칸 번호를 확인해 주세요.'),
+  penNumber: z.preprocess(toPlainNumber, z.number().int().min(1, '칸 번호를 선택해 주세요.').max(99, '칸 번호를 확인해 주세요.')),
   gender: requiredText('성별을 선택해 주세요.', 10),
   birthDate: validDateString('생년월일을 입력해 주세요.'),
   status: requiredText('상태를 선택해 주세요.', 30),
-  weight: z.coerce.number().positive('체중은 0보다 커야 합니다.'),
+  weight: z.preprocess(toPlainNumber, z.number().positive('체중은 0보다 커야 합니다.')),
   geneticInfo: z.object({
     father: optionalText(50),
     mother: optionalText(50),
@@ -81,14 +103,14 @@ export const scheduleEventSchema = z.object({
 export const inventoryItemSchema = z.object({
   name: requiredText('자재 이름을 입력해 주세요.', 80),
   category: z.enum(['Feed', 'Medicine', 'Equipment', 'Other']),
-  quantity: z.coerce.number().positive('수량은 0보다 커야 합니다.'),
+  quantity: z.preprocess(toPlainNumber, z.number().positive('수량은 0보다 커야 합니다.')),
   unit: requiredText('단위를 입력해 주세요.', 20),
   threshold: optionalNumber(),
 });
 
 export const salesFormSchema = z.object({
   saleDate: validDateString('출하 날짜를 선택해 주세요.'),
-  price: z.coerce.number().positive('판매 가격은 0보다 커야 합니다.'),
+  price: z.preprocess(toPlainNumber, z.number().positive('판매 가격은 0보다 커야 합니다.')),
   cattleId: requiredText('출하할 개체를 선택해 주세요.', 80),
   purchaser: optionalText(80),
   grade: z.enum(['1++', '1+', '1', '2', '3']),
@@ -97,8 +119,8 @@ export const salesFormSchema = z.object({
 
 export const feedRecordSchema = z.object({
   date: validDateString('급여 날짜를 선택해 주세요.'),
-  roughage: z.coerce.number().positive('조사료 양은 0보다 커야 합니다.'),
-  concentrate: z.coerce.number().positive('배합사료 양은 0보다 커야 합니다.'),
+  roughage: z.preprocess(toPlainNumber, z.number().positive('조사료 양은 0보다 커야 합니다.')),
+  concentrate: z.preprocess(toPlainNumber, z.number().positive('배합사료 양은 0보다 커야 합니다.')),
   note: optionalText(300),
 });
 
@@ -110,14 +132,14 @@ export const calvingRecordSchema = z.object({
 
 export const buildingFormSchema = z.object({
   name: requiredText('동 이름을 입력해 주세요.', 40),
-  penCount: z.coerce.number().int().min(1, '칸 수는 1 이상이어야 합니다.').max(200, '칸 수를 확인해 주세요.'),
+  penCount: z.preprocess(toPlainNumber, z.number().int().min(1, '칸 수는 1 이상이어야 합니다.').max(200, '칸 수를 확인해 주세요.')),
 });
 
 export const farmSettingsSchema = z.object({
   name: requiredText('농장 이름을 입력해 주세요.', 60),
   location: requiredText('농장 위치를 입력해 주세요.', 80),
-  latitude: z.coerce.number().min(-90, '위도를 확인해 주세요.').max(90, '위도를 확인해 주세요.'),
-  longitude: z.coerce.number().min(-180, '경도를 확인해 주세요.').max(180, '경도를 확인해 주세요.'),
+  latitude: z.preprocess(toPlainNumber, z.number().min(-90, '위도를 확인해 주세요.').max(90, '위도를 확인해 주세요.')),
+  longitude: z.preprocess(toPlainNumber, z.number().min(-180, '경도를 확인해 주세요.').max(180, '경도를 확인해 주세요.')),
 });
 
 export function createCattleFormValues(cattle, buildings = []) {

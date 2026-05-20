@@ -97,6 +97,36 @@ test('validateSalesRecordInput rejects malformed sales payloads', () => {
   assert.ok(result.validationErrors.grade?.length);
 });
 
+test('action validators reject non-decimal numeric strings', () => {
+  const sale = validateSalesRecordInput({
+    saleDate: '2026-04-01',
+    price: '1e6',
+    cattleId: 'cattle-1',
+    grade: '1+',
+  });
+
+  assert.equal(sale.success, false);
+  assert.ok(sale.validationErrors.price?.length);
+
+  const building = validateBuildingInput({
+    name: '3동',
+    penCount: '0x10',
+  });
+
+  assert.equal(building.success, false);
+  assert.ok(building.validationErrors.penCount?.length);
+
+  const farm = validateFarmSettingsInput({
+    name: '주라이프 농장',
+    location: '남원',
+    latitude: '3.5446e1',
+    longitude: '127.344',
+  });
+
+  assert.equal(farm.success, false);
+  assert.ok(farm.validationErrors.latitude?.length);
+});
+
 test('action validators reject rollover date strings', () => {
   const sale = validateSalesRecordInput({
     saleDate: '2026-02-31',
