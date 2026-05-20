@@ -11,7 +11,7 @@ export default function NotFound() {
       <section className="login-card status-card" aria-labelledby="not-found-title">
         <div className="login-brand">
           <div className="login-mark" aria-hidden="true">
-            <Compass size={26} strokeWidth={2.2} />
+            <Compass size={26} strokeWidth={2.2} aria-hidden="true" />
           </div>
           <div>
             <p className="login-eyebrow">Joolife 한우 운영</p>

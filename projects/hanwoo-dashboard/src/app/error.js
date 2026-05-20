@@ -14,7 +14,7 @@ export default function RouteError({ error, reset }) {
       <section className="login-card status-card" aria-labelledby="route-error-title">
         <div className="login-brand">
           <div className="login-mark status-mark-danger" aria-hidden="true">
-            <TriangleAlert size={26} strokeWidth={2.2} />
+            <TriangleAlert size={26} strokeWidth={2.2} aria-hidden="true" />
           </div>
           <div>
             <p className="login-eyebrow">Joolife 한우 운영</p>

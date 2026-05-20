@@ -44,7 +44,7 @@ export default function LoginPage() {
       <section className="login-card" aria-labelledby="login-title">
         <div className="login-brand">
           <div className="login-mark" aria-hidden="true">
-            <ShieldCheck size={26} strokeWidth={2.2} />
+            <ShieldCheck size={26} strokeWidth={2.2} aria-hidden="true" />
           </div>
           <div>
             <p className="login-eyebrow">Joolife 한우 운영</p>
@@ -89,7 +89,7 @@ export default function LoginPage() {
                 onClick={() => setShowPassword((current) => !current)}
                 aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
               </button>
             </span>
           </label>
