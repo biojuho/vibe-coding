@@ -84,6 +84,10 @@ export default function CattleDetailModal({ cattle, buildings = [], onClose, onE
   const handleSaveBreedingRecord = async (event) => {
     event.preventDefault();
 
+    if (isBreedingSaving) {
+      return;
+    }
+
     if (!breedingDate) {
       setBreedingError('기록할 날짜를 선택해 주세요.');
       return;
@@ -352,6 +356,7 @@ export default function CattleDetailModal({ cattle, buildings = [], onClose, onE
                       type="submit"
                       className="btn btn-primary"
                       disabled={isBreedingSaving}
+                      aria-busy={isBreedingSaving}
                       style={{...btnPrimary,padding:"10px 14px",fontSize:"13px"}}
                     >
                       {isBreedingSaving ? '저장 중...' : '저장'}

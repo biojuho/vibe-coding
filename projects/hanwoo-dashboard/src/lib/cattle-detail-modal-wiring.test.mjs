@@ -159,6 +159,18 @@ test('cattle form waits for async saves before re-enabling submit actions', () =
   assert.match(formSource, /type="submit" disabled=\{isSaving\} aria-busy=\{isSaving\}/);
 });
 
+test('cattle detail breeding records wait for async saves before re-enabling submit actions', () => {
+  const detailSource = readSource('components/forms/CattleDetailModal.js');
+
+  assert.match(detailSource, /const \[isBreedingSaving, setIsBreedingSaving\] = useState\(false\)/);
+  assert.match(detailSource, /if \(isBreedingSaving\) \{\s+return;\s+\}/);
+  assert.match(detailSource, /setIsBreedingSaving\(true\);/);
+  assert.match(detailSource, /await onUpdate\(nextCattle,/);
+  assert.match(detailSource, /finally \{\s+setIsBreedingSaving\(false\);/);
+  assert.match(detailSource, /type="button"[\s\S]*?onClick=\{\(\) => setActiveBreedingAction\(null\)\}[\s\S]*?disabled=\{isBreedingSaving\}/);
+  assert.match(detailSource, /type="submit"[\s\S]*?disabled=\{isBreedingSaving\}[\s\S]*?aria-busy=\{isBreedingSaving\}/);
+});
+
 test('cattle detail decorative icons are hidden from assistive tech', () => {
   const source = readSource('components/forms/CattleDetailModal.js');
 
