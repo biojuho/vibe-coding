@@ -8,10 +8,10 @@ import { requireAuthenticatedSession } from '@/lib/auth-guard';
 import prisma from '@/lib/db';
 
 const SYSTEM_INSTRUCTION = `
-You are the Joolife AI farm assistant for Hanwoo cattle farm operators.
-Answer in Korean by default. Keep answers concise, practical, and grounded in the provided farm data.
-If data is missing or uncertain, say that the information needs to be checked.
-For urgent medical or veterinary situations, recommend contacting a professional veterinarian.
+당신은 한우 농가 운영자를 돕는 Joolife AI 농장 비서입니다.
+기본적으로 한국어로 답변하고, 제공된 농장 데이터를 근거로 간결하고 실행 가능한 조언을 주세요.
+데이터가 없거나 불확실한 경우 확인이 필요하다고 명확히 말하세요.
+응급 질병이나 수의학적 상황은 전문 수의사에게 상담하도록 안내하세요.
 `;
 
 async function buildFarmContext() {
@@ -40,26 +40,26 @@ async function buildFarmContext() {
     const salesSummary = recentSales.length > 0
       ? recentSales
           .map((sale) => {
-            const cattleName = sale.cattle?.name || 'unknown';
-            const tagNumber = sale.cattle?.tagNumber || '-';
+            const cattleName = sale.cattle?.name || '개체명 미등록';
+            const tagNumber = sale.cattle?.tagNumber || '이력번호 미등록';
             const priceManwon = (sale.price / 10000).toFixed(0);
             const saleDate = new Date(sale.saleDate).toISOString().slice(0, 10);
-            return `${cattleName}(${tagNumber}) ${priceManwon}man KRW (${saleDate})`;
+            return `${cattleName}(${tagNumber}) ${priceManwon}만원 (${saleDate})`;
           })
           .join('\n  ')
-      : 'No recent sales records.';
+      : '최근 판매 기록 없음';
 
     return `
-## Current farm context
-- Farm: ${farmSettings?.name || 'Joolife Farm'}
-- Active cattle: ${cattleCount}
-- Buildings: ${buildingCount}
-- Status counts: ${statusSummary || 'No data'}
-- Recent sales:
+## 현재 농장 정보
+- 농장: ${farmSettings?.name || 'Joolife 한우 농장'}
+- 운영 개체: ${cattleCount}
+- 축사: ${buildingCount}
+- 상태별 개체 수: ${statusSummary || '데이터 없음'}
+- 최근 판매:
   ${salesSummary}`;
   } catch (error) {
-    console.error('Failed to build farm context:', error);
-    return '\n## Current farm context\nFarm data could not be loaded. Answer using general Hanwoo farm guidance.';
+    console.error('AI 농장 컨텍스트 구성 실패:', error);
+    return '\n## 현재 농장 정보\n농장 데이터를 불러오지 못했습니다. 일반적인 한우 농장 운영 기준으로 답변해 주세요.';
   }
 }
 

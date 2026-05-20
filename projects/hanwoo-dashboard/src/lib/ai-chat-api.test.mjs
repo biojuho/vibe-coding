@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
   AI_CHAT_LIMITS,
@@ -8,6 +11,9 @@ import {
   normalizeAiChatHistoryForGemini,
   parseAiChatRequest,
 } from './ai-chat-api.mjs';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const SRC_ROOT = path.resolve(__dirname, '..');
 
 function jsonRequest(body) {
   return new Request('https://joolife.local/api/ai/chat', {
@@ -87,21 +93,21 @@ test('parseAiChatRequest rejects malformed JSON and invalid message payloads', a
           body: '{bad-json',
         }),
       ),
-    /valid JSON/,
+    /올바른 JSON/,
   );
 
-  await assert.rejects(() => parseAiChatRequest(jsonRequest({ message: '' })), /required/);
+  await assert.rejects(() => parseAiChatRequest(jsonRequest({ message: '' })), /질문을 입력/);
   await assert.rejects(
     () =>
       parseAiChatRequest(
         jsonRequest({ message: 'x'.repeat(AI_CHAT_LIMITS.maxMessageLength + 1) }),
       ),
-    /characters or fewer/,
+    /1000자 이내/,
   );
 });
 
 test('normalizeAiChatHistoryForGemini rejects unsafe history shapes', () => {
-  assert.throws(() => normalizeAiChatHistoryForGemini('not-array'), /must be an array/);
+  assert.throws(() => normalizeAiChatHistoryForGemini('not-array'), /대화 이력 형식/);
   assert.throws(
     () =>
       normalizeAiChatHistoryForGemini(
@@ -110,11 +116,11 @@ test('normalizeAiChatHistoryForGemini rejects unsafe history shapes', () => {
           content: 'x',
         })),
       ),
-    /must contain 20 items or fewer/,
+    /20개 이하/,
   );
   assert.throws(
     () => normalizeAiChatHistoryForGemini([{ role: 'assistant', content: 'x' }]),
-    /role/,
+    /역할이 올바르지 않습니다/,
   );
 });
 
@@ -162,22 +168,30 @@ test('handleAiChatRequest blocks unauthenticated callers before API-key and farm
   assert.equal(farmContextBuilt, false);
   assert.deepEqual(await readJson(response), {
     success: false,
-    message: 'Authentication required.',
-    error: 'Authentication required.',
+    message: '로그인이 필요합니다.',
+    error: '로그인이 필요합니다.',
   });
 });
 
 test('handleAiChatRequest reports validation and configuration failures consistently', async () => {
   const invalid = await handleAiChatRequest(jsonRequest({ message: 123 }), makeDeps());
   assert.equal(invalid.status, 400);
-  assert.equal((await readJson(invalid)).success, false);
+  assert.deepEqual(await readJson(invalid), {
+    success: false,
+    message: '질문은 문자열로 입력해 주세요.',
+    error: '질문은 문자열로 입력해 주세요.',
+  });
 
   const missingKey = await handleAiChatRequest(
     jsonRequest({ message: 'hello' }),
     makeDeps({ getApiKey: () => '' }),
   );
   assert.equal(missingKey.status, 500);
-  assert.match((await readJson(missingKey)).message, /GEMINI_API_KEY/);
+  assert.deepEqual(await readJson(missingKey), {
+    success: false,
+    message: 'AI 비서 설정이 완료되지 않았습니다. 관리자에게 문의해 주세요.',
+    error: 'AI 비서 설정이 완료되지 않았습니다. 관리자에게 문의해 주세요.',
+  });
 });
 
 test('createAiChatSseStream emits chunks and converts provider errors to SSE errors', async () => {
@@ -206,5 +220,25 @@ test('createAiChatSseStream emits chunks and converts provider errors to SSE err
     },
   });
 
-  assert.match(await readStreamText(errorStream), /API key is invalid/);
+  assert.match(await readStreamText(errorStream), /AI 설정 키가 올바르지 않습니다/);
+});
+
+test('AI chat route farm context avoids English fallback copy', () => {
+  const source = readFileSync(path.join(SRC_ROOT, 'app/api/ai/chat/route.js'), 'utf8');
+
+  assert.match(source, /Joolife AI 농장 비서/);
+  assert.match(source, /AI 농장 컨텍스트 구성 실패/);
+  assert.match(source, /현재 농장 정보/);
+  assert.match(source, /개체명 미등록/);
+  assert.match(source, /이력번호 미등록/);
+  assert.match(source, /최근 판매 기록 없음/);
+  assert.match(source, /Joolife 한우 농장/);
+  assert.doesNotMatch(source, /Joolife AI farm assistant/);
+  assert.doesNotMatch(source, /Answer in Korean/);
+  assert.doesNotMatch(source, /Failed to build farm context/);
+  assert.doesNotMatch(source, /unknown/);
+  assert.doesNotMatch(source, /No recent sales records/);
+  assert.doesNotMatch(source, /Current farm context/);
+  assert.doesNotMatch(source, /Farm data could not be loaded/);
+  assert.doesNotMatch(source, /man KRW/);
 });

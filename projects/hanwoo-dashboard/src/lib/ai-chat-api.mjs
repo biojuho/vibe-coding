@@ -28,17 +28,17 @@ function isAuthenticationError(error) {
 
 function parseMessage(value) {
   if (typeof value !== 'string') {
-    throw new AiChatValidationError('`message` must be a string.');
+    throw new AiChatValidationError('질문은 문자열로 입력해 주세요.');
   }
 
   const message = value.trim();
   if (!message) {
-    throw new AiChatValidationError('`message` is required.');
+    throw new AiChatValidationError('질문을 입력해 주세요.');
   }
 
   if (message.length > AI_CHAT_LIMITS.maxMessageLength) {
     throw new AiChatValidationError(
-      `\`message\` must be ${AI_CHAT_LIMITS.maxMessageLength} characters or fewer.`,
+      `질문은 ${AI_CHAT_LIMITS.maxMessageLength}자 이내로 입력해 주세요.`,
     );
   }
 
@@ -51,36 +51,36 @@ export function normalizeAiChatHistory(history = []) {
   }
 
   if (!Array.isArray(history)) {
-    throw new AiChatValidationError('`history` must be an array.');
+    throw new AiChatValidationError('대화 이력 형식이 올바르지 않습니다.');
   }
 
   if (history.length > AI_CHAT_LIMITS.maxHistoryItems) {
     throw new AiChatValidationError(
-      `\`history\` must contain ${AI_CHAT_LIMITS.maxHistoryItems} items or fewer.`,
+      `대화 이력은 ${AI_CHAT_LIMITS.maxHistoryItems}개 이하로 보내 주세요.`,
     );
   }
 
   return history.map((item, index) => {
     if (!item || typeof item !== 'object') {
-      throw new AiChatValidationError(`\`history[${index}]\` must be an object.`);
+      throw new AiChatValidationError(`대화 이력 ${index + 1}번째 항목 형식이 올바르지 않습니다.`);
     }
 
     if (item.role !== 'user' && item.role !== 'system') {
-      throw new AiChatValidationError(`\`history[${index}].role\` must be "user" or "system".`);
+      throw new AiChatValidationError(`대화 이력 ${index + 1}번째 역할이 올바르지 않습니다.`);
     }
 
     if (typeof item.content !== 'string') {
-      throw new AiChatValidationError(`\`history[${index}].content\` must be a string.`);
+      throw new AiChatValidationError(`대화 이력 ${index + 1}번째 내용 형식이 올바르지 않습니다.`);
     }
 
     const content = item.content.trim();
     if (!content) {
-      throw new AiChatValidationError(`\`history[${index}].content\` is required.`);
+      throw new AiChatValidationError(`대화 이력 ${index + 1}번째 내용이 비어 있습니다.`);
     }
 
     if (content.length > AI_CHAT_LIMITS.maxHistoryContentLength) {
       throw new AiChatValidationError(
-        `\`history[${index}].content\` must be ${AI_CHAT_LIMITS.maxHistoryContentLength} characters or fewer.`,
+        `대화 이력 ${index + 1}번째 내용은 ${AI_CHAT_LIMITS.maxHistoryContentLength}자 이내로 보내 주세요.`,
       );
     }
 
@@ -103,7 +103,7 @@ export async function parseAiChatRequest(request) {
   try {
     body = await request.json();
   } catch {
-    throw new AiChatValidationError('Request body must be valid JSON.');
+    throw new AiChatValidationError('요청 본문은 올바른 JSON 형식이어야 합니다.');
   }
 
   return {
@@ -129,8 +129,8 @@ export function createAiChatSseStream({ chat, message, encoder = new TextEncoder
         controller.close();
       } catch (error) {
         const message = error?.message?.includes('API_KEY')
-          ? 'API key is invalid.'
-          : 'Failed to generate an AI response.';
+          ? 'AI 설정 키가 올바르지 않습니다.'
+          : 'AI 답변을 생성하지 못했습니다.';
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: message })}\n\n`));
         controller.close();
       }
@@ -151,14 +151,14 @@ export async function handleAiChatRequest(request, deps) {
     await authenticate();
   } catch (error) {
     if (isAuthenticationError(error)) {
-      return jsonError(error.message || 'Authentication required.', 401);
+      return jsonError('로그인이 필요합니다.', 401);
     }
     throw error;
   }
 
   const apiKey = getApiKey();
   if (!apiKey) {
-    return jsonError('GEMINI_API_KEY is not configured.', 500);
+    return jsonError('AI 비서 설정이 완료되지 않았습니다. 관리자에게 문의해 주세요.', 500);
   }
 
   let payload;
@@ -187,7 +187,7 @@ export async function handleAiChatRequest(request, deps) {
         Connection: 'keep-alive',
       },
     });
-  } catch (error) {
-    return jsonError(error.message || 'Failed to start AI chat.', 500);
+  } catch {
+    return jsonError('AI 채팅을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.', 500);
   }
 }
