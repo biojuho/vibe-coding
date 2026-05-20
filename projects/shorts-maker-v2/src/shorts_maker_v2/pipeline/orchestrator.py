@@ -643,16 +643,24 @@ class PipelineOrchestrator:
                         strictness=scene_qc_strictness,
                         prev_asset=prev_asset,
                     )
-                    retry = 0
-                    for retry in range(max_scene_retries):
+                    retry_attempts = 0
+                    for _retry in range(max_scene_retries):
                         if qc_result.verdict == "pass":
                             break
                         # 실패한 컴포넌트 판별
-                        component = "visual" if qc_result.checks.get("audio_ok", True) else "both"
+                        component = PipelineOrchestrator._scene_qc_retry_component(qc_result)
+                        if component is None:
+                            jlog.info(
+                                "scene_qc_no_media_retry",
+                                scene_id=plan.scene_id,
+                                issues=qc_result.issues,
+                            )
+                            break
+                        retry_attempts += 1
                         jlog.info(
                             "scene_qc_retry",
                             scene_id=plan.scene_id,
-                            retry=retry + 1,
+                            retry=retry_attempts,
                             component=component,
                             issues=qc_result.issues,
                         )
@@ -673,7 +681,7 @@ class PipelineOrchestrator:
                             strictness=scene_qc_strictness,
                             prev_asset=prev_asset,
                         )
-                    qc_result.retry_count = retry + 1 if qc_result.verdict != "pass" else 0
+                    qc_result.retry_count = retry_attempts
                     all_scene_qc_results.append(qc_result.to_dict())
                 manifest.scene_qc_results = all_scene_qc_results
                 step_timings["scene_qc"] = round(time.perf_counter() - _t0, 2)
@@ -1094,6 +1102,31 @@ class PipelineOrchestrator:
         return manifest
 
     # ── Scene QC 집계 ───────────────────────────────────────────────────
+
+    @staticmethod
+    def _scene_qc_retry_component(qc_result: Any) -> str | None:
+        """Choose which media component can actually address a scene QC failure."""
+
+        checks = getattr(qc_result, "checks", {}) or {}
+        failed = {name for name, passed in checks.items() if passed is False}
+
+        audio_checks = {"audio_ok", "duration_ok", "chars_per_sec_ok", "audio_mean_volume_ok"}
+        visual_checks = {"visual_ok", "visual_continuity_ok"}
+
+        audio_failed = bool(failed & audio_checks)
+        visual_failed = bool(failed & visual_checks)
+
+        if audio_failed and visual_failed:
+            return "both"
+        if audio_failed:
+            return "both" if "audio_ok" in failed else "audio"
+        if visual_failed:
+            return "visual"
+        if failed:
+            return None
+
+        issues = getattr(qc_result, "issues", None) or []
+        return "visual" if issues else None
 
     @staticmethod
     def _aggregate_scene_qc_summary(scene_qc_results: list[dict[str, Any]]) -> dict[str, Any]:

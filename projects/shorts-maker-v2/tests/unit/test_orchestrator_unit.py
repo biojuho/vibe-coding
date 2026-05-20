@@ -698,7 +698,7 @@ class TestRunErrorPaths:
         assert manifest.status == "hold"
         assert manifest.production_plan == {"concept": "A concept worth recording"}
         assert manifest.structure_outline == {"narrative_arc": "rise"}
-        assert manifest.scene_qc_results[0]["retry_count"] == 0
+        assert manifest.scene_qc_results[0]["retry_count"] == 1
         assert manifest.failed_steps[0]["error_type"] == PipelineErrorType.NETWORK_ERROR.value
         assert manifest.ab_variant["renderer"] == "shorts_factory"
         assert manifest.thumbnail_path == ""
@@ -706,6 +706,59 @@ class TestRunErrorPaths:
         sf_render.assert_called_once()
         orch.media_step.regenerate_scene.assert_called_once()
         assert warning_logger.called
+
+    def test_scene_qc_duration_failure_regenerates_audio(self, tmp_path: Path):
+        cfg = _load_cfg(tmp_path)
+        _set_frozen_attr(cfg.project, "structure_validation", "off")
+        _set_frozen_attr(cfg.project, "scene_qc_enabled", True)
+        orch = PipelineOrchestrator(
+            config=cfg,
+            base_dir=tmp_path,
+            script_step=StubScript(),
+            media_step=MagicMock(),
+            render_step=StubRender(),
+        )
+        orch.thumbnail_step = MagicMock()
+        orch.thumbnail_step.run.return_value = None
+
+        audio = tmp_path / "run" / "a.mp3"
+        audio.parent.mkdir(parents=True, exist_ok=True)
+        audio.write_bytes(b"audio")
+        original_asset = SceneAsset(
+            scene_id=1,
+            audio_path=str(audio),
+            visual_type="image",
+            visual_path=str(audio),
+            duration_sec=20.0,
+        )
+        regenerated_asset = SceneAsset(
+            scene_id=1,
+            audio_path=str(audio),
+            visual_type="image",
+            visual_path=str(audio),
+            duration_sec=5.0,
+        )
+        orch.media_step.run.return_value = ([original_asset], [])
+        orch.media_step.regenerate_scene.return_value = (regenerated_asset, [])
+
+        duration_fail = FakeQcResult(
+            "fail",
+            issues=["Duration 20.0s outside [1.0,8.0]s"],
+            checks={"audio_ok": True, "visual_ok": True, "duration_ok": False},
+        )
+        pass_qc = FakeQcResult("pass", checks={"audio_ok": True, "visual_ok": True, "duration_ok": True})
+        gate3_pass = SimpleNamespace(verdict="pass", checks={"ok": True}, issues=[])
+        gate4_pass = SimpleNamespace(verdict="pass", checks={"ok": True}, issues=[])
+
+        with (
+            patch("shorts_maker_v2.pipeline.orchestrator.QCStep.gate_scene_qc", side_effect=[duration_fail, pass_qc]),
+            patch("shorts_maker_v2.pipeline.orchestrator.QCStep.gate3_media", return_value=gate3_pass),
+            patch("shorts_maker_v2.pipeline.orchestrator.QCStep.gate4_final", return_value=gate4_pass),
+        ):
+            manifest = orch.run(topic="duration retry")
+
+        assert manifest.scene_qc_results[0]["retry_count"] == 1
+        assert orch.media_step.regenerate_scene.call_args.kwargs["component"] == "audio"
 
     def test_run_success_path_covers_upload_thumbnail_srt_and_series(self, tmp_path: Path):
         cfg = _load_cfg(tmp_path)
@@ -1029,6 +1082,46 @@ class TestAggregateSceneQCSummary:
 
 
 # ── SemanticQCStep orchestrator integration ─────────────────────────────────
+
+
+class TestSceneQCRetryComponent:
+    """Scene QC retry routing should regenerate the component that can fix the issue."""
+
+    def test_audio_timing_failure_regenerates_audio(self):
+        result = FakeQcResult(
+            "fail",
+            issues=["Duration 20.0s outside [1.0,8.0]s"],
+            checks={"audio_ok": True, "visual_ok": True, "duration_ok": False},
+        )
+
+        assert PipelineOrchestrator._scene_qc_retry_component(result) == "audio"
+
+    def test_visual_failure_regenerates_visual(self):
+        result = FakeQcResult(
+            "fail",
+            issues=["Visual dimensions 320x240 below minimum 540px"],
+            checks={"audio_ok": True, "visual_ok": False},
+        )
+
+        assert PipelineOrchestrator._scene_qc_retry_component(result) == "visual"
+
+    def test_audio_integrity_failure_regenerates_both(self):
+        result = FakeQcResult(
+            "fail",
+            issues=["Audio file missing"],
+            checks={"audio_ok": False, "visual_ok": True},
+        )
+
+        assert PipelineOrchestrator._scene_qc_retry_component(result) == "both"
+
+    def test_script_only_failure_does_not_spend_media_retry(self):
+        result = FakeQcResult(
+            "fail",
+            issues=["Hook narration too long"],
+            checks={"audio_ok": True, "visual_ok": True, "hook_concise": False},
+        )
+
+        assert PipelineOrchestrator._scene_qc_retry_component(result) is None
 
 
 class TestSemanticQCIntegration:
