@@ -822,6 +822,33 @@
 ## 2026-05-20 KST - Codex
 
 ### Summary
+- Completed T-342 for `hanwoo-dashboard` while continuing the active product-completeness goal.
+- Localized the cattle Excel/CSV export output by moving CSV generation into `src/lib/cattle-csv-export.mjs`.
+- Exported spreadsheets now keep the UTF-8 BOM, use Korean headers, and normalize memo commas/extra whitespace before download.
+
+### Changed Files
+- `.ai/GOAL.md`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `projects/hanwoo-dashboard/src/components/widgets/ExcelExportButton.js`
+- `projects/hanwoo-dashboard/src/lib/cattle-csv-export.mjs`
+- `projects/hanwoo-dashboard/src/lib/cattle-csv-export.test.mjs`
+
+### Verification
+- `npm.cmd test -- --test-name-pattern "buildCattleCsvRows|component files|local import"` from `projects/hanwoo-dashboard` -> `97 passed`.
+- `npx.cmd eslint src/lib/cattle-csv-export.mjs src/lib/cattle-csv-export.test.mjs src/components/widgets/ExcelExportButton.js` from `projects/hanwoo-dashboard` -> passed.
+- `python execution/project_qc_runner.py --project hanwoo-dashboard --json` -> passed (`test` 97 passed, lint passed, build passed).
+- `PYTHONUTF8=1 python -m code_review_graph detect-changes --repo projects/hanwoo-dashboard --brief` -> risk `0.00`.
+- `git diff --check -- projects/hanwoo-dashboard/src/lib/cattle-csv-export.mjs projects/hanwoo-dashboard/src/lib/cattle-csv-export.test.mjs projects/hanwoo-dashboard/src/components/widgets/ExcelExportButton.js` -> passed.
+
+### Follow-up
+- Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
+- Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts.
+
+## 2026-05-20 KST - Codex
+
+### Summary
 - Completed T-341 for `hanwoo-dashboard` while continuing the active product-completeness goal.
 - Localized app-authored payment confirmation fallback messages: pending verification, generic failure, amount mismatch, and malformed gateway response snippets now use Korean product copy.
 - Preserved explicit gateway-provided messages instead of rewriting third-party payloads.

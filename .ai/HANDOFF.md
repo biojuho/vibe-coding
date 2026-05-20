@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-342 completed**: continued the active Hanwoo quality goal by localizing the cattle Excel/CSV export result. `ExcelExportButton` now delegates CSV generation to `src/lib/cattle-csv-export.mjs`; the exported spreadsheet keeps the UTF-8 BOM, uses Korean headers (`이름`, `이력번호`, `생년월일`, `성별`, `상태`, `축사 ID`, `칸 번호`, `메모`), and normalizes memo commas/extra whitespace. |
+| Next Priorities | Verification passed: focused export/import tests passed (`97 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 97 passed, lint passed, build passed), `git diff --check` passed, and UTF-8 graph risk `0.00`. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-341 completed**: continued the active Hanwoo quality goal by localizing payment confirmation fallback copy. `payment-confirmation.mjs` now returns Korean pending, failure, amount-mismatch, and malformed gateway-response messages while still preserving explicit gateway-provided messages. Added direct behavior coverage and source-copy coverage so `Payment confirmation`, `Payment verification`, `Confirmed payment amount`, and `Gateway response:` do not return as app-authored user-facing fallback copy. Commit `535839a`. |
 | Next Priorities | Verification passed: Hanwoo node tests `96 passed`, `npm.cmd run lint`, `npm.cmd run build`, `git diff --check`, staged code-review gate PASS, and direct Hanwoo graph risk `0.00`. Commit hook emitted advisory WARN from graph heuristics that also mentioned concurrent dirty `ExcelExportButton.js`, but the committed path set was only payment confirmation files. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, `ExcelExportButton.js` / `cattle-csv-export.mjs`, package locks, and setup scripts. |
 

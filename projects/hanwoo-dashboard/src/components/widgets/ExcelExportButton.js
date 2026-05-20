@@ -4,24 +4,7 @@ import { useState } from 'react';
 
 import { useAppFeedback } from '@/components/feedback/FeedbackProvider';
 import { PremiumButton } from '@/components/ui/premium-button';
-
-function buildCsvRows(cattleList) {
-  const headers = ['ID', 'Name', 'Tag Number', 'Birth Date', 'Gender', 'Status', 'Building ID', 'Pen Number', 'Memo'];
-
-  const rows = cattleList.map((cattle) => [
-    cattle.id,
-    cattle.name,
-    cattle.tagNumber,
-    cattle.birthDate ? new Date(cattle.birthDate).toLocaleDateString() : '',
-    cattle.gender || '',
-    cattle.status || '',
-    cattle.buildingId || '',
-    cattle.penNumber || '',
-    (cattle.memo || '').replace(/,/g, ' '),
-  ]);
-
-  return ['\uFEFF' + headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
-}
+import { buildCattleCsvRows } from '@/lib/cattle-csv-export.mjs';
 
 export default function ExcelExportButton({ cattleList = [], resolveCattleList = null }) {
   const { notify } = useAppFeedback();
@@ -45,7 +28,7 @@ export default function ExcelExportButton({ cattleList = [], resolveCattleList =
         return;
       }
 
-      const csvContent = buildCsvRows(rows);
+      const csvContent = buildCattleCsvRows(rows);
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
