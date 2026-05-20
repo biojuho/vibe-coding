@@ -150,30 +150,36 @@ export default function SalesTab({
               <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '12px' }}>새 매출 기록 등록</div>
               <div style={{ display: 'grid', gap: '10px' }}>
                 <div>
-                  <PremiumLabel>출하일자</PremiumLabel>
+                  <PremiumLabel htmlFor="sale-date">출하일자</PremiumLabel>
                   <PremiumInput
+                    id="sale-date"
                     type="date"
                     {...register('saleDate')}
+                    aria-invalid={Boolean(errors.saleDate)}
                     hasError={!!errors.saleDate}
                   />
                   {errors.saleDate ? <div style={errorTextStyle}>{errors.saleDate.message}</div> : null}
                 </div>
 
                 <div>
-                  <PremiumLabel>판매 가격 (원)</PremiumLabel>
+                  <PremiumLabel htmlFor="sale-price">판매 가격 (원)</PremiumLabel>
                   <PremiumInput
+                    id="sale-price"
                     type="number"
                     {...register('price')}
                     placeholder="예: 8500000"
+                    aria-invalid={Boolean(errors.price)}
                     hasError={!!errors.price}
                   />
                   {errors.price ? <div style={errorTextStyle}>{errors.price.message}</div> : null}
                 </div>
 
                 <div>
-                  <PremiumLabel>출하 개체</PremiumLabel>
+                  <PremiumLabel htmlFor="sale-cattle">출하 개체</PremiumLabel>
                   <PremiumSelect
+                    id="sale-cattle"
                     {...register('cattleId')}
+                    aria-invalid={Boolean(errors.cattleId)}
                     hasError={!!errors.cattleId}
                   >
                     <option value="" className="bg-slate-900">선택해 주세요</option>
@@ -188,9 +194,11 @@ export default function SalesTab({
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
-                    <PremiumLabel>등급</PremiumLabel>
+                    <PremiumLabel htmlFor="sale-grade">등급</PremiumLabel>
                     <PremiumSelect
+                      id="sale-grade"
                       {...register('grade')}
+                      aria-invalid={Boolean(errors.grade)}
                       hasError={!!errors.grade}
                     >
                       <option value="1++" className="bg-slate-900">1++</option>
@@ -203,10 +211,12 @@ export default function SalesTab({
                   </div>
 
                   <div>
-                    <PremiumLabel>구매처</PremiumLabel>
+                    <PremiumLabel htmlFor="sale-purchaser">구매처</PremiumLabel>
                     <PremiumInput
+                      id="sale-purchaser"
                       {...register('purchaser')}
                       placeholder="예: 남원축협"
+                      aria-invalid={Boolean(errors.purchaser)}
                       hasError={!!errors.purchaser}
                     />
                     {errors.purchaser ? <div style={errorTextStyle}>{errors.purchaser.message}</div> : null}

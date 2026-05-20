@@ -209,6 +209,21 @@ test('sales tab missing cattle fallback copy stays Korean', () => {
   assert.doesNotMatch(source, /000-0000-0000/);
 });
 
+test('sales form fields expose explicit labels and invalid state', () => {
+  const source = readSource('components/tabs/SalesTab.js');
+
+  assert.match(source, /<PremiumLabel htmlFor="sale-date">출하일자<\/PremiumLabel>/);
+  assert.match(source, /id="sale-date"[\s\S]*?aria-invalid=\{Boolean\(errors\.saleDate\)\}/);
+  assert.match(source, /<PremiumLabel htmlFor="sale-price">판매 가격 \(원\)<\/PremiumLabel>/);
+  assert.match(source, /id="sale-price"[\s\S]*?aria-invalid=\{Boolean\(errors\.price\)\}/);
+  assert.match(source, /<PremiumLabel htmlFor="sale-cattle">출하 개체<\/PremiumLabel>/);
+  assert.match(source, /id="sale-cattle"[\s\S]*?aria-invalid=\{Boolean\(errors\.cattleId\)\}/);
+  assert.match(source, /<PremiumLabel htmlFor="sale-grade">등급<\/PremiumLabel>/);
+  assert.match(source, /id="sale-grade"[\s\S]*?aria-invalid=\{Boolean\(errors\.grade\)\}/);
+  assert.match(source, /<PremiumLabel htmlFor="sale-purchaser">구매처<\/PremiumLabel>/);
+  assert.match(source, /id="sale-purchaser"[\s\S]*?aria-invalid=\{Boolean\(errors\.purchaser\)\}/);
+});
+
 test('dashboard API fallback messages stay operator-facing Korean', () => {
   const cattleRoute = readSource('app/api/dashboard/cattle/route.js');
   const salesRoute = readSource('app/api/dashboard/sales/route.js');
