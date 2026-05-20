@@ -34,3 +34,10 @@ test('settings tab decorative text icons are hidden from assistive tech', () => 
   assert.match(source, /<span aria-hidden="true" style=\{\{ fontSize: '18px' \}\}>위젯<\/span>/);
   assert.match(source, /<span aria-hidden="true" style=\{\{ fontSize: '16px' \}\}>\{widget\.icon\}<\/span>/);
 });
+
+test('settings tab building delete buttons identify the target building', () => {
+  const source = readSource('components/tabs/SettingsTab.js');
+
+  assert.match(source, /aria-label=\{`\$\{building\.name\} 동 삭제`\}/);
+  assert.match(source, /title=\{`\$\{building\.name\} 동 삭제`\}/);
+});

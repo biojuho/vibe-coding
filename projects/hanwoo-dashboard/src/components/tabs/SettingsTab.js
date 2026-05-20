@@ -474,6 +474,8 @@ export default function SettingsTab({
               variant="outline"
               size="sm"
               onClick={() => handleDeleteBuilding(building.id, building.name)}
+              aria-label={`${building.name} 동 삭제`}
+              title={`${building.name} 동 삭제`}
               className="text-xs text-red-500 border-red-500/50 hover:bg-red-500/10 px-2 py-1 rounded h-auto"
             >
               삭제
