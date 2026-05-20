@@ -16,6 +16,7 @@ test('notification modal close button has Korean accessible copy', () => {
 
   assert.match(source, /aria-label="닫기"/);
   assert.match(source, /title="닫기"/);
+  assert.match(source, /<button\s+type="button"\s+onClick=\{onClose\}/);
   assert.doesNotMatch(source, /aria-label="Close"/);
   assert.doesNotMatch(source, /title="Close"/);
 });
@@ -28,4 +29,12 @@ test('notification modal exposes dialog semantics with a visible title label', (
   assert.match(source, /aria-labelledby="notification-modal-title"/);
   assert.match(source, /id="notification-modal-title"/);
   assert.match(source, /알림 센터/);
+});
+
+test('notification modal SMS action uses safe button semantics and Korean copy', () => {
+  const source = readSource('components/ui/NotificationModal.js');
+
+  assert.match(source, /<button\s+type="button"\s+onClick=\{onTestSMS\}/);
+  assert.match(source, /문자 알림 연동이 필요하며 발송 비용이 발생할 수 있습니다\./);
+  assert.doesNotMatch(source, /Twilio \/ Kakao API 연동 필요/);
 });

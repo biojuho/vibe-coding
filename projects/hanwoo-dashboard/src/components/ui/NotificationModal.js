@@ -37,6 +37,7 @@ export default function NotificationModal({ notifications, onClose, onTestSMS })
             <span className="animate-bounce" style={{fontSize:"22px"}}>🔔</span> 알림 센터
           </div>
           <button
+            type="button"
             onClick={onClose}
             aria-label="닫기"
             title="닫기"
@@ -121,6 +122,7 @@ export default function NotificationModal({ notifications, onClose, onTestSMS })
               중요 알림을 문자로 받으시겠습니까?
             </span>
             <button
+              type="button"
               onClick={onTestSMS}
               className="btn btn-primary"
               style={{
@@ -136,7 +138,7 @@ export default function NotificationModal({ notifications, onClose, onTestSMS })
             fontSize:"11px",
             color:"var(--color-text-muted)",
             marginTop:"8px"
-          }}>* Twilio / Kakao API 연동 필요 (비용 발생 가능)</div>
+          }}>* 문자 알림 연동이 필요하며 발송 비용이 발생할 수 있습니다.</div>
         </div>
       </div>
     </div>
