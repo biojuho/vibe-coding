@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-345 completed**: continued the active Hanwoo product-completeness goal by polishing the cattle QR print action. `QRCodeWidget` now uses a lucide `Printer` icon, Korean print-document title suffix (`QR 출력`), and Korean button/title copy (`QR 라벨 인쇄`) instead of a bare emoji label and English `QR Code` print title. Added source-copy regression coverage in `qr-widget-copy.test.mjs`. |
+| Next Priorities | Verification passed: focused Hanwoo tests passed (`100 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 100 passed, lint passed, build passed), and UTF-8 graph risk `0.00`. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-344 completed**: continued the active Hanwoo product-completeness goal by localizing the Sales tab missing-cattle fallback path. `SalesTab` now renders `개체명 미등록` and `이력번호 미등록` instead of `Unknown` / `000-0000-0000` when a sale record references missing cattle metadata, so charts and sale cards stay operator-facing. Added source-copy regression coverage in `home-market-copy.test.mjs`. |
 | Next Priorities | Verification passed: focused Hanwoo tests passed (`99 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 99 passed, lint passed, build passed), `git diff --check` passed, staged code-review gate PASS, and UTF-8 graph risk `0.00`. Commit hook emitted advisory WARN from graph test-gap heuristics, but direct focused/full checks cover the change. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |
 

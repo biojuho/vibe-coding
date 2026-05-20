@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` cattle QR print controls use operator-facing Korean copy and a lucide icon button. `QRCodeWidget` prints with `QR 출력`, exposes `QR 라벨 인쇄`, and is covered by `src/lib/qr-widget-copy.test.mjs` so English `QR Code` print copy and the emoji-only print affordance do not return. Verification passed: Hanwoo tests `100 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json`, and direct Hanwoo graph risk `0.00`.
+
 - As of 2026-05-20, `hanwoo-dashboard` Sales tab fallback copy no longer exposes `Unknown` or fake `000-0000-0000` values when sale records reference missing cattle metadata. Sale cards and recent-sales chart labels use `개체명 미등록` / `이력번호 미등록` instead, with source-copy regression coverage. Verification passed: Hanwoo tests `99 passed`, targeted ESLint, full `project_qc_runner --project hanwoo-dashboard --json`, `git diff --check`, staged code-review gate PASS, and direct Hanwoo graph risk `0.00`.
 
 - As of 2026-05-20, `hanwoo-dashboard` payment confirmation fallback messages no longer expose app-authored English copy to subscription users. Pending verification, generic failure, amount mismatch, and malformed gateway-response fallback messages are Korean while explicit gateway-provided messages are preserved. Verification passed: Hanwoo tests `96 passed`, `npm.cmd run lint`, `npm.cmd run build`, `git diff --check`, and direct Hanwoo graph risk `0.00`.
