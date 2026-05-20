@@ -12,6 +12,8 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-452 added dialog semantics and Escape dismissal to Hanwoo AIChatWidget. The open chat panel now exposes `role="dialog"` with `AI 농장 비서 채팅` as its accessible name, and Escape closes through the same abort-safe close path. Verification passed with focused AI chat widget copy test (`1 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 167, lint, build), and staged code-review gate JSON (`risk_score 0.0`). Commit `b32550e`.
+
 - 2026-05-20: T-450 labeled the Hanwoo Inventory inline quantity editor. The edit-mode numeric input now exposes `${item.name} 재고 수량 입력` via `aria-label` and `title`, so each inline quantity editor has an item-specific accessible name. Verification passed with focused home-market copy test (`16 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 167, lint, build), and staged code-review gate JSON (`risk_score 0.0`). Commit `8aa9412`.
 
 - 2026-05-20: T-449 labeled Hanwoo SettingsTab farm/building form fields and exposed validation state. Farm name/location/latitude/longitude plus building name/pen count controls now have labels linked to stable ids and `aria-invalid` tied to React Hook Form errors where validation applies. Verification passed with focused Settings accessibility test (`4 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 166, lint, build), and staged code-review gate JSON (`risk_score 0.0`). Commit `19a2ea3`.
