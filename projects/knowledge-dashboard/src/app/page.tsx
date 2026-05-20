@@ -3,7 +3,7 @@
 
 import { startTransition, useDeferredValue, useEffect, useMemo, useState } from "react";
 import {
-  Book, Code, Github, ExternalLink, RefreshCw, Smartphone,
+  Book, Code, FolderGit2, ExternalLink, RefreshCw, Smartphone,
   Search, FileText, PieChart, Layers, Shield, Clock, SquareActivity
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -695,7 +695,7 @@ export default function Dashboard() {
                   <section className="space-y-6">
                     <div className="flex items-center gap-3 mb-2">
                       <div className="p-3 bg-slate-800/50 rounded-xl border border-white/5">
-                        <Github className="w-6 h-6 text-white" />
+                        <FolderGit2 className="w-6 h-6 text-white" />
                       </div>
                       <div className="flex-1">
                         <h2 className="text-2xl font-semibold">코딩 프로젝트</h2>
