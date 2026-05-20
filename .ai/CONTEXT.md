@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` ScheduleTab form controls expose explicit labels and validation state. Schedule title/date/type fields now have visible labels, stable ids, and `aria-invalid` tied to React Hook Form errors instead of relying on placeholder-only context. Verification passed: focused tab-header/home-market accessibility tests (`15 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 162, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` building creation validates input server-side before Prisma. `createBuilding` uses `validateBuildingInput()` instead of `parseInt(data.penCount)`, so empty building names and invalid pen counts return field-level Korean validation errors instead of generic DB failure. Verification passed: focused action-validation/actions copy tests (`12 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 159, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` notification test-send and cattle archive copy match product behavior. Test 문자 feedback no longer exposes sample cattle data (`순심이(0001)`), and cattle soft-delete UI/server messages consistently say 보관 처리 instead of destructive 삭제. Verification passed: focused notification/home/actions copy tests (`18 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 157, lint, build).
