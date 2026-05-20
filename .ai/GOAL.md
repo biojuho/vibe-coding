@@ -12,9 +12,9 @@
 
 ## Progress Notes
 
-- 2026-05-20: T-405 localized Hanwoo inventory quantity edit controls by replacing the visible English `OK` button with `저장` and adding item-specific Korean edit/save accessible labels; verification passed with focused Hanwoo tests `137 passed`, targeted ESLint, path-limited `git diff --check`, staged review gate JSON pass, and full Hanwoo QC (`test` 137, lint, build).
+- 2026-05-20: T-405 localized Hanwoo inventory quantity edit controls by replacing the visible English `OK` button with `저장` and adding item-specific Korean edit/save accessible labels; verification passed with focused Hanwoo tests `137 passed`, targeted ESLint, path-limited `git diff --check`, code-review gate WARN from the known graph/test-gap heuristic, and full Hanwoo QC (`test` 137, lint, build).
 
-- 2026-05-20: T-404 kept inventory quantity edits open when async saves fail by awaiting `onUpdateQuantity` and requiring a truthy result before clearing edit state; verification passed with focused Hanwoo tests `136 passed`, targeted ESLint, path-limited `git diff --check`, staged review gate JSON pass, and full Hanwoo QC (`test` 136, lint, build).
+- 2026-05-20: T-404 kept inventory quantity edits open when async saves fail by awaiting `onUpdateQuantity` and requiring a truthy result before clearing edit state; verification passed with focused Hanwoo tests `136 passed`, targeted ESLint, path-limited `git diff --check`, code-review gate WARN from the known graph/test-gap heuristic, and full Hanwoo QC (`test` 136, lint, build).
 
 - 2026-05-20: T-403 made Hanwoo pen and cattle row cards keyboard reachable with button semantics, tab focus, Korean accessible labels, and Enter/Space activation; verification passed with focused Hanwoo tests `135 passed`, targeted ESLint, path-limited `git diff --check`, staged review gate JSON pass, and full Hanwoo QC (`test` 135, lint, build).
 
