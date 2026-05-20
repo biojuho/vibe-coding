@@ -1117,7 +1117,7 @@ export default function DashboardClient({
         <div className="animate-fadeInDown flex justify-between items-start mb-7 pt-2 pb-1">
           <div>
             <h1 className="text-[26px] font-extrabold text-foreground tracking-[-0.02em] mb-1.5 leading-tight">
-              {farmSettings.name || 'Joolife Dashboard'}
+              {farmSettings.name || 'Joolife 한우 농장'}
             </h1>
             <p className="text-[13px] text-muted-foreground leading-relaxed">오늘도 힘찬 하루 되세요! 🐮</p>
           </div>
@@ -1306,7 +1306,7 @@ function TodayFocusPanel({ items, onOpenNotifications, onNavigate }) {
     <section className="today-focus-panel animate-fadeInUp" aria-labelledby="today-focus-title">
       <div className="today-focus-header">
         <div>
-          <div className="clay-page-eyebrow">Today Brief</div>
+          <div className="clay-page-eyebrow">오늘 요약</div>
           <h2 id="today-focus-title" className="today-focus-title">오늘 바로 볼 일</h2>
         </div>
         <div className="today-focus-count">{items.length}개</div>
@@ -1345,7 +1345,7 @@ function QuickActionPanel({ actions, onAction }) {
     <section className="quick-action-panel animate-fadeInUp" aria-labelledby="quick-action-title">
       <div className="quick-action-header">
         <div>
-          <div className="clay-page-eyebrow">Quick Record</div>
+          <div className="clay-page-eyebrow">빠른 기록</div>
           <h2 id="quick-action-title" className="quick-action-title">자주 쓰는 기록</h2>
         </div>
         <span className="quick-action-hint">1탭 시작</span>
@@ -1405,7 +1405,7 @@ function SetupProgressPanel({ progress, onNavigate, onAction }) {
     <section className="setup-progress-panel animate-fadeInUp" aria-labelledby="setup-progress-title">
       <div className="setup-progress-topline">
         <div>
-          <div className="clay-page-eyebrow">Farm Setup</div>
+          <div className="clay-page-eyebrow">운영 준비</div>
           <h2 id="setup-progress-title" className="setup-progress-title">운영 준비도</h2>
         </div>
         <div className="setup-progress-score" aria-label={`운영 준비도 ${progress.percent}%`}>

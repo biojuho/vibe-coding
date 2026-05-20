@@ -37,7 +37,7 @@ function getSourcePresentation(prices) {
   switch (prices?.source) {
     case 'kape-live':
       return {
-        label: 'Live KAPE',
+        label: '실시간 KAPE',
         style: {
           background: 'color-mix(in srgb, var(--chart-clay-5) 18%, white 82%)',
           color: 'var(--chart-clay-5)',
@@ -46,7 +46,7 @@ function getSourcePresentation(prices) {
       };
     case 'kape-cache':
       return {
-        label: 'Cached KAPE',
+        label: '저장된 KAPE',
         style: {
           background: 'color-mix(in srgb, var(--chart-clay-3) 18%, white 82%)',
           color: 'var(--chart-clay-3)',
@@ -55,7 +55,7 @@ function getSourcePresentation(prices) {
       };
     case 'cache-stale':
       return {
-        label: 'Stale Cache',
+        label: '이전 저장가',
         style: {
           background: 'color-mix(in srgb, var(--chart-clay-2) 18%, white 82%)',
           color: 'var(--chart-clay-2)',
@@ -64,7 +64,7 @@ function getSourcePresentation(prices) {
       };
     default:
       return {
-        label: 'Unavailable',
+        label: '확인 불가',
         style: {
           background: 'color-mix(in srgb, #9aa2ad 18%, white 82%)',
           color: '#637083',
@@ -161,7 +161,7 @@ export default function MarketPriceWidget({ initialData = null }) {
       <Card className="animate-fadeInUp">
         <CardContent className="flex h-60 items-center justify-center">
           <div className="text-sm text-[color:var(--color-text-secondary)]">
-            Loading market prices.
+            한우 시세를 불러오는 중입니다.
           </div>
         </CardContent>
       </Card>
@@ -173,7 +173,7 @@ export default function MarketPriceWidget({ initialData = null }) {
       <Card className="animate-fadeInUp">
         <CardContent className="flex min-h-36 items-center justify-center text-center">
           <div className="text-sm text-[color:var(--color-text-secondary)]">
-            {prices?.message ?? 'Market price data is unavailable right now.'}
+            {prices?.message ?? '지금은 한우 시세 데이터를 확인할 수 없습니다.'}
           </div>
         </CardContent>
       </Card>
@@ -187,12 +187,12 @@ export default function MarketPriceWidget({ initialData = null }) {
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <div className="clay-page-eyebrow mb-3">Market Pulse</div>
+            <div className="clay-page-eyebrow mb-3">시세 흐름</div>
             <CardTitle className="text-xl font-bold text-[color:var(--color-text)]">
-              Hanwoo Market Prices
+              한우 도매 시세
             </CardTitle>
             <p className="mt-2 text-xs text-[color:var(--color-text-secondary)]">
-              {prices.date ?? 'Latest'} weighted average transaction price
+              {prices.date ?? '최근'} 가중평균 거래가
             </p>
           </div>
 
@@ -220,19 +220,19 @@ export default function MarketPriceWidget({ initialData = null }) {
       <CardContent>
         <div className="grid gap-3 md:grid-cols-2">
           <PricePanel
-            title="Bull / kg"
+            title="수소 / kg"
             rows={[
-              ['Grade 1++', prices.bull.grade1pp],
-              ['Grade 1+', prices.bull.grade1p],
-              ['Grade 1', prices.bull.grade1],
+              ['1++ 등급', prices.bull.grade1pp],
+              ['1+ 등급', prices.bull.grade1p],
+              ['1 등급', prices.bull.grade1],
             ]}
           />
           <PricePanel
-            title="Cow / kg"
+            title="암소 / kg"
             rows={[
-              ['Grade 1++', prices.cow.grade1pp],
-              ['Grade 1+', prices.cow.grade1p],
-              ['Grade 1', prices.cow.grade1],
+              ['1++ 등급', prices.cow.grade1pp],
+              ['1+ 등급', prices.cow.grade1p],
+              ['1 등급', prices.cow.grade1],
             ]}
           />
         </div>
@@ -245,8 +245,8 @@ export default function MarketPriceWidget({ initialData = null }) {
 
         {lastUpdated ? (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[color:var(--color-text-muted)]">
-            <span>Updated {lastUpdated.toLocaleTimeString()}</span>
-            <span>Source: KAPE</span>
+            <span>갱신 {lastUpdated.toLocaleTimeString()}</span>
+            <span>출처: KAPE</span>
           </div>
         ) : null}
       </CardContent>

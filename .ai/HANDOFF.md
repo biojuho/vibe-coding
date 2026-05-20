@@ -7,6 +7,13 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-20 |
+| Tool | Claude Code (Opus 4.7 1M) |
+| Work | **T-305 완료**: blind-to-x `openai` 1.59.9 → 2.37.0 마이그레이션. 탐색 결과 PR #39 triage 당시의 "4개 mock fixture 갱신 필요" 추정은 보수적이었음 — 실제로는 (a) 코드가 `chat.completions.create` / `images.generate` / `AsyncOpenAI` 생성자 등 openai 2.x에서 **변경 없는 안정 API**만 사용하고 `getattr` 방어 접근까지 되어 있으며, (b) 테스트 mock은 클라이언트 생성자를 fake로 교체하는 방식이라 SDK 버전 무관. openai 2.0.0의 실제 breaking change는 Responses API tool-call output 형태뿐인데 blind-to-x는 미사용. **결과: 코드/테스트 변경 0건, 버전 핀만 변경.** `pyproject.toml` openai 핀 갱신 + `projects/blind-to-x/uv.lock` 재생성(openai 항목만 1.59.9→2.37.0, transitive 변화 없음). 검증: openai 2.37.0 설치 후 단위+통합 전체 `1626 passed, 1 skipped, 0 failed`(241s), `ruff check .` 통과. |
+| Next Priorities | 라이브 스모크(실 LLM fallback 체인 호출)는 유료 API라 미실행 — mock 기반 1626 테스트 + 안정 API 사용 사실로 갈음. 필요 시 사용자가 `OPENAI_API_KEY` 설정 후 `python main.py --limit 1 --dry-run`으로 확인 가능. **주의**: 로컬에 워크스페이스 uv 마이그레이션 WIP(루트 `pyproject.toml`+`uv.lock`, 둘 다 untracked)가 있어 `projects/blind-to-x`에서 `uv lock` 실행 시 루트 워크스페이스 락이 대상이 됨 — blind-to-x 단독 락 재생성은 루트 `pyproject.toml`을 일시 숨긴 뒤 실행함(복원 완료). 커밋은 `projects/blind-to-x/pyproject.toml`+`uv.lock`+`.ai/*`만 선택 스테이징. T-251은 여전히 사용자 소유 외부 차단. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
 | Tool | Codex |
 | Work | **T-336 completed**: closed the last safe `shorts-maker-v2` T-318 Phase 3 item by fixing channel-specific TTS tuning propagation. `MediaStep` now stores `AppConfig._channel_key` and passes it into direct Edge TTS, Chatterbox/CosyVoice premium calls, and Edge fallback calls. This lets `EdgeTTSClient` apply channel-specific prosody instead of silently falling back to default jitter/pitch. |
 | Next Priorities | Verification passed: focused TTS routing tests `5 passed`, full `python -m pytest --no-cov tests/unit tests/integration -q --tb=short --maxfail=1 --basetemp .tmp/pytest-tts-channel-key-full-final` passed, targeted Ruff/check/format passed, `project_qc_runner --project shorts-maker-v2 --check lint --json` passed, and graph risk `0.00`. T-318 is now closed. Remaining shorts-maker-v2 backlog is approval-gated T-320 OSS integration. Preserve unrelated dirty WIP in root package/workflow files, Blind-to-X `pyproject.toml`, Hanwoo `package.json`, shorts-maker-v2 `render/color_grading.py` and `scripts/bench_render.py`, package locks, and setup scripts. |
