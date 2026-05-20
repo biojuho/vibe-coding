@@ -129,6 +129,16 @@ test('schedule calendar navigation exposes Korean accessible labels', () => {
   assert.doesNotMatch(source, /aria-label="Next month"/);
 });
 
+test('schedule calendar date cells are semantic buttons', () => {
+  const source = readSource('components/tabs/ScheduleTab.js');
+
+  assert.match(source, /<button\s+type="button"\s+key=\{dateStr\}\s+onClick=\{\(\) => openFormForDate\(dateStr\)\}/);
+  assert.match(source, /aria-label=\{`\$\{dateStr\} 일정 등록 열기`\}/);
+  assert.match(source, /title=\{`\$\{dateStr\} 일정 등록 열기`\}/);
+  assert.match(source, /textAlign: 'left'/);
+  assert.doesNotMatch(source, /<div\s+key=\{dateStr\}\s+onClick=\{\(\) => openFormForDate\(dateStr\)\}/);
+});
+
 test('weather widget uses Korean product copy for unavailable state', () => {
   const source = readSource('components/widgets/widgets.js');
   const dashboardSource = readSource('components/DashboardClient.js');

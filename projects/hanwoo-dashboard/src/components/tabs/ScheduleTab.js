@@ -214,9 +214,12 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
             const isToday = dateStr === new Date().toISOString().split('T')[0];
 
             return (
-              <div
+              <button
+                type="button"
                 key={dateStr}
                 onClick={() => openFormForDate(dateStr)}
+                aria-label={`${dateStr} 일정 등록 열기`}
+                title={`${dateStr} 일정 등록 열기`}
                 className="rounded-[16px] border p-2"
                 style={{
                   minHeight: '78px',
@@ -224,6 +227,8 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
                     ? 'color-mix(in srgb, var(--chart-clay-1) 14%, var(--color-surface-elevated))'
                     : 'var(--surface-gradient)',
                   borderColor: isToday ? 'color-mix(in srgb, var(--chart-clay-1) 38%, transparent)' : 'var(--color-surface-stroke)',
+                  textAlign: 'left',
+                  font: 'inherit',
                   cursor: 'pointer',
                   boxShadow: 'var(--shadow-sm)',
                 }}
@@ -249,7 +254,7 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
                     </div>
                   ) : null}
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
