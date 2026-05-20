@@ -12,6 +12,8 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-440 aligned the Hanwoo cattle detail modal action with soft-archive behavior. `CattleDetailModal` now exposes the action as 개체 보관 처리 and renders `보관` instead of `삭제`, so the detail modal no longer contradicts the 보관 처리 flow. Verification passed with focused actions/detail/home copy tests (`16 passed`), targeted ESLint, full Hanwoo QC (`test` 157, lint, build), and staged code-review gate JSON (`risk_score 0.0`). Commit `3c0a193`.
+
 - 2026-05-20: T-439 aligned Hanwoo notification test-send and cattle archive copy with product behavior. Test 문자 feedback no longer exposes sample cattle data (`순심이(0001)`), and cattle soft-delete UI/server messages now consistently say 보관 처리 instead of destructive 삭제. Verification passed with focused notification/home/actions copy tests (`18 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, full Hanwoo QC (`test` 157, lint, build), and staged code-review gate JSON (`risk_score 0.0`). Commit `82bcb75`.
 
 - 2026-05-20: T-438 made Hanwoo cattle create/update/calving duplicate 이력번호 conflicts actionable. `createCattle`, `updateCattle`, and `recordCalving` now recognize Prisma `P2002` unique-constraint errors targeting `tagNumber` and return `이미 등록된 이력번호입니다. 다른 이력번호를 입력해 주세요.` instead of a generic failure. Verification passed with focused actions-copy test, targeted ESLint, full Hanwoo tests `157 passed`, full Hanwoo QC (`test` 157, lint, build), and staged code-review gate JSON (`risk_score 0.0`). Commit `84d536e`.
