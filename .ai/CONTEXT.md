@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` 분만 처리 no longer generates fake calf tag numbers. `CalvingTab` now requires an operator-entered 송아지 이력번호, the client/offline queue passes that value through, and `recordCalving` validates it server-side before creating calf records/history/outbox events. Verification passed: focused action-validation/home-market copy tests (`22 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, direct build retry after a transient Next build lock, and full Hanwoo QC (`test` 156, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` no longer shows a placeholder business registration number in the dashboard footer. The footer replaced `사업자등록번호: 000-00-00000` with `운영 문의: joolife@joolife.io.kr` while preserving the legal links. Verification passed: focused home-market copy test, targeted ESLint, Hanwoo tests (`153 passed`), and full Hanwoo QC (`test` 153, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` no longer carries the unused legacy sample-data module. `src/lib/data.js` only exported random demo cattle/sales/market generators, had no remaining imports, and could be mistaken for product runtime data. Verification passed: no remaining `generateSampleData`, `generateSaleRecords`, `getMarketPrice`, or `@/lib/data` references, direct graph risk `0.00`, and full Hanwoo QC (`test` 153, lint, build).
