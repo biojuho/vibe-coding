@@ -49,7 +49,7 @@ export async function createSalesRecord(data) {
     // 출하 이력
     if (payload.cattleId) {
       await recordCattleHistory(payload.cattleId, 'sale', payload.saleDate,
-        `출하: ${parseInt(data.price).toLocaleString()}원 (등급: ${data.grade || '-'})`,
+        `출하: ${payload.price.toLocaleString()}원 (등급: ${payload.grade || '-'})`,
         { price: payload.price, grade: payload.grade, purchaser: payload.purchaser }
       );
     }

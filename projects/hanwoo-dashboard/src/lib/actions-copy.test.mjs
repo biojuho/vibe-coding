@@ -61,3 +61,12 @@ test('server action user-facing failures use Korean product copy', () => {
   assert.doesNotMatch(systemActions, /error: error\.message/);
   assert.doesNotMatch(systemActions, /Invalid model name/);
 });
+
+test('sales history copy uses validated payload values', () => {
+  const salesActions = readSource('lib/actions/sales.js');
+
+  assert.match(salesActions, /payload\.price\.toLocaleString\(\)/);
+  assert.match(salesActions, /payload\.grade \|\| '-'/);
+  assert.doesNotMatch(salesActions, /parseInt\(data\.price\)/);
+  assert.doesNotMatch(salesActions, /data\.grade \|\| '-'/);
+});
