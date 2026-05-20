@@ -224,6 +224,21 @@ test('sales form fields expose explicit labels and invalid state', () => {
   assert.match(source, /id="sale-purchaser"[\s\S]*?aria-invalid=\{Boolean\(errors\.purchaser\)\}/);
 });
 
+test('inventory form fields expose explicit labels and invalid state', () => {
+  const source = readSource('components/tabs/InventoryTab.js');
+
+  assert.match(source, /<PremiumLabel htmlFor="inventory-name">자재명<\/PremiumLabel>/);
+  assert.match(source, /id="inventory-name"[\s\S]*?aria-invalid=\{Boolean\(errors\.name\)\}/);
+  assert.match(source, /<PremiumLabel htmlFor="inventory-category">분류<\/PremiumLabel>/);
+  assert.match(source, /id="inventory-category"[\s\S]*?aria-invalid=\{Boolean\(errors\.category\)\}/);
+  assert.match(source, /<PremiumLabel htmlFor="inventory-quantity">수량<\/PremiumLabel>/);
+  assert.match(source, /id="inventory-quantity"[\s\S]*?aria-invalid=\{Boolean\(errors\.quantity\)\}/);
+  assert.match(source, /<PremiumLabel htmlFor="inventory-unit">단위<\/PremiumLabel>/);
+  assert.match(source, /id="inventory-unit"[\s\S]*?aria-invalid=\{Boolean\(errors\.unit\)\}/);
+  assert.match(source, /<PremiumLabel htmlFor="inventory-threshold">경고 기준값<\/PremiumLabel>/);
+  assert.match(source, /id="inventory-threshold"[\s\S]*?aria-invalid=\{Boolean\(errors\.threshold\)\}/);
+});
+
 test('dashboard API fallback messages stay operator-facing Korean', () => {
   const cattleRoute = readSource('app/api/dashboard/cattle/route.js');
   const salesRoute = readSource('app/api/dashboard/sales/route.js');

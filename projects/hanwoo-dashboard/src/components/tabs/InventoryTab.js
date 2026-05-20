@@ -97,19 +97,25 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
               <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '12px', color: 'var(--color-text)' }}>새 재고 등록</div>
               <div style={{ display: 'grid', gap: '10px' }}>
                 <div>
+                  <PremiumLabel htmlFor="inventory-name">자재명</PremiumLabel>
                   <PremiumInput
+                    id="inventory-name"
                     placeholder="자재명 (예: 볏짚)"
                     {...register('name')}
                     hasError={!!errors.name}
+                    aria-invalid={Boolean(errors.name)}
                   />
                   {errors.name ? <div style={errorTextStyle}>{errors.name.message}</div> : null}
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
+                    <PremiumLabel htmlFor="inventory-category">분류</PremiumLabel>
                     <PremiumSelect
+                      id="inventory-category"
                       {...register('category')}
                       hasError={!!errors.category}
+                      aria-invalid={Boolean(errors.category)}
                     >
                       <option value="Feed" className="bg-slate-900">사료/조사료</option>
                       <option value="Medicine" className="bg-slate-900">약품/영양제</option>
@@ -120,11 +126,14 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
                   </div>
 
                   <div>
+                    <PremiumLabel htmlFor="inventory-quantity">수량</PremiumLabel>
                     <PremiumInput
+                      id="inventory-quantity"
                       type="number"
                       placeholder="수량"
                       {...register('quantity')}
                       hasError={!!errors.quantity}
+                      aria-invalid={Boolean(errors.quantity)}
                     />
                     {errors.quantity ? <div style={errorTextStyle}>{errors.quantity.message}</div> : null}
                   </div>
@@ -132,20 +141,26 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
+                    <PremiumLabel htmlFor="inventory-unit">단위</PremiumLabel>
                     <PremiumInput
+                      id="inventory-unit"
                       placeholder="단위 (예: kg, 박스)"
                       {...register('unit')}
                       hasError={!!errors.unit}
+                      aria-invalid={Boolean(errors.unit)}
                     />
                     {errors.unit ? <div style={errorTextStyle}>{errors.unit.message}</div> : null}
                   </div>
 
                   <div>
+                    <PremiumLabel htmlFor="inventory-threshold">경고 기준값</PremiumLabel>
                     <PremiumInput
+                      id="inventory-threshold"
                       type="number"
                       placeholder="경고 기준값 (선택)"
                       {...register('threshold')}
                       hasError={!!errors.threshold}
+                      aria-invalid={Boolean(errors.threshold)}
                     />
                     {errors.threshold ? <div style={errorTextStyle}>{errors.threshold.message}</div> : null}
                   </div>
