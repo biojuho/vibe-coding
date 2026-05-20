@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-369 completed**: continued the active Hanwoo product-completeness goal by making `components/ui/NotificationModal.js` expose real dialog semantics. The modal container now has `role="dialog"`, `aria-modal="true"`, and `aria-labelledby="notification-modal-title"`, with the visible `알림 센터` title carrying that id. `notification-modal-copy.test.mjs` now guards both the Korean close label and dialog semantics. Code commit: `6647522`. |
+| Next Priorities | Verification passed: focused notification modal tests passed (`117 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 117, lint passed, build passed), source confirmation passed, `git diff --check` passed, and direct graph risk `0.00`. Staged/commit code-review gate emitted WARN because unrelated staged/dirty WIP was present (`DashboardClient.js`, `home-market-copy.test.mjs`, shorts render work), but direct focused/full checks covered the two-file modal change. Preserve unrelated staged WIP unless the user authorizes committing it. Active Hanwoo goal remains open; T-251 is still external/user-owned Supabase password/control-plane resync, and T-366/T-367 remain approval-gated. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-368 completed**: continued the active Hanwoo product-completeness goal with a safe accessibility polish. `components/ui/NotificationModal.js` now labels the icon-only `×` close button with Korean `aria-label="닫기"` and `title="닫기"`, and `notification-modal-copy.test.mjs` guards against English close labels returning. Code commit: `aa80799`. |
 | Next Priorities | Verification passed: focused Hanwoo notification modal copy test passed (`116 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 116, lint passed, build passed), source confirmation passed, `git diff --check` passed, direct graph risk `0.00`. The commit hook/staged gate emitted the known graph test-gap WARN for `NotificationModal`, but the new source-level regression test and full QC cover the two-file accessibility change. Active Hanwoo goal remains open; T-251 is still external/user-owned Supabase password/control-plane resync. Remaining `.ai/TASKS.md` TODO entries are approval-gated (T-251, T-320, T-366, T-367), so ask before executing those unless the user explicitly authorizes one. Preserve unrelated monorepo/package-lock/setup WIP. |
 
