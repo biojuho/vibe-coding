@@ -19,6 +19,17 @@ test('buildSetupProgressItems identifies the next incomplete onboarding step', (
   assert.equal(progress.nextItem.actionId, 'add-cattle');
 });
 
+test('buildSetupProgressItems routes missing buildings to the add-building flow', () => {
+  const progress = buildSetupProgressItems({
+    farmSettings: { name: '주호목장', location: '전북 남원' },
+    buildings: [],
+  });
+
+  assert.equal(progress.nextItem.id, 'buildings');
+  assert.equal(progress.nextItem.targetTab, 'settings');
+  assert.equal(progress.nextItem.actionId, 'add-building');
+});
+
 test('buildSetupProgressItems marks setup complete when all required operating data exists', () => {
   const progress = buildSetupProgressItems({
     farmSettings: { name: '주호목장', location: '전북 남원' },

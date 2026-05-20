@@ -31,6 +31,7 @@ export function buildSetupProgressItems({
         : '축사와 칸을 먼저 잡아야 개체 배치가 쉬워집니다.',
       done: countItems(buildings) > 0,
       targetTab: 'settings',
+      actionId: 'add-building',
     },
     {
       id: 'cattle',

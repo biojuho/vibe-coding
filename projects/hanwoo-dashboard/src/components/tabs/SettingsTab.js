@@ -33,8 +33,9 @@ export default function SettingsTab({
   widgetRegistry = [],
   widgetVisible = {},
   onToggleWidget,
+  quickActionIntent = null,
 }) {
-  const [isAdding, setIsAdding] = useState(false);
+  const [isAdding, setIsAdding] = useState(() => quickActionIntent?.actionId === 'add-building');
   const { confirm } = useAppFeedback();
 
   const {

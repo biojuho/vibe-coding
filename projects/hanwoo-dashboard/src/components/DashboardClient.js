@@ -1095,6 +1095,7 @@ export default function DashboardClient({
     if (activeTab === 'settings') {
       return (
         <SettingsTab
+          key={quickActionIntent?.targetTab === 'settings' ? quickActionIntent.nonce : 'settings'}
           buildings={buildings}
           onCreateBuilding={handleCreateBuilding}
           onDeleteBuilding={handleDeleteBuilding}
@@ -1105,6 +1106,7 @@ export default function DashboardClient({
           widgetRegistry={WIDGET_REGISTRY}
           widgetVisible={widgetSettings.visible}
           onToggleWidget={widgetSettings.toggle}
+          quickActionIntent={quickActionIntent}
         />
       );
     }
