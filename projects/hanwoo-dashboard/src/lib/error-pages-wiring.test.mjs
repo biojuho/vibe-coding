@@ -59,3 +59,12 @@ test('login page operator eyebrow uses Korean product copy', () => {
   assert.match(source, /Joolife 한우 운영/);
   assert.doesNotMatch(source, /Joolife Operations/);
 });
+
+test('login page links authentication errors to both credential fields', () => {
+  const source = readSource('app/login/page.js');
+
+  assert.match(source, /const loginErrorId = 'login-error-message'/);
+  assert.match(source, /aria-invalid=\{Boolean\(error\)\}/);
+  assert.match(source, /aria-describedby=\{error \? loginErrorId : undefined\}/);
+  assert.match(source, /<div id=\{loginErrorId\} className="login-error" role="alert">/);
+});

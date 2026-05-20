@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   const canSubmit = username.trim().length > 0 && password.length > 0 && !isSubmitting;
+  const loginErrorId = 'login-error-message';
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -66,6 +67,8 @@ export default function LoginPage() {
                 autoComplete="username"
                 inputMode="text"
                 placeholder="관리자 아이디"
+                aria-invalid={Boolean(error)}
+                aria-describedby={error ? loginErrorId : undefined}
                 className="login-input"
               />
             </span>
@@ -81,6 +84,8 @@ export default function LoginPage() {
                 onChange={(event) => setPassword(event.target.value)}
                 autoComplete="current-password"
                 placeholder="비밀번호"
+                aria-invalid={Boolean(error)}
+                aria-describedby={error ? loginErrorId : undefined}
                 className="login-input login-input-password"
               />
               <button
@@ -95,7 +100,7 @@ export default function LoginPage() {
           </label>
 
           {error ? (
-            <div className="login-error" role="alert">
+            <div id={loginErrorId} className="login-error" role="alert">
               {error}
             </div>
           ) : null}
