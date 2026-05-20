@@ -12,6 +12,7 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-387 localized Excel export failure feedback so browser/runtime `error.message` text no longer appears in export failure toasts; verification passed with Hanwoo tests `127 passed`, targeted ESLint, full Hanwoo QC (`test` 127, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
 - 2026-05-20: T-386 hid raw async UI failure messages from diagnostics, payment, and AI chat surfaces; verification passed with Hanwoo tests `127 passed`, targeted ESLint, full Hanwoo QC (`test` 127, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
 - 2026-05-20: T-385 localized the expense server-action mutation failure fallback so raw Prisma/runtime `error.message` text no longer leaks from `createExpenseRecord`; verification passed with Hanwoo tests `127 passed`, targeted ESLint, full Hanwoo QC (`test` 127, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
 - 2026-05-20: T-384 localized cattle/sales server-action mutation failure fallbacks so raw Prisma/runtime `error.message` text no longer leaks into operator-facing toasts; verification passed with Hanwoo tests `127 passed`, targeted ESLint, full Hanwoo QC test/lint plus build retry pass, path-limited `git diff --check`, staged code-review gate PASS, and graph risk `0.00`.

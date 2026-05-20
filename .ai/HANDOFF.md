@@ -8,6 +8,20 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-387 completed**: continued Hanwoo product-completeness work by localizing Excel export failure feedback. `ExcelExportButton` now logs CSV/export exceptions and shows stable Korean retry copy instead of rendering arbitrary browser/runtime `error.message` text in the feedback toast. `excel-export-button-copy.test.mjs` guards the fallback copy and rejects the old raw-error description path. Code commit `cf07c4e`. |
+| Next Priorities | Verification passed: focused Excel export/CSV/component tests passed (`127 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 127, lint, build), path-limited `git diff --check` passed, and staged code-review gate PASS with the known trailing cp949 reader-thread noise. Commit hook WARN came from dirty-WIP/test-gap heuristics while direct tests covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync. Preserve unrelated root monorepo/package-lock/shorts WIP and current unstaged WIP unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Gemini (Antigravity) |
+| Work | **T-320 (1) WhisperX 도입 완료**: `shorts-maker-v2`에 외부 OSS인 WhisperX를 도입하여 로컬 단어 단위 자막 정렬 동기화 구현. CPU int8/medium 환경 최적화 및 alignment 장애 시 segment 파싱 fallback, 최종 에러 발생 시 OpenAI `whisper-1` API로 fallback하는 하이브리드 안전망 완성. 윈도우 한글 사용자 환경 권한 버그(PermissionError) 자가 수정을 통해 `project_qc_runner.py`를 개선하고 격리된 venv 테스트(12개 whisper_aligner + 14개 openai_client 패스) 및 ruff lint 100% 통과 검증 완료. 커밋 `e4fe9c4`. |
+| Next Priorities | WhisperX 로컬 검증 완료에 따라 T-320의 다음 우선순위인 **(2) OpenVoice v2 (로컬 한국어 목소리 복제)** 도입 검토 및 설계. hanwoo-dashboard 외부 Supabase resync 이슈 T-251 사용자 수동 리셋 대기. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-386 completed**: continued Hanwoo product-completeness work by hiding raw async UI failure messages from diagnostics, payment, and AI chat surfaces. Diagnostics/raw-data loads now log details and show stable Korean retry copy, `PaymentWidget` no longer renders arbitrary payment SDK exception text except its own pending state, and `AIChatWidget` logs stream failures while showing a Korean connection fallback. Copy tests now reject the raw `error.message` paths. Code commit `e1b1459`. |
 | Next Priorities | Verification passed: focused diagnostics/payment/AI/component tests passed (`127 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 127, lint, build), path-limited `git diff --check` passed, and staged code-review gate PASS with the known trailing cp949 reader-thread noise. Commit hook WARN came from dirty-WIP/test-gap heuristics while direct tests covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync. Preserve unrelated root monorepo/package-lock/shorts WIP and current unstaged WIP unless explicitly authorized. |
 
