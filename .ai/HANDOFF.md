@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-507 completed**: Hanwoo subscription payment preparation amount validation now rejects malformed partial/non-decimal values. `app/api/payments/prepare/route.js` parses `body.amount` only as a safe integer number or all-digit string before comparing against `PREMIUM_SUBSCRIPTION.amount`, matching the confirm-route guard. Code commit `ad921f3`. |
+| Next Priorities | Verification passed: focused payment UX copy test (`5 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 203, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known advisory graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-506 completed**: Hanwoo subscription payment confirmation amount validation now rejects malformed partial/non-decimal values. `app/subscription/success/page.js` parses URL `amount` only as an all-digit safe integer before sending `/api/payments/confirm`, and `app/api/payments/confirm/route.js` accepts only safe integer numbers or all-digit strings before comparing against `PREMIUM_SUBSCRIPTION.amount`. Code commit `6c4b65f`. |
 | Next Priorities | Verification passed: focused payment UX copy test (`5 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 203, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known advisory graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 

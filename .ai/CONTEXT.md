@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` subscription payment preparation amount validation rejects malformed partial/non-decimal values before order preparation. `app/api/payments/prepare/route.js` now parses `body.amount` only as a safe integer number or all-digit string before comparing against `PREMIUM_SUBSCRIPTION.amount`, matching the confirm-route guard. Verification passed: focused payment UX copy test (`5 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 203, lint, build).
+
 - As of 2026-05-21, `hanwoo-dashboard` subscription payment confirmation amount validation rejects malformed partial/non-decimal values before payment confirmation. `app/subscription/success/page.js` now parses URL `amount` only as an all-digit safe integer before sending `/api/payments/confirm`, and `app/api/payments/confirm/route.js` accepts only safe integer numbers or all-digit strings before comparing against `PREMIUM_SUBSCRIPTION.amount`. Verification passed: focused payment UX copy test (`5 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 203, lint, build).
 
 - As of 2026-05-21, `hanwoo-dashboard` form and server-action numeric validation rejects non-decimal JavaScript numeric strings before range checks. `action-validation.mjs` and `formSchemas.js` now parse only plain decimal input, so `1e6`, `0x10`, or `3.5446e1` cannot silently become prices, pen counts, or coordinates. Verification passed: focused action-validation/home tests (`35 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 203, lint, build).
