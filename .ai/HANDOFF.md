@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-517 completed**: Hanwoo notification modal test-message action now waits for the current send attempt before re-enabling. `NotificationModal` tracks `isTestingSMS`, routes the button through `handleTestSMSClick`, awaits sync or async `onTestSMS` handlers through `Promise.resolve`, and exposes disabled/`aria-busy` plus wait cursor styling while the action is in flight. Code commit `986cd8d`. |
+| Next Priorities | Verification passed: focused notification modal copy test (`7 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 210, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Direct `code_review_graph detect-changes` still hits the known Windows cp949 reader failure; commit hook WARN was the known graph/test-gap heuristic while direct checks and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-516 completed**: Hanwoo feed and analysis aggregations now normalize numeric inputs before summing. `utils.js` exports `toFiniteNumber()`, `FeedTab` uses it for feed standards and chart totals, and `AnalysisTab` uses it for revenue, expenses, top-sale sorting, and average feed calculations so non-finite or malformed values do not spread `NaN` through dashboard metrics. Code commit `037b6ae`. |
 | Next Priorities | Verification passed: focused utils/feed/analysis source tests (`16 passed`), targeted ESLint passed, path-limited `git diff --check` passed, unsafe aggregation scan found no remaining matches, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 209, lint, build). Staged gate JSON passed; commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 

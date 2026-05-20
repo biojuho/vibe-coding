@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` notification test-message sends cannot be triggered repeatedly while a send attempt is in flight. `NotificationModal` tracks `isTestingSMS`, awaits sync or async `onTestSMS` handlers through `Promise.resolve`, and disables the test button with `aria-busy` plus wait cursor styling until completion. Verification passed: focused notification modal copy test (`7 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 210, lint, build).
+
 - As of 2026-05-21, `hanwoo-dashboard` feed and analysis aggregations normalize numeric inputs before summing so malformed/non-finite values cannot spread `NaN` through dashboard metrics. `utils.js` exports `toFiniteNumber()`, `FeedTab` uses it for feed standards, total guides, and chart history, and `AnalysisTab` uses it for revenue, expenses, top-sale sorting, and average feed calculations. Verification passed: focused utils/feed/analysis tests (`16 passed`), targeted ESLint, path-limited `git diff --check`, unsafe aggregation scan, and full Hanwoo QC (`test` 209, lint, build).
 
 - As of 2026-05-21, `hanwoo-dashboard` AI chat no longer presents blank sends as actionable. `AIChatWidget` now derives `canSend` from trimmed input plus streaming state, disables the send button until a non-empty question is ready, and mirrors the inactive state in opacity/cursor styling. Verification passed: focused AI chat widget copy test (`2 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 207, lint, build).
