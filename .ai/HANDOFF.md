@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-357 completed**: continued the active Hanwoo product-completeness goal by localizing payment API fallback responses. `/api/payments/prepare` now returns Korean operator-facing messages for customer-key mismatches, amount mismatches, generic preparation failures, and the customer-name fallback (`Joolife 사용자`). `/api/payments/confirm` now returns Korean messages for missing confirmation fields, wrong-user orders, amount mismatches, missing Toss configuration, timeout diagnostics, retryable gateway deferrals, and generic verification failures instead of leaking English fallback/API text. Extended `payment-ux-copy.test.mjs` to guard these route-level fallback strings. |
+| Next Priorities | Verification passed: focused Hanwoo payment tests passed (`110 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 110 passed, lint passed, build passed), `git diff --check` passed, direct UTF-8 graph risk `0.00`, and staged code-review gate PASS before commit. Commit hook emitted an advisory graph WARN polluted by an unrelated dirty `auth-guard.js` change, but direct focused/full checks cover the committed three-file payment change. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json` and `auth-guard.js`, package locks, and setup scripts. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-356 completed**: continued the active Hanwoo product-completeness goal by polishing the AI chat widget fallback surface. `AIChatWidget` now treats the localized Gemini configuration messages from `/api/ai/chat` as setup errors, so missing setup still shows the guided fallback instead of a generic failure. The closed floating launcher now uses a lucide `Bot` icon with explicit accessible label/title instead of a bare `AI` text button. Added `ai-chat-widget-copy.test.mjs` to guard the Korean setup-error patterns and accessible launcher wiring. |
 | Next Priorities | Verification passed: focused Hanwoo AI chat/widget tests passed (`109 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 109 passed, lint passed, build passed), `git diff --check` passed, and UTF-8 graph risk `0.00`. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |
 
