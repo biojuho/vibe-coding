@@ -52,6 +52,15 @@ class MediaAudioMixin:
                 role,
                 primary="cosyvoice",
             )
+        elif tts_provider == "openvoice":
+            audio_result = self._try_tts_with_fallback(
+                narration_ko,
+                output_path,
+                words_json_path,
+                voice,
+                role,
+                primary="openvoice",
+            )
         elif tts_provider == "edge-tts":
             audio_result = EdgeTTSClient().generate_tts(
                 model=self.config.providers.tts_model,
@@ -72,10 +81,10 @@ class MediaAudioMixin:
                 output_path=output_path,
             )
 
-        # chatterbox/cosyvoice/edge-tts는 자체적으로 _words.json을 생성
+        # chatterbox/cosyvoice/openvoice/edge-tts는 자체적으로 _words.json을 생성
         # OpenAI TTS만 Whisper fallback 필요
         if (
-            tts_provider not in {"edge-tts", "chatterbox", "cosyvoice"}
+            tts_provider not in {"edge-tts", "chatterbox", "cosyvoice", "openvoice"}
             and self.config.audio.sync_with_whisper
             and self.openai_client
         ):
@@ -137,6 +146,30 @@ class MediaAudioMixin:
                 client = CosyVoiceTTSClient(
                     ref_audio_path=getattr(self.config.providers, "tts_ref_audio", None),
                     ref_audio_text=getattr(self.config.providers, "tts_ref_audio_text", ""),
+                )
+                return client.generate_tts(
+                    model=self.config.providers.tts_model,
+                    voice=voice,
+                    speed=self.config.providers.tts_speed,
+                    text=text,
+                    output_path=output_path,
+                    words_json_path=words_json_path,
+                    role=role,
+                    channel_key=getattr(self, "_channel_key", ""),
+                    language=self.config.project.language,
+                )
+
+            elif primary == "openvoice":
+                from shorts_maker_v2.providers.openvoice_client import (
+                    OpenVoiceTTSClient,
+                    is_openvoice_available,
+                )
+
+                if not is_openvoice_available():
+                    raise ImportError("openvoice not installed")
+                client = OpenVoiceTTSClient(
+                    checkpoint_dir=getattr(self.config.providers, "tts_openvoice_checkpoint_dir", "checkpoints_v2"),
+                    ref_audio_path=getattr(self.config.providers, "tts_ref_audio", None),
                 )
                 return client.generate_tts(
                     model=self.config.providers.tts_model,

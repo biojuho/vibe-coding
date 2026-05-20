@@ -73,12 +73,13 @@ class ProviderSettings:
     tts_voice_pool: tuple[str, ...] = ()  # YPP: 음성 풀 (비어있으면 tts_voice 단일)
     tts_voice_strategy: str = "fixed"  # fixed | rotate | random
     tts_voice_roles: dict[str, str] | None = None  # YPP: 역할별 음성 매핑 (hook/body/cta)
-    # CosyVoice/Chatterbox 전용 설정
+    # CosyVoice/Chatterbox/OpenVoice 전용 설정
     tts_ref_audio: str = ""  # 음성 클로닝용 참조 오디오 경로
     tts_ref_audio_text: str = ""  # CosyVoice: 참조 오디오의 텍스트 전사
     tts_cosyvoice_model_dir: str = "pretrained_models/CosyVoice2-0.5B"
     tts_cosyvoice_mode: str = "cross_lingual"  # cross_lingual | zero_shot | instruct
     tts_chatterbox_exaggeration: float = 0.5  # 0.0~1.0 표현력
+    tts_openvoice_checkpoint_dir: str = "checkpoints_v2"  # OpenVoice v2 체크포인트 디렉토리
     visual_styles: tuple[str, ...] = ()  # YPP: 영상별 아트 스타일 풀
     # Gemini 3.1 Thinking Mode (minimal/low/medium/high)
     thinking_level: str = "low"  # 대본 생성용 기본값 (빠른 속도)
@@ -384,6 +385,7 @@ def load_config(config_path: str | Path) -> AppConfig:
         tts_cosyvoice_model_dir=str(providers_raw.get("tts_cosyvoice_model_dir", "pretrained_models/CosyVoice2-0.5B")),
         tts_cosyvoice_mode=str(providers_raw.get("tts_cosyvoice_mode", "cross_lingual")),
         tts_chatterbox_exaggeration=float(providers_raw.get("tts_chatterbox_exaggeration", 0.5)),
+        tts_openvoice_checkpoint_dir=str(providers_raw.get("tts_openvoice_checkpoint_dir", "checkpoints_v2")),
         visual_styles=tuple(str(s) for s in providers_raw.get("visual_styles", []))
         if isinstance(providers_raw.get("visual_styles"), list)
         else (),
