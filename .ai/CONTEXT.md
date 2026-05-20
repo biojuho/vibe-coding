@@ -411,6 +411,7 @@
 
 ## Minefield
 
+- `projects/hanwoo-dashboard`: cattle removal is a soft archive (`isArchived`), not hard deletion. Keep DashboardClient, CattleDetailModal, server action messages, and tests aligned on `보관 처리`/`보관` rather than destructive `삭제` copy.
 - `projects/hanwoo-dashboard`: `Cattle.tagNumber` is unique. Keep duplicate create/update/calving failures actionable by mapping Prisma `P2002` errors targeting `tagNumber` to Korean operator copy; `src/lib/actions-copy.test.mjs` guards this branch.
 - `projects/hanwoo-dashboard`: public legal pages should expose stable support channels, not personal mobile numbers or home addresses. `src/lib/legal-pages-copy.test.mjs` guards `/privacy` and `/terms` against reintroducing raw phone/address/name details.
 - `projects/hanwoo-dashboard`: as of 2026-05-20, market-price degraded states must keep product copy Korean at the state layer (`market-price-state.mjs`), not only inside `MarketPriceWidget`; stale-cache and unavailable messages are directly renderable.

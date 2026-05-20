@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-440 completed**: aligned the Hanwoo cattle detail modal action with the archive behavior. `CattleDetailModal` now labels the destructive action as `${cattle.name} 개체 보관 처리`, titles it `개체 보관 처리`, and renders `보관` instead of `삭제`, so the modal no longer contradicts the soft-archive flow recorded in T-439. `cattle-detail-modal-wiring.test.mjs` and `actions-copy.test.mjs` guard the contract. Code commit `3c0a193`. |
+| Next Priorities | Verification passed: focused actions/detail/home copy tests (`16 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 157, lint, build), and staged `code_review_gate --staged --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic plus unrelated VibeDebt WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-439 completed**: Hanwoo notification test-send and cattle archive copy now match product behavior. Test 문자 feedback no longer exposes sample cattle data (`순심이(0001)`), and cattle soft-delete UI/server messages now consistently say 보관 처리 instead of destructive 삭제. Code commit `82bcb75`. |
 | Next Priorities | Verification passed: focused notification/home/actions copy tests (`18 passed`), targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk `0.00`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 157, lint, build), and staged `code_review_gate --staged --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 
