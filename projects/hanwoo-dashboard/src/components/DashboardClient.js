@@ -41,12 +41,15 @@ import {
   Bell,
   CalendarDays,
   ChartSpline,
+  Check,
   ClipboardList,
   ClipboardPlus,
+  Home,
   PackageCheck,
   PackagePlus,
   Plus,
   ReceiptText,
+  Settings,
   ArrowLeft,
   WifiOff,
 } from 'lucide-react';
@@ -65,6 +68,7 @@ import { useCattlePagination } from '@/lib/hooks/useCattlePagination';
 import { useSalesPagination } from '@/lib/hooks/useSalesPagination';
 import { getNextDashboardPaginationState } from '@/lib/dashboard/pagination-guard.mjs';
 import { buildTodayFocusItems } from '@/lib/dashboard/today-focus.mjs';
+import { buildSetupProgressItems } from '@/lib/dashboard/setup-progress.mjs';
 
 import NotificationModal from '@/components/ui/NotificationModal';
 import ExcelExportButton from '@/components/widgets/ExcelExportButton';
@@ -1000,6 +1004,18 @@ export default function DashboardClient({
     [inventoryList, isOnline, monthlySalesCount, notifications, scheduleEvents],
   );
 
+  const setupProgress = useMemo(
+    () =>
+      buildSetupProgressItems({
+        farmSettings,
+        buildings,
+        cattleList,
+        inventoryList,
+        scheduleEvents,
+      }),
+    [buildings, cattleList, farmSettings, inventoryList, scheduleEvents],
+  );
+
   const renderContent = () => {
     const needsCompleteCattleData =
       activeTab === 'feed' ||
@@ -1127,6 +1143,12 @@ export default function DashboardClient({
 
         <QuickActionPanel actions={QUICK_ACTIONS} onAction={handleQuickAction} />
 
+        <SetupProgressPanel
+          progress={setupProgress}
+          onNavigate={setActiveTab}
+          onAction={handleQuickAction}
+        />
+
         {widgetSettings.visible.weather && <WeatherWidget weather={weather} />}
         {widgetSettings.visible.market && <MarketPriceWidget initialData={initialMarketPrice} />}
         {widgetSettings.visible.notification && <NotificationWidget notifications={notifications} />}
@@ -1154,7 +1176,7 @@ export default function DashboardClient({
               <h2 className="section-header-title">축사 현황</h2>
             </div>
             {buildings.length === 0 ? (
-              <div className="empty-state-cta animate-fadeInUp" style={{ animationDelay: '250ms' }} onClick={() => setShowAddModal(true)}>
+              <div className="empty-state-cta animate-fadeInUp" style={{ animationDelay: '250ms' }} onClick={() => setActiveTab('settings')}>
                 <span className="cta-icon">🏠</span>
                 <div className="cta-title">첫 번째 축사를 추가해보세요</div>
                 <div className="cta-desc">축사를 등록하면 칸별 두수 관리, 발정·분만 알림을 시작할 수 있습니다.</div>
@@ -1345,6 +1367,73 @@ function QuickActionPanel({ actions, onAction }) {
                 <span className="quick-action-label">{action.label}</span>
                 <span className="quick-action-detail">{action.detail}</span>
               </span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+const SETUP_ICON_BY_ID = {
+  'farm-profile': Settings,
+  buildings: Home,
+  cattle: ClipboardPlus,
+  inventory: PackageCheck,
+  schedule: CalendarDays,
+};
+
+function SetupProgressPanel({ progress, onNavigate, onAction }) {
+  if (!progress || progress.percent === 100) {
+    return null;
+  }
+
+  const handleItemClick = (item) => {
+    if (item.actionId) {
+      onAction({ id: item.actionId, targetTab: item.targetTab });
+      return;
+    }
+
+    if (item.targetTab) {
+      onNavigate(item.targetTab);
+    }
+  };
+
+  return (
+    <section className="setup-progress-panel animate-fadeInUp" aria-labelledby="setup-progress-title">
+      <div className="setup-progress-topline">
+        <div>
+          <div className="clay-page-eyebrow">Farm Setup</div>
+          <h2 id="setup-progress-title" className="setup-progress-title">운영 준비도</h2>
+        </div>
+        <div className="setup-progress-score" aria-label={`운영 준비도 ${progress.percent}%`}>
+          {progress.completed}/{progress.total}
+        </div>
+      </div>
+
+      <div className="setup-progress-track" aria-hidden="true">
+        <span style={{ width: `${progress.percent}%` }} />
+      </div>
+
+      <div className="setup-progress-list">
+        {progress.items.map((item) => {
+          const Icon = SETUP_ICON_BY_ID[item.id] || ClipboardList;
+
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={`setup-progress-item ${item.done ? 'is-done' : ''}`}
+              onClick={() => handleItemClick(item)}
+            >
+              <span className="setup-progress-icon" aria-hidden="true">
+                {item.done ? <Check size={15} strokeWidth={3} /> : <Icon size={17} strokeWidth={2.2} />}
+              </span>
+              <span className="setup-progress-copy">
+                <span className="setup-progress-label">{item.title}</span>
+                <span className="setup-progress-detail">{item.detail}</span>
+              </span>
+              {!item.done ? <span className="setup-progress-action">열기</span> : null}
             </button>
           );
         })}

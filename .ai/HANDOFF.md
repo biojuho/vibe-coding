@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Claude Code (Opus 4.7 1M) |
+| Work | **T-325 완료** + 미푸시 12커밋 push. 활성 goal(`hanwoo-dashboard` 제품완성형) 진행: App Router에 `error.js`/`not-found.js`/`global-error.js`가 전무해 런타임 에러·잘못된 URL이 Next.js 기본 디버그 화면으로 노출되던 갭을 해소. 로그인 디자인 토큰을 재사용한 브랜디드 상태 페이지 3종(404 서버 컴포넌트 / route error 클라이언트 boundary, retry=`reset()` / global-error 루트 레이아웃 boundary, 인라인 스타일) + `globals.css` `Status Pages` 블록(44줄) + empty-state 패턴 본뜬 source-wiring 테스트. 검증: `npm test` 84 passed/0 fail, `npm run lint` pass, `npm run build` pass(`/_not-found` 정적 프리렌더 확인). commit `c00712d`. 세션 시작 시 `session_orient`로 origin 대비 ahead 12 확인 → 사용자 승인 후 `git push`(`7962830..85b5d31`). |
+| Next Priorities | **경합 주의(중요)**: 병렬 도구와 동시 git 작업 시 인덱스 경합 발생 — 첫 commit `b56592e`가 빈 커밋이 됨(`git apply --cached`와 `git commit` 사이에 다른 도구가 인덱스 클리어, "PASS (no staged files)"가 단서). 부분 스테이징 후엔 반드시 `git diff --cached --stat` 직후 commit하고 `git show --stat`로 비어있지 않음을 검증할 것. `b56592e`는 `94cb3bc` 아래에 묻혀 rebase 위험으로 빈 커밋 그대로 둠. `globals.css`에 병렬 도구의 `Setup Progress Panel` 174줄 미커밋 WIP가 남아있음(해당 도구가 별도 커밋 예정 — 손대지 말 것). hanwoo goal은 계속 진행 중, T-251은 여전히 외부/사용자 소유 차단. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Claude Code (Opus 4.7 1M) |
 | Work | **T-324 완료**: `/goal "제품완성형으로 만들어봐"` — AskUserQuestion으로 대상=blind-to-x, 완료기준=테스트·CI 통과 + 문서·온보딩으로 좁힘. 완성도 감사(completion audit) 수행: blind-to-x는 T-304(2026-05-16)에서 이미 release-ready였고 이번 세션은 검증 + 온보딩 갭 1건 보완. **검증 전부 green**: 단위 `1562 passed, 1 skipped`(247s), 통합 `64 passed`(test_curl_cffi 제외 — CI와 동일), `ruff check .` All checks passed. CI(`full-test-matrix.yml`의 `blind-to-x-tests` 잡)는 동일 unit+integration 커맨드를 main push/PR마다 실행 — 워크스페이스 pnpm WIP diff는 `node-apps` 잡만 수정하고 `blind-to-x-tests`(Python) 잡 무손상 확인. **갭 보완**: `.env.example`이 README "관측성" 섹션이 문서화한 토글 3개(`OPENAI_IMAGE_ENABLED`, `LANGFUSE_ENABLED`, `BTX_USAGE_FORWARD`)를 누락 → 주석과 함께 추가(+5줄). 문서는 이미 충실(README 257 + ops-runbook 204 + operations_sop 97 + notion_view_setup_guide 137 + external-review/). |
 | Next Priorities | blind-to-x는 선택 기준(테스트·CI·문서·온보딩) 기준 제품완성형 충족. 비차단 후속: README/ops-runbook의 LLM fallback 목록이 `Moonshot/ZhipuAI`를 포함하나 `pipeline/draft_providers.py`는 anthropic/openai/gemini/xai/ollama만 실제 wiring(DeepSeek은 editorial_reviewer fallback에만 존재) — 문서 정확도 nuance라 범위 밖. 커밋은 `.env.example` + `.ai/*`만 선택 스테이징(루트 pnpm/turbo 마이그레이션 WIP·다른 프로젝트 dirty 파일 손대지 말 것). `.ai/GOAL.md`의 hanwoo 목표는 Codex 소유로 유지. |
 
@@ -15,7 +22,7 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
-| Work | **T-323 completed**: continued the active Hanwoo product-completeness goal. Added `src/lib/dashboard/setup-progress.mjs` + tests and rendered a home-screen Farm Setup / 운영 준비도 panel in `DashboardClient.js`. The panel tracks 농장 기본 정보, 축사 구조, 개체 등록, 재고 기준, and 첫 일정, shows progress, and routes incomplete items directly to Settings, cattle add, Inventory, or Schedule. Also corrected the home empty 축사 CTA so it opens Settings instead of the cattle modal. |
+| Work | **T-326 completed**: continued the active Hanwoo product-completeness goal. Added `src/lib/dashboard/setup-progress.mjs` + tests and rendered a home-screen Farm Setup / 운영 준비도 panel in `DashboardClient.js`. The panel tracks 농장 기본 정보, 축사 구조, 개체 등록, 재고 기준, and 첫 일정, shows progress, and routes incomplete items directly to Settings, cattle add, Inventory, or Schedule. Also corrected the home empty 축사 CTA so it opens Settings instead of the cattle modal. |
 | Next Priorities | Verification passed: Hanwoo `npm.cmd test` (`84 passed`), `npm.cmd run lint`, `npm.cmd run build`, `PYTHONUTF8=1 python -m code_review_graph detect-changes --repo projects/hanwoo-dashboard --base HEAD --brief` risk `0.00`, `git diff --check` passed, dev server `/login` returned `200`, and `/manifest.json` returned `application/json`. Active Hanwoo goal remains open; T-251 is still external/user-owned Supabase credential resync. Preserve unrelated dirty WIP in root package/workflow files, package locks for other projects, `setup.bat`, and the pre-existing Hanwoo `package.json` postinstall removal. Note: `globals.css` already contained unrelated status-page styles before/alongside this pass, so review hunks before staging. |
 
 | Field | Value |

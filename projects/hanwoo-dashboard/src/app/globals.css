@@ -2110,6 +2110,174 @@ body {
 }
 
 /* ============================================
+   Setup Progress Panel
+   ============================================ */
+
+.setup-progress-panel {
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid var(--color-surface-stroke);
+  border-radius: var(--radius-custom-xl);
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--color-surface-elevated) 96%, var(--chart-clay-1) 4%),
+      color-mix(in srgb, var(--color-bg-card) 93%, var(--color-info) 7%)
+    );
+  box-shadow: var(--shadow-sm);
+}
+
+.setup-progress-topline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.setup-progress-title {
+  margin: 3px 0 0;
+  color: var(--color-text);
+  font-size: 18px;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.setup-progress-score {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  height: 32px;
+  border: 1px solid color-mix(in srgb, var(--color-success) 20%, var(--color-surface-stroke));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-success) 10%, var(--color-surface-elevated));
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.setup-progress-track {
+  height: 8px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-border-custom) 62%, transparent);
+  box-shadow: var(--shadow-inset-soft);
+}
+
+.setup-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--color-success), var(--color-info));
+  transition: width 0.35s ease;
+}
+
+.setup-progress-list {
+  display: grid;
+  gap: 8px;
+}
+
+.setup-progress-item {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--color-info) 13%, var(--color-surface-stroke));
+  border-radius: var(--radius-custom-md);
+  background: color-mix(in srgb, var(--color-surface-elevated) 78%, transparent);
+  color: var(--color-text);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.setup-progress-item:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--color-info) 32%, var(--color-surface-stroke));
+  background: color-mix(in srgb, var(--color-surface-elevated) 90%, var(--color-info) 10%);
+}
+
+.setup-progress-item.is-done {
+  cursor: default;
+  opacity: 0.82;
+}
+
+.setup-progress-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--color-info) 12%, var(--color-surface-elevated));
+  color: var(--color-info);
+  box-shadow: var(--shadow-inset-soft);
+}
+
+.setup-progress-item.is-done .setup-progress-icon {
+  background: color-mix(in srgb, var(--color-success) 14%, var(--color-surface-elevated));
+  color: var(--color-success);
+}
+
+.setup-progress-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.setup-progress-label {
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.setup-progress-detail {
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.setup-progress-action {
+  color: var(--color-info);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+@media (max-width: 420px) {
+  .setup-progress-panel {
+    padding: 14px;
+  }
+
+  .setup-progress-item {
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+
+  .setup-progress-action {
+    display: none;
+  }
+
+  .setup-progress-icon {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+/* ============================================
    Today Focus Panel
    ============================================ */
 
