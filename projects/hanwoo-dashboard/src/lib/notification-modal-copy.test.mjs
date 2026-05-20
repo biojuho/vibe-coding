@@ -34,6 +34,11 @@ test('notification modal exposes dialog semantics with a visible title label', (
 test('notification modal can be dismissed with Escape from the dialog surface', () => {
   const source = readSource('components/ui/NotificationModal.js');
 
+  assert.match(source, /import \{ useEffect, useRef \} from 'react';/);
+  assert.match(source, /const dialogRef = useRef\(null\);/);
+  assert.match(source, /useEffect\(\(\) => \{/);
+  assert.match(source, /dialogRef\.current\?\.focus\(\);/);
+  assert.match(source, /ref=\{dialogRef\}/);
   assert.match(source, /const handleDialogKeyDown = \(event\) => \{/);
   assert.match(source, /event\.key === 'Escape'/);
   assert.match(source, /event\.stopPropagation\(\);/);

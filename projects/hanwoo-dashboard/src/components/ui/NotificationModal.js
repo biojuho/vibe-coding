@@ -1,6 +1,14 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
+
 export default function NotificationModal({ notifications, onClose, onTestSMS }) {
+  const dialogRef = useRef(null);
+
+  useEffect(() => {
+    dialogRef.current?.focus();
+  }, []);
+
   const handleDialogKeyDown = (event) => {
     if (event.key === 'Escape') {
       event.stopPropagation();
@@ -11,6 +19,7 @@ export default function NotificationModal({ notifications, onClose, onTestSMS })
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
+        ref={dialogRef}
         className="modal-content animate-slideInUp"
         onClick={e => e.stopPropagation()}
         onKeyDown={handleDialogKeyDown}
