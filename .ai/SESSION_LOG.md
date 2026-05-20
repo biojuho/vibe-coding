@@ -824,7 +824,7 @@
 ### Summary
 - Completed T-340 for `hanwoo-dashboard` while continuing the active product-completeness goal.
 - Localized the remaining weather fallback path: `weather-state.mjs` now returns Korean unavailable, stale, partial-forecast messages and Korean source labels, and `WeatherWidget` no longer exposes English unavailable copy.
-- Added regression coverage to keep weather unavailable copy from returning to `Weather Unavailable` / `Weather data is temporarily unavailable`.
+- Added regression coverage to keep weather unavailable, stale, and partial degraded-state copy from returning to `Weather Unavailable`, `Weather data is temporarily unavailable`, `Stale Weather`, or `Partial Forecast`.
 
 ### Changed Files
 - `.ai/HANDOFF.md`
@@ -837,7 +837,7 @@
 - `projects/hanwoo-dashboard/src/components/widgets/widgets.js`
 
 ### Verification
-- `npm.cmd test -- --test-name-pattern "weather|Weather|product copy"` from `projects/hanwoo-dashboard` -> `93 passed`.
+- `npm.cmd test -- --test-name-pattern "weather degraded-state copy|Weather|weather"` from `projects/hanwoo-dashboard` -> `94 passed`.
 - `npx.cmd eslint src/lib/weather-state.mjs src/lib/weather-state.test.mjs src/lib/home-market-copy.test.mjs src/components/widgets/widgets.js` from `projects/hanwoo-dashboard` -> passed.
 - `python execution/project_qc_runner.py --project hanwoo-dashboard --check test --json` -> passed (`93 passed`).
 - `python execution/project_qc_runner.py --project hanwoo-dashboard --check lint --json` -> passed.
