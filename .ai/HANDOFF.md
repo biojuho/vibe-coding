@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-378 completed**: continued Hanwoo product-completeness work by making global feedback toasts announce reliably to assistive-tech users. `FeedbackProvider.js` now marks error/warning toasts as `role="alert"` with assertive live updates, success/info toasts as `role="status"` with polite live updates, uses `aria-atomic="true"`, hides the decorative accent dot, and gives each dismiss button a Korean toast-specific label. Added `feedback-provider-copy.test.mjs`. Code commit `980bfb7`. |
+| Next Priorities | Verification passed: focused feedback/component tests passed, targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 125, lint, build), path-limited `git diff --check` passed, and direct graph risk `0.00`. Commit hook WARN came from graph dirty-WIP/test-gap heuristics while direct tests covered the committed files. Active Hanwoo goal remains open; T-251 is still external/user-owned Supabase control-plane resync. Preserve unrelated root monorepo/package-lock/shorts WIP plus dirty Hanwoo action/package changes unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-377 completed**: continued Hanwoo accessibility cleanup. `DashboardClient` now marks home notification/add/back icons and the critical notification badge as decorative with `aria-hidden`, while preserving Korean button labels. `SettingsTab` theme/widget toggles now expose `role="switch"`, `aria-checked`, Korean `aria-label`/`title`, and decorative thumb `aria-hidden`. Added `settings-tab-accessibility.test.mjs`; extended `home-market-copy.test.mjs`. Code commit `4d8fcf6`; context commit pending/this addendum records it. |
 | Next Priorities | Verification passed: Hanwoo `npm test` (`124 passed`), targeted ESLint, full Hanwoo QC test/lint plus build retry pass, path-limited `git diff --check`, and direct graph risk `0.00`. Active Hanwoo goal remains open only because T-251 is still external/user-owned Supabase control-plane resync. Preserve unrelated root monorepo/package-lock/shorts WIP plus dirty Hanwoo `package.json` postinstall removal unless explicitly authorized. |
 
