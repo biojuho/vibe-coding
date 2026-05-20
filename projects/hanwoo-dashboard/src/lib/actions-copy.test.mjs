@@ -19,6 +19,7 @@ test('server action user-facing failures use Korean product copy', () => {
   const feedActions = readSource('lib/actions/feed.js');
   const inventoryActions = readSource('lib/actions/inventory.js');
   const scheduleActions = readSource('lib/actions/schedule.js');
+  const expenseActions = readSource('lib/actions/expense.js');
   const systemActions = readSource('lib/actions/system.js');
 
   assert.match(cattleActions, /개체 목록을 불러오지 못했습니다/);
@@ -36,6 +37,7 @@ test('server action user-facing failures use Korean product copy', () => {
   assert.match(inventoryActions, /재고 수량을 수정하지 못했습니다/);
   assert.match(scheduleActions, /일정을 등록하지 못했습니다/);
   assert.match(scheduleActions, /일정 상태를 변경하지 못했습니다/);
+  assert.match(expenseActions, /비용 기록을 등록하지 못했습니다/);
   assert.match(systemActions, /지원하지 않는 데이터 유형입니다/);
 
   assert.doesNotMatch(cattleActions, /Failed to fetch cattle data/);
@@ -47,5 +49,6 @@ test('server action user-facing failures use Korean product copy', () => {
   assert.doesNotMatch(feedActions, /message: e\.message/);
   assert.doesNotMatch(inventoryActions, /message: error\.message/);
   assert.doesNotMatch(scheduleActions, /message: e\.message/);
+  assert.doesNotMatch(expenseActions, /message: error\.message/);
   assert.doesNotMatch(systemActions, /Invalid model name/);
 });

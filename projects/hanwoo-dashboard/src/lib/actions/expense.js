@@ -73,7 +73,7 @@ export async function createExpenseRecord(data) {
     return { success: true, data: created };
   } catch (error) {
     console.error("Failed to create expense:", error);
-    return { success: false, message: error.message };
+    return { success: false, message: "비용 기록을 등록하지 못했습니다." };
   }
 }
 
