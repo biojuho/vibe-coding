@@ -15,6 +15,8 @@ test('analysis and financial widgets use Korean operator copy', () => {
   const analysisSource = readSource('components/tabs/AnalysisTab.js');
   const financialWidgetSource = readSource('components/widgets/FinancialChartWidget.js');
 
+  assert.match(financialWidgetSource, /import \{ BarChart3 \} from 'lucide-react';/);
+  assert.match(financialWidgetSource, /<BarChart3 size=\{22\} aria-hidden="true"/);
   assert.match(analysisSource, /경영 분석/);
   assert.match(analysisSource, /월별 흐름/);
   assert.match(analysisSource, /비용 구성/);
@@ -27,4 +29,5 @@ test('analysis and financial widgets use Korean operator copy', () => {
   assert.match(financialWidgetSource, /name="이익"/);
   assert.doesNotMatch(analysisSource, /Financial Analysis|Monthly Flow|Cost Mix|Top Sales/);
   assert.doesNotMatch(financialWidgetSource, /Farm Financial Overview|Recent 6-month|Unit: KRW|Revenue|Expense|Profit/);
+  assert.doesNotMatch(financialWidgetSource, /fontSize: '22px', lineHeight: 1 \}\}>\?<\/span>/);
 });

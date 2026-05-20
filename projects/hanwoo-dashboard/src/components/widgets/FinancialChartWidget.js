@@ -1,5 +1,6 @@
 'use client';
 
+import { BarChart3 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts';
 
 import { formatMoney } from '@/lib/utils';
@@ -71,7 +72,7 @@ export default function FinancialChartWidget({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '22px', lineHeight: 1 }}>?</span>
+          <BarChart3 size={22} aria-hidden="true" style={{ color: 'var(--chart-clay-1)', flexShrink: 0 }} />
           <div>
             <div
               style={{
