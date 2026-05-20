@@ -115,6 +115,18 @@ test('feed building filter chips expose selected state and Korean labels', () =>
   assert.match(source, /label=\{`\$\{building\.name\} 급여 보기`\}/);
 });
 
+test('feed record form fields expose labels and validation state', () => {
+  const source = readSource('components/tabs/FeedTab.js');
+
+  assert.match(source, /<PremiumLabel htmlFor="feed-date">/);
+  assert.match(source, /id="feed-date"[\s\S]*?aria-invalid=\{Boolean\(errors\.date\)\}/);
+  assert.match(source, /<PremiumLabel htmlFor="feed-note">/);
+  assert.match(source, /id="feed-note"[\s\S]*?aria-invalid=\{Boolean\(errors\.note\)\}/);
+  assert.match(source, /const fieldId = `feed-\$\{inputProps\.name\}`;/);
+  assert.match(source, /<PremiumLabel htmlFor=\{fieldId\}>/);
+  assert.match(source, /id=\{fieldId\}[\s\S]*?aria-invalid=\{Boolean\(error\)\}/);
+});
+
 test('inventory quantity edit preserves input when async save fails', () => {
   const source = readSource('components/tabs/InventoryTab.js');
 

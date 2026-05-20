@@ -225,6 +225,7 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
               id="feed-date"
               type="date"
               {...register('date')}
+              aria-invalid={Boolean(errors.date)}
               hasError={!!errors.date}
             />
             {errors.date ? <div style={errorTextStyle}>{errors.date.message}</div> : null}
@@ -252,6 +253,7 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
             <PremiumTextarea
               id="feed-note"
               {...register('note')}
+              aria-invalid={Boolean(errors.note)}
               placeholder="사료 상태, 날씨 변화, 축사 메모를 적어 주세요."
               hasError={!!errors.note}
               className="h-[82px]"
@@ -347,16 +349,20 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
 }
 
 function Field({ label, suffix, error, inputProps }) {
+  const fieldId = `feed-${inputProps.name}`;
+
   return (
     <div style={{ position: 'relative' }}>
-      <PremiumLabel>
+      <PremiumLabel htmlFor={fieldId}>
         {label}
       </PremiumLabel>
       <div style={{ position: 'relative' }}>
         <PremiumInput
+          id={fieldId}
           type="number"
           placeholder="0.0"
           {...inputProps}
+          aria-invalid={Boolean(error)}
           hasError={!!error}
           className="text-[16px] font-bold font-['var(--font-display-custom)']"
         />
