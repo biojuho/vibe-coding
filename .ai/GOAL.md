@@ -12,6 +12,8 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-403 made Hanwoo pen and cattle row cards keyboard reachable with button semantics, tab focus, Korean accessible labels, and Enter/Space activation; verification passed with focused Hanwoo tests `135 passed`, targeted ESLint, path-limited `git diff --check`, staged review gate JSON pass, and full Hanwoo QC (`test` 135, lint, build).
+
 - 2026-05-20: T-402 kept the feed-record form from resetting when async saves fail by awaiting `onRecordFeed` and requiring a truthy result before reset; verification passed with focused Hanwoo tests `135 passed`, targeted ESLint, path-limited `git diff --check`, graph risk `0.00`, and full Hanwoo QC (`test` 135, lint, build).
 
 - 2026-05-20: T-401 kept the cattle edit form open when async update mutations fail by delegating close behavior to `handleUpdateCattle`; verification passed with focused Hanwoo tests `133 passed`, targeted ESLint, path-limited `git diff --check`, graph risk `0.00`, and full Hanwoo QC (`test` 133, lint, build).

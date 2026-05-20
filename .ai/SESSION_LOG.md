@@ -1068,6 +1068,34 @@
 ## 2026-05-20 KST - Codex
 
 ### Summary
+- Completed T-403 for `hanwoo-dashboard` while continuing the active product-completeness goal.
+- Made pen and cattle row cards keyboard reachable with button semantics, tab focus, Korean accessible labels, and Enter/Space activation.
+- Added a source-level accessibility guard for the card interaction contract.
+
+### Changed Files
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/CONTEXT.md`
+- `.ai/GOAL.md`
+- `projects/hanwoo-dashboard/src/components/ui/cards.js`
+- `projects/hanwoo-dashboard/src/lib/cards-accessibility.test.mjs`
+
+### Verification
+- `npm.cmd test -- src/lib/cards-accessibility.test.mjs src/lib/component-imports.test.mjs` from `projects/hanwoo-dashboard` -> `135 passed`.
+- `npx.cmd eslint src/components/ui/cards.js src/lib/cards-accessibility.test.mjs` from `projects/hanwoo-dashboard` -> passed.
+- `git diff --check -- projects/hanwoo-dashboard/src/components/ui/cards.js projects/hanwoo-dashboard/src/lib/cards-accessibility.test.mjs projects/hanwoo-dashboard/src/components/tabs/FeedTab.js projects/hanwoo-dashboard/src/lib/empty-state-wiring.test.mjs` -> passed.
+- `python execution/project_qc_runner.py --project hanwoo-dashboard --json` -> passed (`test` 135, lint passed, build passed).
+- `python execution/code_review_gate.py --staged --json` -> JSON status `pass`; the terminal reader also emitted a Windows cp949 decode exception after the JSON payload.
+- Pre-commit advisory gate emitted a WARN from known graph/test-gap heuristics after commit; direct Hanwoo verification covered the changed files.
+
+### Follow-up
+- Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
+- T-320 and T-372 remain approval-scoped. Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, package locks, and shorts-maker-v2 files.
+
+## 2026-05-20 KST - Codex
+
+### Summary
 - Completed T-402 for `hanwoo-dashboard` while continuing the active product-completeness goal.
 - Fixed feed-record form failure handling: `FeedTab` now awaits `onRecordFeed` and only resets after a truthy result.
 - Failed async feed saves now preserve entered feed data for retry; success/offline queue paths keep the existing reset behavior.
