@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` dashboard API/admin fallback failures no longer expose arbitrary raw exception messages. `/api/dashboard/{summary,cattle,sales}` 500 paths log diagnostics and return stable Korean fallback copy, dashboard list validation errors use Korean operator copy, and admin system/raw-data actions avoid returning DB/runtime messages except the known unsupported-data-type copy. Verification passed: focused tests, lint, full Hanwoo QC (`test` 127, lint, build), path-limited `git diff --check`, and direct graph risk `0.00`.
+
 - As of 2026-05-20, `hanwoo-dashboard` Excel export failure feedback no longer exposes arbitrary browser/runtime exception messages. `ExcelExportButton` logs CSV/export failures and shows stable Korean retry copy in the feedback toast; `excel-export-button-copy.test.mjs` guards against the old raw `error.message` description path. Verification passed: focused tests, targeted ESLint, full Hanwoo QC (`test` 127, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
 
 - As of 2026-05-20, `hanwoo-dashboard` diagnostics, payment, and AI chat async UI failures no longer expose arbitrary raw exception messages. Diagnostics/raw-data loads log details and show stable Korean retry copy, `PaymentWidget` preserves only its own pending message while replacing SDK failures with Korean retry copy, and `AIChatWidget` logs stream errors while showing a Korean connection fallback. Verification passed: focused tests, targeted ESLint, full Hanwoo QC (`test` 127, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.

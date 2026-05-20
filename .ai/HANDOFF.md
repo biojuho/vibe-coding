@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-388 completed**: continued Hanwoo product-completeness work by localizing dashboard API and admin system fallback failures. `/api/dashboard/{summary,cattle,sales}` 500 paths now log diagnostics and return stable Korean fallback copy instead of arbitrary `error.message`, dashboard list validation errors now use Korean operator copy, and admin system/raw-data actions no longer return raw DB/runtime messages except the known unsupported-data-type copy. Copy tests guard these contracts. Code commit `f1a4637`. |
+| Next Priorities | Verification passed: focused action/home tests passed (`127 passed`), `npm.cmd run lint` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 127, lint, build), path-limited `git diff --check` passed, and direct graph risk `0.00`. Staged code-review gate WARN came from heuristic route/action test-gap noise while direct tests covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync. Preserve unrelated root monorepo/package-lock/shorts WIP and the existing Gemini T-320 context unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-387 completed**: continued Hanwoo product-completeness work by localizing Excel export failure feedback. `ExcelExportButton` now logs CSV/export exceptions and shows stable Korean retry copy instead of rendering arbitrary browser/runtime `error.message` text in the feedback toast. `excel-export-button-copy.test.mjs` guards the fallback copy and rejects the old raw-error description path. Code commit `cf07c4e`. |
 | Next Priorities | Verification passed: focused Excel export/CSV/component tests passed (`127 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 127, lint, build), path-limited `git diff --check` passed, and staged code-review gate PASS with the known trailing cp949 reader-thread noise. Commit hook WARN came from dirty-WIP/test-gap heuristics while direct tests covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync. Preserve unrelated root monorepo/package-lock/shorts WIP and current unstaged WIP unless explicitly authorized. |
 
