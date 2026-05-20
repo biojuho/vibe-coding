@@ -59,12 +59,16 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
     reset(createInventoryFormValues());
   };
 
-  const handleUpdate = (id) => {
+  const handleUpdate = async (id) => {
     if (editQty === '' || Number(editQty) < 0) {
       return;
     }
 
-    onUpdateQuantity(id, editQty);
+    const saved = await onUpdateQuantity(id, editQty);
+    if (!saved) {
+      return;
+    }
+
     setEditId(null);
     setEditQty('');
   };

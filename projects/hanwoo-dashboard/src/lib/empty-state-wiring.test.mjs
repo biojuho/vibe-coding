@@ -104,3 +104,12 @@ test('feed record form preserves input when async save fails', () => {
   assert.match(source, /if \(!recorded\) \{\s+return;\s+\}/);
   assert.match(source, /reset\(\{\s+\.\.\.createFeedRecordValues\(\),\s+date: values\.date,\s+\}\);/);
 });
+
+test('inventory quantity edit preserves input when async save fails', () => {
+  const source = readSource('components/tabs/InventoryTab.js');
+
+  assert.match(source, /const handleUpdate = async \(id\) => \{/);
+  assert.match(source, /const saved = await onUpdateQuantity\(id, editQty\);/);
+  assert.match(source, /if \(!saved\) \{\s+return;\s+\}/);
+  assert.match(source, /setEditId\(null\);\s+setEditQty\(''\);/);
+});
