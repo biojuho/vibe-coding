@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-469 completed**: Hanwoo AI chat dialog now focuses the dialog surface on open, so Escape dismissal is reliable immediately after opening the floating assistant. `AIChatWidget` now uses a focused `panelRef` with `tabIndex={-1}`, matching the established notification-modal dialog pattern, and `ai-chat-widget-copy.test.mjs` guards the focus contract. Code commit `f79d677`. |
+| Next Priorities | Verification passed: focused AI chat widget copy test (`1 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 179, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-468 completed**: Hanwoo cattle and sales pagination loading states are now announced to assistive technology. The cattle and sales "more" controls expose `aria-busy` while loading, and cattle pagination retry feedback now uses `role="status"` plus `aria-live="polite"` like the sales flow. `cattle-pagination-feedback.test.mjs` and `sales-pagination-feedback.test.mjs` guard the contracts. Code commit `9c0f767`. |
 | Next Priorities | Verification passed: focused cattle/sales pagination feedback tests (`2 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 179, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 
