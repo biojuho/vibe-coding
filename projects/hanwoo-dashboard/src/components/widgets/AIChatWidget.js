@@ -380,6 +380,8 @@ export default function AIChatWidget() {
           value={input}
           onChange={(event) => setInput(event.target.value)}
           onKeyDown={handleKeyDown}
+          aria-label="AI 농장 비서에게 보낼 질문"
+          title="AI 농장 비서에게 보낼 질문"
           placeholder={isStreaming ? '답변 생성 중...' : '질문을 입력해 주세요.'}
           disabled={isStreaming}
           className="input"
