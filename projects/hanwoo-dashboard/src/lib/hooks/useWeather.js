@@ -7,6 +7,7 @@ import {
   markWeatherAsStale,
   normalizeWeatherPayload,
   readWeatherApiResponseSafely,
+  WEATHER_STALE_MESSAGE,
   WEATHER_UNAVAILABLE_MESSAGE,
 } from '@/lib/weather-state.mjs';
 
@@ -69,10 +70,7 @@ export function useWeather(farmSettings) {
         }
       } catch (error) {
         if (isTimeoutError(error)) {
-          applyWeatherDegradation(
-            locationName,
-            'Showing the last available weather snapshot because the live weather request timed out.',
-          );
+          applyWeatherDegradation(locationName, WEATHER_STALE_MESSAGE);
           return;
         }
         console.error('Weather fetch error', error);

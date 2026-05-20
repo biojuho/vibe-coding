@@ -27,6 +27,7 @@ import {
   normalizeWeatherPayload,
   readWeatherApiResponseSafely,
   WEATHER_UNAVAILABLE_MESSAGE,
+  WEATHER_STALE_MESSAGE,
 } from '@/lib/weather-state.mjs';
 import { TabBar, WeatherWidget } from '@/components/widgets/widgets';
 import { EstrusAlertBanner, CalvingAlertBanner } from '@/components/widgets/AlertBanners';
@@ -544,10 +545,7 @@ export default function DashboardClient({
         }
       } catch (error) {
         if (isTimeoutError(error)) {
-          applyWeatherDegradation(
-            locationName,
-            'Showing the last available weather snapshot because the live weather request timed out.',
-          );
+          applyWeatherDegradation(locationName, WEATHER_STALE_MESSAGE);
           return;
         }
 
