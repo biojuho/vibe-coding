@@ -218,6 +218,8 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
                           type="number"
                           value={editQty}
                           onChange={(event) => setEditQty(event.target.value)}
+                          aria-label={`${item.name} 재고 수량 입력`}
+                          title={`${item.name} 재고 수량 입력`}
                           className="w-[80px] px-2 py-1.5 h-auto text-sm bg-slate-900 border-slate-700"
                           autoFocus
                           hasError={false}

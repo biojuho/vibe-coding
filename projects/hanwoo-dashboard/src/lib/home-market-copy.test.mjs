@@ -239,6 +239,13 @@ test('inventory form fields expose explicit labels and invalid state', () => {
   assert.match(source, /id="inventory-threshold"[\s\S]*?aria-invalid=\{Boolean\(errors\.threshold\)\}/);
 });
 
+test('inventory inline quantity editor exposes item-specific input label', () => {
+  const source = readSource('components/tabs/InventoryTab.js');
+
+  assert.match(source, /aria-label=\{`\$\{item\.name\} 재고 수량 입력`\}/);
+  assert.match(source, /title=\{`\$\{item\.name\} 재고 수량 입력`\}/);
+});
+
 test('dashboard API fallback messages stay operator-facing Korean', () => {
   const cattleRoute = readSource('app/api/dashboard/cattle/route.js');
   const salesRoute = readSource('app/api/dashboard/sales/route.js');
