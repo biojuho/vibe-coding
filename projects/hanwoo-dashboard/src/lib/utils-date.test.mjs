@@ -17,16 +17,27 @@ test('date utility calculations use a fresh or injected current date', () => {
 
   assert.match(utilsSource, /const DAY_MS = 86400000;/);
   assert.match(utilsSource, /function toDate\(value\)/);
+  assert.match(utilsSource, /function toValidDate\(value\)/);
+  assert.match(utilsSource, /Number\.isNaN\(date\.getTime\(\)\) \? null : date/);
   assert.match(utilsSource, /export function getMonthAge\(birthDate, now = new Date\(\)\)/);
+  assert.match(utilsSource, /if \(!date \|\| !today\) return 0;/);
   assert.match(utilsSource, /export function getNextEstrusDate\(lastEstrus, now = new Date\(\)\)/);
+  assert.match(utilsSource, /if \(!today \|\| !next\) return null;/);
   assert.match(utilsSource, /export function getDaysUntilEstrus\(lastEstrus, now = new Date\(\)\)/);
+  assert.match(utilsSource, /if \(!today\) return null;/);
   assert.match(utilsSource, /const next = getNextEstrusDate\(lastEstrus, today\);/);
   assert.match(utilsSource, /export function isEstrusAlert\(lastEstrus, now = new Date\(\)\)/);
   assert.match(utilsSource, /getDaysUntilEstrus\(lastEstrus, now\)/);
+  assert.match(utilsSource, /const date = toValidDate\(pregnancyDate\);/);
+  assert.match(utilsSource, /return date \? new Date\(date\.getTime\(\) \+ CALVING_DAYS \* DAY_MS\) : null;/);
   assert.match(utilsSource, /export function getDaysUntilCalving\(pregnancyDate, now = new Date\(\)\)/);
   assert.match(utilsSource, /Math\.ceil\(\(calvingDate - today\) \/ DAY_MS\)/);
   assert.match(utilsSource, /export function isCalvingAlert\(pregnancyDate, now = new Date\(\)\)/);
   assert.match(utilsSource, /getDaysUntilCalving\(pregnancyDate, now\)/);
+  assert.match(utilsSource, /return date \? date\.toLocaleDateString\('ko-KR'\) : '-';/);
+  assert.match(utilsSource, /return date \? date\.toISOString\(\)\.split\('T'\)\[0\] : '';/);
+  assert.doesNotMatch(utilsSource, /toLocaleDateString\('ko-KR'\);\s*\}/);
+  assert.doesNotMatch(utilsSource, /new Date\(pregnancyDate\)\.getTime\(\)/);
   assert.doesNotMatch(utilsSource, /TODAY/);
   assert.doesNotMatch(constantsSource, /TODAY = new Date\(\)/);
 });

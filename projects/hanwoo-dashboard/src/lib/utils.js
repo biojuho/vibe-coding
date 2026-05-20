@@ -17,17 +17,24 @@ function toDate(value) {
   return value instanceof Date ? new Date(value.getTime()) : new Date(value);
 }
 
+function toValidDate(value) {
+  const date = toDate(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 export function getMonthAge(birthDate, now = new Date()) {
   if (!birthDate) return 0;
-  const date = toDate(birthDate);
-  const today = toDate(now);
+  const date = toValidDate(birthDate);
+  const today = toValidDate(now);
+  if (!date || !today) return 0;
   return Math.max(1, (today.getFullYear() - date.getFullYear()) * 12 + today.getMonth() - date.getMonth());
 }
 
 export function getNextEstrusDate(lastEstrus, now = new Date()) {
   if (!lastEstrus) return null;
-  const today = toDate(now);
-  const next = toDate(lastEstrus);
+  const today = toValidDate(now);
+  const next = toValidDate(lastEstrus);
+  if (!today || !next) return null;
 
   while (next <= today) next.setDate(next.getDate() + ESTRUS_CYCLE_DAYS);
 
@@ -35,7 +42,8 @@ export function getNextEstrusDate(lastEstrus, now = new Date()) {
 }
 
 export function getDaysUntilEstrus(lastEstrus, now = new Date()) {
-  const today = toDate(now);
+  const today = toValidDate(now);
+  if (!today) return null;
   const next = getNextEstrusDate(lastEstrus, today);
   return next ? Math.ceil((next - today) / DAY_MS) : null;
 }
@@ -51,11 +59,13 @@ export function isEstrusToday(lastEstrus, now = new Date()) {
 
 export function getCalvingDate(pregnancyDate) {
   if (!pregnancyDate) return null;
-  return new Date(new Date(pregnancyDate).getTime() + CALVING_DAYS * 86400000);
+  const date = toValidDate(pregnancyDate);
+  return date ? new Date(date.getTime() + CALVING_DAYS * DAY_MS) : null;
 }
 
 export function getDaysUntilCalving(pregnancyDate, now = new Date()) {
-  const today = toDate(now);
+  const today = toValidDate(now);
+  if (!today) return null;
   const calvingDate = getCalvingDate(pregnancyDate);
   return calvingDate ? Math.ceil((calvingDate - today) / DAY_MS) : null;
 }
@@ -67,12 +77,14 @@ export function isCalvingAlert(pregnancyDate, now = new Date()) {
 
 export function formatDate(value) {
   if (!value) return '-';
-  return (value instanceof Date ? value : new Date(value)).toLocaleDateString('ko-KR');
+  const date = toValidDate(value);
+  return date ? date.toLocaleDateString('ko-KR') : '-';
 }
 
 export function toInputDate(value) {
   if (!value) return '';
-  return (value instanceof Date ? value : new Date(value)).toISOString().split('T')[0];
+  const date = toValidDate(value);
+  return date ? date.toISOString().split('T')[0] : '';
 }
 
 export function calcTHI(temp, humidity) {
