@@ -75,7 +75,7 @@ export default function CalvingTab({ cattle, buildings = [], onRecordCalving }) 
   return (
     <div>
       <div className="section-header" style={{ marginBottom: '16px' }}>
-        <span className="section-header-icon">🐮</span>
+        <span className="section-header-icon" aria-hidden="true">🐮</span>
         <h2 className="section-header-title">분만 예정 관리</h2>
       </div>
 
@@ -151,22 +151,26 @@ export default function CalvingTab({ cattle, buildings = [], onRecordCalving }) 
                     <div className="mb-3 text-sm font-bold text-[color:var(--color-text)]">분만 처리</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
                       <div>
-                        <label style={{ fontSize: '12px', color: 'var(--color-text-secondary)', display: 'block', marginBottom: '4px' }}>
+                        <label htmlFor="calving-date" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', display: 'block', marginBottom: '4px' }}>
                           분만일
                         </label>
                         <input
+                          id="calving-date"
                           type="date"
                           {...register('calvingDate')}
+                          aria-invalid={Boolean(errors.calvingDate)}
                           style={{ ...inputStyle, width: '100%' }}
                         />
                         {errors.calvingDate ? <div style={errorTextStyle}>{errors.calvingDate.message}</div> : null}
                       </div>
                       <div>
-                        <label style={{ fontSize: '12px', color: 'var(--color-text-secondary)', display: 'block', marginBottom: '4px' }}>
+                        <label htmlFor="calf-gender" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', display: 'block', marginBottom: '4px' }}>
                           송아지 성별
                         </label>
                         <select
+                          id="calf-gender"
                           {...register('calfGender')}
+                          aria-invalid={Boolean(errors.calfGender)}
                           style={{ ...inputStyle, width: '100%' }}
                         >
                           <option value="암">암송아지</option>
