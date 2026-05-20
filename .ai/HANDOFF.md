@@ -8,7 +8,7 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
-| Work | **T-322 completed**: continued the active Hanwoo product-completeness goal. Added `src/lib/dashboard/setup-progress.mjs` + tests and rendered a home-screen Farm Setup / 운영 준비도 panel in `DashboardClient.js`. The panel tracks 농장 기본 정보, 축사 구조, 개체 등록, 재고 기준, and 첫 일정, shows progress, and routes incomplete items directly to Settings, cattle add, Inventory, or Schedule. Also corrected the home empty 축사 CTA so it opens Settings instead of the cattle modal. |
+| Work | **T-323 completed**: continued the active Hanwoo product-completeness goal. Added `src/lib/dashboard/setup-progress.mjs` + tests and rendered a home-screen Farm Setup / 운영 준비도 panel in `DashboardClient.js`. The panel tracks 농장 기본 정보, 축사 구조, 개체 등록, 재고 기준, and 첫 일정, shows progress, and routes incomplete items directly to Settings, cattle add, Inventory, or Schedule. Also corrected the home empty 축사 CTA so it opens Settings instead of the cattle modal. |
 | Next Priorities | Verification passed: Hanwoo `npm.cmd test` (`84 passed`), `npm.cmd run lint`, `npm.cmd run build`, `PYTHONUTF8=1 python -m code_review_graph detect-changes --repo projects/hanwoo-dashboard --base HEAD --brief` risk `0.00`, `git diff --check` passed, dev server `/login` returned `200`, and `/manifest.json` returned `application/json`. Active Hanwoo goal remains open; T-251 is still external/user-owned Supabase credential resync. Preserve unrelated dirty WIP in root package/workflow files, package locks for other projects, `setup.bat`, and the pre-existing Hanwoo `package.json` postinstall removal. Note: `globals.css` already contained unrelated status-page styles before/alongside this pass, so review hunks before staging. |
 
 | Field | Value |
