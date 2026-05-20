@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` calving form validation messages are announced with their controls. `CalvingTab` now connects calving date, calf gender, and calf tag number controls to field-specific error messages through conditional `aria-describedby`, keeps `aria-invalid`, and renders each validation message as `role="alert"`. Verification passed: focused calving accessibility test (`2 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 170, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` login authentication errors are associated with both credential fields. `LoginPage` now uses a stable `login-error-message` id, marks username/password inputs invalid after failed sign-in, and connects both fields to the alert message with conditional `aria-describedby`. Verification passed: focused error-pages wiring test (`5 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 169, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` cattle-detail breeding date validation is announced with the date input. `CattleDetailModal` now connects the breeding record date input to `breeding-record-date-error` through conditional `aria-describedby`, keeps `aria-invalid` tied to validation state, and renders the validation message as `role="alert"`. Verification passed: focused cattle-detail modal wiring test (`5 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 168, lint, build).
