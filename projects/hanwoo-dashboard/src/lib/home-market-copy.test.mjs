@@ -22,6 +22,12 @@ test('home dashboard fallback and panel labels use Korean product copy', () => {
   assert.doesNotMatch(source, /Today Brief/);
   assert.doesNotMatch(source, /Quick Record/);
   assert.doesNotMatch(source, /Farm Setup/);
+  assert.match(source, /대시보드 데이터를 불러오지 못했습니다/);
+  assert.match(source, /대시보드 데이터를 불러오는 데 시간이 오래 걸리고 있습니다/);
+  assert.match(source, /모든 권리 보유/);
+  assert.doesNotMatch(source, /Failed to load/);
+  assert.doesNotMatch(source, /Loading .* timed out/);
+  assert.doesNotMatch(source, /All rights reserved/);
 });
 
 test('market price widget uses Korean product copy for visible states', () => {
@@ -74,4 +80,17 @@ test('sales tab missing cattle fallback copy stays Korean', () => {
   assert.match(source, /이력번호 미등록/);
   assert.doesNotMatch(source, /Unknown/);
   assert.doesNotMatch(source, /000-0000-0000/);
+});
+
+test('dashboard API fallback messages stay operator-facing Korean', () => {
+  const cattleRoute = readSource('app/api/dashboard/cattle/route.js');
+  const salesRoute = readSource('app/api/dashboard/sales/route.js');
+  const summaryRoute = readSource('app/api/dashboard/summary/route.js');
+
+  assert.match(cattleRoute, /개체 목록을 불러오지 못했습니다/);
+  assert.match(salesRoute, /판매 기록을 불러오지 못했습니다/);
+  assert.match(summaryRoute, /대시보드 요약을 불러오지 못했습니다/);
+  assert.doesNotMatch(cattleRoute, /Failed to load cattle list/);
+  assert.doesNotMatch(salesRoute, /Failed to load sales list/);
+  assert.doesNotMatch(summaryRoute, /Failed to load dashboard summary/);
 });

@@ -37,7 +37,7 @@ export async function GET(request) {
 
     console.error('Dashboard sales route error:', error);
     return NextResponse.json(
-      { success: false, message: error.message || 'Failed to load sales list.' },
+      { success: false, message: error.message || '판매 기록을 불러오지 못했습니다.' },
       { status: 500 },
     );
   }

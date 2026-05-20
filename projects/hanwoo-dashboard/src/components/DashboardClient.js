@@ -254,7 +254,7 @@ export default function DashboardClient({
         { cache: 'no-store' },
         {
           timeoutMs: 5000,
-          errorMessage: 'Dashboard summary refresh timed out after 5000ms.',
+          errorMessage: '대시보드 요약 갱신에 시간이 오래 걸리고 있습니다.',
         },
       );
       const json = await readJsonSafely(res);
@@ -271,7 +271,7 @@ export default function DashboardClient({
 
       return true;
     } catch (err) {
-      console.error('Failed to refresh summary:', err);
+      console.error('대시보드 요약 갱신 실패:', err);
       return false;
     }
   }, [readJsonSafely]);
@@ -283,7 +283,7 @@ export default function DashboardClient({
         setNotifications(nextNotifications);
       }
     } catch (error) {
-      console.error('Failed to refresh notifications:', error);
+      console.error('알림 갱신 실패:', error);
     }
   }, []);
 
@@ -337,12 +337,12 @@ export default function DashboardClient({
           { cache: 'no-store' },
           {
             timeoutMs: 10000,
-            errorMessage: `Loading ${pathname} timed out after 10000ms.`,
+            errorMessage: `대시보드 데이터를 불러오는 데 시간이 오래 걸리고 있습니다. (${pathname})`,
           },
         );
         const json = await readJsonSafely(res);
         if (!res.ok || !json?.success || !json?.data) {
-          throw new Error(json?.message || `Failed to load ${pathname}.`);
+          throw new Error(json?.message || `대시보드 데이터를 불러오지 못했습니다. (${pathname})`);
         }
 
         items.push(...(json.data.items || []));
@@ -386,7 +386,7 @@ export default function DashboardClient({
         })
         .catch((error) => {
           if (!silent) {
-            console.error('Failed to load complete cattle list:', error);
+            console.error('전체 개체 목록 로딩 실패:', error);
           }
           throw error;
         })
@@ -419,7 +419,7 @@ export default function DashboardClient({
         })
         .catch((error) => {
           if (!silent) {
-            console.error('Failed to load complete sales list:', error);
+            console.error('전체 판매 기록 로딩 실패:', error);
           }
           throw error;
         })
@@ -1279,7 +1279,7 @@ export default function DashboardClient({
         <div className="text-[10px] text-muted-foreground/40 leading-loose space-y-0.5">
           <p>대표: 박주호 · 사업자등록번호: 000-00-00000</p>
           <p>joolife@joolife.io.kr</p>
-          <p className="mt-2 text-muted-foreground/30">Copyright &copy; 2026 Joolife. All rights reserved.</p>
+          <p className="mt-2 text-muted-foreground/30">&copy; 2026 Joolife. 모든 권리 보유.</p>
         </div>
       </footer>
     </div>

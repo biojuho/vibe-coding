@@ -38,7 +38,7 @@ export async function GET(request) {
 
     console.error('Dashboard cattle route error:', error);
     return NextResponse.json(
-      { success: false, message: error.message || 'Failed to load cattle list.' },
+      { success: false, message: error.message || '개체 목록을 불러오지 못했습니다.' },
       { status: 500 },
     );
   }

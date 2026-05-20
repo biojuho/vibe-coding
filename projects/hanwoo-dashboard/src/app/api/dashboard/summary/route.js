@@ -54,7 +54,7 @@ export async function GET(request) {
 
     console.error('Dashboard summary route error:', error);
     return NextResponse.json(
-      { success: false, message: error.message || 'Failed to load dashboard summary.' },
+      { success: false, message: error.message || '대시보드 요약을 불러오지 못했습니다.' },
       { status: 500 },
     );
   }
