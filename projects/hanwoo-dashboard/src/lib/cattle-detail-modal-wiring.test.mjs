@@ -146,6 +146,19 @@ test('cattle tag lookup progress and results are announced', () => {
   assert.match(formSource, /aria-live=\{lookupMsg\.ok \? 'polite' : 'assertive'\}/);
 });
 
+test('cattle form waits for async saves before re-enabling submit actions', () => {
+  const formSource = readSource('components/forms/CattleForm.js');
+
+  assert.match(formSource, /const \[isSaving, setIsSaving\] = useState\(false\)/);
+  assert.match(formSource, /setIsSaving\(false\);/);
+  assert.match(formSource, /const submitForm = async \(values\) => \{/);
+  assert.match(formSource, /setIsSaving\(true\);/);
+  assert.match(formSource, /await onSubmit\(\{/);
+  assert.match(formSource, /finally \{\s*setIsSaving\(false\);/);
+  assert.match(formSource, /type="button" onClick=\{onCancel\} disabled=\{isSaving\}/);
+  assert.match(formSource, /type="submit" disabled=\{isSaving\} aria-busy=\{isSaving\}/);
+});
+
 test('cattle detail decorative icons are hidden from assistive tech', () => {
   const source = readSource('components/forms/CattleDetailModal.js');
 

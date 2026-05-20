@@ -18,6 +18,7 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
   const dialogRef = useRef(null);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupMsg, setLookupMsg] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
   const tagNumberErrorId = 'cattle-tag-number-error';
   const tagLookupMessageId = 'cattle-tag-lookup-message';
 
@@ -36,6 +37,7 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
   useEffect(() => {
     reset(createCattleFormValues(cattle, buildings));
     setLookupMsg(null);
+    setIsSaving(false);
   }, [buildings, cattle, reset]);
 
   useEffect(() => {
@@ -90,18 +92,24 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
     }
   };
 
-  const submitForm = (values) => {
-    onSubmit({
-      ...values,
-      id: cattle ? cattle.id : `new_${Date.now()}`,
-      birthDate: new Date(values.birthDate).toISOString(),
-      weight: Number(values.weight),
-      weightHistory: cattle ? cattle.weightHistory : [],
-      lastEstrus: cattle?.lastEstrus ?? null,
-      pregnancyDate: cattle?.pregnancyDate ?? null,
-      purchasePrice: values.purchasePrice ?? null,
-      purchaseDate: values.purchaseDate ? new Date(values.purchaseDate).toISOString() : null,
-    });
+  const submitForm = async (values) => {
+    setIsSaving(true);
+
+    try {
+      await onSubmit({
+        ...values,
+        id: cattle ? cattle.id : `new_${Date.now()}`,
+        birthDate: new Date(values.birthDate).toISOString(),
+        weight: Number(values.weight),
+        weightHistory: cattle ? cattle.weightHistory : [],
+        lastEstrus: cattle?.lastEstrus ?? null,
+        pregnancyDate: cattle?.pregnancyDate ?? null,
+        purchasePrice: values.purchasePrice ?? null,
+        purchaseDate: values.purchaseDate ? new Date(values.purchaseDate).toISOString() : null,
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const tagNumberDescriptionIds = [
@@ -385,10 +393,10 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
           </div>
 
           <div style={{ display: 'flex', gap: '12px', marginTop: '28px', paddingTop: '20px', borderTop: '1px solid color-mix(in srgb, var(--color-border-custom) 35%, transparent)' }}>
-            <button type="button" onClick={onCancel} className="btn btn-secondary" style={{...btnSecondary, transition: 'all 0.2s cubic-bezier(0.22,1,0.36,1)'}}>
+            <button type="button" onClick={onCancel} disabled={isSaving} className="btn btn-secondary" style={{...btnSecondary, transition: 'all 0.2s cubic-bezier(0.22,1,0.36,1)'}}>
               취소
             </button>
-            <button type="submit" className="btn btn-primary" style={{...btnPrimary, transition: 'all 0.2s cubic-bezier(0.22,1,0.36,1)'}}>
+            <button type="submit" disabled={isSaving} aria-busy={isSaving} className="btn btn-primary" style={{...btnPrimary, transition: 'all 0.2s cubic-bezier(0.22,1,0.36,1)'}}>
               저장하기
             </button>
           </div>
