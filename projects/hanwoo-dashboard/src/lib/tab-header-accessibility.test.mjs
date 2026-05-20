@@ -15,8 +15,10 @@ test('primary tab header icons are decorative for assistive tech', () => {
   const inventorySource = readSource('components/tabs/InventoryTab.js');
   const salesSource = readSource('components/tabs/SalesTab.js');
   const scheduleSource = readSource('components/tabs/ScheduleTab.js');
+  const feedSource = readSource('components/tabs/FeedTab.js');
 
   assert.match(inventorySource, /<span aria-hidden="true" style=\{\{ fontSize: '20px', lineHeight: 1 \}\}>📦<\/span>/);
   assert.match(salesSource, /<span aria-hidden="true" style=\{\{ fontSize: '20px', lineHeight: 1 \}\}>💰<\/span>/);
   assert.match(scheduleSource, /<span aria-hidden="true" style=\{\{ fontSize: '20px', lineHeight: 1 \}\}>🗓️<\/span>/);
+  assert.match(feedSource, /<span className="section-header-icon" aria-hidden="true">🌾<\/span>/);
 });

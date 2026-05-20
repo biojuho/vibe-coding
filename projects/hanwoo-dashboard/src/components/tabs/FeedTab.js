@@ -138,7 +138,7 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
   return (
     <div>
       <div className="section-header" style={{ marginBottom: '16px' }}>
-        <span className="section-header-icon">🌾</span>
+        <span className="section-header-icon" aria-hidden="true">🌾</span>
         <h2 className="section-header-title">사료 급여 모니터링</h2>
       </div>
 

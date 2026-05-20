@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` FeedTab header decorative icon noise is hidden from assistive technology. `FeedTab` marks the section-header grain glyph `aria-hidden="true"` while the Korean heading remains the meaningful accessible content. Verification passed: focused tab-header test, Hanwoo tests (`151 passed`), ESLint, and full Hanwoo QC (`test` 151, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` calving alert banner decorative icon noise is hidden from assistive technology. `CalvingAlertBanner` marks the animated bottle glyph `aria-hidden="true"` while the adjacent Korean alert title remains the meaningful accessible content. Verification passed: focused test, Hanwoo tests (`151 passed`), ESLint, and full Hanwoo QC (`test` 151, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` CattleForm fields expose stronger label/control associations. Visible labels for name, tag number, building, pen, gender, status, birth date, weight, purchase info, pedigree, and memo fields now connect to stable control ids, and missing `aria-invalid` state was added. Verification passed: focused Hanwoo tests (`150 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 150, lint, build).

@@ -12,6 +12,8 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-425 hid Hanwoo `FeedTab` decorative section-header grain glyph from assistive technology with `aria-hidden="true"`, keeping the Korean heading as the meaningful accessible content; verification passed with focused tab-header test, Hanwoo tests `151 passed`, ESLint, and full Hanwoo QC (`test` 151, lint, build).
+
 - 2026-05-20: T-424 hid Hanwoo `CalvingAlertBanner` decorative animated bottle glyph from assistive technology with `aria-hidden="true"`, keeping the adjacent Korean alert title as the meaningful accessible content; verification passed with focused alert-banner test, Hanwoo tests `151 passed`, ESLint, and full Hanwoo QC (`test` 151, lint, build).
 
 - 2026-05-20: T-423 hardened Hanwoo `CattleForm` field accessibility by connecting visible labels for name, tag number, building, pen, gender, status, birth date, weight, purchase info, pedigree, and memo fields to stable control ids, and adding missing `aria-invalid` state; verification passed with focused Hanwoo tests `150 passed`, targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 150, lint, build). Staged/commit code-review gate WARN came from the known graph/test-gap heuristic plus unrelated VibeDebt WIP.
