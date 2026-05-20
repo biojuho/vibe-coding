@@ -12,7 +12,7 @@ dependencies = [
     "requests==2.34.2",
     "python-dotenv==1.0.1",
     "cloudinary==1.41.0",
-    "curl_cffi>=0.7.0,<0.9",
+    "curl_cffi>=0.7.0,<0.16",
     "beautifulsoup4==4.12.3",
     "openai==2.37.0",
     "tweepy==4.14.0",
