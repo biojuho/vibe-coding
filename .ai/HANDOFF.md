@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-441 completed**: Hanwoo cattle detail now shows an actual 분만 예정일 instead of the placeholder `계산중...`. `CattleDetailModal` reuses the existing `getCalvingDate()` + `formatDate()` path, and `cattle-detail-modal-wiring.test.mjs` guards against the placeholder returning. Code commit `0483c50`. |
+| Next Priorities | Verification passed: focused cattle detail modal wiring test (`4 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 158, lint, build), and staged `code_review_gate --staged --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Direct `code_review_graph detect-changes` still hits the known Windows cp949 reader failure. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP and concurrent Hanwoo action-validation/building edits. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-440 completed**: aligned the Hanwoo cattle detail modal action with the archive behavior. `CattleDetailModal` now labels the destructive action as `${cattle.name} 개체 보관 처리`, titles it `개체 보관 처리`, and renders `보관` instead of `삭제`, so the modal no longer contradicts the soft-archive flow recorded in T-439. `cattle-detail-modal-wiring.test.mjs` and `actions-copy.test.mjs` guard the contract. Code commit `3c0a193`. |
 | Next Priorities | Verification passed: focused actions/detail/home copy tests (`16 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 157, lint, build), and staged `code_review_gate --staged --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic plus unrelated VibeDebt WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 
