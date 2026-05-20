@@ -8,6 +8,7 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tool
 import { useAppFeedback } from '@/components/feedback/FeedbackProvider';
 import { BREED_STATUS_OPTIONS } from '@/lib/constants';
 import { createFeedRecordValues, feedRecordSchema } from '@/lib/formSchemas';
+import { toFiniteNumber } from '@/lib/utils';
 import { PremiumButton } from '@/components/ui/premium-button';
 import { PremiumInput, PremiumTextarea, PremiumLabel } from '@/components/ui/premium-input';
 
@@ -67,8 +68,8 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
       if (count > 0 && standard) {
         summary[status] = {
           count,
-          roughageTotal: (standard.roughageKg * count).toFixed(1),
-          concentrateTotal: (standard.concentrateKg * count).toFixed(1),
+          roughageTotal: (toFiniteNumber(standard.roughageKg) * count).toFixed(1),
+          concentrateTotal: (toFiniteNumber(standard.concentrateKg) * count).toFixed(1),
         };
       }
     });
@@ -77,10 +78,10 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
   }, [cattle, standardsMap]);
 
   const totalStandardRoughage = Object.values(feedSummary)
-    .reduce((sum, value) => sum + parseFloat(value.roughageTotal), 0)
+    .reduce((sum, value) => sum + toFiniteNumber(value.roughageTotal), 0)
     .toFixed(1);
   const totalStandardConcentrate = Object.values(feedSummary)
-    .reduce((sum, value) => sum + parseFloat(value.concentrateTotal), 0)
+    .reduce((sum, value) => sum + toFiniteNumber(value.concentrateTotal), 0)
     .toFixed(1);
 
   const filteredCattle = useMemo(() => {
@@ -100,8 +101,8 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
       if (!grouped[key]) {
         grouped[key] = { date: key, roughage: 0, concentrate: 0 };
       }
-      grouped[key].roughage += record.roughage;
-      grouped[key].concentrate += record.concentrate;
+      grouped[key].roughage += toFiniteNumber(record.roughage);
+      grouped[key].concentrate += toFiniteNumber(record.concentrate);
     });
 
     return Object.values(grouped);

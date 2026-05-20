@@ -36,8 +36,11 @@ test('date utility calculations use a fresh or injected current date', () => {
   assert.match(utilsSource, /getDaysUntilCalving\(pregnancyDate, now\)/);
   assert.match(utilsSource, /return date \? date\.toLocaleDateString\('ko-KR'\) : '-';/);
   assert.match(utilsSource, /return date \? date\.toISOString\(\)\.split\('T'\)\[0\] : '';/);
+  assert.match(utilsSource, /export function toFiniteNumber\(value, fallback = 0\) \{/);
   assert.match(utilsSource, /const amount = Number\(value\);/);
-  assert.match(utilsSource, /return Number\.isFinite\(amount\) \? new Intl\.NumberFormat\('ko-KR'\)\.format\(amount\) : '0';/);
+  assert.match(utilsSource, /return Number\.isFinite\(amount\) \? amount : fallback;/);
+  assert.match(utilsSource, /const amount = toFiniteNumber\(value\);/);
+  assert.match(utilsSource, /return new Intl\.NumberFormat\('ko-KR'\)\.format\(amount\);/);
   assert.doesNotMatch(utilsSource, /toLocaleDateString\('ko-KR'\);\s*\}/);
   assert.doesNotMatch(utilsSource, /new Date\(pregnancyDate\)\.getTime\(\)/);
   assert.doesNotMatch(utilsSource, /Intl\.NumberFormat\('ko-KR'\)\.format\(value\)/);

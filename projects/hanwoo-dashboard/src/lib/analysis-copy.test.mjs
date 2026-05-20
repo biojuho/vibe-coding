@@ -32,3 +32,17 @@ test('analysis and financial widgets use Korean operator copy', () => {
   assert.doesNotMatch(financialWidgetSource, /Farm Financial Overview|Recent 6-month|Unit: KRW|Revenue|Expense|Profit/);
   assert.doesNotMatch(financialWidgetSource, /fontSize: '22px', lineHeight: 1 \}\}>\?<\/span>/);
 });
+
+test('analysis tab normalizes numeric inputs before financial and feed aggregation', () => {
+  const analysisSource = readSource('components/tabs/AnalysisTab.js');
+
+  assert.match(analysisSource, /import \{ formatMoney, toFiniteNumber \} from '@\/lib\/utils';/);
+  assert.match(analysisSource, /data\[key\]\.revenue \+= toFiniteNumber\(record\.price\);/);
+  assert.match(analysisSource, /data\[key\]\.cost \+= toFiniteNumber\(expense\.amount\);/);
+  assert.match(analysisSource, /\(totals\[category\] \|\| 0\) \+ toFiniteNumber\(expense\.amount\)/);
+  assert.match(analysisSource, /toFiniteNumber\(second\.price\) - toFiniteNumber\(first\.price\)/);
+  assert.match(analysisSource, /sum \+ toFiniteNumber\(row\.roughage\) \+ toFiniteNumber\(row\.concentrate\)/);
+  assert.doesNotMatch(analysisSource, /sum \+ row\.roughage \+ row\.concentrate/);
+  assert.doesNotMatch(analysisSource, /data\[key\]\.revenue \+= record\.price/);
+  assert.doesNotMatch(analysisSource, /data\[key\]\.cost \+= expense\.amount/);
+});

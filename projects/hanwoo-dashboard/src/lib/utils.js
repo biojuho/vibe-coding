@@ -87,6 +87,11 @@ export function toInputDate(value) {
   return date ? date.toISOString().split('T')[0] : '';
 }
 
+export function toFiniteNumber(value, fallback = 0) {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : fallback;
+}
+
 export function calcTHI(temp, humidity) {
   return (1.8 * temp + 32) - (0.55 - 0.0055 * humidity) * (1.8 * temp - 26);
 }
@@ -148,8 +153,8 @@ export function getWeatherDesc(code) {
 }
 
 export function formatMoney(value) {
-  const amount = Number(value);
-  return Number.isFinite(amount) ? new Intl.NumberFormat('ko-KR').format(amount) : '0';
+  const amount = toFiniteNumber(value);
+  return new Intl.NumberFormat('ko-KR').format(amount);
 }
 
 export function getLivestockWeatherAlerts(forecast = []) {

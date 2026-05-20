@@ -15,7 +15,7 @@ import {
   Cell,
 } from 'recharts';
 import { DollarSign, TrendingDown, TrendingUp } from 'lucide-react';
-import { formatMoney } from '@/lib/utils';
+import { formatMoney, toFiniteNumber } from '@/lib/utils';
 
 const CATEGORY_CONFIG = {
   feed: { name: '사료비', color: 'var(--chart-clay-2)' },
@@ -47,13 +47,13 @@ export default function AnalysisTab({
     saleRecords.forEach((record) => {
       const date = new Date(record.saleDate);
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      if (data[key]) data[key].revenue += record.price;
+      if (data[key]) data[key].revenue += toFiniteNumber(record.price);
     });
 
     expenseRecords.forEach((expense) => {
       const date = new Date(expense.date);
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      if (data[key]) data[key].cost += expense.amount;
+      if (data[key]) data[key].cost += toFiniteNumber(expense.amount);
     });
 
     Object.keys(data).forEach((key) => {
@@ -69,7 +69,7 @@ export default function AnalysisTab({
     const totals = {};
     expenseRecords.forEach((expense) => {
       const category = expense.category || 'other';
-      totals[category] = (totals[category] || 0) + expense.amount;
+      totals[category] = (totals[category] || 0) + toFiniteNumber(expense.amount);
     });
 
     return Object.entries(totals).map(([category, amount]) => ({
@@ -80,7 +80,7 @@ export default function AnalysisTab({
   }, [expenseRecords, hasExpenseData]);
 
   const topSales = useMemo(
-    () => [...saleRecords].sort((first, second) => second.price - first.price).slice(0, 5),
+    () => [...saleRecords].sort((first, second) => toFiniteNumber(second.price) - toFiniteNumber(first.price)).slice(0, 5),
     [saleRecords]
   );
 
@@ -89,7 +89,7 @@ export default function AnalysisTab({
   const totalProfit = totalRevenue - totalCost;
   const margin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : '0.0';
   const monthlyAverageFeed = feedHistory.length
-    ? Math.round(feedHistory.reduce((sum, row) => sum + row.roughage + row.concentrate, 0) / feedHistory.length)
+    ? Math.round(feedHistory.reduce((sum, row) => sum + toFiniteNumber(row.roughage) + toFiniteNumber(row.concentrate), 0) / feedHistory.length)
     : 0;
 
   return (

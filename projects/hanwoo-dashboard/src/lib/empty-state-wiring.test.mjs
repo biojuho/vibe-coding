@@ -115,6 +115,20 @@ test('feed record form waits for async saves before re-enabling submit', () => {
   assert.match(source, /type="submit"\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}/);
 });
 
+test('feed summaries normalize numeric inputs before aggregation', () => {
+  const source = readSource('components/tabs/FeedTab.js');
+
+  assert.match(source, /import \{ toFiniteNumber \} from '@\/lib\/utils';/);
+  assert.match(source, /roughageTotal: \(toFiniteNumber\(standard\.roughageKg\) \* count\)\.toFixed\(1\)/);
+  assert.match(source, /concentrateTotal: \(toFiniteNumber\(standard\.concentrateKg\) \* count\)\.toFixed\(1\)/);
+  assert.match(source, /sum \+ toFiniteNumber\(value\.roughageTotal\)/);
+  assert.match(source, /sum \+ toFiniteNumber\(value\.concentrateTotal\)/);
+  assert.match(source, /grouped\[key\]\.roughage \+= toFiniteNumber\(record\.roughage\);/);
+  assert.match(source, /grouped\[key\]\.concentrate \+= toFiniteNumber\(record\.concentrate\);/);
+  assert.doesNotMatch(source, /parseFloat\(value\.roughageTotal\)/);
+  assert.doesNotMatch(source, /parseFloat\(value\.concentrateTotal\)/);
+});
+
 test('feed building filter chips expose selected state and Korean labels', () => {
   const source = readSource('components/tabs/FeedTab.js');
 
