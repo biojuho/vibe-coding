@@ -8,7 +8,7 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
-| Work | **T-454 completed**: Hanwoo cattle-detail breeding date validation is now announced with the date input. `CattleDetailModal` connects the breeding record date input to `breeding-record-date-error` through conditional `aria-describedby`, marks invalid state with `aria-invalid`, and renders the validation message as `role="alert"`. `cattle-detail-modal-wiring.test.mjs` guards the contract. Code commit `5ffe7a8`. |
+| Work | **T-456 completed**: Hanwoo cattle-detail breeding date validation is now announced with the date input. `CattleDetailModal` connects the breeding record date input to `breeding-record-date-error` through conditional `aria-describedby`, marks invalid state with `aria-invalid`, and renders the validation message as `role="alert"`. `cattle-detail-modal-wiring.test.mjs` guards the contract. Code commit `5ffe7a8`. |
 | Next Priorities | Verification passed: focused cattle-detail modal wiring test (`5 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 168, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Direct `code_review_graph detect-changes` still hits the known Windows cp949 reader failure. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 
 | Field | Value |
