@@ -68,3 +68,13 @@ test('login page links authentication errors to both credential fields', () => {
   assert.match(source, /aria-describedby=\{error \? loginErrorId : undefined\}/);
   assert.match(source, /<div id=\{loginErrorId\} className="login-error" role="alert">/);
 });
+
+test('login page recovers submit state when sign-in fails unexpectedly', () => {
+  const source = readSource('app/login/page.js');
+
+  assert.match(source, /setIsSubmitting\(true\);/);
+  assert.match(source, /try \{\s+const result = await signIn\('credentials'/);
+  assert.match(source, /\} catch \{\s+setError\('/);
+  assert.match(source, /\} finally \{\s+setIsSubmitting\(false\);/);
+  assert.match(source, /disabled=\{!canSubmit\} aria-busy=\{isSubmitting\}/);
+});

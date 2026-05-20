@@ -23,21 +23,25 @@ export default function LoginPage() {
     setError('');
     setIsSubmitting(true);
 
-    const result = await signIn('credentials', {
-      username: username.trim(),
-      password,
-      redirect: false,
-    });
+    try {
+      const result = await signIn('credentials', {
+        username: username.trim(),
+        password,
+        redirect: false,
+      });
 
-    setIsSubmitting(false);
+      if (result?.error) {
+        setError('아이디 또는 비밀번호를 다시 확인해 주세요.');
+        return;
+      }
 
-    if (result?.error) {
-      setError('아이디 또는 비밀번호를 다시 확인해 주세요.');
-      return;
+      router.push('/');
+      router.refresh();
+    } catch {
+      setError('로그인을 완료하지 못했습니다. 네트워크 상태를 확인해 주세요.');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    router.push('/');
-    router.refresh();
   };
 
   return (
@@ -105,7 +109,7 @@ export default function LoginPage() {
             </div>
           ) : null}
 
-          <button type="submit" className="login-submit" disabled={!canSubmit}>
+          <button type="submit" className="login-submit" disabled={!canSubmit} aria-busy={isSubmitting}>
             {isSubmitting ? <Loader2 className="animate-spin" size={18} aria-hidden="true" /> : null}
             {isSubmitting ? '확인 중...' : '대시보드 열기'}
           </button>
