@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` cattle CSV export/download preparation guards against duplicate async export runs. `ExcelExportButton` now uses `preparingRef` as an immediate in-flight lock before `resolveCattleList()` and CSV blob creation, so rapid repeated activation cannot produce duplicate list resolution or duplicate downloads before React re-renders the disabled state. Verification passed: focused excel export button copy test (`2 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 198, lint, build).
+
 - As of 2026-05-21, `hanwoo-dashboard` drag-and-drop cattle moves guard against duplicate async move requests. `DashboardClient` now uses `movingCattleIdRef` as an immediate in-flight lock around the confirm + `handleUpdateCattle` move flow, so repeated drop events cannot open overlapping move confirms or send duplicate move updates before the first flow finishes. Verification passed: focused home-market copy test (`22 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 197, lint, build).
 
 - As of 2026-05-21, `hanwoo-dashboard` subscription checkout guards against duplicate async payment requests. `PaymentWidget` now returns early when `isSubmitting` is already true and exposes `aria-busy` on the checkout button while payment preparation/request is active, so rapid repeated activation cannot issue duplicate `/api/payments/prepare` and Toss `requestPayment` calls. Verification passed: focused payment UX copy test (`5 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 196, lint, build).
