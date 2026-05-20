@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Bell } from "lucide-react";
 import {
   DropdownMenu,
@@ -10,17 +10,22 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 
-const NOTIFICATIONS = [
-  { id: 1, title: '발정 알림', message: '암소 302호의 발정이 예상됩니다.', time: '10분 전', type: 'urgent' },
-  { id: 2, title: '분만 임박', message: '암소 105호의 분만 예정일이 3일 남았습니다.', time: '1시간 전', type: 'info' },
-  { id: 3, title: '사료 재고', message: '농후사료 재고가 10% 미만입니다.', time: '어제', type: 'warning' },
-];
-
-export function NotificationSystem() {
-  const unreadCount = NOTIFICATIONS.length;
+export function NotificationSystem({ initialNotifications = [] } = {}) {
+  const [notifications, setNotifications] = useState(initialNotifications);
+  const unreadCount = notifications.filter((notification) => !notification.read).length;
   const notificationLabel = unreadCount > 0
     ? `알림 열기, 읽지 않은 알림 ${unreadCount}개`
     : '알림 열기';
+
+  const markAsRead = (id) => {
+    setNotifications(notifications.map((notification) => (
+      notification.id === id ? { ...notification, read: true } : notification
+    )));
+  };
+
+  const markAllAsRead = () => {
+    setNotifications(notifications.map((notification) => ({ ...notification, read: true })));
+  };
 
   return (
     <DropdownMenu>
@@ -40,23 +45,44 @@ export function NotificationSystem() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80">
-        <DropdownMenuLabel>알림 센터</DropdownMenuLabel>
+        <DropdownMenuLabel className="flex items-center justify-between">
+          <span>알림 센터</span>
+          {unreadCount > 0 && (
+            <button
+              type="button"
+              onClick={markAllAsRead}
+              className="text-xs font-normal text-blue-500 hover:text-blue-700"
+            >
+              모두 읽음
+            </button>
+          )}
+        </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {NOTIFICATIONS.map((n) => (
-          <DropdownMenuItem key={n.id} className="cursor-pointer">
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center justify-between">
-                <span className={`font-semibold ${n.type === 'urgent' ? 'text-red-500' : ''}`}>{n.title}</span>
-                <span className="text-xs text-muted-foreground">{n.time}</span>
-              </div>
-              <p className="text-sm text-gray-500">{n.message}</p>
+        <div className="max-h-[300px] overflow-y-auto">
+          {notifications.length === 0 ? (
+            <div className="p-4 text-center text-sm text-gray-500">
+              새로운 알림이 없습니다.
             </div>
-          </DropdownMenuItem>
-        ))}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem className="text-center justify-center text-blue-500">
-          모든 알림 보기
-        </DropdownMenuItem>
+          ) : (
+            notifications.map((notification) => (
+              <DropdownMenuItem
+                key={notification.id}
+                className={`cursor-pointer ${notification.read ? 'opacity-60' : 'bg-blue-50/50'}`}
+                onClick={() => markAsRead(notification.id)}
+              >
+                <div className="flex w-full flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <span className={`font-semibold ${notification.type === 'alert' ? 'text-red-500' : ''}`}>
+                      {notification.title}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{notification.time}</span>
+                  </div>
+                  <p className="text-sm text-gray-500">{notification.message}</p>
+                </div>
+              </DropdownMenuItem>
+            ))
+          )}
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );

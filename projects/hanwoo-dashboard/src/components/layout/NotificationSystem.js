@@ -12,12 +12,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 
-export function NotificationSystem() {
-  const [notifications, setNotifications] = useState([
-    { id: 1, title: '발정 예정 알림', message: '암소 #1024 발정 예정일입니다.', type: 'alert', read: false, time: '10분 전' },
-    { id: 2, title: '재고 경고', message: '배합사료 재고가 10% 미만입니다.', type: 'warning', read: false, time: '1시간 전' },
-    { id: 3, title: '분만 완료', message: '암소 #0892 정상 분만 완료 (암송아지)', type: 'info', read: true, time: '어제' },
-  ]);
+export function NotificationSystem({ initialNotifications = [] } = {}) {
+  const [notifications, setNotifications] = useState(initialNotifications);
 
   const unreadCount = notifications.filter(n => !n.read).length;
   const notificationLabel = unreadCount > 0

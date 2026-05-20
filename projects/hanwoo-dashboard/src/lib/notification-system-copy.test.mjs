@@ -39,7 +39,9 @@ test('notification widget visible heading uses Korean product copy', () => {
 test('typescript notification system mirror keeps the same accessible trigger contract', () => {
   const source = readSource('components/layout/NotificationSystem.tsx');
 
-  assert.match(source, /const unreadCount = NOTIFICATIONS\.length/);
+  assert.match(source, /initialNotifications = \[\]/);
+  assert.match(source, /useState\(initialNotifications\)/);
+  assert.match(source, /notifications\.filter\(\(notification\) => !notification\.read\)\.length/);
   assert.match(source, /알림 열기, 읽지 않은 알림/);
   assert.match(source, /aria-label=\{notificationLabel\}/);
   assert.match(source, /title=\{notificationLabel\}/);
@@ -47,6 +49,20 @@ test('typescript notification system mirror keeps the same accessible trigger co
   assert.match(source, /aria-hidden="true"/);
   assert.doesNotMatch(source, /aria-label="Notifications"/);
   assert.doesNotMatch(source, /title="Notifications"/);
+});
+
+test('notification system does not seed demo farm alerts by default', () => {
+  const source = readSource('components/layout/NotificationSystem.js');
+  const tsxSource = readSource('components/layout/NotificationSystem.tsx');
+
+  for (const candidate of [source, tsxSource]) {
+    assert.match(candidate, /initialNotifications = \[\]/);
+    assert.match(candidate, /새로운 알림이 없습니다/);
+    assert.doesNotMatch(candidate, /useState\(\[/);
+    assert.doesNotMatch(candidate, /NOTIFICATIONS = \[/);
+    assert.doesNotMatch(candidate, /암소 #?\d+/);
+    assert.doesNotMatch(candidate, /재고가 10% 미만입니다/);
+  }
 });
 
 test('clickable dropdown menu items use native button semantics', () => {
