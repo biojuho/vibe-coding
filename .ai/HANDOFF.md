@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-511 completed**: Hanwoo API authentication failures now return a stable operator-facing login message instead of echoing raw `error.message`. `auth-guard.js` exports `AUTHENTICATION_REQUIRED_MESSAGE`, and dashboard cattle/sales/summary plus payment prepare/confirm routes use it for 401 responses. Code commit `fedb706`. |
+| Next Priorities | Verification passed: focused payment/home copy tests (`27 passed`), targeted ESLint passed, path-limited `git diff --check` passed, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 205, lint, build). Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-510 completed**: Hanwoo sales cattle-history text now uses the validated sales payload instead of reparsing raw form input. `createSalesRecord()` formats `payload.price` and `payload.grade` for the history entry, removing `parseInt(data.price)` and raw `data.grade` reuse after validation. Code commit `105ed3d`. |
 | Next Priorities | Verification passed: focused action/copy validation tests (`15 passed`), targeted ESLint passed, path-limited `git diff --check` passed, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 205, lint, build). Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 

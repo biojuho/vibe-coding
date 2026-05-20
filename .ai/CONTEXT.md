@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` API authentication failures return stable operator-facing login copy instead of echoing raw `error.message`. `auth-guard.js` now exports `AUTHENTICATION_REQUIRED_MESSAGE`, and dashboard cattle/sales/summary plus payment prepare/confirm routes use it for 401 responses while leaving validation-specific 400 messages intact. Verification passed: focused payment/home copy tests (`27 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 205, lint, build).
+
 - As of 2026-05-21, `hanwoo-dashboard` sales cattle-history text uses the validated sales payload instead of reparsing raw form input. `createSalesRecord()` now formats `payload.price` and `payload.grade` in the history entry, so the post-validation path cannot drift back to `parseInt(data.price)` or raw `data.grade`. Verification passed: focused action/copy validation tests (`15 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 205, lint, build).
 
 - As of 2026-05-21, `hanwoo-dashboard` inline inventory quantity edits reject malformed non-plain numeric values before sending update actions. `InventoryTab` now parses the editor with a plain nonnegative decimal pattern and passes the parsed number to `onUpdateQuantity`, so `1e3` or `0x10` cannot bypass the client guard. Verification passed: focused home/empty-state tests (`34 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 204, lint, build).

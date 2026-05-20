@@ -895,6 +895,39 @@
 ## 2026-05-21 KST - Codex
 
 ### Summary
+- Completed T-511 for `hanwoo-dashboard` while continuing the active quality uplift goal.
+- Kept API authentication failures on stable operator-facing login copy instead of echoing raw `error.message`.
+- `auth-guard.js` now exports `AUTHENTICATION_REQUIRED_MESSAGE`, and dashboard cattle/sales/summary plus payment prepare/confirm routes use it for 401 responses while preserving validation-specific 400 messages.
+
+### Changed Files
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/CONTEXT.md`
+- `.ai/GOAL.md`
+- `projects/hanwoo-dashboard/src/lib/auth-guard.js`
+- `projects/hanwoo-dashboard/src/app/api/dashboard/cattle/route.js`
+- `projects/hanwoo-dashboard/src/app/api/dashboard/sales/route.js`
+- `projects/hanwoo-dashboard/src/app/api/dashboard/summary/route.js`
+- `projects/hanwoo-dashboard/src/app/api/payments/prepare/route.js`
+- `projects/hanwoo-dashboard/src/app/api/payments/confirm/route.js`
+- `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs`
+- `projects/hanwoo-dashboard/src/lib/payment-ux-copy.test.mjs`
+
+### Verification
+- `node --test src/lib/payment-ux-copy.test.mjs src/lib/home-market-copy.test.mjs` from `projects/hanwoo-dashboard` -> `27 passed`.
+- `npm.cmd exec eslint <changed Hanwoo auth/API/test paths>` from `projects/hanwoo-dashboard` -> passed.
+- `git diff --check -- <changed Hanwoo auth/API/test paths>` -> passed.
+- `python execution/project_qc_runner.py --project hanwoo-dashboard --json` -> passed (`test` 205, lint passed, build passed).
+- `python execution/code_review_gate.py --staged --json` -> PASS; trailing cp949 reader-thread exception is known Windows output noise. Code commit `fedb706`; commit hook WARN came from the known advisory graph/test-gap heuristic while direct tests and full QC covered the changed files.
+
+### Follow-up
+- Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
+- T-320, T-372, and T-407 remain approval-scoped. Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, package locks, shorts-maker-v2 files, and workspace VibeDebt files.
+
+## 2026-05-21 KST - Codex
+
+### Summary
 - Completed T-510 for `hanwoo-dashboard` while continuing the active quality uplift goal.
 - Kept sales cattle-history text on the validated sales payload instead of reparsing raw form input.
 - `createSalesRecord()` now formats `payload.price` and `payload.grade` for the history entry, removing `parseInt(data.price)` and raw `data.grade` reuse after validation.
