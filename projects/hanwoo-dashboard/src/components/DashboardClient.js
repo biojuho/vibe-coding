@@ -222,6 +222,7 @@ export default function DashboardClient({
   const summaryRefreshRequestRef = useRef(0);
   const fullCattleLoadRef = useRef(null);
   const fullSalesLoadRef = useRef(null);
+  const movingCattleIdRef = useRef(null);
   const {
     items: pagedCattleItems,
     setItems: setPagedCattleItems,
@@ -971,6 +972,7 @@ export default function DashboardClient({
     const cow = cattleList.find((item) => item.id === cattleId);
     if (!cow) return;
     if (cow.buildingId === toBuildingId && cow.penNumber === toPenNumber) return;
+    if (movingCattleIdRef.current) return false;
 
     const penCattle = cattleList.filter((item) => item.buildingId === toBuildingId && item.penNumber === toPenNumber);
     const targetBuilding = buildings.find((building) => building.id === toBuildingId);
@@ -981,24 +983,30 @@ export default function DashboardClient({
       return false;
     }
 
-    const shouldMove = await confirm({
-      title: '개체를 이동할까요?',
-      description: `${cow.name}을(를) ${targetLabel}(으)로 이동합니다.`,
-      confirmLabel: '이동',
-      cancelLabel: '취소',
-    });
+    movingCattleIdRef.current = cattleId;
 
-    if (!shouldMove) {
-      return false;
+    try {
+      const shouldMove = await confirm({
+        title: '개체를 이동할까요?',
+        description: `${cow.name}을(를) ${targetLabel}(으)로 이동합니다.`,
+        confirmLabel: '이동',
+        cancelLabel: '취소',
+      });
+
+      if (!shouldMove) {
+        return false;
+      }
+
+      const updated = { ...cow, buildingId: toBuildingId, penNumber: toPenNumber };
+      return handleUpdateCattle(updated, {
+        successTitle: '개체를 이동했습니다.',
+        successDescription: `${cow.name}을(를) ${targetLabel}(으)로 옮겼습니다.`,
+        offlineTitle: '오프라인 상태입니다.',
+        offlineDescription: `${cow.name} 이동 요청이 대기열에 저장되었습니다.`,
+      });
+    } finally {
+      movingCattleIdRef.current = null;
     }
-
-    const updated = { ...cow, buildingId: toBuildingId, penNumber: toPenNumber };
-    return handleUpdateCattle(updated, {
-      successTitle: '개체를 이동했습니다.',
-      successDescription: `${cow.name}을(를) ${targetLabel}(으)로 옮겼습니다.`,
-      offlineTitle: '오프라인 상태입니다.',
-      offlineDescription: `${cow.name} 이동 요청이 대기열에 저장되었습니다.`,
-    });
   };
 
   // Stats from summary (SSR-snapshot, refreshed after mutations)

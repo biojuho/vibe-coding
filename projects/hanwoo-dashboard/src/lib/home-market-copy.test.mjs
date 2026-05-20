@@ -49,6 +49,19 @@ test('dashboard cattle mutation catch paths use safe Korean fallback copy', () =
   assert.doesNotMatch(source, /개체 삭제에 실패했습니다/);
 });
 
+test('dashboard drag-and-drop cattle moves wait for confirmation and update before accepting another move', () => {
+  const source = readSource('components/DashboardClient.js');
+
+  assert.match(source, /const movingCattleIdRef = useRef\(null\)/);
+  assert.match(source, /if \(movingCattleIdRef\.current\) return false;/);
+  assert.match(source, /movingCattleIdRef\.current = cattleId;/);
+  assert.match(source, /const shouldMove = await confirm\(\{/);
+  assert.match(source, /return handleUpdateCattle\(updated, \{/);
+  assert.match(source, /finally \{\s+movingCattleIdRef\.current = null;/);
+  assert.match(source, /개체를 이동할까요\?/);
+  assert.match(source, /개체를 이동했습니다/);
+});
+
 test('calving flow requires an operator-entered calf tag number', () => {
   const dashboardSource = readSource('components/DashboardClient.js');
   const calvingTabSource = readSource('components/tabs/CalvingTab.js');
