@@ -1217,14 +1217,14 @@ export default function DashboardClient({
         <TodayFocusPanel
           items={todayFocusItems}
           onOpenNotifications={() => setShowNotifications(true)}
-          onNavigate={setActiveTab}
+          onNavigate={handleTabChange}
         />
 
         <QuickActionPanel actions={QUICK_ACTIONS} onAction={handleQuickAction} />
 
         <SetupProgressPanel
           progress={setupProgress}
-          onNavigate={setActiveTab}
+          onNavigate={handleTabChange}
           onAction={handleQuickAction}
         />
 

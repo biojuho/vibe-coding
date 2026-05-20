@@ -49,6 +49,7 @@ test('dashboard full-list loading failures show retry feedback instead of silent
   assert.match(source, /const preloadForTab = useCallback/);
   assert.match(source, /preloadForTab\(nextTab\)/);
   assert.match(source, /preloadForTab\(action\.targetTab\)/);
+  assert.match(source, /onNavigate=\{handleTabChange\}/);
   assert.match(source, /ensureAllCattleLoaded\(\{ silent: true \}\)\.catch\(\(\) => \{\}\)/);
   assert.match(source, /ensureAllSalesLoaded\(\{ silent: true \}\)\.catch\(\(\) => \{\}\)/);
   assert.match(source, /다시 불러오기/);
