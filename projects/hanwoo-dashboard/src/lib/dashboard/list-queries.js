@@ -33,7 +33,7 @@ function parseLimit(value) {
 
   const parsed = Number.parseInt(String(value), 10);
   if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new DashboardQueryValidationError('`limit` must be a positive integer.');
+    throw new DashboardQueryValidationError('목록 개수는 1 이상 숫자로 입력해 주세요.');
   }
 
   return Math.min(parsed, MAX_LIMIT);
@@ -47,7 +47,7 @@ function parsePenNumber(value) {
 
   const parsed = Number.parseInt(normalized, 10);
   if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new DashboardQueryValidationError('`penNumber` must be a positive integer.');
+    throw new DashboardQueryValidationError('칸 번호는 1 이상 숫자로 입력해 주세요.');
   }
 
   return parsed;
@@ -61,7 +61,8 @@ function parseDateParam(value, fieldName) {
 
   const parsed = new Date(`${normalized}T00:00:00.000Z`);
   if (Number.isNaN(parsed.getTime())) {
-    throw new DashboardQueryValidationError(`\`${fieldName}\` must be a valid YYYY-MM-DD date.`);
+    const label = fieldName === 'from' ? '시작일' : '종료일';
+    throw new DashboardQueryValidationError(`${label}은 YYYY-MM-DD 형식으로 입력해 주세요.`);
   }
 
   return parsed;
@@ -90,12 +91,12 @@ function decodeCursor(cursor) {
   try {
     const parsed = JSON.parse(Buffer.from(normalized, 'base64url').toString('utf8'));
     if (!parsed?.id || !parsed?.sortValue) {
-      throw new DashboardQueryValidationError('`cursor` is malformed.');
+      throw new DashboardQueryValidationError('목록 위치 정보가 올바르지 않습니다.');
     }
 
     const sortDate = new Date(parsed.sortValue);
     if (Number.isNaN(sortDate.getTime())) {
-      throw new DashboardQueryValidationError('`cursor` has an invalid timestamp.');
+      throw new DashboardQueryValidationError('목록 위치 정보의 시간이 올바르지 않습니다.');
     }
 
     return {
@@ -107,7 +108,7 @@ function decodeCursor(cursor) {
       throw error;
     }
 
-    throw new DashboardQueryValidationError('`cursor` is malformed.');
+    throw new DashboardQueryValidationError('목록 위치 정보가 올바르지 않습니다.');
   }
 }
 
@@ -177,7 +178,7 @@ export function parseSalesListQuery(searchParams) {
   const to = parseDateParam(searchParams.get('to'), 'to');
 
   if (from && to && from > to) {
-    throw new DashboardQueryValidationError('`from` must be before or equal to `to`.');
+    throw new DashboardQueryValidationError('시작일은 종료일보다 늦을 수 없습니다.');
   }
 
   return {

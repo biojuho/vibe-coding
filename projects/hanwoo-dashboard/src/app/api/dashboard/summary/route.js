@@ -6,6 +6,7 @@ import { getDashboardSummarySnapshot, saveDashboardSummarySnapshot } from '@/lib
 import { buildDashboardSummaryPayload } from '@/lib/dashboard/summary-service';
 import prisma from '@/lib/db';
 
+const DASHBOARD_SUMMARY_ERROR_MESSAGE = '대시보드 요약을 불러오지 못했습니다.';
 
 function buildMeta(snapshot, source) {
   const generatedAt = new Date(snapshot.generatedAt);
@@ -54,7 +55,7 @@ export async function GET(request) {
 
     console.error('Dashboard summary route error:', error);
     return NextResponse.json(
-      { success: false, message: error.message || '대시보드 요약을 불러오지 못했습니다.' },
+      { success: false, message: DASHBOARD_SUMMARY_ERROR_MESSAGE },
       { status: 500 },
     );
   }

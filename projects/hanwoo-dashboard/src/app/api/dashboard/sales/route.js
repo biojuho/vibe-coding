@@ -7,6 +7,7 @@ import {
   parseSalesListQuery,
 } from '@/lib/dashboard/list-queries';
 
+const SALES_LIST_ERROR_MESSAGE = '판매 기록을 불러오지 못했습니다.';
 
 export async function GET(request) {
   try {
@@ -37,7 +38,7 @@ export async function GET(request) {
 
     console.error('Dashboard sales route error:', error);
     return NextResponse.json(
-      { success: false, message: error.message || '판매 기록을 불러오지 못했습니다.' },
+      { success: false, message: SALES_LIST_ERROR_MESSAGE },
       { status: 500 },
     );
   }

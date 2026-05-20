@@ -7,6 +7,7 @@ import {
   parseCattleListQuery,
 } from '@/lib/dashboard/list-queries';
 
+const CATTLE_LIST_ERROR_MESSAGE = '개체 목록을 불러오지 못했습니다.';
 
 export async function GET(request) {
   try {
@@ -38,7 +39,7 @@ export async function GET(request) {
 
     console.error('Dashboard cattle route error:', error);
     return NextResponse.json(
-      { success: false, message: error.message || '개체 목록을 불러오지 못했습니다.' },
+      { success: false, message: CATTLE_LIST_ERROR_MESSAGE },
       { status: 500 },
     );
   }

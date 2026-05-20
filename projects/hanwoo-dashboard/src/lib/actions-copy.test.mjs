@@ -39,6 +39,8 @@ test('server action user-facing failures use Korean product copy', () => {
   assert.match(scheduleActions, /일정 상태를 변경하지 못했습니다/);
   assert.match(expenseActions, /비용 기록을 등록하지 못했습니다/);
   assert.match(systemActions, /지원하지 않는 데이터 유형입니다/);
+  assert.match(systemActions, /원본 데이터를 불러오지 못했습니다/);
+  assert.match(systemActions, /진단 정보를 불러오지 못했습니다/);
 
   assert.doesNotMatch(cattleActions, /Failed to fetch cattle data/);
   assert.doesNotMatch(cattleActions, /message: error\.message/);
@@ -50,5 +52,7 @@ test('server action user-facing failures use Korean product copy', () => {
   assert.doesNotMatch(inventoryActions, /message: error\.message/);
   assert.doesNotMatch(scheduleActions, /message: e\.message/);
   assert.doesNotMatch(expenseActions, /message: error\.message/);
+  assert.doesNotMatch(systemActions, /message: error\.message/);
+  assert.doesNotMatch(systemActions, /error: error\.message/);
   assert.doesNotMatch(systemActions, /Invalid model name/);
 });
