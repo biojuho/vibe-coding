@@ -12,7 +12,7 @@
 
 ## Progress Notes
 
-- 2026-05-20: T-433 removed unused Hanwoo legacy sample/demo data module `src/lib/data.js`; it had no remaining imports and only exported random cattle/sales/market generators that could be mistaken for product runtime data. Verification passed with no remaining references to its exported helpers, Hanwoo tests `153 passed`, ESLint, full Hanwoo QC (`test` 153, lint, build), and staged code-review gate JSON (`risk_score 0.0`). Commit `e05cd58`.
+- 2026-05-20: T-433 removed unused Hanwoo legacy sample/demo data module `src/lib/data.js`; it had no remaining imports and only exported random cattle/sales/market generators that could be mistaken for product runtime data. Verification passed with no remaining `generateSampleData`, `generateSaleRecords`, `getMarketPrice`, or `@/lib/data` references, direct graph risk `0.00`, and full Hanwoo QC (`test` 153, lint, build). Commit `e05cd58`.
 
 - 2026-05-20: T-432 localized Hanwoo notification modal SMS surface copy to `문자 알림 서비스` and hid the phone glyph from assistive technology; verification passed with focused notification modal copy test, targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 153, lint, build). Staged `code_review_gate` WARN was the known graph/test-gap heuristic. Commit `13d281d`.
 
