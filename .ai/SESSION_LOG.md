@@ -822,6 +822,34 @@
 ## 2026-05-20 KST - Codex
 
 ### Summary
+- Completed T-344 for `hanwoo-dashboard` while continuing the active product-completeness goal.
+- Localized the Sales tab missing-cattle fallback path so sale cards and chart labels no longer show `Unknown` or a fake numeric tag.
+- Added source-copy regression coverage to keep those fallback labels Korean.
+
+### Changed Files
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/CONTEXT.md`
+- `.ai/GOAL.md`
+- `projects/hanwoo-dashboard/src/components/tabs/SalesTab.js`
+- `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs`
+
+### Verification
+- `npm.cmd test -- src/lib/home-market-copy.test.mjs src/lib/component-imports.test.mjs` from `projects/hanwoo-dashboard` -> `99 passed`.
+- `npx.cmd eslint src/components/tabs/SalesTab.js src/lib/home-market-copy.test.mjs` from `projects/hanwoo-dashboard` -> passed.
+- `python execution/project_qc_runner.py --project hanwoo-dashboard --json` -> passed (`test` 99 passed, lint passed, build passed).
+- `git diff --check -- projects/hanwoo-dashboard/src/components/tabs/SalesTab.js projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` -> passed.
+- `python execution/code_review_gate.py --staged --json` -> PASS; trailing Windows `cp949` reader-thread exception is known noise.
+- `PYTHONUTF8=1 python -m code_review_graph detect-changes --repo projects/hanwoo-dashboard --base HEAD --brief` -> risk `0.00`.
+
+### Follow-up
+- Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
+- Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts.
+
+## 2026-05-20 KST - Codex
+
+### Summary
 - Completed T-343 for `hanwoo-dashboard` while continuing the active product-completeness goal.
 - Hardened cattle CSV export formatting after localization: headers now avoid mixed English `ID` labels, and CSV cells with commas, quotes, or newlines are quoted correctly.
 - Added regression coverage for quoted cattle names and preserved memo whitespace normalization.

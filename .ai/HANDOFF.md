@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-344 completed**: continued the active Hanwoo product-completeness goal by localizing the Sales tab missing-cattle fallback path. `SalesTab` now renders `개체명 미등록` and `이력번호 미등록` instead of `Unknown` / `000-0000-0000` when a sale record references missing cattle metadata, so charts and sale cards stay operator-facing. Added source-copy regression coverage in `home-market-copy.test.mjs`. |
+| Next Priorities | Verification passed: focused Hanwoo tests passed (`99 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 99 passed, lint passed, build passed), `git diff --check` passed, staged code-review gate PASS, and UTF-8 graph risk `0.00`. Commit hook emitted advisory WARN from graph test-gap heuristics, but direct focused/full checks cover the change. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-343 completed**: hardened the Hanwoo cattle CSV export after the Korean-header localization. `cattle-csv-export.mjs` now uses fully Korean headers (`개체 번호`, `축사 번호` instead of mixed `ID` labels), quotes CSV cells containing commas/quotes/newlines, and preserves normalized memo text. Added regression coverage for quoted names such as `복"실,이`. |
 | Next Priorities | Verification passed: focused CSV tests passed (`98 passed`), targeted ESLint passed, full Hanwoo project QC passed for test/lint and build passed on retry after a transient concurrent Next build lock, `git diff --check` passed, and UTF-8 graph risk `0.00`. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |
 
