@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-370 completed**: continued the active Hanwoo product-completeness goal by labeling home-screen icon-only actions for assistive-tech users. `DashboardClient.js` now gives the notification-center, add-cattle, building-back, and pen-back icon buttons Korean `aria-label`/`title` copy; `home-market-copy.test.mjs` guards the labels. Commit `082537c`. |
+| Next Priorities | Verification passed: focused Hanwoo home/component tests passed (`118 passed`), targeted ESLint passed, full Hanwoo QC test/lint passed and build passed on retry after a concurrent Next build lock, `git diff --check` passed, direct UTF-8 graph risk `0.00`, and staged code-review gate PASS. Commit hook emitted the known component test-gap WARN, but direct regression coverage and full QC passed. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Only approval TODOs remain for Hanwoo (T-366/T-367); preserve unrelated dirty root monorepo migration WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-369 completed**: continued the active Hanwoo product-completeness goal by making `components/ui/NotificationModal.js` expose real dialog semantics. The modal container now has `role="dialog"`, `aria-modal="true"`, and `aria-labelledby="notification-modal-title"`, with the visible `알림 센터` title carrying that id. `notification-modal-copy.test.mjs` now guards both the Korean close label and dialog semantics. Code commit: `6647522`. |
 | Next Priorities | Verification passed: focused notification modal tests passed (`117 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 117, lint passed, build passed), source confirmation passed, `git diff --check` passed, and direct graph risk `0.00`. Staged/commit code-review gate emitted WARN because unrelated staged/dirty WIP was present (`DashboardClient.js`, `home-market-copy.test.mjs`, shorts render work), but direct focused/full checks covered the two-file modal change. Preserve unrelated staged WIP unless the user authorizes committing it. Active Hanwoo goal remains open; T-251 is still external/user-owned Supabase password/control-plane resync, and T-366/T-367 remain approval-gated. |
 

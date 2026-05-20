@@ -22,6 +22,7 @@
 - 2026-05-20: T-361 localized the shared dialog close screen-reader label from `Close` to `닫기`; verification passed with Hanwoo tests `113 passed`, targeted ESLint, full Hanwoo QC, accessibility-copy source scan, `git diff --check`, and graph risk `0.00`.
 - 2026-05-20: T-362 localized admin diagnostics database status values from `Online`/`Offline`/`N/A` to `정상`/`연결 실패`/`확인 불가`; verification passed with Hanwoo tests `115 passed`, targeted ESLint, full Hanwoo QC test/lint plus build retry pass, source scan, `git diff --check`, staged code-review gate PASS, and graph risk `0.00`.
 - 2026-05-20: T-368 labeled the notification modal's icon-only close action with Korean accessible copy (`닫기`); verification passed with Hanwoo tests `116 passed`, targeted ESLint, full Hanwoo QC, source confirmation, `git diff --check`, and graph risk `0.00`.
+- 2026-05-20: T-370 labeled home-screen icon-only actions for notification center, cattle registration, building back, and pen back controls; verification passed with Hanwoo tests `118 passed`, targeted ESLint, full Hanwoo QC test/lint plus build retry pass, `git diff --check`, staged code-review gate PASS, and graph risk `0.00`.
 - 2026-05-20: T-369 added dialog semantics to the notification modal (`role="dialog"`, `aria-modal`, visible title label); verification passed with Hanwoo tests `117 passed`, targeted ESLint, full Hanwoo QC, source confirmation, `git diff --check`, and graph risk `0.00`.
 
 ## Notes
