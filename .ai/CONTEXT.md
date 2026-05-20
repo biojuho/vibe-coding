@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` no longer shows a placeholder business registration number in the dashboard footer. The footer replaced `사업자등록번호: 000-00-00000` with `운영 문의: joolife@joolife.io.kr` while preserving the legal links. Verification passed: focused home-market copy test, targeted ESLint, Hanwoo tests (`153 passed`), and full Hanwoo QC (`test` 153, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` no longer carries the unused legacy sample-data module. `src/lib/data.js` only exported random demo cattle/sales/market generators, had no remaining imports, and could be mistaken for product runtime data. Verification passed: no remaining `generateSampleData`, `generateSaleRecords`, `getMarketPrice`, or `@/lib/data` references, direct graph risk `0.00`, and full Hanwoo QC (`test` 153, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` notification modal SMS surface copy is localized and its phone glyph is decorative. The modal now renders `<span aria-hidden="true">📱</span> 문자 알림 서비스` instead of exposing `📱 SMS 알림 서비스` as mixed English/glyph content. Verification passed: focused notification modal copy test, targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 153, lint, build); staged `code_review_gate` WARN was the known graph/test-gap heuristic.
