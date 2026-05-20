@@ -17,14 +17,17 @@ export function DropdownMenuContent({ align = "end", children, className }) {
 }
 
 export function DropdownMenuItem({ children, onClick, className }) {
+  const Element = onClick ? 'button' : 'div';
+
   return (
-    <div
-      className={`block cursor-pointer rounded-[14px] px-4 py-2 text-sm transition-colors hover:bg-background/70 ${className}`}
+    <Element
+      type={onClick ? 'button' : undefined}
+      className={`block w-full cursor-pointer rounded-[14px] px-4 py-2 text-left text-sm transition-colors hover:bg-background/70 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${className}`}
       style={{ color: 'var(--color-text)' }}
       onClick={onClick}
     >
       {children}
-    </div>
+    </Element>
   );
 }
 

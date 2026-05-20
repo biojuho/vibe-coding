@@ -48,3 +48,12 @@ test('typescript notification system mirror keeps the same accessible trigger co
   assert.doesNotMatch(source, /aria-label="Notifications"/);
   assert.doesNotMatch(source, /title="Notifications"/);
 });
+
+test('clickable dropdown menu items use native button semantics', () => {
+  const source = readSource('components/ui/dropdown-menu.js');
+
+  assert.match(source, /const Element = onClick \? 'button' : 'div'/);
+  assert.match(source, /type=\{onClick \? 'button' : undefined\}/);
+  assert.match(source, /focus:ring-2/);
+  assert.doesNotMatch(source, /<div\s+[^>]*onClick=\{onClick\}/);
+});
