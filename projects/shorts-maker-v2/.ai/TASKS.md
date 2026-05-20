@@ -11,6 +11,7 @@
 
 ## DONE
 
+- [x] T-320 Integrate OpenVoice v2 local high-fidelity voice cloning backend with MeloTTS, fallback to edge-tts, configure config.py & audio_mixin.py, and add unit tests (2026-05-20, Antigravity)
 - [x] T-085 Add a render-step regression check for hook captions when `center_hook=False` so lower-third placement is validated beyond the helper math (2026-03-29, Codex)
 - [x] T-084 Wire `center_hook` into `calculate_safe_position()` with safe-zone-aware lower-third hook placement and regression coverage (2026-03-29, Codex)
 - [x] T-083 Add stress tests for tall multi-line static captions and safe-zone edge cases in `render/caption_pillow.py` (2026-03-29, Codex)
