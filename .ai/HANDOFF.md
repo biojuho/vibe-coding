@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-437 completed**: Hanwoo `NotificationSystem` no longer seeds demo farm alerts by default. The JS and TSX mirrors now start from `initialNotifications = []`, render the empty state when no real alerts are provided, and keep read/unread behavior only for supplied notifications. Added regression coverage so sample cow numbers and low-stock demo copy are not reintroduced. Code commit `70ac7d0`. |
+| Next Priorities | Verification passed: focused notification system test (`5 passed`), targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk `0.00`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 157, lint, build), and staged `code_review_gate --staged --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-436 completed**: Hanwoo 분만 처리 no longer creates fake `KR0000-...` calf tag numbers. `CalvingTab` now requires an operator-entered 송아지 이력번호, client/offline calving flow passes that value through, and `recordCalving` validates it server-side before creating the calf record/history/outbox event. Code commit `88da9e7`. |
 | Next Priorities | Verification passed: focused action-validation/home-market copy tests (`22 passed`), focused legal-page test for concurrent T-435 passed, targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk `0.00`, direct `npm.cmd run build` passed after one transient Next build lock, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 156, lint, build), and staged `code_review_gate --staged --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 
