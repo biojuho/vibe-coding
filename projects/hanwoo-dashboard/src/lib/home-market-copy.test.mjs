@@ -30,6 +30,15 @@ test('home dashboard fallback and panel labels use Korean product copy', () => {
   assert.doesNotMatch(source, /All rights reserved/);
 });
 
+test('dashboard cattle mutation catch paths use safe Korean fallback copy', () => {
+  const source = readSource('components/DashboardClient.js');
+
+  assert.match(source, /요청 처리 중 오류가 발생했습니다\. 잠시 후 다시 시도해 주세요\./);
+  assert.match(source, /console\.error\('Failed to add cattle:', error\);/);
+  assert.match(source, /console\.error\('Failed to update cattle:', error\);/);
+  assert.doesNotMatch(source, /showError\(errorTitle, error\.message\)/);
+});
+
 test('home dashboard icon-only actions expose Korean accessible labels', () => {
   const source = readSource('components/DashboardClient.js');
 

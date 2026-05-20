@@ -302,6 +302,8 @@ export default function DashboardClient({
     notify({ title, description, variant: 'error' });
   };
 
+  const unexpectedActionErrorDescription = '요청 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.';
+
   const sortByName = (items) => [...items].sort((left, right) => left.name.localeCompare(right.name));
   const sortInventoryItems = (items) =>
     [...items].sort(
@@ -692,7 +694,8 @@ export default function DashboardClient({
       showError(errorTitle, result.message);
       return false;
     } catch (error) {
-      showError(errorTitle, error.message);
+      console.error('Failed to add cattle:', error);
+      showError(errorTitle, unexpectedActionErrorDescription);
       return false;
     }
   };
@@ -733,7 +736,8 @@ export default function DashboardClient({
       showError(errorTitle, result.message);
       return false;
     } catch (error) {
-      showError(errorTitle, error.message);
+      console.error('Failed to update cattle:', error);
+      showError(errorTitle, unexpectedActionErrorDescription);
       return false;
     }
   };
