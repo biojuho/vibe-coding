@@ -7,6 +7,13 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-20 |
+| Tool | Codex |
+| Work | **T-373 completed**: continued the active Hanwoo product-completeness goal by labeling remaining calendar/market icon actions. `ScheduleTab` now labels previous/next month controls as `이전 달 보기` / `다음 달 보기`, and `MarketPriceWidget` labels the refresh button as `한우 시세 새로고침` / `시세 갱신 중`. `home-market-copy.test.mjs` guards both surfaces. Commit `4609453`. |
+| Next Priorities | Verification passed: focused Hanwoo home/market tests passed (`7 passed`), targeted ESLint passed, full Hanwoo QC test/lint passed and build passed on retry after a concurrent Next build lock (`test` 121), path-limited `git diff --check` passed, and direct UTF-8 graph risk `0.00`. Full `git diff --check` is still blocked by unrelated dirty shorts-maker-v2 whitespace; staged/commit graph gate WARN came from dirty WIP heuristics while direct checks covered the committed files. T-366 profitability widget mount also completed in commit `1047f01` and is recorded. Remaining TODOs are approval/user-blocked: T-251 Supabase control-plane resync, T-367 DB enum migration, T-372 monorepo migration, and T-320 shorts OSS adoption. Preserve unrelated root monorepo/package-lock/shorts WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
 | Tool | Claude Code (Opus 4.7 1M) |
 | Work | **T-366 완료** (고아 위젯 마운트). 사용자가 `/goal resume` 후 진행. `ProfitabilityWidget` + `getProfitabilityData`(서버 액션) + `getProfitabilityEstimates`(서비스)가 다 구현됐고 `WIDGET_REGISTRY`에 `defaultOn:true`로 등록됐지만 `<ProfitabilityWidget />`이 어디에도 렌더 안 되던 미완 기능. SSR 데이터 흐름에 연결: `app/page.js`가 `Promise.all`에 `getProfitabilityData()` 추가 → `initialProfitability` prop → `DashboardClient`가 `widgetSettings.visible.profitability` 게이트로 위젯 렌더. (주의: DashboardClient는 자체 `WIDGET_REGISTRY`를 쓰며 `lib/hooks/useWidgetSettings.js`의 동명 레지스트리와 별개 — 이번에 DashboardClient 쪽 레지스트리에도 profitability 항목이 들어가야 `visible.profitability`가 truthy가 됨.) `profitability-copy.test.mjs`에 마운트 회귀 가드 추가. 커밋 `1047f01`. |
 | Next Priorities | 검증 통과: profitability 테스트 3/3, full `project_qc_runner --project hanwoo-dashboard --json` 통과(test/lint/build). 이번 세션 누적: T-365(profitability 영어 에러 카피 한글화, `172e998`) + T-366(`1047f01`). 남은 Hanwoo TODO는 T-367(formSchemas enum, DB 마이그레이션 동반, approval)뿐 — T-251은 외부/사용자 차단. **모노레포 마이그레이션은 T-372로 재번호**(구 T-368이 DONE의 Codex T-368과 ID 충돌) — `pnpm install` 로컬 exit 127 블로커로 보류, TASKS.md T-372 참조. Active Hanwoo goal 유지. 무관한 root monorepo/package-lock/shorts WIP 보존. |
