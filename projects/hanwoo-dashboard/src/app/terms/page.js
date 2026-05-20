@@ -33,10 +33,7 @@ const sections = [
     title: '문의처',
     list: [
       '상호명: 주라이프 (Joolife)',
-      '대표자: 박주호',
-      '전화번호: 010-3159-3708',
-      '이메일: joolife@joolife.io.kr',
-      '주소: 경기도 안양시 동안구 관평로212번길 21 공작부영아파트 309동 1312호',
+      '문의 이메일: joolife@joolife.io.kr',
       '웹사이트: joolife.io.kr',
     ],
   },
