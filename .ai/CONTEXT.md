@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` weather timeout degradation no longer exposes the old English stale-weather fallback. `DashboardClient` and `useWeather` reuse Korean `WEATHER_STALE_MESSAGE` for Open-Meteo timeouts, and `home-market-copy.test.mjs` guards both paths against `Showing the last available weather snapshot...`. Verification passed: focused tests (`130 passed`), targeted ESLint, full Hanwoo QC (`test` 130, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
+
 - As of 2026-05-20, `hanwoo-dashboard` full-list preload failures are recoverable in the UI. Feed/calving/sales/analysis and building views that require complete cattle/sales datasets now set Korean retry feedback, swallow background promise rejections, and render a `다시 불러오기` action instead of leaving users at a passive loading/ready placeholder. Verification passed: focused tests (`130 passed`), targeted ESLint, full Hanwoo QC (`test` 130, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
 
 - As of 2026-05-20, `hanwoo-dashboard` subscription success and notification widget copy avoid remaining raw/English user-facing text. The subscription success confirmation catch path logs diagnostics and shows stable Korean retry copy instead of `error.message`, and `NotificationWidget` uses Korean product copy for its priority-alert heading. Verification passed: focused tests (`129 passed`), targeted ESLint, full Hanwoo QC (`test` 129, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.

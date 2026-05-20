@@ -1007,3 +1007,31 @@
 - 검증: 전체 스위트 `1471 passed / 0 failed / 12 skipped` (206s), 렌더 단위 243 pass, ruff 클린, `git diff --check` 클린.
 - commit `42f6434` (`@'` here-string 누수로 메시지 1차 오염 → guard 후 amend).
 - 경합: 분석 로컬라이즈 WIP를 Codex가 `666ddf3`로 선점 커밋. TASKS.md는 병렬 편집으로 Edit 레이스 → 스크립트로 원자적 갱신.
+
+## 2026-05-20 KST - Codex
+
+### Summary
+- Completed T-392 for `hanwoo-dashboard` while continuing the active product-completeness goal.
+- Localized the weather timeout degradation path: `DashboardClient` and `useWeather` now reuse Korean `WEATHER_STALE_MESSAGE` when Open-Meteo times out instead of showing the old English stale-weather fallback.
+- Added source-copy regression coverage so both weather fetch paths reject the old `Showing the last available weather snapshot...` message.
+
+### Changed Files
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/CONTEXT.md`
+- `.ai/GOAL.md`
+- `projects/hanwoo-dashboard/src/components/DashboardClient.js`
+- `projects/hanwoo-dashboard/src/lib/hooks/useWeather.js`
+- `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs`
+
+### Verification
+- `npm.cmd test -- src/lib/home-market-copy.test.mjs src/lib/weather-state.test.mjs` from `projects/hanwoo-dashboard` -> `130 passed`.
+- `npx.cmd eslint src/components/DashboardClient.js src/lib/hooks/useWeather.js src/lib/home-market-copy.test.mjs` from `projects/hanwoo-dashboard` -> passed.
+- `python execution/project_qc_runner.py --project hanwoo-dashboard --json` -> passed (`test` 130, lint passed, build passed).
+- `git diff --check -- projects/hanwoo-dashboard/src/components/DashboardClient.js projects/hanwoo-dashboard/src/lib/hooks/useWeather.js projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` -> passed.
+- `python execution/code_review_gate.py --staged --json` -> PASS; trailing cp949 reader-thread exception is known Windows output noise.
+
+### Follow-up
+- Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
+- T-320 and T-372 remain approval-scoped. Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts.
