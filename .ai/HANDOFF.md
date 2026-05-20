@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-352 completed**: continued the active Hanwoo product-completeness goal by localizing dashboard API fallback/error copy. `DashboardClient` now uses Korean timeout/failure messages for dashboard list loads, Korean console diagnostics for summary/notification/list refresh failures, and a Korean footer rights line. `/api/dashboard/{summary,cattle,sales}` now return Korean default 500 fallback messages when the app-authored fallback path is used. |
+| Next Priorities | Verification passed: focused Hanwoo home/import tests passed (`103 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 103 passed, lint passed, build passed), `git diff --check` passed, and direct Hanwoo graph risk `0.00`. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-351 completed**: continued the active Hanwoo product-completeness goal by localizing the printed cattle QR label footer. The QR print window already used `QR 출력` / `QR 라벨 인쇄`; the printed tag footer now uses `Joolife 한우 스마트팜` instead of `Joolife Smart Farm`, and `qr-widget-copy.test.mjs` guards against the English footer returning. |
 | Next Priorities | Verification passed: focused Hanwoo QR/import tests passed (`102 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 102 passed, lint passed, build passed), `git diff --check` passed, staged code-review gate PASS, and UTF-8 graph risk `0.00`. Commit hook emitted an advisory WARN from graph test-gap heuristics, but the direct focused/full checks cover the two-file copy change. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |
 
