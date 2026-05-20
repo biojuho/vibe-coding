@@ -31,6 +31,7 @@ export default function SalesTab({
   quickActionIntent = null,
 }) {
   const [isAdding, setIsAdding] = useState(() => quickActionIntent?.actionId === 'record-sale');
+  const [isSaving, setIsSaving] = useState(false);
 
   const {
     register,
@@ -106,22 +107,33 @@ export default function SalesTab({
   );
 
   const toggleAddForm = () => {
+    if (isSaving) {
+      return;
+    }
+
     const next = !isAdding;
     setIsAdding(next);
 
     if (!next) {
+      setIsSaving(false);
       reset(createSalesFormValues());
     }
   };
 
   const submitSale = async (values) => {
-    const saved = await onCreateSale(values);
-    if (!saved) {
-      return;
-    }
+    setIsSaving(true);
 
-    setIsAdding(false);
-    reset(createSalesFormValues());
+    try {
+      const saved = await onCreateSale(values);
+      if (!saved) {
+        return;
+      }
+
+      setIsAdding(false);
+      reset(createSalesFormValues());
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -137,6 +149,7 @@ export default function SalesTab({
           variant="outline"
           size="sm"
           onClick={toggleAddForm}
+          disabled={isSaving}
           className="text-[13px] text-green-400 border-green-500/50 hover:bg-green-500/10 px-3 py-1.5 rounded-lg font-bold"
         >
           {isAdding ? '취소' : '+매출 등록'}
@@ -230,7 +243,8 @@ export default function SalesTab({
 
                 <PremiumButton
                   type="submit"
-                  disabled={!cattleList?.length}
+                  disabled={!cattleList?.length || isSaving}
+                  aria-busy={isSaving}
                   className="w-full py-3 mt-2 rounded-lg"
                   variant="primary"
                   glow

@@ -243,6 +243,18 @@ test('sales form validation messages are announced by their controls', () => {
   }
 });
 
+test('sales form waits for async saves before re-enabling actions', () => {
+  const source = readSource('components/tabs/SalesTab.js');
+
+  assert.match(source, /const \[isSaving, setIsSaving\] = useState\(false\)/);
+  assert.match(source, /if \(isSaving\) \{\s+return;\s+\}/);
+  assert.match(source, /setIsSaving\(true\);/);
+  assert.match(source, /await onCreateSale\(values\)/);
+  assert.match(source, /finally \{\s+setIsSaving\(false\);/);
+  assert.match(source, /onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}/);
+  assert.match(source, /disabled=\{!cattleList\?\.length \|\| isSaving\}\s+aria-busy=\{isSaving\}/);
+});
+
 test('inventory form fields expose explicit labels and invalid state', () => {
   const source = readSource('components/tabs/InventoryTab.js');
 
