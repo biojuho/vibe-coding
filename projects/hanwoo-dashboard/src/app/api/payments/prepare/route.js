@@ -13,14 +13,14 @@ export async function POST(req) {
 
     if (customerKey !== body?.customerKey) {
       return NextResponse.json(
-        { success: false, message: 'Customer key mismatch.' },
+        { success: false, message: '결제 고객 정보가 현재 로그인 사용자와 일치하지 않습니다.' },
         { status: 403 }
       );
     }
 
     if (amount !== PREMIUM_SUBSCRIPTION.amount) {
       return NextResponse.json(
-        { success: false, message: 'Unexpected payment amount.' },
+        { success: false, message: '결제 금액이 구독 상품 금액과 일치하지 않습니다.' },
         { status: 400 }
       );
     }
@@ -29,7 +29,7 @@ export async function POST(req) {
       success: true,
       orderId: buildOrderId(customerKey),
       orderName: body?.orderName || PREMIUM_SUBSCRIPTION.displayName,
-      customerName: body?.customerName || session.user.name || 'Joolife User',
+      customerName: body?.customerName || session.user.name || 'Joolife 사용자',
       customerEmail: body?.customerEmail || null,
       amount,
     });
@@ -38,9 +38,9 @@ export async function POST(req) {
       return NextResponse.json({ success: false, message: error.message }, { status: 401 });
     }
 
-    console.error('Payment Prepare Error:', error);
+    console.error('결제 준비 처리 실패:', error);
     return NextResponse.json(
-      { success: false, message: error.message || 'Payment preparation failed.' },
+      { success: false, message: '결제를 준비하지 못했습니다. 잠시 후 다시 시도해 주세요.' },
       { status: 400 }
     );
   }

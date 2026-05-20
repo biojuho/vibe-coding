@@ -53,7 +53,7 @@ export async function POST(req) {
 
     if (!paymentKey || !orderId || !Number.isFinite(amount)) {
       return NextResponse.json(
-        { success: false, message: 'Missing payment confirmation fields.' },
+        { success: false, message: '결제 승인에 필요한 정보가 부족합니다.' },
         { status: 400 }
       );
     }
@@ -63,21 +63,21 @@ export async function POST(req) {
 
     if (!orderCustomerKey || orderCustomerKey !== expectedCustomerKey) {
       return NextResponse.json(
-        { success: false, message: 'Order does not belong to the current user.' },
+        { success: false, message: '이 결제 요청은 현재 로그인 사용자와 일치하지 않습니다.' },
         { status: 403 }
       );
     }
 
     if (amount !== PREMIUM_SUBSCRIPTION.amount) {
       return NextResponse.json(
-        { success: false, message: 'Unexpected payment amount.' },
+        { success: false, message: '결제 금액이 구독 상품 금액과 일치하지 않습니다.' },
         { status: 400 }
       );
     }
 
     const secretKey = process.env.TOSS_PAYMENTS_SECRET_KEY;
     if (!secretKey) {
-      throw new Error('TOSS_PAYMENTS_SECRET_KEY is not configured.');
+      throw new Error('결제 설정이 완료되지 않았습니다. 관리자에게 문의해 주세요.');
     }
 
     await prisma.paymentLog.upsert({
@@ -112,7 +112,7 @@ export async function POST(req) {
         },
         {
           timeoutMs: TOSS_CONFIRM_TIMEOUT_MS,
-          errorMessage: `Payment confirmation timed out after ${TOSS_CONFIRM_TIMEOUT_MS}ms.`,
+          errorMessage: `결제 승인 확인이 ${TOSS_CONFIRM_TIMEOUT_MS}ms 안에 끝나지 않았습니다.`,
         },
       );
     } catch (error) {
@@ -120,7 +120,7 @@ export async function POST(req) {
         return buildPendingResponse();
       }
 
-      console.error('Payment confirmation request failed before a response was received:', error);
+      console.error('결제 승인 요청 응답 수신 전 실패:', error);
       return buildPendingResponse();
     }
 
@@ -135,7 +135,7 @@ export async function POST(req) {
 
     if (confirmationResult.kind === 'pending') {
       if (response.status >= 500 || parseError) {
-        console.error('Payment confirmation deferred due to retryable gateway response.', {
+        console.error('재시도 가능한 결제 승인 응답으로 확인을 보류했습니다.', {
           orderId,
           status: response.status,
           parseError: parseError?.message,
@@ -201,9 +201,9 @@ export async function POST(req) {
       return NextResponse.json({ success: false, message: error.message }, { status: 401 });
     }
 
-    console.error('Payment Confirm Error:', error);
+    console.error('결제 승인 확인 처리 실패:', error);
     return NextResponse.json(
-      { success: false, message: error.message || 'Payment verification failed.' },
+      { success: false, message: '결제 확인을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.' },
       { status: 500 }
     );
   }

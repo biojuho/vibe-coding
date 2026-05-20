@@ -63,3 +63,24 @@ test('payment confirmation fallback messages use Korean product copy', () => {
   assert.doesNotMatch(source, /Confirmed payment amount does not match/);
   assert.doesNotMatch(source, /Gateway response:/);
 });
+
+test('payment API routes avoid English fallback copy in user responses', () => {
+  const prepareRoute = readSource('app/api/payments/prepare/route.js');
+  const confirmRoute = readSource('app/api/payments/confirm/route.js');
+  const authGuard = readSource('lib/auth-guard.js');
+
+  assert.match(prepareRoute, /결제 고객 정보가 현재 로그인 사용자와 일치하지 않습니다/);
+  assert.match(prepareRoute, /Joolife 사용자/);
+  assert.match(confirmRoute, /결제 승인에 필요한 정보가 부족합니다/);
+  assert.match(confirmRoute, /결제 확인을 완료하지 못했습니다/);
+  assert.match(authGuard, /로그인이 필요합니다/);
+  assert.doesNotMatch(
+    prepareRoute,
+    /Joolife User|Customer key mismatch|Unexpected payment amount|Payment preparation failed/,
+  );
+  assert.doesNotMatch(
+    confirmRoute,
+    /Missing payment confirmation fields|Order does not belong|Unexpected payment amount|Payment verification failed|TOSS_PAYMENTS_SECRET_KEY is not configured/,
+  );
+  assert.doesNotMatch(authGuard, /Authentication required/);
+});
