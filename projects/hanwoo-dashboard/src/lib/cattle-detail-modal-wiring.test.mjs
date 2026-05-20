@@ -34,14 +34,24 @@ test('cattle form and detail icon-only navigation controls have Korean labels', 
   assert.match(formSource, /id="cattle-form-title"/);
   assert.match(detailSource, /aria-label="개체 상세 닫기"/);
   assert.match(detailSource, /title="개체 상세 닫기"/);
+  assert.match(detailSource, /type="button"\s+onClick=\{onClose\}/);
   assert.match(detailSource, /aria-label=\{`\$\{cattle\.name\} 개체 정보 수정`\}/);
   assert.match(detailSource, /title="개체 정보 수정"/);
+  assert.match(detailSource, /type="button"\s+onClick=\{onEdit\}/);
   assert.match(detailSource, /aria-label=\{`\$\{cattle\.name\} 개체 삭제`\}/);
   assert.match(detailSource, /title="개체 삭제"/);
+  assert.match(detailSource, /type="button"\s+onClick=\{onDelete\}/);
   assert.match(detailSource, /role="dialog"/);
   assert.match(detailSource, /aria-modal="true"/);
   assert.match(detailSource, /aria-labelledby="cattle-detail-title"/);
   assert.match(detailSource, /id="cattle-detail-title"/);
   assert.doesNotMatch(formSource, /aria-label="Back"/);
   assert.doesNotMatch(detailSource, /aria-label="Close"/);
+});
+
+test('cattle detail decorative icons are hidden from assistive tech', () => {
+  const source = readSource('components/forms/CattleDetailModal.js');
+
+  assert.match(source, /<span aria-hidden="true" style=\{\{fontSize:"18px",lineHeight:1\}\}>\{icon\}<\/span> \{title\}/);
+  assert.match(source, /<div aria-hidden="true" style=\{\{/);
 });
