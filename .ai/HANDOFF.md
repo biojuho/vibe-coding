@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-492 completed**: Hanwoo drag-and-drop cattle moves now guard against duplicate async move requests. `DashboardClient` uses `movingCattleIdRef` as an immediate in-flight lock around the confirm + `handleUpdateCattle` move flow, so repeated drop events cannot open overlapping move confirms or send duplicate move updates before the first flow finishes. `home-market-copy.test.mjs` guards the contract. Code commit `e77b843`. |
+| Next Priorities | Verification passed: focused home-market copy test (`22 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 197, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known advisory graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-491 completed**: Hanwoo subscription checkout now guards against duplicate async payment requests. `PaymentWidget` returns early when `isSubmitting` is already true and exposes `aria-busy` on the checkout button while payment preparation/request is active, so rapid repeated activation cannot issue duplicate `/api/payments/prepare` and Toss `requestPayment` calls. `payment-ux-copy.test.mjs` guards the contract. Code commit `3b6dddb`. |
 | Next Priorities | Verification passed: focused payment UX copy test (`5 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 196, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known advisory graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 
