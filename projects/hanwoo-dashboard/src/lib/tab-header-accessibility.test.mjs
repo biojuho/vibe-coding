@@ -22,3 +22,14 @@ test('primary tab header icons are decorative for assistive tech', () => {
   assert.match(scheduleSource, /<span aria-hidden="true" style=\{\{ fontSize: '20px', lineHeight: 1 \}\}>🗓️<\/span>/);
   assert.match(feedSource, /<span className="section-header-icon" aria-hidden="true">🌾<\/span>/);
 });
+
+test('schedule form fields expose labels and validation state', () => {
+  const scheduleSource = readSource('components/tabs/ScheduleTab.js');
+
+  assert.match(scheduleSource, /<label htmlFor="schedule-title"[\s\S]*?>\s*일정 제목\s*<\/label>/);
+  assert.match(scheduleSource, /id="schedule-title"[\s\S]*?aria-invalid=\{Boolean\(errors\.title\)\}/);
+  assert.match(scheduleSource, /<label htmlFor="schedule-date"[\s\S]*?>\s*일정 날짜\s*<\/label>/);
+  assert.match(scheduleSource, /id="schedule-date"[\s\S]*?aria-invalid=\{Boolean\(errors\.date\)\}/);
+  assert.match(scheduleSource, /<label htmlFor="schedule-type"[\s\S]*?>\s*일정 종류\s*<\/label>/);
+  assert.match(scheduleSource, /id="schedule-type"[\s\S]*?aria-invalid=\{Boolean\(errors\.type\)\}/);
+});

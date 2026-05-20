@@ -119,8 +119,13 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
           <div className="mb-3 text-sm font-bold text-[color:var(--color-text)]">일정 등록</div>
           <div className="grid gap-3">
             <div>
+              <label htmlFor="schedule-title" className="mb-1 block text-xs font-bold text-[color:var(--color-text-muted)]">
+                일정 제목
+              </label>
               <input
+                id="schedule-title"
                 placeholder="예: 1번 구제역 백신"
+                aria-invalid={Boolean(errors.title)}
                 {...register('title')}
                 className="clay-inset w-full rounded-[16px] px-4 py-3 text-sm text-[color:var(--color-text)] outline-none"
               />
@@ -129,8 +134,13 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
 
             <div className="grid grid-cols-2 gap-3">
               <div>
+                <label htmlFor="schedule-date" className="mb-1 block text-xs font-bold text-[color:var(--color-text-muted)]">
+                  일정 날짜
+                </label>
                 <input
+                  id="schedule-date"
                   type="date"
+                  aria-invalid={Boolean(errors.date)}
                   {...register('date')}
                   className="clay-inset w-full rounded-[16px] px-4 py-3 text-sm text-[color:var(--color-text)] outline-none"
                 />
@@ -138,7 +148,12 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
               </div>
 
               <div>
+                <label htmlFor="schedule-type" className="mb-1 block text-xs font-bold text-[color:var(--color-text-muted)]">
+                  일정 종류
+                </label>
                 <select
+                  id="schedule-type"
+                  aria-invalid={Boolean(errors.type)}
                   {...register('type')}
                   className="clay-inset w-full rounded-[16px] px-4 py-3 text-sm text-[color:var(--color-text)] outline-none"
                 >
