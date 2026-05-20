@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` market-price widget stale source copy is natural Korean and guarded against mojibake regressions. `MarketPriceWidget` now renders `이전 저장값` for stale cache states, and `home-market-copy.test.mjs` asserts the corrected label plus broken-fragment exclusions. Verification passed: focused market/home copy tests (`28 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 201, lint, build).
+
 - As of 2026-05-21, `hanwoo-dashboard` NotificationModal visible product copy is guarded against mojibake regressions. `NotificationModal` now renders clean Korean labels for the title, close action, empty state, SMS service section, test-send button, and SMS cost note; `notification-modal-copy.test.mjs` asserts readable Korean copy and blocks known broken fragments. Verification passed: focused notification-modal copy test (`6 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 201, lint, build).
 
 - As of 2026-05-21, `hanwoo-dashboard` Feed tab visible product copy is guarded against mojibake regressions. `FeedTab` keeps the feed memo placeholder as readable Korean operator copy, and `empty-state-wiring.test.mjs` asserts key Feed tab Korean strings while blocking known broken fragments such as `湲됱뿬` and `異뺤궗`. Verification passed: focused empty-state wiring test (`12 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 200, lint, build).

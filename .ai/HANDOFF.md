@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-500 completed**: Hanwoo market-price stale source label is now natural Korean and guarded against mojibake returning. `MarketPriceWidget` now shows `이전 저장값` for stale cache states instead of the awkward `이전 저장가`, and `home-market-copy.test.mjs` now checks the corrected label plus mojibake guard patterns for the market-price widget. Code commit `1be1fa5`. |
+| Next Priorities | Verification passed: focused market/home copy tests (`28 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 201, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known advisory graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-499 completed**: Hanwoo notification modal copy is now readable Korean product copy instead of mojibake. `NotificationModal` now renders clean Korean labels for the title, close action, empty state, SMS service section, test-send button, and SMS cost note; the source regression test now asserts readable Korean copy and blocks the known broken fragments. Code commit `c2fef8f`. |
 | Next Priorities | Verification passed: focused notification-modal copy test (`6 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 201, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known advisory graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-320/T-372/T-407 remain approval-scoped. Preserve unrelated root/shorts/Hanwoo package/workspace WIP. |
 
