@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-329 completed**: continued the active Hanwoo product-completeness goal with a cattle-detail UX polish. Replaced the two browser `prompt()` flows in `CattleDetailModal` for 발정 기록 / 수정 기록 with an in-app date form, explicit cancel/save controls, inline validation, pending save state, lucide action icons, and existing feedback/offline queue handling through `handleUpdateCattle`. Commit `b92249d`. |
+| Next Priorities | Verification passed: Hanwoo test suite `86 passed`, `npm.cmd run lint`, `npm.cmd run build`, `git diff --check`, direct Hanwoo graph risk `0.00`, and staged `code_review_gate --json` PASS. The commit hook emitted advisory WARN from stale graph heuristics / unrelated dirty WIP, but direct Hanwoo checks cover the change. Active Hanwoo goal remains open; T-251 is still user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, shorts-maker-v2 QC files, package locks, and setup scripts. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-328 completed**: continued the active Hanwoo product-completeness goal after confirming T-251 is still external. `npm.cmd run db:prisma7-test -- --live` passed local Prisma/client/adapter checks (`15 passed`) but live health still failed with the same `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`. Then tightened the first-run setup flow: the Farm Setup / 운영 준비도 missing-building item now emits `add-building`, `DashboardClient` forwards that quick-action intent, and `SettingsTab` opens the 축사 registration form immediately on arrival. Commit `cc32b52`. |
 | Next Priorities | Verification passed: focused Hanwoo tests `85 passed`, `npm.cmd run lint`, `npm.cmd run build`, and direct Hanwoo graph risk `0.00`. Staged code-review gate emitted advisory WARN from broad graph heuristics/unrelated dirty WIP, but direct Hanwoo checks are green. Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, shorts-maker-v2 files, and setup scripts. |
 
