@@ -47,3 +47,13 @@ test('AI chat widget handles Korean configuration errors and exposes an accessib
   assert.doesNotMatch(source, /aria-label="Send"/);
   assert.doesNotMatch(source, /onError\(error\.message/);
 });
+
+test('AI chat send action is disabled until a question is ready', () => {
+  const source = readSource('components/widgets/AIChatWidget.js');
+
+  assert.match(source, /const canSend = input\.trim\(\)\.length > 0 && !isStreaming;/);
+  assert.match(source, /disabled=\{!canSend\}/);
+  assert.match(source, /opacity: canSend \? 1 : 0\.6/);
+  assert.match(source, /cursor: canSend \? 'pointer' : 'not-allowed'/);
+  assert.match(source, /if \(!trimmed \|\| isStreaming\) return;/);
+});

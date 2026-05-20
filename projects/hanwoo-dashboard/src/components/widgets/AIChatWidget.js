@@ -123,6 +123,7 @@ export default function AIChatWidget() {
   const panelRef = useRef(null);
   const abortRef = useRef(null);
   const shouldRestoreLauncherFocusRef = useRef(false);
+  const canSend = input.trim().length > 0 && !isStreaming;
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -432,7 +433,7 @@ export default function AIChatWidget() {
         <button
           type="button"
           onClick={handleSend}
-          disabled={isStreaming}
+          disabled={!canSend}
           aria-label={isStreaming ? '답변 생성 중' : '질문 보내기'}
           title={isStreaming ? '답변 생성 중' : '질문 보내기'}
           className="btn btn-primary btn-icon"
@@ -442,8 +443,8 @@ export default function AIChatWidget() {
             padding: 0,
             fontSize: '16px',
             flexShrink: 0,
-            opacity: isStreaming ? 0.6 : 1,
-            cursor: isStreaming ? 'not-allowed' : 'pointer',
+            opacity: canSend ? 1 : 0.6,
+            cursor: canSend ? 'pointer' : 'not-allowed',
           }}
         >
           {isStreaming ? (
