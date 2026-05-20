@@ -33,6 +33,10 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` cattle-detail breeding date validation is announced with the date input. `CattleDetailModal` now connects the breeding record date input to `breeding-record-date-error` through conditional `aria-describedby`, keeps `aria-invalid` tied to validation state, and renders the validation message as `role="alert"`. Verification passed: focused cattle-detail modal wiring test (`5 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 168, lint, build).
+
+- As of 2026-05-20, `hanwoo-dashboard` admin diagnostics raw-data selector exposes an explicit accessible name. `DiagnosticsPageClient` now uses `검사할 원본 데이터 선택` for the selector `aria-label` and `title`, so the model selector is not dependent on nearby section copy for assistive technology. Verification passed: focused diagnostics copy test (`1 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 167, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` AI chat panel exposes dialog semantics and keyboard dismissal. `AIChatWidget` now marks the open panel as `role="dialog"`, labels it as `AI 농장 비서 채팅`, and closes on `Escape`. Verification passed: focused AI chat widget copy test (`1 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 167, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` AI chat question input exposes an explicit accessible name. `AIChatWidget` now uses `AI 농장 비서에게 보낼 질문` for the input `aria-label` and `title`, so the field no longer relies on placeholder text alone. Verification passed: focused AI chat widget copy test (`1 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 167, lint, build).
