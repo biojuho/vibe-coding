@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` clickable pen cards and cattle rows use native button semantics. `PenCard` and `CattleRow` now render as `<button type="button">` instead of `div role="button"` plus custom keyboard handling, preserving accessible labels, drag/drop hooks, and visual card styling through reset CSS. Verification passed: focused cards accessibility test (`2 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 177, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` SettingsTab validation messages are announced with their controls. `SettingsTab` now connects farm name, location, latitude, longitude, building name, and pen count controls to field-specific error messages through conditional `aria-describedby`, keeps `aria-invalid`, and renders each validation message as `role="alert"`. Verification passed: focused settings accessibility test (`5 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 176, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` ScheduleTab validation messages are announced with their controls. `ScheduleTab` now connects schedule title, date, and type controls to field-specific error messages through conditional `aria-describedby`, keeps `aria-invalid`, and renders each validation message as `role="alert"`. Verification passed: focused tab-header accessibility test (`3 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 175, lint, build).
