@@ -79,7 +79,7 @@ export async function createCattle(data) {
     return { success: true, data: created };
   } catch (error) {
     console.error("Failed to create cattle:", error);
-    return { success: false, message: error.message };
+    return { success: false, message: "개체를 등록하지 못했습니다." };
   }
 }
 
@@ -142,7 +142,7 @@ export async function updateCattle(id, data) {
     return { success: true, data: updated };
   } catch (error) {
     console.error("Failed to update cattle:", error);
-    return { success: false, message: error.message };
+    return { success: false, message: "개체 정보를 수정하지 못했습니다." };
   }
 }
 
@@ -234,7 +234,7 @@ export async function recordCalving(data) {
     return { success: true, data: result };
   } catch (error) {
     console.error("Failed to record calving:", error);
-    return { success: false, message: error.message };
+    return { success: false, message: "분만 처리를 완료하지 못했습니다." };
   }
 }
 
@@ -260,7 +260,7 @@ export async function deleteCattle(id) {
     return { success: true, data: { id } };
   } catch (error) {
     console.error("Failed to archive cattle:", error);
-    return { success: false, message: error.message };
+    return { success: false, message: "개체 삭제에 실패했습니다." };
   }
 }
 

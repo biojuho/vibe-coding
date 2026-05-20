@@ -59,6 +59,6 @@ export async function createSalesRecord(data) {
     return { success: true, data: created };
   } catch (error) {
     console.error("Failed to create sales record:", error);
-    return { success: false, message: error.message };
+    return { success: false, message: "판매 기록을 등록하지 못했습니다." };
   }
 }
