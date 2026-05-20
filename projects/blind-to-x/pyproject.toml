@@ -11,7 +11,7 @@ dependencies = [
     "PyYAML==6.0.3",
     "requests==2.34.2",
     "python-dotenv==1.0.1",
-    "cloudinary==1.41.0",
+    "cloudinary==1.44.2",
     "curl_cffi>=0.7.0,<0.16",
     "beautifulsoup4==4.12.3",
     "openai==2.37.0",
