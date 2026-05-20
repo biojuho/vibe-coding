@@ -12,7 +12,7 @@
 
 ## Progress Notes
 
-- 2026-05-20: T-446 labeled Hanwoo SalesTab form fields and exposed validation state. Sale date, price, cattle, grade, and purchaser controls now connect to `PremiumLabel htmlFor`/stable ids and report `aria-invalid` from React Hook Form errors. Verification passed on current HEAD with direct graph risk `0.00` and full Hanwoo QC (`test` 163, lint, build). Commit `18a55e8`.
+- 2026-05-20: T-446 labeled Hanwoo SalesTab registration form fields and exposed validation state. Sales date/price/cattle/grade/purchaser controls now have visible labels linked to stable ids and `aria-invalid` tied to React Hook Form errors. Verification passed with focused home-market copy test (`14 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 163, lint, build), and staged code-review gate JSON (`risk_score 0.0`). Commit `18a55e8`.
 
 - 2026-05-20: T-445 labeled Hanwoo ScheduleTab form fields and exposed validation state. Schedule title/date/type fields now have visible labels, stable ids, and `aria-invalid` tied to React Hook Form errors instead of relying on placeholder-only context. Verification passed with focused tab-header/home-market accessibility tests (`15 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, full Hanwoo QC (`test` 162, lint, build), and staged code-review gate JSON (`risk_score 0.0`). Commit `005410f`.
 
