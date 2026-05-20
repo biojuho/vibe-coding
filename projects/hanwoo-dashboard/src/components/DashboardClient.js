@@ -1368,7 +1368,7 @@ export default function DashboardClient({
       {showAddModal && <CattleForm buildings={buildings} onSubmit={handleAddCattle} onCancel={() => setShowAddModal(false)} />}
 
       {isEditing && selectedCow && (
-        <CattleForm cattle={selectedCow} buildings={buildings} onSubmit={(updated) => { handleUpdateCattle(updated); setIsEditing(false); }} onCancel={() => setIsEditing(false)} />
+        <CattleForm cattle={selectedCow} buildings={buildings} onSubmit={handleUpdateCattle} onCancel={() => setIsEditing(false)} />
       )}
 
       {selectedCow && !isEditing && (
