@@ -37,6 +37,7 @@ export default function SettingsTab({
 }) {
   const [isAdding, setIsAdding] = useState(() => quickActionIntent?.actionId === 'add-building');
   const [isSavingBuilding, setIsSavingBuilding] = useState(false);
+  const [deletingBuildingId, setDeletingBuildingId] = useState(null);
   const { confirm } = useAppFeedback();
 
   const {
@@ -121,6 +122,10 @@ export default function SettingsTab({
   };
 
   const handleDeleteBuilding = async (id, name) => {
+    if (deletingBuildingId) {
+      return;
+    }
+
     const shouldDelete = await confirm({
       title: `${name} 동을 삭제할까요?`,
       description: '연결된 개체가 있으면 삭제되지 않습니다.',
@@ -133,7 +138,13 @@ export default function SettingsTab({
       return;
     }
 
-    onDeleteBuilding(id);
+    setDeletingBuildingId(id);
+
+    try {
+      await onDeleteBuilding(id);
+    } finally {
+      setDeletingBuildingId(null);
+    }
   };
 
   const isDark = theme === 'dark';
@@ -511,6 +522,8 @@ export default function SettingsTab({
               variant="outline"
               size="sm"
               onClick={() => handleDeleteBuilding(building.id, building.name)}
+              disabled={deletingBuildingId === building.id}
+              aria-busy={deletingBuildingId === building.id}
               aria-label={`${building.name} 동 삭제`}
               title={`${building.name} 동 삭제`}
               className="text-xs text-red-500 border-red-500/50 hover:bg-red-500/10 px-2 py-1 rounded h-auto"

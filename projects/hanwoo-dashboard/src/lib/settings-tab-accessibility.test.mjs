@@ -91,3 +91,15 @@ test('settings building form waits for async saves before re-enabling actions', 
   assert.match(source, /size="sm"\s+disabled=\{isSavingBuilding\}/);
   assert.match(source, /type="submit"\s+variant="primary"\s+disabled=\{isSavingBuilding\}\s+aria-busy=\{isSavingBuilding\}/);
 });
+
+test('settings building delete action waits for async deletes before re-enabling the row action', () => {
+  const source = readSource('components/tabs/SettingsTab.js');
+
+  assert.match(source, /const \[deletingBuildingId, setDeletingBuildingId\] = useState\(null\)/);
+  assert.match(source, /if \(deletingBuildingId\) \{\s+return;\s+\}/);
+  assert.match(source, /setDeletingBuildingId\(id\);/);
+  assert.match(source, /await onDeleteBuilding\(id\);/);
+  assert.match(source, /finally \{\s+setDeletingBuildingId\(null\);/);
+  assert.match(source, /disabled=\{deletingBuildingId === building\.id\}/);
+  assert.match(source, /aria-busy=\{deletingBuildingId === building\.id\}/);
+});
