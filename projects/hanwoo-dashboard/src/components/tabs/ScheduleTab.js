@@ -87,8 +87,12 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
     setIsAdding(true);
   };
 
-  const submitSchedule = (values) => {
-    onCreateEvent(values);
+  const submitSchedule = async (values) => {
+    const saved = await onCreateEvent(values);
+    if (!saved) {
+      return;
+    }
+
     setIsAdding(false);
     reset(createScheduleFormValues());
   };

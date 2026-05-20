@@ -49,8 +49,12 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
     }
   };
 
-  const submitNewItem = (values) => {
-    onAddItem(values);
+  const submitNewItem = async (values) => {
+    const saved = await onAddItem(values);
+    if (!saved) {
+      return;
+    }
+
     setIsAdding(false);
     reset(createInventoryFormValues());
   };

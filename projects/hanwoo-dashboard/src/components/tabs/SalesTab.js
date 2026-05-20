@@ -114,8 +114,12 @@ export default function SalesTab({
     }
   };
 
-  const submitSale = (values) => {
-    onCreateSale(values);
+  const submitSale = async (values) => {
+    const saved = await onCreateSale(values);
+    if (!saved) {
+      return;
+    }
+
     setIsAdding(false);
     reset(createSalesFormValues());
   };

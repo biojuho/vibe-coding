@@ -99,8 +99,12 @@ export default function SettingsTab({
     setFarmValue('longitude', selected.lng, { shouldDirty: true, shouldValidate: true });
   };
 
-  const submitBuilding = (values) => {
-    onCreateBuilding(values);
+  const submitBuilding = async (values) => {
+    const saved = await onCreateBuilding(values);
+    if (!saved) {
+      return;
+    }
+
     setIsAdding(false);
     resetBuilding(createBuildingFormValues());
   };

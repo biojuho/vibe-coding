@@ -54,3 +54,35 @@ test('operational tabs use action-oriented empty states', () => {
     assert.match(source, new RegExp(item.handler.replace(/[()]/g, '\\$&')));
   }
 });
+
+test('operational create forms stay open when async submit handlers fail', () => {
+  const expectations = [
+    {
+      file: 'components/tabs/SalesTab.js',
+      submit: 'submitSale',
+      handler: 'onCreateSale',
+    },
+    {
+      file: 'components/tabs/InventoryTab.js',
+      submit: 'submitNewItem',
+      handler: 'onAddItem',
+    },
+    {
+      file: 'components/tabs/ScheduleTab.js',
+      submit: 'submitSchedule',
+      handler: 'onCreateEvent',
+    },
+    {
+      file: 'components/tabs/SettingsTab.js',
+      submit: 'submitBuilding',
+      handler: 'onCreateBuilding',
+    },
+  ];
+
+  for (const item of expectations) {
+    const source = readSource(item.file);
+    assert.match(source, new RegExp(`const ${item.submit} = async \\(values\\) => \\{`));
+    assert.match(source, new RegExp(`const saved = await ${item.handler}\\(values\\);`));
+    assert.match(source, /if \(!saved\) \{\s+return;\s+\}/);
+  }
+});
