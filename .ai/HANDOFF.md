@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-354 completed**: continued the active Hanwoo product-completeness goal by localizing AI chat API error/fallback copy. `/api/ai/chat` validation, authentication, missing Gemini configuration, provider SSE errors, and start-chat failures now return Korean operator-facing messages instead of English API/debug text. The AI farm-context payload also avoids English fallback labels such as `unknown`, `No recent sales records`, `Current farm context`, and `man KRW`. Added/updated regression coverage in `ai-chat-api.test.mjs`. |
+| Next Priorities | Verification passed: focused Hanwoo AI chat tests passed (`108 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 108 passed, lint passed, build passed), `git diff --check` passed, source English fallback scan passed, and UTF-8 graph risk `0.00`. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-353 completed**: continued the active Hanwoo product-completeness goal by localizing cattle tag lookup (MTRACE) fallback copy. `lookupCattleByTag()` now returns Korean operator-facing messages for missing API key, invalid tag number, rate limits, upstream failures, unreadable responses, no-match results, timeouts, and generic lookup errors; the default breed fallback is now `한우` instead of `Hanwoo`, and the internal API diagnostic label is Korean. Added mocked MTRACE behavior/source coverage in `mtrace.test.mjs`. |
 | Next Priorities | Verification passed: focused Hanwoo mtrace/import tests passed (`107 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 107 passed, lint passed, build passed), `git diff --check` passed, and UTF-8 graph risk `0.00`. `npm test` prints the existing Node `MODULE_TYPELESS_PACKAGE_JSON` warning for JS ESM test imports, but all checks pass. Active Hanwoo goal remains open because T-251 is still external/user-owned Supabase password/control-plane resync. Preserve unrelated dirty WIP in root package/workflow files, Hanwoo `package.json`, package locks, and setup scripts. |
 
