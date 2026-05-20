@@ -50,7 +50,7 @@ test('notification modal decorative status icons are hidden from assistive tech'
   const source = readSource('components/ui/NotificationModal.js');
 
   assert.match(source, /className="animate-bounce" aria-hidden="true"/);
-  assert.match(source, /<div aria-hidden="true" style=\{\{fontSize:"40px"/);
+  assert.match(source, /<div aria-hidden="true" style=\{\{ fontSize: '40px'/);
   assert.match(source, /className="animate-pulse" aria-hidden="true"/);
 });
 
@@ -59,12 +59,37 @@ test('notification modal SMS action uses safe button semantics and Korean copy',
   const dashboardSource = readSource('components/DashboardClient.js');
 
   assert.match(source, /<button\s+type="button"\s+onClick=\{onTestSMS\}/);
-  assert.match(source, /<span aria-hidden="true">📱<\/span> 문자 알림 서비스/);
+  assert.match(source, /<span aria-hidden="true">📱<\/span>[\s\S]*?문자 알림 서비스/);
+  assert.match(source, /중요한 알림을 문자로 받아보시겠습니까\?/);
+  assert.match(source, /테스트 전송/);
   assert.match(source, /문자 알림 연동이 필요하며 발송 비용이 발생할 수 있습니다\./);
   assert.match(dashboardSource, /테스트 문자를 발송했습니다/);
   assert.match(dashboardSource, /등록된 연락처로 전송되었습니다/);
-  assert.doesNotMatch(source, /Twilio \/ Kakao API 연동 필요/);
-  assert.doesNotMatch(source, /📱 SMS 알림 서비스/);
-  assert.doesNotMatch(dashboardSource, /순심이\(0001\)/);
+  assert.doesNotMatch(source, /Twilio \/ Kakao API/);
+  assert.doesNotMatch(source, /SMS 알림 서비스/);
   assert.doesNotMatch(dashboardSource, /테스트 SMS를 발송했습니다/);
+});
+
+test('notification modal visible copy is readable Korean product copy', () => {
+  const source = readSource('components/ui/NotificationModal.js');
+  const dashboardSource = readSource('components/DashboardClient.js');
+
+  for (const copy of [
+    '알림 센터',
+    '새로운 알림이 없습니다.',
+    '문자 알림 서비스',
+    '중요한 알림을 문자로 받아보시겠습니까?',
+    '테스트 전송',
+    '문자 알림 연동이 필요하며 발송 비용이 발생할 수 있습니다.',
+  ]) {
+    assert.equal(source.includes(copy), true);
+  }
+
+  assert.equal(dashboardSource.includes('테스트 문자를 발송했습니다.'), true);
+  assert.equal(dashboardSource.includes('Joolife 알림 예시가 등록된 연락처로 전송되었습니다.'), true);
+
+  for (const broken of ['?뚮┝', '臾몄옄', '諛쒖넚', '?꾩넚', '?リ린']) {
+    assert.equal(source.includes(broken), false);
+    assert.equal(dashboardSource.includes(broken), false);
+  }
 });
