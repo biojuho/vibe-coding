@@ -12,6 +12,7 @@
 
 ## Progress Notes
 
+- 2026-05-20: T-397 hid decorative tab/page icons from assistive technology in Analysis, Schedule, and Settings so screen readers focus on Korean text labels; verification passed with focused Hanwoo tests `131 passed`, targeted ESLint, path-limited `git diff --check`, graph risk `0.00`, and full Hanwoo QC (`test` 131, lint, build).
 - 2026-05-20: T-395 kept Sales, Inventory, Schedule, and Settings create forms open when async submit handlers fail, preserving typed values for retry until the save handler returns a truthy saved result; verification passed with focused Hanwoo tests `131 passed`, targeted ESLint, full Hanwoo QC (`test` 131, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
 - 2026-05-20: T-394 made Today Focus and Setup Progress panel navigation use `handleTabChange`, so home-panel tab changes trigger the same preload path as bottom navigation; verification passed with full Hanwoo QC (`test` 130, lint, build).
 - 2026-05-20: T-393 fixed the Quick Action sales path so `record-sale` reuses the shared tab preloading path and starts the full cattle registry load before Sales renders; verification passed with focused Hanwoo tests `130 passed`, targeted ESLint, full Hanwoo QC (`test` 130, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.

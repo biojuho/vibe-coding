@@ -1065,6 +1065,37 @@
 ## 2026-05-20 KST - Codex
 
 ### Summary
+- Completed T-397 for `hanwoo-dashboard` while continuing the active product-completeness goal.
+- Hid decorative Analysis KPI, Schedule add-form, and Settings section icons from assistive technology with `aria-hidden="true"` so Korean text labels remain the meaningful accessible content.
+- Extended source regression coverage in `analysis-copy.test.mjs`, `home-market-copy.test.mjs`, and `settings-tab-accessibility.test.mjs`.
+
+### Changed Files
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/CONTEXT.md`
+- `.ai/GOAL.md`
+- `projects/hanwoo-dashboard/src/components/tabs/AnalysisTab.js`
+- `projects/hanwoo-dashboard/src/components/tabs/ScheduleTab.js`
+- `projects/hanwoo-dashboard/src/components/tabs/SettingsTab.js`
+- `projects/hanwoo-dashboard/src/lib/analysis-copy.test.mjs`
+- `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs`
+- `projects/hanwoo-dashboard/src/lib/settings-tab-accessibility.test.mjs`
+
+### Verification
+- `npm.cmd test -- src/lib/home-market-copy.test.mjs src/lib/settings-tab-accessibility.test.mjs src/lib/analysis-copy.test.mjs` from `projects/hanwoo-dashboard` -> `131 passed`.
+- `npx.cmd eslint src/components/tabs/ScheduleTab.js src/components/tabs/SettingsTab.js src/components/tabs/AnalysisTab.js src/lib/home-market-copy.test.mjs src/lib/settings-tab-accessibility.test.mjs src/lib/analysis-copy.test.mjs` from `projects/hanwoo-dashboard` -> passed.
+- `git diff --check -- <changed Hanwoo paths>` -> passed.
+- `python -m code_review_graph detect-changes --repo projects/hanwoo-dashboard --brief` -> risk `0.00`.
+- `python execution/project_qc_runner.py --project hanwoo-dashboard --json` -> passed (`test` 131, lint passed, build passed).
+
+### Follow-up
+- Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
+- T-320 and T-372 remain approval-scoped; T-396 is a separate active Dependabot cleanup. Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, package locks, and shorts-maker-v2 files.
+
+## 2026-05-20 KST - Codex
+
+### Summary
 - Completed T-395 for `hanwoo-dashboard` while continuing the active product-completeness goal.
 - Kept Sales, Inventory, Schedule, and Settings create forms open when async submit handlers fail.
 - The create submit paths now await their save handler and only close/reset after a truthy saved result, preserving typed values for retry on rejected or failed mutations.

@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` tab/page decorative icons are hidden from assistive technology. Analysis KPI icons, the Schedule add-form icon, and Settings section icons now use `aria-hidden="true"` while Korean text labels remain the accessible names. Verification passed: focused tests (`131 passed`), targeted ESLint, path-limited `git diff --check`, direct graph risk `0.00`, and full Hanwoo QC (`test` 131, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` operational create forms preserve user input when async saves fail. Sales, Inventory, Schedule, and Settings create forms now await their save handlers and only close/reset after a truthy saved result, so failed mutations keep the form open for retry. Verification passed: focused tests (`131 passed`), targeted ESLint, full Hanwoo QC (`test` 131, lint, build), path-limited `git diff --check`, and staged code-review gate PASS.
 
 - As of 2026-05-20, `hanwoo-dashboard` home panels use the shared tab preload path. Today Focus and Setup Progress navigation now call `handleTabChange`, matching bottom navigation so target tabs can start their full-list preload instead of opening without the needed background load. Verification passed: full Hanwoo QC (`test` 130, lint, build).

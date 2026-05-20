@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-397 completed**: continued Hanwoo product-completeness work by hiding decorative tab/page icons from assistive technology. Analysis KPI icons, the Schedule add-form icon, and Settings section icons now carry `aria-hidden="true"` so screen readers focus on the Korean text labels instead of redundant graphics. Source-copy tests guard the contract. Code commit `66880df`. |
+| Next Priorities | Verification passed: focused Hanwoo tests passed (`131 passed`), targeted ESLint passed, path-limited `git diff --check` passed, direct graph risk `0.00`, and full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 131, lint, build). Staged/commit code-review gate WARN was heuristic and polluted by unrelated shorts WIP; direct Hanwoo checks covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, T-320 and T-372 remain approval-scoped, and T-396 is a separate active Dependabot cleanup. Preserve unrelated T-372/shorts WIP and dirty Hanwoo `package.json` unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-395 completed**: continued Hanwoo product-completeness work by keeping operational create forms open when async submit handlers fail. Sales, Inventory, Schedule, and Settings create forms now await their save handler and only close/reset after a truthy saved result, so rejected or failed mutations preserve the user's typed values for retry. `empty-state-wiring.test.mjs` guards the contract. Code commit `bf2d363`. |
 | Next Priorities | Verification passed: focused Hanwoo tests passed (`131 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 131, lint, build), path-limited `git diff --check` passed, and staged code-review gate PASS with the known trailing cp949 reader-thread noise. Commit hook WARN was heuristic test-gap noise while direct Hanwoo tests covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, T-320 and T-372 remain approval-scoped. Preserve unrelated T-372/shorts WIP and dirty Hanwoo `package.json` unless explicitly authorized. |
 
