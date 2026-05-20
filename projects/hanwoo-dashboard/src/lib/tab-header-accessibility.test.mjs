@@ -62,3 +62,16 @@ test('schedule form waits for async saves before re-enabling actions', () => {
   assert.match(scheduleSource, /onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}/);
   assert.match(scheduleSource, /type="submit"\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}/);
 });
+
+test('schedule completion toggles wait for async updates before re-enabling controls', () => {
+  const scheduleSource = readSource('components/tabs/ScheduleTab.js');
+
+  assert.match(scheduleSource, /const \[savingEventId, setSavingEventId\] = useState\(null\)/);
+  assert.match(scheduleSource, /if \(savingEventId\) \{\s+return;\s+\}/);
+  assert.match(scheduleSource, /setSavingEventId\(event\.id\);/);
+  assert.match(scheduleSource, /await onToggleEvent\(event\.id, !event\.isCompleted\);/);
+  assert.match(scheduleSource, /finally \{\s+setSavingEventId\(null\);/);
+  assert.match(scheduleSource, /onChange=\{\(\) => toggleEventCompletion\(event\)\}/);
+  assert.match(scheduleSource, /disabled=\{savingEventId === event\.id\}/);
+  assert.match(scheduleSource, /aria-busy=\{savingEventId === event\.id\}/);
+});

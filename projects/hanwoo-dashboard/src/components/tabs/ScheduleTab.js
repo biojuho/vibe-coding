@@ -26,6 +26,7 @@ const errorTextStyle = {
 export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quickActionIntent = null }) {
   const [isAdding, setIsAdding] = useState(() => quickActionIntent?.actionId === 'add-schedule');
   const [isSaving, setIsSaving] = useState(false);
+  const [savingEventId, setSavingEventId] = useState(null);
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const {
@@ -110,6 +111,20 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
       reset(createScheduleFormValues());
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const toggleEventCompletion = async (event) => {
+    if (savingEventId) {
+      return;
+    }
+
+    setSavingEventId(event.id);
+
+    try {
+      await onToggleEvent(event.id, !event.isCompleted);
+    } finally {
+      setSavingEventId(null);
     }
   };
 
@@ -309,7 +324,9 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
                 <input
                   type="checkbox"
                   checked={event.isCompleted}
-                  onChange={() => onToggleEvent(event.id, !event.isCompleted)}
+                  onChange={() => toggleEventCompletion(event)}
+                  disabled={savingEventId === event.id}
+                  aria-busy={savingEventId === event.id}
                   aria-label={`${event.title} 일정 완료 상태 변경`}
                   title={`${event.title} 일정 완료 상태 변경`}
                   style={{ width: '18px', height: '18px', accentColor: 'var(--chart-clay-1)', cursor: 'pointer' }}
