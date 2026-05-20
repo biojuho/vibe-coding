@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` calving form saves wait for the async calving/calf registration handler before re-enabling actions. `CalvingTab` now tracks `isSaving`, awaits `onRecordCalving`, disables cancel/submit while saving, and exposes `aria-busy` on the submit button so slow network saves cannot trigger duplicate calving submissions. Verification passed: focused calving accessibility test (`3 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 182, lint, build).
+
 - As of 2026-05-20, `hanwoo-dashboard` cattle form saves wait for the async create/update handler before re-enabling actions. `CattleForm` now tracks `isSaving`, awaits `onSubmit`, disables cancel/submit while saving, and exposes `aria-busy` on the submit button so slow network saves cannot trigger duplicate create/update requests. Verification passed: focused cattle detail modal wiring test (`8 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 181, lint, build).
 
 - As of 2026-05-20, `hanwoo-dashboard` cattle tag lookup progress and result feedback is announced to assistive technology. `CattleForm` now connects the tag-number input to validation and lookup feedback, marks the lookup button `aria-busy` while checking, and renders successful lookup results as `status` and failed lookup results as `alert`. Verification passed: focused cattle detail modal wiring test (`7 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 180, lint, build).
