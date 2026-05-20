@@ -892,6 +892,36 @@
 - Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
 - T-320 and T-372 remain approval-scoped. Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, package locks, and shorts-maker-v2 files.
 
+## 2026-05-21 KST - Codex
+
+### Summary
+- Completed T-506 for `hanwoo-dashboard` while continuing the active quality-uplift goal.
+- Rejected malformed subscription payment confirmation amounts before Toss confirmation.
+- The subscription success page now parses URL `amount` only as an all-digit safe integer before sending `/api/payments/confirm`.
+- The payment confirm API now accepts only safe integer numbers or all-digit strings before comparing against `PREMIUM_SUBSCRIPTION.amount`, blocking values such as `9900abc`, `0x26ac`, or `9.9e3` from being coerced to the subscription price.
+
+### Changed Files
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/CONTEXT.md`
+- `.ai/GOAL.md`
+- `projects/hanwoo-dashboard/src/app/subscription/success/page.js`
+- `projects/hanwoo-dashboard/src/app/api/payments/confirm/route.js`
+- `projects/hanwoo-dashboard/src/lib/payment-ux-copy.test.mjs`
+
+### Verification
+- `node --test src/lib/payment-ux-copy.test.mjs` from `projects/hanwoo-dashboard` -> `5 passed`.
+- `npm.cmd exec eslint src/app/subscription/success/page.js src/app/api/payments/confirm/route.js src/lib/payment-ux-copy.test.mjs` from `projects/hanwoo-dashboard` -> passed.
+- `git diff --check -- projects/hanwoo-dashboard/src/app/subscription/success/page.js projects/hanwoo-dashboard/src/app/api/payments/confirm/route.js projects/hanwoo-dashboard/src/lib/payment-ux-copy.test.mjs` -> passed.
+- `python execution/project_qc_runner.py --project hanwoo-dashboard --json` -> passed (`test` 203, lint passed, build passed).
+- `python execution/code_review_gate.py --staged --json` -> PASS (`risk_score 0.0`); trailing cp949 reader-thread exception is known Windows output noise.
+- Commit hook advisory gate reported WARN (`risk=0.45`, graph/test-gap heuristic), but the focused tests plus full Hanwoo QC passed.
+
+### Follow-up
+- Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
+- T-320, T-372, and T-407 remain approval-scoped. Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, package locks, setup files, workspace debt auditor files, and shorts-maker-v2 files.
+
 ## 2026-05-20 KST - Codex
 
 ### Summary
