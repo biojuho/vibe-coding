@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-20, `hanwoo-dashboard` cattle/sales server-action mutation failures no longer expose raw `error.message` strings. `createCattle`, `updateCattle`, `recordCalving`, `deleteCattle`, and `createSalesRecord` log diagnostics and return Korean product fallback copy, and `actions-copy.test.mjs` guards against `message: error.message` returning in cattle/sales actions. Verification passed: focused tests, targeted ESLint, full Hanwoo QC test/lint with build passing on retry after a concurrent Next build lock, path-limited `git diff --check`, staged code-review gate PASS, and direct graph risk `0.00`.
+
 - As of 2026-05-20, `hanwoo-dashboard` client-side cattle mutation exceptions no longer leak raw `error.message` text into operator-facing toasts. `DashboardClient` logs add/update cattle exceptions and shows a safe Korean fallback description, and `home-market-copy.test.mjs` guards against `showError(errorTitle, error.message)` returning. Verification passed: focused tests, targeted ESLint, full Hanwoo QC (`test` 127, lint, build), path-limited `git diff --check`, and direct graph risk `0.00`.
 
 - As of 2026-05-20, `hanwoo-dashboard` financial chart header no longer renders a broken `?` placeholder glyph. `FinancialChartWidget.js` uses a real lucide `BarChart3` icon, hides it from assistive tech, and `analysis-copy.test.mjs` guards the contract. Verification passed: focused tests, targeted ESLint, full Hanwoo QC (`test` 126, lint, build), path-limited `git diff --check`, and direct graph risk `0.00`.

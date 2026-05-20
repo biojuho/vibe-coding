@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-20 |
 | Tool | Codex |
+| Work | **T-384 completed**: continued Hanwoo product-completeness work by localizing cattle/sales server-action mutation failure fallbacks. `createCattle`, `updateCattle`, `recordCalving`, `deleteCattle`, and `createSalesRecord` now log diagnostics and return Korean product copy instead of raw `error.message`, preventing Prisma/runtime internals from leaking into operator-facing toasts. `actions-copy.test.mjs` guards the fallback copy and rejects `message: error.message` in cattle/sales actions. Code commit `ddc26ff`. |
+| Next Priorities | Verification passed: focused action/component tests passed (`127 passed`), targeted ESLint passed, full Hanwoo QC test/lint passed and build passed on retry after a concurrent Next build lock, path-limited `git diff --check` passed, direct graph risk `0.00`, and staged code-review gate PASS. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync. Preserve unrelated root monorepo/package-lock/shorts WIP plus dirty Hanwoo `package.json` unless explicitly authorized. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-20 |
+| Tool | Codex |
 | Work | **T-383 completed**: continued Hanwoo product-completeness work by preventing raw client-side cattle mutation exceptions from leaking through operator-facing toasts. `handleAddCattle` and `handleUpdateCattle` now log diagnostics and show a safe Korean fallback description instead of `error.message`. `home-market-copy.test.mjs` guards the fallback and rejects `showError(errorTitle, error.message)`. Code commit `dd2bff4`. |
 | Next Priorities | Verification passed: focused home/component tests passed (`127 passed`), targeted ESLint passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 127, lint, build), path-limited `git diff --check` passed, and direct graph risk `0.00`. Staged/commit graph gate WARN came from dirty-WIP/test-gap heuristics while direct tests covered the committed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync. Preserve unrelated root monorepo/package-lock/shorts WIP plus dirty Hanwoo `package.json` unless explicitly authorized. |
 
