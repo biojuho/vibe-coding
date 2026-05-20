@@ -21,13 +21,13 @@ const errorTextStyle = {
 function FilterChip({ active, children, onClick, label, disabled = false }) {
   return (
     <PremiumButton
-      variant={active ? "primary" : "secondary"}
+      variant={active ? 'primary' : 'secondary'}
       size="sm"
       onClick={onClick}
       disabled={disabled}
       aria-pressed={active}
       aria-label={label}
-      className={`rounded-full px-4 py-2 font-bold text-[13px] whitespace-nowrap shadow-sm ${active ? "shadow-[var(--shadow-button-primary)] text-white" : ""}`}
+      className={`rounded-full px-4 py-2 font-bold text-[13px] whitespace-nowrap shadow-sm ${active ? 'shadow-[var(--shadow-button-primary)] text-white' : ''}`}
     >
       {children}
     </PremiumButton>
@@ -234,7 +234,7 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
               type="date"
               {...register('date')}
               aria-invalid={Boolean(errors.date)}
-              aria-describedby={errors.date ? "feed-date-error" : undefined}
+              aria-describedby={errors.date ? 'feed-date-error' : undefined}
               hasError={!!errors.date}
             />
             {errors.date ? <div id="feed-date-error" role="alert" style={errorTextStyle}>{errors.date.message}</div> : null}
@@ -263,8 +263,8 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
               id="feed-note"
               {...register('note')}
               aria-invalid={Boolean(errors.note)}
-              aria-describedby={errors.note ? "feed-note-error" : undefined}
-              placeholder="사료 상태, 날씨 변화, 축사 메모를 적어 주세요."
+              aria-describedby={errors.note ? 'feed-note-error' : undefined}
+              placeholder="사료 상태, 섭취 변화, 축사 메모를 적어 주세요."
               hasError={!!errors.note}
               className="h-[82px]"
             />

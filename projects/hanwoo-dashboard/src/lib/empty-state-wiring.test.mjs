@@ -126,6 +126,35 @@ test('feed building filter chips expose selected state and Korean labels', () =>
   assert.match(source, /label=\{`\$\{building\.name\} 급여 보기`\}/);
 });
 
+test('feed tab visible copy is readable Korean product copy', () => {
+  const source = readSource('components/tabs/FeedTab.js');
+
+  const expectedCopy = [
+    '축사를 먼저 선택해 주세요.',
+    '급여 기록은 특정 축사 기준으로 저장됩니다.',
+    '사료 급여 모니터링',
+    '오늘 급여 가이드',
+    '조사료 권장량',
+    '배합사료 권장량',
+    '오늘 급여 기록',
+    '기록 날짜',
+    '특이사항 메모',
+    '사료 상태, 섭취 변화, 축사 메모를 적어 주세요.',
+    '급여 기록 저장하기',
+    '최근 급여 추이',
+    '최근 기록',
+  ];
+
+  for (const copy of expectedCopy) {
+    assert.equal(source.includes(copy), true);
+  }
+
+  assert.equal(source.includes('湲됱뿬'), false);
+  assert.equal(source.includes('異뺤궗'), false);
+  assert.equal(source.includes('議곗궗猷'), false);
+  assert.equal(source.includes('諛고빀'), false);
+});
+
 test('feed record form fields expose labels and validation state', () => {
   const source = readSource('components/tabs/FeedTab.js');
 
@@ -141,9 +170,9 @@ test('feed record form fields expose labels and validation state', () => {
 test('feed record form validation messages are announced with their controls', () => {
   const source = readSource('components/tabs/FeedTab.js');
 
-  assert.match(source, /id="feed-date"[\s\S]*?aria-describedby=\{errors\.date \? "feed-date-error" : undefined\}/);
+  assert.match(source, /id="feed-date"[\s\S]*?aria-describedby=\{errors\.date \? 'feed-date-error' : undefined\}/);
   assert.match(source, /id="feed-date-error" role="alert"[\s\S]*?\{errors\.date\.message\}/);
-  assert.match(source, /id="feed-note"[\s\S]*?aria-describedby=\{errors\.note \? "feed-note-error" : undefined\}/);
+  assert.match(source, /id="feed-note"[\s\S]*?aria-describedby=\{errors\.note \? 'feed-note-error' : undefined\}/);
   assert.match(source, /id="feed-note-error" role="alert"[\s\S]*?\{errors\.note\.message\}/);
   assert.match(source, /const errorId = `\$\{fieldId\}-error`;/);
   assert.match(source, /aria-describedby=\{error \? errorId : undefined\}/);
