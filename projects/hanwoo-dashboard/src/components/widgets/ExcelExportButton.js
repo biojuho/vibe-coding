@@ -7,6 +7,8 @@ import { useAppFeedback } from '@/components/feedback/FeedbackProvider';
 import { PremiumButton } from '@/components/ui/premium-button';
 import { buildCattleCsvRows } from '@/lib/cattle-csv-export.mjs';
 
+const EXCEL_EXPORT_ERROR_MESSAGE = '내보내기 파일을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.';
+
 export default function ExcelExportButton({ cattleList = [], resolveCattleList = null }) {
   const { notify } = useAppFeedback();
   const [isPreparing, setIsPreparing] = useState(false);
@@ -40,9 +42,10 @@ export default function ExcelExportButton({ cattleList = [], resolveCattleList =
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } catch (error) {
+      console.error('Failed to export cattle CSV:', error);
       notify({
         title: '엑셀 내보내기에 실패했습니다.',
-        description: error instanceof Error ? error.message : '잠시 후 다시 시도해 주세요.',
+        description: EXCEL_EXPORT_ERROR_MESSAGE,
         variant: 'error',
       });
     } finally {

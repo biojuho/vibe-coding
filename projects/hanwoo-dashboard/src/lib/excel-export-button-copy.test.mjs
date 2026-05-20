@@ -18,5 +18,7 @@ test('excel export button uses a real decorative download icon', () => {
   assert.match(source, /<Download size=\{14\} className="text-\[#1D6F42\]" aria-hidden="true" \/>/);
   assert.match(source, /aria-busy=\{isPreparing\}/);
   assert.match(source, /엑셀 다운로드/);
+  assert.match(source, /내보내기 파일을 만들지 못했습니다/);
   assert.doesNotMatch(source, /<span className="text-\[#1D6F42\] text-\[14px\]">\?<\/span>/);
+  assert.doesNotMatch(source, /description: error instanceof Error \? error\.message/);
 });
