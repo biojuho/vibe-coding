@@ -21,7 +21,7 @@ export async function getSystemDiagnostics() {
       memory: process.memoryUsage(),
       nodeVersion: process.version,
       database: {
-        status: 'Online',
+        status: '정상',
         latency: `${latency}ms`,
         recordCounts: {
           cattle: cattleCount,
@@ -33,7 +33,12 @@ export async function getSystemDiagnostics() {
       }
     };
   } catch (error) {
-    return { success: false, timestamp: new Date().toISOString(), error: error.message, database: { status: 'Offline', latency: 'N/A' } };
+    return {
+      success: false,
+      timestamp: new Date().toISOString(),
+      error: error.message,
+      database: { status: '연결 실패', latency: '확인 불가' },
+    };
   }
 }
 
