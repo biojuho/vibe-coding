@@ -22,6 +22,14 @@ test('cattle detail breeding actions use an in-app date form instead of browser 
   assert.match(source, /successTitle: activeBreedingAction === 'pregnancy'/);
 });
 
+test('cattle detail shows a real calving due date from pregnancy date', () => {
+  const source = readSource('components/forms/CattleDetailModal.js');
+
+  assert.match(source, /getCalvingDate/);
+  assert.match(source, /label="분만 예정일" value=\{cattle\.pregnancyDate \? formatDate\(getCalvingDate\(cattle\.pregnancyDate\)\) : "-"\}/);
+  assert.doesNotMatch(source, /계산중/);
+});
+
 test('cattle form and detail icon-only navigation controls have Korean labels', () => {
   const formSource = readSource('components/forms/CattleForm.js');
   const detailSource = readSource('components/forms/CattleDetailModal.js');

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { CalendarCheck2, CheckCircle2 } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from 'recharts';
 import { STATUS_COLORS } from '@/lib/constants';
-import { formatDate, getMonthAge, toInputDate, getDaysUntilEstrus, formatMoney } from '@/lib/utils';
+import { formatDate, getMonthAge, toInputDate, getDaysUntilEstrus, getCalvingDate, formatMoney } from '@/lib/utils';
 import { btnPrimary, btnSecondary, btnDanger, EditIcon, TrashIcon, BackIcon } from '@/components/ui/common';
 import QRCodeWidget from '@/components/widgets/QRCodeWidget';
 import { getCattleHistory } from '@/lib/actions';
@@ -241,7 +241,7 @@ export default function CattleDetailModal({ cattle, buildings = [], onClose, onE
                 <InfoItem label="최근 발정" value={cattle.lastEstrus ? formatDate(cattle.lastEstrus) : "-"} />
                 <InfoItem label="다음 발정 예정" value={cattle.lastEstrus ? `D-${getDaysUntilEstrus(cattle.lastEstrus)}` : "-"} />
                 <InfoItem label="수정일(임신)" value={cattle.pregnancyDate ? formatDate(cattle.pregnancyDate) : "-"} />
-                <InfoItem label="분만 예정일" value={cattle.pregnancyDate ? "계산중..." : "-"} />
+                <InfoItem label="분만 예정일" value={cattle.pregnancyDate ? formatDate(getCalvingDate(cattle.pregnancyDate)) : "-"} />
               </div>
               <div style={{display:"flex",gap:"10px"}}>
                 <button
