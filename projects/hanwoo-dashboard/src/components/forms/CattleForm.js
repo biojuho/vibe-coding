@@ -155,9 +155,10 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
               style={inputStyle}
               placeholder="예: 순심이"
               aria-invalid={Boolean(errors.name)}
+              aria-describedby={errors.name ? "cattle-name-error" : undefined}
               {...register('name')}
             />
-            {errors.name ? <div style={errorTextStyle}>{errors.name.message}</div> : null}
+            {errors.name ? <div id="cattle-name-error" role="alert" style={errorTextStyle}>{errors.name.message}</div> : null}
           </div>
 
           <div>
@@ -169,6 +170,7 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
                 style={{ ...inputStyle, flex: 1 }}
                 placeholder="002082037849"
                 aria-invalid={Boolean(errors.tagNumber)}
+                aria-describedby={errors.tagNumber ? "cattle-tag-number-error" : undefined}
                 {...register('tagNumber')}
               />
               <button
@@ -192,7 +194,7 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
                 {lookupLoading ? '조회 중...' : '태그 조회'}
               </button>
             </div>
-            {errors.tagNumber ? <div style={errorTextStyle}>{errors.tagNumber.message}</div> : null}
+            {errors.tagNumber ? <div id="cattle-tag-number-error" role="alert" style={errorTextStyle}>{errors.tagNumber.message}</div> : null}
             {lookupMsg ? (
               <div
                 style={{
@@ -210,62 +212,62 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <div>
               <label htmlFor="cattle-building" style={labelStyle}>축사</label>
-              <select id="cattle-building" className="input" style={inputStyle} aria-invalid={Boolean(errors.buildingId)} {...register('buildingId')}>
+              <select id="cattle-building" className="input" style={inputStyle} aria-invalid={Boolean(errors.buildingId)} aria-describedby={errors.buildingId ? "cattle-building-error" : undefined} {...register('buildingId')}>
                 {buildings.map((building) => (
                   <option key={building.id} value={building.id}>
                     {building.name}
                   </option>
                 ))}
               </select>
-              {errors.buildingId ? <div style={errorTextStyle}>{errors.buildingId.message}</div> : null}
+              {errors.buildingId ? <div id="cattle-building-error" role="alert" style={errorTextStyle}>{errors.buildingId.message}</div> : null}
             </div>
 
             <div>
               <label htmlFor="cattle-pen-number" style={labelStyle}>칸 번호</label>
-              <select id="cattle-pen-number" className="input" style={inputStyle} aria-invalid={Boolean(errors.penNumber)} {...register('penNumber')}>
+              <select id="cattle-pen-number" className="input" style={inputStyle} aria-invalid={Boolean(errors.penNumber)} aria-describedby={errors.penNumber ? "cattle-pen-number-error" : undefined} {...register('penNumber')}>
                 {[...Array(12)].map((_, index) => (
                   <option key={index + 1} value={index + 1}>
                     {index + 1}번 칸
                   </option>
                 ))}
               </select>
-              {errors.penNumber ? <div style={errorTextStyle}>{errors.penNumber.message}</div> : null}
+              {errors.penNumber ? <div id="cattle-pen-number-error" role="alert" style={errorTextStyle}>{errors.penNumber.message}</div> : null}
             </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <div>
               <label htmlFor="cattle-gender" style={labelStyle}>성별</label>
-              <select id="cattle-gender" className="input" style={inputStyle} aria-invalid={Boolean(errors.gender)} {...register('gender')}>
+              <select id="cattle-gender" className="input" style={inputStyle} aria-invalid={Boolean(errors.gender)} aria-describedby={errors.gender ? "cattle-gender-error" : undefined} {...register('gender')}>
                 <option value="암">암</option>
                 <option value="수">수</option>
               </select>
-              {errors.gender ? <div style={errorTextStyle}>{errors.gender.message}</div> : null}
+              {errors.gender ? <div id="cattle-gender-error" role="alert" style={errorTextStyle}>{errors.gender.message}</div> : null}
             </div>
 
             <div>
               <label htmlFor="cattle-status" style={labelStyle}>상태</label>
-              <select id="cattle-status" className="input" style={inputStyle} aria-invalid={Boolean(errors.status)} {...register('status')}>
+              <select id="cattle-status" className="input" style={inputStyle} aria-invalid={Boolean(errors.status)} aria-describedby={errors.status ? "cattle-status-error" : undefined} {...register('status')}>
                 {BREED_STATUS_OPTIONS.map((option) => (
                   <option key={option} value={option}>
                     {option}
                   </option>
                 ))}
               </select>
-              {errors.status ? <div style={errorTextStyle}>{errors.status.message}</div> : null}
+              {errors.status ? <div id="cattle-status-error" role="alert" style={errorTextStyle}>{errors.status.message}</div> : null}
             </div>
           </div>
 
           <div>
             <label htmlFor="cattle-birth-date" style={labelStyle}>생년월일</label>
-            <input id="cattle-birth-date" type="date" className="input" style={inputStyle} aria-invalid={Boolean(errors.birthDate)} {...register('birthDate')} />
-            {errors.birthDate ? <div style={errorTextStyle}>{errors.birthDate.message}</div> : null}
+            <input id="cattle-birth-date" type="date" className="input" style={inputStyle} aria-invalid={Boolean(errors.birthDate)} aria-describedby={errors.birthDate ? "cattle-birth-date-error" : undefined} {...register('birthDate')} />
+            {errors.birthDate ? <div id="cattle-birth-date-error" role="alert" style={errorTextStyle}>{errors.birthDate.message}</div> : null}
           </div>
 
           <div>
             <label htmlFor="cattle-weight" style={labelStyle}>현재 체중 (kg)</label>
-            <input id="cattle-weight" type="number" className="input" style={inputStyle} aria-invalid={Boolean(errors.weight)} {...register('weight')} />
-            {errors.weight ? <div style={errorTextStyle}>{errors.weight.message}</div> : null}
+            <input id="cattle-weight" type="number" className="input" style={inputStyle} aria-invalid={Boolean(errors.weight)} aria-describedby={errors.weight ? "cattle-weight-error" : undefined} {...register('weight')} />
+            {errors.weight ? <div id="cattle-weight-error" role="alert" style={errorTextStyle}>{errors.weight.message}</div> : null}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
@@ -278,15 +280,16 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
                 style={inputStyle}
                 placeholder="예: 3500000"
                 aria-invalid={Boolean(errors.purchasePrice)}
+                aria-describedby={errors.purchasePrice ? "cattle-purchase-price-error" : undefined}
                 {...register('purchasePrice')}
               />
-              {errors.purchasePrice ? <div style={errorTextStyle}>{errors.purchasePrice.message}</div> : null}
+              {errors.purchasePrice ? <div id="cattle-purchase-price-error" role="alert" style={errorTextStyle}>{errors.purchasePrice.message}</div> : null}
             </div>
 
             <div>
               <label htmlFor="cattle-purchase-date" style={labelStyle}>구입일자</label>
-              <input id="cattle-purchase-date" type="date" className="input" style={inputStyle} aria-invalid={Boolean(errors.purchaseDate)} {...register('purchaseDate')} />
-              {errors.purchaseDate ? <div style={errorTextStyle}>{errors.purchaseDate.message}</div> : null}
+              <input id="cattle-purchase-date" type="date" className="input" style={inputStyle} aria-invalid={Boolean(errors.purchaseDate)} aria-describedby={errors.purchaseDate ? "cattle-purchase-date-error" : undefined} {...register('purchaseDate')} />
+              {errors.purchaseDate ? <div id="cattle-purchase-date-error" role="alert" style={errorTextStyle}>{errors.purchaseDate.message}</div> : null}
             </div>
           </div>
 
@@ -319,10 +322,11 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
                   className="input"
                   style={{ ...inputStyle, padding: '10px 12px' }}
                   aria-invalid={Boolean(errors.geneticInfo?.father)}
+                  aria-describedby={errors.geneticInfo?.father ? "cattle-genetic-father-error" : undefined}
                   {...register('geneticInfo.father')}
                 />
                 {errors.geneticInfo?.father ? (
-                  <div style={errorTextStyle}>{errors.geneticInfo.father.message}</div>
+                  <div id="cattle-genetic-father-error" role="alert" style={errorTextStyle}>{errors.geneticInfo.father.message}</div>
                 ) : null}
               </div>
               <div>
@@ -332,10 +336,11 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
                   className="input"
                   style={{ ...inputStyle, padding: '10px 12px' }}
                   aria-invalid={Boolean(errors.geneticInfo?.mother)}
+                  aria-describedby={errors.geneticInfo?.mother ? "cattle-genetic-mother-error" : undefined}
                   {...register('geneticInfo.mother')}
                 />
                 {errors.geneticInfo?.mother ? (
-                  <div style={errorTextStyle}>{errors.geneticInfo.mother.message}</div>
+                  <div id="cattle-genetic-mother-error" role="alert" style={errorTextStyle}>{errors.geneticInfo.mother.message}</div>
                 ) : null}
               </div>
             </div>
@@ -348,9 +353,10 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
               className="input"
               style={{ ...inputStyle, height: '90px', resize: 'none' }}
               aria-invalid={Boolean(errors.memo)}
+              aria-describedby={errors.memo ? "cattle-memo-error" : undefined}
               {...register('memo')}
             />
-            {errors.memo ? <div style={errorTextStyle}>{errors.memo.message}</div> : null}
+            {errors.memo ? <div id="cattle-memo-error" role="alert" style={errorTextStyle}>{errors.memo.message}</div> : null}
           </div>
 
           <div style={{ display: 'flex', gap: '12px', marginTop: '28px', paddingTop: '20px', borderTop: '1px solid color-mix(in srgb, var(--color-border-custom) 35%, transparent)' }}>

@@ -93,6 +93,35 @@ test('cattle form and detail icon-only navigation controls have Korean labels', 
   assert.doesNotMatch(detailSource, /aria-label="Close"/);
 });
 
+test('cattle form validation messages are announced with their controls', () => {
+  const formSource = readSource('components/forms/CattleForm.js');
+
+  [
+    ['name', 'errors.name'],
+    ['tag-number', 'errors.tagNumber'],
+    ['building', 'errors.buildingId'],
+    ['pen-number', 'errors.penNumber'],
+    ['gender', 'errors.gender'],
+    ['status', 'errors.status'],
+    ['birth-date', 'errors.birthDate'],
+    ['weight', 'errors.weight'],
+    ['purchase-price', 'errors.purchasePrice'],
+    ['purchase-date', 'errors.purchaseDate'],
+    ['genetic-father', 'errors.geneticInfo?.father'],
+    ['genetic-mother', 'errors.geneticInfo?.mother'],
+    ['memo', 'errors.memo'],
+  ].forEach(([field, errorPath]) => {
+    const errorId = `cattle-${field}-error`;
+    const escapedErrorPath = errorPath.replace(/[?.]/g, '\\$&');
+
+    assert.match(
+      formSource,
+      new RegExp(`aria-describedby=\\{${escapedErrorPath} \\? "${errorId}" : undefined\\}`),
+    );
+    assert.match(formSource, new RegExp(`<div id="${errorId}" role="alert"`));
+  });
+});
+
 test('cattle detail decorative icons are hidden from assistive tech', () => {
   const source = readSource('components/forms/CattleDetailModal.js');
 
