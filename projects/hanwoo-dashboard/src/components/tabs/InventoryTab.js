@@ -30,7 +30,32 @@ function parseInlineQuantityInput(value) {
   return Number.isFinite(quantity) ? quantity : Number.NaN;
 }
 
+function toInventoryNumber(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function normalizeInventoryItems(inventory) {
+  if (!Array.isArray(inventory)) return [];
+
+  return inventory
+    .filter((item) => item && typeof item === 'object')
+    .map((item, index) => ({
+      ...item,
+      category: typeof item.category === 'string' && item.category.trim() ? item.category : 'Other',
+      id: item.id ?? `inventory-${index}`,
+      name: typeof item.name === 'string' && item.name.trim() ? item.name : '재고명 미등록',
+      quantity: toInventoryNumber(item.quantity),
+      threshold:
+        item.threshold === null || item.threshold === undefined || item.threshold === ''
+          ? null
+          : toInventoryNumber(item.threshold, null),
+      unit: typeof item.unit === 'string' && item.unit.trim() ? item.unit : '개',
+    }));
+}
+
 export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, quickActionIntent = null }) {
+  const safeInventory = normalizeInventoryItems(inventory);
   const [isAdding, setIsAdding] = useState(() => quickActionIntent?.actionId === 'add-inventory');
   const [isSaving, setIsSaving] = useState(false);
   const [savingQuantityId, setSavingQuantityId] = useState(null);
@@ -228,7 +253,7 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
       ) : null}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {inventory.map((item) => {
+        {safeInventory.map((item) => {
           const isLow = item.threshold && item.quantity <= item.threshold;
 
           return (
@@ -316,7 +341,7 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
           );
         })}
 
-        {inventory.length === 0 ? (
+        {safeInventory.length === 0 ? (
           <EmptyState
             icon={PackagePlus}
             title="등록된 재고가 없습니다"

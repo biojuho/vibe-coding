@@ -87,6 +87,22 @@ test('operational create forms stay open when async submit handlers fail', () =>
   }
 });
 
+test('inventory tab normalizes malformed inventory payloads before rendering', () => {
+  const source = readSource('components/tabs/InventoryTab.js');
+
+  assert.match(source, /function normalizeInventoryItems\(inventory\)/);
+  assert.match(source, /if \(!Array\.isArray\(inventory\)\) return \[\]/);
+  assert.match(source, /\.filter\(\(item\) => item && typeof item === 'object'\)/);
+  assert.match(source, /const safeInventory = normalizeInventoryItems\(inventory\);/);
+  assert.match(source, /safeInventory\.map\(\(item\) => \{/);
+  assert.match(source, /safeInventory\.length === 0/);
+  assert.match(source, /id: item\.id \?\? `inventory-\$\{index\}`/);
+  assert.match(source, /'재고명 미등록'/);
+  assert.match(source, /unit: typeof item\.unit === 'string' && item\.unit\.trim\(\) \? item\.unit : '개'/);
+  assert.doesNotMatch(source, /inventory\.map\(\(item\) => \{/);
+  assert.doesNotMatch(source, /inventory\.length === 0/);
+});
+
 test('cattle edit form delegates close behavior to the async update handler', () => {
   const source = readSource('components/DashboardClient.js');
 
