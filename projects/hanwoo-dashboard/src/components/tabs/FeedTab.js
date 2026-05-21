@@ -20,14 +20,18 @@ const errorTextStyle = {
 };
 
 function FilterChip({ active, children, onClick, label, disabled = false }) {
+  const actionLabel = disabled ? `${label} - 급여 기록 저장 중에는 변경할 수 없습니다` : label;
+
   return (
     <PremiumButton
       variant={active ? 'primary' : 'secondary'}
       size="sm"
       onClick={onClick}
       disabled={disabled}
+      aria-busy={disabled}
       aria-pressed={active}
-      aria-label={label}
+      aria-label={actionLabel}
+      title={actionLabel}
       className={`rounded-full px-4 py-2 font-bold text-[13px] whitespace-nowrap shadow-sm ${active ? 'shadow-[var(--shadow-button-primary)] text-white' : ''}`}
     >
       {children}

@@ -151,9 +151,12 @@ test('feed building filter chips expose selected state and Korean labels', () =>
   const source = readSource('components/tabs/FeedTab.js');
 
   assert.match(source, /function FilterChip\(\{ active, children, onClick, label, disabled = false \}\)/);
+  assert.match(source, /const actionLabel = disabled \? `\$\{label\} - 급여 기록 저장 중에는 변경할 수 없습니다` : label;/);
   assert.match(source, /disabled=\{disabled\}/);
+  assert.match(source, /aria-busy=\{disabled\}/);
   assert.match(source, /aria-pressed=\{active\}/);
-  assert.match(source, /aria-label=\{label\}/);
+  assert.match(source, /aria-label=\{actionLabel\}/);
+  assert.match(source, /title=\{actionLabel\}/);
   assert.match(source, /label="전체 축사 급여 보기" disabled=\{isSaving\}/);
   assert.match(source, /label=\{`\$\{building\.name\} 급여 보기`\}[\s\S]*?disabled=\{isSaving\}/);
 });
