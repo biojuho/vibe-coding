@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-603 completed**: Hanwoo calving form submit action now exposes its save state. `CalvingTab` derives `submitButtonLabel` from `isSaving` and applies it to the submit button `aria-label` and `title`, matching the visible 분만 기록 저장/등록 copy so assistive technology and hover text receive the same in-flight state. Code commit `42caac0a`. |
+| Next Priorities | Verification passed: focused Calving accessibility test (`4 passed`), targeted ESLint passed, path-limited `git diff --check`, full Hanwoo QC passed (`test` 246, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-602 completed**: Hanwoo schedule tab now normalizes event payloads before rendering. `ScheduleTab` routes incoming `events` props through `normalizeScheduleEvents()`, ignores non-array/non-object malformed payloads, supplies stable fallback ids plus Korean missing-title copy, defaults unknown event types to `General`, and renders from `safeEvents` so stale cache/caller data cannot crash calendar or upcoming-event rendering through raw `.filter()`/`event.date` access. Code commit `225a216f`. |
 | Next Priorities | Verification passed: focused tab-header accessibility/source test (`7 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 246, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/CalvingTab/shorts/workspace WIP. |
 
