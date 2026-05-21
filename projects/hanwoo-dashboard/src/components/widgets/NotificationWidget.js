@@ -31,18 +31,45 @@ const TYPE_STYLES = {
   },
 };
 
+const DEFAULT_NOTIFICATION_TITLE = '운영 알림';
+const DEFAULT_NOTIFICATION_MESSAGE = '확인할 알림 내용이 있습니다. 농장 상태를 확인해 주세요.';
+
+function normalizeNotifications(notifications) {
+  if (!Array.isArray(notifications)) return [];
+
+  return notifications
+    .filter((note) => note && typeof note === 'object')
+    .map((note, index) => {
+      const type = typeof note.type === 'string' && note.type ? note.type : 'default';
+      const title = typeof note.title === 'string' && note.title.trim() ? note.title : DEFAULT_NOTIFICATION_TITLE;
+      const message =
+        typeof note.message === 'string' && note.message.trim() ? note.message : DEFAULT_NOTIFICATION_MESSAGE;
+
+      return {
+        ...note,
+        id: note.id ?? `${type}-${index}`,
+        level: typeof note.level === 'string' ? note.level : 'info',
+        message,
+        title,
+        type,
+      };
+    });
+}
+
 export default function NotificationWidget({ notifications = [] }) {
-  if (notifications.length === 0) return null;
+  const visibleNotifications = normalizeNotifications(notifications);
+
+  if (visibleNotifications.length === 0) return null;
 
   return (
     <section className="animate-fadeInDown mb-6">
       <div className="mb-3 flex items-center gap-3">
         <div className="clay-page-eyebrow">우선 확인 알림</div>
-        <div className="clay-stat-chip">{notifications.length}건</div>
+        <div className="clay-stat-chip">{visibleNotifications.length}건</div>
       </div>
 
       <div className="grid gap-3">
-        {notifications.map((note) => {
+        {visibleNotifications.map((note) => {
           const style = TYPE_STYLES[note.type] || TYPE_STYLES.default;
 
           return (

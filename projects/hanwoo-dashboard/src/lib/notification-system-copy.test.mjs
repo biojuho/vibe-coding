@@ -37,6 +37,21 @@ test('notification widget visible heading uses Korean product copy', () => {
   assert.doesNotMatch(source, /Priority Alerts/);
 });
 
+test('notification widget normalizes malformed payloads before rendering', () => {
+  const source = readSource('components/widgets/NotificationWidget.js');
+
+  assert.match(source, /function normalizeNotifications\(notifications\)/);
+  assert.match(source, /if \(!Array\.isArray\(notifications\)\) return \[\]/);
+  assert.match(source, /\.filter\(\(note\) => note && typeof note === 'object'\)/);
+  assert.match(source, /const visibleNotifications = normalizeNotifications\(notifications\)/);
+  assert.match(source, /\{visibleNotifications\.length\}/);
+  assert.match(source, /\{visibleNotifications\.map\(\(note\) => \{/);
+  assert.match(source, /DEFAULT_NOTIFICATION_TITLE/);
+  assert.match(source, /DEFAULT_NOTIFICATION_MESSAGE/);
+  assert.doesNotMatch(source, /notifications\.length/);
+  assert.doesNotMatch(source, /notifications\.map/);
+});
+
 test('typescript notification system mirror is a client component with the same accessible trigger contract', () => {
   const source = readSource('components/layout/NotificationSystem.tsx');
 
