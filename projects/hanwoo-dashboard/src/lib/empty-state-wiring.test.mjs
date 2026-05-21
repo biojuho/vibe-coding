@@ -126,10 +126,14 @@ test('feed summaries normalize numeric inputs before aggregation', () => {
   assert.match(source, /concentrateTotal: \(toFiniteNumber\(standard\.concentrateKg\) \* count\)\.toFixed\(1\)/);
   assert.match(source, /sum \+ toFiniteNumber\(value\.roughageTotal\)/);
   assert.match(source, /sum \+ toFiniteNumber\(value\.concentrateTotal\)/);
+  assert.match(source, /sum \+ toFiniteNumber\(standardsMap\[row\.status\]\?\.roughageKg\)/);
+  assert.match(source, /sum \+ toFiniteNumber\(standardsMap\[row\.status\]\?\.concentrateKg\)/);
   assert.match(source, /grouped\[key\]\.roughage \+= toFiniteNumber\(record\.roughage\);/);
   assert.match(source, /grouped\[key\]\.concentrate \+= toFiniteNumber\(record\.concentrate\);/);
   assert.doesNotMatch(source, /parseFloat\(value\.roughageTotal\)/);
   assert.doesNotMatch(source, /parseFloat\(value\.concentrateTotal\)/);
+  assert.doesNotMatch(source, /standardsMap\[row\.status\]\?\.roughageKg \|\| 0/);
+  assert.doesNotMatch(source, /standardsMap\[row\.status\]\?\.concentrateKg \|\| 0/);
 });
 
 test('feed building filter chips expose selected state and Korean labels', () => {

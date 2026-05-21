@@ -110,10 +110,10 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
   }, [feedHistory]);
 
   const roughageGuide = selectedBuilding
-    ? filteredCattle.reduce((sum, row) => sum + (standardsMap[row.status]?.roughageKg || 0), 0).toFixed(1)
+    ? filteredCattle.reduce((sum, row) => sum + toFiniteNumber(standardsMap[row.status]?.roughageKg), 0).toFixed(1)
     : totalStandardRoughage;
   const concentrateGuide = selectedBuilding
-    ? filteredCattle.reduce((sum, row) => sum + (standardsMap[row.status]?.concentrateKg || 0), 0).toFixed(1)
+    ? filteredCattle.reduce((sum, row) => sum + toFiniteNumber(standardsMap[row.status]?.concentrateKg), 0).toFixed(1)
     : totalStandardConcentrate;
 
   const submitFeedRecord = async (values) => {
