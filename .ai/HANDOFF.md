@@ -8,6 +8,20 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-569 completed**: Hanwoo notification timing now rejects impossible source dates before scheduling 발정/분만 알림. `notification-timing.mjs` now round-trips `YYYY-MM-DD` date keys in `parseDate()`, so strings like `2026-02-31T00:00:00.000Z` can no longer roll forward through JavaScript `Date` parsing into false notification dates. Code commit `23398040`. |
+| Next Priorities | Verification passed: focused notification timing test (`5 passed`), targeted ESLint passed, path-limited `git diff --check`, full Hanwoo test/lint passed (`test` 239, lint), build initially hit a concurrent Next build lock and passed on targeted retry, and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
+| Work | **T-568 completed**: Hanwoo profitability estimates now normalize snapshot dates, cattle birth dates, purchase prices, and weights before calculating shipment recommendations. `profitability-service.js` no longer calls raw `toISOString()` on market snapshot dates before normalization, skips invalid birth dates before month-age math, and uses `toFiniteNumber()` for cost/weight inputs. Code commit `dfa2e926`. |
+| Next Priorities | Verification passed: focused profitability source test (`6 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 239, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-567 completed**: Hanwoo payment confirmation now parses `approvedAt` through `parseApprovedAt()` before recording payment approval and subscription renewal dates. Impossible gateway timestamps such as `2026-02-31T10:00:00.000Z` can no longer roll forward through JavaScript `Date` parsing into false payment approval dates. Code commit `27ff97b4`. |
 | Next Priorities | Verification passed: focused payment-confirmation test (`11 passed`), targeted ESLint passed, path-limited `git diff --check`, full Hanwoo test/lint passed (`test` 237, lint), build initially hit a concurrent Next build lock and passed on targeted retry, and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
 
