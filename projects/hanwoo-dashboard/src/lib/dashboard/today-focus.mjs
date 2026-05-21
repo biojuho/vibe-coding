@@ -4,6 +4,11 @@ function startOfDay(value) {
   return date;
 }
 
+function toValidDate(value) {
+  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 function isLowStock(item) {
   return item?.threshold !== null && item?.threshold !== undefined && Number(item.quantity) <= Number(item.threshold);
 }
@@ -53,8 +58,9 @@ export function buildTodayFocusItems({
   }
 
   const nextEvent = scheduleEvents
-    .filter((event) => !event.isCompleted && new Date(event.date) >= today)
-    .sort((first, second) => new Date(first.date) - new Date(second.date))[0];
+    .map((event) => ({ event, date: toValidDate(event.date) }))
+    .filter(({ event, date }) => date && !event.isCompleted && date >= today)
+    .sort((first, second) => first.date - second.date)[0]?.event;
   if (nextEvent) {
     items.push({
       id: 'next-schedule',

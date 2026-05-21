@@ -49,3 +49,20 @@ test('buildTodayFocusItems keeps a useful sales prompt when no urgent work exist
     },
   ]);
 });
+
+test('buildTodayFocusItems skips malformed schedule dates', () => {
+  const items = buildTodayFocusItems({
+    now: new Date('2026-05-18T10:00:00+09:00'),
+    scheduleEvents: [
+      { id: 'bad', title: '깨진 일정', date: 'not-a-date', isCompleted: false },
+      { id: 'past', title: '지난 일정', date: '2026-05-17', isCompleted: false },
+      { id: 'done', title: '완료 일정', date: '2026-05-18', isCompleted: true },
+      { id: 'next', title: '정상 일정', date: '2026-05-19', isCompleted: false },
+    ],
+    monthlySalesCount: 0,
+  });
+
+  const scheduleItem = items.find((item) => item.id === 'next-schedule');
+  assert.equal(scheduleItem?.title, '정상 일정');
+  assert.equal(items.some((item) => item.title === '깨진 일정'), false);
+});
