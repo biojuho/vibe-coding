@@ -79,6 +79,7 @@ export default function CattleDetailModal({
   const statusColor = STATUS_COLORS[cattle.status] || { bg: "#eee", text: "#333" };
   const buildingName = buildings.find((building) => building.id === cattle.buildingId)?.name || cattle.buildingId;
   const breedingDateErrorId = "breeding-record-date-error";
+  const isDetailBusy = isDeleting || isBreedingSaving;
 
   // Build weight chart data from history or fallback to weightHistory field
   const weightChartData = (() => {
@@ -97,7 +98,7 @@ export default function CattleDetailModal({
   })();
 
   const openBreedingForm = (action) => {
-    if (breedingSaveInFlightRef.current || isBreedingSaving) {
+    if (breedingSaveInFlightRef.current || isDetailBusy) {
       return;
     }
 
@@ -152,7 +153,7 @@ export default function CattleDetailModal({
 
   const handleDialogKeyDown = (event) => {
     if (event.key === 'Escape') {
-      if (isDeleting || isBreedingSaving) {
+      if (isDetailBusy) {
         return;
       }
       onClose();
@@ -195,8 +196,8 @@ export default function CattleDetailModal({
           <button
             type="button"
             onClick={onClose}
-            disabled={isDeleting || isBreedingSaving}
-            aria-busy={isDeleting || isBreedingSaving}
+            disabled={isDetailBusy}
+            aria-busy={isDetailBusy}
             aria-label="개체 상세 닫기"
             title="개체 상세 닫기"
             className="btn btn-icon animate-scaleIn"
@@ -249,8 +250,8 @@ export default function CattleDetailModal({
               onClick={onEdit}
               aria-label={`${cattle.name} 개체 정보 수정`}
               title="개체 정보 수정"
-              disabled={isDeleting}
-              aria-busy={isDeleting}
+              disabled={isDetailBusy}
+              aria-busy={isDetailBusy}
               className="btn btn-secondary"
               style={{...btnSecondary,flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:"8px"}}
             ><EditIcon/> 수정</button>
@@ -259,8 +260,8 @@ export default function CattleDetailModal({
               onClick={onDelete}
               aria-label={`${cattle.name} 개체 보관 처리`}
               title="개체 보관 처리"
-              disabled={isDeleting}
-              aria-busy={isDeleting}
+              disabled={isDetailBusy}
+              aria-busy={isDetailBusy}
               className="btn btn-danger"
               style={{...btnDanger,flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:"8px"}}
             ><TrashIcon/> 보관</button>
@@ -302,7 +303,7 @@ export default function CattleDetailModal({
                 <button
                   type="button"
                   onClick={() => openBreedingForm('estrus')}
-                  disabled={isBreedingSaving}
+                  disabled={isDetailBusy}
                   className="btn"
                   style={{
                     ...btnPrimary,
@@ -319,7 +320,7 @@ export default function CattleDetailModal({
                 <button
                   type="button"
                   onClick={() => openBreedingForm('pregnancy')}
-                  disabled={isBreedingSaving}
+                  disabled={isDetailBusy}
                   className="btn"
                   style={{
                     ...btnPrimary,

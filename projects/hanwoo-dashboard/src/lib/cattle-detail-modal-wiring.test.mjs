@@ -101,7 +101,8 @@ test('cattle form and detail icon-only navigation controls have Korean labels', 
   assert.match(detailSource, /dialogRef\.current\?\.focus\(\)/);
   assert.match(detailSource, /tabIndex=\{-1\}/);
   assert.match(detailSource, /onKeyDown=\{handleDialogKeyDown\}/);
-  assert.match(detailSource, /if \(event\.key === 'Escape'\) \{\s+if \(isDeleting \|\| isBreedingSaving\) \{\s+return;\s+\}\s+onClose\(\);/);
+  assert.match(detailSource, /const isDetailBusy = isDeleting \|\| isBreedingSaving/);
+  assert.match(detailSource, /if \(event\.key === 'Escape'\) \{\s+if \(isDetailBusy\) \{\s+return;\s+\}\s+onClose\(\);/);
   assert.match(detailSource, /id="cattle-detail-title"/);
   assert.doesNotMatch(formSource, /aria-label="Back"/);
   assert.doesNotMatch(detailSource, /aria-label="Close"/);
@@ -118,9 +119,12 @@ test('cattle detail archive actions wait for async deletes before re-enabling su
   assert.match(dashboardSource, /finally \{\s+setDeletingCattleId\(null\);/);
   assert.match(dashboardSource, /isDeleting=\{deletingCattleId === selectedCow\.id\}/);
   assert.match(detailSource, /isDeleting = false/);
-  assert.match(detailSource, /onClick=\{onClose\}\s+disabled=\{isDeleting \|\| isBreedingSaving\}\s+aria-busy=\{isDeleting \|\| isBreedingSaving\}/);
-  assert.match(detailSource, /onClick=\{onEdit\}[\s\S]*?disabled=\{isDeleting\}[\s\S]*?aria-busy=\{isDeleting\}/);
-  assert.match(detailSource, /onClick=\{onDelete\}[\s\S]*?disabled=\{isDeleting\}[\s\S]*?aria-busy=\{isDeleting\}/);
+  assert.match(detailSource, /onClick=\{onClose\}\s+disabled=\{isDetailBusy\}\s+aria-busy=\{isDetailBusy\}/);
+  assert.match(detailSource, /onClick=\{onEdit\}[\s\S]*?disabled=\{isDetailBusy\}[\s\S]*?aria-busy=\{isDetailBusy\}/);
+  assert.match(detailSource, /onClick=\{onDelete\}[\s\S]*?disabled=\{isDetailBusy\}[\s\S]*?aria-busy=\{isDetailBusy\}/);
+  assert.match(detailSource, /if \(breedingSaveInFlightRef\.current \|\| isDetailBusy\) \{\s+return;\s+\}/);
+  assert.match(detailSource, /onClick=\{\(\) => openBreedingForm\('estrus'\)\}[\s\S]*?disabled=\{isDetailBusy\}/);
+  assert.match(detailSource, /onClick=\{\(\) => openBreedingForm\('pregnancy'\)\}[\s\S]*?disabled=\{isDetailBusy\}/);
 });
 
 test('cattle form validation messages are announced with their controls', () => {
