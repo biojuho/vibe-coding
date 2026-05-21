@@ -86,6 +86,19 @@ test('notification modal SMS test action waits for async sends before re-enablin
   assert.match(source, /cursor: isTestingSMS \? 'wait' : 'pointer'/);
 });
 
+test('notification modal normalizes malformed notification payloads before rendering', () => {
+  const source = readSource('components/ui/NotificationModal.js');
+
+  assert.match(source, /function normalizeModalNotifications\(notifications\) \{/);
+  assert.match(source, /return Array\.isArray\(notifications\)/);
+  assert.match(source, /\.filter\(\(notification\) => notification && typeof notification === 'object'\)/);
+  assert.match(source, /const visibleNotifications = normalizeModalNotifications\(notifications\);/);
+  assert.match(source, /visibleNotifications\.length === 0/);
+  assert.match(source, /visibleNotifications\.map\(\(notification, index\) => \(/);
+  assert.doesNotMatch(source, /notifications\.length === 0/);
+  assert.doesNotMatch(source, /notifications\.map\(\(notification, index\) => \(/);
+});
+
 test('notification modal visible copy is readable Korean product copy', () => {
   const source = readSource('components/ui/NotificationModal.js');
   const dashboardSource = readSource('components/DashboardClient.js');

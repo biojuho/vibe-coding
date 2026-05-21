@@ -2,9 +2,16 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+function normalizeModalNotifications(notifications) {
+  return Array.isArray(notifications)
+    ? notifications.filter((notification) => notification && typeof notification === 'object')
+    : [];
+}
+
 export default function NotificationModal({ notifications, onClose, onTestSMS }) {
   const dialogRef = useRef(null);
   const [isTestingSMS, setIsTestingSMS] = useState(false);
+  const visibleNotifications = normalizeModalNotifications(notifications);
 
   useEffect(() => {
     dialogRef.current?.focus();
@@ -96,7 +103,7 @@ export default function NotificationModal({ notifications, onClose, onTestSMS })
         </div>
 
         <div style={{ maxHeight: '320px', overflowY: 'auto', marginBottom: '20px' }}>
-          {notifications.length === 0 ? (
+          {visibleNotifications.length === 0 ? (
             <div
               className="animate-fadeIn"
               style={{
@@ -111,7 +118,7 @@ export default function NotificationModal({ notifications, onClose, onTestSMS })
             </div>
           ) : (
             <div style={{ display: 'grid', gap: '12px' }}>
-              {notifications.map((notification, index) => (
+              {visibleNotifications.map((notification, index) => (
                 <div
                   key={index}
                   className="animate-fadeInUp"
