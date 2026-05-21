@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` form default date builders are safe for malformed caller-supplied defaults. `formSchemas.js` routes schedule, feed, and calving default dates through `toDefaultInputDate()`, preventing invalid defaults from throwing through `toISOString()` or leaving blank calving defaults. Verification passed: focused form default date source test (`1 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 229, lint, build), and staged `code_review_gate --json`.
+
 - As of 2026-05-21, `hanwoo-dashboard` market price issue-date parsing rejects impossible calendar dates. `market-price-state.mjs` round-trips strict `YYYYMMDD`, `YYYY.MM.DD`, and `YYYY-MM-DD` KAPE issue-date inputs before accepting them, so impossible dates such as `20260231` fall back to the current snapshot date instead of rolling forward to a false display date. Verification passed: focused market-price state test (`7 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 228, lint, build), and staged `code_review_gate --json`.
 
 - As of 2026-05-21, `hanwoo-dashboard` dashboard summary API meta-date serialization is safe for malformed cached timestamps. `/api/dashboard/summary` routes cached `generatedAt` and `staleAt` values through `toMetaDate()` before `toISOString()` and stale checks, preventing one bad cache timestamp from turning the summary API into a 500. Verification passed: focused dashboard summary route date source test (`1 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 227, lint, build), and staged `code_review_gate --json`.
