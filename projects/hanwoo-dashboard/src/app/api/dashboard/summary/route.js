@@ -12,9 +12,15 @@ import prisma from '@/lib/db';
 
 const DASHBOARD_SUMMARY_ERROR_MESSAGE = '대시보드 요약을 불러오지 못했습니다.';
 
+function toMetaDate(value, fallback = new Date()) {
+  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
+  return Number.isNaN(date.getTime()) ? fallback : date;
+}
+
 function buildMeta(snapshot, source) {
-  const generatedAt = new Date(snapshot.generatedAt);
-  const staleAt = new Date(snapshot.staleAt);
+  const fallback = new Date();
+  const generatedAt = toMetaDate(snapshot.generatedAt, fallback);
+  const staleAt = toMetaDate(snapshot.staleAt, fallback);
 
   return {
     source,
@@ -37,7 +43,7 @@ export async function GET(request) {
       : await getDashboardSummarySnapshot('default');
     let source = 'snapshot';
 
-    if (!snapshot || new Date(snapshot.staleAt) <= new Date()) {
+    if (!snapshot || toMetaDate(snapshot.staleAt) <= new Date()) {
       const payload = await buildDashboardSummaryPayload({ client: prisma });
       snapshot = await saveDashboardSummarySnapshot({
         farmId: 'default',
