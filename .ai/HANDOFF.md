@@ -8,6 +8,27 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-532 completed**: Hanwoo now has a source regression guard that requires every literal runtime `<button>` in `src/app` and `src/components` to declare an explicit `type`, preventing future accidental submit regressions after the current button-semantics cleanup. Code commit `a844972a`. |
+| Next Priorities | Verification passed: focused button-type regression test (`1 passed`), path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 212, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the new guard. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/suika/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
+| Work | **T-531 completed**: Hanwoo AI chat sends now reject duplicate requests before React re-renders streaming state. `AIChatWidget` uses `sendInFlightRef` around `handleSend()`, clears the lock on stream done/error/final cleanup and widget close, and preserves the existing trimmed-input disabled button UI. Code commit `bed0c0f0`. |
+| Next Priorities | Verification passed in the current full Hanwoo QC after this commit (`test` 212, lint, build); prior focused AI chat checks covered the widget behavior. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/suika/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
+| Work | **T-531 completed**: Hanwoo AI chat sends now reject duplicate async send attempts before React re-renders the streaming state. `AIChatWidget` adds `sendInFlightRef` around `handleSend()`, clears the lock on stream done/error/final cleanup and widget close, and preserves the existing trimmed-input disabled button UI. Code commit `bed0c0f0`. |
+| Next Priorities | Verification passed: focused AI chat widget copy test (`2 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 211, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/suika/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-530 completed**: Hanwoo cattle add/edit form saves now reject duplicate async submits before React re-renders the saving state. `CattleForm` adds `saveInFlightRef` around the submit `onSubmit()` flow and resets the lock when cattle/building defaults reload, while preserving the existing disabled/`aria-busy` UI. Code commit `d1ee1a70`. |
 | Next Priorities | Verification passed: focused cattle-detail modal wiring test (`10 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 211, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/suika/workspace WIP. |
 

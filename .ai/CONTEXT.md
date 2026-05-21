@@ -33,6 +33,10 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` has a runtime source regression guard for explicit button semantics. `src/lib/button-type-regression.test.mjs` scans literal `<button>` tags under `src/app` and `src/components` and fails if any omit `type`, preventing future accidental form-submit regressions. Verification passed: focused button-type regression test (`1 passed`), path-limited `git diff --check`, full Hanwoo QC (`test` 212, lint, build), and staged `code_review_gate --json`.
+
+- As of 2026-05-21, `hanwoo-dashboard` AI chat sends cannot start duplicate streaming requests before React re-renders streaming state. `AIChatWidget` uses `sendInFlightRef` around `handleSend()`, clears the lock on stream done/error/final cleanup and widget close, and preserves the existing trimmed-input disabled button UI. Verification passed: focused AI chat widget copy test (`2 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 211, lint, build), and staged `code_review_gate --json`.
+
 - As of 2026-05-21, `hanwoo-dashboard` cattle add/edit form submits cannot start duplicate `onSubmit()` writes before React re-renders saving state. `CattleForm` uses `saveInFlightRef` around the submit flow and resets the lock when the loaded cattle/building defaults change, while preserving the existing disabled and `aria-busy` UI. Verification passed: focused cattle-detail modal wiring test (`10 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 211, lint, build), and staged `code_review_gate --json`.
 
 - As of 2026-05-21, `hanwoo-dashboard` Settings farm and building saves cannot start duplicate async writes before React re-renders saving state. `SettingsTab` uses `farmSaveInFlightRef` around `onUpdateFarmSettings()` and `buildingSaveInFlightRef` around `onCreateBuilding()`, while preserving the existing disabled/`aria-busy` submit UI and location-select lock. Verification passed: focused settings accessibility test (`10 passed`), path-limited `git diff --check`, full Hanwoo QC (`test` 211, lint, build), and `code_review_gate --base HEAD~1 --json`.

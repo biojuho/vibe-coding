@@ -4,6 +4,7 @@
 
 | Date | Tool | Summary | Changed Files |
 |---|---|---|---|
+| 2026-05-21 | Codex | **T-531 Hanwoo AI chat duplicate-send immediate guard**. Active Hanwoo quality uplift continuation. `AIChatWidget` now uses `sendInFlightRef` around `handleSend()`, preventing rapid repeated AI chat sends from starting duplicate streaming requests before React re-renders `isStreaming`. The lock clears on stream done, stream error, final controller cleanup, and widget close, while the existing trimmed-input disabled send button UI remains intact. Verification: focused AI chat widget copy test passed (`2 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 211, lint, build), staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only), and commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Code commit `bed0c0f0`. | `projects/hanwoo-dashboard/src/components/widgets/AIChatWidget.js`; `projects/hanwoo-dashboard/src/lib/ai-chat-widget-copy.test.mjs`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/SESSION_LOG.md`; `.ai/CONTEXT.md`; `.ai/GOAL.md` |
 | 2026-05-21 | Codex | **T-530 Hanwoo cattle form duplicate-save immediate guard**. Active Hanwoo quality uplift continuation. `CattleForm` now uses `saveInFlightRef` around the add/edit submit `onSubmit()` flow, preventing rapid repeated cattle form submits from starting duplicate async writes before React re-renders saving state. The lock resets when cattle/building defaults reload, while the existing disabled cancel/save controls and `aria-busy` remain intact. Verification: focused cattle-detail modal wiring test passed (`10 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 211, lint, build), staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only), and commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Code commit `d1ee1a70`. | `projects/hanwoo-dashboard/src/components/forms/CattleForm.js`; `projects/hanwoo-dashboard/src/lib/cattle-detail-modal-wiring.test.mjs`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/SESSION_LOG.md`; `.ai/CONTEXT.md`; `.ai/GOAL.md` |
 | 2026-05-21 | Codex | **T-529 Hanwoo Settings duplicate-save immediate guards**. Active Hanwoo quality uplift continuation. `SettingsTab` now uses `farmSaveInFlightRef` around `onUpdateFarmSettings()` and `buildingSaveInFlightRef` around `onCreateBuilding()`, preventing rapid repeated Settings farm/building submits from starting duplicate async writes before React re-renders saving state. Existing disabled submit controls, `aria-busy`, and the location-select lock remain intact. Verification: focused settings accessibility test passed (`10 passed`), path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 211, lint, build), `code_review_gate --base HEAD~1 --json` passed (`risk_score 0.0`; cp949 reader-thread noise only), and commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Code commit `af4ebf04`. | `projects/hanwoo-dashboard/src/components/tabs/SettingsTab.js`; `projects/hanwoo-dashboard/src/lib/settings-tab-accessibility.test.mjs`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/SESSION_LOG.md`; `.ai/CONTEXT.md`; `.ai/GOAL.md` |
 | 2026-05-21 | Codex | **T-528 Hanwoo login duplicate-submit immediate guard**. Active Hanwoo quality uplift continuation. `app/login/page.js` now uses `submitInFlightRef` around the credentials `signIn()` flow, preventing rapid repeated login submits from starting duplicate auth requests before React re-renders submitting state. The existing `canSubmit`, disabled submit control, and `aria-busy` remain intact. Verification: focused error/login wiring test passed (`6 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 211, lint, build), staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only), and commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Code commit `997b5ff9`. | `projects/hanwoo-dashboard/src/app/login/page.js`; `projects/hanwoo-dashboard/src/lib/error-pages-wiring.test.mjs`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/SESSION_LOG.md`; `.ai/CONTEXT.md`; `.ai/GOAL.md` |
@@ -910,6 +911,31 @@
 ### Follow-up
 - Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
 - T-320 and T-372 remain approval-scoped. Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, package locks, and shorts-maker-v2 files.
+
+## 2026-05-21 KST - Codex
+
+### Summary
+- Completed T-532 for `hanwoo-dashboard` while continuing the active product-completeness goal.
+- Added `src/lib/button-type-regression.test.mjs`, a source regression guard that scans runtime literal `<button>` tags under `src/app` and `src/components` and fails when any omit an explicit `type`.
+- Preserved the existing T-531 AI chat send guard from commit `bed0c0f0` and recorded both recent Hanwoo reliability steps in shared context.
+
+### Changed Files
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/CONTEXT.md`
+- `.ai/GOAL.md`
+- `projects/hanwoo-dashboard/src/lib/button-type-regression.test.mjs`
+
+### Verification
+- `node --test src\lib\button-type-regression.test.mjs` from `projects/hanwoo-dashboard` -> `1 passed`.
+- `git diff --check -- projects/hanwoo-dashboard/src/lib/button-type-regression.test.mjs` -> passed.
+- `python execution/project_qc_runner.py --project hanwoo-dashboard --json` -> passed (`test` 212, lint passed, build passed).
+- `python execution/code_review_gate.py --staged --json` -> PASS; trailing cp949 reader-thread exception is known Windows output noise.
+
+### Follow-up
+- Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
+- T-372 and T-407 remain approval-scoped. Preserve unrelated current WIP in root package/workflow files, Hanwoo `package.json`, shorts-maker-v2, suika-game-v2, word-chain, and workspace debt-auditor files.
 
 ## 2026-05-21 KST - Codex
 
