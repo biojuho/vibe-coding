@@ -8,10 +8,12 @@
 - Goal: hanwoo-dashboard quality uplift so other people would want to use it.
 - Owner: Codex
 - Started: 2026-05-18
-- Latest: 2026-05-21 T-620 normalized Hanwoo financial chart payloads.
+- Latest: 2026-05-21 T-621 normalized Hanwoo weather forecast payloads.
 - Success: Hanwoo quality uplift is progressing through focused UX, accessibility, resilience, and Korean operator-copy passes. The goal remains active for additional polish. Keep T-251 separate because it is blocked on user-owned Supabase control-plane credential resync.
 
 ## Progress Notes
+
+- 2026-05-21: T-621 normalized Hanwoo weather forecast payloads. `WeatherWidget` now routes `weather.forecast` through `normalizeWeatherForecast()`, ignores malformed/non-object rows, and renders forecast cards plus livestock weather alerts from `safeForecast`, preventing malformed caller/cache weather data from crashing the home weather card through raw `.map()` access. Verification passed with focused home-market/weather source test (`28 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 258, lint, build), and staged `code_review_gate --json` JSON pass (`risk_score 0.0`; cp949 reader-thread noise only). Commit `5e7362ea`; commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files.
 
 - 2026-05-21: T-620 normalized Hanwoo financial chart payloads. `FinancialChartWidget` now routes `saleRecords`, `expenseRecords`, and `seriesData` through `normalizeFinancialChartItems()`, ignores malformed/non-object rows, and renders from `safeSaleRecords`, `safeCostRecords`, and `safeSeriesData`, preventing malformed caller/cache data from crashing the home financial chart through raw `.forEach()` or `.map()` access. Verification passed with focused analysis/financial source test (`3 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 258, lint, build), and staged `code_review_gate --json` JSON pass (`risk_score 0.0`; cp949 reader-thread noise only). Commit `2f0bd804`; commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files.
 
