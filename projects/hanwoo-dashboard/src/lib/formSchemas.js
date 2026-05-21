@@ -48,6 +48,8 @@ const isDateInputString = (value) => {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 };
 
+const toDefaultInputDate = (date = new Date()) => toInputDate(date) || toInputDate(new Date());
+
 const requiredText = (message, max = 100) =>
   z.string().trim().min(1, message).max(max, `${max}자 이하로 입력해 주세요.`);
 
@@ -166,11 +168,9 @@ export function createCattleFormValues(cattle, buildings = []) {
 }
 
 export function createScheduleFormValues(date = new Date()) {
-  const baseDate = date instanceof Date ? date : new Date(date);
-
   return {
     title: '',
-    date: baseDate.toISOString().split('T')[0],
+    date: toDefaultInputDate(date),
     type: 'General',
   };
 }
@@ -198,7 +198,7 @@ export function createSalesFormValues() {
 
 export function createFeedRecordValues() {
   return {
-    date: new Date().toISOString().split('T')[0],
+    date: toDefaultInputDate(),
     roughage: '',
     concentrate: '',
     note: '',
@@ -207,7 +207,7 @@ export function createFeedRecordValues() {
 
 export function createCalvingFormValues(date = new Date()) {
   return {
-    calvingDate: toInputDate(date),
+    calvingDate: toDefaultInputDate(date),
     calfGender: '암',
     calfTagNumber: '',
   };
