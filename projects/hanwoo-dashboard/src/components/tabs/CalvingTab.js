@@ -33,6 +33,7 @@ export default function CalvingTab({ cattle, buildings = [], onRecordCalving }) 
   const [isSaving, setIsSaving] = useState(false);
   const saveInFlightRef = useRef(false);
   const { notify } = useAppFeedback();
+  const submitButtonLabel = isSaving ? '분만 기록 저장 중' : '분만 완료 및 송아지 등록';
 
   const {
     register,
@@ -222,7 +223,14 @@ export default function CalvingTab({ cattle, buildings = [], onRecordCalving }) 
                     </div>
 
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      <button type="submit" disabled={isSaving} aria-busy={isSaving} style={{ ...btnPrimary, flex: 1, padding: '12px' }}>
+                      <button
+                        type="submit"
+                        disabled={isSaving}
+                        aria-busy={isSaving}
+                        aria-label={submitButtonLabel}
+                        title={submitButtonLabel}
+                        style={{ ...btnPrimary, flex: 1, padding: '12px' }}
+                      >
                         {isSaving ? '분만 기록 저장 중...' : '분만 완료 및 송아지 등록'}
                       </button>
                       <button
