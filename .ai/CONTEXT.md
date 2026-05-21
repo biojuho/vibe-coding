@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` profitability widget rendering normalizes recommendation values before display. `ProfitabilityWidget` uses `toFiniteNumber()` for age, profit, marginal gain, and weight fields, and falls back safely for missing cattle names or tag numbers so malformed profitability payloads do not produce `NaN` labels or `.slice()` crashes. Verification passed: focused profitability source test (`5 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 218, lint, build), and staged `code_review_gate --json`.
+
 - As of 2026-05-21, `hanwoo-dashboard` dashboard fallback monthly sales count filters sale records by valid date, current month, and current year. `DashboardClient` no longer counts malformed dates or prior-year same-month sales when SSR summary data is unavailable. Verification passed: focused home/market source test (`25 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 217, lint, build), and staged `code_review_gate --json`.
 
 - As of 2026-05-21, `hanwoo-dashboard` Feed tab building-specific feed guide totals normalize feed-standard values before aggregation. `FeedTab` uses `toFiniteNumber()` for selected-building roughage and concentrate guide sums, preventing malformed/non-finite values from spreading `NaN` through the daily feed guide. Verification passed: focused empty-state/feed source test (`13 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 216, lint, build), and staged `code_review_gate --json`.

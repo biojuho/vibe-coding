@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-539 completed**: Hanwoo profitability widget rendering now normalizes recommendation values with `toFiniteNumber()` and safely falls back for missing cattle names or tag numbers. This prevents malformed profitability data from spreading `NaN` labels or crashing on `.slice()` in the home widget. Code commit `a306c604`. |
+| Next Priorities | Verification passed: focused profitability source test (`5 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 218, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/word-chain/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-538 completed**: Hanwoo dashboard fallback monthly sales count now filters sale records by valid sale date, current month, and current year. This prevents stale prior-year or malformed sale dates from inflating the home summary when SSR summary data is unavailable. Code commit `38d520a2`. |
 | Next Priorities | Verification passed: focused home/market source test (`25 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 217, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
 
