@@ -153,6 +153,11 @@ function buildDescendingCursorWhere(fieldName, cursor) {
   };
 }
 
+function toCursorSortValue(value) {
+  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
 function buildPageInfo(items, hasMore, limit, sortField) {
   if (!hasMore || items.length === 0) {
     return {
@@ -164,11 +169,21 @@ function buildPageInfo(items, hasMore, limit, sortField) {
   }
 
   const lastItem = items[items.length - 1];
+  const sortValue = toCursorSortValue(lastItem[sortField]);
+  if (!sortValue) {
+    return {
+      hasMore: false,
+      nextCursor: null,
+      limit,
+      returnedCount: items.length,
+    };
+  }
+
   return {
     hasMore: true,
     nextCursor: encodeCursor({
       id: lastItem.id,
-      sortValue: new Date(lastItem[sortField]).toISOString(),
+      sortValue,
     }),
     limit,
     returnedCount: items.length,
