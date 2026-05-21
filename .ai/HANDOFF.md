@@ -8,6 +8,20 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-601 completed**: Hanwoo inventory tab now normalizes inventory payloads before rendering. `InventoryTab` routes incoming `inventory` props through `normalizeInventoryItems()`, ignores non-array/non-object malformed payloads, supplies stable fallback ids plus Korean inventory-name/unit defaults, and renders from `safeInventory` so stale cache/caller data cannot crash the tab through raw `.map()` or `.length` access. Code commit `0e6bed60`. |
+| Next Priorities | Verification passed: focused empty-state/inventory wiring test (`14 passed`), targeted ESLint passed, path-limited `git diff --check`, full Hanwoo QC test/lint passed (`test` 245, lint), initial full QC build hit a real concurrent Next build, and targeted build retry passed. Staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
+| Work | **T-600 completed**: Hanwoo cattle form submit action now exposes its save state. `CattleForm` derives `submitButtonLabel` from `isSaving` and applies it to the submit button `aria-label` and `title`, matching the existing visible pending copy and cancel-button state labels. Code commit `17962ff1`. |
+| Next Priorities | Verification passed: focused cattle detail/form wiring test (`10 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 245, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/InventoryTab/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-599 completed**: Hanwoo alert banners now normalize notification and building payloads before rendering. `AlertBanners` routes incoming alert props through `normalizeAlertNotifications()` and `normalizeBuildings()`, ignores non-array/non-object malformed payloads, supplies stable fallback ids plus Korean cattle-name copy, and uses safe building lookup so stale cache/caller data cannot crash estrus or calving banners through raw `.filter()` or `.find()` calls. Code commit `1cf25d5d`. |
 | Next Priorities | Verification passed: focused alert banner source test (`3 passed`), targeted ESLint passed, path-limited `git diff --check`, full Hanwoo QC test/lint passed (`test` 244, lint), initial full QC build hit a real concurrent Next build, and targeted build retry passed. Staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
 
