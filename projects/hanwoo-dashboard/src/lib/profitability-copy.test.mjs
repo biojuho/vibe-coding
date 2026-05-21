@@ -28,6 +28,28 @@ test('profitability service surfaces Korean operator-facing error copy', () => {
   assert.doesNotMatch(source, /error:\s*err\.message/);
 });
 
+test('profitability service normalizes dates and numeric inputs before estimating', () => {
+  const source = readSource('lib/dashboard/profitability-service.js');
+
+  assert.match(source, /import \{ toFiniteNumber \} from '\.\.\/utils';/);
+  assert.match(source, /function toValidDate\(value\) \{/);
+  assert.match(source, /const start = toValidDate\(d1\);/);
+  assert.match(source, /const end = toValidDate\(d2\);/);
+  assert.match(source, /if \(!start \|\| !end\) \{\s+return null;\s+\}/);
+  assert.match(source, /if \(ageMonths === null \|\| ageMonths < 24\) return null;/);
+  assert.match(source, /const baseCost = toFiniteNumber\(cattle\.purchasePrice\) \|\| DEFAULT_CALF_COST;/);
+  assert.match(source, /const currentWeight = toFiniteNumber\(cattle\.weight\);/);
+  assert.match(source, /const currentRevenue = currentWeight \* currentKgPrice;/);
+  assert.match(source, /const futureWeight = currentWeight \+ MONTHLY_WEIGHT_GAIN;/);
+  assert.match(source, /weight: currentWeight,/);
+  assert.doesNotMatch(source, /fetchedAt: latestSnapshot\.fetchedAt\.toISOString\(\)/);
+  assert.doesNotMatch(source, /issueDate: latestSnapshot\.issueDate\.toISOString\(\)/);
+  assert.doesNotMatch(source, /const ageMonths = diffMonths\(cattle\.birthDate, now\);\s+\/\/ Limit[\s\S]*?if \(ageMonths < 24\) return null;/);
+  assert.doesNotMatch(source, /const baseCost = cattle\.purchasePrice \|\| DEFAULT_CALF_COST;/);
+  assert.doesNotMatch(source, /const currentRevenue = cattle\.weight \* currentKgPrice;/);
+  assert.doesNotMatch(source, /const futureWeight = cattle\.weight \+ MONTHLY_WEIGHT_GAIN;/);
+});
+
 test('profitability widget renders the error message verbatim', () => {
   const source = readSource('components/widgets/ProfitabilityWidget.js');
 

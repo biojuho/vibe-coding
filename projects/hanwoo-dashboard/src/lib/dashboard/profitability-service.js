@@ -1,5 +1,6 @@
 import prisma from '../db';
 import { normalizeCachedMarketPrice } from '../market-price-state.mjs';
+import { toFiniteNumber } from '../utils';
 
 const DEFAULT_CALF_COST = 3500000;
 const MONTHLY_FEED_COST = 150000;
@@ -15,11 +16,22 @@ const OPERATOR_FACING_ERROR_MESSAGES = new Set([
 /**
  * Get difference in months between two dates
  */
+function toValidDate(value) {
+  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 function diffMonths(d1, d2) {
+  const start = toValidDate(d1);
+  const end = toValidDate(d2);
+  if (!start || !end) {
+    return null;
+  }
+
   let months;
-  months = (d2.getFullYear() - d1.getFullYear()) * 12;
-  months -= d1.getMonth();
-  months += d2.getMonth();
+  months = (end.getFullYear() - start.getFullYear()) * 12;
+  months -= start.getMonth();
+  months += end.getMonth();
   return months <= 0 ? 0 : months;
 }
 
@@ -37,8 +49,6 @@ export async function getProfitabilityEstimates() {
     // Normalize market price state
     const priceData = normalizeCachedMarketPrice({
       ...latestSnapshot,
-      fetchedAt: latestSnapshot.fetchedAt.toISOString(),
-      issueDate: latestSnapshot.issueDate.toISOString(),
       isRealtime: true, // Force to be considered valid
     });
 
@@ -70,20 +80,21 @@ export async function getProfitabilityEstimates() {
         const ageMonths = diffMonths(cattle.birthDate, now);
 
         // Limit simulation strictly to cattle likely in shipping window (>= 24 months)
-        if (ageMonths < 24) return null;
+        if (ageMonths === null || ageMonths < 24) return null;
 
-        const baseCost = cattle.purchasePrice || DEFAULT_CALF_COST;
+        const baseCost = toFiniteNumber(cattle.purchasePrice) || DEFAULT_CALF_COST;
         const cumulativeCost = baseCost + ageMonths * MONTHLY_FEED_COST;
 
         // Use Grade 1 as baseline estimation
         const currentKgPrice =
           cattle.gender === 'FEMALE' ? priceData.cow.grade1 : priceData.bull.grade1;
 
-        const currentRevenue = cattle.weight * currentKgPrice;
+        const currentWeight = toFiniteNumber(cattle.weight);
+        const currentRevenue = currentWeight * currentKgPrice;
         const currentProfit = currentRevenue - cumulativeCost;
 
         // Future Projection (1 month later)
-        const futureWeight = cattle.weight + MONTHLY_WEIGHT_GAIN;
+        const futureWeight = currentWeight + MONTHLY_WEIGHT_GAIN;
         const futureCost = cumulativeCost + MONTHLY_FEED_COST;
         // Optionally, assume a slight grade improve prob, but for MVP keep grade 1
         const futureRevenue = futureWeight * currentKgPrice;
@@ -96,7 +107,7 @@ export async function getProfitabilityEstimates() {
           tagNumber: cattle.tagNumber,
           name: cattle.name,
           ageMonths,
-          weight: cattle.weight,
+          weight: currentWeight,
           currentProfit: Math.round(currentProfit),
           marginalGain: Math.round(marginalGain),
           recommendShipment:
