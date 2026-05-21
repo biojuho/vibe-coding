@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-540 completed**: Hanwoo AI chat farm context now normalizes recent sale prices with `toFiniteNumber()` and formats sale dates through a safe helper that falls back to `출하일 미등록` instead of throwing on invalid dates. One malformed sale record can no longer break AI assistant response preparation. Code commit `fa8160e9`. |
+| Next Priorities | Verification passed: focused AI chat API/source test (`8 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 218, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-539 completed**: Hanwoo profitability widget rendering now normalizes recommendation values with `toFiniteNumber()` and safely falls back for missing cattle names or tag numbers. This prevents malformed profitability data from spreading `NaN` labels or crashing on `.slice()` in the home widget. Code commit `a306c604`. |
 | Next Priorities | Verification passed: focused profitability source test (`5 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 218, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/word-chain/workspace WIP. |
 
