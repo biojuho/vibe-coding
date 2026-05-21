@@ -85,12 +85,16 @@ test('schedule tab skips invalid event dates before calendar and upcoming render
   const scheduleSource = readSource('components/tabs/ScheduleTab.js');
 
   assert.match(scheduleSource, /function toValidDate\(value\) \{/);
-  assert.match(scheduleSource, /return Number\.isNaN\(date\.getTime\(\)\) \? null : date;/);
+  assert.match(scheduleSource, /const date = value instanceof Date \? new Date\(value\.getTime\(\)\) : new Date\(value\);/);
+  assert.match(scheduleSource, /const dateKey = value\.trim\(\)\.slice\(0, 10\);/);
+  assert.match(scheduleSource, /date\.toISOString\(\)\.slice\(0, 10\) !== dateKey/);
+  assert.match(scheduleSource, /return date;/);
   assert.match(scheduleSource, /function toDateKey\(value\) \{/);
   assert.match(scheduleSource, /const date = toValidDate\(event\.date\);/);
   assert.match(scheduleSource, /return date && date\.getMonth\(\) === currentDate\.getMonth\(\)/);
   assert.match(scheduleSource, /return date && date >= now && !event\.isCompleted;/);
   assert.match(scheduleSource, /sort\(\(first, second\) => toValidDate\(first\.date\) - toValidDate\(second\.date\)\)/);
   assert.match(scheduleSource, /\(event\) => toDateKey\(event\.date\) === dateStr/);
+  assert.doesNotMatch(scheduleSource, /return Number\.isNaN\(date\.getTime\(\)\) \? null : date;/);
   assert.doesNotMatch(scheduleSource, /new Date\(event\.date\)\.toISOString\(\)\.split\('T'\)\[0\] === dateStr/);
 });
