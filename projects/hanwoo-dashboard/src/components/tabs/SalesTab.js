@@ -258,7 +258,7 @@ export default function SalesTab({
                   variant="primary"
                   glow
                 >
-                  등록하기
+                  {isSaving ? '판매 기록 등록 중...' : '등록하기'}
                 </PremiumButton>
 
                 {!cattleList?.length ? (

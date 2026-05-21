@@ -233,6 +233,22 @@ test('sales tab missing cattle fallback copy stays Korean', () => {
   assert.doesNotMatch(source, /000-0000-0000/);
 });
 
+test('sales tab normalizes numeric inputs before sales and profit aggregation', () => {
+  const source = readSource('components/tabs/SalesTab.js');
+
+  assert.match(source, /import \{ formatMoney, toFiniteNumber \} from '@\/lib\/utils';/);
+  assert.match(source, /const salePrice = toFiniteNumber\(record\.price\);/);
+  assert.match(source, /const purchaseCost = toFiniteNumber\(cow\.purchasePrice\);/);
+  assert.match(source, /sum \+ toFiniteNumber\(expense\.amount\)/);
+  assert.match(source, /price: salePrice,/);
+  assert.match(source, /profit: hasExpenseData \? salePrice - totalCost : null,/);
+  assert.match(source, /sum \+ toFiniteNumber\(record\.price\)/);
+  assert.match(source, /sum \+ toFiniteNumber\(record\.profit\)/);
+  assert.doesNotMatch(source, /const purchaseCost = cow\.purchasePrice \|\| 0;/);
+  assert.doesNotMatch(source, /sum \+ expense\.amount/);
+  assert.doesNotMatch(source, /profit: hasExpenseData \? record\.price - totalCost : null,/);
+});
+
 test('sales form fields expose explicit labels and invalid state', () => {
   const source = readSource('components/tabs/SalesTab.js');
 
