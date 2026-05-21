@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-576 completed**: Hanwoo cattle detail modal now stays locked while archive/delete or breeding-record save work is in flight. `CattleDetailModal` ignores Escape dismissal during `isDeleting` / `isBreedingSaving`, and the top close/back icon is disabled with `aria-busy`, preventing destructive or record-saving flows from being dismissed through an alternate path. Code commit `9db2090b`. |
+| Next Priorities | Verification passed: focused cattle detail/form wiring test (`10 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 240, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/financial-chart/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-575 completed**: Hanwoo cattle form now stays locked while a save is in flight. `CattleForm` already disabled the bottom cancel/submit controls during save; it now also ignores Escape dismissal and disables the top back icon with `aria-busy` while saving, preventing an in-flight cattle create/update from being dismissed through an alternate path. Code commit `14ad83cf`. |
 | Next Priorities | Verification passed: focused cattle detail/form wiring test (`10 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 240, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/financial-chart/shorts/workspace WIP. |
 
