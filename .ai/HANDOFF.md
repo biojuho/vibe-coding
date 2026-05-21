@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-558 completed**: Hanwoo `CattleForm` now converts birth and purchase dates through `toIsoDateOrNull()` before submit. Malformed date values can no longer throw `RangeError: Invalid time value` through raw `new Date(...).toISOString()` calls; invalid required birth dates abort the submit path defensively. Code commit `93705d02`. |
+| Next Priorities | Verification passed: focused cattle form date submit source test (`1 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 234, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-557 completed**: Hanwoo expense action now parses optional `fromDate` and `toDate` filters through strict `YYYY-MM-DD` round-trip validation before adding Prisma date bounds. Malformed or impossible filter dates can no longer roll forward through JavaScript `Date` parsing and return misleading expense ranges. Code commit `df1cae90`. |
 | Next Priorities | Verification passed: focused expense filter date source test (`1 passed`), targeted ESLint passed, path-limited `git diff --check`, full Hanwoo test/lint passed (`test` 233, lint), build initially hit a concurrent Next build lock and passed on targeted retry, and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and rerun build covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
 
