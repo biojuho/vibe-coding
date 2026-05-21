@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` Feed tab building-specific feed guide totals normalize feed-standard values before aggregation. `FeedTab` uses `toFiniteNumber()` for selected-building roughage and concentrate guide sums, preventing malformed/non-finite values from spreading `NaN` through the daily feed guide. Verification passed: focused empty-state/feed source test (`13 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 216, lint, build), and staged `code_review_gate --json`.
+
 - As of 2026-05-21, `hanwoo-dashboard` financial chart and dashboard summary money totals normalize numeric inputs before aggregation. `FinancialChartWidget` and `summary-service` use `toFiniteNumber()` for sales, expenses, monthly rollups, and incoming `seriesData`, preventing malformed/non-finite values from spreading `NaN` through the financial chart or summary API payload. Verification passed: focused analysis/financial source test (`3 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 215, lint, build), and staged `code_review_gate --json`.
 
 - As of 2026-05-21, `hanwoo-dashboard` Sales tab money totals normalize numeric inputs before aggregation. `SalesTab` uses `toFiniteNumber()` for sale price, purchase cost, expense sums, total sales, and total profit so malformed/non-finite values cannot spread `NaN` through sales totals, profit labels, or chart data. Verification passed: focused home/market source test (`23 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 214, lint, build), and staged `code_review_gate --json`.

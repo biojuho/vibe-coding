@@ -1,8 +1,15 @@
-# HANDOFF - AI Context Relay
+﻿# HANDOFF - AI Context Relay
 
 > See `SESSION_LOG.md` for recent session history and `DECISIONS.md` for stable architecture decisions.
 
 ## Current Addendum
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
+| Work | **T-537 completed**: Hanwoo Feed tab building-specific feed guide totals now normalize feed-standard values before aggregation. `FeedTab` uses `toFiniteNumber()` for selected-building roughage and concentrate guide sums, preventing malformed/non-finite feed-standard values from spreading `NaN` through the daily feed guide. Code commit `3214df20`. |
+| Next Priorities | Verification passed: focused empty-state/feed source test (`13 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 216, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/suika/workspace WIP. |
 
 | Field | Value |
 |---|---|
