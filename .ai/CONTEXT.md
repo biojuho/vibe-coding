@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` dashboard fallback monthly sales count filters sale records by valid date, current month, and current year. `DashboardClient` no longer counts malformed dates or prior-year same-month sales when SSR summary data is unavailable. Verification passed: focused home/market source test (`25 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 217, lint, build), and staged `code_review_gate --json`.
+
 - As of 2026-05-21, `hanwoo-dashboard` Feed tab building-specific feed guide totals normalize feed-standard values before aggregation. `FeedTab` uses `toFiniteNumber()` for selected-building roughage and concentrate guide sums, preventing malformed/non-finite values from spreading `NaN` through the daily feed guide. Verification passed: focused empty-state/feed source test (`13 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 216, lint, build), and staged `code_review_gate --json`.
 
 - As of 2026-05-21, `hanwoo-dashboard` financial chart and dashboard summary money totals normalize numeric inputs before aggregation. `FinancialChartWidget` and `summary-service` use `toFiniteNumber()` for sales, expenses, monthly rollups, and incoming `seriesData`, preventing malformed/non-finite values from spreading `NaN` through the financial chart or summary API payload. Verification passed: focused analysis/financial source test (`3 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 215, lint, build), and staged `code_review_gate --json`.
