@@ -9,6 +9,30 @@ import { prisma, createOutboxEvent, DASHBOARD_EVENT_TOPICS, invalidateHomeCaches
 // Expense Actions
 // ============================================================
 
+function parseOptionalDateFilter(value) {
+  if (!value) {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+      return null;
+    }
+
+    const parsed = new Date(`${normalized}T00:00:00.000Z`);
+    return Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== normalized
+      ? null
+      : parsed;
+  }
+
+  return null;
+}
+
 export async function getExpenseRecords(filters = {}) {
   await requireAuthenticatedSession();
   try {
@@ -16,10 +40,12 @@ export async function getExpenseRecords(filters = {}) {
     if (filters.cattleId) where.cattleId = filters.cattleId;
     if (filters.buildingId) where.buildingId = filters.buildingId;
     if (filters.category) where.category = filters.category;
-    if (filters.fromDate || filters.toDate) {
+    const fromDate = parseOptionalDateFilter(filters.fromDate);
+    const toDate = parseOptionalDateFilter(filters.toDate);
+    if (fromDate || toDate) {
       where.date = {};
-      if (filters.fromDate) where.date.gte = new Date(filters.fromDate);
-      if (filters.toDate) where.date.lte = new Date(filters.toDate);
+      if (fromDate) where.date.gte = fromDate;
+      if (toDate) where.date.lte = toDate;
     }
 
     return await prisma.expenseRecord.findMany({
