@@ -22,8 +22,22 @@ const errorTextStyle = {
   fontWeight: 600,
 };
 
+function normalizeSettingsBuildings(buildings) {
+  return Array.isArray(buildings)
+    ? buildings
+        .filter((building) => building && typeof building === 'object' && building.id != null)
+        .map((building) => ({
+          ...building,
+          name: typeof building.name === 'string' && building.name.trim()
+            ? building.name
+            : '축사 이름 미등록',
+          penCount: Number.isFinite(Number(building.penCount)) ? building.penCount : 0,
+        }))
+    : [];
+}
+
 export default function SettingsTab({
-  buildings,
+  buildings = [],
   onCreateBuilding,
   onDeleteBuilding,
   farmSettings,
@@ -35,6 +49,7 @@ export default function SettingsTab({
   onToggleWidget,
   quickActionIntent = null,
 }) {
+  const safeBuildings = useMemo(() => normalizeSettingsBuildings(buildings), [buildings]);
   const [isAdding, setIsAdding] = useState(() => quickActionIntent?.actionId === 'add-building');
   const [isSavingFarm, setIsSavingFarm] = useState(false);
   const [isSavingBuilding, setIsSavingBuilding] = useState(false);
@@ -548,7 +563,7 @@ export default function SettingsTab({
       ) : null}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {buildings.map((building) => (
+        {safeBuildings.map((building) => (
           <div
             key={building.id}
             style={{

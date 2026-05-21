@@ -57,6 +57,20 @@ test('settings tab building delete buttons identify the target building', () => 
   assert.match(source, /title=\{`\$\{building\.name\} 동 삭제`\}/);
 });
 
+test('settings tab normalizes malformed building payloads before rendering', () => {
+  const source = readSource('components/tabs/SettingsTab.js');
+
+  assert.match(source, /function normalizeSettingsBuildings\(buildings\) \{/);
+  assert.match(source, /Array\.isArray\(buildings\)/);
+  assert.match(source, /\.filter\(\(building\) => building && typeof building === 'object' && building\.id != null\)/);
+  assert.match(source, /name: typeof building\.name === 'string' && building\.name\.trim\(\)/);
+  assert.match(source, /: '축사 이름 미등록'/);
+  assert.match(source, /penCount: Number\.isFinite\(Number\(building\.penCount\)\) \? building\.penCount : 0/);
+  assert.match(source, /const safeBuildings = useMemo\(\(\) => normalizeSettingsBuildings\(buildings\), \[buildings\]\);/);
+  assert.match(source, /\{safeBuildings\.map\(\(building\) => \(/);
+  assert.doesNotMatch(source, /\{buildings\.map\(\(building\) => \(/);
+});
+
 test('settings forms expose explicit labels and invalid state', () => {
   const source = readSource('components/tabs/SettingsTab.js');
 
