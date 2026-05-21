@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-615 completed**: Hanwoo settings tab now normalizes building payloads before rendering. `SettingsTab` routes incoming `buildings` through `normalizeSettingsBuildings()`, filters malformed rows, supplies safe fallback building names and pen counts, and renders from `safeBuildings` so malformed caller/cache data cannot crash the settings building list through raw `.map()` access. Code commit `0272bd19`. |
+| Next Priorities | Verification passed: focused settings plus home-market source tests (`37 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 252, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated root/Hanwoo package/shorts/workspace WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-614 completed**: Hanwoo sales tab now normalizes collection payloads before rendering and aggregation. `SalesTab` routes incoming `saleRecords`, `cattleList`, and `expenseRecords` through `normalizeSalesItems()`, then uses `safeSaleRecords`, `safeCattleList`, and `safeExpenseRecords` for processed sales, cattle lookup, expense aggregation, select options, submit disabled state, and empty-state actions so malformed caller/cache data cannot crash the tab through raw spread, `.find()`, `.filter()`, `.map()`, or `.length` access. Code commit `ab0183f2`. |
 | Next Priorities | Verification passed: focused home-market copy/source test (`26 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 252, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated Settings/root/Hanwoo package/shorts/workspace WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated WIP. |
 
