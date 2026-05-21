@@ -257,6 +257,19 @@ test('dashboard fallback average weight normalizes cattle weights', () => {
   assert.doesNotMatch(source, /sum \+ \(cow\.weight \|\| 0\)/);
 });
 
+test('dashboard fallback monthly sales count filters by current year and valid sale dates', () => {
+  const source = readSource('components/DashboardClient.js');
+
+  assert.match(source, /const today = new Date\(\);/);
+  assert.match(source, /const currentMonth = today\.getMonth\(\);/);
+  assert.match(source, /const currentYear = today\.getFullYear\(\);/);
+  assert.match(source, /const saleDate = new Date\(record\.saleDate\);/);
+  assert.match(source, /!Number\.isNaN\(saleDate\.getTime\(\)\)/);
+  assert.match(source, /saleDate\.getMonth\(\) === currentMonth/);
+  assert.match(source, /saleDate\.getFullYear\(\) === currentYear/);
+  assert.doesNotMatch(source, /return saleRecords\.filter\(\(record\) => new Date\(record\.saleDate\)\.getMonth\(\) === currentMonth\)\.length;/);
+});
+
 test('sales form fields expose explicit labels and invalid state', () => {
   const source = readSource('components/tabs/SalesTab.js');
 

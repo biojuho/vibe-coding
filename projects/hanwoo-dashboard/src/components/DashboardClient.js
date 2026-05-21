@@ -982,8 +982,17 @@ export default function DashboardClient({
 
   // Memoize: Date 생성 + filter/reduce를 매 렌더가 아닌 데이터 변경 시에만 실행
   const fallbackMonthlySalesCount = useMemo(() => {
-    const currentMonth = new Date().getMonth();
-    return saleRecords.filter((record) => new Date(record.saleDate).getMonth() === currentMonth).length;
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    return saleRecords.filter((record) => {
+      const saleDate = new Date(record.saleDate);
+      return (
+        !Number.isNaN(saleDate.getTime())
+        && saleDate.getMonth() === currentMonth
+        && saleDate.getFullYear() === currentYear
+      );
+    }).length;
   }, [saleRecords]);
 
   const fallbackAverageWeight = useMemo(() => {
