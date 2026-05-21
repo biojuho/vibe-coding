@@ -8,6 +8,20 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-563 completed**: Hanwoo `MarketPriceWidget` now normalizes incoming price snapshots so missing `bull` or `cow` side objects become empty objects before rendering. Partial cached/live market data can no longer crash the home price widget. Code commit `0c3247f9`. |
+| Next Priorities | Verification passed: focused home/market source test (`25 passed`), targeted ESLint passed, path-limited `git diff --check`, full Hanwoo test/lint passed (`test` 236, lint), build initially hit a concurrent Next build lock and passed on targeted retry, and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
+| Work | **T-562 completed**: Hanwoo dashboard list pagination now builds next-page cursor sort values through `toCursorSortValue()` and closes pagination gracefully when the last item has a malformed sort date. Corrupted `updatedAt`/`saleDate` values can no longer throw through raw `new Date(lastItem[sortField]).toISOString()` and turn cattle/sales list pagination into a 500. Code commit `a76a1898`. |
+| Next Priorities | Verification passed: focused dashboard list cursor date source test (`1 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 236, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-561 completed**: Hanwoo `MarketPriceWidget` now normalizes `fetchedAt` through `toValidUpdatedAt()` before setting the visible update time. Malformed market snapshot timestamps can no longer render browser-default `Invalid Date` copy in the home price widget. Code commit `fa6b1903`. |
 | Next Priorities | Verification passed: focused home/market source test (`25 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 235, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
 
