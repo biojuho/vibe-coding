@@ -28,20 +28,30 @@ function toMonthKey(value) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
+function normalizeFinancialChartItems(items) {
+  return Array.isArray(items)
+    ? items.filter((item) => item && typeof item === 'object')
+    : [];
+}
+
 export default function FinancialChartWidget({
   saleRecords = [],
   expenseRecords = [],
   seriesData = null,
 }) {
+  const safeSaleRecords = normalizeFinancialChartItems(saleRecords);
+  const safeCostRecords = normalizeFinancialChartItems(expenseRecords);
+  const safeSeriesData = normalizeFinancialChartItems(seriesData);
+
   const salesByMonth = {};
-  saleRecords.forEach((record) => {
+  safeSaleRecords.forEach((record) => {
     const key = toMonthKey(record.saleDate);
     if (!key) return;
     salesByMonth[key] = (salesByMonth[key] || 0) + toFiniteNumber(record.price);
   });
 
   const expensesByMonth = {};
-  expenseRecords.forEach((record) => {
+  safeCostRecords.forEach((record) => {
     const key = toMonthKey(record.date);
     if (!key) return;
     expensesByMonth[key] = (expensesByMonth[key] || 0) + toFiniteNumber(record.amount);
@@ -62,8 +72,8 @@ export default function FinancialChartWidget({
   }));
 
   const chartData =
-    Array.isArray(seriesData) && seriesData.length > 0
-      ? seriesData.map((row) => ({
+    safeSeriesData.length > 0
+      ? safeSeriesData.map((row) => ({
           name: row.month,
           [REVENUE_KEY]: toFiniteNumber(row.revenue),
           [EXPENSE_KEY]: Math.floor(toFiniteNumber(row.expense)),
