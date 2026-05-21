@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-551 completed**: Hanwoo market snapshot read model now makes `normalizeDate()` fall back to the current time for malformed market issue dates before `toIssueDateKey()` calls `toISOString()`. One bad KAPE issue date can no longer break market snapshot persistence or cache key writes. Code commit `26421ca5`. |
+| Next Priorities | Verification passed: focused dashboard read-models date source test (`1 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 226, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-550 completed**: Hanwoo Today Focus low-stock detection now parses inventory quantity and threshold through `toFiniteNumberOrNull()`, so empty or malformed inventory values do not create false low-stock cards on the home panel. Code commit `1e2df7c5`. |
 | Next Priorities | Verification passed: focused today-focus test (`4 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 225, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
 
