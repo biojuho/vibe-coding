@@ -123,7 +123,10 @@ test('feed summaries normalize numeric inputs before aggregation', () => {
 
   assert.match(source, /import \{ toFiniteNumber \} from '@\/lib\/utils';/);
   assert.match(source, /function toValidFeedDate\(value\) \{/);
-  assert.match(source, /return Number\.isNaN\(date\.getTime\(\)\) \? null : date;/);
+  assert.match(source, /const date = value instanceof Date \? new Date\(value\.getTime\(\)\) : new Date\(value\);/);
+  assert.match(source, /const dateKey = value\.trim\(\)\.slice\(0, 10\);/);
+  assert.match(source, /date\.toISOString\(\)\.slice\(0, 10\) !== dateKey/);
+  assert.match(source, /return date;/);
   assert.match(source, /function getFeedDateTime\(value\) \{/);
   assert.match(source, /return toValidFeedDate\(value\)\?\.getTime\(\) \?\? Number\.NEGATIVE_INFINITY;/);
   assert.match(source, /function formatFeedDateLabel\(value, options\) \{/);
@@ -139,6 +142,7 @@ test('feed summaries normalize numeric inputs before aggregation', () => {
   assert.match(source, /sum \+ toFiniteNumber\(standardsMap\[row\.status\]\?\.concentrateKg\)/);
   assert.match(source, /grouped\[key\]\.roughage \+= toFiniteNumber\(record\.roughage\);/);
   assert.match(source, /grouped\[key\]\.concentrate \+= toFiniteNumber\(record\.concentrate\);/);
+  assert.doesNotMatch(source, /const date = new Date\(value\);/);
   assert.doesNotMatch(source, /new Date\(record\.date\)\.toLocaleDateString/);
   assert.doesNotMatch(source, /new Date\(first\.date\) - new Date\(second\.date\)/);
   assert.doesNotMatch(source, /parseFloat\(value\.roughageTotal\)/);
