@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-618 completed**: Hanwoo pen card now normalizes cattle payloads before rendering. `PenCard` routes incoming `cattle` through `normalizePenCattle()`, filters malformed rows, supplies stable fallback ids plus Korean missing-name copy, and renders from `visibleCattle` so malformed caller/cache data cannot crash the pen card through raw `.some()`, `.length`, or `.map()` access. Code commit `bd5adf04`. |
+| Next Priorities | Verification passed: focused cards accessibility/source test (`3 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed after one real concurrent Next build lock retry (`test` 255, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated root/Hanwoo package/shorts/workspace WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-617 completed**: Hanwoo notification system now normalizes initial notification payloads before rendering. `NotificationSystem.js` and the tracked `NotificationSystem.tsx` mirror route `initialNotifications` through `normalizeSystemNotifications()`, ignore malformed rows, supply stable fallback ids plus Korean title/message defaults, and use functional state updates for mark-read actions so malformed caller/cache data cannot crash the notification dropdown through raw `.filter()`, `.length`, or `.map()` access. Code commit `3411278f`. |
 | Next Priorities | Verification passed: focused notification-system source test (`9 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 255, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated WIP, including concurrent `cards.js` changes. |
 
