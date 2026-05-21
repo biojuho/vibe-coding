@@ -42,3 +42,29 @@ test('buildCattleCsvRows quotes cells that would otherwise break CSV columns', (
   assert.match(csv, /"복""실,이"/);
   assert.match(csv, /사료 조정/);
 });
+
+test('buildCattleCsvRows ignores malformed collection payloads', () => {
+  const csv = buildCattleCsvRows([
+    null,
+    'bad-row',
+    {
+      id: 'cow-4',
+      name: 'CSV Safe',
+      tagNumber: '410001234000',
+      birthDate: '2025-02-03T00:00:00.000Z',
+      gender: 'F',
+      status: 'active',
+      buildingId: 'barn-4',
+      penNumber: 'D-1',
+      memo: 'OK',
+    },
+  ]);
+
+  assert.match(csv, /cow-4/);
+  assert.doesNotMatch(csv, /bad-row/);
+
+  const headerOnlyCsv = buildCattleCsvRows('not-an-array');
+
+  assert.equal(headerOnlyCsv.split('\n').length, 1);
+  assert.doesNotMatch(headerOnlyCsv, /not-an-array/);
+});

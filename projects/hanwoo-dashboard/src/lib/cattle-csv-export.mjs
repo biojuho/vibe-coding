@@ -1,7 +1,9 @@
 export function buildCattleCsvRows(cattleList) {
   const headers = ['개체 번호', '이름', '이력번호', '생년월일', '성별', '상태', '축사 번호', '칸 번호', '메모'];
 
-  const rows = cattleList.map((cattle) => [
+  const safeCattleList = normalizeCattleCsvRows(cattleList);
+
+  const rows = safeCattleList.map((cattle) => [
     cattle.id,
     cattle.name,
     cattle.tagNumber,
@@ -14,6 +16,12 @@ export function buildCattleCsvRows(cattleList) {
   ]);
 
   return ['\uFEFF' + headers.join(','), ...rows.map((row) => row.map(formatCsvCell).join(','))].join('\n');
+}
+
+function normalizeCattleCsvRows(cattleList) {
+  return Array.isArray(cattleList)
+    ? cattleList.filter((cattle) => cattle && typeof cattle === 'object')
+    : [];
 }
 
 function formatCsvDate(value) {
