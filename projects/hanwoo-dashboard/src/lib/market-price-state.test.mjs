@@ -90,6 +90,25 @@ test('normalizeLiveMarketPrice returns a persistable live KAPE state', () => {
   assert.equal(shouldPersistLiveMarketPrice(result), true);
 });
 
+test('normalizeLiveMarketPrice falls back instead of rolling impossible issue dates forward', () => {
+  const now = new Date('2026-04-07T12:00:00.000Z');
+  const impossibleDates = ['20260231', '2026.02.31', '2026-02-31'];
+
+  for (const issueDate of impossibleDates) {
+    const result = normalizeLiveMarketPrice(
+      {
+        issueDate,
+        bull: { grade1pp: 21500, grade1p: 19800, grade1: 18500 },
+        cow: { grade1pp: 18500, grade1p: 17200, grade1: 16000 },
+      },
+      { now },
+    );
+
+    assert.equal(result.issueDate, '2026-04-07');
+    assert.equal(result.date, '2026.04.07');
+  }
+});
+
 test('normalizeLiveMarketPrice rejects incomplete live payloads', () => {
   const result = normalizeLiveMarketPrice({
     issueDate: '20260406',

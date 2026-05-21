@@ -2,6 +2,13 @@ export const MARKET_PRICE_FRESH_TTL_MS = 60 * 60 * 1000;
 export const MARKET_PRICE_UNAVAILABLE_MESSAGE =
   '지금은 한우 시세 데이터를 확인할 수 없습니다. 잠시 후 다시 시도해 주세요.';
 
+function parseStrictDateKey(value) {
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value
+    ? parsed
+    : null;
+}
+
 function toValidDate(value) {
   if (value instanceof Date && Number.isFinite(value.getTime())) {
     return value;
@@ -9,18 +16,15 @@ function toValidDate(value) {
 
   if (typeof value === 'string' && /^\d{8}$/.test(value)) {
     const normalized = `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
-    const parsed = new Date(`${normalized}T00:00:00.000Z`);
-    return Number.isFinite(parsed.getTime()) ? parsed : null;
+    return parseStrictDateKey(normalized);
   }
 
   if (typeof value === 'string' && /^\d{4}\.\d{2}\.\d{2}$/.test(value)) {
-    const parsed = new Date(`${value.replace(/\./g, '-')}T00:00:00.000Z`);
-    return Number.isFinite(parsed.getTime()) ? parsed : null;
+    return parseStrictDateKey(value.replace(/\./g, '-'));
   }
 
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    const parsed = new Date(`${value}T00:00:00.000Z`);
-    return Number.isFinite(parsed.getTime()) ? parsed : null;
+    return parseStrictDateKey(value);
   }
 
   if (!value) {
