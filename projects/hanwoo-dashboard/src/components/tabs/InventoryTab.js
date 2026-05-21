@@ -219,7 +219,7 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
                 </div>
 
                 <PremiumButton type="submit" disabled={isSaving} aria-busy={isSaving} variant="primary" glow className="w-full py-3 mt-2 rounded-lg">
-                  등록하기
+                  {isSaving ? '재고 등록 중...' : '등록하기'}
                 </PremiumButton>
               </div>
             </PremiumCardContent>

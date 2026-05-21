@@ -412,7 +412,7 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
               취소
             </button>
             <button type="submit" disabled={isSaving} aria-busy={isSaving} className="btn btn-primary" style={{...btnPrimary, transition: 'all 0.2s cubic-bezier(0.22,1,0.36,1)'}}>
-              저장하기
+              {isSaving ? '저장 중...' : '저장하기'}
             </button>
           </div>
         </form>

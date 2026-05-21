@@ -222,7 +222,7 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
                 boxShadow: 'var(--shadow-button-primary)',
               }}
             >
-              일정 등록하기
+              {isSaving ? '일정 등록 중...' : '일정 등록하기'}
             </button>
           </div>
         </form>

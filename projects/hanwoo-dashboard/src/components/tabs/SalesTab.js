@@ -7,7 +7,7 @@ import { ReceiptText } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 
 import MarketPriceWidget from '@/components/widgets/MarketPriceWidget';
-import { formatMoney } from '@/lib/utils';
+import { formatMoney, toFiniteNumber } from '@/lib/utils';
 import { createSalesFormValues, salesFormSchema } from '@/lib/formSchemas';
 import { PremiumButton } from '@/components/ui/premium-button';
 import { PremiumInput, PremiumSelect, PremiumLabel } from '@/components/ui/premium-input';
@@ -53,16 +53,17 @@ export default function SalesTab({
       .map((record) => {
         const cow = cattleList?.find((item) => item.id === record.cattleId) || {};
         const cattleExpenses = expenseRecords.filter((expense) => expense.cattleId === record.cattleId);
-        const purchaseCost = cow.purchasePrice || 0;
+        const salePrice = toFiniteNumber(record.price);
+        const purchaseCost = toFiniteNumber(cow.purchasePrice);
         const feedCost = cattleExpenses
           .filter((expense) => expense.category === 'feed')
-          .reduce((sum, expense) => sum + expense.amount, 0);
+          .reduce((sum, expense) => sum + toFiniteNumber(expense.amount), 0);
         const medicalCost = cattleExpenses
           .filter((expense) => expense.category === 'medicine')
-          .reduce((sum, expense) => sum + expense.amount, 0);
+          .reduce((sum, expense) => sum + toFiniteNumber(expense.amount), 0);
         const otherCost = cattleExpenses
           .filter((expense) => expense.category !== 'feed' && expense.category !== 'medicine')
-          .reduce((sum, expense) => sum + expense.amount, 0);
+          .reduce((sum, expense) => sum + toFiniteNumber(expense.amount), 0);
         const totalCost = purchaseCost + feedCost + medicalCost + otherCost;
         const hasExpenseData = cattleExpenses.length > 0 || purchaseCost > 0;
 
@@ -77,7 +78,8 @@ export default function SalesTab({
             other: otherCost,
             total: totalCost,
           },
-          profit: hasExpenseData ? record.price - totalCost : null,
+          price: salePrice,
+          profit: hasExpenseData ? salePrice - totalCost : null,
           hasExpenseData,
         };
       })
@@ -85,13 +87,13 @@ export default function SalesTab({
   }, [saleRecords, cattleList, expenseRecords]);
 
   const safeTotalSales = useMemo(
-    () => processedRecords.reduce((sum, record) => sum + record.price, 0),
+    () => processedRecords.reduce((sum, record) => sum + toFiniteNumber(record.price), 0),
     [processedRecords],
   );
 
   const safeTotalProfit = useMemo(() => {
     const recordsWithProfit = processedRecords.filter((record) => record.profit !== null);
-    return recordsWithProfit.reduce((sum, record) => sum + record.profit, 0);
+    return recordsWithProfit.reduce((sum, record) => sum + toFiniteNumber(record.profit), 0);
   }, [processedRecords]);
 
   const safeChartData = useMemo(

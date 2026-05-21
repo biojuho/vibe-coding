@@ -218,7 +218,7 @@ export default function CalvingTab({ cattle, buildings = [], onRecordCalving }) 
 
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <button type="submit" disabled={isSaving} aria-busy={isSaving} style={{ ...btnPrimary, flex: 1, padding: '12px' }}>
-                        분만 완료 및 송아지 등록
+                        {isSaving ? '분만 기록 저장 중...' : '분만 완료 및 송아지 등록'}
                       </button>
                       <button
                         type="button"
