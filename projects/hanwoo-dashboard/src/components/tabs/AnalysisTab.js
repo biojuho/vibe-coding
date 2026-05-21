@@ -45,13 +45,21 @@ function toMonthKey(value) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
+function normalizeAnalysisItems(items) {
+  return Array.isArray(items) ? items.filter((item) => item && typeof item === 'object') : [];
+}
+
 export default function AnalysisTab({
   saleRecords = [],
   feedHistory = [],
   cattleList = [],
   expenseRecords = [],
 }) {
-  const hasExpenseData = expenseRecords.length > 0;
+  const safeSaleRecords = useMemo(() => normalizeAnalysisItems(saleRecords), [saleRecords]);
+  const safeFeedHistory = useMemo(() => normalizeAnalysisItems(feedHistory), [feedHistory]);
+  const safeCattleList = useMemo(() => normalizeAnalysisItems(cattleList), [cattleList]);
+  const safeExpenseRecords = useMemo(() => normalizeAnalysisItems(expenseRecords), [expenseRecords]);
+  const hasExpenseData = safeExpenseRecords.length > 0;
 
   const monthlyData = useMemo(() => {
     const data = {};
@@ -63,12 +71,12 @@ export default function AnalysisTab({
       data[key] = { name: key, revenue: 0, cost: 0, profit: 0 };
     }
 
-    saleRecords.forEach((record) => {
+    safeSaleRecords.forEach((record) => {
       const key = toMonthKey(record.saleDate);
       if (data[key]) data[key].revenue += toFiniteNumber(record.price);
     });
 
-    expenseRecords.forEach((expense) => {
+    safeExpenseRecords.forEach((expense) => {
       const key = toMonthKey(expense.date);
       if (data[key]) data[key].cost += toFiniteNumber(expense.amount);
     });
@@ -78,13 +86,13 @@ export default function AnalysisTab({
     });
 
     return Object.values(data);
-  }, [saleRecords, expenseRecords]);
+  }, [safeSaleRecords, safeExpenseRecords]);
 
   const costStructure = useMemo(() => {
     if (!hasExpenseData) return [];
 
     const totals = {};
-    expenseRecords.forEach((expense) => {
+    safeExpenseRecords.forEach((expense) => {
       const category = expense.category || 'other';
       totals[category] = (totals[category] || 0) + toFiniteNumber(expense.amount);
     });
@@ -94,26 +102,26 @@ export default function AnalysisTab({
       value: amount,
       color: CATEGORY_CONFIG[category]?.color || 'var(--color-text-muted)',
     }));
-  }, [expenseRecords, hasExpenseData]);
+  }, [safeExpenseRecords, hasExpenseData]);
 
   const topSales = useMemo(
-    () => [...saleRecords].sort((first, second) => toFiniteNumber(second.price) - toFiniteNumber(first.price)).slice(0, 5),
-    [saleRecords]
+    () => [...safeSaleRecords].sort((first, second) => toFiniteNumber(second.price) - toFiniteNumber(first.price)).slice(0, 5),
+    [safeSaleRecords]
   );
 
   const totalRevenue = monthlyData.reduce((sum, row) => sum + row.revenue, 0);
   const totalCost = monthlyData.reduce((sum, row) => sum + row.cost, 0);
   const totalProfit = totalRevenue - totalCost;
   const margin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : '0.0';
-  const monthlyAverageFeed = feedHistory.length
-    ? Math.round(feedHistory.reduce((sum, row) => sum + toFiniteNumber(row.roughage) + toFiniteNumber(row.concentrate), 0) / feedHistory.length)
+  const monthlyAverageFeed = safeFeedHistory.length
+    ? Math.round(safeFeedHistory.reduce((sum, row) => sum + toFiniteNumber(row.roughage) + toFiniteNumber(row.concentrate), 0) / safeFeedHistory.length)
     : 0;
 
   return (
     <div className="animate-fadeIn">
       <div className="mb-5 flex items-center gap-3">
         <div className="clay-page-eyebrow">경영 분석</div>
-        <div className="clay-stat-chip">두수 {cattleList.length}두</div>
+        <div className="clay-stat-chip">두수 {safeCattleList.length}두</div>
         <div className="clay-stat-chip">월평균 급여 {monthlyAverageFeed}kg</div>
       </div>
 
