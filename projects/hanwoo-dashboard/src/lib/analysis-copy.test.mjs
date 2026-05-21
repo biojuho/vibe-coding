@@ -60,7 +60,9 @@ test('financial chart widget normalizes numeric inputs before chart aggregation'
 
   assert.match(source, /import \{ formatMoney, toFiniteNumber \} from '@\/lib\/utils';/);
   assert.match(source, /function toMonthKey\(value\) \{/);
-  assert.match(source, /Number\.isNaN\(date\.getTime\(\)\)/);
+  assert.match(source, /const date = value instanceof Date \? new Date\(value\.getTime\(\)\) : new Date\(value\);/);
+  assert.match(source, /const dateKey = value\.trim\(\)\.slice\(0, 10\);/);
+  assert.match(source, /strictDate\.toISOString\(\)\.slice\(0, 10\) !== dateKey/);
   assert.match(source, /const key = toMonthKey\(record\.saleDate\);/);
   assert.match(source, /const key = toMonthKey\(record\.date\);/);
   assert.match(source, /if \(!key\) return;/);
@@ -69,6 +71,7 @@ test('financial chart widget normalizes numeric inputs before chart aggregation'
   assert.match(source, /\[REVENUE_KEY\]: toFiniteNumber\(row\.revenue\),/);
   assert.match(source, /\[EXPENSE_KEY\]: Math\.floor\(toFiniteNumber\(row\.expense\)\),/);
   assert.match(source, /\[PROFIT_KEY\]: toFiniteNumber\(row\.profit\),/);
+  assert.doesNotMatch(source, /const date = new Date\(value\);/);
   assert.doesNotMatch(source, /const key = `\$\{date\.getFullYear\(\)\}-\$\{String\(date\.getMonth\(\) \+ 1\)\.padStart\(2, '0'\)\}`;/);
   assert.doesNotMatch(source, /record\.price \|\| 0/);
   assert.doesNotMatch(source, /record\.amount \|\| 0/);

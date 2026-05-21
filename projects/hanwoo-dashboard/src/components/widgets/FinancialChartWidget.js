@@ -10,10 +10,22 @@ const EXPENSE_KEY = 'expense';
 const PROFIT_KEY = 'profit';
 
 function toMonthKey(value) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? null
-    : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  if (typeof value === 'string') {
+    const dateKey = value.trim().slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+      const strictDate = new Date(`${dateKey}T00:00:00.000Z`);
+      if (Number.isNaN(strictDate.getTime()) || strictDate.toISOString().slice(0, 10) !== dateKey) {
+        return null;
+      }
+    }
+  }
+
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
 export default function FinancialChartWidget({
