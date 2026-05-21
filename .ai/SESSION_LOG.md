@@ -4,6 +4,7 @@
 
 | Date | Tool | Summary | Changed Files |
 |---|---|---|---|
+| 2026-05-21 | Codex | **T-591 Hanwoo weather widget numeric hardening**. Active Hanwoo quality uplift continuation. `WeatherWidget` now routes visible weather temperatures, apparent temperature, humidity, wind, high/low, precipitation, forecast temperatures, and THI inputs through `toFiniteNumber()` before rendering, preventing malformed weather snapshots from leaking `NaN` or non-finite values into the home weather card. Verification: focused home/market/weather source test passed (`25 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC test/lint passed (`test` 240, lint), initial full QC build hit a real concurrent Next build, targeted build retry passed, and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Code commit `a5513311`; commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. | `projects/hanwoo-dashboard/src/components/widgets/widgets.js`; `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/SESSION_LOG.md`; `.ai/CONTEXT.md`; `.ai/GOAL.md` |
 | 2026-05-21 | Codex | **T-589 Hanwoo schedule event date hardening**. Active Hanwoo quality uplift continuation. `ScheduleTab` now round-trips `YYYY-MM-DD` date keys in `toValidDate()` before calendar grouping, upcoming-list filtering, sorting, and D-day labels, so impossible schedule dates such as `2026-02-31` cannot roll forward through JavaScript `Date` parsing into false March calendar/upcoming entries. Verification: focused tab-header accessibility/source test passed (`6 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 240, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Code commit `1dccff1e`; commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. | `projects/hanwoo-dashboard/src/components/tabs/ScheduleTab.js`; `projects/hanwoo-dashboard/src/lib/tab-header-accessibility.test.mjs`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/SESSION_LOG.md`; `.ai/CONTEXT.md`; `.ai/GOAL.md` |
 | 2026-05-21 | Codex | **T-588 Hanwoo cattle pagination loading-state accessibility hardening**. Active Hanwoo quality uplift continuation. `DashboardClient` already disabled the cattle load-more button and exposed `aria-busy` while `cattlePagination.isLoading`; it now derives `cattleLoadMoreLabel` and applies it to `aria-label` and `title`, matching the Sales pagination behavior so assistive technology and hover text distinguish the normal action from the in-flight loading state. Verification: focused cattle pagination feedback test passed (`1 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo test/lint passed (`test` 240, lint), initial full QC build hit a concurrent Next build lock, targeted build retry passed, and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Code commit `984f4592`; commit hook WARN was the known graph/test-gap heuristic while direct tests and build covered the changed files. | `projects/hanwoo-dashboard/src/components/DashboardClient.js`; `projects/hanwoo-dashboard/src/lib/cattle-pagination-feedback.test.mjs`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/SESSION_LOG.md`; `.ai/GOAL.md` |
 | 2026-05-21 | Codex | **T-587 Hanwoo feed history date hardening**. Active Hanwoo quality uplift continuation. `FeedTab` now round-trips `YYYY-MM-DD` date keys in `toValidFeedDate()` before sorting and labeling feed history, so impossible feed record dates such as `2026-02-31` cannot roll forward through JavaScript `Date` parsing into false chart groups or recent-history labels. Verification: focused empty-state/feed wiring test passed (`13 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 240, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Code commit `2ccee108`; commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. | `projects/hanwoo-dashboard/src/components/tabs/FeedTab.js`; `projects/hanwoo-dashboard/src/lib/empty-state-wiring.test.mjs`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/SESSION_LOG.md`; `.ai/CONTEXT.md`; `.ai/GOAL.md` |
@@ -1644,3 +1645,29 @@
 ### Follow-up
 - Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
 - T-372 and T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/widgets/shorts/workspace WIP.
+## 2026-05-21 KST - Codex
+
+### Summary
+- Completed T-591 for `hanwoo-dashboard` while continuing the active quality-uplift goal.
+- Normalized `WeatherWidget` render-boundary numeric values through `toFiniteNumber()`.
+- Visible weather temperatures, apparent temperature, humidity, wind, high/low, precipitation, forecast temperatures, and THI inputs now avoid leaking `NaN` or non-finite values into the home weather card.
+
+### Changed Files
+- `.ai/CONTEXT.md`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/GOAL.md`
+- `projects/hanwoo-dashboard/src/components/widgets/widgets.js`
+- `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs`
+
+### Verification
+- `node --test src/lib/home-market-copy.test.mjs` from `projects/hanwoo-dashboard` -> `25 passed`.
+- `npx.cmd eslint src/components/widgets/widgets.js src/lib/home-market-copy.test.mjs` from `projects/hanwoo-dashboard` -> passed.
+- `git diff --check -- projects/hanwoo-dashboard/src/components/widgets/widgets.js projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` -> passed.
+- `python execution/project_qc_runner.py --project hanwoo-dashboard --json` -> passed (`test` 240, lint passed, build passed).
+- `python execution/code_review_gate.py --staged --json` -> PASS (`risk_score 0.0`); trailing cp949 reader-thread exception is known Windows output noise.
+
+### Follow-up
+- Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
+- T-372 and T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP.
