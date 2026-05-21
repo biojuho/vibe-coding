@@ -47,3 +47,15 @@ test('calving form waits for async saves before re-enabling actions', () => {
   assert.match(source, /<button type="submit" disabled=\{isSaving\} aria-busy=\{isSaving\}/);
   assert.match(source, /type="button"\s+onClick=\{closeCalvingForm\}\s+disabled=\{isSaving\}/);
 });
+
+test('calving tab keeps malformed pregnancy dates stable in the list', () => {
+  const source = readSource('components/tabs/CalvingTab.js');
+
+  assert.match(source, /function getPregnancyDateTime\(value\) \{/);
+  assert.match(source, /return Number\.isNaN\(date\.getTime\(\)\) \? Number\.POSITIVE_INFINITY : date\.getTime\(\);/);
+  assert.match(
+    source,
+    /sort\(\(first, second\) => getPregnancyDateTime\(first\.pregnancyDate\) - getPregnancyDateTime\(second\.pregnancyDate\)\)/,
+  );
+  assert.doesNotMatch(source, /new Date\(first\.pregnancyDate\) - new Date\(second\.pregnancyDate\)/);
+});

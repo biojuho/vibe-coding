@@ -19,10 +19,15 @@ const errorTextStyle = {
   fontWeight: 600,
 };
 
+function getPregnancyDateTime(value) {
+  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
+  return Number.isNaN(date.getTime()) ? Number.POSITIVE_INFINITY : date.getTime();
+}
+
 export default function CalvingTab({ cattle, buildings = [], onRecordCalving }) {
   const pregnantCows = cattle
     .filter((row) => row.status === '임신우')
-    .sort((first, second) => new Date(first.pregnancyDate) - new Date(second.pregnancyDate));
+    .sort((first, second) => getPregnancyDateTime(first.pregnancyDate) - getPregnancyDateTime(second.pregnancyDate));
 
   const [selectedCowId, setSelectedCowId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
