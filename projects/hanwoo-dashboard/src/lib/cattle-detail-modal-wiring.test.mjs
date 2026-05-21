@@ -26,6 +26,10 @@ test('cattle detail breeding date validation is announced with the date input', 
   const source = readSource('components/forms/CattleDetailModal.js');
 
   assert.match(source, /const breedingDateErrorId = "breeding-record-date-error"/);
+  assert.match(source, /function toStrictInputDate\(value\)/);
+  assert.match(source, /date\.toISOString\(\)\.slice\(0, 10\) !== value/);
+  assert.match(source, /const selectedDate = toStrictInputDate\(breedingDate\)/);
+  assert.doesNotMatch(source, /const selectedDate = new Date\(`\$\{breedingDate\}T00:00:00`\)/);
   assert.match(source, /aria-invalid=\{Boolean\(breedingError\)\}/);
   assert.match(source, /aria-describedby=\{breedingError \? breedingDateErrorId : undefined\}/);
   assert.match(source, /<div id=\{breedingDateErrorId\} role="alert"/);
