@@ -82,6 +82,10 @@ export default function CattleDetailModal({
   const isDetailBusy = isDeleting || isBreedingSaving;
   const editButtonLabel = isDetailBusy ? `${cattle.name} 개체 처리 중에는 수정할 수 없습니다` : `${cattle.name} 개체 정보 수정`;
   const archiveButtonLabel = isDetailBusy ? `${cattle.name} 개체 처리 중에는 보관할 수 없습니다` : `${cattle.name} 개체 보관 처리`;
+  const estrusButtonLabel = isDetailBusy ? `${cattle.name} 개체 처리 중에는 발정 기록을 시작할 수 없습니다` : `${cattle.name} 발정 기록`;
+  const pregnancyButtonLabel = isDetailBusy ? `${cattle.name} 개체 처리 중에는 수정 기록을 시작할 수 없습니다` : `${cattle.name} 수정 기록`;
+  const breedingCancelButtonLabel = isBreedingSaving ? '번식 기록 저장 중에는 취소할 수 없습니다' : '번식 기록 취소';
+  const breedingSubmitButtonLabel = isBreedingSaving ? '번식 기록 저장 중' : '번식 기록 저장';
 
   // Build weight chart data from history or fallback to weightHistory field
   const weightChartData = (() => {
@@ -306,6 +310,9 @@ export default function CattleDetailModal({
                   type="button"
                   onClick={() => openBreedingForm('estrus')}
                   disabled={isDetailBusy}
+                  aria-busy={isDetailBusy}
+                  aria-label={estrusButtonLabel}
+                  title={estrusButtonLabel}
                   className="btn"
                   style={{
                     ...btnPrimary,
@@ -323,6 +330,9 @@ export default function CattleDetailModal({
                   type="button"
                   onClick={() => openBreedingForm('pregnancy')}
                   disabled={isDetailBusy}
+                  aria-busy={isDetailBusy}
+                  aria-label={pregnancyButtonLabel}
+                  title={pregnancyButtonLabel}
                   className="btn"
                   style={{
                     ...btnPrimary,
@@ -389,6 +399,9 @@ export default function CattleDetailModal({
                       className="btn btn-secondary"
                       onClick={() => setActiveBreedingAction(null)}
                       disabled={isBreedingSaving}
+                      aria-busy={isBreedingSaving}
+                      aria-label={breedingCancelButtonLabel}
+                      title={breedingCancelButtonLabel}
                       style={{...btnSecondary,padding:"10px 14px",fontSize:"13px"}}
                     >
                       취소
@@ -398,6 +411,8 @@ export default function CattleDetailModal({
                       className="btn btn-primary"
                       disabled={isBreedingSaving}
                       aria-busy={isBreedingSaving}
+                      aria-label={breedingSubmitButtonLabel}
+                      title={breedingSubmitButtonLabel}
                       style={{...btnPrimary,padding:"10px 14px",fontSize:"13px"}}
                     >
                       {isBreedingSaving ? '저장 중...' : '저장'}

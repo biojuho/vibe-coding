@@ -95,6 +95,10 @@ test('cattle form and detail icon-only navigation controls have Korean labels', 
   assert.match(detailSource, /aria-label=\{archiveButtonLabel\}/);
   assert.match(detailSource, /title=\{archiveButtonLabel\}/);
   assert.match(detailSource, /> 보관<\/button>/);
+  assert.match(detailSource, /const estrusButtonLabel = isDetailBusy \? `\$\{cattle\.name\} 개체 처리 중에는 발정 기록을 시작할 수 없습니다` : `\$\{cattle\.name\} 발정 기록`;/);
+  assert.match(detailSource, /const pregnancyButtonLabel = isDetailBusy \? `\$\{cattle\.name\} 개체 처리 중에는 수정 기록을 시작할 수 없습니다` : `\$\{cattle\.name\} 수정 기록`;/);
+  assert.match(detailSource, /onClick=\{\(\) => openBreedingForm\('estrus'\)\}[\s\S]*?aria-label=\{estrusButtonLabel\}[\s\S]*?title=\{estrusButtonLabel\}/);
+  assert.match(detailSource, /onClick=\{\(\) => openBreedingForm\('pregnancy'\)\}[\s\S]*?aria-label=\{pregnancyButtonLabel\}[\s\S]*?title=\{pregnancyButtonLabel\}/);
   assert.match(detailSource, /type="button"[\s\S]*?onClick=\{onDelete\}/);
   assert.match(detailSource, /role="dialog"/);
   assert.match(detailSource, /aria-modal="true"/);
@@ -212,10 +216,12 @@ test('cattle detail breeding records wait for async saves before re-enabling sub
   assert.match(detailSource, /setIsBreedingSaving\(true\);/);
   assert.match(detailSource, /await onUpdate\(nextCattle,/);
   assert.match(detailSource, /finally \{\s+breedingSaveInFlightRef\.current = false;\s+setIsBreedingSaving\(false\);/);
-  assert.match(detailSource, /onClick=\{\(\) => openBreedingForm\('estrus'\)\}[\s\S]*?disabled=\{isBreedingSaving\}/);
-  assert.match(detailSource, /onClick=\{\(\) => openBreedingForm\('pregnancy'\)\}[\s\S]*?disabled=\{isBreedingSaving\}/);
-  assert.match(detailSource, /type="button"[\s\S]*?onClick=\{\(\) => setActiveBreedingAction\(null\)\}[\s\S]*?disabled=\{isBreedingSaving\}/);
-  assert.match(detailSource, /type="submit"[\s\S]*?disabled=\{isBreedingSaving\}[\s\S]*?aria-busy=\{isBreedingSaving\}/);
+  assert.match(detailSource, /const breedingCancelButtonLabel = isBreedingSaving \? '번식 기록 저장 중에는 취소할 수 없습니다' : '번식 기록 취소';/);
+  assert.match(detailSource, /const breedingSubmitButtonLabel = isBreedingSaving \? '번식 기록 저장 중' : '번식 기록 저장';/);
+  assert.match(detailSource, /onClick=\{\(\) => openBreedingForm\('estrus'\)\}[\s\S]*?disabled=\{isDetailBusy\}[\s\S]*?aria-busy=\{isDetailBusy\}[\s\S]*?aria-label=\{estrusButtonLabel\}/);
+  assert.match(detailSource, /onClick=\{\(\) => openBreedingForm\('pregnancy'\)\}[\s\S]*?disabled=\{isDetailBusy\}[\s\S]*?aria-busy=\{isDetailBusy\}[\s\S]*?aria-label=\{pregnancyButtonLabel\}/);
+  assert.match(detailSource, /type="button"[\s\S]*?onClick=\{\(\) => setActiveBreedingAction\(null\)\}[\s\S]*?disabled=\{isBreedingSaving\}[\s\S]*?aria-busy=\{isBreedingSaving\}[\s\S]*?aria-label=\{breedingCancelButtonLabel\}[\s\S]*?title=\{breedingCancelButtonLabel\}/);
+  assert.match(detailSource, /type="submit"[\s\S]*?disabled=\{isBreedingSaving\}[\s\S]*?aria-busy=\{isBreedingSaving\}[\s\S]*?aria-label=\{breedingSubmitButtonLabel\}[\s\S]*?title=\{breedingSubmitButtonLabel\}/);
 });
 
 test('cattle detail decorative icons are hidden from assistive tech', () => {
