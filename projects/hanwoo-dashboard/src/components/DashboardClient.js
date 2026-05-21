@@ -130,6 +130,11 @@ const QUICK_ACTIONS = [
   },
 ];
 
+function getSortableDateTime(value) {
+  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.getTime();
+}
+
 export default function DashboardClient({
   initialCattlePage,
   initialSalesPage,
@@ -285,11 +290,27 @@ export default function DashboardClient({
         (left.category || '').localeCompare(right.category || '') || left.name.localeCompare(right.name),
     );
   const sortByDateAsc = useCallback(
-    (items, key) => [...items].sort((left, right) => new Date(left[key]) - new Date(right[key])),
+    (items, key) =>
+      [...items].sort((left, right) => {
+        const leftTime = getSortableDateTime(left[key]);
+        const rightTime = getSortableDateTime(right[key]);
+        if (leftTime === null && rightTime === null) return 0;
+        if (leftTime === null) return 1;
+        if (rightTime === null) return -1;
+        return leftTime - rightTime;
+      }),
     [],
   );
   const sortByDateDesc = useCallback(
-    (items, key) => [...items].sort((left, right) => new Date(right[key]) - new Date(left[key])),
+    (items, key) =>
+      [...items].sort((left, right) => {
+        const leftTime = getSortableDateTime(left[key]);
+        const rightTime = getSortableDateTime(right[key]);
+        if (leftTime === null && rightTime === null) return 0;
+        if (leftTime === null) return 1;
+        if (rightTime === null) return -1;
+        return rightTime - leftTime;
+      }),
     [],
   );
   const refreshDashboardReadModels = useCallback(async () => {
