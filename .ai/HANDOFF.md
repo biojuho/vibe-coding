@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-574 completed**: Hanwoo cattle tag lookup now ignores stale MTRACE responses after the cattle form switches record context or unmounts. `CattleForm` tracks lookup request ids plus mounted state, clears lookup loading on form reset, and only writes lookup results for the current request. Code commit `b621bf3b`. |
+| Next Priorities | Verification passed: focused cattle detail/form wiring test (`10 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 240, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/financial-chart/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-573 completed**: Hanwoo weather timeout copy now uses shared Korean product copy instead of the inline English `Weather lookup timed out after 5000ms.` message. `weather-state.mjs` exports `WEATHER_TIMEOUT_MESSAGE`, and both `DashboardClient` plus `useWeather` pass that constant into `fetchWithTimeout`. Code commit `75e22762`. |
 | Next Priorities | Verification passed: focused weather/home copy tests (`34 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 240, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/financial-chart/shorts/workspace WIP. |
 

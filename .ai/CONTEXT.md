@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` cattle tag lookup ignores stale MTRACE responses. `CattleForm` tracks lookup request ids plus mounted state so late lookup responses cannot write into a new form context after the modal switches records or unmounts; form reset also clears lookup loading and in-flight state. Verification passed: focused cattle detail/form wiring test (`10 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 240, lint, build), and staged `code_review_gate --json`.
+
 - As of 2026-05-21, `hanwoo-dashboard` weather timeout failures use shared Korean product copy. `weather-state.mjs` exports `WEATHER_TIMEOUT_MESSAGE`, and both `DashboardClient` plus `useWeather` pass it into `fetchWithTimeout` instead of the inline English `Weather lookup timed out after 5000ms.` message. Verification passed: focused weather/home copy tests (`34 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 240, lint, build), and staged `code_review_gate --json`.
 
 - As of 2026-05-21, `hanwoo-dashboard` offline sync exception state uses stable Korean retry copy. `syncManager.js` no longer persists raw thrown `Error.message` values into retry/dead-letter queue state; catch-path exceptions now use `오프라인 요청을 동기화하지 못했습니다. 잠시 후 다시 시도해 주세요.` while explicit action failure messages remain intact. Verification passed: focused sync-manager copy test (`1 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 240, lint, build), and staged `code_review_gate --json`.
