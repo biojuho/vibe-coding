@@ -19,7 +19,7 @@ import {
   getNotifications,
 } from '@/lib/actions';
 import { useAppFeedback } from '@/components/feedback/FeedbackProvider';
-import { formatMoney } from '@/lib/utils';
+import { formatMoney, toFiniteNumber } from '@/lib/utils';
 import { fetchWithTimeout, isTimeoutError } from '@/lib/fetchWithTimeout';
 import {
   buildUnavailableWeatherState,
@@ -988,7 +988,7 @@ export default function DashboardClient({
 
   const fallbackAverageWeight = useMemo(() => {
     if (cattleList.length === 0) return 0;
-    return Math.floor(cattleList.reduce((sum, cow) => sum + (cow.weight || 0), 0) / cattleList.length);
+    return Math.floor(cattleList.reduce((sum, cow) => sum + toFiniteNumber(cow.weight), 0) / cattleList.length);
   }, [cattleList]);
 
   const monthlySalesCount = summary?.monthlyRollup?.salesCount ?? fallbackMonthlySalesCount;

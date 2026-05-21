@@ -249,6 +249,14 @@ test('sales tab normalizes numeric inputs before sales and profit aggregation', 
   assert.doesNotMatch(source, /profit: hasExpenseData \? record\.price - totalCost : null,/);
 });
 
+test('dashboard fallback average weight normalizes cattle weights', () => {
+  const source = readSource('components/DashboardClient.js');
+
+  assert.match(source, /import \{ formatMoney, toFiniteNumber \} from '@\/lib\/utils';/);
+  assert.match(source, /sum \+ toFiniteNumber\(cow\.weight\)/);
+  assert.doesNotMatch(source, /sum \+ \(cow\.weight \|\| 0\)/);
+});
+
 test('sales form fields expose explicit labels and invalid state', () => {
   const source = readSource('components/tabs/SalesTab.js');
 
