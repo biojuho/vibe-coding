@@ -100,9 +100,12 @@ test('settings building form waits for async saves before re-enabling actions', 
   const source = readSource('components/tabs/SettingsTab.js');
 
   assert.match(source, /const \[isSavingBuilding, setIsSavingBuilding\] = useState\(false\)/);
+  assert.match(source, /const buildingSaveInFlightRef = useRef\(false\);/);
+  assert.match(source, /if \(buildingSaveInFlightRef\.current\) \{\s+return;\s+\}/);
+  assert.match(source, /buildingSaveInFlightRef\.current = true;/);
   assert.match(source, /setIsSavingBuilding\(true\);/);
   assert.match(source, /const saved = await onCreateBuilding\(values\);/);
-  assert.match(source, /finally \{\s+setIsSavingBuilding\(false\);/);
+  assert.match(source, /finally \{\s+buildingSaveInFlightRef\.current = false;\s+setIsSavingBuilding\(false\);/);
   assert.match(source, /size="sm"\s+disabled=\{isSavingBuilding\}/);
   assert.match(source, /type="submit"\s+variant="primary"\s+disabled=\{isSavingBuilding\}\s+aria-busy=\{isSavingBuilding\}/);
 });
@@ -111,17 +114,20 @@ test('settings farm form waits for async saves before re-enabling submit', () =>
   const source = readSource('components/tabs/SettingsTab.js');
 
   assert.match(source, /const \[isSavingFarm, setIsSavingFarm\] = useState\(false\)/);
+  assert.match(source, /const farmSaveInFlightRef = useRef\(false\);/);
   assert.match(source, /const submitFarmSettings = async \(values\) => \{/);
+  assert.match(source, /if \(farmSaveInFlightRef\.current\) \{\s+return;\s+\}/);
+  assert.match(source, /farmSaveInFlightRef\.current = true;/);
   assert.match(source, /setIsSavingFarm\(true\);/);
   assert.match(source, /await onUpdateFarmSettings\(values\);/);
-  assert.match(source, /finally \{\s+setIsSavingFarm\(false\);/);
+  assert.match(source, /finally \{\s+farmSaveInFlightRef\.current = false;\s+setIsSavingFarm\(false\);/);
   assert.match(source, /type="submit"\s+disabled=\{isSavingFarm\}\s+aria-busy=\{isSavingFarm\}/);
 });
 
 test('settings farm form locks editable fields while saving', () => {
   const source = readSource('components/tabs/SettingsTab.js');
 
-  assert.match(source, /const handleLocationSelect = \(event\) => \{\s+if \(isSavingFarm\) \{\s+return;\s+\}/);
+  assert.match(source, /const handleLocationSelect = \(event\) => \{\s+if \(farmSaveInFlightRef\.current \|\| isSavingFarm\) \{\s+return;\s+\}/);
   assert.match(source, /id="farm-name"[\s\S]*?disabled=\{isSavingFarm\}/);
   assert.match(source, /id="farm-location-select"[\s\S]*?disabled=\{isSavingFarm\}/);
   assert.match(source, /id="farm-location"[\s\S]*?disabled=\{isSavingFarm\}/);

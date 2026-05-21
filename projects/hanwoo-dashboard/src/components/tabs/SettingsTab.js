@@ -39,6 +39,8 @@ export default function SettingsTab({
   const [isSavingFarm, setIsSavingFarm] = useState(false);
   const [isSavingBuilding, setIsSavingBuilding] = useState(false);
   const [deletingBuildingId, setDeletingBuildingId] = useState(null);
+  const farmSaveInFlightRef = useRef(false);
+  const buildingSaveInFlightRef = useRef(false);
   const deleteBuildingInFlightRef = useRef(false);
   const { confirm } = useAppFeedback();
 
@@ -93,7 +95,7 @@ export default function SettingsTab({
   );
 
   const handleLocationSelect = (event) => {
-    if (isSavingFarm) {
+    if (farmSaveInFlightRef.current || isSavingFarm) {
       return;
     }
 
@@ -108,6 +110,11 @@ export default function SettingsTab({
   };
 
   const submitBuilding = async (values) => {
+    if (buildingSaveInFlightRef.current) {
+      return;
+    }
+
+    buildingSaveInFlightRef.current = true;
     setIsSavingBuilding(true);
 
     try {
@@ -119,16 +126,23 @@ export default function SettingsTab({
       setIsAdding(false);
       resetBuilding(createBuildingFormValues());
     } finally {
+      buildingSaveInFlightRef.current = false;
       setIsSavingBuilding(false);
     }
   };
 
   const submitFarmSettings = async (values) => {
+    if (farmSaveInFlightRef.current) {
+      return;
+    }
+
+    farmSaveInFlightRef.current = true;
     setIsSavingFarm(true);
 
     try {
       await onUpdateFarmSettings(values);
     } finally {
+      farmSaveInFlightRef.current = false;
       setIsSavingFarm(false);
     }
   };
