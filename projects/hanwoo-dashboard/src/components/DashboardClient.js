@@ -1096,6 +1096,7 @@ export default function DashboardClient({
       activeTab === 'sales' ||
       activeTab === 'analysis' ||
       selectedBuildingId !== null;
+    const cattleLoadMoreLabel = cattlePagination.isLoading ? '개체 목록을 불러오는 중입니다' : '개체 더 보기';
 
     if (needsCompleteCattleData && !Array.isArray(allCattleRegistry) && allCattleLoadError && !isAllCattleLoading) {
       return (
@@ -1405,6 +1406,8 @@ export default function DashboardClient({
               onClick={() => cattlePagination.loadMore()}
               disabled={cattlePagination.isLoading}
               aria-busy={cattlePagination.isLoading}
+              aria-label={cattleLoadMoreLabel}
+              title={cattleLoadMoreLabel}
               className="clay-pressable w-full rounded-[18px] px-4 py-3 text-sm font-semibold text-[color:var(--color-text-secondary)]"
             >
               {cattlePagination.isLoading ? '개체 목록을 불러오는 중입니다...' : '개체 더 보기'}
