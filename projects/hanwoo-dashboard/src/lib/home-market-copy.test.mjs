@@ -222,6 +222,9 @@ test('weather widget uses Korean product copy for unavailable state', () => {
   assert.match(source, /const tempMin = toFiniteNumber\(weather\.tempMin, temp\);/);
   assert.match(source, /const precipitation = toFiniteNumber\(weather\.precipitation\);/);
   assert.match(source, /const thi=calcTHI\(temp,humidity\);/);
+  assert.match(source, /function normalizeWeatherForecast\(forecast\) \{/);
+  assert.match(source, /return Array\.isArray\(forecast\)\s+\? forecast\.filter\(\(day\) => day && typeof day === 'object'\)\s+: \[\];/);
+  assert.match(source, /const safeForecast = normalizeWeatherForecast\(weather\.forecast\);/);
 
   assert.match(source, /날씨 확인 불가/);
   assert.match(source, /지금은 날씨 데이터를 확인할 수 없습니다/);
@@ -237,6 +240,9 @@ test('weather widget uses Korean product copy for unavailable state', () => {
   assert.match(source, /<span aria-hidden="true">🐂<\/span> 온열지수: \{thiLevel\.label\}/);
   assert.match(source, /<span aria-hidden="true">📅<\/span> 3일 예보/);
   assert.match(source, /formatForecastDateLabel\(day\.date, \{ weekday: 'short', month: 'short', day: 'numeric' \}\)/);
+  assert.match(source, /safeForecast\.length > 0/);
+  assert.match(source, /gridTemplateColumns:`repeat\(\$\{safeForecast\.length\},1fr\)`/);
+  assert.match(source, /safeForecast\.map\(\(day, idx\) => \{/);
   assert.match(source, /<div aria-label=\{getWeatherDesc\(day\.weatherCode\)\} style=\{\{fontSize:"24px",marginBottom:"4px"\}\}>\{getWeatherIcon\(day\.weatherCode\)\}<\/div>/);
   assert.match(source, /<span aria-hidden="true">🌧<\/span> 강수 \{day\.precipProb\}%/);
   assert.match(source, /<span aria-hidden="true">🐄<\/span> 가축 기상 경고/);
@@ -245,6 +251,9 @@ test('weather widget uses Korean product copy for unavailable state', () => {
   assert.doesNotMatch(source, /\$\{weather\.(?:humidity|windSpeed|precipitation)\}/);
   assert.match(source, /Math\.round\(toFiniteNumber\(day\.tempMax\)\)/);
   assert.match(source, /Math\.round\(toFiniteNumber\(day\.tempMin\)\)/);
+  assert.match(source, /getLivestockWeatherAlerts\(safeForecast\)/);
+  assert.doesNotMatch(source, /weather\.forecast\.map/);
+  assert.doesNotMatch(source, /weather\.forecast \|\| \[\]/);
   assert.match(dashboardSource, /WEATHER_STALE_MESSAGE/);
   assert.match(hookSource, /WEATHER_STALE_MESSAGE/);
   assert.match(dashboardSource, /WEATHER_TIMEOUT_MESSAGE/);

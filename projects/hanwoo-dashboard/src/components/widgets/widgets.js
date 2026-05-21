@@ -47,6 +47,12 @@ export function TabBar({ activeTab, onTabChange }) {
   );
 }
 
+function normalizeWeatherForecast(forecast) {
+  return Array.isArray(forecast)
+    ? forecast.filter((day) => day && typeof day === 'object')
+    : [];
+}
+
 export function WeatherWidget({weather}){
   if(!weather) return (
     <div className="weather-skeleton animate-fadeInUp" style={{marginBottom:"16px"}}>
@@ -93,6 +99,7 @@ export function WeatherWidget({weather}){
   const thiLevel=getTHILevel(thi);
   const icon=getWeatherIcon(weather.weatherCode);
   const desc=getWeatherDesc(weather.weatherCode);
+  const safeForecast = normalizeWeatherForecast(weather.forecast);
 
   return (
     <div style={{marginBottom:"16px"}} className="animate-fadeInUp">
@@ -157,7 +164,7 @@ export function WeatherWidget({weather}){
       </div>
 
       {/* 3-Day Forecast */}
-      {weather.forecast && weather.forecast.length > 0 && (
+      {safeForecast.length > 0 && (
         <div style={{
           background:"var(--color-bg-card)",
           borderRadius:"var(--radius-lg)",
@@ -166,8 +173,8 @@ export function WeatherWidget({weather}){
           border:"1px solid var(--color-border)"
         }}>
           <div style={{fontSize:"13px",fontWeight:700,color:"var(--color-text)",marginBottom:"10px"}}><span aria-hidden="true">📅</span> 3일 예보</div>
-          <div style={{display:"grid",gridTemplateColumns:`repeat(${weather.forecast.length},1fr)`,gap:"10px"}}>
-            {weather.forecast.map((day, idx) => {
+          <div style={{display:"grid",gridTemplateColumns:`repeat(${safeForecast.length},1fr)`,gap:"10px"}}>
+            {safeForecast.map((day, idx) => {
               const dayLabel = idx === 0 ? "오늘" : formatForecastDateLabel(day.date, { weekday: 'short', month: 'short', day: 'numeric' });
               return (
                 <div key={day.date} style={{
@@ -194,7 +201,7 @@ export function WeatherWidget({weather}){
 
       {/* Livestock Weather Alerts */}
       {(() => {
-        const alerts = getLivestockWeatherAlerts(weather.forecast || []);
+        const alerts = getLivestockWeatherAlerts(safeForecast);
         if (alerts.length === 0) return null;
         return (
           <div style={{
