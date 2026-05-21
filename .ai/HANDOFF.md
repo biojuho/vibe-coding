@@ -8,6 +8,20 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-613 completed**: Hanwoo settings submit actions now expose save-state labels. `SettingsTab` derives `farmSubmitButtonLabel` and `buildingSubmitButtonLabel` from `isSavingFarm`/`isSavingBuilding` and applies them to the farm settings and building create submit `PremiumButton` `aria-label` and `title`, so assistive technology and hover text receive the same in-flight state while async saves are locked. Code commit `1b4e16e7`. |
+| Next Priorities | Verification passed: focused settings accessibility test (`10 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 250, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated root/Hanwoo package/shorts/workspace WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
+| Work | **T-612 completed**: Hanwoo analysis tab now normalizes all collection payloads before aggregation. `AnalysisTab` routes incoming `saleRecords`, `feedHistory`, `cattleList`, and `expenseRecords` through `normalizeAnalysisItems()`, then uses `safeSaleRecords`, `safeFeedHistory`, `safeCattleList`, and `safeExpenseRecords` for monthly chart aggregation, cost structure, top sales, feed average, and cattle count so malformed caller/cache data cannot crash the tab through raw `.forEach()`/spread/`.reduce()`/`.length` access. Code commit `1e72ad25`. |
+| Next Priorities | Verification passed: focused analysis copy/source test (`3 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 250, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated Settings/root/Hanwoo package/shorts/workspace WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-611 completed**: Hanwoo calving tab now normalizes cattle and building payloads before rendering. `CalvingTab` routes incoming `cattle` and `buildings` props through safe collection normalizers, ignores malformed rows, derives `pregnantCows` from `safeCattle`, and uses `safeCattle`/`safeBuildings` for submit and building lookups so stale cache or caller data cannot crash the tab through raw `.filter()`/`.find()` access. Code commit `4535546c`. |
 | Next Priorities | Verification passed: focused Calving accessibility test (`5 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC test/lint passed (`test` 250, lint), targeted build retry passed after a real concurrent Next build lock, and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
 
