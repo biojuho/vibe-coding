@@ -8,10 +8,14 @@
 - Goal: hanwoo-dashboard quality uplift so other people would want to use it.
 - Owner: Codex
 - Started: 2026-05-18
-- Latest: 2026-05-21 T-611 normalized Hanwoo calving tab payloads.
+- Latest: 2026-05-21 T-613 labeled Hanwoo settings submit states.
 - Success: Hanwoo quality uplift is progressing through focused UX, accessibility, resilience, and Korean operator-copy passes. The goal remains active for additional polish. Keep T-251 separate because it is blocked on user-owned Supabase control-plane credential resync.
 
 ## Progress Notes
+
+- 2026-05-21: T-613 labeled Hanwoo settings submit states. `SettingsTab` now derives `farmSubmitButtonLabel` and `buildingSubmitButtonLabel` from `isSavingFarm`/`isSavingBuilding` and applies them to the farm settings and building create submit `PremiumButton` `aria-label` and `title`, so settings save actions expose their in-flight state while async saves are locked. Verification passed with focused settings accessibility test (`10 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 250, lint, build), and staged `code_review_gate --json` (`risk_score 0.0`; cp949 reader-thread noise only). Commit `1b4e16e7`; commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files.
+
+- 2026-05-21: T-612 normalized Hanwoo analysis tab payloads. `AnalysisTab` now routes incoming `saleRecords`, `feedHistory`, `cattleList`, and `expenseRecords` through `normalizeAnalysisItems()`, then uses `safeSaleRecords`, `safeFeedHistory`, `safeCattleList`, and `safeExpenseRecords` for monthly chart aggregation, cost structure, top sales, feed average, and cattle count, preventing malformed caller/cache data from crashing the tab through raw `.forEach()`, spread, `.reduce()`, or `.length` access. Verification passed with focused analysis copy/source test (`3 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 250, lint, build), and staged `code_review_gate --json` (`risk_score 0.0`; cp949 reader-thread noise only). Commit `1e72ad25`; commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files.
 
 - 2026-05-21: T-611 normalized Hanwoo calving tab payloads. `CalvingTab` now routes incoming `cattle` and `buildings` props through safe collection normalizers, ignores malformed rows, derives `pregnantCows` from `safeCattle`, and uses `safeCattle`/`safeBuildings` for submit and building lookups, preventing stale cache or caller data from crashing the tab through raw `.filter()` or `.find()` access. Verification passed with focused Calving accessibility test (`5 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC test/lint (`test` 250, lint), targeted build retry after a real concurrent Next build lock, and staged `code_review_gate --json` (`risk_score 0.0`; cp949 reader-thread noise only). Commit `4535546c`; commit hook WARN was the known graph/test-gap heuristic while direct tests and build covered the changed files.
 
