@@ -4,11 +4,15 @@ import {
 } from './config.js';
 
 import {
-    initPhysics, engine, runner, render, pickWeightedLevel,
+    initPhysics, engine, runner, render,
     removeActiveFruits, createNewFruit, getTopFruitY,
     dropCurrentFruitContext, moveCurrentFruitTo, nudgeCurrentFruit,
     Render, Runner
 } from './physics.js';
+
+import {
+    pickWeightedLevel, getSpawnWeightsForScore, applyRescueWeights
+} from './spawn.js';
 
 import {
     renderCustomGraphics, handleResize, setParticles
@@ -116,53 +120,6 @@ function resetRoundState() {
     removeStoredValue(EXIT_MODAL_KEY);
 }
 
-function getSpawnWeightsForScore(currentScore) {
-    const profiles = getActiveDifficultyConfig().spawnProfiles;
-    let selectedProfile = profiles[0];
-    for (const profile of profiles) {
-        if (currentScore >= profile.minScore) {
-            selectedProfile = profile;
-        }
-    }
-    return [...selectedProfile.weights];
-}
-
-function applyRescueWeights(weights) {
-    const difficulty = getActiveDifficultyConfig();
-    const rescueAfterDrops = difficulty.rescueAfterDrops;
-    if (dropsSinceMerge < rescueAfterDrops) return weights;
-
-    const rescued = [...weights];
-    rescued[0] += 18;
-    rescued[1] += 10;
-    if (rescued.length > 4) {
-        rescued[4] = Math.max(0, rescued[4] - 8);
-    }
-
-    const topFruitY = getTopFruitY();
-    if (topFruitY < 250) {
-        rescued[0] += 12;
-        rescued[1] += 8;
-        rescued[2] += 4;
-        if (rescued.length > 4) {
-            rescued[4] = Math.max(0, rescued[4] - 6);
-        }
-    }
-
-    if (topFruitY < 215) {
-        rescued[0] += 18;
-        rescued[1] += 12;
-        if (rescued.length > 3) {
-            rescued[3] = Math.max(0, rescued[3] - 8);
-        }
-        if (rescued.length > 4) {
-            rescued[4] = Math.max(0, rescued[4] - 10);
-        }
-    }
-
-    return rescued;
-}
-
 let nextIsBomb = false;
 
 export function setNextObject() {
@@ -175,9 +132,16 @@ export function setNextObject() {
     } else if (dropsSinceMerge >= difficulty.guaranteedRescueAfter) {
         nextFruitLevel = 0;
     } else {
-        const baseWeights = getSpawnWeightsForScore(score);
-        const adjustedWeights = applyRescueWeights(baseWeights);
-        nextFruitLevel = pickWeightedLevel(adjustedWeights);
+        const baseWeights = getSpawnWeightsForScore(
+            score,
+            difficulty.spawnProfiles,
+        );
+        const adjustedWeights = applyRescueWeights(baseWeights, {
+            dropsSinceMerge,
+            rescueAfterDrops: difficulty.rescueAfterDrops,
+            topFruitY: getTopFruitY(),
+        });
+        nextFruitLevel = pickWeightedLevel(adjustedWeights, gameRandom);
     }
     const nextDisplay = getElement('next-fruit-display');
     if (nextDisplay) {

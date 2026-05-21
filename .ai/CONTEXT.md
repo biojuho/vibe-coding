@@ -33,6 +33,10 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` Sales tab money totals normalize numeric inputs before aggregation. `SalesTab` uses `toFiniteNumber()` for sale price, purchase cost, expense sums, total sales, and total profit so malformed/non-finite values cannot spread `NaN` through sales totals, profit labels, or chart data. Verification passed: focused home/market source test (`23 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 214, lint, build), and staged `code_review_gate --json`.
+
+- As of 2026-05-21, `hanwoo-dashboard` Sales tab money totals normalize numeric inputs before aggregation. `SalesTab` uses `toFiniteNumber()` for sale price, purchase cost, expense sums, total sales, and total profit so malformed/non-finite values cannot spread `NaN` through sales totals, profit labels, or chart data. Verification passed: focused home/market source test (`23 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 214, lint, build), and staged `code_review_gate --json`.
+
 - As of 2026-05-21, `hanwoo-dashboard` primary data-entry form submit buttons show visible pending copy while saves are in flight. Cattle add/edit, calving, schedule, feed, inventory, and sales submit buttons now switch to Korean `...중` labels while disabled/`aria-busy`, and `src/lib/form-submit-pending-copy.test.mjs` guards the behavior. Verification passed: focused form pending-copy/source tests (`55 passed`), path-limited `git diff --check`, full Hanwoo QC (`test` 214, lint, build), and staged `code_review_gate --json`.
 
 - As of 2026-05-21, `hanwoo-dashboard` has a runtime source regression guard for explicit button semantics. `src/lib/button-type-regression.test.mjs` scans literal `<button>` tags under `src/app` and `src/components` and fails if any omit `type`, preventing future accidental form-submit regressions. Verification passed: focused button-type regression test (`1 passed`), path-limited `git diff --check`, full Hanwoo QC (`test` 212, lint, build), and staged `code_review_gate --json`.

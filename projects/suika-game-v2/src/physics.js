@@ -263,22 +263,6 @@ function checkGameOver() {
     }
 }
 
-export function pickWeightedLevel(weights) {
-    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
-    if (totalWeight <= 0) return 0;
-
-    // gameRandom() (not Math.random()) so the spawn sequence is reproducible
-    // from the daily seed - this is what makes the daily challenge fair.
-    let randomValue = gameRandom() * totalWeight;
-    for (let index = 0; index < weights.length; index++) {
-        randomValue -= weights[index];
-        if (randomValue <= 0) {
-            return index;
-        }
-    }
-    return 0;
-}
-
 export function removeActiveFruits() {
     const activeBodies = Composite.allBodies(engine.world).filter(
         (body) => body.label === 'fruit' || body.label === 'current_fruit'

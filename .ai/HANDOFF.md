@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-534 completed**: Hanwoo Sales tab money totals now normalize numeric inputs before aggregation. `SalesTab` uses `toFiniteNumber()` for sale price, purchase cost, expense sums, total sales, and total profit so malformed/non-finite values cannot spread `NaN` through sales totals, profit labels, or chart data. Code commit `00354cb6`. |
+| Next Priorities | Verification passed: focused home/market source test (`23 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 214, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/suika/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-533 completed**: Hanwoo primary data-entry forms now show explicit pending copy while saves are in flight. Cattle add/edit, calving, schedule, feed, inventory, and sales submit buttons now switch from their normal action label to Korean `...중` copy while disabled/`aria-busy`, so operators get visible progress feedback during slow saves. Code commit `e13c570c`. |
 | Next Priorities | Verification passed: focused form pending-copy/source tests (`55 passed`), path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 214, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/suika/workspace WIP. |
 
