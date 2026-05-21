@@ -145,6 +145,25 @@ test('classifyPaymentConfirmationResult normalizes a successful confirmation pay
   assert.equal(result.approvedAt.toISOString(), fallbackNow.toISOString());
 });
 
+test('classifyPaymentConfirmationResult falls back for impossible approved dates', () => {
+  const fallbackNow = new Date('2026-04-07T12:30:00.000Z');
+  const result = classifyPaymentConfirmationResult({
+    status: 200,
+    payload: {
+      totalAmount: 9900,
+      approvedAt: '2026-02-31T10:00:00.000Z',
+    },
+    rawText: '',
+    parseError: null,
+    expectedAmount: 9900,
+    now: () => fallbackNow,
+  });
+
+  assert.equal(result.kind, 'confirmed');
+  assert.equal(result.confirmedAmount, 9900);
+  assert.equal(result.approvedAt.toISOString(), fallbackNow.toISOString());
+});
+
 test('payment confirmation fallback messages use Korean product copy', () => {
   const failed = buildGatewayErrorMessage({
     payload: { code: 'INVALID_ORDER' },

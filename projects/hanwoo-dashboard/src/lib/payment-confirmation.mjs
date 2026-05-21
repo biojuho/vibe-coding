@@ -25,6 +25,26 @@ function parseConfirmedAmount(value) {
   return Number.NaN;
 }
 
+function parseApprovedAt(value) {
+  if (!value) {
+    return null;
+  }
+
+  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
+  if (!Number.isFinite(date.getTime())) {
+    return null;
+  }
+
+  if (typeof value === 'string') {
+    const dateKey = value.trim().slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateKey) && date.toISOString().slice(0, 10) !== dateKey) {
+      return null;
+    }
+  }
+
+  return date;
+}
+
 function buildGatewaySnippet(rawText) {
   if (typeof rawText !== 'string') {
     return '';
@@ -127,11 +147,7 @@ export function classifyPaymentConfirmationResult({
     };
   }
 
-  const approvedAtCandidate = payload.approvedAt ? new Date(payload.approvedAt) : null;
-  const approvedAt =
-    approvedAtCandidate instanceof Date && Number.isFinite(approvedAtCandidate.getTime())
-      ? approvedAtCandidate
-      : now();
+  const approvedAt = parseApprovedAt(payload.approvedAt) ?? now();
 
   const receiptUrl =
     typeof payload?.receipt?.url === 'string' && payload.receipt.url.trim()
