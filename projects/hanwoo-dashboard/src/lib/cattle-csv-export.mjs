@@ -5,7 +5,7 @@ export function buildCattleCsvRows(cattleList) {
     cattle.id,
     cattle.name,
     cattle.tagNumber,
-    cattle.birthDate ? new Date(cattle.birthDate).toLocaleDateString('ko-KR') : '',
+    formatCsvDate(cattle.birthDate),
     cattle.gender || '',
     cattle.status || '',
     cattle.buildingId || '',
@@ -14,6 +14,15 @@ export function buildCattleCsvRows(cattleList) {
   ]);
 
   return ['\uFEFF' + headers.join(','), ...rows.map((row) => row.map(formatCsvCell).join(','))].join('\n');
+}
+
+function formatCsvDate(value) {
+  if (!value) {
+    return '';
+  }
+
+  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString('ko-KR');
 }
 
 function formatCsvCell(value) {
