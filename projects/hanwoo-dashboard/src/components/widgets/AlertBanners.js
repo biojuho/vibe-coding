@@ -2,7 +2,11 @@
 
 import { PremiumCard, PremiumCardContent } from '@/components/ui/premium-card';
 import { HeartIcon } from '@/components/ui/common';
-import { formatDate } from '@/lib/utils';
+import { formatDate, toFiniteNumber } from '@/lib/utils';
+
+function normalizeDaysLeft(value) {
+  return Math.max(0, Math.floor(toFiniteNumber(value)));
+}
 
 // [QA 수정] 실제 운영 import — CSS 변수 기반 색상 적용
 export function EstrusAlertBanner({ notifications = [], buildings = [] }) {
@@ -12,7 +16,7 @@ export function EstrusAlertBanner({ notifications = [], buildings = [] }) {
     return null;
   }
 
-  const todayCount = estrusNotifications.filter((notification) => notification.daysLeft === 0).length;
+  const todayCount = estrusNotifications.filter((notification) => normalizeDaysLeft(notification.daysLeft) === 0).length;
 
   return (
     <PremiumCard
@@ -29,7 +33,7 @@ export function EstrusAlertBanner({ notifications = [], buildings = [] }) {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
           {estrusNotifications.map((notification, index) => {
             const building = buildings.find((item) => item.id === notification.buildingId);
-            const daysLeft = notification.daysLeft ?? 0;
+            const daysLeft = normalizeDaysLeft(notification.daysLeft);
 
             return (
               <div
@@ -90,7 +94,7 @@ export function CalvingAlertBanner({ notifications = [], buildings = [] }) {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
           {calvingNotifications.map((notification, index) => {
             const building = buildings.find((item) => item.id === notification.buildingId);
-            const daysLeft = notification.daysLeft ?? 0;
+            const daysLeft = normalizeDaysLeft(notification.daysLeft);
 
             return (
               <div
