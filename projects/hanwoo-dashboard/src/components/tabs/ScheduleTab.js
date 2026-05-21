@@ -23,6 +23,16 @@ const errorTextStyle = {
   fontWeight: 600,
 };
 
+function toValidDate(value) {
+  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function toDateKey(value) {
+  const date = toValidDate(value);
+  return date ? date.toISOString().split('T')[0] : null;
+}
+
 export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quickActionIntent = null }) {
   const [isAdding, setIsAdding] = useState(() => quickActionIntent?.actionId === 'add-schedule');
   const [isSaving, setIsSaving] = useState(false);
@@ -61,8 +71,8 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
   const currentMonthEvents = useMemo(
     () =>
       events.filter((event) => {
-        const date = new Date(event.date);
-        return date.getMonth() === currentDate.getMonth() && date.getFullYear() === currentDate.getFullYear();
+        const date = toValidDate(event.date);
+        return date && date.getMonth() === currentDate.getMonth() && date.getFullYear() === currentDate.getFullYear();
       }),
     [events, currentDate],
   );
@@ -72,8 +82,11 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
     now.setHours(0, 0, 0, 0);
 
     return events
-      .filter((event) => new Date(event.date) >= now && !event.isCompleted)
-      .sort((first, second) => new Date(first.date) - new Date(second.date))
+      .filter((event) => {
+        const date = toValidDate(event.date);
+        return date && date >= now && !event.isCompleted;
+      })
+      .sort((first, second) => toValidDate(first.date) - toValidDate(second.date))
       .slice(0, 5);
   }, [events]);
 
@@ -271,7 +284,7 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
 
             const dateStr = day.toISOString().split('T')[0];
             const dayEvents = currentMonthEvents.filter(
-              (event) => new Date(event.date).toISOString().split('T')[0] === dateStr,
+              (event) => toDateKey(event.date) === dateStr,
             );
             const isToday = dateStr === new Date().toISOString().split('T')[0];
 
@@ -326,7 +339,8 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
       <div className="grid gap-3">
         {upcomingEvents.length > 0 ? (
           upcomingEvents.map((event) => {
-            const daysLeft = Math.ceil((new Date(event.date) - new Date()) / (1000 * 60 * 60 * 24));
+            const eventDate = toValidDate(event.date);
+            const daysLeft = Math.ceil((eventDate - new Date()) / (1000 * 60 * 60 * 24));
             const typeStyle = TYPE_STYLES[event.type] || TYPE_STYLES.General;
 
             return (
@@ -353,7 +367,7 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
                       className="text-xs font-medium"
                       style={{ color: daysLeft <= 3 ? 'var(--color-danger)' : 'var(--color-text-secondary)' }}
                     >
-                      {new Date(event.date).toLocaleDateString()} {daysLeft === 0 ? '(오늘)' : `(D-${daysLeft})`}
+                      {eventDate.toLocaleDateString()} {daysLeft === 0 ? '(오늘)' : `(D-${daysLeft})`}
                     </span>
                   </div>
                   <div className="text-sm font-semibold text-[color:var(--color-text)]">{event.title}</div>

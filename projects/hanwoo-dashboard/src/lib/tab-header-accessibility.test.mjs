@@ -80,3 +80,17 @@ test('schedule completion toggles wait for async updates before re-enabling cont
   assert.match(scheduleSource, /disabled=\{savingEventId === event\.id\}/);
   assert.match(scheduleSource, /aria-busy=\{savingEventId === event\.id\}/);
 });
+
+test('schedule tab skips invalid event dates before calendar and upcoming rendering', () => {
+  const scheduleSource = readSource('components/tabs/ScheduleTab.js');
+
+  assert.match(scheduleSource, /function toValidDate\(value\) \{/);
+  assert.match(scheduleSource, /return Number\.isNaN\(date\.getTime\(\)\) \? null : date;/);
+  assert.match(scheduleSource, /function toDateKey\(value\) \{/);
+  assert.match(scheduleSource, /const date = toValidDate\(event\.date\);/);
+  assert.match(scheduleSource, /return date && date\.getMonth\(\) === currentDate\.getMonth\(\)/);
+  assert.match(scheduleSource, /return date && date >= now && !event\.isCompleted;/);
+  assert.match(scheduleSource, /sort\(\(first, second\) => toValidDate\(first\.date\) - toValidDate\(second\.date\)\)/);
+  assert.match(scheduleSource, /\(event\) => toDateKey\(event\.date\) === dateStr/);
+  assert.doesNotMatch(scheduleSource, /new Date\(event\.date\)\.toISOString\(\)\.split\('T'\)\[0\] === dateStr/);
+});
