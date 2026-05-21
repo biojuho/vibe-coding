@@ -230,8 +230,12 @@ test('weather widget uses Korean product copy for unavailable state', () => {
   assert.match(source, /<span aria-hidden="true">\{a\.icon\}<\/span> \{a\.msg\}/);
   assert.match(dashboardSource, /WEATHER_STALE_MESSAGE/);
   assert.match(hookSource, /WEATHER_STALE_MESSAGE/);
+  assert.match(dashboardSource, /WEATHER_TIMEOUT_MESSAGE/);
+  assert.match(hookSource, /WEATHER_TIMEOUT_MESSAGE/);
   assert.doesNotMatch(dashboardSource, /Showing the last available weather snapshot/);
   assert.doesNotMatch(hookSource, /Showing the last available weather snapshot/);
+  assert.doesNotMatch(dashboardSource, /Weather lookup timed out after 5000ms/);
+  assert.doesNotMatch(hookSource, /Weather lookup timed out after 5000ms/);
   assert.doesNotMatch(source, /'Seoul'/);
   assert.doesNotMatch(source, /new Date\(day\.date\)\.toLocaleDateString\('ko-KR'/);
   assert.doesNotMatch(dashboardSource, /'Seoul'/);

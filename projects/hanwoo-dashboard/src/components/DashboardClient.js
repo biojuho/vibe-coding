@@ -28,6 +28,7 @@ import {
   readWeatherApiResponseSafely,
   WEATHER_UNAVAILABLE_MESSAGE,
   WEATHER_STALE_MESSAGE,
+  WEATHER_TIMEOUT_MESSAGE,
 } from '@/lib/weather-state.mjs';
 import { TabBar, WeatherWidget } from '@/components/widgets/widgets';
 import { EstrusAlertBanner, CalvingAlertBanner } from '@/components/widgets/AlertBanners';
@@ -544,7 +545,7 @@ export default function DashboardClient({
           { cache: 'no-store' },
           {
             timeoutMs: 5000,
-            errorMessage: 'Weather lookup timed out after 5000ms.',
+            errorMessage: WEATHER_TIMEOUT_MESSAGE,
           },
         );
 

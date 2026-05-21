@@ -7,6 +7,9 @@ export const WEATHER_STALE_MESSAGE =
 export const WEATHER_PARTIAL_MESSAGE =
   '일부 예보 데이터를 불러오지 못해 현재 날씨와 확인된 예보만 표시합니다.';
 
+export const WEATHER_TIMEOUT_MESSAGE =
+  '날씨 조회가 5초 안에 끝나지 않았습니다.';
+
 function toNumberOrNull(value) {
   const next = Number(value);
   return Number.isFinite(next) ? next : null;

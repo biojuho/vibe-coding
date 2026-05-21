@@ -8,6 +8,7 @@ import {
   normalizeWeatherPayload,
   readWeatherApiResponseSafely,
   WEATHER_STALE_MESSAGE,
+  WEATHER_TIMEOUT_MESSAGE,
   WEATHER_UNAVAILABLE_MESSAGE,
 } from '@/lib/weather-state.mjs';
 
@@ -44,7 +45,7 @@ export function useWeather(farmSettings) {
           { cache: 'no-store' },
           {
             timeoutMs: 5000,
-            errorMessage: 'Weather lookup timed out after 5000ms.',
+            errorMessage: WEATHER_TIMEOUT_MESSAGE,
           },
         );
 
