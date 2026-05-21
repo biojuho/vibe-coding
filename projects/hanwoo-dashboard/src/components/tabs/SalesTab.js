@@ -21,6 +21,11 @@ const errorTextStyle = {
   fontWeight: 600,
 };
 
+function getSaleDateTime(value) {
+  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
+  return Number.isNaN(date.getTime()) ? Number.NEGATIVE_INFINITY : date.getTime();
+}
+
 export default function SalesTab({
   saleRecords,
   cattleList,
@@ -83,7 +88,7 @@ export default function SalesTab({
           hasExpenseData,
         };
       })
-      .sort((first, second) => new Date(second.saleDate) - new Date(first.saleDate));
+      .sort((first, second) => getSaleDateTime(second.saleDate) - getSaleDateTime(first.saleDate));
   }, [saleRecords, cattleList, expenseRecords]);
 
   const safeTotalSales = useMemo(
