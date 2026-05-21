@@ -1,20 +1,21 @@
 import Matter from 'matter-js';
 import {
-    BOMB_EMOJI, BOMB_RADIUS, FRUITS, BOMB_PROBABILITY_PERCENT, 
-    GAME_HEIGHT, GAME_WIDTH, DROP_DELAY_MS
+    BOMB_RADIUS, FRUITS, GAME_HEIGHT, GAME_WIDTH
 } from './config.js';
 
 import {
-    score, comboCount, lastMergeAt, dropsSinceMerge, 
-    gameState, bestScore, currentFruit, nextFruitLevel,
-    isDropping, pendingFruitSpawn, shakeIntensity,
+    score, comboCount, lastMergeAt, dropsSinceMerge,
+    gameState, currentFruit, nextFruitLevel,
+    isDropping, shakeIntensity,
     setScore, setComboCount, setLastMergeAt, setDropsSinceMerge,
-    setGameState, setCurrentFruit, setNextFruitLevel,
-    setIsDropping, setPendingFruitSpawn,
-    updateScoreDisplay, updateComboDisplay,
+    setGameState, setCurrentFruit,
+    setIsDropping, setPendingFruitSpawn, reportFruitLevel,
+    updateScoreDisplay, updateComboDisplay, notifyGameOver,
     syncBestScore, setOverlayHidden, setPauseButtonLabel,
-    getActiveDifficultyConfig, triggerHaptic, triggerShake, getElement
+    getActiveDifficultyConfig, triggerHaptic, triggerShake
 } from './main.js';
+
+import { gameRandom } from './prng.js';
 
 import { createParticles, explodeBombEffects } from './renderer.js';
 
@@ -155,6 +156,7 @@ function handleCollision(event) {
                 setScore(currentScore);
 
                 updateScoreDisplay();
+                reportFruitLevel(nextLevel); // track best fruit for the result card
                 createParticles(midX, midY, nextData.color);
                 triggerHaptic(nextLevel >= 4 ? [20, 30, 20] : 14);
                 if (nextLevel >= 4) triggerShake(Math.min((nextLevel - 3) * 5, 20));
@@ -254,6 +256,7 @@ function checkGameOver() {
                 setPauseButtonLabel();
                 triggerHaptic([30, 40, 30]);
                 Runner.stop(runner);
+                notifyGameOver(); // records daily result + builds share card
                 break;
             }
         }
@@ -264,7 +267,9 @@ export function pickWeightedLevel(weights) {
     const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
     if (totalWeight <= 0) return 0;
 
-    let randomValue = Math.random() * totalWeight;
+    // gameRandom() (not Math.random()) so the spawn sequence is reproducible
+    // from the daily seed - this is what makes the daily challenge fair.
+    let randomValue = gameRandom() * totalWeight;
     for (let index = 0; index < weights.length; index++) {
         randomValue -= weights[index];
         if (randomValue <= 0) {
@@ -294,15 +299,21 @@ export function createNewFruit(nextIsBomb) {
     let newFruit;
     if (nextIsBomb) {
         newFruit = Bodies.circle(GAME_WIDTH / 2, 80, BOMB_RADIUS, {
-            label: "current_fruit", isStatic: true,
+            label: "current_fruit",
             render: { visible: false }, plugin: { isBomb: true }
         });
     } else {
         newFruit = Bodies.circle(GAME_WIDTH / 2, 80, fruitData.radius, {
-            label: "current_fruit", isStatic: true,
+            label: "current_fruit",
             render: { visible: false }, plugin: { level: level, isBomb: false }
         });
     }
+    // Create the held fruit dynamic, THEN freeze it with setStatic(). matter-js
+    // only stores the body's original mass/inertia when setStatic() transitions
+    // a non-static body. Passing `isStatic: true` to the constructor skips that,
+    // so a later setStatic(false) on drop would leave mass = Infinity and
+    // gravity would corrupt the body's position to NaN. (See dropCurrentFruitContext.)
+    Matter.Body.setStatic(newFruit, true);
     newFruit.immunityUntil = Date.now() + 2000;
     World.add(engine.world, newFruit);
     
@@ -321,7 +332,7 @@ export function dropCurrentFruitContext() {
     currentFruit.label = 'fruit';
     Matter.Body.setStatic(currentFruit, false);
     currentFruit.immunityUntil = Date.now() + 2000;
-    Matter.Body.setAngularVelocity(currentFruit, (Math.random() - 0.5) * 0.1);
+    Matter.Body.setAngularVelocity(currentFruit, (gameRandom() - 0.5) * 0.1);
     
     const dropDelay = getActiveDifficultyConfig().dropDelayMs;
     setTimeout(() => {

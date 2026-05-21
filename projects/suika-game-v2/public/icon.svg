@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Suika Daily">
+  <rect width="512" height="512" rx="112" fill="#ff8a3d"/>
+  <circle cx="256" cy="256" r="156" fill="#1b5e20"/>
+  <circle cx="256" cy="256" r="132" fill="#43a047"/>
+  <circle cx="256" cy="256" r="104" fill="#ff5252"/>
+  <g fill="#1b1b1b">
+    <ellipse cx="256" cy="196" rx="11" ry="17"/>
+    <ellipse cx="210" cy="244" rx="11" ry="17"/>
+    <ellipse cx="302" cy="244" rx="11" ry="17"/>
+    <ellipse cx="232" cy="306" rx="11" ry="17"/>
+    <ellipse cx="280" cy="306" rx="11" ry="17"/>
+  </g>
+</svg>

@@ -6,13 +6,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
     <!-- SEO & SNS Share Meta Tags -->
-    <meta property="og:title" content="Suika Match-3 Challenge">
-    <meta property="og:description" content="같은 과일 3개를 모아 진화시키고 최고기록에 도전하세요!">
-    <meta property="og:image" content="https://via.placeholder.com/1200x630/ff6f00/ffffff?text=Suika+Match-3+Challenge">
-    <meta property="og:url" content="https://your-game-url.com">
-    <meta name="twitter:card" content="summary_large_image">
+    <meta name="description" content="매일 전 세계가 똑같은 퍼즐에 도전하는 데일리 과일 합치기 게임. 연속 기록을 쌓고 결과를 공유하세요.">
+    <meta name="theme-color" content="#ff6b6b">
+    <meta property="og:title" content="Suika Daily - 매일 똑같은 퍼즐, 전 세계 동시 도전">
+    <meta property="og:description" content="매일 전 세계가 똑같은 시드의 퍼즐에 도전하는 데일리 과일 합치기 게임.">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary">
 
-    <title>Suika Match-3 (v2.0)</title>
+    <title>Suika Daily</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="icon" type="image/svg+xml" href="./icon.svg">
+    <link rel="apple-touch-icon" href="./icon.svg">
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -58,17 +64,20 @@
 
         <!-- Start Screen -->
         <div id="start-screen" class="fullscreen-overlay">
-            <div style="font-size: 80px; margin-bottom: 20px;">🍉</div>
-            <h1 class="title">SUIKA<br>MATCH-3</h1>
-            <p class="subtitle">같은 과일 3개를 모아 진화시키세요!</p>
+            <div style="font-size: 76px; margin-bottom: 8px;">🍉</div>
+            <h1 class="title">SUIKA<br>DAILY</h1>
+            <span id="daily-challenge-label" class="challenge-chip">Daily #1</span>
+            <p class="subtitle">전 세계가 매일 똑같은 퍼즐에 도전합니다.<br>같은 과일 3개를 모아 진화시키세요!</p>
+
+            <div class="mode-toggle glass-panel">
+                <button class="mode-btn active" data-mode="daily" type="button">🗓️ 데일리 챌린지</button>
+                <button class="mode-btn" data-mode="free" type="button">♾️ 프리 플레이</button>
+            </div>
+            <p id="start-streak" class="streak-line"></p>
+
             <button id="start-btn" class="btn btn-primary">
                 <span>🎮 Game Start</span>
             </button>
-        </div>
-
-        <!-- Advertisement Placeholder -->
-        <div class="ad-banner" id="ad-banner">
-            <span>📢 Advertisement Area (320x50)</span>
         </div>
 
         <!-- Game Over Screen -->
@@ -76,13 +85,12 @@
             <h1 class="title">GAME OVER</h1>
             <p class="subtitle">Score: <span id="final-score">0</span></p>
 
-            <div class="glass-panel" style="padding: 20px; margin-bottom: 30px;">
-                <p style="margin: 0; font-size: 14px; color: #555;">더 높은 점수를 달성할 수 있을까요?</p>
-            </div>
+            <pre id="result-card" class="result-card glass-panel"></pre>
+            <p id="daily-streak-result" class="streak-line"></p>
 
             <div class="btn-group">
-                <button id="share-btn" class="btn btn-secondary">📤 Share Score</button>
-                <button id="restart-btn" class="btn btn-primary">🔄 Try Again</button>
+                <button id="share-btn" class="btn btn-secondary">📤 결과 공유</button>
+                <button id="restart-btn" class="btn btn-primary">🔄 다시 도전</button>
             </div>
         </div>
 
@@ -105,6 +113,17 @@
     </div>
 
     <script type="module" src="./src/main.js"></script>
+
+    <!-- PWA: register the service worker for offline play. -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker
+                    .register('./sw.js')
+                    .catch((error) => console.warn('SW registration failed:', error));
+            });
+        }
+    </script>
 </body>
 
 </html>

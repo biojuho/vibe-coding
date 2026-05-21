@@ -4,9 +4,10 @@ import {
 } from './config.js';
 
 import {
-    initPhysics, engine, runner, render, pickWeightedLevel, 
+    initPhysics, engine, runner, render, pickWeightedLevel,
     removeActiveFruits, createNewFruit, getTopFruitY,
-    dropCurrentFruitContext, moveCurrentFruitTo, nudgeCurrentFruit
+    dropCurrentFruitContext, moveCurrentFruitTo, nudgeCurrentFruit,
+    Render, Runner
 } from './physics.js';
 
 import {
@@ -19,6 +20,16 @@ import {
     setPauseButtonLabel, setOverlayHidden, getStoredValue,
     setStoredValue, removeStoredValue
 } from './ui.js';
+
+import {
+    seedGameplayRng, gameRandom, dailySeedString, dailyChallengeNumber
+} from './prng.js';
+
+import {
+    loadDailyStats, recordDailyResult, hasPlayedToday, buildResultCard
+} from './daily.js';
+
+import { drawShareCard } from './sharecard.js';
 
 // --- Global State ---
 export let currentFruit = null;
@@ -37,6 +48,13 @@ export let lastMergeAt = 0;
 export let difficultyMode = 'normal';
 export let dropsSinceMerge = 0;
 
+// --- Daily-challenge state ---
+export let gameMode = 'daily';            // 'daily' | 'free'
+export let maxFruitLevel = 0;             // highest fruit reached this round
+export let dailyChallenge = dailyChallengeNumber();
+export let lastResultCard = '';           // shareable text for the last round
+let dailyStats = loadDailyStats();        // streak/score history (localStorage)
+
 // Setters for external modules
 export function setScore(val) { score = val; }
 export function setComboCount(val) { comboCount = val; }
@@ -47,6 +65,11 @@ export function setCurrentFruit(val) { currentFruit = val; }
 export function setNextFruitLevel(val) { nextFruitLevel = val; }
 export function setIsDropping(val) { isDropping = val; }
 export function setPendingFruitSpawn(val) { pendingFruitSpawn = val; }
+
+/** Record the highest fruit level reached, for the share card. */
+export function reportFruitLevel(level) {
+    if (level > maxFruitLevel) maxFruitLevel = level;
+}
 
 export function getActiveDifficultyConfig() {
     return DIFFICULTY_PRESETS[difficultyMode] || DIFFICULTY_PRESETS.normal;
@@ -79,6 +102,7 @@ function resetRoundState() {
     comboCount = 0;
     lastMergeAt = 0;
     dropsSinceMerge = 0;
+    maxFruitLevel = 0;
     setParticles([]);
     shakeIntensity = 0;
     currentFruit = null;
@@ -145,7 +169,7 @@ export function setNextObject() {
     const difficulty = getActiveDifficultyConfig();
     nextIsBomb = false;
     
-    if (Math.random() * 100 < BOMB_PROBABILITY_PERCENT) {
+    if (gameRandom() * 100 < BOMB_PROBABILITY_PERCENT) {
         nextFruitLevel = 0;
         nextIsBomb = true;
     } else if (dropsSinceMerge >= difficulty.guaranteedRescueAfter) {
@@ -174,16 +198,26 @@ function startGame() {
     resetRoundState();
     removeActiveFruits();
 
+    // Seed the gameplay RNG. Daily mode uses the UTC calendar date, so every
+    // player worldwide faces the identical fruit/bomb sequence; free play
+    // uses a fresh unpredictable seed each round.
+    if (gameMode === 'daily') {
+        dailyChallenge = dailyChallengeNumber();
+        seedGameplayRng(dailySeedString());
+    } else {
+        seedGameplayRng(`free-${Date.now()}-${Math.random()}`);
+    }
+
     gameState = 'PLAYING';
     setOverlayHidden('start-screen', true);
 
     if (!renderStarted) {
-        Matter.Render.run(render);
+        Render.run(render);
         renderStarted = true;
     }
 
-    Matter.Runner.stop(runner);
-    Matter.Runner.run(runner, engine);
+    Runner.stop(runner);
+    Runner.run(runner, engine);
     setPauseButtonLabel(gameState);
 
     setNextObject();
@@ -191,9 +225,133 @@ function startGame() {
 }
 
 function restartGame() {
-    const adConfirmed = confirm("팝업 [전면 광고 시뮬레이션]\n\n광고가 재생됩니다. (확인을 누르면 게임이 재시작됩니다)");
-    if (adConfirmed) {
-        startGame();
+    startGame();
+}
+
+/**
+ * Called by physics.js the moment the round ends. Records the daily result,
+ * refreshes the streak HUD and builds the shareable result card.
+ */
+export function notifyGameOver() {
+    if (gameMode === 'daily') {
+        const day = dailySeedString();
+        dailyStats = recordDailyResult({
+            day,
+            challenge: dailyChallenge,
+            score,
+            topLevel: maxFruitLevel,
+        });
+        lastResultCard = buildResultCard({
+            challenge: dailyChallenge,
+            score,
+            topLevel: maxFruitLevel,
+            streak: dailyStats.currentStreak,
+            mode: 'Daily',
+        });
+    } else {
+        lastResultCard = buildResultCard({
+            challenge: dailyChallenge,
+            score,
+            topLevel: maxFruitLevel,
+            streak: 0,
+            mode: 'Free',
+        });
+    }
+    renderGameOverSummary();
+}
+
+/** Populate the game-over overlay with the result card + streak. */
+function renderGameOverSummary() {
+    setText('result-card', lastResultCard);
+    if (gameMode === 'daily') {
+        setText(
+            'daily-streak-result',
+            `🔥 ${dailyStats.currentStreak}일 연속  ·  최고 ${dailyStats.maxStreak}일`,
+        );
+    } else {
+        setText('daily-streak-result', '프리 플레이 — 기록은 저장되지 않습니다');
+    }
+}
+
+/**
+ * Share the result: a rendered PNG card via the Web Share API when possible,
+ * otherwise the spoiler-free text card copied to the clipboard.
+ */
+async function shareResult() {
+    const shareText = `${lastResultCard}\n${window.location.href}`;
+    const copyFallback = async () => {
+        try {
+            await navigator.clipboard.writeText(shareText);
+            alert('결과 카드가 클립보드에 복사되었습니다!');
+        } catch (_error) {
+            // Clipboard blocked - nothing more we can do gracefully.
+        }
+    };
+
+    try {
+        const blob = await drawShareCard({
+            challenge: dailyChallenge,
+            score,
+            topLevel: maxFruitLevel,
+            streak: gameMode === 'daily' ? dailyStats.currentStreak : 0,
+            mode: gameMode === 'daily' ? 'Daily' : 'Free',
+        });
+        const file = new File([blob], `suika-daily-${dailyChallenge}.png`, {
+            type: 'image/png',
+        });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+                title: 'Suika Daily',
+                text: shareText,
+                files: [file],
+            });
+            return;
+        }
+        if (navigator.share) {
+            await navigator.share({ title: 'Suika Daily', text: shareText });
+            return;
+        }
+        await copyFallback();
+    } catch (error) {
+        if (error && error.name === 'AbortError') return; // user cancelled
+        await copyFallback();
+    }
+}
+
+/** Switch between the Daily challenge and Free play modes. */
+function setGameMode(mode) {
+    if (mode !== 'daily' && mode !== 'free') return;
+    if (gameState === 'PLAYING') return; // don't swap mid-round
+    gameMode = mode;
+    updateGameModeUI();
+}
+
+/** Reflect the active game mode + daily streak on the start screen. */
+function updateGameModeUI() {
+    const buttons = document.querySelectorAll('.mode-btn');
+    buttons.forEach((button) => {
+        const mode = button.getAttribute('data-mode');
+        button.classList.toggle('active', mode === gameMode);
+    });
+
+    setText('daily-challenge-label', `Daily #${dailyChallenge}`);
+
+    if (gameMode === 'daily') {
+        const played = hasPlayedToday(dailyStats, dailySeedString());
+        const streakText =
+            dailyStats.currentStreak > 0
+                ? `🔥 ${dailyStats.currentStreak}일 연속 도전 중`
+                : '오늘부터 연속 기록을 쌓아보세요';
+        const playedText = played
+            ? `오늘 기록: ${dailyStats.today.score.toLocaleString('en-US')}점 (다시 도전 가능)`
+            : '';
+        setText(
+            'start-streak',
+            [streakText, playedText].filter(Boolean).join('  ·  '),
+        );
+    } else {
+        setText('start-streak', '프리 플레이 — 매 판 새로운 무작위 시드');
     }
 }
 
@@ -201,7 +359,7 @@ function togglePause() {
     if (gameState === 'PLAYING') {
         gameState = 'PAUSED';
         triggerHaptic(10);
-        Matter.Runner.stop(runner);
+        Runner.stop(runner);
         setOverlayHidden('pause-screen', false);
         setPauseButtonLabel(gameState);
         return;
@@ -212,7 +370,7 @@ function togglePause() {
     gameState = 'PLAYING';
     triggerHaptic(6);
     setOverlayHidden('pause-screen', true);
-    Matter.Runner.run(runner, engine);
+    Runner.run(runner, engine);
     setPauseButtonLabel(gameState);
 
     if (pendingFruitSpawn && !currentFruit) {
@@ -311,25 +469,7 @@ function setupUIEvents() {
 
     const shareButton = getElement('share-btn');
     if (shareButton) {
-        shareButton.addEventListener('click', async () => {
-            const modeLabel = getActiveDifficultyConfig().label;
-            const shareData = {
-                title: 'Suika Match-3 Challenge',
-                text: `I scored ${score} points in ${modeLabel} mode!`,
-                url: window.location.href
-            };
-
-            try {
-                if (navigator.share) {
-                    await navigator.share(shareData);
-                } else {
-                    await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
-                    alert('Score copied to clipboard.');
-                }
-            } catch (error) {
-                console.error('Error sharing:', error);
-            }
-        });
+        shareButton.addEventListener('click', shareResult);
     }
 
     const restartButton = getElement('restart-btn');
@@ -347,6 +487,14 @@ function setupUIEvents() {
         btn.addEventListener('click', (e) => {
             const mode = e.target.getAttribute('data-difficulty');
             if (mode) setDifficultyMode(mode);
+        });
+    });
+
+    const modeButtons = document.querySelectorAll('.mode-btn');
+    modeButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const mode = e.target.getAttribute('data-mode');
+            if (mode) setGameMode(mode);
         });
     });
 
@@ -392,6 +540,7 @@ function initGame() {
     loadDifficultyMode();
     loadBestScore();
     updateScoreDisplay();
+    updateGameModeUI();
     setPauseButtonLabel(gameState);
     setNextObject();
 }

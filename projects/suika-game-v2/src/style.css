@@ -321,24 +321,69 @@ p.subtitle {
   transform: translateY(1px);
 }
 
-/* --- Ad Banner --- */
-.ad-banner {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 60px;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(5px);
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
+/* --- Daily Challenge UI --- */
+.challenge-chip {
+  display: inline-block;
+  margin-bottom: 14px;
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: var(--primary-color);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.mode-toggle {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  color: #aaa;
-  font-size: 13px;
-  font-weight: 600;
-  z-index: 15;
+  gap: 6px;
+  padding: 6px;
+  margin-bottom: 12px;
   pointer-events: auto;
+}
+
+.mode-btn {
+  border: 1px solid rgba(30, 41, 59, 0.15);
+  background: rgba(255, 255, 255, 0.75);
+  color: #334155;
+  border-radius: 999px;
+  padding: 9px 16px;
+  font-family: "Nunito", sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mode-btn:hover {
+  transform: translateY(-1px);
+}
+
+.mode-btn.active {
+  background: linear-gradient(92deg, #ff6b6b 0%, #ff9f43 100%);
+  color: #fff;
+  border-color: transparent;
+}
+
+.streak-line {
+  font-size: 13px;
+  font-weight: 700;
+  color: #475569;
+  margin: 4px 0 24px;
+  min-height: 18px;
+  text-align: center;
+}
+
+.result-card {
+  font-family: "Nunito", "Segoe UI Emoji", sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.7;
+  color: #1f2937;
+  padding: 18px 28px;
+  margin: 8px 0 4px;
+  text-align: center;
+  white-space: pre-wrap;
 }
 
 /* Animations */
