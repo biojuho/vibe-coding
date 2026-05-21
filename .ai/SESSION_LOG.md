@@ -918,6 +918,32 @@
 ## 2026-05-21 KST - Codex
 
 ### Summary
+- Completed T-536 for `hanwoo-dashboard` while continuing the active quality-uplift goal.
+- Normalized dashboard fallback cattle-weight aggregation: `DashboardClient` now uses `toFiniteNumber(cow.weight)` before computing fallback average weight, so malformed/non-finite cattle weights cannot spread `NaN` into home dashboard stats when SSR summary data is unavailable.
+- Preserved unrelated current WIP in root package/workflow files, Hanwoo `package.json`, Hanwoo FeedTab/empty-state edits, shorts-maker-v2 files, suika-game-v2, word-chain lock, setup, and workspace debt files.
+
+### Changed Files
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/GOAL.md`
+- `projects/hanwoo-dashboard/src/components/DashboardClient.js`
+- `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs`
+
+### Verification
+- `node --test src/lib/home-market-copy.test.mjs` from `projects/hanwoo-dashboard` -> `24 passed`.
+- `npm.cmd exec eslint src/components/DashboardClient.js src/lib/home-market-copy.test.mjs` from `projects/hanwoo-dashboard` -> passed.
+- `git diff --check -- projects/hanwoo-dashboard/src/components/DashboardClient.js projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` -> passed with CRLF warnings only.
+- `python execution\project_qc_runner.py --project hanwoo-dashboard --json` -> passed (`test` 216, lint passed, build passed).
+- `python execution\code_review_gate.py --staged --json` -> JSON PASS (`risk_score 0.0`); trailing cp949 reader-thread exception is known Windows output noise.
+
+### Follow-up
+- Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
+- T-372 and T-407 remain approval-scoped. Preserve unrelated current WIP listed above.
+
+## 2026-05-21 KST - Codex
+
+### Summary
 - Completed T-532 for `hanwoo-dashboard` while continuing the active product-completeness goal.
 - Added `src/lib/button-type-regression.test.mjs`, a source regression guard that scans runtime literal `<button>` tags under `src/app` and `src/components` and fails when any omit an explicit `type`.
 - Preserved the existing T-531 AI chat send guard from commit `bed0c0f0` and recorded both recent Hanwoo reliability steps in shared context.

@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-536 completed**: Hanwoo dashboard fallback average cattle weight now normalizes cattle weights before aggregation. `DashboardClient` uses `toFiniteNumber(cow.weight)`, preventing malformed/non-finite values from spreading `NaN` into the home dashboard when SSR summary data is unavailable. Code commit `fd18e6eb`. |
+| Next Priorities | Verification passed: focused home/market source test (`24 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 216, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/Hanwoo FeedTab-empty-state/shorts/suika/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-535 completed**: Hanwoo financial chart and dashboard summary money totals now normalize numeric inputs before aggregation. `FinancialChartWidget` and `summary-service` use `toFiniteNumber()` for sales, expenses, monthly rollups, and incoming `seriesData`, preventing malformed/non-finite values from spreading `NaN` through the financial chart or summary API payload. Code commit `bbff02c8`. |
 | Next Priorities | Verification passed: focused analysis/financial source test (`3 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 215, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/suika/workspace WIP. |
 
