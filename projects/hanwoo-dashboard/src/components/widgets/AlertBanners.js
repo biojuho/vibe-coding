@@ -8,9 +8,30 @@ function normalizeDaysLeft(value) {
   return Math.max(0, Math.floor(toFiniteNumber(value)));
 }
 
+function normalizeAlertNotifications(notifications, type) {
+  if (!Array.isArray(notifications)) return [];
+
+  return notifications
+    .filter((notification) => notification && typeof notification === 'object' && notification.type === type)
+    .map((notification, index) => ({
+      ...notification,
+      cattleName:
+        typeof notification.cattleName === 'string' && notification.cattleName.trim()
+          ? notification.cattleName
+          : '이름 미등록',
+      id: notification.id ?? `${type}-${index}`,
+      penNumber: notification.penNumber ?? '-',
+    }));
+}
+
+function normalizeBuildings(buildings) {
+  return Array.isArray(buildings) ? buildings.filter((building) => building && typeof building === 'object') : [];
+}
+
 // [QA 수정] 실제 운영 import — CSS 변수 기반 색상 적용
 export function EstrusAlertBanner({ notifications = [], buildings = [] }) {
-  const estrusNotifications = notifications.filter((notification) => notification.type === 'estrus');
+  const safeBuildings = normalizeBuildings(buildings);
+  const estrusNotifications = normalizeAlertNotifications(notifications, 'estrus');
 
   if (estrusNotifications.length === 0) {
     return null;
@@ -32,7 +53,7 @@ export function EstrusAlertBanner({ notifications = [], buildings = [] }) {
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
           {estrusNotifications.map((notification, index) => {
-            const building = buildings.find((item) => item.id === notification.buildingId);
+            const building = safeBuildings.find((item) => item.id === notification.buildingId);
             const daysLeft = normalizeDaysLeft(notification.daysLeft);
 
             return (
@@ -73,7 +94,8 @@ export function EstrusAlertBanner({ notifications = [], buildings = [] }) {
 
 // [QA 수정] 분만 알림 — CSS 변수 기반 색상 + 문자 깨짐(쨌→·) 수정
 export function CalvingAlertBanner({ notifications = [], buildings = [] }) {
-  const calvingNotifications = notifications.filter((notification) => notification.type === 'calving');
+  const safeBuildings = normalizeBuildings(buildings);
+  const calvingNotifications = normalizeAlertNotifications(notifications, 'calving');
 
   if (calvingNotifications.length === 0) {
     return null;
@@ -93,7 +115,7 @@ export function CalvingAlertBanner({ notifications = [], buildings = [] }) {
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
           {calvingNotifications.map((notification, index) => {
-            const building = buildings.find((item) => item.id === notification.buildingId);
+            const building = safeBuildings.find((item) => item.id === notification.buildingId);
             const daysLeft = normalizeDaysLeft(notification.daysLeft);
 
             return (
