@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` dashboard summary API meta-date serialization is safe for malformed cached timestamps. `/api/dashboard/summary` routes cached `generatedAt` and `staleAt` values through `toMetaDate()` before `toISOString()` and stale checks, preventing one bad cache timestamp from turning the summary API into a 500. Verification passed: focused dashboard summary route date source test (`1 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 227, lint, build), and staged `code_review_gate --json`.
+
 - As of 2026-05-21, `hanwoo-dashboard` market snapshot read-model date normalization is safe for malformed KAPE issue dates. `dashboard/read-models.js` falls back to the current time before `toIssueDateKey()` calls `toISOString()`, preventing one bad issue date from breaking market snapshot persistence or cache key writes. Verification passed: focused dashboard read-models date source test (`1 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 226, lint, build), and staged `code_review_gate --json`.
 
 - As of 2026-05-21, `hanwoo-dashboard` Today Focus low-stock detection ignores malformed inventory values. `buildTodayFocusItems()` parses inventory quantity and threshold through `toFiniteNumberOrNull()` before comparison, preventing empty or malformed values from creating false low-stock cards on the home panel. Verification passed: focused today-focus test (`4 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 225, lint, build), and staged `code_review_gate --json`.

@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-552 completed**: Hanwoo dashboard summary API now normalizes cached snapshot `generatedAt` and `staleAt` meta dates through `toMetaDate()` before `toISOString()` and stale checks. A malformed cached summary timestamp can no longer turn `/api/dashboard/summary` into a 500. Code commit `2ba810ac`. |
+| Next Priorities | Verification passed: focused dashboard summary route date source test (`1 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 227, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-551 completed**: Hanwoo market snapshot read model now makes `normalizeDate()` fall back to the current time for malformed market issue dates before `toIssueDateKey()` calls `toISOString()`. One bad KAPE issue date can no longer break market snapshot persistence or cache key writes. Code commit `26421ca5`. |
 | Next Priorities | Verification passed: focused dashboard read-models date source test (`1 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 226, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
 
