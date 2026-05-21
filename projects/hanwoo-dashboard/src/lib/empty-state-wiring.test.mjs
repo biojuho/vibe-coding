@@ -168,6 +168,33 @@ test('feed summaries normalize numeric inputs before aggregation', () => {
   assert.doesNotMatch(source, /standardsMap\[row\.status\]\?\.concentrateKg \|\| 0/);
 });
 
+test('feed tab normalizes malformed payloads before rendering', () => {
+  const source = readSource('components/tabs/FeedTab.js');
+
+  assert.match(source, /function normalizeFeedItems\(items\) \{/);
+  assert.match(source, /return Array\.isArray\(items\) \? items\.filter\(\(item\) => item && typeof item === 'object'\) : \[\];/);
+  assert.match(source, /function normalizeFeedBuildings\(buildings\) \{/);
+  assert.match(source, /id: building\.id \?\? `feed-building-\$\{index\}`/);
+  assert.match(source, /'축사명 미등록'/);
+  assert.match(source, /const safeCattle = useMemo\(\(\) => normalizeFeedItems\(cattle\), \[cattle\]\);/);
+  assert.match(source, /const safeFeedStandards = useMemo\(\(\) => normalizeFeedItems\(feedStandards\), \[feedStandards\]\);/);
+  assert.match(source, /const safeFeedHistory = useMemo\(\(\) => normalizeFeedItems\(feedHistory\), \[feedHistory\]\);/);
+  assert.match(source, /const safeBuildings = useMemo\(\(\) => normalizeFeedBuildings\(buildings\), \[buildings\]\);/);
+  assert.match(source, /safeFeedStandards\.forEach\(\(standard\) => \{/);
+  assert.match(source, /safeCattle\.filter\(\(row\) => row\.status === status\)/);
+  assert.match(source, /return safeCattle;/);
+  assert.match(source, /\[\.\.\.safeFeedHistory\]\.sort/);
+  assert.match(source, /safeBuildings\.map\(\(building\) => \(/);
+  assert.match(source, /safeFeedHistory\.slice\(0, 5\)\.map\(\(record, index\) => \(/);
+  assert.match(source, /key=\{record\.id \?\? `feed-record-\$\{index\}`\}/);
+  assert.doesNotMatch(source, /feedStandards\.forEach\(\(standard\) => \{/);
+  assert.doesNotMatch(source, /const count = cattle\.filter/);
+  assert.doesNotMatch(source, /return cattle;/);
+  assert.doesNotMatch(source, /\[\.\.\.feedHistory\]\.sort/);
+  assert.doesNotMatch(source, /buildings\.map\(\(building\) => \(/);
+  assert.doesNotMatch(source, /feedHistory\.slice\(0, 5\)\.map/);
+});
+
 test('feed building filter chips expose selected state and Korean labels', () => {
   const source = readSource('components/tabs/FeedTab.js');
 

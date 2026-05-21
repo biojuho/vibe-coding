@@ -64,6 +64,18 @@ function formatFeedDateLabel(value, options) {
   return date ? date.toLocaleDateString('ko-KR', options) : '날짜 미등록';
 }
 
+function normalizeFeedItems(items) {
+  return Array.isArray(items) ? items.filter((item) => item && typeof item === 'object') : [];
+}
+
+function normalizeFeedBuildings(buildings) {
+  return normalizeFeedItems(buildings).map((building, index) => ({
+    ...building,
+    id: building.id ?? `feed-building-${index}`,
+    name: typeof building.name === 'string' && building.name.trim() ? building.name : '축사명 미등록',
+  }));
+}
+
 export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], onRecordFeed, buildings = [] }) {
   const [selectedBuilding, setSelectedBuilding] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -81,19 +93,24 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
     defaultValues: createFeedRecordValues(),
   });
 
+  const safeCattle = useMemo(() => normalizeFeedItems(cattle), [cattle]);
+  const safeFeedStandards = useMemo(() => normalizeFeedItems(feedStandards), [feedStandards]);
+  const safeFeedHistory = useMemo(() => normalizeFeedItems(feedHistory), [feedHistory]);
+  const safeBuildings = useMemo(() => normalizeFeedBuildings(buildings), [buildings]);
+
   const standardsMap = useMemo(() => {
     const map = {};
-    feedStandards.forEach((standard) => {
+    safeFeedStandards.forEach((standard) => {
       map[standard.status] = standard;
     });
     return map;
-  }, [feedStandards]);
+  }, [safeFeedStandards]);
 
   const feedSummary = useMemo(() => {
     const summary = {};
 
     BREED_STATUS_OPTIONS.forEach((status) => {
-      const count = cattle.filter((row) => row.status === status).length;
+      const count = safeCattle.filter((row) => row.status === status).length;
       const standard = standardsMap[status];
 
       if (count > 0 && standard) {
@@ -106,7 +123,7 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
     });
 
     return summary;
-  }, [cattle, standardsMap]);
+  }, [safeCattle, standardsMap]);
 
   const totalStandardRoughage = Object.values(feedSummary)
     .reduce((sum, value) => sum + toFiniteNumber(value.roughageTotal), 0)
@@ -117,15 +134,15 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
 
   const filteredCattle = useMemo(() => {
     if (!selectedBuilding) {
-      return cattle;
+      return safeCattle;
     }
 
-    return cattle.filter((row) => row.buildingId === selectedBuilding);
-  }, [cattle, selectedBuilding]);
+    return safeCattle.filter((row) => row.buildingId === selectedBuilding);
+  }, [safeCattle, selectedBuilding]);
 
   const chartData = useMemo(() => {
     const grouped = {};
-    const sorted = [...feedHistory].sort((first, second) => getFeedDateTime(first.date) - getFeedDateTime(second.date));
+    const sorted = [...safeFeedHistory].sort((first, second) => getFeedDateTime(first.date) - getFeedDateTime(second.date));
 
     sorted.forEach((record) => {
       const key = formatFeedDateLabel(record.date, { month: 'short', day: 'numeric' });
@@ -137,7 +154,7 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
     });
 
     return Object.values(grouped);
-  }, [feedHistory]);
+  }, [safeFeedHistory]);
 
   const roughageGuide = selectedBuilding
     ? filteredCattle.reduce((sum, row) => sum + toFiniteNumber(standardsMap[row.status]?.roughageKg), 0).toFixed(1)
@@ -194,7 +211,7 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
         <FilterChip active={!selectedBuilding} onClick={() => setSelectedBuilding(null)} label="전체 축사 급여 보기" disabled={isSaving}>
           전체
         </FilterChip>
-        {buildings.map((building) => (
+        {safeBuildings.map((building) => (
           <FilterChip
             key={building.id}
             active={selectedBuilding === building.id}
@@ -229,7 +246,7 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
           }}
         >
           <span>
-            오늘 급여 가이드 {selectedBuilding ? `(${buildings.find((row) => row.id === selectedBuilding)?.name})` : '(전체)'}
+            오늘 급여 가이드 {selectedBuilding ? `(${safeBuildings.find((row) => row.id === selectedBuilding)?.name})` : '(전체)'}
           </span>
           <span>{filteredCattle.length}두</span>
         </div>
@@ -260,7 +277,7 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
           <div style={{ fontSize: '16px', fontWeight: 700, marginBottom: '16px', color: 'var(--color-text)' }}>
             오늘 급여 기록
             <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-muted)', marginLeft: '8px' }}>
-              {buildings.find((row) => row.id === selectedBuilding)?.name}
+              {safeBuildings.find((row) => row.id === selectedBuilding)?.name}
             </span>
           </div>
 
@@ -366,9 +383,9 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
       <div style={{ marginTop: '20px' }}>
         <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '10px', color: 'var(--color-text)' }}>최근 기록</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {feedHistory.slice(0, 5).map((record) => (
+          {safeFeedHistory.slice(0, 5).map((record, index) => (
             <div
-              key={record.id}
+              key={record.id ?? `feed-record-${index}`}
               style={{
                 background: 'var(--surface-gradient)',
                 borderRadius: '18px',
@@ -384,7 +401,7 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
                 <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)' }}>
                   {formatFeedDateLabel(record.date)}
                   <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 400, marginLeft: '6px' }}>
-                    {buildings.find((row) => row.id === record.buildingId)?.name}
+                    {safeBuildings.find((row) => row.id === record.buildingId)?.name}
                   </span>
                 </div>
                 {record.note ? <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>{record.note}</div> : null}
