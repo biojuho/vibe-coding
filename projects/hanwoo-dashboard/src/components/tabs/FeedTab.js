@@ -69,6 +69,7 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
   const [isSaving, setIsSaving] = useState(false);
   const saveInFlightRef = useRef(false);
   const { notify } = useAppFeedback();
+  const submitButtonLabel = isSaving ? '급여 기록 저장 중' : '급여 기록 저장하기';
 
   const {
     register,
@@ -313,6 +314,8 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
             type="submit"
             disabled={isSaving}
             aria-busy={isSaving}
+            aria-label={submitButtonLabel}
+            title={submitButtonLabel}
             className="w-full py-4 text-lg mt-3 bg-linear-to-b from-blue-500 to-blue-600 border-none shadow-(--shadow-button-primary) font-bold"
             glow={true}
           >

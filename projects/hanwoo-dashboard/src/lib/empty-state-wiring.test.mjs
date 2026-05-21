@@ -131,7 +131,8 @@ test('feed record form waits for async saves before re-enabling submit', () => {
   assert.match(source, /setIsSaving\(true\);/);
   assert.match(source, /await onRecordFeed\(\{/);
   assert.match(source, /finally \{\s+saveInFlightRef\.current = false;\s+setIsSaving\(false\);/);
-  assert.match(source, /type="submit"\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}/);
+  assert.match(source, /const submitButtonLabel = isSaving \? '급여 기록 저장 중' : '급여 기록 저장하기';/);
+  assert.match(source, /type="submit"\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}\s+aria-label=\{submitButtonLabel\}\s+title=\{submitButtonLabel\}/);
 });
 
 test('feed summaries normalize numeric inputs before aggregation', () => {
