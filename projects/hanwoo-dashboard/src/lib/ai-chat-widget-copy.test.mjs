@@ -51,9 +51,17 @@ test('AI chat widget handles Korean configuration errors and exposes an accessib
 test('AI chat send action is disabled until a question is ready', () => {
   const source = readSource('components/widgets/AIChatWidget.js');
 
+  assert.match(source, /const sendInFlightRef = useRef\(false\)/);
   assert.match(source, /const canSend = input\.trim\(\)\.length > 0 && !isStreaming;/);
   assert.match(source, /disabled=\{!canSend\}/);
   assert.match(source, /opacity: canSend \? 1 : 0\.6/);
   assert.match(source, /cursor: canSend \? 'pointer' : 'not-allowed'/);
-  assert.match(source, /if \(!trimmed \|\| isStreaming\) return;/);
+  assert.match(source, /if \(!trimmed \|\| sendInFlightRef\.current \|\| isStreaming\) return;/);
+  assert.match(source, /sendInFlightRef\.current = true;/);
+  assert.match(source, /onDone: \(\) => \{\s+sendInFlightRef\.current = false;/);
+  assert.match(source, /onError: \(errorMsg\) => \{[\s\S]*?sendInFlightRef\.current = false;[\s\S]*?setIsStreaming\(false\);/);
+  assert.match(
+    source,
+    /sendInFlightRef\.current = false;\s+setIsStreaming\(false\);\s+shouldRestoreLauncherFocusRef\.current = true;\s+setIsOpen\(false\);/
+  );
 });

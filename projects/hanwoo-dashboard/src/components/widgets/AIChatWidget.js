@@ -122,6 +122,7 @@ export default function AIChatWidget() {
   const launcherRef = useRef(null);
   const panelRef = useRef(null);
   const abortRef = useRef(null);
+  const sendInFlightRef = useRef(false);
   const shouldRestoreLauncherFocusRef = useRef(false);
   const canSend = input.trim().length > 0 && !isStreaming;
 
@@ -148,6 +149,7 @@ export default function AIChatWidget() {
       abortRef.current.abort();
       abortRef.current = null;
     }
+    sendInFlightRef.current = false;
     setIsStreaming(false);
     shouldRestoreLauncherFocusRef.current = true;
     setIsOpen(false);
@@ -155,8 +157,9 @@ export default function AIChatWidget() {
 
   const handleSend = useCallback(async () => {
     const trimmed = input.trim();
-    if (!trimmed || isStreaming) return;
+    if (!trimmed || sendInFlightRef.current || isStreaming) return;
 
+    sendInFlightRef.current = true;
     const userMessage = { role: 'user', content: trimmed };
     const historyForApi = buildApiHistory(messages);
 
@@ -188,6 +191,7 @@ export default function AIChatWidget() {
         });
       },
       onDone: () => {
+        sendInFlightRef.current = false;
         setIsStreaming(false);
         if (abortRef.current === controller) {
           abortRef.current = null;
@@ -213,6 +217,7 @@ export default function AIChatWidget() {
           };
           return updated;
         });
+        sendInFlightRef.current = false;
         setIsStreaming(false);
         if (abortRef.current === controller) {
           abortRef.current = null;
@@ -231,6 +236,7 @@ export default function AIChatWidget() {
     }
     if (abortRef.current === controller) {
       abortRef.current = null;
+      sendInFlightRef.current = false;
       setIsStreaming(false);
     }
   }, [input, isStreaming, messages]);
