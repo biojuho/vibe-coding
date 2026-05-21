@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-533 completed**: Hanwoo primary data-entry forms now show explicit pending copy while saves are in flight. Cattle add/edit, calving, schedule, feed, inventory, and sales submit buttons now switch from their normal action label to Korean `...중` copy while disabled/`aria-busy`, so operators get visible progress feedback during slow saves. Code commit `e13c570c`. |
+| Next Priorities | Verification passed: focused form pending-copy/source tests (`55 passed`), path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 214, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/suika/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-532 completed**: Hanwoo now has a source regression guard that requires every literal runtime `<button>` in `src/app` and `src/components` to declare an explicit `type`, preventing future accidental submit regressions after the current button-semantics cleanup. Code commit `a844972a`. |
 | Next Priorities | Verification passed: focused button-type regression test (`1 passed`), path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 212, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the new guard. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/suika/workspace WIP. |
 

@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` primary data-entry form submit buttons show visible pending copy while saves are in flight. Cattle add/edit, calving, schedule, feed, inventory, and sales submit buttons now switch to Korean `...중` labels while disabled/`aria-busy`, and `src/lib/form-submit-pending-copy.test.mjs` guards the behavior. Verification passed: focused form pending-copy/source tests (`55 passed`), path-limited `git diff --check`, full Hanwoo QC (`test` 214, lint, build), and staged `code_review_gate --json`.
+
 - As of 2026-05-21, `hanwoo-dashboard` has a runtime source regression guard for explicit button semantics. `src/lib/button-type-regression.test.mjs` scans literal `<button>` tags under `src/app` and `src/components` and fails if any omit `type`, preventing future accidental form-submit regressions. Verification passed: focused button-type regression test (`1 passed`), path-limited `git diff --check`, full Hanwoo QC (`test` 212, lint, build), and staged `code_review_gate --json`.
 
 - As of 2026-05-21, `hanwoo-dashboard` AI chat sends cannot start duplicate streaming requests before React re-renders streaming state. `AIChatWidget` uses `sendInFlightRef` around `handleSend()`, clears the lock on stream done/error/final cleanup and widget close, and preserves the existing trimmed-input disabled button UI. Verification passed: focused AI chat widget copy test (`2 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 211, lint, build), and staged `code_review_gate --json`.
