@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` dashboard widget settings use a single registry/hook source. `DashboardClient` imports `WIDGET_REGISTRY` and `useWidgetSettings` from `src/lib/hooks/useWidgetSettings.js` instead of keeping a duplicate local registry/hook, so Settings-visible widget labels and home widget defaults cannot drift between implementations. Verification passed: focused settings/profitability copy tests (`14 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 211, lint, build).
+
 - As of 2026-05-21, `hanwoo-dashboard` subscription checkout cannot start duplicate payment requests before React re-renders the submitting state. `PaymentWidget` now uses `paymentRequestInFlightRef` as an immediate guard around `/api/payments/prepare` and Toss `requestPayment()`, keeps the existing `isSubmitting` disabled/`aria-busy` UI, and clears the lock in `finally`. Verification passed: focused payment UX copy test (`5 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 210, lint, build).
 
 - As of 2026-05-21, `hanwoo-dashboard` cattle and sales pagination cannot start duplicate load-more requests while a page fetch is already in flight. `useCattlePagination` and `useSalesPagination` now use `loadInFlightRef` as an immediate guard before fetch/append work, clear it on unmount and in `finally`, and keep the existing loading, disabled, `aria-busy`, timeout, and retry feedback behavior. Verification passed: focused pagination feedback tests (`2 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 210, lint, build).
