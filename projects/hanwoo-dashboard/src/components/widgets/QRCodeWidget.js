@@ -83,8 +83,8 @@ export default function QRCodeWidget({ value, label }) {
         onClick={handlePrint}
         disabled={isPrinting}
         aria-busy={isPrinting}
-        aria-label={`${label} QR 라벨 인쇄`}
-        title="QR 라벨 인쇄"
+        aria-label={isPrinting ? `${label} QR 라벨 인쇄 준비 중` : `${label} QR 라벨 인쇄`}
+        title={isPrinting ? 'QR 라벨 인쇄 준비 중' : 'QR 라벨 인쇄'}
         style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -100,7 +100,7 @@ export default function QRCodeWidget({ value, label }) {
         }}
       >
         <Printer size={12} aria-hidden="true" />
-        <span>QR 라벨 인쇄</span>
+        <span>{isPrinting ? '인쇄 준비 중...' : 'QR 라벨 인쇄'}</span>
       </button>
     </div>
   );

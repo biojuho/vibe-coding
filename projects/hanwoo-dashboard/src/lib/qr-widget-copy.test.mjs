@@ -14,10 +14,12 @@ function readSource(relativePath) {
 test('qr widget print action uses Korean operator copy and icon button', () => {
   const source = readSource('components/widgets/QRCodeWidget.js');
   assert.match(source, /import \{ useRef, useState \} from 'react'/);
-  assert.match(source, /aria-label=\{`\$\{label\} QR 라벨 인쇄`\}/);
+  assert.match(source, /aria-label=\{isPrinting \? `\$\{label\} QR 라벨 인쇄 준비 중` : `\$\{label\} QR 라벨 인쇄`\}/);
 
   assert.match(source, /QR 출력/);
   assert.match(source, /QR 라벨 인쇄/);
+  assert.match(source, /QR 라벨 인쇄 준비 중/);
+  assert.match(source, /인쇄 준비 중\.\.\./);
   assert.match(source, /Joolife 한우 스마트팜/);
   assert.match(source, /import \{ Printer \} from 'lucide-react'/);
   assert.match(source, /<button\s+type="button"\s+onClick=\{handlePrint\}/);
@@ -38,5 +40,7 @@ test('qr widget print action blocks duplicate print windows while printing is in
   assert.match(source, /printWindow\.close\(\);\s+printInFlightRef\.current = false;\s+setIsPrinting\(false\);/);
   assert.match(source, /disabled=\{isPrinting\}/);
   assert.match(source, /aria-busy=\{isPrinting\}/);
+  assert.match(source, /title=\{isPrinting \? 'QR 라벨 인쇄 준비 중' : 'QR 라벨 인쇄'\}/);
+  assert.match(source, /\{isPrinting \? '인쇄 준비 중\.\.\.' : 'QR 라벨 인쇄'\}/);
   assert.match(source, /cursor: isPrinting \? 'wait' : 'pointer'/);
 });
