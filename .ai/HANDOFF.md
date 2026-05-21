@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-523 completed**: Hanwoo schedule actions now reject duplicate async requests before React re-renders the saving state. `ScheduleTab` adds `saveInFlightRef` around schedule creation and `completionInFlightRef` around upcoming-schedule completion toggles, while preserving the existing disabled/`aria-busy` UI. Code commit `005e7345`. |
+| Next Priorities | Verification passed: focused tab-header accessibility test (`5 passed`), path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 211, lint, build), and `code_review_gate --base HEAD~1 --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/suika/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-522 completed**: Hanwoo calving record submissions now reject duplicate async submits before React re-renders the saving state. `CalvingTab` adds `saveInFlightRef` as an immediate lock around `onRecordCalving()`, clears it when the form opens/closes and in `finally`, and preserves the existing `isSaving` disabled/`aria-busy` UI. Code commit `675f082e`. |
 | Next Priorities | Verification passed: focused calving accessibility test (`3 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 211, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic plus unrelated WIP while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/suika/workspace WIP. |
 

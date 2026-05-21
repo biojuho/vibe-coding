@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` Schedule tab create and completion actions cannot start duplicate async requests before React re-renders saving state. `ScheduleTab` uses `saveInFlightRef` around schedule creation and `completionInFlightRef` around upcoming-schedule completion toggles while keeping the existing disabled/`aria-busy` UI. Verification passed: focused tab-header accessibility test (`5 passed`), path-limited `git diff --check`, full Hanwoo QC (`test` 211, lint, build), and `code_review_gate --base HEAD~1 --json`.
+
 - As of 2026-05-21, `hanwoo-dashboard` calving record forms cannot submit duplicate async calving records before React re-renders the saving state. `CalvingTab` now uses `saveInFlightRef` as an immediate guard around `onRecordCalving()`, clears the lock when the form opens/closes and in `finally`, and preserves the existing `isSaving` disabled/`aria-busy` UI. Verification passed: focused calving accessibility test (`3 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 211, lint, build).
 
 - As of 2026-05-21, `hanwoo-dashboard` dashboard widget settings use a single registry/hook source. `DashboardClient` imports `WIDGET_REGISTRY` and `useWidgetSettings` from `src/lib/hooks/useWidgetSettings.js` instead of keeping a duplicate local registry/hook, so Settings-visible widget labels and home widget defaults cannot drift between implementations. Verification passed: focused settings/profitability copy tests (`14 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 211, lint, build).
