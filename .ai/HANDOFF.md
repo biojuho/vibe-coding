@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-602 completed**: Hanwoo schedule tab now normalizes event payloads before rendering. `ScheduleTab` routes incoming `events` props through `normalizeScheduleEvents()`, ignores non-array/non-object malformed payloads, supplies stable fallback ids plus Korean missing-title copy, defaults unknown event types to `General`, and renders from `safeEvents` so stale cache/caller data cannot crash calendar or upcoming-event rendering through raw `.filter()`/`event.date` access. Code commit `225a216f`. |
+| Next Priorities | Verification passed: focused tab-header accessibility/source test (`7 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 246, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/CalvingTab/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-601 completed**: Hanwoo inventory tab now normalizes inventory payloads before rendering. `InventoryTab` routes incoming `inventory` props through `normalizeInventoryItems()`, ignores non-array/non-object malformed payloads, supplies stable fallback ids plus Korean inventory-name/unit defaults, and renders from `safeInventory` so stale cache/caller data cannot crash the tab through raw `.map()` or `.length` access. Code commit `0e6bed60`. |
 | Next Priorities | Verification passed: focused empty-state/inventory wiring test (`14 passed`), targeted ESLint passed, path-limited `git diff --check`, full Hanwoo QC test/lint passed (`test` 245, lint), initial full QC build hit a real concurrent Next build, and targeted build retry passed. Staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
 
