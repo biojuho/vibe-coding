@@ -3,7 +3,20 @@
 import { PremiumCard, PremiumCardContent, PremiumCardHeader } from '@/components/ui/premium-card';
 import { toFiniteNumber } from '@/lib/utils';
 
+function normalizeProfitabilityItems(data) {
+  return Array.isArray(data)
+    ? data
+        .filter((item) => item && typeof item === 'object')
+        .map((item, index) => ({
+          ...item,
+          id: item.id ?? `profitability-item-${index}`,
+        }))
+    : [];
+}
+
 export function ProfitabilityWidget({ data, isLoading, error }) {
+  const visibleData = normalizeProfitabilityItems(data);
+
   if (isLoading) {
     return (
       <PremiumCard className="animate-pulse mb-4">
@@ -27,7 +40,7 @@ export function ProfitabilityWidget({ data, isLoading, error }) {
     );
   }
 
-  if (!data || data.length === 0) {
+  if (visibleData.length === 0) {
     return (
       <PremiumCard className="mb-4">
         <PremiumCardHeader title="출하 추천 개체" icon="📈" />
@@ -47,7 +60,7 @@ export function ProfitabilityWidget({ data, isLoading, error }) {
       />
       <PremiumCardContent className="p-0">
         <div className="divide-y divide-gray-100">
-          {data.map((rawItem) => {
+          {visibleData.map((rawItem) => {
             const item = {
               ...rawItem,
               ageMonths: toFiniteNumber(rawItem.ageMonths),

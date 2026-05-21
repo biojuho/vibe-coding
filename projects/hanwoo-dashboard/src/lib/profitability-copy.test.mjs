@@ -62,7 +62,7 @@ test('profitability widget normalizes recommendation values before rendering', (
   const source = readSource('components/widgets/ProfitabilityWidget.js');
 
   assert.match(source, /import \{ toFiniteNumber \} from '@\/lib\/utils';/);
-  assert.match(source, /data\.map\(\(rawItem\) =>/);
+  assert.match(source, /visibleData\.map\(\(rawItem\) =>/);
   assert.match(source, /currentProfit: toFiniteNumber\(rawItem\.currentProfit\)/);
   assert.match(source, /marginalGain: toFiniteNumber\(rawItem\.marginalGain\)/);
   assert.match(source, /ageMonths: toFiniteNumber\(rawItem\.ageMonths\)/);
@@ -70,6 +70,20 @@ test('profitability widget normalizes recommendation values before rendering', (
   assert.match(source, /String\(rawItem\.tagNumber \?\? ''\)\.slice\(-4\) \|\| '----'/);
   assert.match(source, /String\(rawItem\.name \?\? '-'\)/);
   assert.doesNotMatch(source, /item\.tagNumber\.slice\(-4\)/);
+});
+
+test('profitability widget normalizes recommendation collection payloads before rendering', () => {
+  const source = readSource('components/widgets/ProfitabilityWidget.js');
+
+  assert.match(source, /function normalizeProfitabilityItems\(data\) \{/);
+  assert.match(source, /return Array\.isArray\(data\)/);
+  assert.match(source, /\.filter\(\(item\) => item && typeof item === 'object'\)/);
+  assert.match(source, /id: item\.id \?\? `profitability-item-\$\{index\}`/);
+  assert.match(source, /const visibleData = normalizeProfitabilityItems\(data\);/);
+  assert.match(source, /visibleData\.length === 0/);
+  assert.match(source, /visibleData\.map\(\(rawItem\) =>/);
+  assert.doesNotMatch(source, /!data \|\| data\.length === 0/);
+  assert.doesNotMatch(source, /data\.map\(\(rawItem\) =>/);
 });
 
 test('profitability widget is mounted on the dashboard, not orphaned', () => {
