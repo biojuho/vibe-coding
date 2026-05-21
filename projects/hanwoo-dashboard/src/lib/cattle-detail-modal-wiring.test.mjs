@@ -56,7 +56,7 @@ test('cattle form and detail icon-only navigation controls have Korean labels', 
   assert.match(formSource, /dialogRef\.current\?\.focus\(\)/);
   assert.match(formSource, /tabIndex=\{-1\}/);
   assert.match(formSource, /onKeyDown=\{handleDialogKeyDown\}/);
-  assert.match(formSource, /if \(event\.key === 'Escape'\) \{\s*onCancel\(\);/);
+  assert.match(formSource, /if \(event\.key === 'Escape'\) \{\s+if \(isSaving\) \{\s+return;\s+\}\s+onCancel\(\);/);
   assert.match(formSource, /id="cattle-form-title"/);
   assert.match(formSource, /<label htmlFor="cattle-name"/);
   assert.match(formSource, /id="cattle-name"/);
@@ -189,6 +189,7 @@ test('cattle form waits for async saves before re-enabling submit actions', () =
   assert.match(formSource, /await onSubmit\(\{/);
   assert.match(formSource, /finally \{\s*saveInFlightRef\.current = false;\s+setIsSaving\(false\);/);
   assert.match(formSource, /type="button" onClick=\{onCancel\} disabled=\{isSaving\}/);
+  assert.match(formSource, /onClick=\{onCancel\}\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}[\s\S]*?className="btn btn-ghost btn-icon"/);
   assert.match(formSource, /type="submit" disabled=\{isSaving\} aria-busy=\{isSaving\}/);
 });
 

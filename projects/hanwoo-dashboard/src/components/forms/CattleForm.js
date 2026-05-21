@@ -70,6 +70,9 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
 
   const handleDialogKeyDown = (event) => {
     if (event.key === 'Escape') {
+      if (isSaving) {
+        return;
+      }
       onCancel();
     }
   };
@@ -200,6 +203,8 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
           <button
             type="button"
             onClick={onCancel}
+            disabled={isSaving}
+            aria-busy={isSaving}
             aria-label="개체 목록으로 돌아가기"
             title="개체 목록으로 돌아가기"
             className="btn btn-ghost btn-icon"
