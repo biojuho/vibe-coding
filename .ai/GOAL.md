@@ -8,10 +8,12 @@
 - Goal: hanwoo-dashboard quality uplift so other people would want to use it.
 - Owner: Codex
 - Started: 2026-05-18
-- Latest: 2026-05-21 T-615 normalized Hanwoo settings building payloads.
+- Latest: 2026-05-21 T-616 normalized Hanwoo profitability widget payloads.
 - Success: Hanwoo quality uplift is progressing through focused UX, accessibility, resilience, and Korean operator-copy passes. The goal remains active for additional polish. Keep T-251 separate because it is blocked on user-owned Supabase control-plane credential resync.
 
 ## Progress Notes
+
+- 2026-05-21: T-616 normalized Hanwoo profitability widget payloads. `ProfitabilityWidget` now routes incoming `data` through `normalizeProfitabilityItems()`, filters malformed rows, supplies stable fallback ids, and renders from `visibleData`, preventing malformed caller/cache data from crashing the profitability recommendation widget through raw `.length` or `.map()` access. Verification passed with focused profitability copy/source test (`7 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 253, lint, build), and staged `code_review_gate --json` (`risk_score 0.0`; cp949 reader-thread noise only). Commit `e4097a36`; commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files.
 
 - 2026-05-21: T-615 normalized Hanwoo settings building payloads. `SettingsTab` routes incoming `buildings` through `normalizeSettingsBuildings()`, filters malformed rows, supplies safe fallback building names and pen counts, and renders from `safeBuildings`, preventing malformed caller/cache data from crashing the settings building list through raw `.map()` access. Verification passed with focused settings plus home-market source tests (`37 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 252, lint, build), and staged `code_review_gate --json` (`risk_score 0.0`). Commit `0272bd19`; commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files.
 
