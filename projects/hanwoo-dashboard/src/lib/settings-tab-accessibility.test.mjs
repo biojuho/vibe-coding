@@ -106,8 +106,9 @@ test('settings building form waits for async saves before re-enabling actions', 
   assert.match(source, /setIsSavingBuilding\(true\);/);
   assert.match(source, /const saved = await onCreateBuilding\(values\);/);
   assert.match(source, /finally \{\s+buildingSaveInFlightRef\.current = false;\s+setIsSavingBuilding\(false\);/);
+  assert.match(source, /const buildingSubmitButtonLabel = isSavingBuilding \? '축사 등록 중' : '축사 등록하기';/);
   assert.match(source, /size="sm"\s+disabled=\{isSavingBuilding\}/);
-  assert.match(source, /type="submit"\s+variant="primary"\s+disabled=\{isSavingBuilding\}\s+aria-busy=\{isSavingBuilding\}/);
+  assert.match(source, /type="submit"\s+variant="primary"\s+disabled=\{isSavingBuilding\}\s+aria-busy=\{isSavingBuilding\}\s+aria-label=\{buildingSubmitButtonLabel\}\s+title=\{buildingSubmitButtonLabel\}/);
 });
 
 test('settings farm form waits for async saves before re-enabling submit', () => {
@@ -121,7 +122,8 @@ test('settings farm form waits for async saves before re-enabling submit', () =>
   assert.match(source, /setIsSavingFarm\(true\);/);
   assert.match(source, /await onUpdateFarmSettings\(values\);/);
   assert.match(source, /finally \{\s+farmSaveInFlightRef\.current = false;\s+setIsSavingFarm\(false\);/);
-  assert.match(source, /type="submit"\s+disabled=\{isSavingFarm\}\s+aria-busy=\{isSavingFarm\}/);
+  assert.match(source, /const farmSubmitButtonLabel = isSavingFarm \? '농장 정보 저장 중' : '농장 정보 저장하기';/);
+  assert.match(source, /type="submit"\s+disabled=\{isSavingFarm\}\s+aria-busy=\{isSavingFarm\}\s+aria-label=\{farmSubmitButtonLabel\}\s+title=\{farmSubmitButtonLabel\}/);
 });
 
 test('settings farm form locks editable fields while saving', () => {

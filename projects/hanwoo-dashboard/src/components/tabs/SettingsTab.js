@@ -43,6 +43,8 @@ export default function SettingsTab({
   const buildingSaveInFlightRef = useRef(false);
   const deleteBuildingInFlightRef = useRef(false);
   const { confirm } = useAppFeedback();
+  const farmSubmitButtonLabel = isSavingFarm ? '농장 정보 저장 중' : '농장 정보 저장하기';
+  const buildingSubmitButtonLabel = isSavingBuilding ? '축사 등록 중' : '축사 등록하기';
 
   const {
     register: registerBuilding,
@@ -451,6 +453,8 @@ export default function SettingsTab({
             type="submit"
             disabled={isSavingFarm}
             aria-busy={isSavingFarm}
+            aria-label={farmSubmitButtonLabel}
+            title={farmSubmitButtonLabel}
             className="w-full mt-1 py-3.5 rounded-[10px]"
             glow
           >
@@ -532,6 +536,8 @@ export default function SettingsTab({
               variant="primary"
               disabled={isSavingBuilding}
               aria-busy={isSavingBuilding}
+              aria-label={buildingSubmitButtonLabel}
+              title={buildingSubmitButtonLabel}
               className="w-full py-3 rounded-lg"
               glow
             >
