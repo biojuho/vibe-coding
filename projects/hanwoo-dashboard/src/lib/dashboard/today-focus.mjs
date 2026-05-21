@@ -9,8 +9,19 @@ function toValidDate(value) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function toFiniteNumberOrNull(value) {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : null;
+}
+
 function isLowStock(item) {
-  return item?.threshold !== null && item?.threshold !== undefined && Number(item.quantity) <= Number(item.threshold);
+  const quantity = toFiniteNumberOrNull(item?.quantity);
+  const threshold = toFiniteNumberOrNull(item?.threshold);
+  return quantity !== null && threshold !== null && quantity <= threshold;
 }
 
 function formatDaysLeft(target, today) {

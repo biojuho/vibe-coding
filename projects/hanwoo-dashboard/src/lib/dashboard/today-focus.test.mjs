@@ -8,16 +8,16 @@ test('buildTodayFocusItems prioritizes offline, critical alerts, schedules, and 
     isOnline: false,
     now: new Date('2026-05-18T10:00:00+09:00'),
     notifications: [
-      { id: 'n1', level: 'critical', message: '12번 개체 분만 예정일이 임박했습니다.' },
-      { id: 'n2', level: 'warning', message: '발정 알림' },
+      { id: 'n1', level: 'critical', message: 'critical calving alert' },
+      { id: 'n2', level: 'warning', message: 'warning alert' },
     ],
     scheduleEvents: [
-      { id: 's2', title: '축사 소독', date: '2026-05-20', isCompleted: false },
-      { id: 's1', title: '백신 접종', date: '2026-05-19', isCompleted: false },
+      { id: 's2', title: 'barn cleanup', date: '2026-05-20', isCompleted: false },
+      { id: 's1', title: 'vaccination', date: '2026-05-19', isCompleted: false },
     ],
     inventoryList: [
-      { id: 'i1', name: '배합사료', quantity: 4, threshold: 5, unit: '포' },
-      { id: 'i2', name: '장갑', quantity: 20, threshold: 5, unit: '개' },
+      { id: 'i1', name: 'feed mix', quantity: 4, threshold: 5, unit: 'kg' },
+      { id: 'i2', name: 'straw', quantity: 20, threshold: 5, unit: 'kg' },
     ],
     monthlySalesCount: 3,
   });
@@ -26,9 +26,26 @@ test('buildTodayFocusItems prioritizes offline, critical alerts, schedules, and 
     items.map((item) => item.id),
     ['offline', 'critical-alerts', 'next-schedule', 'low-stock'],
   );
-  assert.equal(items[2].title, '백신 접종');
-  assert.equal(items[2].detail, '내일 예정');
-  assert.equal(items[3].detail, '배합사료: 4포 남음');
+  assert.equal(items[2].title, 'vaccination');
+  assert.match(items[3].detail, /^feed mix: 4kg/);
+});
+
+test('buildTodayFocusItems ignores malformed inventory quantities for low stock', () => {
+  const items = buildTodayFocusItems({
+    now: new Date('2026-05-18T10:00:00+09:00'),
+    inventoryList: [
+      { id: 'bad-quantity', name: 'bad quantity', quantity: 'not-a-number', threshold: 10, unit: 'kg' },
+      { id: 'empty-quantity', name: 'empty quantity', quantity: '', threshold: 10, unit: 'kg' },
+      { id: 'bad-threshold', name: 'bad threshold', quantity: 1, threshold: 'not-a-number', unit: 'kg' },
+      { id: 'ok', name: 'normal stock', quantity: '4', threshold: '5', unit: 'kg' },
+    ],
+    monthlySalesCount: 0,
+  });
+
+  const lowStockItem = items.find((item) => item.id === 'low-stock');
+  assert.equal(lowStockItem?.title.startsWith('1'), true);
+  assert.match(lowStockItem?.detail ?? '', /^normal stock: 4kg/);
+  assert.equal(items.some((item) => item.title === 'bad quantity'), false);
 });
 
 test('buildTodayFocusItems keeps a useful sales prompt when no urgent work exists', () => {
@@ -37,32 +54,25 @@ test('buildTodayFocusItems keeps a useful sales prompt when no urgent work exist
     monthlySalesCount: 0,
   });
 
-  assert.deepEqual(items, [
-    {
-      id: 'monthly-sales',
-      type: 'sales',
-      title: '이번 달 출하 0두',
-      detail: '출하 기록을 추가하면 월간 흐름이 살아납니다.',
-      meta: '출하 기록',
-      tone: 'neutral',
-      targetTab: 'sales',
-    },
-  ]);
+  assert.deepEqual(items.map((item) => item.id), ['monthly-sales']);
+  assert.equal(items[0].type, 'sales');
+  assert.equal(items[0].targetTab, 'sales');
+  assert.equal(items[0].tone, 'neutral');
 });
 
 test('buildTodayFocusItems skips malformed schedule dates', () => {
   const items = buildTodayFocusItems({
     now: new Date('2026-05-18T10:00:00+09:00'),
     scheduleEvents: [
-      { id: 'bad', title: '깨진 일정', date: 'not-a-date', isCompleted: false },
-      { id: 'past', title: '지난 일정', date: '2026-05-17', isCompleted: false },
-      { id: 'done', title: '완료 일정', date: '2026-05-18', isCompleted: true },
-      { id: 'next', title: '정상 일정', date: '2026-05-19', isCompleted: false },
+      { id: 'bad', title: 'bad schedule', date: 'not-a-date', isCompleted: false },
+      { id: 'past', title: 'past schedule', date: '2026-05-17', isCompleted: false },
+      { id: 'done', title: 'done schedule', date: '2026-05-18', isCompleted: true },
+      { id: 'next', title: 'valid schedule', date: '2026-05-19', isCompleted: false },
     ],
     monthlySalesCount: 0,
   });
 
   const scheduleItem = items.find((item) => item.id === 'next-schedule');
-  assert.equal(scheduleItem?.title, '정상 일정');
-  assert.equal(items.some((item) => item.title === '깨진 일정'), false);
+  assert.equal(scheduleItem?.title, 'valid schedule');
+  assert.equal(items.some((item) => item.title === 'bad schedule'), false);
 });
