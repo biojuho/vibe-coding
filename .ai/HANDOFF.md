@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-623 completed**: Hanwoo dashboard notification payloads now normalize before home rendering. `DashboardClient` routes `initialNotifications` and refreshed `getNotifications()` results through `normalizeDashboardNotifications()`, ignores non-array input and malformed/non-object rows, and feeds safe arrays into the header critical badge, notification modal, notification widget, and estrus/calving alert banners. Code commit `81c6c267`. |
+| Next Priorities | Verification passed: focused home-market source test (`29 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 260, lint, build), and staged `code_review_gate --json` emitted JSON pass (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated WIP, especially the separate `CattleDetailModal`, monorepo, and shorts-maker changes. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-622 completed**: Hanwoo cattle CSV export now normalizes export payloads before row generation. `buildCattleCsvRows()` routes caller input through `normalizeCattleCsvRows()`, ignores non-array input and malformed/non-object rows, and exports only safe object rows so malformed caller/cache data cannot crash CSV generation through raw `.map()` access. Code commit `3e2ef7a5`. |
 | Next Priorities | Verification passed: focused cattle CSV export tests (`4 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 259, lint, build), and staged `code_review_gate --json` emitted JSON pass (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated WIP, including the separate `CattleDetailModal` worktree changes. |
 
