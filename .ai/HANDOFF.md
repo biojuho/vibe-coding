@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-607 completed**: Hanwoo inventory create submit action now exposes its save state. `InventoryTab` derives `submitButtonLabel` from `isSaving` and applies it to the create submit `PremiumButton` `aria-label` and `title`, matching the visible 재고 등록/등록하기 state so assistive technology and hover text receive the same in-flight state. Code commit `d1a2b83f`. |
+| Next Priorities | Verification passed: focused empty-state/home-market source tests (`41 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC test/lint passed (`test` 248, lint), initial full QC build hit a real concurrent/stale Next build lock, targeted build retry passed, and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-606 completed**: Hanwoo inventory create submit lock is now covered by regression tests. `empty-state-wiring.test.mjs` now asserts `InventoryTab` uses `saveInFlightRef`, `isSaving`, `submitButtonLabel`, `aria-busy`, `aria-label`, and `title` on the create submit button so the existing duplicate-save guard and accessible pending copy cannot regress silently. Test commit `3cf67f96`. |
 | Next Priorities | Verification passed: focused empty-state/feed/inventory wiring test (`16 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 248, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
 
