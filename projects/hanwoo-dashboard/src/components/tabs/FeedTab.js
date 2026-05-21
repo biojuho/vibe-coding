@@ -35,6 +35,20 @@ function FilterChip({ active, children, onClick, label, disabled = false }) {
   );
 }
 
+function toValidFeedDate(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getFeedDateTime(value) {
+  return toValidFeedDate(value)?.getTime() ?? Number.NEGATIVE_INFINITY;
+}
+
+function formatFeedDateLabel(value, options) {
+  const date = toValidFeedDate(value);
+  return date ? date.toLocaleDateString('ko-KR', options) : '날짜 미등록';
+}
+
 export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], onRecordFeed, buildings = [] }) {
   const [selectedBuilding, setSelectedBuilding] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -95,10 +109,10 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
 
   const chartData = useMemo(() => {
     const grouped = {};
-    const sorted = [...feedHistory].sort((first, second) => new Date(first.date) - new Date(second.date));
+    const sorted = [...feedHistory].sort((first, second) => getFeedDateTime(first.date) - getFeedDateTime(second.date));
 
     sorted.forEach((record) => {
-      const key = new Date(record.date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+      const key = formatFeedDateLabel(record.date, { month: 'short', day: 'numeric' });
       if (!grouped[key]) {
         grouped[key] = { date: key, roughage: 0, concentrate: 0 };
       }
@@ -350,7 +364,7 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
             >
               <div>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)' }}>
-                  {new Date(record.date).toLocaleDateString()}
+                  {formatFeedDateLabel(record.date)}
                   <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 400, marginLeft: '6px' }}>
                     {buildings.find((row) => row.id === record.buildingId)?.name}
                   </span>

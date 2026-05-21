@@ -122,6 +122,15 @@ test('feed summaries normalize numeric inputs before aggregation', () => {
   const source = readSource('components/tabs/FeedTab.js');
 
   assert.match(source, /import \{ toFiniteNumber \} from '@\/lib\/utils';/);
+  assert.match(source, /function toValidFeedDate\(value\) \{/);
+  assert.match(source, /return Number\.isNaN\(date\.getTime\(\)\) \? null : date;/);
+  assert.match(source, /function getFeedDateTime\(value\) \{/);
+  assert.match(source, /return toValidFeedDate\(value\)\?\.getTime\(\) \?\? Number\.NEGATIVE_INFINITY;/);
+  assert.match(source, /function formatFeedDateLabel\(value, options\) \{/);
+  assert.match(source, /return date \? date\.toLocaleDateString\('ko-KR', options\) : '날짜 미등록';/);
+  assert.match(source, /getFeedDateTime\(first\.date\) - getFeedDateTime\(second\.date\)/);
+  assert.match(source, /const key = formatFeedDateLabel\(record\.date, \{ month: 'short', day: 'numeric' \}\);/);
+  assert.match(source, /\{formatFeedDateLabel\(record\.date\)\}/);
   assert.match(source, /roughageTotal: \(toFiniteNumber\(standard\.roughageKg\) \* count\)\.toFixed\(1\)/);
   assert.match(source, /concentrateTotal: \(toFiniteNumber\(standard\.concentrateKg\) \* count\)\.toFixed\(1\)/);
   assert.match(source, /sum \+ toFiniteNumber\(value\.roughageTotal\)/);
@@ -130,6 +139,8 @@ test('feed summaries normalize numeric inputs before aggregation', () => {
   assert.match(source, /sum \+ toFiniteNumber\(standardsMap\[row\.status\]\?\.concentrateKg\)/);
   assert.match(source, /grouped\[key\]\.roughage \+= toFiniteNumber\(record\.roughage\);/);
   assert.match(source, /grouped\[key\]\.concentrate \+= toFiniteNumber\(record\.concentrate\);/);
+  assert.doesNotMatch(source, /new Date\(record\.date\)\.toLocaleDateString/);
+  assert.doesNotMatch(source, /new Date\(first\.date\) - new Date\(second\.date\)/);
   assert.doesNotMatch(source, /parseFloat\(value\.roughageTotal\)/);
   assert.doesNotMatch(source, /parseFloat\(value\.concentrateTotal\)/);
   assert.doesNotMatch(source, /standardsMap\[row\.status\]\?\.roughageKg \|\| 0/);
@@ -164,6 +175,7 @@ test('feed tab visible copy is readable Korean product copy', () => {
     '급여 기록 저장하기',
     '최근 급여 추이',
     '최근 기록',
+    '날짜 미등록',
   ];
 
   for (const copy of expectedCopy) {
