@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-620 completed**: Hanwoo financial chart now normalizes collection payloads before aggregation/rendering. `FinancialChartWidget` routes `saleRecords`, `expenseRecords`, and `seriesData` through `normalizeFinancialChartItems()`, ignores malformed/non-object rows, and renders from `safeSaleRecords`, `safeCostRecords`, and `safeSeriesData` so malformed caller/cache data cannot crash the home financial chart through raw `.forEach()` or `.map()` access. Code commit `2f0bd804`. |
+| Next Priorities | Verification passed: focused analysis/financial source test (`3 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 258, lint, build), and staged `code_review_gate --json` emitted JSON pass (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-619 completed**: Hanwoo dashboard home now normalizes building and cattle collection payloads before rendering and downstream handoff. `DashboardClient` routes `initialBuildings`/state through `normalizeDashboardBuildings()`, derives `safeBuildings`, routes paged/full cattle through `normalizeDashboardCattleList()`, filters malformed rows, supplies Korean missing-name copy, and passes safe collections into home cards, pen grids, drag/drop/export, setup progress, alert banners, forms, detail modal, Feed/Calving/Sales/Analysis/Settings tabs. Code commit `1dd1f846`. |
 | Next Priorities | Verification passed: focused home-market source test (`28 passed`), empty-state source test (`16 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 257, lint, build), and `code_review_gate --base HEAD~1 --json` emitted JSON pass (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated WIP. |
 
