@@ -18,6 +18,8 @@ test('excel export button uses a real decorative download icon', () => {
   assert.match(source, /import \{ Download \} from 'lucide-react';/);
   assert.match(source, /<Download size=\{14\} className="text-\[#1D6F42\]" aria-hidden="true" \/>/);
   assert.match(source, /aria-busy=\{isPreparing\}/);
+  assert.match(source, /aria-label=\{isPreparing \? '엑셀 다운로드 준비 중' : '엑셀 다운로드'\}/);
+  assert.match(source, /title=\{isPreparing \? '엑셀 다운로드 준비 중' : '엑셀 다운로드'\}/);
   assert.match(source, /엑셀 다운로드/);
   assert.match(source, /내보내기 파일을 만들지 못했습니다/);
   assert.doesNotMatch(source, /<span className="text-\[#1D6F42\] text-\[14px\]">\?<\/span>/);

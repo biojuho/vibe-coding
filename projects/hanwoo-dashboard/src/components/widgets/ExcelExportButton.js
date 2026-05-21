@@ -65,6 +65,8 @@ export default function ExcelExportButton({ cattleList = [], resolveCattleList =
       onClick={handleDownload}
       disabled={isPreparing}
       aria-busy={isPreparing}
+      aria-label={isPreparing ? '엑셀 다운로드 준비 중' : '엑셀 다운로드'}
+      title={isPreparing ? '엑셀 다운로드 준비 중' : '엑셀 다운로드'}
       className="gap-1.5 font-bold shadow-md"
     >
       <Download size={14} className="text-[#1D6F42]" aria-hidden="true" />
