@@ -52,11 +52,17 @@ test('financial chart widget normalizes numeric inputs before chart aggregation'
   const summarySource = readSource('lib/dashboard/summary-service.js');
 
   assert.match(source, /import \{ formatMoney, toFiniteNumber \} from '@\/lib\/utils';/);
+  assert.match(source, /function toMonthKey\(value\) \{/);
+  assert.match(source, /Number\.isNaN\(date\.getTime\(\)\)/);
+  assert.match(source, /const key = toMonthKey\(record\.saleDate\);/);
+  assert.match(source, /const key = toMonthKey\(record\.date\);/);
+  assert.match(source, /if \(!key\) return;/);
   assert.match(source, /salesByMonth\[key\] = \(salesByMonth\[key\] \|\| 0\) \+ toFiniteNumber\(record\.price\);/);
   assert.match(source, /expensesByMonth\[key\] = \(expensesByMonth\[key\] \|\| 0\) \+ toFiniteNumber\(record\.amount\);/);
   assert.match(source, /\[REVENUE_KEY\]: toFiniteNumber\(row\.revenue\),/);
   assert.match(source, /\[EXPENSE_KEY\]: Math\.floor\(toFiniteNumber\(row\.expense\)\),/);
   assert.match(source, /\[PROFIT_KEY\]: toFiniteNumber\(row\.profit\),/);
+  assert.doesNotMatch(source, /const key = `\$\{date\.getFullYear\(\)\}-\$\{String\(date\.getMonth\(\) \+ 1\)\.padStart\(2, '0'\)\}`;/);
   assert.doesNotMatch(source, /record\.price \|\| 0/);
   assert.doesNotMatch(source, /record\.amount \|\| 0/);
   assert.doesNotMatch(source, /row\.revenue \|\| 0/);
@@ -64,10 +70,16 @@ test('financial chart widget normalizes numeric inputs before chart aggregation'
   assert.doesNotMatch(source, /row\.profit \|\| 0/);
 
   assert.match(summarySource, /import \{ toFiniteNumber \} from '\.\.\/utils';/);
+  assert.match(summarySource, /return Number\.isNaN\(date\.getTime\(\)\)/);
+  assert.match(summarySource, /const monthKey = toMonthKey\(record\.saleDate\);/);
+  assert.match(summarySource, /const monthKey = toMonthKey\(record\.date\);/);
+  assert.match(summarySource, /if \(!monthKey\) continue;/);
   assert.match(summarySource, /salesByMonth\.set\(monthKey, \(salesByMonth\.get\(monthKey\) \?\? 0\) \+ toFiniteNumber\(record\.price\)\);/);
   assert.match(summarySource, /expensesByMonth\.set\(monthKey, \(expensesByMonth\.get\(monthKey\) \?\? 0\) \+ toFiniteNumber\(record\.amount\)\);/);
   assert.match(summarySource, /const monthlySalesTotal = toFiniteNumber\(salesThisMonth\._sum\.price\);/);
   assert.match(summarySource, /const monthlyExpenseTotal = toFiniteNumber\(expensesThisMonth\._sum\.amount\);/);
+  assert.doesNotMatch(summarySource, /toMonthKey\(new Date\(record\.saleDate\)\)/);
+  assert.doesNotMatch(summarySource, /toMonthKey\(new Date\(record\.date\)\)/);
   assert.doesNotMatch(summarySource, /record\.price \?\? 0/);
   assert.doesNotMatch(summarySource, /record\.amount \?\? 0/);
   assert.doesNotMatch(summarySource, /salesThisMonth\._sum\.price \?\? 0/);

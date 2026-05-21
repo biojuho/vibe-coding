@@ -9,6 +9,13 @@ const REVENUE_KEY = 'revenue';
 const EXPENSE_KEY = 'expense';
 const PROFIT_KEY = 'profit';
 
+function toMonthKey(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? null
+    : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
 export default function FinancialChartWidget({
   saleRecords = [],
   expenseRecords = [],
@@ -16,15 +23,15 @@ export default function FinancialChartWidget({
 }) {
   const salesByMonth = {};
   saleRecords.forEach((record) => {
-    const date = new Date(record.saleDate);
-    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const key = toMonthKey(record.saleDate);
+    if (!key) return;
     salesByMonth[key] = (salesByMonth[key] || 0) + toFiniteNumber(record.price);
   });
 
   const expensesByMonth = {};
   expenseRecords.forEach((record) => {
-    const date = new Date(record.date);
-    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const key = toMonthKey(record.date);
+    if (!key) return;
     expensesByMonth[key] = (expensesByMonth[key] || 0) + toFiniteNumber(record.amount);
   });
 

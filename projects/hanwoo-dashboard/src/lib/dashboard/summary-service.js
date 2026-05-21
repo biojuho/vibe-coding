@@ -13,7 +13,10 @@ function toDateKey(value) {
 }
 
 function toMonthKey(value) {
-  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}`;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime())
+    ? null
+    : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
 function normalizeStatusCounts(rows) {
@@ -29,12 +32,14 @@ function buildFinancialSeries({ salesRecords = [], expenseRecords = [], months =
   const expensesByMonth = new Map();
 
   for (const record of salesRecords) {
-    const monthKey = toMonthKey(new Date(record.saleDate));
+    const monthKey = toMonthKey(record.saleDate);
+    if (!monthKey) continue;
     salesByMonth.set(monthKey, (salesByMonth.get(monthKey) ?? 0) + toFiniteNumber(record.price));
   }
 
   for (const record of expenseRecords) {
-    const monthKey = toMonthKey(new Date(record.date));
+    const monthKey = toMonthKey(record.date);
+    if (!monthKey) continue;
     expensesByMonth.set(monthKey, (expensesByMonth.get(monthKey) ?? 0) + toFiniteNumber(record.amount));
   }
 
