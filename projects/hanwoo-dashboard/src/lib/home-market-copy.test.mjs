@@ -274,13 +274,16 @@ test('dashboard fallback average weight normalizes cattle weights', () => {
 test('dashboard fallback monthly sales count filters by current year and valid sale dates', () => {
   const source = readSource('components/DashboardClient.js');
 
+  assert.match(source, /function toValidCalendarDate\(value\) \{/);
+  assert.match(source, /const dateKey = value\.trim\(\)\.slice\(0, 10\);/);
+  assert.match(source, /strictDate\.toISOString\(\)\.slice\(0, 10\) !== dateKey/);
   assert.match(source, /const today = new Date\(\);/);
   assert.match(source, /const currentMonth = today\.getMonth\(\);/);
   assert.match(source, /const currentYear = today\.getFullYear\(\);/);
-  assert.match(source, /const saleDate = new Date\(record\.saleDate\);/);
-  assert.match(source, /!Number\.isNaN\(saleDate\.getTime\(\)\)/);
+  assert.match(source, /const saleDate = toValidCalendarDate\(record\.saleDate\);/);
   assert.match(source, /saleDate\.getMonth\(\) === currentMonth/);
   assert.match(source, /saleDate\.getFullYear\(\) === currentYear/);
+  assert.doesNotMatch(source, /const saleDate = new Date\(record\.saleDate\);/);
   assert.doesNotMatch(source, /return saleRecords\.filter\(\(record\) => new Date\(record\.saleDate\)\.getMonth\(\) === currentMonth\)\.length;/);
 });
 
