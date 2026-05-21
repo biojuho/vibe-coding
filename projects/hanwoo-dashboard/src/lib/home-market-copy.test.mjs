@@ -320,10 +320,13 @@ test('inventory form waits for async saves before re-enabling actions', () => {
   const source = readSource('components/tabs/InventoryTab.js');
 
   assert.match(source, /const \[isSaving, setIsSaving\] = useState\(false\)/);
-  assert.match(source, /if \(isSaving\) \{\s+return;\s+\}/);
+  assert.match(source, /const saveInFlightRef = useRef\(false\)/);
+  assert.match(source, /if \(saveInFlightRef\.current \|\| isSaving\) \{\s+return;\s+\}/);
+  assert.match(source, /if \(saveInFlightRef\.current\) \{\s+return;\s+\}/);
+  assert.match(source, /saveInFlightRef\.current = true;/);
   assert.match(source, /setIsSaving\(true\);/);
   assert.match(source, /await onAddItem\(values\)/);
-  assert.match(source, /finally \{\s+setIsSaving\(false\);/);
+  assert.match(source, /finally \{\s+saveInFlightRef\.current = false;\s+setIsSaving\(false\);/);
   assert.match(source, /onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}/);
   assert.match(source, /type="submit" disabled=\{isSaving\} aria-busy=\{isSaving\}/);
 });
@@ -343,10 +346,12 @@ test('inventory inline quantity updates wait for async saves before re-enabling 
   assert.match(source, /const parsedQuantity = parseInlineQuantityInput\(editQty\);/);
   assert.match(source, /if \(!Number\.isFinite\(parsedQuantity\)\) \{/);
   assert.match(source, /const \[savingQuantityId, setSavingQuantityId\] = useState\(null\)/);
-  assert.match(source, /if \(savingQuantityId\) \{\s+return;\s+\}/);
+  assert.match(source, /const quantityInFlightRef = useRef\(false\)/);
+  assert.match(source, /if \(quantityInFlightRef\.current \|\| savingQuantityId\) \{\s+return;\s+\}/);
+  assert.match(source, /quantityInFlightRef\.current = true;/);
   assert.match(source, /setSavingQuantityId\(id\);/);
   assert.match(source, /await onUpdateQuantity\(id, parsedQuantity\);/);
-  assert.match(source, /finally \{\s+setSavingQuantityId\(null\);/);
+  assert.match(source, /finally \{\s+quantityInFlightRef\.current = false;\s+setSavingQuantityId\(null\);/);
   assert.match(source, /disabled=\{savingQuantityId === item\.id\}/);
   assert.match(source, /aria-busy=\{savingQuantityId === item\.id\}/);
   assert.doesNotMatch(source, /Number\(editQty\) < 0/);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { PackagePlus } from 'lucide-react';
@@ -36,6 +36,8 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
   const [savingQuantityId, setSavingQuantityId] = useState(null);
   const [editId, setEditId] = useState(null);
   const [editQty, setEditQty] = useState('');
+  const saveInFlightRef = useRef(false);
+  const quantityInFlightRef = useRef(false);
 
   const {
     register,
@@ -55,7 +57,7 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
   };
 
   const toggleAddForm = () => {
-    if (isSaving) {
+    if (saveInFlightRef.current || isSaving) {
       return;
     }
 
@@ -69,6 +71,11 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
   };
 
   const submitNewItem = async (values) => {
+    if (saveInFlightRef.current) {
+      return;
+    }
+
+    saveInFlightRef.current = true;
     setIsSaving(true);
 
     try {
@@ -80,12 +87,13 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
       setIsAdding(false);
       reset(createInventoryFormValues());
     } finally {
+      saveInFlightRef.current = false;
       setIsSaving(false);
     }
   };
 
   const handleUpdate = async (id) => {
-    if (savingQuantityId) {
+    if (quantityInFlightRef.current || savingQuantityId) {
       return;
     }
 
@@ -94,6 +102,7 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
       return;
     }
 
+    quantityInFlightRef.current = true;
     setSavingQuantityId(id);
 
     try {
@@ -105,6 +114,7 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
       setEditId(null);
       setEditQty('');
     } finally {
+      quantityInFlightRef.current = false;
       setSavingQuantityId(null);
     }
   };
