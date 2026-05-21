@@ -1698,3 +1698,29 @@
 ### Follow-up
 - Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
 - T-372 and T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP.
+## 2026-05-21 KST - Codex
+
+### Summary
+- Completed T-594 for `hanwoo-dashboard` while continuing the active quality-uplift goal.
+- Labeled cattle detail edit/archive actions during archive or breeding-record busy states.
+- The edit/archive buttons now switch `aria-label` and `title` through `editButtonLabel` and `archiveButtonLabel`, so disabled detail actions explain why they cannot be used.
+
+### Changed Files
+- `.ai/CONTEXT.md`
+- `.ai/HANDOFF.md`
+- `.ai/TASKS.md`
+- `.ai/SESSION_LOG.md`
+- `.ai/GOAL.md`
+- `projects/hanwoo-dashboard/src/components/forms/CattleDetailModal.js`
+- `projects/hanwoo-dashboard/src/lib/cattle-detail-modal-wiring.test.mjs`
+
+### Verification
+- `node --test src/lib/cattle-detail-modal-wiring.test.mjs` from `projects/hanwoo-dashboard` -> `10 passed`.
+- `npx.cmd eslint src/components/forms/CattleDetailModal.js src/lib/cattle-detail-modal-wiring.test.mjs` from `projects/hanwoo-dashboard` -> passed.
+- `git diff --check -- projects/hanwoo-dashboard/src/components/forms/CattleDetailModal.js projects/hanwoo-dashboard/src/lib/cattle-detail-modal-wiring.test.mjs` -> passed.
+- `python execution/project_qc_runner.py --project hanwoo-dashboard --json` -> passed (`test` 241, lint passed, build passed).
+- `python execution/code_review_gate.py --staged --json` -> PASS (`risk_score 0.0`); trailing cp949 reader-thread exception is known Windows output noise.
+
+### Follow-up
+- Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
+- T-372 and T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP.
