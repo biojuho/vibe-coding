@@ -46,3 +46,30 @@ test('analysis tab normalizes numeric inputs before financial and feed aggregati
   assert.doesNotMatch(analysisSource, /data\[key\]\.revenue \+= record\.price/);
   assert.doesNotMatch(analysisSource, /data\[key\]\.cost \+= expense\.amount/);
 });
+
+test('financial chart widget normalizes numeric inputs before chart aggregation', () => {
+  const source = readSource('components/widgets/FinancialChartWidget.js');
+  const summarySource = readSource('lib/dashboard/summary-service.js');
+
+  assert.match(source, /import \{ formatMoney, toFiniteNumber \} from '@\/lib\/utils';/);
+  assert.match(source, /salesByMonth\[key\] = \(salesByMonth\[key\] \|\| 0\) \+ toFiniteNumber\(record\.price\);/);
+  assert.match(source, /expensesByMonth\[key\] = \(expensesByMonth\[key\] \|\| 0\) \+ toFiniteNumber\(record\.amount\);/);
+  assert.match(source, /\[REVENUE_KEY\]: toFiniteNumber\(row\.revenue\),/);
+  assert.match(source, /\[EXPENSE_KEY\]: Math\.floor\(toFiniteNumber\(row\.expense\)\),/);
+  assert.match(source, /\[PROFIT_KEY\]: toFiniteNumber\(row\.profit\),/);
+  assert.doesNotMatch(source, /record\.price \|\| 0/);
+  assert.doesNotMatch(source, /record\.amount \|\| 0/);
+  assert.doesNotMatch(source, /row\.revenue \|\| 0/);
+  assert.doesNotMatch(source, /row\.expense \|\| 0/);
+  assert.doesNotMatch(source, /row\.profit \|\| 0/);
+
+  assert.match(summarySource, /import \{ toFiniteNumber \} from '\.\.\/utils';/);
+  assert.match(summarySource, /salesByMonth\.set\(monthKey, \(salesByMonth\.get\(monthKey\) \?\? 0\) \+ toFiniteNumber\(record\.price\)\);/);
+  assert.match(summarySource, /expensesByMonth\.set\(monthKey, \(expensesByMonth\.get\(monthKey\) \?\? 0\) \+ toFiniteNumber\(record\.amount\)\);/);
+  assert.match(summarySource, /const monthlySalesTotal = toFiniteNumber\(salesThisMonth\._sum\.price\);/);
+  assert.match(summarySource, /const monthlyExpenseTotal = toFiniteNumber\(expensesThisMonth\._sum\.amount\);/);
+  assert.doesNotMatch(summarySource, /record\.price \?\? 0/);
+  assert.doesNotMatch(summarySource, /record\.amount \?\? 0/);
+  assert.doesNotMatch(summarySource, /salesThisMonth\._sum\.price \?\? 0/);
+  assert.doesNotMatch(summarySource, /expensesThisMonth\._sum\.amount \?\? 0/);
+});

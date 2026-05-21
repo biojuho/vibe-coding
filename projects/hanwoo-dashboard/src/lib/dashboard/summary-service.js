@@ -1,3 +1,5 @@
+import { toFiniteNumber } from '../utils';
+
 function startOfCurrentMonth(now = new Date()) {
   return new Date(now.getFullYear(), now.getMonth(), 1);
 }
@@ -28,12 +30,12 @@ function buildFinancialSeries({ salesRecords = [], expenseRecords = [], months =
 
   for (const record of salesRecords) {
     const monthKey = toMonthKey(new Date(record.saleDate));
-    salesByMonth.set(monthKey, (salesByMonth.get(monthKey) ?? 0) + (record.price ?? 0));
+    salesByMonth.set(monthKey, (salesByMonth.get(monthKey) ?? 0) + toFiniteNumber(record.price));
   }
 
   for (const record of expenseRecords) {
     const monthKey = toMonthKey(new Date(record.date));
-    expensesByMonth.set(monthKey, (expensesByMonth.get(monthKey) ?? 0) + (record.amount ?? 0));
+    expensesByMonth.set(monthKey, (expensesByMonth.get(monthKey) ?? 0) + toFiniteNumber(record.amount));
   }
 
   for (let index = months - 1; index >= 0; index -= 1) {
@@ -165,8 +167,8 @@ export async function buildDashboardSummaryPayload({ farmId = 'default', client 
   const buildingCounts = new Map(
     cattlePerBuilding.map((row) => [row.buildingId, row._count._all]),
   );
-  const monthlySalesTotal = salesThisMonth._sum.price ?? 0;
-  const monthlyExpenseTotal = expensesThisMonth._sum.amount ?? 0;
+  const monthlySalesTotal = toFiniteNumber(salesThisMonth._sum.price);
+  const monthlyExpenseTotal = toFiniteNumber(expensesThisMonth._sum.amount);
   const averageWeight = weightAggregate._avg.weight ? Number(weightAggregate._avg.weight.toFixed(1)) : 0;
 
   return {

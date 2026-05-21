@@ -3,7 +3,7 @@
 import { BarChart3 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts';
 
-import { formatMoney } from '@/lib/utils';
+import { formatMoney, toFiniteNumber } from '@/lib/utils';
 
 const REVENUE_KEY = 'revenue';
 const EXPENSE_KEY = 'expense';
@@ -18,14 +18,14 @@ export default function FinancialChartWidget({
   saleRecords.forEach((record) => {
     const date = new Date(record.saleDate);
     const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    salesByMonth[key] = (salesByMonth[key] || 0) + (record.price || 0);
+    salesByMonth[key] = (salesByMonth[key] || 0) + toFiniteNumber(record.price);
   });
 
   const expensesByMonth = {};
   expenseRecords.forEach((record) => {
     const date = new Date(record.date);
     const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    expensesByMonth[key] = (expensesByMonth[key] || 0) + (record.amount || 0);
+    expensesByMonth[key] = (expensesByMonth[key] || 0) + toFiniteNumber(record.amount);
   });
 
   const today = new Date();
@@ -46,9 +46,9 @@ export default function FinancialChartWidget({
     Array.isArray(seriesData) && seriesData.length > 0
       ? seriesData.map((row) => ({
           name: row.month,
-          [REVENUE_KEY]: row.revenue || 0,
-          [EXPENSE_KEY]: Math.floor(row.expense || 0),
-          [PROFIT_KEY]: row.profit || 0,
+          [REVENUE_KEY]: toFiniteNumber(row.revenue),
+          [EXPENSE_KEY]: Math.floor(toFiniteNumber(row.expense)),
+          [PROFIT_KEY]: toFiniteNumber(row.profit),
         }))
       : fallbackChartData;
 
