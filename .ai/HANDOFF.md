@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-593 completed**: Hanwoo admin diagnostics numeric metrics now normalize before rendering. `DiagnosticsPageClient` routes database record counts, process uptime, and memory heap values through `toFiniteNumber()` before displaying model counts, uptime minutes, and MB labels, preventing malformed diagnostics action payloads from leaking `NaN MB` or non-finite counts into the operations screen. Code commit `6c1c8312`. |
+| Next Priorities | Verification passed: focused diagnostics source test (`2 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 241, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and also saw unrelated shorts/workspace WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-592 completed**: Hanwoo payment CTA now shares one state label across visible text, assistive technology, and tooltip copy. `PaymentWidget` derives `paymentButtonLabel` from submitting/widget-ready state and applies it to the button body, `aria-label`, and `title`, so the disabled checkout button explains whether payment methods are loading or payment preparation is in flight. Code commit `06cd994b`. |
 | Next Priorities | Verification passed: focused payment UX/source test (`5 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 240, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
 

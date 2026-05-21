@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` admin diagnostics numeric metrics are safe for malformed action payloads. `DiagnosticsPageClient` routes database record counts, process uptime, and memory heap values through `toFiniteNumber()` before rendering model counts, uptime minutes, and MB labels, preventing `NaN MB` or non-finite counts from leaking into the operations diagnostics screen. Verification passed: focused diagnostics source test (`2 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 241, lint, build), and staged `code_review_gate --json`.
+
 - As of 2026-05-21, `hanwoo-dashboard` payment CTA states are exposed consistently. `PaymentWidget` derives `paymentButtonLabel` from submitting/widget-ready state and uses it for visible text, `aria-label`, and `title`, so disabled checkout states explain whether payment methods are loading or payment preparation is in flight. Verification passed: focused payment UX/source test (`5 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 240, lint, build), and staged `code_review_gate --json`.
 
 - As of 2026-05-21, `hanwoo-dashboard` weather widget numeric rendering is safe for malformed snapshots. `WeatherWidget` routes visible temperatures, apparent temperature, humidity, wind, high/low, precipitation, forecast temperatures, and THI inputs through `toFiniteNumber()` before rendering, preventing `NaN` or non-finite values from leaking into the home weather card. Verification passed: focused home/market/weather source test (`25 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC test/lint (`test` 240, lint), and targeted build retry after a real concurrent Next build.
