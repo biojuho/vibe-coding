@@ -9,16 +9,23 @@ import { prisma } from './_helpers';
 // Notification Actions
 // ============================================================
 
+function isFreshNotificationSummary(summary, now = Date.now()) {
+  if (!summary?.payload || !summary.generatedAt) {
+    return false;
+  }
+
+  const generatedAt = new Date(summary.generatedAt);
+  const age = now - generatedAt.getTime();
+  return Number.isFinite(age) && age >= 0 && age < 60 * 1000;
+}
+
 export async function getNotifications() {
   await requireAuthenticatedSession();
   try {
     // Try pre-computed read model first
     const cached = await getNotificationSummary('default');
-    if (cached?.payload) {
-      const age = Date.now() - new Date(cached.generatedAt).getTime();
-      if (age < 60 * 1000) {
-        return cached.payload;
-      }
+    if (isFreshNotificationSummary(cached)) {
+      return cached.payload;
     }
   } catch {
     // Fall through to live computation
