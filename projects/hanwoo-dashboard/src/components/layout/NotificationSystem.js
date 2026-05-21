@@ -12,8 +12,31 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 
+const DEFAULT_NOTIFICATION_TITLE = '알림 제목 없음';
+const DEFAULT_NOTIFICATION_MESSAGE = '확인할 알림 내용을 불러오지 못했습니다.';
+
+function normalizeSystemNotifications(initialNotifications) {
+  if (!Array.isArray(initialNotifications)) return [];
+
+  return initialNotifications
+    .filter((notification) => notification && typeof notification === 'object')
+    .map((notification, index) => ({
+      ...notification,
+      id: notification.id ?? `notification-${index + 1}`,
+      type: ['alert', 'warning', 'info'].includes(notification.type) ? notification.type : 'info',
+      title: typeof notification.title === 'string' && notification.title.trim().length > 0
+        ? notification.title
+        : DEFAULT_NOTIFICATION_TITLE,
+      message: typeof notification.message === 'string' && notification.message.trim().length > 0
+        ? notification.message
+        : DEFAULT_NOTIFICATION_MESSAGE,
+      time: typeof notification.time === 'string' ? notification.time : '',
+      read: Boolean(notification.read),
+    }));
+}
+
 export function NotificationSystem({ initialNotifications = [] } = {}) {
-  const [notifications, setNotifications] = useState(initialNotifications);
+  const [notifications, setNotifications] = useState(() => normalizeSystemNotifications(initialNotifications));
 
   const unreadCount = notifications.filter((notification) => !notification.read).length;
   const notificationLabel = unreadCount > 0
@@ -21,13 +44,13 @@ export function NotificationSystem({ initialNotifications = [] } = {}) {
     : '알림 열기';
 
   const markAsRead = (id) => {
-    setNotifications(notifications.map((notification) => (
+    setNotifications((currentNotifications) => currentNotifications.map((notification) => (
       notification.id === id ? { ...notification, read: true } : notification
     )));
   };
 
   const markAllAsRead = () => {
-    setNotifications(notifications.map((notification) => ({ ...notification, read: true })));
+    setNotifications((currentNotifications) => currentNotifications.map((notification) => ({ ...notification, read: true })));
   };
 
   return (

@@ -57,7 +57,7 @@ test('typescript notification system mirror is a client component with the same 
 
   assert.match(source, /"use client";/);
   assert.match(source, /initialNotifications = \[\]/);
-  assert.match(source, /useState\(initialNotifications\)/);
+  assert.match(source, /useState\(\(\) => normalizeSystemNotifications\(initialNotifications\)\)/);
   assert.match(source, /notifications\.filter\(\(notification\) => !notification\.read\)\.length/);
   assert.match(source, /알림 열기, 읽지 않은 알림/);
   assert.match(source, /aria-label=\{notificationLabel\}/);
@@ -67,6 +67,24 @@ test('typescript notification system mirror is a client component with the same 
   assert.match(source, /aria-hidden="true"/);
   assert.doesNotMatch(source, /aria-label="Notifications"/);
   assert.doesNotMatch(source, /title="Notifications"/);
+});
+
+test('notification systems normalize malformed initial payloads before rendering', () => {
+  const source = readSource('components/layout/NotificationSystem.js');
+  const tsxSource = readSource('components/layout/NotificationSystem.tsx');
+
+  for (const candidate of [source, tsxSource]) {
+    assert.match(candidate, /function normalizeSystemNotifications\(initialNotifications\)/);
+    assert.match(candidate, /if \(!Array\.isArray\(initialNotifications\)\) return \[\]/);
+    assert.match(candidate, /\.filter\(\(notification\) => notification && typeof notification === 'object'\)/);
+    assert.match(candidate, /useState\(\(\) => normalizeSystemNotifications\(initialNotifications\)\)/);
+    assert.match(candidate, /DEFAULT_NOTIFICATION_TITLE/);
+    assert.match(candidate, /DEFAULT_NOTIFICATION_MESSAGE/);
+    assert.match(candidate, /id: notification\.id \?\? `notification-\$\{index \+ 1\}`/);
+    assert.match(candidate, /setNotifications\(\(currentNotifications\) => currentNotifications\.map/);
+    assert.doesNotMatch(candidate, /useState\(initialNotifications\)/);
+    assert.doesNotMatch(candidate, /setNotifications\(notifications\.map/);
+  }
 });
 
 test('notification systems only show unread badges when there are unread items', () => {
