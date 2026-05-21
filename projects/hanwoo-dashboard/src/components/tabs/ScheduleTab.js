@@ -44,6 +44,20 @@ function toDateKey(value) {
   return date ? date.toISOString().split('T')[0] : null;
 }
 
+function normalizeScheduleEvents(events) {
+  if (!Array.isArray(events)) return [];
+
+  return events
+    .filter((event) => event && typeof event === 'object')
+    .map((event, index) => ({
+      ...event,
+      id: event.id ?? `schedule-${index}`,
+      title: typeof event.title === 'string' && event.title.trim() ? event.title : '일정명 미등록',
+      type: typeof event.type === 'string' && TYPE_STYLES[event.type] ? event.type : 'General',
+      isCompleted: Boolean(event.isCompleted),
+    }));
+}
+
 export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quickActionIntent = null }) {
   const [isAdding, setIsAdding] = useState(() => quickActionIntent?.actionId === 'add-schedule');
   const [isSaving, setIsSaving] = useState(false);
@@ -63,6 +77,8 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
     defaultValues: createScheduleFormValues(),
   });
 
+  const safeEvents = useMemo(() => normalizeScheduleEvents(events), [events]);
+
   const monthDays = useMemo(() => {
     const days = [];
     const total = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
@@ -81,25 +97,25 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
 
   const currentMonthEvents = useMemo(
     () =>
-      events.filter((event) => {
+      safeEvents.filter((event) => {
         const date = toValidDate(event.date);
         return date && date.getMonth() === currentDate.getMonth() && date.getFullYear() === currentDate.getFullYear();
       }),
-    [events, currentDate],
+    [safeEvents, currentDate],
   );
 
   const upcomingEvents = useMemo(() => {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
 
-    return events
+    return safeEvents
       .filter((event) => {
         const date = toValidDate(event.date);
         return date && date >= now && !event.isCompleted;
       })
       .sort((first, second) => toValidDate(first.date) - toValidDate(second.date))
       .slice(0, 5);
-  }, [events]);
+  }, [safeEvents]);
 
   const toggleAddForm = () => {
     if (saveInFlightRef.current || isSaving) {

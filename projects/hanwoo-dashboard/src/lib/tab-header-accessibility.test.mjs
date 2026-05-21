@@ -98,3 +98,18 @@ test('schedule tab skips invalid event dates before calendar and upcoming render
   assert.doesNotMatch(scheduleSource, /return Number\.isNaN\(date\.getTime\(\)\) \? null : date;/);
   assert.doesNotMatch(scheduleSource, /new Date\(event\.date\)\.toISOString\(\)\.split\('T'\)\[0\] === dateStr/);
 });
+
+test('schedule tab normalizes malformed event payloads before rendering', () => {
+  const scheduleSource = readSource('components/tabs/ScheduleTab.js');
+
+  assert.match(scheduleSource, /function normalizeScheduleEvents\(events\) \{/);
+  assert.match(scheduleSource, /if \(!Array\.isArray\(events\)\) return \[\];/);
+  assert.match(scheduleSource, /\.filter\(\(event\) => event && typeof event === 'object'\)/);
+  assert.match(scheduleSource, /const safeEvents = useMemo\(\(\) => normalizeScheduleEvents\(events\), \[events\]\);/);
+  assert.match(scheduleSource, /safeEvents\.filter\(\(event\) => \{/);
+  assert.match(scheduleSource, /id: event\.id \?\? `schedule-\$\{index\}`/);
+  assert.match(scheduleSource, /'일정명 미등록'/);
+  assert.match(scheduleSource, /type: typeof event\.type === 'string' && TYPE_STYLES\[event\.type\] \? event\.type : 'General'/);
+  assert.doesNotMatch(scheduleSource, /events\.filter\(\(event\) => \{/);
+  assert.match(scheduleSource, /return safeEvents\s+\.filter/);
+});
