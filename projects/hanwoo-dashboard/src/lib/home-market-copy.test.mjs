@@ -284,6 +284,25 @@ test('sales tab normalizes numeric inputs before sales and profit aggregation', 
   assert.doesNotMatch(source, /profit: hasExpenseData \? record\.price - totalCost : null,/);
 });
 
+test('sales tab normalizes collection payloads before rendering and aggregation', () => {
+  const source = readSource('components/tabs/SalesTab.js');
+
+  assert.match(source, /function normalizeSalesItems\(items\) \{/);
+  assert.match(source, /const safeSaleRecords = useMemo\(\(\) => normalizeSalesItems\(saleRecords\), \[saleRecords\]\);/);
+  assert.match(source, /const safeCattleList = useMemo\(\(\) => normalizeSalesItems\(cattleList\), \[cattleList\]\);/);
+  assert.match(source, /const safeExpenseRecords = useMemo\(\(\) => normalizeSalesItems\(expenseRecords\), \[expenseRecords\]\);/);
+  assert.match(source, /\[\.\.\.safeSaleRecords\]/);
+  assert.match(source, /safeCattleList\.find\(\(item\) => item\.id === record\.cattleId\)/);
+  assert.match(source, /safeExpenseRecords\.filter\(\(expense\) => expense\.cattleId === record\.cattleId\)/);
+  assert.match(source, /safeCattleList\.map\(\(cow\) => \(/);
+  assert.match(source, /disabled=\{!safeCattleList\.length \|\| isSaving\}/);
+  assert.match(source, /actionLabel=\{safeCattleList\.length \?/);
+  assert.doesNotMatch(source, /\[\.\.\.saleRecords\]/);
+  assert.doesNotMatch(source, /expenseRecords\.filter\(\(expense\) => expense\.cattleId === record\.cattleId\)/);
+  assert.doesNotMatch(source, /cattleList\?\.map/);
+  assert.doesNotMatch(source, /cattleList\?\.length/);
+});
+
 test('dashboard fallback average weight normalizes cattle weights', () => {
   const source = readSource('components/DashboardClient.js');
 
@@ -355,7 +374,7 @@ test('sales form waits for async saves before re-enabling actions', () => {
   assert.match(source, /finally \{\s+saveInFlightRef\.current = false;\s+setIsSaving\(false\);/);
   assert.match(source, /onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}/);
   assert.match(source, /const submitButtonLabel = isSaving \? '판매 기록 등록 중' : '판매 기록 등록하기';/);
-  assert.match(source, /disabled=\{!cattleList\?\.length \|\| isSaving\}\s+aria-busy=\{isSaving\}/);
+  assert.match(source, /disabled=\{!safeCattleList\.length \|\| isSaving\}\s+aria-busy=\{isSaving\}/);
   assert.match(source, /aria-label=\{submitButtonLabel\}\s+title=\{submitButtonLabel\}/);
 });
 

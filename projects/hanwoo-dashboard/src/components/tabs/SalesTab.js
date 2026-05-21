@@ -26,6 +26,10 @@ function getSaleDateTime(value) {
   return Number.isNaN(date.getTime()) ? Number.NEGATIVE_INFINITY : date.getTime();
 }
 
+function normalizeSalesItems(items) {
+  return Array.isArray(items) ? items.filter((item) => item && typeof item === 'object') : [];
+}
+
 export default function SalesTab({
   saleRecords,
   cattleList,
@@ -49,15 +53,15 @@ export default function SalesTab({
     defaultValues: createSalesFormValues(),
   });
 
-  const processedRecords = useMemo(() => {
-    if (!saleRecords) {
-      return [];
-    }
+  const safeSaleRecords = useMemo(() => normalizeSalesItems(saleRecords), [saleRecords]);
+  const safeCattleList = useMemo(() => normalizeSalesItems(cattleList), [cattleList]);
+  const safeExpenseRecords = useMemo(() => normalizeSalesItems(expenseRecords), [expenseRecords]);
 
-    return [...saleRecords]
+  const processedRecords = useMemo(() => {
+    return [...safeSaleRecords]
       .map((record) => {
-        const cow = cattleList?.find((item) => item.id === record.cattleId) || {};
-        const cattleExpenses = expenseRecords.filter((expense) => expense.cattleId === record.cattleId);
+        const cow = safeCattleList.find((item) => item.id === record.cattleId) || {};
+        const cattleExpenses = safeExpenseRecords.filter((expense) => expense.cattleId === record.cattleId);
         const salePrice = toFiniteNumber(record.price);
         const purchaseCost = toFiniteNumber(cow.purchasePrice);
         const feedCost = cattleExpenses
@@ -89,7 +93,7 @@ export default function SalesTab({
         };
       })
       .sort((first, second) => getSaleDateTime(second.saleDate) - getSaleDateTime(first.saleDate));
-  }, [saleRecords, cattleList, expenseRecords]);
+  }, [safeSaleRecords, safeCattleList, safeExpenseRecords]);
 
   const safeTotalSales = useMemo(
     () => processedRecords.reduce((sum, record) => sum + toFiniteNumber(record.price), 0),
@@ -215,7 +219,7 @@ export default function SalesTab({
                     hasError={!!errors.cattleId}
                   >
                     <option value="" className="bg-slate-900">선택해 주세요</option>
-                    {cattleList?.map((cow) => (
+                    {safeCattleList.map((cow) => (
                       <option key={cow.id} value={cow.id} className="bg-slate-900">
                         {cow.name} ({cow.tagNumber})
                       </option>
@@ -259,7 +263,7 @@ export default function SalesTab({
 
                 <PremiumButton
                   type="submit"
-                  disabled={!cattleList?.length || isSaving}
+                  disabled={!safeCattleList.length || isSaving}
                   aria-busy={isSaving}
                   aria-label={submitButtonLabel}
                   title={submitButtonLabel}
@@ -270,7 +274,7 @@ export default function SalesTab({
                   {isSaving ? '판매 기록 등록 중...' : '등록하기'}
                 </PremiumButton>
 
-                {!cattleList?.length ? (
+                {!safeCattleList.length ? (
                   <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
                     먼저 개체를 등록해야 판매 기록을 추가할 수 있습니다.
                   </div>
@@ -335,13 +339,13 @@ export default function SalesTab({
             icon={ReceiptText}
             title="출하 내역이 없습니다"
             description={
-              cattleList?.length
+              safeCattleList.length
                 ? '첫 출하 기록을 남기면 매출, 등급, 수익 분석 차트가 바로 채워집니다.'
                 : '개체를 먼저 등록하면 출하 기록과 수익 분석을 연결할 수 있습니다.'
             }
-            actionLabel={cattleList?.length ? '매출 기록' : '개체 등록 필요'}
+            actionLabel={safeCattleList.length ? '매출 기록' : '개체 등록 필요'}
             onAction={() => setIsAdding(true)}
-            disabled={!cattleList?.length}
+            disabled={!safeCattleList.length}
           />
         ) : (
           processedRecords.map((record, index) => (
