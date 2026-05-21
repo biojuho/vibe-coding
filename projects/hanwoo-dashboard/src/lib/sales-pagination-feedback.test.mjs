@@ -25,7 +25,10 @@ test('sales pagination failures surface Korean retry feedback', () => {
   assert.match(hookSource, /loadInFlightRef\.current = false;\s+if \(abortRef\.current === controller\)/);
   assert.match(hookSource, /loadMore, loadError/);
   assert.match(tabSource, /salesPagination\.loadError/);
+  assert.match(tabSource, /const loadMoreLabel = salesPagination\?\.isLoading \? '이전 판매 기록 불러오는 중' : '이전 판매 기록 더 보기';/);
   assert.match(tabSource, /aria-busy=\{salesPagination\.isLoading\}/);
+  assert.match(tabSource, /aria-label=\{loadMoreLabel\}/);
+  assert.match(tabSource, /title=\{loadMoreLabel\}/);
   assert.match(tabSource, /role="status"/);
   assert.match(tabSource, /aria-live="polite"/);
   assert.doesNotMatch(hookSource, /setLoadError\(error\.message\)/);

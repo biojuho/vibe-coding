@@ -113,6 +113,7 @@ export default function SalesTab({
         })),
     [processedRecords],
   );
+  const loadMoreLabel = salesPagination?.isLoading ? '이전 판매 기록 불러오는 중' : '이전 판매 기록 더 보기';
 
   const toggleAddForm = () => {
     if (saveInFlightRef.current || isSaving) {
@@ -391,6 +392,8 @@ export default function SalesTab({
             onClick={() => salesPagination.loadMore()}
             disabled={salesPagination.isLoading}
             aria-busy={salesPagination.isLoading}
+            aria-label={loadMoreLabel}
+            title={loadMoreLabel}
             className="w-full mt-3 py-3"
           >
             {salesPagination.isLoading ? '불러오는 중...' : '이전 기록 더 보기'}
