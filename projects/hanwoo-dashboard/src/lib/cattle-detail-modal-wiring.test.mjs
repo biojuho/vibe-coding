@@ -154,9 +154,15 @@ test('cattle tag lookup progress and results are announced', () => {
   const formSource = readSource('components/forms/CattleForm.js');
 
   assert.match(formSource, /const lookupInFlightRef = useRef\(false\)/);
+  assert.match(formSource, /const lookupRequestIdRef = useRef\(0\)/);
+  assert.match(formSource, /const mountedRef = useRef\(true\)/);
+  assert.match(formSource, /lookupRequestIdRef\.current \+= 1;/);
   assert.match(formSource, /if \(lookupInFlightRef\.current\) \{\s+return;\s+\}/);
   assert.match(formSource, /lookupInFlightRef\.current = true;/);
-  assert.match(formSource, /lookupInFlightRef\.current = false;/);
+  assert.match(formSource, /const requestId = lookupRequestIdRef\.current \+ 1;/);
+  assert.match(formSource, /lookupRequestIdRef\.current = requestId;/);
+  assert.match(formSource, /if \(!mountedRef\.current \|\| lookupRequestIdRef\.current !== requestId\) \{\s+return;\s+\}/);
+  assert.match(formSource, /if \(lookupRequestIdRef\.current === requestId\) \{\s+lookupInFlightRef\.current = false;/);
   assert.match(formSource, /const tagNumberErrorId = 'cattle-tag-number-error'/);
   assert.match(formSource, /const tagLookupMessageId = 'cattle-tag-lookup-message'/);
   assert.match(formSource, /const tagNumberDescriptionIds = \[/);

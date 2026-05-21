@@ -23,6 +23,8 @@ function toIsoDateOrNull(value) {
 export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel }) {
   const dialogRef = useRef(null);
   const lookupInFlightRef = useRef(false);
+  const lookupRequestIdRef = useRef(0);
+  const mountedRef = useRef(true);
   const saveInFlightRef = useRef(false);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupMsg, setLookupMsg] = useState(null);
@@ -44,6 +46,9 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
 
   useEffect(() => {
     reset(createCattleFormValues(cattle, buildings));
+    lookupRequestIdRef.current += 1;
+    lookupInFlightRef.current = false;
+    setLookupLoading(false);
     setLookupMsg(null);
     setIsSaving(false);
     saveInFlightRef.current = false;
@@ -52,6 +57,16 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
   useEffect(() => {
     dialogRef.current?.focus();
   }, [cattle?.id]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+      lookupRequestIdRef.current += 1;
+      lookupInFlightRef.current = false;
+    };
+  }, []);
 
   const handleDialogKeyDown = (event) => {
     if (event.key === 'Escape') {
@@ -72,11 +87,16 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
     }
 
     lookupInFlightRef.current = true;
+    const requestId = lookupRequestIdRef.current + 1;
+    lookupRequestIdRef.current = requestId;
     setLookupLoading(true);
     setLookupMsg(null);
 
     try {
       const res = await lookupCattleTag(tagNumber);
+      if (!mountedRef.current || lookupRequestIdRef.current !== requestId) {
+        return;
+      }
 
       if (res.success && res.data) {
         const data = res.data;
@@ -100,10 +120,17 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
         setLookupMsg({ ok: false, text: res.message || '조회에 실패했습니다.' });
       }
     } catch {
+      if (!mountedRef.current || lookupRequestIdRef.current !== requestId) {
+        return;
+      }
       setLookupMsg({ ok: false, text: '조회 중 오류가 발생했습니다.' });
     } finally {
-      lookupInFlightRef.current = false;
-      setLookupLoading(false);
+      if (lookupRequestIdRef.current === requestId) {
+        lookupInFlightRef.current = false;
+        if (mountedRef.current) {
+          setLookupLoading(false);
+        }
+      }
     }
   };
 
