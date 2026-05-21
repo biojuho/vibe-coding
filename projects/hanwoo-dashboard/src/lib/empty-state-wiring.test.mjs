@@ -109,9 +109,12 @@ test('feed record form waits for async saves before re-enabling submit', () => {
   const source = readSource('components/tabs/FeedTab.js');
 
   assert.match(source, /const \[isSaving, setIsSaving\] = useState\(false\)/);
+  assert.match(source, /const saveInFlightRef = useRef\(false\)/);
+  assert.match(source, /if \(saveInFlightRef\.current\) \{\s+return;\s+\}/);
+  assert.match(source, /saveInFlightRef\.current = true;/);
   assert.match(source, /setIsSaving\(true\);/);
   assert.match(source, /await onRecordFeed\(\{/);
-  assert.match(source, /finally \{\s+setIsSaving\(false\);/);
+  assert.match(source, /finally \{\s+saveInFlightRef\.current = false;\s+setIsSaving\(false\);/);
   assert.match(source, /type="submit"\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}/);
 });
 
@@ -136,8 +139,8 @@ test('feed building filter chips expose selected state and Korean labels', () =>
   assert.match(source, /disabled=\{disabled\}/);
   assert.match(source, /aria-pressed=\{active\}/);
   assert.match(source, /aria-label=\{label\}/);
-  assert.match(source, /label="전체 축사 급여 보기"/);
-  assert.match(source, /label=\{`\$\{building\.name\} 급여 보기`\}/);
+  assert.match(source, /label="전체 축사 급여 보기" disabled=\{isSaving\}/);
+  assert.match(source, /label=\{`\$\{building\.name\} 급여 보기`\}[\s\S]*?disabled=\{isSaving\}/);
 });
 
 test('feed tab visible copy is readable Korean product copy', () => {

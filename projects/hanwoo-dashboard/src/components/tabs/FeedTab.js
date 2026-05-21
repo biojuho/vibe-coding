@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
@@ -38,6 +38,7 @@ function FilterChip({ active, children, onClick, label, disabled = false }) {
 export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], onRecordFeed, buildings = [] }) {
   const [selectedBuilding, setSelectedBuilding] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const saveInFlightRef = useRef(false);
   const { notify } = useAppFeedback();
 
   const {
@@ -116,6 +117,10 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
     : totalStandardConcentrate;
 
   const submitFeedRecord = async (values) => {
+    if (saveInFlightRef.current) {
+      return;
+    }
+
     if (!selectedBuilding) {
       notify({
         title: '축사를 먼저 선택해 주세요.',
@@ -125,6 +130,7 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
       return;
     }
 
+    saveInFlightRef.current = true;
     setIsSaving(true);
 
     try {
@@ -142,6 +148,7 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
         date: values.date,
       });
     } finally {
+      saveInFlightRef.current = false;
       setIsSaving(false);
     }
   };
@@ -154,7 +161,7 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
       </div>
 
       <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', overflowX: 'auto', paddingBottom: '4px' }}>
-        <FilterChip active={!selectedBuilding} onClick={() => setSelectedBuilding(null)} label="전체 축사 급여 보기">
+        <FilterChip active={!selectedBuilding} onClick={() => setSelectedBuilding(null)} label="전체 축사 급여 보기" disabled={isSaving}>
           전체
         </FilterChip>
         {buildings.map((building) => (
@@ -163,6 +170,7 @@ export default function FeedTab({ cattle, feedStandards = [], feedHistory = [], 
             active={selectedBuilding === building.id}
             onClick={() => setSelectedBuilding(building.id)}
             label={`${building.name} 급여 보기`}
+            disabled={isSaving}
           >
             {building.name}
           </FilterChip>
