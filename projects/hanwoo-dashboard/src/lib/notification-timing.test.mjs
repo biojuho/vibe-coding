@@ -40,3 +40,13 @@ test('buildNotificationTiming returns an empty shape for invalid dates', () => {
     targetDate: null,
   });
 });
+
+test('buildNotificationTiming rejects impossible calendar dates', () => {
+  const result = buildNotificationTiming('calving', '2026-02-31T00:00:00.000Z');
+
+  assert.deepEqual(result, {
+    date: null,
+    time: '-',
+    targetDate: null,
+  });
+});
