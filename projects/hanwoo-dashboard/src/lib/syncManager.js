@@ -13,6 +13,8 @@ import {
   updateFarmSettings, createExpenseRecord
 } from './actions';
 
+const OFFLINE_SYNC_RETRY_ERROR_MESSAGE = '오프라인 요청을 동기화하지 못했습니다. 잠시 후 다시 시도해 주세요.';
+
 const ACTION_MAP = {
   createCattle: (args) => createCattle(args[0]),
   updateCattle: (args) => updateCattle(args[0], args[1]),
@@ -77,11 +79,8 @@ async function syncOfflineQueueInternal() {
       } else {
         synced++;
       }
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error && error.message
-          ? error.message
-          : `Offline sync action "${item.action}" threw an unknown error.`;
+    } catch {
+      const errorMessage = OFFLINE_SYNC_RETRY_ERROR_MESSAGE;
       const failureState = createFailedQueueItemState(item, {
         errorMessage,
         permanent: isPermanentOfflineQueueFailure(errorMessage),
