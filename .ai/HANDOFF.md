@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-570 completed**: Hanwoo AI chat farm context now rejects impossible recent-sale dates before building the assistant prompt. `/api/ai/chat` `formatSaleDateForContext()` now round-trips string `YYYY-MM-DD` date keys before returning ISO text, so values like `2026-02-31T00:00:00.000Z` fall back to `출하일 미등록` instead of rolling forward into a false sale date. Code commit `7546863f`. |
+| Next Priorities | Verification passed: focused AI chat API/source test (`8 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 239, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/financial-chart/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-569 completed**: Hanwoo notification timing now rejects impossible source dates before scheduling 발정/분만 알림. `notification-timing.mjs` now round-trips `YYYY-MM-DD` date keys in `parseDate()`, so strings like `2026-02-31T00:00:00.000Z` can no longer roll forward through JavaScript `Date` parsing into false notification dates. Code commit `23398040`. |
 | Next Priorities | Verification passed: focused notification timing test (`5 passed`), targeted ESLint passed, path-limited `git diff --check`, full Hanwoo test/lint passed (`test` 239, lint), build initially hit a concurrent Next build lock and passed on targeted retry, and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
 
