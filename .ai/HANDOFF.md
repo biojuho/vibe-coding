@@ -9,13 +9,6 @@
 | Date | 2026-05-21 |
 | Tool | Codex |
 | Work | **T-591 completed**: Hanwoo WeatherWidget now normalizes weather numbers at the render boundary before visible temperature, apparent temperature, humidity, wind, high/low, precipitation, forecast temperatures, and THI labels are rendered. This prevents malformed weather props from leaking `NaN`/non-finite values into the home weather card even if a stale or caller-supplied snapshot bypasses the API normalization layer. Code commit `a5513311`. |
-| Next Priorities | Verification passed: focused home/market/weather source test (`25 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 240, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
-
-| Field | Value |
-|---|---|
-| Date | 2026-05-21 |
-| Tool | Codex |
-| Work | **T-591 completed**: Hanwoo WeatherWidget now normalizes weather numbers at the render boundary before visible temperature, apparent temperature, humidity, wind, high/low, precipitation, forecast temperatures, and THI labels are rendered. This prevents malformed weather props from leaking `NaN`/non-finite values into the home weather card even if a stale or caller-supplied snapshot bypasses the API normalization layer. Code commit `a5513311`. |
 | Next Priorities | Verification passed: focused home/market/weather source test (`25 passed`), targeted ESLint passed, path-limited `git diff --check`, full Hanwoo QC test/lint passed (`test` 240, lint), initial full QC build hit a real concurrent Next build, and targeted build retry passed. Staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
 
 | Field | Value |
