@@ -8,10 +8,12 @@
 - Goal: hanwoo-dashboard quality uplift so other people would want to use it.
 - Owner: Codex
 - Started: 2026-05-18
-- Latest: 2026-05-21 T-617 normalized Hanwoo notification-system payloads.
+- Latest: 2026-05-21 T-618 normalized Hanwoo pen card payloads.
 - Success: Hanwoo quality uplift is progressing through focused UX, accessibility, resilience, and Korean operator-copy passes. The goal remains active for additional polish. Keep T-251 separate because it is blocked on user-owned Supabase control-plane credential resync.
 
 ## Progress Notes
+
+- 2026-05-21: T-618 normalized Hanwoo pen card payloads. `PenCard` now routes incoming `cattle` through `normalizePenCattle()`, filters malformed rows, supplies stable fallback ids plus Korean missing-name copy, and renders from `visibleCattle`, preventing malformed caller/cache data from crashing the pen card through raw `.some()`, `.length`, or `.map()` access. Verification passed with focused cards accessibility/source test (`3 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC after one real concurrent Next build lock retry (`test` 255, lint, build), and staged `code_review_gate --json` (`risk_score 0.0`; cp949 reader-thread noise only). Commit `bd5adf04`; commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files.
 
 - 2026-05-21: T-617 normalized Hanwoo notification-system payloads. `NotificationSystem.js` and the tracked `NotificationSystem.tsx` mirror now route `initialNotifications` through `normalizeSystemNotifications()`, ignore malformed rows, supply stable fallback ids plus Korean title/message defaults, and use functional state updates for mark-read actions, preventing malformed caller/cache data from crashing the notification dropdown through raw `.filter()`, `.length`, or `.map()` access. Verification passed with focused notification-system source test (`9 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 255, lint, build), and staged `code_review_gate --json` (`risk_score 0.0`; cp949 reader-thread noise only). Commit `3411278f`; commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files.
 
