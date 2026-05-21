@@ -17,7 +17,18 @@ const SYSTEM_INSTRUCTION = `
 
 function formatSaleDateForContext(value) {
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '출하일 미등록' : date.toISOString().slice(0, 10);
+  if (Number.isNaN(date.getTime())) {
+    return '출하일 미등록';
+  }
+
+  if (typeof value === 'string') {
+    const dateKey = value.trim().slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateKey) && date.toISOString().slice(0, 10) !== dateKey) {
+      return '출하일 미등록';
+    }
+  }
+
+  return date.toISOString().slice(0, 10);
 }
 
 async function buildFarmContext() {
