@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-597 completed**: Hanwoo notification widget now normalizes incoming notification payloads before rendering. `NotificationWidget` routes props through `normalizeNotifications()`, ignores non-array/non-object malformed payloads, supplies stable fallback ids plus Korean title/message copy, and renders from `visibleNotifications` so stale cache or caller data cannot crash the widget through raw `.length`, `.map()`, or `note.type` access. Code commit `558c4f17`. |
+| Next Priorities | Verification passed: focused notification system copy test (`8 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 243, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-596 completed**: Hanwoo cattle-detail breeding record actions now expose their busy labels. `CattleDetailModal` derives `estrusButtonLabel`, `pregnancyButtonLabel`, `breedingCancelButtonLabel`, and `breedingSubmitButtonLabel`, then applies them to the 발정/수정 open buttons and breeding form cancel/submit controls via `aria-label` and `title`, with `aria-busy` aligned to the existing locks. Code commit `5a98fda7`. |
 | Next Priorities | Verification passed: focused cattle detail/form wiring test (`10 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 242, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and also saw unrelated WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/NotificationWidget/shorts/workspace WIP. |
 
