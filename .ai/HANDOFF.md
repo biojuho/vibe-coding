@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-546 completed**: Hanwoo weather forecast date labels now degrade safely. `formatForecastDateLabel()` falls back to `날짜 미등록`, and both `WeatherWidget` and `getLivestockWeatherAlerts()` use it so malformed weather forecast dates cannot render browser-default invalid-date labels in the forecast grid or livestock weather alerts. Code commit `18d45231`. |
+| Next Priorities | Verification passed: focused home/weather + utils source tests (`26 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 221, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/SalesTab/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-545 completed**: Hanwoo Calving tab now sorts pregnant cattle through `getPregnancyDateTime()`, placing malformed pregnancy dates at the end instead of letting invalid `Date` subtraction produce unstable list ordering. Code commit `c57e02bb`. |
 | Next Priorities | Verification passed: focused calving tab source test (`4 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 221, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
 

@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` weather forecast date labels degrade safely. `formatForecastDateLabel()` returns `날짜 미등록` for malformed dates, and both `WeatherWidget` and `getLivestockWeatherAlerts()` use it so invalid forecast dates do not leak browser-default labels into the forecast grid or livestock weather alerts. Verification passed: focused home/weather + utils source tests (`26 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 221, lint, build), and staged `code_review_gate --json`.
+
 - As of 2026-05-21, `hanwoo-dashboard` Calving tab pregnancy-date sorting is stable with malformed data. `CalvingTab` sorts pregnant cattle through `getPregnancyDateTime()`, placing malformed pregnancy dates at the end instead of letting invalid `Date` subtraction produce unstable list ordering. Verification passed: focused calving tab source test (`4 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 221, lint, build), and staged `code_review_gate --json`.
 
 - As of 2026-05-21, `hanwoo-dashboard` Today Focus next-schedule card ignores malformed schedule dates. `buildTodayFocusItems()` normalizes schedule event dates before filtering and sorting, preventing one bad schedule record from being selected, misordered, or shown in the home Today Focus panel. Verification passed: focused today-focus test (`3 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 220, lint, build), and staged `code_review_gate --json`.
