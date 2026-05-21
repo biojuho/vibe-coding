@@ -152,6 +152,9 @@ export default function CattleDetailModal({
 
   const handleDialogKeyDown = (event) => {
     if (event.key === 'Escape') {
+      if (isDeleting || isBreedingSaving) {
+        return;
+      }
       onClose();
     }
   };
@@ -192,6 +195,8 @@ export default function CattleDetailModal({
           <button
             type="button"
             onClick={onClose}
+            disabled={isDeleting || isBreedingSaving}
+            aria-busy={isDeleting || isBreedingSaving}
             aria-label="개체 상세 닫기"
             title="개체 상세 닫기"
             className="btn btn-icon animate-scaleIn"
