@@ -8,10 +8,12 @@
 - Goal: hanwoo-dashboard quality uplift so other people would want to use it.
 - Owner: Codex
 - Started: 2026-05-18
-- Latest: 2026-05-21 T-624 normalized Hanwoo notification modal payloads.
+- Latest: 2026-05-21 T-625 normalized Hanwoo pagination item payloads.
 - Success: Hanwoo quality uplift is progressing through focused UX, accessibility, resilience, and Korean operator-copy passes. The goal remains active for additional polish. Keep T-251 separate because it is blocked on user-owned Supabase control-plane credential resync.
 
 ## Progress Notes
+
+- 2026-05-21: T-625 normalized Hanwoo pagination item payloads. `useCattlePagination()` and `useSalesPagination()` now route initial SSR items and load-more API `json.data.items` through `normalizePaginationItems()`, ignore non-array input and malformed/non-object rows, and append from safe arrays, preventing malformed pagination/cache payloads from crashing through spread access. Verification passed with focused pagination source tests (`4 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 263, lint, build), and staged `code_review_gate --json` JSON pass (`risk_score 0.0`; cp949 reader-thread noise only). Commit `676f7453`; commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files.
 
 - 2026-05-21: T-624 normalized Hanwoo notification modal payloads. `NotificationModal` now routes its `notifications` prop through `normalizeModalNotifications()`, ignores non-array input and malformed/non-object rows, and renders empty/list states from `visibleNotifications`, preventing direct modal reuse from crashing through raw `.length` or `.map()` access. Verification passed with focused notification modal source test (`8 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 261, lint, build), and staged `code_review_gate --json` JSON pass (`risk_score 0.0`; cp949 reader-thread noise only). Commit `64ee6b6f`; commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files.
 
