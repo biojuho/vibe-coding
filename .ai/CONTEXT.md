@@ -33,6 +33,10 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` Schedule tab safely ignores malformed schedule dates before rendering calendar/upcoming surfaces. `ScheduleTab` normalizes event dates through local safe helpers before current-month filtering, upcoming-list sorting, calendar date-key matching, D-day calculation, and visible date formatting. Verification passed: focused tab-header accessibility test (`6 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 219, lint, build), and staged `code_review_gate --json`.
+
+- As of 2026-05-21, `hanwoo-dashboard` Feed tab chart and recent-record date labels safely degrade malformed feed history dates. `FeedTab` uses local safe date helpers and falls back to `날짜 미등록`, preventing browser-default invalid-date labels from reaching the feed trend chart or recent-record list. Verification passed: focused empty-state/feed source test (`13 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 218, lint, build), and staged `code_review_gate --json`.
+
 - As of 2026-05-21, `hanwoo-dashboard` AI chat farm context handles malformed recent sales safely. `/api/ai/chat` normalizes recent sale prices with `toFiniteNumber()` and formats sale dates through a safe helper that falls back to `출하일 미등록`, preventing one bad sale record from breaking AI assistant response preparation. Verification passed: focused AI chat API/source test (`8 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 218, lint, build), and staged `code_review_gate --json`.
 
 - As of 2026-05-21, `hanwoo-dashboard` profitability widget rendering normalizes recommendation values before display. `ProfitabilityWidget` uses `toFiniteNumber()` for age, profit, marginal gain, and weight fields, and falls back safely for missing cattle names or tag numbers so malformed profitability payloads do not produce `NaN` labels or `.slice()` crashes. Verification passed: focused profitability source test (`5 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 218, lint, build), and staged `code_review_gate --json`.

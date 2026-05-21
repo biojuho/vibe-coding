@@ -8,6 +8,20 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-543 completed**: Hanwoo Schedule tab now normalizes event dates through safe helpers before current-month filtering, upcoming-list sorting, calendar date-key matching, D-day calculation, and visible date formatting. Malformed schedule records can no longer throw during calendar rendering or leak invalid-date labels into the upcoming schedule list. Code commit `4d70f1e4`. |
+| Next Priorities | Verification passed: focused tab-header accessibility test (`6 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 219, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
+| Work | **T-542 completed**: Hanwoo Feed tab chart/list date labels now use safe helpers and fall back to `날짜 미등록` for malformed feed history dates. This prevents browser-default invalid-date labels from reaching the feed trend chart or recent-record list. Code commit `388b9e16`. |
+| Next Priorities | Verification passed: focused empty-state/feed source test (`13 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 218, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/ScheduleTab/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-541 completed**: Hanwoo financial chart fallback data and dashboard summary financial series now derive month keys through safe helpers and skip malformed sale/expense dates. This prevents `NaN-NaN` buckets or invalid-date failures from polluting user-facing financial charts and summary series. Code commit `6c304cba`. |
 | Next Priorities | Verification passed: focused analysis/financial source test (`3 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 218, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
 
