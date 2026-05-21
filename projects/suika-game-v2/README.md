@@ -20,8 +20,11 @@ Wordle처럼 매일 한 판, 연속 기록(streak)을 쌓고 스포일러 없는
   `localStorage`에 영구 저장.
 - **결과 카드 공유** — Web Share API로 PNG 카드를, 미지원 환경에선 스포일러 없는
   텍스트를 클립보드로. (`src/sharecard.js`)
+- **통계 화면** — 현재/최고 연속, 플레이 수, 최고 점수, 최근 7개 기록.
 - **프리 플레이** — 매 판 새로운 무작위 시드의 무한 모드.
 - **PWA** — 설치 가능, 서비스 워커로 오프라인 플레이.
+- **접근성** — `prefers-reduced-motion` 존중(애니메이션·화면 흔들림 비활성화),
+  키보드 포커스 관리, 다이얼로그 ARIA 역할.
 - 콤보 점수, 난이도 프리셋(Casual/Normal/Hard), no-merge 구제 가중치,
   폭탄, 햅틱 피드백.
 
@@ -50,9 +53,9 @@ npm run lint       # ESLint
 npm run build      # 빌드 (prebuild-check 포함)
 ```
 
-테스트는 결정론적 모듈(`prng.js`, `daily.js`)을 대상으로 합니다 — 같은 시드가
-같은 수열을 내는지, streak 전이가 올바른지 등. 물리/렌더/DOM 통합 코드는
-브라우저 스모크 테스트로 검증합니다.
+단위 테스트(61개)는 결정론적 모듈(`prng.js`, `daily.js`, `spawn.js`)을
+대상으로 합니다 — 같은 시드가 같은 수열을 내는지, streak 전이, 구제 가중치
+계산이 올바른지 등. 물리/렌더/DOM 통합 코드는 브라우저 스모크 테스트로 검증합니다.
 
 ## 조작
 
@@ -72,7 +75,8 @@ src/
   config.js             과일 데이터, 난이도 프리셋, 상수
   ui.js                 DOM 헬퍼
   prng.js               결정론적 시드 PRNG + 데일리 시드        [tested]
-  daily.js              streak/통계, 결과 카드 텍스트            [tested]
+  daily.js              streak/통계/history, 결과 카드 텍스트    [tested]
+  spawn.js              과일 생성 가중치 + no-merge 구제 로직    [tested]
   sharecard.js          Canvas 결과 카드 이미지 렌더링
   style.css             스타일
   *.test.js             Vitest 단위 테스트
