@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-586 completed**: Hanwoo Sales pagination load-more button now announces its loading state with a stable action label. `SalesTab` already disabled the load-more button and exposed `aria-busy` while `salesPagination.isLoading`; it now derives `loadMoreLabel` and applies it to `aria-label` and `title`, so assistive technology and hover text distinguish the normal action from the in-flight loading state. Code commit `4fc89c93`. |
+| Next Priorities | Verification passed: focused sales pagination feedback test (`1 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 240, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-585 completed**: Hanwoo `FinancialChartWidget` fallback aggregation now uses strict `YYYY-MM-DD` round-trip validation in `toMonthKey()`, matching `AnalysisTab` and dashboard summary behavior. Impossible sale/expense dates such as `2026-02-31` can no longer roll forward through JavaScript `Date` parsing and pollute the client-side 6-month financial chart fallback. Code commit `6f56e6de`. |
 | Next Priorities | Verification passed: focused analysis/financial widget source test (`3 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed on latest HEAD (`test` 240, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
 
