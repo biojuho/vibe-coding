@@ -8,10 +8,14 @@
 - Goal: hanwoo-dashboard quality uplift so other people would want to use it.
 - Owner: Codex
 - Started: 2026-05-18
-- Latest: 2026-05-21 T-609 labeled Hanwoo schedule submit state.
+- Latest: 2026-05-21 T-611 normalized Hanwoo calving tab payloads.
 - Success: Hanwoo quality uplift is progressing through focused UX, accessibility, resilience, and Korean operator-copy passes. The goal remains active for additional polish. Keep T-251 separate because it is blocked on user-owned Supabase control-plane credential resync.
 
 ## Progress Notes
+
+- 2026-05-21: T-611 normalized Hanwoo calving tab payloads. `CalvingTab` now routes incoming `cattle` and `buildings` props through safe collection normalizers, ignores malformed rows, derives `pregnantCows` from `safeCattle`, and uses `safeCattle`/`safeBuildings` for submit and building lookups, preventing stale cache or caller data from crashing the tab through raw `.filter()` or `.find()` access. Verification passed with focused Calving accessibility test (`5 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC test/lint (`test` 250, lint), targeted build retry after a real concurrent Next build lock, and staged `code_review_gate --json` (`risk_score 0.0`; cp949 reader-thread noise only). Commit `4535546c`; commit hook WARN was the known graph/test-gap heuristic while direct tests and build covered the changed files.
+
+- 2026-05-21: T-610 labeled Hanwoo sales submit state. `SalesTab` now derives `submitButtonLabel` from `isSaving` and applies it to the sales submit `PremiumButton` `aria-label` and `title`, matching the visible sales record submit state so the action exposes its in-flight state. Verification passed with focused home-market copy/source test (`25 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 250, lint, build), and staged `code_review_gate --json` (`risk_score 0.0`; cp949 reader-thread noise only). Commit `4974e238`; commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files.
 
 - 2026-05-21: T-609 labeled Hanwoo schedule submit state. `ScheduleTab` now derives `submitButtonLabel` from `isSaving` and applies it to the schedule submit button `aria-label` and `title`, matching the visible schedule registration state so the action exposes its in-flight state. Verification passed with focused Schedule accessibility test (`7 passed`), current Cattle/Schedule focused regression pass (`18 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC test/lint (`test` 249, lint), targeted build retry after a real concurrent Next build lock, and staged `code_review_gate --json` (`risk_score 0.0`; cp949 reader-thread noise only). Commit `69c19b22`; commit hook WARN was the known graph/test-gap heuristic while direct tests and build covered the changed files.
 
