@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` feed record submit state is exposed consistently. `FeedTab` derives `submitButtonLabel` from `isSaving` and applies it to the submit `PremiumButton` `aria-label` and `title`, matching the visible 급여 기록 저장/저장하기 state so the 급여 기록 저장하기 action exposes its in-flight state. Verification passed: focused empty-state/feed wiring test (`14 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 246, lint, build), and staged `code_review_gate --json`.
+
 - As of 2026-05-21, `hanwoo-dashboard` calving form submit state is exposed consistently. `CalvingTab` derives `submitButtonLabel` from `isSaving` and applies it to the submit button `aria-label` and `title`, matching the visible 분만 기록 저장/등록 copy so the 분만 완료 및 송아지 등록 action exposes its in-flight state. Verification passed: focused Calving accessibility test (`4 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 246, lint, build), and staged `code_review_gate --json`.
 
 - As of 2026-05-21, `hanwoo-dashboard` schedule tab payload rendering is safe for malformed caller/cache data. `ScheduleTab` routes incoming `events` props through `normalizeScheduleEvents()`, ignores non-array/non-object malformed payloads, supplies stable fallback ids plus Korean missing-title copy, defaults unknown event types to `General`, and renders from `safeEvents`, preventing raw `.filter()` or `event.date` access from crashing calendar or upcoming-event rendering. Verification passed: focused tab-header accessibility/source test (`7 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 246, lint, build), and staged `code_review_gate --json`.

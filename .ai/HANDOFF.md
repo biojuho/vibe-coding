@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-604 completed**: Hanwoo feed record submit action now exposes its save state. `FeedTab` derives `submitButtonLabel` from `isSaving` and applies it to the submit `PremiumButton` `aria-label` and `title`, matching the visible 급여 기록 저장/저장하기 state so assistive technology and hover text receive the same in-flight state. Code commit `88413c59`. |
+| Next Priorities | Verification passed: focused empty-state/feed wiring test (`14 passed`), targeted ESLint passed, path-limited `git diff --check`, full Hanwoo QC passed (`test` 246, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/FeedTab payload-normalization/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-603 completed**: Hanwoo calving form submit action now exposes its save state. `CalvingTab` derives `submitButtonLabel` from `isSaving` and applies it to the submit button `aria-label` and `title`, matching the visible 분만 기록 저장/등록 copy so assistive technology and hover text receive the same in-flight state. Code commit `42caac0a`. |
 | Next Priorities | Verification passed: focused Calving accessibility test (`4 passed`), targeted ESLint passed, path-limited `git diff --check`, full Hanwoo QC passed (`test` 246, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
 
