@@ -36,6 +36,20 @@ test('profitability widget renders the error message verbatim', () => {
   assert.match(source, /\{error\}/);
 });
 
+test('profitability widget normalizes recommendation values before rendering', () => {
+  const source = readSource('components/widgets/ProfitabilityWidget.js');
+
+  assert.match(source, /import \{ toFiniteNumber \} from '@\/lib\/utils';/);
+  assert.match(source, /data\.map\(\(rawItem\) =>/);
+  assert.match(source, /currentProfit: toFiniteNumber\(rawItem\.currentProfit\)/);
+  assert.match(source, /marginalGain: toFiniteNumber\(rawItem\.marginalGain\)/);
+  assert.match(source, /ageMonths: toFiniteNumber\(rawItem\.ageMonths\)/);
+  assert.match(source, /weight: toFiniteNumber\(rawItem\.weight\)/);
+  assert.match(source, /String\(rawItem\.tagNumber \?\? ''\)\.slice\(-4\) \|\| '----'/);
+  assert.match(source, /String\(rawItem\.name \?\? '-'\)/);
+  assert.doesNotMatch(source, /item\.tagNumber\.slice\(-4\)/);
+});
+
 test('profitability widget is mounted on the dashboard, not orphaned', () => {
   // T-366: the widget is registered in WIDGET_REGISTRY with defaultOn:true,
   // so it must actually be wired into the render path and fed SSR data.

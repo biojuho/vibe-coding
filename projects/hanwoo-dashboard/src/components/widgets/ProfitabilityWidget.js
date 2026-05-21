@@ -1,6 +1,7 @@
 'use client';
 
 import { PremiumCard, PremiumCardContent, PremiumCardHeader } from '@/components/ui/premium-card';
+import { toFiniteNumber } from '@/lib/utils';
 
 export function ProfitabilityWidget({ data, isLoading, error }) {
   if (isLoading) {
@@ -46,14 +47,25 @@ export function ProfitabilityWidget({ data, isLoading, error }) {
       />
       <PremiumCardContent className="p-0">
         <div className="divide-y divide-gray-100">
-          {data.map((item, idx) => (
+          {data.map((rawItem) => {
+            const item = {
+              ...rawItem,
+              ageMonths: toFiniteNumber(rawItem.ageMonths),
+              currentProfit: toFiniteNumber(rawItem.currentProfit),
+              marginalGain: toFiniteNumber(rawItem.marginalGain),
+              weight: toFiniteNumber(rawItem.weight),
+            };
+            const tagSuffix = String(rawItem.tagNumber ?? '').slice(-4) || '----';
+            const itemName = String(rawItem.name ?? '-');
+
+            return (
             <div key={item.id} className="p-4 transition-colors hover:bg-[color:var(--color-surface-elevated)]">
               <div className="flex justify-between items-start mb-2">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-[color:var(--color-text)] border border-[color:var(--color-surface-stroke)] rounded px-1.5 py-0.5 text-xs">
-                    {item.tagNumber.slice(-4)}
+                    {tagSuffix}
                   </span>
-                  <span className="text-sm font-medium text-[color:var(--color-text)]">{item.name}</span>
+                  <span className="text-sm font-medium text-[color:var(--color-text)]">{itemName}</span>
                   {item.recommendShipment && (
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[color:color-mix(in_srgb,var(--color-danger)_16%,white_84%)] text-[color:var(--color-danger)]">
                       즉시 출하 권장
@@ -90,7 +102,8 @@ export function ProfitabilityWidget({ data, isLoading, error }) {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </PremiumCardContent>
     </PremiumCard>
