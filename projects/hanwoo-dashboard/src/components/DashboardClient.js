@@ -88,6 +88,22 @@ const DASHBOARD_PAGE_LIMIT = 100;
 const FULL_CATTLE_LOAD_ERROR_MESSAGE = '전체 개체 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
 const FULL_SALES_LOAD_ERROR_MESSAGE = '전체 매출 기록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
 
+function toStrictIsoDateOrNull(value) {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    return null;
+  }
+
+  const date = new Date(`${normalized}T00:00:00.000Z`);
+  return Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== normalized
+    ? null
+    : date.toISOString();
+}
+
 const FOCUS_ICON_BY_TYPE = {
   alert: AlertTriangle,
   offline: WifiOff,
@@ -906,6 +922,12 @@ export default function DashboardClient({
       return false;
     }
 
+    const birthDate = toStrictIsoDateOrNull(calvingDate);
+    if (!birthDate) {
+      showError('분만일을 확인해 주세요.');
+      return false;
+    }
+
     const updatedMother = {
       ...mother,
       status: '번식우',
@@ -922,7 +944,7 @@ export default function DashboardClient({
       buildingId: mother.buildingId,
       penNumber: mother.penNumber,
       gender: calfGender,
-      birthDate: new Date(calvingDate).toISOString(),
+      birthDate,
       weight: 25,
       status: '송아지',
       memo: `모체 ${mother.tagNumber} (${mother.name})`,
