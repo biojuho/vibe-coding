@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-573 completed**: Hanwoo weather timeout copy now uses shared Korean product copy instead of the inline English `Weather lookup timed out after 5000ms.` message. `weather-state.mjs` exports `WEATHER_TIMEOUT_MESSAGE`, and both `DashboardClient` plus `useWeather` pass that constant into `fetchWithTimeout`. Code commit `75e22762`. |
+| Next Priorities | Verification passed: focused weather/home copy tests (`34 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 240, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/financial-chart/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-572 completed**: Hanwoo offline sync now stores stable Korean retry copy for thrown sync exceptions instead of persisting raw `Error.message` values into the retry/dead-letter queue state. `syncManager.js` keeps explicit action failure messages, but catch-path exceptions now use `오프라인 요청을 동기화하지 못했습니다. 잠시 후 다시 시도해 주세요.` Code commit `31928831`. |
 | Next Priorities | Verification passed: focused sync-manager copy test (`1 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 240, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/financial-chart/shorts/workspace WIP. |
 
