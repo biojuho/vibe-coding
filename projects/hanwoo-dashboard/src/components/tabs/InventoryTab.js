@@ -63,6 +63,7 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
   const [editQty, setEditQty] = useState('');
   const saveInFlightRef = useRef(false);
   const quantityInFlightRef = useRef(false);
+  const submitButtonLabel = isSaving ? '재고 등록 중' : '재고 등록하기';
 
   const {
     register,
@@ -243,7 +244,16 @@ export default function InventoryTab({ inventory, onAddItem, onUpdateQuantity, q
                   </div>
                 </div>
 
-                <PremiumButton type="submit" disabled={isSaving} aria-busy={isSaving} variant="primary" glow className="w-full py-3 mt-2 rounded-lg">
+                <PremiumButton
+                  type="submit"
+                  disabled={isSaving}
+                  aria-busy={isSaving}
+                  aria-label={submitButtonLabel}
+                  title={submitButtonLabel}
+                  variant="primary"
+                  glow
+                  className="w-full py-3 mt-2 rounded-lg"
+                >
                   {isSaving ? '재고 등록 중...' : '등록하기'}
                 </PremiumButton>
               </div>

@@ -403,7 +403,8 @@ test('inventory form waits for async saves before re-enabling actions', () => {
   assert.match(source, /await onAddItem\(values\)/);
   assert.match(source, /finally \{\s+saveInFlightRef\.current = false;\s+setIsSaving\(false\);/);
   assert.match(source, /onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}/);
-  assert.match(source, /type="submit" disabled=\{isSaving\} aria-busy=\{isSaving\}/);
+  assert.match(source, /const submitButtonLabel = isSaving \? '재고 등록 중' : '재고 등록하기';/);
+  assert.match(source, /type="submit"\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}\s+aria-label=\{submitButtonLabel\}\s+title=\{submitButtonLabel\}/);
 });
 
 test('inventory inline quantity editor exposes item-specific input label', () => {
