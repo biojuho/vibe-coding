@@ -16,7 +16,7 @@ test('notification modal close button has Korean accessible copy', () => {
 
   assert.match(source, /aria-label="닫기"/);
   assert.match(source, /title="닫기"/);
-  assert.match(source, /<button\s+type="button"\s+onClick=\{onClose\}/);
+  assert.match(source, /<button\s+type="button"\s+onClick=\{onClose\}\s+disabled=\{isTestingSMS\}\s+aria-busy=\{isTestingSMS\}/);
   assert.doesNotMatch(source, /aria-label="Close"/);
   assert.doesNotMatch(source, /title="Close"/);
 });
@@ -42,6 +42,7 @@ test('notification modal can be dismissed with Escape from the dialog surface', 
   assert.match(source, /const handleDialogKeyDown = \(event\) => \{/);
   assert.match(source, /event\.key === 'Escape'/);
   assert.match(source, /event\.stopPropagation\(\);/);
+  assert.match(source, /if \(isTestingSMS\) \{\s+return;\s+\}\s+onClose\(\);/);
   assert.match(source, /onKeyDown=\{handleDialogKeyDown\}/);
   assert.match(source, /tabIndex=\{-1\}/);
 });
@@ -81,6 +82,7 @@ test('notification modal SMS test action waits for async sends before re-enablin
   assert.match(source, /finally \{\s+setIsTestingSMS\(false\);/);
   assert.match(source, /disabled=\{isTestingSMS\}/);
   assert.match(source, /aria-busy=\{isTestingSMS\}/);
+  assert.match(source, /onClick=\{\(\) => \{\s+if \(!isTestingSMS\) \{\s+onClose\(\);\s+\}\s+\}\}/);
   assert.match(source, /cursor: isTestingSMS \? 'wait' : 'pointer'/);
 });
 

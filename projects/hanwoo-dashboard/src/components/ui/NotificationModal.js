@@ -13,6 +13,9 @@ export default function NotificationModal({ notifications, onClose, onTestSMS })
   const handleDialogKeyDown = (event) => {
     if (event.key === 'Escape') {
       event.stopPropagation();
+      if (isTestingSMS) {
+        return;
+      }
       onClose();
     }
   };
@@ -32,7 +35,14 @@ export default function NotificationModal({ notifications, onClose, onTestSMS })
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div
+      className="modal-overlay"
+      onClick={() => {
+        if (!isTestingSMS) {
+          onClose();
+        }
+      }}
+    >
       <div
         ref={dialogRef}
         className="modal-content animate-slideInUp"
@@ -74,6 +84,8 @@ export default function NotificationModal({ notifications, onClose, onTestSMS })
           <button
             type="button"
             onClick={onClose}
+            disabled={isTestingSMS}
+            aria-busy={isTestingSMS}
             aria-label="닫기"
             title="닫기"
             className="btn btn-ghost btn-icon"
