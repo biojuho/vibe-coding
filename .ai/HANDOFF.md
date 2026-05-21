@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-583 completed**: Hanwoo calving form cancel action now communicates the save-in-flight state. `CalvingTab` already disabled the cancel button while `isSaving`; the cancel action now also exposes `aria-busy` plus conditional Korean `aria-label`/`title` so operators using assistive technology know that cancel is unavailable during 분만 기록 저장. Code commit `9ed077f3`. |
+| Next Priorities | Verification passed: focused Calving accessibility test (`4 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 240, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/financial-chart/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-582 completed**: Hanwoo Excel export button now exposes preparation-state copy to assistive technology. `ExcelExportButton` already blocked duplicate downloads with `isPreparing`; it now also switches `aria-label` and `title` between `엑셀 다운로드` and `엑셀 다운로드 준비 중`, matching the visible pending copy and `aria-busy` state. Code commit `90f31a18`. |
 | Next Priorities | Verification passed: focused Excel export button copy test (`2 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 240, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/financial-chart/shorts/workspace WIP. |
 
