@@ -229,6 +229,9 @@ export default function CalvingTab({ cattle, buildings = [], onRecordCalving }) 
                         type="button"
                         onClick={closeCalvingForm}
                         disabled={isSaving}
+                        aria-busy={isSaving}
+                        aria-label={isSaving ? '분만 기록 저장 중에는 취소할 수 없습니다' : '분만 기록 취소'}
+                        title={isSaving ? '분만 기록 저장 중에는 취소할 수 없습니다' : '분만 기록 취소'}
                         style={{
                           ...btnPrimary,
                           background: 'var(--surface-gradient)',

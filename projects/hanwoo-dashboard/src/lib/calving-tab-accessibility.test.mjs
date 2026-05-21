@@ -46,6 +46,9 @@ test('calving form waits for async saves before re-enabling actions', () => {
   assert.match(source, /finally \{\s*saveInFlightRef\.current = false;\s+setIsSaving\(false\);/);
   assert.match(source, /<button type="submit" disabled=\{isSaving\} aria-busy=\{isSaving\}/);
   assert.match(source, /type="button"\s+onClick=\{closeCalvingForm\}\s+disabled=\{isSaving\}/);
+  assert.match(source, /aria-busy=\{isSaving\}/);
+  assert.match(source, /aria-label=\{isSaving \? '분만 기록 저장 중에는 취소할 수 없습니다' : '분만 기록 취소'\}/);
+  assert.match(source, /title=\{isSaving \? '분만 기록 저장 중에는 취소할 수 없습니다' : '분만 기록 취소'\}/);
 });
 
 test('calving tab keeps malformed pregnancy dates stable in the list', () => {
