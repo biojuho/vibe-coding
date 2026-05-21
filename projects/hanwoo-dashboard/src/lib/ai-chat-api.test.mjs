@@ -226,13 +226,19 @@ test('createAiChatSseStream emits chunks and converts provider errors to SSE err
 test('AI chat route farm context avoids English fallback copy', () => {
   const source = readFileSync(path.join(SRC_ROOT, 'app/api/ai/chat/route.js'), 'utf8');
 
+  assert.match(source, /import \{ toFiniteNumber \} from '@\/lib\/utils';/);
+  assert.match(source, /function formatSaleDateForContext\(value\) \{/);
+  assert.match(source, /Number\.isNaN\(date\.getTime\(\)\) \? '출하일 미등록' : date\.toISOString\(\)\.slice\(0, 10\)/);
+  assert.match(source, /\(toFiniteNumber\(sale\.price\) \/ 10000\)\.toFixed\(0\)/);
   assert.match(source, /Joolife AI 농장 비서/);
   assert.match(source, /AI 농장 컨텍스트 구성 실패/);
   assert.match(source, /현재 농장 정보/);
   assert.match(source, /개체명 미등록/);
   assert.match(source, /이력번호 미등록/);
+  assert.match(source, /출하일 미등록/);
   assert.match(source, /최근 판매 기록 없음/);
   assert.match(source, /Joolife 한우 농장/);
+  assert.doesNotMatch(source, /new Date\(sale\.saleDate\)\.toISOString\(\)\.slice\(0, 10\)/);
   assert.doesNotMatch(source, /Joolife AI farm assistant/);
   assert.doesNotMatch(source, /Answer in Korean/);
   assert.doesNotMatch(source, /Failed to build farm context/);
