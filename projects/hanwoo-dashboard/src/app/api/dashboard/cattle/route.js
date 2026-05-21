@@ -12,6 +12,7 @@ import {
 } from '@/lib/dashboard/list-queries';
 
 const CATTLE_LIST_ERROR_MESSAGE = '개체 목록을 불러오지 못했습니다.';
+const CATTLE_LIST_VALIDATION_ERROR_MESSAGE = '개체 목록 조회 조건을 확인해 주세요.';
 
 export async function GET(request) {
   try {
@@ -38,7 +39,7 @@ export async function GET(request) {
     }
 
     if (error instanceof DashboardQueryValidationError) {
-      return NextResponse.json({ success: false, message: error.message }, { status: 400 });
+      return NextResponse.json({ success: false, message: CATTLE_LIST_VALIDATION_ERROR_MESSAGE }, { status: 400 });
     }
 
     console.error('Dashboard cattle route error:', error);

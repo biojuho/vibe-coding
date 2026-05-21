@@ -12,6 +12,7 @@ import {
 } from '@/lib/dashboard/list-queries';
 
 const SALES_LIST_ERROR_MESSAGE = '판매 기록을 불러오지 못했습니다.';
+const SALES_LIST_VALIDATION_ERROR_MESSAGE = '판매 기록 조회 조건을 확인해 주세요.';
 
 export async function GET(request) {
   try {
@@ -37,7 +38,7 @@ export async function GET(request) {
     }
 
     if (error instanceof DashboardQueryValidationError) {
-      return NextResponse.json({ success: false, message: error.message }, { status: 400 });
+      return NextResponse.json({ success: false, message: SALES_LIST_VALIDATION_ERROR_MESSAGE }, { status: 400 });
     }
 
     console.error('Dashboard sales route error:', error);
