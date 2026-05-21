@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-590 completed**: Hanwoo cattle form cancel action now announces its save-in-flight state. `CattleForm` already disabled the bottom cancel button while `isSaving`; it now derives `cancelButtonLabel` and applies `aria-busy`, `aria-label`, and `title` so assistive technology and hover text explain that cancellation is unavailable during cattle save. Code commit `977956b8`. |
+| Next Priorities | Verification passed: focused cattle detail/form wiring test (`10 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 240, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/widgets/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-589 completed**: Hanwoo Schedule tab event dates now reject impossible calendar inputs before calendar grouping, upcoming-list filtering, sorting, and D-day labels. `ScheduleTab` round-trips `YYYY-MM-DD` date keys in `toValidDate()`, so impossible schedule dates such as `2026-02-31` can no longer roll forward through JavaScript `Date` parsing into false March calendar/upcoming entries. Code commit `1dccff1e`. |
 | Next Priorities | Verification passed: focused tab-header accessibility/source test (`6 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 240, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
 
