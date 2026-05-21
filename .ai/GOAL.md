@@ -8,10 +8,12 @@
 - Goal: hanwoo-dashboard quality uplift so other people would want to use it.
 - Owner: Codex
 - Started: 2026-05-18
-- Latest: 2026-05-21 T-622 normalized Hanwoo cattle CSV export payloads.
+- Latest: 2026-05-21 T-623 normalized Hanwoo dashboard notification payloads.
 - Success: Hanwoo quality uplift is progressing through focused UX, accessibility, resilience, and Korean operator-copy passes. The goal remains active for additional polish. Keep T-251 separate because it is blocked on user-owned Supabase control-plane credential resync.
 
 ## Progress Notes
+
+- 2026-05-21: T-623 normalized Hanwoo dashboard notification payloads. `DashboardClient` now routes `initialNotifications` and refreshed `getNotifications()` results through `normalizeDashboardNotifications()`, ignores non-array input and malformed/non-object rows, and feeds safe arrays into the header critical badge, notification modal, notification widget, and estrus/calving alert banners, preventing malformed caller/cache data from crashing home notification rendering through raw `.some()` or modal/widget render paths. Verification passed with focused home-market source test (`29 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 260, lint, build), and staged `code_review_gate --json` JSON pass (`risk_score 0.0`; cp949 reader-thread noise only). Commit `81c6c267`; commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files.
 
 - 2026-05-21: T-622 normalized Hanwoo cattle CSV export payloads. `buildCattleCsvRows()` now routes caller input through `normalizeCattleCsvRows()`, ignores non-array input and malformed/non-object rows, and exports only safe object rows, preventing malformed caller/cache data from crashing CSV generation through raw `.map()` access. Verification passed with focused cattle CSV export tests (`4 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 259, lint, build), and staged `code_review_gate --json` JSON pass (`risk_score 0.0`; cp949 reader-thread noise only). Commit `3e2ef7a5`; commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files.
 
