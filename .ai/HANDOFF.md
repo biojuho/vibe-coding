@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-547 completed**: Hanwoo Sales tab now sorts sale records through `getSaleDateTime()`, placing malformed sale dates at the end instead of letting invalid `Date` subtraction destabilize recent-sales and chart ordering. Code commit `32655113`. |
+| Next Priorities | Verification passed: focused sales tab source test (`1 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 222, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-546 completed**: Hanwoo weather forecast date labels now degrade safely. `formatForecastDateLabel()` falls back to `날짜 미등록`, and both `WeatherWidget` and `getLivestockWeatherAlerts()` use it so malformed weather forecast dates cannot render browser-default invalid-date labels in the forecast grid or livestock weather alerts. Code commit `18d45231`. |
 | Next Priorities | Verification passed: focused home/weather + utils source tests (`26 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 221, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/SalesTab/shorts/workspace WIP. |
 
