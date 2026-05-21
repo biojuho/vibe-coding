@@ -8,6 +8,20 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-526 completed**: Hanwoo cattle-detail breeding record saves now reject duplicate async submits before React re-renders the saving state. `CattleDetailModal` adds `breedingSaveInFlightRef` around the breeding `onUpdate()` flow, resets the lock when the selected cattle changes, and disables 발정/수정 action switches while a save is in flight. Code commit `f3bd3ba5`. |
+| Next Priorities | Verification passed: focused cattle-detail modal wiring test (`10 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 211, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/suika/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
+| Work | **T-525 completed**: Hanwoo sales record saves now reject duplicate async submits before React re-renders the saving state. `SalesTab` adds `saveInFlightRef` around `onCreateSale()` and guards the add/cancel toggle with the same immediate lock while preserving the existing disabled/`aria-busy` submit UI. Code commit `4d521164`. |
+| Next Priorities | Verification passed: focused home/market copy test (`22 passed`), path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 211, lint, build), and `code_review_gate --base HEAD~1 --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/CattleDetailModal/shorts/suika/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-524 completed**: Hanwoo feed record saves now reject duplicate async submits before React re-renders the saving state. `FeedTab` adds `saveInFlightRef` around `onRecordFeed()`, keeps the existing `isSaving` disabled/`aria-busy` submit UI, and disables feed building filter chips while a save is in flight so the selected building cannot change during the pending write. Code commit `9cce135b`. |
 | Next Priorities | Verification passed: focused empty-state/feed wiring test (`13 passed`), path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 211, lint, build), and `code_review_gate --base HEAD~1 --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/suika/workspace WIP. |
 

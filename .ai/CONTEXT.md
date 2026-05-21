@@ -33,6 +33,10 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` cattle-detail breeding record saves cannot start duplicate async writes before React re-renders saving state. `CattleDetailModal` uses `breedingSaveInFlightRef` around `onUpdate()`, resets the lock when the selected cattle changes, and disables breeding action switches while a save is in flight. Verification passed: focused cattle-detail modal wiring test (`10 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 211, lint, build), and staged `code_review_gate --json`.
+
+- As of 2026-05-21, `hanwoo-dashboard` Sales tab record saves cannot start duplicate async writes before React re-renders saving state. `SalesTab` uses `saveInFlightRef` around `onCreateSale()` and guards the add/cancel toggle with the same immediate lock while keeping the existing disabled/`aria-busy` submit UI. Verification passed: focused home/market copy test (`22 passed`), path-limited `git diff --check`, full Hanwoo QC (`test` 211, lint, build), and `code_review_gate --base HEAD~1 --json`.
+
 - As of 2026-05-21, `hanwoo-dashboard` Feed tab record saves cannot start duplicate async writes before React re-renders saving state. `FeedTab` uses `saveInFlightRef` around `onRecordFeed()`, keeps the existing disabled/`aria-busy` submit UI, and disables feed building filter chips while saving so the selected building cannot change during a pending write. Verification passed: focused empty-state/feed wiring test (`13 passed`), path-limited `git diff --check`, full Hanwoo QC (`test` 211, lint, build), and `code_review_gate --base HEAD~1 --json`.
 
 - As of 2026-05-21, `hanwoo-dashboard` Schedule tab create and completion actions cannot start duplicate async requests before React re-renders saving state. `ScheduleTab` uses `saveInFlightRef` around schedule creation and `completionInFlightRef` around upcoming-schedule completion toggles while keeping the existing disabled/`aria-busy` UI. Verification passed: focused tab-header accessibility test (`5 passed`), path-limited `git diff --check`, full Hanwoo QC (`test` 211, lint, build), and `code_review_gate --base HEAD~1 --json`.
