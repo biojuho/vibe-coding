@@ -72,9 +72,13 @@ test('login page links authentication errors to both credential fields', () => {
 test('login page recovers submit state when sign-in fails unexpectedly', () => {
   const source = readSource('app/login/page.js');
 
+  assert.match(source, /import \{ useRef, useState \} from 'react'/);
+  assert.match(source, /const submitInFlightRef = useRef\(false\)/);
+  assert.match(source, /if \(submitInFlightRef\.current \|\| !canSubmit\) return;/);
+  assert.match(source, /submitInFlightRef\.current = true;/);
   assert.match(source, /setIsSubmitting\(true\);/);
   assert.match(source, /try \{\s+const result = await signIn\('credentials'/);
   assert.match(source, /\} catch \{\s+setError\('/);
-  assert.match(source, /\} finally \{\s+setIsSubmitting\(false\);/);
+  assert.match(source, /\} finally \{\s+submitInFlightRef\.current = false;\s+setIsSubmitting\(false\);/);
   assert.match(source, /disabled=\{!canSubmit\} aria-busy=\{isSubmitting\}/);
 });

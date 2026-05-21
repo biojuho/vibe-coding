@@ -3,7 +3,7 @@
 import { Eye, EyeOff, Loader2, LockKeyhole, ShieldCheck, UserRound } from 'lucide-react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,14 +12,16 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const submitInFlightRef = useRef(false);
 
   const canSubmit = username.trim().length > 0 && password.length > 0 && !isSubmitting;
   const loginErrorId = 'login-error-message';
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (submitInFlightRef.current || !canSubmit) return;
 
+    submitInFlightRef.current = true;
     setError('');
     setIsSubmitting(true);
 
@@ -40,6 +42,7 @@ export default function LoginPage() {
     } catch {
       setError('로그인을 완료하지 못했습니다. 네트워크 상태를 확인해 주세요.');
     } finally {
+      submitInFlightRef.current = false;
       setIsSubmitting(false);
     }
   };
