@@ -354,7 +354,9 @@ test('sales form waits for async saves before re-enabling actions', () => {
   assert.match(source, /await onCreateSale\(values\)/);
   assert.match(source, /finally \{\s+saveInFlightRef\.current = false;\s+setIsSaving\(false\);/);
   assert.match(source, /onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}/);
+  assert.match(source, /const submitButtonLabel = isSaving \? '판매 기록 등록 중' : '판매 기록 등록하기';/);
   assert.match(source, /disabled=\{!cattleList\?\.length \|\| isSaving\}\s+aria-busy=\{isSaving\}/);
+  assert.match(source, /aria-label=\{submitButtonLabel\}\s+title=\{submitButtonLabel\}/);
 });
 
 test('inventory form fields expose explicit labels and invalid state', () => {

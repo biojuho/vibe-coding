@@ -114,6 +114,7 @@ export default function SalesTab({
     [processedRecords],
   );
   const loadMoreLabel = salesPagination?.isLoading ? '이전 판매 기록 불러오는 중' : '이전 판매 기록 더 보기';
+  const submitButtonLabel = isSaving ? '판매 기록 등록 중' : '판매 기록 등록하기';
 
   const toggleAddForm = () => {
     if (saveInFlightRef.current || isSaving) {
@@ -260,6 +261,8 @@ export default function SalesTab({
                   type="submit"
                   disabled={!cattleList?.length || isSaving}
                   aria-busy={isSaving}
+                  aria-label={submitButtonLabel}
+                  title={submitButtonLabel}
                   className="w-full py-3 mt-2 rounded-lg"
                   variant="primary"
                   glow
