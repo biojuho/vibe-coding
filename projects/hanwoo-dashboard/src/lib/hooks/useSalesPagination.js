@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { sanitizeDashboardPageInfoTransition } from '@/lib/dashboard/pagination-guard.mjs';
 
+function normalizePaginationItems(items) {
+  return Array.isArray(items) ? items.filter((item) => item && typeof item === 'object') : [];
+}
+
 const PAGINATION_REQUEST_TIMEOUT_MS = 15000;
 const SALES_PAGINATION_TIMEOUT_MESSAGE = '이전 매출 기록을 불러오는 데 시간이 오래 걸리고 있습니다. 잠시 후 다시 시도해 주세요.';
 const SALES_PAGINATION_ERROR_MESSAGE = '이전 매출 기록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
@@ -22,7 +26,7 @@ const SALES_PAGINATION_ERROR_MESSAGE = '이전 매출 기록을 불러오지 못
  *   setItems    – 뮤테이션(추가) 시 직접 state 조작
  */
 export function useSalesPagination({ initialItems = [], initialPageInfo = null } = {}) {
-  const [items, setItems] = useState(initialItems);
+  const [items, setItems] = useState(() => normalizePaginationItems(initialItems));
   const [pageInfo, setPageInfo] = useState(
     initialPageInfo ?? { hasMore: false, nextCursor: null, limit: 50, returnedCount: 0 },
   );
@@ -91,7 +95,8 @@ export function useSalesPagination({ initialItems = [], initialPageInfo = null }
           return;
         }
 
-        const { items: newItems, pageInfo: newPageInfo } = json.data;
+        const { items: newItems, pageInfo: newPageInfo } = json.data ?? {};
+        const safeNewItems = normalizePaginationItems(newItems);
         const safePageInfo = sanitizeDashboardPageInfoTransition({
           currentPageInfo: pageInfo,
           receivedPageInfo: newPageInfo,
@@ -107,7 +112,7 @@ export function useSalesPagination({ initialItems = [], initialPageInfo = null }
           return;
         }
 
-        setItems((prev) => [...prev, ...newItems]);
+        setItems((prev) => [...normalizePaginationItems(prev), ...safeNewItems]);
         setPageInfo(safePageInfo);
       } catch (error) {
         if (error.name === 'AbortError') {

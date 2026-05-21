@@ -34,3 +34,16 @@ test('sales pagination failures surface Korean retry feedback', () => {
   assert.doesNotMatch(hookSource, /setLoadError\(error\.message\)/);
   assert.doesNotMatch(tabSource, /salesPagination\.error\.message/);
 });
+
+test('sales pagination normalizes malformed page item payloads', () => {
+  const hookSource = readSource('lib/hooks/useSalesPagination.js');
+
+  assert.match(hookSource, /function normalizePaginationItems\(items\) \{/);
+  assert.match(hookSource, /Array\.isArray\(items\) \? items\.filter\(\(item\) => item && typeof item === 'object'\) : \[\]/);
+  assert.match(hookSource, /useState\(\(\) => normalizePaginationItems\(initialItems\)\)/);
+  assert.match(hookSource, /const \{ items: newItems, pageInfo: newPageInfo \} = json\.data \?\? \{\};/);
+  assert.match(hookSource, /const safeNewItems = normalizePaginationItems\(newItems\);/);
+  assert.match(hookSource, /setItems\(\(prev\) => \[\.\.\.normalizePaginationItems\(prev\), \.\.\.safeNewItems\]\);/);
+  assert.doesNotMatch(hookSource, /useState\(initialItems\)/);
+  assert.doesNotMatch(hookSource, /setItems\(\(prev\) => \[\.\.\.prev, \.\.\.newItems\]\)/);
+});
