@@ -74,23 +74,28 @@ function getSourcePresentation(prices) {
   }
 }
 
+function toValidUpdatedAt(value, fallback = new Date()) {
+  if (!value) {
+    return fallback;
+  }
+
+  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
+  return Number.isNaN(date.getTime()) ? fallback : date;
+}
+
 export default function MarketPriceWidget({ initialData = null }) {
   const [prices, setPrices] = useState(initialData);
   const [loading, setLoading] = useState(!initialData);
   const isMountedRef = useRef(false);
   const inFlightRequestRef = useRef(null);
   const requestSequenceRef = useRef(0);
-  const [lastUpdated, setLastUpdated] = useState(() => {
-    if (!initialData?.fetchedAt) {
-      return initialData ? new Date() : null;
-    }
-
-    return new Date(initialData.fetchedAt);
-  });
+  const [lastUpdated, setLastUpdated] = useState(() =>
+    initialData ? toValidUpdatedAt(initialData.fetchedAt) : null,
+  );
 
   const applyPriceSnapshot = useCallback((data) => {
     setPrices(data);
-    setLastUpdated(data?.fetchedAt ? new Date(data.fetchedAt) : new Date());
+    setLastUpdated(toValidUpdatedAt(data?.fetchedAt));
   }, []);
 
   const fetchPrices = useCallback(() => {

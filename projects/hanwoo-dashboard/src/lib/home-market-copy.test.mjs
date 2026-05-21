@@ -136,6 +136,11 @@ test('home dashboard icon-only actions expose Korean accessible labels', () => {
 test('market price widget uses Korean product copy for visible states', () => {
   const source = readSource('components/widgets/MarketPriceWidget.js');
 
+  assert.match(source, /function toValidUpdatedAt\(value, fallback = new Date\(\)\) \{/);
+  assert.match(source, /return Number\.isNaN\(date\.getTime\(\)\) \? fallback : date;/);
+  assert.match(source, /initialData \? toValidUpdatedAt\(initialData\.fetchedAt\) : null/);
+  assert.match(source, /setLastUpdated\(toValidUpdatedAt\(data\?\.fetchedAt\)\)/);
+
   assert.match(source, /한우 시세를 불러오는 중입니다/);
   assert.match(source, /지금은 한우 시세 데이터를 확인할 수 없습니다/);
   assert.match(source, /시세 흐름/);
@@ -160,6 +165,8 @@ test('market price widget uses Korean product copy for visible states', () => {
   assert.doesNotMatch(source, />Updated /);
   assert.doesNotMatch(source, />Source: KAPE/);
   assert.doesNotMatch(source, /aria-label="Refresh"/);
+  assert.doesNotMatch(source, /new Date\(initialData\.fetchedAt\)/);
+  assert.doesNotMatch(source, /setLastUpdated\(data\?\.fetchedAt \? new Date\(data\.fetchedAt\) : new Date\(\)\)/);
   assert.doesNotMatch(source, /[吏媛異諛湲]/);
   assert.doesNotMatch(source, /\?[가-힣]/);
 });
