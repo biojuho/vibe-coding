@@ -1,12 +1,11 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { Send, Terminal, Cpu } from 'lucide-react';
-import { getRandomWord } from '../utils/dictionary';
+import { validateMove, pickAiWord } from '../utils/gameLogic';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import bgCyberpunk from '../assets/bg-cyberpunk.png';
 
 const GameInterface = () => {
     const [history, setHistory] = useState([
@@ -22,9 +21,13 @@ const GameInterface = () => {
     const scrollRef = useRef(null);
     const timerRef = useRef(null);
     const highScoreRef = useRef(parseInt(localStorage.getItem('wordChainHighScore') || '0'));
+    // Mirrors `gameOver` so the deferred AI callback reads the live value,
+    // not a stale closure captured when the player's turn started.
+    const gameOverRef = useRef(false);
 
     function handleGameOver(reason) {
         setGameOver(true);
+        gameOverRef.current = true;
         setHistory(prev => [...prev, { text: `❌ ${reason}`, sender: 'system' }]);
         clearInterval(timerRef.current);
     }
@@ -47,9 +50,10 @@ const GameInterface = () => {
         }
     }, [history]);
 
-    // Timer Logic
+    // Timer Logic - the countdown runs only on the player's turn, so the
+    // AI's "thinking" time never eats into the player's clock.
     useEffect(() => {
-        if (gameOver) return;
+        if (gameOver || turn !== 'player') return;
 
         timerRef.current = setInterval(() => {
             setTimeLeft(prev => {
@@ -63,7 +67,7 @@ const GameInterface = () => {
         }, 1000);
 
         return () => clearInterval(timerRef.current);
-    }, [timeLeft, gameOver, turn]);
+    }, [gameOver, turn]);
 
     const resetGame = () => {
         setHistory([
@@ -72,6 +76,7 @@ const GameInterface = () => {
         ]);
         setScore(0);
         setGameOver(false);
+        gameOverRef.current = false;
         setTurn('player');
         setTimeLeft(10);
         setInput('');
@@ -79,71 +84,60 @@ const GameInterface = () => {
 
     const handleSend = (e) => {
         e.preventDefault();
-        if (!input.trim() || turn !== 'player' || gameOver) return;
+        if (turn !== 'player' || gameOver) return;
 
-        const word = input.trim();
+        const playedWords = history
+            .filter(h => h.sender !== 'system')
+            .map(h => h.text);
+        const lastWord = playedWords[playedWords.length - 1] || null;
 
-        // Validation Logic
-        const lastWord = history.filter(h => h.sender !== 'system').slice(-1)[0];
-        if (lastWord && lastWord.text.slice(-1) !== word[0]) {
-            setHistory(prev => [...prev, { text: `⚠️ '${lastWord.text.slice(-1)}'(으)로 시작해야 합니다`, sender: 'system' }]);
-            // Penalty for wrong word? For now just warning.
+        const result = validateMove(input, lastWord, playedWords);
+        if (!result.ok) {
+            setHistory(prev => [...prev, { text: `⚠️ ${result.reason}`, sender: 'system' }]);
             return;
         }
-
-        // Already used word check (Optional but good)
-        if (history.some(h => h.sender !== 'system' && h.text === word)) {
-            setHistory(prev => [...prev, { text: `⚠️ 이미 사용된 단어입니다`, sender: 'system' }]);
-            return;
-        }
+        const word = result.word;
 
         // Success
         setHistory(prev => [...prev, { text: word, sender: 'player' }]);
         setInput('');
         addScore(10);
         setTurn('com');
-        setTimeLeft(10); // Reset timer for AI
+        setTimeLeft(10);
 
         // AI Turn Simulation
         setTimeout(() => {
-            if (gameOver) return;
+            if (gameOverRef.current) return;
 
-            const aiWord = getAIResponse(word);
+            // The AI must not reuse a word - including the one just played.
+            const aiWord = pickAiWord(word.slice(-1), [...playedWords, word]);
 
-            if (aiWord.includes('(GG)')) {
+            if (!aiWord) {
                 handleGameOver("AI가 단어를 못 찾았습니다. 승리! 🎉");
                 addScore(50); // Bonus for winning
             } else {
                 setHistory(prev => [...prev, { text: aiWord, sender: 'com' }]);
                 setTurn('player');
-                setTimeLeft(10); // Reset timer for Player
+                setTimeLeft(10);
             }
         }, 1200);
     };
 
-    const getAIResponse = (lastWord) => {
-        const char = lastWord.slice(-1);
-        const found = getRandomWord(char);
-        return found || `${char}... 단어를 모르겠어요 (GG)`;
-    };
-
     return (
-        <div 
-            className="flex flex-col h-screen max-w-md mx-auto bg-cyber-bg border-x-2 border-cyber-pink/30 shadow-[0_0_50px_rgba(255,42,109,0.2)] relative bg-cover bg-center"
-            style={{ backgroundImage: `url(${bgCyberpunk})` }}
+        <div
+            className="flex flex-col h-screen max-w-md mx-auto bg-cyber-bg border-x-2 border-cyber-pink/30 shadow-[0_0_50px_rgba(255,42,109,0.2)] relative"
+            style={{
+                background:
+                    'radial-gradient(ellipse at top, rgba(5,217,232,0.12), transparent 60%), ' +
+                    'radial-gradient(ellipse at bottom, rgba(255,42,109,0.14), transparent 60%), #0a0a0f',
+            }}
         >
             {/* Header */}
             <header className="p-4 border-b-2 border-cyber-blue/50 bg-black/40 backdrop-blur flex justify-between items-center sticky top-0 z-10">
                 <div className="flex flex-col">
                     <div className="flex items-center gap-2 text-cyber-blue animate-pulse">
                         <Terminal size={20} className="hidden sm:block" />
-                        <img 
-                            src="/src/assets/logo-neon.png" 
-                            alt="WORD_CHAIN.EXE" 
-                            className="h-6 sm:h-8 object-contain" 
-                            onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }} 
-                        />
-                        <h1 className="font-bold text-xl tracking-tighter" style={{ display: 'none' }}>WORD_CHAIN.EXE</h1>
+                        <h1 className="font-bold text-xl tracking-tighter">WORD_CHAIN.EXE</h1>
                     </div>
                 </div>
                 <div className="text-right space-y-1">
