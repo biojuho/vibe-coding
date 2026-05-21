@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-556 completed**: Hanwoo subscription renewal date math now normalizes `addDays()` inputs to a valid base date and finite day count before calculating `nextPaymentDate`. Malformed payment approval dates or day counts can no longer produce `Invalid Date` subscription renewals. Code commit `a5935a57`. |
+| Next Priorities | Verification passed: focused subscription date test (`2 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 233, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/expense/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-555 completed**: Hanwoo notification action now accepts cached notification summaries only when `generatedAt` parses to a finite, non-future timestamp within the 60-second freshness window. Malformed cached timestamps can no longer bypass the TTL and show stale farm alerts. Code commit `4cb7e4ff`. |
 | Next Priorities | Verification passed: focused notification cache date source test (`1 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 230, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
 

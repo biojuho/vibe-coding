@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` subscription renewal date math is safe for malformed renewal inputs. `subscription.js` normalizes `addDays()` inputs to a valid base date and finite day count before calculating `nextPaymentDate`, preventing malformed payment approval dates or day counts from producing `Invalid Date` renewals. Verification passed: focused subscription date test (`2 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 233, lint, build), and staged `code_review_gate --json`.
+
 - As of 2026-05-21, `hanwoo-dashboard` notification cache freshness rejects malformed generated timestamps. `actions/notification.js` accepts cached notification summaries only when `generatedAt` parses to a finite, non-future timestamp within the 60-second freshness window, preventing malformed cache timestamps from bypassing the TTL and showing stale farm alerts. Verification passed: focused notification cache date source test (`1 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 230, lint, build), and staged `code_review_gate --json`.
 
 - As of 2026-05-21, `hanwoo-dashboard` form default date builders are safe for malformed caller-supplied defaults. `formSchemas.js` routes schedule, feed, and calving default dates through `toDefaultInputDate()`, preventing invalid defaults from throwing through `toISOString()` or leaving blank calving defaults. Verification passed: focused form default date source test (`1 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 229, lint, build), and staged `code_review_gate --json`.
