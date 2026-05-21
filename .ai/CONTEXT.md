@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` financial chart fallback dates reject impossible sale/expense inputs. `FinancialChartWidget` uses strict `YYYY-MM-DD` round-trip validation in its fallback `toMonthKey()`, matching `AnalysisTab` and dashboard summary behavior so impossible dates such as `2026-02-31` cannot roll forward through JavaScript `Date` parsing and pollute the client-side 6-month financial chart fallback. Verification passed: focused analysis/financial widget source test (`3 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC on latest HEAD (`test` 240, lint, build), and staged `code_review_gate --json`.
+
 - As of 2026-05-21, `hanwoo-dashboard` cattle form dismissal stays locked while async save is in flight. `CattleForm` already disabled the bottom cancel/submit controls during save; it now also ignores Escape dismissal and disables the top back icon with `aria-busy`, preventing alternate-path dismissal during cattle create/update. Verification passed: focused cattle detail/form wiring test (`10 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 240, lint, build), and staged `code_review_gate --json`.
 
 - As of 2026-05-21, `hanwoo-dashboard` cattle tag lookup ignores stale MTRACE responses. `CattleForm` tracks lookup request ids plus mounted state so late lookup responses cannot write into a new form context after the modal switches records or unmounts; form reset also clears lookup loading and in-flight state. Verification passed: focused cattle detail/form wiring test (`10 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 240, lint, build), and staged `code_review_gate --json`.

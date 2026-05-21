@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-585 completed**: Hanwoo `FinancialChartWidget` fallback aggregation now uses strict `YYYY-MM-DD` round-trip validation in `toMonthKey()`, matching `AnalysisTab` and dashboard summary behavior. Impossible sale/expense dates such as `2026-02-31` can no longer roll forward through JavaScript `Date` parsing and pollute the client-side 6-month financial chart fallback. Code commit `6f56e6de`. |
+| Next Priorities | Verification passed: focused analysis/financial widget source test (`3 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed on latest HEAD (`test` 240, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-584 completed**: Hanwoo Feed tab building filter chips now announce the save-in-flight state. `FeedTab` already disabled building filter chips while feed records are saving; `FilterChip` now derives an `actionLabel`, exposes `aria-busy={disabled}`, and uses the pending Korean label/title so operators know filters cannot change during 급여 기록 저장. Code commit `b9361301`. |
 | Next Priorities | Verification passed: focused empty-state/feed wiring test (`13 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 240, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/financial-chart/shorts/workspace WIP. |
 
