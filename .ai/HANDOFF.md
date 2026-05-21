@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-522 completed**: Hanwoo calving record submissions now reject duplicate async submits before React re-renders the saving state. `CalvingTab` adds `saveInFlightRef` as an immediate lock around `onRecordCalving()`, clears it when the form opens/closes and in `finally`, and preserves the existing `isSaving` disabled/`aria-busy` UI. Code commit `675f082e`. |
+| Next Priorities | Verification passed: focused calving accessibility test (`3 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 211, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic plus unrelated WIP while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/suika/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-521 completed**: Hanwoo dashboard widget settings registry is now centralized. `DashboardClient` imports `WIDGET_REGISTRY` and `useWidgetSettings` from `src/lib/hooks/useWidgetSettings.js` instead of maintaining a second local registry/hook copy, so Settings-visible widget labels and home widget visibility cannot drift between duplicate implementations. Code commit `bb96817a`. |
 | Next Priorities | Verification passed: focused settings/profitability copy tests (`14 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 211, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic plus unrelated WIP while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/suika/workspace WIP. |
 

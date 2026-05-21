@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` calving record forms cannot submit duplicate async calving records before React re-renders the saving state. `CalvingTab` now uses `saveInFlightRef` as an immediate guard around `onRecordCalving()`, clears the lock when the form opens/closes and in `finally`, and preserves the existing `isSaving` disabled/`aria-busy` UI. Verification passed: focused calving accessibility test (`3 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 211, lint, build).
+
 - As of 2026-05-21, `hanwoo-dashboard` dashboard widget settings use a single registry/hook source. `DashboardClient` imports `WIDGET_REGISTRY` and `useWidgetSettings` from `src/lib/hooks/useWidgetSettings.js` instead of keeping a duplicate local registry/hook, so Settings-visible widget labels and home widget defaults cannot drift between implementations. Verification passed: focused settings/profitability copy tests (`14 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 211, lint, build).
 
 - As of 2026-05-21, `hanwoo-dashboard` subscription checkout cannot start duplicate payment requests before React re-renders the submitting state. `PaymentWidget` now uses `paymentRequestInFlightRef` as an immediate guard around `/api/payments/prepare` and Toss `requestPayment()`, keeps the existing `isSubmitting` disabled/`aria-busy` UI, and clears the lock in `finally`. Verification passed: focused payment UX copy test (`5 passed`), targeted ESLint, path-limited `git diff --check`, and full Hanwoo QC (`test` 210, lint, build).
