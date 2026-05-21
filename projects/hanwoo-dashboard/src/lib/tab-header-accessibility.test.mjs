@@ -63,7 +63,9 @@ test('schedule form waits for async saves before re-enabling actions', () => {
   assert.match(scheduleSource, /await onCreateEvent\(values\)/);
   assert.match(scheduleSource, /finally \{\s+saveInFlightRef\.current = false;\s+setIsSaving\(false\);/);
   assert.match(scheduleSource, /onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}/);
+  assert.match(scheduleSource, /const submitButtonLabel = isSaving \? '일정 등록 중' : '일정 등록하기';/);
   assert.match(scheduleSource, /type="submit"\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}/);
+  assert.match(scheduleSource, /aria-label=\{submitButtonLabel\}\s+title=\{submitButtonLabel\}/);
 });
 
 test('schedule completion toggles wait for async updates before re-enabling controls', () => {

@@ -65,6 +65,7 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
   const [currentDate, setCurrentDate] = useState(new Date());
   const saveInFlightRef = useRef(false);
   const completionInFlightRef = useRef(false);
+  const submitButtonLabel = isSaving ? '일정 등록 중' : '일정 등록하기';
 
   const {
     register,
@@ -256,6 +257,8 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
               type="submit"
               disabled={isSaving}
               aria-busy={isSaving}
+              aria-label={submitButtonLabel}
+              title={submitButtonLabel}
               className="rounded-[18px] px-4 py-3 text-sm font-bold text-white"
               style={{
                 background: 'var(--surface-gradient-primary)',
