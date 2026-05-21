@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-606 completed**: Hanwoo inventory create submit lock is now covered by regression tests. `empty-state-wiring.test.mjs` now asserts `InventoryTab` uses `saveInFlightRef`, `isSaving`, `submitButtonLabel`, `aria-busy`, `aria-label`, and `title` on the create submit button so the existing duplicate-save guard and accessible pending copy cannot regress silently. Test commit `3cf67f96`. |
+| Next Priorities | Verification passed: focused empty-state/feed/inventory wiring test (`16 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 248, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-605 completed**: Hanwoo feed tab now normalizes feed-related payloads before rendering. `FeedTab` routes incoming `cattle`, `feedStandards`, `feedHistory`, and `buildings` props through safe collection normalizers, ignores non-array/non-object malformed payloads, supplies stable fallback building/record ids plus Korean missing-building copy, and renders from `safeCattle`, `safeFeedStandards`, `safeFeedHistory`, and `safeBuildings` so stale cache/caller data cannot crash feed summaries, filters, charts, or recent records through raw `.filter()`/`.forEach()`/spread/slice access. Code commit `186a031f`. |
 | Next Priorities | Verification passed: focused empty-state/feed wiring test (`15 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 247, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
 
