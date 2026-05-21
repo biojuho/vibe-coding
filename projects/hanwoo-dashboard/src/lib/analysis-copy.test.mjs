@@ -77,7 +77,9 @@ test('financial chart widget normalizes numeric inputs before chart aggregation'
   assert.doesNotMatch(source, /row\.profit \|\| 0/);
 
   assert.match(summarySource, /import \{ toFiniteNumber \} from '\.\.\/utils';/);
-  assert.match(summarySource, /return Number\.isNaN\(date\.getTime\(\)\)/);
+  assert.match(summarySource, /const date = value instanceof Date \? new Date\(value\.getTime\(\)\) : new Date\(value\);/);
+  assert.match(summarySource, /const dateKey = value\.trim\(\)\.slice\(0, 10\);/);
+  assert.match(summarySource, /strictDate\.toISOString\(\)\.slice\(0, 10\) !== dateKey/);
   assert.match(summarySource, /const monthKey = toMonthKey\(record\.saleDate\);/);
   assert.match(summarySource, /const monthKey = toMonthKey\(record\.date\);/);
   assert.match(summarySource, /if \(!monthKey\) continue;/);
@@ -87,6 +89,7 @@ test('financial chart widget normalizes numeric inputs before chart aggregation'
   assert.match(summarySource, /const monthlyExpenseTotal = toFiniteNumber\(expensesThisMonth\._sum\.amount\);/);
   assert.doesNotMatch(summarySource, /toMonthKey\(new Date\(record\.saleDate\)\)/);
   assert.doesNotMatch(summarySource, /toMonthKey\(new Date\(record\.date\)\)/);
+  assert.doesNotMatch(summarySource, /const date = value instanceof Date \? value : new Date\(value\);/);
   assert.doesNotMatch(summarySource, /record\.price \?\? 0/);
   assert.doesNotMatch(summarySource, /record\.amount \?\? 0/);
   assert.doesNotMatch(summarySource, /salesThisMonth\._sum\.price \?\? 0/);
