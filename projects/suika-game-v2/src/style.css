@@ -523,3 +523,21 @@ p.subtitle {
     transform: translateY(0);
   }
 }
+
+/* Accessibility: honour the OS "reduce motion" preference. The floating
+   title, pop-in overlays and hover transitions are all motion the player
+   never opted into - collapse them to near-instant. (Screen shake is
+   canvas-drawn and is gated separately in renderer.js.) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  h1.title {
+    animation: none;
+  }
+}

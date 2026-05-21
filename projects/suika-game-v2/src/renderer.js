@@ -5,6 +5,10 @@ import { getEngine, getRender } from './physics.js';
 
 export let particles = [];
 
+// Players who set the OS "reduce motion" preference should not get the
+// camera-shake effect. Checked live so a mid-session change is honoured.
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
 const loadedImages = {};
 function getFruitImage(src) {
     if (!loadedImages[src]) {
@@ -22,7 +26,8 @@ export function renderCustomGraphics() {
 
     const ctx = render.context;
 
-    if (shakeIntensity > 0) {
+    const shaking = shakeIntensity > 0 && !reduceMotion.matches;
+    if (shaking) {
         const dx = (Math.random() - 0.5) * shakeIntensity;
         const dy = (Math.random() - 0.5) * shakeIntensity;
         ctx.translate(dx, dy);
@@ -95,7 +100,7 @@ export function renderCustomGraphics() {
 
     updateAndDrawParticles(ctx);
 
-    if (shakeIntensity > 0) ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (shaking) ctx.setTransform(1, 0, 0, 1, 0, 0);
 }
 
 // --- Effects ---

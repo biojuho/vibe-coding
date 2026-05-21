@@ -236,6 +236,7 @@ function renderGameOverSummary() {
     } else {
         setText('daily-streak-result', '프리 플레이 — 기록은 저장되지 않습니다');
     }
+    getElement('restart-btn')?.focus(); // keyboard focus on the primary action
 }
 
 /** Populate and show the Daily Stats overlay. */
@@ -275,11 +276,13 @@ function openStats() {
         }
     }
     setOverlayHidden('stats-screen', false);
+    getElement('stats-close-btn')?.focus(); // land keyboard focus in the dialog
 }
 
 /** Hide the Daily Stats overlay. */
 function closeStats() {
     setOverlayHidden('stats-screen', true);
+    getElement('stats-btn')?.focus(); // return focus to the trigger
 }
 
 /**
