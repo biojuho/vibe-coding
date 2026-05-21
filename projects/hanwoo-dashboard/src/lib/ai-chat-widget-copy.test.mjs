@@ -54,6 +54,7 @@ test('AI chat send action is disabled until a question is ready', () => {
   assert.match(source, /const sendInFlightRef = useRef\(false\)/);
   assert.match(source, /const canSend = input\.trim\(\)\.length > 0 && !isStreaming;/);
   assert.match(source, /disabled=\{!canSend\}/);
+  assert.match(source, /aria-busy=\{isStreaming\}/);
   assert.match(source, /opacity: canSend \? 1 : 0\.6/);
   assert.match(source, /cursor: canSend \? 'pointer' : 'not-allowed'/);
   assert.match(source, /if \(!trimmed \|\| sendInFlightRef\.current \|\| isStreaming\) return;/);
