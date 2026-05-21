@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-619 completed**: Hanwoo dashboard home now normalizes building payloads before rendering and downstream tab handoff. `DashboardClient` routes `initialBuildings`/state through `normalizeDashboardBuildings()`, filters malformed rows, supplies Korean missing-name copy and safe pen counts, derives `safeBuildings`, and passes that safe collection into home building cards, pen grids, drag/drop labels, setup progress, alert banners, forms, detail modal, Feed/Calving/Settings tabs. Code commit `1dd1f846`. |
+| Next Priorities | Verification passed: focused home/empty-state source tests (`43 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 256, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-618 completed**: Hanwoo pen card now normalizes cattle payloads before rendering. `PenCard` routes incoming `cattle` through `normalizePenCattle()`, filters malformed rows, supplies stable fallback ids plus Korean missing-name copy, and renders from `visibleCattle` so malformed caller/cache data cannot crash the pen card through raw `.some()`, `.length`, or `.map()` access. Code commit `bd5adf04`. |
 | Next Priorities | Verification passed: focused cards accessibility/source test (`3 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed after one real concurrent Next build lock retry (`test` 255, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated root/Hanwoo package/shorts/workspace WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated WIP. |
 
