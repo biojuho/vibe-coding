@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-579 completed**: Hanwoo notification modal now stays locked while the SMS test send is in flight. `NotificationModal` already disabled the test-send action; it now also guards Escape dismissal, overlay click dismissal, and the close button while `isTestingSMS` is true, with close button `aria-busy` so operators do not lose send state mid-flight. Code commit `f7f23d4d`. |
+| Next Priorities | Verification passed: focused notification modal copy test (`7 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 240, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/financial-chart/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-578 completed**: Hanwoo market-price refresh state is now announced consistently. `MarketPriceWidget` marks the initial loading state as a polite status region, exposes `aria-busy` on the refresh button while KAPE data is refreshing, and hides the decorative refresh icon from assistive technology. Code commit `0c7fa6e6`. |
 | Next Priorities | Verification passed: focused home/market copy test (`25 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 240, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/financial-chart/shorts/workspace WIP. |
 
