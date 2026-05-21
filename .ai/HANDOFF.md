@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-616 completed**: Hanwoo profitability widget now normalizes recommendation payloads before rendering. `ProfitabilityWidget` routes incoming `data` through `normalizeProfitabilityItems()`, filters malformed rows, supplies stable fallback ids, and renders from `visibleData` so malformed caller/cache data cannot crash the profitability recommendation widget through raw `.length` or `.map()` access. Code commit `e4097a36`. |
+| Next Priorities | Verification passed: focused profitability copy/source test (`7 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 253, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated root/Hanwoo package/shorts/workspace WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-615 completed**: Hanwoo settings tab now normalizes building payloads before rendering. `SettingsTab` routes incoming `buildings` through `normalizeSettingsBuildings()`, filters malformed rows, supplies safe fallback building names and pen counts, and renders from `safeBuildings` so malformed caller/cache data cannot crash the settings building list through raw `.map()` access. Code commit `0272bd19`. |
 | Next Priorities | Verification passed: focused settings plus home-market source tests (`37 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 252, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated root/Hanwoo package/shorts/workspace WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated WIP. |
 
