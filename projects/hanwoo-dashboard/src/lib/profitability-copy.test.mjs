@@ -40,8 +40,11 @@ test('profitability widget is mounted on the dashboard, not orphaned', () => {
   // T-366: the widget is registered in WIDGET_REGISTRY with defaultOn:true,
   // so it must actually be wired into the render path and fed SSR data.
   const dashboard = readSource('components/DashboardClient.js');
+  const widgetSettings = readSource('lib/hooks/useWidgetSettings.js');
   assert.match(dashboard, /import \{ ProfitabilityWidget \}/);
-  assert.match(dashboard, /\{ id: 'profitability', label: '출하 수익성 예측', icon: '📈', defaultOn: true \}/);
+  assert.match(dashboard, /import \{ WIDGET_REGISTRY, useWidgetSettings \} from '@\/lib\/hooks\/useWidgetSettings';/);
+  assert.doesNotMatch(dashboard, /const WIDGET_REGISTRY = \[/);
+  assert.match(widgetSettings, /\{ id: 'profitability', label: '출하 수익성 예측', icon: '📈', defaultOn: true \}/);
   assert.match(dashboard, /widgetSettings\.visible\.profitability/);
   assert.match(dashboard, /<ProfitabilityWidget/);
 

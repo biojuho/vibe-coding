@@ -35,6 +35,21 @@ test('settings tab decorative text icons are hidden from assistive tech', () => 
   assert.match(source, /<span aria-hidden="true" style=\{\{ fontSize: '16px' \}\}>\{widget\.icon\}<\/span>/);
 });
 
+test('dashboard widget registry is centralized with readable Korean labels', () => {
+  const dashboardSource = readSource('components/DashboardClient.js');
+  const hookSource = readSource('lib/hooks/useWidgetSettings.js');
+
+  assert.match(dashboardSource, /import \{ WIDGET_REGISTRY, useWidgetSettings \} from '@\/lib\/hooks\/useWidgetSettings';/);
+  assert.doesNotMatch(dashboardSource, /const WIDGET_REGISTRY = \[/);
+  assert.match(hookSource, /label: '날씨 \/ THI'/);
+  assert.match(hookSource, /label: '시세 정보'/);
+  assert.match(hookSource, /label: '알림 \(발정\/분만\)'/);
+  assert.match(hookSource, /label: '경영 분석 차트'/);
+  assert.match(hookSource, /label: '출하 수익성 예측'/);
+  assert.match(hookSource, /label: '핵심 통계'/);
+  assert.doesNotMatch(hookSource, /[筌욃첎쳸疫]/);
+});
+
 test('settings tab building delete buttons identify the target building', () => {
   const source = readSource('components/tabs/SettingsTab.js');
 

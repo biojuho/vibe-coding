@@ -67,6 +67,7 @@ import { enqueue, queueSize } from '@/lib/offlineQueue';
 import { syncOfflineQueue } from '@/lib/syncManager';
 import { useCattlePagination } from '@/lib/hooks/useCattlePagination';
 import { useSalesPagination } from '@/lib/hooks/useSalesPagination';
+import { WIDGET_REGISTRY, useWidgetSettings } from '@/lib/hooks/useWidgetSettings';
 import { getNextDashboardPaginationState } from '@/lib/dashboard/pagination-guard.mjs';
 import { buildTodayFocusItems } from '@/lib/dashboard/today-focus.mjs';
 import { buildSetupProgressItems } from '@/lib/dashboard/setup-progress.mjs';
@@ -83,18 +84,6 @@ const FinancialChartWidget = dynamic(() => import('@/components/widgets/Financia
 const AIChatWidget = dynamic(() => import('@/components/widgets/AIChatWidget'), { ssr: false });
 const NotificationWidget = dynamic(() => import('@/components/widgets/NotificationWidget'), { ssr: false });
 
-const WIDGET_REGISTRY = [
-  { id: 'weather', label: '날씨 / THI', icon: '🌤️', defaultOn: true },
-  { id: 'market', label: '시세 정보', icon: '💰', defaultOn: true },
-  { id: 'notification', label: '알림 (발정/분만)', icon: '🔔', defaultOn: true },
-  { id: 'financial', label: '경영 분석 차트', icon: '📊', defaultOn: true },
-  { id: 'profitability', label: '출하 수익성 예측', icon: '📈', defaultOn: true },
-  { id: 'estrus', label: '발정 알림 배너', icon: '💕', defaultOn: true },
-  { id: 'calving', label: '분만 알림 배너', icon: '🍼', defaultOn: true },
-  { id: 'stats', label: '핵심 통계', icon: '📈', defaultOn: true },
-];
-
-const WIDGETS_STORAGE_KEY = 'joolife-widgets';
 const DASHBOARD_PAGE_LIMIT = 100;
 const FULL_CATTLE_LOAD_ERROR_MESSAGE = '전체 개체 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
 const FULL_SALES_LOAD_ERROR_MESSAGE = '전체 매출 기록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
@@ -140,28 +129,6 @@ const QUICK_ACTIONS = [
     targetTab: 'inventory',
   },
 ];
-
-function useWidgetSettings() {
-  const [visible, setVisible] = useState(() => {
-    const defaults = Object.fromEntries(WIDGET_REGISTRY.map((widget) => [widget.id, widget.defaultOn]));
-    if (typeof window === 'undefined') return defaults;
-    try {
-      const saved = localStorage.getItem(WIDGETS_STORAGE_KEY);
-      if (saved) return { ...defaults, ...JSON.parse(saved) };
-    } catch {}
-    return defaults;
-  });
-
-  const toggle = (id) => {
-    setVisible((prev) => {
-      const next = { ...prev, [id]: !prev[id] };
-      localStorage.setItem(WIDGETS_STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
-  };
-
-  return { visible, toggle };
-}
 
 export default function DashboardClient({
   initialCattlePage,
