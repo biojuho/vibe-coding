@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-625 completed**: Hanwoo cattle and sales pagination hooks now normalize page item payloads. `useCattlePagination()` and `useSalesPagination()` route initial SSR items and load-more API `json.data.items` through `normalizePaginationItems()`, ignore non-array input and malformed/non-object rows, and append from safe arrays so malformed pagination/cache payloads cannot crash through spread access. Code commit `676f7453`. |
+| Next Priorities | Verification passed: focused pagination source tests (`4 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 263, lint, build), and staged `code_review_gate --json` emitted JSON pass (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated WIP, especially separate `CattleDetailModal`, monorepo, and shorts-maker changes. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-624 completed**: Hanwoo notification modal now normalizes notification payloads before rendering. `NotificationModal` routes its `notifications` prop through `normalizeModalNotifications()`, ignores non-array input and malformed/non-object rows, and renders empty/list states from `visibleNotifications` so direct modal reuse cannot crash through raw `.length` or `.map()` access. Code commit `64ee6b6f`. |
 | Next Priorities | Verification passed: focused notification modal source test (`8 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 261, lint, build), and staged `code_review_gate --json` emitted JSON pass (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated WIP, especially separate `CattleDetailModal`, monorepo, and shorts-maker changes. |
 
