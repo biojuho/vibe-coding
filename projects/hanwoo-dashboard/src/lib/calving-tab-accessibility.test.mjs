@@ -37,10 +37,13 @@ test('calving tab validation messages are announced with their controls', () => 
 test('calving form waits for async saves before re-enabling actions', () => {
   const source = readSource('components/tabs/CalvingTab.js');
 
+  assert.match(source, /const saveInFlightRef = useRef\(false\)/);
   assert.match(source, /const \[isSaving, setIsSaving\] = useState\(false\)/);
+  assert.match(source, /if \(saveInFlightRef\.current\) \{\s+return;\s+\}/);
+  assert.match(source, /saveInFlightRef\.current = true;/);
   assert.match(source, /setIsSaving\(true\);/);
   assert.match(source, /await onRecordCalving\(\{/);
-  assert.match(source, /finally \{\s*setIsSaving\(false\);/);
+  assert.match(source, /finally \{\s*saveInFlightRef\.current = false;\s+setIsSaving\(false\);/);
   assert.match(source, /<button type="submit" disabled=\{isSaving\} aria-busy=\{isSaving\}/);
   assert.match(source, /type="button"\s+onClick=\{closeCalvingForm\}\s+disabled=\{isSaving\}/);
 });

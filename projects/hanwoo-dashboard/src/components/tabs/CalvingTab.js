@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
@@ -26,6 +26,7 @@ export default function CalvingTab({ cattle, buildings = [], onRecordCalving }) 
 
   const [selectedCowId, setSelectedCowId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const saveInFlightRef = useRef(false);
   const { notify } = useAppFeedback();
 
   const {
@@ -39,18 +40,24 @@ export default function CalvingTab({ cattle, buildings = [], onRecordCalving }) 
   });
 
   const closeCalvingForm = () => {
+    saveInFlightRef.current = false;
     setIsSaving(false);
     setSelectedCowId(null);
     reset(createCalvingFormValues());
   };
 
   const openCalvingForm = (cowId) => {
+    saveInFlightRef.current = false;
     setIsSaving(false);
     setSelectedCowId(cowId);
     reset(createCalvingFormValues());
   };
 
   const submitCalving = async (values) => {
+    if (saveInFlightRef.current) {
+      return;
+    }
+
     const cow = cattle.find((row) => row.id === selectedCowId);
 
     if (!cow) {
@@ -62,6 +69,7 @@ export default function CalvingTab({ cattle, buildings = [], onRecordCalving }) 
       return;
     }
 
+    saveInFlightRef.current = true;
     setIsSaving(true);
 
     try {
@@ -78,6 +86,7 @@ export default function CalvingTab({ cattle, buildings = [], onRecordCalving }) 
 
       closeCalvingForm();
     } finally {
+      saveInFlightRef.current = false;
       setIsSaving(false);
     }
   };
