@@ -21,7 +21,10 @@ export function parseCustomerKeyFromOrderId(orderId) {
 }
 
 export function addDays(baseDate, days) {
-  const next = new Date(baseDate);
-  next.setDate(next.getDate() + days);
-  return next;
+  const next = baseDate instanceof Date ? new Date(baseDate.getTime()) : new Date(baseDate);
+  const safeDate = Number.isFinite(next.getTime()) ? next : new Date();
+  const safeDays = Number.isFinite(Number(days)) ? Number(days) : 0;
+
+  safeDate.setDate(safeDate.getDate() + safeDays);
+  return safeDate;
 }
