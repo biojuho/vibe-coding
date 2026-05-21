@@ -158,8 +158,11 @@ test('market price widget uses Korean product copy for visible states', () => {
   assert.match(source, /암소 \/ kg/);
   assert.match(source, /갱신/);
   assert.match(source, /출처: KAPE/);
+  assert.match(source, /role="status" aria-live="polite"/);
+  assert.match(source, /disabled=\{loading\}\s+aria-busy=\{loading\}/);
   assert.match(source, /aria-label=\{loading \? '시세 갱신 중' : '한우 시세 새로고침'\}/);
   assert.match(source, /title=\{loading \? '시세 갱신 중' : '한우 시세 새로고침'\}/);
+  assert.match(source, /<RefreshCwIcon aria-hidden="true"/);
   assert.doesNotMatch(source, /Loading market prices/);
   assert.doesNotMatch(source, /Market price data is unavailable/);
   assert.doesNotMatch(source, /Market Pulse/);

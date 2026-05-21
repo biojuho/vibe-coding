@@ -174,7 +174,7 @@ export default function MarketPriceWidget({ initialData = null }) {
   if (loading && !prices) {
     return (
       <Card className="animate-fadeInUp">
-        <CardContent className="flex h-60 items-center justify-center">
+        <CardContent className="flex h-60 items-center justify-center" role="status" aria-live="polite">
           <div className="text-sm text-[color:var(--color-text-secondary)]">
             한우 시세를 불러오는 중입니다.
           </div>
@@ -224,11 +224,12 @@ export default function MarketPriceWidget({ initialData = null }) {
                 void fetchPrices();
               }}
               disabled={loading}
+              aria-busy={loading}
               aria-label={loading ? '시세 갱신 중' : '한우 시세 새로고침'}
               title={loading ? '시세 갱신 중' : '한우 시세 새로고침'}
               className="clay-pressable inline-flex h-10 w-10 items-center justify-center rounded-full text-[color:var(--color-text-secondary)]"
             >
-              <RefreshCwIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCwIcon aria-hidden="true" className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
