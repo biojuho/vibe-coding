@@ -14,19 +14,24 @@ import {
 } from './cache.js';
 
 function normalizeDate(value) {
+  const fallback = new Date();
+
   if (value instanceof Date) {
-    return value;
+    return Number.isNaN(value.getTime()) ? fallback : value;
   }
 
   if (!value) {
-    return new Date();
+    return fallback;
   }
 
+  let date;
   if (typeof value === 'string' && /^\d{8}$/.test(value)) {
-    return new Date(`${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}T00:00:00.000Z`);
+    date = new Date(`${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}T00:00:00.000Z`);
+  } else {
+    date = new Date(value);
   }
 
-  return new Date(value);
+  return Number.isNaN(date.getTime()) ? fallback : date;
 }
 
 function toIssueDateKey(issueDate) {
