@@ -37,11 +37,18 @@ test('analysis tab normalizes numeric inputs before financial and feed aggregati
   const analysisSource = readSource('components/tabs/AnalysisTab.js');
 
   assert.match(analysisSource, /import \{ formatMoney, toFiniteNumber \} from '@\/lib\/utils';/);
+  assert.match(analysisSource, /function toMonthKey\(value\) \{/);
+  assert.match(analysisSource, /const dateKey = value\.trim\(\)\.slice\(0, 10\);/);
+  assert.match(analysisSource, /strictDate\.toISOString\(\)\.slice\(0, 10\) !== dateKey/);
+  assert.match(analysisSource, /const key = toMonthKey\(record\.saleDate\);/);
+  assert.match(analysisSource, /const key = toMonthKey\(expense\.date\);/);
   assert.match(analysisSource, /data\[key\]\.revenue \+= toFiniteNumber\(record\.price\);/);
   assert.match(analysisSource, /data\[key\]\.cost \+= toFiniteNumber\(expense\.amount\);/);
   assert.match(analysisSource, /\(totals\[category\] \|\| 0\) \+ toFiniteNumber\(expense\.amount\)/);
   assert.match(analysisSource, /toFiniteNumber\(second\.price\) - toFiniteNumber\(first\.price\)/);
   assert.match(analysisSource, /sum \+ toFiniteNumber\(row\.roughage\) \+ toFiniteNumber\(row\.concentrate\)/);
+  assert.doesNotMatch(analysisSource, /const date = new Date\(record\.saleDate\);/);
+  assert.doesNotMatch(analysisSource, /const date = new Date\(expense\.date\);/);
   assert.doesNotMatch(analysisSource, /sum \+ row\.roughage \+ row\.concentrate/);
   assert.doesNotMatch(analysisSource, /data\[key\]\.revenue \+= record\.price/);
   assert.doesNotMatch(analysisSource, /data\[key\]\.cost \+= expense\.amount/);

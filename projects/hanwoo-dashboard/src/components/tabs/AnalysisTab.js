@@ -26,6 +26,25 @@ const CATEGORY_CONFIG = {
 
 const RANK_COLORS = ['var(--chart-clay-2)', 'var(--chart-clay-5)', 'var(--chart-clay-4)'];
 
+function toMonthKey(value) {
+  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  if (typeof value === 'string') {
+    const dateKey = value.trim().slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+      const strictDate = new Date(`${dateKey}T00:00:00.000Z`);
+      if (Number.isNaN(strictDate.getTime()) || strictDate.toISOString().slice(0, 10) !== dateKey) {
+        return null;
+      }
+    }
+  }
+
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
 export default function AnalysisTab({
   saleRecords = [],
   feedHistory = [],
@@ -45,14 +64,12 @@ export default function AnalysisTab({
     }
 
     saleRecords.forEach((record) => {
-      const date = new Date(record.saleDate);
-      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const key = toMonthKey(record.saleDate);
       if (data[key]) data[key].revenue += toFiniteNumber(record.price);
     });
 
     expenseRecords.forEach((expense) => {
-      const date = new Date(expense.date);
-      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const key = toMonthKey(expense.date);
       if (data[key]) data[key].cost += toFiniteNumber(expense.amount);
     });
 
