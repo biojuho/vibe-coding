@@ -271,10 +271,13 @@ test('sales form waits for async saves before re-enabling actions', () => {
   const source = readSource('components/tabs/SalesTab.js');
 
   assert.match(source, /const \[isSaving, setIsSaving\] = useState\(false\)/);
-  assert.match(source, /if \(isSaving\) \{\s+return;\s+\}/);
+  assert.match(source, /const saveInFlightRef = useRef\(false\)/);
+  assert.match(source, /if \(saveInFlightRef\.current \|\| isSaving\) \{\s+return;\s+\}/);
+  assert.match(source, /if \(saveInFlightRef\.current\) \{\s+return;\s+\}/);
+  assert.match(source, /saveInFlightRef\.current = true;/);
   assert.match(source, /setIsSaving\(true\);/);
   assert.match(source, /await onCreateSale\(values\)/);
-  assert.match(source, /finally \{\s+setIsSaving\(false\);/);
+  assert.match(source, /finally \{\s+saveInFlightRef\.current = false;\s+setIsSaving\(false\);/);
   assert.match(source, /onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}/);
   assert.match(source, /disabled=\{!cattleList\?\.length \|\| isSaving\}\s+aria-busy=\{isSaving\}/);
 });

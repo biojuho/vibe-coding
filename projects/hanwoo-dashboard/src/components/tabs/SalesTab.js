@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ReceiptText } from 'lucide-react';
@@ -32,6 +32,7 @@ export default function SalesTab({
 }) {
   const [isAdding, setIsAdding] = useState(() => quickActionIntent?.actionId === 'record-sale');
   const [isSaving, setIsSaving] = useState(false);
+  const saveInFlightRef = useRef(false);
 
   const {
     register,
@@ -107,7 +108,7 @@ export default function SalesTab({
   );
 
   const toggleAddForm = () => {
-    if (isSaving) {
+    if (saveInFlightRef.current || isSaving) {
       return;
     }
 
@@ -121,6 +122,11 @@ export default function SalesTab({
   };
 
   const submitSale = async (values) => {
+    if (saveInFlightRef.current) {
+      return;
+    }
+
+    saveInFlightRef.current = true;
     setIsSaving(true);
 
     try {
@@ -132,6 +138,7 @@ export default function SalesTab({
       setIsAdding(false);
       reset(createSalesFormValues());
     } finally {
+      saveInFlightRef.current = false;
       setIsSaving(false);
     }
   };
