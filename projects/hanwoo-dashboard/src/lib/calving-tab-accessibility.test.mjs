@@ -63,3 +63,24 @@ test('calving tab keeps malformed pregnancy dates stable in the list', () => {
   );
   assert.doesNotMatch(source, /new Date\(first\.pregnancyDate\) - new Date\(second\.pregnancyDate\)/);
 });
+
+test('calving tab normalizes malformed cattle and building payloads before rendering', () => {
+  const source = readSource('components/tabs/CalvingTab.js');
+
+  assert.match(source, /import \{ useMemo, useRef, useState \} from 'react';/);
+  assert.match(source, /function normalizeCalvingCattle\(cattle\) \{/);
+  assert.match(source, /return Array\.isArray\(cattle\)/);
+  assert.match(source, /row && typeof row === 'object' && row\.id != null/);
+  assert.match(source, /function normalizeCalvingBuildings\(buildings\) \{/);
+  assert.match(source, /return Array\.isArray\(buildings\)/);
+  assert.match(source, /building && typeof building === 'object'/);
+  assert.match(source, /const safeCattle = useMemo\(\(\) => normalizeCalvingCattle\(cattle\), \[cattle\]\);/);
+  assert.match(source, /const safeBuildings = useMemo\(\(\) => normalizeCalvingBuildings\(buildings\), \[buildings\]\);/);
+  assert.match(source, /const pregnantCows = useMemo\(/);
+  assert.match(source, /safeCattle\s+\.filter\(\(row\) => row\.status === '임신우'\)/);
+  assert.match(source, /const cow = safeCattle\.find\(\(row\) => row\.id === selectedCowId\);/);
+  assert.match(source, /const buildingName = safeBuildings\.find\(\(row\) => row\.id === cow\.buildingId\)\?\.name;/);
+  assert.doesNotMatch(source, /const pregnantCows = cattle\s+\.filter/);
+  assert.doesNotMatch(source, /const cow = cattle\.find/);
+  assert.doesNotMatch(source, /buildings\.find\(\(row\) => row\.id === cow\.buildingId\)/);
+});

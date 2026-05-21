@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
@@ -24,10 +24,27 @@ function getPregnancyDateTime(value) {
   return Number.isNaN(date.getTime()) ? Number.POSITIVE_INFINITY : date.getTime();
 }
 
+function normalizeCalvingCattle(cattle) {
+  return Array.isArray(cattle)
+    ? cattle.filter((row) => row && typeof row === 'object' && row.id != null)
+    : [];
+}
+
+function normalizeCalvingBuildings(buildings) {
+  return Array.isArray(buildings)
+    ? buildings.filter((building) => building && typeof building === 'object')
+    : [];
+}
+
 export default function CalvingTab({ cattle, buildings = [], onRecordCalving }) {
-  const pregnantCows = cattle
-    .filter((row) => row.status === '임신우')
-    .sort((first, second) => getPregnancyDateTime(first.pregnancyDate) - getPregnancyDateTime(second.pregnancyDate));
+  const safeCattle = useMemo(() => normalizeCalvingCattle(cattle), [cattle]);
+  const safeBuildings = useMemo(() => normalizeCalvingBuildings(buildings), [buildings]);
+  const pregnantCows = useMemo(
+    () => safeCattle
+      .filter((row) => row.status === '임신우')
+      .sort((first, second) => getPregnancyDateTime(first.pregnancyDate) - getPregnancyDateTime(second.pregnancyDate)),
+    [safeCattle],
+  );
 
   const [selectedCowId, setSelectedCowId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -64,7 +81,7 @@ export default function CalvingTab({ cattle, buildings = [], onRecordCalving }) 
       return;
     }
 
-    const cow = cattle.find((row) => row.id === selectedCowId);
+    const cow = safeCattle.find((row) => row.id === selectedCowId);
 
     if (!cow) {
       notify({
@@ -114,7 +131,7 @@ export default function CalvingTab({ cattle, buildings = [], onRecordCalving }) 
             const daysLeft = getDaysUntilCalving(cow.pregnancyDate);
             const alert = isCalvingAlert(cow.pregnancyDate);
             const isSelected = selectedCowId === cow.id;
-            const buildingName = buildings.find((row) => row.id === cow.buildingId)?.name;
+            const buildingName = safeBuildings.find((row) => row.id === cow.buildingId)?.name;
 
             return (
               <div
