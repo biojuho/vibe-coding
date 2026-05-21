@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` cattle CSV export blanks malformed birth dates. `buildCattleCsvRows()` formats birth dates through `formatCsvDate()` and leaves malformed values blank, preventing `Invalid Date` from reaching exported cattle CSV deliverables. Verification passed: focused cattle CSV tests (`3 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 223, lint, build), and staged `code_review_gate --json`.
+
 - As of 2026-05-21, `hanwoo-dashboard` Sales tab sale-date sorting is stable with malformed data. `SalesTab` sorts sale records through `getSaleDateTime()`, placing malformed sale dates at the end instead of letting invalid `Date` subtraction destabilize recent-sales and chart ordering. Verification passed: focused sales tab source test (`1 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 222, lint, build), and staged `code_review_gate --json`.
 
 - As of 2026-05-21, `hanwoo-dashboard` weather forecast date labels degrade safely. `formatForecastDateLabel()` returns `날짜 미등록` for malformed dates, and both `WeatherWidget` and `getLivestockWeatherAlerts()` use it so invalid forecast dates do not leak browser-default labels into the forecast grid or livestock weather alerts. Verification passed: focused home/weather + utils source tests (`26 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 221, lint, build), and staged `code_review_gate --json`.
