@@ -182,10 +182,15 @@ test('cattle detail breeding records wait for async saves before re-enabling sub
   const detailSource = readSource('components/forms/CattleDetailModal.js');
 
   assert.match(detailSource, /const \[isBreedingSaving, setIsBreedingSaving\] = useState\(false\)/);
-  assert.match(detailSource, /if \(isBreedingSaving\) \{\s+return;\s+\}/);
+  assert.match(detailSource, /const breedingSaveInFlightRef = useRef\(false\)/);
+  assert.match(detailSource, /breedingSaveInFlightRef\.current = false;\s+\}, \[cattle\?\.id\]\);/);
+  assert.match(detailSource, /if \(breedingSaveInFlightRef\.current \|\| isBreedingSaving\) \{\s+return;\s+\}/);
+  assert.match(detailSource, /breedingSaveInFlightRef\.current = true;/);
   assert.match(detailSource, /setIsBreedingSaving\(true\);/);
   assert.match(detailSource, /await onUpdate\(nextCattle,/);
-  assert.match(detailSource, /finally \{\s+setIsBreedingSaving\(false\);/);
+  assert.match(detailSource, /finally \{\s+breedingSaveInFlightRef\.current = false;\s+setIsBreedingSaving\(false\);/);
+  assert.match(detailSource, /onClick=\{\(\) => openBreedingForm\('estrus'\)\}[\s\S]*?disabled=\{isBreedingSaving\}/);
+  assert.match(detailSource, /onClick=\{\(\) => openBreedingForm\('pregnancy'\)\}[\s\S]*?disabled=\{isBreedingSaving\}/);
   assert.match(detailSource, /type="button"[\s\S]*?onClick=\{\(\) => setActiveBreedingAction\(null\)\}[\s\S]*?disabled=\{isBreedingSaving\}/);
   assert.match(detailSource, /type="submit"[\s\S]*?disabled=\{isBreedingSaving\}[\s\S]*?aria-busy=\{isBreedingSaving\}/);
 });

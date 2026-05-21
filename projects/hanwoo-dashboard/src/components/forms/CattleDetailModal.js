@@ -32,6 +32,7 @@ export default function CattleDetailModal({
   const [breedingDate, setBreedingDate] = useState(toInputDate(new Date()));
   const [breedingError, setBreedingError] = useState('');
   const [isBreedingSaving, setIsBreedingSaving] = useState(false);
+  const breedingSaveInFlightRef = useRef(false);
 
   useEffect(() => {
     if (!cattle?.id) return;
@@ -54,6 +55,7 @@ export default function CattleDetailModal({
     setBreedingDate(toInputDate(new Date()));
     setBreedingError('');
     setIsBreedingSaving(false);
+    breedingSaveInFlightRef.current = false;
   }, [cattle?.id]);
 
   useEffect(() => {
@@ -84,6 +86,10 @@ export default function CattleDetailModal({
   })();
 
   const openBreedingForm = (action) => {
+    if (breedingSaveInFlightRef.current || isBreedingSaving) {
+      return;
+    }
+
     setActiveBreedingAction(action);
     setBreedingDate(toInputDate(new Date()));
     setBreedingError('');
@@ -92,7 +98,7 @@ export default function CattleDetailModal({
   const handleSaveBreedingRecord = async (event) => {
     event.preventDefault();
 
-    if (isBreedingSaving) {
+    if (breedingSaveInFlightRef.current || isBreedingSaving) {
       return;
     }
 
@@ -112,6 +118,7 @@ export default function CattleDetailModal({
       ? { ...cattle, status: "임신우", pregnancyDate: selectedDate.toISOString() }
       : { ...cattle, lastEstrus: selectedDate.toISOString() };
 
+    breedingSaveInFlightRef.current = true;
     setIsBreedingSaving(true);
     setBreedingError('');
 
@@ -127,6 +134,7 @@ export default function CattleDetailModal({
         setActiveBreedingAction(null);
       }
     } finally {
+      breedingSaveInFlightRef.current = false;
       setIsBreedingSaving(false);
     }
   };
@@ -278,6 +286,7 @@ export default function CattleDetailModal({
                 <button
                   type="button"
                   onClick={() => openBreedingForm('estrus')}
+                  disabled={isBreedingSaving}
                   className="btn"
                   style={{
                     ...btnPrimary,
@@ -294,6 +303,7 @@ export default function CattleDetailModal({
                 <button
                   type="button"
                   onClick={() => openBreedingForm('pregnancy')}
+                  disabled={isBreedingSaving}
                   className="btn"
                   style={{
                     ...btnPrimary,
