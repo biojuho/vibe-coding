@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` Today Focus next-schedule card ignores malformed schedule dates. `buildTodayFocusItems()` normalizes schedule event dates before filtering and sorting, preventing one bad schedule record from being selected, misordered, or shown in the home Today Focus panel. Verification passed: focused today-focus test (`3 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 220, lint, build), and staged `code_review_gate --json`.
+
 - As of 2026-05-21, `hanwoo-dashboard` Schedule tab safely ignores malformed schedule dates before rendering calendar/upcoming surfaces. `ScheduleTab` normalizes event dates through local safe helpers before current-month filtering, upcoming-list sorting, calendar date-key matching, D-day calculation, and visible date formatting. Verification passed: focused tab-header accessibility test (`6 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 219, lint, build), and staged `code_review_gate --json`.
 
 - As of 2026-05-21, `hanwoo-dashboard` Feed tab chart and recent-record date labels safely degrade malformed feed history dates. `FeedTab` uses local safe date helpers and falls back to `날짜 미등록`, preventing browser-default invalid-date labels from reaching the feed trend chart or recent-record list. Verification passed: focused empty-state/feed source test (`13 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 218, lint, build), and staged `code_review_gate --json`.

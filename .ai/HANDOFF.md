@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-544 completed**: Hanwoo Today Focus next-schedule card now normalizes schedule event dates before filtering and sorting. One malformed schedule record can no longer be selected, misordered, or leak into the home Today Focus panel. Code commit `16b04535`. |
+| Next Priorities | Verification passed: focused today-focus test (`3 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 220, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-543 completed**: Hanwoo Schedule tab now normalizes event dates through safe helpers before current-month filtering, upcoming-list sorting, calendar date-key matching, D-day calculation, and visible date formatting. Malformed schedule records can no longer throw during calendar rendering or leak invalid-date labels into the upcoming schedule list. Code commit `4d70f1e4`. |
 | Next Priorities | Verification passed: focused tab-header accessibility test (`6 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 219, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
 
