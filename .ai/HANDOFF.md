@@ -8,6 +8,20 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-599 completed**: Hanwoo alert banners now normalize notification and building payloads before rendering. `AlertBanners` routes incoming alert props through `normalizeAlertNotifications()` and `normalizeBuildings()`, ignores non-array/non-object malformed payloads, supplies stable fallback ids plus Korean cattle-name copy, and uses safe building lookup so stale cache/caller data cannot crash estrus or calving banners through raw `.filter()` or `.find()` calls. Code commit `1cf25d5d`. |
+| Next Priorities | Verification passed: focused alert banner source test (`3 passed`), targeted ESLint passed, path-limited `git diff --check`, full Hanwoo QC test/lint passed (`test` 244, lint), initial full QC build hit a real concurrent Next build, and targeted build retry passed. Staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
+| Work | **T-598 completed**: Hanwoo login submit states now expose clear action labels. `app/login/page.js` derives `loginSubmitLabel` for missing 아이디, missing 비밀번호, submitting, and ready states, then applies it to the submit button `aria-label` and `title` so the first-run login CTA explains why it is disabled or what action will run. Code commit `7cedaa17`. |
+| Next Priorities | Verification passed: focused error/login wiring test (`6 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 244, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/AlertBanners/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-597 completed**: Hanwoo notification widget now normalizes incoming notification payloads before rendering. `NotificationWidget` routes props through `normalizeNotifications()`, ignores non-array/non-object malformed payloads, supplies stable fallback ids plus Korean title/message copy, and renders from `visibleNotifications` so stale cache or caller data cannot crash the widget through raw `.length`, `.map()`, or `note.type` access. Code commit `558c4f17`. |
 | Next Priorities | Verification passed: focused notification system copy test (`8 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 243, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
 
