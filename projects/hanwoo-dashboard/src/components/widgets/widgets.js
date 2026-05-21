@@ -1,4 +1,4 @@
-import { calcTHI, formatForecastDateLabel, getTHILevel, getWeatherIcon, getWeatherDesc, getLivestockWeatherAlerts } from '@/lib/utils';
+import { calcTHI, formatForecastDateLabel, getTHILevel, getWeatherIcon, getWeatherDesc, getLivestockWeatherAlerts, toFiniteNumber } from '@/lib/utils';
 import { PremiumCard, PremiumCardContent } from '@/components/ui/premium-card';
 import { BarChart3, Boxes, CalendarDays, Home, Settings, Sprout, Stethoscope, Truck } from 'lucide-react';
 
@@ -82,7 +82,14 @@ export function WeatherWidget({weather}){
       </PremiumCard>
     </div>
   );
-  const thi=calcTHI(weather.temp,weather.humidity);
+  const temp = toFiniteNumber(weather.temp);
+  const humidity = toFiniteNumber(weather.humidity);
+  const apparentTemp = toFiniteNumber(weather.apparentTemp, temp);
+  const windSpeed = toFiniteNumber(weather.windSpeed);
+  const tempMax = toFiniteNumber(weather.tempMax, temp);
+  const tempMin = toFiniteNumber(weather.tempMin, temp);
+  const precipitation = toFiniteNumber(weather.precipitation);
+  const thi=calcTHI(temp,humidity);
   const thiLevel=getTHILevel(thi);
   const icon=getWeatherIcon(weather.weatherCode);
   const desc=getWeatherDesc(weather.weatherCode);
@@ -96,18 +103,18 @@ export function WeatherWidget({weather}){
           <span aria-hidden="true">📍</span> {weather.locationName} · {new Date().toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'})} 기준
         </div>
         <div style={{display:"flex",alignItems:"flex-end",gap:"14px",marginBottom:"16px",position:"relative"}}>
-          <span style={{fontSize:"52px",fontWeight:800,fontFamily:"var(--font-display)",lineHeight:1,textShadow:"0 4px 12px rgba(0,0,0,0.2)"}}>{Math.round(weather.temp)}°</span>
+          <span style={{fontSize:"52px",fontWeight:800,fontFamily:"var(--font-display)",lineHeight:1,textShadow:"0 4px 12px rgba(0,0,0,0.2)"}}>{Math.round(temp)}°</span>
           <div style={{paddingBottom:"6px"}}>
             <div style={{fontSize:"22px",marginBottom:"2px"}}><span aria-hidden="true">{icon}</span> {desc}</div>
-            <div style={{fontSize:"13px",opacity:0.75}}>체감 {Math.round(weather.apparentTemp)}°C</div>
+            <div style={{fontSize:"13px",opacity:0.75}}>체감 {Math.round(apparentTemp)}°C</div>
           </div>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"10px"}}>
           {[
-            {i:"💧",l:"습도",v:`${weather.humidity}%`},
-            {i:"🌬️",l:"풍속",v:`${weather.windSpeed}m/s`},
-            {i:"🌡️",l:"최고/최저",v:`${Math.round(weather.tempMax)}°/${Math.round(weather.tempMin)}°`},
-            {i:"🌧️",l:"강수",v:`${weather.precipitation}%`}
+            {i:"💧",l:"습도",v:`${humidity}%`},
+            {i:"🌬️",l:"풍속",v:`${windSpeed}m/s`},
+            {i:"🌡️",l:"최고/최저",v:`${Math.round(tempMax)}°/${Math.round(tempMin)}°`},
+            {i:"🌧️",l:"강수",v:`${precipitation}%`}
           ].map((item,idx)=>
             <div key={idx} className="weather-stat" style={{animationDelay:`${idx*60}ms`}}>
               <div aria-hidden="true" style={{fontSize:"18px",marginBottom:"3px",lineHeight:1}}>{item.i}</div>
@@ -173,7 +180,7 @@ export function WeatherWidget({weather}){
                   <div style={{fontSize:"11px",color:"var(--color-text-muted)",marginBottom:"4px"}}>{dayLabel}</div>
                   <div aria-label={getWeatherDesc(day.weatherCode)} style={{fontSize:"24px",marginBottom:"4px"}}>{getWeatherIcon(day.weatherCode)}</div>
                   <div style={{fontSize:"13px",fontWeight:700,fontFamily:"var(--font-display)",color:"var(--color-text)"}}>
-                    {Math.round(day.tempMax)}° / {Math.round(day.tempMin)}°
+                    {Math.round(toFiniteNumber(day.tempMax))}° / {Math.round(toFiniteNumber(day.tempMin))}°
                   </div>
                   {day.precipProb > 0 && (
                     <div style={{fontSize:"10px",color:"var(--color-info)",marginTop:"2px"}}><span aria-hidden="true">🌧</span> 강수 {day.precipProb}%</div>

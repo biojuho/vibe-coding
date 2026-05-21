@@ -213,6 +213,16 @@ test('weather widget uses Korean product copy for unavailable state', () => {
   const dashboardSource = readSource('components/DashboardClient.js');
   const hookSource = readSource('lib/hooks/useWeather.js');
 
+  assert.match(source, /toFiniteNumber \} from '@\/lib\/utils';/);
+  assert.match(source, /const temp = toFiniteNumber\(weather\.temp\);/);
+  assert.match(source, /const humidity = toFiniteNumber\(weather\.humidity\);/);
+  assert.match(source, /const apparentTemp = toFiniteNumber\(weather\.apparentTemp, temp\);/);
+  assert.match(source, /const windSpeed = toFiniteNumber\(weather\.windSpeed\);/);
+  assert.match(source, /const tempMax = toFiniteNumber\(weather\.tempMax, temp\);/);
+  assert.match(source, /const tempMin = toFiniteNumber\(weather\.tempMin, temp\);/);
+  assert.match(source, /const precipitation = toFiniteNumber\(weather\.precipitation\);/);
+  assert.match(source, /const thi=calcTHI\(temp,humidity\);/);
+
   assert.match(source, /날씨 확인 불가/);
   assert.match(source, /지금은 날씨 데이터를 확인할 수 없습니다/);
   assert.match(source, /'서울'/);
@@ -231,6 +241,10 @@ test('weather widget uses Korean product copy for unavailable state', () => {
   assert.match(source, /<span aria-hidden="true">🌧<\/span> 강수 \{day\.precipProb\}%/);
   assert.match(source, /<span aria-hidden="true">🐄<\/span> 가축 기상 경고/);
   assert.match(source, /<span aria-hidden="true">\{a\.icon\}<\/span> \{a\.msg\}/);
+  assert.doesNotMatch(source, /Math\.round\(weather\.(?:temp|apparentTemp|tempMax|tempMin)\)/);
+  assert.doesNotMatch(source, /\$\{weather\.(?:humidity|windSpeed|precipitation)\}/);
+  assert.match(source, /Math\.round\(toFiniteNumber\(day\.tempMax\)\)/);
+  assert.match(source, /Math\.round\(toFiniteNumber\(day\.tempMin\)\)/);
   assert.match(dashboardSource, /WEATHER_STALE_MESSAGE/);
   assert.match(hookSource, /WEATHER_STALE_MESSAGE/);
   assert.match(dashboardSource, /WEATHER_TIMEOUT_MESSAGE/);
