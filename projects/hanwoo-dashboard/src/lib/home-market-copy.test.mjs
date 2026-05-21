@@ -138,6 +138,11 @@ test('market price widget uses Korean product copy for visible states', () => {
 
   assert.match(source, /function toValidUpdatedAt\(value, fallback = new Date\(\)\) \{/);
   assert.match(source, /return Number\.isNaN\(date\.getTime\(\)\) \? fallback : date;/);
+  assert.match(source, /function normalizePriceSnapshot\(data\) \{/);
+  assert.match(source, /bull: data\.bull \?\? \{\}/);
+  assert.match(source, /cow: data\.cow \?\? \{\}/);
+  assert.match(source, /useState\(\(\) => normalizePriceSnapshot\(initialData\)\)/);
+  assert.match(source, /setPrices\(normalizePriceSnapshot\(data\)\)/);
   assert.match(source, /initialData \? toValidUpdatedAt\(initialData\.fetchedAt\) : null/);
   assert.match(source, /setLastUpdated\(toValidUpdatedAt\(data\?\.fetchedAt\)\)/);
 

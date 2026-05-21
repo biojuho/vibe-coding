@@ -83,8 +83,18 @@ function toValidUpdatedAt(value, fallback = new Date()) {
   return Number.isNaN(date.getTime()) ? fallback : date;
 }
 
+function normalizePriceSnapshot(data) {
+  return data
+    ? {
+        ...data,
+        bull: data.bull ?? {},
+        cow: data.cow ?? {},
+      }
+    : data;
+}
+
 export default function MarketPriceWidget({ initialData = null }) {
-  const [prices, setPrices] = useState(initialData);
+  const [prices, setPrices] = useState(() => normalizePriceSnapshot(initialData));
   const [loading, setLoading] = useState(!initialData);
   const isMountedRef = useRef(false);
   const inFlightRequestRef = useRef(null);
@@ -94,7 +104,7 @@ export default function MarketPriceWidget({ initialData = null }) {
   );
 
   const applyPriceSnapshot = useCallback((data) => {
-    setPrices(data);
+    setPrices(normalizePriceSnapshot(data));
     setLastUpdated(toValidUpdatedAt(data?.fetchedAt));
   }, []);
 
