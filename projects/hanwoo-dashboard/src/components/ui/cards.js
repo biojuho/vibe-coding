@@ -21,9 +21,22 @@ export function StatCard({label,value,sub,color,delay=0}){
   );
 }
 
+function normalizePenCattle(cattle) {
+  return Array.isArray(cattle)
+    ? cattle
+        .filter((cow) => cow && typeof cow === 'object')
+        .map((cow, index) => ({
+          ...cow,
+          id: cow.id ?? `pen-cattle-${index}`,
+          name: typeof cow.name === 'string' && cow.name.trim() ? cow.name : '개체명 미등록',
+        }))
+    : [];
+}
+
 export function PenCard({penNumber,cattle,buildingId,onSelect,delay=0,onDrop}){
-  const hasAlert=cattle.some(c=>c.lastEstrus&&isEstrusAlert(c.lastEstrus));
-  const isEmpty=cattle.length===0;
+  const visibleCattle = normalizePenCattle(cattle);
+  const hasAlert=visibleCattle.some(c=>c.lastEstrus&&isEstrusAlert(c.lastEstrus));
+  const isEmpty=visibleCattle.length===0;
   const penAlertLabel = hasAlert ? ', 발정 알림 있음' : '';
 
   const handleDragOver = (e) => {
@@ -48,7 +61,7 @@ export function PenCard({penNumber,cattle,buildingId,onSelect,delay=0,onDrop}){
     <button
       type="button"
       onClick={()=>onSelect(buildingId,penNumber)}
-      aria-label={`${penNumber}번 칸 상세 보기, ${cattle.length}두 배치됨${penAlertLabel}`}
+      aria-label={`${penNumber}번 칸 상세 보기, ${visibleCattle.length}두 배치됨${penAlertLabel}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -70,13 +83,13 @@ export function PenCard({penNumber,cattle,buildingId,onSelect,delay=0,onDrop}){
           borderRadius:"8px",
           color:isEmpty?"var(--color-text-muted)":"var(--color-text-secondary)",
           fontWeight:500
-        }}>{cattle.length}/5</span>
+        }}>{visibleCattle.length}/5</span>
       </div>
       {isEmpty ? (
         <div style={{color:"var(--color-text-muted)",fontSize:"12px",textAlign:"center",paddingTop:"8px"}}>비어있음</div>
       ) : (
         <div style={{display:"flex",gap:"4px",flexWrap:"wrap"}}>
-          {cattle.map((c,idx)=>{
+          {visibleCattle.map((c,idx)=>{
             const sc=STATUS_COLORS[c.status]||{dot:"#888"};
             const al=c.lastEstrus&&isEstrusAlert(c.lastEstrus);
             return (

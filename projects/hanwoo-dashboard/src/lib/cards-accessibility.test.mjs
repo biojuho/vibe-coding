@@ -26,6 +26,25 @@ test('pen and cattle cards use native button activation semantics', () => {
   assert.match(source, /<div className="cattle-chevron" aria-hidden="true">/);
 });
 
+test('pen cards normalize cattle payloads before rendering', () => {
+  const source = readSource('components/ui/cards.js');
+
+  assert.match(source, /function normalizePenCattle\(cattle\) \{/);
+  assert.match(source, /return Array\.isArray\(cattle\)/);
+  assert.match(source, /\.filter\(\(cow\) => cow && typeof cow === 'object'\)/);
+  assert.match(source, /id: cow\.id \?\? `pen-cattle-\$\{index\}`/);
+  assert.match(source, /name: typeof cow\.name === 'string' && cow\.name\.trim\(\) \? cow\.name : '개체명 미등록'/);
+  assert.match(source, /const visibleCattle = normalizePenCattle\(cattle\);/);
+  assert.match(source, /visibleCattle\.some\(c=>c\.lastEstrus&&isEstrusAlert\(c\.lastEstrus\)\)/);
+  assert.match(source, /const isEmpty=visibleCattle\.length===0;/);
+  assert.match(source, /visibleCattle\.length\}두 배치됨/);
+  assert.match(source, /visibleCattle\.length\}\/5/);
+  assert.match(source, /visibleCattle\.map\(\(c,idx\)=>/);
+  assert.doesNotMatch(source, /cattle\.some/);
+  assert.doesNotMatch(source, /cattle\.length/);
+  assert.doesNotMatch(source, /cattle\.map/);
+});
+
 test('native card buttons keep card visual reset styles', () => {
   const source = readSource('app/globals.css');
 
