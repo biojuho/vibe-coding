@@ -31,6 +31,7 @@ test('payment widget waits for async payment requests before re-enabling checkou
 
   assert.match(source, /const paymentRequestInFlightRef = useRef\(false\)/);
   assert.match(source, /const \[isSubmitting, setIsSubmitting\] = useState\(false\)/);
+  assert.match(source, /const paymentButtonLabel = isSubmitting\s+\? PAYMENT_PREPARING_MESSAGE\s+: !isWidgetReady\s+\? PAYMENT_WIDGET_PENDING_MESSAGE\s+: `\$\{PAYMENT_BUTTON_PREFIX\} \$\{price\.toLocaleString\(\)\}원`;/);
   assert.match(source, /const handlePayment = async \(\) => \{\s+if \(paymentRequestInFlightRef\.current\) \{\s+return;\s+\}/);
   assert.match(source, /paymentRequestInFlightRef\.current = true;/);
   assert.match(source, /setIsSubmitting\(true\);/);
@@ -38,6 +39,9 @@ test('payment widget waits for async payment requests before re-enabling checkou
   assert.match(source, /finally \{\s+paymentRequestInFlightRef\.current = false;\s+setIsSubmitting\(false\);/);
   assert.match(source, /disabled=\{isSubmitting \|\| !isWidgetReady\}/);
   assert.match(source, /aria-busy=\{isSubmitting\}/);
+  assert.match(source, /aria-label=\{paymentButtonLabel\}/);
+  assert.match(source, /title=\{paymentButtonLabel\}/);
+  assert.match(source, /\{paymentButtonLabel\}/);
 });
 
 test('subscription result pages avoid bare English loading and status copy', () => {

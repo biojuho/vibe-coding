@@ -42,6 +42,11 @@ export default function PaymentWidget({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isWidgetReady, setIsWidgetReady] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const paymentButtonLabel = isSubmitting
+    ? PAYMENT_PREPARING_MESSAGE
+    : !isWidgetReady
+      ? PAYMENT_WIDGET_PENDING_MESSAGE
+      : `${PAYMENT_BUTTON_PREFIX} ${price.toLocaleString()}원`;
 
   useEffect(() => {
     let cancelled = false;
@@ -198,6 +203,8 @@ export default function PaymentWidget({
         onClick={handlePayment}
         disabled={isSubmitting || !isWidgetReady}
         aria-busy={isSubmitting}
+        aria-label={paymentButtonLabel}
+        title={paymentButtonLabel}
         style={{
           width: '100%',
           padding: '16px',
@@ -213,11 +220,7 @@ export default function PaymentWidget({
           opacity: isSubmitting || !isWidgetReady ? 0.72 : 1,
         }}
       >
-        {isSubmitting
-          ? PAYMENT_PREPARING_MESSAGE
-          : !isWidgetReady
-            ? PAYMENT_WIDGET_PENDING_MESSAGE
-            : `${PAYMENT_BUTTON_PREFIX} ${price.toLocaleString()}원`}
+        {paymentButtonLabel}
       </button>
     </div>
   );
