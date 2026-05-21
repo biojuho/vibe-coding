@@ -31,6 +31,7 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
   const [isSaving, setIsSaving] = useState(false);
   const tagNumberErrorId = 'cattle-tag-number-error';
   const tagLookupMessageId = 'cattle-tag-lookup-message';
+  const cancelButtonLabel = isSaving ? '개체 저장 중에는 취소할 수 없습니다' : '개체 저장 취소';
 
   const {
     register,
@@ -451,7 +452,7 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
           </div>
 
           <div style={{ display: 'flex', gap: '12px', marginTop: '28px', paddingTop: '20px', borderTop: '1px solid color-mix(in srgb, var(--color-border-custom) 35%, transparent)' }}>
-            <button type="button" onClick={onCancel} disabled={isSaving} className="btn btn-secondary" style={{...btnSecondary, transition: 'all 0.2s cubic-bezier(0.22,1,0.36,1)'}}>
+            <button type="button" onClick={onCancel} disabled={isSaving} aria-busy={isSaving} aria-label={cancelButtonLabel} title={cancelButtonLabel} className="btn btn-secondary" style={{...btnSecondary, transition: 'all 0.2s cubic-bezier(0.22,1,0.36,1)'}}>
               취소
             </button>
             <button type="submit" disabled={isSaving} aria-busy={isSaving} className="btn btn-primary" style={{...btnPrimary, transition: 'all 0.2s cubic-bezier(0.22,1,0.36,1)'}}>

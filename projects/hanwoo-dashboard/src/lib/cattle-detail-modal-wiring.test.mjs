@@ -187,13 +187,14 @@ test('cattle form waits for async saves before re-enabling submit actions', () =
   assert.match(formSource, /const saveInFlightRef = useRef\(false\)/);
   assert.match(formSource, /saveInFlightRef\.current = false;\s+\}, \[buildings, cattle, reset\]\);/);
   assert.match(formSource, /setIsSaving\(false\);/);
+  assert.match(formSource, /const cancelButtonLabel = isSaving \? '개체 저장 중에는 취소할 수 없습니다' : '개체 저장 취소';/);
   assert.match(formSource, /const submitForm = async \(values\) => \{/);
   assert.match(formSource, /if \(saveInFlightRef\.current\) \{\s+return;\s+\}/);
   assert.match(formSource, /saveInFlightRef\.current = true;/);
   assert.match(formSource, /setIsSaving\(true\);/);
   assert.match(formSource, /await onSubmit\(\{/);
   assert.match(formSource, /finally \{\s*saveInFlightRef\.current = false;\s+setIsSaving\(false\);/);
-  assert.match(formSource, /type="button" onClick=\{onCancel\} disabled=\{isSaving\}/);
+  assert.match(formSource, /type="button" onClick=\{onCancel\} disabled=\{isSaving\} aria-busy=\{isSaving\} aria-label=\{cancelButtonLabel\} title=\{cancelButtonLabel\}/);
   assert.match(formSource, /onClick=\{onCancel\}\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}[\s\S]*?className="btn btn-ghost btn-icon"/);
   assert.match(formSource, /type="submit" disabled=\{isSaving\} aria-busy=\{isSaving\}/);
 });
