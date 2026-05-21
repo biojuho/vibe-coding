@@ -15,6 +15,13 @@ export default function LoginPage() {
   const submitInFlightRef = useRef(false);
 
   const canSubmit = username.trim().length > 0 && password.length > 0 && !isSubmitting;
+  const loginSubmitLabel = isSubmitting
+    ? '로그인 확인 중'
+    : username.trim().length === 0
+      ? '아이디를 입력하면 로그인할 수 있습니다'
+      : password.length === 0
+        ? '비밀번호를 입력하면 로그인할 수 있습니다'
+        : '한우 대시보드 열기';
   const loginErrorId = 'login-error-message';
 
   const handleSubmit = async (event) => {
@@ -112,7 +119,14 @@ export default function LoginPage() {
             </div>
           ) : null}
 
-          <button type="submit" className="login-submit" disabled={!canSubmit} aria-busy={isSubmitting}>
+          <button
+            type="submit"
+            className="login-submit"
+            disabled={!canSubmit}
+            aria-busy={isSubmitting}
+            aria-label={loginSubmitLabel}
+            title={loginSubmitLabel}
+          >
             {isSubmitting ? <Loader2 className="animate-spin" size={18} aria-hidden="true" /> : null}
             {isSubmitting ? '확인 중...' : '대시보드 열기'}
           </button>

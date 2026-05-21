@@ -74,11 +74,15 @@ test('login page recovers submit state when sign-in fails unexpectedly', () => {
 
   assert.match(source, /import \{ useRef, useState \} from 'react'/);
   assert.match(source, /const submitInFlightRef = useRef\(false\)/);
+  assert.match(source, /const loginSubmitLabel = isSubmitting/);
+  assert.match(source, /아이디를 입력하면 로그인할 수 있습니다/);
+  assert.match(source, /비밀번호를 입력하면 로그인할 수 있습니다/);
+  assert.match(source, /한우 대시보드 열기/);
   assert.match(source, /if \(submitInFlightRef\.current \|\| !canSubmit\) return;/);
   assert.match(source, /submitInFlightRef\.current = true;/);
   assert.match(source, /setIsSubmitting\(true\);/);
   assert.match(source, /try \{\s+const result = await signIn\('credentials'/);
   assert.match(source, /\} catch \{\s+setError\('/);
   assert.match(source, /\} finally \{\s+submitInFlightRef\.current = false;\s+setIsSubmitting\(false\);/);
-  assert.match(source, /disabled=\{!canSubmit\} aria-busy=\{isSubmitting\}/);
+  assert.match(source, /disabled=\{!canSubmit\}[\s\S]*?aria-busy=\{isSubmitting\}[\s\S]*?aria-label=\{loginSubmitLabel\}[\s\S]*?title=\{loginSubmitLabel\}/);
 });
