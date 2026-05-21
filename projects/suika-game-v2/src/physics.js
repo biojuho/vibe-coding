@@ -10,7 +10,7 @@ import {
     setScore, setComboCount, setLastMergeAt, setDropsSinceMerge,
     setGameState, setCurrentFruit,
     setIsDropping, setPendingFruitSpawn, reportFruitLevel,
-    updateScoreDisplay, updateComboDisplay, notifyGameOver,
+    updateScoreDisplay, updateComboDisplay, notifyGameOver, setNextObject,
     syncBestScore, setOverlayHidden, setPauseButtonLabel,
     getActiveDifficultyConfig, triggerHaptic, triggerShake
 } from './main.js';
@@ -274,11 +274,9 @@ export function createNewFruit(nextIsBomb) {
     if (gameState !== 'PLAYING') return;
     const level = nextFruitLevel;
     const fruitData = FRUITS[level];
-    
-    // Will be defined in main.js, imported here
-    import('./main.js').then(module => {
-        module.setNextObject();
-    });
+
+    // Roll the *next* object now that the current level has been captured.
+    setNextObject();
 
     let newFruit;
     if (nextIsBomb) {

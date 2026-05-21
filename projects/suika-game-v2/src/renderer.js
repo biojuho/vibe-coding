@@ -1,6 +1,6 @@
 import Matter from 'matter-js';
 import { GAME_WIDTH, GAME_HEIGHT, BOMB_RADIUS, FRUITS, BOMB_EMOJI } from './config.js';
-import { gameState, shakeIntensity, getElement } from './main.js';
+import { gameState, shakeIntensity, isDropping, getElement } from './main.js';
 import { getEngine, getRender } from './physics.js';
 
 export let particles = [];
@@ -30,11 +30,9 @@ export function renderCustomGraphics() {
 
     // Draw Guide Line under potential fruit
     const currentFruit = Matter.Composite.allBodies(engine.world).find(b => b.label === 'current_fruit' && b.isStatic);
-    import('./main.js').then(({ isDropping }) => {
-        if (currentFruit && gameState === 'PLAYING' && !isDropping) {
-            drawGuideLine(ctx, currentFruit.position.x, currentFruit.position.y, currentFruit.circleRadius);
-        }
-    });
+    if (currentFruit && gameState === 'PLAYING' && !isDropping) {
+        drawGuideLine(ctx, currentFruit.position.x, currentFruit.position.y, currentFruit.circleRadius);
+    }
 
     ctx.globalAlpha = 1.0;
     ctx.shadowBlur = 0;
