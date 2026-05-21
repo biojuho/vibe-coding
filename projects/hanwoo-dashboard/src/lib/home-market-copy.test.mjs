@@ -355,6 +355,22 @@ test('dashboard normalizes cattle collection before home rendering and full expo
   assert.doesNotMatch(source, /items\.push\(\.\.\.\(json\.data\.items \|\| \[\]\)\);/);
 });
 
+test('dashboard normalizes notification payloads before home rendering', () => {
+  const source = readSource('components/DashboardClient.js');
+
+  assert.match(source, /function normalizeDashboardNotifications\(notifications\) \{/);
+  assert.match(source, /Array\.isArray\(notifications\)/);
+  assert.match(source, /\.filter\(\(notification\) => notification && typeof notification === 'object'\)/);
+  assert.match(source, /useState\(\(\) => normalizeDashboardNotifications\(initialNotifications\)\)/);
+  assert.match(source, /setNotifications\(normalizeDashboardNotifications\(nextNotifications\)\)/);
+  assert.match(source, /\{notifications\.some\(\(notification\) => notification\.level === 'critical'\) && \(/);
+  assert.match(source, /<NotificationModal notifications=\{notifications\}/);
+  assert.match(source, /<NotificationWidget notifications=\{notifications\}/);
+  assert.match(source, /<EstrusAlertBanner notifications=\{notifications\}/);
+  assert.match(source, /<CalvingAlertBanner notifications=\{notifications\}/);
+  assert.doesNotMatch(source, /useState\(initialNotifications \|\| \[\]\)/);
+});
+
 test('dashboard fallback monthly sales count filters by current year and valid sale dates', () => {
   const source = readSource('components/DashboardClient.js');
 

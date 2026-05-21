@@ -205,6 +205,12 @@ function normalizeDashboardCattleList(cattleItems) {
     }));
 }
 
+function normalizeDashboardNotifications(notifications) {
+  return Array.isArray(notifications)
+    ? notifications.filter((notification) => notification && typeof notification === 'object')
+    : [];
+}
+
 export default function DashboardClient({
   initialCattlePage,
   initialSalesPage,
@@ -234,7 +240,7 @@ export default function DashboardClient({
   // Cache metadata from /api/dashboard/summary (source: 'snapshot'|'rebuilt'|'live', staleAt, ageSeconds).
   // Null until the first client-side refresh — SSR seeds `summary` only.
   const [summaryMeta, setSummaryMeta] = useState(null);
-  const [notifications, setNotifications] = useState(initialNotifications || []);
+  const [notifications, setNotifications] = useState(() => normalizeDashboardNotifications(initialNotifications));
 
   const [feedStandards, setFeedStandards] = useState(initialFeedStandards);
   const [inventoryList, setInventoryList] = useState(initialInventory);
@@ -335,9 +341,7 @@ export default function DashboardClient({
   const refreshNotifications = useCallback(async () => {
     try {
       const nextNotifications = await getNotifications();
-      if (Array.isArray(nextNotifications)) {
-        setNotifications(nextNotifications);
-      }
+      setNotifications(normalizeDashboardNotifications(nextNotifications));
     } catch (error) {
       console.error('알림 갱신 실패:', error);
     }
