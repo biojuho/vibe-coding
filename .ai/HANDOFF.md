@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-529 completed**: Hanwoo Settings farm and building saves now reject duplicate async submits before React re-renders the saving state. `SettingsTab` adds `farmSaveInFlightRef` around `onUpdateFarmSettings()` and `buildingSaveInFlightRef` around `onCreateBuilding()`, while preserving the existing disabled/`aria-busy` UI and location-select lock. Code commit `af4ebf04`. |
+| Next Priorities | Verification passed: focused settings accessibility test (`10 passed`), path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 211, lint, build), and `code_review_gate --base HEAD~1 --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/suika/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-528 completed**: Hanwoo login submissions now reject duplicate credential submit attempts before React re-renders the submitting state. `app/login/page.js` adds `submitInFlightRef` around the `signIn('credentials')` flow while preserving the existing `canSubmit`, disabled, and `aria-busy` UI. Code commit `997b5ff9`. |
 | Next Priorities | Verification passed: focused error/login wiring test (`6 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 211, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/suika/workspace WIP. |
 

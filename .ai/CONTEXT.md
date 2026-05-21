@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` Settings farm and building saves cannot start duplicate async writes before React re-renders saving state. `SettingsTab` uses `farmSaveInFlightRef` around `onUpdateFarmSettings()` and `buildingSaveInFlightRef` around `onCreateBuilding()`, while preserving the existing disabled/`aria-busy` submit UI and location-select lock. Verification passed: focused settings accessibility test (`10 passed`), path-limited `git diff --check`, full Hanwoo QC (`test` 211, lint, build), and `code_review_gate --base HEAD~1 --json`.
+
 - As of 2026-05-21, `hanwoo-dashboard` login submissions cannot start duplicate `signIn()` requests before React re-renders submitting state. `app/login/page.js` uses `submitInFlightRef` around the credentials submit flow while preserving the existing `canSubmit`, disabled, and `aria-busy` UI. Verification passed: focused error/login wiring test (`6 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 211, lint, build), and staged `code_review_gate --json`.
 
 - As of 2026-05-21, `hanwoo-dashboard` Inventory tab item creation and inline quantity updates cannot start duplicate async writes before React re-renders saving state. `InventoryTab` uses `saveInFlightRef` around `onAddItem()` and `quantityInFlightRef` around inline `onUpdateQuantity()` saves, while preserving the existing disabled/`aria-busy` submit and quantity-editor UI. Verification passed: focused home/market copy test (`22 passed`), path-limited `git diff --check`, full Hanwoo QC (`test` 211, lint, build), and `code_review_gate --base HEAD~1 --json`.
