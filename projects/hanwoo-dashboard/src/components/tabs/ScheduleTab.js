@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { CalendarPlus, ChevronLeft, ChevronRight, PlusCircle } from 'lucide-react';
@@ -28,6 +28,8 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
   const [isSaving, setIsSaving] = useState(false);
   const [savingEventId, setSavingEventId] = useState(null);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const saveInFlightRef = useRef(false);
+  const completionInFlightRef = useRef(false);
 
   const {
     register,
@@ -76,7 +78,7 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
   }, [events]);
 
   const toggleAddForm = () => {
-    if (isSaving) {
+    if (saveInFlightRef.current || isSaving) {
       return;
     }
 
@@ -90,7 +92,7 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
   };
 
   const openFormForDate = (dateString) => {
-    if (isSaving) {
+    if (saveInFlightRef.current || isSaving) {
       return;
     }
 
@@ -99,6 +101,11 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
   };
 
   const submitSchedule = async (values) => {
+    if (saveInFlightRef.current) {
+      return;
+    }
+
+    saveInFlightRef.current = true;
     setIsSaving(true);
 
     try {
@@ -110,20 +117,23 @@ export default function ScheduleTab({ events, onCreateEvent, onToggleEvent, quic
       setIsAdding(false);
       reset(createScheduleFormValues());
     } finally {
+      saveInFlightRef.current = false;
       setIsSaving(false);
     }
   };
 
   const toggleEventCompletion = async (event) => {
-    if (savingEventId) {
+    if (completionInFlightRef.current || savingEventId) {
       return;
     }
 
+    completionInFlightRef.current = true;
     setSavingEventId(event.id);
 
     try {
       await onToggleEvent(event.id, !event.isCompleted);
     } finally {
+      completionInFlightRef.current = false;
       setSavingEventId(null);
     }
   };
