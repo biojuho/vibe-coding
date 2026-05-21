@@ -8,6 +8,20 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-611 completed**: Hanwoo calving tab now normalizes cattle and building payloads before rendering. `CalvingTab` routes incoming `cattle` and `buildings` props through safe collection normalizers, ignores malformed rows, derives `pregnantCows` from `safeCattle`, and uses `safeCattle`/`safeBuildings` for submit and building lookups so stale cache or caller data cannot crash the tab through raw `.filter()`/`.find()` access. Code commit `4535546c`. |
+| Next Priorities | Verification passed: focused Calving accessibility test (`5 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC test/lint passed (`test` 250, lint), targeted build retry passed after a real concurrent Next build lock, and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
+| Work | **T-610 completed**: Hanwoo sales record submit action now exposes its save state. `SalesTab` derives `submitButtonLabel` from `isSaving` and applies it to the sales submit `PremiumButton` `aria-label` and `title`, matching the visible 판매 기록 등록 state so assistive technology and hover text receive the same in-flight state. Code commit `4974e238`. |
+| Next Priorities | Verification passed: focused home-market copy/source test (`25 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC passed (`test` 250, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated Calving/root/Hanwoo package/shorts/workspace WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-609 completed**: Hanwoo schedule create submit action now exposes its save state. `ScheduleTab` derives `submitButtonLabel` from `isSaving` and applies it to the schedule submit button `aria-label` and `title`, matching the visible 일정 등록/등록하기 state so assistive technology and hover text receive the same in-flight state. Code commit `69c19b22`. |
 | Next Priorities | Verification passed: focused Schedule accessibility test (`7 passed`), current Cattle/Schedule focused regression pass (`18 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full Hanwoo QC test/lint passed (`test` 249, lint), initial full QC build hit a real concurrent Next build lock, targeted build retry passed, and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and saw unrelated WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
 
