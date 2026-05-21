@@ -32,6 +32,7 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
   const tagNumberErrorId = 'cattle-tag-number-error';
   const tagLookupMessageId = 'cattle-tag-lookup-message';
   const cancelButtonLabel = isSaving ? '개체 저장 중에는 취소할 수 없습니다' : '개체 저장 취소';
+  const submitButtonLabel = isSaving ? '개체 정보 저장 중' : '개체 정보 저장';
 
   const {
     register,
@@ -455,7 +456,7 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
             <button type="button" onClick={onCancel} disabled={isSaving} aria-busy={isSaving} aria-label={cancelButtonLabel} title={cancelButtonLabel} className="btn btn-secondary" style={{...btnSecondary, transition: 'all 0.2s cubic-bezier(0.22,1,0.36,1)'}}>
               취소
             </button>
-            <button type="submit" disabled={isSaving} aria-busy={isSaving} className="btn btn-primary" style={{...btnPrimary, transition: 'all 0.2s cubic-bezier(0.22,1,0.36,1)'}}>
+            <button type="submit" disabled={isSaving} aria-busy={isSaving} aria-label={submitButtonLabel} title={submitButtonLabel} className="btn btn-primary" style={{...btnPrimary, transition: 'all 0.2s cubic-bezier(0.22,1,0.36,1)'}}>
               {isSaving ? '저장 중...' : '저장하기'}
             </button>
           </div>
