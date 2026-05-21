@@ -87,6 +87,11 @@ export function toInputDate(value) {
   return date ? date.toISOString().split('T')[0] : '';
 }
 
+export function formatForecastDateLabel(value, options = { month: 'short', day: 'numeric' }) {
+  const date = toValidDate(value);
+  return date ? date.toLocaleDateString('ko-KR', options) : '날짜 미등록';
+}
+
 export function toFiniteNumber(value, fallback = 0) {
   const amount = Number(value);
   return Number.isFinite(amount) ? amount : fallback;
@@ -161,7 +166,7 @@ export function getLivestockWeatherAlerts(forecast = []) {
   const alerts = [];
 
   forecast.forEach((day) => {
-    const label = new Date(day.date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+    const label = formatForecastDateLabel(day.date);
 
     if (day.tempMax >= 35) {
       alerts.push({

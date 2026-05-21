@@ -36,6 +36,9 @@ test('date utility calculations use a fresh or injected current date', () => {
   assert.match(utilsSource, /getDaysUntilCalving\(pregnancyDate, now\)/);
   assert.match(utilsSource, /return date \? date\.toLocaleDateString\('ko-KR'\) : '-';/);
   assert.match(utilsSource, /return date \? date\.toISOString\(\)\.split\('T'\)\[0\] : '';/);
+  assert.match(utilsSource, /export function formatForecastDateLabel\(value, options = \{ month: 'short', day: 'numeric' \}\) \{/);
+  assert.match(utilsSource, /return date \? date\.toLocaleDateString\('ko-KR', options\) : '날짜 미등록';/);
+  assert.match(utilsSource, /const label = formatForecastDateLabel\(day\.date\);/);
   assert.match(utilsSource, /export function toFiniteNumber\(value, fallback = 0\) \{/);
   assert.match(utilsSource, /const amount = Number\(value\);/);
   assert.match(utilsSource, /return Number\.isFinite\(amount\) \? amount : fallback;/);
@@ -44,6 +47,7 @@ test('date utility calculations use a fresh or injected current date', () => {
   assert.doesNotMatch(utilsSource, /toLocaleDateString\('ko-KR'\);\s*\}/);
   assert.doesNotMatch(utilsSource, /new Date\(pregnancyDate\)\.getTime\(\)/);
   assert.doesNotMatch(utilsSource, /Intl\.NumberFormat\('ko-KR'\)\.format\(value\)/);
+  assert.doesNotMatch(utilsSource, /new Date\(day\.date\)\.toLocaleDateString\('ko-KR'/);
   assert.doesNotMatch(utilsSource, /TODAY/);
   assert.doesNotMatch(constantsSource, /TODAY = new Date\(\)/);
 });

@@ -211,6 +211,7 @@ test('weather widget uses Korean product copy for unavailable state', () => {
   assert.match(source, /<span aria-hidden="true">\{icon\}<\/span> \{desc\}/);
   assert.match(source, /<span aria-hidden="true">🐂<\/span> 온열지수: \{thiLevel\.label\}/);
   assert.match(source, /<span aria-hidden="true">📅<\/span> 3일 예보/);
+  assert.match(source, /formatForecastDateLabel\(day\.date, \{ weekday: 'short', month: 'short', day: 'numeric' \}\)/);
   assert.match(source, /<div aria-label=\{getWeatherDesc\(day\.weatherCode\)\} style=\{\{fontSize:"24px",marginBottom:"4px"\}\}>\{getWeatherIcon\(day\.weatherCode\)\}<\/div>/);
   assert.match(source, /<span aria-hidden="true">🌧<\/span> 강수 \{day\.precipProb\}%/);
   assert.match(source, /<span aria-hidden="true">🐄<\/span> 가축 기상 경고/);
@@ -220,6 +221,7 @@ test('weather widget uses Korean product copy for unavailable state', () => {
   assert.doesNotMatch(dashboardSource, /Showing the last available weather snapshot/);
   assert.doesNotMatch(hookSource, /Showing the last available weather snapshot/);
   assert.doesNotMatch(source, /'Seoul'/);
+  assert.doesNotMatch(source, /new Date\(day\.date\)\.toLocaleDateString\('ko-KR'/);
   assert.doesNotMatch(dashboardSource, /'Seoul'/);
   assert.doesNotMatch(hookSource, /locationName.*'Seoul'/);
 });

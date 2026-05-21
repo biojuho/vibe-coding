@@ -1,4 +1,4 @@
-import { calcTHI, getTHILevel, getWeatherIcon, getWeatherDesc, getLivestockWeatherAlerts } from '@/lib/utils';
+import { calcTHI, formatForecastDateLabel, getTHILevel, getWeatherIcon, getWeatherDesc, getLivestockWeatherAlerts } from '@/lib/utils';
 import { PremiumCard, PremiumCardContent } from '@/components/ui/premium-card';
 import { BarChart3, Boxes, CalendarDays, Home, Settings, Sprout, Stethoscope, Truck } from 'lucide-react';
 
@@ -161,7 +161,7 @@ export function WeatherWidget({weather}){
           <div style={{fontSize:"13px",fontWeight:700,color:"var(--color-text)",marginBottom:"10px"}}><span aria-hidden="true">📅</span> 3일 예보</div>
           <div style={{display:"grid",gridTemplateColumns:`repeat(${weather.forecast.length},1fr)`,gap:"10px"}}>
             {weather.forecast.map((day, idx) => {
-              const dayLabel = idx === 0 ? "오늘" : new Date(day.date).toLocaleDateString('ko-KR', { weekday: 'short', month: 'short', day: 'numeric' });
+              const dayLabel = idx === 0 ? "오늘" : formatForecastDateLabel(day.date, { weekday: 'short', month: 'short', day: 'numeric' });
               return (
                 <div key={day.date} style={{
                   textAlign:"center",
