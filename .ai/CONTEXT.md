@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` Inventory tab item creation and inline quantity updates cannot start duplicate async writes before React re-renders saving state. `InventoryTab` uses `saveInFlightRef` around `onAddItem()` and `quantityInFlightRef` around inline `onUpdateQuantity()` saves, while preserving the existing disabled/`aria-busy` submit and quantity-editor UI. Verification passed: focused home/market copy test (`22 passed`), path-limited `git diff --check`, full Hanwoo QC (`test` 211, lint, build), and `code_review_gate --base HEAD~1 --json`.
+
 - As of 2026-05-21, `hanwoo-dashboard` cattle-detail breeding record saves cannot start duplicate async writes before React re-renders saving state. `CattleDetailModal` uses `breedingSaveInFlightRef` around `onUpdate()`, resets the lock when the selected cattle changes, and disables breeding action switches while a save is in flight. Verification passed: focused cattle-detail modal wiring test (`10 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 211, lint, build), and staged `code_review_gate --json`.
 
 - As of 2026-05-21, `hanwoo-dashboard` Sales tab record saves cannot start duplicate async writes before React re-renders saving state. `SalesTab` uses `saveInFlightRef` around `onCreateSale()` and guards the add/cancel toggle with the same immediate lock while keeping the existing disabled/`aria-busy` submit UI. Verification passed: focused home/market copy test (`22 passed`), path-limited `git diff --check`, full Hanwoo QC (`test` 211, lint, build), and `code_review_gate --base HEAD~1 --json`.
