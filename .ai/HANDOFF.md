@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-520 completed**: Hanwoo subscription checkout now rejects duplicate payment requests immediately before React re-renders the submitting state. `PaymentWidget` adds `paymentRequestInFlightRef` as a synchronous lock around `/api/payments/prepare` and Toss `requestPayment()`, while preserving the existing `isSubmitting` disabled/`aria-busy` UI and clearing the lock in `finally`. Code commit `071487b4`. |
+| Next Priorities | Verification passed: focused payment UX copy test (`5 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 210, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic plus unrelated WIP while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-519 completed**: Hanwoo cattle and sales pagination now reject duplicate load-more requests before React re-renders the loading state. `useCattlePagination` and `useSalesPagination` use `loadInFlightRef` as an immediate lock around fetch/append flows, clear it on unmount and in `finally`, and keep the existing disabled/`aria-busy` UI intact. Code commit `3475d8d0`. |
 | Next Priorities | Verification passed: focused pagination feedback tests (`2 passed`), targeted ESLint passed, path-limited `git diff --check` passed, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 210, lint, build), and staged code-review gate JSON passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/workspace WIP. |
 
