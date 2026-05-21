@@ -80,6 +80,8 @@ export default function CattleDetailModal({
   const buildingName = buildings.find((building) => building.id === cattle.buildingId)?.name || cattle.buildingId;
   const breedingDateErrorId = "breeding-record-date-error";
   const isDetailBusy = isDeleting || isBreedingSaving;
+  const editButtonLabel = isDetailBusy ? `${cattle.name} 개체 처리 중에는 수정할 수 없습니다` : `${cattle.name} 개체 정보 수정`;
+  const archiveButtonLabel = isDetailBusy ? `${cattle.name} 개체 처리 중에는 보관할 수 없습니다` : `${cattle.name} 개체 보관 처리`;
 
   // Build weight chart data from history or fallback to weightHistory field
   const weightChartData = (() => {
@@ -248,8 +250,8 @@ export default function CattleDetailModal({
             <button
               type="button"
               onClick={onEdit}
-              aria-label={`${cattle.name} 개체 정보 수정`}
-              title="개체 정보 수정"
+              aria-label={editButtonLabel}
+              title={editButtonLabel}
               disabled={isDetailBusy}
               aria-busy={isDetailBusy}
               className="btn btn-secondary"
@@ -258,8 +260,8 @@ export default function CattleDetailModal({
             <button
               type="button"
               onClick={onDelete}
-              aria-label={`${cattle.name} 개체 보관 처리`}
-              title="개체 보관 처리"
+              aria-label={archiveButtonLabel}
+              title={archiveButtonLabel}
               disabled={isDetailBusy}
               aria-busy={isDetailBusy}
               className="btn btn-danger"
