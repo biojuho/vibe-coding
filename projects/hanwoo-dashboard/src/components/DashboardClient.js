@@ -171,6 +171,40 @@ function toValidCalendarDate(value) {
   return date;
 }
 
+function normalizeDashboardBuildings(buildings) {
+  if (!Array.isArray(buildings)) return [];
+
+  return buildings
+    .filter((building) => building && typeof building === 'object' && building.id != null)
+    .map((building, index) => ({
+      ...building,
+      id: building.id,
+      name: typeof building.name === 'string' && building.name.trim().length > 0
+        ? building.name
+        : '축사 이름 미등록',
+      penCount: Math.max(1, Math.floor(toFiniteNumber(building.penCount) || 32)),
+      description: typeof building.description === 'string' ? building.description : '',
+      _displayIndex: index,
+    }));
+}
+
+function normalizeDashboardItems(items) {
+  return Array.isArray(items)
+    ? items.filter((item) => item && typeof item === 'object' && item.id != null)
+    : [];
+}
+
+function normalizeDashboardCattleList(cattleItems) {
+  return normalizeDashboardItems(cattleItems)
+    .map((cow) => ({
+      ...cow,
+      id: cow.id,
+      name: typeof cow.name === 'string' && cow.name.trim().length > 0
+        ? cow.name
+        : '개체명 미등록',
+    }));
+}
+
 export default function DashboardClient({
   initialCattlePage,
   initialSalesPage,
@@ -206,7 +240,7 @@ export default function DashboardClient({
   const [inventoryList, setInventoryList] = useState(initialInventory);
   const [scheduleEvents, setScheduleEvents] = useState(initialSchedule);
   const [feedHistory, setFeedHistory] = useState(initialFeedHistory);
-  const [buildings, setBuildings] = useState(initialBuildings);
+  const [buildings, setBuildings] = useState(() => normalizeDashboardBuildings(initialBuildings));
   const [farmSettings, setFarmSettings] = useState(initialFarmSettings);
   const [expenseRecords, setExpenseRecords] = useState(initialExpenses || []);
 
@@ -249,8 +283,12 @@ export default function DashboardClient({
   });
 
   // Full registries remain optional and are loaded only when a view truly needs them.
-  const cattleList = allCattleRegistry ?? pagedCattleItems;
+  const cattleList = useMemo(
+    () => normalizeDashboardCattleList(allCattleRegistry ?? pagedCattleItems),
+    [allCattleRegistry, pagedCattleItems],
+  );
   const saleRecords = allSalesLedger ?? pagedSalesItems;
+  const safeBuildings = useMemo(() => normalizeDashboardBuildings(buildings), [buildings]);
 
   // Memoize: 발정/분만 알림은 cattleList 변경 시에만 재계산
   const readJsonSafely = useCallback(async (response) => {
@@ -381,7 +419,7 @@ export default function DashboardClient({
           throw new Error(json?.message || `대시보드 데이터를 불러오지 못했습니다. (${pathname})`);
         }
 
-        items.push(...(json.data.items || []));
+        items.push(...normalizeDashboardItems(json.data.items));
         pageCount += 1;
 
         const nextPageState = getNextDashboardPaginationState({
@@ -418,8 +456,9 @@ export default function DashboardClient({
       setAllCattleLoadError('');
       const promise = fetchDashboardItems('/api/dashboard/cattle')
         .then((items) => {
-          setAllCattleRegistry(items);
-          return items;
+          const normalizedItems = normalizeDashboardCattleList(items);
+          setAllCattleRegistry(normalizedItems);
+          return normalizedItems;
         })
         .catch((error) => {
           setAllCattleLoadError(FULL_CATTLE_LOAD_ERROR_MESSAGE);
@@ -1005,7 +1044,7 @@ export default function DashboardClient({
     if (movingCattleIdRef.current) return false;
 
     const penCattle = cattleList.filter((item) => item.buildingId === toBuildingId && item.penNumber === toPenNumber);
-    const targetBuilding = buildings.find((building) => building.id === toBuildingId);
+    const targetBuilding = safeBuildings.find((building) => building.id === toBuildingId);
     const targetLabel = `${targetBuilding?.name || toBuildingId} ${toPenNumber}번 칸`;
 
     if (penCattle.length >= 5) {
@@ -1081,12 +1120,12 @@ export default function DashboardClient({
     () =>
       buildSetupProgressItems({
         farmSettings,
-        buildings,
+        buildings: safeBuildings,
         cattleList,
         inventoryList,
         scheduleEvents,
       }),
-    [buildings, cattleList, farmSettings, inventoryList, scheduleEvents],
+    [safeBuildings, cattleList, farmSettings, inventoryList, scheduleEvents],
   );
 
   const renderContent = () => {
@@ -1169,11 +1208,11 @@ export default function DashboardClient({
           feedStandards={feedStandards}
           feedHistory={feedHistory}
           onRecordFeed={handleRecordFeed}
-          buildings={buildings}
+          buildings={safeBuildings}
         />
       );
     }
-    if (activeTab === 'calving') return <CalvingTab cattle={cattleList} buildings={buildings} onRecordCalving={handleRecordCalving} />;
+    if (activeTab === 'calving') return <CalvingTab cattle={cattleList} buildings={safeBuildings} onRecordCalving={handleRecordCalving} />;
     if (activeTab === 'sales') {
       return (
         <SalesTab
@@ -1214,7 +1253,7 @@ export default function DashboardClient({
       return (
         <SettingsTab
           key={quickActionIntent?.targetTab === 'settings' ? quickActionIntent.nonce : 'settings'}
-          buildings={buildings}
+          buildings={safeBuildings}
           onCreateBuilding={handleCreateBuilding}
           onDeleteBuilding={handleDeleteBuilding}
           farmSettings={farmSettings}
@@ -1296,8 +1335,8 @@ export default function DashboardClient({
             isLoading={false}
           />
         )}
-        {widgetSettings.visible.estrus && <EstrusAlertBanner notifications={notifications} buildings={buildings} />}
-        {widgetSettings.visible.calving && <CalvingAlertBanner notifications={notifications} buildings={buildings} />}
+        {widgetSettings.visible.estrus && <EstrusAlertBanner notifications={notifications} buildings={safeBuildings} />}
+        {widgetSettings.visible.calving && <CalvingAlertBanner notifications={notifications} buildings={safeBuildings} />}
 
         {widgetSettings.visible.stats && (
           <div style={{ display: 'flex', gap: '14px', overflowX: 'auto', paddingBottom: '14px', marginBottom: '28px', scrollSnapType: 'x mandatory', scrollPadding: '0 4px', WebkitOverflowScrolling: 'touch' }}>
@@ -1318,7 +1357,7 @@ export default function DashboardClient({
               <span className="section-header-icon">🏠</span>
               <h2 className="section-header-title">축사 현황</h2>
             </div>
-            {buildings.length === 0 ? (
+            {safeBuildings.length === 0 ? (
               <button
                 type="button"
                 className="empty-state-cta animate-fadeInUp block w-full"
@@ -1331,7 +1370,8 @@ export default function DashboardClient({
               </button>
             ) : (
               <div className="grid gap-3">
-                {buildings.map((building, index) => {
+                {safeBuildings.map((building) => {
+                  const index = building._displayIndex;
                   const buildingHeadcount = summary?.buildingOccupancy?.find((b) => b.buildingId === building.id)?.headcount ?? 0;
                   return (
                     <button
@@ -1369,10 +1409,10 @@ export default function DashboardClient({
               >
                 <ArrowLeft className="h-5 w-5" aria-hidden="true" />
               </PremiumButton>
-              <h2 className="text-lg font-extrabold text-foreground">{buildings.find((building) => building.id === selectedBuildingId)?.name}</h2>
+              <h2 className="text-lg font-extrabold text-foreground">{safeBuildings.find((building) => building.id === selectedBuildingId)?.name}</h2>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '12px' }}>
-              {[...Array(buildings.find((building) => building.id === selectedBuildingId)?.penCount || 32)].map((_, index) => {
+              {[...Array(safeBuildings.find((building) => building.id === selectedBuildingId)?.penCount || 32)].map((_, index) => {
                 const penNum = index + 1;
                 const penCattle = cattleList.filter((cow) => cow.buildingId === selectedBuildingId && cow.penNumber === penNum);
                 return <PenCard key={penNum} penNumber={penNum} cattle={penCattle} buildingId={selectedBuildingId} onSelect={(_buildingId, penId) => setSelectedPenId(penId)} onDrop={handleDragDrop} delay={index * 20} />;
@@ -1443,16 +1483,16 @@ export default function DashboardClient({
       </div>
       <TabBar activeTab={activeTab} onTabChange={handleTabChange} />
 
-      {showAddModal && <CattleForm buildings={buildings} onSubmit={handleAddCattle} onCancel={() => setShowAddModal(false)} />}
+      {showAddModal && <CattleForm buildings={safeBuildings} onSubmit={handleAddCattle} onCancel={() => setShowAddModal(false)} />}
 
       {isEditing && selectedCow && (
-        <CattleForm cattle={selectedCow} buildings={buildings} onSubmit={handleUpdateCattle} onCancel={() => setIsEditing(false)} />
+        <CattleForm cattle={selectedCow} buildings={safeBuildings} onSubmit={handleUpdateCattle} onCancel={() => setIsEditing(false)} />
       )}
 
       {selectedCow && !isEditing && (
         <CattleDetailModal
           cattle={selectedCow}
-          buildings={buildings}
+          buildings={safeBuildings}
           isDeleting={deletingCattleId === selectedCow.id}
           onClose={() => setSelectedCow(null)}
           onEdit={() => setIsEditing(true)}

@@ -311,6 +311,41 @@ test('dashboard fallback average weight normalizes cattle weights', () => {
   assert.doesNotMatch(source, /sum \+ \(cow\.weight \|\| 0\)/);
 });
 
+test('dashboard normalizes malformed building payloads before home rendering', () => {
+  const source = readSource('components/DashboardClient.js');
+
+  assert.match(source, /function normalizeDashboardBuildings\(buildings\) \{/);
+  assert.match(source, /if \(!Array\.isArray\(buildings\)\) return \[\]/);
+  assert.match(source, /\.filter\(\(building\) => building && typeof building === 'object' && building\.id != null\)/);
+  assert.match(source, /useState\(\(\) => normalizeDashboardBuildings\(initialBuildings\)\)/);
+  assert.match(source, /const safeBuildings = useMemo\(\(\) => normalizeDashboardBuildings\(buildings\), \[buildings\]\);/);
+  assert.match(source, /buildings: safeBuildings/);
+  assert.match(source, /\{safeBuildings\.length === 0 \? \(/);
+  assert.match(source, /\{safeBuildings\.map\(\(building\) => \{/);
+  assert.match(source, /<FeedTab[\s\S]*?buildings=\{safeBuildings\}/);
+  assert.match(source, /<SettingsTab[\s\S]*?buildings=\{safeBuildings\}/);
+  assert.doesNotMatch(source, /useState\(initialBuildings\)/);
+  assert.doesNotMatch(source, /buildings\.map\(\(building/);
+  assert.doesNotMatch(source, /buildings\.find\(\(building/);
+  assert.doesNotMatch(source, /buildings\.length === 0/);
+});
+
+test('dashboard normalizes cattle collection before home rendering and full export', () => {
+  const source = readSource('components/DashboardClient.js');
+
+  assert.match(source, /function normalizeDashboardItems\(items\) \{/);
+  assert.match(source, /function normalizeDashboardCattleList\(cattleItems\) \{/);
+  assert.match(source, /normalizeDashboardItems\(cattleItems\)\s+\.map\(\(cow\) => \(\{/);
+  assert.match(source, /name: typeof cow\.name === 'string' && cow\.name\.trim\(\)\.length > 0/);
+  assert.match(source, /items\.push\(\.\.\.normalizeDashboardItems\(json\.data\.items\)\);/);
+  assert.match(source, /const normalizedItems = normalizeDashboardCattleList\(items\);/);
+  assert.match(source, /setAllCattleRegistry\(normalizedItems\);/);
+  assert.match(source, /return normalizedItems;/);
+  assert.match(source, /const cattleList = useMemo\(\s+\(\) => normalizeDashboardCattleList\(allCattleRegistry \?\? pagedCattleItems\),\s+\[allCattleRegistry, pagedCattleItems\],\s+\);/);
+  assert.doesNotMatch(source, /const cattleList = allCattleRegistry \?\? pagedCattleItems;/);
+  assert.doesNotMatch(source, /items\.push\(\.\.\.\(json\.data\.items \|\| \[\]\)\);/);
+});
+
 test('dashboard fallback monthly sales count filters by current year and valid sale dates', () => {
   const source = readSource('components/DashboardClient.js');
 

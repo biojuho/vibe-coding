@@ -106,7 +106,7 @@ test('inventory tab normalizes malformed inventory payloads before rendering', (
 test('cattle edit form delegates close behavior to the async update handler', () => {
   const source = readSource('components/DashboardClient.js');
 
-  assert.match(source, /<CattleForm cattle=\{selectedCow\} buildings=\{buildings\} onSubmit=\{handleUpdateCattle\}/);
+  assert.match(source, /<CattleForm cattle=\{selectedCow\} buildings=\{safeBuildings\} onSubmit=\{handleUpdateCattle\}/);
   assert.match(source, /const result = await updateCattle\(updated\.id, updated\);/);
   assert.match(source, /if \(result\.success\) \{[\s\S]*?setIsEditing\(false\);/);
   assert.doesNotMatch(source, /onSubmit=\{\(updated\) => \{ handleUpdateCattle\(updated\); setIsEditing\(false\); \}\}/);
