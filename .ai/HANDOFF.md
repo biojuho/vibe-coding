@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-21 |
 | Tool | Codex |
+| Work | **T-595 completed**: Hanwoo alert banner D-day labels now normalize malformed notification values. `EstrusAlertBanner` and `CalvingAlertBanner` route `daysLeft` through a shared `normalizeDaysLeft()` helper backed by `toFiniteNumber()`, so stale or malformed notification payloads cannot render `D-abc`, `D-Infinity`, negative D-day labels, or incorrect today counts. Code commit `d9d7c796`. |
+| Next Priorities | Verification passed: focused alert banner source test (`2 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 242, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic and also saw unrelated shorts/workspace WIP. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-21 |
+| Tool | Codex |
 | Work | **T-594 completed**: Hanwoo cattle detail edit/archive actions now explain their busy locked state. `CattleDetailModal` derives `editButtonLabel` and `archiveButtonLabel` from `isDetailBusy`, then uses those labels for `aria-label` and `title`, so disabled detail actions no longer keep normal action copy while archive or breeding-record work is in flight. Code commit `5abdf575`. |
 | Next Priorities | Verification passed: focused cattle detail/form wiring test (`10 passed`), targeted ESLint passed, path-limited `git diff --check`, full `project_qc_runner --project hanwoo-dashboard --json` passed (`test` 241, lint, build), and staged `code_review_gate --json` passed (`risk_score 0.0`; cp949 reader-thread noise only). Commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files. Active Hanwoo goal remains open; T-251 remains external/user-owned Supabase control-plane resync, and T-372/T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP. |
 

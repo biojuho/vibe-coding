@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` alert banner D-day labels are safe for malformed notification payloads. `EstrusAlertBanner` and `CalvingAlertBanner` route `daysLeft` through a shared `normalizeDaysLeft()` helper backed by `toFiniteNumber()`, preventing `D-abc`, `D-Infinity`, negative D-day labels, or incorrect today counts from leaking into the home alert banners. Verification passed: focused alert banner source test (`2 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 242, lint, build), and staged `code_review_gate --json`.
+
 - As of 2026-05-21, `hanwoo-dashboard` cattle detail edit/archive actions expose their busy locked state. `CattleDetailModal` derives `editButtonLabel` and `archiveButtonLabel` from `isDetailBusy` and uses them for `aria-label` and `title`, so disabled detail actions explain that archive or breeding-record work is in flight. Verification passed: focused cattle detail/form wiring test (`10 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 241, lint, build), and staged `code_review_gate --json`.
 
 - As of 2026-05-21, `hanwoo-dashboard` admin diagnostics numeric metrics are safe for malformed action payloads. `DiagnosticsPageClient` routes database record counts, process uptime, and memory heap values through `toFiniteNumber()` before rendering model counts, uptime minutes, and MB labels, preventing `NaN MB` or non-finite counts from leaking into the operations diagnostics screen. Verification passed: focused diagnostics source test (`2 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 241, lint, build), and staged `code_review_gate --json`.
