@@ -6,6 +6,7 @@ import { BREED_STATUS_OPTIONS } from '@/lib/constants';
 import { inputStyle, labelStyle, btnPrimary, btnSecondary, BackIcon } from '@/components/ui/common';
 import { lookupCattleTag } from '@/lib/actions';
 import { cattleFormSchema, createCattleFormValues } from '@/lib/formSchemas';
+import { toInputDate } from '@/lib/utils';
 
 const errorTextStyle = {
   fontSize: '12px',
@@ -13,6 +14,11 @@ const errorTextStyle = {
   color: 'var(--color-danger)',
   fontWeight: 600,
 };
+
+function toIsoDateOrNull(value) {
+  const inputDate = toInputDate(value);
+  return inputDate ? new Date(`${inputDate}T00:00:00.000Z`).toISOString() : null;
+}
 
 export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel }) {
   const dialogRef = useRef(null);
@@ -110,16 +116,21 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
     setIsSaving(true);
 
     try {
+      const birthDate = toIsoDateOrNull(values.birthDate);
+      if (!birthDate) {
+        return;
+      }
+
       await onSubmit({
         ...values,
         id: cattle ? cattle.id : `new_${Date.now()}`,
-        birthDate: new Date(values.birthDate).toISOString(),
+        birthDate,
         weight: Number(values.weight),
         weightHistory: cattle ? cattle.weightHistory : [],
         lastEstrus: cattle?.lastEstrus ?? null,
         pregnancyDate: cattle?.pregnancyDate ?? null,
         purchasePrice: values.purchasePrice ?? null,
-        purchaseDate: values.purchaseDate ? new Date(values.purchaseDate).toISOString() : null,
+        purchaseDate: toIsoDateOrNull(values.purchaseDate),
       });
     } finally {
       saveInFlightRef.current = false;

@@ -1,0 +1,26 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const SRC_ROOT = path.resolve(__dirname, '..');
+
+function readSource(relativePath) {
+  return readFileSync(path.join(SRC_ROOT, relativePath), 'utf8');
+}
+
+test('cattle form submit date conversion avoids raw invalid Date toISOString calls', () => {
+  const source = readSource('components/forms/CattleForm.js');
+
+  assert.match(source, /import \{ toInputDate \} from '@\/lib\/utils';/);
+  assert.match(source, /function toIsoDateOrNull\(value\) \{/);
+  assert.match(source, /const inputDate = toInputDate\(value\);/);
+  assert.match(source, /return inputDate \? new Date\(`\$\{inputDate\}T00:00:00\.000Z`\)\.toISOString\(\) : null;/);
+  assert.match(source, /const birthDate = toIsoDateOrNull\(values\.birthDate\);/);
+  assert.match(source, /if \(!birthDate\) \{\s+return;\s+\}/);
+  assert.match(source, /purchaseDate: toIsoDateOrNull\(values\.purchaseDate\),/);
+  assert.doesNotMatch(source, /birthDate: new Date\(values\.birthDate\)\.toISOString\(\)/);
+  assert.doesNotMatch(source, /new Date\(values\.purchaseDate\)\.toISOString\(\)/);
+});
