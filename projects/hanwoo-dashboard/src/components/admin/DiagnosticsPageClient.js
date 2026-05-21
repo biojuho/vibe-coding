@@ -6,6 +6,7 @@ import { Activity, ArrowLeft, Cpu, Database } from 'lucide-react';
 
 import { useAppFeedback } from '@/components/feedback/FeedbackProvider';
 import { getRawData, getSystemDiagnostics } from '@/lib/actions';
+import { toFiniteNumber } from '@/lib/utils';
 
 const STATUS_STYLES = {
   good: {
@@ -63,9 +64,15 @@ export default function DiagnosticsPageClient() {
   const rawDataRequestRef = useRef(0);
 
   const recordCounts = useMemo(
-    () => (stats?.database?.recordCounts ? Object.entries(stats.database.recordCounts) : []),
+    () =>
+      stats?.database?.recordCounts
+        ? Object.entries(stats.database.recordCounts).map(([key, value]) => [key, toFiniteNumber(value)])
+        : [],
     [stats]
   );
+  const uptimeMinutes = Math.floor(toFiniteNumber(stats?.uptime) / 60);
+  const heapUsedMb = Math.round(toFiniteNumber(stats?.memory?.heapUsed) / 1024 / 1024);
+  const heapTotalMb = Math.round(toFiniteNumber(stats?.memory?.heapTotal) / 1024 / 1024);
 
   useEffect(() => {
     let cancelled = false;
@@ -194,14 +201,14 @@ export default function DiagnosticsPageClient() {
           <StatusCard
             title="Node.js 런타임"
             value={stats.nodeVersion}
-            sub={`가동 ${Math.floor(stats.uptime / 60)}분`}
+            sub={`가동 ${uptimeMinutes}분`}
             icon={<Cpu className="h-5 w-5" />}
             status="neutral"
           />
           <StatusCard
             title="메모리 사용량"
-            value={`${Math.round(stats.memory.heapUsed / 1024 / 1024)} MB`}
-            sub={`전체 ${Math.round(stats.memory.heapTotal / 1024 / 1024)} MB`}
+            value={`${heapUsedMb} MB`}
+            sub={`전체 ${heapTotalMb} MB`}
             icon={<Activity className="h-5 w-5" />}
             status="neutral"
           />

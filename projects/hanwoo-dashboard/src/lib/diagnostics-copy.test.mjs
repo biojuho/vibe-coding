@@ -37,3 +37,18 @@ test('admin diagnostics page uses Korean operations copy for visible states', ()
   assert.doesNotMatch(systemActions, /status: 'Offline'/);
   assert.doesNotMatch(systemActions, /latency: 'N\/A'/);
 });
+
+test('admin diagnostics numeric metrics are normalized before rendering', () => {
+  const source = readSource('components/admin/DiagnosticsPageClient.js');
+
+  assert.match(source, /import \{ toFiniteNumber \} from '@\/lib\/utils';/);
+  assert.match(source, /Object\.entries\(stats\.database\.recordCounts\)\.map\(\(\[key, value\]\) => \[key, toFiniteNumber\(value\)\]\)/);
+  assert.match(source, /const uptimeMinutes = Math\.floor\(toFiniteNumber\(stats\?\.uptime\) \/ 60\);/);
+  assert.match(source, /const heapUsedMb = Math\.round\(toFiniteNumber\(stats\?\.memory\?\.heapUsed\) \/ 1024 \/ 1024\);/);
+  assert.match(source, /const heapTotalMb = Math\.round\(toFiniteNumber\(stats\?\.memory\?\.heapTotal\) \/ 1024 \/ 1024\);/);
+  assert.match(source, /value=\{`\$\{heapUsedMb\} MB`\}/);
+  assert.match(source, /sub=\{`전체 \$\{heapTotalMb\} MB`\}/);
+  assert.doesNotMatch(source, /Math\.floor\(stats\.uptime \/ 60\)/);
+  assert.doesNotMatch(source, /Math\.round\(stats\.memory\.heapUsed \/ 1024 \/ 1024\)/);
+  assert.doesNotMatch(source, /Math\.round\(stats\.memory\.heapTotal \/ 1024 \/ 1024\)/);
+});
