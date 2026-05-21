@@ -191,7 +191,7 @@ test('cattle form waits for async saves before re-enabling submit actions', () =
 
   assert.match(formSource, /const \[isSaving, setIsSaving\] = useState\(false\)/);
   assert.match(formSource, /const saveInFlightRef = useRef\(false\)/);
-  assert.match(formSource, /saveInFlightRef\.current = false;\s+\}, \[buildings, cattle, reset\]\);/);
+  assert.match(formSource, /saveInFlightRef\.current = false;\s+\}, \[safeBuildings, cattle, reset\]\);/);
   assert.match(formSource, /setIsSaving\(false\);/);
   assert.match(formSource, /const cancelButtonLabel = isSaving \? '개체 저장 중에는 취소할 수 없습니다' : '개체 저장 취소';/);
   assert.match(formSource, /const submitButtonLabel = isSaving \? '개체 정보 저장 중' : '개체 정보 저장';/);
@@ -204,6 +204,24 @@ test('cattle form waits for async saves before re-enabling submit actions', () =
   assert.match(formSource, /type="button" onClick=\{onCancel\} disabled=\{isSaving\} aria-busy=\{isSaving\} aria-label=\{cancelButtonLabel\} title=\{cancelButtonLabel\}/);
   assert.match(formSource, /onClick=\{onCancel\}\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}[\s\S]*?className="btn btn-ghost btn-icon"/);
   assert.match(formSource, /type="submit" disabled=\{isSaving\} aria-busy=\{isSaving\} aria-label=\{submitButtonLabel\} title=\{submitButtonLabel\}/);
+});
+
+test('cattle form normalizes malformed building payloads before rendering', () => {
+  const formSource = readSource('components/forms/CattleForm.js');
+
+  assert.match(formSource, /import \{ useEffect, useMemo, useRef, useState \} from 'react';/);
+  assert.match(formSource, /function normalizeCattleFormBuildings\(buildings\) \{/);
+  assert.match(formSource, /return Array\.isArray\(buildings\)/);
+  assert.match(formSource, /\.filter\(\(building\) => building && typeof building === 'object'\)/);
+  assert.match(formSource, /id: building\.id \?\? `cattle-building-\$\{index\}`/);
+  assert.match(formSource, /'축사명 미등록'/);
+  assert.match(formSource, /const safeBuildings = useMemo\(\(\) => normalizeCattleFormBuildings\(buildings\), \[buildings\]\);/);
+  assert.match(formSource, /defaultValues: createCattleFormValues\(cattle, safeBuildings\)/);
+  assert.match(formSource, /reset\(createCattleFormValues\(cattle, safeBuildings\)\);/);
+  assert.match(formSource, /\}, \[safeBuildings, cattle, reset\]\);/);
+  assert.match(formSource, /safeBuildings\.map\(\(building\) => \(/);
+  assert.doesNotMatch(formSource, /createCattleFormValues\(cattle, buildings\)/);
+  assert.doesNotMatch(formSource, /buildings\.map\(\(building\) => \(/);
 });
 
 test('cattle detail breeding records wait for async saves before re-enabling submit actions', () => {

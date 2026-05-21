@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
@@ -20,6 +20,18 @@ function toIsoDateOrNull(value) {
   return inputDate ? new Date(`${inputDate}T00:00:00.000Z`).toISOString() : null;
 }
 
+function normalizeCattleFormBuildings(buildings) {
+  return Array.isArray(buildings)
+    ? buildings
+        .filter((building) => building && typeof building === 'object')
+        .map((building, index) => ({
+          ...building,
+          id: building.id ?? `cattle-building-${index}`,
+          name: typeof building.name === 'string' && building.name.trim() ? building.name : '축사명 미등록',
+        }))
+    : [];
+}
+
 export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel }) {
   const dialogRef = useRef(null);
   const lookupInFlightRef = useRef(false);
@@ -34,6 +46,8 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
   const cancelButtonLabel = isSaving ? '개체 저장 중에는 취소할 수 없습니다' : '개체 저장 취소';
   const submitButtonLabel = isSaving ? '개체 정보 저장 중' : '개체 정보 저장';
 
+  const safeBuildings = useMemo(() => normalizeCattleFormBuildings(buildings), [buildings]);
+
   const {
     register,
     handleSubmit,
@@ -43,18 +57,18 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
     formState: { errors },
   } = useForm({
     resolver: zodResolver(cattleFormSchema),
-    defaultValues: createCattleFormValues(cattle, buildings),
+    defaultValues: createCattleFormValues(cattle, safeBuildings),
   });
 
   useEffect(() => {
-    reset(createCattleFormValues(cattle, buildings));
+    reset(createCattleFormValues(cattle, safeBuildings));
     lookupRequestIdRef.current += 1;
     lookupInFlightRef.current = false;
     setLookupLoading(false);
     setLookupMsg(null);
     setIsSaving(false);
     saveInFlightRef.current = false;
-  }, [buildings, cattle, reset]);
+  }, [safeBuildings, cattle, reset]);
 
   useEffect(() => {
     dialogRef.current?.focus();
@@ -306,7 +320,7 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
             <div>
               <label htmlFor="cattle-building" style={labelStyle}>축사</label>
               <select id="cattle-building" className="input" style={inputStyle} aria-invalid={Boolean(errors.buildingId)} aria-describedby={errors.buildingId ? "cattle-building-error" : undefined} {...register('buildingId')}>
-                {buildings.map((building) => (
+                {safeBuildings.map((building) => (
                   <option key={building.id} value={building.id}>
                     {building.name}
                   </option>
