@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` fallback monthly sales count rejects impossible sale-date strings. `DashboardClient` routes fallback monthly sales count dates through `toValidCalendarDate()`, preventing inputs such as `2026-02-31` from rolling forward through JavaScript `Date` parsing and inflating the home monthly 출하 count. Verification passed: focused home/market source test (`25 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 236, lint, build), and staged `code_review_gate --json`.
+
 - As of 2026-05-21, `hanwoo-dashboard` market-price snapshots tolerate missing side objects. `MarketPriceWidget` normalizes incoming price snapshots so missing `bull` or `cow` side objects become empty objects before rendering, preventing partial cached/live market data from crashing the home price widget. Verification passed: focused home/market source test (`25 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo test/lint (`test` 236, lint), build retry after a concurrent Next build lock, and staged `code_review_gate --json`.
 
 - As of 2026-05-21, `hanwoo-dashboard` dashboard list pagination cursor dates are safe for malformed sort values. `list-queries.js` builds next-page cursor sort values through `toCursorSortValue()` and closes pagination gracefully when the last item has a malformed `updatedAt` or `saleDate`, preventing raw `new Date(lastItem[sortField]).toISOString()` from turning cattle/sales list pagination into a 500. Verification passed: focused dashboard list cursor date source test (`1 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 236, lint, build), and staged `code_review_gate --json`.
