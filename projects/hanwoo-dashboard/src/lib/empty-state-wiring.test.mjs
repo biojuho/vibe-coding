@@ -273,6 +273,20 @@ test('inventory quantity edit preserves input when async save fails', () => {
   assert.match(source, /setEditId\(null\);\s+setEditQty\(''\);/);
 });
 
+test('inventory create form waits for async saves before re-enabling submit', () => {
+  const source = readSource('components/tabs/InventoryTab.js');
+
+  assert.match(source, /const saveInFlightRef = useRef\(false\)/);
+  assert.match(source, /const submitButtonLabel = isSaving \? '재고 등록 중' : '재고 등록하기';/);
+  assert.match(source, /const submitNewItem = async \(values\) => \{/);
+  assert.match(source, /if \(saveInFlightRef\.current\) \{\s+return;\s+\}/);
+  assert.match(source, /saveInFlightRef\.current = true;/);
+  assert.match(source, /setIsSaving\(true\);/);
+  assert.match(source, /const saved = await onAddItem\(values\);/);
+  assert.match(source, /finally \{\s+saveInFlightRef\.current = false;\s+setIsSaving\(false\);/);
+  assert.match(source, /type="submit"\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}\s+aria-label=\{submitButtonLabel\}\s+title=\{submitButtonLabel\}/);
+});
+
 test('inventory quantity edit controls use Korean task labels', () => {
   const source = readSource('components/tabs/InventoryTab.js');
 
