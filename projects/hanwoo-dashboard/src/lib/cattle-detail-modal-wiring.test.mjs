@@ -169,11 +169,15 @@ test('cattle form waits for async saves before re-enabling submit actions', () =
   const formSource = readSource('components/forms/CattleForm.js');
 
   assert.match(formSource, /const \[isSaving, setIsSaving\] = useState\(false\)/);
+  assert.match(formSource, /const saveInFlightRef = useRef\(false\)/);
+  assert.match(formSource, /saveInFlightRef\.current = false;\s+\}, \[buildings, cattle, reset\]\);/);
   assert.match(formSource, /setIsSaving\(false\);/);
   assert.match(formSource, /const submitForm = async \(values\) => \{/);
+  assert.match(formSource, /if \(saveInFlightRef\.current\) \{\s+return;\s+\}/);
+  assert.match(formSource, /saveInFlightRef\.current = true;/);
   assert.match(formSource, /setIsSaving\(true\);/);
   assert.match(formSource, /await onSubmit\(\{/);
-  assert.match(formSource, /finally \{\s*setIsSaving\(false\);/);
+  assert.match(formSource, /finally \{\s*saveInFlightRef\.current = false;\s+setIsSaving\(false\);/);
   assert.match(formSource, /type="button" onClick=\{onCancel\} disabled=\{isSaving\}/);
   assert.match(formSource, /type="submit" disabled=\{isSaving\} aria-busy=\{isSaving\}/);
 });

@@ -17,6 +17,7 @@ const errorTextStyle = {
 export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel }) {
   const dialogRef = useRef(null);
   const lookupInFlightRef = useRef(false);
+  const saveInFlightRef = useRef(false);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupMsg, setLookupMsg] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -39,6 +40,7 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
     reset(createCattleFormValues(cattle, buildings));
     setLookupMsg(null);
     setIsSaving(false);
+    saveInFlightRef.current = false;
   }, [buildings, cattle, reset]);
 
   useEffect(() => {
@@ -100,6 +102,11 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
   };
 
   const submitForm = async (values) => {
+    if (saveInFlightRef.current) {
+      return;
+    }
+
+    saveInFlightRef.current = true;
     setIsSaving(true);
 
     try {
@@ -115,6 +122,7 @@ export default function CattleForm({ cattle, buildings = [], onSubmit, onCancel 
         purchaseDate: values.purchaseDate ? new Date(values.purchaseDate).toISOString() : null,
       });
     } finally {
+      saveInFlightRef.current = false;
       setIsSaving(false);
     }
   };
