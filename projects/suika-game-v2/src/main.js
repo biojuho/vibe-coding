@@ -30,7 +30,8 @@ import {
 } from './prng.js';
 
 import {
-    loadDailyStats, recordDailyResult, hasPlayedToday, buildResultCard
+    loadDailyStats, recordDailyResult, hasPlayedToday, buildResultCard,
+    getStatsSummary
 } from './daily.js';
 
 import { drawShareCard } from './sharecard.js';
@@ -235,6 +236,50 @@ function renderGameOverSummary() {
     } else {
         setText('daily-streak-result', '프리 플레이 — 기록은 저장되지 않습니다');
     }
+}
+
+/** Populate and show the Daily Stats overlay. */
+function openStats() {
+    const summary = getStatsSummary(dailyStats);
+    setText('stat-streak', String(summary.currentStreak));
+    setText('stat-maxstreak', String(summary.maxStreak));
+    setText('stat-games', String(summary.gamesPlayed));
+    setText('stat-best', summary.bestDailyScore.toLocaleString('en-US'));
+
+    const list = getElement('stats-recent-list');
+    if (list) {
+        list.replaceChildren();
+        if (summary.recent.length === 0) {
+            const li = document.createElement('li');
+            li.className = 'stats-empty';
+            li.textContent = '아직 기록이 없어요. 첫 챌린지에 도전하세요!';
+            list.appendChild(li);
+        } else {
+            for (const r of summary.recent) {
+                const fruit =
+                    FRUITS[Math.min(r.topLevel, FRUITS.length - 1)] ||
+                    FRUITS[0];
+                const li = document.createElement('li');
+                const chal = document.createElement('span');
+                chal.className = 'recent-chal';
+                chal.textContent = `#${r.challenge}`;
+                const emoji = document.createElement('span');
+                emoji.className = 'recent-fruit';
+                emoji.textContent = fruit.label;
+                const sc = document.createElement('span');
+                sc.className = 'recent-score';
+                sc.textContent = `${r.score.toLocaleString('en-US')}점`;
+                li.append(chal, emoji, sc);
+                list.appendChild(li);
+            }
+        }
+    }
+    setOverlayHidden('stats-screen', false);
+}
+
+/** Hide the Daily Stats overlay. */
+function closeStats() {
+    setOverlayHidden('stats-screen', true);
 }
 
 /**
@@ -461,6 +506,16 @@ function setupUIEvents() {
             if (mode) setGameMode(mode);
         });
     });
+
+    const statsButton = getElement('stats-btn');
+    if (statsButton) {
+        statsButton.addEventListener('click', openStats);
+    }
+
+    const statsCloseButton = getElement('stats-close-btn');
+    if (statsCloseButton) {
+        statsCloseButton.addEventListener('click', closeStats);
+    }
 
     const leaveBtn = getElement('leave-btn');
     if (leaveBtn) {

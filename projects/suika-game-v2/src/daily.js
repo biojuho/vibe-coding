@@ -8,6 +8,9 @@ import { FRUITS } from './config.js';
 
 export const DAILY_STATS_KEY = 'suika_v2_daily_stats';
 
+// How many past daily results to retain for the stats screen.
+export const HISTORY_CAP = 30;
+
 /** Shape of a freshly-initialised stats record. */
 export function emptyStats() {
     return {
@@ -19,6 +22,8 @@ export function emptyStats() {
         bestDailyScore: 0,
         // most recent finished result, used to render "already played" UI
         today: null, // { day, challenge, score, topLevel }
+        // one entry per played day (best score), oldest first, capped
+        history: [], // [{ day, challenge, score, topLevel }]
     };
 }
 
@@ -53,19 +58,13 @@ export function daysBetween(a, b) {
 export function computeUpdatedStats(prev, result) {
     const stats = { ...emptyStats(), ...prev };
     const { day, challenge, score, topLevel } = result;
+    const isSameDay = stats.lastPlayedDay === day;
 
-    if (stats.lastPlayedDay === day) {
-        // Replaying the same day: keep the streak, remember the better score.
-        const bestToday = Math.max(stats.today ? stats.today.score : 0, score);
-        return {
-            ...stats,
-            today: { day, challenge, score: bestToday, topLevel },
-            bestDailyScore: Math.max(stats.bestDailyScore, score),
-        };
-    }
-
+    // Streak transition.
     let streak;
-    if (stats.lastPlayedDay === null) {
+    if (isSameDay) {
+        streak = stats.currentStreak; // replay - streak unchanged
+    } else if (stats.lastPlayedDay === null) {
         streak = 1;
     } else if (daysBetween(stats.lastPlayedDay, day) === 1) {
         streak = stats.currentStreak + 1;
@@ -73,14 +72,49 @@ export function computeUpdatedStats(prev, result) {
         streak = 1; // gap (or clock moved backwards) breaks the streak
     }
 
+    // `today` keeps the best score for the current day.
+    const prevBestToday = isSameDay && stats.today ? stats.today.score : 0;
+    const today =
+        score >= prevBestToday
+            ? { day, challenge, score, topLevel }
+            : stats.today;
+
+    // `history` holds one entry per day; its last entry mirrors `today`.
+    let history = stats.history.slice();
+    const last = history[history.length - 1];
+    if (last && last.day === day) {
+        history[history.length - 1] = today;
+    } else {
+        history.push(today);
+    }
+    history = history.slice(-HISTORY_CAP);
+
     return {
         lastPlayedDay: day,
         lastChallenge: challenge,
         currentStreak: streak,
         maxStreak: Math.max(stats.maxStreak, streak),
-        gamesPlayed: stats.gamesPlayed + 1,
+        gamesPlayed: isSameDay ? stats.gamesPlayed : stats.gamesPlayed + 1,
         bestDailyScore: Math.max(stats.bestDailyScore, score),
-        today: { day, challenge, score, topLevel },
+        today,
+        history,
+    };
+}
+
+/**
+ * Reduce a stats record to a display-ready summary for the stats screen.
+ * @param {object} stats
+ * @returns {{currentStreak:number, maxStreak:number, gamesPlayed:number,
+ *            bestDailyScore:number, recent:object[]}}
+ */
+export function getStatsSummary(stats) {
+    const s = { ...emptyStats(), ...stats };
+    return {
+        currentStreak: s.currentStreak,
+        maxStreak: s.maxStreak,
+        gamesPlayed: s.gamesPlayed,
+        bestDailyScore: s.bestDailyScore,
+        recent: s.history.slice().reverse().slice(0, 7), // newest first
     };
 }
 

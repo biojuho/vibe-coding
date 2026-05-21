@@ -78,6 +78,7 @@
             <button id="start-btn" class="btn btn-primary">
                 <span>🎮 Game Start</span>
             </button>
+            <button id="stats-btn" class="btn btn-secondary btn-compact" type="button">📊 통계</button>
         </div>
 
         <!-- Game Over Screen -->
@@ -92,6 +93,34 @@
                 <button id="share-btn" class="btn btn-secondary">📤 결과 공유</button>
                 <button id="restart-btn" class="btn btn-primary">🔄 다시 도전</button>
             </div>
+        </div>
+
+        <!-- Stats Screen -->
+        <div id="stats-screen" class="fullscreen-overlay hidden">
+            <h1 class="title">통계</h1>
+            <div class="stats-grid glass-panel">
+                <div class="stat-cell">
+                    <span class="stat-num" id="stat-streak">0</span>
+                    <span class="stat-cap">현재 연속</span>
+                </div>
+                <div class="stat-cell">
+                    <span class="stat-num" id="stat-maxstreak">0</span>
+                    <span class="stat-cap">최고 연속</span>
+                </div>
+                <div class="stat-cell">
+                    <span class="stat-num" id="stat-games">0</span>
+                    <span class="stat-cap">플레이</span>
+                </div>
+                <div class="stat-cell">
+                    <span class="stat-num" id="stat-best">0</span>
+                    <span class="stat-cap">최고 점수</span>
+                </div>
+            </div>
+            <div class="stats-recent glass-panel">
+                <h3 class="stats-recent-title">최근 기록</h3>
+                <ul id="stats-recent-list"></ul>
+            </div>
+            <button id="stats-close-btn" class="btn btn-primary">닫기</button>
         </div>
 
         <!-- Exit Intent Modal -->

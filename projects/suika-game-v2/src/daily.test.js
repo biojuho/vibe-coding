@@ -5,10 +5,12 @@ import {
     computeUpdatedStats,
     hasPlayedToday,
     buildResultCard,
+    getStatsSummary,
     loadDailyStats,
     saveDailyStats,
     recordDailyResult,
     DAILY_STATS_KEY,
+    HISTORY_CAP,
 } from './daily.js';
 
 describe('daysBetween', () => {
@@ -193,5 +195,95 @@ describe('localStorage persistence', () => {
         });
         expect(out.currentStreak).toBe(1);
         expect(loadDailyStats().today.score).toBe(500);
+    });
+});
+
+describe('history accumulation', () => {
+    const play = (stats, day, challenge, score, topLevel = 3) =>
+        computeUpdatedStats(stats, { day, challenge, score, topLevel });
+
+    it('appends one entry per distinct day', () => {
+        let s = play(emptyStats(), '2026-05-21', 141, 100);
+        s = play(s, '2026-05-22', 142, 200);
+        s = play(s, '2026-05-23', 143, 300);
+        expect(s.history).toHaveLength(3);
+        expect(s.history.map((h) => h.challenge)).toEqual([141, 142, 143]);
+    });
+
+    it('updates the same day in place rather than appending', () => {
+        let s = play(emptyStats(), '2026-05-21', 141, 100);
+        s = play(s, '2026-05-21', 141, 900);
+        expect(s.history).toHaveLength(1);
+        expect(s.history[0].score).toBe(900);
+    });
+
+    it('keeps the better score on a same-day replay', () => {
+        let s = play(emptyStats(), '2026-05-21', 141, 900);
+        s = play(s, '2026-05-21', 141, 200);
+        expect(s.history[0].score).toBe(900);
+    });
+
+    it('caps history at HISTORY_CAP entries, keeping the most recent', () => {
+        let s = emptyStats();
+        for (let i = 0; i < HISTORY_CAP + 15; i++) {
+            s = play(s, `day-${i}`, i, i * 10); // synthetic distinct days
+        }
+        expect(s.history.length).toBe(HISTORY_CAP);
+        expect(s.history[s.history.length - 1].challenge).toBe(
+            HISTORY_CAP + 14,
+        );
+    });
+
+    it('history last entry mirrors today', () => {
+        const s = play(emptyStats(), '2026-05-21', 141, 555, 6);
+        expect(s.history[s.history.length - 1]).toEqual(s.today);
+    });
+});
+
+describe('getStatsSummary', () => {
+    it('returns zeroed summary for empty stats', () => {
+        const sum = getStatsSummary(emptyStats());
+        expect(sum).toEqual({
+            currentStreak: 0,
+            maxStreak: 0,
+            gamesPlayed: 0,
+            bestDailyScore: 0,
+            recent: [],
+        });
+    });
+
+    it('reports streak, games and best score', () => {
+        let s = computeUpdatedStats(emptyStats(), {
+            day: '2026-05-21',
+            challenge: 141,
+            score: 1200,
+            topLevel: 5,
+        });
+        s = computeUpdatedStats(s, {
+            day: '2026-05-22',
+            challenge: 142,
+            score: 800,
+            topLevel: 4,
+        });
+        const sum = getStatsSummary(s);
+        expect(sum.currentStreak).toBe(2);
+        expect(sum.gamesPlayed).toBe(2);
+        expect(sum.bestDailyScore).toBe(1200);
+    });
+
+    it('lists recent results newest-first, capped at 7', () => {
+        let s = emptyStats();
+        for (let i = 0; i < 10; i++) {
+            s = computeUpdatedStats(s, {
+                day: `day-${i}`,
+                challenge: i,
+                score: i * 100,
+                topLevel: 2,
+            });
+        }
+        const sum = getStatsSummary(s);
+        expect(sum.recent).toHaveLength(7);
+        expect(sum.recent[0].challenge).toBe(9); // newest first
+        expect(sum.recent[6].challenge).toBe(3);
     });
 });
