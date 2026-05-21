@@ -33,6 +33,8 @@
 
 ## Current Reliability Notes
 
+- As of 2026-05-21, `hanwoo-dashboard` offline sync exception state uses stable Korean retry copy. `syncManager.js` no longer persists raw thrown `Error.message` values into retry/dead-letter queue state; catch-path exceptions now use `오프라인 요청을 동기화하지 못했습니다. 잠시 후 다시 시도해 주세요.` while explicit action failure messages remain intact. Verification passed: focused sync-manager copy test (`1 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 240, lint, build), and staged `code_review_gate --json`.
+
 - As of 2026-05-21, `hanwoo-dashboard` dashboard list API validation failures return stable Korean operator-facing copy. `/api/dashboard/cattle` and `/api/dashboard/sales` map `DashboardQueryValidationError` 400s to fixed route-level messages instead of echoing `error.message`, keeping cattle/sales pagination and list API failures consistent with the rest of the dashboard fallback surface. Verification passed: focused home/market copy test (`25 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 239, lint, build), and staged `code_review_gate --json`.
 
 - As of 2026-05-21, `hanwoo-dashboard` AI chat recent-sale dates reject impossible calendar inputs before reaching the assistant prompt. `/api/ai/chat` `formatSaleDateForContext()` round-trips string `YYYY-MM-DD` date keys before returning ISO text, preventing values such as `2026-02-31T00:00:00.000Z` from rolling forward through JavaScript `Date` parsing into false sale context; invalid values fall back to `출하일 미등록`. Verification passed: focused AI chat API/source test (`8 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 239, lint, build), and staged `code_review_gate --json`.
