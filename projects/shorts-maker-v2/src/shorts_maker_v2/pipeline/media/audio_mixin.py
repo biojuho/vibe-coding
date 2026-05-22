@@ -7,12 +7,12 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from shorts_maker_v2.config import AppConfig
 
-from shorts_maker_v2.providers.edge_tts_client import EdgeTTSClient
+from shorts_maker_v2.providers.tts_factory import TTSFactory
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,7 @@ class MediaAudioMixin:
 
     config: AppConfig
     _tts_voice: str
+    openai_client: Any
 
     def _generate_audio(self, narration_ko: str, output_path: Path, *, role: str = "body") -> Path:
         """TTS 프로바이더 라우팅 → 오디오 생성 + Whisper sync."""
@@ -33,60 +34,25 @@ class MediaAudioMixin:
         tts_provider = self.config.providers.tts
         words_json_path = output_path.parent / f"{output_path.stem}_words.json"
 
-        # TTS 프로바이더 라우팅 (cascade: 선택 프로바이더 → edge-tts fallback)
-        if tts_provider == "chatterbox":
-            audio_result = self._try_tts_with_fallback(
-                narration_ko,
-                output_path,
-                words_json_path,
-                voice,
-                role,
-                primary="chatterbox",
-            )
-        elif tts_provider == "cosyvoice":
-            audio_result = self._try_tts_with_fallback(
-                narration_ko,
-                output_path,
-                words_json_path,
-                voice,
-                role,
-                primary="cosyvoice",
-            )
-        elif tts_provider == "openvoice":
-            audio_result = self._try_tts_with_fallback(
-                narration_ko,
-                output_path,
-                words_json_path,
-                voice,
-                role,
-                primary="openvoice",
-            )
-        elif tts_provider == "edge-tts":
-            audio_result = EdgeTTSClient().generate_tts(
-                model=self.config.providers.tts_model,
-                voice=voice,
-                speed=self.config.providers.tts_speed,
-                text=narration_ko,
-                output_path=output_path,
-                words_json_path=words_json_path,
-                role=role,
-                language=self.config.project.language,
-            )
-        else:
-            audio_result = self.openai_client.generate_tts(
-                model=self.config.providers.tts_model,
-                voice=voice,
-                speed=self.config.providers.tts_speed,
-                text=narration_ko,
-                output_path=output_path,
-            )
+        # Delegate TTS generation to TTSFactory
+        audio_result = TTSFactory.generate_tts_with_fallback(
+            config=self.config,
+            tts_provider=tts_provider,
+            text=narration_ko,
+            output_path=output_path,
+            words_json_path=words_json_path,
+            voice=voice,
+            role=role,
+            channel_key=getattr(self, "_channel_key", ""),
+            openai_client=getattr(self, "openai_client", None),
+        )
 
         # chatterbox/cosyvoice/openvoice/edge-tts는 자체적으로 _words.json을 생성
         # OpenAI TTS만 Whisper fallback 필요
         if (
             tts_provider not in {"edge-tts", "chatterbox", "cosyvoice", "openvoice"}
             and self.config.audio.sync_with_whisper
-            and self.openai_client
+            and getattr(self, "openai_client", None)
         ):
             try:
                 import json
@@ -98,107 +64,3 @@ class MediaAudioMixin:
                 logger.warning("[MediaStep] Whisper sync 실패 (자막 동기화 스킵): %s", exc)
 
         return audio_result
-
-    def _try_tts_with_fallback(
-        self,
-        text: str,
-        output_path: Path,
-        words_json_path: Path,
-        voice: str,
-        role: str,
-        *,
-        primary: str,
-    ) -> Path:
-        """프리미엄 TTS 시도 → 실패 시 edge-tts fallback."""
-
-        try:
-            if primary == "chatterbox":
-                from shorts_maker_v2.providers.chatterbox_client import (
-                    ChatterboxTTSClient,
-                    is_chatterbox_available,
-                )
-
-                if not is_chatterbox_available():
-                    raise ImportError("chatterbox-tts not installed")
-                client = ChatterboxTTSClient(
-                    ref_audio_path=getattr(self.config.providers, "tts_ref_audio", None),
-                )
-                return client.generate_tts(
-                    model=self.config.providers.tts_model,
-                    voice=voice,
-                    speed=self.config.providers.tts_speed,
-                    text=text,
-                    output_path=output_path,
-                    words_json_path=words_json_path,
-                    role=role,
-                    channel_key=getattr(self, "_channel_key", ""),
-                    language=self.config.project.language,
-                )
-
-            elif primary == "cosyvoice":
-                from shorts_maker_v2.providers.cosyvoice_client import (
-                    CosyVoiceTTSClient,
-                    is_cosyvoice_available,
-                )
-
-                if not is_cosyvoice_available():
-                    raise ImportError("cosyvoice not installed")
-                client = CosyVoiceTTSClient(
-                    ref_audio_path=getattr(self.config.providers, "tts_ref_audio", None),
-                    ref_audio_text=getattr(self.config.providers, "tts_ref_audio_text", ""),
-                )
-                return client.generate_tts(
-                    model=self.config.providers.tts_model,
-                    voice=voice,
-                    speed=self.config.providers.tts_speed,
-                    text=text,
-                    output_path=output_path,
-                    words_json_path=words_json_path,
-                    role=role,
-                    channel_key=getattr(self, "_channel_key", ""),
-                    language=self.config.project.language,
-                )
-
-            elif primary == "openvoice":
-                from shorts_maker_v2.providers.openvoice_client import (
-                    OpenVoiceTTSClient,
-                    is_openvoice_available,
-                )
-
-                if not is_openvoice_available():
-                    raise ImportError("openvoice not installed")
-                client = OpenVoiceTTSClient(
-                    checkpoint_dir=getattr(self.config.providers, "tts_openvoice_checkpoint_dir", "checkpoints_v2"),
-                    ref_audio_path=getattr(self.config.providers, "tts_ref_audio", None),
-                )
-                return client.generate_tts(
-                    model=self.config.providers.tts_model,
-                    voice=voice,
-                    speed=self.config.providers.tts_speed,
-                    text=text,
-                    output_path=output_path,
-                    words_json_path=words_json_path,
-                    role=role,
-                    channel_key=getattr(self, "_channel_key", ""),
-                    language=self.config.project.language,
-                )
-
-        except Exception as exc:
-            logger.warning(
-                "[MediaStep] %s TTS 실패 → edge-tts fallback: %s",
-                primary,
-                exc,
-            )
-            output_path.unlink(missing_ok=True)
-
-        # edge-tts fallback
-        return EdgeTTSClient().generate_tts(
-            model=self.config.providers.tts_model,
-            voice=voice,
-            speed=self.config.providers.tts_speed,
-            text=text,
-            output_path=output_path,
-            words_json_path=words_json_path,
-            role=role,
-            language=self.config.project.language,
-        )

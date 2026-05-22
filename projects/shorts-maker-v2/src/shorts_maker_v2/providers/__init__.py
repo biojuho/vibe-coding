@@ -5,6 +5,7 @@ from shorts_maker_v2.providers.openai_client import OpenAIClient
 from shorts_maker_v2.providers.pexels_client import PexelsClient
 from shorts_maker_v2.providers.stock_media_manager import StockMediaManager
 from shorts_maker_v2.providers.unsplash_client import UnsplashClient
+from shorts_maker_v2.providers.tts_factory import TTSFactory
 
 __all__ = [
     "OpenAIClient",
@@ -14,4 +15,5 @@ __all__ = [
     "UnsplashClient",
     "StockMediaManager",
     "FreesoundClient",
+    "TTSFactory",
 ]
