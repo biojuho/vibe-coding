@@ -1,5 +1,26 @@
 # 📋 AI 세션 로그
 
+## 2026-05-23 | Claude | 스킬↔코드 정합성 — safe-zone QC 자막 높이 픽셀 측정 (T-410)
+
+### 작업 요약
+"개발된 스킬 대비 부족한 부분을 찾아 최고의 제품으로" 목표 이어서 수행. `shorts-subtitle-safezone` 스킬이 안티패턴으로 명시 금지한 "문자 수 기반 줄 수 추정"을 `gate_safe_zone` QC 게이트가 그대로 쓰고 있던 갭을 발견·수정. 자막 높이를 실제 렌더러와 동일한 픽셀 측정으로 산출하도록 교체.
+
+### 주요 작업
+- **T-410 (`1aeb9eaa`)** safe-zone QC 픽셀 측정 — `gate_safe_zone`이 자막 높이를 `len(narration_ko)//20` 줄로 추정했다. 한글·영문 글자 폭이 달라 같은 글자 수도 줄 수가 다르므로 부정확하며, `shorts-subtitle-safezone` 스킬이 금지하는 안티패턴이다. 게다가 자막 mode를 무시해 karaoke 모드의 긴 나레이션(청크 단위 한 줄 렌더)을 다줄 세로 오버플로우로 오탐했다. `caption_pillow.py`에 `estimate_caption_height()` 신설 — `render_caption_image`(static)/`render_karaoke_image`(karaoke)의 레이아웃 산식을 2x 슈퍼샘플링·`//scale` 다운샘플까지 그대로 재현해 실제 렌더 PNG와 픽셀 단위로 일치. `gate_safe_zone`에 `canvas_width` + 역할별 `styles` 인자 추가, orchestrator가 RenderStep의 hook/body/cta/closing 스타일과 config 해상도를 넘겨 QC가 실제 폰트·여백·글로우·모드로 측정.
+
+### 검증
+- `pytest --no-cov tests/unit tests/integration` — exit 0 (전부 통과, 회귀 없음)
+- `ruff check` + `ruff format --check` — 변경 파일 전부 clean
+- 드리프트 가드: `TestEstimateCaptionHeight`가 `estimate_caption_height` 반환값을 실제 렌더 PNG 높이와 `==`(정확 일치)로 비교 — static 단/다줄·glow·karaoke 4케이스
+
+### 변경 파일
+- 수정: `src/shorts_maker_v2/render/caption_pillow.py`, `src/shorts_maker_v2/pipeline/qc_step.py`, `src/shorts_maker_v2/pipeline/orchestrator.py`, `tests/unit/test_safe_zone_qc.py`, `tests/unit/test_caption_pillow.py`
+
+### 지뢰밭 발견
+- **`estimate_caption_height`는 렌더 함수 산식의 복제다.** `render_caption_image`/`render_karaoke_image`의 패딩·스케일·spacing 산식을 바꾸면 `estimate_caption_height`도 함께 고쳐야 한다. `test_caption_pillow.py::TestEstimateCaptionHeight`가 렌더 PNG와 `==`로 비교하므로 드리프트는 CI가 잡지만, 렌더 수정 시 함께 손볼 것.
+
+---
+
 ## 2026-05-22 | Claude | 스킬↔코드 정합성 — T-407 회귀 수정 + TTS 스킬 드리프트 가드 (T-408~T-409)
 
 ### 작업 요약
