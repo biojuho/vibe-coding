@@ -11,6 +11,9 @@
 
 ## DONE
 
+- [x] T-323 Surface `gate_safe_zone` QC HOLD in `manifest.degraded_steps` + add direct `gate_safe_zone` regression tests (2026-05-22, Claude) — `9e8531da`
+- [x] T-322 Stamp `scene_id` on media failure records for per-scene traceability in `manifest.failed_steps` (2026-05-22, Claude) — `ce5808a2`
+- [x] T-321 Ship synthetic-audience retention simulator with closed-loop auto-fix (`retention_simulator`/`retention_autofix`/`retention_report`) (2026-05-22, Claude) — `e194784b`
 - [x] T-320 Integrate OpenVoice v2 local high-fidelity voice cloning backend with MeloTTS, fallback to edge-tts, configure config.py & audio_mixin.py, and add unit tests (2026-05-20, Antigravity)
 - [x] T-085 Add a render-step regression check for hook captions when `center_hook=False` so lower-third placement is validated beyond the helper math (2026-03-29, Codex)
 - [x] T-084 Wire `center_hook` into `calculate_safe_position()` with safe-zone-aware lower-third hook placement and regression coverage (2026-03-29, Codex)

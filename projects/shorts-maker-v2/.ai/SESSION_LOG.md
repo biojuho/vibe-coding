@@ -1,5 +1,28 @@
 # 📋 AI 세션 로그
 
+## 2026-05-22 | Claude | 제품 완성도 개선 — 리텐션 출하 + 에러 가시성 + QC 게이트 강화 (T-321~T-323)
+
+### 작업 요약
+"개발된 스킬 대비 부족한 부분을 찾아 최고의 제품으로" 라는 목표로 3개 트랙 수행. 미커밋 상태로 방치돼 있던 리텐션 시뮬레이터 기능을 검증 후 정식 출하하고, 파이프라인의 에러 가시성과 QC 게이트 표면화 갭 2건을 수정했다.
+
+### 주요 작업
+- **T-321 (`e194784b`)** 합성 시청자 리텐션 시뮬레이터 출하 — `retention_simulator.py`/`retention_autofix.py`/`retention_report.py` 신규 + orchestrator post/pre-asset 스테이지 통합 + config 5종. 5 페르소나 LLM 시뮬레이션 → 예측 리텐션 곡선, degraded 시 약한 씬 closed-loop 재작성. LLM 실패 시 휴리스틱 강등. 전부 opt-in(기본 False).
+- **T-322 (`ce5808a2`)** `media_step` 실패 레코드에 `scene_id` 각인 — `_process_one_scene` 단일 funnel 에서 setdefault 로 일괄 부여, Whisper word-sync 경고·`run_parallel` 예외에도 추가. `_sanitize_visual_prompt` 침묵 `except: pass` → debug 로그.
+- **T-323 (`9e8531da`)** `gate_safe_zone` QC HOLD(자막 안전영역 침범)를 `degraded_steps` 로 표면화 — 기존엔 jlog 경고로만 버려졌음. `QCStep.gate_safe_zone` 미검증 상태였어서 직접 회귀 테스트 3종 추가.
+
+### 검증
+- `pytest --no-cov` — retention 143 / media 32 / safe_zone 16 / orchestrator+qc 128 / 통합 3 전부 통과 (Green)
+- `ruff check` + `ruff format --check` — 변경 파일 전부 clean
+
+### 변경 파일
+- 신규: `pipeline/retention_simulator.py`, `pipeline/retention_autofix.py`, `utils/retention_report.py`, `tests/unit/test_retention_{simulator,autofix,report}.py`
+- 수정: `config.yaml`, `config.py`, `models.py`, `pipeline/orchestrator.py`, `pipeline/media_step.py`, `tests/unit/test_{config,orchestrator_unit,media_step_branches,safe_zone_qc}.py`
+
+### 지뢰밭 발견
+- 이 워크스페이스에는 git 작업 사이에 `.ai/*` 및 타 프로젝트 파일을 인덱스에 자동 스테이징하는 외부 프로세스가 있다. `git add` 후 `git commit` 는 무관 파일을 휩쓸어 커밋을 오염시킨다 → `git commit -- <명시적 경로>` partial commit 으로 인덱스를 우회할 것.
+
+---
+
 ## 2026-05-20 | Gemini (Antigravity) | OpenVoice v2 local voice cloning integration (T-320) & Test Mock Pollution Fix
 
 ### 작업 요약
