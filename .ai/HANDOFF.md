@@ -1,8 +1,29 @@
-﻿# HANDOFF - AI Context Relay
+# HANDOFF - AI Context Relay
 
 > See `SESSION_LOG.md` for recent session history and `DECISIONS.md` for stable architecture decisions.
 
 ## Current Addendum
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-22 |
+| Tool | Gemini (Antigravity) |
+| Work | **Daily Chores Celebration & Triumphant Chime completed**: Implemented a highly engaging, offline-first visual Confetti & Synthesizer Chime celebration for the Stables Checklist in `hanwoo-dashboard`. Appended `playTriumphantChime()` to `audio.js` to synthesize a warm major arpeggio C4-E4-G4-C5 using Web Audio API nodes. Integrated visual fireworks particles rendering on a dedicated Canvas overlay (`CelebrationCanvas`) inside `FieldModeView.js` with dynamic friction, gravity, multi-burst timing, and automatically dismissed fade loops. Toggling daily chores to 100% complete now automatically triggers the beautiful arpeggio, a 100ms tactile vibration, and visual particles celebration. Created static unit test `src/lib/field-mode-celebration.test.mjs` verifying clean exports, state wiring, checklist transitions, canvas blend mode, and particle simulation hooks. |
+| Next Priorities | Run on-field user testing to collect feedback. Keep existing offlineQueue, synchronizer, and pagination guards intact. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-22 |
+| Tool | Gemini (Antigravity) |
+| Work | **Monorepo QC Uplift completed**: Resolved the React Hook rule violation (`react-hooks/set-state-in-effect`) in `FieldModeView.js` by removing synchronous state setting inside `useEffect`, completing the `hanwoo-dashboard:lint` check. Initiated and verified a full monorepo QC sweep. All active projects (`blind-to-x`, `shorts-maker-v2`, `hanwoo-dashboard`, `knowledge-dashboard`) are now 100% clean and green across all unit tests, linters, and production builds. |
+| Next Priorities | Keep the premium Smart Field Mode stable; continue monitoring off-line cue buffers and test suites. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-22 |
+| Tool | Gemini (Antigravity) |
+| Work | **T-626 completed**: Implemented premium "Smart Field Mode" (현장용 스마트 모드) for stable operations in `hanwoo-dashboard`. Created custom Web Audio offline synthesizer (`audio.js`) for click, scan beep, error alarm, and vibration feedback. Built Canvas-based simulated OCR scanner modal (`EarTagScannerModal.js`) with laser sweeping and demo triggers, and a high contrast amber-glow HUD (`FieldModeView.js`) containing a daily stables chores checklist with dynamic `localStorage` daily resets. Integrated toggles in `DashboardClient.js` header and footers. Fixed import error for `PremiumButton`. Hardened `FieldModeView.js` React hooks to eliminate synchronous `setState` inside `useEffect` (resolving ESLint `react-hooks/set-state-in-effect` error). |
+| Next Priorities | Complete manual on-device testing. Keep existing pagination guards and offlineQueue mechanics intact. Maintain strict offline Web Audio oscillator synthesis. |
 
 | Field | Value |
 |---|---|
