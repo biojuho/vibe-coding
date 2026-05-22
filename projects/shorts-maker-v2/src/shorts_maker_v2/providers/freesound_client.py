@@ -32,13 +32,17 @@ BGM_ENERGY_TAGS: dict[str, str] = {
     "warm_uplifting": "upbeat acoustic positive cheerful motivating healthy lifestyle loop",
 }
 
-# 채널 ID → BGM 에너지 기본값 (channel_profiles.yaml와 동기)
+# 채널 ID → BGM 에너지 기본값.
+# download_bgm_for_channel()에 energy 인자를 명시하지 않았을 때만 쓰이는 폴백 값이다.
+# 대부분 channel_profiles.yaml의 bgm_energy와 일치하나, health는 의도적으로 다르다:
+# YAML은 "medium"(담담한 톤)이지만 Freesound 검색은 전용 "warm_uplifting" 키워드
+# 세트(BGM_ENERGY_TAGS 참조)가 더 나은 결과를 주므로 여기서 오버라이드한다.
 CHANNEL_BGM_ENERGY: dict[str, str] = {
     "ai_tech": "high",
     "psychology": "calm",
     "history": "medium",
     "space": "epic",
-    "health": "warm_uplifting",  # medium → warm_uplifting (밝고 편안한 톤)
+    "health": "warm_uplifting",  # YAML은 "medium" — 의도적 오버라이드 (위 주석 참조)
 }
 
 

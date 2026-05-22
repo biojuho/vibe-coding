@@ -13,15 +13,23 @@ description: >
 - **AI 티 최소화**: 단일 rate/pitch 고정 → 채널별 변주 폭(±Hz, ±%)으로 생동감
 - **역할(role)별 prosody**: hook은 빠르고 임팩트 있게, cta는 느리고 친근하게
 
-## 채널별 音聲 매핑 (channel_profiles.yaml 기준)
+## 채널별 音聲 매핑 (channel_profiles.yaml `tts_voice` 기준)
+
+> **SSOT**: `channel_profiles.yaml`의 각 채널 `tts_voice` 키. 아래 표는 그 값을
+> 미러링한 것이며, `tests/unit/test_skill_config_consistency.py`가 표와 YAML의
+> 일치를 자동 검증한다. 음성을 바꾸려면 YAML을 고치고 이 표도 함께 갱신할 것.
 
 | 채널 | 음성 (Edge TTS) | 특성 |
 |------|----------------|------|
-| ai_tech | ko-KR-HyunsuNeural | 명확하고 현대적인 남성 목소리 |
-| history | ko-KR-InJoonNeural | 무게감 있는 남성 서술체 |
-| psychology | ko-KR-SunHiNeural | 따뜻하고 부드러운 여성 목소리 |
-| space | ko-KR-HyunsuNeural | 웅장하고 침착한 톤 |
-| health | ko-KR-SoonBokNeural | 신뢰감 있는 여성 전문가 톤 |
+| ai_tech | ko-KR-InJoonNeural | 남성, 강하고 권위적 → 뉴스 앵커 느낌 |
+| psychology | ko-KR-SoonBokNeural | 여성, 부드럽고 안정적 |
+| history | ko-KR-BongJinNeural | 남성, 따뜻하고 친근한 이야기꾼 |
+| space | ko-KR-HyunsuNeural | 남성, 차분하고 지적 → 다큐멘터리 내레이터 |
+| health | ko-KR-HyunsuNeural | 남성, 차분하고 지적 → 의사 느낌 |
+
+위 값은 각 채널의 **기본(base) 음성**이다. 채널마다 `tts_voice_roles`로
+hook/body/cta/closing 역할별 음성을 따로 지정할 수 있다 (예: `ai_tech`는
+body 역할에 `ko-KR-HyunsuNeural`을 사용). 역할별 음성도 SSOT는 YAML이다.
 
 ## 채널별 Prosody 변주 폭 (_CHANNEL_PROSODY)
 
@@ -36,13 +44,16 @@ _CHANNEL_PROSODY = {
 }
 ```
 
-## Hook / CTA 역할별 고정값
+## 역할별 prosody 고정값 (`_get_role_prosody`)
 
 | role | rate | pitch |
 |------|------|-------|
 | hook | +15% | 채널별 (+5~+10Hz) |
 | cta  | -10% | +5Hz |
+| closing | -15% | -2Hz |
 | body | base_rate ± jitter | ±jitter Hz |
+
+> `closing`은 여운 있는 마무리용 — 느리고 낮은 pitch로 차분하게 끝난다.
 
 ## Hook pitch 채널별 매핑
 ```python
@@ -74,7 +85,7 @@ client.generate_tts(
     speed=...,
     text=...,
     output_path=...,
-    role="hook",         # hook / body / cta
+    role="hook",         # hook / body / cta / closing
     channel_key="ai_tech",  # ← 반드시 전달해야 채널 prosody 적용됨
 )
 ```
