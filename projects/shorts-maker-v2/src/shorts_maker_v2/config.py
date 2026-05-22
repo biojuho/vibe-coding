@@ -34,6 +34,22 @@ class ProjectSettings:
     # specific 하게 잡는다. 기본 False — opt-in (지연/비용 추가).
     semantic_qc_enabled: bool = False
     semantic_qc_min_score: int = 6  # 0..10. 이 미만이면 degraded_steps 로 표면화.
+    # 합성 시청자 리텐션 시뮬레이션 (렌더 직전 LLM judge 1회 호출).
+    # N명의 시청자 페르소나가 씬 경계마다 이탈 여부를 판단 → 예측 리텐션 곡선.
+    # 기본 False — opt-in (지연/비용 추가). LLM 실패 시 휴리스틱으로 강등.
+    retention_sim_enabled: bool = False
+    retention_sim_min_retention: float = 0.55  # 0..1. 예측 리텐션이 이 미만이면 degraded.
+    # 리텐션 자가 치유(closed-loop): 시뮬레이션이 degraded 일 때 가장 약한 씬을
+    # LLM 이 재작성하고 재시뮬레이션으로 개선을 검증. 기본 False — opt-in.
+    # retention_sim_enabled=True 일 때만 동작한다.
+    retention_autofix_enabled: bool = False
+    retention_autofix_max_passes: int = 1  # 자가 치유 재작성 패스 최대 횟수
+    # 리텐션 시뮬레이션 실행 시점:
+    #   "post_asset" (기본) — TTS/미디어 생성 후. 실제 씬 길이로 정확히 채점하고
+    #       리포트를 남긴다. 자가 치유는 advisory (오디오 desync 때문에 미반영).
+    #   "pre_asset" — 대본 생성 직후, TTS 전. 자가 치유가 검증한 재작성을
+    #       scene_plans 에 실제로 반영해 개선된 대본이 그대로 렌더된다 (진짜 closed-loop).
+    retention_sim_stage: str = "post_asset"
     upload_ready_dir: str = ""  # 설정 시 완성 영상을 이 폴더에 복사
 
 
@@ -302,6 +318,15 @@ def load_config(config_path: str | Path) -> AppConfig:
     semantic_qc_min_score_val = int(project_raw.get("semantic_qc_min_score", 6))
     if not 0 <= semantic_qc_min_score_val <= 10:
         raise ConfigError("project.semantic_qc_min_score must be in [0, 10].")
+    retention_sim_min_val = float(project_raw.get("retention_sim_min_retention", 0.55))
+    if not 0.0 <= retention_sim_min_val <= 1.0:
+        raise ConfigError("project.retention_sim_min_retention must be in [0.0, 1.0].")
+    retention_autofix_passes_val = int(project_raw.get("retention_autofix_max_passes", 1))
+    if retention_autofix_passes_val < 0:
+        raise ConfigError("project.retention_autofix_max_passes must be >= 0.")
+    retention_sim_stage_val = str(project_raw.get("retention_sim_stage", "post_asset"))
+    if retention_sim_stage_val not in {"post_asset", "pre_asset"}:
+        raise ConfigError("project.retention_sim_stage must be one of: post_asset, pre_asset.")
     project = ProjectSettings(
         language=str(project_raw.get("language", "ko-KR")),
         default_scene_count=int(project_raw.get("default_scene_count", 7)),
@@ -319,6 +344,11 @@ def load_config(config_path: str | Path) -> AppConfig:
         structure_validation=structure_validation_val,
         semantic_qc_enabled=bool(project_raw.get("semantic_qc_enabled", False)),
         semantic_qc_min_score=semantic_qc_min_score_val,
+        retention_sim_enabled=bool(project_raw.get("retention_sim_enabled", False)),
+        retention_sim_min_retention=retention_sim_min_val,
+        retention_autofix_enabled=bool(project_raw.get("retention_autofix_enabled", False)),
+        retention_autofix_max_passes=retention_autofix_passes_val,
+        retention_sim_stage=retention_sim_stage_val,
         upload_ready_dir=str(project_raw.get("upload_ready_dir", "")),
     )
     if project.default_scene_count <= 0:

@@ -9,6 +9,24 @@ project:
   scene_qc_enabled: true
   qc_strictness: "strict"
   scene_qc_max_retries: 2
+  # ── 합성 시청자 리텐션 시뮬레이션 (Retention Simulator) ──
+  # 렌더 직전, 5개 시청자 페르소나가 씬 경계마다 이탈/잔류를 판단하는 LLM
+  # agent 시뮬레이션 → 예측 리텐션 곡선. 예측 리텐션이 임계값 미만이면
+  # degraded_steps 로 표면화하고, runs/<job>/retention_report.md 를 남긴다.
+  # LLM 호출 1회 추가(영상당 약 $0.005~0.01). LLM 실패 시 휴리스틱으로 강등.
+  retention_sim_enabled: false
+  retention_sim_min_retention: 0.55   # 0..1 — 예측 리텐션이 이 미만이면 degraded
+  # ── 리텐션 자가 치유 (Retention Auto-Fix, closed-loop) ──
+  # 시뮬레이션이 degraded 면 가장 약한 씬을 LLM 이 재작성하고 재시뮬레이션으로
+  # 개선을 검증한다. retention_sim_enabled=true 일 때만 동작.
+  retention_autofix_enabled: false
+  retention_autofix_max_passes: 1
+  # 시뮬레이션 실행 시점:
+  #   post_asset(기본) — TTS/미디어 후. 실제 씬 길이로 정확히 채점·리포트.
+  #                      자가 치유는 advisory 기록만(오디오 desync 방지).
+  #   pre_asset        — 대본 직후, TTS 전. 자가 치유 재작성을 scene_plans 에
+  #                      실제 반영 → 개선된 대본이 그대로 렌더됨(진짜 closed-loop).
+  retention_sim_stage: "post_asset"
   structure_presets:             # YPP: 콘텐츠 구조 다양화 (rotate)
     premium:
       flow: [hook, problem, problem, insight, insight, solution, solution, cta]

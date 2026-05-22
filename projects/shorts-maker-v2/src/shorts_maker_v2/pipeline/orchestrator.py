@@ -25,6 +25,8 @@ from shorts_maker_v2.pipeline.planning_step import PlanningStep
 from shorts_maker_v2.pipeline.qc_step import QCStep, SemanticQCStep
 from shorts_maker_v2.pipeline.render_step import RenderStep
 from shorts_maker_v2.pipeline.research_step import ResearchStep
+from shorts_maker_v2.pipeline.retention_autofix import RetentionAutoFixer
+from shorts_maker_v2.pipeline.retention_simulator import RetentionSimulatorStep
 from shorts_maker_v2.pipeline.script_step import ScriptStep, TopicUnsuitableError
 from shorts_maker_v2.pipeline.series_engine import SeriesEngine
 from shorts_maker_v2.pipeline.structure_step import StructureStep
@@ -45,6 +47,7 @@ from shorts_maker_v2.utils.retention_hints import (
     SceneInfo,
     analyze_retention,
 )
+from shorts_maker_v2.utils.retention_report import build_retention_report
 
 logger = logging.getLogger(__name__)
 
@@ -216,7 +219,153 @@ class PipelineOrchestrator:
         payload = manifest.to_dict()
         run_manifest.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         output_manifest.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        # 리텐션 시뮬레이션이 돌았으면 크리에이터용 Markdown 리포트도 함께 남긴다.
+        # 리포트 생성 실패는 manifest 저장을 막지 않는다 (non-blocking).
+        if manifest.retention_simulation is not None:
+            try:
+                report_md = build_retention_report(manifest)
+                (run_dir / "retention_report.md").write_text(report_md, encoding="utf-8")
+            except Exception as exc:  # noqa: BLE001 — 리포트는 보조 산출물
+                logger.warning("retention_report write failed: %s", exc)
         return run_manifest, output_manifest
+
+    def _build_retention_llm_router(self) -> LLMRouter:
+        """리텐션 시뮬레이션/자가치유용 LLMRouter 1개 생성 (fallback 체인 포함)."""
+        return LLMRouter(
+            providers=(
+                list(self.config.providers.llm_providers)
+                if self.config.providers.llm_providers
+                else [self.config.providers.llm]
+            ),
+            models=dict(self.config.providers.llm_models) if self.config.providers.llm_models else {},
+            max_retries=self.config.limits.max_retries,
+            request_timeout_sec=self.config.limits.request_timeout_sec,
+        )
+
+    def _run_retention_intelligence(
+        self,
+        *,
+        manifest: JobManifest,
+        scene_plans: list[ScenePlan],
+        scene_assets: list[SceneAsset] | None,
+        structure_outline: Any,
+        degraded_steps: list[dict[str, Any]],
+        step_timings: dict[str, float],
+        jlog: JsonlLogger,
+        apply_fixes: bool,
+    ) -> list[ScenePlan]:
+        """합성 시청자 리텐션 시뮬레이션 + (opt-in) 자가 치유 closed-loop.
+
+        ``retention_sim_enabled`` 가 꺼져 있으면 즉시 원본 scene_plans 를
+        돌려준다. ``apply_fixes=True`` (pre-asset 스테이지) 면 자가 치유가
+        검증한 재작성을 scene_plans 에 실제로 반영해 반환한다. ``False``
+        (post-asset 스테이지) 면 재작성은 manifest 에 advisory 로만 기록하고
+        원본을 그대로 반환한다 (이미 만든 TTS 오디오와 desync 방지).
+
+        시뮬레이션/자가치유 자체의 예외는 영상 ship 을 막지 않는다 (opt-in).
+        """
+        proj = self.config.project
+        if not proj.retention_sim_enabled:
+            return scene_plans
+
+        # ── 1) 합성 시청자 시뮬레이션 (게이트) ──
+        _t0 = time.perf_counter()
+        try:
+            llm_router = self._build_retention_llm_router()
+            simulator = RetentionSimulatorStep(
+                llm_router=llm_router,
+                min_retention=proj.retention_sim_min_retention,
+            )
+            sim_result = simulator.run(
+                scene_plans=scene_plans,
+                scene_assets=scene_assets,
+                structure_outline=structure_outline,
+            )
+            manifest.retention_simulation = sim_result.to_dict()
+            step_timings["retention_simulation"] = round(time.perf_counter() - _t0, 2)
+            if sim_result.verdict == "degraded":
+                degraded_steps.append(
+                    {
+                        "step": "retention_simulation",
+                        "message": (
+                            f"Predicted retention {sim_result.predicted_retention:.0%} "
+                            f"below threshold "
+                            f"{proj.retention_sim_min_retention:.0%} "
+                            f"(source={sim_result.source}). Weakest scene "
+                            f"{sim_result.weakest_scene_id}: {sim_result.rewrite_directive}"
+                        ),
+                        "error_type": "retention_below_threshold",
+                        "is_retryable": False,
+                        "blocking": False,
+                        "weakest_scene_id": sim_result.weakest_scene_id,
+                        "first_dropoff_scene_id": sim_result.first_dropoff_scene_id,
+                    }
+                )
+                jlog.warning(
+                    "retention_sim_degraded",
+                    predicted_retention=sim_result.predicted_retention,
+                    loop_probability=sim_result.loop_probability,
+                    weakest_scene_id=sim_result.weakest_scene_id,
+                    source=sim_result.source,
+                )
+            elif sim_result.verdict == "error":
+                jlog.warning("retention_sim_error", feedback=sim_result.feedback)
+            else:
+                jlog.info(
+                    "retention_sim_pass",
+                    predicted_retention=sim_result.predicted_retention,
+                    loop_probability=sim_result.loop_probability,
+                    source=sim_result.source,
+                )
+        except Exception as exc:
+            step_timings["retention_simulation"] = round(time.perf_counter() - _t0, 2)
+            jlog.warning("retention_sim_skipped", error=str(exc)[:200])
+            logger.debug("Retention simulation failed: %s", exc)
+            return scene_plans
+
+        # ── 2) 자가 치유 (degraded 일 때만) ──
+        if not (proj.retention_autofix_enabled and sim_result.verdict == "degraded"):
+            return scene_plans
+
+        _t0 = time.perf_counter()
+        try:
+            autofixer = RetentionAutoFixer(
+                llm_router=llm_router,
+                simulator=simulator,
+                max_passes=proj.retention_autofix_max_passes,
+            )
+            autofix_result = autofixer.fix(
+                scene_plans=scene_plans,
+                simulation=sim_result,
+                scene_assets=scene_assets,
+                structure_outline=structure_outline,
+            )
+            fixed_plans = scene_plans
+            if autofix_result.verdict == "improved" and apply_fixes:
+                fixed_plans = RetentionAutoFixer.apply_to_plans(scene_plans, autofix_result)
+                autofix_result.applied_to_render = True
+            manifest.retention_autofix = autofix_result.to_dict()
+            step_timings["retention_autofix"] = round(time.perf_counter() - _t0, 2)
+            if autofix_result.verdict == "improved":
+                jlog.info(
+                    "retention_autofix_improved",
+                    before_retention=autofix_result.before_retention,
+                    after_retention=autofix_result.after_retention,
+                    passes=autofix_result.passes,
+                    applied_to_render=autofix_result.applied_to_render,
+                )
+            else:
+                jlog.info(
+                    "retention_autofix_done",
+                    verdict=autofix_result.verdict,
+                    feedback=autofix_result.feedback[:120],
+                )
+            return fixed_plans
+        except Exception as exc:
+            step_timings["retention_autofix"] = round(time.perf_counter() - _t0, 2)
+            jlog.warning("retention_autofix_skipped", error=str(exc)[:200])
+            logger.debug("Retention auto-fix failed: %s", exc)
+        return scene_plans
 
     @staticmethod
     def _cleanup_run_dir(run_dir: Path, logger: Any) -> None:
@@ -559,6 +708,24 @@ class PipelineOrchestrator:
                     jlog.warning("hook_score_error", error=str(exc)[:100])
                     logger.debug("Hook scoring failed: %s", exc)
 
+                # ── Retention Intelligence (pre-asset 스테이지, opt-in closed-loop) ──
+                # pre_asset 스테이지에서는 TTS/미디어 생성 *전* 에 시뮬레이션하고,
+                # 자가 치유가 검증한 재작성을 scene_plans 에 실제로 반영한다 →
+                # 개선된 대본이 그대로 영상으로 렌더된다 (진짜 closed-loop).
+                # 체크포인트가 개선된 대본을 기록하도록 저장 직전에 실행한다.
+                if self.config.project.retention_sim_stage == "pre_asset":
+                    scene_plans = self._run_retention_intelligence(
+                        manifest=manifest,
+                        scene_plans=scene_plans,
+                        scene_assets=None,
+                        structure_outline=structure_outline,
+                        degraded_steps=degraded_steps,
+                        step_timings=step_timings,
+                        jlog=jlog,
+                        apply_fixes=True,
+                    )
+                    manifest.scene_count = len(scene_plans)
+
                 # 체크포인트 저장
                 cp_data = {
                     "title": title,
@@ -823,6 +990,23 @@ class PipelineOrchestrator:
             except Exception as exc:
                 jlog.warning("retention_hints_error", error=str(exc)[:100])
                 logger.debug("Retention hints failed: %s", exc)
+
+            # ── Retention Intelligence (post-asset 스테이지, opt-in) ──
+            # post_asset(기본): 실제 씬 길이로 시뮬레이션하고 리포트를 남긴다.
+            # 자가 치유는 advisory 로만 기록 — 렌더 입력은 바꾸지 않는다
+            # (이미 만든 TTS 오디오와 desync 방지). pre_asset 스테이지면
+            # 대본 직후 이미 실행됐으므로 여기선 건너뛴다.
+            if self.config.project.retention_sim_stage == "post_asset":
+                self._run_retention_intelligence(
+                    manifest=manifest,
+                    scene_plans=scene_plans,
+                    scene_assets=scene_assets,
+                    structure_outline=locals().get("structure_outline"),
+                    degraded_steps=degraded_steps,
+                    step_timings=step_timings,
+                    jlog=jlog,
+                    apply_fixes=False,
+                )
 
             # ── Safe Zone QC (optional, non-blocking) ──
             try:

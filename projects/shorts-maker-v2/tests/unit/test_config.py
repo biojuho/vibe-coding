@@ -226,3 +226,29 @@ def test_config_rejects_negative_scene_qc_max_retries(tmp_path: Path) -> None:
     path = _write_config(tmp_path, _base_config(**{"project.scene_qc_max_retries": -1}))
     with pytest.raises(ConfigError, match="scene_qc_max_retries"):
         load_config(path)
+
+
+def test_config_rejects_invalid_retention_sim_stage(tmp_path: Path) -> None:
+    path = _write_config(tmp_path, _base_config(**{"project.retention_sim_stage": "mid_asset"}))
+    with pytest.raises(ConfigError, match="retention_sim_stage"):
+        load_config(path)
+
+
+def test_config_rejects_out_of_range_retention_sim_min(tmp_path: Path) -> None:
+    path = _write_config(tmp_path, _base_config(**{"project.retention_sim_min_retention": 1.5}))
+    with pytest.raises(ConfigError, match="retention_sim_min_retention"):
+        load_config(path)
+
+
+def test_config_rejects_negative_retention_autofix_max_passes(tmp_path: Path) -> None:
+    path = _write_config(tmp_path, _base_config(**{"project.retention_autofix_max_passes": -1}))
+    with pytest.raises(ConfigError, match="retention_autofix_max_passes"):
+        load_config(path)
+
+
+def test_config_retention_defaults_are_safe(tmp_path: Path) -> None:
+    """리텐션 기능은 명시하지 않으면 전부 비활성(opt-in)·post_asset 이어야 한다."""
+    cfg = load_config(_write_config(tmp_path, _base_config()))
+    assert cfg.project.retention_sim_enabled is False
+    assert cfg.project.retention_autofix_enabled is False
+    assert cfg.project.retention_sim_stage == "post_asset"

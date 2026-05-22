@@ -192,6 +192,67 @@ class SemanticQCResult:
         return asdict(self)
 
 
+@dataclass
+class RetentionSimulationResult:
+    """합성 시청자 리텐션 시뮬레이션 결과.
+
+    렌더 직전에 LLM 이 N명의 서로 다른 시청자 페르소나를 시뮬레이션해서,
+    각 페르소나가 씬 경계마다 "계속 볼지 / 스와이프할지"를 판단하게 한다.
+    그 집계가 곧 예측 리텐션 곡선이다 — `retention_hints` 의 휴리스틱 점수와
+    달리, 어느 씬에서 *왜* 이탈이 발생하는지를 페르소나 단위로 잡아낸다.
+
+    LLM 호출이 실패하면 `source="heuristic"` 으로 강등돼 결정론적
+    휴리스틱 곡선이 대신 채워진다 — 영상 ship 자체는 막지 않는다.
+    """
+
+    predicted_retention: float = 0.0  # 0..1 — 마지막 씬까지 남는 평균 시청자 비율 (AVD 프록시)
+    loop_probability: float = 0.0  # 0..1 — 재시청(루핑) 확률
+    retention_curve: list[dict[str, Any]] = field(default_factory=list)
+    # [{scene_id, role, viewers_remaining: 0..1, drop_reason}]
+    persona_breakdown: list[dict[str, Any]] = field(default_factory=list)
+    # [{name, swiped_at_scene: int|None, note}]
+    first_dropoff_scene_id: int | None = None  # 이탈이 처음 임계치를 넘는 씬
+    weakest_scene_id: int | None = None  # 가장 약한 씬
+    rewrite_directive: str = ""  # 가장 약한 씬에 대한 실행 가능한 재작성 지시
+    verdict: str = "pass"  # "pass" | "degraded" | "error"
+    feedback: str = ""  # 한 줄 요약
+    source: str = "llm"  # "llm" | "heuristic" — 어떤 엔진이 산출했는지
+    raw_response: str = ""  # 디버깅용 LLM 원문
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class RetentionAutoFixResult:
+    """리텐션 자가 치유(closed-loop) 결과.
+
+    `RetentionSimulationResult` 의 verdict 가 `degraded` 일 때, 가장 약한
+    씬의 나레이션을 `rewrite_directive` 기반으로 LLM 이 재작성하고, 그
+    재작성본을 다시 시뮬레이션해 *예측 리텐션이 실제로 올라가는지* 검증한다.
+    개선이 확인된 재작성만 채택한다(accepted=True).
+
+    이 단계는 현재 렌더 입력을 변경하지 않는다 — 이미 생성된 TTS 오디오와
+    desync 되기 때문이다. 검증된 재작성본은 manifest 에 기록되어 다음
+    이터레이션/시리즈 후속편에 반영된다 (advisory).
+    """
+
+    applied: bool = False  # 재작성이 산출·검증되었는지
+    applied_to_render: bool = False  # 재작성이 실제 렌더 입력(scene_plans)에 반영됐는지
+    passes: int = 0  # 수행한 재작성 패스 수
+    before_retention: float = 0.0  # 자가치유 전 예측 리텐션
+    after_retention: float = 0.0  # 자가치유 후 예측 리텐션
+    rewrites: list[dict[str, Any]] = field(default_factory=list)
+    # [{scene_id, role, before, after, accepted, projected_retention}]
+    verdict: str = "skipped"  # "improved" | "no_improvement" | "skipped" | "error"
+    feedback: str = ""  # 한 줄 요약
+    source: str = "llm"  # "llm" — 재작성 엔진
+    raw_response: str = ""  # 디버깅용 LLM 원문
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
 @dataclass(frozen=True)
 class ScenePlan:
     scene_id: int
@@ -243,6 +304,8 @@ class JobManifest:
     retention_hints: dict[str, Any] | None = None  # Retention Hints 분석 결과
     sentiment: dict[str, Any] | None = None  # Content Intelligence 감성 분석
     semantic_qc: dict[str, Any] | None = None  # LLM 기반 씬-씬 의미 QC 결과 (opt-in)
+    retention_simulation: dict[str, Any] | None = None  # 합성 시청자 리텐션 시뮬레이션 결과 (opt-in)
+    retention_autofix: dict[str, Any] | None = None  # 리텐션 자가 치유(closed-loop) 결과 (opt-in)
 
     degraded_steps: list[dict[str, Any]] = field(default_factory=list)
 

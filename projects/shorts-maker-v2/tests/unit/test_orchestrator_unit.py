@@ -25,6 +25,8 @@ import yaml
 
 from shorts_maker_v2.models import (
     JobManifest,
+    RetentionAutoFixResult,
+    RetentionSimulationResult,
     SceneAsset,
     ScenePlan,
     SemanticQCResult,
@@ -34,6 +36,7 @@ from shorts_maker_v2.pipeline.orchestrator import (
     JsonlLogger,
     PipelineOrchestrator,
 )
+from shorts_maker_v2.pipeline.retention_autofix import RetentionAutoFixer
 
 # ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -1225,3 +1228,297 @@ class TestSemanticQCIntegration:
         assert manifest.semantic_qc is None
         assert not any(d.get("step") == "semantic_qc" for d in manifest.degraded_steps)
         assert "semantic_qc" in manifest.step_timings
+
+
+class TestRetentionSimulatorIntegration:
+    """RetentionSimulatorStep wiring inside PipelineOrchestrator.run().
+
+    Covers the opt-in retention_sim block: default-disabled skip, pass
+    populates manifest, degraded adds a non-blocking degraded_steps entry
+    carrying the weakest scene + rewrite directive, and exceptions never
+    crash the run.
+    """
+
+    def _make_orchestrator(self, tmp_path: Path):
+        cfg = _load_cfg(tmp_path)
+        _set_frozen_attr(cfg.project, "structure_validation", "off")
+        orch = PipelineOrchestrator(
+            config=cfg,
+            base_dir=tmp_path,
+            script_step=StubScript(),
+            media_step=StubMedia(),
+            render_step=StubRender(),
+        )
+        return cfg, orch
+
+    def test_disabled_skips_retention_sim_block(self, tmp_path: Path):
+        cfg, orch = self._make_orchestrator(tmp_path)
+        assert cfg.project.retention_sim_enabled is False
+        with patch("shorts_maker_v2.pipeline.orchestrator.RetentionSimulatorStep") as sim_cls:
+            manifest = orch.run(topic="off path")
+        sim_cls.assert_not_called()
+        assert manifest.retention_simulation is None
+        assert "retention_simulation" not in manifest.step_timings
+
+    def test_enabled_pass_populates_manifest_and_records_timing(self, tmp_path: Path):
+        cfg, orch = self._make_orchestrator(tmp_path)
+        _set_frozen_attr(cfg.project, "retention_sim_enabled", True)
+        _set_frozen_attr(cfg.project, "retention_sim_min_retention", 0.55)
+        fake_result = RetentionSimulationResult(
+            predicted_retention=0.72,
+            loop_probability=0.4,
+            verdict="pass",
+            source="llm",
+            feedback="strong retention",
+        )
+        with patch("shorts_maker_v2.pipeline.orchestrator.RetentionSimulatorStep") as sim_cls:
+            sim_cls.return_value.run.return_value = fake_result
+            manifest = orch.run(topic="pass path")
+        sim_cls.assert_called_once()
+        _, kwargs = sim_cls.call_args
+        assert kwargs["min_retention"] == 0.55
+        assert manifest.retention_simulation is not None
+        assert manifest.retention_simulation["verdict"] == "pass"
+        assert manifest.retention_simulation["predicted_retention"] == 0.72
+        assert not any(d.get("step") == "retention_simulation" for d in manifest.degraded_steps)
+        assert "retention_simulation" in manifest.step_timings
+
+    def test_enabled_run_writes_retention_report_md(self, tmp_path: Path):
+        cfg, orch = self._make_orchestrator(tmp_path)
+        _set_frozen_attr(cfg.project, "retention_sim_enabled", True)
+        fake_result = RetentionSimulationResult(
+            predicted_retention=0.7,
+            verdict="pass",
+            source="llm",
+            feedback="solid",
+        )
+        with patch("shorts_maker_v2.pipeline.orchestrator.RetentionSimulatorStep") as sim_cls:
+            sim_cls.return_value.run.return_value = fake_result
+            orch.run(topic="report path")
+        reports = list(tmp_path.rglob("retention_report.md"))
+        assert len(reports) == 1
+        content = reports[0].read_text(encoding="utf-8")
+        assert "리텐션 리포트" in content
+        assert "예측 요약" in content
+
+    def test_disabled_run_writes_no_retention_report(self, tmp_path: Path):
+        _cfg, orch = self._make_orchestrator(tmp_path)
+        orch.run(topic="no report path")
+        assert list(tmp_path.rglob("retention_report.md")) == []
+
+    def test_enabled_degraded_adds_non_blocking_step(self, tmp_path: Path):
+        cfg, orch = self._make_orchestrator(tmp_path)
+        _set_frozen_attr(cfg.project, "retention_sim_enabled", True)
+        _set_frozen_attr(cfg.project, "retention_sim_min_retention", 0.6)
+        fake_result = RetentionSimulationResult(
+            predicted_retention=0.32,
+            loop_probability=0.2,
+            weakest_scene_id=2,
+            first_dropoff_scene_id=2,
+            rewrite_directive="Tighten scene 2.",
+            verdict="degraded",
+            source="heuristic",
+            feedback="weak middle",
+        )
+        with patch("shorts_maker_v2.pipeline.orchestrator.RetentionSimulatorStep") as sim_cls:
+            sim_cls.return_value.run.return_value = fake_result
+            manifest = orch.run(topic="degraded path")
+        assert manifest.retention_simulation["verdict"] == "degraded"
+        matches = [d for d in manifest.degraded_steps if d.get("step") == "retention_simulation"]
+        assert len(matches) == 1
+        entry = matches[0]
+        assert entry["error_type"] == "retention_below_threshold"
+        assert entry["is_retryable"] is False
+        assert entry["blocking"] is False
+        assert entry["weakest_scene_id"] == 2
+        assert entry["first_dropoff_scene_id"] == 2
+        assert "Tighten scene 2." in entry["message"]
+        assert "source=heuristic" in entry["message"]
+
+    def test_enabled_run_exception_is_swallowed(self, tmp_path: Path):
+        cfg, orch = self._make_orchestrator(tmp_path)
+        _set_frozen_attr(cfg.project, "retention_sim_enabled", True)
+        with patch("shorts_maker_v2.pipeline.orchestrator.RetentionSimulatorStep") as sim_cls:
+            sim_cls.return_value.run.side_effect = RuntimeError("LLM died")
+            manifest = orch.run(topic="exception path")
+        assert manifest.retention_simulation is None
+        assert not any(d.get("step") == "retention_simulation" for d in manifest.degraded_steps)
+        assert "retention_simulation" in manifest.step_timings
+
+
+class TestRetentionAutoFixIntegration:
+    """RetentionAutoFixer wiring inside PipelineOrchestrator.run().
+
+    The auto-fix closed-loop runs only when retention_sim produced a
+    `degraded` verdict and retention_autofix_enabled is set. Covers the
+    default-off skip, the enabled+degraded path populating the manifest,
+    the pass-verdict no-op, and exception isolation.
+    """
+
+    def _make_orchestrator(self, tmp_path: Path):
+        cfg = _load_cfg(tmp_path)
+        _set_frozen_attr(cfg.project, "structure_validation", "off")
+        _set_frozen_attr(cfg.project, "retention_sim_enabled", True)
+        orch = PipelineOrchestrator(
+            config=cfg,
+            base_dir=tmp_path,
+            script_step=StubScript(),
+            media_step=StubMedia(),
+            render_step=StubRender(),
+        )
+        return cfg, orch
+
+    @staticmethod
+    def _degraded_sim() -> RetentionSimulationResult:
+        return RetentionSimulationResult(
+            predicted_retention=0.32,
+            verdict="degraded",
+            weakest_scene_id=1,
+            rewrite_directive="fix it",
+        )
+
+    def test_disabled_skips_autofix_block(self, tmp_path: Path):
+        cfg, orch = self._make_orchestrator(tmp_path)
+        assert cfg.project.retention_autofix_enabled is False
+        with (
+            patch("shorts_maker_v2.pipeline.orchestrator.RetentionSimulatorStep") as sim_cls,
+            patch("shorts_maker_v2.pipeline.orchestrator.RetentionAutoFixer") as fixer_cls,
+        ):
+            sim_cls.return_value.run.return_value = self._degraded_sim()
+            manifest = orch.run(topic="autofix off")
+        fixer_cls.assert_not_called()
+        assert manifest.retention_autofix is None
+        assert "retention_autofix" not in manifest.step_timings
+
+    def test_enabled_degraded_runs_autofix_and_populates_manifest(self, tmp_path: Path):
+        cfg, orch = self._make_orchestrator(tmp_path)
+        _set_frozen_attr(cfg.project, "retention_autofix_enabled", True)
+        _set_frozen_attr(cfg.project, "retention_autofix_max_passes", 2)
+        autofix_result = RetentionAutoFixResult(
+            applied=True,
+            passes=1,
+            before_retention=0.32,
+            after_retention=0.61,
+            verdict="improved",
+            feedback="rewrote scene 1",
+        )
+        with (
+            patch("shorts_maker_v2.pipeline.orchestrator.RetentionSimulatorStep") as sim_cls,
+            patch("shorts_maker_v2.pipeline.orchestrator.RetentionAutoFixer") as fixer_cls,
+        ):
+            sim_cls.return_value.run.return_value = self._degraded_sim()
+            fixer_cls.return_value.fix.return_value = autofix_result
+            manifest = orch.run(topic="autofix degraded")
+        fixer_cls.assert_called_once()
+        _, kwargs = fixer_cls.call_args
+        assert kwargs["max_passes"] == 2
+        assert manifest.retention_autofix is not None
+        assert manifest.retention_autofix["verdict"] == "improved"
+        assert manifest.retention_autofix["after_retention"] == 0.61
+        assert "retention_autofix" in manifest.step_timings
+
+    def test_pass_verdict_does_not_trigger_autofix(self, tmp_path: Path):
+        cfg, orch = self._make_orchestrator(tmp_path)
+        _set_frozen_attr(cfg.project, "retention_autofix_enabled", True)
+        passing_sim = RetentionSimulationResult(predicted_retention=0.8, verdict="pass")
+        with (
+            patch("shorts_maker_v2.pipeline.orchestrator.RetentionSimulatorStep") as sim_cls,
+            patch("shorts_maker_v2.pipeline.orchestrator.RetentionAutoFixer") as fixer_cls,
+        ):
+            sim_cls.return_value.run.return_value = passing_sim
+            manifest = orch.run(topic="autofix pass")
+        fixer_cls.assert_not_called()
+        assert manifest.retention_autofix is None
+
+    def test_autofix_exception_is_swallowed(self, tmp_path: Path):
+        cfg, orch = self._make_orchestrator(tmp_path)
+        _set_frozen_attr(cfg.project, "retention_autofix_enabled", True)
+        with (
+            patch("shorts_maker_v2.pipeline.orchestrator.RetentionSimulatorStep") as sim_cls,
+            patch("shorts_maker_v2.pipeline.orchestrator.RetentionAutoFixer") as fixer_cls,
+        ):
+            sim_cls.return_value.run.return_value = self._degraded_sim()
+            fixer_cls.return_value.fix.side_effect = RuntimeError("rewrite died")
+            manifest = orch.run(topic="autofix boom")
+        assert manifest.retention_autofix is None
+        assert "retention_autofix" in manifest.step_timings
+
+
+class TestRetentionPreAssetStage:
+    """retention_sim_stage='pre_asset' — 진짜 closed-loop.
+
+    pre_asset 스테이지에서는 리텐션 시뮬레이션과 자가 치유가 TTS/미디어
+    생성 *전* 에 실행돼, 검증된 재작성이 scene_plans 에 반영되고 개선된
+    대본이 그대로 렌더된다. post_asset 블록은 중복 실행되지 않는다.
+    """
+
+    def _make_orchestrator(self, tmp_path: Path):
+        cfg = _load_cfg(tmp_path)
+        _set_frozen_attr(cfg.project, "structure_validation", "off")
+        _set_frozen_attr(cfg.project, "retention_sim_enabled", True)
+        _set_frozen_attr(cfg.project, "retention_sim_stage", "pre_asset")
+        orch = PipelineOrchestrator(
+            config=cfg,
+            base_dir=tmp_path,
+            script_step=StubScript(),
+            media_step=StubMedia(),
+            render_step=StubRender(),
+        )
+        return cfg, orch
+
+    def test_pre_asset_simulates_before_assets_and_only_once(self, tmp_path: Path):
+        cfg, orch = self._make_orchestrator(tmp_path)
+        passing = RetentionSimulationResult(predicted_retention=0.7, verdict="pass", source="llm")
+        with patch("shorts_maker_v2.pipeline.orchestrator.RetentionSimulatorStep") as sim_cls:
+            sim_cls.return_value.run.return_value = passing
+            manifest = orch.run(topic="pre asset")
+        assert manifest.retention_simulation is not None
+        assert manifest.retention_simulation["verdict"] == "pass"
+        # pre_asset 단계라 실제 씬 길이(asset) 없이 호출된다.
+        assert sim_cls.return_value.run.call_args.kwargs["scene_assets"] is None
+        # post_asset 블록 중복 실행 없음 — 시뮬레이션은 정확히 1회.
+        assert sim_cls.return_value.run.call_count == 1
+
+    def test_pre_asset_autofix_rewrite_reaches_render(self, tmp_path: Path):
+        import json as _json
+
+        cfg, orch = self._make_orchestrator(tmp_path)
+        _set_frozen_attr(cfg.project, "retention_autofix_enabled", True)
+        degraded = RetentionSimulationResult(
+            predicted_retention=0.3,
+            verdict="degraded",
+            weakest_scene_id=1,
+            rewrite_directive="fix scene 1",
+        )
+        new_narration = "자가치유로 새로 쓴 hook 나레이션"
+        improved = RetentionAutoFixResult(
+            applied=True,
+            verdict="improved",
+            before_retention=0.3,
+            after_retention=0.62,
+            rewrites=[{"scene_id": 1, "after": new_narration, "accepted": True}],
+        )
+        with (
+            patch("shorts_maker_v2.pipeline.orchestrator.RetentionSimulatorStep") as sim_cls,
+            patch.object(RetentionAutoFixer, "fix", return_value=improved),
+        ):
+            sim_cls.return_value.run.return_value = degraded
+            manifest = orch.run(topic="pre asset autofix")
+        assert manifest.retention_autofix is not None
+        assert manifest.retention_autofix["applied_to_render"] is True
+        # 체크포인트가 재작성된 대본을 기록했는지 — 재작성이 파이프라인에 반영된 증거.
+        checkpoints = list(tmp_path.rglob("checkpoint.json"))
+        assert checkpoints, "checkpoint.json not found"
+        cp = _json.loads(checkpoints[0].read_text(encoding="utf-8"))
+        narrations = [s["narration_ko"] for s in cp["scene_plans"]]
+        assert new_narration in narrations
+
+    def test_post_asset_stage_does_not_run_at_pre_asset(self, tmp_path: Path):
+        cfg, orch = self._make_orchestrator(tmp_path)
+        _set_frozen_attr(cfg.project, "retention_sim_stage", "post_asset")
+        with patch("shorts_maker_v2.pipeline.orchestrator.RetentionSimulatorStep") as sim_cls:
+            sim_cls.return_value.run.return_value = RetentionSimulationResult(predicted_retention=0.7, verdict="pass")
+            manifest = orch.run(topic="post asset")
+        # post_asset 단계라 실제 씬 길이로 호출된다 (scene_assets 가 None 이 아님).
+        assert sim_cls.return_value.run.call_args.kwargs["scene_assets"] is not None
+        assert manifest.retention_simulation is not None
