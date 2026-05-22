@@ -4,11 +4,23 @@ from __future__ import annotations
 
 import pytest
 
+from shorts_maker_v2.models import ScenePlan
+from shorts_maker_v2.pipeline.qc_step import QCStep
 from shorts_maker_v2.render.caption_pillow import (
     CaptionStyle,
     calculate_safe_position,
     validate_safe_zone,
 )
+
+
+def _plan(scene_id: int, narration: str, role: str = "body") -> ScenePlan:
+    return ScenePlan(
+        scene_id=scene_id,
+        narration_ko=narration,
+        visual_prompt_en="visual",
+        target_sec=5.0,
+        structure_role=role,
+    )
 
 
 class TestValidateSafeZone:
@@ -109,3 +121,32 @@ class TestCalculateSafePositionIntegration:
         y = calculate_safe_position(1920, caption_height, default_style, role="hook")
         result = validate_safe_zone(y, caption_height, 1920)
         assert result["in_safe_zone"] is True
+
+
+class TestGateSafeZone:
+    """QCStep.gate_safe_zone — 자막이 YouTube Shorts UI 안전 영역에 들어가는지 검수."""
+
+    def test_short_captions_pass(self):
+        """짧은 나레이션 → 자막이 안전 영역에 들어가 PASS."""
+        plans = [_plan(1, "짧은 자막입니다.", role="hook"), _plan(2, "본문 한 줄입니다.")]
+        report = QCStep.gate_safe_zone(plans, [])
+        assert report.verdict == "pass"
+        assert report.issues == []
+        assert all(report.checks.values())
+
+    def test_overlong_caption_holds_with_scene_issue(self):
+        """안전 영역에 다 담을 수 없을 만큼 긴 나레이션 → HOLD + 해당 씬 이슈."""
+        plans = [_plan(1, "짧은 본문."), _plan(2, "가" * 600)]
+        report = QCStep.gate_safe_zone(plans, [])
+        assert report.verdict == "hold"
+        assert len(report.issues) == 1
+        assert "Scene 2" in report.issues[0]
+        # 정상 씬은 통과, 오버플로우 씬만 실패로 기록된다
+        assert report.checks["safe_zone_s1"] is True
+        assert report.checks["safe_zone_s2"] is False
+
+    def test_empty_scene_plans_pass(self):
+        """씬이 없으면 검사할 자막도 없으므로 PASS (빈 이슈)."""
+        report = QCStep.gate_safe_zone([], [])
+        assert report.verdict == "pass"
+        assert report.issues == []

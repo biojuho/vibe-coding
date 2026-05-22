@@ -1009,6 +1009,10 @@ class PipelineOrchestrator:
                 )
 
             # ── Safe Zone QC (optional, non-blocking) ──
+            # HOLD 판정(자막이 YouTube Shorts UI 안전 영역을 침범)을 jlog 경고로만
+            # 끝내지 않고 degraded_steps 로 표면화한다 — 매니페스트에 남아야
+            # 크리에이터가 영상을 직접 보기 전에 자막 오버랩을 알 수 있고,
+            # Gate 4 의 degraded 집계에도 반영된다.
             try:
                 sz_report = QCStep.gate_safe_zone(
                     scene_plans=scene_plans,
@@ -1017,6 +1021,19 @@ class PipelineOrchestrator:
                 if sz_report.verdict == GateVerdict.PASS.value:
                     jlog.info("safe_zone_pass", checks=sz_report.checks)
                 else:
+                    degraded_steps.append(
+                        {
+                            "step": "safe_zone_qc",
+                            "message": (
+                                f"{len(sz_report.issues)} scene(s) with captions outside the "
+                                f"YouTube Shorts safe zone: {'; '.join(sz_report.issues)}"
+                            ),
+                            "error_type": "caption_safe_zone_violation",
+                            "is_retryable": False,
+                            "blocking": False,
+                            "safe_zone_issues": sz_report.issues,
+                        }
+                    )
                     jlog.warning(
                         "safe_zone_issues",
                         verdict=sz_report.verdict,
