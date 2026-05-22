@@ -14,8 +14,7 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "postbox:once": "node scripts/outbox-worker.mjs",
-    "outbox:daemon": "node scripts/outbox-worker.mjs --daemon",
-    "postinstall": "prisma generate"
+    "outbox:daemon": "node scripts/outbox-worker.mjs --daemon"
   },
   "engines": {
     "node": ">=22.0.0",

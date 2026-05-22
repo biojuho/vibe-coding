@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { CalendarCheck2, CheckCircle2 } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from 'recharts';
 import { STATUS_COLORS } from '@/lib/constants';
@@ -28,6 +28,18 @@ function toStrictInputDate(value) {
     : date;
 }
 
+function normalizeDetailBuildings(buildings) {
+  return Array.isArray(buildings)
+    ? buildings
+        .filter((building) => building && typeof building === 'object')
+        .map((building, index) => ({
+          ...building,
+          id: building.id ?? `detail-building-${index}`,
+          name: typeof building.name === 'string' && building.name.trim() ? building.name : '축사명 미등록',
+        }))
+    : [];
+}
+
 export default function CattleDetailModal({
   cattle,
   buildings = [],
@@ -44,6 +56,7 @@ export default function CattleDetailModal({
   const [breedingError, setBreedingError] = useState('');
   const [isBreedingSaving, setIsBreedingSaving] = useState(false);
   const breedingSaveInFlightRef = useRef(false);
+  const safeBuildings = useMemo(() => normalizeDetailBuildings(buildings), [buildings]);
 
   useEffect(() => {
     if (!cattle?.id) return;
@@ -77,7 +90,7 @@ export default function CattleDetailModal({
 
   const monthAge = getMonthAge(cattle.birthDate);
   const statusColor = STATUS_COLORS[cattle.status] || { bg: "#eee", text: "#333" };
-  const buildingName = buildings.find((building) => building.id === cattle.buildingId)?.name || cattle.buildingId;
+  const buildingName = safeBuildings.find((building) => building.id === cattle.buildingId)?.name || cattle.buildingId || '축사 미배정';
   const breedingDateErrorId = "breeding-record-date-error";
   const isDetailBusy = isDeleting || isBreedingSaving;
   const editButtonLabel = isDetailBusy ? `${cattle.name} 개체 처리 중에는 수정할 수 없습니다` : `${cattle.name} 개체 정보 수정`;

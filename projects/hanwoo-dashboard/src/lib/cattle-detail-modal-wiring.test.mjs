@@ -224,6 +224,20 @@ test('cattle form normalizes malformed building payloads before rendering', () =
   assert.doesNotMatch(formSource, /buildings\.map\(\(building\) => \(/);
 });
 
+test('cattle detail normalizes malformed building payloads before lookup', () => {
+  const detailSource = readSource('components/forms/CattleDetailModal.js');
+
+  assert.match(detailSource, /import \{ useState, useEffect, useMemo, useRef \} from 'react';/);
+  assert.match(detailSource, /function normalizeDetailBuildings\(buildings\) \{/);
+  assert.match(detailSource, /return Array\.isArray\(buildings\)/);
+  assert.match(detailSource, /\.filter\(\(building\) => building && typeof building === 'object'\)/);
+  assert.match(detailSource, /id: building\.id \?\? `detail-building-\$\{index\}`/);
+  assert.match(detailSource, /'축사명 미등록'/);
+  assert.match(detailSource, /const safeBuildings = useMemo\(\(\) => normalizeDetailBuildings\(buildings\), \[buildings\]\);/);
+  assert.match(detailSource, /safeBuildings\.find\(\(building\) => building\.id === cattle\.buildingId\)/);
+  assert.doesNotMatch(detailSource, /buildings\.find\(\(building\) => building\.id === cattle\.buildingId\)/);
+});
+
 test('cattle detail breeding records wait for async saves before re-enabling submit actions', () => {
   const detailSource = readSource('components/forms/CattleDetailModal.js');
 

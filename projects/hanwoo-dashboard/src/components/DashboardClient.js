@@ -63,6 +63,8 @@ import CattleForm from '@/components/forms/CattleForm';
 import CattleDetailModal from '@/components/forms/CattleDetailModal';
 import { useRouter } from 'next/navigation';
 import { useTheme } from '@/lib/useTheme';
+import { playTactileClick } from '@/lib/audio';
+import FieldModeView from '@/components/widgets/FieldModeView';
 import { useOnlineStatus } from '@/lib/useOnlineStatus';
 import { enqueue, queueSize } from '@/lib/offlineQueue';
 import { syncOfflineQueue } from '@/lib/syncManager';
@@ -232,6 +234,7 @@ export default function DashboardClient({
   const widgetSettings = useWidgetSettings();
   const isOnline = useOnlineStatus();
   const [activeTab, setActiveTab] = useState('home');
+  const [isFieldMode, setIsFieldMode] = useState(false);
 
   // Pagination hooks — these are the PRIMARY data sources for cattle and sales
 
@@ -1283,6 +1286,16 @@ export default function DashboardClient({
             <p className="text-[13px] text-muted-foreground leading-relaxed">오늘도 힘찬 하루 되세요! 🐮</p>
           </div>
           <div className="flex gap-2.5 pt-0.5">
+            <PremiumButton
+              variant="outline"
+              onClick={() => { playTactileClick(); setIsFieldMode(true); }}
+              aria-label="현장 스마트 모드 활성화"
+              title="현장 스마트 모드"
+              className="relative shadow-[var(--shadow-sm)] border-amber-500/30 text-amber-600 dark:text-amber-400 font-bold hover:bg-amber-500/10 hover:border-amber-400 flex items-center gap-1.5 px-3"
+            >
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              현장 모드 🚜
+            </PremiumButton>
             <ExcelExportButton cattleList={cattleList} resolveCattleList={ensureAllCattleLoaded} />
             <PremiumButton
               variant="outline"
@@ -1471,21 +1484,31 @@ export default function DashboardClient({
 
   return (
     <div className="dashboard-container">
-      <div className="max-w-[600px] mx-auto p-4 relative">
-        {!isOnline && (
-          <div className="mb-3 flex items-center gap-2.5 rounded-[20px] px-4 py-3 text-sm font-bold text-white shadow-[var(--shadow-md)]" style={{ background: 'linear-gradient(145deg, color-mix(in srgb, var(--color-warning) 72%, white 28%), var(--color-warning))', border: '1px solid rgba(255,255,255,0.2)' }}>
-            <WifiOff className="h-5 w-5 flex-shrink-0" />
-            오프라인 모드 — 작업은 저장되어 연결 복구 시 자동 동기화됩니다
-            {queueSize() > 0 && (
-              <Badge variant="secondary" className="ml-auto border-white/15 bg-white/25 text-white text-xs shadow-none">
-                {queueSize()}건 대기
-              </Badge>
-            )}
-          </div>
-        )}
-        {renderContent()}
-      </div>
-      <TabBar activeTab={activeTab} onTabChange={handleTabChange} />
+      {isFieldMode ? (
+        <FieldModeView
+          cattleList={cattleList}
+          buildings={safeBuildings}
+          ensureAllCattleLoaded={ensureAllCattleLoaded}
+          onSelect={setSelectedCow}
+          onCloseFieldMode={() => setIsFieldMode(false)}
+        />
+      ) : (
+        <div className="max-w-[600px] mx-auto p-4 relative">
+          {!isOnline && (
+            <div className="mb-3 flex items-center gap-2.5 rounded-[20px] px-4 py-3 text-sm font-bold text-white shadow-[var(--shadow-md)]" style={{ background: 'linear-gradient(145deg, color-mix(in srgb, var(--color-warning) 72%, white 28%), var(--color-warning))', border: '1px solid rgba(255,255,255,0.2)' }}>
+              <WifiOff className="h-5 w-5 flex-shrink-0" />
+              오프라인 모드 — 작업은 저장되어 연결 복구 시 자동 동기화됩니다
+              {queueSize() > 0 && (
+                <Badge variant="secondary" className="ml-auto border-white/15 bg-white/25 text-white text-xs shadow-none">
+                  {queueSize()}건 대기
+                </Badge>
+              )}
+            </div>
+          )}
+          {renderContent()}
+        </div>
+      )}
+      {!isFieldMode && <TabBar activeTab={activeTab} onTabChange={handleTabChange} />}
 
       {showAddModal && <CattleForm buildings={safeBuildings} onSubmit={handleAddCattle} onCancel={() => setShowAddModal(false)} />}
 
@@ -1505,21 +1528,23 @@ export default function DashboardClient({
         />
       )}
 
-      <footer className="footer-glass mt-16 mx-2 px-6 pt-8 pb-6 text-center text-xs text-muted-foreground leading-relaxed">
-        <div className="font-bold text-sm text-primary mb-4 flex items-center justify-center gap-2">🐄 Joolife (쥬라프)</div>
-        <div className="flex justify-center gap-6 flex-wrap mb-5">
-          <a href="/terms" className="no-underline text-muted-foreground hover:text-foreground transition-[color,transform] duration-200 py-1.5 px-1 hover:-translate-y-px">이용약관</a>
-          <span className="text-muted-foreground/30 select-none">·</span>
-          <a href="/privacy" className="no-underline text-muted-foreground hover:text-foreground transition-[color,transform] duration-200 py-1.5 px-1 hover:-translate-y-px">개인정보처리방침</a>
-          <span className="text-muted-foreground/30 select-none">·</span>
-          <a href="/subscription" className="no-underline text-primary font-semibold hover:text-foreground transition-[color,transform] duration-200 py-1.5 px-1 hover:-translate-y-px">⭐ 프리미엄</a>
-        </div>
-        <Separator className="mb-4 opacity-30" />
-        <div className="text-[10px] text-muted-foreground/40 leading-loose space-y-0.5">
-          <p>운영 문의: joolife@joolife.io.kr</p>
-          <p className="mt-2 text-muted-foreground/30">&copy; 2026 Joolife. 모든 권리 보유.</p>
-        </div>
-      </footer>
+      {!isFieldMode && (
+        <footer className="footer-glass mt-16 mx-2 px-6 pt-8 pb-6 text-center text-xs text-muted-foreground leading-relaxed">
+          <div className="font-bold text-sm text-primary mb-4 flex items-center justify-center gap-2">🐄 Joolife (쥬라프)</div>
+          <div className="flex justify-center gap-6 flex-wrap mb-5">
+            <a href="/terms" className="no-underline text-muted-foreground hover:text-foreground transition-[color,transform] duration-200 py-1.5 px-1 hover:-translate-y-px">이용약관</a>
+            <span className="text-muted-foreground/30 select-none">·</span>
+            <a href="/privacy" className="no-underline text-muted-foreground hover:text-foreground transition-[color,transform] duration-200 py-1.5 px-1 hover:-translate-y-px">개인정보처리방침</a>
+            <span className="text-muted-foreground/30 select-none">·</span>
+            <a href="/subscription" className="no-underline text-primary font-semibold hover:text-foreground transition-[color,transform] duration-200 py-1.5 px-1 hover:-translate-y-px">⭐ 프리미엄</a>
+          </div>
+          <Separator className="mb-4 opacity-30" />
+          <div className="text-[10px] text-muted-foreground/40 leading-loose space-y-0.5">
+            <p>운영 문의: joolife@joolife.io.kr</p>
+            <p className="mt-2 text-muted-foreground/30">&copy; 2026 Joolife. 모든 권리 보유.</p>
+          </div>
+        </footer>
+      )}
     </div>
   );
 }
