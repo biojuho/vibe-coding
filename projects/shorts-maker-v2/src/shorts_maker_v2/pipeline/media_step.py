@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import random
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
@@ -87,6 +88,16 @@ class MediaStep:
             fn(event, **fields)
 
     @staticmethod
+    def _scene_id_from_path(path: Path) -> int | None:
+        """`scene_05.mp3` 형태의 경로 stem 에서 scene_id 정수를 추출. 실패 시 None.
+
+        Whisper word-sync 등 씬 인자를 직접 받지 않는 단계에서 실패 레코드에
+        scene_id 를 각인하기 위한 보조 함수다.
+        """
+        match = re.search(r"scene_(\d+)", path.stem)
+        return int(match.group(1)) if match else None
+
+    @staticmethod
     def _read_audio_duration(audio_path: Path, fallback_sec: float) -> float:
         try:
             audio = MP3(str(audio_path))
@@ -162,6 +173,7 @@ class MediaStep:
                 self._pending_audio_warnings.append(
                     {
                         "step": "whisper_word_sync",
+                        "scene_id": self._scene_id_from_path(output_path),
                         "code": type(exc).__name__,
                         "message": str(exc)[:160],
                     }
@@ -313,8 +325,10 @@ class MediaStep:
                     temperature=0.3,
                 )
                 return str(result.get("prompt", prompt)).strip() or prompt
-            except Exception:
-                pass
+            except Exception as exc:
+                # 침묵 금지 — LLMRouter 정화 실패는 OpenAI 직접 폴백으로 이어지지만
+                # 어떤 이유로 폴백했는지 추적할 수 있도록 debug 로그를 남긴다.
+                logger.debug("[MediaStep] LLMRouter prompt sanitize failed, OpenAI fallback: %s", exc)
 
         # 2차 폴백: OpenAI 직접
         sanitized = self.openai_client.generate_json(
@@ -860,6 +874,10 @@ class MediaStep:
             duration_sec=duration_sec,
         )
         self._log(logger, "info", "scene_asset_ready", scene_id=scene.scene_id, visual_type=visual_type)
+        # 모든 실패 레코드에 scene_id 를 각인 — manifest.failed_steps 에서 어느
+        # 씬의 폴백/실패인지 추적 가능하게 한다. setdefault 라 기존 키는 보존.
+        for _failure in failures:
+            _failure.setdefault("scene_id", scene.scene_id)
         return asset, failures
 
     def run(
@@ -955,7 +973,12 @@ class MediaStep:
                         all_failures.extend(failures)
                     except Exception as exc:
                         all_failures.append(
-                            {"step": f"scene_{scene_id}", "code": type(exc).__name__, "message": str(exc)}
+                            {
+                                "step": f"scene_{scene_id}",
+                                "scene_id": scene_id,
+                                "code": type(exc).__name__,
+                                "message": str(exc),
+                            }
                         )
                         self._log(logger, "error", "parallel_scene_failed", scene_id=scene_id, error=str(exc))
 

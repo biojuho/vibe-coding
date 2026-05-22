@@ -485,6 +485,56 @@ def test_process_one_scene_existing_visual_skips_regeneration(tmp_path: Path) ->
     best_image.assert_not_called()
 
 
+def test_scene_id_from_path_parses_stem() -> None:
+    """경로 stem 에서 scene_id 추출 — Whisper 등 씬 인자 없는 단계용 보조 함수."""
+    assert MediaStep._scene_id_from_path(Path("runs/job/audio/scene_05.mp3")) == 5
+    assert MediaStep._scene_id_from_path(Path("scene_12_words.json")) == 12
+    assert MediaStep._scene_id_from_path(Path("no_scene_marker.txt")) is None
+
+
+def test_process_one_scene_stamps_scene_id_on_failures(tmp_path: Path) -> None:
+    """media 폴백 실패 레코드에 scene_id 가 각인되어 manifest 추적이 가능해야 한다."""
+    step = _make_step()
+    audio_dir = tmp_path / "audio"
+    image_dir = tmp_path / "images"
+    video_dir = tmp_path / "videos"
+    audio_dir.mkdir()
+    image_dir.mkdir()
+    video_dir.mkdir()
+    generated_audio = audio_dir / "scene_07.mp3"
+    generated_audio.write_bytes(b"audio")
+    # _generate_best_image 가 scene_id 없는 실패 레코드를 반환하도록 모킹
+    img_failures = [
+        {"step": "image_imagen3", "code": "RuntimeError", "message": "imagen down"},
+        {"step": "image_gemini", "code": "TimeoutError", "message": "slow"},
+    ]
+
+    with (
+        patch("shorts_maker_v2.pipeline.media_step.retry_with_backoff", side_effect=_run_retry),
+        patch.object(step, "_generate_audio", return_value=generated_audio),
+        patch.object(
+            step,
+            "_generate_best_image",
+            return_value=(str(tmp_path / "img.png"), "image", img_failures),
+        ),
+        patch.object(MediaStep, "_read_audio_duration", return_value=5.0),
+    ):
+        asset, failures = step._process_one_scene(
+            _scene(scene_id=7),
+            audio_dir,
+            image_dir,
+            video_dir,
+            _make_cost_guard(),
+            logger=MagicMock(),
+        )
+
+    assert asset.scene_id == 7
+    assert len(failures) == 2
+    assert all(f["scene_id"] == 7 for f in failures)
+    # 원본 키(step/code/message)는 setdefault 라 그대로 보존된다
+    assert {f["step"] for f in failures} == {"image_imagen3", "image_gemini"}
+
+
 def test_process_one_scene_audio_failure_logs_and_raises(tmp_path: Path) -> None:
     step = _make_step()
     audio_dir = tmp_path / "audio"
