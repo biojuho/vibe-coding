@@ -9,7 +9,7 @@ import contextlib
 import logging
 import os
 import subprocess
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from shorts_maker_v2.models import (
     GateVerdict,
@@ -21,6 +21,9 @@ from shorts_maker_v2.models import (
     SemanticQCResult,
     StructureOutline,
 )
+
+if TYPE_CHECKING:
+    from shorts_maker_v2.render.caption_pillow import CaptionStyle
 
 logger = logging.getLogger(__name__)
 
@@ -459,22 +462,42 @@ class QCStep:
         scene_plans: list[ScenePlan],
         scene_assets: list[SceneAsset],
         canvas_height: int = 1920,
+        canvas_width: int = 1080,
+        styles: dict[str, CaptionStyle] | None = None,
     ) -> QCReport:
         """Safe Zone 검증: 자막이 YouTube Shorts UI 영역을 침범하지 않는지 확인.
 
-        caption_pillow.calculate_safe_position으로 예상 위치를 계산하고,
-        validate_safe_zone으로 안전 영역 내 배치 여부를 검증한다.
+        자막 높이는 ``estimate_caption_height`` 로 **실제 렌더러와 동일한 픽셀
+        측정**을 거쳐 산출한다. 과거에는 ``len(narration)//20`` 문자 수 기반
+        줄 수 추정을 썼으나, 한글·영문 글자 폭이 달라 부정확하고
+        ``shorts-subtitle-safezone`` 스킬이 명시적으로 금지하는 안티패턴이다.
+
+        Args:
+            canvas_width: 캔버스 가로 픽셀 (Shorts 9:16 기준 기본 1080).
+            styles: 역할(role)별 ``CaptionStyle`` 매핑. 오케스트레이터가
+                ``RenderStep`` 의 hook/body/cta/closing 스타일을 그대로 넘겨
+                QC 가 실제 렌더링과 동일한 폰트·여백·모드로 측정하게 한다.
+                생략 시 보수적인 기본 스타일로 폴백한다.
         """
         from shorts_maker_v2.render.caption_pillow import (
             CaptionStyle,
             calculate_safe_position,
+            estimate_caption_height,
             validate_safe_zone,
         )
 
         checks: dict[str, bool] = {}
         issues: list[str] = []
 
-        default_style = CaptionStyle(
+        # styles 미제공 시 폴백: 실제 폰트 후보를 써야 픽셀 측정이 의미를 가진다.
+        try:
+            from shorts_maker_v2.config import _DEFAULT_FONT_CANDIDATES
+
+            fallback_fonts: tuple[str, ...] = _DEFAULT_FONT_CANDIDATES
+        except Exception:  # pragma: no cover - config import 실패 시 방어
+            fallback_fonts = ()
+
+        fallback_style = CaptionStyle(
             font_size=76,
             margin_x=40,
             bottom_offset=200,
@@ -482,16 +505,21 @@ class QCStep:
             stroke_color="#000000",
             stroke_width=4,
             line_spacing=12,
-            font_candidates=(),
+            font_candidates=fallback_fonts,
         )
+
+        def _style_for(role: str) -> CaptionStyle:
+            if styles:
+                return styles.get(role) or styles.get("body") or fallback_style
+            return fallback_style
 
         for plan in scene_plans:
             role = plan.structure_role
-            estimated_lines = max(1, len(plan.narration_ko) // 20)
-            estimated_height = estimated_lines * (default_style.font_size + default_style.line_spacing)
+            style = _style_for(role)
+            caption_height = estimate_caption_height(plan.narration_ko, canvas_width, style)
 
-            y_pos = calculate_safe_position(canvas_height, estimated_height, default_style, role=role)
-            result = validate_safe_zone(y_pos, estimated_height, canvas_height)
+            y_pos = calculate_safe_position(canvas_height, caption_height, style, role=role)
+            result = validate_safe_zone(y_pos, caption_height, canvas_height)
 
             is_safe = result["in_safe_zone"]
             checks[f"safe_zone_s{plan.scene_id}"] = is_safe

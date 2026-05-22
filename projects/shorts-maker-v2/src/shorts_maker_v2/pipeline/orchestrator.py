@@ -1014,9 +1014,21 @@ class PipelineOrchestrator:
             # 크리에이터가 영상을 직접 보기 전에 자막 오버랩을 알 수 있고,
             # Gate 4 의 degraded 집계에도 반영된다.
             try:
+                canvas_w, canvas_h = self.config.video.resolution
+                # RenderStep 이 실제 렌더에 쓰는 역할별 스타일을 그대로 넘겨
+                # QC 가 동일한 폰트·여백·모드로 자막 높이를 픽셀 측정하게 한다.
+                safe_zone_styles = {
+                    "hook": self.render_step.hook_style,
+                    "body": self.render_step.body_style,
+                    "cta": self.render_step.cta_style,
+                    "closing": self.render_step.closing_style,
+                }
                 sz_report = QCStep.gate_safe_zone(
                     scene_plans=scene_plans,
                     scene_assets=scene_assets,
+                    canvas_height=canvas_h,
+                    canvas_width=canvas_w,
+                    styles=safe_zone_styles,
                 )
                 if sz_report.verdict == GateVerdict.PASS.value:
                     jlog.info("safe_zone_pass", checks=sz_report.checks)

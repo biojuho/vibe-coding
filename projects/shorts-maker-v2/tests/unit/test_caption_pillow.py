@@ -425,3 +425,61 @@ class TestRenderCaptionImageEdgeCases:
         img1 = Image.open(path1)
         img3 = Image.open(path3)
         assert img3.height >= img1.height
+
+
+# ---------------------------------------------------------------------------
+# estimate_caption_height — 픽셀 측정 정확도 드리프트 가드
+#
+# safe-zone QC 가 자막 높이를 픽셀로 측정하려면 estimate_caption_height 가
+# 실제 렌더러(render_caption_image / render_karaoke_image)와 정확히 같은
+# 높이를 내야 한다. 렌더 함수가 바뀌어 산식이 어긋나면 아래 테스트가 깨진다.
+# ---------------------------------------------------------------------------
+
+
+class TestEstimateCaptionHeight:
+    """estimate_caption_height 가 실제 렌더 PNG 높이와 일치하는지 검증."""
+
+    def test_static_single_line_matches_render(self, tmp_path: Path) -> None:
+        from shorts_maker_v2.render.caption_pillow import estimate_caption_height
+
+        style = _base_style(mode="static", font_size=60)
+        png = render_caption_image("Short line", 1080, style, tmp_path / "s.png")
+        assert estimate_caption_height("Short line", 1080, style) == Image.open(png).height
+
+    def test_static_multiline_matches_render(self, tmp_path: Path) -> None:
+        from shorts_maker_v2.render.caption_pillow import estimate_caption_height
+
+        style = _base_style(mode="static", font_size=72)
+        text = "이것은 줄바꿈이 여러 번 일어나도록 충분히 긴 한글 자막 문장입니다 정말로 길어요"
+        png = render_caption_image(text, 1080, style, tmp_path / "m.png")
+        assert estimate_caption_height(text, 1080, style) == Image.open(png).height
+
+    def test_static_glow_matches_render(self, tmp_path: Path) -> None:
+        from shorts_maker_v2.render.caption_pillow import estimate_caption_height
+
+        style = _base_style(mode="static", font_size=64, glow_enabled=True, glow_radius=14)
+        png = render_caption_image("Neon glow caption", 1080, style, tmp_path / "g.png")
+        assert estimate_caption_height("Neon glow caption", 1080, style) == Image.open(png).height
+
+    def test_karaoke_chunk_matches_render(self, tmp_path: Path) -> None:
+        from shorts_maker_v2.render.caption_pillow import estimate_caption_height
+        from shorts_maker_v2.render.karaoke import render_karaoke_image
+
+        style = _base_style(mode="karaoke", font_size=72, words_per_chunk=3)
+        narration = "첫번째 두번째 세번째 네번째 다섯번째 여섯번째"
+        chunk = " ".join(narration.split()[:3])
+        png = render_karaoke_image(chunk, 1080, style, tmp_path / "k.png")
+        assert estimate_caption_height(narration, 1080, style) == Image.open(png).height
+
+    def test_min_lines_increases_height(self) -> None:
+        from shorts_maker_v2.render.caption_pillow import estimate_caption_height
+
+        one = _base_style(mode="static", font_size=60, min_lines=1)
+        three = _base_style(mode="static", font_size=60, min_lines=3)
+        assert estimate_caption_height("hi", 1080, three) > estimate_caption_height("hi", 1080, one)
+
+    def test_empty_text_is_safe(self) -> None:
+        from shorts_maker_v2.render.caption_pillow import estimate_caption_height
+
+        assert estimate_caption_height("", 1080, _base_style(mode="static")) >= 1
+        assert estimate_caption_height("   ", 1080, _base_style(mode="karaoke")) >= 1

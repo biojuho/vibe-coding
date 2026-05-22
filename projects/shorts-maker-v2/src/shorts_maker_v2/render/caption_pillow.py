@@ -466,6 +466,75 @@ def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
     return tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
 
 
+def estimate_caption_height(
+    text: str,
+    canvas_width: int,
+    style: CaptionStyle,
+) -> int:
+    """렌더링될 자막 이미지의 1x 픽셀 높이를 추정한다 (PNG 출력 없이).
+
+    ``render_caption_image`` (static) / ``render_karaoke_image`` (karaoke) 의
+    레이아웃 산식을 그대로 재현한다. ``shorts-subtitle-safezone`` 스킬은
+    문자 수 기반 줄 수 추정을 안티패턴으로 금지하므로 (한글·영문 글자 폭이
+    다름), safe-zone QC 는 실제 렌더러와 동일한 픽셀 측정을 거쳐야 한다.
+
+    반환 높이는 두 렌더 함수가 마지막에 수행하는 ``// scale`` 다운샘플까지
+    반영하므로, 같은 인자로 생성한 PNG 의 높이와 정확히 일치한다.
+    """
+    text = (text or "").strip()
+    scale = 2  # 두 렌더 함수 모두 2x 슈퍼샘플링 사용
+
+    if style.mode == "karaoke":
+        # 카라오케는 단어 청크 1개를 한 줄(줄바꿈 없음)로 렌더한다.
+        # 전체 narration 이 아니라 대표 청크(words_per_chunk 개 단어)를 측정.
+        from shorts_maker_v2.render.karaoke import _auto_scale_font
+
+        words = text.split()
+        chunk = " ".join(words[: max(1, style.words_per_chunk)]) or text or " "
+        scaled = _auto_scale_font(style, chunk, canvas_width)
+        font = _load_font(dataclasses.replace(scaled, font_size=scaled.font_size * scale))
+        probe = Image.new("RGBA", (canvas_width * scale, 400 * scale), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(probe)
+        bbox = draw.textbbox((0, 0), chunk, font=font, stroke_width=0)
+        text_h = max(1, int(bbox[3] - bbox[1]))
+        pad_y = 20 * scale  # render_karaoke_image 의 pad_y
+        image_h = text_h + pad_y * 2
+        return max(1, image_h // scale)
+
+    # static 모드 — render_caption_image 의 산식을 그대로 재현
+    hi_font_size = style.font_size * scale
+    hi_stroke = style.stroke_width * scale
+    hi_line_spacing = style.line_spacing * scale
+    hi_padding_y = style.padding_y * scale
+    hi_glow_radius = style.glow_radius * scale
+    hi_width = canvas_width * scale
+
+    font = _load_font(dataclasses.replace(style, font_size=hi_font_size))
+    probe = Image.new("RGBA", (hi_width, hi_width), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(probe)
+
+    text_width_limit = max(120 * scale, hi_width - (style.margin_x * scale * 2))
+    lines = _wrap_text(draw, text, font, text_width_limit, hi_stroke)
+    while len(lines) < style.min_lines:
+        lines.append("")
+    line_text = "\n".join(lines)
+
+    adjusted_spacing = int(hi_line_spacing * style.line_spacing_factor) if len(lines) >= 2 else hi_line_spacing
+
+    _, top, _, bottom = draw.multiline_textbbox(
+        (0, 0),
+        line_text,
+        font=font,
+        spacing=adjusted_spacing,
+        stroke_width=hi_stroke,
+        align="center",
+    )
+    text_h = int(max(1, round(bottom - top)))
+    glow_pad = hi_glow_radius * 2 if style.glow_enabled else 0
+    image_h = max(1, int(text_h + hi_padding_y * 2 + glow_pad * 2))
+    return max(1, image_h // scale)
+
+
 def render_caption_image(
     text: str,
     canvas_width: int,

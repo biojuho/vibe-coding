@@ -123,27 +123,81 @@ class TestCalculateSafePositionIntegration:
         assert result["in_safe_zone"] is True
 
 
+def _style(mode: str, **overrides: object) -> CaptionStyle:
+    """실제 폰트를 쓰는 테스트용 CaptionStyle (픽셀 측정이 의미를 가지도록)."""
+    fields: dict[str, object] = {
+        "font_size": 76,
+        "margin_x": 40,
+        "bottom_offset": 200,
+        "text_color": "#FFFFFF",
+        "stroke_color": "#000000",
+        "stroke_width": 4,
+        "line_spacing": 12,
+        "font_candidates": ("C:/Windows/Fonts/malgun.ttf",),
+        "mode": mode,
+    }
+    fields.update(overrides)
+    return CaptionStyle(**fields)
+
+
 class TestGateSafeZone:
-    """QCStep.gate_safe_zone — 자막이 YouTube Shorts UI 안전 영역에 들어가는지 검수."""
+    """QCStep.gate_safe_zone — 자막이 YouTube Shorts UI 안전 영역에 들어가는지 검수.
+
+    높이는 ``estimate_caption_height`` 의 픽셀 측정으로 산출하며, 과거의
+    ``len(narration)//20`` 문자 수 추정(스킬 안티패턴)을 대체한다.
+    """
 
     def test_short_captions_pass(self):
         """짧은 나레이션 → 자막이 안전 영역에 들어가 PASS."""
         plans = [_plan(1, "짧은 자막입니다.", role="hook"), _plan(2, "본문 한 줄입니다.")]
-        report = QCStep.gate_safe_zone(plans, [])
+        styles = {"hook": _style("static"), "body": _style("static")}
+        report = QCStep.gate_safe_zone(plans, [], styles=styles)
         assert report.verdict == "pass"
         assert report.issues == []
         assert all(report.checks.values())
 
-    def test_overlong_caption_holds_with_scene_issue(self):
-        """안전 영역에 다 담을 수 없을 만큼 긴 나레이션 → HOLD + 해당 씬 이슈."""
-        plans = [_plan(1, "짧은 본문."), _plan(2, "가" * 600)]
-        report = QCStep.gate_safe_zone(plans, [])
+    def test_overlong_static_caption_holds_with_scene_issue(self):
+        """static 모드에서 안전 영역을 넘기는 긴 나레이션 → HOLD + 해당 씬 이슈."""
+        plans = [_plan(1, "짧은 본문."), _plan(2, "가나다라마바사 " * 80)]
+        styles = {"body": _style("static")}
+        report = QCStep.gate_safe_zone(plans, [], styles=styles)
         assert report.verdict == "hold"
         assert len(report.issues) == 1
         assert "Scene 2" in report.issues[0]
         # 정상 씬은 통과, 오버플로우 씬만 실패로 기록된다
         assert report.checks["safe_zone_s1"] is True
         assert report.checks["safe_zone_s2"] is False
+
+    def test_overlong_karaoke_narration_passes(self):
+        """karaoke 모드는 긴 나레이션도 단어 청크 단위로 한 줄씩 렌더하므로,
+        문자 수 기반 추정과 달리 세로 오버플로우로 오탐하지 않는다."""
+        plans = [_plan(1, "가나다라마바사 " * 80)]
+        styles = {"body": _style("karaoke")}
+        report = QCStep.gate_safe_zone(plans, [], styles=styles)
+        assert report.verdict == "pass"
+        assert report.checks["safe_zone_s1"] is True
+
+    def test_styles_param_routes_role_specific_style(self):
+        """styles 매핑이 역할별로 적용된다 — hook 만 거대 폰트 → hook 씬만 실패."""
+        plans = [_plan(1, "후크 자막", role="hook"), _plan(2, "본문 자막", role="body")]
+        styles = {
+            "hook": _style("static", font_size=4000),  # safe zone 초과 유발
+            "body": _style("static"),
+        }
+        report = QCStep.gate_safe_zone(plans, [], styles=styles)
+        assert report.verdict == "hold"
+        assert report.checks["safe_zone_s1"] is False
+        assert report.checks["safe_zone_s2"] is True
+
+    def test_pixel_measurement_beats_char_count(self):
+        """동일 글자 수라도 글자 폭이 다르면 줄 수가 달라진다 — 픽셀 측정만이
+        이를 구분한다. 좁은 글자 'i' 60자는 한 줄, 넓은 한글 60자는 여러 줄."""
+        from shorts_maker_v2.render.caption_pillow import estimate_caption_height
+
+        style = _style("static")
+        narrow = estimate_caption_height("i" * 60, 1080, style)
+        wide = estimate_caption_height("가" * 60, 1080, style)
+        assert wide > narrow  # 문자 수 기반이면 동일하게 추정됐을 것
 
     def test_empty_scene_plans_pass(self):
         """씬이 없으면 검사할 자막도 없으므로 PASS (빈 이슈)."""
