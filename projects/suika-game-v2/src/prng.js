@@ -22,17 +22,17 @@
  * @returns {() => number} a function returning successive 32-bit hash values.
  */
 export function xmur3(str) {
-    let h = 1779033703 ^ str.length;
-    for (let i = 0; i < str.length; i++) {
-        h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
-        h = (h << 13) | (h >>> 19);
-    }
-    return function () {
-        h = Math.imul(h ^ (h >>> 16), 2246822507);
-        h = Math.imul(h ^ (h >>> 13), 3266489909);
-        h ^= h >>> 16;
-        return h >>> 0;
-    };
+	let h = 1779033703 ^ str.length;
+	for (let i = 0; i < str.length; i++) {
+		h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+		h = (h << 13) | (h >>> 19);
+	}
+	return () => {
+		h = Math.imul(h ^ (h >>> 16), 2246822507);
+		h = Math.imul(h ^ (h >>> 13), 3266489909);
+		h ^= h >>> 16;
+		return h >>> 0;
+	};
 }
 
 /**
@@ -41,14 +41,14 @@ export function xmur3(str) {
  * @returns {() => number} function returning floats in [0, 1).
  */
 export function mulberry32(seed) {
-    let a = seed >>> 0;
-    return function () {
-        a |= 0;
-        a = (a + 0x6d2b79f5) | 0;
-        let t = Math.imul(a ^ (a >>> 15), 1 | a);
-        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
+	let a = seed >>> 0;
+	return () => {
+		a |= 0;
+		a = (a + 0x6d2b79f5) | 0;
+		let t = Math.imul(a ^ (a >>> 15), 1 | a);
+		t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+		return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+	};
 }
 
 /**
@@ -58,16 +58,15 @@ export function mulberry32(seed) {
  * @returns {{ next: () => number, int: (min:number,max:number)=>number }}
  */
 export function createRng(seed) {
-    const intSeed =
-        typeof seed === 'number' ? seed >>> 0 : xmur3(String(seed))();
-    const next = mulberry32(intSeed);
-    return {
-        next,
-        /** Inclusive integer in [min, max]. */
-        int(min, max) {
-            return min + Math.floor(next() * (max - min + 1));
-        },
-    };
+	const intSeed = typeof seed === "number" ? seed >>> 0 : xmur3(String(seed))();
+	const next = mulberry32(intSeed);
+	return {
+		next,
+		/** Inclusive integer in [min, max]. */
+		int(min, max) {
+			return min + Math.floor(next() * (max - min + 1));
+		},
+	};
 }
 
 // --- Gameplay singleton --------------------------------------------------
@@ -78,7 +77,7 @@ export function createRng(seed) {
 // - it must never consume from this stream or determinism would break.
 
 let gameplayRng = mulberry32((Math.random() * 0xffffffff) >>> 0);
-let activeSeedLabel = 'unseeded';
+let activeSeedLabel = "unseeded";
 
 /**
  * Reset the shared gameplay stream to a known seed.
@@ -86,11 +85,10 @@ let activeSeedLabel = 'unseeded';
  * @returns {string} the human-readable seed label now in effect.
  */
 export function seedGameplayRng(seed) {
-    const intSeed =
-        typeof seed === 'number' ? seed >>> 0 : xmur3(String(seed))();
-    gameplayRng = mulberry32(intSeed);
-    activeSeedLabel = String(seed);
-    return activeSeedLabel;
+	const intSeed = typeof seed === "number" ? seed >>> 0 : xmur3(String(seed))();
+	gameplayRng = mulberry32(intSeed);
+	activeSeedLabel = String(seed);
+	return activeSeedLabel;
 }
 
 /**
@@ -98,12 +96,12 @@ export function seedGameplayRng(seed) {
  * @returns {number}
  */
 export function gameRandom() {
-    return gameplayRng();
+	return gameplayRng();
 }
 
 /** @returns {string} the seed label currently driving gameplay. */
 export function getActiveSeedLabel() {
-    return activeSeedLabel;
+	return activeSeedLabel;
 }
 
 // --- Daily challenge identity -------------------------------------------
@@ -120,10 +118,10 @@ const MS_PER_DAY = 86400000;
  * @returns {string}
  */
 export function dailySeedString(date = new Date()) {
-    const y = date.getUTCFullYear();
-    const m = String(date.getUTCMonth() + 1).padStart(2, '0');
-    const d = String(date.getUTCDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
+	const y = date.getUTCFullYear();
+	const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+	const d = String(date.getUTCDate()).padStart(2, "0");
+	return `${y}-${m}-${d}`;
 }
 
 /**
@@ -132,10 +130,10 @@ export function dailySeedString(date = new Date()) {
  * @returns {number}
  */
 export function dailyChallengeNumber(date = new Date()) {
-    const dayStart = Date.UTC(
-        date.getUTCFullYear(),
-        date.getUTCMonth(),
-        date.getUTCDate(),
-    );
-    return Math.floor((dayStart - EPOCH_UTC) / MS_PER_DAY) + 1;
+	const dayStart = Date.UTC(
+		date.getUTCFullYear(),
+		date.getUTCMonth(),
+		date.getUTCDate(),
+	);
+	return Math.floor((dayStart - EPOCH_UTC) / MS_PER_DAY) + 1;
 }

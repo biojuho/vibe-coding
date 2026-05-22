@@ -1,20 +1,20 @@
 {
-  "name": "Suika Daily",
-  "short_name": "Suika Daily",
-  "description": "매일 전 세계가 똑같은 시드의 퍼즐에 도전하는 데일리 과일 합치기 게임.",
-  "lang": "ko",
-  "start_url": "./",
-  "scope": "./",
-  "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#fdfbfb",
-  "theme_color": "#ff6b6b",
-  "icons": [
-    {
-      "src": "./icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    }
-  ]
+	"name": "Suika Daily",
+	"short_name": "Suika Daily",
+	"description": "매일 전 세계가 똑같은 시드의 퍼즐에 도전하는 데일리 과일 합치기 게임.",
+	"lang": "ko",
+	"start_url": "./",
+	"scope": "./",
+	"display": "standalone",
+	"orientation": "portrait",
+	"background_color": "#fdfbfb",
+	"theme_color": "#ff6b6b",
+	"icons": [
+		{
+			"src": "./icon.svg",
+			"sizes": "any",
+			"type": "image/svg+xml",
+			"purpose": "any maskable"
+		}
+	]
 }

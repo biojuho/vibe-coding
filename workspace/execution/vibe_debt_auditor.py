@@ -367,11 +367,15 @@ def score_test_gap(filepath: Path, project_name: str) -> float:
             possible_test_dirs.append(test_dir)
 
     for test_dir in possible_test_dirs:
-        # Check tests/test_<name>.py and tests/unit/test_<name>.py
+        # Check tests/test_<name>.py and tests/unit/test_<name>.py, plus
+        # suffixed variants (test_<name>_extended.py, test_<name>_deep.py,
+        # test_<name>_security.py, ...) — a common per-module test-naming
+        # convention across these projects that an exact match would miss.
         for subdir in [test_dir, test_dir / "unit"]:
-            test_file = subdir / f"test_{fname}.py"
-            if test_file.exists():
+            if (subdir / f"test_{fname}.py").exists():
                 return 15.0  # Has test file but coverage unknown
+            if subdir.is_dir() and next(subdir.glob(f"test_{fname}_*.py"), None) is not None:
+                return 15.0  # Has suffixed test file(s)
 
     # No test file found at all
     return 70.0
@@ -411,8 +415,17 @@ def score_modularity(total_lines: int, import_count: int) -> float:
     return min(100.0, size_score + import_score)
 
 
-def score_doc_sync(filepath: Path, mapped_scripts: set) -> float:
-    """Score based on whether this file is mapped in directives/INDEX.md."""
+def score_doc_sync(filepath: Path, mapped_scripts: set, project_name: str = "workspace") -> float:
+    """Score based on whether this file is mapped in directives/INDEX.md.
+
+    The directive<->script mapping is a workspace-only concept (the 3-layer
+    architecture). Sub-projects such as blind-to-x / shorts-maker-v2 have no
+    `directives/` layer, so this dimension does not apply to their files and
+    must not be penalised against the workspace INDEX.md.
+    """
+    if project_name != "workspace":
+        return 0.0
+
     fname = filepath.name
     if fname.startswith("test_") or fname.startswith("conftest") or fname.startswith("_"):
         return 0.0  # Test/internal files don't need mapping
@@ -472,7 +485,7 @@ def scan_file(filepath: Path, project_name: str, mapped_scripts: set) -> FileDeb
     tg_score = score_test_gap(filepath, project_name)
     dm_score = score_debt_markers(len(markers), code_lines)
     mod_score = score_modularity(total_lines, import_count)
-    ds_score = score_doc_sync(filepath, mapped_scripts)
+    ds_score = score_doc_sync(filepath, mapped_scripts, project_name)
 
     # Weighted total
     total = (

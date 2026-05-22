@@ -199,6 +199,7 @@ delay_seconds: 5
 feed_filter:
   min_engagement_score: 0.0
   fetch_multiplier: 3
+  editorial_gate_enabled: true
   min_editorial_score: 60.0
   min_pre_editorial_score: 35.0
 
@@ -219,6 +220,8 @@ scrape_quality:
   selector_timeout_ms: 5000
   direct_fallback_timeout_ms: 8000
   save_failure_snapshot: true
+  integrity_check_enabled: true
+  min_article_chars: 220
   failure_snapshot_dir: ".tmp/failures"
 
 dedup:

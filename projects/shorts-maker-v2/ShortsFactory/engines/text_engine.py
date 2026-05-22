@@ -132,34 +132,16 @@ class TextEngine:
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        style = self._get_style(role)
-        font_name = self.font_title if role == "hook" else self.font_body
-
-        # 이미지 생성 (2x 슈퍼샘플링)
-        scale = 2
-        hi_size = style.font_size * scale
-        hi_font = _resolve_font(font_name, hi_size)
-        canvas_w = self._canvas_width * scale
-
-        # 텍스트 줄바꿈
-        probe_img = Image.new("RGBA", (canvas_w, 200), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(probe_img)
-        max_text_w = canvas_w - (style.padding * 2 * scale)
-        lines = self._wrap_lines(draw, text, hi_font, max_text_w, style.stroke_width * scale)
-        line_text = "\n".join(lines)
-
-        # 텍스트 바운딩 박스 계산
-        bbox = draw.multiline_textbbox(
-            (0, 0),
-            line_text,
-            font=hi_font,
-            spacing=style.line_spacing * scale,
-            stroke_width=style.stroke_width * scale,
-        )
-        text_w = int(bbox[2] - bbox[0])
-        text_h = int(bbox[3] - bbox[1])
-        img_w = min(canvas_w, text_w + style.padding * 4 * scale)
-        img_h = text_h + style.padding * 2 * scale
+        layout = self._prepare_text_layout(text, role)
+        style = layout["style"]
+        hi_font = layout["hi_font"]
+        scale = layout["scale"]
+        lines = layout["lines"]
+        line_text = layout["line_text"]
+        img_w = layout["img_w"]
+        img_h = layout["img_h"]
+        tx = layout["tx"]
+        ty = layout["ty"]
 
         image = Image.new("RGBA", (img_w, img_h), (0, 0, 0, 0))
         draw = ImageDraw.Draw(image)
@@ -176,9 +158,6 @@ class TextEngine:
             )
             image = Image.alpha_composite(image, bg_layer)
             draw = ImageDraw.Draw(image)
-
-        tx = (img_w - text_w) / 2
-        ty = style.padding * scale - bbox[1]
 
         # 키워드가 없으면 단색 텍스트
         if not keywords:
@@ -266,38 +245,20 @@ class TextEngine:
         gc = glow_color or self.palette.get("primary", "#00D4FF")
         gc_rgb = self._hex_to_rgb(gc)
 
-        style = self._get_style(role)
-        font_name = self.font_title if role in ("hook", "headline") else self.font_body
         scale = 2
-        hi_size = style.font_size * scale
-        hi_font = _resolve_font(font_name, hi_size)
-        canvas_w = self._canvas_width * scale
-
-        # 텍스트 줄바꿈
-        probe_img = Image.new("RGBA", (canvas_w, 200), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(probe_img)
-        max_text_w = canvas_w - (style.padding * 2 * scale)
-        lines = self._wrap_lines(draw, text, hi_font, max_text_w, style.stroke_width * scale)
-        line_text = "\n".join(lines)
-
-        bbox = draw.multiline_textbbox(
-            (0, 0),
-            line_text,
-            font=hi_font,
-            spacing=style.line_spacing * scale,
-            stroke_width=style.stroke_width * scale,
-        )
-        text_w = int(bbox[2] - bbox[0])
-        text_h = int(bbox[3] - bbox[1])
         pad = glow_radius * scale
-        img_w = min(canvas_w, text_w + style.padding * 4 * scale + pad * 2)
-        img_h = text_h + style.padding * 2 * scale + pad * 2
+        layout = self._prepare_text_layout(text, role, scale=scale, extra_pad=pad)
+        style = layout["style"]
+        hi_font = layout["hi_font"]
+        line_text = layout["line_text"]
+        img_w = layout["img_w"]
+        img_h = layout["img_h"]
+        tx = layout["tx"]
+        ty = layout["ty"]
 
         # 1) 글로우 레이어 — 동일 텍스트를 글로우 색상으로, 블러 적용
         glow_layer = Image.new("RGBA", (img_w, img_h), (0, 0, 0, 0))
         glow_draw = ImageDraw.Draw(glow_layer)
-        tx = (img_w - text_w) / 2
-        ty = pad + style.padding * scale - bbox[1]
 
         glow_draw.multiline_text(
             (tx, ty),
@@ -481,36 +442,19 @@ class TextEngine:
         cs = self._hex_to_rgb(color_start or self.palette.get("accent", "#00FF88"))
         ce = self._hex_to_rgb(color_end or self.palette.get("primary", "#00D4FF"))
 
-        style = self._get_style(role)
-        font_name = self.font_title if role in ("hook", "headline") else self.font_body
-        scale = 2
-        hi_font = _resolve_font(font_name, style.font_size * scale)
-        canvas_w = self._canvas_width * scale
-
-        # 텍스트 줄바꿈
-        probe_img = Image.new("RGBA", (canvas_w, 200), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(probe_img)
-        max_text_w = canvas_w - (style.padding * 2 * scale)
-        lines = self._wrap_lines(draw, text, hi_font, max_text_w, style.stroke_width * scale)
-        line_text = "\n".join(lines)
-
-        bbox = draw.multiline_textbbox(
-            (0, 0),
-            line_text,
-            font=hi_font,
-            spacing=style.line_spacing * scale,
-            stroke_width=style.stroke_width * scale,
-        )
-        text_w = int(bbox[2] - bbox[0])
-        text_h = int(bbox[3] - bbox[1])
-        img_w = min(canvas_w, text_w + style.padding * 4 * scale)
-        img_h = text_h + style.padding * 2 * scale
+        layout = self._prepare_text_layout(text, role)
+        style = layout["style"]
+        hi_font = layout["hi_font"]
+        scale = layout["scale"]
+        line_text = layout["line_text"]
+        img_w = layout["img_w"]
+        img_h = layout["img_h"]
+        tx = layout["tx"]
+        ty = layout["ty"]
 
         # 1) 텍스트를 흰색으로 먼저 렌더
         text_layer = Image.new("RGBA", (img_w, img_h), (0, 0, 0, 0))
         text_draw = ImageDraw.Draw(text_layer)
-        tx = (img_w - text_w) / 2
-        ty = style.padding * scale - bbox[1]
 
         # 드롭 섀도우
         text_draw.multiline_text(
@@ -718,6 +662,59 @@ class TextEngine:
         return output_path
 
     # ── 내부 메서드 ─────────────────────────────────────────────────────
+
+    def _prepare_text_layout(
+        self,
+        text: str,
+        role: str,
+        scale: int = 2,
+        extra_pad: int = 0,
+    ) -> dict[str, Any]:
+        """폰트 분석, 줄바꿈 및 바운딩 박스를 계산하여 공통 레이아웃 파라미터를 생성합니다."""
+        style = self._get_style(role)
+        font_name = self.font_title if role in ("hook", "headline") else self.font_body
+
+        hi_size = style.font_size * scale
+        hi_font = _resolve_font(font_name, hi_size)
+        canvas_w = self._canvas_width * scale
+
+        # 텍스트 줄바꿈
+        probe_img = Image.new("RGBA", (canvas_w, 200), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(probe_img)
+        max_text_w = canvas_w - (style.padding * 2 * scale)
+        lines = self._wrap_lines(draw, text, hi_font, max_text_w, style.stroke_width * scale)
+        line_text = "\n".join(lines)
+
+        # 텍스트 바운딩 박스 계산
+        bbox = draw.multiline_textbbox(
+            (0, 0),
+            line_text,
+            font=hi_font,
+            spacing=style.line_spacing * scale,
+            stroke_width=style.stroke_width * scale,
+        )
+        text_w = int(bbox[2] - bbox[0])
+        text_h = int(bbox[3] - bbox[1])
+
+        img_w = min(canvas_w, text_w + style.padding * 4 * scale + extra_pad * 2)
+        img_h = text_h + style.padding * 2 * scale + extra_pad * 2
+
+        tx = (img_w - text_w) / 2
+        ty = extra_pad + style.padding * scale - bbox[1]
+
+        return {
+            "style": style,
+            "hi_font": hi_font,
+            "scale": scale,
+            "lines": lines,
+            "line_text": line_text,
+            "text_w": text_w,
+            "text_h": text_h,
+            "img_w": img_w,
+            "img_h": img_h,
+            "tx": tx,
+            "ty": ty,
+        }
 
     def _get_style(self, role: str) -> TextStyle:
         """역할에 따른 자막 스타일 반환."""

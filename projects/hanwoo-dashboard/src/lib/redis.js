@@ -1,130 +1,130 @@
-import IORedis from 'ioredis';
+import IORedis from "ioredis";
 
-const DEFAULT_REDIS_KEY_PREFIX = 'hd';
+const DEFAULT_REDIS_KEY_PREFIX = "hd";
 
 const REDIS_ROLE_OPTIONS = Object.freeze({
-  cache: {
-    maxRetriesPerRequest: 1,
-    enableOfflineQueue: false,
-  },
-  producer: {
-    maxRetriesPerRequest: 1,
-    enableOfflineQueue: false,
-  },
-  worker: {
-    maxRetriesPerRequest: null,
-    enableOfflineQueue: true,
-  },
-  events: {
-    maxRetriesPerRequest: null,
-    enableOfflineQueue: true,
-  },
+	cache: {
+		maxRetriesPerRequest: 1,
+		enableOfflineQueue: false,
+	},
+	producer: {
+		maxRetriesPerRequest: 1,
+		enableOfflineQueue: false,
+	},
+	worker: {
+		maxRetriesPerRequest: null,
+		enableOfflineQueue: true,
+	},
+	events: {
+		maxRetriesPerRequest: null,
+		enableOfflineQueue: true,
+	},
 });
 
 const REDIS_GLOBAL_KEYS = Object.freeze({
-  cache: '__hanwooRedisCache',
-  producer: '__hanwooRedisProducer',
+	cache: "__hanwooRedisCache",
+	producer: "__hanwooRedisProducer",
 });
 
 const globalForRedis = globalThis;
 
 function getRoleOptions(role) {
-  return REDIS_ROLE_OPTIONS[role] ?? REDIS_ROLE_OPTIONS.cache;
+	return REDIS_ROLE_OPTIONS[role] ?? REDIS_ROLE_OPTIONS.cache;
 }
 
 function getSingletonKey(role) {
-  return REDIS_GLOBAL_KEYS[role] ?? null;
+	return REDIS_GLOBAL_KEYS[role] ?? null;
 }
 
 function getRedisUrl() {
-  return process.env.REDIS_URL ?? process.env.BULLMQ_REDIS_URL ?? null;
+	return process.env.REDIS_URL ?? process.env.BULLMQ_REDIS_URL ?? null;
 }
 
 function createRetryStrategy(attempt) {
-  return Math.min(attempt * 1000, 20000);
+	return Math.min(attempt * 1000, 20000);
 }
 
 function attachErrorLogger(client, role) {
-  client.on('error', (error) => {
-    console.error(`[redis:${role}]`, error);
-  });
+	client.on("error", (error) => {
+		console.error(`[redis:${role}]`, error);
+	});
 }
 
 export function isRedisConfigured() {
-  return Boolean(getRedisUrl());
+	return Boolean(getRedisUrl());
 }
 
 export function getRedisKeyPrefix() {
-  return process.env.REDIS_KEY_PREFIX ?? DEFAULT_REDIS_KEY_PREFIX;
+	return process.env.REDIS_KEY_PREFIX ?? DEFAULT_REDIS_KEY_PREFIX;
 }
 
-export function createRedisClient(role = 'cache') {
-  const redisUrl = getRedisUrl();
+export function createRedisClient(role = "cache") {
+	const redisUrl = getRedisUrl();
 
-  if (!redisUrl) {
-    return null;
-  }
+	if (!redisUrl) {
+		return null;
+	}
 
-  const options = {
-    ...getRoleOptions(role),
-    connectionName: `hanwoo-dashboard:${role}`,
-    lazyConnect: true,
-    retryStrategy: createRetryStrategy,
-  };
+	const options = {
+		...getRoleOptions(role),
+		connectionName: `hanwoo-dashboard:${role}`,
+		lazyConnect: true,
+		retryStrategy: createRetryStrategy,
+	};
 
-  if (role === 'cache') {
-    options.keyPrefix = `${getRedisKeyPrefix()}:`;
-  }
+	if (role === "cache") {
+		options.keyPrefix = `${getRedisKeyPrefix()}:`;
+	}
 
-  const client = new IORedis(redisUrl, options);
+	const client = new IORedis(redisUrl, options);
 
-  attachErrorLogger(client, role);
-  return client;
+	attachErrorLogger(client, role);
+	return client;
 }
 
-export function getRedisClient(role = 'cache') {
-  if (!isRedisConfigured()) {
-    return null;
-  }
+export function getRedisClient(role = "cache") {
+	if (!isRedisConfigured()) {
+		return null;
+	}
 
-  const singletonKey = getSingletonKey(role);
+	const singletonKey = getSingletonKey(role);
 
-  if (!singletonKey) {
-    return createRedisClient(role);
-  }
+	if (!singletonKey) {
+		return createRedisClient(role);
+	}
 
-  const existing = globalForRedis[singletonKey];
-  if (existing) {
-    return existing;
-  }
+	const existing = globalForRedis[singletonKey];
+	if (existing) {
+		return existing;
+	}
 
-  const client = createRedisClient(role);
-  globalForRedis[singletonKey] = client;
-  return client;
+	const client = createRedisClient(role);
+	globalForRedis[singletonKey] = client;
+	return client;
 }
 
-export async function ensureRedisConnection(role = 'cache') {
-  const client = getRedisClient(role);
+export async function ensureRedisConnection(role = "cache") {
+	const client = getRedisClient(role);
 
-  if (!client) {
-    return null;
-  }
+	if (!client) {
+		return null;
+	}
 
-  if (client.status === 'wait') {
-    await client.connect();
-  }
+	if (client.status === "wait") {
+		await client.connect();
+	}
 
-  return client;
+	return client;
 }
 
 export async function closeRedisClients() {
-  for (const singletonKey of Object.values(REDIS_GLOBAL_KEYS)) {
-    const client = globalForRedis[singletonKey];
-    if (!client) {
-      continue;
-    }
+	for (const singletonKey of Object.values(REDIS_GLOBAL_KEYS)) {
+		const client = globalForRedis[singletonKey];
+		if (!client) {
+			continue;
+		}
 
-    await client.quit();
-    delete globalForRedis[singletonKey];
-  }
+		await client.quit();
+		delete globalForRedis[singletonKey];
+	}
 }

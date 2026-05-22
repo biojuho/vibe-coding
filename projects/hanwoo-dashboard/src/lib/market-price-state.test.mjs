@@ -1,132 +1,132 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
+import assert from "node:assert/strict";
+import test from "node:test";
 
 import {
-  buildUnavailableMarketPrice,
-  MARKET_PRICE_FRESH_TTL_MS,
-  normalizeCachedMarketPrice,
-  normalizeLiveMarketPrice,
-  shouldPersistLiveMarketPrice,
-} from './market-price-state.mjs';
+	buildUnavailableMarketPrice,
+	MARKET_PRICE_FRESH_TTL_MS,
+	normalizeCachedMarketPrice,
+	normalizeLiveMarketPrice,
+	shouldPersistLiveMarketPrice,
+} from "./market-price-state.mjs";
 
-test('normalizeCachedMarketPrice returns a fresh trusted cache state for recent realtime snapshots', () => {
-  const now = new Date('2026-04-07T12:00:00.000Z');
-  const result = normalizeCachedMarketPrice(
-    {
-      issueDate: '2026-04-06',
-      fetchedAt: '2026-04-07T11:40:00.000Z',
-      isRealtime: true,
-      bullGrade1pp: 21500,
-      bullGrade1p: 19800,
-      bullGrade1: 18500,
-      cowGrade1pp: 18500,
-      cowGrade1p: 17200,
-      cowGrade1: 16000,
-    },
-    { now },
-  );
+test("normalizeCachedMarketPrice returns a fresh trusted cache state for recent realtime snapshots", () => {
+	const now = new Date("2026-04-07T12:00:00.000Z");
+	const result = normalizeCachedMarketPrice(
+		{
+			issueDate: "2026-04-06",
+			fetchedAt: "2026-04-07T11:40:00.000Z",
+			isRealtime: true,
+			bullGrade1pp: 21500,
+			bullGrade1p: 19800,
+			bullGrade1: 18500,
+			cowGrade1pp: 18500,
+			cowGrade1p: 17200,
+			cowGrade1: 16000,
+		},
+		{ now },
+	);
 
-  assert.equal(result.source, 'kape-cache');
-  assert.equal(result.isStale, false);
-  assert.equal(result.available, true);
-  assert.equal(result.date, '2026.04.06');
+	assert.equal(result.source, "kape-cache");
+	assert.equal(result.isStale, false);
+	assert.equal(result.available, true);
+	assert.equal(result.date, "2026.04.06");
 });
 
-test('normalizeCachedMarketPrice marks old trusted snapshots as degraded stale cache', () => {
-  const now = new Date('2026-04-07T12:00:00.000Z');
-  const result = normalizeCachedMarketPrice(
-    {
-      issueDate: '2026-04-05',
-      fetchedAt: '2026-04-07T10:00:00.000Z',
-      isRealtime: true,
-      bullGrade1pp: 21500,
-      bullGrade1p: 19800,
-      bullGrade1: 18500,
-      cowGrade1pp: 18500,
-      cowGrade1p: 17200,
-      cowGrade1: 16000,
-    },
-    { now, freshnessMs: MARKET_PRICE_FRESH_TTL_MS },
-  );
+test("normalizeCachedMarketPrice marks old trusted snapshots as degraded stale cache", () => {
+	const now = new Date("2026-04-07T12:00:00.000Z");
+	const result = normalizeCachedMarketPrice(
+		{
+			issueDate: "2026-04-05",
+			fetchedAt: "2026-04-07T10:00:00.000Z",
+			isRealtime: true,
+			bullGrade1pp: 21500,
+			bullGrade1p: 19800,
+			bullGrade1: 18500,
+			cowGrade1pp: 18500,
+			cowGrade1p: 17200,
+			cowGrade1: 16000,
+		},
+		{ now, freshnessMs: MARKET_PRICE_FRESH_TTL_MS },
+	);
 
-  assert.equal(result.source, 'cache-stale');
-  assert.equal(result.degraded, true);
-  assert.equal(result.isRealtime, false);
-  assert.equal(result.sourceLabel, '이전 저장값');
-  assert.match(result.message, /마지막으로 확인한 KAPE 시세/);
+	assert.equal(result.source, "cache-stale");
+	assert.equal(result.degraded, true);
+	assert.equal(result.isRealtime, false);
+	assert.equal(result.sourceLabel, "이전 저장값");
+	assert.match(result.message, /마지막으로 확인한 KAPE 시세/);
 });
 
-test('normalizeCachedMarketPrice rejects legacy non-realtime snapshots so synthetic rows are ignored', () => {
-  const result = normalizeCachedMarketPrice({
-    issueDate: '2026-04-05',
-    fetchedAt: '2026-04-07T10:00:00.000Z',
-    isRealtime: false,
-    bullGrade1pp: 21500,
-    bullGrade1p: 19800,
-    bullGrade1: 18500,
-    cowGrade1pp: 18500,
-    cowGrade1p: 17200,
-    cowGrade1: 16000,
-  });
+test("normalizeCachedMarketPrice rejects legacy non-realtime snapshots so synthetic rows are ignored", () => {
+	const result = normalizeCachedMarketPrice({
+		issueDate: "2026-04-05",
+		fetchedAt: "2026-04-07T10:00:00.000Z",
+		isRealtime: false,
+		bullGrade1pp: 21500,
+		bullGrade1p: 19800,
+		bullGrade1: 18500,
+		cowGrade1pp: 18500,
+		cowGrade1p: 17200,
+		cowGrade1: 16000,
+	});
 
-  assert.equal(result, null);
+	assert.equal(result, null);
 });
 
-test('normalizeLiveMarketPrice returns a persistable live KAPE state', () => {
-  const now = new Date('2026-04-07T12:00:00.000Z');
-  const result = normalizeLiveMarketPrice(
-    {
-      issueDate: '20260406',
-      bull: { grade1pp: 21500, grade1p: 19800, grade1: 18500 },
-      cow: { grade1pp: 18500, grade1p: 17200, grade1: 16000 },
-    },
-    { now },
-  );
+test("normalizeLiveMarketPrice returns a persistable live KAPE state", () => {
+	const now = new Date("2026-04-07T12:00:00.000Z");
+	const result = normalizeLiveMarketPrice(
+		{
+			issueDate: "20260406",
+			bull: { grade1pp: 21500, grade1p: 19800, grade1: 18500 },
+			cow: { grade1pp: 18500, grade1p: 17200, grade1: 16000 },
+		},
+		{ now },
+	);
 
-  assert.equal(result.source, 'kape-live');
-  assert.equal(result.sourceLabel, '실시간 KAPE');
-  assert.equal(result.available, true);
-  assert.equal(result.issueDate, '2026-04-06');
-  assert.equal(shouldPersistLiveMarketPrice(result), true);
+	assert.equal(result.source, "kape-live");
+	assert.equal(result.sourceLabel, "실시간 KAPE");
+	assert.equal(result.available, true);
+	assert.equal(result.issueDate, "2026-04-06");
+	assert.equal(shouldPersistLiveMarketPrice(result), true);
 });
 
-test('normalizeLiveMarketPrice falls back instead of rolling impossible issue dates forward', () => {
-  const now = new Date('2026-04-07T12:00:00.000Z');
-  const impossibleDates = ['20260231', '2026.02.31', '2026-02-31'];
+test("normalizeLiveMarketPrice falls back instead of rolling impossible issue dates forward", () => {
+	const now = new Date("2026-04-07T12:00:00.000Z");
+	const impossibleDates = ["20260231", "2026.02.31", "2026-02-31"];
 
-  for (const issueDate of impossibleDates) {
-    const result = normalizeLiveMarketPrice(
-      {
-        issueDate,
-        bull: { grade1pp: 21500, grade1p: 19800, grade1: 18500 },
-        cow: { grade1pp: 18500, grade1p: 17200, grade1: 16000 },
-      },
-      { now },
-    );
+	for (const issueDate of impossibleDates) {
+		const result = normalizeLiveMarketPrice(
+			{
+				issueDate,
+				bull: { grade1pp: 21500, grade1p: 19800, grade1: 18500 },
+				cow: { grade1pp: 18500, grade1p: 17200, grade1: 16000 },
+			},
+			{ now },
+		);
 
-    assert.equal(result.issueDate, '2026-04-07');
-    assert.equal(result.date, '2026.04.07');
-  }
+		assert.equal(result.issueDate, "2026-04-07");
+		assert.equal(result.date, "2026.04.07");
+	}
 });
 
-test('normalizeLiveMarketPrice rejects incomplete live payloads', () => {
-  const result = normalizeLiveMarketPrice({
-    issueDate: '20260406',
-    bull: { grade1pp: 21500, grade1p: 19800, grade1: 0 },
-    cow: { grade1pp: 18500, grade1p: 17200, grade1: 16000 },
-  });
+test("normalizeLiveMarketPrice rejects incomplete live payloads", () => {
+	const result = normalizeLiveMarketPrice({
+		issueDate: "20260406",
+		bull: { grade1pp: 21500, grade1p: 19800, grade1: 0 },
+		cow: { grade1pp: 18500, grade1p: 17200, grade1: 16000 },
+	});
 
-  assert.equal(result, null);
+	assert.equal(result, null);
 });
 
-test('buildUnavailableMarketPrice returns an explicit degraded unavailable state', () => {
-  const now = new Date('2026-04-07T12:00:00.000Z');
-  const result = buildUnavailableMarketPrice({ now });
+test("buildUnavailableMarketPrice returns an explicit degraded unavailable state", () => {
+	const now = new Date("2026-04-07T12:00:00.000Z");
+	const result = buildUnavailableMarketPrice({ now });
 
-  assert.equal(result.available, false);
-  assert.equal(result.source, 'unavailable');
-  assert.equal(result.sourceLabel, '확인 불가');
-  assert.match(result.message, /한우 시세 데이터를 확인할 수 없습니다/);
-  assert.equal(result.degraded, true);
-  assert.equal(result.bull, null);
+	assert.equal(result.available, false);
+	assert.equal(result.source, "unavailable");
+	assert.equal(result.sourceLabel, "확인 불가");
+	assert.match(result.message, /한우 시세 데이터를 확인할 수 없습니다/);
+	assert.equal(result.degraded, true);
+	assert.equal(result.bull, null);
 });

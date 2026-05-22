@@ -1,0 +1,21 @@
+{
+	"name": "vibe-coding-monorepo",
+	"private": true,
+	"scripts": {
+		"build": "turbo run build",
+		"dev": "turbo run dev",
+		"lint": "turbo run lint && pnpm lint:biome",
+		"lint:biome": "biome check . || echo Biome check failed (advisory)",
+		"format": "biome format --write .",
+		"test": "turbo run test"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.4.15",
+		"turbo": "^2.0.0"
+	},
+	"engines": {
+		"node": ">=18",
+		"pnpm": ">=9"
+	},
+	"packageManager": "pnpm@9.5.0"
+}

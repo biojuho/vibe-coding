@@ -222,6 +222,26 @@ class TestScoring:
 
         assert score_test_gap(target, "workspace") == 15.0
 
+    def test_test_gap_finds_suffixed_test_file(self, tmp_path: Path):
+        # Per-module tests are commonly named test_<name>_<qualifier>.py
+        # (e.g. test_cost_db_extended.py); an exact-name match would miss them.
+        target = tmp_path / "pkg" / "cost_db.py"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("def query():\n    return 1\n", encoding="utf-8")
+
+        tests_dir = tmp_path / "pkg" / "tests" / "unit"
+        tests_dir.mkdir(parents=True, exist_ok=True)
+        (tests_dir / "test_cost_db_extended.py").write_text("def test_x():\n    assert True\n", encoding="utf-8")
+
+        assert score_test_gap(target, "blind-to-x") == 15.0
+
+    def test_doc_sync_skipped_for_subprojects(self, simple_py: Path):
+        # doc_sync (directives/INDEX.md mapping) is a workspace-only concept.
+        ws = scan_file(simple_py, "workspace", set())
+        sub = scan_file(simple_py, "blind-to-x", set())
+        assert ws.doc_sync_score == 40.0
+        assert sub.doc_sync_score == 0.0
+
 
 # ---------------------------------------------------------------------------
 # Full file scan tests
@@ -241,8 +261,8 @@ class TestScanFile:
         assert result.max_complexity > 10
 
     def test_scan_mapped_file_lower_doc_score(self, simple_py: Path):
-        mapped = scan_file(simple_py, "test", {"clean.py"})
-        unmapped = scan_file(simple_py, "test", set())
+        mapped = scan_file(simple_py, "workspace", {"clean.py"})
+        unmapped = scan_file(simple_py, "workspace", set())
         assert mapped.doc_sync_score <= unmapped.doc_sync_score
 
 

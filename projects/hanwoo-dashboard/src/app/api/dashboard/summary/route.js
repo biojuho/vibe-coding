@@ -1,72 +1,82 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
 
 import {
-  AUTHENTICATION_REQUIRED_MESSAGE,
-  requireAuthenticatedSession,
-  isAuthenticationError,
-} from '@/lib/auth-guard';
-import { DASHBOARD_CACHE_TTLS } from '@/lib/dashboard/cache';
-import { getDashboardSummarySnapshot, saveDashboardSummarySnapshot } from '@/lib/dashboard/read-models';
-import { buildDashboardSummaryPayload } from '@/lib/dashboard/summary-service';
-import prisma from '@/lib/db';
+	AUTHENTICATION_REQUIRED_MESSAGE,
+	isAuthenticationError,
+	requireAuthenticatedSession,
+} from "@/lib/auth-guard";
+import { DASHBOARD_CACHE_TTLS } from "@/lib/dashboard/cache";
+import {
+	getDashboardSummarySnapshot,
+	saveDashboardSummarySnapshot,
+} from "@/lib/dashboard/read-models";
+import { buildDashboardSummaryPayload } from "@/lib/dashboard/summary-service";
+import prisma from "@/lib/db";
 
-const DASHBOARD_SUMMARY_ERROR_MESSAGE = '대시보드 요약을 불러오지 못했습니다.';
+const DASHBOARD_SUMMARY_ERROR_MESSAGE = "대시보드 요약을 불러오지 못했습니다.";
 
 function toMetaDate(value, fallback = new Date()) {
-  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
-  return Number.isNaN(date.getTime()) ? fallback : date;
+	const date =
+		value instanceof Date ? new Date(value.getTime()) : new Date(value);
+	return Number.isNaN(date.getTime()) ? fallback : date;
 }
 
 function buildMeta(snapshot, source) {
-  const fallback = new Date();
-  const generatedAt = toMetaDate(snapshot.generatedAt, fallback);
-  const staleAt = toMetaDate(snapshot.staleAt, fallback);
+	const fallback = new Date();
+	const generatedAt = toMetaDate(snapshot.generatedAt, fallback);
+	const staleAt = toMetaDate(snapshot.staleAt, fallback);
 
-  return {
-    source,
-    generatedAt: generatedAt.toISOString(),
-    staleAt: staleAt.toISOString(),
-    isStale: staleAt <= new Date(),
-    ageSeconds: Math.max(0, Math.floor((Date.now() - generatedAt.getTime()) / 1000)),
-  };
+	return {
+		source,
+		generatedAt: generatedAt.toISOString(),
+		staleAt: staleAt.toISOString(),
+		isStale: staleAt <= new Date(),
+		ageSeconds: Math.max(
+			0,
+			Math.floor((Date.now() - generatedAt.getTime()) / 1000),
+		),
+	};
 }
 
 export async function GET(request) {
-  try {
-    await requireAuthenticatedSession();
+	try {
+		await requireAuthenticatedSession();
 
-    const { searchParams } = new URL(request.url);
-    const forceFresh = searchParams.get('fresh') === '1';
+		const { searchParams } = new URL(request.url);
+		const forceFresh = searchParams.get("fresh") === "1";
 
-    let snapshot = forceFresh
-      ? null
-      : await getDashboardSummarySnapshot('default');
-    let source = 'snapshot';
+		let snapshot = forceFresh
+			? null
+			: await getDashboardSummarySnapshot("default");
+		let source = "snapshot";
 
-    if (!snapshot || toMetaDate(snapshot.staleAt) <= new Date()) {
-      const payload = await buildDashboardSummaryPayload({ client: prisma });
-      snapshot = await saveDashboardSummarySnapshot({
-        farmId: 'default',
-        payload,
-        staleAt: new Date(Date.now() + DASHBOARD_CACHE_TTLS.summary * 1000),
-      });
-      source = snapshot ? 'rebuilt' : 'live';
-    }
+		if (!snapshot || toMetaDate(snapshot.staleAt) <= new Date()) {
+			const payload = await buildDashboardSummaryPayload({ client: prisma });
+			snapshot = await saveDashboardSummarySnapshot({
+				farmId: "default",
+				payload,
+				staleAt: new Date(Date.now() + DASHBOARD_CACHE_TTLS.summary * 1000),
+			});
+			source = snapshot ? "rebuilt" : "live";
+		}
 
-    return NextResponse.json({
-      success: true,
-      data: snapshot.payload,
-      meta: buildMeta(snapshot, source),
-    });
-  } catch (error) {
-    if (isAuthenticationError(error)) {
-      return NextResponse.json({ success: false, message: AUTHENTICATION_REQUIRED_MESSAGE }, { status: 401 });
-    }
+		return NextResponse.json({
+			success: true,
+			data: snapshot.payload,
+			meta: buildMeta(snapshot, source),
+		});
+	} catch (error) {
+		if (isAuthenticationError(error)) {
+			return NextResponse.json(
+				{ success: false, message: AUTHENTICATION_REQUIRED_MESSAGE },
+				{ status: 401 },
+			);
+		}
 
-    console.error('Dashboard summary route error:', error);
-    return NextResponse.json(
-      { success: false, message: DASHBOARD_SUMMARY_ERROR_MESSAGE },
-      { status: 500 },
-    );
-  }
+		console.error("Dashboard summary route error:", error);
+		return NextResponse.json(
+			{ success: false, message: DASHBOARD_SUMMARY_ERROR_MESSAGE },
+			{ status: 500 },
+		);
+	}
 }

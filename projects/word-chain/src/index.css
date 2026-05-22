@@ -5,19 +5,19 @@
 @config "../tailwind.config.js";
 
 @layer base {
-  body {
-    @apply bg-cyber-bg text-cyber-yellow font-mono overflow-hidden;
-  }
+	body {
+		@apply bg-cyber-bg text-cyber-yellow font-mono overflow-hidden;
+	}
 }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+	width: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #01012b;
+	background: #01012b;
 }
 ::-webkit-scrollbar-thumb {
-  background: #05d9e8;
-  border-radius: 4px;
+	background: #05d9e8;
+	border-radius: 4px;
 }

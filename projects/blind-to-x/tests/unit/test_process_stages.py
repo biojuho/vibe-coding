@@ -138,6 +138,62 @@ class TestFetchStage:
 
         assert result is True  # 예외를 삼키고 계속 진행
 
+    # ── D-033: 수집 무결성 게이트 ─────────────────────────────────────────
+    def test_login_wall_content_is_classified_as_scrape_failure(self):
+        from pipeline.process_stages.fetch_stage import run_fetch_stage
+
+        ctx = _ctx()
+        scraper = _MinScraper()
+        scraper.scrape_post = AsyncMock(
+            return_value={"title": "게시물", "content": "로그인이 필요합니다. 앱을 다운로드하세요.", "url": ctx.url}
+        )
+
+        result = self._run(run_fetch_stage(ctx, scraper, "blind", "popular"))
+
+        assert result is False
+        assert ctx.result["failure_stage"] == "post_fetch"
+        assert ctx.result["failure_reason"] == "scrape_login_wall"
+
+    def test_bot_block_page_is_classified_as_scrape_failure(self):
+        from pipeline.process_stages.fetch_stage import run_fetch_stage
+
+        ctx = _ctx()
+        scraper = _MinScraper()
+        scraper.scrape_post = AsyncMock(
+            return_value={
+                "title": "블라인드 인기글",
+                "content": "비정상적인 접근이 감지되어 차단되었습니다.",
+                "url": ctx.url,
+            }
+        )
+
+        result = self._run(run_fetch_stage(ctx, scraper, "blind", "popular"))
+
+        assert result is False
+        assert ctx.result["failure_reason"] == "scrape_blocked_page"
+
+    def test_integrity_check_can_be_disabled_via_config(self):
+        from pipeline.process_stages.fetch_stage import run_fetch_stage
+
+        class _CfgScraper(_MinScraper):
+            class _Cfg:
+                def get(self, key, default=None):
+                    if key == "scrape_quality.integrity_check_enabled":
+                        return False
+                    return default
+
+            config = _Cfg()
+
+        ctx = _ctx()
+        scraper = _CfgScraper()
+        scraper.scrape_post = AsyncMock(
+            return_value={"title": "게시물", "content": "로그인이 필요합니다. 앱을 다운로드하세요.", "url": ctx.url}
+        )
+
+        result = self._run(run_fetch_stage(ctx, scraper, "blind", "popular"))
+        # 비활성화 시 무결성 게이트를 건너뛰고 통과
+        assert result is True
+
 
 # ════════════════════════════════════════════════════════════════════════════
 # dedup_stage
@@ -241,9 +297,16 @@ class TestDedupStage:
 class TestFilterProfileStage:
     """pipeline/process_stages/filter_profile_stage.py"""
 
-    def _ctx_with_content(self, content: str = "직장인 공감 포인트가 충분히 담긴 테스트 본문입니다."):
+    # 편집 적합도 게이트(D-032)를 통과하는 현실적인 본문 — 숫자·인용·장면·직장 맥락 포함.
+    _DEFAULT_CONTENT = (
+        '팀장이 회의에서 "올해 성과급은 작년보다 200만원 더 나온다"고 했는데 '
+        "막상 명세서를 받아보니 50만원이었다. 옆자리 동기는 이직 준비 중이라며 한숨을 쉬었다."
+    )
+
+    def _ctx_with_content(self, content: str | None = None):
+        content = self._DEFAULT_CONTENT if content is None else content
         ctx = _ctx()
-        ctx.post_data = {"title": "테스트 제목", "content": content, "url": ctx.url}
+        ctx.post_data = {"title": "성과급 시즌 후기", "content": content, "url": ctx.url, "source": "blind"}
         ctx.content_text = content
         ctx.quality = {"score": 90, "reasons": [], "metrics": {}}
         return ctx
@@ -478,6 +541,150 @@ class TestFilterProfileStage:
         assert result is True
         # emotion_profile이 post_data에 추가됐는지 확인
         assert "emotion_profile" in ctx.post_data or result is True  # 예외 없이 완료
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# editorial_fit gate (D-032)
+# ════════════════════════════════════════════════════════════════════════════
+
+
+class TestEditorialGate:
+    """pipeline/process_stages/filter_profile_stage._check_editorial_fit
+
+    본문 확보 후 편집 적합도 게이트 — D-029가 약속했으나 미구현이던 검증을
+    실제로 강제한다. hard_reject / 점수 미달 / floor override / 설정 토글을 검증.
+    """
+
+    class _Cfg:
+        def __init__(self, **overrides):
+            self._overrides = overrides
+
+        def get(self, key, default=None):
+            return self._overrides.get(key, default)
+
+    # 숫자·인용·장면·직장 맥락이 모두 있는 강한 후보 → 게이트 통과.
+    _STRONG = (
+        '팀장이 회의에서 "올해 성과급은 작년보다 200만원 더 나온다"고 했는데 '
+        "막상 명세서를 받아보니 50만원이었다. 옆자리 동기는 이직 준비 중이라며 한숨을 쉬었다."
+    )
+    # 추상적·파생각 없음 → hard_reject.
+    _WEAK = "회사 다니는 게 다 그렇죠 뭐. 현실적으로 생각해봅시다. 요즘 사람들 다 비슷하죠."
+
+    def _ctx_with(self, content: str, title: str = "성과급 시즌 후기", source: str = "blind"):
+        ctx = _ctx()
+        ctx.post_data = {"title": title, "content": content, "url": ctx.url, "source": source}
+        ctx.content_text = content
+        return ctx
+
+    def test_strong_content_passes_and_stores_fit(self):
+        from pipeline.process_stages.filter_profile_stage import _check_editorial_fit
+
+        ctx = self._ctx_with(self._STRONG)
+        assert _check_editorial_fit(ctx, self._Cfg()) is True
+        # editorial_fit 진단 정보가 다운스트림용으로 보존됨
+        assert ctx.post_data["editorial_fit"]["hard_reject"] is False
+        assert ctx.result["editorial_score"] is not None
+
+    def test_hard_reject_content_is_blocked(self):
+        from config import ERROR_FILTERED_EDITORIAL
+        from pipeline.process_stages.filter_profile_stage import _check_editorial_fit
+
+        ctx = self._ctx_with(self._WEAK)
+        assert _check_editorial_fit(ctx, self._Cfg()) is False
+        assert ctx.result["error_code"] == ERROR_FILTERED_EDITORIAL
+        assert ctx.result["failure_reason"] == "editorial_hard_reject"
+        assert ctx.result["failure_stage"] == "filter"
+        assert ctx.result["notion_url"] == "(skipped-editorial)"
+        assert ctx.result["success"] is True
+        assert ctx.result["editorial_reject_reasons"]  # 사유 라벨 채워짐
+
+    def test_disabled_gate_passes_weak_content_but_keeps_fit(self):
+        from pipeline.process_stages.filter_profile_stage import _check_editorial_fit
+
+        ctx = self._ctx_with(self._WEAK)
+        cfg = self._Cfg(**{"feed_filter.editorial_gate_enabled": False})
+        assert _check_editorial_fit(ctx, cfg) is True
+        # 비활성이어도 진단 정보는 계속 기록
+        assert "editorial_fit" in ctx.post_data
+
+    def test_score_below_threshold_uses_distinct_reason(self):
+        """hard_reject가 아니어도 점수 미달이면 별도 사유로 거부."""
+        from pipeline.process_stages import filter_profile_stage as mod
+
+        ctx = self._ctx_with(self._STRONG)
+        fake_fit = {"score": 48.0, "hard_reject": False, "hard_reject_reasons": []}
+        with patch.object(mod, "evaluate_candidate_editorial_fit", return_value=fake_fit):
+            result = mod._check_editorial_fit(ctx, self._Cfg())
+        assert result is False
+        assert ctx.result["failure_reason"] == "editorial_score_below_threshold"
+
+    def test_min_editorial_score_is_configurable(self):
+        from pipeline.process_stages import filter_profile_stage as mod
+
+        ctx = self._ctx_with(self._STRONG)
+        fake_fit = {"score": 70.0, "hard_reject": False, "hard_reject_reasons": []}
+        with patch.object(mod, "evaluate_candidate_editorial_fit", return_value=fake_fit):
+            # 임계값을 90으로 올리면 70점 후보는 거부됨
+            blocked = mod._check_editorial_fit(ctx, self._Cfg(**{"feed_filter.min_editorial_score": 90.0}))
+            # 기본 임계값(60)에서는 통과
+            ctx2 = self._ctx_with(self._STRONG)
+            passed = mod._check_editorial_fit(ctx2, self._Cfg())
+        assert blocked is False
+        assert passed is True
+
+    def test_daily_floor_overrides_editorial_gate(self):
+        from pipeline.process_stages.filter_profile_stage import _check_editorial_fit
+
+        ctx = self._ctx_with(self._WEAK)
+        ctx.daily_queue_floor = DailyQueueFloorState(target=5, current=0, remaining=5, active=True)
+        assert _check_editorial_fit(ctx, self._Cfg()) is True
+        assert "editorial_hard_reject" in ctx.post_data["daily_queue_floor_overrides"]
+
+    def test_gate_runs_inside_orchestrator_before_viral_filter(self):
+        """오케스트레이터 통합: 편집 약한 글은 바이럴 필터(LLM) 호출 전에 차단."""
+        from pipeline.process_stages.filter_profile_stage import run_filter_profile_stage
+
+        ctx = self._ctx_with(self._WEAK)
+        ctx.quality = {"score": 90, "reasons": [], "metrics": {}}
+        profile = {
+            "topic_cluster": "기타",
+            "hook_type": "공감형",
+            "emotion_axis": "공감",
+            "scrape_quality_score": 90.0,
+            "publishability_score": 50.0,
+            "performance_score": 75.0,
+            "final_rank_score": 82.0,
+        }
+        viral_called = {"hit": False}
+
+        def _viral_factory(_cfg):
+            mock_vf = MagicMock()
+
+            async def _score(*_a, **_k):
+                viral_called["hit"] = True
+                return MagicMock(pass_filter=True)
+
+            mock_vf.score = _score
+            return mock_vf
+
+        with (
+            patch("pipeline.process_stages.filter_profile_stage.build_content_profile") as mock_profile,
+            patch("pipeline.process_stages.filter_profile_stage.build_review_decision") as mock_decision,
+            patch("pipeline.process_stages.filter_profile_stage.get_viral_filter", side_effect=_viral_factory),
+        ):
+            mock_profile.return_value.to_dict.return_value = profile
+            mock_decision.return_value = {
+                "should_queue": True,
+                "status": "검토필요",
+                "review_reason": "queued",
+                "review_priority": "normal",
+            }
+            result = asyncio.run(run_filter_profile_stage(ctx, _MinScraper(), self._Cfg(), None, False))
+
+        assert result is False
+        assert ctx.result["failure_reason"] == "editorial_hard_reject"
+        # 편집 게이트에서 끊겼으므로 LLM 바이럴 필터는 호출되지 않아야 함
+        assert viral_called["hit"] is False
 
 
 # ════════════════════════════════════════════════════════════════════════════

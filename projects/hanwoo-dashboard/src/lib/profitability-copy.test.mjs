@@ -1,119 +1,179 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const SRC_ROOT = path.resolve(__dirname, '..');
+const SRC_ROOT = path.resolve(__dirname, "..");
 
 function readSource(relativePath) {
-  return readFileSync(path.join(SRC_ROOT, relativePath), 'utf8');
+	return readFileSync(path.join(SRC_ROOT, relativePath), "utf8");
 }
 
-test('profitability service surfaces Korean operator-facing error copy', () => {
-  const source = readSource('lib/dashboard/profitability-service.js');
+test("profitability service surfaces Korean operator-facing error copy", () => {
+	const source = readSource("lib/dashboard/profitability-service.js");
 
-  // These known business-state messages can flow through to
-  // ProfitabilityWidget, which renders `{error}` as visible UI text.
-  assert.match(source, /수익성 시뮬레이션에 사용할 시세 데이터가 없습니다/);
-  assert.match(source, /시세 데이터를 해석하지 못했습니다/);
-  assert.match(source, /수익성 추정 오류/);
-  assert.match(source, /수익성 예측을 불러오지 못했습니다\. 잠시 후 다시 시도해 주세요\./);
-  assert.match(source, /OPERATOR_FACING_ERROR_MESSAGES\.has/);
+	// These known business-state messages can flow through to
+	// ProfitabilityWidget, which renders `{error}` as visible UI text.
+	assert.match(source, /수익성 시뮬레이션에 사용할 시세 데이터가 없습니다/);
+	assert.match(source, /시세 데이터를 해석하지 못했습니다/);
+	assert.match(source, /수익성 추정 오류/);
+	assert.match(
+		source,
+		/수익성 예측을 불러오지 못했습니다\. 잠시 후 다시 시도해 주세요\./,
+	);
+	assert.match(source, /OPERATOR_FACING_ERROR_MESSAGES\.has/);
 
-  assert.doesNotMatch(source, /No market price data available/);
-  assert.doesNotMatch(source, /Price data parsing failed/);
-  assert.doesNotMatch(source, /getProfitabilityEstimates Error/);
-  assert.doesNotMatch(source, /error:\s*err\.message/);
+	assert.doesNotMatch(source, /No market price data available/);
+	assert.doesNotMatch(source, /Price data parsing failed/);
+	assert.doesNotMatch(source, /getProfitabilityEstimates Error/);
+	assert.doesNotMatch(source, /error:\s*err\.message/);
 });
 
-test('profitability service normalizes dates and numeric inputs before estimating', () => {
-  const source = readSource('lib/dashboard/profitability-service.js');
+test("profitability service normalizes dates and numeric inputs before estimating", () => {
+	const source = readSource("lib/dashboard/profitability-service.js");
 
-  assert.match(source, /import \{ toFiniteNumber \} from '\.\.\/utils';/);
-  assert.match(source, /function toValidDate\(value\) \{/);
-  assert.match(source, /const start = toValidDate\(d1\);/);
-  assert.match(source, /const end = toValidDate\(d2\);/);
-  assert.match(source, /if \(!start \|\| !end\) \{\s+return null;\s+\}/);
-  assert.match(source, /if \(ageMonths === null \|\| ageMonths < 24\) return null;/);
-  assert.match(source, /const baseCost = toFiniteNumber\(cattle\.purchasePrice\) \|\| DEFAULT_CALF_COST;/);
-  assert.match(source, /const currentWeight = toFiniteNumber\(cattle\.weight\);/);
-  assert.match(source, /const currentRevenue = currentWeight \* currentKgPrice;/);
-  assert.match(source, /const futureWeight = currentWeight \+ MONTHLY_WEIGHT_GAIN;/);
-  assert.match(source, /weight: currentWeight,/);
-  assert.doesNotMatch(source, /fetchedAt: latestSnapshot\.fetchedAt\.toISOString\(\)/);
-  assert.doesNotMatch(source, /issueDate: latestSnapshot\.issueDate\.toISOString\(\)/);
-  assert.doesNotMatch(source, /const ageMonths = diffMonths\(cattle\.birthDate, now\);\s+\/\/ Limit[\s\S]*?if \(ageMonths < 24\) return null;/);
-  assert.doesNotMatch(source, /const baseCost = cattle\.purchasePrice \|\| DEFAULT_CALF_COST;/);
-  assert.doesNotMatch(source, /const currentRevenue = cattle\.weight \* currentKgPrice;/);
-  assert.doesNotMatch(source, /const futureWeight = cattle\.weight \+ MONTHLY_WEIGHT_GAIN;/);
+	assert.match(source, /import \{ toFiniteNumber \} from '\.\.\/utils';/);
+	assert.match(source, /function toValidDate\(value\) \{/);
+	assert.match(source, /const start = toValidDate\(d1\);/);
+	assert.match(source, /const end = toValidDate\(d2\);/);
+	assert.match(source, /if \(!start \|\| !end\) \{\s+return null;\s+\}/);
+	assert.match(
+		source,
+		/if \(ageMonths === null \|\| ageMonths < 24\) return null;/,
+	);
+	assert.match(
+		source,
+		/const baseCost = toFiniteNumber\(cattle\.purchasePrice\) \|\| DEFAULT_CALF_COST;/,
+	);
+	assert.match(
+		source,
+		/const currentWeight = toFiniteNumber\(cattle\.weight\);/,
+	);
+	assert.match(
+		source,
+		/const currentRevenue = currentWeight \* currentKgPrice;/,
+	);
+	assert.match(
+		source,
+		/const futureWeight = currentWeight \+ MONTHLY_WEIGHT_GAIN;/,
+	);
+	assert.match(source, /weight: currentWeight,/);
+	assert.doesNotMatch(
+		source,
+		/fetchedAt: latestSnapshot\.fetchedAt\.toISOString\(\)/,
+	);
+	assert.doesNotMatch(
+		source,
+		/issueDate: latestSnapshot\.issueDate\.toISOString\(\)/,
+	);
+	assert.doesNotMatch(
+		source,
+		/const ageMonths = diffMonths\(cattle\.birthDate, now\);\s+\/\/ Limit[\s\S]*?if \(ageMonths < 24\) return null;/,
+	);
+	assert.doesNotMatch(
+		source,
+		/const baseCost = cattle\.purchasePrice \|\| DEFAULT_CALF_COST;/,
+	);
+	assert.doesNotMatch(
+		source,
+		/const currentRevenue = cattle\.weight \* currentKgPrice;/,
+	);
+	assert.doesNotMatch(
+		source,
+		/const futureWeight = cattle\.weight \+ MONTHLY_WEIGHT_GAIN;/,
+	);
 });
 
-test('profitability widget renders the error message verbatim', () => {
-  const source = readSource('components/widgets/ProfitabilityWidget.js');
+test("profitability widget renders the error message verbatim", () => {
+	const source = readSource("components/widgets/ProfitabilityWidget.js");
 
-  // The widget must pass the (now Korean) error string straight through
-  // without re-introducing an English fallback.
-  assert.match(source, /\{error\}/);
+	// The widget must pass the (now Korean) error string straight through
+	// without re-introducing an English fallback.
+	assert.match(source, /\{error\}/);
 });
 
-test('profitability widget normalizes recommendation values before rendering', () => {
-  const source = readSource('components/widgets/ProfitabilityWidget.js');
+test("profitability widget normalizes recommendation values before rendering", () => {
+	const source = readSource("components/widgets/ProfitabilityWidget.js");
 
-  assert.match(source, /import \{ toFiniteNumber \} from '@\/lib\/utils';/);
-  assert.match(source, /visibleData\.map\(\(rawItem\) =>/);
-  assert.match(source, /currentProfit: toFiniteNumber\(rawItem\.currentProfit\)/);
-  assert.match(source, /marginalGain: toFiniteNumber\(rawItem\.marginalGain\)/);
-  assert.match(source, /ageMonths: toFiniteNumber\(rawItem\.ageMonths\)/);
-  assert.match(source, /weight: toFiniteNumber\(rawItem\.weight\)/);
-  assert.match(source, /String\(rawItem\.tagNumber \?\? ''\)\.slice\(-4\) \|\| '----'/);
-  assert.match(source, /String\(rawItem\.name \?\? '-'\)/);
-  assert.doesNotMatch(source, /item\.tagNumber\.slice\(-4\)/);
+	assert.match(source, /import \{ toFiniteNumber \} from '@\/lib\/utils';/);
+	assert.match(source, /visibleData\.map\(\(rawItem\) =>/);
+	assert.match(
+		source,
+		/currentProfit: toFiniteNumber\(rawItem\.currentProfit\)/,
+	);
+	assert.match(source, /marginalGain: toFiniteNumber\(rawItem\.marginalGain\)/);
+	assert.match(source, /ageMonths: toFiniteNumber\(rawItem\.ageMonths\)/);
+	assert.match(source, /weight: toFiniteNumber\(rawItem\.weight\)/);
+	assert.match(
+		source,
+		/String\(rawItem\.tagNumber \?\? ''\)\.slice\(-4\) \|\| '----'/,
+	);
+	assert.match(source, /String\(rawItem\.name \?\? '-'\)/);
+	assert.doesNotMatch(source, /item\.tagNumber\.slice\(-4\)/);
 });
 
-test('profitability widget normalizes recommendation collection payloads before rendering', () => {
-  const source = readSource('components/widgets/ProfitabilityWidget.js');
+test("profitability widget normalizes recommendation collection payloads before rendering", () => {
+	const source = readSource("components/widgets/ProfitabilityWidget.js");
 
-  assert.match(source, /function normalizeProfitabilityItems\(data\) \{/);
-  assert.match(source, /return Array\.isArray\(data\)/);
-  assert.match(source, /\.filter\(\(item\) => item && typeof item === 'object'\)/);
-  assert.match(source, /id: item\.id \?\? `profitability-item-\$\{index\}`/);
-  assert.match(source, /const visibleData = normalizeProfitabilityItems\(data\);/);
-  assert.match(source, /visibleData\.length === 0/);
-  assert.match(source, /visibleData\.map\(\(rawItem\) =>/);
-  assert.doesNotMatch(source, /!data \|\| data\.length === 0/);
-  assert.doesNotMatch(source, /data\.map\(\(rawItem\) =>/);
+	assert.match(source, /function normalizeProfitabilityItems\(data\) \{/);
+	assert.match(source, /return Array\.isArray\(data\)/);
+	assert.match(
+		source,
+		/\.filter\(\(item\) => item && typeof item === 'object'\)/,
+	);
+	assert.match(source, /id: item\.id \?\? `profitability-item-\$\{index\}`/);
+	assert.match(
+		source,
+		/const visibleData = normalizeProfitabilityItems\(data\);/,
+	);
+	assert.match(source, /visibleData\.length === 0/);
+	assert.match(source, /visibleData\.map\(\(rawItem\) =>/);
+	assert.doesNotMatch(source, /!data \|\| data\.length === 0/);
+	assert.doesNotMatch(source, /data\.map\(\(rawItem\) =>/);
 });
 
-test('profitability widget is mounted on the dashboard, not orphaned', () => {
-  // T-366: the widget is registered in WIDGET_REGISTRY with defaultOn:true,
-  // so it must actually be wired into the render path and fed SSR data.
-  const dashboard = readSource('components/DashboardClient.js');
-  const widgetSettings = readSource('lib/hooks/useWidgetSettings.js');
-  assert.match(dashboard, /import \{ ProfitabilityWidget \}/);
-  assert.match(dashboard, /import \{ WIDGET_REGISTRY, useWidgetSettings \} from '@\/lib\/hooks\/useWidgetSettings';/);
-  assert.doesNotMatch(dashboard, /const WIDGET_REGISTRY = \[/);
-  assert.match(widgetSettings, /\{ id: 'profitability', label: '출하 수익성 예측', icon: '📈', defaultOn: true \}/);
-  assert.match(dashboard, /widgetSettings\.visible\.profitability/);
-  assert.match(dashboard, /<ProfitabilityWidget/);
+test("profitability widget is mounted on the dashboard, not orphaned", () => {
+	// T-366: the widget is registered in WIDGET_REGISTRY with defaultOn:true,
+	// so it must actually be wired into the render path and fed SSR data.
+	const dashboard = readSource("components/DashboardClient.js");
+	const widgetSettings = readSource("lib/hooks/useWidgetSettings.js");
+	assert.match(dashboard, /import \{ ProfitabilityWidget \}/);
+	assert.match(
+		dashboard,
+		/import\s*\{\s*[\s\S]*?useWidgetSettings[\s\S]*?\}\s*from\s*['"]@\/lib\/hooks\/useWidgetSettings['"];?/,
+	);
+	assert.doesNotMatch(dashboard, /const WIDGET_REGISTRY = \[/);
+	assert.match(
+		widgetSettings,
+		/\{\s*id:\s*['"]profitability['"],\s*label:\s*['"]출하 수익성 예측['"],\s*icon:\s*['"]📈['"],\s*defaultOn:\s*true\s*,?\s*\}/,
+	);
+	assert.match(dashboard, /widgetSettings\.visible\.profitability/);
+	assert.match(dashboard, /<ProfitabilityWidget/);
 
-  const page = readSource('app/page.js');
-  assert.match(page, /getProfitabilityData/);
-  assert.match(page, /initialProfitability=\{profitability\}/);
+	const page = readSource("app/page.js");
+	assert.match(page, /getProfitabilityData/);
+	assert.match(page, /initialProfitability=\{profitability\}/);
 });
 
-test('premium card header renders profitability widget title props as visible content', () => {
-  const source = readSource('components/ui/premium-card.js');
-  const headerSource = source.slice(
-    source.indexOf('const PremiumCardHeader'),
-    source.indexOf('PremiumCardHeader.displayName'),
-  );
+test("premium card header renders profitability widget title props as visible content", () => {
+	const source = readSource("components/ui/premium-card.js");
+	const headerSource = source.slice(
+		source.indexOf("const PremiumCardHeader"),
+		source.indexOf("PremiumCardHeader.displayName"),
+	);
 
-  assert.match(headerSource, /\(\{ className, title, icon, description, children, \.\.\.props \}/);
-  assert.match(headerSource, /<h3[\s\S]*\{title\}[\s\S]*<\/h3>/);
-  assert.match(headerSource, /<p[\s\S]*\{description\}[\s\S]*<\/p>/);
-  assert.match(headerSource, /<span aria-hidden="true"[\s\S]*\{icon\}[\s\S]*<\/span>/);
-  assert.match(headerSource, /\{children\}/);
-  assert.doesNotMatch(headerSource, /\{\.\.\.props\}\s*\/>/);
+	assert.match(
+		headerSource,
+		/\(\{ className, title, icon, description, children, \.\.\.props \}/,
+	);
+	assert.match(headerSource, /<h3[\s\S]*\{title\}[\s\S]*<\/h3>/);
+	assert.match(headerSource, /<p[\s\S]*\{description\}[\s\S]*<\/p>/);
+	assert.match(
+		headerSource,
+		/<span aria-hidden="true"[\s\S]*\{icon\}[\s\S]*<\/span>/,
+	);
+	assert.match(headerSource, /\{children\}/);
+	assert.doesNotMatch(headerSource, /\{\.\.\.props\}\s*\/>/);
 });

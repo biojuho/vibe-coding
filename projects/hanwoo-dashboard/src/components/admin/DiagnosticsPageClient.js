@@ -1,317 +1,348 @@
-'use client';
+"use client";
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Activity, ArrowLeft, Cpu, Database } from 'lucide-react';
+import { Activity, ArrowLeft, Cpu, Database } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { useAppFeedback } from '@/components/feedback/FeedbackProvider';
-import { getRawData, getSystemDiagnostics } from '@/lib/actions';
-import { toFiniteNumber } from '@/lib/utils';
+import { useAppFeedback } from "@/components/feedback/FeedbackProvider";
+import { getRawData, getSystemDiagnostics } from "@/lib/actions";
+import { toFiniteNumber } from "@/lib/utils";
 
 const STATUS_STYLES = {
-  good: {
-    accent: 'var(--chart-clay-1)',
-    background: 'color-mix(in srgb, var(--chart-clay-1) 18%, var(--color-surface-elevated))',
-  },
-  bad: {
-    accent: 'var(--chart-clay-4)',
-    background: 'color-mix(in srgb, var(--chart-clay-4) 18%, var(--color-surface-elevated))',
-  },
-  neutral: {
-    accent: 'var(--chart-clay-5)',
-    background: 'color-mix(in srgb, var(--chart-clay-5) 18%, var(--color-surface-elevated))',
-  },
+	good: {
+		accent: "var(--chart-clay-1)",
+		background:
+			"color-mix(in srgb, var(--chart-clay-1) 18%, var(--color-surface-elevated))",
+	},
+	bad: {
+		accent: "var(--chart-clay-4)",
+		background:
+			"color-mix(in srgb, var(--chart-clay-4) 18%, var(--color-surface-elevated))",
+	},
+	neutral: {
+		accent: "var(--chart-clay-5)",
+		background:
+			"color-mix(in srgb, var(--chart-clay-5) 18%, var(--color-surface-elevated))",
+	},
 };
 
-const RETRY_MESSAGE = '잠시 후 다시 시도해 주세요.';
-const DIAGNOSTICS_LOAD_ERROR_MESSAGE = '진단 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
-const RAW_DATA_LOAD_ERROR_MESSAGE = '원본 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
+const RETRY_MESSAGE = "잠시 후 다시 시도해 주세요.";
+const DIAGNOSTICS_LOAD_ERROR_MESSAGE =
+	"진단 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
+const RAW_DATA_LOAD_ERROR_MESSAGE =
+	"원본 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
 
 const MODEL_OPTIONS = [
-  { value: 'cattle', label: '개체' },
-  { value: 'salesRecord', label: '출하 기록' },
-  { value: 'feedRecord', label: '급여 기록' },
-  { value: 'scheduleEvent', label: '일정' },
-  { value: 'inventoryItem', label: '재고' },
-  { value: 'building', label: '축사' },
-  { value: 'farmSettings', label: '농장 설정' },
+	{ value: "cattle", label: "개체" },
+	{ value: "salesRecord", label: "출하 기록" },
+	{ value: "feedRecord", label: "급여 기록" },
+	{ value: "scheduleEvent", label: "일정" },
+	{ value: "inventoryItem", label: "재고" },
+	{ value: "building", label: "축사" },
+	{ value: "farmSettings", label: "농장 설정" },
 ];
 
 const EMPTY_DIAGNOSTICS = {
-  success: false,
-  database: {
-    status: '확인 불가',
-    latency: '-',
-    recordCounts: {},
-  },
-  nodeVersion: '확인 불가',
-  uptime: 0,
-  memory: {
-    heapUsed: 0,
-    heapTotal: 0,
-  },
+	success: false,
+	database: {
+		status: "확인 불가",
+		latency: "-",
+		recordCounts: {},
+	},
+	nodeVersion: "확인 불가",
+	uptime: 0,
+	memory: {
+		heapUsed: 0,
+		heapTotal: 0,
+	},
 };
 
 export default function DiagnosticsPageClient() {
-  const router = useRouter();
-  const { notify } = useAppFeedback();
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [selectedModel, setSelectedModel] = useState('cattle');
-  const [rawData, setRawData] = useState(null);
-  const [dataLoading, setDataLoading] = useState(true);
-  const diagnosticsRequestRef = useRef(0);
-  const rawDataRequestRef = useRef(0);
+	const router = useRouter();
+	const { notify } = useAppFeedback();
+	const [stats, setStats] = useState(null);
+	const [loading, setLoading] = useState(true);
+	const [selectedModel, setSelectedModel] = useState("cattle");
+	const [rawData, setRawData] = useState(null);
+	const [dataLoading, setDataLoading] = useState(true);
+	const diagnosticsRequestRef = useRef(0);
+	const rawDataRequestRef = useRef(0);
 
-  const recordCounts = useMemo(
-    () =>
-      stats?.database?.recordCounts
-        ? Object.entries(stats.database.recordCounts).map(([key, value]) => [key, toFiniteNumber(value)])
-        : [],
-    [stats]
-  );
-  const uptimeMinutes = Math.floor(toFiniteNumber(stats?.uptime) / 60);
-  const heapUsedMb = Math.round(toFiniteNumber(stats?.memory?.heapUsed) / 1024 / 1024);
-  const heapTotalMb = Math.round(toFiniteNumber(stats?.memory?.heapTotal) / 1024 / 1024);
+	const recordCounts = useMemo(
+		() =>
+			stats?.database?.recordCounts
+				? Object.entries(stats.database.recordCounts).map(([key, value]) => [
+						key,
+						toFiniteNumber(value),
+					])
+				: [],
+		[stats],
+	);
+	const uptimeMinutes = Math.floor(toFiniteNumber(stats?.uptime) / 60);
+	const heapUsedMb = Math.round(
+		toFiniteNumber(stats?.memory?.heapUsed) / 1024 / 1024,
+	);
+	const heapTotalMb = Math.round(
+		toFiniteNumber(stats?.memory?.heapTotal) / 1024 / 1024,
+	);
 
-  useEffect(() => {
-    let cancelled = false;
-    const requestId = ++diagnosticsRequestRef.current;
-    setLoading(true);
+	useEffect(() => {
+		let cancelled = false;
+		const requestId = ++diagnosticsRequestRef.current;
+		setLoading(true);
 
-    void (async () => {
-      try {
-        const result = await getSystemDiagnostics();
-        if (cancelled || requestId !== diagnosticsRequestRef.current) {
-          return;
-        }
+		void (async () => {
+			try {
+				const result = await getSystemDiagnostics();
+				if (cancelled || requestId !== diagnosticsRequestRef.current) {
+					return;
+				}
 
-        setStats(result);
-      } catch (error) {
-        if (cancelled || requestId !== diagnosticsRequestRef.current) {
-          return;
-        }
+				setStats(result);
+			} catch (error) {
+				if (cancelled || requestId !== diagnosticsRequestRef.current) {
+					return;
+				}
 
-        console.error('Failed to load system diagnostics:', error);
-        setStats(EMPTY_DIAGNOSTICS);
-        notify({
-          title: '진단 정보를 불러오지 못했습니다.',
-          description: DIAGNOSTICS_LOAD_ERROR_MESSAGE,
-          variant: 'error',
-        });
-      } finally {
-        if (!cancelled && requestId === diagnosticsRequestRef.current) {
-          setLoading(false);
-        }
-      }
-    })();
+				console.error("Failed to load system diagnostics:", error);
+				setStats(EMPTY_DIAGNOSTICS);
+				notify({
+					title: "진단 정보를 불러오지 못했습니다.",
+					description: DIAGNOSTICS_LOAD_ERROR_MESSAGE,
+					variant: "error",
+				});
+			} finally {
+				if (!cancelled && requestId === diagnosticsRequestRef.current) {
+					setLoading(false);
+				}
+			}
+		})();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [notify]);
+		return () => {
+			cancelled = true;
+		};
+	}, [notify]);
 
-  useEffect(() => {
-    let cancelled = false;
-    const requestId = ++rawDataRequestRef.current;
-    setDataLoading(true);
-    setRawData(null);
+	useEffect(() => {
+		let cancelled = false;
+		const requestId = ++rawDataRequestRef.current;
+		setDataLoading(true);
+		setRawData(null);
 
-    void (async () => {
-      try {
-        const result = await getRawData(selectedModel);
-        if (cancelled || requestId !== rawDataRequestRef.current) {
-          return;
-        }
+		void (async () => {
+			try {
+				const result = await getRawData(selectedModel);
+				if (cancelled || requestId !== rawDataRequestRef.current) {
+					return;
+				}
 
-        if (result.success) {
-          setRawData(result.data);
-        } else {
-          notify({
-            title: '원본 데이터를 불러오지 못했습니다.',
-            description: result.message || RETRY_MESSAGE,
-            variant: 'error',
-          });
-        }
-      } catch (error) {
-        if (cancelled || requestId !== rawDataRequestRef.current) {
-          return;
-        }
+				if (result.success) {
+					setRawData(result.data);
+				} else {
+					notify({
+						title: "원본 데이터를 불러오지 못했습니다.",
+						description: result.message || RETRY_MESSAGE,
+						variant: "error",
+					});
+				}
+			} catch (error) {
+				if (cancelled || requestId !== rawDataRequestRef.current) {
+					return;
+				}
 
-        console.error('Failed to load raw diagnostics data:', error);
-        notify({
-          title: '원본 데이터를 불러오지 못했습니다.',
-          description: RAW_DATA_LOAD_ERROR_MESSAGE,
-          variant: 'error',
-        });
-      } finally {
-        if (!cancelled && requestId === rawDataRequestRef.current) {
-          setDataLoading(false);
-        }
-      }
-    })();
+				console.error("Failed to load raw diagnostics data:", error);
+				notify({
+					title: "원본 데이터를 불러오지 못했습니다.",
+					description: RAW_DATA_LOAD_ERROR_MESSAGE,
+					variant: "error",
+				});
+			} finally {
+				if (!cancelled && requestId === rawDataRequestRef.current) {
+					setDataLoading(false);
+				}
+			}
+		})();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [notify, selectedModel]);
+		return () => {
+			cancelled = true;
+		};
+	}, [notify, selectedModel]);
 
-  if (loading) {
-    return (
-      <div className="clay-shell">
-        <div className="clay-page-card p-8 text-center">
-          <div className="clay-page-eyebrow mb-4">운영 진단</div>
-          <h1 className="clay-page-title mb-3">시스템 상태를 확인하고 있습니다</h1>
-          <p className="clay-page-subtitle">데이터베이스 연결과 런타임 상태를 점검하는 중입니다.</p>
-        </div>
-      </div>
-    );
-  }
+	if (loading) {
+		return (
+			<div className="clay-shell">
+				<div className="clay-page-card p-8 text-center">
+					<div className="clay-page-eyebrow mb-4">운영 진단</div>
+					<h1 className="clay-page-title mb-3">
+						시스템 상태를 확인하고 있습니다
+					</h1>
+					<p className="clay-page-subtitle">
+						데이터베이스 연결과 런타임 상태를 점검하는 중입니다.
+					</p>
+				</div>
+			</div>
+		);
+	}
 
-  return (
-    <div className="clay-shell">
-      <div className="clay-page-card p-6 md:p-8">
-        <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div className="max-w-2xl">
-            <div className="clay-page-eyebrow mb-4">운영 진단</div>
-            <h1 className="clay-page-title mb-3">시스템 상태 점검</h1>
-            <p className="clay-page-subtitle">
-              데이터베이스 연결, 메모리 사용량, 원본 레코드를 한 화면에서 확인합니다.
-            </p>
-          </div>
+	return (
+		<div className="clay-shell">
+			<div className="clay-page-card p-6 md:p-8">
+				<div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+					<div className="max-w-2xl">
+						<div className="clay-page-eyebrow mb-4">운영 진단</div>
+						<h1 className="clay-page-title mb-3">시스템 상태 점검</h1>
+						<p className="clay-page-subtitle">
+							데이터베이스 연결, 메모리 사용량, 원본 레코드를 한 화면에서
+							확인합니다.
+						</p>
+					</div>
 
-          <button
-            type="button"
-            onClick={() => router.push('/')}
-            className="clay-pressable inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-[color:var(--color-text)]"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            대시보드로 돌아가기
-          </button>
-        </div>
+					<button
+						type="button"
+						onClick={() => router.push("/")}
+						className="clay-pressable inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-[color:var(--color-text)]"
+					>
+						<ArrowLeft className="h-4 w-4" />
+						대시보드로 돌아가기
+					</button>
+				</div>
 
-        <div className="mb-6 grid gap-4 md:grid-cols-3">
-          <StatusCard
-            title="데이터베이스 상태"
-            value={stats.database.status}
-            sub={stats.database.latency}
-            icon={<Database className="h-5 w-5" />}
-            status={stats.success ? 'good' : 'bad'}
-          />
-          <StatusCard
-            title="Node.js 런타임"
-            value={stats.nodeVersion}
-            sub={`가동 ${uptimeMinutes}분`}
-            icon={<Cpu className="h-5 w-5" />}
-            status="neutral"
-          />
-          <StatusCard
-            title="메모리 사용량"
-            value={`${heapUsedMb} MB`}
-            sub={`전체 ${heapTotalMb} MB`}
-            icon={<Activity className="h-5 w-5" />}
-            status="neutral"
-          />
-        </div>
+				<div className="mb-6 grid gap-4 md:grid-cols-3">
+					<StatusCard
+						title="데이터베이스 상태"
+						value={stats.database.status}
+						sub={stats.database.latency}
+						icon={<Database className="h-5 w-5" />}
+						status={stats.success ? "good" : "bad"}
+					/>
+					<StatusCard
+						title="Node.js 런타임"
+						value={stats.nodeVersion}
+						sub={`가동 ${uptimeMinutes}분`}
+						icon={<Cpu className="h-5 w-5" />}
+						status="neutral"
+					/>
+					<StatusCard
+						title="메모리 사용량"
+						value={`${heapUsedMb} MB`}
+						sub={`전체 ${heapTotalMb} MB`}
+						icon={<Activity className="h-5 w-5" />}
+						status="neutral"
+					/>
+				</div>
 
-        <section className="clay-page-section mb-6 p-5 md:p-6">
-          <div className="mb-4 flex items-center justify-between gap-4">
-            <div>
-              <div className="clay-page-eyebrow mb-3">데이터 원장</div>
-              <h2 className="text-xl font-bold text-[color:var(--color-text)]">테이블별 레코드 현황</h2>
-            </div>
-            <div className="clay-stat-chip">{recordCounts.length}개 모델</div>
-          </div>
+				<section className="clay-page-section mb-6 p-5 md:p-6">
+					<div className="mb-4 flex items-center justify-between gap-4">
+						<div>
+							<div className="clay-page-eyebrow mb-3">데이터 원장</div>
+							<h2 className="text-xl font-bold text-[color:var(--color-text)]">
+								테이블별 레코드 현황
+							</h2>
+						</div>
+						<div className="clay-stat-chip">{recordCounts.length}개 모델</div>
+					</div>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {recordCounts.map(([key, value]) => (
-              <div
-                key={key}
-                className="clay-inset rounded-[22px] p-4"
-                style={{ borderColor: 'var(--color-surface-stroke)' }}
-              >
-                <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[color:var(--color-text-muted)]">
-                  {key}
-                </div>
-                <div
-                  className="text-3xl font-bold"
-                  style={{ color: 'var(--color-primary-custom)', fontFamily: 'var(--font-display-custom)' }}
-                >
-                  {value}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+					<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+						{recordCounts.map(([key, value]) => (
+							<div
+								key={key}
+								className="clay-inset rounded-[22px] p-4"
+								style={{ borderColor: "var(--color-surface-stroke)" }}
+							>
+								<div className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[color:var(--color-text-muted)]">
+									{key}
+								</div>
+								<div
+									className="text-3xl font-bold"
+									style={{
+										color: "var(--color-primary-custom)",
+										fontFamily: "var(--font-display-custom)",
+									}}
+								>
+									{value}
+								</div>
+							</div>
+						))}
+					</div>
+				</section>
 
-        <section className="clay-page-section p-5 md:p-6">
-          <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <div className="clay-page-eyebrow mb-3">원본 데이터</div>
-              <h2 className="text-xl font-bold text-[color:var(--color-text)]">레코드 검사기</h2>
-            </div>
+				<section className="clay-page-section p-5 md:p-6">
+					<div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+						<div>
+							<div className="clay-page-eyebrow mb-3">원본 데이터</div>
+							<h2 className="text-xl font-bold text-[color:var(--color-text)]">
+								레코드 검사기
+							</h2>
+						</div>
 
-            <select
-              aria-label="검사할 원본 데이터 선택"
-              title="검사할 원본 데이터 선택"
-              value={selectedModel}
-              onChange={(event) => setSelectedModel(event.target.value)}
-              className="clay-inset rounded-full px-4 py-3 text-sm font-medium text-[color:var(--color-text)] outline-none"
-            >
-              {MODEL_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
+						<select
+							aria-label="검사할 원본 데이터 선택"
+							title="검사할 원본 데이터 선택"
+							value={selectedModel}
+							onChange={(event) => setSelectedModel(event.target.value)}
+							className="clay-inset rounded-full px-4 py-3 text-sm font-medium text-[color:var(--color-text)] outline-none"
+						>
+							{MODEL_OPTIONS.map((option) => (
+								<option key={option.value} value={option.value}>
+									{option.label}
+								</option>
+							))}
+						</select>
+					</div>
 
-          {dataLoading ? (
-            <div className="clay-inset rounded-[24px] px-6 py-14 text-center text-sm text-[color:var(--color-text-muted)]">
-              레코드를 불러오는 중입니다.
-            </div>
-          ) : (
-            <div className="clay-console h-96 overflow-auto p-5 text-sm leading-6">
-              <pre className="m-0 whitespace-pre-wrap break-all">{JSON.stringify(rawData, null, 2)}</pre>
-            </div>
-          )}
-        </section>
-      </div>
-    </div>
-  );
+					{dataLoading ? (
+						<div className="clay-inset rounded-[24px] px-6 py-14 text-center text-sm text-[color:var(--color-text-muted)]">
+							레코드를 불러오는 중입니다.
+						</div>
+					) : (
+						<div className="clay-console h-96 overflow-auto p-5 text-sm leading-6">
+							<pre className="m-0 whitespace-pre-wrap break-all">
+								{JSON.stringify(rawData, null, 2)}
+							</pre>
+						</div>
+					)}
+				</section>
+			</div>
+		</div>
+	);
 }
 
 function StatusCard({ title, value, sub, icon, status }) {
-  const style = STATUS_STYLES[status] || STATUS_STYLES.neutral;
+	const style = STATUS_STYLES[status] || STATUS_STYLES.neutral;
 
-  return (
-    <div
-      className="rounded-[26px] border p-5"
-      style={{
-        background: style.background,
-        borderColor: 'color-mix(in srgb, var(--color-surface-stroke) 84%, transparent)',
-        boxShadow: 'var(--shadow-sm)',
-      }}
-    >
-      <div className="mb-3 flex items-center justify-between">
-        <span className="text-sm font-semibold text-[color:var(--color-text-secondary)]">{title}</span>
-        <span
-          className="inline-flex h-10 w-10 items-center justify-center rounded-full"
-          style={{
-            background: `color-mix(in srgb, ${style.accent} 16%, white 84%)`,
-            color: style.accent,
-          }}
-        >
-          {icon}
-        </span>
-      </div>
-      <div
-        className="mb-1 text-3xl font-bold text-[color:var(--color-text)]"
-        style={{ fontFamily: 'var(--font-display-custom)' }}
-      >
-        {value}
-      </div>
-      <div className="text-xs font-medium text-[color:var(--color-text-muted)]">{sub}</div>
-    </div>
-  );
+	return (
+		<div
+			className="rounded-[26px] border p-5"
+			style={{
+				background: style.background,
+				borderColor:
+					"color-mix(in srgb, var(--color-surface-stroke) 84%, transparent)",
+				boxShadow: "var(--shadow-sm)",
+			}}
+		>
+			<div className="mb-3 flex items-center justify-between">
+				<span className="text-sm font-semibold text-[color:var(--color-text-secondary)]">
+					{title}
+				</span>
+				<span
+					className="inline-flex h-10 w-10 items-center justify-center rounded-full"
+					style={{
+						background: `color-mix(in srgb, ${style.accent} 16%, white 84%)`,
+						color: style.accent,
+					}}
+				>
+					{icon}
+				</span>
+			</div>
+			<div
+				className="mb-1 text-3xl font-bold text-[color:var(--color-text)]"
+				style={{ fontFamily: "var(--font-display-custom)" }}
+			>
+				{value}
+			</div>
+			<div className="text-xs font-medium text-[color:var(--color-text-muted)]">
+				{sub}
+			</div>
+		</div>
+	);
 }

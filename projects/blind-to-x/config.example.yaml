@@ -202,8 +202,9 @@ delay_seconds: 5
 feed_filter:
   min_engagement_score: 0.0
   fetch_multiplier: 3
-  min_editorial_score: 60.0
-  min_pre_editorial_score: 35.0
+  editorial_gate_enabled: true   # 본문 확보 후 편집 적합도 게이트 (D-032)
+  min_editorial_score: 60.0      # 본문 포함 전체 편집 적합도 최소 기준 (filter_profile_stage)
+  min_pre_editorial_score: 35.0  # 제목만 사전 스크리닝 최소 기준 (feed_collector)
 
 proxy:
   enabled: false
@@ -222,6 +223,8 @@ scrape_quality:
   selector_timeout_ms: 5000
   direct_fallback_timeout_ms: 8000
   save_failure_snapshot: true
+  integrity_check_enabled: true   # 로그인 월·삭제 글·봇 차단 페이지 감지 (D-033)
+  min_article_chars: 220          # 이보다 짧고 로그인/삭제 시그니처가 있으면 비-게시물로 분류
   failure_snapshot_dir: ".tmp/failures"
 
 dedup:

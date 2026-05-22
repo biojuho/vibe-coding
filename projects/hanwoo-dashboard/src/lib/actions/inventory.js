@@ -1,63 +1,68 @@
-'use server';
+"use server";
 
-import { requireAuthenticatedSession } from '@/lib/auth-guard';
-import { validateInventoryItemInput, validateInventoryQuantityInput } from '../action-validation.mjs';
-import { prisma } from './_helpers';
+import { requireAuthenticatedSession } from "@/lib/auth-guard";
+import {
+	validateInventoryItemInput,
+	validateInventoryQuantityInput,
+} from "../action-validation.mjs";
+import { prisma } from "./_helpers";
 
 // ============================================================
 // Inventory Actions
 // ============================================================
 
 export async function getInventory() {
-  await requireAuthenticatedSession();
-  try {
-    return await prisma.inventoryItem.findMany({ orderBy: { category: 'asc' } });
-  } catch (error) {
-    console.error("Failed to fetch inventory:", error);
-    return [];
-  }
+	await requireAuthenticatedSession();
+	try {
+		return await prisma.inventoryItem.findMany({
+			orderBy: { category: "asc" },
+		});
+	} catch (error) {
+		console.error("Failed to fetch inventory:", error);
+		return [];
+	}
 }
 
 export async function addInventoryItem(data) {
-  await requireAuthenticatedSession();
-  try {
-    const validation = validateInventoryItemInput(data);
-    if (!validation.success) {
-      return validation;
-    }
+	await requireAuthenticatedSession();
+	try {
+		const validation = validateInventoryItemInput(data);
+		if (!validation.success) {
+			return validation;
+		}
 
-    const payload = validation.data;
-    const created = await prisma.inventoryItem.create({
-      data: {
-        name: payload.name,
-        category: payload.category,
-        quantity: payload.quantity,
-        unit: payload.unit,
-        threshold: payload.threshold,
-      }
-    });
-    return { success: true, data: created };
-  } catch (error) {
-    console.error("Failed to create inventory item:", error);
-    return { success: false, message: "재고 항목을 추가하지 못했습니다." };
-  }
+		const payload = validation.data;
+		const created = await prisma.inventoryItem.create({
+			data: {
+				name: payload.name,
+				category: payload.category,
+				quantity: payload.quantity,
+				unit: payload.unit,
+				threshold: payload.threshold,
+			},
+		});
+		return { success: true, data: created };
+	} catch (error) {
+		console.error("Failed to create inventory item:", error);
+		return { success: false, message: "재고 항목을 추가하지 못했습니다." };
+	}
 }
 
 export async function updateInventoryQuantity(id, quantity) {
-  await requireAuthenticatedSession();
-  try {
-    const validation = validateInventoryQuantityInput(quantity);
-    if (!validation.success) {
-      return validation;
-    }
+	await requireAuthenticatedSession();
+	try {
+		const validation = validateInventoryQuantityInput(quantity);
+		if (!validation.success) {
+			return validation;
+		}
 
-    const updated = await prisma.inventoryItem.update({
-      where: { id },
-      data: { quantity: validation.data.quantity }
-    });
-    return { success: true, data: updated };
-  } catch (error) {
-    console.error("Failed to update inventory quantity:", error);
-    return { success: false, message: "재고 수량을 수정하지 못했습니다." };
-  }
+		const updated = await prisma.inventoryItem.update({
+			where: { id },
+			data: { quantity: validation.data.quantity },
+		});
+		return { success: true, data: updated };
+	} catch (error) {
+		console.error("Failed to update inventory quantity:", error);
+		return { success: false, message: "재고 수량을 수정하지 못했습니다." };
+	}
 }

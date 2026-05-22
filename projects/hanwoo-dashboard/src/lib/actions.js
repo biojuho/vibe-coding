@@ -8,66 +8,53 @@
  */
 
 export {
-  getCattleList,
-  getArchivedCattle,
-  createCattle,
-  updateCattle,
-  recordCalving,
-  deleteCattle,
-  getCattleHistory,
-} from './actions/cattle';
+	createBuilding,
+	deleteBuilding,
+	getBuildings,
+} from "./actions/building";
+export {
+	createCattle,
+	deleteCattle,
+	getArchivedCattle,
+	getCattleHistory,
+	getCattleList,
+	recordCalving,
+	updateCattle,
+} from "./actions/cattle";
+export {
+	createExpenseRecord,
+	getExpenseAggregation,
+	getExpenseRecords,
+} from "./actions/expense";
+export {
+	getFarmSettings,
+	updateFarmSettings,
+} from "./actions/farm-settings";
+export {
+	getFeedHistory,
+	getFeedStandards,
+	recordFeed,
+} from "./actions/feed";
+export {
+	addInventoryItem,
+	getInventory,
+	updateInventoryQuantity,
+} from "./actions/inventory";
+export { getRealTimeMarketPrice } from "./actions/market";
+export { getNotifications } from "./actions/notification";
+export {
+	createSalesRecord,
+	getSalesRecords,
+} from "./actions/sales";
+export {
+	createScheduleEvent,
+	getScheduleEvents,
+	toggleEventCompletion,
+} from "./actions/schedule";
 
 export {
-  getSalesRecords,
-  createSalesRecord,
-} from './actions/sales';
-
-export {
-  getFeedStandards,
-  recordFeed,
-  getFeedHistory,
-} from './actions/feed';
-
-export {
-  getInventory,
-  addInventoryItem,
-  updateInventoryQuantity,
-} from './actions/inventory';
-
-export {
-  getScheduleEvents,
-  createScheduleEvent,
-  toggleEventCompletion,
-} from './actions/schedule';
-
-export {
-  getBuildings,
-  createBuilding,
-  deleteBuilding,
-} from './actions/building';
-
-export {
-  getFarmSettings,
-  updateFarmSettings,
-} from './actions/farm-settings';
-
-export {
-  getRealTimeMarketPrice,
-} from './actions/market';
-
-export {
-  getNotifications,
-} from './actions/notification';
-
-export {
-  getExpenseRecords,
-  createExpenseRecord,
-  getExpenseAggregation,
-} from './actions/expense';
-
-export {
-  getSystemDiagnostics,
-  getRawData,
-  lookupCattleTag,
-  getProfitabilityData,
-} from './actions/system';
+	getProfitabilityData,
+	getRawData,
+	getSystemDiagnostics,
+	lookupCattleTag,
+} from "./actions/system";

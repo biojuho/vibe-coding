@@ -11,6 +11,14 @@ if importlib.util.find_spec("moviepy") is None:
     sys.modules["moviepy.audio"] = MagicMock()
     sys.modules["moviepy.audio.fx"] = MagicMock()
 
+# Mock torch to prevent import failures in environments without it
+if importlib.util.find_spec("torch") is None:
+    fake_torch = MagicMock()
+    fake_torch.cuda = MagicMock()
+    fake_torch.cuda.is_available = MagicMock(return_value=False)
+    sys.modules["torch"] = fake_torch
+    sys.modules["torch.cuda"] = fake_torch.cuda
+
 import types
 from unittest.mock import patch
 

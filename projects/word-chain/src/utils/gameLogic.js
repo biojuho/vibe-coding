@@ -5,7 +5,7 @@
 //
 // All functions are pure: callers pass in the current game state explicitly.
 
-import { koreanWords } from './dictionary.js';
+import { koreanWords } from "./dictionary.js";
 
 /**
  * Validate a player's move.
@@ -18,25 +18,25 @@ import { koreanWords } from './dictionary.js';
  *          On success `word` is the cleaned word to commit.
  */
 export function validateMove(word, lastWord, usedWords) {
-    const cleaned = (word || '').trim();
-    const used = usedWords instanceof Set ? usedWords : new Set(usedWords);
+	const cleaned = (word || "").trim();
+	const used = usedWords instanceof Set ? usedWords : new Set(usedWords);
 
-    if (cleaned.length === 0) {
-        return { ok: false, reason: '단어를 입력하세요' };
-    }
-    if (cleaned.length < 2) {
-        return { ok: false, reason: '두 글자 이상 입력하세요' };
-    }
-    if (lastWord) {
-        const need = lastWord.slice(-1);
-        if (cleaned[0] !== need) {
-            return { ok: false, reason: `'${need}'(으)로 시작해야 합니다` };
-        }
-    }
-    if (used.has(cleaned)) {
-        return { ok: false, reason: '이미 사용된 단어입니다' };
-    }
-    return { ok: true, word: cleaned };
+	if (cleaned.length === 0) {
+		return { ok: false, reason: "단어를 입력하세요" };
+	}
+	if (cleaned.length < 2) {
+		return { ok: false, reason: "두 글자 이상 입력하세요" };
+	}
+	if (lastWord) {
+		const need = lastWord.slice(-1);
+		if (cleaned[0] !== need) {
+			return { ok: false, reason: `'${need}'(으)로 시작해야 합니다` };
+		}
+	}
+	if (used.has(cleaned)) {
+		return { ok: false, reason: "이미 사용된 단어입니다" };
+	}
+	return { ok: true, word: cleaned };
 }
 
 /**
@@ -52,12 +52,12 @@ export function validateMove(word, lastWord, usedWords) {
  * @returns {string|null} a fresh word, or null if the AI cannot continue.
  */
 export function pickAiWord(lastChar, usedWords, randomFn = Math.random) {
-    const candidates = koreanWords[lastChar];
-    if (!candidates || candidates.length === 0) return null;
+	const candidates = koreanWords[lastChar];
+	if (!candidates || candidates.length === 0) return null;
 
-    const used = usedWords instanceof Set ? usedWords : new Set(usedWords);
-    const fresh = candidates.filter((w) => !used.has(w));
-    if (fresh.length === 0) return null;
+	const used = usedWords instanceof Set ? usedWords : new Set(usedWords);
+	const fresh = candidates.filter((w) => !used.has(w));
+	if (fresh.length === 0) return null;
 
-    return fresh[Math.floor(randomFn() * fresh.length)];
+	return fresh[Math.floor(randomFn() * fresh.length)];
 }

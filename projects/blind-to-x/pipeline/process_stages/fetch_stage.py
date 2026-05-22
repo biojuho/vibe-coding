@@ -6,11 +6,53 @@ import logging
 
 from config import ERROR_SCRAPE_FAILED, ERROR_SCRAPE_PARSE_FAILED
 from pipeline.models import ScrapedPost
+from pipeline.scrape_integrity import DEFAULT_MIN_ARTICLE_CHARS, classify_scrape_integrity
 
 from .context import ProcessRunContext, mark_stage
 from .runtime import log_scrape_quality
 
 logger = logging.getLogger(__name__)
+
+
+def _check_scrape_integrity(ctx: ProcessRunContext, scraper) -> bool:
+    """추출된 콘텐츠가 실제 게시물인지 검증 (D-033).
+
+    로그인 월·삭제된 글·봇 차단/캡차 페이지는 한국어 비율·길이 검사를 통과해
+    검토 큐를 오염시킨다. 이를 수집 실패로 분류해 큐 진입 전에 차단한다.
+    실패 시 `ctx.result`를 채우고 False를 반환한다.
+    """
+    config = getattr(scraper, "config", None)
+    enabled = True
+    min_chars = DEFAULT_MIN_ARTICLE_CHARS
+    if config is not None:
+        try:
+            enabled = bool(config.get("scrape_quality.integrity_check_enabled", True))
+            min_chars = int(config.get("scrape_quality.min_article_chars", DEFAULT_MIN_ARTICLE_CHARS))
+        except Exception:
+            pass
+    if not enabled:
+        return True
+
+    verdict = classify_scrape_integrity(
+        ctx.post_data.get("title", ""),
+        ctx.content_text,
+        min_article_chars=min_chars,
+    )
+    if verdict["ok"]:
+        return True
+
+    ctx.result["error"] = f"Non-article page detected ({verdict['category']}): '{verdict['matched']}'"
+    ctx.result["error_code"] = ERROR_SCRAPE_FAILED if verdict["category"] == "blocked" else ERROR_SCRAPE_PARSE_FAILED
+    ctx.result["failure_stage"] = "post_fetch"
+    ctx.result["failure_reason"] = verdict["failure_reason"]
+    logger.warning(
+        "SKIP [scrape_integrity] %s - %s (matched=%r)",
+        ctx.url,
+        verdict["failure_reason"],
+        verdict["matched"],
+    )
+    mark_stage(ctx, "fetch", "failed", verdict["failure_reason"])
+    return False
 
 
 async def run_fetch_stage(
@@ -59,6 +101,11 @@ async def run_fetch_stage(
         return False
 
     ctx.content_text = ctx.post_data.get("content", "")
+
+    # 추출된 것이 실제 게시물인지 검증 — 로그인 월·삭제 글·봇 차단 페이지 차단 (D-033).
+    if not _check_scrape_integrity(ctx, scraper):
+        return False
+
     ctx.quality = scraper.assess_quality(post_data)
     ctx.result["quality_score"] = ctx.quality["score"]
 

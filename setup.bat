@@ -36,33 +36,19 @@ if errorlevel 1 (
 
 set "UV=venv\Scripts\uv.exe"
 
-echo Syncing workspace...
-cd workspace
-..\uv sync
+echo Syncing workspace (Unified)...
+%UV% sync
 if errorlevel 1 exit /b 1
-cd ..
-
-echo Syncing projects/blind-to-x...
-cd projects\blind-to-x
-..\..\uv sync
-if errorlevel 1 exit /b 1
-cd ..\..
-
-echo Syncing projects/shorts-maker-v2...
-cd projects\shorts-maker-v2
-..\..\uv sync
-if errorlevel 1 exit /b 1
-cd ..\..
 
 echo [4/4] Running workspace doctor...
 cd workspace
-..\uv run scripts\doctor.py
+..\venv\Scripts\uv.exe run scripts\doctor.py
 cd ..
 
 echo ======================================================
 echo Setup complete.
 echo Canonical commands:
 echo 1. cd workspace ^&^& ..\venv\Scripts\uv.exe run scripts\doctor.py
-echo 2. cd projects\blind-to-x ^&^& ..\..\venv\Scripts\uv.exe run main.py
+echo 2. cd projects\blind-to-x ^&^& ..\..\venv\Scripts\uv.exe run src\blind_to_x\main.py
 echo ======================================================
 pause

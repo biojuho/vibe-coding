@@ -33,9 +33,12 @@ class StubScraper:
 
     async def scrape_post(self, url):
         return {
-            "title": f"title:{url}",
+            "title": f"성과급 후기 {url}",
             "url": url,
-            "content": "직장인 공감 포인트가 충분히 담긴 테스트 본문입니다. 이직과 회사 문화 이야기가 포함됩니다.",
+            "content": (
+                '회의에서 팀장이 "성과급은 작년보다 200만원 오른다"고 했지만 명세서를 받아보니 '
+                "50만원이었다. 이직과 회사 문화에 대한 후기와 반응이 댓글에 쏟아졌다."
+            ),
             "screenshot_path": None,
         }
 

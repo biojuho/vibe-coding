@@ -1,8 +1,8 @@
-'use cache';
+"use cache";
 
-import { cacheLife, cacheTag } from 'next/cache';
-import prisma from '../db';
-import { buildDashboardSummaryPayload } from './summary-service';
+import { cacheLife, cacheTag } from "next/cache";
+import prisma from "../db";
+import { buildDashboardSummaryPayload } from "./summary-service";
 
 // ============================================================
 // Cached Read-Only Query Wrappers
@@ -20,11 +20,11 @@ import { buildDashboardSummaryPayload } from './summary-service';
  * Cached dashboard summary (30-second TTL).
  * Invalidated by tag: "dashboard-summary".
  */
-export async function getCachedDashboardSummary(farmId = 'default') {
-  cacheLife('seconds');
-  cacheTag('dashboard-summary');
+export async function getCachedDashboardSummary(farmId = "default") {
+	cacheLife("seconds");
+	cacheTag("dashboard-summary");
 
-  return buildDashboardSummaryPayload({ client: prisma, farmId });
+	return buildDashboardSummaryPayload({ client: prisma, farmId });
 }
 
 /**
@@ -32,12 +32,12 @@ export async function getCachedDashboardSummary(farmId = 'default') {
  * Invalidated by tag: "cattle-list".
  */
 export async function getCachedCattleList(filters = {}) {
-  cacheLife('minutes');
-  cacheTag('cattle-list');
+	cacheLife("minutes");
+	cacheTag("cattle-list");
 
-  // Dynamic import to avoid circular dep at module-level
-  const { getCattleListPage } = await import('./list-queries');
-  return getCattleListPage(filters);
+	// Dynamic import to avoid circular dep at module-level
+	const { getCattleListPage } = await import("./list-queries");
+	return getCattleListPage(filters);
 }
 
 /**
@@ -45,9 +45,9 @@ export async function getCachedCattleList(filters = {}) {
  * Invalidated by tag: "sales-list".
  */
 export async function getCachedSalesList(filters = {}) {
-  cacheLife('minutes');
-  cacheTag('sales-list');
+	cacheLife("minutes");
+	cacheTag("sales-list");
 
-  const { getSalesListPage } = await import('./list-queries');
-  return getSalesListPage(filters);
+	const { getSalesListPage } = await import("./list-queries");
+	return getSalesListPage(filters);
 }

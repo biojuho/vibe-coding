@@ -1,40 +1,55 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from "react";
 
 export function DropdownMenu({ children }) {
-  return <div className="relative inline-block text-left">{children}</div>;
+	return <div className="relative inline-block text-left">{children}</div>;
 }
 
 export function DropdownMenuTrigger({ asChild, children, ...props }) {
-  return React.cloneElement(children, { ...props });
+	return React.cloneElement(children, { ...props });
 }
 
 export function DropdownMenuContent({ align = "end", children, className }) {
-  return (
-    <div className={`clay-surface absolute right-0 mt-2 w-56 origin-top-right divide-y rounded-[22px] focus:outline-none z-50 ${className}`} style={{ borderColor: 'var(--color-surface-stroke)' }}>
-      <div className="py-1">{children}</div>
-    </div>
-  );
+	return (
+		<div
+			className={`clay-surface absolute right-0 mt-2 w-56 origin-top-right divide-y rounded-[22px] focus:outline-none z-50 ${className}`}
+			style={{ borderColor: "var(--color-surface-stroke)" }}
+		>
+			<div className="py-1">{children}</div>
+		</div>
+	);
 }
 
 export function DropdownMenuItem({ children, onClick, className }) {
-  const Element = onClick ? 'button' : 'div';
+	const Element = onClick ? "button" : "div";
 
-  return (
-    <Element
-      type={onClick ? 'button' : undefined}
-      className={`block w-full cursor-pointer rounded-[14px] px-4 py-2 text-left text-sm transition-colors hover:bg-background/70 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${className}`}
-      style={{ color: 'var(--color-text)' }}
-      onClick={onClick}
-    >
-      {children}
-    </Element>
-  );
+	return (
+		<Element
+			type={onClick ? "button" : undefined}
+			className={`block w-full cursor-pointer rounded-[14px] px-4 py-2 text-left text-sm transition-colors hover:bg-background/70 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${className}`}
+			style={{ color: "var(--color-text)" }}
+			onClick={onClick}
+		>
+			{children}
+		</Element>
+	);
 }
 
 export function DropdownMenuLabel({ children }) {
-  return <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>{children}</div>;
+	return (
+		<div
+			className="px-4 py-2 text-xs font-semibold uppercase tracking-wider"
+			style={{ color: "var(--color-text-secondary)" }}
+		>
+			{children}
+		</div>
+	);
 }
 
 export function DropdownMenuSeparator() {
-  return <div className="my-1 border-t" style={{ borderColor: 'var(--color-surface-border)' }}></div>;
+	return (
+		<div
+			className="my-1 border-t"
+			style={{ borderColor: "var(--color-surface-border)" }}
+		></div>
+	);
 }

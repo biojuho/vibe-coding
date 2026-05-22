@@ -12,12 +12,13 @@ from __future__ import annotations
 
 from config import (
     ERROR_BUDGET_EXCEEDED,
+    ERROR_FILTERED_EDITORIAL,
     ERROR_FILTERED_LOW_QUALITY,
     ERROR_FILTERED_SHORT,
     ERROR_FILTERED_SPAM,
     QUALITY_SCORE_THRESHOLD,
 )
-from pipeline.content_intelligence import build_content_profile
+from pipeline.content_intelligence import build_content_profile, evaluate_candidate_editorial_fit
 from pipeline.daily_queue_floor import DailyQueueFloorState, is_daily_queue_floor_active
 from pipeline.review_queue import build_review_decision
 
@@ -244,6 +245,71 @@ def _build_profile_and_decision(
     return True
 
 
+def _check_editorial_fit(ctx: ProcessRunContext, config) -> bool:
+    """본문 포함 전체 편집 적합도 게이트 (D-032).
+
+    `feed_collector.py`의 사전 스크리닝은 제목만으로 낮은 bar(`min_pre_editorial_score`)
+    를 적용하고 `hard_reject`를 의도적으로 무시한다 (D-029). 본문을 확보한 이 시점에서
+    전체 편집 적합도를 다시 평가해 다음을 거른다:
+
+      - `hard_reject` (추상적·파생각 부족·직장인 맥락 약함·갈등 낚시 과다)
+      - 편집 적합도 점수 < `feed_filter.min_editorial_score`
+
+    이 게이트는 `final_rank_score`(스크랩 품질·성과 휴리스틱이 섞여 편집 약점을
+    가릴 수 있음)와 독립적인 축이다. `daily_queue_floor` 활성 시에는 다른 필터와
+    동일하게 override 하고 사유를 기록한다.
+
+    실패 시 `ctx.result`를 채우고 False를 반환한다.
+    """
+    post_data = ctx.post_data
+
+    fit = evaluate_candidate_editorial_fit(
+        title=str(post_data.get("title", "") or ""),
+        source=str(post_data.get("source", "") or ""),
+        content=str(ctx.content_text or ""),
+    )
+    # 다운스트림(Notion 메모·진단·run metrics)에서 참조할 수 있게 보존.
+    post_data["editorial_fit"] = fit
+    ctx.result["editorial_score"] = fit.get("score")
+
+    if config is None or not bool(config.get("feed_filter.editorial_gate_enabled", True)):
+        return True
+
+    min_score = float(config.get("feed_filter.min_editorial_score", 60.0))
+    score = float(fit.get("score", 0.0) or 0.0)
+    hard_reject = bool(fit.get("hard_reject"))
+    hard_reject_reasons = list(fit.get("hard_reject_reasons") or [])
+
+    if not hard_reject and score >= min_score:
+        return True
+
+    if hard_reject:
+        failure_reason = "editorial_hard_reject"
+        human = "; ".join(hard_reject_reasons) or "편집 적합도 하드 리젝트"
+    else:
+        failure_reason = "editorial_score_below_threshold"
+        human = f"편집 적합도 {score:.0f} < {min_score:.0f}"
+
+    # daily_queue_floor 활성 시: 다른 필터와 동일하게 override.
+    if is_daily_queue_floor_active(getattr(ctx, "daily_queue_floor", None)):
+        overrides = post_data.setdefault("daily_queue_floor_overrides", [])
+        if failure_reason not in overrides:
+            overrides.append(failure_reason)
+        logger.info("[daily_queue_floor] override editorial gate for %s: %s", ctx.url, human)
+        return True
+
+    ctx.result["error"] = f"Editorial gate: {human}"
+    ctx.result["error_code"] = ERROR_FILTERED_EDITORIAL
+    ctx.result["success"] = True
+    ctx.result["notion_url"] = "(skipped-editorial)"
+    ctx.result["failure_stage"] = "filter"
+    ctx.result["failure_reason"] = failure_reason
+    ctx.result["editorial_reject_reasons"] = hard_reject_reasons
+    logger.info("SKIP [editorial] %s - %s (score=%.0f)", ctx.url, human, score)
+    mark_stage(ctx, "filter_profile", "skipped", failure_reason)
+    return False
+
+
 async def _check_viral_and_calendar(ctx: ProcessRunContext, config) -> bool:
     """바이럴 필터 + 콘텐츠 캘린더 다양성 + 예산 초과 확인."""
     post_data = ctx.post_data
@@ -357,9 +423,13 @@ async def run_filter_profile_stage(
         2. 스팸/부적절 키워드 필터
         3. 품질 점수 필터
         4. 콘텐츠 프로파일 + 감정 필터 + 리뷰 결정
-        5. 바이럴 필터 + 캘린더 + 예산
+        5. 본문 포함 편집 적합도 게이트 (D-032)
+        6. 바이럴 필터 + 캘린더 + 예산
 
     각 단계가 False를 반환하면 즉시 중단합니다.
+
+    편집 적합도 게이트(5)는 LLM 바이럴 필터(6)보다 먼저 실행되어,
+    편집 약점이 분명한 글에 대한 불필요한 LLM 호출 비용을 절감합니다.
     """
     mark_stage(ctx, "filter_profile", "running")
     ctx.daily_queue_floor = daily_queue_floor
@@ -371,6 +441,8 @@ async def run_filter_profile_stage(
     if not _check_quality(ctx, config):
         return False
     if not _build_profile_and_decision(ctx, config, top_tweets, review_only):
+        return False
+    if not _check_editorial_fit(ctx, config):
         return False
     if not await _check_viral_and_calendar(ctx, config):
         return False

@@ -1,49 +1,76 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const SRC_ROOT = path.resolve(__dirname, '..');
+const SRC_ROOT = path.resolve(__dirname, "..");
 
 function readSource(relativePath) {
-  return readFileSync(path.join(SRC_ROOT, relativePath), 'utf8');
+	return readFileSync(path.join(SRC_ROOT, relativePath), "utf8");
 }
 
-test('sales pagination failures surface Korean retry feedback', () => {
-  const hookSource = readSource('lib/hooks/useSalesPagination.js');
-  const tabSource = readSource('components/tabs/SalesTab.js');
+test("sales pagination failures surface Korean retry feedback", () => {
+	const hookSource = readSource("lib/hooks/useSalesPagination.js");
+	const tabSource = readSource("components/tabs/SalesTab.js");
 
-  assert.match(hookSource, /SALES_PAGINATION_TIMEOUT_MESSAGE/);
-  assert.match(hookSource, /SALES_PAGINATION_ERROR_MESSAGE/);
-  assert.match(hookSource, /setLoadError\(SALES_PAGINATION_TIMEOUT_MESSAGE\)/);
-  assert.match(hookSource, /setLoadError\(SALES_PAGINATION_ERROR_MESSAGE\)/);
-  assert.match(hookSource, /const loadInFlightRef = useRef\(false\);/);
-  assert.match(hookSource, /if \(loadInFlightRef\.current \|\| isLoading \|\| !hasMore\) return;/);
-  assert.match(hookSource, /loadInFlightRef\.current = true;/);
-  assert.match(hookSource, /loadInFlightRef\.current = false;\s+if \(abortRef\.current === controller\)/);
-  assert.match(hookSource, /loadMore, loadError/);
-  assert.match(tabSource, /salesPagination\.loadError/);
-  assert.match(tabSource, /const loadMoreLabel = salesPagination\?\.isLoading \? '이전 판매 기록 불러오는 중' : '이전 판매 기록 더 보기';/);
-  assert.match(tabSource, /aria-busy=\{salesPagination\.isLoading\}/);
-  assert.match(tabSource, /aria-label=\{loadMoreLabel\}/);
-  assert.match(tabSource, /title=\{loadMoreLabel\}/);
-  assert.match(tabSource, /role="status"/);
-  assert.match(tabSource, /aria-live="polite"/);
-  assert.doesNotMatch(hookSource, /setLoadError\(error\.message\)/);
-  assert.doesNotMatch(tabSource, /salesPagination\.error\.message/);
+	assert.match(hookSource, /SALES_PAGINATION_TIMEOUT_MESSAGE/);
+	assert.match(hookSource, /SALES_PAGINATION_ERROR_MESSAGE/);
+	assert.match(hookSource, /setLoadError\(SALES_PAGINATION_TIMEOUT_MESSAGE\)/);
+	assert.match(hookSource, /setLoadError\(SALES_PAGINATION_ERROR_MESSAGE\)/);
+	assert.match(hookSource, /const loadInFlightRef = useRef\(false\);/);
+	assert.match(
+		hookSource,
+		/if \(loadInFlightRef\.current \|\| isLoading \|\| !hasMore\) return;/,
+	);
+	assert.match(hookSource, /loadInFlightRef\.current = true;/);
+	assert.match(
+		hookSource,
+		/loadInFlightRef\.current = false;\s+if \(abortRef\.current === controller\)/,
+	);
+	assert.match(hookSource, /loadMore, loadError/);
+	assert.match(tabSource, /salesPagination\.loadError/);
+	assert.match(
+		tabSource,
+		/const loadMoreLabel = salesPagination\?\.isLoading \? '이전 판매 기록 불러오는 중' : '이전 판매 기록 더 보기';/,
+	);
+	assert.match(tabSource, /aria-busy=\{salesPagination\.isLoading\}/);
+	assert.match(tabSource, /aria-label=\{loadMoreLabel\}/);
+	assert.match(tabSource, /title=\{loadMoreLabel\}/);
+	assert.match(tabSource, /role="status"/);
+	assert.match(tabSource, /aria-live="polite"/);
+	assert.doesNotMatch(hookSource, /setLoadError\(error\.message\)/);
+	assert.doesNotMatch(tabSource, /salesPagination\.error\.message/);
 });
 
-test('sales pagination normalizes malformed page item payloads', () => {
-  const hookSource = readSource('lib/hooks/useSalesPagination.js');
+test("sales pagination normalizes malformed page item payloads", () => {
+	const hookSource = readSource("lib/hooks/useSalesPagination.js");
 
-  assert.match(hookSource, /function normalizePaginationItems\(items\) \{/);
-  assert.match(hookSource, /Array\.isArray\(items\) \? items\.filter\(\(item\) => item && typeof item === 'object'\) : \[\]/);
-  assert.match(hookSource, /useState\(\(\) => normalizePaginationItems\(initialItems\)\)/);
-  assert.match(hookSource, /const \{ items: newItems, pageInfo: newPageInfo \} = json\.data \?\? \{\};/);
-  assert.match(hookSource, /const safeNewItems = normalizePaginationItems\(newItems\);/);
-  assert.match(hookSource, /setItems\(\(prev\) => \[\.\.\.normalizePaginationItems\(prev\), \.\.\.safeNewItems\]\);/);
-  assert.doesNotMatch(hookSource, /useState\(initialItems\)/);
-  assert.doesNotMatch(hookSource, /setItems\(\(prev\) => \[\.\.\.prev, \.\.\.newItems\]\)/);
+	assert.match(hookSource, /function normalizePaginationItems\(items\) \{/);
+	assert.match(
+		hookSource,
+		/Array\.isArray\(items\) \? items\.filter\(\(item\) => item && typeof item === 'object'\) : \[\]/,
+	);
+	assert.match(
+		hookSource,
+		/useState\(\(\) => normalizePaginationItems\(initialItems\)\)/,
+	);
+	assert.match(
+		hookSource,
+		/const \{ items: newItems, pageInfo: newPageInfo \} = json\.data \?\? \{\};/,
+	);
+	assert.match(
+		hookSource,
+		/const safeNewItems = normalizePaginationItems\(newItems\);/,
+	);
+	assert.match(
+		hookSource,
+		/setItems\(\(prev\) => \[\.\.\.normalizePaginationItems\(prev\), \.\.\.safeNewItems\]\);/,
+	);
+	assert.doesNotMatch(hookSource, /useState\(initialItems\)/);
+	assert.doesNotMatch(
+		hookSource,
+		/setItems\(\(prev\) => \[\.\.\.prev, \.\.\.newItems\]\)/,
+	);
 });

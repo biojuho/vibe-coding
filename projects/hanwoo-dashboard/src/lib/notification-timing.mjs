@@ -2,83 +2,91 @@ const ESTRUS_CYCLE_DAYS = 21;
 const CALVING_DAYS = 285;
 
 function parseDate(value) {
-  if (!value) {
-    return null;
-  }
+	if (!value) {
+		return null;
+	}
 
-  const parsed = value instanceof Date ? new Date(value.getTime()) : new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
+	const parsed =
+		value instanceof Date ? new Date(value.getTime()) : new Date(value);
+	if (Number.isNaN(parsed.getTime())) {
+		return null;
+	}
 
-  if (typeof value === 'string') {
-    const dateKey = value.trim().slice(0, 10);
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateKey) && parsed.toISOString().slice(0, 10) !== dateKey) {
-      return null;
-    }
-  }
+	if (typeof value === "string") {
+		const dateKey = value.trim().slice(0, 10);
+		if (
+			/^\d{4}-\d{2}-\d{2}$/.test(dateKey) &&
+			parsed.toISOString().slice(0, 10) !== dateKey
+		) {
+			return null;
+		}
+	}
 
-  return parsed;
+	return parsed;
 }
 
 function addDays(value, dayCount) {
-  const parsed = parseDate(value);
-  if (!parsed) {
-    return null;
-  }
+	const parsed = parseDate(value);
+	if (!parsed) {
+		return null;
+	}
 
-  parsed.setDate(parsed.getDate() + dayCount);
-  return parsed;
+	parsed.setDate(parsed.getDate() + dayCount);
+	return parsed;
 }
 
 export function formatNotificationTime(value) {
-  const parsed = parseDate(value);
-  if (!parsed) {
-    return '-';
-  }
+	const parsed = parseDate(value);
+	if (!parsed) {
+		return "-";
+	}
 
-  return parsed.toLocaleTimeString('ko-KR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+	return parsed.toLocaleTimeString("ko-KR", {
+		hour: "2-digit",
+		minute: "2-digit",
+	});
 }
 
-export function getNotificationTargetDate(type, sourceDate, { now = new Date() } = {}) {
-  if (type === 'estrus') {
-    const nextEstrusDate = parseDate(sourceDate);
-    const referenceNow = parseDate(now);
-    if (!nextEstrusDate || !referenceNow) {
-      return null;
-    }
+export function getNotificationTargetDate(
+	type,
+	sourceDate,
+	{ now = new Date() } = {},
+) {
+	if (type === "estrus") {
+		const nextEstrusDate = parseDate(sourceDate);
+		const referenceNow = parseDate(now);
+		if (!nextEstrusDate || !referenceNow) {
+			return null;
+		}
 
-    while (nextEstrusDate <= referenceNow) {
-      nextEstrusDate.setDate(nextEstrusDate.getDate() + ESTRUS_CYCLE_DAYS);
-    }
+		while (nextEstrusDate <= referenceNow) {
+			nextEstrusDate.setDate(nextEstrusDate.getDate() + ESTRUS_CYCLE_DAYS);
+		}
 
-    return nextEstrusDate;
-  }
+		return nextEstrusDate;
+	}
 
-  if (type === 'calving') {
-    return addDays(sourceDate, CALVING_DAYS);
-  }
+	if (type === "calving") {
+		return addDays(sourceDate, CALVING_DAYS);
+	}
 
-  return parseDate(sourceDate);
+	return parseDate(sourceDate);
 }
 
 export function buildNotificationTiming(type, sourceDate, options) {
-  const targetDate = getNotificationTargetDate(type, sourceDate, options);
-  if (!targetDate) {
-    return {
-      date: null,
-      time: '-',
-      targetDate: null,
-    };
-  }
+	const targetDate = getNotificationTargetDate(type, sourceDate, options);
+	if (!targetDate) {
+		return {
+			date: null,
+			time: "-",
+			targetDate: null,
+		};
+	}
 
-  const isoString = targetDate.toISOString();
-  return {
-    date: isoString,
-    time: formatNotificationTime(targetDate),
-    targetDate: isoString,
-  };
+	const isoString = targetDate.toISOString();
+	return {
+		date: isoString,
+		time: formatNotificationTime(targetDate),
+		targetDate: isoString,
+	};
 }

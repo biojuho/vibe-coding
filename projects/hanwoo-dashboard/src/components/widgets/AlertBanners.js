@@ -1,154 +1,247 @@
-'use client';
+"use client";
 
-import { PremiumCard, PremiumCardContent } from '@/components/ui/premium-card';
-import { HeartIcon } from '@/components/ui/common';
-import { formatDate, toFiniteNumber } from '@/lib/utils';
+import { HeartIcon } from "@/components/ui/common";
+import { PremiumCard, PremiumCardContent } from "@/components/ui/premium-card";
+import { formatDate, toFiniteNumber } from "@/lib/utils";
 
 function normalizeDaysLeft(value) {
-  return Math.max(0, Math.floor(toFiniteNumber(value)));
+	return Math.max(0, Math.floor(toFiniteNumber(value)));
 }
 
 function normalizeAlertNotifications(notifications, type) {
-  if (!Array.isArray(notifications)) return [];
+	if (!Array.isArray(notifications)) return [];
 
-  return notifications
-    .filter((notification) => notification && typeof notification === 'object' && notification.type === type)
-    .map((notification, index) => ({
-      ...notification,
-      cattleName:
-        typeof notification.cattleName === 'string' && notification.cattleName.trim()
-          ? notification.cattleName
-          : '이름 미등록',
-      id: notification.id ?? `${type}-${index}`,
-      penNumber: notification.penNumber ?? '-',
-    }));
+	return notifications
+		.filter(
+			(notification) =>
+				notification &&
+				typeof notification === "object" &&
+				notification.type === type,
+		)
+		.map((notification, index) => ({
+			...notification,
+			cattleName:
+				typeof notification.cattleName === "string" &&
+				notification.cattleName.trim()
+					? notification.cattleName
+					: "이름 미등록",
+			id: notification.id ?? `${type}-${index}`,
+			penNumber: notification.penNumber ?? "-",
+		}));
 }
 
 function normalizeBuildings(buildings) {
-  return Array.isArray(buildings) ? buildings.filter((building) => building && typeof building === 'object') : [];
+	return Array.isArray(buildings)
+		? buildings.filter((building) => building && typeof building === "object")
+		: [];
 }
 
 // [QA 수정] 실제 운영 import — CSS 변수 기반 색상 적용
 export function EstrusAlertBanner({ notifications = [], buildings = [] }) {
-  const safeBuildings = normalizeBuildings(buildings);
-  const estrusNotifications = normalizeAlertNotifications(notifications, 'estrus');
+	const safeBuildings = normalizeBuildings(buildings);
+	const estrusNotifications = normalizeAlertNotifications(
+		notifications,
+		"estrus",
+	);
 
-  if (estrusNotifications.length === 0) {
-    return null;
-  }
+	if (estrusNotifications.length === 0) {
+		return null;
+	}
 
-  const todayCount = estrusNotifications.filter((notification) => normalizeDaysLeft(notification.daysLeft) === 0).length;
+	const todayCount = estrusNotifications.filter(
+		(notification) => normalizeDaysLeft(notification.daysLeft) === 0,
+	).length;
 
-  return (
-    <PremiumCard
-      className="animate-fadeInUp mb-4"
-      style={{ animationDelay: '100ms', borderColor: 'var(--premium-card-badge-negative-border)' }}
-    >
-      <PremiumCardContent className="p-4">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-          <span className="alert-icon"><HeartIcon /></span>
-          <span style={{ fontWeight: 700, fontSize: '15px', letterSpacing: '-0.3px' }}>
-            🔔 발정 알림 — {todayCount > 0 ? `오늘 ${todayCount}두` : `${estrusNotifications.length}두 임박`}
-          </span>
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-          {estrusNotifications.map((notification, index) => {
-            const building = safeBuildings.find((item) => item.id === notification.buildingId);
-            const daysLeft = normalizeDaysLeft(notification.daysLeft);
+	return (
+		<PremiumCard
+			className="animate-fadeInUp mb-4"
+			style={{
+				animationDelay: "100ms",
+				borderColor: "var(--premium-card-badge-negative-border)",
+			}}
+		>
+			<PremiumCardContent className="p-4">
+				<div
+					style={{
+						display: "flex",
+						alignItems: "center",
+						gap: "10px",
+						marginBottom: "10px",
+					}}
+				>
+					<span className="alert-icon">
+						<HeartIcon />
+					</span>
+					<span
+						style={{
+							fontWeight: 700,
+							fontSize: "15px",
+							letterSpacing: "-0.3px",
+						}}
+					>
+						🔔 발정 알림 —{" "}
+						{todayCount > 0
+							? `오늘 ${todayCount}두`
+							: `${estrusNotifications.length}두 임박`}
+					</span>
+				</div>
+				<div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+					{estrusNotifications.map((notification, index) => {
+						const building = safeBuildings.find(
+							(item) => item.id === notification.buildingId,
+						);
+						const daysLeft = normalizeDaysLeft(notification.daysLeft);
 
-            return (
-              <div
-                key={notification.id}
-                className="animate-fadeInUp"
-                style={{
-                  background: 'color-mix(in srgb, var(--color-surface-elevated) 80%, transparent)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '8px 14px',
-                  fontSize: '13px',
-                  border: '1px solid var(--color-surface-stroke, rgba(255,255,255,0.1))',
-                  transition: 'all var(--transition-fast)',
-                  animationDelay: `${150 + index * 50}ms`,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'color-mix(in srgb, var(--color-surface-elevated) 90%, transparent)';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'color-mix(in srgb, var(--color-surface-elevated) 80%, transparent)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                <strong style={{ color: 'var(--color-estrus)' }}>{notification.cattleName}</strong> ·{' '}
-                <span style={{ color: 'var(--color-text-secondary)' }}>{building?.name || '미지정'} {notification.penNumber}번</span> ·{' '}
-                <span style={{ fontWeight: 700, color: 'var(--color-estrus)' }}>
-                  {daysLeft === 0 ? ' ⚡오늘!' : `D-${daysLeft}`}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </PremiumCardContent>
-    </PremiumCard>
-  );
+						return (
+							<div
+								key={notification.id}
+								className="animate-fadeInUp"
+								style={{
+									background:
+										"color-mix(in srgb, var(--color-surface-elevated) 80%, transparent)",
+									borderRadius: "var(--radius-md)",
+									padding: "8px 14px",
+									fontSize: "13px",
+									border:
+										"1px solid var(--color-surface-stroke, rgba(255,255,255,0.1))",
+									transition: "all var(--transition-fast)",
+									animationDelay: `${150 + index * 50}ms`,
+								}}
+								onMouseEnter={(e) => {
+									e.currentTarget.style.background =
+										"color-mix(in srgb, var(--color-surface-elevated) 90%, transparent)";
+									e.currentTarget.style.transform = "translateY(-1px)";
+								}}
+								onMouseLeave={(e) => {
+									e.currentTarget.style.background =
+										"color-mix(in srgb, var(--color-surface-elevated) 80%, transparent)";
+									e.currentTarget.style.transform = "translateY(0)";
+								}}
+							>
+								<strong style={{ color: "var(--color-estrus)" }}>
+									{notification.cattleName}
+								</strong>{" "}
+								·{" "}
+								<span style={{ color: "var(--color-text-secondary)" }}>
+									{building?.name || "미지정"} {notification.penNumber}번
+								</span>{" "}
+								·{" "}
+								<span style={{ fontWeight: 700, color: "var(--color-estrus)" }}>
+									{daysLeft === 0 ? " ⚡오늘!" : `D-${daysLeft}`}
+								</span>
+							</div>
+						);
+					})}
+				</div>
+			</PremiumCardContent>
+		</PremiumCard>
+	);
 }
 
 // [QA 수정] 분만 알림 — CSS 변수 기반 색상 + 문자 깨짐(쨌→·) 수정
 export function CalvingAlertBanner({ notifications = [], buildings = [] }) {
-  const safeBuildings = normalizeBuildings(buildings);
-  const calvingNotifications = normalizeAlertNotifications(notifications, 'calving');
+	const safeBuildings = normalizeBuildings(buildings);
+	const calvingNotifications = normalizeAlertNotifications(
+		notifications,
+		"calving",
+	);
 
-  if (calvingNotifications.length === 0) {
-    return null;
-  }
+	if (calvingNotifications.length === 0) {
+		return null;
+	}
 
-  return (
-    <PremiumCard
-      className="animate-fadeInUp mb-4"
-      style={{ animationDelay: '150ms', borderColor: 'color-mix(in srgb, var(--color-calving) 24%, transparent)' }}
-    >
-      <PremiumCardContent className="p-4">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-          <span aria-hidden="true" style={{ fontSize: '18px' }} className="animate-bounce">🍼</span>
-          <span style={{ fontWeight: 700, fontSize: '15px', letterSpacing: '-0.3px' }}>
-            분만 알림 — {calvingNotifications.length}두 분만 임박 (14일 이내)
-          </span>
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-          {calvingNotifications.map((notification, index) => {
-            const building = safeBuildings.find((item) => item.id === notification.buildingId);
-            const daysLeft = normalizeDaysLeft(notification.daysLeft);
+	return (
+		<PremiumCard
+			className="animate-fadeInUp mb-4"
+			style={{
+				animationDelay: "150ms",
+				borderColor:
+					"color-mix(in srgb, var(--color-calving) 24%, transparent)",
+			}}
+		>
+			<PremiumCardContent className="p-4">
+				<div
+					style={{
+						display: "flex",
+						alignItems: "center",
+						gap: "10px",
+						marginBottom: "10px",
+					}}
+				>
+					<span
+						aria-hidden="true"
+						style={{ fontSize: "18px" }}
+						className="animate-bounce"
+					>
+						🍼
+					</span>
+					<span
+						style={{
+							fontWeight: 700,
+							fontSize: "15px",
+							letterSpacing: "-0.3px",
+						}}
+					>
+						분만 알림 — {calvingNotifications.length}두 분만 임박 (14일 이내)
+					</span>
+				</div>
+				<div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+					{calvingNotifications.map((notification, index) => {
+						const building = safeBuildings.find(
+							(item) => item.id === notification.buildingId,
+						);
+						const daysLeft = normalizeDaysLeft(notification.daysLeft);
 
-            return (
-              <div
-                key={notification.id}
-                className="animate-fadeInUp"
-                style={{
-                  background: 'color-mix(in srgb, var(--color-surface-elevated) 80%, transparent)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '8px 14px',
-                  fontSize: '13px',
-                  border: '1px solid var(--color-surface-stroke, rgba(255,255,255,0.1))',
-                  transition: 'all var(--transition-fast)',
-                  animationDelay: `${200 + index * 50}ms`,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'color-mix(in srgb, var(--color-surface-elevated) 90%, transparent)';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'color-mix(in srgb, var(--color-surface-elevated) 80%, transparent)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                <strong style={{ color: 'var(--color-calving)' }}>{notification.cattleName}</strong> ·{' '}
-                <span style={{ color: 'var(--color-text-secondary)' }}>{building?.name || '미지정'} {notification.penNumber}번</span> ·{' '}
-                <span style={{ fontWeight: 700, color: 'var(--color-calving)' }}>D-{daysLeft}</span>{' '}
-                <span style={{ color: 'var(--color-text-muted)' }}>· 예정 {notification.targetDate ? formatDate(notification.targetDate) : '-'}</span>
-              </div>
-            );
-          })}
-        </div>
-      </PremiumCardContent>
-    </PremiumCard>
-  );
+						return (
+							<div
+								key={notification.id}
+								className="animate-fadeInUp"
+								style={{
+									background:
+										"color-mix(in srgb, var(--color-surface-elevated) 80%, transparent)",
+									borderRadius: "var(--radius-md)",
+									padding: "8px 14px",
+									fontSize: "13px",
+									border:
+										"1px solid var(--color-surface-stroke, rgba(255,255,255,0.1))",
+									transition: "all var(--transition-fast)",
+									animationDelay: `${200 + index * 50}ms`,
+								}}
+								onMouseEnter={(e) => {
+									e.currentTarget.style.background =
+										"color-mix(in srgb, var(--color-surface-elevated) 90%, transparent)";
+									e.currentTarget.style.transform = "translateY(-1px)";
+								}}
+								onMouseLeave={(e) => {
+									e.currentTarget.style.background =
+										"color-mix(in srgb, var(--color-surface-elevated) 80%, transparent)";
+									e.currentTarget.style.transform = "translateY(0)";
+								}}
+							>
+								<strong style={{ color: "var(--color-calving)" }}>
+									{notification.cattleName}
+								</strong>{" "}
+								·{" "}
+								<span style={{ color: "var(--color-text-secondary)" }}>
+									{building?.name || "미지정"} {notification.penNumber}번
+								</span>{" "}
+								·{" "}
+								<span
+									style={{ fontWeight: 700, color: "var(--color-calving)" }}
+								>
+									D-{daysLeft}
+								</span>{" "}
+								<span style={{ color: "var(--color-text-muted)" }}>
+									· 예정{" "}
+									{notification.targetDate
+										? formatDate(notification.targetDate)
+										: "-"}
+								</span>
+							</div>
+						);
+					})}
+				</div>
+			</PremiumCardContent>
+		</PremiumCard>
+	);
 }

@@ -121,3 +121,18 @@
 - **일자**: 2026-03-29
 - **결정**: 규칙 소스 오브 트루스를 단일 `classification_rules.yaml`에서 `rules/classification.yaml`, `rules/examples.yaml`, `rules/prompts.yaml`, `rules/platforms.yaml`, `rules/editorial.yaml`로 분리하고, 런타임은 `pipeline/rules_loader.py`를 통해만 로드한다. 루트 `classification_rules.yaml`은 마이그레이션 동안 호환 스냅샷/폴백으로 유지한다.
 - **이유**: taxonomy, prompt, editorial policy, platform regulation이 한 파일에 섞여 있으면 책임이 너무 크고, 작은 수정이 다른 레이어에 예상치 않게 영향을 줄 수 있다. shared loader를 두면 runtime 호환성을 유지하면서도 점진적으로 분리할 수 있다.
+
+## [D-032] 본문 포함 편집 적합도 게이트 (선별 정확도)
+- **일자**: 2026-05-22
+- **결정**: 스크레이프 후 `filter_profile_stage._check_editorial_fit`가 본문까지 포함한 `evaluate_candidate_editorial_fit`를 실행하여 `hard_reject`(추상적·파생각 부족·직장인 맥락 약함·갈등 낚시 과다) 또는 편집 적합도 점수 < `feed_filter.min_editorial_score`(기본 60)인 후보를 검토 큐 적재 전에 차단한다. `feed_filter.editorial_gate_enabled`(기본 true)로 토글, `daily_queue_floor` 활성 시에는 다른 필터와 동일하게 override 한다.
+- **배경**: D-029는 "본문 포함 전체 editorial 검증(min_editorial_score 60)은 scrape 후 process.py에서 수행"한다고 명시했고 `config.yaml`에도 `min_editorial_score` 키가 있었지만, 실제 코드 경로는 한 번도 구현되지 않았다. `hard_reject` 신호는 계산만 되고 스크레이프 이후 전 구간에서 폐기되고 있었다.
+- **이유**: `final_rank_score`는 `scrape_quality*0.35 + publishability*0.40 + performance*0.25` 가중합이라, 스크랩 품질·성과 휴리스틱이 높으면 편집 적합도가 낮은(추상적이고 파생각 없는) 글도 60 임계값을 넘겨 검토 큐에 적재됐다. 편집 적합도를 독립 축으로 강제해 선별 정확도를 높인다. 게이트는 LLM 바이럴 필터보다 먼저 실행되어 편집 약한 글에 대한 LLM 호출 비용도 절감한다.
+- **에러 코드**: `FILTERED_EDITORIAL`. 실패 사유는 `editorial_hard_reject` / `editorial_score_below_threshold`로 구분 기록. 진단용 `editorial_fit`은 통과·비활성 여부와 무관하게 `post_data`에 보존된다.
+
+## [D-033] 스크레이프 콘텐츠 무결성 게이트 (수집 정확도)
+- **일자**: 2026-05-22
+- **결정**: `fetch_stage._check_scrape_integrity`가 `pipeline/scrape_integrity.py`의 결정론적 분류기로, 추출된 title/content가 실제 게시물이 아니라 로그인 월·삭제/없는 글·봇 차단/캡차 페이지인 경우를 감지해 수집 실패로 분류한다. `scrape_quality.integrity_check_enabled`(기본 true)로 토글, `scrape_quality.min_article_chars`(기본 220)로 임계 조정.
+- **배경**: Blind처럼 콘텐츠를 로그인 뒤로 가두는 사이트는 세션 쿠키 만료 시 로그인 월 HTML을 그대로 반환한다. 스크래퍼는 이를 '성공'으로 보고 한국어 텍스트를 추출하며, 그 텍스트는 한국어 비율·길이 검사(`assess_quality`)를 통과해 검토 큐를 오염시킨다.
+- **이유**: `evaluate_candidate_editorial_fit`·`assess_quality`는 '진짜 게시물'의 품질을 보지만, 추출한 것이 애초에 게시물이 맞는지는 아무도 검증하지 않았다. 이를 명시적 레이어로 분리해 수집 정확도를 높인다.
+- **시그니처 2계층**: 하드(봇 차단·캡차 — 정상 글에 사실상 없음, 길이 무관 차단) / 소프트(로그인·삭제 — 정상 글이 인용 가능, 본문 < `min_article_chars`일 때만 차단). 본문 길이 가드로 거짓 양성을 억제한다.
+- **분류**: `blocked` → `SCRAPE_FAILED`, `non_article` → `SCRAPE_PARSE_FAILED`. 실패 사유 `scrape_blocked_page` / `scrape_login_wall` / `scrape_deleted_post`로 구분 기록되어 실패 분석에 잡힌다.

@@ -61,6 +61,8 @@ projects/blind-to-x/
 - ✅ **process.py stage 오케스트레이션**: `process_single_post()` staged flow + `review_only` queue-threshold override 적용 (2026-03-29)
 - ✅ **규칙 분리 1차**: `rules/*.yaml` + `pipeline/rules_loader.py` 도입, 주요 runtime/script consumer 마이그레이션 (2026-03-29)
 - ✅ **최종 targeted QC 재확인**: `ruff`/`py_compile` clean, rules bundle 56 pass, broader regression bundle 92 pass 확인 (2026-03-29)
+- ✅ **선별 정확도 게이트 (D-032)**: 본문 포함 편집 적합도 게이트 `_check_editorial_fit` 구현 — D-029가 약속만 하고 미구현이던 `min_editorial_score`/`hard_reject` 검증을 실제로 강제. 검토 큐 적재 정확도 향상 (2026-05-22)
+- ✅ **수집 정확도 게이트 (D-033)**: 스크레이프 무결성 분류기 `pipeline/scrape_integrity.py` + `fetch_stage._check_scrape_integrity` — 로그인 월·삭제 글·봇 차단 페이지를 수집 실패로 분류해 검토 큐 오염 차단 (2026-05-22)
 - 🔲 **다음 단계**: `_process_single_post_legacy()` 제거, stage helper 파일 분리, 레거시 `classification_rules.yaml` 소비 경로 정리
 
 ## 지뢰밭 (주의사항)
@@ -76,7 +78,9 @@ projects/blind-to-x/
 10. **Crawl4AI 폴백**: CSS→자동수리→trafilatura→Crawl4AI 순서. crawl4ai 미설치 시 자동 스킵.
 11. **ViralFilter 싱글톤**: `process.py`의 `_viral_filter_instance`는 모듈 global. 매 호출 생성 금지.
 12. **X 드래프트 fail-closed**: `draft_generator.py`는 `<twitter>`, `<reply>` 태그 누락·영문 에러문·낮은 한글 비율 응답을 성공으로 취급하지 않음. `creator_take`는 이제 선택적 review metadata.
-13. **2단계 에디토리얼 필터 (D-029)**: `feed_collector.py`는 제목전용 `min_pre_editorial_score`(35)로 사전 스크리닝. `hard_reject`는 제목만으로는 신뢰할 수 없으므로 사전 단계에서 무시. 본문 포함 전체 검증(`min_editorial_score` 60)은 scrape 후 `process.py`에서 수행.
+13. **2단계 에디토리얼 필터 (D-029 + D-032)**: `feed_collector.py`는 제목전용 `min_pre_editorial_score`(35)로 사전 스크리닝하고 `hard_reject`는 무시. 본문 포함 전체 검증은 이제 `filter_profile_stage._check_editorial_fit`(D-032)이 실제로 수행한다 — D-029 당시 이 경로는 미구현이었다.
 14. **FMKorea/JobPlanet get_feed_candidates (D-030)**: 4개 스크래퍼 모두 `get_feed_candidates()` 오버라이드 완료. base의 URL-only 구현은 `title=""`을 반환하므로 editorial scoring 최저점 문제 유발. FMKorea는 실패 시 URL-only fallback 포함.
 15. **staged process shadowing**: `pipeline/process.py`에는 active staged `process_single_post()`와 참조용 `_process_single_post_legacy()`가 함께 있다. 수정 시 active entrypoint 또는 `_run_*_stage()` helper만 건드릴 것.
 16. **규칙 소스 오브 트루스**: 편집/분류/프롬프트/플랫폼 규칙은 `rules/*.yaml`이 기준이다. 루트 `classification_rules.yaml`은 호환용 스냅샷/폴백이므로 직접 수정 시 드리프트가 날 수 있다. 가능하면 `pipeline.rules_loader`와 업데이트 스크립트를 통해 동기화할 것.
+17. **편집 적합도 게이트 픽스처 (D-032)**: `_check_editorial_fit`이 기본 활성이므로, 파이프라인 전체를 도는 단위 테스트의 스텁 본문은 숫자·인용·장면·직장 맥락이 있는 현실적인 글이어야 게이트를 통과한다. 추상적 본문은 `editorial_hard_reject`로 차단된다. `config.yaml`의 `feed_filter`/`scrape_quality` 키는 `config.example.yaml`/`config.ci.yaml`과 동기화 유지(`test_config_workflow_sync.py`가 검증).
+18. **스크레이프 무결성 게이트 (D-033)**: `fetch_stage._check_scrape_integrity`가 `fetch` 단계에서 로그인 월·삭제 글·봇 차단 페이지를 감지해 수집 실패로 분류한다. `assess_quality` 직전에 실행됨. 시그니처는 `pipeline/scrape_integrity.py`. 봇 차단 시그니처를 본문에 인용한 글은 거짓 양성이 될 수 있으나 하드 시그니처는 정상 글에 거의 없음. fetch 단계 단위 테스트의 스텁 본문은 `ScrapedPost` Pydantic 검증 때문에 title이 비어 있으면 안 되고, 로그인/삭제 시그니처를 우연히 포함하면 안 된다.

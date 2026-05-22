@@ -167,43 +167,44 @@ jobs:
           - hanwoo-dashboard
           - knowledge-dashboard
 
-    defaults:
-      run:
-        working-directory: projects/${{ matrix.app }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
-          cache-dependency-path: projects/${{ matrix.app }}/package-lock.json
+          cache: pnpm
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install
 
       - name: Type check
         run: |
-          if [ -f tsconfig.json ]; then
-            npx tsc --noEmit
+          if [ -f projects/${{ matrix.app }}/tsconfig.json ]; then
+            pnpm --filter ${{ matrix.app }} exec tsc --noEmit
           else
             echo "No tsconfig.json; skipping standalone TypeScript check."
           fi
 
       - name: Test
-        run: npm test
+        run: pnpm --filter ${{ matrix.app }} test --if-present
 
       - name: Build
-        run: npm run build
+        run: pnpm --filter ${{ matrix.app }} build --if-present
 
       - name: Lint
-        run: npm run lint
+        run: pnpm --filter ${{ matrix.app }} lint --if-present
 
       - name: Runtime smoke
-        run: npm run smoke
+        run: pnpm --filter ${{ matrix.app }} run --if-present smoke
 
   test-summary:
     runs-on: ubuntu-latest

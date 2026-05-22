@@ -1,165 +1,174 @@
 export const PAYMENT_CONFIRMATION_PENDING_MESSAGE =
-  '결제 승인을 확인하고 있습니다. 잠시 후 다시 시도해 주세요.';
+	"결제 승인을 확인하고 있습니다. 잠시 후 다시 시도해 주세요.";
 
-export const PAYMENT_CONFIRMATION_FAILURE_MESSAGE = '결제 확인에 실패했습니다.';
+export const PAYMENT_CONFIRMATION_FAILURE_MESSAGE = "결제 확인에 실패했습니다.";
 
 export const PAYMENT_CONFIRMATION_AMOUNT_MISMATCH_MESSAGE =
-  '승인된 결제 금액이 요청 금액과 일치하지 않습니다.';
+	"승인된 결제 금액이 요청 금액과 일치하지 않습니다.";
 
 const AMOUNT_INPUT_PATTERN = /^\d+$/;
 
 function isPlainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+	return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function parseConfirmedAmount(value) {
-  if (typeof value === 'number') {
-    return Number.isSafeInteger(value) ? value : Number.NaN;
-  }
+	if (typeof value === "number") {
+		return Number.isSafeInteger(value) ? value : Number.NaN;
+	}
 
-  if (typeof value === 'string' && AMOUNT_INPUT_PATTERN.test(value)) {
-    const amount = Number(value);
-    return Number.isSafeInteger(amount) ? amount : Number.NaN;
-  }
+	if (typeof value === "string" && AMOUNT_INPUT_PATTERN.test(value)) {
+		const amount = Number(value);
+		return Number.isSafeInteger(amount) ? amount : Number.NaN;
+	}
 
-  return Number.NaN;
+	return Number.NaN;
 }
 
 function parseApprovedAt(value) {
-  if (!value) {
-    return null;
-  }
+	if (!value) {
+		return null;
+	}
 
-  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
-  if (!Number.isFinite(date.getTime())) {
-    return null;
-  }
+	const date =
+		value instanceof Date ? new Date(value.getTime()) : new Date(value);
+	if (!Number.isFinite(date.getTime())) {
+		return null;
+	}
 
-  if (typeof value === 'string') {
-    const dateKey = value.trim().slice(0, 10);
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateKey) && date.toISOString().slice(0, 10) !== dateKey) {
-      return null;
-    }
-  }
+	if (typeof value === "string") {
+		const dateKey = value.trim().slice(0, 10);
+		if (
+			/^\d{4}-\d{2}-\d{2}$/.test(dateKey) &&
+			date.toISOString().slice(0, 10) !== dateKey
+		) {
+			return null;
+		}
+	}
 
-  return date;
+	return date;
 }
 
 function buildGatewaySnippet(rawText) {
-  if (typeof rawText !== 'string') {
-    return '';
-  }
+	if (typeof rawText !== "string") {
+		return "";
+	}
 
-  return rawText.replace(/\s+/g, ' ').trim().slice(0, 160);
+	return rawText.replace(/\s+/g, " ").trim().slice(0, 160);
 }
 
 export async function readJsonResponseSafely(response) {
-  const rawText = await response.text();
+	const rawText = await response.text();
 
-  if (!rawText.trim()) {
-    return {
-      data: null,
-      rawText,
-      parseError: null,
-    };
-  }
+	if (!rawText.trim()) {
+		return {
+			data: null,
+			rawText,
+			parseError: null,
+		};
+	}
 
-  try {
-    return {
-      data: JSON.parse(rawText),
-      rawText,
-      parseError: null,
-    };
-  } catch (error) {
-    return {
-      data: null,
-      rawText,
-      parseError: error,
-    };
-  }
+	try {
+		return {
+			data: JSON.parse(rawText),
+			rawText,
+			parseError: null,
+		};
+	} catch (error) {
+		return {
+			data: null,
+			rawText,
+			parseError: error,
+		};
+	}
 }
 
 export function buildGatewayErrorMessage({
-  payload,
-  rawText,
-  fallbackMessage = PAYMENT_CONFIRMATION_FAILURE_MESSAGE,
+	payload,
+	rawText,
+	fallbackMessage = PAYMENT_CONFIRMATION_FAILURE_MESSAGE,
 }) {
-  if (isPlainObject(payload)) {
-    if (typeof payload.message === 'string' && payload.message.trim()) {
-      return payload.message.trim();
-    }
+	if (isPlainObject(payload)) {
+		if (typeof payload.message === "string" && payload.message.trim()) {
+			return payload.message.trim();
+		}
 
-    if (typeof payload.code === 'string' && payload.code.trim()) {
-      return `${fallbackMessage} (${payload.code.trim()}).`;
-    }
-  }
+		if (typeof payload.code === "string" && payload.code.trim()) {
+			return `${fallbackMessage} (${payload.code.trim()}).`;
+		}
+	}
 
-  const snippet = buildGatewaySnippet(rawText);
-  if (snippet) {
-    return `${fallbackMessage} 게이트웨이 응답: ${snippet}`;
-  }
+	const snippet = buildGatewaySnippet(rawText);
+	if (snippet) {
+		return `${fallbackMessage} 게이트웨이 응답: ${snippet}`;
+	}
 
-  return fallbackMessage;
+	return fallbackMessage;
 }
 
 export function classifyPaymentConfirmationResult({
-  status,
-  payload,
-  rawText,
-  parseError,
-  expectedAmount,
-  now = () => new Date(),
+	status,
+	payload,
+	rawText,
+	parseError,
+	expectedAmount,
+	now = () => new Date(),
 }) {
-  if (status >= 500) {
-    return {
-      kind: 'pending',
-      httpStatus: 202,
-      message: PAYMENT_CONFIRMATION_PENDING_MESSAGE,
-      reason: 'gateway_unavailable',
-    };
-  }
+	if (status >= 500) {
+		return {
+			kind: "pending",
+			httpStatus: 202,
+			message: PAYMENT_CONFIRMATION_PENDING_MESSAGE,
+			reason: "gateway_unavailable",
+		};
+	}
 
-  if (status >= 400) {
-    return {
-      kind: 'failed',
-      httpStatus: 400,
-      message: buildGatewayErrorMessage({ payload, rawText }),
-      reason: 'gateway_rejected',
-    };
-  }
+	if (status >= 400) {
+		return {
+			kind: "failed",
+			httpStatus: 400,
+			message: buildGatewayErrorMessage({ payload, rawText }),
+			reason: "gateway_rejected",
+		};
+	}
 
-  if (!isPlainObject(payload)) {
-    return {
-      kind: 'pending',
-      httpStatus: 202,
-      message: PAYMENT_CONFIRMATION_PENDING_MESSAGE,
-      reason: parseError ? 'invalid_success_body' : 'empty_success_body',
-    };
-  }
+	if (!isPlainObject(payload)) {
+		return {
+			kind: "pending",
+			httpStatus: 202,
+			message: PAYMENT_CONFIRMATION_PENDING_MESSAGE,
+			reason: parseError ? "invalid_success_body" : "empty_success_body",
+		};
+	}
 
-  const confirmedAmount = parseConfirmedAmount(payload.totalAmount ?? expectedAmount);
-  if (!Number.isSafeInteger(confirmedAmount) || confirmedAmount !== expectedAmount) {
-    return {
-      kind: 'failed',
-      httpStatus: 400,
-      message: PAYMENT_CONFIRMATION_AMOUNT_MISMATCH_MESSAGE,
-      reason: 'amount_mismatch',
-    };
-  }
+	const confirmedAmount = parseConfirmedAmount(
+		payload.totalAmount ?? expectedAmount,
+	);
+	if (
+		!Number.isSafeInteger(confirmedAmount) ||
+		confirmedAmount !== expectedAmount
+	) {
+		return {
+			kind: "failed",
+			httpStatus: 400,
+			message: PAYMENT_CONFIRMATION_AMOUNT_MISMATCH_MESSAGE,
+			reason: "amount_mismatch",
+		};
+	}
 
-  const approvedAt = parseApprovedAt(payload.approvedAt) ?? now();
+	const approvedAt = parseApprovedAt(payload.approvedAt) ?? now();
 
-  const receiptUrl =
-    typeof payload?.receipt?.url === 'string' && payload.receipt.url.trim()
-      ? payload.receipt.url.trim()
-      : null;
+	const receiptUrl =
+		typeof payload?.receipt?.url === "string" && payload.receipt.url.trim()
+			? payload.receipt.url.trim()
+			: null;
 
-  return {
-    kind: 'confirmed',
-    httpStatus: 200,
-    confirmedAmount,
-    approvedAt,
-    receiptUrl,
-    reason: 'confirmed',
-  };
+	return {
+		kind: "confirmed",
+		httpStatus: 200,
+		confirmedAmount,
+		approvedAt,
+		receiptUrl,
+		reason: "confirmed",
+	};
 }

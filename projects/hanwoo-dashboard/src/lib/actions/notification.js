@@ -1,50 +1,58 @@
-'use server';
+"use server";
 
-import { requireAuthenticatedSession } from '@/lib/auth-guard';
-import { getNotificationSummary, saveNotificationSummary } from '../dashboard/read-models';
-import { buildNotifications } from '../notifications';
-import { prisma } from './_helpers';
+import { requireAuthenticatedSession } from "@/lib/auth-guard";
+import {
+	getNotificationSummary,
+	saveNotificationSummary,
+} from "../dashboard/read-models";
+import { buildNotifications } from "../notifications";
+import { prisma } from "./_helpers";
 
 // ============================================================
 // Notification Actions
 // ============================================================
 
 function isFreshNotificationSummary(summary, now = Date.now()) {
-  if (!summary?.payload || !summary.generatedAt) {
-    return false;
-  }
+	if (!summary?.payload || !summary.generatedAt) {
+		return false;
+	}
 
-  const generatedAt = new Date(summary.generatedAt);
-  const age = now - generatedAt.getTime();
-  return Number.isFinite(age) && age >= 0 && age < 60 * 1000;
+	const generatedAt = new Date(summary.generatedAt);
+	const age = now - generatedAt.getTime();
+	return Number.isFinite(age) && age >= 0 && age < 60 * 1000;
 }
 
 export async function getNotifications() {
-  await requireAuthenticatedSession();
-  try {
-    // Try pre-computed read model first
-    const cached = await getNotificationSummary('default');
-    if (isFreshNotificationSummary(cached)) {
-      return cached.payload;
-    }
-  } catch {
-    // Fall through to live computation
-  }
+	await requireAuthenticatedSession();
+	try {
+		// Try pre-computed read model first
+		const cached = await getNotificationSummary("default");
+		if (isFreshNotificationSummary(cached)) {
+			return cached.payload;
+		}
+	} catch {
+		// Fall through to live computation
+	}
 
-  try {
-    const cattle = await prisma.cattle.findMany({ where: { isArchived: false } });
-    const notifications = buildNotifications(cattle);
+	try {
+		const cattle = await prisma.cattle.findMany({
+			where: { isArchived: false },
+		});
+		const notifications = buildNotifications(cattle);
 
-    // Persist for future cache hits
-    try {
-      await saveNotificationSummary({ farmId: 'default', payload: notifications });
-    } catch {
-      // Non-fatal: cache write failure
-    }
+		// Persist for future cache hits
+		try {
+			await saveNotificationSummary({
+				farmId: "default",
+				payload: notifications,
+			});
+		} catch {
+			// Non-fatal: cache write failure
+		}
 
-    return notifications;
-  } catch (error) {
-    console.error("Failed to get notifications:", error);
-    return [];
-  }
+		return notifications;
+	} catch (error) {
+		console.error("Failed to get notifications:", error);
+		return [];
+	}
 }
