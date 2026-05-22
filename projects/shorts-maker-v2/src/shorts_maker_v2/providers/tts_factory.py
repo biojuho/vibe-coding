@@ -63,6 +63,7 @@ class TTSFactory:
             )
         elif tts_provider == "edge-tts":
             from shorts_maker_v2.providers.edge_tts_client import EdgeTTSClient
+
             return EdgeTTSClient().generate_tts(
                 model=config.providers.tts_model,
                 voice=voice,
@@ -71,6 +72,7 @@ class TTSFactory:
                 output_path=output_path,
                 words_json_path=words_json_path,
                 role=role,
+                channel_key=channel_key,
                 language=config.project.language,
             )
         else:
@@ -122,7 +124,9 @@ class TTSFactory:
                 exc,
             )
             output_path.unlink(missing_ok=True)
-            return TTSFactory._generate_edge_tts_fallback(config, text, output_path, words_json_path, voice, role)
+            return TTSFactory._generate_edge_tts_fallback(
+                config, text, output_path, words_json_path, voice, role, channel_key
+            )
 
     @staticmethod
     def _try_cosyvoice(
@@ -163,7 +167,9 @@ class TTSFactory:
                 exc,
             )
             output_path.unlink(missing_ok=True)
-            return TTSFactory._generate_edge_tts_fallback(config, text, output_path, words_json_path, voice, role)
+            return TTSFactory._generate_edge_tts_fallback(
+                config, text, output_path, words_json_path, voice, role, channel_key
+            )
 
     @staticmethod
     def _try_openvoice(
@@ -204,7 +210,9 @@ class TTSFactory:
                 exc,
             )
             output_path.unlink(missing_ok=True)
-            return TTSFactory._generate_edge_tts_fallback(config, text, output_path, words_json_path, voice, role)
+            return TTSFactory._generate_edge_tts_fallback(
+                config, text, output_path, words_json_path, voice, role, channel_key
+            )
 
     @staticmethod
     def _generate_edge_tts_fallback(
@@ -214,8 +222,10 @@ class TTSFactory:
         words_json_path: Path,
         voice: str,
         role: str,
+        channel_key: str = "",
     ) -> Path:
         from shorts_maker_v2.providers.edge_tts_client import EdgeTTSClient
+
         return EdgeTTSClient().generate_tts(
             model=config.providers.tts_model,
             voice=voice,
@@ -224,5 +234,6 @@ class TTSFactory:
             output_path=output_path,
             words_json_path=words_json_path,
             role=role,
+            channel_key=channel_key,
             language=config.project.language,
         )

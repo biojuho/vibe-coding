@@ -78,7 +78,7 @@ def test_en_us_locale_smoke_covers_script_audio_and_caption_paths(tmp_path: Path
         return kwargs["output_path"]
 
     with patch(
-        "shorts_maker_v2.pipeline.media_step.EdgeTTSClient.generate_tts", side_effect=_fake_generate_tts
+        "shorts_maker_v2.providers.edge_tts_client.EdgeTTSClient.generate_tts", side_effect=_fake_generate_tts
     ) as generate:
         result = media_step._generate_audio("Hello from the new locale", audio_path, role="hook")
 

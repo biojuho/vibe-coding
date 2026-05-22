@@ -268,7 +268,7 @@ class TestMediaAudioMixinOpenVoice:
 
         step = MockStep(mock_config)
 
-        # openvoice 미설치 상황 모킹 (audio_mixin은 함수 내부 import → 소스 모듈에 패치)
+        # openvoice 미설치 상황 모킹 (TTSFactory가 함수 내부 import → 소스 모듈에 패치)
         monkeypatch.setattr(
             "shorts_maker_v2.providers.openvoice_client.is_openvoice_available",
             lambda: False,
@@ -278,7 +278,7 @@ class TestMediaAudioMixinOpenVoice:
         mock_edge_instance = MagicMock()
         mock_edge_instance.generate_tts.return_value = tmp_path / "fallback.wav"
         monkeypatch.setattr(
-            "shorts_maker_v2.pipeline.media.audio_mixin.EdgeTTSClient",
+            "shorts_maker_v2.providers.edge_tts_client.EdgeTTSClient",
             lambda: mock_edge_instance,
         )
 

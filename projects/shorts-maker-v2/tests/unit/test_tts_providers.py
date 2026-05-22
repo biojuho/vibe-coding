@@ -1034,7 +1034,7 @@ class TestMediaStepTTSRouting:
         return config
 
     @patch("shorts_maker_v2.pipeline.media_step.MediaCache")
-    @patch("shorts_maker_v2.pipeline.media_step.EdgeTTSClient")
+    @patch("shorts_maker_v2.providers.edge_tts_client.EdgeTTSClient")
     def test_channel_key_reaches_edge_tts_fallback(self, mock_edge_cls, mock_cache_cls, tmp_path):
         """Premium TTS fallback must keep channel-specific Edge prosody."""
         from shorts_maker_v2.pipeline.media_step import MediaStep
@@ -1051,7 +1051,7 @@ class TestMediaStepTTSRouting:
         assert mock_edge.generate_tts.call_args.kwargs["channel_key"] == "ai_tech"
 
     @patch("shorts_maker_v2.pipeline.media_step.MediaCache")
-    @patch("shorts_maker_v2.pipeline.media_step.EdgeTTSClient")
+    @patch("shorts_maker_v2.providers.edge_tts_client.EdgeTTSClient")
     def test_edge_tts_routing(self, mock_edge_cls, mock_cache_cls, tmp_path):
         """edge-tts 선택 시 EdgeTTSClient 호출."""
         from shorts_maker_v2.pipeline.media_step import MediaStep
@@ -1068,7 +1068,7 @@ class TestMediaStepTTSRouting:
         assert mock_edge.generate_tts.call_args.kwargs["channel_key"] == "ai_tech"
 
     @patch("shorts_maker_v2.pipeline.media_step.MediaCache")
-    @patch("shorts_maker_v2.pipeline.media_step.EdgeTTSClient")
+    @patch("shorts_maker_v2.providers.edge_tts_client.EdgeTTSClient")
     def test_chatterbox_fallback_to_edge(self, mock_edge_cls, mock_cache_cls, tmp_path):
         """chatterbox 미설치 시 edge-tts fallback."""
         from shorts_maker_v2.pipeline.media_step import MediaStep
@@ -1086,7 +1086,7 @@ class TestMediaStepTTSRouting:
         assert mock_edge.generate_tts.call_args.kwargs["channel_key"] == "ai_tech"
 
     @patch("shorts_maker_v2.pipeline.media_step.MediaCache")
-    @patch("shorts_maker_v2.pipeline.media_step.EdgeTTSClient")
+    @patch("shorts_maker_v2.providers.edge_tts_client.EdgeTTSClient")
     def test_cosyvoice_fallback_to_edge(self, mock_edge_cls, mock_cache_cls, tmp_path):
         """cosyvoice 미설치 시 edge-tts fallback."""
         from shorts_maker_v2.pipeline.media_step import MediaStep

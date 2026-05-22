@@ -152,7 +152,7 @@ def test_generate_audio_edge_tts_uses_role_voice(tmp_path: Path) -> None:
     step = _make_step(config=config)
     output_path = tmp_path / "scene_01.mp3"
 
-    with patch("shorts_maker_v2.pipeline.media_step.EdgeTTSClient") as edge_cls:
+    with patch("shorts_maker_v2.providers.edge_tts_client.EdgeTTSClient") as edge_cls:
         edge_cls.return_value.generate_tts.return_value = output_path
         result = step._generate_audio("hello", output_path, role="hook")
 
@@ -373,7 +373,8 @@ def test_generate_best_image_handles_content_policy_and_sanitized_retry(tmp_path
     logger = MagicMock()
 
     with (
-        patch("shorts_maker_v2.pipeline.media_step.retry_with_backoff", side_effect=_run_retry),
+        # 이미지 폴백 체인은 media/fallback_mixin.py로 분리됨(T-407) — 해당 모듈에 패치해야 한다.
+        patch("shorts_maker_v2.pipeline.media.fallback_mixin.retry_with_backoff", side_effect=_run_retry),
         patch.object(step, "_generate_image_pollinations", side_effect=RuntimeError("pollinations down")),
         patch.object(step, "_sanitize_visual_prompt", return_value="safe visual"),
     ):
