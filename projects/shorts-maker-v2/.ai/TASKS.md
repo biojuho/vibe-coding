@@ -4,6 +4,9 @@
 
 - [ ] Decide whether archived ShortsFactory compatibility tests should live in a separate optional CI/manual lane. Owner: TBD
 - [ ] Remove or ignore the leftover `tests/legacy/__pycache__/` directory for tree cleanliness. Owner: TBD
+- [ ] Refine `gate_safe_zone` caption-height estimation from `len(narration)//20` char-count to pixel measurement (anti-pattern per `shorts-subtitle-safezone` skill). Owner: TBD
+- [ ] Evaluate a PR-level full unit/integration test gate so refactors like T-407 cannot land with broken tests. Owner: TBD
+- [ ] Run the retention simulator E2E once with a real LLM to eyeball predicted-curve quality (paid tokens — needs user approval). Owner: TBD
 
 ## IN_PROGRESS
 
@@ -11,6 +14,8 @@
 
 ## DONE
 
+- [x] T-409 Sync `shorts-tts-quality` skill voice table with `channel_profiles.yaml` SSOT + add `test_skill_config_consistency.py` drift guard + fix misleading `freesound_client` comment (2026-05-22, Claude) — `d775a360`
+- [x] T-408 Restore `channel_key` in the edge-tts TTS path and repair 8 stale test patch targets broken by the T-407 refactor (2026-05-22, Claude) — `c9d1493f`
 - [x] T-323 Surface `gate_safe_zone` QC HOLD in `manifest.degraded_steps` + add direct `gate_safe_zone` regression tests (2026-05-22, Claude) — `9e8531da`
 - [x] T-322 Stamp `scene_id` on media failure records for per-scene traceability in `manifest.failed_steps` (2026-05-22, Claude) — `ce5808a2`
 - [x] T-321 Ship synthetic-audience retention simulator with closed-loop auto-fix (`retention_simulator`/`retention_autofix`/`retention_report`) (2026-05-22, Claude) — `e194784b`

@@ -1,5 +1,27 @@
 # 📋 AI 세션 로그
 
+## 2026-05-22 | Claude | 스킬↔코드 정합성 — T-407 회귀 수정 + TTS 스킬 드리프트 가드 (T-408~T-409)
+
+### 작업 요약
+"개발된 스킬 대비 부족한 부분을 찾아 최고의 제품으로" 목표 이어서 수행. T-407 TTS 팩토리 리팩터링이 단위 테스트 8개를 깨진 채 남겼고, 그 과정에서 edge-tts 경로의 채널별 prosody가 조용히 무력화된 회귀를 발견·수정. 더불어 `shorts-tts-quality` 스킬 문서가 설정 SSOT와 어긋난 드리프트를 정정하고 재발 방지 가드를 신설.
+
+### 주요 작업
+- **T-408 (`c9d1493f`)** T-407 회귀 수정 — `tts_factory.py`의 edge-tts 분기와 `_generate_edge_tts_fallback`가 `channel_key`를 누락 → edge-tts 직접/폴백 시 `_CHANNEL_PROSODY`·`pitch_hook_map`이 전부 기본값으로 떨어져 `shorts-tts-quality` 스킬 위반. edge-tts 경로 전체에 `channel_key` 재연결. T-407이 `EdgeTTSClient`를 함수 내부 import로 옮겨 깨진 테스트 패치 타깃 5파일을 정의 모듈(`providers.edge_tts_client`)로 정정, 이미지 폴백 retry 패치는 `media/fallback_mixin`으로 정정. 깨진 테스트 8개 복구.
+- **T-409 (`d775a360`)** 스킬↔설정 정합성 — `shorts-tts-quality` 음성 표가 `channel_profiles.yaml`보다 뒤처져 5채널 중 4채널 불일치였음(SSOT는 스킬이 명시한 YAML). 음성 표를 YAML 기준으로 정정 + `tts_voice_roles`·`closing` 역할 문서화. `tests/unit/test_skill_config_consistency.py` 신설 — 스킬 표/`_CHANNEL_PROSODY`/`pitch_hook_map` 드리프트 시 CI 실패. `freesound_client.py` 거짓 주석 정정.
+
+### 검증
+- `pytest --no-cov tests/unit tests/integration` — 단위 1542 passed / 12 skipped, 통합 7 passed, 0 failed (Green)
+- `ruff check` + `ruff format --check` — 변경 파일 전부 clean
+
+### 변경 파일
+- 신규: `tests/unit/test_skill_config_consistency.py`
+- 수정: `src/shorts_maker_v2/providers/tts_factory.py`, `src/shorts_maker_v2/providers/freesound_client.py`, `tests/unit/test_{tts_providers,media_step_branches,i18n_en_us_smoke,openvoice_client}.py`, `.agents/skills/shorts-tts-quality/SKILL.md`
+
+### 지뢰밭 발견
+- **모듈 이동 리팩터링은 patch/monkeypatch 테스트 타깃을 함께 깨뜨린다.** T-407이 `EdgeTTSClient`/이미지 체인을 새 모듈로 옮겼으나 이를 패치하던 테스트 8개를 방치했다. patch는 "조회되는 곳"을 노려야 하며, 함수 내부 import는 정의 모듈을 패치하는 게 안전하다. 리팩터링 PR은 반드시 full 테스트로 검증할 것.
+
+---
+
 ## 2026-05-22 | Claude | 제품 완성도 개선 — 리텐션 출하 + 에러 가시성 + QC 게이트 강화 (T-321~T-323)
 
 ### 작업 요약
