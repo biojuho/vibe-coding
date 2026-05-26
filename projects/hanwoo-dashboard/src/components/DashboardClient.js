@@ -103,16 +103,21 @@ const AIChatWidget = dynamic(
 	() => import("@/components/widgets/AIChatWidget"),
 	{ ssr: false },
 );
+const AIInsightWidget = dynamic(
+	() => import("@/components/widgets/AIInsightWidget"),
+	{ ssr: false },
+);
 const NotificationWidget = dynamic(
 	() => import("@/components/widgets/NotificationWidget"),
 	{ ssr: false },
 );
 
+const NOTIFICATION_MODAL_ID = "notification-center-dialog";
 const DASHBOARD_PAGE_LIMIT = 100;
 const FULL_CATTLE_LOAD_ERROR_MESSAGE =
 	"전체 개체 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
 const FULL_SALES_LOAD_ERROR_MESSAGE =
-	"전체 매출 기록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
+	"전체 판매 기록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
 
 function toStrictIsoDateOrNull(value) {
 	if (typeof value !== "string") {
@@ -968,8 +973,8 @@ export default function DashboardClient({
 				description: targetCattle
 					? `${targetCattle.name} (${targetCattle.tagNumber}) 정보가 활성 목록에서 숨겨지고 보관 기록으로 남습니다.`
 					: "활성 목록에서 숨기고 보관 기록으로 남깁니다.",
-				confirmLabel: "보관 처리",
-				cancelLabel: "취소",
+				confirmLabel: "개체 보관 처리",
+				cancelLabel: "개체 보관 취소",
 				variant: "destructive",
 			});
 
@@ -1237,8 +1242,8 @@ export default function DashboardClient({
 			const shouldMove = await confirm({
 				title: "개체를 이동할까요?",
 				description: `${cow.name}을(를) ${targetLabel}(으)로 이동합니다.`,
-				confirmLabel: "이동",
-				cancelLabel: "취소",
+				confirmLabel: "개체 이동",
+				cancelLabel: "개체 이동 취소",
 			});
 
 			if (!shouldMove) {
@@ -1291,6 +1296,24 @@ export default function DashboardClient({
 	const monthlySalesCount =
 		summary?.monthlyRollup?.salesCount ?? fallbackMonthlySalesCount;
 	const avgWeight = summary?.headcount?.averageWeight ?? fallbackAverageWeight;
+	const aiInsightSummary = useMemo(
+		() => ({
+			totalHeadcount,
+			monthlySalesCount,
+			monthlySalesTotal,
+			profitabilityItems: initialProfitability?.data,
+			notifications,
+			weather,
+		}),
+		[
+			initialProfitability?.data,
+			monthlySalesCount,
+			monthlySalesTotal,
+			notifications,
+			totalHeadcount,
+			weather,
+		],
+	);
 	const todayFocusItems = useMemo(
 		() =>
 			buildTodayFocusItems({
@@ -1332,7 +1355,7 @@ export default function DashboardClient({
 			selectedBuildingId !== null;
 		const cattleLoadMoreLabel = cattlePagination.isLoading
 			? "개체 목록을 불러오는 중입니다"
-			: "개체 더 보기";
+			: "이전 개체 더 보기";
 
 		if (
 			needsCompleteCattleData &&
@@ -1354,6 +1377,8 @@ export default function DashboardClient({
 								onClick={() => {
 									void ensureAllCattleLoaded({ silent: false }).catch(() => {});
 								}}
+								aria-label="전체 개체 목록 다시 불러오기"
+								title="전체 개체 목록 다시 불러오기"
 							>
 								다시 불러오기
 							</PremiumButton>
@@ -1366,7 +1391,13 @@ export default function DashboardClient({
 		if (needsCompleteCattleData && !Array.isArray(allCattleRegistry)) {
 			return (
 				<Card className="animate-fadeIn">
-					<CardContent className="py-12 text-center text-sm text-muted-foreground">
+					<CardContent
+						className="py-12 text-center text-sm text-muted-foreground"
+						role="status"
+						aria-live="polite"
+						aria-atomic="true"
+						aria-busy={isAllCattleLoading}
+					>
 						{isAllCattleLoading
 							? "개체 목록을 불러오는 중입니다..."
 							: "개체 목록을 준비 중입니다..."}
@@ -1395,6 +1426,8 @@ export default function DashboardClient({
 								onClick={() => {
 									void ensureAllSalesLoaded({ silent: false }).catch(() => {});
 								}}
+								aria-label="판매 기록 다시 불러오기"
+								title="판매 기록 다시 불러오기"
 							>
 								다시 불러오기
 							</PremiumButton>
@@ -1407,10 +1440,16 @@ export default function DashboardClient({
 		if (activeTab === "analysis" && !Array.isArray(allSalesLedger)) {
 			return (
 				<Card className="animate-fadeIn">
-					<CardContent className="py-12 text-center text-sm text-muted-foreground">
+					<CardContent
+						className="py-12 text-center text-sm text-muted-foreground"
+						role="status"
+						aria-live="polite"
+						aria-atomic="true"
+						aria-busy={isAllSalesLoading}
+					>
 						{isAllSalesLoading
-							? "매출 기록을 불러오는 중입니다..."
-							: "매출 기록을 준비 중입니다..."}
+							? "판매 기록을 불러오는 중입니다..."
+							: "판매 기록을 준비 중입니다..."}
 					</CardContent>
 				</Card>
 			);
@@ -1526,7 +1565,7 @@ export default function DashboardClient({
 								setIsFieldMode(true);
 							}}
 							aria-label="현장 스마트 모드 활성화"
-							title="현장 스마트 모드"
+							title="현장 스마트 모드 활성화"
 							className="relative shadow-[var(--shadow-sm)] border-amber-500/30 text-amber-600 dark:text-amber-400 font-bold hover:bg-amber-500/10 hover:border-amber-400 flex items-center gap-1.5 px-3"
 						>
 							<span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
@@ -1540,8 +1579,11 @@ export default function DashboardClient({
 							variant="outline"
 							size="icon"
 							onClick={() => setShowNotifications(true)}
+							aria-haspopup="dialog"
+							aria-expanded={showNotifications}
+							aria-controls={NOTIFICATION_MODAL_ID}
 							aria-label="알림 센터 열기"
-							title="알림 센터"
+							title="알림 센터 열기"
 							className="relative shadow-[var(--shadow-sm)]"
 						>
 							<Bell className="h-5 w-5" aria-hidden="true" />
@@ -1558,7 +1600,7 @@ export default function DashboardClient({
 							size="icon"
 							onClick={() => setShowAddModal(true)}
 							aria-label="개체 등록 열기"
-							title="개체 등록"
+							title="개체 등록 열기"
 							className="shadow-[var(--shadow-button-primary)]"
 						>
 							<Plus className="h-5 w-5" aria-hidden="true" />
@@ -1568,6 +1610,7 @@ export default function DashboardClient({
 
 				{showNotifications && (
 					<NotificationModal
+						id={NOTIFICATION_MODAL_ID}
 						notifications={notifications}
 						onClose={() => setShowNotifications(false)}
 						onTestSMS={handleTestSMS}
@@ -1612,6 +1655,9 @@ export default function DashboardClient({
 						isLoading={false}
 						meta={initialProfitability?.meta ?? null}
 					/>
+				)}
+				{widgetSettings.visible.aiInsight && (
+					<AIInsightWidget summary={aiInsightSummary} />
 				)}
 				{widgetSettings.visible.estrus && (
 					<EstrusAlertBanner
@@ -1660,7 +1706,9 @@ export default function DashboardClient({
 				{!selectedBuildingId ? (
 					<div className="animate-fadeInUp" style={{ animationDelay: "200ms" }}>
 						<div className="section-header">
-							<span className="section-header-icon">🏠</span>
+							<span className="section-header-icon" aria-hidden="true">
+								🏠
+							</span>
 							<h2 className="section-header-title">축사 현황</h2>
 						</div>
 						{safeBuildings.length === 0 ? (
@@ -1669,8 +1717,12 @@ export default function DashboardClient({
 								className="empty-state-cta animate-fadeInUp block w-full"
 								style={{ animationDelay: "250ms" }}
 								onClick={() => handleTabChange("settings")}
+								aria-label="설정에서 첫 번째 축사 추가하기"
+								title="설정에서 첫 번째 축사 추가하기"
 							>
-								<span className="cta-icon">🏠</span>
+								<span className="cta-icon" aria-hidden="true">
+									🏠
+								</span>
 								<div className="cta-title">첫 번째 축사를 추가해보세요</div>
 								<div className="cta-desc">
 									축사를 등록하면 칸별 두수 관리, 발정·분만 알림을 시작할 수
@@ -1685,11 +1737,14 @@ export default function DashboardClient({
 										summary?.buildingOccupancy?.find(
 											(b) => b.buildingId === building.id,
 										)?.headcount ?? 0;
+									const buildingCardLabel = `${building.name} 축사 상세 보기, 총 ${building.penCount}칸, ${buildingHeadcount}두 배치됨`;
 									return (
 										<button
 											key={building.id}
 											type="button"
 											onClick={() => handleSelectBuilding(building.id)}
+											aria-label={buildingCardLabel}
+											title={buildingCardLabel}
 											className="clay-surface rounded-[28px] text-card-foreground backdrop-blur-md transition-[box-shadow,border-color,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] animate-fadeInUp cursor-pointer hover:-translate-y-1 hover:shadow-[var(--shadow-md)] group/building w-full text-left"
 											style={{ animationDelay: `${250 + index * 50}ms` }}
 										>
@@ -1812,13 +1867,14 @@ export default function DashboardClient({
 						>
 							{cattlePagination.isLoading
 								? "개체 목록을 불러오는 중입니다..."
-								: "개체 더 보기"}
+								: "이전 개체 더 보기"}
 						</button>
 						{cattlePagination.loadError ? (
 							<p
 								className="m-0 text-center text-xs font-semibold text-[color:var(--color-danger)]"
 								role="status"
 								aria-live="polite"
+								aria-atomic="true"
 							>
 								{cattlePagination.loadError}
 							</p>
@@ -1908,6 +1964,8 @@ export default function DashboardClient({
 					<div className="flex justify-center gap-6 flex-wrap mb-5">
 						<a
 							href="/terms"
+							aria-label="Joolife 이용약관 보기"
+							title="Joolife 이용약관 보기"
 							className="no-underline text-muted-foreground hover:text-foreground transition-[color,transform] duration-200 py-1.5 px-1 hover:-translate-y-px"
 						>
 							이용약관
@@ -1915,6 +1973,8 @@ export default function DashboardClient({
 						<span className="text-muted-foreground/30 select-none">·</span>
 						<a
 							href="/privacy"
+							aria-label="Joolife 개인정보처리방침 보기"
+							title="Joolife 개인정보처리방침 보기"
 							className="no-underline text-muted-foreground hover:text-foreground transition-[color,transform] duration-200 py-1.5 px-1 hover:-translate-y-px"
 						>
 							개인정보처리방침
@@ -1922,6 +1982,8 @@ export default function DashboardClient({
 						<span className="text-muted-foreground/30 select-none">·</span>
 						<a
 							href="/subscription"
+							aria-label="Joolife 프리미엄 구독 화면 열기"
+							title="Joolife 프리미엄 구독 화면 열기"
 							className="no-underline text-primary font-semibold hover:text-foreground transition-[color,transform] duration-200 py-1.5 px-1 hover:-translate-y-px"
 						>
 							⭐ 프리미엄
@@ -1974,6 +2036,7 @@ function TodayFocusPanel({ items, onOpenNotifications, onNavigate }) {
 			<div className="today-focus-grid">
 				{items.map((item) => {
 					const Icon = FOCUS_ICON_BY_TYPE[item.type] || ClipboardList;
+					const focusItemLabel = `${item.title} - ${item.detail} (${item.meta})`;
 
 					return (
 						<button
@@ -1981,6 +2044,8 @@ function TodayFocusPanel({ items, onOpenNotifications, onNavigate }) {
 							type="button"
 							className={`today-focus-item today-focus-item-${item.tone}`}
 							onClick={() => handleClick(item)}
+							aria-label={focusItemLabel}
+							title={focusItemLabel}
 						>
 							<span className="today-focus-icon" aria-hidden="true">
 								<Icon size={18} strokeWidth={2.2} />
@@ -2018,6 +2083,7 @@ function QuickActionPanel({ actions, onAction }) {
 			<div className="quick-action-grid">
 				{actions.map((action) => {
 					const Icon = action.icon;
+					const quickActionLabel = `${action.label} - ${action.detail}`;
 
 					return (
 						<button
@@ -2025,6 +2091,8 @@ function QuickActionPanel({ actions, onAction }) {
 							type="button"
 							className={`quick-action-button quick-action-${action.tone}`}
 							onClick={() => onAction(action)}
+							aria-label={quickActionLabel}
+							title={quickActionLabel}
 						>
 							<span className="quick-action-icon" aria-hidden="true">
 								<Icon size={18} strokeWidth={2.2} />
@@ -2064,6 +2132,8 @@ function SetupProgressPanel({ progress, onNavigate, onAction }) {
 			onNavigate(item.targetTab);
 		}
 	};
+	const setupProgressLabel = `운영 준비도 ${progress.percent}% (${progress.completed}/${progress.total})`;
+	const setupProgressTrackLabel = "운영 준비도 진행률";
 
 	return (
 		<section
@@ -2079,19 +2149,30 @@ function SetupProgressPanel({ progress, onNavigate, onAction }) {
 				</div>
 				<div
 					className="setup-progress-score"
-					aria-label={`운영 준비도 ${progress.percent}%`}
+					aria-label={setupProgressLabel}
+					title={setupProgressLabel}
 				>
 					{progress.completed}/{progress.total}
 				</div>
 			</div>
 
-			<div className="setup-progress-track" aria-hidden="true">
+			<div
+				className="setup-progress-track"
+				role="progressbar"
+				aria-label={setupProgressTrackLabel}
+				aria-valuemin={0}
+				aria-valuemax={100}
+				aria-valuenow={progress.percent}
+				aria-valuetext={setupProgressLabel}
+				title={setupProgressLabel}
+			>
 				<span style={{ width: `${progress.percent}%` }} />
 			</div>
 
 			<div className="setup-progress-list">
 				{progress.items.map((item) => {
 					const Icon = SETUP_ICON_BY_ID[item.id] || ClipboardList;
+					const setupItemLabel = `${item.title} ${item.done ? "완료됨" : "미완료"}, ${item.detail}`;
 
 					return (
 						<button
@@ -2099,6 +2180,8 @@ function SetupProgressPanel({ progress, onNavigate, onAction }) {
 							type="button"
 							className={`setup-progress-item ${item.done ? "is-done" : ""}`}
 							onClick={() => handleItemClick(item)}
+							aria-label={setupItemLabel}
+							title={setupItemLabel}
 						>
 							<span className="setup-progress-icon" aria-hidden="true">
 								{item.done ? (
@@ -2142,7 +2225,9 @@ function PenCattleList({ cattleList, buildingId, penId, onSelect }) {
 			) : (
 				<Card className="animate-fadeIn border-2 border-dashed">
 					<CardContent className="text-center py-12 px-5">
-						<div className="text-3xl mb-2">🐄</div>
+						<div className="text-3xl mb-2" aria-hidden="true">
+							🐄
+						</div>
 						<p className="text-muted-foreground">이 칸은 비어있습니다.</p>
 					</CardContent>
 				</Card>

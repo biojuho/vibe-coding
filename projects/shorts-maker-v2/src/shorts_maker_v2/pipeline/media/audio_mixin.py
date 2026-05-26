@@ -47,6 +47,37 @@ class MediaAudioMixin:
             openai_client=getattr(self, "openai_client", None),
         )
 
+        # 옵트인 WhisperX 정렬 — 모든 TTS 결과에 단어-레벨 정렬 덮어쓰기 가능 (T-19)
+        if getattr(self.config.audio, "use_whisperx_alignment", False):
+            try:
+                from shorts_maker_v2.render.whisperx_aligner import (
+                    align_audio_words,
+                    is_available,
+                    write_words_json,
+                )
+
+                if is_available():
+                    words = align_audio_words(
+                        audio_result,
+                        narration_ko,
+                        language=getattr(self.config.audio, "whisperx_language", "ko"),
+                        model_size=getattr(self.config.audio, "whisperx_model_size", "base"),
+                    )
+                    if words:
+                        target = audio_result.parent / f"{audio_result.stem}_words.json"
+                        write_words_json(words, target)
+                        logger.info(
+                            "[MediaStep] WhisperX 정렬 적용 — %d words → %s",
+                            len(words),
+                            target.name,
+                        )
+                        return audio_result
+                    logger.info("[MediaStep] WhisperX 정렬 결과 비어있음 → 기본 동기화로 폴백")
+                else:
+                    logger.debug("[MediaStep] whisperx 미설치 → 기본 동기화 유지")
+            except Exception as exc:
+                logger.warning("[MediaStep] WhisperX 정렬 실패 (기본 동기화 폴백): %s", exc)
+
         # chatterbox/cosyvoice/openvoice/edge-tts는 자체적으로 _words.json을 생성
         # OpenAI TTS만 Whisper fallback 필요
         if (

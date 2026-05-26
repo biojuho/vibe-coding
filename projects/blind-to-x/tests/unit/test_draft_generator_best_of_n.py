@@ -1,0 +1,201 @@
+"""Best-of-N 결합 점수 (5축 + 4축 comment_trigger) 회귀 테스트.
+
+Phase 3 enhancement: editorial_reviewer 가 twitter/threads 에 대해 반환하는
+`comment_trigger_scores` 4축 평균을 best-of-n 후보 선택에 결합한다.
+"""
+
+from __future__ import annotations
+
+import sys
+from dataclasses import dataclass, field
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from pipeline.draft_generator import TweetDraftGenerator  # noqa: E402
+
+
+class FakeConfig:
+    def __init__(self, data):
+        self.data = data
+
+    def get(self, key, default=None):
+        cur = self.data
+        for part in key.split("."):
+            if isinstance(cur, dict):
+                cur = cur.get(part)
+            else:
+                return default
+        return default if cur is None else cur
+
+
+def _build_generator(extra: dict | None = None) -> TweetDraftGenerator:
+    data = {
+        "llm": {
+            "providers": ["anthropic"],
+            "max_retries_per_provider": 1,
+            "request_timeout_seconds": 5,
+        },
+        "anthropic": {"enabled": True, "api_key": "k", "model": "claude-sonnet-4-6"},
+        "tweet_style": {"tone": "casual", "max_length": 280},
+    }
+    if extra:
+        for key, value in extra.items():
+            cur = data
+            parts = key.split(".")
+            for part in parts[:-1]:
+                cur = cur.setdefault(part, {})
+            cur[parts[-1]] = value
+    return TweetDraftGenerator(FakeConfig(data))
+
+
+@dataclass
+class FakeEditorialResult:
+    avg_score: float = 0.0
+    comment_trigger_scores: dict[str, float] = field(default_factory=dict)
+
+
+def test_combined_score_uses_only_avg_when_no_comment_trigger():
+    gen = _build_generator()
+    result = FakeEditorialResult(avg_score=7.5)
+
+    combined, breakdown = gen._combined_candidate_score(result, ["twitter"])
+
+    assert combined == 7.5
+    assert breakdown["avg_score"] == 7.5
+    assert breakdown["comment_trigger_avg"] == 0.0
+    assert breakdown["comment_weight"] == 0.0
+
+
+def test_combined_score_uses_only_avg_for_naver_blog():
+    """naver_blog 출력은 댓글 트리거 4축이 적용되지 않으므로 결합 가중 0."""
+    gen = _build_generator()
+    result = FakeEditorialResult(
+        avg_score=6.0,
+        comment_trigger_scores={"twitter": 9.0},
+    )
+
+    combined, breakdown = gen._combined_candidate_score(result, ["naver_blog"])
+
+    assert combined == 6.0
+    assert breakdown["comment_weight"] == 0.0
+
+
+def test_combined_score_blends_twitter_with_default_weight():
+    gen = _build_generator()
+    result = FakeEditorialResult(
+        avg_score=8.0,
+        comment_trigger_scores={"twitter": 6.0},
+    )
+
+    combined, breakdown = gen._combined_candidate_score(result, ["twitter"])
+
+    # 기본 weight 0.5: (8.0 * 0.5) + (6.0 * 0.5) = 7.0
+    assert combined == 7.0
+    assert breakdown["comment_trigger_avg"] == 6.0
+    assert breakdown["comment_weight"] == 0.5
+
+
+def test_combined_score_averages_multiple_comment_trigger_platforms():
+    gen = _build_generator()
+    result = FakeEditorialResult(
+        avg_score=8.0,
+        comment_trigger_scores={"twitter": 4.0, "threads": 6.0, "naver_blog": 9.9},
+    )
+
+    combined, breakdown = gen._combined_candidate_score(result, ["twitter", "threads"])
+
+    # ct_avg = (4 + 6) / 2 = 5.0; 0.5 * 8.0 + 0.5 * 5.0 = 6.5
+    assert combined == 6.5
+    assert breakdown["comment_trigger_avg"] == 5.0
+
+
+def test_combined_score_weight_zero_ignores_comment_trigger():
+    gen = _build_generator({"llm.best_of_n_comment_weight": 0.0})
+    result = FakeEditorialResult(avg_score=5.0, comment_trigger_scores={"twitter": 9.5})
+
+    combined, breakdown = gen._combined_candidate_score(result, ["twitter"])
+
+    assert combined == 5.0
+    assert breakdown["comment_weight"] == 0.0
+
+
+def test_combined_score_weight_one_ignores_avg():
+    gen = _build_generator({"llm.best_of_n_comment_weight": 1.0})
+    result = FakeEditorialResult(avg_score=2.0, comment_trigger_scores={"twitter": 9.0})
+
+    combined, breakdown = gen._combined_candidate_score(result, ["twitter"])
+
+    assert combined == 9.0
+    assert breakdown["comment_weight"] == 1.0
+
+
+def test_combined_score_clamps_weight_below_zero_and_above_one():
+    too_low = _build_generator({"llm.best_of_n_comment_weight": -2.5})
+    too_high = _build_generator({"llm.best_of_n_comment_weight": 17.0})
+    result = FakeEditorialResult(avg_score=4.0, comment_trigger_scores={"twitter": 8.0})
+
+    combined_low, low_break = too_low._combined_candidate_score(result, ["twitter"])
+    combined_high, high_break = too_high._combined_candidate_score(result, ["twitter"])
+
+    assert combined_low == 4.0  # weight clamped to 0
+    assert low_break["comment_weight"] == 0.0
+    assert combined_high == 8.0  # weight clamped to 1
+    assert high_break["comment_weight"] == 1.0
+
+
+def test_combined_score_handles_garbage_weight_config():
+    gen = _build_generator({"llm.best_of_n_comment_weight": "not-a-number"})
+    result = FakeEditorialResult(avg_score=6.0, comment_trigger_scores={"twitter": 8.0})
+
+    combined, breakdown = gen._combined_candidate_score(result, ["twitter"])
+
+    # falls back to default 0.5: (6 + 8) / 2 = 7.0
+    assert combined == 7.0
+    assert breakdown["comment_weight"] == 0.5
+
+
+def test_combined_score_picks_higher_combined_not_higher_avg():
+    """이 테스트가 핵심: avg 가 살짝 낮지만 댓글 트리거가 훨씬 높은 후보가 이긴다."""
+    gen = _build_generator()  # weight 0.5
+    candidate_a = FakeEditorialResult(avg_score=8.5, comment_trigger_scores={"twitter": 4.0})
+    candidate_b = FakeEditorialResult(avg_score=7.5, comment_trigger_scores={"twitter": 8.5})
+
+    combined_a, _ = gen._combined_candidate_score(candidate_a, ["twitter"])
+    combined_b, _ = gen._combined_candidate_score(candidate_b, ["twitter"])
+
+    assert combined_a == 6.25  # (8.5 + 4.0) / 2
+    assert combined_b == 8.0  # (7.5 + 8.5) / 2
+    assert combined_b > combined_a
+    # 5축만 봤다면 A가 이겼겠지만 결합 점수에선 B가 이긴다.
+    assert candidate_a.avg_score > candidate_b.avg_score
+
+
+def test_combined_score_ignores_non_numeric_comment_trigger_entry():
+    gen = _build_generator()
+    result = FakeEditorialResult(
+        avg_score=6.0,
+        comment_trigger_scores={"twitter": "high", "threads": 8.0},
+    )
+
+    combined, breakdown = gen._combined_candidate_score(result, ["twitter", "threads"])
+
+    # twitter 항목은 string 이라 무시, threads 만 유효: ct_avg = 8.0
+    # 0.5 * 6.0 + 0.5 * 8.0 = 7.0
+    assert combined == 7.0
+    assert breakdown["comment_trigger_avg"] == 8.0
+
+
+def test_combined_score_handles_missing_avg_attribute_gracefully():
+    gen = _build_generator()
+
+    class Bare:
+        comment_trigger_scores = {"twitter": 9.0}
+
+    combined, breakdown = gen._combined_candidate_score(Bare(), ["twitter"])
+
+    # avg=0.0, ct_avg=9.0, weight=0.5 → 4.5
+    assert combined == 4.5
+    assert breakdown["avg_score"] == 0.0

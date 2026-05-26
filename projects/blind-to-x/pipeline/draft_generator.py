@@ -169,6 +169,64 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
         error_text = " | ".join(provider_errors)
         raise RuntimeError(f"All providers failed to generate candidate: {error_text}")
 
+    _DEFAULT_BEST_OF_N_COMMENT_WEIGHT = 0.5
+    _COMMENT_TRIGGER_PLATFORMS = ("twitter", "threads")
+
+    def _best_of_n_comment_weight(self) -> float:
+        """Best-of-N 결합 점수에서 4축(comment_trigger) 평균이 차지할 가중치.
+
+        twitter/threads 가 출력 포맷에 포함되고 EditorialReviewer 가 4축 평균을
+        리턴한 경우에만 적용. 0.0 = 5축만, 1.0 = 4축만, 기본 0.5 = 50:50.
+        """
+        try:
+            value = float(self.config.get("llm.best_of_n_comment_weight", self._DEFAULT_BEST_OF_N_COMMENT_WEIGHT))
+        except (TypeError, ValueError):
+            return self._DEFAULT_BEST_OF_N_COMMENT_WEIGHT
+        if value < 0.0:
+            return 0.0
+        if value > 1.0:
+            return 1.0
+        return value
+
+    def _combined_candidate_score(
+        self,
+        result: Any,
+        output_formats: list[str] | None,
+        *,
+        comment_weight: float | None = None,
+    ) -> tuple[float, dict[str, float]]:
+        """5축 평균(avg_score) + 4축 평균(comment_trigger_scores) 결합.
+
+        - 출력 포맷에 twitter/threads 가 없거나 4축 점수가 비어있으면 5축만 사용.
+        - 결합식: combined = avg_score * (1 - w) + ct_avg * w.
+        - 항상 (combined, breakdown_dict) 튜플을 반환. breakdown 은 로그/테스트용.
+        """
+        avg = float(getattr(result, "avg_score", 0.0) or 0.0)
+        weight = self._best_of_n_comment_weight() if comment_weight is None else float(comment_weight)
+        weight = max(0.0, min(1.0, weight))
+
+        ct_scores: dict[str, float] = getattr(result, "comment_trigger_scores", {}) or {}
+        formats = [f.lower() for f in (output_formats or []) if isinstance(f, str)]
+        applicable = [
+            float(ct_scores[plat])
+            for plat in self._COMMENT_TRIGGER_PLATFORMS
+            if plat in formats and plat in ct_scores and isinstance(ct_scores[plat], (int, float))
+        ]
+
+        if applicable:
+            ct_avg = sum(applicable) / len(applicable)
+            combined = avg * (1.0 - weight) + ct_avg * weight
+        else:
+            ct_avg = 0.0
+            combined = avg
+
+        breakdown = {
+            "avg_score": avg,
+            "comment_trigger_avg": ct_avg,
+            "comment_weight": weight if applicable else 0.0,
+        }
+        return combined, breakdown
+
     async def generate_drafts(
         self,
         post_data,
@@ -287,17 +345,37 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
             reviewer = EditorialReviewer(config=self.config)
 
             best_candidate = None
-            best_score = -1.0
+            best_combined = -1.0
+            best_breakdown: dict[str, float] | None = None
 
-            for drafts_dict, image_prompt in candidates:
+            comment_weight = self._best_of_n_comment_weight()
+
+            for idx, (drafts_dict, image_prompt) in enumerate(candidates, start=1):
                 result = await reviewer.review_and_polish(drafts_dict, post_data)
-                if result.avg_score > best_score:
-                    best_score = result.avg_score
+                combined, breakdown = self._combined_candidate_score(
+                    result, output_formats, comment_weight=comment_weight
+                )
+                logger.info(
+                    "[Best-of-N] Candidate %d: combined=%.2f (avg=%.2f, ct_avg=%.2f, weight=%.2f)",
+                    idx,
+                    combined,
+                    breakdown.get("avg_score", 0.0),
+                    breakdown.get("comment_trigger_avg", 0.0),
+                    breakdown.get("comment_weight", 0.0),
+                )
+                if combined > best_combined:
+                    best_combined = combined
+                    best_breakdown = breakdown
                     best_candidate = (result.polished_drafts, image_prompt)
 
             if best_candidate:
                 drafts_dict, image_prompt = best_candidate
-                logger.info("[Best-of-N] Selected best candidate with score %.2f", best_score)
+                logger.info(
+                    "[Best-of-N] Selected best candidate combined=%.2f (avg=%.2f, ct_avg=%.2f)",
+                    best_combined,
+                    (best_breakdown or {}).get("avg_score", 0.0),
+                    (best_breakdown or {}).get("comment_trigger_avg", 0.0),
+                )
                 try:
                     self.draft_cache.set(
                         cache_key, drafts_dict, image_prompt, provider=drafts_dict.get("_provider_used", "")

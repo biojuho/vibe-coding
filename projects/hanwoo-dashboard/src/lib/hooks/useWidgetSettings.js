@@ -18,6 +18,13 @@ export const WIDGET_REGISTRY = [
 		icon: "📈",
 		defaultOn: true,
 	},
+	{
+		id: "aiInsight",
+		label: "AI 인사이트",
+		icon: "🤖",
+		defaultOn: false,
+		description: "켜면 농장 요약 데이터를 AI 분석 API로 전송합니다.",
+	},
 	{ id: "estrus", label: "발정 알림 배너", icon: "💕", defaultOn: true },
 	{ id: "calving", label: "분만 알림 배너", icon: "🍼", defaultOn: true },
 	{ id: "stats", label: "핵심 통계", icon: "📈", defaultOn: true },

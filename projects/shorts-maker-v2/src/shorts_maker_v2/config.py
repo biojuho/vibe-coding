@@ -167,6 +167,9 @@ class AudioSettings:
     sfx_dir: str = "assets/sfx"
     sfx_volume: float = 0.35
     sync_with_whisper: bool = False
+    use_whisperx_alignment: bool = False  # 옵트인: 단어-레벨 정렬 (T-19, BSD-2)
+    whisperx_model_size: str = "base"  # base|small|medium (CPU 권장 base)
+    whisperx_language: str = "ko"
     bgm_provider: str = "local"  # "lyria" (AI 생성) | "local" (assets/bgm)
     ducking_factor: float = 0.3  # 나레이션 구간 BGM 볼륨 감소 비율 (0=무음, 1=감소없음)
     lyria_prompt_map: dict[str, str] | None = None  # 채널별 Lyria BGM 프롬프트
