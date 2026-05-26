@@ -1499,8 +1499,11 @@ export default function DashboardClient({
 				{/* Header — generous breathing room for visual hierarchy */}
 				<div className="animate-fadeInDown flex justify-between items-start mb-7 pt-2 pb-1">
 					<div>
-						<h1 className="text-[26px] font-extrabold text-foreground tracking-[-0.02em] mb-1.5 leading-tight">
+						<h1 className="text-[26px] font-extrabold text-foreground tracking-[-0.02em] mb-1.5 leading-tight flex items-center gap-2">
 							{farmSettings.name || "Joolife 한우 농장"}
+							<span className="text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+								DEMO
+							</span>
 						</h1>
 						<p className="text-[13px] text-muted-foreground leading-relaxed">
 							오늘도 힘찬 하루 되세요! 🐮

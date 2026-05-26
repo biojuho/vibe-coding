@@ -81,6 +81,25 @@ export default function LoginPage() {
 					오늘의 사육, 재고, 출하 업무를 이어서 관리하세요.
 				</p>
 
+				{/* Demo Credentials Box */}
+				<div style={{
+					backgroundColor: "rgba(99, 102, 241, 0.08)",
+					border: "1px solid rgba(99, 102, 241, 0.2)",
+					borderRadius: "8px",
+					padding: "12px 16px",
+					marginBottom: "20px",
+					fontSize: "14px",
+					color: "#818cf8",
+					display: "flex",
+					flexDirection: "column",
+					gap: "4px"
+				}}>
+					<div style={{ fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
+						<span>💡</span> 데모 로그인 정보 (Demo Accounts)
+					</div>
+					<div>ID: <code style={{ backgroundColor: "rgba(255,255,255,0.06)", padding: "2px 6px", borderRadius: "4px", fontFamily: "monospace" }}>admin</code> | PW: <code style={{ backgroundColor: "rgba(255,255,255,0.06)", padding: "2px 6px", borderRadius: "4px", fontFamily: "monospace" }}>admin123</code></div>
+				</div>
+
 				<form className="login-form" onSubmit={handleSubmit}>
 					<label className="login-field">
 						<span className="login-label">아이디</span>

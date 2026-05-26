@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: vibe-coding-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: hanwoo_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: vibe-coding-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  hanwoo-dashboard:
+    build:
+      context: ./projects/hanwoo-dashboard
+      dockerfile: Dockerfile
+    container_name: vibe-coding-hanwoo-dashboard
+    restart: always
+    ports:
+      - "3001:3000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgrespassword@postgres:5432/hanwoo_dev?schema=public
+      - REDIS_URL=redis://redis:6379
+      - AUTH_SECRET=super-secret-auth-key-vibe-coding-2026!
+      - AUTH_URL=http://localhost:3001
+      - TOSS_CLIENT_KEY=test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq
+      - TOSS_SECRET_KEY=test_sk_Z1aOwX7K8m1e6y6k6q8gLzN97Eoq
+      - NEXT_ENABLE_PWA=0
+      - NODE_ENV=production
+      - DEMO_MODE=1
+    depends_on:
+      - postgres
+      - redis
+
+volumes:
+  postgres_data:
+  redis_data:

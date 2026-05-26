@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vibe Coding — Deterministic AI Workspace</title>
+  <meta name="description" content="3개의 AI 에이전트(Claude, Codex, Gemini)가 3계층 아키텍처로 협업하여 프로덕션급 제품을 생산하는 프리미엄 개발 워크스페이스">
+  
+  <!-- Font Imports -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Background Grid Decorator -->
+  <div class="hero-grid"></div>
+
+  <!-- Header & Navigation -->
+  <header class="nav" id="navbar">
+    <div class="container nav-inner">
+      <a href="#" class="nav-logo">
+        <div class="nav-logo-icon">🎵</div>
+        <span>Vibe Coding</span>
+      </a>
+      
+      <nav class="nav-links">
+        <a href="#products" class="nav-link">Products</a>
+        <a href="#architecture" class="nav-link">Architecture</a>
+        <a href="#tech-stack" class="nav-link">Tech Stack</a>
+        <a href="#stats" class="nav-link">Stats</a>
+        <button class="theme-toggle" id="theme-toggle-btn" aria-label="테마 전환">
+          <i data-lucide="sun" class="sun-icon"></i>
+          <i data-lucide="moon" class="moon-icon" style="display: none;"></i>
+        </button>
+        <a href="#cta" class="nav-cta">Quick Start</a>
+      </nav>
+
+      <button class="mobile-menu-btn" id="mobile-menu-toggle" aria-label="메뉴 열기">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero" id="hero">
+    <div class="container hero-content">
+      <div class="hero-badge animate-on-scroll">
+        <span class="hero-badge-dot"></span>
+        <span>Now in Production — 1,600+ Tests Passing</span>
+      </div>
+      
+      <h1 class="hero-title animate-on-scroll delay-100">
+        Build Products, Not Boilerplate.<br>
+        Powered by <span class="gradient-text">Collaborative AI</span>.
+      </h1>
+      
+      <p class="hero-subtitle animate-on-scroll delay-200">
+        Vibe Coding은 3개의 AI 에이전트(Claude, Codex, Gemini)가 결정론적 3계층 아키텍처(SOP → 오케스트레이션 → 스크립트 실행)를 통해 협업하여 실제 작동하는 프로덕션급 제품을 생산하는 프리미엄 개발 워크스페이스입니다.
+      </p>
+      
+      <div class="hero-actions animate-on-scroll delay-300">
+        <a href="#products" class="btn btn-primary">
+          <span>Active Products 보기</span>
+          <i data-lucide="arrow-right"></i>
+        </a>
+        <a href="#cta" class="btn btn-secondary">
+          <i data-lucide="terminal"></i>
+          <span>1-클릭 환경 구축</span>
+        </a>
+      </div>
+
+      <div class="hero-stats animate-on-scroll delay-400">
+        <div class="hero-stat">
+          <div class="hero-stat-number gradient-text">3+</div>
+          <div class="hero-stat-label">Active Products</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-number gradient-text">1,600+</div>
+          <div class="hero-stat-label">Passing Unit Tests</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-number gradient-text">99.9%</div>
+          <div class="hero-stat-label">Execution Reliability</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Products Section -->
+  <section class="section" id="products">
+    <div class="container">
+      <div class="section-header animate-on-scroll">
+        <span class="section-label">Showcase</span>
+        <h2 class="section-title">Active Products</h2>
+        <p class="section-desc">워크스페이스 내에서 실제로 활성화되어 작동하고 있는 핵심 비즈니스 제품군입니다.</p>
+      </div>
+
+      <div class="products-grid">
+        <!-- Product 1: Joolife -->
+        <div class="product-card animate-on-scroll">
+          <div class="product-icon">🐮</div>
+          <h3 class="product-title">Joolife</h3>
+          <div class="product-subtitle">프리미엄 한우 농장 관리 SaaS</div>
+          <p class="product-desc">
+            Next.js 16, React 19, Prisma 7, Supabase 기반의 한우 농장 관리 플랫폼입니다. PWA 기술로 앱 마켓 설치 없이 모바일에서 완전 연동됩니다.
+          </p>
+          <div class="product-features">
+            <div class="product-feature">
+              <span class="product-feature-icon"><i data-lucide="check"></i></span>
+              <span>전국 도매시장 경락가 실시간 연동 (KAPE API)</span>
+            </div>
+            <div class="product-feature">
+              <span class="product-feature-icon"><i data-lucide="check"></i></span>
+              <span>발정/임신우 분만 예정일 임박 스마트 알림 시스템</span>
+            </div>
+            <div class="product-feature">
+              <span class="product-feature-icon"><i data-lucide="check"></i></span>
+              <span>월별 매출/비용/순이익 트렌드 분석 리포트</span>
+            </div>
+          </div>
+          <div class="product-stats">
+            <div class="product-stat">
+              <div class="product-stat-value">282+</div>
+              <div class="product-stat-label">Tests</div>
+            </div>
+            <div class="product-stat">
+              <div class="product-stat-value">Next.js</div>
+              <div class="product-stat-label">Framework</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Product 2: Shorts Maker V2 -->
+        <div class="product-card animate-on-scroll delay-100">
+          <div class="product-icon">🎬</div>
+          <h3 class="product-title">Shorts Maker V2</h3>
+          <div class="product-subtitle">원클릭 유튜브 쇼츠 자동 생성 시스템</div>
+          <p class="product-desc">
+            8-LLM Fallback 라우터를 탑재하여 대본 작성, TTS 음성 합성, 자막 싱크, 배경음악 자동 결합, MoviePy 비디오 렌더링까지 전체 파이프라인을 자동화합니다.
+          </p>
+          <div class="product-features">
+            <div class="product-feature">
+              <span class="product-feature-icon"><i data-lucide="check"></i></span>
+              <span>AI/역사/심리/건강 등 5개 채널 페르소나 최적화</span>
+            </div>
+            <div class="product-feature">
+              <span class="product-feature-icon"><i data-lucide="check"></i></span>
+              <span>자막 오버랩 방지 픽셀 단위 안전구역(Safe Zone)</span>
+            </div>
+            <div class="product-feature">
+              <span class="product-feature-icon"><i data-lucide="check"></i></span>
+              <span>API 장애 시 자동 대응 백업 LLM 라우팅 100% 보장</span>
+            </div>
+          </div>
+          <div class="product-stats">
+            <div class="product-stat">
+              <div class="product-stat-value">602+</div>
+              <div class="product-stat-label">Tests</div>
+            </div>
+            <div class="product-stat">
+              <div class="product-stat-value">Python</div>
+              <div class="product-stat-label">Runtime</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Product 3: Blind-to-X -->
+        <div class="product-card animate-on-scroll delay-200">
+          <div class="product-icon">🤖</div>
+          <h3 class="product-title">Blind-to-X</h3>
+          <div class="product-subtitle">소셜 콘텐츠 인텔리전스 및 발행 자동화</div>
+          <p class="product-desc">
+            Blind 및 소셜 미디어 트렌드를 수집하고 점수화하여, 노션 검토 큐에 적재하고 트윗/블로그 글 등 멀티 포맷 초안을 자동 생성하는 파이프라인입니다.
+          </p>
+          <div class="product-features">
+            <div class="product-feature">
+              <span class="product-feature-icon"><i data-lucide="check"></i></span>
+              <span>콘텐츠 인텔리전스 엔진 (토픽, 훅 타입, 감정 분석)</span>
+            </div>
+            <div class="product-feature">
+              <span class="product-feature-icon"><i data-lucide="check"></i></span>
+              <span>Notion API 연동 검토 필요 글 즉시 적재</span>
+            </div>
+            <div class="product-feature">
+              <span class="product-feature-icon"><i data-lucide="check"></i></span>
+              <span>성과 예측 머신러닝/휴리스틱 랭킹 스코어링</span>
+            </div>
+          </div>
+          <div class="product-stats">
+            <div class="product-stat">
+              <div class="product-stat-value">1,622+</div>
+              <div class="product-stat-label">Tests</div>
+            </div>
+            <div class="product-stat">
+              <div class="product-stat-value">Notion API</div>
+              <div class="product-stat-label">Integration</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Architecture Section -->
+  <section class="section" id="architecture" style="background: var(--color-bg-secondary);">
+    <div class="container">
+      <div class="section-header animate-on-scroll">
+        <span class="section-label">Behind The Scenes</span>
+        <h2 class="section-title">The 3-Layer Architecture</h2>
+        <p class="section-desc">AI의 불확실성을 제어하고 결정론적 결과를 보장하는 혁신적인 설계 구조입니다.</p>
+      </div>
+
+      <div class="arch-visual animate-on-scroll">
+        <!-- Layer 1: Directive -->
+        <div class="arch-layer">
+          <div class="arch-layer-num">1</div>
+          <div class="arch-layer-content">
+            <h3>지침 레이어 (Directive Layer)</h3>
+            <p>Markdown 기반의 표준 운영 절차(SOP)와 .agents/rules 내 규칙들로 구성됩니다. 비즈니스 로직과 제품의 방향성, 엄격하게 검증되어야 할 목표(Goal)들을 자연어로 정의합니다.</p>
+          </div>
+        </div>
+
+        <div class="arch-connector">
+          <i data-lucide="arrow-down"></i>
+        </div>
+
+        <!-- Layer 2: Orchestration -->
+        <div class="arch-layer">
+          <div class="arch-layer-num">2</div>
+          <div class="arch-layer-content">
+            <h3>오케스트레이션 레이어 (Orchestration Layer)</h3>
+            <p>다양한 AI 에이전트(Antigravity 등)가 지침을 기반으로 최적의 워크플로우 경로를 지능적으로 의사결정하고 결합합니다. 상황에 따른 조건부 분기와 에러 예외 처리를 처리하는 접착제 역할을 합니다.</p>
+          </div>
+        </div>
+
+        <div class="arch-connector">
+          <i data-lucide="arrow-down"></i>
+        </div>
+
+        <!-- Layer 3: Execution -->
+        <div class="arch-layer">
+          <div class="arch-layer-num">3</div>
+          <div class="arch-layer-content">
+            <h3>실행 레이어 (Execution Layer)</h3>
+            <p>오케스트레이션에 의해 호출되는 결정론적이고 견고한 실행 엔진입니다. 비즈니스 API 통신, 로컬 DB 트랜잭션, 쉘 스크립트 실행 등을 100% 보장하는 Python/Bash 스크립트로 동작합니다.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tech Stack Section -->
+  <section class="section" id="tech-stack">
+    <div class="container">
+      <div class="section-header animate-on-scroll">
+        <span class="section-label">Technology</span>
+        <h2 class="section-title">Workspace Stack</h2>
+        <p class="section-desc">품질 높고 확장 가능한 제품을 지속 개발하기 위해 선정된 핵심 개발 기술 스택입니다.</p>
+      </div>
+
+      <div class="tech-grid animate-on-scroll">
+        <div class="tech-item">
+          <div class="tech-icon">⚡</div>
+          <div class="tech-name">Next.js 16</div>
+          <div class="tech-desc">React 19 & SSR</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">🐍</div>
+          <div class="tech-name">Python 3.13</div>
+          <div class="tech-desc">Core CLI & pipelines</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">🐘</div>
+          <div class="tech-name">PostgreSQL</div>
+          <div class="tech-desc">Supabase cloud DB</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">💎</div>
+          <div class="tech-name">Prisma 7</div>
+          <div class="tech-desc">Type-safe DB Client</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">🍒</div>
+          <div class="tech-name">Redis</div>
+          <div class="tech-desc">BullMQ job queue</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">🐋</div>
+          <div class="tech-name">Docker</div>
+          <div class="tech-desc">1-Click compose</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">🦕</div>
+          <div class="tech-name">Deno</div>
+          <div class="tech-desc">Supabase functions</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">🎭</div>
+          <div class="tech-name">Playwright</div>
+          <div class="tech-desc">E2E Scraper</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats Section -->
+  <section class="section stats-section" id="stats">
+    <div class="container stats-grid">
+      <div class="stat-card animate-on-scroll">
+        <div class="stat-number gradient-text" id="stat-tests">1600+</div>
+        <div class="stat-label">종합 테스트 통과</div>
+        <div class="stat-sublabel">Ruff, ESLint 자동 검증</div>
+      </div>
+      <div class="stat-card animate-on-scroll delay-100">
+        <div class="stat-number gradient-text" id="stat-agents">3</div>
+        <div class="stat-label">협업 AI 에이전트</div>
+        <div class="stat-sublabel">Claude, Codex, Gemini</div>
+      </div>
+      <div class="stat-card animate-on-scroll delay-200">
+        <div class="stat-number gradient-text" id="stat-days">7일</div>
+        <div class="stat-label">세션 로그 로테이션</div>
+        <div class="stat-sublabel">컨텍스트 과부하 최적화</div>
+      </div>
+      <div class="stat-card animate-on-scroll delay-300">
+        <div class="stat-number gradient-text" id="stat-uptime">99.9%</div>
+        <div class="stat-label">파이프라인 가동률</div>
+        <div class="stat-sublabel">에러 분류 및 자가 복구</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="section cta-section" id="cta">
+    <div class="container cta-content animate-on-scroll">
+      <h2 class="cta-title">Vibe Coding 워크스페이스 시작하기</h2>
+      <p class="cta-desc">단 하나의 스크립트 실행으로 전체 개발 환경 셋업, DB 생성, AI 도구 협업 환경을 구축하세요.</p>
+      
+      <div style="max-width: 600px; margin: 0 auto 2rem; border-radius: var(--radius-xl); overflow: hidden;" class="glass">
+        <div style="background: rgba(255,255,255,0.03); padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--color-border);">
+          <span style="font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-tertiary);">PowerShell Setup (Windows)</span>
+          <button id="copy-cmd-btn" style="background: transparent; border: none; color: var(--color-text-secondary); cursor: pointer;" aria-label="복사"><i data-lucide="copy" style="width:16px;height:16px;"></i></button>
+        </div>
+        <div style="padding: 16px 24px; text-align: left; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-accent-indigo); white-space: nowrap; overflow-x: auto;">
+          powershell -ExecutionPolicy Bypass -File .\setup.ps1
+        </div>
+      </div>
+
+      <div class="cta-actions">
+        <a href="https://github.com/biojuho/vibe-coding" class="btn btn-primary" target="_blank">
+          <i data-lucide="github"></i>
+          <span>GitHub 저장소 보기</span>
+        </a>
+        <a href="#products" class="btn btn-secondary">더 알아보기</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-copy">
+        &copy; 2026 박주호 (Juho Park). All rights reserved.
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/biojuho/vibe-coding/blob/main/LICENSE" class="footer-link" target="_blank">MIT LICENSE</a>
+        <a href="https://github.com/biojuho/vibe-coding/blob/main/CONTRIBUTING.md" class="footer-link" target="_blank">CONTRIBUTING</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="script.js"></script>
+</body>
+</html>
