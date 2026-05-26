@@ -36,7 +36,7 @@ describe("use cache — cached-queries module", () => {
 			"utf-8",
 		);
 		assert.ok(
-			content.trimStart().startsWith("'use cache'"),
+			/^['"]use cache['"]/.test(content.trimStart()),
 			'cached-queries.js must start with "use cache" directive',
 		);
 	});
@@ -80,15 +80,15 @@ describe("use cache — cached-queries module", () => {
 			"utf-8",
 		);
 		assert.ok(
-			content.includes("cacheTag('dashboard-summary')"),
+			/cacheTag\(\s*['"]dashboard-summary['"]\s*\)/.test(content),
 			"must tag dashboard-summary",
 		);
 		assert.ok(
-			content.includes("cacheTag('cattle-list')"),
+			/cacheTag\(\s*['"]cattle-list['"]\s*\)/.test(content),
 			"must tag cattle-list",
 		);
 		assert.ok(
-			content.includes("cacheTag('sales-list')"),
+			/cacheTag\(\s*['"]sales-list['"]\s*\)/.test(content),
 			"must tag sales-list",
 		);
 	});
@@ -112,7 +112,7 @@ describe("use cache — revalidateTag integration", () => {
 			"utf-8",
 		);
 		assert.ok(
-			content.includes("revalidateTag('dashboard-summary')"),
+			/revalidateTag\(\s*['"]dashboard-summary['"]\s*\)/.test(content),
 			"_helpers.js must call revalidateTag for dashboard-summary",
 		);
 	});
@@ -123,7 +123,7 @@ describe("use cache — revalidateTag integration", () => {
 			"utf-8",
 		);
 		assert.ok(
-			content.includes("revalidateTag('cattle-list')"),
+			/revalidateTag\(\s*['"]cattle-list['"]\s*\)/.test(content),
 			"_helpers.js must call revalidateTag for cattle-list",
 		);
 	});
@@ -134,7 +134,7 @@ describe("use cache — revalidateTag integration", () => {
 			"utf-8",
 		);
 		assert.ok(
-			content.includes("revalidateTag('sales-list')"),
+			/revalidateTag\(\s*['"]sales-list['"]\s*\)/.test(content),
 			"_helpers.js must call revalidateTag for sales-list",
 		);
 	});

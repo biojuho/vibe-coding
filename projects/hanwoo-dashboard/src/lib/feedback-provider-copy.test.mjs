@@ -16,10 +16,10 @@ test("feedback toasts expose live-region semantics and Korean dismiss labels", (
 
 	assert.match(
 		source,
-		/const isUrgent = toast\.variant === 'error' \|\| toast\.variant === 'warning'/,
+		/const isUrgent\s*=\s*toast\s*\.\s*variant\s*===\s*["']error["']\s*\|\|\s*toast\s*\.\s*variant\s*===\s*["']warning["']/,
 	);
-	assert.match(source, /role=\{isUrgent \? 'alert' : 'status'\}/);
-	assert.match(source, /aria-live=\{isUrgent \? 'assertive' : 'polite'\}/);
+	assert.match(source, /role=\{isUrgent \? ["']alert["'] : ["']status["']\}/);
+	assert.match(source, /aria-live=\{isUrgent \? ["']assertive["'] : ["']polite["']\}/);
 	assert.match(source, /aria-atomic="true"/);
 	assert.match(source, /aria-label=\{`\$\{toast\.title\} 알림 닫기`\}/);
 	assert.match(source, /aria-hidden="true"/);

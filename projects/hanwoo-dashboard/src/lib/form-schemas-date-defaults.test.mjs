@@ -16,15 +16,15 @@ test("form default date builders safely fallback through toInputDate", () => {
 
 	assert.match(
 		source,
-		/const toDefaultInputDate = \(date = new Date\(\)\) => toInputDate\(date\) \|\| toInputDate\(new Date\(\)\);/,
+		/const toDefaultInputDate = \(\s*date\s*=\s*new Date\(\)\s*\)\s*=>\s*toInputDate\(\s*date\s*\)\s*\|\|\s*toInputDate\(\s*new Date\(\)\s*\);?/,
 	);
 	assert.match(source, /date: toDefaultInputDate\(date\),/);
 	assert.match(source, /date: toDefaultInputDate\(\),/);
 	assert.match(source, /calvingDate: toDefaultInputDate\(date\),/);
-	assert.doesNotMatch(source, /baseDate\.toISOString\(\)\.split\('T'\)\[0\]/);
+	assert.doesNotMatch(source, /baseDate\.toISOString\(\)\.split\(["']T["']\)\[0\]/);
 	assert.doesNotMatch(
 		source,
-		/date: new Date\(\)\.toISOString\(\)\.split\('T'\)\[0\]/,
+		/date: new Date\(\)\.toISOString\(\)\.split\(["']T["']\)\[0\]/,
 	);
 	assert.doesNotMatch(source, /calvingDate: toInputDate\(date\),/);
 });

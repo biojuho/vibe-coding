@@ -64,9 +64,7 @@ async function buildFarmContext() {
 						.map((sale) => {
 							const cattleName = sale.cattle?.name || "개체명 미등록";
 							const tagNumber = sale.cattle?.tagNumber || "이력번호 미등록";
-							const priceManwon = (toFiniteNumber(sale.price) / 10000).toFixed(
-								0,
-							);
+				const priceManwon = (toFiniteNumber(sale.price) / 10000).toFixed(0);
 							const saleDate = formatSaleDateForContext(sale.saleDate);
 							return `${cattleName}(${tagNumber}) ${priceManwon}만원 (${saleDate})`;
 						})

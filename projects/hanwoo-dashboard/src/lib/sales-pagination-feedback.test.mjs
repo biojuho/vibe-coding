@@ -33,7 +33,7 @@ test("sales pagination failures surface Korean retry feedback", () => {
 	assert.match(tabSource, /salesPagination\.loadError/);
 	assert.match(
 		tabSource,
-		/const loadMoreLabel = salesPagination\?\.isLoading \? '이전 판매 기록 불러오는 중' : '이전 판매 기록 더 보기';/,
+		/const loadMoreLabel = salesPagination\?\.isLoading\s*\?\s*["']이전 판매 기록 불러오는 중["']\s*:\s*["']이전 판매 기록 더 보기["']/,
 	);
 	assert.match(tabSource, /aria-busy=\{salesPagination\.isLoading\}/);
 	assert.match(tabSource, /aria-label=\{loadMoreLabel\}/);
@@ -50,11 +50,11 @@ test("sales pagination normalizes malformed page item payloads", () => {
 	assert.match(hookSource, /function normalizePaginationItems\(items\) \{/);
 	assert.match(
 		hookSource,
-		/Array\.isArray\(items\) \? items\.filter\(\(item\) => item && typeof item === 'object'\) : \[\]/,
+		/Array\.isArray\(items\)\s*\?\s*items\.filter\(\s*\(item\)\s*=>\s*item\s*&&\s*typeof\s*item\s*===\s*["']object["']\s*\)\s*:\s*\[\]/,
 	);
 	assert.match(
 		hookSource,
-		/useState\(\(\) => normalizePaginationItems\(initialItems\)\)/,
+		/useState\(\s*\(\s*\)\s*=>\s*normalizePaginationItems\(\s*initialItems\s*\),?\s*\)/,
 	);
 	assert.match(
 		hookSource,
@@ -66,7 +66,7 @@ test("sales pagination normalizes malformed page item payloads", () => {
 	);
 	assert.match(
 		hookSource,
-		/setItems\(\(prev\) => \[\.\.\.normalizePaginationItems\(prev\), \.\.\.safeNewItems\]\);/,
+		/setItems\(\s*\(\s*prev\s*\)\s*=>\s*\[\s*\.\.\.\s*normalizePaginationItems\(\s*prev\s*\),\s*\.\.\.\s*safeNewItems,?\s*\]\s*\)/,
 	);
 	assert.doesNotMatch(hookSource, /useState\(initialItems\)/);
 	assert.doesNotMatch(

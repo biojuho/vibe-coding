@@ -81,11 +81,12 @@ class TestQualityGateRetryDecision(unittest.TestCase):
 
     def test_warning_only_no_retry(self):
         gate = DraftQualityGate()
-        # CTA warning이 있더라도 error severity가 아니면 retry는 안 함
-        # 60자 이상 + 280자 이하 범위를 충족해야 min/max_len error를 피할 수 있음
+        # 새 브랜드 보이스: 질문/CTA 마무리 금지. error 없는 평서문 마무리.
+        # warning 만 발생하도록 살짝 모호한 표현 ("최근에") 한 번 섞음.
         good_text = (
-            "블라인드에서 연봉 5천 자랑글이 올라오자 댓글창이 바로 불붙었습니다. "
-            "당신이라면 이런 글에 한 줄로 뭐라고 답하시겠어요? 실제 반응을 댓글로 남겨주세요!"
+            "연봉 5천 자랑글 한 줄에 댓글창이 바로 가라앉았다. "
+            "최근에 비슷한 글을 보면 분위기가 다들 비슷해진다는 인상이 있었다. "
+            "5천이 누군가에겐 자랑이고 누군가에겐 한 달치 월급이라는 거리감이 남았다."
         )
         assert len(good_text) >= 60, f"테스트 텍스트가 너무 짧음: {len(good_text)}자"
         result = gate.validate("twitter", good_text)
@@ -94,10 +95,11 @@ class TestQualityGateRetryDecision(unittest.TestCase):
 
     def test_passing_draft_no_retry(self):
         gate = DraftQualityGate()
-        # 길이 OK + CTA OK → should_retry=False
+        # 길이 OK + 질문/CTA 마무리 없음 → should_retry=False
         text = (
-            "연봉 협상 전에 꼭 챙겨야 할 체크리스트 3가지가 있습니다. "
-            "첫 제안 받았을 때 가장 먼저 확인하는 숫자가 뭔가요? 실전 팁을 댓글로 공유해주세요."
+            "연봉 협상 전에 챙겨야 할 체크리스트가 3개 있다는 글을 봤다. "
+            "첫 제안에서 가장 먼저 보는 숫자가 결국 그해 협상의 전부였다는 후일담도 있다. "
+            "한 줄의 숫자가 한 해의 표정을 바꿔 놓더라."
         )
         result = gate.validate("twitter", text)
         assert result.should_retry is False

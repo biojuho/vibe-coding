@@ -25,6 +25,51 @@ function isLowStock(item) {
 	return quantity !== null && threshold !== null && quantity <= threshold;
 }
 
+function isFeedCategory(item) {
+	if (!item || typeof item !== "object") return false;
+	const category =
+		typeof item.category === "string" ? item.category.toLowerCase() : "";
+	return (
+		category === "feed" || category === "concentrate" || category === "roughage"
+	);
+}
+
+/**
+ * Predict per-day feed consumption from the recent feed log.
+ *
+ * Inputs:
+ *  - feedHistory: array of { date, roughage, concentrate, ... }
+ *  - lookbackDays: how many days back to consider (default 30)
+ *  - now: reference "today"
+ *
+ * Returns kg/day (number), or null if there isn't enough data to predict.
+ */
+export function estimateDailyFeedConsumptionKg({
+	feedHistory = [],
+	lookbackDays = 30,
+	now = new Date(),
+} = {}) {
+	if (!Array.isArray(feedHistory) || feedHistory.length === 0) return null;
+	const today = startOfDay(now);
+	const cutoff = new Date(today.getTime() - lookbackDays * 86400000);
+
+	let totalKg = 0;
+	let samples = 0;
+	for (const record of feedHistory) {
+		if (!record || typeof record !== "object") continue;
+		const date = toValidDate(record.date);
+		if (!date || date < cutoff || date > today) continue;
+		const roughage = toFiniteNumberOrNull(record.roughage) ?? 0;
+		const concentrate = toFiniteNumberOrNull(record.concentrate) ?? 0;
+		if (roughage <= 0 && concentrate <= 0) continue;
+		totalKg += roughage + concentrate;
+		samples += 1;
+	}
+
+	if (samples === 0) return null;
+	return totalKg / lookbackDays;
+}
+
 function formatDaysLeft(target, today) {
 	const daysLeft = Math.ceil((startOfDay(target) - today) / 86400000);
 	if (daysLeft <= 0) return "오늘";
@@ -36,6 +81,7 @@ export function buildTodayFocusItems({
 	notifications = [],
 	scheduleEvents = [],
 	inventoryList = [],
+	feedHistory = [],
 	monthlySalesCount = 0,
 	isOnline = true,
 	now = new Date(),
@@ -101,6 +147,40 @@ export function buildTodayFocusItems({
 		});
 	}
 
+	// Predict feed depletion from actual feed-log consumption — surfaces a
+	// "사료가 N일 후 떨어집니다" warning before the operator-set threshold
+	// catches it. Only fires for feed-category inventory rows.
+	const dailyFeedKg = estimateDailyFeedConsumptionKg({ feedHistory, now });
+	if (dailyFeedKg !== null && dailyFeedKg > 0) {
+		const feedRows = inventoryList.filter(isFeedCategory);
+		const projections = feedRows
+			.map((item) => {
+				const quantity = toFiniteNumberOrNull(item?.quantity);
+				if (quantity === null || quantity <= 0) return null;
+				const daysRemaining = quantity / dailyFeedKg;
+				return { item, daysRemaining };
+			})
+			.filter(Boolean)
+			.sort((a, b) => a.daysRemaining - b.daysRemaining);
+
+		const soonest = projections[0];
+		if (soonest && soonest.daysRemaining <= 14) {
+			const daysLabel = Math.max(0, Math.floor(soonest.daysRemaining));
+			const critical = soonest.daysRemaining <= 7;
+			items.push({
+				id: "feed-depletion",
+				type: "stock",
+				title: critical
+					? `사료 ${daysLabel}일 후 소진 예상`
+					: `사료 잔여 ${daysLabel}일 (점검 권장)`,
+				detail: `${soonest.item.name}: ${soonest.item.quantity}${soonest.item.unit || ""} (최근 사용량 기준)`,
+				meta: "사료 발주",
+				tone: critical ? "danger" : "warning",
+				targetTab: "inventory",
+			});
+		}
+	}
+
 	items.push({
 		id: "monthly-sales",
 		type: "sales",
@@ -114,5 +194,5 @@ export function buildTodayFocusItems({
 		targetTab: monthlySalesCount > 0 ? "analysis" : "sales",
 	});
 
-	return items.slice(0, 4);
+	return items.slice(0, 5);
 }

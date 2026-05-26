@@ -15,7 +15,7 @@ test("not-found page is a server component with a route home and title metadata"
 	const source = readSource("app/not-found.js");
 
 	assert.match(source, /export default function NotFound/);
-	assert.doesNotMatch(source, /'use client'/);
+	assert.doesNotMatch(source, /["']use client["']/);
 	assert.match(source, /export const metadata/);
 	assert.match(source, /href="\/"/);
 	assert.match(
@@ -30,7 +30,7 @@ test("not-found page is a server component with a route home and title metadata"
 test("route error boundary is a client component exposing retry and home actions", () => {
 	const source = readSource("app/error.js");
 
-	assert.match(source, /^'use client';/);
+	assert.match(source, /^["']use client["'];/);
 	assert.match(
 		source,
 		/export default function RouteError\(\{ error, reset \}\)/,
@@ -49,7 +49,7 @@ test("route error boundary is a client component exposing retry and home actions
 test("global error boundary renders its own html/body and a reset action", () => {
 	const source = readSource("app/global-error.js");
 
-	assert.match(source, /^'use client';/);
+	assert.match(source, /^["']use client["'];/);
 	assert.match(
 		source,
 		/export default function GlobalError\(\{ error, reset \}\)/,
@@ -78,7 +78,7 @@ test("login page operator eyebrow uses Korean product copy", () => {
 test("login page links authentication errors to both credential fields", () => {
 	const source = readSource("app/login/page.js");
 
-	assert.match(source, /const loginErrorId = 'login-error-message'/);
+	assert.match(source, /const loginErrorId = ["']login-error-message["']/);
 	assert.match(source, /aria-invalid=\{Boolean\(error\)\}/);
 	assert.match(
 		source,
@@ -93,7 +93,7 @@ test("login page links authentication errors to both credential fields", () => {
 test("login page recovers submit state when sign-in fails unexpectedly", () => {
 	const source = readSource("app/login/page.js");
 
-	assert.match(source, /import \{ useRef, useState \} from 'react'/);
+	assert.match(source, /import \{ useRef, useState \} from ["']react["']/);
 	assert.match(source, /const submitInFlightRef = useRef\(false\)/);
 	assert.match(source, /const loginSubmitLabel = isSubmitting/);
 	assert.match(source, /아이디를 입력하면 로그인할 수 있습니다/);
@@ -105,8 +105,8 @@ test("login page recovers submit state when sign-in fails unexpectedly", () => {
 	);
 	assert.match(source, /submitInFlightRef\.current = true;/);
 	assert.match(source, /setIsSubmitting\(true\);/);
-	assert.match(source, /try \{\s+const result = await signIn\('credentials'/);
-	assert.match(source, /\} catch \{\s+setError\('/);
+	assert.match(source, /try \{\s+const result = await signIn\(["']credentials["']/);
+	assert.match(source, /\} catch \{\s+setError\(["']/);
 	assert.match(
 		source,
 		/\} finally \{\s+submitInFlightRef\.current = false;\s+setIsSubmitting\(false\);/,

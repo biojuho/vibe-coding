@@ -17,11 +17,11 @@ test("sales tab keeps malformed sale dates at the end of recent records", () => 
 	assert.match(source, /function getSaleDateTime\(value\) \{/);
 	assert.match(
 		source,
-		/return Number\.isNaN\(date\.getTime\(\)\) \? Number\.NEGATIVE_INFINITY : date\.getTime\(\);/,
+		/return Number\.isNaN\(date\.getTime\(\)\)\s*\?\s*Number\.NEGATIVE_INFINITY\s*:\s*date\.getTime\(\)/,
 	);
 	assert.match(
 		source,
-		/sort\(\(first, second\) => getSaleDateTime\(second\.saleDate\) - getSaleDateTime\(first\.saleDate\)\)/,
+		/\.sort\(\s*\(\s*first,\s*second\s*\)\s*=>\s*getSaleDateTime\(\s*second\.saleDate\s*\)\s*-\s*getSaleDateTime\(\s*first\.saleDate\s*\)/,
 	);
 	assert.doesNotMatch(
 		source,

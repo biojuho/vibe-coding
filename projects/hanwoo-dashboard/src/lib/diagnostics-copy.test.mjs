@@ -28,38 +28,38 @@ test("admin diagnostics page uses Korean operations copy for visible states", ()
 	assert.match(source, /aria-label="검사할 원본 데이터 선택"/);
 	assert.match(source, /title="검사할 원본 데이터 선택"/);
 	assert.match(source, /MODEL_OPTIONS/);
-	assert.match(systemActions, /status: '정상'/);
-	assert.match(systemActions, /status: '연결 실패'/);
-	assert.match(systemActions, /latency: '확인 불가'/);
+	assert.match(systemActions, /status: ["']정상["']/);
+	assert.match(systemActions, /status: ["']연결 실패["']/);
+	assert.match(systemActions, /latency: ["']확인 불가["']/);
 	assert.doesNotMatch(source, /System Diagnostics/);
 	assert.doesNotMatch(source, /Database Status/);
 	assert.doesNotMatch(source, /Loading records/);
 	assert.doesNotMatch(source, /Please try again in a moment/);
 	assert.doesNotMatch(source, /description: error\.message/);
-	assert.doesNotMatch(systemActions, /status: 'Online'/);
-	assert.doesNotMatch(systemActions, /status: 'Offline'/);
-	assert.doesNotMatch(systemActions, /latency: 'N\/A'/);
+	assert.doesNotMatch(systemActions, /status: ["']Online["']/);
+	assert.doesNotMatch(systemActions, /status: ["']Offline["']/);
+	assert.doesNotMatch(systemActions, /latency: ["']N\/A["']/);
 });
 
 test("admin diagnostics numeric metrics are normalized before rendering", () => {
 	const source = readSource("components/admin/DiagnosticsPageClient.js");
 
-	assert.match(source, /import \{ toFiniteNumber \} from '@\/lib\/utils';/);
+	assert.match(source, /import \{ toFiniteNumber \} from ["']@\/lib\/utils["'];/);
 	assert.match(
 		source,
-		/Object\.entries\(stats\.database\.recordCounts\)\.map\(\(\[key, value\]\) => \[key, toFiniteNumber\(value\)\]\)/,
+		/Object\s*\.\s*entries\(\s*stats\s*\.\s*database\s*\.\s*recordCounts\s*\)\s*\.\s*map\(\s*\(\s*\[\s*key\s*,\s*value\s*\]\s*\)\s*=>\s*\[\s*key\s*,\s*toFiniteNumber\(\s*value\s*\)\s*,?\s*\]\s*\)/,
 	);
 	assert.match(
 		source,
-		/const uptimeMinutes = Math\.floor\(toFiniteNumber\(stats\?\.uptime\) \/ 60\);/,
+		/const uptimeMinutes\s*=\s*Math\s*\.\s*floor\(\s*toFiniteNumber\(\s*stats\s*\?\.\s*uptime\s*\)\s*\/\s*60\s*,?\s*\);?/,
 	);
 	assert.match(
 		source,
-		/const heapUsedMb = Math\.round\(toFiniteNumber\(stats\?\.memory\?\.heapUsed\) \/ 1024 \/ 1024\);/,
+		/const heapUsedMb\s*=\s*Math\s*\.\s*round\(\s*toFiniteNumber\(\s*stats\s*\?\.\s*memory\s*\?\.\s*heapUsed\s*\)\s*\/\s*1024\s*\/\s*1024\s*,?\s*\);?/,
 	);
 	assert.match(
 		source,
-		/const heapTotalMb = Math\.round\(toFiniteNumber\(stats\?\.memory\?\.heapTotal\) \/ 1024 \/ 1024\);/,
+		/const heapTotalMb\s*=\s*Math\s*\.\s*round\(\s*toFiniteNumber\(\s*stats\s*\?\.\s*memory\s*\?\.\s*heapTotal\s*\)\s*\/\s*1024\s*\/\s*1024\s*,?\s*\);?/,
 	);
 	assert.match(source, /value=\{`\$\{heapUsedMb\} MB`\}/);
 	assert.match(source, /sub=\{`전체 \$\{heapTotalMb\} MB`\}/);

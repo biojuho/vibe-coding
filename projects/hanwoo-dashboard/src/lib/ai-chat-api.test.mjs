@@ -241,15 +241,15 @@ test("AI chat route farm context avoids English fallback copy", () => {
 		"utf8",
 	);
 
-	assert.match(source, /import \{ toFiniteNumber \} from '@\/lib\/utils';/);
+	assert.match(source, /import \{ toFiniteNumber \} from ["']@\/lib\/utils["'];/);
 	assert.match(source, /function formatSaleDateForContext\(value\) \{/);
 	assert.match(source, /const dateKey = value\.trim\(\)\.slice\(0, 10\);/);
 	assert.match(source, /date\.toISOString\(\)\.slice\(0, 10\) !== dateKey/);
-	assert.match(source, /return '출하일 미등록';/);
+	assert.match(source, /return ["']출하일 미등록["'];/);
 	assert.match(source, /return date\.toISOString\(\)\.slice\(0, 10\);/);
 	assert.match(
 		source,
-		/\(toFiniteNumber\(sale\.price\) \/ 10000\)\.toFixed\(0\)/,
+		/\(\s*toFiniteNumber\(\s*sale\.price\s*\)\s*\/\s*10000\s*\)\s*\.\s*toFixed\(\s*0\s*,?\s*\)/,
 	);
 	assert.match(source, /Joolife AI 농장 비서/);
 	assert.match(source, /AI 농장 컨텍스트 구성 실패/);

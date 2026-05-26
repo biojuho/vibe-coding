@@ -16,9 +16,9 @@ test("notification system trigger exposes a Korean accessible label", () => {
 	const tsxSource = readSource("components/layout/NotificationSystem.tsx");
 
 	for (const candidate of [source, tsxSource]) {
-		assert.match(candidate, /const notificationLabel = unreadCount > 0/);
+		assert.match(candidate, /const notificationLabel =\s*unreadCount > 0/);
 		assert.match(candidate, /알림 열기, 읽지 않은 알림/);
-		assert.match(candidate, /: '알림 열기'/);
+		assert.match(candidate, /: ["']알림 열기["']/);
 		assert.match(candidate, /aria-label=\{notificationLabel\}/);
 		assert.match(candidate, /title=\{notificationLabel\}/);
 		assert.match(candidate, /aria-hidden="true"/);
@@ -44,7 +44,7 @@ test("notification widget normalizes malformed payloads before rendering", () =>
 	assert.match(source, /if \(!Array\.isArray\(notifications\)\) return \[\]/);
 	assert.match(
 		source,
-		/\.filter\(\(note\) => note && typeof note === 'object'\)/,
+		/\.filter\(\s*\(?note\)?\s*=>\s*note\s*&&\s*typeof\s+note\s*===\s*["']object["']\s*\)/,
 	);
 	assert.match(
 		source,
@@ -65,11 +65,11 @@ test("typescript notification system mirror is a client component with the same 
 	assert.match(source, /initialNotifications = \[\]/);
 	assert.match(
 		source,
-		/useState\(\(\) => normalizeSystemNotifications\(initialNotifications\)\)/,
+		/useState\(\s*\(\s*\)\s*=>\s*normalizeSystemNotifications\(\s*initialNotifications\s*\),?\s*\)/,
 	);
 	assert.match(
 		source,
-		/notifications\.filter\(\(notification\) => !notification\.read\)\.length/,
+		/notifications\.filter\(\s*\(notification\)\s*=>\s*!notification\.read,?\s*\)\.length/,
 	);
 	assert.match(source, /알림 열기, 읽지 않은 알림/);
 	assert.match(source, /aria-label=\{notificationLabel\}/);
@@ -96,11 +96,11 @@ test("notification systems normalize malformed initial payloads before rendering
 		);
 		assert.match(
 			candidate,
-			/\.filter\(\(notification\) => notification && typeof notification === 'object'\)/,
+			/\.filter\(\s*\(?notification\)?\s*=>\s*notification\s*&&\s*typeof\s+notification\s*===\s*["']object["']\s*\)/,
 		);
 		assert.match(
 			candidate,
-			/useState\(\(\) => normalizeSystemNotifications\(initialNotifications\)\)/,
+			/useState\(\s*\(\s*\)\s*=>\s*normalizeSystemNotifications\(\s*initialNotifications\s*\),?\s*\)/,
 		);
 		assert.match(candidate, /DEFAULT_NOTIFICATION_TITLE/);
 		assert.match(candidate, /DEFAULT_NOTIFICATION_MESSAGE/);
@@ -110,7 +110,7 @@ test("notification systems normalize malformed initial payloads before rendering
 		);
 		assert.match(
 			candidate,
-			/setNotifications\(\(currentNotifications\) => currentNotifications\.map/,
+			/setNotifications\(\s*\(\s*currentNotifications\s*\)\s*=>\s*currentNotifications\.map/,
 		);
 		assert.doesNotMatch(candidate, /useState\(initialNotifications\)/);
 		assert.doesNotMatch(candidate, /setNotifications\(notifications\.map/);
@@ -157,8 +157,8 @@ test("notification system does not seed demo farm alerts by default", () => {
 test("clickable dropdown menu items use native button semantics", () => {
 	const source = readSource("components/ui/dropdown-menu.js");
 
-	assert.match(source, /const Element = onClick \? 'button' : 'div'/);
-	assert.match(source, /type=\{onClick \? 'button' : undefined\}/);
+	assert.match(source, /const Element = onClick \? ["']button["'] : ["']div["']/);
+	assert.match(source, /type=\{onClick \? ["']button["'] : undefined\}/);
 	assert.match(source, /focus:ring-2/);
 	assert.doesNotMatch(source, /<div\s+[^>]*onClick=\{onClick\}/);
 });

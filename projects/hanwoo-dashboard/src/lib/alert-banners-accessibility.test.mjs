@@ -16,7 +16,7 @@ test("alert banner decorative calving icon is hidden from assistive tech", () =>
 
 	assert.match(
 		source,
-		/<span aria-hidden="true" style=\{\{ fontSize: '18px' \}\} className="animate-bounce">/,
+		/<span[\s\S]*?aria-hidden="true"[\s\S]*?style=\{\{\s*fontSize:\s*["']18px["']\s*\}\}[\s\S]*?className="animate-bounce"/,
 	);
 });
 
@@ -25,7 +25,7 @@ test("alert banner D-day labels normalize malformed notification values", () => 
 
 	assert.match(
 		source,
-		/import \{ formatDate, toFiniteNumber \} from '@\/lib\/utils';/,
+		/import \{ formatDate, toFiniteNumber \} from ["']@\/lib\/utils["'];/,
 	);
 	assert.match(source, /function normalizeDaysLeft\(value\) \{/);
 	assert.match(
@@ -51,7 +51,7 @@ test("alert banners normalize malformed notification and building payloads befor
 	assert.match(source, /if \(!Array\.isArray\(notifications\)\) return \[\]/);
 	assert.match(
 		source,
-		/notification && typeof notification === 'object' && notification\.type === type/,
+		/notification\s*&&\s*typeof\s*notification\s*===\s*["']object["']\s*&&\s*notification\.\s*type\s*===\s*type/,
 	);
 	assert.match(source, /function normalizeBuildings\(buildings\)/);
 	assert.match(source, /Array\.isArray\(buildings\)/);
@@ -61,18 +61,18 @@ test("alert banners normalize malformed notification and building payloads befor
 	);
 	assert.match(
 		source,
-		/normalizeAlertNotifications\(notifications, 'estrus'\)/,
+		/normalizeAlertNotifications\(\s*notifications[\s\S]*?["']estrus["']\s*,?\s*\)/,
 	);
 	assert.match(
 		source,
-		/normalizeAlertNotifications\(notifications, 'calving'\)/,
+		/normalizeAlertNotifications\(\s*notifications[\s\S]*?["']calving["']\s*,?\s*\)/,
 	);
 	assert.match(
 		source,
-		/safeBuildings\.find\(\(item\) => item\.id === notification\.buildingId\)/,
+		/safeBuildings\s*\.\s*find\(\s*\(\s*item\s*\)\s*=>\s*item\s*\.\s*id\s*===\s*notification\s*\.\s*buildingId\s*,?\s*\)/,
 	);
 	assert.match(source, /id: notification\.id \?\? `\$\{type\}-\$\{index\}`/);
-	assert.match(source, /'이름 미등록'/);
+	assert.match(source, /["']이름 미등록["']/);
 	assert.doesNotMatch(
 		source,
 		/notifications\.filter\(\(notification\) => notification\.type/,

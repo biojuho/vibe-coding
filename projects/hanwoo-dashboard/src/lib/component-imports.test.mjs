@@ -288,7 +288,7 @@ function collectExports(absPath, visited = new Set()) {
 			if (/^[A-Za-z_$][\w$]*$/.test(exported)) names.add(exported);
 		}
 		if (childExports?.hasDefault && m[1].includes("default")) {
-			// `export { default } from './x'` forwards the default.
+			// `export { default } from ["']./x'` forwards the default.
 			hasDefault = true;
 		}
 	}

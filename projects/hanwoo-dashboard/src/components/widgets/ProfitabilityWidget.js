@@ -18,8 +18,22 @@ function normalizeProfitabilityItems(data) {
 		: [];
 }
 
-export function ProfitabilityWidget({ data, isLoading, error }) {
+function formatPerHeadFeedCost(value) {
+	if (!Number.isFinite(value) || value <= 0) return null;
+	return `${Math.round(value / 1000)}천원`;
+}
+
+function formatMonthlyGain(value) {
+	if (!Number.isFinite(value) || value <= 0) return null;
+	const rounded = Math.round(value * 10) / 10;
+	return `${rounded}kg`;
+}
+
+export function ProfitabilityWidget({ data, isLoading, error, meta = null }) {
 	const visibleData = normalizeProfitabilityItems(data);
+	const isCustomized = Boolean(meta?.isCustomized);
+	const feedCostLabel = formatPerHeadFeedCost(meta?.monthlyFeedCost);
+	const gainLabel = formatMonthlyGain(meta?.monthlyWeightGain);
 
 	if (isLoading) {
 		return (
@@ -60,6 +74,17 @@ export function ProfitabilityWidget({ data, isLoading, error }) {
 		);
 	}
 
+	const assumptionsLine = (() => {
+		if (!isCustomized) {
+			return "산업 평균(두당 월 사료비 150천원, 증체 30kg/월)으로 추정";
+		}
+		const parts = [];
+		if (feedCostLabel) parts.push(`두당 월 사료비 ${feedCostLabel}`);
+		if (gainLabel) parts.push(`증체 ${gainLabel}/월`);
+		if (parts.length === 0) return null;
+		return `최근 6개월 농가 실적: ${parts.join(", ")}`;
+	})();
+
 	return (
 		<PremiumCard className="mb-4 overflow-visible">
 			<PremiumCardHeader
@@ -67,6 +92,25 @@ export function ProfitabilityWidget({ data, isLoading, error }) {
 				icon="📈"
 				description="최적의 출하 타이밍과 예상 마진을 분석합니다."
 			/>
+			{assumptionsLine ? (
+				<div
+					className="px-4 pt-3 pb-1 flex items-center gap-2 text-[11px] font-medium"
+					data-testid="profitability-assumptions"
+				>
+					<span
+						className={
+							isCustomized
+								? "px-1.5 py-0.5 rounded-full bg-[color:color-mix(in_srgb,var(--color-success)_16%,white_84%)] text-[color:var(--color-success)] tracking-tight"
+								: "px-1.5 py-0.5 rounded-full bg-[color:color-mix(in_srgb,var(--color-text-muted)_16%,white_84%)] text-[color:var(--color-text-muted)] tracking-tight"
+						}
+					>
+						{isCustomized ? "농가 데이터" : "기본값"}
+					</span>
+					<span className="text-[color:var(--color-text-muted)]">
+						{assumptionsLine}
+					</span>
+				</div>
+			) : null}
 			<PremiumCardContent className="p-0">
 				<div className="divide-y divide-gray-100">
 					{visibleData.map((rawItem) => {

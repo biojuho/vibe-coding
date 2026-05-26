@@ -39,14 +39,14 @@ test("notification modal can be dismissed with Escape from the dialog surface", 
 
 	assert.match(
 		source,
-		/import \{ useEffect, useRef, useState \} from 'react';/,
+		/import \{ useEffect, useRef, useState \} from ["']react["'];/,
 	);
 	assert.match(source, /const dialogRef = useRef\(null\);/);
 	assert.match(source, /useEffect\(\(\) => \{/);
 	assert.match(source, /dialogRef\.current\?\.focus\(\);/);
 	assert.match(source, /ref=\{dialogRef\}/);
 	assert.match(source, /const handleDialogKeyDown = \(event\) => \{/);
-	assert.match(source, /event\.key === 'Escape'/);
+	assert.match(source, /event\.key === ["']Escape["']/);
 	assert.match(source, /event\.stopPropagation\(\);/);
 	assert.match(source, /if \(isTestingSMS\) \{\s+return;\s+\}\s+onClose\(\);/);
 	assert.match(source, /onKeyDown=\{handleDialogKeyDown\}/);
@@ -56,9 +56,9 @@ test("notification modal can be dismissed with Escape from the dialog surface", 
 test("notification modal decorative status icons are hidden from assistive tech", () => {
 	const source = readSource("components/ui/NotificationModal.js");
 
-	assert.match(source, /className="animate-bounce" aria-hidden="true"/);
-	assert.match(source, /<div aria-hidden="true" style=\{\{ fontSize: '40px'/);
-	assert.match(source, /className="animate-pulse" aria-hidden="true"/);
+	assert.match(source, /className="animate-bounce"\s+aria-hidden="true"/);
+	assert.match(source, /<div\s+aria-hidden="true"\s+style=\{\{\s*fontSize:\s*["']40px["']/);
+	assert.match(source, /className="animate-pulse"\s+aria-hidden="true"/);
 });
 
 test("notification modal SMS action uses safe button semantics and Korean copy", () => {
@@ -104,7 +104,7 @@ test("notification modal SMS test action waits for async sends before re-enablin
 		source,
 		/onClick=\{\(\) => \{\s+if \(!isTestingSMS\) \{\s+onClose\(\);\s+\}\s+\}\}/,
 	);
-	assert.match(source, /cursor: isTestingSMS \? 'wait' : 'pointer'/);
+	assert.match(source, /cursor: isTestingSMS \? ["']wait["'] : ["']pointer["']/);
 });
 
 test("notification modal normalizes malformed notification payloads before rendering", () => {
@@ -117,7 +117,7 @@ test("notification modal normalizes malformed notification payloads before rende
 	assert.match(source, /return Array\.isArray\(notifications\)/);
 	assert.match(
 		source,
-		/\.filter\(\(notification\) => notification && typeof notification === 'object'\)/,
+		/\.filter\(\s*\(?notification\)?\s*=>\s*notification\s*&&\s*typeof\s+notification\s*===\s*["']object["']\s*,?\s*\)/,
 	);
 	assert.match(
 		source,

@@ -29,8 +29,15 @@ class TestDraftQualityGate(unittest.TestCase):
     # ── Twitter 플랫폼 ──────────────────────────────────────────────
 
     def test_twitter_good_draft_passes(self):
-        """정상적인 트위터 초안은 통과해야 한다."""
-        draft = "실수령 280 얘기 나오자 회의실이 조용해졌다. 다들 웃으면서 넘기지만 속은 쓰린 날이 있잖아요. 3% 인상 버티기 vs 이직 준비, 지금 더 현실적인 쪽은 뭐였나요?"
+        """정상적인 트위터 초안은 통과해야 한다.
+
+        브랜드 보이스 정책상 질문/CTA 마무리는 금지. 평서문 여운으로 끝낼 것.
+        """
+        draft = (
+            "실수령 280 얘기 나오자 회의실이 조용해졌다. "
+            "다들 웃으면서 넘기지만 속은 쓰린 날이 있잖아요. "
+            "3% 인상과 이직 준비 사이에서 누군가는 이미 움직이고 있더라."
+        )
         result = self.gate.validate("twitter", draft)
         self.assertTrue(result.passed)
         self.assertGreaterEqual(result.score, 70)

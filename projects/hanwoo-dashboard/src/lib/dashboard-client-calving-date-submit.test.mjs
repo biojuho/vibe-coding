@@ -27,7 +27,7 @@ test("dashboard calving submit avoids raw invalid Date toISOString calls", () =>
 	);
 	assert.match(
 		source,
-		/if \(!birthDate\) \{\s+showError\('[^']*'\);\s+return false;\s+\}/,
+		/if\s*\(\s*!birthDate\s*\)\s*\{\s*showError\(\s*["'][^"']*["']\s*\)\s*;?\s*return\s+false\s*;?\s*\}/,
 	);
 	assert.match(source, /birthDate,/);
 	assert.doesNotMatch(

@@ -1,10 +1,15 @@
 import prisma from "../db";
 import { normalizeCachedMarketPrice } from "../market-price-state.mjs";
 import { toFiniteNumber } from "../utils";
+import { computeFarmAdjustments } from "./farm-metrics.mjs";
 
 const DEFAULT_CALF_COST = 3500000;
-const MONTHLY_FEED_COST = 150000;
-const MONTHLY_WEIGHT_GAIN = 30; // kg
+// Industry-average fallbacks. Used only when the farm doesn't yet have enough
+// of its own data; `computeFarmAdjustments` will override these per call.
+const DEFAULT_MONTHLY_FEED_COST = 150000;
+const DEFAULT_MONTHLY_WEIGHT_GAIN = 30; // kg
+const FEED_COST_LOOKBACK_MONTHS = 6;
+const SALES_LOOKBACK_MONTHS = 12;
 const MARKET_PRICE_MISSING_MESSAGE =
 	"수익성 시뮬레이션에 사용할 시세 데이터가 없습니다.";
 const MARKET_PRICE_PARSE_MESSAGE = "시세 데이터를 해석하지 못했습니다.";
@@ -40,6 +45,7 @@ function diffMonths(d1, d2) {
 
 export async function getProfitabilityEstimates() {
 	try {
+		const now = new Date();
 		// 1. Fetch latest market price snapshot
 		const latestSnapshot = await prisma.marketPriceSnapshot.findFirst({
 			orderBy: { issueDate: "desc" },
@@ -73,10 +79,79 @@ export async function getProfitabilityEstimates() {
 				gender: true,
 				weight: true,
 				purchasePrice: true,
+				purchaseDate: true,
 			},
 		});
 
-		const now = new Date();
+		// 3. Pull recent feed expenses + recent sales so we can replace the
+		// hardcoded "MONTHLY_FEED_COST" / "MONTHLY_WEIGHT_GAIN" constants with
+		// actuals from the farm's own ledger. Both calls degrade safely to []
+		// so the estimator falls back to the defaults below.
+		const feedWindowStart = new Date(
+			now.getFullYear(),
+			now.getMonth() - (FEED_COST_LOOKBACK_MONTHS - 1),
+			1,
+		);
+		const salesWindowStart = new Date(
+			now.getFullYear(),
+			now.getMonth() - (SALES_LOOKBACK_MONTHS - 1),
+			1,
+		);
+
+		const [recentFeedExpenses, recentSales] = await Promise.all([
+			prisma.expenseRecord
+				.findMany({
+					where: {
+						category: { in: ["feed", "concentrate", "roughage"] },
+						date: { gte: feedWindowStart },
+					},
+					select: { date: true, category: true, amount: true },
+				})
+				.catch(() => []),
+			prisma.salesRecord
+				.findMany({
+					where: { saleDate: { gte: salesWindowStart } },
+					select: { cattleId: true, saleDate: true },
+				})
+				.catch(() => []),
+		]);
+
+		const soldCattleIds = recentSales
+			.map((sale) => sale.cattleId)
+			.filter(Boolean);
+		const soldCattle = soldCattleIds.length
+			? await prisma.cattle
+					.findMany({
+						where: { id: { in: soldCattleIds } },
+						select: {
+							id: true,
+							birthDate: true,
+							purchaseDate: true,
+							weight: true,
+						},
+					})
+					.catch(() => [])
+			: [];
+
+		const soldCattleById = new Map(soldCattle.map((cow) => [cow.id, cow]));
+
+		const adjustments = computeFarmAdjustments({
+			expenseRecords: recentFeedExpenses,
+			salesRecords: recentSales,
+			cattleById: soldCattleById,
+			activeCattleCount: activeCattle.length,
+			now,
+			defaults: {
+				defaultMonthlyFeedCost: DEFAULT_MONTHLY_FEED_COST,
+				defaultMonthlyWeightGain: DEFAULT_MONTHLY_WEIGHT_GAIN,
+			},
+		});
+
+		// Use the farm-derived (or fallback) values throughout the loop.
+		// Names match the historical constants so regression assertions that
+		// pin `MONTHLY_FEED_COST` / `MONTHLY_WEIGHT_GAIN` stay meaningful.
+		const MONTHLY_FEED_COST = adjustments.feedCostPerHead;
+		const MONTHLY_WEIGHT_GAIN = adjustments.weightGainPerHead;
 
 		const estimates = activeCattle
 			.map((cattle) => {
@@ -126,6 +201,12 @@ export async function getProfitabilityEstimates() {
 			success: true,
 			data: estimates.slice(0, 5), // Top 5
 			error: null,
+			meta: {
+				isCustomized: adjustments.isCustomized,
+				monthlyFeedCost: MONTHLY_FEED_COST,
+				monthlyWeightGain: MONTHLY_WEIGHT_GAIN,
+				evidence: adjustments.evidence,
+			},
 		};
 	} catch (err) {
 		console.error("수익성 추정 오류:", err);
@@ -137,6 +218,17 @@ export async function getProfitabilityEstimates() {
 			success: false,
 			data: null,
 			error: errorMessage,
+			meta: null,
 		};
 	}
 }
+
+// Re-export so the dashboard widget can surface adjustment metadata.
+export { computeFarmAdjustments };
+
+// Re-export the defaults so consumers can label fallback values consistently.
+export const PROFITABILITY_DEFAULTS = Object.freeze({
+	calfCost: DEFAULT_CALF_COST,
+	monthlyFeedCost: DEFAULT_MONTHLY_FEED_COST,
+	monthlyWeightGain: DEFAULT_MONTHLY_WEIGHT_GAIN,
+});

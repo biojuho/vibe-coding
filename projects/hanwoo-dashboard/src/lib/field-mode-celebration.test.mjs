@@ -15,7 +15,7 @@ test("audio synthesizer library exports playTriumphantChime", () => {
 	const source = readSource("lib/audio.js");
 
 	assert.match(source, /export function playTriumphantChime\s*\(/);
-	assert.match(source, /const notes = \[261.63, 329.63, 392.00, 523.25\]/);
+	assert.match(source, /const notes\s*=\s*\[\s*261\.63\s*,\s*329\.63\s*,\s*392(\.0+)?\s*,\s*523\.25\s*\]/);
 	assert.match(source, /notes\.forEach\(/);
 	assert.match(source, /osc\.connect\(gain\)/);
 	assert.match(source, /gain\.connect\(ctx\.destination\)/);
@@ -37,15 +37,15 @@ test("FieldModeView triggers playTriumphantChime and celebration state when chec
 
 	assert.match(
 		source,
-		/const previouslyCompletedAll = checklist\.length > 0 && checklist\.every/,
+		/const previouslyCompletedAll\s*=\s*checklist\s*\.\s*length\s*>\s*0\s*&&\s*checklist\s*\.\s*every/,
 	);
 	assert.match(
 		source,
-		/const currentlyCompletedAll = updated\.length > 0 && updated\.every/,
+		/const currentlyCompletedAll\s*=\s*updated\s*\.\s*length\s*>\s*0\s*&&\s*updated\s*\.\s*every/,
 	);
 	assert.match(
 		source,
-		/if \(!previouslyCompletedAll && currentlyCompletedAll\) \{/,
+		/if\s*\(\s*!previouslyCompletedAll\s*&&\s*currentlyCompletedAll\s*\)\s*\{/,
 	);
 	assert.match(source, /allCompletedAfterToggle = true;/);
 	assert.match(source, /if \(allCompletedAfterToggle\) \{/);
@@ -58,7 +58,7 @@ test("FieldModeView mounts the celebration canvas with mixBlendMode screen", () 
 
 	assert.match(source, /\{showCelebration && \(/);
 	assert.match(source, /ref=\{celebrationCanvasRef\}/);
-	assert.match(source, /style=\{\{\s*mixBlendMode:\s*'screen'\s*\}\}/);
+	assert.match(source, /style=\{\{\s*mixBlendMode:\s*["']screen["']\s*\}\}/);
 });
 
 test("FieldModeView sets up a beautiful dynamic particle confetti simulation", () => {

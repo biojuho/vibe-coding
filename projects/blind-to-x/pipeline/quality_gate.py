@@ -116,6 +116,7 @@ class QualityGate:
         self._check_repetition(draft_text, result)
         if source_content:
             self._check_source_fidelity(draft_text, source_content, result)
+            self._check_originality(draft_text, source_content, result)
 
         # 종합 점수 산출 (failures: -20점, warnings: -5점)
         penalty = len(result.failures) * 20 + len(result.warnings) * 5
@@ -189,4 +190,70 @@ class QualityGate:
         if not fc.passed and len(fc.fabricated_items) >= 2:
             result.warnings.append(
                 f"potential_fabrication: {len(fc.fabricated_items)}개 수치 미검증 ({', '.join(fc.fabricated_items[:3])})"
+            )
+
+    def _check_originality(
+        self,
+        draft: str,
+        source: str,
+        result: GateResult,
+        min_run: int = 12,
+        warn_threshold: int = 2,
+        fail_threshold: int = 4,
+    ) -> None:
+        """원문 베끼기 (paraphrase 부족) 감지.
+
+        원문과 ``min_run`` 자 이상 연속 일치하는 chunk 수를 센다. 인용("...")
+        구간은 제외 — 인용은 원문 표현 그대로 가져오는 게 올바른 사용법이다.
+        ``warn_threshold`` 이상이면 warning, ``fail_threshold`` 이상이면 failure.
+
+        결정론적·LLM 호출 없음. 한국어 공백 무시 슬라이딩 윈도우.
+        """
+        if not draft or not source:
+            return
+        # 인용부 제거 (큰따옴표, 작은따옴표, 한국어 인용부호)
+        quote_stripped = re.sub(
+            r"""[\"'“”‘’「」『』][^\"'“”‘’「」『』]+["""
+            r"""\"'“”‘’「」『』]""",
+            "",
+            draft,
+        )
+        # 공백을 무시한 정규화 (출처 표기/줄바꿈 차이 보정)
+        norm_draft = re.sub(r"\s+", "", quote_stripped)
+        norm_source = re.sub(r"\s+", "", source)
+        if len(norm_draft) < min_run or len(norm_source) < min_run:
+            return
+
+        # 슬라이딩 윈도우로 일치 시작점들을 모은 뒤, 인접 매치들을 한 chunk 로 병합
+        matches: list[tuple[int, int]] = []  # (draft_pos, length)
+        i = 0
+        while i <= len(norm_draft) - min_run:
+            window = norm_draft[i : i + min_run]
+            if window in norm_source:
+                # 가능한 한 길게 확장
+                length = min_run
+                while (
+                    i + length < len(norm_draft)
+                    and norm_draft[i : i + length + 1] in norm_source
+                ):
+                    length += 1
+                matches.append((i, length))
+                i += length  # 겹치지 않게 점프
+            else:
+                i += 1
+
+        hit_count = len(matches)
+        if hit_count == 0:
+            return
+        result.metrics["copy_chunks"] = float(hit_count)
+        result.metrics["copy_chars"] = float(sum(length for _, length in matches))
+        if hit_count >= fail_threshold:
+            sample = [norm_draft[pos : pos + length] for pos, length in matches[:3]]
+            result.failures.append(
+                f"copy_overlap: 원문과 연속 {min_run}자 이상 일치 {hit_count}곳 "
+                f"(예: {', '.join(repr(s) for s in sample)})"
+            )
+        elif hit_count >= warn_threshold:
+            result.warnings.append(
+                f"copy_overlap_partial: 원문과 연속 {min_run}자 이상 일치 {hit_count}곳 — paraphrase 보완 권장"
             )

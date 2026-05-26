@@ -19,11 +19,11 @@ test("analysis and financial widgets use Korean operator copy", () => {
 
 	assert.match(
 		financialWidgetSource,
-		/import \{ BarChart3 \} from 'lucide-react';/,
+		/import \{ BarChart3 \} from ["']lucide-react["'];/,
 	);
 	assert.match(
 		financialWidgetSource,
-		/<BarChart3 size=\{22\} aria-hidden="true"/,
+		/<BarChart3[\s\S]*?size=\{22\}[\s\S]*?aria-hidden="true"/,
 	);
 	assert.match(
 		analysisSource,
@@ -49,7 +49,7 @@ test("analysis and financial widgets use Korean operator copy", () => {
 	);
 	assert.doesNotMatch(
 		financialWidgetSource,
-		/fontSize: '22px', lineHeight: 1 \}\}>\?<\/span>/,
+		/fontSize: ["']22px["'], lineHeight: 1 \}\}>\?<\/span>/,
 	);
 });
 
@@ -58,29 +58,29 @@ test("analysis tab normalizes numeric inputs before financial and feed aggregati
 
 	assert.match(
 		analysisSource,
-		/import \{ formatMoney, toFiniteNumber \} from '@\/lib\/utils';/,
+		/import \{ formatMoney, toFiniteNumber \} from ["']@\/lib\/utils["'];/,
 	);
 	assert.match(analysisSource, /function toMonthKey\(value\) \{/);
 	assert.match(analysisSource, /function normalizeAnalysisItems\(items\) \{/);
 	assert.match(
 		analysisSource,
-		/return Array\.isArray\(items\) \? items\.filter\(\(item\) => item && typeof item === 'object'\) : \[\];/,
+		/return Array\.isArray\(\s*items\s*\)\s*\?\s*items\s*\.\s*filter\(\s*\(\s*item\s*\)\s*=>\s*item\s*&&\s*typeof\s*item\s*===\s*["']object["']\s*\)\s*:\s*\[\s*\]\s*;?/,
 	);
 	assert.match(
 		analysisSource,
-		/const safeSaleRecords = useMemo\(\(\) => normalizeAnalysisItems\(saleRecords\), \[saleRecords\]\);/,
+		/const safeSaleRecords = useMemo[\s\S]*?normalizeAnalysisItems\(\s*saleRecords\s*\)[\s\S]*?\[\s*saleRecords\s*\]/,
 	);
 	assert.match(
 		analysisSource,
-		/const safeFeedHistory = useMemo\(\(\) => normalizeAnalysisItems\(feedHistory\), \[feedHistory\]\);/,
+		/const safeFeedHistory = useMemo[\s\S]*?normalizeAnalysisItems\(\s*feedHistory\s*\)[\s\S]*?\[\s*feedHistory\s*\]/,
 	);
 	assert.match(
 		analysisSource,
-		/const safeCattleList = useMemo\(\(\) => normalizeAnalysisItems\(cattleList\), \[cattleList\]\);/,
+		/const safeCattleList = useMemo[\s\S]*?normalizeAnalysisItems\(\s*cattleList\s*\)[\s\S]*?\[\s*cattleList\s*\]/,
 	);
 	assert.match(
 		analysisSource,
-		/const safeExpenseRecords = useMemo\(\(\) => normalizeAnalysisItems\(expenseRecords\), \[expenseRecords\]\);/,
+		/const safeExpenseRecords = useMemo[\s\S]*?normalizeAnalysisItems\(\s*expenseRecords\s*\)[\s\S]*?\[\s*expenseRecords\s*\]/,
 	);
 	assert.match(
 		analysisSource,
@@ -113,7 +113,7 @@ test("analysis tab normalizes numeric inputs before financial and feed aggregati
 		analysisSource,
 		/\(totals\[category\] \|\| 0\) \+ toFiniteNumber\(expense\.amount\)/,
 	);
-	assert.match(analysisSource, /\[\.\.\.safeSaleRecords\]\.sort/);
+	assert.match(analysisSource, /\[\s*\.\.\.\s*safeSaleRecords\s*\]\s*\.\s*sort/);
 	assert.match(
 		analysisSource,
 		/toFiniteNumber\(second\.price\) - toFiniteNumber\(first\.price\)/,
@@ -121,7 +121,7 @@ test("analysis tab normalizes numeric inputs before financial and feed aggregati
 	assert.match(analysisSource, /safeFeedHistory\.reduce/);
 	assert.match(
 		analysisSource,
-		/sum \+ toFiniteNumber\(row\.roughage\) \+ toFiniteNumber\(row\.concentrate\)/,
+		/sum\s*\+\s*toFiniteNumber\(\s*row\.roughage\s*\)\s*\+\s*toFiniteNumber\(\s*row\.concentrate\s*\)/,
 	);
 	assert.match(analysisSource, /safeCattleList\.length/);
 	assert.doesNotMatch(analysisSource, /saleRecords\.forEach/);
@@ -151,13 +151,13 @@ test("financial chart widget normalizes numeric inputs before chart aggregation"
 
 	assert.match(
 		source,
-		/import \{ formatMoney, toFiniteNumber \} from '@\/lib\/utils';/,
+		/import \{ formatMoney, toFiniteNumber \} from ["']@\/lib\/utils["'];/,
 	);
 	assert.match(source, /function toMonthKey\(value\) \{/);
 	assert.match(source, /function normalizeFinancialChartItems\(items\) \{/);
 	assert.match(
 		source,
-		/return Array\.isArray\(items\)\s+\? items\.filter\(\(item\) => item && typeof item === 'object'\)\s+: \[\];/,
+		/return Array\.isArray\(\s*items\s*\)\s*\?\s*items\s*\.\s*filter\(\s*\(\s*item\s*\)\s*=>\s*item\s*&&\s*typeof\s*item\s*===\s*["']object["']\s*\)\s*:\s*\[\s*\]\s*;?/,
 	);
 	assert.match(
 		source,
@@ -173,7 +173,7 @@ test("financial chart widget normalizes numeric inputs before chart aggregation"
 	);
 	assert.match(
 		source,
-		/const date = value instanceof Date \? new Date\(value\.getTime\(\)\) : new Date\(value\);/,
+		/const date\s*=\s*value\s*instanceof\s*Date\s*\?\s*new\s+Date\s*\(\s*value\s*\.\s*getTime\s*\(\s*\)\s*\)\s*:\s*new\s+Date\s*\(\s*value\s*\);?/,
 	);
 	assert.match(source, /const dateKey = value\.trim\(\)\.slice\(0, 10\);/);
 	assert.match(
@@ -187,11 +187,11 @@ test("financial chart widget normalizes numeric inputs before chart aggregation"
 	assert.match(source, /if \(!key\) return;/);
 	assert.match(
 		source,
-		/salesByMonth\[key\] = \(salesByMonth\[key\] \|\| 0\) \+ toFiniteNumber\(record\.price\);/,
+		/salesByMonth\[key\]\s*=\s*\(salesByMonth\[key\]\s*\|\|\s*0\s*\)\s*\+\s*toFiniteNumber\(record\.price\)\s*;?/,
 	);
 	assert.match(
 		source,
-		/expensesByMonth\[key\] = \(expensesByMonth\[key\] \|\| 0\) \+ toFiniteNumber\(record\.amount\);/,
+		/expensesByMonth\[key\]\s*=\s*\(\s*expensesByMonth\[key\]\s*\|\|\s*0\s*\)\s*\+\s*toFiniteNumber\(\s*record\.amount\s*\)\s*;?/,
 	);
 	assert.match(source, /safeSeriesData\.length > 0/);
 	assert.match(source, /safeSeriesData\.map\(\(row\) => \(\{/);
@@ -207,7 +207,7 @@ test("financial chart widget normalizes numeric inputs before chart aggregation"
 	assert.doesNotMatch(source, /const date = new Date\(value\);/);
 	assert.doesNotMatch(
 		source,
-		/const key = `\$\{date\.getFullYear\(\)\}-\$\{String\(date\.getMonth\(\) \+ 1\)\.padStart\(2, '0'\)\}`;/,
+		/const key = `\$\{date\.getFullYear\(\)\}-\$\{String\(date\.getMonth\(\) \+ 1\)\.padStart\(2, ["']0["']\)\}`;/,
 	);
 	assert.doesNotMatch(source, /record\.price \|\| 0/);
 	assert.doesNotMatch(source, /record\.amount \|\| 0/);
@@ -217,11 +217,11 @@ test("financial chart widget normalizes numeric inputs before chart aggregation"
 
 	assert.match(
 		summarySource,
-		/import \{ toFiniteNumber \} from '\.\.\/utils';/,
+		/import \{ toFiniteNumber \} from ["']\.\.\/utils["'];/,
 	);
 	assert.match(
 		summarySource,
-		/const date = value instanceof Date \? new Date\(value\.getTime\(\)\) : new Date\(value\);/,
+		/const date\s*=\s*value\s*instanceof\s*Date\s*\?\s*new\s+Date\s*\(\s*value\s*\.\s*getTime\s*\(\s*\)\s*\)\s*:\s*new\s+Date\s*\(\s*value\s*\);?/,
 	);
 	assert.match(
 		summarySource,
@@ -239,11 +239,11 @@ test("financial chart widget normalizes numeric inputs before chart aggregation"
 	assert.match(summarySource, /if \(!monthKey\) continue;/);
 	assert.match(
 		summarySource,
-		/salesByMonth\.set\(monthKey, \(salesByMonth\.get\(monthKey\) \?\? 0\) \+ toFiniteNumber\(record\.price\)\);/,
+		/salesByMonth\.set\(\s*monthKey\s*,\s*\(\s*salesByMonth\.get\(\s*monthKey\s*\)\s*\?\?\s*0\s*\)\s*\+\s*toFiniteNumber\(\s*record\.price\s*\)\s*,?\s*\);?/,
 	);
 	assert.match(
 		summarySource,
-		/expensesByMonth\.set\(monthKey, \(expensesByMonth\.get\(monthKey\) \?\? 0\) \+ toFiniteNumber\(record\.amount\)\);/,
+		/expensesByMonth\.set\(\s*monthKey\s*,\s*\(\s*expensesByMonth\.get\(\s*monthKey\s*\)\s*\?\?\s*0\s*\)\s*\+\s*toFiniteNumber\(\s*record\.amount\s*\)\s*,?\s*\);?/,
 	);
 	assert.match(
 		summarySource,

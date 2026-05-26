@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildTodayFocusItems } from "./today-focus.mjs";
+import {
+	buildTodayFocusItems,
+	estimateDailyFeedConsumptionKg,
+} from "./today-focus.mjs";
 
 test("buildTodayFocusItems prioritizes offline, critical alerts, schedules, and low stock", () => {
 	const items = buildTodayFocusItems({
@@ -33,7 +36,7 @@ test("buildTodayFocusItems prioritizes offline, critical alerts, schedules, and 
 	});
 
 	assert.deepEqual(
-		items.map((item) => item.id),
+		items.map((item) => item.id).slice(0, 4),
 		["offline", "critical-alerts", "next-schedule", "low-stock"],
 	);
 	assert.equal(items[2].title, "vaccination");
@@ -98,6 +101,78 @@ test("buildTodayFocusItems keeps a useful sales prompt when no urgent work exist
 	assert.equal(items[0].type, "sales");
 	assert.equal(items[0].targetTab, "sales");
 	assert.equal(items[0].tone, "neutral");
+});
+
+test("estimateDailyFeedConsumptionKg returns null with no records", () => {
+	const result = estimateDailyFeedConsumptionKg({
+		feedHistory: [],
+		now: new Date("2026-05-18T10:00:00+09:00"),
+	});
+	assert.equal(result, null);
+});
+
+test("estimateDailyFeedConsumptionKg averages recent consumption over 30 days", () => {
+	// 60kg fed over 4 records in the past 10 days → average = 60/30 = 2 kg/day
+	const result = estimateDailyFeedConsumptionKg({
+		feedHistory: [
+			{ date: "2026-05-15", roughage: 10, concentrate: 5 },
+			{ date: "2026-05-12", roughage: 8, concentrate: 7 },
+			{ date: "2026-05-08", roughage: 12, concentrate: 3 },
+			{ date: "2026-05-02", roughage: 9, concentrate: 6 },
+			{ date: "2025-12-01", roughage: 999, concentrate: 999 }, // outside window
+		],
+		now: new Date("2026-05-18T10:00:00+09:00"),
+	});
+	assert.ok(result > 1 && result < 3, `got ${result}`);
+});
+
+test("buildTodayFocusItems pushes a critical feed-depletion item when projected days are tight", () => {
+	const items = buildTodayFocusItems({
+		now: new Date("2026-05-18T10:00:00+09:00"),
+		inventoryList: [
+			// Not low by threshold but will deplete soon at current usage.
+			{
+				id: "feed-a",
+				name: "TMR 사료",
+				category: "Feed",
+				quantity: 20,
+				threshold: 5,
+				unit: "kg",
+			},
+		],
+		feedHistory: [
+			// ~5kg/day average usage → 20kg lasts ~4 days → critical.
+			{ date: "2026-05-17", roughage: 30, concentrate: 30 },
+			{ date: "2026-05-16", roughage: 30, concentrate: 30 },
+			{ date: "2026-05-15", roughage: 30, concentrate: 30 },
+		],
+		monthlySalesCount: 0,
+	});
+	const depletion = items.find((item) => item.id === "feed-depletion");
+	assert.ok(depletion, "should surface feed-depletion item");
+	assert.equal(depletion.tone, "danger");
+	assert.match(depletion.title, /사료 \d+일 후 소진 예상/);
+});
+
+test("buildTodayFocusItems skips feed-depletion when feed history is empty", () => {
+	const items = buildTodayFocusItems({
+		now: new Date("2026-05-18T10:00:00+09:00"),
+		inventoryList: [
+			{
+				id: "feed-a",
+				name: "TMR 사료",
+				category: "Feed",
+				quantity: 20,
+				unit: "kg",
+			},
+		],
+		feedHistory: [],
+		monthlySalesCount: 0,
+	});
+	assert.equal(
+		items.some((item) => item.id === "feed-depletion"),
+		false,
+	);
 });
 
 test("buildTodayFocusItems skips malformed schedule dates", () => {

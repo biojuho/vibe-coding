@@ -47,8 +47,8 @@ test("dashboard cattle mutation catch paths use safe Korean fallback copy", () =
 	assert.match(source, /보관 기록으로 남습니다/);
 	assert.match(source, /개체를 보관 처리했습니다/);
 	assert.match(source, /개체 보관 처리에 실패했습니다/);
-	assert.match(source, /console\.error\('Failed to add cattle:', error\);/);
-	assert.match(source, /console\.error\('Failed to update cattle:', error\);/);
+	assert.match(source, /console\.error\(["']Failed to add cattle:["'], error\);/);
+	assert.match(source, /console\.error\(["']Failed to update cattle:["'], error\);/);
 	assert.doesNotMatch(source, /showError\(errorTitle, error\.message\)/);
 	assert.doesNotMatch(source, /개체를 삭제할까요/);
 	assert.doesNotMatch(source, /개체를 삭제했습니다/);
@@ -74,7 +74,7 @@ test("calving flow requires an operator-entered calf tag number", () => {
 	const formSchemaSource = readSource("lib/formSchemas.js");
 
 	assert.match(calvingTabSource, /송아지 이력번호/);
-	assert.match(calvingTabSource, /register\('calfTagNumber'\)/);
+	assert.match(calvingTabSource, /register\(["']calfTagNumber["']\)/);
 	assert.match(calvingTabSource, /calfTagNumber: values\.calfTagNumber/);
 	assert.match(
 		formSchemaSource,
@@ -99,7 +99,7 @@ test("calving flow requires an operator-entered calf tag number", () => {
 	assert.doesNotMatch(formSchemaSource, /new Date\(value\)\.getTime\(\)/);
 	assert.match(
 		formSchemaSource,
-		/calfTagNumber: requiredText\('송아지 이력번호를 입력해 주세요\.', 30\)/,
+		/calfTagNumber: requiredText\(["']송아지 이력번호를 입력해 주세요\.["'], 30\)/,
 	);
 	assert.doesNotMatch(dashboardSource, /KR0000/);
 	assert.doesNotMatch(dashboardSource, /Math\.random\(\) \* 900000/);
@@ -143,7 +143,7 @@ test("home building navigation uses semantic buttons", () => {
 	const css = readSource("app/globals.css");
 
 	assert.match(source, /<button\s+type="button"\s+className="empty-state-cta/);
-	assert.match(source, /onClick=\{\(\) => handleTabChange\('settings'\)\}/);
+	assert.match(source, /onClick=\{\(\) => handleTabChange\(["']settings["']\)\}/);
 	assert.match(
 		source,
 		/type="button"\s+onClick=\{\(\) => handleSelectBuilding\(building\.id\)\}/,
@@ -197,7 +197,7 @@ test("market price widget uses Korean product copy for visible states", () => {
 	assert.match(source, /cow: data\.cow \?\? \{\}/);
 	assert.match(
 		source,
-		/useState\(\(\) => normalizePriceSnapshot\(initialData\)\)/,
+		/useState\(\s*\(\s*\)\s*=>\s*normalizePriceSnapshot\(\s*initialData\s*\),?\s*\)/,
 	);
 	assert.match(source, /setPrices\(normalizePriceSnapshot\(data\)\)/);
 	assert.match(
@@ -221,17 +221,17 @@ test("market price widget uses Korean product copy for visible states", () => {
 	assert.match(source, /암소 \/ kg/);
 	assert.match(source, /갱신/);
 	assert.match(source, /출처: KAPE/);
-	assert.match(source, /role="status" aria-live="polite"/);
+	assert.match(source, /role="status"\s+aria-live="polite"/);
 	assert.match(source, /disabled=\{loading\}\s+aria-busy=\{loading\}/);
 	assert.match(
 		source,
-		/aria-label=\{loading \? '시세 갱신 중' : '한우 시세 새로고침'\}/,
+		/aria-label=\{loading \? ["']시세 갱신 중["'] : ["']한우 시세 새로고침["']\}/,
 	);
 	assert.match(
 		source,
-		/title=\{loading \? '시세 갱신 중' : '한우 시세 새로고침'\}/,
+		/title=\{loading \? ["']시세 갱신 중["'] : ["']한우 시세 새로고침["']\}/,
 	);
-	assert.match(source, /<RefreshCwIcon aria-hidden="true"/);
+	assert.match(source, /<RefreshCwIcon\s+aria-hidden="true"/);
 	assert.doesNotMatch(source, /Loading market prices/);
 	assert.doesNotMatch(source, /Market price data is unavailable/);
 	assert.doesNotMatch(source, /Market Pulse/);
@@ -272,7 +272,7 @@ test("schedule calendar date cells are semantic buttons", () => {
 	);
 	assert.match(source, /aria-label=\{`\$\{dateStr\} 일정 등록 열기`\}/);
 	assert.match(source, /title=\{`\$\{dateStr\} 일정 등록 열기`\}/);
-	assert.match(source, /textAlign: 'left'/);
+	assert.match(source, /textAlign: ["']left["']/);
 	assert.doesNotMatch(
 		source,
 		/<div\s+key=\{dateStr\}\s+onClick=\{\(\) => openFormForDate\(dateStr\)\}/,
@@ -294,7 +294,10 @@ test("weather widget uses Korean product copy for unavailable state", () => {
 	const dashboardSource = readSource("components/DashboardClient.js");
 	const hookSource = readSource("lib/hooks/useWeather.js");
 
-	assert.match(source, /toFiniteNumber \} from '@\/lib\/utils';/);
+	assert.match(
+		source,
+		/toFiniteNumber[\s\S]*?from\s+["']@\/lib\/utils["']/i,
+	);
 	assert.match(source, /const temp = toFiniteNumber\(weather\.temp\);/);
 	assert.match(source, /const humidity = toFiniteNumber\(weather\.humidity\);/);
 	assert.match(
@@ -317,11 +320,11 @@ test("weather widget uses Korean product copy for unavailable state", () => {
 		source,
 		/const precipitation = toFiniteNumber\(weather\.precipitation\);/,
 	);
-	assert.match(source, /const thi=calcTHI\(temp,humidity\);/);
+	assert.match(source, /const thi\s*=\s*calcTHI\(\s*temp\s*,\s*humidity\s*\);?/);
 	assert.match(source, /function normalizeWeatherForecast\(forecast\) \{/);
 	assert.match(
 		source,
-		/return Array\.isArray\(forecast\)\s+\? forecast\.filter\(\(day\) => day && typeof day === 'object'\)\s+: \[\];/,
+		/return Array\.isArray\(forecast\)\s*\?\s*forecast\s*\.\s*filter\(\s*\(?day\)?\s*=>\s*day\s*&&\s*typeof\s+day\s*===\s*["']object["']\s*,?\s*\)\s*:\s*\[\s*\];?/,
 	);
 	assert.match(
 		source,
@@ -330,18 +333,18 @@ test("weather widget uses Korean product copy for unavailable state", () => {
 
 	assert.match(source, /날씨 확인 불가/);
 	assert.match(source, /지금은 날씨 데이터를 확인할 수 없습니다/);
-	assert.match(source, /'서울'/);
-	assert.match(dashboardSource, /'서울'/);
-	assert.match(hookSource, /'서울'/);
+	assert.match(source, /["']서울["']/);
+	assert.match(dashboardSource, /["']서울["']/);
+	assert.match(hookSource, /["']서울["']/);
 	assert.doesNotMatch(source, /Weather Unavailable/);
 	assert.doesNotMatch(source, /Weather data is temporarily unavailable/);
 	assert.match(
 		source,
-		/<div className="weather-icon-bg" aria-hidden="true">\{icon\}<\/div>/,
+		/<div\s+[\s\S]*?className="weather-icon-bg"[\s\S]*?aria-hidden="true"[\s\S]*?>\s*\{icon\}\s*<\/div>/,
 	);
 	assert.match(
 		source,
-		/<div aria-hidden="true" style=\{\{fontSize:"18px",marginBottom:"3px",lineHeight:1\}\}>\{item\.i\}<\/div>/,
+		/<div\s+[\s\S]*?aria-hidden="true"[\s\S]*?style=\{\{\s*fontSize:\s*["']18px["']\s*,\s*marginBottom:\s*["']3px["']\s*,\s*lineHeight:\s*1\s*,?\s*\}\}\s*>\s*\{item\.i\}\s*<\/div>/,
 	);
 	assert.match(
 		source,
@@ -355,17 +358,17 @@ test("weather widget uses Korean product copy for unavailable state", () => {
 	assert.match(source, /<span aria-hidden="true">📅<\/span> 3일 예보/);
 	assert.match(
 		source,
-		/formatForecastDateLabel\(day\.date, \{ weekday: 'short', month: 'short', day: 'numeric' \}\)/,
+		/formatForecastDateLabel\(\s*day\.date\s*,\s*\{\s*weekday\s*:\s*["']short["']\s*,\s*month\s*:\s*["']short["']\s*,\s*day\s*:\s*["']numeric["']\s*,?\s*\}\s*\)/,
 	);
 	assert.match(source, /safeForecast\.length > 0/);
 	assert.match(
 		source,
-		/gridTemplateColumns:`repeat\(\$\{safeForecast\.length\},1fr\)`/,
+		/gridTemplateColumns:\s*`repeat\(\s*\$\{safeForecast\.length\}\s*,\s*1fr\s*\)`/,
 	);
 	assert.match(source, /safeForecast\.map\(\(day, idx\) => \{/);
 	assert.match(
 		source,
-		/<div aria-label=\{getWeatherDesc\(day\.weatherCode\)\} style=\{\{fontSize:"24px",marginBottom:"4px"\}\}>\{getWeatherIcon\(day\.weatherCode\)\}<\/div>/,
+		/<div\s+[\s\S]*?aria-label=\{getWeatherDesc\(day\.weatherCode\)\}[\s\S]*?style=\{\{\s*fontSize:\s*["']24px["']\s*,\s*marginBottom:\s*["']4px["']\s*,?\s*\}\}\s*>\s*\{getWeatherIcon\(day\.weatherCode\)\}\s*<\/div>/,
 	);
 	assert.match(
 		source,
@@ -403,13 +406,13 @@ test("weather widget uses Korean product copy for unavailable state", () => {
 	);
 	assert.doesNotMatch(dashboardSource, /Weather lookup timed out after 5000ms/);
 	assert.doesNotMatch(hookSource, /Weather lookup timed out after 5000ms/);
-	assert.doesNotMatch(source, /'Seoul'/);
+	assert.doesNotMatch(source, /["']Seoul["']/);
 	assert.doesNotMatch(
 		source,
-		/new Date\(day\.date\)\.toLocaleDateString\('ko-KR'/,
+		/new Date\(day\.date\)\.toLocaleDateString\(["']ko-KR["']/,
 	);
-	assert.doesNotMatch(dashboardSource, /'Seoul'/);
-	assert.doesNotMatch(hookSource, /locationName.*'Seoul'/);
+	assert.doesNotMatch(dashboardSource, /["']Seoul["']/);
+	assert.doesNotMatch(hookSource, /locationName.*["']Seoul["']/);
 });
 
 test("sales tab missing cattle fallback copy stays Korean", () => {
@@ -426,7 +429,7 @@ test("sales tab normalizes numeric inputs before sales and profit aggregation", 
 
 	assert.match(
 		source,
-		/import \{ formatMoney, toFiniteNumber \} from '@\/lib\/utils';/,
+		/import \{ formatMoney, toFiniteNumber \} from ["']@\/lib\/utils["'];/,
 	);
 	assert.match(source, /const salePrice = toFiniteNumber\(record\.price\);/);
 	assert.match(
@@ -458,26 +461,26 @@ test("sales tab normalizes collection payloads before rendering and aggregation"
 	assert.match(source, /function normalizeSalesItems\(items\) \{/);
 	assert.match(
 		source,
-		/const safeSaleRecords = useMemo\(\(\) => normalizeSalesItems\(saleRecords\), \[saleRecords\]\);/,
+		/const safeSaleRecords = useMemo\(\s*\(\s*\)\s*=>\s*normalizeSalesItems\(\s*saleRecords\s*\),\s*\[\s*saleRecords\s*\],?\s*\);?/,
 	);
 	assert.match(
 		source,
-		/const safeCattleList = useMemo\(\(\) => normalizeSalesItems\(cattleList\), \[cattleList\]\);/,
+		/const safeCattleList = useMemo\(\s*\(\s*\)\s*=>\s*normalizeSalesItems\(\s*cattleList\s*\),\s*\[\s*cattleList\s*\],?\s*\);?/,
 	);
 	assert.match(
 		source,
-		/const safeExpenseRecords = useMemo\(\(\) => normalizeSalesItems\(expenseRecords\), \[expenseRecords\]\);/,
+		/const safeExpenseRecords = useMemo\(\s*\(\s*\)\s*=>\s*normalizeSalesItems\(\s*expenseRecords\s*\),\s*\[\s*expenseRecords\s*\],?\s*\);?/,
 	);
 	assert.match(source, /\[\.\.\.safeSaleRecords\]/);
 	assert.match(
 		source,
-		/safeCattleList\.find\(\(item\) => item\.id === record\.cattleId\)/,
+		/safeCattleList\s*\.\s*find\(\s*\(?item\)?\s*=>\s*item\s*\.\s*id\s*===\s*record\s*\.\s*cattleId\s*,?\s*\)/,
 	);
 	assert.match(
 		source,
-		/safeExpenseRecords\.filter\(\(expense\) => expense\.cattleId === record\.cattleId\)/,
+		/safeExpenseRecords\s*\.\s*filter\(\s*\(?expense\)?\s*=>\s*expense\s*\.\s*cattleId\s*===\s*record\s*\.\s*cattleId\s*,?\s*\)/,
 	);
-	assert.match(source, /safeCattleList\.map\(\(cow\) => \(/);
+	assert.match(source, /safeCattleList\s*\.\s*map\(\s*\(?cow\)?\s*=>\s*\(/);
 	assert.match(source, /disabled=\{!safeCattleList\.length \|\| isSaving\}/);
 	assert.match(source, /actionLabel=\{safeCattleList\.length \?/);
 	assert.doesNotMatch(source, /\[\.\.\.saleRecords\]/);
@@ -494,7 +497,7 @@ test("dashboard fallback average weight normalizes cattle weights", () => {
 
 	assert.match(
 		source,
-		/import \{ formatMoney, toFiniteNumber \} from '@\/lib\/utils';/,
+		/import \{ formatMoney, toFiniteNumber \} from ["']@\/lib\/utils["'];/,
 	);
 	assert.match(source, /sum \+ toFiniteNumber\(cow\.weight\)/);
 	assert.doesNotMatch(source, /sum \+ \(cow\.weight \|\| 0\)/);
@@ -511,7 +514,7 @@ test("dashboard normalizes malformed building payloads before home rendering", (
 	);
 	assert.match(
 		source,
-		/useState\(\(\s*\)\s*=>\s*normalizeDashboardBuildings\(initialBuildings\)\)/,
+		/useState\(\s*\(\s*\)\s*=>\s*normalizeDashboardBuildings\(\s*initialBuildings\s*\),?\s*\)/,
 	);
 	assert.match(
 		source,
@@ -538,11 +541,11 @@ test("dashboard normalizes cattle collection before home rendering and full expo
 	);
 	assert.match(
 		source,
-		/normalizeDashboardItems\(cattleItems\)\s+\.map\(\(cow\) => \(\{/,
+		/normalizeDashboardItems\(cattleItems\)\s*\.\s*map\(\s*\(?cow\)?\s*=>\s*\(\{/,
 	);
 	assert.match(
 		source,
-		/name: typeof cow\.name === 'string' && cow\.name\.trim\(\)\.length > 0/,
+		/name:\s*typeof cow\.name === ["']string["']\s*&&\s*cow\.name\.trim\(\)\.length > 0/,
 	);
 	assert.match(
 		source,
@@ -578,11 +581,11 @@ test("dashboard normalizes notification payloads before home rendering", () => {
 	assert.match(source, /Array\.isArray\(notifications\)/);
 	assert.match(
 		source,
-		/\.filter\(\(notification\) => notification && typeof notification === 'object'\)/,
+		/\.filter\(\s*\(?notification\)?\s*=>\s*notification\s*&&\s*typeof\s+notification\s*===\s*["']object["']\s*,?\s*\)/,
 	);
 	assert.match(
 		source,
-		/useState\(\(\) => normalizeDashboardNotifications\(initialNotifications\)\)/,
+		/useState\(\s*\(\s*\)\s*=>\s*normalizeDashboardNotifications\(\s*initialNotifications\s*\),?\s*\)/,
 	);
 	assert.match(
 		source,
@@ -590,12 +593,12 @@ test("dashboard normalizes notification payloads before home rendering", () => {
 	);
 	assert.match(
 		source,
-		/\{notifications\.some\(\(notification\) => notification\.level === 'critical'\) && \(/,
+		/\{notifications\s*\.\s*some\(\s*\(?notification\)?\s*=>\s*notification\s*\.\s*level\s*===\s*["']critical["']\s*,?\s*\)\s*&&\s*\(/,
 	);
-	assert.match(source, /<NotificationModal notifications=\{notifications\}/);
-	assert.match(source, /<NotificationWidget notifications=\{notifications\}/);
-	assert.match(source, /<EstrusAlertBanner notifications=\{notifications\}/);
-	assert.match(source, /<CalvingAlertBanner notifications=\{notifications\}/);
+	assert.match(source, /<NotificationModal\s+notifications=\{notifications\}/);
+	assert.match(source, /<NotificationWidget\s+notifications=\{notifications\}/);
+	assert.match(source, /<EstrusAlertBanner\s+notifications=\{notifications\}/);
+	assert.match(source, /<CalvingAlertBanner\s+notifications=\{notifications\}/);
 	assert.doesNotMatch(source, /useState\(initialNotifications \|\| \[\]\)/);
 });
 
@@ -629,7 +632,7 @@ test("sales form fields expose explicit labels and invalid state", () => {
 
 	assert.match(
 		source,
-		/<PremiumLabel htmlFor="sale-date">출하일자<\/PremiumLabel>/,
+		/<PremiumLabel htmlFor="sale-date">\s*출하일자\s*<\/PremiumLabel>/,
 	);
 	assert.match(
 		source,
@@ -637,7 +640,7 @@ test("sales form fields expose explicit labels and invalid state", () => {
 	);
 	assert.match(
 		source,
-		/<PremiumLabel htmlFor="sale-price">판매 가격 \(원\)<\/PremiumLabel>/,
+		/<PremiumLabel htmlFor="sale-price">\s*판매 가격 \(원\)\s*<\/PremiumLabel>/,
 	);
 	assert.match(
 		source,
@@ -645,7 +648,7 @@ test("sales form fields expose explicit labels and invalid state", () => {
 	);
 	assert.match(
 		source,
-		/<PremiumLabel htmlFor="sale-cattle">출하 개체<\/PremiumLabel>/,
+		/<PremiumLabel htmlFor="sale-cattle">\s*출하 개체\s*<\/PremiumLabel>/,
 	);
 	assert.match(
 		source,
@@ -653,7 +656,7 @@ test("sales form fields expose explicit labels and invalid state", () => {
 	);
 	assert.match(
 		source,
-		/<PremiumLabel htmlFor="sale-grade">등급<\/PremiumLabel>/,
+		/<PremiumLabel htmlFor="sale-grade">\s*등급\s*<\/PremiumLabel>/,
 	);
 	assert.match(
 		source,
@@ -661,7 +664,7 @@ test("sales form fields expose explicit labels and invalid state", () => {
 	);
 	assert.match(
 		source,
-		/<PremiumLabel htmlFor="sale-purchaser">구매처<\/PremiumLabel>/,
+		/<PremiumLabel htmlFor="sale-purchaser">\s*구매처\s*<\/PremiumLabel>/,
 	);
 	assert.match(
 		source,
@@ -683,10 +686,13 @@ test("sales form validation messages are announced by their controls", () => {
 		assert.match(
 			source,
 			new RegExp(
-				`aria-describedby=\\{errors\\.${errorPath} \\? "${errorId}" : undefined\\}`,
+				`aria-describedby=\\{\\s*errors\\.${errorPath}\\s*\\?\\s*"${errorId}"\\s*:\\s*undefined\\s*\\}`,
 			),
 		);
-		assert.match(source, new RegExp(`<div id="${errorId}" role="alert"`));
+		assert.match(
+			source,
+			new RegExp(`<div\\s+[\\s\\S]*?id="${errorId}"[\\s\\S]*?role="alert"`),
+		);
 	}
 });
 
@@ -710,7 +716,7 @@ test("sales form waits for async saves before re-enabling actions", () => {
 	assert.match(source, /onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}/);
 	assert.match(
 		source,
-		/const submitButtonLabel = isSaving \? '판매 기록 등록 중' : '판매 기록 등록하기';/,
+		/const submitButtonLabel = isSaving\s*\?\s*["']판매 기록 등록 중["']\s*:\s*["']판매 기록 등록하기["'];?/,
 	);
 	assert.match(
 		source,
@@ -735,7 +741,7 @@ test("inventory form fields expose explicit labels and invalid state", () => {
 	);
 	assert.match(
 		source,
-		/<PremiumLabel htmlFor="inventory-category">분류<\/PremiumLabel>/,
+		/<PremiumLabel htmlFor="inventory-category">\s*분류\s*<\/PremiumLabel>/,
 	);
 	assert.match(
 		source,
@@ -743,7 +749,7 @@ test("inventory form fields expose explicit labels and invalid state", () => {
 	);
 	assert.match(
 		source,
-		/<PremiumLabel htmlFor="inventory-quantity">수량<\/PremiumLabel>/,
+		/<PremiumLabel htmlFor="inventory-quantity">\s*수량\s*<\/PremiumLabel>/,
 	);
 	assert.match(
 		source,
@@ -751,7 +757,7 @@ test("inventory form fields expose explicit labels and invalid state", () => {
 	);
 	assert.match(
 		source,
-		/<PremiumLabel htmlFor="inventory-unit">단위<\/PremiumLabel>/,
+		/<PremiumLabel htmlFor="inventory-unit">\s*단위\s*<\/PremiumLabel>/,
 	);
 	assert.match(
 		source,
@@ -759,7 +765,7 @@ test("inventory form fields expose explicit labels and invalid state", () => {
 	);
 	assert.match(
 		source,
-		/<PremiumLabel htmlFor="inventory-threshold">경고 기준값<\/PremiumLabel>/,
+		/<PremiumLabel htmlFor="inventory-threshold">\s*경고 기준값\s*<\/PremiumLabel>/,
 	);
 	assert.match(
 		source,
@@ -781,10 +787,13 @@ test("inventory form validation messages are announced by their controls", () =>
 		assert.match(
 			source,
 			new RegExp(
-				`aria-describedby=\\{errors\\.${errorPath} \\? "${errorId}" : undefined\\}`,
+				`aria-describedby=\\{\\s*errors\\.${errorPath}\\s*\\?\\s*"${errorId}"\\s*:\\s*undefined\\s*\\}`,
 			),
 		);
-		assert.match(source, new RegExp(`<div id="${errorId}" role="alert"`));
+		assert.match(
+			source,
+			new RegExp(`<div\\s+[\\s\\S]*?id="${errorId}"[\\s\\S]*?role="alert"`),
+		);
 	}
 });
 
@@ -808,7 +817,7 @@ test("inventory form waits for async saves before re-enabling actions", () => {
 	assert.match(source, /onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}/);
 	assert.match(
 		source,
-		/const submitButtonLabel = isSaving \? '재고 등록 중' : '재고 등록하기';/,
+		/const submitButtonLabel = isSaving\s*\?\s*["']재고 등록 중["']\s*:\s*["']재고 등록하기["'];?/,
 	);
 	assert.match(
 		source,

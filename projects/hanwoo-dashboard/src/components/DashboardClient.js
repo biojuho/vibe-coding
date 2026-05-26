@@ -1288,10 +1288,18 @@ export default function DashboardClient({
 				notifications,
 				scheduleEvents,
 				inventoryList,
+				feedHistory,
 				monthlySalesCount,
 				isOnline,
 			}),
-		[inventoryList, isOnline, monthlySalesCount, notifications, scheduleEvents],
+		[
+			feedHistory,
+			inventoryList,
+			isOnline,
+			monthlySalesCount,
+			notifications,
+			scheduleEvents,
+		],
 	);
 
 	const setupProgress = useMemo(
@@ -1590,6 +1598,7 @@ export default function DashboardClient({
 						data={initialProfitability?.data}
 						error={initialProfitability?.error}
 						isLoading={false}
+						meta={initialProfitability?.meta ?? null}
 					/>
 				)}
 				{widgetSettings.visible.estrus && (

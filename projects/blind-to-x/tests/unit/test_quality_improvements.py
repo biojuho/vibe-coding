@@ -68,9 +68,16 @@ class TestQualityGateSubstanceChecks(unittest.TestCase):
         self.assertTrue(len(vague_items) > 0, "구체성 부족 항목이 있어야 함")
 
     def test_existing_checks_still_work(self):
-        """기존 형식 검사(글자수, 한글비율, CTA)가 여전히 작동."""
-        # 정상 트윗 (60자 이상, CTA 포함)
-        good = "블라인드에서 연봉 5천 자랑글이 올라왔는데, 밑에 달린 댓글이 진짜 레전드였어요. 여러분은 올해 연봉 얼마나 올랐나요?"
+        """기존 형식 검사(글자수, 한글비율)가 여전히 작동.
+
+        브랜드 보이스 정책 갱신 (2026-05-26) 에 맞춰 골든 예시도 평서문 마무리,
+        인플루언서 어휘 없음, 도입 강박 없음으로 정렬.
+        """
+        # 정상 트윗 (60자 이상, 280자 이하, 모든 신 정책 통과)
+        good = (
+            "연봉 5천 자랑글 한 줄 밑에 '저는 그게 월급인데요' 한 줄이 달렸다. "
+            "같은 숫자가 누군가에겐 자랑이고 누군가에겐 한 달치 월급이라는 거리감이 남았다."
+        )
         result = self.gate.validate("twitter", good)
         self.assertTrue(result.passed)
         # 너무 긴 트윗

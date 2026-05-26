@@ -15,27 +15,27 @@ test("primary data-entry submit buttons show pending copy while saving", () => {
 	const expectations = [
 		[
 			"components/forms/CattleForm.js",
-			/\{isSaving \? '저장 중\.\.\.' : '저장하기'\}/,
+			/\{isSaving\s*\?\s*["']저장 중\.\.\.["']\s*:\s*["']저장하기["']\s*\}/,
 		],
 		[
 			"components/tabs/CalvingTab.js",
-			/\{isSaving \? '분만 기록 저장 중\.\.\.' : '분만 완료 및 송아지 등록'\}/,
+			/\{isSaving\s*\?\s*["']분만 기록 저장 중\.\.\.["']\s*:\s*["']분만 완료 및 송아지 등록["']\s*\}/,
 		],
 		[
 			"components/tabs/ScheduleTab.js",
-			/\{isSaving \? '일정 등록 중\.\.\.' : '일정 등록하기'\}/,
+			/\{isSaving\s*\?\s*["']일정 등록 중\.\.\.["']\s*:\s*["']일정 등록하기["']\s*\}/,
 		],
 		[
 			"components/tabs/FeedTab.js",
-			/\{isSaving \? '급여 기록 저장 중\.\.\.' : '급여 기록 저장하기'\}/,
+			/\{isSaving\s*\?\s*["']급여 기록 저장 중\.\.\.["']\s*:\s*["']급여 기록 저장하기["']\s*\}/,
 		],
 		[
 			"components/tabs/InventoryTab.js",
-			/\{isSaving \? '재고 등록 중\.\.\.' : '등록하기'\}/,
+			/\{isSaving\s*\?\s*["']재고 등록 중\.\.\.["']\s*:\s*["']등록하기["']\s*\}/,
 		],
 		[
 			"components/tabs/SalesTab.js",
-			/\{isSaving \? '판매 기록 등록 중\.\.\.' : '등록하기'\}/,
+			/\{isSaving\s*\?\s*["']판매 기록 등록 중\.\.\.["']\s*:\s*["']등록하기["']\s*\}/,
 		],
 	];
 

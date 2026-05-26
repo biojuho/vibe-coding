@@ -30,8 +30,8 @@ test("server action user-facing failures use Korean product copy", () => {
 		cattleActions,
 		/이미 등록된 이력번호입니다\. 다른 이력번호를 입력해 주세요\./,
 	);
-	assert.match(cattleActions, /error\?\.code !== 'P2002'/);
-	assert.match(cattleActions, /target\.includes\('tagNumber'\)/);
+	assert.match(cattleActions, /error\?\.code !== ["']P2002["']/);
+	assert.match(cattleActions, /target\.includes\(["']tagNumber["']\)/);
 	assert.match(cattleActions, /판매 기록이 있어 보관 처리할 수 없습니다/);
 	assert.match(cattleActions, /개체 보관 처리에 실패했습니다/);
 	assert.doesNotMatch(cattleActions, /개체 삭제에 실패했습니다/);
@@ -69,7 +69,7 @@ test("sales history copy uses validated payload values", () => {
 	const salesActions = readSource("lib/actions/sales.js");
 
 	assert.match(salesActions, /payload\.price\.toLocaleString\(\)/);
-	assert.match(salesActions, /payload\.grade \|\| '-'/);
+	assert.match(salesActions, /payload\.grade \|\| ["']-["']/);
 	assert.doesNotMatch(salesActions, /parseInt\(data\.price\)/);
-	assert.doesNotMatch(salesActions, /data\.grade \|\| '-'/);
+	assert.doesNotMatch(salesActions, /data\.grade \|\| ["']-["']/);
 });

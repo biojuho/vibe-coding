@@ -14,12 +14,12 @@ function readSource(relativePath) {
 test("cattle form submit date conversion avoids raw invalid Date toISOString calls", () => {
 	const source = readSource("components/forms/CattleForm.js");
 
-	assert.match(source, /import \{ toInputDate \} from '@\/lib\/utils';/);
+	assert.match(source, /import \{ toInputDate \} from ["']@\/lib\/utils["'];/);
 	assert.match(source, /function toIsoDateOrNull\(value\) \{/);
 	assert.match(source, /const inputDate = toInputDate\(value\);/);
 	assert.match(
 		source,
-		/return inputDate \? new Date\(`\$\{inputDate\}T00:00:00\.000Z`\)\.toISOString\(\) : null;/,
+		/return inputDate\s*\?\s*new\s+Date\(\s*[`"']\s*\$\{inputDate\}T00:00:00\.000Z\s*[`"']\s*\)\s*\.\s*toISOString\(\s*\)\s*:\s*null\s*;?/,
 	);
 	assert.match(
 		source,

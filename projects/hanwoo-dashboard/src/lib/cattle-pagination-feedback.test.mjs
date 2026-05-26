@@ -33,7 +33,7 @@ test("cattle pagination failures surface Korean retry feedback", () => {
 	assert.match(dashboardSource, /cattlePagination\.loadError/);
 	assert.match(
 		dashboardSource,
-		/const cattleLoadMoreLabel = cattlePagination\.isLoading \? '개체 목록을 불러오는 중입니다' : '개체 더 보기';/,
+		/const cattleLoadMoreLabel = cattlePagination\.isLoading\s*\?\s*["']개체 목록을 불러오는 중입니다["']\s*:\s*["']개체 더 보기["']/,
 	);
 	assert.match(dashboardSource, /aria-busy=\{cattlePagination\.isLoading\}/);
 	assert.match(dashboardSource, /aria-label=\{cattleLoadMoreLabel\}/);
@@ -50,11 +50,11 @@ test("cattle pagination normalizes malformed page item payloads", () => {
 	assert.match(hookSource, /function normalizePaginationItems\(items\) \{/);
 	assert.match(
 		hookSource,
-		/Array\.isArray\(items\) \? items\.filter\(\(item\) => item && typeof item === 'object'\) : \[\]/,
+		/Array\.isArray\(items\)\s*\?\s*items\.filter\(\s*\(item\)\s*=>\s*item\s*&&\s*typeof\s*item\s*===\s*["']object["']\s*\)\s*:\s*\[\]/,
 	);
 	assert.match(
 		hookSource,
-		/useState\(\(\) => normalizePaginationItems\(initialItems\)\)/,
+		/useState\(\s*\(\s*\)\s*=>\s*normalizePaginationItems\(\s*initialItems\s*\),?\s*\)/,
 	);
 	assert.match(
 		hookSource,
@@ -66,7 +66,7 @@ test("cattle pagination normalizes malformed page item payloads", () => {
 	);
 	assert.match(
 		hookSource,
-		/setItems\(\(prev\) => \[\.\.\.normalizePaginationItems\(prev\), \.\.\.safeNewItems\]\);/,
+		/setItems\(\s*\(\s*prev\s*\)\s*=>\s*\[\s*\.\.\.\s*normalizePaginationItems\(\s*prev\s*\),\s*\.\.\.\s*safeNewItems,?\s*\]\s*\)/,
 	);
 	assert.doesNotMatch(hookSource, /useState\(initialItems\)/);
 	assert.doesNotMatch(

@@ -20,11 +20,11 @@ test("pen and cattle cards use native button activation semantics", () => {
 
 	assert.match(
 		source,
-		/<button\s+type="button"[\s\S]*?onClick=\{\(\)=>onSelect\(buildingId,penNumber\)\}/,
+		/<button\s+type="button"[\s\S]*?onClick=\{\(\)\s*=>\s*onSelect\(\s*buildingId\s*,\s*penNumber\s*\)\}/,
 	);
 	assert.match(
 		source,
-		/<button\s+type="button"[\s\S]*?onClick=\{\(\)=>onClick\(cow\)\}/,
+		/<button\s+type="button"[\s\S]*?onClick=\{\(\)\s*=>\s*onClick\(\s*cow\s*\)\}/,
 	);
 	assert.match(source, /aria-label=\{`\$\{penNumber\}/);
 	assert.match(source, /aria-label=\{cattleAccessibleLabel\}/);
@@ -37,21 +37,21 @@ test("pen cards normalize cattle payloads before rendering", () => {
 
 	assert.match(source, /function normalizePenCattle\(cattle\) \{/);
 	assert.match(source, /return Array\.isArray\(cattle\)/);
-	assert.match(source, /\.filter\(\(cow\) => cow && typeof cow === 'object'\)/);
+	assert.match(source, /\.filter\(\(cow\) => cow && typeof cow === ["']object["']\)/);
 	assert.match(source, /id: cow\.id \?\? `pen-cattle-\$\{index\}`/);
 	assert.match(
 		source,
-		/name: typeof cow\.name === 'string' && cow\.name\.trim\(\) \? cow\.name : '개체명 미등록'/,
+		/name:\s*typeof cow\.name\s*===\s*["']string["']\s*&&\s*cow\.name\.trim\(\)\s*\?\s*cow\.name\s*:\s*["']개체명 미등록["']/,
 	);
 	assert.match(source, /const visibleCattle = normalizePenCattle\(cattle\);/);
 	assert.match(
 		source,
-		/visibleCattle\.some\(c=>c\.lastEstrus&&isEstrusAlert\(c\.lastEstrus\)\)/,
+		/visibleCattle\s*\.\s*some\(\s*\(\s*c\s*\)\s*=>\s*c\s*\.\s*lastEstrus\s*&&\s*isEstrusAlert\(\s*c\s*\.\s*lastEstrus\s*\)\s*,?\s*\)/,
 	);
-	assert.match(source, /const isEmpty=visibleCattle\.length===0;/);
+	assert.match(source, /const\s+isEmpty\s*=\s*visibleCattle\s*\.\s*length\s*===\s*0\s*;?/);
 	assert.match(source, /visibleCattle\.length\}두 배치됨/);
 	assert.match(source, /visibleCattle\.length\}\/5/);
-	assert.match(source, /visibleCattle\.map\(\(c,idx\)=>/);
+	assert.match(source, /visibleCattle\s*\.\s*map\(\s*\(\s*c\s*,\s*idx\s*\)\s*=>/);
 	assert.doesNotMatch(source, /cattle\.some/);
 	assert.doesNotMatch(source, /cattle\.length/);
 	assert.doesNotMatch(source, /cattle\.map/);

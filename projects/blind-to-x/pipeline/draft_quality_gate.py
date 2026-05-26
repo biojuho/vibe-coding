@@ -238,6 +238,106 @@ def _has_cliche_opening(text: str) -> bool:
     )
 
 
+# ── P1-A: 인플루언서 어휘 zero-tolerance ──────────────────────────────
+# brand_voice yaml 의 "절대 금지" 목록과 동기화. 1회만 등장해도 톤이 깨지므로
+# cliche_watchlist (3개 임계) 와 별도로 즉시 실패시킨다.
+#
+# 의도적으로 제외한 어휘: "지뢰", "시그널" — 일상 어휘(지뢰밭, 매수 시그널)와
+# 충돌이 잦아 false positive 가 많다. 3회 이상 누적은 cliche_watchlist 가 잡는다.
+_INFLUENCER_VOCAB = (
+    "끝판왕",
+    "민낯",
+    "쓴맛",
+    "기절할 뻔",
+    "어처구니없",
+    "어질어질",
+    "한 수 알려",
+    "정신 차리고 봐",
+    "현실 자각 타임",
+    "팩폭",
+    "팩폭당",
+    "레전드",
+)
+
+
+def _find_influencer_vocab(text: str) -> list[str]:
+    """인플루언서 명사화·과장 어휘를 찾아서 매칭된 어휘 리스트를 반환."""
+    found: list[str] = []
+    for word in _INFLUENCER_VOCAB:
+        if word in text:
+            found.append(word)
+    # 중복 제거 (순서 유지)
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for word in found:
+        if word not in seen:
+            seen.add(word)
+            deduped.append(word)
+    return deduped
+
+
+# ── P1-B: 마무리 여운 (마지막 문장이 CTA/질문으로 끝나지 않아야 함) ──
+_CLOSING_CTA_PATTERNS = re.compile(
+    r"(댓글로|저장해|공감하면|RT 부탁|리트윗 부탁|구독 부탁|팔로우 부탁|"
+    r"좋아요 부탁|한 수 알려|의견 알려|어떻게 생각|어떠신가요|"
+    r"공감되시면|아닐까요|아닐까\??$|않을까요|않을까\??$)"
+)
+
+
+def _ends_with_cta_or_question(text: str) -> str | None:
+    """마지막 문장이 질문/CTA 로 끝나면 매칭된 사유, 아니면 None."""
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?。\n])\s*", text.strip()) if s.strip()]
+    if not sentences:
+        return None
+    last = sentences[-1]
+    # 트레일링 구두점 제거
+    last_clean = last.rstrip()
+    if last_clean.endswith(("?", "？")):
+        return "마지막 문장이 질문(?)으로 끝남"
+    if _CLOSING_CTA_PATTERNS.search(last_clean):
+        return "마지막 문장에 CTA 패턴 포함"
+    return None
+
+
+# ── P1-C: 이모지 카운트 ───────────────────────────────────────────────
+# BMP 외(U+1F300~U+1FAFF) + 일부 BMP 심볼 + variation selector 동반 이모지.
+# 한글/숫자/구두점은 카운트하지 않음.
+_EMOJI_PATTERN = re.compile(
+    "["
+    "\U0001f300-\U0001f5ff"  # 기호·픽토그램
+    "\U0001f600-\U0001f64f"  # 이모티콘
+    "\U0001f680-\U0001f6ff"  # 운송·지도
+    "\U0001f700-\U0001f77f"
+    "\U0001f780-\U0001f7ff"
+    "\U0001f800-\U0001f8ff"
+    "\U0001f900-\U0001f9ff"  # 추가 기호·픽토그램
+    "\U0001fa00-\U0001faff"  # 추가 픽토그램
+    "\U00002600-\U000027bf"  # 기타 기호·딩벳
+    "]"
+)
+
+
+def _count_emojis(text: str) -> int:
+    """이모지(픽토그래프) 개수를 결정론적으로 카운트."""
+    return len(_EMOJI_PATTERN.findall(text or ""))
+
+
+# ── P1-D: 출처 도입 강박 ──────────────────────────────────────────────
+_LEAD_DEPENDENCY_PATTERN = re.compile(
+    r"(블라인드|뽐뿌|에펨코리아|fmkorea|잡플래닛|jobplanet|커뮤니티|레딧)"
+    r"(?:에서|에)\s*"
+    r"(?:봤|본\s*(?:글|얘기|이야기)|들었|들은|올라온|올라왔)"
+)
+
+
+def _has_lead_dependency(text: str) -> bool:
+    """첫 문장이 '~에서 봤는데/~에 올라온 글인데' 류 도입 강박을 사용하는지."""
+    first_sentence = re.split(r"(?<=[.!?\n])\s+|\n+", text.strip(), maxsplit=1)[0]
+    if not first_sentence:
+        return False
+    return bool(_LEAD_DEPENDENCY_PATTERN.search(first_sentence))
+
+
 class DraftQualityGate:
     """LLM 생성 초안의 플랫폼별 품질 검증 게이트.
 
@@ -342,6 +442,54 @@ class DraftQualityGate:
         # 새 톤(여운 마무리)의 핵심 위반 패턴이라 require_cta=False여도 검사 유지.
         if _has_generic_cta(text):
             result.add("상투적 CTA", False, "'여러분 생각은?'류의 generic CTA는 금지입니다", "error")
+
+        # ── P1-A: 인플루언서 어휘 zero-tolerance (1회만 등장해도 실패) ─
+        influencer_hits = _find_influencer_vocab(text)
+        if influencer_hits:
+            result.add(
+                "인플루언서 어휘",
+                False,
+                f"자극적 명사화·과장 표현 {len(influencer_hits)}개: {', '.join(influencer_hits[:5])}",
+                "error",
+            )
+
+        # ── P1-B: 마무리 여운 (twitter/threads 만 — 블로그는 마무리 형식이 다름) ─
+        if platform in ("twitter", "threads"):
+            closing_violation = _ends_with_cta_or_question(text)
+            if closing_violation:
+                result.add(
+                    "마무리 여운",
+                    False,
+                    closing_violation + " — 담담한 평서문으로 끝낼 것",
+                    "error",
+                )
+
+        # ── P1-C: 이모지 카운트 (twitter/threads: 기본 0개, 1개 허용, 그 이상 경고) ─
+        if platform in ("twitter", "threads"):
+            emoji_count = _count_emojis(text)
+            if emoji_count > 3:
+                result.add(
+                    "이모지 과다",
+                    False,
+                    f"이모지 {emoji_count}개 — 기본 없음, 정말 의미 있을 때만 1개 이하",
+                    "error",
+                )
+            elif emoji_count > 1:
+                result.add(
+                    "이모지 절제",
+                    False,
+                    f"이모지 {emoji_count}개 — 1개 이하 권장",
+                    "warning",
+                )
+
+        # ── P1-D: 출처 도입 강박 ('~에서 봤는데') ─────────────────────
+        if platform in ("twitter", "threads") and _has_lead_dependency(text):
+            result.add(
+                "도입 강박",
+                False,
+                "'~에서 봤는데/~에 올라온 글'로 시작하는 출처 도입 강박은 피할 것",
+                "warning",
+            )
 
         # ── 4. 해시태그 검증 ─────────────────────────────────────────
         hashtag_count = _count_hashtags(text)

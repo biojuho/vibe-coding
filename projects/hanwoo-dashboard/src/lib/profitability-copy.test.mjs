@@ -34,7 +34,7 @@ test("profitability service surfaces Korean operator-facing error copy", () => {
 test("profitability service normalizes dates and numeric inputs before estimating", () => {
 	const source = readSource("lib/dashboard/profitability-service.js");
 
-	assert.match(source, /import \{ toFiniteNumber \} from '\.\.\/utils';/);
+	assert.match(source, /import \{ toFiniteNumber \} from ["']\.\.\/utils["'];/);
 	assert.match(source, /function toValidDate\(value\) \{/);
 	assert.match(source, /const start = toValidDate\(d1\);/);
 	assert.match(source, /const end = toValidDate\(d2\);/);
@@ -45,19 +45,19 @@ test("profitability service normalizes dates and numeric inputs before estimatin
 	);
 	assert.match(
 		source,
-		/const baseCost = toFiniteNumber\(cattle\.purchasePrice\) \|\| DEFAULT_CALF_COST;/,
+		/const baseCost\s*=\s*toFiniteNumber\(cattle\.purchasePrice\)\s*\|\|\s*DEFAULT_CALF_COST;/,
 	);
 	assert.match(
 		source,
-		/const currentWeight = toFiniteNumber\(cattle\.weight\);/,
+		/const currentWeight\s*=\s*toFiniteNumber\(cattle\.weight\);/,
 	);
 	assert.match(
 		source,
-		/const currentRevenue = currentWeight \* currentKgPrice;/,
+		/const currentRevenue\s*=\s*currentWeight\s*\*\s*currentKgPrice;/,
 	);
 	assert.match(
 		source,
-		/const futureWeight = currentWeight \+ MONTHLY_WEIGHT_GAIN;/,
+		/const futureWeight\s*=\s*currentWeight\s*\+\s*MONTHLY_WEIGHT_GAIN;/,
 	);
 	assert.match(source, /weight: currentWeight,/);
 	assert.doesNotMatch(
@@ -97,7 +97,7 @@ test("profitability widget renders the error message verbatim", () => {
 test("profitability widget normalizes recommendation values before rendering", () => {
 	const source = readSource("components/widgets/ProfitabilityWidget.js");
 
-	assert.match(source, /import \{ toFiniteNumber \} from '@\/lib\/utils';/);
+	assert.match(source, /import \{ toFiniteNumber \} from ["']@\/lib\/utils["'];/);
 	assert.match(source, /visibleData\.map\(\(rawItem\) =>/);
 	assert.match(
 		source,
@@ -108,9 +108,9 @@ test("profitability widget normalizes recommendation values before rendering", (
 	assert.match(source, /weight: toFiniteNumber\(rawItem\.weight\)/);
 	assert.match(
 		source,
-		/String\(rawItem\.tagNumber \?\? ''\)\.slice\(-4\) \|\| '----'/,
+		/String\(rawItem\.tagNumber \?\? ["']["']\)\.slice\(-4\) \|\| ["']----["']/,
 	);
-	assert.match(source, /String\(rawItem\.name \?\? '-'\)/);
+	assert.match(source, /String\(rawItem\.name \?\? ["']-["']\)/);
 	assert.doesNotMatch(source, /item\.tagNumber\.slice\(-4\)/);
 });
 
@@ -121,7 +121,7 @@ test("profitability widget normalizes recommendation collection payloads before 
 	assert.match(source, /return Array\.isArray\(data\)/);
 	assert.match(
 		source,
-		/\.filter\(\(item\) => item && typeof item === 'object'\)/,
+		/\.filter\(\(item\) => item && typeof item === ["']object["']\)/,
 	);
 	assert.match(source, /id: item\.id \?\? `profitability-item-\$\{index\}`/);
 	assert.match(

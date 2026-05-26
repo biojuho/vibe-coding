@@ -112,7 +112,7 @@ test("inventory tab normalizes malformed inventory payloads before rendering", (
 	assert.match(source, /["']재고명 미등록["']/);
 	assert.match(
 		source,
-		/unit: typeof item\.unit === ["']string["'] && item\.unit\.trim\(\) \? item\.unit : ["']개["']/,
+		/unit:\s*typeof\s+item\s*\.\s*unit\s*===\s*["']string["']\s*&&\s*item\s*\.\s*unit\s*\.\s*trim\s*\(\s*\)\s*\?\s*item\s*\.\s*unit\s*:\s*["']개["']/,
 	);
 	assert.doesNotMatch(source, /inventory\.map\(\(item\) => \{/);
 	assert.doesNotMatch(source, /inventory\.length === 0/);
@@ -123,7 +123,7 @@ test("cattle edit form delegates close behavior to the async update handler", ()
 
 	assert.match(
 		source,
-		/<CattleForm cattle=\{selectedCow\} buildings=\{safeBuildings\} onSubmit=\{handleUpdateCattle\}/,
+		/<CattleForm\s+[\s\S]*?cattle=\{selectedCow\}[\s\S]*?buildings=\{safeBuildings\}[\s\S]*?onSubmit=\{handleUpdateCattle\}/,
 	);
 	assert.match(
 		source,
@@ -169,7 +169,7 @@ test("feed record form waits for async saves before re-enabling submit", () => {
 	);
 	assert.match(
 		source,
-		/const submitButtonLabel = isSaving \? ["']급여 기록 저장 중["'] : ["']급여 기록 저장하기["'];?/,
+		/const submitButtonLabel = isSaving\s*\?\s*["']급여 기록 저장 중["']\s*:\s*["']급여 기록 저장하기["'];?/,
 	);
 	assert.match(
 		source,
@@ -187,7 +187,7 @@ test("feed summaries normalize numeric inputs before aggregation", () => {
 	assert.match(source, /function toValidFeedDate\(value\) \{/);
 	assert.match(
 		source,
-		/const date = value instanceof Date \? new Date\(value\.getTime\(\)\) : new Date\(value\);/,
+		/const date\s*=\s*value\s*instanceof\s*Date\s*\?\s*new\s+Date\s*\(\s*value\s*\.\s*getTime\s*\(\s*\)\s*\)\s*:\s*new\s+Date\s*\(\s*value\s*\);?/,
 	);
 	assert.match(source, /const dateKey = value\.trim\(\)\.slice\(0, 10\);/);
 	assert.match(source, /date\.toISOString\(\)\.slice\(0, 10\) !== dateKey/);
@@ -200,7 +200,7 @@ test("feed summaries normalize numeric inputs before aggregation", () => {
 	assert.match(source, /function formatFeedDateLabel\(value, options\) \{/);
 	assert.match(
 		source,
-		/return date \? date\.toLocaleDateString\('ko-KR', options\) : '날짜 미등록';/,
+		/return date \? date\.toLocaleDateString\(["']ko-KR["'], options\) : ["']날짜 미등록["'];/,
 	);
 	assert.match(
 		source,
@@ -208,16 +208,16 @@ test("feed summaries normalize numeric inputs before aggregation", () => {
 	);
 	assert.match(
 		source,
-		/const key = formatFeedDateLabel\(record\.date, \{ month: 'short', day: 'numeric' \}\);/,
+		/const key\s*=\s*formatFeedDateLabel\(\s*record\.date\s*,\s*\{\s*month\s*:\s*["']short["']\s*,\s*day\s*:\s*["']numeric["']\s*,?\s*\}\s*\);?/,
 	);
 	assert.match(source, /\{formatFeedDateLabel\(record\.date\)\}/);
 	assert.match(
 		source,
-		/roughageTotal: \(toFiniteNumber\(standard\.roughageKg\) \* count\)\.toFixed\(1\)/,
+		/roughageTotal:\s*\(\s*toFiniteNumber\(\s*standard\s*\.\s*roughageKg\s*\)\s*\*\s*count\s*\)\s*\.\s*toFixed\(\s*1\s*,?\s*\)/,
 	);
 	assert.match(
 		source,
-		/concentrateTotal: \(toFiniteNumber\(standard\.concentrateKg\) \* count\)\.toFixed\(1\)/,
+		/concentrateTotal:\s*\(\s*toFiniteNumber\(\s*standard\s*\.\s*concentrateKg\s*\)\s*\*\s*count\s*\)\s*\.\s*toFixed\(\s*1\s*,?\s*\)/,
 	);
 	assert.match(source, /sum \+ toFiniteNumber\(value\.roughageTotal\)/);
 	assert.match(source, /sum \+ toFiniteNumber\(value\.concentrateTotal\)/);
@@ -325,7 +325,7 @@ test("feed building filter chips expose selected state and Korean labels", () =>
 	);
 	assert.match(
 		source,
-		/label=\{[`"']\$\{building\.name\} 급여 보기[`"']\}[\s\S]*?disabled=\{isSaving\}/,
+		/label=\{\s*[`"']\s*\$\{building\.name\}\s+급여\s+보기\s*[`"']\s*\}[\s\S]*?disabled=\{\s*isSaving\s*\}/,
 	);
 });
 
@@ -429,7 +429,7 @@ test("inventory create form waits for async saves before re-enabling submit", ()
 	assert.match(source, /const saveInFlightRef = useRef\(false\)/);
 	assert.match(
 		source,
-		/const submitButtonLabel = isSaving \? ["']재고 등록 중["'] : ["']재고 등록하기["'];?/,
+		/const submitButtonLabel = isSaving\s*\?\s*["']재고 등록 중["']\s*:\s*["']재고 등록하기["'];?/,
 	);
 	assert.match(source, /const submitNewItem = async \(values\) => \{/);
 	assert.match(source, /if \(saveInFlightRef\.current\) \{\s+return;\s+\}/);
