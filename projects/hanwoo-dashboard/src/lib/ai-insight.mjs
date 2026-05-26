@@ -101,14 +101,20 @@ export function buildInsightPrompt(summary) {
 	const lines = [
 		"## 농장 현황 스냅샷",
 		`- 총 사육두수: ${normalized.totalHeadcount}두`,
-		`- 이번달 출하: ${normalized.monthlySalesCount}두 (매출 ${normalized.monthlySalesManwon}만원)`,
+		`- 이번 달 출하: ${normalized.monthlySalesCount}두 (판매액 ${normalized.monthlySalesManwon}만원)`,
 		`- 즉시 출하 권장 개체: ${normalized.shipmentCandidates}두`,
 		`- 추가 비육 시 마진 감소 예상: ${normalized.decliningMarginCount}두`,
 		`- 발정 알림: ${normalized.notificationCounts.estrus}건 / 분만 알림: ${normalized.notificationCounts.calving}건`,
 	];
 	if (normalized.thi !== null) {
+		const tempText =
+			normalized.temp !== null ? `기온 ${normalized.temp}℃` : "기온 확인 불가";
+		const humidityText =
+			normalized.humidity !== null
+				? `습도 ${normalized.humidity}%`
+				: "습도 확인 불가";
 		lines.push(
-			`- 날씨: THI ${normalized.thi}, 기온 ${normalized.temp ?? "?"}℃, 습도 ${normalized.humidity ?? "?"}%`,
+			`- 날씨: THI ${normalized.thi}, ${tempText}, ${humidityText}`,
 		);
 	}
 	lines.push("", "## 출력 형식");
@@ -178,7 +184,7 @@ export function buildHeuristicInsights(input) {
 		const marginText = margin > 0 ? ` (예상 +${margin}만원)` : "";
 		candidates.push({
 			title: "즉시 출하 권장",
-			body: `${s.shipmentCandidates}두 출하 적령기 도달${tagSuffix}${marginText}. 24시간 내 출고 일정 확정 권장.`,
+			body: `${s.shipmentCandidates}두 출하 적령기 도달${tagSuffix}${marginText}. 24시간 내 출고 일정을 확정해 주세요.`,
 			priority: "high",
 		});
 	}
@@ -186,7 +192,7 @@ export function buildHeuristicInsights(input) {
 	if (s.notificationCounts.estrus > 0) {
 		candidates.push({
 			title: "발정 적기 임박",
-			body: `발정 알림 ${s.notificationCounts.estrus}건. 발견 후 12~18시간 내 수정 적기, 오늘 안에 처치 일정 잡으세요.`,
+			body: `발정 알림 ${s.notificationCounts.estrus}건. 발견 후 12~18시간 내 수정 적기, 오늘 안에 처치 일정을 잡아 주세요.`,
 			priority: "high",
 		});
 	}
@@ -194,7 +200,7 @@ export function buildHeuristicInsights(input) {
 	if (s.notificationCounts.calving > 0) {
 		candidates.push({
 			title: "분만 임박 개체 확인",
-			body: `분만 알림 ${s.notificationCounts.calving}건. 산방 청결·보온·요오드 소독 준비 점검 권장.`,
+			body: `분만 알림 ${s.notificationCounts.calving}건. 산방 청결·보온·요오드 소독 준비를 점검해 주세요.`,
 			priority: "high",
 		});
 	}
@@ -202,7 +208,7 @@ export function buildHeuristicInsights(input) {
 	if (s.thi !== null && s.thi >= 78) {
 		candidates.push({
 			title: "고온 스트레스 경고",
-			body: `THI ${s.thi}로 스트레스 구간. 환기·미스트팬 가동, 급수기 4회 이상 점검 권장.`,
+			body: `THI ${s.thi}로 스트레스 구간. 환기·미스트팬을 가동하고 급수기를 4회 이상 점검해 주세요.`,
 			priority: "high",
 		});
 	}
@@ -210,15 +216,15 @@ export function buildHeuristicInsights(input) {
 	if (s.decliningMarginCount > 0) {
 		candidates.push({
 			title: "추가 비육 마진 점검",
-			body: `${s.decliningMarginCount}두는 추가 비육 시 마진 감소 예상. 단가·증체 추세 재검토 필요.`,
+			body: `${s.decliningMarginCount}두는 추가 비육 시 마진 감소 예상. 단가·증체 추세를 재검토해 주세요.`,
 			priority: "medium",
 		});
 	}
 
 	if (s.monthlySalesCount > 0) {
 		candidates.push({
-			title: "이번달 출하 요약",
-			body: `${s.monthlySalesCount}두 출하·매출 ${s.monthlySalesManwon}만원. 다음달 출하 후보군 미리 확정.`,
+			title: "이번 달 출하 요약",
+			body: `${s.monthlySalesCount}두 출하·판매액 ${s.monthlySalesManwon}만원. 다음 달 출하 후보군 미리 확정.`,
 			priority: "low",
 		});
 	}
@@ -234,7 +240,7 @@ export function buildHeuristicInsights(input) {
 	if (s.totalHeadcount === 0) {
 		candidates.push({
 			title: "개체 등록부터 시작",
-			body: "등록된 개체가 없습니다. 좌측 메뉴에서 개체 등록을 먼저 진행하세요.",
+			body: "등록된 개체가 없습니다. 좌측 메뉴에서 개체 등록을 먼저 진행해 주세요.",
 			priority: "medium",
 		});
 	}
@@ -242,17 +248,17 @@ export function buildHeuristicInsights(input) {
 	const safeDefaults = [
 		{
 			title: "오늘의 점검 루틴",
-			body: "발정·분만·사료·물·축사 환기 5가지 일상 점검을 권장합니다.",
+			body: "발정·분만·사료·물·축사 환기 5가지 일상 점검을 진행해 주세요.",
 			priority: "low",
 		},
 		{
 			title: "데이터 보강 안내",
-			body: "체중·매출·시세 데이터를 갱신하면 더 정확한 인사이트를 제공합니다.",
+			body: "체중·판매액·시세 데이터를 갱신하면 더 정확한 인사이트를 제공합니다.",
 			priority: "low",
 		},
 		{
 			title: "다음 주 일정 확인",
-			body: "백신·검진·번식 등 다음 주 일정을 미리 캘린더에서 확인하세요.",
+			body: "백신·검진·번식 등 다음 주 일정을 미리 캘린더에서 확인해 주세요.",
 			priority: "low",
 		},
 	];

@@ -167,10 +167,10 @@ export default function SalesTab({
 		: "이전 판매 기록 더 보기";
 	const submitButtonLabel = isSaving
 		? "판매 기록 등록 중"
-		: "판매 기록 등록하기";
+		: "판매 기록 등록";
 	const submitButtonText = isSaving
 		? "판매 기록 등록 중..."
-		: "판매 기록 등록하기";
+		: "판매 기록 등록";
 	const addFormButtonLabel = isSaving
 		? "판매 기록 저장 중에는 등록 창을 닫을 수 없습니다"
 		: isAdding
@@ -244,7 +244,7 @@ export default function SalesTab({
 							letterSpacing: "-0.01em",
 						}}
 					>
-						출하 및 매출 분석
+						출하 및 판매 분석
 					</span>
 				</div>
 				<PremiumButton
@@ -468,7 +468,7 @@ export default function SalesTab({
 			>
 				<PremiumCard className="bg-linear-to-br border-primary/20 flex-1 min-w-[140px] from-orange-400 to-orange-600">
 					<PremiumCardContent className="p-4 text-white">
-						<div style={{ fontSize: "11px", opacity: 0.7 }}>총 누적 매출</div>
+						<div style={{ fontSize: "11px", opacity: 0.7 }}>총 누적 판매액</div>
 						<div
 							style={{
 								fontSize: "20px",
@@ -580,10 +580,14 @@ export default function SalesTab({
 						title="출하 내역이 없습니다"
 						description={
 							safeCattleList.length
-								? "첫 출하 기록을 남기면 매출, 등급, 수익 분석 차트가 바로 채워집니다."
+								? "첫 출하 기록을 남기면 판매액, 등급, 수익 분석 차트가 바로 채워집니다."
 								: "개체를 먼저 등록하면 출하 기록과 수익 분석을 연결할 수 있습니다."
 						}
-						actionLabel={safeCattleList.length ? "판매 기록 등록" : "개체 등록 필요"}
+						actionLabel={
+							safeCattleList.length
+								? "판매 기록 등록"
+								: "개체를 먼저 등록해 주세요"
+						}
 						onAction={() => setIsAdding(true)}
 						disabled={!safeCattleList.length}
 					/>
@@ -651,8 +655,8 @@ export default function SalesTab({
 										</>
 									) : (
 										<>
-											<span className="text-slate-500 italic">관련 비용 없음</span>
-											<span className="text-slate-500">수익 추정 불가</span>
+											<span className="text-slate-500 italic">연결된 비용 기록 없음</span>
+											<span className="text-slate-500">비용 기록 없어 수익 추정 불가</span>
 										</>
 									)}
 								</div>

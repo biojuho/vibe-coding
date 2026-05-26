@@ -7,7 +7,7 @@ const INITIAL_MESSAGES = [
 	{
 		role: "system",
 		content:
-			"안녕하세요. Joolife AI 농장 비서입니다.\n발정, 사양, 급여, 시세 등 궁금한 점을 물어보세요.",
+			"안녕하세요. Joolife AI 농장 비서입니다.\n발정, 사양, 급여, 시세 등 궁금한 점을 질문해 주세요.",
 	},
 ];
 
@@ -26,7 +26,7 @@ function buildOfflineReply(question) {
 		return "급여 가이드:\n- 송아지: 초기 사료와 건초를 같이 관리\n- 번식우: 체형 유지 위주\n- 비육우: 후기 사료 비중을 단계적으로 조정";
 	}
 	if (q.includes("안녕")) {
-		return "안녕하세요. 오늘 농장 운영에서 어떤 부분이 궁금하신가요?";
+		return "안녕하세요. 오늘 농장 운영에서 궁금한 부분을 질문해 주세요.";
 	}
 	return "지금은 기본 농장 운영 질문 위주로 안내하고 있어요.\n발정, 급여, 건강관리처럼 구체적으로 물어보시면 더 정확히 도와드릴게요.";
 }
@@ -133,6 +133,11 @@ export default function AIChatWidget() {
 	const inputLabel = isStreaming
 		? "답변 생성 중에는 질문을 입력할 수 없습니다"
 		: "AI 농장 비서에게 보낼 질문";
+	const sendButtonLabel = isStreaming
+		? "답변 생성 중"
+		: input.trim().length === 0
+			? "질문을 입력하면 보낼 수 있습니다"
+			: "질문 보내기";
 
 	useEffect(() => {
 		if (scrollRef.current) {
@@ -475,8 +480,8 @@ export default function AIChatWidget() {
 					onClick={handleSend}
 					disabled={!canSend}
 					aria-busy={isStreaming}
-					aria-label={isStreaming ? "답변 생성 중" : "질문 보내기"}
-					title={isStreaming ? "답변 생성 중" : "질문 보내기"}
+					aria-label={sendButtonLabel}
+					title={sendButtonLabel}
 					className="btn btn-primary btn-icon"
 					style={{
 						width: "42px",

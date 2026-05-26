@@ -12,7 +12,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const DEFAULT_NOTIFICATION_TITLE = "알림 제목 없음";
+const DEFAULT_NOTIFICATION_TITLE = "운영 알림";
 const DEFAULT_NOTIFICATION_MESSAGE = "확인할 알림 내용을 불러오지 못했습니다.";
 
 function normalizeSystemNotifications(initialNotifications) {

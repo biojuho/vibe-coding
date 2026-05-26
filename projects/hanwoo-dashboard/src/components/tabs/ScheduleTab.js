@@ -93,8 +93,8 @@ export default function ScheduleTab({
 	const [currentDate, setCurrentDate] = useState(new Date());
 	const saveInFlightRef = useRef(false);
 	const completionInFlightRef = useRef(false);
-	const submitButtonLabel = isSaving ? "일정 등록 중" : "일정 등록하기";
-	const submitButtonText = isSaving ? "일정 등록 중..." : "일정 등록하기";
+	const submitButtonLabel = isSaving ? "일정 등록 중" : "일정 등록";
+	const submitButtonText = isSaving ? "일정 등록 중..." : "일정 등록";
 	const addFormButtonLabel = isSaving
 		? "일정 저장 중에는 등록 창을 닫을 수 없습니다"
 		: isAdding

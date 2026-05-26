@@ -172,7 +172,7 @@ export function buildTodayFocusItems({
 				type: "stock",
 				title: critical
 					? `사료 ${daysLabel}일 후 소진 예상`
-					: `사료 잔여 ${daysLabel}일 (점검 권장)`,
+					: `사료 잔여 ${daysLabel}일, 재고를 점검해 주세요`,
 				detail: `${soonest.item.name}: ${soonest.item.quantity}${soonest.item.unit || ""} (최근 사용량 기준)`,
 				meta: "사료 발주",
 				tone: critical ? "danger" : "warning",
@@ -187,7 +187,7 @@ export function buildTodayFocusItems({
 		title: `이번 달 출하 ${monthlySalesCount}두`,
 		detail:
 			monthlySalesCount > 0
-				? "매출 흐름을 분석 탭에서 확인하세요."
+				? "판매 흐름을 분석 탭에서 확인해 주세요."
 				: "출하 기록을 추가하면 월간 흐름이 살아납니다.",
 		meta: monthlySalesCount > 0 ? "분석 보기" : "출하 기록",
 		tone: monthlySalesCount > 0 ? "success" : "neutral",

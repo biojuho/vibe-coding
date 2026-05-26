@@ -8,6 +8,17 @@ import {
 	triggerVibration,
 } from "@/lib/audio";
 
+function formatScannerBirthDate(value) {
+	if (!value) {
+		return "생년월일 미등록";
+	}
+
+	const date = new Date(value);
+	return Number.isNaN(date.getTime())
+		? "생년월일 미등록"
+		: date.toLocaleDateString("ko-KR");
+}
+
 export default function EarTagScannerModal({
 	isOpen,
 	onClose,
@@ -372,11 +383,7 @@ export default function EarTagScannerModal({
 											생년월일
 										</span>
 										<span className="font-semibold text-foreground">
-											{matchedCow?.birthDate
-												? new Date(matchedCow.birthDate).toLocaleDateString(
-														"ko-KR",
-													)
-												: "-"}
+											{formatScannerBirthDate(matchedCow?.birthDate)}
 										</span>
 									</div>
 								</div>
@@ -393,11 +400,11 @@ export default function EarTagScannerModal({
 								<AlertTriangle size={28} aria-hidden="true" />
 							</div>
 							<h3 className="text-base font-bold text-foreground mb-2">
-								인식된 개체 정보 없음
+								인식된 개체 정보가 없습니다
 							</h3>
 							<p className="text-xs text-muted-foreground max-w-xs mb-6 leading-relaxed">
 								스캐너 프레임 안에 이표번호가 정확히 위치하지 않았거나 농장에
-								등록되지 않은 번호입니다. 다시 스캔해주십시오.
+								등록되지 않은 번호입니다. 다시 스캔해 주세요.
 							</p>
 						</div>
 					)}

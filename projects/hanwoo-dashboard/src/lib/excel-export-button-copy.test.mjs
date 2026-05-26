@@ -23,14 +23,18 @@ test("excel export button uses a real decorative download icon", () => {
 	assert.match(source, /aria-busy=\{isPreparing\}/);
 	assert.match(
 		source,
-		/aria-label=\{isPreparing \? ["']엑셀 다운로드 준비 중["'] : ["']엑셀 다운로드["']\}/,
+		/aria-label=\{\s*isPreparing \? ["']개체 엑셀 다운로드 준비 중["'] : ["']개체 엑셀 다운로드["']\s*\}/,
 	);
 	assert.match(
 		source,
-		/title=\{isPreparing \? ["']엑셀 다운로드 준비 중["'] : ["']엑셀 다운로드["']\}/,
+		/title=\{\s*isPreparing \? ["']개체 엑셀 다운로드 준비 중["'] : ["']개체 엑셀 다운로드["']\s*\}/,
 	);
-	assert.match(source, /엑셀 다운로드/);
-	assert.match(source, /\{isPreparing \? ["']엑셀 다운로드 준비 중\.\.\.["'] : ["']엑셀 다운로드["']\}/);
+	assert.match(source, /개체 엑셀 다운로드/);
+	assert.match(
+		source,
+		/\{isPreparing \? ["']개체 엑셀 다운로드 준비 중\.\.\.["'] : ["']개체 엑셀 다운로드["']\}/,
+	);
+	assert.doesNotMatch(source, /\? ["']엑셀 다운로드 준비 중["'] : ["']엑셀 다운로드["']/);
 	assert.doesNotMatch(source, /\{isPreparing \? ["']엑셀 준비 중\.\.\.["'] : ["']엑셀 다운로드["']\}/);
 	assert.match(source, /내보내기 파일을 만들지 못했습니다/);
 	assert.doesNotMatch(

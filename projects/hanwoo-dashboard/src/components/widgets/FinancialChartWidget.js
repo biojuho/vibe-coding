@@ -97,7 +97,7 @@ export default function FinancialChartWidget({
 				}))
 			: fallbackChartData;
 	const financialChartLabel =
-		"최근 6개월 농장 재무 흐름 차트. 매출, 비용, 이익을 월별로 비교합니다.";
+		"최근 6개월 농장 재무 흐름 차트. 판매액, 비용, 이익을 월별로 비교합니다.";
 
 	return (
 		<div
@@ -143,7 +143,7 @@ export default function FinancialChartWidget({
 								marginTop: "3px",
 							}}
 						>
-							최근 6개월 매출, 비용, 이익 추이
+							최근 6개월 판매액, 비용, 이익 추이
 						</div>
 					</div>
 				</div>
@@ -216,7 +216,7 @@ export default function FinancialChartWidget({
 							fill="var(--color-success)"
 							radius={[6, 6, 0, 0]}
 							barSize={14}
-							name="매출"
+							name="판매액"
 						/>
 						<Bar
 							dataKey={EXPENSE_KEY}

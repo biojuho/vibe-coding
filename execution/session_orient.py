@@ -41,8 +41,7 @@ try:
     from rich.text import Text
     from rich.align import Align
     from rich.box import ROUNDED, ASCII
-    from rich.columns import Columns
-    from rich.markdown import Markdown
+
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
@@ -493,7 +492,10 @@ def render_rich_dashboard(snap: dict[str, Any]) -> None:
     box_style = ASCII if IS_WINDOWS else ROUNDED
 
     # 1. Title Banner
-    title_text = Text(f"\n {SYM_ROCKET} VIBE CODING - COLLABORATIVE SESSION DASHBOARD {SYM_ROCKET} \n", style="bold white on rgb(65,40,90)")
+    title_text = Text(
+        f"\n {SYM_ROCKET} VIBE CODING - COLLABORATIVE SESSION DASHBOARD {SYM_ROCKET} \n",
+        style="bold white on rgb(65,40,90)",
+    )
     title_align = Align.center(title_text)
     console.print(Panel(title_align, box=ROUNDED if not IS_WINDOWS else ASCII, border_style="rgb(120,60,200)"))
 
@@ -510,7 +512,7 @@ def render_rich_dashboard(snap: dict[str, Any]) -> None:
         behind = git_snap.get("behind", 0)
         worktree = git_snap.get("worktree", {})
         stash = git_snap.get("stash_count", 0)
-        
+
         wt_details = []
         if worktree.get("staged", 0) > 0:
             wt_details.append(f"[bold green]Staged: {worktree['staged']}[/]")
@@ -520,7 +522,7 @@ def render_rich_dashboard(snap: dict[str, Any]) -> None:
             wt_details.append(f"[bold cyan]Untracked: {worktree['untracked']}[/]")
         if worktree.get("unmerged", 0) > 0:
             wt_details.append(f"[bold red]Unmerged: {worktree['unmerged']}[/]")
-        
+
         wt_str = ", ".join(wt_details) if wt_details else "[dim green]Clean[/]"
 
         git_desc = (
@@ -531,7 +533,9 @@ def render_rich_dashboard(snap: dict[str, Any]) -> None:
         )
         git_panel = Panel(git_desc, title=f"{SYM_GIT} Git Repository", border_style="rgb(160,80,220)", box=box_style)
     else:
-        git_panel = Panel("[bold red]Git Unavailable[/]", title=f"{SYM_GIT} Git Repository", border_style="red", box=box_style)
+        git_panel = Panel(
+            "[bold red]Git Unavailable[/]", title=f"{SYM_GIT} Git Repository", border_style="red", box=box_style
+        )
 
     # Column 2: HANDOFF & TASKS
     ho_snap = snap.get("handoff", {})
@@ -575,7 +579,9 @@ def render_rich_dashboard(snap: dict[str, Any]) -> None:
     left_flow.add_column(ratio=1)
 
     # Recent Commits Table
-    commit_table = Table(title=f"{SYM_COMMIT} Recent 5 Repository Commits", expand=True, box=box_style, border_style="rgb(80,80,180)")
+    commit_table = Table(
+        title=f"{SYM_COMMIT} Recent 5 Repository Commits", expand=True, box=box_style, border_style="rgb(80,80,180)"
+    )
     commit_table.add_column("SHA", style="bold cyan", width=8)
     commit_table.add_column("Author", style="yellow", width=15)
     commit_table.add_column("Subject", style="green", ratio=1)
@@ -600,7 +606,7 @@ def render_rich_dashboard(snap: dict[str, Any]) -> None:
         for p in pr_snap.get("open", []):
             state = p.get("mergeStateStatus", "?")
             state_color = "green" if state == "CLEAN" else "red" if state == "BLOCKED" else "yellow"
-            pr_table.add_row(f"#{p.get('number')}", p.get('title'), f"[{state_color}]{state}[/]")
+            pr_table.add_row(f"#{p.get('number')}", p.get("title"), f"[{state_color}]{state}[/]")
     else:
         reason = pr_snap.get("reason", "No open PRs found")
         pr_table.add_row("-", reason, "-")
@@ -622,7 +628,12 @@ def render_rich_dashboard(snap: dict[str, Any]) -> None:
         )
         goal_panel = Panel(goal_content, title=f"{SYM_GOAL} ACTIVE GOAL", border_style="gold1", box=box_style)
     else:
-        goal_panel = Panel("[dim white]No active system goals currently registered.[/]", title=f"{SYM_GOAL} ACTIVE GOAL", border_style="grey50", box=box_style)
+        goal_panel = Panel(
+            "[dim white]No active system goals currently registered.[/]",
+            title=f"{SYM_GOAL} ACTIVE GOAL",
+            border_style="grey50",
+            box=box_style,
+        )
 
     right_flow.add_row(goal_panel)
     right_flow.add_row("")
@@ -632,7 +643,9 @@ def render_rich_dashboard(snap: dict[str, Any]) -> None:
     db_str = "[bold red]Database Unavailable[/]"
     if db_snap.get("available"):
         missing = db_snap.get("missing_recommended", [])
-        missing_str = f" [bold red](missing {len(missing)} indexes!)[/]" if missing else " [bold green](All indexes OK)[/]"
+        missing_str = (
+            f" [bold red](missing {len(missing)} indexes!)[/]" if missing else " [bold green](All indexes OK)[/]"
+        )
         db_str = f"Tables: {db_snap.get('table_count')}, Indexes: {db_snap.get('index_count')}{missing_str}"
 
     g_snap = snap.get("graph", {})
@@ -647,7 +660,13 @@ def render_rich_dashboard(snap: dict[str, Any]) -> None:
         if runs:
             for r in runs[:2]:
                 status = r.get("conclusion") or r.get("status") or "?"
-                color = "bold green" if status in {"success", "completed"} else "bold yellow" if status == "in_progress" else "bold red"
+                color = (
+                    "bold green"
+                    if status in {"success", "completed"}
+                    else "bold yellow"
+                    if status == "in_progress"
+                    else "bold red"
+                )
                 ci_lines.append(f"* {r.get('name', 'Workflow')}: [{color}]{status}[/]")
         else:
             ci_lines.append("[dim]No recent runs on this branch[/]")
@@ -660,7 +679,9 @@ def render_rich_dashboard(snap: dict[str, Any]) -> None:
         f"[bold magenta]Review Graph:[/] {g_str}\n\n"
         f"[bold magenta]Recent CI runs:[/]\n{ci_str}"
     )
-    diag_panel = Panel(diag_str, title=f"{SYM_DIAG} System Diagnostics & Graph", border_style="rgb(100,100,100)", box=box_style)
+    diag_panel = Panel(
+        diag_str, title=f"{SYM_DIAG} System Diagnostics & Graph", border_style="rgb(100,100,100)", box=box_style
+    )
     right_flow.add_row(diag_panel)
 
     center_table.add_row(left_flow, right_flow)

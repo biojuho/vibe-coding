@@ -54,7 +54,7 @@ test("qr widget print action blocks duplicate print windows while printing is in
 	);
 	assert.match(
 		source,
-		/printInFlightRef\.current = false;\s+setIsPrinting\(false\);\s+setPrintStatusMessage\(\s*["']팝업 차단으로 QR 인쇄 창을 열지 못했습니다\. 브라우저 팝업 허용 후 다시 시도하세요\.["'],?\s*\);\s+return;/,
+		/printInFlightRef\.current = false;\s+setIsPrinting\(false\);\s+setPrintStatusMessage\(\s*["']팝업 차단으로 QR 인쇄 창을 열지 못했습니다\. 브라우저 팝업 허용 후 다시 시도해 주세요\.["'],?\s*\);\s+return;/,
 	);
 	assert.match(
 		source,
@@ -79,5 +79,6 @@ test("qr widget print failures and completion are announced", () => {
 	assert.match(source, /aria-atomic="true"/);
 	assert.match(source, /\{printStatusMessage\}/);
 	assert.match(source, /팝업 차단으로 QR 인쇄 창을 열지 못했습니다/);
-	assert.match(source, /브라우저 팝업 허용 후 다시 시도하세요/);
+	assert.match(source, /브라우저 팝업 허용 후 다시 시도해 주세요/);
+	assert.doesNotMatch(source, /브라우저 팝업 허용 후 다시 시도하세요/);
 });

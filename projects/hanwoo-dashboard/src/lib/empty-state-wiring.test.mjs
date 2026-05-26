@@ -37,6 +37,7 @@ test("operational tabs use action-oriented empty states", () => {
 			icon: "ReceiptText",
 			title: "출하 내역이 없습니다",
 			action: "판매 기록 등록",
+			fallbackAction: "개체를 먼저 등록해 주세요",
 			handler: "setIsAdding(true)",
 		},
 		{
@@ -54,6 +55,10 @@ test("operational tabs use action-oriented empty states", () => {
 		assert.match(source, new RegExp(`icon=\\{${item.icon}\\}`));
 		assert.match(source, new RegExp(`title="${item.title}"`));
 		assert.match(source, new RegExp(item.action));
+		if (item.fallbackAction) {
+			assert.match(source, new RegExp(item.fallbackAction));
+			assert.doesNotMatch(source, /개체 등록 필요/);
+		}
 		assert.match(source, new RegExp(item.handler.replace(/[()]/g, "\\$&")));
 	}
 });
@@ -172,11 +177,11 @@ test("feed record form waits for async saves before re-enabling submit", () => {
 	);
 	assert.match(
 		source,
-		/const submitButtonLabel = isSaving\s*\?\s*["']급여 기록 저장 중["']\s*:\s*["']급여 기록 저장하기["'];?/,
+		/const submitButtonLabel = isSaving\s*\?\s*["']급여 기록 저장 중["']\s*:\s*["']급여 기록 저장["'];?/,
 	);
 	assert.match(
 		source,
-		/const submitButtonText = isSaving\s*\?\s*["']급여 기록 저장 중\.\.\.["']\s*:\s*["']급여 기록 저장하기["'];?/,
+		/const submitButtonText = isSaving\s*\?\s*["']급여 기록 저장 중\.\.\.["']\s*:\s*["']급여 기록 저장["'];?/,
 	);
 	assert.match(
 		source,
@@ -185,7 +190,7 @@ test("feed record form waits for async saves before re-enabling submit", () => {
 	assert.match(source, /\{submitButtonText\}/);
 	assert.doesNotMatch(
 		source,
-		/\{isSaving\s*\?\s*["']급여 기록 저장 중\.\.\.["']\s*:\s*["']급여 기록 저장하기["']\s*\}/,
+		/\{isSaving\s*\?\s*["']급여 기록 저장 중\.\.\.["']\s*:\s*["']급여 기록 저장["']\s*\}/,
 	);
 });
 
@@ -277,7 +282,8 @@ test("feed tab normalizes malformed payloads before rendering", () => {
 	);
 	assert.match(source, /function normalizeFeedBuildings\(buildings\) \{/);
 	assert.match(source, /id: building\.id \?\? `feed-building-\$\{index\}`/);
-	assert.match(source, /["']축사명 미등록["']/);
+	assert.match(source, /["']축사 이름 미등록["']/);
+	assert.doesNotMatch(source, /["']축사명 미등록["']/);
 	assert.match(
 		source,
 		/const safeCattle = useMemo\(\(\) => normalizeFeedItems\(cattle\), \[cattle\]\);/,
@@ -360,7 +366,7 @@ test("feed tab visible copy is readable Korean product copy", () => {
 		"기록 날짜",
 		"특이사항 메모",
 		"사료 상태, 섭취 변화, 축사 메모를 적어 주세요.",
-		"급여 기록 저장하기",
+		"급여 기록 저장",
 		"최근 급여 추이",
 		"최근 기록",
 		"날짜 미등록",
@@ -459,8 +465,10 @@ test("inventory create form waits for async saves before re-enabling submit", ()
 	assert.match(source, /const saveInFlightRef = useRef\(false\)/);
 	assert.match(
 		source,
-		/const submitButtonLabel = isSaving\s*\?\s*["']재고 등록 중["']\s*:\s*["']재고 등록하기["'];?/,
+		/const submitButtonLabel = isSaving\s*\?\s*["']재고 등록 중["']\s*:\s*["']재고 등록["'];?/,
 	);
+	assert.doesNotMatch(source, /급여 기록 저장하기/);
+	assert.doesNotMatch(source, /재고 등록하기/);
 	assert.match(source, /const addFormButtonLabel = isSaving/);
 	assert.match(source, /재고 저장 중에는 등록 창을 닫을 수 없습니다/);
 	assert.match(source, /재고 등록 취소/);

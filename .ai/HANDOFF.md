@@ -7,6 +7,405 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Analysis chart sales terminology consistency**: Continued the active Hanwoo quality uplift by changing Analysis and Financial chart user-facing sales labels from `매출` to `판매액`. The monthly analysis heading, chart accessibility label/title, revenue bar legend, financial chart description, and financial chart revenue legend now align with Sales, AI Insight, and the existing `연간 총판매액` KPI wording. Strengthened analysis regression coverage to keep the chart-level `판매액` terminology. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/analysis-copy.test.mjs` passed 3/3, `npm.cmd test` passed 347/347, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **workspace verified quality bundle closure**: User selected the cleanup/commit path. Rechecked the current dirty worktree, found the final bundle now scoped to Hanwoo quality-copy/fallback updates plus workspace tooling updates (`dependency_security_audit.py`, `session_orient.py`, `uv.lock`) and `.ai` session records. Ran final verification before commit prep. |
+| Next Priorities | Verification: `python execution/project_qc_runner.py --project hanwoo-dashboard --json --timeout-seconds 300` passed (`npm test` 335/335, lint, build). `python -m py_compile execution\session_orient.py execution\dependency_security_audit.py` passed. `py -3.13 execution/code_review_gate.py --base HEAD --json` returned WARN, not FAIL (`risk_score 0.55`, 5 test-gap heuristics). `python execution/dependency_security_audit.py --help` actually ran the audit and returned exit 1 because current dependencies report 73 vulnerabilities across 25 packages; treat that as a surfaced security backlog, not a syntax/runtime failure. T-251 remains user-owned Supabase credential/control-plane resync. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Sales history grade fallback specificity**: Continued the active Hanwoo quality uplift by changing cattle sale history copy from `등급: -` to `등급: 등급 미등록` when a sale grade is missing. This keeps generated cattle timeline entries from preserving a bare dash placeholder for missing sale grades. Strengthened server-action copy regression coverage to keep the specific fallback and prevent dash fallback from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused action-copy tests passed 2/2, `npm.cmd test` passed 347/347, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Subscription failure error-code fallback specificity**: Continued the active Hanwoo quality uplift by changing the subscription failure page missing error-code fallback from placeholder `-` to `오류 코드 미전달`. This keeps payment failure details from showing a bare dash when the gateway does not provide a code. Strengthened payment UX regression coverage to keep the specific fallback and prevent dash fallback from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused payment UX tests passed 5/5, `npm.cmd test` passed 347/347, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Ear-tag scanner birth-date fallback specificity**: Continued the active Hanwoo quality uplift by changing the ear-tag scanner matched-cattle birth-date fallback from placeholder `-` to `생년월일 미등록`, and routing scanner birth-date rendering through `formatScannerBirthDate()` so missing or malformed birth dates do not surface as bare dash or raw invalid date output. Strengthened scanner regression coverage to keep the specific fallback and prevent dash fallback from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused ear-tag scanner tests passed 4/4, `npm.cmd test` passed 347/347, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Cattle card genetic-grade fallback specificity**: Continued the active Hanwoo quality uplift by changing cattle row genetic-grade rendering from placeholder `-` to `유전 등급 미등록` when the grade is missing, blank, or legacy `-`. This keeps pen/list cattle cards from showing bare dash placeholders and makes the missing field explicit. Strengthened card regression coverage to keep the specific fallback and prevent dash fallback from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused card tests passed 5/5, `npm.cmd test` passed 346/346, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Notification time fallback specificity**: Continued the active Hanwoo quality uplift by changing notification time fallback copy from placeholder `-` to `알림 시간 확인 불가` in `formatNotificationTime()`, invalid `buildNotificationTiming()` output, and the notification modal's direct rendering fallback. This makes missing or malformed alert times identify the unavailable field instead of showing a bare dash. Strengthened notification timing and modal regression coverage to keep the specific fallback and prevent dash fallback from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused notification timing/modal tests passed 14/14, `npm.cmd test` passed 345/345, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI Insight weather fallback specificity**: Continued the active Hanwoo quality uplift by changing AI Insight prompt weather fallback copy from symbolic `?℃`/`?%` placeholders to explicit Korean signals (`기온 확인 불가`, `습도 확인 불가`) when THI is available but temperature or humidity is missing. Strengthened AI Insight regression coverage to keep the explicit weather fallback and prevent ambiguous symbol placeholders from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused AI Insight/chat/weather tests passed 32/32, `npm.cmd test` passed 344/344, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI Insight sales-amount terminology consistency**: Continued the active Hanwoo quality uplift by changing AI Insight prompt/default-card sales amount wording from `매출` to `판매액` (`판매액 N만원`, `출하·판매액 N만원`, `체중·판매액·시세 데이터`). This keeps generated insight context aligned with Sales and Analysis terminology. Strengthened AI Insight regression coverage to keep `판매액` wording and prevent the older `매출` phrases from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused AI Insight/chat/home/Analysis tests passed 63/63, `npm.cmd test` passed 343/343, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Alert banner missing-pen fallback specificity**: Continued the active Hanwoo quality uplift by changing estrus/calving alert banner missing-pen fallback from placeholder `-` to `칸 미지정`. This makes alert location chips explain that the pen assignment is missing instead of rendering a bare dash before `번`. Strengthened alert-banner regression coverage to keep the specific pen fallback and prevent the dash fallback from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused alert/home/field-mode tests passed 49/49, `npm.cmd test` passed 343/343, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Sales tab sales-terminology summary consistency**: Continued the active Hanwoo quality uplift by changing the Sales tab summary heading, cumulative KPI label, and no-sales helper description from `매출` wording to `판매`/`판매액` wording (`출하 및 판매 분석`, `총 누적 판매액`, `판매액, 등급, 수익 분석 차트`). This keeps the Sales tab aligned with the app-wide `판매 기록` and Analysis `연간 총판매액` terminology. Strengthened home-market regression coverage to keep the sales summary labels and prevent the older `매출` wording from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused Sales/home/empty/Analysis tests passed 58/58, `npm.cmd test` passed 343/343, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Analysis KPI sales terminology consistency**: Continued the active Hanwoo quality uplift by changing the Analysis tab annual revenue KPI title from `연간 총매출` to `연간 총판매액`. This keeps the management-analysis KPI aligned with the app-wide `판매` terminology already used by Sales, Today Focus, and home quick actions. Strengthened Analysis regression coverage to keep the `판매` KPI label and prevent the old `매출` KPI title from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused Analysis/home/Today Focus tests passed 52/52, `npm.cmd test` passed 343/343, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Shared short-date fallback specificity**: Continued the active Hanwoo quality uplift by changing the common `formatDate()` fallback from bare `-` to `날짜 미등록`. This aligns short date rendering with the existing long-date fallback and prevents detail/list date fields from surfacing meaningless dash placeholders when dates are missing or malformed. Strengthened date utility regression coverage to keep the Korean missing-date fallback and prevent the dash fallback from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused date/detail/alert/calving tests passed 26/26, `npm.cmd test` passed 343/343, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Cattle detail genetic fallback specificity**: Continued the active Hanwoo quality uplift by changing the cattle detail genetic-info fallback from placeholder-style `부:- / 모:-` to `부:부계 미등록 / 모:모계 미등록`. This makes the genetic ability card explain which lineage field is missing instead of showing bare dashes. Strengthened cattle-detail regression coverage to keep the lineage-specific fallback copy and prevent dash fallbacks from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused cattle-detail tests passed 16/16, `npm.cmd test` passed 343/343, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Cattle detail breeding-date fallback specificity**: Continued the active Hanwoo quality uplift by changing cattle detail reproductive-date fallbacks from placeholder `-` to domain-specific Korean copy (`발정일 미등록`, `최근 발정일 미등록`, `수정일 미등록`, `분만 예정일 미등록`). This makes breeding cards explain which date is missing instead of showing a bare dash. Strengthened cattle-detail regression coverage to keep the specific missing-date labels and prevent the dash fallback from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused cattle-detail tests passed 15/15, `npm.cmd test` passed 342/342, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Sales no-cost state copy specificity**: Continued the active Hanwoo quality uplift by changing the Sales tab no-cost per-record label from generic `관련 비용 없음` to `연결된 비용 기록 없음`. This makes profit-unavailable rows explain that no linked cost records exist before showing `비용 기록 없어 수익 추정 불가`. Strengthened Sales regression coverage to keep the specific no-cost label and prevent the generic label from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused home-market/Sales tests passed 38/38, `npm.cmd test` passed 341/341, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Admin diagnostics unavailable-copy specificity**: Continued the active Hanwoo quality uplift by changing admin diagnostics fallback copy from generic `확인 불가`/`-` to domain-specific `DB 상태 확인 불가`, `DB 응답 시간 확인 불가`, and `Node 버전 확인 불가`. This makes failure/empty diagnostics cards identify which system signal is unavailable. Strengthened diagnostics regression coverage to keep the specific unavailable labels and prevent generic latency fallback from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused diagnostics tests passed 3/3, `npm.cmd test` passed 341/341, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Field mode search missing-building fallback specificity**: Continued the active Hanwoo quality uplift by changing Field Mode search-result missing-building copy from generic `미지정` to `축사 미지정`. This makes onsite cattle search results name the missing location domain consistently with alert banner location chips. Strengthened FieldModeView regression coverage to keep the specific building fallback and prevent the generic fallback from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused FieldModeView tests passed 8/8, `npm.cmd test` passed 341/341, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Alert banner missing-building fallback specificity**: Continued the active Hanwoo quality uplift by changing estrus/calving alert banner missing-building copy from generic `미지정` to `축사 미지정`. This makes alert location chips name the missing location domain instead of showing a vague placeholder. Strengthened alert-banner regression coverage to keep the specific building fallback and prevent the generic fallback from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused alert-banner tests passed 3/3, `npm.cmd test` passed 340/340, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Weather unavailable source-label specificity**: Continued the active Hanwoo quality uplift by changing weather unavailable source labels from generic `확인 불가` to `날씨 확인 불가` in the weather state model. This aligns degraded/unavailable weather payloads with the visible weather widget unavailable copy and avoids a generic unavailable badge in weather state data. Strengthened weather-state regression coverage to keep the specific source label. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused weather/home tests passed 47/47, `npm.cmd test` passed 340/340, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Market price unavailable source-label specificity**: Continued the active Hanwoo quality uplift by changing market-price unavailable source labels from generic `확인 불가` to `시세 확인 불가` in the market price state model and widget presentation fallback. This makes degraded/unavailable price cards name the missing data domain clearly instead of showing a generic unavailable badge. Strengthened market-price regression coverage to keep the specific source label. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused market/home tests passed 45/45, `npm.cmd test` passed 340/340, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Profitability recommendation missing-identity fallback clarity**: Continued the active Hanwoo quality uplift by changing the profitability recommendation widget's missing tag/name fallbacks from placeholder-style `----` and `-` to Korean operator copy `이력번호 미등록` and `개체명 미등록`. This aligns shipment-profit cards with Sales, AI farm context, cattle cards, and alert banner missing-identity copy. Strengthened profitability widget regression coverage to prevent placeholder fallbacks from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused profitability tests passed 8/8, `npm.cmd test` passed 340/340, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI chat farm-context status fallback specificity**: Continued the active Hanwoo quality uplift by changing the AI chat farm-context fallback for empty cattle status grouping from generic `데이터 없음` to `상태별 개체 데이터 없음`. This gives the model a domain-specific missing-data signal instead of a vague placeholder. Strengthened AI chat route regression coverage to keep the specific fallback and prevent the generic status summary fallback from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused AI chat API tests passed 8/8, `npm.cmd test` passed 340/340, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Primary data-entry submit copy consistency**: Continued the active Hanwoo quality uplift by changing idle submit labels for Schedule, Feed, Inventory, Sales, and Settings forms from `등록하기`/`저장하기` variants to concise task labels (`일정 등록`, `급여 기록 저장`, `재고 등록`, `판매 기록 등록`, `농장 정보 저장`, `축사 등록`). This aligns submit buttons with the already-normalized open-form CTAs while keeping pending `... 중` states intact. Strengthened form-submit, schedule, empty-state, home/market, and settings regression coverage to prevent the older `하기` submit labels from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused submit-copy tests passed 76/76, `npm.cmd test` passed 340/340, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Building-name missing fallback consistency**: Continued the active Hanwoo quality uplift by changing remaining form/detail/feed building-name fallbacks from compact `축사명 미등록` to the app-wide `축사 이름 미등록`. This aligns cattle forms, cattle detail location, and feed building filters with Dashboard and Settings building fallback copy. Strengthened cattle-detail and empty-state regression coverage to prevent the compact fallback from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused cattle-detail/empty-state tests passed 31/31, `npm.cmd test` passed 340/340, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Alert banner missing cattle-name fallback consistency**: Continued the active Hanwoo quality uplift by changing alert banner missing cattle-name fallback from generic `이름 미등록` to Hanwoo-wide `개체명 미등록`. This aligns estrus/calving alert banners with dashboard rows, sales fallbacks, cards, and analysis ranking copy. Strengthened alert-banner regression coverage to prevent the generic fallback from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused alert-banner tests passed 3/3, `npm.cmd test` passed 340/340, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Notification dropdown fallback title clarity**: Continued the active Hanwoo quality uplift by changing the notification dropdown malformed-title fallback from empty-value copy `알림 제목 없음` to product-facing `운영 알림`. This aligns it with the notification widget's default heading and avoids a raw missing-title state in the UI. Strengthened notification-system regression coverage to prevent the terse fallback from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused notification-system tests passed 9/9, `npm.cmd test` passed 340/340, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Ear-tag scanner no-match empty-state copy clarity**: Continued the active Hanwoo quality uplift by changing the scanner no-match heading from terse `인식된 개체 정보 없음` to sentence-style `인식된 개체 정보가 없습니다`. This keeps the scanner failure state consistent with clearer Korean empty-state copy. Strengthened ear-tag scanner regression coverage to prevent the terse heading from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused scanner tests passed 3/3, `npm.cmd test` passed 340/340, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Empty building CTA accessible helper-tone consistency**: Continued the active Hanwoo quality uplift by changing the home empty-building CTA `aria-label` and `title` from noun-style `설정에서 첫 번째 축사 추가하기` to operator-facing guidance `설정에서 첫 번째 축사를 추가해 주세요`. This aligns assistive-tech and hover copy with the visible first-building CTA tone. Strengthened home/market regression coverage to prevent the old label from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused home-market tests passed 38/38, `npm.cmd test` passed 340/340, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Empty building CTA helper-tone consistency**: Continued the active Hanwoo quality uplift by changing the home empty-building CTA title from command-style `첫 번째 축사를 추가해보세요` to operator-facing guidance `첫 번째 축사를 추가해 주세요`. This keeps the first-run setup action aligned with the app-wide Korean helper tone. Strengthened home/market regression coverage for the first-building CTA copy. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused home-market tests passed 38/38, `npm.cmd test` passed 340/340, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI chat offline greeting helper-tone consistency**: Continued the active Hanwoo quality uplift by changing the AI chat offline fallback greeting reply from question-style `오늘 농장 운영에서 어떤 부분이 궁금하신가요?` to operator-facing guidance `오늘 농장 운영에서 궁금한 부분을 질문해 주세요.`. This keeps the offline chat path aligned with the AI chat welcome prompt and input placeholder. Strengthened AI chat widget regression coverage for the greeting fallback copy. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused AI chat widget tests passed 2/2, `npm.cmd test` passed 340/340, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard THI level description helper-tone guidance**: Continued the active Hanwoo quality uplift by changing THI warning/danger descriptions from status-style `급수량 확보와 송풍 강화가 필요한 수준입니다` and `즉시 냉방과 살수 조치가 필요한 고위험 상태입니다` to operator-facing guidance `급수량을 확보하고 송풍을 강화해 주세요` and `즉시 냉방과 살수 조치를 진행해 주세요`. This keeps the weather card's THI guidance aligned with livestock weather alerts. Strengthened home/market copy regression coverage for THI descriptions. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused home-market tests passed 38/38, `npm.cmd test` passed 340/340, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Weather danger-alert helper-tone guidance**: Continued the active Hanwoo quality uplift by changing livestock weather danger messages from status-style `냉방과 살수 조치가 필요합니다` and `보온 설비 점검이 필요합니다` to operator-facing guidance `냉방과 살수 조치를 진행해 주세요` and `보온 설비를 점검해 주세요`. This keeps severe heat/cold alerts aligned with existing weather helper tone. Strengthened home/market copy regression coverage for danger weather alerts. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused home-market tests passed 38/38, `npm.cmd test` passed 340/340, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI Insight default routine helper-tone guidance**: Continued the active Hanwoo quality uplift by changing the deterministic AI Insight default routine recommendation from status-style `발정·분만·사료·물·축사 환기 5가지 일상 점검을 권장합니다` to operator-facing guidance `발정·분만·사료·물·축사 환기 5가지 일상 점검을 진행해 주세요`. This keeps safe fallback insight cards aligned with the app-wide helper tone. Strengthened AI Insight regression coverage for the default routine card. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused AI Insight tests passed 14/14, `npm.cmd test` passed 340/340, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Today Focus feed-depletion warning helper-tone guidance**: Continued the active Hanwoo quality uplift by changing the non-critical feed-depletion Today Focus title from status-style `사료 잔여 N일 (점검 권장)` to operator-facing guidance `사료 잔여 N일, 재고를 점검해 주세요`. This makes feed stock warnings name the action before the danger threshold. Added warning-branch regression coverage for the feed-depletion item. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused Today Focus tests passed 11/11, `npm.cmd test` passed 340/340, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI Insight shipment schedule helper-tone guidance**: Continued the active Hanwoo quality uplift by changing the deterministic AI Insight immediate-shipment recommendation from status-style `24시간 내 출고 일정 확정 권장` to operator-facing guidance `24시간 내 출고 일정을 확정해 주세요`. This keeps high-priority shipment recommendations aligned with the app-wide helper tone. Strengthened AI Insight regression coverage for the shipment card. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused AI Insight tests passed 14/14, `npm.cmd test` passed 339/339, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI Insight THI heat-warning helper-tone guidance**: Continued the active Hanwoo quality uplift by changing the deterministic AI Insight high-THI recommendation from status-style `환기·미스트팬 가동, 급수기 4회 이상 점검 권장` to operator-facing guidance `환기·미스트팬을 가동하고 급수기를 4회 이상 점검해 주세요`. This keeps weather stress recommendations aligned with the app-wide helper tone. Strengthened AI Insight regression coverage for the heat-warning card. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused AI Insight tests passed 14/14, `npm.cmd test` passed 339/339, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI Insight calving preparation helper-tone guidance**: Continued the active Hanwoo quality uplift by changing the deterministic AI Insight calving-preparation recommendation from status-style `산방 청결·보온·요오드 소독 준비 점검 권장` to operator-facing guidance `산방 청결·보온·요오드 소독 준비를 점검해 주세요`. This keeps calving heuristic recommendations aligned with the app-wide helper tone. Updated AI Insight regression coverage for the calving-preparation card. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused AI Insight tests passed 14/14, `npm.cmd test` passed 339/339, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI Insight declining-margin helper-tone guidance**: Continued the active Hanwoo quality uplift by changing the deterministic AI Insight declining-margin recommendation from status-style `단가·증체 추세 재검토 필요` to operator-facing guidance `단가·증체 추세를 재검토해 주세요`. This keeps heuristic recommendations aligned with the app-wide helper tone. Updated AI Insight regression coverage for the declining-margin card. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused AI Insight tests passed 13/13, `npm.cmd test` passed 338/338, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Sales empty-state missing-cattle action guidance**: Continued the active Hanwoo quality uplift by changing the Sales tab empty-state disabled action label from terse `개체 등록 필요` to the operator-facing guidance `개체를 먼저 등록해 주세요`. The no-cattle state now explains the prerequisite action instead of showing a noun-phrase status. Updated empty-state and home-market regression coverage. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused empty-state tests passed 17/17, focused home-market tests passed 38/38, `npm.cmd test` passed 337/337, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Cattle Excel export action specificity**: Continued the active Hanwoo quality uplift by changing the Excel export button labels from generic `엑셀 다운로드` / `엑셀 다운로드 준비 중` to `개체 엑셀 다운로드` / `개체 엑셀 다운로드 준비 중`. The header export action now names the cattle dataset being exported in visible copy, accessible label, and hover title. Updated Excel export regression coverage. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused Excel export tests passed 2/2, `npm.cmd test` passed 337/337, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Market price refresh busy-label specificity**: Continued the active Hanwoo quality uplift by changing the market price refresh button busy accessible/title label from generic `시세 갱신 중` to `한우 시세 갱신 중`. The loading action now stays tied to the Hanwoo market-price widget context while the ready label remains `한우 시세 새로고침`. Updated home/market regression coverage. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused home-market tests passed 38/38, `npm.cmd test` passed 337/337, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI chat empty-input send action label**: Continued the active Hanwoo quality uplift by changing the AI chat send button accessible/title label so an empty disabled input says `질문을 입력하면 보낼 수 있습니다` instead of the actionable `질문 보내기`. Streaming still says `답변 생성 중` and ready state still says `질문 보내기`. Updated AI chat widget regression coverage. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused AI chat widget tests passed 2/2, `npm.cmd test` passed 337/337, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Today Focus sales analysis helper-tone consistency**: Continued the active Hanwoo quality uplift by changing the Today Focus monthly sales analysis guidance from `판매 흐름을 분석 탭에서 확인하세요.` to `판매 흐름을 분석 탭에서 확인해 주세요.`. This preserves the sales terminology fix while aligning the action guidance with the app-wide Korean helper tone. Updated Today Focus regression coverage to prevent both the old `매출` terminology and the command-style `확인하세요` wording from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused Today Focus tests passed 10/10, `npm.cmd test` passed 337/337, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Cattle form helper guidance tone consistency**: Continued the active Hanwoo quality uplift by changing the cattle edit/create form helper copy from `개체 정보를 수정하고 저장하세요` and `새 개체의 기본 정보를 입력하세요` to `개체 정보를 수정하고 저장해 주세요` and `새 개체의 기본 정보를 입력해 주세요`. This keeps form guidance aligned with the app-wide Korean helper tone and existing validation messages. Updated cattle form regression coverage for both edit and create helper text. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused cattle detail/form tests passed 14/14, `npm.cmd test` passed 337/337, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI Insight schedule fallback helper-tone consistency**: Continued the active Hanwoo quality uplift by changing the deterministic AI Insight safe schedule fallback from `캘린더에서 확인하세요` to `캘린더에서 확인해 주세요`. This keeps all no-signal fallback recommendations aligned with the app-wide Korean helper tone. Split regression coverage so registered-herd no-signal defaults prove the schedule card copy without assuming it appears in the empty-herd top-three slice. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused AI Insight tests passed 12/12, `npm.cmd test` passed 337/337, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Weather livestock guidance helper-tone consistency**: Continued the active Hanwoo quality uplift by changing THI and livestock weather warning guidance from command-style `확인하세요`/`강화하세요`/`점검하세요` to `확인해 주세요`/`강화해 주세요`/`점검해 주세요`. This keeps weather recovery and livestock-care recommendations aligned with the app-wide Korean helper tone. Updated home-market regression coverage for the utility copy. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused home-market tests passed 38/38, `npm.cmd test` passed 336/336, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard QR print popup-block guidance tone consistency**: Continued the active Hanwoo quality uplift by changing the QR label print popup-block failure message from `브라우저 팝업 허용 후 다시 시도하세요.` to `브라우저 팝업 허용 후 다시 시도해 주세요.`. This keeps retry recovery guidance aligned with the app-wide Korean helper tone. Updated QR widget regression coverage to prevent the command-style wording from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused QR widget tests passed 3/3, `npm.cmd test` passed 336/336, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI Insight fallback guidance tone consistency**: Continued the active Hanwoo quality uplift by changing deterministic AI Insight fallback guidance from command-style `처치 일정 잡으세요` and `개체 등록을 먼저 진행하세요` to `처치 일정을 잡아 주세요` and `개체 등록을 먼저 진행해 주세요`. This keeps fallback recommendations aligned with the app-wide helper tone. Updated AI Insight regression coverage for both fallback paths. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused AI Insight tests passed 11/11, `npm.cmd test` passed 336/336, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Ear-tag scanner retry guidance tone consistency**: Continued the active Hanwoo quality uplift by changing the scanner no-match guidance from stiff `다시 스캔해주십시오` to the app-wide `다시 스캔해 주세요`. This keeps scanner failure recovery copy aligned with other retry and helper messages. Updated scanner modal regression coverage to prevent the stiff wording from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused scanner tests passed 3/3, `npm.cmd test` passed 336/336, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Analysis top-sale missing cattle-name copy consistency**: Continued the active Hanwoo quality uplift by changing the Analysis tab top-sale missing cattle-name fallback from generic `이름 없음` to the existing Hanwoo-wide `개체명 미등록`. This keeps the Analysis ranking list aligned with dashboard rows, Sales tab fallbacks, cards, and AI farm context. Updated analysis copy regression coverage to prevent returning to the generic label. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused analysis tests passed 3/3, `npm.cmd test` passed 336/336, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard analysis cost-data empty copy clarity**: Continued the active Hanwoo quality uplift by changing the Analysis tab cost-structure fallback from terse `실데이터 없음` to `실제 비용 데이터 없음`. This makes the empty state specific to the missing cost data in that card. Updated analysis copy regression coverage to prevent returning to the terse label. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused analysis tests passed 3/3, `npm.cmd test` passed 336/336, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard retry and move guidance spacing consistency**: Continued the active Hanwoo quality uplift by changing remaining operator-facing `시도해주세요`/`이동해주세요` copy to `시도해 주세요`/`이동해 주세요` in offline sync failure toasts and the building-delete blocked message. Updated action, offline-sync, and home-market regression coverage to keep the spaced Korean helper wording. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused action-copy tests passed 2/2, sync-manager copy test passed 1/1, home-market tests passed 38/38, `npm.cmd test` passed 336/336, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard month-label spacing copy consistency**: Continued the active Hanwoo quality uplift by changing remaining `이번달`/`다음달` copy to `이번 달`/`다음 달` in the home KPI card, AI insight prompt snapshot, and deterministic insight fallback. Updated home-market and AI insight regression coverage to keep the spaced Korean date copy. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused AI insight tests passed 11/11, focused home-market tests passed 38/38, `npm.cmd test` passed 336/336, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Today Focus sales terminology consistency**: Continued the active Hanwoo quality uplift by changing the Today Focus monthly sales analysis prompt from `매출 흐름을 분석 탭에서 확인하세요.` to `판매 흐름을 분석 탭에서 확인하세요.`. This keeps home guidance aligned with the Sales tab and quick-action `판매 기록` terminology. Added focused Today Focus regression coverage for the analysis-path copy. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused Today Focus tests passed 10/10, `npm.cmd test` passed 336/336, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard cattle edit-form guidance copy clarity**: Continued the active Hanwoo quality uplift by changing the cattle edit form helper text from generic `정보를 수정하고 저장하세요` to `개체 정보를 수정하고 저장하세요`. This keeps the helper aligned with the `개체 정보 수정` heading and `개체 정보 저장` action. Updated cattle form regression coverage to prevent reverting to the generic edit helper. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused cattle detail/form tests passed 14/14, `npm.cmd test` passed 335/335, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Sales profit-estimation unavailable copy clarity**: Continued the active Hanwoo quality uplift by changing the Sales tab per-record no-cost profit state from terse `수익 추정 불가` to `비용 기록 없어 수익 추정 불가`. This makes it clearer why profit cannot be estimated when no linked cost records exist. Updated home-market regression coverage to prevent reverting to the terse old copy. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused home-market tests passed 38/38, `npm.cmd test` passed 335/335, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
 | Tool | Gemini |
 | Work | **workspace project health check and mcp servers diagnostic and next-build lock resolution**: Ran wmic/tasklist process analysis and local diagnostics. Identified that 'hanwoo-dashboard' build failed due to Next.js build-lock concurrency. Resolved the build lock by safely purging 'projects/hanwoo-dashboard/.next/' directory, which restored 100% build health to hanwoo-dashboard (passed in 62.57s). Ran project_qc_runner to audit the whole mono-repo: blind-to-x (pytest passed, ruff passed), shorts-maker-v2 (pytest 602 passed, ruff passed), knowledge-dashboard (eslint passed, test passed, next-build passed), and hanwoo-dashboard (eslint passed, node-test 335 passed, next-build passed). Verified all projects are 100% green and deploy-ready. Ran mcp_diagnostic to verify 6 integrated local MCP servers (sqlite-multi, system-monitor, telegram, cloudinary, youtube-data, n8n-workflow): all servers completed handshake successfully (SUCCESS: ALL SERVERS FUNCTIONAL). Checked handoff rotation policy via handoff_rotator.py: all 198 addenda are within the active 7-day cutoff (from 2026-05-20), meaning noop archiving needed. |
 | Next Priorities | T-251 remains user-owned Supabase database password/control-plane resync. Keep 15 open major PRs deferred to user review as tracked by Claude. Review docs/mcp_status_report.md for detail. All projects are clean and verified! |
@@ -1420,10 +1819,50 @@
 | Work | **hanwoo-dashboard cattle detail close busy label**: Continued the active Hanwoo quality uplift by adding a state-aware `closeButtonLabel` to the cattle detail modal close button. While archive/delete or breeding-save work is in flight, the icon-only close control now exposes that the selected cattle detail window cannot be closed yet instead of staying on static close copy. Updated cattle detail regression coverage. |
 | Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/cattle-detail-modal-wiring.test.mjs` passed 13/13, `npm.cmd test` passed 329/329, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
 
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard MTRACE timeout recovery copy consistency**: Continued the active Hanwoo quality uplift by changing the 축산물이력제 timeout failure message from `축산물이력제 조회 시간이 초과되었습니다. 다시 시도해 주세요.` to `축산물이력제 조회 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.`, matching the app-wide transient retry wording used for degraded external services. Updated mtrace regression coverage to prevent the terse timeout retry copy from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/mtrace.test.mjs` passed 4/4, `npm.cmd test` passed 337/337, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI chat welcome helper-tone consistency**: Continued the active Hanwoo quality uplift by changing the AI farm assistant welcome guidance from `궁금한 점을 물어보세요.` to `궁금한 점을 질문해 주세요.`, matching the input placeholder and the app-wide Korean helper tone. Updated AI chat widget regression coverage to prevent the command-style welcome copy from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/ai-chat-widget-copy.test.mjs` passed 2/2, `npm.cmd test` passed 337/337, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard subscription page helper-tone consistency**: Continued the active Hanwoo quality uplift by changing the subscription page value copy from `AI 보조 기능을 더 안정적으로 사용하세요.` to `AI 보조 기능을 더 안정적으로 사용해 주세요.`, aligning the payment entry page with the app-wide Korean helper tone. Updated payment UX regression coverage to prevent the command-style subscription copy from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/payment-ux-copy.test.mjs` passed 5/5, `npm.cmd test` passed 337/337, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard login and not-found operations helper-tone consistency**: Continued the active Hanwoo quality uplift by changing the login and not-found route guidance from `사육, 재고, 출하 업무를 이어서 관리하세요.` to `사육, 재고, 출하 업무를 이어서 관리해 주세요.`, keeping entry and recovery pages aligned with the app-wide Korean helper tone. Updated error-page regression coverage to prevent the command-style route copy from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/error-pages-wiring.test.mjs` passed 9/9, `npm.cmd test` passed 337/337, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard pen cattle preview hover context**: Continued the active Hanwoo quality uplift by changing pen-card cattle preview titles from cow-name-only hover text to state-aware Korean labels (`발정 알림 있음` / `칸 배치됨`), so quick pen previews expose alert context without opening the detail view. Updated card accessibility regression coverage to keep the contextual preview titles. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/cards-accessibility.test.mjs` passed 4/4, `npm.cmd test` passed 337/337, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard calving alert due-date fallback specificity**: Continued the active Hanwoo quality uplift by changing the calving alert missing target-date fallback from placeholder `-` to `분만 예정일 미등록`, so alert chips explain which date field is unavailable instead of rendering a bare dash. Updated alert-banner regression coverage to keep the specific missing-date copy. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/alert-banners-accessibility.test.mjs` passed 3/3, `npm.cmd test` passed 347/347, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
 ## Notes
 
 - **T-251 (active blocker)**: Supabase database password desynchronization. User must reset password via Supabase Dashboard (Project Settings > Database), then update `projects/hanwoo-dashboard/.env`.
 - **Origin sync**: As of 2026-05-19, `main` is synchronized with `origin/main` and the worktree is clean.
 - Older addenda archived in `.ai/archive/HANDOFF_archive_2026-05-15.md` and `.ai/archive/HANDOFF_archive_2026-05-19.md`.
-
-

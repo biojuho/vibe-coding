@@ -42,7 +42,7 @@ export async function getSystemDiagnostics() {
 			success: false,
 			timestamp: new Date().toISOString(),
 			error: DIAGNOSTICS_ERROR_MESSAGE,
-			database: { status: "연결 실패", latency: "확인 불가" },
+			database: { status: "연결 실패", latency: "DB 응답 시간 확인 불가" },
 		};
 	}
 }

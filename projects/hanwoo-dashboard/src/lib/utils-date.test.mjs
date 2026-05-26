@@ -63,8 +63,9 @@ test("date utility calculations use a fresh or injected current date", () => {
 	assert.match(utilsSource, /getDaysUntilCalving\(pregnancyDate, now\)/);
 	assert.match(
 		utilsSource,
-		/return date \? date\.toLocaleDateString\(['"]ko-KR['"]\) : ['"]-['"];/,
+		/return date \? date\.toLocaleDateString\(['"]ko-KR['"]\) : ['"]날짜 미등록['"];/,
 	);
+	assert.doesNotMatch(utilsSource, /return date \? date\.toLocaleDateString\(['"]ko-KR['"]\) : ['"]-['"];/);
 	assert.match(
 		utilsSource,
 		/return date \? date\.toISOString\(\)\.split\(['"]T['"]\)\[0\] : ['"]['"];/,

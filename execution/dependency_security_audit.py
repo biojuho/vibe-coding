@@ -1,8 +1,8 @@
 """Automated python dependency security vulnerability auditor.
 
-This tool introduces 'pypa/pip-audit' to scan the project dependencies for 
-known security vulnerabilities (CVEs). It outputs a beautiful, styled 
-Rich TUI table and handles severity color-coding, returning exit code 1 
+This tool introduces 'pypa/pip-audit' to scan the project dependencies for
+known security vulnerabilities (CVEs). It outputs a beautiful, styled
+Rich TUI table and handles severity color-coding, returning exit code 1
 if high-risk vulnerabilities are found to serve as a quality gate.
 Now optimized with absolute safety for Windows CP949 encoding environments.
 """
@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -25,6 +24,7 @@ try:
     from rich.text import Text
     from rich.align import Align
     from rich.box import ROUNDED, HEAVY, ASCII
+
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
@@ -55,13 +55,13 @@ def run_pip_audit() -> dict[str, Any]:
     # We use 'python -m pip_audit' because it respects the current Python environment
     # and bypasses Windows PATH script resolution warnings.
     cmd = [sys.executable, "-m", "pip_audit", "--format", "json"]
-    
+
     # Critical self-annealing: Force subprocess to run in UTF-8 mode
     # to prevent pip_api decoding crashes in Windows Korean environments.
     env = os.environ.copy()
     env["PYTHONUTF8"] = "1"
     env["PYTHONIOENCODING"] = "utf-8"
-    
+
     try:
         result = subprocess.run(
             cmd,
@@ -81,26 +81,22 @@ def run_pip_audit() -> dict[str, Any]:
 
     if not stdout:
         return {
-            "success": False, 
-            "error": "No output received from pip-audit", 
-            "stderr": stderr, 
-            "exit_code": result.returncode
+            "success": False,
+            "error": "No output received from pip-audit",
+            "stderr": stderr,
+            "exit_code": result.returncode,
         }
 
     try:
         data = json.loads(stdout)
-        return {
-            "success": True,
-            "vulnerabilities": data.get("dependencies", []),
-            "exit_code": result.returncode
-        }
+        return {"success": True, "vulnerabilities": data.get("dependencies", []), "exit_code": result.returncode}
     except json.JSONDecodeError:
         return {
             "success": False,
             "error": "Unparseable non-JSON output from pip-audit",
             "stdout": stdout,
             "stderr": stderr,
-            "exit_code": result.returncode
+            "exit_code": result.returncode,
         }
 
 
@@ -126,7 +122,7 @@ def render_text_report(audit_result: dict[str, Any]) -> None:
                     f"  [VULNERABLE] {dep_name} @ {version} - {v.get('id')} "
                     f"(Fix: {v.get('fix_versions', 'None')}) - {v.get('description', '')[:60]}..."
                 )
-    
+
     if not found_any:
         _safe_print("  No known security vulnerabilities found. Your dependencies are secure!")
 
@@ -137,24 +133,23 @@ def render_rich_report(audit_result: dict[str, Any]) -> None:
     box_style = ASCII if IS_WINDOWS else ROUNDED
 
     # 1. Header Banner
-    title_text = Text(f"\n {SYM_SHIELD} DEPENDENCY SECURITY VULNERABILITY AUDIT {SYM_SHIELD} \n", style="bold white on rgb(40,80,60)")
+    title_text = Text(
+        f"\n {SYM_SHIELD} DEPENDENCY SECURITY VULNERABILITY AUDIT {SYM_SHIELD} \n", style="bold white on rgb(40,80,60)"
+    )
     title_align = Align.center(title_text)
     console.print(Panel(title_align, box=HEAVY if not IS_WINDOWS else ASCII, border_style="rgb(60,140,80)"))
     console.print()
 
     if not audit_result["success"]:
-        err_msg = (
-            f"[bold red]Audit Execution Failed![/]\n\n"
-            f"[bold magenta]Error:[/] {audit_result['error']}\n"
-        )
+        err_msg = f"[bold red]Audit Execution Failed![/]\n\n[bold magenta]Error:[/] {audit_result['error']}\n"
         if "stderr" in audit_result and audit_result["stderr"]:
             err_msg += f"[bold magenta]Details:[/] {audit_result['stderr']}"
-        
+
         console.print(Panel(err_msg, title=f"{SYM_CROSS} Error", border_style="red", box=box_style))
         return
 
     dependencies = audit_result["vulnerabilities"]
-    
+
     # 2. Extract and Flatten Vulnerabilities
     flattened_vulns = []
     total_packages_scanned = len(dependencies)
@@ -167,13 +162,15 @@ def render_rich_report(audit_result: dict[str, Any]) -> None:
         if vuln_list:
             vulnerable_packages_count += 1
             for v in vuln_list:
-                flattened_vulns.append({
-                    "package": dep_name,
-                    "version": version,
-                    "cve_id": v.get("id"),
-                    "fix_versions": ", ".join(v.get("fix_versions", [])) if v.get("fix_versions") else "None",
-                    "description": v.get("description", "No description available"),
-                })
+                flattened_vulns.append(
+                    {
+                        "package": dep_name,
+                        "version": version,
+                        "cve_id": v.get("id"),
+                        "fix_versions": ", ".join(v.get("fix_versions", [])) if v.get("fix_versions") else "None",
+                        "description": v.get("description", "No description available"),
+                    }
+                )
 
     # 3. Render Summary Panel
     if flattened_vulns:
@@ -192,18 +189,17 @@ def render_rich_report(audit_result: dict[str, Any]) -> None:
             f"[bold]Packages Scanned:[/] {total_packages_scanned}   "
             f"[bold green]Vulnerable Packages:[/] 0"
         )
-        summary_panel = Panel(summary_text, title=f"{SYM_CHECK} Audit Summary", border_style="rgb(60,140,80)", box=box_style)
-    
+        summary_panel = Panel(
+            summary_text, title=f"{SYM_CHECK} Audit Summary", border_style="rgb(60,140,80)", box=box_style
+        )
+
     console.print(summary_panel)
     console.print()
 
     # 4. Render Detailed Table if vulnerabilities exist
     if flattened_vulns:
         table = Table(
-            title=f"{SYM_SCAN} Vulnerability Details (CVEs)",
-            box=box_style,
-            border_style="rgb(180,80,80)",
-            expand=True
+            title=f"{SYM_SCAN} Vulnerability Details (CVEs)", box=box_style, border_style="rgb(180,80,80)", expand=True
         )
         table.add_column("Package", style="bold cyan", width=20)
         table.add_column("Current Version", style="yellow", width=15)
@@ -215,21 +211,15 @@ def render_rich_report(audit_result: dict[str, Any]) -> None:
             desc = v["description"]
             if len(desc) > 100:
                 desc = desc[:97] + "..."
-            table.add_row(
-                v["package"],
-                v["version"],
-                v["cve_id"],
-                v["fix_versions"],
-                desc
-            )
-        
+            table.add_row(v["package"], v["version"], v["cve_id"], v["fix_versions"], desc)
+
         console.print(table)
     console.print()
 
 
 def main() -> int:
     audit_result = run_pip_audit()
-    
+
     # Output UI Report
     if RICH_AVAILABLE:
         try:
@@ -246,10 +236,10 @@ def main() -> int:
 
     vulnerabilities = audit_result["vulnerabilities"]
     has_vulns = any(len(dep.get("vulns", [])) > 0 for dep in vulnerabilities)
-    
+
     if has_vulns:
         return 1
-    
+
     return 0
 
 

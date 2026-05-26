@@ -38,7 +38,10 @@ test("admin diagnostics page uses Korean operations copy for visible states", ()
 	assert.match(source, /MODEL_OPTIONS/);
 	assert.match(systemActions, /status: ["']정상["']/);
 	assert.match(systemActions, /status: ["']연결 실패["']/);
-	assert.match(systemActions, /latency: ["']확인 불가["']/);
+	assert.match(source, /status: ["']DB 상태 확인 불가["']/);
+	assert.match(source, /latency: ["']DB 응답 시간 확인 불가["']/);
+	assert.match(source, /nodeVersion: ["']Node 버전 확인 불가["']/);
+	assert.match(systemActions, /latency: ["']DB 응답 시간 확인 불가["']/);
 	assert.doesNotMatch(source, /System Diagnostics/);
 	assert.doesNotMatch(source, /Database Status/);
 	assert.doesNotMatch(source, /Loading records/);
@@ -47,6 +50,7 @@ test("admin diagnostics page uses Korean operations copy for visible states", ()
 	assert.doesNotMatch(systemActions, /status: ["']Online["']/);
 	assert.doesNotMatch(systemActions, /status: ["']Offline["']/);
 	assert.doesNotMatch(systemActions, /latency: ["']N\/A["']/);
+	assert.doesNotMatch(systemActions, /latency: ["']확인 불가["']/);
 });
 
 test("admin diagnostics loading states are announced", () => {

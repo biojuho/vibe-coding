@@ -97,7 +97,7 @@ function normalizeFeedBuildings(buildings) {
 		name:
 			typeof building.name === "string" && building.name.trim()
 				? building.name
-				: "축사명 미등록",
+				: "축사 이름 미등록",
 	}));
 }
 
@@ -114,10 +114,10 @@ export default function FeedTab({
 	const { notify } = useAppFeedback();
 	const submitButtonLabel = isSaving
 		? "급여 기록 저장 중"
-		: "급여 기록 저장하기";
+		: "급여 기록 저장";
 	const submitButtonText = isSaving
 		? "급여 기록 저장 중..."
-		: "급여 기록 저장하기";
+		: "급여 기록 저장";
 	const feedChartLabel =
 		"최근 급여 추이 차트. 조사료와 배합사료 급여량을 날짜별로 비교합니다.";
 

@@ -122,6 +122,20 @@ test("buildTodayFocusItems keeps a useful sales prompt when no urgent work exist
 	assert.equal(items[0].tone, "neutral");
 });
 
+test("buildTodayFocusItems uses sales terminology for monthly sales analysis", () => {
+	const items = buildTodayFocusItems({
+		now: new Date("2026-05-18T10:00:00+09:00"),
+		monthlySalesCount: 3,
+	});
+
+	const item = items.find(({ id }) => id === "monthly-sales");
+	assert.equal(item?.detail, "판매 흐름을 분석 탭에서 확인해 주세요.");
+	assert.equal(item?.meta, "분석 보기");
+	assert.equal(item?.targetTab, "analysis");
+	assert.notEqual(item?.detail, "매출 흐름을 분석 탭에서 확인하세요.");
+	assert.notEqual(item?.detail, "판매 흐름을 분석 탭에서 확인하세요.");
+});
+
 test("estimateDailyFeedConsumptionKg returns null with no records", () => {
 	const result = estimateDailyFeedConsumptionKg({
 		feedHistory: [],
@@ -171,6 +185,34 @@ test("buildTodayFocusItems pushes a critical feed-depletion item when projected 
 	assert.ok(depletion, "should surface feed-depletion item");
 	assert.equal(depletion.tone, "danger");
 	assert.match(depletion.title, /사료 \d+일 후 소진 예상/);
+});
+
+test("buildTodayFocusItems uses helper tone for feed-depletion warning checks", () => {
+	const items = buildTodayFocusItems({
+		now: new Date("2026-05-18T10:00:00+09:00"),
+		inventoryList: [
+			{
+				id: "feed-warning",
+				name: "TMR 사료",
+				category: "Feed",
+				quantity: 60,
+				threshold: 5,
+				unit: "kg",
+			},
+		],
+		feedHistory: [
+			// ~6kg/day average usage -> 60kg lasts ~10 days -> warning, not critical.
+			{ date: "2026-05-17", roughage: 30, concentrate: 30 },
+			{ date: "2026-05-16", roughage: 30, concentrate: 30 },
+			{ date: "2026-05-15", roughage: 30, concentrate: 30 },
+		],
+		monthlySalesCount: 0,
+	});
+	const depletion = items.find((item) => item.id === "feed-depletion");
+	assert.ok(depletion, "should surface warning feed-depletion item");
+	assert.equal(depletion.tone, "warning");
+	assert.match(depletion.title, /사료 잔여 \d+일, 재고를 점검해 주세요/);
+	assert.doesNotMatch(depletion.title, /점검 권장/);
 });
 
 test("buildTodayFocusItems skips feed-depletion when feed history is empty", () => {

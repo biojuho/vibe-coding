@@ -128,8 +128,8 @@ export function ProfitabilityWidget({ data, isLoading, error, meta = null }) {
 							weight: toFiniteNumber(rawItem.weight),
 						};
 						const tagSuffix =
-							String(rawItem.tagNumber ?? "").slice(-4) || "----";
-						const itemName = String(rawItem.name ?? "-");
+							String(rawItem.tagNumber ?? "").slice(-4) || "이력번호 미등록";
+						const itemName = String(rawItem.name ?? "") || "개체명 미등록";
 
 						return (
 							<div

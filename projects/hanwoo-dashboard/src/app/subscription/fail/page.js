@@ -6,11 +6,12 @@ import { Suspense } from "react";
 const PAYMENT_FAILURE_MESSAGE =
 	"결제 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.";
 const PAYMENT_FAILURE_LOADING_MESSAGE = "결제 실패 정보를 불러오는 중입니다.";
+const PAYMENT_FAILURE_CODE_FALLBACK = "오류 코드 미전달";
 
 function FailContent() {
 	const searchParams = useSearchParams();
 	const router = useRouter();
-	const errorCode = searchParams.get("code") || "-";
+	const errorCode = searchParams.get("code") || PAYMENT_FAILURE_CODE_FALLBACK;
 
 	return (
 		<div

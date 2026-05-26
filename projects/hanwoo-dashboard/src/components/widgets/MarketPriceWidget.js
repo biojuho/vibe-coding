@@ -73,7 +73,7 @@ function getSourcePresentation(prices) {
 			};
 		default:
 			return {
-				label: "확인 불가",
+				label: "시세 확인 불가",
 				style: {
 					background: "color-mix(in srgb, #9aa2ad 18%, white 82%)",
 					color: "#637083",
@@ -251,8 +251,10 @@ export default function MarketPriceWidget({ initialData = null }) {
 							}}
 							disabled={loading}
 							aria-busy={loading}
-							aria-label={loading ? "시세 갱신 중" : "한우 시세 새로고침"}
-							title={loading ? "시세 갱신 중" : "한우 시세 새로고침"}
+							aria-label={
+								loading ? "한우 시세 갱신 중" : "한우 시세 새로고침"
+							}
+							title={loading ? "한우 시세 갱신 중" : "한우 시세 새로고침"}
 							className="clay-pressable inline-flex h-10 w-10 items-center justify-center rounded-full text-[color:var(--color-text-secondary)]"
 						>
 							<RefreshCwIcon

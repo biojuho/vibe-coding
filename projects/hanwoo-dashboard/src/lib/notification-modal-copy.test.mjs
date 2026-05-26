@@ -164,10 +164,21 @@ test("notification modal visible copy is readable Korean product copy", () => {
 		"문자 알림 서비스",
 		"중요한 알림을 문자로 받아보시겠습니까?",
 		"문자 알림 테스트 전송",
+		"알림 시간 확인 불가",
 		"문자 알림 연동이 필요하며 발송 비용이 발생할 수 있습니다.",
 	]) {
 		assert.equal(source.includes(copy), true);
 	}
+
+	assert.match(
+		source,
+		/const notificationTimeFallback = ["']알림 시간 확인 불가["'];/,
+	);
+	assert.match(
+		source,
+		/\{notification\.time \|\| notificationTimeFallback\}/,
+	);
+	assert.doesNotMatch(source, /\{notification\.time \|\| ["']-["']\}/);
 
 	assert.equal(dashboardSource.includes("테스트 문자를 발송했습니다."), true);
 	assert.equal(

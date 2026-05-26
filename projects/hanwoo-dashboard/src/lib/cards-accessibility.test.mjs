@@ -32,6 +32,11 @@ test("pen and cattle cards use native button activation semantics", () => {
 	);
 	assert.match(source, /aria-label=\{penAccessibleLabel\}/);
 	assert.match(source, /title=\{penAccessibleLabel\}/);
+	assert.match(source, /const penCowPreviewLabel = al/);
+	assert.match(source, /`\$\{c\.name\} 발정 알림 있음`/);
+	assert.match(source, /`\$\{c\.name\} 칸 배치됨`/);
+	assert.match(source, /title=\{penCowPreviewLabel\}/);
+	assert.doesNotMatch(source, /title=\{`\$\{c\.name\}`\}/);
 	assert.match(source, /aria-label=\{cattleAccessibleLabel\}/);
 	assert.match(source, /title=\{cattleAccessibleLabel\}/);
 	assert.match(source, /<div className="pen-alert-badge" aria-hidden="true">/);
@@ -71,6 +76,17 @@ test("cattle row alert badges use operator-readable countdown labels", () => {
 	assert.match(source, /분만 \{calvingDays\}일 남음/);
 	assert.doesNotMatch(source, /발정D-/);
 	assert.doesNotMatch(source, /분만D-/);
+});
+
+test("cattle rows explain missing genetic grades instead of showing dash placeholders", () => {
+	const source = readSource("components/ui/cards.js");
+
+	assert.match(
+		source,
+		/const geneticGradeLabel =\s+typeof cow\.geneticInfo\?\.grade === ["']string["'] &&\s+cow\.geneticInfo\.grade\.trim\(\) &&\s+cow\.geneticInfo\.grade !== ["']-["']\s+\?\s+cow\.geneticInfo\.grade\s+:\s+["']유전 등급 미등록["'];/,
+	);
+	assert.match(source, /\{geneticGradeLabel\}/);
+	assert.doesNotMatch(source, /cow\.geneticInfo\?\.grade \|\| ["']-["']/);
 });
 
 test("native card buttons keep card visual reset styles", () => {

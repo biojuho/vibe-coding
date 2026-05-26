@@ -527,7 +527,7 @@ export default function FieldModeView({
 													<span>{cow.weight}kg</span>
 													<span>·</span>
 													<span>
-														{cow.buildingId ? `${cow.buildingId}동` : "미지정"}{" "}
+														{cow.buildingId ? `${cow.buildingId}동` : "축사 미지정"}{" "}
 														{cow.penNumber ? `${cow.penNumber}번 칸` : ""}
 													</span>
 												</div>

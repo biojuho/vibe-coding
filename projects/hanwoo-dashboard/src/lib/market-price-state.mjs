@@ -176,7 +176,7 @@ export function buildUnavailableMarketPrice(options = {}) {
 		isRealtime: false,
 		isStale: true,
 		source: "unavailable",
-		sourceLabel: "확인 불가",
+		sourceLabel: "시세 확인 불가",
 		message: options.message ?? MARKET_PRICE_UNAVAILABLE_MESSAGE,
 		fetchedAt: now.toISOString(),
 		issueDate: null,

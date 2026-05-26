@@ -53,9 +53,43 @@ test("cattle detail shows a real calving due date from pregnancy date", () => {
 	assert.match(source, /getCalvingDate/);
 	assert.match(
 		source,
-		/label="분만 예정일"\s+value=\{\s*cattle\.pregnancyDate\s*\?\s*formatDate\(getCalvingDate\(cattle\.pregnancyDate\)\)\s*:\s*["']-["']\s*\}/,
+		/label="분만 예정일"\s+value=\{\s*cattle\.pregnancyDate\s*\?\s*formatDate\(getCalvingDate\(cattle\.pregnancyDate\)\)\s*:\s*["']분만 예정일 미등록["']\s*\}/,
 	);
 	assert.doesNotMatch(source, /계산중/);
+});
+
+test("cattle detail breeding date fallbacks explain which date is missing", () => {
+	const source = readSource("components/forms/CattleDetailModal.js");
+
+	assert.match(
+		source,
+		/label="최근 발정"\s+value=\{\s*cattle\.lastEstrus\s*\?\s*formatDate\(cattle\.lastEstrus\)\s*:\s*["']발정일 미등록["']\s*\}/,
+	);
+	assert.match(
+		source,
+		/label="다음 발정 예정"\s+value=\{\s*cattle\.lastEstrus\s*\?\s*formatDaysLeftLabel\(\s*getDaysUntilEstrus\(cattle\.lastEstrus\),\s*\)\s*:\s*["']최근 발정일 미등록["']\s*\}/,
+	);
+	assert.match(
+		source,
+		/label="수정일\(임신\)"\s+value=\{\s*cattle\.pregnancyDate\s*\?\s*formatDate\(cattle\.pregnancyDate\)\s*:\s*["']수정일 미등록["']\s*\}/,
+	);
+	assert.doesNotMatch(
+		source,
+		/label="(?:최근 발정|다음 발정 예정|수정일\(임신\)|분만 예정일)"[\s\S]*?:\s*["']-["']/,
+	);
+});
+
+test("cattle detail genetic fallbacks explain which lineage is missing", () => {
+	const source = readSource("components/forms/CattleDetailModal.js");
+
+	assert.match(
+		source,
+		/label="유전능력"\s+value=\{`부:\$\{cattle\.geneticInfo\?\.father \|\| ["']부계 미등록["']\} \/ 모:\$\{cattle\.geneticInfo\?\.mother \|\| ["']모계 미등록["']\}`\}/,
+	);
+	assert.doesNotMatch(
+		source,
+		/label="유전능력"[\s\S]*?geneticInfo\?\.father \|\| ["']-["'][\s\S]*?geneticInfo\?\.mother \|\| ["']-["']/,
+	);
 });
 
 test("cattle detail uses operator-readable breeding countdown labels", () => {
@@ -432,6 +466,11 @@ test("cattle form waits for async saves before re-enabling submit actions", () =
 		formSource,
 		/const submitButtonText = isSaving\s*\?\s*["']개체 정보 저장 중\.\.\.["']\s*:\s*["']개체 정보 저장["'];?/,
 	);
+	assert.match(formSource, /개체 정보를 수정하고 저장해 주세요/);
+	assert.match(formSource, /새 개체의 기본 정보를 입력해 주세요/);
+	assert.doesNotMatch(formSource, /개체 정보를 수정하고 저장하세요/);
+	assert.doesNotMatch(formSource, /새 개체의 기본 정보를 입력하세요/);
+	assert.doesNotMatch(formSource, /\?\s*["']정보를 수정하고 저장하세요["']/);
 	assert.match(formSource, /const submitForm = async \(values\) => \{/);
 	assert.match(formSource, /if \(saveInFlightRef\.current\) \{\s+return;\s+\}/);
 	assert.match(formSource, /saveInFlightRef\.current = true;/);
@@ -482,7 +521,8 @@ test("cattle form normalizes malformed building payloads before rendering", () =
 		formSource,
 		/id: building\.id \?\? `cattle-building-\$\{index\}`/,
 	);
-	assert.match(formSource, /['"]축사명 미등록['"]/);
+	assert.match(formSource, /['"]축사 이름 미등록['"]/);
+	assert.doesNotMatch(formSource, /['"]축사명 미등록['"]/);
 	assert.match(
 		formSource,
 		/const safeBuildings = useMemo\(\s*\(\s*\)\s*=>\s*normalizeCattleFormBuildings\(buildings\),\s*\[buildings\],?\s*\);/,
@@ -524,7 +564,8 @@ test("cattle detail normalizes malformed building payloads before lookup", () =>
 		detailSource,
 		/id: building\.id \?\? `detail-building-\$\{index\}`/,
 	);
-	assert.match(detailSource, /['"]축사명 미등록['"]/);
+	assert.match(detailSource, /['"]축사 이름 미등록['"]/);
+	assert.doesNotMatch(detailSource, /['"]축사명 미등록['"]/);
 	assert.match(
 		detailSource,
 		/const safeBuildings = useMemo\(\s*\(\s*\)\s*=>\s*normalizeDetailBuildings\(buildings\),\s*\[buildings\],?\s*\);/,

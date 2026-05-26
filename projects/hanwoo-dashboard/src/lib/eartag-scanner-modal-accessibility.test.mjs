@@ -66,6 +66,10 @@ test("ear tag scanner announces scan results and labels manual simulation choice
 
 	assert.match(source, /role="status"[\s\S]*?aria-live="polite"/);
 	assert.match(source, /aria-atomic="true"/);
+	assert.match(source, /인식된 개체 정보가 없습니다/);
+	assert.doesNotMatch(source, /인식된 개체 정보 없음/);
+	assert.match(source, /등록되지 않은 번호입니다\. 다시 스캔해 주세요\./);
+	assert.doesNotMatch(source, /스캔해주십시오/);
 	assert.match(
 		source,
 		/const manualChoiceLabel = `\$\{cow\.name\} 이표번호 끝자리 \$\{String\(cow\.tagNumber\)\.slice\(-4\)\} 개체로 스캐너 결과 지정`;/,
@@ -78,4 +82,17 @@ test("ear tag scanner announces scan results and labels manual simulation choice
 	assert.match(source, /<Camera size=\{14\} aria-hidden="true" \/>/);
 	assert.match(source, /<RefreshCw size=\{13\} aria-hidden="true" \/>/);
 	assert.match(source, /<Eye size=\{13\} aria-hidden="true" \/>/);
+});
+
+test("ear tag scanner explains missing birth dates instead of showing dash placeholders", () => {
+	const source = readSource("components/widgets/EarTagScannerModal.js");
+
+	assert.match(source, /function formatScannerBirthDate\(value\) \{/);
+	assert.match(source, /return ["']생년월일 미등록["'];/);
+	assert.match(source, /Number\.isNaN\(date\.getTime\(\)\)/);
+	assert.match(source, /\{formatScannerBirthDate\(matchedCow\?\.birthDate\)\}/);
+	assert.doesNotMatch(
+		source,
+		/matchedCow\?\.birthDate[\s\S]*?:\s*["']-["']/,
+	);
 });

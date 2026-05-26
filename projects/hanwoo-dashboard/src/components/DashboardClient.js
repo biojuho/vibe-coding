@@ -792,7 +792,7 @@ export default function DashboardClient({
 				console.error("Offline queue sync failed:", error);
 				notify({
 					title: "오프라인 작업 동기화에 실패했습니다.",
-					description: "잠시 후 다시 시도해주세요.",
+					description: "잠시 후 다시 시도해 주세요.",
 					variant: "warning",
 				});
 			}
@@ -1690,7 +1690,7 @@ export default function DashboardClient({
 							value={`${totalHeadcount}두`}
 						/>
 						<PremiumInfoCard
-							title="이번달 출하"
+							title="이번 달 출하"
 							value={`${monthlySalesCount}두`}
 							change={
 								monthlySalesTotal > 0
@@ -1717,13 +1717,13 @@ export default function DashboardClient({
 								className="empty-state-cta animate-fadeInUp block w-full"
 								style={{ animationDelay: "250ms" }}
 								onClick={() => handleTabChange("settings")}
-								aria-label="설정에서 첫 번째 축사 추가하기"
-								title="설정에서 첫 번째 축사 추가하기"
+								aria-label="설정에서 첫 번째 축사를 추가해 주세요"
+								title="설정에서 첫 번째 축사를 추가해 주세요"
 							>
 								<span className="cta-icon" aria-hidden="true">
 									🏠
 								</span>
-								<div className="cta-title">첫 번째 축사를 추가해보세요</div>
+								<div className="cta-title">첫 번째 축사를 추가해 주세요</div>
 								<div className="cta-desc">
 									축사를 등록하면 칸별 두수 관리, 발정·분만 알림을 시작할 수
 									있습니다.

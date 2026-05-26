@@ -27,6 +27,8 @@ test("not-found page is a server component with a route home and title metadata"
 	);
 	assert.match(source, /Joolife 한우 운영/);
 	assert.match(source, /페이지를 찾을 수 없어요/);
+	assert.match(source, /사육, 재고, 출하 업무를 이어서 관리해 주세요/);
+	assert.doesNotMatch(source, /사육, 재고, 출하 업무를 이어서 관리하세요/);
 	assert.doesNotMatch(source, /Joolife Operations/);
 });
 
@@ -117,6 +119,8 @@ test("login page operator eyebrow uses Korean product copy", () => {
 	assert.match(source, /<Eye size=\{18\} aria-hidden="true" \/>/);
 
 	assert.match(source, /Joolife 한우 운영/);
+	assert.match(source, /오늘의 사육, 재고, 출하 업무를 이어서 관리해 주세요/);
+	assert.doesNotMatch(source, /오늘의 사육, 재고, 출하 업무를 이어서 관리하세요/);
 	assert.match(source, /데모 로그인 정보/);
 	assert.match(source, /<span aria-hidden="true">💡<\/span>/);
 	assert.match(source, /아이디: <code/);

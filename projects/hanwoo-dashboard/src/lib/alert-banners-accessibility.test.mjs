@@ -81,7 +81,20 @@ test("alert banners normalize malformed notification and building payloads befor
 		/safeBuildings\s*\.\s*find\(\s*\(\s*item\s*\)\s*=>\s*item\s*\.\s*id\s*===\s*notification\s*\.\s*buildingId\s*,?\s*\)/,
 	);
 	assert.match(source, /id: notification\.id \?\? `\$\{type\}-\$\{index\}`/);
-	assert.match(source, /["']이름 미등록["']/);
+	assert.match(source, /["']개체명 미등록["']/);
+	assert.match(source, /penNumber: notification\.penNumber \?\? ["']칸 미지정["']/);
+	assert.match(source, /building\?\.name \|\| ["']축사 미지정["']/);
+	assert.match(
+		source,
+		/notification\.targetDate\s*\?\s*formatDate\(notification\.targetDate\)\s*:\s*["']분만 예정일 미등록["']/,
+	);
+	assert.doesNotMatch(source, /["']이름 미등록["']/);
+	assert.doesNotMatch(source, /penNumber: notification\.penNumber \?\? ["']-["']/);
+	assert.doesNotMatch(source, /building\?\.name \|\| ["']미지정["']/);
+	assert.doesNotMatch(
+		source,
+		/notification\.targetDate\s*\?\s*formatDate\(notification\.targetDate\)\s*:\s*["']-["']/,
+	);
 	assert.doesNotMatch(
 		source,
 		/notifications\.filter\(\(notification\) => notification\.type/,

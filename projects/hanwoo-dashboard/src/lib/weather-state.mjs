@@ -136,7 +136,7 @@ export function buildUnavailableWeatherState(options = {}) {
 		degraded: true,
 		isStale: true,
 		source: "weather-unavailable",
-		sourceLabel: "확인 불가",
+		sourceLabel: "날씨 확인 불가",
 		message: options.message ?? WEATHER_UNAVAILABLE_MESSAGE,
 		locationName: options.locationName ?? "서울",
 		forecast: [],

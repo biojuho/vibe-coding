@@ -43,6 +43,8 @@ test("dashboard cattle mutation catch paths use safe Korean fallback copy", () =
 		source,
 		/요청 처리 중 오류가 발생했습니다\. 잠시 후 다시 시도해 주세요\./,
 	);
+	assert.match(source, /description: "잠시 후 다시 시도해 주세요\."/);
+	assert.doesNotMatch(source, /시도해주세요/);
 	assert.match(source, /개체를 보관 처리할까요\?/);
 	assert.match(source, /보관 기록으로 남습니다/);
 	assert.match(source, /confirmLabel: "개체 보관 처리"/);
@@ -156,10 +158,13 @@ test("home building navigation uses semantic buttons", () => {
 
 	assert.match(source, /<button\s+type="button"\s+className="empty-state-cta/);
 	assert.match(source, /onClick=\{\(\) => handleTabChange\(["']settings["']\)\}/);
+	assert.match(source, /첫 번째 축사를 추가해 주세요/);
+	assert.doesNotMatch(source, /첫 번째 축사를 추가해보세요/);
 	assert.match(
 		source,
-		/onClick=\{\(\) => handleTabChange\(["']settings["']\)\}[\s\S]*?aria-label="설정에서 첫 번째 축사 추가하기"[\s\S]*?title="설정에서 첫 번째 축사 추가하기"/,
+		/onClick=\{\(\) => handleTabChange\(["']settings["']\)\}[\s\S]*?aria-label="설정에서 첫 번째 축사를 추가해 주세요"[\s\S]*?title="설정에서 첫 번째 축사를 추가해 주세요"/,
 	);
+	assert.doesNotMatch(source, /설정에서 첫 번째 축사 추가하기/);
 	assert.match(
 		source,
 		/type="button"\s+onClick=\{\(\) => handleSelectBuilding\(building\.id\)\}/,
@@ -298,6 +303,8 @@ test("today focus action buttons expose consolidated task labels", () => {
 test("quick action buttons expose consolidated task labels", () => {
 	const source = readSource("components/DashboardClient.js");
 
+	assert.match(source, /title="이번 달 출하"/);
+	assert.doesNotMatch(source, /title="이번달 출하"/);
 	assert.match(source, /detail: "판매 기록 바로 입력"/);
 	assert.doesNotMatch(source, /detail: "매출 바로 입력"/);
 	assert.match(
@@ -375,12 +382,13 @@ test("market price widget uses Korean product copy for visible states", () => {
 	assert.match(source, /disabled=\{loading\}\s+aria-busy=\{loading\}/);
 	assert.match(
 		source,
-		/aria-label=\{loading \? ["']시세 갱신 중["'] : ["']한우 시세 새로고침["']\}/,
+		/aria-label=\{\s*loading \? ["']한우 시세 갱신 중["'] : ["']한우 시세 새로고침["']\s*\}/,
 	);
 	assert.match(
 		source,
-		/title=\{loading \? ["']시세 갱신 중["'] : ["']한우 시세 새로고침["']\}/,
+		/title=\{loading \? ["']한우 시세 갱신 중["'] : ["']한우 시세 새로고침["']\}/,
 	);
+	assert.doesNotMatch(source, /loading \? ["']시세 갱신 중["']/);
 	assert.match(source, /<RefreshCwIcon\s+aria-hidden="true"/);
 	assert.doesNotMatch(source, /Loading market prices/);
 	assert.doesNotMatch(source, /Market price data is unavailable/);
@@ -454,6 +462,7 @@ test("weather widget uses Korean product copy for unavailable state", () => {
 	const source = readSource("components/widgets/widgets.js");
 	const dashboardSource = readSource("components/DashboardClient.js");
 	const hookSource = readSource("lib/hooks/useWeather.js");
+	const utilsSource = readSource("lib/utils.js");
 
 	assert.match(
 		source,
@@ -559,6 +568,22 @@ test("weather widget uses Korean product copy for unavailable state", () => {
 	assert.match(source, /Math\.round\(toFiniteNumber\(day\.tempMax\)\)/);
 	assert.match(source, /Math\.round\(toFiniteNumber\(day\.tempMin\)\)/);
 	assert.match(source, /getLivestockWeatherAlerts\(safeForecast\)/);
+	assert.match(utilsSource, /환기 상태를 확인해 주세요/);
+	assert.match(utilsSource, /급수량을 확보하고 송풍을 강화해 주세요/);
+	assert.match(utilsSource, /즉시 냉방과 살수 조치를 진행해 주세요/);
+	assert.match(utilsSource, /환기와 급수 상태를 강화해 주세요/);
+	assert.match(utilsSource, /냉방과 살수 조치를 진행해 주세요/);
+	assert.match(utilsSource, /보온 설비를 점검해 주세요/);
+	assert.match(utilsSource, /보온 상태를 확인해 주세요/);
+	assert.match(utilsSource, /축사 누수와 바닥 상태를 점검해 주세요/);
+	assert.doesNotMatch(utilsSource, /환기 상태를 확인하세요/);
+	assert.doesNotMatch(utilsSource, /급수량 확보와 송풍 강화가 필요한 수준입니다/);
+	assert.doesNotMatch(utilsSource, /즉시 냉방과 살수 조치가 필요한 고위험 상태입니다/);
+	assert.doesNotMatch(utilsSource, /환기와 급수 상태를 강화하세요/);
+	assert.doesNotMatch(utilsSource, /냉방과 살수 조치가 필요합니다/);
+	assert.doesNotMatch(utilsSource, /보온 설비 점검이 필요합니다/);
+	assert.doesNotMatch(utilsSource, /보온 상태를 확인하세요/);
+	assert.doesNotMatch(utilsSource, /축사 누수와 바닥 상태를 점검하세요/);
 	assert.doesNotMatch(source, /weather\.forecast\.map/);
 	assert.doesNotMatch(source, /weather\.forecast \|\| \[\]/);
 	assert.match(dashboardSource, /WEATHER_STALE_MESSAGE/);
@@ -609,8 +634,17 @@ test("sales tab missing cattle fallback copy stays Korean", () => {
 test("sales tab normalizes numeric inputs before sales and profit aggregation", () => {
 	const source = readSource("components/tabs/SalesTab.js");
 
-	assert.match(source, /관련 비용 없음/);
+	assert.match(source, /출하 및 판매 분석/);
+	assert.match(source, /총 누적 판매액/);
+	assert.match(source, /판매액, 등급, 수익 분석 차트/);
+	assert.doesNotMatch(source, /출하 및 매출 분석/);
+	assert.doesNotMatch(source, /총 누적 매출/);
+	assert.doesNotMatch(source, /매출, 등급, 수익 분석 차트/);
+	assert.match(source, /연결된 비용 기록 없음/);
+	assert.match(source, /비용 기록 없어 수익 추정 불가/);
+	assert.doesNotMatch(source, /관련 비용 없음/);
 	assert.doesNotMatch(source, /비용 미등록/);
+	assert.doesNotMatch(source, />수익 추정 불가</);
 	assert.match(
 		source,
 		/import \{ formatMoney, toFiniteNumber \} from ["']@\/lib\/utils["'];/,
@@ -679,8 +713,10 @@ test("sales tab normalizes collection payloads before rendering and aggregation"
 	);
 	assert.match(source, /safeCattleList\s*\.\s*map\(\s*\(?cow\)?\s*=>\s*\(/);
 	assert.match(source, /disabled=\{!safeCattleList\.length \|\| isSaving\}/);
-	assert.match(source, /actionLabel=\{safeCattleList\.length \?/);
+	assert.match(source, /actionLabel=\{\s+safeCattleList\.length/);
 	assert.match(source, /"판매 기록 등록"/);
+	assert.match(source, /"개체를 먼저 등록해 주세요"/);
+	assert.doesNotMatch(source, /"개체 등록 필요"/);
 	assert.doesNotMatch(source, /"매출 기록"/);
 	assert.doesNotMatch(source, /\[\.\.\.saleRecords\]/);
 	assert.doesNotMatch(
@@ -941,12 +977,13 @@ test("sales form waits for async saves before re-enabling actions", () => {
 	assert.match(source, /\{addFormButtonText\}/);
 	assert.match(
 		source,
-		/const submitButtonLabel = isSaving\s*\?\s*["']판매 기록 등록 중["']\s*:\s*["']판매 기록 등록하기["'];?/,
+		/const submitButtonLabel = isSaving\s*\?\s*["']판매 기록 등록 중["']\s*:\s*["']판매 기록 등록["'];?/,
 	);
 	assert.match(
 		source,
-		/const submitButtonText = isSaving\s*\?\s*["']판매 기록 등록 중\.\.\.["']\s*:\s*["']판매 기록 등록하기["'];?/,
+		/const submitButtonText = isSaving\s*\?\s*["']판매 기록 등록 중\.\.\.["']\s*:\s*["']판매 기록 등록["'];?/,
 	);
+	assert.doesNotMatch(source, /판매 기록 등록하기/);
 	assert.match(
 		source,
 		/disabled=\{!safeCattleList\.length \|\| isSaving\}\s+aria-busy=\{isSaving\}/,
@@ -1046,8 +1083,9 @@ test("inventory form waits for async saves before re-enabling actions", () => {
 	assert.match(source, /onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}/);
 	assert.match(
 		source,
-		/const submitButtonLabel = isSaving\s*\?\s*["']재고 등록 중["']\s*:\s*["']재고 등록하기["'];?/,
+		/const submitButtonLabel = isSaving\s*\?\s*["']재고 등록 중["']\s*:\s*["']재고 등록["'];?/,
 	);
+	assert.doesNotMatch(source, /재고 등록하기/);
 	assert.match(
 		source,
 		/type="submit"\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}\s+aria-label=\{submitButtonLabel\}\s+title=\{submitButtonLabel\}/,

@@ -26,7 +26,7 @@ export default function QRCodeWidget({ value, label }) {
 			printInFlightRef.current = false;
 			setIsPrinting(false);
 			setPrintStatusMessage(
-				"팝업 차단으로 QR 인쇄 창을 열지 못했습니다. 브라우저 팝업 허용 후 다시 시도하세요.",
+				"팝업 차단으로 QR 인쇄 창을 열지 못했습니다. 브라우저 팝업 허용 후 다시 시도해 주세요.",
 			);
 			return;
 		}

@@ -76,7 +76,7 @@ async function buildFarmContext() {
 - 농장: ${farmSettings?.name || "Joolife 한우 농장"}
 - 운영 개체: ${cattleCount}
 - 축사: ${buildingCount}
-- 상태별 개체 수: ${statusSummary || "데이터 없음"}
+- 상태별 개체 수: ${statusSummary || "상태별 개체 데이터 없음"}
 - 최근 판매:
   ${salesSummary}`;
 	} catch (error) {

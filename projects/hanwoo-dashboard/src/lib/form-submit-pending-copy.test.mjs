@@ -23,19 +23,19 @@ test("primary data-entry submit buttons show pending copy while saving", () => {
 		],
 		[
 			"components/tabs/ScheduleTab.js",
-			/const submitButtonText = isSaving\s*\?\s*["']일정 등록 중\.\.\.["']\s*:\s*["']일정 등록하기["'];?[\s\S]*?\{submitButtonText\}/,
+			/const submitButtonText = isSaving\s*\?\s*["']일정 등록 중\.\.\.["']\s*:\s*["']일정 등록["'];?[\s\S]*?\{submitButtonText\}/,
 		],
 		[
 			"components/tabs/FeedTab.js",
-			/const submitButtonText = isSaving\s*\?\s*["']급여 기록 저장 중\.\.\.["']\s*:\s*["']급여 기록 저장하기["'];?[\s\S]*?\{submitButtonText\}/,
+			/const submitButtonText = isSaving\s*\?\s*["']급여 기록 저장 중\.\.\.["']\s*:\s*["']급여 기록 저장["'];?[\s\S]*?\{submitButtonText\}/,
 		],
 		[
 			"components/tabs/InventoryTab.js",
-			/const submitButtonText = isSaving\s*\?\s*["']재고 등록 중\.\.\.["']\s*:\s*["']재고 등록하기["'];?[\s\S]*?\{submitButtonText\}/,
+			/const submitButtonText = isSaving\s*\?\s*["']재고 등록 중\.\.\.["']\s*:\s*["']재고 등록["'];?[\s\S]*?\{submitButtonText\}/,
 		],
 		[
 			"components/tabs/SalesTab.js",
-			/const submitButtonText = isSaving\s*\?\s*["']판매 기록 등록 중\.\.\.["']\s*:\s*["']판매 기록 등록하기["'];?[\s\S]*?\{submitButtonText\}/,
+			/const submitButtonText = isSaving\s*\?\s*["']판매 기록 등록 중\.\.\.["']\s*:\s*["']판매 기록 등록["'];?[\s\S]*?\{submitButtonText\}/,
 		],
 	];
 

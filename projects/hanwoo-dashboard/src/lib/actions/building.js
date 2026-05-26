@@ -46,7 +46,7 @@ export async function deleteBuilding(id) {
 		if (cattleCount > 0) {
 			return {
 				success: false,
-				message: `이 축사에 ${cattleCount}두의 소가 있어 삭제할 수 없습니다. 먼저 소를 이동해주세요.`,
+				message: `이 축사에 ${cattleCount}두의 소가 있어 삭제할 수 없습니다. 먼저 소를 이동해 주세요.`,
 			};
 		}
 		await prisma.building.delete({ where: { id } });

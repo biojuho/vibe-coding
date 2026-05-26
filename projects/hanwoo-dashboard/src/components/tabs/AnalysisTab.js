@@ -83,7 +83,7 @@ export default function AnalysisTab({
 	);
 	const hasExpenseData = safeExpenseRecords.length > 0;
 	const monthlyFlowChartLabel =
-		"최근 12개월 월별 매출, 비용, 수익 추이 차트입니다.";
+		"최근 12개월 월별 판매액, 비용, 수익 추이 차트입니다.";
 	const costStructureChartLabel =
 		"비용 구성 분석 차트. 카테고리별 비용 비중을 비교합니다.";
 
@@ -169,7 +169,7 @@ export default function AnalysisTab({
 
 			<div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
 				<KpiCard
-					title="연간 총매출"
+					title="연간 총판매액"
 					value={totalRevenue}
 					accent="var(--chart-clay-5)"
 					icon={<DollarSign size={18} />}
@@ -200,7 +200,7 @@ export default function AnalysisTab({
 					<div>
 						<div className="clay-page-eyebrow mb-3">월별 흐름</div>
 						<h2 className="text-xl font-bold text-[color:var(--color-text)]">
-							월별 매출 · 비용 · 순이익 추이
+							월별 판매액 · 비용 · 순이익 추이
 						</h2>
 					</div>
 					<div className="text-right text-xs text-[color:var(--color-text-muted)]">
@@ -245,7 +245,7 @@ export default function AnalysisTab({
 							<Legend />
 							<Bar
 								dataKey="revenue"
-								name="매출"
+								name="판매액"
 								fill="var(--chart-clay-1)"
 								radius={[8, 8, 0, 0]}
 							/>
@@ -278,7 +278,7 @@ export default function AnalysisTab({
 						<div className="text-right text-xs text-[color:var(--color-text-muted)]">
 							{hasExpenseData
 								? `${costStructure.length}개 카테고리`
-								: "실데이터 없음"}
+								: "실제 비용 데이터 없음"}
 						</div>
 					</div>
 
@@ -356,7 +356,7 @@ export default function AnalysisTab({
 										</div>
 										<div className="min-w-0">
 											<div className="truncate text-sm font-bold text-[color:var(--color-text)]">
-												{sale.cattleName || "이름 없음"}
+												{sale.cattleName || "개체명 미등록"}
 											</div>
 											<div className="truncate text-xs text-[color:var(--color-text-muted)]">
 												{sale.buyerName}

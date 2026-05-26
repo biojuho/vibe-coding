@@ -74,16 +74,16 @@ export default function SettingsTab({
 	const { confirm } = useAppFeedback();
 	const farmSubmitButtonLabel = isSavingFarm
 		? "농장 정보 저장 중"
-		: "농장 정보 저장하기";
+		: "농장 정보 저장";
 	const farmSubmitButtonText = isSavingFarm
 		? "농장 정보 저장 중..."
-		: "농장 정보 저장하기";
+		: "농장 정보 저장";
 	const buildingSubmitButtonLabel = isSavingBuilding
 		? "축사 등록 중"
-		: "축사 등록하기";
+		: "축사 등록";
 	const buildingSubmitButtonText = isSavingBuilding
 		? "축사 등록 중..."
-		: "축사 등록하기";
+		: "축사 등록";
 	const buildingAddFormButtonLabel = isSavingBuilding
 		? "축사 저장 중에는 등록 창을 닫을 수 없습니다"
 		: isAdding

@@ -79,7 +79,7 @@ export default function LoginPage() {
 				</div>
 
 				<p className="login-copy">
-					오늘의 사육, 재고, 출하 업무를 이어서 관리하세요.
+					오늘의 사육, 재고, 출하 업무를 이어서 관리해 주세요.
 				</p>
 
 				{/* 데모 계정 안내 */}

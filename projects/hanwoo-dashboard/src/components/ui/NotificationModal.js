@@ -25,6 +25,7 @@ export default function NotificationModal({
 	const smsTestButtonLabel = isTestingSMS
 		? "문자 알림 테스트 전송 중"
 		: "문자 알림 테스트 전송";
+	const notificationTimeFallback = "알림 시간 확인 불가";
 
 	useEffect(() => {
 		dialogRef.current?.focus();
@@ -213,7 +214,7 @@ export default function NotificationModal({
 											textAlign: "right",
 										}}
 									>
-										{notification.time || "-"}
+										{notification.time || notificationTimeFallback}
 									</div>
 								</div>
 							))}

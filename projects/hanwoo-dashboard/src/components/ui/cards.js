@@ -168,10 +168,13 @@ export function PenCard({
 					{visibleCattle.map((c, idx) => {
 						const sc = STATUS_COLORS[c.status] || { dot: "#888" };
 						const al = c.lastEstrus && isEstrusAlert(c.lastEstrus);
+						const penCowPreviewLabel = al
+							? `${c.name} 발정 알림 있음`
+							: `${c.name} 칸 배치됨`;
 						return (
 							<div
 								key={c.id}
-								title={`${c.name}`}
+								title={penCowPreviewLabel}
 								className="animate-scaleIn"
 								style={{
 									width: "28px",
@@ -244,6 +247,12 @@ export function CattleRow({ cow, onClick, delay = 0, draggable = false }) {
 	const cattleAccessibleLabel = cattleAlertSummary
 		? `${cow.name} 개체 상세 보기, ${cattleAlertSummary}`
 		: `${cow.name} 개체 상세 보기`;
+	const geneticGradeLabel =
+		typeof cow.geneticInfo?.grade === "string" &&
+		cow.geneticInfo.grade.trim() &&
+		cow.geneticInfo.grade !== "-"
+			? cow.geneticInfo.grade
+			: "유전 등급 미등록";
 
 	const handleDragStart = (e) => {
 		e.dataTransfer.setData(
@@ -328,7 +337,7 @@ export function CattleRow({ cow, onClick, delay = 0, draggable = false }) {
 					}}
 				>
 					{cow.tagNumber} · {monthAge}개월 · {cow.weight}kg ·{" "}
-					{cow.geneticInfo?.grade || "-"}
+					{geneticGradeLabel}
 				</div>
 			</div>
 			{/* Animated chevron — slides right on row hover */}

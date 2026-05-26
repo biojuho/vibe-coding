@@ -83,10 +83,16 @@ test("lookupCattleByTag localizes timeout and default breed fallback", async () 
 		throw new TimeoutError("축산물이력제 조회 시간이 초과되었습니다.", 5000);
 	};
 
-	assert.deepEqual(await lookupCattleByTag("002082037849"), {
+	const timeoutResult = await lookupCattleByTag("002082037849");
+	assert.deepEqual(timeoutResult, {
 		success: false,
-		message: "축산물이력제 조회 시간이 초과되었습니다. 다시 시도해 주세요.",
+		message:
+			"축산물이력제 조회 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
 	});
+	assert.notEqual(
+		timeoutResult.message,
+		"축산물이력제 조회 시간이 초과되었습니다. 다시 시도해 주세요.",
+	);
 
 	globalThis.fetch = async () => ({
 		status: 200,

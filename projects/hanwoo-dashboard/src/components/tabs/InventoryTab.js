@@ -85,8 +85,8 @@ export default function InventoryTab({
 	const [editQty, setEditQty] = useState("");
 	const saveInFlightRef = useRef(false);
 	const quantityInFlightRef = useRef(false);
-	const submitButtonLabel = isSaving ? "재고 등록 중" : "재고 등록하기";
-	const submitButtonText = isSaving ? "재고 등록 중..." : "재고 등록하기";
+	const submitButtonLabel = isSaving ? "재고 등록 중" : "재고 등록";
+	const submitButtonText = isSaving ? "재고 등록 중..." : "재고 등록";
 	const addFormButtonLabel = isSaving
 		? "재고 저장 중에는 등록 창을 닫을 수 없습니다"
 		: isAdding

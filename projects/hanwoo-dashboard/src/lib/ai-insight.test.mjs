@@ -109,12 +109,26 @@ test("buildInsightPrompt embeds the snapshot and requests strict JSON", () => {
 		weather: { thi: 80, temp: 32, humidity: 70 },
 	});
 	assert.match(prompt, /총 사육두수: 12두/);
-	assert.match(prompt, /이번달 출하: 1두/);
+	assert.match(prompt, /이번 달 출하: 1두/);
+	assert.doesNotMatch(prompt, /이번달 출하/);
+	assert.match(prompt, /판매액 800만원/);
+	assert.doesNotMatch(prompt, /매출 800만원/);
 	assert.match(prompt, /즉시 출하 권장 개체: 1두/);
 	assert.match(prompt, /발정 알림: 1건/);
 	assert.match(prompt, /THI 80/);
 	assert.match(prompt, /JSON 배열로 정확히 3개의 인사이트/);
 	assert.match(prompt, /순수 JSON만 반환/);
+});
+
+test("buildInsightPrompt uses explicit weather fallback copy for partial weather values", () => {
+	const prompt = buildInsightPrompt({
+		totalHeadcount: 3,
+		weather: { thi: 81, temp: null, humidity: undefined },
+	});
+
+	assert.match(prompt, /날씨: THI 81, 기온 확인 불가, 습도 확인 불가/);
+	assert.doesNotMatch(prompt, /\?℃/);
+	assert.doesNotMatch(prompt, /\?%/);
 });
 
 test("parseInsightResponse accepts well-formed arrays and {insights} envelopes", () => {
@@ -183,6 +197,14 @@ test("buildHeuristicInsights surfaces a shipment recommendation when present", (
 	assert.equal(shipment.priority, "high");
 	assert.match(shipment.body, /9999호/);
 	assert.match(shipment.body, /\+120만원/);
+	assert.match(shipment.body, /24시간 내 출고 일정을 확정해 주세요/);
+	assert.doesNotMatch(shipment.body, /확정 권장/);
+	const monthlySales = insights.find((i) => i.title === "이번 달 출하 요약");
+	assert.match(monthlySales?.body ?? "", /다음 달 출하 후보군/);
+	assert.match(monthlySales?.body ?? "", /출하·판매액 2000만원/);
+	assert.notEqual(monthlySales?.title, "이번달 출하 요약");
+	assert.doesNotMatch(monthlySales?.body ?? "", /다음달/);
+	assert.doesNotMatch(monthlySales?.body ?? "", /출하·매출/);
 });
 
 test("buildHeuristicInsights surfaces THI heat warning when severe", () => {
@@ -194,6 +216,35 @@ test("buildHeuristicInsights surfaces THI heat warning when severe", () => {
 	});
 	const titles = insights.map((i) => i.title);
 	assert.ok(titles.includes("고온 스트레스 경고"));
+	const heat = insights.find((i) => i.title === "고온 스트레스 경고");
+	assert.match(heat?.body ?? "", /급수기를 4회 이상 점검해 주세요/);
+	assert.doesNotMatch(heat?.body ?? "", /점검 권장/);
+});
+
+test("buildHeuristicInsights uses helper tone for calving preparation checks", () => {
+	const insights = buildHeuristicInsights({
+		totalHeadcount: 8,
+		profitabilityItems: [],
+		notifications: [{ type: "calving" }],
+		weather: { thi: 70 },
+	});
+
+	const calving = insights.find((i) => i.title === "분만 임박 개체 확인");
+	assert.match(calving?.body ?? "", /소독 준비를 점검해 주세요/);
+	assert.doesNotMatch(calving?.body ?? "", /점검 권장/);
+});
+
+test("buildHeuristicInsights uses helper tone for declining margin checks", () => {
+	const insights = buildHeuristicInsights({
+		totalHeadcount: 12,
+		profitabilityItems: [{ marginalGain: -10_000 }],
+		notifications: [],
+		weather: { thi: 70 },
+	});
+
+	const margin = insights.find((i) => i.title === "추가 비육 마진 점검");
+	assert.match(margin?.body ?? "", /단가·증체 추세를 재검토해 주세요/);
+	assert.doesNotMatch(margin?.body ?? "", /재검토 필요/);
 });
 
 test("buildHeuristicInsights returns 3 safe defaults when no signals exist", () => {
@@ -204,6 +255,23 @@ test("buildHeuristicInsights returns 3 safe defaults when no signals exist", () 
 		assert.ok(typeof insight.body === "string" && insight.body.length > 0);
 		assert.ok(["high", "medium", "low"].includes(insight.priority));
 	});
+	const registration = insights.find((i) => i.title === "개체 등록부터 시작");
+	assert.match(registration?.body ?? "", /먼저 진행해 주세요/);
+	assert.doesNotMatch(registration?.body ?? "", /먼저 진행하세요/);
+	const routine = insights.find((i) => i.title === "오늘의 점검 루틴");
+	assert.match(routine?.body ?? "", /5가지 일상 점검을 진행해 주세요/);
+	assert.doesNotMatch(routine?.body ?? "", /점검을 권장합니다/);
+	const dataQuality = insights.find((i) => i.title === "데이터 보강 안내");
+	assert.match(dataQuality?.body ?? "", /체중·판매액·시세 데이터/);
+	assert.doesNotMatch(dataQuality?.body ?? "", /체중·매출·시세 데이터/);
+});
+
+test("buildHeuristicInsights uses helper tone for safe schedule defaults", () => {
+	const insights = buildHeuristicInsights({ totalHeadcount: 1 });
+	assert.equal(insights.length, MAX_INSIGHTS);
+	const schedule = insights.find((i) => i.title === "다음 주 일정 확인");
+	assert.match(schedule?.body ?? "", /캘린더에서 확인해 주세요/);
+	assert.doesNotMatch(schedule?.body ?? "", /캘린더에서 확인하세요/);
 });
 
 test("buildHeuristicInsights sorts by priority (high → medium → low)", () => {
@@ -224,4 +292,7 @@ test("buildHeuristicInsights sorts by priority (high → medium → low)", () =>
 		return order[a] - order[b];
 	});
 	assert.deepEqual(priorities, sorted);
+	const estrus = insights.find((i) => i.title === "발정 적기 임박");
+	assert.match(estrus?.body ?? "", /처치 일정을 잡아 주세요/);
+	assert.doesNotMatch(estrus?.body ?? "", /처치 일정 잡으세요/);
 });

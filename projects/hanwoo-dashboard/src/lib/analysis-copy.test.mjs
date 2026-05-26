@@ -30,15 +30,23 @@ test("analysis and financial widgets use Korean operator copy", () => {
 		/className="inline-flex h-9 w-9 items-center justify-center rounded-full"\s+aria-hidden="true"/,
 	);
 	assert.match(analysisSource, /경영 분석/);
+	assert.match(analysisSource, /title="연간 총판매액"/);
+	assert.doesNotMatch(analysisSource, /title="연간 총매출"/);
 	assert.match(analysisSource, /월별 흐름/);
 	assert.match(analysisSource, /비용 구성/);
 	assert.match(analysisSource, /상위 판매/);
+	assert.match(analysisSource, /실제 비용 데이터 없음/);
+	assert.doesNotMatch(analysisSource, /실데이터 없음/);
+	assert.match(analysisSource, /개체명 미등록/);
+	assert.doesNotMatch(analysisSource, /이름 없음/);
 	assert.match(financialWidgetSource, /농장 재무 흐름/);
-	assert.match(financialWidgetSource, /최근 6개월 매출, 비용, 이익 추이/);
+	assert.match(financialWidgetSource, /최근 6개월 판매액, 비용, 이익 추이/);
 	assert.match(financialWidgetSource, /단위: 원/);
-	assert.match(financialWidgetSource, /name="매출"/);
+	assert.match(financialWidgetSource, /name="판매액"/);
 	assert.match(financialWidgetSource, /name="비용"/);
 	assert.match(financialWidgetSource, /name="이익"/);
+	assert.doesNotMatch(financialWidgetSource, /최근 6개월 매출, 비용, 이익 추이/);
+	assert.doesNotMatch(financialWidgetSource, /name="매출"/);
 	assert.doesNotMatch(
 		analysisSource,
 		/Financial Analysis|Monthly Flow|Cost Mix|Top Sales/,
@@ -88,8 +96,16 @@ test("analysis tab normalizes numeric inputs before financial and feed aggregati
 	);
 	assert.match(
 		analysisSource,
-		/const monthlyFlowChartLabel =\s*["']최근 12개월 월별 매출, 비용, 수익 추이 차트입니다\.["'];?/,
+		/const monthlyFlowChartLabel =\s*["']최근 12개월 월별 판매액, 비용, 수익 추이 차트입니다\.["'];?/,
 	);
+	assert.doesNotMatch(
+		analysisSource,
+		/최근 12개월 월별 매출, 비용, 수익 추이 차트입니다\./,
+	);
+	assert.match(analysisSource, /월별 판매액 · 비용 · 순이익 추이/);
+	assert.doesNotMatch(analysisSource, /월별 매출 · 비용 · 순이익 추이/);
+	assert.match(analysisSource, /name="판매액"/);
+	assert.doesNotMatch(analysisSource, /name="매출"/);
 	assert.match(
 		analysisSource,
 		/const costStructureChartLabel =\s*["']비용 구성 분석 차트\. 카테고리별 비용 비중을 비교합니다\.["'];?/,
@@ -219,7 +235,11 @@ test("financial chart widget normalizes numeric inputs before chart aggregation"
 	assert.match(source, /\[PROFIT_KEY\]: toFiniteNumber\(row\.profit\),/);
 	assert.match(
 		source,
-		/const financialChartLabel =\s*["']최근 6개월 농장 재무 흐름 차트\. 매출, 비용, 이익을 월별로 비교합니다\.["'];?/,
+		/const financialChartLabel =\s*["']최근 6개월 농장 재무 흐름 차트\. 판매액, 비용, 이익을 월별로 비교합니다\.["'];?/,
+	);
+	assert.doesNotMatch(
+		source,
+		/최근 6개월 농장 재무 흐름 차트\. 매출, 비용, 이익을 월별로 비교합니다\./,
 	);
 	assert.match(
 		source,

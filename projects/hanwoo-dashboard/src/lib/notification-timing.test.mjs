@@ -43,7 +43,7 @@ test("buildNotificationTiming returns an empty shape for invalid dates", () => {
 
 	assert.deepEqual(result, {
 		date: null,
-		time: "-",
+		time: "알림 시간 확인 불가",
 		targetDate: null,
 	});
 });
@@ -53,7 +53,11 @@ test("buildNotificationTiming rejects impossible calendar dates", () => {
 
 	assert.deepEqual(result, {
 		date: null,
-		time: "-",
+		time: "알림 시간 확인 불가",
 		targetDate: null,
 	});
+});
+
+test("formatNotificationTime uses explicit Korean copy for invalid dates", () => {
+	assert.equal(formatNotificationTime("not-a-date"), "알림 시간 확인 불가");
 });

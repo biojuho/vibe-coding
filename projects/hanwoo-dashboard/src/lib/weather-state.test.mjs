@@ -137,7 +137,7 @@ test("buildUnavailableWeatherState returns an explicit unavailable payload", () 
 
 	assert.equal(result.available, false);
 	assert.equal(result.locationName, "Namwon");
-	assert.equal(result.sourceLabel, "확인 불가");
+	assert.equal(result.sourceLabel, "날씨 확인 불가");
 	assert.equal(result.message, WEATHER_UNAVAILABLE_MESSAGE);
 });
 

@@ -74,6 +74,8 @@ test("notification systems normalize malformed initial payloads before rendering
 	);
 	assert.match(source, /DEFAULT_NOTIFICATION_TITLE/);
 	assert.match(source, /DEFAULT_NOTIFICATION_MESSAGE/);
+	assert.match(source, /const DEFAULT_NOTIFICATION_TITLE = ["']운영 알림["'];/);
+	assert.doesNotMatch(source, /알림 제목 없음/);
 	assert.match(
 		source,
 		/id: notification\.id \?\? `notification-\$\{index \+ 1\}`/,

@@ -60,15 +60,22 @@ test("AI chat widget handles Korean configuration errors and exposes an accessib
 	assert.match(source, /AI 농장 비서에게 보낼 질문/);
 	assert.match(source, /aria-label=\{inputLabel\}/);
 	assert.match(source, /title=\{inputLabel\}/);
+	assert.match(source, /const sendButtonLabel = isStreaming/);
+	assert.match(source, /input\.trim\(\)\.length === 0/);
+	assert.match(source, /질문을 입력하면 보낼 수 있습니다/);
+	assert.match(source, /aria-label=\{sendButtonLabel\}/);
+	assert.match(source, /title=\{sendButtonLabel\}/);
 	assert.match(
 		source,
-		/aria-label=\{isStreaming \? ["']답변 생성 중["'] : ["']질문 보내기["']\}/,
+		/const sendButtonLabel = isStreaming\s+\? ["']답변 생성 중["']\s+:[\s\S]*?["']질문 보내기["'];/,
 	);
-	assert.match(
-		source,
-		/title=\{isStreaming \? ["']답변 생성 중["'] : ["']질문 보내기["']\}/,
-	);
+	assert.doesNotMatch(source, /aria-label=\{isStreaming \? ["']답변 생성 중["']/);
+	assert.doesNotMatch(source, /title=\{isStreaming \? ["']답변 생성 중["']/);
 	assert.match(source, /AI 비서 연결이 잠시 불안정합니다/);
+	assert.match(source, /궁금한 점을 질문해 주세요/);
+	assert.doesNotMatch(source, /궁금한 점을 물어보세요/);
+	assert.match(source, /오늘 농장 운영에서 궁금한 부분을 질문해 주세요/);
+	assert.doesNotMatch(source, /오늘 농장 운영에서 어떤 부분이 궁금하신가요/);
 	assert.match(source, /<Bot size=\{25\} aria-hidden="true" \/>/);
 	assert.doesNotMatch(source, />AI\s*<\/button>/);
 	assert.doesNotMatch(source, /aria-label="Send"/);

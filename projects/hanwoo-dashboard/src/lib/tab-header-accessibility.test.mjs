@@ -136,11 +136,11 @@ test("schedule form waits for async saves before re-enabling actions", () => {
 	assert.match(scheduleSource, /\{addFormButtonText\}/);
 	assert.match(
 		scheduleSource,
-		/const submitButtonLabel = isSaving \? ['"]일정 등록 중['"] : ['"]일정 등록하기['"];/,
+		/const submitButtonLabel = isSaving \? ['"]일정 등록 중['"] : ['"]일정 등록['"];/,
 	);
 	assert.match(
 		scheduleSource,
-		/const submitButtonText = isSaving \? ['"]일정 등록 중\.\.\.['"] : ['"]일정 등록하기['"];/,
+		/const submitButtonText = isSaving \? ['"]일정 등록 중\.\.\.['"] : ['"]일정 등록['"];/,
 	);
 	assert.match(
 		scheduleSource,
@@ -153,8 +153,9 @@ test("schedule form waits for async saves before re-enabling actions", () => {
 	assert.match(scheduleSource, /\{submitButtonText\}/);
 	assert.doesNotMatch(
 		scheduleSource,
-		/\{isSaving \? "일정 등록 중\.\.\." : "일정 등록하기"\}/,
+		/\{isSaving \? ["']일정 등록 중\.\.\.["'] : ["']일정 등록하기["']\}/,
 	);
+	assert.doesNotMatch(scheduleSource, /일정 등록하기/);
 });
 
 test("schedule completion toggles wait for async updates before re-enabling controls", () => {

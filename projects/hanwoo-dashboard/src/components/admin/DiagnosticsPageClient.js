@@ -45,11 +45,11 @@ const MODEL_OPTIONS = [
 const EMPTY_DIAGNOSTICS = {
 	success: false,
 	database: {
-		status: "확인 불가",
-		latency: "-",
+		status: "DB 상태 확인 불가",
+		latency: "DB 응답 시간 확인 불가",
 		recordCounts: {},
 	},
-	nodeVersion: "확인 불가",
+	nodeVersion: "Node 버전 확인 불가",
 	uptime: 0,
 	memory: {
 		heapUsed: 0,

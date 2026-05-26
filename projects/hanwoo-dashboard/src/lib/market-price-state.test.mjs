@@ -125,7 +125,7 @@ test("buildUnavailableMarketPrice returns an explicit degraded unavailable state
 
 	assert.equal(result.available, false);
 	assert.equal(result.source, "unavailable");
-	assert.equal(result.sourceLabel, "확인 불가");
+	assert.equal(result.sourceLabel, "시세 확인 불가");
 	assert.match(result.message, /한우 시세 데이터를 확인할 수 없습니다/);
 	assert.equal(result.degraded, true);
 	assert.equal(result.bull, null);

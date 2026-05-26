@@ -85,6 +85,8 @@ test("subscription result pages avoid bare English loading and status copy", () 
 
 	assert.match(subscriptionSource, /Joolife 프리미엄 구독/);
 	assert.match(subscriptionSource, /월 9,900원/);
+	assert.match(subscriptionSource, /더 안정적으로 사용해 주세요/);
+	assert.doesNotMatch(subscriptionSource, /더 안정적으로 사용하세요/);
 	assert.match(subscriptionSource, /Joolife 사용자/);
 	assert.doesNotMatch(subscriptionSource, /Premium Subscription/);
 	assert.doesNotMatch(subscriptionSource, /Start smarter farm management/);
@@ -114,6 +116,14 @@ test("subscription result pages avoid bare English loading and status copy", () 
 	assert.match(failSource, /결제를 완료하지 못했습니다/);
 	assert.match(failSource, /결제 실패 정보를 불러오는 중입니다/);
 	assert.match(failSource, /오류 코드/);
+	assert.match(
+		failSource,
+		/const PAYMENT_FAILURE_CODE_FALLBACK = ["']오류 코드 미전달["'];/,
+	);
+	assert.match(
+		failSource,
+		/searchParams\.get\(["']code["']\) \|\| PAYMENT_FAILURE_CODE_FALLBACK/,
+	);
 	assert.match(failSource, /const PAYMENT_FAILURE_MESSAGE/);
 	assert.match(
 		failSource,
@@ -121,6 +131,7 @@ test("subscription result pages avoid bare English loading and status copy", () 
 	);
 	assert.doesNotMatch(failSource, /Loading\.\.\./);
 	assert.doesNotMatch(failSource, /Code:/);
+	assert.doesNotMatch(failSource, /searchParams\.get\(["']code["']\) \|\| ["']-["']/);
 	assert.doesNotMatch(failSource, /searchParams\.get\(['"]message['"]\)/);
 });
 

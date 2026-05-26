@@ -250,11 +250,11 @@ test("settings building form waits for async saves before re-enabling actions", 
 	);
 	assert.match(
 		source,
-		/const buildingSubmitButtonLabel = isSavingBuilding\s*\?\s*['"]축사 등록 중['"]\s*:\s*['"]축사 등록하기['"];/,
+		/const buildingSubmitButtonLabel = isSavingBuilding\s*\?\s*['"]축사 등록 중['"]\s*:\s*['"]축사 등록['"];/,
 	);
 	assert.match(
 		source,
-		/const buildingSubmitButtonText = isSavingBuilding\s*\?\s*['"]축사 등록 중\.\.\.['"]\s*:\s*['"]축사 등록하기['"];/,
+		/const buildingSubmitButtonText = isSavingBuilding\s*\?\s*['"]축사 등록 중\.\.\.['"]\s*:\s*['"]축사 등록['"];/,
 	);
 	assert.match(source, /const buildingAddFormButtonLabel = isSavingBuilding/);
 	assert.match(source, /축사 저장 중에는 등록 창을 닫을 수 없습니다/);
@@ -288,6 +288,7 @@ test("settings building form waits for async saves before re-enabling actions", 
 	);
 	assert.match(source, /\{buildingSubmitButtonText\}/);
 	assert.doesNotMatch(source, /\{isSavingBuilding \? ["']축사 등록 중\.\.\.["'] : ["']등록하기["']\}/);
+	assert.doesNotMatch(source, /축사 등록하기/);
 });
 
 test("settings farm form waits for async saves before re-enabling submit", () => {
@@ -309,12 +310,13 @@ test("settings farm form waits for async saves before re-enabling submit", () =>
 	);
 	assert.match(
 		source,
-		/const farmSubmitButtonLabel = isSavingFarm\s*\?\s*['"]농장 정보 저장 중['"]\s*:\s*['"]농장 정보 저장하기['"];/,
+		/const farmSubmitButtonLabel = isSavingFarm\s*\?\s*['"]농장 정보 저장 중['"]\s*:\s*['"]농장 정보 저장['"];/,
 	);
 	assert.match(
 		source,
-		/const farmSubmitButtonText = isSavingFarm\s*\?\s*['"]농장 정보 저장 중\.\.\.['"]\s*:\s*['"]농장 정보 저장하기['"];/,
+		/const farmSubmitButtonText = isSavingFarm\s*\?\s*['"]농장 정보 저장 중\.\.\.['"]\s*:\s*['"]농장 정보 저장['"];/,
 	);
+	assert.doesNotMatch(source, /농장 정보 저장하기/);
 	assert.match(
 		source,
 		/type="submit"\s+disabled=\{isSavingFarm\}\s+aria-busy=\{isSavingFarm\}\s+aria-label=\{farmSubmitButtonLabel\}\s+title=\{farmSubmitButtonLabel\}/,

@@ -43,7 +43,7 @@ export function useOfflineSyncQueue(isOnline, notify) {
 				console.error("Offline queue sync failed:", error);
 				notify({
 					title: "오프라인 작업 동기화에 실패했습니다.",
-					description: "잠시 후 다시 시도해주세요.",
+					description: "잠시 후 다시 시도해 주세요.",
 					variant: "warning",
 				});
 			}

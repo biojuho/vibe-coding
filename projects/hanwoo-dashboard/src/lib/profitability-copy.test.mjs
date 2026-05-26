@@ -122,9 +122,11 @@ test("profitability widget normalizes recommendation values before rendering", (
 	assert.match(source, /weight: toFiniteNumber\(rawItem\.weight\)/);
 	assert.match(
 		source,
-		/String\(rawItem\.tagNumber \?\? ["']["']\)\.slice\(-4\) \|\| ["']----["']/,
+		/String\(rawItem\.tagNumber \?\? ["']["']\)\.slice\(-4\) \|\| ["']이력번호 미등록["']/,
 	);
-	assert.match(source, /String\(rawItem\.name \?\? ["']-["']\)/);
+	assert.match(source, /String\(rawItem\.name \?\? ["']["']\) \|\| ["']개체명 미등록["']/);
+	assert.doesNotMatch(source, /["']----["']/);
+	assert.doesNotMatch(source, /String\(rawItem\.name \?\? ["']-["']\)/);
 	assert.doesNotMatch(source, /item\.tagNumber\.slice\(-4\)/);
 });
 

@@ -81,9 +81,9 @@ export function isCalvingAlert(pregnancyDate, now = new Date()) {
 }
 
 export function formatDate(value) {
-	if (!value) return "-";
+	if (!value) return "날짜 미등록";
 	const date = toValidDate(value);
-	return date ? date.toLocaleDateString("ko-KR") : "-";
+	return date ? date.toLocaleDateString("ko-KR") : "날짜 미등록";
 }
 
 export function toInputDate(value) {
@@ -124,7 +124,7 @@ export function getTHILevel(thi) {
 			label: "주의",
 			color: "#d39a63",
 			bg: "#f7ead9",
-			desc: "가벼운 스트레스 구간으로 환기 상태를 확인하세요.",
+			desc: "가벼운 스트레스 구간으로 환기 상태를 확인해 주세요.",
 		};
 	}
 
@@ -133,7 +133,7 @@ export function getTHILevel(thi) {
 			label: "경고",
 			color: "#cf7f76",
 			bg: "#f5e1dd",
-			desc: "급수량 확보와 송풍 강화가 필요한 수준입니다.",
+			desc: "급수량을 확보하고 송풍을 강화해 주세요.",
 		};
 	}
 
@@ -141,7 +141,7 @@ export function getTHILevel(thi) {
 		label: "위험",
 		color: "#a54f49",
 		bg: "#f1d7d3",
-		desc: "즉시 냉방과 살수 조치가 필요한 고위험 상태입니다.",
+		desc: "즉시 냉방과 살수 조치를 진행해 주세요.",
 	};
 }
 
@@ -180,14 +180,14 @@ export function getLivestockWeatherAlerts(forecast = []) {
 			alerts.push({
 				type: "heat",
 				level: "danger",
-				msg: `${label} 폭염 경보 (${day.tempMax}°C) - 냉방과 살수 조치가 필요합니다.`,
+				msg: `${label} 폭염 경보 (${day.tempMax}°C) - 냉방과 살수 조치를 진행해 주세요.`,
 				icon: "🔥",
 			});
 		} else if (day.tempMax >= 33) {
 			alerts.push({
 				type: "heat",
 				level: "warning",
-				msg: `${label} 고온 주의 (${day.tempMax}°C) - 환기와 급수 상태를 강화하세요.`,
+				msg: `${label} 고온 주의 (${day.tempMax}°C) - 환기와 급수 상태를 강화해 주세요.`,
 				icon: "🌡️",
 			});
 		}
@@ -196,14 +196,14 @@ export function getLivestockWeatherAlerts(forecast = []) {
 			alerts.push({
 				type: "cold",
 				level: "danger",
-				msg: `${label} 한파 경보 (${day.tempMin}°C) - 보온 설비 점검이 필요합니다.`,
+				msg: `${label} 한파 경보 (${day.tempMin}°C) - 보온 설비를 점검해 주세요.`,
 				icon: "🥶",
 			});
 		} else if (day.tempMin <= -5) {
 			alerts.push({
 				type: "cold",
 				level: "warning",
-				msg: `${label} 저온 주의 (${day.tempMin}°C) - 보온 상태를 확인하세요.`,
+				msg: `${label} 저온 주의 (${day.tempMin}°C) - 보온 상태를 확인해 주세요.`,
 				icon: "🧣",
 			});
 		}
@@ -212,7 +212,7 @@ export function getLivestockWeatherAlerts(forecast = []) {
 			alerts.push({
 				type: "rain",
 				level: "warning",
-				msg: `${label} 강수 확률 ${day.precipProb}% - 축사 누수와 바닥 상태를 점검하세요.`,
+				msg: `${label} 강수 확률 ${day.precipProb}% - 축사 누수와 바닥 상태를 점검해 주세요.`,
 				icon: "🌧️",
 			});
 		}

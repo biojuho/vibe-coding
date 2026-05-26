@@ -24,9 +24,9 @@ function normalizeAlertNotifications(notifications, type) {
 				typeof notification.cattleName === "string" &&
 				notification.cattleName.trim()
 					? notification.cattleName
-					: "이름 미등록",
+					: "개체명 미등록",
 			id: notification.id ?? `${type}-${index}`,
-			penNumber: notification.penNumber ?? "-",
+			penNumber: notification.penNumber ?? "칸 미지정",
 		}));
 }
 
@@ -123,7 +123,7 @@ export function EstrusAlertBanner({ notifications = [], buildings = [] }) {
 								</strong>{" "}
 								·{" "}
 								<span style={{ color: "var(--color-text-secondary)" }}>
-									{building?.name || "미지정"} {notification.penNumber}번
+									{building?.name || "축사 미지정"} {notification.penNumber}번
 								</span>{" "}
 								·{" "}
 								<span style={{ fontWeight: 700, color: "var(--color-estrus)" }}>
@@ -223,7 +223,7 @@ export function CalvingAlertBanner({ notifications = [], buildings = [] }) {
 								</strong>{" "}
 								·{" "}
 								<span style={{ color: "var(--color-text-secondary)" }}>
-									{building?.name || "미지정"} {notification.penNumber}번
+									{building?.name || "축사 미지정"} {notification.penNumber}번
 								</span>{" "}
 								·{" "}
 								<span
@@ -235,7 +235,7 @@ export function CalvingAlertBanner({ notifications = [], buildings = [] }) {
 									· 예정{" "}
 									{notification.targetDate
 										? formatDate(notification.targetDate)
-										: "-"}
+										: "분만 예정일 미등록"}
 								</span>
 							</div>
 						);

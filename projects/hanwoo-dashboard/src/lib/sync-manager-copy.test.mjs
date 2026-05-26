@@ -13,15 +13,18 @@ function readSource(relativePath) {
 
 test("offline sync thrown errors use stable Korean retry copy", () => {
 	const source = readSource("lib/syncManager.js");
+	const queueHookSource = readSource("lib/hooks/useOfflineSyncQueue.js");
 
 	assert.match(
 		source,
 		/const OFFLINE_SYNC_RETRY_ERROR_MESSAGE\s*=\s*["']오프라인 요청을 동기화하지 못했습니다\. 잠시 후 다시 시도해 주세요\.["'];?/,
 	);
+	assert.match(queueHookSource, /description: ["']잠시 후 다시 시도해 주세요\.["']/);
 	assert.match(
 		source,
 		/const errorMessage = OFFLINE_SYNC_RETRY_ERROR_MESSAGE;/,
 	);
 	assert.doesNotMatch(source, /error instanceof Error && error\.message/);
 	assert.doesNotMatch(source, /threw an unknown error/);
+	assert.doesNotMatch(queueHookSource, /시도해주세요/);
 });

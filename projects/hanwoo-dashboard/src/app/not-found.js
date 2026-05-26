@@ -26,7 +26,7 @@ export default function NotFound() {
 
 				<p className="login-copy">
 					주소가 바뀌었거나 삭제된 화면일 수 있어요. 대시보드로 돌아가 오늘의
-					사육, 재고, 출하 업무를 이어서 관리하세요.
+					사육, 재고, 출하 업무를 이어서 관리해 주세요.
 				</p>
 
 				<div className="status-actions">

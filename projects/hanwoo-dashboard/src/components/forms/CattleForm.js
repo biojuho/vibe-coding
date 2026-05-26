@@ -37,7 +37,7 @@ function normalizeCattleFormBuildings(buildings) {
 					name:
 						typeof building.name === "string" && building.name.trim()
 							? building.name
-							: "축사명 미등록",
+							: "축사 이름 미등록",
 				}))
 		: [];
 }
@@ -290,8 +290,8 @@ export default function CattleForm({
 							}}
 						>
 							{cattle
-								? "정보를 수정하고 저장하세요"
-								: "새 개체의 기본 정보를 입력하세요"}
+								? "개체 정보를 수정하고 저장해 주세요"
+								: "새 개체의 기본 정보를 입력해 주세요"}
 						</div>
 					</div>
 				</div>

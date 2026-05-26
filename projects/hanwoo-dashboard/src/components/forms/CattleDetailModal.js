@@ -60,7 +60,7 @@ function normalizeDetailBuildings(buildings) {
 					name:
 						typeof building.name === "string" && building.name.trim()
 							? building.name
-							: "축사명 미등록",
+							: "축사 이름 미등록",
 				}))
 		: [];
 }
@@ -445,7 +445,7 @@ export default function CattleDetailModal({
 							/>
 							<InfoItem
 								label="유전능력"
-								value={`부:${cattle.geneticInfo?.father || "-"} / 모:${cattle.geneticInfo?.mother || "-"}`}
+								value={`부:${cattle.geneticInfo?.father || "부계 미등록"} / 모:${cattle.geneticInfo?.mother || "모계 미등록"}`}
 								delay={150}
 							/>
 							{cattle.purchasePrice && (
@@ -496,7 +496,9 @@ export default function CattleDetailModal({
 								<InfoItem
 									label="최근 발정"
 									value={
-										cattle.lastEstrus ? formatDate(cattle.lastEstrus) : "-"
+										cattle.lastEstrus
+											? formatDate(cattle.lastEstrus)
+											: "발정일 미등록"
 									}
 								/>
 								<InfoItem
@@ -506,7 +508,7 @@ export default function CattleDetailModal({
 											? formatDaysLeftLabel(
 													getDaysUntilEstrus(cattle.lastEstrus),
 												)
-											: "-"
+											: "최근 발정일 미등록"
 									}
 								/>
 								<InfoItem
@@ -514,7 +516,7 @@ export default function CattleDetailModal({
 									value={
 										cattle.pregnancyDate
 											? formatDate(cattle.pregnancyDate)
-											: "-"
+											: "수정일 미등록"
 									}
 								/>
 								<InfoItem
@@ -522,7 +524,7 @@ export default function CattleDetailModal({
 									value={
 										cattle.pregnancyDate
 											? formatDate(getCalvingDate(cattle.pregnancyDate))
-											: "-"
+											: "분만 예정일 미등록"
 									}
 								/>
 							</div>

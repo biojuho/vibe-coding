@@ -258,6 +258,8 @@ test("AI chat route farm context avoids English fallback copy", () => {
 	assert.match(source, /이력번호 미등록/);
 	assert.match(source, /출하일 미등록/);
 	assert.match(source, /최근 판매 기록 없음/);
+	assert.match(source, /상태별 개체 데이터 없음/);
+	assert.doesNotMatch(source, /statusSummary \|\| ["']데이터 없음["']/);
 	assert.match(source, /Joolife 한우 농장/);
 	assert.doesNotMatch(
 		source,

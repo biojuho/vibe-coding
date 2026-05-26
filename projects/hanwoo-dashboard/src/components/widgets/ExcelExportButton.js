@@ -72,12 +72,16 @@ export default function ExcelExportButton({
 			onClick={handleDownload}
 			disabled={isPreparing}
 			aria-busy={isPreparing}
-			aria-label={isPreparing ? "엑셀 다운로드 준비 중" : "엑셀 다운로드"}
-			title={isPreparing ? "엑셀 다운로드 준비 중" : "엑셀 다운로드"}
+			aria-label={
+				isPreparing ? "개체 엑셀 다운로드 준비 중" : "개체 엑셀 다운로드"
+			}
+			title={
+				isPreparing ? "개체 엑셀 다운로드 준비 중" : "개체 엑셀 다운로드"
+			}
 			className="gap-1.5 font-bold shadow-md"
 		>
 			<Download size={14} className="text-[#1D6F42]" aria-hidden="true" />
-			{isPreparing ? "엑셀 다운로드 준비 중..." : "엑셀 다운로드"}
+			{isPreparing ? "개체 엑셀 다운로드 준비 중..." : "개체 엑셀 다운로드"}
 		</PremiumButton>
 	);
 }

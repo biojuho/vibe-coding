@@ -38,7 +38,7 @@ function addDays(value, dayCount) {
 export function formatNotificationTime(value) {
 	const parsed = parseDate(value);
 	if (!parsed) {
-		return "-";
+		return "알림 시간 확인 불가";
 	}
 
 	return parsed.toLocaleTimeString("ko-KR", {
@@ -78,7 +78,7 @@ export function buildNotificationTiming(type, sourceDate, options) {
 	if (!targetDate) {
 		return {
 			date: null,
-			time: "-",
+			time: "알림 시간 확인 불가",
 			targetDate: null,
 		};
 	}

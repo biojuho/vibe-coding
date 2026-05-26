@@ -127,3 +127,16 @@ test("FieldModeView sets up a beautiful dynamic particle confetti simulation", (
 	assert.match(source, /p\.vx \*= 0\.98/); // friction
 	assert.match(source, /animationId = requestAnimationFrame\(animate\)/);
 });
+
+test("FieldModeView search results use specific missing-building copy", () => {
+	const source = readSource("components/widgets/FieldModeView.js");
+
+	assert.match(
+		source,
+		/cow\.buildingId \? `\$\{cow\.buildingId\}동` : ["']축사 미지정["']/,
+	);
+	assert.doesNotMatch(
+		source,
+		/cow\.buildingId \? `\$\{cow\.buildingId\}동` : ["']미지정["']/,
+	);
+});
