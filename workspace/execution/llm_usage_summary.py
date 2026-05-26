@@ -368,7 +368,7 @@ def main(argv: list[str] | None = None) -> int:
         help=f"workspace SQLite (default: {DEFAULT_DB_PATH})",
     )
     parser.add_argument("--provider", help="특정 provider 만 (예: anthropic)")
-    parser.add_argument("--model", help="특정 model 만 (예: claude-sonnet-4-20250514)")
+    parser.add_argument("--model", help="특정 model 만 (예: claude-sonnet-4-6)")
     parser.add_argument(
         "--by",
         choices=["overall", "provider", "model", "caller"],

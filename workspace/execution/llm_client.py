@@ -103,7 +103,7 @@ DEFAULT_MODELS: dict[str, str] = {
     "ollama": "qwen3-coder:30b-a3b-q4_K_M",
     "openai": "gpt-4o-mini",
     "google": "gemini-2.5-flash",
-    "anthropic": "claude-sonnet-4-20250514",
+    "anthropic": "claude-sonnet-4-6",
     "xai": "grok-3-mini-fast",
     "deepseek": "deepseek-chat",
     "moonshot": "moonshot-v1-8k",
@@ -152,7 +152,8 @@ PRICING: dict[str, dict[str, float]] = {
     "gpt-4o-mini": {"input": 0.00015, "output": 0.0006},
     "gpt-4o": {"input": 0.0025, "output": 0.01},
     "gemini-2.5-flash": {"input": 0.0, "output": 0.0},  # 무료 tier
-    "claude-sonnet-4-20250514": {"input": 0.003, "output": 0.015},
+    "claude-sonnet-4-6": {"input": 0.003, "output": 0.015},
+    "claude-sonnet-4-20250514": {"input": 0.003, "output": 0.015},  # legacy alias
     "grok-3-mini-fast": {"input": 0.0003, "output": 0.0005},
     "deepseek-chat": {"input": 0.00014, "output": 0.00028},
     "moonshot-v1-8k": {"input": 0.00085, "output": 0.00085},

@@ -19,7 +19,7 @@ description: >-
 ## 사전 요구사항
 
 `projects/blind-to-x/config.yaml` 또는 `.env` 파일에 키 설정:
-- `ANTHROPIC_API_KEY`: Claude API (현재 모델: `claude-sonnet-4-20250514`)
+- `ANTHROPIC_API_KEY`: Claude API (현재 모델: `claude-sonnet-4-6`)
 - `NOTION_API_KEY` + `NOTION_DATABASE_ID`: Notion 연동
 - `CLOUDINARY_*` 또는 Imgur Client ID: 이미지 호스팅
 

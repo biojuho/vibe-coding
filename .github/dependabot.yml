@@ -87,6 +87,18 @@ updates:
       - "dependencies"
       - "word-chain"
 
+  # suika-game-v2 - npm (Suika Daily v3 PWA, see memory suika_daily_v3_rebuild_20260521)
+  - package-ecosystem: "npm"
+    directory: "/projects/suika-game-v2"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "suika-game-v2"
+
   # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"

@@ -33,7 +33,7 @@ def _build_config():
                 "max_retries_per_provider": 1,
                 "request_timeout_seconds": 5,
             },
-            "anthropic": {"enabled": True, "api_key": "anthropic-key", "model": "claude-sonnet-4-20250514"},
+            "anthropic": {"enabled": True, "api_key": "anthropic-key", "model": "claude-sonnet-4-6"},
             "gemini": {"enabled": True, "api_key": "gemini-key", "model": "gemini-2.5-flash"},
             "xai": {"enabled": True, "api_key": "xai-key", "model": "grok-4-1-fast-reasoning"},
             "openai": {"chat_enabled": True, "api_key": "openai-key", "chat_model": "gpt-4.1-mini"},

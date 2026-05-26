@@ -46,8 +46,12 @@ PRICING = {
     "gpt-4o": {"input": 0.0025, "output": 0.01},
     "gpt-4o-mini": {"input": 0.00015, "output": 0.0006},
     "claude-sonnet-4": {"input": 0.003, "output": 0.015},
-    "claude-sonnet-4-20250514": {"input": 0.003, "output": 0.015},
-    "claude-haiku-3.5": {"input": 0.0008, "output": 0.004},
+    "claude-sonnet-4-6": {"input": 0.003, "output": 0.015},
+    "claude-sonnet-4-20250514": {"input": 0.003, "output": 0.015},  # legacy alias
+    "claude-opus-4-7": {"input": 0.015, "output": 0.075},
+    "claude-haiku-4-5": {"input": 0.001, "output": 0.005},
+    "claude-haiku-4-5-20251001": {"input": 0.001, "output": 0.005},
+    "claude-haiku-3.5": {"input": 0.0008, "output": 0.004},  # legacy
     "gemini-pro": {"input": 0.00025, "output": 0.0005},
     "gemini-2.5-flash": {"input": 0.0, "output": 0.0},
     "gemini-2.0-flash": {"input": 0.0, "output": 0.0},

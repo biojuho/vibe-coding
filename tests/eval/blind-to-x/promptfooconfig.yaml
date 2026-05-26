@@ -12,7 +12,7 @@ prompts:
   # 새 버전을 비교하려면 prompts/draft_v_next.txt 추가 후 여기 등록.
 
 providers:
-  - id: anthropic:messages:claude-haiku-3-5
+  - id: anthropic:messages:claude-haiku-4-5-20251001
     label: anthropic-haiku
     config:
       temperature: 0.4

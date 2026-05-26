@@ -134,7 +134,7 @@ def _write_with_claude(text: str, template: dict) -> str:
     user_message = _build_user_message(text, template)
 
     message = client.messages.create(
-        model="claude-opus-4-5",
+        model="claude-opus-4-7",
         max_tokens=4096,
         system=template.get("system", ""),
         messages=[{"role": "user", "content": user_message}],

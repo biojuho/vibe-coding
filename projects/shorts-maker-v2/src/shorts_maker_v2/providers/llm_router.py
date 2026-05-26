@@ -87,7 +87,7 @@ PROVIDER_ALIASES = {
 DEFAULT_MODELS = {
     "openai": "gpt-4o-mini",
     "google": "gemini-3.1-flash-lite-preview",
-    "anthropic": "claude-sonnet-4-20250514",
+    "anthropic": "claude-sonnet-4-6",
     "xai": "grok-3-mini-fast",
     "deepseek": "deepseek-chat",
     "moonshot": "moonshot-v1-8k",

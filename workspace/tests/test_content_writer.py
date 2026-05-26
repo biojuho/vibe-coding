@@ -95,7 +95,7 @@ def test_write_with_claude_uses_messages_api(monkeypatch) -> None:
 
     assert result == "# Claude Title\nText"
     assert calls["api_key"] == "claude-key"
-    assert calls["model"] == "claude-opus-4-5"
+    assert calls["model"] == "claude-opus-4-7"
 
 
 def test_write_with_gpt_uses_chat_completions(monkeypatch) -> None:
