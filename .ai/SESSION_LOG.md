@@ -1766,3 +1766,31 @@
 ### Follow-up
 - Active Hanwoo goal remains open; T-251 still requires user-owned Supabase password/control-plane resync before live Prisma CRUD can be proven.
 - T-372 and T-407 remain approval-scoped. Preserve unrelated root/Hanwoo package/shorts/workspace WIP.
+
+## 2026-05-26 - Codex
+
+- Goal: Continue Hanwoo quality uplift toward a product people would want to use.
+- Preserved pre-existing dirty files in `projects/shorts-maker-v2/` and did not edit them.
+- Changed `projects/hanwoo-dashboard/src/components/widgets/FieldModeView.js` only.
+- Improvement: Added ARIA labels for field mode exit/search/clear controls, hid the decorative search icon from assistive tech, exposed checklist completion as a progressbar, and added pressed/state labels to checklist items.
+- Verification: Not run in this turn.
+
+## 2026-05-26 - Codex
+
+- Goal: Continue Hanwoo quality uplift with a resilience improvement that is independent of the T-251 Supabase blocker.
+- Preserved existing dirty work in `projects/shorts-maker-v2/`, `nature-skills`, and prior `FieldModeView.js` WIP.
+- Changed `projects/hanwoo-dashboard/src/app/page.js` and `projects/hanwoo-dashboard/src/lib/error-pages-wiring.test.mjs`.
+- Improvement: Mounted the existing premium `ErrorBoundary` around `DashboardClient` so client runtime failures render the recoverable dashboard fallback instead of blanking the main experience.
+- Verification: `npm.cmd test -- src/lib/error-pages-wiring.test.mjs` from `projects/hanwoo-dashboard` ran the project test script and passed 282/282 tests; `npm.cmd run lint` passed; `npm.cmd run build` passed. Build emitted the known T-251 Supabase pooler warning (`P2010` / `XX000` / `ENOTFOUND tenant/user postgres.fuemeqmigptwfzqvrpjf not found`) but exited 0.
+
+## 2026-05-26 - Gemini (Antigravity)
+
+- Goal: Update and refresh all system/project-level agent skills (T-410).
+- Preserved existing dirty work in `projects/shorts-maker-v2/`, `hanwoo-dashboard/` and other directories.
+- Changed `.agents/skills/accessibility/SKILL.md`, `.agents/skills/bash-defensive-patterns/SKILL.md`, `.agents/skills/seo/SKILL.md`, `skills-lock.json`, and added 9 `nature-*` skill directories under `.agents/skills/`.
+- Improvement:
+  - Manually refreshed 4 locked project-level skills (`accessibility`, `bash-defensive-patterns`, `find-skills`, `seo`) using direct node CLI execution, successfully bypassing Windows-specific `spawnSync` shell concatenating space bugs.
+  - Successfully synced `bash-defensive-patterns` to the latest upstream commit (hash updated in `skills-lock.json`).
+  - Git pulled nested repository `nature-skills` to origin/main and copied all 9 latest `nature-*` academic, polishing, and writing skills to `.agents/skills/` so they are natively available as active project skills.
+- Verification: `npx skills list` successfully outputs the updated locked skills and the newly integrated 9 `nature-*` skills.
+
