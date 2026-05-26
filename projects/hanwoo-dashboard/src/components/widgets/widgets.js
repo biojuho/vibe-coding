@@ -35,6 +35,7 @@ export function TabBar({ activeTab, onTabChange }) {
 			{tabs.map((t) => {
 				const isActive = activeTab === t.id;
 				const Icon = t.icon;
+				const tabActionLabel = `${t.label} 탭 열기${isActive ? ", 현재 선택됨" : ""}`;
 				return (
 					<button
 						key={t.id}
@@ -42,6 +43,8 @@ export function TabBar({ activeTab, onTabChange }) {
 						onClick={() => onTabChange(t.id)}
 						className={`tab-item ${isActive ? "active" : ""}`}
 						aria-current={isActive ? "page" : undefined}
+						aria-label={tabActionLabel}
+						title={tabActionLabel}
 						style={{
 							color: isActive
 								? "var(--color-primary-custom)"
@@ -125,6 +128,9 @@ export function WeatherWidget({ weather }) {
 		return (
 			<div
 				className="weather-card animate-fadeInUp"
+				role="status"
+				aria-live="polite"
+				aria-atomic="true"
 				style={{ marginBottom: "16px" }}
 			>
 				<PremiumCard>
@@ -376,6 +382,7 @@ export function WeatherWidget({ weather }) {
 											month: "short",
 											day: "numeric",
 										});
+							const weatherDescription = getWeatherDesc(day.weatherCode);
 							return (
 								<div
 									key={day.date}
@@ -397,7 +404,9 @@ export function WeatherWidget({ weather }) {
 										{dayLabel}
 									</div>
 									<div
-										aria-label={getWeatherDesc(day.weatherCode)}
+										role="img"
+										aria-label={weatherDescription}
+										title={weatherDescription}
 										style={{ fontSize: "24px", marginBottom: "4px" }}
 									>
 										{getWeatherIcon(day.weatherCode)}

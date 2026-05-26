@@ -35,6 +35,9 @@ export default function EmptyState({
 					size="sm"
 					onClick={onAction}
 					disabled={disabled}
+					aria-busy={disabled}
+					aria-label={actionLabel}
+					title={actionLabel}
 					className="mt-4 rounded-xl px-4"
 				>
 					{actionLabel}

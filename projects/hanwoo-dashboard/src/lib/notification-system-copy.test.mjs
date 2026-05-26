@@ -98,9 +98,33 @@ test("notification mark-all actions use safe button semantics and Korean copy", 
 
 	assert.match(
 		source,
-		/<button\s+type="button"\s+onClick=\{markAllAsRead\}/,
+		/const markAllAsReadLabel = `읽지 않은 알림 \$\{unreadCount\}개 모두 읽음으로 표시`;/,
+	);
+	assert.match(
+		source,
+		/<button\s+type="button"\s+onClick=\{markAllAsRead\}\s+aria-label=\{markAllAsReadLabel\}\s+title=\{markAllAsReadLabel\}/,
 	);
 	assert.match(source, /모두 읽음/);
+});
+
+test("notification dropdown items identify the read action", () => {
+	const source = readSource("components/layout/NotificationSystem.js");
+	const dropdownSource = readSource("components/ui/dropdown-menu.js");
+
+	assert.match(source, /onClick=\{\(\) => markAsRead\(notification\.id\)\}/);
+	assert.match(
+		source,
+		/aria-label=\{`\$\{notification\.title\} 알림 읽음으로 표시`\}/,
+	);
+	assert.match(
+		source,
+		/title=\{`\$\{notification\.title\} 알림 읽음으로 표시`\}/,
+	);
+	assert.match(
+		dropdownSource,
+		/export function DropdownMenuItem\(\{ children, onClick, className, \.\.\.props \}\)/,
+	);
+	assert.match(dropdownSource, /\{\.\.\.props\}/);
 });
 
 test("notification system does not seed demo farm alerts by default", () => {

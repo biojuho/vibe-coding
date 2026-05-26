@@ -55,6 +55,7 @@ export default function PaymentWidget({
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [isWidgetReady, setIsWidgetReady] = useState(false);
 	const [errorMessage, setErrorMessage] = useState("");
+	const isPaymentButtonBusy = isSubmitting || !isWidgetReady;
 	const paymentButtonLabel = isSubmitting
 		? PAYMENT_PREPARING_MESSAGE
 		: !isWidgetReady
@@ -218,8 +219,8 @@ export default function PaymentWidget({
 			<button
 				type="button"
 				onClick={handlePayment}
-				disabled={isSubmitting || !isWidgetReady}
-				aria-busy={isSubmitting}
+				disabled={isPaymentButtonBusy}
+				aria-busy={isPaymentButtonBusy}
 				aria-label={paymentButtonLabel}
 				title={paymentButtonLabel}
 				style={{
@@ -232,9 +233,9 @@ export default function PaymentWidget({
 					border: "1px solid var(--color-surface-stroke)",
 					borderRadius: "18px",
 					marginTop: "20px",
-					cursor: isSubmitting || !isWidgetReady ? "wait" : "pointer",
+					cursor: isPaymentButtonBusy ? "wait" : "pointer",
 					boxShadow: "var(--shadow-button-primary)",
-					opacity: isSubmitting || !isWidgetReady ? 0.72 : 1,
+					opacity: isPaymentButtonBusy ? 0.72 : 1,
 				}}
 			>
 				{paymentButtonLabel}

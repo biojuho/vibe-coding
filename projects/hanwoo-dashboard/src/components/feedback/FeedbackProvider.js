@@ -118,6 +118,8 @@ export function FeedbackProvider({ children }) {
 		}),
 		[confirm, notify],
 	);
+	const cancelButtonLabel = `${confirmation.cancelLabel}하고 확인 창 닫기`;
+	const confirmButtonLabel = `${confirmation.confirmLabel} 실행`;
 
 	return (
 		<FeedbackContext.Provider value={contextValue}>
@@ -129,6 +131,7 @@ export function FeedbackProvider({ children }) {
 						const style = TOAST_STYLES[toast.variant] || TOAST_STYLES.info;
 						const isUrgent =
 							toast.variant === "error" || toast.variant === "warning";
+						const toastDismissLabel = `${toast.title} 알림 닫기`;
 
 						return (
 							<div
@@ -161,7 +164,8 @@ export function FeedbackProvider({ children }) {
 									<button
 										type="button"
 										onClick={() => dismiss(toast.id)}
-										aria-label={`${toast.title} 알림 닫기`}
+										aria-label={toastDismissLabel}
+										title={toastDismissLabel}
 										className="text-xs font-semibold text-[color:var(--color-text-muted)]"
 									>
 										닫기
@@ -177,7 +181,7 @@ export function FeedbackProvider({ children }) {
 				open={confirmation.open}
 				onOpenChange={(open) => !open && closeConfirmation(false)}
 			>
-				<DialogContent className="sm:max-w-md">
+				<DialogContent className="sm:max-w-md" closeLabel="확인 창 닫기">
 					<DialogHeader>
 						<DialogTitle>{confirmation.title}</DialogTitle>
 						{confirmation.description ? (
@@ -185,7 +189,12 @@ export function FeedbackProvider({ children }) {
 						) : null}
 					</DialogHeader>
 					<DialogFooter>
-						<Button variant="outline" onClick={() => closeConfirmation(false)}>
+						<Button
+							variant="outline"
+							onClick={() => closeConfirmation(false)}
+							aria-label={cancelButtonLabel}
+							title={cancelButtonLabel}
+						>
 							{confirmation.cancelLabel}
 						</Button>
 						<Button
@@ -195,6 +204,8 @@ export function FeedbackProvider({ children }) {
 									: "default"
 							}
 							onClick={() => closeConfirmation(true)}
+							aria-label={confirmButtonLabel}
+							title={confirmButtonLabel}
 						>
 							{confirmation.confirmLabel}
 						</Button>

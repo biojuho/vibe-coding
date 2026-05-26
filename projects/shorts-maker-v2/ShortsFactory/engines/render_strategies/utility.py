@@ -5,6 +5,7 @@ import os
 import tempfile
 from pathlib import Path
 from typing import Any
+
 from PIL import Image, ImageDraw
 
 logger = logging.getLogger(__name__)

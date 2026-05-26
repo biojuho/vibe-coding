@@ -168,6 +168,13 @@ class TestGateSafeZone:
         assert report.checks["safe_zone_s1"] is True
         assert report.checks["safe_zone_s2"] is False
 
+    def test_overlong_static_caption_holds_when_configured_font_is_missing(self):
+        plans = [_plan(1, "媛?섎떎?쇰쭏諛붿궗 " * 80)]
+        styles = {"body": _style("static", font_candidates=("Z:/missing-font.ttf",))}
+        report = QCStep.gate_safe_zone(plans, [], styles=styles)
+        assert report.verdict == "hold"
+        assert report.checks["safe_zone_s1"] is False
+
     def test_overlong_karaoke_narration_passes(self):
         """karaoke 모드는 긴 나레이션도 단어 청크 단위로 한 줄씩 렌더하므로,
         문자 수 기반 추정과 달리 세로 오버플로우로 오탐하지 않는다."""

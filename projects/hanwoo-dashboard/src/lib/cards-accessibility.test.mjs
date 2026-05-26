@@ -26,8 +26,14 @@ test("pen and cattle cards use native button activation semantics", () => {
 		source,
 		/<button\s+type="button"[\s\S]*?onClick=\{\(\)\s*=>\s*onClick\(\s*cow\s*\)\}/,
 	);
-	assert.match(source, /aria-label=\{`\$\{penNumber\}/);
+	assert.match(
+		source,
+		/const penAccessibleLabel = `\$\{penNumber\}번 칸 상세 보기, \$\{visibleCattle\.length\}두 배치됨\$\{penAlertLabel\}`;/,
+	);
+	assert.match(source, /aria-label=\{penAccessibleLabel\}/);
+	assert.match(source, /title=\{penAccessibleLabel\}/);
 	assert.match(source, /aria-label=\{cattleAccessibleLabel\}/);
+	assert.match(source, /title=\{cattleAccessibleLabel\}/);
 	assert.match(source, /<div className="pen-alert-badge" aria-hidden="true">/);
 	assert.match(source, /<div className="cattle-chevron" aria-hidden="true">/);
 });
@@ -55,6 +61,16 @@ test("pen cards normalize cattle payloads before rendering", () => {
 	assert.doesNotMatch(source, /cattle\.some/);
 	assert.doesNotMatch(source, /cattle\.length/);
 	assert.doesNotMatch(source, /cattle\.map/);
+});
+
+test("cattle row alert badges use operator-readable countdown labels", () => {
+	const source = readSource("components/ui/cards.js");
+
+	assert.match(source, /"발정 오늘"/);
+	assert.match(source, /`발정 \$\{estrusD\}일 남음`/);
+	assert.match(source, /분만 \{calvingDays\}일 남음/);
+	assert.doesNotMatch(source, /발정D-/);
+	assert.doesNotMatch(source, /분만D-/);
 });
 
 test("native card buttons keep card visual reset styles", () => {

@@ -65,6 +65,10 @@ function normalizeDetailBuildings(buildings) {
 		: [];
 }
 
+function formatDaysLeftLabel(daysLeft) {
+	return daysLeft === 0 ? "오늘" : `${daysLeft}일 남음`;
+}
+
 export default function CattleDetailModal({
 	cattle,
 	buildings = [],
@@ -129,23 +133,36 @@ export default function CattleDetailModal({
 		"축사 미배정";
 	const breedingDateErrorId = "breeding-record-date-error";
 	const isDetailBusy = isDeleting || isBreedingSaving;
+	const closeButtonLabel = isDetailBusy
+		? `${cattle.name} 개체 처리 중에는 상세 창을 닫을 수 없습니다`
+		: "개체 상세 닫기";
 	const editButtonLabel = isDetailBusy
 		? `${cattle.name} 개체 처리 중에는 수정할 수 없습니다`
 		: `${cattle.name} 개체 정보 수정`;
+	const editButtonText = isDetailBusy ? "개체 처리 중..." : "개체 정보 수정";
 	const archiveButtonLabel = isDetailBusy
 		? `${cattle.name} 개체 처리 중에는 보관할 수 없습니다`
 		: `${cattle.name} 개체 보관 처리`;
+	const archiveButtonText = isDetailBusy ? "개체 처리 중..." : "개체 보관 처리";
 	const estrusButtonLabel = isDetailBusy
 		? `${cattle.name} 개체 처리 중에는 발정 기록을 시작할 수 없습니다`
 		: `${cattle.name} 발정 기록`;
+	const estrusButtonText = isDetailBusy ? "개체 처리 중..." : "발정 기록";
 	const pregnancyButtonLabel = isDetailBusy
 		? `${cattle.name} 개체 처리 중에는 수정 기록을 시작할 수 없습니다`
 		: `${cattle.name} 수정 기록`;
+	const pregnancyButtonText = isDetailBusy ? "개체 처리 중..." : "수정 기록";
 	const breedingCancelButtonLabel = isBreedingSaving
 		? "번식 기록 저장 중에는 취소할 수 없습니다"
 		: "번식 기록 취소";
+	const breedingCancelButtonText = isBreedingSaving
+		? "번식 기록 저장 중..."
+		: "번식 기록 취소";
 	const breedingSubmitButtonLabel = isBreedingSaving
 		? "번식 기록 저장 중"
+		: "번식 기록 저장";
+	const breedingSubmitButtonText = isBreedingSaving
+		? "번식 기록 저장 중..."
 		: "번식 기록 저장";
 
 	// Build weight chart data from history or fallback to weightHistory field
@@ -167,6 +184,7 @@ export default function CattleDetailModal({
 		}
 		return [];
 	})();
+	const weightChartLabel = `${cattle.name} 체중 변화 차트. 날짜별 체중 기록을 선으로 비교합니다.`;
 
 	const openBreedingForm = (action) => {
 		if (breedingSaveInFlightRef.current || isDetailBusy) {
@@ -278,8 +296,8 @@ export default function CattleDetailModal({
 						onClick={onClose}
 						disabled={isDetailBusy}
 						aria-busy={isDetailBusy}
-						aria-label="개체 상세 닫기"
-						title="개체 상세 닫기"
+						aria-label={closeButtonLabel}
+						title={closeButtonLabel}
 						className="btn btn-icon animate-scaleIn"
 						style={{
 							position: "absolute",
@@ -373,7 +391,7 @@ export default function CattleDetailModal({
 								gap: "8px",
 							}}
 						>
-							<EditIcon /> 수정
+							<EditIcon /> {editButtonText}
 						</button>
 						<button
 							type="button"
@@ -392,7 +410,7 @@ export default function CattleDetailModal({
 								gap: "8px",
 							}}
 						>
-							<TrashIcon /> 보관
+							<TrashIcon /> {archiveButtonText}
 						</button>
 					</div>
 
@@ -485,7 +503,9 @@ export default function CattleDetailModal({
 									label="다음 발정 예정"
 									value={
 										cattle.lastEstrus
-											? `D-${getDaysUntilEstrus(cattle.lastEstrus)}`
+											? formatDaysLeftLabel(
+													getDaysUntilEstrus(cattle.lastEstrus),
+												)
 											: "-"
 									}
 								/>
@@ -528,7 +548,7 @@ export default function CattleDetailModal({
 										gap: "8px",
 									}}
 								>
-									<CalendarCheck2 size={16} aria-hidden="true" /> 발정 기록
+									<CalendarCheck2 size={16} aria-hidden="true" /> {estrusButtonText}
 								</button>
 								<button
 									type="button"
@@ -551,7 +571,7 @@ export default function CattleDetailModal({
 										gap: "8px",
 									}}
 								>
-									<CheckCircle2 size={16} aria-hidden="true" /> 수정 기록
+									<CheckCircle2 size={16} aria-hidden="true" /> {pregnancyButtonText}
 								</button>
 							</div>
 							{activeBreedingAction ? (
@@ -627,7 +647,7 @@ export default function CattleDetailModal({
 												fontSize: "13px",
 											}}
 										>
-											취소
+											{breedingCancelButtonText}
 										</button>
 										<button
 											type="submit"
@@ -642,7 +662,7 @@ export default function CattleDetailModal({
 												fontSize: "13px",
 											}}
 										>
-											{isBreedingSaving ? "저장 중..." : "저장"}
+											{breedingSubmitButtonText}
 										</button>
 									</div>
 									{breedingError ? (
@@ -671,6 +691,9 @@ export default function CattleDetailModal({
 					>
 						<SectionTitle icon="📈" title="체중 변화" />
 						<div
+							role="img"
+							aria-label={weightChartLabel}
+							title={weightChartLabel}
 							style={{
 								height: "220px",
 								background: "var(--color-border-light)",
@@ -841,6 +864,8 @@ export default function CattleDetailModal({
 function SectionTitle({ icon, title, color = "var(--color-text)" }) {
 	return (
 		<div
+			role="heading"
+			aria-level={3}
 			style={{
 				fontSize: "16px",
 				fontWeight: 800,

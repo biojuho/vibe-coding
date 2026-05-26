@@ -82,6 +82,10 @@ export default function AnalysisTab({
 		[expenseRecords],
 	);
 	const hasExpenseData = safeExpenseRecords.length > 0;
+	const monthlyFlowChartLabel =
+		"최근 12개월 월별 매출, 비용, 수익 추이 차트입니다.";
+	const costStructureChartLabel =
+		"비용 구성 분석 차트. 카테고리별 비용 비중을 비교합니다.";
 
 	const monthlyData = useMemo(() => {
 		const data = {};
@@ -204,7 +208,12 @@ export default function AnalysisTab({
 					</div>
 				</div>
 
-				<div className="h-[320px]">
+				<div
+					className="h-[320px]"
+					role="img"
+					aria-label={monthlyFlowChartLabel}
+					title={monthlyFlowChartLabel}
+				>
 					<ResponsiveContainer width="100%" height="100%">
 						<BarChart data={monthlyData}>
 							<CartesianGrid
@@ -274,7 +283,12 @@ export default function AnalysisTab({
 					</div>
 
 					{costStructure.length > 0 ? (
-						<div className="h-[280px]">
+						<div
+							className="h-[280px]"
+							role="img"
+							aria-label={costStructureChartLabel}
+							title={costStructureChartLabel}
+						>
 							<ResponsiveContainer width="100%" height="100%">
 								<PieChart>
 									<Pie

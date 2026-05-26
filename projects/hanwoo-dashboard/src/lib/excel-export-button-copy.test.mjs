@@ -30,6 +30,8 @@ test("excel export button uses a real decorative download icon", () => {
 		/title=\{isPreparing \? ["']엑셀 다운로드 준비 중["'] : ["']엑셀 다운로드["']\}/,
 	);
 	assert.match(source, /엑셀 다운로드/);
+	assert.match(source, /\{isPreparing \? ["']엑셀 다운로드 준비 중\.\.\.["'] : ["']엑셀 다운로드["']\}/);
+	assert.doesNotMatch(source, /\{isPreparing \? ["']엑셀 준비 중\.\.\.["'] : ["']엑셀 다운로드["']\}/);
 	assert.match(source, /내보내기 파일을 만들지 못했습니다/);
 	assert.doesNotMatch(
 		source,

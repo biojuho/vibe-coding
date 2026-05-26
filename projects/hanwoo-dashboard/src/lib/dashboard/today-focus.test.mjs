@@ -43,6 +43,25 @@ test("buildTodayFocusItems prioritizes offline, critical alerts, schedules, and 
 	assert.match(items[3].detail, /^feed mix: 4kg/);
 });
 
+test("buildTodayFocusItems uses operator-readable schedule countdown labels", () => {
+	const items = buildTodayFocusItems({
+		now: new Date("2026-05-18T10:00:00+09:00"),
+		scheduleEvents: [
+			{
+				id: "future",
+				title: "future schedule",
+				date: "2026-05-20",
+				isCompleted: false,
+			},
+		],
+		monthlySalesCount: 0,
+	});
+
+	const scheduleItem = items.find((item) => item.id === "next-schedule");
+	assert.equal(scheduleItem?.detail, "2일 남음 예정");
+	assert.doesNotMatch(scheduleItem?.detail ?? "", /^D-/);
+});
+
 test("buildTodayFocusItems ignores malformed inventory quantities for low stock", () => {
 	const items = buildTodayFocusItems({
 		now: new Date("2026-05-18T10:00:00+09:00"),

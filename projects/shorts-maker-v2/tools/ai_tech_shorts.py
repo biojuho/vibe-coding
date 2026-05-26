@@ -543,7 +543,7 @@ PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 def _load_demo_data(filename: str) -> dict:
     path = PROMPTS_DIR / filename
     if path.exists():
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             return json.load(f)
     return {}
 

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useEffect } from "react";
 
 export default function RouteError({ error, reset }) {
+	const resetButtonLabel = "화면 다시 불러오기";
+
 	useEffect(() => {
 		console.error("[hanwoo-dashboard] route error:", error);
 	}, [error]);
@@ -37,11 +39,18 @@ export default function RouteError({ error, reset }) {
 						type="button"
 						className="login-submit"
 						onClick={() => reset()}
+						aria-label={resetButtonLabel}
+						title={resetButtonLabel}
 					>
 						<RotateCcw size={18} aria-hidden="true" />
-						다시 시도
+						{resetButtonLabel}
 					</button>
-					<Link href="/" className="status-link">
+					<Link
+						href="/"
+						aria-label="대시보드로 돌아가기"
+						title="대시보드로 돌아가기"
+						className="status-link"
+					>
 						대시보드로 돌아가기
 					</Link>
 				</div>

@@ -91,7 +91,21 @@ test("profitability widget renders the error message verbatim", () => {
 
 	// The widget must pass the (now Korean) error string straight through
 	// without re-introducing an English fallback.
+	assert.match(source, /if \(error\) \{/);
+	assert.match(source, /<PremiumCardContent role="alert">/);
 	assert.match(source, /\{error\}/);
+});
+
+test("profitability widget announces loading state", () => {
+	const source = readSource("components/widgets/ProfitabilityWidget.js");
+
+	assert.match(source, /if \(isLoading\) \{/);
+	assert.match(source, /role="status"/);
+	assert.match(source, /aria-live="polite"/);
+	assert.match(source, /aria-atomic="true"/);
+	assert.match(source, /aria-busy="true"/);
+	assert.match(source, /className="sr-only"/);
+	assert.match(source, /출하 수익성 예측을 불러오는 중입니다\./);
 });
 
 test("profitability widget normalizes recommendation values before rendering", () => {

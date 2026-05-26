@@ -47,6 +47,8 @@ function FailContent() {
 			<button
 				type="button"
 				onClick={() => router.back()}
+				aria-label="결제 화면으로 돌아가 다시 시도하기"
+				title="결제 화면으로 돌아가 다시 시도하기"
 				style={{
 					marginTop: "20px",
 					padding: "12px 22px",
@@ -79,6 +81,10 @@ export default function FailPage() {
 function SubscriptionFallback({ message }) {
 	return (
 		<div
+			role="status"
+			aria-live="polite"
+			aria-atomic="true"
+			aria-busy="true"
 			style={{
 				padding: "56px 24px",
 				textAlign: "center",

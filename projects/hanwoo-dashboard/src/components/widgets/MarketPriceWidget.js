@@ -193,6 +193,8 @@ export default function MarketPriceWidget({ initialData = null }) {
 					className="flex h-60 items-center justify-center"
 					role="status"
 					aria-live="polite"
+					aria-atomic="true"
+					aria-busy="true"
 				>
 					<div className="text-sm text-[color:var(--color-text-secondary)]">
 						한우 시세를 불러오는 중입니다.
@@ -205,7 +207,12 @@ export default function MarketPriceWidget({ initialData = null }) {
 	if (!prices || prices.available === false) {
 		return (
 			<Card className="animate-fadeInUp">
-				<CardContent className="flex min-h-36 items-center justify-center text-center">
+				<CardContent
+					className="flex min-h-36 items-center justify-center text-center"
+					role="status"
+					aria-live="polite"
+					aria-atomic="true"
+				>
 					<div className="text-sm text-[color:var(--color-text-secondary)]">
 						{prices?.message ?? "지금은 한우 시세 데이터를 확인할 수 없습니다."}
 					</div>

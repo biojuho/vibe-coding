@@ -74,7 +74,7 @@ function formatDaysLeft(target, today) {
 	const daysLeft = Math.ceil((startOfDay(target) - today) / 86400000);
 	if (daysLeft <= 0) return "오늘";
 	if (daysLeft === 1) return "내일";
-	return `D-${daysLeft}`;
+	return `${daysLeft}일 남음`;
 }
 
 export function buildTodayFocusItems({

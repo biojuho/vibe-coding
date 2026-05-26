@@ -5,6 +5,8 @@ import { useEffect } from "react";
 // global-error replaces the root layout, so it must render its own <html>/<body>
 // and cannot rely on globals.css being applied. Styles are inlined intentionally.
 export default function GlobalError({ error, reset }) {
+	const resetButtonLabel = "앱 다시 불러오기";
+
 	useEffect(() => {
 		console.error("[hanwoo-dashboard] global error:", error);
 	}, [error]);
@@ -66,6 +68,8 @@ export default function GlobalError({ error, reset }) {
 					<button
 						type="button"
 						onClick={() => reset()}
+						aria-label={resetButtonLabel}
+						title={resetButtonLabel}
 						style={{
 							minHeight: "52px",
 							width: "100%",
@@ -78,7 +82,7 @@ export default function GlobalError({ error, reset }) {
 							cursor: "pointer",
 						}}
 					>
-						다시 시도
+						{resetButtonLabel}
 					</button>
 				</main>
 			</body>

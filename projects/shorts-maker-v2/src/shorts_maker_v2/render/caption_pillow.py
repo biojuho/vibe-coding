@@ -375,7 +375,10 @@ def _load_font(style: CaptionStyle) -> ImageFont.FreeTypeFont | ImageFont.ImageF
                 return ImageFont.truetype(str(path), style.font_size)
             except Exception:
                 continue
-    return ImageFont.load_default()
+    try:
+        return ImageFont.load_default(size=style.font_size)
+    except TypeError:  # pragma: no cover - older Pillow compatibility
+        return ImageFont.load_default()
 
 
 def _text_width(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont, stroke_width: int) -> int:

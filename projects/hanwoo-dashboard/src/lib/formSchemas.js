@@ -162,7 +162,7 @@ export const calvingRecordSchema = z.object({
 });
 
 export const buildingFormSchema = z.object({
-	name: requiredText("동 이름을 입력해 주세요.", 40),
+	name: requiredText("축사 이름을 입력해 주세요.", 40),
 	penCount: z.preprocess(
 		toPlainNumber,
 		z

@@ -111,11 +111,36 @@ test("schedule form waits for async saves before re-enabling actions", () => {
 	);
 	assert.match(
 		scheduleSource,
-		/onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}/,
+		/const addFormButtonLabel = isSaving/,
 	);
+	assert.match(scheduleSource, /일정 저장 중에는 등록 창을 닫을 수 없습니다/);
+	assert.match(scheduleSource, /일정 등록 취소/);
+	assert.match(scheduleSource, /일정 등록 창 열기/);
+	assert.match(scheduleSource, /const addFormButtonText = isSaving/);
+	assert.match(scheduleSource, /일정 저장 중\.\.\./);
+	assert.match(scheduleSource, /일정 등록 취소/);
+	assert.match(scheduleSource, /: "일정 등록";/);
+	assert.doesNotMatch(
+		scheduleSource,
+		/const addFormButtonText = isSaving[\s\S]*?\? "일정 저장 중\.\.\."[\s\S]*?: isAdding[\s\S]*?\? "취소"[\s\S]*?: "새 일정";/,
+	);
+	assert.doesNotMatch(
+		scheduleSource,
+		/const addFormButtonText = isSaving[\s\S]*?: isAdding[\s\S]*?\? "취소"/,
+	);
+	assert.doesNotMatch(scheduleSource, /"새 일정"/);
+	assert.match(
+		scheduleSource,
+		/onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}\s+aria-label=\{addFormButtonLabel\}\s+title=\{addFormButtonLabel\}/,
+	);
+	assert.match(scheduleSource, /\{addFormButtonText\}/);
 	assert.match(
 		scheduleSource,
 		/const submitButtonLabel = isSaving \? ['"]일정 등록 중['"] : ['"]일정 등록하기['"];/,
+	);
+	assert.match(
+		scheduleSource,
+		/const submitButtonText = isSaving \? ['"]일정 등록 중\.\.\.['"] : ['"]일정 등록하기['"];/,
 	);
 	assert.match(
 		scheduleSource,
@@ -124,6 +149,11 @@ test("schedule form waits for async saves before re-enabling actions", () => {
 	assert.match(
 		scheduleSource,
 		/aria-label=\{submitButtonLabel\}\s+title=\{submitButtonLabel\}/,
+	);
+	assert.match(scheduleSource, /\{submitButtonText\}/);
+	assert.doesNotMatch(
+		scheduleSource,
+		/\{isSaving \? "일정 등록 중\.\.\." : "일정 등록하기"\}/,
 	);
 });
 
@@ -151,10 +181,35 @@ test("schedule completion toggles wait for async updates before re-enabling cont
 	);
 	assert.match(
 		scheduleSource,
+		/const isSavingEvent = savingEventId === event\.id;/,
+	);
+	assert.match(
+		scheduleSource,
+		/const eventCompletionLabel = isSavingEvent\s*\?\s*`\$\{event\.title\} 일정 완료 상태 변경 중`\s*:\s*`\$\{event\.title\} 일정 완료 상태 변경`;/,
+	);
+	assert.match(
+		scheduleSource,
+		/const eventCompletionText = isSavingEvent[\s\S]*?\? "일정 완료 상태 변경 중\.\.\."[\s\S]*?: event\.isCompleted[\s\S]*?\? "완료됨"[\s\S]*?: "미완료";/,
+	);
+	assert.match(
+		scheduleSource,
 		/onChange=\{\(\) => toggleEventCompletion\(event\)\}/,
 	);
-	assert.match(scheduleSource, /disabled=\{savingEventId === event\.id\}/);
-	assert.match(scheduleSource, /aria-busy=\{savingEventId === event\.id\}/);
+	assert.match(scheduleSource, /disabled=\{isSavingEvent\}/);
+	assert.match(scheduleSource, /aria-busy=\{isSavingEvent\}/);
+	assert.match(scheduleSource, /aria-label=\{eventCompletionLabel\}/);
+	assert.match(scheduleSource, /title=\{eventCompletionLabel\}/);
+	assert.match(scheduleSource, /\{eventCompletionText\}/);
+});
+
+test("schedule upcoming dates use operator-readable countdown labels", () => {
+	const scheduleSource = readSource("components/tabs/ScheduleTab.js");
+
+	assert.match(scheduleSource, /function formatDaysLeftLabel\(daysLeft\) \{/);
+	assert.match(scheduleSource, /return daysLeft === 0 \? "오늘" : `\$\{daysLeft\}일 남음`;/);
+	assert.match(scheduleSource, /\(\{formatDaysLeftLabel\(daysLeft\)\}\)/);
+	assert.doesNotMatch(scheduleSource, /`\(D-\$\{daysLeft\}\)`/);
+	assert.doesNotMatch(scheduleSource, /\(D-\{daysLeft\}\)/);
 });
 
 test("schedule tab skips invalid event dates before calendar and upcoming rendering", () => {

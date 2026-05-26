@@ -39,7 +39,13 @@ export function ProfitabilityWidget({ data, isLoading, error, meta = null }) {
 		return (
 			<PremiumCard className="animate-pulse mb-4">
 				<PremiumCardHeader title="출하 수익성 예측" icon="📈" />
-				<PremiumCardContent>
+				<PremiumCardContent
+					role="status"
+					aria-live="polite"
+					aria-atomic="true"
+					aria-busy="true"
+				>
+					<p className="sr-only">출하 수익성 예측을 불러오는 중입니다.</p>
 					<div className="h-6 rounded w-3/4 mb-2 bg-[color:var(--color-surface-stroke)]"></div>
 					<div className="h-4 rounded w-1/2 bg-[color:color-mix(in_srgb,var(--color-surface-stroke)_50%,transparent)]"></div>
 				</PremiumCardContent>
@@ -51,7 +57,7 @@ export function ProfitabilityWidget({ data, isLoading, error, meta = null }) {
 		return (
 			<PremiumCard className="mb-4 bg-[color:color-mix(in_srgb,var(--color-danger)_10%,transparent)]">
 				<PremiumCardHeader title="출하 수익성 예측" icon="⚠️" />
-				<PremiumCardContent>
+				<PremiumCardContent role="alert">
 					<p className="text-sm font-bold text-[color:var(--color-danger)]">
 						{error}
 					</p>

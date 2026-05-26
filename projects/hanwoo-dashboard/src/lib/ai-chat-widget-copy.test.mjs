@@ -16,14 +16,23 @@ test("AI chat widget handles Korean configuration errors and exposes an accessib
 
 	assert.match(source, /AI 비서 설정/);
 	assert.match(source, /설정 키/);
+	assert.match(
+		source,
+		/const STREAMING_PLACEHOLDER_MESSAGE = ["']답변 생성 중입니다\.\.\.["'];/,
+	);
 	assert.match(source, /aria-label="AI 농장 비서 열기"/);
-	assert.match(source, /title="AI 농장 비서"/);
+	assert.match(source, /title="AI 농장 비서 열기"/);
 	assert.match(source, /const launcherRef = useRef\(null\)/);
+	assert.match(source, /const CHAT_PANEL_ID = "ai-farm-assistant-chat";/);
+	assert.match(source, /aria-haspopup="dialog"/);
+	assert.match(source, /aria-expanded="false"/);
+	assert.match(source, /aria-controls=\{CHAT_PANEL_ID\}/);
 	assert.match(source, /const shouldRestoreLauncherFocusRef = useRef\(false\)/);
 	assert.match(source, /shouldRestoreLauncherFocusRef\.current = true/);
 	assert.match(source, /launcherRef\.current\?\.focus\(\)/);
 	assert.match(source, /ref=\{launcherRef\}/);
 	assert.match(source, /role="dialog"/);
+	assert.match(source, /id=\{CHAT_PANEL_ID\}/);
 	assert.match(source, /aria-modal="true"/);
 	assert.match(
 		source,
@@ -37,11 +46,20 @@ test("AI chat widget handles Korean configuration errors and exposes an accessib
 	assert.match(source, /role="log"/);
 	assert.match(source, /aria-live="polite"/);
 	assert.match(source, /aria-relevant="additions text"/);
+	assert.match(source, /aria-busy=\{isStreaming\}/);
 	assert.match(source, /aria-label="AI 농장 비서 대화 내용"/);
+	assert.match(source, /STREAMING_PLACEHOLDER_MESSAGE/);
 	assert.match(source, /if \(event\.key === ["']Escape["']\)/);
 	assert.match(source, /closeWidget\(\)/);
-	assert.match(source, /aria-label="AI 농장 비서에게 보낼 질문"/);
-	assert.match(source, /title="AI 농장 비서에게 보낼 질문"/);
+	assert.match(
+		source,
+		/onClick=\{closeWidget\}[\s\S]*?aria-label="AI 농장 비서 닫기"[\s\S]*?title="AI 농장 비서 닫기"/,
+	);
+	assert.match(source, /const inputLabel = isStreaming/);
+	assert.match(source, /답변 생성 중에는 질문을 입력할 수 없습니다/);
+	assert.match(source, /AI 농장 비서에게 보낼 질문/);
+	assert.match(source, /aria-label=\{inputLabel\}/);
+	assert.match(source, /title=\{inputLabel\}/);
 	assert.match(
 		source,
 		/aria-label=\{isStreaming \? ["']답변 생성 중["'] : ["']질문 보내기["']\}/,

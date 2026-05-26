@@ -14,6 +14,7 @@ function readSource(relativePath) {
 test("legal pages expose stable support channels without personal contact details", () => {
 	const privacySource = readSource("app/privacy/page.js");
 	const termsSource = readSource("app/terms/page.js");
+	const layoutSource = readSource("components/layout/LegalDocumentLayout.js");
 	const combinedSource = `${privacySource}\n${termsSource}`;
 
 	assert.match(privacySource, /담당: Joolife 운영팀/);
@@ -26,4 +27,12 @@ test("legal pages expose stable support channels without personal contact detail
 	assert.doesNotMatch(combinedSource, /공작부영아파트/);
 	assert.doesNotMatch(combinedSource, /대표자: 박주호/);
 	assert.doesNotMatch(combinedSource, /성명: 박주호/);
+	assert.match(
+		layoutSource,
+		/<Link\s+href="\/"\s+aria-label="홈으로 돌아가기"\s+title="홈으로 돌아가기"/,
+	);
+	assert.match(
+		layoutSource,
+		/<ArrowLeft className="h-4 w-4" aria-hidden="true" \/>/,
+	);
 });

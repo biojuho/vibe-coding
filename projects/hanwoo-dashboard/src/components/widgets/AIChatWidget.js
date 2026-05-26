@@ -13,6 +13,9 @@ const INITIAL_MESSAGES = [
 
 const CHAT_CONNECTION_ERROR_MESSAGE =
 	"AI 비서 연결이 잠시 불안정합니다. 잠시 후 다시 질문해 주세요.";
+const STREAMING_PLACEHOLDER_MESSAGE = "답변 생성 중입니다...";
+
+const CHAT_PANEL_ID = "ai-farm-assistant-chat";
 
 function buildOfflineReply(question) {
 	const q = question.toLowerCase();
@@ -127,6 +130,9 @@ export default function AIChatWidget() {
 	const sendInFlightRef = useRef(false);
 	const shouldRestoreLauncherFocusRef = useRef(false);
 	const canSend = input.trim().length > 0 && !isStreaming;
+	const inputLabel = isStreaming
+		? "답변 생성 중에는 질문을 입력할 수 없습니다"
+		: "AI 농장 비서에게 보낼 질문";
 
 	useEffect(() => {
 		if (scrollRef.current) {
@@ -265,6 +271,9 @@ export default function AIChatWidget() {
 			<button
 				ref={launcherRef}
 				type="button"
+				aria-haspopup="dialog"
+				aria-expanded="false"
+				aria-controls={CHAT_PANEL_ID}
 				onClick={() => setIsOpen(true)}
 				className="animate-scaleIn"
 				style={{
@@ -288,7 +297,7 @@ export default function AIChatWidget() {
 					justifyContent: "center",
 				}}
 				aria-label="AI 농장 비서 열기"
-				title="AI 농장 비서"
+				title="AI 농장 비서 열기"
 			>
 				<Bot size={25} aria-hidden="true" />
 			</button>
@@ -297,6 +306,7 @@ export default function AIChatWidget() {
 
 	return (
 		<div
+			id={CHAT_PANEL_ID}
 			ref={panelRef}
 			className="animate-scaleIn"
 			role="dialog"
@@ -359,7 +369,8 @@ export default function AIChatWidget() {
 				<button
 					type="button"
 					onClick={closeWidget}
-					aria-label="채팅 닫기"
+					aria-label="AI 농장 비서 닫기"
+					title="AI 농장 비서 닫기"
 					style={{
 						background: "rgba(255,255,255,0.2)",
 						border: "none",
@@ -384,6 +395,7 @@ export default function AIChatWidget() {
 				role="log"
 				aria-live="polite"
 				aria-relevant="additions text"
+				aria-busy={isStreaming}
 				aria-label="AI 농장 비서 대화 내용"
 				style={{
 					flex: 1,
@@ -420,7 +432,9 @@ export default function AIChatWidget() {
 						}}
 					>
 						{message.content ||
-							(isStreaming && index === messages.length - 1 ? "..." : "")}
+							(isStreaming && index === messages.length - 1
+								? STREAMING_PLACEHOLDER_MESSAGE
+								: "")}
 					</div>
 				))}
 			</div>
@@ -440,8 +454,8 @@ export default function AIChatWidget() {
 					value={input}
 					onChange={(event) => setInput(event.target.value)}
 					onKeyDown={handleKeyDown}
-					aria-label="AI 농장 비서에게 보낼 질문"
-					title="AI 농장 비서에게 보낼 질문"
+					aria-label={inputLabel}
+					title={inputLabel}
 					placeholder={
 						isStreaming ? "답변 생성 중..." : "질문을 입력해 주세요."
 					}

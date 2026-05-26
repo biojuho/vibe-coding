@@ -2,7 +2,10 @@
 name = "vibe-coding-workspace"
 version = "0.1.0"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "rich>=13.7.0",
+    "pip-audit>=2.7.3",
+]
 
 [tool.uv.workspace]
 members = [

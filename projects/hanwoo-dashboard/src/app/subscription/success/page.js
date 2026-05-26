@@ -143,6 +143,8 @@ function SuccessContent() {
 			{status === "success" ? (
 				<div>
 					<h1
+						aria-live="polite"
+						aria-atomic="true"
 						style={{
 							fontSize: "28px",
 							fontWeight: 700,
@@ -187,6 +189,10 @@ export default function SuccessPage() {
 function SubscriptionFallback({ message }) {
 	return (
 		<div
+			role="status"
+			aria-live="polite"
+			aria-atomic="true"
+			aria-busy="true"
 			style={{
 				padding: "56px 24px",
 				textAlign: "center",

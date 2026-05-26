@@ -30,7 +30,12 @@ export default function NotFound() {
 				</p>
 
 				<div className="status-actions">
-					<Link href="/" className="login-submit status-submit-link">
+					<Link
+						href="/"
+						aria-label="대시보드로 돌아가기"
+						title="대시보드로 돌아가기"
+						className="login-submit status-submit-link"
+					>
 						대시보드로 돌아가기
 					</Link>
 				</div>

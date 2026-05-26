@@ -155,7 +155,7 @@ const QUICK_ACTIONS = [
 	{
 		id: "record-sale",
 		label: "출하 기록",
-		detail: "매출 바로 입력",
+		detail: "판매 기록 바로 입력",
 		icon: ReceiptText,
 		tone: "success",
 		targetTab: "sales",

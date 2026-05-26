@@ -17,6 +17,9 @@ test("sales pagination failures surface Korean retry feedback", () => {
 
 	assert.match(hookSource, /SALES_PAGINATION_TIMEOUT_MESSAGE/);
 	assert.match(hookSource, /SALES_PAGINATION_ERROR_MESSAGE/);
+	assert.match(hookSource, /이전 판매 기록을 불러오는 데 시간이 오래 걸리고 있습니다/);
+	assert.match(hookSource, /이전 판매 기록을 불러오지 못했습니다/);
+	assert.doesNotMatch(hookSource, /이전 매출 기록/);
 	assert.match(hookSource, /setLoadError\(SALES_PAGINATION_TIMEOUT_MESSAGE\)/);
 	assert.match(hookSource, /setLoadError\(SALES_PAGINATION_ERROR_MESSAGE\)/);
 	assert.match(hookSource, /const loadInFlightRef = useRef\(false\);/);
@@ -38,8 +41,13 @@ test("sales pagination failures surface Korean retry feedback", () => {
 	assert.match(tabSource, /aria-busy=\{salesPagination\.isLoading\}/);
 	assert.match(tabSource, /aria-label=\{loadMoreLabel\}/);
 	assert.match(tabSource, /title=\{loadMoreLabel\}/);
+	assert.match(
+		tabSource,
+		/salesPagination\.isLoading\s*\?\s*["']이전 판매 기록 불러오는 중\.\.\.["']\s*:\s*["']이전 판매 기록 더 보기["']/,
+	);
 	assert.match(tabSource, /role="status"/);
 	assert.match(tabSource, /aria-live="polite"/);
+	assert.match(tabSource, /aria-atomic="true"/);
 	assert.doesNotMatch(hookSource, /setLoadError\(error\.message\)/);
 	assert.doesNotMatch(tabSource, /salesPagination\.error\.message/);
 });

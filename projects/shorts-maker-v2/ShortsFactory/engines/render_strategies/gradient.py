@@ -5,6 +5,7 @@ import os
 import tempfile
 from pathlib import Path
 from typing import Any
+
 import numpy as np
 from PIL import Image, ImageDraw
 

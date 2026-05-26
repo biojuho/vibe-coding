@@ -45,6 +45,12 @@ test("dashboard cattle mutation catch paths use safe Korean fallback copy", () =
 	);
 	assert.match(source, /개체를 보관 처리할까요\?/);
 	assert.match(source, /보관 기록으로 남습니다/);
+	assert.match(source, /confirmLabel: "개체 보관 처리"/);
+	assert.match(source, /cancelLabel: "개체 보관 취소"/);
+	assert.doesNotMatch(
+		source,
+		/confirmLabel: "보관 처리"[\s\S]*?cancelLabel: "취소"/,
+	);
 	assert.match(source, /개체를 보관 처리했습니다/);
 	assert.match(source, /개체 보관 처리에 실패했습니다/);
 	assert.match(source, /console\.error\(["']Failed to add cattle:["'], error\);/);
@@ -65,6 +71,12 @@ test("dashboard drag-and-drop cattle moves wait for confirmation and update befo
 	assert.match(source, /return handleUpdateCattle\(updated, \{/);
 	assert.match(source, /finally \{\s+movingCattleIdRef\.current = null;/);
 	assert.match(source, /개체를 이동할까요\?/);
+	assert.match(source, /confirmLabel: "개체 이동"/);
+	assert.match(source, /cancelLabel: "개체 이동 취소"/);
+	assert.doesNotMatch(
+		source,
+		/confirmLabel: "이동"[\s\S]*?cancelLabel: "취소"/,
+	);
 	assert.match(source, /개체를 이동했습니다/);
 });
 
@@ -146,8 +158,18 @@ test("home building navigation uses semantic buttons", () => {
 	assert.match(source, /onClick=\{\(\) => handleTabChange\(["']settings["']\)\}/);
 	assert.match(
 		source,
+		/onClick=\{\(\) => handleTabChange\(["']settings["']\)\}[\s\S]*?aria-label="설정에서 첫 번째 축사 추가하기"[\s\S]*?title="설정에서 첫 번째 축사 추가하기"/,
+	);
+	assert.match(
+		source,
 		/type="button"\s+onClick=\{\(\) => handleSelectBuilding\(building\.id\)\}/,
 	);
+	assert.match(
+		source,
+		/const buildingCardLabel = `\$\{building\.name\} 축사 상세 보기, 총 \$\{building\.penCount\}칸, \$\{buildingHeadcount\}두 배치됨`;/,
+	);
+	assert.match(source, /aria-label=\{buildingCardLabel\}/);
+	assert.match(source, /title=\{buildingCardLabel\}/);
 	assert.match(
 		source,
 		/className="clay-surface rounded-\[28px\][^"]*group\/building w-full text-left"/,
@@ -160,13 +182,62 @@ test("home building navigation uses semantic buttons", () => {
 	assert.doesNotMatch(source, /<Card key=\{building\.id\} onClick/);
 });
 
+test("setup progress track exposes semantic progress state", () => {
+	const source = readSource("components/DashboardClient.js");
+	const setupProgressLabel =
+		"`운영 준비도 ${progress.percent}% (${progress.completed}/${progress.total})`";
+	const setupProgressTrackLabel = '"운영 준비도 진행률"';
+
+	assert.ok(source.includes(`const setupProgressLabel = ${setupProgressLabel}`));
+	assert.ok(
+		source.includes(
+			`const setupProgressTrackLabel = ${setupProgressTrackLabel}`,
+		),
+	);
+	assert.match(source, /function SetupProgressPanel[\s\S]*const setupProgressLabel/);
+	assert.doesNotMatch(
+		source,
+		/function TodayFocusPanel[\s\S]*setupProgressLabel[\s\S]*function SetupProgressPanel/,
+	);
+	assert.match(source, /className="setup-progress-score"/);
+	assert.match(source, /aria-label=\{setupProgressLabel\}/);
+	assert.match(source, /title=\{setupProgressLabel\}/);
+	assert.match(source, /className="setup-progress-track"/);
+	assert.match(source, /role="progressbar"/);
+	assert.match(source, /aria-label=\{setupProgressTrackLabel\}/);
+	assert.match(source, /aria-valuemin=\{0\}/);
+	assert.match(source, /aria-valuemax=\{100\}/);
+	assert.match(source, /aria-valuenow=\{progress\.percent\}/);
+	assert.match(source, /aria-valuetext=\{setupProgressLabel\}/);
+	assert.match(source, /title=\{setupProgressLabel\}/);
+	assert.doesNotMatch(
+		source,
+		/<div\s+className="setup-progress-track"\s+aria-hidden="true"/,
+	);
+});
+
+test("setup progress items expose completion state in their accessible names", () => {
+	const source = readSource("components/DashboardClient.js");
+
+	assert.match(
+		source,
+		/const setupItemLabel = `\$\{item\.title\} \$\{item\.done \?/,
+	);
+	assert.match(source, /aria-label=\{setupItemLabel\}/);
+	assert.match(source, /title=\{setupItemLabel\}/);
+	assert.match(source, /className=\{`setup-progress-item \$\{item\.done/);
+	assert.match(source, /<span className="setup-progress-icon" aria-hidden="true">/);
+});
+
 test("home dashboard icon-only actions expose Korean accessible labels", () => {
 	const source = readSource("components/DashboardClient.js");
 
 	assert.match(source, /aria-label="알림 센터 열기"/);
-	assert.match(source, /title="알림 센터"/);
+	assert.match(source, /title="알림 센터 열기"/);
 	assert.match(source, /aria-label="개체 등록 열기"/);
-	assert.match(source, /title="개체 등록"/);
+	assert.match(source, /title="개체 등록 열기"/);
+	assert.match(source, /aria-label="현장 스마트 모드 활성화"/);
+	assert.match(source, /title="현장 스마트 모드 활성화"/);
 	assert.match(source, /aria-label="축사 목록으로 돌아가기"/);
 	assert.match(source, /aria-label="칸 목록으로 돌아가기"/);
 	assert.match(source, /<Bell className="h-5 w-5" aria-hidden="true" \/>/);
@@ -174,11 +245,83 @@ test("home dashboard icon-only actions expose Korean accessible labels", () => {
 	assert.match(source, /<ArrowLeft className="h-5 w-5" aria-hidden="true" \/>/);
 	assert.match(
 		source,
+		/<span className="section-header-icon" aria-hidden="true">\s*🏠\s*<\/span>/,
+	);
+	assert.match(
+		source,
+		/<span className="cta-icon" aria-hidden="true">\s*🏠\s*<\/span>/,
+	);
+	assert.match(
+		source,
 		/shadow-\[0_0_10px_hsl\(var\(--destructive\)\)\]"\s+aria-hidden="true"/,
+	);
+	assert.match(
+		source,
+		/<div className="text-3xl mb-2" aria-hidden="true">\s*🐄\s*<\/div>/,
 	);
 	assert.doesNotMatch(source, /aria-label="Notifications"/);
 	assert.doesNotMatch(source, /aria-label="Add cattle"/);
 	assert.doesNotMatch(source, /aria-label="Back"/);
+});
+
+test("home footer links expose explicit navigation labels", () => {
+	const source = readSource("components/DashboardClient.js");
+
+	assert.match(
+		source,
+		/href="\/terms"[\s\S]*?aria-label="Joolife 이용약관 보기"[\s\S]*?title="Joolife 이용약관 보기"/,
+	);
+	assert.match(
+		source,
+		/href="\/privacy"[\s\S]*?aria-label="Joolife 개인정보처리방침 보기"[\s\S]*?title="Joolife 개인정보처리방침 보기"/,
+	);
+	assert.match(
+		source,
+		/href="\/subscription"[\s\S]*?aria-label="Joolife 프리미엄 구독 화면 열기"[\s\S]*?title="Joolife 프리미엄 구독 화면 열기"/,
+	);
+});
+
+test("today focus action buttons expose consolidated task labels", () => {
+	const source = readSource("components/DashboardClient.js");
+
+	assert.match(
+		source,
+		/const focusItemLabel = `\$\{item\.title\} - \$\{item\.detail\} \(\$\{item\.meta\}\)`;/,
+	);
+	assert.match(
+		source,
+		/onClick=\{\(\) => handleClick\(item\)\}\s+aria-label=\{focusItemLabel\}\s+title=\{focusItemLabel\}/,
+	);
+	assert.match(source, /className="today-focus-meta">\{item\.meta\}<\/span>/);
+});
+
+test("quick action buttons expose consolidated task labels", () => {
+	const source = readSource("components/DashboardClient.js");
+
+	assert.match(source, /detail: "판매 기록 바로 입력"/);
+	assert.doesNotMatch(source, /detail: "매출 바로 입력"/);
+	assert.match(
+		source,
+		/const quickActionLabel = `\$\{action\.label\} - \$\{action\.detail\}`;/,
+	);
+	assert.match(
+		source,
+		/onClick=\{\(\) => onAction\(action\)\}\s+aria-label=\{quickActionLabel\}\s+title=\{quickActionLabel\}/,
+	);
+	assert.match(
+		source,
+		/<span className="quick-action-icon" aria-hidden="true">[\s\S]*?<Icon size=\{18\} strokeWidth=\{2\.2\} \/>/,
+	);
+});
+
+test("notification center trigger exposes its dialog relationship", () => {
+	const source = readSource("components/DashboardClient.js");
+
+	assert.match(source, /const NOTIFICATION_MODAL_ID = "notification-center-dialog";/);
+	assert.match(source, /aria-haspopup="dialog"/);
+	assert.match(source, /aria-expanded=\{showNotifications\}/);
+	assert.match(source, /aria-controls=\{NOTIFICATION_MODAL_ID\}/);
+	assert.match(source, /<NotificationModal\s+id=\{NOTIFICATION_MODAL_ID\}/);
 });
 
 test("market price widget uses Korean product copy for visible states", () => {
@@ -221,7 +364,14 @@ test("market price widget uses Korean product copy for visible states", () => {
 	assert.match(source, /암소 \/ kg/);
 	assert.match(source, /갱신/);
 	assert.match(source, /출처: KAPE/);
-	assert.match(source, /role="status"\s+aria-live="polite"/);
+	assert.match(
+		source,
+		/role="status"\s+aria-live="polite"\s+aria-atomic="true"\s+aria-busy="true"/,
+	);
+	assert.match(
+		source,
+		/if \(!prices \|\| prices\.available === false\)[\s\S]*?role="status"[\s\S]*?aria-live="polite"[\s\S]*?aria-atomic="true"[\s\S]*?지금은 한우 시세 데이터를 확인할 수 없습니다/,
+	);
 	assert.match(source, /disabled=\{loading\}\s+aria-busy=\{loading\}/);
 	assert.match(
 		source,
@@ -258,6 +408,14 @@ test("schedule calendar navigation exposes Korean accessible labels", () => {
 	assert.match(source, /title="이전 달 보기"/);
 	assert.match(source, /aria-label="다음 달 보기"/);
 	assert.match(source, /title="다음 달 보기"/);
+	assert.match(
+		source,
+		/<ChevronLeft\s+className="text-\[color:var\(--color-text-secondary\)\]"\s+aria-hidden="true"\s+\/>/,
+	);
+	assert.match(
+		source,
+		/<ChevronRight\s+className="text-\[color:var\(--color-text-secondary\)\]"\s+aria-hidden="true"\s+\/>/,
+	);
 	assert.match(source, /<PlusCircle size=\{14\} aria-hidden="true" \/>/);
 	assert.doesNotMatch(source, /aria-label="Previous month"/);
 	assert.doesNotMatch(source, /aria-label="Next month"/);
@@ -284,9 +442,12 @@ test("upcoming schedule toggle identifies the target event", () => {
 
 	assert.match(
 		source,
-		/aria-label=\{`\$\{event\.title\} 일정 완료 상태 변경`\}/,
+		/const eventCompletionLabel = isSavingEvent\s*\?\s*`\$\{event\.title\} 일정 완료 상태 변경 중`\s*:\s*`\$\{event\.title\} 일정 완료 상태 변경`;/,
 	);
-	assert.match(source, /title=\{`\$\{event\.title\} 일정 완료 상태 변경`\}/);
+	assert.match(source, /aria-label=\{eventCompletionLabel\}/);
+	assert.match(source, /title=\{eventCompletionLabel\}/);
+	assert.match(source, /const eventCompletionText = isSavingEvent/);
+	assert.match(source, /\{eventCompletionText\}/);
 });
 
 test("weather widget uses Korean product copy for unavailable state", () => {
@@ -333,6 +494,10 @@ test("weather widget uses Korean product copy for unavailable state", () => {
 
 	assert.match(source, /날씨 확인 불가/);
 	assert.match(source, /지금은 날씨 데이터를 확인할 수 없습니다/);
+	assert.match(
+		source,
+		/className="weather-card animate-fadeInUp"\s+role="status"\s+aria-live="polite"\s+aria-atomic="true"/,
+	);
 	assert.match(source, /["']서울["']/);
 	assert.match(dashboardSource, /["']서울["']/);
 	assert.match(hookSource, /["']서울["']/);
@@ -368,7 +533,11 @@ test("weather widget uses Korean product copy for unavailable state", () => {
 	assert.match(source, /safeForecast\.map\(\(day, idx\) => \{/);
 	assert.match(
 		source,
-		/<div\s+[\s\S]*?aria-label=\{getWeatherDesc\(day\.weatherCode\)\}[\s\S]*?style=\{\{\s*fontSize:\s*["']24px["']\s*,\s*marginBottom:\s*["']4px["']\s*,?\s*\}\}\s*>\s*\{getWeatherIcon\(day\.weatherCode\)\}\s*<\/div>/,
+		/const weatherDescription = getWeatherDesc\(day\.weatherCode\);/,
+	);
+	assert.match(
+		source,
+		/<div\s+[\s\S]*?role="img"[\s\S]*?aria-label=\{weatherDescription\}[\s\S]*?title=\{weatherDescription\}[\s\S]*?style=\{\{\s*fontSize:\s*["']24px["']\s*,\s*marginBottom:\s*["']4px["']\s*,?\s*\}\}\s*>\s*\{getWeatherIcon\(day\.weatherCode\)\}\s*<\/div>/,
 	);
 	assert.match(
 		source,
@@ -415,6 +584,19 @@ test("weather widget uses Korean product copy for unavailable state", () => {
 	assert.doesNotMatch(hookSource, /locationName.*["']Seoul["']/);
 });
 
+test("tab navigation buttons expose Korean action labels and selected state", () => {
+	const source = readSource("components/widgets/widgets.js");
+
+	assert.match(source, /<nav className="tab-bar" aria-label="대시보드 메뉴">/);
+	assert.match(
+		source,
+		/const tabActionLabel = `\$\{t\.label\} 탭 열기\$\{isActive \? ", 현재 선택됨" : ""\}`;/,
+	);
+	assert.match(source, /aria-current=\{isActive \? "page" : undefined\}/);
+	assert.match(source, /aria-label=\{tabActionLabel\}/);
+	assert.match(source, /title=\{tabActionLabel\}/);
+});
+
 test("sales tab missing cattle fallback copy stays Korean", () => {
 	const source = readSource("components/tabs/SalesTab.js");
 
@@ -427,6 +609,8 @@ test("sales tab missing cattle fallback copy stays Korean", () => {
 test("sales tab normalizes numeric inputs before sales and profit aggregation", () => {
 	const source = readSource("components/tabs/SalesTab.js");
 
+	assert.match(source, /관련 비용 없음/);
+	assert.doesNotMatch(source, /비용 미등록/);
 	assert.match(
 		source,
 		/import \{ formatMoney, toFiniteNumber \} from ["']@\/lib\/utils["'];/,
@@ -452,6 +636,19 @@ test("sales tab normalizes numeric inputs before sales and profit aggregation", 
 	assert.doesNotMatch(
 		source,
 		/profit: hasExpenseData \? record\.price - totalCost : null,/,
+	);
+});
+
+test("sales profit chart exposes an accessible chart summary", () => {
+	const source = readSource("components/tabs/SalesTab.js");
+
+	assert.match(
+		source,
+		/const salesProfitChartLabel =\s*["']최근 5건 수익 분석 차트\. 판매금액과 수익을 출하 개체별로 비교합니다\.["'];?/,
+	);
+	assert.match(
+		source,
+		/role="img"\s+aria-label=\{salesProfitChartLabel\}\s+title=\{salesProfitChartLabel\}[\s\S]*?<ResponsiveContainer width="100%" height="100%">/,
 	);
 });
 
@@ -483,6 +680,8 @@ test("sales tab normalizes collection payloads before rendering and aggregation"
 	assert.match(source, /safeCattleList\s*\.\s*map\(\s*\(?cow\)?\s*=>\s*\(/);
 	assert.match(source, /disabled=\{!safeCattleList\.length \|\| isSaving\}/);
 	assert.match(source, /actionLabel=\{safeCattleList\.length \?/);
+	assert.match(source, /"판매 기록 등록"/);
+	assert.doesNotMatch(source, /"매출 기록"/);
 	assert.doesNotMatch(source, /\[\.\.\.saleRecords\]/);
 	assert.doesNotMatch(
 		source,
@@ -595,7 +794,10 @@ test("dashboard normalizes notification payloads before home rendering", () => {
 		source,
 		/\{notifications\s*\.\s*some\(\s*\(?notification\)?\s*=>\s*notification\s*\.\s*level\s*===\s*["']critical["']\s*,?\s*\)\s*&&\s*\(/,
 	);
-	assert.match(source, /<NotificationModal\s+notifications=\{notifications\}/);
+	assert.match(
+		source,
+		/<NotificationModal\s+id=\{NOTIFICATION_MODAL_ID\}\s+notifications=\{notifications\}/,
+	);
 	assert.match(source, /<NotificationWidget\s+notifications=\{notifications\}/);
 	assert.match(source, /<EstrusAlertBanner\s+notifications=\{notifications\}/);
 	assert.match(source, /<CalvingAlertBanner\s+notifications=\{notifications\}/);
@@ -713,10 +915,37 @@ test("sales form waits for async saves before re-enabling actions", () => {
 		source,
 		/finally \{\s+saveInFlightRef\.current = false;\s+setIsSaving\(false\);/,
 	);
-	assert.match(source, /onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}/);
+	assert.match(source, /const addFormButtonLabel = isSaving/);
+	assert.match(source, /판매 기록 저장 중에는 등록 창을 닫을 수 없습니다/);
+	assert.match(source, /판매 기록 등록 취소/);
+	assert.match(source, /판매 기록 등록 창 열기/);
+	assert.match(source, /새 판매 기록 등록/);
+	assert.doesNotMatch(source, /새 매출 기록 등록/);
+	assert.match(source, /const addFormButtonText = isSaving/);
+	assert.match(source, /판매 기록 저장 중\.\.\./);
+	assert.match(source, /판매 기록 등록 취소/);
+	assert.match(source, /: "판매 기록 등록";/);
+	assert.doesNotMatch(
+		source,
+		/const addFormButtonText = isSaving[\s\S]*?\? "판매 기록 저장 중\.\.\."[\s\S]*?: isAdding[\s\S]*?\? "취소"[\s\S]*?: "\+매출 등록";/,
+	);
+	assert.doesNotMatch(
+		source,
+		/const addFormButtonText = isSaving[\s\S]*?: isAdding[\s\S]*?\? "취소"/,
+	);
+	assert.doesNotMatch(source, /"\+매출 등록"/);
+	assert.match(
+		source,
+		/onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}\s+aria-label=\{addFormButtonLabel\}\s+title=\{addFormButtonLabel\}/,
+	);
+	assert.match(source, /\{addFormButtonText\}/);
 	assert.match(
 		source,
 		/const submitButtonLabel = isSaving\s*\?\s*["']판매 기록 등록 중["']\s*:\s*["']판매 기록 등록하기["'];?/,
+	);
+	assert.match(
+		source,
+		/const submitButtonText = isSaving\s*\?\s*["']판매 기록 등록 중\.\.\.["']\s*:\s*["']판매 기록 등록하기["'];?/,
 	);
 	assert.match(
 		source,
@@ -830,6 +1059,12 @@ test("inventory inline quantity editor exposes item-specific input label", () =>
 
 	assert.match(source, /aria-label=\{`\$\{item\.name\} 재고 수량 입력`\}/);
 	assert.match(source, /title=\{`\$\{item\.name\} 재고 수량 입력`\}/);
+	assert.match(source, /const itemQuantitySaveLabel = isQuantitySaving/);
+	assert.match(source, /재고 수량 저장 중/);
+	assert.match(source, /aria-label=\{itemQuantitySaveLabel\}/);
+	assert.match(source, /title=\{itemQuantitySaveLabel\}/);
+	assert.match(source, /aria-label=\{`\$\{item\.name\} 재고 수량 수정`\}/);
+	assert.match(source, /title=\{`\$\{item\.name\} 재고 수량 수정`\}/);
 });
 
 test("inventory inline quantity updates wait for async saves before re-enabling controls", () => {
@@ -861,9 +1096,35 @@ test("inventory inline quantity updates wait for async saves before re-enabling 
 		source,
 		/finally \{\s+quantityInFlightRef\.current = false;\s+setSavingQuantityId\(null\);/,
 	);
-	assert.match(source, /disabled=\{savingQuantityId === item\.id\}/);
-	assert.match(source, /aria-busy=\{savingQuantityId === item\.id\}/);
+	assert.match(source, /const isQuantitySaving = savingQuantityId === item\.id;/);
+	assert.match(source, /disabled=\{isQuantitySaving\}/);
+	assert.match(source, /aria-busy=\{isQuantitySaving\}/);
 	assert.doesNotMatch(source, /Number\(editQty\) < 0/);
+});
+
+test("dashboard full-list loading placeholders expose polite busy status", () => {
+	const source = readSource("components/DashboardClient.js");
+
+	assert.match(
+		source,
+		/onClick=\{\(\) => \{\s+void ensureAllCattleLoaded\(\{ silent: false \}\)\.catch\(\(\) => \{\}\);\s+\}\}[\s\S]*?aria-label="전체 개체 목록 다시 불러오기"[\s\S]*?title="전체 개체 목록 다시 불러오기"/,
+	);
+	assert.match(
+		source,
+		/onClick=\{\(\) => \{\s+void ensureAllSalesLoaded\(\{ silent: false \}\)\.catch\(\(\) => \{\}\);\s+\}\}[\s\S]*?aria-label="판매 기록 다시 불러오기"[\s\S]*?title="판매 기록 다시 불러오기"/,
+	);
+	assert.match(source, /전체 판매 기록을 불러오지 못했습니다/);
+	assert.match(source, /판매 기록을 불러오는 중입니다/);
+	assert.match(source, /판매 기록을 준비 중입니다/);
+	assert.doesNotMatch(source, /매출 기록 다시 불러오기/);
+	assert.match(
+		source,
+		/needsCompleteCattleData && !Array\.isArray\(allCattleRegistry\)[\s\S]*?<CardContent[\s\S]*?role="status"[\s\S]*?aria-live="polite"[\s\S]*?aria-atomic="true"[\s\S]*?aria-busy=\{isAllCattleLoading\}/,
+	);
+	assert.match(
+		source,
+		/activeTab === "analysis" && !Array\.isArray\(allSalesLedger\)[\s\S]*?<CardContent[\s\S]*?role="status"[\s\S]*?aria-live="polite"[\s\S]*?aria-atomic="true"[\s\S]*?aria-busy=\{isAllSalesLoading\}/,
+	);
 });
 
 test("dashboard API fallback messages stay operator-facing Korean", () => {

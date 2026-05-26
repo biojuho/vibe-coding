@@ -25,9 +25,11 @@ export default function LegalDocumentLayout({
 				<div className="mt-8 flex justify-center">
 					<Link
 						href="/"
+						aria-label="홈으로 돌아가기"
+						title="홈으로 돌아가기"
 						className="clay-pressable inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-[color:var(--color-text)] no-underline"
 					>
-						<ArrowLeft className="h-4 w-4" />
+						<ArrowLeft className="h-4 w-4" aria-hidden="true" />
 						홈으로 돌아가기
 					</Link>
 				</div>

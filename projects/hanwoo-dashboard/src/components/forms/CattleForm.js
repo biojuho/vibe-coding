@@ -61,7 +61,13 @@ export default function CattleForm({
 	const cancelButtonLabel = isSaving
 		? "개체 저장 중에는 취소할 수 없습니다"
 		: "개체 저장 취소";
+	const cancelButtonText = isSaving ? "개체 저장 중..." : "개체 저장 취소";
 	const submitButtonLabel = isSaving ? "개체 정보 저장 중" : "개체 정보 저장";
+	const submitButtonText = isSaving ? "개체 정보 저장 중..." : "개체 정보 저장";
+	const tagLookupButtonLabel = lookupLoading
+		? "이력번호 조회 중"
+		: "이력번호 조회";
+	const tagLookupButtonText = lookupLoading ? "이력번호 조회 중..." : "이력번호 조회";
 
 	const safeBuildings = useMemo(
 		() => normalizeCattleFormBuildings(buildings),
@@ -257,8 +263,8 @@ export default function CattleForm({
 						onClick={onCancel}
 						disabled={isSaving}
 						aria-busy={isSaving}
-						aria-label="개체 목록으로 돌아가기"
-						title="개체 목록으로 돌아가기"
+						aria-label={cancelButtonLabel}
+						title={cancelButtonLabel}
 						className="btn btn-ghost btn-icon"
 						style={{ width: "42px", height: "42px" }}
 					>
@@ -341,6 +347,8 @@ export default function CattleForm({
 								onClick={handleLookup}
 								disabled={lookupLoading}
 								aria-busy={lookupLoading}
+								aria-label={tagLookupButtonLabel}
+								title={tagLookupButtonLabel}
 								style={{
 									padding: "10px 14px",
 									borderRadius: "var(--radius-md)",
@@ -355,7 +363,7 @@ export default function CattleForm({
 									transition: "all var(--transition-fast)",
 								}}
 							>
-								{lookupLoading ? "조회 중..." : "태그 조회"}
+								{tagLookupButtonText}
 							</button>
 						</div>
 						{errors.tagNumber ? (
@@ -755,7 +763,7 @@ export default function CattleForm({
 								transition: "all 0.2s cubic-bezier(0.22,1,0.36,1)",
 							}}
 						>
-							취소
+							{cancelButtonText}
 						</button>
 						<button
 							type="submit"
@@ -769,7 +777,7 @@ export default function CattleForm({
 								transition: "all 0.2s cubic-bezier(0.22,1,0.36,1)",
 							}}
 						>
-							{isSaving ? "저장 중..." : "저장하기"}
+							{submitButtonText}
 						</button>
 					</div>
 				</form>

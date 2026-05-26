@@ -96,6 +96,8 @@ export default function FinancialChartWidget({
 					[PROFIT_KEY]: toFiniteNumber(row.profit),
 				}))
 			: fallbackChartData;
+	const financialChartLabel =
+		"최근 6개월 농장 재무 흐름 차트. 매출, 비용, 이익을 월별로 비교합니다.";
 
 	return (
 		<div
@@ -160,7 +162,12 @@ export default function FinancialChartWidget({
 				</div>
 			</div>
 
-			<div style={{ height: "260px", fontSize: "11px" }}>
+			<div
+				role="img"
+				aria-label={financialChartLabel}
+				title={financialChartLabel}
+				style={{ height: "260px", fontSize: "11px" }}
+			>
 				<ResponsiveContainer width="100%" height="100%">
 					<BarChart
 						data={chartData}

@@ -36,6 +36,10 @@ test("payment widget waits for async payment requests before re-enabling checkou
 	);
 	assert.match(
 		source,
+		/const isPaymentButtonBusy = isSubmitting \|\| !isWidgetReady;/,
+	);
+	assert.match(
+		source,
 		/const paymentButtonLabel = isSubmitting\s+\? PAYMENT_PREPARING_MESSAGE\s+: !isWidgetReady\s+\? PAYMENT_WIDGET_PENDING_MESSAGE\s+: `\$\{PAYMENT_BUTTON_PREFIX\} \$\{price\.toLocaleString\(\)\}원`;/,
 	);
 	assert.match(
@@ -52,10 +56,12 @@ test("payment widget waits for async payment requests before re-enabling checkou
 		source,
 		/finally \{\s+paymentRequestInFlightRef\.current = false;\s+setIsSubmitting\(false\);/,
 	);
-	assert.match(source, /disabled=\{isSubmitting \|\| !isWidgetReady\}/);
-	assert.match(source, /aria-busy=\{isSubmitting\}/);
+	assert.match(source, /disabled=\{isPaymentButtonBusy\}/);
+	assert.match(source, /aria-busy=\{isPaymentButtonBusy\}/);
 	assert.match(source, /aria-label=\{paymentButtonLabel\}/);
 	assert.match(source, /title=\{paymentButtonLabel\}/);
+	assert.match(source, /cursor: isPaymentButtonBusy \? "wait" : "pointer"/);
+	assert.match(source, /opacity: isPaymentButtonBusy \? 0\.72 : 1/);
 	assert.match(source, /\{paymentButtonLabel\}/);
 });
 
@@ -63,6 +69,19 @@ test("subscription result pages avoid bare English loading and status copy", () 
 	const subscriptionSource = readSource("app/subscription/page.js");
 	const successSource = readSource("app/subscription/success/page.js");
 	const failSource = readSource("app/subscription/fail/page.js");
+
+	assert.match(
+		successSource,
+		/role="status"\s+aria-live="polite"\s+aria-atomic="true"\s+aria-busy="true"/,
+	);
+	assert.match(
+		failSource,
+		/role="status"\s+aria-live="polite"\s+aria-atomic="true"\s+aria-busy="true"/,
+	);
+	assert.match(
+		successSource,
+		/aria-live="polite"\s+aria-atomic="true"/,
+	);
 
 	assert.match(subscriptionSource, /Joolife 프리미엄 구독/);
 	assert.match(subscriptionSource, /월 9,900원/);
@@ -98,7 +117,7 @@ test("subscription result pages avoid bare English loading and status copy", () 
 	assert.match(failSource, /const PAYMENT_FAILURE_MESSAGE/);
 	assert.match(
 		failSource,
-		/type="button"\s+onClick=\{\(\) => router\.back\(\)\}/,
+		/type="button"\s+onClick=\{\(\) => router\.back\(\)\}\s+aria-label="결제 화면으로 돌아가 다시 시도하기"\s+title="결제 화면으로 돌아가 다시 시도하기"/,
 	);
 	assert.doesNotMatch(failSource, /Loading\.\.\./);
 	assert.doesNotMatch(failSource, /Code:/);

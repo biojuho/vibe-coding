@@ -75,9 +75,25 @@ export default function SettingsTab({
 	const farmSubmitButtonLabel = isSavingFarm
 		? "농장 정보 저장 중"
 		: "농장 정보 저장하기";
+	const farmSubmitButtonText = isSavingFarm
+		? "농장 정보 저장 중..."
+		: "농장 정보 저장하기";
 	const buildingSubmitButtonLabel = isSavingBuilding
 		? "축사 등록 중"
 		: "축사 등록하기";
+	const buildingSubmitButtonText = isSavingBuilding
+		? "축사 등록 중..."
+		: "축사 등록하기";
+	const buildingAddFormButtonLabel = isSavingBuilding
+		? "축사 저장 중에는 등록 창을 닫을 수 없습니다"
+		: isAdding
+			? "축사 등록 취소"
+			: "축사 등록 창 열기";
+	const buildingAddFormButtonText = isSavingBuilding
+		? "축사 저장 중..."
+		: isAdding
+			? "축사 등록 취소"
+			: "축사 등록";
 
 	const {
 		register: registerBuilding,
@@ -201,10 +217,10 @@ export default function SettingsTab({
 		deleteBuildingInFlightRef.current = true;
 
 		const shouldDelete = await confirm({
-			title: `${name} 동을 삭제할까요?`,
+			title: `${name} 축사를 삭제할까요?`,
 			description: "연결된 개체가 있으면 삭제되지 않습니다.",
-			confirmLabel: "삭제",
-			cancelLabel: "취소",
+			confirmLabel: "축사 삭제",
+			cancelLabel: "축사 삭제 취소",
 			variant: "destructive",
 		});
 
@@ -367,14 +383,30 @@ export default function SettingsTab({
 										<span aria-hidden="true" style={{ fontSize: "16px" }}>
 											{widget.icon}
 										</span>
-										<span
-											style={{
-												fontSize: "13px",
-												fontWeight: 600,
-												color: "var(--color-text)",
-											}}
-										>
-											{widget.label}
+										<span>
+											<span
+												style={{
+													display: "block",
+													fontSize: "13px",
+													fontWeight: 600,
+													color: "var(--color-text)",
+												}}
+											>
+												{widget.label}
+											</span>
+											{widget.description ? (
+												<span
+													style={{
+														display: "block",
+														marginTop: "2px",
+														fontSize: "11px",
+														lineHeight: 1.4,
+														color: "var(--color-text-muted)",
+													}}
+												>
+													{widget.description}
+												</span>
+											) : null}
 										</span>
 									</div>
 									<button
@@ -513,9 +545,7 @@ export default function SettingsTab({
 						}}
 					>
 						<div>
-							<PremiumLabel htmlFor="farm-latitude">
-								위도 (Latitude)
-							</PremiumLabel>
+							<PremiumLabel htmlFor="farm-latitude">위도</PremiumLabel>
 							<PremiumInput
 								id="farm-latitude"
 								type="number"
@@ -540,9 +570,7 @@ export default function SettingsTab({
 							) : null}
 						</div>
 						<div>
-							<PremiumLabel htmlFor="farm-longitude">
-								경도 (Longitude)
-							</PremiumLabel>
+							<PremiumLabel htmlFor="farm-longitude">경도</PremiumLabel>
 							<PremiumInput
 								id="farm-longitude"
 								type="number"
@@ -587,7 +615,7 @@ export default function SettingsTab({
 						className="w-full mt-1 py-3.5 rounded-[10px]"
 						glow
 					>
-						저장하기
+						{farmSubmitButtonText}
 					</PremiumButton>
 
 					<div
@@ -600,6 +628,8 @@ export default function SettingsTab({
 					>
 						<a
 							href="/admin/diagnostics"
+							aria-label="시스템 진단 도구 열기"
+							title="시스템 진단 도구 열기"
 							style={{
 								fontSize: "12px",
 								color: "var(--color-text-muted)",
@@ -627,12 +657,15 @@ export default function SettingsTab({
 						color: "var(--color-text-secondary)",
 					}}
 				>
-					축사 동 관리
+					축사 관리
 				</div>
 				<PremiumButton
 					variant="secondary"
 					size="sm"
 					disabled={isSavingBuilding}
+					aria-busy={isSavingBuilding}
+					aria-label={buildingAddFormButtonLabel}
+					title={buildingAddFormButtonLabel}
 					onClick={() => {
 						const next = !isAdding;
 						setIsAdding(next);
@@ -642,7 +675,7 @@ export default function SettingsTab({
 					}}
 					className="text-xs px-3 py-1.5 rounded-lg font-bold"
 				>
-					{isAdding ? "취소" : "+ 동 추가"}
+					{buildingAddFormButtonText}
 				</PremiumButton>
 			</div>
 
@@ -665,15 +698,15 @@ export default function SettingsTab({
 							color: "var(--color-text)",
 						}}
 					>
-						새 축사 동 등록
+						새 축사 등록
 					</div>
 					<div style={{ display: "grid", gap: "12px" }}>
 						<div>
-							<PremiumLabel htmlFor="building-name">동 이름</PremiumLabel>
+							<PremiumLabel htmlFor="building-name">축사 이름</PremiumLabel>
 							<PremiumInput
 								id="building-name"
 								{...registerBuilding("name")}
-								placeholder="동 이름을 입력해 주세요."
+								placeholder="축사 이름을 입력해 주세요."
 								hasError={!!buildingErrors.name}
 								aria-invalid={Boolean(buildingErrors.name)}
 								aria-describedby={
@@ -693,7 +726,7 @@ export default function SettingsTab({
 
 						<div>
 							<PremiumLabel htmlFor="building-pen-count">
-								칸 수 (Pen Count)
+								칸 수
 							</PremiumLabel>
 							<PremiumInput
 								id="building-pen-count"
@@ -728,56 +761,63 @@ export default function SettingsTab({
 							className="w-full py-3 rounded-lg"
 							glow
 						>
-							등록하기
+							{buildingSubmitButtonText}
 						</PremiumButton>
 					</div>
 				</form>
 			) : null}
 
 			<div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-				{safeBuildings.map((building) => (
-					<div
-						key={building.id}
-						style={{
-							background: "var(--color-bg-card)",
-							padding: "16px",
-							borderRadius: "12px",
-							border: "1px solid var(--color-border)",
-							display: "flex",
-							justifyContent: "space-between",
-							alignItems: "center",
-						}}
-					>
-						<div>
-							<div
-								style={{
-									fontSize: "16px",
-									fontWeight: 700,
-									color: "var(--color-text)",
-								}}
-							>
-								{building.name}
-							</div>
-							<div
-								style={{ fontSize: "12px", color: "var(--color-text-muted)" }}
-							>
-								총 {building.penCount}칸
-							</div>
-						</div>
-						<PremiumButton
-							variant="outline"
-							size="sm"
-							onClick={() => handleDeleteBuilding(building.id, building.name)}
-							disabled={deletingBuildingId === building.id}
-							aria-busy={deletingBuildingId === building.id}
-							aria-label={`${building.name} 동 삭제`}
-							title={`${building.name} 동 삭제`}
-							className="text-xs text-red-500 border-red-500/50 hover:bg-red-500/10 px-2 py-1 rounded h-auto"
+				{safeBuildings.map((building) => {
+					const isDeletingBuilding = deletingBuildingId === building.id;
+					const buildingDeleteButtonLabel = isDeletingBuilding
+						? `${building.name} 축사 삭제 중`
+						: `${building.name} 축사 삭제`;
+
+					return (
+						<div
+							key={building.id}
+							style={{
+								background: "var(--color-bg-card)",
+								padding: "16px",
+								borderRadius: "12px",
+								border: "1px solid var(--color-border)",
+								display: "flex",
+								justifyContent: "space-between",
+								alignItems: "center",
+							}}
 						>
-							삭제
-						</PremiumButton>
-					</div>
-				))}
+							<div>
+								<div
+									style={{
+										fontSize: "16px",
+										fontWeight: 700,
+										color: "var(--color-text)",
+									}}
+								>
+									{building.name}
+								</div>
+								<div
+									style={{ fontSize: "12px", color: "var(--color-text-muted)" }}
+								>
+									총 {building.penCount}칸
+								</div>
+							</div>
+							<PremiumButton
+								variant="outline"
+								size="sm"
+								onClick={() => handleDeleteBuilding(building.id, building.name)}
+								disabled={isDeletingBuilding}
+								aria-busy={isDeletingBuilding}
+								aria-label={buildingDeleteButtonLabel}
+								title={buildingDeleteButtonLabel}
+								className="text-xs text-red-500 border-red-500/50 hover:bg-red-500/10 px-2 py-1 rounded h-auto"
+							>
+								{isDeletingBuilding ? "축사 삭제 중..." : "축사 삭제"}
+							</PremiumButton>
+						</div>
+					);
+				})}
 			</div>
 		</div>
 	);

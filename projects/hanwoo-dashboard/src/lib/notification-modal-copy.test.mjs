@@ -14,8 +14,12 @@ function readSource(relativePath) {
 test("notification modal close button has Korean accessible copy", () => {
 	const source = readSource("components/ui/NotificationModal.js");
 
-	assert.match(source, /aria-label="닫기"/);
-	assert.match(source, /title="닫기"/);
+	assert.match(
+		source,
+		/const closeButtonLabel = isTestingSMS\s+\? ["']문자 알림 테스트 전송 중에는 알림 센터를 닫을 수 없습니다["']\s+:\s+["']알림 센터 닫기["'];/,
+	);
+	assert.match(source, /aria-label=\{closeButtonLabel\}/);
+	assert.match(source, /title=\{closeButtonLabel\}/);
 	assert.match(
 		source,
 		/<button\s+type="button"\s+onClick=\{onClose\}\s+disabled=\{isTestingSMS\}\s+aria-busy=\{isTestingSMS\}/,
@@ -28,6 +32,8 @@ test("notification modal exposes dialog semantics with a visible title label", (
 	const source = readSource("components/ui/NotificationModal.js");
 
 	assert.match(source, /role="dialog"/);
+	assert.match(source, /export default function NotificationModal\(\{\s+id,/);
+	assert.match(source, /id=\{id\}/);
 	assert.match(source, /aria-modal="true"/);
 	assert.match(source, /aria-labelledby="notification-modal-title"/);
 	assert.match(source, /id="notification-modal-title"/);
@@ -74,7 +80,14 @@ test("notification modal SMS action uses safe button semantics and Korean copy",
 		/<span aria-hidden="true">📱<\/span>[\s\S]*?문자 알림 서비스/,
 	);
 	assert.match(source, /중요한 알림을 문자로 받아보시겠습니까\?/);
-	assert.match(source, /테스트 전송/);
+	assert.match(
+		source,
+		/\{isTestingSMS \? "문자 알림 테스트 전송 중\.\.\." : "문자 알림 테스트 전송"\}/,
+	);
+	assert.doesNotMatch(
+		source,
+		/\{isTestingSMS \? "문자 알림 테스트 전송 중\.\.\." : "테스트 전송"\}/,
+	);
 	assert.match(
 		source,
 		/문자 알림 연동이 필요하며 발송 비용이 발생할 수 있습니다\./,
@@ -91,6 +104,10 @@ test("notification modal SMS test action waits for async sends before re-enablin
 
 	assert.match(
 		source,
+		/const smsTestButtonLabel = isTestingSMS\s+\? ["']문자 알림 테스트 전송 중["']\s+:\s+["']문자 알림 테스트 전송["'];/,
+	);
+	assert.match(
+		source,
 		/const \[isTestingSMS, setIsTestingSMS\] = useState\(false\)/,
 	);
 	assert.match(source, /const handleTestSMSClick = async \(\) => \{/);
@@ -100,6 +117,8 @@ test("notification modal SMS test action waits for async sends before re-enablin
 	assert.match(source, /finally \{\s+setIsTestingSMS\(false\);/);
 	assert.match(source, /disabled=\{isTestingSMS\}/);
 	assert.match(source, /aria-busy=\{isTestingSMS\}/);
+	assert.match(source, /aria-label=\{smsTestButtonLabel\}/);
+	assert.match(source, /title=\{smsTestButtonLabel\}/);
 	assert.match(
 		source,
 		/onClick=\{\(\) => \{\s+if \(!isTestingSMS\) \{\s+onClose\(\);\s+\}\s+\}\}/,
@@ -144,7 +163,7 @@ test("notification modal visible copy is readable Korean product copy", () => {
 		"새로운 알림이 없습니다.",
 		"문자 알림 서비스",
 		"중요한 알림을 문자로 받아보시겠습니까?",
-		"테스트 전송",
+		"문자 알림 테스트 전송",
 		"문자 알림 연동이 필요하며 발송 비용이 발생할 수 있습니다.",
 	]) {
 		assert.equal(source.includes(copy), true);

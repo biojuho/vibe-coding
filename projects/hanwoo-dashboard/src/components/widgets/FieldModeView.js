@@ -299,6 +299,7 @@ export default function FieldModeView({
 		const pct = Math.round((checked / total) * 100);
 		return { checked, total, pct };
 	}, [checklist]);
+	const checklistProgressLabel = `${checklistStats.checked}/${checklistStats.total}개 완료`;
 
 	// Total critical alerts mapping (calving and estrus)
 	const statsSummary = useMemo(() => {
@@ -355,9 +356,11 @@ export default function FieldModeView({
 						playTactileClick();
 						onCloseFieldMode();
 					}}
+					aria-label="일반 대시보드 모드로 돌아가기"
+					title="일반 대시보드 모드로 돌아가기"
 					className="flex items-center gap-1.5 px-3 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-xl text-xs font-bold transition-all hover:bg-amber-500/20 cursor-pointer"
 				>
-					<ArrowLeft size={14} /> 일반 모드
+					<ArrowLeft size={14} aria-hidden="true" /> 일반 모드
 				</button>
 
 				<div className="text-center">
@@ -424,7 +427,9 @@ export default function FieldModeView({
 								type="text"
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}
-								placeholder="이표번호 4자리 또는 소이름..."
+								placeholder="이표번호 4자리 또는 소 이름 입력"
+								aria-label="개체 이름 또는 이표번호로 검색"
+								title="개체 이름 또는 이표번호로 검색"
 								className="w-full pl-12 pr-4 py-4 rounded-[20px] bg-amber-950/20 border-2 border-amber-500/30 focus:border-amber-400 text-foreground placeholder:text-amber-500/60 font-bold text-sm focus:outline-none shadow-md transition-colors"
 								style={{
 									caretColor: "var(--color-primary-custom)",
@@ -433,6 +438,7 @@ export default function FieldModeView({
 							<Search
 								className="absolute left-4 top-4.5 text-amber-500"
 								size={18}
+								aria-hidden="true"
 							/>
 
 							{searchQuery && (
@@ -442,6 +448,8 @@ export default function FieldModeView({
 										playTactileClick();
 										setSearchQuery("");
 									}}
+									aria-label="검색어 지우기"
+									title="검색어 지우기"
 									className="absolute right-4 top-4.5 text-xs text-amber-500 hover:text-amber-300 font-bold px-1.5 py-0.5 rounded"
 								>
 									지우기
@@ -459,7 +467,7 @@ export default function FieldModeView({
 							title="가상 이표 스캐너 열기"
 							aria-label="가상 이표 스캐너 열기"
 						>
-							<Camera size={20} strokeWidth={2.5} />
+							<Camera size={20} strokeWidth={2.5} aria-hidden="true" />
 						</button>
 					</div>
 
@@ -474,7 +482,11 @@ export default function FieldModeView({
 									검색 매칭 개체 ({filteredCattle.length}두)
 								</span>
 								{loadingAllCattle && (
-									<span className="text-[10px] text-amber-400 animate-pulse">
+									<span
+										className="text-[10px] text-amber-400 animate-pulse"
+										role="status"
+										aria-live="polite"
+									>
 										전체 로드 중...
 									</span>
 								)}
@@ -489,6 +501,8 @@ export default function FieldModeView({
 												playTactileClick();
 												onSelect(cow);
 											}}
+											aria-label={`${cow.name} 개체 상세 보기, 이표번호 ${formatTagNumber(cow.tagNumber)}`}
+											title={`${cow.name} 개체 상세 보기, 이표번호 ${formatTagNumber(cow.tagNumber)}`}
 											className="w-full px-5 py-4 text-left hover:bg-amber-500/10 flex justify-between items-center transition-colors cursor-pointer group"
 										>
 											<div>
@@ -528,6 +542,7 @@ export default function FieldModeView({
 										<AlertTriangle
 											size={20}
 											className="mx-auto mb-2 text-amber-500/40"
+											aria-hidden="true"
 										/>
 										매칭되는 개체가 존재하지 않습니다.
 									</div>
@@ -574,7 +589,13 @@ export default function FieldModeView({
 						{/* Glowing progress track */}
 						<div
 							className="w-full h-2.5 bg-amber-950/40 rounded-full border border-amber-500/10 overflow-hidden relative"
-							aria-hidden="true"
+							role="progressbar"
+							aria-label="오늘 축사 일일 점검 완료율"
+							aria-valuemin={0}
+							aria-valuemax={100}
+							aria-valuenow={checklistStats.pct}
+							aria-valuetext={checklistProgressLabel}
+							title={checklistProgressLabel}
 						>
 							<span
 								className="absolute left-0 top-0 h-full bg-amber-400 rounded-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(245,158,11,0.5)]"
@@ -584,11 +605,16 @@ export default function FieldModeView({
 
 						{/* Checklist tactile rows */}
 						<div className="flex flex-col gap-2.5 mt-1">
-							{checklist.map((item) => (
+							{checklist.map((item) => {
+								const checklistItemLabel = `${item.title} ${item.checked ? "완료됨" : "미완료"} - 점검 완료 상태 변경`;
+								return (
 								<button
 									key={item.id}
 									type="button"
 									onClick={() => handleToggleCheck(item.id)}
+									aria-pressed={item.checked}
+									aria-label={checklistItemLabel}
+									title={checklistItemLabel}
 									className={`w-full text-left p-4.5 rounded-2xl border transition-all flex items-center justify-between gap-4 cursor-pointer group ${
 										item.checked
 											? "bg-amber-500/10 border-amber-500/40 shadow-inner"
@@ -623,7 +649,8 @@ export default function FieldModeView({
 										) : null}
 									</div>
 								</button>
-							))}
+								);
+							})}
 						</div>
 					</div>
 				</section>

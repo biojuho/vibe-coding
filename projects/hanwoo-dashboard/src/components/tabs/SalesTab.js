@@ -168,6 +168,21 @@ export default function SalesTab({
 	const submitButtonLabel = isSaving
 		? "판매 기록 등록 중"
 		: "판매 기록 등록하기";
+	const submitButtonText = isSaving
+		? "판매 기록 등록 중..."
+		: "판매 기록 등록하기";
+	const addFormButtonLabel = isSaving
+		? "판매 기록 저장 중에는 등록 창을 닫을 수 없습니다"
+		: isAdding
+			? "판매 기록 등록 취소"
+			: "판매 기록 등록 창 열기";
+	const addFormButtonText = isSaving
+		? "판매 기록 저장 중..."
+		: isAdding
+			? "판매 기록 등록 취소"
+			: "판매 기록 등록";
+	const salesProfitChartLabel =
+		"최근 5건 수익 분석 차트. 판매금액과 수익을 출하 개체별로 비교합니다.";
 
 	const toggleAddForm = () => {
 		if (saveInFlightRef.current || isSaving) {
@@ -237,9 +252,12 @@ export default function SalesTab({
 					size="sm"
 					onClick={toggleAddForm}
 					disabled={isSaving}
+					aria-busy={isSaving}
+					aria-label={addFormButtonLabel}
+					title={addFormButtonLabel}
 					className="text-[13px] text-green-400 border-green-500/50 hover:bg-green-500/10 px-3 py-1.5 rounded-lg font-bold"
 				>
-					{isAdding ? "취소" : "+매출 등록"}
+					{addFormButtonText}
 				</PremiumButton>
 			</div>
 
@@ -254,7 +272,7 @@ export default function SalesTab({
 									marginBottom: "12px",
 								}}
 							>
-								새 매출 기록 등록
+								새 판매 기록 등록
 							</div>
 							<div style={{ display: "grid", gap: "10px" }}>
 								<div>
@@ -420,7 +438,7 @@ export default function SalesTab({
 									variant="primary"
 									glow
 								>
-									{isSaving ? "판매 기록 등록 중..." : "등록하기"}
+									{submitButtonText}
 								</PremiumButton>
 
 								{!safeCattleList.length ? (
@@ -499,7 +517,12 @@ export default function SalesTab({
 					>
 						최근 5건 수익 분석
 					</div>
-					<div style={{ height: "200px", fontSize: "10px" }}>
+					<div
+						role="img"
+						aria-label={salesProfitChartLabel}
+						title={salesProfitChartLabel}
+						style={{ height: "200px", fontSize: "10px" }}
+					>
 						<ResponsiveContainer width="100%" height="100%">
 							<BarChart
 								data={safeChartData}
@@ -560,7 +583,7 @@ export default function SalesTab({
 								? "첫 출하 기록을 남기면 매출, 등급, 수익 분석 차트가 바로 채워집니다."
 								: "개체를 먼저 등록하면 출하 기록과 수익 분석을 연결할 수 있습니다."
 						}
-						actionLabel={safeCattleList.length ? "매출 기록" : "개체 등록 필요"}
+						actionLabel={safeCattleList.length ? "판매 기록 등록" : "개체 등록 필요"}
 						onAction={() => setIsAdding(true)}
 						disabled={!safeCattleList.length}
 					/>
@@ -628,7 +651,7 @@ export default function SalesTab({
 										</>
 									) : (
 										<>
-											<span className="text-slate-500 italic">비용 미등록</span>
+											<span className="text-slate-500 italic">관련 비용 없음</span>
 											<span className="text-slate-500">수익 추정 불가</span>
 										</>
 									)}
@@ -650,12 +673,15 @@ export default function SalesTab({
 						title={loadMoreLabel}
 						className="w-full mt-3 py-3"
 					>
-						{salesPagination.isLoading ? "불러오는 중..." : "이전 기록 더 보기"}
+						{salesPagination.isLoading
+							? "이전 판매 기록 불러오는 중..."
+							: "이전 판매 기록 더 보기"}
 					</PremiumButton>
 					{salesPagination.loadError ? (
 						<p
 							role="status"
 							aria-live="polite"
+							aria-atomic="true"
 							className="mt-2 text-center text-xs font-semibold text-red-300"
 						>
 							{salesPagination.loadError}

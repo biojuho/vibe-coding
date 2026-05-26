@@ -20,6 +20,14 @@ test("admin diagnostics page uses Korean operations copy for visible states", ()
 	assert.match(source, /데이터베이스 상태/);
 	assert.match(source, /레코드를 불러오는 중입니다/);
 	assert.match(source, /대시보드로 돌아가기/);
+	assert.match(
+		source,
+		/type=\"button\"\s+onClick=\{\(\) => router\.push\(\"\/\"\)\}\s+aria-label=\"운영 대시보드로 돌아가기\"\s+title=\"운영 대시보드로 돌아가기\"/,
+	);
+	assert.match(
+		source,
+		/<ArrowLeft className=\"h-4 w-4\" aria-hidden=\"true\" \/>/,
+	);
 	assert.match(source, /원본 데이터를 불러오지 못했습니다/);
 	assert.match(
 		source,
@@ -39,6 +47,21 @@ test("admin diagnostics page uses Korean operations copy for visible states", ()
 	assert.doesNotMatch(systemActions, /status: ["']Online["']/);
 	assert.doesNotMatch(systemActions, /status: ["']Offline["']/);
 	assert.doesNotMatch(systemActions, /latency: ["']N\/A["']/);
+});
+
+test("admin diagnostics loading states are announced", () => {
+	const source = readSource("components/admin/DiagnosticsPageClient.js");
+
+	assert.match(source, /if \(loading\) \{/);
+	assert.match(
+		source,
+		/className="clay-page-card p-8 text-center"[\s\S]*?role="status"[\s\S]*?aria-live="polite"[\s\S]*?aria-atomic="true"[\s\S]*?aria-busy="true"/,
+	);
+	assert.match(source, /\{dataLoading \? \(/);
+	assert.match(
+		source,
+		/className="clay-inset rounded-\[24px\][^"]*"[\s\S]*?role="status"[\s\S]*?aria-live="polite"[\s\S]*?aria-atomic="true"[\s\S]*?aria-busy="true"/,
+	);
 });
 
 test("admin diagnostics numeric metrics are normalized before rendering", () => {

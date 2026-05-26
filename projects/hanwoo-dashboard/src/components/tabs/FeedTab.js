@@ -36,6 +36,7 @@ function FilterChip({ active, children, onClick, label, disabled = false }) {
 	const actionLabel = disabled
 		? `${label} - 급여 기록 저장 중에는 변경할 수 없습니다`
 		: label;
+	const chipText = disabled ? "급여 기록 저장 중..." : children;
 
 	return (
 		<PremiumButton
@@ -49,7 +50,7 @@ function FilterChip({ active, children, onClick, label, disabled = false }) {
 			title={actionLabel}
 			className={`rounded-full px-4 py-2 font-bold text-[13px] whitespace-nowrap shadow-sm ${active ? "shadow-[var(--shadow-button-primary)] text-white" : ""}`}
 		>
-			{children}
+			{chipText}
 		</PremiumButton>
 	);
 }
@@ -114,6 +115,11 @@ export default function FeedTab({
 	const submitButtonLabel = isSaving
 		? "급여 기록 저장 중"
 		: "급여 기록 저장하기";
+	const submitButtonText = isSaving
+		? "급여 기록 저장 중..."
+		: "급여 기록 저장하기";
+	const feedChartLabel =
+		"최근 급여 추이 차트. 조사료와 배합사료 급여량을 날짜별로 비교합니다.";
 
 	const {
 		register,
@@ -460,12 +466,15 @@ export default function FeedTab({
 						className="w-full py-4 text-lg mt-3 bg-linear-to-b from-blue-500 to-blue-600 border-none shadow-(--shadow-button-primary) font-bold"
 						glow={true}
 					>
-						{isSaving ? "급여 기록 저장 중..." : "급여 기록 저장하기"}
+						{submitButtonText}
 					</PremiumButton>
 				</form>
 			) : null}
 
 			<div
+				role="img"
+				aria-label={feedChartLabel}
+				title={feedChartLabel}
 				style={{
 					background: "var(--surface-gradient)",
 					borderRadius: "24px",

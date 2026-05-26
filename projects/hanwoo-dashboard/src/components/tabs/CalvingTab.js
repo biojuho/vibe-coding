@@ -73,6 +73,13 @@ export default function CalvingTab({
 	const submitButtonLabel = isSaving
 		? "분만 기록 저장 중"
 		: "분만 완료 및 송아지 등록";
+	const submitButtonText = isSaving
+		? "분만 기록 저장 중..."
+		: "분만 완료 및 송아지 등록";
+	const cancelButtonLabel = isSaving
+		? "분만 기록 저장 중에는 취소할 수 없습니다"
+		: "분만 기록 취소";
+	const cancelButtonText = isSaving ? "분만 기록 저장 중..." : "분만 기록 취소";
 
 	const {
 		register,
@@ -200,7 +207,7 @@ export default function CalvingTab({
 															"linear-gradient(145deg, var(--color-warning), color-mix(in srgb, var(--color-warning) 72%, #9b6e40 28%))",
 													}}
 												>
-													임박 D-{daysLeft}
+													임박 {daysLeft}일 남음
 												</span>
 											) : null}
 										</div>
@@ -359,25 +366,15 @@ export default function CalvingTab({
 												title={submitButtonLabel}
 												style={{ ...btnPrimary, flex: 1, padding: "12px" }}
 											>
-												{isSaving
-													? "분만 기록 저장 중..."
-													: "분만 완료 및 송아지 등록"}
+												{submitButtonText}
 											</button>
 											<button
 												type="button"
 												onClick={closeCalvingForm}
 												disabled={isSaving}
 												aria-busy={isSaving}
-												aria-label={
-													isSaving
-														? "분만 기록 저장 중에는 취소할 수 없습니다"
-														: "분만 기록 취소"
-												}
-												title={
-													isSaving
-														? "분만 기록 저장 중에는 취소할 수 없습니다"
-														: "분만 기록 취소"
-												}
+												aria-label={cancelButtonLabel}
+												title={cancelButtonLabel}
 												style={{
 													...btnPrimary,
 													background: "var(--surface-gradient)",
@@ -387,7 +384,7 @@ export default function CalvingTab({
 													flex: 0.42,
 												}}
 											>
-												취소
+												{cancelButtonText}
 											</button>
 										</div>
 									</form>
@@ -395,6 +392,8 @@ export default function CalvingTab({
 									<button
 										type="button"
 										onClick={() => openCalvingForm(cow.id)}
+										aria-label={`${cow.name} 분만 처리 열기`}
+										title={`${cow.name} 분만 처리 열기`}
 										className="clay-pressable w-full rounded-[18px] px-4 py-3 text-sm font-semibold text-[color:var(--color-text-secondary)]"
 									>
 										분만 처리 열기

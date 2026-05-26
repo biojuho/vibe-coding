@@ -61,6 +61,61 @@ test("FieldModeView mounts the celebration canvas with mixBlendMode screen", () 
 	assert.match(source, /style=\{\{\s*mixBlendMode:\s*["']screen["']\s*\}\}/);
 });
 
+test("FieldModeView announces full-list loading in search results", () => {
+	const source = readSource("components/widgets/FieldModeView.js");
+
+	assert.match(source, /\{loadingAllCattle && \(/);
+	assert.match(source, /role="status"/);
+	assert.match(source, /aria-live="polite"/);
+	assert.match(
+		source,
+		/<Camera size=\{20\} strokeWidth=\{2\.5\} aria-hidden="true" \/>/,
+	);
+	assert.match(
+		source,
+		/<AlertTriangle[\s\S]*?className="mx-auto mb-2 text-amber-500\/40"[\s\S]*?aria-hidden="true"[\s\S]*?\/>/,
+	);
+});
+
+test("FieldModeView controls expose matching title copy", () => {
+	const source = readSource("components/widgets/FieldModeView.js");
+
+	assert.match(source, /placeholder="이표번호 4자리 또는 소 이름 입력"/);
+	assert.doesNotMatch(source, /소이름/);
+	assert.match(
+		source,
+		/aria-label="개체 이름 또는 이표번호로 검색"[\s\S]*?title="개체 이름 또는 이표번호로 검색"/,
+	);
+	assert.match(
+		source,
+		/aria-label="일반 대시보드 모드로 돌아가기"[\s\S]*?title="일반 대시보드 모드로 돌아가기"[\s\S]*?<ArrowLeft size=\{14\} aria-hidden="true" \/>/,
+	);
+	assert.match(
+		source,
+		/aria-label="검색어 지우기"[\s\S]*?title="검색어 지우기"/,
+	);
+	assert.match(
+		source,
+		/const checklistProgressLabel = `\$\{checklistStats\.checked\}\/\$\{checklistStats\.total\}개 완료`;/,
+	);
+	assert.match(
+		source,
+		/aria-valuetext=\{checklistProgressLabel\}[\s\S]*?title=\{checklistProgressLabel\}/,
+	);
+	assert.match(
+		source,
+		/const checklistItemLabel = `\$\{item\.title\} \$\{item\.checked \? "완료됨" : "미완료"\} - 점검 완료 상태 변경`;/,
+	);
+	assert.match(
+		source,
+		/aria-label=\{checklistItemLabel\}[\s\S]*?title=\{checklistItemLabel\}/,
+	);
+	assert.match(
+		source,
+		/aria-label=\{`\$\{cow\.name\} 개체 상세 보기, 이표번호 \$\{formatTagNumber\(cow\.tagNumber\)\}`\}[\s\S]*?title=\{`\$\{cow\.name\} 개체 상세 보기, 이표번호 \$\{formatTagNumber\(cow\.tagNumber\)\}`\}/,
+	);
+});
+
 test("FieldModeView sets up a beautiful dynamic particle confetti simulation", () => {
 	const source = readSource("components/widgets/FieldModeView.js");
 

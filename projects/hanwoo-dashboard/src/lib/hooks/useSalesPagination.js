@@ -11,9 +11,9 @@ function normalizePaginationItems(items) {
 
 const PAGINATION_REQUEST_TIMEOUT_MS = 15000;
 const SALES_PAGINATION_TIMEOUT_MESSAGE =
-	"이전 매출 기록을 불러오는 데 시간이 오래 걸리고 있습니다. 잠시 후 다시 시도해 주세요.";
+	"이전 판매 기록을 불러오는 데 시간이 오래 걸리고 있습니다. 잠시 후 다시 시도해 주세요.";
 const SALES_PAGINATION_ERROR_MESSAGE =
-	"이전 매출 기록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
+	"이전 판매 기록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
 
 /**
  * Sales 목록의 cursor-based pagination을 관리하는 훅.

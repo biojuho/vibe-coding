@@ -13,10 +13,11 @@ but different questions:
 This tool fills the missing seat: a fast multi-source snapshot of what changed
 between tools. Each section is small and isolated so partial failures (e.g.
 `gh` not authenticated, graph not built) degrade gracefully without tanking
-the whole report.
+the whole report. Now built with Rich (Textualize) for an exceptional Terminal UI (TUI) experience.
+Now optimized with absolute safety for Windows CP949 encoding environments.
 
 Usage:
-    python execution/session_orient.py             # text summary
+    python execution/session_orient.py             # Rich TUI dashboard
     python execution/session_orient.py --json      # JSON for automation
 """
 
@@ -32,9 +33,37 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+# Rich imports
+try:
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.text import Text
+    from rich.align import Align
+    from rich.box import ROUNDED, ASCII
+    from rich.columns import Columns
+    from rich.markdown import Markdown
+    RICH_AVAILABLE = True
+except ImportError:
+    RICH_AVAILABLE = False
+
 REPO_ROOT_DEFAULT = Path(__file__).resolve().parents[1]
 DATE_LINE_RE = re.compile(r"^\|\s*Date\s*\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*$")
 GOAL_FIELD_RE = re.compile(r"^-\s*(Status|Goal|Owner|Started|Success):\s*(.*?)\s*$", re.IGNORECASE)
+IS_WINDOWS = sys.platform == "win32"
+
+# Windows-safe symbols (Unicode-safe for CP949 console)
+SYM_ROCKET = "LAUNCH" if IS_WINDOWS else "🚀"
+SYM_GIT = "GIT" if IS_WINDOWS else "📂"
+SYM_HANDOFF = "HANDOFF" if IS_WINDOWS else "📝"
+SYM_TASKS = "TASKS" if IS_WINDOWS else "🎯"
+SYM_COMMIT = "COMMIT" if IS_WINDOWS else "🕰️"
+SYM_PR = "PR" if IS_WINDOWS else "🔌"
+SYM_GOAL = "GOAL" if IS_WINDOWS else "🎯"
+SYM_DIAG = "DIAG" if IS_WINDOWS else "🛠️"
+SYM_WARN = "WARN" if IS_WINDOWS else "⚠️"
+SYM_TODO = "TODO" if IS_WINDOWS else "📋"
+SYM_FLASH = "PROGRESS" if IS_WINDOWS else "⚡"
 
 
 def _run(
@@ -251,6 +280,7 @@ def goal_snapshot(repo_root: Path) -> dict[str, Any]:
         "owner": fields.get("owner", ""),
         "started": fields.get("started", ""),
         "success": fields.get("success", ""),
+        "raw_content": text,
     }
 
 
@@ -267,9 +297,6 @@ def workspace_db_snapshot(repo_root: Path) -> dict[str, Any]:
         if spec is None or spec.loader is None:
             return {"available": False, "reason": "cannot load audit module"}
         module = importlib.util.module_from_spec(spec)
-        # Python 3.14 dataclass setup looks up forward references in
-        # `sys.modules[cls.__module__]`, so the module must be registered
-        # before `exec_module` runs.
         _sys.modules["workspace_db_audit"] = module
         spec.loader.exec_module(module)
         db_path = repo_root / ".tmp" / "workspace.db"
@@ -446,6 +473,7 @@ def _render_ci_section(ci: dict[str, Any]) -> list[str]:
 
 
 def render_text(snap: dict[str, Any]) -> str:
+    """Standard text output (fallback)."""
     lines: list[str] = ["[session-orient] multi-tool snapshot"]
     lines.extend(_render_git_section(snap.get("git", {})))
     lines.extend(_render_pr_section(snap.get("pull_requests", {})))
@@ -457,6 +485,187 @@ def render_text(snap: dict[str, Any]) -> str:
     lines.extend(_render_ci_section(snap.get("ci", {})))
 
     return "\n".join(lines)
+
+
+def render_rich_dashboard(snap: dict[str, Any]) -> None:
+    """Rich TUI Dashboard renderer with CP949 compatibility guards."""
+    console = Console(safe_box=True)
+    box_style = ASCII if IS_WINDOWS else ROUNDED
+
+    # 1. Title Banner
+    title_text = Text(f"\n {SYM_ROCKET} VIBE CODING - COLLABORATIVE SESSION DASHBOARD {SYM_ROCKET} \n", style="bold white on rgb(65,40,90)")
+    title_align = Align.center(title_text)
+    console.print(Panel(title_align, box=ROUNDED if not IS_WINDOWS else ASCII, border_style="rgb(120,60,200)"))
+
+    # 2. Key Metrics Columns
+    metrics_grid = Table.grid(expand=True)
+    metrics_grid.add_column(ratio=1)
+    metrics_grid.add_column(ratio=1)
+    metrics_grid.add_column(ratio=1)
+
+    # Column 1: Git Status Info
+    git_snap = snap.get("git", {})
+    if git_snap.get("available"):
+        ahead = git_snap.get("ahead", 0)
+        behind = git_snap.get("behind", 0)
+        worktree = git_snap.get("worktree", {})
+        stash = git_snap.get("stash_count", 0)
+        
+        wt_details = []
+        if worktree.get("staged", 0) > 0:
+            wt_details.append(f"[bold green]Staged: {worktree['staged']}[/]")
+        if worktree.get("modified", 0) > 0:
+            wt_details.append(f"[bold yellow]Modified: {worktree['modified']}[/]")
+        if worktree.get("untracked", 0) > 0:
+            wt_details.append(f"[bold cyan]Untracked: {worktree['untracked']}[/]")
+        if worktree.get("unmerged", 0) > 0:
+            wt_details.append(f"[bold red]Unmerged: {worktree['unmerged']}[/]")
+        
+        wt_str = ", ".join(wt_details) if wt_details else "[dim green]Clean[/]"
+
+        git_desc = (
+            f"[bold magenta]Branch:[/] [bold cyan]{git_snap.get('branch')}[/]\n"
+            f"[bold magenta]Sync:[/] [green]Ahead {ahead}[/] / [red]Behind {behind}[/]\n"
+            f"[bold magenta]Stash Count:[/] {stash}\n"
+            f"[bold magenta]Worktree:[/] {wt_str}"
+        )
+        git_panel = Panel(git_desc, title=f"{SYM_GIT} Git Repository", border_style="rgb(160,80,220)", box=box_style)
+    else:
+        git_panel = Panel("[bold red]Git Unavailable[/]", title=f"{SYM_GIT} Git Repository", border_style="red", box=box_style)
+
+    # Column 2: HANDOFF & TASKS
+    ho_snap = snap.get("handoff", {})
+    ho_str = "[bold red]Handoff Not Available[/]"
+    ho_style = "red"
+    if ho_snap.get("available"):
+        rot_alert = ""
+        ho_style = "rgb(160,80,220)"
+        if ho_snap.get("rotation_suggested"):
+            rot_alert = f"\n[bold orange3]{SYM_WARN} Rotation Suggested! (Old/Large Handoff)[/]"
+            ho_style = "orange3"
+        ho_str = (
+            f"[bold magenta]Lines:[/] {ho_snap.get('line_count')}\n"
+            f"[bold magenta]Addenda count:[/] {ho_snap.get('current_addendum_count')} (Last 7d)\n"
+            f"[bold magenta]Oldest Addendum:[/] {ho_snap.get('oldest_addendum')} ({ho_snap.get('oldest_age_days')}d old)"
+            f"{rot_alert}"
+        )
+    handoff_panel = Panel(ho_str, title=f"{SYM_HANDOFF} HANDOFF Status", border_style=ho_style, box=box_style)
+
+    # Column 3: TASKS Kanban Summary
+    t_snap = snap.get("tasks", {})
+    t_str = "[bold red]TASKS Not Available[/]"
+    if t_snap.get("available"):
+        t_str = (
+            f"[bold yellow]{SYM_TODO} TODO Tasks:[/] [bold yellow]{t_snap.get('todo')}[/]\n\n"
+            f"[bold green]{SYM_FLASH} In Progress:[/] [bold green]{t_snap.get('in_progress')}[/]"
+        )
+    tasks_panel = Panel(t_str, title=f"{SYM_TASKS} TASKS Kanban Summary", border_style="rgb(160,80,220)", box=box_style)
+
+    metrics_grid.add_row(git_panel, handoff_panel, tasks_panel)
+    console.print(metrics_grid)
+    console.print()
+
+    # 3. Center Section: Left (Commits & PRs) vs Right (Active Goal & Info)
+    center_table = Table.grid(expand=True)
+    center_table.add_column(ratio=6)
+    center_table.add_column(ratio=4)
+
+    # Left: Commits & PRs Tables
+    left_flow = Table.grid(expand=True)
+    left_flow.add_column(ratio=1)
+
+    # Recent Commits Table
+    commit_table = Table(title=f"{SYM_COMMIT} Recent 5 Repository Commits", expand=True, box=box_style, border_style="rgb(80,80,180)")
+    commit_table.add_column("SHA", style="bold cyan", width=8)
+    commit_table.add_column("Author", style="yellow", width=15)
+    commit_table.add_column("Subject", style="green", ratio=1)
+
+    if git_snap.get("available") and git_snap.get("recent_commits"):
+        for c in git_snap.get("recent_commits", []):
+            commit_table.add_row(c["sha"], c["author"], c["subject"])
+    else:
+        commit_table.add_row("-", "-", "No recent commits found")
+
+    left_flow.add_row(commit_table)
+    left_flow.add_row("")
+
+    # PRs Table
+    pr_snap = snap.get("pull_requests", {})
+    pr_table = Table(title=f"{SYM_PR} Open Pull Requests", expand=True, box=box_style, border_style="rgb(80,80,180)")
+    pr_table.add_column("No", style="bold yellow", width=6)
+    pr_table.add_column("Title", style="white", ratio=1)
+    pr_table.add_column("Merge State", style="bold green", width=15)
+
+    if pr_snap.get("available") and pr_snap.get("open"):
+        for p in pr_snap.get("open", []):
+            state = p.get("mergeStateStatus", "?")
+            state_color = "green" if state == "CLEAN" else "red" if state == "BLOCKED" else "yellow"
+            pr_table.add_row(f"#{p.get('number')}", p.get('title'), f"[{state_color}]{state}[/]")
+    else:
+        reason = pr_snap.get("reason", "No open PRs found")
+        pr_table.add_row("-", reason, "-")
+
+    left_flow.add_row(pr_table)
+
+    # Right: Active Goal and Database/Graph Metrics
+    right_flow = Table.grid(expand=True)
+    right_flow.add_column(ratio=1)
+
+    # Active Goal Panel
+    goal_snap = snap.get("goal", {})
+    if goal_snap.get("available") and goal_snap.get("active"):
+        goal_content = (
+            f"[bold magenta]Active Goal:[/] {goal_snap.get('goal')}\n"
+            f"[bold magenta]Owner:[/] [bold yellow]{goal_snap.get('owner')}[/]\n"
+            f"[bold magenta]Started:[/] {goal_snap.get('started')}\n"
+            f"[bold magenta]Success Rule:[/] [green]{goal_snap.get('success')}[/]"
+        )
+        goal_panel = Panel(goal_content, title=f"{SYM_GOAL} ACTIVE GOAL", border_style="gold1", box=box_style)
+    else:
+        goal_panel = Panel("[dim white]No active system goals currently registered.[/]", title=f"{SYM_GOAL} ACTIVE GOAL", border_style="grey50", box=box_style)
+
+    right_flow.add_row(goal_panel)
+    right_flow.add_row("")
+
+    # Diagnostics Info (DB & code-review-graph & CI)
+    db_snap = snap.get("workspace_db", {})
+    db_str = "[bold red]Database Unavailable[/]"
+    if db_snap.get("available"):
+        missing = db_snap.get("missing_recommended", [])
+        missing_str = f" [bold red](missing {len(missing)} indexes!)[/]" if missing else " [bold green](All indexes OK)[/]"
+        db_str = f"Tables: {db_snap.get('table_count')}, Indexes: {db_snap.get('index_count')}{missing_str}"
+
+    g_snap = snap.get("graph", {})
+    g_str = "[bold red]Graph Status Unavailable[/]"
+    if g_snap.get("available"):
+        g_str = f"Nodes: {g_snap.get('nodes')}, Edges: {g_snap.get('edges')}, Files: {g_snap.get('files')}"
+
+    ci_snap = snap.get("ci", {})
+    ci_lines = []
+    if ci_snap.get("available"):
+        runs = ci_snap.get("recent_runs", [])
+        if runs:
+            for r in runs[:2]:
+                status = r.get("conclusion") or r.get("status") or "?"
+                color = "bold green" if status in {"success", "completed"} else "bold yellow" if status == "in_progress" else "bold red"
+                ci_lines.append(f"* {r.get('name', 'Workflow')}: [{color}]{status}[/]")
+        else:
+            ci_lines.append("[dim]No recent runs on this branch[/]")
+    else:
+        ci_lines.append(f"[dim red]CI stats unavailable ({ci_snap.get('reason', '?')})[/]")
+    ci_str = "\n".join(ci_lines)
+
+    diag_str = (
+        f"[bold magenta]Workspace DB:[/] {db_str}\n\n"
+        f"[bold magenta]Review Graph:[/] {g_str}\n\n"
+        f"[bold magenta]Recent CI runs:[/]\n{ci_str}"
+    )
+    diag_panel = Panel(diag_str, title=f"{SYM_DIAG} System Diagnostics & Graph", border_style="rgb(100,100,100)", box=box_style)
+    right_flow.add_row(diag_panel)
+
+    center_table.add_row(left_flow, right_flow)
+    console.print(center_table)
+    console.print()
 
 
 def _safe_print(text: str) -> None:
@@ -483,7 +692,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.json:
         _safe_print(json.dumps(snap, ensure_ascii=True))
     else:
-        _safe_print(render_text(snap))
+        # If Rich is installed, use rich dashboard
+        if RICH_AVAILABLE:
+            try:
+                render_rich_dashboard(snap)
+            except Exception as exc:  # fallback if rich crashes due to environment
+                _safe_print(f"Rich rendering failed: {exc}. Falling back to standard text.\n")
+                _safe_print(render_text(snap))
+        else:
+            _safe_print(render_text(snap))
     return 0
 
 

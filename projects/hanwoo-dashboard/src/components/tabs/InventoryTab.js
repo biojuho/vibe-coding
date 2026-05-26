@@ -86,6 +86,17 @@ export default function InventoryTab({
 	const saveInFlightRef = useRef(false);
 	const quantityInFlightRef = useRef(false);
 	const submitButtonLabel = isSaving ? "재고 등록 중" : "재고 등록하기";
+	const submitButtonText = isSaving ? "재고 등록 중..." : "재고 등록하기";
+	const addFormButtonLabel = isSaving
+		? "재고 저장 중에는 등록 창을 닫을 수 없습니다"
+		: isAdding
+			? "재고 등록 취소"
+			: "재고 등록 창 열기";
+	const addFormButtonText = isSaving
+		? "재고 저장 중..."
+		: isAdding
+			? "재고 등록 취소"
+			: "재고 등록";
 
 	const {
 		register,
@@ -197,9 +208,12 @@ export default function InventoryTab({
 					size="sm"
 					onClick={toggleAddForm}
 					disabled={isSaving}
+					aria-busy={isSaving}
+					aria-label={addFormButtonLabel}
+					title={addFormButtonLabel}
 					className="text-[13px] text-green-400 border-green-500/50 hover:bg-green-500/10 px-3 py-1.5 rounded-lg font-bold"
 				>
-					{isAdding ? "취소" : "+재고 등록"}
+					{addFormButtonText}
 				</PremiumButton>
 			</div>
 
@@ -381,7 +395,7 @@ export default function InventoryTab({
 									glow
 									className="w-full py-3 mt-2 rounded-lg"
 								>
-									{isSaving ? "재고 등록 중..." : "등록하기"}
+									{submitButtonText}
 								</PremiumButton>
 							</div>
 						</PremiumCardContent>
@@ -392,6 +406,13 @@ export default function InventoryTab({
 			<div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
 				{safeInventory.map((item) => {
 					const isLow = item.threshold && item.quantity <= item.threshold;
+					const isQuantitySaving = savingQuantityId === item.id;
+					const itemQuantitySaveLabel = isQuantitySaving
+						? `${item.name} 재고 수량 저장 중`
+						: `${item.name} 재고 수량 저장`;
+					const itemQuantitySaveText = isQuantitySaving
+						? "수량 저장 중..."
+						: "수량 저장";
 
 					return (
 						<PremiumCard
@@ -458,7 +479,7 @@ export default function InventoryTab({
 													type="number"
 													value={editQty}
 													onChange={(event) => setEditQty(event.target.value)}
-													disabled={savingQuantityId === item.id}
+													disabled={isQuantitySaving}
 													aria-label={`${item.name} 재고 수량 입력`}
 													title={`${item.name} 재고 수량 입력`}
 													className="w-[80px] px-2 py-1.5 h-auto text-sm bg-slate-900 border-slate-700"
@@ -468,18 +489,20 @@ export default function InventoryTab({
 												<PremiumButton
 													variant="secondary"
 													onClick={() => handleUpdate(item.id)}
-													disabled={savingQuantityId === item.id}
-													aria-busy={savingQuantityId === item.id}
-													aria-label={`${item.name} 재고 수량 저장`}
+													disabled={isQuantitySaving}
+													aria-busy={isQuantitySaving}
+													aria-label={itemQuantitySaveLabel}
+													title={itemQuantitySaveLabel}
 													className="px-2 py-1.5 h-auto text-xs"
 												>
-													저장
+													{itemQuantitySaveText}
 												</PremiumButton>
 											</div>
 										) : (
 											<button
 												type="button"
 												aria-label={`${item.name} 재고 수량 수정`}
+												title={`${item.name} 재고 수량 수정`}
 												onClick={() => {
 													setEditId(item.id);
 													setEditQty(String(item.quantity));

@@ -1,4 +1,5 @@
 import DashboardClient from "@/components/DashboardClient";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import {
 	getBuildings,
 	getExpenseRecords,
@@ -52,20 +53,22 @@ export default async function Page() {
 	]);
 
 	return (
-		<DashboardClient
-			initialCattlePage={initialCattlePage}
-			initialSalesPage={initialSalesPage}
-			initialSummary={summary}
-			initialNotifications={notifications}
-			initialFeedStandards={feedStandards}
-			initialInventory={inventory}
-			initialSchedule={schedule}
-			initialFeedHistory={feedHistory}
-			initialBuildings={buildings}
-			initialFarmSettings={farmSettings}
-			initialExpenses={expenses}
-			initialMarketPrice={marketPrice}
-			initialProfitability={profitability}
-		/>
+		<ErrorBoundary>
+			<DashboardClient
+				initialCattlePage={initialCattlePage}
+				initialSalesPage={initialSalesPage}
+				initialSummary={summary}
+				initialNotifications={notifications}
+				initialFeedStandards={feedStandards}
+				initialInventory={inventory}
+				initialSchedule={schedule}
+				initialFeedHistory={feedHistory}
+				initialBuildings={buildings}
+				initialFarmSettings={farmSettings}
+				initialExpenses={expenses}
+				initialMarketPrice={marketPrice}
+				initialProfitability={profitability}
+			/>
+		</ErrorBoundary>
 	);
 }

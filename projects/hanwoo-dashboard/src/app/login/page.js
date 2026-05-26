@@ -30,6 +30,7 @@ export default function LoginPage() {
 			: password.length === 0
 				? "비밀번호를 입력하면 로그인할 수 있습니다"
 				: "한우 대시보드 열기";
+	const passwordToggleLabel = showPassword ? "비밀번호 숨기기" : "비밀번호 보기";
 	const loginErrorId = "login-error-message";
 
 	const handleSubmit = async (event) => {
@@ -81,7 +82,7 @@ export default function LoginPage() {
 					오늘의 사육, 재고, 출하 업무를 이어서 관리하세요.
 				</p>
 
-				{/* Demo Credentials Box */}
+				{/* 데모 계정 안내 */}
 				<div style={{
 					backgroundColor: "rgba(99, 102, 241, 0.08)",
 					border: "1px solid rgba(99, 102, 241, 0.2)",
@@ -95,9 +96,9 @@ export default function LoginPage() {
 					gap: "4px"
 				}}>
 					<div style={{ fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
-						<span>💡</span> 데모 로그인 정보 (Demo Accounts)
+						<span aria-hidden="true">💡</span> 데모 로그인 정보
 					</div>
-					<div>ID: <code style={{ backgroundColor: "rgba(255,255,255,0.06)", padding: "2px 6px", borderRadius: "4px", fontFamily: "monospace" }}>admin</code> | PW: <code style={{ backgroundColor: "rgba(255,255,255,0.06)", padding: "2px 6px", borderRadius: "4px", fontFamily: "monospace" }}>admin123</code></div>
+					<div>아이디: <code style={{ backgroundColor: "rgba(255,255,255,0.06)", padding: "2px 6px", borderRadius: "4px", fontFamily: "monospace" }}>admin</code> | 비밀번호: <code style={{ backgroundColor: "rgba(255,255,255,0.06)", padding: "2px 6px", borderRadius: "4px", fontFamily: "monospace" }}>admin123</code></div>
 				</div>
 
 				<form className="login-form" onSubmit={handleSubmit}>
@@ -145,7 +146,8 @@ export default function LoginPage() {
 								type="button"
 								className="login-password-toggle"
 								onClick={() => setShowPassword((current) => !current)}
-								aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
+								aria-label={passwordToggleLabel}
+								title={passwordToggleLabel}
 							>
 								{showPassword ? (
 									<EyeOff size={18} aria-hidden="true" />
@@ -173,7 +175,7 @@ export default function LoginPage() {
 						{isSubmitting ? (
 							<Loader2 className="animate-spin" size={18} aria-hidden="true" />
 						) : null}
-						{isSubmitting ? "확인 중..." : "대시보드 열기"}
+						{isSubmitting ? "로그인 확인 중..." : "대시보드 열기"}
 					</button>
 				</form>
 

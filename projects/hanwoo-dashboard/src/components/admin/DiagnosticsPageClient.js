@@ -171,7 +171,13 @@ export default function DiagnosticsPageClient() {
 	if (loading) {
 		return (
 			<div className="clay-shell">
-				<div className="clay-page-card p-8 text-center">
+				<div
+					className="clay-page-card p-8 text-center"
+					role="status"
+					aria-live="polite"
+					aria-atomic="true"
+					aria-busy="true"
+				>
 					<div className="clay-page-eyebrow mb-4">운영 진단</div>
 					<h1 className="clay-page-title mb-3">
 						시스템 상태를 확인하고 있습니다
@@ -200,9 +206,11 @@ export default function DiagnosticsPageClient() {
 					<button
 						type="button"
 						onClick={() => router.push("/")}
+						aria-label="운영 대시보드로 돌아가기"
+						title="운영 대시보드로 돌아가기"
 						className="clay-pressable inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-[color:var(--color-text)]"
 					>
-						<ArrowLeft className="h-4 w-4" />
+						<ArrowLeft className="h-4 w-4" aria-hidden="true" />
 						대시보드로 돌아가기
 					</button>
 				</div>
@@ -291,7 +299,13 @@ export default function DiagnosticsPageClient() {
 					</div>
 
 					{dataLoading ? (
-						<div className="clay-inset rounded-[24px] px-6 py-14 text-center text-sm text-[color:var(--color-text-muted)]">
+						<div
+							className="clay-inset rounded-[24px] px-6 py-14 text-center text-sm text-[color:var(--color-text-muted)]"
+							role="status"
+							aria-live="polite"
+							aria-atomic="true"
+							aria-busy="true"
+						>
 							레코드를 불러오는 중입니다.
 						</div>
 					) : (

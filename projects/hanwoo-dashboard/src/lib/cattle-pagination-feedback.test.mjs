@@ -33,14 +33,15 @@ test("cattle pagination failures surface Korean retry feedback", () => {
 	assert.match(dashboardSource, /cattlePagination\.loadError/);
 	assert.match(
 		dashboardSource,
-		/const cattleLoadMoreLabel = cattlePagination\.isLoading\s*\?\s*["']개체 목록을 불러오는 중입니다["']\s*:\s*["']개체 더 보기["']/,
+		/const cattleLoadMoreLabel = cattlePagination\.isLoading\s*\?\s*["']개체 목록을 불러오는 중입니다["']\s*:\s*["']이전 개체 더 보기["']/,
 	);
 	assert.match(dashboardSource, /aria-busy=\{cattlePagination\.isLoading\}/);
 	assert.match(dashboardSource, /aria-label=\{cattleLoadMoreLabel\}/);
 	assert.match(dashboardSource, /title=\{cattleLoadMoreLabel\}/);
 	assert.match(dashboardSource, /role="status"/);
 	assert.match(dashboardSource, /aria-live="polite"/);
-	assert.match(dashboardSource, /개체 더 보기/);
+	assert.match(dashboardSource, /aria-atomic="true"/);
+	assert.match(dashboardSource, /이전 개체 더 보기/);
 	assert.doesNotMatch(hookSource, /setLoadError\(error\.message\)/);
 });
 

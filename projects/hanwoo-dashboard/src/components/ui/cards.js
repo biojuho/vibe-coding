@@ -78,6 +78,7 @@ export function PenCard({
 	);
 	const isEmpty = visibleCattle.length === 0;
 	const penAlertLabel = hasAlert ? ", 발정 알림 있음" : "";
+	const penAccessibleLabel = `${penNumber}번 칸 상세 보기, ${visibleCattle.length}두 배치됨${penAlertLabel}`;
 
 	const handleDragOver = (e) => {
 		e.preventDefault();
@@ -101,7 +102,8 @@ export function PenCard({
 		<button
 			type="button"
 			onClick={() => onSelect(buildingId, penNumber)}
-			aria-label={`${penNumber}번 칸 상세 보기, ${visibleCattle.length}두 배치됨${penAlertLabel}`}
+			aria-label={penAccessibleLabel}
+			title={penAccessibleLabel}
 			onDragOver={handleDragOver}
 			onDragLeave={handleDragLeave}
 			onDrop={handleDrop}
@@ -260,6 +262,7 @@ export function CattleRow({ cow, onClick, delay = 0, draggable = false }) {
 			type="button"
 			onClick={() => onClick(cow)}
 			aria-label={cattleAccessibleLabel}
+			title={cattleAccessibleLabel}
 			draggable={draggable}
 			onDragStart={draggable ? handleDragStart : undefined}
 			onDragEnd={draggable ? handleDragEnd : undefined}
@@ -308,11 +311,13 @@ export function CattleRow({ cow, onClick, delay = 0, draggable = false }) {
 								animation: estrusD === 0 ? "shake 0.5s ease-in-out" : "none",
 							}}
 						>
-							{estrusD === 0 ? "🔥오늘!" : "발정D-" + estrusD}
+							{estrusD === 0 ? "발정 오늘" : `발정 ${estrusD}일 남음`}
 						</span>
 					)}
 					{hasCalvingAlert && (
-						<span className="badge badge-calving">🍼분만D-{calvingDays}</span>
+						<span className="badge badge-calving">
+							분만 {calvingDays}일 남음
+						</span>
 					)}
 				</div>
 				<div

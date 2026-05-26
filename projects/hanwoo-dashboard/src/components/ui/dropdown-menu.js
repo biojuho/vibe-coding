@@ -19,7 +19,7 @@ export function DropdownMenuContent({ align = "end", children, className }) {
 	);
 }
 
-export function DropdownMenuItem({ children, onClick, className }) {
+export function DropdownMenuItem({ children, onClick, className, ...props }) {
 	const Element = onClick ? "button" : "div";
 
 	return (
@@ -28,6 +28,7 @@ export function DropdownMenuItem({ children, onClick, className }) {
 			className={`block w-full cursor-pointer rounded-[14px] px-4 py-2 text-left text-sm transition-colors hover:bg-background/70 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${className}`}
 			style={{ color: "var(--color-text)" }}
 			onClick={onClick}
+			{...props}
 		>
 			{children}
 		</Element>

@@ -69,7 +69,7 @@ export function EstrusAlertBanner({ notifications = [], buildings = [] }) {
 						marginBottom: "10px",
 					}}
 				>
-					<span className="alert-icon">
+					<span className="alert-icon" aria-hidden="true">
 						<HeartIcon />
 					</span>
 					<span
@@ -127,7 +127,7 @@ export function EstrusAlertBanner({ notifications = [], buildings = [] }) {
 								</span>{" "}
 								·{" "}
 								<span style={{ fontWeight: 700, color: "var(--color-estrus)" }}>
-									{daysLeft === 0 ? " ⚡오늘!" : `D-${daysLeft}`}
+									{daysLeft === 0 ? "오늘" : `${daysLeft}일 남음`}
 								</span>
 							</div>
 						);
@@ -229,7 +229,7 @@ export function CalvingAlertBanner({ notifications = [], buildings = [] }) {
 								<span
 									style={{ fontWeight: 700, color: "var(--color-calving)" }}
 								>
-									D-{daysLeft}
+									{daysLeft === 0 ? "오늘" : `${daysLeft}일 남음`}
 								</span>{" "}
 								<span style={{ color: "var(--color-text-muted)" }}>
 									· 예정{" "}

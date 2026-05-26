@@ -11,6 +11,7 @@ function normalizeModalNotifications(notifications) {
 }
 
 export default function NotificationModal({
+	id,
 	notifications,
 	onClose,
 	onTestSMS,
@@ -18,6 +19,12 @@ export default function NotificationModal({
 	const dialogRef = useRef(null);
 	const [isTestingSMS, setIsTestingSMS] = useState(false);
 	const visibleNotifications = normalizeModalNotifications(notifications);
+	const closeButtonLabel = isTestingSMS
+		? "문자 알림 테스트 전송 중에는 알림 센터를 닫을 수 없습니다"
+		: "알림 센터 닫기";
+	const smsTestButtonLabel = isTestingSMS
+		? "문자 알림 테스트 전송 중"
+		: "문자 알림 테스트 전송";
 
 	useEffect(() => {
 		dialogRef.current?.focus();
@@ -57,6 +64,7 @@ export default function NotificationModal({
 			}}
 		>
 			<div
+				id={id}
 				ref={dialogRef}
 				className="modal-content animate-slideInUp"
 				onClick={(event) => event.stopPropagation()}
@@ -109,8 +117,8 @@ export default function NotificationModal({
 						onClick={onClose}
 						disabled={isTestingSMS}
 						aria-busy={isTestingSMS}
-						aria-label="닫기"
-						title="닫기"
+						aria-label={closeButtonLabel}
+						title={closeButtonLabel}
 						className="btn btn-ghost btn-icon"
 						style={{
 							width: "34px",
@@ -257,6 +265,8 @@ export default function NotificationModal({
 							onClick={handleTestSMSClick}
 							disabled={isTestingSMS}
 							aria-busy={isTestingSMS}
+							aria-label={smsTestButtonLabel}
+							title={smsTestButtonLabel}
 							className="btn btn-primary"
 							style={{
 								padding: "8px 14px",
@@ -266,7 +276,7 @@ export default function NotificationModal({
 								cursor: isTestingSMS ? "wait" : "pointer",
 							}}
 						>
-							테스트 전송
+							{isTestingSMS ? "문자 알림 테스트 전송 중..." : "문자 알림 테스트 전송"}
 						</button>
 					</div>
 					<div

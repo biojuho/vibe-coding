@@ -88,6 +88,22 @@ test("analysis tab normalizes numeric inputs before financial and feed aggregati
 	);
 	assert.match(
 		analysisSource,
+		/const monthlyFlowChartLabel =\s*["']최근 12개월 월별 매출, 비용, 수익 추이 차트입니다\.["'];?/,
+	);
+	assert.match(
+		analysisSource,
+		/const costStructureChartLabel =\s*["']비용 구성 분석 차트\. 카테고리별 비용 비중을 비교합니다\.["'];?/,
+	);
+	assert.match(
+		analysisSource,
+		/className="h-\[320px\]"[\s\S]*?role="img"[\s\S]*?aria-label=\{monthlyFlowChartLabel\}[\s\S]*?title=\{monthlyFlowChartLabel\}[\s\S]*?<ResponsiveContainer width="100%" height="100%">/,
+	);
+	assert.match(
+		analysisSource,
+		/className="h-\[280px\]"[\s\S]*?role="img"[\s\S]*?aria-label=\{costStructureChartLabel\}[\s\S]*?title=\{costStructureChartLabel\}[\s\S]*?<ResponsiveContainer width="100%" height="100%">/,
+	);
+	assert.match(
+		analysisSource,
 		/const dateKey = value\.trim\(\)\.slice\(0, 10\);/,
 	);
 	assert.match(
@@ -201,6 +217,14 @@ test("financial chart widget normalizes numeric inputs before chart aggregation"
 		/\[EXPENSE_KEY\]: Math\.floor\(toFiniteNumber\(row\.expense\)\),/,
 	);
 	assert.match(source, /\[PROFIT_KEY\]: toFiniteNumber\(row\.profit\),/);
+	assert.match(
+		source,
+		/const financialChartLabel =\s*["']최근 6개월 농장 재무 흐름 차트\. 매출, 비용, 이익을 월별로 비교합니다\.["'];?/,
+	);
+	assert.match(
+		source,
+		/role="img"\s+aria-label=\{financialChartLabel\}\s+title=\{financialChartLabel\}[\s\S]*?<ResponsiveContainer width="100%" height="100%">/,
+	);
 	assert.doesNotMatch(source, /saleRecords\.forEach/);
 	assert.doesNotMatch(source, /expenseRecords\.forEach/);
 	assert.doesNotMatch(source, /seriesData\.map/);

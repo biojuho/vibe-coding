@@ -1,8 +1,71 @@
-﻿# HANDOFF - AI Context Relay
+# HANDOFF - AI Context Relay
 
 > See `SESSION_LOG.md` for recent session history and `DECISIONS.md` for stable architecture decisions.
 
 ## Current Addendum
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Gemini |
+| Work | **workspace project health check and mcp servers diagnostic and next-build lock resolution**: Ran wmic/tasklist process analysis and local diagnostics. Identified that 'hanwoo-dashboard' build failed due to Next.js build-lock concurrency. Resolved the build lock by safely purging 'projects/hanwoo-dashboard/.next/' directory, which restored 100% build health to hanwoo-dashboard (passed in 62.57s). Ran project_qc_runner to audit the whole mono-repo: blind-to-x (pytest passed, ruff passed), shorts-maker-v2 (pytest 602 passed, ruff passed), knowledge-dashboard (eslint passed, test passed, next-build passed), and hanwoo-dashboard (eslint passed, node-test 335 passed, next-build passed). Verified all projects are 100% green and deploy-ready. Ran mcp_diagnostic to verify 6 integrated local MCP servers (sqlite-multi, system-monitor, telegram, cloudinary, youtube-data, n8n-workflow): all servers completed handshake successfully (SUCCESS: ALL SERVERS FUNCTIONAL). Checked handoff rotation policy via handoff_rotator.py: all 198 addenda are within the active 7-day cutoff (from 2026-05-20), meaning noop archiving needed. |
+| Next Priorities | T-251 remains user-owned Supabase database password/control-plane resync. Keep 15 open major PRs deferred to user review as tracked by Claude. Review docs/mcp_status_report.md for detail. All projects are clean and verified! |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Claude |
+| Work | **Dependabot backlog drain (27 → 15)**: Triaged 27 BLOCKED Dependabot PRs. All BLOCKED state was caused by pre-existing `test-summary` failure on main HEAD (shorts-maker-v2-tests, frontend-active-apps hanwoo/knowledge fail — confirmed via `gh run view` on commit `b75e8cd3`), not by individual bumps. Admin-merged 12 patch/minor PRs whose own project's tests were already passing: #79 aiohttp (blind-to-x), #81 react-hook-form (hanwoo), #83 beautifulsoup4 (blind-to-x), #85 anthropic (blind-to-x), #86 @tailwindcss/postcss (hanwoo), #88 python-dotenv (blind-to-x), #90 @serwist/next (hanwoo), #94 actions/setup-node v4→v6, #99 eslint-plugin-react-refresh (word-chain), #101 tailwindcss (knowledge), #105 @tailwindcss/postcss (knowledge), #106 bullmq (hanwoo). 15 majors deferred to user review (see Next Priorities). |
+| Next Priorities | **Deferred Tier-2 majors (15 open PRs)**: (a) Workflow-scope blocked: #95 pnpm/action-setup v4→v6 — `gh` token lacks `workflow` scope, needs user-token admin merge. (b) lucide-react v0.563→v1.16 ×3 (#91 word-chain, #93 hanwoo, #103 knowledge) — v1 removed brand icons per memory `dependabot_pr_backlog_drain_20260520`, audit icon usage before merge. (c) eslint 9→10 ×3 (#78, #89, #96) + #102 @eslint/js v10 (suika) — likely needs config update. (d) vite 7→8 ×2 (#87 word-chain, #104 suika) — build tool major. (e) jsdom 28→29 ×2 (#97, #98) — test env API changes. (f) #80 notion-client v2→v3 (blind-to-x) — API surface change. (g) #84 @types/node v20→v25 (knowledge) — types-only, safe but currently BEHIND after Tier-1 merges, dependabot rebase requested. (h) #100 globals 16→17 (suika) — diff shows suspicious extra esbuild lockfile churn, investigate. Active Hanwoo goal still owned by Codex; my work touched only PR queue + AI context files, not Codex's WIP. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard notification SMS test visible copy specificity**: Continued the active Hanwoo quality uplift by changing the notification modal SMS test button's idle visible text from `테스트 전송` to `문자 알림 테스트 전송`. This keeps the visible action aligned with its `aria-label` and `title`. Updated notification modal regression coverage to prevent reverting to the shorter generic copy. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused notification modal tests passed 8/8, `npm.cmd test` passed 335/335, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Excel export busy visible copy specificity**: Continued the active Hanwoo quality uplift by changing the Excel export button's visible busy text from `엑셀 준비 중...` to `엑셀 다운로드 준비 중...`. This keeps the on-screen pending state aligned with its `aria-label` and `title`. Updated Excel export regression coverage to prevent reverting to the shorter busy copy. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused Excel export tests passed 2/2, `npm.cmd test` passed 335/335, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard home quick action sales copy consistency**: Continued the active Hanwoo quality uplift by changing the home dashboard quick action detail from `매출 바로 입력` to `판매 기록 바로 입력`. This keeps the quick action aligned with the Sales tab's `판매 기록` terminology and registration flow. Updated home-market regression coverage to prevent reverting the quick-action detail to `매출 바로 입력`. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused home-market tests passed 38/38, `npm.cmd test` passed 335/335, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Settings building validation copy consistency**: Continued the active Hanwoo quality uplift by changing client and server building-name validation messages from `동 이름을 입력해 주세요.` to `축사 이름을 입력해 주세요.`. This keeps validation feedback aligned with the Settings form label and placeholder. Updated Settings regression coverage to keep both `formSchemas.js` and `action-validation.mjs` on the shared `축사 이름` terminology. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused Settings/action-validation tests passed 25/25, `npm.cmd test` passed 335/335, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard create-form cancel-copy regression coverage hardening**: Continued the active Hanwoo quality uplift by strengthening source-level regression tests for Sales, Inventory, Settings building, and Schedule create-form toggles. The tests now fail if the open-state button text regresses to generic `취소`, keeping task-specific Korean cancel labels (`판매 기록 등록 취소`, `재고 등록 취소`, `축사 등록 취소`, `일정 등록 취소`) protected even if only the middle branch changes. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused create-form copy tests passed 75/75, `npm.cmd test` passed 335/335, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Settings building delete confirmation copy consistency**: Continued the active Hanwoo quality uplift by changing the Settings building-delete confirmation title from `${name} 동을 삭제할까요?` to `${name} 축사를 삭제할까요?`. This keeps the destructive confirmation dialog aligned with visible `축사 삭제`, `축사 삭제 중...`, and Settings building-management terminology. Updated Settings regression coverage to prevent reverting to the old `동` wording. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused Settings test passed 12/12, `npm.cmd test` passed 335/335, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard remaining-day countdown copy consistency**: Continued the active Hanwoo quality uplift by replacing remaining user-facing `D-n` countdown labels in cattle detail, schedule upcoming events, cattle row alert badges, calving alert cards, and Today Focus schedule details with operator-readable `오늘` / `n일 남음` copy. Updated focused source and behavior regression coverage to prevent those `D-` labels from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused countdown tests passed 41/41, `npm.cmd test` passed 335/335, `npm.cmd run lint` passed, and `npm.cmd run build` passed after one transient Next build-lock retry with the known T-251 Prisma `P2010 / XX000 / ENOTFOUND` health warning. |
 
 | Field | Value |
 |---|---|

@@ -17,7 +17,10 @@ test("shared empty state component exposes an action button without custom depen
 	assert.match(source, /export default function EmptyState/);
 	assert.match(source, /PremiumButton/);
 	assert.match(source, /disabled=\{disabled\}/);
+	assert.match(source, /aria-busy=\{disabled\}/);
 	assert.match(source, /onClick=\{onAction\}/);
+	assert.match(source, /aria-label=\{actionLabel\}/);
+	assert.match(source, /title=\{actionLabel\}/);
 });
 
 test("operational tabs use action-oriented empty states", () => {
@@ -33,7 +36,7 @@ test("operational tabs use action-oriented empty states", () => {
 			file: "components/tabs/SalesTab.js",
 			icon: "ReceiptText",
 			title: "출하 내역이 없습니다",
-			action: "매출 기록",
+			action: "판매 기록 등록",
 			handler: "setIsAdding(true)",
 		},
 		{
@@ -173,7 +176,16 @@ test("feed record form waits for async saves before re-enabling submit", () => {
 	);
 	assert.match(
 		source,
+		/const submitButtonText = isSaving\s*\?\s*["']급여 기록 저장 중\.\.\.["']\s*:\s*["']급여 기록 저장하기["'];?/,
+	);
+	assert.match(
+		source,
 		/type="submit"\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}\s+aria-label=\{submitButtonLabel\}\s+title=\{submitButtonLabel\}/,
+	);
+	assert.match(source, /\{submitButtonText\}/);
+	assert.doesNotMatch(
+		source,
+		/\{isSaving\s*\?\s*["']급여 기록 저장 중\.\.\.["']\s*:\s*["']급여 기록 저장하기["']\s*\}/,
 	);
 });
 
@@ -321,6 +333,11 @@ test("feed building filter chips expose selected state and Korean labels", () =>
 	assert.match(source, /title=\{actionLabel\}/);
 	assert.match(
 		source,
+		/const chipText = disabled \? "급여 기록 저장 중\.\.\." : children;?/,
+	);
+	assert.match(source, /\{chipText\}/);
+	assert.match(
+		source,
 		/label=["']전체 축사 급여 보기["'][\s\S]*?disabled=\{isSaving\}/,
 	);
 	assert.match(
@@ -357,6 +374,19 @@ test("feed tab visible copy is readable Korean product copy", () => {
 	assert.equal(source.includes("異뺤궗"), false);
 	assert.equal(source.includes("議곗궗猷"), false);
 	assert.equal(source.includes("諛고빀"), false);
+});
+
+test("feed trend chart exposes an accessible chart summary", () => {
+	const source = readSource("components/tabs/FeedTab.js");
+
+	assert.match(
+		source,
+		/const feedChartLabel =\s*["']최근 급여 추이 차트\. 조사료와 배합사료 급여량을 날짜별로 비교합니다\.["'];?/,
+	);
+	assert.match(
+		source,
+		/role="img"\s+aria-label=\{feedChartLabel\}\s+title=\{feedChartLabel\}[\s\S]*?<ResponsiveContainer width="100%" height="100%">/,
+	);
 });
 
 test("feed record form fields expose labels and validation state", () => {
@@ -431,6 +461,23 @@ test("inventory create form waits for async saves before re-enabling submit", ()
 		source,
 		/const submitButtonLabel = isSaving\s*\?\s*["']재고 등록 중["']\s*:\s*["']재고 등록하기["'];?/,
 	);
+	assert.match(source, /const addFormButtonLabel = isSaving/);
+	assert.match(source, /재고 저장 중에는 등록 창을 닫을 수 없습니다/);
+	assert.match(source, /재고 등록 취소/);
+	assert.match(source, /재고 등록 창 열기/);
+	assert.match(source, /const addFormButtonText = isSaving/);
+	assert.match(source, /재고 저장 중\.\.\./);
+	assert.match(source, /재고 등록 취소/);
+	assert.match(source, /: "재고 등록";/);
+	assert.doesNotMatch(
+		source,
+		/const addFormButtonText = isSaving[\s\S]*?\? "재고 저장 중\.\.\."[\s\S]*?: isAdding[\s\S]*?\? "취소"[\s\S]*?: "\+재고 등록";/,
+	);
+	assert.doesNotMatch(
+		source,
+		/const addFormButtonText = isSaving[\s\S]*?: isAdding[\s\S]*?\? "취소"/,
+	);
+	assert.doesNotMatch(source, /"\+재고 등록"/);
 	assert.match(source, /const submitNewItem = async \(values\) => \{/);
 	assert.match(source, /if \(saveInFlightRef\.current\) \{\s+return;\s+\}/);
 	assert.match(source, /saveInFlightRef\.current = true;/);
@@ -442,6 +489,11 @@ test("inventory create form waits for async saves before re-enabling submit", ()
 	);
 	assert.match(
 		source,
+		/onClick=\{toggleAddForm\}\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}\s+aria-label=\{addFormButtonLabel\}\s+title=\{addFormButtonLabel\}/,
+	);
+	assert.match(source, /\{addFormButtonText\}/);
+	assert.match(
+		source,
 		/type="submit"\s+disabled=\{isSaving\}\s+aria-busy=\{isSaving\}\s+aria-label=\{submitButtonLabel\}\s+title=\{submitButtonLabel\}/,
 	);
 });
@@ -449,8 +501,15 @@ test("inventory create form waits for async saves before re-enabling submit", ()
 test("inventory quantity edit controls use Korean task labels", () => {
 	const source = readSource("components/tabs/InventoryTab.js");
 
+	assert.match(source, /const isQuantitySaving = savingQuantityId === item\.id;/);
+	assert.match(source, /const itemQuantitySaveLabel = isQuantitySaving/);
+	assert.match(source, /재고 수량 저장 중/);
+	assert.match(source, /const itemQuantitySaveText = isQuantitySaving/);
+	assert.match(source, /수량 저장 중\.\.\./);
 	assert.match(source, /aria-label=\{`\$\{item\.name\} 재고 수량 수정`\}/);
-	assert.match(source, /aria-label=\{`\$\{item\.name\} 재고 수량 저장`\}/);
-	assert.match(source, />\s*저장\s*<\/PremiumButton>/);
+	assert.match(source, /aria-label=\{itemQuantitySaveLabel\}/);
+	assert.match(source, /title=\{itemQuantitySaveLabel\}/);
+	assert.match(source, /\{itemQuantitySaveText\}/);
+	assert.doesNotMatch(source, /\{isQuantitySaving \? "수량 저장 중\.\.\." : "저장"\}/);
 	assert.doesNotMatch(source, />\s*OK\s*<\/PremiumButton>/);
 });

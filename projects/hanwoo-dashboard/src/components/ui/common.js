@@ -66,6 +66,8 @@ export const btnDanger = {
 
 export const BackIcon = () => (
 	<svg
+		aria-hidden="true"
+		focusable="false"
 		width="20"
 		height="20"
 		viewBox="0 0 24 24"
@@ -91,6 +93,8 @@ export const PlusIcon = () => (
 );
 export const EditIcon = () => (
 	<svg
+		aria-hidden="true"
+		focusable="false"
 		width="16"
 		height="16"
 		viewBox="0 0 24 24"
@@ -104,6 +108,8 @@ export const EditIcon = () => (
 );
 export const TrashIcon = () => (
 	<svg
+		aria-hidden="true"
+		focusable="false"
 		width="16"
 		height="16"
 		viewBox="0 0 24 24"
@@ -117,6 +123,8 @@ export const TrashIcon = () => (
 );
 export const HeartIcon = () => (
 	<svg
+		aria-hidden="true"
+		focusable="false"
 		width="16"
 		height="16"
 		viewBox="0 0 24 24"

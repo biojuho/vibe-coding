@@ -251,6 +251,7 @@ export default function EarTagScannerModal({
 			role="dialog"
 			aria-modal="true"
 			aria-labelledby="scanner-modal-title"
+			aria-describedby="scanner-modal-description"
 		>
 			<div
 				className="w-full max-w-[480px] clay-surface rounded-[32px] overflow-hidden border border-emerald-500/30 flex flex-col shadow-[0_24px_50px_rgba(0,0,0,0.5)] animate-scaleIn"
@@ -262,7 +263,7 @@ export default function EarTagScannerModal({
 				<div className="flex justify-between items-center px-6 py-5 border-b border-emerald-500/10">
 					<div className="flex items-center gap-2.5">
 						<div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-400">
-							<Camera size={18} className="animate-pulse" />
+							<Camera size={18} className="animate-pulse" aria-hidden="true" />
 						</div>
 						<h2
 							id="scanner-modal-title"
@@ -278,33 +279,49 @@ export default function EarTagScannerModal({
 							onClose();
 						}}
 						className="p-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-white/10 transition-colors"
-						aria-label="닫기"
+						title="이표 스캐너 닫기"
+						aria-label="이표 스캐너 닫기"
 					>
-						<X size={18} />
+						<X size={18} aria-hidden="true" />
 					</button>
 				</div>
+
+				<p id="scanner-modal-description" className="sr-only">
+					이표번호를 스캔하거나 목록에서 개체를 선택해 상세 정보를 엽니다.
+				</p>
 
 				{/* Viewfinder block */}
 				<div className="p-6 flex flex-col items-center justify-center flex-1">
 					{scanStatus === "scanning" ? (
 						<div className="relative w-full aspect-square max-w-[280px] rounded-2xl overflow-hidden border border-emerald-500/40 shadow-inner">
-							<canvas ref={canvasRef} className="w-full h-full block" />
+							<canvas
+								ref={canvasRef}
+								className="w-full h-full block"
+								aria-hidden="true"
+							/>
 
 							{/* Scan Trigger Button overlayed on top of simulator */}
 							<button
 								type="button"
 								onClick={triggerMockScanSuccess}
+								aria-label="이표 자동 인식 실행"
+								title="이표 자동 인식 실행"
 								className="absolute inset-0 w-full h-full bg-transparent hover:bg-emerald-500/5 transition-colors cursor-pointer flex flex-col items-center justify-end pb-8 group"
 							>
 								<div className="px-5 py-2.5 bg-emerald-600/90 text-white rounded-full text-xs font-bold shadow-lg border border-emerald-400/30 group-hover:scale-105 transition-transform flex items-center gap-1.5 backdrop-blur-sm">
-									<Camera size={14} /> 이표 자동 감색 (Click)
+									<Camera size={14} aria-hidden="true" /> 이표 자동 인식
 								</div>
 							</button>
 						</div>
 					) : scanStatus === "success" ? (
-						<div className="w-full text-center py-4 flex flex-col items-center animate-fadeIn">
+						<div
+							className="w-full text-center py-4 flex flex-col items-center animate-fadeIn"
+							role="status"
+							aria-live="polite"
+							aria-atomic="true"
+						>
 							<div className="w-20 h-20 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-5 border border-emerald-500/40 shadow-[0_0_20px_rgba(16,185,129,0.3)] animate-scaleIn">
-								<Check size={36} strokeWidth={3} />
+								<Check size={36} strokeWidth={3} aria-hidden="true" />
 							</div>
 							<h3 className="text-lg font-black text-emerald-400 mb-1.5">
 								이표 인식 완료!
@@ -366,9 +383,14 @@ export default function EarTagScannerModal({
 							</div>
 						</div>
 					) : (
-						<div className="w-full text-center py-6 flex flex-col items-center animate-fadeIn">
+						<div
+							className="w-full text-center py-6 flex flex-col items-center animate-fadeIn"
+							role="status"
+							aria-live="polite"
+							aria-atomic="true"
+						>
 							<div className="w-16 h-16 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center mb-4 border border-amber-500/30">
-								<AlertTriangle size={28} />
+								<AlertTriangle size={28} aria-hidden="true" />
 							</div>
 							<h3 className="text-base font-bold text-foreground mb-2">
 								인식된 개체 정보 없음
@@ -388,16 +410,21 @@ export default function EarTagScannerModal({
 							시뮬레이션 전용: 강제 타겟 설정
 						</span>
 						<div className="flex gap-1.5 justify-center flex-wrap max-h-20 overflow-y-auto pb-2 scrollbar-thin">
-							{cattleList.slice(0, 5).map((cow) => (
+							{cattleList.slice(0, 5).map((cow) => {
+								const manualChoiceLabel = `${cow.name} 이표번호 끝자리 ${String(cow.tagNumber).slice(-4)} 개체로 스캐너 결과 지정`;
+								return (
 								<button
 									key={cow.id}
 									type="button"
 									onClick={() => handleSelectCowManually(cow.id)}
+									aria-label={manualChoiceLabel}
+									title={manualChoiceLabel}
 									className="px-2.5 py-1.5 bg-white/5 border border-white/10 hover:border-emerald-500/40 rounded-lg text-[10px] font-medium text-foreground hover:text-emerald-400 transition-all cursor-pointer"
 								>
 									{cow.name} ({String(cow.tagNumber).slice(-4)})
 								</button>
-							))}
+								);
+							})}
 						</div>
 					</div>
 				)}
@@ -413,6 +440,8 @@ export default function EarTagScannerModal({
 									playTactileClick();
 									onClose();
 								}}
+								aria-label="이표 스캐너 닫기"
+								title="이표 스캐너 닫기"
 								className="flex-1 text-xs py-3 border border-white/10 rounded-[16px] text-muted-foreground hover:text-foreground font-bold hover:bg-white/5"
 							>
 								닫기
@@ -420,6 +449,8 @@ export default function EarTagScannerModal({
 							<PremiumButton
 								type="button"
 								onClick={triggerMockScanSuccess}
+								aria-label="모의 이표 스캔 실행"
+								title="모의 이표 스캔 실행"
 								className="flex-1 text-xs py-3 bg-emerald-600 border border-emerald-400/30 rounded-[16px] text-white font-bold shadow-[0_4px_12px_rgba(16,185,129,0.2)] hover:bg-emerald-500"
 							>
 								모의 스캔 수행
@@ -431,17 +462,21 @@ export default function EarTagScannerModal({
 								type="button"
 								variant="ghost"
 								onClick={handleRetry}
+								aria-label="이표 다시 스캔하기"
+								title="이표 다시 스캔하기"
 								className="flex-1 text-xs py-3 border border-white/10 rounded-[16px] text-foreground hover:text-emerald-400 font-bold hover:bg-white/5 flex items-center justify-center gap-1.5"
 							>
-								<RefreshCw size={13} /> 다시 스캔
+								<RefreshCw size={13} aria-hidden="true" /> 다시 스캔
 							</PremiumButton>
 							{scanStatus === "success" && (
 								<PremiumButton
 									type="button"
 									onClick={handleConfirm}
+									aria-label={`${matchedCow?.name ?? "선택한 개체"} 상세 정보 보기`}
+									title={`${matchedCow?.name ?? "선택한 개체"} 상세 정보 보기`}
 									className="flex-1 text-xs py-3 bg-emerald-600 border border-emerald-400/30 rounded-[16px] text-white font-bold shadow-[0_4px_12px_rgba(16,185,129,0.2)] hover:bg-emerald-500 flex items-center justify-center gap-1.5"
 								>
-									<Eye size={13} /> 정보 상세 보기
+									<Eye size={13} aria-hidden="true" /> 정보 상세 보기
 								</PremiumButton>
 							)}
 						</>

@@ -61,6 +61,7 @@ test("settings tab decorative text icons are hidden from assistive tech", () => 
 
 test("dashboard widget registry is centralized with readable Korean labels", () => {
 	const dashboardSource = readSource("components/DashboardClient.js");
+	const settingsSource = readSource("components/tabs/SettingsTab.js");
 	const hookSource = readSource("lib/hooks/useWidgetSettings.js");
 
 	assert.match(
@@ -68,6 +69,14 @@ test("dashboard widget registry is centralized with readable Korean labels", () 
 		/import\s*\{\s*[\s\S]*?useWidgetSettings[\s\S]*?\}\s*from\s*['"]@\/lib\/hooks\/useWidgetSettings['"];?/,
 	);
 	assert.doesNotMatch(dashboardSource, /const WIDGET_REGISTRY = \[/);
+	assert.match(
+		settingsSource,
+		/\{widget\.description \? \([\s\S]*?\{widget\.description\}[\s\S]*?\) : null\}/,
+	);
+	assert.match(
+		hookSource,
+		/description:\s*['"]켜면 농장 요약 데이터를 AI 분석 API로 전송합니다\.['"]/,
+	);
 	assert.match(hookSource, /label:\s*['"]날씨 \/ THI['"]/);
 	assert.match(hookSource, /label:\s*['"]시세 정보['"]/);
 	assert.match(hookSource, /label:\s*['"]알림 \(발정\/분만\)['"]/);
@@ -80,8 +89,24 @@ test("dashboard widget registry is centralized with readable Korean labels", () 
 test("settings tab building delete buttons identify the target building", () => {
 	const source = readSource("components/tabs/SettingsTab.js");
 
-	assert.match(source, /aria-label=\{`\$\{building\.name\} 동 삭제`\}/);
-	assert.match(source, /title=\{`\$\{building\.name\} 동 삭제`\}/);
+	assert.match(source, /const isDeletingBuilding = deletingBuildingId === building\.id;/);
+	assert.match(source, /const buildingDeleteButtonLabel = isDeletingBuilding/);
+	assert.match(source, /축사 삭제 중/);
+	assert.match(source, /축사 삭제`/);
+	assert.match(source, /aria-label=\{buildingDeleteButtonLabel\}/);
+	assert.match(source, /title=\{buildingDeleteButtonLabel\}/);
+	assert.match(source, /\{isDeletingBuilding \? "축사 삭제 중\.\.\." : "축사 삭제"\}/);
+	assert.doesNotMatch(source, /동 삭제/);
+	assert.doesNotMatch(source, /\{isDeletingBuilding \? "축사 삭제 중\.\.\." : "삭제"\}/);
+});
+
+test("settings diagnostics link exposes an explicit navigation label", () => {
+	const source = readSource("components/tabs/SettingsTab.js");
+
+	assert.match(
+		source,
+		/href="\/admin\/diagnostics"[\s\S]*?aria-label="시스템 진단 도구 열기"[\s\S]*?title="시스템 진단 도구 열기"/,
+	);
 });
 
 test("settings tab normalizes malformed building payloads before rendering", () => {
@@ -106,12 +131,14 @@ test("settings tab normalizes malformed building payloads before rendering", () 
 		source,
 		/const safeBuildings = useMemo\(\s*\(\s*\)\s*=>\s*normalizeSettingsBuildings\(buildings\),\s*\[buildings\],?\s*\);/,
 	);
-	assert.match(source, /\{safeBuildings\.map\(\(building\) => \(/);
+	assert.match(source, /\{safeBuildings\.map\(\(building\) => \{/);
 	assert.doesNotMatch(source, /\{buildings\.map\(\(building\) => \(/);
 });
 
 test("settings forms expose explicit labels and invalid state", () => {
 	const source = readSource("components/tabs/SettingsTab.js");
+	const formSchemaSource = readSource("lib/formSchemas.js");
+	const actionValidationSource = readSource("lib/action-validation.mjs");
 
 	assert.match(
 		source,
@@ -136,7 +163,7 @@ test("settings forms expose explicit labels and invalid state", () => {
 	);
 	assert.match(
 		source,
-		/<PremiumLabel htmlFor="farm-latitude">[\s\S]*?위도 \(Latitude\)[\s\S]*?<\/PremiumLabel>/,
+		/<PremiumLabel htmlFor="farm-latitude">[\s\S]*?위도[\s\S]*?<\/PremiumLabel>/,
 	);
 	assert.match(
 		source,
@@ -144,24 +171,33 @@ test("settings forms expose explicit labels and invalid state", () => {
 	);
 	assert.match(
 		source,
-		/<PremiumLabel htmlFor="farm-longitude">[\s\S]*?경도 \(Longitude\)[\s\S]*?<\/PremiumLabel>/,
+		/<PremiumLabel htmlFor="farm-longitude">[\s\S]*?경도[\s\S]*?<\/PremiumLabel>/,
 	);
+	assert.doesNotMatch(source, /Latitude/);
+	assert.doesNotMatch(source, /Longitude/);
 	assert.match(
 		source,
 		/id="farm-longitude"[\s\S]*?aria-invalid=\{Boolean\(farmErrors\.longitude\)\}/,
 	);
 	assert.match(
 		source,
-		/<PremiumLabel htmlFor="building-name">[\s\S]*?동 이름[\s\S]*?<\/PremiumLabel>/,
+		/<PremiumLabel htmlFor="building-name">[\s\S]*?축사 이름[\s\S]*?<\/PremiumLabel>/,
 	);
+	assert.match(source, /placeholder="축사 이름을 입력해 주세요\."/);
+	assert.match(formSchemaSource, /name: requiredText\("축사 이름을 입력해 주세요\.", 40\)/);
+	assert.match(actionValidationSource, /name: requiredText\("축사 이름을 입력해 주세요\.", 40\)/);
+	assert.doesNotMatch(source, /동 이름/);
+	assert.doesNotMatch(formSchemaSource, /동 이름을 입력해 주세요/);
+	assert.doesNotMatch(actionValidationSource, /동 이름을 입력해 주세요/);
 	assert.match(
 		source,
 		/id="building-name"[\s\S]*?aria-invalid=\{Boolean\(buildingErrors\.name\)\}/,
 	);
 	assert.match(
 		source,
-		/<PremiumLabel htmlFor="building-pen-count">[\s\S]*?칸 수 \(Pen Count\)[\s\S]*?<\/PremiumLabel>/,
+		/<PremiumLabel htmlFor="building-pen-count">[\s\S]*?칸 수[\s\S]*?<\/PremiumLabel>/,
 	);
+	assert.doesNotMatch(source, /Pen Count/);
 	assert.match(
 		source,
 		/id="building-pen-count"[\s\S]*?aria-invalid=\{Boolean\(buildingErrors\.penCount\)\}/,
@@ -216,11 +252,42 @@ test("settings building form waits for async saves before re-enabling actions", 
 		source,
 		/const buildingSubmitButtonLabel = isSavingBuilding\s*\?\s*['"]축사 등록 중['"]\s*:\s*['"]축사 등록하기['"];/,
 	);
-	assert.match(source, /size="sm"\s+disabled=\{isSavingBuilding\}/);
+	assert.match(
+		source,
+		/const buildingSubmitButtonText = isSavingBuilding\s*\?\s*['"]축사 등록 중\.\.\.['"]\s*:\s*['"]축사 등록하기['"];/,
+	);
+	assert.match(source, /const buildingAddFormButtonLabel = isSavingBuilding/);
+	assert.match(source, /축사 저장 중에는 등록 창을 닫을 수 없습니다/);
+	assert.match(source, /축사 등록 취소/);
+	assert.match(source, /축사 등록 창 열기/);
+	assert.match(source, /const buildingAddFormButtonText = isSavingBuilding/);
+	assert.match(source, /축사 저장 중\.\.\./);
+	assert.match(source, /축사 등록 취소/);
+	assert.match(source, /: "축사 등록";/);
+	assert.match(source, /축사 관리/);
+	assert.match(source, /새 축사 등록/);
+	assert.doesNotMatch(source, /축사 동 관리/);
+	assert.doesNotMatch(source, /새 축사 동 등록/);
+	assert.doesNotMatch(
+		source,
+		/const buildingAddFormButtonText = isSavingBuilding[\s\S]*?\? "축사 저장 중\.\.\."[\s\S]*?: isAdding[\s\S]*?\? "취소"[\s\S]*?: "\+ 동 추가";/,
+	);
+	assert.doesNotMatch(
+		source,
+		/const buildingAddFormButtonText = isSavingBuilding[\s\S]*?: isAdding[\s\S]*?\? "취소"/,
+	);
+	assert.doesNotMatch(source, /"\+ 동 추가"/);
+	assert.match(
+		source,
+		/size="sm"\s+disabled=\{isSavingBuilding\}\s+aria-busy=\{isSavingBuilding\}\s+aria-label=\{buildingAddFormButtonLabel\}\s+title=\{buildingAddFormButtonLabel\}/,
+	);
+	assert.match(source, /\{buildingAddFormButtonText\}/);
 	assert.match(
 		source,
 		/type="submit"\s+variant="primary"\s+disabled=\{isSavingBuilding\}\s+aria-busy=\{isSavingBuilding\}\s+aria-label=\{buildingSubmitButtonLabel\}\s+title=\{buildingSubmitButtonLabel\}/,
 	);
+	assert.match(source, /\{buildingSubmitButtonText\}/);
+	assert.doesNotMatch(source, /\{isSavingBuilding \? ["']축사 등록 중\.\.\.["'] : ["']등록하기["']\}/);
 });
 
 test("settings farm form waits for async saves before re-enabling submit", () => {
@@ -246,8 +313,13 @@ test("settings farm form waits for async saves before re-enabling submit", () =>
 	);
 	assert.match(
 		source,
+		/const farmSubmitButtonText = isSavingFarm\s*\?\s*['"]농장 정보 저장 중\.\.\.['"]\s*:\s*['"]농장 정보 저장하기['"];/,
+	);
+	assert.match(
+		source,
 		/type="submit"\s+disabled=\{isSavingFarm\}\s+aria-busy=\{isSavingFarm\}\s+aria-label=\{farmSubmitButtonLabel\}\s+title=\{farmSubmitButtonLabel\}/,
 	);
+	assert.match(source, /\{farmSubmitButtonText\}/);
 });
 
 test("settings farm form locks editable fields while saving", () => {
@@ -284,9 +356,17 @@ test("settings building delete action waits for async deletes before re-enabling
 		/if \(deleteBuildingInFlightRef\.current\) \{\s+return;\s+\}/,
 	);
 	assert.match(source, /deleteBuildingInFlightRef\.current = true;/);
+	assert.match(source, /title: `\$\{name\} 축사를 삭제할까요\?`/);
+	assert.doesNotMatch(source, /title: `\$\{name\} 동을 삭제할까요\?`/);
 	assert.match(
 		source,
 		/if \(!shouldDelete\) \{\s+deleteBuildingInFlightRef\.current = false;\s+return;\s+\}/,
+	);
+	assert.match(source, /confirmLabel: "축사 삭제"/);
+	assert.match(source, /cancelLabel: "축사 삭제 취소"/);
+	assert.doesNotMatch(
+		source,
+		/confirmLabel: "삭제"[\s\S]*?cancelLabel: "취소"/,
 	);
 	assert.match(source, /setDeletingBuildingId\(id\);/);
 	assert.match(source, /await onDeleteBuilding\(id\);/);
@@ -295,6 +375,6 @@ test("settings building delete action waits for async deletes before re-enabling
 		source,
 		/setDeletingBuildingId\(null\);\s+deleteBuildingInFlightRef\.current = false;/,
 	);
-	assert.match(source, /disabled=\{deletingBuildingId === building\.id\}/);
-	assert.match(source, /aria-busy=\{deletingBuildingId === building\.id\}/);
+	assert.match(source, /disabled=\{isDeletingBuilding\}/);
+	assert.match(source, /aria-busy=\{isDeletingBuilding\}/);
 });

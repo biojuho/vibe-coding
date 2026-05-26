@@ -268,7 +268,7 @@ const calvingRecordSchema = z.object({
 });
 
 const buildingMutationSchema = z.object({
-	name: requiredText("동 이름을 입력해 주세요.", 40),
+	name: requiredText("축사 이름을 입력해 주세요.", 40),
 	penCount: requiredPositiveInt("칸 수는 1 이상이어야 합니다.", 200),
 });
 

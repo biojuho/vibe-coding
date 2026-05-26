@@ -77,7 +77,7 @@ export default function ExcelExportButton({
 			className="gap-1.5 font-bold shadow-md"
 		>
 			<Download size={14} className="text-[#1D6F42]" aria-hidden="true" />
-			{isPreparing ? "준비 중..." : "엑셀 다운로드"}
+			{isPreparing ? "엑셀 다운로드 준비 중..." : "엑셀 다운로드"}
 		</PremiumButton>
 	);
 }

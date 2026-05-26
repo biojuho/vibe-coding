@@ -53,6 +53,7 @@ export function NotificationSystem({ initialNotifications = [] } = {}) {
 		unreadCount > 0
 			? `알림 열기, 읽지 않은 알림 ${unreadCount}개`
 			: "알림 열기";
+	const markAllAsReadLabel = `읽지 않은 알림 ${unreadCount}개 모두 읽음으로 표시`;
 
 	const markAsRead = (id) => {
 		setNotifications((currentNotifications) =>
@@ -97,6 +98,8 @@ export function NotificationSystem({ initialNotifications = [] } = {}) {
 						<button
 							type="button"
 							onClick={markAllAsRead}
+							aria-label={markAllAsReadLabel}
+							title={markAllAsReadLabel}
 							className="text-xs text-blue-500 hover:text-blue-700 font-normal"
 						>
 							모두 읽음
@@ -115,6 +118,8 @@ export function NotificationSystem({ initialNotifications = [] } = {}) {
 								key={notification.id}
 								className={`flex flex-col items-start gap-1 p-3 cursor-pointer ${notification.read ? "opacity-60" : "bg-blue-50/50"}`}
 								onClick={() => markAsRead(notification.id)}
+								aria-label={`${notification.title} 알림 읽음으로 표시`}
+								title={`${notification.title} 알림 읽음으로 표시`}
 							>
 								<div className="flex w-full items-start justify-between">
 									<span

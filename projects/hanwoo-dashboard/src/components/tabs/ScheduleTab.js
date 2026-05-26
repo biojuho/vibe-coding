@@ -75,6 +75,10 @@ function normalizeScheduleEvents(events) {
 		}));
 }
 
+function formatDaysLeftLabel(daysLeft) {
+	return daysLeft === 0 ? "오늘" : `${daysLeft}일 남음`;
+}
+
 export default function ScheduleTab({
 	events,
 	onCreateEvent,
@@ -90,6 +94,17 @@ export default function ScheduleTab({
 	const saveInFlightRef = useRef(false);
 	const completionInFlightRef = useRef(false);
 	const submitButtonLabel = isSaving ? "일정 등록 중" : "일정 등록하기";
+	const submitButtonText = isSaving ? "일정 등록 중..." : "일정 등록하기";
+	const addFormButtonLabel = isSaving
+		? "일정 저장 중에는 등록 창을 닫을 수 없습니다"
+		: isAdding
+			? "일정 등록 취소"
+			: "일정 등록 창 열기";
+	const addFormButtonText = isSaving
+		? "일정 저장 중..."
+		: isAdding
+			? "일정 등록 취소"
+			: "일정 등록";
 
 	const {
 		register,
@@ -241,10 +256,13 @@ export default function ScheduleTab({
 					type="button"
 					onClick={toggleAddForm}
 					disabled={isSaving}
+					aria-busy={isSaving}
+					aria-label={addFormButtonLabel}
+					title={addFormButtonLabel}
 					className="clay-pressable inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-[color:var(--color-text)]"
 				>
 					<PlusCircle size={14} aria-hidden="true" />
-					{isAdding ? "취소" : "새 일정"}
+					{addFormButtonText}
 				</button>
 			</div>
 
@@ -360,7 +378,7 @@ export default function ScheduleTab({
 								boxShadow: "var(--shadow-button-primary)",
 							}}
 						>
-							{isSaving ? "일정 등록 중..." : "일정 등록하기"}
+							{submitButtonText}
 						</button>
 					</div>
 				</form>
@@ -381,7 +399,10 @@ export default function ScheduleTab({
 					aria-label="이전 달 보기"
 					title="이전 달 보기"
 				>
-					<ChevronLeft className="text-[color:var(--color-text-secondary)]" />
+					<ChevronLeft
+						className="text-[color:var(--color-text-secondary)]"
+						aria-hidden="true"
+					/>
 				</button>
 				<div
 					className="text-2xl font-bold text-[color:var(--color-text)]"
@@ -403,7 +424,10 @@ export default function ScheduleTab({
 					aria-label="다음 달 보기"
 					title="다음 달 보기"
 				>
-					<ChevronRight className="text-[color:var(--color-text-secondary)]" />
+					<ChevronRight
+						className="text-[color:var(--color-text-secondary)]"
+						aria-hidden="true"
+					/>
 				</button>
 			</div>
 
@@ -505,6 +529,15 @@ export default function ScheduleTab({
 							(eventDate - new Date()) / (1000 * 60 * 60 * 24),
 						);
 						const typeStyle = TYPE_STYLES[event.type] || TYPE_STYLES.General;
+						const isSavingEvent = savingEventId === event.id;
+						const eventCompletionLabel = isSavingEvent
+							? `${event.title} 일정 완료 상태 변경 중`
+							: `${event.title} 일정 완료 상태 변경`;
+						const eventCompletionText = isSavingEvent
+							? "일정 완료 상태 변경 중..."
+							: event.isCompleted
+								? "완료됨"
+								: "미완료";
 
 						return (
 							<div
@@ -515,10 +548,10 @@ export default function ScheduleTab({
 									type="checkbox"
 									checked={event.isCompleted}
 									onChange={() => toggleEventCompletion(event)}
-									disabled={savingEventId === event.id}
-									aria-busy={savingEventId === event.id}
-									aria-label={`${event.title} 일정 완료 상태 변경`}
-									title={`${event.title} 일정 완료 상태 변경`}
+									disabled={isSavingEvent}
+									aria-busy={isSavingEvent}
+									aria-label={eventCompletionLabel}
+									title={eventCompletionLabel}
 									style={{
 										width: "18px",
 										height: "18px",
@@ -544,11 +577,14 @@ export default function ScheduleTab({
 											}}
 										>
 											{eventDate.toLocaleDateString()}{" "}
-											{daysLeft === 0 ? "(오늘)" : `(D-${daysLeft})`}
+											({formatDaysLeftLabel(daysLeft)})
 										</span>
 									</div>
 									<div className="text-sm font-semibold text-[color:var(--color-text)]">
 										{event.title}
+									</div>
+									<div className="mt-1 text-xs font-semibold text-[color:var(--color-text-muted)]">
+										{eventCompletionText}
 									</div>
 								</div>
 							</div>

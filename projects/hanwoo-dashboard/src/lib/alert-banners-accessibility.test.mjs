@@ -13,14 +13,20 @@ function readSource(relativePath) {
 
 test("alert banner decorative calving icon is hidden from assistive tech", () => {
 	const source = readSource("components/widgets/AlertBanners.js");
+	const commonSource = readSource("components/ui/common.js");
 
 	assert.match(
 		source,
 		/<span[\s\S]*?aria-hidden="true"[\s\S]*?style=\{\{\s*fontSize:\s*["']18px["']\s*\}\}[\s\S]*?className="animate-bounce"/,
 	);
+	assert.match(source, /<span className="alert-icon" aria-hidden="true">/);
+	assert.match(
+		commonSource,
+		/export const HeartIcon = \(\) => \(\s*<svg\s+aria-hidden="true"\s+focusable="false"/,
+	);
 });
 
-test("alert banner D-day labels normalize malformed notification values", () => {
+test("alert banner remaining-day labels normalize malformed notification values", () => {
 	const source = readSource("components/widgets/AlertBanners.js");
 
 	assert.match(
@@ -37,6 +43,9 @@ test("alert banner D-day labels normalize malformed notification values", () => 
 		source,
 		/const daysLeft = normalizeDaysLeft\(notification\.daysLeft\);/,
 	);
+	assert.match(source, /daysLeft === 0 \? "오늘" : `\$\{daysLeft\}일 남음`/);
+	assert.doesNotMatch(source, /D-\{daysLeft\}/);
+	assert.doesNotMatch(source, /`D-\$\{daysLeft\}`/);
 	assert.doesNotMatch(source, /notification\.daysLeft \?\? 0/);
 	assert.doesNotMatch(source, /notification\.daysLeft === 0/);
 });
