@@ -62,3 +62,4 @@
   - 파이썬 및 Node 프로세스 실행 시 Windows 환경에서는 쉘 실행 바이너리(`.cmd`, `.bat`) 확장자를 명시하거나 `PATHEXT`를 존중하도록 코딩하십시오.
   - `Get-ChildItem -Recurse` 등을 수행할 때 존재하지 않는 디렉토리를 탐색하면 에러가 발생하므로, 탐색 전 타깃 존재 여부를 반드시 체크하십시오.
   - Windows의 CP949 인코딩 콘솔 한글 깨짐 현상이 있어도 실제 파일 및 데이터는 항상 UTF-8 클린하게 저장해야 합니다.
+  - 터미널이나 CLI 도구에서 비ASCII 유니코드나 이모지를 stdout/stderr로 직접 출력하면 `UnicodeEncodeError` 예외가 발생하므로, 윈도우 실행 시 `sys.stdout.reconfigure(encoding='utf-8')`을 통해 스트림을 강제 재구성하거나 이모지 사용을 피하십시오.
