@@ -717,7 +717,7 @@ class TestGenerateTextRetryFallback:
         """generate_text breaks on non-retryable error."""
         client = self._make_client()
         mock_gen.side_effect = Exception("insufficient_quota")
-        with pytest.raises(RuntimeError, match="모든 프로바이더 실패"):
+        with pytest.raises(RuntimeError, match="모든 .*프로바이더 실패"):
             client.generate_text(system_prompt="s", user_prompt="u")
         assert mock_gen.call_count == 1
 

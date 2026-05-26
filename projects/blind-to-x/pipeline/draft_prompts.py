@@ -272,6 +272,58 @@ class DraftPromptsMixin:
         return rotated[:limit]
 
     # ------------------------------------------------------------------
+    # Comment-trigger framework (Phase 2)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _build_comment_trigger_block(output_formats: list[str]) -> str:
+        """[독자가 댓글을 달고 싶어지는 4가지 트리거] 블록을 조립한다.
+
+        twitter/threads 가 출력 포맷에 포함될 때만 활성화. 4 트리거(식별감/입장/
+        오픈루프/구체 앵커)를 LLM 이 캡션 작성 단계부터 의식하도록 강제한다.
+
+        Phase 2 의 핵심: 기존 게이트는 "나쁜 톤 제거" 였지만 이 블록은 "댓글이
+        달리게 만드는 적극적 매력" 을 생성 단계에 주입한다.
+        """
+        # 댓글 트리거는 댓글이 핵심 KPI 인 짧은 포맷에서만 의미가 있다.
+        if not any(fmt in output_formats for fmt in ("twitter", "threads")):
+            return ""
+
+        return """
+[독자가 댓글을 달고 싶어지는 4가지 트리거 — 트위터/스레드 한정]
+4개 트리거가 모두 들어가야 평균 이상의 글이 됩니다. 하나라도 빠지면 "댓글이 안 달리는 글"입니다.
+
+1. 식별감 (Identifiability)
+   - 누가 자기 얘기로 받을지가 한 줄에 드러나야 합니다.
+   - 좋은 예: "3년차 개발자", "팀장 첫 분기 보낸 사람", "재택 막 시작한 부서 막내", "성과급 첫 통보 받은 신입"
+   - 일반 "직장인" 만으로는 부족합니다. 직군·연차·조직 위치를 한 단어로라도 박으세요.
+
+2. 입장 (Stance)
+   - 한쪽 편을 들거나, 한 가지 해석을 분명히 내세요. "이게 맞다" 또는 "이건 좀 그렇다".
+   - 양비론·균형·"양쪽 다 일리 있다" 류는 댓글이 안 달립니다.
+   - 양쪽을 다 인정하더라도 "근데 결국 X" 식으로 한쪽으로 기울어 끝내세요.
+   - 운영자(creator)의 입장이 한 줄이라도 본문에 보여야 합니다.
+
+3. 오픈루프 마무리 (Open Loop)
+   - 마지막 문장은 독자가 자기 경험으로 이어 적게 만드는 여백을 남기세요.
+   - "?" 로 묻지 말고, 답이 여러 개로 갈리는 평서문으로 끝내세요.
+   - 좋은 예: "충성의 가격이 이거임", "그 20분이 진짜 근무시간 아닌가", "쉬는 게 더 피곤"
+   - "여기서 끝" 같은 닫힌 마무리(완결된 결론·일반 진리·교훈)는 댓글이 막힙니다.
+
+4. 구체 앵커 (Anchor)
+   - 독자가 인용·답글로 그대로 가져다 쓸 한 조각이 있어야 합니다.
+   - 짧은 인용 한 줄, 정확한 숫자 하나, 짧은 장면 중 적어도 1개를 본문 안에 분명히 박으세요.
+   - 좋은 예: "5천이 월급인데요", "측정해봤음 17분", "세후 450 찍히는 거 보고"
+   - 일반 명사("높은 연봉", "긴 시간")로는 댓글이 안 달립니다.
+
+[댓글이 안 달리는 글의 공통점 — 반드시 피하세요]
+- 모두에게 다 적용되는 "보편 진리": "직장인이라면 누구나..." 식의 두루뭉술 진술
+- 무색무취 요약: 원문에서 일어난 일을 그대로 요약만 하고 운영자 입장이 없는 글
+- 닫힌 결론: "이런 면도 있고 저런 면도 있다" 같은 양비론 마무리
+- 추상 명사 나열로 끝나는 문장: "소통", "성장", "성과" 같은 큰 단어만 던지고 끝
+"""
+
+    # ------------------------------------------------------------------
     # Main prompt builder
     # ------------------------------------------------------------------
 
@@ -582,6 +634,8 @@ class DraftPromptsMixin:
             selection_brief_lines.append("7. <twitter> 안에는 1개 안만 작성 (3안 묶음 금지)")
         selection_brief_block = "\n".join(selection_brief_lines)
 
+        comment_trigger_block = self._build_comment_trigger_block(output_formats)
+
         examples_block = self._format_examples(
             top_examples,
             topic_cluster=topic_cluster,
@@ -616,6 +670,7 @@ class DraftPromptsMixin:
 발행 적합도 점수: {profile.get("publishability_score", 0)}
 성과 예측 점수: {profile.get("performance_score", 0)}
 {selection_brief_block}
+{comment_trigger_block}
 {topic_strategy_block}
 {regulation_context}
 {thinking_block}

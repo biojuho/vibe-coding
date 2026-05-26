@@ -338,6 +338,118 @@ def _has_lead_dependency(text: str) -> bool:
     return bool(_LEAD_DEPENDENCY_PATTERN.search(first_sentence))
 
 
+# ── Phase 2 (2026-05-26+): creator_take 무색무취 검출 ──────────────────
+# 운영자(creator)의 입장이 없는 "요약만 한 글" 을 결정론적으로 검출한다.
+#
+# 검출 기준은 의도적으로 보수적(conservative) 으로 잡았다 — golden 예시들은
+# 의도적으로 짧고 관찰형이라 "판단 어휘 없음 == 무색무취" 라는 단순 규칙은
+# 모조리 false-positive 가 난다. 진짜 무색무취는 hedge 가 누적되면서 동시에
+# 일반화/양화 어휘("자주", "다양한", "많은") 가 끼어드는 패턴이다.
+
+# 약화/추측/거리두기 어미·표현
+_HEDGE_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"것\s*같"),
+    re.compile(r"수도\s*있"),
+    re.compile(r"있을\s*수\s*있"),
+    re.compile(r"인\s*듯"),
+    re.compile(r"라고\s*한다"),
+    re.compile(r"라는\s*얘기"),
+    re.compile(r"라는\s*말"),
+    re.compile(r"보이는\s*듯"),
+    re.compile(r"보이는\s*상황"),
+    re.compile(r"보이고\s*있다"),
+    re.compile(r"^[^\n]*?(아닐까|않을까)(요)?\s*싶", re.MULTILINE),
+)
+
+# 일반화/양화 어휘 — 무색무취 요약형 글에 동반 출현
+_GENERALIZATION_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(
+        r"(자주|다양한|많은\s*사람|여러\s*가지|종종|일부\s*사람|일반적|"
+        r"대부분의|보통|흔히)"
+    ),
+)
+
+# 강한 입장 신호 — 하나라도 있으면 "입장 있음" 으로 판정해 무색무취에서 면제
+_STANCE_PATTERNS: tuple[re.Pattern[str], ...] = (
+    # 가치 판단 어휘 (구체 평가)
+    re.compile(
+        r"(다행|안타|씁쓸|웃기|한심|어이없|황당|충격적|기특|놀랍|답답|섬뜩|"
+        r"부럽|짠하|미안하|당연|이상하|기막|어처구니없|뻔뻔|치사|기가\s*막|"
+        r"무섭|섬뜩하|허무|허탈|짜증|짜릿|짠한|짠함|짠하다)"
+    ),
+    # 운영자 시점/주관 표현
+    re.compile(
+        r"(내\s*생각|내\s*느낌|솔직히|개인적으로|보기에는|보기엔|"
+        r"내가\s*보기|내가\s*느낀|내\s*기준)"
+    ),
+    # 강조/단언 부사
+    re.compile(
+        r"(?:^|[^\w가-힣])(결국|결국엔|진짜|정말|사실|솔직|분명히|"
+        r"오히려|역설적|반대로|이게\s*맞|이게\s*아니|아닌|"
+        r"안\s*되는|못\s*하는|진심)"
+    ),
+    # 대조 접속사 (입장 전환 신호)
+    re.compile(r"(?:^|\s)(근데|그런데|하지만|반면|반대로)\b"),
+    # 강한 종결 어휘 ('이거임', '~이다', '~게 답', '~한 셈')
+    re.compile(
+        r"(이거임|이게\s*답|이거였|인\s*셈|한\s*셈|"
+        r"두\s*번째\s*[가-힣]+|다행이|불가능)"
+    ),
+    # 직접 의문문(수사적) — 마지막 ? 가 아닌 본문 중간의 ?
+    re.compile(r"\?\s*\S"),
+    # 1인칭 표현 (저는/나는/내가) — 자기 경험을 곧 입장으로 봄
+    re.compile(r"(?:^|\s)(저는|나는|내가|제가|우리는)\b"),
+)
+
+# naver_blog 의 <creator_take> 태그 추출
+_CREATOR_TAKE_TAG = re.compile(
+    r"<creator_take>\s*(.*?)\s*</creator_take>",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def _extract_creator_take(text: str) -> str | None:
+    """<creator_take> 태그 본문을 추출. 태그가 없으면 None."""
+    match = _CREATOR_TAKE_TAG.search(text)
+    if not match:
+        return None
+    return match.group(1).strip() or None
+
+
+def _count_pattern_hits(text: str, patterns: tuple[re.Pattern[str], ...]) -> int:
+    """주어진 패턴 묶음에 매칭된 unique 패턴 수를 반환."""
+    return sum(1 for pat in patterns if pat.search(text))
+
+
+def _is_colorless_take(text: str, min_chars: int = 30) -> tuple[bool, str]:
+    """무색무취 take 여부를 보수적으로 판정한다.
+
+    무색무취 = 다음 둘 중 하나:
+      A. hedge ≥ 2 AND stance == 0 — "거리두기만 누적, 입장 0"
+      B. generalization ≥ 1 AND stance == 0 AND length ≥ min_chars
+         — "일반화 어휘로 요약만 하고 입장 없음"
+
+    golden 예시(짧고 관찰형, 함축적 입장)는 모두 통과해야 함. 따라서 단순
+    "stance == 0" 만으로는 무색무취 판정하지 않는다.
+
+    Returns:
+        (is_colorless, 사유). False 면 사유는 빈 문자열.
+    """
+    if not text or not text.strip():
+        return False, ""
+    cleaned = text.strip()
+    stance_hits = _count_pattern_hits(cleaned, _STANCE_PATTERNS)
+    if stance_hits > 0:
+        return False, ""
+    hedge_hits = _count_pattern_hits(cleaned, _HEDGE_PATTERNS)
+    gen_hits = _count_pattern_hits(cleaned, _GENERALIZATION_PATTERNS)
+    if hedge_hits >= 2:
+        return True, f"hedge {hedge_hits}개 누적 / 입장 표현 0개"
+    if gen_hits >= 1 and len(cleaned) >= min_chars:
+        return True, f"일반화 어휘 {gen_hits}개 + 입장 표현 0개 ({len(cleaned)}자)"
+    return False, ""
+
+
 class DraftQualityGate:
     """LLM 생성 초안의 플랫폼별 품질 검증 게이트.
 
@@ -490,6 +602,37 @@ class DraftQualityGate:
                 "'~에서 봤는데/~에 올라온 글'로 시작하는 출처 도입 강박은 피할 것",
                 "warning",
             )
+
+        # ── Phase 2: creator_take 무색무취 검출 ────────────────────────
+        # twitter/threads: 글 전체에 입장이 없으면 warning.
+        # naver_blog: <creator_take> 태그가 있으면 그 안만 검사 (없으면 missing).
+        if platform in ("twitter", "threads"):
+            colorless, reason = _is_colorless_take(text)
+            if colorless:
+                result.add(
+                    "무색무취 요약",
+                    False,
+                    f"운영자 입장이 없는 요약형 글 — {reason}. 한 줄이라도 해석/판단을 넣을 것",
+                    "warning",
+                )
+        elif platform == "naver_blog":
+            take = _extract_creator_take(text)
+            if take is None:
+                result.add(
+                    "creator_take 누락",
+                    False,
+                    "<creator_take> 태그 안 운영자 해석 1문장이 없습니다",
+                    "warning",
+                )
+            else:
+                colorless, reason = _is_colorless_take(take, min_chars=20)
+                if colorless:
+                    result.add(
+                        "무색무취 creator_take",
+                        False,
+                        f"<creator_take> 가 무색무취 — {reason}",
+                        "warning",
+                    )
 
         # ── 4. 해시태그 검증 ─────────────────────────────────────────
         hashtag_count = _count_hashtags(text)

@@ -66,6 +66,7 @@ import { buildTodayFocusItems } from "@/lib/dashboard/today-focus.mjs";
 import { fetchWithTimeout, isTimeoutError } from "@/lib/fetchWithTimeout";
 import { useCattlePagination } from "@/lib/hooks/useCattlePagination";
 import { useSalesPagination } from "@/lib/hooks/useSalesPagination";
+import { useDashboardModals } from "@/lib/hooks/useDashboardModals";
 import {
 	useWidgetSettings,
 	WIDGET_REGISTRY,
@@ -298,16 +299,24 @@ export default function DashboardClient({
 	const [expenseRecords, setExpenseRecords] = useState(initialExpenses || []);
 
 	const [weather, setWeather] = useState(null);
-	const [showAddModal, setShowAddModal] = useState(false);
-	const [quickActionIntent, setQuickActionIntent] = useState(null);
-	const [selectedCow, setSelectedCow] = useState(null);
-	const [isEditing, setIsEditing] = useState(false);
-	const [deletingCattleId, setDeletingCattleId] = useState(null);
-
-	const [selectedBuildingId, setSelectedBuildingId] = useState(null);
-	const [selectedPenId, setSelectedPenId] = useState(null);
-
-	const [showNotifications, setShowNotifications] = useState(false);
+	const {
+		showAddModal,
+		setShowAddModal,
+		quickActionIntent,
+		setQuickActionIntent,
+		selectedCow,
+		setSelectedCow,
+		isEditing,
+		setIsEditing,
+		deletingCattleId,
+		setDeletingCattleId, // const [deletingCattleId, setDeletingCattleId] = useState(null);
+		selectedBuildingId,
+		setSelectedBuildingId,
+		selectedPenId,
+		setSelectedPenId,
+		showNotifications,
+		setShowNotifications,
+	} = useDashboardModals();
 	const [allCattleRegistry, setAllCattleRegistry] = useState(null);
 	const [allSalesLedger, setAllSalesLedger] = useState(null);
 	const [isAllCattleLoading, setIsAllCattleLoading] = useState(false);
@@ -830,7 +839,7 @@ export default function DashboardClient({
 				});
 			}
 		},
-		[preloadForTab],
+		[preloadForTab, setShowAddModal, setSelectedBuildingId, setSelectedPenId, setQuickActionIntent],
 	);
 
 	const handleSelectBuilding = useCallback(
@@ -839,7 +848,7 @@ export default function DashboardClient({
 			setSelectedPenId(null);
 			void ensureAllCattleLoaded({ silent: true }).catch(() => {});
 		},
-		[ensureAllCattleLoaded],
+		[ensureAllCattleLoaded, setSelectedBuildingId, setSelectedPenId],
 	);
 
 	const handleTestSMS = () => {

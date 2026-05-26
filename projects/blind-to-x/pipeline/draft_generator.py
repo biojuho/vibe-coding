@@ -75,6 +75,100 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
     # Main entry point
     # ------------------------------------------------------------------
 
+    async def _generate_drafts_once(
+        self,
+        prompt: str,
+        providers: list[str],
+        output_formats: list[str],
+        allow_partial: bool,
+    ) -> tuple[dict[str, Any], str | None]:
+        """주어진 프롬프트와 프로바이더 목록으로 초안 후보를 1회 성공적으로 생성하여 리턴합니다."""
+        provider_errors = []
+        for provider in providers:
+            for attempt in range(1, self.max_retries_per_provider + 1):
+                try:
+                    logger.info(
+                        "Generating drafts candidate via %s (%s/%s)...",
+                        provider,
+                        attempt,
+                        self.max_retries_per_provider,
+                    )
+                    (
+                        response_text,
+                        input_tokens,
+                        output_tokens,
+                        cache_creation_tokens,
+                        cache_read_tokens,
+                    ) = await self._generate_once(provider, prompt)
+                    if self.cost_tracker:
+                        self.cost_tracker.add_text_generation_cost(
+                            provider,
+                            input_tokens=input_tokens,
+                            output_tokens=output_tokens,
+                            cache_creation_tokens=cache_creation_tokens,
+                            cache_read_tokens=cache_read_tokens,
+                            cache_creation_multiplier=self._cache_creation_multiplier_for(provider, prompt),
+                        )
+                    drafts_dict, image_prompt = self._parse_response(response_text, output_formats, provider)
+                    validation_error = self._validate_provider_output(
+                        response_text,
+                        drafts_dict,
+                        output_formats,
+                        allow_partial=allow_partial,
+                    )
+                    if validation_error:
+                        raise RuntimeError(f"invalid_draft_output:{validation_error}")
+
+                    try:
+                        from pipeline.cost_db import get_cost_db
+
+                        get_cost_db().record_provider_success(provider)
+                    except Exception:
+                        pass
+
+                    return drafts_dict, image_prompt
+                except Exception as exc:
+                    provider_errors.append(f"{provider}: {exc}")
+                    error_text = str(exc).lower()
+                    non_retryable = any(
+                        token in error_text
+                        for token in (
+                            "credit balance is too low",
+                            "insufficient_quota",
+                            "invalid api key",
+                            "unauthorized",
+                            "permission denied",
+                        )
+                    )
+                    no_retry_only = "invalid_draft_output:" in error_text
+                    should_retry = attempt < self.max_retries_per_provider
+                    if non_retryable or no_retry_only:
+                        should_retry = False
+                    if non_retryable:
+                        try:
+                            from pipeline.cost_db import get_cost_db
+
+                            _cdb = get_cost_db()
+                            if _cdb:
+                                skip_h = _cdb.get_circuit_skip_hours(provider)
+                                _cdb.record_provider_failure(provider, skip_hours=skip_h)
+                        except Exception:
+                            pass
+                    wait_seconds = min(2**attempt, 10)
+                    logger.warning(
+                        "Draft candidate generation failed via %s (%s/%s): %s",
+                        provider,
+                        attempt,
+                        self.max_retries_per_provider,
+                        exc,
+                    )
+                    if should_retry:
+                        await asyncio.sleep(wait_seconds)
+            logger.info("Provider %s exhausted for candidate. Trying next provider.", provider)
+
+        error_text = " | ".join(provider_errors)
+        raise RuntimeError(f"All providers failed to generate candidate: {error_text}")
+
     async def generate_drafts(
         self,
         post_data,
@@ -130,97 +224,96 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
                 "_generation_error": "No enabled LLM providers available.",
             }, None
 
-        provider_errors = []
-        for provider in providers:
-            for attempt in range(1, self.max_retries_per_provider + 1):
+        # Best-of-N 설정값 획득 (B-5 피드백 기반 재생성인 경우에는 비용 낭비 방지를 위해 1회만 단독 실행)
+        best_of_n = 1
+        if not quality_feedback:
+            best_of_n = int(self.config.get("llm.best_of_n", 1))
+
+        if best_of_n <= 1:
+            try:
+                drafts_dict, image_prompt = await self._generate_drafts_once(
+                    prompt, providers, output_formats, allow_partial
+                )
                 try:
-                    logger.info("Generating drafts via %s (%s/%s)...", provider, attempt, self.max_retries_per_provider)
-                    (
-                        response_text,
-                        input_tokens,
-                        output_tokens,
-                        cache_creation_tokens,
-                        cache_read_tokens,
-                    ) = await self._generate_once(provider, prompt)
-                    if self.cost_tracker:
-                        self.cost_tracker.add_text_generation_cost(
-                            provider,
-                            input_tokens=input_tokens,
-                            output_tokens=output_tokens,
-                            cache_creation_tokens=cache_creation_tokens,
-                            cache_read_tokens=cache_read_tokens,
-                            cache_creation_multiplier=self._cache_creation_multiplier_for(provider, prompt),
-                        )
-                    drafts_dict, image_prompt = self._parse_response(response_text, output_formats, provider)
-                    validation_error = self._validate_provider_output(
-                        response_text,
-                        drafts_dict,
-                        output_formats,
-                        allow_partial=allow_partial,
+                    self.draft_cache.set(
+                        cache_key, drafts_dict, image_prompt, provider=drafts_dict.get("_provider_used", "")
                     )
-                    if validation_error:
-                        raise RuntimeError(f"invalid_draft_output:{validation_error}")
-                    logger.info("Successfully generated drafts using %s.", provider)
+                except Exception:
+                    pass
+                return drafts_dict, image_prompt
+            except Exception as exc:
+                logger.error("Draft generation failed: %s", exc)
+                return {
+                    "_provider_used": "none",
+                    "_generation_failed": True,
+                    "_generation_error": str(exc),
+                }, None
 
-                    # ── 캐시 저장 + circuit breaker close ─────────────
-                    try:
-                        self.draft_cache.set(cache_key, drafts_dict, image_prompt, provider=provider)
-                    except Exception:
-                        pass
-                    try:
-                        from pipeline.cost_db import get_cost_db
+        # Best-of-N 루프 실행
+        logger.info("[Best-of-N] Generating %d candidates for comparison...", best_of_n)
+        candidates = []
+        for i in range(best_of_n):
+            try:
+                drafts_dict, image_prompt = await self._generate_drafts_once(
+                    prompt, providers, output_formats, allow_partial
+                )
+                candidates.append((drafts_dict, image_prompt))
+            except Exception as exc:
+                logger.warning("[Best-of-N] Candidate %d generation failed: %s", i + 1, exc)
 
-                        get_cost_db().record_provider_success(provider)
-                    except Exception:
-                        pass
+        if not candidates:
+            logger.error("[Best-of-N] All candidate generations failed.")
+            return {
+                "_provider_used": "none",
+                "_generation_failed": True,
+                "_generation_error": "All candidates failed to generate.",
+            }, None
 
-                    return drafts_dict, image_prompt
-                except Exception as exc:  # pragma: no cover - remote API dependent
-                    provider_errors.append(f"{provider}: {exc}")
-                    error_text = str(exc).lower()
-                    non_retryable = any(
-                        token in error_text
-                        for token in (
-                            "credit balance is too low",
-                            "insufficient_quota",
-                            "invalid api key",
-                            "unauthorized",
-                            "permission denied",
-                        )
+        if len(candidates) == 1:
+            drafts_dict, image_prompt = candidates[0]
+            try:
+                self.draft_cache.set(
+                    cache_key, drafts_dict, image_prompt, provider=drafts_dict.get("_provider_used", "")
+                )
+            except Exception:
+                pass
+            return drafts_dict, image_prompt
+
+        # N개 중 EditorialReviewer를 사용해 최선 책정
+        logger.info("[Best-of-N] Comparing %d candidates using EditorialReviewer...", len(candidates))
+        try:
+            from pipeline.editorial_reviewer import EditorialReviewer
+
+            reviewer = EditorialReviewer(config=self.config)
+
+            best_candidate = None
+            best_score = -1.0
+
+            for drafts_dict, image_prompt in candidates:
+                result = await reviewer.review_and_polish(drafts_dict, post_data)
+                if result.avg_score > best_score:
+                    best_score = result.avg_score
+                    best_candidate = (result.polished_drafts, image_prompt)
+
+            if best_candidate:
+                drafts_dict, image_prompt = best_candidate
+                logger.info("[Best-of-N] Selected best candidate with score %.2f", best_score)
+                try:
+                    self.draft_cache.set(
+                        cache_key, drafts_dict, image_prompt, provider=drafts_dict.get("_provider_used", "")
                     )
-                    no_retry_only = "invalid_draft_output:" in error_text
-                    should_retry = attempt < self.max_retries_per_provider
-                    if non_retryable or no_retry_only:
-                        should_retry = False
-                    if non_retryable:
-                        # circuit breaker: 비복구 에러 시 provider 스킵 등록
-                        try:
-                            from pipeline.cost_db import get_cost_db
+                except Exception:
+                    pass
+                return drafts_dict, image_prompt
+        except Exception as exc:
+            logger.warning("[Best-of-N] Editorial evaluation failed (falling back to first candidate): %s", exc)
 
-                            _cdb = get_cost_db()
-                            skip_h = _cdb.get_circuit_skip_hours(provider)
-                            _cdb.record_provider_failure(provider, skip_hours=skip_h)
-                        except Exception:
-                            pass
-                    wait_seconds = min(2**attempt, 10)
-                    logger.warning(
-                        "Draft generation failed via %s (%s/%s): %s",
-                        provider,
-                        attempt,
-                        self.max_retries_per_provider,
-                        exc,
-                    )
-                    if should_retry:
-                        await asyncio.sleep(wait_seconds)
-            logger.info("Provider %s exhausted. Trying next provider.", provider)
-
-        error_text = " | ".join(provider_errors)
-        logger.error("All providers failed for draft generation: %s", error_text)
-        return {
-            "_provider_used": "none",
-            "_generation_failed": True,
-            "_generation_error": error_text,
-        }, None
+        drafts_dict, image_prompt = candidates[0]
+        try:
+            self.draft_cache.set(cache_key, drafts_dict, image_prompt, provider=drafts_dict.get("_provider_used", ""))
+        except Exception:
+            pass
+        return drafts_dict, image_prompt
 
     async def _call_llm_with_fallback(self, prompt: str, *, platform: str = "twitter") -> str:
         """Return the best-effort text for a single platform using the provider chain."""

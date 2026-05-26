@@ -40,16 +40,38 @@ blind-to-x 는 LLM 생성 직후 7층 검증을 거친다:
 
 모두 결정론적, LLM 호출 0, p99 < 5ms 추정.
 
-### Phase 2 — LLM Side (다음 이터레이션, 본 PR 범위 외)
+### Phase 2 — LLM Side + 결정론적 무색무취 (2026-05-26 추가 출하)
 
-- creator_take 의 "무색무취 요약" 검출 (LLM 1축 추가)
-- 같은 토픽 클러스터의 최근 5건 캡션과 의미 유사도 0.85 이상이면 reroll (n-gram 기준 빠르게)
-- Best-of-N (2개 안 생성 → editorial_reviewer 점수 비교)
+**목표**: "이유 없는 생성물" → "댓글이 달리는 글" 로 전환.
+
+| ID | 개선 | 위치 | 종류 |
+|----|------|------|------|
+| P2-A | **댓글 트리거 프레임워크** 4축 (식별감/입장/오픈루프/구체 앵커) 을 트위터/스레드 생성 프롬프트에 주입 | `draft_prompts.py` `_build_comment_trigger_block` | Prompt |
+| P2-B | **에디토리얼 4축 점수** — twitter/threads 한정. 5축 평균 통과해도 4축 평균 < 6이면 리라이트 | `editorial_reviewer.py` `_build_review_prompt` / routing / `EditorialResult.comment_trigger_scores` | LLM 평가 |
+| P2-C | **creator_take 무색무취 결정론적 검출** — hedge ≥ 2 또는 (일반화 어휘 + 입장 0) | `draft_quality_gate.py` `_is_colorless_take`, `_extract_creator_take` | Deterministic |
+| P2-D | naver_blog `<creator_take>` 태그 누락/무색무취 warning | `draft_quality_gate.py` validate() | Deterministic |
+
+**보수성**: golden 예시 7개 모두 false-positive 없음 (의도적으로 짧고 함축적
+표현이라 단순 "stance == 0" 만으로는 못 잡음. 무색무취 트리거는 hedge 누적
+또는 "자주/다양/많은" 같은 일반화 어휘 동반 시에만 발화).
+
+**라우팅 변경**: 기존 5축 평균 임계 + 4축 평균 임계 (기본 6.0) 를 AND 로 묶음.
+한쪽이라도 미달이면 최대 2회 리라이트. 둘 다 통과해야 END.
+
+신규 회귀 테스트: `tests/unit/test_comment_trigger_uplift.py` 40 케이스 (block
+주입 6, prompt 4축 5, EditorialResult 2, 라우팅 2, colorless 검출기 12,
+태그 추출 5, gate 통합 5).
+
+### Phase 3 — Product (다음 이터레이션)
 
 ### Phase 3 — Product (다음 이터레이션)
 
 - creator persona 토픽별 voice 사전을 학습 데이터로 작은 LoRA 어댑터 운영 (현재 시점 비용/가치 불일치 가능성)
-- Notion 검토 단계에서 "마무리 여운 점수" Top 3 표시
+- Notion 검토 단계에서 "마무리 여운 점수" Top 3 + 댓글 트리거 4축 표시
+- **Best-of-2 셀렉터** (생성 시점에 2안 → 4축 점수 비교 후 선정) — LLM 비용
+  ~2배, 사용자 결정 필요 (`editorial.best_of_n.twitter=true` opt-in 설계됨)
+- 같은 토픽 클러스터 최근 5건 캡션 의미 유사도 ≥ 0.85 시 reroll
+  (n-gram 기준, 비용 0)
 
 ## 4. 수용 기준 (이번 PR)
 

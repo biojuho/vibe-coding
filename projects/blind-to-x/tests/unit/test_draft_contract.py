@@ -62,7 +62,17 @@ def test_editorial_reviewer_only_reviews_publishable_drafts(mock_call_llm):
     reviewer = EditorialReviewer(config=None)
     reviewer._providers = [{"name": "fake"}]
     mock_call_llm.return_value = {
-        "scores": {"hook": 8, "specificity": 8, "voice": 8, "engagement": 8, "readability": 8},
+        "scores": {
+            "hook": 8,
+            "specificity": 8,
+            "voice": 8,
+            "engagement": 8,
+            "readability": 8,
+            "identifiability": 8,
+            "stance": 8,
+            "open_loop": 8,
+            "anchor": 8,
+        },
         "suggestions": ["ok"],
         "rewritten": "개선된 게시용 초안",
     }

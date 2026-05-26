@@ -110,30 +110,23 @@ def test_build_schema_patch_adds_missing_or_updated_properties():
     assert required_keys.issubset(set(patch))
     assert "rich_text" in patch["creator_take"]
 
-    expected_risk_names = {
-        option.get("name")
-        for option in review_schema["risk_flags"]["multi_select"]["options"]
-    } | {existing_risk_name}
-    assert {
-        option["name"] for option in patch["risk_flags"]["multi_select"]["options"]
-    } == expected_risk_names
+    expected_risk_names = {option.get("name") for option in review_schema["risk_flags"]["multi_select"]["options"]} | {
+        existing_risk_name
+    }
+    assert {option["name"] for option in patch["risk_flags"]["multi_select"]["options"]} == expected_risk_names
     assert any(option.get("id") == "id-existing" for option in patch["risk_flags"]["multi_select"]["options"])
 
     expected_publish_names = {
-        option.get("name")
-        for option in review_schema["publish_platforms"]["multi_select"]["options"]
+        option.get("name") for option in review_schema["publish_platforms"]["multi_select"]["options"]
     } | {"X"}
     assert {
         option["name"] for option in patch["publish_platforms"]["multi_select"]["options"]
     } == expected_publish_names
 
     expected_status_names = {
-        option.get("name")
-        for option in review_schema["x_publish_status"]["select"]["options"]
+        option.get("name") for option in review_schema["x_publish_status"]["select"]["options"]
     } | {"Archived"}
-    assert {
-        option["name"] for option in patch["x_publish_status"]["select"]["options"]
-    } == expected_status_names
+    assert {option["name"] for option in patch["x_publish_status"]["select"]["options"]} == expected_status_names
     assert any(option.get("id") == "id-ready" for option in patch["x_publish_status"]["select"]["options"])
     assert skipped == []
 

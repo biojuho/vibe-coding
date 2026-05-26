@@ -43,8 +43,12 @@ class EditorialState(TypedDict, total=False):
     suggestions: list[str]
     rewritten_candidate: str
     avg_score: float
+    # Phase 2: 댓글 트리거 4축 (식별감/입장/오픈루프/앵커) 평균. twitter/threads 만.
+    comment_trigger_avg: float
     iteration: int
     threshold: float
+    # Phase 2: 댓글 트리거 임계 (기본 _COMMENT_TRIGGER_THRESHOLD)
+    comment_trigger_threshold: float
 
 
 logger = logging.getLogger(__name__)
@@ -54,7 +58,18 @@ _brand_voice_cache: dict | None = None
 # 리뷰 통과 기준 (평균 이 점수 이상이면 원본 유지, 미만이면 리라이트)
 # 5.0으로 낮춤: 6.0은 자연스러운 캡션도 과도하게 리라이트하여 경직되는 문제
 _REWRITE_THRESHOLD = 5.0
+# Phase 2 (2026-05-26+): 댓글 트리거 4축 (식별감/입장/오픈루프/앵커) 평균 임계.
+# 짧은 포맷(twitter/threads) 에서만 평가하며, 이 값 미만이면 5축 평균이 통과해도
+# 리라이트를 트리거한다. "이유 없는 생성물 → 댓글이 달리는 글" 목표의 핵심 노브.
+_COMMENT_TRIGGER_THRESHOLD = 6.0
 _REVIEW_TIMEOUT_SECONDS = 15
+
+# 댓글 트리거 4축 (twitter/threads 전용)
+_COMMENT_TRIGGER_AXES = ("identifiability", "stance", "open_loop", "anchor")
+# 기존 5축
+_BASE_REVIEW_AXES = ("hook", "specificity", "voice", "engagement", "readability")
+# 댓글 트리거 4축이 평가되는 플랫폼
+_COMMENT_TRIGGER_PLATFORMS = frozenset({"twitter", "threads"})
 
 # Multi-provider fallback 설정
 _PROVIDER_CONFIGS = {
@@ -109,6 +124,9 @@ class EditorialResult:
     avg_score: float = 0.0
     suggestions: list[str] = field(default_factory=list)
     original_drafts: dict[str, str] = field(default_factory=dict)
+    # Phase 2: 플랫폼별 댓글 트리거 4축 평균. {"twitter": 7.5, "threads": 6.25, ...}
+    # 5축 평균과 별도로 추적해 Notion 리뷰/대시보드에서 댓글 가능성 확인 가능.
+    comment_trigger_scores: dict[str, float] = field(default_factory=dict)
 
 
 class _FallbackEditorialGraph:
@@ -126,7 +144,12 @@ class _FallbackEditorialGraph:
             threshold = state.get("threshold", 5.0)
             iteration = state.get("iteration", 0)
 
-            if avg >= threshold or iteration >= 2 or not state.get("rewritten_candidate", "").strip():
+            # Phase 2: 댓글 트리거 통과 여부 (twitter/threads 만 0 이상)
+            ct_avg = state.get("comment_trigger_avg", 0.0) or 0.0
+            ct_threshold = state.get("comment_trigger_threshold", _COMMENT_TRIGGER_THRESHOLD)
+            ct_ok = ct_avg == 0.0 or ct_avg >= ct_threshold
+
+            if (avg >= threshold and ct_ok) or iteration >= 2 or not state.get("rewritten_candidate", "").strip():
                 return state
 
             state.update(await self.owner._rewriter_node(state))
@@ -201,7 +224,12 @@ class EditorialReviewer:
             threshold = state.get("threshold", 5.0)
             iteration = state.get("iteration", 0)
 
-            if avg >= threshold:
+            # Phase 2: 댓글 트리거 4축이 미달이면 5축 평균이 통과해도 리라이트.
+            ct_avg = state.get("comment_trigger_avg", 0.0) or 0.0
+            ct_threshold = state.get("comment_trigger_threshold", _COMMENT_TRIGGER_THRESHOLD)
+            ct_ok = ct_avg == 0.0 or ct_avg >= ct_threshold
+
+            if avg >= threshold and ct_ok:
                 return END
 
             # 최대 2회 리라이트(iteration) 허용
@@ -233,15 +261,35 @@ class EditorialReviewer:
             return {"avg_score": 10.0, "rewritten_candidate": ""}  # Break loop smoothly
 
         scores = result.get("scores", {})
-        for key in ("hook", "specificity", "voice", "engagement", "readability"):
+        # 기존 5축은 항상 평가.
+        for key in _BASE_REVIEW_AXES:
             val = scores.get(key, 5)
             scores[key] = max(1, min(10, int(val)))
 
+        # Phase 2: 댓글 트리거 4축은 twitter/threads 에서만 평가.
+        comment_trigger_avg = 0.0
+        if platform in _COMMENT_TRIGGER_PLATFORMS:
+            for key in _COMMENT_TRIGGER_AXES:
+                # LLM 이 미응답한 축은 5(중립) 로 보정 — 리라이트 폭주 방지.
+                val = scores.get(key, 5)
+                scores[key] = max(1, min(10, int(val)))
+            comment_trigger_avg = sum(scores[k] for k in _COMMENT_TRIGGER_AXES) / len(_COMMENT_TRIGGER_AXES)
+
         suggestions = result.get("suggestions", [])
-        avg = sum(scores.values()) / max(len(scores), 1)
+        # 5축 평균은 기존과 동일하게 산출 (임계값 호환성 유지).
+        base_avg = sum(scores[k] for k in _BASE_REVIEW_AXES if k in scores) / max(
+            sum(1 for k in _BASE_REVIEW_AXES if k in scores),
+            1,
+        )
         rewritten = result.get("rewritten", "")
 
-        return {"scores": scores, "suggestions": suggestions, "avg_score": avg, "rewritten_candidate": rewritten}
+        return {
+            "scores": scores,
+            "suggestions": suggestions,
+            "avg_score": base_avg,
+            "comment_trigger_avg": comment_trigger_avg,
+            "rewritten_candidate": rewritten,
+        }
 
     async def _rewriter_node(self, state: EditorialState) -> dict:
         """Optimizer 노드: 캔디데이트를 현재 초안으로 승격시키고 다음 반복 진행."""
@@ -297,7 +345,31 @@ class EditorialReviewer:
         source_numbers = re.findall(r"\d[\d,.]*\d|\d+[만천백억원%]", source_content)
         numbers_hint = f"원문 숫자/수치: {', '.join(source_numbers[:10])}" if source_numbers else ""
 
-        return f"""당신은 직장인 콘텐츠 시니어 에디터입니다. 아래 초안을 5가지 축으로 엄격히 평가하세요.
+        # Phase 2: 트위터/스레드는 댓글 트리거 4축 추가 평가.
+        comment_trigger_block = ""
+        scores_template_extra = ""
+        rewrite_threshold_note = "5축 평균 5점 미만일 경우에만"
+        if platform in _COMMENT_TRIGGER_PLATFORMS:
+            rewrite_threshold_note = "5축 평균 5점 미만 또는 4축 평균 6점 미만일 경우에만"
+            comment_trigger_block = """
+[댓글 트리거 4축 — twitter/threads 한정, 각 1~10점]
+이 4축이 모두 6점 이상이어야 "댓글이 달리는 글" 입니다. 이유 없는 무색무취 요약·
+양비론·일반 진리는 모두 낮은 점수입니다.
+
+6. identifiability (식별감): 누가 자기 얘기로 받을지가 드러나는가? 일반 "직장인"
+   만 등장하면 4점 이하. 직군·연차·조직 위치가 한 단어로라도 박혀 있어야 8점 이상.
+7. stance (입장): 운영자/화자의 입장이 분명한가? "이게 맞다/이건 좀 그렇다" 가
+   드러나면 8점 이상. 양비론·균형 잡힌 요약만 있으면 4점 이하.
+8. open_loop (오픈루프): 마지막 문장이 독자가 자기 경험으로 이어 적게 만드는
+   여백을 남기는가? 완결된 결론·교훈·일반 진리로 끝나면 4점 이하. 답이 여러 개로
+   갈리는 평서문으로 끝나면 8점 이상.
+9. anchor (구체 앵커): 독자가 인용·답글로 그대로 가져다 쓸 짧은 인용·숫자·장면이
+   본문에 박혀 있는가? "5천이 월급인데요" 같은 옮길 수 있는 한 조각이 있으면
+   8점 이상. 일반 명사("높은 연봉", "긴 시간")만 있으면 4점 이하.
+"""
+            scores_template_extra = ', "identifiability": N, "stance": N, "open_loop": N, "anchor": N'
+
+        return f"""당신은 직장인 콘텐츠 시니어 에디터입니다. 아래 초안을 평가하세요.
 
 [원문 정보]
 제목: {source_title}
@@ -318,12 +390,13 @@ class EditorialReviewer:
 3. voice (보이스 일관성): 페르소나에 맞는가? 금지 표현을 사용했는가? AI스러운 표현은 없는가?
 4. engagement (참여 유도력): 읽은 사람이 댓글/공유하고 싶은가? 마무리가 강한가?
 5. readability (가독성): 문장이 자연스럽고 읽기 쉬운가? 긴 문장이나 수동태가 과다하지 않은가?
+{comment_trigger_block}
 
 [응답 형식 — 반드시 JSON으로만 응답]
 {{
-  "scores": {{"hook": N, "specificity": N, "voice": N, "engagement": N, "readability": N}},
+  "scores": {{"hook": N, "specificity": N, "voice": N, "engagement": N, "readability": N{scores_template_extra}}},
   "suggestions": ["개선 제안 1", "개선 제안 2"],
-  "rewritten": "평균 5점 미만일 경우에만 리라이트한 전체 초안. 5점 이상이면 빈 문자열. 리라이트 시에도 원본의 자연스러운 톤을 유지하세요."
+  "rewritten": "{rewrite_threshold_note} 리라이트한 전체 초안. 통과 시 빈 문자열. 리라이트 시에도 원본의 자연스러운 톤을 유지하세요."
 }}"""
 
     async def _call_gemini_api(self, prompt: str, api_key: str, model: str) -> str:
@@ -414,8 +487,13 @@ class EditorialReviewer:
         platform: str,
         draft_text: str,
         post_data: dict[str, Any],
-    ) -> tuple[str, dict[str, int], list[str]]:
-        """단일 플랫폼 초안을 LangGraph 루프로 평가 및 리라이트하여 (최종 텍스트, 점수, 제안) 반환."""
+    ) -> tuple[str, dict[str, int], list[str], float]:
+        """단일 플랫폼 초안을 LangGraph 루프로 평가 및 리라이트.
+
+        Returns:
+            (최종 텍스트, 점수 dict, 개선 제안 list, 댓글 트리거 4축 평균).
+            댓글 트리거 평균은 twitter/threads 외에서는 0.0.
+        """
         profile = post_data.get("content_profile", {}) or {}
         topic_cluster = profile.get("topic_cluster", "")
         threshold = self._get_threshold(platform, topic_cluster)
@@ -428,8 +506,10 @@ class EditorialReviewer:
             "suggestions": [],
             "rewritten_candidate": "",
             "avg_score": 0.0,
+            "comment_trigger_avg": 0.0,
             "iteration": 0,
             "threshold": threshold,
+            "comment_trigger_threshold": _COMMENT_TRIGGER_THRESHOLD,
         }
 
         # Graph invoke으로 리뷰 및 리라이트 루프 수행
@@ -439,6 +519,7 @@ class EditorialReviewer:
             final_state.get("draft_text", draft_text),
             final_state.get("scores", {}),
             final_state.get("suggestions", []),
+            float(final_state.get("comment_trigger_avg", 0.0) or 0.0),
         )
 
     async def review_and_polish(
@@ -473,7 +554,7 @@ class EditorialReviewer:
         for platform, draft_text in platform_drafts.items():
             result.original_drafts[platform] = draft_text
             try:
-                polished, scores, suggestions = await self._review_single_platform(
+                polished, scores, suggestions, ct_avg = await self._review_single_platform(
                     platform,
                     draft_text,
                     post_data,
@@ -483,6 +564,8 @@ class EditorialReviewer:
                 for dim, val in scores.items():
                     all_scores[f"{platform}_{dim}"] = val
                 all_suggestions.extend(f"[{platform}] {s}" for s in suggestions)
+                if ct_avg > 0:
+                    result.comment_trigger_scores[platform] = round(ct_avg, 2)
             except Exception as exc:
                 logger.warning("[Editorial] %s review failed (using original): %s", platform, exc)
                 result.polished_drafts[platform] = draft_text
@@ -524,10 +607,16 @@ class EditorialReviewer:
         except Exception as exc:
             logger.debug("Text polishing skipped: %s", exc)
 
+        ct_summary = (
+            ", ".join(f"{p}={v:.1f}" for p, v in sorted(result.comment_trigger_scores.items()))
+            if result.comment_trigger_scores
+            else "n/a"
+        )
         logger.info(
-            "[Editorial] Review complete: avg=%.1f, platforms=%d, suggestions=%d",
+            "[Editorial] Review complete: avg=%.1f, platforms=%d, suggestions=%d, comment_trigger=[%s]",
             result.avg_score,
             len(platform_drafts),
             len(all_suggestions),
+            ct_summary,
         )
         return result

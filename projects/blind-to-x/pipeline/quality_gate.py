@@ -114,6 +114,8 @@ class QualityGate:
         self._check_cliches(draft_text, result)
         self._check_forbidden(draft_text, result)
         self._check_repetition(draft_text, result)
+        self._check_bland_creator_take(draft_text, result)
+        self._check_semantic_similarity(draft_text, platform, result)
         if source_content:
             self._check_source_fidelity(draft_text, source_content, result)
             self._check_originality(draft_text, source_content, result)
@@ -232,10 +234,7 @@ class QualityGate:
             if window in norm_source:
                 # 가능한 한 길게 확장
                 length = min_run
-                while (
-                    i + length < len(norm_draft)
-                    and norm_draft[i : i + length + 1] in norm_source
-                ):
+                while i + length < len(norm_draft) and norm_draft[i : i + length + 1] in norm_source:
                     length += 1
                 matches.append((i, length))
                 i += length  # 겹치지 않게 점프
@@ -256,4 +255,103 @@ class QualityGate:
         elif hit_count >= warn_threshold:
             result.warnings.append(
                 f"copy_overlap_partial: 원문과 연속 {min_run}자 이상 일치 {hit_count}곳 — paraphrase 보완 권장"
+            )
+
+    def _check_bland_creator_take(self, text: str, result: GateResult) -> None:
+        """LLM 응답이 generic/bland한 'creator take'인지 감지하는 결정론적 heuristic.
+
+        숫자가 전혀 없고 뻔한 상투적 소셜 표현이 발견되는 경우 실패(failures) 또는 경고(warnings) 처리합니다.
+        """
+        # 숫자나 구체성 지표 존재 여부 확인
+        has_digits = bool(re.search(r"\d+", text))
+
+        # 뻔한 buzzwords 감지
+        bland_buzzwords = [
+            "정말 중요",
+            "꼭 기억",
+            "핵심은",
+            "엄청난",
+            "놀라운",
+            "대단한",
+            "흥미로운",
+            "다들 어떻게",
+            "생각해보면",
+            "도움이 되셨",
+            "알아보겠",
+            "아주 유익",
+            "유용한 정보",
+        ]
+        found_buzzwords = [w for w in bland_buzzwords if w in text]
+
+        result.metrics["bland_buzzword_count"] = float(len(found_buzzwords))
+        result.metrics["has_digits"] = 1.0 if has_digits else 0.0
+
+        # 숫자가 아예 없고 뻔한 단어가 2개 이상 포함된 경우 실패
+        if not has_digits and len(found_buzzwords) >= 2:
+            result.failures.append(
+                f"bland_creator_take: 구체적 수치(숫자) 없음 & 상투적 표현 {len(found_buzzwords)}개 감지 "
+                f"({', '.join(found_buzzwords[:3])})"
+            )
+        elif len(found_buzzwords) >= 3:
+            result.warnings.append(
+                f"bland_creator_take_warning: 상투적 표현 다수 감지 ({', '.join(found_buzzwords[:3])})"
+            )
+
+    def _check_semantic_similarity(self, text: str, platform: str, result: GateResult) -> None:
+        """최근 N개 캡션과의 Jaccard 3-gram 유사도 비교. 임계값(0.85) 초과 시 warning/error."""
+        if not text:
+            return
+
+        # 인라인 임포트로 순환 참조 방지
+        try:
+            from pipeline.draft_cache import DraftCache
+
+            cache = DraftCache()
+            recent_drafts = cache.get_recent_drafts(5)
+        except Exception as exc:
+            logger.debug("Failed to load DraftCache in _check_semantic_similarity: %s", exc)
+            return
+
+        if not recent_drafts:
+            return
+
+        # 3-gram 집합 생성 헬퍼
+        def get_3grams(t: str) -> set[str]:
+            normalized = re.sub(r"\s+", "", t).lower()
+            if len(normalized) < 3:
+                return {normalized} if normalized else set()
+            return {normalized[i : i + 3] for i in range(len(normalized) - 2)}
+
+        # Jaccard 유사도 계산
+        def jaccard_similarity(t1: str, t2: str) -> float:
+            s1 = get_3grams(t1)
+            s2 = get_3grams(t2)
+            if not s1 or not s2:
+                return 0.0
+            return len(s1.intersection(s2)) / len(s1.union(s2))
+
+        max_sim = 0.0
+        similar_text = ""
+
+        for past_dict in recent_drafts:
+            # 해당 플랫폼의 과거 캡션 추출
+            past_text = past_dict.get(platform, "")
+            if not past_text:
+                continue
+
+            sim = jaccard_similarity(text, past_text)
+            if sim > max_sim:
+                max_sim = sim
+                similar_text = past_text
+
+        result.metrics["max_semantic_similarity"] = max_sim
+
+        if max_sim >= 0.85:
+            result.failures.append(
+                f"semantic_similarity_limit: 최근 초안과 너무 높은 유사도({max_sim:.2f} >= 0.85) "
+                f"구간: '{similar_text[:20]}...'"
+            )
+        elif max_sim >= 0.70:
+            result.warnings.append(
+                f"semantic_similarity_warning: 최근 초안과 유사함({max_sim:.2f} >= 0.70) 구간: '{similar_text[:20]}...'"
             )

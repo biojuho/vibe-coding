@@ -34,7 +34,7 @@ import sqlite3
 import sys
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from dotenv import load_dotenv
 
@@ -597,18 +597,19 @@ class LLMClient:
         payload_validation = validate_json_payload(payload, policy=policy)
         return payload_validation, payload
 
-    def generate_json(
+    def _run_simple_loop(
         self,
         *,
         system_prompt: str,
         user_prompt: str,
-        temperature: float = 0.7,
-        cache_strategy: str = "off",
-    ) -> dict[str, Any]:
-        """JSON 응답 생성 (자동 fallback + 재시도).
-
-        모든 프로바이더 실패 시 RuntimeError 발생.
-        """
+        temperature: float,
+        json_mode: bool,
+        cache_strategy: str,
+        parser: Callable[[str], Any],
+        cache_encoder: Callable[[Any], str],
+        cache_decoder: Callable[[str], Any],
+        mode_label: str,  # "JSON" 또는 "텍스트"
+    ) -> Any:
         providers = self.enabled_providers()
         if not providers:
             raise RuntimeError(self._no_providers_error_message())
@@ -618,8 +619,8 @@ class LLMClient:
             key = _cache_key(providers, system_prompt, user_prompt, temperature)
             cached = _cache_get(key, self.cache_ttl_sec)
             if cached is not None:
-                logger.info("LLM 캐시 히트 (JSON)")
-                return json.loads(cached)
+                logger.info("LLM 캐시 히트 (%s)", mode_label)
+                return cache_decoder(cached)
 
         all_errors: list[str] = []
 
@@ -628,7 +629,8 @@ class LLMClient:
             for attempt in range(1, self.max_retries + 1):
                 try:
                     logger.info(
-                        "LLM JSON 요청: %s/%s (attempt %d/%d)",
+                        "LLM %s 요청: %s/%s (attempt %d/%d)",
+                        mode_label,
                         provider,
                         model,
                         attempt,
@@ -639,11 +641,10 @@ class LLMClient:
                         system_prompt,
                         user_prompt,
                         temperature,
-                        json_mode=True,
+                        json_mode=json_mode,
                         cache_strategy=cache_strategy,
                     )
-                    content = self._clean_json(content)
-                    result = json.loads(content)
+                    result = parser(content)
 
                     self._log_usage(
                         provider,
@@ -656,7 +657,7 @@ class LLMClient:
                     )
                     logger.info("LLM 성공: %s (in=%d, out=%d)", provider, in_tok, out_tok)
                     if self.cache_ttl_sec > 0:
-                        _cache_set(key, json.dumps(result, ensure_ascii=False))
+                        _cache_set(key, cache_encoder(result))
                     return result
 
                 except json.JSONDecodeError as e:
@@ -681,6 +682,35 @@ class LLMClient:
 
         raise RuntimeError(f"모든 LLM 프로바이더 실패.\nErrors: {' | '.join(all_errors)}")
 
+    def generate_json(
+        self,
+        *,
+        system_prompt: str,
+        user_prompt: str,
+        temperature: float = 0.7,
+        cache_strategy: str = "off",
+    ) -> dict[str, Any]:
+        """JSON 응답 생성 (자동 fallback + 재시도).
+
+        모든 프로바이더 실패 시 RuntimeError 발생.
+        """
+
+        def parse_json(content: str) -> dict[str, Any]:
+            cleaned = self._clean_json(content)
+            return json.loads(cleaned)
+
+        return self._run_simple_loop(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=temperature,
+            json_mode=True,
+            cache_strategy=cache_strategy,
+            parser=parse_json,
+            cache_encoder=lambda val: json.dumps(val, ensure_ascii=False),
+            cache_decoder=json.loads,
+            mode_label="JSON",
+        )
+
     def generate_text(
         self,
         *,
@@ -690,59 +720,17 @@ class LLMClient:
         cache_strategy: str = "off",
     ) -> str:
         """텍스트 응답 생성 (자동 fallback + 재시도)."""
-        providers = self.enabled_providers()
-        if not providers:
-            raise RuntimeError("사용 가능한 LLM 프로바이더가 없습니다.")
-
-        # 캐시 조회
-        if self.cache_ttl_sec > 0:
-            key = _cache_key(providers, system_prompt, user_prompt, temperature)
-            cached = _cache_get(key, self.cache_ttl_sec)
-            if cached is not None:
-                logger.info("LLM 캐시 히트 (텍스트)")
-                return cached
-
-        all_errors: list[str] = []
-        for provider in providers:
-            model = self.models.get(provider, DEFAULT_MODELS.get(provider, ""))
-            for attempt in range(1, self.max_retries + 1):
-                try:
-                    logger.info(
-                        "LLM 텍스트 요청: %s/%s (attempt %d/%d)",
-                        provider,
-                        model,
-                        attempt,
-                        self.max_retries,
-                    )
-                    content, in_tok, out_tok, cache_w, cache_r = self._generate_once(
-                        provider,
-                        system_prompt,
-                        user_prompt,
-                        temperature,
-                        json_mode=False,
-                        cache_strategy=cache_strategy,
-                    )
-                    self._log_usage(
-                        provider,
-                        model,
-                        in_tok,
-                        out_tok,
-                        cache_creation_tokens=cache_w,
-                        cache_read_tokens=cache_r,
-                        cache_creation_multiplier=_cache_creation_multiplier(cache_strategy),
-                    )
-                    if self.cache_ttl_sec > 0:
-                        _cache_set(key, content)
-                    return content
-
-                except Exception as e:
-                    all_errors.append(f"{provider} #{attempt}: {e}")
-                    if self._is_non_retryable(e):
-                        break
-                    if attempt < self.max_retries:
-                        time.sleep(min(2**attempt, 10))
-
-        raise RuntimeError(f"모든 프로바이더 실패: {' | '.join(all_errors)}")
+        return self._run_simple_loop(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=temperature,
+            json_mode=False,
+            cache_strategy=cache_strategy,
+            parser=lambda val: val,
+            cache_encoder=lambda val: val,
+            cache_decoder=lambda val: val,
+            mode_label="텍스트",
+        )
 
     def _bridged_generate(
         self,

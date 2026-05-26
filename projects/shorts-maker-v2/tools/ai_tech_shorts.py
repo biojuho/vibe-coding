@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import math
 import os
 import random
@@ -165,7 +166,6 @@ class BaseShortsGenerator:
         return str(Path(out).resolve())
 
 
-
 class AINewsShortsGenerator(BaseShortsGenerator):
     # Phase timings
     PH1_END = 5.0  # Hook
@@ -199,14 +199,16 @@ class AINewsShortsGenerator(BaseShortsGenerator):
         self.PH3_END = self.PH2_END + 10.0 * r
         self.PH4_END = self.duration
 
-        self._load_fonts({
-            "f_title": 58,
-            "f_stat": 72,
-            "f_body": 34,
-            "f_big": 48,
-            "f_small": 28,
-            "f_badge": 26,
-        })
+        self._load_fonts(
+            {
+                "f_title": 58,
+                "f_stat": 72,
+                "f_body": 34,
+                "f_big": 48,
+                "f_small": 28,
+                "f_badge": 26,
+            }
+        )
         self._bg_img = self._load_bg(image_path)
 
         # Preprocess text
@@ -433,14 +435,16 @@ class TechVSShortsGenerator(BaseShortsGenerator):
         self.verdict = verdict
         self.duration = duration
 
-        self._load_fonts({
-            "f_title": 52,
-            "f_body": 32,
-            "f_big": 44,
-            "f_small": 26,
-            "f_badge": 28,
-            "f_vs": 80,
-        })
+        self._load_fonts(
+            {
+                "f_title": 52,
+                "f_body": 32,
+                "f_big": 44,
+                "f_small": 26,
+                "f_badge": 28,
+                "f_vs": 80,
+            }
+        )
 
         tw = self.W // 2 - 60
         self._pa_lines = [self._wrap(p, self.f_body, tw) for p in self.points_a]
@@ -533,42 +537,19 @@ class TechVSShortsGenerator(BaseShortsGenerator):
 
 
 # ── Demo data ──
-DEMO_NEWS = {
-    "headline": "GPT-5 출시가 확정됐습니다",
-    "stat": "2026년 1분기 출시 확정",
-    "key_points": [
-        "멀티모달 통합: 텍스트·이미지·비디오·코드를 하나의 모델로 처리",
-        "1M 토큰 컨텍스트 윈도우로 책 전체를 한 번에 분석 가능",
-        "에이전트 모드: 웹 브라우징부터 코딩까지 자율 수행",
-        "할루시네이션 90% 감소 — 팩트체크 내재화",
-    ],
-    "impact": (
-        "GPT-5는 단순한 챗봇을 넘어 '디지털 동료'로 진화합니다. "
-        "SWE 벤치마크 75% → 92% 달성으로 주니어 개발자 수준의 코딩이 가능하며, "
-        "기업용 API 가격은 오히려 40% 인하될 예정입니다."
-    ),
-    "source": "OpenAI 공식 블로그 (2026.03)",
-    "duration": 35.0,
-}
+PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 
-DEMO_VS = {
-    "tech_a": "Claude 4",
-    "tech_b": "GPT-5",
-    "points_a": [
-        "긴 컨텍스트에 강함 (200K 토큰)",
-        "안전성·윤리 최우선 설계",
-        "코드 리뷰에 특화된 추론",
-        "가격 대비 성능 우위",
-    ],
-    "points_b": [
-        "멀티모달 통합 (영상·음성)",
-        "에이전트 자율 실행 가능",
-        "더 넓은 플러그인 생태계",
-        "실시간 웹 검색 내장",
-    ],
-    "verdict": "코드 품질이 중요하면 Claude 4, 범용 AI 비서가 필요하면 GPT-5가 유리합니다.",
-    "duration": 35.0,
-}
+
+def _load_demo_data(filename: str) -> dict:
+    path = PROMPTS_DIR / filename
+    if path.exists():
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+DEMO_NEWS = _load_demo_data("demo_news.json")
+DEMO_VS = _load_demo_data("demo_vs.json")
 
 
 def main():

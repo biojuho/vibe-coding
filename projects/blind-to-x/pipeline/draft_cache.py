@@ -177,3 +177,25 @@ class DraftCache:
                 conn.execute("DELETE FROM draft_cache")
         except Exception:
             pass
+
+    def get_recent_drafts(self, limit: int = 5) -> list[dict]:
+        """최근에 생성된 N개의 초안들을 생성 시각 역순으로 조회합니다."""
+        if self._redis_backend is not None:
+            return []
+        try:
+            with self._conn() as conn:
+                cursor = conn.execute(
+                    "SELECT drafts_json FROM draft_cache ORDER BY created_at DESC LIMIT ?",
+                    (limit,),
+                )
+                rows = cursor.fetchall()
+                results = []
+                for row in rows:
+                    try:
+                        results.append(json.loads(row[0]))
+                    except Exception:
+                        pass
+                return results
+        except Exception as exc:
+            logger.warning("DraftCache.get_recent_drafts() failed: %s", exc)
+            return []

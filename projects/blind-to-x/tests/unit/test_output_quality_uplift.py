@@ -29,10 +29,13 @@ from pipeline.quality_gate import QualityGate
 
 
 def _pad(text: str, target: int = 80) -> str:
-    """min_len 통과용 한글 패딩."""
+    """min_len 통과용 한글 패딩 (문장 반복 없음)."""
     if len(text) >= target:
         return text
-    return text + " " + "조용한 회의실의 한 장면이었다." * 5
+    return (
+        text
+        + " 오늘 회사 회의실에서 있었던 황당하고 신기한 이야기 하나 들려드릴게요. 생각보다 무척 재미있고 흥미로울 것 같습니다."
+    )
 
 
 def _failed_rule_names(result) -> set[str]:
@@ -117,7 +120,12 @@ class TestClosingResonance:
     def test_validate_blog_not_checked(self):
         """블로그 플랫폼은 마무리 여운 검사 대상이 아님."""
         gate = DraftQualityGate()
-        draft = "## 제목\n" + "회의실 이야기. " * 200 + "## 마무리\n공감 눌러주세요?\n" + " ".join(f"#태그{i}" for i in range(10))
+        draft = (
+            "## 제목\n"
+            + "회의실 이야기. " * 200
+            + "## 마무리\n공감 눌러주세요?\n"
+            + " ".join(f"#태그{i}" for i in range(10))
+        )
         result = gate.validate("naver_blog", draft)
         rules = _failed_rule_names(result)
         assert "마무리 여운" not in rules
@@ -215,10 +223,7 @@ class TestOriginality:
     def test_partial_copy_warns(self):
         """12자 이상 연속 일치 2개 → warning."""
         # 한국어 12자 이상 연속 일치 2곳 만들기
-        source = (
-            "이번 분기 실적 발표 후 회의실 분위기가 가라앉았다. "
-            "팀장은 무거운 얼굴로 한참 자료를 넘겨봤다."
-        )
+        source = "이번 분기 실적 발표 후 회의실 분위기가 가라앉았다. 팀장은 무거운 얼굴로 한참 자료를 넘겨봤다."
         # draft 가 source 의 두 긴 chunk 를 그대로 가져다 씀
         draft = (
             "이번 분기 실적 발표 후 회의실 분위기가 가라앉았다. "
@@ -259,9 +264,115 @@ class TestOriginality:
     def test_quoted_passage_excluded(self):
         """인용부("...") 안의 원문 그대로 인용은 제외."""
         source = "팀장은 '이번 분기는 동결입니다 잘부탁드립니다' 라고 잘라 말했다 다들."
-        draft = (
-            "팀장이 \"이번 분기는 동결입니다 잘부탁드립니다\" 라고 말한 순간 회의실 공기가 멈췄다."
-        )
+        draft = '팀장이 "이번 분기는 동결입니다 잘부탁드립니다" 라고 말한 순간 회의실 공기가 멈췄다.'
         result = self.gate.check(draft, source_content=source)
         # 인용은 제외 → copy_overlap 안 잡혀야 함
         assert result.metrics.get("copy_chunks", 0) == 0
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Phase 2: Bland Creator Take & Semantic Similarity (2026-05-26+)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+class TestBlandCreatorTake:
+    def setup_method(self):
+        self.gate = QualityGate()
+
+    def test_bland_creator_take_triggers_failure(self):
+        """숫자가 전혀 없고 뻔한 상투적 소셜 표현이 2개 이상이면 실패해야 함."""
+        # bland_buzzwords: "정말 중요", "꼭 기억" 포함, 아라비아 숫자 없음
+        text = _pad("이번 이터레이션에서 가장 정말 중요 생각하는 부분은 다들 꼭 기억하셨으면 좋겠습니다.")
+        result = self.gate.check(text)
+        assert result.passed is False
+        assert any("bland_creator_take:" in f for f in result.failures)
+        assert result.metrics.get("has_digits") == 0.0
+        assert result.metrics.get("bland_buzzword_count") >= 2.0
+
+    def test_bland_with_digits_passes(self):
+        """뻔한 어구가 있더라도 구체적 수치(숫자)가 포함되어 있으면 실패가 아니어야 함."""
+        # "정말 중요", "꼭 기억" 2개 포함되나, "3가지" 라는 구체적 수치(숫자) 제공
+        text = _pad("이번에 다루는 3가지 팩트 중 정말 중요 핵심은 꼭 기억하셔야 합니다.")
+        result = self.gate.check(text)
+        assert result.passed is True
+        assert not any("bland_creator_take:" in f for f in result.failures)
+        assert result.metrics.get("has_digits") == 1.0
+
+    def test_buzzword_overuse_warns(self):
+        """숫자가 포함되어 있어도 뻔한 어구가 3개 이상이면 warning 발생해야 함."""
+        text = _pad(
+            "12일 발표된 자료를 생각해보면, 다들 어떻게 생각하시나요? 저는 정말 중요 생각하는 부분이 있습니다. 꼭 기억합시다."
+        )
+        result = self.gate.check(text)
+        assert result.passed is True  # Warning이므로 passed는 True
+        assert any("bland_creator_take_warning" in w for w in result.warnings)
+        assert result.metrics.get("bland_buzzword_count") >= 3.0
+
+    def test_normal_social_take_passes_completely(self):
+        """일반적이고 구체적인 본문은 완전히 통과."""
+        text = _pad("작년 대비 영업 이익이 무려 45% 성장했습니다. 특히 해외 시장에서의 반응이 뜨거웠던 덕분입니다.")
+        result = self.gate.check(text)
+        assert result.passed is True
+        assert not any("bland_creator" in f for f in result.failures)
+        assert not any("bland_creator" in w for w in result.warnings)
+
+
+class TestSemanticSimilarity:
+    def setup_method(self):
+        self.gate = QualityGate()
+        from pipeline.draft_cache import DraftCache
+
+        self.cache = DraftCache()
+        self.cache.clear()  # 깨끗한 테스트 상태 시작
+
+    def teardown_method(self):
+        self.cache.clear()
+
+    def test_high_similarity_triggers_failure(self):
+        """최근 저장된 초안과 유사도가 0.85 이상이면 실패해야 함."""
+        # 1. 최근 캐시 데이터 인서트
+        past_draft = {
+            "twitter": "오늘 점심은 오랜만에 부장님이 다 같이 피자를 먹자고 하셔서 기분 좋게 식사했네요.",
+            "threads": "피자 파티 맛있었다",
+        }
+        self.cache.set("test_key_1", past_draft, "img_prompt")
+
+        # 2. 아주 비슷한 초안 (공백 1개 차이 -> 90% 이상 유사)
+        current_draft = "오늘 점심은 오랜만에 부장님이 다 같이 피자를 먹자고 하셔서 기분좋게 식사했네요."
+        result = self.gate.check(current_draft, platform="twitter")
+
+        assert result.passed is False
+        assert any("semantic_similarity_limit" in f for f in result.failures)
+        assert result.metrics.get("max_semantic_similarity", 0) >= 0.85
+
+    def test_partial_similarity_triggers_warning(self):
+        """최근 초안과 유사도가 0.70 이상 0.85 미만인 경우 warning 발생해야 함."""
+        past_draft = {
+            "twitter": "오늘 점심은 오랜만에 부장님이 다 같이 피자를 먹자고 하셔서 기분 좋게 식사했네요.",
+            "threads": "피자 파티 맛있었다",
+        }
+        self.cache.set("test_key_2", past_draft, "img_prompt")
+
+        # 뻔한 단어가 살짝 추가됨 (0.838 수준의 3-gram Jaccard 유사도 발생)
+        current_draft = "오늘 점심은 오랜만에 부장님이 다 같이 피자를 먹자고 하셔서 정말 기분 좋게 식사했네요."
+        result = self.gate.check(current_draft, platform="twitter")
+
+        assert result.passed is True  # Warning이므로 passed
+        assert any("semantic_similarity_warning" in w for w in result.warnings)
+        assert 0.70 <= result.metrics.get("max_semantic_similarity", 0) < 0.85
+
+    def test_distinct_draft_passes_completely(self):
+        """완전히 다른 초안은 유사도 체크를 완벽히 통과."""
+        past_draft = {
+            "twitter": "오늘 아침 지하철 2호선 연착 때문에 지각할 뻔해서 아침부터 심장이 쫄깃했네요.",
+            "threads": "지하철 연착 지옥",
+        }
+        self.cache.set("test_key_3", past_draft, "img_prompt")
+
+        current_draft = "업계 전반적으로 AI 도입 속도가 가속화되면서 개발 환경도 매일 변화하고 있습니다."
+        result = self.gate.check(current_draft, platform="twitter")
+
+        assert result.passed is True
+        assert not any("semantic_similarity" in f for f in result.failures)
+        assert not any("semantic_similarity" in w for w in result.warnings)
+        assert result.metrics.get("max_semantic_similarity", 0) < 0.70

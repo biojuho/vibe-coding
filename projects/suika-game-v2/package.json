@@ -6,7 +6,8 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
-		"build": "node scripts/prebuild-check.js && vite build",
+		"build": "node scripts/prebuild-check.js",
+		"build:direct": "vite build",
 		"preview": "vite preview",
 		"test": "vitest run",
 		"test:watch": "vitest",
