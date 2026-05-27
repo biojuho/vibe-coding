@@ -194,13 +194,13 @@ jobs:
           fi
 
       - name: Test
-        run: pnpm --filter ${{ matrix.app }} test --if-present
+        run: pnpm --filter ${{ matrix.app }} run --if-present test
 
       - name: Build
-        run: pnpm --filter ${{ matrix.app }} build --if-present
+        run: pnpm --filter ${{ matrix.app }} run --if-present build
 
       - name: Lint
-        run: pnpm --filter ${{ matrix.app }} lint --if-present
+        run: pnpm --filter ${{ matrix.app }} run --if-present lint
 
       - name: Runtime smoke
         run: pnpm --filter ${{ matrix.app }} run --if-present smoke
