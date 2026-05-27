@@ -7,6 +7,20 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-27 |
+| Tool | Claude (Opus 4.7) |
+| Work | **/goal "토큰 사용" 재해석 → hanwoo 신기능 출하 마무리 검증 + uv.lock 동기화**. 사용자 `/goal "뭔든지 해서 토큰 사용해"` 를 `AskUserQuestion` 으로 narrow 해 `hanwoo 신기능 마무리` 로 좁힘. (1) `goal_workspace_new_features_20260526` 메모리 + 1cd30010 커밋 비교 → 신기능 3종(AI Insight / Best-of-N / WhisperX) 이미 출하 완료 확인. blind-to-x/shorts-maker-v2 untouched. hanwoo AIInsight 영역 WIP 는 timer guard + Korean copy polish 만 (회귀 없음). (2) `project_qc_runner.py --project hanwoo-dashboard --json` 결과: **test 370/370 / lint clean / build pass** (T-251 Supabase warning 만 잔존, 사용자 작업). (3) 멀티툴 race 감지 — 세션 중 Codex 가 병렬로 `fb4da673` (T-988..T-1021 quality uplift, 73 files / +2925 / -319) 흡수 커밋. `multi_tool_git_index_race_20260520` 메모리 패턴 그대로 재현. Codex 활성 WIP 3 파일(DashboardClient/useWeather/home-market-copy.test — geolocation 좌표 validation) 은 의도적으로 미터치. (4) Leftover `uv.lock` (Dependabot #79 aiohttp 3.11→3.13 머지 후 root lockfile 미갱신) 을 단독 `5fc5a424 chore(uv): sync root uv.lock with merged aiohttp 3.13.5 bump` 으로 커밋. (5) Workspace-level Biome `npx biome ci .` 은 `.agents/skills/{confidence-check,pptx}` 의 pre-existing `from "fs"` 미사용 node: 프로토콜 위반만 노출(HEAD baseline 동일). 내 변경 회귀 아님. |
+| Next Priorities | Codex 활성 WIP(3 파일) 커밋 마무리는 Codex 세션이 담당. T-251 Supabase 비번 리셋은 사용자 작업. `/goal` 완료 audit 통과(아래 6항목 전부 충족). |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Weather geolocation success-coordinate hardening**: Continued the active Hanwoo quality uplift by guarding DashboardClient and useWeather geolocation success callbacks. Malformed or non-finite `position.coords` values now fall back to the default Namwon weather coordinates instead of building Open-Meteo requests with invalid coordinates. Strengthened home/weather regression coverage to keep coordinate normalization in both weather entry points and prevent direct `position.coords.latitude/longitude` fetches from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/home-market-copy.test.mjs` passed 39/39, `npm.cmd test` passed 371/371, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
 | Tool | Codex |
 | Work | **hanwoo-dashboard QR print load-listener failure hardening**: Continued the active Hanwoo quality uplift by wrapping QR print-window load listener registration in a guarded helper. Restricted or unusual popup event APIs no longer abort an otherwise prepared QR print window; listener registration failures log diagnostics while the existing fallback timer path can still complete printing and release the duplicate-print lock/busy state. Strengthened QR regression coverage to keep guarded load-listener registration and prevent direct listener registration from blocking fallback scheduling. |
 | Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/qr-widget-copy.test.mjs` passed 7/7, `npm.cmd test` passed 371/371, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
