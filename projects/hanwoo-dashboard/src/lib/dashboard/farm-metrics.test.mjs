@@ -70,6 +70,20 @@ test("estimateMonthlyFeedCostPerHead ignores non-feed and out-of-window records"
 	assert.equal(result.totalFeedSpend, 150000);
 });
 
+test("estimateMonthlyFeedCostPerHead falls back for malformed window months", () => {
+	const result = estimateMonthlyFeedCostPerHead({
+		expenseRecords: [
+			{ date: "2026-04-10", category: "feed", amount: 600000 },
+		],
+		activeCattleCount: 10,
+		now: NOW,
+		windowMonths: 0,
+	});
+
+	assert.equal(result.estimate, 10000);
+	assert.equal(Number.isFinite(result.estimate), true);
+});
+
 test("estimateMonthlyWeightGainPerHead returns null when no sales", () => {
 	const result = estimateMonthlyWeightGainPerHead({
 		salesRecords: [],
@@ -139,6 +153,22 @@ test("estimateMonthlyWeightGainPerHead ignores out-of-window and malformed", () 
 		now: NOW,
 	});
 	assert.equal(result.sampleSize, 1);
+	assert.ok(result.estimate > 0);
+});
+
+test("estimateMonthlyWeightGainPerHead falls back for malformed window months", () => {
+	const cattleById = new Map([["good", { birthDate: "2024-01-01", weight: 700 }]]);
+	const result = estimateMonthlyWeightGainPerHead({
+		salesRecords: [
+			{ cattleId: "good", saleDate: "2026-05-15", weight: 700 },
+		],
+		cattleById,
+		now: NOW,
+		windowMonths: -1,
+	});
+
+	assert.equal(result.sampleSize, 1);
+	assert.equal(Number.isFinite(result.estimate), true);
 	assert.ok(result.estimate > 0);
 });
 

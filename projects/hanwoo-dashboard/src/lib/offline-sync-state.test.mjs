@@ -24,6 +24,17 @@ test("normalizeOfflineQueueMetadata preserves persisted retry fields", () => {
 	});
 });
 
+test("normalizeOfflineQueueMetadata ignores malformed queue items", () => {
+	const result = normalizeOfflineQueueMetadata(null);
+
+	assert.deepEqual(result, {
+		retryCount: 0,
+		lastAttemptAt: null,
+		lastError: null,
+		deadLetteredAt: null,
+	});
+});
+
 test("createFailedQueueItemState keeps retryable failures in the live queue before the cap", () => {
 	const result = createFailedQueueItemState(
 		{ id: "queue-1", retryCount: 1 },
@@ -35,6 +46,16 @@ test("createFailedQueueItemState keeps retryable failures in the live queue befo
 	assert.equal(result.item.lastAttemptAt, 2000);
 	assert.equal(result.item.lastError, "network timeout");
 	assert.equal(result.item.deadLetteredAt, null);
+});
+
+test("createFailedQueueItemState ignores malformed item and options input", () => {
+	const result = createFailedQueueItemState(null, null);
+
+	assert.equal(result.disposition, "retry");
+	assert.equal(result.item.retryCount, 1);
+	assert.equal(result.item.lastError, null);
+	assert.equal(result.item.deadLetteredAt, null);
+	assert.equal(typeof result.item.lastAttemptAt, "number");
 });
 
 test("createFailedQueueItemState dead-letters items that hit the retry cap", () => {

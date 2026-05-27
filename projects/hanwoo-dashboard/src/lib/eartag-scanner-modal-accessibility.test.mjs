@@ -115,23 +115,46 @@ test("ear tag scanner guards animation frame scheduling and cleanup", () => {
 		source,
 		/try \{\s+window\.cancelAnimationFrame\(animationId\);\s+\} catch \{\}/,
 	);
-	assert.match(source, /function deferScannerNoMatch\(setScanStatus\) \{/);
 	assert.match(
 		source,
-		/queueMicrotask\(\(\) => setScanStatus\("no_match"\)\);/,
+		/function deferScannerTask\(callback\) \{/,
 	);
 	assert.match(
 		source,
-		/Promise\.resolve\(\)\.then\(\(\) => setScanStatus\("no_match"\)\);/,
+		/try \{\s+queueMicrotask\(callback\);\s+\} catch \{\s+Promise\.resolve\(\)\.then\(callback\);/,
 	);
+	assert.match(
+		source,
+		/function deferScannerNoMatch\(setScanStatus, shouldApply = \(\) => true\) \{/,
+	);
+	assert.match(
+		source,
+		/const applyNoMatch = \(\) => \{\s+if \(shouldApply\(\)\) \{\s+setScanStatus\("no_match"\);/,
+	);
+	assert.match(
+		source,
+		/deferScannerTask\(applyNoMatch\);/,
+	);
+	assert.match(
+		source,
+		/deferScannerTask\(\(\) => \{\s+if \(cancelled\) \{/,
+	);
+	assert.match(source, /let cancelled = false;\s+const canvas = canvasRef\.current;/);
 	assert.match(source, /cancelScannerFrame\(animationRef\.current\);/);
 	assert.match(source, /animationRef\.current = null;/);
-	assert.match(source, /if \(!ctx\) \{\s+deferScannerNoMatch\(setScanStatus\);/);
 	assert.match(
 		source,
-		/animationRef\.current = scheduleScannerFrame\(render\);\s+if \(animationRef\.current === null\) \{/,
+		/if \(!ctx\) \{\s+deferScannerNoMatch\(setScanStatus, \(\) => !cancelled\);\s+return \(\) => \{\s+cancelled = true;\s+\};/,
 	);
-	assert.match(source, /deferScannerNoMatch\(setScanStatus\);/);
+	assert.match(
+		source,
+		/animationRef\.current = scheduleScannerFrame\(render\);\s+if \(animationRef\.current === null && !cancelled\) \{/,
+	);
+	assert.match(source, /deferScannerNoMatch\(setScanStatus, \(\) => !cancelled\);/);
+	assert.match(
+		source,
+		/return \(\) => \{\s+cancelled = true;\s+cancelScannerFrame\(animationRef\.current\);/,
+	);
 	assert.doesNotMatch(
 		source,
 		/animationRef\.current = requestAnimationFrame\(render\);/,
@@ -139,5 +162,13 @@ test("ear tag scanner guards animation frame scheduling and cleanup", () => {
 	assert.doesNotMatch(
 		source,
 		/if \(animationRef\.current\) cancelAnimationFrame\(animationRef\.current\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/queueMicrotask\(\(\) => setScanStatus\("no_match"\)\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/queueMicrotask\(\(\) => \{\s+if \(cancelled\) \{/,
 	);
 });

@@ -84,6 +84,29 @@ test("admin diagnostics loading states are announced", () => {
 	);
 });
 
+test("admin diagnostics effect loading resets avoid lint suppressions", () => {
+	const source = readSource("components/admin/DiagnosticsPageClient.js");
+
+	assert.match(source, /function deferDiagnosticsTask\(callback\) \{/);
+	assert.match(
+		source,
+		/try \{\s+queueMicrotask\(callback\);\s+\} catch \{\s+Promise\.resolve\(\)\.then\(callback\);/,
+	);
+	assert.match(
+		source,
+		/deferDiagnosticsTask\(\(\) => \{\s+if \(!cancelled && requestId === diagnosticsRequestRef\.current\) \{\s+setLoading\(true\);/,
+	);
+	assert.match(
+		source,
+		/deferDiagnosticsTask\(\(\) => \{\s+if \(!cancelled && requestId === rawDataRequestRef\.current\) \{\s+setDataLoading\(true\);\s+setRawData\(null\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/queueMicrotask\(\(\) => \{\s+if \(!cancelled && requestId ===/,
+	);
+	assert.doesNotMatch(source, /eslint-disable/);
+});
+
 test("admin diagnostics numeric metrics are normalized before rendering", () => {
 	const source = readSource("components/admin/DiagnosticsPageClient.js");
 

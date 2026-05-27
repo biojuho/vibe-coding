@@ -81,3 +81,12 @@ test("authorizeCredentials degrades database errors to invalid credentials", asy
 
 	assert.equal(result, null);
 });
+
+test("authorizeCredentials tolerates malformed dependency input", async () => {
+	const result = await authorizeCredentials(
+		{ username: "admin", password: "secret" },
+		null,
+	);
+
+	assert.equal(result, null);
+});

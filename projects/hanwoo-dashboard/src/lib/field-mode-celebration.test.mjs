@@ -118,6 +118,27 @@ test("FieldModeView normalizes persisted checklist state safely", () => {
 	);
 });
 
+test("FieldModeView ignores stale full-list loading completions after cleanup", () => {
+	const source = readSource("components/widgets/FieldModeView.js");
+
+	assert.match(
+		source,
+		/useEffect\(\(\) => \{\s+let cancelled = false;[\s\S]*?ensureAllCattleLoaded\(\{ silent: true \}\)/,
+	);
+	assert.match(
+		source,
+		/\.finally\(\(\) => \{\s+if \(!cancelled\) \{\s+setLoadingAllCattle\(false\);/,
+	);
+	assert.match(
+		source,
+		/return \(\) => \{\s+cancelled = true;\s+\};\s+\}, \[ensureAllCattleLoaded\]\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/\.finally\(\(\) => setLoadingAllCattle\(false\)\)/,
+	);
+});
+
 test("FieldModeView mounts the celebration canvas with mixBlendMode screen", () => {
 	const source = readSource("components/widgets/FieldModeView.js");
 
@@ -240,7 +261,11 @@ test("FieldModeView guards celebration animation frame scheduling and cleanup", 
 	assert.match(source, /let animationId = null;/);
 	assert.match(
 		source,
-		/animationId = scheduleFieldModeAnimationFrame\(animate\);\s+if \(animationId === null\) \{\s+frameFailureTimer = scheduleFieldModeTimer\(\(\) => \{\s+setShowCelebration\(false\);/,
+		/useEffect\(\(\) => \{\s+if \(!showCelebration\) return;\s+let cancelled = false;/,
+	);
+	assert.match(
+		source,
+		/animationId = scheduleFieldModeAnimationFrame\(animate\);\s+if \(animationId === null\) \{\s+frameFailureTimer = scheduleFieldModeTimer\(\(\) => \{\s+if \(!cancelled\) \{\s+setShowCelebration\(false\);/,
 	);
 	assert.match(source, /clearFieldModeTimer\(frameFailureTimer\);/);
 	assert.match(source, /cancelFieldModeAnimationFrame\(animationId\);/);
@@ -254,13 +279,40 @@ test("FieldModeView guards celebration animation frame scheduling and cleanup", 
 	);
 	assert.match(
 		source,
-		/const ctx = canvas\.getContext\("2d"\);\s+if \(!ctx\) \{\s+const closeTimer = scheduleFieldModeTimer\(\(\) => \{\s+setShowCelebration\(false\);/,
+		/const ctx = canvas\.getContext\("2d"\);\s+if \(!ctx\) \{\s+const closeTimer = scheduleFieldModeTimer\(\(\) => \{\s+if \(!cancelled\) \{\s+setShowCelebration\(false\);/,
 	);
-	assert.match(source, /return \(\) => clearFieldModeTimer\(closeTimer\);/);
+	assert.match(
+		source,
+		/return \(\) => \{\s+cancelled = true;\s+clearFieldModeTimer\(closeTimer\);/,
+	);
+	assert.match(
+		source,
+		/return \(\) => \{\s+cancelled = true;\s+try \{\s+window\.removeEventListener\("resize", handleResize\);/,
+	);
+	assert.match(
+		source,
+		/const t1 = scheduleFieldModeTimer\(\s+\(\) => \{\s+if \(!cancelled\) \{\s+createFirework\(width \* 0\.25, height \* 0\.6\);/,
+	);
+	assert.match(
+		source,
+		/const t2 = scheduleFieldModeTimer\(\s+\(\) => \{\s+if \(!cancelled\) \{\s+createFirework\(width \* 0\.75, height \* 0\.6\);/,
+	);
 	assert.doesNotMatch(source, /animationId = requestAnimationFrame\(animate\)/);
 	assert.doesNotMatch(source, /\n\s*cancelAnimationFrame\(animationId\);/);
 	assert.doesNotMatch(source, /window\.addEventListener\("resize", handleResize\);\s+const particles/);
 	assert.doesNotMatch(source, /window\.removeEventListener\("resize", handleResize\);\s+cancel/);
+	assert.doesNotMatch(
+		source,
+		/const t1 = scheduleFieldModeTimer\(\s+\(\) => createFirework/,
+	);
+	assert.doesNotMatch(
+		source,
+		/const t2 = scheduleFieldModeTimer\(\s+\(\) => createFirework/,
+	);
+	assert.doesNotMatch(
+		source,
+		/scheduleFieldModeTimer\(\(\) => \{\s+setShowCelebration\(false\);/,
+	);
 });
 
 test("FieldModeView guards celebration timer scheduling and cleanup", () => {
@@ -283,7 +335,10 @@ test("FieldModeView guards celebration timer scheduling and cleanup", () => {
 	);
 	assert.match(source, /const t1 = scheduleFieldModeTimer\(/);
 	assert.match(source, /const t2 = scheduleFieldModeTimer\(/);
-	assert.match(source, /const timer = scheduleFieldModeTimer\(\(\) => \{/);
+	assert.match(
+		source,
+		/const timer = scheduleFieldModeTimer\(\(\) => \{\s+if \(!cancelled\) \{\s+setShowCelebration\(false\);/,
+	);
 	assert.match(source, /clearFieldModeTimer\(timer\);/);
 	assert.match(source, /clearFieldModeTimer\(t1\);/);
 	assert.match(source, /clearFieldModeTimer\(t2\);/);

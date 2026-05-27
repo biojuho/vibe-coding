@@ -50,8 +50,11 @@ export function formatNotificationTime(value) {
 export function getNotificationTargetDate(
 	type,
 	sourceDate,
-	{ now = new Date() } = {},
+	options = {},
 ) {
+	const { now = new Date() } =
+		options && typeof options === "object" ? options : {};
+
 	if (type === "estrus") {
 		const nextEstrusDate = parseDate(sourceDate);
 		const referenceNow = parseDate(now);

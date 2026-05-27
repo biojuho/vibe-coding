@@ -36,6 +36,10 @@ test("cattle pagination failures surface Korean retry feedback", () => {
 	);
 	assert.match(
 		hookSource,
+		/console\.error\("Failed to schedule cattle pagination timeout:", error\);\s+didTimeout = true;\s+controller\.abort\(\);/,
+	);
+	assert.match(
+		hookSource,
 		/if \(timeoutId !== null\) \{\s+try \{\s+window\.clearTimeout\(timeoutId\);\s+\} catch \{\}/,
 	);
 	assert.match(

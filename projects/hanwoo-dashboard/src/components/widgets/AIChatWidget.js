@@ -129,6 +129,7 @@ export default function AIChatWidget() {
 	const launcherRef = useRef(null);
 	const panelRef = useRef(null);
 	const abortRef = useRef(null);
+	const isMountedRef = useRef(false);
 	const sendInFlightRef = useRef(false);
 	const shouldRestoreLauncherFocusRef = useRef(false);
 	const canSend = input.trim().length > 0 && !isStreaming;
@@ -146,6 +147,19 @@ export default function AIChatWidget() {
 			scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
 		}
 	}, [isOpen, messages]);
+
+	useEffect(() => {
+		isMountedRef.current = true;
+
+		return () => {
+			isMountedRef.current = false;
+			if (abortRef.current) {
+				abortRef.current.abort();
+				abortRef.current = null;
+			}
+			sendInFlightRef.current = false;
+		};
+	}, []);
 
 	useEffect(() => {
 		if (isOpen) {
@@ -195,6 +209,9 @@ export default function AIChatWidget() {
 			history: historyForApi,
 			signal: controller.signal,
 			onChunk: (text) => {
+				if (!isMountedRef.current) {
+					return;
+				}
 				accumulated += text;
 				setMessages((prev) => {
 					const updated = [...prev];
@@ -206,6 +223,9 @@ export default function AIChatWidget() {
 				});
 			},
 			onDone: () => {
+				if (!isMountedRef.current) {
+					return;
+				}
 				sendInFlightRef.current = false;
 				setIsStreaming(false);
 				if (abortRef.current === controller) {
@@ -224,6 +244,10 @@ export default function AIChatWidget() {
 					? buildOfflineReply(trimmed)
 					: `오류: ${errorMsg}`;
 
+				if (!isMountedRef.current) {
+					return;
+				}
+
 				setMessages((prev) => {
 					const updated = [...prev];
 					updated[updated.length - 1] = {
@@ -240,7 +264,7 @@ export default function AIChatWidget() {
 			},
 		});
 
-		if (controller.signal.aborted && !accumulated) {
+		if (isMountedRef.current && controller.signal.aborted && !accumulated) {
 			setMessages((prev) => {
 				const updated = [...prev];
 				if (
@@ -252,7 +276,7 @@ export default function AIChatWidget() {
 				return updated;
 			});
 		}
-		if (abortRef.current === controller) {
+		if (isMountedRef.current && abortRef.current === controller) {
 			abortRef.current = null;
 			sendInFlightRef.current = false;
 			setIsStreaming(false);

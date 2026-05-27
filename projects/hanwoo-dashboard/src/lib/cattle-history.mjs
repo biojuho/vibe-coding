@@ -43,7 +43,11 @@ export function parseCattleHistoryMetadata(metadata) {
 }
 
 export function normalizeCattleHistoryRows(rows = []) {
-	return rows.map((row) => {
+	if (!Array.isArray(rows)) {
+		return [];
+	}
+
+	return rows.filter(isRecord).map((row) => {
 		const parsed = parseCattleHistoryMetadata(row?.metadata);
 
 		return {
@@ -55,13 +59,26 @@ export function normalizeCattleHistoryRows(rows = []) {
 	});
 }
 
+function toPositiveWeightOrNull(value) {
+	if (value === null || value === undefined || value === "") {
+		return null;
+	}
+
+	const weight = Number(value);
+	return Number.isFinite(weight) && weight > 0 ? weight : null;
+}
+
 export function extractWeightHistoryPoints(history = []) {
+	if (!Array.isArray(history)) {
+		return [];
+	}
+
 	return history
 		.filter(
 			(entry) => entry?.eventType === "weight" && isRecord(entry.metadata),
 		)
 		.map((entry) => {
-			const nextWeight = Number(
+			const nextWeight = toPositiveWeightOrNull(
 				entry.metadata.newWeight ??
 					entry.metadata.weight ??
 					entry.metadata.to ??
@@ -69,7 +86,7 @@ export function extractWeightHistoryPoints(history = []) {
 					entry.metadata.currentWeight,
 			);
 
-			if (!Number.isFinite(nextWeight)) {
+			if (nextWeight === null) {
 				return null;
 			}
 

@@ -62,6 +62,8 @@ export function useCursorPagination({
 				}, PAGINATION_REQUEST_TIMEOUT_MS);
 			} catch (error) {
 				console.error(`Failed to schedule load-more timeout at ${endpoint}:`, error);
+				didTimeout = true;
+				controller.abort();
 			}
 
 			setIsLoading(true);

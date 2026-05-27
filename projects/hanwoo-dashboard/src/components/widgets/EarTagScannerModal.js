@@ -38,12 +38,22 @@ function cancelScannerFrame(animationId) {
 	} catch {}
 }
 
-function deferScannerNoMatch(setScanStatus) {
+function deferScannerTask(callback) {
 	try {
-		queueMicrotask(() => setScanStatus("no_match"));
+		queueMicrotask(callback);
 	} catch {
-		Promise.resolve().then(() => setScanStatus("no_match"));
+		Promise.resolve().then(callback);
 	}
+}
+
+function deferScannerNoMatch(setScanStatus, shouldApply = () => true) {
+	const applyNoMatch = () => {
+		if (shouldApply()) {
+			setScanStatus("no_match");
+		}
+	};
+
+	deferScannerTask(applyNoMatch);
 }
 
 export default function EarTagScannerModal({
@@ -64,7 +74,7 @@ export default function EarTagScannerModal({
 		if (isOpen && cattleList.length > 0) {
 			let cancelled = false;
 
-			queueMicrotask(() => {
+			deferScannerTask(() => {
 				if (cancelled) {
 					return;
 				}
@@ -93,12 +103,15 @@ export default function EarTagScannerModal({
 			return;
 		}
 
+		let cancelled = false;
 		const canvas = canvasRef.current;
 		if (!canvas) return;
 		const ctx = canvas.getContext("2d");
 		if (!ctx) {
-			deferScannerNoMatch(setScanStatus);
-			return;
+			deferScannerNoMatch(setScanStatus, () => !cancelled);
+			return () => {
+				cancelled = true;
+			};
 		}
 
 		const width = (canvas.width = canvas.offsetWidth || 320);
@@ -242,17 +255,18 @@ export default function EarTagScannerModal({
 			);
 
 			animationRef.current = scheduleScannerFrame(render);
-			if (animationRef.current === null) {
+			if (animationRef.current === null && !cancelled) {
 				setScanStatus("no_match");
 			}
 		};
 
 		animationRef.current = scheduleScannerFrame(render);
 		if (animationRef.current === null) {
-			deferScannerNoMatch(setScanStatus);
+			deferScannerNoMatch(setScanStatus, () => !cancelled);
 		}
 
 		return () => {
+			cancelled = true;
 			cancelScannerFrame(animationRef.current);
 			animationRef.current = null;
 		};

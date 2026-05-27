@@ -31,6 +31,7 @@ export const WIDGET_REGISTRY = [
 ];
 
 const WIDGETS_STORAGE_KEY = "joolife-widgets";
+const WIDGET_ID_SET = new Set(WIDGET_REGISTRY.map((widget) => widget.id));
 
 function getDefaultWidgetVisibility() {
 	return Object.fromEntries(
@@ -82,6 +83,10 @@ export function useWidgetSettings() {
 	const [visible, setVisible] = useState(() => readStoredWidgetVisibility());
 
 	const toggle = (id) => {
+		if (!WIDGET_ID_SET.has(id)) {
+			return;
+		}
+
 		setVisible((prev) => {
 			const next = { ...prev, [id]: !prev[id] };
 			writeStoredWidgetVisibility(next);

@@ -104,6 +104,10 @@ test("dashboard error boundary exposes a labeled non-submit recovery action", ()
 
 	assert.match(
 		source,
+		/handleResetFailure = \(resetError, message\) => \{\s+console\.error\(message, resetError\);\s+this\.setState\(\{ hasError: true, error: resetError \}\);/,
+	);
+	assert.match(
+		source,
 		/const resetButtonLabel = ["']대시보드 새로고침 및 복구 시도["']/,
 	);
 	assert.match(source, /화면 표시 중 일시적인 오류가 발생했습니다/);
@@ -121,13 +125,32 @@ test("dashboard error boundary exposes a labeled non-submit recovery action", ()
 	assert.match(source, /try \{\s+window\.location\.reload\(\);/);
 	assert.match(
 		source,
-		/catch \(resetError\) \{\s+console\.error\(["']\[ErrorBoundary\] Failed to reload:/,
+		/this\.handleResetFailure\(resetError, ["']\[ErrorBoundary\] Failed to reload:["']\);/,
+	);
+	assert.match(source, /\{resetButtonLabel\}/);
+});
+
+test("dashboard error boundary guards custom reset handler failures", () => {
+	const source = readSource("components/ErrorBoundary.js");
+
+	assert.match(source, /if \(this\.props\.onReset\) \{/);
+	assert.match(
+		source,
+		/try \{\s+const resetResult = this\.props\.onReset\(\);/,
 	);
 	assert.match(
 		source,
-		/this\.setState\(\{ hasError: true, error: resetError \}\);/,
+		/if \(resetResult && typeof resetResult\.catch === ["']function["']\) \{/,
 	);
-	assert.match(source, /\{resetButtonLabel\}/);
+	assert.match(
+		source,
+		/resetResult\.catch\(\(resetError\) => \{\s+this\.handleResetFailure\(\s+resetError,\s+["']\[ErrorBoundary\] Failed to run reset handler:["']/,
+	);
+	assert.match(
+		source,
+		/catch \(resetError\) \{\s+this\.handleResetFailure\(\s+resetError,\s+["']\[ErrorBoundary\] Failed to run reset handler:["']/,
+	);
+	assert.doesNotMatch(source, /if \(this\.props\.onReset\) \{\s+this\.props\.onReset\(\);/);
 });
 
 test("login page operator eyebrow uses Korean product copy", () => {
@@ -186,12 +209,17 @@ test("login password visibility toggle exposes matching accessible and title cop
 test("login page recovers submit state when sign-in fails unexpectedly", () => {
 	const source = readSource("app/login/page.js");
 
-	assert.match(source, /import \{ useRef, useState \} from ["']react["']/);
+	assert.match(source, /import \{ useEffect, useRef, useState \} from ["']react["']/);
 	assert.match(
 		source,
 		/const LOGIN_NAVIGATION_ERROR_MESSAGE =\s+["']로그인은 완료됐지만 대시보드로 이동하지 못했습니다\. 새로고침 후 다시 시도해 주세요\.["'];/,
 	);
 	assert.match(source, /const submitInFlightRef = useRef\(false\)/);
+	assert.match(source, /const isMountedRef = useRef\(false\)/);
+	assert.match(
+		source,
+		/useEffect\(\(\) => \{\s+isMountedRef\.current = true;\s+return \(\) => \{\s+isMountedRef\.current = false;\s+submitInFlightRef\.current = false;\s+\};\s+\}, \[\]\);/,
+	);
 	assert.match(source, /const loginSubmitLabel = isSubmitting/);
 	assert.match(source, /아이디를 입력하면 로그인할 수 있습니다/);
 	assert.match(source, /비밀번호를 입력하면 로그인할 수 있습니다/);
@@ -213,9 +241,16 @@ test("login page recovers submit state when sign-in fails unexpectedly", () => {
 		source,
 		/console\.error\(["']Login dashboard navigation failed:/,
 	);
-	assert.match(source, /setError\(LOGIN_NAVIGATION_ERROR_MESSAGE\);/);
-	assert.match(source, /\} catch \{\s+setError\(["']/);
 	assert.match(
+		source,
+		/if \(isMountedRef\.current\) \{\s+setError\(LOGIN_NAVIGATION_ERROR_MESSAGE\);\s+\}/,
+	);
+	assert.match(source, /\} catch \{\s+if \(isMountedRef\.current\) \{\s+setError\(["']/);
+	assert.match(
+		source,
+		/\} finally \{\s+submitInFlightRef\.current = false;\s+if \(isMountedRef\.current\) \{\s+setIsSubmitting\(false\);\s+\}/,
+	);
+	assert.doesNotMatch(
 		source,
 		/\} finally \{\s+submitInFlightRef\.current = false;\s+setIsSubmitting\(false\);/,
 	);

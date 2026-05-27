@@ -1,7 +1,7 @@
 "use client";
 
 import { Download } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useAppFeedback } from "@/components/feedback/FeedbackProvider";
 import { PremiumButton } from "@/components/ui/premium-button";
@@ -36,7 +36,17 @@ export default function ExcelExportButton({
 }) {
 	const { notify } = useAppFeedback();
 	const [isPreparing, setIsPreparing] = useState(false);
+	const isMountedRef = useRef(false);
 	const preparingRef = useRef(false);
+
+	useEffect(() => {
+		isMountedRef.current = true;
+
+		return () => {
+			isMountedRef.current = false;
+			preparingRef.current = false;
+		};
+	}, []);
 
 	const handleDownload = async () => {
 		if (preparingRef.current) return;
@@ -83,7 +93,9 @@ export default function ExcelExportButton({
 			removeTemporaryDownloadLink(downloadLink);
 			revokeTemporaryDownloadUrl(downloadUrl);
 			preparingRef.current = false;
-			setIsPreparing(false);
+			if (isMountedRef.current) {
+				setIsPreparing(false);
+			}
 		}
 	};
 

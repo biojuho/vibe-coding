@@ -59,6 +59,7 @@ function withTimeout(promise, timeoutMs, message) {
 			);
 		} catch (error) {
 			console.error("Payment widget timeout scheduling failed", error);
+			reject(new TimeoutError(message, timeoutMs));
 		}
 	});
 
@@ -71,6 +72,14 @@ function withTimeout(promise, timeoutMs, message) {
 	});
 }
 
+function deferPaymentWidgetTask(callback) {
+	try {
+		queueMicrotask(callback);
+	} catch {
+		Promise.resolve().then(callback);
+	}
+}
+
 export default function PaymentWidget({
 	clientKey,
 	customerKey,
@@ -81,6 +90,7 @@ export default function PaymentWidget({
 }) {
 	const paymentWidgetRef = useRef(null);
 	const paymentRequestInFlightRef = useRef(false);
+	const isMountedRef = useRef(false);
 	const [price] = useState(amount);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [isWidgetReady, setIsWidgetReady] = useState(false);
@@ -88,18 +98,28 @@ export default function PaymentWidget({
 	const isPaymentButtonBusy = isSubmitting || !isWidgetReady;
 	const paymentButtonLabel = isSubmitting
 		? PAYMENT_PREPARING_MESSAGE
-		: !isWidgetReady
+			: !isWidgetReady
 			? PAYMENT_WIDGET_PENDING_MESSAGE
 			: `${PAYMENT_BUTTON_PREFIX} ${price.toLocaleString()}원`;
+
+	useEffect(() => {
+		isMountedRef.current = true;
+		return () => {
+			isMountedRef.current = false;
+			paymentRequestInFlightRef.current = false;
+		};
+	}, []);
 
 	useEffect(() => {
 		let cancelled = false;
 
 		paymentWidgetRef.current = null;
-		// eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset of widget readiness before async load
-		setIsWidgetReady(false);
-		 
-		setErrorMessage("");
+		deferPaymentWidgetTask(() => {
+			if (!cancelled) {
+				setIsWidgetReady(false);
+				setErrorMessage("");
+			}
+		});
 
 		void (async () => {
 			try {
@@ -212,7 +232,9 @@ export default function PaymentWidget({
 			);
 		} finally {
 			paymentRequestInFlightRef.current = false;
-			setIsSubmitting(false);
+			if (isMountedRef.current) {
+				setIsSubmitting(false);
+			}
 		}
 	};
 

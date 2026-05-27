@@ -30,6 +30,11 @@ test("payment widget waits for async payment requests before re-enabling checkou
 	const source = readSource("components/payment/PaymentWidget.js");
 
 	assert.match(source, /const paymentRequestInFlightRef = useRef\(false\)/);
+	assert.match(source, /const isMountedRef = useRef\(false\)/);
+	assert.match(
+		source,
+		/useEffect\(\(\) => \{\s+isMountedRef\.current = true;\s+return \(\) => \{\s+isMountedRef\.current = false;\s+paymentRequestInFlightRef\.current = false;\s+\};\s+\}, \[\]\);/,
+	);
 	assert.match(
 		source,
 		/const \[isSubmitting, setIsSubmitting\] = useState\(false\)/,
@@ -53,6 +58,10 @@ test("payment widget waits for async payment requests before re-enabling checkou
 		/await paymentWidget\.requestPayment\(requestPayload\);/,
 	);
 	assert.match(
+		source,
+		/finally \{\s+paymentRequestInFlightRef\.current = false;\s+if \(isMountedRef\.current\) \{\s+setIsSubmitting\(false\);\s+\}/,
+	);
+	assert.doesNotMatch(
 		source,
 		/finally \{\s+paymentRequestInFlightRef\.current = false;\s+setIsSubmitting\(false\);/,
 	);
@@ -100,10 +109,33 @@ test("payment widget timeout scheduling and cleanup are guarded", () => {
 	);
 	assert.match(
 		source,
+		/reject\(new TimeoutError\(message, timeoutMs\)\);/,
+	);
+	assert.match(
+		source,
 		/if \(timeoutId !== null\) \{\s+try \{\s+window\.clearTimeout\(timeoutId\);\s+\} catch \{\}/,
 	);
 	assert.doesNotMatch(source, /timeoutId = setTimeout\(/);
 	assert.doesNotMatch(source, /\sclearTimeout\(timeoutId\);/);
+});
+
+test("payment widget load-state reset avoids lint suppressions", () => {
+	const source = readSource("components/payment/PaymentWidget.js");
+
+	assert.match(source, /function deferPaymentWidgetTask\(callback\) \{/);
+	assert.match(
+		source,
+		/try \{\s+queueMicrotask\(callback\);\s+\} catch \{\s+Promise\.resolve\(\)\.then\(callback\);/,
+	);
+	assert.match(
+		source,
+		/deferPaymentWidgetTask\(\(\) => \{\s+if \(!cancelled\) \{\s+setIsWidgetReady\(false\);\s+setErrorMessage\(""\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/queueMicrotask\(\(\) => \{\s+if \(!cancelled\) \{/,
+	);
+	assert.doesNotMatch(source, /eslint-disable/);
 });
 
 test("subscription result pages avoid bare English loading and status copy", () => {
@@ -247,6 +279,43 @@ test("subscription success timers are guarded", () => {
 	assert.doesNotMatch(source, /retryTimer = setTimeout\(/);
 	assert.doesNotMatch(source, /clearTimeout\(invalidAmountTimer\)/);
 	assert.doesNotMatch(source, /clearTimeout\(retryTimer\)/);
+});
+
+test("subscription success timer callbacks ignore stale cleanup completions", () => {
+	const source = readSource("app/subscription/success/page.js");
+
+	assert.match(
+		source,
+		/let cancelled = false;[\s\S]*?const paymentAmount = parsePaymentAmount\(amount\);/,
+	);
+	assert.match(
+		source,
+		/const invalidAmountTimer = schedulePaymentStatusTimer\(\s+\(\) => \{\s+if \(!cancelled\) \{\s+setStatus\(PAYMENT_AMOUNT_ERROR_MESSAGE\);/,
+	);
+	assert.match(
+		source,
+		/return \(\) => \{\s+cancelled = true;\s+clearPaymentStatusTimer\(invalidAmountTimer\);/,
+	);
+	assert.match(
+		source,
+		/retryTimer = schedulePaymentStatusTimer\(\(\) => \{\s+if \(cancelled\) \{\s+return;\s+\}\s+try \{\s+router\.push\("\/"\);/,
+	);
+	assert.match(
+		source,
+		/console\.error\("Payment success redirect failed:", error\);\s+if \(!cancelled\) \{\s+setStatus\(PAYMENT_REDIRECT_ERROR_MESSAGE\);/,
+	);
+	assert.match(
+		source,
+		/retryTimer = schedulePaymentStatusTimer\(\(\) => \{\s+if \(!cancelled\) \{\s+void confirmPayment\(attempt \+ 1\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/const invalidAmountTimer = schedulePaymentStatusTimer\(\s+\(\) => setStatus\(PAYMENT_AMOUNT_ERROR_MESSAGE\)/,
+	);
+	assert.doesNotMatch(
+		source,
+		/retryTimer = schedulePaymentStatusTimer\(\(\) => \{\s+void confirmPayment\(attempt \+ 1\);/,
+	);
 });
 
 test("payment confirmation fallback messages use Korean product copy", () => {

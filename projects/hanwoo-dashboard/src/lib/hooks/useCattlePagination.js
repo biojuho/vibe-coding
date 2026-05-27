@@ -83,6 +83,8 @@ export function useCattlePagination({
 				}, PAGINATION_REQUEST_TIMEOUT_MS);
 			} catch (error) {
 				console.error("Failed to schedule cattle pagination timeout:", error);
+				didTimeout = true;
+				controller.abort();
 			}
 
 			setIsLoading(true);

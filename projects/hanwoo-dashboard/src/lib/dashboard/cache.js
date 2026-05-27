@@ -18,6 +18,14 @@ function normalizeSegment(value, fallback = "all") {
 	return String(value).trim();
 }
 
+function normalizeObject(value) {
+	return value && typeof value === "object" ? value : {};
+}
+
+function normalizeList(value) {
+	return Array.isArray(value) ? value : [];
+}
+
 export function buildDashboardSummaryKey(farmId = "default") {
 	return `dashboard:summary:v1:${normalizeSegment(farmId, "default")}`;
 }
@@ -30,7 +38,7 @@ export function buildCattleListKey(filters = {}) {
 		status,
 		cursor,
 		limit = 50,
-	} = filters;
+	} = normalizeObject(filters);
 
 	return [
 		"dashboard:cattle:list:v1",
@@ -69,7 +77,7 @@ export function buildSalesListKey(filters = {}) {
 		to = "all",
 		cursor = "start",
 		limit = 50,
-	} = filters;
+	} = normalizeObject(filters);
 
 	return [
 		"dashboard:sales:v1",
@@ -130,7 +138,7 @@ export async function deleteCachedKeys(keys) {
 		return 0;
 	}
 
-	const keyList = keys.filter(Boolean);
+	const keyList = normalizeList(keys).filter(Boolean);
 	if (keyList.length === 0) {
 		return 0;
 	}
@@ -144,7 +152,7 @@ export async function deleteCachedKeysByPrefixes(prefixes) {
 		return 0;
 	}
 
-	const prefixList = prefixes.filter(Boolean);
+	const prefixList = normalizeList(prefixes).filter(Boolean);
 	if (prefixList.length === 0) {
 		return 0;
 	}

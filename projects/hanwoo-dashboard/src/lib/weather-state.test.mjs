@@ -108,6 +108,55 @@ test("normalizeWeatherPayload returns null when required current fields are miss
 	assert.equal(result, null);
 });
 
+test("normalizeWeatherPayload ignores malformed options input", () => {
+	const result = normalizeWeatherPayload(
+		{
+			current: {
+				temperature_2m: 20,
+				relative_humidity_2m: 55,
+				weather_code: 1,
+				wind_speed_10m: 2,
+				apparent_temperature: 19,
+			},
+			daily: {
+				time: ["2026-04-07"],
+				weather_code: [1],
+				temperature_2m_max: [23],
+				temperature_2m_min: [14],
+				precipitation_probability_max: [0],
+			},
+		},
+		null,
+	);
+
+	assert.equal(result.available, true);
+	assert.equal(result.locationName, "서울");
+});
+
+test("normalizeWeatherPayload rejects null and empty required current values", () => {
+	const nullCurrent = normalizeWeatherPayload({
+		current: {
+			temperature_2m: null,
+			relative_humidity_2m: 55,
+			weather_code: 1,
+			wind_speed_10m: 2,
+			apparent_temperature: 19,
+		},
+	});
+	const emptyCurrent = normalizeWeatherPayload({
+		current: {
+			temperature_2m: 20,
+			relative_humidity_2m: "",
+			weather_code: 1,
+			wind_speed_10m: 2,
+			apparent_temperature: 19,
+		},
+	});
+
+	assert.equal(nullCurrent, null);
+	assert.equal(emptyCurrent, null);
+});
+
 test("markWeatherAsStale preserves the last snapshot while surfacing a degraded state", () => {
 	const result = markWeatherAsStale({
 		available: true,
@@ -143,6 +192,36 @@ test("buildUnavailableWeatherState returns an explicit unavailable payload", () 
 	assert.equal(result.message, WEATHER_UNAVAILABLE_MESSAGE);
 	assert.match(result.message, /날씨 정보를 확인할 수 없습니다/);
 	assert.doesNotMatch(result.message, /날씨 데이터를 확인할 수 없습니다/);
+});
+
+test("weather fallback states ignore malformed options input", () => {
+	const unavailable = buildUnavailableWeatherState(null);
+	const stale = markWeatherAsStale(
+		{
+			available: true,
+			degraded: false,
+			isStale: false,
+			source: "weather-live",
+			sourceLabel: "Open-Meteo",
+			temp: 20,
+			humidity: 55,
+			windSpeed: 2,
+			apparentTemp: 19,
+			weatherCode: 1,
+			tempMax: 23,
+			tempMin: 14,
+			precipitation: 0,
+			locationName: "Namwon",
+			forecast: [],
+		},
+		null,
+	);
+
+	assert.equal(unavailable.available, false);
+	assert.equal(unavailable.locationName, "서울");
+	assert.equal(unavailable.message, WEATHER_UNAVAILABLE_MESSAGE);
+	assert.equal(stale.locationName, "Namwon");
+	assert.equal(stale.message, WEATHER_STALE_MESSAGE);
 });
 
 test("weather fallback location labels default to Korean copy", () => {

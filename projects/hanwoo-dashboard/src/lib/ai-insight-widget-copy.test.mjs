@@ -54,6 +54,7 @@ test("AI insight API route bounds slow Gemini calls with a deterministic fallbac
 		route,
 		/console\.error\("AI insight timeout scheduling failed:", error\);/,
 	);
+	assert.match(route, /reject\(new InsightTimeoutError\(timeoutMs\)\);/);
 	assert.match(
 		route,
 		/if \(timeoutId !== null\) \{\s+try \{\s+clearTimeout\(timeoutId\);\s+\} catch \{\}/,
@@ -104,18 +105,46 @@ test("AI insight widget normalizes heuristic reasons and clears stale AI reasons
 test("AI insight widget resets visible fallback cards when the summary changes", () => {
 	const source = readSource("components/widgets/AIInsightWidget.js");
 
+	assert.match(source, /function deferAIInsightTask\(callback\) \{/);
 	assert.match(
 		source,
-		/queueMicrotask\(\(\) => \{[\s\S]*?setInsights\(buildHeuristicInsights\(stableSummary\)\)[\s\S]*?setSource\(["']heuristic["']\)[\s\S]*?setIsLoading\(true\)[\s\S]*?setReason\(null\)/,
+		/try \{\s+queueMicrotask\(callback\);\s+\} catch \{\s+Promise\.resolve\(\)\.then\(callback\);/,
+	);
+	assert.match(
+		source,
+		/deferAIInsightTask\(\(\) => \{[\s\S]*?setInsights\(buildHeuristicInsights\(stableSummary\)\)[\s\S]*?setSource\(["']heuristic["']\)[\s\S]*?setIsLoading\(true\)[\s\S]*?setReason\(null\)/,
 	);
 });
 
 test("AI insight widget aborts in-flight requests on unmount/summary change", () => {
 	const source = readSource("components/widgets/AIInsightWidget.js");
 
+	assert.match(source, /let cancelled = false/);
 	assert.match(
 		source,
-		/return\s*\(\)\s*=>\s*\{[\s\S]*?controller\.abort\(\)/,
+		/deferAIInsightTask\(\(\) => \{\s+if \(!cancelled && !controller\.signal\.aborted\) \{/,
+	);
+	assert.doesNotMatch(
+		source,
+		/queueMicrotask\(\(\) => \{\s+if \(!cancelled && !controller\.signal\.aborted\) \{/,
+	);
+	assert.match(
+		source,
+		/const payload = await res\.json\(\);\s+if \(cancelled \|\| controller\.signal\.aborted\) \{\s+return;\s+\}/,
+	);
+	assert.match(source, /\.catch\(\(error\) => \{\s+if \(cancelled\) return;/);
+	assert.match(
+		source,
+		/if \(!cancelled && \(!controller\.signal\.aborted \|\| didTimeout\)\) \{\s+setIsLoading\(false\);/,
+	);
+	assert.match(
+		source,
+		/return\s*\(\)\s*=>\s*\{[\s\S]*?cancelled = true;[\s\S]*?controller\.abort\(\)/,
+	);
+	assert.doesNotMatch(source, /if \(!controller\.signal\.aborted\) \{\s+setInsights/);
+	assert.doesNotMatch(
+		source,
+		/if \(!controller\.signal\.aborted \|\| didTimeout\) \{\s+setIsLoading\(false\);/,
 	);
 	assert.doesNotMatch(source, /if\s*\(\s*error\.name\s*===\s*["']AbortError["']\s*\)\s*throw/);
 });
@@ -149,6 +178,10 @@ test("AI insight widget bounds slow requests and announces fallback reasons", ()
 	assert.match(
 		source,
 		/console\.error\("Failed to schedule AI insight timeout:", error\);/,
+	);
+	assert.match(
+		source,
+		/didTimeout = true;\s+controller\.abort\(\);/,
 	);
 	assert.match(
 		source,

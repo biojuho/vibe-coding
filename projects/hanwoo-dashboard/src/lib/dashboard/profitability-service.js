@@ -160,8 +160,9 @@ export async function getProfitabilityEstimates() {
 				// Limit simulation strictly to cattle likely in shipping window (>= 24 months)
 				if (ageMonths === null || ageMonths < 24) return null;
 
+				const purchasePrice = toFiniteNumber(cattle.purchasePrice, null);
 				const baseCost =
-					toFiniteNumber(cattle.purchasePrice) || DEFAULT_CALF_COST;
+					purchasePrice === null ? DEFAULT_CALF_COST : purchasePrice;
 				const cumulativeCost = baseCost + ageMonths * MONTHLY_FEED_COST;
 
 				// Use Grade 1 as baseline estimation

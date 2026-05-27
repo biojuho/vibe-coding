@@ -119,7 +119,14 @@ test("notification modal SMS test action waits for async sends before re-enablin
 	assert.match(source, /if \(isTestingSMS\) \{\s+return;\s+\}/);
 	assert.match(source, /setIsTestingSMS\(true\);/);
 	assert.match(source, /await Promise\.resolve\(onTestSMS\?\.\(\)\);/);
-	assert.match(source, /finally \{\s+setIsTestingSMS\(false\);/);
+	assert.match(source, /const isMountedRef = useRef\(false\);/);
+	assert.match(source, /isMountedRef\.current = true;/);
+	assert.match(source, /return \(\) => \{\s+isMountedRef\.current = false;/);
+	assert.match(
+		source,
+		/finally \{\s+if \(isMountedRef\.current\) \{\s+setIsTestingSMS\(false\);/,
+	);
+	assert.doesNotMatch(source, /finally \{\s+setIsTestingSMS\(false\);/);
 	assert.match(source, /disabled=\{isTestingSMS\}/);
 	assert.match(source, /aria-busy=\{isTestingSMS\}/);
 	assert.match(source, /aria-label=\{smsTestButtonLabel\}/);

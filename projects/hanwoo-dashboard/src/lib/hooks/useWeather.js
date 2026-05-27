@@ -82,6 +82,9 @@ export function useWeather(farmSettings) {
 		};
 
 		const fetchFallbackWeather = () => {
+			if (cancelled) {
+				return;
+			}
 			fetchWeather(
 				FALLBACK_WEATHER_COORDS.latitude,
 				FALLBACK_WEATHER_COORDS.longitude,
@@ -89,6 +92,9 @@ export function useWeather(farmSettings) {
 		};
 
 		const fetchWeatherFromCoords = (latitudeValue, longitudeValue) => {
+			if (cancelled) {
+				return false;
+			}
 			const latitude = Number(latitudeValue);
 			const longitude = Number(longitudeValue);
 			const isValidWeatherCoordinate =
@@ -108,6 +114,9 @@ export function useWeather(farmSettings) {
 		};
 
 		const fetchWeatherFromPosition = (position) => {
+			if (cancelled) {
+				return;
+			}
 			if (fetchWeatherFromCoords(position?.coords?.latitude, position?.coords?.longitude)) {
 				return;
 			}
@@ -115,7 +124,12 @@ export function useWeather(farmSettings) {
 			fetchFallbackWeather();
 		};
 
-		if (farmSettings?.latitude && farmSettings?.longitude) {
+		if (
+			farmSettings?.latitude !== null &&
+			farmSettings?.latitude !== undefined &&
+			farmSettings?.longitude !== null &&
+			farmSettings?.longitude !== undefined
+		) {
 			if (!fetchWeatherFromCoords(farmSettings.latitude, farmSettings.longitude)) {
 				fetchFallbackWeather();
 			}

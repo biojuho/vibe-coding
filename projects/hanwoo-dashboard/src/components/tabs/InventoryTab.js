@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PackagePlus } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import EmptyState from "@/components/ui/empty-state";
 import { PremiumButton } from "@/components/ui/premium-button";
@@ -37,6 +37,10 @@ function parseInlineQuantityInput(value) {
 }
 
 function toInventoryNumber(value, fallback = 0) {
+	if (value === null || value === undefined || value === "") {
+		return fallback;
+	}
+
 	const number = Number(value);
 	return Number.isFinite(number) ? number : fallback;
 }
@@ -57,7 +61,7 @@ function normalizeInventoryItems(inventory) {
 				typeof item.name === "string" && item.name.trim()
 					? item.name
 					: "재고명 미등록",
-			quantity: toInventoryNumber(item.quantity),
+			quantity: toInventoryNumber(item.quantity, null),
 			threshold:
 				item.threshold === null ||
 				item.threshold === undefined ||
@@ -83,6 +87,7 @@ export default function InventoryTab({
 	const [savingQuantityId, setSavingQuantityId] = useState(null);
 	const [editId, setEditId] = useState(null);
 	const [editQty, setEditQty] = useState("");
+	const isMountedRef = useRef(false);
 	const saveInFlightRef = useRef(false);
 	const quantityInFlightRef = useRef(false);
 	const submitButtonLabel = isSaving ? "재고 등록 중" : "재고 등록";
@@ -115,6 +120,16 @@ export default function InventoryTab({
 		Other: "기타",
 	};
 
+	useEffect(() => {
+		isMountedRef.current = true;
+
+		return () => {
+			isMountedRef.current = false;
+			saveInFlightRef.current = false;
+			quantityInFlightRef.current = false;
+		};
+	}, []);
+
 	const toggleAddForm = () => {
 		if (saveInFlightRef.current || isSaving) {
 			return;
@@ -139,7 +154,7 @@ export default function InventoryTab({
 
 		try {
 			const saved = await onAddItem(values);
-			if (!saved) {
+			if (!saved || !isMountedRef.current) {
 				return;
 			}
 
@@ -147,7 +162,9 @@ export default function InventoryTab({
 			reset(createInventoryFormValues());
 		} finally {
 			saveInFlightRef.current = false;
-			setIsSaving(false);
+			if (isMountedRef.current) {
+				setIsSaving(false);
+			}
 		}
 	};
 
@@ -170,7 +187,7 @@ export default function InventoryTab({
 
 		try {
 			const saved = await onUpdateQuantity(id, parsedQuantity);
-			if (!saved) {
+			if (!saved || !isMountedRef.current) {
 				return;
 			}
 
@@ -178,7 +195,9 @@ export default function InventoryTab({
 			setEditQty("");
 		} finally {
 			quantityInFlightRef.current = false;
-			setSavingQuantityId(null);
+			if (isMountedRef.current) {
+				setSavingQuantityId(null);
+			}
 		}
 	};
 
@@ -409,7 +428,9 @@ export default function InventoryTab({
 
 			<div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
 				{safeInventory.map((item) => {
-					const isLow = item.threshold && item.quantity <= item.threshold;
+					const hasQuantity = item.quantity !== null;
+					const isLow =
+						hasQuantity && item.threshold !== null && item.quantity <= item.threshold;
 					const isQuantitySaving = savingQuantityId === item.id;
 					const itemQuantitySaveLabel = isQuantitySaving
 						? `${item.name} 재고 수량 저장 중`
@@ -509,7 +530,7 @@ export default function InventoryTab({
 												title={`${item.name} 재고 수량 수정`}
 												onClick={() => {
 													setEditId(item.id);
-													setEditQty(String(item.quantity));
+													setEditQty(hasQuantity ? String(item.quantity) : "");
 												}}
 												style={{
 													fontSize: "16px",
@@ -523,10 +544,12 @@ export default function InventoryTab({
 													padding: 0,
 												}}
 											>
-												{item.quantity}{" "}
-												<span style={{ fontSize: "12px", fontWeight: 400 }}>
-													{item.unit}
-												</span>
+												{hasQuantity ? item.quantity : "수량 미등록"}{" "}
+												{hasQuantity ? (
+													<span style={{ fontSize: "12px", fontWeight: 400 }}>
+														{item.unit}
+													</span>
+												) : null}
 											</button>
 										)}
 									</div>

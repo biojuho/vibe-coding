@@ -17,6 +17,11 @@ function toFiniteNumber(value) {
 	return Number.isFinite(amount) ? amount : 0;
 }
 
+function toPositiveInteger(value, fallback) {
+	const amount = Number(value);
+	return Number.isFinite(amount) && amount > 0 ? Math.floor(amount) : fallback;
+}
+
 const FEED_CATEGORY_KEYS = new Set([
 	"feed",
 	"feed-roughage",
@@ -78,6 +83,7 @@ export function estimateMonthlyFeedCostPerHead({
 	now = new Date(),
 	windowMonths = 6,
 } = {}) {
+	const safeWindowMonths = toPositiveInteger(windowMonths, 6);
 	if (
 		!Array.isArray(expenseRecords) ||
 		expenseRecords.length === 0 ||
@@ -93,7 +99,7 @@ export function estimateMonthlyFeedCostPerHead({
 	}
 
 	const windowStart = startOfMonth(
-		new Date(now.getFullYear(), now.getMonth() - (windowMonths - 1), 1),
+		new Date(now.getFullYear(), now.getMonth() - (safeWindowMonths - 1), 1),
 	);
 
 	const includedMonths = new Set();
@@ -123,7 +129,7 @@ export function estimateMonthlyFeedCostPerHead({
 		};
 	}
 
-	const denominator = windowMonths * activeCattleCount;
+	const denominator = safeWindowMonths * activeCattleCount;
 	const estimate = Math.round(totalFeedSpend / denominator);
 
 	return {
@@ -158,6 +164,7 @@ export function estimateMonthlyWeightGainPerHead({
 	windowMonths = 12,
 	birthWeightKg = 40,
 } = {}) {
+	const safeWindowMonths = toPositiveInteger(windowMonths, 12);
 	if (!Array.isArray(salesRecords) || salesRecords.length === 0) {
 		return { estimate: null, sampleSize: 0 };
 	}
@@ -172,7 +179,7 @@ export function estimateMonthlyWeightGainPerHead({
 				);
 
 	const windowStart = startOfMonth(
-		new Date(now.getFullYear(), now.getMonth() - (windowMonths - 1), 1),
+		new Date(now.getFullYear(), now.getMonth() - (safeWindowMonths - 1), 1),
 	);
 
 	const monthlyGains = [];

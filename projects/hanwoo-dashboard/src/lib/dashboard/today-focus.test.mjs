@@ -43,6 +43,54 @@ test("buildTodayFocusItems prioritizes offline, critical alerts, schedules, and 
 	assert.match(items[3].detail, /^feed mix: 4kg/);
 });
 
+test("buildTodayFocusItems ignores malformed collection rows", () => {
+	const items = buildTodayFocusItems({
+		now: new Date("2026-05-18T10:00:00+09:00"),
+		notifications: [
+			null,
+			"bad notification",
+			{ id: "n1", level: "critical", message: "critical alert" },
+		],
+		scheduleEvents: [
+			false,
+			{
+				id: "s1",
+				title: "valid schedule",
+				date: "2026-05-19",
+				isCompleted: false,
+			},
+		],
+		inventoryList: [
+			"bad inventory",
+			{ id: "i1", name: "low stock", quantity: 2, threshold: 3, unit: "kg" },
+		],
+		monthlySalesCount: 0,
+	});
+
+	assert.deepEqual(
+		items.map((item) => item.id).slice(0, 3),
+		["critical-alerts", "next-schedule", "low-stock"],
+	);
+	assert.equal(items[0].detail, "critical alert");
+	assert.equal(items[1].title, "valid schedule");
+	assert.match(items[2].detail, /^low stock: 2kg/);
+});
+
+test("buildTodayFocusItems tolerates non-array collections", () => {
+	const items = buildTodayFocusItems({
+		now: new Date("2026-05-18T10:00:00+09:00"),
+		notifications: { level: "critical", message: "not an array" },
+		scheduleEvents: { title: "not an array", date: "2026-05-19" },
+		inventoryList: { name: "not an array", quantity: 1, threshold: 2 },
+		monthlySalesCount: 0,
+	});
+
+	assert.deepEqual(
+		items.map((item) => item.id),
+		["monthly-sales"],
+	);
+});
+
 test("buildTodayFocusItems uses operator-readable schedule countdown labels", () => {
 	const items = buildTodayFocusItems({
 		now: new Date("2026-05-18T10:00:00+09:00"),

@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import {
 	CartesianGrid,
@@ -110,6 +110,7 @@ export default function FeedTab({
 }) {
 	const [selectedBuilding, setSelectedBuilding] = useState(null);
 	const [isSaving, setIsSaving] = useState(false);
+	const isMountedRef = useRef(false);
 	const saveInFlightRef = useRef(false);
 	const { notify } = useAppFeedback();
 	const submitButtonLabel = isSaving
@@ -232,6 +233,15 @@ export default function FeedTab({
 				.toFixed(1)
 		: totalStandardConcentrate;
 
+	useEffect(() => {
+		isMountedRef.current = true;
+
+		return () => {
+			isMountedRef.current = false;
+			saveInFlightRef.current = false;
+		};
+	}, []);
+
 	const submitFeedRecord = async (values) => {
 		if (saveInFlightRef.current) {
 			return;
@@ -255,7 +265,7 @@ export default function FeedTab({
 				buildingId: selectedBuilding,
 			});
 
-			if (!recorded) {
+			if (!recorded || !isMountedRef.current) {
 				return;
 			}
 
@@ -265,7 +275,9 @@ export default function FeedTab({
 			});
 		} finally {
 			saveInFlightRef.current = false;
-			setIsSaving(false);
+			if (isMountedRef.current) {
+				setIsSaving(false);
+			}
 		}
 	};
 

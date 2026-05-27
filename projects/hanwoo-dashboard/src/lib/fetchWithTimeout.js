@@ -10,12 +10,17 @@ export function isTimeoutError(error) {
 	return error instanceof TimeoutError || error?.name === "TimeoutError";
 }
 
+function normalizeOptions(options) {
+	return options && typeof options === "object" ? options : {};
+}
+
 export async function fetchWithTimeout(input, init = {}, options = {}) {
-	const timeoutMs = Number.isFinite(options.timeoutMs)
-		? options.timeoutMs
+	const safeOptions = normalizeOptions(options);
+	const timeoutMs = Number.isFinite(safeOptions.timeoutMs)
+		? safeOptions.timeoutMs
 		: 10000;
 	const message =
-		options.errorMessage || `Request timed out after ${timeoutMs}ms.`;
+		safeOptions.errorMessage || `Request timed out after ${timeoutMs}ms.`;
 	const controller = new AbortController();
 	const timeoutError = new TimeoutError(message, timeoutMs);
 	let timeoutId = null;
@@ -23,6 +28,7 @@ export async function fetchWithTimeout(input, init = {}, options = {}) {
 		timeoutId = setTimeout(() => controller.abort(timeoutError), timeoutMs);
 	} catch (error) {
 		console.error("Failed to schedule fetch timeout:", error);
+		controller.abort(timeoutError);
 	}
 
 	try {

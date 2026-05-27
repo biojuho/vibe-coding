@@ -157,6 +157,278 @@ test("dashboard full-list loading failures show retry feedback instead of silent
 	);
 });
 
+test("dashboard full-list preload completions ignore stale unmounted state", () => {
+	const source = readSource("components/DashboardClient.js");
+
+	assert.match(source, /const dashboardMountedRef = useRef\(false\);/);
+	assert.match(
+		source,
+		/useEffect\(\(\) => \{\s+dashboardMountedRef\.current = true;\s+return \(\) => \{\s+dashboardMountedRef\.current = false;/,
+	);
+	assert.match(
+		source,
+		/const normalizedItems = normalizeDashboardCattleList\(items\);\s+if \(dashboardMountedRef\.current\) \{\s+setAllCattleRegistry\(normalizedItems\);/,
+	);
+	assert.match(
+		source,
+		/if \(dashboardMountedRef\.current\) \{\s+setAllCattleLoadError\(FULL_CATTLE_LOAD_ERROR_MESSAGE\);/,
+	);
+	assert.match(
+		source,
+		/if \(dashboardMountedRef\.current\) \{\s+setIsAllCattleLoading\(false\);/,
+	);
+	assert.match(
+		source,
+		/if \(dashboardMountedRef\.current\) \{\s+setAllSalesLedger\(items\);/,
+	);
+	assert.match(
+		source,
+		/if \(dashboardMountedRef\.current\) \{\s+setAllSalesLoadError\(FULL_SALES_LOAD_ERROR_MESSAGE\);/,
+	);
+	assert.match(
+		source,
+		/if \(dashboardMountedRef\.current\) \{\s+setIsAllSalesLoading\(false\);/,
+	);
+	assert.match(source, /fullCattleLoadRef\.current = null;/);
+	assert.match(source, /fullSalesLoadRef\.current = null;/);
+	assert.doesNotMatch(
+		source,
+		/\.then\(\(items\) => \{\s+const normalizedItems = normalizeDashboardCattleList\(items\);\s+setAllCattleRegistry\(normalizedItems\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/\.then\(\(items\) => \{\s+setAllSalesLedger\(items\);/,
+	);
+});
+
+test("dashboard summary and notification refresh completions ignore stale unmounted state", () => {
+	const source = readSource("components/DashboardClient.js");
+
+	assert.match(source, /const dashboardMountedRef = useRef\(false\);/);
+	assert.match(
+		source,
+		/if \(\s+dashboardMountedRef\.current &&\s+summaryRefreshRequestRef\.current === requestId\s+\) \{\s+setSummary\(json\.data\);/,
+	);
+	assert.match(
+		source,
+		/const nextNotifications = await getNotifications\(\);\s+if \(dashboardMountedRef\.current\) \{\s+setNotifications\(normalizeDashboardNotifications\(nextNotifications\)\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/if \(summaryRefreshRequestRef\.current === requestId\) \{\s+setSummary\(json\.data\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/const nextNotifications = await getNotifications\(\);\s+setNotifications\(normalizeDashboardNotifications\(nextNotifications\)\);/,
+	);
+});
+
+test("dashboard cattle archive completions ignore stale unmounted state", () => {
+	const source = readSource("components/DashboardClient.js");
+
+	assert.match(source, /const dashboardMountedRef = useRef\(false\);/);
+	assert.match(
+		source,
+		/const result = await deleteCattle\(id\);\s+if \(result\.success\) \{\s+if \(!dashboardMountedRef\.current\) \{\s+return true;\s+\}\s+removeCattleRecord\(id\);/,
+	);
+	assert.match(
+		source,
+		/if \(dashboardMountedRef\.current\) \{\s+showError\("개체 보관 처리에 실패했습니다\.", result\.message\);\s+\}/,
+	);
+	assert.match(
+		source,
+		/catch \{\s+if \(dashboardMountedRef\.current\) \{\s+showError\("개체 보관 처리 중 오류가 발생했습니다\."\);\s+\}\s+return false;/,
+	);
+	assert.match(
+		source,
+		/finally \{\s+if \(dashboardMountedRef\.current\) \{\s+setDeletingCattleId\(null\);\s+\}/,
+	);
+	assert.doesNotMatch(
+		source,
+		/if \(result\.success\) \{\s+removeCattleRecord\(id\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/finally \{\s+setDeletingCattleId\(null\);/,
+	);
+});
+
+test("dashboard cattle create and update completions ignore stale unmounted state", () => {
+	const source = readSource("components/DashboardClient.js");
+
+	assert.match(source, /const dashboardMountedRef = useRef\(false\);/);
+	assert.match(
+		source,
+		/const result = await createCattle\(newCattle\);\s+if \(result\.success\) \{\s+const savedCattle = result\.data \|\| newCattle;\s+if \(!dashboardMountedRef\.current\) \{\s+return true;\s+\}\s+prependCattleRecord\(savedCattle\);/,
+	);
+	assert.match(
+		source,
+		/const result = await updateCattle\(updated\.id, updated\);\s+if \(result\.success\) \{\s+const savedCattle = result\.data \|\| updated;\s+if \(!dashboardMountedRef\.current\) \{\s+return true;\s+\}\s+replaceCattleRecord\(savedCattle\);/,
+	);
+	assert.match(
+		source,
+		/if \(dashboardMountedRef\.current\) \{\s+showError\(errorTitle, result\.message\);\s+\}\s+return false;\s+\} catch \(error\) \{\s+console\.error\(["']Failed to add cattle:["'], error\);\s+if \(dashboardMountedRef\.current\) \{\s+showError\(errorTitle, unexpectedActionErrorDescription\);/,
+	);
+	assert.match(
+		source,
+		/if \(dashboardMountedRef\.current\) \{\s+showError\(errorTitle, result\.message\);\s+\}\s+return false;\s+\} catch \(error\) \{\s+console\.error\(["']Failed to update cattle:["'], error\);\s+if \(dashboardMountedRef\.current\) \{\s+showError\(errorTitle, unexpectedActionErrorDescription\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/const savedCattle = result\.data \|\| newCattle;\s+prependCattleRecord\(savedCattle\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/const savedCattle = result\.data \|\| updated;\s+replaceCattleRecord\(savedCattle\);/,
+	);
+});
+
+test("dashboard building mutation completions ignore stale unmounted state", () => {
+	const source = readSource("components/DashboardClient.js");
+
+	assert.match(source, /const dashboardMountedRef = useRef\(false\);/);
+	assert.match(
+		source,
+		/if \(!res\.success\) \{\s+if \(dashboardMountedRef\.current\) \{\s+showError\("축사 정보를 추가하지 못했습니다\.", res\.message\);\s+\}\s+return false;\s+\}\s+if \(!dashboardMountedRef\.current\) \{\s+return true;\s+\}\s+setBuildings\(\(prev\) => sortByName\(\[res\.data, \.\.\.prev\]\)\);/,
+	);
+	assert.match(
+		source,
+		/if \(!res\.success\) \{\s+if \(dashboardMountedRef\.current\) \{\s+showError\("축사를 삭제하지 못했습니다\.", res\.message\);\s+\}\s+return false;\s+\}\s+if \(!dashboardMountedRef\.current\) \{\s+return true;\s+\}\s+setBuildings\(\(prev\) => prev\.filter\(\(building\) => building\.id !== id\)\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/if \(!res\.success\) \{\s+showError\("축사 정보를 추가하지 못했습니다\.", res\.message\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/if \(!res\.success\) \{\s+showError\("축사를 삭제하지 못했습니다\.", res\.message\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/if \(!res\.success\) \{\s+showError\("축사 정보를 추가하지 못했습니다\.", res\.message\);\s+return false;\s+\}\s+setBuildings\(\(prev\) => sortByName\(\[res\.data, \.\.\.prev\]\)\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/if \(!res\.success\) \{\s+showError\("축사를 삭제하지 못했습니다\.", res\.message\);\s+return false;\s+\}\s+setBuildings\(\(prev\) => prev\.filter\(\(building\) => building\.id !== id\)\);/,
+	);
+});
+
+test("dashboard inventory mutation completions ignore stale unmounted state", () => {
+	const source = readSource("components/DashboardClient.js");
+
+	assert.match(source, /const dashboardMountedRef = useRef\(false\);/);
+	assert.match(
+		source,
+		/const handleAddItem = async \(data\) => \{\s+const res = await addInventoryItem\(data\);\s+if \(!res\.success\) \{\s+if \(dashboardMountedRef\.current\) \{\s+showError\("[^"]+", res\.message\);\s+\}\s+return false;\s+\}\s+if \(!dashboardMountedRef\.current\) \{\s+return true;\s+\}\s+setInventoryList\(\(prev\) => sortInventoryItems\(\[res\.data, \.\.\.prev\]\)\);/,
+	);
+	assert.match(
+		source,
+		/const handleUpdateQuantity = async \(id, qty\) => \{\s+const res = await updateInventoryQuantity\(id, qty\);\s+if \(!res\.success\) \{\s+if \(dashboardMountedRef\.current\) \{\s+showError\("[^"]+", res\.message\);\s+\}\s+return false;\s+\}\s+if \(!dashboardMountedRef\.current\) \{\s+return true;\s+\}\s+setInventoryList\(\(prev\) =>/,
+	);
+	assert.doesNotMatch(
+		source,
+		/const handleAddItem = async \(data\) => \{\s+const res = await addInventoryItem\(data\);\s+if \(!res\.success\) \{\s+showError\("[^"]+", res\.message\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/const handleUpdateQuantity = async \(id, qty\) => \{\s+const res = await updateInventoryQuantity\(id, qty\);\s+if \(!res\.success\) \{\s+showError\("[^"]+", res\.message\);/,
+	);
+});
+
+test("dashboard schedule mutation completions ignore stale unmounted state", () => {
+	const source = readSource("components/DashboardClient.js");
+
+	assert.match(source, /const dashboardMountedRef = useRef\(false\);/);
+	assert.match(
+		source,
+		/const handleCreateEvent = async \(data\) => \{\s+const res = await createScheduleEvent\(data\);\s+if \(!res\.success\) \{\s+if \(dashboardMountedRef\.current\) \{\s+showError\("[^"]+", res\.message\);\s+\}\s+return false;\s+\}\s+if \(!dashboardMountedRef\.current\) \{\s+return true;\s+\}\s+setScheduleEvents\(\(prev\) => sortByDateAsc\(\[res\.data, \.\.\.prev\], "date"\)\);/,
+	);
+	assert.match(
+		source,
+		/const handleToggleEvent = async \(id, isCompleted\) => \{\s+const res = await toggleEventCompletion\(id, isCompleted\);\s+if \(!res\.success\) \{\s+if \(dashboardMountedRef\.current\) \{\s+showError\("[^"]+", res\.message\);\s+\}\s+return false;\s+\}\s+if \(!dashboardMountedRef\.current\) \{\s+return true;\s+\}\s+setScheduleEvents\(\(prev\) =>/,
+	);
+	assert.doesNotMatch(
+		source,
+		/const handleCreateEvent = async \(data\) => \{\s+const res = await createScheduleEvent\(data\);\s+if \(!res\.success\) \{\s+showError\("[^"]+", res\.message\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/const handleToggleEvent = async \(id, isCompleted\) => \{\s+const res = await toggleEventCompletion\(id, isCompleted\);\s+if \(!res\.success\) \{\s+showError\("[^"]+", res\.message\);/,
+	);
+});
+
+test("dashboard sales and feed mutation completions ignore stale unmounted state", () => {
+	const source = readSource("components/DashboardClient.js");
+
+	assert.match(source, /const dashboardMountedRef = useRef\(false\);/);
+	assert.match(
+		source,
+		/const res = await createSalesRecord\(data\);\s+if \(!res\.success\) \{\s+if \(dashboardMountedRef\.current\) \{\s+showError\("[^"]+", res\.message\);\s+\}\s+return false;\s+\}\s+if \(!dashboardMountedRef\.current\) \{\s+return true;\s+\}\s+prependSaleRecord\(res\.data\);/,
+	);
+	assert.match(
+		source,
+		/const res = await recordFeed\(data\);\s+if \(!res\.success\) \{\s+if \(dashboardMountedRef\.current\) \{\s+showError\("[^"]+", res\.message\);\s+\}\s+return false;\s+\}\s+if \(!dashboardMountedRef\.current\) \{\s+return true;\s+\}\s+setFeedHistory\(\(prev\) =>/,
+	);
+	assert.doesNotMatch(
+		source,
+		/const res = await createSalesRecord\(data\);\s+if \(!res\.success\) \{\s+showError\("[^"]+", res\.message\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/const res = await recordFeed\(data\);\s+if \(!res\.success\) \{\s+showError\("[^"]+", res\.message\);/,
+	);
+});
+
+test("dashboard drag move confirmation ignores stale unmounted state", () => {
+	const source = readSource("components/DashboardClient.js");
+
+	assert.match(source, /const dashboardMountedRef = useRef\(false\);/);
+	assert.match(
+		source,
+		/const shouldMove = await confirm\(\{[\s\S]+?\}\);\s+if \(!dashboardMountedRef\.current\) \{\s+return false;\s+\}\s+if \(!shouldMove\) \{\s+return false;\s+\}\s+const updated = \{/,
+	);
+	assert.doesNotMatch(
+		source,
+		/const shouldMove = await confirm\(\{[\s\S]+?\}\);\s+if \(!shouldMove\) \{\s+return false;\s+\}\s+const updated = \{/,
+	);
+});
+
+test("dashboard calving mutation completions ignore stale unmounted state", () => {
+	const source = readSource("components/DashboardClient.js");
+
+	assert.match(source, /const dashboardMountedRef = useRef\(false\);/);
+	assert.match(
+		source,
+		/if \(!res\.success\) \{\s+if \(dashboardMountedRef\.current\) \{\s+showError\("[^"]+", res\.message\);\s+\}\s+return false;\s+\}\s+const savedMother = res\.data\?\.mother \|\| updatedMother;\s+const savedCalf = res\.data\?\.calf \|\| calfDraft;\s+if \(!dashboardMountedRef\.current\) \{\s+return true;\s+\}\s+upsertCalvingRecords\(savedMother, savedCalf\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/if \(!res\.success\) \{\s+showError\("[^"]+", res\.message\);\s+return false;\s+\}\s+const savedMother = res\.data\?\.mother \|\| updatedMother;/,
+	);
+	assert.doesNotMatch(
+		source,
+		/const savedCalf = res\.data\?\.calf \|\| calfDraft;\s+upsertCalvingRecords\(savedMother, savedCalf\);/,
+	);
+});
+
+test("dashboard farm settings mutation completions ignore stale unmounted state", () => {
+	const source = readSource("components/DashboardClient.js");
+
+	assert.match(source, /const dashboardMountedRef = useRef\(false\);/);
+	assert.match(
+		source,
+		/const handleUpdateFarmSettings = async \(data\) => \{\s+const res = await updateFarmSettings\(data\);\s+if \(!res\.success\) \{\s+if \(dashboardMountedRef\.current\) \{\s+showError\("[^"]+", res\.message\);\s+\}\s+return false;\s+\}\s+if \(!dashboardMountedRef\.current\) \{\s+return true;\s+\}\s+setFarmSettings\(res\.data\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/const handleUpdateFarmSettings = async \(data\) => \{\s+const res = await updateFarmSettings\(data\);\s+if \(!res\.success\) \{\s+showError\("[^"]+", res\.message\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/if \(!res\.success\) \{\s+showError\("[^"]+", res\.message\);\s+return false;\s+\}\s+setFarmSettings\(res\.data\);/,
+	);
+});
+
 test("dashboard offline sync refresh failures are announced separately", () => {
 	const source = readSource("components/DashboardClient.js");
 
@@ -415,8 +687,24 @@ test("market price widget uses Korean product copy for visible states", () => {
 		/if \(!prices \|\| prices\.available === false\)[\s\S]*?role="status"[\s\S]*?aria-live="polite"[\s\S]*?aria-atomic="true"[\s\S]*?지금은 한우 시세 정보를 확인할 수 없습니다/,
 	);
 	assert.match(source, /disabled=\{loading\}\s+aria-busy=\{loading\}/);
+	assert.match(source, /const isMountedRef = useRef\(false\);/);
+	assert.match(
+		source,
+		/if \(!isMountedRef\.current\) \{\s+return Promise\.resolve\(null\);\s+\}\s+const requestId = requestSequenceRef\.current \+ 1;/,
+	);
+	assert.match(
+		source,
+		/if \(!isMountedRef\.current \|\| requestSequenceRef\.current !== requestId\) \{\s+return data;\s+\}/,
+	);
+	assert.match(
+		source,
+		/if \(isMountedRef\.current && requestSequenceRef\.current === requestId\) \{\s+setLoading\(false\);/,
+	);
 	assert.match(source, /let refreshTimer = null;/);
 	assert.match(source, /let interval = null;/);
+	assert.match(source, /let fallbackPollTimer = null;/);
+	assert.match(source, /const MARKET_PRICE_POLL_INTERVAL_MS = 1000 \* 60 \* 60;/);
+	assert.match(source, /const scheduleFallbackPolling = \(\) => \{/);
 	assert.match(
 		source,
 		/try \{\s+refreshTimer = window\.setTimeout\(\(\) => \{\s+void fetchPrices\(\);\s+\}, 0\);\s+\} catch \(error\) \{/,
@@ -430,9 +718,19 @@ test("market price widget uses Korean product copy for visible states", () => {
 		source,
 		/try \{\s+interval = window\.setInterval\(/,
 	);
+	assert.match(source, /MARKET_PRICE_POLL_INTERVAL_MS/);
 	assert.match(
 		source,
 		/console\.error\(["']Failed to schedule market price polling:/,
+	);
+	assert.match(source, /scheduleFallbackPolling\(\);/);
+	assert.match(
+		source,
+		/fallbackPollTimer = window\.setTimeout\(\(\) => \{\s+void fetchPrices\(\);\s+if \(isMountedRef\.current\) \{\s+scheduleFallbackPolling\(\);/,
+	);
+	assert.match(
+		source,
+		/console\.error\(["']Failed to schedule market price fallback polling:/,
 	);
 	assert.match(
 		source,
@@ -441,6 +739,10 @@ test("market price widget uses Korean product copy for visible states", () => {
 	assert.match(
 		source,
 		/try \{\s+window\.clearInterval\(interval\);\s+\} catch \{\}/,
+	);
+	assert.match(
+		source,
+		/try \{\s+window\.clearTimeout\(fallbackPollTimer\);\s+\} catch \{\}/,
 	);
 	assert.match(
 		source,
@@ -682,8 +984,24 @@ test("weather geolocation lookup falls back safely when browser location APIs fa
 	);
 	assert.match(dashboardSource, /const fetchFallbackWeather = \(\) => \{/);
 	assert.match(hookSource, /const fetchFallbackWeather = \(\) => \{/);
+	assert.match(
+		dashboardSource,
+		/const fetchFallbackWeather = \(\) => \{\s+if \(cancelled\) \{\s+return;\s+\}\s+fetchWeather\(35\.446, 127\.344\);/,
+	);
+	assert.match(
+		hookSource,
+		/const fetchFallbackWeather = \(\) => \{\s+if \(cancelled\) \{\s+return;\s+\}\s+fetchWeather\(\s+FALLBACK_WEATHER_COORDS\.latitude,\s+FALLBACK_WEATHER_COORDS\.longitude,\s+\);/,
+	);
 	assert.match(dashboardSource, /const fetchWeatherFromCoords = \(latitudeValue, longitudeValue\) => \{/);
 	assert.match(hookSource, /const fetchWeatherFromCoords = \(latitudeValue, longitudeValue\) => \{/);
+	assert.match(
+		dashboardSource,
+		/const fetchWeatherFromCoords = \(latitudeValue, longitudeValue\) => \{\s+if \(cancelled\) \{\s+return false;\s+\}/,
+	);
+	assert.match(
+		hookSource,
+		/const fetchWeatherFromCoords = \(latitudeValue, longitudeValue\) => \{\s+if \(cancelled\) \{\s+return false;\s+\}/,
+	);
 	assert.match(
 		dashboardSource,
 		/const latitude = Number\(latitudeValue\);\s+const longitude = Number\(longitudeValue\);/,
@@ -712,6 +1030,14 @@ test("weather geolocation lookup falls back safely when browser location APIs fa
 	assert.match(hookSource, /const fetchWeatherFromPosition = \(position\) => \{/);
 	assert.match(
 		dashboardSource,
+		/const fetchWeatherFromPosition = \(position\) => \{\s+if \(cancelled\) \{\s+return;\s+\}/,
+	);
+	assert.match(
+		hookSource,
+		/const fetchWeatherFromPosition = \(position\) => \{\s+if \(cancelled\) \{\s+return;\s+\}/,
+	);
+	assert.match(
+		dashboardSource,
 		/fetchWeatherFromCoords\(position\?\.coords\?\.latitude, position\?\.coords\?\.longitude\)/,
 	);
 	assert.match(
@@ -720,11 +1046,11 @@ test("weather geolocation lookup falls back safely when browser location APIs fa
 	);
 	assert.match(
 		dashboardSource,
-		/if \(farmSettings\.latitude && farmSettings\.longitude\) \{\s+if \(!fetchWeatherFromCoords\(farmSettings\.latitude, farmSettings\.longitude\)\) \{\s+fetchFallbackWeather\(\);\s+\}/,
+		/if \(\s+farmSettings\.latitude !== null &&\s+farmSettings\.latitude !== undefined &&\s+farmSettings\.longitude !== null &&\s+farmSettings\.longitude !== undefined\s+\) \{\s+if \(!fetchWeatherFromCoords\(farmSettings\.latitude, farmSettings\.longitude\)\) \{\s+fetchFallbackWeather\(\);\s+\}/,
 	);
 	assert.match(
 		hookSource,
-		/if \(farmSettings\?\.latitude && farmSettings\?\.longitude\) \{\s+if \(!fetchWeatherFromCoords\(farmSettings\.latitude, farmSettings\.longitude\)\) \{\s+fetchFallbackWeather\(\);\s+\}/,
+		/if \(\s+farmSettings\?\.latitude !== null &&\s+farmSettings\?\.latitude !== undefined &&\s+farmSettings\?\.longitude !== null &&\s+farmSettings\?\.longitude !== undefined\s+\) \{\s+if \(!fetchWeatherFromCoords\(farmSettings\.latitude, farmSettings\.longitude\)\) \{\s+fetchFallbackWeather\(\);\s+\}/,
 	);
 	assert.match(
 		dashboardSource,
@@ -744,6 +1070,8 @@ test("weather geolocation lookup falls back safely when browser location APIs fa
 	);
 	assert.doesNotMatch(dashboardSource, /else if \("geolocation" in navigator\)/);
 	assert.doesNotMatch(hookSource, /\(\) => fetchWeather\(35\.446, 127\.344\)/);
+	assert.doesNotMatch(dashboardSource, /if \(farmSettings\.latitude && farmSettings\.longitude\)/);
+	assert.doesNotMatch(hookSource, /if \(farmSettings\?\.latitude && farmSettings\?\.longitude\)/);
 	assert.doesNotMatch(
 		dashboardSource,
 		/fetchWeather\(position\.coords\.latitude, position\.coords\.longitude\)/,
@@ -1099,7 +1427,12 @@ test("sales form waits for async saves before re-enabling actions", () => {
 	const source = readSource("components/tabs/SalesTab.js");
 
 	assert.match(source, /const \[isSaving, setIsSaving\] = useState\(false\)/);
+	assert.match(source, /const isMountedRef = useRef\(false\)/);
 	assert.match(source, /const saveInFlightRef = useRef\(false\)/);
+	assert.match(
+		source,
+		/useEffect\(\(\) => \{\s+isMountedRef\.current = true;[\s\S]*?return \(\) => \{\s+isMountedRef\.current = false;\s+saveInFlightRef\.current = false;/,
+	);
 	assert.match(
 		source,
 		/if \(saveInFlightRef\.current \|\| isSaving\) \{\s+return;\s+\}/,
@@ -1109,6 +1442,14 @@ test("sales form waits for async saves before re-enabling actions", () => {
 	assert.match(source, /setIsSaving\(true\);/);
 	assert.match(source, /await onCreateSale\(values\)/);
 	assert.match(
+		source,
+		/if \(!saved \|\| !isMountedRef\.current\) \{\s+return;\s+\}/,
+	);
+	assert.match(
+		source,
+		/finally \{\s+saveInFlightRef\.current = false;\s+if \(isMountedRef\.current\) \{\s+setIsSaving\(false\);/,
+	);
+	assert.doesNotMatch(
 		source,
 		/finally \{\s+saveInFlightRef\.current = false;\s+setIsSaving\(false\);/,
 	);
@@ -1228,7 +1569,12 @@ test("inventory form waits for async saves before re-enabling actions", () => {
 	const source = readSource("components/tabs/InventoryTab.js");
 
 	assert.match(source, /const \[isSaving, setIsSaving\] = useState\(false\)/);
+	assert.match(source, /const isMountedRef = useRef\(false\)/);
 	assert.match(source, /const saveInFlightRef = useRef\(false\)/);
+	assert.match(
+		source,
+		/useEffect\(\(\) => \{\s+isMountedRef\.current = true;[\s\S]*?return \(\) => \{\s+isMountedRef\.current = false;\s+saveInFlightRef\.current = false;\s+quantityInFlightRef\.current = false;/,
+	);
 	assert.match(
 		source,
 		/if \(saveInFlightRef\.current \|\| isSaving\) \{\s+return;\s+\}/,
@@ -1238,6 +1584,14 @@ test("inventory form waits for async saves before re-enabling actions", () => {
 	assert.match(source, /setIsSaving\(true\);/);
 	assert.match(source, /await onAddItem\(values\)/);
 	assert.match(
+		source,
+		/if \(!saved \|\| !isMountedRef\.current\) \{\s+return;\s+\}/,
+	);
+	assert.match(
+		source,
+		/finally \{\s+saveInFlightRef\.current = false;\s+if \(isMountedRef\.current\) \{\s+setIsSaving\(false\);/,
+	);
+	assert.doesNotMatch(
 		source,
 		/finally \{\s+saveInFlightRef\.current = false;\s+setIsSaving\(false\);/,
 	);
@@ -1292,6 +1646,14 @@ test("inventory inline quantity updates wait for async saves before re-enabling 
 	assert.match(source, /setSavingQuantityId\(id\);/);
 	assert.match(source, /await onUpdateQuantity\(id, parsedQuantity\);/);
 	assert.match(
+		source,
+		/if \(!saved \|\| !isMountedRef\.current\) \{\s+return;\s+\}/,
+	);
+	assert.match(
+		source,
+		/finally \{\s+quantityInFlightRef\.current = false;\s+if \(isMountedRef\.current\) \{\s+setSavingQuantityId\(null\);/,
+	);
+	assert.doesNotMatch(
 		source,
 		/finally \{\s+quantityInFlightRef\.current = false;\s+setSavingQuantityId\(null\);/,
 	);

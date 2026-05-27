@@ -59,6 +59,14 @@ const EMPTY_DIAGNOSTICS = {
 	},
 };
 
+function deferDiagnosticsTask(callback) {
+	try {
+		queueMicrotask(callback);
+	} catch {
+		Promise.resolve().then(callback);
+	}
+}
+
 export default function DiagnosticsPageClient() {
 	const router = useRouter();
 	const { notify } = useAppFeedback();
@@ -103,8 +111,11 @@ export default function DiagnosticsPageClient() {
 	useEffect(() => {
 		let cancelled = false;
 		const requestId = ++diagnosticsRequestRef.current;
-		// eslint-disable-next-line react-hooks/set-state-in-effect -- intentional loading marker before async fetch
-		setLoading(true);
+		deferDiagnosticsTask(() => {
+			if (!cancelled && requestId === diagnosticsRequestRef.current) {
+				setLoading(true);
+			}
+		});
 
 		void (async () => {
 			try {
@@ -141,10 +152,12 @@ export default function DiagnosticsPageClient() {
 	useEffect(() => {
 		let cancelled = false;
 		const requestId = ++rawDataRequestRef.current;
-		// eslint-disable-next-line react-hooks/set-state-in-effect -- intentional loading reset before async fetch
-		setDataLoading(true);
-		 
-		setRawData(null);
+		deferDiagnosticsTask(() => {
+			if (!cancelled && requestId === rawDataRequestRef.current) {
+				setDataLoading(true);
+				setRawData(null);
+			}
+		});
 
 		void (async () => {
 			try {

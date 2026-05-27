@@ -57,6 +57,7 @@ function SuccessContent() {
 		const paymentKey = searchParams.get("paymentKey");
 		const orderId = searchParams.get("orderId");
 		const amount = searchParams.get("amount");
+		let cancelled = false;
 
 		if (!paymentKey || !orderId || !amount) {
 			return;
@@ -65,13 +66,19 @@ function SuccessContent() {
 		const paymentAmount = parsePaymentAmount(amount);
 		if (paymentAmount === null) {
 			const invalidAmountTimer = schedulePaymentStatusTimer(
-				() => setStatus(PAYMENT_AMOUNT_ERROR_MESSAGE),
+				() => {
+					if (!cancelled) {
+						setStatus(PAYMENT_AMOUNT_ERROR_MESSAGE);
+					}
+				},
 				0,
 			);
-			return () => clearPaymentStatusTimer(invalidAmountTimer);
+			return () => {
+				cancelled = true;
+				clearPaymentStatusTimer(invalidAmountTimer);
+			};
 		}
 
-		let cancelled = false;
 		let retryTimer = null;
 
 		const confirmPayment = async (attempt = 0) => {
@@ -102,11 +109,17 @@ function SuccessContent() {
 				if (data?.success) {
 					setStatus("success");
 					retryTimer = schedulePaymentStatusTimer(() => {
+						if (cancelled) {
+							return;
+						}
+
 						try {
 							router.push("/");
 						} catch (error) {
 							console.error("Payment success redirect failed:", error);
-							setStatus(PAYMENT_REDIRECT_ERROR_MESSAGE);
+							if (!cancelled) {
+								setStatus(PAYMENT_REDIRECT_ERROR_MESSAGE);
+							}
 						}
 					}, 3000);
 					return;
@@ -126,7 +139,9 @@ function SuccessContent() {
 						`결제 확인을 다시 시도합니다. ${CONFIRM_RETRY_DELAY_MS / 1000}초 후 재확인합니다.`,
 					);
 					retryTimer = schedulePaymentStatusTimer(() => {
-						void confirmPayment(attempt + 1);
+						if (!cancelled) {
+							void confirmPayment(attempt + 1);
+						}
 					}, CONFIRM_RETRY_DELAY_MS);
 					return;
 				}

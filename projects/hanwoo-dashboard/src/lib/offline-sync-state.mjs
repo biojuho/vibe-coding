@@ -22,15 +22,21 @@ function normalizeRetryCount(value) {
 	return Number.isInteger(value) && value > 0 ? value : 0;
 }
 
+function normalizeObject(value) {
+	return value && typeof value === "object" ? value : {};
+}
+
 export function normalizeOfflineQueueMetadata(item = {}) {
+	const safeItem = normalizeObject(item);
+
 	return {
-		retryCount: normalizeRetryCount(item.retryCount),
-		lastAttemptAt: normalizeTimestamp(item.lastAttemptAt),
+		retryCount: normalizeRetryCount(safeItem.retryCount),
+		lastAttemptAt: normalizeTimestamp(safeItem.lastAttemptAt),
 		lastError:
-			typeof item.lastError === "string" && item.lastError.length > 0
-				? item.lastError
+			typeof safeItem.lastError === "string" && safeItem.lastError.length > 0
+				? safeItem.lastError
 				: null,
-		deadLetteredAt: normalizeTimestamp(item.deadLetteredAt),
+		deadLetteredAt: normalizeTimestamp(safeItem.deadLetteredAt),
 	};
 }
 
@@ -44,16 +50,18 @@ export function isPermanentOfflineQueueFailure(message) {
 
 export function createFailedQueueItemState(
 	item,
-	{
+	options = {},
+) {
+	const safeItem = normalizeObject(item);
+	const {
 		errorMessage = "",
 		attemptedAt = Date.now(),
 		permanent = false,
 		maxRetries = MAX_OFFLINE_SYNC_RETRIES,
-	} = {},
-) {
-	const nextRetryCount = normalizeRetryCount(item?.retryCount) + 1;
+	} = normalizeObject(options);
+	const nextRetryCount = normalizeRetryCount(safeItem.retryCount) + 1;
 	const nextItem = {
-		...item,
+		...safeItem,
 		retryCount: nextRetryCount,
 		lastAttemptAt: attemptedAt,
 		lastError:

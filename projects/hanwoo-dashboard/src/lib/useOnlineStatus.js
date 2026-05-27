@@ -30,19 +30,39 @@ export function useOnlineStatus() {
 
 		const goOnline = () => setIsOnline(true);
 		const goOffline = () => setIsOnline(false);
+		let registeredOnline = false;
+		let registeredOffline = false;
 
 		try {
 			window.addEventListener("online", goOnline);
+			registeredOnline = true;
 			window.addEventListener("offline", goOffline);
+			registeredOffline = true;
 		} catch {
+			if (registeredOnline) {
+				try {
+					window.removeEventListener("online", goOnline);
+				} catch {}
+			}
+			if (registeredOffline) {
+				try {
+					window.removeEventListener("offline", goOffline);
+				} catch {}
+			}
 			return undefined;
 		}
 
 		return () => {
-			try {
-				window.removeEventListener("online", goOnline);
-				window.removeEventListener("offline", goOffline);
-			} catch {}
+			if (registeredOnline) {
+				try {
+					window.removeEventListener("online", goOnline);
+				} catch {}
+			}
+			if (registeredOffline) {
+				try {
+					window.removeEventListener("offline", goOffline);
+				} catch {}
+			}
 		};
 	}, []);
 

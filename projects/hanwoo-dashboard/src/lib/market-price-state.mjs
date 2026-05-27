@@ -67,6 +67,10 @@ function normalizePriceSide(side) {
 	return normalized;
 }
 
+function normalizeOptions(options) {
+	return options && typeof options === "object" ? options : {};
+}
+
 function createAvailableMarketPrice({
 	bull,
 	cow,
@@ -100,6 +104,8 @@ export function normalizeCachedMarketPrice(snapshot, options = {}) {
 		return null;
 	}
 
+	const safeOptions = normalizeOptions(options);
+
 	const bull = normalizePriceSide({
 		grade1pp: snapshot.bullGrade1pp,
 		grade1p: snapshot.bullGrade1p,
@@ -115,8 +121,8 @@ export function normalizeCachedMarketPrice(snapshot, options = {}) {
 		return null;
 	}
 
-	const now = options.now ?? new Date();
-	const freshnessMs = options.freshnessMs ?? MARKET_PRICE_FRESH_TTL_MS;
+	const now = safeOptions.now ?? new Date();
+	const freshnessMs = safeOptions.freshnessMs ?? MARKET_PRICE_FRESH_TTL_MS;
 	const fetchedAt = toValidDate(snapshot.fetchedAt) ?? now;
 	const ageMs = now.getTime() - fetchedAt.getTime();
 	const isStale = ageMs >= freshnessMs;
@@ -143,6 +149,8 @@ export function normalizeLiveMarketPrice(payload, options = {}) {
 		return null;
 	}
 
+	const safeOptions = normalizeOptions(options);
+
 	const bull = normalizePriceSide(payload.bull);
 	const cow = normalizePriceSide(payload.cow);
 
@@ -150,7 +158,7 @@ export function normalizeLiveMarketPrice(payload, options = {}) {
 		return null;
 	}
 
-	const now = options.now ?? new Date();
+	const now = safeOptions.now ?? new Date();
 	const fetchedAt = toValidDate(payload.fetchedAt) ?? now;
 	const issueDate = toIssueDateKey(payload.issueDate ?? payload.date, now);
 
@@ -168,7 +176,8 @@ export function normalizeLiveMarketPrice(payload, options = {}) {
 }
 
 export function buildUnavailableMarketPrice(options = {}) {
-	const now = options.now ?? new Date();
+	const safeOptions = normalizeOptions(options);
+	const now = safeOptions.now ?? new Date();
 
 	return {
 		available: false,
@@ -177,7 +186,7 @@ export function buildUnavailableMarketPrice(options = {}) {
 		isStale: true,
 		source: "unavailable",
 		sourceLabel: "시세 확인 불가",
-		message: options.message ?? MARKET_PRICE_UNAVAILABLE_MESSAGE,
+		message: safeOptions.message ?? MARKET_PRICE_UNAVAILABLE_MESSAGE,
 		fetchedAt: now.toISOString(),
 		issueDate: null,
 		date: null,

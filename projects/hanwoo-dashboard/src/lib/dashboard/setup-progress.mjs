@@ -3,7 +3,9 @@ function hasText(value) {
 }
 
 function countItems(value) {
-	return Array.isArray(value) ? value.length : 0;
+	return Array.isArray(value)
+		? value.filter((item) => item && typeof item === "object").length
+		: 0;
 }
 
 export function buildSetupProgressItems({

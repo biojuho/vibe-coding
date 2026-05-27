@@ -14,7 +14,10 @@ function readSource(relativePath) {
 test("excel export button uses a real decorative download icon", () => {
 	const source = readSource("components/widgets/ExcelExportButton.js");
 
-	assert.match(source, /import \{ useRef, useState \} from ["']react["'];/);
+	assert.match(
+		source,
+		/import \{ useEffect, useRef, useState \} from ["']react["'];/,
+	);
 	assert.match(source, /import \{ Download \} from ["']lucide-react["'];/);
 	assert.match(
 		source,
@@ -53,13 +56,21 @@ test("excel export button blocks duplicate downloads while the export is prepari
 	const source = readSource("components/widgets/ExcelExportButton.js");
 
 	assert.match(source, /const preparingRef = useRef\(false\);/);
+	assert.match(source, /const isMountedRef = useRef\(false\);/);
+	assert.match(source, /useEffect\(\(\) => \{/);
+	assert.match(source, /isMountedRef\.current = true;/);
+	assert.match(
+		source,
+		/return \(\) => \{\s+isMountedRef\.current = false;\s+preparingRef\.current = false;/,
+	);
 	assert.match(source, /if \(preparingRef\.current\) return;/);
 	assert.match(source, /preparingRef\.current = true;/);
 	assert.match(source, /const rows =[\s\S]*?await resolveCattleList\(\)/);
 	assert.match(
 		source,
-		/finally \{[\s\S]*?preparingRef\.current = false;\s+setIsPreparing\(false\);/,
+		/finally \{[\s\S]*?preparingRef\.current = false;\s+if \(isMountedRef\.current\) \{\s+setIsPreparing\(false\);/,
 	);
+	assert.doesNotMatch(source, /finally \{[\s\S]*?preparingRef\.current = false;\s+setIsPreparing\(false\);/);
 	assert.match(source, /disabled=\{isPreparing\}/);
 	assert.match(source, /aria-busy=\{isPreparing\}/);
 });

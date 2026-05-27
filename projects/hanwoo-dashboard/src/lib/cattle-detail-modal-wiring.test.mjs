@@ -324,7 +324,15 @@ test("cattle detail archive actions wait for async deletes before re-enabling su
 	);
 	assert.match(dashboardSource, /setDeletingCattleId\(id\);/);
 	assert.match(dashboardSource, /await deleteCattle\(id\);/);
-	assert.match(dashboardSource, /finally \{\s+setDeletingCattleId\(null\);/);
+	assert.match(dashboardSource, /const dashboardMountedRef = useRef\(false\);/);
+	assert.match(
+		dashboardSource,
+		/finally \{\s+if \(dashboardMountedRef\.current\) \{\s+setDeletingCattleId\(null\);\s+\}/,
+	);
+	assert.doesNotMatch(
+		dashboardSource,
+		/finally \{\s+setDeletingCattleId\(null\);/,
+	);
 	assert.match(
 		dashboardSource,
 		/isDeleting=\{deletingCattleId === selectedCow\.id\}/,
@@ -405,7 +413,12 @@ test("cattle tag lookup progress and results are announced", () => {
 	assert.match(formSource, /const lookupInFlightRef = useRef\(false\)/);
 	assert.match(formSource, /const lookupRequestIdRef = useRef\(0\)/);
 	assert.match(formSource, /const mountedRef = useRef\(true\)/);
+	assert.match(formSource, /const saveInFlightRef = useRef\(false\)/);
 	assert.match(formSource, /lookupRequestIdRef\.current \+= 1;/);
+	assert.match(
+		formSource,
+		/return \(\) => \{\s+mountedRef\.current = false;\s+lookupRequestIdRef\.current \+= 1;\s+lookupInFlightRef\.current = false;\s+saveInFlightRef\.current = false;/,
+	);
 	assert.match(
 		formSource,
 		/if \(lookupInFlightRef\.current\) \{\s+return;\s+\}/,
@@ -467,7 +480,7 @@ test("cattle form waits for async saves before re-enabling submit actions", () =
 	assert.match(formSource, /const saveInFlightRef = useRef\(false\)/);
 	assert.match(
 		formSource,
-		/saveInFlightRef\.current = false;\s+\}, \[safeBuildings, cattle, reset\]\);/,
+		/saveInFlightRef\.current = false;\s+deferCattleFormTask\(\(\) => \{[\s\S]*?setIsSaving\(false\);[\s\S]*?return \(\) => \{\s+cancelled = true;\s+\};\s+\}, \[safeBuildings, cattle, reset\]\);/,
 	);
 	assert.match(formSource, /setIsSaving\(false\);/);
 	assert.match(
@@ -497,6 +510,10 @@ test("cattle form waits for async saves before re-enabling submit actions", () =
 	assert.match(formSource, /setIsSaving\(true\);/);
 	assert.match(formSource, /await onSubmit\(\{/);
 	assert.match(
+		formSource,
+		/finally \{\s*saveInFlightRef\.current = false;\s+if \(mountedRef\.current\) \{\s+setIsSaving\(false\);/,
+	);
+	assert.doesNotMatch(
 		formSource,
 		/finally \{\s*saveInFlightRef\.current = false;\s+setIsSaving\(false\);/,
 	);
@@ -607,10 +624,15 @@ test("cattle detail breeding records wait for async saves before re-enabling sub
 		detailSource,
 		/const \[isBreedingSaving, setIsBreedingSaving\] = useState\(false\)/,
 	);
+	assert.match(detailSource, /const mountedRef = useRef\(false\)/);
 	assert.match(detailSource, /const breedingSaveInFlightRef = useRef\(false\)/);
 	assert.match(
 		detailSource,
-		/breedingSaveInFlightRef\.current = false;\s+\}, \[cattle\?\.id\]\);/,
+		/useEffect\(\(\) => \{\s+mountedRef\.current = true;[\s\S]*?return \(\) => \{\s+mountedRef\.current = false;\s+breedingSaveInFlightRef\.current = false;/,
+	);
+	assert.match(
+		detailSource,
+		/breedingSaveInFlightRef\.current = false;\s+deferCattleDetailTask\(\(\) => \{[\s\S]*?setIsBreedingSaving\(false\);[\s\S]*?return \(\) => \{\s+cancelled = true;\s+\};\s+\}, \[cattle\?\.id\]\);/,
 	);
 	assert.match(
 		detailSource,
@@ -620,6 +642,18 @@ test("cattle detail breeding records wait for async saves before re-enabling sub
 	assert.match(detailSource, /setIsBreedingSaving\(true\);/);
 	assert.match(detailSource, /await onUpdate\(nextCattle,/);
 	assert.match(
+		detailSource,
+		/if \(saved !== false && mountedRef\.current\) \{\s+setActiveBreedingAction\(null\);/,
+	);
+	assert.doesNotMatch(
+		detailSource,
+		/if \(saved !== false\) \{\s+setActiveBreedingAction\(null\);/,
+	);
+	assert.match(
+		detailSource,
+		/finally \{\s+breedingSaveInFlightRef\.current = false;\s+if \(mountedRef\.current\) \{\s+setIsBreedingSaving\(false\);/,
+	);
+	assert.doesNotMatch(
 		detailSource,
 		/finally \{\s+breedingSaveInFlightRef\.current = false;\s+setIsBreedingSaving\(false\);/,
 	);
@@ -679,4 +713,42 @@ test("cattle detail decorative icons are hidden from assistive tech", () => {
 			),
 		);
 	}
+});
+
+test("cattle form and detail reset paths avoid lint suppressions", () => {
+	const formSource = readSource("components/forms/CattleForm.js");
+	const detailSource = readSource("components/forms/CattleDetailModal.js");
+
+	assert.match(
+		formSource,
+		/function deferCattleFormTask\(callback\) \{\s+try \{\s+queueMicrotask\(callback\);\s+\} catch \{\s+Promise\.resolve\(\)\.then\(callback\);/,
+	);
+	assert.match(
+		formSource,
+		/deferCattleFormTask\(\(\) => \{\s+if \(cancelled\) \{\s+return;\s+\}\s+setLookupLoading\(false\);\s+setLookupMsg\(null\);\s+setIsSaving\(false\);/,
+	);
+	assert.match(
+		formSource,
+		/const handleCattleFormSubmit = \(event\) => \{\s+void handleSubmit\(submitForm\)\(event\);\s+\};/,
+	);
+	assert.match(formSource, /onSubmit=\{handleCattleFormSubmit\}/);
+	assert.match(
+		detailSource,
+		/function deferCattleDetailTask\(callback\) \{\s+try \{\s+queueMicrotask\(callback\);\s+\} catch \{\s+Promise\.resolve\(\)\.then\(callback\);/,
+	);
+	assert.match(
+		detailSource,
+		/deferCattleDetailTask\(\(\) => \{\s+if \(cancelled\) \{\s+return;\s+\}\s+setActiveBreedingAction\(null\);\s+setBreedingDate\(toInputDate\(new Date\(\)\)\);\s+setBreedingError\(""\);\s+setIsBreedingSaving\(false\);/,
+	);
+	assert.doesNotMatch(
+		formSource,
+		/queueMicrotask\(\(\) => \{\s+if \(cancelled\) \{/,
+	);
+	assert.doesNotMatch(
+		detailSource,
+		/queueMicrotask\(\(\) => \{\s+if \(cancelled\) \{/,
+	);
+	assert.doesNotMatch(formSource, /eslint-disable/);
+	assert.doesNotMatch(detailSource, /eslint-disable/);
+	assert.doesNotMatch(formSource, /onSubmit=\{handleSubmit\(submitForm\)\}/);
 });

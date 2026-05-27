@@ -21,6 +21,7 @@ function toFiniteOrZero(value) {
 }
 
 function toFiniteNumberOrNull(value) {
+	if (value === null || value === undefined || value === "") return null;
 	const n = Number(value);
 	return Number.isFinite(n) ? n : null;
 }
@@ -67,8 +68,11 @@ export function summarizeFarmForInsight(input) {
 				marginManwon: Math.round(
 					toFiniteOrZero(recommendedShipments[0].currentProfit) / 10000,
 				),
-			}
+		}
 		: null;
+	const thi = toFiniteNumberOrNull(weather.thi);
+	const temp = toFiniteNumberOrNull(weather.temp);
+	const humidity = toFiniteNumberOrNull(weather.humidity);
 
 	return {
 		totalHeadcount: Math.max(0, Math.round(toFiniteOrZero(safe.totalHeadcount))),
@@ -80,11 +84,9 @@ export function summarizeFarmForInsight(input) {
 			0,
 			Math.round(toFiniteOrZero(safe.monthlySalesTotal) / 10000),
 		),
-		thi: Number.isFinite(weather.thi) ? Math.round(weather.thi) : null,
-		temp: Number.isFinite(weather.temp) ? Math.round(weather.temp) : null,
-		humidity: Number.isFinite(weather.humidity)
-			? Math.round(weather.humidity)
-			: null,
+		thi: thi === null ? null : Math.round(thi),
+		temp: temp === null ? null : Math.round(temp),
+		humidity: humidity === null ? null : Math.round(humidity),
 		shipmentCandidates: recommendedShipments.length,
 		decliningMarginCount,
 		topShipment,

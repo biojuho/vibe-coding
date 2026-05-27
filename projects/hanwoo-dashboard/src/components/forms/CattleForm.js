@@ -43,6 +43,14 @@ function normalizeCattleFormBuildings(buildings) {
 		: [];
 }
 
+function deferCattleFormTask(callback) {
+	try {
+		queueMicrotask(callback);
+	} catch {
+		Promise.resolve().then(callback);
+	}
+}
+
 export default function CattleForm({
 	cattle,
 	buildings = [],
@@ -88,16 +96,25 @@ export default function CattleForm({
 	});
 
 	useEffect(() => {
+		let cancelled = false;
 		reset(createCattleFormValues(cattle, safeBuildings));
 		lookupRequestIdRef.current += 1;
 		lookupInFlightRef.current = false;
-		// eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset of form-local state on cattle/buildings change
-		setLookupLoading(false);
-		 
-		setLookupMsg(null);
-		 
-		setIsSaving(false);
 		saveInFlightRef.current = false;
+
+		deferCattleFormTask(() => {
+			if (cancelled) {
+				return;
+			}
+
+			setLookupLoading(false);
+			setLookupMsg(null);
+			setIsSaving(false);
+		});
+
+		return () => {
+			cancelled = true;
+		};
 	}, [safeBuildings, cattle, reset]);
 
 	useEffect(() => {
@@ -111,6 +128,7 @@ export default function CattleForm({
 			mountedRef.current = false;
 			lookupRequestIdRef.current += 1;
 			lookupInFlightRef.current = false;
+			saveInFlightRef.current = false;
 		};
 	}, []);
 
@@ -220,8 +238,14 @@ export default function CattleForm({
 			});
 		} finally {
 			saveInFlightRef.current = false;
-			setIsSaving(false);
+			if (mountedRef.current) {
+				setIsSaving(false);
+			}
 		}
+	};
+
+	const handleCattleFormSubmit = (event) => {
+		void handleSubmit(submitForm)(event);
 	};
 
 	const tagNumberDescriptionIds =
@@ -301,8 +325,7 @@ export default function CattleForm({
 				</div>
 
 				<form
-					// eslint-disable-next-line react-hooks/refs -- React Hook Form's handleSubmit returns a submit handler; refs captured by submitForm are read on submit event, not during render
-					onSubmit={handleSubmit(submitForm)}
+					onSubmit={handleCattleFormSubmit}
 					className="card animate-fadeInUp"
 					style={{
 						display: "flex",

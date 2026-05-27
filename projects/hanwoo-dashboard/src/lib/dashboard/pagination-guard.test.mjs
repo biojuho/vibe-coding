@@ -42,6 +42,14 @@ test("sanitizeDashboardPageInfoTransition stops pagination when the cursor repea
 	assert.match(result.paginationError, /same cursor twice/i);
 });
 
+test("sanitizeDashboardPageInfoTransition tolerates malformed helper input", () => {
+	const result = sanitizeDashboardPageInfoTransition(null);
+
+	assert.equal(result.hasMore, false);
+	assert.equal(result.nextCursor, null);
+	assert.equal(result.paginationError, null);
+});
+
 test("getNextDashboardPaginationState throws when the loop exceeds the page cap", () => {
 	assert.throws(
 		() =>
@@ -64,5 +72,20 @@ test("getNextDashboardPaginationState throws when a previously seen cursor reapp
 				source: "sales",
 			}),
 		/repeated cursor/i,
+	);
+});
+
+test("getNextDashboardPaginationState tolerates malformed helper input", () => {
+	assert.deepEqual(getNextDashboardPaginationState(null), {
+		hasMore: false,
+		nextCursor: null,
+		paginationError: null,
+	});
+	assert.equal(
+		getNextDashboardPaginationState({
+			receivedPageInfo: { hasMore: true, nextCursor: "cursor-5" },
+			seenCursors: null,
+		}).nextCursor,
+		"cursor-5",
 	);
 });

@@ -4,6 +4,7 @@ import test from "node:test";
 import {
 	buildUnavailableMarketPrice,
 	MARKET_PRICE_FRESH_TTL_MS,
+	MARKET_PRICE_UNAVAILABLE_MESSAGE,
 	normalizeCachedMarketPrice,
 	normalizeLiveMarketPrice,
 	shouldPersistLiveMarketPrice,
@@ -72,6 +73,26 @@ test("normalizeCachedMarketPrice rejects legacy non-realtime snapshots so synthe
 	assert.equal(result, null);
 });
 
+test("normalizeCachedMarketPrice ignores malformed options input", () => {
+	const result = normalizeCachedMarketPrice(
+		{
+			issueDate: "2026-04-06",
+			fetchedAt: "2026-04-07T11:40:00.000Z",
+			isRealtime: true,
+			bullGrade1pp: 21500,
+			bullGrade1p: 19800,
+			bullGrade1: 18500,
+			cowGrade1pp: 18500,
+			cowGrade1p: 17200,
+			cowGrade1: 16000,
+		},
+		null,
+	);
+
+	assert.equal(result.available, true);
+	assert.equal(result.issueDate, "2026-04-06");
+});
+
 test("normalizeLiveMarketPrice returns a persistable live KAPE state", () => {
 	const now = new Date("2026-04-07T12:00:00.000Z");
 	const result = normalizeLiveMarketPrice(
@@ -117,6 +138,23 @@ test("normalizeLiveMarketPrice rejects incomplete live payloads", () => {
 	});
 
 	assert.equal(result, null);
+});
+
+test("normalizeLiveMarketPrice and unavailable fallback ignore malformed options input", () => {
+	const live = normalizeLiveMarketPrice(
+		{
+			issueDate: "20260406",
+			bull: { grade1pp: 21500, grade1p: 19800, grade1: 18500 },
+			cow: { grade1pp: 18500, grade1p: 17200, grade1: 16000 },
+		},
+		null,
+	);
+	const unavailable = buildUnavailableMarketPrice(null);
+
+	assert.equal(live.available, true);
+	assert.equal(live.issueDate, "2026-04-06");
+	assert.equal(unavailable.available, false);
+	assert.equal(unavailable.message, MARKET_PRICE_UNAVAILABLE_MESSAGE);
 });
 
 test("buildUnavailableMarketPrice returns an explicit degraded unavailable state", () => {

@@ -5,6 +5,7 @@ import {
 	buildGatewayErrorMessage,
 	classifyPaymentConfirmationResult,
 	PAYMENT_CONFIRMATION_AMOUNT_MISMATCH_MESSAGE,
+	PAYMENT_CONFIRMATION_FAILURE_MESSAGE,
 	PAYMENT_CONFIRMATION_PENDING_MESSAGE,
 	readJsonResponseSafely,
 } from "./payment-confirmation.mjs";
@@ -62,6 +63,14 @@ test("buildGatewayErrorMessage falls back to a safe response snippet for malform
 	assert.match(message, /Service temporarily unavailable/);
 });
 
+test("buildGatewayErrorMessage tolerates malformed helper input", () => {
+	assert.equal(buildGatewayErrorMessage(null), PAYMENT_CONFIRMATION_FAILURE_MESSAGE);
+	assert.equal(
+		buildGatewayErrorMessage("bad-input"),
+		PAYMENT_CONFIRMATION_FAILURE_MESSAGE,
+	);
+});
+
 test("classifyPaymentConfirmationResult keeps 5xx gateway failures retryable", () => {
 	const result = classifyPaymentConfirmationResult({
 		status: 502,
@@ -88,6 +97,15 @@ test("classifyPaymentConfirmationResult treats malformed 200 responses as pendin
 	assert.equal(result.kind, "pending");
 	assert.equal(result.httpStatus, 202);
 	assert.equal(result.reason, "invalid_success_body");
+});
+
+test("classifyPaymentConfirmationResult tolerates malformed helper input", () => {
+	const result = classifyPaymentConfirmationResult(null);
+
+	assert.equal(result.kind, "pending");
+	assert.equal(result.httpStatus, 202);
+	assert.equal(result.message, PAYMENT_CONFIRMATION_PENDING_MESSAGE);
+	assert.equal(result.reason, "empty_success_body");
 });
 
 test("classifyPaymentConfirmationResult rejects mismatched totals as a definitive failure", () => {

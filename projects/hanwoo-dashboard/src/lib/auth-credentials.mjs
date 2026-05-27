@@ -1,3 +1,11 @@
+function isPlainObject(value) {
+	return (
+		value !== null &&
+		typeof value === "object" &&
+		!Array.isArray(value)
+	);
+}
+
 export async function authorizeCredentials(credentials, deps = {}) {
 	const username =
 		typeof credentials?.username === "string" ? credentials.username : "";
@@ -8,10 +16,11 @@ export async function authorizeCredentials(credentials, deps = {}) {
 		return null;
 	}
 
+	const safeDeps = isPlainObject(deps) ? deps : {};
 	const loadPrisma =
-		deps.loadPrisma ?? (async () => (await import("@/lib/db")).default);
+		safeDeps.loadPrisma ?? (async () => (await import("@/lib/db")).default);
 	const loadBcrypt =
-		deps.loadBcrypt ?? (async () => (await import("bcrypt")).default);
+		safeDeps.loadBcrypt ?? (async () => (await import("bcrypt")).default);
 
 	try {
 		const prisma = await loadPrisma();

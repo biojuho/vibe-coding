@@ -11,12 +11,20 @@ export const WEATHER_TIMEOUT_MESSAGE =
 	"날씨 조회가 5초 안에 끝나지 않았습니다.";
 
 function toNumberOrNull(value) {
+	if (value === null || value === undefined || value === "") {
+		return null;
+	}
+
 	const next = Number(value);
 	return Number.isFinite(next) ? next : null;
 }
 
 function isNonEmptyString(value) {
 	return typeof value === "string" && value.trim().length > 0;
+}
+
+function normalizeOptions(options) {
+	return options && typeof options === "object" ? options : {};
 }
 
 function normalizeForecast(daily) {
@@ -91,6 +99,7 @@ export async function readWeatherApiResponseSafely(response) {
 }
 
 export function normalizeWeatherPayload(payload, options = {}) {
+	const safeOptions = normalizeOptions(options);
 	const current = payload?.current;
 	const temp = toNumberOrNull(current?.temperature_2m);
 	const humidity = toNumberOrNull(current?.relative_humidity_2m);
@@ -125,27 +134,31 @@ export function normalizeWeatherPayload(payload, options = {}) {
 		tempMax: forecast[0]?.tempMax ?? temp + 3,
 		tempMin: forecast[0]?.tempMin ?? temp - 3,
 		precipitation: forecast[0]?.precipProb ?? 0,
-		locationName: options.locationName ?? "서울",
+		locationName: safeOptions.locationName ?? "서울",
 		forecast,
 	};
 }
 
 export function buildUnavailableWeatherState(options = {}) {
+	const safeOptions = normalizeOptions(options);
+
 	return {
 		available: false,
 		degraded: true,
 		isStale: true,
 		source: "weather-unavailable",
 		sourceLabel: "날씨 확인 불가",
-		message: options.message ?? WEATHER_UNAVAILABLE_MESSAGE,
-		locationName: options.locationName ?? "서울",
+		message: safeOptions.message ?? WEATHER_UNAVAILABLE_MESSAGE,
+		locationName: safeOptions.locationName ?? "서울",
 		forecast: [],
 	};
 }
 
 export function markWeatherAsStale(previousWeather, options = {}) {
+	const safeOptions = normalizeOptions(options);
+
 	if (!previousWeather?.available) {
-		return buildUnavailableWeatherState(options);
+		return buildUnavailableWeatherState(safeOptions);
 	}
 
 	return {
@@ -155,7 +168,7 @@ export function markWeatherAsStale(previousWeather, options = {}) {
 		source: "weather-stale",
 		sourceLabel: "이전 날씨",
 		locationName:
-			options.locationName ?? previousWeather.locationName ?? "서울",
-		message: options.message ?? WEATHER_STALE_MESSAGE,
+			safeOptions.locationName ?? previousWeather.locationName ?? "서울",
+		message: safeOptions.message ?? WEATHER_STALE_MESSAGE,
 	};
 }

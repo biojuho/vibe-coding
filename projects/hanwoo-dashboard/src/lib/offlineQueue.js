@@ -11,6 +11,10 @@ function createQueueItemId() {
 	);
 }
 
+function normalizeQueueTimestamp(value) {
+	return typeof value === "number" && Number.isFinite(value) ? value : Date.now();
+}
+
 function normalizeQueueItem(item) {
 	if (
 		!item ||
@@ -28,7 +32,7 @@ function normalizeQueueItem(item) {
 				: createQueueItemId(),
 		action: item.action,
 		args: item.args,
-		timestamp: typeof item.timestamp === "number" ? item.timestamp : Date.now(),
+		timestamp: normalizeQueueTimestamp(item.timestamp),
 		...normalizeOfflineQueueMetadata(item),
 	};
 }

@@ -3,12 +3,47 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { getQueue } from "./offlineQueue.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SRC_ROOT = path.resolve(__dirname, "..");
 
 function readSource(relativePath) {
 	return readFileSync(path.join(SRC_ROOT, relativePath), "utf8");
+}
+
+function withBrowserStorage(callback) {
+	const originalWindow = globalThis.window;
+	const originalLocalStorage = globalThis.localStorage;
+	const store = new Map();
+	const localStorage = {
+		getItem: (key) => (store.has(key) ? store.get(key) : null),
+		removeItem: (key) => {
+			store.delete(key);
+		},
+		setItem: (key, value) => {
+			store.set(key, String(value));
+		},
+	};
+
+	globalThis.window = {};
+	globalThis.localStorage = localStorage;
+
+	try {
+		return callback({ store });
+	} finally {
+		if (typeof originalWindow === "undefined") {
+			delete globalThis.window;
+		} else {
+			globalThis.window = originalWindow;
+		}
+
+		if (typeof originalLocalStorage === "undefined") {
+			delete globalThis.localStorage;
+		} else {
+			globalThis.localStorage = originalLocalStorage;
+		}
+	}
 }
 
 test("offline queue persistence tolerates restricted browser storage", () => {
@@ -36,4 +71,22 @@ test("offline queue clearing tolerates restricted browser storage", () => {
 		source,
 		/export function clearDeadLetterQueue\(\) \{\s+if \(typeof window === "undefined"\) return;\s+try \{\s+localStorage\.removeItem\(DEAD_LETTER_KEY\);\s+\} catch \{\}\s+\}/,
 	);
+});
+
+test("offline queue rewrites non-finite persisted timestamps", () => {
+	withBrowserStorage(({ store }) => {
+		const before = Date.now();
+		store.set(
+			"joolife-offline-queue",
+			'[{"id":"queued-1","action":"createCattle","timestamp":1e999}]',
+		);
+
+		const [item] = getQueue();
+
+		assert.equal(item.id, "queued-1");
+		assert.equal(item.action, "createCattle");
+		assert.equal(Number.isFinite(item.timestamp), true);
+		assert.ok(item.timestamp >= before);
+		assert.doesNotMatch(store.get("joolife-offline-queue"), /1e999/);
+	});
 });

@@ -158,11 +158,17 @@ export default function FieldModeView({
 
 	// Load checklist from localStorage on mount
 	useEffect(() => {
+		let cancelled = false;
+
 		// 1. Fetch all cattle registry in the background to enable global search
 		if (ensureAllCattleLoaded) {
 			ensureAllCattleLoaded({ silent: true })
 				.catch(() => {})
-				.finally(() => setLoadingAllCattle(false));
+				.finally(() => {
+					if (!cancelled) {
+						setLoadingAllCattle(false);
+					}
+				});
 		}
 
 		// 2. Perform daily checklist initialization side effects (cleanup old, write current if missing)
@@ -193,20 +199,30 @@ export default function FieldModeView({
 				writeStoredChecklist(todayKey, fresh);
 			}
 		}
+
+		return () => {
+			cancelled = true;
+		};
 	}, [ensureAllCattleLoaded]);
 
 	// Particle celebration effect for daily checklist 100% completion
 	useEffect(() => {
 		if (!showCelebration) return;
 
+		let cancelled = false;
 		const canvas = celebrationCanvasRef.current;
 		if (!canvas) return;
 		const ctx = canvas.getContext("2d");
 		if (!ctx) {
 			const closeTimer = scheduleFieldModeTimer(() => {
-				setShowCelebration(false);
+				if (!cancelled) {
+					setShowCelebration(false);
+				}
 			}, 0);
-			return () => clearFieldModeTimer(closeTimer);
+			return () => {
+				cancelled = true;
+				clearFieldModeTimer(closeTimer);
+			};
 		}
 
 		let width = (canvas.width = window.innerWidth);
@@ -249,11 +265,19 @@ export default function FieldModeView({
 
 		createFirework(width / 2, height * 0.85);
 		const t1 = scheduleFieldModeTimer(
-			() => createFirework(width * 0.25, height * 0.6),
+			() => {
+				if (!cancelled) {
+					createFirework(width * 0.25, height * 0.6);
+				}
+			},
 			250,
 		);
 		const t2 = scheduleFieldModeTimer(
-			() => createFirework(width * 0.75, height * 0.6),
+			() => {
+				if (!cancelled) {
+					createFirework(width * 0.75, height * 0.6);
+				}
+			},
 			400,
 		);
 
@@ -291,26 +315,35 @@ export default function FieldModeView({
 				animationId = scheduleFieldModeAnimationFrame(animate);
 				if (animationId === null) {
 					frameFailureTimer = scheduleFieldModeTimer(() => {
-						setShowCelebration(false);
+						if (!cancelled) {
+							setShowCelebration(false);
+						}
 					}, 0);
 				}
 			} else {
-				setShowCelebration(false);
+				if (!cancelled) {
+					setShowCelebration(false);
+				}
 			}
 		};
 
 		animationId = scheduleFieldModeAnimationFrame(animate);
 		if (animationId === null) {
 			frameFailureTimer = scheduleFieldModeTimer(() => {
-				setShowCelebration(false);
+				if (!cancelled) {
+					setShowCelebration(false);
+				}
 			}, 0);
 		}
 
 		const timer = scheduleFieldModeTimer(() => {
-			setShowCelebration(false);
+			if (!cancelled) {
+				setShowCelebration(false);
+			}
 		}, 4500);
 
 		return () => {
+			cancelled = true;
 			try {
 				window.removeEventListener("resize", handleResize);
 			} catch {}

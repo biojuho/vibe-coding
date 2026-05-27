@@ -53,6 +53,7 @@ const DEFAULT_CONFIRMATION = {
 export function FeedbackProvider({ children }) {
 	const [toasts, setToasts] = useState([]);
 	const [confirmation, setConfirmation] = useState(DEFAULT_CONFIRMATION);
+	const mountedRef = useRef(true);
 	const resolverRef = useRef(null);
 	const timeoutIdsRef = useRef(new Map());
 
@@ -65,18 +66,26 @@ export function FeedbackProvider({ children }) {
 			timeoutIdsRef.current.delete(id);
 		}
 
-		setToasts((current) => current.filter((toast) => toast.id !== id));
+		if (mountedRef.current) {
+			setToasts((current) => current.filter((toast) => toast.id !== id));
+		}
 	}, []);
 
 	const notify = useCallback(
 		({ title, description = "", variant = "info", duration = 3600 }) => {
+			if (!mountedRef.current) {
+				return;
+			}
+
 			const id = `toast_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 			setToasts((current) => [...current, { id, title, description, variant }]);
 
 			try {
 				const timeoutId = window.setTimeout(() => {
 					timeoutIdsRef.current.delete(id);
-					dismiss(id);
+					if (mountedRef.current) {
+						dismiss(id);
+					}
 				}, duration);
 				timeoutIdsRef.current.set(id, timeoutId);
 			} catch (error) {
@@ -87,18 +96,28 @@ export function FeedbackProvider({ children }) {
 	);
 
 	useEffect(() => {
+		mountedRef.current = true;
 		const timeoutIds = timeoutIdsRef.current;
 		return () => {
+			mountedRef.current = false;
 			timeoutIds.forEach((timeoutId) => {
 				try {
 					window.clearTimeout(timeoutId);
 				} catch {}
 			});
 			timeoutIds.clear();
+			if (resolverRef.current) {
+				resolverRef.current(false);
+				resolverRef.current = null;
+			}
 		};
 	}, []);
 
 	const confirm = useCallback((options) => {
+		if (!mountedRef.current) {
+			return Promise.resolve(false);
+		}
+
 		setConfirmation({
 			open: true,
 			title: options?.title ?? "계속 진행할까요?",
@@ -118,7 +137,9 @@ export function FeedbackProvider({ children }) {
 			resolverRef.current(result);
 			resolverRef.current = null;
 		}
-		setConfirmation(DEFAULT_CONFIRMATION);
+		if (mountedRef.current) {
+			setConfirmation(DEFAULT_CONFIRMATION);
+		}
 	}, []);
 
 	const contextValue = useMemo(

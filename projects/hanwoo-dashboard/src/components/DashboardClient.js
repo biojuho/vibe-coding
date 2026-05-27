@@ -331,6 +331,7 @@ export default function DashboardClient({
 	const [allCattleLoadError, setAllCattleLoadError] = useState("");
 	const [allSalesLoadError, setAllSalesLoadError] = useState("");
 	const summaryRefreshRequestRef = useRef(0);
+	const dashboardMountedRef = useRef(false);
 	const fullCattleLoadRef = useRef(null);
 	const fullSalesLoadRef = useRef(null);
 	const movingCattleIdRef = useRef(null);
@@ -363,6 +364,14 @@ export default function DashboardClient({
 	);
 
 	// Memoize: 발정/분만 알림은 cattleList 변경 시에만 재계산
+	useEffect(() => {
+		dashboardMountedRef.current = true;
+
+		return () => {
+			dashboardMountedRef.current = false;
+		};
+	}, []);
+
 	const readJsonSafely = useCallback(async (response) => {
 		try {
 			return await response.json();
@@ -390,7 +399,10 @@ export default function DashboardClient({
 				return false;
 			}
 
-			if (summaryRefreshRequestRef.current === requestId) {
+			if (
+				dashboardMountedRef.current &&
+				summaryRefreshRequestRef.current === requestId
+			) {
 				setSummary(json.data);
 				if (json.meta) {
 					setSummaryMeta(json.meta);
@@ -407,7 +419,9 @@ export default function DashboardClient({
 	const refreshNotifications = useCallback(async () => {
 		try {
 			const nextNotifications = await getNotifications();
-			setNotifications(normalizeDashboardNotifications(nextNotifications));
+			if (dashboardMountedRef.current) {
+				setNotifications(normalizeDashboardNotifications(nextNotifications));
+			}
 		} catch (error) {
 			console.error("알림 갱신 실패:", error);
 		}
@@ -533,18 +547,24 @@ export default function DashboardClient({
 			const promise = fetchDashboardItems("/api/dashboard/cattle")
 				.then((items) => {
 					const normalizedItems = normalizeDashboardCattleList(items);
-					setAllCattleRegistry(normalizedItems);
+					if (dashboardMountedRef.current) {
+						setAllCattleRegistry(normalizedItems);
+					}
 					return normalizedItems;
 				})
 				.catch((error) => {
-					setAllCattleLoadError(FULL_CATTLE_LOAD_ERROR_MESSAGE);
+					if (dashboardMountedRef.current) {
+						setAllCattleLoadError(FULL_CATTLE_LOAD_ERROR_MESSAGE);
+					}
 					if (!silent) {
 						console.error("전체 개체 목록 로딩 실패:", error);
 					}
 					throw error;
 				})
 				.finally(() => {
-					setIsAllCattleLoading(false);
+					if (dashboardMountedRef.current) {
+						setIsAllCattleLoading(false);
+					}
 					fullCattleLoadRef.current = null;
 				});
 
@@ -568,18 +588,24 @@ export default function DashboardClient({
 			setAllSalesLoadError("");
 			const promise = fetchDashboardItems("/api/dashboard/sales")
 				.then((items) => {
-					setAllSalesLedger(items);
+					if (dashboardMountedRef.current) {
+						setAllSalesLedger(items);
+					}
 					return items;
 				})
 				.catch((error) => {
-					setAllSalesLoadError(FULL_SALES_LOAD_ERROR_MESSAGE);
+					if (dashboardMountedRef.current) {
+						setAllSalesLoadError(FULL_SALES_LOAD_ERROR_MESSAGE);
+					}
 					if (!silent) {
 						console.error("전체 판매 기록 로딩 실패:", error);
 					}
 					throw error;
 				})
 				.finally(() => {
-					setIsAllSalesLoading(false);
+					if (dashboardMountedRef.current) {
+						setIsAllSalesLoading(false);
+					}
 					fullSalesLoadRef.current = null;
 				});
 
@@ -742,10 +768,16 @@ export default function DashboardClient({
 		};
 
 		const fetchFallbackWeather = () => {
+			if (cancelled) {
+				return;
+			}
 			fetchWeather(35.446, 127.344);
 		};
 
 		const fetchWeatherFromCoords = (latitudeValue, longitudeValue) => {
+			if (cancelled) {
+				return false;
+			}
 			const latitude = Number(latitudeValue);
 			const longitude = Number(longitudeValue);
 			const isValidWeatherCoordinate =
@@ -765,6 +797,9 @@ export default function DashboardClient({
 		};
 
 		const fetchWeatherFromPosition = (position) => {
+			if (cancelled) {
+				return;
+			}
 			if (fetchWeatherFromCoords(position?.coords?.latitude, position?.coords?.longitude)) {
 				return;
 			}
@@ -772,7 +807,12 @@ export default function DashboardClient({
 			fetchFallbackWeather();
 		};
 
-		if (farmSettings.latitude && farmSettings.longitude) {
+		if (
+			farmSettings.latitude !== null &&
+			farmSettings.latitude !== undefined &&
+			farmSettings.longitude !== null &&
+			farmSettings.longitude !== undefined
+		) {
 			if (!fetchWeatherFromCoords(farmSettings.latitude, farmSettings.longitude)) {
 				fetchFallbackWeather();
 			}
@@ -913,10 +953,15 @@ export default function DashboardClient({
 	const handleUpdateFarmSettings = async (data) => {
 		const res = await updateFarmSettings(data);
 		if (!res.success) {
-			showError("농장 정보를 저장하지 못했습니다.", res.message);
+			if (dashboardMountedRef.current) {
+				showError("농장 정보를 저장하지 못했습니다.", res.message);
+			}
 			return false;
 		}
 
+		if (!dashboardMountedRef.current) {
+			return true;
+		}
 		setFarmSettings(res.data);
 		showSuccess("농장 정보가 저장되었습니다.");
 		return true;
@@ -944,6 +989,9 @@ export default function DashboardClient({
 			const result = await createCattle(newCattle);
 			if (result.success) {
 				const savedCattle = result.data || newCattle;
+				if (!dashboardMountedRef.current) {
+					return true;
+				}
 				prependCattleRecord(savedCattle);
 				setShowAddModal(false);
 				void refreshDashboardReadModels();
@@ -953,11 +1001,15 @@ export default function DashboardClient({
 				return true;
 			}
 
-			showError(errorTitle, result.message);
+			if (dashboardMountedRef.current) {
+				showError(errorTitle, result.message);
+			}
 			return false;
 		} catch (error) {
 			console.error("Failed to add cattle:", error);
-			showError(errorTitle, unexpectedActionErrorDescription);
+			if (dashboardMountedRef.current) {
+				showError(errorTitle, unexpectedActionErrorDescription);
+			}
 			return false;
 		}
 	};
@@ -985,6 +1037,9 @@ export default function DashboardClient({
 			const result = await updateCattle(updated.id, updated);
 			if (result.success) {
 				const savedCattle = result.data || updated;
+				if (!dashboardMountedRef.current) {
+					return true;
+				}
 				replaceCattleRecord(savedCattle);
 				setIsEditing(false);
 				if (selectedCow && selectedCow.id === savedCattle.id)
@@ -996,11 +1051,15 @@ export default function DashboardClient({
 				return true;
 			}
 
-			showError(errorTitle, result.message);
+			if (dashboardMountedRef.current) {
+				showError(errorTitle, result.message);
+			}
 			return false;
 		} catch (error) {
 			console.error("Failed to update cattle:", error);
-			showError(errorTitle, unexpectedActionErrorDescription);
+			if (dashboardMountedRef.current) {
+				showError(errorTitle, unexpectedActionErrorDescription);
+			}
 			return false;
 		}
 	};
@@ -1031,6 +1090,9 @@ export default function DashboardClient({
 
 			const result = await deleteCattle(id);
 			if (result.success) {
+				if (!dashboardMountedRef.current) {
+					return true;
+				}
 				removeCattleRecord(id);
 				setSelectedCow(null);
 				void refreshDashboardReadModels();
@@ -1038,23 +1100,34 @@ export default function DashboardClient({
 				return true;
 			}
 
-			showError("개체 보관 처리에 실패했습니다.", result.message);
+			if (dashboardMountedRef.current) {
+				showError("개체 보관 처리에 실패했습니다.", result.message);
+			}
 			return false;
 		} catch {
-			showError("개체 보관 처리 중 오류가 발생했습니다.");
+			if (dashboardMountedRef.current) {
+				showError("개체 보관 처리 중 오류가 발생했습니다.");
+			}
 			return false;
 		} finally {
-			setDeletingCattleId(null);
+			if (dashboardMountedRef.current) {
+				setDeletingCattleId(null);
+			}
 		}
 	};
 
 	const handleAddItem = async (data) => {
 		const res = await addInventoryItem(data);
 		if (!res.success) {
-			showError("재고 항목을 추가하지 못했습니다.", res.message);
+			if (dashboardMountedRef.current) {
+				showError("재고 항목을 추가하지 못했습니다.", res.message);
+			}
 			return false;
 		}
 
+		if (!dashboardMountedRef.current) {
+			return true;
+		}
 		setInventoryList((prev) => sortInventoryItems([res.data, ...prev]));
 		showSuccess("재고 항목이 추가되었습니다.");
 		return true;
@@ -1063,10 +1136,15 @@ export default function DashboardClient({
 	const handleUpdateQuantity = async (id, qty) => {
 		const res = await updateInventoryQuantity(id, qty);
 		if (!res.success) {
-			showError("재고 수량을 수정하지 못했습니다.", res.message);
+			if (dashboardMountedRef.current) {
+				showError("재고 수량을 수정하지 못했습니다.", res.message);
+			}
 			return false;
 		}
 
+		if (!dashboardMountedRef.current) {
+			return true;
+		}
 		setInventoryList((prev) =>
 			prev.map((item) => (item.id === res.data.id ? res.data : item)),
 		);
@@ -1077,10 +1155,15 @@ export default function DashboardClient({
 	const handleCreateEvent = async (data) => {
 		const res = await createScheduleEvent(data);
 		if (!res.success) {
-			showError("일정을 등록하지 못했습니다.", res.message);
+			if (dashboardMountedRef.current) {
+				showError("일정을 등록하지 못했습니다.", res.message);
+			}
 			return false;
 		}
 
+		if (!dashboardMountedRef.current) {
+			return true;
+		}
 		setScheduleEvents((prev) => sortByDateAsc([res.data, ...prev], "date"));
 		showSuccess("일정을 등록했습니다.");
 		return true;
@@ -1089,10 +1172,15 @@ export default function DashboardClient({
 	const handleToggleEvent = async (id, isCompleted) => {
 		const res = await toggleEventCompletion(id, isCompleted);
 		if (!res.success) {
-			showError("일정 상태를 변경하지 못했습니다.", res.message);
+			if (dashboardMountedRef.current) {
+				showError("일정 상태를 변경하지 못했습니다.", res.message);
+			}
 			return false;
 		}
 
+		if (!dashboardMountedRef.current) {
+			return true;
+		}
 		setScheduleEvents((prev) =>
 			prev.map((event) => (event.id === res.data.id ? res.data : event)),
 		);
@@ -1116,10 +1204,15 @@ export default function DashboardClient({
 
 		const res = await createSalesRecord(data);
 		if (!res.success) {
-			showError("판매 기록을 등록하지 못했습니다.", res.message);
+			if (dashboardMountedRef.current) {
+				showError("판매 기록을 등록하지 못했습니다.", res.message);
+			}
 			return false;
 		}
 
+		if (!dashboardMountedRef.current) {
+			return true;
+		}
 		prependSaleRecord(res.data);
 		void refreshDashboardReadModels();
 		showSuccess("판매 기록이 등록되었습니다.");
@@ -1138,10 +1231,15 @@ export default function DashboardClient({
 
 		const res = await recordFeed(data);
 		if (!res.success) {
-			showError("급여 기록을 저장하지 못했습니다.", res.message);
+			if (dashboardMountedRef.current) {
+				showError("급여 기록을 저장하지 못했습니다.", res.message);
+			}
 			return false;
 		}
 
+		if (!dashboardMountedRef.current) {
+			return true;
+		}
 		setFeedHistory((prev) =>
 			sortByDateDesc([res.data, ...prev], "date").slice(0, 20),
 		);
@@ -1152,10 +1250,15 @@ export default function DashboardClient({
 	const handleCreateBuilding = async (data) => {
 		const res = await createBuilding(data);
 		if (!res.success) {
-			showError("축사 정보를 추가하지 못했습니다.", res.message);
+			if (dashboardMountedRef.current) {
+				showError("축사 정보를 추가하지 못했습니다.", res.message);
+			}
 			return false;
 		}
 
+		if (!dashboardMountedRef.current) {
+			return true;
+		}
 		setBuildings((prev) => sortByName([res.data, ...prev]));
 		showSuccess("축사를 추가했습니다.");
 		return true;
@@ -1164,10 +1267,15 @@ export default function DashboardClient({
 	const handleDeleteBuilding = async (id) => {
 		const res = await deleteBuilding(id);
 		if (!res.success) {
-			showError("축사를 삭제하지 못했습니다.", res.message);
+			if (dashboardMountedRef.current) {
+				showError("축사를 삭제하지 못했습니다.", res.message);
+			}
 			return false;
 		}
 
+		if (!dashboardMountedRef.current) {
+			return true;
+		}
 		setBuildings((prev) => prev.filter((building) => building.id !== id));
 		if (selectedBuildingId === id) {
 			setSelectedBuildingId(null);
@@ -1243,13 +1351,18 @@ export default function DashboardClient({
 		});
 
 		if (!res.success) {
-			showError("분만 처리를 완료하지 못했습니다.", res.message);
+			if (dashboardMountedRef.current) {
+				showError("분만 처리를 완료하지 못했습니다.", res.message);
+			}
 			return false;
 		}
 
 		const savedMother = res.data?.mother || updatedMother;
 		const savedCalf = res.data?.calf || calfDraft;
 
+		if (!dashboardMountedRef.current) {
+			return true;
+		}
 		upsertCalvingRecords(savedMother, savedCalf);
 		void refreshDashboardReadModels();
 		showSuccess(
@@ -1292,6 +1405,10 @@ export default function DashboardClient({
 				confirmLabel: "개체 이동",
 				cancelLabel: "개체 이동 취소",
 			});
+
+			if (!dashboardMountedRef.current) {
+				return false;
+			}
 
 			if (!shouldMove) {
 				return false;

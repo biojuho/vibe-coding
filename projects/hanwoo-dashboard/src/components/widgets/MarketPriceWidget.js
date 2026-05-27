@@ -103,6 +103,8 @@ function normalizePriceSnapshot(data) {
 		: data;
 }
 
+const MARKET_PRICE_POLL_INTERVAL_MS = 1000 * 60 * 60;
+
 export default function MarketPriceWidget({ initialData = null }) {
 	const [prices, setPrices] = useState(() =>
 		normalizePriceSnapshot(initialData),
@@ -123,6 +125,10 @@ export default function MarketPriceWidget({ initialData = null }) {
 	const fetchPrices = useCallback(() => {
 		if (inFlightRequestRef.current) {
 			return inFlightRequestRef.current;
+		}
+
+		if (!isMountedRef.current) {
+			return Promise.resolve(null);
 		}
 
 		const requestId = requestSequenceRef.current + 1;
@@ -164,6 +170,20 @@ export default function MarketPriceWidget({ initialData = null }) {
 		isMountedRef.current = true;
 		let refreshTimer = null;
 		let interval = null;
+		let fallbackPollTimer = null;
+
+		const scheduleFallbackPolling = () => {
+			try {
+				fallbackPollTimer = window.setTimeout(() => {
+					void fetchPrices();
+					if (isMountedRef.current) {
+						scheduleFallbackPolling();
+					}
+				}, MARKET_PRICE_POLL_INTERVAL_MS);
+			} catch (error) {
+				console.error("Failed to schedule market price fallback polling:", error);
+			}
+		};
 
 		if (!initialData) {
 			try {
@@ -181,10 +201,11 @@ export default function MarketPriceWidget({ initialData = null }) {
 				() => {
 					void fetchPrices();
 				},
-				1000 * 60 * 60,
+				MARKET_PRICE_POLL_INTERVAL_MS,
 			);
 		} catch (error) {
 			console.error("Failed to schedule market price polling:", error);
+			scheduleFallbackPolling();
 		}
 
 		return () => {
@@ -197,6 +218,11 @@ export default function MarketPriceWidget({ initialData = null }) {
 			if (interval) {
 				try {
 					window.clearInterval(interval);
+				} catch {}
+			}
+			if (fallbackPollTimer) {
+				try {
+					window.clearTimeout(fallbackPollTimer);
 				} catch {}
 			}
 		};

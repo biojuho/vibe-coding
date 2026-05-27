@@ -11,6 +11,24 @@ import prisma from "../db";
  * Record a CattleHistory entry. Failures are logged but never
  * propagate to the caller so caller operations remain atomic.
  */
+function serializeCattleHistoryMetadata(metadata) {
+	if (!metadata) {
+		return null;
+	}
+
+	try {
+		return JSON.stringify(metadata);
+	} catch (error) {
+		console.error("Failed to serialize cattle history metadata:", error);
+		return null;
+	}
+}
+
+function normalizeCattleHistoryEventDate(value) {
+	const date = value instanceof Date ? value : new Date(value);
+	return Number.isNaN(date.getTime()) ? new Date() : date;
+}
+
 export async function recordCattleHistory(
 	cattleId,
 	eventType,
@@ -23,9 +41,9 @@ export async function recordCattleHistory(
 			data: {
 				cattleId,
 				eventType,
-				eventDate: new Date(eventDate),
+				eventDate: normalizeCattleHistoryEventDate(eventDate),
 				description,
-				metadata: metadata ? JSON.stringify(metadata) : null,
+				metadata: serializeCattleHistoryMetadata(metadata),
 			},
 		});
 	} catch (error) {
@@ -38,11 +56,17 @@ export async function recordCattleHistory(
  * Also invalidates Next.js framework-level "use cache" entries
  * via revalidateTag() so both cache layers stay consistent.
  */
+function normalizeObject(value) {
+	return value && typeof value === "object" ? value : {};
+}
+
 export async function invalidateHomeCaches(options = {}) {
+	const safeOptions = normalizeObject(options);
+
 	try {
 		await invalidateDashboardCaches({
 			farmId: "default",
-			...options,
+			...safeOptions,
 		});
 	} catch (error) {
 		console.error("Failed to invalidate dashboard caches:", error);
@@ -52,11 +76,11 @@ export async function invalidateHomeCaches(options = {}) {
 	try {
 		revalidateTag("dashboard-summary");
 
-		if (options.cattleListPages) {
+		if (safeOptions.cattleListPages) {
 			revalidateTag("cattle-list");
 		}
 
-		if (options.salesListPages) {
+		if (safeOptions.salesListPages) {
 			revalidateTag("sales-list");
 		}
 	} catch (error) {

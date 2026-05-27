@@ -83,11 +83,14 @@ export async function readJsonResponseSafely(response) {
 	}
 }
 
-export function buildGatewayErrorMessage({
-	payload,
-	rawText,
-	fallbackMessage = PAYMENT_CONFIRMATION_FAILURE_MESSAGE,
-}) {
+export function buildGatewayErrorMessage(input = {}) {
+	const safeInput = isPlainObject(input) ? input : {};
+	const {
+		payload,
+		rawText,
+		fallbackMessage = PAYMENT_CONFIRMATION_FAILURE_MESSAGE,
+	} = safeInput;
+
 	if (isPlainObject(payload)) {
 		if (typeof payload.message === "string" && payload.message.trim()) {
 			return payload.message.trim();
@@ -106,14 +109,17 @@ export function buildGatewayErrorMessage({
 	return fallbackMessage;
 }
 
-export function classifyPaymentConfirmationResult({
-	status,
-	payload,
-	rawText,
-	parseError,
-	expectedAmount,
-	now = () => new Date(),
-}) {
+export function classifyPaymentConfirmationResult(input = {}) {
+	const safeInput = isPlainObject(input) ? input : {};
+	const {
+		status,
+		payload,
+		rawText,
+		parseError,
+		expectedAmount,
+		now = () => new Date(),
+	} = safeInput;
+
 	if (status >= 500) {
 		return {
 			kind: "pending",

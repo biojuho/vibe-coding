@@ -53,6 +53,10 @@ function assertQueueConfigured() {
 	}
 }
 
+function normalizeQueueOptions(options) {
+	return options && typeof options === "object" ? options : {};
+}
+
 function buildQueueCacheKey(name, prefix) {
 	return `${prefix}:${name}`;
 }
@@ -62,9 +66,10 @@ export function isQueueConfigured() {
 }
 
 export function getQueue(name, options = {}) {
+	const safeOptions = normalizeQueueOptions(options);
 	assertQueueConfigured();
 
-	const prefix = options.prefix ?? getQueuePrefix();
+	const prefix = safeOptions.prefix ?? getQueuePrefix();
 	const cacheKey = buildQueueCacheKey(name, prefix);
 	const queueStore = getQueueStore();
 	const existing = queueStore.get(cacheKey);
@@ -77,7 +82,7 @@ export function getQueue(name, options = {}) {
 		connection: getRedisClient("producer"),
 		defaultJobOptions: {
 			...DEFAULT_JOB_OPTIONS,
-			...options.defaultJobOptions,
+			...normalizeQueueOptions(safeOptions.defaultJobOptions),
 		},
 		prefix,
 	});
@@ -87,9 +92,10 @@ export function getQueue(name, options = {}) {
 }
 
 export function getQueueEvents(name, options = {}) {
+	const safeOptions = normalizeQueueOptions(options);
 	assertQueueConfigured();
 
-	const prefix = options.prefix ?? getQueuePrefix();
+	const prefix = safeOptions.prefix ?? getQueuePrefix();
 	const cacheKey = buildQueueCacheKey(name, prefix);
 	const queueEventsStore = getQueueEventsStore();
 	const existing = queueEventsStore.get(cacheKey);
@@ -108,10 +114,11 @@ export function getQueueEvents(name, options = {}) {
 }
 
 export async function enqueueJob(queueName, data, options = {}) {
-	const queue = getQueue(queueName, options.queueOptions);
-	const jobName = options.jobName ?? queueName;
+	const safeOptions = normalizeQueueOptions(options);
+	const queue = getQueue(queueName, safeOptions.queueOptions);
+	const jobName = safeOptions.jobName ?? queueName;
 
-	return queue.add(jobName, data, options.jobOptions);
+	return queue.add(jobName, data, safeOptions.jobOptions);
 }
 
 export async function closeQueues() {

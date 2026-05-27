@@ -7,7 +7,7 @@ import {
 	ChevronRight,
 	PlusCircle,
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import EmptyState from "@/components/ui/empty-state";
 import {
@@ -91,6 +91,7 @@ export default function ScheduleTab({
 	const [isSaving, setIsSaving] = useState(false);
 	const [savingEventId, setSavingEventId] = useState(null);
 	const [currentDate, setCurrentDate] = useState(new Date());
+	const isMountedRef = useRef(false);
 	const saveInFlightRef = useRef(false);
 	const completionInFlightRef = useRef(false);
 	const submitButtonLabel = isSaving ? "일정 등록 중" : "일정 등록";
@@ -118,6 +119,16 @@ export default function ScheduleTab({
 	});
 
 	const safeEvents = useMemo(() => normalizeScheduleEvents(events), [events]);
+
+	useEffect(() => {
+		isMountedRef.current = true;
+
+		return () => {
+			isMountedRef.current = false;
+			saveInFlightRef.current = false;
+			completionInFlightRef.current = false;
+		};
+	}, []);
 
 	const monthDays = useMemo(() => {
 		const days = [];
@@ -206,7 +217,7 @@ export default function ScheduleTab({
 
 		try {
 			const saved = await onCreateEvent(values);
-			if (!saved) {
+			if (!saved || !isMountedRef.current) {
 				return;
 			}
 
@@ -214,7 +225,9 @@ export default function ScheduleTab({
 			reset(createScheduleFormValues());
 		} finally {
 			saveInFlightRef.current = false;
-			setIsSaving(false);
+			if (isMountedRef.current) {
+				setIsSaving(false);
+			}
 		}
 	};
 
@@ -234,7 +247,9 @@ export default function ScheduleTab({
 			await onToggleEvent(event.id, !event.isCompleted);
 		} finally {
 			completionInFlightRef.current = false;
-			setSavingEventId(null);
+			if (isMountedRef.current) {
+				setSavingEventId(null);
+			}
 		}
 	};
 

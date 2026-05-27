@@ -47,6 +47,13 @@ test("AI chat widget handles Korean configuration errors and exposes an accessib
 	assert.match(source, /const panelRef = useRef\(null\)/);
 	assert.match(source, /focusElementSafely\(panelRef\.current\);/);
 	assert.match(source, /ref=\{panelRef\}/);
+	assert.match(source, /const isMountedRef = useRef\(false\)/);
+	assert.match(source, /isMountedRef\.current = true;/);
+	assert.match(source, /return \(\) => \{\s+isMountedRef\.current = false;/);
+	assert.match(
+		source,
+		/if \(abortRef\.current\) \{\s+abortRef\.current\.abort\(\);\s+abortRef\.current = null;/,
+	);
 	assert.match(source, /tabIndex=\{-1\}/);
 	assert.match(source, /role="log"/);
 	assert.match(source, /aria-live="polite"/);
@@ -110,16 +117,25 @@ test("AI chat send action is disabled until a question is ready", () => {
 		/if \(!trimmed \|\| sendInFlightRef\.current \|\| isStreaming\) return;/,
 	);
 	assert.match(source, /sendInFlightRef\.current = true;/);
+	assert.match(source, /onChunk: \(text\) => \{\s+if \(!isMountedRef\.current\) \{/);
 	assert.match(
 		source,
-		/onDone: \(\) => \{\s+sendInFlightRef\.current = false;/,
+		/onDone: \(\) => \{\s+if \(!isMountedRef\.current\) \{\s+return;\s+\}\s+sendInFlightRef\.current = false;/,
 	);
 	assert.match(
 		source,
-		/onError: \(errorMsg\) => \{[\s\S]*?sendInFlightRef\.current = false;[\s\S]*?setIsStreaming\(false\);/,
+		/onError: \(errorMsg\) => \{[\s\S]*?if \(!isMountedRef\.current\) \{\s+return;\s+\}[\s\S]*?sendInFlightRef\.current = false;[\s\S]*?setIsStreaming\(false\);/,
 	);
 	assert.match(
 		source,
 		/sendInFlightRef\.current = false;\s+setIsStreaming\(false\);\s+shouldRestoreLauncherFocusRef\.current = true;\s+setIsOpen\(false\);/,
+	);
+	assert.match(
+		source,
+		/if \(isMountedRef\.current && controller\.signal\.aborted && !accumulated\) \{/,
+	);
+	assert.match(
+		source,
+		/if \(isMountedRef\.current && abortRef\.current === controller\) \{/,
 	);
 });

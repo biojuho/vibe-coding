@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { useAppFeedback } from "@/components/feedback/FeedbackProvider";
@@ -68,6 +68,7 @@ export default function CalvingTab({
 
 	const [selectedCowId, setSelectedCowId] = useState(null);
 	const [isSaving, setIsSaving] = useState(false);
+	const isMountedRef = useRef(false);
 	const saveInFlightRef = useRef(false);
 	const { notify } = useAppFeedback();
 	const submitButtonLabel = isSaving
@@ -90,6 +91,15 @@ export default function CalvingTab({
 		resolver: zodResolver(calvingRecordSchema),
 		defaultValues: createCalvingFormValues(),
 	});
+
+	useEffect(() => {
+		isMountedRef.current = true;
+
+		return () => {
+			isMountedRef.current = false;
+			saveInFlightRef.current = false;
+		};
+	}, []);
 
 	const closeCalvingForm = () => {
 		saveInFlightRef.current = false;
@@ -132,14 +142,16 @@ export default function CalvingTab({
 				calfTagNumber: values.calfTagNumber,
 			});
 
-			if (!recorded) {
+			if (!recorded || !isMountedRef.current) {
 				return;
 			}
 
 			closeCalvingForm();
 		} finally {
 			saveInFlightRef.current = false;
-			setIsSaving(false);
+			if (isMountedRef.current) {
+				setIsSaving(false);
+			}
 		}
 	};
 

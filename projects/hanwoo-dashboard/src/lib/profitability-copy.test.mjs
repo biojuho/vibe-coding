@@ -47,7 +47,11 @@ test("profitability service normalizes dates and numeric inputs before estimatin
 	);
 	assert.match(
 		source,
-		/const baseCost\s*=\s*toFiniteNumber\(cattle\.purchasePrice\)\s*\|\|\s*DEFAULT_CALF_COST;/,
+		/const purchasePrice\s*=\s*toFiniteNumber\(cattle\.purchasePrice, null\);/,
+	);
+	assert.match(
+		source,
+		/const baseCost\s*=\s*purchasePrice === null \? DEFAULT_CALF_COST : purchasePrice;/,
 	);
 	assert.match(
 		source,
@@ -77,6 +81,10 @@ test("profitability service normalizes dates and numeric inputs before estimatin
 	assert.doesNotMatch(
 		source,
 		/const baseCost = cattle\.purchasePrice \|\| DEFAULT_CALF_COST;/,
+	);
+	assert.doesNotMatch(
+		source,
+		/toFiniteNumber\(cattle\.purchasePrice\)\s*\|\|\s*DEFAULT_CALF_COST/,
 	);
 	assert.doesNotMatch(
 		source,

@@ -47,6 +47,32 @@ test("normalizeCattleHistoryRows preserves valid rows when one metadata cell is 
 	assert.match(rows[1].metadataRaw, /fromBuilding/);
 });
 
+test("normalizeCattleHistoryRows ignores malformed row collections", () => {
+	assert.deepEqual(normalizeCattleHistoryRows({ metadata: '{"to": 455}' }), []);
+
+	const rows = normalizeCattleHistoryRows([
+		null,
+		"bad row",
+		{
+			id: "history-1",
+			eventType: "weight",
+			eventDate: "2026-04-01T00:00:00.000Z",
+			metadata: '{"to": 455}',
+		},
+	]);
+
+	assert.deepEqual(rows, [
+		{
+			id: "history-1",
+			eventType: "weight",
+			eventDate: "2026-04-01T00:00:00.000Z",
+			metadata: { to: 455 },
+			metadataParseError: false,
+			metadataRaw: null,
+		},
+	]);
+});
+
 test("extractWeightHistoryPoints accepts multiple metadata field variants and skips invalid ones", () => {
 	const points = extractWeightHistoryPoints([
 		{
@@ -72,5 +98,48 @@ test("extractWeightHistoryPoints accepts multiple metadata field variants and sk
 	assert.deepEqual(points, [
 		{ eventDate: "2026-04-01T00:00:00.000Z", weight: 455 },
 		{ eventDate: "2026-04-02T00:00:00.000Z", weight: 470 },
+	]);
+});
+
+test("extractWeightHistoryPoints tolerates non-array history payloads", () => {
+	assert.deepEqual(
+		extractWeightHistoryPoints({
+			eventType: "weight",
+			metadata: { newWeight: 510 },
+		}),
+		[],
+	);
+});
+
+test("extractWeightHistoryPoints rejects empty and non-positive weights", () => {
+	const points = extractWeightHistoryPoints([
+		{
+			id: "history-empty",
+			eventType: "weight",
+			eventDate: "2026-04-01T00:00:00.000Z",
+			metadata: { newWeight: "" },
+		},
+		{
+			id: "history-zero",
+			eventType: "weight",
+			eventDate: "2026-04-02T00:00:00.000Z",
+			metadata: { newWeight: 0 },
+		},
+		{
+			id: "history-negative",
+			eventType: "weight",
+			eventDate: "2026-04-03T00:00:00.000Z",
+			metadata: { newWeight: -25 },
+		},
+		{
+			id: "history-valid",
+			eventType: "weight",
+			eventDate: "2026-04-04T00:00:00.000Z",
+			metadata: { newWeight: "510" },
+		},
+	]);
+
+	assert.deepEqual(points, [
+		{ eventDate: "2026-04-04T00:00:00.000Z", weight: 510 },
 	]);
 });

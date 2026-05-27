@@ -19,6 +19,12 @@ function toFiniteNumberOrNull(value) {
 	return Number.isFinite(amount) ? amount : null;
 }
 
+function toObjectRows(value) {
+	return Array.isArray(value)
+		? value.filter((item) => item && typeof item === "object")
+		: [];
+}
+
 function isLowStock(item) {
 	const quantity = toFiniteNumberOrNull(item?.quantity);
 	const threshold = toFiniteNumberOrNull(item?.threshold);
@@ -88,6 +94,9 @@ export function buildTodayFocusItems({
 } = {}) {
 	const today = startOfDay(now);
 	const items = [];
+	const safeNotifications = toObjectRows(notifications);
+	const safeScheduleEvents = toObjectRows(scheduleEvents);
+	const safeInventoryList = toObjectRows(inventoryList);
 
 	if (!isOnline) {
 		items.push({
@@ -101,7 +110,7 @@ export function buildTodayFocusItems({
 		});
 	}
 
-	const criticalNotifications = notifications.filter(
+	const criticalNotifications = safeNotifications.filter(
 		(notification) => notification.level === "critical",
 	);
 	if (criticalNotifications.length > 0) {
@@ -117,7 +126,7 @@ export function buildTodayFocusItems({
 		});
 	}
 
-	const nextEvent = scheduleEvents
+	const nextEvent = safeScheduleEvents
 		.map((event) => ({ event, date: toValidDate(event.date) }))
 		.filter(({ event, date }) => date && !event.isCompleted && date >= today)
 		.sort((first, second) => first.date - second.date)[0]?.event;
@@ -133,7 +142,7 @@ export function buildTodayFocusItems({
 		});
 	}
 
-	const lowStockItems = inventoryList.filter(isLowStock);
+	const lowStockItems = safeInventoryList.filter(isLowStock);
 	if (lowStockItems.length > 0) {
 		const first = lowStockItems[0];
 		items.push({
@@ -152,7 +161,7 @@ export function buildTodayFocusItems({
 	// catches it. Only fires for feed-category inventory rows.
 	const dailyFeedKg = estimateDailyFeedConsumptionKg({ feedHistory, now });
 	if (dailyFeedKg !== null && dailyFeedKg > 0) {
-		const feedRows = inventoryList.filter(isFeedCategory);
+		const feedRows = safeInventoryList.filter(isFeedCategory);
 		const projections = feedRows
 			.map((item) => {
 				const quantity = toFiniteNumberOrNull(item?.quantity);

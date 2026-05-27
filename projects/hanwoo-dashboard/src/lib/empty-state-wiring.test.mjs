@@ -97,7 +97,10 @@ test("operational create forms stay open when async submit handlers fail", () =>
 			source,
 			new RegExp(`const saved = await ${item.handler}\\(values\\);`),
 		);
-		assert.match(source, /if \(!saved\) \{\s+return;\s+\}/);
+		assert.match(
+			source,
+			/if \(!saved(?: \|\| !isMountedRef\.current)?\) \{\s+return;\s+\}/,
+		);
 	}
 });
 
@@ -124,6 +127,28 @@ test("inventory tab normalizes malformed inventory payloads before rendering", (
 	);
 	assert.doesNotMatch(source, /inventory\.map\(\(item\) => \{/);
 	assert.doesNotMatch(source, /inventory\.length === 0/);
+});
+
+test("inventory tab keeps missing quantities unavailable instead of zero", () => {
+	const source = readSource("components/tabs/InventoryTab.js");
+
+	assert.match(
+		source,
+		/if \(value === null \|\| value === undefined \|\| value === ""\) \{\s+return fallback;\s+\}/,
+	);
+	assert.match(source, /quantity: toInventoryNumber\(item\.quantity, null\)/);
+	assert.match(source, /const hasQuantity = item\.quantity !== null;/);
+	assert.match(
+		source,
+		/hasQuantity && item\.threshold !== null && item\.quantity <= item\.threshold/,
+	);
+	assert.match(
+		source,
+		/setEditQty\(hasQuantity \? String\(item\.quantity\) : ""\)/,
+	);
+	assert.match(source, /hasQuantity \? item\.quantity : ["']수량 미등록["']/);
+	assert.doesNotMatch(source, /quantity: toInventoryNumber\(item\.quantity\),/);
+	assert.doesNotMatch(source, /const isLow = item\.threshold && item\.quantity <= item\.threshold/);
 });
 
 test("cattle edit form delegates close behavior to the async update handler", () => {
@@ -155,7 +180,11 @@ test("feed record form preserves input when async save fails", () => {
 		source,
 		/const recorded = await onRecordFeed\(\{\s+\.\.\.values,\s+buildingId: selectedBuilding,\s+\}\);/,
 	);
-	assert.match(source, /if \(!recorded\) \{\s+return;\s+\}/);
+	assert.match(
+		source,
+		/if \(!recorded \|\| !isMountedRef\.current\) \{\s+return;\s+\}/,
+	);
+	assert.doesNotMatch(source, /if \(!recorded\) \{\s+return;\s+\}/);
 	assert.match(
 		source,
 		/reset\(\{\s+\.\.\.createFeedRecordValues\(\),\s+date: values\.date,\s+\}\);/,
@@ -166,12 +195,21 @@ test("feed record form waits for async saves before re-enabling submit", () => {
 	const source = readSource("components/tabs/FeedTab.js");
 
 	assert.match(source, /const \[isSaving, setIsSaving\] = useState\(false\)/);
+	assert.match(source, /const isMountedRef = useRef\(false\)/);
 	assert.match(source, /const saveInFlightRef = useRef\(false\)/);
+	assert.match(
+		source,
+		/useEffect\(\(\) => \{\s+isMountedRef\.current = true;[\s\S]*?return \(\) => \{\s+isMountedRef\.current = false;\s+saveInFlightRef\.current = false;/,
+	);
 	assert.match(source, /if \(saveInFlightRef\.current\) \{\s+return;\s+\}/);
 	assert.match(source, /saveInFlightRef\.current = true;/);
 	assert.match(source, /setIsSaving\(true\);/);
 	assert.match(source, /await onRecordFeed\(\{/);
 	assert.match(
+		source,
+		/finally \{\s+saveInFlightRef\.current = false;\s+if \(isMountedRef\.current\) \{\s+setIsSaving\(false\);/,
+	);
+	assert.doesNotMatch(
 		source,
 		/finally \{\s+saveInFlightRef\.current = false;\s+setIsSaving\(false\);/,
 	);
@@ -455,14 +493,20 @@ test("inventory quantity edit preserves input when async save fails", () => {
 		source,
 		/const saved = await onUpdateQuantity\(id, parsedQuantity\);/,
 	);
-	assert.match(source, /if \(!saved\) \{\s+return;\s+\}/);
+	assert.match(source, /if \(!saved \|\| !isMountedRef\.current\) \{\s+return;\s+\}/);
+	assert.doesNotMatch(source, /if \(!saved\) \{\s+return;\s+\}/);
 	assert.match(source, /setEditId\(null\);\s+setEditQty\(["']["']\);/);
 });
 
 test("inventory create form waits for async saves before re-enabling submit", () => {
 	const source = readSource("components/tabs/InventoryTab.js");
 
+	assert.match(source, /const isMountedRef = useRef\(false\)/);
 	assert.match(source, /const saveInFlightRef = useRef\(false\)/);
+	assert.match(
+		source,
+		/useEffect\(\(\) => \{\s+isMountedRef\.current = true;[\s\S]*?return \(\) => \{\s+isMountedRef\.current = false;\s+saveInFlightRef\.current = false;\s+quantityInFlightRef\.current = false;/,
+	);
 	assert.match(
 		source,
 		/const submitButtonLabel = isSaving\s*\?\s*["']재고 등록 중["']\s*:\s*["']재고 등록["'];?/,
@@ -492,6 +536,10 @@ test("inventory create form waits for async saves before re-enabling submit", ()
 	assert.match(source, /setIsSaving\(true\);/);
 	assert.match(source, /const saved = await onAddItem\(values\);/);
 	assert.match(
+		source,
+		/finally \{\s+saveInFlightRef\.current = false;\s+if \(isMountedRef\.current\) \{\s+setIsSaving\(false\);/,
+	);
+	assert.doesNotMatch(
 		source,
 		/finally \{\s+saveInFlightRef\.current = false;\s+setIsSaving\(false\);/,
 	);

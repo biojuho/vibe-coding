@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const LOGIN_NAVIGATION_ERROR_MESSAGE =
 	"로그인은 완료됐지만 대시보드로 이동하지 못했습니다. 새로고침 후 다시 시도해 주세요.";
@@ -35,6 +35,15 @@ export default function LoginPage() {
 				: "한우 대시보드 열기";
 	const passwordToggleLabel = showPassword ? "비밀번호 숨기기" : "비밀번호 보기";
 	const loginErrorId = "login-error-message";
+	const isMountedRef = useRef(false);
+
+	useEffect(() => {
+		isMountedRef.current = true;
+		return () => {
+			isMountedRef.current = false;
+			submitInFlightRef.current = false;
+		};
+	}, []);
 
 	const handleSubmit = async (event) => {
 		event.preventDefault();
@@ -52,7 +61,9 @@ export default function LoginPage() {
 			});
 
 			if (result?.error) {
-				setError("아이디 또는 비밀번호를 다시 확인해 주세요.");
+				if (isMountedRef.current) {
+					setError("아이디 또는 비밀번호를 다시 확인해 주세요.");
+				}
 				return;
 			}
 
@@ -61,13 +72,19 @@ export default function LoginPage() {
 				router.refresh();
 			} catch (navigationError) {
 				console.error("Login dashboard navigation failed:", navigationError);
-				setError(LOGIN_NAVIGATION_ERROR_MESSAGE);
+				if (isMountedRef.current) {
+					setError(LOGIN_NAVIGATION_ERROR_MESSAGE);
+				}
 			}
 		} catch {
-			setError("로그인을 완료하지 못했습니다. 네트워크 상태를 확인해 주세요.");
+			if (isMountedRef.current) {
+				setError("로그인을 완료하지 못했습니다. 네트워크 상태를 확인해 주세요.");
+			}
 		} finally {
 			submitInFlightRef.current = false;
-			setIsSubmitting(false);
+			if (isMountedRef.current) {
+				setIsSubmitting(false);
+			}
 		}
 	};
 

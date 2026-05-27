@@ -1,11 +1,12 @@
 "use client";
 import { Printer } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function QRCodeWidget({ value, label }) {
 	const qrContainerRef = useRef(null);
 	const printInFlightRef = useRef(false);
+	const isMountedRef = useRef(false);
 	const [isPrinting, setIsPrinting] = useState(false);
 	const [printStatusMessage, setPrintStatusMessage] = useState("");
 	const printButtonLabel = isPrinting
@@ -14,8 +15,25 @@ export default function QRCodeWidget({ value, label }) {
 
 	const resetPrintState = () => {
 		printInFlightRef.current = false;
-		setIsPrinting(false);
+		if (isMountedRef.current) {
+			setIsPrinting(false);
+		}
 	};
+
+	const updatePrintStatusMessage = (message) => {
+		if (isMountedRef.current) {
+			setPrintStatusMessage(message);
+		}
+	};
+
+	useEffect(() => {
+		isMountedRef.current = true;
+
+		return () => {
+			isMountedRef.current = false;
+			printInFlightRef.current = false;
+		};
+	}, []);
 
 	const closePrintWindow = (printWindow) => {
 		try {
@@ -28,16 +46,20 @@ export default function QRCodeWidget({ value, label }) {
 	const schedulePrintFallback = (printWindow, finishPrint) => {
 		try {
 			printWindow.setTimeout(finishPrint, 120);
+			return true;
 		} catch (error) {
 			console.error("Failed to schedule QR print fallback:", error);
+			return false;
 		}
 	};
 
 	const registerPrintLoadHandler = (printWindow, finishPrint) => {
 		try {
 			printWindow.addEventListener("load", finishPrint, { once: true });
+			return true;
 		} catch (error) {
 			console.error("Failed to register QR print load handler:", error);
+			return false;
 		}
 	};
 
@@ -57,12 +79,12 @@ export default function QRCodeWidget({ value, label }) {
 
 		printInFlightRef.current = true;
 		setIsPrinting(true);
-		setPrintStatusMessage(`${label} QR 라벨 인쇄 창을 준비하는 중입니다.`);
+		updatePrintStatusMessage(`${label} QR 라벨 인쇄 창을 준비하는 중입니다.`);
 
 		const printWindow = openPrintWindow();
 		if (!printWindow) {
 			resetPrintState();
-			setPrintStatusMessage(
+			updatePrintStatusMessage(
 				"팝업 차단으로 QR 인쇄 창을 열지 못했습니다. 브라우저 팝업 허용 후 다시 시도해 주세요.",
 			);
 			return;
@@ -107,14 +129,21 @@ export default function QRCodeWidget({ value, label }) {
 					return;
 				}
 
+				if (!isMountedRef.current) {
+					printCommitted = true;
+					closePrintWindow(printWindow);
+					resetPrintState();
+					return;
+				}
+
 				printCommitted = true;
 				try {
 					printWindow.focus();
 					printWindow.print();
-					setPrintStatusMessage(`${label} QR 라벨 인쇄 창을 열었습니다.`);
+					updatePrintStatusMessage(`${label} QR 라벨 인쇄 창을 열었습니다.`);
 				} catch (error) {
 					console.error("Failed to print QR label:", error);
-					setPrintStatusMessage(
+					updatePrintStatusMessage(
 						`${label} QR 라벨 인쇄를 시작하지 못했습니다. 다시 시도해 주세요.`,
 					);
 				} finally {
@@ -123,15 +152,21 @@ export default function QRCodeWidget({ value, label }) {
 				}
 			};
 
-			registerPrintLoadHandler(printWindow, finishPrint);
-			schedulePrintFallback(printWindow, finishPrint);
+			const registeredLoadHandler = registerPrintLoadHandler(
+				printWindow,
+				finishPrint,
+			);
+			const scheduledFallback = schedulePrintFallback(printWindow, finishPrint);
+			if (!registeredLoadHandler && !scheduledFallback) {
+				finishPrint();
+			}
 			doc.close();
 		} catch (error) {
 			printCommitted = true;
 			console.error("Failed to prepare QR print window:", error);
 			closePrintWindow(printWindow);
 			resetPrintState();
-			setPrintStatusMessage(
+			updatePrintStatusMessage(
 				`${label} QR 라벨 인쇄 창을 준비하지 못했습니다. 다시 시도해 주세요.`,
 			);
 		}

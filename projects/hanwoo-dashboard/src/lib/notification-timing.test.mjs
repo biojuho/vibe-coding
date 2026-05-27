@@ -28,6 +28,28 @@ test("getNotificationTargetDate converts pregnancy dates into calving dates", ()
 	assert.equal(result?.toISOString(), "2026-10-13T00:00:00.000Z");
 });
 
+test("getNotificationTargetDate ignores malformed options input", () => {
+	const result = getNotificationTargetDate(
+		"calving",
+		"2026-01-01T00:00:00.000Z",
+		null,
+	);
+
+	assert.equal(result?.toISOString(), "2026-10-13T00:00:00.000Z");
+});
+
+test("getNotificationTargetDate falls back to the current time when estrus options are malformed", () => {
+	const before = new Date();
+	const result = getNotificationTargetDate(
+		"estrus",
+		"2026-03-01T00:00:00.000Z",
+		null,
+	);
+
+	assert.ok(result instanceof Date);
+	assert.ok(result > before);
+});
+
 test("buildNotificationTiming returns stable iso timestamps for estrus notifications", () => {
 	const result = buildNotificationTiming("estrus", "2026-03-01T00:00:00.000Z", {
 		now: "2026-04-07T00:00:00.000Z",

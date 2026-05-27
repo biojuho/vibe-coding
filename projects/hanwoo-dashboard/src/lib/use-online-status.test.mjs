@@ -37,14 +37,30 @@ test("useOnlineStatus tolerates browser event listener failures", () => {
 	);
 	assert.match(
 		source,
-		/try \{\s+window\.addEventListener\("online", goOnline\);\s+window\.addEventListener\("offline", goOffline\);\s+\} catch \{\s+return undefined;\s+\}/,
+		/let registeredOnline = false;\s+let registeredOffline = false;/,
 	);
 	assert.match(
 		source,
-		/return \(\) => \{\s+try \{\s+window\.removeEventListener\("online", goOnline\);\s+window\.removeEventListener\("offline", goOffline\);\s+\} catch \{\}/,
+		/window\.addEventListener\("online", goOnline\);\s+registeredOnline = true;\s+window\.addEventListener\("offline", goOffline\);\s+registeredOffline = true;/,
+	);
+	assert.match(
+		source,
+		/catch \{\s+if \(registeredOnline\) \{\s+try \{\s+window\.removeEventListener\("online", goOnline\);/,
+	);
+	assert.match(
+		source,
+		/if \(registeredOffline\) \{\s+try \{\s+window\.removeEventListener\("offline", goOffline\);/,
+	);
+	assert.match(
+		source,
+		/return \(\) => \{\s+if \(registeredOnline\) \{\s+try \{\s+window\.removeEventListener\("online", goOnline\);/,
 	);
 	assert.doesNotMatch(
 		source,
 		/window\.addEventListener\("online", goOnline\);\s+window\.addEventListener\("offline", goOffline\);\s+return \(\) => \{/,
+	);
+	assert.doesNotMatch(
+		source,
+		/catch \{\s+return undefined;\s+\}/,
 	);
 });

@@ -50,12 +50,26 @@ test("calving form waits for async saves before re-enabling actions", () => {
 	const source = readSource("components/tabs/CalvingTab.js");
 
 	assert.match(source, /const saveInFlightRef = useRef\(false\)/);
+	assert.match(source, /const isMountedRef = useRef\(false\)/);
 	assert.match(source, /const \[isSaving, setIsSaving\] = useState\(false\)/);
+	assert.match(
+		source,
+		/useEffect\(\(\) => \{\s+isMountedRef\.current = true;[\s\S]*?return \(\) => \{\s+isMountedRef\.current = false;\s+saveInFlightRef\.current = false;/,
+	);
 	assert.match(source, /if \(saveInFlightRef\.current\) \{\s+return;\s+\}/);
 	assert.match(source, /saveInFlightRef\.current = true;/);
 	assert.match(source, /setIsSaving\(true\);/);
 	assert.match(source, /await onRecordCalving\(\{/);
 	assert.match(
+		source,
+		/if \(!recorded \|\| !isMountedRef\.current\) \{\s+return;\s+\}/,
+	);
+	assert.doesNotMatch(source, /if \(!recorded\) \{\s+return;\s+\}/);
+	assert.match(
+		source,
+		/finally \{\s*saveInFlightRef\.current = false;\s+if \(isMountedRef\.current\) \{\s+setIsSaving\(false\);/,
+	);
+	assert.doesNotMatch(
 		source,
 		/finally \{\s*saveInFlightRef\.current = false;\s+setIsSaving\(false\);/,
 	);
@@ -130,7 +144,7 @@ test("calving tab alert badges use operator-readable countdown labels", () => {
 test("calving tab normalizes malformed cattle and building payloads before rendering", () => {
 	const source = readSource("components/tabs/CalvingTab.js");
 
-	assert.match(source, /import \{\s*useMemo,\s*useRef,\s*useState\s*\} from ['"]react['"];/);
+	assert.match(source, /import \{\s*useEffect,\s*useMemo,\s*useRef,\s*useState\s*\} from ['"]react['"];/);
 	assert.match(source, /function normalizeCalvingCattle\(cattle\) \{/);
 	assert.match(source, /return Array\.isArray\(cattle\)/);
 	assert.match(source, /row\s*&&\s*typeof\s*row\s*===\s*['"]object['"]\s*&&\s*row\.id\s*!=\s*null/);

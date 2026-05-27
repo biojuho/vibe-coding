@@ -66,6 +66,14 @@ function normalizeDetailBuildings(buildings) {
 		: [];
 }
 
+function deferCattleDetailTask(callback) {
+	try {
+		queueMicrotask(callback);
+	} catch {
+		Promise.resolve().then(callback);
+	}
+}
+
 function formatDaysLeftLabel(daysLeft) {
 	return daysLeft === 0 ? "오늘" : `${daysLeft}일 남음`;
 }
@@ -85,6 +93,7 @@ export default function CattleDetailModal({
 	const [breedingDate, setBreedingDate] = useState(toInputDate(new Date()));
 	const [breedingError, setBreedingError] = useState("");
 	const [isBreedingSaving, setIsBreedingSaving] = useState(false);
+	const mountedRef = useRef(false);
 	const breedingSaveInFlightRef = useRef(false);
 	const safeBuildings = useMemo(
 		() => normalizeDetailBuildings(buildings),
@@ -110,15 +119,32 @@ export default function CattleDetailModal({
 	}, [cattle?.id]);
 
 	useEffect(() => {
-		// eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset of breeding form state on cattle change
-		setActiveBreedingAction(null);
-		 
-		setBreedingDate(toInputDate(new Date()));
-		 
-		setBreedingError("");
-		 
-		setIsBreedingSaving(false);
+		mountedRef.current = true;
+
+		return () => {
+			mountedRef.current = false;
+			breedingSaveInFlightRef.current = false;
+		};
+	}, []);
+
+	useEffect(() => {
+		let cancelled = false;
 		breedingSaveInFlightRef.current = false;
+
+		deferCattleDetailTask(() => {
+			if (cancelled) {
+				return;
+			}
+
+			setActiveBreedingAction(null);
+			setBreedingDate(toInputDate(new Date()));
+			setBreedingError("");
+			setIsBreedingSaving(false);
+		});
+
+		return () => {
+			cancelled = true;
+		};
 	}, [cattle?.id]);
 
 	useEffect(() => {
@@ -244,12 +270,14 @@ export default function CattleDetailModal({
 				offlineDescription: "번식 기록 수정 요청이 대기열에 저장되었습니다.",
 			});
 
-			if (saved !== false) {
+			if (saved !== false && mountedRef.current) {
 				setActiveBreedingAction(null);
 			}
 		} finally {
 			breedingSaveInFlightRef.current = false;
-			setIsBreedingSaving(false);
+			if (mountedRef.current) {
+				setIsBreedingSaving(false);
+			}
 		}
 	};
 

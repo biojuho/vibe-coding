@@ -1,18 +1,30 @@
 export const DASHBOARD_PAGINATION_MAX_PAGES = 100;
 
+function isPlainObject(value) {
+	return (
+		value !== null &&
+		typeof value === "object" &&
+		!Array.isArray(value)
+	);
+}
+
 function normalizePageInfo(pageInfo = {}) {
+	const safePageInfo = isPlainObject(pageInfo) ? pageInfo : {};
+
 	return {
-		...pageInfo,
-		hasMore: Boolean(pageInfo?.hasMore),
-		nextCursor: pageInfo?.nextCursor ?? null,
+		...safePageInfo,
+		hasMore: Boolean(safePageInfo.hasMore),
+		nextCursor: safePageInfo.nextCursor ?? null,
 	};
 }
 
-export function sanitizeDashboardPageInfoTransition({
-	currentPageInfo = null,
-	receivedPageInfo = null,
-	source = "dashboard",
-} = {}) {
+export function sanitizeDashboardPageInfoTransition(input = {}) {
+	const safeInput = isPlainObject(input) ? input : {};
+	const {
+		currentPageInfo = null,
+		receivedPageInfo = null,
+		source = "dashboard",
+	} = safeInput;
 	const normalized = normalizePageInfo(receivedPageInfo);
 
 	if (!normalized.hasMore) {
@@ -47,14 +59,17 @@ export function sanitizeDashboardPageInfoTransition({
 	};
 }
 
-export function getNextDashboardPaginationState({
-	currentCursor = null,
-	receivedPageInfo = null,
-	seenCursors = new Set(),
-	pageCount = 1,
-	maxPages = DASHBOARD_PAGINATION_MAX_PAGES,
-	source = "dashboard",
-} = {}) {
+export function getNextDashboardPaginationState(input = {}) {
+	const safeInput = isPlainObject(input) ? input : {};
+	const {
+		currentCursor = null,
+		receivedPageInfo = null,
+		seenCursors = new Set(),
+		pageCount = 1,
+		maxPages = DASHBOARD_PAGINATION_MAX_PAGES,
+		source = "dashboard",
+	} = safeInput;
+	const safeSeenCursors = seenCursors instanceof Set ? seenCursors : new Set();
 	const normalized = sanitizeDashboardPageInfoTransition({
 		currentPageInfo: currentCursor ? { nextCursor: currentCursor } : null,
 		receivedPageInfo,
@@ -73,7 +88,7 @@ export function getNextDashboardPaginationState({
 		throw new Error(`${source} pagination exceeded ${maxPages} pages.`);
 	}
 
-	if (seenCursors.has(normalized.nextCursor)) {
+	if (safeSeenCursors.has(normalized.nextCursor)) {
 		throw new Error(`${source} pagination returned a repeated cursor.`);
 	}
 

@@ -26,6 +26,14 @@ function normalizeOptionalString(value) {
 	return normalized === "" ? null : normalized;
 }
 
+function normalizeObject(value) {
+	return value && typeof value === "object" ? value : {};
+}
+
+function getSearchParam(searchParams, key) {
+	return typeof searchParams?.get === "function" ? searchParams.get(key) : null;
+}
+
 function parseLimit(value) {
 	if (value === null || value === undefined || value === "") {
 		return DEFAULT_LIMIT;
@@ -213,18 +221,18 @@ function buildPageInfo(items, hasMore, limit, sortField) {
 
 export function parseCattleListQuery(searchParams) {
 	return {
-		buildingId: normalizeOptionalString(searchParams.get("buildingId")),
-		penNumber: parsePenNumber(searchParams.get("penNumber")),
-		status: normalizeOptionalString(searchParams.get("status")),
-		cursor: normalizeOptionalString(searchParams.get("cursor")),
-		limit: parseLimit(searchParams.get("limit")),
-		fresh: searchParams.get("fresh") === "1",
+		buildingId: normalizeOptionalString(getSearchParam(searchParams, "buildingId")),
+		penNumber: parsePenNumber(getSearchParam(searchParams, "penNumber")),
+		status: normalizeOptionalString(getSearchParam(searchParams, "status")),
+		cursor: normalizeOptionalString(getSearchParam(searchParams, "cursor")),
+		limit: parseLimit(getSearchParam(searchParams, "limit")),
+		fresh: getSearchParam(searchParams, "fresh") === "1",
 	};
 }
 
 export function parseSalesListQuery(searchParams) {
-	const from = parseDateParam(searchParams.get("from"), "from");
-	const to = parseDateParam(searchParams.get("to"), "to");
+	const from = parseDateParam(getSearchParam(searchParams, "from"), "from");
+	const to = parseDateParam(getSearchParam(searchParams, "to"), "to");
 
 	if (from && to && from > to) {
 		throw new DashboardQueryValidationError(
@@ -235,9 +243,9 @@ export function parseSalesListQuery(searchParams) {
 	return {
 		from,
 		to,
-		cursor: normalizeOptionalString(searchParams.get("cursor")),
-		limit: parseLimit(searchParams.get("limit")),
-		fresh: searchParams.get("fresh") === "1",
+		cursor: normalizeOptionalString(getSearchParam(searchParams, "cursor")),
+		limit: parseLimit(getSearchParam(searchParams, "limit")),
+		fresh: getSearchParam(searchParams, "fresh") === "1",
 	};
 }
 
@@ -250,7 +258,7 @@ export async function getCattleListPage(input = {}) {
 		cursor = null,
 		limit = DEFAULT_LIMIT,
 		bypassCache = false,
-	} = input;
+	} = normalizeObject(input);
 
 	const cacheKey = buildCattleListKey({
 		farmId,
@@ -344,7 +352,7 @@ export async function getSalesListPage(input = {}) {
 		cursor = null,
 		limit = DEFAULT_LIMIT,
 		bypassCache = false,
-	} = input;
+	} = normalizeObject(input);
 
 	const fromKey = from ? toDateKey(from) : null;
 	const toKey = to ? toDateKey(to) : null;

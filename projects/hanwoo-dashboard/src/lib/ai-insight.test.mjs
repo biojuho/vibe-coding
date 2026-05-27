@@ -99,6 +99,16 @@ test("summarizeFarmForInsight ignores malformed margin rows and clamps negative 
 	assert.equal(summary.decliningMarginCount, 2);
 });
 
+test("summarizeFarmForInsight normalizes string weather numbers", () => {
+	const summary = summarizeFarmForInsight({
+		weather: { thi: "78.6", temp: "31.2", humidity: "64.7" },
+	});
+
+	assert.equal(summary.thi, 79);
+	assert.equal(summary.temp, 31);
+	assert.equal(summary.humidity, 65);
+});
+
 test("buildInsightPrompt embeds the snapshot and requests strict JSON", () => {
 	const prompt = buildInsightPrompt({
 		totalHeadcount: 12,

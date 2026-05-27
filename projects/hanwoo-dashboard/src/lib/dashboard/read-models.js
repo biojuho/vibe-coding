@@ -41,13 +41,18 @@ function toIssueDateKey(issueDate) {
 	return date.toISOString().slice(0, 10);
 }
 
+function normalizeObject(value) {
+	return value && typeof value === "object" ? value : {};
+}
+
 export async function getDashboardSummarySnapshot(
 	farmId = "default",
 	options = {},
 ) {
+	const safeOptions = normalizeObject(options);
 	const cacheKey = buildDashboardSummaryKey(farmId);
 
-	if (!options.bypassCache) {
+	if (!safeOptions.bypassCache) {
 		const cached = await getCachedJson(cacheKey);
 		if (cached) {
 			return cached;
@@ -89,9 +94,10 @@ export async function saveDashboardSummarySnapshot(input) {
 }
 
 export async function getNotificationSummary(farmId = "default", options = {}) {
+	const safeOptions = normalizeObject(options);
 	const cacheKey = buildNotificationsKey(farmId);
 
-	if (!options.bypassCache) {
+	if (!safeOptions.bypassCache) {
 		const cached = await getCachedJson(cacheKey);
 		if (cached) {
 			return cached;
@@ -129,9 +135,10 @@ export async function saveNotificationSummary(input) {
 }
 
 export async function getLatestMarketPriceSnapshot(options = {}) {
+	const safeOptions = normalizeObject(options);
 	const latestKey = buildMarketPriceLatestKey();
 
-	if (!options.bypassCache) {
+	if (!safeOptions.bypassCache) {
 		const cached = await getCachedJson(latestKey);
 		if (cached) {
 			return cached;
@@ -205,21 +212,24 @@ export async function saveMarketPriceSnapshot(input) {
 }
 
 export async function invalidateDashboardCaches(input = {}) {
-	const farmId = input.farmId ?? "default";
+	const safeInput = normalizeObject(input);
+	const farmId = safeInput.farmId ?? "default";
 	const keys = [
-		input.summary ? buildDashboardSummaryKey(farmId) : null,
-		input.notifications ? buildNotificationsKey(farmId) : null,
-		input.marketPriceLatest ? buildMarketPriceLatestKey() : null,
-		input.marketPriceDay ? buildMarketPriceDayKey(input.marketPriceDay) : null,
+		safeInput.summary ? buildDashboardSummaryKey(farmId) : null,
+		safeInput.notifications ? buildNotificationsKey(farmId) : null,
+		safeInput.marketPriceLatest ? buildMarketPriceLatestKey() : null,
+		safeInput.marketPriceDay
+			? buildMarketPriceDayKey(safeInput.marketPriceDay)
+			: null,
 	];
 	const prefixes = [
-		input.cattleListPages ? buildCattleListKeyPrefix(farmId) : null,
-		input.salesListPages ? buildSalesListKeyPrefix(farmId) : null,
+		safeInput.cattleListPages ? buildCattleListKeyPrefix(farmId) : null,
+		safeInput.salesListPages ? buildSalesListKeyPrefix(farmId) : null,
 	];
 
 	const snapshotDeletes = [];
 
-	if (input.summary) {
+	if (safeInput.summary) {
 		snapshotDeletes.push(
 			prisma.dashboardSnapshot
 				.delete({
@@ -233,7 +243,7 @@ export async function invalidateDashboardCaches(input = {}) {
 		);
 	}
 
-	if (input.notifications) {
+	if (safeInput.notifications) {
 		snapshotDeletes.push(
 			prisma.notificationSummary
 				.delete({

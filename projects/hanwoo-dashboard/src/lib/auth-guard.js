@@ -10,8 +10,12 @@ export class AuthenticationError extends Error {
 	}
 }
 
+function normalizeObject(value) {
+	return value && typeof value === "object" ? value : {};
+}
+
 export async function requireAuthenticatedSession(options = {}) {
-	const { redirectToLogin = false } = options;
+	const { redirectToLogin = false } = normalizeObject(options);
 
 	let session;
 	try {

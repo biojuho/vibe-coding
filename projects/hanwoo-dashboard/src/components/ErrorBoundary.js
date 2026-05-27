@@ -18,17 +18,37 @@ export class ErrorBoundary extends React.Component {
 		console.error("[ErrorBoundary] Caught error:", error, errorInfo);
 	}
 
+	handleResetFailure = (resetError, message) => {
+		console.error(message, resetError);
+		this.setState({ hasError: true, error: resetError });
+	};
+
 	handleReset = () => {
 		this.setState({ hasError: false, error: null });
 		if (this.props.onReset) {
-			this.props.onReset();
-		} else {
 			try {
-				window.location.reload();
+				const resetResult = this.props.onReset();
+				if (resetResult && typeof resetResult.catch === "function") {
+					resetResult.catch((resetError) => {
+						this.handleResetFailure(
+							resetError,
+							"[ErrorBoundary] Failed to run reset handler:",
+						);
+					});
+				}
 			} catch (resetError) {
-				console.error("[ErrorBoundary] Failed to reload:", resetError);
-				this.setState({ hasError: true, error: resetError });
+				this.handleResetFailure(
+					resetError,
+					"[ErrorBoundary] Failed to run reset handler:",
+				);
 			}
+			return;
+		}
+
+		try {
+			window.location.reload();
+		} catch (resetError) {
+			this.handleResetFailure(resetError, "[ErrorBoundary] Failed to reload:");
 		}
 	};
 

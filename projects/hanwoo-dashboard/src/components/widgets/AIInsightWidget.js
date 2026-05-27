@@ -67,6 +67,14 @@ function SourceBadge({ source }) {
 	);
 }
 
+function deferAIInsightTask(callback) {
+	try {
+		queueMicrotask(callback);
+	} catch {
+		Promise.resolve().then(callback);
+	}
+}
+
 export default function AIInsightWidget({ summary }) {
 	const stableSummary = useMemo(
 		() => (summary && typeof summary === "object" ? summary : {}),
@@ -86,10 +94,11 @@ export default function AIInsightWidget({ summary }) {
 
 	useEffect(() => {
 		const controller = new AbortController();
+		let cancelled = false;
 		let didTimeout = false;
 		abortRef.current = controller;
-		queueMicrotask(() => {
-			if (!controller.signal.aborted) {
+		deferAIInsightTask(() => {
+			if (!cancelled && !controller.signal.aborted) {
 				setInsights(buildHeuristicInsights(stableSummary));
 				setSource("heuristic");
 				setIsLoading(true);
@@ -104,6 +113,8 @@ export default function AIInsightWidget({ summary }) {
 			}, AI_INSIGHT_TIMEOUT_MS);
 		} catch (error) {
 			console.error("Failed to schedule AI insight timeout:", error);
+			didTimeout = true;
+			controller.abort();
 		}
 
 		fetch("/api/ai/insight", {
@@ -117,6 +128,9 @@ export default function AIInsightWidget({ summary }) {
 					throw new Error(`서버 오류 (${res.status})`);
 				}
 				const payload = await res.json();
+				if (cancelled || controller.signal.aborted) {
+					return;
+				}
 				const parsed = parseInsightResponse(payload.insights);
 				if (!parsed || parsed.length !== MAX_INSIGHTS) {
 					throw new Error("응답 형식이 올바르지 않습니다.");
@@ -135,6 +149,7 @@ export default function AIInsightWidget({ summary }) {
 				}
 			})
 			.catch((error) => {
+				if (cancelled) return;
 				if (error.name === "AbortError" && !didTimeout) return;
 				console.error("AI 인사이트 호출 실패:", error);
 				setInsights(buildHeuristicInsights(stableSummary));
@@ -151,12 +166,13 @@ export default function AIInsightWidget({ summary }) {
 						window.clearTimeout(timeoutId);
 					} catch {}
 				}
-				if (!controller.signal.aborted || didTimeout) {
+				if (!cancelled && (!controller.signal.aborted || didTimeout)) {
 					setIsLoading(false);
 				}
 			});
 
 		return () => {
+			cancelled = true;
 			if (timeoutId !== null) {
 				try {
 					window.clearTimeout(timeoutId);

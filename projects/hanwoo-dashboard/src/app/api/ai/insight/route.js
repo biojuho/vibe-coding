@@ -64,6 +64,7 @@ function withInsightTimeout(promise, timeoutMs = GEMINI_INSIGHT_TIMEOUT_MS) {
 			);
 		} catch (error) {
 			console.error("AI insight timeout scheduling failed:", error);
+			reject(new InsightTimeoutError(timeoutMs));
 		}
 	});
 

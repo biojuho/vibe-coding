@@ -140,6 +140,10 @@ test("widget settings normalize persisted visibility safely", () => {
 	assert.match(hookSource, /function writeStoredWidgetVisibility\(visibility\) \{/);
 	assert.match(
 		hookSource,
+		/const WIDGET_ID_SET = new Set\(WIDGET_REGISTRY\.map\(\(widget\) => widget\.id\)\);/,
+	);
+	assert.match(
+		hookSource,
 		/if \(!value \|\| typeof value !== "object" \|\| Array\.isArray\(value\)\) \{/,
 	);
 	assert.match(
@@ -151,6 +155,14 @@ test("widget settings normalize persisted visibility safely", () => {
 		/return normalizeStoredWidgetVisibility\(JSON\.parse\(saved\)\);/,
 	);
 	assert.match(hookSource, /useState\(\(\) => readStoredWidgetVisibility\(\)\)/);
+	assert.match(
+		hookSource,
+		/const toggle = \(id\) => \{\s+if \(!WIDGET_ID_SET\.has\(id\)\) \{\s+return;\s+\}/,
+	);
+	assert.match(
+		hookSource,
+		/if \(!WIDGET_ID_SET\.has\(id\)\) \{\s+return;\s+\}\s+setVisible\(\(prev\) => \{/,
+	);
 	assert.match(
 		hookSource,
 		/try \{\s*localStorage\.setItem\(WIDGETS_STORAGE_KEY, JSON\.stringify\(visibility\)\);[\s\S]*?\} catch \{\}/,
@@ -313,7 +325,12 @@ test("settings building form waits for async saves before re-enabling actions", 
 		source,
 		/const \[isSavingBuilding, setIsSavingBuilding\] = useState\(false\)/,
 	);
+	assert.match(source, /const isMountedRef = useRef\(false\);/);
 	assert.match(source, /const buildingSaveInFlightRef = useRef\(false\);/);
+	assert.match(
+		source,
+		/useEffect\(\(\) => \{\s+isMountedRef\.current = true;[\s\S]*?return \(\) => \{\s+isMountedRef\.current = false;\s+farmSaveInFlightRef\.current = false;\s+buildingSaveInFlightRef\.current = false;\s+deleteBuildingInFlightRef\.current = false;/,
+	);
 	assert.match(
 		source,
 		/if \(buildingSaveInFlightRef\.current\) \{\s+return;\s+\}/,
@@ -322,6 +339,15 @@ test("settings building form waits for async saves before re-enabling actions", 
 	assert.match(source, /setIsSavingBuilding\(true\);/);
 	assert.match(source, /const saved = await onCreateBuilding\(values\);/);
 	assert.match(
+		source,
+		/if \(!saved \|\| !isMountedRef\.current\) \{\s+return;\s+\}/,
+	);
+	assert.doesNotMatch(source, /if \(!saved\) \{\s+return;\s+\}/);
+	assert.match(
+		source,
+		/finally \{\s+buildingSaveInFlightRef\.current = false;\s+if \(isMountedRef\.current\) \{\s+setIsSavingBuilding\(false\);/,
+	);
+	assert.doesNotMatch(
 		source,
 		/finally \{\s+buildingSaveInFlightRef\.current = false;\s+setIsSavingBuilding\(false\);/,
 	);
@@ -375,6 +401,7 @@ test("settings farm form waits for async saves before re-enabling submit", () =>
 		source,
 		/const \[isSavingFarm, setIsSavingFarm\] = useState\(false\)/,
 	);
+	assert.match(source, /const isMountedRef = useRef\(false\);/);
 	assert.match(source, /const farmSaveInFlightRef = useRef\(false\);/);
 	assert.match(source, /const submitFarmSettings = async \(values\) => \{/);
 	assert.match(source, /if \(farmSaveInFlightRef\.current\) \{\s+return;\s+\}/);
@@ -382,6 +409,10 @@ test("settings farm form waits for async saves before re-enabling submit", () =>
 	assert.match(source, /setIsSavingFarm\(true\);/);
 	assert.match(source, /await onUpdateFarmSettings\(values\);/);
 	assert.match(
+		source,
+		/finally \{\s+farmSaveInFlightRef\.current = false;\s+if \(isMountedRef\.current\) \{\s+setIsSavingFarm\(false\);/,
+	);
+	assert.doesNotMatch(
 		source,
 		/finally \{\s+farmSaveInFlightRef\.current = false;\s+setIsSavingFarm\(false\);/,
 	);
@@ -439,6 +470,10 @@ test("settings building delete action waits for async deletes before re-enabling
 	assert.doesNotMatch(source, /title: `\$\{name\} 동을 삭제할까요\?`/);
 	assert.match(
 		source,
+		/if \(!shouldDelete \|\| !isMountedRef\.current\) \{\s+deleteBuildingInFlightRef\.current = false;\s+return;\s+\}/,
+	);
+	assert.doesNotMatch(
+		source,
 		/if \(!shouldDelete\) \{\s+deleteBuildingInFlightRef\.current = false;\s+return;\s+\}/,
 	);
 	assert.match(source, /confirmLabel: "축사 삭제"/);
@@ -449,8 +484,12 @@ test("settings building delete action waits for async deletes before re-enabling
 	);
 	assert.match(source, /setDeletingBuildingId\(id\);/);
 	assert.match(source, /await onDeleteBuilding\(id\);/);
-	assert.match(source, /finally \{\s+setDeletingBuildingId\(null\);/);
 	assert.match(
+		source,
+		/finally \{\s+deleteBuildingInFlightRef\.current = false;\s+if \(isMountedRef\.current\) \{\s+setDeletingBuildingId\(null\);/,
+	);
+	assert.doesNotMatch(source, /finally \{\s+setDeletingBuildingId\(null\);/);
+	assert.doesNotMatch(
 		source,
 		/setDeletingBuildingId\(null\);\s+deleteBuildingInFlightRef\.current = false;/,
 	);

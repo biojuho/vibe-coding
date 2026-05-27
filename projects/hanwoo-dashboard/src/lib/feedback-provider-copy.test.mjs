@@ -14,6 +14,7 @@ function readSource(relativePath) {
 test("feedback toasts expose live-region semantics and Korean dismiss labels", () => {
 	const source = readSource("components/feedback/FeedbackProvider.js");
 
+	assert.match(source, /const mountedRef = useRef\(true\);/);
 	assert.match(
 		source,
 		/const isUrgent\s*=\s*toast\s*\.\s*variant\s*===\s*["']error["']\s*\|\|\s*toast\s*\.\s*variant\s*===\s*["']warning["']/,
@@ -34,6 +35,10 @@ test("feedback toasts expose live-region semantics and Korean dismiss labels", (
 	);
 	assert.match(
 		source,
+		/window\.setTimeout\(\(\) => \{\s+timeoutIdsRef\.current\.delete\(id\);\s+if \(mountedRef\.current\) \{\s+dismiss\(id\);/,
+	);
+	assert.match(
+		source,
 		/console\.error\(["']Failed to schedule feedback toast dismissal:/,
 	);
 	assert.match(
@@ -42,6 +47,44 @@ test("feedback toasts expose live-region semantics and Korean dismiss labels", (
 	);
 	assert.match(source, /aria-hidden="true"/);
 	assert.doesNotMatch(source, /aria-label="Close"/);
+});
+
+test("feedback provider ignores stale unmounted callbacks", () => {
+	const source = readSource("components/feedback/FeedbackProvider.js");
+
+	assert.match(source, /const mountedRef = useRef\(true\);/);
+	assert.match(
+		source,
+		/if \(mountedRef\.current\) \{\s+setToasts\(\(current\) => current\.filter\(\(toast\) => toast\.id !== id\)\);/,
+	);
+	assert.match(
+		source,
+		/if \(!mountedRef\.current\) \{\s+return;\s+\}\s+const id = `toast_/,
+	);
+	assert.match(
+		source,
+		/useEffect\(\(\) => \{\s+mountedRef\.current = true;[\s\S]*?return \(\) => \{\s+mountedRef\.current = false;/,
+	);
+	assert.match(
+		source,
+		/if \(resolverRef\.current\) \{\s+resolverRef\.current\(false\);\s+resolverRef\.current = null;/,
+	);
+	assert.match(
+		source,
+		/if \(!mountedRef\.current\) \{\s+return Promise\.resolve\(false\);\s+\}\s+setConfirmation\(\{/,
+	);
+	assert.match(
+		source,
+		/if \(mountedRef\.current\) \{\s+setConfirmation\(DEFAULT_CONFIRMATION\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/setToasts\(\(current\) => current\.filter\(\(toast\) => toast\.id !== id\)\);\s+\}, \[\]\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/setConfirmation\(DEFAULT_CONFIRMATION\);\s+\}, \[\]\);/,
+	);
 });
 
 test("shared Button defaults to safe non-submit semantics", () => {

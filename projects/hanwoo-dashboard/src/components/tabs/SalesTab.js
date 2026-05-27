@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ReceiptText } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import {
 	Bar,
@@ -59,6 +59,7 @@ export default function SalesTab({
 		() => quickActionIntent?.actionId === "record-sale",
 	);
 	const [isSaving, setIsSaving] = useState(false);
+	const isMountedRef = useRef(false);
 	const saveInFlightRef = useRef(false);
 
 	const {
@@ -184,6 +185,15 @@ export default function SalesTab({
 	const salesProfitChartLabel =
 		"최근 5건 수익 분석 차트. 판매금액과 수익을 출하 개체별로 비교합니다.";
 
+	useEffect(() => {
+		isMountedRef.current = true;
+
+		return () => {
+			isMountedRef.current = false;
+			saveInFlightRef.current = false;
+		};
+	}, []);
+
 	const toggleAddForm = () => {
 		if (saveInFlightRef.current || isSaving) {
 			return;
@@ -208,7 +218,7 @@ export default function SalesTab({
 
 		try {
 			const saved = await onCreateSale(values);
-			if (!saved) {
+			if (!saved || !isMountedRef.current) {
 				return;
 			}
 
@@ -216,7 +226,9 @@ export default function SalesTab({
 			reset(createSalesFormValues());
 		} finally {
 			saveInFlightRef.current = false;
-			setIsSaving(false);
+			if (isMountedRef.current) {
+				setIsSaving(false);
+			}
 		}
 	};
 

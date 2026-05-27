@@ -93,7 +93,12 @@ test("schedule form waits for async saves before re-enabling actions", () => {
 		scheduleSource,
 		/const \[isSaving, setIsSaving\] = useState\(false\)/,
 	);
+	assert.match(scheduleSource, /const isMountedRef = useRef\(false\)/);
 	assert.match(scheduleSource, /const saveInFlightRef = useRef\(false\)/);
+	assert.match(
+		scheduleSource,
+		/useEffect\(\(\) => \{\s+isMountedRef\.current = true;[\s\S]*?return \(\) => \{\s+isMountedRef\.current = false;\s+saveInFlightRef\.current = false;\s+completionInFlightRef\.current = false;/,
+	);
 	assert.match(
 		scheduleSource,
 		/if \(saveInFlightRef\.current \|\| isSaving\) \{\s+return;\s+\}/,
@@ -106,6 +111,14 @@ test("schedule form waits for async saves before re-enabling actions", () => {
 	assert.match(scheduleSource, /setIsSaving\(true\);/);
 	assert.match(scheduleSource, /await onCreateEvent\(values\)/);
 	assert.match(
+		scheduleSource,
+		/if \(!saved \|\| !isMountedRef\.current\) \{\s+return;\s+\}/,
+	);
+	assert.match(
+		scheduleSource,
+		/finally \{\s+saveInFlightRef\.current = false;\s+if \(isMountedRef\.current\) \{\s+setIsSaving\(false\);/,
+	);
+	assert.doesNotMatch(
 		scheduleSource,
 		/finally \{\s+saveInFlightRef\.current = false;\s+setIsSaving\(false\);/,
 	);
@@ -177,6 +190,10 @@ test("schedule completion toggles wait for async updates before re-enabling cont
 		/await onToggleEvent\(event\.id, !event\.isCompleted\);/,
 	);
 	assert.match(
+		scheduleSource,
+		/finally \{\s+completionInFlightRef\.current = false;\s+if \(isMountedRef\.current\) \{\s+setSavingEventId\(null\);/,
+	);
+	assert.doesNotMatch(
 		scheduleSource,
 		/finally \{\s+completionInFlightRef\.current = false;\s+setSavingEventId\(null\);/,
 	);

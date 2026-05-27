@@ -19,6 +19,7 @@ export default function NotificationModal({
 	onTestSMS,
 }) {
 	const dialogRef = useRef(null);
+	const isMountedRef = useRef(false);
 	const [isTestingSMS, setIsTestingSMS] = useState(false);
 	const visibleNotifications = normalizeModalNotifications(notifications);
 	const closeButtonLabel = isTestingSMS
@@ -30,7 +31,12 @@ export default function NotificationModal({
 	const notificationTimeFallback = "알림 시간 확인 불가";
 
 	useEffect(() => {
+		isMountedRef.current = true;
 		focusElementSafely(dialogRef.current);
+
+		return () => {
+			isMountedRef.current = false;
+		};
 	}, []);
 
 	const handleDialogKeyDown = (event) => {
@@ -53,7 +59,9 @@ export default function NotificationModal({
 		try {
 			await Promise.resolve(onTestSMS?.());
 		} finally {
-			setIsTestingSMS(false);
+			if (isMountedRef.current) {
+				setIsTestingSMS(false);
+			}
 		}
 	};
 

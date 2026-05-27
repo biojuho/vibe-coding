@@ -68,6 +68,7 @@ export default function SettingsTab({
 	const [isSavingFarm, setIsSavingFarm] = useState(false);
 	const [isSavingBuilding, setIsSavingBuilding] = useState(false);
 	const [deletingBuildingId, setDeletingBuildingId] = useState(null);
+	const isMountedRef = useRef(false);
 	const farmSaveInFlightRef = useRef(false);
 	const buildingSaveInFlightRef = useRef(false);
 	const deleteBuildingInFlightRef = useRef(false);
@@ -115,6 +116,17 @@ export default function SettingsTab({
 		resolver: zodResolver(farmSettingsSchema),
 		defaultValues: createFarmSettingsValues(farmSettings),
 	});
+
+	useEffect(() => {
+		isMountedRef.current = true;
+
+		return () => {
+			isMountedRef.current = false;
+			farmSaveInFlightRef.current = false;
+			buildingSaveInFlightRef.current = false;
+			deleteBuildingInFlightRef.current = false;
+		};
+	}, []);
 
 	useEffect(() => {
 		resetFarm(createFarmSettingsValues(farmSettings));
@@ -181,7 +193,7 @@ export default function SettingsTab({
 
 		try {
 			const saved = await onCreateBuilding(values);
-			if (!saved) {
+			if (!saved || !isMountedRef.current) {
 				return;
 			}
 
@@ -189,7 +201,9 @@ export default function SettingsTab({
 			resetBuilding(createBuildingFormValues());
 		} finally {
 			buildingSaveInFlightRef.current = false;
-			setIsSavingBuilding(false);
+			if (isMountedRef.current) {
+				setIsSavingBuilding(false);
+			}
 		}
 	};
 
@@ -205,7 +219,9 @@ export default function SettingsTab({
 			await onUpdateFarmSettings(values);
 		} finally {
 			farmSaveInFlightRef.current = false;
-			setIsSavingFarm(false);
+			if (isMountedRef.current) {
+				setIsSavingFarm(false);
+			}
 		}
 	};
 
@@ -232,7 +248,7 @@ export default function SettingsTab({
 			variant: "destructive",
 		});
 
-		if (!shouldDelete) {
+		if (!shouldDelete || !isMountedRef.current) {
 			deleteBuildingInFlightRef.current = false;
 			return;
 		}
@@ -242,8 +258,10 @@ export default function SettingsTab({
 		try {
 			await onDeleteBuilding(id);
 		} finally {
-			setDeletingBuildingId(null);
 			deleteBuildingInFlightRef.current = false;
+			if (isMountedRef.current) {
+				setDeletingBuildingId(null);
+			}
 		}
 	};
 

@@ -30,6 +30,24 @@ test("buildSetupProgressItems routes missing buildings to the add-building flow"
 	assert.equal(progress.nextItem.actionId, "add-building");
 });
 
+test("buildSetupProgressItems ignores malformed collection rows", () => {
+	const progress = buildSetupProgressItems({
+		farmSettings: { name: "Farm", location: "Namwon" },
+		buildings: ["b1", null],
+		cattleList: [undefined, "c1"],
+		inventoryList: [false],
+		scheduleEvents: ["s1"],
+	});
+
+	assert.equal(progress.completed, 1);
+	assert.equal(progress.percent, 20);
+	assert.equal(progress.nextItem.id, "buildings");
+	assert.deepEqual(
+		progress.items.map((item) => item.done),
+		[true, false, false, false, false],
+	);
+});
+
 test("buildSetupProgressItems marks setup complete when all required operating data exists", () => {
 	const progress = buildSetupProgressItems({
 		farmSettings: { name: "주호목장", location: "전북 남원" },
