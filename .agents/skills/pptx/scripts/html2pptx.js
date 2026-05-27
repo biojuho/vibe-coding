@@ -26,7 +26,7 @@
  */
 
 const { chromium } = require("playwright");
-const path = require("path");
+const path = require("node:path");
 const sharp = require("sharp");
 
 const PT_PER_PX = 0.75;

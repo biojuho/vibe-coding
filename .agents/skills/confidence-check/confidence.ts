@@ -18,8 +18,8 @@
  *    - Low (<70%): Investigation incomplete, unclear root cause, missing official docs
  */
 
-import { existsSync, readdirSync } from "fs";
-import { dirname, join } from "path";
+import { existsSync, readdirSync } from "node:fs";
+import { dirname, join } from "node:path";
 
 export interface Context {
 	task?: string;
