@@ -6,6 +6,279 @@
 
 | Field | Value |
 |---|---|
+| Date | 2026-05-28 |
+| Tool | Claude Opus 4.7 (1M context) |
+| Work | **T-1112 AI Insight 캐시 Redis 백킹** (`97447aca`): T-1104 in-memory Map 캐시는 서버리스/다중 인스턴스 cold start 마다 초기화돼 실 hit rate ~0%. 기존 `src/lib/redis.js` 인프라(`isRedisConfigured`/`ensureRedisConnection("cache")`) 재사용해 캐시 Redis 격상. 새 async API `loadCachedInsight/saveCachedInsight/dropCachedInsight` — REDIS_URL 설정 시 `ai-insight:<key>` 네임스페이스 + 24h TTL, 미설정 시 기존 Map 자동 폴백. Redis 실패는 catch → console.error → null(fail-open). 응답에 `cacheBackend: "redis"|"memory"` 동봉. 기존 sync API 도 유지(호환). 5 신규 케이스(총 19/19), 전체 hanwoo `npm test` 503/503, lint clean, build exit 0. |
+| Next Priorities | T-251(Supabase) 그대로. 다음 후속: ① AI Insight 캐시 hit/miss + cacheBackend 를 Langfuse 트레이싱(이미 `LANGFUSE_ENABLED` 인프라). ② Best-of-N 표본 ≥5건 누적 후 sweep 결과를 weekly report 자동 임베드. ③ 프로덕션 Redis 한 번 실제로 붙여 hit rate 모니터링. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1194 Raw diagnostics server-action DB row hardening**: Continued the active Hanwoo quality uplift by tightening `src/lib/actions/system.js`. `getRawData()` now normalizes dynamic model `findMany()` results before returning to the admin diagnostics UI, filtering malformed array-shaped rows and falling back to an empty array for non-array DB/mock results. This prevents direct/action/reuse callers from receiving unsafe raw diagnostic rows while preserving authenticated server action behavior, allowed-model enforcement, existing Korean diagnostics failure copy, the 50-row diagnostic limit, created-date ordering semantics, and diagnostics page safe rendering. Strengthened `src/lib/actions-copy.test.mjs` coverage for safe raw diagnostics row normalization. Also aligned `src/lib/ai-insight-widget-copy.test.mjs` with the current Redis-aware async cache helpers (`loadCachedInsight`/`dropCachedInsight`/`saveCachedInsight`) after the full suite exposed an obsolete source assertion. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/actions-copy.test.mjs src/lib/diagnostics-copy.test.mjs` passed 15/15, `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/ai-insight-widget-copy.test.mjs` passed 14/14, `npm.cmd test` passed 503/503 after updating the stale AI insight source assertion, `npm.cmd run lint` passed clean, `npm.cmd run build` passed on retry after a transient Next build lock with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1193 Notification action cattle DB row hardening**: Continued the active Hanwoo quality uplift by tightening `src/lib/actions/notification.js`. `getNotifications()` now normalizes live cattle `findMany()` results before calling `buildNotifications()`, filtering malformed array-shaped rows and falling back to an empty array for non-array DB/mock results. This prevents direct/action/reuse callers from feeding unsafe cattle rows into notification generation while preserving authenticated server action behavior, fresh read-model cache reuse, notification summary persistence, existing Korean fallback behavior, estrus/calving notification builder semantics, and dashboard notification consumers. Strengthened `src/lib/actions-copy.test.mjs` coverage for safe notification cattle row normalization. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/actions-copy.test.mjs` passed 9/9, `npm.cmd test` passed 497/497, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1180 AI chat request dependency hardening**: Continued the active Hanwoo quality uplift by tightening `src/lib/ai-chat-api.mjs`. `handleAiChatRequest()` now normalizes malformed dependency input and rejects missing required callbacks with the existing Korean JSON error envelope before authentication, API-key lookup, farm-context construction, or stream creation are invoked. This prevents direct/API/reuse callers from crashing through `deps` destructuring or missing callback invocation while preserving authenticated chat flow, validation errors, missing API-key copy, Gemini history normalization, SSE stream delegation, and existing chat route behavior. Strengthened `src/lib/ai-chat-api.test.mjs` coverage for malformed dependency input. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/ai-chat-api.test.mjs` passed 10/10, `npm.cmd test` passed 488/488, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1179 AI/market/history helper array-object hardening**: Continued the active Hanwoo quality uplift by tightening `src/lib/ai-chat-api.mjs`, `src/lib/ai-insight.mjs`, `src/lib/market-price-state.mjs`, and `src/lib/cattle-history.mjs`. AI chat history items, AI insight profitability/notification rows, parsed AI insight response items, KAPE market price snapshots/sides/live payloads, and cattle history metadata payloads now reject malformed arrays before Gemini context, insight recommendations, market price display/persistence, or cattle weight-history points are derived. This prevents direct/API/cache/reuse callers from leaking array-attached fields into chat context, insight cards, live/cache market prices, or cattle history chart evidence while preserving existing Korean validation copy, strict JSON insight parsing, market stale/unavailable fallbacks, metadata parse-error reporting, and current dashboard behavior. Strengthened focused helper tests for array-object guards. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/ai-chat-api.test.mjs src/lib/ai-insight.test.mjs src/lib/market-price-state.test.mjs src/lib/cattle-history.test.mjs` passed 46/46, `npm.cmd test` passed 487/487, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1178 Dashboard calculation utility array-row hardening**: Continued the active Hanwoo quality uplift by tightening `src/lib/dashboard/setup-progress.mjs`, `src/lib/dashboard/today-focus.mjs`, and `src/lib/dashboard/farm-metrics.mjs`. Setup progress counts, today-focus feed-category/feed-history helpers, feed-expense samples, cattle lookup values, and sales weight-gain samples now reject malformed array rows before dashboard guidance, feed-depletion forecasts, or farm-specific profitability adjustment evidence are calculated. This prevents direct/cache/reuse callers from leaking array-attached row fields into onboarding progress, today's work recommendations, feed forecasts, or profitability projections while preserving existing option normalization, Korean dashboard copy, date/window filtering, numeric coercion, and default fallback behavior. Strengthened focused dashboard utility tests for array-row guards. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/dashboard/setup-progress.test.mjs src/lib/dashboard/today-focus.test.mjs src/lib/dashboard/farm-metrics.test.mjs` passed 37/37, `npm.cmd test` passed 485/485, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1177 Operational UI collection array-row hardening**: Continued the active Hanwoo quality uplift by tightening remaining operator-facing collection normalizers in `src/components/tabs/CalvingTab.js`, `src/components/tabs/ScheduleTab.js`, `src/components/tabs/SettingsTab.js`, `src/components/forms/CattleForm.js`, `src/components/forms/CattleDetailModal.js`, `src/components/layout/NotificationSystem.js`, `src/components/widgets/AlertBanners.js`, `src/components/widgets/EarTagScannerModal.js`, `src/components/widgets/FieldModeView.js`, `src/components/ui/cards.js`, and `src/components/widgets/widgets.js`. These paths now reject malformed array rows before form select options, pregnancy/calving lists, schedules, settings building/widget controls, detail fallback charts, notification dropdowns, alert banners, scanner targets, field search/checklists, pen cattle cards, or weather forecast cards render. This prevents direct/cache/reuse callers from leaking array-attached row fields into operational UI paths while preserving existing Korean copy, async save locks, focus/a11y behavior, alert countdowns, scanner/field-mode animation guards, and card rendering semantics. Strengthened focused source coverage for these array-row guards. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/home-market-copy.test.mjs src/lib/cards-accessibility.test.mjs src/lib/cattle-detail-modal-wiring.test.mjs src/lib/notification-system-copy.test.mjs src/lib/eartag-scanner-modal-accessibility.test.mjs src/lib/field-mode-celebration.test.mjs src/lib/settings-tab-accessibility.test.mjs src/lib/tab-header-accessibility.test.mjs src/lib/calving-tab-accessibility.test.mjs src/lib/alert-banners-accessibility.test.mjs` passed 139/139, `npm.cmd test` passed 483/483, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1176 Dashboard and pagination array-row hardening**: Continued the active Hanwoo quality uplift by tightening row normalizers in `src/components/DashboardClient.js`, `src/lib/hooks/useCattlePagination.js`, `src/lib/hooks/useSalesPagination.js`, and `src/lib/hooks/useCursorPagination.js`. Dashboard helper items, building rows, cattle/list rows, notification rows, full-list fetch rows, and shared/cattle/sales pagination rows now reject malformed arrays before dashboard home rendering, pen lists, notification fan-out, full export registries, cursor pagination state, or load-more accumulation. This prevents direct/cache/API reuse callers from leaking array-attached row fields into dashboard panels, building grids, cattle registries, notification widgets/modals/banners, cursor pagination state, and paginated list updates while preserving existing Korean dashboard copy, SSR pagination wiring, full-list preload behavior, stale-unmount guards, and pagination retry feedback. Strengthened focused dashboard and pagination source coverage for array-row guards. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/home-market-copy.test.mjs src/lib/cattle-pagination-feedback.test.mjs src/lib/sales-pagination-feedback.test.mjs src/lib/cursor-pagination-feedback.test.mjs` passed 57/57, `npm.cmd test` passed 483/483, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1175 Collection row array hardening**: Continued the active Hanwoo quality uplift by tightening collection row normalizers in `src/components/tabs/AnalysisTab.js`, `src/components/tabs/FeedTab.js`, `src/components/tabs/SalesTab.js`, `src/components/tabs/InventoryTab.js`, `src/components/widgets/FinancialChartWidget.js`, `src/components/widgets/ProfitabilityWidget.js`, `src/components/widgets/NotificationWidget.js`, `src/components/ui/NotificationModal.js`, `src/lib/dashboard/summary-service.js`, `src/lib/dashboard/today-focus.mjs`, and `src/lib/cattle-csv-export.mjs`. These normalizers now reject malformed array rows before rendering, aggregation, CSV export, dashboard summary calculation, alert/today-focus selection, or profitability/notification display. This prevents cache/direct/reuse callers from leaking array-attached row fields into user-facing tables, charts, recommendations, notifications, CSV exports, or summary cards while preserving existing object-row normalization, numeric coercion, Korean fallback copy, pagination/render behavior, and dashboard cache semantics. Strengthened focused source coverage for array-row guards. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/analysis-copy.test.mjs src/lib/profitability-copy.test.mjs src/lib/notification-system-copy.test.mjs src/lib/notification-modal-copy.test.mjs src/lib/dashboard/setup-progress.test.mjs src/lib/dashboard/today-focus.test.mjs src/lib/cattle-csv-export.test.mjs src/lib/empty-state-wiring.test.mjs src/lib/home-market-copy.test.mjs` passed 124/124, `npm.cmd test` passed 483/483, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1174 AI insight summary/request and action invalidation array-object hardening**: Continued the active Hanwoo quality uplift by tightening `src/lib/ai-insight.mjs`, `src/components/widgets/AIInsightWidget.js`, `src/app/api/ai/insight/route.js`, and `src/lib/actions/_helpers.js`. AI insight summary normalization, AI insight widget stable-summary normalization, AI insight API request-body normalization, and shared action cache invalidation option normalization now reject malformed array inputs before reading farm summary, weather, force-refresh, cache-key, or cache-invalidation fields. This prevents direct/test/reuse callers from leaking array-attached fields into heuristic insight generation, AI insight request caching/refresh behavior, widget fallback summaries, or dashboard cache invalidation while preserving existing Gemini fallback flow, Korean insight copy, same-day AI cache behavior, Next cache tag revalidation, and dashboard mutation cache invalidation. Strengthened `src/lib/actions-helper-options.test.mjs`, `src/lib/ai-insight.test.mjs`, and `src/lib/ai-insight-widget-copy.test.mjs` coverage for array-object guards. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/actions-helper-options.test.mjs src/lib/ai-insight.test.mjs src/lib/ai-insight-widget-copy.test.mjs` passed 33/33, `npm.cmd test` passed 483/483, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1173 Auth, dashboard cache/query/read-model, and notification timing array-option hardening**: Continued the active Hanwoo quality uplift by tightening `src/lib/auth-guard.js`, `src/lib/dashboard/cache.js`, `src/lib/dashboard/list-queries.js`, `src/lib/dashboard/read-models.js`, and `src/lib/notification-timing.mjs`. Shared auth guard, dashboard cache key, dashboard list query, dashboard read-model cache, and notification timing option normalizers now reject malformed array inputs before reading redirect, filter, pagination, cache-bypass, invalidation, or notification reference-time fields. This prevents direct/test/reuse callers from leaking array-attached option fields into authentication redirects, cache keys, list query cache bypasses, read-model cache decisions, cache invalidation, or estrus timing calculations while preserving existing Korean auth copy, dashboard cache segmentation, list pagination validation, read-model cache behavior, and notification timing fallbacks. Strengthened `src/lib/auth-guard-options.test.mjs`, `src/lib/dashboard-cache-options.test.mjs`, `src/lib/dashboard-list-query-input.test.mjs`, `src/lib/dashboard-read-models-date.test.mjs`, and `src/lib/notification-timing.test.mjs` coverage for array-option guards. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/auth-guard-options.test.mjs src/lib/dashboard-cache-options.test.mjs src/lib/dashboard-list-query-input.test.mjs src/lib/dashboard-read-models-date.test.mjs src/lib/notification-timing.test.mjs` passed 15/15, `npm.cmd test` passed 482/482, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1172 Weather, fetch, queue, and offline utility array-option hardening**: Continued the active Hanwoo quality uplift by tightening `src/lib/weather-state.mjs`, `src/lib/fetchWithTimeout.js`, `src/lib/queue.js`, and `src/lib/offline-sync-state.mjs`. Shared weather, fetch timeout, BullMQ queue, and offline sync state normalizers now reject malformed array inputs before reading timeout, message, location, queue, retry, permanent-failure, or metadata fields. This prevents direct/test/reuse callers from leaking array-attached option fields into user-facing weather fallback copy, timeout behavior, queue option wiring, or offline retry/dead-letter state while preserving Open-Meteo normalization, guarded fetch timeout scheduling/cleanup, Redis configuration checks, offline retry accounting, Korean fallback copy, and existing dashboard behavior. Strengthened `src/lib/weather-state.test.mjs`, `src/lib/fetch-with-timeout.test.mjs`, `src/lib/offline-sync-state.test.mjs`, and `src/lib/queue.test.mjs` coverage for array-option and array-item guards. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/weather-state.test.mjs src/lib/fetch-with-timeout.test.mjs src/lib/offline-sync-state.test.mjs src/lib/queue.test.mjs` passed 25/25, `npm.cmd test` passed 479/479, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1171 Market price and payment helper option hardening**: Continued the active Hanwoo quality uplift by tightening `src/lib/market-price-state.mjs` and `src/app/api/payments/confirm/route.js`. Market price state helpers now ignore malformed array options before reading fallback time/message fields, and the internal `createAvailableMarketPrice()` builder normalizes top-level options before reading price sides, source metadata, freshness flags, or dates. The payment confirmation failure-log helper now normalizes malformed top-level options before reading `orderId`, `paymentKey`, or `amount`. This prevents direct/test/reuse callers from crashing helper setup or leaking malformed array option fields while preserving KAPE live/cache normalization, unavailable market fallback copy, Toss payment confirmation flow, Korean payment error copy, and existing persistence behavior. Strengthened `src/lib/market-price-state.test.mjs` and `src/lib/payment-ux-copy.test.mjs` coverage for array-option and payment failure-log helper guards. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/market-price-state.test.mjs src/lib/payment-ux-copy.test.mjs` passed 20/20, `npm.cmd test` passed 476/476, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1170 AI Gemini route helper option hardening**: Continued the active Hanwoo quality uplift by adding `normalizeGeminiInsightOptions()` in `src/app/api/ai/insight/route.js` and `normalizeGeminiChatStreamOptions()` in `src/app/api/ai/chat/route.js`. The AI insight and AI chat route-level Gemini provider helpers now normalize malformed top-level helper options before reading API keys, prompts, messages, history, or system instructions. This prevents direct/test/reuse callers from crashing the AI provider setup through parameter destructuring while preserving authenticated route flow, Gemini model configuration, Korean insight timeout fallbacks, chat farm-context wiring, SSE stream delegation, AI cache behavior, and existing offline/configuration fallback behavior. Strengthened `src/lib/ai-chat-widget-copy.test.mjs` and `src/lib/ai-insight-widget-copy.test.mjs` route source coverage for safe Gemini helper option normalization. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/ai-chat-widget-copy.test.mjs src/lib/ai-insight-widget-copy.test.mjs` passed 17/17, `npm.cmd test` passed 475/475, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1169 Dashboard summary service option and row hardening**: Continued the active Hanwoo quality uplift by adding `normalizeSummaryOptions()`, `normalizeSummaryRows()`, `resolveGeneratedAt()`, and `resolveFinancialSeriesMonthCount()` in `src/lib/dashboard/summary-service.js`. The cached dashboard summary service now normalizes malformed top-level payload options before reading `farmId` or `client`, normalizes malformed financial-series options before reading sales, expenses, month count, or generated date, filters malformed status/building/financial rows before reductions, maps, month aggregation, and occupancy calculations, and guards partial aggregate payloads with optional chaining plus numeric coercion. This prevents direct/test/reuse callers and partial Prisma result shapes from crashing summary payload generation while preserving cached query wiring, current-month rollups, six-month financial series, farm settings payloads, and existing dashboard summary API behavior. Strengthened `src/lib/analysis-copy.test.mjs` source coverage for safe summary option, row, month, generated-date, aggregate, and building normalization. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/analysis-copy.test.mjs` passed 3/3, `npm.cmd test` passed 474/474, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1168 AI chat stream option and callback hardening**: Continued the active Hanwoo quality uplift by adding `normalizeAiChatStreamOptions()` in `src/lib/ai-chat-api.mjs` and `normalizeStreamChatOptions()` in `src/components/widgets/AIChatWidget.js`. The server SSE helper now normalizes malformed top-level stream options before reading `chat`, `message`, or `encoder`, so malformed direct/reuse calls emit the existing Korean SSE error envelope instead of throwing before stream creation. The widget stream helper now normalizes malformed top-level stream options and routes chunk/done/error callbacks through safe no-op fallbacks before fetch, chunk dispatch, completion, or error handling. This prevents direct/test/reuse callers from crashing AI chat streaming setup while preserving authenticated chat validation, Gemini history normalization, Korean configuration/error copy, abort handling, mounted-state guards, accessible launcher/dialog behavior, and existing offline fallback behavior. Strengthened `src/lib/ai-chat-api.test.mjs` and `src/lib/ai-chat-widget-copy.test.mjs` coverage for malformed stream options and callback guards. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/ai-chat-api.test.mjs src/lib/ai-chat-widget-copy.test.mjs` passed 11/11, `npm.cmd test` passed 474/474, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build after rerunning once without a concurrent Next build lock. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1167 Dashboard setup and today-focus helper option hardening**: Continued the active Hanwoo quality uplift by adding `normalizeSetupProgressOptions()` in `src/lib/dashboard/setup-progress.mjs` and `normalizeTodayFocusOptions()` in `src/lib/dashboard/today-focus.mjs`. `buildSetupProgressItems()`, `estimateDailyFeedConsumptionKg()`, and `buildTodayFocusItems()` now normalize malformed top-level options before reading farm setup inputs, notification/schedule/inventory/feed collections, sales counts, online state, or reference dates. This prevents direct/test/reuse callers from throwing on null, array, or primitive options before setup progress, today-focus cards, or feed-depletion projections can fall back to safe empty/default dashboard guidance. Strengthened `src/lib/dashboard/setup-progress.test.mjs` and `src/lib/dashboard/today-focus.test.mjs` coverage for malformed top-level option payloads. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/dashboard/setup-progress.test.mjs src/lib/dashboard/today-focus.test.mjs` passed 20/20, `npm.cmd test` passed 473/473, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1166 Farm metrics option hardening**: Continued the active Hanwoo quality uplift by adding `normalizeFarmMetricOptions()` in `src/lib/dashboard/farm-metrics.mjs` and routing `estimateMonthlyFeedCostPerHead()`, `estimateMonthlyWeightGainPerHead()`, and `computeFarmAdjustments()` through it before reading top-level calculation options. `computeFarmAdjustments()` also normalizes malformed `defaults` before reading fallback feed-cost or weight-gain values. This prevents direct/test/reuse callers and profitability-service reuse from throwing on null, array, or primitive options while preserving existing feed-expense filtering, sales-window filtering, farm-specific adjustment evidence, and default fallback behavior. Strengthened `src/lib/dashboard/farm-metrics.test.mjs` coverage for malformed top-level options and malformed defaults. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/dashboard/farm-metrics.test.mjs` passed 15/15, `npm.cmd test` passed 470/470, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1165 Dashboard client top-level prop option hardening**: Continued the active Hanwoo quality uplift by adding `normalizeDashboardClientOptions()` in `src/components/DashboardClient.js` and routing `DashboardClient` props through it before reading SSR cattle/sales pages, summary, notifications, feed standards, inventory, schedule, feed history, buildings, farm settings, expenses, market price, or profitability payloads. This prevents direct/test/reuse callers from throwing during dashboard render setup before existing pagination hooks, collection normalizers, Korean fallback copy, widget wiring, modal state, and mutation guards can run. Strengthened `src/lib/home-market-copy.test.mjs` coverage for safe dashboard client option normalization. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/home-market-copy.test.mjs` passed 52/52, `npm.cmd test` passed 467/467, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1164 Cattle detail modal prop, cattle-payload, callback, helper, and fallback chart hardening**: Continued the active Hanwoo quality uplift by adding `normalizeCattleDetailModalOptions()` and `normalizeDetailCattle()` in `src/components/forms/CattleDetailModal.js`, routing detail props through safe normalization before reading cattle, building, busy, or callback options. Malformed cattle payloads now render no modal instead of flowing into detail sections, malformed close/edit/delete/update callbacks fall back to safe no-op/async no-op handlers before Escape, header close, edit, archive, or breeding-record save actions invoke them, legacy fallback `weightHistory` chart rows are filtered to object rows after array/JSON parsing, and `SectionTitle`/`InfoItem` helper props are normalized before destructuring. This prevents direct/test/reuse callers from throwing during detail render, close, edit, archive, Escape, breeding-record save setup, helper rendering, or fallback chart rendering while preserving building payload normalization, history fallback, async breeding save locks, archive busy locking, Korean detail copy, focus management, and dashboard cattle detail behavior. Strengthened `src/lib/cattle-detail-modal-wiring.test.mjs` coverage for safe detail option, cattle, callback, helper, and fallback chart normalization. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/cattle-detail-modal-wiring.test.mjs src/lib/cattle-form-date-submit.test.mjs src/lib/form-submit-pending-copy.test.mjs` passed 20/20, `npm.cmd test` passed 466/466, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1163 Field mode view prop, list, and callback hardening**: Continued the active Hanwoo quality uplift by adding `normalizeFieldModeViewOptions()` and `normalizeFieldModeCattleList()` in `src/components/widgets/FieldModeView.js`. The field-mode view now normalizes malformed top-level props before reading cattle rows, background full-list loaders, select callbacks, or close callbacks; filters malformed cattle rows before search, critical-alert counters, total herd count, and the embedded ear-tag scanner; and routes full-list loading, selection, scanner handoff, and mode-close behavior through safe null/no-op fallbacks. This prevents direct/test/reuse callers from throwing during field-mode render, search, stats, scanner handoff, close, or background loading while preserving checklist persistence, stale-load cleanup, celebration animation guards, Korean field-mode copy, loading announcements, and dashboard field-mode behavior. Strengthened `src/lib/field-mode-celebration.test.mjs` coverage for safe option, list, and callback normalization. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/field-mode-celebration.test.mjs src/lib/eartag-scanner-modal-accessibility.test.mjs` passed 20/20, `npm.cmd test` passed 466/466, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1162 Ear tag scanner modal prop, list, and callback hardening**: Continued the active Hanwoo quality uplift by adding `normalizeEarTagScannerModalOptions()` and `normalizeScannerCattleList()` in `src/components/widgets/EarTagScannerModal.js`. The scanner now normalizes malformed top-level props before reading open state, cattle rows, close callbacks, or select callbacks; filters malformed cattle rows before simulated target selection, manual choice rendering, retry, and lookup; and routes close/select actions through safe no-op fallbacks. This prevents direct/test/reuse callers from throwing during scanner render, scan setup, manual selection, retry, close, or confirm handling while preserving scanner animation guards, Korean task labels, live result announcements, missing birth-date copy, tactile/audio feedback, and dashboard scanner behavior. Strengthened `src/lib/eartag-scanner-modal-accessibility.test.mjs` coverage for safe option, list, and callback normalization. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/eartag-scanner-modal-accessibility.test.mjs` passed 6/6, `npm.cmd test` passed 465/465, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1161 Financial chart widget prop option hardening**: Continued the active Hanwoo quality uplift by adding `normalizeFinancialChartWidgetOptions()` in `src/components/widgets/FinancialChartWidget.js` and routing `FinancialChartWidget` props through it before reading `saleRecords`, `expenseRecords`, or `seriesData`. This prevents direct/test/reuse callers from throwing during financial chart render setup while preserving existing collection row filtering, strict month parsing, numeric coercion, fallback six-month aggregation, Korean chart labels, accessible chart summary, and dashboard financial widget behavior. Strengthened `src/lib/analysis-copy.test.mjs` coverage for safe financial chart option normalization. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/analysis-copy.test.mjs` passed 3/3, `npm.cmd test` passed 464/464, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1160 Cattle form prop and callback hardening**: Continued the active Hanwoo quality uplift by adding `normalizeCattleFormOptions()` in `src/components/forms/CattleForm.js` and routing `CattleForm` props through it before reading `cattle`, `buildings`, `onSubmit`, or `onCancel`. Malformed submit and cancel callbacks now fall back to safe async/no-op handlers before save, cancel-button, or Escape-key handling. This prevents direct/test/reuse callers from throwing during cattle form render, cancel, Escape, or submit setup while preserving building payload normalization, tag lookup guards, date conversion, async save locks, focus management, validation wiring, Korean form copy, and dashboard cattle create/edit behavior. Strengthened `src/lib/cattle-detail-modal-wiring.test.mjs` coverage for safe cattle form option and callback normalization. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/cattle-detail-modal-wiring.test.mjs src/lib/cattle-form-date-submit.test.mjs src/lib/form-submit-pending-copy.test.mjs` passed 20/20, `npm.cmd test` passed 464/464, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1159 Analysis tab prop option hardening**: Continued the active Hanwoo quality uplift by adding `normalizeAnalysisTabOptions()` in `src/components/tabs/AnalysisTab.js` and routing `AnalysisTab` props through it before reading `saleRecords`, `feedHistory`, `cattleList`, or `expenseRecords`. This prevents direct/test/reuse callers from throwing during analysis render setup while preserving existing collection row normalization, KPI card option normalization, monthly revenue/cost/profit aggregation, feed-average calculation, chart labeling, Korean analysis copy, and dashboard analysis behavior. Strengthened `src/lib/analysis-copy.test.mjs` coverage for safe analysis tab option normalization. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/analysis-copy.test.mjs` passed 3/3, `npm.cmd test` passed 464/464, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1158 Settings tab prop, widget-control, and mutation-callback hardening**: Continued the active Hanwoo quality uplift by adding `normalizeSettingsTabOptions()`, `normalizeSettingsWidgetRegistry()`, and `normalizeSettingsWidgetVisible()` in `src/components/tabs/SettingsTab.js`. `SettingsTab` now normalizes malformed top-level props before reading building payloads, farm settings, theme state, widget registry/visibility, quick-action intent, or settings/building/theme/widget callbacks. Malformed create-building, delete-building, farm-settings, theme-toggle, and widget-toggle callbacks now fall back to safe no-ops before submit/delete/switch handling; malformed widget registry and visibility payloads are normalized before `.length`, `.map()`, and switch-state access. This prevents direct/test/reuse callers from throwing during settings render, widget interaction, farm save, building create, or building delete setup while preserving building payload normalization, Korean settings copy, async save/delete locks, mounted-state cleanup, validation wiring, diagnostics link, and dashboard settings behavior. Strengthened `src/lib/settings-tab-accessibility.test.mjs` and `src/lib/empty-state-wiring.test.mjs` coverage for safe settings option, widget, and callback normalization. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/settings-tab-accessibility.test.mjs src/lib/empty-state-wiring.test.mjs` passed 33/33, `npm.cmd test` passed 464/464, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1157 Feed tab prop and mutation-callback hardening**: Continued the active Hanwoo quality uplift by adding `normalizeFeedTabOptions()` in `src/components/tabs/FeedTab.js` and routing `FeedTab` props through it before reading `cattle`, `feedStandards`, `feedHistory`, `buildings`, or `onRecordFeed`. Malformed feed-record callbacks now fall back to a safe async no-op before submit handling, preventing direct/test/reuse callers from throwing during feed render or mutation setup while preserving existing cattle/feed/building payload normalization, feed aggregation, Korean feed copy, async save locks, mounted-state cleanup, validation wiring, chart labeling, and dashboard feed behavior. Strengthened `src/lib/empty-state-wiring.test.mjs` coverage for safe feed tab option and callback normalization. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/empty-state-wiring.test.mjs` passed 18/18, `npm.cmd test` passed 463/463, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1156 Sales tab prop, mutation-callback, and pagination-control hardening**: Continued the active Hanwoo quality uplift by adding `normalizeSalesTabOptions()` and `normalizeSalesPaginationOptions()` in `src/components/tabs/SalesTab.js`. `SalesTab` now normalizes malformed top-level props before reading sales/cattle/expense payloads, market data, pagination state, quick-action intent, or `onCreateSale`; malformed sale-create callbacks fall back to a safe async no-op before submit handling, and malformed pagination/load-more callbacks fall back to a safe no-op before the load-more button can invoke them. This prevents direct/test/reuse callers from throwing during sales render, create submit, or pagination interaction while preserving existing collection normalization, profit aggregation, Korean empty-state/form/pagination copy, async save locks, mounted-state cleanup, validation wiring, chart labeling, and dashboard sales behavior. Strengthened `src/lib/home-market-copy.test.mjs`, `src/lib/empty-state-wiring.test.mjs`, and `src/lib/sales-pagination-feedback.test.mjs` coverage for safe sales option, callback, and pagination-control normalization. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/home-market-copy.test.mjs src/lib/empty-state-wiring.test.mjs src/lib/sales-pagination-feedback.test.mjs` passed 71/71, `npm.cmd test` passed 463/463, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1155 Calving tab prop and mutation-callback hardening**: Continued the active Hanwoo quality uplift by adding `normalizeCalvingTabOptions()` in `src/components/tabs/CalvingTab.js` and routing `CalvingTab` props through it before reading `cattle`, `buildings`, or `onRecordCalving`. Malformed calving-record callbacks now fall back to a safe async no-op before the calving submit handler invokes them, preventing direct/test/reuse callers from throwing during calving render or mutation setup while preserving cattle/building payload normalization, pregnancy-date ordering, Korean calving form copy, async save locks, mounted-state cleanup, validation wiring, countdown labels, and existing dashboard calving behavior. Strengthened `src/lib/calving-tab-accessibility.test.mjs` coverage for safe calving option and callback normalization. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/calving-tab-accessibility.test.mjs` passed 6/6, `npm.cmd test` passed 463/463, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1154 Schedule tab prop and mutation-callback hardening**: Continued the active Hanwoo quality uplift by adding `normalizeScheduleTabOptions()` in `src/components/tabs/ScheduleTab.js` and routing `ScheduleTab` props through it before reading `events`, `onCreateEvent`, `onToggleEvent`, or `quickActionIntent`. Malformed create/toggle callbacks now fall back to safe async no-ops before create submit or completion-toggle handlers invoke them, preventing direct/test/reuse callers from throwing during schedule render or mutation setup while preserving event payload normalization, Korean calendar/form copy, async save locks, mounted-state cleanup, validation wiring, countdown labels, and existing dashboard schedule behavior. Strengthened `src/lib/tab-header-accessibility.test.mjs` and `src/lib/empty-state-wiring.test.mjs` coverage for safe schedule option and callback normalization. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/tab-header-accessibility.test.mjs src/lib/empty-state-wiring.test.mjs` passed 26/26, `npm.cmd test` passed 463/463, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build, and path-limited `git diff --check` passed with CRLF warnings only. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1153 Inventory tab prop and mutation-callback hardening**: Continued the active Hanwoo quality uplift by adding `normalizeInventoryTabOptions()` in `src/components/tabs/InventoryTab.js` and routing `InventoryTab` props through it before reading `inventory`, `onAddItem`, `onUpdateQuantity`, or `quickActionIntent`. Malformed add/update callbacks now fall back to safe async no-ops before create submit or inline quantity update handlers invoke them, preventing direct/test/reuse callers from throwing during inventory render or mutation setup while preserving inventory row normalization, Korean empty-state/form copy, async save locks, mounted-state cleanup, validation wiring, and existing dashboard inventory behavior. Strengthened `src/lib/empty-state-wiring.test.mjs` and `src/lib/home-market-copy.test.mjs` coverage for safe inventory option and callback normalization. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/empty-state-wiring.test.mjs src/lib/home-market-copy.test.mjs` passed 69/69, `npm.cmd test` passed 463/463, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build, and path-limited `git diff --check` passed with CRLF warnings only. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1141 Feedback provider prop and toast-option hardening**: Continued the active Hanwoo quality uplift by adding `normalizeFeedbackProviderOptions()` and `normalizeToastOptions()` in `src/components/feedback/FeedbackProvider.js`. `FeedbackProvider` now normalizes malformed top-level props before reading `children`, and `notify()` normalizes malformed option input before reading title, description, variant, or duration. This prevents direct/test/reuse callers from throwing during provider render or feedback notification scheduling while preserving live-region toast semantics, mounted-state guards, timeout cleanup, Korean dismiss labels, confirmation dialog labels, and the existing `useAppFeedback()` contract. Strengthened `src/lib/feedback-provider-copy.test.mjs` coverage for safe provider and toast option normalization. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/feedback-provider-copy.test.mjs` passed 4/4, `npm.cmd test` passed 461/461, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1140 Notification modal prop and close-callback hardening**: Continued the active Hanwoo quality uplift by adding `normalizeNotificationModalOptions()` in `src/components/ui/NotificationModal.js` and routing `NotificationModal` through it before reading `id`, `notifications`, `onClose`, or `onTestSMS`. Added a safe `handleClose` guard so malformed `onClose` callbacks fall back to a no-op before overlay, Escape, or close-button dismissal. This prevents direct/test/reuse callers from throwing during modal render or dismissal while preserving notification payload filtering, focus management, SMS busy locking, Korean modal copy, and optional SMS test handling. Strengthened `src/lib/notification-modal-copy.test.mjs` coverage for safe option and callback normalization. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/notification-modal-copy.test.mjs` passed 8/8, `npm.cmd test` passed 461/461, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1139 Alert banner prop option hardening**: Continued the active Hanwoo quality uplift by adding `normalizeAlertBannerOptions()` in `src/components/widgets/AlertBanners.js` and routing `EstrusAlertBanner` and `CalvingAlertBanner` through it before reading `notifications` or `buildings`. Malformed direct/test/reuse top-level props now fall back to safe empty options instead of throwing during render setup, while existing notification filtering, building lookup normalization, remaining-day labels, Korean fallback copy, and date formatting are preserved. Strengthened `src/lib/alert-banners-accessibility.test.mjs` coverage for safe top-level option normalization. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/alert-banners-accessibility.test.mjs` passed 3/3, `npm.cmd test` passed 461/461, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1138 Shared cattle cards prop and callback hardening**: Continued the active Hanwoo quality uplift by adding `normalizeCardComponentOptions()` in `src/components/ui/cards.js` and routing `StatCard`, `PenCard`, and `CattleRow` through it before reading labels, values, cattle payloads, delay values, drag state, or callbacks. Added safe no-op guards for malformed `onSelect`, `onDrop`, and `onClick` before user interaction, preventing direct/reuse callers from throwing during render or click/drop handling while preserving native button semantics, existing payload normalization, alert labels, card styling, drag/drop payload normalization, and accessible labels. Strengthened `src/lib/cards-accessibility.test.mjs` coverage for safe card option and callback normalization. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/cards-accessibility.test.mjs` passed 8/8, `npm.cmd test` passed 461/461, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1137 Premium input prop option hardening**: Continued the active Hanwoo quality uplift by adding `normalizePremiumInputOptions()` in `src/components/ui/premium-input.js` and routing `PremiumInput`, `PremiumTextarea`, `PremiumSelect`, and `PremiumLabel` through it before reading class names, input type, error state, children, or passthrough props. Malformed direct/test/reuse top-level props now fall back to safe empty options instead of throwing during render setup, while refs, display names, premium input styling, date monospace styling, error-state styling, children rendering, and passthrough attributes are preserved. Extended `src/lib/ui-primitives-options.test.mjs` coverage for safe premium-input option normalization. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/ui-primitives-options.test.mjs` passed 11/11, `npm.cmd test` passed 460/460, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1136 Shared dialog prop option hardening**: Continued the active Hanwoo quality uplift by adding `normalizeDialogOptions()` in `src/components/ui/dialog.js` and routing `DialogOverlay`, `DialogContent`, `DialogHeader`, `DialogFooter`, `DialogTitle`, and `DialogDescription` through it before reading class names, children, close labels, or passthrough props. Malformed direct/test/reuse top-level props now fall back to safe empty options instead of throwing during render setup, while Radix refs/display names, contextual Korean close labels, overlay/content styling, class merging, and passthrough attributes are preserved. The default dialog close label is now verified as readable Korean `대화상자 닫기`. Extended `src/lib/ui-primitives-options.test.mjs` coverage for safe dialog option normalization. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused UI/dialog tests passed 13/13, `npm.cmd test` passed 459/459, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1135 Shared select prop option hardening**: Continued the active Hanwoo quality uplift by adding `normalizeSelectOptions()` in `src/components/ui/select.js` and routing `SelectTrigger`, `SelectContent`, `SelectItem`, `SelectSeparator`, and `SelectLabel` through it before reading class names, children, popper position, or passthrough props. Malformed direct/test/reuse top-level props now fall back to safe empty options instead of throwing during render setup, while Radix refs/display names, decorative icons, popper positioning, item text, class merging, and passthrough attributes are preserved. Extended `src/lib/ui-primitives-options.test.mjs` coverage for safe select option normalization. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused UI/dialog tests passed 12/12, `npm.cmd test` passed 458/458, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build after rerunning without a concurrent Next build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard T-1134 Shared tabs prop option hardening**: Continued the active Hanwoo quality uplift by adding `normalizeTabsOptions()` in `src/components/ui/tabs.js` and routing `TabsList`, `TabsTrigger`, and `TabsContent` through it before reading class names or passthrough props. Malformed direct/test/reuse top-level props now fall back to safe empty options instead of throwing during render setup, while Radix refs/display names, tab styling, class merging, and passthrough attributes are preserved. Extended `src/lib/ui-primitives-options.test.mjs` coverage for safe tabs option normalization. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/ui-primitives-options.test.mjs` passed 8/8, `npm.cmd test` passed 457/457, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
 | Date | 2026-05-27 |
 | Tool | Claude Opus 4.7 (1M context) |
 | Work | **T-1107 Best-of-N comment_trigger_avg 영속화** (`cc37acff`): 직전 세션의 `tune_best_of_n_weight.py` sweep 분기가 `comment_trigger_avg` 컬럼 부재로 항상 dead 였던 문제 정비. 5위치 동시 — `cost_db.py` 화이트리스트/컬럼/`update_draft_comment_trigger_avg`, `draft_analytics.record_draft_event` 파라미터, `draft_generator` Best-of-N picker 가 `drafts_dict["_comment_trigger_avg"]` 영속화, `persist_stage` 가 그걸 추출해 record 에 전달, tuner docstring 정확도. 발행분마다 자동 누적되며 5건 이상 모이면 sweep 분기가 자동 활성화(코드 변경 0). 5 신규 테스트 케이스, focused 54/54 pass, blind-to-x full unit suite 1703/1703 pass, ruff format/check clean. |
@@ -2966,6 +3239,328 @@
 | Tool | Codex |
 | Work | **hanwoo-dashboard Pagination hook constructor option hardening**: Continued the active Hanwoo quality uplift by tightening top-level pagination hook option handling. The shared cursor pagination hook plus cattle and sales pagination hooks now normalize malformed hook options before reading `endpoint`, `initialItems`, or `initialPageInfo`, preventing direct/test/reuse callers from throwing during hook setup before normalized initial state, timeout protection, in-flight guards, Korean retry feedback, and safe load-more behavior can run. |
 | Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/cursor-pagination-feedback.test.mjs src/lib/cattle-pagination-feedback.test.mjs src/lib/sales-pagination-feedback.test.mjs` passed 5/5, `npm.cmd test` passed 444/444, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Notification system prop option hardening**: Continued the active Hanwoo quality uplift by tightening the layout notification dropdown's top-level prop handling. `NotificationSystem` now normalizes malformed props before reading `initialNotifications`, preventing direct/test/reuse callers from throwing during render setup before notification payload normalization, unread counts, Korean accessible labels, mark-read actions, and safe empty-state rendering can run. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/notification-system-copy.test.mjs` passed 9/9, `npm.cmd test` passed 444/444, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Cattle detail fallback weight chart payload hardening**: Continued the active Hanwoo quality uplift by tightening the cattle detail modal's fallback weight chart path. Legacy `cattle.weightHistory` values are now normalized to object rows after direct array input or JSON string parsing, preventing malformed cached/legacy payloads from passing objects, scalars, or primitive array entries into the Recharts `LineChart` data prop while preserving history-event based chart points and invalid JSON fallback behavior. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/cattle-detail-modal-wiring.test.mjs src/lib/cattle-history.test.mjs` passed 25/25, `npm.cmd test` passed 445/445, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Admin diagnostics malformed response hardening**: Continued the active Hanwoo quality uplift by tightening the admin diagnostics client's response handling. `getSystemDiagnostics()` results are now normalized before rendering database status, record counts, memory, uptime, and Node fields, preventing malformed or partial diagnostics payloads from crashing the operations page through missing `database`/`memory` objects or non-object `recordCounts` while preserving Korean fallback copy and finite numeric rendering. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/diagnostics-copy.test.mjs` passed 4/4, `npm.cmd test` passed 445/445, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Admin diagnostics raw-data malformed response hardening**: Continued the active Hanwoo quality uplift by tightening the admin diagnostics raw-record loader. `getRawData()` results are now normalized before reading `success`, `data`, or `message`, preventing malformed or null raw-record responses from throwing generic client errors before the operations page can show safe Korean retry feedback while preserving null-safe raw-data state. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/diagnostics-copy.test.mjs` passed 4/4, `npm.cmd test` passed 445/445, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Pen-card drag-drop payload hardening**: Continued the active Hanwoo quality uplift by tightening pen-card drop handling. Drop payloads are now normalized before invoking the dashboard cattle-move callback, so malformed JSON payloads, arrays, objects without a usable `cattleId`, empty string ids, and non-finite numeric ids are ignored while valid string or finite numeric ids still use the existing confirmation flow. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/cards-accessibility.test.mjs` passed 6/6, `npm.cmd test` passed 446/446, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Cattle-row malformed payload hardening**: Continued the active Hanwoo quality uplift by tightening the reusable cattle row component. Direct `cow` props are now normalized before rendering, drag payload creation, status-color lookup, accessible labels, genetic-grade fallback, weight display, and click callbacks, preventing malformed direct/reuse callers from crashing on null, arrays, missing nested genetic info, missing names, missing tag numbers, or missing weight values. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/cards-accessibility.test.mjs` passed 7/7, `npm.cmd test` passed 447/447, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Market price widget prop option hardening**: Continued the active Hanwoo quality uplift by tightening the market price widget's top-level prop handling. `MarketPriceWidget` now normalizes malformed top-level props before reading `initialData`, preventing direct/test/reuse callers from throwing during render setup before market snapshot normalization, loading fallback, KAPE source badges, manual refresh, guarded polling, and Korean unavailable copy can run. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/home-market-copy.test.mjs` passed 51/51, `npm.cmd test` passed 447/447, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Weather widget prop option hardening**: Continued the active Hanwoo quality uplift by tightening the home weather widget's top-level prop handling. `WeatherWidget` now normalizes malformed props before reading `weather`, preventing direct/test/reuse callers from throwing during render setup before unavailable-weather fallback, numeric weather normalization, THI labels, forecast filtering, livestock alerts, and Korean loading/unavailable copy can run. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/home-market-copy.test.mjs` passed 51/51, `npm.cmd test` passed 447/447, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Profitability widget prop option hardening**: Continued the active Hanwoo quality uplift by tightening the shipment profitability widget's top-level prop handling. `ProfitabilityWidget` now normalizes malformed props before reading `data`, `isLoading`, `error`, or `meta`, preventing direct/test/reuse callers from throwing during render setup before loading/error/empty states, recommendation row filtering, finite-number rendering, customized assumption labels, and Korean operator copy can run. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/profitability-copy.test.mjs` passed 11/11, `npm.cmd test` passed 448/448, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI insight widget prop option hardening**: Continued the active Hanwoo quality uplift by tightening the home AI insight widget's top-level prop handling. `AIInsightWidget` now normalizes malformed props before reading `summary`, preventing direct/test/reuse callers from throwing during render setup before deterministic heuristic cards, AI request fallback, cache metadata, manual refresh, timeout handling, and Korean accessible copy can run. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/ai-insight-widget-copy.test.mjs` passed 13/13, `npm.cmd test` passed 449/449, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Tab navigation prop and callback hardening**: Continued the active Hanwoo quality uplift by tightening the shared dashboard tab bar. `TabBar` now normalizes malformed top-level props before reading `activeTab` or `onTabChange`, and uses a safe no-op when the tab-change callback is missing or not a function, preventing direct/test/reuse callers from throwing during tab render or click handling while preserving Korean action labels and selected-state semantics. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/home-market-copy.test.mjs` passed 51/51, `npm.cmd test` passed 449/449, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Notification widget prop option hardening**: Continued the active Hanwoo quality uplift by tightening the home notification widget's top-level prop handling. `NotificationWidget` now normalizes malformed props before reading `notifications`, preventing direct/test/reuse callers from throwing during render setup before notification row filtering, Korean fallback title/message copy, priority alert heading, critical badge rendering, and empty-state null rendering can run. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/notification-system-copy.test.mjs` passed 9/9, `npm.cmd test` passed 449/449, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard QR widget prop option hardening**: Continued the active Hanwoo quality uplift by tightening the QR label widget's top-level prop handling. `QRCodeWidget` now normalizes malformed props before reading `value` or `label`, converts non-empty string and finite numeric values into safe QR text, and falls back to Korean QR label copy when a label is missing. This prevents direct/test/reuse callers from throwing during render setup or printing while preserving Korean print button/status copy, document title/name, QR rendering, and duplicate-print guards. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/qr-widget-copy.test.mjs` passed 7/7, `npm.cmd test` passed 449/449, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Excel export button prop option hardening**: Continued the active Hanwoo quality uplift by tightening the cattle CSV export button's top-level prop handling. `ExcelExportButton` now normalizes malformed props before reading `cattleList` or `resolveCattleList`, preventing direct/test/reuse callers from throwing during render setup before duplicate-download locking, async list resolution, empty-list warning feedback, CSV generation, temporary link cleanup, URL revocation, and Korean button/status copy can run. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/excel-export-button-copy.test.mjs` passed 3/3, `npm.cmd test` passed 449/449, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Payment widget prop and amount hardening**: Continued the active Hanwoo quality uplift by tightening the subscription payment widget's top-level prop and amount handling. `PaymentWidget` now normalizes malformed props before reading payment keys, amount, order/customer fields, and routes `amount` through a finite numeric normalizer before `price.toLocaleString()`, Toss widget rendering, and payment prepare payloads use it. This prevents direct/test/reuse callers from throwing during render setup or payment button labeling while preserving Korean checkout copy, Toss widget timeout handling, duplicate payment request guards, redirect URL safety, and payment API fallback behavior. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/payment-ux-copy.test.mjs` passed 10/10, `npm.cmd test` passed 449/449, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Shared empty-state prop option hardening**: Continued the active Hanwoo quality uplift by tightening the reusable empty-state component. `EmptyState` now normalizes malformed top-level props before reading icon, title, description, action label, action callback, or disabled state, and ignores non-function callbacks before wiring the shared action button. This prevents direct/test/reuse callers from throwing during render setup or passing malformed callbacks into the action button while preserving operational empty-state copy, native action semantics, disabled/busy state, and existing inventory/sales/schedule/settings flows. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/empty-state-wiring.test.mjs` passed 18/18, `npm.cmd test` passed 449/449, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Shared dropdown menu prop option hardening**: Continued the active Hanwoo quality uplift by tightening the reusable dropdown menu primitives. Dropdown components now normalize malformed top-level props before reading children, class names, click handlers, or passthrough props. Invalid trigger children render nothing instead of throwing through `React.cloneElement`, and non-function item click handlers are ignored before choosing button semantics or wiring `onClick`, preserving native button semantics, focus styling, labels, passthrough props, and existing notification menu actions. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/notification-system-copy.test.mjs` passed 9/9, `npm.cmd test` passed 449/449, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Shared button prop option hardening**: Continued the active Hanwoo quality uplift by tightening the reusable `Button` and `PremiumButton` primitives. Both components now normalize malformed top-level props before reading class names, variants, sizes, Slot/asChild mode, type, or passthrough props, preventing direct/test/reuse callers from throwing during render setup while preserving default non-submit semantics, explicit submit overrides, refs, Slot behavior, and variant styling. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/feedback-provider-copy.test.mjs src/lib/premium-button-semantics.test.mjs` passed 6/6, `npm.cmd test` passed 449/449, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Shared badge prop option hardening**: Continued the active Hanwoo quality uplift by tightening the reusable `Badge` primitive. `Badge` now normalizes malformed top-level props before reading class names, variants, or passthrough props, preventing direct/test/reuse callers from throwing during render setup while preserving variant styling, class merging, passthrough attributes, and existing dashboard badge usage. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/ui-primitives-options.test.mjs` passed 1/1, `npm.cmd test` passed 450/450, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Shared card prop option hardening**: Continued the active Hanwoo quality uplift by tightening the reusable `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, and `CardFooter` primitives. Each card primitive now normalizes malformed top-level props before reading class names or passthrough props, preventing direct/test/reuse callers from throwing during render setup while preserving refs, display names, class merging, passthrough attributes, and existing dashboard/card layout styling. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/ui-primitives-options.test.mjs` passed 2/2, `npm.cmd test` passed 451/451, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Premium card prop option hardening**: Continued the active Hanwoo quality uplift by tightening `PremiumCard`, `PremiumCardHeader`, `PremiumCardTitle`, `PremiumCardDescription`, `PremiumCardContent`, `PremiumCardFooter`, and `PremiumInfoCard`. Premium card primitives now normalize malformed top-level props before reading class names, header title/icon/description/children, info-card values, or passthrough props, preventing direct/test/reuse callers from throwing during render setup while preserving refs, display names, premium card styling, profitability widget header rendering, class merging, and passthrough attributes. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/profitability-copy.test.mjs src/lib/ui-primitives-options.test.mjs` passed 14/14, `npm.cmd test` passed 452/452, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Form primitive and progress prop option hardening**: Continued the active Hanwoo quality uplift by tightening `Input`, `Label`, and `Progress`. These primitives now normalize malformed top-level props before reading class names, input type, progress value, or passthrough props. `Progress` also coerces non-finite values to `0` and clamps finite values to `0..100` before computing the indicator transform, preventing malformed reuse from rendering `NaN` or out-of-range progress offsets while preserving refs, display names, existing styling, and passthrough attributes. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/ui-primitives-options.test.mjs` passed 5/5, `npm.cmd test` passed 454/454, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Avatar and skeleton prop option hardening**: Continued the active Hanwoo quality uplift by tightening `Avatar`, `AvatarImage`, `AvatarFallback`, and `Skeleton`. These primitives now normalize malformed top-level props before reading class names or passthrough props, preventing future account/status/loading UI reuse from throwing during render setup while preserving Radix avatar refs/display names, skeleton styling, class merging, and passthrough attributes. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/ui-primitives-options.test.mjs` passed 7/7, `npm.cmd test` passed 456/456, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Diagnostics status-card prop option hardening**: Continued the active Hanwoo quality uplift by tightening the admin diagnostics `StatusCard` helper. `StatusCard` now normalizes malformed top-level props before reading `title`, `value`, `sub`, `icon`, or `status`, preventing direct/test/reuse callers from throwing during diagnostics card render setup while preserving neutral fallback status styling, Korean operations copy, numeric diagnostics normalization, loading announcements, and dashboard-return feedback. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/diagnostics-copy.test.mjs` passed 5/5, `npm.cmd test` passed 462/462, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI insight badge prop option hardening**: Continued the active Hanwoo quality uplift by tightening the AI insight widget's internal badge helpers. `PriorityBadge`, `SourceBadge`, and `CacheBadge` now normalize malformed top-level props before reading `priority`, `source`, or `ageSeconds`, preventing direct/test/reuse callers from throwing during badge render setup while preserving priority fallback styling, AI-vs-rule source labels, cached-AI metadata visibility, cache-age formatting, timeout fallback copy, and manual refresh behavior. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/ai-insight-widget-copy.test.mjs` passed 14/14, `npm.cmd test` passed 463/463, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Market price panel prop and rows hardening**: Continued the active Hanwoo quality uplift by tightening the market price widget's internal `PricePanel` helper. `PricePanel` now normalizes malformed top-level props before reading `title` or `rows`, and filters malformed row collections before rendering price rows, preventing direct/test/reuse callers from throwing during panel render setup or raw `rows.map()` access while preserving Korean market copy, kg unit labels, source badges, stale/unavailable states, polling guards, refresh controls, and price formatting. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/home-market-copy.test.mjs` passed 51/51, `npm.cmd test` passed 463/463, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Cattle detail helper prop option hardening**: Continued the active Hanwoo quality uplift by tightening the cattle detail modal's internal `SectionTitle` and `InfoItem` helpers. Both helpers now normalize malformed top-level props before reading heading icon/title/color or info label/value/highlight/delay fields, preventing direct/test/reuse callers from throwing during modal helper render setup while preserving heading semantics, decorative icon hiding, highlight typography, animation delays, hover styling, Korean detail copy, and existing cattle form/detail focus behavior. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/cattle-detail-modal-wiring.test.mjs` passed 18/18, `npm.cmd test` passed 463/463, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Analysis KPI card prop option hardening**: Continued the active Hanwoo quality uplift by tightening the Analysis tab's internal `KpiCard` helper. `KpiCard` now normalizes malformed top-level props before reading `title`, `value`, `icon`, or `accent`, preventing direct/test/reuse callers from throwing during KPI card render setup while preserving KPI labels, money formatting, decorative icon semantics, accent styling, Korean analysis copy, and existing financial aggregation behavior. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/analysis-copy.test.mjs` passed 3/3, `npm.cmd test` passed 463/463, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Feed helper prop and input option hardening**: Continued the active Hanwoo quality uplift by tightening the Feed tab's internal `FilterChip` and `Field` helpers. Both helpers now normalize malformed top-level props before reading selected state, labels, callbacks, disabled state, suffix, errors, or input props. `FilterChip` ignores malformed click handlers before wiring button interaction, and `Field` normalizes `inputProps` with a safe fallback field id before spreading input attributes, preventing direct/test/reuse callers from throwing during feed filter or feed input render setup while preserving filter chip labels, busy/pressed semantics, feed validation wiring, Korean feed copy, and existing feed aggregation behavior. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/empty-state-wiring.test.mjs` passed 18/18, `npm.cmd test` passed 463/463, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Dashboard helper panel prop and collection hardening**: Continued the active Hanwoo quality uplift by tightening the home dashboard's internal `TodayFocusPanel`, `QuickActionPanel`, `SetupProgressPanel`, and `PenCattleList` helpers. Helper props and item/action/progress/cattle collections are now normalized before `.length`, `.map()`, or `.filter()` access; malformed callbacks fall back to safe no-ops; setup progress numbers are finite/clamped before progressbar labels and width; quick actions fall back to a safe icon. This prevents direct/test/reuse callers from throwing during home panel render or button handling while preserving today-focus labels, quick-action labels, setup progress semantics, pen cattle filtering, Korean empty-pen copy, and existing dashboard navigation behavior. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/home-market-copy.test.mjs` passed 51/51, `npm.cmd test` passed 463/463, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Legal document layout prop option hardening**: Continued the active Hanwoo quality uplift by tightening the shared legal document layout. `LegalDocumentLayout` now normalizes malformed top-level props before reading `eyebrow`, `title`, `subtitle`, `lastUpdated`, or `children`, preventing direct/test/reuse callers from throwing during legal page layout render setup while preserving privacy/terms support-channel copy, back-home link semantics, decorative back icon hiding, and existing legal page shell styling. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/legal-pages-copy.test.mjs` passed 1/1, `npm.cmd test` passed 463/463, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard App error boundary prop and reset hardening**: Continued the active Hanwoo quality uplift by tightening route and global app error boundaries. `RouteError` and `GlobalError` now normalize malformed top-level props before reading `error` or `reset`, and malformed reset callbacks fall back to safe no-ops before retry buttons invoke them. This prevents direct/test/reuse callers from throwing during app-level failure UI render or retry handling while preserving client-boundary requirements, Korean retry/home copy, route home action, global-error html/body contract, and existing error logging. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/error-pages-wiring.test.mjs` passed 10/10, `npm.cmd test -- --runTestsByPath src/lib/error-pages-wiring.test.mjs` ran the full suite and passed 463/463, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build after rerunning once without the concurrent Next build lock. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Root layout prop option hardening**: Continued the active Hanwoo quality uplift by tightening the app root layout. `RootLayout` now normalizes malformed top-level props before reading `children`, preventing direct/test/reuse callers from throwing during root shell render setup while preserving the Korean metadata/PWA copy, font variable setup, FeedbackProvider wrapping, Suspense boundary, `lang="ko"`, and hydration-warning behavior. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/app-metadata-copy.test.mjs` passed 1/1, `npm.cmd test` passed 463/463, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Subscription fallback prop option hardening**: Continued the active Hanwoo quality uplift by tightening the subscription success/fail fallback status components. Both payment result pages now normalize malformed top-level fallback props before reading `message`, preventing direct/test/reuse callers from throwing during payment result loading-state render setup while preserving Korean loading/failure/success copy, polite busy status semantics, retry navigation fallbacks, guarded success timers, and existing payment confirmation behavior. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/payment-ux-copy.test.mjs` passed 10/10, `npm.cmd test` passed 463/463, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Payment API request-body hardening**: Continued the active Hanwoo quality uplift by tightening the payment prepare and confirm API routes. Both routes now normalize malformed request JSON bodies before reading customer/payment fields, so null, primitive, and array-shaped bodies fall into existing Korean validation/error paths instead of throwing or leaking array-attached values into customer-key, order, amount, or checkout metadata handling. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/payment-ux-copy.test.mjs` passed 10/10, `npm.cmd test` passed 488/488, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, path-limited `git diff --check` passed with CRLF warnings only, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Notification builder cattle payload hardening**: Continued the active Hanwoo quality uplift by tightening the shared notification builder. `buildNotifications()` now normalizes malformed cattle collections and filters array-shaped cattle rows before estrus/calving alert generation, preventing null/primitive input crashes and array-attached row fields from leaking into notification ids, messages, cattle metadata, timing, or alert sorting. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/notification-system-copy.test.mjs` passed 10/10, `npm.cmd test` passed 489/489, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, path-limited `git diff --check` passed with CRLF warnings only, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Livestock weather alert utility forecast hardening**: Continued the active Hanwoo quality uplift by tightening the shared weather alert utility. `getLivestockWeatherAlerts()` now normalizes malformed forecast collections and filters array-shaped forecast rows before heat/cold/rain livestock alert generation, preventing null/primitive input crashes and array-attached row fields from leaking into alert labels, thresholds, messages, or icons. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/utils-date.test.mjs` passed 1/1, `npm.cmd test` passed 489/489, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, path-limited `git diff --check` passed with CRLF warnings only, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Expense aggregation row and amount hardening**: Continued the active Hanwoo quality uplift by tightening the expense aggregation server action. `getExpenseAggregation()` now normalizes malformed expense collections and filters array-shaped rows before category aggregation, uses a safe category fallback, and coerces amounts through `toFiniteNumber()` so malformed direct/action/reuse inputs cannot crash aggregation or corrupt totals. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/actions-copy.test.mjs` passed 3/3, `npm.cmd test` passed 490/490, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, path-limited `git diff --check` passed with CRLF warnings only, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI chat farm-context DB row hardening**: Continued the active Hanwoo quality uplift by tightening the AI chat route's farm-context builder. `buildFarmContext()` now filters malformed status-count and recent-sales DB/mock result rows before status summary and Gemini prompt context generation, normalizes status labels/counts, and guards nested cattle payloads before reading cattle names or tag numbers. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/ai-chat-api.test.mjs` passed 11/11, `npm.cmd test` passed 491/491, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, path-limited `git diff --check` passed with CRLF warnings only, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Feed server-action DB row hardening**: Continued the active Hanwoo quality uplift by tightening feed server actions. `getFeedStandards()` and `getFeedHistory()` now normalize Prisma DB/mock results before returning, filtering malformed or array-shaped rows so direct/action/reuse callers receive safe row arrays before dashboard feed rendering and aggregation. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/actions-copy.test.mjs` passed 4/4, `npm.cmd test` passed 492/492, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, path-limited `git diff --check` passed with CRLF warnings only, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Inventory server-action DB row hardening**: Continued the active Hanwoo quality uplift by tightening the inventory server action. `getInventory()` now normalizes Prisma DB/mock results before returning, filtering malformed or array-shaped rows so direct/action/reuse callers receive safe row arrays before dashboard inventory rendering and low-stock calculations. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/actions-copy.test.mjs` passed 5/5, `npm.cmd test` passed 493/493, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, path-limited `git diff --check` passed with CRLF warnings only, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Building server-action DB row hardening**: Continued the active Hanwoo quality uplift by tightening the building server action. `getBuildings()` now normalizes Prisma DB/mock results before returning, filtering malformed or array-shaped rows so direct/action/reuse callers receive safe row arrays before dashboard building rendering, pen routing, setup progress, and settings building controls. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/actions-copy.test.mjs` passed 6/6, `npm.cmd test` passed 494/494, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, path-limited `git diff --check` passed with CRLF warnings only, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build after rerunning once without the concurrent Next build lock. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Schedule server-action DB row hardening**: Continued the active Hanwoo quality uplift by tightening the schedule server action. `getScheduleEvents()` now normalizes Prisma DB/mock results before returning, filtering malformed or array-shaped rows so direct/action/reuse callers receive safe row arrays before dashboard schedule rendering, setup progress, today-focus schedule cards, and upcoming schedule countdown labels. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/actions-copy.test.mjs` passed 7/7, `npm.cmd test` passed 495/495, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, path-limited `git diff --check` passed with CRLF warnings only, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Expense list server-action DB row hardening**: Continued the active Hanwoo quality uplift by tightening the expense list server action. `getExpenseRecords()` now reuses the existing expense row normalizer before returning Prisma DB/mock results, filtering malformed or array-shaped rows so direct/action/reuse callers receive safe row arrays before dashboard expense filters, analysis, financial charting, and cost aggregation paths consume them. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/actions-copy.test.mjs` passed 7/7, `npm.cmd test` passed 495/495, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, path-limited `git diff --check` passed with CRLF warnings only, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Sales list server-action DB row hardening**: Continued the active Hanwoo quality uplift by tightening the sales list server action. `getSalesRecords()` now normalizes Prisma DB/mock results before returning, filtering malformed or array-shaped rows so direct/action/reuse callers receive safe row arrays before dashboard sales rendering, analysis, profitability, financial charting, and sales cache consumers use them. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/actions-copy.test.mjs` passed 7/7, `npm.cmd test` passed 495/495, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, path-limited `git diff --check` passed with CRLF warnings only, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Cattle list server-action DB row hardening**: Continued the active Hanwoo quality uplift by tightening active and archived cattle list server actions. `getCattleList()` and `getArchivedCattle()` now normalize Prisma DB/mock results before returning, filtering malformed or array-shaped rows so direct/action/reuse callers receive safe row arrays before dashboard cattle rendering, pagination/export consumers, and archive views use them. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/actions-copy.test.mjs` passed 8/8, `npm.cmd test` passed 496/496, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, path-limited `git diff --check` passed with CRLF warnings only, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
 
 ## Notes
 
