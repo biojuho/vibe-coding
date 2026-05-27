@@ -8,6 +8,41 @@
 |---|---|
 | Date | 2026-05-27 |
 | Tool | Claude Opus 4.7 (1M context) |
+| Work | **T-1107 Best-of-N comment_trigger_avg 영속화** (`cc37acff`): 직전 세션의 `tune_best_of_n_weight.py` sweep 분기가 `comment_trigger_avg` 컬럼 부재로 항상 dead 였던 문제 정비. 5위치 동시 — `cost_db.py` 화이트리스트/컬럼/`update_draft_comment_trigger_avg`, `draft_analytics.record_draft_event` 파라미터, `draft_generator` Best-of-N picker 가 `drafts_dict["_comment_trigger_avg"]` 영속화, `persist_stage` 가 그걸 추출해 record 에 전달, tuner docstring 정확도. 발행분마다 자동 누적되며 5건 이상 모이면 sweep 분기가 자동 활성화(코드 변경 0). 5 신규 테스트 케이스, focused 54/54 pass, blind-to-x full unit suite 1703/1703 pass, ruff format/check clean. |
+| Next Priorities | T-251(Supabase) 그대로. 다음 후속 후보: ① AI Insight 캐시를 Redis 로(현재 per-instance Map). ② AI Insight 캐시 hit/miss 비율을 Langfuse 트레이싱(`LANGFUSE_ENABLED` 인프라 이미 존재). ③ Best-of-N 표본 ≥5건 누적 후 실제 sweep 결과를 weekly report 에 자동 임베드. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Pagination load-more parameter hardening**: Continued the active Hanwoo quality uplift by normalizing malformed `loadMore` parameter input in `src/lib/hooks/useCursorPagination.js`, `useCattlePagination.js`, and `useSalesPagination.js`. Shared cursor pagination now uses safe params before `Object.entries()`, and cattle/sales pagination now normalize params before reading filter fields, preventing direct/retry caller bugs from throwing before timeout protection, in-flight guards, Korean retry feedback, and page-info safety checks can run. Strengthened focused pagination source coverage. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused pagination tests passed 5/5, `npm.cmd test` passed 444/444, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Dashboard full-list preload option hardening**: Continued the active Hanwoo quality uplift by adding `normalizeFullListLoadOptions()` in `src/components/DashboardClient.js` and routing both complete cattle and complete sales preload helpers through it before reading `silent`. Malformed direct retry/preload option input now falls back to non-silent behavior instead of throwing during parameter destructuring. Strengthened `src/lib/home-market-copy.test.mjs` to keep the safe option normalization plus existing retry, busy-status, and stale-unmount guards. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused home dashboard source test passed 51/51, `npm.cmd test` passed 444/444, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Claude Opus 4.7 (1M context) |
+| Work | **/goal "프로젝트 개선안을 만들고 완료해줘" → blind-to-x 기술부채/리팩터 (T-1108, no behavior change)**. 3개 Explore agent의 부채 보고서를 실측 검증해 과장된 부분(source-grep 회귀 6건/CI test step 부재/skip 14건)을 걸러내고 진짜 부채만 손봄. 변경: (1) `tests/unit/test_multi_platform.py:244` stale `@pytest.mark.skip` 삭제 — config `output_formats==["twitter"]`와 정책 모순인 dead naver_blog 테스트. (2) `tests/integration/test_p0_enhancements.py` `pytest.skip("No tone_mapping/golden_examples")` 2건을 `assert ..., "policy contract"`로 전환 — YAML 키 회귀가 silent skip 대신 fail로 노출. 더이상 안 쓰는 `import pytest` 제거. (3) `pyproject.toml`에 `[tool.ruff]`(루트 `ruff.toml` `extend`로 명시 상속 — 안 그러면 ruff가 upward 검색 멈춤) + tests E501 per-file-ignore + `[tool.mypy]` 파일 화이트리스트(`pipeline.draft_contract`, `pipeline.harness_guard` strict) + `mypy>=1.10.0` dev dep. (4) orphan `projects/blind-to-x/.github/workflows/blind-to-x.yml`(GitHub Actions가 안 읽음 — root `.github/workflows/full-test-matrix.yml` `blind-to-x-tests` job이 실 CI) 의도를 헤더 코멘트 + `tests/unit/test_config_workflow_sync.py` 모듈 docstring으로 문서화. |
+| Next Priorities | (A) `pipeline/_archive/` (newsletter_formatter 489줄 + newsletter_scheduler 285줄 + .bak) 삭제 — inbound import 0건 확인 완료지만 auto-mode classifier가 `rm -rf` 명시 권한 요구로 보류. 사용자 OK 시 즉시 제거. (B) `pipeline/draft_quality_gate.py` (858줄/24헬퍼) CTA 검증 규칙 `rules/cta_patterns.yaml`로 외부화 — 큰 리팩터(3-4일), 별도 세션. (C) `pipeline/cost_db.py` (1039줄) 마이그레이션 로직 분리. (D) T-251 (Supabase password) user-owned. 검증: `py -3.14 -m pytest tests/unit tests/integration -q --no-cov --ignore=tests/integration/test_curl_cffi.py` 1759/1759 pass 0 skip 0 fail (6m23s, 베이스라인 1680u+1skip → 회귀 0), `py -3.14 -m ruff check .` clean. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI Insight cache API/UI contract regression coverage**: Continued the active Hanwoo quality uplift by strengthening `src/lib/ai-insight-widget-copy.test.mjs`. The source-contract tests now lock down that `AIInsightWidget` sends `forceRefresh` with the summary payload, resets and renders cache metadata only for cached AI responses, and that `/api/ai/insight` builds per-user cache keys, serves cached AI responses with `cachedAt`/`ageSeconds`, clears cache entries on force refresh, stores successful parsed AI responses, and marks fallback/refresh responses as uncached. Runtime code was not changed. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused AI insight tests passed 43/43, `npm.cmd test` passed 444/444, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Claude Opus 4.7 (1M context) |
 | Work | **/goal "개선안 만들고 완성품 만들어줘" — 3개 커밋 출하**: (1) `chore(hanwoo-dashboard) ecdfcca5`: Codex T-1008~T-1100 하드닝 94개 파일을 한 번에 검증 후 커밋 (test 428/428, lint clean, build exit 0). HANDOFF는 개별 변경마다 green 주장했지만 멀티툴 race 메모리 정책상 직접 검증 후 일괄 커밋. (2) `feat(hanwoo-dashboard) 1bbe34ba`: `AIInsightWidget` 일일 in-memory 캐시 (`src/lib/ai-insight-cache.mjs`). userId + Asia/Seoul YYYY-MM-DD + summary SHA-256(16) 해시 결합 키, AI 응답만 캐싱(휴리스틱 제외), 256엔트리 prune, `forceRefresh:true` 송신 시 키 삭제 후 재호출. 위젯엔 "N분 전 캐시" 미니 배지. (3) `feat(blind-to-x) 12f16a04`: `scripts/tune_best_of_n_weight.py` dry-run CLI. 최근 published draft_analytics 로우의 engagement_rate 와 hook/virality/fit/final_rank 각 축 Pearson r 계산 + 가능 시 comment_trigger_avg sweep으로 `llm.best_of_n_comment_weight` 추천(config 미변경, `--json` 자동화 모드 포함). |
 | Next Priorities | T-251 (Supabase password resync, user-owned) 그대로. 신규 후속 후보: ① `comment_trigger_avg` 컬럼을 `draft_analytics`에 영속화하고 `draft_generator._combined_candidate_score` 결과를 record_draft 시점에 전파 — 그러면 튜너의 sweep 분기가 실데이터로 가동. ② AI Insight 캐시를 Redis로 옮기면 다중 인스턴스에서도 hit 됨(현재는 per-instance Map). ③ AI Insight 캐시 hit/miss 비율을 Langfuse에 트레이싱(이미 opt-in `LANGFUSE_ENABLED` 인프라 존재). 검증: hanwoo `npm test` 439/439, lint clean, build exit 0. blind-to-x `pytest test_tune_best_of_n_weight.py` 15/15, ruff clean. |
 
@@ -2924,6 +2959,13 @@
 | Tool | Codex |
 | Work | **hanwoo-dashboard AI insight cache helper malformed-input hardening**: Continued the active Hanwoo quality uplift by tightening the new AI insight cache helpers. Cache-key building, summary hashing, cache reads, cache writes, and cache pruning now normalize malformed helper input, circular/non-JSON summary values, malformed timestamps, and malformed cache options, preventing cache metadata bugs from throwing or surfacing non-finite cache age values while preserving same-day per-user AI insight reuse and force-refresh behavior. |
 | Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/ai-insight-cache.test.mjs src/lib/ai-insight.test.mjs src/lib/ai-insight-widget-copy.test.mjs` passed 41/41, `npm.cmd test` passed 442/442, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Pagination hook constructor option hardening**: Continued the active Hanwoo quality uplift by tightening top-level pagination hook option handling. The shared cursor pagination hook plus cattle and sales pagination hooks now normalize malformed hook options before reading `endpoint`, `initialItems`, or `initialPageInfo`, preventing direct/test/reuse callers from throwing during hook setup before normalized initial state, timeout protection, in-flight guards, Korean retry feedback, and safe load-more behavior can run. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/cursor-pagination-feedback.test.mjs src/lib/cattle-pagination-feedback.test.mjs src/lib/sales-pagination-feedback.test.mjs` passed 5/5, `npm.cmd test` passed 444/444, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
 
 ## Notes
 
