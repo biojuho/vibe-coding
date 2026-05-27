@@ -2,9 +2,9 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 import {
 	buildCacheKey,
-	clearCacheKey,
-	getCachedInsight,
-	setCachedInsight,
+	dropCachedInsight,
+	loadCachedInsight,
+	saveCachedInsight,
 } from "@/lib/ai-insight-cache.mjs";
 import {
 	MAX_INSIGHTS,
@@ -45,7 +45,18 @@ async function readJsonBody(request) {
 	}
 }
 
-async function callGeminiForInsights({ apiKey, prompt }) {
+function normalizeGeminiInsightOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+function normalizeInsightRequestBody(body) {
+	return body && typeof body === "object" && !Array.isArray(body) ? body : {};
+}
+
+async function callGeminiForInsights(options = {}) {
+	const { apiKey, prompt } = normalizeGeminiInsightOptions(options);
 	const genAI = new GoogleGenerativeAI(apiKey);
 	const model = genAI.getGenerativeModel({
 		model: "gemini-2.0-flash",
@@ -101,10 +112,9 @@ export async function POST(request) {
 	}
 
 	const body = await readJsonBody(request);
-	const summary = body && typeof body === "object" ? body.summary : null;
-	const forceRefresh = Boolean(
-		body && typeof body === "object" && body.forceRefresh === true,
-	);
+	const safeBody = normalizeInsightRequestBody(body);
+	const summary = safeBody.summary ?? null;
+	const forceRefresh = Boolean(safeBody.forceRefresh === true);
 
 	const apiKey = process.env.GEMINI_API_KEY;
 	if (!apiKey) {
@@ -125,7 +135,7 @@ export async function POST(request) {
 		: null;
 
 	if (cacheKey && !forceRefresh) {
-		const hit = getCachedInsight(cacheKey);
+		const hit = await loadCachedInsight(cacheKey);
 		if (hit && Array.isArray(hit.insights) && hit.insights.length === MAX_INSIGHTS) {
 			return Response.json({
 				insights: hit.insights,
@@ -133,12 +143,13 @@ export async function POST(request) {
 				cached: true,
 				cachedAt: new Date(hit.generatedAt).toISOString(),
 				ageSeconds: hit.ageSeconds,
+				cacheBackend: hit.backend ?? "memory",
 			});
 		}
 	}
 
 	if (cacheKey && forceRefresh) {
-		clearCacheKey(cacheKey);
+		await dropCachedInsight(cacheKey);
 	}
 
 	const prompt = buildInsightPrompt(summary);
@@ -156,7 +167,7 @@ export async function POST(request) {
 			});
 		}
 		if (cacheKey) {
-			setCachedInsight(cacheKey, { insights: parsed, source: "ai" });
+			await saveCachedInsight(cacheKey, { insights: parsed, source: "ai" });
 		}
 		return Response.json({ insights: parsed, source: "ai", cached: false });
 	} catch (error) {

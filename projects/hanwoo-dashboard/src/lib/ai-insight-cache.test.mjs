@@ -1,16 +1,45 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
 	buildCacheKey,
 	buildDayKey,
 	cacheSizeForTests,
 	clearCacheKey,
+	dropCachedInsight,
 	getCachedInsight,
+	loadCachedInsight,
 	resetCacheStoreForTests,
+	saveCachedInsight,
 	setCachedInsight,
 	summaryHash,
 } from "./ai-insight-cache.mjs";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+function withoutRedisConfiguration(callback) {
+	const originalRedisUrl = process.env.REDIS_URL;
+	const originalBullmqRedisUrl = process.env.BULLMQ_REDIS_URL;
+	delete process.env.REDIS_URL;
+	delete process.env.BULLMQ_REDIS_URL;
+	try {
+		return callback();
+	} finally {
+		if (typeof originalRedisUrl === "undefined") {
+			delete process.env.REDIS_URL;
+		} else {
+			process.env.REDIS_URL = originalRedisUrl;
+		}
+		if (typeof originalBullmqRedisUrl === "undefined") {
+			delete process.env.BULLMQ_REDIS_URL;
+		} else {
+			process.env.BULLMQ_REDIS_URL = originalBullmqRedisUrl;
+		}
+	}
+}
 
 function makeInsights() {
 	return [
@@ -152,4 +181,76 @@ test("getCachedInsight rejects malformed key input", () => {
 	assert.equal(getCachedInsight(null), null);
 	assert.equal(getCachedInsight(""), null);
 	assert.equal(getCachedInsight(undefined), null);
+});
+
+test("loadCachedInsight falls back to in-memory Map when Redis is not configured", async () => {
+	await withoutRedisConfiguration(async () => {
+		resetCacheStoreForTests();
+		const key = "redis-fallback:test:hash";
+		assert.equal(await loadCachedInsight(key), null);
+
+		const stored = await saveCachedInsight(
+			key,
+			{ insights: makeInsights(), source: "ai" },
+			1_700_000_000_000,
+		);
+		assert.equal(stored.backend, "memory");
+		assert.equal(stored.source, "ai");
+		assert.equal(stored.insights.length, 3);
+
+		const hit = await loadCachedInsight(key, 1_700_000_005_000);
+		assert.equal(hit.backend, "memory");
+		assert.equal(hit.source, "ai");
+		assert.equal(hit.ageSeconds, 5);
+	});
+});
+
+test("saveCachedInsight rejects non-AI source on both backends", async () => {
+	await withoutRedisConfiguration(async () => {
+		resetCacheStoreForTests();
+		const key = "non-ai:test:hash";
+		assert.equal(
+			await saveCachedInsight(key, { insights: makeInsights(), source: "heuristic" }),
+			null,
+		);
+		assert.equal(await saveCachedInsight(key, null), null);
+		assert.equal(await saveCachedInsight(key, { insights: "x", source: "ai" }), null);
+		assert.equal(await loadCachedInsight(key), null);
+	});
+});
+
+test("dropCachedInsight on memory backend removes the key and returns true", async () => {
+	await withoutRedisConfiguration(async () => {
+		resetCacheStoreForTests();
+		const key = "drop-mem:test:hash";
+		await saveCachedInsight(key, { insights: makeInsights(), source: "ai" });
+		assert.notEqual(await loadCachedInsight(key), null);
+		const dropped = await dropCachedInsight(key);
+		assert.equal(dropped, true);
+		assert.equal(await loadCachedInsight(key), null);
+	});
+});
+
+test("loadCachedInsight/saveCachedInsight/dropCachedInsight reject malformed key input", async () => {
+	await withoutRedisConfiguration(async () => {
+		assert.equal(await loadCachedInsight(null), null);
+		assert.equal(await loadCachedInsight(""), null);
+		assert.equal(await saveCachedInsight(null, { insights: makeInsights(), source: "ai" }), null);
+		assert.equal(await saveCachedInsight("", { insights: makeInsights(), source: "ai" }), null);
+		assert.equal(await dropCachedInsight(null), false);
+		assert.equal(await dropCachedInsight(""), false);
+	});
+});
+
+test("ai-insight-cache source wires Redis backing through shared ensureRedisConnection helper", () => {
+	const source = readFileSync(path.join(__dirname, "ai-insight-cache.mjs"), "utf8");
+	// Redis backing must go through the shared helper module — not a private IORedis instance.
+	assert.match(source, /from "\.\/redis\.js"/);
+	assert.match(source, /ensureRedisConnection\("cache"\)/);
+	assert.match(source, /isRedisConfigured\(\)/);
+	// AI-insight-specific 24h TTL via SET EX
+	assert.match(source, /"EX",\s*REDIS_TTL_SECONDS/);
+	assert.match(source, /REDIS_TTL_SECONDS\s*=\s*24\s*\*\s*60\s*\*\s*60/);
+	// Namespaced key prefix so other Redis consumers don't collide
+	assert.match(source, /REDIS_KEY_PREFIX\s*=\s*"ai-insight:"/);
 });
