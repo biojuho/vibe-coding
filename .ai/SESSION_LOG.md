@@ -4,6 +4,10 @@
 
 | Date | Tool | Summary | Changed Files |
 |---|---|---|---|
+| 2026-05-27 | Claude Opus 4.7 (1M context) | **/goal "개선안 만들고 완성품 만들어줘" — 3개 커밋 출하**. (1) `ecdfcca5` Codex T-1008~T-1100 하드닝 94개 파일을 검증 후 일괄 커밋(test 428/428, lint clean, build exit 0). (2) `1bbe34ba` hanwoo `AIInsightWidget` 일일 in-memory 캐시 신규: userId+Asia/Seoul YYYY-MM-DD+summary SHA-256(16) 해시 결합 키, AI 응답만 캐싱(휴리스틱 제외), forceRefresh 지원, "N분 전 캐시" 위젯 배지. 14개 신규 캐시 unit test. (3) `12f16a04` blind-to-x `scripts/tune_best_of_n_weight.py` dry-run CLI: 최근 published draft_analytics 로우 engagement_rate ↔ hook/virality/fit/final_rank Pearson r + comment_trigger_avg sweep 시 `llm.best_of_n_comment_weight` 추천(config 미변경). 15개 신규 unit test. 최종 검증: hanwoo `npm test` 439/439, lint clean, build exit 0; blind-to-x `pytest test_tune_best_of_n_weight.py` 15/15, ruff clean. | `projects/hanwoo-dashboard/src/app/api/ai/insight/route.js`; `projects/hanwoo-dashboard/src/components/widgets/AIInsightWidget.js`; `projects/hanwoo-dashboard/src/lib/ai-insight-cache.mjs`; `projects/hanwoo-dashboard/src/lib/ai-insight-cache.test.mjs`; `projects/blind-to-x/scripts/tune_best_of_n_weight.py`; `projects/blind-to-x/tests/unit/test_tune_best_of_n_weight.py`; `.ai/HANDOFF.md`; `.ai/SESSION_LOG.md`; `.ai/TASKS.md` |
+| 2026-05-27 | Codex | **hanwoo-dashboard Sales tab async cleanup unmount hardening**. Added a mounted-state guard to `SalesTab` so async sales-record create finalizers release the duplicate-submit ref while avoiding React state/reset updates after unmount. Strengthened Sales/home regression coverage to keep the mounted cleanup guard and guarded saved-result/finalizer paths. Verification: focused Sales/home tests 58/58 passed, `npm.cmd test` 378/378 passed, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 Supabase/Prisma `P2010 / XX000 / ENOTFOUND` health warning but exit 0. | `projects/hanwoo-dashboard/src/components/tabs/SalesTab.js`; `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/SESSION_LOG.md` |
+| 2026-05-27 | Codex | **hanwoo-dashboard Inventory tab async cleanup unmount hardening**. Added a mounted-state guard to `InventoryTab` so async inventory-create and inline quantity-update finalizers release duplicate-action refs while avoiding React state/reset updates after unmount. Strengthened Inventory/home regression coverage to keep the mounted cleanup guard, guarded saved-result paths, and guarded quantity reset finalizer. Verification: focused Inventory/home tests 58/58 passed, `npm.cmd test` 378/378 passed, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 Supabase/Prisma `P2010 / XX000 / ENOTFOUND` health warning but exit 0. | `projects/hanwoo-dashboard/src/components/tabs/InventoryTab.js`; `projects/hanwoo-dashboard/src/lib/empty-state-wiring.test.mjs`; `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/SESSION_LOG.md` |
+| 2026-05-27 | Codex | **hanwoo-dashboard Schedule tab async cleanup unmount hardening**. Added a mounted-state guard to `ScheduleTab` so async schedule-create and completion-toggle finalizers release duplicate-action refs while avoiding React state/reset updates after unmount. Strengthened Schedule and empty-state regression coverage to keep the mounted cleanup guard and tolerate the guarded saved-result path. Verification: focused Schedule/empty-state tests 25/25 passed, `npm.cmd test` 378/378 passed, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 Supabase/Prisma `P2010 / XX000 / ENOTFOUND` health warning but exit 0. | `projects/hanwoo-dashboard/src/components/tabs/ScheduleTab.js`; `projects/hanwoo-dashboard/src/lib/tab-header-accessibility.test.mjs`; `projects/hanwoo-dashboard/src/lib/empty-state-wiring.test.mjs`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/SESSION_LOG.md` |
 | 2026-05-27 | Codex | **hanwoo-dashboard Runtime error fallback Korean-copy polish**. Changed the dashboard runtime ErrorBoundary heading from `화면 렌더링에 일시적인 에러가 발생했습니다.` to `화면 표시 중 일시적인 오류가 발생했습니다.`, and rewrote the body from the technical `데이터 형식`/`렌더링 도중` phrasing to operator-facing `화면 표시 정보`/`처리 중` wording. Strengthened error-page regression coverage to keep the polished Korean fallback copy and prevent the older technical wording from returning. Verification: focused error-page tests 9/9 passed, `npm.cmd test` 349/349 passed, `npm.cmd run lint` passed, `git diff --check` passed, and `npm.cmd run build` passed with the known T-251 Supabase/Prisma `P2010 / XX000 / ENOTFOUND` health warning but exit 0. | `projects/hanwoo-dashboard/src/components/ErrorBoundary.js`; `projects/hanwoo-dashboard/src/lib/error-pages-wiring.test.mjs`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/SESSION_LOG.md` |
 | 2026-05-27 | Codex | **hanwoo-dashboard AI insight market-price information-copy consistency**. Changed the AI insight default data-quality card body from `체중·판매액·시세 데이터를 갱신하면 더 정확한 인사이트를 제공합니다.` to `체중·판매액 데이터와 시세 정보를 갱신하면 더 정확한 인사이트를 제공합니다.`, keeping externally sourced market-price wording aligned with the app's `시세 정보` copy while preserving the data-quality intent. Strengthened AI insight regression coverage to prevent the older bundled `시세 데이터` wording from returning. Verification: focused AI insight tests 15/15 passed, `npm.cmd test` 349/349 passed, `npm.cmd run lint` passed, `git diff --check` passed, and `npm.cmd run build` passed with the known T-251 Supabase/Prisma `P2010 / XX000 / ENOTFOUND` health warning but exit 0. | `projects/hanwoo-dashboard/src/lib/ai-insight.mjs`; `projects/hanwoo-dashboard/src/lib/ai-insight.test.mjs`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/SESSION_LOG.md` |
 | 2026-05-27 | Codex | **hanwoo-dashboard Market price unavailable information-copy consistency**. Changed the shared market-price unavailable fallback and widget fallback from `지금은 한우 시세 데이터를 확인할 수 없습니다.` to `지금은 한우 시세 정보를 확인할 수 없습니다.`, aligning visible market-price failure copy with the app's information-oriented weather/profitability wording. Strengthened market-price and home regression coverage to keep the information wording and prevent the older data wording from returning. Verification: focused market/home tests 45/45 passed, `npm.cmd test` 349/349 passed, `npm.cmd run lint` passed, `git diff --check` passed, and `npm.cmd run build` passed with the known T-251 Supabase/Prisma `P2010 / XX000 / ENOTFOUND` health warning but exit 0. | `projects/hanwoo-dashboard/src/lib/market-price-state.mjs`; `projects/hanwoo-dashboard/src/components/widgets/MarketPriceWidget.js`; `projects/hanwoo-dashboard/src/lib/market-price-state.test.mjs`; `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs`; `.ai/HANDOFF.md`; `.ai/TASKS.md`; `.ai/SESSION_LOG.md` |
@@ -1165,4 +1169,666 @@
 - Changed `projects/hanwoo-dashboard/src/components/widgets/EarTagScannerModal.js` so modal open-state scanner resets run in a microtask, clearing current React hooks lint errors without relying on stale disable comments.
 - Strengthened `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` coverage to keep bounded coordinate validation in both weather entry points.
 - Verification: `node --test src/lib/home-market-copy.test.mjs` passed 40/40, `npm.cmd test` passed 372/372, `npm.cmd run lint` passed with 7 pre-existing unused-disable warnings outside this change, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1028 React hooks lint suppression removal.
+- Changed `projects/hanwoo-dashboard/src/components/admin/DiagnosticsPageClient.js`: diagnostics and raw-data loading resets now run through guarded `queueMicrotask()` callbacks instead of `eslint-disable` hook suppressions.
+- Changed `projects/hanwoo-dashboard/src/components/forms/CattleForm.js`: form-local lookup/save resets now run through a guarded microtask, and the form submit path now uses `handleCattleFormSubmit()` instead of render-time `handleSubmit(submitForm)`.
+- Changed `projects/hanwoo-dashboard/src/components/forms/CattleDetailModal.js`: breeding form reset state now runs through a guarded microtask instead of an eslint suppression.
+- Changed `projects/hanwoo-dashboard/src/components/payment/PaymentWidget.js`: widget-ready/error reset now runs through a guarded microtask instead of an eslint suppression.
+- Strengthened `diagnostics-copy.test.mjs`, `payment-ux-copy.test.mjs`, and `cattle-detail-modal-wiring.test.mjs` to keep the no-suppression pattern.
+- Verification: `node --test src/lib/diagnostics-copy.test.mjs src/lib/payment-ux-copy.test.mjs src/lib/cattle-detail-modal-wiring.test.mjs` passed 30/30, `npm.cmd test` passed 375/375, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1029 Dashboard ErrorBoundary reset-handler failure hardening.
+- Changed `projects/hanwoo-dashboard/src/components/ErrorBoundary.js`: custom `onReset` recovery callbacks now run inside the boundary reset guard, with synchronous throws and promise rejections routed through `handleResetFailure()`.
+- This prevents the dashboard recovery button event handler from throwing outside the boundary when a caller-provided reset handler fails, while preserving the existing reload fallback behavior.
+- Strengthened `projects/hanwoo-dashboard/src/lib/error-pages-wiring.test.mjs` coverage to keep guarded custom reset handling and shared reset failure logging.
+- Verification: `node --test src/lib/error-pages-wiring.test.mjs` passed 10/10, `npm.cmd test` passed 376/376, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1030 Field Mode full-list async cleanup hardening.
+- Changed `projects/hanwoo-dashboard/src/components/widgets/FieldModeView.js`: the background `ensureAllCattleLoaded({ silent: true })` effect now uses a cleanup guard before clearing `loadingAllCattle`.
+- Stale full-list loading completions after Field Mode unmount or dependency replacement no longer update component state.
+- Strengthened `projects/hanwoo-dashboard/src/lib/field-mode-celebration.test.mjs` coverage to keep the cleanup guard and prevent direct `.finally(() => setLoadingAllCattle(false))` from returning.
+- Verification: `node --test src/lib/field-mode-celebration.test.mjs` passed 13/13, `npm.cmd test` passed 377/377, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1031 Dashboard full-list preload unmount cleanup hardening.
+- Changed `projects/hanwoo-dashboard/src/components/DashboardClient.js`: added `dashboardMountedRef` and wrapped full cattle registry and full sales ledger preload success, error, and loading-state updates behind it.
+- Stale preload completions after dashboard unmount no longer update registry, error, or loading state while still clearing in-flight refs for normal mounted retries.
+- Strengthened `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` coverage to keep the mounted guard on cattle and sales preload completion paths.
+- Verification: `node --test src/lib/home-market-copy.test.mjs` passed 41/41, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1032 Notification modal SMS async cleanup hardening.
+- Changed `projects/hanwoo-dashboard/src/components/ui/NotificationModal.js`: added an `isMountedRef` lifecycle guard and wrapped the SMS test action finalizer so stale `onTestSMS` promise completions after modal unmount no longer update `isTestingSMS` state.
+- Mounted SMS sends still preserve the existing duplicate-send busy lock and re-enable the test button when the send completes.
+- Strengthened `projects/hanwoo-dashboard/src/lib/notification-modal-copy.test.mjs` coverage to keep the mounted guard and prevent direct `finally { setIsTestingSMS(false); }` from returning.
+- Verification: `node --test src/lib/notification-modal-copy.test.mjs` passed 8/8, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1033 AI chat stream unmount cleanup hardening.
+- Changed `projects/hanwoo-dashboard/src/components/widgets/AIChatWidget.js`: added an `isMountedRef` lifecycle guard and unmount cleanup that aborts the active stream controller, clears `abortRef`, and releases the send-in-flight ref.
+- Guarded stream chunk, done, error, aborted-placeholder cleanup, and final busy-state cleanup paths so stale completions after component unmount no longer update messages or streaming state.
+- Strengthened `projects/hanwoo-dashboard/src/lib/ai-chat-widget-copy.test.mjs` coverage to keep the mounted guard, unmount abort, and guarded stream callbacks.
+- Verification: `node --test src/lib/ai-chat-widget-copy.test.mjs` passed 2/2, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1034 Excel export async cleanup unmount hardening.
+- Changed `projects/hanwoo-dashboard/src/components/widgets/ExcelExportButton.js`: added an `isMountedRef` lifecycle guard and cleanup that clears the duplicate-export lock on unmount.
+- The export finalizer still removes the temporary download link, revokes the Blob URL, and releases `preparingRef`, but it now only calls `setIsPreparing(false)` while the component is still mounted.
+- Strengthened `projects/hanwoo-dashboard/src/lib/excel-export-button-copy.test.mjs` coverage to keep the mounted guard and prevent direct finalizer state resets from returning.
+- Verification: `node --test src/lib/excel-export-button-copy.test.mjs` passed 3/3, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1035 Market price refresh start unmount hardening.
+- Changed `projects/hanwoo-dashboard/src/components/widgets/MarketPriceWidget.js`: `fetchPrices()` now returns `Promise.resolve(null)` before starting a KAPE request when the widget is no longer mounted.
+- This prevents delayed refresh calls after unmount from setting `loading` state or starting new market-price requests; existing mounted guards still protect stale success and final loading cleanup paths.
+- Strengthened `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` coverage to keep the refresh start guard plus completion/loading mounted guards.
+- Verification: `node --test src/lib/home-market-copy.test.mjs` passed 41/41, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1036 QR print callback unmount cleanup hardening.
+- Changed `projects/hanwoo-dashboard/src/components/widgets/QRCodeWidget.js`: added an `isMountedRef` lifecycle guard, guarded `resetPrintState()` and status-message updates, and short-circuited unmounted `finishPrint()` callbacks after closing the print window.
+- Popup load/fallback callbacks and print failure/completion paths after component unmount no longer update printing or status state while still releasing the duplicate-print lock.
+- Strengthened `projects/hanwoo-dashboard/src/lib/qr-widget-copy.test.mjs` coverage to keep the mounted guard, guarded status updates, and unmounted finish-print short-circuit.
+- Verification: `node --test src/lib/qr-widget-copy.test.mjs` passed 7/7, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1040 Feed tab async cleanup unmount hardening.
+- Changed `projects/hanwoo-dashboard/src/components/tabs/FeedTab.js`: added an `isMountedRef` lifecycle guard and cleanup that clears the duplicate-submit lock on unmount.
+- Async feed-record completions now release `saveInFlightRef` while avoiding `reset()` and `setIsSaving(false)` after component unmount.
+- Strengthened `projects/hanwoo-dashboard/src/lib/empty-state-wiring.test.mjs` coverage to keep the mounted guard and prevent direct recorded-result/finalizer state updates from returning.
+- Verification: `node --test src/lib/empty-state-wiring.test.mjs` passed 17/17, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1041 Calving tab async cleanup unmount hardening.
+- Changed `projects/hanwoo-dashboard/src/components/tabs/CalvingTab.js`: added an `isMountedRef` lifecycle guard and cleanup that clears the duplicate-submit lock on unmount.
+- Async calving-record completions now release `saveInFlightRef` while avoiding `closeCalvingForm()`, `reset()`, and `setIsSaving(false)` after component unmount.
+- Strengthened `projects/hanwoo-dashboard/src/lib/calving-tab-accessibility.test.mjs` coverage to keep the mounted guard and prevent direct recorded-result/finalizer state updates from returning.
+- Verification: `node --test src/lib/calving-tab-accessibility.test.mjs` passed 6/6, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1042 Settings tab async cleanup unmount hardening.
+- Changed `projects/hanwoo-dashboard/src/components/tabs/SettingsTab.js`: added an `isMountedRef` lifecycle guard and cleanup that clears farm-save, building-save, and building-delete duplicate-action locks on unmount.
+- Async farm settings saves, building creates, and building deletes now release their refs while avoiding `setIsSavingFarm()`, `setIsSavingBuilding()`, `setIsAdding()`, `resetBuilding()`, and `setDeletingBuildingId()` after component unmount.
+- Strengthened `projects/hanwoo-dashboard/src/lib/settings-tab-accessibility.test.mjs` coverage to keep the mounted guard and prevent direct saved/confirmed/finalizer state updates from returning.
+- Verification: `node --test src/lib/settings-tab-accessibility.test.mjs` passed 14/14, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1043 Cattle form save unmount cleanup hardening.
+- Changed `projects/hanwoo-dashboard/src/components/forms/CattleForm.js`: extended the existing mounted-state cleanup to release `saveInFlightRef` on unmount.
+- Async cattle-save finalizers now release `saveInFlightRef` while avoiding `setIsSaving(false)` after component unmount.
+- Strengthened `projects/hanwoo-dashboard/src/lib/cattle-detail-modal-wiring.test.mjs` coverage to keep the save cleanup guard and prevent direct save-finalizer state updates from returning.
+- Verification: `node --test src/lib/cattle-detail-modal-wiring.test.mjs` passed 17/17, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1045 Payment widget async cleanup unmount hardening.
+- Changed `projects/hanwoo-dashboard/src/components/payment/PaymentWidget.js`: added an `isMountedRef` lifecycle guard and cleanup that clears the duplicate-payment-request lock on unmount.
+- Async payment request finalizers now release `paymentRequestInFlightRef` while avoiding `setIsSubmitting(false)` after component unmount.
+- Strengthened `projects/hanwoo-dashboard/src/lib/payment-ux-copy.test.mjs` coverage to keep the mounted cleanup guard and prevent direct payment-finalizer state resets from returning.
+- Verification: `node --test src/lib/payment-ux-copy.test.mjs` passed 9/9, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1046 Dashboard cattle archive unmount cleanup hardening.
+- Changed `projects/hanwoo-dashboard/src/components/DashboardClient.js`: guarded cattle archive success, failure, catch, and finalizer paths with the existing `dashboardMountedRef`.
+- Async delete completions after dashboard unmount no longer call `removeCattleRecord()`, `setSelectedCow(null)`, `refreshDashboardReadModels()`, `showSuccess()`, `showError()`, or `setDeletingCattleId(null)`.
+- Strengthened `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` and `projects/hanwoo-dashboard/src/lib/cattle-detail-modal-wiring.test.mjs` coverage to keep guarded archive completion/finalizer behavior.
+- Verification: `node --test src/lib/home-market-copy.test.mjs src/lib/cattle-detail-modal-wiring.test.mjs` passed 59/59, `npm.cmd test` passed 379/379, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1047 Login submit unmount cleanup hardening.
+- Changed `projects/hanwoo-dashboard/src/app/login/page.js`: added an `isMountedRef` lifecycle guard and cleanup that clears the duplicate-submit lock on unmount.
+- Async sign-in, credential failure, navigation failure, catch, and finalizer paths now release `submitInFlightRef` while avoiding `setError()` and `setIsSubmitting(false)` after login page unmount.
+- Strengthened `projects/hanwoo-dashboard/src/lib/error-pages-wiring.test.mjs` coverage to keep the mounted cleanup guard and prevent direct submit-finalizer state resets from returning.
+- Verification: `node --test src/lib/error-pages-wiring.test.mjs` passed 10/10, `npm.cmd test` passed 379/379, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1048 AI insight stale callback cleanup hardening.
+- Changed `projects/hanwoo-dashboard/src/components/widgets/AIInsightWidget.js`: added a cleanup `cancelled` guard to the insight fetch effect.
+- Stale summary-change or unmount callbacks now avoid heuristic reset, parsed-response, fallback-reason, and loading-state updates after cleanup while preserving the existing timeout abort fallback behavior.
+- Strengthened `projects/hanwoo-dashboard/src/lib/ai-insight-widget-copy.test.mjs` coverage to keep the cancellation guard across microtask, success, catch, finalizer, and cleanup paths.
+- Verification: `node --test src/lib/ai-insight-widget-copy.test.mjs` passed 10/10, `npm.cmd test` passed 379/379, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1044 Cattle detail breeding save unmount cleanup hardening.
+- Changed `projects/hanwoo-dashboard/src/components/forms/CattleDetailModal.js`: added a mounted-state guard and unmount cleanup that clears `breedingSaveInFlightRef`.
+- Async breeding-record completions now release the duplicate-submit ref while avoiding `setActiveBreedingAction(null)` and `setIsBreedingSaving(false)` after component unmount.
+- Strengthened `projects/hanwoo-dashboard/src/lib/cattle-detail-modal-wiring.test.mjs` coverage to keep the mounted cleanup guard and prevent direct saved-result/finalizer state updates from returning.
+- Verification: `node --test src/lib/cattle-detail-modal-wiring.test.mjs` passed 17/17, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1049 Dashboard building mutation unmount cleanup hardening.
+- Changed `projects/hanwoo-dashboard/src/components/DashboardClient.js`: guarded dashboard building create/delete server-action completion paths with the existing `dashboardMountedRef`.
+- Stale building mutation completions after dashboard unmount now avoid `setBuildings()`, selected-building/selected-pen resets, and toast updates while still returning the server-action result.
+- Strengthened `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` coverage to keep guarded building create/delete success/error paths.
+- Verification: `node --test src/lib/home-market-copy.test.mjs` passed 43/43, `npm.cmd test` passed 380/380, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1050 Dashboard inventory mutation unmount cleanup hardening.
+- Changed `projects/hanwoo-dashboard/src/components/DashboardClient.js`: guarded dashboard inventory create and quantity-update server-action completion paths with the existing `dashboardMountedRef`.
+- Stale inventory mutation completions after dashboard unmount now avoid `setInventoryList()` and toast updates while still returning the server-action result.
+- Strengthened `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` coverage to keep guarded inventory create/update success/error paths.
+- Verification: `node --test src/lib/home-market-copy.test.mjs` passed 44/44, `npm.cmd test` passed 381/381, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1051 Dashboard schedule mutation unmount cleanup hardening.
+- Changed `projects/hanwoo-dashboard/src/components/DashboardClient.js`: guarded dashboard schedule create and completion-toggle server-action completion paths with the existing `dashboardMountedRef`.
+- Stale schedule mutation completions after dashboard unmount now avoid `setScheduleEvents()` and toast updates while still returning the server-action result.
+- Strengthened `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` coverage to keep guarded schedule create/toggle success/error paths.
+- Verification: `node --test src/lib/home-market-copy.test.mjs` passed 45/45, `npm.cmd test` passed 382/382, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1052 Dashboard sales and feed mutation unmount cleanup hardening.
+- Changed `projects/hanwoo-dashboard/src/components/DashboardClient.js`: guarded dashboard sales-record create and feed-record create server-action completion paths with the existing `dashboardMountedRef`.
+- Stale sales/feed mutation completions after dashboard unmount now avoid `prependSaleRecord()`, `setFeedHistory()`, `refreshDashboardReadModels()`, and toast updates while still returning the server-action result.
+- Strengthened `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` coverage to keep guarded sales/feed success/error paths.
+- Verification: `node --test src/lib/home-market-copy.test.mjs` passed 46/46, `npm.cmd test` passed 383/383, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1053 Dashboard calving mutation unmount cleanup hardening.
+- Changed `projects/hanwoo-dashboard/src/components/DashboardClient.js`: guarded dashboard calving server-action completion paths with the existing `dashboardMountedRef`.
+- Stale calving mutation completions after dashboard unmount now avoid `upsertCalvingRecords()`, `refreshDashboardReadModels()`, and toast updates while still returning the server-action result.
+- Strengthened `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` coverage to keep guarded calving success/error paths.
+- Verification: `node --test src/lib/home-market-copy.test.mjs` passed 47/47, `npm.cmd test` passed 384/384, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1054 Dashboard farm settings mutation unmount cleanup hardening.
+- Changed `projects/hanwoo-dashboard/src/components/DashboardClient.js`: guarded dashboard farm settings save completion paths with the existing `dashboardMountedRef`.
+- Stale farm settings mutation completions after dashboard unmount now avoid `setFarmSettings()` and toast updates while still returning the server-action result.
+- Strengthened `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` coverage to keep guarded farm settings success/error paths.
+- Verification: `node --test src/lib/home-market-copy.test.mjs` passed 48/48, `npm.cmd test` passed 385/385, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1055 Dashboard cattle create/update unmount cleanup hardening.
+- Changed `projects/hanwoo-dashboard/src/components/DashboardClient.js`: guarded dashboard cattle create and update online server-action completion paths with the existing `dashboardMountedRef`.
+- Stale cattle create/update completions after dashboard unmount now avoid cattle state, modal/edit state, selected-cow state, `refreshDashboardReadModels()`, and toast updates while still returning the server-action result.
+- Strengthened `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` coverage to keep guarded cattle create/update success/error/catch paths.
+- Verification: `node --test src/lib/home-market-copy.test.mjs` passed 49/49, `npm.cmd test` passed 386/386, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1056 Dashboard summary and notification refresh unmount cleanup hardening.
+- Changed `projects/hanwoo-dashboard/src/components/DashboardClient.js`: guarded dashboard summary and notification refresh completions with the existing `dashboardMountedRef`.
+- Stale summary/notification refresh completions after dashboard unmount now avoid `setSummary()`, `setSummaryMeta()`, and `setNotifications()` while preserving latest-request ordering for mounted summary refreshes.
+- Strengthened `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` coverage to keep guarded refresh completion paths.
+- Verification: `node --test src/lib/home-market-copy.test.mjs` passed 50/50, `npm.cmd test` passed 387/387, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1057 Dashboard drag move confirmation unmount cleanup hardening.
+- Changed `projects/hanwoo-dashboard/src/components/DashboardClient.js`: added a mounted-state guard immediately after the drag-and-drop cattle move confirmation resolves.
+- Stale confirmation completions after dashboard unmount now return before building the update payload or entering the cattle update/offline mutation path.
+- Strengthened `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` coverage to keep the post-confirmation mounted guard.
+- Verification: `node --test src/lib/home-market-copy.test.mjs` passed 51/51, `npm.cmd test` passed 388/388, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1058 Subscription success timer cleanup hardening.
+- Changed `projects/hanwoo-dashboard/src/app/subscription/success/page.js`: added cleanup-aware cancellation guards to invalid-amount, delayed redirect, redirect-failure, and pending-confirmation retry timer callbacks.
+- Stale timer callbacks after payment success component cleanup now avoid status updates, dashboard redirects, and retry confirmation requests.
+- Strengthened `projects/hanwoo-dashboard/src/lib/payment-ux-copy.test.mjs` coverage to keep the stale timer callback guards.
+- Verification: `node --test src/lib/payment-ux-copy.test.mjs` passed 10/10, `npm.cmd test` passed 389/389, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1059 Feedback provider unmount cleanup hardening.
+- Changed `projects/hanwoo-dashboard/src/components/feedback/FeedbackProvider.js`: added mounted-state guards around toast dismissal, notification scheduling, delayed toast callbacks, and confirmation close state updates.
+- Provider cleanup now clears toast timers and resolves any pending confirmation dialog promise as `false`, preventing awaiting dashboard actions from hanging on stale confirmation state after provider unmount.
+- Strengthened `projects/hanwoo-dashboard/src/lib/feedback-provider-copy.test.mjs` coverage to keep stale callback guards and pending confirmation cleanup.
+- Verification: `node --test src/lib/feedback-provider-copy.test.mjs` passed 4/4, `npm.cmd test` passed 390/390, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1060 Ear-tag scanner deferred no-match cleanup hardening.
+- Changed `projects/hanwoo-dashboard/src/components/widgets/EarTagScannerModal.js`: added cleanup-aware guards to the deferred no-match fallback used when canvas context lookup or animation-frame scheduling fails.
+- Missing canvas contexts and frame-scheduling failures no longer update scanner state after the modal has closed or the effect has cleaned up.
+- Strengthened `projects/hanwoo-dashboard/src/lib/eartag-scanner-modal-accessibility.test.mjs` coverage to keep guarded microtask fallback and frame-failure cleanup paths.
+- Verification: `node --test src/lib/eartag-scanner-modal-accessibility.test.mjs` passed 5/5, `npm.cmd test` passed 390/390, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1061 Field Mode celebration timer cleanup hardening.
+- Changed `projects/hanwoo-dashboard/src/components/widgets/FieldModeView.js`: added cleanup-aware guards to no-canvas close timers, animation-frame failure timers, particle completion, and the normal 4.5s celebration close timer.
+- Delayed celebration shutdown callbacks no longer update state after the field-mode celebration effect has cleaned up.
+- Strengthened `projects/hanwoo-dashboard/src/lib/field-mode-celebration.test.mjs` coverage to keep guarded no-canvas, frame-failure, and normal close timer paths.
+- Verification: `node --test src/lib/field-mode-celebration.test.mjs` passed 13/13, `npm.cmd test` passed 390/390, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1062 Ear-tag scanner deferred task fallback hardening.
+- Changed `projects/hanwoo-dashboard/src/components/widgets/EarTagScannerModal.js`: centralized scanner microtask scheduling behind `deferScannerTask()` and routed both initial target selection and deferred no-match fallback through it.
+- Restricted browser environments where `queueMicrotask` throws now fall back to `Promise.resolve().then(...)` without bypassing existing cleanup guards.
+- Strengthened `projects/hanwoo-dashboard/src/lib/eartag-scanner-modal-accessibility.test.mjs` coverage to keep the guarded helper and prevent raw initialization microtasks from returning.
+- Verification: `node --test src/lib/eartag-scanner-modal-accessibility.test.mjs` passed 5/5, `npm.cmd test` passed 390/390, `npm.cmd run lint` passed clean, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1076 Profitability zero purchase-price handling hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/dashboard/profitability-service.js`: profitability base-cost calculation now preserves a valid `purchasePrice` of `0` and only falls back to `DEFAULT_CALF_COST` when purchase price normalization returns `null`.
+- This prevents self-bred or zero-cost cattle from being over-costed in shipment profitability estimates.
+- Strengthened `projects/hanwoo-dashboard/src/lib/profitability-copy.test.mjs` coverage to keep `0` distinct from malformed/missing purchase-price input and prevent the older `toFiniteNumber(...) || DEFAULT_CALF_COST` pattern from returning.
+- Verification: `node --test src/lib/profitability-copy.test.mjs` passed 10/10, `npm.cmd test` passed 391/391, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1075 Weather zero-coordinate handling hardening.
+- Changed `projects/hanwoo-dashboard/src/components/DashboardClient.js` and `projects/hanwoo-dashboard/src/lib/hooks/useWeather.js`: farm weather coordinates are now treated as present when they are non-null/non-undefined, allowing valid zero latitude or longitude values to reach the existing coordinate validator.
+- This prevents truthiness-based coordinate checks from misclassifying valid zero coordinates as missing and falling back to the default Namwon weather coordinates.
+- Strengthened `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` coverage to prevent the older `latitude && longitude` coordinate presence checks from returning.
+- Verification: `node --test src/lib/home-market-copy.test.mjs` passed 51/51, `npm.cmd test` passed 391/391, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1074 Weather geolocation stale-callback cleanup hardening.
+- Changed `projects/hanwoo-dashboard/src/components/DashboardClient.js` and `projects/hanwoo-dashboard/src/lib/hooks/useWeather.js`: geolocation success/error callbacks now return after effect cleanup before starting fallback or coordinate weather fetches.
+- This avoids post-unmount weather network work while preserving the existing stale-state update guards in fetch completion and degradation paths.
+- Strengthened `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` coverage to keep cancellation checks in fallback, coordinate, and position callback paths for both dashboard and shared weather hook flows.
+- Verification: `node --test src/lib/home-market-copy.test.mjs` passed 51/51, `npm.cmd test` passed 391/391, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1073 Field Mode delayed celebration firework cleanup hardening.
+- Changed `projects/hanwoo-dashboard/src/components/widgets/FieldModeView.js`: delayed secondary firework timer callbacks now check the existing cleanup cancellation flag before mutating the local particle queue.
+- This prevents stale timer callbacks from doing post-cleanup animation work if timer cleanup is unavailable in a restricted browser environment.
+- Strengthened `projects/hanwoo-dashboard/src/lib/field-mode-celebration.test.mjs` coverage to keep the delayed firework cancellation guards and prevent raw delayed `createFirework` callbacks from returning.
+- Verification: `node --test src/lib/field-mode-celebration.test.mjs` passed 13/13, `npm.cmd test` passed 391/391, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1072 QR print completion callback scheduling failure hardening.
+- Changed `projects/hanwoo-dashboard/src/components/widgets/QRCodeWidget.js`: print-window load listener registration and fallback timer scheduling now return success flags, and the print completion cleanup runs immediately when both scheduling paths fail.
+- This prevents restricted browser environments from leaving the QR print duplicate-action lock and busy state stuck when both completion callback paths are unavailable.
+- Strengthened `projects/hanwoo-dashboard/src/lib/qr-widget-copy.test.mjs` coverage to keep guarded scheduling return values and immediate cleanup fallback behavior.
+- Verification: `node --test src/lib/qr-widget-copy.test.mjs` passed 7/7, `npm.cmd test` passed 391/391, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1063 Admin diagnostics deferred loading fallback hardening.
+- Changed `projects/hanwoo-dashboard/src/components/admin/DiagnosticsPageClient.js`: centralized diagnostics loading-state deferral behind `deferDiagnosticsTask()` and routed both system diagnostics and raw-data loading resets through it.
+- Restricted browser environments where `queueMicrotask` throws now fall back to `Promise.resolve().then(...)` without bypassing existing cancellation and latest-request guards.
+- Strengthened `projects/hanwoo-dashboard/src/lib/diagnostics-copy.test.mjs` coverage to keep the guarded helper and prevent raw initialization microtasks from returning.
+- Verification: `node --test src/lib/diagnostics-copy.test.mjs` passed 4/4, `npm.cmd test` passed 390/390, `npm.cmd run lint` passed clean, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1064 Cattle form/detail deferred reset fallback hardening.
+- Changed `projects/hanwoo-dashboard/src/components/forms/CattleForm.js`: added `deferCattleFormTask()` and routed save-state reset deferral through it.
+- Changed `projects/hanwoo-dashboard/src/components/forms/CattleDetailModal.js`: added `deferCattleDetailTask()` and routed breeding-action reset deferral through it.
+- Restricted browser environments where `queueMicrotask` throws now fall back to `Promise.resolve().then(...)` without bypassing existing cancellation guards.
+- Strengthened `projects/hanwoo-dashboard/src/lib/cattle-detail-modal-wiring.test.mjs` coverage to keep the guarded helpers and prevent raw reset microtasks from returning.
+- Verification: `node --test src/lib/cattle-detail-modal-wiring.test.mjs` passed 17/17, `npm.cmd test` passed 390/390, `npm.cmd run lint` passed clean, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1065 Payment and AI insight deferred reset fallback hardening.
+- Changed `projects/hanwoo-dashboard/src/components/payment/PaymentWidget.js`: added `deferPaymentWidgetTask()` and routed widget-ready/error reset deferral through it.
+- Changed `projects/hanwoo-dashboard/src/components/widgets/AIInsightWidget.js`: added `deferAIInsightTask()` and routed heuristic insight refresh reset deferral through it.
+- Restricted browser environments where `queueMicrotask` throws now fall back to `Promise.resolve().then(...)` without bypassing existing cancellation and abort guards.
+- Strengthened `projects/hanwoo-dashboard/src/lib/payment-ux-copy.test.mjs` and `projects/hanwoo-dashboard/src/lib/ai-insight-widget-copy.test.mjs` coverage to keep the guarded helpers and prevent raw reset microtasks from returning.
+- Verification: `node --test src/lib/payment-ux-copy.test.mjs` passed 10/10, `node --test src/lib/ai-insight-widget-copy.test.mjs` passed 10/10, `npm.cmd test` passed 390/390, `npm.cmd run lint` passed clean, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1068 Pagination hook timeout scheduling failure hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/hooks/useCattlePagination.js`, `projects/hanwoo-dashboard/src/lib/hooks/useSalesPagination.js`, and `projects/hanwoo-dashboard/src/lib/hooks/useCursorPagination.js`: timeout scheduling failures now immediately set `didTimeout = true` and abort the controller instead of silently dropping timeout protection.
+- Added `projects/hanwoo-dashboard/src/lib/cursor-pagination-feedback.test.mjs` coverage and strengthened cattle/sales pagination coverage to keep immediate abort fallback behavior.
+- Verification: `node --test src/lib/cattle-pagination-feedback.test.mjs src/lib/sales-pagination-feedback.test.mjs src/lib/cursor-pagination-feedback.test.mjs` passed 5/5, `npm.cmd test` passed 391/391, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1069 Market price polling fallback hardening.
+- Changed `projects/hanwoo-dashboard/src/components/widgets/MarketPriceWidget.js`: hourly KAPE market-price polling now uses the shared interval constant and falls back to a cleanup-aware `setTimeout` polling loop when `window.setInterval` throws in restricted browser environments.
+- The fallback loop preserves the existing mounted/in-flight guards and clears the pending fallback timer during widget cleanup.
+- Strengthened `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` coverage to keep fallback polling and cleanup behavior.
+- Verification: `node --test src/lib/home-market-copy.test.mjs` passed 51/51, `npm.cmd test` passed 391/391, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1070 Online-status listener partial-registration cleanup hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/useOnlineStatus.js`: tracks online/offline event listener registration independently and removes any partial registration if browser listener setup fails midway.
+- Normal unmount cleanup now removes only listeners that were confirmed registered, preserving restricted-browser tolerance without leaking a partially attached listener.
+- Strengthened `projects/hanwoo-dashboard/src/lib/use-online-status.test.mjs` coverage to keep partial setup cleanup and guarded unmount cleanup.
+- Verification: `node --test src/lib/use-online-status.test.mjs` passed 2/2, `npm.cmd test` passed 391/391, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1071 Widget settings unknown-id guard hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/hooks/useWidgetSettings.js`: added a registry-backed widget id set and made `toggle(id)` return before state/storage mutation when the id is not registered.
+- This prevents accidental caller bugs or stale UI events from persisting unknown widget keys into local dashboard visibility settings.
+- Strengthened `projects/hanwoo-dashboard/src/lib/settings-tab-accessibility.test.mjs` coverage to keep registry-id guarding before state/storage mutation.
+- Verification: `node --test src/lib/settings-tab-accessibility.test.mjs` passed 14/14, `npm.cmd test` passed 391/391, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1067 Shared fetch timeout scheduling failure hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/fetchWithTimeout.js`: timeout scheduling failures now immediately abort with the existing `TimeoutError` instead of silently dropping timeout protection.
+- This protects all shared `fetchWithTimeout()` callers, including dashboard refreshes, payment confirmation, KAPE/MTRACE lookups, weather, and API proxy calls.
+- Strengthened `projects/hanwoo-dashboard/src/lib/fetch-with-timeout.test.mjs` coverage to keep immediate timeout behavior.
+- Verification: `node --test src/lib/fetch-with-timeout.test.mjs` passed 1/1, `npm.cmd test` passed 390/390, `npm.cmd run lint` passed clean, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1066 Payment and AI insight timeout scheduling failure hardening.
+- Changed `projects/hanwoo-dashboard/src/components/payment/PaymentWidget.js`: timeout scheduling failures now reject with `TimeoutError` instead of silently dropping timeout protection.
+- Changed `projects/hanwoo-dashboard/src/components/widgets/AIInsightWidget.js`: timeout scheduling failures now mark the call as timed out and abort into the existing heuristic timeout fallback.
+- Changed `projects/hanwoo-dashboard/src/app/api/ai/insight/route.js`: Gemini timeout scheduling failures now reject with `InsightTimeoutError` so the route returns the deterministic timeout fallback.
+- Strengthened `projects/hanwoo-dashboard/src/lib/payment-ux-copy.test.mjs` and `projects/hanwoo-dashboard/src/lib/ai-insight-widget-copy.test.mjs` coverage to keep immediate timeout fallback behavior.
+- Verification: `node --test src/lib/payment-ux-copy.test.mjs` passed 10/10, `node --test src/lib/ai-insight-widget-copy.test.mjs` passed 10/10, `npm.cmd test` passed 390/390, `npm.cmd run lint` passed clean, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1077 Setup progress malformed collection row hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/dashboard/setup-progress.mjs`: setup-progress item counting now counts only non-null object rows, so malformed collection payloads cannot falsely complete buildings, cattle, inventory, or schedule onboarding steps.
+- Strengthened `projects/hanwoo-dashboard/src/lib/dashboard/setup-progress.test.mjs` coverage to keep malformed collection rows ignored while preserving valid setup completion behavior.
+- Verification: `node --test src/lib/dashboard/setup-progress.test.mjs` passed 4/4, `npm.cmd test` passed 392/392, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1078 Today focus malformed collection hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/dashboard/today-focus.mjs`: notifications, schedule events, and inventory payloads are normalized to non-null object rows before critical-alert filtering, upcoming-schedule sorting, low-stock checks, and feed-depletion projections.
+- This prevents malformed cached/caller collection rows or non-array collection payloads from crashing the home priority panel while preserving valid alert, schedule, stock, and sales prompts.
+- Strengthened `projects/hanwoo-dashboard/src/lib/dashboard/today-focus.test.mjs` coverage for malformed rows and non-array collections.
+- Verification: `node --test src/lib/dashboard/today-focus.test.mjs` passed 13/13, `npm.cmd test` passed 394/394, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1079 Farm metrics malformed window hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/dashboard/farm-metrics.mjs`: feed-cost and weight-gain estimators now normalize malformed `windowMonths` values to safe positive defaults before date-window and denominator calculations.
+- This prevents invalid windows from producing non-finite feed-cost evidence or suppressing otherwise valid shipment weight-gain samples.
+- Strengthened `projects/hanwoo-dashboard/src/lib/dashboard/farm-metrics.test.mjs` coverage for malformed feed and weight window inputs.
+- Verification: `node --test src/lib/dashboard/farm-metrics.test.mjs` passed 12/12, `npm.cmd test` passed 396/396, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1080 AI insight weather numeric-string hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/ai-insight.mjs`: `summarizeFarmForInsight()` now normalizes weather `thi`, `temp`, and `humidity` through the finite-number helper so finite numeric strings are accepted while null/undefined/empty values remain unavailable.
+- This prevents cached/API weather payloads with stringified numbers from hiding heat-stress signals in AI insight prompts and heuristic cards.
+- Strengthened `projects/hanwoo-dashboard/src/lib/ai-insight.test.mjs` coverage for string weather numbers while preserving partial-weather fallback copy.
+- Verification: `node --test src/lib/ai-insight.test.mjs` passed 17/17, `npm.cmd test` passed 397/397, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1081 Weather current null/empty value hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/weather-state.mjs`: `toNumberOrNull()` now treats null, undefined, and empty required current values as unavailable instead of coercing them to 0.
+- This prevents incomplete Open-Meteo current payloads from rendering misleading 0-degree/0-percent weather states while preserving finite numeric-string support.
+- Strengthened `projects/hanwoo-dashboard/src/lib/weather-state.test.mjs` coverage for null and empty required current values.
+- Verification: `node --test src/lib/weather-state.test.mjs` passed 10/10, `npm.cmd test` passed 398/398, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1082 Inventory missing-quantity display hardening.
+- Changed `projects/hanwoo-dashboard/src/components/tabs/InventoryTab.js`: null, undefined, or empty inventory quantities now remain unavailable instead of being coerced to 0.
+- Missing quantities now render as `수량 미등록`, open the inline editor with an empty field, and do not trigger false low-stock warnings; valid finite numeric quantities still render and compare normally.
+- Strengthened `projects/hanwoo-dashboard/src/lib/empty-state-wiring.test.mjs` coverage for missing-quantity normalization and display behavior.
+- Verification: `node --test src/lib/empty-state-wiring.test.mjs` passed 18/18, `npm.cmd test` passed 399/399, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1083 Cattle weight-history point hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/cattle-history.mjs`: `extractWeightHistoryPoints()` now routes metadata weights through a positive-weight normalizer before adding chart points.
+- Empty, null, undefined, zero, or negative weight metadata can no longer become visible weight chart points through `Number()` coercion or finite-only checks; valid positive numeric strings and numbers still render normally.
+- Strengthened `projects/hanwoo-dashboard/src/lib/cattle-history.test.mjs` coverage for empty and non-positive weight metadata.
+- Verification: `node --test src/lib/cattle-history.test.mjs` passed 5/5, `npm.cmd test` passed 400/400, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1084 Cattle history malformed-row hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/cattle-history.mjs`: `normalizeCattleHistoryRows()` now returns an empty list for non-array history payloads and filters out malformed/non-object rows before parsing metadata or spreading row fields.
+- This prevents corrupted caller/cache history collections from leaking malformed entries into cattle detail history and weight-chart preparation while preserving valid rows and corrupt-metadata diagnostics.
+- Strengthened `projects/hanwoo-dashboard/src/lib/cattle-history.test.mjs` coverage for non-array and malformed row collections.
+- Verification: `node --test src/lib/cattle-history.test.mjs` passed 6/6, `npm.cmd test` passed 401/401, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1085 Cattle weight-history non-array extraction hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/cattle-history.mjs`: `extractWeightHistoryPoints()` now returns an empty list for non-array history payloads before filtering.
+- This prevents corrupted caller/cache history objects from crashing cattle detail weight-chart preparation while preserving valid array extraction, positive numeric weight normalization, and malformed row filtering.
+- Strengthened `projects/hanwoo-dashboard/src/lib/cattle-history.test.mjs` coverage for non-array weight-history payloads.
+- Verification: `node --test src/lib/cattle-history.test.mjs` passed 7/7, `npm.cmd test` passed 402/402, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1086 Notification timing malformed-options hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/notification-timing.mjs`: `getNotificationTargetDate()` now normalizes malformed options input before reading `now`, so null/non-object options cannot crash notification timing preparation during parameter destructuring.
+- Estrus and calving notification date calculations continue to use existing date parsing, impossible-date rejection, and default current-time behavior.
+- Strengthened `projects/hanwoo-dashboard/src/lib/notification-timing.test.mjs` coverage for null options in calving and estrus timing paths.
+- Verification: `npm.cmd test -- --runTestsByPath src/lib/notification-timing.test.mjs` ran the Hanwoo Node test suite and passed 404/404, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1087 Market and weather state malformed-options hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/market-price-state.mjs`: cache, live, and unavailable market-price state builders now normalize malformed options input before reading `now`, `freshnessMs`, or `message`.
+- Changed `projects/hanwoo-dashboard/src/lib/weather-state.mjs`: live, unavailable, and stale weather state builders now normalize malformed options input before reading `locationName` or `message`.
+- This prevents malformed caller fallback options from crashing KAPE market-price or Open-Meteo weather state preparation while preserving existing default Korean location/copy, freshness, and date behavior.
+- Strengthened `projects/hanwoo-dashboard/src/lib/market-price-state.test.mjs` and `projects/hanwoo-dashboard/src/lib/weather-state.test.mjs` coverage for null options.
+- Verification: `node --test src/lib/market-price-state.test.mjs src/lib/weather-state.test.mjs` passed 21/21, `npm.cmd test` passed 408/408, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1088 Shared fetch timeout malformed-options hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/fetchWithTimeout.js`: the shared timeout wrapper now normalizes malformed options input before reading `timeoutMs` or `errorMessage`.
+- This prevents shared dashboard refresh, payment confirmation, KAPE/MTRACE lookup, weather, and API proxy fetch paths from crashing before the guarded timeout/abort wrapper is installed.
+- Strengthened `projects/hanwoo-dashboard/src/lib/fetch-with-timeout.test.mjs` with a real `null` options call while preserving source assertions for timeout scheduling failure and cleanup guards.
+- Verification: `node --test src/lib/fetch-with-timeout.test.mjs` passed 2/2, `npm.cmd test` passed 409/409, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1089 Offline sync malformed-state hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/offline-sync-state.mjs`: offline queue metadata and failure-state helpers now normalize malformed item/options input before reading retry/dead-letter fields.
+- This prevents corrupted persisted offline queue rows or caller bugs from breaking sync recovery paths before retry metadata can be normalized.
+- Strengthened `projects/hanwoo-dashboard/src/lib/offline-sync-state.test.mjs` coverage for null queue metadata items and null failure options.
+- Verification: `node --test src/lib/offline-sync-state.test.mjs` passed 7/7, `npm.cmd test` passed 411/411, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1090 Offline queue persisted timestamp hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/offlineQueue.js`: queue item timestamps now require finite numbers and fall back to `Date.now()` when persisted storage contains non-finite values such as `1e999`.
+- This prevents corrupted offline queue rows from carrying impossible timestamps into sync retry/recovery paths while preserving valid ids, actions, args, and retry metadata normalization.
+- Strengthened `projects/hanwoo-dashboard/src/lib/offline-queue-storage.test.mjs` with a real browser-storage mock that verifies corrupted persisted timestamps are normalized and storage is rewritten.
+- Verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/offline-queue-storage.test.mjs` passed 3/3, `npm.cmd test` passed 412/412, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1091 BullMQ queue malformed-options hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/queue.js`: queue helpers now normalize malformed options input before reading queue prefixes, default job options, queue event options, or enqueue job options.
+- This prevents caller bugs from surfacing generic TypeErrors before the existing Redis/BullMQ configuration checks can return actionable setup errors.
+- Added `projects/hanwoo-dashboard/src/lib/queue.test.mjs` with focused coverage for null options while Redis is intentionally unset.
+- Verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/queue.test.mjs` passed 1/1, `npm.cmd test` passed 413/413, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1092 Dashboard cache malformed-input hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/dashboard/cache.js`: cache key builders now normalize malformed cattle/sales filter objects before destructuring, and cache delete helpers now normalize malformed key/prefix lists before filtering.
+- This prevents caller bugs from throwing TypeErrors before stable default cache keys, Redis configuration checks, or cache invalidation fallbacks can run.
+- Added `projects/hanwoo-dashboard/src/lib/dashboard/cache.test.mjs` coverage for null filters and null delete lists.
+- Verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/dashboard/cache.test.mjs` passed 2/2, `npm.cmd test` passed 415/415, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1093 Dashboard read-model malformed-options hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/dashboard/read-models.js`: summary, notification, and market snapshot readers now normalize malformed cache options before reading `bypassCache`, and dashboard cache invalidation now normalizes malformed input before reading farm ids, cache flags, or snapshot delete flags.
+- This prevents caller bugs from throwing generic TypeErrors before cache fallback, Redis no-op behavior, or targeted invalidation can run.
+- Added `projects/hanwoo-dashboard/src/lib/dashboard/read-models-options.test.mjs` source regression coverage for safe option/input access.
+- Verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/dashboard/read-models-options.test.mjs` passed 2/2, `npm.cmd test` passed 417/417, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1094 Dashboard list query malformed-input hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/dashboard/list-queries.js`: cattle/sales list query parsers now read search params through a guarded helper, and list page loaders normalize malformed input before destructuring.
+- This preserves normal API route validation while preventing malformed internal reuse from throwing TypeErrors before default query values, validation, cache lookup, or DB query preparation can run.
+- Added `projects/hanwoo-dashboard/src/lib/dashboard-list-query-input.test.mjs` coverage for safe search-param access and safe list-page input destructuring.
+- Verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/dashboard-list-query-input.test.mjs` passed 2/2, `npm.cmd test` passed 419/419, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1095 Auth guard malformed-options hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/auth-guard.js`: `requireAuthenticatedSession()` now normalizes malformed options input before reading `redirectToLogin`.
+- This prevents caller bugs from throwing generic TypeErrors before the shared authentication guard can run auth, degrade infrastructure failures to `AuthenticationError`, or redirect unauthenticated page callers.
+- Added `projects/hanwoo-dashboard/src/lib/auth-guard-options.test.mjs` source regression coverage for safe auth-guard option destructuring.
+- Verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/auth-guard-options.test.mjs` passed 1/1, `npm.cmd test` passed 420/420, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build after rerunning without a concurrent Next build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1096 Home cache invalidation malformed-options hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/actions/_helpers.js`: `invalidateHomeCaches()` now normalizes malformed options input before spreading options into dashboard read-model invalidation or reading `cattleListPages` / `salesListPages` for Next cache tag revalidation.
+- This prevents caller bugs from throwing generic TypeErrors after DB mutations but before dashboard read-model and framework cache invalidation can complete.
+- Added `projects/hanwoo-dashboard/src/lib/actions-helper-options.test.mjs` source regression coverage for safe helper option access while preserving existing `use cache` tag wiring checks.
+- Verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/actions-helper-options.test.mjs src/lib/dashboard/use-cache-config.test.mjs` passed 14/14, `npm.cmd test` passed 421/421, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build after rerunning without a concurrent Next build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1097 Cattle history metadata serialization hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/actions/_helpers.js`: `recordCattleHistory()` now serializes optional metadata through a guarded helper.
+- Unserializable metadata now logs `Failed to serialize cattle history metadata:` and falls back to `null` metadata instead of preventing the cattle history row from being written.
+- This preserves audit/history records for successful cattle and sales mutations even when optional metadata is malformed.
+- Added `projects/hanwoo-dashboard/src/lib/cattle-history-recording.test.mjs` source regression coverage for safe cattle history metadata serialization.
+- Verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/cattle-history-recording.test.mjs src/lib/cattle-history.test.mjs src/lib/actions-helper-options.test.mjs` passed 9/9, `npm.cmd test` passed 422/422, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1098 Cattle history event-date hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/actions/_helpers.js`: `recordCattleHistory()` now normalizes `eventDate` through a guarded helper before passing it to Prisma.
+- Malformed history date input now falls back to the current time instead of creating an invalid `Date`, preserving audit/history rows for successful cattle and sales mutations.
+- Extended `projects/hanwoo-dashboard/src/lib/cattle-history-recording.test.mjs` source regression coverage for safe event-date normalization while keeping the metadata serialization fallback covered.
+- Verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/cattle-history-recording.test.mjs src/lib/cattle-history.test.mjs src/lib/actions-helper-options.test.mjs` passed 10/10, `npm.cmd test` passed 423/423, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1099 Payment confirmation malformed-helper-input hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/payment-confirmation.mjs`: `buildGatewayErrorMessage()` and `classifyPaymentConfirmationResult()` now normalize malformed helper input before reading gateway payloads, raw response text, fallback messages, status codes, parse errors, expected amounts, or clock providers.
+- This prevents caller bugs from throwing generic TypeErrors before the payment flow can return safe Korean fallback responses, pending verification states, or amount-mismatch failures.
+- Strengthened `projects/hanwoo-dashboard/src/lib/payment-confirmation.test.mjs` coverage for malformed payment confirmation helper inputs.
+- Verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/payment-confirmation.test.mjs` passed 13/13, `npm.cmd test` passed 425/425, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1100 Dashboard pagination guard malformed-helper-input hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/dashboard/pagination-guard.mjs`: pagination guard helpers now normalize malformed top-level helper input, malformed page-info payloads, and malformed `seenCursors` input before checking page transitions.
+- This prevents caller/cache bugs from throwing generic TypeErrors before pagination can stop safely, report loop/cursor errors, or continue with a valid next cursor.
+- Strengthened `projects/hanwoo-dashboard/src/lib/dashboard/pagination-guard.test.mjs` coverage for malformed pagination guard helper inputs.
+- Verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/dashboard/pagination-guard.test.mjs src/lib/cattle-pagination-feedback.test.mjs src/lib/sales-pagination-feedback.test.mjs src/lib/cursor-pagination-feedback.test.mjs` passed 12/12, `npm.cmd test` passed 427/427, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1101 Auth credential dependency-input hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/auth-credentials.mjs`: `authorizeCredentials()` now normalizes malformed dependency-injection input before reading `loadPrisma` or `loadBcrypt`.
+- This prevents caller/test harness bugs from throwing generic TypeErrors before the login credential helper can preserve its safe invalid-credential `null` fallback.
+- Strengthened `projects/hanwoo-dashboard/src/lib/auth-credentials.test.mjs` coverage for malformed auth dependency input.
+- Verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/auth-credentials.test.mjs src/lib/auth-guard-options.test.mjs` passed 6/6, `npm.cmd test` passed 428/428, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1102 Expense record filter malformed-input hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/actions/expense.js`: `getExpenseRecords()` now normalizes malformed filter input before reading cattle, building, category, or date filter fields.
+- This prevents caller bugs from falling into the generic expense fetch catch/log path before the action can build a safe empty query filter and apply guarded date parsing.
+- Strengthened `projects/hanwoo-dashboard/src/lib/expense-filter-date.test.mjs` coverage for safe expense filter normalization.
+- Verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/expense-filter-date.test.mjs src/lib/actions-copy.test.mjs` passed 3/3, `npm.cmd test` passed 428/428, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1103 AI insight cache helper malformed-input hardening.
+- Changed `projects/hanwoo-dashboard/src/lib/ai-insight-cache.mjs`: cache-key building, summary hashing, cache reads, cache writes, and cache pruning now normalize malformed helper input, circular/non-JSON summary values, malformed timestamps, and malformed cache options.
+- This prevents cache metadata bugs from throwing or surfacing non-finite cache age values while preserving same-day per-user AI insight reuse and force-refresh behavior.
+- Strengthened `projects/hanwoo-dashboard/src/lib/ai-insight-cache.test.mjs` coverage for malformed AI insight cache helper inputs.
+- Verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/ai-insight-cache.test.mjs src/lib/ai-insight.test.mjs src/lib/ai-insight-widget-copy.test.mjs` passed 41/41, `npm.cmd test` passed 442/442, `npm.cmd run lint` passed clean, `npm.cmd run build` passed, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build.
 - Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.

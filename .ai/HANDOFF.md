@@ -8,6 +8,167 @@
 |---|---|
 | Date | 2026-05-27 |
 | Tool | Claude Opus 4.7 (1M context) |
+| Work | **/goal "개선안 만들고 완성품 만들어줘" — 3개 커밋 출하**: (1) `chore(hanwoo-dashboard) ecdfcca5`: Codex T-1008~T-1100 하드닝 94개 파일을 한 번에 검증 후 커밋 (test 428/428, lint clean, build exit 0). HANDOFF는 개별 변경마다 green 주장했지만 멀티툴 race 메모리 정책상 직접 검증 후 일괄 커밋. (2) `feat(hanwoo-dashboard) 1bbe34ba`: `AIInsightWidget` 일일 in-memory 캐시 (`src/lib/ai-insight-cache.mjs`). userId + Asia/Seoul YYYY-MM-DD + summary SHA-256(16) 해시 결합 키, AI 응답만 캐싱(휴리스틱 제외), 256엔트리 prune, `forceRefresh:true` 송신 시 키 삭제 후 재호출. 위젯엔 "N분 전 캐시" 미니 배지. (3) `feat(blind-to-x) 12f16a04`: `scripts/tune_best_of_n_weight.py` dry-run CLI. 최근 published draft_analytics 로우의 engagement_rate 와 hook/virality/fit/final_rank 각 축 Pearson r 계산 + 가능 시 comment_trigger_avg sweep으로 `llm.best_of_n_comment_weight` 추천(config 미변경, `--json` 자동화 모드 포함). |
+| Next Priorities | T-251 (Supabase password resync, user-owned) 그대로. 신규 후속 후보: ① `comment_trigger_avg` 컬럼을 `draft_analytics`에 영속화하고 `draft_generator._combined_candidate_score` 결과를 record_draft 시점에 전파 — 그러면 튜너의 sweep 분기가 실데이터로 가동. ② AI Insight 캐시를 Redis로 옮기면 다중 인스턴스에서도 hit 됨(현재는 per-instance Map). ③ AI Insight 캐시 hit/miss 비율을 Langfuse에 트레이싱(이미 opt-in `LANGFUSE_ENABLED` 인프라 존재). 검증: hanwoo `npm test` 439/439, lint clean, build exit 0. blind-to-x `pytest test_tune_best_of_n_weight.py` 15/15, ruff clean. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Payment and AI insight timeout scheduling failure hardening**: Continued the active Hanwoo quality uplift by tightening timeout scheduling failure paths. Payment widget timeout scheduling failures now immediately reject with `TimeoutError`, AI insight client timeout scheduling failures immediately abort into the timeout fallback, and the AI insight API timeout wrapper rejects with `InsightTimeoutError` instead of silently losing timeout protection. Strengthened payment and AI insight regression coverage to keep immediate timeout fallback behavior. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/payment-ux-copy.test.mjs` passed 10/10, `node --test src/lib/ai-insight-widget-copy.test.mjs` passed 10/10, `npm.cmd test` passed 390/390, `npm.cmd run lint` passed clean, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Payment and AI insight deferred reset fallback hardening**: Continued the active Hanwoo quality uplift by adding guarded deferred-task helpers to `PaymentWidget` and `AIInsightWidget`. Payment widget-ready/error resets and AI heuristic insight refresh resets now route through Promise-backed fallback scheduling, so restricted browser environments where `queueMicrotask` throws still preserve existing cancellation and abort guards. Strengthened payment and AI insight regression coverage to keep the helpers and prevent raw reset microtasks from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/payment-ux-copy.test.mjs` passed 10/10, `node --test src/lib/ai-insight-widget-copy.test.mjs` passed 10/10, `npm.cmd test` passed 390/390, `npm.cmd run lint` passed clean, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Cattle form/detail deferred reset fallback hardening**: Continued the active Hanwoo quality uplift by adding guarded deferred-task helpers to `CattleForm` and `CattleDetailModal`. Save-state resets and breeding-action resets now route through Promise-backed fallback scheduling, so restricted browser environments where `queueMicrotask` throws still preserve existing cancellation guards. Strengthened cattle form/detail regression coverage to keep the helpers and prevent raw reset microtasks from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/cattle-detail-modal-wiring.test.mjs` passed 17/17, `npm.cmd test` passed 390/390, `npm.cmd run lint` passed clean, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Admin diagnostics deferred loading fallback hardening**: Continued the active Hanwoo quality uplift by centralizing diagnostics loading-state deferral behind `deferDiagnosticsTask()`. Both system diagnostics and raw-data loading resets now share guarded `queueMicrotask` scheduling with a Promise fallback, preserving cancellation and latest-request guards even in restricted browser environments where microtask scheduling throws. Strengthened diagnostics regression coverage to keep the helper and prevent raw initialization microtasks from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/diagnostics-copy.test.mjs` passed 4/4, `npm.cmd test` passed 390/390, `npm.cmd run lint` passed clean, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Ear-tag scanner deferred task fallback hardening**: Continued the active Hanwoo quality uplift by centralizing scanner microtask scheduling behind `deferScannerTask()`. Initial target selection and deferred no-match fallback now share guarded `queueMicrotask` scheduling with a Promise fallback, preserving cleanup guards even in restricted browser environments where microtask scheduling throws. Strengthened scanner regression coverage to keep the helper and prevent raw initialization microtasks from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/eartag-scanner-modal-accessibility.test.mjs` passed 5/5, `npm.cmd test` passed 390/390, `npm.cmd run lint` passed clean, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Dashboard summary and notification refresh unmount cleanup hardening**: Continued the active Hanwoo quality uplift by guarding dashboard summary and notification refresh completions with the existing dashboard mounted-state ref. Stale API/getNotifications completions now avoid summary, summary metadata, and notification state updates after dashboard unmount while preserving latest-request ordering for mounted summary refreshes. Strengthened home dashboard regression coverage to keep guarded refresh completion paths. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/home-market-copy.test.mjs` passed 50/50, `npm.cmd test` passed 387/387, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Dashboard cattle create/update unmount cleanup hardening**: Continued the active Hanwoo quality uplift by guarding dashboard cattle create and update online server-action completion paths with the existing dashboard mounted-state ref. Stale completions now avoid cattle state, modal/edit state, selected-cow state, dashboard refresh, and toast updates after dashboard unmount while still returning successful server-action completion as true. Strengthened home dashboard regression coverage to keep guarded cattle create/update success/error/catch paths. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/home-market-copy.test.mjs` passed 49/49, `npm.cmd test` passed 386/386, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Dashboard farm settings mutation unmount cleanup hardening**: Continued the active Hanwoo quality uplift by guarding the dashboard farm settings save completion path with the existing dashboard mounted-state ref. Stale completions now avoid farm settings state and toast updates after dashboard unmount while still returning successful server-action completion as true. Strengthened home dashboard regression coverage to keep guarded farm settings success/error paths. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/home-market-copy.test.mjs` passed 48/48, `npm.cmd test` passed 385/385, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Dashboard calving mutation unmount cleanup hardening**: Continued the active Hanwoo quality uplift by guarding the dashboard calving server-action completion path with the existing dashboard mounted-state ref. Stale completions now avoid calving cattle state, dashboard refresh, and toast updates after dashboard unmount while still returning successful server-action completion as true. Strengthened home dashboard regression coverage to keep guarded calving success/error paths. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/home-market-copy.test.mjs` passed 47/47, `npm.cmd test` passed 384/384, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Dashboard sales and feed mutation unmount cleanup hardening**: Continued the active Hanwoo quality uplift by guarding dashboard sales-record create and feed-record create handlers with the existing dashboard mounted-state ref. Stale server-action completions now avoid sales/feed state, dashboard refresh, and toast updates after dashboard unmount while still returning successful server-action completion as true. Strengthened home dashboard regression coverage to keep guarded sales/feed success/error paths. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/home-market-copy.test.mjs` passed 46/46, `npm.cmd test` passed 383/383, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Dashboard schedule mutation unmount cleanup hardening**: Continued the active Hanwoo quality uplift by guarding dashboard schedule create and completion-toggle handlers with the existing dashboard mounted-state ref. Stale server-action completions now avoid schedule state and toast updates after dashboard unmount while still returning successful server-action completion as true. Strengthened home dashboard regression coverage to keep guarded schedule create/toggle success/error paths. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/home-market-copy.test.mjs` passed 45/45, `npm.cmd test` passed 382/382, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Dashboard inventory mutation unmount cleanup hardening**: Continued the active Hanwoo quality uplift by guarding dashboard inventory create and quantity-update handlers with the existing dashboard mounted-state ref. Stale server-action completions now avoid inventory state and toast updates after dashboard unmount while still returning successful server-action completion as true. Strengthened home dashboard regression coverage to keep guarded inventory create/update success/error paths. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/home-market-copy.test.mjs` passed 44/44, `npm.cmd test` passed 381/381, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Dashboard building mutation unmount cleanup hardening**: Continued the active Hanwoo quality uplift by guarding dashboard building create/delete handlers with the existing dashboard mounted-state ref. Stale server-action completions now avoid building state, selected-building, selected-pen, and toast updates after unmount while still returning successful server-action completion as true. Strengthened home dashboard regression coverage to keep guarded building create/delete success/error paths. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/home-market-copy.test.mjs` passed 43/43, `npm.cmd test` passed 380/380, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Cattle detail breeding save unmount cleanup hardening**: Continued the active Hanwoo quality uplift by adding a mounted-state guard to `CattleDetailModal`. Async breeding-record finalizers now release the duplicate-submit ref while avoiding React state updates after component unmount. Strengthened cattle form/detail source regression coverage to keep the mounted cleanup guard and guarded saved-result/finalizer paths. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/cattle-detail-modal-wiring.test.mjs` passed 17/17, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Cattle form save unmount cleanup hardening**: Continued the active Hanwoo quality uplift by extending the existing `CattleForm` mounted-state guard to cover cattle-save finalizers. Unmount cleanup now releases the save duplicate-submit ref, and async save completion avoids React state updates after component unmount. Strengthened cattle form/detail source regression coverage to keep the save cleanup guard and guarded save finalizer. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/cattle-detail-modal-wiring.test.mjs` passed 17/17, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Settings tab async cleanup unmount hardening**: Continued the active Hanwoo quality uplift by adding a mounted-state guard to `SettingsTab`. Farm settings saves, building creates, and building deletes now release duplicate-action refs while avoiding React state/reset updates after component unmount. Strengthened Settings source regression coverage to keep the mounted cleanup guard and guarded saved/confirmed/finalizer paths. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/settings-tab-accessibility.test.mjs` passed 14/14, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Calving tab async cleanup unmount hardening**: Continued the active Hanwoo quality uplift by adding a mounted-state guard to `CalvingTab`. Async calving-record create finalizers now release the duplicate-submit ref while avoiding React state/reset updates after component unmount. Strengthened Calving source regression coverage to keep the mounted cleanup guard and guarded recorded-result/finalizer paths. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/calving-tab-accessibility.test.mjs` passed 6/6, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Feed tab async cleanup unmount hardening**: Continued the active Hanwoo quality uplift by adding a mounted-state guard to `FeedTab`. Async feed-record create finalizers now release the duplicate-submit ref while avoiding React state/reset updates after component unmount. Strengthened Feed/empty-state source regression coverage to keep the mounted cleanup guard and guarded recorded-result/finalizer paths. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/empty-state-wiring.test.mjs` passed 17/17, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Sales tab async cleanup unmount hardening**: Continued the active Hanwoo quality uplift by adding a mounted-state guard to `SalesTab`. Async sales-record create finalizers now release the duplicate-submit ref while avoiding React state/reset updates after component unmount. Strengthened Sales/home source regression coverage to keep the mounted cleanup guard and guarded saved-result/finalizer paths. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/home-market-copy.test.mjs src/lib/empty-state-wiring.test.mjs` passed 58/58, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Inventory tab async cleanup unmount hardening**: Continued the active Hanwoo quality uplift by adding a mounted-state guard to `InventoryTab`. Async inventory-create and inline quantity-update finalizers now release duplicate-action refs while avoiding React state/reset updates after component unmount. Strengthened Inventory/home source regression coverage to keep the mounted cleanup guard, guarded saved-result paths, and guarded quantity reset finalizer. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/empty-state-wiring.test.mjs src/lib/home-market-copy.test.mjs` passed 58/58, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Schedule tab async cleanup unmount hardening**: Continued the active Hanwoo quality uplift by adding a mounted-state guard to `ScheduleTab`. Async schedule-create and completion-toggle finalizers now release duplicate-action refs while avoiding React state/reset updates after component unmount. Strengthened Schedule and empty-state source regression coverage to keep the mounted cleanup guard and tolerate the guarded saved-result path. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/empty-state-wiring.test.mjs src/lib/tab-header-accessibility.test.mjs` passed 25/25, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard React hooks lint suppression removal**: Continued the active Hanwoo quality uplift by replacing the remaining Hanwoo `eslint-disable` hook suppressions with structural code paths. Diagnostics, cattle form/detail, and payment widget effect resets now defer state updates through guarded microtasks, and CattleForm uses an event submit wrapper instead of render-time `handleSubmit(submitForm)`. Strengthened diagnostics, payment, and cattle form/detail source regression coverage to keep the no-suppression pattern. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/diagnostics-copy.test.mjs src/lib/payment-ux-copy.test.mjs src/lib/cattle-detail-modal-wiring.test.mjs` passed 30/30, `npm.cmd test` passed 375/375, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Claude Opus 4.7 (1M context) |
 | Work | **active-project-matrix CI rescue (full pipeline back to green)**: Investigated `active-project-matrix` failure on `e681dc60` and unblocked the entire CI in three steps. (1) `pnpm-lock.yaml` importers had stale specifiers (`@serwist/next ^9.5.7`, `bullmq ^5.76.8`, `react-hook-form ^7.71.2`) after Dependabot PRs #90/#106/#81 — refreshed via `pnpm install --lockfile-only` (Windows-safe per memory `pnpm_install_windows_korean_path_20260520`). (2) `.github/workflows/full-test-matrix.yml` test/build/lint steps used pnpm script shorthand `pnpm --filter X build --if-present` which passes `--if-present` to the inner `next build --webpack` and fails with `unknown option`. Aligned with the working smoke pattern (`pnpm --filter X run --if-present <script>`). (3) `pnpm-lock` refresh bumped `eslint-plugin-react-hooks` 7.0.1 → 7.1.1 exposing 14 new violations. Coordinated with parallel Codex worktree: Codex extracted RHF `<form onSubmit={handleSubmit(submitX)}>` patterns into wrapper handlers (the right structural fix, not a suppression) covering 9 refs cases; I suppressed the 5 intentional initial-loading/setState-reset cases (DiagnosticsPageClient/CattleDetailModal/CattleForm/PaymentWidget) plus the EarTagScannerModal `queueMicrotask` migration. Also bundled Codex's 70-file hanwoo quality uplift (T-988..T-1021) which had been verified-but-uncommitted, after running full local QC. |
 | Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Multi-tool race learning: Codex was producing T-1xxx work concurrently with this session — `multi_tool_git_index_race_20260520` pattern. Detected before committing by verifying Codex's `npm.cmd test` claims locally; safe because both tools ended up converging on the same fix (Codex via wrapper extraction, me via targeted disable-next-line). Current verification: hanwoo `npm.cmd run lint` exits 0 (clean, zero warnings after `eslint --fix --report-unused-disable-directives`), `npm.cmd test` passes 372/372, suika-game-v2 61/61, word-chain 23/23, knowledge-dashboard 3/3. CI commits pushed: `53ee47d0` lockfile fix, `8d466d50` workflow fix, `1b448130` lint violation fix — CI fully green on `1b448130` (both root-quality-gate and active-project-matrix). |
 
@@ -2392,6 +2553,377 @@
 | Tool | Codex |
 | Work | **hanwoo-dashboard Shared focus failure hardening**: Continued the active Hanwoo quality uplift by adding `focusElementSafely()` and routing cattle form, cattle detail, AI chat panel/launcher, and notification modal focus restoration through it. Restricted browser focus APIs no longer break modal/chat open-close flows; focus now degrades best-effort. Strengthened modal/chat regression coverage to keep the shared helper, guarded focus calls, and prevention of direct optional focus calls returning. |
 | Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/cattle-detail-modal-wiring.test.mjs src/lib/ai-chat-widget-copy.test.mjs src/lib/notification-modal-copy.test.mjs` passed 26/26, `npm.cmd test` passed 370/370, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Dashboard ErrorBoundary reset-handler failure hardening**: Continued the active Hanwoo quality uplift by wrapping custom `onReset` recovery callbacks in the dashboard runtime `ErrorBoundary`. Synchronous throws and promise rejections from custom reset handlers now route through the same fallback-state logging path as reload failures instead of escaping from the recovery button event handler. Strengthened error-page source regression coverage to keep guarded custom reset handling and shared reset failure logging. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/error-pages-wiring.test.mjs` passed 10/10, `npm.cmd test` passed 376/376, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Field Mode full-list async cleanup hardening**: Continued the active Hanwoo quality uplift by adding a cleanup guard to the Field Mode background full-cattle-list loading effect. Stale `ensureAllCattleLoaded()` completions after unmount or dependency replacement no longer update `loadingAllCattle` state. Strengthened FieldMode source regression coverage to keep the cleanup guard and prevent direct `.finally(() => setLoadingAllCattle(false))` from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/field-mode-celebration.test.mjs` passed 13/13, `npm.cmd test` passed 377/377, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Dashboard full-list preload unmount cleanup hardening**: Continued the active Hanwoo quality uplift by adding a dashboard mounted-state guard around full cattle registry and full sales ledger preload completions. Stale preload resolve/reject/finally paths after dashboard unmount no longer update registry, error, or loading state while still clearing in-flight refs. Strengthened home dashboard regression coverage to keep the mounted guard on cattle and sales preload success/error/loading paths. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/home-market-copy.test.mjs` passed 41/41, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Notification modal SMS async cleanup hardening**: Continued the active Hanwoo quality uplift by adding a mounted-state guard to the notification modal SMS test action. Stale `onTestSMS` promise completions after modal unmount no longer update `isTestingSMS` state, while mounted sends still keep the existing busy lock and restore the button when complete. Strengthened notification modal regression coverage to keep the mounted guard and prevent direct `finally { setIsTestingSMS(false); }` from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/notification-modal-copy.test.mjs` passed 8/8, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI chat stream unmount cleanup hardening**: Continued the active Hanwoo quality uplift by adding a mounted-state guard and unmount abort cleanup to the AI chat widget. Stale stream chunk/done/error callbacks and aborted-stream finalizers after component unmount no longer update messages or streaming state, while normal close still aborts the active stream and clears the visible busy state. Strengthened AI chat source regression coverage to keep the mounted guard, unmount abort, and guarded stream callbacks. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/ai-chat-widget-copy.test.mjs` passed 2/2, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Excel export async cleanup unmount hardening**: Continued the active Hanwoo quality uplift by adding a mounted-state guard to the Excel/CSV export button. Stale async export finalizers after component unmount no longer update `isPreparing` state, while temporary download-link/Blob URL cleanup and duplicate-export lock release still run. Strengthened Excel export source regression coverage to keep the mounted guard and prevent direct finalizer state resets from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/excel-export-button-copy.test.mjs` passed 3/3, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Market price refresh start unmount hardening**: Continued the active Hanwoo quality uplift by adding a mounted-state start guard to the market price widget refresh path. Delayed refresh calls after component unmount now return without starting a new KAPE request or setting `loading` state, while existing mounted completion guards still protect stale success/finally paths. Strengthened home/market regression coverage to keep the start guard plus completion/loading guards. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/home-market-copy.test.mjs` passed 41/41, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard QR print callback unmount cleanup hardening**: Continued the active Hanwoo quality uplift by adding a mounted-state guard to the QR print widget. Popup load/fallback callbacks and print failure/completion paths after component unmount no longer update printing or status state; unmounted finish-print callbacks now close the print window and release the duplicate-print lock without touching React state. Strengthened QR regression coverage to keep the mounted guard, guarded status updates, and unmounted finish-print short-circuit. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/qr-widget-copy.test.mjs` passed 7/7, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Payment widget async cleanup unmount hardening**: Continued the active Hanwoo quality uplift by adding a mounted-state guard to the payment checkout widget. Async payment request finalizers now release the duplicate-submit ref while avoiding `setIsSubmitting(false)` after component unmount. Strengthened payment UX regression coverage to keep the mounted cleanup guard and guarded payment finalizer. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/payment-ux-copy.test.mjs` passed 9/9, `npm.cmd test` passed 378/378, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Dashboard cattle archive unmount cleanup hardening**: Continued the active Hanwoo quality uplift by guarding the dashboard cattle archive flow with the existing dashboard mounted-state ref. Async delete success, error, catch, and finalizer paths no longer update dashboard state or show toasts after unmount, while successful server-action completion still returns `true`. Strengthened home and cattle-detail regression coverage to keep the guarded archive paths. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/home-market-copy.test.mjs src/lib/cattle-detail-modal-wiring.test.mjs` passed 59/59, `npm.cmd test` passed 379/379, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Login submit unmount cleanup hardening**: Continued the active Hanwoo quality uplift by adding a mounted-state guard to the login submit flow. Async sign-in, credential failure, navigation failure, catch, and finalizer paths now release the duplicate-submit ref while avoiding login error/submitting state updates after unmount. Strengthened login/error-page regression coverage to keep the mounted cleanup guard and guarded submit finalizer. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/error-pages-wiring.test.mjs` passed 10/10, `npm.cmd test` passed 379/379, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI insight stale callback cleanup hardening**: Continued the active Hanwoo quality uplift by adding a cleanup cancellation guard to the AI insight widget. Stale summary-change or unmount callbacks now avoid heuristic reset, parsed-response, fallback-reason, and loading-state updates after cleanup while preserving the existing timeout abort fallback behavior. Strengthened AI insight regression coverage to keep the cancellation guard across microtask, success, catch, finalizer, and cleanup paths. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/ai-insight-widget-copy.test.mjs` passed 10/10, `npm.cmd test` passed 379/379, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Dashboard drag move confirmation unmount cleanup hardening**: Continued the active Hanwoo quality uplift by adding a mounted-state guard immediately after the drag-and-drop cattle move confirmation dialog resolves. Stale confirmation completions after dashboard unmount now return before building the update payload or entering the cattle update/offline mutation path. Strengthened home dashboard regression coverage to keep the post-confirmation guard. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/home-market-copy.test.mjs` passed 51/51, `npm.cmd test` passed 388/388, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Subscription success timer cleanup hardening**: Continued the active Hanwoo quality uplift by adding cleanup-aware cancellation guards to the subscription success page timer callbacks. Invalid-amount status updates, delayed dashboard redirects, redirect-failure status updates, and pending-confirmation retry callbacks now avoid stale work after the payment success component has cleaned up. Strengthened payment UX regression coverage to keep the stale timer callback guards. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/payment-ux-copy.test.mjs` passed 10/10, `npm.cmd test` passed 389/389, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Feedback provider unmount cleanup hardening**: Continued the active Hanwoo quality uplift by adding mounted-state guards to toast dismissal, notification scheduling, delayed toast callbacks, and confirmation close state updates. Provider cleanup now clears toast timers and resolves any pending confirmation dialog promise as `false`, preventing awaiting dashboard actions from hanging on stale confirmation state after provider unmount. Strengthened feedback provider regression coverage. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/feedback-provider-copy.test.mjs` passed 4/4, `npm.cmd test` passed 390/390, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Ear-tag scanner deferred no-match cleanup hardening**: Continued the active Hanwoo quality uplift by adding cleanup-aware guards to the scanner modal's deferred no-match fallback. Missing canvas contexts and animation-frame scheduling failures no longer update scan state after the modal has closed or the effect has cleaned up. Strengthened scanner regression coverage to keep the guarded microtask fallback and frame-failure cleanup paths. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/eartag-scanner-modal-accessibility.test.mjs` passed 5/5, `npm.cmd test` passed 390/390, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Field Mode celebration timer cleanup hardening**: Continued the active Hanwoo quality uplift by adding cleanup-aware guards to Field Mode celebration close timers and animation-frame failure timers. No-canvas fallback, frame-failure fallback, particle-completion, and the normal 4.5s close callback now avoid state updates after the celebration effect has cleaned up. Strengthened FieldMode regression coverage. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/field-mode-celebration.test.mjs` passed 13/13, `npm.cmd test` passed 390/390, `npm.cmd run lint` passed clean, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Pagination hook timeout scheduling failure hardening**: Continued the active Hanwoo quality uplift by tightening cattle, sales, and shared cursor pagination hooks. Timeout scheduling failures now immediately mark the request timed out and abort the controller instead of silently dropping timeout protection in restricted browser environments. Added shared cursor pagination regression coverage and strengthened cattle/sales pagination coverage. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/cattle-pagination-feedback.test.mjs src/lib/sales-pagination-feedback.test.mjs src/lib/cursor-pagination-feedback.test.mjs` passed 5/5, `npm.cmd test` passed 391/391, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Market price polling fallback hardening**: Continued the active Hanwoo quality uplift by tightening the market price widget hourly KAPE refresh path. Restricted browser environments where `window.setInterval` throws now fall back to a cleanup-aware `setTimeout` polling loop instead of permanently losing automatic price refreshes. Strengthened home/market regression coverage to keep fallback polling and cleanup behavior. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/home-market-copy.test.mjs` passed 51/51, `npm.cmd test` passed 391/391, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Online-status listener partial-registration cleanup hardening**: Continued the active Hanwoo quality uplift by tightening `useOnlineStatus()`. If restricted browser event listener setup fails after one online/offline listener was already attached, the hook now removes any partial registration before returning, and normal unmount cleanup removes only listeners confirmed registered. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/use-online-status.test.mjs` passed 2/2, `npm.cmd test` passed 391/391, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Widget settings unknown-id guard hardening**: Continued the active Hanwoo quality uplift by tightening `useWidgetSettings()`. Only ids registered in `WIDGET_REGISTRY` can now be toggled, so accidental caller bugs or stale UI events cannot persist unknown widget keys into local visibility settings. Strengthened settings coverage to keep the guard before state/storage mutation. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/settings-tab-accessibility.test.mjs` passed 14/14, `npm.cmd test` passed 391/391, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard QR print completion callback scheduling failure hardening**: Continued the active Hanwoo quality uplift by tightening QR label print completion scheduling. Print-window load listener registration and fallback timer scheduling now return success flags, and if both paths fail in a restricted browser environment, the print completion cleanup runs immediately so the duplicate-print lock and busy state do not stay stuck. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/qr-widget-copy.test.mjs` passed 7/7, `npm.cmd test` passed 391/391, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Field Mode delayed celebration firework cleanup hardening**: Continued the active Hanwoo quality uplift by tightening the Field Mode celebration effect. Delayed secondary firework timer callbacks now check the existing cleanup cancellation flag before mutating the local particle queue, preventing stale timer callbacks from doing post-cleanup animation work if timer cleanup is unavailable in a restricted browser environment. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/field-mode-celebration.test.mjs` passed 13/13, `npm.cmd test` passed 391/391, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Weather geolocation stale-callback cleanup hardening**: Continued the active Hanwoo quality uplift by tightening the dashboard weather effect and shared `useWeather()` hook. Geolocation success/error callbacks now return after effect cleanup before starting fallback or coordinate weather fetches, avoiding post-unmount network work while preserving the existing stale-state update guards. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/home-market-copy.test.mjs` passed 51/51, `npm.cmd test` passed 391/391, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Weather zero-coordinate handling hardening**: Continued the active Hanwoo quality uplift by tightening the dashboard weather effect and shared `useWeather()` hook. Farm weather coordinates are now treated as present when they are non-null/non-undefined, allowing valid zero latitude or longitude values to reach the existing coordinate validator instead of being misclassified as missing coordinates. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/home-market-copy.test.mjs` passed 51/51, `npm.cmd test` passed 391/391, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Profitability zero purchase-price handling hardening**: Continued the active Hanwoo quality uplift by tightening the profitability estimate service. A valid `purchasePrice` of `0` is now preserved as the base cost, and only malformed/missing purchase-price input falls back to `DEFAULT_CALF_COST`, preventing self-bred or zero-cost cattle from being over-costed in shipment profitability estimates. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/profitability-copy.test.mjs` passed 10/10, `npm.cmd test` passed 391/391, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Setup progress malformed collection row hardening**: Continued the active Hanwoo quality uplift by tightening setup-progress item counting. Only non-null object rows now count as completed operating data, so malformed cached/caller rows in buildings, cattle, inventory, or schedule collections cannot falsely complete onboarding steps. Strengthened setup-progress regression coverage to keep malformed collection rows ignored. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/dashboard/setup-progress.test.mjs` passed 4/4, `npm.cmd test` passed 392/392, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Today focus malformed collection hardening**: Continued the active Hanwoo quality uplift by tightening `buildTodayFocusItems()`. Notifications, schedule events, and inventory payloads are normalized to non-null object rows before critical-alert filtering, upcoming-schedule sorting, low-stock checks, and feed-depletion projections, preventing malformed cached/caller collections or non-array payloads from crashing the home priority panel. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/dashboard/today-focus.test.mjs` passed 13/13, `npm.cmd test` passed 394/394, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Farm metrics malformed window hardening**: Continued the active Hanwoo quality uplift by tightening farm-specific feed-cost and weight-gain estimators. Malformed `windowMonths` values now fall back to safe positive defaults before date-window and denominator calculations, preventing invalid windows from producing non-finite feed-cost evidence or suppressing otherwise valid shipment weight-gain samples. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/dashboard/farm-metrics.test.mjs` passed 12/12, `npm.cmd test` passed 396/396, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI insight weather numeric-string hardening**: Continued the active Hanwoo quality uplift by tightening `summarizeFarmForInsight()`. Weather `thi`, `temp`, and `humidity` now accept finite numeric strings while null/undefined/empty values remain unavailable, preventing cached/API weather payloads with stringified numbers from hiding heat-stress signals in AI insight prompts and heuristic cards. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/ai-insight.test.mjs` passed 17/17, `npm.cmd test` passed 397/397, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Weather current null/empty value hardening**: Continued the active Hanwoo quality uplift by tightening weather payload normalization. `toNumberOrNull()` now treats null, undefined, and empty required Open-Meteo current fields as unavailable instead of coercing them to 0, preventing incomplete weather payloads from rendering misleading 0-degree/0-percent livestock weather states while preserving finite numeric-string support. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/weather-state.test.mjs` passed 10/10, `npm.cmd test` passed 398/398, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Inventory missing-quantity display hardening**: Continued the active Hanwoo quality uplift by tightening inventory item normalization. Null, undefined, or empty inventory quantities now stay unavailable instead of being coerced to 0, missing quantities render as `수량 미등록`, inline editing opens with an empty field, and false low-stock warnings are avoided while valid finite values still compare normally. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/empty-state-wiring.test.mjs` passed 18/18, `npm.cmd test` passed 399/399, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Cattle weight-history point hardening**: Continued the active Hanwoo quality uplift by tightening cattle weight history extraction. `extractWeightHistoryPoints()` now routes metadata weights through a positive-weight normalizer so empty, null, undefined, zero, or negative values cannot become visible chart points through `Number()` coercion or finite-only checks, while valid positive numeric strings and numbers still render normally. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/cattle-history.test.mjs` passed 5/5, `npm.cmd test` passed 400/400, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Cattle history malformed-row hardening**: Continued the active Hanwoo quality uplift by tightening cattle history row normalization. `normalizeCattleHistoryRows()` now returns an empty list for non-array history payloads and filters malformed/non-object rows before metadata parsing or row spreading, preventing corrupted caller/cache history collections from leaking malformed entries into cattle detail history and weight-chart preparation while preserving valid rows and corrupt-metadata diagnostics. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/cattle-history.test.mjs` passed 6/6, `npm.cmd test` passed 401/401, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Cattle weight-history non-array extraction hardening**: Continued the active Hanwoo quality uplift by tightening cattle weight-history extraction. `extractWeightHistoryPoints()` now returns an empty list for non-array history payloads before filtering, preventing corrupted caller/cache history objects from crashing cattle detail weight-chart preparation while preserving valid array extraction, positive numeric weight normalization, and malformed row filtering. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/cattle-history.test.mjs` passed 7/7, `npm.cmd test` passed 402/402, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Notification timing malformed-options hardening**: Continued the active Hanwoo quality uplift by tightening notification timing input handling. `getNotificationTargetDate()` now normalizes malformed options input before reading `now`, so null/non-object options cannot crash estrus or calving notification timing preparation through parameter destructuring while existing date parsing, impossible-date rejection, and current-time fallback behavior remain intact. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `npm.cmd test -- --runTestsByPath src/lib/notification-timing.test.mjs` ran the Hanwoo Node test suite and passed 404/404, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Market and weather state malformed-options hardening**: Continued the active Hanwoo quality uplift by tightening market-price and weather state option handling. Market cache/live/unavailable state builders and weather live/unavailable/stale state builders now normalize malformed options input before reading `now`, `freshnessMs`, `message`, or `locationName`, preventing malformed caller fallback options from crashing KAPE market-price or Open-Meteo weather state preparation while preserving existing Korean default location/copy, freshness, and date behavior. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/market-price-state.test.mjs src/lib/weather-state.test.mjs` passed 21/21, `npm.cmd test` passed 408/408, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Shared fetch timeout malformed-options hardening**: Continued the active Hanwoo quality uplift by tightening the shared `fetchWithTimeout()` utility. The timeout wrapper now normalizes malformed options input before reading `timeoutMs` or `errorMessage`, preventing shared dashboard refresh, payment confirmation, KAPE/MTRACE lookup, weather, and API proxy fetch paths from crashing before the guarded timeout/abort wrapper is installed. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/fetch-with-timeout.test.mjs` passed 2/2, `npm.cmd test` passed 409/409, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Offline sync malformed-state hardening**: Continued the active Hanwoo quality uplift by tightening offline sync retry/dead-letter state helpers. Offline queue metadata and failure-state builders now normalize malformed item/options input before reading retry, last-attempt, error, and dead-letter fields, preventing corrupted persisted offline queue rows or caller bugs from breaking sync recovery paths before retry metadata can be normalized. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/offline-sync-state.test.mjs` passed 7/7, `npm.cmd test` passed 411/411, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Offline queue persisted timestamp hardening**: Continued the active Hanwoo quality uplift by tightening offline queue item normalization. Non-finite persisted queue timestamps now fall back to the current time and trigger storage rewrite instead of surviving as `Infinity` through JSON parsing, preventing corrupted offline queue rows from carrying impossible timestamps into sync retry/recovery paths while preserving valid ids, actions, args, and retry metadata. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/offline-queue-storage.test.mjs` passed 3/3, `npm.cmd test` passed 412/412, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard BullMQ queue malformed-options hardening**: Continued the active Hanwoo quality uplift by tightening server queue helper option handling. BullMQ queue, queue-events, and enqueue helpers now normalize malformed options input before reading prefixes, default job options, event options, or job options, preventing caller bugs from producing generic TypeErrors before the existing Redis/BullMQ configuration checks can return actionable setup errors. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/queue.test.mjs` passed 1/1, `npm.cmd test` passed 413/413, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Dashboard cache malformed-input hardening**: Continued the active Hanwoo quality uplift by tightening dashboard cache helper input handling. Cattle/sales cache key builders now normalize malformed filter objects before destructuring, and cache delete helpers normalize malformed key/prefix lists before filtering, preventing caller bugs from throwing TypeErrors before stable default cache keys, Redis configuration checks, or cache invalidation fallbacks can run. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/dashboard/cache.test.mjs` passed 2/2, `npm.cmd test` passed 415/415, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Dashboard read-model malformed-options hardening**: Continued the active Hanwoo quality uplift by tightening dashboard read-model option/input handling. Summary, notification, and market snapshot readers now normalize malformed cache options before reading `bypassCache`, and dashboard cache invalidation normalizes malformed input before reading farm ids, cache flags, or snapshot delete flags, preventing caller bugs from throwing generic TypeErrors before cache fallback, Redis no-op behavior, or targeted invalidation can run. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/dashboard/read-models-options.test.mjs` passed 2/2, `npm.cmd test` passed 417/417, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Dashboard list query malformed-input hardening**: Continued the active Hanwoo quality uplift by tightening dashboard list query input handling. Cattle/sales list query parsers now read search params through a guarded helper, and list page loaders normalize malformed input before destructuring, preserving normal API route validation while preventing malformed internal reuse from throwing TypeErrors before default query values, validation, cache lookup, or DB query preparation can run. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/dashboard-list-query-input.test.mjs` passed 2/2, `npm.cmd test` passed 419/419, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Auth guard malformed-options hardening**: Continued the active Hanwoo quality uplift by tightening shared authentication guard option handling. `requireAuthenticatedSession()` now normalizes malformed options input before reading `redirectToLogin`, preventing caller bugs from throwing generic TypeErrors before auth can run, infrastructure failures can degrade to `AuthenticationError`, or unauthenticated page callers can redirect to login. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/auth-guard-options.test.mjs` passed 1/1, `npm.cmd test` passed 420/420, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build after rerunning without a concurrent Next build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Home cache invalidation malformed-options hardening**: Continued the active Hanwoo quality uplift by tightening shared mutation cache invalidation. `invalidateHomeCaches()` now normalizes malformed options input before spreading options into dashboard read-model invalidation or reading `cattleListPages` / `salesListPages` for Next cache tag revalidation, preventing caller bugs from throwing generic TypeErrors after DB mutations but before cache invalidation can complete. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/actions-helper-options.test.mjs src/lib/dashboard/use-cache-config.test.mjs` passed 14/14, `npm.cmd test` passed 421/421, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build after rerunning without a concurrent Next build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Cattle history metadata serialization hardening**: Continued the active Hanwoo quality uplift by tightening shared cattle history recording. `recordCattleHistory()` now serializes optional metadata through a guarded helper; unserializable metadata logs a targeted error and falls back to `null` metadata instead of preventing the cattle history row from being written, preserving audit/history records for successful cattle and sales mutations even when optional metadata is malformed. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/cattle-history-recording.test.mjs src/lib/cattle-history.test.mjs src/lib/actions-helper-options.test.mjs` passed 9/9, `npm.cmd test` passed 422/422, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Cattle history event-date hardening**: Continued the active Hanwoo quality uplift by tightening shared cattle history recording. `recordCattleHistory()` now normalizes `eventDate` through a guarded helper before passing it to Prisma; malformed history date input falls back to the current time instead of creating an invalid `Date`, preserving audit/history rows for successful cattle and sales mutations while keeping the metadata serialization fallback intact. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/cattle-history-recording.test.mjs src/lib/cattle-history.test.mjs src/lib/actions-helper-options.test.mjs` passed 10/10, `npm.cmd test` passed 423/423, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Payment confirmation malformed-helper-input hardening**: Continued the active Hanwoo quality uplift by tightening payment confirmation helper input handling. `buildGatewayErrorMessage()` and `classifyPaymentConfirmationResult()` now normalize malformed helper input before reading gateway payloads, raw response text, fallback messages, status codes, parse errors, expected amounts, or clock providers, preventing caller bugs from throwing generic TypeErrors before safe Korean fallback responses, pending verification states, or amount-mismatch failures can be returned. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/payment-confirmation.test.mjs` passed 13/13, `npm.cmd test` passed 425/425, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Dashboard pagination guard malformed-helper-input hardening**: Continued the active Hanwoo quality uplift by tightening shared pagination guard helper input handling. `sanitizeDashboardPageInfoTransition()` and `getNextDashboardPaginationState()` now normalize malformed top-level helper input, malformed page-info payloads, and malformed `seenCursors` input before checking page transitions, preventing caller/cache bugs from throwing generic TypeErrors before pagination can stop safely, report loop/cursor errors, or continue with a valid next cursor. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/dashboard/pagination-guard.test.mjs src/lib/cattle-pagination-feedback.test.mjs src/lib/sales-pagination-feedback.test.mjs src/lib/cursor-pagination-feedback.test.mjs` passed 12/12, `npm.cmd test` passed 427/427, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Auth credential dependency-input hardening**: Continued the active Hanwoo quality uplift by tightening login credential helper dependency input handling. `authorizeCredentials()` now normalizes malformed dependency-injection input before reading `loadPrisma` or `loadBcrypt`, preventing caller/test harness bugs from throwing generic TypeErrors before the helper can preserve its safe invalid-credential `null` fallback. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/auth-credentials.test.mjs src/lib/auth-guard-options.test.mjs` passed 6/6, `npm.cmd test` passed 428/428, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Expense record filter malformed-input hardening**: Continued the active Hanwoo quality uplift by tightening expense ledger query filter handling. `getExpenseRecords()` now normalizes malformed filter input before reading cattle, building, category, or date filter fields, preventing caller bugs from falling into the generic expense fetch catch/log path before a safe empty query filter and guarded date parsing can run. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/expense-filter-date.test.mjs src/lib/actions-copy.test.mjs` passed 3/3, `npm.cmd test` passed 428/428, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI insight cache helper malformed-input hardening**: Continued the active Hanwoo quality uplift by tightening the new AI insight cache helpers. Cache-key building, summary hashing, cache reads, cache writes, and cache pruning now normalize malformed helper input, circular/non-JSON summary values, malformed timestamps, and malformed cache options, preventing cache metadata bugs from throwing or surfacing non-finite cache age values while preserving same-day per-user AI insight reuse and force-refresh behavior. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/ai-insight-cache.test.mjs src/lib/ai-insight.test.mjs src/lib/ai-insight-widget-copy.test.mjs` passed 41/41, `npm.cmd test` passed 442/442, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
 
 ## Notes
 
