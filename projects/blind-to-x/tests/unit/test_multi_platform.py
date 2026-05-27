@@ -241,11 +241,6 @@ class TestConfigMultiPlatform:
         assert config_data["output_formats"] == ["twitter"]
         assert config_data.get("content_strategy", {}).get("support_channels") == []
 
-    @pytest.mark.skip(reason="naver_blog output is currently disabled in config.yaml")
-    def test_output_formats_include_naver_blog(self, config_data):
-        """output_formats에 'naver_blog'가 포함되어 있는지 검증."""
-        assert "naver_blog" in config_data["output_formats"]
-
     def test_threads_style_exists(self, config_data):
         """threads_style 설정이 존재하고 올바른 키를 가지고 있는지 검증."""
         ts = config_data.get("threads_style", {})

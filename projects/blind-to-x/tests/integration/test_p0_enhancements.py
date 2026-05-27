@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import patch
 
 # ── content_intelligence tests ──────────────────────────────────────────────
@@ -95,8 +94,7 @@ def test_resolve_tone_yaml_topic():
 
     rules = _load_draft_rules()
     tone_map = rules.get("tone_mapping", {})
-    if not tone_map:
-        pytest.skip("No tone_mapping in YAML")
+    assert tone_map, "rules/*.yaml must provide tone_mapping (policy contract)"
 
     # Create a minimal config mock
     class FakeConfig:
@@ -137,8 +135,7 @@ def test_format_examples_with_golden():
 
     rules = _load_draft_rules()
     golden = rules.get("golden_examples", {})
-    if not golden:
-        pytest.skip("No golden_examples in YAML")
+    assert golden, "rules/*.yaml must provide golden_examples (policy contract)"
 
     topic = list(golden.keys())[0]
     result = TweetDraftGenerator._format_examples(

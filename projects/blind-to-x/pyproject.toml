@@ -34,8 +34,37 @@ dependencies = [
 dev = [
     "pytest>=8.0.0,<10.0.0",
     "pytest-cov>=5.0.0,<8.0.0",
+    "mypy>=1.10.0",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests/unit", "tests/integration"]
 addopts = "--cov=pipeline --cov-report=term-missing --cov-fail-under=70"
+
+[tool.ruff]
+# Explicitly extend the workspace-root ruff.toml. Without this, declaring
+# [tool.ruff] here stops ruff's upward config search and the root select/ignore
+# rules silently stop applying.
+extend = "../../ruff.toml"
+# Pin target-version so this project's policy is independent of accidental
+# root-level Python-version bumps.
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint.per-file-ignores]
+# Test fixtures occasionally need long literal strings for clarity.
+"tests/**/*.py" = ["E501"]
+
+[tool.mypy]
+# Whitelist mode: only modules listed under [[tool.mypy.overrides]] with
+# `strict = true` are type-checked strictly. Everything else runs in the
+# default permissive mode so unannotated legacy code does not block CI.
+# Run locally: py -3.12 -m mypy pipeline/draft_contract.py pipeline/harness_guard.py
+python_version = "3.11"
+warn_unused_ignores = true
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# Hub modules with full type coverage — kept strict so regressions surface.
+module = ["pipeline.draft_contract", "pipeline.harness_guard"]
+strict = true

@@ -1,5 +1,14 @@
 name: Blind to X Pipeline
 
+# NOTE: This file lives at projects/blind-to-x/.github/workflows/blind-to-x.yml.
+# GitHub Actions only discovers workflows in the REPO ROOT .github/workflows/,
+# so this workflow is NOT executed by GitHub. It is kept as a versioned
+# specification of the intended scheduled pipeline (cron schedule, env vars,
+# pipeline mode logic) and as the source-of-truth that tests/unit/
+# test_config_workflow_sync.py validates against the project's config.ci.yaml.
+# The live PR/push CI for blind-to-x runs in the root .github/workflows/
+# full-test-matrix.yml ("blind-to-x-tests" job).
+
 on:
   schedule:
     # Full run: KST 06~22 = UTC 21~13 (active hours, 6 runs)

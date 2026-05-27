@@ -1,3 +1,12 @@
+"""Validate the project-local pipeline workflow spec stays in sync with config.example.yaml.
+
+The validated workflow file (projects/blind-to-x/.github/workflows/blind-to-x.yml)
+is a kept-versioned specification, NOT an actively running GitHub workflow
+(GitHub only discovers workflows in the repo-root .github/workflows/). The live
+PR/push CI for blind-to-x is .github/workflows/full-test-matrix.yml's
+"blind-to-x-tests" job at the repo root.
+"""
+
 from __future__ import annotations
 
 import re
