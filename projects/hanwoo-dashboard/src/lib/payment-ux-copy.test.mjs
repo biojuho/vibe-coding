@@ -65,6 +65,47 @@ test("payment widget waits for async payment requests before re-enabling checkou
 	assert.match(source, /\{paymentButtonLabel\}/);
 });
 
+test("payment widget builds redirect URLs through a guarded helper", () => {
+	const source = readSource("components/payment/PaymentWidget.js");
+
+	assert.match(source, /const PAYMENT_SUCCESS_PATH = ["']\/subscription\/success["'];/);
+	assert.match(source, /const PAYMENT_FAIL_PATH = ["']\/subscription\/fail["'];/);
+	assert.match(source, /function buildPaymentRedirectUrl\(pathname\)/);
+	assert.match(source, /if \(typeof window === ["']undefined["']\) \{/);
+	assert.match(source, /new URL\(pathname, locationHref\)\.toString\(\)/);
+	assert.match(
+		source,
+		/catch \(error\) \{\s+console\.error\(["']Payment redirect URL creation failed/,
+	);
+	assert.match(
+		source,
+		/successUrl: buildPaymentRedirectUrl\(PAYMENT_SUCCESS_PATH\)/,
+	);
+	assert.match(source, /failUrl: buildPaymentRedirectUrl\(PAYMENT_FAIL_PATH\)/);
+	assert.doesNotMatch(source, /window\.location\.origin\}\/subscription/);
+});
+
+test("payment widget timeout scheduling and cleanup are guarded", () => {
+	const source = readSource("components/payment/PaymentWidget.js");
+
+	assert.match(source, /function withTimeout\(promise, timeoutMs, message\)/);
+	assert.match(source, /let timeoutId = null;/);
+	assert.match(
+		source,
+		/try \{\s+timeoutId = window\.setTimeout\(\s+\(\) => reject\(new TimeoutError\(message, timeoutMs\)\),\s+timeoutMs,\s+\);/,
+	);
+	assert.match(
+		source,
+		/console\.error\("Payment widget timeout scheduling failed", error\);/,
+	);
+	assert.match(
+		source,
+		/if \(timeoutId !== null\) \{\s+try \{\s+window\.clearTimeout\(timeoutId\);\s+\} catch \{\}/,
+	);
+	assert.doesNotMatch(source, /timeoutId = setTimeout\(/);
+	assert.doesNotMatch(source, /\sclearTimeout\(timeoutId\);/);
+});
+
 test("subscription result pages avoid bare English loading and status copy", () => {
 	const subscriptionSource = readSource("app/subscription/page.js");
 	const successSource = readSource("app/subscription/success/page.js");
@@ -97,6 +138,7 @@ test("subscription result pages avoid bare English loading and status copy", () 
 	assert.match(successSource, /결제 정보를 불러오는 중입니다/);
 	assert.match(successSource, /결제 확인을 다시 시도합니다/);
 	assert.match(successSource, /결제 확인 중 오류가 발생했습니다/);
+	assert.match(successSource, /대시보드로 자동 이동하지 못했습니다/);
 	assert.match(successSource, /const AMOUNT_INPUT_PATTERN = \/\^\\d\+\$\/;/);
 	assert.match(successSource, /function parsePaymentAmount\(value\)/);
 	assert.match(
@@ -112,10 +154,32 @@ test("subscription result pages avoid bare English loading and status copy", () 
 		successSource,
 		/setStatus\(`결제 확인 오류: \$\{error\.message\}`\)/,
 	);
+	assert.match(
+		successSource,
+		/try \{\s+router\.push\(["']\/["']\);\s+\} catch \(error\) \{/,
+	);
+	assert.match(
+		successSource,
+		/console\.error\(["']Payment success redirect failed:/,
+	);
+	assert.match(
+		successSource,
+		/setStatus\(PAYMENT_REDIRECT_ERROR_MESSAGE\);/,
+	);
 
 	assert.match(failSource, /결제를 완료하지 못했습니다/);
 	assert.match(failSource, /결제 실패 정보를 불러오는 중입니다/);
 	assert.match(failSource, /오류 코드/);
+	assert.match(failSource, /const PAYMENT_RETRY_PATH = ["']\/subscription["'];/);
+	assert.match(failSource, /결제 화면으로 자동 이동하지 못했습니다/);
+	assert.match(
+		failSource,
+		/import \{ Suspense, useState \} from ["']react["'];/,
+	);
+	assert.match(
+		failSource,
+		/const \[retryStatus, setRetryStatus\] = useState\(["']["']\);/,
+	);
 	assert.match(
 		failSource,
 		/const PAYMENT_FAILURE_CODE_FALLBACK = ["']오류 코드 미전달["'];/,
@@ -127,12 +191,62 @@ test("subscription result pages avoid bare English loading and status copy", () 
 	assert.match(failSource, /const PAYMENT_FAILURE_MESSAGE/);
 	assert.match(
 		failSource,
-		/type="button"\s+onClick=\{\(\) => router\.back\(\)\}\s+aria-label="결제 화면으로 돌아가 다시 시도하기"\s+title="결제 화면으로 돌아가 다시 시도하기"/,
+		/const handleRetry = \(\) => \{\s+setRetryStatus\(["']["']\);\s+try \{\s+router\.back\(\);\s+\} catch \(error\) \{/,
+	);
+	assert.match(
+		failSource,
+		/console\.error\(["']Payment retry navigation failed:/,
+	);
+	assert.match(failSource, /router\.push\(PAYMENT_RETRY_PATH\);/);
+	assert.match(
+		failSource,
+		/console\.error\(["']Payment retry fallback navigation failed:/,
+	);
+	assert.match(
+		failSource,
+		/setRetryStatus\(PAYMENT_RETRY_NAVIGATION_ERROR_MESSAGE\);/,
+	);
+	assert.match(
+		failSource,
+		/role="status"\s+aria-live="polite"\s+aria-atomic="true"/,
+	);
+	assert.match(
+		failSource,
+		/type="button"\s+onClick=\{handleRetry\}\s+aria-label="결제 화면으로 돌아가 다시 시도하기"\s+title="결제 화면으로 돌아가 다시 시도하기"/,
 	);
 	assert.doesNotMatch(failSource, /Loading\.\.\./);
 	assert.doesNotMatch(failSource, /Code:/);
 	assert.doesNotMatch(failSource, /searchParams\.get\(["']code["']\) \|\| ["']-["']/);
 	assert.doesNotMatch(failSource, /searchParams\.get\(['"]message['"]\)/);
+});
+
+test("subscription success timers are guarded", () => {
+	const source = readSource("app/subscription/success/page.js");
+
+	assert.match(source, /function schedulePaymentStatusTimer\(callback, delay\) \{/);
+	assert.match(source, /function clearPaymentStatusTimer\(timeoutId\) \{/);
+	assert.match(
+		source,
+		/try \{\s+return window\.setTimeout\(callback, delay\);\s+\} catch \(error\) \{/,
+	);
+	assert.match(
+		source,
+		/console\.error\("Payment success timer scheduling failed:", error\);/,
+	);
+	assert.match(source, /callback\(\);\s+return null;/);
+	assert.match(source, /if \(timeoutId === null\) \{\s+return;\s+\}/);
+	assert.match(
+		source,
+		/try \{\s+window\.clearTimeout\(timeoutId\);\s+\} catch \{\}/,
+	);
+	assert.match(source, /const invalidAmountTimer = schedulePaymentStatusTimer\(/);
+	assert.match(source, /retryTimer = schedulePaymentStatusTimer\(\(\) => \{/);
+	assert.match(source, /clearPaymentStatusTimer\(invalidAmountTimer\);/);
+	assert.match(source, /clearPaymentStatusTimer\(retryTimer\);/);
+	assert.doesNotMatch(source, /const invalidAmountTimer = setTimeout\(/);
+	assert.doesNotMatch(source, /retryTimer = setTimeout\(/);
+	assert.doesNotMatch(source, /clearTimeout\(invalidAmountTimer\)/);
+	assert.doesNotMatch(source, /clearTimeout\(retryTimer\)/);
 });
 
 test("payment confirmation fallback messages use Korean product copy", () => {

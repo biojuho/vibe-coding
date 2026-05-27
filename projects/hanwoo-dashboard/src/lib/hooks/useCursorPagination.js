@@ -54,10 +54,15 @@ export function useCursorPagination({
 			const controller = new AbortController();
 			abortRef.current = controller;
 			let didTimeout = false;
-			const timeoutId = window.setTimeout(() => {
-				didTimeout = true;
-				controller.abort();
-			}, PAGINATION_REQUEST_TIMEOUT_MS);
+			let timeoutId = null;
+			try {
+				timeoutId = window.setTimeout(() => {
+					didTimeout = true;
+					controller.abort();
+				}, PAGINATION_REQUEST_TIMEOUT_MS);
+			} catch (error) {
+				console.error(`Failed to schedule load-more timeout at ${endpoint}:`, error);
+			}
 
 			setIsLoading(true);
 			try {
@@ -116,7 +121,11 @@ export function useCursorPagination({
 					console.error(`Load more error at ${endpoint}:`, error);
 				}
 			} finally {
-				window.clearTimeout(timeoutId);
+				if (timeoutId !== null) {
+					try {
+						window.clearTimeout(timeoutId);
+					} catch {}
+				}
 				if (abortRef.current === controller) {
 					abortRef.current = null;
 				}

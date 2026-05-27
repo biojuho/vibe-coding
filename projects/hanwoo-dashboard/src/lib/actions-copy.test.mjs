@@ -38,7 +38,8 @@ test("server action user-facing failures use Korean product copy", () => {
 	assert.match(salesActions, /판매 기록을 불러오지 못했습니다/);
 	assert.match(salesActions, /판매 기록을 등록하지 못했습니다/);
 	assert.match(buildingActions, /축사 정보를 추가하지 못했습니다/);
-	assert.match(buildingActions, /먼저 소를 이동해 주세요/);
+	assert.match(buildingActions, /이 축사에 \$\{cattleCount\}두의 개체가 있어/);
+	assert.match(buildingActions, /먼저 개체를 이동해 주세요/);
 	assert.match(buildingActions, /축사를 삭제하지 못했습니다/);
 	assert.match(farmSettingsActions, /농장 정보를 저장하지 못했습니다/);
 	assert.match(feedActions, /급여 기록을 저장하지 못했습니다/);
@@ -57,6 +58,8 @@ test("server action user-facing failures use Korean product copy", () => {
 	assert.doesNotMatch(salesActions, /message: error\.message/);
 	assert.doesNotMatch(buildingActions, /message: e\.message/);
 	assert.doesNotMatch(buildingActions, /이동해주세요/);
+	assert.doesNotMatch(buildingActions, /두의 소가 있어/);
+	assert.doesNotMatch(buildingActions, /먼저 소를 이동해 주세요/);
 	assert.doesNotMatch(farmSettingsActions, /message: e\.message/);
 	assert.doesNotMatch(feedActions, /message: e\.message/);
 	assert.doesNotMatch(inventoryActions, /message: error\.message/);

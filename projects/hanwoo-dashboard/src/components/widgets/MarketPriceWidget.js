@@ -30,7 +30,7 @@ function PricePanel({ title, rows }) {
 							{grade}
 						</span>
 						<span className="font-bold text-[color:var(--color-text)] tabular-nums">
-							{formatMoney(value)} / kg
+							kg당 {formatMoney(value)}
 						</span>
 					</div>
 				))}
@@ -163,26 +163,42 @@ export default function MarketPriceWidget({ initialData = null }) {
 	useEffect(() => {
 		isMountedRef.current = true;
 		let refreshTimer = null;
+		let interval = null;
 
 		if (!initialData) {
-			refreshTimer = window.setTimeout(() => {
-				void fetchPrices();
-			}, 0);
+			try {
+				refreshTimer = window.setTimeout(() => {
+					void fetchPrices();
+				}, 0);
+			} catch (error) {
+				console.error("Failed to schedule market price refresh:", error);
+				void Promise.resolve().then(() => fetchPrices());
+			}
 		}
 
-		const interval = window.setInterval(
-			() => {
-				void fetchPrices();
-			},
-			1000 * 60 * 60,
-		);
+		try {
+			interval = window.setInterval(
+				() => {
+					void fetchPrices();
+				},
+				1000 * 60 * 60,
+			);
+		} catch (error) {
+			console.error("Failed to schedule market price polling:", error);
+		}
 
 		return () => {
 			isMountedRef.current = false;
 			if (refreshTimer) {
-				window.clearTimeout(refreshTimer);
+				try {
+					window.clearTimeout(refreshTimer);
+				} catch {}
 			}
-			window.clearInterval(interval);
+			if (interval) {
+				try {
+					window.clearInterval(interval);
+				} catch {}
+			}
 		};
 	}, [fetchPrices, initialData]);
 
@@ -214,7 +230,7 @@ export default function MarketPriceWidget({ initialData = null }) {
 					aria-atomic="true"
 				>
 					<div className="text-sm text-[color:var(--color-text-secondary)]">
-						{prices?.message ?? "지금은 한우 시세 데이터를 확인할 수 없습니다."}
+						{prices?.message ?? "지금은 한우 시세 정보를 확인할 수 없습니다."}
 					</div>
 				</CardContent>
 			</Card>
@@ -269,7 +285,7 @@ export default function MarketPriceWidget({ initialData = null }) {
 			<CardContent>
 				<div className="grid gap-3 md:grid-cols-2">
 					<PricePanel
-						title="수소 / kg"
+						title="수소 kg당 시세"
 						rows={[
 							["1++ 등급", prices.bull.grade1pp],
 							["1+ 등급", prices.bull.grade1p],
@@ -277,7 +293,7 @@ export default function MarketPriceWidget({ initialData = null }) {
 						]}
 					/>
 					<PricePanel
-						title="암소 / kg"
+						title="암소 kg당 시세"
 						rows={[
 							["1++ 등급", prices.cow.grade1pp],
 							["1+ 등급", prices.cow.grade1p],
@@ -294,8 +310,8 @@ export default function MarketPriceWidget({ initialData = null }) {
 
 				{lastUpdated ? (
 					<div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[color:var(--color-text-muted)]">
-						<span>갱신 {lastUpdated.toLocaleTimeString()}</span>
-						<span>출처: KAPE</span>
+						<span>마지막 갱신 {lastUpdated.toLocaleTimeString()}</span>
+						<span>데이터 출처: KAPE</span>
 					</div>
 				) : null}
 			</CardContent>

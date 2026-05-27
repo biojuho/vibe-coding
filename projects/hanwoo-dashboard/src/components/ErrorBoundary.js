@@ -23,7 +23,12 @@ export class ErrorBoundary extends React.Component {
 		if (this.props.onReset) {
 			this.props.onReset();
 		} else {
-			window.location.reload();
+			try {
+				window.location.reload();
+			} catch (resetError) {
+				console.error("[ErrorBoundary] Failed to reload:", resetError);
+				this.setState({ hasError: true, error: resetError });
+			}
 		}
 	};
 
@@ -39,9 +44,9 @@ export class ErrorBoundary extends React.Component {
 						className="h-12 w-12 text-amber-500 mb-4 animate-pulse"
 						aria-hidden="true"
 					/>
-					<h3 className="text-lg font-bold text-slate-100 mb-2">화면 렌더링에 일시적인 에러가 발생했습니다.</h3>
+					<h3 className="text-lg font-bold text-slate-100 mb-2">화면 표시 중 일시적인 오류가 발생했습니다.</h3>
 					<p className="text-sm text-slate-400 max-w-md mb-6">
-						데이터 형식이 올바르지 않거나 렌더링 도중 예기치 못한 네트워크 문제가 발생했을 수 있습니다.
+						화면 표시 정보가 올바르지 않거나 처리 중 예기치 못한 네트워크 문제가 발생했을 수 있습니다.
 					</p>
 					<PremiumButton
 						type="button"

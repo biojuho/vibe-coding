@@ -12,6 +12,9 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useRef, useState } from "react";
 
+const LOGIN_NAVIGATION_ERROR_MESSAGE =
+	"로그인은 완료됐지만 대시보드로 이동하지 못했습니다. 새로고침 후 다시 시도해 주세요.";
+
 export default function LoginPage() {
 	const router = useRouter();
 	const [username, setUsername] = useState("");
@@ -53,8 +56,13 @@ export default function LoginPage() {
 				return;
 			}
 
-			router.push("/");
-			router.refresh();
+			try {
+				router.push("/");
+				router.refresh();
+			} catch (navigationError) {
+				console.error("Login dashboard navigation failed:", navigationError);
+				setError(LOGIN_NAVIGATION_ERROR_MESSAGE);
+			}
 		} catch {
 			setError("로그인을 완료하지 못했습니다. 네트워크 상태를 확인해 주세요.");
 		} finally {

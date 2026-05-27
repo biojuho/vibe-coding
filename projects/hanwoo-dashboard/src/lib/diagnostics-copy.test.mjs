@@ -22,7 +22,23 @@ test("admin diagnostics page uses Korean operations copy for visible states", ()
 	assert.match(source, /대시보드로 돌아가기/);
 	assert.match(
 		source,
-		/type=\"button\"\s+onClick=\{\(\) => router\.push\(\"\/\"\)\}\s+aria-label=\"운영 대시보드로 돌아가기\"\s+title=\"운영 대시보드로 돌아가기\"/,
+		/const DASHBOARD_NAVIGATION_ERROR_MESSAGE =\s+["']대시보드로 이동하지 못했습니다\. 잠시 후 다시 시도해 주세요\.["'];/,
+	);
+	assert.match(
+		source,
+		/const handleDashboardReturn = \(\) => \{\s+try \{\s+router\.push\(["']\/["']\);/,
+	);
+	assert.match(
+		source,
+		/console\.error\(["']Failed to navigate from diagnostics to dashboard:/,
+	);
+	assert.match(
+		source,
+		/title: ["']대시보드로 이동하지 못했습니다\.["'][\s\S]*?description: DASHBOARD_NAVIGATION_ERROR_MESSAGE/,
+	);
+	assert.match(
+		source,
+		/type=\"button\"\s+onClick=\{handleDashboardReturn\}\s+aria-label=\"운영 대시보드로 돌아가기\"\s+title=\"운영 대시보드로 돌아가기\"/,
 	);
 	assert.match(
 		source,

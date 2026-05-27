@@ -69,11 +69,11 @@ export function ProfitabilityWidget({ data, isLoading, error, meta = null }) {
 	if (visibleData.length === 0) {
 		return (
 			<PremiumCard className="mb-4">
-				<PremiumCardHeader title="출하 추천 개체" icon="📈" />
+				<PremiumCardHeader title="출하 후보 개체" icon="📈" />
 				<PremiumCardContent>
 					<p className="text-sm text-[color:var(--color-text-muted)]">
-						현재 출하 적령기(24개월 이상)인 개체가 없거나 분석 데이터가
-						부족합니다.
+						현재 출하 일정을 확인할 후보가 없거나 수익성 분석에 필요한
+						기록이 부족합니다.
 					</p>
 				</PremiumCardContent>
 			</PremiumCard>
@@ -94,9 +94,9 @@ export function ProfitabilityWidget({ data, isLoading, error, meta = null }) {
 	return (
 		<PremiumCard className="mb-4 overflow-visible">
 			<PremiumCardHeader
-				title="출하 수익성 추천"
+				title="출하 수익성 분석"
 				icon="📈"
-				description="최적의 출하 타이밍과 예상 마진을 분석합니다."
+				description="출하 타이밍과 예상 마진을 분석합니다."
 			/>
 			{assumptionsLine ? (
 				<div
@@ -110,7 +110,7 @@ export function ProfitabilityWidget({ data, isLoading, error, meta = null }) {
 								: "px-1.5 py-0.5 rounded-full bg-[color:color-mix(in_srgb,var(--color-text-muted)_16%,white_84%)] text-[color:var(--color-text-muted)] tracking-tight"
 						}
 					>
-						{isCustomized ? "농가 데이터" : "기본값"}
+						{isCustomized ? "농가 기록 기반" : "기본값"}
 					</span>
 					<span className="text-[color:var(--color-text-muted)]">
 						{assumptionsLine}
@@ -146,7 +146,7 @@ export function ProfitabilityWidget({ data, isLoading, error, meta = null }) {
 										</span>
 										{item.recommendShipment && (
 											<span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[color:color-mix(in_srgb,var(--color-danger)_16%,white_84%)] text-[color:var(--color-danger)]">
-												즉시 출하 권장
+												출하 일정 확인 필요
 											</span>
 										)}
 									</div>

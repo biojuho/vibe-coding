@@ -5,6 +5,9 @@ import { useEffect } from "react";
 import { queueSize } from "@/lib/offlineQueue";
 import { syncOfflineQueue } from "@/lib/syncManager";
 
+const OFFLINE_SYNC_REFRESH_ERROR_MESSAGE =
+	"동기화 결과를 보려면 화면을 새로고침해 주세요.";
+
 export function useOfflineSyncQueue(isOnline, notify) {
 	const router = useRouter();
 
@@ -34,7 +37,16 @@ export function useOfflineSyncQueue(isOnline, notify) {
 					variant: failed > 0 ? "warning" : "success",
 				});
 				if (synced > 0) {
-					router.refresh();
+					try {
+						router.refresh();
+					} catch (refreshError) {
+						console.error("Offline queue refresh failed:", refreshError);
+						notify({
+							title: "동기화 후 화면 새로고침에 실패했습니다.",
+							description: OFFLINE_SYNC_REFRESH_ERROR_MESSAGE,
+							variant: "warning",
+						});
+					}
 				}
 			} catch (error) {
 				if (cancelled) {

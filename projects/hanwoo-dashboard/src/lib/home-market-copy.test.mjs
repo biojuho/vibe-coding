@@ -22,8 +22,13 @@ test("home dashboard fallback and panel labels use Korean product copy", () => {
 	assert.doesNotMatch(source, /Today Brief/);
 	assert.doesNotMatch(source, /Quick Record/);
 	assert.doesNotMatch(source, /Farm Setup/);
-	assert.match(source, /대시보드 데이터를 불러오지 못했습니다/);
+	assert.match(source, /대시보드 정보를 불러오지 못했습니다/);
 	assert.match(
+		source,
+		/대시보드 정보를 불러오는 데 시간이 오래 걸리고 있습니다/,
+	);
+	assert.doesNotMatch(source, /대시보드 데이터를 불러오지 못했습니다/);
+	assert.doesNotMatch(
 		source,
 		/대시보드 데이터를 불러오는 데 시간이 오래 걸리고 있습니다/,
 	);
@@ -264,6 +269,8 @@ test("home dashboard icon-only actions expose Korean accessible labels", () => {
 		source,
 		/<div className="text-3xl mb-2" aria-hidden="true">\s*🐄\s*<\/div>/,
 	);
+	assert.match(source, /이 칸은 비어 있습니다/);
+	assert.doesNotMatch(source, /이 칸은 비어있습니다/);
 	assert.doesNotMatch(source, /aria-label="Notifications"/);
 	assert.doesNotMatch(source, /aria-label="Add cattle"/);
 	assert.doesNotMatch(source, /aria-label="Back"/);
@@ -360,26 +367,60 @@ test("market price widget uses Korean product copy for visible states", () => {
 	);
 
 	assert.match(source, /한우 시세를 불러오는 중입니다/);
-	assert.match(source, /지금은 한우 시세 데이터를 확인할 수 없습니다/);
+	assert.match(source, /지금은 한우 시세 정보를 확인할 수 없습니다/);
+	assert.doesNotMatch(source, /지금은 한우 시세 데이터를 확인할 수 없습니다/);
 	assert.match(source, /시세 흐름/);
 	assert.match(source, /한우 도매 시세/);
 	assert.match(source, /가중평균 거래가/);
 	assert.match(source, /실시간 KAPE/);
 	assert.match(source, /저장된 KAPE/);
 	assert.match(source, /이전 저장값/);
-	assert.match(source, /수소 \/ kg/);
-	assert.match(source, /암소 \/ kg/);
-	assert.match(source, /갱신/);
-	assert.match(source, /출처: KAPE/);
+	assert.match(source, /수소 kg당 시세/);
+	assert.match(source, /암소 kg당 시세/);
+	assert.match(source, /kg당 \{formatMoney\(value\)\}/);
+	assert.doesNotMatch(source, /수소 \/ kg/);
+	assert.doesNotMatch(source, /암소 \/ kg/);
+	assert.doesNotMatch(source, /\{formatMoney\(value\)\} \/ kg/);
+	assert.match(source, /마지막 갱신/);
+	assert.match(source, /데이터 출처: KAPE/);
+	assert.doesNotMatch(source, /<span>갱신 \{lastUpdated\.toLocaleTimeString\(\)\}<\/span>/);
+	assert.doesNotMatch(source, /<span>출처: KAPE<\/span>/);
 	assert.match(
 		source,
 		/role="status"\s+aria-live="polite"\s+aria-atomic="true"\s+aria-busy="true"/,
 	);
 	assert.match(
 		source,
-		/if \(!prices \|\| prices\.available === false\)[\s\S]*?role="status"[\s\S]*?aria-live="polite"[\s\S]*?aria-atomic="true"[\s\S]*?지금은 한우 시세 데이터를 확인할 수 없습니다/,
+		/if \(!prices \|\| prices\.available === false\)[\s\S]*?role="status"[\s\S]*?aria-live="polite"[\s\S]*?aria-atomic="true"[\s\S]*?지금은 한우 시세 정보를 확인할 수 없습니다/,
 	);
 	assert.match(source, /disabled=\{loading\}\s+aria-busy=\{loading\}/);
+	assert.match(source, /let refreshTimer = null;/);
+	assert.match(source, /let interval = null;/);
+	assert.match(
+		source,
+		/try \{\s+refreshTimer = window\.setTimeout\(\(\) => \{\s+void fetchPrices\(\);\s+\}, 0\);\s+\} catch \(error\) \{/,
+	);
+	assert.match(
+		source,
+		/console\.error\(["']Failed to schedule market price refresh:/,
+	);
+	assert.match(source, /void Promise\.resolve\(\)\.then\(\(\) => fetchPrices\(\)\);/);
+	assert.match(
+		source,
+		/try \{\s+interval = window\.setInterval\(/,
+	);
+	assert.match(
+		source,
+		/console\.error\(["']Failed to schedule market price polling:/,
+	);
+	assert.match(
+		source,
+		/try \{\s+window\.clearTimeout\(refreshTimer\);\s+\} catch \{\}/,
+	);
+	assert.match(
+		source,
+		/try \{\s+window\.clearInterval\(interval\);\s+\} catch \{\}/,
+	);
 	assert.match(
 		source,
 		/aria-label=\{\s*loading \? ["']한우 시세 갱신 중["'] : ["']한우 시세 새로고침["']\s*\}/,
@@ -502,7 +543,8 @@ test("weather widget uses Korean product copy for unavailable state", () => {
 	);
 
 	assert.match(source, /날씨 확인 불가/);
-	assert.match(source, /지금은 날씨 데이터를 확인할 수 없습니다/);
+	assert.match(source, /지금은 날씨 정보를 확인할 수 없습니다/);
+	assert.doesNotMatch(source, /지금은 날씨 데이터를 확인할 수 없습니다/);
 	assert.match(
 		source,
 		/className="weather-card animate-fadeInUp"\s+role="status"\s+aria-live="polite"\s+aria-atomic="true"/,
@@ -607,6 +649,36 @@ test("weather widget uses Korean product copy for unavailable state", () => {
 	);
 	assert.doesNotMatch(dashboardSource, /["']Seoul["']/);
 	assert.doesNotMatch(hookSource, /locationName.*["']Seoul["']/);
+});
+
+test("weather geolocation lookup falls back safely when browser location APIs fail", () => {
+	const dashboardSource = readSource("components/DashboardClient.js");
+	const hookSource = readSource("lib/hooks/useWeather.js");
+
+	assert.match(
+		hookSource,
+		/const FALLBACK_WEATHER_COORDS = \{ latitude: 35\.446, longitude: 127\.344 \};/,
+	);
+	assert.match(dashboardSource, /const fetchFallbackWeather = \(\) => \{/);
+	assert.match(hookSource, /const fetchFallbackWeather = \(\) => \{/);
+	assert.match(
+		dashboardSource,
+		/typeof navigator !== "undefined" && "geolocation" in navigator/,
+	);
+	assert.match(
+		hookSource,
+		/typeof navigator !== "undefined" && "geolocation" in navigator/,
+	);
+	assert.match(
+		dashboardSource,
+		/try \{\s*navigator\.geolocation\.getCurrentPosition\([\s\S]*?fetchFallbackWeather,[\s\S]*?\);[\s\S]*?\} catch \{\s*fetchFallbackWeather\(\);[\s\S]*?\}/,
+	);
+	assert.match(
+		hookSource,
+		/try \{\s*navigator\.geolocation\.getCurrentPosition\([\s\S]*?fetchFallbackWeather,[\s\S]*?\);[\s\S]*?\} catch \{\s*fetchFallbackWeather\(\);[\s\S]*?\}/,
+	);
+	assert.doesNotMatch(dashboardSource, /else if \("geolocation" in navigator\)/);
+	assert.doesNotMatch(hookSource, /\(\) => fetchWeather\(35\.446, 127\.344\)/);
 });
 
 test("tab navigation buttons expose Korean action labels and selected state", () => {

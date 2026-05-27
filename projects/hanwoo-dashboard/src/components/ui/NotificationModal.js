@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { focusElementSafely } from "@/lib/safeFocus";
+
 function normalizeModalNotifications(notifications) {
 	return Array.isArray(notifications)
 		? notifications.filter(
@@ -28,7 +30,7 @@ export default function NotificationModal({
 	const notificationTimeFallback = "알림 시간 확인 불가";
 
 	useEffect(() => {
-		dialogRef.current?.focus();
+		focusElementSafely(dialogRef.current);
 	}, []);
 
 	const handleDialogKeyDown = (event) => {

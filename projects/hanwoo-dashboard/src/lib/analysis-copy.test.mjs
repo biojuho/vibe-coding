@@ -35,7 +35,10 @@ test("analysis and financial widgets use Korean operator copy", () => {
 	assert.match(analysisSource, /월별 흐름/);
 	assert.match(analysisSource, /비용 구성/);
 	assert.match(analysisSource, /상위 판매/);
-	assert.match(analysisSource, /실제 비용 데이터 없음/);
+	assert.match(analysisSource, /실제 비용 기록 없음/);
+	assert.match(analysisSource, /비용 기록이 아직 충분히 쌓이지 않았습니다/);
+	assert.doesNotMatch(analysisSource, /실제 비용 데이터 없음/);
+	assert.doesNotMatch(analysisSource, /비용 데이터가 아직 충분히 쌓이지 않았습니다/);
 	assert.doesNotMatch(analysisSource, /실데이터 없음/);
 	assert.match(analysisSource, /개체명 미등록/);
 	assert.doesNotMatch(analysisSource, /이름 없음/);

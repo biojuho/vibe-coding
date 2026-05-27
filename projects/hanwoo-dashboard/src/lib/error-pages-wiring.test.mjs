@@ -26,8 +26,11 @@ test("not-found page is a server component with a route home and title metadata"
 		/<Compass size=\{26\} strokeWidth=\{2\.2\} aria-hidden="true" \/>/,
 	);
 	assert.match(source, /Joolife 한우 운영/);
-	assert.match(source, /페이지를 찾을 수 없어요/);
+	assert.match(source, /페이지를 찾을 수 없습니다/);
+	assert.match(source, /주소가 바뀌었거나 삭제된 화면일 수 있습니다/);
 	assert.match(source, /사육, 재고, 출하 업무를 이어서 관리해 주세요/);
+	assert.doesNotMatch(source, /페이지를 찾을 수 없어요/);
+	assert.doesNotMatch(source, /화면일 수 있어요/);
 	assert.doesNotMatch(source, /사육, 재고, 출하 업무를 이어서 관리하세요/);
 	assert.doesNotMatch(source, /Joolife Operations/);
 });
@@ -55,6 +58,12 @@ test("route error boundary is a client component exposing retry and home actions
 	);
 	assert.match(source, /console\.error/);
 	assert.match(source, /Joolife 한우 운영/);
+	assert.match(source, /잠시 문제가 발생했습니다/);
+	assert.match(source, /화면을 불러오는 중 오류가 발생했습니다/);
+	assert.match(source, /대시보드로 돌아가 주세요/);
+	assert.doesNotMatch(source, /잠시 문제가 생겼어요/);
+	assert.doesNotMatch(source, /오류가 발생했어요/);
+	assert.doesNotMatch(source, /대시보드로 돌아가세요/);
 	assert.doesNotMatch(source, /Joolife Operations/);
 });
 
@@ -97,6 +106,10 @@ test("dashboard error boundary exposes a labeled non-submit recovery action", ()
 		source,
 		/const resetButtonLabel = ["']대시보드 새로고침 및 복구 시도["']/,
 	);
+	assert.match(source, /화면 표시 중 일시적인 오류가 발생했습니다/);
+	assert.match(source, /화면 표시 정보가 올바르지 않거나 처리 중/);
+	assert.doesNotMatch(source, /화면 렌더링에 일시적인 에러가 발생했습니다/);
+	assert.doesNotMatch(source, /데이터 형식이 올바르지 않거나 렌더링 도중/);
 	assert.match(
 		source,
 		/<AlertTriangle[\s\S]*?aria-hidden="true"[\s\S]*?\/>/,
@@ -104,6 +117,15 @@ test("dashboard error boundary exposes a labeled non-submit recovery action", ()
 	assert.match(
 		source,
 		/<PremiumButton[\s\S]*?type="button"[\s\S]*?onClick=\{this\.handleReset\}[\s\S]*?aria-label=\{resetButtonLabel\}[\s\S]*?title=\{resetButtonLabel\}/,
+	);
+	assert.match(source, /try \{\s+window\.location\.reload\(\);/);
+	assert.match(
+		source,
+		/catch \(resetError\) \{\s+console\.error\(["']\[ErrorBoundary\] Failed to reload:/,
+	);
+	assert.match(
+		source,
+		/this\.setState\(\{ hasError: true, error: resetError \}\);/,
 	);
 	assert.match(source, /\{resetButtonLabel\}/);
 });
@@ -165,6 +187,10 @@ test("login page recovers submit state when sign-in fails unexpectedly", () => {
 	const source = readSource("app/login/page.js");
 
 	assert.match(source, /import \{ useRef, useState \} from ["']react["']/);
+	assert.match(
+		source,
+		/const LOGIN_NAVIGATION_ERROR_MESSAGE =\s+["']로그인은 완료됐지만 대시보드로 이동하지 못했습니다\. 새로고침 후 다시 시도해 주세요\.["'];/,
+	);
 	assert.match(source, /const submitInFlightRef = useRef\(false\)/);
 	assert.match(source, /const loginSubmitLabel = isSubmitting/);
 	assert.match(source, /아이디를 입력하면 로그인할 수 있습니다/);
@@ -179,6 +205,15 @@ test("login page recovers submit state when sign-in fails unexpectedly", () => {
 	assert.match(source, /submitInFlightRef\.current = true;/);
 	assert.match(source, /setIsSubmitting\(true\);/);
 	assert.match(source, /try \{\s+const result = await signIn\(["']credentials["']/);
+	assert.match(
+		source,
+		/try \{\s+router\.push\(["']\/["']\);\s+router\.refresh\(\);\s+\} catch \(navigationError\) \{/,
+	);
+	assert.match(
+		source,
+		/console\.error\(["']Login dashboard navigation failed:/,
+	);
+	assert.match(source, /setError\(LOGIN_NAVIGATION_ERROR_MESSAGE\);/);
 	assert.match(source, /\} catch \{\s+setError\(["']/);
 	assert.match(
 		source,

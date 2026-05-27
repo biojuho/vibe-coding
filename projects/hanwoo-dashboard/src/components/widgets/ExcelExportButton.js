@@ -10,6 +10,26 @@ import { buildCattleCsvRows } from "@/lib/cattle-csv-export.mjs";
 const EXCEL_EXPORT_ERROR_MESSAGE =
 	"내보내기 파일을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.";
 
+function removeTemporaryDownloadLink(downloadLink) {
+	if (!downloadLink?.parentNode) {
+		return;
+	}
+
+	try {
+		downloadLink.parentNode.removeChild(downloadLink);
+	} catch {}
+}
+
+function revokeTemporaryDownloadUrl(downloadUrl) {
+	if (!downloadUrl) {
+		return;
+	}
+
+	try {
+		URL.revokeObjectURL(downloadUrl);
+	} catch {}
+}
+
 export default function ExcelExportButton({
 	cattleList = [],
 	resolveCattleList = null,
@@ -23,6 +43,8 @@ export default function ExcelExportButton({
 
 		preparingRef.current = true;
 		setIsPreparing(true);
+		let downloadUrl = null;
+		let downloadLink = null;
 
 		try {
 			const rows =
@@ -32,7 +54,7 @@ export default function ExcelExportButton({
 
 			if (!rows || rows.length === 0) {
 				notify({
-					title: "다운로드할 개체 데이터가 없습니다.",
+					title: "다운로드할 개체 목록이 없습니다.",
 					description: "등록된 개체를 확인한 뒤 다시 시도해 주세요.",
 					variant: "warning",
 				});
@@ -41,17 +63,15 @@ export default function ExcelExportButton({
 
 			const csvContent = buildCattleCsvRows(rows);
 			const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-			const url = URL.createObjectURL(blob);
-			const link = document.createElement("a");
-			link.setAttribute("href", url);
-			link.setAttribute(
+			downloadUrl = URL.createObjectURL(blob);
+			downloadLink = document.createElement("a");
+			downloadLink.setAttribute("href", downloadUrl);
+			downloadLink.setAttribute(
 				"download",
 				`hanwoo_data_${new Date().toISOString().slice(0, 10)}.csv`,
 			);
-			document.body.appendChild(link);
-			link.click();
-			document.body.removeChild(link);
-			URL.revokeObjectURL(url);
+			document.body.appendChild(downloadLink);
+			downloadLink.click();
 		} catch (error) {
 			console.error("Failed to export cattle CSV:", error);
 			notify({
@@ -60,6 +80,8 @@ export default function ExcelExportButton({
 				variant: "error",
 			});
 		} finally {
+			removeTemporaryDownloadLink(downloadLink);
+			revokeTemporaryDownloadUrl(downloadUrl);
 			preparingRef.current = false;
 			setIsPreparing(false);
 		}

@@ -22,6 +22,10 @@ import { appendDeadLetterQueue, getQueue, setQueue } from "./offlineQueue";
 
 const OFFLINE_SYNC_RETRY_ERROR_MESSAGE =
 	"오프라인 요청을 동기화하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+const OFFLINE_SYNC_UNSUPPORTED_ACTION_MESSAGE =
+	"지원하지 않는 오프라인 작업입니다. 작업을 다시 등록해 주세요.";
+const OFFLINE_SYNC_UNSUCCESSFUL_RESULT_MESSAGE =
+	"오프라인 작업을 서버에 반영하지 못했습니다. 잠시 후 다시 시도해 주세요.";
 
 const ACTION_MAP = {
 	createCattle: (args) => createCattle(args[0]),
@@ -63,7 +67,7 @@ async function syncOfflineQueueInternal() {
 		const handler = ACTION_MAP[item.action];
 		if (!handler) {
 			const failureState = createFailedQueueItemState(item, {
-				errorMessage: `No offline sync handler is registered for action "${item.action}".`,
+				errorMessage: OFFLINE_SYNC_UNSUPPORTED_ACTION_MESSAGE,
 				permanent: true,
 			});
 			deadLetterItems.push(failureState.item);
@@ -77,7 +81,7 @@ async function syncOfflineQueueInternal() {
 				const errorMessage =
 					typeof result?.message === "string" && result.message.length > 0
 						? result.message
-						: `Offline sync action "${item.action}" returned an unsuccessful result.`;
+						: OFFLINE_SYNC_UNSUCCESSFUL_RESULT_MESSAGE;
 				const failureState = createFailedQueueItemState(item, {
 					errorMessage,
 					permanent: isPermanentOfflineQueueFailure(errorMessage),

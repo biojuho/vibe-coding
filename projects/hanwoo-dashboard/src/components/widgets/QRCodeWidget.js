@@ -12,6 +12,44 @@ export default function QRCodeWidget({ value, label }) {
 		? `${label} QR 라벨 인쇄 준비 중`
 		: `${label} QR 라벨 인쇄`;
 
+	const resetPrintState = () => {
+		printInFlightRef.current = false;
+		setIsPrinting(false);
+	};
+
+	const closePrintWindow = (printWindow) => {
+		try {
+			printWindow.close();
+		} catch (error) {
+			console.error("Failed to close QR print window:", error);
+		}
+	};
+
+	const schedulePrintFallback = (printWindow, finishPrint) => {
+		try {
+			printWindow.setTimeout(finishPrint, 120);
+		} catch (error) {
+			console.error("Failed to schedule QR print fallback:", error);
+		}
+	};
+
+	const registerPrintLoadHandler = (printWindow, finishPrint) => {
+		try {
+			printWindow.addEventListener("load", finishPrint, { once: true });
+		} catch (error) {
+			console.error("Failed to register QR print load handler:", error);
+		}
+	};
+
+	const openPrintWindow = () => {
+		try {
+			return window.open("", "", "width=600,height=600");
+		} catch (error) {
+			console.error("Failed to open QR print window:", error);
+			return null;
+		}
+	};
+
 	const handlePrint = () => {
 		if (printInFlightRef.current) {
 			return;
@@ -21,65 +59,82 @@ export default function QRCodeWidget({ value, label }) {
 		setIsPrinting(true);
 		setPrintStatusMessage(`${label} QR 라벨 인쇄 창을 준비하는 중입니다.`);
 
-		const printWindow = window.open("", "", "width=600,height=600");
+		const printWindow = openPrintWindow();
 		if (!printWindow) {
-			printInFlightRef.current = false;
-			setIsPrinting(false);
+			resetPrintState();
 			setPrintStatusMessage(
 				"팝업 차단으로 QR 인쇄 창을 열지 못했습니다. 브라우저 팝업 허용 후 다시 시도해 주세요.",
 			);
 			return;
 		}
 
-		const doc = printWindow.document;
-		doc.title = `${label} - QR 출력`;
-
-		const style = doc.createElement("style");
-		style.textContent =
-			"body { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; }" +
-			".tag { border: 2px solid #000; padding: 20px; text-align: center; border-radius: 10px; }" +
-			".name { font-size: 24px; font-weight: bold; margin-bottom: 10px; }" +
-			".info { font-size: 14px; color: #555; margin-top: 10px; }";
-		doc.head.appendChild(style);
-
-		const tag = doc.createElement("div");
-		tag.className = "tag";
-
-		const name = doc.createElement("div");
-		name.className = "name";
-		name.textContent = label;
-
-		const qrContainer = doc.createElement("div");
-		const sourceSvg = qrContainerRef.current?.querySelector("svg");
-		if (sourceSvg) {
-			qrContainer.appendChild(sourceSvg.cloneNode(true));
-		}
-
-		const info = doc.createElement("div");
-		info.className = "info";
-		info.textContent = "Joolife 한우 스마트팜";
-
-		tag.append(name, qrContainer, info);
-		doc.body.appendChild(tag);
-
 		let printCommitted = false;
-		const finishPrint = () => {
-			if (printCommitted) {
-				return;
+
+		try {
+			const doc = printWindow.document;
+			doc.title = `${label} - QR 출력`;
+
+			const style = doc.createElement("style");
+			style.textContent =
+				"body { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; }" +
+				".tag { border: 2px solid #000; padding: 20px; text-align: center; border-radius: 10px; }" +
+				".name { font-size: 24px; font-weight: bold; margin-bottom: 10px; }" +
+				".info { font-size: 14px; color: #555; margin-top: 10px; }";
+			doc.head.appendChild(style);
+
+			const tag = doc.createElement("div");
+			tag.className = "tag";
+
+			const name = doc.createElement("div");
+			name.className = "name";
+			name.textContent = label;
+
+			const qrContainer = doc.createElement("div");
+			const sourceSvg = qrContainerRef.current?.querySelector("svg");
+			if (sourceSvg) {
+				qrContainer.appendChild(sourceSvg.cloneNode(true));
 			}
 
-			printCommitted = true;
-			printWindow.focus();
-			printWindow.print();
-			printWindow.close();
-			printInFlightRef.current = false;
-			setIsPrinting(false);
-			setPrintStatusMessage(`${label} QR 라벨 인쇄 창을 열었습니다.`);
-		};
+			const info = doc.createElement("div");
+			info.className = "info";
+			info.textContent = "Joolife 한우 스마트팜";
 
-		printWindow.addEventListener("load", finishPrint, { once: true });
-		printWindow.setTimeout(finishPrint, 120);
-		doc.close();
+			tag.append(name, qrContainer, info);
+			doc.body.appendChild(tag);
+
+			const finishPrint = () => {
+				if (printCommitted) {
+					return;
+				}
+
+				printCommitted = true;
+				try {
+					printWindow.focus();
+					printWindow.print();
+					setPrintStatusMessage(`${label} QR 라벨 인쇄 창을 열었습니다.`);
+				} catch (error) {
+					console.error("Failed to print QR label:", error);
+					setPrintStatusMessage(
+						`${label} QR 라벨 인쇄를 시작하지 못했습니다. 다시 시도해 주세요.`,
+					);
+				} finally {
+					closePrintWindow(printWindow);
+					resetPrintState();
+				}
+			};
+
+			registerPrintLoadHandler(printWindow, finishPrint);
+			schedulePrintFallback(printWindow, finishPrint);
+			doc.close();
+		} catch (error) {
+			printCommitted = true;
+			console.error("Failed to prepare QR print window:", error);
+			closePrintWindow(printWindow);
+			resetPrintState();
+			setPrintStatusMessage(
+				`${label} QR 라벨 인쇄 창을 준비하지 못했습니다. 다시 시도해 주세요.`,
+			);
+		}
 	};
 
 	return (

@@ -3,6 +3,8 @@
 import { Bot, Loader2, Send, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { focusElementSafely } from "@/lib/safeFocus";
+
 const INITIAL_MESSAGES = [
 	{
 		role: "system",
@@ -28,7 +30,7 @@ function buildOfflineReply(question) {
 	if (q.includes("안녕")) {
 		return "안녕하세요. 오늘 농장 운영에서 궁금한 부분을 질문해 주세요.";
 	}
-	return "지금은 기본 농장 운영 질문 위주로 안내하고 있어요.\n발정, 급여, 건강관리처럼 구체적으로 물어보시면 더 정확히 도와드릴게요.";
+	return "지금은 기본 농장 운영 질문 위주로 안내합니다.\n발정, 급여, 건강관리처럼 구체적으로 질문해 주시면 더 정확히 안내합니다.";
 }
 
 function buildApiHistory(messages) {
@@ -147,13 +149,13 @@ export default function AIChatWidget() {
 
 	useEffect(() => {
 		if (isOpen) {
-			panelRef.current?.focus();
+			focusElementSafely(panelRef.current);
 			return;
 		}
 
 		if (shouldRestoreLauncherFocusRef.current) {
 			shouldRestoreLauncherFocusRef.current = false;
-			launcherRef.current?.focus();
+			focusElementSafely(launcherRef.current);
 		}
 	}, [isOpen]);
 

@@ -48,17 +48,28 @@ test("qr widget print action blocks duplicate print windows while printing is in
 	assert.match(source, /if \(printInFlightRef\.current\) \{/);
 	assert.match(source, /printInFlightRef\.current = true;/);
 	assert.match(source, /setIsPrinting\(true\);/);
+	assert.match(source, /const openPrintWindow = \(\) => \{/);
+	assert.match(
+		source,
+		/return window\.open\("", "", "width=600,height=600"\);/,
+	);
+	assert.match(source, /console\.error\("Failed to open QR print window:", error\);/);
+	assert.match(source, /const printWindow = openPrintWindow\(\);/);
+	assert.match(
+		source,
+		/const resetPrintState = \(\) => \{\s+printInFlightRef\.current = false;\s+setIsPrinting\(false\);\s+\};/,
+	);
 	assert.match(
 		source,
 		/setPrintStatusMessage\(`\$\{label\} QR 라벨 인쇄 창을 준비하는 중입니다\.`\);/,
 	);
 	assert.match(
 		source,
-		/printInFlightRef\.current = false;\s+setIsPrinting\(false\);\s+setPrintStatusMessage\(\s*["']팝업 차단으로 QR 인쇄 창을 열지 못했습니다\. 브라우저 팝업 허용 후 다시 시도해 주세요\.["'],?\s*\);\s+return;/,
+		/resetPrintState\(\);\s+setPrintStatusMessage\(\s*["']팝업 차단으로 QR 인쇄 창을 열지 못했습니다\. 브라우저 팝업 허용 후 다시 시도해 주세요\.["'],?\s*\);\s+return;/,
 	);
 	assert.match(
 		source,
-		/printWindow\.close\(\);\s+printInFlightRef\.current = false;\s+setIsPrinting\(false\);\s+setPrintStatusMessage\(`\$\{label\} QR 라벨 인쇄 창을 열었습니다\.`\);/,
+		/try \{\s+printWindow\.focus\(\);\s+printWindow\.print\(\);\s+setPrintStatusMessage\(`\$\{label\} QR 라벨 인쇄 창을 열었습니다\.`\);\s+\} catch \(error\) \{/,
 	);
 	assert.match(source, /disabled=\{isPrinting\}/);
 	assert.match(source, /aria-busy=\{isPrinting\}/);
@@ -68,6 +79,10 @@ test("qr widget print action blocks duplicate print windows while printing is in
 		/\{isPrinting \? ["']QR 라벨 인쇄 준비 중\.\.\.["'] : ["']QR 라벨 인쇄["']\}/,
 	);
 	assert.match(source, /cursor: isPrinting \? ["']wait["'] : ["']pointer["']/);
+	assert.doesNotMatch(
+		source,
+		/const printWindow = window\.open\("", "", "width=600,height=600"\);/,
+	);
 });
 
 test("qr widget print failures and completion are announced", () => {
@@ -81,4 +96,81 @@ test("qr widget print failures and completion are announced", () => {
 	assert.match(source, /팝업 차단으로 QR 인쇄 창을 열지 못했습니다/);
 	assert.match(source, /브라우저 팝업 허용 후 다시 시도해 주세요/);
 	assert.doesNotMatch(source, /브라우저 팝업 허용 후 다시 시도하세요/);
+});
+
+test("qr widget always unlocks print state when browser print APIs fail", () => {
+	const source = readSource("components/widgets/QRCodeWidget.js");
+
+	assert.match(source, /console\.error\("Failed to print QR label:", error\);/);
+	assert.match(
+		source,
+		/setPrintStatusMessage\(\s*`\$\{label\} QR 라벨 인쇄를 시작하지 못했습니다\. 다시 시도해 주세요\.`/,
+	);
+	assert.match(
+		source,
+		/finally \{\s+closePrintWindow\(printWindow\);\s+resetPrintState\(\);\s+\}/,
+	);
+	assert.doesNotMatch(
+		source,
+		/printWindow\.print\(\);\s+printWindow\.close\(\);\s+printInFlightRef\.current = false;/,
+	);
+});
+
+test("qr widget always unlocks print state when print-window preparation fails", () => {
+	const source = readSource("components/widgets/QRCodeWidget.js");
+
+	assert.match(
+		source,
+		/const closePrintWindow = \(printWindow\) => \{\s+try \{\s+printWindow\.close\(\);\s+\} catch \(error\) \{\s+console\.error\("Failed to close QR print window:", error\);\s+\}\s+\};/,
+	);
+	assert.match(source, /let printCommitted = false;/);
+	assert.match(source, /try \{\s+const doc = printWindow\.document;/);
+	assert.match(source, /registerPrintLoadHandler\(printWindow, finishPrint\);/);
+	assert.match(source, /schedulePrintFallback\(printWindow, finishPrint\);/);
+	assert.match(source, /doc\.close\(\);/);
+	assert.match(
+		source,
+		/\} catch \(error\) \{\s+printCommitted = true;\s+console\.error\("Failed to prepare QR print window:", error\);\s+closePrintWindow\(printWindow\);\s+resetPrintState\(\);\s+setPrintStatusMessage\(\s*`\$\{label\} QR 라벨 인쇄 창을 준비하지 못했습니다\. 다시 시도해 주세요\.`/,
+	);
+	assert.match(
+		source,
+		/try \{[\s\S]*?const doc = printWindow\.document;[\s\S]*?doc\.close\(\);[\s\S]*?\} catch \(error\) \{/,
+	);
+});
+
+test("qr widget guards print fallback timer scheduling", () => {
+	const source = readSource("components/widgets/QRCodeWidget.js");
+
+	assert.match(
+		source,
+		/const schedulePrintFallback = \(printWindow, finishPrint\) => \{\s+try \{\s+printWindow\.setTimeout\(finishPrint, 120\);\s+\} catch \(error\) \{/,
+	);
+	assert.match(
+		source,
+		/console\.error\("Failed to schedule QR print fallback:", error\);/,
+	);
+	assert.match(source, /schedulePrintFallback\(printWindow, finishPrint\);/);
+	assert.doesNotMatch(
+		source,
+		/printWindow\.addEventListener\("load", finishPrint, \{ once: true \}\);\s+printWindow\.setTimeout\(finishPrint, 120\);/,
+	);
+});
+
+test("qr widget guards print load listener registration", () => {
+	const source = readSource("components/widgets/QRCodeWidget.js");
+
+	assert.match(
+		source,
+		/const registerPrintLoadHandler = \(printWindow, finishPrint\) => \{\s+try \{\s+printWindow\.addEventListener\("load", finishPrint, \{ once: true \}\);\s+\} catch \(error\) \{/,
+	);
+	assert.match(
+		source,
+		/console\.error\("Failed to register QR print load handler:", error\);/,
+	);
+	assert.match(source, /registerPrintLoadHandler\(printWindow, finishPrint\);/);
+	assert.match(source, /schedulePrintFallback\(printWindow, finishPrint\);/);
+	assert.doesNotMatch(
+		source,
+		/printWindow\.addEventListener\("load", finishPrint, \{ once: true \}\);\s+schedulePrintFallback\(printWindow, finishPrint\);/,
+	);
 });

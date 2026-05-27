@@ -14,6 +14,11 @@ function readSource(relativePath) {
 test("AI chat widget handles Korean configuration errors and exposes an accessible launcher", () => {
 	const source = readSource("components/widgets/AIChatWidget.js");
 
+	assert.match(
+		source,
+		/import \{ focusElementSafely \} from ["']@\/lib\/safeFocus["'];/,
+	);
+
 	assert.match(source, /AI 비서 설정/);
 	assert.match(source, /설정 키/);
 	assert.match(
@@ -29,7 +34,7 @@ test("AI chat widget handles Korean configuration errors and exposes an accessib
 	assert.match(source, /aria-controls=\{CHAT_PANEL_ID\}/);
 	assert.match(source, /const shouldRestoreLauncherFocusRef = useRef\(false\)/);
 	assert.match(source, /shouldRestoreLauncherFocusRef\.current = true/);
-	assert.match(source, /launcherRef\.current\?\.focus\(\)/);
+	assert.match(source, /focusElementSafely\(launcherRef\.current\);/);
 	assert.match(source, /ref=\{launcherRef\}/);
 	assert.match(source, /role="dialog"/);
 	assert.match(source, /id=\{CHAT_PANEL_ID\}/);
@@ -40,7 +45,7 @@ test("AI chat widget handles Korean configuration errors and exposes an accessib
 	);
 	assert.match(source, /aria-label="AI 농장 비서 채팅"/);
 	assert.match(source, /const panelRef = useRef\(null\)/);
-	assert.match(source, /panelRef\.current\?\.focus\(\)/);
+	assert.match(source, /focusElementSafely\(panelRef\.current\);/);
 	assert.match(source, /ref=\{panelRef\}/);
 	assert.match(source, /tabIndex=\{-1\}/);
 	assert.match(source, /role="log"/);
@@ -76,7 +81,13 @@ test("AI chat widget handles Korean configuration errors and exposes an accessib
 	assert.doesNotMatch(source, /궁금한 점을 물어보세요/);
 	assert.match(source, /오늘 농장 운영에서 궁금한 부분을 질문해 주세요/);
 	assert.doesNotMatch(source, /오늘 농장 운영에서 어떤 부분이 궁금하신가요/);
+	assert.match(source, /기본 농장 운영 질문 위주로 안내합니다/);
+	assert.match(source, /구체적으로 질문해 주시면 더 정확히 안내합니다/);
+	assert.doesNotMatch(source, /안내하고 있어요/);
+	assert.doesNotMatch(source, /물어보시면 더 정확히 도와드릴게요/);
 	assert.match(source, /<Bot size=\{25\} aria-hidden="true" \/>/);
+	assert.doesNotMatch(source, /launcherRef\.current\?\.focus\(\)/);
+	assert.doesNotMatch(source, /panelRef\.current\?\.focus\(\)/);
 	assert.doesNotMatch(source, />AI\s*<\/button>/);
 	assert.doesNotMatch(source, /aria-label="Send"/);
 	assert.doesNotMatch(source, /onError\(error\.message/);

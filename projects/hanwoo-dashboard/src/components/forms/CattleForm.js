@@ -11,6 +11,7 @@ import {
 import { lookupCattleTag } from "@/lib/actions";
 import { BREED_STATUS_OPTIONS } from "@/lib/constants";
 import { cattleFormSchema, createCattleFormValues } from "@/lib/formSchemas";
+import { focusElementSafely } from "@/lib/safeFocus";
 import { toInputDate } from "@/lib/utils";
 
 const errorTextStyle = {
@@ -97,7 +98,7 @@ export default function CattleForm({
 	}, [safeBuildings, cattle, reset]);
 
 	useEffect(() => {
-		dialogRef.current?.focus();
+		focusElementSafely(dialogRef.current);
 	}, [cattle?.id]);
 
 	useEffect(() => {

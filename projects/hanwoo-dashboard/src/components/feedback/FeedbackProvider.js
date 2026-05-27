@@ -59,7 +59,9 @@ export function FeedbackProvider({ children }) {
 	const dismiss = useCallback((id) => {
 		const timeoutId = timeoutIdsRef.current.get(id);
 		if (timeoutId) {
-			window.clearTimeout(timeoutId);
+			try {
+				window.clearTimeout(timeoutId);
+			} catch {}
 			timeoutIdsRef.current.delete(id);
 		}
 
@@ -71,11 +73,15 @@ export function FeedbackProvider({ children }) {
 			const id = `toast_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 			setToasts((current) => [...current, { id, title, description, variant }]);
 
-			const timeoutId = window.setTimeout(() => {
-				timeoutIdsRef.current.delete(id);
-				dismiss(id);
-			}, duration);
-			timeoutIdsRef.current.set(id, timeoutId);
+			try {
+				const timeoutId = window.setTimeout(() => {
+					timeoutIdsRef.current.delete(id);
+					dismiss(id);
+				}, duration);
+				timeoutIdsRef.current.set(id, timeoutId);
+			} catch (error) {
+				console.error("Failed to schedule feedback toast dismissal:", error);
+			}
 		},
 		[dismiss],
 	);
@@ -83,7 +89,11 @@ export function FeedbackProvider({ children }) {
 	useEffect(() => {
 		const timeoutIds = timeoutIdsRef.current;
 		return () => {
-			timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
+			timeoutIds.forEach((timeoutId) => {
+				try {
+					window.clearTimeout(timeoutId);
+				} catch {}
+			});
 			timeoutIds.clear();
 		};
 	}, []);

@@ -278,7 +278,7 @@ export default function AnalysisTab({
 						<div className="text-right text-xs text-[color:var(--color-text-muted)]">
 							{hasExpenseData
 								? `${costStructure.length}개 카테고리`
-								: "실제 비용 데이터 없음"}
+								: "실제 비용 기록 없음"}
 						</div>
 					</div>
 
@@ -319,7 +319,7 @@ export default function AnalysisTab({
 						</div>
 					) : (
 						<div className="clay-inset flex h-[280px] items-center justify-center rounded-[24px] px-6 text-center text-sm text-[color:var(--color-text-muted)]">
-							비용 데이터가 아직 충분히 쌓이지 않았습니다.
+							비용 기록이 아직 충분히 쌓이지 않았습니다.
 						</div>
 					)}
 				</section>

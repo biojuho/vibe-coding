@@ -96,3 +96,48 @@ test("ear tag scanner explains missing birth dates instead of showing dash place
 		/matchedCow\?\.birthDate[\s\S]*?:\s*["']-["']/,
 	);
 });
+
+test("ear tag scanner guards animation frame scheduling and cleanup", () => {
+	const source = readSource("components/widgets/EarTagScannerModal.js");
+
+	assert.match(source, /function scheduleScannerFrame\(callback\) \{/);
+	assert.match(
+		source,
+		/try \{\s+return window\.requestAnimationFrame\(callback\);\s+\} catch \(error\) \{/,
+	);
+	assert.match(
+		source,
+		/console\.error\("Failed to schedule ear tag scanner frame:", error\);/,
+	);
+	assert.match(source, /function cancelScannerFrame\(animationId\) \{/);
+	assert.match(source, /if \(animationId === null\) \{\s+return;\s+\}/);
+	assert.match(
+		source,
+		/try \{\s+window\.cancelAnimationFrame\(animationId\);\s+\} catch \{\}/,
+	);
+	assert.match(source, /function deferScannerNoMatch\(setScanStatus\) \{/);
+	assert.match(
+		source,
+		/queueMicrotask\(\(\) => setScanStatus\("no_match"\)\);/,
+	);
+	assert.match(
+		source,
+		/Promise\.resolve\(\)\.then\(\(\) => setScanStatus\("no_match"\)\);/,
+	);
+	assert.match(source, /cancelScannerFrame\(animationRef\.current\);/);
+	assert.match(source, /animationRef\.current = null;/);
+	assert.match(source, /if \(!ctx\) \{\s+deferScannerNoMatch\(setScanStatus\);/);
+	assert.match(
+		source,
+		/animationRef\.current = scheduleScannerFrame\(render\);\s+if \(animationRef\.current === null\) \{/,
+	);
+	assert.match(source, /deferScannerNoMatch\(setScanStatus\);/);
+	assert.doesNotMatch(
+		source,
+		/animationRef\.current = requestAnimationFrame\(render\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/if \(animationRef\.current\) cancelAnimationFrame\(animationRef\.current\);/,
+	);
+});

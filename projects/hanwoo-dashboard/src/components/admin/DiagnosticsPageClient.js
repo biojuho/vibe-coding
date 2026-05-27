@@ -31,6 +31,8 @@ const DIAGNOSTICS_LOAD_ERROR_MESSAGE =
 	"진단 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
 const RAW_DATA_LOAD_ERROR_MESSAGE =
 	"원본 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
+const DASHBOARD_NAVIGATION_ERROR_MESSAGE =
+	"대시보드로 이동하지 못했습니다. 잠시 후 다시 시도해 주세요.";
 
 const MODEL_OPTIONS = [
 	{ value: "cattle", label: "개체" },
@@ -85,6 +87,18 @@ export default function DiagnosticsPageClient() {
 	const heapTotalMb = Math.round(
 		toFiniteNumber(stats?.memory?.heapTotal) / 1024 / 1024,
 	);
+	const handleDashboardReturn = () => {
+		try {
+			router.push("/");
+		} catch (error) {
+			console.error("Failed to navigate from diagnostics to dashboard:", error);
+			notify({
+				title: "대시보드로 이동하지 못했습니다.",
+				description: DASHBOARD_NAVIGATION_ERROR_MESSAGE,
+				variant: "error",
+			});
+		}
+	};
 
 	useEffect(() => {
 		let cancelled = false;
@@ -205,7 +219,7 @@ export default function DiagnosticsPageClient() {
 
 					<button
 						type="button"
-						onClick={() => router.push("/")}
+						onClick={handleDashboardReturn}
 						aria-label="운영 대시보드로 돌아가기"
 						title="운영 대시보드로 돌아가기"
 						className="clay-pressable inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-[color:var(--color-text)]"

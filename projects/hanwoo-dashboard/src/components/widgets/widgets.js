@@ -141,7 +141,7 @@ export function WeatherWidget({ weather }) {
 							날씨 확인 불가
 						</div>
 						<div style={{ fontSize: "13px", opacity: 0.82 }}>
-							{weather.message || "지금은 날씨 데이터를 확인할 수 없습니다."}
+							{weather.message || "지금은 날씨 정보를 확인할 수 없습니다."}
 						</div>
 						<div style={{ fontSize: "11px", opacity: 0.6, marginTop: "8px" }}>
 							{weather.locationName || "서울"}

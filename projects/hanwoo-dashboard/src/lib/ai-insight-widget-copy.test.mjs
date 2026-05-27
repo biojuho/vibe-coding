@@ -15,7 +15,9 @@ test("AI insight widget exposes Korean copy and accessibility landmarks", () => 
 	const source = readSource("components/widgets/AIInsightWidget.js");
 
 	assert.match(source, /오늘의 AI 인사이트/);
-	assert.match(source, /농장 데이터를 기반으로 우선순위 3가지 행동을 제안/);
+	assert.match(source, /농장 기록을 기반으로 우선순위 3가지 행동을 정리/);
+	assert.doesNotMatch(source, /농장 데이터를 기반으로 우선순위 3가지 행동을 정리/);
+	assert.doesNotMatch(source, /우선순위 3가지 행동을 제안/);
 	assert.match(source, /aria-label="AI 인사이트 목록"/);
 	assert.match(source, /aria-busy=\{isLoading\}/);
 	assert.match(source, /aria-live="polite"/);
@@ -33,10 +35,31 @@ test("AI insight API route bounds slow Gemini calls with a deterministic fallbac
 	const route = readSource("app/api/ai/insight/route.js");
 
 	assert.match(route, /GEMINI_INSIGHT_TIMEOUT_MS\s*=\s*10000/);
+	assert.match(route, /제공된 농장 스냅샷 정보를 근거로/);
+	assert.match(route, /농장 정보 기반 위급도/);
+	assert.match(route, /위급도에 따라 결정해 주세요/);
+	assert.match(route, /전문 수의사 상담 안내를 포함해 주세요/);
+	assert.doesNotMatch(route, /농장 스냅샷 데이터를 근거로/);
+	assert.doesNotMatch(route, /데이터 기반 위급도/);
+	assert.doesNotMatch(route, /위급도로 결정하세요/);
+	assert.doesNotMatch(route, /전문 수의사 상담 안내를 포함하세요/);
 	assert.match(route, /class InsightTimeoutError extends Error/);
 	assert.match(route, /function withInsightTimeout/);
 	assert.match(route, /Promise\.race\(\[promise,\s*timeoutPromise\]\)/);
-	assert.match(route, /clearTimeout\(timeoutId\)/);
+	assert.match(
+		route,
+		/try \{\s+timeoutId = setTimeout\(\s+\(\) => reject\(new InsightTimeoutError\(timeoutMs\)\),\s+timeoutMs,\s+\);\s+\} catch \(error\) \{/,
+	);
+	assert.match(
+		route,
+		/console\.error\("AI insight timeout scheduling failed:", error\);/,
+	);
+	assert.match(
+		route,
+		/if \(timeoutId !== null\) \{\s+try \{\s+clearTimeout\(timeoutId\);\s+\} catch \{\}/,
+	);
+	assert.doesNotMatch(route, /timeoutId = setTimeout\(\s+\(\) => reject\(new InsightTimeoutError\(timeoutMs\)\),\s+timeoutMs,\s+\);\s+\}\);/);
+	assert.doesNotMatch(route, /if \(timeoutId\) \{\s+clearTimeout\(timeoutId\);/);
 	assert.match(route, /withInsightTimeout\(\s*callGeminiForInsights/);
 	assert.match(route, /reason:\s*GEMINI_TIMEOUT_REASON/);
 	assert.match(
@@ -118,13 +141,26 @@ test("AI insight widget bounds slow requests and announces fallback reasons", ()
 	assert.match(source, /AI_INSIGHT_TIMEOUT_MS\s*=\s*12000/);
 	assert.match(source, /AI_INSIGHT_TIMEOUT_REASON/);
 	assert.match(source, /let didTimeout = false/);
-	assert.match(source, /window\.setTimeout\(\(\) => \{\s*didTimeout = true;\s*controller\.abort\(\);/);
-	assert.match(source, /window\.clearTimeout\(timeoutId\)/);
+	assert.match(source, /let timeoutId = null;/);
+	assert.match(
+		source,
+		/try \{\s+timeoutId = window\.setTimeout\(\(\) => \{\s*didTimeout = true;\s*controller\.abort\(\);/,
+	);
+	assert.match(
+		source,
+		/console\.error\("Failed to schedule AI insight timeout:", error\);/,
+	);
+	assert.match(
+		source,
+		/if \(timeoutId !== null\) \{\s+try \{\s+window\.clearTimeout\(timeoutId\);\s+\} catch \{\}/,
+	);
 	assert.match(source, /error\.name === ["']AbortError["'] && !didTimeout/);
 	assert.match(source, /setReason\(AI_INSIGHT_TIMEOUT_REASON\)/);
 	assert.match(source, /role="status"/);
 	assert.match(source, /aria-live="polite"/);
 	assert.match(source, /aria-atomic="true"/);
+	assert.doesNotMatch(source, /const timeoutId = window\.setTimeout/);
+	assert.doesNotMatch(source, /finally\(\(\) => \{\s+window\.clearTimeout\(timeoutId\);/);
 });
 
 test("AI insight widget is registered, wired into DashboardClient, and supports REST POST", () => {
@@ -134,8 +170,9 @@ test("AI insight widget is registered, wired into DashboardClient, and supports 
 
 	assert.match(
 		widgetSettings,
-		/id:\s*["']aiInsight["'][\s\S]*?label:\s*["']AI 인사이트["'][\s\S]*?icon:\s*["']🤖["'][\s\S]*?defaultOn:\s*false[\s\S]*?description:\s*["']켜면 농장 요약 데이터를 AI 분석 API로 전송합니다\.["']/,
+		/id:\s*["']aiInsight["'][\s\S]*?label:\s*["']AI 인사이트["'][\s\S]*?icon:\s*["']🤖["'][\s\S]*?defaultOn:\s*false[\s\S]*?description:\s*["']켜면 농장 요약 정보를 AI 분석 API로 전송합니다\.["']/,
 	);
+	assert.doesNotMatch(widgetSettings, /농장 요약 데이터를 AI 분석 API로 전송/);
 	assert.match(
 		dashboard,
 		/const AIInsightWidget = dynamic\(\s*\(\)\s*=>\s*import\(["']@\/components\/widgets\/AIInsightWidget["']\)/,

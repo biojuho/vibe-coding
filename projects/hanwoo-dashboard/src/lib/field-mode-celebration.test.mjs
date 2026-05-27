@@ -21,6 +21,40 @@ test("audio synthesizer library exports playTriumphantChime", () => {
 	assert.match(source, /gain\.connect\(ctx\.destination\)/);
 });
 
+test("audio synthesizer guards browser audio and vibration APIs", () => {
+	const source = readSource("lib/audio.js");
+
+	assert.match(source, /let AudioContextClass = null;/);
+	assert.match(
+		source,
+		/try \{\s+AudioContextClass = window\.AudioContext \|\| window\.webkitAudioContext;\s+\} catch \(e\) \{/,
+	);
+	assert.match(source, /console\.warn\("Audio context access failed:", e\);/);
+	assert.match(
+		source,
+		/try \{\s+audioCtx = new AudioContextClass\(\);\s+\} catch \(e\) \{/,
+	);
+	assert.match(source, /console\.warn\("Audio context creation failed:", e\);/);
+	assert.match(
+		source,
+		/typeof audioCtx\.resume === "function"[\s\S]*?try \{\s+const resumeResult = audioCtx\.resume\(\);/,
+	);
+	assert.match(source, /console\.warn\("Audio context resume failed:", e\);/);
+	assert.match(source, /let vibrate = null;/);
+	assert.match(source, /let navigatorRef = null;/);
+	assert.match(
+		source,
+		/try \{\s+navigatorRef = window\.navigator;\s+vibrate = navigatorRef\?\.vibrate;\s+\} catch \{/,
+	);
+	assert.match(source, /if \(typeof vibrate !== "function"\) return;/);
+	assert.match(source, /vibrate\.call\(navigatorRef, duration\);/);
+	assert.doesNotMatch(
+		source,
+		/typeof window\.navigator\.vibrate === "function"/,
+	);
+	assert.doesNotMatch(source, /window\.navigator\.vibrate\(duration\);/);
+});
+
 test("FieldModeView imports playTriumphantChime and sets up celebration refs", () => {
 	const source = readSource("components/widgets/FieldModeView.js");
 
@@ -53,6 +87,37 @@ test("FieldModeView triggers playTriumphantChime and celebration state when chec
 	assert.match(source, /setShowCelebration\(true\)/);
 });
 
+test("FieldModeView normalizes persisted checklist state safely", () => {
+	const source = readSource("components/widgets/FieldModeView.js");
+
+	assert.match(source, /function createFreshChecklist\(\) \{/);
+	assert.match(source, /function normalizeStoredChecklist\(value\) \{/);
+	assert.match(source, /function readStoredChecklist\(todayKey\) \{/);
+	assert.match(source, /function writeStoredChecklist\(todayKey, checklist\) \{/);
+	assert.match(source, /if \(!Array\.isArray\(value\)\) \{/);
+	assert.match(source, /return createFreshChecklist\(\);/);
+	assert.match(source, /const savedById = new Map/);
+	assert.match(source, /DEFAULT_CHECKLIST\.map\(\(item\) => \(\{/);
+	assert.match(source, /checked: Boolean\(savedById\.get\(item\.id\)\?\.checked\)/);
+	assert.match(source, /return normalizeStoredChecklist\(JSON\.parse\(saved\)\);/);
+	assert.match(source, /return readStoredChecklist\(todayKey\);/);
+	assert.match(
+		source,
+		/function readStoredChecklist\(todayKey\) \{[\s\S]*?catch \{\}[\s\S]*?return createFreshChecklist\(\);[\s\S]*?\}/,
+	);
+	assert.match(
+		source,
+		/try \{\s*localStorage\.setItem\(todayKey, JSON\.stringify\(checklist\)\);[\s\S]*?\} catch \{\}/,
+	);
+	assert.match(source, /writeStoredChecklist\(todayKey, fresh\);/);
+	assert.match(source, /writeStoredChecklist\(getTodayKey\(\), updated\);/);
+	assert.doesNotMatch(source, /return JSON\.parse\(saved\);/);
+	assert.doesNotMatch(
+		source,
+		/localStorage\.setItem\(todayKey, JSON\.stringify\(fresh\)\);/,
+	);
+});
+
 test("FieldModeView mounts the celebration canvas with mixBlendMode screen", () => {
 	const source = readSource("components/widgets/FieldModeView.js");
 
@@ -80,7 +145,26 @@ test("FieldModeView announces full-list loading in search results", () => {
 test("FieldModeView controls expose matching title copy", () => {
 	const source = readSource("components/widgets/FieldModeView.js");
 
-	assert.match(source, /placeholder="이표번호 4자리 또는 소 이름 입력"/);
+	assert.match(source, /현장 점검 준비/);
+	assert.match(source, /오프라인 대응/);
+	assert.match(source, /현장 점검 화면/);
+	assert.match(source, /개체 빠른 검색/);
+	assert.match(source, /축사 점검 목록/);
+	assert.match(source, /이표 정보 기준 집계/);
+	assert.match(source, /기상 경보 확인 필요/);
+	assert.match(source, /검색된 개체/);
+	assert.match(source, /전체 목록 불러오는 중\.\.\./);
+	assert.doesNotMatch(source, /현장 기동성 극대화/);
+	assert.doesNotMatch(source, /오프라인 자가생존/);
+	assert.doesNotMatch(source, /Smart Field Overlay/);
+	assert.doesNotMatch(source, /개체 초고속 검색/);
+	assert.doesNotMatch(source, /Tactile stables list/);
+	assert.doesNotMatch(source, /이표 검수 100% 완료/);
+	assert.doesNotMatch(source, /가축 기상 경보 확인 요망/);
+	assert.doesNotMatch(source, /검색 매칭 개체/);
+	assert.doesNotMatch(source, /전체 로드 중\.\.\./);
+	assert.match(source, /placeholder="이표번호 4자리 또는 개체명 입력"/);
+	assert.doesNotMatch(source, /소 이름 입력/);
 	assert.doesNotMatch(source, /소이름/);
 	assert.match(
 		source,
@@ -125,7 +209,90 @@ test("FieldModeView sets up a beautiful dynamic particle confetti simulation", (
 	assert.match(source, /createFirework/);
 	assert.match(source, /p\.vy \+= 0\.15/); // gravity
 	assert.match(source, /p\.vx \*= 0\.98/); // friction
-	assert.match(source, /animationId = requestAnimationFrame\(animate\)/);
+	assert.match(source, /animationId = scheduleFieldModeAnimationFrame\(animate\)/);
+});
+
+test("FieldModeView guards celebration animation frame scheduling and cleanup", () => {
+	const source = readSource("components/widgets/FieldModeView.js");
+
+	assert.match(
+		source,
+		/function scheduleFieldModeAnimationFrame\(callback\) \{/,
+	);
+	assert.match(
+		source,
+		/try \{\s+return window\.requestAnimationFrame\(callback\);\s+\} catch \(error\) \{/,
+	);
+	assert.match(
+		source,
+		/console\.error\("Failed to schedule field mode animation frame:", error\);/,
+	);
+	assert.match(source, /return null;/);
+	assert.match(
+		source,
+		/function cancelFieldModeAnimationFrame\(animationId\) \{/,
+	);
+	assert.match(source, /if \(animationId === null\) \{\s+return;\s+\}/);
+	assert.match(
+		source,
+		/try \{\s+window\.cancelAnimationFrame\(animationId\);\s+\} catch \{\}/,
+	);
+	assert.match(source, /let animationId = null;/);
+	assert.match(
+		source,
+		/animationId = scheduleFieldModeAnimationFrame\(animate\);\s+if \(animationId === null\) \{\s+frameFailureTimer = scheduleFieldModeTimer\(\(\) => \{\s+setShowCelebration\(false\);/,
+	);
+	assert.match(source, /clearFieldModeTimer\(frameFailureTimer\);/);
+	assert.match(source, /cancelFieldModeAnimationFrame\(animationId\);/);
+	assert.match(
+		source,
+		/try \{\s+window\.addEventListener\("resize", handleResize\);\s+\} catch \{\}/,
+	);
+	assert.match(
+		source,
+		/try \{\s+window\.removeEventListener\("resize", handleResize\);\s+\} catch \{\}/,
+	);
+	assert.match(
+		source,
+		/const ctx = canvas\.getContext\("2d"\);\s+if \(!ctx\) \{\s+const closeTimer = scheduleFieldModeTimer\(\(\) => \{\s+setShowCelebration\(false\);/,
+	);
+	assert.match(source, /return \(\) => clearFieldModeTimer\(closeTimer\);/);
+	assert.doesNotMatch(source, /animationId = requestAnimationFrame\(animate\)/);
+	assert.doesNotMatch(source, /\n\s*cancelAnimationFrame\(animationId\);/);
+	assert.doesNotMatch(source, /window\.addEventListener\("resize", handleResize\);\s+const particles/);
+	assert.doesNotMatch(source, /window\.removeEventListener\("resize", handleResize\);\s+cancel/);
+});
+
+test("FieldModeView guards celebration timer scheduling and cleanup", () => {
+	const source = readSource("components/widgets/FieldModeView.js");
+
+	assert.match(source, /function scheduleFieldModeTimer\(callback, delay\) \{/);
+	assert.match(source, /function clearFieldModeTimer\(timeoutId\) \{/);
+	assert.match(
+		source,
+		/try \{\s+return window\.setTimeout\(callback, delay\);\s+\} catch \(error\) \{/,
+	);
+	assert.match(
+		source,
+		/console\.error\("Failed to schedule field mode celebration timer:", error\);/,
+	);
+	assert.match(source, /if \(timeoutId === null\) \{\s+return;\s+\}/);
+	assert.match(
+		source,
+		/try \{\s+window\.clearTimeout\(timeoutId\);\s+\} catch \{\}/,
+	);
+	assert.match(source, /const t1 = scheduleFieldModeTimer\(/);
+	assert.match(source, /const t2 = scheduleFieldModeTimer\(/);
+	assert.match(source, /const timer = scheduleFieldModeTimer\(\(\) => \{/);
+	assert.match(source, /clearFieldModeTimer\(timer\);/);
+	assert.match(source, /clearFieldModeTimer\(t1\);/);
+	assert.match(source, /clearFieldModeTimer\(t2\);/);
+	assert.doesNotMatch(source, /const t1 = setTimeout\(/);
+	assert.doesNotMatch(source, /const t2 = setTimeout\(/);
+	assert.doesNotMatch(source, /const timer = setTimeout\(/);
+	assert.doesNotMatch(source, /clearTimeout\(timer\);/);
+	assert.doesNotMatch(source, /clearTimeout\(t1\);/);
+	assert.doesNotMatch(source, /clearTimeout\(t2\);/);
 });
 
 test("FieldModeView search results use specific missing-building copy", () => {

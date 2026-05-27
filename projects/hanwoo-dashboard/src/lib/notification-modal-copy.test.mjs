@@ -47,9 +47,14 @@ test("notification modal can be dismissed with Escape from the dialog surface", 
 		source,
 		/import \{ useEffect, useRef, useState \} from ["']react["'];/,
 	);
+	assert.match(
+		source,
+		/import \{ focusElementSafely \} from ["']@\/lib\/safeFocus["'];/,
+	);
 	assert.match(source, /const dialogRef = useRef\(null\);/);
 	assert.match(source, /useEffect\(\(\) => \{/);
-	assert.match(source, /dialogRef\.current\?\.focus\(\);/);
+	assert.match(source, /focusElementSafely\(dialogRef\.current\);/);
+	assert.doesNotMatch(source, /dialogRef\.current\?\.focus\(\);/);
 	assert.match(source, /ref=\{dialogRef\}/);
 	assert.match(source, /const handleDialogKeyDown = \(event\) => \{/);
 	assert.match(source, /event\.key === ["']Escape["']/);

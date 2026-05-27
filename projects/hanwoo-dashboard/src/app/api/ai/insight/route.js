@@ -10,10 +10,10 @@ import { requireAuthenticatedSession } from "@/lib/auth-guard";
 
 const SYSTEM_INSTRUCTION = `
 당신은 한우 농가 운영자에게 매일 3개의 우선순위 행동을 권하는 Joolife AI 분석가입니다.
-한국어로 응답하고, 제공된 농장 스냅샷 데이터를 근거로 행동 가능한 인사이트를 주세요.
+한국어로 응답하고, 제공된 농장 스냅샷 정보를 근거로 행동 가능한 인사이트를 주세요.
 출력은 반드시 길이 3의 JSON 배열만이며, 각 원소는 title/body/priority 키를 가져야 합니다.
-priority는 "high" | "medium" | "low" 중 하나, 데이터 기반 위급도로 결정하세요.
-응급 질병이나 수의학 상황은 전문 수의사 상담 안내를 포함하세요.
+priority는 "high" | "medium" | "low" 중 하나로, 농장 정보 기반 위급도에 따라 결정해 주세요.
+응급 질병이나 수의학 상황은 전문 수의사 상담 안내를 포함해 주세요.
 `.trim();
 
 const DEFAULT_HEURISTIC_REASON =
@@ -57,15 +57,21 @@ async function callGeminiForInsights({ apiKey, prompt }) {
 function withInsightTimeout(promise, timeoutMs = GEMINI_INSIGHT_TIMEOUT_MS) {
 	let timeoutId = null;
 	const timeoutPromise = new Promise((_, reject) => {
-		timeoutId = setTimeout(
-			() => reject(new InsightTimeoutError(timeoutMs)),
-			timeoutMs,
-		);
+		try {
+			timeoutId = setTimeout(
+				() => reject(new InsightTimeoutError(timeoutMs)),
+				timeoutMs,
+			);
+		} catch (error) {
+			console.error("AI insight timeout scheduling failed:", error);
+		}
 	});
 
 	return Promise.race([promise, timeoutPromise]).finally(() => {
-		if (timeoutId) {
-			clearTimeout(timeoutId);
+		if (timeoutId !== null) {
+			try {
+				clearTimeout(timeoutId);
+			} catch {}
 		}
 	});
 }

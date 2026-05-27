@@ -14,6 +14,8 @@ const CONFIRM_RETRY_LIMIT = 3;
 const AMOUNT_INPUT_PATTERN = /^\d+$/;
 const PAYMENT_CONFIRMATION_ERROR_MESSAGE =
 	"결제 확인 중 오류가 발생했습니다. 잠시 후 다시 확인해 주세요.";
+const PAYMENT_REDIRECT_ERROR_MESSAGE =
+	"대시보드로 자동 이동하지 못했습니다. 대시보드로 돌아가 다시 확인해 주세요.";
 
 const PAYMENT_AMOUNT_ERROR_MESSAGE = "결제 금액 정보를 확인해 주세요.";
 
@@ -24,6 +26,26 @@ function parsePaymentAmount(value) {
 
 	const amount = Number(value);
 	return Number.isSafeInteger(amount) ? amount : null;
+}
+
+function schedulePaymentStatusTimer(callback, delay) {
+	try {
+		return window.setTimeout(callback, delay);
+	} catch (error) {
+		console.error("Payment success timer scheduling failed:", error);
+		callback();
+		return null;
+	}
+}
+
+function clearPaymentStatusTimer(timeoutId) {
+	if (timeoutId === null) {
+		return;
+	}
+
+	try {
+		window.clearTimeout(timeoutId);
+	} catch {}
 }
 
 function SuccessContent() {
@@ -42,11 +64,11 @@ function SuccessContent() {
 
 		const paymentAmount = parsePaymentAmount(amount);
 		if (paymentAmount === null) {
-			const invalidAmountTimer = setTimeout(
+			const invalidAmountTimer = schedulePaymentStatusTimer(
 				() => setStatus(PAYMENT_AMOUNT_ERROR_MESSAGE),
 				0,
 			);
-			return () => clearTimeout(invalidAmountTimer);
+			return () => clearPaymentStatusTimer(invalidAmountTimer);
 		}
 
 		let cancelled = false;
@@ -79,7 +101,14 @@ function SuccessContent() {
 
 				if (data?.success) {
 					setStatus("success");
-					retryTimer = setTimeout(() => router.push("/"), 3000);
+					retryTimer = schedulePaymentStatusTimer(() => {
+						try {
+							router.push("/");
+						} catch (error) {
+							console.error("Payment success redirect failed:", error);
+							setStatus(PAYMENT_REDIRECT_ERROR_MESSAGE);
+						}
+					}, 3000);
 					return;
 				}
 
@@ -96,7 +125,7 @@ function SuccessContent() {
 					setStatus(
 						`결제 확인을 다시 시도합니다. ${CONFIRM_RETRY_DELAY_MS / 1000}초 후 재확인합니다.`,
 					);
-					retryTimer = setTimeout(() => {
+					retryTimer = schedulePaymentStatusTimer(() => {
 						void confirmPayment(attempt + 1);
 					}, CONFIRM_RETRY_DELAY_MS);
 					return;
@@ -125,9 +154,7 @@ function SuccessContent() {
 
 		return () => {
 			cancelled = true;
-			if (retryTimer) {
-				clearTimeout(retryTimer);
-			}
+			clearPaymentStatusTimer(retryTimer);
 		};
 	}, [searchParams, router]);
 

@@ -2,25 +2,47 @@
 
 import { useEffect, useState } from "react";
 
+function readNavigatorOnlineStatus() {
+	if (typeof navigator === "undefined") {
+		return true;
+	}
+
+	try {
+		return navigator.onLine;
+	} catch {
+		return true;
+	}
+}
+
 export function useOnlineStatus() {
 	const [isOnline, setIsOnline] = useState(() => {
 		if (typeof window === "undefined") {
 			return true;
 		}
 
-		return navigator.onLine;
+		return readNavigatorOnlineStatus();
 	});
 
 	useEffect(() => {
+		if (typeof window === "undefined") {
+			return undefined;
+		}
+
 		const goOnline = () => setIsOnline(true);
 		const goOffline = () => setIsOnline(false);
 
-		window.addEventListener("online", goOnline);
-		window.addEventListener("offline", goOffline);
+		try {
+			window.addEventListener("online", goOnline);
+			window.addEventListener("offline", goOffline);
+		} catch {
+			return undefined;
+		}
 
 		return () => {
-			window.removeEventListener("online", goOnline);
-			window.removeEventListener("offline", goOffline);
+			try {
+				window.removeEventListener("online", goOnline);
+				window.removeEventListener("offline", goOffline);
+			} catch {}
 		};
 	}, []);
 

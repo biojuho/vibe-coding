@@ -19,6 +19,33 @@ function formatScannerBirthDate(value) {
 		: date.toLocaleDateString("ko-KR");
 }
 
+function scheduleScannerFrame(callback) {
+	try {
+		return window.requestAnimationFrame(callback);
+	} catch (error) {
+		console.error("Failed to schedule ear tag scanner frame:", error);
+		return null;
+	}
+}
+
+function cancelScannerFrame(animationId) {
+	if (animationId === null) {
+		return;
+	}
+
+	try {
+		window.cancelAnimationFrame(animationId);
+	} catch {}
+}
+
+function deferScannerNoMatch(setScanStatus) {
+	try {
+		queueMicrotask(() => setScanStatus("no_match"));
+	} catch {
+		Promise.resolve().then(() => setScanStatus("no_match"));
+	}
+}
+
 export default function EarTagScannerModal({
 	isOpen,
 	onClose,
@@ -47,13 +74,18 @@ export default function EarTagScannerModal({
 	// Canvas retro-futuristic HUD animation
 	useEffect(() => {
 		if (!isOpen || scanStatus !== "scanning") {
-			if (animationRef.current) cancelAnimationFrame(animationRef.current);
+			cancelScannerFrame(animationRef.current);
+			animationRef.current = null;
 			return;
 		}
 
 		const canvas = canvasRef.current;
 		if (!canvas) return;
 		const ctx = canvas.getContext("2d");
+		if (!ctx) {
+			deferScannerNoMatch(setScanStatus);
+			return;
+		}
 
 		const width = (canvas.width = canvas.offsetWidth || 320);
 		const height = (canvas.height = canvas.offsetHeight || 320);
@@ -195,13 +227,20 @@ export default function EarTagScannerModal({
 				height - pad + 20,
 			);
 
-			animationRef.current = requestAnimationFrame(render);
+			animationRef.current = scheduleScannerFrame(render);
+			if (animationRef.current === null) {
+				setScanStatus("no_match");
+			}
 		};
 
-		animationRef.current = requestAnimationFrame(render);
+		animationRef.current = scheduleScannerFrame(render);
+		if (animationRef.current === null) {
+			deferScannerNoMatch(setScanStatus);
+		}
 
 		return () => {
-			if (animationRef.current) cancelAnimationFrame(animationRef.current);
+			cancelScannerFrame(animationRef.current);
+			animationRef.current = null;
 		};
 	}, [isOpen, scanStatus]);
 

@@ -42,6 +42,50 @@ test("settings tab switch controls expose Korean accessible names and checked st
 	assert.doesNotMatch(source, /aria-label="Widget"/);
 });
 
+test("theme hook persists settings without breaking on browser storage failures", () => {
+	const source = readSource("lib/useTheme.js");
+
+	assert.match(source, /function getDocumentRoot\(\) \{/);
+	assert.match(source, /function getSystemTheme\(\) \{/);
+	assert.match(source, /function readStoredTheme\(\) \{/);
+	assert.match(source, /function writeStoredTheme\(theme\) \{/);
+	assert.match(source, /if \(typeof window === "undefined"\) \{\s*return "light";/);
+	assert.match(source, /if \(typeof document === "undefined"\) \{\s*return null;/);
+	assert.match(
+		source,
+		/try \{\s*return document\.documentElement;\s*\} catch \{\s*return null;\s*\}/,
+	);
+	assert.match(source, /const root = getDocumentRoot\(\);/);
+	assert.match(source, /if \(!root\) \{\s*return;\s*\}/);
+	assert.match(
+		source,
+		/try \{\s*root\.setAttribute\("data-theme", theme\);\s*root\.classList\.toggle\(DARK_CLASS, theme === "dark"\);[\s\S]*?\} catch \{\}/,
+	);
+	assert.match(source, /const saved = localStorage\.getItem\(STORAGE_KEY\);/);
+	assert.match(source, /if \(saved === "dark" \|\| saved === "light"\) \{/);
+	assert.match(source, /return getSystemTheme\(\);/);
+	assert.match(
+		source,
+		/try \{\s*return window\.matchMedia\("\(prefers-color-scheme: dark\)"\)\.matches[\s\S]*?\} catch \{\s*return "light";\s*\}/,
+	);
+	assert.match(source, /useState\(\(\) => readStoredTheme\(\)\)/);
+	assert.match(source, /writeStoredTheme\(theme\);/);
+	assert.match(
+		source,
+		/try \{\s*localStorage\.setItem\(STORAGE_KEY, theme\);[\s\S]*?\} catch \{\}/,
+	);
+	assert.doesNotMatch(
+		source,
+		/useState\(\(\) => \{[\s\S]*?window\.matchMedia\("\(prefers-color-scheme: dark\)"\)\.matches[\s\S]*?\}\)/,
+	);
+	assert.doesNotMatch(
+		source,
+		/if \(typeof window !== "undefined"\) \{\s*localStorage\.setItem\(STORAGE_KEY, theme\);/,
+	);
+	assert.doesNotMatch(source, /document\.documentElement\.setAttribute/);
+	assert.doesNotMatch(source, /document\.documentElement\.classList\.toggle/);
+});
+
 test("settings tab decorative text icons are hidden from assistive tech", () => {
 	const source = readSource("components/tabs/SettingsTab.js");
 
@@ -75,8 +119,9 @@ test("dashboard widget registry is centralized with readable Korean labels", () 
 	);
 	assert.match(
 		hookSource,
-		/description:\s*['"]켜면 농장 요약 데이터를 AI 분석 API로 전송합니다\.['"]/,
+		/description:\s*['"]켜면 농장 요약 정보를 AI 분석 API로 전송합니다\.['"]/,
 	);
+	assert.doesNotMatch(hookSource, /농장 요약 데이터를 AI 분석 API로 전송/);
 	assert.match(hookSource, /label:\s*['"]날씨 \/ THI['"]/);
 	assert.match(hookSource, /label:\s*['"]시세 정보['"]/);
 	assert.match(hookSource, /label:\s*['"]알림 \(발정\/분만\)['"]/);
@@ -84,6 +129,38 @@ test("dashboard widget registry is centralized with readable Korean labels", () 
 	assert.match(hookSource, /label:\s*['"]출하 수익성 예측['"]/);
 	assert.match(hookSource, /label:\s*['"]핵심 통계['"]/);
 	assert.doesNotMatch(hookSource, /[筌욃첎쳸疫]/);
+});
+
+test("widget settings normalize persisted visibility safely", () => {
+	const hookSource = readSource("lib/hooks/useWidgetSettings.js");
+
+	assert.match(hookSource, /function getDefaultWidgetVisibility\(\) \{/);
+	assert.match(hookSource, /function normalizeStoredWidgetVisibility\(value\) \{/);
+	assert.match(hookSource, /function readStoredWidgetVisibility\(\) \{/);
+	assert.match(hookSource, /function writeStoredWidgetVisibility\(visibility\) \{/);
+	assert.match(
+		hookSource,
+		/if \(!value \|\| typeof value !== "object" \|\| Array\.isArray\(value\)\) \{/,
+	);
+	assert.match(
+		hookSource,
+		/typeof value\[widget\.id\] === "boolean"\s*\?\s*value\[widget\.id\]\s*:\s*defaults\[widget\.id\]/,
+	);
+	assert.match(
+		hookSource,
+		/return normalizeStoredWidgetVisibility\(JSON\.parse\(saved\)\);/,
+	);
+	assert.match(hookSource, /useState\(\(\) => readStoredWidgetVisibility\(\)\)/);
+	assert.match(
+		hookSource,
+		/try \{\s*localStorage\.setItem\(WIDGETS_STORAGE_KEY, JSON\.stringify\(visibility\)\);[\s\S]*?\} catch \{\}/,
+	);
+	assert.match(hookSource, /writeStoredWidgetVisibility\(next\);/);
+	assert.doesNotMatch(hookSource, /\{\s*\.\.\.defaults,\s*\.\.\.JSON\.parse\(saved\)\s*\}/);
+	assert.doesNotMatch(
+		hookSource,
+		/localStorage\.setItem\(WIDGETS_STORAGE_KEY, JSON\.stringify\(next\)\);/,
+	);
 });
 
 test("settings tab building delete buttons identify the target building", () => {

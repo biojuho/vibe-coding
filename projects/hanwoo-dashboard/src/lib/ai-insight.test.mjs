@@ -113,10 +113,13 @@ test("buildInsightPrompt embeds the snapshot and requests strict JSON", () => {
 	assert.doesNotMatch(prompt, /이번달 출하/);
 	assert.match(prompt, /판매액 800만원/);
 	assert.doesNotMatch(prompt, /매출 800만원/);
-	assert.match(prompt, /즉시 출하 권장 개체: 1두/);
+	assert.match(prompt, /즉시 출하 후보 개체: 1두/);
+	assert.doesNotMatch(prompt, /즉시 출하 권장 개체/);
 	assert.match(prompt, /발정 알림: 1건/);
 	assert.match(prompt, /THI 80/);
 	assert.match(prompt, /JSON 배열로 정확히 3개의 인사이트/);
+	assert.match(prompt, /농장 정보 기반/);
+	assert.doesNotMatch(prompt, /데이터 기반/);
 	assert.match(prompt, /순수 JSON만 반환/);
 });
 
@@ -190,14 +193,15 @@ test("buildHeuristicInsights surfaces a shipment recommendation when present", (
 	assert.equal(insights.length, MAX_INSIGHTS);
 	const titles = insights.map((i) => i.title);
 	assert.ok(
-		titles.includes("즉시 출하 권장"),
+		titles.includes("출하 일정 확정 필요"),
 		"shipment insight should always surface when recommendShipment is true",
 	);
-	const shipment = insights.find((i) => i.title === "즉시 출하 권장");
+	const shipment = insights.find((i) => i.title === "출하 일정 확정 필요");
 	assert.equal(shipment.priority, "high");
 	assert.match(shipment.body, /9999호/);
 	assert.match(shipment.body, /\+120만원/);
 	assert.match(shipment.body, /24시간 내 출고 일정을 확정해 주세요/);
+	assert.doesNotMatch(shipment.title, /권장/);
 	assert.doesNotMatch(shipment.body, /확정 권장/);
 	const monthlySales = insights.find((i) => i.title === "이번 달 출하 요약");
 	assert.match(monthlySales?.body ?? "", /다음 달 출하 후보군/);
@@ -247,6 +251,19 @@ test("buildHeuristicInsights uses helper tone for declining margin checks", () =
 	assert.doesNotMatch(margin?.body ?? "", /재검토 필요/);
 });
 
+test("buildHeuristicInsights describes low-THI weight updates as records", () => {
+	const insights = buildHeuristicInsights({
+		totalHeadcount: 8,
+		profitabilityItems: [],
+		notifications: [],
+		weather: { thi: 68 },
+	});
+
+	const condition = insights.find((i) => i.title === "사양 컨디션 안정");
+	assert.match(condition?.body ?? "", /체중 측정 기록 갱신/);
+	assert.doesNotMatch(condition?.body ?? "", /체중 측정 데이터 갱신/);
+});
+
 test("buildHeuristicInsights returns 3 safe defaults when no signals exist", () => {
 	const insights = buildHeuristicInsights({});
 	assert.equal(insights.length, MAX_INSIGHTS);
@@ -262,7 +279,8 @@ test("buildHeuristicInsights returns 3 safe defaults when no signals exist", () 
 	assert.match(routine?.body ?? "", /5가지 일상 점검을 진행해 주세요/);
 	assert.doesNotMatch(routine?.body ?? "", /점검을 권장합니다/);
 	const dataQuality = insights.find((i) => i.title === "데이터 보강 안내");
-	assert.match(dataQuality?.body ?? "", /체중·판매액·시세 데이터/);
+	assert.match(dataQuality?.body ?? "", /체중·판매액 데이터와 시세 정보/);
+	assert.doesNotMatch(dataQuality?.body ?? "", /체중·판매액·시세 데이터/);
 	assert.doesNotMatch(dataQuality?.body ?? "", /체중·매출·시세 데이터/);
 });
 

@@ -482,14 +482,14 @@ export default function DashboardClient({
 					{ cache: "no-store" },
 					{
 						timeoutMs: 10000,
-						errorMessage: `대시보드 데이터를 불러오는 데 시간이 오래 걸리고 있습니다. (${pathname})`,
+						errorMessage: `대시보드 정보를 불러오는 데 시간이 오래 걸리고 있습니다. (${pathname})`,
 					},
 				);
 				const json = await readJsonSafely(res);
 				if (!res.ok || !json?.success || !json?.data) {
 					throw new Error(
 						json?.message ||
-							`대시보드 데이터를 불러오지 못했습니다. (${pathname})`,
+							`대시보드 정보를 불러오지 못했습니다. (${pathname})`,
 					);
 				}
 
@@ -739,16 +739,24 @@ export default function DashboardClient({
 			}
 		};
 
+		const fetchFallbackWeather = () => {
+			fetchWeather(35.446, 127.344);
+		};
+
 		if (farmSettings.latitude && farmSettings.longitude) {
 			fetchWeather(farmSettings.latitude, farmSettings.longitude);
-		} else if ("geolocation" in navigator) {
-			navigator.geolocation.getCurrentPosition(
-				(position) =>
-					fetchWeather(position.coords.latitude, position.coords.longitude),
-				() => fetchWeather(35.446, 127.344),
-			);
+		} else if (typeof navigator !== "undefined" && "geolocation" in navigator) {
+			try {
+				navigator.geolocation.getCurrentPosition(
+					(position) =>
+						fetchWeather(position.coords.latitude, position.coords.longitude),
+					fetchFallbackWeather,
+				);
+			} catch {
+				fetchFallbackWeather();
+			}
 		} else {
-			fetchWeather(35.446, 127.344);
+			fetchFallbackWeather();
 		}
 
 		return () => {
@@ -2228,7 +2236,7 @@ function PenCattleList({ cattleList, buildingId, penId, onSelect }) {
 						<div className="text-3xl mb-2" aria-hidden="true">
 							🐄
 						</div>
-						<p className="text-muted-foreground">이 칸은 비어있습니다.</p>
+						<p className="text-muted-foreground">이 칸은 비어 있습니다.</p>
 					</CardContent>
 				</Card>
 			)}

@@ -120,7 +120,21 @@ test("cattle detail weight chart exposes an accessible chart summary", () => {
 test("cattle form and detail icon-only navigation controls have Korean labels", () => {
 	const formSource = readSource("components/forms/CattleForm.js");
 	const detailSource = readSource("components/forms/CattleDetailModal.js");
+	const safeFocusSource = readSource("lib/safeFocus.js");
 
+	assert.match(
+		safeFocusSource,
+		/export function focusElementSafely\(element\) \{/,
+	);
+	assert.match(
+		safeFocusSource,
+		/if \(!element \|\| typeof element\.focus !== ["']function["']\) \{\s+return;\s+\}/,
+	);
+	assert.match(safeFocusSource, /try \{\s+element\.focus\(\);\s+\} catch \{\}/);
+	assert.match(
+		formSource,
+		/import \{ focusElementSafely \} from ["']@\/lib\/safeFocus["'];/,
+	);
 	assert.match(formSource, /const cancelButtonLabel = isSaving/);
 	assert.match(formSource, /개체 저장 중에는 취소할 수 없습니다/);
 	assert.match(formSource, /개체 저장 취소/);
@@ -132,7 +146,7 @@ test("cattle form and detail icon-only navigation controls have Korean labels", 
 	assert.match(formSource, /aria-modal="true"/);
 	assert.match(formSource, /aria-labelledby="cattle-form-title"/);
 	assert.match(formSource, /const dialogRef = useRef\(null\)/);
-	assert.match(formSource, /dialogRef\.current\?\.focus\(\)/);
+	assert.match(formSource, /focusElementSafely\(dialogRef\.current\);/);
 	assert.match(formSource, /tabIndex=\{-1\}/);
 	assert.match(formSource, /onKeyDown=\{handleDialogKeyDown\}/);
 	assert.match(
@@ -273,8 +287,12 @@ test("cattle form and detail icon-only navigation controls have Korean labels", 
 	assert.match(detailSource, /role="dialog"/);
 	assert.match(detailSource, /aria-modal="true"/);
 	assert.match(detailSource, /aria-labelledby="cattle-detail-title"/);
+	assert.match(
+		detailSource,
+		/import \{ focusElementSafely \} from ["']@\/lib\/safeFocus["'];/,
+	);
 	assert.match(detailSource, /const dialogRef = useRef\(null\)/);
-	assert.match(detailSource, /dialogRef\.current\?\.focus\(\)/);
+	assert.match(detailSource, /focusElementSafely\(dialogRef\.current\);/);
 	assert.match(detailSource, /tabIndex=\{-1\}/);
 	assert.match(detailSource, /onKeyDown=\{handleDialogKeyDown\}/);
 	assert.match(
@@ -288,6 +306,8 @@ test("cattle form and detail icon-only navigation controls have Korean labels", 
 	assert.match(detailSource, /id="cattle-detail-title"/);
 	assert.doesNotMatch(formSource, /aria-label="Back"/);
 	assert.doesNotMatch(detailSource, /aria-label="Close"/);
+	assert.doesNotMatch(formSource, /dialogRef\.current\?\.focus\(\)/);
+	assert.doesNotMatch(detailSource, /dialogRef\.current\?\.focus\(\)/);
 });
 
 test("cattle detail archive actions wait for async deletes before re-enabling submit actions", () => {

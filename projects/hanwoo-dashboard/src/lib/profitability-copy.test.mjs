@@ -16,8 +16,10 @@ test("profitability service surfaces Korean operator-facing error copy", () => {
 
 	// These known business-state messages can flow through to
 	// ProfitabilityWidget, which renders `{error}` as visible UI text.
-	assert.match(source, /수익성 시뮬레이션에 사용할 시세 데이터가 없습니다/);
-	assert.match(source, /시세 데이터를 해석하지 못했습니다/);
+	assert.match(source, /수익성 시뮬레이션에 사용할 시세 정보가 없습니다/);
+	assert.match(source, /시세 정보를 해석하지 못했습니다/);
+	assert.doesNotMatch(source, /수익성 시뮬레이션에 사용할 시세 데이터가 없습니다/);
+	assert.doesNotMatch(source, /시세 데이터를 해석하지 못했습니다/);
 	assert.match(source, /수익성 추정 오류/);
 	assert.match(
 		source,
@@ -128,6 +130,27 @@ test("profitability widget normalizes recommendation values before rendering", (
 	assert.doesNotMatch(source, /["']----["']/);
 	assert.doesNotMatch(source, /String\(rawItem\.name \?\? ["']-["']\)/);
 	assert.doesNotMatch(source, /item\.tagNumber\.slice\(-4\)/);
+});
+
+test("profitability widget uses action-ready shipment badge copy", () => {
+	const source = readSource("components/widgets/ProfitabilityWidget.js");
+
+	assert.match(source, /출하 일정 확인 필요/);
+	assert.doesNotMatch(source, /즉시 출하 권장/);
+});
+
+test("profitability widget uses candidate-analysis copy for empty and header states", () => {
+	const source = readSource("components/widgets/ProfitabilityWidget.js");
+
+	assert.match(source, /title="출하 후보 개체"/);
+	assert.match(source, /현재 출하 일정을 확인할 후보가 없거나 수익성 분석에 필요한/);
+	assert.match(source, /기록이 부족합니다/);
+	assert.match(source, /title="출하 수익성 분석"/);
+	assert.match(source, /description="출하 타이밍과 예상 마진을 분석합니다\."/);
+	assert.doesNotMatch(source, /출하 추천 개체/);
+	assert.doesNotMatch(source, /출하 수익성 추천/);
+	assert.doesNotMatch(source, /최적의 출하 타이밍/);
+	assert.doesNotMatch(source, /수익성 분석 데이터가/);
 });
 
 test("profitability widget normalizes recommendation collection payloads before rendering", () => {

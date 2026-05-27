@@ -23,20 +23,50 @@ const PAYMENT_PREPARING_MESSAGE = "결제를 준비하고 있습니다.";
 const PAYMENT_REQUEST_ERROR_MESSAGE =
 	"결제 요청을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.";
 const PAYMENT_BUTTON_PREFIX = "결제하기";
+const PAYMENT_SUCCESS_PATH = "/subscription/success";
+const PAYMENT_FAIL_PATH = "/subscription/fail";
+
+function buildPaymentRedirectUrl(pathname) {
+	try {
+		if (typeof window === "undefined") {
+			return pathname;
+		}
+
+		const locationHref = window.location?.href;
+		if (typeof locationHref === "string" && locationHref.length > 0) {
+			return new URL(pathname, locationHref).toString();
+		}
+
+		const locationOrigin = window.location?.origin;
+		if (typeof locationOrigin === "string" && locationOrigin.length > 0) {
+			return `${locationOrigin}${pathname}`;
+		}
+	} catch (error) {
+		console.error("Payment redirect URL creation failed", error);
+	}
+
+	return pathname;
+}
 
 function withTimeout(promise, timeoutMs, message) {
 	let timeoutId = null;
 
 	const timeoutPromise = new Promise((_, reject) => {
-		timeoutId = setTimeout(
-			() => reject(new TimeoutError(message, timeoutMs)),
-			timeoutMs,
-		);
+		try {
+			timeoutId = window.setTimeout(
+				() => reject(new TimeoutError(message, timeoutMs)),
+				timeoutMs,
+			);
+		} catch (error) {
+			console.error("Payment widget timeout scheduling failed", error);
+		}
 	});
 
 	return Promise.race([promise, timeoutPromise]).finally(() => {
-		if (timeoutId) {
-			clearTimeout(timeoutId);
+		if (timeoutId !== null) {
+			try {
+				window.clearTimeout(timeoutId);
+			} catch {}
 		}
 	});
 }
@@ -162,8 +192,8 @@ export default function PaymentWidget({
 				orderId: preparedPayment.orderId,
 				orderName: preparedPayment.orderName,
 				customerName: preparedPayment.customerName,
-				successUrl: `${window.location.origin}/subscription/success`,
-				failUrl: `${window.location.origin}/subscription/fail`,
+				successUrl: buildPaymentRedirectUrl(PAYMENT_SUCCESS_PATH),
+				failUrl: buildPaymentRedirectUrl(PAYMENT_FAIL_PATH),
 			};
 
 			if (preparedPayment.customerEmail) {

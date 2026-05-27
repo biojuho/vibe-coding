@@ -1,11 +1,11 @@
 export const WEATHER_UNAVAILABLE_MESSAGE =
-	"지금은 날씨 데이터를 확인할 수 없습니다. 잠시 후 다시 시도해 주세요.";
+	"지금은 날씨 정보를 확인할 수 없습니다. 잠시 후 다시 시도해 주세요.";
 
 export const WEATHER_STALE_MESSAGE =
 	"실시간 날씨를 불러오지 못해 마지막으로 확인한 날씨 정보를 표시합니다.";
 
 export const WEATHER_PARTIAL_MESSAGE =
-	"일부 예보 데이터를 불러오지 못해 현재 날씨와 확인된 예보만 표시합니다.";
+	"일부 예보 정보를 불러오지 못해 현재 날씨와 확인된 예보만 표시합니다.";
 
 export const WEATHER_TIMEOUT_MESSAGE =
 	"날씨 조회가 5초 안에 끝나지 않았습니다.";

@@ -254,11 +254,22 @@ test("AI chat route farm context avoids English fallback copy", () => {
 	assert.match(source, /Joolife AI 농장 비서/);
 	assert.match(source, /AI 농장 컨텍스트 구성 실패/);
 	assert.match(source, /현재 농장 정보/);
+	assert.match(source, /제공된 농장 정보를 근거로/);
+	assert.match(source, /정보가 없거나 불확실한 경우/);
+	assert.match(source, /확인이 필요하다고 명확히 말해 주세요/);
+	assert.match(source, /전문 수의사에게 상담하도록 안내해 주세요/);
+	assert.doesNotMatch(source, /제공된 농장 데이터를 근거로/);
+	assert.doesNotMatch(source, /데이터가 없거나 불확실한 경우/);
+	assert.doesNotMatch(source, /확인이 필요하다고 명확히 말하세요/);
+	assert.doesNotMatch(source, /전문 수의사에게 상담하도록 안내하세요/);
 	assert.match(source, /개체명 미등록/);
 	assert.match(source, /이력번호 미등록/);
 	assert.match(source, /출하일 미등록/);
 	assert.match(source, /최근 판매 기록 없음/);
-	assert.match(source, /상태별 개체 데이터 없음/);
+	assert.match(source, /상태별 개체 집계 없음/);
+	assert.match(source, /농장 정보를 불러오지 못했습니다/);
+	assert.doesNotMatch(source, /상태별 개체 데이터 없음/);
+	assert.doesNotMatch(source, /농장 데이터를 불러오지 못했습니다/);
 	assert.doesNotMatch(source, /statusSummary \|\| ["']데이터 없음["']/);
 	assert.match(source, /Joolife 한우 농장/);
 	assert.doesNotMatch(

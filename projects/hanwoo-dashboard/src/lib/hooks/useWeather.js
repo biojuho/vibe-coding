@@ -12,6 +12,8 @@ import {
 	WEATHER_UNAVAILABLE_MESSAGE,
 } from "@/lib/weather-state.mjs";
 
+const FALLBACK_WEATHER_COORDS = { latitude: 35.446, longitude: 127.344 };
+
 export function useWeather(farmSettings) {
 	const [weather, setWeather] = useState(null);
 
@@ -79,16 +81,27 @@ export function useWeather(farmSettings) {
 			}
 		};
 
+		const fetchFallbackWeather = () => {
+			fetchWeather(
+				FALLBACK_WEATHER_COORDS.latitude,
+				FALLBACK_WEATHER_COORDS.longitude,
+			);
+		};
+
 		if (farmSettings?.latitude && farmSettings?.longitude) {
 			fetchWeather(farmSettings.latitude, farmSettings.longitude);
 		} else if (typeof navigator !== "undefined" && "geolocation" in navigator) {
-			navigator.geolocation.getCurrentPosition(
-				(position) =>
-					fetchWeather(position.coords.latitude, position.coords.longitude),
-				() => fetchWeather(35.446, 127.344),
-			);
+			try {
+				navigator.geolocation.getCurrentPosition(
+					(position) =>
+						fetchWeather(position.coords.latitude, position.coords.longitude),
+					fetchFallbackWeather,
+				);
+			} catch {
+				fetchFallbackWeather();
+			}
 		} else {
-			fetchWeather(35.446, 127.344);
+			fetchFallbackWeather();
 		}
 
 		return () => {

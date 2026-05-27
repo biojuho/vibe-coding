@@ -24,6 +24,22 @@ test("feedback toasts expose live-region semantics and Korean dismiss labels", (
 	assert.match(source, /const toastDismissLabel = `\$\{toast\.title\} 알림 닫기`;/);
 	assert.match(source, /aria-label=\{toastDismissLabel\}/);
 	assert.match(source, /title=\{toastDismissLabel\}/);
+	assert.match(
+		source,
+		/try \{\s+window\.clearTimeout\(timeoutId\);\s+\} catch \{\}/,
+	);
+	assert.match(
+		source,
+		/try \{\s+const timeoutId = window\.setTimeout\(\(\) => \{/,
+	);
+	assert.match(
+		source,
+		/console\.error\(["']Failed to schedule feedback toast dismissal:/,
+	);
+	assert.match(
+		source,
+		/timeoutIds\.forEach\(\(timeoutId\) => \{\s+try \{\s+window\.clearTimeout\(timeoutId\);/,
+	);
 	assert.match(source, /aria-hidden="true"/);
 	assert.doesNotMatch(source, /aria-label="Close"/);
 });

@@ -102,7 +102,7 @@ export function buildInsightPrompt(summary) {
 		"## 농장 현황 스냅샷",
 		`- 총 사육두수: ${normalized.totalHeadcount}두`,
 		`- 이번 달 출하: ${normalized.monthlySalesCount}두 (판매액 ${normalized.monthlySalesManwon}만원)`,
-		`- 즉시 출하 권장 개체: ${normalized.shipmentCandidates}두`,
+		`- 즉시 출하 후보 개체: ${normalized.shipmentCandidates}두`,
 		`- 추가 비육 시 마진 감소 예상: ${normalized.decliningMarginCount}두`,
 		`- 발정 알림: ${normalized.notificationCounts.estrus}건 / 분만 알림: ${normalized.notificationCounts.calving}건`,
 	];
@@ -126,7 +126,7 @@ export function buildInsightPrompt(summary) {
 	);
 	lines.push('- body: 60자 이내 한국어 실행 가능한 조언');
 	lines.push(
-		'- priority: "high" | "medium" | "low" 중 하나 (데이터 기반)',
+		'- priority: "high" | "medium" | "low" 중 하나 (농장 정보 기반)',
 	);
 	lines.push("", "마크다운/코드펜스/설명 없이 순수 JSON만 반환.");
 	return lines.join("\n");
@@ -183,7 +183,7 @@ export function buildHeuristicInsights(input) {
 		const margin = s.topShipment?.marginManwon ?? 0;
 		const marginText = margin > 0 ? ` (예상 +${margin}만원)` : "";
 		candidates.push({
-			title: "즉시 출하 권장",
+			title: "출하 일정 확정 필요",
 			body: `${s.shipmentCandidates}두 출하 적령기 도달${tagSuffix}${marginText}. 24시간 내 출고 일정을 확정해 주세요.`,
 			priority: "high",
 		});
@@ -232,7 +232,7 @@ export function buildHeuristicInsights(input) {
 	if (s.thi !== null && s.thi < 72) {
 		candidates.push({
 			title: "사양 컨디션 안정",
-			body: `THI ${s.thi}로 활동 적합 구간. 사료 증량·체중 측정 데이터 갱신에 적합한 시점.`,
+			body: `THI ${s.thi}로 활동 적합 구간. 사료 증량·체중 측정 기록 갱신에 적합한 시점.`,
 			priority: "low",
 		});
 	}
@@ -253,7 +253,7 @@ export function buildHeuristicInsights(input) {
 		},
 		{
 			title: "데이터 보강 안내",
-			body: "체중·판매액·시세 데이터를 갱신하면 더 정확한 인사이트를 제공합니다.",
+			body: "체중·판매액 데이터와 시세 정보를 갱신하면 더 정확한 인사이트를 제공합니다.",
 			priority: "low",
 		},
 		{

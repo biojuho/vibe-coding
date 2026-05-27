@@ -20,6 +20,7 @@ import QRCodeWidget from "@/components/widgets/QRCodeWidget";
 import { getCattleHistory } from "@/lib/actions";
 import { extractWeightHistoryPoints } from "@/lib/cattle-history.mjs";
 import { STATUS_COLORS } from "@/lib/constants";
+import { focusElementSafely } from "@/lib/safeFocus";
 import {
 	formatDate,
 	formatMoney,
@@ -117,7 +118,7 @@ export default function CattleDetailModal({
 	}, [cattle?.id]);
 
 	useEffect(() => {
-		dialogRef.current?.focus();
+		focusElementSafely(dialogRef.current);
 	}, [cattle?.id]);
 
 	if (!cattle) return null;

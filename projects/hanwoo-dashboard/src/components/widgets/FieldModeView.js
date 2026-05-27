@@ -51,6 +51,82 @@ const DEFAULT_CHECKLIST = [
 	},
 ];
 
+function createFreshChecklist() {
+	return DEFAULT_CHECKLIST.map((item) => ({ ...item, checked: false }));
+}
+
+function normalizeStoredChecklist(value) {
+	if (!Array.isArray(value)) {
+		return createFreshChecklist();
+	}
+
+	const savedById = new Map(
+		value
+			.filter((item) => item && typeof item === "object")
+			.map((item) => [item.id, item]),
+	);
+
+	return DEFAULT_CHECKLIST.map((item) => ({
+		...item,
+		checked: Boolean(savedById.get(item.id)?.checked),
+	}));
+}
+
+function readStoredChecklist(todayKey) {
+	try {
+		const saved = localStorage.getItem(todayKey);
+		if (saved) {
+			return normalizeStoredChecklist(JSON.parse(saved));
+		}
+	} catch {}
+
+	return createFreshChecklist();
+}
+
+function writeStoredChecklist(todayKey, checklist) {
+	try {
+		localStorage.setItem(todayKey, JSON.stringify(checklist));
+	} catch {}
+}
+
+function scheduleFieldModeTimer(callback, delay) {
+	try {
+		return window.setTimeout(callback, delay);
+	} catch (error) {
+		console.error("Failed to schedule field mode celebration timer:", error);
+		return null;
+	}
+}
+
+function clearFieldModeTimer(timeoutId) {
+	if (timeoutId === null) {
+		return;
+	}
+
+	try {
+		window.clearTimeout(timeoutId);
+	} catch {}
+}
+
+function scheduleFieldModeAnimationFrame(callback) {
+	try {
+		return window.requestAnimationFrame(callback);
+	} catch (error) {
+		console.error("Failed to schedule field mode animation frame:", error);
+		return null;
+	}
+}
+
+function cancelFieldModeAnimationFrame(animationId) {
+	if (animationId === null) {
+		return;
+	}
+
+	try {
+		window.cancelAnimationFrame(animationId);
+	} catch {}
+}
+
 export default function FieldModeView({
 	cattleList = [],
 	buildings = [],
@@ -64,16 +140,9 @@ export default function FieldModeView({
 		if (typeof window !== "undefined") {
 			const d = new Date();
 			const todayKey = `joolife-field-checklist-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-			const saved = localStorage.getItem(todayKey);
-			if (saved) {
-				try {
-					return JSON.parse(saved);
-				} catch (err) {
-					// Fall through to default mapping
-				}
-			}
+			return readStoredChecklist(todayKey);
 		}
-		return DEFAULT_CHECKLIST.map((item) => ({ ...item, checked: false }));
+		return createFreshChecklist();
 	});
 	const [loadingAllCattle, setLoadingAllCattle] = useState(
 		!!ensureAllCattleLoaded,
@@ -99,7 +168,10 @@ export default function FieldModeView({
 		// 2. Perform daily checklist initialization side effects (cleanup old, write current if missing)
 		if (typeof window !== "undefined") {
 			const todayKey = getTodayKey();
-			const saved = localStorage.getItem(todayKey);
+			let saved = null;
+			try {
+				saved = localStorage.getItem(todayKey);
+			} catch {}
 			if (!saved) {
 				// Clean up old checklist keys safely without index shifting
 				try {
@@ -117,11 +189,8 @@ export default function FieldModeView({
 					});
 				} catch {}
 
-				const fresh = DEFAULT_CHECKLIST.map((item) => ({
-					...item,
-					checked: false,
-				}));
-				localStorage.setItem(todayKey, JSON.stringify(fresh));
+				const fresh = createFreshChecklist();
+				writeStoredChecklist(todayKey, fresh);
 			}
 		}
 	}, [ensureAllCattleLoaded]);
@@ -133,6 +202,12 @@ export default function FieldModeView({
 		const canvas = celebrationCanvasRef.current;
 		if (!canvas) return;
 		const ctx = canvas.getContext("2d");
+		if (!ctx) {
+			const closeTimer = scheduleFieldModeTimer(() => {
+				setShowCelebration(false);
+			}, 0);
+			return () => clearFieldModeTimer(closeTimer);
+		}
 
 		let width = (canvas.width = window.innerWidth);
 		let height = (canvas.height = window.innerHeight);
@@ -142,7 +217,9 @@ export default function FieldModeView({
 			width = canvas.width = window.innerWidth;
 			height = canvas.height = window.innerHeight;
 		};
-		window.addEventListener("resize", handleResize);
+		try {
+			window.addEventListener("resize", handleResize);
+		} catch {}
 
 		const particles = [];
 		const colors = [
@@ -171,16 +248,17 @@ export default function FieldModeView({
 		};
 
 		createFirework(width / 2, height * 0.85);
-		const t1 = setTimeout(
+		const t1 = scheduleFieldModeTimer(
 			() => createFirework(width * 0.25, height * 0.6),
 			250,
 		);
-		const t2 = setTimeout(
+		const t2 = scheduleFieldModeTimer(
 			() => createFirework(width * 0.75, height * 0.6),
 			400,
 		);
 
-		let animationId;
+		let animationId = null;
+		let frameFailureTimer = null;
 		const animate = () => {
 			ctx.clearRect(0, 0, width, height);
 
@@ -210,24 +288,37 @@ export default function FieldModeView({
 			}
 
 			if (particles.length > 0) {
-				animationId = requestAnimationFrame(animate);
+				animationId = scheduleFieldModeAnimationFrame(animate);
+				if (animationId === null) {
+					frameFailureTimer = scheduleFieldModeTimer(() => {
+						setShowCelebration(false);
+					}, 0);
+				}
 			} else {
 				setShowCelebration(false);
 			}
 		};
 
-		animationId = requestAnimationFrame(animate);
+		animationId = scheduleFieldModeAnimationFrame(animate);
+		if (animationId === null) {
+			frameFailureTimer = scheduleFieldModeTimer(() => {
+				setShowCelebration(false);
+			}, 0);
+		}
 
-		const timer = setTimeout(() => {
+		const timer = scheduleFieldModeTimer(() => {
 			setShowCelebration(false);
 		}, 4500);
 
 		return () => {
-			window.removeEventListener("resize", handleResize);
-			cancelAnimationFrame(animationId);
-			clearTimeout(timer);
-			clearTimeout(t1);
-			clearTimeout(t2);
+			try {
+				window.removeEventListener("resize", handleResize);
+			} catch {}
+			cancelFieldModeAnimationFrame(animationId);
+			clearFieldModeTimer(frameFailureTimer);
+			clearFieldModeTimer(timer);
+			clearFieldModeTimer(t1);
+			clearFieldModeTimer(t2);
 		};
 	}, [showCelebration]);
 
@@ -257,7 +348,7 @@ export default function FieldModeView({
 		setChecklist(updated);
 
 		if (typeof window !== "undefined") {
-			localStorage.setItem(getTodayKey(), JSON.stringify(updated));
+			writeStoredChecklist(getTodayKey(), updated);
 		}
 
 		if (allCompletedAfterToggle) {
@@ -365,7 +456,7 @@ export default function FieldModeView({
 
 				<div className="text-center">
 					<div className="text-[9px] text-amber-500/80 font-black tracking-widest uppercase">
-						Smart Field Overlay
+						현장 점검 화면
 					</div>
 					<h2 className="text-sm font-black text-amber-300 tracking-tight flex items-center gap-1.5 justify-center">
 						현장 스마트 모드{" "}
@@ -399,13 +490,13 @@ export default function FieldModeView({
 								농장 온습도 지수
 							</div>
 							<h3 className="text-base font-extrabold text-foreground mt-0.5">
-								현장 기동성 극대화
+								현장 점검 준비
 							</h3>
 						</div>
 					</div>
 					<div className="text-right">
 						<span className="text-[10px] text-amber-500 block font-bold">
-							오프라인 자가생존
+							오프라인 대응
 						</span>
 						<span className="text-xs px-2.5 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full font-bold inline-block mt-1">
 							정상 연결
@@ -419,7 +510,7 @@ export default function FieldModeView({
 					className="flex flex-col gap-3"
 				>
 					<h3 id="global-search-title" className="sr-only">
-						개체 초고속 검색
+						개체 빠른 검색
 					</h3>
 					<div className="flex gap-2">
 						<div className="relative flex-1">
@@ -427,7 +518,7 @@ export default function FieldModeView({
 								type="text"
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}
-								placeholder="이표번호 4자리 또는 소 이름 입력"
+								placeholder="이표번호 4자리 또는 개체명 입력"
 								aria-label="개체 이름 또는 이표번호로 검색"
 								title="개체 이름 또는 이표번호로 검색"
 								className="w-full pl-12 pr-4 py-4 rounded-[20px] bg-amber-950/20 border-2 border-amber-500/30 focus:border-amber-400 text-foreground placeholder:text-amber-500/60 font-bold text-sm focus:outline-none shadow-md transition-colors"
@@ -479,7 +570,7 @@ export default function FieldModeView({
 						>
 							<div className="px-4.5 py-3 border-b border-amber-500/10 bg-amber-500/5 flex justify-between items-center">
 								<span className="text-[11px] text-amber-400 font-black">
-									검색 매칭 개체 ({filteredCattle.length}두)
+									검색된 개체 ({filteredCattle.length}두)
 								</span>
 								{loadingAllCattle && (
 									<span
@@ -487,7 +578,7 @@ export default function FieldModeView({
 										role="status"
 										aria-live="polite"
 									>
-										전체 로드 중...
+										전체 목록 불러오는 중...
 									</span>
 								)}
 							</div>
@@ -567,7 +658,7 @@ export default function FieldModeView({
 						<div className="flex justify-between items-start">
 							<div>
 								<div className="text-[10px] text-amber-500 font-bold uppercase tracking-wide">
-									Tactile stables list
+									축사 점검 목록
 								</div>
 								<h3
 									id="checklist-title"
@@ -678,7 +769,7 @@ export default function FieldModeView({
 							{cattleList.length}두
 						</div>
 						<div className="text-[10px] text-amber-500/60 mt-1">
-							이표 검수 100% 완료
+							이표 정보 기준 집계
 						</div>
 					</div>
 
@@ -696,7 +787,7 @@ export default function FieldModeView({
 							{statsSummary.calvingCount}두
 						</div>
 						<div className="text-[10px] text-amber-500/60 mt-1">
-							가축 기상 경보 확인 요망
+							기상 경보 확인 필요
 						</div>
 					</div>
 				</section>

@@ -1,0 +1,36 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const SRC_ROOT = path.resolve(__dirname, "..");
+
+function readSource(relativePath) {
+	return readFileSync(path.join(SRC_ROOT, relativePath), "utf8");
+}
+
+test("fetchWithTimeout guards timeout scheduling and cleanup", () => {
+	const source = readSource("lib/fetchWithTimeout.js");
+
+	assert.match(source, /const timeoutError = new TimeoutError\(message, timeoutMs\);/);
+	assert.match(source, /let timeoutId = null;/);
+	assert.match(
+		source,
+		/try \{\s+timeoutId = setTimeout\(\(\) => controller\.abort\(timeoutError\), timeoutMs\);\s+\} catch \(error\) \{/,
+	);
+	assert.match(
+		source,
+		/console\.error\("Failed to schedule fetch timeout:", error\);/,
+	);
+	assert.match(
+		source,
+		/if \(timeoutId !== null\) \{\s+try \{\s+clearTimeout\(timeoutId\);\s+\} catch \{\}/,
+	);
+	assert.doesNotMatch(
+		source,
+		/const timeoutId = setTimeout\(\(\) => controller\.abort\(timeoutError\), timeoutMs\);/,
+	);
+	assert.doesNotMatch(source, /finally \{\s+clearTimeout\(timeoutId\);/);
+});

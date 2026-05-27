@@ -3,13 +3,35 @@ let audioCtx = null;
 function getAudioContext() {
 	if (typeof window === "undefined") return null;
 	if (!audioCtx) {
-		const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+		let AudioContextClass = null;
+		try {
+			AudioContextClass = window.AudioContext || window.webkitAudioContext;
+		} catch (e) {
+			console.warn("Audio context access failed:", e);
+			return null;
+		}
 		if (AudioContextClass) {
-			audioCtx = new AudioContextClass();
+			try {
+				audioCtx = new AudioContextClass();
+			} catch (e) {
+				console.warn("Audio context creation failed:", e);
+				return null;
+			}
 		}
 	}
-	if (audioCtx && audioCtx.state === "suspended") {
-		void audioCtx.resume().catch(() => {});
+	if (
+		audioCtx &&
+		audioCtx.state === "suspended" &&
+		typeof audioCtx.resume === "function"
+	) {
+		try {
+			const resumeResult = audioCtx.resume();
+			if (resumeResult && typeof resumeResult.catch === "function") {
+				void resumeResult.catch(() => {});
+			}
+		} catch (e) {
+			console.warn("Audio context resume failed:", e);
+		}
 	}
 	return audioCtx;
 }
@@ -96,16 +118,20 @@ export function playScanFailure() {
 }
 
 export function triggerVibration(duration = 40) {
-	if (
-		typeof window !== "undefined" &&
-		window.navigator &&
-		typeof window.navigator.vibrate === "function"
-	) {
-		try {
-			window.navigator.vibrate(duration);
-		} catch {
-			// Ignore vibration blockers
-		}
+	if (typeof window === "undefined") return;
+	let vibrate = null;
+	let navigatorRef = null;
+	try {
+		navigatorRef = window.navigator;
+		vibrate = navigatorRef?.vibrate;
+	} catch {
+		return;
+	}
+	if (typeof vibrate !== "function") return;
+	try {
+		vibrate.call(navigatorRef, duration);
+	} catch {
+		// Ignore vibration blockers
 	}
 }
 

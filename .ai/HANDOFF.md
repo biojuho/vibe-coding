@@ -7,6 +7,216 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard QR print load-listener failure hardening**: Continued the active Hanwoo quality uplift by wrapping QR print-window load listener registration in a guarded helper. Restricted or unusual popup event APIs no longer abort an otherwise prepared QR print window; listener registration failures log diagnostics while the existing fallback timer path can still complete printing and release the duplicate-print lock/busy state. Strengthened QR regression coverage to keep guarded load-listener registration and prevent direct listener registration from blocking fallback scheduling. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/qr-widget-copy.test.mjs` passed 7/7, `npm.cmd test` passed 371/371, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard QR print window open failure hardening**: Continued the active Hanwoo quality uplift by wrapping QR print-window creation in a guarded helper. Restricted or unusual browser popup APIs no longer leave QR printing stuck in a preparing state; window-open failures log diagnostics, reuse the existing popup-blocked Korean guidance, and release the duplicate-print lock/busy state. Strengthened QR regression coverage to keep guarded popup opening and prevent direct `window.open` usage from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/qr-widget-copy.test.mjs` passed 6/6, `npm.cmd test` passed 370/370, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Feedback toast timer failure hardening**: Continued the active Hanwoo quality uplift by wrapping feedback toast dismissal timer scheduling and cleanup in guarded blocks. Restricted browser timer APIs no longer break app notifications: toasts still render when auto-dismiss scheduling fails, manual dismiss cleanup tolerates timer cleanup failures, and provider unmount cleanup clears tracked timers best-effort. Strengthened `feedback-provider-copy.test.mjs` to keep guarded timer scheduling, cleanup, and Korean dismiss semantics. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/feedback-provider-copy.test.mjs` passed 3/3, `npm.cmd test` passed 362/362, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Market price refresh timer failure hardening**: Continued the active Hanwoo quality uplift by wrapping the market price widget's initial refresh timer, hourly polling timer, and cleanup calls in guarded blocks. Restricted browser timer APIs no longer break the market price card effect; if the immediate refresh timer cannot be scheduled, the widget falls back through a microtask fetch, while polling setup and cleanup failures are logged or ignored without crashing the card. Strengthened `home-market-copy.test.mjs` to keep the guarded timer scheduling and cleanup paths. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/home-market-copy.test.mjs` passed 39/39, `npm.cmd test` passed 362/362, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Offline sync refresh failure messaging hardening**: Continued the active Hanwoo quality uplift by wrapping the offline queue post-sync `router.refresh()` path in a guarded block. If the server sync succeeds but dashboard refresh fails, the hook now logs `Offline queue refresh failed` and shows Korean guidance to manually refresh the screen to see synced results, instead of falling through to the generic offline sync failure notification. Strengthened `sync-manager-copy.test.mjs` to keep the guarded refresh path and Korean fallback message. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/sync-manager-copy.test.mjs` passed 1/1, `npm.cmd test` passed 362/362, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Login success dashboard navigation failure hardening**: Continued the active Hanwoo quality uplift by wrapping the login success `router.push("/")` and `router.refresh()` path in a guarded navigation block. If dashboard navigation fails after successful credentials sign-in, the page now logs `Login dashboard navigation failed` and shows Korean fallback copy explaining that login completed but dashboard navigation failed, instead of mislabeling it as a generic sign-in/network failure. Strengthened `error-pages-wiring.test.mjs` to keep the guarded navigation path and fallback message. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/error-pages-wiring.test.mjs` passed 9/9, `npm.cmd test` passed 362/362, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Admin diagnostics dashboard-return navigation hardening**: Continued the active Hanwoo quality uplift by replacing the admin diagnostics page's inline dashboard return `router.push("/")` with a guarded `handleDashboardReturn()` path. Navigation failures are now logged and surfaced through the existing app feedback system with Korean copy instead of failing silently. Strengthened `diagnostics-copy.test.mjs` to keep the guarded handler, Korean fallback message, and button wiring. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/diagnostics-copy.test.mjs` passed 3/3, `npm.cmd test` passed 362/362, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Payment failure retry fallback-status hardening**: Continued the active Hanwoo quality uplift by adding a final user-visible fallback for the subscription failure retry flow. If both browser back navigation and the direct `/subscription` fallback navigation fail, the page now logs `Payment retry fallback navigation failed` and announces Korean status copy in a polite status region instead of failing silently. Strengthened `payment-ux-copy.test.mjs` to keep the retry status state, polite announcement, and fallback failure logging. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/payment-ux-copy.test.mjs` passed 6/6, `npm.cmd test` passed 362/362, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Payment failure retry navigation hardening**: Continued the active Hanwoo quality uplift by replacing the subscription failure page's inline retry `router.back()` call with a guarded `handleRetry()` path. If browser history navigation fails, the page logs `Payment retry navigation failed` and falls back to `/subscription`, so users can still return to checkout and retry payment. Strengthened `payment-ux-copy.test.mjs` to keep the guarded retry path and direct checkout fallback. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/payment-ux-copy.test.mjs` passed 6/6, `npm.cmd test` passed 362/362, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Payment success auto-redirect failure hardening**: Continued the active Hanwoo quality uplift by wrapping the subscription success page's delayed dashboard redirect in a guarded `try/catch`. If `router.push("/")` fails after a confirmed payment, the page now logs the navigation failure and replaces the stale auto-navigation promise with Korean fallback status copy that tells the user to return to the dashboard and recheck. Strengthened `payment-ux-copy.test.mjs` to keep the guarded redirect path and fallback copy. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/payment-ux-copy.test.mjs` passed 6/6, `npm.cmd test` passed 362/362, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Payment redirect URL browser-access hardening**: Continued the active Hanwoo quality uplift by routing subscription checkout success/fail redirect URL creation through `buildPaymentRedirectUrl()`. The payment widget now builds absolute redirect URLs from the current `window.location.href` when available, falls back through origin/path construction, and returns the route path if browser location access fails, preventing checkout request assembly from breaking on restricted or unusual browser location APIs. Strengthened `payment-ux-copy.test.mjs` to keep the guarded helper and prevent direct `window.location.origin` URL assembly from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/payment-ux-copy.test.mjs` passed 6/6, `npm.cmd test` passed 362/362, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Runtime ErrorBoundary reload failure hardening**: Continued the active Hanwoo quality uplift by wrapping the dashboard runtime `ErrorBoundary` recovery reload in a guarded `try/catch`. If the browser reload API fails, the error is logged and the recoverable fallback remains visible instead of clearing error state into a potentially broken dashboard render. Strengthened `error-pages-wiring.test.mjs` to keep the guarded reload path. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/error-pages-wiring.test.mjs` passed 9/9, `npm.cmd test` passed 361/361, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Offline sync fallback Korean-copy consistency**: Continued the active Hanwoo quality uplift by changing `syncManager` unsupported-action and unsuccessful-result fallback messages from English internal strings to stable Korean product copy. Retry/dead-letter metadata now stays readable and consistent with operator-facing offline sync copy when an action is unsupported or a handler returns an unsuccessful result without a message. Strengthened `sync-manager-copy.test.mjs` to keep the Korean constants and prevent the English fallback strings from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/sync-manager-copy.test.mjs` passed 1/1, `npm.cmd test` passed 361/361, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Field Mode search placeholder cattle-terminology consistency**: Continued the active Hanwoo quality uplift by changing the Field Mode search placeholder from `이표번호 4자리 또는 소 이름 입력` to `이표번호 4자리 또는 개체명 입력`, aligning onsite search copy with the dashboard's `개체명` terminology. Strengthened Field Mode regression coverage to keep the `개체명` placeholder and prevent the older `소 이름` wording from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused FieldMode tests passed 8/8, `npm.cmd test` passed 350/350, `npm.cmd run lint` passed, `git diff --check` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard empty pen state Korean spacing polish**: Continued the active Hanwoo quality uplift by changing the pen detail empty-state copy from `이 칸은 비어있습니다.` to `이 칸은 비어 있습니다.`, correcting visible Korean spacing in the home pen view. Strengthened home dashboard regression coverage to keep the corrected empty-pen wording and prevent the fused spelling from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused home-market tests passed 38/38, `npm.cmd test` passed 350/350, `npm.cmd run lint` passed, `git diff --check` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI chat offline fallback formal helper-tone consistency**: Continued the active Hanwoo quality uplift by changing the AI chat widget's generic offline fallback from `지금은 기본 농장 운영 질문 위주로 안내하고 있어요. ... 도와드릴게요.` to `지금은 기본 농장 운영 질문 위주로 안내합니다. ... 더 정확히 안내합니다.`, aligning the fallback response with the widget's `질문해 주세요` operator tone. Strengthened AI chat widget regression coverage to keep the formal helper wording and prevent the older casual fallback from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused AI chat widget tests passed 2/2, `npm.cmd test` passed 350/350, `npm.cmd run lint` passed, `git diff --check` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard route error and not-found formal Korean-copy consistency**: Continued the active Hanwoo quality uplift by changing the 404 page title/body from `페이지를 찾을 수 없어요` / `화면일 수 있어요` to `페이지를 찾을 수 없습니다` / `화면일 수 있습니다`, and changing route error copy from `잠시 문제가 생겼어요` / `오류가 발생했어요` / `대시보드로 돌아가세요` to `잠시 문제가 발생했습니다` / `오류가 발생했습니다` / `대시보드로 돌아가 주세요`. Strengthened error-page regression coverage to keep the formal operator tone and prevent the older casual wording from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused error-page tests passed 9/9, `npm.cmd test` passed 350/350, `npm.cmd run lint` passed, `git diff --check` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard runtime error fallback Korean-copy polish**: Continued the active Hanwoo quality uplift by changing the dashboard runtime ErrorBoundary heading from `화면 렌더링에 일시적인 에러가 발생했습니다.` to `화면 표시 중 일시적인 오류가 발생했습니다.`, and rewriting the body from the technical `데이터 형식`/`렌더링 도중` phrasing to operator-facing `화면 표시 정보`/`처리 중` wording. Strengthened error-page regression coverage to keep the polished Korean fallback copy and prevent the older technical wording from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused error-page tests passed 9/9, `npm.cmd test` passed 349/349, `npm.cmd run lint` passed, `git diff --check` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI insight market-price information-copy consistency**: Continued the active Hanwoo quality uplift by changing the AI insight default data-quality card body from `체중·판매액·시세 데이터를 갱신하면 더 정확한 인사이트를 제공합니다.` to `체중·판매액 데이터와 시세 정보를 갱신하면 더 정확한 인사이트를 제공합니다.`, keeping externally sourced market-price wording aligned with the app's `시세 정보` copy while preserving the data-quality intent. Strengthened AI insight regression coverage to prevent the older bundled `시세 데이터` wording from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused AI insight tests passed 15/15, `npm.cmd test` passed 349/349, `npm.cmd run lint` passed, `git diff --check` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Market price unavailable information-copy consistency**: Continued the active Hanwoo quality uplift by changing the shared market-price unavailable fallback and widget fallback from `지금은 한우 시세 데이터를 확인할 수 없습니다.` to `지금은 한우 시세 정보를 확인할 수 없습니다.`, aligning visible market-price failure copy with the app's information-oriented weather/profitability wording. Strengthened market-price and home regression coverage to prevent the older data wording from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused market/home tests passed 45/45, `npm.cmd test` passed 349/349, `npm.cmd run lint` passed, `git diff --check` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Profitability market-price information-copy consistency**: Continued the active Hanwoo quality uplift by changing profitability service operator-facing market-price errors from `수익성 시뮬레이션에 사용할 시세 데이터가 없습니다.` and `시세 데이터를 해석하지 못했습니다.` to `수익성 시뮬레이션에 사용할 시세 정보가 없습니다.` and `시세 정보를 해석하지 못했습니다.`, keeping visible profitability errors aligned with the app's information-oriented weather/market copy. Strengthened profitability regression coverage to prevent the older data wording from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused profitability tests passed 10/10, `npm.cmd test` passed 349/349, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Weather unavailable information-copy consistency**: Continued the active Hanwoo quality uplift by changing the weather unavailable fallback from `지금은 날씨 데이터를 확인할 수 없습니다. 잠시 후 다시 시도해 주세요.` to `지금은 날씨 정보를 확인할 수 없습니다. 잠시 후 다시 시도해 주세요.`, and aligning the weather widget's local fallback with the shared weather-state message. Strengthened weather and home regression coverage to prevent the older data wording from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused weather/home tests passed 47/47, `npm.cmd test` passed 349/349, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI insight description action-tone consistency**: Continued the active Hanwoo quality uplift by changing the AI insight widget description from `농장 데이터를 기반으로 우선순위 3가지 행동을 제안합니다.` to `농장 데이터를 기반으로 우선순위 3가지 행동을 정리합니다.`, aligning the widget with the recent move away from recommendation-style copy toward analysis and action-priority language. Strengthened AI insight widget regression coverage to prevent the older proposal wording from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused AI insight widget tests passed 10/10, `npm.cmd test` passed 349/349, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Excel export empty-list copy consistency**: Continued the active Hanwoo quality uplift by changing the Excel export empty-download warning title from `다운로드할 개체 데이터가 없습니다.` to `다운로드할 개체 목록이 없습니다.`, aligning the export flow with the dashboard's `개체 목록` terminology for loaded/exported cattle collections. Strengthened Excel export regression coverage to prevent the older data wording from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused Excel export tests passed 2/2, `npm.cmd test` passed 349/349, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Analysis cost chart empty-state record-copy consistency**: Continued the active Hanwoo quality uplift by changing the Analysis tab cost-structure empty chart message from `비용 데이터가 아직 충분히 쌓이지 않았습니다.` to `비용 기록이 아직 충분히 쌓이지 않았습니다.`, keeping the chart body aligned with the `실제 비용 기록 없음` header and app-wide cost-record terminology. Strengthened analysis regression coverage to prevent the older data wording from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused analysis tests passed 3/3, `npm.cmd test` passed 349/349, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Analysis cost empty-state record-copy consistency**: Continued the active Hanwoo quality uplift by changing the Analysis tab cost-structure empty label from `실제 비용 데이터 없음` to `실제 비용 기록 없음`, aligning the analysis card with the Sales tab and action copy that refer to operator-entered cost records. Strengthened analysis regression coverage to prevent the older data wording from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused analysis tests passed 3/3, `npm.cmd test` passed 349/349, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Profitability widget candidate-analysis copy clarity**: Continued the active Hanwoo quality uplift by changing remaining profitability widget recommendation-style headers from `출하 추천 개체` and `출하 수익성 추천` to `출하 후보 개체` and `출하 수익성 분석`, and rewriting the empty state to say there is no candidate whose shipment schedule needs checking or that profitability analysis data is insufficient. Strengthened profitability regression coverage to prevent the old recommendation framing from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused profitability tests passed 10/10, `npm.cmd test` passed 349/349, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Shipment recommendation action-copy clarity**: Continued the active Hanwoo quality uplift by changing AI Insight shipment wording from `즉시 출하 권장`/`즉시 출하 권장 개체` to action-ready `출하 일정 확정 필요` and `즉시 출하 후보 개체`, and changing the profitability widget shipment badge to `출하 일정 확인 필요`. Strengthened AI Insight and profitability regression coverage to prevent the older recommendation phrasing from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: focused AI Insight/profitability tests passed 24/24, `npm.cmd test` passed 348/348, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Market price footer metadata clarity**: Continued the active Hanwoo quality uplift by changing the market price footer labels from terse `갱신` and `출처: KAPE` to `마지막 갱신` and `데이터 출처: KAPE`, so the timestamp and source read as explicit operator-facing metadata. Strengthened home-market regression coverage to prevent the terse footer spans from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/home-market-copy.test.mjs` passed 38/38, `npm.cmd test` passed 347/347, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Market price row unit wording consistency**: Continued the active Hanwoo quality uplift by changing market price row values from shorthand `N원 / kg` to `kg당 N원`, aligning the value format with the new `수소 kg당 시세` and `암소 kg당 시세` panel titles. Strengthened home-market regression coverage to prevent the slash-style unit label from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/home-market-copy.test.mjs` passed 38/38, `npm.cmd test` passed 347/347, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
 | Tool | Claude (Opus 4.7) |
 | Work | **시스템 최신화 (`/goal 시스템을 최신식으로 만들어줘`)** — (1) CI 워크플로 `full-test-matrix.yml`에서 `pnpm/action-setup@v4`의 redundant `version: 9` 제거 (root `packageManager: pnpm@9.5.0` 단일 소스 채택) → `Multiple versions of pnpm specified` 실패 해소. (2) Claude 모델 ID 일괄 최신화: Sonnet 4-20250514→4-6 (`llm_client`/`content_writer` 디폴트, `shorts-maker-v2/config.yaml`+`llm_router.py`, blind-to-x 테스트 픽스처), Opus 4-5→4-7 (content_writer), Haiku 3-5→4-5-20251001 (promptfoo eval); `api_usage_tracker.PRICING`에 새 모델 가격 entry 추가 + legacy ID alias 보존. SKILL 문서(`blind-to-x`, `prompt-engineering-patterns`) 동기. (3) Dependabot 커버리지 확대: `suika-game-v2`(package.json + lockfile 있는데 미등록) `.github/dependabot.yml` 추가 → Dependabot가 신규 PR 5+개 자동 오픈. (4) 모든 15개(→27개로 확장) Dependabot PR 일괄 `@dependabot rebase` 트리거 — minor/patch 12개 auto-merge로 main 흡수 (#79·#81·#83·#85·#86·#88·#90·#92·#94·#99·#101·#105·#106). (5) 다른 도구(Gemini + 또다른 Claude 세션)가 로컬 커밋만 해놓고 push 안한 3개 commit(`9e371b74` workspace health sweep + `87732cd7` Claude Dependabot drain log + `d79daafd` close verified workspace quality updates — 모두 Codex가 push한 source 변경에 대응하는 hanwoo test sync + 헬퍼들 + SESSION_LOG)을 origin/main에 rebase + push로 합류 → CI 회복 경로 마련. Codex 활성 WIP(`MarketPriceWidget.js`+`home-market-copy.test.mjs`)는 stash로 안전 보존했다 복원. **검증**: 워크스페이스 1465/1469 그린(4건 Windows-only pytest+subprocess flake는 사전 부채), blind-to-x 9/9(test_draft_generator_multi_provider), shorts-maker-v2 safe_zone 단위 그린, `project_qc_runner --project all` 4프로젝트 모두 그린, workspace test_content_writer/test_api_usage_tracker/test_llm_client_anthropic_cache/test_llm_usage_summary 94/94 그린. **커밋**: `b75e8cd3 chore: modernize Claude model IDs and CI tooling` + rebase로 따라온 `bd8e56c5`·`087d992b`·`4e30e367`. |
 | Next Priorities | (a) 남은 15개 **major** Dependabot PR 결정 필요(admin merge): lucide-react v1(#91·#93·#103 — brand icon 미사용 확인 완료, safe), notion-client v3(#80 — `is_full_page_or_database`/`is_api_error_code` removed API 미사용 확인 완료, safe), eslint v10(#78·#89·#96), vite v8(#87·#104), @types/node v25(#84), @eslint/js v10(#102), jsdom v29(#97·#98), globals v17(#100), pnpm/action-setup v6(#95). (b) Windows-only pre-existing 부채 4건 별도 처리: `test_pytest_checks_use_repo_local_temp`(Windows TMP override 의도적 skip but 테스트가 skip-decorate 안됨 — Korean home path 인코딩 우회용), `test_pr_triage_worktree::*` 2건(`OSError: [WinError 6]` Py 3.14+pytest subprocess handle), `test_pr_triage_orchestrator` ordering-dependent. Linux CI는 통과. (c) T-251 Supabase 비번 리셋은 여전히 사용자 작업. |
@@ -1874,6 +2084,272 @@
 | Tool | Codex |
 | Work | **hanwoo-dashboard calving alert due-date fallback specificity**: Continued the active Hanwoo quality uplift by changing the calving alert missing target-date fallback from placeholder `-` to `분만 예정일 미등록`, so alert chips explain which date field is unavailable instead of rendering a bare dash. Updated alert-banner regression coverage to keep the specific missing-date copy. |
 | Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/alert-banners-accessibility.test.mjs` passed 3/3, `npm.cmd test` passed 347/347, `npm.cmd run lint` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard profitability widget record-based copy consistency**: Continued the active Hanwoo quality uplift by changing the profitability widget empty state from generic `수익성 분석 데이터가 부족합니다.` to `수익성 분석에 필요한 기록이 부족합니다.`, and changing the customized assumptions badge from `농가 데이터` to `농가 기록 기반`, so the widget refers to operator-entered records instead of generic data. Updated profitability regression coverage to keep the record-based wording. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/profitability-copy.test.mjs` passed 10/10, `npm.cmd test` passed 349/349, `npm.cmd run lint` passed, `git diff --check` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard weather partial-forecast information-copy consistency**: Continued the active Hanwoo quality uplift by changing the partial weather forecast degraded-state message from `일부 예보 데이터를 불러오지 못해 현재 날씨와 확인된 예보만 표시합니다.` to `일부 예보 정보를 불러오지 못해 현재 날씨와 확인된 예보만 표시합니다.`, keeping weather fallback copy aligned with the app's information-oriented weather wording. Updated weather-state regression coverage to keep the information wording. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/weather-state.test.mjs src/lib/home-market-copy.test.mjs` passed 47/47, `npm.cmd test` passed 349/349, `npm.cmd run lint` passed, `git diff --check` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI insight record/information-copy consistency**: Continued the active Hanwoo quality uplift by changing the AI insight widget description from `농장 데이터를 기반으로 우선순위 3가지 행동을 정리합니다.` to `농장 기록을 기반으로 우선순위 3가지 행동을 정리합니다.`, and changing the settings widget description from `켜면 농장 요약 데이터를 AI 분석 API로 전송합니다.` to `켜면 농장 요약 정보를 AI 분석 API로 전송합니다.`. Updated AI insight and settings regression coverage to keep the record/information wording. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/ai-insight-widget-copy.test.mjs src/lib/settings-tab-accessibility.test.mjs` passed 22/22, `npm.cmd test` passed 349/349, `npm.cmd run lint` passed, `git diff --check` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI chat farm-context information-copy consistency**: Continued the active Hanwoo quality uplift by changing AI chat farm-context wording from `제공된 농장 데이터를 근거로`/`데이터가 없거나 불확실한 경우` to `제공된 농장 정보를 근거로`/`정보가 없거나 불확실한 경우`, changing the status fallback from `상태별 개체 데이터 없음` to `상태별 개체 집계 없음`, and changing the farm-context failure fallback to `농장 정보를 불러오지 못했습니다.`. Updated AI chat route regression coverage to keep the information/aggregate wording. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/ai-chat-api.test.mjs` passed 8/8, `npm.cmd test` passed 349/349, `npm.cmd run lint` passed, `git diff --check` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI insight prompt information-copy consistency**: Continued the active Hanwoo quality uplift by changing AI insight API/prompt instructions from `제공된 농장 스냅샷 데이터를 근거로`/`데이터 기반 위급도` to `제공된 농장 스냅샷 정보를 근거로`/`농장 정보 기반 위급도`, and aligning the prompt-builder priority format hint from `데이터 기반` to `농장 정보 기반`. Updated AI insight route/prompt regression coverage to keep the information wording. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/ai-insight.test.mjs src/lib/ai-insight-widget-copy.test.mjs` passed 25/25, `npm.cmd test` passed 349/349, `npm.cmd run lint` passed, `git diff --check` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Dashboard full-list loading information-copy consistency**: Continued the active Hanwoo quality uplift by changing paginated dashboard full-list timeout/failure copy from `대시보드 데이터를 불러오는 데 시간이 오래 걸리고 있습니다.` / `대시보드 데이터를 불러오지 못했습니다.` to `대시보드 정보를 불러오는 데 시간이 오래 걸리고 있습니다.` / `대시보드 정보를 불러오지 못했습니다.`. Updated home-market regression coverage to keep the information wording. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/home-market-copy.test.mjs` passed 38/38, `npm.cmd test` passed 349/349, `npm.cmd run lint` passed, `git diff --check` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI insight low-THI record-copy consistency**: Continued the active Hanwoo quality uplift by changing the deterministic AI Insight safe-condition guidance from `체중 측정 데이터 갱신에 적합한 시점` to `체중 측정 기록 갱신에 적합한 시점`, aligning visible AI guidance with operator-entered record terminology. Updated AI Insight regression coverage to keep the record wording. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/ai-insight.test.mjs` passed 16/16, `npm.cmd test` passed 350/350, `npm.cmd run lint` passed, `git diff --check` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Building delete blocker cattle-copy consistency**: Continued the active Hanwoo quality uplift by changing the building deletion blocker from `이 축사에 N두의 소가 있어 삭제할 수 없습니다. 먼저 소를 이동해 주세요.` to `이 축사에 N두의 개체가 있어 삭제할 수 없습니다. 먼저 개체를 이동해 주세요.`, aligning server-action feedback with dashboard `개체` terminology. Updated server action copy regression coverage to keep the `개체` wording. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/actions-copy.test.mjs` passed 2/2, `npm.cmd test` passed 350/350, `npm.cmd run lint` passed, `git diff --check` passed, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Field Mode top-card operator-tone polish**: Continued the active Hanwoo quality uplift by changing the Field Mode top card labels from `현장 기동성 극대화` / `오프라인 자가생존` to `현장 점검 준비` / `오프라인 대응`, aligning visible onsite mode copy with restrained operational tool tone. Updated FieldMode regression coverage to keep the toned-down wording and prevent the older marketing-style phrases from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/field-mode-celebration.test.mjs` passed 8/8, `npm.cmd test` passed 350/350, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Field Mode header Korean operator-copy polish**: Continued the active Hanwoo quality uplift by changing the Field Mode header eyebrow from `Smart Field Overlay` to `현장 점검 화면`, and changing the hidden search section label from `개체 초고속 검색` to `개체 빠른 검색`, removing remaining English/overstated wording from the onsite mode header and search landmark. Updated FieldMode regression coverage to keep the Korean restrained wording and prevent the older phrases from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/field-mode-celebration.test.mjs` passed 8/8, `npm.cmd test` passed 350/350, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Field Mode checklist eyebrow Korean-copy polish**: Continued the active Hanwoo quality uplift by changing the Field Mode checklist eyebrow from `Tactile stables list` to `축사 점검 목록`, removing a remaining visible English label from the onsite checklist card. Updated FieldMode regression coverage to keep the Korean checklist label and prevent the older English phrase from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/field-mode-celebration.test.mjs` passed 8/8, `npm.cmd test` passed 350/350, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Field Mode status counter copy accuracy polish**: Continued the active Hanwoo quality uplift by changing the Field Mode counter footnotes from the over-assertive `이표 검수 100% 완료` and stiff `가축 기상 경보 확인 요망` to `이표 정보 기준 집계` and `기상 경보 확인 필요`, making the onsite counters less misleading and more consistent with operator-facing Korean copy. Updated FieldMode regression coverage to keep the accurate counter wording and prevent the older phrases from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/field-mode-celebration.test.mjs` passed 8/8, `npm.cmd test` passed 350/350, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Field Mode search result loading-copy polish**: Continued the active Hanwoo quality uplift by changing the Field Mode search result header from `검색 매칭 개체` to `검색된 개체`, and changing the loading status from `전체 로드 중...` to `전체 목록 불러오는 중...`, making the onsite search overlay read like natural Korean product copy. Updated FieldMode regression coverage to keep the polished search-result wording and prevent the older mechanical phrases from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/field-mode-celebration.test.mjs` passed 8/8, `npm.cmd test` passed 350/350, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI route system-instruction helper-tone polish**: Continued the active Hanwoo quality uplift by changing AI chat and AI insight route system instructions from command-style `말하세요` / `안내하세요` / `결정하세요` / `포함하세요` phrasing to helper-tone `말해 주세요` / `안내해 주세요` / `결정해 주세요` / `포함해 주세요`, aligning model-facing prompts with the app's operator-facing Korean tone. Updated AI chat and AI insight route regression coverage to keep the helper-tone prompt wording and prevent the older command-style phrases from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/ai-chat-api.test.mjs src/lib/ai-insight-widget-copy.test.mjs` passed 18/18, `npm.cmd test` passed 350/350, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Field Mode persisted checklist normalization**: Continued the active Hanwoo quality uplift by routing saved Field Mode checklist localStorage values through the default checklist shape, preserving checked state only for known checklist items and falling back to a fresh checklist for malformed/non-array saved data. Wrapped checklist toggle storage writes so localStorage failures do not break onsite checklist interaction. Updated FieldMode regression coverage to keep the safe persisted-checklist path and prevent raw `JSON.parse(saved)` from returning directly. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/field-mode-celebration.test.mjs` passed 9/9, `npm.cmd test` passed 351/351, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Field Mode checklist storage access hardening**: Continued the active Hanwoo quality uplift by consolidating checklist localStorage reads and writes behind safe helpers. Initial render now tolerates storage read or JSON parse failures, and daily initialization plus checklist toggles tolerate storage write failures without breaking onsite mode interaction. Updated FieldMode regression coverage to keep the safe read/write helpers and prevent direct fresh-checklist storage writes from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/field-mode-celebration.test.mjs` passed 9/9, `npm.cmd test` passed 351/351, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Widget settings persisted visibility hardening**: Continued the active Hanwoo quality uplift by consolidating widget visibility defaults, persisted-value normalization, and safe localStorage read/write helpers in `useWidgetSettings`. Saved settings now preserve only boolean values for known widget ids, fall back to defaults for malformed/non-object saved values, and tolerate storage write failures without breaking settings toggles. Updated settings regression coverage to keep the safe persisted-widget-settings path and prevent raw JSON spread or direct toggle writes from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/settings-tab-accessibility.test.mjs` passed 13/13, `npm.cmd test` passed 352/352, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Theme preference storage hardening**: Continued the active Hanwoo quality uplift by consolidating theme preference loading, guarded system-theme fallback, and safe localStorage writes in `useTheme`. Settings now render safely when browser storage or `matchMedia` throws, falling back to `light` on server and to guarded system preference on the client. Updated settings regression coverage to keep the safe theme-storage path and prevent direct initialization or direct effect writes from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/settings-tab-accessibility.test.mjs` passed 14/14, `npm.cmd test` passed 353/353, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Weather geolocation fallback hardening**: Continued the active Hanwoo quality uplift by guarding dashboard and `useWeather` geolocation lookup. Missing farm coordinates now fall back to the default Namwon weather coordinates when `navigator` is unavailable, permission lookup fails, or `getCurrentPosition` throws synchronously. Updated home dashboard regression coverage to keep the guarded geolocation path and prevent unguarded `navigator` access or inline fallback callbacks from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/home-market-copy.test.mjs` passed 39/39, `npm.cmd test` passed 354/354, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Excel export temporary download cleanup hardening**: Continued the active Hanwoo quality uplift by keeping the generated Excel CSV Blob URL and temporary anchor in local variables, then removing the temporary DOM node and revoking the object URL from `finally`. This prevents DOM append/click failures from leaving temporary download resources behind while preserving duplicate-download lock behavior and Korean error feedback. Updated Excel export regression coverage to keep cleanup in `finally` and prevent the old inline remove/revoke path from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/excel-export-button-copy.test.mjs` passed 3/3, `npm.cmd test` passed 355/355, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard QR print failure-state unlock hardening**: Continued the active Hanwoo quality uplift by wrapping QR label print completion in guarded cleanup. Browser `focus()`/`print()` failures now announce a Korean retry message, and `close()` is also guarded so the duplicate-print lock and busy state are always released. Updated QR widget regression coverage to keep the try/catch/finally print path and prevent the old success-only reset path from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/qr-widget-copy.test.mjs` passed 4/4, `npm.cmd test` passed 356/356, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard QR print-window preparation cleanup hardening**: Continued the active Hanwoo quality uplift by wrapping QR print-window document preparation in guarded cleanup. If DOM setup or `doc.close()` fails after the popup opens, the code now marks the print callback committed, closes the popup through a guarded helper, releases the duplicate-print lock, clears the busy state, and announces a Korean retry message. Updated QR widget regression coverage to keep the preparation `try/catch` path and prevent unguarded print-window setup from returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/qr-widget-copy.test.mjs` passed 5/5, `npm.cmd test` passed 357/357, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Online status browser API hardening**: Continued the active Hanwoo quality uplift by adding a guarded online-status reader and wrapping online/offline event listener registration plus cleanup. Missing or restricted `navigator.onLine`, `window.addEventListener`, and `window.removeEventListener` access now falls back safely instead of breaking dashboard offline-aware flows. Added focused source regression coverage for safe online-state reads and listener cleanup. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/use-online-status.test.mjs` passed 2/2, `npm.cmd test` passed 359/359, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Offline queue storage failure hardening**: Continued the active Hanwoo quality uplift by wrapping offline queue localStorage persistence and clear operations in best-effort guards. Restricted browser storage now no longer breaks offline-aware dashboard flows, normalized queue rewrites, queue clearing, or dead-letter queue clearing. Added focused source regression coverage for safe queue persistence and clear operations. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/offline-queue-storage.test.mjs` passed 2/2, `npm.cmd test` passed 361/361, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Pagination request timeout timer failure hardening**: Continued the active Hanwoo quality uplift by wrapping cattle, sales, and shared cursor pagination request timeout scheduling and cleanup in guarded blocks. If browser timer scheduling fails, load-more requests continue without crashing; cleanup now clears timeout handles best-effort. Strengthened cattle and sales pagination regression coverage to keep guarded timer scheduling and cleanup paths. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `npm.cmd test -- --test-name-pattern="pagination"` passed, `npm.cmd test` passed 362/362, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Payment widget timeout timer failure hardening**: Continued the active Hanwoo quality uplift by wrapping Toss payment widget load-timeout scheduling and cleanup in guarded blocks. If browser timer scheduling fails, widget initialization continues on the original promise instead of failing immediately; cleanup now clears timeout handles best-effort. Strengthened payment UX regression coverage to keep guarded timeout scheduling and cleanup paths. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/payment-ux-copy.test.mjs` passed 7/7, `npm.cmd test` passed 363/363, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Shared fetch timeout timer failure hardening**: Continued the active Hanwoo quality uplift by wrapping `fetchWithTimeout` timeout scheduling and cleanup in guarded blocks. If timer scheduling fails, shared dashboard, payment, weather, KAPE, and MTRACE fetch requests continue instead of failing before network start; cleanup now clears timeout handles best-effort. Added focused regression coverage for guarded timeout scheduling and cleanup paths. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/fetch-with-timeout.test.mjs src/lib/payment-ux-copy.test.mjs src/lib/mtrace.test.mjs` passed 12/12, `npm.cmd test` passed 364/364, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI insight client timeout timer failure hardening**: Continued the active Hanwoo quality uplift by wrapping the AI insight widget request timeout scheduling and cleanup in guarded blocks. If browser timer scheduling fails, insight requests continue instead of crashing before fallback handling; promise completion and effect cleanup now clear timeout handles best-effort. Strengthened AI insight regression coverage to keep guarded timeout scheduling and cleanup paths. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/ai-insight-widget-copy.test.mjs` passed 10/10, `npm.cmd test` passed 364/364, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Field Mode celebration timer failure hardening**: Continued the active Hanwoo quality uplift by wrapping Field Mode checklist-completion celebration firework timers, auto-hide timer, and timeout cleanup in guarded helpers. If browser timer scheduling fails, the celebration effect no longer crashes and cleanup clears any scheduled handles best-effort. Strengthened FieldMode regression coverage to keep guarded celebration timer scheduling and cleanup paths. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/field-mode-celebration.test.mjs` passed 10/10, `npm.cmd test` passed 365/365, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard QR print fallback timer failure hardening**: Continued the active Hanwoo quality uplift by wrapping the QR label print-window fallback timer scheduling in a guarded helper. Restricted popup timer APIs no longer convert fallback scheduling failures into full print-window preparation failures; the popup load event path remains active and scheduling failures are logged. Strengthened QR widget regression coverage to keep guarded fallback timer scheduling. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/qr-widget-copy.test.mjs` passed 6/6, `npm.cmd test` passed 366/366, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Subscription success timer failure hardening**: Continued the active Hanwoo quality uplift by wrapping the subscription success page's invalid-amount status timer, payment-confirmation retry timer, success redirect timer, and cleanup in guarded helpers. If browser timer scheduling fails, the intended callback runs immediately instead of leaving the payment result page in a stale status; cleanup clears timeout handles best-effort. Strengthened payment UX regression coverage to keep guarded subscription success timers. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/payment-ux-copy.test.mjs` passed 8/8, `npm.cmd test` passed 367/367, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard AI insight route timeout timer failure hardening**: Continued the active Hanwoo quality uplift by wrapping the AI insight API route's Gemini timeout scheduling and cleanup in guarded blocks. If runtime timer scheduling fails, the original Gemini request continues instead of crashing the route; cleanup clears timeout handles best-effort while preserving the existing timeout fallback path when scheduling succeeds. Strengthened AI insight regression coverage to keep guarded route timeout scheduling and cleanup paths. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/ai-insight-widget-copy.test.mjs` passed 10/10, `npm.cmd test` passed 367/367, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Field Mode audio/vibration browser API hardening**: Continued the active Hanwoo quality uplift by wrapping audio context class access, audio context creation, suspended-context resume, and tactile vibration calls in guarded best-effort paths. Restricted browser audio or vibration APIs no longer break Field Mode and scanner feedback flows before the existing sound/vibration helpers can degrade. Strengthened FieldMode/audio regression coverage to keep guarded audio and vibration API access. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/field-mode-celebration.test.mjs` passed 11/11, `npm.cmd test` passed 368/368, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Field Mode animation frame failure hardening**: Continued the active Hanwoo quality uplift by wrapping Field Mode celebration `requestAnimationFrame` scheduling, `cancelAnimationFrame` cleanup, resize listener registration/removal, and missing canvas 2D context handling in guarded paths. Restricted animation frame or resize APIs no longer break onsite celebration UI, and context absence now exits through a guarded close timer instead of crashing the effect. Strengthened FieldMode regression coverage to keep guarded animation frame scheduling, cleanup, resize listener handling, and context fallback. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/field-mode-celebration.test.mjs` passed 12/12, `npm.cmd test` passed 369/369, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Ear-tag scanner animation frame failure hardening**: Continued the active Hanwoo quality uplift by wrapping the scanner modal's `requestAnimationFrame` scheduling and `cancelAnimationFrame` cleanup in guarded helpers. The scanner now resets stored frame handles after cleanup and routes missing canvas context or frame scheduling failures to the existing no-match state without synchronous effect state updates. Strengthened scanner regression coverage to keep guarded frame scheduling, cleanup, handle reset, and no-match fallback. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/eartag-scanner-modal-accessibility.test.mjs` passed 5/5, `npm.cmd test` passed 370/370, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Theme DOM application failure hardening**: Continued the active Hanwoo quality uplift by wrapping theme document-root lookup and `data-theme`/dark-class DOM mutation in guarded paths. Restricted or unusual browser DOM access no longer breaks settings/theme rendering after safe storage and system-theme fallback; if document root lookup or DOM mutation fails, the hook degrades without throwing. Strengthened settings regression coverage to keep guarded document-root access, guarded theme DOM mutation, and prevention of direct `document.documentElement` mutation. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/settings-tab-accessibility.test.mjs` passed 14/14, `npm.cmd test` passed 370/370, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Excel export cleanup failure hardening**: Continued the active Hanwoo quality uplift by wrapping temporary download-link removal and Blob URL revocation in guarded helpers. DOM cleanup or URL revoke failures can no longer prevent the export duplicate-download lock and busy state from being released. Strengthened Excel export regression coverage to keep best-effort cleanup helpers, finalizer ordering, and prevention of direct cleanup calls returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/excel-export-button-copy.test.mjs` passed 3/3, `npm.cmd test` passed 370/370, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Shared focus failure hardening**: Continued the active Hanwoo quality uplift by adding `focusElementSafely()` and routing cattle form, cattle detail, AI chat panel/launcher, and notification modal focus restoration through it. Restricted browser focus APIs no longer break modal/chat open-close flows; focus now degrades best-effort. Strengthened modal/chat regression coverage to keep the shared helper, guarded focus calls, and prevention of direct optional focus calls returning. |
+| Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --test src/lib/cattle-detail-modal-wiring.test.mjs src/lib/ai-chat-widget-copy.test.mjs src/lib/notification-modal-copy.test.mjs` passed 26/26, `npm.cmd test` passed 370/370, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed with the known T-251 DB health warning but exit 0. |
 
 ## Notes
 

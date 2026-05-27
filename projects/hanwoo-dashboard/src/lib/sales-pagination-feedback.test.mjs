@@ -28,10 +28,25 @@ test("sales pagination failures surface Korean retry feedback", () => {
 		/if \(loadInFlightRef\.current \|\| isLoading \|\| !hasMore\) return;/,
 	);
 	assert.match(hookSource, /loadInFlightRef\.current = true;/);
+	assert.match(hookSource, /let timeoutId = null;/);
+	assert.match(
+		hookSource,
+		/try \{\s+timeoutId = window\.setTimeout\(\(\) => \{\s+didTimeout = true;\s+controller\.abort\(\);/,
+	);
+	assert.match(
+		hookSource,
+		/console\.error\("Failed to schedule sales pagination timeout:", error\);/,
+	);
+	assert.match(
+		hookSource,
+		/if \(timeoutId !== null\) \{\s+try \{\s+window\.clearTimeout\(timeoutId\);\s+\} catch \{\}/,
+	);
 	assert.match(
 		hookSource,
 		/loadInFlightRef\.current = false;\s+if \(abortRef\.current === controller\)/,
 	);
+	assert.doesNotMatch(hookSource, /const timeoutId = window\.setTimeout/);
+	assert.doesNotMatch(hookSource, /finally \{\s+window\.clearTimeout\(timeoutId\);/);
 	assert.match(hookSource, /loadMore, loadError/);
 	assert.match(tabSource, /salesPagination\.loadError/);
 	assert.match(

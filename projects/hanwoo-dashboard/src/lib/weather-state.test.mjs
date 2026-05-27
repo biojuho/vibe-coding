@@ -88,6 +88,8 @@ test("normalizeWeatherPayload degrades cleanly when forecast arrays are partial"
 	assert.equal(result.degraded, true);
 	assert.equal(result.sourceLabel, "부분 예보");
 	assert.equal(result.message, WEATHER_PARTIAL_MESSAGE);
+	assert.match(result.message, /일부 예보 정보를 불러오지 못해/);
+	assert.doesNotMatch(result.message, /일부 예보 데이터를 불러오지 못해/);
 	assert.equal(result.forecast.length, 1);
 	assert.equal(result.precipitation, 0);
 	assert.equal(result.locationName, "서울");
@@ -139,6 +141,8 @@ test("buildUnavailableWeatherState returns an explicit unavailable payload", () 
 	assert.equal(result.locationName, "Namwon");
 	assert.equal(result.sourceLabel, "날씨 확인 불가");
 	assert.equal(result.message, WEATHER_UNAVAILABLE_MESSAGE);
+	assert.match(result.message, /날씨 정보를 확인할 수 없습니다/);
+	assert.doesNotMatch(result.message, /날씨 데이터를 확인할 수 없습니다/);
 });
 
 test("weather fallback location labels default to Korean copy", () => {

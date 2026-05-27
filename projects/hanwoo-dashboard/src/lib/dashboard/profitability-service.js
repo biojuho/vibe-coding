@@ -11,8 +11,8 @@ const DEFAULT_MONTHLY_WEIGHT_GAIN = 30; // kg
 const FEED_COST_LOOKBACK_MONTHS = 6;
 const SALES_LOOKBACK_MONTHS = 12;
 const MARKET_PRICE_MISSING_MESSAGE =
-	"수익성 시뮬레이션에 사용할 시세 데이터가 없습니다.";
-const MARKET_PRICE_PARSE_MESSAGE = "시세 데이터를 해석하지 못했습니다.";
+	"수익성 시뮬레이션에 사용할 시세 정보가 없습니다.";
+const MARKET_PRICE_PARSE_MESSAGE = "시세 정보를 해석하지 못했습니다.";
 const PROFITABILITY_UNAVAILABLE_MESSAGE =
 	"수익성 예측을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
 const OPERATOR_FACING_ERROR_MESSAGES = new Set([

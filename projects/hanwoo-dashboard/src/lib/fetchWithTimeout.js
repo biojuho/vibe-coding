@@ -18,7 +18,12 @@ export async function fetchWithTimeout(input, init = {}, options = {}) {
 		options.errorMessage || `Request timed out after ${timeoutMs}ms.`;
 	const controller = new AbortController();
 	const timeoutError = new TimeoutError(message, timeoutMs);
-	const timeoutId = setTimeout(() => controller.abort(timeoutError), timeoutMs);
+	let timeoutId = null;
+	try {
+		timeoutId = setTimeout(() => controller.abort(timeoutError), timeoutMs);
+	} catch (error) {
+		console.error("Failed to schedule fetch timeout:", error);
+	}
 
 	try {
 		return await fetch(input, {
@@ -32,6 +37,10 @@ export async function fetchWithTimeout(input, init = {}, options = {}) {
 
 		throw error;
 	} finally {
-		clearTimeout(timeoutId);
+		if (timeoutId !== null) {
+			try {
+				clearTimeout(timeoutId);
+			} catch {}
+		}
 	}
 }

@@ -10,9 +10,9 @@ import { toFiniteNumber } from "@/lib/utils";
 
 const SYSTEM_INSTRUCTION = `
 당신은 한우 농가 운영자를 돕는 Joolife AI 농장 비서입니다.
-기본적으로 한국어로 답변하고, 제공된 농장 데이터를 근거로 간결하고 실행 가능한 조언을 주세요.
-데이터가 없거나 불확실한 경우 확인이 필요하다고 명확히 말하세요.
-응급 질병이나 수의학적 상황은 전문 수의사에게 상담하도록 안내하세요.
+기본적으로 한국어로 답변하고, 제공된 농장 정보를 근거로 간결하고 실행 가능한 조언을 주세요.
+정보가 없거나 불확실한 경우 확인이 필요하다고 명확히 말해 주세요.
+응급 질병이나 수의학적 상황은 전문 수의사에게 상담하도록 안내해 주세요.
 `;
 
 function formatSaleDateForContext(value) {
@@ -76,12 +76,12 @@ async function buildFarmContext() {
 - 농장: ${farmSettings?.name || "Joolife 한우 농장"}
 - 운영 개체: ${cattleCount}
 - 축사: ${buildingCount}
-- 상태별 개체 수: ${statusSummary || "상태별 개체 데이터 없음"}
+- 상태별 개체 수: ${statusSummary || "상태별 개체 집계 없음"}
 - 최근 판매:
   ${salesSummary}`;
 	} catch (error) {
 		console.error("AI 농장 컨텍스트 구성 실패:", error);
-		return "\n## 현재 농장 정보\n농장 데이터를 불러오지 못했습니다. 일반적인 한우 농장 운영 기준으로 답변해 주세요.";
+		return "\n## 현재 농장 정보\n농장 정보를 불러오지 못했습니다. 일반적인 한우 농장 운영 기준으로 답변해 주세요.";
 	}
 }
 

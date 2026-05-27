@@ -36,12 +36,16 @@ function normalizeQueueItem(item) {
 function persistQueueList(key, queue) {
 	if (typeof window === "undefined") return;
 
-	if (!Array.isArray(queue) || queue.length === 0) {
-		localStorage.removeItem(key);
-		return;
-	}
+	try {
+		if (!Array.isArray(queue) || queue.length === 0) {
+			localStorage.removeItem(key);
+			return;
+		}
 
-	localStorage.setItem(key, JSON.stringify(queue));
+		localStorage.setItem(key, JSON.stringify(queue));
+	} catch {
+		// Best-effort persistence: restricted storage should not break the UI flow.
+	}
 }
 
 function persistQueue(queue) {
@@ -142,12 +146,16 @@ export function appendDeadLetterQueue(items) {
 
 export function clearQueue() {
 	if (typeof window === "undefined") return;
-	localStorage.removeItem(QUEUE_KEY);
+	try {
+		localStorage.removeItem(QUEUE_KEY);
+	} catch {}
 }
 
 export function clearDeadLetterQueue() {
 	if (typeof window === "undefined") return;
-	localStorage.removeItem(DEAD_LETTER_KEY);
+	try {
+		localStorage.removeItem(DEAD_LETTER_KEY);
+	} catch {}
 }
 
 export function queueSize() {

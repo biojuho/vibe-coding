@@ -1,17 +1,35 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 
 const PAYMENT_FAILURE_MESSAGE =
 	"결제 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.";
 const PAYMENT_FAILURE_LOADING_MESSAGE = "결제 실패 정보를 불러오는 중입니다.";
 const PAYMENT_FAILURE_CODE_FALLBACK = "오류 코드 미전달";
+const PAYMENT_RETRY_PATH = "/subscription";
+const PAYMENT_RETRY_NAVIGATION_ERROR_MESSAGE =
+	"결제 화면으로 자동 이동하지 못했습니다. 주소창에서 구독 화면으로 다시 이동해 주세요.";
 
 function FailContent() {
 	const searchParams = useSearchParams();
 	const router = useRouter();
+	const [retryStatus, setRetryStatus] = useState("");
 	const errorCode = searchParams.get("code") || PAYMENT_FAILURE_CODE_FALLBACK;
+	const handleRetry = () => {
+		setRetryStatus("");
+		try {
+			router.back();
+		} catch (error) {
+			console.error("Payment retry navigation failed:", error);
+			try {
+				router.push(PAYMENT_RETRY_PATH);
+			} catch (fallbackError) {
+				console.error("Payment retry fallback navigation failed:", fallbackError);
+				setRetryStatus(PAYMENT_RETRY_NAVIGATION_ERROR_MESSAGE);
+			}
+		}
+	};
 
 	return (
 		<div
@@ -44,10 +62,25 @@ function FailContent() {
 			>
 				오류 코드: {errorCode}
 			</p>
+			{retryStatus ? (
+				<p
+					role="status"
+					aria-live="polite"
+					aria-atomic="true"
+					style={{
+						marginTop: "12px",
+						fontSize: "13px",
+						fontWeight: 700,
+						color: "var(--color-danger)",
+					}}
+				>
+					{retryStatus}
+				</p>
+			) : null}
 
 			<button
 				type="button"
-				onClick={() => router.back()}
+				onClick={handleRetry}
 				aria-label="결제 화면으로 돌아가 다시 시도하기"
 				title="결제 화면으로 돌아가 다시 시도하기"
 				style={{

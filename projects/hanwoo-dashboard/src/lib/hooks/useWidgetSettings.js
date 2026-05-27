@@ -23,7 +23,7 @@ export const WIDGET_REGISTRY = [
 		label: "AI 인사이트",
 		icon: "🤖",
 		defaultOn: false,
-		description: "켜면 농장 요약 데이터를 AI 분석 API로 전송합니다.",
+		description: "켜면 농장 요약 정보를 AI 분석 API로 전송합니다.",
 	},
 	{ id: "estrus", label: "발정 알림 배너", icon: "💕", defaultOn: true },
 	{ id: "calving", label: "분만 알림 배너", icon: "🍼", defaultOn: true },
@@ -32,27 +32,59 @@ export const WIDGET_REGISTRY = [
 
 const WIDGETS_STORAGE_KEY = "joolife-widgets";
 
+function getDefaultWidgetVisibility() {
+	return Object.fromEntries(
+		WIDGET_REGISTRY.map((widget) => [widget.id, widget.defaultOn]),
+	);
+}
+
+function normalizeStoredWidgetVisibility(value) {
+	const defaults = getDefaultWidgetVisibility();
+	if (!value || typeof value !== "object" || Array.isArray(value)) {
+		return defaults;
+	}
+
+	return Object.fromEntries(
+		WIDGET_REGISTRY.map((widget) => [
+			widget.id,
+			typeof value[widget.id] === "boolean"
+				? value[widget.id]
+				: defaults[widget.id],
+		]),
+	);
+}
+
+function readStoredWidgetVisibility() {
+	const defaults = getDefaultWidgetVisibility();
+	if (typeof window === "undefined") return defaults;
+
+	try {
+		const saved = localStorage.getItem(WIDGETS_STORAGE_KEY);
+		if (saved) {
+			return normalizeStoredWidgetVisibility(JSON.parse(saved));
+		}
+	} catch {}
+
+	return defaults;
+}
+
+function writeStoredWidgetVisibility(visibility) {
+	try {
+		localStorage.setItem(WIDGETS_STORAGE_KEY, JSON.stringify(visibility));
+	} catch {}
+}
+
 /**
  * 위젯 ON/OFF 설정 훅.
  * localStorage에 영속화되며, WIDGET_REGISTRY 기본값과 merge됩니다.
  */
 export function useWidgetSettings() {
-	const [visible, setVisible] = useState(() => {
-		const defaults = Object.fromEntries(
-			WIDGET_REGISTRY.map((widget) => [widget.id, widget.defaultOn]),
-		);
-		if (typeof window === "undefined") return defaults;
-		try {
-			const saved = localStorage.getItem(WIDGETS_STORAGE_KEY);
-			if (saved) return { ...defaults, ...JSON.parse(saved) };
-		} catch {}
-		return defaults;
-	});
+	const [visible, setVisible] = useState(() => readStoredWidgetVisibility());
 
 	const toggle = (id) => {
 		setVisible((prev) => {
 			const next = { ...prev, [id]: !prev[id] };
-			localStorage.setItem(WIDGETS_STORAGE_KEY, JSON.stringify(next));
+			writeStoredWidgetVisibility(next);
 			return next;
 		});
 	};

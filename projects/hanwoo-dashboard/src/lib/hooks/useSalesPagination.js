@@ -75,10 +75,15 @@ export function useSalesPagination({
 			const controller = new AbortController();
 			abortRef.current = controller;
 			let didTimeout = false;
-			const timeoutId = window.setTimeout(() => {
-				didTimeout = true;
-				controller.abort();
-			}, PAGINATION_REQUEST_TIMEOUT_MS);
+			let timeoutId = null;
+			try {
+				timeoutId = window.setTimeout(() => {
+					didTimeout = true;
+					controller.abort();
+				}, PAGINATION_REQUEST_TIMEOUT_MS);
+			} catch (error) {
+				console.error("Failed to schedule sales pagination timeout:", error);
+			}
 
 			setIsLoading(true);
 			setLoadError("");
@@ -142,7 +147,11 @@ export function useSalesPagination({
 					setLoadError(SALES_PAGINATION_ERROR_MESSAGE);
 				}
 			} finally {
-				window.clearTimeout(timeoutId);
+				if (timeoutId !== null) {
+					try {
+						window.clearTimeout(timeoutId);
+					} catch {}
+				}
 				loadInFlightRef.current = false;
 				if (abortRef.current === controller) {
 					abortRef.current = null;

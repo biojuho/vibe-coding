@@ -96,10 +96,15 @@ export default function AIInsightWidget({ summary }) {
 				setReason(null);
 			}
 		});
-		const timeoutId = window.setTimeout(() => {
-			didTimeout = true;
-			controller.abort();
-		}, AI_INSIGHT_TIMEOUT_MS);
+		let timeoutId = null;
+		try {
+			timeoutId = window.setTimeout(() => {
+				didTimeout = true;
+				controller.abort();
+			}, AI_INSIGHT_TIMEOUT_MS);
+		} catch (error) {
+			console.error("Failed to schedule AI insight timeout:", error);
+		}
 
 		fetch("/api/ai/insight", {
 			method: "POST",
@@ -141,14 +146,22 @@ export default function AIInsightWidget({ summary }) {
 				setReason("AI 분석 응답을 받지 못해 기본 규칙 인사이트로 표시합니다.");
 			})
 			.finally(() => {
-				window.clearTimeout(timeoutId);
+				if (timeoutId !== null) {
+					try {
+						window.clearTimeout(timeoutId);
+					} catch {}
+				}
 				if (!controller.signal.aborted || didTimeout) {
 					setIsLoading(false);
 				}
 			});
 
 		return () => {
-			window.clearTimeout(timeoutId);
+			if (timeoutId !== null) {
+				try {
+					window.clearTimeout(timeoutId);
+				} catch {}
+			}
 			controller.abort();
 			if (abortRef.current === controller) {
 				abortRef.current = null;
@@ -161,7 +174,7 @@ export default function AIInsightWidget({ summary }) {
 			<PremiumCardHeader
 				title="오늘의 AI 인사이트"
 				icon="🤖"
-				description="농장 데이터를 기반으로 우선순위 3가지 행동을 제안합니다."
+				description="농장 기록을 기반으로 우선순위 3가지 행동을 정리합니다."
 			>
 				<div className="flex items-center gap-1.5 ml-auto">
 					<SourceBadge source={source} />

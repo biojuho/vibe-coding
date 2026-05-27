@@ -2,7 +2,7 @@ import { Compass } from "lucide-react";
 import Link from "next/link";
 
 export const metadata = {
-	title: "페이지를 찾을 수 없어요 · Joolife",
+	title: "페이지를 찾을 수 없습니다 · Joolife",
 };
 
 export default function NotFound() {
@@ -19,13 +19,13 @@ export default function NotFound() {
 					<div>
 						<p className="login-eyebrow">Joolife 한우 운영</p>
 						<h1 id="not-found-title" className="login-title">
-							페이지를 찾을 수 없어요
+							페이지를 찾을 수 없습니다
 						</h1>
 					</div>
 				</div>
 
 				<p className="login-copy">
-					주소가 바뀌었거나 삭제된 화면일 수 있어요. 대시보드로 돌아가 오늘의
+					주소가 바뀌었거나 삭제된 화면일 수 있습니다. 대시보드로 돌아가 오늘의
 					사육, 재고, 출하 업무를 이어서 관리해 주세요.
 				</p>
 
