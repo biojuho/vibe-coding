@@ -1,6 +1,12 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 import {
+	buildCacheKey,
+	clearCacheKey,
+	getCachedInsight,
+	setCachedInsight,
+} from "@/lib/ai-insight-cache.mjs";
+import {
 	MAX_INSIGHTS,
 	buildHeuristicInsights,
 	buildInsightPrompt,
@@ -96,6 +102,9 @@ export async function POST(request) {
 
 	const body = await readJsonBody(request);
 	const summary = body && typeof body === "object" ? body.summary : null;
+	const forceRefresh = Boolean(
+		body && typeof body === "object" && body.forceRefresh === true,
+	);
 
 	const apiKey = process.env.GEMINI_API_KEY;
 	if (!apiKey) {
@@ -103,7 +112,33 @@ export async function POST(request) {
 			insights: buildHeuristicInsights(summary),
 			source: "heuristic",
 			reason: DEFAULT_HEURISTIC_REASON,
+			cached: false,
 		});
+	}
+
+	const userId =
+		session && session.user && typeof session.user.id === "string"
+			? session.user.id
+			: null;
+	const cacheKey = userId
+		? buildCacheKey({ userId, summary })
+		: null;
+
+	if (cacheKey && !forceRefresh) {
+		const hit = getCachedInsight(cacheKey);
+		if (hit && Array.isArray(hit.insights) && hit.insights.length === MAX_INSIGHTS) {
+			return Response.json({
+				insights: hit.insights,
+				source: "ai",
+				cached: true,
+				cachedAt: new Date(hit.generatedAt).toISOString(),
+				ageSeconds: hit.ageSeconds,
+			});
+		}
+	}
+
+	if (cacheKey && forceRefresh) {
+		clearCacheKey(cacheKey);
 	}
 
 	const prompt = buildInsightPrompt(summary);
@@ -117,9 +152,13 @@ export async function POST(request) {
 				insights: buildHeuristicInsights(summary),
 				source: "heuristic",
 				reason: "AI 응답을 해석하지 못해 기본 규칙으로 대체했습니다.",
+				cached: false,
 			});
 		}
-		return Response.json({ insights: parsed, source: "ai" });
+		if (cacheKey) {
+			setCachedInsight(cacheKey, { insights: parsed, source: "ai" });
+		}
+		return Response.json({ insights: parsed, source: "ai", cached: false });
 	} catch (error) {
 		if (error instanceof InsightTimeoutError) {
 			console.error("AI insight generation timed out:", error);
@@ -127,6 +166,7 @@ export async function POST(request) {
 				insights: buildHeuristicInsights(summary),
 				source: "heuristic",
 				reason: GEMINI_TIMEOUT_REASON,
+				cached: false,
 			});
 		}
 		console.error("AI 인사이트 생성 실패:", error);
@@ -134,6 +174,7 @@ export async function POST(request) {
 			insights: buildHeuristicInsights(summary),
 			source: "heuristic",
 			reason: "AI 분석 호출 중 오류가 발생해 기본 규칙으로 대체했습니다.",
+			cached: false,
 		});
 	}
 }

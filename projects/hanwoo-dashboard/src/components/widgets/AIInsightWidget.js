@@ -67,6 +67,35 @@ function SourceBadge({ source }) {
 	);
 }
 
+function formatCacheAgeLabel(ageSeconds) {
+	const seconds = Number(ageSeconds);
+	if (!Number.isFinite(seconds) || seconds < 0) return null;
+	if (seconds < 60) return "방금 분석";
+	const minutes = Math.floor(seconds / 60);
+	if (minutes < 60) return `${minutes}분 전 캐시`;
+	const hours = Math.floor(minutes / 60);
+	if (hours < 24) return `${hours}시간 전 캐시`;
+	return "오늘 분석 결과";
+}
+
+function CacheBadge({ ageSeconds }) {
+	const label = formatCacheAgeLabel(ageSeconds);
+	if (!label) return null;
+	return (
+		<span
+			className="px-1.5 py-0.5 rounded-full text-[10px] font-medium tracking-tight"
+			style={{
+				background: "color-mix(in srgb, var(--color-success) 12%, white 88%)",
+				color: "var(--color-success)",
+			}}
+			title="동일 농장 데이터에 대한 캐시된 AI 분석 결과입니다."
+			data-testid="ai-insight-cache-badge"
+		>
+			{label}
+		</span>
+	);
+}
+
 function deferAIInsightTask(callback) {
 	try {
 		queueMicrotask(callback);
@@ -87,6 +116,7 @@ export default function AIInsightWidget({ summary }) {
 	const [isLoading, setIsLoading] = useState(true);
 	const [reason, setReason] = useState(null);
 	const [refreshNonce, setRefreshNonce] = useState(0);
+	const [cacheMeta, setCacheMeta] = useState(null);
 	const abortRef = useRef(null);
 	const refreshButtonLabel = isLoading
 		? "AI 인사이트 새로고침 중"
@@ -103,6 +133,7 @@ export default function AIInsightWidget({ summary }) {
 				setSource("heuristic");
 				setIsLoading(true);
 				setReason(null);
+				setCacheMeta(null);
 			}
 		});
 		let timeoutId = null;
@@ -117,10 +148,11 @@ export default function AIInsightWidget({ summary }) {
 			controller.abort();
 		}
 
+		const forceRefresh = refreshNonce > 0;
 		fetch("/api/ai/insight", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ summary: stableSummary }),
+			body: JSON.stringify({ summary: stableSummary, forceRefresh }),
 			signal: controller.signal,
 		})
 			.then(async (res) => {
@@ -144,8 +176,18 @@ export default function AIInsightWidget({ summary }) {
 							? payload.reason.trim()
 							: AI_INSIGHT_HEURISTIC_REASON;
 					setReason(fallbackReason);
+					setCacheMeta(null);
 				} else {
 					setReason(null);
+					if (payload.cached === true) {
+						const ageSeconds = Number(payload.ageSeconds);
+						setCacheMeta({
+							cached: true,
+							ageSeconds: Number.isFinite(ageSeconds) ? ageSeconds : 0,
+						});
+					} else {
+						setCacheMeta({ cached: false, ageSeconds: 0 });
+					}
 				}
 			})
 			.catch((error) => {
@@ -154,6 +196,7 @@ export default function AIInsightWidget({ summary }) {
 				console.error("AI 인사이트 호출 실패:", error);
 				setInsights(buildHeuristicInsights(stableSummary));
 				setSource("heuristic");
+				setCacheMeta(null);
 				if (didTimeout) {
 					setReason(AI_INSIGHT_TIMEOUT_REASON);
 					return;
@@ -194,6 +237,9 @@ export default function AIInsightWidget({ summary }) {
 			>
 				<div className="flex items-center gap-1.5 ml-auto">
 					<SourceBadge source={source} />
+					{source === "ai" && cacheMeta?.cached === true ? (
+						<CacheBadge ageSeconds={cacheMeta.ageSeconds} />
+					) : null}
 					{isLoading ? (
 						<span
 							className="text-[11px] font-medium text-[color:var(--color-text-muted)]"
