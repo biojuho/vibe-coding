@@ -376,6 +376,15 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
                     (best_breakdown or {}).get("avg_score", 0.0),
                     (best_breakdown or {}).get("comment_trigger_avg", 0.0),
                 )
+                # T-1107: tune_best_of_n_weight.py sweep 데이터 소스로 영속화.
+                # persist_stage 가 이 키를 읽어 record_draft_event 에 전달.
+                if isinstance(drafts_dict, dict):
+                    try:
+                        drafts_dict["_comment_trigger_avg"] = float(
+                            (best_breakdown or {}).get("comment_trigger_avg", 0.0)
+                        )
+                    except (TypeError, ValueError):
+                        pass
                 try:
                     self.draft_cache.set(
                         cache_key, drafts_dict, image_prompt, provider=drafts_dict.get("_provider_used", "")

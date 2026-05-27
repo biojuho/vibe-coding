@@ -82,6 +82,87 @@ class TestRunPersistStage:
         assert ctx.notion_page_id == "page-id-1"
 
     @pytest.mark.asyncio
+    async def test_records_comment_trigger_avg_from_drafts_stash(self):
+        """T-1107: persist 단계가 drafts._comment_trigger_avg 를 record_draft_event 에 전달."""
+        ctx = _make_ctx()
+        ctx.screenshot_task = None
+        ctx.drafts = {
+            "twitter": "[공감형 트윗] Test tweet",
+            "_provider_used": "gemini",
+            "_hook_score": 7.2,
+            "_virality_score": 8.0,
+            "_fit_score": 6.5,
+            "_comment_trigger_avg": 7.85,
+        }
+
+        mock_notion = AsyncMock()
+        mock_notion.upload = AsyncMock(return_value=("https://notion.so/page-ct", "page-ct-1"))
+        mock_notion.update_page_properties = AsyncMock()
+        mock_notion.last_error_code = None
+
+        mock_config = MagicMock()
+        mock_config.get = MagicMock(return_value=True)
+
+        with (
+            patch("pipeline.process_stages.persist_stage.regulation_checker", None),
+            patch("pipeline.process_stages.persist_stage.notebooklm_enricher", None),
+            patch("pipeline.process_stages.persist_stage.record_draft_event") as record_mock,
+            patch("pipeline.process_stages.persist_stage.refresh_ml_scorer_if_needed"),
+        ):
+            result = await run_persist_stage(
+                ctx=ctx,
+                image_uploader=MagicMock(),
+                image_generator=None,
+                notion_uploader=mock_notion,
+                twitter_poster=None,
+                config=mock_config,
+                review_only=False,
+            )
+
+        assert result is True
+        record_mock.assert_called_once()
+        kwargs = record_mock.call_args.kwargs
+        assert kwargs["comment_trigger_avg"] == 7.85
+        assert kwargs["hook_score"] == 7.2
+        assert kwargs["virality_score"] == 8.0
+        assert kwargs["fit_score"] == 6.5
+
+    @pytest.mark.asyncio
+    async def test_records_zero_comment_trigger_avg_when_not_stashed(self):
+        """drafts 에 _comment_trigger_avg 가 없으면 0.0 으로 안전하게 폴백."""
+        ctx = _make_ctx()
+        ctx.screenshot_task = None
+        # drafts 에 _comment_trigger_avg 없음
+
+        mock_notion = AsyncMock()
+        mock_notion.upload = AsyncMock(return_value=("https://notion.so/page-nz", "page-nz-1"))
+        mock_notion.update_page_properties = AsyncMock()
+        mock_notion.last_error_code = None
+
+        mock_config = MagicMock()
+        mock_config.get = MagicMock(return_value=True)
+
+        with (
+            patch("pipeline.process_stages.persist_stage.regulation_checker", None),
+            patch("pipeline.process_stages.persist_stage.notebooklm_enricher", None),
+            patch("pipeline.process_stages.persist_stage.record_draft_event") as record_mock,
+            patch("pipeline.process_stages.persist_stage.refresh_ml_scorer_if_needed"),
+        ):
+            await run_persist_stage(
+                ctx=ctx,
+                image_uploader=MagicMock(),
+                image_generator=None,
+                notion_uploader=mock_notion,
+                twitter_poster=None,
+                config=mock_config,
+                review_only=False,
+            )
+
+        record_mock.assert_called_once()
+        kwargs = record_mock.call_args.kwargs
+        assert kwargs["comment_trigger_avg"] == 0.0
+
+    @pytest.mark.asyncio
     async def test_notion_upload_failure(self):
         """Failed Notion upload returns False."""
         ctx = _make_ctx()

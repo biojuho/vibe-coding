@@ -22,6 +22,7 @@ def record_draft_event(
     hook_score: float = 0.0,
     virality_score: float = 0.0,
     fit_score: float = 0.0,
+    comment_trigger_avg: float = 0.0,
 ) -> None:
     try:
         from pipeline.cost_db import CostDatabase
@@ -46,6 +47,12 @@ def record_draft_event(
                 hook_score=hook_score,
                 virality_score=virality_score,
                 fit_score=fit_score,
+            )
+        if comment_trigger_avg:
+            db.update_draft_comment_trigger_avg(
+                content_url=content_url,
+                notion_page_id=notion_page_id,
+                comment_trigger_avg=comment_trigger_avg,
             )
     except Exception as exc:
         logger.debug("Draft analytics record skipped: %s", exc)

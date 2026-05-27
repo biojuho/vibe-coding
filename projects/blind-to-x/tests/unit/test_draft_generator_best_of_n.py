@@ -188,6 +188,17 @@ def test_combined_score_ignores_non_numeric_comment_trigger_entry():
     assert breakdown["comment_trigger_avg"] == 8.0
 
 
+def test_best_of_n_picker_stashes_comment_trigger_avg_into_drafts_dict():
+    """T-1107: Best-of-N selected candidate 의 ct_avg 가 persist_stage 에서 읽을 수 있도록
+    drafts_dict["_comment_trigger_avg"] 에 영속화되어야 한다.
+    소스 수준 contract 잠금 (전체 generate_drafts 모킹 비용 회피)."""
+    source = (ROOT / "pipeline" / "draft_generator.py").read_text(encoding="utf-8")
+    # 키는 underscore-prefix 컨벤션 (다른 _hook_score / _virality_score / _fit_score 와 정합)
+    assert 'drafts_dict["_comment_trigger_avg"]' in source
+    # 값은 best_breakdown["comment_trigger_avg"] 에서 직접 추출
+    assert 'best_breakdown or {}).get("comment_trigger_avg", 0.0)' in source
+
+
 def test_combined_score_handles_missing_avg_attribute_gracefully():
     gen = _build_generator()
 

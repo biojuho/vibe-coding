@@ -201,7 +201,7 @@ def build_report(
 
     lines.append("[Comment-trigger 가중치 sweep]")
     if best_w is None:
-        lines.append("  - `comment_trigger_avg` 데이터가 부족합니다 (활성 발행 단계에서 자동 수집 예정).")
+        lines.append("  - `comment_trigger_avg` 표본이 5건 미만입니다 (Best-of-N 발행 후 영속화되며, 누적 대기 중).")
         lines.append("  - 현재로서는 final_rank_score 의 engagement_rate 상관관계만 신호로 사용됩니다.")
         # final_rank_score 의 신호에 따라 weight 의 방향 추천
         final_corr = summary["axis_correlations"]["final_rank_score"]["r"]

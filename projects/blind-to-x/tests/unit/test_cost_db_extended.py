@@ -154,6 +154,80 @@ def test_update_draft_scores_and_view_stats_fallback_to_notion_page_id(tmp_path)
     assert row["impression_count"] == 4567
 
 
+def test_update_draft_comment_trigger_avg_persists_via_content_url_or_page_id(tmp_path) -> None:
+    """T-1107: 4축 평균 컬럼이 content_url / notion_page_id 양쪽 모두에서 갱신되어야."""
+    db = _make_db(tmp_path)
+    db.record_draft(
+        source="blind",
+        topic_cluster="career",
+        hook_type="hook",
+        emotion_axis="emotion",
+        draft_style="style-a",
+        provider_used="gemini",
+        final_rank_score=68.0,
+        content_url="https://example.com/post-a",
+        notion_page_id="page-a",
+    )
+    db.record_draft(
+        source="blind",
+        topic_cluster="career",
+        hook_type="hook",
+        emotion_axis="emotion",
+        draft_style="style-b",
+        provider_used="anthropic",
+        final_rank_score=72.0,
+        notion_page_id="page-b",
+    )
+
+    db.update_draft_comment_trigger_avg(
+        content_url="https://example.com/post-a",
+        comment_trigger_avg=8.25,
+    )
+    db.update_draft_comment_trigger_avg(
+        notion_page_id="page-b",
+        comment_trigger_avg=6.5,
+    )
+
+    with db._conn() as conn:
+        row_a = conn.execute(
+            "SELECT comment_trigger_avg FROM draft_analytics WHERE content_url = ?",
+            ("https://example.com/post-a",),
+        ).fetchone()
+        row_b = conn.execute(
+            "SELECT comment_trigger_avg FROM draft_analytics WHERE notion_page_id = ?",
+            ("page-b",),
+        ).fetchone()
+
+    assert row_a["comment_trigger_avg"] == 8.25
+    assert row_b["comment_trigger_avg"] == 6.5
+
+
+def test_update_draft_comment_trigger_avg_swallows_runtime_errors(tmp_path) -> None:
+    """잘못된 값이 들어와도 호출자에게 예외를 던지면 안 된다 (analytics 는 best-effort)."""
+    db = _make_db(tmp_path)
+    db.record_draft(notion_page_id="page-x")
+    # float() 변환 실패 → 메서드가 swallow 해야
+    db.update_draft_comment_trigger_avg(
+        notion_page_id="page-x",
+        comment_trigger_avg="not-a-number",  # type: ignore[arg-type]
+    )
+    # 컬럼은 default 0.0 유지
+    with db._conn() as conn:
+        row = conn.execute(
+            "SELECT comment_trigger_avg FROM draft_analytics WHERE notion_page_id = ?",
+            ("page-x",),
+        ).fetchone()
+    assert row["comment_trigger_avg"] == 0.0
+
+
+def test_draft_analytics_schema_has_comment_trigger_avg_column(tmp_path) -> None:
+    """T-1107: tune_best_of_n_weight.py 의 sweep 데이터 소스 컬럼이 반드시 존재해야."""
+    db = _make_db(tmp_path)
+    with db._conn() as conn:
+        cols = {r["name"] for r in conn.execute("PRAGMA table_info(draft_analytics)").fetchall()}
+    assert "comment_trigger_avg" in cols
+
+
 def test_daily_trend_combines_text_and_image_costs(tmp_path) -> None:
     db = _make_db(tmp_path)
     today = date.today().isoformat()

@@ -262,6 +262,7 @@ async def run_persist_stage(
             hook_score=float(drafts.get("_hook_score", 0.0) if isinstance(drafts, dict) else 0.0),
             virality_score=float(drafts.get("_virality_score", 0.0) if isinstance(drafts, dict) else 0.0),
             fit_score=float(drafts.get("_fit_score", 0.0) if isinstance(drafts, dict) else 0.0),
+            comment_trigger_avg=float(drafts.get("_comment_trigger_avg", 0.0) if isinstance(drafts, dict) else 0.0),
         )
         refresh_ml_scorer_if_needed()
 

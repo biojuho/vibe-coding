@@ -45,6 +45,37 @@ class TestRecordDraftEvent:
                 virality_score=7.0,
                 fit_score=9.0,
             )
+            # comment_trigger_avg=0 (기본값) 이면 호출하지 않음
+            mock_db.update_draft_comment_trigger_avg.assert_not_called()
+
+    def test_with_comment_trigger_avg_calls_update(self):
+        """T-1107: 4축 평균이 들어오면 update_draft_comment_trigger_avg 가 호출되어야."""
+        from pipeline.draft_analytics import record_draft_event
+
+        mock_db = MagicMock()
+        with patch("pipeline.cost_db.CostDatabase", return_value=mock_db):
+            record_draft_event(
+                content_url="https://example.com/3",
+                notion_page_id="page-789",
+                comment_trigger_avg=7.25,
+            )
+            mock_db.record_draft.assert_called_once()
+            mock_db.update_draft_comment_trigger_avg.assert_called_once_with(
+                content_url="https://example.com/3",
+                notion_page_id="page-789",
+                comment_trigger_avg=7.25,
+            )
+
+    def test_zero_comment_trigger_avg_does_not_call_update(self):
+        from pipeline.draft_analytics import record_draft_event
+
+        mock_db = MagicMock()
+        with patch("pipeline.cost_db.CostDatabase", return_value=mock_db):
+            record_draft_event(
+                notion_page_id="page-zero",
+                comment_trigger_avg=0.0,
+            )
+            mock_db.update_draft_comment_trigger_avg.assert_not_called()
 
     def test_no_scores_skips_update(self):
         from pipeline.draft_analytics import record_draft_event

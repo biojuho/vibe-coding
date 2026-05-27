@@ -36,6 +36,7 @@ _MIGRATION_COLUMNS: dict[str, dict[str, str]] = {
         "yt_views": "INTEGER DEFAULT 0",
         "engagement_rate": "REAL DEFAULT 0.0",
         "impression_count": "INTEGER DEFAULT 0",
+        "comment_trigger_avg": "REAL DEFAULT 0.0",
     },
     "daily_text_costs": {
         "cache_creation_tokens": "INTEGER DEFAULT 0",
@@ -193,6 +194,8 @@ class CostDatabase:
             self._ensure_column(conn, "draft_analytics", "yt_views", "INTEGER DEFAULT 0")
             self._ensure_column(conn, "draft_analytics", "engagement_rate", "REAL DEFAULT 0.0")
             self._ensure_column(conn, "draft_analytics", "impression_count", "INTEGER DEFAULT 0")
+            # T-1107: Best-of-N 4축 comment_trigger 평균 영속화 (tune_best_of_n_weight.py sweep 데이터 소스)
+            self._ensure_column(conn, "draft_analytics", "comment_trigger_avg", "REAL DEFAULT 0.0")
             # T-257: Anthropic prompt-cache 토큰 별도 추적
             self._ensure_column(conn, "daily_text_costs", "cache_creation_tokens", "INTEGER DEFAULT 0")
             self._ensure_column(conn, "daily_text_costs", "cache_read_tokens", "INTEGER DEFAULT 0")
@@ -647,6 +650,38 @@ class CostDatabase:
                     )
         except Exception as exc:
             logger.warning("CostDB: failed to update draft scores: %s", exc)
+
+    def update_draft_comment_trigger_avg(
+        self,
+        *,
+        content_url: str = "",
+        notion_page_id: str = "",
+        comment_trigger_avg: float = 0.0,
+    ) -> None:
+        """Best-of-N 결합 점수에서 4축(comment_trigger) 평균을 draft_analytics에 업데이트.
+
+        tune_best_of_n_weight.py 가 이 컬럼이 채워진 후에만 정량적 weight sweep 을 수행한다.
+        """
+        try:
+            with self._conn() as conn:
+                updated = False
+                if content_url:
+                    cursor = conn.execute(
+                        """UPDATE draft_analytics
+                              SET comment_trigger_avg = ?
+                            WHERE content_url = ?""",
+                        (float(comment_trigger_avg), content_url),
+                    )
+                    updated = cursor.rowcount > 0
+                if not updated and notion_page_id:
+                    conn.execute(
+                        """UPDATE draft_analytics
+                              SET comment_trigger_avg = ?
+                            WHERE notion_page_id = ?""",
+                        (float(comment_trigger_avg), notion_page_id),
+                    )
+        except Exception as exc:
+            logger.warning("CostDB: failed to update comment_trigger_avg: %s", exc)
 
     def update_draft_view_stats(
         self,
