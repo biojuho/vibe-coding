@@ -88,13 +88,41 @@ export function useWeather(farmSettings) {
 			);
 		};
 
+		const fetchWeatherFromCoords = (latitudeValue, longitudeValue) => {
+			const latitude = Number(latitudeValue);
+			const longitude = Number(longitudeValue);
+			const isValidWeatherCoordinate =
+				Number.isFinite(latitude) &&
+				Number.isFinite(longitude) &&
+				latitude >= -90 &&
+				latitude <= 90 &&
+				longitude >= -180 &&
+				longitude <= 180;
+
+			if (isValidWeatherCoordinate) {
+				fetchWeather(latitude, longitude);
+				return true;
+			}
+
+			return false;
+		};
+
+		const fetchWeatherFromPosition = (position) => {
+			if (fetchWeatherFromCoords(position?.coords?.latitude, position?.coords?.longitude)) {
+				return;
+			}
+
+			fetchFallbackWeather();
+		};
+
 		if (farmSettings?.latitude && farmSettings?.longitude) {
-			fetchWeather(farmSettings.latitude, farmSettings.longitude);
+			if (!fetchWeatherFromCoords(farmSettings.latitude, farmSettings.longitude)) {
+				fetchFallbackWeather();
+			}
 		} else if (typeof navigator !== "undefined" && "geolocation" in navigator) {
 			try {
 				navigator.geolocation.getCurrentPosition(
-					(position) =>
-						fetchWeather(position.coords.latitude, position.coords.longitude),
+					fetchWeatherFromPosition,
 					fetchFallbackWeather,
 				);
 			} catch {

@@ -218,6 +218,10 @@ export default function ScheduleTab({
 		}
 	};
 
+	const handleScheduleSubmit = (event) => {
+		void handleSubmit(submitSchedule)(event);
+	};
+
 	const toggleEventCompletion = async (event) => {
 		if (completionInFlightRef.current || savingEventId) {
 			return;
@@ -268,7 +272,7 @@ export default function ScheduleTab({
 
 			{isAdding ? (
 				<form
-					onSubmit={handleSubmit(submitSchedule)}
+					onSubmit={handleScheduleSubmit}
 					className="clay-page-section mb-4 p-4"
 				>
 					<div className="mb-3 text-sm font-bold text-[color:var(--color-text)]">

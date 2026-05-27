@@ -114,6 +114,8 @@ const NotificationWidget = dynamic(
 
 const NOTIFICATION_MODAL_ID = "notification-center-dialog";
 const DASHBOARD_PAGE_LIMIT = 100;
+const OFFLINE_SYNC_REFRESH_ERROR_MESSAGE =
+	"동기화 결과를 보려면 화면을 새로고침해 주세요.";
 const FULL_CATTLE_LOAD_ERROR_MESSAGE =
 	"전체 개체 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
 const FULL_SALES_LOAD_ERROR_MESSAGE =
@@ -743,13 +745,41 @@ export default function DashboardClient({
 			fetchWeather(35.446, 127.344);
 		};
 
+		const fetchWeatherFromCoords = (latitudeValue, longitudeValue) => {
+			const latitude = Number(latitudeValue);
+			const longitude = Number(longitudeValue);
+			const isValidWeatherCoordinate =
+				Number.isFinite(latitude) &&
+				Number.isFinite(longitude) &&
+				latitude >= -90 &&
+				latitude <= 90 &&
+				longitude >= -180 &&
+				longitude <= 180;
+
+			if (isValidWeatherCoordinate) {
+				fetchWeather(latitude, longitude);
+				return true;
+			}
+
+			return false;
+		};
+
+		const fetchWeatherFromPosition = (position) => {
+			if (fetchWeatherFromCoords(position?.coords?.latitude, position?.coords?.longitude)) {
+				return;
+			}
+
+			fetchFallbackWeather();
+		};
+
 		if (farmSettings.latitude && farmSettings.longitude) {
-			fetchWeather(farmSettings.latitude, farmSettings.longitude);
+			if (!fetchWeatherFromCoords(farmSettings.latitude, farmSettings.longitude)) {
+				fetchFallbackWeather();
+			}
 		} else if (typeof navigator !== "undefined" && "geolocation" in navigator) {
 			try {
 				navigator.geolocation.getCurrentPosition(
-					(position) =>
-						fetchWeather(position.coords.latitude, position.coords.longitude),
+					fetchWeatherFromPosition,
 					fetchFallbackWeather,
 				);
 			} catch {
@@ -790,7 +820,16 @@ export default function DashboardClient({
 					variant: failed > 0 ? "warning" : "success",
 				});
 				if (synced > 0) {
-					router.refresh();
+					try {
+						router.refresh();
+					} catch (refreshError) {
+						console.error("Offline queue refresh failed:", refreshError);
+						notify({
+							title: "동기화 후 화면 새로고침에 실패했습니다.",
+							description: OFFLINE_SYNC_REFRESH_ERROR_MESSAGE,
+							variant: "warning",
+						});
+					}
 				}
 			} catch (error) {
 				if (cancelled) {

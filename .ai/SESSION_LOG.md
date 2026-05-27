@@ -1128,3 +1128,41 @@
 - Strengthened `projects/hanwoo-dashboard/src/lib/qr-widget-copy.test.mjs` coverage to keep guarded load-listener registration and prevent direct listener registration from blocking fallback scheduling.
 - Verification: `node --test src/lib/qr-widget-copy.test.mjs` passed 7/7, `npm.cmd test` passed 371/371, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
 - Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1024 Weather geolocation success-coordinate hardening.
+- Changed `projects/hanwoo-dashboard/src/components/DashboardClient.js` and `projects/hanwoo-dashboard/src/lib/hooks/useWeather.js`: geolocation success callbacks now route through `fetchWeatherFromPosition()`, normalize `position.coords.latitude/longitude` to finite numbers, and fall back to the default Namwon weather coordinates when browser geolocation returns malformed coordinates.
+- This prevents malformed geolocation success payloads from building Open-Meteo requests with invalid `undefined` or non-finite coordinates.
+- Strengthened `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` coverage to keep coordinate normalization in both weather entry points and prevent direct `position.coords.latitude/longitude` fetches from returning.
+- Verification: `node --test src/lib/home-market-copy.test.mjs` passed 39/39, `npm.cmd test` passed 371/371, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1025 Dashboard offline-sync refresh failure messaging hardening.
+- Changed `projects/hanwoo-dashboard/src/components/DashboardClient.js`: post-offline-sync `router.refresh()` now runs in its own guarded block, so a successful sync is not reported as generic sync failure when route refresh fails.
+- Refresh failures now log `Offline queue refresh failed` and show a separate Korean warning telling the operator to manually refresh the screen to see synced results.
+- Strengthened `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` coverage to keep the guarded refresh path and prevent direct `router.refresh()` from returning.
+- Verification: `node --test src/lib/home-market-copy.test.mjs` passed 40/40, `npm.cmd test` passed 372/372, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1026 Weather saved farm-coordinate hardening.
+- Changed `projects/hanwoo-dashboard/src/components/DashboardClient.js` and `projects/hanwoo-dashboard/src/lib/hooks/useWeather.js`: saved farm weather coordinates now route through `fetchWeatherFromCoords()`, normalize values with `Number()`, and require finite latitude/longitude before building Open-Meteo requests.
+- Malformed, stringy, or non-finite farm settings now fall back to the default Namwon weather coordinates, matching the geolocation success fallback path.
+- Strengthened `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` coverage to keep coordinate normalization in both weather entry points and prevent direct farm-coordinate fetches from returning.
+- Verification: `node --test src/lib/home-market-copy.test.mjs` passed 40/40, `npm.cmd test` passed 372/372, `npm.cmd run lint` passed, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.
+
+## 2026-05-27 - Codex
+
+- Continued active Hanwoo quality uplift with T-1027 Weather coordinate range and React lint gate hardening.
+- Changed `projects/hanwoo-dashboard/src/components/DashboardClient.js` and `projects/hanwoo-dashboard/src/lib/hooks/useWeather.js`: weather coordinate helpers now require normalized latitude/longitude to be finite and within latitude `-90..90` and longitude `-180..180` before calling Open-Meteo.
+- Out-of-range saved farm or geolocation coordinates now fall back to the default Namwon weather coordinates instead of building invalid weather requests.
+- Changed tab submit wiring in `CalvingTab`, `FeedTab`, `InventoryTab`, `SalesTab`, `ScheduleTab`, and `SettingsTab` so React Hook Form submit wrappers are invoked from event handlers rather than JSX render-time calls.
+- Changed `projects/hanwoo-dashboard/src/components/widgets/EarTagScannerModal.js` so modal open-state scanner resets run in a microtask, clearing current React hooks lint errors without relying on stale disable comments.
+- Strengthened `projects/hanwoo-dashboard/src/lib/home-market-copy.test.mjs` coverage to keep bounded coordinate validation in both weather entry points.
+- Verification: `node --test src/lib/home-market-copy.test.mjs` passed 40/40, `npm.cmd test` passed 372/372, `npm.cmd run lint` passed with 7 pre-existing unused-disable warnings outside this change, `git diff --check` passed with CRLF warnings only, and `npm.cmd run build` passed.
+- Known build warning observed: Supabase Prisma `P2010 / XX000 / (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`, consistent with T-251 external credential/control-plane blocker.

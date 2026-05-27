@@ -143,6 +143,10 @@ export default function CalvingTab({
 		}
 	};
 
+	const handleCalvingSubmit = (event) => {
+		void handleSubmit(submitCalving)(event);
+	};
+
 	return (
 		<div>
 			<div className="section-header" style={{ marginBottom: "16px" }}>
@@ -236,7 +240,7 @@ export default function CalvingTab({
 
 								{isSelected ? (
 									<form
-										onSubmit={handleSubmit(submitCalving)}
+										onSubmit={handleCalvingSubmit}
 										className="clay-inset rounded-[22px] p-4"
 										style={{ borderColor: "var(--color-surface-stroke)" }}
 									>

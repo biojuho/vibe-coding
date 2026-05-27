@@ -62,13 +62,27 @@ export default function EarTagScannerModal({
 	// Initialize random target from cattleList on open to scan
 	useEffect(() => {
 		if (isOpen && cattleList.length > 0) {
-			// Pick a random cow as the simulated target
-			const idx = Math.floor(Math.random() * cattleList.length);
-			setTargetCandidate(cattleList[idx]);
-			setScanStatus("scanning");
-			setMatchedCow(null);
-			setScannedTag("");
+			let cancelled = false;
+
+			queueMicrotask(() => {
+				if (cancelled) {
+					return;
+				}
+
+				// Pick a random cow as the simulated target
+				const idx = Math.floor(Math.random() * cattleList.length);
+				setTargetCandidate(cattleList[idx]);
+				setScanStatus("scanning");
+				setMatchedCow(null);
+				setScannedTag("");
+			});
+
+			return () => {
+				cancelled = true;
+			};
 		}
+
+		return undefined;
 	}, [isOpen, cattleList]);
 
 	// Canvas retro-futuristic HUD animation

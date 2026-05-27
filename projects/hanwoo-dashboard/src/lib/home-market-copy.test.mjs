@@ -157,6 +157,27 @@ test("dashboard full-list loading failures show retry feedback instead of silent
 	);
 });
 
+test("dashboard offline sync refresh failures are announced separately", () => {
+	const source = readSource("components/DashboardClient.js");
+
+	assert.match(
+		source,
+		/const OFFLINE_SYNC_REFRESH_ERROR_MESSAGE\s*=\s*["']동기화 결과를 보려면 화면을 새로고침해 주세요\.["'];?/,
+	);
+	assert.match(
+		source,
+		/try \{\s+router\.refresh\(\);\s+\} catch \(refreshError\) \{\s+console\.error\(["']Offline queue refresh failed:/,
+	);
+	assert.match(
+		source,
+		/title: ["']동기화 후 화면 새로고침에 실패했습니다\.["'][\s\S]*?description: OFFLINE_SYNC_REFRESH_ERROR_MESSAGE/,
+	);
+	assert.doesNotMatch(
+		source,
+		/if \(synced > 0\) \{\s+router\.refresh\(\);\s+\}/,
+	);
+});
+
 test("home building navigation uses semantic buttons", () => {
 	const source = readSource("components/DashboardClient.js");
 	const css = readSource("app/globals.css");
@@ -661,6 +682,50 @@ test("weather geolocation lookup falls back safely when browser location APIs fa
 	);
 	assert.match(dashboardSource, /const fetchFallbackWeather = \(\) => \{/);
 	assert.match(hookSource, /const fetchFallbackWeather = \(\) => \{/);
+	assert.match(dashboardSource, /const fetchWeatherFromCoords = \(latitudeValue, longitudeValue\) => \{/);
+	assert.match(hookSource, /const fetchWeatherFromCoords = \(latitudeValue, longitudeValue\) => \{/);
+	assert.match(
+		dashboardSource,
+		/const latitude = Number\(latitudeValue\);\s+const longitude = Number\(longitudeValue\);/,
+	);
+	assert.match(
+		hookSource,
+		/const latitude = Number\(latitudeValue\);\s+const longitude = Number\(longitudeValue\);/,
+	);
+	assert.match(
+		dashboardSource,
+		/const isValidWeatherCoordinate =\s+Number\.isFinite\(latitude\) &&\s+Number\.isFinite\(longitude\) &&\s+latitude >= -90 &&\s+latitude <= 90 &&\s+longitude >= -180 &&\s+longitude <= 180;/,
+	);
+	assert.match(
+		hookSource,
+		/const isValidWeatherCoordinate =\s+Number\.isFinite\(latitude\) &&\s+Number\.isFinite\(longitude\) &&\s+latitude >= -90 &&\s+latitude <= 90 &&\s+longitude >= -180 &&\s+longitude <= 180;/,
+	);
+	assert.match(
+		dashboardSource,
+		/if \(isValidWeatherCoordinate\) \{\s+fetchWeather\(latitude, longitude\);\s+return true;\s+\}\s+return false;/,
+	);
+	assert.match(
+		hookSource,
+		/if \(isValidWeatherCoordinate\) \{\s+fetchWeather\(latitude, longitude\);\s+return true;\s+\}\s+return false;/,
+	);
+	assert.match(dashboardSource, /const fetchWeatherFromPosition = \(position\) => \{/);
+	assert.match(hookSource, /const fetchWeatherFromPosition = \(position\) => \{/);
+	assert.match(
+		dashboardSource,
+		/fetchWeatherFromCoords\(position\?\.coords\?\.latitude, position\?\.coords\?\.longitude\)/,
+	);
+	assert.match(
+		hookSource,
+		/fetchWeatherFromCoords\(position\?\.coords\?\.latitude, position\?\.coords\?\.longitude\)/,
+	);
+	assert.match(
+		dashboardSource,
+		/if \(farmSettings\.latitude && farmSettings\.longitude\) \{\s+if \(!fetchWeatherFromCoords\(farmSettings\.latitude, farmSettings\.longitude\)\) \{\s+fetchFallbackWeather\(\);\s+\}/,
+	);
+	assert.match(
+		hookSource,
+		/if \(farmSettings\?\.latitude && farmSettings\?\.longitude\) \{\s+if \(!fetchWeatherFromCoords\(farmSettings\.latitude, farmSettings\.longitude\)\) \{\s+fetchFallbackWeather\(\);\s+\}/,
+	);
 	assert.match(
 		dashboardSource,
 		/typeof navigator !== "undefined" && "geolocation" in navigator/,
@@ -671,14 +736,38 @@ test("weather geolocation lookup falls back safely when browser location APIs fa
 	);
 	assert.match(
 		dashboardSource,
-		/try \{\s*navigator\.geolocation\.getCurrentPosition\([\s\S]*?fetchFallbackWeather,[\s\S]*?\);[\s\S]*?\} catch \{\s*fetchFallbackWeather\(\);[\s\S]*?\}/,
+		/try \{\s*navigator\.geolocation\.getCurrentPosition\(\s*fetchWeatherFromPosition,\s*fetchFallbackWeather,\s*\);[\s\S]*?\} catch \{\s*fetchFallbackWeather\(\);[\s\S]*?\}/,
 	);
 	assert.match(
 		hookSource,
-		/try \{\s*navigator\.geolocation\.getCurrentPosition\([\s\S]*?fetchFallbackWeather,[\s\S]*?\);[\s\S]*?\} catch \{\s*fetchFallbackWeather\(\);[\s\S]*?\}/,
+		/try \{\s*navigator\.geolocation\.getCurrentPosition\(\s*fetchWeatherFromPosition,\s*fetchFallbackWeather,\s*\);[\s\S]*?\} catch \{\s*fetchFallbackWeather\(\);[\s\S]*?\}/,
 	);
 	assert.doesNotMatch(dashboardSource, /else if \("geolocation" in navigator\)/);
 	assert.doesNotMatch(hookSource, /\(\) => fetchWeather\(35\.446, 127\.344\)/);
+	assert.doesNotMatch(
+		dashboardSource,
+		/fetchWeather\(position\.coords\.latitude, position\.coords\.longitude\)/,
+	);
+	assert.doesNotMatch(
+		hookSource,
+		/fetchWeather\(position\.coords\.latitude, position\.coords\.longitude\)/,
+	);
+	assert.doesNotMatch(
+		dashboardSource,
+		/fetchWeather\(farmSettings\.latitude, farmSettings\.longitude\);/,
+	);
+	assert.doesNotMatch(
+		hookSource,
+		/fetchWeather\(farmSettings\.latitude, farmSettings\.longitude\);/,
+	);
+	assert.doesNotMatch(
+		dashboardSource,
+		/if \(Number\.isFinite\(latitude\) && Number\.isFinite\(longitude\)\) \{\s+fetchWeather\(latitude, longitude\);/,
+	);
+	assert.doesNotMatch(
+		hookSource,
+		/if \(Number\.isFinite\(latitude\) && Number\.isFinite\(longitude\)\) \{\s+fetchWeather\(latitude, longitude\);/,
+	);
 });
 
 test("tab navigation buttons expose Korean action labels and selected state", () => {

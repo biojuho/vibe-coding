@@ -110,9 +110,13 @@ export default function CattleDetailModal({
 	}, [cattle?.id]);
 
 	useEffect(() => {
+		// eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset of breeding form state on cattle change
 		setActiveBreedingAction(null);
+		 
 		setBreedingDate(toInputDate(new Date()));
+		 
 		setBreedingError("");
+		 
 		setIsBreedingSaving(false);
 		breedingSaveInFlightRef.current = false;
 	}, [cattle?.id]);

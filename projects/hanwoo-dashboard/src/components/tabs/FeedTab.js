@@ -269,6 +269,10 @@ export default function FeedTab({
 		}
 	};
 
+	const handleFeedSubmit = (event) => {
+		void handleSubmit(submitFeedRecord)(event);
+	};
+
 	return (
 		<div>
 			<div className="section-header" style={{ marginBottom: "16px" }}>
@@ -369,7 +373,7 @@ export default function FeedTab({
 
 			{selectedBuilding ? (
 				<form
-					onSubmit={handleSubmit(submitFeedRecord)}
+					onSubmit={handleFeedSubmit}
 					style={{
 						background: "var(--surface-gradient)",
 						borderRadius: "24px",

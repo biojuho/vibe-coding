@@ -220,6 +220,10 @@ export default function SalesTab({
 		}
 	};
 
+	const handleSaleSubmit = (event) => {
+		void handleSubmit(submitSale)(event);
+	};
+
 	return (
 		<div>
 			<MarketPriceWidget initialData={initialMarketPrice} />
@@ -262,7 +266,7 @@ export default function SalesTab({
 			</div>
 
 			{isAdding ? (
-				<form onSubmit={handleSubmit(submitSale)} className="mb-4">
+				<form onSubmit={handleSaleSubmit} className="mb-4">
 					<PremiumCard className="bg-slate-800/60 w-full mb-4">
 						<PremiumCardContent className="p-4">
 							<div

@@ -151,6 +151,10 @@ export default function InventoryTab({
 		}
 	};
 
+	const handleInventorySubmit = (event) => {
+		void handleSubmit(submitNewItem)(event);
+	};
+
 	const handleUpdate = async (id) => {
 		if (quantityInFlightRef.current || savingQuantityId) {
 			return;
@@ -218,7 +222,7 @@ export default function InventoryTab({
 			</div>
 
 			{isAdding ? (
-				<form onSubmit={handleSubmit(submitNewItem)} className="mb-4">
+				<form onSubmit={handleInventorySubmit} className="mb-4">
 					<PremiumCard className="bg-slate-800/60 w-full mb-4">
 						<PremiumCardContent className="p-4">
 							<div

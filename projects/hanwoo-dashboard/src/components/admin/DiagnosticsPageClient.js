@@ -103,6 +103,7 @@ export default function DiagnosticsPageClient() {
 	useEffect(() => {
 		let cancelled = false;
 		const requestId = ++diagnosticsRequestRef.current;
+		// eslint-disable-next-line react-hooks/set-state-in-effect -- intentional loading marker before async fetch
 		setLoading(true);
 
 		void (async () => {
@@ -140,7 +141,9 @@ export default function DiagnosticsPageClient() {
 	useEffect(() => {
 		let cancelled = false;
 		const requestId = ++rawDataRequestRef.current;
+		// eslint-disable-next-line react-hooks/set-state-in-effect -- intentional loading reset before async fetch
 		setDataLoading(true);
+		 
 		setRawData(null);
 
 		void (async () => {

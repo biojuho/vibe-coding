@@ -209,6 +209,14 @@ export default function SettingsTab({
 		}
 	};
 
+	const handleFarmSubmit = (event) => {
+		void handleSubmitFarm(submitFarmSettings)(event);
+	};
+
+	const handleBuildingSubmit = (event) => {
+		void handleSubmitBuilding(submitBuilding)(event);
+	};
+
 	const handleDeleteBuilding = async (id, name) => {
 		if (deleteBuildingInFlightRef.current) {
 			return;
@@ -452,7 +460,7 @@ export default function SettingsTab({
 			) : null}
 
 			<form
-				onSubmit={handleSubmitFarm(submitFarmSettings)}
+				onSubmit={handleFarmSubmit}
 				style={{
 					background: "var(--color-bg-card)",
 					padding: "20px",
@@ -681,7 +689,7 @@ export default function SettingsTab({
 
 			{isAdding ? (
 				<form
-					onSubmit={handleSubmitBuilding(submitBuilding)}
+					onSubmit={handleBuildingSubmit}
 					style={{
 						background: "var(--color-bg-card)",
 						padding: "20px",

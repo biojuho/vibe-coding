@@ -96,7 +96,9 @@ export default function PaymentWidget({
 		let cancelled = false;
 
 		paymentWidgetRef.current = null;
+		// eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset of widget readiness before async load
 		setIsWidgetReady(false);
+		 
 		setErrorMessage("");
 
 		void (async () => {

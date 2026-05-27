@@ -91,8 +91,11 @@ export default function CattleForm({
 		reset(createCattleFormValues(cattle, safeBuildings));
 		lookupRequestIdRef.current += 1;
 		lookupInFlightRef.current = false;
+		// eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset of form-local state on cattle/buildings change
 		setLookupLoading(false);
+		 
 		setLookupMsg(null);
+		 
 		setIsSaving(false);
 		saveInFlightRef.current = false;
 	}, [safeBuildings, cattle, reset]);
@@ -298,6 +301,7 @@ export default function CattleForm({
 				</div>
 
 				<form
+					// eslint-disable-next-line react-hooks/refs -- React Hook Form's handleSubmit returns a submit handler; refs captured by submitForm are read on submit event, not during render
 					onSubmit={handleSubmit(submitForm)}
 					className="card animate-fadeInUp"
 					style={{
