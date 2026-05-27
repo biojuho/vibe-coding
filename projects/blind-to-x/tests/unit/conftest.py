@@ -49,44 +49,9 @@ def _isolate_logging_handlers():
                 pass
 
 
-@pytest.fixture(autouse=True)
-def clear_runtime_state(tmp_path, monkeypatch):
-    """각 테스트마다 SQLite DB를 tmp_path로 격리한다.
-
-    핵심 문제 (T-128):
-    - CostDatabase / DraftCache 모두 .tmp/*.db 공유 파일을 기본 경로로 사용
-    - 모듈 레벨 _db_singleton이 테스트 간에 살아남아 이전 테스트의 경로를 가리킴
-    - try/except:pass 방식의 DELETE는 SQLite 락 실패 시 조용히 누락
-
-    해결책:
-    - monkeypatch로 _DEFAULT_DB_PATH를 pytest tmp_path로 교체 → 파일 격리
-    - monkeypatch로 _db_singleton을 None으로 초기화 → get_cost_db()가
-      새 tmp_path 기반 인스턴스를 생성하도록 강제
-    - monkeypatch는 테스트 종료 시 자동으로 원래 값 복원
-    """
-    import pipeline.cost_db as _cost_db_mod
-    import pipeline.draft_cache as _draft_cache_mod
-    from pipeline.ml_scorer import _MODEL_PATH
-
-    # DB 경로를 테스트 전용 tmp_path로 교체
-    monkeypatch.setattr(_cost_db_mod, "_DEFAULT_DB_PATH", tmp_path / "btx_costs.db")
-    monkeypatch.setattr(_draft_cache_mod, "_DEFAULT_DB_PATH", tmp_path / "draft_cache.db")
-    # 모듈 레벨 싱글톤 초기화 → 다음 get_cost_db() 호출 시 tmp_path 기반으로 재생성
-    monkeypatch.setattr(_cost_db_mod, "_db_singleton", None)
-
-    if _MODEL_PATH.exists():
-        try:
-            _MODEL_PATH.unlink()
-        except Exception:
-            pass
-
-    yield
-
-    if _MODEL_PATH.exists():
-        try:
-            _MODEL_PATH.unlink()
-        except Exception:
-            pass
+# clear_runtime_state was promoted to tests/conftest.py so SQLite isolation
+# also covers integration tests (T-1109, 2026-05-28). Removed here to avoid
+# fixture-name collision with the parent conftest.
 
 
 @pytest.fixture(autouse=True)
