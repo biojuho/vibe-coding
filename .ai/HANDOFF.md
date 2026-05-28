@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-28 |
 | Tool | Claude Opus 4.7 (1M context) |
+| Work | **T-1199 hanwoo AI Insight 라우트 structured metric 로그** (`ead4aa35`): T-1112 의 cacheBackend 동봉만으론 프로덕션 hit rate 회복 확인 불가. Langfuse SDK 추가 부담 회피하고 lightweight 대안 — Vercel/CloudWatch 가 grep 해 대시보드화할 한 줄 structured JSON 로그. 신규 `emitInsightMetric(payload)` (try/catch fail-safe) + 6 return path 전부 emit: `unauthenticated`/`heuristic_no_api_key`/`cache_hit`(backend+ageSeconds)/`gemini_success`/`gemini_parse_failure`/`gemini_timeout`(timeoutMs)/`gemini_error`(errorName). 모든 페이로드에 `durationMs: Date.now() - startedAt`. **PII 잠금**: userId/summary 절대 미로그, contract 테스트로 regression 방지. 1 신규 source-grep 테스트 (총 15/15 widget-copy), 전체 `npm test` 498/498, lint clean, build exit 0. |
+| Next Priorities | T-251(Supabase) 그대로. 운영 사용: Vercel/CloudWatch 에서 `[ai-insight-metric]` prefix 필터 → `event` 별 카운트가 hit rate / fallback 비율 / 타임아웃률 / p95 latency. 다음 후속: ① 같은 패턴을 `/api/ai/chat/route.js` 에도 적용해 chat 위젯 옵저버빌리티 확보. ② AIInsightWidget 새로고침 버튼 클릭 시점에 클라이언트 메트릭 로그(현재는 서버만). ③ Best-of-N 표본 실제 누적 후 weekly report sweep 결과 보고 권장값 적용. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Claude Opus 4.7 (1M context) |
 | Work | **T-1197 weekly report에 Best-of-N tuner 자동 임베드** (`a4951f9a`): T-1105 tuner CLI 가 수동 실행만 가능했던 걸 weekly report 빌드 파이프라인에 통합. `scripts/build_weekly_report.py` 의 `_render_report()` 끝에 신규 `_render_best_of_n_section(days)` append — `tune_best_of_n_weight.load_recent_rows` + `build_report` 호출 → markdown ``` 코드 블록으로 래핑. `run()` 은 `max(days, 30)` 윈도우로 sweep 표본 확보 유리. 실패는 swallow → 빈 문자열 → 본문 fail-open. 10 신규 unit test, blind-to-x full 1713/1713, ruff clean. |
 | Next Priorities | T-251(Supabase) 그대로. 다음 후속: ① AI Insight 캐시 hit/miss + cacheBackend Langfuse 트레이싱(hanwoo는 Langfuse SDK 부재, 추가 필요). ② 프로덕션 Redis 실측 hit rate 모니터링(operational). ③ Best-of-N 표본 실데이터 누적 후 weekly report sweep 결과 보고 권장값 적용. |
 
