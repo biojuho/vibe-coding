@@ -8,6 +8,69 @@
 |---|---|
 | Date | 2026-05-28 |
 | Tool | Claude Opus 4.7 (1M context) |
+| Work | **T-1198 /goal "blind-to-x weekly report에 Best-of-N tuner sweep 결과 자동 임베드" 검증 & 문서화**. /goal 상태가 멀티툴 race로 이전 세션의 T-1197 follow-up으로 바뀌어 있었음. 코드 확인 결과 T-1197로 이미 완전 구현됨 — `scripts/build_weekly_report.py:15-39` `_render_best_of_n_section()` 가 `tune_best_of_n_weight.build_report()` 호출 후 markdown 코드펜스로 임베드, try/except로 fail-open. `test_build_weekly_report.py` 10개 + `test_tune_best_of_n_weight.py` 15개 (총 25/25 pass, 0.39s). 실 DB end-to-end 호출 결과 표본 부족(0<10) → "기본값 0.5 유지" 메시지 임베드 + 본문 무손상 확인. 문서 부재 발견(README/ops-runbook에 build_weekly_report 커맨드만 적혀있고 임베드 섹션 설명 0건) → README "추천 주간 운영" 1번 항목 아래에 임베드 동작/fail-open 1문단 추가. |
+| Next Priorities | T-251 (Supabase password) user-owned 그대로. 후속: ① /goal helper 상태가 멀티툴 race로 자주 미스매치됨 — `.ai/TASKS.md` 와 `/goal` objective 가 다를 때 신뢰 우선순위 정책 필요(현재는 코드/문서 실측 > /goal 자체 상태). ② cost_db.py 1039줄 schema/migration 분리(보류 중). ③ Best-of-N tuner 표본이 ≥10건 누적되면 weekly report에 실 권장값이 표시되기 시작 — 데이터 누적 모니터링. 검증: focused 25/25 pass, end-to-end render OK, README 1문단 추가. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **연속 보강 (T-251):** `npm.cmd run db:prisma7-test -- --live` 추가 진단을 위해 라이브 연결 문자열 후보 2개를 검증했습니다. `user=postgres`(비기본 tenant/user)로 `aws-0-ap-northeast-2.pooler.supabase.com:6543`에 연결 시 `Code: XX000 Message: (ENOIDENTIFIER) no tenant identifier provided`가 재현되었고, 직접 호스트 `db.fuemeqmigptwfzqvrpjf.supabase.co:5432`는 DNS가 존재하지 않아 접속 불가였습니다. 이로 보아 `projects/hanwoo-dashboard/.env`의 tenant/user 식별자 자체가 잘못되었거나 제어면 동기화가 필요함을 재확인했습니다. |
+| Next Priorities | T-251은 사용자 소유 블로커입니다. Supabase 콘솔에서 `DATABASE_URL`(특히 tenant/user 형태)와 비밀번호를 재동기화한 뒤 바로 `npm.cmd run db:prisma7-test -- --live`를 재실행해야 합니다. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **최신 상태 재점검:** `projects/hanwoo-dashboard`에서 `npm.cmd run db:prisma7-test -- --live`를 바로 재실행했습니다. 결과는 `Passed: 15, Failed: 1`로 동일했고, 실패는 `PrismaClientKnownRequestError P2010` + `Code: XX000` + `Message: (ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`로 재현되었습니다. 현재 `projects/hanwoo-dashboard/.env`는 `postgresql://postgres.fuemeqmigptwfzqvrpjf:...@aws-0-ap-northeast-2.pooler.supabase.com:6543/postgres` 형식입니다. |
+| Next Priorities | 사용자 소유 블로커 `T-251`은 계속 유지됩니다. Supabase DB 비밀번호 및 `DATABASE_URL` tenant/user/호스트를 콘솔에서 재동기화한 뒤 즉시 live 테스트를 재실행하세요. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **최종 보완 라운드:** `python execution/project_qc_runner.py --json`를 재실행해 루트 전체 테스트/린트/빌드 매트릭스를 재확인했으며, 모든 프로젝트가 현재 상태에서 통과했습니다(`blind-to-x`, `shorts-maker-v2`, `hanwoo-dashboard`, `knowledge-dashboard`: test/lint/build all pass). 이어서 `python execution/code_review_gate.py --base HEAD~1 --json`에서 `risk_score: 0.0` pass를 재확인했고, `session_orient` 기준 `todo=1`/`in_progress=0`으로 T-251 단일 미완료 상태가 유지됨을 재확인했습니다. 마지막 `db:prisma7-test -- --live`는 `ENOTFOUND tenant/user postgres.fuemeqmigptwfzqvrpjf` 재현 확인으로 외부 블로커 유지. `projects/hanwoo-dashboard/.env`의 `DATABASE_URL` 메타는 `HOST=aws-0-ap-northeast-2.pooler.supabase.com:6543`, `USER=postgres.fuemeqmigptwfzqvrpjf`로 재검증. |
+| Next Priorities | 사용자 액션 항목 `T-251`은 동일: Supabase 비밀번호 재설정 후 `.env` 동기화하고 즉시 `npm.cmd run db:prisma7-test -- --live` 재실행. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **최종 재점검 (연속 작업):** `npm.cmd run db:prisma7-test -- --live`를 추가 재실행해 live CRUD E2E를 다시 확인했습니다. 결과는 `15 passed, 1 failed`로 동일하게 `P2010` / `XX000` / `(ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`가 재현되었고, `ENOTFOUND`는 Supabase 컨트롤플레인 자격 증명 동기화 문제(외부 원인)로 판별됩니다. |
+| Next Priorities | 사용자 조치 항목 `T-251`은 그대로 유지: Supabase에서 DB 비밀번호를 재설정하고 `.env`를 동기화한 뒤 `npm.cmd run db:prisma7-test -- --live`를 즉시 재실행해야 합니다. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **추가 검증 재확인 (연속 작업 세션):** `python execution/session_orient.py --json`, `python execution/handoff_rotator.py --check`, `python execution/code_review_gate.py --base HEAD~1 --json`, 그리고 `npm run db:prisma7-test -- --live`를 재실행해 상태를 재점검했습니다. `session_orient`는 목표가 여전히 active 상태이며 T-251이 유일한 TODO로 남았음을 확인했고, `code_review_gate`는 변경 파일 기준 `risk_score: 0.0`으로 pass 했습니다. `db:prisma7-test -- --live`는 동일하게 `P2010/XX000`의 `tenant/user postgres.fuemeqmigptwfzqvrpjf not found`를 재확인해, 현재 블로커가 외부 Supabase credential 동기화 문제임이 확인되었습니다. |
+| Next Priorities | 사용자 조치 항목인 `T-251`은 유지: Supabase 콘트롤플레인에서 DB 비밀번호를 재설정하고 `.env` 동기화 후, 즉시 `npm.cmd run db:prisma7-test -- --live`를 재실행해 live CRUD 통과를 확인해야 합니다. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **진행 상태 재확인 및 완전성 감사**: 시스템 전체 QC 러너를 `python execution/project_qc_runner.py --json`로 다시 실행해 `blind-to-x`, `shorts-maker-v2`, `hanwoo-dashboard`, `knowledge-dashboard`의 `test/lint/build`가 모두 통과함을 재확인했습니다(총합: 1703 passed + 12 skipped / 0 fail, 1576 passed / 12 skipped / 0 fail, 497/0/0, 3/0/0). 이어서 한 번 더 `npm run db:prisma7-test -- --live`를 수행해 live 단계에서 `P2010` / `XX000` / `(ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`가 반복되는 것을 확인했고, `projects/hanwoo-dashboard/.env`에서 노출된 `DATABASE_URL` 메타(host=`aws-0-ap-northeast-2.pooler.supabase.com`, user=`postgres.fuemeqmigptwfzqvrpjf`)도 확인해 외부 credential 동기화 이슈를 재확인했습니다. |
+| Next Priorities | `T-251`은 Supabase 콘트롤플레인 비밀번호 재설정/동기화 없이 해소되지 않음. 사용자 조치 후 `npm run db:prisma7-test -- --live` 재실행으로 실제 live CRUD 가용성 마무리. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard Health route build-noise hardening**: Added a build/CI guard to `src/app/api/health/route.js` so Prisma live-check is skipped during `phase-production-build` and CI, preventing Prisma `ENOTFOUND tenant/user ... not found` logs from `next build` while preserving runtime route shape (`healthy` + degraded DB status + warning). On non-build runtime, DB-check failures still return `database: "disconnected"` and no uncaught behavior changes, with warning payload now sanitized to `error.message`-derived text. Ran `npm test` (497/497), `npm run lint`, and `npm run build` in `projects/hanwoo-dashboard`; build now completes without `prisma:error` log noise from `/api/health` pre-render during static generation. |
+| Next Priorities | External blocker remains `T-251` (`DATABASE_URL` credential sync), user-owned action; next run `npm run db:prisma7-test -- --live` after Supabase password reset to confirm live CRUD path. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **hanwoo-dashboard final polish follow-up**: Closed the remaining `DashboardClient` source-pattern mismatch by restoring a single-line `handleNavigate` fallback declaration in `TodayFocusPanel` while preserving the broader malformed-props/row-hardening changes in that file. Ran the targeted and project-level verification paths again after patching: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/home-market-copy.test.mjs` passed **52/52** and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed project `test` / `lint` / `build`. Also re-ran `python execution/code_review_gate.py --base HEAD~1 --json`, which returned `risk_score: 0.0` (`pass`). |
+| Next Priorities | Keep the user-owned blocker **T-251** until Supabase `DATABASE_URL` credentials are reset on the control plane; no additional Hanwoo dashboard code defects are currently reproducible from this lane. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Claude Opus 4.7 (1M context) |
 | Work | **T-1196 blind-to-x test pollution fix — `clear_runtime_state` promoted from `tests/unit/conftest.py` to `tests/conftest.py`**. T-1108 검증 중 한 풀 스위트 run에서 `test_cost_db_extended` / `test_cost_tracker_extended` 18건 transient fail 목격 (개별/소그룹으론 다 pass — 명백한 test ordering pollution). 원인 진단: unit conftest의 SQLite 격리 fixture가 `tests/unit/**` 에만 적용되고 integration test에는 미적용. Integration test는 `pipeline.cost_db`를 직접 import 안 하지만 `pipeline.draft_generator`/`scoring_6d` 등 통해 간접 호출 → 실 `.tmp/btx_costs.db` 오염 → 후속 unit test가 빈 DB 기대하다 fail. 수정: `clear_runtime_state` (db path/싱글톤 monkeypatch + ml_scorer joblib cleanup) 를 부모 `tests/conftest.py` 로 이동하고 unit/conftest 엔 alias 코멘트 남김. Integration test가 cost_db를 직접 안 쓰는 것은 grep 으로 확인 (`tests/integration/` 에 `CostDatabase`/`get_cost_db`/`btx_costs.db` 0건). |
 | Next Priorities | T-251 (Supabase password) user-owned 그대로. 다음 후보: ① blind-to-x `pipeline/draft_quality_gate.py` (858줄/24헬퍼) CTA 규칙 `rules/cta_patterns.yaml` 외부화 (3~4일 큰 리팩터). ② `pipeline/cost_db.py` (1039줄) 마이그레이션 로직 분리 (1~2일). ③ Codex/Claude 멀티툴 race가 task ID 충돌(T-1107×2, T-1108×2) 만들고 있음 — `.ai/TASKS.md` 에 lockfile 또는 더 큰 ID 자릿수 정책. 검증: `py -3.14 -m pytest tests/unit tests/integration -q --no-cov --ignore=tests/integration/test_curl_cffi.py` 1767/1767 pass 0 fail (6m29s vs 사전 5m43s — 43s overhead는 integration test에도 fixture 적용된 비용으로 수용). |
 
@@ -3575,6 +3638,13 @@
 | Tool | Codex |
 | Work | **hanwoo-dashboard Cattle list server-action DB row hardening**: Continued the active Hanwoo quality uplift by tightening active and archived cattle list server actions. `getCattleList()` and `getArchivedCattle()` now normalize Prisma DB/mock results before returning, filtering malformed or array-shaped rows so direct/action/reuse callers receive safe row arrays before dashboard cattle rendering, pagination/export consumers, and archive views use them. |
 | Next Priorities | Active Hanwoo goal remains open for further polish. T-251 remains user-owned Supabase database password/control-plane resync. Current verification: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/actions-copy.test.mjs` passed 8/8, `npm.cmd test` passed 496/496, `npm.cmd run lint` passed clean, `npm.cmd run build` passed with the known T-251 DB health warning but exit 0, path-limited `git diff --check` passed with CRLF warnings only, and `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed test/lint/build. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **최종 상태 확정:** `npm.cmd run db:prisma7-test -- --live`를 재실행해 live CRUD 검증을 다시 확인했습니다. 결과는 `Passed: 15 Failed: 1`로 동일하며 실패는 `driverAdapterError` 하에서 `P2010` / `XX000` / `(ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`입니다. `projects/hanwoo-dashboard/.env`의 `DATABASE_URL`은 `postgresql://postgres.fuemeqmigptwfzqvrpjf:...@aws-0-ap-northeast-2.pooler.supabase.com:6543/postgres` 상태이며, 외부 자격 증명 동기화 미스매치가 그대로입니다. `session_orient --json` 기준 T-251은 유일한 TODO/차단 항목으로 유지됩니다. |
+| Next Priorities | 사용자 소유 항목 T-251 조치 필요: Supabase DB 비밀번호 재설정 및 제어면 credential 동기화 후 `.env` 반영, 즉시 `npm.cmd run db:prisma7-test -- --live` 재실행. |
 
 ## Notes
 

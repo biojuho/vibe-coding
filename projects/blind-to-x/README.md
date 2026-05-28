@@ -199,6 +199,8 @@ py -3 main.py --source auto --popular --review-only --limit 5
 py -3 scripts/build_weekly_report.py --days 7
 ```
 
+   리포트 끝에 `## Best-of-N Comment-Weight Tuning (dry-run)` 섹션이 자동으로 임베드됩니다 (`scripts/tune_best_of_n_weight.py`의 dry-run 분석을 30일 윈도우로 호출). 표본이 부족하거나 tuner가 실패해도 본문은 깨지지 않으며 (fail-open), 권장 `llm.best_of_n_comment_weight` 값이 표시될 때만 설정 검토를 시작하면 됩니다.
+
 2. 최근 30일 점수 재계산
 
 ```bash
