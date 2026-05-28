@@ -59,7 +59,8 @@ test("calving form waits for async saves before re-enabling actions", () => {
 	assert.match(source, /if \(saveInFlightRef\.current\) \{\s+return;\s+\}/);
 	assert.match(source, /saveInFlightRef\.current = true;/);
 	assert.match(source, /setIsSaving\(true\);/);
-	assert.match(source, /await onRecordCalving\(\{/);
+	assert.match(source, /await handleRecordCalving\(\{/);
+	assert.doesNotMatch(source, /await onRecordCalving\(\{/);
 	assert.match(
 		source,
 		/if \(!recorded \|\| !isMountedRef\.current\) \{\s+return;\s+\}/,
@@ -145,12 +146,29 @@ test("calving tab normalizes malformed cattle and building payloads before rende
 	const source = readSource("components/tabs/CalvingTab.js");
 
 	assert.match(source, /import \{\s*useEffect,\s*useMemo,\s*useRef,\s*useState\s*\} from ['"]react['"];/);
+	assert.match(source, /function normalizeCalvingTabOptions\(options\) \{/);
+	assert.match(
+		source,
+		/options && typeof options === ["']object["'] && !Array\.isArray\(options\)/,
+	);
+	assert.match(source, /export default function CalvingTab\(options = \{\}\) \{/);
+	assert.match(source, /normalizeCalvingTabOptions\(options\);/);
+	assert.match(
+		source,
+		/const handleRecordCalving =\s+typeof onRecordCalving === ["']function["'] \? onRecordCalving : async \(\) => false;/,
+	);
 	assert.match(source, /function normalizeCalvingCattle\(cattle\) \{/);
 	assert.match(source, /return Array\.isArray\(cattle\)/);
-	assert.match(source, /row\s*&&\s*typeof\s*row\s*===\s*['"]object['"]\s*&&\s*row\.id\s*!=\s*null/);
+	assert.match(
+		source,
+		/row\s*&&\s*typeof\s*row\s*===\s*['"]object['"]\s*&&\s*!Array\.isArray\(row\)\s*&&\s*row\.id\s*!=\s*null/,
+	);
 	assert.match(source, /function normalizeCalvingBuildings\(buildings\) \{/);
 	assert.match(source, /return Array\.isArray\(buildings\)/);
-	assert.match(source, /building\s*&&\s*typeof\s*building\s*===\s*['"]object['"]/);
+	assert.match(
+		source,
+		/building\s*&&\s*typeof\s*building\s*===\s*['"]object['"]\s*&&\s*!Array\.isArray\(building\)/,
+	);
 	assert.match(
 		source,
 		/const safeCattle = useMemo\(\s*\(\s*\)\s*=>\s*normalizeCalvingCattle\(cattle\),\s*\[cattle\],?\s*\);/,
@@ -172,6 +190,7 @@ test("calving tab normalizes malformed cattle and building payloads before rende
 		source,
 		/const buildingName = safeBuildings\s*\.\s*find\(\s*\(\s*row\s*\)\s*=>\s*row\s*\.\s*id\s*===\s*cow\s*\.\s*buildingId\s*,?\s*\)\s*\??\.\s*name\s*;?/,
 	);
+	assert.doesNotMatch(source, /export default function CalvingTab\(\{\s+cattle,/);
 	assert.doesNotMatch(source, /const pregnantCows = cattle\s+\.filter/);
 	assert.doesNotMatch(source, /const cow = cattle\.find/);
 	assert.doesNotMatch(

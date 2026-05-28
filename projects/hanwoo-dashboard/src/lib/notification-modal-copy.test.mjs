@@ -22,7 +22,7 @@ test("notification modal close button has Korean accessible copy", () => {
 	assert.match(source, /title=\{closeButtonLabel\}/);
 	assert.match(
 		source,
-		/<button\s+type="button"\s+onClick=\{onClose\}\s+disabled=\{isTestingSMS\}\s+aria-busy=\{isTestingSMS\}/,
+		/<button\s+type="button"\s+onClick=\{handleClose\}\s+disabled=\{isTestingSMS\}\s+aria-busy=\{isTestingSMS\}/,
 	);
 	assert.doesNotMatch(source, /aria-label="Close"/);
 	assert.doesNotMatch(source, /title="Close"/);
@@ -32,12 +32,25 @@ test("notification modal exposes dialog semantics with a visible title label", (
 	const source = readSource("components/ui/NotificationModal.js");
 
 	assert.match(source, /role="dialog"/);
-	assert.match(source, /export default function NotificationModal\(\{\s+id,/);
+	assert.match(source, /export default function NotificationModal\(options = \{\}\)/);
+	assert.match(
+		source,
+		/function normalizeNotificationModalOptions\(options\) \{/,
+	);
+	assert.match(
+		source,
+		/options && typeof options === ["']object["'] && !Array\.isArray\(options\)/,
+	);
+	assert.match(
+		source,
+		/const \{ id, notifications, onClose, onTestSMS \} =\s+normalizeNotificationModalOptions\(options\);/,
+	);
 	assert.match(source, /id=\{id\}/);
 	assert.match(source, /aria-modal="true"/);
 	assert.match(source, /aria-labelledby="notification-modal-title"/);
 	assert.match(source, /id="notification-modal-title"/);
 	assert.match(source, /알림 센터/);
+	assert.doesNotMatch(source, /export default function NotificationModal\(\{\s+id,/);
 });
 
 test("notification modal can be dismissed with Escape from the dialog surface", () => {
@@ -59,7 +72,7 @@ test("notification modal can be dismissed with Escape from the dialog surface", 
 	assert.match(source, /const handleDialogKeyDown = \(event\) => \{/);
 	assert.match(source, /event\.key === ["']Escape["']/);
 	assert.match(source, /event\.stopPropagation\(\);/);
-	assert.match(source, /if \(isTestingSMS\) \{\s+return;\s+\}\s+onClose\(\);/);
+	assert.match(source, /if \(isTestingSMS\) \{\s+return;\s+\}\s+handleClose\(\);/);
 	assert.match(source, /onKeyDown=\{handleDialogKeyDown\}/);
 	assert.match(source, /tabIndex=\{-1\}/);
 });
@@ -115,6 +128,10 @@ test("notification modal SMS test action waits for async sends before re-enablin
 		source,
 		/const \[isTestingSMS, setIsTestingSMS\] = useState\(false\)/,
 	);
+	assert.match(
+		source,
+		/const handleClose =\s+typeof onClose === ["']function["'] \? onClose : \(\) => undefined;/,
+	);
 	assert.match(source, /const handleTestSMSClick = async \(\) => \{/);
 	assert.match(source, /if \(isTestingSMS\) \{\s+return;\s+\}/);
 	assert.match(source, /setIsTestingSMS\(true\);/);
@@ -133,8 +150,9 @@ test("notification modal SMS test action waits for async sends before re-enablin
 	assert.match(source, /title=\{smsTestButtonLabel\}/);
 	assert.match(
 		source,
-		/onClick=\{\(\) => \{\s+if \(!isTestingSMS\) \{\s+onClose\(\);\s+\}\s+\}\}/,
+		/onClick=\{\(\) => \{\s+if \(!isTestingSMS\) \{\s+handleClose\(\);\s+\}\s+\}\}/,
 	);
+	assert.match(source, /onClick=\{handleClose\}/);
 	assert.match(source, /cursor: isTestingSMS \? ["']wait["'] : ["']pointer["']/);
 });
 
@@ -148,7 +166,7 @@ test("notification modal normalizes malformed notification payloads before rende
 	assert.match(source, /return Array\.isArray\(notifications\)/);
 	assert.match(
 		source,
-		/\.filter\(\s*\(?notification\)?\s*=>\s*notification\s*&&\s*typeof\s+notification\s*===\s*["']object["']\s*,?\s*\)/,
+		/\.filter\([\s\S]*?notification\s*&&\s*typeof\s+notification\s*===\s*["']object["']\s*&&\s*!Array\.isArray\(notification\)[\s\S]*?\)/,
 	);
 	assert.match(
 		source,

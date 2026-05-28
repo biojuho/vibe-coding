@@ -11,7 +11,9 @@ export function isTimeoutError(error) {
 }
 
 function normalizeOptions(options) {
-	return options && typeof options === "object" ? options : {};
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
 }
 
 export async function fetchWithTimeout(input, init = {}, options = {}) {

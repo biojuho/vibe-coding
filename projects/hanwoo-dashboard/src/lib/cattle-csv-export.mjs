@@ -33,7 +33,10 @@ export function buildCattleCsvRows(cattleList) {
 
 function normalizeCattleCsvRows(cattleList) {
 	return Array.isArray(cattleList)
-		? cattleList.filter((cattle) => cattle && typeof cattle === "object")
+		? cattleList.filter(
+				(cattle) =>
+					cattle && typeof cattle === "object" && !Array.isArray(cattle),
+			)
 		: [];
 }
 

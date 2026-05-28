@@ -35,8 +35,15 @@ const buttonVariants = cva(
 	},
 );
 
-const Button = React.forwardRef(
-	({ className, variant, size, asChild = false, type, ...props }, ref) => {
+function normalizeButtonOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+const Button = React.forwardRef((options, ref) => {
+	const { className, variant, size, asChild = false, type, ...props } =
+		normalizeButtonOptions(options);
 		const Comp = asChild ? Slot : "button";
 		return (
 			<Comp
@@ -46,8 +53,7 @@ const Button = React.forwardRef(
 				{...props}
 			/>
 		);
-	},
-);
+});
 Button.displayName = "Button";
 
 export { Button, buttonVariants };

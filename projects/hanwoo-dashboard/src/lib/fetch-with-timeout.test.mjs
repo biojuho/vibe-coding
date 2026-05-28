@@ -60,3 +60,27 @@ test("fetchWithTimeout ignores malformed options input", async () => {
 		globalThis.fetch = originalFetch;
 	}
 });
+
+test("fetchWithTimeout ignores array option fields", async () => {
+	const originalFetch = globalThis.fetch;
+	const arrayOptions = [];
+	arrayOptions.timeoutMs = 1;
+	arrayOptions.errorMessage = "array timeout should be ignored";
+	globalThis.fetch = async (_input, init) => {
+		assert.ok(init.signal instanceof AbortSignal);
+		return new Response("ok", { status: 200 });
+	};
+
+	try {
+		const response = await fetchWithTimeout(
+			"https://example.test",
+			{},
+			arrayOptions,
+		);
+
+		assert.equal(response.status, 200);
+		assert.equal(await response.text(), "ok");
+	} finally {
+		globalThis.fetch = originalFetch;
+	}
+});

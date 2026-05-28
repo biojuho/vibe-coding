@@ -45,7 +45,19 @@ function buildPendingResponse(message = PAYMENT_CONFIRMATION_PENDING_MESSAGE) {
 	);
 }
 
-async function markPaymentLogFailed({ orderId, paymentKey, amount }) {
+function normalizePaymentConfirmBody(body) {
+	return body && typeof body === "object" && !Array.isArray(body) ? body : {};
+}
+
+function normalizePaymentLogFailureOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+async function markPaymentLogFailed(options = {}) {
+	const { orderId, paymentKey, amount } =
+		normalizePaymentLogFailureOptions(options);
 	await prisma.paymentLog.upsert({
 		where: { orderId },
 		update: {
@@ -65,7 +77,7 @@ async function markPaymentLogFailed({ orderId, paymentKey, amount }) {
 export async function POST(req) {
 	try {
 		const session = await requireAuthenticatedSession();
-		const body = await req.json();
+		const body = normalizePaymentConfirmBody(await req.json());
 		const { paymentKey, orderId } = body;
 		const amount = parsePaymentAmount(body?.amount);
 

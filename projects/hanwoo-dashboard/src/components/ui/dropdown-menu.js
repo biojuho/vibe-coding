@@ -1,14 +1,27 @@
 import React, { useEffect, useRef, useState } from "react";
 
-export function DropdownMenu({ children }) {
+function normalizeDropdownMenuOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+export function DropdownMenu(options = {}) {
+	const { children } = normalizeDropdownMenuOptions(options);
 	return <div className="relative inline-block text-left">{children}</div>;
 }
 
-export function DropdownMenuTrigger({ asChild, children, ...props }) {
+export function DropdownMenuTrigger(options = {}) {
+	const { children, ...props } = normalizeDropdownMenuOptions(options);
+	if (!React.isValidElement(children)) {
+		return null;
+	}
+
 	return React.cloneElement(children, { ...props });
 }
 
-export function DropdownMenuContent({ align = "end", children, className }) {
+export function DropdownMenuContent(options = {}) {
+	const { children, className = "" } = normalizeDropdownMenuOptions(options);
 	return (
 		<div
 			className={`clay-surface absolute right-0 mt-2 w-56 origin-top-right divide-y rounded-[22px] focus:outline-none z-50 ${className}`}
@@ -19,15 +32,18 @@ export function DropdownMenuContent({ align = "end", children, className }) {
 	);
 }
 
-export function DropdownMenuItem({ children, onClick, className, ...props }) {
-	const Element = onClick ? "button" : "div";
+export function DropdownMenuItem(options = {}) {
+	const { children, onClick, className = "", ...props } =
+		normalizeDropdownMenuOptions(options);
+	const handleClick = typeof onClick === "function" ? onClick : null;
+	const Element = handleClick ? "button" : "div";
 
 	return (
 		<Element
-			type={onClick ? "button" : undefined}
+			type={handleClick ? "button" : undefined}
 			className={`block w-full cursor-pointer rounded-[14px] px-4 py-2 text-left text-sm transition-colors hover:bg-background/70 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${className}`}
 			style={{ color: "var(--color-text)" }}
-			onClick={onClick}
+			onClick={handleClick}
 			{...props}
 		>
 			{children}
@@ -35,7 +51,8 @@ export function DropdownMenuItem({ children, onClick, className, ...props }) {
 	);
 }
 
-export function DropdownMenuLabel({ children }) {
+export function DropdownMenuLabel(options = {}) {
+	const { children } = normalizeDropdownMenuOptions(options);
 	return (
 		<div
 			className="px-4 py-2 text-xs font-semibold uppercase tracking-wider"

@@ -38,7 +38,14 @@ const PRIORITY_STYLE = {
 	},
 };
 
-function PriorityBadge({ priority }) {
+function normalizeAIInsightBadgeOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+function PriorityBadge(options = {}) {
+	const { priority } = normalizeAIInsightBadgeOptions(options);
 	const style = PRIORITY_STYLE[priority] ?? PRIORITY_STYLE.medium;
 	return (
 		<span
@@ -50,7 +57,8 @@ function PriorityBadge({ priority }) {
 	);
 }
 
-function SourceBadge({ source }) {
+function SourceBadge(options = {}) {
+	const { source } = normalizeAIInsightBadgeOptions(options);
 	const isAi = source === "ai";
 	return (
 		<span
@@ -78,7 +86,8 @@ function formatCacheAgeLabel(ageSeconds) {
 	return "오늘 분석 결과";
 }
 
-function CacheBadge({ ageSeconds }) {
+function CacheBadge(options = {}) {
+	const { ageSeconds } = normalizeAIInsightBadgeOptions(options);
 	const label = formatCacheAgeLabel(ageSeconds);
 	if (!label) return null;
 	return (
@@ -104,9 +113,19 @@ function deferAIInsightTask(callback) {
 	}
 }
 
-export default function AIInsightWidget({ summary }) {
+function normalizeAIInsightWidgetOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+export default function AIInsightWidget(options = {}) {
+	const { summary } = normalizeAIInsightWidgetOptions(options);
 	const stableSummary = useMemo(
-		() => (summary && typeof summary === "object" ? summary : {}),
+		() =>
+			summary && typeof summary === "object" && !Array.isArray(summary)
+				? summary
+				: {},
 		[summary],
 	);
 	const [insights, setInsights] = useState(() =>

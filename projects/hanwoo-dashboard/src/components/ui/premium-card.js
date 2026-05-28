@@ -1,17 +1,30 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-const PremiumCard = React.forwardRef(({ className, ...props }, ref) => (
-	<div
-		ref={ref}
-		className={cn("premium-card-clay group", className)}
-		{...props}
-	/>
-));
+function normalizePremiumCardOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+const PremiumCard = React.forwardRef((options, ref) => {
+	const { className, ...props } = normalizePremiumCardOptions(options);
+
+	return (
+		<div
+			ref={ref}
+			className={cn("premium-card-clay group", className)}
+			{...props}
+		/>
+	);
+});
 PremiumCard.displayName = "PremiumCard";
 
-const PremiumCardHeader = React.forwardRef(
-	({ className, title, icon, description, children, ...props }, ref) => (
+const PremiumCardHeader = React.forwardRef((options, ref) => {
+	const { className, title, icon, description, children, ...props } =
+		normalizePremiumCardOptions(options);
+
+	return (
 		<div
 			ref={ref}
 			className={cn("flex flex-col space-y-1.5 p-6 relative z-10", className)}
@@ -46,51 +59,67 @@ const PremiumCardHeader = React.forwardRef(
 			)}
 			{children}
 		</div>
-	),
-);
+	);
+});
 PremiumCardHeader.displayName = "PremiumCardHeader";
 
-const PremiumCardTitle = React.forwardRef(({ className, ...props }, ref) => (
-	<h3
-		ref={ref}
-		className={cn("text-2xl font-bold leading-none tracking-tight", className)}
-		style={{ color: "var(--premium-card-title)" }}
-		{...props}
-	/>
-));
+const PremiumCardTitle = React.forwardRef((options, ref) => {
+	const { className, ...props } = normalizePremiumCardOptions(options);
+
+	return (
+		<h3
+			ref={ref}
+			className={cn("text-2xl font-bold leading-none tracking-tight", className)}
+			style={{ color: "var(--premium-card-title)" }}
+			{...props}
+		/>
+	);
+});
 PremiumCardTitle.displayName = "PremiumCardTitle";
 
-const PremiumCardDescription = React.forwardRef(
-	({ className, ...props }, ref) => (
+const PremiumCardDescription = React.forwardRef((options, ref) => {
+	const { className, ...props } = normalizePremiumCardOptions(options);
+
+	return (
 		<p
 			ref={ref}
 			className={cn("text-sm mt-1", className)}
 			style={{ color: "var(--premium-card-subtitle)" }}
 			{...props}
 		/>
-	),
-);
+	);
+});
 PremiumCardDescription.displayName = "PremiumCardDescription";
 
-const PremiumCardContent = React.forwardRef(({ className, ...props }, ref) => (
-	<div
-		ref={ref}
-		className={cn("p-6 pt-0 relative z-10", className)}
-		{...props}
-	/>
-));
+const PremiumCardContent = React.forwardRef((options, ref) => {
+	const { className, ...props } = normalizePremiumCardOptions(options);
+
+	return (
+		<div
+			ref={ref}
+			className={cn("p-6 pt-0 relative z-10", className)}
+			{...props}
+		/>
+	);
+});
 PremiumCardContent.displayName = "PremiumCardContent";
 
-const PremiumCardFooter = React.forwardRef(({ className, ...props }, ref) => (
-	<div
-		ref={ref}
-		className={cn("flex items-center p-6 pt-0 relative z-10", className)}
-		{...props}
-	/>
-));
+const PremiumCardFooter = React.forwardRef((options, ref) => {
+	const { className, ...props } = normalizePremiumCardOptions(options);
+
+	return (
+		<div
+			ref={ref}
+			className={cn("flex items-center p-6 pt-0 relative z-10", className)}
+			{...props}
+		/>
+	);
+});
 PremiumCardFooter.displayName = "PremiumCardFooter";
 
-const PremiumInfoCard = ({ title, value, change, changeType = "positive" }) => {
+const PremiumInfoCard = (options = {}) => {
+	const { title, value, change, changeType = "positive" } =
+		normalizePremiumCardOptions(options);
 	const isPositive = changeType === "positive";
 
 	return (

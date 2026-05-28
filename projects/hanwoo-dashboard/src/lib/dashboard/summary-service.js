@@ -35,24 +35,58 @@ function toMonthKey(value) {
 	return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
+function normalizeSummaryOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+function normalizeSummaryRows(rows) {
+	return Array.isArray(rows)
+		? rows.filter(
+				(row) => row && typeof row === "object" && !Array.isArray(row),
+			)
+		: [];
+}
+
+function resolveGeneratedAt(value) {
+	const date =
+		value instanceof Date ? new Date(value.getTime()) : new Date(value);
+
+	return Number.isNaN(date.getTime()) ? new Date() : date;
+}
+
+function resolveFinancialSeriesMonthCount(value) {
+	return Number.isSafeInteger(value) && value > 0 ? Math.min(value, 24) : 6;
+}
+
 function normalizeStatusCounts(rows) {
-	return rows.reduce((accumulator, row) => {
-		accumulator[row.status] = row._count._all;
+	return normalizeSummaryRows(rows).reduce((accumulator, row) => {
+		if (typeof row.status !== "string" || row.status.length === 0) {
+			return accumulator;
+		}
+
+		accumulator[row.status] = toFiniteNumber(row._count?._all);
 		return accumulator;
 	}, {});
 }
 
-function buildFinancialSeries({
-	salesRecords = [],
-	expenseRecords = [],
-	months = 6,
-	generatedAt = new Date(),
-} = {}) {
+function buildFinancialSeries(options = {}) {
+	const {
+		salesRecords = [],
+		expenseRecords = [],
+		months = 6,
+		generatedAt = new Date(),
+	} = normalizeSummaryOptions(options);
 	const series = [];
 	const salesByMonth = new Map();
 	const expensesByMonth = new Map();
+	const safeSalesRecords = normalizeSummaryRows(salesRecords);
+	const safeExpenseRecords = normalizeSummaryRows(expenseRecords);
+	const safeGeneratedAt = resolveGeneratedAt(generatedAt);
+	const monthCount = resolveFinancialSeriesMonthCount(months);
 
-	for (const record of salesRecords) {
+	for (const record of safeSalesRecords) {
 		const monthKey = toMonthKey(record.saleDate);
 		if (!monthKey) continue;
 		salesByMonth.set(
@@ -61,7 +95,7 @@ function buildFinancialSeries({
 		);
 	}
 
-	for (const record of expenseRecords) {
+	for (const record of safeExpenseRecords) {
 		const monthKey = toMonthKey(record.date);
 		if (!monthKey) continue;
 		expensesByMonth.set(
@@ -70,10 +104,10 @@ function buildFinancialSeries({
 		);
 	}
 
-	for (let index = months - 1; index >= 0; index -= 1) {
+	for (let index = monthCount - 1; index >= 0; index -= 1) {
 		const date = new Date(
-			generatedAt.getFullYear(),
-			generatedAt.getMonth() - index,
+			safeGeneratedAt.getFullYear(),
+			safeGeneratedAt.getMonth() - index,
 			1,
 		);
 		const monthKey = toMonthKey(date);
@@ -99,10 +133,8 @@ function resolveClient(client) {
 	return client;
 }
 
-export async function buildDashboardSummaryPayload({
-	farmId = "default",
-	client,
-} = {}) {
+export async function buildDashboardSummaryPayload(options = {}) {
+	const { farmId = "default", client } = normalizeSummaryOptions(options);
 	const db = resolveClient(client);
 	const generatedAt = new Date();
 	const monthStart = startOfCurrentMonth(generatedAt);
@@ -203,13 +235,17 @@ export async function buildDashboardSummaryPayload({
 	]);
 
 	const buildingCounts = new Map(
-		cattlePerBuilding.map((row) => [row.buildingId, row._count._all]),
+		normalizeSummaryRows(cattlePerBuilding).map((row) => [
+			row.buildingId,
+			toFiniteNumber(row._count?._all),
+		]),
 	);
-	const monthlySalesTotal = toFiniteNumber(salesThisMonth._sum.price);
-	const monthlyExpenseTotal = toFiniteNumber(expensesThisMonth._sum.amount);
-	const averageWeight = weightAggregate._avg.weight
+	const monthlySalesTotal = toFiniteNumber(salesThisMonth?._sum?.price);
+	const monthlyExpenseTotal = toFiniteNumber(expensesThisMonth?._sum?.amount);
+	const averageWeight = weightAggregate?._avg?.weight
 		? Number(weightAggregate._avg.weight.toFixed(1))
 		: 0;
+	const safeBuildings = normalizeSummaryRows(buildings);
 
 	return {
 		farmId,
@@ -231,8 +267,8 @@ export async function buildDashboardSummaryPayload({
 			expenseRecords: recentExpenses,
 			generatedAt,
 		}),
-		buildingCount: buildings.length,
-		buildingOccupancy: buildings.map((building) => {
+		buildingCount: safeBuildings.length,
+		buildingOccupancy: safeBuildings.map((building) => {
 			const headcount = buildingCounts.get(building.id) ?? 0;
 			const penCount = building.penCount || 0;
 

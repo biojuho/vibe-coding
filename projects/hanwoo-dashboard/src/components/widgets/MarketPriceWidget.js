@@ -6,7 +6,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getRealTimeMarketPrice } from "@/lib/actions";
 import { formatMoney } from "@/lib/utils";
 
-function PricePanel({ title, rows }) {
+function normalizePricePanelOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+function normalizePricePanelRows(rows) {
+	return Array.isArray(rows) ? rows.filter((row) => Array.isArray(row)) : [];
+}
+
+function PricePanel(options = {}) {
+	const { title, rows } = normalizePricePanelOptions(options);
+	const visibleRows = normalizePricePanelRows(rows);
+
 	return (
 		<div className="clay-inset rounded-[24px] p-4 transition-[box-shadow,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5">
 			<div className="mb-3 border-b border-[color:var(--color-surface-border)] pb-3">
@@ -15,13 +28,13 @@ function PricePanel({ title, rows }) {
 				</span>
 			</div>
 			<div className="grid gap-2.5">
-				{rows.map(([grade, value], index) => (
+				{visibleRows.map(([grade, value], index) => (
 					<div
-						key={grade}
+						key={`${grade ?? "price"}-${index}`}
 						className="flex items-center justify-between text-sm transition-[background,transform] duration-200 rounded-lg px-2 py-1.5 -mx-2 hover:bg-[color:color-mix(in_srgb,var(--color-surface-elevated)_60%,transparent)]"
 						style={{
 							borderBottom:
-								index === rows.length - 1
+								index === visibleRows.length - 1
 									? "none"
 									: "1px solid color-mix(in srgb, var(--color-surface-border) 45%, transparent)",
 						}}
@@ -103,9 +116,16 @@ function normalizePriceSnapshot(data) {
 		: data;
 }
 
+function normalizeMarketPriceWidgetOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
 const MARKET_PRICE_POLL_INTERVAL_MS = 1000 * 60 * 60;
 
-export default function MarketPriceWidget({ initialData = null }) {
+export default function MarketPriceWidget(options = {}) {
+	const { initialData = null } = normalizeMarketPriceWidgetOptions(options);
 	const [prices, setPrices] = useState(() =>
 		normalizePriceSnapshot(initialData),
 	);

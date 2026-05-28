@@ -14,11 +14,20 @@ function readSource(relativePath) {
 test("shared empty state component exposes an action button without custom dependencies", () => {
 	const source = readSource("components/ui/empty-state.js");
 
-	assert.match(source, /export default function EmptyState/);
+	assert.match(source, /function normalizeEmptyStateOptions\(options\) \{/);
+	assert.match(
+		source,
+		/options && typeof options === ["']object["'] && !Array\.isArray\(options\)/,
+	);
+	assert.match(source, /export default function EmptyState\(options = \{\}\) \{/);
+	assert.match(source, /normalizeEmptyStateOptions\(options\);/);
+	assert.match(
+		source,
+		/const handleAction = typeof onAction === ["']function["'] \? onAction : null;/,
+	);
+	assert.doesNotMatch(source, /export default function EmptyState\(\{\s+icon: Icon,/);
 	assert.match(source, /PremiumButton/);
-	assert.match(source, /disabled=\{disabled\}/);
-	assert.match(source, /aria-busy=\{disabled\}/);
-	assert.match(source, /onClick=\{onAction\}/);
+	assert.match(source, /onClick=\{handleAction\}/);
 	assert.match(source, /aria-label=\{actionLabel\}/);
 	assert.match(source, /title=\{actionLabel\}/);
 });
@@ -68,22 +77,22 @@ test("operational create forms stay open when async submit handlers fail", () =>
 		{
 			file: "components/tabs/SalesTab.js",
 			submit: "submitSale",
-			handler: "onCreateSale",
+			handler: "handleCreateSale",
 		},
 		{
 			file: "components/tabs/InventoryTab.js",
 			submit: "submitNewItem",
-			handler: "onAddItem",
+			handler: "handleAddItem",
 		},
 		{
 			file: "components/tabs/ScheduleTab.js",
 			submit: "submitSchedule",
-			handler: "onCreateEvent",
+			handler: "handleCreateEvent",
 		},
 		{
 			file: "components/tabs/SettingsTab.js",
 			submit: "submitBuilding",
-			handler: "onCreateBuilding",
+			handler: "handleCreateBuilding",
 		},
 	];
 
@@ -107,11 +116,26 @@ test("operational create forms stay open when async submit handlers fail", () =>
 test("inventory tab normalizes malformed inventory payloads before rendering", () => {
 	const source = readSource("components/tabs/InventoryTab.js");
 
+	assert.match(source, /function normalizeInventoryTabOptions\(options\) \{/);
+	assert.match(
+		source,
+		/options && typeof options === ["']object["'] && !Array\.isArray\(options\)/,
+	);
+	assert.match(source, /export default function InventoryTab\(options = \{\}\) \{/);
+	assert.match(source, /normalizeInventoryTabOptions\(options\);/);
+	assert.match(
+		source,
+		/const handleAddItem =\s+typeof onAddItem === ["']function["'] \? onAddItem : async \(\) => false;/,
+	);
+	assert.match(
+		source,
+		/const handleUpdateQuantity =\s+typeof onUpdateQuantity === ["']function["']\s+\? onUpdateQuantity\s+: async \(\) => false;/,
+	);
 	assert.match(source, /function normalizeInventoryItems\(inventory\)/);
 	assert.match(source, /if \(!Array\.isArray\(inventory\)\) return \[\]/);
 	assert.match(
 		source,
-		/\.filter\(\(item\) => item && typeof item === ["']object["']\)/,
+		/\.filter\([\s\S]*?\(item\) => item && typeof item === ["']object["'] && !Array\.isArray\(item\)/,
 	);
 	assert.match(
 		source,
@@ -124,6 +148,17 @@ test("inventory tab normalizes malformed inventory payloads before rendering", (
 	assert.match(
 		source,
 		/unit:\s*typeof\s+item\s*\.\s*unit\s*===\s*["']string["']\s*&&\s*item\s*\.\s*unit\s*\.\s*trim\s*\(\s*\)\s*\?\s*item\s*\.\s*unit\s*:\s*["']개["']/,
+	);
+	assert.match(source, /const saved = await handleAddItem\(values\);/);
+	assert.match(
+		source,
+		/const saved = await handleUpdateQuantity\(id, parsedQuantity\);/,
+	);
+	assert.doesNotMatch(source, /export default function InventoryTab\(\{\s+inventory,/);
+	assert.doesNotMatch(source, /const saved = await onAddItem\(values\);/);
+	assert.doesNotMatch(
+		source,
+		/const saved = await onUpdateQuantity\(id, parsedQuantity\);/,
 	);
 	assert.doesNotMatch(source, /inventory\.map\(\(item\) => \{/);
 	assert.doesNotMatch(source, /inventory\.length === 0/);
@@ -176,9 +211,22 @@ test("feed record form preserves input when async save fails", () => {
 	const source = readSource("components/tabs/FeedTab.js");
 
 	assert.match(source, /const submitFeedRecord = async \(values\) => \{/);
+	assert.match(source, /function normalizeFeedTabOptions\(options\) \{/);
 	assert.match(
 		source,
-		/const recorded = await onRecordFeed\(\{\s+\.\.\.values,\s+buildingId: selectedBuilding,\s+\}\);/,
+		/export default function FeedTab\(options = \{\}\) \{/,
+	);
+	assert.match(
+		source,
+		/\} = normalizeFeedTabOptions\(options\);/,
+	);
+	assert.match(
+		source,
+		/const handleRecordFeed =\s+typeof onRecordFeed === "function" \? onRecordFeed : async \(\) => false;/,
+	);
+	assert.match(
+		source,
+		/const recorded = await handleRecordFeed\(\{\s+\.\.\.values,\s+buildingId: selectedBuilding,\s+\}\);/,
 	);
 	assert.match(
 		source,
@@ -204,7 +252,8 @@ test("feed record form waits for async saves before re-enabling submit", () => {
 	assert.match(source, /if \(saveInFlightRef\.current\) \{\s+return;\s+\}/);
 	assert.match(source, /saveInFlightRef\.current = true;/);
 	assert.match(source, /setIsSaving\(true\);/);
-	assert.match(source, /await onRecordFeed\(\{/);
+	assert.match(source, /await handleRecordFeed\(\{/);
+	assert.doesNotMatch(source, /await onRecordFeed\(\{/);
 	assert.match(
 		source,
 		/finally \{\s+saveInFlightRef\.current = false;\s+if \(isMountedRef\.current\) \{\s+setIsSaving\(false\);/,
@@ -316,7 +365,7 @@ test("feed tab normalizes malformed payloads before rendering", () => {
 	assert.match(source, /function normalizeFeedItems\(items\) \{/);
 	assert.match(
 		source,
-		/return\s*Array\.isArray\(items\)\s*\?\s*items\.filter\(\(item\)\s*=>\s*item\s*&&\s*typeof\s*item\s*===\s*["']object["']\)\s*:\s*\[\];?/,
+		/return\s*Array\.isArray\(items\)[\s\S]*?items\.filter\([\s\S]*?item\s*&&\s*typeof\s*item\s*===\s*["']object["']\s*&&\s*!Array\.isArray\(item\)[\s\S]*?\)\s*:\s*\[\];?/,
 	);
 	assert.match(source, /function normalizeFeedBuildings\(buildings\) \{/);
 	assert.match(source, /id: building\.id \?\? `feed-building-\$\{index\}`/);
@@ -362,9 +411,15 @@ test("feed tab normalizes malformed payloads before rendering", () => {
 test("feed building filter chips expose selected state and Korean labels", () => {
 	const source = readSource("components/tabs/FeedTab.js");
 
+	assert.match(source, /function normalizeFeedHelperOptions\(options\) \{/);
 	assert.match(
 		source,
-		/function FilterChip\(\{ active, children, onClick, label, disabled = false \}\)/,
+		/return options && typeof options === ["']object["'] && !Array\.isArray\(options\)\s*\?\s*options\s*:\s*\{\s*\}\s*;?/,
+	);
+	assert.match(source, /function FilterChip\(options = \{\}\) \{/);
+	assert.match(
+		source,
+		/const \{\s*active,\s*children,\s*onClick,\s*label,\s*disabled = false,\s*\} = normalizeFeedHelperOptions\(options\);/,
 	);
 	assert.match(
 		source,
@@ -386,7 +441,7 @@ test("feed building filter chips expose selected state and Korean labels", () =>
 	);
 	assert.match(
 		source,
-		/label=\{\s*[`"']\s*\$\{building\.name\}\s+급여\s+보기\s*[`"']\s*\}[\s\S]*?disabled=\{\s*isSaving\s*\}/,
+		/label=\{`\$\{building\.name\}\s+급여\s+보기`\}[\s\S]*?disabled=\{\s*isSaving\s*\}/,
 	);
 });
 
@@ -446,11 +501,24 @@ test("feed record form fields expose labels and validation state", () => {
 		source,
 		/id="feed-note"[\s\S]*?aria-invalid=\{Boolean\(errors\.note\)\}/,
 	);
-	assert.match(source, /const fieldId = `feed-\$\{inputProps\.name\}`;/);
+	assert.match(source, /function Field\(options = \{\}\) \{/);
+	assert.match(
+		source,
+		/const \{ label, suffix, error, inputProps \} =\s*normalizeFeedHelperOptions\(options\);/,
+	);
+	assert.match(
+		source,
+		/const safeInputProps = normalizeFeedHelperOptions\(inputProps\);/,
+	);
+	assert.match(
+		source,
+		/const inputName =\s*typeof safeInputProps\.name === ["']string["'] && safeInputProps\.name\.trim\(\)\s*\?\s*safeInputProps\.name\s*:\s*["']field["'];/,
+	);
+	assert.match(source, /const fieldId = `feed-\$\{inputName\}`;/);
 	assert.match(source, /<PremiumLabel htmlFor=\{fieldId\}>/);
 	assert.match(
 		source,
-		/id=\{fieldId\}[\s\S]*?aria-invalid=\{Boolean\(error\)\}/,
+		/id=\{fieldId\}[\s\S]*?\{\.\.\.safeInputProps\}[\s\S]*?aria-invalid=\{Boolean\(error\)\}/,
 	);
 });
 
@@ -491,7 +559,7 @@ test("inventory quantity edit preserves input when async save fails", () => {
 	);
 	assert.match(
 		source,
-		/const saved = await onUpdateQuantity\(id, parsedQuantity\);/,
+		/const saved = await handleUpdateQuantity\(id, parsedQuantity\);/,
 	);
 	assert.match(source, /if \(!saved \|\| !isMountedRef\.current\) \{\s+return;\s+\}/);
 	assert.doesNotMatch(source, /if \(!saved\) \{\s+return;\s+\}/);
@@ -534,7 +602,7 @@ test("inventory create form waits for async saves before re-enabling submit", ()
 	assert.match(source, /if \(saveInFlightRef\.current\) \{\s+return;\s+\}/);
 	assert.match(source, /saveInFlightRef\.current = true;/);
 	assert.match(source, /setIsSaving\(true\);/);
-	assert.match(source, /const saved = await onAddItem\(values\);/);
+	assert.match(source, /const saved = await handleAddItem\(values\);/);
 	assert.match(
 		source,
 		/finally \{\s+saveInFlightRef\.current = false;\s+if \(isMountedRef\.current\) \{\s+setIsSaving\(false\);/,

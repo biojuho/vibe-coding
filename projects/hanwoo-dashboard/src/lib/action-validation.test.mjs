@@ -11,6 +11,7 @@ import {
 	validateInventoryItemInput,
 	validateInventoryQuantityInput,
 	validateSalesRecordInput,
+	validateScheduleEventInput,
 } from "./action-validation.mjs";
 
 test("validateCattleMutationInput normalizes DB-facing cattle payloads", () => {
@@ -196,6 +197,44 @@ test("validateCalvingRecordInput requires a real calf tag number", () => {
 	assert.equal(valid.success, true);
 	assert.equal(valid.data.calfTagNumber, "002-1234-5678");
 	assert.ok(valid.data.calvingDate instanceof Date);
+});
+
+test("validateScheduleEventInput normalizes date and trims fields", () => {
+	const result = validateScheduleEventInput({
+		title: "  예방 접종 ",
+		date: "2026-05-30",
+		type: "Vaccination",
+		cattleId: " cow-1 ",
+	});
+
+	assert.equal(result.success, true);
+	assert.equal(result.data.title, "예방 접종");
+	assert.equal(result.data.type, "Vaccination");
+	assert.equal(result.data.cattleId, "cow-1");
+	assert.ok(result.data.date instanceof Date);
+
+	const withoutCattle = validateScheduleEventInput({
+		title: "정기 진단",
+		date: "2026-06-01",
+		type: "Checkup",
+	});
+
+	assert.equal(withoutCattle.success, true);
+	assert.equal(withoutCattle.data.cattleId, null);
+});
+
+test("validateScheduleEventInput rejects bad schedule payloads", () => {
+	const invalid = validateScheduleEventInput({
+		title: "   ",
+		date: "2026-02-31",
+		type: "Unknown",
+		cattleId: 123,
+	});
+
+	assert.equal(invalid.success, false);
+	assert.ok(invalid.validationErrors.title?.length);
+	assert.ok(invalid.validationErrors.date?.length);
+	assert.ok(invalid.validationErrors.type?.length);
 });
 
 test("validateBuildingInput trims names and blocks invalid pen counts", () => {

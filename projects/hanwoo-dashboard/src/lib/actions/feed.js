@@ -8,10 +8,22 @@ import { prisma } from "./_helpers";
 // Feed Actions
 // ============================================================
 
+function isFeedActionRow(value) {
+	return (
+		value !== null &&
+		typeof value === "object" &&
+		!Array.isArray(value)
+	);
+}
+
+function normalizeFeedActionRows(rows) {
+	return Array.isArray(rows) ? rows.filter((row) => isFeedActionRow(row)) : [];
+}
+
 export async function getFeedStandards() {
 	await requireAuthenticatedSession();
 	try {
-		return await prisma.feedStandard.findMany();
+		return normalizeFeedActionRows(await prisma.feedStandard.findMany());
 	} catch (error) {
 		console.error("Failed to fetch feed standards:", error);
 		return [];
@@ -47,10 +59,12 @@ export async function recordFeed(data) {
 export async function getFeedHistory() {
 	await requireAuthenticatedSession();
 	try {
-		return await prisma.feedRecord.findMany({
-			orderBy: { date: "desc" },
-			take: 20,
-		});
+		return normalizeFeedActionRows(
+			await prisma.feedRecord.findMany({
+				orderBy: { date: "desc" },
+				take: 20,
+			}),
+		);
 	} catch (e) {
 		console.error("Failed to fetch feed history:", e);
 		return [];

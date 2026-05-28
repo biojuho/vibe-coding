@@ -38,6 +38,22 @@ test("getNotificationTargetDate ignores malformed options input", () => {
 	assert.equal(result?.toISOString(), "2026-10-13T00:00:00.000Z");
 });
 
+test("getNotificationTargetDate ignores array option fields", () => {
+	const options = [];
+	options.now = "2026-04-07T00:00:00.000Z";
+
+	const before = new Date();
+	const result = getNotificationTargetDate(
+		"estrus",
+		"2026-03-01T00:00:00.000Z",
+		options,
+	);
+
+	assert.ok(result instanceof Date);
+	assert.ok(result > before);
+	assert.notEqual(result.toISOString(), "2026-04-12T00:00:00.000Z");
+});
+
 test("getNotificationTargetDate falls back to the current time when estrus options are malformed", () => {
 	const before = new Date();
 	const result = getNotificationTargetDate(

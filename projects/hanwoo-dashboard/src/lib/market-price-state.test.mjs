@@ -93,6 +93,41 @@ test("normalizeCachedMarketPrice ignores malformed options input", () => {
 	assert.equal(result.issueDate, "2026-04-06");
 });
 
+test("market price helpers ignore array options before reading fields", () => {
+	const arrayOptions = [];
+	arrayOptions.message = "array option message should be ignored";
+	const cached = normalizeCachedMarketPrice(
+		{
+			issueDate: "2026-04-06",
+			fetchedAt: "2026-04-07T11:40:00.000Z",
+			isRealtime: true,
+			bullGrade1pp: 21500,
+			bullGrade1p: 19800,
+			bullGrade1: 18500,
+			cowGrade1pp: 18500,
+			cowGrade1p: 17200,
+			cowGrade1: 16000,
+		},
+		[],
+	);
+	const live = normalizeLiveMarketPrice(
+		{
+			issueDate: "20260406",
+			bull: { grade1pp: 21500, grade1p: 19800, grade1: 18500 },
+			cow: { grade1pp: 18500, grade1p: 17200, grade1: 16000 },
+		},
+		[],
+	);
+	const unavailable = buildUnavailableMarketPrice([]);
+	const unavailableWithArrayFields = buildUnavailableMarketPrice(arrayOptions);
+
+	assert.equal(cached.available, true);
+	assert.equal(live.available, true);
+	assert.equal(unavailable.available, false);
+	assert.equal(unavailable.message, MARKET_PRICE_UNAVAILABLE_MESSAGE);
+	assert.equal(unavailableWithArrayFields.message, MARKET_PRICE_UNAVAILABLE_MESSAGE);
+});
+
 test("normalizeLiveMarketPrice returns a persistable live KAPE state", () => {
 	const now = new Date("2026-04-07T12:00:00.000Z");
 	const result = normalizeLiveMarketPrice(
@@ -138,6 +173,44 @@ test("normalizeLiveMarketPrice rejects incomplete live payloads", () => {
 	});
 
 	assert.equal(result, null);
+});
+
+test("market price helpers reject array-shaped price payloads", () => {
+	const arraySnapshot = [];
+	Object.assign(arraySnapshot, {
+		issueDate: "2026-04-06",
+		fetchedAt: "2026-04-07T11:40:00.000Z",
+		isRealtime: true,
+		bullGrade1pp: 21500,
+		bullGrade1p: 19800,
+		bullGrade1: 18500,
+		cowGrade1pp: 18500,
+		cowGrade1p: 17200,
+		cowGrade1: 16000,
+	});
+	const arraySide = [];
+	Object.assign(arraySide, {
+		grade1pp: 21500,
+		grade1p: 19800,
+		grade1: 18500,
+	});
+	const arrayPayload = [];
+	Object.assign(arrayPayload, {
+		issueDate: "20260406",
+		bull: { grade1pp: 21500, grade1p: 19800, grade1: 18500 },
+		cow: { grade1pp: 18500, grade1p: 17200, grade1: 16000 },
+	});
+
+	assert.equal(normalizeCachedMarketPrice(arraySnapshot), null);
+	assert.equal(
+		normalizeLiveMarketPrice({
+			issueDate: "20260406",
+			bull: arraySide,
+			cow: { grade1pp: 18500, grade1p: 17200, grade1: 16000 },
+		}),
+		null,
+	);
+	assert.equal(normalizeLiveMarketPrice(arrayPayload), null);
 });
 
 test("normalizeLiveMarketPrice and unavailable fallback ignore malformed options input", () => {

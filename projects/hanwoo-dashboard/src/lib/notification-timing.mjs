@@ -53,7 +53,9 @@ export function getNotificationTargetDate(
 	options = {},
 ) {
 	const { now = new Date() } =
-		options && typeof options === "object" ? options : {};
+		options && typeof options === "object" && !Array.isArray(options)
+			? options
+			: {};
 
 	if (type === "estrus") {
 		const nextEstrusDate = parseDate(sourceDate);

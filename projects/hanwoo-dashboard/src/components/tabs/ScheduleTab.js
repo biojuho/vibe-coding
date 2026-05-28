@@ -59,7 +59,7 @@ function normalizeScheduleEvents(events) {
 	if (!Array.isArray(events)) return [];
 
 	return events
-		.filter((event) => event && typeof event === "object")
+		.filter((event) => event && typeof event === "object" && !Array.isArray(event))
 		.map((event, index) => ({
 			...event,
 			id: event.id ?? `schedule-${index}`,
@@ -79,12 +79,19 @@ function formatDaysLeftLabel(daysLeft) {
 	return daysLeft === 0 ? "오늘" : `${daysLeft}일 남음`;
 }
 
-export default function ScheduleTab({
-	events,
-	onCreateEvent,
-	onToggleEvent,
-	quickActionIntent = null,
-}) {
+function normalizeScheduleTabOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+export default function ScheduleTab(options = {}) {
+	const { events, onCreateEvent, onToggleEvent, quickActionIntent = null } =
+		normalizeScheduleTabOptions(options);
+	const handleCreateEvent =
+		typeof onCreateEvent === "function" ? onCreateEvent : async () => false;
+	const handleToggleEvent =
+		typeof onToggleEvent === "function" ? onToggleEvent : async () => false;
 	const [isAdding, setIsAdding] = useState(
 		() => quickActionIntent?.actionId === "add-schedule",
 	);
@@ -216,7 +223,7 @@ export default function ScheduleTab({
 		setIsSaving(true);
 
 		try {
-			const saved = await onCreateEvent(values);
+			const saved = await handleCreateEvent(values);
 			if (!saved || !isMountedRef.current) {
 				return;
 			}
@@ -244,7 +251,7 @@ export default function ScheduleTab({
 		setSavingEventId(event.id);
 
 		try {
-			await onToggleEvent(event.id, !event.isCompleted);
+			await handleToggleEvent(event.id, !event.isCompleted);
 		} finally {
 			completionInFlightRef.current = false;
 			if (isMountedRef.current) {

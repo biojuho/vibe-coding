@@ -1,13 +1,16 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
-export default function LegalDocumentLayout({
-	eyebrow,
-	title,
-	subtitle,
-	lastUpdated,
-	children,
-}) {
+function normalizeLegalDocumentLayoutOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+export default function LegalDocumentLayout(options = {}) {
+	const { eyebrow, title, subtitle, lastUpdated, children } =
+		normalizeLegalDocumentLayoutOptions(options);
+
 	return (
 		<div className="clay-shell">
 			<div className="clay-page-card p-6 md:p-8">

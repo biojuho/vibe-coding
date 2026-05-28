@@ -22,6 +22,12 @@ function toPositiveInteger(value, fallback) {
 	return Number.isFinite(amount) && amount > 0 ? Math.floor(amount) : fallback;
 }
 
+function normalizeFarmMetricOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
 const FEED_CATEGORY_KEYS = new Set([
 	"feed",
 	"feed-roughage",
@@ -47,7 +53,9 @@ function monthsBetween(start, end) {
 }
 
 function isFeedExpense(record) {
-	if (!record || typeof record !== "object") return false;
+	if (!record || typeof record !== "object" || Array.isArray(record)) {
+		return false;
+	}
 	const category =
 		typeof record.category === "string" ? record.category.toLowerCase() : null;
 	return category !== null && FEED_CATEGORY_KEYS.has(category);
@@ -77,12 +85,13 @@ function startOfMonth(date) {
  * the full window (windowMonths × activeCattleCount), not just the months with
  * records, so sporadic logging doesn't inflate the per-head cost.
  */
-export function estimateMonthlyFeedCostPerHead({
-	expenseRecords = [],
-	activeCattleCount = 0,
-	now = new Date(),
-	windowMonths = 6,
-} = {}) {
+export function estimateMonthlyFeedCostPerHead(options = {}) {
+	const {
+		expenseRecords = [],
+		activeCattleCount = 0,
+		now = new Date(),
+		windowMonths = 6,
+	} = normalizeFarmMetricOptions(options);
 	const safeWindowMonths = toPositiveInteger(windowMonths, 6);
 	if (
 		!Array.isArray(expenseRecords) ||
@@ -157,13 +166,14 @@ export function estimateMonthlyFeedCostPerHead({
  * we approximate gain as (saleWeight − birth-weight reference 40kg) over the
  * cattle's full life span, which is a coarse but conservative proxy.
  */
-export function estimateMonthlyWeightGainPerHead({
-	salesRecords = [],
-	cattleById = new Map(),
-	now = new Date(),
-	windowMonths = 12,
-	birthWeightKg = 40,
-} = {}) {
+export function estimateMonthlyWeightGainPerHead(options = {}) {
+	const {
+		salesRecords = [],
+		cattleById = new Map(),
+		now = new Date(),
+		windowMonths = 12,
+		birthWeightKg = 40,
+	} = normalizeFarmMetricOptions(options);
 	const safeWindowMonths = toPositiveInteger(windowMonths, 12);
 	if (!Array.isArray(salesRecords) || salesRecords.length === 0) {
 		return { estimate: null, sampleSize: 0 };
@@ -174,7 +184,8 @@ export function estimateMonthlyWeightGainPerHead({
 			? cattleById
 			: new Map(
 					Object.entries(cattleById ?? {}).filter(
-						([, value]) => value && typeof value === "object",
+						([, value]) =>
+							value && typeof value === "object" && !Array.isArray(value),
 					),
 				);
 
@@ -184,7 +195,7 @@ export function estimateMonthlyWeightGainPerHead({
 
 	const monthlyGains = [];
 	for (const sale of salesRecords) {
-		if (!sale || typeof sale !== "object") continue;
+		if (!sale || typeof sale !== "object" || Array.isArray(sale)) continue;
 		const saleDate = toValidDate(sale.saleDate);
 		if (!saleDate || saleDate < windowStart) continue;
 		const cattle = lookup.get(sale.cattleId);
@@ -229,14 +240,17 @@ export function estimateMonthlyWeightGainPerHead({
  *
  * Returns: { feedCostPerHead, weightGainPerHead, isCustomized, dataAge }
  */
-export function computeFarmAdjustments({
-	expenseRecords = [],
-	salesRecords = [],
-	cattleById = new Map(),
-	activeCattleCount = 0,
-	now = new Date(),
-	defaults: { defaultMonthlyFeedCost, defaultMonthlyWeightGain } = {},
-} = {}) {
+export function computeFarmAdjustments(options = {}) {
+	const {
+		expenseRecords = [],
+		salesRecords = [],
+		cattleById = new Map(),
+		activeCattleCount = 0,
+		now = new Date(),
+		defaults,
+	} = normalizeFarmMetricOptions(options);
+	const { defaultMonthlyFeedCost, defaultMonthlyWeightGain } =
+		normalizeFarmMetricOptions(defaults);
 	const feedCost = estimateMonthlyFeedCostPerHead({
 		expenseRecords,
 		activeCattleCount,

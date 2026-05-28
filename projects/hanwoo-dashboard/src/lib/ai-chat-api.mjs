@@ -26,6 +26,25 @@ function isAuthenticationError(error) {
 	return error?.name === "AuthenticationError";
 }
 
+function normalizeAiChatStreamOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+function normalizeAiChatRequestDeps(deps) {
+	return deps && typeof deps === "object" && !Array.isArray(deps) ? deps : {};
+}
+
+function hasRequiredAiChatDeps(deps) {
+	return (
+		typeof deps.authenticate === "function" &&
+		typeof deps.getApiKey === "function" &&
+		typeof deps.buildFarmContext === "function" &&
+		typeof deps.createChatStream === "function"
+	);
+}
+
 function parseMessage(value) {
 	if (typeof value !== "string") {
 		throw new AiChatValidationError("질문은 문자열로 입력해 주세요.");
@@ -61,7 +80,7 @@ export function normalizeAiChatHistory(history = []) {
 	}
 
 	return history.map((item, index) => {
-		if (!item || typeof item !== "object") {
+		if (!item || typeof item !== "object" || Array.isArray(item)) {
 			throw new AiChatValidationError(
 				`대화 이력 ${index + 1}번째 항목 형식이 올바르지 않습니다.`,
 			);
@@ -122,11 +141,12 @@ export async function parseAiChatRequest(request) {
 	};
 }
 
-export function createAiChatSseStream({
-	chat,
-	message,
-	encoder = new TextEncoder(),
-}) {
+export function createAiChatSseStream(options = {}) {
+	const {
+		chat,
+		message,
+		encoder = new TextEncoder(),
+	} = normalizeAiChatStreamOptions(options);
 	return new ReadableStream({
 		async start(controller) {
 			try {
@@ -157,13 +177,21 @@ export function createAiChatSseStream({
 }
 
 export async function handleAiChatRequest(request, deps) {
+	const safeDeps = normalizeAiChatRequestDeps(deps);
+	if (!hasRequiredAiChatDeps(safeDeps)) {
+		return jsonError(
+			"AI 梨꾪똿 ?ㅼ젙???щ컮瑜댁? ?딆뒿?덈떎. 愿由ъ옄?먭쾶 臾몄쓽??二쇱꽭??",
+			500,
+		);
+	}
+
 	const {
 		authenticate,
 		getApiKey,
 		buildFarmContext,
 		createChatStream,
 		systemInstruction,
-	} = deps;
+	} = safeDeps;
 
 	try {
 		await authenticate();

@@ -111,6 +111,41 @@ test("admin diagnostics numeric metrics are normalized before rendering", () => 
 	const source = readSource("components/admin/DiagnosticsPageClient.js");
 
 	assert.match(source, /import \{ toFiniteNumber \} from ["']@\/lib\/utils["'];/);
+	assert.match(source, /function normalizeDiagnosticsObject\(value\) \{/);
+	assert.match(
+		source,
+		/value && typeof value === "object" && !Array\.isArray\(value\) \? value : \{\}/,
+	);
+	assert.match(source, /function normalizeDiagnosticsStats\(value\) \{/);
+	assert.match(
+		source,
+		/const safeValue = normalizeDiagnosticsObject\(value\);/,
+	);
+	assert.match(
+		source,
+		/const safeDatabase = normalizeDiagnosticsObject\(safeValue\.database\);/,
+	);
+	assert.match(
+		source,
+		/const safeMemory = normalizeDiagnosticsObject\(safeValue\.memory\);/,
+	);
+	assert.match(
+		source,
+		/recordCounts: normalizeDiagnosticsObject\(safeDatabase\.recordCounts\),/,
+	);
+	assert.match(source, /setStats\(normalizeDiagnosticsStats\(result\)\);/);
+	assert.match(source, /function normalizeDiagnosticsMessage\(value\) \{/);
+	assert.match(
+		source,
+		/typeof value === "string" && value\.trim\(\) \? value : RETRY_MESSAGE/,
+	);
+	assert.match(source, /const safeResult = normalizeDiagnosticsObject\(result\);/);
+	assert.match(source, /if \(safeResult\.success\) \{/);
+	assert.match(source, /setRawData\(safeResult\.data \?\? null\);/);
+	assert.match(
+		source,
+		/description: normalizeDiagnosticsMessage\(safeResult\.message\),/,
+	);
 	assert.match(
 		source,
 		/Object\s*\.\s*entries\(\s*stats\s*\.\s*database\s*\.\s*recordCounts\s*\)\s*\.\s*map\(\s*\(\s*\[\s*key\s*,\s*value\s*\]\s*\)\s*=>\s*\[\s*key\s*,\s*toFiniteNumber\(\s*value\s*\)\s*,?\s*\]\s*\)/,
@@ -137,5 +172,32 @@ test("admin diagnostics numeric metrics are normalized before rendering", () => 
 	assert.doesNotMatch(
 		source,
 		/Math\.round\(stats\.memory\.heapTotal \/ 1024 \/ 1024\)/,
+	);
+	assert.doesNotMatch(source, /setStats\(result\)/);
+	assert.doesNotMatch(source, /if \(result\.success\)/);
+	assert.doesNotMatch(source, /setRawData\(result\.data\)/);
+	assert.doesNotMatch(source, /description: result\.message \|\| RETRY_MESSAGE/);
+});
+
+test("admin diagnostics status card options are normalized before rendering", () => {
+	const source = readSource("components/admin/DiagnosticsPageClient.js");
+
+	assert.match(source, /function normalizeStatusCardOptions\(options\) \{/);
+	assert.match(
+		source,
+		/options && typeof options === "object" && !Array\.isArray\(options\)/,
+	);
+	assert.match(source, /function StatusCard\(options = \{\}\) \{/);
+	assert.match(
+		source,
+		/const \{ title, value, sub, icon, status \} =\s+normalizeStatusCardOptions\(options\);/,
+	);
+	assert.match(
+		source,
+		/const style = STATUS_STYLES\[status\] \|\| STATUS_STYLES\.neutral;/,
+	);
+	assert.doesNotMatch(
+		source,
+		/function StatusCard\(\{ title, value, sub, icon, status \}\)/,
 	);
 });

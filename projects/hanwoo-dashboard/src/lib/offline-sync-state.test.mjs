@@ -58,6 +58,30 @@ test("createFailedQueueItemState ignores malformed item and options input", () =
 	assert.equal(typeof result.item.lastAttemptAt, "number");
 });
 
+test("offline queue failure state ignores array item and option fields", () => {
+	const item = [];
+	item.retryCount = 2;
+	const options = [];
+	options.errorMessage = "array error should be ignored";
+	options.attemptedAt = 1234;
+	options.permanent = true;
+
+	const metadata = normalizeOfflineQueueMetadata(item);
+	const result = createFailedQueueItemState(item, options);
+
+	assert.deepEqual(metadata, {
+		retryCount: 0,
+		lastAttemptAt: null,
+		lastError: null,
+		deadLetteredAt: null,
+	});
+	assert.equal(result.disposition, "retry");
+	assert.equal(result.item.retryCount, 1);
+	assert.equal(result.item.lastError, null);
+	assert.equal(result.item.deadLetteredAt, null);
+	assert.notEqual(result.item.lastAttemptAt, 1234);
+});
+
 test("createFailedQueueItemState dead-letters items that hit the retry cap", () => {
 	const result = createFailedQueueItemState(
 		{ id: "queue-2", retryCount: MAX_OFFLINE_SYNC_RETRIES - 1 },

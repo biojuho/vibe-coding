@@ -62,7 +62,7 @@ function normalizeStoredChecklist(value) {
 
 	const savedById = new Map(
 		value
-			.filter((item) => item && typeof item === "object")
+			.filter((item) => item && typeof item === "object" && !Array.isArray(item))
 			.map((item) => [item.id, item]),
 	);
 
@@ -127,13 +127,34 @@ function cancelFieldModeAnimationFrame(animationId) {
 	} catch {}
 }
 
-export default function FieldModeView({
-	cattleList = [],
-	buildings = [],
-	ensureAllCattleLoaded,
-	onSelect,
-	onCloseFieldMode,
-}) {
+function normalizeFieldModeViewOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+function normalizeFieldModeCattleList(cattleList) {
+	return Array.isArray(cattleList)
+		? cattleList.filter(
+				(cow) => cow && typeof cow === "object" && !Array.isArray(cow),
+			)
+		: [];
+}
+
+export default function FieldModeView(options = {}) {
+	const {
+		cattleList = [],
+		buildings = [],
+		ensureAllCattleLoaded,
+		onSelect,
+		onCloseFieldMode,
+	} = normalizeFieldModeViewOptions(options);
+	const safeCattleList = normalizeFieldModeCattleList(cattleList);
+	const handleEnsureAllCattleLoaded =
+		typeof ensureAllCattleLoaded === "function" ? ensureAllCattleLoaded : null;
+	const handleSelect = typeof onSelect === "function" ? onSelect : () => {};
+	const handleCloseFieldMode =
+		typeof onCloseFieldMode === "function" ? onCloseFieldMode : () => {};
 	const [searchQuery, setSearchQuery] = useState("");
 	const [isScannerOpen, setIsScannerOpen] = useState(false);
 	const [checklist, setChecklist] = useState(() => {
@@ -145,7 +166,7 @@ export default function FieldModeView({
 		return createFreshChecklist();
 	});
 	const [loadingAllCattle, setLoadingAllCattle] = useState(
-		!!ensureAllCattleLoaded,
+		Boolean(handleEnsureAllCattleLoaded),
 	);
 	const [showCelebration, setShowCelebration] = useState(false);
 	const celebrationCanvasRef = useRef(null);
@@ -161,8 +182,8 @@ export default function FieldModeView({
 		let cancelled = false;
 
 		// 1. Fetch all cattle registry in the background to enable global search
-		if (ensureAllCattleLoaded) {
-			ensureAllCattleLoaded({ silent: true })
+		if (handleEnsureAllCattleLoaded) {
+			handleEnsureAllCattleLoaded({ silent: true })
 				.catch(() => {})
 				.finally(() => {
 					if (!cancelled) {
@@ -203,7 +224,7 @@ export default function FieldModeView({
 		return () => {
 			cancelled = true;
 		};
-	}, [ensureAllCattleLoaded]);
+	}, [handleEnsureAllCattleLoaded]);
 
 	// Particle celebration effect for daily checklist 100% completion
 	useEffect(() => {
@@ -395,8 +416,9 @@ export default function FieldModeView({
 	const filteredCattle = useMemo(() => {
 		const q = searchQuery.trim().toLowerCase();
 		if (!q) return [];
+		const currentCattleList = normalizeFieldModeCattleList(cattleList);
 
-		return cattleList.filter((cow) => {
+		return currentCattleList.filter((cow) => {
 			const tagStr = String(cow.tagNumber || "");
 			const nameStr = String(cow.name || "").toLowerCase();
 
@@ -427,7 +449,8 @@ export default function FieldModeView({
 
 	// Total critical alerts mapping (calving and estrus)
 	const statsSummary = useMemo(() => {
-		const estrusCount = cattleList.filter((cow) => {
+		const currentCattleList = normalizeFieldModeCattleList(cattleList);
+		const estrusCount = currentCattleList.filter((cow) => {
 			if (!cow.lastEstrus) return false;
 			const days = Math.floor(
 				(new Date() - new Date(cow.lastEstrus)) / (1000 * 60 * 60 * 24),
@@ -435,7 +458,7 @@ export default function FieldModeView({
 			return days >= 19 && days <= 23; // standard estrus cycle alarm range
 		}).length;
 
-		const calvingCount = cattleList.filter(
+		const calvingCount = currentCattleList.filter(
 			(cow) => cow.status === "임신우",
 		).length;
 
@@ -478,7 +501,7 @@ export default function FieldModeView({
 					type="button"
 					onClick={() => {
 						playTactileClick();
-						onCloseFieldMode();
+						handleCloseFieldMode();
 					}}
 					aria-label="일반 대시보드 모드로 돌아가기"
 					title="일반 대시보드 모드로 돌아가기"
@@ -623,7 +646,7 @@ export default function FieldModeView({
 											type="button"
 											onClick={() => {
 												playTactileClick();
-												onSelect(cow);
+												handleSelect(cow);
 											}}
 											aria-label={`${cow.name} 개체 상세 보기, 이표번호 ${formatTagNumber(cow.tagNumber)}`}
 											title={`${cow.name} 개체 상세 보기, 이표번호 ${formatTagNumber(cow.tagNumber)}`}
@@ -799,7 +822,7 @@ export default function FieldModeView({
 							전체 사육개체
 						</div>
 						<div className="text-2xl font-black text-amber-300 mt-1 font-mono tracking-tight">
-							{cattleList.length}두
+							{safeCattleList.length}두
 						</div>
 						<div className="text-[10px] text-amber-500/60 mt-1">
 							이표 정보 기준 집계
@@ -830,8 +853,8 @@ export default function FieldModeView({
 			<EarTagScannerModal
 				isOpen={isScannerOpen}
 				onClose={() => setIsScannerOpen(false)}
-				cattleList={cattleList}
-				onSelect={onSelect}
+				cattleList={safeCattleList}
+				onSelect={handleSelect}
 			/>
 
 			{showCelebration && (

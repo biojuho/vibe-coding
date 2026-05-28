@@ -30,10 +30,15 @@ function revokeTemporaryDownloadUrl(downloadUrl) {
 	} catch {}
 }
 
-export default function ExcelExportButton({
-	cattleList = [],
-	resolveCattleList = null,
-}) {
+function normalizeExcelExportButtonOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+export default function ExcelExportButton(options = {}) {
+	const { cattleList = [], resolveCattleList = null } =
+		normalizeExcelExportButtonOptions(options);
 	const { notify } = useAppFeedback();
 	const [isPreparing, setIsPreparing] = useState(false);
 	const isMountedRef = useRef(false);

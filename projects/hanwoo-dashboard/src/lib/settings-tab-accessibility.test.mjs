@@ -201,11 +201,18 @@ test("settings diagnostics link exposes an explicit navigation label", () => {
 test("settings tab normalizes malformed building payloads before rendering", () => {
 	const source = readSource("components/tabs/SettingsTab.js");
 
+	assert.match(source, /function normalizeSettingsTabOptions\(options\) \{/);
+	assert.match(
+		source,
+		/options && typeof options === ["']object["'] && !Array\.isArray\(options\)/,
+	);
+	assert.match(source, /export default function SettingsTab\(options = \{\}\) \{/);
+	assert.match(source, /normalizeSettingsTabOptions\(options\);/);
 	assert.match(source, /function normalizeSettingsBuildings\(buildings\) \{/);
 	assert.match(source, /Array\.isArray\(buildings\)/);
 	assert.match(
 		source,
-		/\.filter\(\s*\(\s*building\s*\)\s*=>\s*building\s*&&\s*typeof\s*building\s*===\s*['"]object['"]\s*&&\s*building\.id\s*!=\s*null,?\s*\)/,
+		/\.filter\(\s*\(\s*building\s*\)\s*=>[\s\S]*?building\s*&&[\s\S]*?typeof\s*building\s*===\s*['"]object['"][\s\S]*?!Array\.isArray\(building\)[\s\S]*?building\.id\s*!=\s*null,?\s*\)/,
 	);
 	assert.match(
 		source,
@@ -218,10 +225,52 @@ test("settings tab normalizes malformed building payloads before rendering", () 
 	);
 	assert.match(
 		source,
-		/const safeBuildings = useMemo\(\s*\(\s*\)\s*=>\s*normalizeSettingsBuildings\(buildings\),\s*\[buildings\],?\s*\);/,
+		/const safeBuildings = normalizeSettingsBuildings\(buildings\);/,
 	);
 	assert.match(source, /\{safeBuildings\.map\(\(building\) => \{/);
+	assert.doesNotMatch(source, /export default function SettingsTab\(\{\s+buildings/);
 	assert.doesNotMatch(source, /\{buildings\.map\(\(building\) => \(/);
+});
+
+test("settings tab normalizes widget controls and callbacks before rendering", () => {
+	const source = readSource("components/tabs/SettingsTab.js");
+
+	assert.match(source, /function normalizeSettingsWidgetRegistry\(widgets\) \{/);
+	assert.match(
+		source,
+		/Array\.isArray\(widgets\)[\s\S]*?\? widgets\.filter\([\s\S]*?\(widget\) => widget && typeof widget === ["']object["'] && !Array\.isArray\(widget\)[\s\S]*?\)[\s\S]*?: \[\]/,
+	);
+	assert.match(source, /function normalizeSettingsWidgetVisible\(widgetVisible\) \{/);
+	assert.match(
+		source,
+		/typeof widgetVisible === ["']object["'][\s\S]*?!Array\.isArray\(widgetVisible\)[\s\S]*?\?\s*widgetVisible\s*:\s*\{\}/,
+	);
+	assert.match(
+		source,
+		/const safeWidgetRegistry = normalizeSettingsWidgetRegistry\(widgetRegistry\);/,
+	);
+	assert.match(
+		source,
+		/const safeWidgetVisible = normalizeSettingsWidgetVisible\(widgetVisible\);/,
+	);
+	assert.match(
+		source,
+		/const handleToggleTheme =\s*typeof onToggleTheme === ["']function["'] \? onToggleTheme : \(\) => \{\};/,
+	);
+	assert.match(
+		source,
+		/const handleToggleWidget =\s*typeof onToggleWidget === ["']function["'] \? onToggleWidget : \(\) => \{\};/,
+	);
+	assert.match(source, /onClick=\{handleToggleTheme\}/);
+	assert.match(source, /\{safeWidgetRegistry\.length > 0 \? \(/);
+	assert.match(source, /\{safeWidgetRegistry\.map\(\(widget\) => \{/);
+	assert.match(source, /const isOn = safeWidgetVisible\[widget\.id\] !== false;/);
+	assert.match(source, /onClick=\{\(\) => handleToggleWidget\(widget\.id\)\}/);
+	assert.doesNotMatch(source, /widgetRegistry\.length > 0/);
+	assert.doesNotMatch(source, /widgetRegistry\.map\(\(widget\) => \{/);
+	assert.doesNotMatch(source, /widgetVisible\[widget\.id\] !== false/);
+	assert.doesNotMatch(source, /onClick=\{onToggleTheme\}/);
+	assert.doesNotMatch(source, /onClick=\{\(\) => onToggleWidget\(widget\.id\)\}/);
 });
 
 test("settings forms expose explicit labels and invalid state", () => {
@@ -337,7 +386,12 @@ test("settings building form waits for async saves before re-enabling actions", 
 	);
 	assert.match(source, /buildingSaveInFlightRef\.current = true;/);
 	assert.match(source, /setIsSavingBuilding\(true\);/);
-	assert.match(source, /const saved = await onCreateBuilding\(values\);/);
+	assert.match(
+		source,
+		/const handleCreateBuilding =\s*typeof onCreateBuilding === ["']function["'] \? onCreateBuilding : async \(\) => false;/,
+	);
+	assert.match(source, /const saved = await handleCreateBuilding\(values\);/);
+	assert.doesNotMatch(source, /const saved = await onCreateBuilding\(values\);/);
 	assert.match(
 		source,
 		/if \(!saved \|\| !isMountedRef\.current\) \{\s+return;\s+\}/,
@@ -407,7 +461,12 @@ test("settings farm form waits for async saves before re-enabling submit", () =>
 	assert.match(source, /if \(farmSaveInFlightRef\.current\) \{\s+return;\s+\}/);
 	assert.match(source, /farmSaveInFlightRef\.current = true;/);
 	assert.match(source, /setIsSavingFarm\(true\);/);
-	assert.match(source, /await onUpdateFarmSettings\(values\);/);
+	assert.match(
+		source,
+		/const handleUpdateFarmSettings =\s*typeof onUpdateFarmSettings === ["']function["'][\s\S]*?\? onUpdateFarmSettings[\s\S]*?: async \(\) => false;/,
+	);
+	assert.match(source, /await handleUpdateFarmSettings\(values\);/);
+	assert.doesNotMatch(source, /await onUpdateFarmSettings\(values\);/);
 	assert.match(
 		source,
 		/finally \{\s+farmSaveInFlightRef\.current = false;\s+if \(isMountedRef\.current\) \{\s+setIsSavingFarm\(false\);/,
@@ -454,7 +513,7 @@ test("settings building delete action waits for async deletes before re-enabling
 
 	assert.match(
 		source,
-		/import \{ useEffect, useMemo, useRef, useState \} from ['"]react['"];/,
+		/import \{ useEffect, useRef, useState \} from ['"]react['"];/,
 	);
 	assert.match(
 		source,
@@ -483,7 +542,12 @@ test("settings building delete action waits for async deletes before re-enabling
 		/confirmLabel: "삭제"[\s\S]*?cancelLabel: "취소"/,
 	);
 	assert.match(source, /setDeletingBuildingId\(id\);/);
-	assert.match(source, /await onDeleteBuilding\(id\);/);
+	assert.match(
+		source,
+		/const handleDeleteBuildingAction =\s*typeof onDeleteBuilding === ["']function["'] \? onDeleteBuilding : async \(\) => false;/,
+	);
+	assert.match(source, /await handleDeleteBuildingAction\(id\);/);
+	assert.doesNotMatch(source, /await onDeleteBuilding\(id\);/);
 	assert.match(
 		source,
 		/finally \{\s+deleteBuildingInFlightRef\.current = false;\s+if \(isMountedRef\.current\) \{\s+setDeletingBuildingId\(null\);/,

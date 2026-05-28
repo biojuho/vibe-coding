@@ -4,7 +4,19 @@ import { RotateCcw, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useEffect } from "react";
 
-export default function RouteError({ error, reset }) {
+function normalizeRouteErrorOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+function normalizeRouteErrorReset(reset) {
+	return typeof reset === "function" ? reset : () => {};
+}
+
+export default function RouteError(options = {}) {
+	const { error, reset } = normalizeRouteErrorOptions(options);
+	const safeReset = normalizeRouteErrorReset(reset);
 	const resetButtonLabel = "화면 다시 불러오기";
 
 	useEffect(() => {
@@ -38,7 +50,7 @@ export default function RouteError({ error, reset }) {
 					<button
 						type="button"
 						className="login-submit"
-						onClick={() => reset()}
+						onClick={() => safeReset()}
 						aria-label={resetButtonLabel}
 						title={resetButtonLabel}
 					>

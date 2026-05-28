@@ -34,6 +34,10 @@ test("dashboard list page inputs are normalized before destructuring", () => {
 	const source = readSource("lib/dashboard/list-queries.js");
 
 	assert.match(source, /function normalizeObject\(value\) \{/);
+	assert.match(
+		source,
+		/value && typeof value === "object" && !Array\.isArray\(value\)/,
+	);
 	assert.match(source, /\} = normalizeObject\(input\);/);
 	assert.doesNotMatch(source, /\} = input;/);
 });

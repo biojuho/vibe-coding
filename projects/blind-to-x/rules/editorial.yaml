@@ -246,3 +246,26 @@ x_editorial_rules:
       - 허리
       - 야근
       - 출근길
+
+# Quality-gate detection patterns. Externalized from
+# pipeline/draft_quality_gate.py so editorial-only changes don't require a
+# code edit (T-1202, 2026-05-28). When a key is missing or yaml fails to
+# load, draft_quality_gate.py falls back to the historical hardcoded
+# constants — so deleting this section is safe (degrades to old behavior).
+quality_gate_patterns:
+  generic_cta_regex: '(여러분 생각은|어떻게 생각|어떠신가요|여러분은 어떻게|여러분도 그렇게 생각|공감하시나요)\??'
+  cliche_opening_regex: '(오늘은 .*이야기해보|많은 .* 고민하고 있|현실적으로|결론적으로|요즘 사람들|한번 생각해봅시다)'
+  closing_cta_regex: '(댓글로|저장해|공감하면|RT 부탁|리트윗 부탁|구독 부탁|팔로우 부탁|좋아요 부탁|한 수 알려|의견 알려|어떻게 생각|어떠신가요|공감되시면|아닐까요|아닐까\??$|않을까요|않을까\??$)'
+  influencer_vocab:
+  - 끝판왕
+  - 민낯
+  - 쓴맛
+  - 기절할 뻔
+  - 어처구니없
+  - 어질어질
+  - 한 수 알려
+  - 정신 차리고 봐
+  - 현실 자각 타임
+  - 팩폭
+  - 팩폭당
+  - 레전드

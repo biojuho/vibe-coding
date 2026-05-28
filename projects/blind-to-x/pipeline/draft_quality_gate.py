@@ -219,32 +219,26 @@ def _has_scene_anchor(text: str) -> bool:
     )
 
 
-def _has_generic_cta(text: str) -> bool:
-    return bool(
-        re.search(
-            r"(여러분 생각은|어떻게 생각|어떠신가요|여러분은 어떻게|여러분도 그렇게 생각|공감하시나요)\??",
-            text,
-        )
-    )
-
-
-def _has_cliche_opening(text: str) -> bool:
-    first_sentence = re.split(r"(?<=[.!?\n])\s+|\n+", text.strip(), maxsplit=1)[0]
-    return bool(
-        re.search(
-            r"(오늘은 .*이야기해보|많은 .* 고민하고 있|현실적으로|결론적으로|요즘 사람들|한번 생각해봅시다)",
-            first_sentence,
-        )
-    )
-
-
-# ── P1-A: 인플루언서 어휘 zero-tolerance ──────────────────────────────
+# ── YAML-overridable quality-gate patterns (T-1202) ───────────────────
+# Externalized to rules/editorial.yaml under `quality_gate_patterns`. Each
+# pattern falls back to the historical hardcoded value below if YAML is
+# missing/malformed, so deleting the YAML section is a safe no-op.
+_GENERIC_CTA_REGEX_DEFAULT = (
+    r"(여러분 생각은|어떻게 생각|어떠신가요|여러분은 어떻게|여러분도 그렇게 생각|공감하시나요)\??"
+)
+_CLICHE_OPENING_REGEX_DEFAULT = (
+    r"(오늘은 .*이야기해보|많은 .* 고민하고 있|현실적으로|결론적으로|요즘 사람들|한번 생각해봅시다)"
+)
+_CLOSING_CTA_REGEX_DEFAULT = (
+    r"(댓글로|저장해|공감하면|RT 부탁|리트윗 부탁|구독 부탁|팔로우 부탁|"
+    r"좋아요 부탁|한 수 알려|의견 알려|어떻게 생각|어떠신가요|"
+    r"공감되시면|아닐까요|아닐까\??$|않을까요|않을까\??$)"
+)
 # brand_voice yaml 의 "절대 금지" 목록과 동기화. 1회만 등장해도 톤이 깨지므로
 # cliche_watchlist (3개 임계) 와 별도로 즉시 실패시킨다.
-#
 # 의도적으로 제외한 어휘: "지뢰", "시그널" — 일상 어휘(지뢰밭, 매수 시그널)와
 # 충돌이 잦아 false positive 가 많다. 3회 이상 누적은 cliche_watchlist 가 잡는다.
-_INFLUENCER_VOCAB = (
+_INFLUENCER_VOCAB_DEFAULT: tuple[str, ...] = (
     "끝판왕",
     "민낯",
     "쓴맛",
@@ -258,6 +252,43 @@ _INFLUENCER_VOCAB = (
     "팩폭당",
     "레전드",
 )
+
+
+def _load_quality_gate_patterns() -> dict[str, Any]:
+    """Editorial-team-editable patterns from rules/editorial.yaml.
+
+    Missing/malformed YAML degrades gracefully — every consumer falls
+    back to the hardcoded historical default. Cached for the module's
+    lifetime; tests that need to mutate should reload via
+    `pipeline.rules_loader.reset_rules_cache()` then re-import.
+    """
+    try:
+        section = get_rule_section("quality_gate_patterns", {})
+    except Exception:
+        return {}
+    return section if isinstance(section, dict) else {}
+
+
+_QG_PATTERNS = _load_quality_gate_patterns()
+_GENERIC_CTA_REGEX = _QG_PATTERNS.get("generic_cta_regex") or _GENERIC_CTA_REGEX_DEFAULT
+_CLICHE_OPENING_REGEX = _QG_PATTERNS.get("cliche_opening_regex") or _CLICHE_OPENING_REGEX_DEFAULT
+_INFLUENCER_VOCAB: tuple[str, ...] = (
+    tuple(_QG_PATTERNS["influencer_vocab"])
+    if isinstance(_QG_PATTERNS.get("influencer_vocab"), list)
+    else _INFLUENCER_VOCAB_DEFAULT
+)
+
+
+def _has_generic_cta(text: str) -> bool:
+    return bool(re.search(_GENERIC_CTA_REGEX, text))
+
+
+def _has_cliche_opening(text: str) -> bool:
+    first_sentence = re.split(r"(?<=[.!?\n])\s+|\n+", text.strip(), maxsplit=1)[0]
+    return bool(re.search(_CLICHE_OPENING_REGEX, first_sentence))
+
+
+# ── P1-A: 인플루언서 어휘 zero-tolerance ──────────────────────────────
 
 
 def _find_influencer_vocab(text: str) -> list[str]:
@@ -277,11 +308,8 @@ def _find_influencer_vocab(text: str) -> list[str]:
 
 
 # ── P1-B: 마무리 여운 (마지막 문장이 CTA/질문으로 끝나지 않아야 함) ──
-_CLOSING_CTA_PATTERNS = re.compile(
-    r"(댓글로|저장해|공감하면|RT 부탁|리트윗 부탁|구독 부탁|팔로우 부탁|"
-    r"좋아요 부탁|한 수 알려|의견 알려|어떻게 생각|어떠신가요|"
-    r"공감되시면|아닐까요|아닐까\??$|않을까요|않을까\??$)"
-)
+# YAML-overridable via rules/editorial.yaml `quality_gate_patterns.closing_cta_regex`.
+_CLOSING_CTA_PATTERNS = re.compile(_QG_PATTERNS.get("closing_cta_regex") or _CLOSING_CTA_REGEX_DEFAULT)
 
 
 def _ends_with_cta_or_question(text: str) -> str | None:

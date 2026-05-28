@@ -49,7 +49,7 @@ function normalizeInventoryItems(inventory) {
 	if (!Array.isArray(inventory)) return [];
 
 	return inventory
-		.filter((item) => item && typeof item === "object")
+		.filter((item) => item && typeof item === "object" && !Array.isArray(item))
 		.map((item, index) => ({
 			...item,
 			category:
@@ -73,13 +73,22 @@ function normalizeInventoryItems(inventory) {
 		}));
 }
 
-export default function InventoryTab({
-	inventory,
-	onAddItem,
-	onUpdateQuantity,
-	quickActionIntent = null,
-}) {
+function normalizeInventoryTabOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+export default function InventoryTab(options = {}) {
+	const { inventory, onAddItem, onUpdateQuantity, quickActionIntent = null } =
+		normalizeInventoryTabOptions(options);
 	const safeInventory = normalizeInventoryItems(inventory);
+	const handleAddItem =
+		typeof onAddItem === "function" ? onAddItem : async () => false;
+	const handleUpdateQuantity =
+		typeof onUpdateQuantity === "function"
+			? onUpdateQuantity
+			: async () => false;
 	const [isAdding, setIsAdding] = useState(
 		() => quickActionIntent?.actionId === "add-inventory",
 	);
@@ -153,7 +162,7 @@ export default function InventoryTab({
 		setIsSaving(true);
 
 		try {
-			const saved = await onAddItem(values);
+			const saved = await handleAddItem(values);
 			if (!saved || !isMountedRef.current) {
 				return;
 			}
@@ -186,7 +195,7 @@ export default function InventoryTab({
 		setSavingQuantityId(id);
 
 		try {
-			const saved = await onUpdateQuantity(id, parsedQuantity);
+			const saved = await handleUpdateQuantity(id, parsedQuantity);
 			if (!saved || !isMountedRef.current) {
 				return;
 			}

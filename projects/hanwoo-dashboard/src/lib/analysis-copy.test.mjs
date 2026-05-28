@@ -73,9 +73,33 @@ test("analysis tab normalizes numeric inputs before financial and feed aggregati
 	);
 	assert.match(analysisSource, /function toMonthKey\(value\) \{/);
 	assert.match(analysisSource, /function normalizeAnalysisItems\(items\) \{/);
+	assert.match(analysisSource, /function normalizeKpiCardOptions\(options\) \{/);
+	assert.match(analysisSource, /function normalizeAnalysisTabOptions\(options\) \{/);
 	assert.match(
 		analysisSource,
-		/return Array\.isArray\(\s*items\s*\)\s*\?\s*items\s*\.\s*filter\(\s*\(\s*item\s*\)\s*=>\s*item\s*&&\s*typeof\s*item\s*===\s*["']object["']\s*\)\s*:\s*\[\s*\]\s*;?/,
+		/return Array\.isArray\(\s*items\s*\)[\s\S]*?items\s*\.\s*filter\([\s\S]*?item\s*&&\s*typeof\s*item\s*===\s*["']object["']\s*&&\s*!Array\.isArray\(item\)[\s\S]*?\)\s*:\s*\[\s*\]\s*;?/,
+	);
+	assert.match(
+		analysisSource,
+		/return options && typeof options === ["']object["'] && !Array\.isArray\(options\)\s*\?\s*options\s*:\s*\{\s*\}\s*;?/,
+	);
+	assert.match(analysisSource, /function KpiCard\(options = \{\}\) \{/);
+	assert.match(
+		analysisSource,
+		/const \{ title, value, icon, accent \} = normalizeKpiCardOptions\(options\);/,
+	);
+	assert.match(
+		analysisSource,
+		/export default function AnalysisTab\(options = \{\}\) \{/,
+	);
+	assert.match(analysisSource, /normalizeAnalysisTabOptions\(options\);/);
+	assert.doesNotMatch(
+		analysisSource,
+		/function KpiCard\(\{ title, value, icon, accent \}\)/,
+	);
+	assert.doesNotMatch(
+		analysisSource,
+		/export default function AnalysisTab\(\{\s+saleRecords = \[\],/,
 	);
 	assert.match(
 		analysisSource,
@@ -192,7 +216,24 @@ test("financial chart widget normalizes numeric inputs before chart aggregation"
 	assert.match(source, /function normalizeFinancialChartItems\(items\) \{/);
 	assert.match(
 		source,
-		/return Array\.isArray\(\s*items\s*\)\s*\?\s*items\s*\.\s*filter\(\s*\(\s*item\s*\)\s*=>\s*item\s*&&\s*typeof\s*item\s*===\s*["']object["']\s*\)\s*:\s*\[\s*\]\s*;?/,
+		/function normalizeFinancialChartWidgetOptions\(options\) \{/,
+	);
+	assert.match(
+		source,
+		/return Array\.isArray\(\s*items\s*\)[\s\S]*?items\s*\.\s*filter\([\s\S]*?item\s*&&\s*typeof\s*item\s*===\s*["']object["']\s*&&\s*!Array\.isArray\(item\)[\s\S]*?\)\s*:\s*\[\s*\]\s*;?/,
+	);
+	assert.match(
+		source,
+		/return options && typeof options === ["']object["'] && !Array\.isArray\(options\)\s*\?\s*options\s*:\s*\{\s*\}\s*;?/,
+	);
+	assert.match(
+		source,
+		/export default function FinancialChartWidget\(options = \{\}\) \{/,
+	);
+	assert.match(source, /normalizeFinancialChartWidgetOptions\(options\);/);
+	assert.doesNotMatch(
+		source,
+		/export default function FinancialChartWidget\(\{\s+saleRecords = \[\],/,
 	);
 	assert.match(
 		source,
@@ -266,6 +307,29 @@ test("financial chart widget normalizes numeric inputs before chart aggregation"
 		summarySource,
 		/import \{ toFiniteNumber \} from ["']\.\.\/utils["'];/,
 	);
+	assert.match(summarySource, /function normalizeSummaryOptions\(options\) \{/);
+	assert.match(
+		summarySource,
+		/return options && typeof options === ["']object["'] && !Array\.isArray\(options\)/,
+	);
+	assert.match(summarySource, /function normalizeSummaryRows\(rows\) \{/);
+	assert.match(
+		summarySource,
+		/return Array\.isArray\(rows\)[\s\S]*?rows\.filter\([\s\S]*?row && typeof row === ["']object["'] && !Array\.isArray\(row\)/,
+	);
+	assert.match(summarySource, /function resolveGeneratedAt\(value\) \{/);
+	assert.match(
+		summarySource,
+		/return Number\.isNaN\(date\.getTime\(\)\) \? new Date\(\) : date;/,
+	);
+	assert.match(
+		summarySource,
+		/function resolveFinancialSeriesMonthCount\(value\) \{/,
+	);
+	assert.match(
+		summarySource,
+		/return Number\.isSafeInteger\(value\) && value > 0 \? Math\.min\(value, 24\) : 6;/,
+	);
 	assert.match(
 		summarySource,
 		/const date\s*=\s*value\s*instanceof\s*Date\s*\?\s*new\s+Date\s*\(\s*value\s*\.\s*getTime\s*\(\s*\)\s*\)\s*:\s*new\s+Date\s*\(\s*value\s*\);?/,
@@ -282,6 +346,32 @@ test("financial chart widget normalizes numeric inputs before chart aggregation"
 		summarySource,
 		/const monthKey = toMonthKey\(record\.saleDate\);/,
 	);
+	assert.match(
+		summarySource,
+		/const safeSalesRecords = normalizeSummaryRows\(salesRecords\);/,
+	);
+	assert.match(
+		summarySource,
+		/const safeExpenseRecords = normalizeSummaryRows\(expenseRecords\);/,
+	);
+	assert.match(
+		summarySource,
+		/const safeGeneratedAt = resolveGeneratedAt\(generatedAt\);/,
+	);
+	assert.match(
+		summarySource,
+		/const monthCount = resolveFinancialSeriesMonthCount\(months\);/,
+	);
+	assert.match(summarySource, /for \(const record of safeSalesRecords\) \{/);
+	assert.match(summarySource, /for \(const record of safeExpenseRecords\) \{/);
+	assert.match(
+		summarySource,
+		/export async function buildDashboardSummaryPayload\(options = \{\}\) \{/,
+	);
+	assert.match(
+		summarySource,
+		/const \{ farmId = ["']default["'], client \} = normalizeSummaryOptions\(options\);/,
+	);
 	assert.match(summarySource, /const monthKey = toMonthKey\(record\.date\);/);
 	assert.match(summarySource, /if \(!monthKey\) continue;/);
 	assert.match(
@@ -294,11 +384,23 @@ test("financial chart widget normalizes numeric inputs before chart aggregation"
 	);
 	assert.match(
 		summarySource,
-		/const monthlySalesTotal = toFiniteNumber\(salesThisMonth\._sum\.price\);/,
+		/const monthlySalesTotal = toFiniteNumber\(salesThisMonth\?\._sum\?\.price\);/,
 	);
 	assert.match(
 		summarySource,
-		/const monthlyExpenseTotal = toFiniteNumber\(expensesThisMonth\._sum\.amount\);/,
+		/const monthlyExpenseTotal = toFiniteNumber\(expensesThisMonth\?\._sum\?\.amount\);/,
+	);
+	assert.match(
+		summarySource,
+		/const safeBuildings = normalizeSummaryRows\(buildings\);/,
+	);
+	assert.match(summarySource, /buildingCount: safeBuildings\.length/);
+	assert.match(summarySource, /buildingOccupancy: safeBuildings\.map/);
+	assert.doesNotMatch(summarySource, /for \(const record of salesRecords\) \{/);
+	assert.doesNotMatch(summarySource, /for \(const record of expenseRecords\) \{/);
+	assert.doesNotMatch(
+		summarySource,
+		/export async function buildDashboardSummaryPayload\(\{\s+farmId = ["']default["'],/,
 	);
 	assert.doesNotMatch(
 		summarySource,

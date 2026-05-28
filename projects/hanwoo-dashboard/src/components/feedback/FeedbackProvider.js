@@ -50,7 +50,20 @@ const DEFAULT_CONFIRMATION = {
 	variant: "default",
 };
 
-export function FeedbackProvider({ children }) {
+function normalizeFeedbackProviderOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+function normalizeToastOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+export function FeedbackProvider(options = {}) {
+	const { children } = normalizeFeedbackProviderOptions(options);
 	const [toasts, setToasts] = useState([]);
 	const [confirmation, setConfirmation] = useState(DEFAULT_CONFIRMATION);
 	const mountedRef = useRef(true);
@@ -72,11 +85,17 @@ export function FeedbackProvider({ children }) {
 	}, []);
 
 	const notify = useCallback(
-		({ title, description = "", variant = "info", duration = 3600 }) => {
+		(options = {}) => {
 			if (!mountedRef.current) {
 				return;
 			}
 
+			const {
+				title,
+				description = "",
+				variant = "info",
+				duration = 3600,
+			} = normalizeToastOptions(options);
 			const id = `toast_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 			setToasts((current) => [...current, { id, title, description, variant }]);
 

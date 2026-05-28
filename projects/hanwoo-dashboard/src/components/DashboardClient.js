@@ -215,7 +215,10 @@ function normalizeDashboardBuildings(buildings) {
 	return buildings
 		.filter(
 			(building) =>
-				building && typeof building === "object" && building.id != null,
+				building &&
+				typeof building === "object" &&
+				!Array.isArray(building) &&
+				building.id != null,
 		)
 		.map((building, index) => ({
 			...building,
@@ -237,7 +240,11 @@ function normalizeDashboardBuildings(buildings) {
 function normalizeDashboardItems(items) {
 	return Array.isArray(items)
 		? items.filter(
-				(item) => item && typeof item === "object" && item.id != null,
+				(item) =>
+					item &&
+					typeof item === "object" &&
+					!Array.isArray(item) &&
+					item.id != null,
 			)
 		: [];
 }
@@ -256,26 +263,93 @@ function normalizeDashboardCattleList(cattleItems) {
 function normalizeDashboardNotifications(notifications) {
 	return Array.isArray(notifications)
 		? notifications.filter(
-				(notification) => notification && typeof notification === "object",
+				(notification) =>
+					notification &&
+					typeof notification === "object" &&
+					!Array.isArray(notification),
 			)
 		: [];
 }
 
-export default function DashboardClient({
-	initialCattlePage,
-	initialSalesPage,
-	initialSummary,
-	initialNotifications,
-	initialFeedStandards,
-	initialInventory,
-	initialSchedule,
-	initialFeedHistory,
-	initialBuildings,
-	initialFarmSettings,
-	initialExpenses,
-	initialMarketPrice,
-	initialProfitability,
-}) {
+function normalizeDashboardClientOptions(options) {
+	const safeOptions =
+		options && typeof options === "object" && !Array.isArray(options) ? options : {};
+
+	return {
+		initialCattlePage: safeOptions.initialCattlePage,
+		initialSalesPage: safeOptions.initialSalesPage,
+		initialSummary: safeOptions.initialSummary,
+		initialNotifications: safeOptions.initialNotifications ?? [],
+		initialFeedStandards: safeOptions.initialFeedStandards ?? [],
+		initialInventory: safeOptions.initialInventory ?? [],
+		initialSchedule: safeOptions.initialSchedule ?? [],
+		initialFeedHistory: safeOptions.initialFeedHistory ?? [],
+		initialBuildings: safeOptions.initialBuildings ?? [],
+		initialFarmSettings: safeOptions.initialFarmSettings ?? {},
+		initialExpenses: safeOptions.initialExpenses ?? [],
+		initialMarketPrice: safeOptions.initialMarketPrice ?? null,
+		initialProfitability: safeOptions.initialProfitability ?? null,
+	};
+}
+
+function normalizeFullListLoadOptions(options) {
+	const safeOptions =
+		options && typeof options === "object" && !Array.isArray(options) ? options : {};
+
+	return {
+		silent: safeOptions.silent === true,
+	};
+}
+
+function normalizeDashboardHelperOptions(options) {
+	const safeOptions =
+		options && typeof options === "object" && !Array.isArray(options) ? options : {};
+
+	return {
+		items: safeOptions.items ?? [],
+		buildings: safeOptions.buildings ?? [],
+		cattleList: safeOptions.cattleList ?? [],
+		onOpenNotifications:
+			typeof safeOptions.onOpenNotifications === "function"
+				? safeOptions.onOpenNotifications
+				: () => {},
+		onNavigate:
+			typeof safeOptions.onNavigate === "function"
+				? safeOptions.onNavigate
+				: () => {},
+		onAction:
+			typeof safeOptions.onAction === "function" ? safeOptions.onAction : () => {},
+		progress: safeOptions.progress ?? null,
+		buildingId: safeOptions.buildingId,
+		penId: safeOptions.penId,
+		onSelect:
+			typeof safeOptions.onSelect === "function" ? safeOptions.onSelect : () => {},
+		onCreateEvent: safeOptions.onCreateEvent,
+	};
+}
+
+function normalizeDashboardHelperItems(items) {
+	return Array.isArray(items)
+		? items.filter((item) => item && typeof item === "object" && !Array.isArray(item) && item.id != null)
+		: [];
+}
+
+export default function DashboardClient(options = {}) {
+	const {
+		initialCattlePage,
+		initialSalesPage,
+		initialSummary,
+		initialNotifications,
+		initialFeedStandards,
+		initialInventory,
+		initialSchedule,
+		initialFeedHistory,
+		initialBuildings,
+		initialFarmSettings,
+		initialExpenses,
+		initialMarketPrice,
+		initialProfitability,
+	} = normalizeDashboardClientOptions(options);
 	const router = useRouter();
 	const { theme, toggleTheme } = useTheme();
 	const { notify, confirm } = useAppFeedback();
@@ -533,7 +607,9 @@ export default function DashboardClient({
 	);
 
 	const ensureAllCattleLoaded = useCallback(
-		async ({ silent = false } = {}) => {
+		async (options = {}) => {
+			const { silent = false } = normalizeFullListLoadOptions(options);
+
 			if (Array.isArray(allCattleRegistry)) {
 				return allCattleRegistry;
 			}
@@ -575,7 +651,9 @@ export default function DashboardClient({
 	);
 
 	const ensureAllSalesLoaded = useCallback(
-		async ({ silent = false } = {}) => {
+		async (options = {}) => {
+			const { silent = false } = normalizeFullListLoadOptions(options);
+
 			if (Array.isArray(allSalesLedger)) {
 				return allSalesLedger;
 			}
@@ -2166,19 +2244,25 @@ export default function DashboardClient({
 	);
 }
 
-function TodayFocusPanel({ items, onOpenNotifications, onNavigate }) {
-	if (!items.length) {
+function TodayFocusPanel(options = {}) {
+	const { items, onOpenNotifications, onNavigate } = normalizeDashboardHelperOptions(options);
+	const visibleItems = normalizeDashboardHelperItems(items);
+	const handleNavigate = typeof onNavigate === "function" ? onNavigate : () => {};
+	const handleOpenNotifications =
+		typeof onOpenNotifications === "function" ? onOpenNotifications : () => {};
+
+	if (!visibleItems.length) {
 		return null;
 	}
 
 	const handleClick = (item) => {
 		if (item.type === "alert") {
-			onOpenNotifications();
+			handleOpenNotifications();
 			return;
 		}
 
 		if (item.targetTab) {
-			onNavigate(item.targetTab);
+			handleNavigate(item.targetTab);
 		}
 	};
 
@@ -2194,11 +2278,13 @@ function TodayFocusPanel({ items, onOpenNotifications, onNavigate }) {
 						오늘 바로 볼 일
 					</h2>
 				</div>
-				<div className="today-focus-count">{items.length}개</div>
+				<div className="today-focus-count">
+					{visibleItems.length}개
+				</div>
 			</div>
 
 			<div className="today-focus-grid">
-				{items.map((item) => {
+				{visibleItems.map((item) => {
 					const Icon = FOCUS_ICON_BY_TYPE[item.type] || ClipboardList;
 					const focusItemLabel = `${item.title} - ${item.detail} (${item.meta})`;
 
@@ -2228,7 +2314,11 @@ function TodayFocusPanel({ items, onOpenNotifications, onNavigate }) {
 }
 
 /** 칸 상세 뷰 — filter 1회로 렌더/빈칸 분기 처리 */
-function QuickActionPanel({ actions, onAction }) {
+function QuickActionPanel(options = {}) {
+	const { actions, onAction } = normalizeDashboardHelperOptions(options);
+	const visibleActions = normalizeDashboardHelperItems(actions);
+	const handleAction = typeof onAction === "function" ? onAction : () => {};
+
 	return (
 		<section
 			className="quick-action-panel animate-fadeInUp"
@@ -2245,7 +2335,7 @@ function QuickActionPanel({ actions, onAction }) {
 			</div>
 
 			<div className="quick-action-grid">
-				{actions.map((action) => {
+				{visibleActions.map((action) => {
 					const Icon = action.icon;
 					const quickActionLabel = `${action.label} - ${action.detail}`;
 
@@ -2254,7 +2344,7 @@ function QuickActionPanel({ actions, onAction }) {
 							key={action.id}
 							type="button"
 							className={`quick-action-button quick-action-${action.tone}`}
-							onClick={() => onAction(action)}
+							onClick={() => handleAction(action)}
 							aria-label={quickActionLabel}
 							title={quickActionLabel}
 						>
@@ -2281,22 +2371,46 @@ const SETUP_ICON_BY_ID = {
 	schedule: CalendarDays,
 };
 
-function SetupProgressPanel({ progress, onNavigate, onAction }) {
-	if (!progress || progress.percent === 100) {
+function SetupProgressPanel(options = {}) {
+	const { progress, onNavigate, onAction } = normalizeDashboardHelperOptions(options);
+	const safeProgress = {
+		percent: progress && typeof progress === "object" ? progress.percent : 0,
+		completed: progress && typeof progress === "object" ? progress.completed : 0,
+		total: progress && typeof progress === "object" ? progress.total : 0,
+		items: progress && typeof progress === "object" ? progress.items : [],
+	};
+	const progressItems = normalizeDashboardHelperItems(safeProgress.items);
+	const progressPercent = Math.min(
+		100,
+		Math.max(0, toFiniteNumber(safeProgress.percent)),
+	);
+	const progressCompleted = Math.max(
+		0,
+		Math.floor(toFiniteNumber(safeProgress.completed, progressItems.length)),
+	);
+	const progressTotal = Math.max(
+		0,
+		Math.floor(toFiniteNumber(safeProgress.total, progressItems.length)),
+	);
+	const handleNavigate =
+		typeof onNavigate === "function" ? onNavigate : () => {};
+	const handleAction = typeof onAction === "function" ? onAction : () => {};
+
+	if (!progressItems.length || progressPercent === 100) {
 		return null;
 	}
 
 	const handleItemClick = (item) => {
 		if (item.actionId) {
-			onAction({ id: item.actionId, targetTab: item.targetTab });
+			handleAction({ id: item.actionId, targetTab: item.targetTab });
 			return;
 		}
 
 		if (item.targetTab) {
-			onNavigate(item.targetTab);
+			handleNavigate(item.targetTab);
 		}
 	};
-	const setupProgressLabel = `운영 준비도 ${progress.percent}% (${progress.completed}/${progress.total})`;
+	const setupProgressLabel = `운영 준비도 ${progressPercent}% (${progressCompleted}/${progressTotal})`;
 	const setupProgressTrackLabel = "운영 준비도 진행률";
 
 	return (
@@ -2316,7 +2430,7 @@ function SetupProgressPanel({ progress, onNavigate, onAction }) {
 					aria-label={setupProgressLabel}
 					title={setupProgressLabel}
 				>
-					{progress.completed}/{progress.total}
+					{progressCompleted}/{progressTotal}
 				</div>
 			</div>
 
@@ -2326,15 +2440,15 @@ function SetupProgressPanel({ progress, onNavigate, onAction }) {
 				aria-label={setupProgressTrackLabel}
 				aria-valuemin={0}
 				aria-valuemax={100}
-				aria-valuenow={progress.percent}
+				aria-valuenow={progressPercent}
 				aria-valuetext={setupProgressLabel}
 				title={setupProgressLabel}
 			>
-				<span style={{ width: `${progress.percent}%` }} />
+				<span style={{ width: `${progressPercent}%` }} />
 			</div>
 
 			<div className="setup-progress-list">
-				{progress.items.map((item) => {
+				{progressItems.map((item) => {
 					const Icon = SETUP_ICON_BY_ID[item.id] || ClipboardList;
 					const setupItemLabel = `${item.title} ${item.done ? "완료됨" : "미완료"}, ${item.detail}`;
 
@@ -2369,8 +2483,13 @@ function SetupProgressPanel({ progress, onNavigate, onAction }) {
 	);
 }
 
-function PenCattleList({ cattleList, buildingId, penId, onSelect }) {
-	const penCattle = cattleList.filter(
+function PenCattleList(options = {}) {
+	const { cattleList, buildingId, penId, onSelect } =
+		normalizeDashboardHelperOptions(options);
+	const visibleCattle = normalizeDashboardHelperItems(cattleList);
+	const handleSelect = typeof onSelect === "function" ? onSelect : () => {};
+
+	const penCattle = visibleCattle.filter(
 		(cow) => cow.buildingId === buildingId && cow.penNumber === penId,
 	);
 
@@ -2381,7 +2500,7 @@ function PenCattleList({ cattleList, buildingId, penId, onSelect }) {
 					<CattleRow
 						key={cow.id}
 						cow={cow}
-						onClick={onSelect}
+						onClick={handleSelect}
 						delay={index * 50}
 						draggable
 					/>

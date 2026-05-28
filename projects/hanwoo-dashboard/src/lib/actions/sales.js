@@ -14,12 +14,28 @@ import {
 // Sales Actions
 // ============================================================
 
+function isSalesActionRow(value) {
+	return (
+		value !== null &&
+		typeof value === "object" &&
+		!Array.isArray(value)
+	);
+}
+
+function normalizeSalesActionRows(rows) {
+	return Array.isArray(rows)
+		? rows.filter((row) => isSalesActionRow(row))
+		: [];
+}
+
 export async function getSalesRecords() {
 	await requireAuthenticatedSession();
 	try {
-		const sales = await prisma.salesRecord.findMany({
-			orderBy: { saleDate: "desc" },
-		});
+		const sales = normalizeSalesActionRows(
+			await prisma.salesRecord.findMany({
+				orderBy: { saleDate: "desc" },
+			}),
+		);
 		return sales;
 	} catch (error) {
 		console.error("Failed to fetch sales:", error);

@@ -12,8 +12,16 @@ const SelectGroup = SelectPrimitive.Group;
 
 const SelectValue = SelectPrimitive.Value;
 
-const SelectTrigger = React.forwardRef(
-	({ className, children, ...props }, ref) => (
+function normalizeSelectOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+const SelectTrigger = React.forwardRef((options, ref) => {
+	const { className, children, ...props } = normalizeSelectOptions(options);
+
+	return (
 		<SelectPrimitive.Trigger
 			ref={ref}
 			className={cn(
@@ -27,12 +35,15 @@ const SelectTrigger = React.forwardRef(
 				<ChevronDown className="h-4 w-4 opacity-50" aria-hidden="true" />
 			</SelectPrimitive.Icon>
 		</SelectPrimitive.Trigger>
-	),
-);
+	);
+});
 SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;
 
-const SelectContent = React.forwardRef(
-	({ className, children, position = "popper", ...props }, ref) => (
+const SelectContent = React.forwardRef((options, ref) => {
+	const { className, children, position = "popper", ...props } =
+		normalizeSelectOptions(options);
+
+	return (
 		<SelectPrimitive.Portal>
 			<SelectPrimitive.Content
 				ref={ref}
@@ -62,12 +73,14 @@ const SelectContent = React.forwardRef(
 				</SelectPrimitive.ScrollDownButton>
 			</SelectPrimitive.Content>
 		</SelectPrimitive.Portal>
-	),
-);
+	);
+});
 SelectContent.displayName = SelectPrimitive.Content.displayName;
 
-const SelectItem = React.forwardRef(
-	({ className, children, ...props }, ref) => (
+const SelectItem = React.forwardRef((options, ref) => {
+	const { className, children, ...props } = normalizeSelectOptions(options);
+
+	return (
 		<SelectPrimitive.Item
 			ref={ref}
 			className={cn(
@@ -84,26 +97,34 @@ const SelectItem = React.forwardRef(
 
 			<SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
 		</SelectPrimitive.Item>
-	),
-);
+	);
+});
 SelectItem.displayName = SelectPrimitive.Item.displayName;
 
-const SelectSeparator = React.forwardRef(({ className, ...props }, ref) => (
-	<SelectPrimitive.Separator
-		ref={ref}
-		className={cn("-mx-1 my-1 h-px bg-muted", className)}
-		{...props}
-	/>
-));
+const SelectSeparator = React.forwardRef((options, ref) => {
+	const { className, ...props } = normalizeSelectOptions(options);
+
+	return (
+		<SelectPrimitive.Separator
+			ref={ref}
+			className={cn("-mx-1 my-1 h-px bg-muted", className)}
+			{...props}
+		/>
+	);
+});
 SelectSeparator.displayName = SelectPrimitive.Separator.displayName;
 
-const SelectLabel = React.forwardRef(({ className, ...props }, ref) => (
-	<SelectPrimitive.Label
-		ref={ref}
-		className={cn("py-1.5 pl-8 pr-2 text-sm font-semibold", className)}
-		{...props}
-	/>
-));
+const SelectLabel = React.forwardRef((options, ref) => {
+	const { className, ...props } = normalizeSelectOptions(options);
+
+	return (
+		<SelectPrimitive.Label
+			ref={ref}
+			className={cn("py-1.5 pl-8 pr-2 text-sm font-semibold", className)}
+			{...props}
+		/>
+	);
+});
 SelectLabel.displayName = SelectPrimitive.Label.displayName;
 
 export {

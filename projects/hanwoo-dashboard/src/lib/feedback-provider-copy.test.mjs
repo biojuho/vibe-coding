@@ -14,6 +14,19 @@ function readSource(relativePath) {
 test("feedback toasts expose live-region semantics and Korean dismiss labels", () => {
 	const source = readSource("components/feedback/FeedbackProvider.js");
 
+	assert.match(
+		source,
+		/function normalizeFeedbackProviderOptions\(options\) \{/,
+	);
+	assert.match(
+		source,
+		/function normalizeToastOptions\(options\) \{/,
+	);
+	assert.match(source, /export function FeedbackProvider\(options = \{\}\)/);
+	assert.match(
+		source,
+		/const \{ children \} = normalizeFeedbackProviderOptions\(options\);/,
+	);
 	assert.match(source, /const mountedRef = useRef\(true\);/);
 	assert.match(
 		source,
@@ -37,6 +50,12 @@ test("feedback toasts expose live-region semantics and Korean dismiss labels", (
 		source,
 		/window\.setTimeout\(\(\) => \{\s+timeoutIdsRef\.current\.delete\(id\);\s+if \(mountedRef\.current\) \{\s+dismiss\(id\);/,
 	);
+	assert.match(source, /const \{\s+title,\s+description = "",\s+variant = "info",\s+duration = 3600,\s+\} = normalizeToastOptions\(options\);/);
+	assert.doesNotMatch(source, /export function FeedbackProvider\(\{ children \}\)/);
+	assert.doesNotMatch(
+		source,
+		/\(\{ title, description = "", variant = "info", duration = 3600 \}\) => \{/,
+	);
 	assert.match(
 		source,
 		/console\.error\(["']Failed to schedule feedback toast dismissal:/,
@@ -59,7 +78,7 @@ test("feedback provider ignores stale unmounted callbacks", () => {
 	);
 	assert.match(
 		source,
-		/if \(!mountedRef\.current\) \{\s+return;\s+\}\s+const id = `toast_/,
+		/if \(!mountedRef\.current\) \{\s+return;\s+\}\s+const \{\s+title,\s+description = "",\s+variant = "info",\s+duration = 3600,\s+\} = normalizeToastOptions\(options\);\s+const id = `toast_/,
 	);
 	assert.match(
 		source,
@@ -90,13 +109,19 @@ test("feedback provider ignores stale unmounted callbacks", () => {
 test("shared Button defaults to safe non-submit semantics", () => {
 	const source = readSource("components/ui/button.js");
 
+	assert.match(source, /function normalizeButtonOptions\(options\) \{/);
 	assert.match(
 		source,
-		/type=\{asChild \? undefined : \(type \?\? "button"\)\}/,
+		/return options && typeof options === "object" && !Array\.isArray\(options\)\s+\? options\s+:\s+\{\};/,
+	);
+	assert.match(source, /const Button = React\.forwardRef\(\(options, ref\) => \{/);
+	assert.match(
+		source,
+		/const \{ className, variant, size, asChild = false, type, \.\.\.props \} =\s+normalizeButtonOptions\(options\);/,
 	);
 	assert.match(
 		source,
-		/\(\{ className, variant, size, asChild = false, type, \.\.\.props \}/,
+		/type=\{asChild \? undefined : \(type \?\? "button"\)\}/,
 	);
 });
 

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAuthenticatedSession } from "@/lib/auth-guard";
+import { toFiniteNumber } from "@/lib/utils";
 import { validateExpenseRecordInput } from "../action-validation.mjs";
 import {
 	createOutboxEvent,
@@ -13,6 +14,14 @@ import {
 // ============================================================
 // Expense Actions
 // ============================================================
+
+function isPlainObject(value) {
+	return (
+		value !== null &&
+		typeof value === "object" &&
+		!Array.isArray(value)
+	);
+}
 
 function parseOptionalDateFilter(value) {
 	if (!value) {
@@ -39,25 +48,38 @@ function parseOptionalDateFilter(value) {
 	return null;
 }
 
+function normalizeExpenseRows(expenses) {
+	return Array.isArray(expenses)
+		? expenses.filter((expense) => isPlainObject(expense))
+		: [];
+}
+
+function normalizeExpenseCategory(value) {
+	return typeof value === "string" && value.trim() ? value.trim() : "Other";
+}
+
 export async function getExpenseRecords(filters = {}) {
 	await requireAuthenticatedSession();
 	try {
+		const safeFilters = isPlainObject(filters) ? filters : {};
 		const where = {};
-		if (filters.cattleId) where.cattleId = filters.cattleId;
-		if (filters.buildingId) where.buildingId = filters.buildingId;
-		if (filters.category) where.category = filters.category;
-		const fromDate = parseOptionalDateFilter(filters.fromDate);
-		const toDate = parseOptionalDateFilter(filters.toDate);
+		if (safeFilters.cattleId) where.cattleId = safeFilters.cattleId;
+		if (safeFilters.buildingId) where.buildingId = safeFilters.buildingId;
+		if (safeFilters.category) where.category = safeFilters.category;
+		const fromDate = parseOptionalDateFilter(safeFilters.fromDate);
+		const toDate = parseOptionalDateFilter(safeFilters.toDate);
 		if (fromDate || toDate) {
 			where.date = {};
 			if (fromDate) where.date.gte = fromDate;
 			if (toDate) where.date.lte = toDate;
 		}
 
-		return await prisma.expenseRecord.findMany({
-			where,
-			orderBy: { date: "desc" },
-		});
+		return normalizeExpenseRows(
+			await prisma.expenseRecord.findMany({
+				where,
+				orderBy: { date: "desc" },
+			}),
+		);
 	} catch (error) {
 		console.error("Failed to fetch expenses:", error);
 		return [];
@@ -118,10 +140,12 @@ export async function createExpenseRecord(data) {
 export async function getExpenseAggregation() {
 	await requireAuthenticatedSession();
 	try {
-		const expenses = await prisma.expenseRecord.findMany();
+		const expenses = normalizeExpenseRows(await prisma.expenseRecord.findMany());
 		const byCategory = {};
-		expenses.forEach((e) => {
-			byCategory[e.category] = (byCategory[e.category] || 0) + e.amount;
+		expenses.forEach((expense) => {
+			const category = normalizeExpenseCategory(expense.category);
+			byCategory[category] =
+				(byCategory[category] || 0) + toFiniteNumber(expense.amount);
 		});
 		return byCategory;
 	} catch (error) {

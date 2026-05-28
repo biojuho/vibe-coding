@@ -97,6 +97,36 @@ test("AI chat widget handles Korean configuration errors and exposes an accessib
 	assert.doesNotMatch(source, /panelRef\.current\?\.focus\(\)/);
 	assert.doesNotMatch(source, />AI\s*<\/button>/);
 	assert.doesNotMatch(source, /aria-label="Send"/);
+	assert.match(source, /function normalizeStreamChatOptions\(options\) \{/);
+	assert.match(
+		source,
+		/options && typeof options === ["']object["'] && !Array\.isArray\(options\)/,
+	);
+	assert.match(source, /async function streamChat\(options = \{\}\) \{/);
+	assert.match(source, /\} = normalizeStreamChatOptions\(options\);/);
+	assert.match(
+		source,
+		/const handleChunk = typeof onChunk === ["']function["'] \? onChunk : \(\) => \{\};/,
+	);
+	assert.match(
+		source,
+		/const handleDone = typeof onDone === ["']function["'] \? onDone : \(\) => \{\};/,
+	);
+	assert.match(
+		source,
+		/const handleError = typeof onError === ["']function["'] \? onError : \(\) => \{\};/,
+	);
+	assert.match(source, /handleDone\(\);/);
+	assert.match(source, /handleError\(parsed\.error\);/);
+	assert.match(source, /handleChunk\(parsed\.text\);/);
+	assert.match(source, /handleError\(CHAT_CONNECTION_ERROR_MESSAGE\);/);
+	assert.doesNotMatch(
+		source,
+		/async function streamChat\(\{\s+message,/,
+	);
+	assert.doesNotMatch(source, /onError\(parsed\.error\);/);
+	assert.doesNotMatch(source, /onChunk\(parsed\.text\);/);
+	assert.doesNotMatch(source, /onDone\(\);/);
 	assert.doesNotMatch(source, /onError\(error\.message/);
 });
 
@@ -137,5 +167,25 @@ test("AI chat send action is disabled until a question is ready", () => {
 	assert.match(
 		source,
 		/if \(isMountedRef\.current && abortRef\.current === controller\) \{/,
+	);
+});
+
+test("AI chat route normalizes Gemini stream helper options before provider setup", () => {
+	const route = readSource("app/api/ai/chat/route.js");
+
+	assert.match(route, /function normalizeGeminiChatStreamOptions\(options\) \{/);
+	assert.match(
+		route,
+		/options && typeof options === ["']object["'] && !Array\.isArray\(options\)/,
+	);
+	assert.match(route, /function createGeminiChatStream\(options = \{\}\) \{/);
+	assert.match(
+		route,
+		/\} = normalizeGeminiChatStreamOptions\(options\);/,
+	);
+	assert.match(route, /return createAiChatSseStream\(\{ chat, message \}\);/);
+	assert.doesNotMatch(
+		route,
+		/function createGeminiChatStream\(\{\s+apiKey,/,
 	);
 });

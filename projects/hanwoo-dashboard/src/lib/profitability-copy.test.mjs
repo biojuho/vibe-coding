@@ -96,6 +96,39 @@ test("profitability service normalizes dates and numeric inputs before estimatin
 	);
 });
 
+test("profitability service normalizes DB row collections before calculations", () => {
+	const source = readSource("lib/dashboard/profitability-service.js");
+
+	assert.match(source, /function isProfitabilityServiceRow\(value\) \{/);
+	assert.match(
+		source,
+		/return value !== null && typeof value === ["']object["'] && !Array\.isArray\(value\);/,
+	);
+	assert.match(source, /function normalizeProfitabilityServiceRows\(rows\) \{/);
+	assert.match(
+		source,
+		/return Array\.isArray\(rows\)\s*\?\s*rows\.filter\(\(row\) => isProfitabilityServiceRow\(row\)\)\s*:\s*\[\];/,
+	);
+	assert.match(
+		source,
+		/const activeCattle = normalizeProfitabilityServiceRows\(\s*await prisma\.cattle\.findMany\(\{/,
+	);
+	assert.match(
+		source,
+		/const \[recentFeedExpenses, recentSales\] = await Promise\.all\(\[\s*prisma\.expenseRecord/,
+	);
+	assert.match(source, /\.then\(normalizeProfitabilityServiceRows\)/);
+	assert.match(source, /const soldCattle = soldCattleIds\.length/);
+	assert.match(
+		source,
+		/normalizeProfitabilityServiceRows\([\s\S]*?await prisma\.cattle\.findMany\([\s\S]*?\.catch\(\(\) => \[\]\)/,
+	);
+	assert.match(
+		source,
+		/const soldCattleById = new Map\(soldCattle\.map\(\(cow\) => \[cow\.id, cow\]\)\);/,
+	);
+});
+
 test("profitability widget renders the error message verbatim", () => {
 	const source = readSource("components/widgets/ProfitabilityWidget.js");
 
@@ -168,7 +201,7 @@ test("profitability widget normalizes recommendation collection payloads before 
 	assert.match(source, /return Array\.isArray\(data\)/);
 	assert.match(
 		source,
-		/\.filter\(\(item\) => item && typeof item === ["']object["']\)/,
+		/\.filter\([\s\S]*?\(item\) => item && typeof item === ["']object["'] && !Array\.isArray\(item\)[\s\S]*?\)/,
 	);
 	assert.match(source, /id: item\.id \?\? `profitability-item-\$\{index\}`/);
 	assert.match(
@@ -179,6 +212,29 @@ test("profitability widget normalizes recommendation collection payloads before 
 	assert.match(source, /visibleData\.map\(\(rawItem\) =>/);
 	assert.doesNotMatch(source, /!data \|\| data\.length === 0/);
 	assert.doesNotMatch(source, /data\.map\(\(rawItem\) =>/);
+});
+
+test("profitability widget normalizes malformed top-level props before rendering", () => {
+	const source = readSource("components/widgets/ProfitabilityWidget.js");
+
+	assert.match(source, /function normalizeProfitabilityWidgetOptions\(options\) \{/);
+	assert.match(
+		source,
+		/options && typeof options === "object" && !Array\.isArray\(options\)/,
+	);
+	assert.match(source, /export function ProfitabilityWidget\(options = \{\}\) \{/);
+	assert.match(
+		source,
+		/const \{ data, isLoading, error, meta = null \} =\s*normalizeProfitabilityWidgetOptions\(options\);/,
+	);
+	assert.match(
+		source,
+		/const visibleData = normalizeProfitabilityItems\(data\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/export function ProfitabilityWidget\(\{ data, isLoading, error, meta = null \}\)/,
+	);
 });
 
 test("profitability widget is mounted on the dashboard, not orphaned", () => {
@@ -213,7 +269,7 @@ test("premium card header renders profitability widget title props as visible co
 
 	assert.match(
 		headerSource,
-		/\(\{ className, title, icon, description, children, \.\.\.props \}/,
+		/const \{ className, title, icon, description, children, \.\.\.props \} =\s+normalizePremiumCardOptions\(options\);/,
 	);
 	assert.match(headerSource, /<h3[\s\S]*\{title\}[\s\S]*<\/h3>/);
 	assert.match(headerSource, /<p[\s\S]*\{description\}[\s\S]*<\/p>/);

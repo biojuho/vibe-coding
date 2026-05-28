@@ -11,19 +11,17 @@ function readSource(relativePath) {
 	return readFileSync(path.join(SRC_ROOT, relativePath), "utf8");
 }
 
-test("auth guard normalizes malformed options before destructuring", () => {
-	const source = readSource("lib/auth-guard.js");
+test("dashboard cache key helpers ignore array filter fields", () => {
+	const source = readSource("lib/dashboard/cache.js");
 
+	assert.match(source, /function normalizeObject\(value\) \{/);
 	assert.match(
 		source,
-		/function normalizeObject\(value\) \{\s+return value && typeof value === "object" && !Array\.isArray\(value\)\s+\? value\s+:\s+\{\};\s+\}/,
+		/value && typeof value === "object" && !Array\.isArray\(value\)/,
 	);
-	assert.match(
-		source,
-		/const \{ redirectToLogin = false \} = normalizeObject\(options\);/,
-	);
+	assert.match(source, /\} = normalizeObject\(filters\);/);
 	assert.doesNotMatch(
 		source,
-		/const \{ redirectToLogin = false \} = options;/,
+		/return value && typeof value === "object" \? value : \{\};/,
 	);
 });

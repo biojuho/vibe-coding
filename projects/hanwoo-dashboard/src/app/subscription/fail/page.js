@@ -112,7 +112,15 @@ export default function FailPage() {
 	);
 }
 
-function SubscriptionFallback({ message }) {
+function normalizeSubscriptionFallbackOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+function SubscriptionFallback(options = {}) {
+	const { message } = normalizeSubscriptionFallbackOptions(options);
+
 	return (
 		<div
 			role="status"

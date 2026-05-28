@@ -5,6 +5,20 @@ import { sanitizeDashboardPageInfoTransition } from "@/lib/dashboard/pagination-
 
 const PAGINATION_REQUEST_TIMEOUT_MS = 15000;
 
+function normalizePaginationParams(params) {
+	return params && typeof params === "object" && !Array.isArray(params)
+		? params
+		: {};
+}
+
+function normalizePaginationItems(items) {
+	return Array.isArray(items)
+		? items.filter(
+				(item) => item && typeof item === "object" && !Array.isArray(item),
+			)
+		: [];
+}
+
 /**
  * 공용 Cursor-based pagination을 관리하는 훅.
  *
@@ -13,12 +27,15 @@ const PAGINATION_REQUEST_TIMEOUT_MS = 15000;
  * @param {Array} props.initialItems - 초기에 세팅할 데이터 배열
  * @param {Object} props.initialPageInfo - 초기 pageInfo 객체
  */
-export function useCursorPagination({
-	endpoint,
-	initialItems = [],
-	initialPageInfo = null,
-} = {}) {
-	const [items, setItems] = useState(initialItems);
+export function useCursorPagination(options = {}) {
+	const {
+		endpoint,
+		initialItems = [],
+		initialPageInfo = null,
+	} = normalizePaginationParams(options);
+	const [items, setItems] = useState(() =>
+		normalizePaginationItems(initialItems),
+	);
 	const [pageInfo, setPageInfo] = useState(
 		initialPageInfo ?? {
 			hasMore: false,
@@ -47,6 +64,7 @@ export function useCursorPagination({
 
 	const loadMore = useCallback(
 		async (extraParams = {}) => {
+			const safeExtraParams = normalizePaginationParams(extraParams);
 			if (isLoading || !hasMore) return;
 
 			// Abort 이전 요청
@@ -73,7 +91,7 @@ export function useCursorPagination({
 				params.set("limit", String(pageInfo.limit || 50));
 
 				// 동적 파라미터 매핑
-				for (const [key, value] of Object.entries(extraParams)) {
+				for (const [key, value] of Object.entries(safeExtraParams)) {
 					if (value !== undefined && value !== null && value !== "") {
 						params.set(key, String(value));
 					}
@@ -97,7 +115,8 @@ export function useCursorPagination({
 					return;
 				}
 
-				const { items: newItems, pageInfo: newPageInfo } = json.data;
+				const { items: newItems, pageInfo: newPageInfo } = json.data ?? {};
+				const safeNewItems = normalizePaginationItems(newItems);
 				const safePageInfo = sanitizeDashboardPageInfoTransition({
 					currentPageInfo: pageInfo,
 					receivedPageInfo: newPageInfo,
@@ -112,7 +131,10 @@ export function useCursorPagination({
 					return;
 				}
 
-				setItems((prev) => [...prev, ...newItems]);
+				setItems((prev) => [
+					...normalizePaginationItems(prev),
+					...safeNewItems,
+				]);
 				setPageInfo(safePageInfo);
 			} catch (error) {
 				if (error.name === "AbortError") {

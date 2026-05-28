@@ -27,7 +27,9 @@ function normalizeOptionalString(value) {
 }
 
 function normalizeObject(value) {
-	return value && typeof value === "object" ? value : {};
+	return value && typeof value === "object" && !Array.isArray(value)
+		? value
+		: {};
 }
 
 function getSearchParam(searchParams, key) {

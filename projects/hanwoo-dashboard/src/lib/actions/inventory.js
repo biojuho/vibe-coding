@@ -11,12 +11,28 @@ import { prisma } from "./_helpers";
 // Inventory Actions
 // ============================================================
 
+function isInventoryActionRow(value) {
+	return (
+		value !== null &&
+		typeof value === "object" &&
+		!Array.isArray(value)
+	);
+}
+
+function normalizeInventoryActionRows(rows) {
+	return Array.isArray(rows)
+		? rows.filter((row) => isInventoryActionRow(row))
+		: [];
+}
+
 export async function getInventory() {
 	await requireAuthenticatedSession();
 	try {
-		return await prisma.inventoryItem.findMany({
-			orderBy: { category: "asc" },
-		});
+		return normalizeInventoryActionRows(
+			await prisma.inventoryItem.findMany({
+				orderBy: { category: "asc" },
+			}),
+		);
 	} catch (error) {
 		console.error("Failed to fetch inventory:", error);
 		return [];

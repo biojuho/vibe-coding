@@ -43,6 +43,16 @@ function diffMonths(d1, d2) {
 	return months <= 0 ? 0 : months;
 }
 
+function isProfitabilityServiceRow(value) {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizeProfitabilityServiceRows(rows) {
+	return Array.isArray(rows)
+		? rows.filter((row) => isProfitabilityServiceRow(row))
+		: [];
+}
+
 export async function getProfitabilityEstimates() {
 	try {
 		const now = new Date();
@@ -66,23 +76,24 @@ export async function getProfitabilityEstimates() {
 		}
 
 		// 2. Fetch active cattle approaching or in the slaughter window (e.g. older than 24 months, active)
-		const activeCattle = await prisma.cattle.findMany({
-			where: {
-				status: "ACTIVE",
-				isArchived: false,
-			},
-			select: {
-				id: true,
-				tagNumber: true,
-				name: true,
-				birthDate: true,
-				gender: true,
-				weight: true,
-				purchasePrice: true,
-				purchaseDate: true,
-			},
-		});
-
+		const activeCattle = normalizeProfitabilityServiceRows(
+			await prisma.cattle.findMany({
+				where: {
+					status: "ACTIVE",
+					isArchived: false,
+				},
+				select: {
+					id: true,
+					tagNumber: true,
+					name: true,
+					birthDate: true,
+					gender: true,
+					weight: true,
+					purchasePrice: true,
+					purchaseDate: true,
+				},
+			}),
+		);
 		// 3. Pull recent feed expenses + recent sales so we can replace the
 		// hardcoded "MONTHLY_FEED_COST" / "MONTHLY_WEIGHT_GAIN" constants with
 		// actuals from the farm's own ledger. Both calls degrade safely to []
@@ -97,7 +108,6 @@ export async function getProfitabilityEstimates() {
 			now.getMonth() - (SALES_LOOKBACK_MONTHS - 1),
 			1,
 		);
-
 		const [recentFeedExpenses, recentSales] = await Promise.all([
 			prisma.expenseRecord
 				.findMany({
@@ -107,12 +117,14 @@ export async function getProfitabilityEstimates() {
 					},
 					select: { date: true, category: true, amount: true },
 				})
+				.then(normalizeProfitabilityServiceRows)
 				.catch(() => []),
 			prisma.salesRecord
 				.findMany({
 					where: { saleDate: { gte: salesWindowStart } },
 					select: { cattleId: true, saleDate: true },
 				})
+				.then(normalizeProfitabilityServiceRows)
 				.catch(() => []),
 		]);
 
@@ -120,17 +132,19 @@ export async function getProfitabilityEstimates() {
 			.map((sale) => sale.cattleId)
 			.filter(Boolean);
 		const soldCattle = soldCattleIds.length
-			? await prisma.cattle
-					.findMany({
-						where: { id: { in: soldCattleIds } },
-						select: {
-							id: true,
-							birthDate: true,
-							purchaseDate: true,
-							weight: true,
-						},
-					})
-					.catch(() => [])
+			? normalizeProfitabilityServiceRows(
+					await prisma.cattle
+						.findMany({
+							where: { id: { in: soldCattleIds } },
+							select: {
+								id: true,
+								birthDate: true,
+								purchaseDate: true,
+								weight: true,
+							},
+						})
+						.catch(() => []),
+				)
 			: [];
 
 		const soldCattleById = new Map(soldCattle.map((cow) => [cow.id, cow]));

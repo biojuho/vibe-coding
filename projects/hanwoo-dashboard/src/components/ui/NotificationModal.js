@@ -4,24 +4,32 @@ import { useEffect, useRef, useState } from "react";
 
 import { focusElementSafely } from "@/lib/safeFocus";
 
+function normalizeNotificationModalOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
 function normalizeModalNotifications(notifications) {
 	return Array.isArray(notifications)
 		? notifications.filter(
-				(notification) => notification && typeof notification === "object",
+				(notification) =>
+					notification &&
+					typeof notification === "object" &&
+					!Array.isArray(notification),
 			)
 		: [];
 }
 
-export default function NotificationModal({
-	id,
-	notifications,
-	onClose,
-	onTestSMS,
-}) {
+export default function NotificationModal(options = {}) {
+	const { id, notifications, onClose, onTestSMS } =
+		normalizeNotificationModalOptions(options);
 	const dialogRef = useRef(null);
 	const isMountedRef = useRef(false);
 	const [isTestingSMS, setIsTestingSMS] = useState(false);
 	const visibleNotifications = normalizeModalNotifications(notifications);
+	const handleClose =
+		typeof onClose === "function" ? onClose : () => undefined;
 	const closeButtonLabel = isTestingSMS
 		? "문자 알림 테스트 전송 중에는 알림 센터를 닫을 수 없습니다"
 		: "알림 센터 닫기";
@@ -45,7 +53,7 @@ export default function NotificationModal({
 			if (isTestingSMS) {
 				return;
 			}
-			onClose();
+			handleClose();
 		}
 	};
 
@@ -70,7 +78,7 @@ export default function NotificationModal({
 			className="modal-overlay"
 			onClick={() => {
 				if (!isTestingSMS) {
-					onClose();
+					handleClose();
 				}
 			}}
 		>
@@ -125,7 +133,7 @@ export default function NotificationModal({
 					</div>
 					<button
 						type="button"
-						onClick={onClose}
+						onClick={handleClose}
 						disabled={isTestingSMS}
 						aria-busy={isTestingSMS}
 						aria-label={closeButtonLabel}

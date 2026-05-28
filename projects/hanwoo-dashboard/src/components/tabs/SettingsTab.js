@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { MapPin, Settings } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useAppFeedback } from "@/components/feedback/FeedbackProvider";
 import { PremiumButton } from "@/components/ui/premium-button";
@@ -30,7 +30,10 @@ function normalizeSettingsBuildings(buildings) {
 		? buildings
 				.filter(
 					(building) =>
-						building && typeof building === "object" && building.id != null,
+						building &&
+						typeof building === "object" &&
+						!Array.isArray(building) &&
+						building.id != null,
 				)
 				.map((building) => ({
 					...building,
@@ -45,23 +48,45 @@ function normalizeSettingsBuildings(buildings) {
 		: [];
 }
 
-export default function SettingsTab({
-	buildings = [],
-	onCreateBuilding,
-	onDeleteBuilding,
-	farmSettings,
-	onUpdateFarmSettings,
-	theme,
-	onToggleTheme,
-	widgetRegistry = [],
-	widgetVisible = {},
-	onToggleWidget,
-	quickActionIntent = null,
-}) {
-	const safeBuildings = useMemo(
-		() => normalizeSettingsBuildings(buildings),
-		[buildings],
-	);
+function normalizeSettingsTabOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+function normalizeSettingsWidgetRegistry(widgets) {
+	return Array.isArray(widgets)
+		? widgets.filter(
+				(widget) => widget && typeof widget === "object" && !Array.isArray(widget),
+			)
+		: [];
+}
+
+function normalizeSettingsWidgetVisible(widgetVisible) {
+	return widgetVisible &&
+		typeof widgetVisible === "object" &&
+		!Array.isArray(widgetVisible)
+		? widgetVisible
+		: {};
+}
+
+export default function SettingsTab(options = {}) {
+	const {
+		buildings = [],
+		onCreateBuilding,
+		onDeleteBuilding,
+		farmSettings,
+		onUpdateFarmSettings,
+		theme,
+		onToggleTheme,
+		widgetRegistry = [],
+		widgetVisible = {},
+		onToggleWidget,
+		quickActionIntent = null,
+	} = normalizeSettingsTabOptions(options);
+	const safeBuildings = normalizeSettingsBuildings(buildings);
+	const safeWidgetRegistry = normalizeSettingsWidgetRegistry(widgetRegistry);
+	const safeWidgetVisible = normalizeSettingsWidgetVisible(widgetVisible);
 	const [isAdding, setIsAdding] = useState(
 		() => quickActionIntent?.actionId === "add-building",
 	);
@@ -73,6 +98,18 @@ export default function SettingsTab({
 	const buildingSaveInFlightRef = useRef(false);
 	const deleteBuildingInFlightRef = useRef(false);
 	const { confirm } = useAppFeedback();
+	const handleCreateBuilding =
+		typeof onCreateBuilding === "function" ? onCreateBuilding : async () => false;
+	const handleDeleteBuildingAction =
+		typeof onDeleteBuilding === "function" ? onDeleteBuilding : async () => false;
+	const handleUpdateFarmSettings =
+		typeof onUpdateFarmSettings === "function"
+			? onUpdateFarmSettings
+			: async () => false;
+	const handleToggleTheme =
+		typeof onToggleTheme === "function" ? onToggleTheme : () => {};
+	const handleToggleWidget =
+		typeof onToggleWidget === "function" ? onToggleWidget : () => {};
 	const farmSubmitButtonLabel = isSavingFarm
 		? "농장 정보 저장 중"
 		: "농장 정보 저장";
@@ -132,8 +169,7 @@ export default function SettingsTab({
 		resetFarm(createFarmSettingsValues(farmSettings));
 	}, [farmSettings, resetFarm]);
 
-	const koreanLocations = useMemo(
-		() => [
+	const koreanLocations = [
 			{ name: "서울", lat: 37.566, lng: 126.978 },
 			{ name: "부산", lat: 35.179, lng: 129.075 },
 			{ name: "대구", lat: 35.871, lng: 128.601 },
@@ -153,9 +189,7 @@ export default function SettingsTab({
 			{ name: "경북 안동", lat: 36.568, lng: 128.729 },
 			{ name: "경남 창원", lat: 35.227, lng: 128.681 },
 			{ name: "제주", lat: 33.499, lng: 126.531 },
-		],
-		[],
-	);
+	];
 
 	const handleLocationSelect = (event) => {
 		if (farmSaveInFlightRef.current || isSavingFarm) {
@@ -192,7 +226,7 @@ export default function SettingsTab({
 		setIsSavingBuilding(true);
 
 		try {
-			const saved = await onCreateBuilding(values);
+			const saved = await handleCreateBuilding(values);
 			if (!saved || !isMountedRef.current) {
 				return;
 			}
@@ -216,7 +250,7 @@ export default function SettingsTab({
 		setIsSavingFarm(true);
 
 		try {
-			await onUpdateFarmSettings(values);
+			await handleUpdateFarmSettings(values);
 		} finally {
 			farmSaveInFlightRef.current = false;
 			if (isMountedRef.current) {
@@ -256,7 +290,7 @@ export default function SettingsTab({
 		setDeletingBuildingId(id);
 
 		try {
-			await onDeleteBuilding(id);
+			await handleDeleteBuildingAction(id);
 		} finally {
 			deleteBuildingInFlightRef.current = false;
 			if (isMountedRef.current) {
@@ -313,7 +347,7 @@ export default function SettingsTab({
 				</div>
 				<button
 					type="button"
-					onClick={onToggleTheme}
+					onClick={handleToggleTheme}
 					role="switch"
 					aria-checked={isDark}
 					aria-label={isDark ? "다크모드 끄기" : "다크모드 켜기"}
@@ -346,7 +380,7 @@ export default function SettingsTab({
 				</button>
 			</div>
 
-			{widgetRegistry.length > 0 ? (
+			{safeWidgetRegistry.length > 0 ? (
 				<div
 					style={{
 						background: "var(--color-bg-card)",
@@ -382,8 +416,8 @@ export default function SettingsTab({
 						홈 화면에 표시할 위젯을 선택해 주세요.
 					</div>
 					<div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-						{widgetRegistry.map((widget) => {
-							const isOn = widgetVisible[widget.id] !== false;
+						{safeWidgetRegistry.map((widget) => {
+							const isOn = safeWidgetVisible[widget.id] !== false;
 
 							return (
 								<div
@@ -437,7 +471,7 @@ export default function SettingsTab({
 									</div>
 									<button
 										type="button"
-										onClick={() => onToggleWidget(widget.id)}
+										onClick={() => handleToggleWidget(widget.id)}
 										role="switch"
 										aria-checked={isOn}
 										aria-label={`${widget.label} 위젯 ${isOn ? "숨기기" : "보이기"}`}

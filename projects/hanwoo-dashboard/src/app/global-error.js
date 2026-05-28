@@ -4,7 +4,19 @@ import { useEffect } from "react";
 
 // global-error replaces the root layout, so it must render its own <html>/<body>
 // and cannot rely on globals.css being applied. Styles are inlined intentionally.
-export default function GlobalError({ error, reset }) {
+function normalizeGlobalErrorOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+function normalizeGlobalErrorReset(reset) {
+	return typeof reset === "function" ? reset : () => {};
+}
+
+export default function GlobalError(options = {}) {
+	const { error, reset } = normalizeGlobalErrorOptions(options);
+	const safeReset = normalizeGlobalErrorReset(reset);
 	const resetButtonLabel = "앱 다시 불러오기";
 
 	useEffect(() => {
@@ -67,7 +79,7 @@ export default function GlobalError({ error, reset }) {
 					</p>
 					<button
 						type="button"
-						onClick={() => reset()}
+						onClick={() => safeReset()}
 						aria-label={resetButtonLabel}
 						title={resetButtonLabel}
 						style={{

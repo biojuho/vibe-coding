@@ -32,7 +32,21 @@ const errorTextStyle = {
 	fontWeight: 600,
 };
 
-function FilterChip({ active, children, onClick, label, disabled = false }) {
+function normalizeFeedHelperOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+function FilterChip(options = {}) {
+	const {
+		active,
+		children,
+		onClick,
+		label,
+		disabled = false,
+	} = normalizeFeedHelperOptions(options);
+	const safeOnClick = typeof onClick === "function" ? onClick : undefined;
 	const actionLabel = disabled
 		? `${label} - 급여 기록 저장 중에는 변경할 수 없습니다`
 		: label;
@@ -42,7 +56,7 @@ function FilterChip({ active, children, onClick, label, disabled = false }) {
 		<PremiumButton
 			variant={active ? "primary" : "secondary"}
 			size="sm"
-			onClick={onClick}
+			onClick={safeOnClick}
 			disabled={disabled}
 			aria-busy={disabled}
 			aria-pressed={active}
@@ -86,7 +100,9 @@ function formatFeedDateLabel(value, options) {
 
 function normalizeFeedItems(items) {
 	return Array.isArray(items)
-		? items.filter((item) => item && typeof item === "object")
+		? items.filter(
+				(item) => item && typeof item === "object" && !Array.isArray(item),
+			)
 		: [];
 }
 
@@ -101,18 +117,27 @@ function normalizeFeedBuildings(buildings) {
 	}));
 }
 
-export default function FeedTab({
-	cattle,
-	feedStandards = [],
-	feedHistory = [],
-	onRecordFeed,
-	buildings = [],
-}) {
+function normalizeFeedTabOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+export default function FeedTab(options = {}) {
+	const {
+		cattle,
+		feedStandards = [],
+		feedHistory = [],
+		onRecordFeed,
+		buildings = [],
+	} = normalizeFeedTabOptions(options);
 	const [selectedBuilding, setSelectedBuilding] = useState(null);
 	const [isSaving, setIsSaving] = useState(false);
 	const isMountedRef = useRef(false);
 	const saveInFlightRef = useRef(false);
 	const { notify } = useAppFeedback();
+	const handleRecordFeed =
+		typeof onRecordFeed === "function" ? onRecordFeed : async () => false;
 	const submitButtonLabel = isSaving
 		? "급여 기록 저장 중"
 		: "급여 기록 저장";
@@ -260,7 +285,7 @@ export default function FeedTab({
 		setIsSaving(true);
 
 		try {
-			const recorded = await onRecordFeed({
+			const recorded = await handleRecordFeed({
 				...values,
 				buildingId: selectedBuilding,
 			});
@@ -637,8 +662,15 @@ export default function FeedTab({
 	);
 }
 
-function Field({ label, suffix, error, inputProps }) {
-	const fieldId = `feed-${inputProps.name}`;
+function Field(options = {}) {
+	const { label, suffix, error, inputProps } =
+		normalizeFeedHelperOptions(options);
+	const safeInputProps = normalizeFeedHelperOptions(inputProps);
+	const inputName =
+		typeof safeInputProps.name === "string" && safeInputProps.name.trim()
+			? safeInputProps.name
+			: "field";
+	const fieldId = `feed-${inputName}`;
 	const errorId = `${fieldId}-error`;
 
 	return (
@@ -649,7 +681,7 @@ function Field({ label, suffix, error, inputProps }) {
 					id={fieldId}
 					type="number"
 					placeholder="0.0"
-					{...inputProps}
+					{...safeInputProps}
 					aria-invalid={Boolean(error)}
 					aria-describedby={error ? errorId : undefined}
 					hasError={!!error}

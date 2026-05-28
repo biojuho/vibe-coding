@@ -129,6 +129,19 @@ test("dashboard full-list loading failures show retry feedback instead of silent
 
 	assert.match(source, /FULL_CATTLE_LOAD_ERROR_MESSAGE/);
 	assert.match(source, /FULL_SALES_LOAD_ERROR_MESSAGE/);
+	assert.match(source, /function normalizeFullListLoadOptions\(options\) \{/);
+	assert.match(
+		source,
+		/options && typeof options === "object" && !Array\.isArray\(options\)/,
+	);
+	assert.match(
+		source,
+		/const ensureAllCattleLoaded = useCallback\(\s+async \(options = \{\}\) => \{\s+const \{ silent = false \} = normalizeFullListLoadOptions\(options\);/,
+	);
+	assert.match(
+		source,
+		/const ensureAllSalesLoaded = useCallback\(\s+async \(options = \{\}\) => \{\s+const \{ silent = false \} = normalizeFullListLoadOptions\(options\);/,
+	);
 	assert.match(
 		source,
 		/setAllCattleLoadError\(FULL_CATTLE_LOAD_ERROR_MESSAGE\)/,
@@ -155,6 +168,7 @@ test("dashboard full-list loading failures show retry feedback instead of silent
 		source,
 		/void ensureAllSalesLoaded\(\{ silent: true \}\);/,
 	);
+	assert.doesNotMatch(source, /async \(\{ silent = false \} = \{\}\) =>/);
 });
 
 test("dashboard full-list preload completions ignore stale unmounted state", () => {
@@ -487,17 +501,28 @@ test("home building navigation uses semantic buttons", () => {
 
 test("setup progress track exposes semantic progress state", () => {
 	const source = readSource("components/DashboardClient.js");
-	const setupProgressLabel =
-		"`운영 준비도 ${progress.percent}% (${progress.completed}/${progress.total})`";
 	const setupProgressTrackLabel = '"운영 준비도 진행률"';
 
-	assert.ok(source.includes(`const setupProgressLabel = ${setupProgressLabel}`));
+	assert.match(
+		source,
+		/const setupProgressLabel = `[^`]*\$\{progressPercent\}% \(\$\{progressCompleted\}\/\$\{progressTotal\}\)`;/,
+	);
 	assert.ok(
 		source.includes(
 			`const setupProgressTrackLabel = ${setupProgressTrackLabel}`,
 		),
 	);
 	assert.match(source, /function SetupProgressPanel[\s\S]*const setupProgressLabel/);
+	assert.match(source, /function SetupProgressPanel\(options = \{\}\) \{/);
+	assert.match(
+		source,
+		/const progressItems = normalizeDashboardHelperItems\(safeProgress\.items\);/,
+	);
+	assert.match(
+		source,
+		/const progressPercent = Math\.min\([\s\S]*?100,[\s\S]*?Math\.max\(0, toFiniteNumber\(safeProgress\.percent\)\),[\s\S]*?\);/,
+	);
+	assert.match(source, /if \(!progressItems\.length \|\| progressPercent === 100\) \{/);
 	assert.doesNotMatch(
 		source,
 		/function TodayFocusPanel[\s\S]*setupProgressLabel[\s\S]*function SetupProgressPanel/,
@@ -510,9 +535,10 @@ test("setup progress track exposes semantic progress state", () => {
 	assert.match(source, /aria-label=\{setupProgressTrackLabel\}/);
 	assert.match(source, /aria-valuemin=\{0\}/);
 	assert.match(source, /aria-valuemax=\{100\}/);
-	assert.match(source, /aria-valuenow=\{progress\.percent\}/);
+	assert.match(source, /aria-valuenow=\{progressPercent\}/);
 	assert.match(source, /aria-valuetext=\{setupProgressLabel\}/);
 	assert.match(source, /title=\{setupProgressLabel\}/);
+	assert.match(source, /style=\{\{ width: `\$\{progressPercent\}%` \}\}/);
 	assert.doesNotMatch(
 		source,
 		/<div\s+className="setup-progress-track"\s+aria-hidden="true"/,
@@ -530,6 +556,7 @@ test("setup progress items expose completion state in their accessible names", (
 	assert.match(source, /title=\{setupItemLabel\}/);
 	assert.match(source, /className=\{`setup-progress-item \$\{item\.done/);
 	assert.match(source, /<span className="setup-progress-icon" aria-hidden="true">/);
+	assert.match(source, /progressItems\.map\(\(item\) => \{/);
 });
 
 test("home dashboard icon-only actions expose Korean accessible labels", () => {
@@ -562,6 +589,17 @@ test("home dashboard icon-only actions expose Korean accessible labels", () => {
 		source,
 		/<div className="text-3xl mb-2" aria-hidden="true">\s*🐄\s*<\/div>/,
 	);
+	assert.match(source, /function PenCattleList\(options = \{\}\) \{/);
+	assert.match(
+		source,
+		/const visibleCattle = normalizeDashboardHelperItems\(cattleList\);/,
+	);
+	assert.match(
+		source,
+		/const handleSelect = typeof onSelect === ["']function["'] \? onSelect : \(\) => \{\};/,
+	);
+	assert.match(source, /const penCattle = visibleCattle\.filter\(/);
+	assert.match(source, /onClick=\{handleSelect\}/);
 	assert.match(source, /이 칸은 비어 있습니다/);
 	assert.doesNotMatch(source, /이 칸은 비어있습니다/);
 	assert.doesNotMatch(source, /aria-label="Notifications"/);
@@ -589,6 +627,24 @@ test("home footer links expose explicit navigation labels", () => {
 test("today focus action buttons expose consolidated task labels", () => {
 	const source = readSource("components/DashboardClient.js");
 
+	assert.match(source, /function normalizeDashboardHelperOptions\(options\) \{/);
+	assert.match(source, /function normalizeDashboardHelperItems\(items\) \{/);
+	assert.match(
+		source,
+		/items\.filter\([\s\S]*?\(item\) => item && typeof item === ["']object["'] && !Array\.isArray\(item\)/,
+	);
+	assert.match(source, /function TodayFocusPanel\(options = \{\}\) \{/);
+	assert.match(
+		source,
+		/const visibleItems = normalizeDashboardHelperItems\(items\);/,
+	);
+	assert.match(
+		source,
+		/const handleNavigate = typeof onNavigate === ["']function["'] \? onNavigate : \(\) => \{\};/,
+	);
+	assert.match(source, /if \(!visibleItems\.length\) \{/);
+	assert.match(source, /\{visibleItems\.length\}개/);
+	assert.match(source, /visibleItems\.map\(\(item\) => \{/);
 	assert.match(
 		source,
 		/const focusItemLabel = `\$\{item\.title\} - \$\{item\.detail\} \(\$\{item\.meta\}\)`;/,
@@ -603,6 +659,15 @@ test("today focus action buttons expose consolidated task labels", () => {
 test("quick action buttons expose consolidated task labels", () => {
 	const source = readSource("components/DashboardClient.js");
 
+	assert.match(source, /function QuickActionPanel\(options = \{\}\) \{/);
+	assert.match(
+		source,
+		/const visibleActions = normalizeDashboardHelperItems\(actions\);/,
+	);
+	assert.match(
+		source,
+		/const handleAction = typeof onAction === ["']function["'] \? onAction : \(\) => \{\};/,
+	);
 	assert.match(source, /title="이번 달 출하"/);
 	assert.doesNotMatch(source, /title="이번달 출하"/);
 	assert.match(source, /detail: "판매 기록 바로 입력"/);
@@ -613,7 +678,7 @@ test("quick action buttons expose consolidated task labels", () => {
 	);
 	assert.match(
 		source,
-		/onClick=\{\(\) => onAction\(action\)\}\s+aria-label=\{quickActionLabel\}\s+title=\{quickActionLabel\}/,
+		/onClick=\{\(\) => handleAction\(action\)\}\s+aria-label=\{quickActionLabel\}\s+title=\{quickActionLabel\}/,
 	);
 	assert.match(
 		source,
@@ -645,6 +710,16 @@ test("market price widget uses Korean product copy for visible states", () => {
 	assert.match(source, /function normalizePriceSnapshot\(data\) \{/);
 	assert.match(source, /bull: data\.bull \?\? \{\}/);
 	assert.match(source, /cow: data\.cow \?\? \{\}/);
+	assert.match(source, /function normalizeMarketPriceWidgetOptions\(options\) \{/);
+	assert.match(
+		source,
+		/options && typeof options === "object" && !Array\.isArray\(options\)/,
+	);
+	assert.match(source, /export default function MarketPriceWidget\(options = \{\}\) \{/);
+	assert.match(
+		source,
+		/const \{ initialData = null \} = normalizeMarketPriceWidgetOptions\(options\);/,
+	);
 	assert.match(
 		source,
 		/useState\(\s*\(\s*\)\s*=>\s*normalizePriceSnapshot\(\s*initialData\s*\),?\s*\)/,
@@ -658,6 +733,26 @@ test("market price widget uses Korean product copy for visible states", () => {
 		source,
 		/setLastUpdated\(toValidUpdatedAt\(data\?\.fetchedAt\)\)/,
 	);
+	assert.doesNotMatch(
+		source,
+		/export default function MarketPriceWidget\(\{ initialData = null \}\)/,
+	);
+	assert.match(source, /function normalizePricePanelOptions\(options\) \{/);
+	assert.match(source, /function normalizePricePanelRows\(rows\) \{/);
+	assert.match(
+		source,
+		/return Array\.isArray\(rows\) \? rows\.filter\(\(row\) => Array\.isArray\(row\)\) : \[\];/,
+	);
+	assert.match(source, /function PricePanel\(options = \{\}\) \{/);
+	assert.match(
+		source,
+		/const \{ title, rows \} = normalizePricePanelOptions\(options\);/,
+	);
+	assert.match(source, /const visibleRows = normalizePricePanelRows\(rows\);/);
+	assert.match(source, /visibleRows\.map\(\(\[grade, value\], index\) =>/);
+	assert.match(source, /index === visibleRows\.length - 1/);
+	assert.doesNotMatch(source, /function PricePanel\(\{ title, rows \}\)/);
+	assert.doesNotMatch(source, /rows\.map\(\(\[grade, value\], index\) =>/);
 
 	assert.match(source, /한우 시세를 불러오는 중입니다/);
 	assert.match(source, /지금은 한우 시세 정보를 확인할 수 없습니다/);
@@ -858,12 +953,23 @@ test("weather widget uses Korean product copy for unavailable state", () => {
 	assert.match(source, /function normalizeWeatherForecast\(forecast\) \{/);
 	assert.match(
 		source,
-		/return Array\.isArray\(forecast\)\s*\?\s*forecast\s*\.\s*filter\(\s*\(?day\)?\s*=>\s*day\s*&&\s*typeof\s+day\s*===\s*["']object["']\s*,?\s*\)\s*:\s*\[\s*\];?/,
+		/return Array\.isArray\(forecast\)\s*\?\s*forecast\s*\.\s*filter\(\s*\(?day\)?\s*=>\s*day\s*&&\s*typeof\s+day\s*===\s*["']object["']\s*&&\s*!Array\.isArray\(day\)\s*,?\s*\)\s*:\s*\[\s*\];?/,
+	);
+	assert.match(source, /function normalizeWeatherWidgetOptions\(options\) \{/);
+	assert.match(
+		source,
+		/options && typeof options === "object" && !Array\.isArray\(options\)/,
+	);
+	assert.match(source, /export function WeatherWidget\(options = \{\}\) \{/);
+	assert.match(
+		source,
+		/const \{ weather \} = normalizeWeatherWidgetOptions\(options\);/,
 	);
 	assert.match(
 		source,
 		/const safeForecast = normalizeWeatherForecast\(weather\.forecast\);/,
 	);
+	assert.doesNotMatch(source, /export function WeatherWidget\(\{ weather \}\)/);
 
 	assert.match(source, /날씨 확인 불가/);
 	assert.match(source, /지금은 날씨 정보를 확인할 수 없습니다/);
@@ -1101,14 +1207,32 @@ test("weather geolocation lookup falls back safely when browser location APIs fa
 test("tab navigation buttons expose Korean action labels and selected state", () => {
 	const source = readSource("components/widgets/widgets.js");
 
+	assert.match(source, /function normalizeTabBarOptions\(options\) \{/);
+	assert.match(
+		source,
+		/options && typeof options === "object" && !Array\.isArray\(options\)/,
+	);
+	assert.match(source, /export function TabBar\(options = \{\}\) \{/);
+	assert.match(
+		source,
+		/const \{ activeTab, onTabChange \} = normalizeTabBarOptions\(options\);/,
+	);
+	assert.match(
+		source,
+		/const handleTabChange =\s*typeof onTabChange === "function" \? onTabChange : \(\) => \{\};/,
+	);
+
 	assert.match(source, /<nav className="tab-bar" aria-label="대시보드 메뉴">/);
 	assert.match(
 		source,
 		/const tabActionLabel = `\$\{t\.label\} 탭 열기\$\{isActive \? ", 현재 선택됨" : ""\}`;/,
 	);
+	assert.match(source, /onClick=\{\(\) => handleTabChange\(t\.id\)\}/);
 	assert.match(source, /aria-current=\{isActive \? "page" : undefined\}/);
 	assert.match(source, /aria-label=\{tabActionLabel\}/);
 	assert.match(source, /title=\{tabActionLabel\}/);
+	assert.doesNotMatch(source, /export function TabBar\(\{ activeTab, onTabChange \}\)/);
+	assert.doesNotMatch(source, /onClick=\{\(\) => onTabChange\(t\.id\)\}/);
 });
 
 test("sales tab missing cattle fallback copy stays Korean", () => {
@@ -1178,6 +1302,17 @@ test("sales profit chart exposes an accessible chart summary", () => {
 test("sales tab normalizes collection payloads before rendering and aggregation", () => {
 	const source = readSource("components/tabs/SalesTab.js");
 
+	assert.match(source, /function normalizeSalesTabOptions\(options\) \{/);
+	assert.match(
+		source,
+		/options && typeof options === ["']object["'] && !Array\.isArray\(options\)/,
+	);
+	assert.match(source, /export default function SalesTab\(options = \{\}\) \{/);
+	assert.match(source, /normalizeSalesTabOptions\(options\);/);
+	assert.match(
+		source,
+		/const handleCreateSale =\s+typeof onCreateSale === ["']function["'] \? onCreateSale : async \(\) => false;/,
+	);
 	assert.match(source, /function normalizeSalesItems\(items\) \{/);
 	assert.match(
 		source,
@@ -1207,6 +1342,7 @@ test("sales tab normalizes collection payloads before rendering and aggregation"
 	assert.match(source, /"개체를 먼저 등록해 주세요"/);
 	assert.doesNotMatch(source, /"개체 등록 필요"/);
 	assert.doesNotMatch(source, /"매출 기록"/);
+	assert.doesNotMatch(source, /export default function SalesTab\(\{\s+saleRecords,/);
 	assert.doesNotMatch(source, /\[\.\.\.saleRecords\]/);
 	assert.doesNotMatch(
 		source,
@@ -1227,6 +1363,22 @@ test("dashboard fallback average weight normalizes cattle weights", () => {
 	assert.doesNotMatch(source, /sum \+ \(cow\.weight \|\| 0\)/);
 });
 
+test("dashboard client normalizes malformed top-level props before setup", () => {
+	const source = readSource("components/DashboardClient.js");
+
+	assert.match(source, /function normalizeDashboardClientOptions\(options\) \{/);
+	assert.match(
+		source,
+		/options && typeof options === ["']object["'] && !Array\.isArray\(options\)/,
+	);
+	assert.match(source, /export default function DashboardClient\(options = \{\}\) \{/);
+	assert.match(source, /\} = normalizeDashboardClientOptions\(options\);/);
+	assert.doesNotMatch(
+		source,
+		/export default function DashboardClient\(\{\s+initialCattlePage,/,
+	);
+});
+
 test("dashboard normalizes malformed building payloads before home rendering", () => {
 	const source = readSource("components/DashboardClient.js");
 
@@ -1234,7 +1386,7 @@ test("dashboard normalizes malformed building payloads before home rendering", (
 	assert.match(source, /if \(!Array\.isArray\(buildings\)\) return \[\]/);
 	assert.match(
 		source,
-		/\.filter\(\s*\(\s*building\s*\)\s*=>\s*building\s*&&\s*typeof\s*building\s*===\s*['"]object['"]\s*&&\s*building\.id\s*!=\s*null,?\s*\)/,
+		/\.filter\(\s*\(\s*building\s*\)\s*=>[\s\S]*?building\s*&&[\s\S]*?typeof\s*building\s*===\s*['"]object['"][\s\S]*?!Array\.isArray\(building\)[\s\S]*?building\.id\s*!=\s*null,?\s*\)/,
 	);
 	assert.match(
 		source,
@@ -1259,6 +1411,10 @@ test("dashboard normalizes cattle collection before home rendering and full expo
 	const source = readSource("components/DashboardClient.js");
 
 	assert.match(source, /function normalizeDashboardItems\(items\) \{/);
+	assert.match(
+		source,
+		/items\.filter\([\s\S]*?\(item\) =>[\s\S]*?item &&[\s\S]*?typeof item === ["']object["'][\s\S]*?!Array\.isArray\(item\)[\s\S]*?item\.id != null/,
+	);
 	assert.match(
 		source,
 		/function normalizeDashboardCattleList\(cattleItems\) \{/,
@@ -1305,7 +1461,7 @@ test("dashboard normalizes notification payloads before home rendering", () => {
 	assert.match(source, /Array\.isArray\(notifications\)/);
 	assert.match(
 		source,
-		/\.filter\(\s*\(?notification\)?\s*=>\s*notification\s*&&\s*typeof\s+notification\s*===\s*["']object["']\s*,?\s*\)/,
+		/\.filter\(\s*\(?notification\)?\s*=>[\s\S]*?notification\s*&&[\s\S]*?typeof\s+notification\s*===\s*["']object["'][\s\S]*?!Array\.isArray\(notification\)\s*,?\s*\)/,
 	);
 	assert.match(
 		source,
@@ -1440,7 +1596,8 @@ test("sales form waits for async saves before re-enabling actions", () => {
 	assert.match(source, /if \(saveInFlightRef\.current\) \{\s+return;\s+\}/);
 	assert.match(source, /saveInFlightRef\.current = true;/);
 	assert.match(source, /setIsSaving\(true\);/);
-	assert.match(source, /await onCreateSale\(values\)/);
+	assert.match(source, /await handleCreateSale\(values\)/);
+	assert.doesNotMatch(source, /await onCreateSale\(values\)/);
 	assert.match(
 		source,
 		/if \(!saved \|\| !isMountedRef\.current\) \{\s+return;\s+\}/,
@@ -1582,7 +1739,7 @@ test("inventory form waits for async saves before re-enabling actions", () => {
 	assert.match(source, /if \(saveInFlightRef\.current\) \{\s+return;\s+\}/);
 	assert.match(source, /saveInFlightRef\.current = true;/);
 	assert.match(source, /setIsSaving\(true\);/);
-	assert.match(source, /await onAddItem\(values\)/);
+	assert.match(source, /await handleAddItem\(values\)/);
 	assert.match(
 		source,
 		/if \(!saved \|\| !isMountedRef\.current\) \{\s+return;\s+\}/,
@@ -1644,7 +1801,7 @@ test("inventory inline quantity updates wait for async saves before re-enabling 
 	);
 	assert.match(source, /quantityInFlightRef\.current = true;/);
 	assert.match(source, /setSavingQuantityId\(id\);/);
-	assert.match(source, /await onUpdateQuantity\(id, parsedQuantity\);/);
+	assert.match(source, /await handleUpdateQuantity\(id, parsedQuantity\);/);
 	assert.match(
 		source,
 		/if \(!saved \|\| !isMountedRef\.current\) \{\s+return;\s+\}/,

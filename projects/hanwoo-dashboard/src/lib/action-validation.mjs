@@ -267,6 +267,18 @@ const calvingRecordSchema = z.object({
 	calfTagNumber: requiredText("송아지 이력번호를 입력해 주세요.", 30),
 });
 
+const scheduleEventSchema = z
+	.object({
+		title: requiredText("일정을 등록할 제목을 입력해 주세요.", 120),
+		date: requiredDate("일정을 등록할 날짜를 선택해 주세요."),
+		type: z.enum(["General", "Vaccination", "Checkup", "Breeding", "Other"]),
+		cattleId: optionalText(80).optional(),
+	})
+	.transform((payload) => ({
+		...payload,
+		cattleId: payload.cattleId ?? null,
+	}));
+
 const buildingMutationSchema = z.object({
 	name: requiredText("축사 이름을 입력해 주세요.", 40),
 	penCount: requiredPositiveInt("칸 수는 1 이상이어야 합니다.", 200),
@@ -335,6 +347,10 @@ export function validateFeedRecordInput(input) {
 
 export function validateCalvingRecordInput(input) {
 	return validateActionInput(calvingRecordSchema, input);
+}
+
+export function validateScheduleEventInput(input) {
+	return validateActionInput(scheduleEventSchema, input);
 }
 
 export function validateBuildingInput(input) {

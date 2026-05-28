@@ -3,15 +3,38 @@ import { Printer } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useRef, useState } from "react";
 
-export default function QRCodeWidget({ value, label }) {
+const DEFAULT_QR_LABEL = "QR 라벨";
+
+function normalizeQRCodeWidgetOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+function normalizeQRCodeText(value, fallback) {
+	if (typeof value === "string" && value.trim()) {
+		return value;
+	}
+
+	if (typeof value === "number" && Number.isFinite(value)) {
+		return String(value);
+	}
+
+	return fallback;
+}
+
+export default function QRCodeWidget(options = {}) {
+	const { value, label } = normalizeQRCodeWidgetOptions(options);
+	const qrLabel = normalizeQRCodeText(label, DEFAULT_QR_LABEL);
+	const qrValue = normalizeQRCodeText(value, qrLabel);
 	const qrContainerRef = useRef(null);
 	const printInFlightRef = useRef(false);
 	const isMountedRef = useRef(false);
 	const [isPrinting, setIsPrinting] = useState(false);
 	const [printStatusMessage, setPrintStatusMessage] = useState("");
 	const printButtonLabel = isPrinting
-		? `${label} QR 라벨 인쇄 준비 중`
-		: `${label} QR 라벨 인쇄`;
+		? `${qrLabel} QR 라벨 인쇄 준비 중`
+		: `${qrLabel} QR 라벨 인쇄`;
 
 	const resetPrintState = () => {
 		printInFlightRef.current = false;
@@ -79,7 +102,7 @@ export default function QRCodeWidget({ value, label }) {
 
 		printInFlightRef.current = true;
 		setIsPrinting(true);
-		updatePrintStatusMessage(`${label} QR 라벨 인쇄 창을 준비하는 중입니다.`);
+		updatePrintStatusMessage(`${qrLabel} QR 라벨 인쇄 창을 준비하는 중입니다.`);
 
 		const printWindow = openPrintWindow();
 		if (!printWindow) {
@@ -94,7 +117,7 @@ export default function QRCodeWidget({ value, label }) {
 
 		try {
 			const doc = printWindow.document;
-			doc.title = `${label} - QR 출력`;
+			doc.title = `${qrLabel} - QR 출력`;
 
 			const style = doc.createElement("style");
 			style.textContent =
@@ -109,7 +132,7 @@ export default function QRCodeWidget({ value, label }) {
 
 			const name = doc.createElement("div");
 			name.className = "name";
-			name.textContent = label;
+			name.textContent = qrLabel;
 
 			const qrContainer = doc.createElement("div");
 			const sourceSvg = qrContainerRef.current?.querySelector("svg");
@@ -140,11 +163,11 @@ export default function QRCodeWidget({ value, label }) {
 				try {
 					printWindow.focus();
 					printWindow.print();
-					updatePrintStatusMessage(`${label} QR 라벨 인쇄 창을 열었습니다.`);
+					updatePrintStatusMessage(`${qrLabel} QR 라벨 인쇄 창을 열었습니다.`);
 				} catch (error) {
 					console.error("Failed to print QR label:", error);
 					updatePrintStatusMessage(
-						`${label} QR 라벨 인쇄를 시작하지 못했습니다. 다시 시도해 주세요.`,
+						`${qrLabel} QR 라벨 인쇄를 시작하지 못했습니다. 다시 시도해 주세요.`,
 					);
 				} finally {
 					closePrintWindow(printWindow);
@@ -167,7 +190,7 @@ export default function QRCodeWidget({ value, label }) {
 			closePrintWindow(printWindow);
 			resetPrintState();
 			updatePrintStatusMessage(
-				`${label} QR 라벨 인쇄 창을 준비하지 못했습니다. 다시 시도해 주세요.`,
+				`${qrLabel} QR 라벨 인쇄 창을 준비하지 못했습니다. 다시 시도해 주세요.`,
 			);
 		}
 	};
@@ -190,7 +213,7 @@ export default function QRCodeWidget({ value, label }) {
 					borderRadius: "8px",
 				}}
 			>
-				<QRCodeSVG value={value} size={120} />
+				<QRCodeSVG value={qrValue} size={120} />
 			</div>
 			<button
 				type="button"

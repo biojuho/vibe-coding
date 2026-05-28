@@ -41,13 +41,30 @@ test("route error boundary is a client component exposing retry and home actions
 	assert.match(source, /^["']use client["'];/);
 	assert.match(
 		source,
-		/export default function RouteError\(\{ error, reset \}\)/,
+		/function normalizeRouteErrorOptions\(options\) \{/,
+	);
+	assert.match(
+		source,
+		/function normalizeRouteErrorReset\(reset\) \{/,
+	);
+	assert.match(
+		source,
+		/export default function RouteError\(options = \{\}\)/,
+	);
+	assert.match(
+		source,
+		/const \{ error, reset \} = normalizeRouteErrorOptions\(options\);/,
+	);
+	assert.match(
+		source,
+		/const safeReset = normalizeRouteErrorReset\(reset\);/,
 	);
 	assert.match(source, /const resetButtonLabel = ["']화면 다시 불러오기["']/);
 	assert.match(
 		source,
-		/onClick=\{\(\) => reset\(\)\}[\s\S]*?aria-label=\{resetButtonLabel\}[\s\S]*?title=\{resetButtonLabel\}/,
+		/onClick=\{\(\) => safeReset\(\)\}[\s\S]*?aria-label=\{resetButtonLabel\}[\s\S]*?title=\{resetButtonLabel\}/,
 	);
+	assert.doesNotMatch(source, /export default function RouteError\(\{ error, reset \}\)/);
 	assert.match(
 		source,
 		/<Link[\s\S]*?href="\/"[\s\S]*?aria-label="대시보드로 돌아가기"[\s\S]*?title="대시보드로 돌아가기"[\s\S]*?className="status-link"/,
@@ -73,15 +90,32 @@ test("global error boundary renders its own html/body and a reset action", () =>
 	assert.match(source, /^["']use client["'];/);
 	assert.match(
 		source,
-		/export default function GlobalError\(\{ error, reset \}\)/,
+		/function normalizeGlobalErrorOptions\(options\) \{/,
+	);
+	assert.match(
+		source,
+		/function normalizeGlobalErrorReset\(reset\) \{/,
+	);
+	assert.match(
+		source,
+		/export default function GlobalError\(options = \{\}\)/,
+	);
+	assert.match(
+		source,
+		/const \{ error, reset \} = normalizeGlobalErrorOptions\(options\);/,
+	);
+	assert.match(
+		source,
+		/const safeReset = normalizeGlobalErrorReset\(reset\);/,
 	);
 	assert.match(source, /<html lang="ko">/);
 	assert.match(source, /<body/);
 	assert.match(source, /const resetButtonLabel = ["']앱 다시 불러오기["']/);
 	assert.match(
 		source,
-		/onClick=\{\(\) => reset\(\)\}[\s\S]*?aria-label=\{resetButtonLabel\}[\s\S]*?title=\{resetButtonLabel\}/,
+		/onClick=\{\(\) => safeReset\(\)\}[\s\S]*?aria-label=\{resetButtonLabel\}[\s\S]*?title=\{resetButtonLabel\}/,
 	);
+	assert.doesNotMatch(source, /export default function GlobalError\(\{ error, reset \}\)/);
 	assert.match(source, /Joolife 한우 운영/);
 	assert.doesNotMatch(source, /Joolife Operations/);
 });

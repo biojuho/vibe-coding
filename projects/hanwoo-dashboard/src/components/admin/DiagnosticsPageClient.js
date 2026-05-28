@@ -67,6 +67,40 @@ function deferDiagnosticsTask(callback) {
 	}
 }
 
+function normalizeDiagnosticsObject(value) {
+	return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+function normalizeDiagnosticsStats(value) {
+	const safeValue = normalizeDiagnosticsObject(value);
+	const safeDatabase = normalizeDiagnosticsObject(safeValue.database);
+	const safeMemory = normalizeDiagnosticsObject(safeValue.memory);
+
+	return {
+		...EMPTY_DIAGNOSTICS,
+		...safeValue,
+		database: {
+			...EMPTY_DIAGNOSTICS.database,
+			...safeDatabase,
+			recordCounts: normalizeDiagnosticsObject(safeDatabase.recordCounts),
+		},
+		memory: {
+			...EMPTY_DIAGNOSTICS.memory,
+			...safeMemory,
+		},
+	};
+}
+
+function normalizeDiagnosticsMessage(value) {
+	return typeof value === "string" && value.trim() ? value : RETRY_MESSAGE;
+}
+
+function normalizeStatusCardOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
 export default function DiagnosticsPageClient() {
 	const router = useRouter();
 	const { notify } = useAppFeedback();
@@ -124,7 +158,7 @@ export default function DiagnosticsPageClient() {
 					return;
 				}
 
-				setStats(result);
+				setStats(normalizeDiagnosticsStats(result));
 			} catch (error) {
 				if (cancelled || requestId !== diagnosticsRequestRef.current) {
 					return;
@@ -166,12 +200,13 @@ export default function DiagnosticsPageClient() {
 					return;
 				}
 
-				if (result.success) {
-					setRawData(result.data);
+				const safeResult = normalizeDiagnosticsObject(result);
+				if (safeResult.success) {
+					setRawData(safeResult.data ?? null);
 				} else {
 					notify({
 						title: "원본 데이터를 불러오지 못했습니다.",
-						description: result.message || RETRY_MESSAGE,
+						description: normalizeDiagnosticsMessage(safeResult.message),
 						variant: "error",
 					});
 				}
@@ -351,7 +386,9 @@ export default function DiagnosticsPageClient() {
 	);
 }
 
-function StatusCard({ title, value, sub, icon, status }) {
+function StatusCard(options = {}) {
+	const { title, value, sub, icon, status } =
+		normalizeStatusCardOptions(options);
 	const style = STATUS_STYLES[status] || STATUS_STYLES.neutral;
 
 	return (

@@ -55,15 +55,33 @@ test("alert banners normalize malformed notification and building payloads befor
 
 	assert.match(
 		source,
+		/function normalizeAlertBannerOptions\(options\) \{/,
+	);
+	assert.match(
+		source,
+		/options && typeof options === ["']object["'] && !Array\.isArray\(options\)/,
+	);
+	assert.match(source, /export function EstrusAlertBanner\(options = \{\}\)/);
+	assert.match(source, /export function CalvingAlertBanner\(options = \{\}\)/);
+	assert.match(
+		source,
+		/const \{ notifications = \[\], buildings = \[\] \} =\s+normalizeAlertBannerOptions\(options\);/,
+	);
+	assert.match(
+		source,
 		/function normalizeAlertNotifications\(notifications, type\)/,
 	);
 	assert.match(source, /if \(!Array\.isArray\(notifications\)\) return \[\]/);
 	assert.match(
 		source,
-		/notification\s*&&\s*typeof\s*notification\s*===\s*["']object["']\s*&&\s*notification\.\s*type\s*===\s*type/,
+		/notification\s*&&\s*typeof\s*notification\s*===\s*["']object["']\s*&&\s*!Array\.isArray\(notification\)\s*&&\s*notification\.\s*type\s*===\s*type/,
 	);
 	assert.match(source, /function normalizeBuildings\(buildings\)/);
 	assert.match(source, /Array\.isArray\(buildings\)/);
+	assert.match(
+		source,
+		/building\s*&&\s*typeof\s*building\s*===\s*["']object["']\s*&&\s*!Array\.isArray\(building\)/,
+	);
 	assert.match(
 		source,
 		/const safeBuildings = normalizeBuildings\(buildings\);/,
@@ -102,5 +120,13 @@ test("alert banners normalize malformed notification and building payloads befor
 	assert.doesNotMatch(
 		source,
 		/buildings\.find\(\(item\) => item\.id === notification\.buildingId\)/,
+	);
+	assert.doesNotMatch(
+		source,
+		/export function EstrusAlertBanner\(\{ notifications = \[\], buildings = \[\] \}\)/,
+	);
+	assert.doesNotMatch(
+		source,
+		/export function CalvingAlertBanner\(\{ notifications = \[\], buildings = \[\] \}\)/,
 	);
 });

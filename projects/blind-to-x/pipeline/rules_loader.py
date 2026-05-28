@@ -52,6 +52,7 @@ RULE_SECTION_FILES = {
     "cliche_watchlist": "editorial.yaml",
     "editorial_thresholds": "editorial.yaml",
     "x_editorial_rules": "editorial.yaml",
+    "quality_gate_patterns": "editorial.yaml",
 }
 
 _merged_rules_cache: dict[str, Any] | None = None

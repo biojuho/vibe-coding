@@ -6,10 +6,19 @@ import {
 	isEstrusAlert,
 } from "./utils";
 
+function isNotificationCattleRow(row) {
+	return row && typeof row === "object" && !Array.isArray(row);
+}
+
+function normalizeNotificationCattle(cattle) {
+	return Array.isArray(cattle) ? cattle.filter(isNotificationCattleRow) : [];
+}
+
 export function buildNotifications(cattle = []) {
 	const notifications = [];
+	const safeCattle = normalizeNotificationCattle(cattle);
 
-	cattle.forEach((cow) => {
+	safeCattle.forEach((cow) => {
 		if (
 			(cow.status === "번식우" || cow.status === "육성우") &&
 			cow.lastEstrus &&

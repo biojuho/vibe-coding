@@ -17,6 +17,28 @@ test("cattle pagination failures surface Korean retry feedback", () => {
 
 	assert.match(hookSource, /CATTLE_PAGINATION_TIMEOUT_MESSAGE/);
 	assert.match(hookSource, /CATTLE_PAGINATION_ERROR_MESSAGE/);
+	assert.match(hookSource, /function normalizePaginationParams\(params\) \{/);
+	assert.match(
+		hookSource,
+		/params && typeof params === "object" && !Array\.isArray\(params\)/,
+	);
+	assert.match(hookSource, /export function useCattlePagination\(options = \{\}\) \{/);
+	assert.match(
+		hookSource,
+		/const \{ initialItems = \[\], initialPageInfo = null \} =\s+normalizePaginationParams\(options\);/,
+	);
+	assert.doesNotMatch(
+		hookSource,
+		/export function useCattlePagination\(\{\s+initialItems = \[\],\s+initialPageInfo = null,\s+\} = \{\}\)/,
+	);
+	assert.match(
+		hookSource,
+		/async \(params = \{\}\) => \{\s+const \{ buildingId, penNumber, status \} =\s+normalizePaginationParams\(params\);/,
+	);
+	assert.doesNotMatch(
+		hookSource,
+		/async \(\{ buildingId, penNumber, status \} = \{\}\) =>/,
+	);
 	assert.match(hookSource, /setLoadError\(CATTLE_PAGINATION_TIMEOUT_MESSAGE\)/);
 	assert.match(hookSource, /setLoadError\(CATTLE_PAGINATION_ERROR_MESSAGE\)/);
 	assert.match(hookSource, /const loadInFlightRef = useRef\(false\);/);
@@ -70,7 +92,7 @@ test("cattle pagination normalizes malformed page item payloads", () => {
 	assert.match(hookSource, /function normalizePaginationItems\(items\) \{/);
 	assert.match(
 		hookSource,
-		/Array\.isArray\(items\)\s*\?\s*items\.filter\(\s*\(item\)\s*=>\s*item\s*&&\s*typeof\s*item\s*===\s*["']object["']\s*\)\s*:\s*\[\]/,
+		/Array\.isArray\(items\)[\s\S]*?\? items\.filter\([\s\S]*?\(item\) => item && typeof item === ["']object["'] && !Array\.isArray\(item\)[\s\S]*?\)[\s\S]*?: \[\]/,
 	);
 	assert.match(
 		hookSource,

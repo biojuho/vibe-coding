@@ -23,6 +23,18 @@ test("parseCattleHistoryMetadata marks malformed JSON without throwing", () => {
 	assert.match(result.metadataRaw, /420/);
 });
 
+test("parseCattleHistoryMetadata rejects array metadata payloads", () => {
+	const direct = parseCattleHistoryMetadata(["bad", "metadata"]);
+	const parsed = parseCattleHistoryMetadata('[{"to": 455}]');
+
+	assert.equal(direct.metadata, null);
+	assert.equal(direct.metadataParseError, true);
+	assert.match(direct.metadataRaw, /bad/);
+	assert.equal(parsed.metadata, null);
+	assert.equal(parsed.metadataParseError, true);
+	assert.match(parsed.metadataRaw, /455/);
+});
+
 test("normalizeCattleHistoryRows preserves valid rows when one metadata cell is corrupt", () => {
 	const rows = normalizeCattleHistoryRows([
 		{

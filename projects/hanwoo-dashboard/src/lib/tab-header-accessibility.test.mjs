@@ -91,6 +91,23 @@ test("schedule form waits for async saves before re-enabling actions", () => {
 
 	assert.match(
 		scheduleSource,
+		/function normalizeScheduleTabOptions\(options\) \{/,
+	);
+	assert.match(
+		scheduleSource,
+		/return options && typeof options === ["']object["'] && !Array\.isArray\(options\)/,
+	);
+	assert.match(
+		scheduleSource,
+		/export default function ScheduleTab\(options = \{\}\) \{/,
+	);
+	assert.match(scheduleSource, /normalizeScheduleTabOptions\(options\);/);
+	assert.match(
+		scheduleSource,
+		/const handleCreateEvent =\s+typeof onCreateEvent === ["']function["'] \? onCreateEvent : async \(\) => false;/,
+	);
+	assert.match(
+		scheduleSource,
 		/const \[isSaving, setIsSaving\] = useState\(false\)/,
 	);
 	assert.match(scheduleSource, /const isMountedRef = useRef\(false\)/);
@@ -109,7 +126,8 @@ test("schedule form waits for async saves before re-enabling actions", () => {
 	);
 	assert.match(scheduleSource, /saveInFlightRef\.current = true;/);
 	assert.match(scheduleSource, /setIsSaving\(true\);/);
-	assert.match(scheduleSource, /await onCreateEvent\(values\)/);
+	assert.match(scheduleSource, /await handleCreateEvent\(values\)/);
+	assert.doesNotMatch(scheduleSource, /await onCreateEvent\(values\)/);
 	assert.match(
 		scheduleSource,
 		/if \(!saved \|\| !isMountedRef\.current\) \{\s+return;\s+\}/,
@@ -176,6 +194,10 @@ test("schedule completion toggles wait for async updates before re-enabling cont
 
 	assert.match(
 		scheduleSource,
+		/const handleToggleEvent =\s+typeof onToggleEvent === ["']function["'] \? onToggleEvent : async \(\) => false;/,
+	);
+	assert.match(
+		scheduleSource,
 		/const \[savingEventId, setSavingEventId\] = useState\(null\)/,
 	);
 	assert.match(scheduleSource, /const completionInFlightRef = useRef\(false\)/);
@@ -186,6 +208,10 @@ test("schedule completion toggles wait for async updates before re-enabling cont
 	assert.match(scheduleSource, /completionInFlightRef\.current = true;/);
 	assert.match(scheduleSource, /setSavingEventId\(event\.id\);/);
 	assert.match(
+		scheduleSource,
+		/await handleToggleEvent\(event\.id, !event\.isCompleted\);/,
+	);
+	assert.doesNotMatch(
 		scheduleSource,
 		/await onToggleEvent\(event\.id, !event\.isCompleted\);/,
 	);
@@ -282,7 +308,7 @@ test("schedule tab normalizes malformed event payloads before rendering", () => 
 	assert.match(scheduleSource, /if \(!Array\.isArray\(events\)\) return \[\];/);
 	assert.match(
 		scheduleSource,
-		/\.filter\(\(event\) => event && typeof event === ['"]object['"]\)/,
+		/\.filter\(\(event\) => event && typeof event === ['"]object['"] && !Array\.isArray\(event\)\)/,
 	);
 	assert.match(
 		scheduleSource,

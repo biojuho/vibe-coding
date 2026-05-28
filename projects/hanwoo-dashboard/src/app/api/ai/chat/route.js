@@ -34,6 +34,32 @@ function formatSaleDateForContext(value) {
 	return date.toISOString().slice(0, 10);
 }
 
+function isFarmContextRow(value) {
+	return (
+		value !== null &&
+		typeof value === "object" &&
+		!Array.isArray(value)
+	);
+}
+
+function normalizeFarmContextRows(rows) {
+	return Array.isArray(rows) ? rows.filter((row) => isFarmContextRow(row)) : [];
+}
+
+function normalizeStatusCountLabel(value) {
+	return typeof value === "string" && value.trim()
+		? value.trim()
+		: "상태 미등록";
+}
+
+function normalizeStatusCountValue(value) {
+	if (isFarmContextRow(value._count)) {
+		return toFiniteNumber(value._count._all);
+	}
+
+	return toFiniteNumber(value._count);
+}
+
 async function buildFarmContext() {
 	try {
 		const [cattleCount, buildingCount, recentSales, farmSettings] =
@@ -53,17 +79,26 @@ async function buildFarmContext() {
 			where: { isArchived: false },
 			_count: true,
 		});
+		const safeStatusCounts = normalizeFarmContextRows(statusCounts);
+		const safeRecentSales = normalizeFarmContextRows(recentSales);
 
-		const statusSummary = statusCounts
-			.map((item) => `${item.status}: ${item._count}`)
+		const statusSummary = safeStatusCounts
+			.map(
+				(item) =>
+					`${normalizeStatusCountLabel(item.status)}: ${normalizeStatusCountValue(item)}`,
+			)
 			.join(", ");
 
 		const salesSummary =
-			recentSales.length > 0
-				? recentSales
-						.map((sale) => {
-							const cattleName = sale.cattle?.name || "개체명 미등록";
-							const tagNumber = sale.cattle?.tagNumber || "이력번호 미등록";
+			safeRecentSales.length > 0
+				? safeRecentSales
+						.map((rawSale) => {
+							const sale = {
+								...rawSale,
+								cattle: isFarmContextRow(rawSale.cattle) ? rawSale.cattle : {},
+							};
+							const cattleName = sale.cattle.name || "개체명 미등록";
+							const tagNumber = sale.cattle.tagNumber || "이력번호 미등록";
 				const priceManwon = (toFiniteNumber(sale.price) / 10000).toFixed(0);
 							const saleDate = formatSaleDateForContext(sale.saleDate);
 							return `${cattleName}(${tagNumber}) ${priceManwon}만원 (${saleDate})`;
@@ -85,12 +120,19 @@ async function buildFarmContext() {
 	}
 }
 
-function createGeminiChatStream({
-	apiKey,
-	message,
-	history,
-	systemInstruction,
-}) {
+function normalizeGeminiChatStreamOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+function createGeminiChatStream(options = {}) {
+	const {
+		apiKey,
+		message,
+		history,
+		systemInstruction,
+	} = normalizeGeminiChatStreamOptions(options);
 	const genAI = new GoogleGenerativeAI(apiKey);
 	const model = genAI.getGenerativeModel({
 		model: "gemini-2.0-flash",

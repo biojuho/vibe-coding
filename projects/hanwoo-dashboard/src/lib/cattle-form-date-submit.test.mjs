@@ -19,7 +19,7 @@ test("cattle form submit date conversion avoids raw invalid Date toISOString cal
 	assert.match(source, /const inputDate = toInputDate\(value\);/);
 	assert.match(
 		source,
-		/return inputDate\s*\?\s*new\s+Date\(\s*[`"']\s*\$\{inputDate\}T00:00:00\.000Z\s*[`"']\s*\)\s*\.\s*toISOString\(\s*\)\s*:\s*null\s*;?/,
+		/return inputDate\s*\?\s*new\s+Date\(\s*`\$\{inputDate\}T00:00:00\.000Z`\s*\)\s*\.toISOString\(\s*\)\s*:\s*null\s*;?/s,
 	);
 	assert.match(
 		source,

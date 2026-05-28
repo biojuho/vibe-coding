@@ -40,7 +40,15 @@ export const metadata = {
 	},
 };
 
-export default function RootLayout({ children }) {
+function normalizeRootLayoutOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+export default function RootLayout(options = {}) {
+	const { children } = normalizeRootLayoutOptions(options);
+
 	return (
 		<html lang="ko" suppressHydrationWarning>
 			<body

@@ -58,6 +58,7 @@ test("estimateMonthlyFeedCostPerHead ignores non-feed and out-of-window records"
 			{ date: "2025-09-01", category: "feed", amount: 999999 }, // outside 6-month window
 			{ date: "2026-04-01", category: "Feed", amount: 100000 }, // case-insensitive
 			{ date: "2026-04-15", category: "concentrate", amount: 50000 },
+			["2026-04-20", "feed", 999999],
 			{ date: "not-a-date", category: "feed", amount: 500000 },
 			{ date: "2026-04-10", category: "feed", amount: -1000 }, // negative ignored
 		],
@@ -82,6 +83,17 @@ test("estimateMonthlyFeedCostPerHead falls back for malformed window months", ()
 
 	assert.equal(result.estimate, 10000);
 	assert.equal(Number.isFinite(result.estimate), true);
+});
+
+test("estimateMonthlyFeedCostPerHead ignores malformed top-level options", () => {
+	for (const value of [null, [], "bad-options"]) {
+		const result = estimateMonthlyFeedCostPerHead(value);
+
+		assert.equal(result.estimate, null);
+		assert.equal(result.sampleSize, 0);
+		assert.equal(result.totalFeedSpend, 0);
+		assert.equal(result.monthsCovered, 0);
+	}
 });
 
 test("estimateMonthlyWeightGainPerHead returns null when no sales", () => {
@@ -145,6 +157,7 @@ test("estimateMonthlyWeightGainPerHead ignores out-of-window and malformed", () 
 	const result = estimateMonthlyWeightGainPerHead({
 		salesRecords: [
 			{ cattleId: "good", saleDate: "2026-05-15", weight: 700 },
+			["good", "2026-05-15", 9999],
 			{ cattleId: "missing", saleDate: "2026-05-15", weight: 700 },
 			{ cattleId: "loss", saleDate: "2026-05-15", weight: 30 },
 			{ cattleId: "good", saleDate: "2024-01-01", weight: 700 }, // outside 12mo window
@@ -154,6 +167,21 @@ test("estimateMonthlyWeightGainPerHead ignores out-of-window and malformed", () 
 	});
 	assert.equal(result.sampleSize, 1);
 	assert.ok(result.estimate > 0);
+});
+
+test("estimateMonthlyWeightGainPerHead ignores array cattle lookup values", () => {
+	const result = estimateMonthlyWeightGainPerHead({
+		salesRecords: [
+			{ cattleId: "array-cattle", saleDate: "2026-05-15", weight: 700 },
+		],
+		cattleById: {
+			"array-cattle": ["2024-01-01", 700],
+		},
+		now: NOW,
+	});
+
+	assert.equal(result.estimate, null);
+	assert.equal(result.sampleSize, 0);
 });
 
 test("estimateMonthlyWeightGainPerHead falls back for malformed window months", () => {
@@ -170,6 +198,15 @@ test("estimateMonthlyWeightGainPerHead falls back for malformed window months", 
 	assert.equal(result.sampleSize, 1);
 	assert.equal(Number.isFinite(result.estimate), true);
 	assert.ok(result.estimate > 0);
+});
+
+test("estimateMonthlyWeightGainPerHead ignores malformed top-level options", () => {
+	for (const value of [null, [], "bad-options"]) {
+		const result = estimateMonthlyWeightGainPerHead(value);
+
+		assert.equal(result.estimate, null);
+		assert.equal(result.sampleSize, 0);
+	}
 });
 
 test("computeFarmAdjustments falls back to defaults when farm data is missing", () => {
@@ -212,4 +249,16 @@ test("computeFarmAdjustments returns customized values when farm data is availab
 	assert.equal(result.isCustomized, true);
 	assert.ok(result.evidence.feedCost.sampleSize >= 1);
 	assert.ok(result.evidence.weightGain.sampleSize >= 1);
+});
+
+test("computeFarmAdjustments ignores malformed options and defaults", () => {
+	for (const value of [null, [], "bad-options", { defaults: null }]) {
+		const result = computeFarmAdjustments(value);
+
+		assert.equal(result.feedCostPerHead, undefined);
+		assert.equal(result.weightGainPerHead, undefined);
+		assert.equal(result.isCustomized, false);
+		assert.equal(result.evidence.feedCost.sampleSize, 0);
+		assert.equal(result.evidence.weightGain.sampleSize, 0);
+	}
 });

@@ -14,20 +14,37 @@ const DialogPortal = DialogPrimitive.Portal;
 
 const DialogClose = DialogPrimitive.Close;
 
-const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
-	<DialogPrimitive.Overlay
-		ref={ref}
-		className={cn(
-			"fixed inset-0 z-50 bg-[color:var(--color-overlay)]/90 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-			className,
-		)}
-		{...props}
-	/>
-));
+function normalizeDialogOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+const DialogOverlay = React.forwardRef((options, ref) => {
+	const { className, ...props } = normalizeDialogOptions(options);
+
+	return (
+		<DialogPrimitive.Overlay
+			ref={ref}
+			className={cn(
+				"fixed inset-0 z-50 bg-[color:var(--color-overlay)]/90 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+				className,
+			)}
+			{...props}
+		/>
+	);
+});
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
-const DialogContent = React.forwardRef(
-	({ className, children, closeLabel = "대화상자 닫기", ...props }, ref) => (
+const DialogContent = React.forwardRef((options, ref) => {
+	const {
+		className,
+		children,
+		closeLabel = "대화상자 닫기",
+		...props
+	} = normalizeDialogOptions(options);
+
+	return (
 		<DialogPortal>
 			<DialogOverlay />
 			<DialogPrimitive.Content
@@ -49,51 +66,67 @@ const DialogContent = React.forwardRef(
 				</DialogPrimitive.Close>
 			</DialogPrimitive.Content>
 		</DialogPortal>
-	),
-);
+	);
+});
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
-const DialogHeader = ({ className, ...props }) => (
-	<div
-		className={cn(
-			"flex flex-col space-y-1.5 text-center sm:text-left",
-			className,
-		)}
-		{...props}
-	/>
-);
+const DialogHeader = (options = {}) => {
+	const { className, ...props } = normalizeDialogOptions(options);
+
+	return (
+		<div
+			className={cn(
+				"flex flex-col space-y-1.5 text-center sm:text-left",
+				className,
+			)}
+			{...props}
+		/>
+	);
+};
 DialogHeader.displayName = "DialogHeader";
 
-const DialogFooter = ({ className, ...props }) => (
-	<div
-		className={cn(
-			"flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
-			className,
-		)}
-		{...props}
-	/>
-);
+const DialogFooter = (options = {}) => {
+	const { className, ...props } = normalizeDialogOptions(options);
+
+	return (
+		<div
+			className={cn(
+				"flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+				className,
+			)}
+			{...props}
+		/>
+	);
+};
 DialogFooter.displayName = "DialogFooter";
 
-const DialogTitle = React.forwardRef(({ className, ...props }, ref) => (
-	<DialogPrimitive.Title
-		ref={ref}
-		className={cn(
-			"text-lg font-bold leading-none tracking-[-0.01em]",
-			className,
-		)}
-		{...props}
-	/>
-));
+const DialogTitle = React.forwardRef((options, ref) => {
+	const { className, ...props } = normalizeDialogOptions(options);
+
+	return (
+		<DialogPrimitive.Title
+			ref={ref}
+			className={cn(
+				"text-lg font-bold leading-none tracking-[-0.01em]",
+				className,
+			)}
+			{...props}
+		/>
+	);
+});
 DialogTitle.displayName = DialogPrimitive.Title.displayName;
 
-const DialogDescription = React.forwardRef(({ className, ...props }, ref) => (
-	<DialogPrimitive.Description
-		ref={ref}
-		className={cn("text-sm text-muted-foreground", className)}
-		{...props}
-	/>
-));
+const DialogDescription = React.forwardRef((options, ref) => {
+	const { className, ...props } = normalizeDialogOptions(options);
+
+	return (
+		<DialogPrimitive.Description
+			ref={ref}
+			className={cn("text-sm text-muted-foreground", className)}
+			{...props}
+		/>
+	);
+});
 DialogDescription.displayName = DialogPrimitive.Description.displayName;
 
 export {

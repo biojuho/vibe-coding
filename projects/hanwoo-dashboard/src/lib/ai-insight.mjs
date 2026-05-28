@@ -32,30 +32,33 @@ function clampString(value, max) {
 	return trimmed.length > max ? `${trimmed.slice(0, max - 1)}…` : trimmed;
 }
 
+function isPlainObject(value) {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
 export function summarizeFarmForInsight(input) {
-	const safe = input && typeof input === "object" ? input : {};
+	const safe = isPlainObject(input) ? input : {};
 	const profitabilityItems = Array.isArray(safe.profitabilityItems)
 		? safe.profitabilityItems
 		: [];
 	const notifications = Array.isArray(safe.notifications)
 		? safe.notifications
 		: [];
-	const weather = safe.weather && typeof safe.weather === "object"
-		? safe.weather
-		: {};
+	const weather = isPlainObject(safe.weather) ? safe.weather : {};
 
 	const recommendedShipments = profitabilityItems.filter(
-		(item) => item && item.recommendShipment === true,
+		(item) => isPlainObject(item) && item.recommendShipment === true,
 	);
 	const decliningMarginCount = profitabilityItems.filter(
 		(item) => {
-			if (!item || typeof item !== "object") return false;
+			if (!isPlainObject(item)) return false;
 			const marginalGain = toFiniteNumberOrNull(item.marginalGain);
 			return marginalGain !== null && marginalGain <= 0;
 		},
 	).length;
 	const notificationCounts = notifications.reduce((acc, note) => {
-		const type = note && typeof note.type === "string" ? note.type : "etc";
+		const type =
+			isPlainObject(note) && typeof note.type === "string" ? note.type : "etc";
 		acc[type] = (acc[type] ?? 0) + 1;
 		return acc;
 	}, {});
@@ -158,7 +161,7 @@ export function parseInsightResponse(raw) {
 	if (!arr) return null;
 	const sanitized = arr
 		.map((item) => {
-			if (!item || typeof item !== "object") return null;
+			if (!isPlainObject(item)) return null;
 			const title = clampString(item.title, 24);
 			const body = clampString(item.body, 120);
 			if (!title || !body) return null;

@@ -50,14 +50,25 @@ function buildApiHistory(messages) {
 	return history;
 }
 
-async function streamChat({
-	message,
-	history,
-	signal,
-	onChunk,
-	onDone,
-	onError,
-}) {
+function normalizeStreamChatOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+async function streamChat(options = {}) {
+	const {
+		message,
+		history,
+		signal,
+		onChunk,
+		onDone,
+		onError,
+	} = normalizeStreamChatOptions(options);
+	const handleChunk = typeof onChunk === "function" ? onChunk : () => {};
+	const handleDone = typeof onDone === "function" ? onDone : () => {};
+	const handleError = typeof onError === "function" ? onError : () => {};
+
 	try {
 		const res = await fetch("/api/ai/chat", {
 			method: "POST",
@@ -93,29 +104,29 @@ async function streamChat({
 				const payload = trimmed.slice(6);
 
 				if (payload === "[DONE]") {
-					onDone();
+					handleDone();
 					return;
 				}
 
 				try {
 					const parsed = JSON.parse(payload);
 					if (parsed.error) {
-						onError(parsed.error);
+						handleError(parsed.error);
 						return;
 					}
 					if (parsed.text) {
-						onChunk(parsed.text);
+						handleChunk(parsed.text);
 					}
 				} catch {
 					/* ignore malformed JSON chunks */
 				}
 			}
 		}
-		onDone();
+		handleDone();
 	} catch (error) {
 		if (error.name !== "AbortError") {
 			console.error("AI chat stream failed:", error);
-			onError(CHAT_CONNECTION_ERROR_MESSAGE);
+			handleError(CHAT_CONNECTION_ERROR_MESSAGE);
 		}
 	}
 }

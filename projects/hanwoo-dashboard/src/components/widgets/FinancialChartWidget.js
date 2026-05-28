@@ -43,15 +43,24 @@ function toMonthKey(value) {
 
 function normalizeFinancialChartItems(items) {
 	return Array.isArray(items)
-		? items.filter((item) => item && typeof item === "object")
+		? items.filter(
+				(item) => item && typeof item === "object" && !Array.isArray(item),
+			)
 		: [];
 }
 
-export default function FinancialChartWidget({
-	saleRecords = [],
-	expenseRecords = [],
-	seriesData = null,
-}) {
+function normalizeFinancialChartWidgetOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+export default function FinancialChartWidget(options = {}) {
+	const {
+		saleRecords = [],
+		expenseRecords = [],
+		seriesData = null,
+	} = normalizeFinancialChartWidgetOptions(options);
 	const safeSaleRecords = normalizeFinancialChartItems(saleRecords);
 	const safeCostRecords = normalizeFinancialChartItems(expenseRecords);
 	const safeSeriesData = normalizeFinancialChartItems(seriesData);

@@ -2,60 +2,88 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-const Card = React.forwardRef(({ className, ...props }, ref) => (
-	<div
-		ref={ref}
-		className={cn(
-			"clay-surface rounded-[28px] text-card-foreground backdrop-blur-md transition-[box-shadow,border-color,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
-			className,
-		)}
-		{...props}
-	/>
-));
+function normalizeCardOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+const Card = React.forwardRef((options, ref) => {
+	const { className, ...props } = normalizeCardOptions(options);
+
+	return (
+		<div
+			ref={ref}
+			className={cn(
+				"clay-surface rounded-[28px] text-card-foreground backdrop-blur-md transition-[box-shadow,border-color,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+				className,
+			)}
+			{...props}
+		/>
+	);
+});
 Card.displayName = "Card";
 
-const CardHeader = React.forwardRef(({ className, ...props }, ref) => (
-	<div
-		ref={ref}
-		className={cn("flex flex-col space-y-1.5 p-6 pb-4", className)}
-		{...props}
-	/>
-));
+const CardHeader = React.forwardRef((options, ref) => {
+	const { className, ...props } = normalizeCardOptions(options);
+
+	return (
+		<div
+			ref={ref}
+			className={cn("flex flex-col space-y-1.5 p-6 pb-4", className)}
+			{...props}
+		/>
+	);
+});
 CardHeader.displayName = "CardHeader";
 
-const CardTitle = React.forwardRef(({ className, ...props }, ref) => (
-	<h3
-		ref={ref}
-		className={cn(
-			"text-2xl font-bold leading-none tracking-[-0.01em]",
-			className,
-		)}
-		{...props}
-	/>
-));
+const CardTitle = React.forwardRef((options, ref) => {
+	const { className, ...props } = normalizeCardOptions(options);
+
+	return (
+		<h3
+			ref={ref}
+			className={cn(
+				"text-2xl font-bold leading-none tracking-[-0.01em]",
+				className,
+			)}
+			{...props}
+		/>
+	);
+});
 CardTitle.displayName = "CardTitle";
 
-const CardDescription = React.forwardRef(({ className, ...props }, ref) => (
-	<p
-		ref={ref}
-		className={cn("text-sm text-muted-foreground leading-relaxed", className)}
-		{...props}
-	/>
-));
+const CardDescription = React.forwardRef((options, ref) => {
+	const { className, ...props } = normalizeCardOptions(options);
+
+	return (
+		<p
+			ref={ref}
+			className={cn("text-sm text-muted-foreground leading-relaxed", className)}
+			{...props}
+		/>
+	);
+});
 CardDescription.displayName = "CardDescription";
 
-const CardContent = React.forwardRef(({ className, ...props }, ref) => (
-	<div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
-));
+const CardContent = React.forwardRef((options, ref) => {
+	const { className, ...props } = normalizeCardOptions(options);
+
+	return <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />;
+});
 CardContent.displayName = "CardContent";
 
-const CardFooter = React.forwardRef(({ className, ...props }, ref) => (
-	<div
-		ref={ref}
-		className={cn("flex items-center p-6 pt-0", className)}
-		{...props}
-	/>
-));
+const CardFooter = React.forwardRef((options, ref) => {
+	const { className, ...props } = normalizeCardOptions(options);
+
+	return (
+		<div
+			ref={ref}
+			className={cn("flex items-center p-6 pt-0", className)}
+			{...props}
+		/>
+	);
+});
 CardFooter.displayName = "CardFooter";
 
 export {

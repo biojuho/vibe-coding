@@ -2,7 +2,15 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-const Input = React.forwardRef(({ className, type, ...props }, ref) => {
+function normalizeInputOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+const Input = React.forwardRef((options, ref) => {
+	const { className, type, ...props } = normalizeInputOptions(options);
+
 	return (
 		<input
 			type={type}

@@ -8,10 +8,26 @@ import { prisma } from "./_helpers";
 // Building Actions
 // ============================================================
 
+function isBuildingActionRow(value) {
+	return (
+		value !== null &&
+		typeof value === "object" &&
+		!Array.isArray(value)
+	);
+}
+
+function normalizeBuildingActionRows(rows) {
+	return Array.isArray(rows)
+		? rows.filter((row) => isBuildingActionRow(row))
+		: [];
+}
+
 export async function getBuildings() {
 	await requireAuthenticatedSession();
 	try {
-		return await prisma.building.findMany({ orderBy: { name: "asc" } });
+		return normalizeBuildingActionRows(
+			await prisma.building.findMany({ orderBy: { name: "asc" } }),
+		);
 	} catch (e) {
 		console.error("Failed to fetch buildings:", e);
 		return [];

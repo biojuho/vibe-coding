@@ -23,7 +23,9 @@ function normalizeRetryCount(value) {
 }
 
 function normalizeObject(value) {
-	return value && typeof value === "object" ? value : {};
+	return value && typeof value === "object" && !Array.isArray(value)
+		? value
+		: {};
 }
 
 export function normalizeOfflineQueueMetadata(item = {}) {

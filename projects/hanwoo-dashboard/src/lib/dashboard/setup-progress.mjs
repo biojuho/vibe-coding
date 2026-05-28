@@ -4,17 +4,26 @@ function hasText(value) {
 
 function countItems(value) {
 	return Array.isArray(value)
-		? value.filter((item) => item && typeof item === "object").length
+		? value.filter(
+				(item) => item && typeof item === "object" && !Array.isArray(item),
+			).length
 		: 0;
 }
 
-export function buildSetupProgressItems({
-	farmSettings = {},
-	buildings = [],
-	cattleList = [],
-	inventoryList = [],
-	scheduleEvents = [],
-} = {}) {
+function normalizeSetupProgressOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+export function buildSetupProgressItems(options = {}) {
+	const {
+		farmSettings = {},
+		buildings = [],
+		cattleList = [],
+		inventoryList = [],
+		scheduleEvents = [],
+	} = normalizeSetupProgressOptions(options);
 	const items = [
 		{
 			id: "farm-profile",

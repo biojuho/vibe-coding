@@ -40,5 +40,17 @@ test("BullMQ helpers ignore malformed options before configuration checks", asyn
 			() => enqueueJob("dashboard.cache.warm", { farmId: "farm-1" }, null),
 			/REDIS_URL \(or BULLMQ_REDIS_URL\) is required/,
 		);
+		assert.throws(
+			() => getQueue("dashboard.cache.warm", []),
+			/REDIS_URL \(or BULLMQ_REDIS_URL\) is required/,
+		);
+		assert.throws(
+			() => getQueueEvents("dashboard.cache.warm", []),
+			/REDIS_URL \(or BULLMQ_REDIS_URL\) is required/,
+		);
+		await assert.rejects(
+			() => enqueueJob("dashboard.cache.warm", { farmId: "farm-1" }, []),
+			/REDIS_URL \(or BULLMQ_REDIS_URL\) is required/,
+		);
 	});
 });

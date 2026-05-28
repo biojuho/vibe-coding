@@ -63,3 +63,31 @@
   - `Get-ChildItem -Recurse` 등을 수행할 때 존재하지 않는 디렉토리를 탐색하면 에러가 발생하므로, 탐색 전 타깃 존재 여부를 반드시 체크하십시오.
   - Windows의 CP949 인코딩 콘솔 한글 깨짐 현상이 있어도 실제 파일 및 데이터는 항상 UTF-8 클린하게 저장해야 합니다.
   - 터미널이나 CLI 도구에서 비ASCII 유니코드나 이모지를 stdout/stderr로 직접 출력하면 `UnicodeEncodeError` 예외가 발생하므로, 윈도우 실행 시 `sys.stdout.reconfigure(encoding='utf-8')`을 통해 스트림을 강제 재구성하거나 이모지 사용을 피하십시오.
+
+## Multi-Tool Coordination — Task ID Allocation
+
+여러 AI 도구(Claude Code, Codex, Gemini, ...)가 `.ai/TASKS.md` 를 동시에 편집하다 보니
+같은 `T-####` 가 두 번 사용되는 충돌이 반복 발생합니다(T-1107×2, T-1108×2, T-1195×2,
+T-1199×2 — `git log` 에서 직접 확인 가능). 각 도구가 자기 스냅샷의 `max(T-####)+1`
+을 독립적으로 고르기 때문입니다.
+
+**새 task ID 가 필요할 때는 반드시 `execution/next_task_id.py` 의 출력을 사용하십시오**:
+
+```bash
+py -3 execution/next_task_id.py
+# → T-1201
+
+# automation:
+py -3 execution/next_task_id.py --json
+```
+
+이 스크립트는 `.ai/TASKS.md`, `.ai/HANDOFF.md`, 최근 30개 git commit 의 subject + body
+세 곳을 모두 스캔해 `T-####` 참조 합집합의 최대값 + 1 부터 충돌 없는 첫 ID 를
+제안합니다. 다른 도구가 자기 커밋에 이미 사용했지만 `TASKS.md` 에는 아직 반영 안 된
+ID 도 git log 에서 잡히므로, 도구 간 race window 가 "수 분(스냅샷 갱신 주기)"에서
+"수 초(커밋 직전 재실행)" 로 좁아집니다.
+
+**완전 동시(1초 이내) 충돌 폴백 규칙**: 그래도 충돌이 발생하면 *나중에 커밋하는*
+도구가 ID 뒤에 알파벳 접미사를 붙이고(`T-1201b`) 커밋 본문에서 충돌을 언급하십시오.
+이미 유기적으로 정착된 패턴이며(예: commit `e940de77` 의 "ID 충돌 노트:" 섹션) 변경
+이력 보존을 위해 과거 commit message 의 ID 는 절대 다시 쓰지 마십시오.

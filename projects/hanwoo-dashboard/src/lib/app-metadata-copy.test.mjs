@@ -23,6 +23,23 @@ test("app metadata and PWA manifest use product-ready Korean copy", () => {
 	assert.match(layoutSource, /Joolife 한우/);
 	assert.doesNotMatch(layoutSource, /Joolife Dashboard/);
 	assert.doesNotMatch(layoutSource, /Premium Hanwoo Farm Management System/);
+	assert.match(layoutSource, /function normalizeRootLayoutOptions\(options\) \{/);
+	assert.match(
+		layoutSource,
+		/return options && typeof options === ["']object["'] && !Array\.isArray\(options\)\s*\?\s*options\s*:\s*\{\s*\}\s*;?/,
+	);
+	assert.match(
+		layoutSource,
+		/export default function RootLayout\(options = \{\}\) \{/,
+	);
+	assert.match(
+		layoutSource,
+		/const \{ children \} = normalizeRootLayoutOptions\(options\);/,
+	);
+	assert.doesNotMatch(
+		layoutSource,
+		/export default function RootLayout\(\{ children \}\)/,
+	);
 
 	assert.equal(manifest.name, "Joolife 한우 농장 관리");
 	assert.equal(manifest.short_name, "Joolife 한우");

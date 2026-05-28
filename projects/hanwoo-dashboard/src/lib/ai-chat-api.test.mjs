@@ -131,6 +131,14 @@ test("normalizeAiChatHistoryForGemini rejects unsafe history shapes", () => {
 			normalizeAiChatHistoryForGemini([{ role: "assistant", content: "x" }]),
 		/역할이 올바르지 않습니다/,
 	);
+
+	const arrayHistoryItem = [];
+	arrayHistoryItem.role = "user";
+	arrayHistoryItem.content = "array row should be rejected";
+	assert.throws(
+		() => normalizeAiChatHistoryForGemini([arrayHistoryItem]),
+		/항목 형식/,
+	);
 });
 
 test("handleAiChatRequest returns SSE for a valid authenticated request", async () => {
@@ -206,6 +214,21 @@ test("handleAiChatRequest reports validation and configuration failures consiste
 	});
 });
 
+test("handleAiChatRequest normalizes malformed dependency input", async () => {
+	for (const deps of [null, [], "bad-deps", { authenticate: async () => {} }]) {
+		const response = await handleAiChatRequest(
+			jsonRequest({ message: "hello" }),
+			deps,
+		);
+		const body = await readJson(response);
+
+		assert.equal(response.status, 500);
+		assert.equal(body.success, false);
+		assert.match(body.message, /AI/);
+		assert.match(body.message, /梨꾪똿/);
+	}
+});
+
 test("createAiChatSseStream emits chunks and converts provider errors to SSE errors", async () => {
 	const okStream = createAiChatSseStream({
 		message: "question",
@@ -235,6 +258,50 @@ test("createAiChatSseStream emits chunks and converts provider errors to SSE err
 	);
 });
 
+test("createAiChatSseStream normalizes malformed stream options", async () => {
+	for (const value of [null, [], "bad-options"]) {
+		const stream = createAiChatSseStream(value);
+		const output = await readStreamText(stream);
+
+		assert.match(output, /data: \{"error":/);
+	}
+});
+
+test("AI chat route farm context normalizes DB result rows", () => {
+	const source = readFileSync(
+		path.join(SRC_ROOT, "app/api/ai/chat/route.js"),
+		"utf8",
+	);
+
+	assert.match(source, /function isFarmContextRow\(value\) \{/);
+	assert.match(source, /!Array\.isArray\(value\)/);
+	assert.match(source, /function normalizeFarmContextRows\(rows\) \{/);
+	assert.match(source, /Array\.isArray\(rows\)/);
+	assert.match(source, /rows\.filter\(\(row\) => isFarmContextRow\(row\)\)/);
+	assert.match(source, /function normalizeStatusCountLabel\(value\) \{/);
+	assert.match(source, /function normalizeStatusCountValue\(value\) \{/);
+	assert.match(
+		source,
+		/const safeStatusCounts = normalizeFarmContextRows\(statusCounts\);/,
+	);
+	assert.match(
+		source,
+		/const safeRecentSales = normalizeFarmContextRows\(recentSales\);/,
+	);
+	assert.match(source, /const statusSummary = safeStatusCounts/);
+	assert.match(source, /normalizeStatusCountLabel\(item\.status\)/);
+	assert.match(source, /normalizeStatusCountValue\(item\)/);
+	assert.match(source, /safeRecentSales\.length > 0/);
+	assert.match(source, /\? safeRecentSales/);
+	assert.match(source, /\.map\(\(rawSale\) => \{/);
+	assert.match(source, /cattle: isFarmContextRow\(rawSale\.cattle\)/);
+	assert.doesNotMatch(source, /const statusSummary = statusCounts/);
+	assert.doesNotMatch(source, /recentSales\.length > 0/);
+	assert.doesNotMatch(source, /\? recentSales/);
+	assert.doesNotMatch(source, /sale\.cattle\?\.name/);
+	assert.doesNotMatch(source, /sale\.cattle\?\.tagNumber/);
+});
+
 test("AI chat route farm context avoids English fallback copy", () => {
 	const source = readFileSync(
 		path.join(SRC_ROOT, "app/api/ai/chat/route.js"),
@@ -243,6 +310,13 @@ test("AI chat route farm context avoids English fallback copy", () => {
 
 	assert.match(source, /import \{ toFiniteNumber \} from ["']@\/lib\/utils["'];/);
 	assert.match(source, /function formatSaleDateForContext\(value\) \{/);
+	assert.match(source, /function isFarmContextRow\(value\) \{/);
+	assert.match(source, /!Array\.isArray\(value\)/);
+	assert.match(source, /function normalizeFarmContextRows\(rows\) \{/);
+	assert.match(source, /Array\.isArray\(rows\)/);
+	assert.match(source, /rows\.filter\(\(row\) => isFarmContextRow\(row\)\)/);
+	assert.match(source, /function normalizeStatusCountLabel\(value\) \{/);
+	assert.match(source, /function normalizeStatusCountValue\(value\) \{/);
 	assert.match(source, /const dateKey = value\.trim\(\)\.slice\(0, 10\);/);
 	assert.match(source, /date\.toISOString\(\)\.slice\(0, 10\) !== dateKey/);
 	assert.match(source, /return ["']출하일 미등록["'];/);

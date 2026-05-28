@@ -14,12 +14,32 @@ function readSource(relativePath) {
 test("qr widget print action uses Korean operator copy and icon button", () => {
 	const source = readSource("components/widgets/QRCodeWidget.js");
 	assert.match(source, /import \{ useEffect, useRef, useState \} from ["']react["']/);
+	assert.match(source, /const DEFAULT_QR_LABEL = ["']QR 라벨["'];/);
+	assert.match(source, /function normalizeQRCodeWidgetOptions\(options\) \{/);
 	assert.match(
 		source,
-		/const printButtonLabel = isPrinting\s*\?\s*`\$\{label\} QR 라벨 인쇄 준비 중`\s*:\s*`\$\{label\} QR 라벨 인쇄`;/,
+		/options && typeof options === ["']object["'] && !Array\.isArray\(options\)/,
+	);
+	assert.match(source, /function normalizeQRCodeText\(value, fallback\) \{/);
+	assert.match(source, /typeof value === ["']number["'] && Number\.isFinite\(value\)/);
+	assert.match(source, /export default function QRCodeWidget\(options = \{\}\) \{/);
+	assert.match(
+		source,
+		/const \{ value, label \} = normalizeQRCodeWidgetOptions\(options\);/,
+	);
+	assert.match(
+		source,
+		/const qrLabel = normalizeQRCodeText\(label, DEFAULT_QR_LABEL\);/,
+	);
+	assert.match(source, /const qrValue = normalizeQRCodeText\(value, qrLabel\);/);
+	assert.match(
+		source,
+		/const printButtonLabel = isPrinting\s*\?\s*`\$\{qrLabel\} QR 라벨 인쇄 준비 중`\s*:\s*`\$\{qrLabel\} QR 라벨 인쇄`;/,
 	);
 	assert.match(source, /aria-label=\{printButtonLabel\}/);
 	assert.match(source, /title=\{printButtonLabel\}/);
+	assert.match(source, /<QRCodeSVG value=\{qrValue\} size=\{120\} \/>/);
+	assert.doesNotMatch(source, /export default function QRCodeWidget\(\{ value, label \}\)/);
 
 	assert.match(source, /QR 출력/);
 	assert.match(source, /QR 라벨 인쇄/);
@@ -71,7 +91,7 @@ test("qr widget print action blocks duplicate print windows while printing is in
 	);
 	assert.match(
 		source,
-		/updatePrintStatusMessage\(`\$\{label\} QR 라벨 인쇄 창을 준비하는 중입니다\.`\);/,
+		/updatePrintStatusMessage\(`\$\{qrLabel\} QR 라벨 인쇄 창을 준비하는 중입니다\.`\);/,
 	);
 	assert.match(
 		source,
@@ -79,13 +99,13 @@ test("qr widget print action blocks duplicate print windows while printing is in
 	);
 	assert.match(
 		source,
-		/try \{\s+printWindow\.focus\(\);\s+printWindow\.print\(\);\s+updatePrintStatusMessage\(`\$\{label\} QR 라벨 인쇄 창을 열었습니다\.`\);\s+\} catch \(error\) \{/,
+		/try \{\s+printWindow\.focus\(\);\s+printWindow\.print\(\);\s+updatePrintStatusMessage\(`\$\{qrLabel\} QR 라벨 인쇄 창을 열었습니다\.`\);\s+\} catch \(error\) \{/,
 	);
 	assert.match(
 		source,
 		/if \(!isMountedRef\.current\) \{\s+printCommitted = true;\s+closePrintWindow\(printWindow\);\s+resetPrintState\(\);\s+return;\s+\}/,
 	);
-	assert.doesNotMatch(source, /setPrintStatusMessage\(`\$\{label\} QR 라벨 인쇄 창을 열었습니다\.`\);/);
+	assert.doesNotMatch(source, /setPrintStatusMessage\(`\$\{qrLabel\} QR 라벨 인쇄 창을 열었습니다\.`\);/);
 	assert.match(source, /disabled=\{isPrinting\}/);
 	assert.match(source, /aria-busy=\{isPrinting\}/);
 	assert.doesNotMatch(source, /title=\{isPrinting \?/);
@@ -119,7 +139,7 @@ test("qr widget always unlocks print state when browser print APIs fail", () => 
 	assert.match(source, /console\.error\("Failed to print QR label:", error\);/);
 	assert.match(
 		source,
-		/updatePrintStatusMessage\(\s*`\$\{label\} QR 라벨 인쇄를 시작하지 못했습니다\. 다시 시도해 주세요\.`/,
+		/updatePrintStatusMessage\(\s*`\$\{qrLabel\} QR 라벨 인쇄를 시작하지 못했습니다\. 다시 시도해 주세요\.`/,
 	);
 	assert.match(
 		source,
@@ -151,7 +171,7 @@ test("qr widget always unlocks print state when print-window preparation fails",
 	assert.match(source, /doc\.close\(\);/);
 	assert.match(
 		source,
-		/\} catch \(error\) \{\s+printCommitted = true;\s+console\.error\("Failed to prepare QR print window:", error\);\s+closePrintWindow\(printWindow\);\s+resetPrintState\(\);\s+updatePrintStatusMessage\(\s*`\$\{label\} QR 라벨 인쇄 창을 준비하지 못했습니다\. 다시 시도해 주세요\.`/,
+		/\} catch \(error\) \{\s+printCommitted = true;\s+console\.error\("Failed to prepare QR print window:", error\);\s+closePrintWindow\(printWindow\);\s+resetPrintState\(\);\s+updatePrintStatusMessage\(\s*`\$\{qrLabel\} QR 라벨 인쇄 창을 준비하지 못했습니다\. 다시 시도해 주세요\.`/,
 	);
 	assert.match(
 		source,

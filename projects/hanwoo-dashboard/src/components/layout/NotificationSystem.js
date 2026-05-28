@@ -19,7 +19,12 @@ function normalizeSystemNotifications(initialNotifications) {
 	if (!Array.isArray(initialNotifications)) return [];
 
 	return initialNotifications
-		.filter((notification) => notification && typeof notification === "object")
+		.filter(
+			(notification) =>
+				notification &&
+				typeof notification === "object" &&
+				!Array.isArray(notification),
+		)
 		.map((notification, index) => ({
 			...notification,
 			id: notification.id ?? `notification-${index + 1}`,
@@ -41,7 +46,15 @@ function normalizeSystemNotifications(initialNotifications) {
 		}));
 }
 
-export function NotificationSystem({ initialNotifications = [] } = {}) {
+function normalizeNotificationSystemOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+export function NotificationSystem(options = {}) {
+	const { initialNotifications = [] } =
+		normalizeNotificationSystemOptions(options);
 	const [notifications, setNotifications] = useState(() =>
 		normalizeSystemNotifications(initialNotifications),
 	);

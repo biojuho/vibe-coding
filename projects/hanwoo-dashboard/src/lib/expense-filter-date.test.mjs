@@ -29,11 +29,16 @@ test("expense filters ignore malformed optional date values before querying", ()
 	);
 	assert.match(
 		source,
-		/const fromDate = parseOptionalDateFilter\(filters\.fromDate\);/,
+		/const safeFilters = isPlainObject\(filters\) \? filters : \{\};/,
+	);
+	assert.match(source, /if \(safeFilters\.cattleId\) where\.cattleId = safeFilters\.cattleId;/);
+	assert.match(
+		source,
+		/const fromDate = parseOptionalDateFilter\(safeFilters\.fromDate\);/,
 	);
 	assert.match(
 		source,
-		/const toDate = parseOptionalDateFilter\(filters\.toDate\);/,
+		/const toDate = parseOptionalDateFilter\(safeFilters\.toDate\);/,
 	);
 	assert.match(source, /if \(fromDate\) where\.date\.gte = fromDate;/);
 	assert.match(source, /if \(toDate\) where\.date\.lte = toDate;/);

@@ -48,11 +48,13 @@ test("buildTodayFocusItems ignores malformed collection rows", () => {
 		now: new Date("2026-05-18T10:00:00+09:00"),
 		notifications: [
 			null,
+			["array notification"],
 			"bad notification",
 			{ id: "n1", level: "critical", message: "critical alert" },
 		],
 		scheduleEvents: [
 			false,
+			["array schedule"],
 			{
 				id: "s1",
 				title: "valid schedule",
@@ -62,6 +64,7 @@ test("buildTodayFocusItems ignores malformed collection rows", () => {
 		],
 		inventoryList: [
 			"bad inventory",
+			["array inventory"],
 			{ id: "i1", name: "low stock", quantity: 2, threshold: 3, unit: "kg" },
 		],
 		monthlySalesCount: 0,
@@ -89,6 +92,19 @@ test("buildTodayFocusItems tolerates non-array collections", () => {
 		items.map((item) => item.id),
 		["monthly-sales"],
 	);
+});
+
+test("buildTodayFocusItems ignores malformed top-level options", () => {
+	for (const value of [null, [], "bad-options"]) {
+		const items = buildTodayFocusItems(value);
+
+		assert.deepEqual(
+			items.map((item) => item.id),
+			["monthly-sales"],
+		);
+		assert.equal(items[0].targetTab, "sales");
+		assert.equal(items[0].tone, "neutral");
+	}
 });
 
 test("buildTodayFocusItems uses operator-readable schedule countdown labels", () => {
@@ -192,6 +208,12 @@ test("estimateDailyFeedConsumptionKg returns null with no records", () => {
 	assert.equal(result, null);
 });
 
+test("estimateDailyFeedConsumptionKg ignores malformed top-level options", () => {
+	for (const value of [null, [], "bad-options"]) {
+		assert.equal(estimateDailyFeedConsumptionKg(value), null);
+	}
+});
+
 test("estimateDailyFeedConsumptionKg averages recent consumption over 30 days", () => {
 	// 60kg fed over 4 records in the past 10 days → average = 60/30 = 2 kg/day
 	const result = estimateDailyFeedConsumptionKg({
@@ -205,6 +227,18 @@ test("estimateDailyFeedConsumptionKg averages recent consumption over 30 days", 
 		now: new Date("2026-05-18T10:00:00+09:00"),
 	});
 	assert.ok(result > 1 && result < 3, `got ${result}`);
+});
+
+test("estimateDailyFeedConsumptionKg ignores array feed-history rows", () => {
+	const result = estimateDailyFeedConsumptionKg({
+		feedHistory: [
+			["2026-05-17", 999, 999],
+			{ date: "2026-05-17", roughage: 15, concentrate: 15 },
+		],
+		now: new Date("2026-05-18T10:00:00+09:00"),
+	});
+
+	assert.equal(result, 1);
 });
 
 test("buildTodayFocusItems pushes a critical feed-depletion item when projected days are tight", () => {

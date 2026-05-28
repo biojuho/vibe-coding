@@ -123,7 +123,7 @@ test("FieldModeView ignores stale full-list loading completions after cleanup", 
 
 	assert.match(
 		source,
-		/useEffect\(\(\) => \{\s+let cancelled = false;[\s\S]*?ensureAllCattleLoaded\(\{ silent: true \}\)/,
+		/useEffect\(\(\) => \{\s+let cancelled = false;[\s\S]*?handleEnsureAllCattleLoaded\(\{ silent: true \}\)/,
 	);
 	assert.match(
 		source,
@@ -131,12 +131,64 @@ test("FieldModeView ignores stale full-list loading completions after cleanup", 
 	);
 	assert.match(
 		source,
-		/return \(\) => \{\s+cancelled = true;\s+\};\s+\}, \[ensureAllCattleLoaded\]\);/,
+		/return \(\) => \{\s+cancelled = true;\s+\};\s+\}, \[handleEnsureAllCattleLoaded\]\);/,
 	);
 	assert.doesNotMatch(
 		source,
 		/\.finally\(\(\) => setLoadingAllCattle\(false\)\)/,
 	);
+});
+
+test("FieldModeView normalizes malformed props and callbacks before rendering", () => {
+	const source = readSource("components/widgets/FieldModeView.js");
+
+	assert.match(source, /function normalizeFieldModeViewOptions\(options\) \{/);
+	assert.match(source, /function normalizeFieldModeCattleList\(cattleList\) \{/);
+	assert.match(
+		source,
+		/return options && typeof options === ["']object["'] && !Array\.isArray\(options\)\s*\?\s*options\s*:\s*\{\s*\}\s*;?/,
+	);
+	assert.match(
+		source,
+		/return Array\.isArray\(cattleList\)[\s\S]*?\? cattleList\.filter\([\s\S]*?\(cow\) => cow && typeof cow === ["']object["'] && !Array\.isArray\(cow\)[\s\S]*?\)[\s\S]*?: \[\s*\]\s*;?/,
+	);
+	assert.match(
+		source,
+		/value[\s\S]*?\.filter\(\(item\) => item && typeof item === ["']object["'] && !Array\.isArray\(item\)\)/,
+	);
+	assert.match(source, /export default function FieldModeView\(options = \{\}\) \{/);
+	assert.match(source, /normalizeFieldModeViewOptions\(options\);/);
+	assert.match(source, /const safeCattleList = normalizeFieldModeCattleList\(cattleList\);/);
+	assert.match(
+		source,
+		/const handleEnsureAllCattleLoaded =\s+typeof ensureAllCattleLoaded === ["']function["'] \? ensureAllCattleLoaded : null;/,
+	);
+	assert.match(
+		source,
+		/const handleSelect = typeof onSelect === ["']function["'] \? onSelect : \(\) => \{\};/,
+	);
+	assert.match(
+		source,
+		/const handleCloseFieldMode =\s+typeof onCloseFieldMode === ["']function["'] \? onCloseFieldMode : \(\) => \{\};/,
+	);
+	assert.match(source, /const currentCattleList = normalizeFieldModeCattleList\(cattleList\);/);
+	assert.match(source, /return currentCattleList\.filter\(\(cow\) => \{/);
+	assert.match(source, /const estrusCount = currentCattleList\.filter\(\(cow\) => \{/);
+	assert.match(source, /const calvingCount = currentCattleList\.filter\(/);
+	assert.match(source, /handleCloseFieldMode\(\);/);
+	assert.match(source, /handleSelect\(cow\);/);
+	assert.match(source, /\{safeCattleList\.length\}두/);
+	assert.match(source, /cattleList=\{safeCattleList\}/);
+	assert.match(source, /onSelect=\{handleSelect\}/);
+	assert.doesNotMatch(
+		source,
+		/export default function FieldModeView\(\{\s+cattleList = \[\],/,
+	);
+	assert.doesNotMatch(source, /ensureAllCattleLoaded\(\{ silent: true \}\)/);
+	assert.doesNotMatch(source, /onSelect\(cow\);/);
+	assert.doesNotMatch(source, /onCloseFieldMode\(\);/);
+	assert.doesNotMatch(source, /return cattleList\.filter\(\(cow\) => \{/);
+	assert.doesNotMatch(source, /\{cattleList\.length\}두/);
 });
 
 test("FieldModeView mounts the celebration canvas with mixBlendMode screen", () => {

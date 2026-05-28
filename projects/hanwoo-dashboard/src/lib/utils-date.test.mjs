@@ -84,6 +84,28 @@ test("date utility calculations use a fresh or injected current date", () => {
 	);
 	assert.match(
 		utilsSource,
+		/function isLivestockWeatherForecastDay\(day\) \{/,
+	);
+	assert.match(
+		utilsSource,
+		/day && typeof day === ["']object["'] && !Array\.isArray\(day\)/,
+	);
+	assert.match(
+		utilsSource,
+		/function normalizeLivestockWeatherForecast\(forecast\) \{/,
+	);
+	assert.match(
+		utilsSource,
+		/forecast\.filter\(isLivestockWeatherForecastDay\)/,
+	);
+	assert.match(
+		utilsSource,
+		/const safeForecast = normalizeLivestockWeatherForecast\(forecast\);/,
+	);
+	assert.match(utilsSource, /safeForecast\.forEach\(\(day\) => \{/);
+	assert.doesNotMatch(utilsSource, /forecast\.forEach\(\(day\) => \{/);
+	assert.match(
+		utilsSource,
 		/export function toFiniteNumber\(value, fallback = 0\) \{/,
 	);
 	assert.match(utilsSource, /const amount = Number\(value\);/);

@@ -8,6 +8,12 @@ function normalizeDaysLeft(value) {
 	return Math.max(0, Math.floor(toFiniteNumber(value)));
 }
 
+function normalizeAlertBannerOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
 function normalizeAlertNotifications(notifications, type) {
 	if (!Array.isArray(notifications)) return [];
 
@@ -16,6 +22,7 @@ function normalizeAlertNotifications(notifications, type) {
 			(notification) =>
 				notification &&
 				typeof notification === "object" &&
+				!Array.isArray(notification) &&
 				notification.type === type,
 		)
 		.map((notification, index) => ({
@@ -32,12 +39,17 @@ function normalizeAlertNotifications(notifications, type) {
 
 function normalizeBuildings(buildings) {
 	return Array.isArray(buildings)
-		? buildings.filter((building) => building && typeof building === "object")
+		? buildings.filter(
+				(building) =>
+					building && typeof building === "object" && !Array.isArray(building),
+			)
 		: [];
 }
 
 // [QA 수정] 실제 운영 import — CSS 변수 기반 색상 적용
-export function EstrusAlertBanner({ notifications = [], buildings = [] }) {
+export function EstrusAlertBanner(options = {}) {
+	const { notifications = [], buildings = [] } =
+		normalizeAlertBannerOptions(options);
 	const safeBuildings = normalizeBuildings(buildings);
 	const estrusNotifications = normalizeAlertNotifications(
 		notifications,
@@ -139,7 +151,9 @@ export function EstrusAlertBanner({ notifications = [], buildings = [] }) {
 }
 
 // [QA 수정] 분만 알림 — CSS 변수 기반 색상 + 문자 깨짐(쨌→·) 수정
-export function CalvingAlertBanner({ notifications = [], buildings = [] }) {
+export function CalvingAlertBanner(options = {}) {
+	const { notifications = [], buildings = [] } =
+		normalizeAlertBannerOptions(options);
 	const safeBuildings = normalizeBuildings(buildings);
 	const calvingNotifications = normalizeAlertNotifications(
 		notifications,

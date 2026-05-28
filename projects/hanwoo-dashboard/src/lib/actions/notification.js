@@ -22,6 +22,20 @@ function isFreshNotificationSummary(summary, now = Date.now()) {
 	return Number.isFinite(age) && age >= 0 && age < 60 * 1000;
 }
 
+function isNotificationActionCattleRow(value) {
+	return (
+		value !== null &&
+		typeof value === "object" &&
+		!Array.isArray(value)
+	);
+}
+
+function normalizeNotificationActionCattleRows(rows) {
+	return Array.isArray(rows)
+		? rows.filter((row) => isNotificationActionCattleRow(row))
+		: [];
+}
+
 export async function getNotifications() {
 	await requireAuthenticatedSession();
 	try {
@@ -35,9 +49,11 @@ export async function getNotifications() {
 	}
 
 	try {
-		const cattle = await prisma.cattle.findMany({
-			where: { isArchived: false },
-		});
+		const cattle = normalizeNotificationActionCattleRows(
+			await prisma.cattle.findMany({
+				where: { isArchived: false },
+			}),
+		);
 		const notifications = buildNotifications(cattle);
 
 		// Persist for future cache hits

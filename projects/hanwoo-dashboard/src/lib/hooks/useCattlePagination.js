@@ -5,8 +5,16 @@ import { sanitizeDashboardPageInfoTransition } from "@/lib/dashboard/pagination-
 
 function normalizePaginationItems(items) {
 	return Array.isArray(items)
-		? items.filter((item) => item && typeof item === "object")
+		? items.filter(
+				(item) => item && typeof item === "object" && !Array.isArray(item),
+			)
 		: [];
+}
+
+function normalizePaginationParams(params) {
+	return params && typeof params === "object" && !Array.isArray(params)
+		? params
+		: {};
 }
 
 const PAGINATION_REQUEST_TIMEOUT_MS = 15000;
@@ -29,10 +37,9 @@ const CATTLE_PAGINATION_ERROR_MESSAGE =
  *   loadMore    – 다음 페이지 fetch 함수
  *   setItems    – 뮤테이션(추가/수정/삭제) 시 직접 state 조작
  */
-export function useCattlePagination({
-	initialItems = [],
-	initialPageInfo = null,
-} = {}) {
+export function useCattlePagination(options = {}) {
+	const { initialItems = [], initialPageInfo = null } =
+		normalizePaginationParams(options);
 	const [items, setItems] = useState(() =>
 		normalizePaginationItems(initialItems),
 	);
@@ -66,7 +73,9 @@ export function useCattlePagination({
 	}, []);
 
 	const loadMore = useCallback(
-		async ({ buildingId, penNumber, status } = {}) => {
+		async (params = {}) => {
+			const { buildingId, penNumber, status } =
+				normalizePaginationParams(params);
 			if (loadInFlightRef.current || isLoading || !hasMore) return;
 			loadInFlightRef.current = true;
 

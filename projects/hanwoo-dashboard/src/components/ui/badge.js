@@ -27,7 +27,15 @@ const badgeVariants = cva(
 	},
 );
 
-function Badge({ className, variant, ...props }) {
+function normalizeBadgeOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+function Badge(options = {}) {
+	const { className, variant, ...props } = normalizeBadgeOptions(options);
+
 	return (
 		<div className={cn(badgeVariants({ variant }), className)} {...props} />
 	);

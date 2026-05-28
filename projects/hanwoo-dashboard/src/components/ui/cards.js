@@ -8,7 +8,16 @@ import {
 } from "@/lib/utils";
 import { HeartIcon } from "./common";
 
-export function StatCard({ label, value, sub, color, delay = 0 }) {
+function normalizeCardComponentOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+export function StatCard(options = {}) {
+	const { label, value, sub, color, delay = 0 } =
+		normalizeCardComponentOptions(options);
+
 	return (
 		<div
 			className="stat-card animate-fadeInUp"
@@ -52,7 +61,7 @@ export function StatCard({ label, value, sub, color, delay = 0 }) {
 function normalizePenCattle(cattle) {
 	return Array.isArray(cattle)
 		? cattle
-				.filter((cow) => cow && typeof cow === "object")
+				.filter((cow) => cow && typeof cow === "object" && !Array.isArray(cow))
 				.map((cow, index) => ({
 					...cow,
 					id: cow.id ?? `pen-cattle-${index}`,
@@ -64,15 +73,67 @@ function normalizePenCattle(cattle) {
 		: [];
 }
 
-export function PenCard({
-	penNumber,
-	cattle,
-	buildingId,
-	onSelect,
-	delay = 0,
-	onDrop,
-}) {
+function normalizeDroppedCattleData(value) {
+	if (!value || typeof value !== "object" || Array.isArray(value)) {
+		return null;
+	}
+
+	const cattleId = value.cattleId;
+	if (typeof cattleId === "string" && cattleId.trim()) {
+		return { cattleId };
+	}
+	if (typeof cattleId === "number" && Number.isFinite(cattleId)) {
+		return { cattleId };
+	}
+
+	return null;
+}
+
+function normalizeCattleRowCow(cow) {
+	const safeCow = cow && typeof cow === "object" && !Array.isArray(cow) ? cow : {};
+
+	return {
+		...safeCow,
+		id: safeCow.id ?? "cattle-row-unknown",
+		name:
+			typeof safeCow.name === "string" && safeCow.name.trim()
+				? safeCow.name
+				: "개체명 미등록",
+		status:
+			typeof safeCow.status === "string" && safeCow.status.trim()
+				? safeCow.status
+				: "상태 미등록",
+		tagNumber:
+			typeof safeCow.tagNumber === "string" && safeCow.tagNumber.trim()
+				? safeCow.tagNumber
+				: "이표번호 미등록",
+		weight:
+			safeCow.weight !== null && safeCow.weight !== undefined && safeCow.weight !== ""
+				? safeCow.weight
+				: "체중 미등록",
+		geneticInfo:
+			safeCow.geneticInfo &&
+			typeof safeCow.geneticInfo === "object" &&
+			!Array.isArray(safeCow.geneticInfo)
+				? safeCow.geneticInfo
+				: {},
+	};
+}
+
+export function PenCard(options = {}) {
+	const {
+		penNumber,
+		cattle,
+		buildingId,
+		onSelect,
+		delay = 0,
+		onDrop,
+	} = normalizeCardComponentOptions(options);
 	const visibleCattle = normalizePenCattle(cattle);
+	const handleSelect =
+		typeof onSelect === "function" ? onSelect : () => undefined;
+	const handleMoveCattle =
+		typeof onDrop === "function" ? onDrop : () => undefined;
 	const hasAlert = visibleCattle.some(
 		(c) => c.lastEstrus && isEstrusAlert(c.lastEstrus),
 	);
@@ -90,10 +151,14 @@ export function PenCard({
 	const handleDrop = (e) => {
 		e.preventDefault();
 		e.currentTarget.classList.remove("pen-drop-hover");
-		if (onDrop) {
+		if (typeof onDrop === "function") {
 			try {
-				const data = JSON.parse(e.dataTransfer.getData("text/plain"));
-				onDrop(data.cattleId, buildingId, penNumber);
+				const data = normalizeDroppedCattleData(
+					JSON.parse(e.dataTransfer.getData("text/plain")),
+				);
+				if (data) {
+					handleMoveCattle(data.cattleId, buildingId, penNumber);
+				}
 			} catch {}
 		}
 	};
@@ -101,7 +166,7 @@ export function PenCard({
 	return (
 		<button
 			type="button"
-			onClick={() => onSelect(buildingId, penNumber)}
+			onClick={() => handleSelect(buildingId, penNumber)}
 			aria-label={penAccessibleLabel}
 			title={penAccessibleLabel}
 			onDragOver={handleDragOver}
@@ -220,20 +285,26 @@ export function PenCard({
 	);
 }
 
-export function CattleRow({ cow, onClick, delay = 0, draggable = false }) {
-	const sc = STATUS_COLORS[cow.status] || {
+export function CattleRow(options = {}) {
+	const { cow, onClick, delay = 0, draggable = false } =
+		normalizeCardComponentOptions(options);
+	const safeCow = normalizeCattleRowCow(cow);
+	const handleClick =
+		typeof onClick === "function" ? onClick : () => undefined;
+	const sc = STATUS_COLORS[safeCow.status] || {
 		bg: "var(--color-border-light)",
 		text: "var(--color-text)",
 		dot: "var(--color-text-muted)",
 	};
-	const hasEstrusAlert = cow.lastEstrus && isEstrusAlert(cow.lastEstrus);
-	const estrusD = getDaysUntilEstrus(cow.lastEstrus);
-	const monthAge = getMonthAge(cow.birthDate);
+	const hasEstrusAlert =
+		safeCow.lastEstrus && isEstrusAlert(safeCow.lastEstrus);
+	const estrusD = getDaysUntilEstrus(safeCow.lastEstrus);
+	const monthAge = getMonthAge(safeCow.birthDate);
 	const hasCalvingAlert =
-		cow.status === "임신우" &&
-		cow.pregnancyDate &&
-		isCalvingAlert(cow.pregnancyDate);
-	const calvingDays = getDaysUntilCalving(cow.pregnancyDate);
+		safeCow.status === "임신우" &&
+		safeCow.pregnancyDate &&
+		isCalvingAlert(safeCow.pregnancyDate);
+	const calvingDays = getDaysUntilCalving(safeCow.pregnancyDate);
 	const cattleAlertSummary = [
 		hasEstrusAlert
 			? estrusD === 0
@@ -245,19 +316,21 @@ export function CattleRow({ cow, onClick, delay = 0, draggable = false }) {
 		.filter(Boolean)
 		.join(", ");
 	const cattleAccessibleLabel = cattleAlertSummary
-		? `${cow.name} 개체 상세 보기, ${cattleAlertSummary}`
-		: `${cow.name} 개체 상세 보기`;
+		? `${safeCow.name} 개체 상세 보기, ${cattleAlertSummary}`
+		: `${safeCow.name} 개체 상세 보기`;
 	const geneticGradeLabel =
-		typeof cow.geneticInfo?.grade === "string" &&
-		cow.geneticInfo.grade.trim() &&
-		cow.geneticInfo.grade !== "-"
-			? cow.geneticInfo.grade
+		typeof safeCow.geneticInfo?.grade === "string" &&
+		safeCow.geneticInfo.grade.trim() &&
+		safeCow.geneticInfo.grade !== "-"
+			? safeCow.geneticInfo.grade
 			: "유전 등급 미등록";
+	const weightLabel =
+		safeCow.weight === "체중 미등록" ? safeCow.weight : `${safeCow.weight}kg`;
 
 	const handleDragStart = (e) => {
 		e.dataTransfer.setData(
 			"text/plain",
-			JSON.stringify({ cattleId: cow.id, name: cow.name }),
+			JSON.stringify({ cattleId: safeCow.id, name: safeCow.name }),
 		);
 		e.dataTransfer.effectAllowed = "move";
 		e.currentTarget.classList.add("cattle-dragging");
@@ -269,7 +342,7 @@ export function CattleRow({ cow, onClick, delay = 0, draggable = false }) {
 	return (
 		<button
 			type="button"
-			onClick={() => onClick(cow)}
+			onClick={() => handleClick(safeCow)}
 			aria-label={cattleAccessibleLabel}
 			title={cattleAccessibleLabel}
 			draggable={draggable}
@@ -288,7 +361,7 @@ export function CattleRow({ cow, onClick, delay = 0, draggable = false }) {
 					boxShadow: `0 4px 12px ${sc.dot}40`,
 				}}
 			>
-				{cow.gender === "암" ? "♀" : "♂"}
+				{safeCow.gender === "암" ? "♀" : "♂"}
 			</div>
 			<div style={{ flex: 1, minWidth: 0 }}>
 				<div
@@ -308,10 +381,10 @@ export function CattleRow({ cow, onClick, delay = 0, draggable = false }) {
 							letterSpacing: "-0.01em",
 						}}
 					>
-						{cow.name}
+						{safeCow.name}
 					</span>
 					<span className="badge" style={{ background: sc.bg, color: sc.text }}>
-						{cow.status}
+						{safeCow.status}
 					</span>
 					{hasEstrusAlert && (
 						<span
@@ -336,7 +409,7 @@ export function CattleRow({ cow, onClick, delay = 0, draggable = false }) {
 						lineHeight: "1.5",
 					}}
 				>
-					{cow.tagNumber} · {monthAge}개월 · {cow.weight}kg ·{" "}
+					{safeCow.tagNumber} · {monthAge}개월 · {weightLabel} ·{" "}
 					{geneticGradeLabel}
 				</div>
 			</div>

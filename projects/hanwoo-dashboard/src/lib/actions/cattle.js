@@ -34,13 +34,29 @@ function isCattleTagDuplicateError(error) {
 	return typeof target === "string" && target.includes("tagNumber");
 }
 
+function isCattleActionRow(value) {
+	return (
+		value !== null &&
+		typeof value === "object" &&
+		!Array.isArray(value)
+	);
+}
+
+function normalizeCattleActionRows(rows) {
+	return Array.isArray(rows)
+		? rows.filter((row) => isCattleActionRow(row))
+		: [];
+}
+
 export async function getCattleList() {
 	await requireAuthenticatedSession();
 	try {
-		const cattle = await prisma.cattle.findMany({
-			where: { isArchived: false },
-			orderBy: { updatedAt: "desc" },
-		});
+		const cattle = normalizeCattleActionRows(
+			await prisma.cattle.findMany({
+				where: { isArchived: false },
+				orderBy: { updatedAt: "desc" },
+			}),
+		);
 		return cattle;
 	} catch (error) {
 		console.error("Failed to fetch cattle:", error);
@@ -51,10 +67,12 @@ export async function getCattleList() {
 export async function getArchivedCattle() {
 	await requireAuthenticatedSession();
 	try {
-		return await prisma.cattle.findMany({
-			where: { isArchived: true },
-			orderBy: { archivedAt: "desc" },
-		});
+		return normalizeCattleActionRows(
+			await prisma.cattle.findMany({
+				where: { isArchived: true },
+				orderBy: { archivedAt: "desc" },
+			}),
+		);
 	} catch (error) {
 		console.error("Failed to fetch archived cattle:", error);
 		return [];

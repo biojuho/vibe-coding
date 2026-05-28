@@ -20,11 +20,11 @@ test("pen and cattle cards use native button activation semantics", () => {
 
 	assert.match(
 		source,
-		/<button\s+type="button"[\s\S]*?onClick=\{\(\)\s*=>\s*onSelect\(\s*buildingId\s*,\s*penNumber\s*\)\}/,
+		/<button\s+type="button"[\s\S]*?onClick=\{\(\)\s*=>\s*handleSelect\(\s*buildingId\s*,\s*penNumber\s*\)\}/,
 	);
 	assert.match(
 		source,
-		/<button\s+type="button"[\s\S]*?onClick=\{\(\)\s*=>\s*onClick\(\s*cow\s*\)\}/,
+		/<button\s+type="button"[\s\S]*?onClick=\{\(\)\s*=>\s*handleClick\(\s*safeCow\s*\)\}/,
 	);
 	assert.match(
 		source,
@@ -48,7 +48,10 @@ test("pen cards normalize cattle payloads before rendering", () => {
 
 	assert.match(source, /function normalizePenCattle\(cattle\) \{/);
 	assert.match(source, /return Array\.isArray\(cattle\)/);
-	assert.match(source, /\.filter\(\(cow\) => cow && typeof cow === ["']object["']\)/);
+	assert.match(
+		source,
+		/\.filter\(\(cow\) => cow && typeof cow === ["']object["'] && !Array\.isArray\(cow\)\)/,
+	);
 	assert.match(source, /id: cow\.id \?\? `pen-cattle-\$\{index\}`/);
 	assert.match(
 		source,
@@ -68,6 +71,121 @@ test("pen cards normalize cattle payloads before rendering", () => {
 	assert.doesNotMatch(source, /cattle\.map/);
 });
 
+test("pen card drop payloads are normalized before moving cattle", () => {
+	const source = readSource("components/ui/cards.js");
+
+	assert.match(source, /function normalizeDroppedCattleData\(value\) \{/);
+	assert.match(
+		source,
+		/!value \|\| typeof value !== "object" \|\| Array\.isArray\(value\)/,
+	);
+	assert.match(source, /const cattleId = value\.cattleId;/);
+	assert.match(
+		source,
+		/typeof cattleId === "string" && cattleId\.trim\(\)/,
+	);
+	assert.match(
+		source,
+		/typeof cattleId === "number" && Number\.isFinite\(cattleId\)/,
+	);
+	assert.match(
+		source,
+		/const data = normalizeDroppedCattleData\(\s*JSON\.parse\(e\.dataTransfer\.getData\("text\/plain"\)\),\s*\);/,
+	);
+	assert.match(
+		source,
+		/if \(data\) \{\s*handleMoveCattle\(data\.cattleId, buildingId, penNumber\);/,
+	);
+	assert.doesNotMatch(
+		source,
+		/handleMoveCattle\(data\.cattleId, buildingId, penNumber\);\s*\} catch/,
+	);
+});
+
+test("cattle rows normalize malformed cow payloads before rendering", () => {
+	const source = readSource("components/ui/cards.js");
+
+	assert.match(source, /function normalizeCattleRowCow\(cow\) \{/);
+	assert.match(
+		source,
+		/const safeCow = cow && typeof cow === "object" && !Array\.isArray\(cow\) \? cow : \{\};/,
+	);
+	assert.match(source, /id: safeCow\.id \?\? "cattle-row-unknown"/);
+	assert.match(
+		source,
+		/typeof safeCow\.name === "string" && safeCow\.name\.trim\(\)/,
+	);
+	assert.match(
+		source,
+		/typeof safeCow\.status === "string" && safeCow\.status\.trim\(\)/,
+	);
+	assert.match(
+		source,
+		/typeof safeCow\.tagNumber === "string" && safeCow\.tagNumber\.trim\(\)/,
+	);
+	assert.match(
+		source,
+		/safeCow\.weight !== null && safeCow\.weight !== undefined && safeCow\.weight !== ""/,
+	);
+	assert.match(
+		source,
+		/safeCow\.geneticInfo &&\s+typeof safeCow\.geneticInfo === "object" &&\s+!Array\.isArray\(safeCow\.geneticInfo\)/,
+	);
+	assert.match(source, /const safeCow = normalizeCattleRowCow\(cow\);/);
+	assert.match(source, /STATUS_COLORS\[safeCow\.status\]/);
+	assert.match(source, /handleClick\(\s*safeCow\s*\)/);
+	assert.match(
+		source,
+		/JSON\.stringify\(\{ cattleId: safeCow\.id, name: safeCow\.name \}\)/,
+	);
+	assert.match(source, /\{safeCow\.name\}/);
+	assert.match(source, /\{safeCow\.status\}/);
+	assert.match(source, /\{safeCow\.tagNumber\}[\s\S]*\{weightLabel\}/);
+	assert.doesNotMatch(source, /STATUS_COLORS\[cow\.status\]/);
+	assert.doesNotMatch(source, /onClick\(\s*cow\s*\)/);
+	assert.doesNotMatch(source, /\{cow\.name\}/);
+	assert.doesNotMatch(source, /\{cow\.status\}/);
+	assert.doesNotMatch(source, /\{cow\.tagNumber\}/);
+});
+
+test("shared cards normalize malformed top-level props and callbacks", () => {
+	const source = readSource("components/ui/cards.js");
+
+	assert.match(source, /function normalizeCardComponentOptions\(options\) \{/);
+	assert.match(
+		source,
+		/return options && typeof options === "object" && !Array\.isArray\(options\)\s+\? options\s+:\s+\{\};/,
+	);
+	assert.match(source, /export function StatCard\(options = \{\}\) \{/);
+	assert.match(
+		source,
+		/const \{ label, value, sub, color, delay = 0 \} =\s+normalizeCardComponentOptions\(options\);/,
+	);
+	assert.match(source, /export function PenCard\(options = \{\}\) \{/);
+	assert.match(
+		source,
+		/\} = normalizeCardComponentOptions\(options\);[\s\S]*?const visibleCattle = normalizePenCattle\(cattle\);/,
+	);
+	assert.match(
+		source,
+		/const handleSelect =\s+typeof onSelect === "function" \? onSelect : \(\) => undefined;/,
+	);
+	assert.match(
+		source,
+		/const handleMoveCattle =\s+typeof onDrop === "function" \? onDrop : \(\) => undefined;/,
+	);
+	assert.match(source, /if \(typeof onDrop === "function"\) \{/);
+	assert.match(source, /export function CattleRow\(options = \{\}\) \{/);
+	assert.match(
+		source,
+		/const \{ cow, onClick, delay = 0, draggable = false \} =\s+normalizeCardComponentOptions\(options\);/,
+	);
+	assert.match(
+		source,
+		/const handleClick =\s+typeof onClick === "function" \? onClick : \(\) => undefined;/,
+	);
+});
+
 test("cattle row alert badges use operator-readable countdown labels", () => {
 	const source = readSource("components/ui/cards.js");
 
@@ -83,10 +201,11 @@ test("cattle rows explain missing genetic grades instead of showing dash placeho
 
 	assert.match(
 		source,
-		/const geneticGradeLabel =\s+typeof cow\.geneticInfo\?\.grade === ["']string["'] &&\s+cow\.geneticInfo\.grade\.trim\(\) &&\s+cow\.geneticInfo\.grade !== ["']-["']\s+\?\s+cow\.geneticInfo\.grade\s+:\s+["']유전 등급 미등록["'];/,
+		/const geneticGradeLabel =\s+typeof safeCow\.geneticInfo\?\.grade === ["']string["'] &&\s+safeCow\.geneticInfo\.grade\.trim\(\) &&\s+safeCow\.geneticInfo\.grade !== ["']-["']\s+\?\s+safeCow\.geneticInfo\.grade\s+:/,
 	);
 	assert.match(source, /\{geneticGradeLabel\}/);
 	assert.doesNotMatch(source, /cow\.geneticInfo\?\.grade \|\| ["']-["']/);
+	assert.doesNotMatch(source, /typeof cow\.geneticInfo\?\.grade/);
 });
 
 test("native card buttons keep card visual reset styles", () => {

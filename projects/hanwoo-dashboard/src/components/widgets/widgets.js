@@ -19,7 +19,16 @@ import {
 	toFiniteNumber,
 } from "@/lib/utils";
 
-export function TabBar({ activeTab, onTabChange }) {
+function normalizeTabBarOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+export function TabBar(options = {}) {
+	const { activeTab, onTabChange } = normalizeTabBarOptions(options);
+	const handleTabChange =
+		typeof onTabChange === "function" ? onTabChange : () => {};
 	const tabs = [
 		{ id: "home", label: "홈", icon: Home },
 		{ id: "feed", label: "사료", icon: Sprout },
@@ -40,7 +49,7 @@ export function TabBar({ activeTab, onTabChange }) {
 					<button
 						key={t.id}
 						type="button"
-						onClick={() => onTabChange(t.id)}
+						onClick={() => handleTabChange(t.id)}
 						className={`tab-item ${isActive ? "active" : ""}`}
 						aria-current={isActive ? "page" : undefined}
 						aria-label={tabActionLabel}
@@ -87,11 +96,19 @@ export function TabBar({ activeTab, onTabChange }) {
 
 function normalizeWeatherForecast(forecast) {
 	return Array.isArray(forecast)
-		? forecast.filter((day) => day && typeof day === "object")
+		? forecast.filter((day) => day && typeof day === "object" && !Array.isArray(day))
 		: [];
 }
 
-export function WeatherWidget({ weather }) {
+function normalizeWeatherWidgetOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+export function WeatherWidget(options = {}) {
+	const { weather } = normalizeWeatherWidgetOptions(options);
+
 	if (!weather)
 		return (
 			<div

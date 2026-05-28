@@ -170,10 +170,21 @@ export function formatMoney(value) {
 	return new Intl.NumberFormat("ko-KR").format(amount);
 }
 
+function isLivestockWeatherForecastDay(day) {
+	return day && typeof day === "object" && !Array.isArray(day);
+}
+
+function normalizeLivestockWeatherForecast(forecast) {
+	return Array.isArray(forecast)
+		? forecast.filter(isLivestockWeatherForecastDay)
+		: [];
+}
+
 export function getLivestockWeatherAlerts(forecast = []) {
 	const alerts = [];
+	const safeForecast = normalizeLivestockWeatherForecast(forecast);
 
-	forecast.forEach((day) => {
+	safeForecast.forEach((day) => {
 		const label = formatForecastDateLabel(day.date);
 
 		if (day.tempMax >= 35) {

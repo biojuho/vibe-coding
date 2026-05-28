@@ -27,3 +27,15 @@ test("dashboard read models normalize malformed market issue dates before keying
 	assert.match(source, /return date\.toISOString\(\)\.slice\(0, 10\);/);
 	assert.doesNotMatch(source, /return new Date\(value\);\s*\}/);
 });
+
+test("dashboard read models ignore array option fields before cache checks", () => {
+	const source = readSource("lib/dashboard/read-models.js");
+
+	assert.match(source, /function normalizeObject\(value\) \{/);
+	assert.match(
+		source,
+		/value && typeof value === "object" && !Array\.isArray\(value\)/,
+	);
+	assert.match(source, /const safeOptions = normalizeObject\(options\);/);
+	assert.match(source, /const safeInput = normalizeObject\(input\);/);
+});

@@ -43,7 +43,7 @@ function normalizeNotifications(notifications) {
 	if (!Array.isArray(notifications)) return [];
 
 	return notifications
-		.filter((note) => note && typeof note === "object")
+		.filter((note) => note && typeof note === "object" && !Array.isArray(note))
 		.map((note, index) => {
 			const type =
 				typeof note.type === "string" && note.type ? note.type : "default";
@@ -67,7 +67,14 @@ function normalizeNotifications(notifications) {
 		});
 }
 
-export default function NotificationWidget({ notifications = [] }) {
+function normalizeNotificationWidgetOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+export default function NotificationWidget(options = {}) {
+	const { notifications = [] } = normalizeNotificationWidgetOptions(options);
 	const visibleNotifications = normalizeNotifications(notifications);
 
 	if (visibleNotifications.length === 0) return null;

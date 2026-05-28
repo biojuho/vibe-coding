@@ -56,12 +56,26 @@ function deferScannerNoMatch(setScanStatus, shouldApply = () => true) {
 	deferScannerTask(applyNoMatch);
 }
 
-export default function EarTagScannerModal({
-	isOpen,
-	onClose,
-	cattleList = [],
-	onSelect,
-}) {
+function normalizeEarTagScannerModalOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+function normalizeScannerCattleList(cattleList) {
+	return Array.isArray(cattleList)
+		? cattleList.filter(
+				(cow) => cow && typeof cow === "object" && !Array.isArray(cow),
+			)
+		: [];
+}
+
+export default function EarTagScannerModal(options = {}) {
+	const { isOpen, onClose, cattleList = [], onSelect } =
+		normalizeEarTagScannerModalOptions(options);
+	const safeCattleList = normalizeScannerCattleList(cattleList);
+	const handleClose = typeof onClose === "function" ? onClose : () => {};
+	const handleSelect = typeof onSelect === "function" ? onSelect : () => {};
 	const canvasRef = useRef(null);
 	const animationRef = useRef(null);
 	const [scanStatus, setScanStatus] = useState("scanning"); // 'scanning', 'success', 'no_match'
@@ -71,7 +85,9 @@ export default function EarTagScannerModal({
 
 	// Initialize random target from cattleList on open to scan
 	useEffect(() => {
-		if (isOpen && cattleList.length > 0) {
+		const currentCattleList = normalizeScannerCattleList(cattleList);
+
+		if (isOpen && currentCattleList.length > 0) {
 			let cancelled = false;
 
 			deferScannerTask(() => {
@@ -80,8 +96,8 @@ export default function EarTagScannerModal({
 				}
 
 				// Pick a random cow as the simulated target
-				const idx = Math.floor(Math.random() * cattleList.length);
-				setTargetCandidate(cattleList[idx]);
+				const idx = Math.floor(Math.random() * currentCattleList.length);
+				setTargetCandidate(currentCattleList[idx]);
 				setScanStatus("scanning");
 				setMatchedCow(null);
 				setScannedTag("");
@@ -293,7 +309,7 @@ export default function EarTagScannerModal({
 
 	// Function to select another cow manually from simulated dropdown
 	const handleSelectCowManually = (cowId) => {
-		const cow = cattleList.find((c) => c.id === cowId);
+		const cow = safeCattleList.find((c) => c.id === cowId);
 		if (cow) {
 			setMatchedCow(cow);
 			setScannedTag(cow.tagNumber);
@@ -307,16 +323,16 @@ export default function EarTagScannerModal({
 	const handleConfirm = () => {
 		playTactileClick();
 		if (matchedCow) {
-			onSelect(matchedCow);
+			handleSelect(matchedCow);
 		}
-		onClose();
+		handleClose();
 	};
 
 	const handleRetry = () => {
 		playTactileClick();
-		if (cattleList.length > 0) {
-			const idx = Math.floor(Math.random() * cattleList.length);
-			setTargetCandidate(cattleList[idx]);
+		if (safeCattleList.length > 0) {
+			const idx = Math.floor(Math.random() * safeCattleList.length);
+			setTargetCandidate(safeCattleList[idx]);
 		}
 		setScanStatus("scanning");
 		setMatchedCow(null);
@@ -354,7 +370,7 @@ export default function EarTagScannerModal({
 						type="button"
 						onClick={() => {
 							playTactileClick();
-							onClose();
+							handleClose();
 						}}
 						className="p-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-white/10 transition-colors"
 						title="이표 스캐너 닫기"
@@ -478,13 +494,13 @@ export default function EarTagScannerModal({
 				</div>
 
 				{/* Dynamic drop-down for manual simulation choice */}
-				{scanStatus === "scanning" && cattleList.length > 0 && (
+				{scanStatus === "scanning" && safeCattleList.length > 0 && (
 					<div className="px-6 pb-2 text-center">
 						<span className="text-[10px] text-muted-foreground block mb-2">
 							시뮬레이션 전용: 강제 타겟 설정
 						</span>
 						<div className="flex gap-1.5 justify-center flex-wrap max-h-20 overflow-y-auto pb-2 scrollbar-thin">
-							{cattleList.slice(0, 5).map((cow) => {
+							{safeCattleList.slice(0, 5).map((cow) => {
 								const manualChoiceLabel = `${cow.name} 이표번호 끝자리 ${String(cow.tagNumber).slice(-4)} 개체로 스캐너 결과 지정`;
 								return (
 								<button
@@ -512,7 +528,7 @@ export default function EarTagScannerModal({
 								variant="ghost"
 								onClick={() => {
 									playTactileClick();
-									onClose();
+									handleClose();
 								}}
 								aria-label="이표 스캐너 닫기"
 								title="이표 스캐너 닫기"

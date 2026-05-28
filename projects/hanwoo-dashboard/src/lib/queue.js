@@ -54,7 +54,9 @@ function assertQueueConfigured() {
 }
 
 function normalizeQueueOptions(options) {
-	return options && typeof options === "object" ? options : {};
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
 }
 
 function buildQueueCacheKey(name, prefix) {

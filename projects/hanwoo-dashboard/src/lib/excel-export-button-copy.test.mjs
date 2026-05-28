@@ -18,6 +18,17 @@ test("excel export button uses a real decorative download icon", () => {
 		source,
 		/import \{ useEffect, useRef, useState \} from ["']react["'];/,
 	);
+	assert.match(source, /function normalizeExcelExportButtonOptions\(options\) \{/);
+	assert.match(
+		source,
+		/options && typeof options === ["']object["'] && !Array\.isArray\(options\)/,
+	);
+	assert.match(source, /export default function ExcelExportButton\(options = \{\}\) \{/);
+	assert.match(
+		source,
+		/const \{ cattleList = \[\], resolveCattleList = null \} =\s+normalizeExcelExportButtonOptions\(options\);/,
+	);
+	assert.doesNotMatch(source, /export default function ExcelExportButton\(\{\s+cattleList = \[\],\s+resolveCattleList = null,\s+\}\)/);
 	assert.match(source, /import \{ Download \} from ["']lucide-react["'];/);
 	assert.match(
 		source,

@@ -10,7 +10,9 @@ import { toFiniteNumber } from "@/lib/utils";
 function normalizeProfitabilityItems(data) {
 	return Array.isArray(data)
 		? data
-				.filter((item) => item && typeof item === "object")
+				.filter(
+					(item) => item && typeof item === "object" && !Array.isArray(item),
+				)
 				.map((item, index) => ({
 					...item,
 					id: item.id ?? `profitability-item-${index}`,
@@ -29,7 +31,15 @@ function formatMonthlyGain(value) {
 	return `${rounded}kg`;
 }
 
-export function ProfitabilityWidget({ data, isLoading, error, meta = null }) {
+function normalizeProfitabilityWidgetOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+export function ProfitabilityWidget(options = {}) {
+	const { data, isLoading, error, meta = null } =
+		normalizeProfitabilityWidgetOptions(options);
 	const visibleData = normalizeProfitabilityItems(data);
 	const isCustomized = Boolean(meta?.isCustomized);
 	const feedCostLabel = formatPerHeadFeedCost(meta?.monthlyFeedCost);

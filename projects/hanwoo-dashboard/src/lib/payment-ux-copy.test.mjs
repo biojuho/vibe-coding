@@ -29,6 +29,22 @@ test("payment widget exposes Korean product copy for checkout states", () => {
 test("payment widget waits for async payment requests before re-enabling checkout", () => {
 	const source = readSource("components/payment/PaymentWidget.js");
 
+	assert.match(source, /function normalizePaymentWidgetOptions\(options\) \{/);
+	assert.match(
+		source,
+		/options && typeof options === ["']object["'] && !Array\.isArray\(options\)/,
+	);
+	assert.match(source, /function normalizePaymentAmount\(amount\) \{/);
+	assert.match(source, /typeof amount === ["']number["'] && Number\.isFinite\(amount\)/);
+	assert.match(source, /const parsedAmount = Number\(amount\);/);
+	assert.match(source, /export default function PaymentWidget\(options = \{\}\) \{/);
+	assert.match(source, /normalizePaymentWidgetOptions\(options\);/);
+	assert.match(
+		source,
+		/const \[price\] = useState\(\(\) => normalizePaymentAmount\(amount\)\);/,
+	);
+	assert.doesNotMatch(source, /export default function PaymentWidget\(\{\s+clientKey,/);
+
 	assert.match(source, /const paymentRequestInFlightRef = useRef\(false\)/);
 	assert.match(source, /const isMountedRef = useRef\(false\)/);
 	assert.match(
@@ -171,6 +187,18 @@ test("subscription result pages avoid bare English loading and status copy", () 
 	assert.match(successSource, /결제 확인을 다시 시도합니다/);
 	assert.match(successSource, /결제 확인 중 오류가 발생했습니다/);
 	assert.match(successSource, /대시보드로 자동 이동하지 못했습니다/);
+	assert.match(
+		successSource,
+		/function normalizeSubscriptionFallbackOptions\(options\) \{/,
+	);
+	assert.match(
+		successSource,
+		/function SubscriptionFallback\(options = \{\}\) \{/,
+	);
+	assert.match(
+		successSource,
+		/const \{ message \} = normalizeSubscriptionFallbackOptions\(options\);/,
+	);
 	assert.match(successSource, /const AMOUNT_INPUT_PATTERN = \/\^\\d\+\$\/;/);
 	assert.match(successSource, /function parsePaymentAmount\(value\)/);
 	assert.match(
@@ -202,6 +230,18 @@ test("subscription result pages avoid bare English loading and status copy", () 
 	assert.match(failSource, /결제를 완료하지 못했습니다/);
 	assert.match(failSource, /결제 실패 정보를 불러오는 중입니다/);
 	assert.match(failSource, /오류 코드/);
+	assert.match(
+		failSource,
+		/function normalizeSubscriptionFallbackOptions\(options\) \{/,
+	);
+	assert.match(
+		failSource,
+		/function SubscriptionFallback\(options = \{\}\) \{/,
+	);
+	assert.match(
+		failSource,
+		/const \{ message \} = normalizeSubscriptionFallbackOptions\(options\);/,
+	);
 	assert.match(failSource, /const PAYMENT_RETRY_PATH = ["']\/subscription["'];/);
 	assert.match(failSource, /결제 화면으로 자동 이동하지 못했습니다/);
 	assert.match(
@@ -250,6 +290,14 @@ test("subscription result pages avoid bare English loading and status copy", () 
 	assert.doesNotMatch(failSource, /Code:/);
 	assert.doesNotMatch(failSource, /searchParams\.get\(["']code["']\) \|\| ["']-["']/);
 	assert.doesNotMatch(failSource, /searchParams\.get\(['"]message['"]\)/);
+	assert.doesNotMatch(
+		successSource,
+		/function SubscriptionFallback\(\{ message \}\)/,
+	);
+	assert.doesNotMatch(
+		failSource,
+		/function SubscriptionFallback\(\{ message \}\)/,
+	);
 });
 
 test("subscription success timers are guarded", () => {
@@ -343,10 +391,40 @@ test("payment API routes avoid English fallback copy in user responses", () => {
 	assert.match(prepareRoute, /Joolife 사용자/);
 	assert.match(prepareRoute, /function parsePaymentAmount\(value\)/);
 	assert.match(prepareRoute, /AMOUNT_INPUT_PATTERN\.test\(value\)/);
+	assert.match(
+		prepareRoute,
+		/function normalizePaymentPrepareBody\(body\) \{/,
+	);
+	assert.match(
+		prepareRoute,
+		/body && typeof body === ["']object["'] && !Array\.isArray\(body\)/,
+	);
+	assert.match(
+		prepareRoute,
+		/const body = normalizePaymentPrepareBody\(await req\.json\(\)\);/,
+	);
 	assert.match(prepareRoute, /AUTHENTICATION_REQUIRED_MESSAGE/);
 	assert.match(confirmRoute, /결제 승인에 필요한 정보가 부족합니다/);
 	assert.match(confirmRoute, /결제 확인을 완료하지 못했습니다/);
 	assert.match(confirmRoute, /function parsePaymentAmount\(value\)/);
+	assert.match(
+		confirmRoute,
+		/function normalizePaymentConfirmBody\(body\) \{/,
+	);
+	assert.match(
+		confirmRoute,
+		/function normalizePaymentLogFailureOptions\(options\) \{/,
+	);
+	assert.match(
+		confirmRoute,
+		/options && typeof options === ["']object["'] && !Array\.isArray\(options\)/,
+	);
+	assert.match(
+		confirmRoute,
+		/const body = normalizePaymentConfirmBody\(await req\.json\(\)\);/,
+	);
+	assert.match(confirmRoute, /async function markPaymentLogFailed\(options = \{\}\) \{/);
+	assert.match(confirmRoute, /normalizePaymentLogFailureOptions\(options\)/);
 	assert.match(confirmRoute, /AMOUNT_INPUT_PATTERN\.test\(value\)/);
 	assert.match(confirmRoute, /Number\.isSafeInteger\(amount\)/);
 	assert.match(confirmRoute, /AUTHENTICATION_REQUIRED_MESSAGE/);
@@ -362,10 +440,22 @@ test("payment API routes avoid English fallback copy in user responses", () => {
 		/Number\(body\?\.amount \?\? PREMIUM_SUBSCRIPTION\.amount\)/,
 	);
 	assert.doesNotMatch(
+		prepareRoute,
+		/const body = await req\.json\(\);/,
+	);
+	assert.doesNotMatch(
 		confirmRoute,
 		/Missing payment confirmation fields|Order does not belong|Unexpected payment amount|Payment verification failed|TOSS_PAYMENTS_SECRET_KEY is not configured/,
 	);
 	assert.doesNotMatch(confirmRoute, /message: error\.message/);
 	assert.doesNotMatch(confirmRoute, /const amount = Number\(body\?\.amount\)/);
+	assert.doesNotMatch(
+		confirmRoute,
+		/const body = await req\.json\(\);\s+const \{ paymentKey, orderId \} = body;/,
+	);
+	assert.doesNotMatch(
+		confirmRoute,
+		/async function markPaymentLogFailed\(\{\s*orderId,\s*paymentKey,\s*amount\s*\}\)/,
+	);
 	assert.doesNotMatch(authGuard, /Authentication required/);
 });

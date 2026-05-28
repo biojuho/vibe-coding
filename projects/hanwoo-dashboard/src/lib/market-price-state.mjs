@@ -46,7 +46,7 @@ function toDisplayDate(issueDateKey) {
 }
 
 function normalizePriceSide(side) {
-	if (!side || typeof side !== "object") {
+	if (!side || typeof side !== "object" || Array.isArray(side)) {
 		return null;
 	}
 
@@ -68,21 +68,24 @@ function normalizePriceSide(side) {
 }
 
 function normalizeOptions(options) {
-	return options && typeof options === "object" ? options : {};
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
 }
 
-function createAvailableMarketPrice({
-	bull,
-	cow,
-	fetchedAt,
-	issueDate,
-	source,
-	sourceLabel,
-	degraded,
-	isRealtime,
-	isStale,
-	message = null,
-}) {
+function createAvailableMarketPrice(options = {}) {
+	const {
+		bull,
+		cow,
+		fetchedAt,
+		issueDate,
+		source,
+		sourceLabel,
+		degraded,
+		isRealtime,
+		isStale,
+		message = null,
+	} = normalizeOptions(options);
 	return {
 		available: true,
 		degraded,
@@ -100,7 +103,12 @@ function createAvailableMarketPrice({
 }
 
 export function normalizeCachedMarketPrice(snapshot, options = {}) {
-	if (!snapshot || snapshot.isRealtime !== true) {
+	if (
+		!snapshot ||
+		typeof snapshot !== "object" ||
+		Array.isArray(snapshot) ||
+		snapshot.isRealtime !== true
+	) {
 		return null;
 	}
 
@@ -145,7 +153,7 @@ export function normalizeCachedMarketPrice(snapshot, options = {}) {
 }
 
 export function normalizeLiveMarketPrice(payload, options = {}) {
-	if (!payload) {
+	if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
 		return null;
 	}
 

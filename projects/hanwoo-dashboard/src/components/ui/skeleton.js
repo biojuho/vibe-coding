@@ -1,6 +1,14 @@
 import { cn } from "@/lib/utils";
 
-function Skeleton({ className, ...props }) {
+function normalizeSkeletonOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+function Skeleton(options = {}) {
+	const { className, ...props } = normalizeSkeletonOptions(options);
+
 	return (
 		<div
 			className={cn(

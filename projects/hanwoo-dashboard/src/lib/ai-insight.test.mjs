@@ -36,6 +36,27 @@ test("summarizeFarmForInsight gracefully handles missing/garbage input", () => {
 	assert.equal(garbage.thi, null);
 });
 
+test("summarizeFarmForInsight ignores array-attached summary and weather fields", () => {
+	const weather = [];
+	weather.thi = 88;
+	weather.temp = 35;
+	weather.humidity = 90;
+	const input = [];
+	input.totalHeadcount = 99;
+	input.monthlySalesCount = 4;
+	input.monthlySalesTotal = 12_000_000;
+	input.weather = weather;
+
+	const summary = summarizeFarmForInsight(input);
+
+	assert.equal(summary.totalHeadcount, 0);
+	assert.equal(summary.monthlySalesCount, 0);
+	assert.equal(summary.monthlySalesManwon, 0);
+	assert.equal(summary.thi, null);
+	assert.equal(summary.temp, null);
+	assert.equal(summary.humidity, null);
+});
+
 test("summarizeFarmForInsight aggregates profitability and notifications", () => {
 	const summary = summarizeFarmForInsight({
 		totalHeadcount: 42.7,
@@ -81,10 +102,17 @@ test("summarizeFarmForInsight aggregates profitability and notifications", () =>
 });
 
 test("summarizeFarmForInsight ignores malformed margin rows and clamps negative sales", () => {
+	const arrayShipment = [];
+	arrayShipment.recommendShipment = true;
+	arrayShipment.currentProfit = 9_999_999;
+	arrayShipment.marginalGain = -9_999_999;
+	const arrayNotification = [];
+	arrayNotification.type = "estrus";
 	const summary = summarizeFarmForInsight({
 		monthlySalesCount: -2,
 		monthlySalesTotal: -3_400_000,
 		profitabilityItems: [
+			arrayShipment,
 			{},
 			{ marginalGain: undefined },
 			{ marginalGain: Number.NaN },
@@ -92,11 +120,18 @@ test("summarizeFarmForInsight ignores malformed margin rows and clamps negative 
 			{ marginalGain: 0 },
 			{ marginalGain: 125_000 },
 		],
+		notifications: [arrayNotification],
 	});
 
 	assert.equal(summary.monthlySalesCount, 0);
 	assert.equal(summary.monthlySalesManwon, 0);
 	assert.equal(summary.decliningMarginCount, 2);
+	assert.equal(summary.shipmentCandidates, 0);
+	assert.deepEqual(summary.notificationCounts, {
+		estrus: 0,
+		calving: 0,
+		alert: 0,
+	});
 });
 
 test("summarizeFarmForInsight normalizes string weather numbers", () => {
@@ -174,6 +209,11 @@ test("parseInsightResponse drops bad items, caps at MAX_INSIGHTS, and rejects to
 
 	const dropped = parseInsightResponse([
 		{ title: "ok", body: "body", priority: "high" },
+		Object.assign([], {
+			title: "array row",
+			body: "array body",
+			priority: "high",
+		}),
 		{ title: "", body: "missing title", priority: "high" },
 		{ title: "missing body", body: "" },
 		{ title: "default priority", body: "body" },
@@ -182,6 +222,10 @@ test("parseInsightResponse drops bad items, caps at MAX_INSIGHTS, and rejects to
 	]);
 	assert.equal(dropped.length, MAX_INSIGHTS);
 	assert.equal(dropped[1].priority, "medium");
+	assert.equal(
+		dropped.some((item) => item.title === "array row"),
+		false,
+	);
 });
 
 test("buildHeuristicInsights surfaces a shipment recommendation when present", () => {

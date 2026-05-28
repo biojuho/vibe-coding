@@ -33,10 +33,10 @@ test("buildSetupProgressItems routes missing buildings to the add-building flow"
 test("buildSetupProgressItems ignores malformed collection rows", () => {
 	const progress = buildSetupProgressItems({
 		farmSettings: { name: "Farm", location: "Namwon" },
-		buildings: ["b1", null],
-		cattleList: [undefined, "c1"],
-		inventoryList: [false],
-		scheduleEvents: ["s1"],
+		buildings: ["b1", null, ["array-building"]],
+		cattleList: [undefined, "c1", ["array-cattle"]],
+		inventoryList: [false, ["array-inventory"]],
+		scheduleEvents: ["s1", ["array-schedule"]],
 	});
 
 	assert.equal(progress.completed, 1);
@@ -46,6 +46,21 @@ test("buildSetupProgressItems ignores malformed collection rows", () => {
 		progress.items.map((item) => item.done),
 		[true, false, false, false, false],
 	);
+});
+
+test("buildSetupProgressItems ignores malformed top-level options", () => {
+	for (const value of [null, [], "bad-options"]) {
+		const progress = buildSetupProgressItems(value);
+
+		assert.equal(progress.completed, 0);
+		assert.equal(progress.total, 5);
+		assert.equal(progress.percent, 0);
+		assert.equal(progress.nextItem.id, "farm-profile");
+		assert.deepEqual(
+			progress.items.map((item) => item.done),
+			[false, false, false, false, false],
+		);
+	}
 });
 
 test("buildSetupProgressItems marks setup complete when all required operating data exists", () => {

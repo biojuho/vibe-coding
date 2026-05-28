@@ -42,7 +42,9 @@ function toIssueDateKey(issueDate) {
 }
 
 function normalizeObject(value) {
-	return value && typeof value === "object" ? value : {};
+	return value && typeof value === "object" && !Array.isArray(value)
+		? value
+		: {};
 }
 
 export async function getDashboardSummarySnapshot(

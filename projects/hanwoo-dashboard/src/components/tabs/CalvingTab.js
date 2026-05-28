@@ -34,21 +34,33 @@ function getPregnancyDateTime(value) {
 
 function normalizeCalvingCattle(cattle) {
 	return Array.isArray(cattle)
-		? cattle.filter((row) => row && typeof row === "object" && row.id != null)
+		? cattle.filter(
+				(row) =>
+					row && typeof row === "object" && !Array.isArray(row) && row.id != null,
+			)
 		: [];
 }
 
 function normalizeCalvingBuildings(buildings) {
 	return Array.isArray(buildings)
-		? buildings.filter((building) => building && typeof building === "object")
+		? buildings.filter(
+				(building) =>
+					building && typeof building === "object" && !Array.isArray(building),
+			)
 		: [];
 }
 
-export default function CalvingTab({
-	cattle,
-	buildings = [],
-	onRecordCalving,
-}) {
+function normalizeCalvingTabOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+export default function CalvingTab(options = {}) {
+	const { cattle, buildings = [], onRecordCalving } =
+		normalizeCalvingTabOptions(options);
+	const handleRecordCalving =
+		typeof onRecordCalving === "function" ? onRecordCalving : async () => false;
 	const safeCattle = useMemo(() => normalizeCalvingCattle(cattle), [cattle]);
 	const safeBuildings = useMemo(
 		() => normalizeCalvingBuildings(buildings),
@@ -135,7 +147,7 @@ export default function CalvingTab({
 		setIsSaving(true);
 
 		try {
-			const recorded = await onRecordCalving({
+			const recorded = await handleRecordCalving({
 				motherId: cow.id,
 				calvingDate: values.calvingDate,
 				calfGender: values.calfGender,

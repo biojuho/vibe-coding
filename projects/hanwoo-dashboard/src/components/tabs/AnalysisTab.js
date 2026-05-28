@@ -55,16 +55,31 @@ function toMonthKey(value) {
 
 function normalizeAnalysisItems(items) {
 	return Array.isArray(items)
-		? items.filter((item) => item && typeof item === "object")
+		? items.filter(
+				(item) => item && typeof item === "object" && !Array.isArray(item),
+			)
 		: [];
 }
 
-export default function AnalysisTab({
-	saleRecords = [],
-	feedHistory = [],
-	cattleList = [],
-	expenseRecords = [],
-}) {
+function normalizeKpiCardOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+function normalizeAnalysisTabOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+export default function AnalysisTab(options = {}) {
+	const {
+		saleRecords = [],
+		feedHistory = [],
+		cattleList = [],
+		expenseRecords = [],
+	} = normalizeAnalysisTabOptions(options);
 	const safeSaleRecords = useMemo(
 		() => normalizeAnalysisItems(saleRecords),
 		[saleRecords],
@@ -380,7 +395,9 @@ export default function AnalysisTab({
 	);
 }
 
-function KpiCard({ title, value, icon, accent }) {
+function KpiCard(options = {}) {
+	const { title, value, icon, accent } = normalizeKpiCardOptions(options);
+
 	return (
 		<div className="clay-page-section p-4">
 			<div className="mb-3 flex items-center justify-between gap-3">

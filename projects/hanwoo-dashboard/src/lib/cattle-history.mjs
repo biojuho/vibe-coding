@@ -12,6 +12,14 @@ export function parseCattleHistoryMetadata(metadata) {
 	}
 
 	if (typeof metadata === "object") {
+		if (!isRecord(metadata)) {
+			return {
+				metadata: null,
+				metadataParseError: true,
+				metadataRaw: JSON.stringify(metadata),
+			};
+		}
+
 		return {
 			metadata,
 			metadataParseError: false,
@@ -28,8 +36,17 @@ export function parseCattleHistoryMetadata(metadata) {
 	}
 
 	try {
+		const parsed = JSON.parse(metadata);
+		if (!isRecord(parsed)) {
+			return {
+				metadata: null,
+				metadataParseError: true,
+				metadataRaw: metadata,
+			};
+		}
+
 		return {
-			metadata: JSON.parse(metadata),
+			metadata: parsed,
 			metadataParseError: false,
 			metadataRaw: null,
 		};

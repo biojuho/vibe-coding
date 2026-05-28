@@ -12,6 +12,20 @@ const UNSUPPORTED_DATA_TYPE_MESSAGE = "지원하지 않는 데이터 유형입�
 // System Diagnostics & Utilities
 // ============================================================
 
+function isRawDataActionRow(value) {
+	return (
+		value !== null &&
+		typeof value === "object" &&
+		!Array.isArray(value)
+	);
+}
+
+function normalizeRawDataActionRows(rows) {
+	return Array.isArray(rows)
+		? rows.filter((row) => isRawDataActionRow(row))
+		: [];
+}
+
 export async function getSystemDiagnostics() {
 	await requireAuthenticatedSession();
 	try {
@@ -68,7 +82,7 @@ export async function getRawData(modelName) {
 			take: 50,
 			orderBy: { createdAt: "desc" },
 		});
-		return { success: true, data };
+		return { success: true, data: normalizeRawDataActionRows(data) };
 	} catch (error) {
 		if (error.message === UNSUPPORTED_DATA_TYPE_MESSAGE) {
 			return { success: false, message: UNSUPPORTED_DATA_TYPE_MESSAGE };

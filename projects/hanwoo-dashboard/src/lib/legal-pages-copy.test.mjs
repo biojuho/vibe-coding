@@ -29,6 +29,26 @@ test("legal pages expose stable support channels without personal contact detail
 	assert.doesNotMatch(combinedSource, /성명: 박주호/);
 	assert.match(
 		layoutSource,
+		/function normalizeLegalDocumentLayoutOptions\(options\) \{/,
+	);
+	assert.match(
+		layoutSource,
+		/return options && typeof options === ["']object["'] && !Array\.isArray\(options\)\s*\?\s*options\s*:\s*\{\s*\}\s*;?/,
+	);
+	assert.match(
+		layoutSource,
+		/export default function LegalDocumentLayout\(options = \{\}\) \{/,
+	);
+	assert.match(
+		layoutSource,
+		/const \{ eyebrow, title, subtitle, lastUpdated, children \} =\s*normalizeLegalDocumentLayoutOptions\(options\);/,
+	);
+	assert.doesNotMatch(
+		layoutSource,
+		/export default function LegalDocumentLayout\(\{\s*eyebrow,/,
+	);
+	assert.match(
+		layoutSource,
 		/<Link\s+href="\/"\s+aria-label="홈으로 돌아가기"\s+title="홈으로 돌아가기"/,
 	);
 	assert.match(

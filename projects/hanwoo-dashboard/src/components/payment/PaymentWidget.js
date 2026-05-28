@@ -80,18 +80,40 @@ function deferPaymentWidgetTask(callback) {
 	}
 }
 
-export default function PaymentWidget({
-	clientKey,
-	customerKey,
-	amount,
-	orderName,
-	customerName,
-	customerEmail,
-}) {
+function normalizePaymentWidgetOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+function normalizePaymentAmount(amount) {
+	if (typeof amount === "number" && Number.isFinite(amount)) {
+		return amount;
+	}
+
+	if (typeof amount === "string" && amount.trim()) {
+		const parsedAmount = Number(amount);
+		if (Number.isFinite(parsedAmount)) {
+			return parsedAmount;
+		}
+	}
+
+	return 0;
+}
+
+export default function PaymentWidget(options = {}) {
+	const {
+		clientKey,
+		customerKey,
+		amount,
+		orderName,
+		customerName,
+		customerEmail,
+	} = normalizePaymentWidgetOptions(options);
 	const paymentWidgetRef = useRef(null);
 	const paymentRequestInFlightRef = useRef(false);
 	const isMountedRef = useRef(false);
-	const [price] = useState(amount);
+	const [price] = useState(() => normalizePaymentAmount(amount));
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [isWidgetReady, setIsWidgetReady] = useState(false);
 	const [errorMessage, setErrorMessage] = useState("");

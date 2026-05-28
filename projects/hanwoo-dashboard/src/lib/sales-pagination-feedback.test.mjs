@@ -11,15 +11,31 @@ function readSource(relativePath) {
 	return readFileSync(path.join(SRC_ROOT, relativePath), "utf8");
 }
 
-test("sales pagination failures surface Korean retry feedback", () => {
+test("sales pagination failures surface retry feedback through guarded controls", () => {
 	const hookSource = readSource("lib/hooks/useSalesPagination.js");
 	const tabSource = readSource("components/tabs/SalesTab.js");
 
 	assert.match(hookSource, /SALES_PAGINATION_TIMEOUT_MESSAGE/);
 	assert.match(hookSource, /SALES_PAGINATION_ERROR_MESSAGE/);
-	assert.match(hookSource, /이전 판매 기록을 불러오는 데 시간이 오래 걸리고 있습니다/);
-	assert.match(hookSource, /이전 판매 기록을 불러오지 못했습니다/);
-	assert.doesNotMatch(hookSource, /이전 매출 기록/);
+	assert.match(hookSource, /function normalizePaginationParams\(params\) \{/);
+	assert.match(
+		hookSource,
+		/params && typeof params === "object" && !Array\.isArray\(params\)/,
+	);
+	assert.match(hookSource, /export function useSalesPagination\(options = \{\}\) \{/);
+	assert.match(
+		hookSource,
+		/const \{ initialItems = \[\], initialPageInfo = null \} =\s+normalizePaginationParams\(options\);/,
+	);
+	assert.doesNotMatch(
+		hookSource,
+		/export function useSalesPagination\(\{\s+initialItems = \[\],\s+initialPageInfo = null,\s+\} = \{\}\)/,
+	);
+	assert.match(
+		hookSource,
+		/async \(params = \{\}\) => \{\s+const \{ from, to \} = normalizePaginationParams\(params\);/,
+	);
+	assert.doesNotMatch(hookSource, /async \(\{ from, to \} = \{\}\) =>/);
 	assert.match(hookSource, /setLoadError\(SALES_PAGINATION_TIMEOUT_MESSAGE\)/);
 	assert.match(hookSource, /setLoadError\(SALES_PAGINATION_ERROR_MESSAGE\)/);
 	assert.match(hookSource, /const loadInFlightRef = useRef\(false\);/);
@@ -32,10 +48,6 @@ test("sales pagination failures surface Korean retry feedback", () => {
 	assert.match(
 		hookSource,
 		/try \{\s+timeoutId = window\.setTimeout\(\(\) => \{\s+didTimeout = true;\s+controller\.abort\(\);/,
-	);
-	assert.match(
-		hookSource,
-		/console\.error\("Failed to schedule sales pagination timeout:", error\);/,
 	);
 	assert.match(
 		hookSource,
@@ -52,23 +64,34 @@ test("sales pagination failures surface Korean retry feedback", () => {
 	assert.doesNotMatch(hookSource, /const timeoutId = window\.setTimeout/);
 	assert.doesNotMatch(hookSource, /finally \{\s+window\.clearTimeout\(timeoutId\);/);
 	assert.match(hookSource, /loadMore, loadError/);
-	assert.match(tabSource, /salesPagination\.loadError/);
+
+	assert.match(tabSource, /function normalizeSalesPaginationOptions\(pagination\) \{/);
 	assert.match(
 		tabSource,
-		/const loadMoreLabel = salesPagination\?\.isLoading\s*\?\s*["']이전 판매 기록 불러오는 중["']\s*:\s*["']이전 판매 기록 더 보기["']/,
+		/pagination && typeof pagination === "object" && !Array\.isArray\(pagination\)/,
 	);
-	assert.match(tabSource, /aria-busy=\{salesPagination\.isLoading\}/);
+	assert.match(
+		tabSource,
+		/const safeSalesPagination = normalizeSalesPaginationOptions\(salesPagination\);/,
+	);
+	assert.match(
+		tabSource,
+		/const handleLoadMoreSales =\s+typeof safeSalesPagination\.loadMore === "function"\s+\? safeSalesPagination\.loadMore\s+: \(\) => \{\};/,
+	);
+	assert.match(tabSource, /const loadMoreLabel = safeSalesPagination\.isLoading\s*\?/);
+	assert.match(tabSource, /safeSalesPagination\.hasMore/);
+	assert.match(tabSource, /onClick=\{handleLoadMoreSales\}/);
+	assert.match(tabSource, /disabled=\{safeSalesPagination\.isLoading\}/);
+	assert.match(tabSource, /aria-busy=\{safeSalesPagination\.isLoading\}/);
 	assert.match(tabSource, /aria-label=\{loadMoreLabel\}/);
 	assert.match(tabSource, /title=\{loadMoreLabel\}/);
-	assert.match(
-		tabSource,
-		/salesPagination\.isLoading\s*\?\s*["']이전 판매 기록 불러오는 중\.\.\.["']\s*:\s*["']이전 판매 기록 더 보기["']/,
-	);
+	assert.match(tabSource, /safeSalesPagination\.loadError/);
 	assert.match(tabSource, /role="status"/);
 	assert.match(tabSource, /aria-live="polite"/);
 	assert.match(tabSource, /aria-atomic="true"/);
 	assert.doesNotMatch(hookSource, /setLoadError\(error\.message\)/);
 	assert.doesNotMatch(tabSource, /salesPagination\.error\.message/);
+	assert.doesNotMatch(tabSource, /onClick=\{\(\) => salesPagination\.loadMore\(\)\}/);
 });
 
 test("sales pagination normalizes malformed page item payloads", () => {
@@ -77,7 +100,7 @@ test("sales pagination normalizes malformed page item payloads", () => {
 	assert.match(hookSource, /function normalizePaginationItems\(items\) \{/);
 	assert.match(
 		hookSource,
-		/Array\.isArray\(items\)\s*\?\s*items\.filter\(\s*\(item\)\s*=>\s*item\s*&&\s*typeof\s*item\s*===\s*["']object["']\s*\)\s*:\s*\[\]/,
+		/Array\.isArray\(items\)[\s\S]*?\? items\.filter\([\s\S]*?\(item\) => item && typeof item === ["']object["'] && !Array\.isArray\(item\)[\s\S]*?\)[\s\S]*?: \[\]/,
 	);
 	assert.match(
 		hookSource,

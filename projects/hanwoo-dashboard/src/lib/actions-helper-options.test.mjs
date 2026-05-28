@@ -15,6 +15,10 @@ test("home cache invalidation normalizes malformed options before access", () =>
 	const source = readSource("lib/actions/_helpers.js");
 
 	assert.match(source, /function normalizeObject\(value\) \{/);
+	assert.match(
+		source,
+		/value && typeof value === "object" && !Array\.isArray\(value\)/,
+	);
 	assert.match(source, /const safeOptions = normalizeObject\(options\);/);
 	assert.match(source, /\.\.\.safeOptions,/);
 	assert.match(source, /if \(safeOptions\.cattleListPages\) \{/);

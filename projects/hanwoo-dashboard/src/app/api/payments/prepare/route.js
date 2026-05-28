@@ -26,10 +26,14 @@ function parsePaymentAmount(value) {
 	return Number.NaN;
 }
 
+function normalizePaymentPrepareBody(body) {
+	return body && typeof body === "object" && !Array.isArray(body) ? body : {};
+}
+
 export async function POST(req) {
 	try {
 		const session = await requireAuthenticatedSession();
-		const body = await req.json();
+		const body = normalizePaymentPrepareBody(await req.json());
 		const amount = parsePaymentAmount(
 			body?.amount ?? PREMIUM_SUBSCRIPTION.amount,
 		);

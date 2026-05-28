@@ -34,11 +34,15 @@ const premiumButtonVariants = cva(
 	},
 );
 
-const PremiumButton = React.forwardRef(
-	(
-		{ className, variant, size, asChild = false, type = "button", ...props },
-		ref,
-	) => {
+function normalizePremiumButtonOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+const PremiumButton = React.forwardRef((options, ref) => {
+	const { className, variant, size, asChild = false, type = "button", ...props } =
+		normalizePremiumButtonOptions(options);
 		const Comp = asChild ? Slot : "button";
 		return (
 			<Comp
@@ -48,8 +52,7 @@ const PremiumButton = React.forwardRef(
 				{...props}
 			/>
 		);
-	},
-);
+});
 PremiumButton.displayName = "PremiumButton";
 
 export { PremiumButton, premiumButtonVariants };

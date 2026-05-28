@@ -84,6 +84,56 @@ test("ear tag scanner announces scan results and labels manual simulation choice
 	assert.match(source, /<Eye size=\{13\} aria-hidden="true" \/>/);
 });
 
+test("ear tag scanner normalizes malformed props and callbacks before rendering", () => {
+	const source = readSource("components/widgets/EarTagScannerModal.js");
+
+	assert.match(source, /function normalizeEarTagScannerModalOptions\(options\) \{/);
+	assert.match(source, /function normalizeScannerCattleList\(cattleList\) \{/);
+	assert.match(
+		source,
+		/return options && typeof options === ["']object["'] && !Array\.isArray\(options\)\s*\?\s*options\s*:\s*\{\s*\}\s*;?/,
+	);
+	assert.match(
+		source,
+		/return Array\.isArray\(cattleList\)[\s\S]*?\? cattleList\.filter\([\s\S]*?\(cow\) => cow && typeof cow === ["']object["'] && !Array\.isArray\(cow\)[\s\S]*?\)[\s\S]*?: \[\s*\]\s*;?/,
+	);
+	assert.match(source, /export default function EarTagScannerModal\(options = \{\}\) \{/);
+	assert.match(source, /normalizeEarTagScannerModalOptions\(options\);/);
+	assert.match(source, /const safeCattleList = normalizeScannerCattleList\(cattleList\);/);
+	assert.match(
+		source,
+		/const handleClose = typeof onClose === ["']function["'] \? onClose : \(\) => \{\};/,
+	);
+	assert.match(
+		source,
+		/const handleSelect = typeof onSelect === ["']function["'] \? onSelect : \(\) => \{\};/,
+	);
+	assert.match(
+		source,
+		/const currentCattleList = normalizeScannerCattleList\(cattleList\);/,
+	);
+	assert.match(source, /if \(isOpen && currentCattleList\.length > 0\) \{/);
+	assert.match(
+		source,
+		/const idx = Math\.floor\(Math\.random\(\) \* currentCattleList\.length\);/,
+	);
+	assert.match(source, /setTargetCandidate\(currentCattleList\[idx\]\);/);
+	assert.match(source, /const cow = safeCattleList\.find\(\(c\) => c\.id === cowId\);/);
+	assert.match(source, /handleSelect\(matchedCow\);/);
+	assert.match(source, /handleClose\(\);/);
+	assert.match(source, /if \(safeCattleList\.length > 0\) \{/);
+	assert.match(source, /setTargetCandidate\(safeCattleList\[idx\]\);/);
+	assert.match(source, /safeCattleList\.slice\(0, 5\)\.map\(\(cow\) => \{/);
+	assert.doesNotMatch(
+		source,
+		/export default function EarTagScannerModal\(\{\s+isOpen,/,
+	);
+	assert.doesNotMatch(source, /onSelect\(matchedCow\);/);
+	assert.doesNotMatch(source, /onClose\(\);/);
+	assert.doesNotMatch(source, /cattleList\.find\(\(c\) => c\.id === cowId\)/);
+	assert.doesNotMatch(source, /cattleList\.slice\(0, 5\)\.map/);
+});
+
 test("ear tag scanner explains missing birth dates instead of showing dash placeholders", () => {
 	const source = readSource("components/widgets/EarTagScannerModal.js");
 

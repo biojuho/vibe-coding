@@ -21,8 +21,16 @@ function toFiniteNumberOrNull(value) {
 
 function toObjectRows(value) {
 	return Array.isArray(value)
-		? value.filter((item) => item && typeof item === "object")
+		? value.filter(
+				(item) => item && typeof item === "object" && !Array.isArray(item),
+			)
 		: [];
+}
+
+function normalizeTodayFocusOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
 }
 
 function isLowStock(item) {
@@ -32,7 +40,7 @@ function isLowStock(item) {
 }
 
 function isFeedCategory(item) {
-	if (!item || typeof item !== "object") return false;
+	if (!item || typeof item !== "object" || Array.isArray(item)) return false;
 	const category =
 		typeof item.category === "string" ? item.category.toLowerCase() : "";
 	return (
@@ -50,11 +58,12 @@ function isFeedCategory(item) {
  *
  * Returns kg/day (number), or null if there isn't enough data to predict.
  */
-export function estimateDailyFeedConsumptionKg({
-	feedHistory = [],
-	lookbackDays = 30,
-	now = new Date(),
-} = {}) {
+export function estimateDailyFeedConsumptionKg(options = {}) {
+	const {
+		feedHistory = [],
+		lookbackDays = 30,
+		now = new Date(),
+	} = normalizeTodayFocusOptions(options);
 	if (!Array.isArray(feedHistory) || feedHistory.length === 0) return null;
 	const today = startOfDay(now);
 	const cutoff = new Date(today.getTime() - lookbackDays * 86400000);
@@ -62,7 +71,9 @@ export function estimateDailyFeedConsumptionKg({
 	let totalKg = 0;
 	let samples = 0;
 	for (const record of feedHistory) {
-		if (!record || typeof record !== "object") continue;
+		if (!record || typeof record !== "object" || Array.isArray(record)) {
+			continue;
+		}
 		const date = toValidDate(record.date);
 		if (!date || date < cutoff || date > today) continue;
 		const roughage = toFiniteNumberOrNull(record.roughage) ?? 0;
@@ -83,15 +94,16 @@ function formatDaysLeft(target, today) {
 	return `${daysLeft}일 남음`;
 }
 
-export function buildTodayFocusItems({
-	notifications = [],
-	scheduleEvents = [],
-	inventoryList = [],
-	feedHistory = [],
-	monthlySalesCount = 0,
-	isOnline = true,
-	now = new Date(),
-} = {}) {
+export function buildTodayFocusItems(options = {}) {
+	const {
+		notifications = [],
+		scheduleEvents = [],
+		inventoryList = [],
+		feedHistory = [],
+		monthlySalesCount = 0,
+		isOnline = true,
+		now = new Date(),
+	} = normalizeTodayFocusOptions(options);
 	const today = startOfDay(now);
 	const items = [];
 	const safeNotifications = toObjectRows(notifications);

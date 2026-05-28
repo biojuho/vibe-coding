@@ -224,6 +224,37 @@ test("weather fallback states ignore malformed options input", () => {
 	assert.equal(stale.message, WEATHER_STALE_MESSAGE);
 });
 
+test("weather fallback states ignore array option fields", () => {
+	const arrayOptions = [];
+	arrayOptions.locationName = "Array Location";
+	arrayOptions.message = "array message should be ignored";
+	const weather = {
+		available: true,
+		degraded: false,
+		isStale: false,
+		source: "weather-live",
+		sourceLabel: "Open-Meteo",
+		temp: 20,
+		humidity: 55,
+		windSpeed: 2,
+		apparentTemp: 19,
+		weatherCode: 1,
+		tempMax: 23,
+		tempMin: 14,
+		precipitation: 0,
+		locationName: "Namwon",
+		forecast: [],
+	};
+
+	const unavailable = buildUnavailableWeatherState(arrayOptions);
+	const stale = markWeatherAsStale(weather, arrayOptions);
+
+	assert.equal(unavailable.locationName, "서울");
+	assert.equal(unavailable.message, WEATHER_UNAVAILABLE_MESSAGE);
+	assert.equal(stale.locationName, "Namwon");
+	assert.equal(stale.message, WEATHER_STALE_MESSAGE);
+});
+
 test("weather fallback location labels default to Korean copy", () => {
 	const unavailable = buildUnavailableWeatherState();
 	const stale = markWeatherAsStale({

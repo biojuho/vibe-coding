@@ -42,19 +42,41 @@ function getSaleDateTime(value) {
 
 function normalizeSalesItems(items) {
 	return Array.isArray(items)
-		? items.filter((item) => item && typeof item === "object")
+		? items.filter(
+				(item) => item && typeof item === "object" && !Array.isArray(item),
+			)
 		: [];
 }
 
-export default function SalesTab({
-	saleRecords,
-	cattleList,
-	onCreateSale,
-	expenseRecords = [],
-	initialMarketPrice = null,
-	salesPagination = null,
-	quickActionIntent = null,
-}) {
+function normalizeSalesTabOptions(options) {
+	return options && typeof options === "object" && !Array.isArray(options)
+		? options
+		: {};
+}
+
+function normalizeSalesPaginationOptions(pagination) {
+	return pagination && typeof pagination === "object" && !Array.isArray(pagination)
+		? pagination
+		: {};
+}
+
+export default function SalesTab(options = {}) {
+	const {
+		saleRecords,
+		cattleList,
+		onCreateSale,
+		expenseRecords = [],
+		initialMarketPrice = null,
+		salesPagination = null,
+		quickActionIntent = null,
+	} = normalizeSalesTabOptions(options);
+	const handleCreateSale =
+		typeof onCreateSale === "function" ? onCreateSale : async () => false;
+	const safeSalesPagination = normalizeSalesPaginationOptions(salesPagination);
+	const handleLoadMoreSales =
+		typeof safeSalesPagination.loadMore === "function"
+			? safeSalesPagination.loadMore
+			: () => {};
 	const [isAdding, setIsAdding] = useState(
 		() => quickActionIntent?.actionId === "record-sale",
 	);
@@ -163,7 +185,7 @@ export default function SalesTab({
 				})),
 		[processedRecords],
 	);
-	const loadMoreLabel = salesPagination?.isLoading
+	const loadMoreLabel = safeSalesPagination.isLoading
 		? "이전 판매 기록 불러오는 중"
 		: "이전 판매 기록 더 보기";
 	const submitButtonLabel = isSaving
@@ -217,7 +239,7 @@ export default function SalesTab({
 		setIsSaving(true);
 
 		try {
-			const saved = await onCreateSale(values);
+			const saved = await handleCreateSale(values);
 			if (!saved || !isMountedRef.current) {
 				return;
 			}
@@ -682,29 +704,29 @@ export default function SalesTab({
 				)}
 			</div>
 
-			{salesPagination?.hasMore && (
+			{safeSalesPagination.hasMore && (
 				<>
 					<PremiumButton
 						variant="secondary"
-						onClick={() => salesPagination.loadMore()}
-						disabled={salesPagination.isLoading}
-						aria-busy={salesPagination.isLoading}
+						onClick={handleLoadMoreSales}
+						disabled={safeSalesPagination.isLoading}
+						aria-busy={safeSalesPagination.isLoading}
 						aria-label={loadMoreLabel}
 						title={loadMoreLabel}
 						className="w-full mt-3 py-3"
 					>
-						{salesPagination.isLoading
+						{safeSalesPagination.isLoading
 							? "이전 판매 기록 불러오는 중..."
 							: "이전 판매 기록 더 보기"}
 					</PremiumButton>
-					{salesPagination.loadError ? (
+					{safeSalesPagination.loadError ? (
 						<p
 							role="status"
 							aria-live="polite"
 							aria-atomic="true"
 							className="mt-2 text-center text-xs font-semibold text-red-300"
 						>
-							{salesPagination.loadError}
+							{safeSalesPagination.loadError}
 						</p>
 					) : null}
 				</>
