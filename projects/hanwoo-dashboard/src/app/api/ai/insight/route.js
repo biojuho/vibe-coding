@@ -25,6 +25,24 @@ priority는 "high" | "medium" | "low" 중 하나로, 농장 정보 기반 위급
 const DEFAULT_HEURISTIC_REASON =
 	"AI 분석 키가 설정되지 않아 기본 규칙 인사이트를 표시합니다.";
 
+const METRIC_LOG_PREFIX = "[ai-insight-metric]";
+
+/**
+ * T-1199: structured 한 줄 JSON 메트릭 로그.
+ * Vercel/CloudWatch 같은 로그 수집기에서 prefix 로 grep 해 hit rate / latency 추출.
+ * PII 차단을 위해 userId / summary 내용은 절대 로그하지 않는다 (hasUserId 플래그만).
+ * 로그 실패는 swallow — 절대 라우트 응답을 깨면 안 된다.
+ */
+function emitInsightMetric(payload) {
+	try {
+		const safePayload =
+			payload && typeof payload === "object" && !Array.isArray(payload)
+				? payload
+				: {};
+		console.log(METRIC_LOG_PREFIX, JSON.stringify(safePayload));
+	} catch {}
+}
+
 const GEMINI_INSIGHT_TIMEOUT_MS = 10000;
 const GEMINI_TIMEOUT_REASON =
 	"AI 분석 응답이 지연되어 기본 규칙 인사이트로 전환했습니다.";
@@ -95,16 +113,25 @@ function withInsightTimeout(promise, timeoutMs = GEMINI_INSIGHT_TIMEOUT_MS) {
 }
 
 export async function POST(request) {
+	const startedAt = Date.now();
 	let session = null;
 	try {
 		session = await requireAuthenticatedSession();
 	} catch {
+		emitInsightMetric({
+			event: "unauthenticated",
+			durationMs: Date.now() - startedAt,
+		});
 		return Response.json(
 			{ error: "인증이 필요합니다.", code: "UNAUTHENTICATED" },
 			{ status: 401 },
 		);
 	}
 	if (!session) {
+		emitInsightMetric({
+			event: "unauthenticated",
+			durationMs: Date.now() - startedAt,
+		});
 		return Response.json(
 			{ error: "인증이 필요합니다.", code: "UNAUTHENTICATED" },
 			{ status: 401 },
@@ -118,6 +145,12 @@ export async function POST(request) {
 
 	const apiKey = process.env.GEMINI_API_KEY;
 	if (!apiKey) {
+		emitInsightMetric({
+			event: "heuristic_no_api_key",
+			source: "heuristic",
+			forceRefresh,
+			durationMs: Date.now() - startedAt,
+		});
 		return Response.json({
 			insights: buildHeuristicInsights(summary),
 			source: "heuristic",
@@ -130,6 +163,7 @@ export async function POST(request) {
 		session && session.user && typeof session.user.id === "string"
 			? session.user.id
 			: null;
+	const hasUserId = userId !== null;
 	const cacheKey = userId
 		? buildCacheKey({ userId, summary })
 		: null;
@@ -137,6 +171,14 @@ export async function POST(request) {
 	if (cacheKey && !forceRefresh) {
 		const hit = await loadCachedInsight(cacheKey);
 		if (hit && Array.isArray(hit.insights) && hit.insights.length === MAX_INSIGHTS) {
+			emitInsightMetric({
+				event: "cache_hit",
+				source: "ai",
+				cacheBackend: hit.backend ?? "memory",
+				ageSeconds: hit.ageSeconds,
+				hasUserId,
+				durationMs: Date.now() - startedAt,
+			});
 			return Response.json({
 				insights: hit.insights,
 				source: "ai",
@@ -159,6 +201,13 @@ export async function POST(request) {
 		);
 		const parsed = parseInsightResponse(raw);
 		if (!parsed || parsed.length !== MAX_INSIGHTS) {
+			emitInsightMetric({
+				event: "gemini_parse_failure",
+				source: "heuristic",
+				forceRefresh,
+				hasUserId,
+				durationMs: Date.now() - startedAt,
+			});
 			return Response.json({
 				insights: buildHeuristicInsights(summary),
 				source: "heuristic",
@@ -169,10 +218,26 @@ export async function POST(request) {
 		if (cacheKey) {
 			await saveCachedInsight(cacheKey, { insights: parsed, source: "ai" });
 		}
+		emitInsightMetric({
+			event: "gemini_success",
+			source: "ai",
+			forceRefresh,
+			hasUserId,
+			cached: false,
+			durationMs: Date.now() - startedAt,
+		});
 		return Response.json({ insights: parsed, source: "ai", cached: false });
 	} catch (error) {
 		if (error instanceof InsightTimeoutError) {
 			console.error("AI insight generation timed out:", error);
+			emitInsightMetric({
+				event: "gemini_timeout",
+				source: "heuristic",
+				forceRefresh,
+				hasUserId,
+				timeoutMs: error.timeoutMs ?? GEMINI_INSIGHT_TIMEOUT_MS,
+				durationMs: Date.now() - startedAt,
+			});
 			return Response.json({
 				insights: buildHeuristicInsights(summary),
 				source: "heuristic",
@@ -181,6 +246,14 @@ export async function POST(request) {
 			});
 		}
 		console.error("AI 인사이트 생성 실패:", error);
+		emitInsightMetric({
+			event: "gemini_error",
+			source: "heuristic",
+			forceRefresh,
+			hasUserId,
+			errorName: error?.name ?? "Unknown",
+			durationMs: Date.now() - startedAt,
+		});
 		return Response.json({
 			insights: buildHeuristicInsights(summary),
 			source: "heuristic",

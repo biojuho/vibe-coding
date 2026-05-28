@@ -31,6 +31,58 @@ test("AI insight widget exposes Korean copy and accessibility landmarks", () => 
 	assert.match(source, /parseInsightResponse/);
 });
 
+test("AI insight widget normalizes malformed top-level props before rendering", () => {
+	const source = readSource("components/widgets/AIInsightWidget.js");
+
+	assert.match(source, /function normalizeAIInsightWidgetOptions\(options\) \{/);
+	assert.match(
+		source,
+		/options && typeof options === "object" && !Array\.isArray\(options\)/,
+	);
+	assert.match(source, /export default function AIInsightWidget\(options = \{\}\) \{/);
+	assert.match(
+		source,
+		/const \{ summary \} = normalizeAIInsightWidgetOptions\(options\);/,
+	);
+	assert.match(
+		source,
+		/\(\) =>\s+summary && typeof summary === "object" && !Array\.isArray\(summary\)\s+\? summary\s+:\s+\{\}/,
+	);
+	assert.doesNotMatch(source, /export default function AIInsightWidget\(\{ summary \}\)/);
+});
+
+test("AI insight badge helpers normalize malformed options before rendering", () => {
+	const source = readSource("components/widgets/AIInsightWidget.js");
+
+	assert.match(source, /function normalizeAIInsightBadgeOptions\(options\) \{/);
+	assert.match(
+		source,
+		/options && typeof options === "object" && !Array\.isArray\(options\)/,
+	);
+	assert.match(source, /function PriorityBadge\(options = \{\}\) \{/);
+	assert.match(
+		source,
+		/const \{ priority \} = normalizeAIInsightBadgeOptions\(options\);/,
+	);
+	assert.match(source, /function SourceBadge\(options = \{\}\) \{/);
+	assert.match(
+		source,
+		/const \{ source \} = normalizeAIInsightBadgeOptions\(options\);/,
+	);
+	assert.match(source, /function CacheBadge\(options = \{\}\) \{/);
+	assert.match(
+		source,
+		/const \{ ageSeconds \} = normalizeAIInsightBadgeOptions\(options\);/,
+	);
+	assert.match(
+		source,
+		/const style = PRIORITY_STYLE\[priority\] \?\? PRIORITY_STYLE\.medium;/,
+	);
+	assert.doesNotMatch(source, /function PriorityBadge\(\{ priority \}\)/);
+	assert.doesNotMatch(source, /function SourceBadge\(\{ source \}\)/);
+	assert.doesNotMatch(source, /function CacheBadge\(\{ ageSeconds \}\)/);
+});
+
 test("AI insight API route bounds slow Gemini calls with a deterministic fallback", () => {
 	const route = readSource("app/api/ai/insight/route.js");
 
@@ -44,6 +96,25 @@ test("AI insight API route bounds slow Gemini calls with a deterministic fallbac
 	assert.doesNotMatch(route, /위급도로 결정하세요/);
 	assert.doesNotMatch(route, /전문 수의사 상담 안내를 포함하세요/);
 	assert.match(route, /class InsightTimeoutError extends Error/);
+	assert.match(route, /function normalizeGeminiInsightOptions\(options\) \{/);
+	assert.match(
+		route,
+		/options && typeof options === ["']object["'] && !Array\.isArray\(options\)/,
+	);
+	assert.match(route, /function normalizeInsightRequestBody\(body\) \{/);
+	assert.match(
+		route,
+		/body && typeof body === ["']object["'] && !Array\.isArray\(body\)/,
+	);
+	assert.match(route, /async function callGeminiForInsights\(options = \{\}\) \{/);
+	assert.match(
+		route,
+		/const \{ apiKey, prompt \} = normalizeGeminiInsightOptions\(options\);/,
+	);
+	assert.doesNotMatch(
+		route,
+		/async function callGeminiForInsights\(\{\s*apiKey,\s*prompt\s*\}\)/,
+	);
 	assert.match(route, /function withInsightTimeout/);
 	assert.match(route, /Promise\.race\(\[promise,\s*timeoutPromise\]\)/);
 	assert.match(
@@ -82,6 +153,10 @@ test("AI insight widget calls /api/ai/insight and falls back to heuristics", () 
 	assert.match(source, /method:\s*["']POST["']/);
 	assert.match(
 		source,
+		/const forceRefresh = refreshNonce > 0;\s+fetch\(["']\/api\/ai\/insight["'][\s\S]*?body: JSON\.stringify\(\{ summary: stableSummary, forceRefresh \}\)/,
+	);
+	assert.match(
+		source,
 		/setInsights\(buildHeuristicInsights\(stableSummary\)\)/,
 	);
 	assert.match(source, /MAX_INSIGHTS/);
@@ -89,6 +164,31 @@ test("AI insight widget calls /api/ai/insight and falls back to heuristics", () 
 	assert.match(source, /setSource\(["']heuristic["']\)/);
 	assert.match(source, /signal: controller\.signal/);
 	assert.match(source, /AbortController\(\)/);
+});
+
+test("AI insight widget renders cache metadata only for cached AI responses", () => {
+	const source = readSource("components/widgets/AIInsightWidget.js");
+
+	assert.match(source, /function formatCacheAgeLabel\(ageSeconds\) \{/);
+	assert.match(source, /function CacheBadge\(options = \{\}\) \{/);
+	assert.match(
+		source,
+		/const \{ ageSeconds \} = normalizeAIInsightBadgeOptions\(options\);/,
+	);
+	assert.match(source, /data-testid="ai-insight-cache-badge"/);
+	assert.match(source, /const \[cacheMeta,\s*setCacheMeta\] = useState\(null\)/);
+	assert.match(source, /setCacheMeta\(null\)/);
+	assert.match(source, /if \(payload\.cached === true\) \{/);
+	assert.match(source, /const ageSeconds = Number\(payload\.ageSeconds\)/);
+	assert.match(
+		source,
+		/setCacheMeta\(\{\s+cached: true,\s+ageSeconds: Number\.isFinite\(ageSeconds\) \? ageSeconds : 0,\s+\}\)/,
+	);
+	assert.match(source, /setCacheMeta\(\{ cached: false, ageSeconds: 0 \}\)/);
+	assert.match(
+		source,
+		/source === "ai" && cacheMeta\?\.cached === true \?\s*\(\s*<CacheBadge ageSeconds=\{cacheMeta\.ageSeconds\} \/>/,
+	);
 });
 
 test("AI insight widget normalizes heuristic reasons and clears stale AI reasons", () => {
@@ -223,6 +323,55 @@ test("AI insight widget is registered, wired into DashboardClient, and supports 
 	assert.match(route, /!parsed \|\| parsed\.length !== MAX_INSIGHTS/);
 });
 
+test("AI insight API route reuses same-day cached AI insights unless force refreshed", () => {
+	const route = readSource("app/api/ai/insight/route.js");
+
+	assert.match(route, /buildCacheKey/);
+	assert.match(route, /loadCachedInsight/);
+	assert.match(route, /dropCachedInsight/);
+	assert.match(route, /saveCachedInsight/);
+	assert.match(
+		route,
+		/const safeBody = normalizeInsightRequestBody\(body\);/,
+	);
+	assert.match(route, /const summary = safeBody\.summary \?\? null;/);
+	assert.match(
+		route,
+		/const forceRefresh = Boolean\(safeBody\.forceRefresh === true\);/,
+	);
+	assert.match(route, /const userId =[\s\S]*?typeof session\.user\.id === "string"/);
+	assert.match(
+		route,
+		/userId\s+\?\s+buildCacheKey\(\{ userId, summary \}\)\s+:\s+null/,
+	);
+	assert.match(route, /if \(cacheKey && !forceRefresh\) \{/);
+	assert.match(route, /const hit = await loadCachedInsight\(cacheKey\)/);
+	assert.match(
+		route,
+		/hit && Array\.isArray\(hit\.insights\) && hit\.insights\.length === MAX_INSIGHTS/,
+	);
+	assert.match(route, /cached:\s*true/);
+	assert.match(route, /cachedAt:\s*new Date\(hit\.generatedAt\)\.toISOString\(\)/);
+	assert.match(route, /ageSeconds:\s*hit\.ageSeconds/);
+	assert.match(route, /cacheBackend:\s*hit\.backend \?\? ["']memory["']/);
+	assert.match(
+		route,
+		/if \(cacheKey && forceRefresh\) \{\s+await dropCachedInsight\(cacheKey\);/,
+	);
+	assert.match(
+		route,
+		/await saveCachedInsight\(cacheKey, \{ insights: parsed, source: "ai" \}\)/,
+	);
+	assert.match(
+		route,
+		/return Response\.json\(\{ insights: parsed, source: "ai", cached: false \}\)/,
+	);
+	assert.match(route, /cached:\s*false/);
+	assert.doesNotMatch(route, /const hit = getCachedInsight\(cacheKey\)/);
+	assert.doesNotMatch(route, /clearCacheKey\(cacheKey\);/);
+	assert.doesNotMatch(route, /setCachedInsight\(cacheKey, \{ insights: parsed, source: "ai" \}\)/);
+});
+
 test("AI insight API route surfaces Korean fallback reasons and never throws to the client", () => {
 	const route = readSource("app/api/ai/insight/route.js");
 
@@ -232,4 +381,57 @@ test("AI insight API route surfaces Korean fallback reasons and never throws to 
 	assert.match(route, /source:\s*["']ai["']/);
 	assert.match(route, /source:\s*["']heuristic["']/);
 	assert.match(route, /catch\s*\(\s*error\s*\)/);
+});
+
+test("AI insight API route emits structured metric logs on every return path", () => {
+	const route = readSource("app/api/ai/insight/route.js");
+
+	// Helper + prefix
+	assert.match(route, /const METRIC_LOG_PREFIX = "\[ai-insight-metric\]"/);
+	assert.match(route, /function emitInsightMetric\(payload\)/);
+	assert.match(route, /console\.log\(METRIC_LOG_PREFIX, JSON\.stringify\(safePayload\)\)/);
+	// emitInsightMetric must be wrapped in try/catch so logging failures can't break the route
+	assert.match(
+		route,
+		/function emitInsightMetric\(payload\) \{\s+try \{[\s\S]*?\} catch \{\}\s*\}/,
+	);
+
+	// All 6 return-path event names present
+	assert.match(route, /event:\s*"unauthenticated"/);
+	assert.match(route, /event:\s*"heuristic_no_api_key"/);
+	assert.match(route, /event:\s*"cache_hit"/);
+	assert.match(route, /event:\s*"gemini_success"/);
+	assert.match(route, /event:\s*"gemini_parse_failure"/);
+	assert.match(route, /event:\s*"gemini_timeout"/);
+	assert.match(route, /event:\s*"gemini_error"/);
+
+	// Latency tracked from a single startedAt anchor at the top of POST
+	assert.match(route, /const startedAt = Date\.now\(\)/);
+	assert.match(route, /durationMs:\s*Date\.now\(\) - startedAt/);
+
+	// Cache hit log surfaces backend + age so monitoring can split redis vs memory hit rate
+	assert.match(
+		route,
+		/event:\s*"cache_hit"[\s\S]*?cacheBackend:[\s\S]*?ageSeconds:/,
+	);
+
+	// PII protection: metric payloads must NOT carry userId or summary contents.
+	// We allow `hasUserId` (boolean) but reject any property literally named `userId:`
+	// inside an emitInsightMetric(...) call.
+	const metricBlocks = [...route.matchAll(/emitInsightMetric\(\{[\s\S]*?\}\)/g)].map(
+		(match) => match[0],
+	);
+	assert.ok(metricBlocks.length >= 6, "expected at least 6 emitInsightMetric calls");
+	for (const block of metricBlocks) {
+		assert.doesNotMatch(
+			block,
+			/\buserId:/,
+			`metric payload must not include userId (PII): ${block}`,
+		);
+		assert.doesNotMatch(
+			block,
+			/\bsummary:/,
+			`metric payload must not include summary (PII): ${block}`,
+		);
+	}
 });
