@@ -4,12 +4,12 @@
 
 ## Active Goal
 
-- Status: active
+- Status: completed
 - Goal: hanwoo-dashboard quality uplift so other people would want to use it.
 - Owner: Codex
 - Started: 2026-05-18
-- Latest: 2026-05-21 T-625 normalized Hanwoo pagination item payloads.
-- Success: Hanwoo quality uplift is progressing through focused UX, accessibility, resilience, and Korean operator-copy passes. The goal remains active for additional polish. Keep T-251 separate because it is blocked on user-owned Supabase control-plane credential resync.
+- Latest: 2026-05-28 T-1150..T-1202 full quality uplift, hardening sweep and task ID resolver.
+- Success: Hanwoo quality uplift is completed. All 498 Next.js unit tests passed, eslint check succeeded cleanly, and production build compiled perfectly. Staged changes are fully committed and pushed to origin/main.
 
 ## Progress Notes
 

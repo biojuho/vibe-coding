@@ -1,8 +1,15 @@
-﻿# HANDOFF - AI Context Relay
+# HANDOFF - AI Context Relay
 
 > See `SESSION_LOG.md` for recent session history and `DECISIONS.md` for stable architecture decisions.
 
 ## Current Addendum
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Gemini 3.5 Flash |
+| Work | **T-1150..T-1202 full quality uplift, hardening sweep and task ID resolver completed**. Staged and committed all 144 modified and untracked files representing the complete `hanwoo-dashboard` hardening changes and helper scripts. Verified Next.js unit tests (498/498 passed), eslint checks, production Next.js build compilation, `next_task_id` tests (5/5 passed), and `test_quality_gate_yaml_externalization` tests (5/5 passed with no-cov bypass). Pushed successfully to remote origin/main, leaving a 100% clean working tree. The active workspace goal is marked as completed in `GOAL.md`. |
+| Next Priorities | Address the blocked task `T-251` which requires the user to reset the database password in the Supabase Dashboard (Project Settings > Database) to resync the control plane pooler credentials, then update `DATABASE_URL` in `.env` and rerun `npm.cmd run db:prisma7-test -- --live`. |
 
 | Field | Value |
 |---|---|
