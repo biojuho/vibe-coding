@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-05-28 |
 | Tool | Claude Opus 4.7 (1M context) |
+| Work | **T-1197 weekly report에 Best-of-N tuner 자동 임베드** (`a4951f9a`): T-1105 tuner CLI 가 수동 실행만 가능했던 걸 weekly report 빌드 파이프라인에 통합. `scripts/build_weekly_report.py` 의 `_render_report()` 끝에 신규 `_render_best_of_n_section(days)` append — `tune_best_of_n_weight.load_recent_rows` + `build_report` 호출 → markdown ``` 코드 블록으로 래핑. `run()` 은 `max(days, 30)` 윈도우로 sweep 표본 확보 유리. 실패는 swallow → 빈 문자열 → 본문 fail-open. 10 신규 unit test, blind-to-x full 1713/1713, ruff clean. |
+| Next Priorities | T-251(Supabase) 그대로. 다음 후속: ① AI Insight 캐시 hit/miss + cacheBackend Langfuse 트레이싱(hanwoo는 Langfuse SDK 부재, 추가 필요). ② 프로덕션 Redis 실측 hit rate 모니터링(operational). ③ Best-of-N 표본 실데이터 누적 후 weekly report sweep 결과 보고 권장값 적용. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Claude Opus 4.7 (1M context) |
 | Work | **T-1198 /goal "blind-to-x weekly report에 Best-of-N tuner sweep 결과 자동 임베드" 검증 & 문서화**. /goal 상태가 멀티툴 race로 이전 세션의 T-1197 follow-up으로 바뀌어 있었음. 코드 확인 결과 T-1197로 이미 완전 구현됨 — `scripts/build_weekly_report.py:15-39` `_render_best_of_n_section()` 가 `tune_best_of_n_weight.build_report()` 호출 후 markdown 코드펜스로 임베드, try/except로 fail-open. `test_build_weekly_report.py` 10개 + `test_tune_best_of_n_weight.py` 15개 (총 25/25 pass, 0.39s). 실 DB end-to-end 호출 결과 표본 부족(0<10) → "기본값 0.5 유지" 메시지 임베드 + 본문 무손상 확인. 문서 부재 발견(README/ops-runbook에 build_weekly_report 커맨드만 적혀있고 임베드 섹션 설명 0건) → README "추천 주간 운영" 1번 항목 아래에 임베드 동작/fail-open 1문단 추가. |
 | Next Priorities | T-251 (Supabase password) user-owned 그대로. 후속: ① /goal helper 상태가 멀티툴 race로 자주 미스매치됨 — `.ai/TASKS.md` 와 `/goal` objective 가 다를 때 신뢰 우선순위 정책 필요(현재는 코드/문서 실측 > /goal 자체 상태). ② cost_db.py 1039줄 schema/migration 분리(보류 중). ③ Best-of-N tuner 표본이 ≥10건 누적되면 weekly report에 실 권장값이 표시되기 시작 — 데이터 누적 모니터링. 검증: focused 25/25 pass, end-to-end render OK, README 1문단 추가. |
 
@@ -17,6 +24,13 @@
 | Tool | Codex |
 | Work | **연속 보강 (T-251):** `npm.cmd run db:prisma7-test -- --live` 추가 진단을 위해 라이브 연결 문자열 후보 2개를 검증했습니다. `user=postgres`(비기본 tenant/user)로 `aws-0-ap-northeast-2.pooler.supabase.com:6543`에 연결 시 `Code: XX000 Message: (ENOIDENTIFIER) no tenant identifier provided`가 재현되었고, 직접 호스트 `db.fuemeqmigptwfzqvrpjf.supabase.co:5432`는 DNS가 존재하지 않아 접속 불가였습니다. 이로 보아 `projects/hanwoo-dashboard/.env`의 tenant/user 식별자 자체가 잘못되었거나 제어면 동기화가 필요함을 재확인했습니다. |
 | Next Priorities | T-251은 사용자 소유 블로커입니다. Supabase 콘솔에서 `DATABASE_URL`(특히 tenant/user 형태)와 비밀번호를 재동기화한 뒤 바로 `npm.cmd run db:prisma7-test -- --live`를 재실행해야 합니다. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Tool | Codex |
+| Work | **최종 재확인 라운드:** `python execution/project_qc_runner.py --project hanwoo-dashboard --json`를 다시 실행해 `test/lint/build` 전부 통과(`497`/`27`/`pass`)를 재확인했습니다. 이어서 `npm.cmd run db:prisma7-test -- --live`는 동일하게 `Passed: 15, Failed: 1`로 실패했습니다. 이 값은 `P2010`/`XX000`/`(ENOTFOUND) tenant/user postgres.fuemeqmigptwfzqvrpjf not found`입니다. |
+| Next Priorities | T-251은 계속 사용자 조치 항목입니다. Supabase Database 비밀번호/POOLER tenant/user/호스트 동기화를 먼저 수행한 뒤, 동일 live 커넥션 테스트를 다시 실행해 주세요. |
 
 | Field | Value |
 |---|---|
