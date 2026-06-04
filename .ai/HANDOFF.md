@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-06-04 |
 | Tool | Codex |
+| Work | **T-1217 post-push closure complete**. Commit `c2e7d52f` (`chore(hanwoo-dashboard): T-1217 bump lucide react`) was pushed to `origin/main`. Dependabot PR #121 was commented with the verification evidence and closed as superseded. Main GitHub Actions for `c2e7d52f` passed: `root-quality-gate` success and `active-project-matrix` success, including `frontend-active-apps (hanwoo-dashboard)` type check/test/build/lint/runtime smoke. The previous `pnpm/action-setup@v4` Node 20 deprecation annotation did not recur; remaining annotations are the existing checkout post `/usr/bin/git` exit 128 notices. Local `session_orient.py --json` reports clean worktree, no ahead/behind, TODO=1, IN_PROGRESS=0. |
+| Next Priorities | Continue `$auto-research` GitHub triage from the remaining open PRs only after confirming current main remains green. Current next candidates from live inventory are PR #122 (`hanwoo-dashboard` eslint 10.4.1, BLOCKED) or lower-risk non-major dependency PRs; T-251 remains user-owned Supabase credential reset and must stay separate from product-polish claims. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-04 |
+| Tool | Codex |
 | Work | **T-1217 Dependabot PR #121 superseded on main**. Applied `hanwoo-dashboard` `lucide-react` bump from `^0.563.0` to `^1.17.0` directly on current `main` because PR #121 was behind and its frontend jobs were failing on the Dependabot branch. Current npm metadata confirms `1.17.0` is the latest dist-tag and its peer range includes React 19. Updated `projects/hanwoo-dashboard/package.json`, `projects/hanwoo-dashboard/package-lock.json`, and root `pnpm-lock.yaml`. Verification: root `pnpm.cmd install --lockfile-only --frozen-lockfile --ignore-scripts` passed; lucide import smoke checked 58 Hanwoo named icon imports with 0 missing exports; `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed 498 tests, lint, and build; Chrome CDP browser QA passed `/login` render with 4 lucide SVGs, real input typing, password toggle, invalid credential alert, protected `/admin/diagnostics` redirect to `/login`, console issue 0, and serious failed request 0; clean temporary worktree `pnpm.cmd install --frozen-lockfile --ignore-scripts` passed; A/B helper selected `adopt_candidate` (`score_delta=0.45`). `npm audit --json` still reports 8 existing unrelated Prisma/Hono/Next/PostCSS transitive advisories. |
 | Next Priorities | Commit/push T-1217, close/comment PR #121 as superseded, then recheck main `active-project-matrix` and `root-quality-gate`. Continue GitHub triage with another low-risk Dependabot PR only after main stays green; T-251 remains user-owned Supabase credential reset. |
 
