@@ -5,3 +5,9 @@ if [ $? -ne 0 ]; then
     echo "commit-msg hook blocked the commit."
     exit 1
 fi
+
+python execution/task_id_gate.py "$1"
+if [ $? -ne 0 ]; then
+    echo "commit-msg hook blocked the commit."
+    exit 1
+fi

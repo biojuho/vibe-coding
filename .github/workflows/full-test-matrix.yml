@@ -58,6 +58,8 @@ jobs:
           workspace/tests/test_auto_schedule_paths.py
           workspace/tests/test_skill_lint.py
           workspace/tests/test_auto_research_completion_audit.py
+          workspace/tests/test_next_task_id.py
+          workspace/tests/test_task_id_gate.py
           -q
           -o addopts=
 
@@ -80,7 +82,11 @@ jobs:
           workspace/tests/test_auto_schedule_paths.py
           workspace/tests/test_skill_lint.py
           workspace/tests/test_auto_research_completion_audit.py
+          workspace/tests/test_next_task_id.py
+          workspace/tests/test_task_id_gate.py
           execution/skill_lint.py
+          execution/next_task_id.py
+          execution/task_id_gate.py
           .agents/skills/auto-research/scripts/completion_audit.py
 
   blind-to-x-tests:
