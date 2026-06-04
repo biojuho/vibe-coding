@@ -25,6 +25,10 @@ def _load_module():
 readiness = _load_module()
 
 
+def test_shorts_root_readme_is_required_launch_document():
+    assert "README.md" in readiness.PROJECTS["shorts-maker-v2"].required_files
+
+
 def _write_project_files(root: Path) -> None:
     for profile in readiness.PROJECTS.values():
         project_root = root / profile.path

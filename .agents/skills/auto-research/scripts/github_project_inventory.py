@@ -139,6 +139,11 @@ def _recommendations(summary: dict[str, Any]) -> list[str]:
     recommendations: list[str] = []
     if summary["git"]["dirty_count"]:
         recommendations.append("Worktree is dirty; stage and commit only files owned by the current experiment.")
+    missing_readme = [project["path"] for project in summary["projects"] if not project.get("has_readme")]
+    if missing_readme:
+        recommendations.append(
+            "Add a root README.md for project(s) missing a GitHub-visible entrypoint: " + ", ".join(missing_readme)
+        )
     if not summary["workflows"]:
         recommendations.append(
             "No root GitHub Actions workflows found; verify each active project has a deterministic QC path."

@@ -49,7 +49,7 @@ PROJECTS = {
     "shorts-maker-v2": ProjectProfile(
         name="shorts-maker-v2",
         path="projects/shorts-maker-v2",
-        required_files=("ARCHITECTURE.md", "CLAUDE.md", "FEATURE.md", "pyproject.toml"),
+        required_files=("README.md", "ARCHITECTURE.md", "CLAUDE.md", "FEATURE.md", "pyproject.toml"),
     ),
     "hanwoo-dashboard": ProjectProfile(
         name="hanwoo-dashboard",
