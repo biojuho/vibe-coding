@@ -97,6 +97,15 @@ def _round_score(value: float) -> int:
     return int(round(max(0, min(100, value))))
 
 
+def _is_active_task(task: dict[str, str]) -> bool:
+    section = task.get("section", "").upper()
+    return section.startswith("TODO") or section.startswith("IN_PROGRESS")
+
+
+def _is_user_owned_task(task: dict[str, str]) -> bool:
+    return task.get("owner", "").strip().lower() == "user"
+
+
 def _read_json(path: Path) -> dict[str, Any]:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
@@ -710,19 +719,18 @@ def _score_project(
     if qc.get("stale"):
         qc_score = min(qc_score, 20)
 
-    active_blockers = [
-        task
-        for task in project_tasks
-        if task["section"].upper().startswith("TODO") or task["section"].upper().startswith("IN_PROGRESS")
-    ]
+    active_blockers = [task for task in project_tasks if _is_active_task(task)]
+    user_task_blockers = [task for task in active_blockers if _is_user_owned_task(task)]
+    agent_task_blockers = [task for task in active_blockers if not _is_user_owned_task(task)]
     blocker_score = 25 if not active_blockers else max(0, 25 - 14 * len(active_blockers))
     docs_score = 15 * (sum(1 for item in docs if item["present"]) / max(1, len(docs)))
     worktree_score = 10 if not dirty_paths else max(2, 10 - len(dirty_paths) * 2)
     env_score = env["score"]
     score = _round_score(qc_score + blocker_score + docs_score + worktree_score + env_score)
 
-    env_blocked = any(check.get("severity") == "blocker" for check in env.get("checks", []))
-    if env_blocked or any(task["owner"].lower() == "user" for task in active_blockers):
+    env_blockers = [check for check in env.get("checks", []) if check.get("severity") == "blocker"]
+    env_blocked = bool(env_blockers)
+    if env_blocked or user_task_blockers:
         state = "blocked"
     elif qc.get("stale"):
         state = "needs-review"
@@ -766,6 +774,12 @@ def _score_project(
         "state": state,
         "qc": qc,
         "tasks": active_blockers,
+        "blocker_breakdown": {
+            "task_count": len(active_blockers),
+            "user_task_count": len(user_task_blockers),
+            "agent_task_count": len(agent_task_blockers),
+            "environment_count": len(env_blockers),
+        },
         "dirty_paths": dirty_paths,
         "docs": docs,
         "env": env,
@@ -817,11 +831,16 @@ def build_report(
     else:
         overall_state = "at-risk"
 
-    workspace_blockers = [
-        task
-        for task in tasks.get("workspace", [])
-        if task["section"].upper().startswith("TODO") or task["section"].upper().startswith("IN_PROGRESS")
-    ]
+    workspace_blockers = [task for task in tasks.get("workspace", []) if _is_active_task(task)]
+    workspace_user_task_blockers = [task for task in workspace_blockers if _is_user_owned_task(task)]
+    workspace_agent_task_blockers = [task for task in workspace_blockers if not _is_user_owned_task(task)]
+    project_user_task_count = sum(project["blocker_breakdown"]["user_task_count"] for project in projects)
+    project_agent_task_count = sum(project["blocker_breakdown"]["agent_task_count"] for project in projects)
+    project_environment_blocker_count = sum(project["blocker_breakdown"]["environment_count"] for project in projects)
+    user_blocker_count = project_user_task_count + len(workspace_user_task_blockers)
+    agent_task_count = project_agent_task_count + len(workspace_agent_task_blockers)
+    workspace_gate_blocker_count = len(workspace_gate_blockers)
+    local_blocker_count = project_environment_blocker_count + workspace_gate_blocker_count
     next_actions = []
     for project in sorted(projects, key=lambda item: item["score"]):
         next_actions.append(
@@ -838,7 +857,7 @@ def build_report(
         next_actions.append(
             {
                 "project": "workspace",
-                "state": "blocked" if task["owner"].lower() == "user" else "needs-review",
+                "state": "blocked" if _is_user_owned_task(task) else "needs-review",
                 "score": overall_score,
                 "action": action.strip("` "),
             }
@@ -861,6 +880,18 @@ def build_report(
             "project_count": len(projects),
             "blocked_count": len(blocked_projects),
             "workspace_blocker_count": len(workspace_blockers) + len(workspace_gate_blockers),
+            "external_blocker_count": user_blocker_count,
+            "local_blocker_count": local_blocker_count,
+            "agent_task_count": agent_task_count,
+            "environment_blocker_count": project_environment_blocker_count,
+            "blocker_breakdown": {
+                "external": user_blocker_count,
+                "local": local_blocker_count,
+                "user_owned_tasks": user_blocker_count,
+                "agent_owned_tasks": agent_task_count,
+                "environment": project_environment_blocker_count,
+                "workspace_gate": workspace_gate_blocker_count,
+            },
         },
         "projects": projects,
         "workspace_blockers": workspace_blockers,

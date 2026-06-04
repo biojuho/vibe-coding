@@ -189,7 +189,7 @@ def test_readiness_artifact_aggregates_project_results() -> None:
     assert artifact["projects"]["hanwoo-dashboard"]["status"] == "FAIL"
     assert artifact["projects"]["hanwoo-dashboard"]["failed"] == 1
     assert artifact["projects"]["hanwoo-dashboard"]["coverage"] == "partial"
-    assert artifact["projects"]["hanwoo-dashboard"]["missing_checks"] == ["build", "lint"]
+    assert artifact["projects"]["hanwoo-dashboard"]["missing_checks"] == ["build", "lint", "smoke"]
     assert artifact["total"]["passed"] == 82
 
 
@@ -233,4 +233,5 @@ def test_list_json_includes_all_project_commands() -> None:
         "test",
         "lint",
         "build",
+        "smoke",
     ]

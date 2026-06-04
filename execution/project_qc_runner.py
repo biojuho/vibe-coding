@@ -120,6 +120,7 @@ PROJECTS: dict[str, ProjectChecks] = {
             CheckCommand(id="test", description="Node test suite", command=("npm", "test")),
             CheckCommand(id="lint", description="ESLint", command=("npm", "run", "lint")),
             CheckCommand(id="build", description="Next production build", command=("npm", "run", "build")),
+            CheckCommand(id="smoke", description="Runtime smoke", command=("npm", "run", "smoke")),
         ),
     ),
     "knowledge-dashboard": ProjectChecks(
@@ -129,6 +130,7 @@ PROJECTS: dict[str, ProjectChecks] = {
             CheckCommand(id="test", description="Node test suite", command=("npm", "test")),
             CheckCommand(id="lint", description="ESLint", command=("npm", "run", "lint")),
             CheckCommand(id="build", description="Next production build", command=("npm", "run", "build")),
+            CheckCommand(id="smoke", description="Runtime smoke", command=("npm", "run", "smoke")),
         ),
     ),
 }
@@ -478,7 +480,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--check",
         action="append",
-        choices=["test", "lint", "build"],
+        choices=["test", "lint", "build", "smoke"],
         help="Check id to run. Repeatable. Defaults to every check defined for the selected projects.",
     )
     parser.add_argument("--dry-run", action="store_true", help="Print the planned commands without running them.")

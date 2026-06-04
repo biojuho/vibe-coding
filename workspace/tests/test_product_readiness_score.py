@@ -107,8 +107,8 @@ def _write_latest_project_qc(root: Path) -> Path:
     complete_checks = {
         "blind-to-x": ["test", "lint"],
         "shorts-maker-v2": ["test", "lint"],
-        "hanwoo-dashboard": ["test", "lint", "build"],
-        "knowledge-dashboard": ["test", "lint", "build"],
+        "hanwoo-dashboard": ["test", "lint", "build", "smoke"],
+        "knowledge-dashboard": ["test", "lint", "build", "smoke"],
     }
     path.write_text(
         json.dumps(
@@ -218,10 +218,59 @@ def test_hanwoo_placeholder_marks_project_blocked(tmp_path: Path):
 
     hanwoo = next(project for project in report["projects"] if project["name"] == "hanwoo-dashboard")
     assert report["overall"]["state"] == "blocked"
+    assert report["overall"]["external_blocker_count"] == 1
+    assert report["overall"]["local_blocker_count"] == 1
     assert hanwoo["state"] == "blocked"
+    assert hanwoo["blocker_breakdown"] == {
+        "task_count": 1,
+        "user_task_count": 1,
+        "agent_task_count": 0,
+        "environment_count": 1,
+    }
     assert hanwoo["env"]["checks"][0]["severity"] == "blocker"
     assert hanwoo["env"]["checks"][0]["message"] == "Supabase DATABASE_URL still contains a placeholder."
     assert any("Supabase" in item for item in hanwoo["recommendations"])
+
+
+def test_user_owned_project_task_reports_external_blocker_without_local_blocker(tmp_path: Path):
+    _write_project_files(tmp_path)
+    _write_required_env(tmp_path)
+    qaqc_path = _write_qaqc(tmp_path)
+    _write_tasks(
+        tmp_path,
+        "# TASKS\n\n"
+        "## TODO\n\n"
+        "| ID | Task | Owner | Priority | Auto | Created |\n"
+        "|---|---|---|---|---|---|\n"
+        "| T-251 | `[hanwoo-dashboard]` Run live Supabase CRUD check. | User | High | approval | today |\n",
+    )
+
+    report = readiness.build_report(
+        tmp_path,
+        qaqc_path=qaqc_path,
+        git_status_text="",
+        github_status=_passing_github_status(),
+        now=datetime(2026, 5, 13, tzinfo=timezone.utc),
+    )
+
+    hanwoo = next(project for project in report["projects"] if project["name"] == "hanwoo-dashboard")
+    assert report["overall"]["state"] == "blocked"
+    assert report["overall"]["external_blocker_count"] == 1
+    assert report["overall"]["local_blocker_count"] == 0
+    assert report["overall"]["blocker_breakdown"] == {
+        "external": 1,
+        "local": 0,
+        "user_owned_tasks": 1,
+        "agent_owned_tasks": 0,
+        "environment": 0,
+        "workspace_gate": 0,
+    }
+    assert hanwoo["blocker_breakdown"] == {
+        "task_count": 1,
+        "user_task_count": 1,
+        "agent_task_count": 0,
+        "environment_count": 0,
+    }
 
 
 def test_missing_hanwoo_env_reports_missing_file_instead_of_configured(tmp_path: Path):
@@ -275,6 +324,8 @@ def test_clean_projects_with_docs_and_qc_score_ready(tmp_path: Path):
     assert all(project["score"] >= 85 for project in report["projects"])
     assert report["workspace_gates"]["github_release"]["available"] is True
     assert report["overall"]["workspace_blocker_count"] == 0
+    assert report["overall"]["external_blocker_count"] == 0
+    assert report["overall"]["local_blocker_count"] == 0
 
 
 def test_default_report_reads_latest_project_qc_runner_artifact(tmp_path: Path):
@@ -334,6 +385,8 @@ def test_github_release_gate_blocks_open_prs(tmp_path: Path):
 
     assert report["overall"]["state"] == "blocked"
     assert report["overall"]["workspace_blocker_count"] == 1
+    assert report["overall"]["external_blocker_count"] == 0
+    assert report["overall"]["local_blocker_count"] == 1
     assert report["workspace_gates"]["github_release"]["open_pr_count"] == 1
     assert "open GitHub pull request" in report["next_actions"][-1]["action"]
 
@@ -366,6 +419,8 @@ def test_github_release_gate_blocks_missing_required_actions(tmp_path: Path):
 
     assert report["overall"]["state"] == "blocked"
     assert report["overall"]["workspace_blocker_count"] == 1
+    assert report["overall"]["external_blocker_count"] == 0
+    assert report["overall"]["local_blocker_count"] == 1
     assert report["workspace_gates"]["github_release"]["required_workflows"][1]["status"] == "in_progress"
     assert "Required GitHub Actions" in report["next_actions"][-1]["action"]
 
@@ -462,6 +517,8 @@ def test_dirty_workspace_blocks_launch_readiness(tmp_path: Path):
     worktree = report["workspace_gates"]["worktree"]
     assert report["overall"]["state"] == "blocked"
     assert report["overall"]["workspace_blocker_count"] == 1
+    assert report["overall"]["external_blocker_count"] == 0
+    assert report["overall"]["local_blocker_count"] == 1
     assert worktree["dirty_count"] == 1
     assert worktree["blockers"][0]["name"] == "Workspace worktree"
     assert "uncommitted workspace path" in report["next_actions"][-1]["action"]

@@ -312,3 +312,15 @@
 - Changed `.gitignore`: ignored `.playwright-cli/` and `output/playwright/` so Playwright snapshots/screenshots stay local.
 - Verification: `npm.cmd test` passed 61/61, `npm.cmd run lint` passed, `npm.cmd run build` passed, `python execution/project_qc_runner.py --project knowledge-dashboard --json --timeout-seconds 900` passed, `git check-ignore -v` confirmed the new artifact ignores, A/B `adopt_candidate` score_delta 0.4666666666666667, and completion audit returned `complete`.
 - Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification.
+
+## 2026-06-05 - Codex
+
+- Completed T-1260 as a bounded release-readiness cycle focused on separating local launch blockers from user-owned external blockers and adding runtime smoke to dashboard QC.
+- Changed `execution/product_readiness_score.py`: added active-task/user-owned helpers, per-project `blocker_breakdown`, and overall `external_blocker_count`, `local_blocker_count`, `agent_task_count`, `environment_blocker_count`, plus nested `blocker_breakdown`.
+- Changed `workspace/tests/test_product_readiness_score.py`: added a regression for the current T-251 shape where Hanwoo has a user-owned task and configured env, so overall stays `blocked` with `external_blocker_count=1` and `local_blocker_count=0`; also covered placeholder/env and workspace-gate blocker counts.
+- Preserved and verified related release-gate worktree changes in `execution/project_qc_runner.py` and `workspace/tests/test_project_qc_runner.py`: Hanwoo and Knowledge dashboard now include `smoke` checks and CLI `--check smoke` accepts them.
+- Verification: `python -m pytest -o addopts= --basetemp .tmp\pytest-product-readiness workspace/tests/test_product_readiness_score.py` passed 22/22; the two direct T-251 ownership regressions passed 2/2; `python -m pytest -o addopts= --basetemp .tmp\pytest-project-qc workspace/tests/test_project_qc_runner.py` passed 11/11; `python -m py_compile execution/product_readiness_score.py` passed; `python -m ruff check ...` passed; `git diff --check` passed.
+- Runtime smoke: direct `npm.cmd run smoke` passed for `projects/hanwoo-dashboard` and `projects/knowledge-dashboard`; runner smoke `python execution/project_qc_runner.py --project hanwoo-dashboard --project knowledge-dashboard --check smoke --json --no-artifact` passed for both projects.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\T-1260-readiness-ab.json --json` returned `adopt_candidate` with `score_delta=7.25`; baseline failed the runtime-smoke gate and candidate passed all required gates.
+- Gate note: `py -3.13 execution/code_review_gate.py --base HEAD --json` returned advisory WARN with risk 0.35 for a graph-reported `_dirty_paths_by_project` helper gap; direct dirty-path/readiness tests passed and the gate had no fail-level finding.
+- Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification. After T-1260 is committed, expected readiness should show local blockers 0 and external blockers 1 until the user resets Supabase DB credentials.
