@@ -181,6 +181,7 @@ def test_readiness_artifact_aggregates_project_results() -> None:
     artifact = MODULE.build_readiness_artifact(results, timestamp="2026-06-04T00:00:00Z")
 
     assert artifact["source"] == "project_qc_runner"
+    assert artifact["schema_version"] == MODULE.READINESS_ARTIFACT_SCHEMA_VERSION
     assert artifact["timestamp"] == "2026-06-04T00:00:00Z"
     assert artifact["projects"]["blind-to-x"]["status"] == "PASS"
     assert artifact["projects"]["blind-to-x"]["passed"] == 12
@@ -274,6 +275,7 @@ def test_main_writes_project_qc_artifact(monkeypatch, tmp_path: Path) -> None:
     persisted = json.loads(output_path.read_text(encoding="utf-8"))
     assert code == 0
     assert payload["artifact_path"] == str(output_path)
+    assert persisted["schema_version"] == MODULE.READINESS_ARTIFACT_SCHEMA_VERSION
     assert persisted["projects"]["blind-to-x"]["status"] == "PASS"
     assert persisted["projects"]["blind-to-x"]["coverage"] == "partial"
     assert persisted["projects"]["blind-to-x"]["missing_checks"] == ["lint"]

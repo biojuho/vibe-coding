@@ -25,6 +25,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_TAIL_CHARS = 4000
 PROJECT_QC_RUN_ID = f"{os.getpid()}-{time.time_ns()}"
 DEFAULT_ARTIFACT_PATH = REPO_ROOT / ".tmp" / "project_qc_runner_latest.json"
+READINESS_ARTIFACT_SCHEMA_VERSION = 2
 
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
     try:
@@ -436,6 +437,7 @@ def build_readiness_artifact(results: list[dict[str, object]], *, timestamp: str
     return {
         "timestamp": timestamp,
         "source": "project_qc_runner",
+        "schema_version": READINESS_ARTIFACT_SCHEMA_VERSION,
         "status": "passed" if exit_code_for_results(results) == 0 else "failed",
         "projects": projects,
         "total": total,

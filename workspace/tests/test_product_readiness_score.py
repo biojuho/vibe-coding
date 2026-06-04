@@ -115,6 +115,7 @@ def _write_latest_project_qc(root: Path) -> Path:
             {
                 "timestamp": "2026-05-13T00:00:00+00:00",
                 "source": "project_qc_runner",
+                "schema_version": readiness._current_project_qc_artifact_schema_version(),
                 "status": "passed",
                 "projects": {
                     name: {
@@ -380,6 +381,34 @@ def test_project_qc_artifact_missing_current_runner_check_is_partial(tmp_path: P
     assert hanwoo_project["qc"]["missing_checks"] == ["smoke"]
     assert (
         hanwoo_project["recommendations"][0]
+        == "Refresh project QC so the score reflects the latest test/lint/build/smoke state."
+    )
+
+
+def test_project_qc_artifact_missing_current_schema_is_partial(tmp_path: Path):
+    _write_project_files(tmp_path)
+    path = _write_latest_project_qc(tmp_path)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data.pop("schema_version", None)
+    path.write_text(json.dumps(data), encoding="utf-8")
+    _write_tasks(
+        tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
+    )
+    _write_required_env(tmp_path)
+
+    report = readiness.build_report(
+        tmp_path,
+        git_status_text="",
+        github_status=_passing_github_status(),
+        now=datetime(2026, 5, 13, tzinfo=timezone.utc),
+    )
+
+    blind = next(project for project in report["projects"] if project["name"] == "blind-to-x")
+    assert blind["qc"]["available"] is False
+    assert blind["qc"]["status"] == "PARTIAL"
+    assert blind["qc"]["contract_mismatches"] == [readiness.PROJECT_QC_ARTIFACT_CONTRACT_MISMATCH]
+    assert (
+        blind["recommendations"][0]
         == "Refresh project QC so the score reflects the latest test/lint/build/smoke state."
     )
 

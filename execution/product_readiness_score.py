@@ -33,6 +33,7 @@ LEGACY_QAQC_ARTIFACTS = (
 )
 PROJECT_QC_SOURCE = "project_qc_runner"
 REQUIRED_GITHUB_WORKFLOWS = ("root-quality-gate", "active-project-matrix")
+PROJECT_QC_ARTIFACT_CONTRACT_MISMATCH = "artifact_schema_version"
 
 
 @dataclass(frozen=True)
@@ -127,28 +128,39 @@ def _observed_project_qc_checks(result: dict[str, Any]) -> list[str]:
 
 
 @lru_cache(maxsize=1)
-def _current_project_qc_expected_checks() -> dict[str, tuple[str, ...]]:
+def _current_project_qc_contract() -> dict[str, Any]:
     runner_path = Path(__file__).with_name("project_qc_runner.py")
     spec = importlib.util.spec_from_file_location("_product_readiness_project_qc_runner", runner_path)
     if spec is None or spec.loader is None:
-        return {}
+        return {"expected_checks": {}, "schema_version": None}
 
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     try:
         spec.loader.exec_module(module)
     except Exception:
-        return {}
+        return {"expected_checks": {}, "schema_version": None}
 
     projects = getattr(module, "PROJECTS", None)
     if not isinstance(projects, dict):
-        return {}
+        return {"expected_checks": {}, "schema_version": None}
 
     expected: dict[str, tuple[str, ...]] = {}
     for name, project in projects.items():
         checks = getattr(project, "checks", ())
         expected[str(name)] = tuple(sorted(str(check.id) for check in checks if getattr(check, "id", None)))
-    return expected
+
+    schema_version = getattr(module, "READINESS_ARTIFACT_SCHEMA_VERSION", None)
+    return {"expected_checks": expected, "schema_version": schema_version}
+
+
+def _current_project_qc_expected_checks() -> dict[str, tuple[str, ...]]:
+    expected = _current_project_qc_contract().get("expected_checks")
+    return expected if isinstance(expected, dict) else {}
+
+
+def _current_project_qc_artifact_schema_version() -> Any:
+    return _current_project_qc_contract().get("schema_version")
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -500,6 +512,7 @@ def _project_qc_status(qaqc_data: dict[str, Any], project_name: str, now: dateti
             "failed": 0,
             "skipped": 0,
             "missing_checks": [],
+            "contract_mismatches": [],
             **freshness,
         }
 
@@ -512,20 +525,26 @@ def _project_qc_status(qaqc_data: dict[str, Any], project_name: str, now: dateti
             "failed": 0,
             "skipped": 0,
             "missing_checks": [],
+            "contract_mismatches": [],
             **freshness,
         }
 
     status = str(result.get("status") or "UNKNOWN").upper()
     missing_checks = [str(check) for check in result.get("missing_checks") or []]
     is_project_qc = qaqc_data.get("source") == PROJECT_QC_SOURCE
+    contract_mismatches: list[str] = []
     if is_project_qc:
+        current_schema_version = _current_project_qc_artifact_schema_version()
+        if current_schema_version is not None and qaqc_data.get("schema_version") != current_schema_version:
+            contract_mismatches.append(PROJECT_QC_ARTIFACT_CONTRACT_MISMATCH)
+
         current_expected_checks = _current_project_qc_expected_checks().get(project_name, ())
         if current_expected_checks:
             observed_checks = set(_observed_project_qc_checks(result))
             drift_missing_checks = sorted(set(current_expected_checks) - observed_checks)
             missing_checks = sorted(set(missing_checks) | set(drift_missing_checks))
 
-    if is_project_qc and (result.get("coverage") != "complete" or missing_checks):
+    if is_project_qc and (result.get("coverage") != "complete" or missing_checks or contract_mismatches):
         return {
             "available": False,
             "status": "PARTIAL",
@@ -533,6 +552,7 @@ def _project_qc_status(qaqc_data: dict[str, Any], project_name: str, now: dateti
             "failed": int(result.get("failed") or 0) + int(result.get("errors") or 0),
             "skipped": int(result.get("skipped") or 0),
             "missing_checks": missing_checks,
+            "contract_mismatches": contract_mismatches,
             **freshness,
         }
     return {
@@ -542,6 +562,7 @@ def _project_qc_status(qaqc_data: dict[str, Any], project_name: str, now: dateti
         "failed": int(result.get("failed") or 0) + int(result.get("errors") or 0),
         "skipped": int(result.get("skipped") or 0),
         "missing_checks": missing_checks,
+        "contract_mismatches": contract_mismatches,
         **freshness,
     }
 
