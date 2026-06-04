@@ -213,6 +213,48 @@ def test_major_only_deferred_recommendation_names_major_migrations(tmp_path: Pat
     ]
 
 
+def test_peer_blocked_major_recommendation_waits_for_upstream_support(tmp_path: Path) -> None:
+    hanwoo_path = tmp_path / "projects" / "hanwoo-dashboard"
+    knowledge_path = tmp_path / "projects" / "knowledge-dashboard"
+    _write_package(hanwoo_path, {"eslint": "^9.39.4"})
+    _write_package(knowledge_path, {"eslint": "^9.39.4"})
+    for project_path in (hanwoo_path, knowledge_path):
+        _write_package_lock(
+            project_path,
+            {
+                "": {
+                    "name": project_path.name,
+                    "dependencies": {"eslint": "^9.39.4"},
+                },
+                "node_modules/eslint-plugin-react": {
+                    "version": "7.37.5",
+                    "peerDependencies": {"eslint": "^3 || ^4 || ^5 || ^6 || ^7 || ^8 || ^9.7"},
+                },
+            },
+        )
+
+    result = dependency_freshness_inventory.build_inventory(
+        tmp_path,
+        runner=lambda _path, _timeout: _npm_result(
+            {
+                "eslint": {
+                    "current": "9.39.4",
+                    "wanted": "9.39.4",
+                    "latest": "10.4.1",
+                }
+            }
+        ),
+    )
+
+    assert result["summary"]["candidate_dependency_count"] == 0
+    assert result["summary"]["deferred_dependency_count"] == 2
+    assert result["recommendations"] == [
+        "No direct npm patch/minor adoption candidates; wait for upstream peer support before "
+        "major migrations for: projects/hanwoo-dashboard (eslint: 1 peer blocker(s)); "
+        "projects/knowledge-dashboard (eslint: 1 peer blocker(s))"
+    ]
+
+
 def test_deferred_eslint_major_reports_lockfile_peer_blockers(tmp_path: Path) -> None:
     project_path = tmp_path / "projects" / "knowledge-dashboard"
     _write_package(project_path, {"eslint": "^9.39.4"})

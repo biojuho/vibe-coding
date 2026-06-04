@@ -7,6 +7,7 @@ import argparse
 import json
 import re
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -53,6 +54,7 @@ ARTIFACT_DIRS = ("output/playwright",)
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp"}
 ARTIFACT_PATTERN = re.compile(r"(?P<path>(?:output|\.tmp)[/\\][^\s,;|`'\")]+?\.(?:png|jpg|jpeg|webp|json))", re.I)
 MAX_LOG_SUMMARY_CHARS = 260
+STALE_SCREENSHOT_DAYS = 14
 GENERIC_PROJECT_TOKENS = {
     "app",
     "chain",
@@ -195,6 +197,11 @@ def _artifact_mentions(text: str, root: Path) -> list[dict[str, Any]]:
     return mentions
 
 
+def _age_days(modified_at: datetime, now: datetime) -> int:
+    seconds = max(0.0, (now - modified_at).total_seconds())
+    return int(seconds // 86400)
+
+
 def _scan_logs(root: Path, project_path: str, project_names: list[str], tokens: list[str]) -> list[dict[str, Any]]:
     evidence: list[dict[str, Any]] = []
     project_name = Path(project_path).name.lower()
@@ -229,7 +236,7 @@ def _scan_logs(root: Path, project_path: str, project_names: list[str], tokens: 
     return evidence
 
 
-def _scan_artifacts(root: Path, tokens: list[str]) -> list[dict[str, Any]]:
+def _scan_artifacts(root: Path, tokens: list[str], now: datetime) -> list[dict[str, Any]]:
     artifacts: list[dict[str, Any]] = []
     for rel_dir in ARTIFACT_DIRS:
         artifact_dir = root / rel_dir
@@ -242,14 +249,25 @@ def _scan_artifacts(root: Path, tokens: list[str]) -> list[dict[str, Any]]:
                 continue
             if not _contains_project_token(path.name, tokens):
                 continue
+            stat = path.stat()
+            modified_at = datetime.fromtimestamp(stat.st_mtime, UTC)
             artifacts.append(
                 {
                     "kind": "screenshot",
                     "path": _relative(path, root),
-                    "bytes": path.stat().st_size,
+                    "bytes": stat.st_size,
+                    "modified_at": modified_at.isoformat(),
+                    "age_days": _age_days(modified_at, now),
                 }
             )
     return artifacts
+
+
+def _freshest_screenshot(artifacts: list[dict[str, Any]]) -> dict[str, Any] | None:
+    screenshots = [artifact for artifact in artifacts if artifact.get("kind") == "screenshot"]
+    if not screenshots:
+        return None
+    return max(screenshots, key=lambda artifact: str(artifact.get("modified_at") or ""))
 
 
 def _project_summary(
@@ -257,6 +275,7 @@ def _project_summary(
     root: Path,
     project_names: list[str],
     include_non_browser: bool,
+    now: datetime,
 ) -> dict[str, Any] | None:
     package_data = _load_json(path / "package.json")
     project_path = _relative(path, root)
@@ -265,12 +284,13 @@ def _project_summary(
         return None
     tokens = _project_tokens(project_path)
     log_evidence = _scan_logs(root, project_path, project_names, tokens)
-    artifact_evidence = _scan_artifacts(root, tokens)
+    artifact_evidence = _scan_artifacts(root, tokens, now)
+    freshest = _freshest_screenshot(artifact_evidence)
     verified_log_count = sum(1 for item in log_evidence if item.get("verified"))
     status = "covered" if browser_app and (verified_log_count or artifact_evidence) else "missing"
     if not browser_app:
         status = "not_browser_app"
-    return {
+    project = {
         "path": project_path,
         "browser_app": browser_app,
         "tokens": tokens,
@@ -280,6 +300,12 @@ def _project_summary(
         "current_screenshot_count": len(artifact_evidence),
         "evidence": [*artifact_evidence, *log_evidence],
     }
+    if freshest:
+        project["freshest_screenshot_path"] = freshest["path"]
+        project["freshest_screenshot_modified_at"] = freshest["modified_at"]
+        project["freshest_screenshot_age_days"] = freshest["age_days"]
+        project["freshest_screenshot_fresh"] = freshest["age_days"] <= STALE_SCREENSHOT_DAYS
+    return project
 
 
 def _recommendations(projects: list[dict[str, Any]]) -> list[str]:
@@ -297,29 +323,58 @@ def _recommendations(projects: list[dict[str, Any]]) -> list[str]:
             "Capture or retain output/playwright screenshots for covered project(s): "
             + ", ".join(no_current_screenshot)
         )
+    stale_screenshot = [
+        project["path"]
+        for project in projects
+        if project["browser_app"]
+        and project["status"] == "covered"
+        and project.get("freshest_screenshot_fresh") is False
+    ]
+    if stale_screenshot:
+        recommendations.append(
+            f"Refresh browser QA screenshots older than {STALE_SCREENSHOT_DAYS} day(s) for project(s): "
+            + ", ".join(stale_screenshot)
+        )
     return recommendations
 
 
-def build_inventory(root: Path, include_non_browser: bool = False) -> dict[str, Any]:
+def build_inventory(root: Path, include_non_browser: bool = False, now: datetime | None = None) -> dict[str, Any]:
     root = root.resolve()
+    now = now or datetime.now(UTC)
     project_dirs = _project_dirs(root)
     project_names = sorted(path.name.lower() for path in project_dirs)
     projects = [
         summary
         for path in project_dirs
-        if (summary := _project_summary(path, root, project_names, include_non_browser)) is not None
+        if (summary := _project_summary(path, root, project_names, include_non_browser, now)) is not None
     ]
     browser_projects = [project for project in projects if project["browser_app"]]
     covered = [project for project in browser_projects if project["status"] == "covered"]
     missing = [project for project in browser_projects if project["status"] == "missing"]
+    projects_with_current_screenshot = [project for project in browser_projects if project["current_screenshot_count"]]
+    projects_with_fresh_screenshot = [
+        project for project in projects_with_current_screenshot if project.get("freshest_screenshot_fresh") is True
+    ]
+    projects_with_stale_screenshot = [
+        project for project in projects_with_current_screenshot if project.get("freshest_screenshot_fresh") is False
+    ]
     summary = {
         "root": str(root),
         "browser_project_count": len(browser_projects),
         "covered_count": len(covered),
         "missing_count": len(missing),
-        "current_screenshot_project_count": sum(
-            1 for project in browser_projects if project["current_screenshot_count"]
-        ),
+        "current_screenshot_project_count": len(projects_with_current_screenshot),
+        "fresh_screenshot_project_count": len(projects_with_fresh_screenshot),
+        "stale_screenshot_project_count": len(projects_with_stale_screenshot),
+        "freshest_screenshots": {
+            project["path"]: {
+                "path": project["freshest_screenshot_path"],
+                "modified_at": project["freshest_screenshot_modified_at"],
+                "age_days": project["freshest_screenshot_age_days"],
+                "fresh": project["freshest_screenshot_fresh"],
+            }
+            for project in projects_with_current_screenshot
+        },
         "covered_projects": [project["path"] for project in covered],
         "missing_projects": [project["path"] for project in missing],
     }

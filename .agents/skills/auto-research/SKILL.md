@@ -126,6 +126,7 @@ python .agents/skills/auto-research/scripts/browser_qa_inventory.py --root . --j
 ```
 
 Use it to identify browser apps with verified direct-click evidence, current `output/playwright` screenshots, and projects that still need a browser QA pass.
+The inventory reports fresh and stale retained screenshots; refresh screenshots older than the configured freshness window before using them as launch evidence.
 
 ## Dependency Freshness Inventory
 
@@ -138,6 +139,7 @@ python .agents/skills/auto-research/scripts/dependency_freshness_inventory.py --
 Use it to separate direct patch/minor adoption candidates from major migrations and prerelease/stable channel mismatches. Treat `defer_major_migration` and `defer_channel_mismatch` as separate upgrade experiments, not routine freshness work.
 Prerelease packages that are current on their matching npm dist-tag are reported as `current_prerelease_channel` instead of deferred, so lower stable `latest` tags do not become false blockers.
 Deferred major migrations may include lockfile peer blocker evidence when installed package peer ranges do not allow the target major.
+When every remaining major migration is peer-blocked, treat the next action as waiting for upstream peer support instead of retrying a forced install.
 
 ## A/B Decision Helper
 

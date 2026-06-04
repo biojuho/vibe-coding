@@ -509,11 +509,37 @@ def _recommendations(projects: list[dict[str, Any]]) -> list[str]:
         recommendations.append("Fix npm outdated availability or JSON output for: " + ", ".join(unavailable))
 
     deferred_projects = [
-        project["path"]
+        project
         for project in projects
         if project["deferred_count"] and not project["candidate_count"] and project["status"] != "unavailable"
     ]
     if deferred_projects and not candidate_projects:
+        peer_blocked_projects = []
+        other_deferred_projects = []
+        for project in deferred_projects:
+            peer_blocked_dependencies = []
+            other_deferred_dependencies = []
+            for dependency in project["dependencies"]:
+                if not dependency.get("deferred"):
+                    continue
+                if dependency.get("latest_delta") == "major" and dependency.get("peer_blocker_check") == "blocked":
+                    blocker_count = int(dependency.get("peer_blocker_count") or 0)
+                    peer_blocked_dependencies.append(f"{dependency['name']}: {blocker_count} peer blocker(s)")
+                else:
+                    other_deferred_dependencies.append(str(dependency.get("name") or "unknown"))
+
+            if peer_blocked_dependencies and not other_deferred_dependencies:
+                peer_blocked_projects.append(f"{project['path']} ({', '.join(peer_blocked_dependencies)})")
+            else:
+                other_deferred_projects.append(project["path"])
+
+        if peer_blocked_projects and not other_deferred_projects:
+            recommendations.append(
+                "No direct npm patch/minor adoption candidates; wait for upstream peer support before "
+                "major migrations for: " + "; ".join(peer_blocked_projects)
+            )
+            return recommendations
+
         deferred_classifications = {
             str(dependency.get("classification") or "")
             for project in projects
@@ -532,7 +558,7 @@ def _recommendations(projects: list[dict[str, Any]]) -> list[str]:
             deferred_label = "manual dependency inspections"
         recommendations.append(
             f"No direct npm patch/minor adoption candidates; defer {deferred_label} for: "
-            + ", ".join(deferred_projects)
+            + ", ".join(project["path"] for project in deferred_projects)
         )
     return recommendations
 

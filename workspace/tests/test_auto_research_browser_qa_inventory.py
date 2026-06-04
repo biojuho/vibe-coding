@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -41,16 +43,55 @@ def test_browser_app_is_covered_by_current_screenshot(tmp_path: Path) -> None:
     _write_package(app, dependencies={"next": "1.0.0", "react": "1.0.0"})
     screenshot_dir = tmp_path / "output" / "playwright"
     screenshot_dir.mkdir(parents=True)
-    (screenshot_dir / "knowledge-t1264-browser-click-qa.png").write_bytes(b"png")
+    screenshot = screenshot_dir / "knowledge-t1264-browser-click-qa.png"
+    screenshot.write_bytes(b"png")
+    modified_at = datetime(2026, 6, 1, tzinfo=UTC).timestamp()
+    os.utime(screenshot, (modified_at, modified_at))
 
-    result = browser_qa_inventory.build_inventory(tmp_path)
+    result = browser_qa_inventory.build_inventory(tmp_path, now=datetime(2026, 6, 5, tzinfo=UTC))
     project = result["projects"][0]
 
     assert result["summary"]["browser_project_count"] == 1
     assert result["summary"]["covered_count"] == 1
+    assert result["summary"]["fresh_screenshot_project_count"] == 1
+    assert result["summary"]["stale_screenshot_project_count"] == 0
+    assert result["summary"]["freshest_screenshots"] == {
+        "projects/knowledge-dashboard": {
+            "path": "output/playwright/knowledge-t1264-browser-click-qa.png",
+            "modified_at": "2026-06-01T00:00:00+00:00",
+            "age_days": 4,
+            "fresh": True,
+        }
+    }
     assert project["path"] == "projects/knowledge-dashboard"
     assert project["status"] == "covered"
     assert project["current_screenshot_count"] == 1
+    assert project["freshest_screenshot_path"] == "output/playwright/knowledge-t1264-browser-click-qa.png"
+    assert project["freshest_screenshot_age_days"] == 4
+    assert project["freshest_screenshot_fresh"] is True
+
+
+def test_stale_browser_screenshot_gets_refresh_recommendation(tmp_path: Path) -> None:
+    app = tmp_path / "projects" / "hanwoo-dashboard"
+    _write_package(app, dependencies={"next": "1.0.0", "react": "1.0.0"})
+    screenshot_dir = tmp_path / "output" / "playwright"
+    screenshot_dir.mkdir(parents=True)
+    screenshot = screenshot_dir / "hanwoo-t100-browser-click-qa.png"
+    screenshot.write_bytes(b"png")
+    modified_at = datetime(2026, 5, 1, tzinfo=UTC).timestamp()
+    os.utime(screenshot, (modified_at, modified_at))
+
+    result = browser_qa_inventory.build_inventory(tmp_path, now=datetime(2026, 6, 5, tzinfo=UTC))
+    project = result["projects"][0]
+
+    assert project["status"] == "covered"
+    assert project["freshest_screenshot_age_days"] == 35
+    assert project["freshest_screenshot_fresh"] is False
+    assert result["summary"]["fresh_screenshot_project_count"] == 0
+    assert result["summary"]["stale_screenshot_project_count"] == 1
+    assert result["recommendations"] == [
+        "Refresh browser QA screenshots older than 14 day(s) for project(s): projects/hanwoo-dashboard"
+    ]
 
 
 def test_browser_app_is_covered_by_verified_log_line(tmp_path: Path) -> None:

@@ -187,28 +187,59 @@ def _browser_item(browser_inventory: dict[str, Any]) -> dict[str, Any]:
     covered_count = int(summary.get("covered_count") or 0)
     missing_count = int(summary.get("missing_count") or 0)
     screenshot_count = int(summary.get("current_screenshot_project_count") or 0)
+    fresh_screenshot_count = int(summary.get("fresh_screenshot_project_count", screenshot_count) or 0)
+    stale_screenshot_count = int(summary.get("stale_screenshot_project_count") or 0)
     complete = (
         browser_count > 0
         and missing_count == 0
         and covered_count == browser_count
         and screenshot_count == browser_count
+        and fresh_screenshot_count == browser_count
     )
     blockers = [str(item) for item in recommendations]
     if missing_count:
         blockers.append("Browser QA missing project(s): " + ", ".join(summary.get("missing_projects") or []))
     if browser_count and screenshot_count < browser_count:
         blockers.append(f"Only {screenshot_count}/{browser_count} browser project(s) have retained screenshots.")
+    if browser_count and fresh_screenshot_count < browser_count:
+        blockers.append(
+            f"Only {fresh_screenshot_count}/{browser_count} browser project(s) have fresh retained screenshots."
+        )
     return _item(
         "Use Codex/browser automation to click through every browser app and retain evidence.",
         ["output/playwright", ".ai/TASKS.md", ".ai/HANDOFF.md", ".ai/SESSION_LOG.md"],
         [
             f"browser_qa_inventory coverage {covered_count}/{browser_count}, missing_count={missing_count}.",
             f"current screenshot coverage {screenshot_count}/{browser_count}.",
+            f"fresh screenshot coverage {fresh_screenshot_count}/{browser_count}; stale={stale_screenshot_count}.",
         ],
         complete=complete,
         blockers=blockers,
         verified=bool(browser_inventory),
     )
+
+
+def _dependency_peer_blocker_evidence(dependency_inventory: dict[str, Any]) -> str:
+    projects = dependency_inventory.get("projects") if isinstance(dependency_inventory.get("projects"), list) else []
+    labels: list[str] = []
+    for project in projects:
+        if not isinstance(project, dict):
+            continue
+        project_path = str(project.get("path") or "unknown")
+        dependencies = project.get("dependencies") if isinstance(project.get("dependencies"), list) else []
+        for dependency in dependencies:
+            if not isinstance(dependency, dict):
+                continue
+            if not dependency.get("deferred") or dependency.get("peer_blocker_check") != "blocked":
+                continue
+            labels.append(
+                f"{project_path}/{dependency.get('name') or 'unknown'} "
+                f"peer_blocker_count={int(dependency.get('peer_blocker_count') or 0)}"
+            )
+
+    if labels:
+        return "Peer-blocked deferred majors: " + "; ".join(labels) + "."
+    return "Peer-blocked deferred majors: none."
 
 
 def _dependency_item(dependency_inventory: dict[str, Any]) -> dict[str, Any]:
@@ -237,6 +268,7 @@ def _dependency_item(dependency_inventory: dict[str, Any]) -> dict[str, Any]:
             f"dependency_freshness_inventory candidate_dependency_count={candidate_count}.",
             f"deferred_dependency_count={deferred_count}; deferred major/channel items require separate explicit experiments.",
             f"unavailable_project_count={unavailable_count}.",
+            _dependency_peer_blocker_evidence(dependency_inventory),
             "Recommendations: " + "; ".join(str(item) for item in recommendations)
             if recommendations
             else "Recommendations: none.",

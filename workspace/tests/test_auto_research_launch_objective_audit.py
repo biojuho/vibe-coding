@@ -106,28 +106,60 @@ def _github_inventory() -> dict[str, object]:
     }
 
 
-def _browser_inventory(missing: int = 0) -> dict[str, object]:
+def _browser_inventory(missing: int = 0, *, fresh: int | None = None, stale: int = 0) -> dict[str, object]:
+    screenshot_count = 4 - missing
     return {
         "summary": {
             "browser_project_count": 4,
             "covered_count": 4 - missing,
             "missing_count": missing,
-            "current_screenshot_project_count": 4 - missing,
+            "current_screenshot_project_count": screenshot_count,
+            "fresh_screenshot_project_count": screenshot_count if fresh is None else fresh,
+            "stale_screenshot_project_count": stale,
             "missing_projects": ["projects/word-chain"] if missing else [],
         },
         "recommendations": [],
     }
 
 
-def _dependency_inventory(candidates: int = 0) -> dict[str, object]:
-    return {
+def _dependency_inventory(candidates: int = 0, *, peer_blocked: bool = False) -> dict[str, object]:
+    inventory: dict[str, object] = {
         "summary": {
             "candidate_dependency_count": candidates,
-            "deferred_dependency_count": 1,
+            "deferred_dependency_count": 2 if peer_blocked else 1,
             "unavailable_project_count": 0,
         },
         "recommendations": [],
     }
+    if peer_blocked:
+        inventory["projects"] = [
+            {
+                "path": "projects/hanwoo-dashboard",
+                "dependencies": [
+                    {
+                        "name": "eslint",
+                        "deferred": True,
+                        "peer_blocker_check": "blocked",
+                        "peer_blocker_count": 4,
+                    }
+                ],
+            },
+            {
+                "path": "projects/knowledge-dashboard",
+                "dependencies": [
+                    {
+                        "name": "eslint",
+                        "deferred": True,
+                        "peer_blocker_check": "blocked",
+                        "peer_blocker_count": 3,
+                    }
+                ],
+            },
+        ]
+        inventory["recommendations"] = [
+            "No direct npm patch/minor adoption candidates; wait for upstream peer support before major migrations."
+        ]
+    return inventory
 
 
 def test_manifest_is_complete_when_all_requirements_have_current_evidence(tmp_path: Path) -> None:
@@ -184,6 +216,24 @@ def test_missing_browser_qa_is_reported_as_blocker(tmp_path: Path) -> None:
     assert any("projects/word-chain" in blocker for blocker in browser_item["blockers"])
 
 
+def test_stale_browser_screenshots_are_not_claimed_complete(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(fresh=3, stale=1),
+        dependency_inventory=_dependency_inventory(),
+    )
+    browser_item = next(item for item in manifest["items"] if item["requirement"].startswith("Use Codex"))
+
+    assert browser_item["coverage"] == "partial"
+    assert "Only 3/4 browser project(s) have fresh retained screenshots." in browser_item["blockers"]
+    assert "fresh screenshot coverage 3/4; stale=1." in browser_item["evidence"]
+
+
 def test_dependency_candidates_are_not_claimed_complete(tmp_path: Path) -> None:
     _write_required_skill(tmp_path)
     _write_ai_relay(tmp_path)
@@ -199,3 +249,25 @@ def test_dependency_candidates_are_not_claimed_complete(tmp_path: Path) -> None:
 
     assert dependency_item["coverage"] == "partial"
     assert "2 direct patch/minor dependency candidate(s) remain." in dependency_item["blockers"]
+
+
+def test_peer_blocked_deferred_dependency_evidence_is_not_a_direct_candidate_blocker(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(peer_blocked=True),
+    )
+    dependency_item = next(item for item in manifest["items"] if item["requirement"].startswith("Research"))
+
+    assert dependency_item["coverage"] == "complete"
+    assert dependency_item["blockers"] == []
+    assert any(
+        "projects/hanwoo-dashboard/eslint peer_blocker_count=4" in evidence
+        and "projects/knowledge-dashboard/eslint peer_blocker_count=3" in evidence
+        for evidence in dependency_item["evidence"]
+    )
