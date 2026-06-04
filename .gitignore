@@ -28,6 +28,8 @@ backups/
 *.log
 coverage.xml
 coverage.json
+coverage/
+**/coverage/
 report.xml
 report_unit*.xml
 cov*.txt
