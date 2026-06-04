@@ -120,6 +120,16 @@ python .agents/skills/auto-research/scripts/browser_qa_inventory.py --root . --j
 
 Use it to identify browser apps with verified direct-click evidence, current `output/playwright` screenshots, and projects that still need a browser QA pass.
 
+## Dependency Freshness Inventory
+
+Run the local npm dependency freshness inventory before choosing dependency work:
+
+```bash
+python .agents/skills/auto-research/scripts/dependency_freshness_inventory.py --root . --json
+```
+
+Use it to separate direct patch/minor adoption candidates from major migrations and prerelease/stable channel mismatches. Treat `defer_major_migration` and `defer_channel_mismatch` as separate upgrade experiments, not routine freshness work.
+
 ## A/B Decision Helper
 
 Create a manifest and score it:

@@ -60,6 +60,7 @@ jobs:
           workspace/tests/test_skill_lint.py
           workspace/tests/test_auto_research_completion_audit.py
           workspace/tests/test_auto_research_browser_qa_inventory.py
+          workspace/tests/test_auto_research_dependency_freshness_inventory.py
           workspace/tests/test_github_project_inventory.py
           workspace/tests/test_github_workflow_hygiene.py
           workspace/tests/test_next_task_id.py
@@ -87,6 +88,7 @@ jobs:
           workspace/tests/test_skill_lint.py
           workspace/tests/test_auto_research_completion_audit.py
           workspace/tests/test_auto_research_browser_qa_inventory.py
+          workspace/tests/test_auto_research_dependency_freshness_inventory.py
           workspace/tests/test_github_project_inventory.py
           workspace/tests/test_github_workflow_hygiene.py
           workspace/tests/test_next_task_id.py
@@ -97,3 +99,4 @@ jobs:
           .agents/skills/auto-research/scripts/completion_audit.py
           .agents/skills/auto-research/scripts/github_project_inventory.py
           .agents/skills/auto-research/scripts/browser_qa_inventory.py
+          .agents/skills/auto-research/scripts/dependency_freshness_inventory.py
