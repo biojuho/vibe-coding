@@ -16,6 +16,10 @@ const asciiTempCandidates = [
 	path.join(process.cwd().replace(/:\\.*/, ":\\Temp"), "ViteBuild"),
 ];
 
+function isAsciiPath(value) {
+	return Array.from(value).every((char) => char.codePointAt(0) <= 0x7f);
+}
+
 function getAsciiTempBase() {
 	for (const candidate of asciiTempCandidates) {
 		const cleaned = path.normalize(candidate);
@@ -24,7 +28,7 @@ function getAsciiTempBase() {
 				fs.mkdirSync(cleaned, { recursive: true });
 			}
 			const real = fs.realpathSync(cleaned);
-			if (/^[\x00-\x7F]+$/.test(real)) {
+			if (isAsciiPath(real)) {
 				return real.endsWith(path.sep) ? real : `${real}${path.sep}`;
 			}
 		} catch {
@@ -151,4 +155,3 @@ if (shouldUseAsciiFallback) {
 }
 
 process.exit(runViteBuild(cwd));
-
