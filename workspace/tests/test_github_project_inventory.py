@@ -154,3 +154,20 @@ def test_inventory_does_not_duplicate_project_test_files_in_root_summary(tmp_pat
     assert root_summary["test_files"] == []
     assert child_summary["test_file_count"] == 1
     assert child_summary["test_files"] == ["projects/word-chain/src/gameLogic.test.js"]
+
+
+def test_inventory_cli_accepts_json_flag_and_emits_parseable_json(tmp_path: Path, capsys) -> None:
+    root = tmp_path
+    project = root / "projects" / "knowledge-dashboard"
+    project.mkdir(parents=True)
+    (project / "package.json").write_text(json.dumps({"scripts": {"test": "node --test"}}), encoding="utf-8")
+    (project / "README.md").write_text("# Knowledge Dashboard\n", encoding="utf-8")
+
+    result = inventory.main(["--root", str(root), "--json"])
+
+    output = capsys.readouterr().out
+    payload = json.loads(output)
+    assert result == 0
+    assert payload["root"] == str(root.resolve())
+    assert payload["projects"][0]["path"] == "projects/knowledge-dashboard"
+    assert payload["projects"][0]["has_package_test_script"] is True

@@ -105,7 +105,7 @@ After each material cycle, update `.ai/TASKS.md`, `.ai/HANDOFF.md`, and `.ai/SES
 Run the local inventory helper before GitHub-wide work:
 
 ```bash
-python .agents/skills/auto-research/scripts/github_project_inventory.py --root . --include-prs
+python .agents/skills/auto-research/scripts/github_project_inventory.py --root . --include-prs --json
 ```
 
 Use it to identify active projects, GitHub workflow files, Dependabot state, open PRs, and dirty-tree risks.

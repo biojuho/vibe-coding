@@ -283,6 +283,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path.cwd(), help="Repository root to inspect")
     parser.add_argument("--include-prs", action="store_true", help="Include open PRs via gh CLI")
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit JSON output. This is the default and is kept for automation consistency.",
+    )
     args = parser.parse_args(argv)
 
     inventory = build_inventory(args.root, args.include_prs)
