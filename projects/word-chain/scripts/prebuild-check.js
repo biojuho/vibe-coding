@@ -127,7 +127,7 @@ if (shouldUseAsciiFallback) {
 	console.error("[ERROR] Direct Vite build failed. Running fallback in a temporary ASCII workspace.");
 	const tempBase = getAsciiTempBase();
 	const tempRoot = fs.mkdtempSync(path.join(tempBase, "vite-build-"));
-	let status = 1;
+	let status;
 	try {
 		copyForFallback(tempRoot);
 		status = runViteBuild(tempRoot, null, tempRoot);
