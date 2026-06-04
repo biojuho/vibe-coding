@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-06-04 |
 | Tool | Codex |
+| Work | **T-1212 GitHub PR #123 core reapplied on main**. PR `#123` (`codex/fix-readiness-env-status`) was draft and conflicting after newer main changes, but its core product-readiness fix was valid. Reapplied it directly on current `main`: `execution/product_readiness_score.py` now separates missing Hanwoo `.env`, missing `DATABASE_URL`, empty `DATABASE_URL`, placeholder credentials, and present values; readiness recommendations reuse the first concrete env blocker message. Added regression coverage in `workspace/tests/test_product_readiness_score.py` for missing `.env` and tightened placeholder message expectations. Verification: `ruff check execution/product_readiness_score.py workspace/tests/test_product_readiness_score.py` passed, `python -m py_compile ...` passed, and `python -m pytest workspace\tests\test_product_readiness_score.py -q --tb=short --maxfail=1 -o addopts='' --basetemp .tmp\pytest-product-readiness` passed 6/6. |
+| Next Priorities | Commit/push T-1212 and close/comment PR #123 as superseded by the mainline commit. Continue GitHub triage with Dependabot PRs after CI for `efaa484d`/next commit settles. T-251 remains user-owned Supabase credential reset. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-04 |
+| Tool | Codex |
 | Work | **T-1211 knowledge-dashboard auto-research browser QA polish**. Used the new `$auto-research` loop on the remaining dirty product surface and fixed current browser findings: unauthenticated first load now checks `/api/auth/session` before protected data routes, the session status route returns HTTP 200 with `{authenticated:false}` for missing sessions, the login screen no longer shows a failed-key alert before a submit, the API-key password field has hidden username/autocomplete context, Recharts QA/chart panels use stable dimensions/min-width to avoid tab-switch measurement warnings, and `rate-limit` tests use `const` where values are not reassigned. Removed generated `.playwright-cli/` browser artifacts. Verification: `python execution/project_qc_runner.py --project knowledge-dashboard --json` passed test/lint/build; `npm run smoke` passed; Playwright first-load/login/QA-QC click flow showed console errors 0/warnings 0 and network requests `/api/auth/session`, `/api/data/dashboard`, `/api/data/qaqc`, `/api/data/readiness`, `/api/data/skills` all 200 after login. |
 | Next Priorities | Commit/push the verified `knowledge-dashboard` release bundle if not already done, then continue `$auto-research` with GitHub PR triage/dependency branches or another active project. T-251 remains user-owned Supabase credential reset; Hermes xAI OAuth still needs browser approval if that line is resumed. |
 

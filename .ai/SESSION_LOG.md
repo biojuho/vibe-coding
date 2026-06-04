@@ -536,3 +536,11 @@
 - Fixed current browser findings on the dirty `projects/knowledge-dashboard` product bundle: initial unauthenticated load now calls `/api/auth/session` first and avoids protected data API 401s; `GET /api/auth/session` returns HTTP 200 `{authenticated:false}` for missing sessions; the login form no longer shows the failed-key alert before a user submission; the API-key password input has hidden username/autocomplete context; QA/chart Recharts containers use stable heights/min-widths to prevent tab-switch measurement warnings; and `rate-limit.test.mts` uses `const` for non-reassigned timestamps.
 - Removed generated Playwright CLI artifacts from `projects/knowledge-dashboard/.playwright-cli/`.
 - Verification: `python execution/project_qc_runner.py --project knowledge-dashboard --json` passed test/lint/build; `npm run smoke` passed; Playwright first-load snapshot showed only the API-key field and no premature auth failure; Playwright console after first load/login/QA-QC tab showed errors 0 and warnings 0; Playwright network showed `/api/auth/session` 200 on first load, then session/data/qaqc/readiness/skills routes all 200 after login.
+
+## 2026-06-04 - Codex
+
+- Completed T-1212 by triaging GitHub PR #123 (`codex/fix-readiness-env-status`), which was draft and conflicting but contained a valid readiness fix.
+- Reapplied the core change directly on current `main`: `execution/product_readiness_score.py` now reports distinct Hanwoo Supabase env states for missing `.env`, missing key, empty key, placeholder value, and present value instead of treating absent credentials as configured.
+- Readiness recommendations now reuse the first concrete env blocker message so the operator sees the actual credential-file problem.
+- Updated `workspace/tests/test_product_readiness_score.py` with missing `.env` regression coverage and a stricter placeholder message assertion.
+- Verification: `ruff check execution/product_readiness_score.py workspace/tests/test_product_readiness_score.py` passed; `python -m py_compile execution/product_readiness_score.py workspace/tests/test_product_readiness_score.py` passed; `python -m pytest workspace\tests\test_product_readiness_score.py -q --tb=short --maxfail=1 -o addopts='' --basetemp .tmp\pytest-product-readiness` passed 6/6.

@@ -214,16 +214,33 @@ def _env_status(repo_root: Path, profile: ProjectProfile) -> dict[str, Any]:
     if "supabase_password" in profile.env_checks:
         env_path = repo_root / profile.path / ".env"
         content = env_path.read_text(encoding="utf-8", errors="replace") if env_path.exists() else ""
-        placeholder = "YOUR_PASSWORD" in content
-        configured = "DATABASE_URL=" in content and not placeholder
+        database_line = next(
+            (
+                stripped
+                for line in content.splitlines()
+                if (stripped := line.strip()) and not stripped.startswith("#") and stripped.startswith("DATABASE_URL=")
+            ),
+            "",
+        )
+        database_url = database_line.split("=", 1)[1].strip() if database_line else ""
+        placeholder = any(marker in database_url for marker in ("YOUR_PASSWORD", "<", ">", "__"))
+        configured = bool(database_url) and not placeholder
+        if not env_path.exists():
+            message = "projects/hanwoo-dashboard/.env is missing; configure Supabase DATABASE_URL before live checks."
+        elif not database_line:
+            message = "Supabase DATABASE_URL is missing from projects/hanwoo-dashboard/.env."
+        elif not database_url:
+            message = "Supabase DATABASE_URL is empty in projects/hanwoo-dashboard/.env."
+        elif placeholder:
+            message = "Supabase DATABASE_URL still contains a placeholder."
+        else:
+            message = "DATABASE_URL is present; run the live Prisma check to verify current Supabase credentials."
         checks.append(
             {
                 "name": "Supabase DATABASE_URL",
                 "ok": configured,
                 "severity": "blocker" if not configured else "ok",
-                "message": "DATABASE_URL still contains YOUR_PASSWORD."
-                if placeholder
-                else "DATABASE_URL is configured.",
+                "message": message,
             }
         )
     if "dashboard_api_key" in profile.env_checks:
@@ -290,7 +307,15 @@ def _score_project(
 
     recommendations: list[str] = []
     if env_blocked:
-        recommendations.append("Replace the Supabase password placeholder and run the live Prisma check.")
+        env_message = next(
+            (
+                str(check.get("message"))
+                for check in env.get("checks", [])
+                if check.get("severity") == "blocker" and check.get("message")
+            ),
+            "Configure the required project environment variables and rerun live checks.",
+        )
+        recommendations.append(env_message)
     if active_blockers:
         recommendations.append(f"Resolve {len(active_blockers)} open task blocker(s).")
     if qc.get("stale"):
