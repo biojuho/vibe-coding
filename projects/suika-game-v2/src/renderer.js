@@ -15,14 +15,17 @@ export let particles = [];
 // camera-shake effect. Checked live so a mid-session change is honoured.
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
+const bundledFruitImages = new Map();
 const loadedImages = {};
 function getFruitImage(src) {
-	if (!loadedImages[src]) {
+	const bundledSrc = bundledFruitImages.get(src);
+	if (!bundledSrc) return null;
+	if (!loadedImages[bundledSrc]) {
 		const img = new Image();
-		img.src = src;
-		loadedImages[src] = img;
+		img.src = bundledSrc;
+		loadedImages[bundledSrc] = img;
 	}
-	return loadedImages[src];
+	return loadedImages[bundledSrc];
 }
 
 export function renderCustomGraphics() {
@@ -69,7 +72,7 @@ export function renderCustomGraphics() {
 			ctx.rotate(body.angle);
 
 			const img = getFruitImage("./assets/bomb.png");
-			if (img.complete && img.naturalHeight !== 0) {
+			if (img?.complete && img.naturalHeight !== 0) {
 				ctx.drawImage(img, -size / 2, -size / 2, size, size);
 			} else {
 				ctx.fillStyle = "#000000";
@@ -88,7 +91,7 @@ export function renderCustomGraphics() {
 			ctx.rotate(body.angle);
 
 			const img = getFruitImage(`./assets/${level}.png`);
-			if (img.complete && img.naturalHeight !== 0) {
+			if (img?.complete && img.naturalHeight !== 0) {
 				ctx.drawImage(img, -size / 2, -size / 2, size, size);
 			} else {
 				ctx.fillStyle = "#000000";
