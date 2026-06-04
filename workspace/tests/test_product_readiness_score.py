@@ -92,7 +92,35 @@ def test_hanwoo_placeholder_marks_project_blocked(tmp_path: Path):
     assert report["overall"]["state"] == "blocked"
     assert hanwoo["state"] == "blocked"
     assert hanwoo["env"]["checks"][0]["severity"] == "blocker"
+    assert hanwoo["env"]["checks"][0]["message"] == "Supabase DATABASE_URL still contains a placeholder."
     assert any("Supabase" in item for item in hanwoo["recommendations"])
+
+
+def test_missing_hanwoo_env_reports_missing_file_instead_of_configured(tmp_path: Path):
+    _write_project_files(tmp_path)
+    qaqc_path = _write_qaqc(tmp_path)
+    _write_tasks(
+        tmp_path,
+        "# TASKS\n\n"
+        "## TODO\n\n"
+        "| ID | Task | Owner | Priority | Auto | Created |\n"
+        "|---|---|---|---|---|---|\n"
+        "| T-251 | `[hanwoo-dashboard]` Run live Supabase CRUD check. | User | High | approval | today |\n",
+    )
+
+    report = readiness.build_report(
+        tmp_path,
+        qaqc_path=qaqc_path,
+        git_status_text="",
+        now=datetime(2026, 5, 13, tzinfo=timezone.utc),
+    )
+
+    hanwoo = next(project for project in report["projects"] if project["name"] == "hanwoo-dashboard")
+    message = hanwoo["env"]["checks"][0]["message"]
+    assert hanwoo["env"]["checks"][0]["ok"] is False
+    assert "is missing" in message
+    assert "configured" not in message
+    assert hanwoo["recommendations"][0] == message
 
 
 def test_clean_projects_with_docs_and_qc_score_ready(tmp_path: Path):

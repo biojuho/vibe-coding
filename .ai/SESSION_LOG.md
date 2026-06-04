@@ -2660,3 +2660,10 @@
 - Ran `python execution/session_orient.py --json`; it still reports T-251 as the only TODO (`todo=1`) and no code-path tasks in progress.
 - Ran `python execution/handoff_rotator.py --check`; it returned noop (`kept=518`, no archive needed yet).
 
+## 2026-06-04 - Codex
+
+- Completed T-1203 product readiness Hanwoo env-status correction after cloning `biojuho/vibe-coding` for the broader GitHub improvement pass.
+- Changed `execution/product_readiness_score.py`: the Hanwoo Supabase readiness check now parses the active, non-comment `DATABASE_URL` line and reports missing `.env`, missing key, empty key, placeholder value, and present value as separate states.
+- Recommendations now reuse the first concrete env blocker message, preventing the readiness report from saying the missing local `.env` case is configured or from recommending a placeholder-only fix when the credential file is absent.
+- Changed `workspace/tests/test_product_readiness_score.py`: updated placeholder-message coverage and added a regression test for a missing Hanwoo `.env`.
+- Verification: `python3 -m py_compile execution/product_readiness_score.py workspace/tests/test_product_readiness_score.py`, `./.venv/bin/python -m pytest workspace/tests/test_product_readiness_score.py -q --tb=short --maxfail=1 -o addopts=''` passed 6/6, `./.venv/bin/python -m ruff check execution/product_readiness_score.py workspace/tests/test_product_readiness_score.py` passed, and readiness CLI smoke now reports `projects/hanwoo-dashboard/.env is missing; configure Supabase DATABASE_URL before live checks.`

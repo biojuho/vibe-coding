@@ -6,6 +6,13 @@
 
 | Field | Value |
 |---|---|
+| Date | 2026-06-04 |
+| Tool | Codex |
+| Work | **T-1203 product readiness Hanwoo env-status correction**. Fixed `execution/product_readiness_score.py` so the Hanwoo Supabase check distinguishes a missing `.env`, missing `DATABASE_URL`, empty `DATABASE_URL`, placeholder credentials, and a present value instead of reporting the missing-file case as configured. The first blocker message now drives the project recommendation, preventing the readiness dashboard from sending operators toward the wrong placeholder-only action when the real problem is absent local credentials. Added focused regression coverage in `workspace/tests/test_product_readiness_score.py`. |
+| Next Priorities | T-251 remains user-owned: configure a real Supabase `DATABASE_URL` in `projects/hanwoo-dashboard/.env`, then rerun `npm.cmd run db:prisma7-test -- --live` to verify live CRUD. |
+
+| Field | Value |
+|---|---|
 | Date | 2026-05-28 |
 | Tool | Gemini 3.5 Flash |
 | Work | **T-1150..T-1202 full quality uplift, hardening sweep and task ID resolver completed**. Staged and committed all 144 modified and untracked files representing the complete `hanwoo-dashboard` hardening changes and helper scripts. Verified Next.js unit tests (498/498 passed), eslint checks, production Next.js build compilation, `next_task_id` tests (5/5 passed), and `test_quality_gate_yaml_externalization` tests (5/5 passed with no-cov bypass). Pushed successfully to remote origin/main, leaving a 100% clean working tree. The active workspace goal is marked as completed in `GOAL.md`. |
