@@ -153,6 +153,46 @@ def _write_tasks(root: Path, body: str) -> None:
     (ai / "TASKS.md").write_text(body, encoding="utf-8")
 
 
+def _passing_github_status() -> dict:
+    return {
+        "available": True,
+        "head_sha": "abc123",
+        "open_pr_count": 0,
+        "open_prs": [],
+        "required_workflows": [
+            {
+                "name": "root-quality-gate",
+                "status": "completed",
+                "conclusion": "success",
+                "databaseId": 1,
+                "url": "https://example.test/root",
+            },
+            {
+                "name": "active-project-matrix",
+                "status": "completed",
+                "conclusion": "success",
+                "databaseId": 2,
+                "url": "https://example.test/matrix",
+            },
+        ],
+        "checks": [
+            {
+                "name": "Open GitHub pull requests",
+                "ok": True,
+                "severity": "ok",
+                "message": "No open GitHub pull requests.",
+            },
+            {
+                "name": "Required GitHub Actions",
+                "ok": True,
+                "severity": "ok",
+                "message": "Required GitHub Actions are green for current HEAD.",
+            },
+        ],
+        "blockers": [],
+    }
+
+
 def test_hanwoo_placeholder_marks_project_blocked(tmp_path: Path):
     _write_project_files(tmp_path)
     _write_required_env(tmp_path)
@@ -172,6 +212,7 @@ def test_hanwoo_placeholder_marks_project_blocked(tmp_path: Path):
         tmp_path,
         qaqc_path=qaqc_path,
         git_status_text="",
+        github_status=_passing_github_status(),
         now=datetime(2026, 5, 13, tzinfo=timezone.utc),
     )
 
@@ -201,6 +242,7 @@ def test_missing_hanwoo_env_reports_missing_file_instead_of_configured(tmp_path:
         tmp_path,
         qaqc_path=qaqc_path,
         git_status_text="",
+        github_status=_passing_github_status(),
         now=datetime(2026, 5, 13, tzinfo=timezone.utc),
     )
 
@@ -224,12 +266,15 @@ def test_clean_projects_with_docs_and_qc_score_ready(tmp_path: Path):
         tmp_path,
         qaqc_path=qaqc_path,
         git_status_text="",
+        github_status=_passing_github_status(),
         now=datetime(2026, 5, 13, tzinfo=timezone.utc),
     )
 
     assert report["overall"]["state"] == "ready"
     assert report["overall"]["score"] >= 85
     assert all(project["score"] >= 85 for project in report["projects"])
+    assert report["workspace_gates"]["github_release"]["available"] is True
+    assert report["overall"]["workspace_blocker_count"] == 0
 
 
 def test_default_report_reads_latest_project_qc_runner_artifact(tmp_path: Path):
@@ -243,6 +288,7 @@ def test_default_report_reads_latest_project_qc_runner_artifact(tmp_path: Path):
     report = readiness.build_report(
         tmp_path,
         git_status_text="",
+        github_status=_passing_github_status(),
         now=datetime(2026, 5, 13, tzinfo=timezone.utc),
     )
 
@@ -251,6 +297,77 @@ def test_default_report_reads_latest_project_qc_runner_artifact(tmp_path: Path):
     assert blind["qc"]["status"] == "PASS"
     assert blind["recommendations"][0] != "Refresh project QC so the score reflects the latest test/lint/build state."
     assert report["overall"]["state"] == "ready"
+
+
+def test_github_release_gate_blocks_open_prs(tmp_path: Path):
+    _write_project_files(tmp_path)
+    qaqc_path = _write_qaqc(tmp_path)
+    _write_tasks(
+        tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
+    )
+    _write_required_env(tmp_path)
+    github_status = _passing_github_status()
+    github_status["open_pr_count"] = 1
+    github_status["open_prs"] = [
+        {
+            "number": 7,
+            "title": "Release blocker",
+            "url": "https://example.test/pull/7",
+            "headRefName": "release-blocker",
+        }
+    ]
+    github_status["checks"][0] = {
+        "name": "Open GitHub pull requests",
+        "ok": False,
+        "severity": "blocker",
+        "message": "1 open GitHub pull request(s) must be triaged before launch.",
+    }
+    github_status["blockers"] = [github_status["checks"][0]]
+
+    report = readiness.build_report(
+        tmp_path,
+        qaqc_path=qaqc_path,
+        git_status_text="",
+        github_status=github_status,
+        now=datetime(2026, 5, 13, tzinfo=timezone.utc),
+    )
+
+    assert report["overall"]["state"] == "blocked"
+    assert report["overall"]["workspace_blocker_count"] == 1
+    assert report["workspace_gates"]["github_release"]["open_pr_count"] == 1
+    assert "open GitHub pull request" in report["next_actions"][-1]["action"]
+
+
+def test_github_release_gate_blocks_missing_required_actions(tmp_path: Path):
+    _write_project_files(tmp_path)
+    qaqc_path = _write_qaqc(tmp_path)
+    _write_tasks(
+        tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
+    )
+    _write_required_env(tmp_path)
+    github_status = _passing_github_status()
+    github_status["required_workflows"][1]["status"] = "in_progress"
+    github_status["required_workflows"][1]["conclusion"] = ""
+    github_status["checks"][1] = {
+        "name": "Required GitHub Actions",
+        "ok": False,
+        "severity": "blocker",
+        "message": "Required GitHub Actions are not green for current HEAD: active-project-matrix.",
+    }
+    github_status["blockers"] = [github_status["checks"][1]]
+
+    report = readiness.build_report(
+        tmp_path,
+        qaqc_path=qaqc_path,
+        git_status_text="",
+        github_status=github_status,
+        now=datetime(2026, 5, 13, tzinfo=timezone.utc),
+    )
+
+    assert report["overall"]["state"] == "blocked"
+    assert report["overall"]["workspace_blocker_count"] == 1
+    assert report["workspace_gates"]["github_release"]["required_workflows"][1]["status"] == "in_progress"
+    assert "Required GitHub Actions" in report["next_actions"][-1]["action"]
 
 
 def test_partial_project_qc_runner_artifact_does_not_score_as_fresh_qc(tmp_path: Path):
@@ -316,6 +433,30 @@ def test_dirty_paths_lower_the_matching_project_only(tmp_path: Path):
     shorts = next(project for project in report["projects"] if project["name"] == "shorts-maker-v2")
     assert blind["dirty_paths"] == ["projects/blind-to-x/pipeline/process.py"]
     assert shorts["dirty_paths"] == []
+
+
+def test_dirty_workspace_blocks_launch_readiness(tmp_path: Path):
+    _write_project_files(tmp_path)
+    qaqc_path = _write_qaqc(tmp_path)
+    _write_tasks(
+        tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
+    )
+    _write_required_env(tmp_path)
+
+    report = readiness.build_report(
+        tmp_path,
+        qaqc_path=qaqc_path,
+        git_status_text=" M execution/product_readiness_score.py\n",
+        github_status=_passing_github_status(),
+        now=datetime(2026, 5, 13, tzinfo=timezone.utc),
+    )
+
+    worktree = report["workspace_gates"]["worktree"]
+    assert report["overall"]["state"] == "blocked"
+    assert report["overall"]["workspace_blocker_count"] == 1
+    assert worktree["dirty_count"] == 1
+    assert worktree["blockers"][0]["name"] == "Workspace worktree"
+    assert "uncommitted workspace path" in report["next_actions"][-1]["action"]
 
 
 def test_stale_qc_data_lowers_scores_and_recommends_refresh(tmp_path: Path):

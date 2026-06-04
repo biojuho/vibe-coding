@@ -30,6 +30,7 @@ LEGACY_QAQC_ARTIFACTS = (
     Path("projects") / "knowledge-dashboard" / "public" / "qaqc_result.json",
 )
 PROJECT_QC_SOURCE = "project_qc_runner"
+REQUIRED_GITHUB_WORKFLOWS = ("root-quality-gate", "active-project-matrix")
 
 
 @dataclass(frozen=True)
@@ -133,6 +134,176 @@ def _run_git_status(repo_root: Path) -> str:
     return completed.stdout
 
 
+def _run_json_command(repo_root: Path, command: list[str], timeout: int = 15) -> Any:
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=repo_root,
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+        )
+    except Exception:
+        return None
+
+    if completed.returncode != 0:
+        return None
+    try:
+        return json.loads(completed.stdout or "null")
+    except json.JSONDecodeError:
+        return None
+
+
+def _run_text_command(repo_root: Path, command: list[str], timeout: int = 10) -> str:
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=repo_root,
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+        )
+    except Exception:
+        return ""
+
+    if completed.returncode != 0:
+        return ""
+    return completed.stdout.strip()
+
+
+def _github_release_status(repo_root: Path) -> dict[str, Any]:
+    head_sha = _run_text_command(repo_root, ["git", "rev-parse", "HEAD"])
+    open_prs = _run_json_command(
+        repo_root,
+        ["gh", "pr", "list", "--state", "open", "--json", "number,title,url,headRefName"],
+    )
+    runs = _run_json_command(
+        repo_root,
+        [
+            "gh",
+            "run",
+            "list",
+            "--branch",
+            "main",
+            "--limit",
+            "30",
+            "--json",
+            "databaseId,headSha,workflowName,status,conclusion,createdAt,url",
+        ],
+        timeout=20,
+    )
+
+    checks: list[dict[str, Any]] = []
+    available = isinstance(open_prs, list) and isinstance(runs, list) and bool(head_sha)
+    if not available:
+        return {
+            "available": False,
+            "head_sha": head_sha or None,
+            "open_pr_count": None,
+            "open_prs": [],
+            "required_workflows": [],
+            "checks": [
+                {
+                    "name": "GitHub release gate",
+                    "ok": False,
+                    "severity": "watch",
+                    "message": "GitHub PR/Actions status is unavailable; verify open PRs and required workflows before launch.",
+                }
+            ],
+            "blockers": [],
+        }
+
+    open_pr_items = [
+        {
+            "number": item.get("number"),
+            "title": item.get("title"),
+            "url": item.get("url"),
+            "headRefName": item.get("headRefName"),
+        }
+        for item in open_prs
+        if isinstance(item, dict)
+    ]
+    open_pr_count = len(open_pr_items)
+    checks.append(
+        {
+            "name": "Open GitHub pull requests",
+            "ok": open_pr_count == 0,
+            "severity": "blocker" if open_pr_count else "ok",
+            "message": (
+                f"{open_pr_count} open GitHub pull request(s) must be triaged before launch."
+                if open_pr_count
+                else "No open GitHub pull requests."
+            ),
+        }
+    )
+
+    required_workflows: list[dict[str, Any]] = []
+    for workflow in REQUIRED_GITHUB_WORKFLOWS:
+        matching_run = next(
+            (
+                run
+                for run in runs
+                if isinstance(run, dict) and run.get("workflowName") == workflow and run.get("headSha") == head_sha
+            ),
+            None,
+        )
+        if matching_run is None:
+            required_workflows.append(
+                {
+                    "name": workflow,
+                    "status": "missing",
+                    "conclusion": None,
+                    "databaseId": None,
+                    "url": None,
+                }
+            )
+            continue
+        required_workflows.append(
+            {
+                "name": workflow,
+                "status": matching_run.get("status"),
+                "conclusion": matching_run.get("conclusion"),
+                "databaseId": matching_run.get("databaseId"),
+                "url": matching_run.get("url"),
+            }
+        )
+
+    failing_workflows = [
+        item for item in required_workflows if item["status"] != "completed" or item["conclusion"] != "success"
+    ]
+    checks.append(
+        {
+            "name": "Required GitHub Actions",
+            "ok": not failing_workflows,
+            "severity": "blocker" if failing_workflows else "ok",
+            "message": (
+                "Required GitHub Actions are not green for current HEAD: "
+                + ", ".join(item["name"] for item in failing_workflows)
+                + "."
+                if failing_workflows
+                else "Required GitHub Actions are green for current HEAD."
+            ),
+        }
+    )
+
+    blockers = [check for check in checks if check["severity"] == "blocker"]
+    return {
+        "available": True,
+        "head_sha": head_sha,
+        "open_pr_count": open_pr_count,
+        "open_prs": open_pr_items[:10],
+        "required_workflows": required_workflows,
+        "checks": checks,
+        "blockers": blockers,
+    }
+
+
 def _dirty_paths_by_project(status_text: str) -> dict[str, list[str]]:
     dirty: dict[str, list[str]] = {name: [] for name in ACTIVE_PROJECTS}
     for raw_line in status_text.splitlines():
@@ -145,6 +316,43 @@ def _dirty_paths_by_project(status_text: str) -> dict[str, list[str]]:
                 dirty[name].append(path)
                 break
     return dirty
+
+
+def _dirty_workspace_paths(status_text: str) -> list[str]:
+    dirty_paths: list[str] = []
+    for raw_line in status_text.splitlines():
+        if len(raw_line) < 4:
+            continue
+        dirty_paths.append(raw_line[3:].replace("\\", "/"))
+    return dirty_paths
+
+
+def _worktree_release_status(dirty_paths: list[str]) -> dict[str, Any]:
+    if not dirty_paths:
+        checks = [
+            {
+                "name": "Workspace worktree",
+                "ok": True,
+                "severity": "ok",
+                "message": "Workspace worktree is clean.",
+            }
+        ]
+    else:
+        checks = [
+            {
+                "name": "Workspace worktree",
+                "ok": False,
+                "severity": "blocker",
+                "message": f"{len(dirty_paths)} uncommitted workspace path(s) must be committed, ignored, or handed off.",
+            }
+        ]
+    blockers = [check for check in checks if check["severity"] == "blocker"]
+    return {
+        "dirty_count": len(dirty_paths),
+        "dirty_paths": dirty_paths[:20],
+        "checks": checks,
+        "blockers": blockers,
+    }
 
 
 def _parse_task_rows(tasks_text: str) -> list[dict[str, str]]:
@@ -563,6 +771,7 @@ def build_report(
     *,
     qaqc_path: Path | None = None,
     git_status_text: str | None = None,
+    github_status: dict[str, Any] | None = None,
     now: datetime | None = None,
 ) -> dict[str, Any]:
     repo_root = repo_root.resolve()
@@ -570,7 +779,10 @@ def build_report(
     generated_at = now.astimezone().isoformat()
     qaqc_data = _read_json(qaqc_path) if qaqc_path is not None else _read_default_qc_data(repo_root)
     tasks = _tasks_by_project(repo_root)
-    dirty = _dirty_paths_by_project(git_status_text if git_status_text is not None else _run_git_status(repo_root))
+    status_text = git_status_text if git_status_text is not None else _run_git_status(repo_root)
+    dirty = _dirty_paths_by_project(status_text)
+    worktree_release = _worktree_release_status(_dirty_workspace_paths(status_text))
+    github_release = github_status if github_status is not None else _github_release_status(repo_root)
 
     projects = [
         _score_project(
@@ -586,7 +798,10 @@ def build_report(
 
     overall_score = _round_score(sum(project["score"] for project in projects) / len(projects))
     blocked_projects = [project for project in projects if project["state"] == "blocked"]
-    if blocked_projects:
+    worktree_blockers = list(worktree_release.get("blockers") or [])
+    github_blockers = list(github_release.get("blockers") or [])
+    workspace_gate_blockers = worktree_blockers + github_blockers
+    if blocked_projects or workspace_gate_blockers:
         overall_state = "blocked"
     elif overall_score >= 85:
         overall_state = "ready"
@@ -621,6 +836,15 @@ def build_report(
                 "action": action.strip("` "),
             }
         )
+    for blocker in workspace_gate_blockers[:2]:
+        next_actions.append(
+            {
+                "project": "workspace",
+                "state": "blocked",
+                "score": overall_score,
+                "action": str(blocker.get("message") or "Resolve GitHub release gate blocker."),
+            }
+        )
 
     return {
         "generated_at": generated_at,
@@ -629,10 +853,14 @@ def build_report(
             "state": overall_state,
             "project_count": len(projects),
             "blocked_count": len(blocked_projects),
-            "workspace_blocker_count": len(workspace_blockers),
+            "workspace_blocker_count": len(workspace_blockers) + len(workspace_gate_blockers),
         },
         "projects": projects,
         "workspace_blockers": workspace_blockers,
+        "workspace_gates": {
+            "worktree": worktree_release,
+            "github_release": github_release,
+        },
         "next_actions": next_actions[:6],
     }
 
