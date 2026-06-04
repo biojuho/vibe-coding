@@ -45,6 +45,7 @@ PROJECTS = {
         name="blind-to-x",
         path="projects/blind-to-x",
         required_files=("README.md", "config.example.yaml", "docs/ops-runbook.md"),
+        env_checks=("blind_to_x_launch_env",),
     ),
     "shorts-maker-v2": ProjectProfile(
         name="shorts-maker-v2",
@@ -65,6 +66,29 @@ PROJECTS = {
         env_checks=("dashboard_api_key",),
     ),
 }
+
+
+BLIND_TO_X_NOTION_KEYS = ("NOTION_API_KEY", "NOTION_DATABASE_ID")
+BLIND_TO_X_PROVIDER_KEYS = (
+    "ANTHROPIC_API_KEY",
+    "GOOGLE_API_KEY",
+    "GEMINI_API_KEY",
+    "XAI_API_KEY",
+    "DEEPSEEK_API_KEY",
+    "MOONSHOT_API_KEY",
+    "ZHIPUAI_API_KEY",
+    "OPENAI_API_KEY",
+)
+SHORTS_PROVIDER_KEYS = (
+    "OPENAI_API_KEY",
+    "GEMINI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "XAI_API_KEY",
+    "DEEPSEEK_API_KEY",
+    "MOONSHOT_API_KEY",
+    "ZHIPUAI_API_KEY",
+    "MIMO_API_KEY",
+)
 
 
 def _round_score(value: float) -> int:
@@ -261,7 +285,14 @@ def _read_env_assignments(env_path: Path) -> dict[str, str]:
         if not stripped or stripped.startswith("#") or "=" not in stripped:
             continue
         key, value = stripped.split("=", 1)
-        assignments[key.strip()] = value.strip()
+        normalized_value = value.strip()
+        if (
+            len(normalized_value) >= 2
+            and normalized_value[0] == normalized_value[-1]
+            and normalized_value[0] in {'"', "'"}
+        ):
+            normalized_value = normalized_value[1:-1].strip()
+        assignments[key.strip()] = normalized_value
     return assignments
 
 
@@ -285,8 +316,58 @@ def _looks_placeholder(value: str) -> bool:
     )
 
 
+def _usable_keys(assignments: dict[str, str], keys: tuple[str, ...]) -> list[str]:
+    return [key for key in keys if key in assignments and not _looks_placeholder(assignments[key])]
+
+
+def _missing_or_placeholder_keys(assignments: dict[str, str], keys: tuple[str, ...]) -> list[str]:
+    return [key for key in keys if key not in assignments or _looks_placeholder(assignments[key])]
+
+
 def _env_status(repo_root: Path, profile: ProjectProfile) -> dict[str, Any]:
     checks: list[dict[str, Any]] = []
+    if "blind_to_x_launch_env" in profile.env_checks:
+        env_path = repo_root / profile.path / ".env"
+        assignments = _read_env_assignments(env_path)
+
+        missing_notion_keys = _missing_or_placeholder_keys(assignments, BLIND_TO_X_NOTION_KEYS)
+        if not env_path.exists():
+            notion_message = (
+                "projects/blind-to-x/.env is missing; configure NOTION_API_KEY and NOTION_DATABASE_ID before launch."
+            )
+        elif missing_notion_keys:
+            notion_message = (
+                "Missing usable blind-to-x Notion env key(s) in projects/blind-to-x/.env: "
+                + ", ".join(missing_notion_keys)
+                + "."
+            )
+        else:
+            notion_message = "Notion review queue keys are configured."
+        checks.append(
+            {
+                "name": "Notion review queue keys",
+                "ok": not missing_notion_keys,
+                "severity": "blocker" if missing_notion_keys else "ok",
+                "message": notion_message,
+            }
+        )
+
+        present_provider_keys = _usable_keys(assignments, BLIND_TO_X_PROVIDER_KEYS)
+        if not env_path.exists():
+            provider_message = "projects/blind-to-x/.env is missing; add at least one LLM provider API key."
+        elif not present_provider_keys:
+            provider_message = "No usable blind-to-x LLM provider API key is configured in projects/blind-to-x/.env."
+        else:
+            provider_message = f"{len(present_provider_keys)} blind-to-x LLM provider key(s) are configured."
+        checks.append(
+            {
+                "name": "blind-to-x LLM provider keys",
+                "ok": bool(present_provider_keys),
+                "severity": "blocker" if not present_provider_keys else "ok",
+                "message": provider_message,
+            }
+        )
+
     if "supabase_password" in profile.env_checks:
         env_path = repo_root / profile.path / ".env"
         assignments = _read_env_assignments(env_path)
@@ -315,17 +396,7 @@ def _env_status(repo_root: Path, profile: ProjectProfile) -> dict[str, Any]:
     if "shorts_provider_keys" in profile.env_checks:
         env_path = repo_root / profile.path / ".env"
         assignments = _read_env_assignments(env_path)
-        provider_keys = (
-            "OPENAI_API_KEY",
-            "GEMINI_API_KEY",
-            "ANTHROPIC_API_KEY",
-            "XAI_API_KEY",
-            "DEEPSEEK_API_KEY",
-            "MOONSHOT_API_KEY",
-            "ZHIPUAI_API_KEY",
-            "MIMO_API_KEY",
-        )
-        present_keys = [key for key in provider_keys if key in assignments and not _looks_placeholder(assignments[key])]
+        present_keys = _usable_keys(assignments, SHORTS_PROVIDER_KEYS)
         if not env_path.exists():
             message = "projects/shorts-maker-v2/.env is missing; add at least one generation provider API key."
         elif not present_keys:
@@ -395,6 +466,8 @@ def _score_project(
     env_blocked = any(check.get("severity") == "blocker" for check in env.get("checks", []))
     if env_blocked or any(task["owner"].lower() == "user" for task in active_blockers):
         state = "blocked"
+    elif qc.get("stale"):
+        state = "needs-review"
     elif score >= 85:
         state = "ready"
     elif score >= 70:

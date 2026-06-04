@@ -33,6 +33,10 @@ def test_shorts_provider_key_check_is_required_for_launch_readiness():
     assert "shorts_provider_keys" in readiness.PROJECTS["shorts-maker-v2"].env_checks
 
 
+def test_blind_to_x_env_check_is_required_for_launch_readiness():
+    assert "blind_to_x_launch_env" in readiness.PROJECTS["blind-to-x"].env_checks
+
+
 def _write_project_files(root: Path) -> None:
     for profile in readiness.PROJECTS.values():
         project_root = root / profile.path
@@ -44,6 +48,17 @@ def _write_project_files(root: Path) -> None:
 
 
 def _write_required_env(root: Path) -> None:
+    (root / "projects" / "blind-to-x" / ".env").write_text(
+        "\n".join(
+            (
+                "NOTION_API_KEY=notion-secret",
+                "NOTION_DATABASE_ID=1234567890abcdef1234567890abcdef",
+                "OPENAI_API_KEY=sk-real-test-key",
+                "",
+            )
+        ),
+        encoding="utf-8",
+    )
     (root / "projects" / "hanwoo-dashboard" / ".env").write_text(
         "DATABASE_URL=postgres://user:secret@example/db\n",
         encoding="utf-8",
@@ -128,10 +143,7 @@ def _write_tasks(root: Path, body: str) -> None:
 
 def test_hanwoo_placeholder_marks_project_blocked(tmp_path: Path):
     _write_project_files(tmp_path)
-    (tmp_path / "projects" / "shorts-maker-v2" / ".env").write_text(
-        "OPENAI_API_KEY=sk-real-test-key\n",
-        encoding="utf-8",
-    )
+    _write_required_env(tmp_path)
     qaqc_path = _write_qaqc(tmp_path)
     _write_tasks(
         tmp_path,
@@ -161,10 +173,8 @@ def test_hanwoo_placeholder_marks_project_blocked(tmp_path: Path):
 
 def test_missing_hanwoo_env_reports_missing_file_instead_of_configured(tmp_path: Path):
     _write_project_files(tmp_path)
-    (tmp_path / "projects" / "shorts-maker-v2" / ".env").write_text(
-        "OPENAI_API_KEY=sk-real-test-key\n",
-        encoding="utf-8",
-    )
+    _write_required_env(tmp_path)
+    (tmp_path / "projects" / "hanwoo-dashboard" / ".env").unlink()
     qaqc_path = _write_qaqc(tmp_path)
     _write_tasks(
         tmp_path,
@@ -260,6 +270,7 @@ def test_partial_project_qc_runner_artifact_does_not_score_as_fresh_qc(tmp_path:
     _write_tasks(
         tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
     )
+    _write_required_env(tmp_path)
 
     report = readiness.build_report(
         tmp_path,
@@ -314,7 +325,8 @@ def test_stale_qc_data_lowers_scores_and_recommends_refresh(tmp_path: Path):
     blind = next(project for project in report["projects"] if project["name"] == "blind-to-x")
     assert blind["qc"]["stale"] is True
     assert blind["qc"]["age_days"] == 42
-    assert blind["score"] < 85
+    assert blind["score"] < 100
+    assert blind["state"] == "needs-review"
     assert "Refresh project QC" in blind["recommendations"][0]
 
 
@@ -346,13 +358,10 @@ def test_missing_project_qc_is_unknown_instead_of_root_fallback(tmp_path: Path):
 
 def test_missing_shorts_provider_keys_block_launch_readiness(tmp_path: Path):
     _write_project_files(tmp_path)
+    _write_required_env(tmp_path)
     qaqc_path = _write_qaqc(tmp_path)
     _write_tasks(
         tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
-    )
-    (tmp_path / "projects" / "hanwoo-dashboard" / ".env").write_text(
-        "DATABASE_URL=postgres://user:secret@example/db\n",
-        encoding="utf-8",
     )
     (tmp_path / "projects" / "shorts-maker-v2" / ".env").write_text(
         "OPENAI_API_KEY=your_openai_api_key\n",
@@ -370,3 +379,69 @@ def test_missing_shorts_provider_keys_block_launch_readiness(tmp_path: Path):
     assert shorts["state"] == "blocked"
     assert shorts["env"]["checks"][0]["severity"] == "blocker"
     assert "No usable Shorts generation provider API key" in shorts["recommendations"][0]
+
+
+def test_missing_blind_to_x_notion_keys_block_launch_readiness(tmp_path: Path):
+    _write_project_files(tmp_path)
+    _write_required_env(tmp_path)
+    qaqc_path = _write_qaqc(tmp_path)
+    _write_tasks(
+        tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
+    )
+    (tmp_path / "projects" / "blind-to-x" / ".env").write_text(
+        "\n".join(
+            (
+                "NOTION_API_KEY=notion-secret",
+                "NOTION_DATABASE_ID=your_notion_database_id",
+                "OPENAI_API_KEY=sk-real-test-key",
+                "",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    report = readiness.build_report(
+        tmp_path,
+        qaqc_path=qaqc_path,
+        git_status_text="",
+        now=datetime(2026, 5, 13, tzinfo=timezone.utc),
+    )
+
+    blind = next(project for project in report["projects"] if project["name"] == "blind-to-x")
+    assert blind["state"] == "blocked"
+    assert blind["env"]["checks"][0]["name"] == "Notion review queue keys"
+    assert blind["env"]["checks"][0]["severity"] == "blocker"
+    assert "NOTION_DATABASE_ID" in blind["recommendations"][0]
+
+
+def test_missing_blind_to_x_provider_keys_block_launch_readiness(tmp_path: Path):
+    _write_project_files(tmp_path)
+    _write_required_env(tmp_path)
+    qaqc_path = _write_qaqc(tmp_path)
+    _write_tasks(
+        tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
+    )
+    (tmp_path / "projects" / "blind-to-x" / ".env").write_text(
+        "\n".join(
+            (
+                "NOTION_API_KEY=notion-secret",
+                "NOTION_DATABASE_ID=1234567890abcdef1234567890abcdef",
+                "OPENAI_API_KEY=sk-...",
+                "",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    report = readiness.build_report(
+        tmp_path,
+        qaqc_path=qaqc_path,
+        git_status_text="",
+        now=datetime(2026, 5, 13, tzinfo=timezone.utc),
+    )
+
+    blind = next(project for project in report["projects"] if project["name"] == "blind-to-x")
+    assert blind["state"] == "blocked"
+    assert blind["env"]["checks"][1]["name"] == "blind-to-x LLM provider keys"
+    assert blind["env"]["checks"][1]["severity"] == "blocker"
+    assert "No usable blind-to-x LLM provider API key" in blind["recommendations"][0]
