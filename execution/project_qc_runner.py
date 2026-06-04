@@ -8,8 +8,10 @@ repeatable from one entry point without changing the commands themselves.
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -22,6 +24,7 @@ from typing import Iterable
 REPO_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_TAIL_CHARS = 4000
 PROJECT_QC_RUN_ID = f"{os.getpid()}-{time.time_ns()}"
+DEFAULT_ARTIFACT_PATH = REPO_ROOT / ".tmp" / "project_qc_runner_latest.json"
 
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
     try:
@@ -340,6 +343,103 @@ def exit_code_for_results(results: list[dict[str, object]]) -> int:
     return 0 if all(result["status"] == "passed" for result in results) else 1
 
 
+def _parse_word_count(output: str, word: str) -> int:
+    return sum(int(match.group(1)) for match in re.finditer(rf"(\d+)\s+{re.escape(word)}", output))
+
+
+def _parse_node_test_count(output: str, word: str) -> int:
+    return sum(int(match.group(1)) for match in re.finditer(rf"(?m)^[#\s]*{re.escape(word)}\s+(\d+)\s*$", output))
+
+
+def _result_output(result: dict[str, object]) -> str:
+    return f"{result.get('stdout_tail') or ''}\n{result.get('stderr_tail') or ''}"
+
+
+def _check_counts(result: dict[str, object]) -> dict[str, int]:
+    output = _result_output(result)
+    passed = _parse_word_count(output, "passed") + _parse_node_test_count(output, "pass")
+    failed = _parse_word_count(output, "failed") + _parse_node_test_count(output, "fail")
+    skipped = _parse_word_count(output, "skipped") + _parse_node_test_count(output, "skipped")
+    errors = _parse_word_count(output, "error")
+    if result.get("status") != "passed" and failed == 0 and errors == 0:
+        errors = 1
+    return {"passed": passed, "failed": failed, "skipped": skipped, "errors": errors}
+
+
+def _project_status(results: list[dict[str, object]]) -> str:
+    statuses = {str(result.get("status") or "") for result in results}
+    if "timed_out" in statuses:
+        return "TIMEOUT"
+    if all(status == "passed" for status in statuses):
+        return "PASS"
+    return "FAIL"
+
+
+def _project_check_coverage(project: str, results: list[dict[str, object]]) -> dict[str, object]:
+    expected = {check.id for check in PROJECTS[project].checks} if project in PROJECTS else set()
+    observed = {str(result.get("check")) for result in results if result.get("check")}
+    missing = sorted(expected - observed)
+    return {
+        "coverage": "complete" if not missing else "partial",
+        "expected_checks": sorted(expected),
+        "observed_checks": sorted(observed),
+        "missing_checks": missing,
+    }
+
+
+def build_readiness_artifact(results: list[dict[str, object]], *, timestamp: str | None = None) -> dict[str, object]:
+    timestamp = timestamp or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    grouped: dict[str, list[dict[str, object]]] = {}
+    for result in results:
+        grouped.setdefault(str(result.get("project") or "unknown"), []).append(result)
+
+    projects: dict[str, dict[str, object]] = {}
+    for project, project_results in grouped.items():
+        counts = {"passed": 0, "failed": 0, "skipped": 0, "errors": 0}
+        for result in project_results:
+            parsed = _check_counts(result)
+            for key in counts:
+                counts[key] += parsed[key]
+        projects[project] = {
+            "status": _project_status(project_results),
+            **counts,
+            **_project_check_coverage(project, project_results),
+            "checks": [
+                {
+                    "check": result.get("check"),
+                    "status": result.get("status"),
+                    "returncode": result.get("returncode"),
+                    "duration_seconds": result.get("duration_seconds"),
+                    "command": result.get("command"),
+                    "resolved_command": result.get("resolved_command"),
+                }
+                for result in project_results
+            ],
+        }
+
+    total = {
+        "passed": sum(int(project["passed"]) for project in projects.values()),
+        "failed": sum(int(project["failed"]) for project in projects.values()),
+        "errors": sum(int(project["errors"]) for project in projects.values()),
+        "skipped": sum(int(project["skipped"]) for project in projects.values()),
+        "timeout": [name for name, project in projects.items() if project["status"] == "TIMEOUT"],
+    }
+    return {
+        "timestamp": timestamp,
+        "source": "project_qc_runner",
+        "status": "passed" if exit_code_for_results(results) == 0 else "failed",
+        "projects": projects,
+        "total": total,
+    }
+
+
+def write_readiness_artifact(results: list[dict[str, object]], path: Path) -> dict[str, object]:
+    artifact = build_readiness_artifact(results)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(artifact, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return artifact
+
+
 def print_human_plan(plan: list[PlanItem]) -> None:
     if not plan:
         print("No checks selected.")
@@ -386,6 +486,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--json", action="store_true", help="Emit JSON instead of human-readable output.")
     parser.add_argument("--timeout-seconds", type=int, default=900, help="Per-command timeout in seconds.")
     parser.add_argument("--stop-on-failure", action="store_true", help="Stop after the first failed check.")
+    parser.add_argument(
+        "--artifact",
+        type=Path,
+        default=DEFAULT_ARTIFACT_PATH,
+        help="Write the latest project-QC artifact consumed by product_readiness_score.py.",
+    )
+    parser.add_argument("--no-artifact", action="store_true", help="Do not write the latest project-QC artifact.")
     return parser
 
 
@@ -439,6 +546,13 @@ def main(argv: list[str] | None = None) -> int:
 
     results = run_plan(plan, args.timeout_seconds, args.stop_on_failure)
     payload = {"status": "passed" if exit_code_for_results(results) == 0 else "failed", "results": results}
+    if not args.no_artifact:
+        try:
+            artifact = write_readiness_artifact(results, args.artifact)
+            payload["artifact_path"] = str(args.artifact)
+            payload["artifact_status"] = artifact["status"]
+        except OSError as exc:
+            payload["artifact_error"] = str(exc)
     if args.json:
         print(json.dumps(payload, ensure_ascii=False, indent=2))
     else:

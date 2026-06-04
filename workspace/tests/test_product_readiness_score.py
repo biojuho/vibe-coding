@@ -55,6 +55,46 @@ def _write_qaqc(root: Path) -> Path:
     return path
 
 
+def _write_latest_project_qc(root: Path) -> Path:
+    path = root / ".tmp" / "project_qc_runner_latest.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    complete_checks = {
+        "blind-to-x": ["test", "lint"],
+        "shorts-maker-v2": ["test", "lint"],
+        "hanwoo-dashboard": ["test", "lint", "build"],
+        "knowledge-dashboard": ["test", "lint", "build"],
+    }
+    path.write_text(
+        json.dumps(
+            {
+                "timestamp": "2026-05-13T00:00:00+00:00",
+                "source": "project_qc_runner",
+                "status": "passed",
+                "projects": {
+                    name: {
+                        "status": "PASS",
+                        "passed": passed,
+                        "failed": 0,
+                        "errors": 0,
+                        "coverage": "complete",
+                        "expected_checks": checks,
+                        "observed_checks": checks,
+                        "missing_checks": [],
+                    }
+                    for name, passed, checks in (
+                        ("blind-to-x", 10, complete_checks["blind-to-x"]),
+                        ("shorts-maker-v2", 20, complete_checks["shorts-maker-v2"]),
+                        ("hanwoo-dashboard", 30, complete_checks["hanwoo-dashboard"]),
+                        ("knowledge-dashboard", 3, complete_checks["knowledge-dashboard"]),
+                    )
+                },
+            },
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
 def _write_qaqc_timestamp(path: Path, timestamp: str) -> None:
     data = json.loads(path.read_text(encoding="utf-8"))
     data["timestamp"] = timestamp
@@ -144,6 +184,73 @@ def test_clean_projects_with_docs_and_qc_score_ready(tmp_path: Path):
     assert report["overall"]["state"] == "ready"
     assert report["overall"]["score"] >= 85
     assert all(project["score"] >= 85 for project in report["projects"])
+
+
+def test_default_report_reads_latest_project_qc_runner_artifact(tmp_path: Path):
+    _write_project_files(tmp_path)
+    _write_latest_project_qc(tmp_path)
+    _write_tasks(
+        tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
+    )
+    (tmp_path / "projects" / "hanwoo-dashboard" / ".env").write_text(
+        "DATABASE_URL=postgres://user:secret@example/db\n",
+        encoding="utf-8",
+    )
+
+    report = readiness.build_report(
+        tmp_path,
+        git_status_text="",
+        now=datetime(2026, 5, 13, tzinfo=timezone.utc),
+    )
+
+    blind = next(project for project in report["projects"] if project["name"] == "blind-to-x")
+    assert blind["qc"]["available"] is True
+    assert blind["qc"]["status"] == "PASS"
+    assert blind["recommendations"][0] != "Refresh project QC so the score reflects the latest test/lint/build state."
+    assert report["overall"]["state"] == "ready"
+
+
+def test_partial_project_qc_runner_artifact_does_not_score_as_fresh_qc(tmp_path: Path):
+    _write_project_files(tmp_path)
+    path = tmp_path / ".tmp" / "project_qc_runner_latest.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "timestamp": "2026-05-13T00:00:00+00:00",
+                "source": "project_qc_runner",
+                "status": "passed",
+                "projects": {
+                    "blind-to-x": {
+                        "status": "PASS",
+                        "passed": 0,
+                        "failed": 0,
+                        "errors": 0,
+                        "coverage": "partial",
+                        "expected_checks": ["test", "lint"],
+                        "observed_checks": ["lint"],
+                        "missing_checks": ["test"],
+                    }
+                },
+            },
+        ),
+        encoding="utf-8",
+    )
+    _write_tasks(
+        tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
+    )
+
+    report = readiness.build_report(
+        tmp_path,
+        git_status_text="",
+        now=datetime(2026, 5, 13, tzinfo=timezone.utc),
+    )
+
+    blind = next(project for project in report["projects"] if project["name"] == "blind-to-x")
+    assert blind["qc"]["available"] is False
+    assert blind["qc"]["status"] == "PARTIAL"
+    assert blind["qc"]["missing_checks"] == ["test"]
+    assert blind["recommendations"][0] == "Refresh project QC so the score reflects the latest test/lint/build state."
 
 
 def test_dirty_paths_lower_the_matching_project_only(tmp_path: Path):

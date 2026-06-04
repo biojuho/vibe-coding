@@ -24,6 +24,12 @@ ACTIVE_PROJECTS = (
     "knowledge-dashboard",
 )
 QC_FRESH_DAYS = 7
+PROJECT_QC_ARTIFACT = Path(".tmp") / "project_qc_runner_latest.json"
+LEGACY_QAQC_ARTIFACTS = (
+    Path("projects") / "knowledge-dashboard" / "data" / "qaqc_result.json",
+    Path("projects") / "knowledge-dashboard" / "public" / "qaqc_result.json",
+)
+PROJECT_QC_SOURCE = "project_qc_runner"
 
 
 @dataclass(frozen=True)
@@ -71,6 +77,14 @@ def _read_json(path: Path) -> dict[str, Any]:
         return {}
     except json.JSONDecodeError:
         return {}
+
+
+def _read_default_qc_data(repo_root: Path) -> dict[str, Any]:
+    for relative in (PROJECT_QC_ARTIFACT, *LEGACY_QAQC_ARTIFACTS):
+        data = _read_json(repo_root / relative)
+        if data:
+            return data
+    return {}
 
 
 def _run_git_status(repo_root: Path) -> str:
@@ -184,19 +198,47 @@ def _project_qc_status(qaqc_data: dict[str, Any], project_name: str, now: dateti
     freshness = _qc_freshness(qaqc_data, now)
     projects = qaqc_data.get("projects")
     if not isinstance(projects, dict):
-        return {"available": False, "status": "UNKNOWN", "passed": 0, "failed": 0, "skipped": 0, **freshness}
+        return {
+            "available": False,
+            "status": "UNKNOWN",
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "missing_checks": [],
+            **freshness,
+        }
 
     result = projects.get(project_name)
     if not isinstance(result, dict):
-        return {"available": False, "status": "UNKNOWN", "passed": 0, "failed": 0, "skipped": 0, **freshness}
+        return {
+            "available": False,
+            "status": "UNKNOWN",
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "missing_checks": [],
+            **freshness,
+        }
 
     status = str(result.get("status") or "UNKNOWN").upper()
+    missing_checks = [str(check) for check in result.get("missing_checks") or []]
+    if qaqc_data.get("source") == PROJECT_QC_SOURCE and result.get("coverage") != "complete":
+        return {
+            "available": False,
+            "status": "PARTIAL",
+            "passed": int(result.get("passed") or 0),
+            "failed": int(result.get("failed") or 0) + int(result.get("errors") or 0),
+            "skipped": int(result.get("skipped") or 0),
+            "missing_checks": missing_checks,
+            **freshness,
+        }
     return {
         "available": True,
         "status": status,
         "passed": int(result.get("passed") or 0),
         "failed": int(result.get("failed") or 0) + int(result.get("errors") or 0),
         "skipped": int(result.get("skipped") or 0),
+        "missing_checks": missing_checks,
         **freshness,
     }
 
@@ -353,11 +395,9 @@ def build_report(
     now: datetime | None = None,
 ) -> dict[str, Any]:
     repo_root = repo_root.resolve()
-    # qaqc_runner.py writes the canonical (git-tracked) artifact to public/; data/ is a gitignored orphan.
-    qaqc_path = qaqc_path or repo_root / "projects" / "knowledge-dashboard" / "public" / "qaqc_result.json"
     now = now or datetime.now(timezone.utc)
     generated_at = now.astimezone().isoformat()
-    qaqc_data = _read_json(qaqc_path)
+    qaqc_data = _read_json(qaqc_path) if qaqc_path is not None else _read_default_qc_data(repo_root)
     tasks = _tasks_by_project(repo_root)
     dirty = _dirty_paths_by_project(git_status_text if git_status_text is not None else _run_git_status(repo_root))
 

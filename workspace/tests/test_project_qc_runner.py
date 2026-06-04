@@ -141,6 +141,87 @@ def test_run_plan_reports_missing_executable(monkeypatch) -> None:
     assert "nope" in results[0]["stderr_tail"]
 
 
+def test_readiness_artifact_aggregates_project_results() -> None:
+    results = [
+        {
+            "project": "blind-to-x",
+            "check": "test",
+            "status": "passed",
+            "returncode": 0,
+            "duration_seconds": 1.2,
+            "command": "python -m pytest",
+            "resolved_command": "python -m pytest",
+            "stdout_tail": "12 passed, 1 skipped in 1.2s",
+            "stderr_tail": "",
+        },
+        {
+            "project": "blind-to-x",
+            "check": "lint",
+            "status": "passed",
+            "returncode": 0,
+            "duration_seconds": 0.3,
+            "command": "python -m ruff check .",
+            "resolved_command": "python -m ruff check .",
+            "stdout_tail": "All checks passed!",
+            "stderr_tail": "",
+        },
+        {
+            "project": "hanwoo-dashboard",
+            "check": "test",
+            "status": "failed",
+            "returncode": 1,
+            "duration_seconds": 2.0,
+            "command": "npm test",
+            "resolved_command": "npm.cmd test",
+            "stdout_tail": "# pass 70\n# fail 1\n# skipped 2\n",
+            "stderr_tail": "",
+        },
+    ]
+
+    artifact = MODULE.build_readiness_artifact(results, timestamp="2026-06-04T00:00:00Z")
+
+    assert artifact["source"] == "project_qc_runner"
+    assert artifact["timestamp"] == "2026-06-04T00:00:00Z"
+    assert artifact["projects"]["blind-to-x"]["status"] == "PASS"
+    assert artifact["projects"]["blind-to-x"]["passed"] == 12
+    assert artifact["projects"]["blind-to-x"]["coverage"] == "complete"
+    assert artifact["projects"]["blind-to-x"]["missing_checks"] == []
+    assert artifact["projects"]["hanwoo-dashboard"]["status"] == "FAIL"
+    assert artifact["projects"]["hanwoo-dashboard"]["failed"] == 1
+    assert artifact["projects"]["hanwoo-dashboard"]["coverage"] == "partial"
+    assert artifact["projects"]["hanwoo-dashboard"]["missing_checks"] == ["build", "lint"]
+    assert artifact["total"]["passed"] == 82
+
+
+def test_main_writes_project_qc_artifact(monkeypatch, tmp_path: Path) -> None:
+    fake_results = [
+        {
+            "project": "blind-to-x",
+            "check": "test",
+            "status": "passed",
+            "returncode": 0,
+            "duration_seconds": 1.0,
+            "command": "python -m pytest",
+            "resolved_command": "python -m pytest",
+            "stdout_tail": "2 passed in 1.0s",
+            "stderr_tail": "",
+        }
+    ]
+    monkeypatch.setattr(MODULE, "run_plan", lambda plan, timeout_seconds, stop_on_failure: fake_results)
+
+    output_path = tmp_path / "project_qc.json"
+    code, output = run_main(["--project", "blind-to-x", "--json", "--artifact", str(output_path)])
+
+    payload = json.loads(output)
+    persisted = json.loads(output_path.read_text(encoding="utf-8"))
+    assert code == 0
+    assert payload["artifact_path"] == str(output_path)
+    assert persisted["projects"]["blind-to-x"]["status"] == "PASS"
+    assert persisted["projects"]["blind-to-x"]["coverage"] == "partial"
+    assert persisted["projects"]["blind-to-x"]["missing_checks"] == ["lint"]
+    assert persisted["projects"]["blind-to-x"]["passed"] == 2
+
+
 def test_list_json_includes_all_project_commands() -> None:
     code, output = run_main(["--list", "--json"])
     payload = json.loads(output)
