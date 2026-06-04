@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-06-04 |
 | Tool | Codex |
+| Work | **T-1243 hanwoo-dashboard ESLint 10 non-adoption closeout**. Investigated Dependabot PR #122 on current `main`. Local trial `npm.cmd install eslint@10.4.1 --save-dev --ignore-scripts` produced peer override warnings for `eslint-plugin-import@2.32.0`, `eslint-plugin-jsx-a11y@6.10.2`, and `eslint-plugin-react@7.37.5` from `eslint-config-next@16.2.6`. Plain `npm.cmd run lint` under ESLint 10 failed with `TypeError: (0 , brace_expansion_1.expand) is not a function`, because Hanwoo's existing global `brace-expansion` override forced `brace-expansion@2.1.1` below `minimatch@10.2.5`. A narrow local rescue trial allowing `minimatch@10.2.5 -> brace-expansion@5.0.6` and refreshing `typescript-eslint` to `8.60.1` moved past that issue but still failed `npm.cmd run lint` with `TypeError: scopeManager.addGlobals is not a function`; `npm.cmd ls eslint eslint-config-next eslint-plugin-react eslint-plugin-import eslint-plugin-jsx-a11y typescript-eslint --depth=2` also marked `eslint@10.4.1` invalid under the current Next plugin peer ranges. Restored tracked files and node_modules to the baseline; `hanwoo-dashboard` remains on `eslint@9.39.4`; `npm.cmd run lint` passes. PR #122 was commented and closed as not currently adoptable. |
+| Next Priorities | No open GitHub PRs remain after T-1243. T-251 remains user-owned Supabase credential reset; keep it separate from local dependency/product-polish completion. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-04 |
+| Tool | Codex |
 | Work | **T-1242 knowledge-dashboard ESLint 10 non-adoption closeout**. Investigated Dependabot PR #117 on current `main`. `eslint-config-next@16.2.6` declares `eslint >=9.0.0`, but current npm metadata shows the bundled/latest relevant plugins are not ESLint 10-ready: `eslint-plugin-import@2.32.0`, `eslint-plugin-jsx-a11y@6.10.2`, and `eslint-plugin-react@7.37.5` peer only through ESLint 9. Local trial `npm.cmd install eslint@10.4.1 --save-dev --ignore-scripts` produced peer override warnings, and `npm.cmd run lint` failed under ESLint 10 with `TypeError: Error while loading rule 'react/display-name': contextOrFilename.getFilename is not a function` from bundled `eslint-plugin-react`. Restored the failed local lockfile churn; `knowledge-dashboard` remains on `eslint@9.39.4`; `npm.cmd run lint` passes there. PR #117 was commented and closed as not currently adoptable. |
 | Next Priorities | Continue with remaining open ESLint line: Hanwoo PR #122. T-251 remains user-owned Supabase credential reset. |
 

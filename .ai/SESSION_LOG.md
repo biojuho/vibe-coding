@@ -754,3 +754,12 @@
 - Local trial: `npm.cmd install eslint@10.4.1 --save-dev --ignore-scripts` completed only with peer override warnings, then `npm.cmd run lint` failed under ESLint 10 with `TypeError: Error while loading rule 'react/display-name': contextOrFilename.getFilename is not a function` from `eslint-config-next`'s bundled `eslint-plugin-react`.
 - Cleanup/verification: restored the failed local lockfile churn; `knowledge-dashboard` remains on `eslint@9.39.4`, `npm.cmd ls eslint --depth=0` reported `eslint@9.39.4`, and `npm.cmd run lint` passed.
 - PR closeout: PR #117 was commented and closed as not currently adoptable; retry should wait for Next's lint plugin stack to publish ESLint 10-compatible plugin versions.
+
+## 2026-06-04 - Codex
+
+- Completed T-1243 by closing Dependabot PR #122 as not currently adoptable instead of committing an unsafe ESLint 10 update for `hanwoo-dashboard`.
+- Research: `eslint@10.4.1` is current/latest and supports local Node `24.13.0`, and `eslint-config-next@16.2.6` declares `eslint >=9.0.0`; however current npm metadata and local install still leave `eslint-plugin-import@2.32.0`, `eslint-plugin-jsx-a11y@6.10.2`, and `eslint-plugin-react@7.37.5` outside ESLint 10 peer support.
+- Local trial: `npm.cmd install eslint@10.4.1 --save-dev --ignore-scripts` completed only with peer override warnings, then `npm.cmd run lint` failed with `TypeError: (0 , brace_expansion_1.expand) is not a function` because Hanwoo's existing `brace-expansion` override forced `brace-expansion@2.1.1` below ESLint 10's `minimatch@10.2.5`.
+- Rescue trial: added a narrow local override for `minimatch@10.2.5 -> brace-expansion@5.0.6` and refreshed `typescript-eslint` to `8.60.1`; lint still failed with `TypeError: scopeManager.addGlobals is not a function`, and `npm.cmd ls eslint eslint-config-next eslint-plugin-react eslint-plugin-import eslint-plugin-jsx-a11y typescript-eslint --depth=2` marked `eslint@10.4.1` invalid under the current Next plugin peer ranges.
+- Cleanup/verification: restored tracked package files and reinstalled the baseline; `npm.cmd ls eslint --depth=0` reported `eslint@9.39.4`, `npm.cmd run lint` passed, and the root worktree was clean before `.ai` documentation updates.
+- PR closeout: PR #122 was commented and closed as not currently adoptable; retry should wait for Next's lint plugin stack to publish ESLint 10-compatible plugin versions and should revisit the Hanwoo `brace-expansion` override interaction with `minimatch@10`.
