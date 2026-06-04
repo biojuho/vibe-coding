@@ -37,6 +37,10 @@ def test_blind_to_x_env_check_is_required_for_launch_readiness():
     assert "blind_to_x_launch_env" in readiness.PROJECTS["blind-to-x"].env_checks
 
 
+def test_knowledge_dashboard_runtime_auth_check_is_required_for_launch_readiness():
+    assert "dashboard_runtime_auth" in readiness.PROJECTS["knowledge-dashboard"].env_checks
+
+
 def _write_project_files(root: Path) -> None:
     for profile in readiness.PROJECTS.values():
         project_root = root / profile.path
@@ -65,6 +69,10 @@ def _write_required_env(root: Path) -> None:
     )
     (root / "projects" / "shorts-maker-v2" / ".env").write_text(
         "OPENAI_API_KEY=sk-real-test-key\n",
+        encoding="utf-8",
+    )
+    (root / "projects" / "knowledge-dashboard" / ".env.local").write_text(
+        "DASHBOARD_API_KEY=knowledge-dashboard-test-key\n",
         encoding="utf-8",
     )
 
@@ -354,6 +362,32 @@ def test_missing_project_qc_is_unknown_instead_of_root_fallback(tmp_path: Path):
     assert knowledge["qc"]["status"] == "UNKNOWN"
     assert knowledge["qc"]["passed"] == 0
     assert "Refresh project QC" in knowledge["recommendations"][0]
+
+
+def test_missing_knowledge_dashboard_api_key_blocks_launch_readiness(tmp_path: Path):
+    _write_project_files(tmp_path)
+    _write_required_env(tmp_path)
+    (tmp_path / "projects" / "knowledge-dashboard" / ".env.local").write_text(
+        "DASHBOARD_API_KEY=change-me-to-a-long-random-secret\n",
+        encoding="utf-8",
+    )
+    qaqc_path = _write_qaqc(tmp_path)
+    _write_tasks(
+        tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
+    )
+
+    report = readiness.build_report(
+        tmp_path,
+        qaqc_path=qaqc_path,
+        git_status_text="",
+        now=datetime(2026, 5, 13, tzinfo=timezone.utc),
+    )
+
+    knowledge = next(project for project in report["projects"] if project["name"] == "knowledge-dashboard")
+    assert knowledge["state"] == "blocked"
+    assert knowledge["env"]["checks"][0]["name"] == "Dashboard API key"
+    assert knowledge["env"]["checks"][0]["severity"] == "blocker"
+    assert "DASHBOARD_API_KEY still contains a placeholder" in knowledge["recommendations"][0]
 
 
 def test_missing_shorts_provider_keys_block_launch_readiness(tmp_path: Path):

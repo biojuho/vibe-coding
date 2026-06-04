@@ -63,7 +63,7 @@ PROJECTS = {
         name="knowledge-dashboard",
         path="projects/knowledge-dashboard",
         required_files=("README.md", "package.json", "src/app/page.tsx"),
-        env_checks=("dashboard_api_key",),
+        env_checks=("dashboard_runtime_auth",),
     ),
 }
 
@@ -89,6 +89,7 @@ SHORTS_PROVIDER_KEYS = (
     "ZHIPUAI_API_KEY",
     "MIMO_API_KEY",
 )
+KNOWLEDGE_DASHBOARD_ENV_FILES = (".env.local", ".env")
 
 
 def _round_score(value: float) -> int:
@@ -296,6 +297,14 @@ def _read_env_assignments(env_path: Path) -> dict[str, str]:
     return assignments
 
 
+def _read_first_project_env(project_root: Path, names: tuple[str, ...]) -> tuple[Path | None, dict[str, str]]:
+    for name in names:
+        env_path = project_root / name
+        if env_path.exists():
+            return env_path, _read_env_assignments(env_path)
+    return None, {}
+
+
 def _looks_placeholder(value: str) -> bool:
     normalized = value.strip().lower()
     if not normalized:
@@ -307,6 +316,8 @@ def _looks_placeholder(value: str) -> bool:
             "placeholder",
             "changeme",
             "change_me",
+            "change-me",
+            "replace-me",
             "sk-...",
             "aiza...",
             "<",
@@ -411,13 +422,45 @@ def _env_status(repo_root: Path, profile: ProjectProfile) -> dict[str, Any]:
                 "message": message,
             }
         )
-    if "dashboard_api_key" in profile.env_checks:
+    if "dashboard_runtime_auth" in profile.env_checks:
+        project_root = repo_root / profile.path
+        env_path, assignments = _read_first_project_env(project_root, KNOWLEDGE_DASHBOARD_ENV_FILES)
+        dashboard_key = assignments.get("DASHBOARD_API_KEY", "")
+        dashboard_key_configured = bool(dashboard_key) and not _looks_placeholder(dashboard_key)
+        if env_path is None:
+            dashboard_message = (
+                "projects/knowledge-dashboard/.env.local or .env is missing; configure DASHBOARD_API_KEY before launch."
+            )
+        elif "DASHBOARD_API_KEY" not in assignments:
+            dashboard_message = f"DASHBOARD_API_KEY is missing from {env_path.relative_to(repo_root).as_posix()}."
+        elif not dashboard_key:
+            dashboard_message = f"DASHBOARD_API_KEY is empty in {env_path.relative_to(repo_root).as_posix()}."
+        elif _looks_placeholder(dashboard_key):
+            dashboard_message = "DASHBOARD_API_KEY still contains a placeholder."
+        else:
+            dashboard_message = "DASHBOARD_API_KEY is configured for authenticated dashboard routes."
         checks.append(
             {
                 "name": "Dashboard API key",
+                "ok": dashboard_key_configured,
+                "severity": "blocker" if not dashboard_key_configured else "ok",
+                "message": dashboard_message,
+            }
+        )
+
+        session_secret = assignments.get("DASHBOARD_SESSION_SECRET", "")
+        dedicated_secret_configured = bool(session_secret) and not _looks_placeholder(session_secret)
+        session_message = (
+            "Dedicated DASHBOARD_SESSION_SECRET is configured."
+            if dedicated_secret_configured
+            else "DASHBOARD_SESSION_SECRET is optional; DASHBOARD_API_KEY fallback will sign sessions."
+        )
+        checks.append(
+            {
+                "name": "Dashboard session signing secret",
                 "ok": True,
-                "severity": "watch",
-                "message": "Runtime key is checked by the dashboard auth route.",
+                "severity": "ok" if dedicated_secret_configured else "watch",
+                "message": session_message,
             }
         )
 
