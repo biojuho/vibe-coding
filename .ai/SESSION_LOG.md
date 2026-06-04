@@ -643,3 +643,17 @@
 - Browser QA: Playwright CLI opened the built preview, clicked `Game Start`, verified the 480x800 canvas was nonblank, confirmed a drop increased nonzero pixels from 2665 to 4200, saw no console errors, and all static requests returned 200. The only warning was caused by the verification `getImageData` readback itself.
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/ab-suika-jsdom-1233.json --json` returned `adopt_candidate` with `score_delta=0.4`.
 - Post-push requirement: comment on and close Dependabot PR #98 as superseded, then confirm main `root-quality-gate` and `active-project-matrix` pass.
+
+## 2026-06-04 - Codex
+
+- Completed T-1234 pre-push implementation by superseding Dependabot PR #120 on current `main`.
+- Changed `projects/hanwoo-dashboard/package.json`: aligned `prisma`, `@prisma/client`, and `@prisma/adapter-pg` from `^7.6.0` to `^7.8.0` instead of updating only the CLI package.
+- Changed `projects/hanwoo-dashboard/package-lock.json`: updated the Prisma CLI/client/adapter dependency subtree to 7.8.0.
+- Changed `pnpm-lock.yaml`: updated the Hanwoo importer specifiers for `prisma`, `@prisma/client`, and `@prisma/adapter-pg` to `^7.8.0`. The resolved versions were already 7.8.0, so the root lock change is limited to those specifiers.
+- Research: `npm.cmd view prisma@7.8.0`, `@prisma/client@7.8.0`, and `@prisma/adapter-pg@7.8.0` report latest/current 7.8.0; Node engine `^20.19 || ^22.12 || >=24.0` is compatible with local Node `24.13.0`. Official Prisma 7.7.0/7.8.0 release notes were reviewed; 7.8.0 adds `queryPlanCacheMaxSize` and fixes Prisma Client/schema-engine issues around PostgreSQL JSON filters, enum parameterization, parameter limits, concurrent index migration replay, and sequence-default introspection.
+- Verification: root `pnpm.cmd install --lockfile-only --frozen-lockfile --ignore-scripts` passed; `npm.cmd install --ignore-scripts` passed; `npx.cmd prisma --version` reported Prisma/client 7.8.0; adapter import smoke returned `function`; `npm.cmd run db:generate` generated Prisma Client 7.8.0; `npm.cmd run db:prisma7-test` passed 14 offline checks, failed 0, skipped 1 live CRUD block.
+- Hanwoo QC: `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed 498 tests, lint, and build. `npm.cmd run smoke` passed with the script's accepted route warnings.
+- Browser QA: Playwright CLI opened `/login`, filled the demo credentials, submitted the auth callback, showed the Korean invalid-login alert gracefully, and reported console errors/warnings 0 with static/auth requests 200. A protected `/admin/diagnostics` probe returned 307 to the configured `localhost:3001` Auth.js URL, so the temporary 3102 browser refusal is an environment URL mismatch rather than a Prisma regression.
+- Audit note: `npm.cmd audit --json` still reports the existing 7 advisories (6 moderate, 1 high), unchanged from before this bump; the suggested Prisma fix path is an unsuitable downgrade to 6.19.3, so no broad audit fix was applied in this scoped minor bump.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/ab-hanwoo-prisma-1234.json --json` returned `adopt_candidate` with `score_delta=0.2857142857142857`.
+- Post-push requirement: comment on and close Dependabot PR #120 as superseded, then confirm main `root-quality-gate` and `active-project-matrix` pass. T-251 remains separate user-owned Supabase credential reset work.
