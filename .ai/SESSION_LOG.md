@@ -631,3 +631,15 @@
 - Verification: `uv lock --project projects/blind-to-x --check` passed; import/API smoke reported Notion `3.1.0` and confirmed `AsyncClient` namespaces/methods used by blind-to-x; focused Notion upload/schema/persist tests passed 163/163 with one unrelated deprecated `google.generativeai` warning; extra Notion analytics/query/backfill tests passed 99/99; `python execution/project_qc_runner.py --project blind-to-x --check lint --json` passed.
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/ab-blind-to-x-notion-client-1231.json --json` returned `adopt_candidate` with `score_delta=0.55`; the task ID was reassigned to T-1232 after concurrent word-chain T-1231 landed.
 - Post-push requirement: comment on and close Dependabot PR #80 as superseded, then confirm main `root-quality-gate` and `active-project-matrix` pass. T-1231 already landed on `main`; PR #97 remains open until closure after CI settles.
+
+## 2026-06-04 - Codex
+
+- Completed T-1233 pre-push implementation by superseding Dependabot PR #98 on current `main`.
+- Changed `projects/suika-game-v2/package.json`: bumped `jsdom` from `^28.1.0` to `^29.1.1`.
+- Changed `projects/suika-game-v2/package-lock.json`: updated jsdom to `29.1.1` and refreshed its npm dependency subtree.
+- Changed `pnpm-lock.yaml`: updated the suika importer and Vitest jsdom peer path to `jsdom@29.1.1`, then removed the unused jsdom 28 snapshot entries without unrelated workspace lock normalization.
+- Research: `npm.cmd view jsdom dist-tags version --json` reports latest/current `29.1.1`; `jsdom@29.1.1` supports Node `^20.19.0 || ^22.13.0 || >=24.0.0`, compatible with local Node `24.13.0`. Official jsdom v29.0.0, v29.1.0, and v29.1.1 release notes were reviewed; v29.0.0 is the relevant compatibility boundary with a Node 22 floor of `22.13.0+` and CSSOM changes.
+- Verification: root `pnpm.cmd install --lockfile-only --frozen-lockfile --ignore-scripts` passed; suika `npm.cmd test` passed 61/61; `npm.cmd run lint` passed; `npm.cmd run build` passed via the established ASCII fallback after direct Vite exited `3221226505`; jsdom smoke reported `29.1.1` and DOM text `ok`; `npm.cmd audit --json` reported 0 vulnerabilities.
+- Browser QA: Playwright CLI opened the built preview, clicked `Game Start`, verified the 480x800 canvas was nonblank, confirmed a drop increased nonzero pixels from 2665 to 4200, saw no console errors, and all static requests returned 200. The only warning was caused by the verification `getImageData` readback itself.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/ab-suika-jsdom-1233.json --json` returned `adopt_candidate` with `score_delta=0.4`.
+- Post-push requirement: comment on and close Dependabot PR #98 as superseded, then confirm main `root-quality-gate` and `active-project-matrix` pass.
