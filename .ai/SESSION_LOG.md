@@ -508,3 +508,13 @@
 - Verified `.env` still points to `postgresql://postgres.fuemeqmigptwfzqvrpjf:...@aws-0-ap-northeast-2.pooler.supabase.com:6543/postgres`; no local-side fix path exists until Supabase credentials are resynced by user.
 - Ran `python execution/session_orient.py --json`; it still reports T-251 as the only TODO (`todo=1`) and no code-path tasks in progress.
 - Ran `python execution/handoff_rotator.py --check`; it returned noop (`kept=518`, no archive needed yet).
+
+## 2026-06-04 - Codex
+
+- Completed T-1209 Hermes command/path recovery and Grok OAuth prep.
+- Added stable command shims outside the repo at `%APPDATA%\npm\hermes.cmd`, `%APPDATA%\npm\hermes-agent.cmd`, and `%APPDATA%\npm\hermes-acp.cmd` pointing to the Hermes venv executables.
+- Updated the current PowerShell profile outside the repo at `%USERPROFILE%\OneDrive\문서\WindowsPowerShell\Microsoft.PowerShell_profile.ps1` to prepend `%LOCALAPPDATA%\hermes\hermes-agent\venv\Scripts` when present.
+- Verified `hermes --version` resolves and reports Hermes Agent v0.15.1, and `hermes doctor` runs.
+- Set Hermes config outside the repo at `%LOCALAPPDATA%\hermes\config.yaml` to `model.provider=xai-oauth`, `model.default=grok-4.3`, and `model.base_url=https://api.x.ai/v1`.
+- Started a visible PowerShell OAuth flow with `hermes auth add xai-oauth --timeout 900; hermes auth status xai-oauth`, but current verification still reports `xai-oauth: logged out` until the user completes browser approval.
+- Existing unrelated `projects/knowledge-dashboard` worktree changes were left untouched.

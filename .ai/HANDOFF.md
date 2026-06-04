@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-06-04 |
 | Tool | Codex |
+| Work | **T-1209 Hermes command/path recovery and Grok OAuth prep**. Fixed the user-facing `hermes` command-not-found state after prior Hermes v0.15.1 install by adding stable cmd shims in `%APPDATA%\npm` for `hermes`, `hermes-agent`, and `hermes-acp`, and by extending the current PowerShell profile to prepend `%LOCALAPPDATA%\hermes\hermes-agent\venv\Scripts` when present. Verified `hermes --version` resolves and reports Hermes Agent v0.15.1, and `hermes doctor` runs. Set Hermes default model config to `model.provider=xai-oauth`, `model.default=grok-4.3`, `model.base_url=https://api.x.ai/v1`. Launched a visible PowerShell OAuth flow with `hermes auth add xai-oauth --timeout 900; hermes auth status xai-oauth`. |
+| Next Priorities | xAI OAuth still requires the user to finish browser approval. Current verification reports `xai-oauth: logged out`; once the visible OAuth window/browser is approved, rerun `hermes auth status xai-oauth` and then a small `hermes -z` smoke. Existing unrelated `projects/knowledge-dashboard` worktree changes were left untouched. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-04 |
+| Tool | Codex |
 | Work | **T-1208 workspace control-plane rotation hardening**. Rotated oversized `HANDOFF.md` with existing `execution/handoff_rotator.py` (`archived=458`, `kept=73`, archive `.ai/archive/HANDOFF_archive_2026-06-04.md`). Added deterministic `execution/session_log_rotator.py` plus focused tests, then rotated `.ai/SESSION_LOG.md` (`archived_table_rows=241`, `archived_detail_sections=218`, cutoff `2026-05-28`, archive `.ai/archive/SESSION_LOG_before_2026-05-28.md`). Verification: `python -m pytest workspace/tests/test_session_log_rotator.py -q` passed 10/10, `python -m py_compile execution/session_log_rotator.py` passed, and post-rotation dry-runs returned noop. |
 | Next Priorities | T-251 remains user-owned Supabase credential reset. During session close, use `python execution/handoff_rotator.py --check --json` and `python execution/session_log_rotator.py --check --json` when `.ai` relay files grow large. |
 
