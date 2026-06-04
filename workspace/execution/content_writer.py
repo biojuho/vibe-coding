@@ -96,24 +96,29 @@ def _default_template() -> dict:
 def _write_with_gemini(text: str, template: dict) -> str:
     """Google Gemini API로 아티클을 생성합니다."""
     try:
-        import google.generativeai as genai
+        from google import genai
+        from google.genai import types
     except ImportError:
-        raise ImportError("google-generativeai 미설치. pip install google-generativeai")
+        raise ImportError("google-genai 미설치. pip install google-genai")
 
     api_key = os.environ.get("GOOGLE_AI_API_KEY") or os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("GOOGLE_AI_API_KEY 또는 GEMINI_API_KEY 환경 변수 필요")
 
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash",
-        system_instruction=template.get("system", ""),
-    )
-
+    client = genai.Client(api_key=api_key)
     user_message = _build_user_message(text, template)
-    response = model.generate_content(user_message)
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=user_message,
+            config=types.GenerateContentConfig(system_instruction=template.get("system", "")),
+        )
+    finally:
+        close = getattr(client, "close", None)
+        if callable(close):
+            close()
 
-    return response.text.strip()
+    return (response.text or "").strip()
 
 
 # ── Claude 글 작성 ──────────────────────────────────────────────────────────

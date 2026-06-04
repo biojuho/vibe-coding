@@ -41,36 +41,45 @@ def test_build_user_message_truncates_long_text() -> None:
 def test_write_with_gemini_uses_configured_model(monkeypatch) -> None:
     calls: dict[str, object] = {}
 
-    fake_genai = ModuleType("google.generativeai")
+    fake_genai = ModuleType("google.genai")
+    fake_types = ModuleType("google.genai.types")
 
-    def fake_configure(*, api_key: str) -> None:
-        calls["api_key"] = api_key
-
-    class FakeModel:
-        def __init__(self, *, model_name: str, system_instruction: str) -> None:
-            calls["model_name"] = model_name
+    class FakeGenerateContentConfig:
+        def __init__(self, *, system_instruction: str) -> None:
             calls["system_instruction"] = system_instruction
 
-        def generate_content(self, user_message: str):
-            calls["user_message"] = user_message
+    class FakeModels:
+        def generate_content(self, **kwargs):
+            calls.update(kwargs)
             return SimpleNamespace(text="  # Gemini Title\nBody  ")
 
-    fake_genai.configure = fake_configure
-    fake_genai.GenerativeModel = FakeModel
+    class FakeClient:
+        def __init__(self, *, api_key: str) -> None:
+            calls["api_key"] = api_key
+            self.models = FakeModels()
+
+        def close(self) -> None:
+            calls["closed"] = True
+
+    fake_types.GenerateContentConfig = FakeGenerateContentConfig
+    fake_genai.Client = FakeClient
+    fake_genai.types = fake_types
 
     fake_google = sys.modules.get("google", ModuleType("google"))
-    fake_google.generativeai = fake_genai
+    fake_google.genai = fake_genai
 
     monkeypatch.setitem(sys.modules, "google", fake_google)
-    monkeypatch.setitem(sys.modules, "google.generativeai", fake_genai)
+    monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
+    monkeypatch.setitem(sys.modules, "google.genai.types", fake_types)
     monkeypatch.setenv("GOOGLE_AI_API_KEY", "gemini-key")
 
     result = content_writer._write_with_gemini("source text", {"system": "system"})
 
     assert result == "# Gemini Title\nBody"
     assert calls["api_key"] == "gemini-key"
-    assert calls["model_name"] == "gemini-2.0-flash"
-    assert "source text" in str(calls["user_message"])
+    assert calls["model"] == "gemini-2.0-flash"
+    assert "source text" in str(calls["contents"])
+    assert calls["closed"] is True
 
 
 def test_write_with_claude_uses_messages_api(monkeypatch) -> None:
