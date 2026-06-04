@@ -123,7 +123,8 @@ def _skill_item(root: Path) -> dict[str, Any]:
     complete = not missing and not missing_terms
     evidence = [
         f"{len(SKILL_ARTIFACTS) - len(missing)}/{len(SKILL_ARTIFACTS)} required auto-research artifacts exist.",
-        "SKILL.md documents A/B, completion audit, GitHub inventory, browser QA inventory, and dependency freshness commands."
+        "SKILL.md documents A/B, completion audit, launch objective audit, GitHub inventory, "
+        "browser QA inventory, and dependency freshness commands."
         if not missing_terms
         else "SKILL.md is missing documented command reference(s): " + ", ".join(missing_terms),
     ]

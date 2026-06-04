@@ -142,9 +142,11 @@ def test_manifest_is_complete_when_all_requirements_have_current_evidence(tmp_pa
         dependency_inventory=_dependency_inventory(),
     )
     result = completion_audit.audit_manifest(manifest)
+    skill_item = next(item for item in manifest["items"] if item["requirement"].startswith("Create"))
 
     assert result["status"] == "complete"
     assert result["summary"]["complete_count"] == len(manifest["items"])
+    assert any("launch objective audit" in evidence for evidence in skill_item["evidence"])
 
 
 def test_external_user_blocker_prevents_completion(tmp_path: Path) -> None:
