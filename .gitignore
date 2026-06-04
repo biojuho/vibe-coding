@@ -81,6 +81,7 @@ venv/
 
 # ===== AI 도구 로컬 설정 (각 도구 고유) =====
 .agent/
+.playwright-cli/
 .agents/skills/_archive/
 .amazonq/agents/
 .claude/*
@@ -93,6 +94,7 @@ venv/
 scratch/
 scratch.*
 **/scratch.*
+output/playwright/
 
 # ===== Nested Git Repos (renamed for root backup) =====
 **/.git.bak/

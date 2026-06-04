@@ -18,6 +18,65 @@ const FORBIDDEN_RANGES: ReadonlyArray<readonly [number, number]> = [
 
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".mts"]);
 const SRC_DIR = path.dirname(fileURLToPath(import.meta.url));
+const GUARD_TEST_FILE = "encoding-guard.test.mts";
+
+const COMMON_KOREAN_MOJIBAKE_FRAGMENTS = [
+	"以",
+	"李⑤",
+	"醫낇",
+	"肄섏",
+	"誘명",
+	"蹂",
+	"臾몄",
+	"源⑤",
+	"寃",
+	"寃쎄",
+	"?쒗",
+	"?댁",
+	"?꾨",
+	"?뚰",
+	"?" + "\u317d",
+];
+
+const READABLE_KOREAN_COPY_BY_FILE: ReadonlyArray<{
+	file: string;
+	copy: readonly string[];
+}> = [
+	{
+		file: path.join("app", "page.tsx"),
+		copy: [
+			"본문으로 건너뛰기",
+			"나만의 지식 관리 대시보드",
+			"운영 콘솔",
+			"지식 현황",
+			"QA/QC 현황",
+			"활동 타임라인",
+		],
+	},
+	{
+		file: path.join("components", "ProductReadinessPanel.tsx"),
+		copy: [
+			"제품 운영 콘솔",
+			"종합 점수",
+			"프로젝트",
+			"차단됨",
+			"워크스페이스 작업",
+			"준비된 프로젝트",
+			"에이전트 스킬 상태",
+			"준비도",
+			"통과",
+			"실패",
+			"미해결 작업",
+			"담당자 없음",
+			"변경된 파일",
+			"깨끗함",
+			"문서",
+			"필수 파일",
+			"다음 작업",
+			"워크스페이스 블로커",
+		],
+	},
+];
 
 function isForbidden(codePoint: number): boolean {
 	return FORBIDDEN_RANGES.some(([lo, hi]) => codePoint >= lo && codePoint <= hi);
@@ -62,5 +121,53 @@ test("no source file contains isolated Hangul jamo or replacement characters", (
 		offenders,
 		[],
 		`Mojibake detected (re-save the file as UTF-8):\n${offenders.join("\n")}`,
+	);
+});
+
+test("no source file contains common Korean mojibake fragments", () => {
+	const offenders: string[] = [];
+
+	for (const file of collectSourceFiles(SRC_DIR)) {
+		const rel = path.relative(SRC_DIR, file);
+		if (rel === GUARD_TEST_FILE) {
+			continue;
+		}
+
+		const source = readFileSync(file, "utf8");
+		const fragments = COMMON_KOREAN_MOJIBAKE_FRAGMENTS.filter((fragment) =>
+			source.includes(fragment),
+		);
+		if (fragments.length > 0) {
+			offenders.push(`${rel}: ${fragments.join(", ")}`);
+		}
+	}
+
+	assert.deepEqual(
+		offenders,
+		[],
+		`Korean mojibake fragments detected (re-save the file as UTF-8):\n${offenders.join(
+			"\n",
+		)}`,
+	);
+});
+
+test("product operations copy stays readable Korean", () => {
+	const missing: string[] = [];
+
+	for (const { file, copy } of READABLE_KOREAN_COPY_BY_FILE) {
+		const source = readFileSync(path.join(SRC_DIR, file), "utf8");
+		for (const expected of copy) {
+			if (!source.includes(expected)) {
+				missing.push(`${file}: ${expected}`);
+			}
+		}
+	}
+
+	assert.deepEqual(
+		missing,
+		[],
+		`Expected Korean operations copy is missing or corrupted:\n${missing.join(
+			"\n",
+		)}`,
 	);
 });
