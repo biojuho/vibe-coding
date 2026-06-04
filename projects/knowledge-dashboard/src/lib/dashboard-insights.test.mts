@@ -50,6 +50,32 @@ test("flags shallow notebooks and empty references with actionable recommendatio
 	assert.ok(insights.badges.some((badge) => badge.title === "Coverage gap"));
 });
 
+test("returns a safe, zeroed summary for an empty portfolio", () => {
+	const insights = buildDashboardInsights([], []);
+
+	assert.equal(insights.summary.repoCount, 0);
+	assert.equal(insights.summary.notebookCount, 0);
+	assert.equal(insights.summary.healthScore, 0);
+	assert.equal(insights.summary.dominantLanguage, null);
+	assert.equal(insights.summary.totalSources, 0);
+	assert.deepEqual(insights.badges, []);
+	// Always surfaces at least a maintenance recommendation so the panel is never blank.
+	assert.ok(insights.actions.length >= 1);
+	assert.equal(insights.actions[0].title, "Maintain the current balance");
+});
+
+test("tolerates nullish inputs without throwing", () => {
+	const insights = buildDashboardInsights(
+		null as unknown as Parameters<typeof buildDashboardInsights>[0],
+		undefined as unknown as Parameters<typeof buildDashboardInsights>[1],
+	);
+
+	assert.equal(insights.summary.repoCount, 0);
+	assert.equal(insights.summary.notebookCount, 0);
+	assert.deepEqual(insights.languageData, []);
+	assert.deepEqual(insights.notebookData, []);
+});
+
 test("adds focus-mode messaging when analytics are filtered by query", () => {
 	const insights = buildDashboardInsights(
 		[{ language: "TypeScript" }, { language: "Python" }, { language: "Go" }],

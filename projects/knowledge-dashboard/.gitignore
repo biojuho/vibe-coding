@@ -33,8 +33,10 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
-# internal dashboard payloads
+# internal dashboard payloads (served only via authenticated /api/data/*)
 /data/*.json
+# public/ is web-served WITHOUT auth — never ship dashboard/QA-QC JSON there
+/public/*.json
 
 # vercel
 .vercel

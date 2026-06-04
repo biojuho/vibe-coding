@@ -224,27 +224,67 @@ function TabBar({
 		},
 	];
 
+	// Roving-tabindex keyboard support per the WAI-ARIA tabs pattern: arrows move
+	// between tabs (focus follows selection), Home/End jump to the ends.
+	const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+		const currentIndex = tabs.findIndex((tab) => tab.id === activeTab);
+		let nextIndex: number | null = null;
+
+		if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+			nextIndex = (currentIndex + 1) % tabs.length;
+		} else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+			nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+		} else if (event.key === "Home") {
+			nextIndex = 0;
+		} else if (event.key === "End") {
+			nextIndex = tabs.length - 1;
+		}
+
+		if (nextIndex !== null) {
+			event.preventDefault();
+			const nextId = tabs[nextIndex].id;
+			onTabChange(nextId);
+			requestAnimationFrame(() => {
+				document.getElementById(`tab-${nextId}`)?.focus();
+			});
+		}
+	};
+
 	return (
-		<div className="flex gap-2 bg-slate-900/60 p-1.5 rounded-xl border border-white/5 backdrop-blur-sm">
-			{tabs.map((tab) => (
-				<button
-					key={tab.id}
-					onClick={() => onTabChange(tab.id)}
-					className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-						activeTab === tab.id
-							? "bg-white/10 text-white shadow-sm"
-							: "text-slate-400 hover:text-slate-200 hover:bg-white/5"
-					}`}
-				>
-					{tab.icon}
-					{tab.label}
-					{tab.count !== undefined && tab.count > 0 && (
-						<span className="ml-1 text-xs bg-slate-700/80 px-1.5 py-0.5 rounded-full">
-							{tab.count}
-						</span>
-					)}
-				</button>
-			))}
+		<div
+			role="tablist"
+			aria-label="대시보드 섹션"
+			onKeyDown={handleKeyDown}
+			className="flex gap-2 bg-slate-900/60 p-1.5 rounded-xl border border-white/5 backdrop-blur-sm"
+		>
+			{tabs.map((tab) => {
+				const selected = activeTab === tab.id;
+				return (
+					<button
+						key={tab.id}
+						type="button"
+						role="tab"
+						id={`tab-${tab.id}`}
+						aria-selected={selected}
+						aria-controls={`panel-${tab.id}`}
+						tabIndex={selected ? 0 : -1}
+						onClick={() => onTabChange(tab.id)}
+						className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
+							selected
+								? "bg-white/10 text-white shadow-sm"
+								: "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+						}`}
+					>
+						<span aria-hidden="true">{tab.icon}</span>
+						{tab.label}
+						{tab.count !== undefined && tab.count > 0 && (
+							<span className="ml-1 text-xs bg-slate-700/80 px-1.5 py-0.5 rounded-full">
+								{tab.count}
+							</span>
+						)}
+					</button>
+				);
+			})}
 		</div>
 	);
 }
@@ -548,7 +588,7 @@ export default function Dashboard() {
 									setLoadError(
 										error instanceof Error
 											? error.message
-											: "?몄뀡???앹꽦?섏? 紐삵뻽?듬땲??",
+											: "세션을 생성하지 못했습니다.",
 									);
 								} finally {
 									setAuthSubmitting(false);
@@ -613,7 +653,7 @@ export default function Dashboard() {
 								onClick={async () => {
 									try {
 										await clearSession(
-											"?꾩〈 ?몄쬆 ?몃? 留덉?瑜??앹젣?섏? 紐삵뻽?듬땲??",
+											"기존 인증 토큰을 삭제하지 못했습니다.",
 										);
 										setLoadError(null);
 										setAuthError(true);
@@ -621,7 +661,7 @@ export default function Dashboard() {
 										setLoadError(
 											error instanceof Error
 												? error.message
-												: "?몄쬆 ?몃? 珥덇린?붿뿉 ?ㅽ뙣?덉뒿?덈떎.",
+												: "인증 토큰 초기화에 실패했습니다.",
 										);
 									}
 								}}
@@ -654,10 +694,11 @@ export default function Dashboard() {
 								<span className="text-xs text-slate-500 ml-2">
 									(업데이트: {new Date(data.last_updated).toLocaleString()})
 									<button
+										type="button"
 										onClick={async () => {
 											try {
 												await clearSession(
-													"?몄쬆 ?몃? 醫낅즺?섏? 紐삵뻽?듬땲??",
+													"인증 토큰을 종료하지 못했습니다.",
 												);
 												setData(null);
 												setLoadError(null);
@@ -666,11 +707,11 @@ export default function Dashboard() {
 												setLoadError(
 													error instanceof Error
 														? error.message
-														: "?몄쬆 ?몃? 醫낅즺?먯꽌 ?ㅽ뙣?덉뒿?덈떎.",
+														: "인증 토큰 종료에 실패했습니다.",
 												);
 											}
 										}}
-										className="ml-4 hover:underline"
+										className="ml-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 rounded"
 									>
 										로그아웃
 									</button>
@@ -687,6 +728,7 @@ export default function Dashboard() {
 								</div>
 								<Input
 									type="text"
+									aria-label="프로젝트나 노트북 검색"
 									placeholder="프로젝트나 노트북 검색..."
 									value={searchTerm}
 									onChange={(e) => setSearchTerm(e.target.value)}
@@ -719,7 +761,13 @@ export default function Dashboard() {
 						<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
 					</div>
 				) : (
-					<>
+					<div
+						role="tabpanel"
+						id={`panel-${activeTab}`}
+						aria-labelledby={`tab-${activeTab}`}
+						tabIndex={0}
+						className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 rounded-xl"
+					>
 						{activeTab === "operations" &&
 							(data?.readiness ? (
 								<ProductReadinessPanel
@@ -1002,7 +1050,7 @@ export default function Dashboard() {
 						{activeTab === "activity" && (
 							<ActivityTimeline sessions={data?.sessions || []} />
 						)}
-					</>
+					</div>
 				)}
 			</main>
 

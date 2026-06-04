@@ -14,8 +14,13 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = PROJECT_ROOT / "data"
 OUTPUT_FILE = DATA_DIR / "dashboard_data.json"
-# qaqc_runner.py writes the canonical artifact to public/; data/qaqc_result.json is a gitignored orphan.
+# qaqc_runner.py writes its local artifact to public/ (read source for local tooling).
+# It must NOT ship in the deployed bundle: public/ is served without auth, so
+# public/qaqc_result.json is gitignored and untracked. The authenticated Next route
+# (src/app/api/data/qaqc/route.ts) serves data/qaqc_result.json instead, which this
+# sync refreshes from the public source so it never goes stale (ADR-023).
 QAQC_FILE = PROJECT_ROOT / "public" / "qaqc_result.json"
+QAQC_DATA_FILE = DATA_DIR / "qaqc_result.json"
 READINESS_FILE = DATA_DIR / "product_readiness.json"
 SKILL_LINT_FILE = DATA_DIR / "skill_lint.json"
 SESSION_LOG_PATH = REPO_ROOT / ".ai" / "SESSION_LOG.md"
@@ -306,7 +311,14 @@ def main():
 
             qaqc_data["trend"] = fetch_qaqc_trend()
             data["qaqc"] = qaqc_data
-            print("  - QA/QC result loaded")
+            # Mirror the fresh QA/QC payload into the authenticated data/ location
+            # that the Next route serves, so /api/data/qaqc never returns stale data.
+            try:
+                with QAQC_DATA_FILE.open("w", encoding="utf-8") as data_obj:
+                    json.dump(qaqc_data, data_obj, indent=2, ensure_ascii=False)
+                print(f"  - QA/QC result loaded and mirrored to {QAQC_DATA_FILE}")
+            except Exception as mirror_exc:
+                print(f"  - QA/QC result loaded (mirror to data/ failed: {mirror_exc})")
         except Exception as exc:
             print(f"  - Error loading QA/QC result: {exc}")
 
