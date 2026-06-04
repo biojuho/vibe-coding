@@ -667,3 +667,14 @@
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/ab-hanwoo-health-proxy-1235.json --json` returned `adopt_candidate` with `score_delta=0.6363636363636364`.
 - Boundary: `/api/health` still reports `database: disconnected` with the existing T-251 Supabase `P2010 / XX000 / ENOTFOUND tenant/user postgres.fuemeqmigptwfzqvrpjf not found` warning; this is an external credential/control-plane issue, not part of this local proxy fix.
 - Preservation: unrelated dirty `projects/knowledge-dashboard/package.json`, `projects/knowledge-dashboard/package-lock.json`, and root `pnpm-lock.yaml` `@types/node` changes were not staged for this commit.
+
+## 2026-06-04 - Codex
+
+- Completed T-1236 pre-push implementation by superseding Dependabot PR #84 on current `main`.
+- Changed `projects/knowledge-dashboard/package.json`: bumped `@types/node` from `^20` to `^25.9.1`.
+- Changed `projects/knowledge-dashboard/package-lock.json`: updated `@types/node` to `25.9.1`, `undici-types` to `7.24.6`, and refreshed the optional `@emnapi/wasi-threads` lock entry.
+- Changed `pnpm-lock.yaml`: updated the knowledge-dashboard importer and shared resolver paths to `@types/node@25.9.1`; related Vite/Vitest peer paths now resolve through the newer Node type snapshot.
+- Research: `npm.cmd view @types/node@25.9.1 version dist-tags dependencies typesVersions --json` reports `latest=25.9.1`; TypeScript 5.9 also resolves to 25.9.1; dependency is `undici-types >=7.24.0 <7.24.7`.
+- Verification: root `pnpm.cmd install --lockfile-only --frozen-lockfile --ignore-scripts` passed; `npm.cmd ls @types/node --depth=0` reported `@types/node@25.9.1`; `python execution/project_qc_runner.py --project knowledge-dashboard --json` passed 59 tests, lint, and build; `npm.cmd run smoke` passed; Chrome CDP QA with fixture data passed API-key login, operations/knowledge/qaqc/activity tab clicks, all four data routes plus `/api/health` 200, SVG count 13, console issues 0, and network failures 0.
+- Audit note: `npm.cmd audit --json` still reports the existing 7 advisories, unchanged by this type-only update.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/ab-knowledge-types-node-1236.json --json` returned `adopt_candidate` with `score_delta=0.3333333333333333`.
