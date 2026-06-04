@@ -6,7 +6,10 @@ import {
 	DASHBOARD_SESSION_TTL_SEC,
 	createDashboardSessionToken,
 	getDashboardApiKey,
+	getSessionSigningSecret,
 	isDashboardRequestAuthorized,
+	isSameOriginRequest,
+	verifyDashboardApiKey,
 	verifyDashboardSessionToken,
 } from "./dashboard-auth.ts";
 
@@ -169,10 +172,59 @@ test("missing/invalid credentials yield 401 when a key is configured", () => {
 		assert.equal(wrongBearer.ok, false);
 		assert.equal(wrongBearer.ok === false && wrongBearer.status, 401);
 
+		// A Bearer header whose token differs in length must also be rejected
+		// (the timing-safe compare returns false on length mismatch).
+		const longBearer = isDashboardRequestAuthorized(
+			mockRequest({ authHeader: `Bearer ${KEY}-extra` }),
+		);
+		assert.equal(longBearer.ok, false);
+
 		const staleCookie = isDashboardRequestAuthorized(
 			mockRequest({ cookieToken: "0.deadbeef" }),
 		);
 		assert.equal(staleCookie.ok, false);
 		assert.equal(staleCookie.ok === false && staleCookie.status, 401);
 	});
+});
+
+test("verifyDashboardApiKey is exact and rejects empty/wrong/length-mismatch", () => {
+	assert.equal(verifyDashboardApiKey(KEY, KEY), true);
+	assert.equal(verifyDashboardApiKey("", KEY), false);
+	assert.equal(verifyDashboardApiKey("wrong", KEY), false);
+	assert.equal(verifyDashboardApiKey(`${KEY}x`, KEY), false);
+});
+
+test("getSessionSigningSecret prefers DASHBOARD_SESSION_SECRET, falls back to the key", () => {
+	const previous = process.env.DASHBOARD_SESSION_SECRET;
+	try {
+		delete process.env.DASHBOARD_SESSION_SECRET;
+		assert.equal(getSessionSigningSecret(KEY), KEY);
+
+		process.env.DASHBOARD_SESSION_SECRET = "rotating-secret";
+		assert.equal(getSessionSigningSecret(KEY), "rotating-secret");
+
+		process.env.DASHBOARD_SESSION_SECRET = "   ";
+		assert.equal(getSessionSigningSecret(KEY), KEY, "blank falls back to key");
+	} finally {
+		if (previous === undefined) {
+			delete process.env.DASHBOARD_SESSION_SECRET;
+		} else {
+			process.env.DASHBOARD_SESSION_SECRET = previous;
+		}
+	}
+});
+
+test("isSameOriginRequest allows same-origin/absent, blocks cross-site", () => {
+	const make = (site?: string) =>
+		({
+			headers: {
+				get: (name: string) =>
+					name.toLowerCase() === "sec-fetch-site" ? (site ?? null) : null,
+			},
+		}) as unknown as Parameters<typeof isSameOriginRequest>[0];
+
+	assert.equal(isSameOriginRequest(make()), true, "absent header -> allowed (ops)");
+	assert.equal(isSameOriginRequest(make("same-origin")), true);
+	assert.equal(isSameOriginRequest(make("none")), true);
+	assert.equal(isSameOriginRequest(make("cross-site")), false);
 });

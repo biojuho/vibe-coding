@@ -24,6 +24,34 @@ export function getDashboardApiKey() {
 	return process.env.DASHBOARD_API_KEY?.trim() || null;
 }
 
+// Constant-time comparison of a client-supplied key against the configured key.
+// Used by the session-exchange route so the primary credential check does not
+// leak length/prefix information through response timing.
+export function verifyDashboardApiKey(candidate: string, validKey: string) {
+	if (!candidate) {
+		return false;
+	}
+
+	return safeEqual(candidate, validKey);
+}
+
+// The secret used to sign session cookies. Defaults to the API key so existing
+// single-secret deploys keep working, but a dedicated DASHBOARD_SESSION_SECRET
+// lets operators rotate the signing key (invalidating all sessions) WITHOUT
+// changing the user-facing login key or breaking Bearer ops integrations.
+export function getSessionSigningSecret(validKey: string) {
+	return process.env.DASHBOARD_SESSION_SECRET?.trim() || validKey;
+}
+
+// Login-CSRF guard. Browsers send Sec-Fetch-Site on every request; a genuine
+// cross-site POST is "cross-site". Server-to-server callers (ops/smoke) omit the
+// header entirely, so absence is treated as allowed. The JSON content-type
+// already blocks classic cross-site form posts; this closes the residual gap.
+export function isSameOriginRequest(request: { headers: Headers }) {
+	const site = request.headers.get("sec-fetch-site");
+	return site !== "cross-site";
+}
+
 export function createDashboardSessionToken(
 	validKey: string,
 	now = Date.now(),
@@ -69,7 +97,7 @@ export function applyDashboardSession(
 ) {
 	response.cookies.set(
 		DASHBOARD_SESSION_COOKIE,
-		createDashboardSessionToken(validKey),
+		createDashboardSessionToken(getSessionSigningSecret(validKey)),
 		{
 			httpOnly: true,
 			sameSite: "lax",
@@ -105,12 +133,17 @@ export function isDashboardRequestAuthorized(request: NextRequest) {
 	}
 
 	const authHeader = request.headers.get("authorization");
-	if (authHeader === `Bearer ${validKey}`) {
-		return { ok: true as const, validKey };
+	if (authHeader?.startsWith("Bearer ")) {
+		// Constant-time check of the ops Bearer credential (see verifyDashboardApiKey).
+		if (safeEqual(authHeader.slice("Bearer ".length), validKey)) {
+			return { ok: true as const, validKey };
+		}
 	}
 
 	const sessionToken = request.cookies.get(DASHBOARD_SESSION_COOKIE)?.value;
-	if (verifyDashboardSessionToken(sessionToken, validKey)) {
+	if (
+		verifyDashboardSessionToken(sessionToken, getSessionSigningSecret(validKey))
+	) {
 		return { ok: true as const, validKey };
 	}
 

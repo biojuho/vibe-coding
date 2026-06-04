@@ -10,8 +10,11 @@ import {
 	Wrench,
 	XCircle,
 } from "lucide-react";
-
-type ReadinessState = "ready" | "needs-review" | "blocked" | "at-risk";
+import {
+	type ReadinessState,
+	resolveReadinessState,
+	resolveSkillStatusState,
+} from "@/lib/readiness-view";
 
 interface ReadinessTask {
 	id: string;
@@ -109,37 +112,37 @@ const stateConfig: Record<
 	}
 > = {
 	ready: {
-		label: "Ready",
+		label: "준비됨",
 		border: "border-emerald-500/30",
 		text: "text-emerald-300",
 		bar: "bg-emerald-400",
-		icon: <CheckCircle2 className="h-4 w-4" />,
+		icon: <CheckCircle2 className="h-4 w-4" aria-hidden="true" />,
 	},
 	"needs-review": {
-		label: "Needs review",
+		label: "검토 필요",
 		border: "border-amber-500/30",
 		text: "text-amber-300",
 		bar: "bg-amber-400",
-		icon: <AlertTriangle className="h-4 w-4" />,
+		icon: <AlertTriangle className="h-4 w-4" aria-hidden="true" />,
 	},
 	blocked: {
-		label: "Blocked",
+		label: "차단됨",
 		border: "border-rose-500/30",
 		text: "text-rose-300",
 		bar: "bg-rose-400",
-		icon: <XCircle className="h-4 w-4" />,
+		icon: <XCircle className="h-4 w-4" aria-hidden="true" />,
 	},
 	"at-risk": {
-		label: "At risk",
+		label: "위험",
 		border: "border-orange-500/30",
 		text: "text-orange-300",
 		bar: "bg-orange-400",
-		icon: <AlertTriangle className="h-4 w-4" />,
+		icon: <AlertTriangle className="h-4 w-4" aria-hidden="true" />,
 	},
 };
 
 function StatePill({ state }: { state: ReadinessState }) {
-	const config = stateConfig[state] ?? stateConfig["at-risk"];
+	const config = stateConfig[resolveReadinessState(state)];
 	return (
 		<span
 			className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${config.border} ${config.text}`}
@@ -151,7 +154,7 @@ function StatePill({ state }: { state: ReadinessState }) {
 }
 
 function ScoreBar({ score, state }: { score: number; state: ReadinessState }) {
-	const config = stateConfig[state] ?? stateConfig["at-risk"];
+	const config = stateConfig[resolveReadinessState(state)];
 	return (
 		<div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
 			<div
@@ -173,7 +176,7 @@ function MetricTile({
 }) {
 	return (
 		<div className="rounded-lg border border-white/5 bg-slate-950/40 px-4 py-3">
-			<p className="text-xs uppercase tracking-wide text-slate-500">{label}</p>
+			<p className="text-xs uppercase tracking-wide text-slate-400">{label}</p>
 			<p className={`mt-1 text-2xl font-semibold ${tone}`}>{value}</p>
 		</div>
 	);
@@ -181,17 +184,17 @@ function MetricTile({
 
 function QcFreshness({ qc }: { qc: ReadinessProject["qc"] }) {
 	if (!qc.available) {
-		return <p className="text-xs text-slate-500">No QC run</p>;
+		return <p className="text-xs text-slate-400">QC 미실행</p>;
 	}
 	if (qc.stale) {
 		const age =
-			typeof qc.age_days === "number" ? `${qc.age_days}d old` : "stale";
+			typeof qc.age_days === "number" ? `${qc.age_days}일 경과` : "오래됨";
 		return <p className="text-xs text-amber-300">{age}</p>;
 	}
 	if (typeof qc.age_days === "number") {
-		return <p className="text-xs text-emerald-300">{qc.age_days}d old</p>;
+		return <p className="text-xs text-emerald-300">{qc.age_days}일 경과</p>;
 	}
-	return <p className="text-xs text-slate-500">Freshness unknown</p>;
+	return <p className="text-xs text-slate-400">신선도 불명</p>;
 }
 
 export default function ProductReadinessPanel({
@@ -199,70 +202,64 @@ export default function ProductReadinessPanel({
 	skillLint,
 }: ProductReadinessPanelProps) {
 	const generatedAt = new Date(data.generated_at).toLocaleString();
-	const skillStatusState: ReadinessState = !skillLint
-		? "needs-review"
-		: skillLint.summary.status === "pass"
-			? "ready"
-			: skillLint.summary.status === "warn"
-				? "needs-review"
-				: "blocked";
+	const overallState = resolveReadinessState(data.overall.state);
+	const skillStatusState = resolveSkillStatusState(skillLint);
+	const workspaceBlockers = data.workspace_blockers ?? [];
 
 	return (
 		<div className="space-y-6">
 			<section
-				className={`rounded-lg border bg-slate-950/50 p-6 ${stateConfig[data.overall.state].border}`}
+				className={`rounded-lg border bg-slate-950/50 p-6 ${stateConfig[overallState].border}`}
 			>
 				<div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
 					<div>
 						<div className="mb-3 flex items-center gap-3">
 							<div className="rounded-lg border border-white/10 bg-white/5 p-2 text-cyan-300">
-								<SquareActivity className="h-5 w-5" />
+								<SquareActivity className="h-5 w-5" aria-hidden="true" />
 							</div>
-							<StatePill state={data.overall.state} />
+							<StatePill state={overallState} />
 						</div>
 						<h2 className="text-2xl font-semibold text-white">
-							Product operations console
+							제품 운영 콘솔
 						</h2>
 						<p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-							Release confidence is scored from QC freshness, open blockers,
-							documentation, worktree hygiene, and runtime readiness.
+							출시 신뢰도는 QC 신선도, 미해결 블로커, 문서화, 워크트리 정리
+							상태, 런타임 준비도를 종합해 산출됩니다.
 						</p>
 					</div>
 					<div className="min-w-[220px] rounded-lg border border-white/5 bg-slate-900/60 p-5">
 						<div className="flex items-end justify-between gap-4">
-							<span className="text-sm text-slate-400">Overall score</span>
+							<span className="text-sm text-slate-400">종합 점수</span>
 							<span className="text-4xl font-semibold text-white">
 								{data.overall.score}
 							</span>
 						</div>
 						<div className="mt-4">
-							<ScoreBar score={data.overall.score} state={data.overall.state} />
+							<ScoreBar score={data.overall.score} state={overallState} />
 						</div>
-						<p className="mt-3 text-xs text-slate-500">
-							Generated {generatedAt}
-						</p>
+						<p className="mt-3 text-xs text-slate-400">생성: {generatedAt}</p>
 					</div>
 				</div>
 			</section>
 
 			<div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
 				<MetricTile
-					label="Projects"
+					label="프로젝트"
 					value={`${data.overall.project_count}`}
 					tone="text-cyan-300"
 				/>
 				<MetricTile
-					label="Blocked"
+					label="차단됨"
 					value={`${data.overall.blocked_count}`}
 					tone="text-rose-300"
 				/>
 				<MetricTile
-					label="Workspace tasks"
+					label="워크스페이스 작업"
 					value={`${data.overall.workspace_blocker_count}`}
 					tone="text-amber-300"
 				/>
 				<MetricTile
-					label="Ready projects"
+					label="준비된 프로젝트"
 					value={`${data.projects.filter((project) => project.state === "ready").length}`}
 					tone="text-emerald-300"
 				/>
@@ -272,12 +269,12 @@ export default function ProductReadinessPanel({
 				<div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 					<div>
 						<h3 className="flex items-center gap-2 text-lg font-semibold text-white">
-							<Wrench className="h-5 w-5 text-cyan-300" />
-							Agent skill health
+							<Wrench className="h-5 w-5 text-cyan-300" aria-hidden="true" />
+							에이전트 스킬 상태
 						</h3>
 						<p className="mt-1 text-sm leading-6 text-slate-400">
-							Skill metadata, trigger guidance, duplicate names, and local
-							references are checked before they become automation drift.
+							스킬 메타데이터, 트리거 가이드, 중복 이름, 로컬 참조를 자동화
+							드리프트가 되기 전에 점검합니다.
 						</p>
 					</div>
 					<div className="flex items-center gap-3">
@@ -292,22 +289,22 @@ export default function ProductReadinessPanel({
 					<div className="mt-5 grid gap-3 lg:grid-cols-[0.8fr_1.2fr]">
 						<div className="grid grid-cols-2 gap-3">
 							<MetricTile
-								label="Skills"
+								label="스킬"
 								value={`${skillLint.summary.skill_count}`}
 								tone="text-cyan-300"
 							/>
 							<MetricTile
-								label="Healthy"
+								label="정상"
 								value={`${skillLint.summary.healthy_count}`}
 								tone="text-emerald-300"
 							/>
 							<MetricTile
-								label="Warnings"
+								label="경고"
 								value={`${skillLint.summary.warning_count}`}
 								tone="text-amber-300"
 							/>
 							<MetricTile
-								label="Errors"
+								label="오류"
 								value={`${skillLint.summary.error_count}`}
 								tone="text-rose-300"
 							/>
@@ -332,7 +329,7 @@ export default function ProductReadinessPanel({
 											{issue.code}
 										</span>
 									</div>
-									<p className="mt-1 truncate text-xs text-slate-500">
+									<p className="mt-1 truncate text-xs text-slate-400">
 										{issue.path}
 									</p>
 									<p className="mt-2 text-sm leading-6 text-slate-400">
@@ -342,14 +339,14 @@ export default function ProductReadinessPanel({
 							))}
 							{skillLint.issues.length === 0 && (
 								<p className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-sm leading-6 text-emerald-200">
-									All local skills passed the metadata and reference checks.
+									모든 로컬 스킬이 메타데이터 및 참조 검사를 통과했습니다.
 								</p>
 							)}
 						</div>
 					</div>
 				) : (
 					<p className="mt-4 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-sm text-amber-100">
-						Skill lint data has not been generated yet.
+						스킬 린트 데이터가 아직 생성되지 않았습니다.
 					</p>
 				)}
 			</section>
@@ -369,11 +366,11 @@ export default function ProductReadinessPanel({
 										</h3>
 										<StatePill state={project.state} />
 									</div>
-									<p className="mt-1 text-xs text-slate-500">{project.path}</p>
+									<p className="mt-1 text-xs text-slate-400">{project.path}</p>
 								</div>
 								<div className="w-full md:w-48">
 									<div className="mb-2 flex items-center justify-between text-sm">
-										<span className="text-slate-400">Readiness</span>
+										<span className="text-slate-400">준비도</span>
 										<span className="font-semibold text-white">
 											{project.score}
 										</span>
@@ -384,40 +381,40 @@ export default function ProductReadinessPanel({
 
 							<div className="mt-5 grid gap-3 md:grid-cols-4">
 								<div className="rounded-lg border border-white/5 bg-slate-950/35 p-3">
-									<p className="text-xs text-slate-500">QC</p>
+									<p className="text-xs text-slate-400">QC</p>
 									<p className="mt-1 text-sm font-medium text-white">
 										{project.qc.status}
 									</p>
-									<p className="text-xs text-slate-500">
-										{project.qc.passed} passed / {project.qc.failed} failed
+									<p className="text-xs text-slate-400">
+										{project.qc.passed} 통과 / {project.qc.failed} 실패
 									</p>
 									<QcFreshness qc={project.qc} />
 								</div>
 								<div className="rounded-lg border border-white/5 bg-slate-950/35 p-3">
-									<p className="text-xs text-slate-500">Open tasks</p>
+									<p className="text-xs text-slate-400">미해결 작업</p>
 									<p className="mt-1 text-sm font-medium text-white">
 										{project.tasks.length}
 									</p>
-									<p className="text-xs text-slate-500">
-										{project.tasks[0]?.owner || "No owner block"}
+									<p className="text-xs text-slate-400">
+										{project.tasks[0]?.owner || "담당자 없음"}
 									</p>
 								</div>
 								<div className="rounded-lg border border-white/5 bg-slate-950/35 p-3">
-									<p className="text-xs text-slate-500">Dirty files</p>
+									<p className="text-xs text-slate-400">변경된 파일</p>
 									<p className="mt-1 text-sm font-medium text-white">
 										{project.dirty_paths.length}
 									</p>
-									<p className="truncate text-xs text-slate-500">
-										{project.dirty_paths[0] || "Clean"}
+									<p className="truncate text-xs text-slate-400">
+										{project.dirty_paths[0] || "깨끗함"}
 									</p>
 								</div>
 								<div className="rounded-lg border border-white/5 bg-slate-950/35 p-3">
-									<p className="text-xs text-slate-500">Docs</p>
+									<p className="text-xs text-slate-400">문서</p>
 									<p className="mt-1 text-sm font-medium text-white">
 										{project.docs.filter((item) => item.present).length}/
 										{project.docs.length}
 									</p>
-									<p className="text-xs text-slate-500">required files</p>
+									<p className="text-xs text-slate-400">필수 파일</p>
 								</div>
 							</div>
 
@@ -427,7 +424,10 @@ export default function ProductReadinessPanel({
 										key={recommendation}
 										className="flex gap-2 text-sm leading-6 text-slate-300"
 									>
-										<CircleDot className="mt-1 h-3.5 w-3.5 shrink-0 text-cyan-300" />
+										<CircleDot
+											className="mt-1 h-3.5 w-3.5 shrink-0 text-cyan-300"
+											aria-hidden="true"
+										/>
 										<span>{recommendation}</span>
 									</li>
 								))}
@@ -439,8 +439,11 @@ export default function ProductReadinessPanel({
 				<aside className="space-y-4">
 					<div className="rounded-lg border border-white/5 bg-slate-900/40 p-5">
 						<h3 className="flex items-center gap-2 text-lg font-semibold text-white">
-							<ShieldCheck className="h-5 w-5 text-emerald-300" />
-							Next actions
+							<ShieldCheck
+								className="h-5 w-5 text-emerald-300"
+								aria-hidden="true"
+							/>
+							다음 작업
 						</h3>
 						<div className="mt-4 space-y-3">
 							{data.next_actions.map((action) => (
@@ -464,12 +467,12 @@ export default function ProductReadinessPanel({
 
 					<div className="rounded-lg border border-white/5 bg-slate-900/40 p-5">
 						<h3 className="flex items-center gap-2 text-lg font-semibold text-white">
-							<GitBranch className="h-5 w-5 text-cyan-300" />
-							Workspace blockers
+							<GitBranch className="h-5 w-5 text-cyan-300" aria-hidden="true" />
+							워크스페이스 블로커
 						</h3>
 						<div className="mt-4 space-y-3">
-							{data.workspace_blockers.length > 0 ? (
-								data.workspace_blockers.map((task) => (
+							{workspaceBlockers.length > 0 ? (
+								workspaceBlockers.map((task) => (
 									<div
 										key={task.id}
 										className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3"
@@ -484,7 +487,7 @@ export default function ProductReadinessPanel({
 								))
 							) : (
 								<p className="text-sm leading-6 text-slate-400">
-									No workspace-level release blockers are currently listed.
+									현재 워크스페이스 수준의 출시 블로커가 없습니다.
 								</p>
 							)}
 						</div>

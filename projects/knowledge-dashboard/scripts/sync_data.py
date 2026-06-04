@@ -11,7 +11,12 @@ if hasattr(sys.stdout, "reconfigure"):
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = Path(__file__).resolve().parents[2]
+# parents: [0]=scripts [1]=knowledge-dashboard [2]=projects [3]=<workspace root>.
+# REPO_ROOT must be the workspace root that holds .ai/, workspace/execution, and
+# infrastructure/ — parents[2] (=projects/) silently misses all of them, which
+# drops sessions/readiness/skill_lint from the dashboard (the parents off-by-one
+# antipattern). parents[3] is correct.
+REPO_ROOT = Path(__file__).resolve().parents[3]
 DATA_DIR = PROJECT_ROOT / "data"
 OUTPUT_FILE = DATA_DIR / "dashboard_data.json"
 # qaqc_runner.py writes its local artifact to public/ (read source for local tooling).
@@ -246,13 +251,31 @@ def parse_session_log() -> list[dict]:
     return sessions
 
 
+def aggregate_trend_by_day(trend: list[dict]) -> list[dict]:
+    """Collapse multiple same-day runs into one point per calendar day.
+
+    get_trend_data returns one row per saved QC run, so several runs on the same
+    day would otherwise render as overlapping points on the "30일" area chart.
+    Rows are assumed chronological, so the last row for a given day wins (latest
+    run). Output is sorted ascending by day.
+    """
+    by_day: dict[str, dict] = {}
+    for point in trend:
+        raw_date = str(point.get("date", ""))
+        if not raw_date:
+            continue
+        day = raw_date[:10]
+        by_day[day] = {**point, "date": day}
+    return [by_day[day] for day in sorted(by_day)]
+
+
 def fetch_qaqc_trend() -> list[dict]:
     print("Fetching QA/QC trend data...")
     try:
         from qaqc_history_db import QaQcHistoryDB
 
         db = QaQcHistoryDB()
-        trend = db.get_trend_data(days=30)
+        trend = aggregate_trend_by_day(db.get_trend_data(days=30))
         print(f"  - Found {len(trend)} trend points")
         return trend
     except ImportError:
@@ -298,7 +321,9 @@ def main():
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     data = {
-        "last_updated": datetime.now().isoformat(),
+        # Timezone-aware so the client renders an unambiguous instant regardless
+        # of where the sync host and the viewer are located.
+        "last_updated": datetime.now().astimezone().isoformat(),
         "github": fetch_github_repos(),
         "notebooklm": fetch_notebooklm_notebooks(),
         "sessions": parse_session_log(),
@@ -310,7 +335,9 @@ def main():
                 qaqc_data = json.load(file_obj)
 
             qaqc_data["trend"] = fetch_qaqc_trend()
-            data["qaqc"] = qaqc_data
+            # NOTE: intentionally NOT embedded into dashboard_data.json. The client
+            # always reads QA/QC from /api/data/qaqc (data/qaqc_result.json), so an
+            # embedded copy here would be dead, payload-bloating, and a staleness trap.
             # Mirror the fresh QA/QC payload into the authenticated data/ location
             # that the Next route serves, so /api/data/qaqc never returns stale data.
             try:

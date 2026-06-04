@@ -63,9 +63,9 @@ const ACTION_STYLES: Record<RecommendedAction["tone"], string> = {
 };
 
 const PRIORITY_LABELS: Record<RecommendedAction["priority"], string> = {
-	now: "Now",
-	next: "Next",
-	watch: "Watch",
+	now: "지금",
+	next: "다음",
+	watch: "관찰",
 };
 
 const getSafeProgress = (value?: number | null): number => {
@@ -105,7 +105,7 @@ function StatCard({
 
 	return (
 		<div className="rounded-2xl border border-white/5 bg-slate-950/40 p-4">
-			<p className="text-xs uppercase tracking-[0.24em] text-slate-500">
+			<p className="text-xs uppercase tracking-[0.24em] text-slate-400">
 				{label}
 			</p>
 			<p className="mt-3 text-2xl font-semibold text-white">{value}</p>
@@ -182,70 +182,77 @@ export default function DashboardCharts({
 		return (
 			<div className="mb-6 rounded-3xl border border-white/5 bg-slate-900/30 p-6 backdrop-blur-sm">
 				<EmptyState
-					title="No analytics available for this view"
-					description="Clear the search term or sync more data to unlock portfolio analytics and action recommendations."
+					title="이 화면에 표시할 분석이 없습니다"
+					description="검색어를 지우거나 데이터를 더 동기화하면 포트폴리오 분석과 추천 작업이 표시됩니다."
 				/>
 			</div>
 		);
 	}
+
+	const languageChartLabel = `언어 분포: ${insights.languageData
+		.map((d) => `${d.name} ${d.share}%`)
+		.join(", ")}`;
+	const notebookChartLabel = `노트북 소스 밀도: ${renderableNotebookData
+		.map((d) => `${d.fullTitle} ${d.sources}개`)
+		.join(", ")}`;
 
 	return (
 		<div className="mb-6 space-y-6">
 			<section className="rounded-3xl border border-white/5 bg-slate-900/35 p-6 backdrop-blur-sm">
 				<div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
 					<div className="space-y-2">
-						<p className="text-xs uppercase tracking-[0.28em] text-slate-500">
-							Portfolio intelligence
+						<p className="text-xs uppercase tracking-[0.28em] text-slate-400">
+							포트폴리오 인텔리전스
 						</p>
 						<h3 className="text-2xl font-semibold text-white">
-							Search-aware analytics that lead to action
+							행동으로 이어지는 검색 연동 분석
 						</h3>
 						<p className="max-w-2xl text-sm leading-6 text-slate-400">
-							The dashboard now keeps its charts, health score, and
-							recommendations aligned with the visible slice.
+							차트, 건강 점수, 추천이 현재 보이는 항목과 항상 일치하도록
+							유지됩니다.
 						</p>
 					</div>
 					{safeQuery ? (
 						<div className="rounded-full border border-blue-400/20 bg-blue-500/10 px-4 py-2 text-sm text-blue-100">
-							Filtered by &quot;{safeQuery}&quot;
+							필터: &quot;{safeQuery}&quot;
 						</div>
 					) : null}
 				</div>
 
 				<div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
 					<StatCard
-						label="Portfolio health"
+						label="포트폴리오 건강도"
 						value={`${insights.summary.healthScore}`}
-						caption="A weighted score that combines language balance, notebook coverage, and source depth."
+						caption="언어 균형, 노트북 커버리지, 소스 깊이를 가중 합산한 점수입니다."
 						progress={insights.summary.healthScore}
 					/>
 					<StatCard
-						label="Diversity score"
+						label="다양성 점수"
 						value={`${insights.summary.diversityScore}`}
 						caption={
 							insights.summary.languageCount > 1
-								? `${insights.summary.languageCount} languages are visible in the current result set.`
-								: "Only one language is visible, so the portfolio is concentrated right now."
+								? `현재 결과에 ${insights.summary.languageCount}개 언어가 보입니다.`
+								: "현재 한 가지 언어만 보여 포트폴리오가 편중되어 있습니다."
 						}
 						progress={insights.summary.diversityScore}
 					/>
 					<StatCard
-						label="Dominant stack"
-						value={insights.summary.dominantLanguage ?? "Mixed"}
+						label="주력 스택"
+						value={insights.summary.dominantLanguage ?? "혼합"}
 						caption={
 							insights.summary.dominantLanguage
-								? `${insights.summary.dominantLanguageShare}% of visible repositories share this stack.`
-								: "No single stack dominates the current slice."
+								? `표시된 저장소의 ${insights.summary.dominantLanguageShare}%가 이 스택을 사용합니다.`
+								: "현재 범위에서 특정 스택이 두드러지지 않습니다."
 						}
 						progress={100 - (insights.summary.dominantLanguageShare || 0)}
 					/>
 					<StatCard
-						label="Notebook coverage"
+						label="노트북 커버리지"
 						value={`${insights.summary.sourceCoverageRatio}%`}
 						caption={
 							insights.summary.zeroSourceNotebookCount > 0
-								? `${insights.summary.zeroSourceNotebookCount} notebook(s) still have zero linked sources.`
-								: "Every visible notebook has at least one source attached."
+								? `${insights.summary.zeroSourceNotebookCount}개 노트북에 아직 연결된 소스가 없습니다.`
+								: "표시된 모든 노트북에 소스가 한 개 이상 연결되어 있습니다."
 						}
 						progress={insights.summary.sourceCoverageRatio}
 					/>
@@ -271,17 +278,16 @@ export default function DashboardCharts({
 			<section className="rounded-3xl border border-white/5 bg-slate-900/35 p-6 backdrop-blur-sm">
 				<div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
 					<div>
-						<p className="text-xs uppercase tracking-[0.28em] text-slate-500">
-							Recommended playbook
+						<p className="text-xs uppercase tracking-[0.28em] text-slate-400">
+							추천 플레이북
 						</p>
 						<h3 className="mt-2 text-xl font-semibold text-white">
-							What to improve next
+							다음 개선 항목
 						</h3>
 					</div>
 					<p className="max-w-xl text-sm leading-6 text-slate-400">
-						These actions are generated from the current search slice, so users
-						do not need to manually inspect every chart before deciding what to
-						do.
+						현재 검색 범위를 기준으로 생성된 작업이라, 모든 차트를 직접
+						확인하지 않아도 무엇을 해야 할지 알 수 있습니다.
 					</p>
 				</div>
 
@@ -299,23 +305,27 @@ export default function DashboardCharts({
 				<section className="rounded-3xl border border-white/5 bg-slate-900/35 p-6 backdrop-blur-sm">
 					<div className="mb-5 flex items-start justify-between gap-4">
 						<div>
-							<p className="text-xs uppercase tracking-[0.24em] text-slate-500">
-								Repository mix
+							<p className="text-xs uppercase tracking-[0.24em] text-slate-400">
+								저장소 구성
 							</p>
 							<h3 className="mt-2 text-lg font-semibold text-white">
-								Language distribution
+								언어 분포
 							</h3>
 						</div>
 						<div className="text-right text-sm text-slate-400">
-							<p>{insights.summary.repoCount} repos</p>
-							<p>{insights.summary.languageCount} distinct languages</p>
+							<p>{insights.summary.repoCount}개 저장소</p>
+							<p>{insights.summary.languageCount}개 언어</p>
 						</div>
 					</div>
 
 					{insights.languageData.length > 0 ? (
 						<>
-							<div className="h-[280px] w-full">
-								<ResponsiveContainer width="100%" height="100%">
+							<div
+								className="h-[280px] min-w-0 w-full overflow-hidden"
+								role="img"
+								aria-label={languageChartLabel}
+							>
+								<ResponsiveContainer width="100%" height={280} minWidth={1}>
 									<PieChart>
 										<Pie
 											data={insights.languageData}
@@ -340,8 +350,8 @@ export default function DashboardCharts({
 											formatter={(value, _name, item) => {
 												const share = item?.payload?.share;
 												return [
-													`${value} repos (${share}%)`,
-													item?.payload?.name ?? "Language",
+													`${value}개 (${share}%)`,
+													item?.payload?.name ?? "언어",
 												];
 											}}
 										/>
@@ -368,7 +378,7 @@ export default function DashboardCharts({
 											</span>
 										</div>
 										<span className="text-sm font-medium text-slate-300">
-											{entry.share}%
+											{entry.value}개 · {entry.share}%
 										</span>
 									</div>
 								))}
@@ -376,8 +386,8 @@ export default function DashboardCharts({
 						</>
 					) : (
 						<EmptyState
-							title="No repository language data"
-							description="Repositories without detected languages will appear here once fresher metadata is synced."
+							title="저장소 언어 데이터 없음"
+							description="언어가 감지되지 않은 저장소는 더 신선한 메타데이터가 동기화되면 여기에 표시됩니다."
 						/>
 					)}
 				</section>
@@ -385,23 +395,27 @@ export default function DashboardCharts({
 				<section className="rounded-3xl border border-white/5 bg-slate-900/35 p-6 backdrop-blur-sm">
 					<div className="mb-5 flex items-start justify-between gap-4">
 						<div>
-							<p className="text-xs uppercase tracking-[0.24em] text-slate-500">
-								Knowledge depth
+							<p className="text-xs uppercase tracking-[0.24em] text-slate-400">
+								지식 깊이
 							</p>
 							<h3 className="mt-2 text-lg font-semibold text-white">
-								Notebook source density
+								노트북 소스 밀도
 							</h3>
 						</div>
 						<div className="text-right text-sm text-slate-400">
-							<p>{insights.summary.notebookCount} notebooks</p>
-							<p>{insights.summary.totalSources} linked sources</p>
+							<p>{insights.summary.notebookCount}개 노트북</p>
+							<p>{insights.summary.totalSources}개 연결 소스</p>
 						</div>
 					</div>
 
 					{insights.notebookData.length > 0 ? (
 						<>
-							<div className="h-[280px] w-full">
-								<ResponsiveContainer width="100%" height="100%">
+							<div
+								className="h-[280px] min-w-0 w-full overflow-hidden"
+								role="img"
+								aria-label={notebookChartLabel}
+							>
+								<ResponsiveContainer width="100%" height={280} minWidth={1}>
 									<BarChart
 										data={renderableNotebookData}
 										layout="vertical"
@@ -423,10 +437,7 @@ export default function DashboardCharts({
 										<Tooltip
 											cursor={{ fill: "rgba(255,255,255,0.04)" }}
 											contentStyle={TOOLTIP_STYLE}
-											formatter={(value) => [
-												`${value} linked sources`,
-												"Density",
-											]}
+											formatter={(value) => [`${value}개 소스`, "밀도"]}
 											labelFormatter={(_label, payload) =>
 												payload?.[0]?.payload?.fullTitle ?? ""
 											}
@@ -446,24 +457,24 @@ export default function DashboardCharts({
 							<div className="mt-4 rounded-2xl border border-white/5 bg-slate-950/40 p-4">
 								<div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 									<div>
-										<p className="text-xs uppercase tracking-[0.24em] text-slate-500">
-											Median notebook depth
+										<p className="text-xs uppercase tracking-[0.24em] text-slate-400">
+											중앙값 소스 수
 										</p>
 										<p className="mt-2 text-2xl font-semibold text-white">
 											{insights.summary.medianSourcesPerNotebook}
 										</p>
 									</div>
 									<p className="max-w-md text-sm leading-6 text-slate-400">
-										Median is more stable than average when one notebook has an
-										unusually large source bundle.
+										한 노트북의 소스가 유난히 많을 때는 평균보다 중앙값이 더
+										안정적입니다.
 									</p>
 								</div>
 							</div>
 						</>
 					) : (
 						<EmptyState
-							title="No notebook density data"
-							description="Once notebooks are synced, this panel will show which knowledge bases are rich enough to trust and which still need curation."
+							title="노트북 밀도 데이터 없음"
+							description="노트북이 동기화되면, 신뢰할 만큼 풍부한 지식 베이스와 큐레이션이 더 필요한 곳을 이 패널에서 보여줍니다."
 						/>
 					)}
 				</section>

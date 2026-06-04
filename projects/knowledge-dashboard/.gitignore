@@ -32,6 +32,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...but the template MUST be tracked so deployers know which vars to set.
+!.env.example
 
 # internal dashboard payloads (served only via authenticated /api/data/*)
 /data/*.json

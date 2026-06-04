@@ -22,6 +22,7 @@ import {
 	XAxis,
 	YAxis,
 } from "recharts";
+import { buildInfraEntries, resolveVerdict } from "@/lib/qaqc-view";
 
 // ── Types ────────────────────────────────────────────
 interface ProjectResult {
@@ -87,32 +88,36 @@ const tooltipStyle = {
 	color: "#f8fafc",
 };
 
+const INFRA_ICONS: Record<string, React.ReactNode> = {
+	docker: <Server className="w-4 h-4" aria-hidden="true" />,
+	ollama: <Activity className="w-4 h-4" aria-hidden="true" />,
+	scheduler: <Activity className="w-4 h-4" aria-hidden="true" />,
+	disk: <HardDrive className="w-4 h-4" aria-hidden="true" />,
+};
+
 // ── Verdict Badge ────────────────────────────────────
 function VerdictBadge({ verdict }: { verdict: string }) {
-	const config: Record<
-		string,
-		{ icon: React.ReactNode; label: string; bg: string; border: string }
-	> = {
+	const config = {
 		APPROVED: {
-			icon: <CheckCircle className="w-6 h-6" />,
-			label: "✅ 승인 (APPROVED)",
+			icon: <CheckCircle className="w-6 h-6" aria-hidden="true" />,
+			label: "승인 (APPROVED)",
 			bg: "bg-emerald-500/10",
 			border: "border-emerald-500/30",
 		},
 		CONDITIONALLY_APPROVED: {
-			icon: <AlertTriangle className="w-6 h-6" />,
-			label: "⚠️ 조건부 승인",
+			icon: <AlertTriangle className="w-6 h-6" aria-hidden="true" />,
+			label: "조건부 승인",
 			bg: "bg-amber-500/10",
 			border: "border-amber-500/30",
 		},
 		REJECTED: {
-			icon: <XCircle className="w-6 h-6" />,
-			label: "❌ 반려 (REJECTED)",
+			icon: <XCircle className="w-6 h-6" aria-hidden="true" />,
+			label: "반려 (REJECTED)",
 			bg: "bg-red-500/10",
 			border: "border-red-500/30",
 		},
-	};
-	const c = config[verdict] || config.REJECTED;
+	} as const;
+	const c = config[resolveVerdict(verdict)];
 
 	return (
 		<div
@@ -129,39 +134,25 @@ function VerdictBadge({ verdict }: { verdict: string }) {
 
 // ── Infrastructure Status ────────────────────────────
 function InfraStatus({ infra }: { infra: Infrastructure }) {
-	const items = [
-		{ label: "Docker", ok: infra.docker, icon: <Server className="w-4 h-4" /> },
-		{
-			label: "Ollama",
-			ok: infra.ollama,
-			icon: <Activity className="w-4 h-4" />,
-		},
-		{
-			label: `Scheduler ${infra.scheduler?.ready ?? 0}/${infra.scheduler?.total ?? 0}`,
-			ok: (infra.scheduler?.ready ?? 0) > 0,
-			icon: <Activity className="w-4 h-4" />,
-		},
-		{
-			label: `${infra.disk_gb_free ?? "?"} GB Free`,
-			ok: (infra.disk_gb_free ?? 0) > 10,
-			icon: <HardDrive className="w-4 h-4" />,
-		},
-	];
+	const items = buildInfraEntries(infra);
 
 	return (
 		<div className="grid grid-cols-2 md:grid-cols-4 gap-3">
 			{items.map((item) => (
 				<div
-					key={item.label}
+					key={item.key}
 					className={`flex items-center gap-2 px-4 py-3 rounded-xl border ${
 						item.ok
 							? "bg-emerald-500/5 border-emerald-500/20 text-emerald-400"
 							: "bg-red-500/5 border-red-500/20 text-red-400"
 					}`}
 				>
-					{item.icon}
+					{INFRA_ICONS[item.key]}
 					<span className="text-sm font-medium">{item.label}</span>
-					<span className="ml-auto text-lg">{item.ok ? "🟢" : "🔴"}</span>
+					<span className="ml-auto text-lg" aria-hidden="true">
+						{item.ok ? "🟢" : "🔴"}
+					</span>
+					<span className="sr-only">{item.ok ? "정상" : "점검 필요"}</span>
 				</div>
 			))}
 		</div>
@@ -198,13 +189,13 @@ export default function QaQcPanel({ data }: QaQcPanelProps) {
 						<p className="text-2xl font-bold text-blue-400">
 							{data.total.passed}
 						</p>
-						<p className="text-xs text-slate-500">Passed</p>
+						<p className="text-xs text-slate-400">Passed</p>
 					</div>
 					<div className="bg-slate-900/40 border border-white/5 rounded-xl p-4 text-center">
 						<p className="text-2xl font-bold text-red-400">
 							{data.total.failed}
 						</p>
-						<p className="text-xs text-slate-500">Failed</p>
+						<p className="text-xs text-slate-400">Failed</p>
 					</div>
 				</div>
 			</div>
@@ -212,11 +203,15 @@ export default function QaQcPanel({ data }: QaQcPanelProps) {
 			{/* Project Tests Bar Chart */}
 			<div className="bg-slate-900/40 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
 				<h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-					<span className="w-2 h-6 bg-blue-500 rounded-sm" />
+					<span className="w-2 h-6 bg-blue-500 rounded-sm" aria-hidden="true" />
 					프로젝트별 테스트 결과
 				</h3>
-				<div className="h-[220px] w-full">
-					<ResponsiveContainer width="100%" height="100%">
+				<div
+					className="h-[220px] min-w-0 w-full overflow-hidden"
+					role="img"
+					aria-label={`프로젝트별 테스트 결과: 총 ${data.total.passed}건 통과, ${data.total.failed}건 실패, ${projectBarData.length}개 프로젝트`}
+				>
+					<ResponsiveContainer width="100%" height={220} minWidth={1}>
 						<BarChart
 							data={projectBarData}
 							layout="vertical"
@@ -268,7 +263,10 @@ export default function QaQcPanel({ data }: QaQcPanelProps) {
 				{/* AST Check */}
 				<div className="bg-slate-900/40 border border-white/5 rounded-2xl p-6">
 					<h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-						<span className="w-2 h-6 bg-emerald-500 rounded-sm" />
+						<span
+							className="w-2 h-6 bg-emerald-500 rounded-sm"
+							aria-hidden="true"
+						/>
 						AST 구문 검증
 					</h3>
 					<div className="flex items-center gap-4">
@@ -279,9 +277,13 @@ export default function QaQcPanel({ data }: QaQcPanelProps) {
 					</div>
 					{data.ast_check.failures.length > 0 && (
 						<div className="mt-3 space-y-1">
-							{data.ast_check.failures.map((f, i) => (
-								<p key={i} className="text-xs text-red-400 font-mono">
-									❌ {f.file}: {f.error}
+							{data.ast_check.failures.map((f) => (
+								<p
+									key={`${f.file}-${f.error}`}
+									className="text-xs text-red-400 font-mono"
+								>
+									<span aria-hidden="true">❌ </span>
+									{f.file}: {f.error}
 								</p>
 							))}
 						</div>
@@ -291,7 +293,7 @@ export default function QaQcPanel({ data }: QaQcPanelProps) {
 				{/* Security Scan */}
 				<div className="bg-slate-900/40 border border-white/5 rounded-2xl p-6">
 					<h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-						<Shield className="w-5 h-5 text-purple-400" />
+						<Shield className="w-5 h-5 text-purple-400" aria-hidden="true" />
 						보안 스캔
 					</h3>
 					<p
@@ -305,12 +307,13 @@ export default function QaQcPanel({ data }: QaQcPanelProps) {
 					</p>
 					{data.security_scan.issues.length > 0 && (
 						<div className="mt-3 space-y-1">
-							{data.security_scan.issues.slice(0, 5).map((iss, i) => (
+							{data.security_scan.issues.slice(0, 5).map((iss) => (
 								<p
-									key={i}
+									key={`${iss.file}-${iss.pattern}`}
 									className="text-xs text-amber-300 font-mono truncate"
 								>
-									⚠️ {iss.file}: {iss.pattern}
+									<span aria-hidden="true">⚠️ </span>
+									{iss.file}: {iss.pattern}
 								</p>
 							))}
 						</div>
@@ -328,7 +331,7 @@ export default function QaQcPanel({ data }: QaQcPanelProps) {
 			{/* Infrastructure Health */}
 			<div className="bg-slate-900/40 border border-white/5 rounded-2xl p-6">
 				<h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-					<span className="w-2 h-6 bg-cyan-500 rounded-sm" />
+					<span className="w-2 h-6 bg-cyan-500 rounded-sm" aria-hidden="true" />
 					인프라 헬스
 				</h3>
 				<InfraStatus infra={data.infrastructure} />
@@ -338,11 +341,18 @@ export default function QaQcPanel({ data }: QaQcPanelProps) {
 			{trendData.length > 1 && (
 				<div className="bg-slate-900/40 border border-white/5 rounded-2xl p-6">
 					<h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-						<span className="w-2 h-6 bg-indigo-500 rounded-sm" />
+						<span
+							className="w-2 h-6 bg-indigo-500 rounded-sm"
+							aria-hidden="true"
+						/>
 						테스트 추이 (30일)
 					</h3>
-					<div className="h-[200px] w-full">
-						<ResponsiveContainer width="100%" height="100%">
+					<div
+						className="h-[200px] min-w-0 w-full overflow-hidden"
+						role="img"
+						aria-label={`최근 ${trendData.length}일 테스트 통과/실패 추이`}
+					>
+						<ResponsiveContainer width="100%" height={200} minWidth={1}>
 							<AreaChart data={trendData}>
 								<CartesianGrid strokeDasharray="3 3" stroke="#334155" />
 								<XAxis
@@ -376,7 +386,7 @@ export default function QaQcPanel({ data }: QaQcPanelProps) {
 			)}
 
 			{/* Footer meta */}
-			<p className="text-xs text-slate-600 text-right">
+			<p className="text-xs text-slate-400 text-right">
 				마지막 실행: {data.timestamp?.replace("T", " ")} · 소요:{" "}
 				{data.elapsed_sec}s
 			</p>

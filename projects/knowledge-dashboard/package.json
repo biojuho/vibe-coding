@@ -1,15 +1,22 @@
 {
 	"name": "knowledge-dashboard",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"private": true,
 	"type": "module",
 	"scripts": {
 		"dev": "next dev",
+		"prebuild": "node scripts/prebuild-clean-public.mjs",
 		"build": "next build",
 		"start": "next start",
 		"lint": "eslint",
+		"sync": "python scripts/sync_data.py",
 		"smoke": "node scripts/smoke.mjs",
-		"test": "node --test \"src/**/*.test.mts\""
+		"test": "node --test \"src/**/*.test.mts\"",
+		"test:coverage": "node --test --experimental-test-coverage \"src/**/*.test.mts\"",
+		"verify-deploy": "node scripts/verify-deploy.mjs"
+	},
+	"engines": {
+		"node": ">=20"
 	},
 	"dependencies": {
 		"@radix-ui/react-dialog": "^1.1.15",

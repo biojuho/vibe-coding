@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.vercel
+npm-debug.log*
+data/*.json
+public/*.json
+.env*
+!.env.example
+*.tsbuildinfo
+scripts/__pycache__
+README.md

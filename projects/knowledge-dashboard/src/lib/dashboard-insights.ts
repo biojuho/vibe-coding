@@ -207,8 +207,8 @@ function buildInsightBadges({
 
 	if (query) {
 		badges.push({
-			title: "Focus mode",
-			description: `Charts and recommendations are narrowed to "${query}" only.`,
+			title: "집중 모드",
+			description: `차트와 추천이 "${query}" 항목으로만 좁혀졌습니다.`,
 			tone: "blue",
 		});
 	}
@@ -219,8 +219,8 @@ function buildInsightBadges({
 		unspecifiedLanguageShare >= INSIGHT_THRESHOLDS.metadataGapBadge
 	) {
 		badges.push({
-			title: "Metadata gap",
-			description: `${round(unspecifiedLanguageShare)}% of visible repositories are missing language metadata.`,
+			title: "메타데이터 누락",
+			description: `표시된 저장소의 ${round(unspecifiedLanguageShare)}%에 언어 메타데이터가 없습니다.`,
 			tone: "amber",
 		});
 	}
@@ -231,8 +231,8 @@ function buildInsightBadges({
 		dominantLanguageShare >= INSIGHT_THRESHOLDS.concentrationShare
 	) {
 		badges.push({
-			title: "Stack concentration",
-			description: `${dominantLanguage} owns ${round(dominantLanguageShare)}% of visible repositories.`,
+			title: "스택 편중",
+			description: `${dominantLanguage}이(가) 표시된 저장소의 ${round(dominantLanguageShare)}%를 차지합니다.`,
 			tone: "amber",
 		});
 	} else if (
@@ -240,9 +240,9 @@ function buildInsightBadges({
 		diversityScore >= INSIGHT_THRESHOLDS.balancedDiversity
 	) {
 		badges.push({
-			title: "Balanced portfolio",
+			title: "균형 잡힌 구성",
 			description:
-				"The visible repository mix is broadly distributed across multiple languages.",
+				"표시된 저장소가 여러 언어에 고르게 분포되어 있습니다.",
 			tone: "emerald",
 		});
 	}
@@ -252,9 +252,9 @@ function buildInsightBadges({
 		avgSourcesPerNotebook >= INSIGHT_THRESHOLDS.denseReferences
 	) {
 		badges.push({
-			title: "Dense references",
+			title: "풍부한 참조",
 			description:
-				"The average notebook already has enough source depth for richer downstream answers.",
+				"평균 노트북의 소스 깊이가 충분해 더 풍부한 후속 답변을 만들 수 있습니다.",
 			tone: "violet",
 		});
 	} else if (
@@ -262,9 +262,9 @@ function buildInsightBadges({
 		avgSourcesPerNotebook < INSIGHT_THRESHOLDS.thinReferences
 	) {
 		badges.push({
-			title: "Thin references",
+			title: "빈약한 참조",
 			description:
-				"Several notebooks are shallow enough to reduce confidence on complex prompts.",
+				"여러 노트북의 소스가 얕아 복잡한 질문에서 신뢰도가 떨어질 수 있습니다.",
 			tone: "rose",
 		});
 	}
@@ -274,23 +274,22 @@ function buildInsightBadges({
 		sourceCoverageRatio < INSIGHT_THRESHOLDS.coverageBadge
 	) {
 		badges.push({
-			title: "Coverage gap",
-			description: `${round(100 - sourceCoverageRatio)}% of visible notebooks still need at least one linked source.`,
+			title: "커버리지 부족",
+			description: `표시된 노트북의 ${round(100 - sourceCoverageRatio)}%가 아직 연결된 소스가 하나도 없습니다.`,
 			tone: "rose",
 		});
 	} else if (notebookCount > 0 && sourceCoverageRatio === 100) {
 		badges.push({
-			title: "Fully linked",
-			description:
-				"Every visible notebook has at least one linked source attached.",
+			title: "모두 연결됨",
+			description: "표시된 모든 노트북에 최소 한 개의 소스가 연결되어 있습니다.",
 			tone: "emerald",
 		});
 	}
 
 	if (zeroSourceNotebookCount > 0) {
 		badges.push({
-			title: "Orphan notebooks",
-			description: `${zeroSourceNotebookCount} notebook${zeroSourceNotebookCount > 1 ? "s are" : " is"} still empty.`,
+			title: "빈 노트북",
+			description: `${zeroSourceNotebookCount}개 노트북이 아직 비어 있습니다.`,
 			tone: "amber",
 		});
 	}
@@ -407,10 +406,10 @@ function buildRecommendedActions({
 	) {
 		actions.push({
 			priority: "now",
-			title: "Backfill repository metadata",
+			title: "저장소 메타데이터 보완",
 			description:
-				"Too many repositories are missing language metadata, so the dashboard can misread stack balance until sync quality improves.",
-			metricLabel: "Unknown language",
+				"언어 메타데이터가 없는 저장소가 많아, 동기화 품질이 개선되기 전까지 스택 균형을 잘못 읽을 수 있습니다.",
+			metricLabel: "언어 미상",
 			metricValue: `${round(unspecifiedLanguageShare)}%`,
 			tone: "amber",
 		});
@@ -419,10 +418,10 @@ function buildRecommendedActions({
 	if (zeroSourceNotebookCount > 0) {
 		actions.push({
 			priority: "now",
-			title: "Attach sources to empty notebooks",
+			title: "빈 노트북에 소스 연결",
 			description:
-				"Notebooks with zero references are the fastest way to improve answer quality and reduce dead-end knowledge hubs.",
-			metricLabel: "Orphan notebooks",
+				"참조가 0인 노트북부터 채우는 것이 답변 품질을 가장 빠르게 높이고 막다른 지식 허브를 줄이는 방법입니다.",
+			metricLabel: "빈 노트북",
 			metricValue: `${zeroSourceNotebookCount}`,
 			tone: "rose",
 		});
@@ -434,10 +433,10 @@ function buildRecommendedActions({
 	) {
 		actions.push({
 			priority: zeroSourceNotebookCount > 0 ? "next" : "now",
-			title: "Raise notebook coverage",
+			title: "노트북 커버리지 향상",
 			description:
-				"Prioritize linking at least one source to each visible notebook before adding more long-tail content.",
-			metricLabel: "Coverage",
+				"긴 꼬리 콘텐츠를 더 추가하기 전에, 표시된 각 노트북에 최소 한 개의 소스를 연결하세요.",
+			metricLabel: "커버리지",
 			metricValue: `${round(sourceCoverageRatio)}%`,
 			tone: "amber",
 		});
@@ -450,9 +449,9 @@ function buildRecommendedActions({
 	) {
 		actions.push({
 			priority: "next",
-			title: "Diversify the visible stack",
-			description: `The current slice leans heavily on ${dominantLanguage}. Adding or surfacing adjacent stacks will reduce concentration risk.`,
-			metricLabel: "Dominant share",
+			title: "스택 다양화",
+			description: `현재 범위가 ${dominantLanguage}에 크게 치우쳐 있습니다. 인접 스택을 추가하거나 노출하면 편중 위험이 줄어듭니다.`,
+			metricLabel: "주력 비중",
 			metricValue: `${round(dominantLanguageShare)}%`,
 			tone: "violet",
 		});
@@ -464,10 +463,10 @@ function buildRecommendedActions({
 	) {
 		actions.push({
 			priority: actions.length === 0 ? "now" : "next",
-			title: "Deepen notebook references",
+			title: "노트북 참조 강화",
 			description:
-				"Move the average source depth above 3 so insight generation has enough supporting material.",
-			metricLabel: "Avg sources",
+				"인사이트 생성에 충분한 근거가 모이도록 평균 소스 깊이를 3개 이상으로 높이세요.",
+			metricLabel: "평균 소스",
 			metricValue: `${round(avgSourcesPerNotebook)}`,
 			tone: "blue",
 		});
@@ -476,10 +475,10 @@ function buildRecommendedActions({
 	if (query && totalItems > 0) {
 		actions.push({
 			priority: "watch",
-			title: "Review this filtered slice",
+			title: "필터된 범위 검토",
 			description:
-				"Search mode is showing a narrower portfolio. Validate whether this slice needs its own curation rule or tagging shortcut.",
-			metricLabel: "Visible items",
+				"검색 모드가 더 좁은 포트폴리오를 보여주고 있습니다. 이 범위에 별도의 큐레이션 규칙이나 태그가 필요한지 확인하세요.",
+			metricLabel: "표시 항목",
 			metricValue: `${totalItems}`,
 			tone: "blue",
 		});
@@ -488,10 +487,10 @@ function buildRecommendedActions({
 	if (actions.length === 0) {
 		actions.push({
 			priority: "watch",
-			title: "Maintain the current balance",
+			title: "현재 균형 유지",
 			description:
-				"The visible portfolio is in a healthy range. Preserve coverage and diversity as new items are added.",
-			metricLabel: "Health score",
+				"표시된 포트폴리오가 건강한 범위에 있습니다. 새 항목이 추가되어도 커버리지와 다양성을 유지하세요.",
+			metricLabel: "건강 점수",
 			metricValue: `${healthScore}`,
 			tone: "emerald",
 		});
@@ -500,12 +499,12 @@ function buildRecommendedActions({
 	if (actions.length < 3) {
 		actions.push({
 			priority: "watch",
-			title: "Monitor language balance",
+			title: "언어 균형 관찰",
 			description:
 				diversityScore >= INSIGHT_THRESHOLDS.balancedDiversity
-					? "The language mix is healthy now, so watch new additions for hidden concentration drift."
-					: "Small language skew can compound quickly. Re-check balance when the next batch of repositories lands.",
-			metricLabel: "Diversity",
+					? "언어 구성이 현재 건강하니, 새 항목이 추가될 때 숨은 편중이 생기는지 관찰하세요."
+					: "작은 언어 편향도 빠르게 누적될 수 있습니다. 다음 저장소 묶음이 들어오면 균형을 다시 확인하세요.",
+			metricLabel: "다양성",
 			metricValue: `${round(diversityScore)}`,
 			tone:
 				diversityScore >= INSIGHT_THRESHOLDS.balancedDiversity
