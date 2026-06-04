@@ -1,4 +1,4 @@
 interface:
   display_name: "Auto Research"
-  short_description: "Run bounded Karpathy-style research loops with evidence gates."
-  default_prompt: "Use $auto-research to improve this project through a bounded A/B experiment loop with research, verification, and a commit-ready decision."
+  short_description: "Run bounded A/B improvement loops with evidence and completion audits."
+  default_prompt: "Use $auto-research to improve this project through a bounded A/B experiment loop with research, browser QA, verification, completion audit, and a commit-ready decision."

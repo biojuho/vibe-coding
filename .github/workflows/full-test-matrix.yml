@@ -55,6 +55,8 @@ jobs:
           workspace/tests/test_qaqc_runner_extended.py
           workspace/tests/test_mcp_config.py
           workspace/tests/test_auto_schedule_paths.py
+          workspace/tests/test_skill_lint.py
+          workspace/tests/test_auto_research_completion_audit.py
           -q
           -o addopts=
 
@@ -72,6 +74,11 @@ jobs:
           workspace/tests/test_qaqc_runner.py
           workspace/tests/test_qaqc_runner_extended.py
           workspace/tests/test_mcp_config.py
+          workspace/tests/test_auto_schedule_paths.py
+          workspace/tests/test_skill_lint.py
+          workspace/tests/test_auto_research_completion_audit.py
+          execution/skill_lint.py
+          .agents/skills/auto-research/scripts/completion_audit.py
 
   blind-to-x-tests:
     runs-on: ubuntu-latest

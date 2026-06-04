@@ -32,6 +32,8 @@
 
 ## Current Reliability Notes
 
+- **2026-06-04 (Codex)**: T-1244 auto-research completion-audit hardening. The existing `auto-research` skill now includes `scripts/completion_audit.py` plus `references/completion-audit.md`, so product-launch/self-improvement cycles can gate completion claims on explicit requirement-to-artifact evidence instead of proxy signals. The helper returns `complete` only when every checklist item has artifacts, evidence, `verified: true`, complete coverage, and no blockers, and accepts UTF-8/UTF-16 manifests for Windows PowerShell redirection. `execution/skill_lint.py` also now resolves relative `--skills-root` values from the repo root after verification exposed that bug. The new skill/tool tests and ruff targets are wired into root-quality-gate and active-project-matrix workspace-quality. CI-equivalent focused workspace pytest passed 113/113, focused helper pytest passed 12/12, ruff passed, compileall passed, auto-research-only skill lint passed with score 100, completion audit returned complete for the cycle, and A/B selected `adopt_candidate` (`score_delta=0.78125`).
+
 - **`hanwoo-dashboard`**:
   - **데이터 견고성 확보**: API 및 로컬 캐시/스토리지가 오염되거나 빈 값을 가질 때 발생할 수 있는 크래시(NaN 누출, Invalid Date 노출)를 차단하기 위해 `toFiniteNumber()`, `toValidDate()`, `normalizePaginationItems()` 등의 방어적 데이터 정규화(Normalization) 도우미 함수들을 대거 도입했습니다. (2026-05-21)
   - **UX 및 안정성 강화**: 폼 제출 버튼에 로딩 상태 및 바쁜 표시(`aria-busy`, pending copy)를 일관되게 적용하여 이중 제출을 방지하고, 모든 `<button>`에 명시적인 `type`을 지정하는 회귀 방지 테스트를 추가했습니다. (2026-05-21)

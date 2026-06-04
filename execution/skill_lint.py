@@ -108,7 +108,11 @@ def discover_skill_files(
     *,
     include_archived: bool = False,
 ) -> list[SkillFile]:
+    repo_root = repo_root.resolve()
     skills_root = skills_root or repo_root / ".agents" / "skills"
+    if not skills_root.is_absolute():
+        skills_root = repo_root / skills_root
+    skills_root = skills_root.resolve()
     if not skills_root.exists():
         return []
 

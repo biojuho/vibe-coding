@@ -102,6 +102,28 @@ def test_reference_resolution_checks_common_skill_subdirectories(tmp_path: Path)
     assert report["issues"] == []
 
 
+def test_relative_skills_root_is_resolved_from_repo_root(tmp_path: Path):
+    _write_skill(
+        tmp_path,
+        "relative-root",
+        "---\n"
+        "name: relative-root\n"
+        "description: Use when validating relative skills root resolution.\n"
+        "---\n\n"
+        "Use when the agent points skill lint at a relative skills directory.\n",
+    )
+
+    report = skill_lint.build_report(
+        tmp_path,
+        skills_root=Path(".agents") / "skills",
+        now=datetime(2026, 5, 13, tzinfo=timezone.utc),
+    )
+
+    assert report["summary"]["status"] == "pass"
+    assert report["summary"]["skill_count"] == 1
+    assert report["issues"] == []
+
+
 def test_bare_inline_filenames_are_not_treated_as_required_bundled_files(tmp_path: Path):
     _write_skill(
         tmp_path,

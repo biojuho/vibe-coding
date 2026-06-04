@@ -80,6 +80,16 @@ Run the focused gate first, then broaden only as risk increases. Typical gates:
 
 Use `scripts/ab_decision.py` when metrics are numeric. The candidate is adopted only when required gates pass and the weighted score improves beyond the configured minimum delta.
 
+## Completion Audit
+
+Before claiming a launch, product-complete state, or long-running objective is complete, build a requirement-to-evidence manifest and run:
+
+```bash
+python .agents/skills/auto-research/scripts/completion_audit.py .tmp/completion-audit.json --json
+```
+
+Read `references/completion-audit.md` for the manifest shape. A `complete` result requires every explicit requirement to have artifacts, current evidence, `verified: true`, and complete coverage. Incomplete or blocked items mean the next auto-research cycle must continue instead of declaring success.
+
 ### 6. Adopt, Commit, Push
 
 Adopt the candidate only when evidence is stronger than the baseline. Revert candidate edits when the evidence is worse or inconclusive, without touching unrelated user changes.

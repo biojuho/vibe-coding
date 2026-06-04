@@ -766,6 +766,15 @@
 
 ## 2026-06-04 - Codex
 
+- Completed T-1244 by strengthening the existing `auto-research` self-improvement skill for product-launch completion audits instead of adding a duplicate skill.
+- Added `.agents/skills/auto-research/scripts/completion_audit.py`, a deterministic manifest gate that marks completion only when every explicit requirement has artifacts, evidence, `verified: true`, complete coverage, and no unresolved blockers.
+- Added `.agents/skills/auto-research/references/completion-audit.md`, linked the helper from `.agents/skills/auto-research/SKILL.md`, and updated `.agents/skills/auto-research/agents/openai.yaml` so the visible skill prompt includes browser QA, verification, completion audit, and commit-ready decisions.
+- External/current-source check: OpenAI Help Center's current Skills article (`https://help.openai.com/en/articles/20001066-skills-in-chatgpt`, updated within the last week in search results) says skills can include instructions/resources/code, are supported in Codex and the API, and skill-creator is the standard path for creating or modifying skills; this matched the local skill-creator guidance used for this change.
+- Self-annealed verification tooling: `python execution/skill_lint.py --skills-root .agents\skills\auto-research --output ... --json` initially failed because relative `--skills-root` was not resolved from the repo root. Fixed `execution/skill_lint.py` and added `workspace/tests/test_skill_lint.py` coverage for relative skills roots.
+- Verification: focused pytest passed 12/12 with `-o addopts= --basetemp .tmp\pytest-auto-research-completion`; after wiring the new tests into root-quality-gate and active-project-matrix workspace-quality, the CI-equivalent focused workspace pytest command passed 113/113 with repo-local basetemp; workflow-listed ruff passed; compileall passed; diff check passed; auto-research-only skill lint returned pass/score 100; all-skill lint returned 0 errors with 10 existing unrelated broken-reference warnings; `completion_audit.py .tmp\completion-audit-t1244.json --json` returned `complete`; `ab_decision.py .tmp\ab-auto-research-completion-audit-1244.json --json` returned `adopt_candidate` with `score_delta=0.78125`; staged code-review gate returned advisory `warn` risk 0.35 for a graph-reported `discover_skill_files` test gap, covered by the direct relative-root regression test and expanded pytest.
+
+## 2026-06-04 - Codex
+
 - Final dependency PR closeout confirmation after T-1241/T-1242/T-1243 documentation commits.
 - GitHub inventory: `.agents/skills/auto-research/scripts/github_project_inventory.py --root . --include-prs` reported 0 open PRs and a clean `main...origin/main` worktree.
 - CI confirmation for current `main` head `db3cd0d7`: `root-quality-gate` passed, and `gh run watch 26952955621 --exit-status` confirmed `active-project-matrix` passed across blind-to-x, shorts-maker-v2, knowledge-dashboard, hanwoo-dashboard, workspace-quality, and test-summary jobs. The workflow still emitted the known checkout annotation (`/usr/bin/git` exit 128), but all jobs and the workflow concluded success.
