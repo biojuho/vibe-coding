@@ -193,6 +193,64 @@ def test_readiness_artifact_aggregates_project_results() -> None:
     assert artifact["total"]["passed"] == 82
 
 
+def test_readiness_artifact_parses_node_test_runner_info_summary() -> None:
+    results = [
+        {
+            "project": "knowledge-dashboard",
+            "check": "test",
+            "status": "passed",
+            "returncode": 0,
+            "duration_seconds": 0.9,
+            "command": "npm test",
+            "resolved_command": "npm.cmd test",
+            "stdout_tail": "\u2139 tests 61\n\u2139 pass 61\n\u2139 fail 0\n\u2139 skipped 0\n",
+            "stderr_tail": "",
+        },
+        {
+            "project": "knowledge-dashboard",
+            "check": "lint",
+            "status": "passed",
+            "returncode": 0,
+            "duration_seconds": 1.0,
+            "command": "npm run lint",
+            "resolved_command": "npm.cmd run lint",
+            "stdout_tail": "",
+            "stderr_tail": "",
+        },
+        {
+            "project": "knowledge-dashboard",
+            "check": "build",
+            "status": "passed",
+            "returncode": 0,
+            "duration_seconds": 1.0,
+            "command": "npm run build",
+            "resolved_command": "npm.cmd run build",
+            "stdout_tail": "",
+            "stderr_tail": "",
+        },
+        {
+            "project": "knowledge-dashboard",
+            "check": "smoke",
+            "status": "passed",
+            "returncode": 0,
+            "duration_seconds": 1.0,
+            "command": "npm run smoke",
+            "resolved_command": "npm.cmd run smoke",
+            "stdout_tail": "",
+            "stderr_tail": "",
+        },
+    ]
+
+    artifact = MODULE.build_readiness_artifact(results, timestamp="2026-06-05T00:00:00Z")
+
+    assert artifact["projects"]["knowledge-dashboard"]["status"] == "PASS"
+    assert artifact["projects"]["knowledge-dashboard"]["coverage"] == "complete"
+    assert artifact["projects"]["knowledge-dashboard"]["passed"] == 61
+    assert artifact["projects"]["knowledge-dashboard"]["failed"] == 0
+    assert artifact["projects"]["knowledge-dashboard"]["skipped"] == 0
+    assert artifact["total"]["passed"] == 61
+
+
 def test_main_writes_project_qc_artifact(monkeypatch, tmp_path: Path) -> None:
     fake_results = [
         {

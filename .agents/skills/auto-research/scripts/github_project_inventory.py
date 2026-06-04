@@ -20,6 +20,41 @@ PROJECT_MARKERS = (
     "go.mod",
     "CLAUDE.md",
 )
+TEST_FILE_SUFFIXES = (
+    "_test.py",
+    ".test.js",
+    ".test.jsx",
+    ".test.mjs",
+    ".test.py",
+    ".test.mts",
+    ".test.ts",
+    ".test.tsx",
+    ".spec.js",
+    ".spec.jsx",
+    ".spec.mjs",
+    ".spec.mts",
+    ".spec.ts",
+    ".spec.tsx",
+)
+TEST_FILE_PREFIXES = ("test_",)
+TEST_SCAN_EXCLUDES = {
+    ".git",
+    ".mypy_cache",
+    ".next",
+    ".nuxt",
+    ".pytest_cache",
+    ".tmp",
+    ".turbo",
+    ".venv",
+    "__pycache__",
+    "build",
+    "coverage",
+    "dist",
+    "node_modules",
+    "output",
+    "venv",
+}
+MAX_TEST_FILE_SAMPLES = 20
 
 
 def _run(args: list[str], cwd: Path, timeout: int = 20) -> dict[str, Any]:
@@ -56,16 +91,79 @@ def _has_any(path: Path, names: tuple[str, ...]) -> bool:
     return any((path / name).exists() for name in names)
 
 
+def _read_package_scripts(path: Path) -> dict[str, str]:
+    package_path = path / "package.json"
+    try:
+        data = json.loads(package_path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+    scripts = data.get("scripts")
+    if not isinstance(scripts, dict):
+        return {}
+    return {str(key): str(value) for key, value in scripts.items() if isinstance(value, str)}
+
+
+def _has_usable_package_test_script(path: Path) -> bool:
+    script = _read_package_scripts(path).get("test", "").strip().lower()
+    if not script:
+        return False
+    if "no test specified" in script:
+        return False
+    if script in {"exit 1", "false"} or script.startswith("exit 1 "):
+        return False
+    return True
+
+
+def _is_test_file_name(name: str) -> bool:
+    is_python_prefix_test = name.endswith(".py") and any(name.startswith(prefix) for prefix in TEST_FILE_PREFIXES)
+    return is_python_prefix_test or any(name.endswith(suffix) for suffix in TEST_FILE_SUFFIXES)
+
+
+def _test_file_summary(path: Path, root: Path) -> tuple[int, list[str]]:
+    count = 0
+    samples: list[str] = []
+    stack = [path]
+    while stack:
+        current = stack.pop()
+        try:
+            children = list(current.iterdir())
+        except (FileNotFoundError, NotADirectoryError, PermissionError, OSError):
+            continue
+        for candidate in children:
+            if current == path and path == root and candidate.name == "projects":
+                continue
+            if candidate.name in TEST_SCAN_EXCLUDES:
+                continue
+            if candidate.is_dir():
+                stack.append(candidate)
+                continue
+            if not candidate.is_file():
+                continue
+            name = candidate.name
+            if name.startswith("."):
+                continue
+            if _is_test_file_name(name):
+                count += 1
+                if len(samples) < MAX_TEST_FILE_SAMPLES:
+                    samples.append(_relative(candidate, root))
+    return count, sorted(samples)
+
+
 def _project_info(path: Path, root: Path) -> dict[str, Any]:
     workflows = sorted((path / ".github" / "workflows").glob("*.y*ml")) if (path / ".github").exists() else []
     markers = [name for name in PROJECT_MARKERS if (path / name).exists()]
     tests_dirs = [name for name in ("test", "tests", "__tests__") if (path / name).exists()]
+    test_file_count, test_files = _test_file_summary(path, root)
+    has_package_test_script = _has_usable_package_test_script(path)
     return {
         "path": _relative(path, root),
         "markers": markers,
         "has_src": (path / "src").exists(),
-        "has_tests": bool(tests_dirs),
+        "has_tests": bool(tests_dirs or test_file_count or has_package_test_script),
         "test_dirs": tests_dirs,
+        "test_file_count": test_file_count,
+        "test_files": test_files,
+        "has_package_test_script": has_package_test_script,
         "has_readme": any((path / name).exists() for name in ("README.md", "readme.md")),
         "has_env_example": (path / ".env.example").exists(),
         "has_dockerfile": (path / "Dockerfile").exists(),

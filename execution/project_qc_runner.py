@@ -350,7 +350,14 @@ def _parse_word_count(output: str, word: str) -> int:
 
 
 def _parse_node_test_count(output: str, word: str) -> int:
-    return sum(int(match.group(1)) for match in re.finditer(rf"(?m)^[#\s]*{re.escape(word)}\s+(\d+)\s*$", output))
+    return sum(
+        int(match.group(1))
+        for match in re.finditer(
+            rf"^[^\w\r\n]*{re.escape(word)}\s+(\d+)\s*$",
+            output,
+            flags=re.ASCII | re.MULTILINE,
+        )
+    )
 
 
 def _result_output(result: dict[str, object]) -> str:
