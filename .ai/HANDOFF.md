@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-06-04 |
 | Tool | Codex |
+| Work | **T-1216 GitHub Actions pnpm setup runtime uplift**. Applied Dependabot PR #95 directly on current `main`: `.github/workflows/full-test-matrix.yml` now uses `pnpm/action-setup@v6` instead of `@v4` in the frontend-active-apps job. This targets the repeated main CI annotation that `pnpm/action-setup@v4` runs on deprecated Node.js 20; Dependabot release notes say v5 updated the action to Node.js 24 and v6 adds pnpm v11 support, and the upstream latest release is `v6.0.8`. Verification before commit: PR #95 was one workflow file only, local assertion confirmed `@v6` present and `@v4` absent, `git diff --check` passed with CRLF warning only, and staged code-review gate passed. |
+| Next Priorities | Commit/push T-1216, close/comment PR #95 as superseded, then recheck main `active-project-matrix` to confirm frontend jobs pass and the Node 20 `pnpm/action-setup@v4` annotation is gone. T-251 remains user-owned Supabase credential reset. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-04 |
+| Tool | Codex |
 | Work | **T-1215 Dependabot PR #118 superseded on main**. Applied `hanwoo-dashboard` `@hookform/resolvers` bump from `^5.2.2` to `^5.4.0` directly on current `main` because PR #118 was blocked by frontend CI. Current package metadata confirms `5.4.0` is the latest dist-tag and peer `react-hook-form ^7.55.0` is compatible with Hanwoo `^7.76.1`; Dependabot release notes cite v5.4.0 `toNestErrors.ts` fix and new `ata-validator` resolver. Updated `projects/hanwoo-dashboard/package.json`, `package-lock.json`, and root `pnpm-lock.yaml`. Verification: root `pnpm.cmd install --lockfile-only --frozen-lockfile --ignore-scripts` passed; clean temporary worktree `pnpm.cmd install --frozen-lockfile --ignore-scripts` passed; `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed 498 tests, lint, and build; Chrome CDP browser QA passed login render/input, submit enablement, password toggle, invalid credential error, protected `/admin/diagnostics` redirect to `/login`, console issue 0, serious failed request 0. A/B helper selected `adopt_candidate` (`score_delta=0.5`). `npm audit --json` still reports 8 existing unrelated Prisma/Hono/Next/PostCSS transitive advisories. |
 | Next Priorities | Commit/push T-1215 and close/comment Dependabot PR #118 as superseded. Recheck main CI after push. Continue GitHub triage with another low-risk Dependabot PR only after main stays green; T-251 remains user-owned Supabase credential reset. |
 

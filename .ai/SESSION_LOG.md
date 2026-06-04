@@ -574,3 +574,12 @@
 - Browser QA: Chrome CDP automation passed `/login` render, input fill, submit enablement, password toggle, invalid credential error, protected `/admin/diagnostics` redirect to `/login`, console issue 0, and serious failed request 0. Plain Playwright runner was attempted first but hit a Windows/native Playwright crash, so CDP was used as the browser-click fallback.
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/t1215-ab.json --json` returned `adopt_candidate` with `score_delta=0.5`.
 - Residual audit note: `npm.cmd audit --json` still reports 8 existing unrelated Prisma/Hono/Next/PostCSS transitive advisories, so no broad audit fix was applied in this scoped bump.
+
+## 2026-06-04 - Codex
+
+- Completed T-1216 pre-push implementation by superseding the useful core of Dependabot PR #95 on current `main`.
+- Changed `.github/workflows/full-test-matrix.yml`: frontend-active-apps job now uses `pnpm/action-setup@v6` instead of `pnpm/action-setup@v4`.
+- Reason: main CI repeatedly annotated that `pnpm/action-setup@v4` runs on deprecated Node.js 20; Dependabot release notes say v5 updated the action to Node.js 24, and v6 adds pnpm v11 support.
+- Research: `gh api repos/pnpm/action-setup/releases/latest` reported latest upstream release `v6.0.8` published 2026-05-12.
+- Verification before commit: PR #95 touched only `.github/workflows/full-test-matrix.yml`; local assertion confirmed `pnpm/action-setup@v6` present and `pnpm/action-setup@v4` absent; `git diff --check` passed with CRLF warning only.
+- Post-push requirement: recheck main `active-project-matrix` to confirm frontend jobs pass and the Node 20 action annotation is gone.
