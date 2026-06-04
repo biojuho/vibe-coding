@@ -621,3 +621,13 @@
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/t1218-ab.json --json` returned `adopt_candidate` with `score_delta=0.45`.
 - Post-push closure: committed `78af4cd1`, pushed to `origin/main`, commented on and closed Dependabot PR #119 as superseded. Main GitHub Actions for `78af4cd1` passed: `root-quality-gate` success and `active-project-matrix` success, including `frontend-active-apps (knowledge-dashboard)` type check/test/build/lint/runtime smoke. Existing checkout post `/usr/bin/git` exit 128 annotations remain non-blocking.
 - Boundary: separate local knowledge-dashboard repo-display fallback WIP is dirty in `src/app/page.tsx`, `src/lib/dashboard-view.ts`, and `src/lib/dashboard-view.test.mts`; it was not staged or included in T-1218.
+
+## 2026-06-04 - Codex
+
+- Completed T-1232 pre-push implementation by superseding Dependabot PR #80 on current `main`.
+- Changed `projects/blind-to-x/pyproject.toml`: bumped `notion-client` from `2.2.1` to `3.1.0`.
+- Changed `uv.lock`: updated the blind-to-x resolver entry and Notion package artifacts to `notion-client 3.1.0`.
+- Research: local package metadata reports `notion-client 3.1.0` with `Requires-Python >=3.8, <4`, compatible with blind-to-x `requires-python >=3.11`; official notion-sdk-py v2.7.0, v3.0.0, and v3.1.0 release pages were reviewed. The relevant breaking change removes private/helper APIs `is_full_page_or_database` and `is_api_error_code`, which blind-to-x does not use; v3.1.0 adds endpoint support and automatic retry support.
+- Verification: `uv lock --project projects/blind-to-x --check` passed; import/API smoke reported Notion `3.1.0` and confirmed `AsyncClient` namespaces/methods used by blind-to-x; focused Notion upload/schema/persist tests passed 163/163 with one unrelated deprecated `google.generativeai` warning; extra Notion analytics/query/backfill tests passed 99/99; `python execution/project_qc_runner.py --project blind-to-x --check lint --json` passed.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/ab-blind-to-x-notion-client-1231.json --json` returned `adopt_candidate` with `score_delta=0.55`; the task ID was reassigned to T-1232 after concurrent word-chain T-1231 landed.
+- Post-push requirement: comment on and close Dependabot PR #80 as superseded, then confirm main `root-quality-gate` and `active-project-matrix` pass. T-1231 already landed on `main`; PR #97 remains open until closure after CI settles.
