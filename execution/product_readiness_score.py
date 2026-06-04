@@ -56,7 +56,7 @@ PROJECTS = {
     "hanwoo-dashboard": ProjectProfile(
         name="hanwoo-dashboard",
         path="projects/hanwoo-dashboard",
-        required_files=("README.md", "API_SPEC.md", "package.json"),
+        required_files=("README.md", "API_SPEC.md", "package.json", ".env.example"),
         env_checks=("supabase_password",),
     ),
     "knowledge-dashboard": ProjectProfile(

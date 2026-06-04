@@ -41,6 +41,10 @@ def test_knowledge_dashboard_runtime_auth_check_is_required_for_launch_readiness
     assert "dashboard_runtime_auth" in readiness.PROJECTS["knowledge-dashboard"].env_checks
 
 
+def test_hanwoo_env_example_is_required_launch_document():
+    assert ".env.example" in readiness.PROJECTS["hanwoo-dashboard"].required_files
+
+
 def _write_project_files(root: Path) -> None:
     for profile in readiness.PROJECTS.values():
         project_root = root / profile.path
