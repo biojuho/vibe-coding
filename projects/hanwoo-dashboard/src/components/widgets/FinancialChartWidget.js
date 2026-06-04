@@ -177,7 +177,13 @@ export default function FinancialChartWidget(options = {}) {
 				title={financialChartLabel}
 				style={{ height: "260px", fontSize: "11px" }}
 			>
-				<ResponsiveContainer width="100%" height="100%">
+				<ResponsiveContainer
+					width="100%"
+					height="100%"
+					minWidth={0}
+					minHeight={0}
+					initialDimension={{ width: 1, height: 1 }}
+				>
 					<BarChart
 						data={chartData}
 						margin={{ top: 10, right: 0, left: -20, bottom: 0 }}

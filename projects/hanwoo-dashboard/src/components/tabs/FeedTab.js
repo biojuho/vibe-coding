@@ -535,7 +535,13 @@ export default function FeedTab(options = {}) {
 				>
 					최근 급여 추이
 				</div>
-				<ResponsiveContainer width="100%" height="100%">
+				<ResponsiveContainer
+					width="100%"
+					height="100%"
+					minWidth={0}
+					minHeight={0}
+					initialDimension={{ width: 1, height: 1 }}
+				>
 					<LineChart data={chartData}>
 						<CartesianGrid
 							strokeDasharray="3 3"

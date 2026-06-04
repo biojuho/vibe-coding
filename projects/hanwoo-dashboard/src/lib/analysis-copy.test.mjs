@@ -139,11 +139,11 @@ test("analysis tab normalizes numeric inputs before financial and feed aggregati
 	);
 	assert.match(
 		analysisSource,
-		/className="h-\[320px\]"[\s\S]*?role="img"[\s\S]*?aria-label=\{monthlyFlowChartLabel\}[\s\S]*?title=\{monthlyFlowChartLabel\}[\s\S]*?<ResponsiveContainer width="100%" height="100%">/,
+		/className="h-\[320px\]"[\s\S]*?role="img"[\s\S]*?aria-label=\{monthlyFlowChartLabel\}[\s\S]*?title=\{monthlyFlowChartLabel\}[\s\S]*?<ResponsiveContainer[\s\S]*?width="100%"[\s\S]*?height="100%"[\s\S]*?minWidth=\{0\}[\s\S]*?minHeight=\{0\}[\s\S]*?initialDimension=\{\{ width: 1, height: 1 \}\}/,
 	);
 	assert.match(
 		analysisSource,
-		/className="h-\[280px\]"[\s\S]*?role="img"[\s\S]*?aria-label=\{costStructureChartLabel\}[\s\S]*?title=\{costStructureChartLabel\}[\s\S]*?<ResponsiveContainer width="100%" height="100%">/,
+		/className="h-\[280px\]"[\s\S]*?role="img"[\s\S]*?aria-label=\{costStructureChartLabel\}[\s\S]*?title=\{costStructureChartLabel\}[\s\S]*?<ResponsiveContainer[\s\S]*?width="100%"[\s\S]*?height="100%"[\s\S]*?minWidth=\{0\}[\s\S]*?minHeight=\{0\}[\s\S]*?initialDimension=\{\{ width: 1, height: 1 \}\}/,
 	);
 	assert.match(
 		analysisSource,
@@ -287,7 +287,7 @@ test("financial chart widget normalizes numeric inputs before chart aggregation"
 	);
 	assert.match(
 		source,
-		/role="img"\s+aria-label=\{financialChartLabel\}\s+title=\{financialChartLabel\}[\s\S]*?<ResponsiveContainer width="100%" height="100%">/,
+		/role="img"\s+aria-label=\{financialChartLabel\}\s+title=\{financialChartLabel\}[\s\S]*?<ResponsiveContainer[\s\S]*?width="100%"[\s\S]*?height="100%"[\s\S]*?minWidth=\{0\}[\s\S]*?minHeight=\{0\}[\s\S]*?initialDimension=\{\{ width: 1, height: 1 \}\}/,
 	);
 	assert.doesNotMatch(source, /saleRecords\.forEach/);
 	assert.doesNotMatch(source, /expenseRecords\.forEach/);

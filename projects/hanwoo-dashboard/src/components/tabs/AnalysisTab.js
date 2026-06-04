@@ -229,7 +229,13 @@ export default function AnalysisTab(options = {}) {
 					aria-label={monthlyFlowChartLabel}
 					title={monthlyFlowChartLabel}
 				>
-					<ResponsiveContainer width="100%" height="100%">
+					<ResponsiveContainer
+						width="100%"
+						height="100%"
+						minWidth={0}
+						minHeight={0}
+						initialDimension={{ width: 1, height: 1 }}
+					>
 						<BarChart data={monthlyData}>
 							<CartesianGrid
 								strokeDasharray="3 3"
@@ -304,7 +310,13 @@ export default function AnalysisTab(options = {}) {
 							aria-label={costStructureChartLabel}
 							title={costStructureChartLabel}
 						>
-							<ResponsiveContainer width="100%" height="100%">
+							<ResponsiveContainer
+								width="100%"
+								height="100%"
+								minWidth={0}
+								minHeight={0}
+								initialDimension={{ width: 1, height: 1 }}
+							>
 								<PieChart>
 									<Pie
 										data={costStructure}

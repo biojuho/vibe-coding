@@ -561,7 +561,13 @@ export default function SalesTab(options = {}) {
 						title={salesProfitChartLabel}
 						style={{ height: "200px", fontSize: "10px" }}
 					>
-						<ResponsiveContainer width="100%" height="100%">
+						<ResponsiveContainer
+							width="100%"
+							height="100%"
+							minWidth={0}
+							minHeight={0}
+							initialDimension={{ width: 1, height: 1 }}
+						>
 							<BarChart
 								data={safeChartData}
 								margin={{ top: 5, right: 5, left: -20, bottom: 0 }}

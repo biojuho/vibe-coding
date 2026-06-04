@@ -113,7 +113,7 @@ test("cattle detail weight chart exposes an accessible chart summary", () => {
 	);
 	assert.match(
 		source,
-		/role="img"\s+aria-label=\{weightChartLabel\}\s+title=\{weightChartLabel\}[\s\S]*?<ResponsiveContainer width="100%" height="100%">/,
+		/role="img"\s+aria-label=\{weightChartLabel\}\s+title=\{weightChartLabel\}[\s\S]*?<ResponsiveContainer[\s\S]*?width="100%"[\s\S]*?height="100%"[\s\S]*?minWidth=\{0\}[\s\S]*?minHeight=\{0\}[\s\S]*?initialDimension=\{\{ width: 1, height: 1 \}\}/,
 	);
 });
 
