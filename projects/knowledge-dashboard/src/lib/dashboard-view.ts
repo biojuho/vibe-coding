@@ -28,9 +28,26 @@ const TAG_RULES: Array<{ keywords: string[]; tag: TagChip }> = [
 	},
 ];
 
+export function getGithubRepoDisplayName(repo: GithubRepo): string {
+	const rawName = typeof repo.name === "string" ? repo.name.trim() : "";
+	if (rawName) return rawName;
+
+	const rawUrl = typeof repo.html_url === "string" ? repo.html_url.trim() : "";
+	if (rawUrl) {
+		const slug = rawUrl.split("/").filter(Boolean).pop();
+		if (slug) return slug;
+	}
+
+	return "이름 없는 저장소";
+}
+
 function taggableText(item: GithubRepo | Notebook): string {
 	if ("name" in item) {
-		return `${item.name} ${item.description || ""} ${item.language || ""}`.toLowerCase();
+		const name = getGithubRepoDisplayName(item);
+		const description =
+			typeof item.description === "string" ? item.description : "";
+		const language = typeof item.language === "string" ? item.language : "";
+		return `${name} ${description} ${language}`.toLowerCase();
 	}
 	const sourceTitles = item.sources?.map((s) => s.title).join(" ") || "";
 	return `${item.title} ${sourceTitles}`.toLowerCase();
@@ -66,10 +83,11 @@ export function filterDashboard(
 	return {
 		github: data.github.filter(
 			(repo) =>
-				repo.name.toLowerCase().includes(lowerTerm) ||
-				(repo.description &&
+				getGithubRepoDisplayName(repo).toLowerCase().includes(lowerTerm) ||
+				(typeof repo.description === "string" &&
 					repo.description.toLowerCase().includes(lowerTerm)) ||
-				(repo.language && repo.language.toLowerCase().includes(lowerTerm)),
+				(typeof repo.language === "string" &&
+					repo.language.toLowerCase().includes(lowerTerm)),
 		),
 		notebooklm: data.notebooklm.filter((nb) =>
 			nb.title.toLowerCase().includes(lowerTerm),

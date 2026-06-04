@@ -54,6 +54,7 @@ import {
 	computeLanguageStats,
 	filterDashboard,
 	getDataFreshness,
+	getGithubRepoDisplayName,
 	getTags,
 } from "@/lib/dashboard-view";
 
@@ -896,19 +897,22 @@ export default function Dashboard() {
 
 										<div className="grid gap-4">
 											{filteredData.github.length > 0 ? (
-												filteredData.github.map((repo) => (
+												filteredData.github.map((repo) => {
+													const repoDisplayName =
+														getGithubRepoDisplayName(repo);
+													return (
 													<a
 														key={repo.id}
 														href={repo.html_url}
 														target="_blank"
 														rel="noopener noreferrer"
-														aria-label={`${repo.name} 저장소 열기 (새 탭)`}
+														aria-label={`${repoDisplayName} 저장소 열기 (새 탭)`}
 														className="group relative block p-6 bg-slate-900/40 border border-white/5 hover:border-blue-500/30 rounded-2xl hover:bg-slate-800/40 transition-all duration-300 backdrop-blur-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
 													>
 														<div className="flex justify-between items-start mb-4">
 															<div>
 																<h3 className="text-lg font-medium text-blue-100 group-hover:text-blue-400 transition-colors">
-																	{repo.name}
+																	{repoDisplayName}
 																</h3>
 																{repo.language && (
 																	<div className="flex items-center gap-2 mt-2">
@@ -940,7 +944,8 @@ export default function Dashboard() {
 															{repo.description || "설명이 없습니다."}
 														</p>
 													</a>
-												))
+													);
+												})
 											) : hasSearch ? (
 												<div className="text-slate-400 text-center py-8 bg-slate-900/20 rounded-xl border border-white/5 border-dashed">
 													검색 결과가 없습니다.

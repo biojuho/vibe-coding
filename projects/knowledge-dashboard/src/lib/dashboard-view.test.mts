@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import type { GithubRepo } from "./dashboard-types.ts";
 import {
 	computeLanguageStats,
 	filterDashboard,
 	formatRelativeTime,
 	formatTimestamp,
 	getDataFreshness,
+	getGithubRepoDisplayName,
 	getTags,
 } from "./dashboard-view.ts";
 
@@ -87,6 +89,25 @@ test("filterDashboard is case-insensitive over name/description/language and not
 	assert.equal(filterDashboard(data, "go").github.length, 1, "language match");
 	assert.equal(filterDashboard(data, "zzz").github.length, 0);
 	assert.deepEqual(filterDashboard(null, "x"), { github: [], notebooklm: [] });
+});
+
+test("repo display name falls back before rendering or filtering", () => {
+	const repo = {
+		id: 3,
+		name: undefined,
+		description: "",
+		html_url: "https://github.com/acme/recovered-name",
+		language: null,
+		stargazers_count: 0,
+		updated_at: "",
+	} as unknown as GithubRepo;
+
+	assert.equal(getGithubRepoDisplayName(repo), "recovered-name");
+	assert.equal(
+		filterDashboard({ github: [repo], notebooklm: [] }, "recovered").github.length,
+		1,
+	);
+	assert.doesNotThrow(() => getTags(repo));
 });
 
 test("computeLanguageStats uses classified count, not total repos", () => {
