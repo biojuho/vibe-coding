@@ -657,3 +657,13 @@
 - Audit note: `npm.cmd audit --json` still reports the existing 7 advisories (6 moderate, 1 high), unchanged from before this bump; the suggested Prisma fix path is an unsuitable downgrade to 6.19.3, so no broad audit fix was applied in this scoped minor bump.
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/ab-hanwoo-prisma-1234.json --json` returned `adopt_candidate` with `score_delta=0.2857142857142857`.
 - Post-push requirement: comment on and close Dependabot PR #120 as superseded, then confirm main `root-quality-gate` and `active-project-matrix` pass. T-251 remains separate user-owned Supabase credential reset work.
+
+## 2026-06-04 - Codex
+
+- Completed T-1235 pre-push implementation after browser QA exposed a production health route proxy issue.
+- Changed `projects/hanwoo-dashboard/src/proxy.js`: added `api/health` to the Auth.js proxy matcher exclusion list so `/api/health` returns the route's JSON response instead of a login redirect.
+- Changed `projects/hanwoo-dashboard/src/lib/app-metadata-copy.test.mjs`: added an ASCII-only regression test asserting the proxy leaves `api/health`, `manifest.json`, and `api/auth` outside auth redirects.
+- Verification: focused `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/app-metadata-copy.test.mjs` passed 2/2; `npm.cmd test` passed 499/499; `npm.cmd run lint` passed; `npm.cmd run build` passed; direct `curl.exe -i http://127.0.0.1:4315/api/health` returned 200 JSON; Chrome CDP QA passed `/login` render, password-toggle coordinate click, `/api/health` 200, `/privacy` navigation, console issues 0, and network failures 0.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/ab-hanwoo-health-proxy-1235.json --json` returned `adopt_candidate` with `score_delta=0.6363636363636364`.
+- Boundary: `/api/health` still reports `database: disconnected` with the existing T-251 Supabase `P2010 / XX000 / ENOTFOUND tenant/user postgres.fuemeqmigptwfzqvrpjf not found` warning; this is an external credential/control-plane issue, not part of this local proxy fix.
+- Preservation: unrelated dirty `projects/knowledge-dashboard/package.json`, `projects/knowledge-dashboard/package-lock.json`, and root `pnpm-lock.yaml` `@types/node` changes were not staged for this commit.

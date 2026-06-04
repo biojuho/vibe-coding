@@ -48,3 +48,11 @@ test("app metadata and PWA manifest use product-ready Korean copy", () => {
 		"한우 농장의 개체, 번식, 출하, 재고, 일정을 한곳에서 관리하는 운영 대시보드",
 	);
 });
+
+test("proxy leaves public health and PWA assets outside auth redirects", () => {
+	const proxySource = readProjectFile("src/proxy.js");
+
+	assert.match(proxySource, /api\/health/);
+	assert.match(proxySource, /manifest\.json/);
+	assert.match(proxySource, /api\/auth/);
+});
