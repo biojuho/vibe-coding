@@ -43,6 +43,8 @@
 
 ## Recent Verification
 
+- **2026-06-04 (Codex)**: T-1217 Hanwoo `lucide-react` dependency freshness loop. Applied `lucide-react` `^0.563.0` -> `^1.17.0` with synced npm and root pnpm lockfiles. Verified current npm metadata (`latest=1.17.0`, React 19 peer compatible), root frozen lock, 58 Hanwoo lucide named imports with 0 missing exports, `project_qc_runner.py --project hanwoo-dashboard --json` test/lint/build pass, Chrome CDP login click smoke with lucide SVG render and no console/network issues, clean temporary worktree `pnpm install --frozen-lockfile`, and A/B `adopt_candidate`.
+
 - **2026-05-26 (Gemini)**: 모노레포 전역 스페이싱/포맷팅 테스트 하드닝 및 QC 스윕 완료. `hanwoo-dashboard`에서 Biome 포맷터 도입에 대응해 29개 정규식 검사를 하드닝하여 282/282 Node 테스트 100% 그린 패스 및 Next 빌드 통과. `shorts-maker-v2` Ruff 린트 에러(UP035, I001) 및 `blind-to-x` coverage 70% 제한 우회 처리(`--no-cov` 격리)를 통해 모노레포 전체 QC 올-그린 확인.
 - **2026-05-22 (Gemini)**: `media_step.py` 리팩토링 및 Ruff 린트 클린. `shorts-maker-v2` 602개 단위 테스트 100% 그린 패스 달성.
 - **2026-05-21 (Codex)**: `hanwoo-dashboard` 전역 데이터 정규화(Data Normalization) 하드닝 및 263개 테스트 스위트 그린 패스 완료.

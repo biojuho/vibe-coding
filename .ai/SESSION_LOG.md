@@ -583,3 +583,14 @@
 - Research: `gh api repos/pnpm/action-setup/releases/latest` reported latest upstream release `v6.0.8` published 2026-05-12.
 - Verification before commit: PR #95 touched only `.github/workflows/full-test-matrix.yml`; local assertion confirmed `pnpm/action-setup@v6` present and `pnpm/action-setup@v4` absent; `git diff --check` passed with CRLF warning only.
 - Post-push requirement: recheck main `active-project-matrix` to confirm frontend jobs pass and the Node 20 action annotation is gone.
+
+## 2026-06-04 - Codex
+
+- Completed T-1217 pre-push implementation by superseding Dependabot PR #121 on current `main`.
+- Changed `projects/hanwoo-dashboard/package.json`: bumped `lucide-react` from `^0.563.0` to `^1.17.0`.
+- Changed `projects/hanwoo-dashboard/package-lock.json`: updated `lucide-react` to `1.17.0`.
+- Changed `pnpm-lock.yaml`: updated the Hanwoo importer and lucide snapshot to `lucide-react@1.17.0(react@19.2.6)`.
+- Research: `npm.cmd view lucide-react@1.17.0 version peerDependencies dist-tags --json` reports `latest=1.17.0` and peer `react ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0`, compatible with Hanwoo React 19. PR #121 is open but BEHIND and had failing frontend-active-apps jobs on its branch.
+- Verification: root `pnpm.cmd install --lockfile-only --frozen-lockfile --ignore-scripts` passed; lucide import smoke checked 58 Hanwoo named icon imports with 0 missing exports; `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed 498 tests, lint, and build; Chrome CDP browser QA passed `/login` lucide SVG render, real input typing, password toggle, invalid credential alert, protected `/admin/diagnostics` redirect to `/login`, console issue 0, and serious failed request 0; clean temporary worktree `pnpm.cmd install --frozen-lockfile --ignore-scripts` passed.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/t1217-ab.json --json` returned `adopt_candidate` with `score_delta=0.45`.
+- Residual audit note: `npm.cmd audit --json` still reports 8 existing unrelated Prisma/Hono/Next/PostCSS transitive advisories, so no broad audit fix was applied in this scoped lucide bump.

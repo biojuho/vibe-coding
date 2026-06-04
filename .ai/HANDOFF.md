@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-06-04 |
 | Tool | Codex |
+| Work | **T-1217 Dependabot PR #121 superseded on main**. Applied `hanwoo-dashboard` `lucide-react` bump from `^0.563.0` to `^1.17.0` directly on current `main` because PR #121 was behind and its frontend jobs were failing on the Dependabot branch. Current npm metadata confirms `1.17.0` is the latest dist-tag and its peer range includes React 19. Updated `projects/hanwoo-dashboard/package.json`, `projects/hanwoo-dashboard/package-lock.json`, and root `pnpm-lock.yaml`. Verification: root `pnpm.cmd install --lockfile-only --frozen-lockfile --ignore-scripts` passed; lucide import smoke checked 58 Hanwoo named icon imports with 0 missing exports; `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed 498 tests, lint, and build; Chrome CDP browser QA passed `/login` render with 4 lucide SVGs, real input typing, password toggle, invalid credential alert, protected `/admin/diagnostics` redirect to `/login`, console issue 0, and serious failed request 0; clean temporary worktree `pnpm.cmd install --frozen-lockfile --ignore-scripts` passed; A/B helper selected `adopt_candidate` (`score_delta=0.45`). `npm audit --json` still reports 8 existing unrelated Prisma/Hono/Next/PostCSS transitive advisories. |
+| Next Priorities | Commit/push T-1217, close/comment PR #121 as superseded, then recheck main `active-project-matrix` and `root-quality-gate`. Continue GitHub triage with another low-risk Dependabot PR only after main stays green; T-251 remains user-owned Supabase credential reset. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-04 |
+| Tool | Codex |
 | Work | **T-1216 GitHub Actions pnpm setup runtime uplift**. Applied Dependabot PR #95 directly on current `main`: `.github/workflows/full-test-matrix.yml` now uses `pnpm/action-setup@v6` instead of `@v4` in the frontend-active-apps job. This targets the repeated main CI annotation that `pnpm/action-setup@v4` runs on deprecated Node.js 20; Dependabot release notes say v5 updated the action to Node.js 24 and v6 adds pnpm v11 support, and the upstream latest release is `v6.0.8`. Verification before commit: PR #95 was one workflow file only, local assertion confirmed `@v6` present and `@v4` absent, `git diff --check` passed with CRLF warning only, and staged code-review gate passed. |
 | Next Priorities | Commit/push T-1216, close/comment PR #95 as superseded, then recheck main `active-project-matrix` to confirm frontend jobs pass and the Node 20 `pnpm/action-setup@v4` annotation is gone. T-251 remains user-owned Supabase credential reset. |
 
