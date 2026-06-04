@@ -552,3 +552,13 @@
 - Changed `projects/knowledge-dashboard/package-lock.json`: updated `tailwind-merge` to `3.6.0` and synchronized stale root metadata to package version `1.1.0` plus Node engine `>=20`.
 - Verification: `python execution/project_qc_runner.py --project knowledge-dashboard --json` passed test/lint/build; `npm.cmd run smoke` passed.
 - Residual audit note: `npm.cmd audit --json` still reports 7 unrelated advisories (4 moderate, 3 high), including a Next/PostCSS advisory with an unsuitable npm suggested fix, so no broad audit fix was applied in this scoped bump.
+
+## 2026-06-04 - Codex
+
+- Completed T-1214 by superseding Dependabot PR #116 on current `main`.
+- Changed `projects/hanwoo-dashboard/package.json`: bumped `tailwind-merge` from `^3.5.0` to `^3.6.0`.
+- Changed `projects/hanwoo-dashboard/package-lock.json`: updated `tailwind-merge` to `3.6.0`.
+- Changed `pnpm-lock.yaml`: updated Hanwoo and knowledge-dashboard importer specifiers to `^3.6.0`, repairing the main CI root `pnpm install --frozen-lockfile` failure from stale workspace lock metadata after T-1213.
+- Verification: root `pnpm.cmd install --lockfile-only --frozen-lockfile --ignore-scripts` passed; clean temporary worktree `pnpm.cmd install --frozen-lockfile --ignore-scripts` passed; `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed 498 tests, lint, and build.
+- Local note: an attempted root pnpm full install disturbed ignored npm-managed `node_modules`; `npm.cmd install` in `projects/hanwoo-dashboard` restored local npm command resolution before the passing QC rerun.
+- Residual audit note: `npm.cmd audit --json` still reports 8 unrelated Prisma/Hono/Next/PostCSS transitive advisories, so no broad audit fix was applied in this scoped bump.
