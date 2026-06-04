@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-06-04 |
 | Tool | Gemini 3.5 Flash (High) |
+| Work | **T-1204 Resolved global npm wrappers PowerShell cmdlet loading issue**. Patched all .ps1 wrapper scripts in `C:\Users\박주호\AppData\Roaming\npm\` (claude.ps1, codex.ps1, pnpm.ps1, pn.ps1, pnpx.ps1, pnx.ps1) by replacing cmdlet calls like `Split-Path` and `Test-Path` with static .NET methods (`[System.IO.Path]::GetDirectoryName` and `[System.IO.File]::Exists`). This completely bypasses any PowerShell session loading constraints/bugs and allows the commands to execute instantly and flawlessly. |
+| Next Priorities | Resolve the remaining database/Supabase blocker `T-251` (user action required to reset DB credentials on the control plane). |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-04 |
+| Tool | Gemini 3.5 Flash (High) |
 | Work | **T-1203 Resolved PowerShell core cmdlets not recognized issue** when running globally installed npm wrapper scripts like `codex.ps1`. The root cause was that the user's PowerShell 5.1 environment failed to automatically load/import core modules (`Microsoft.PowerShell.Management`, `Microsoft.PowerShell.Utility`, etc.) upon startup. Resolved this by creating a global user profile (`C:\Users\박주호\OneDrive\문서\WindowsPowerShell\Microsoft.PowerShell_profile.ps1`) to explicitly import these core modules at the start of every session. Verified that cmdlets like `Split-Path`, `Test-Path`, and `Get-Content` are now fully available, and `codex` executes successfully without cmdlet errors. |
 | Next Priorities | Resolve the remaining database/Supabase blocker `T-251` (user action required to reset DB credentials on the control plane). |
 
