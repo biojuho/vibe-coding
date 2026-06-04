@@ -90,6 +90,13 @@ python .agents/skills/auto-research/scripts/completion_audit.py .tmp/completion-
 
 Read `references/completion-audit.md` for the manifest shape. A `complete` result requires every explicit requirement to have artifacts, current evidence, `verified: true`, and complete coverage. Incomplete or blocked items mean the next auto-research cycle must continue instead of declaring success.
 
+To generate a launch-objective manifest from current workspace evidence first, run:
+
+```bash
+python .agents/skills/auto-research/scripts/launch_objective_audit.py --root . --output .tmp/launch-objective-audit.json --json
+python .agents/skills/auto-research/scripts/completion_audit.py .tmp/launch-objective-audit.json --json --allow-incomplete
+```
+
 ### 6. Adopt, Commit, Push
 
 Adopt the candidate only when evidence is stronger than the baseline. Revert candidate edits when the evidence is worse or inconclusive, without touching unrelated user changes.
