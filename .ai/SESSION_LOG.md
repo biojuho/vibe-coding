@@ -690,3 +690,17 @@
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/ab-word-chain-vite-1237.json --json` returned `adopt_candidate` with `score_delta=0.5625`.
 - Boundary: `python execution/project_qc_runner.py --project word-chain --json` is not available because the deterministic runner currently supports only `all`, `blind-to-x`, `shorts-maker-v2`, `hanwoo-dashboard`, and `knowledge-dashboard`; word-chain was verified through its project scripts plus browser QA instead.
 - Post-push requirement: comment on and close Dependabot PR #87 as superseded, then confirm main `root-quality-gate` and `active-project-matrix` pass.
+
+## 2026-06-04 - Codex
+
+- Completed T-1238 pre-push implementation by superseding Dependabot PR #114 on current `main`.
+- Coordination note: T-1237 landed concurrently as the word-chain Vite update while this React cycle was being prepared, so the task ID was reallocated with `py -3 execution/next_task_id.py --json` and this work continued as T-1238 on clean `origin/main`.
+- Changed `projects/knowledge-dashboard/package.json`: bumped `react` and `react-dom` from `19.2.3` to `19.2.7`, and tightened `@types/react` from `^19` to `^19.2.16`.
+- Changed `projects/knowledge-dashboard/package-lock.json`: updated React/ReactDOM to 19.2.7 and `@types/react` to 19.2.16.
+- Changed `pnpm-lock.yaml`: updated the knowledge-dashboard importer and React peer snapshots to React/ReactDOM 19.2.7 and `@types/react` 19.2.16. The root lock also recalculated shared React type peer contexts, while package spec changes stayed scoped to knowledge-dashboard.
+- Research: `npm.cmd view react`, `react-dom`, `@types/react`, and `@types/react-dom` confirmed latest versions React/ReactDOM 19.2.7, `@types/react` 19.2.16, and `@types/react-dom` 19.2.3. `react-dom@19.2.7` peers on `react ^19.2.7`, so React and ReactDOM were updated together instead of taking PR #114's partial runtime patch.
+- Verification: root `pnpm.cmd install --lockfile-only --frozen-lockfile --ignore-scripts` passed; `npm.cmd ci --ignore-scripts` passed; `npm.cmd ls react react-dom @types/react @types/react-dom --depth=0` reported React/ReactDOM 19.2.7, `@types/react` 19.2.16, and `@types/react-dom` 19.2.3; `python execution/project_qc_runner.py --project knowledge-dashboard --json` passed 59 tests, lint, and build; `npm.cmd run smoke` passed.
+- Browser QA: headless Chrome via temporary Playwright API passed API-key login, operations/knowledge/qaqc/activity tab clicks, knowledge search, body text length 315, SVG count 14, console errors 0, and failed local responses 0.
+- Audit note: `npm.cmd audit --json` still reports the existing 7 advisories (4 moderate, 3 high), unchanged by this dependency freshness patch.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/ab-knowledge-react-1238.json --json` returned `adopt_candidate` with `score_delta=1.0`.
+- Post-push requirement: comment on and close Dependabot PR #114 as superseded, then confirm main `root-quality-gate` and `active-project-matrix` pass.
