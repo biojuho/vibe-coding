@@ -595,3 +595,16 @@
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/t1217-ab.json --json` returned `adopt_candidate` with `score_delta=0.45`.
 - Residual audit note: `npm.cmd audit --json` still reports 8 existing unrelated Prisma/Hono/Next/PostCSS transitive advisories, so no broad audit fix was applied in this scoped lucide bump.
 - Post-push closure: committed `c2e7d52f`, pushed to `origin/main`, commented on and closed Dependabot PR #121 as superseded. Main GitHub Actions for `c2e7d52f` passed: `root-quality-gate` success and `active-project-matrix` success, including `frontend-active-apps (hanwoo-dashboard)` type check/test/build/lint/runtime smoke. Local `python execution/session_orient.py --json` reports clean worktree and no ahead/behind. Remaining blocker is still only T-251, user-owned Supabase credential reset.
+
+## 2026-06-04 - Codex
+
+- Completed T-1218 by superseding Dependabot PR #119 on current `main`.
+- Changed `projects/knowledge-dashboard/package.json`: bumped `lucide-react` from `^0.563.0` to `^1.17.0`.
+- Changed `projects/knowledge-dashboard/package-lock.json`: updated `lucide-react` to `1.17.0`; npm also removed stale optional `@emnapi/core`/`@emnapi/runtime` lock entries during install.
+- Changed `pnpm-lock.yaml`: updated the knowledge-dashboard importer and lucide snapshot to `lucide-react@1.17.0(react@19.2.3)`.
+- Research: `npm.cmd view lucide-react@1.17.0 version peerDependencies dist-tags --json` reported `latest=1.17.0` and peer `react ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0`, compatible with knowledge-dashboard React 19. PR #119 was open but behind and its branch frontend jobs were stale/failing.
+- Verification: root `pnpm.cmd install --lockfile-only --frozen-lockfile --ignore-scripts` passed; knowledge-dashboard lucide import smoke checked 29 named icon imports with 0 missing exports; `python execution/project_qc_runner.py --project knowledge-dashboard --json` passed 57 tests, lint, and build; `npm.cmd run smoke` exited 0; clean temporary worktree `pnpm.cmd install --frozen-lockfile --ignore-scripts` passed after a Windows cleanup lock occurred only after the install success.
+- Browser QA: Playwright CLI was attempted first but the browser target closed immediately in this environment, so Chrome CDP automation was used. CDP QA passed API-key login, lucide SVG render (`1` on login, `10` after login), operations/knowledge/qaqc/activity tab clicks, `/api/auth/session` and all four data routes returning 200, console errors 0, serious network failures 0.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/t1218-ab.json --json` returned `adopt_candidate` with `score_delta=0.45`.
+- Post-push closure: committed `78af4cd1`, pushed to `origin/main`, commented on and closed Dependabot PR #119 as superseded. Main GitHub Actions for `78af4cd1` passed: `root-quality-gate` success and `active-project-matrix` success, including `frontend-active-apps (knowledge-dashboard)` type check/test/build/lint/runtime smoke. Existing checkout post `/usr/bin/git` exit 128 annotations remain non-blocking.
+- Boundary: separate local knowledge-dashboard repo-display fallback WIP is dirty in `src/app/page.tsx`, `src/lib/dashboard-view.ts`, and `src/lib/dashboard-view.test.mts`; it was not staged or included in T-1218.
