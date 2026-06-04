@@ -518,3 +518,14 @@
 - Set Hermes config outside the repo at `%LOCALAPPDATA%\hermes\config.yaml` to `model.provider=xai-oauth`, `model.default=grok-4.3`, and `model.base_url=https://api.x.ai/v1`.
 - Started a visible PowerShell OAuth flow with `hermes auth add xai-oauth --timeout 900; hermes auth status xai-oauth`, but current verification still reports `xai-oauth: logged out` until the user completes browser approval.
 - Existing unrelated `projects/knowledge-dashboard` worktree changes were left untouched.
+
+## 2026-06-04 - Codex
+
+- Completed T-1210 auto-research skill creation for the user request to turn the Karpathy autoresearch/self-improvement loop into a reusable skill.
+- Commit: `aae01277` (`feat(skills): T-1210 add auto-research loop skill`).
+- Added `.agents/skills/auto-research/SKILL.md` with a bounded research -> implement -> verify -> A/B compare -> adopt/revert -> record workflow, including GitHub PR/dependency triage and browser/app-click QA gates.
+- Added `.agents/skills/auto-research/references/karpathy-autoresearch.md` and `references/loop-contract.md` to separate the source concept, product adaptation, evidence manifest, adoption gate, UI smoke, and GitHub triage rules from the lean skill body.
+- Added deterministic helpers: `.agents/skills/auto-research/scripts/ab_decision.py` for weighted baseline/candidate scoring and `.agents/skills/auto-research/scripts/github_project_inventory.py` for local project, workflow, Dependabot, and open PR inventory.
+- Fixed `.agents/skills/skill-creator/scripts/quick_validate.py` to read `SKILL.md` using UTF-8 after default Windows CP949 decoding failed on Korean trigger text in the new skill.
+- Verification: `python .agents/skills/skill-creator/scripts/quick_validate.py .agents/skills/auto-research` passed; `python -m py_compile` passed for both new scripts and the validator; inline `ab_decision.decide(...)` returned `adopt_candidate`; `python .agents/skills/auto-research/scripts/github_project_inventory.py --root . --include-prs` ran and found 7 local project surfaces plus 27 open PRs (18 BLOCKED, 26 Dependabot); scoped `git diff --check -- .agents/skills/auto-research .agents/skills/skill-creator/scripts/quick_validate.py` exited 0 with a CRLF warning only.
+- Boundary: existing unrelated `projects/knowledge-dashboard` dirty-tree work was left untouched. `main` is still ahead of origin, so any push would publish pending ahead commits too.

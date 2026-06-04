@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-06-04 |
 | Tool | Codex |
+| Work | **T-1210 auto-research skill creation** (commit `aae01277`). Added project-level `.agents/skills/auto-research/` with a bounded Karpathy-style self-improvement workflow, references for autoresearch concepts and loop contracts, deterministic `ab_decision.py` scoring, and `github_project_inventory.py` local/GitHub inventory. Fixed `.agents/skills/skill-creator/scripts/quick_validate.py` to read `SKILL.md` as UTF-8 after Windows CP949 validation failed on Korean trigger text. Verification: `quick_validate.py .agents/skills/auto-research` passed, `python -m py_compile` passed for both new scripts and the validator, inline A/B helper returned `adopt_candidate`, inventory ran with `--include-prs` and found 27 open PRs (18 BLOCKED, 26 Dependabot), and scoped `git diff --check` exited 0 with the existing CRLF warning. |
+| Next Priorities | Use `$auto-research` for the next bounded product cycle. Inventory says the workspace is still dirty because of unrelated `projects/knowledge-dashboard` WIP, and `main` is ahead 8, so commit/push must stay scoped and should not accidentally publish unrelated WIP. T-251 remains user-owned Supabase credential reset; Hermes xAI OAuth still needs browser approval if that line is resumed. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-04 |
+| Tool | Codex |
 | Work | **T-1209 Hermes command/path recovery and Grok OAuth prep**. Fixed the user-facing `hermes` command-not-found state after prior Hermes v0.15.1 install by adding stable cmd shims in `%APPDATA%\npm` for `hermes`, `hermes-agent`, and `hermes-acp`, and by extending the current PowerShell profile to prepend `%LOCALAPPDATA%\hermes\hermes-agent\venv\Scripts` when present. Verified `hermes --version` resolves and reports Hermes Agent v0.15.1, and `hermes doctor` runs. Set Hermes default model config to `model.provider=xai-oauth`, `model.default=grok-4.3`, `model.base_url=https://api.x.ai/v1`. Launched a visible PowerShell OAuth flow with `hermes auth add xai-oauth --timeout 900; hermes auth status xai-oauth`. |
 | Next Priorities | xAI OAuth still requires the user to finish browser approval. Current verification reports `xai-oauth: logged out`; once the visible OAuth window/browser is approved, rerun `hermes auth status xai-oauth` and then a small `hermes -z` smoke. Existing unrelated `projects/knowledge-dashboard` worktree changes were left untouched. |
 
