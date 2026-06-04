@@ -746,3 +746,11 @@
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/ab-word-chain-eslint-1241.json --json` returned `adopt_candidate` with `score_delta=1.3529411764705883`.
 - Boundary: `python execution/project_qc_runner.py --project word-chain --json` is not available because the deterministic runner currently supports only `all`, `blind-to-x`, `shorts-maker-v2`, `hanwoo-dashboard`, and `knowledge-dashboard`; word-chain was verified through its project scripts plus browser QA.
 - Post-push: `e94faddb` is on `main`, Dependabot PR #115 was commented and closed as superseded, and both `root-quality-gate` plus `active-project-matrix` passed for that head. `active-project-matrix` still emitted known checkout annotations (`/usr/bin/git` exit 128) on several jobs, but all jobs concluded success and the workflow result was green.
+
+## 2026-06-04 - Codex
+
+- Completed T-1242 by closing Dependabot PR #117 as not currently adoptable instead of committing an unsafe ESLint 10 update for `knowledge-dashboard`.
+- Research: `eslint-config-next@16.2.6` declares `eslint >=9.0.0`, but current npm metadata shows `eslint-plugin-import@2.32.0`, `eslint-plugin-jsx-a11y@6.10.2`, and `eslint-plugin-react@7.37.5` only peer through ESLint 9. `eslint@10.4.1` itself is latest/current and supports local Node `24.13.0`, but the bundled Next lint plugin stack is the blocker.
+- Local trial: `npm.cmd install eslint@10.4.1 --save-dev --ignore-scripts` completed only with peer override warnings, then `npm.cmd run lint` failed under ESLint 10 with `TypeError: Error while loading rule 'react/display-name': contextOrFilename.getFilename is not a function` from `eslint-config-next`'s bundled `eslint-plugin-react`.
+- Cleanup/verification: restored the failed local lockfile churn; `knowledge-dashboard` remains on `eslint@9.39.4`, `npm.cmd ls eslint --depth=0` reported `eslint@9.39.4`, and `npm.cmd run lint` passed.
+- PR closeout: PR #117 was commented and closed as not currently adoptable; retry should wait for Next's lint plugin stack to publish ESLint 10-compatible plugin versions.
