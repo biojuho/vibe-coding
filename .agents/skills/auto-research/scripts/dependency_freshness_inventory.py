@@ -19,6 +19,10 @@ PROJECT_SCAN_EXCLUDES = {".git", ".next", ".tmp", "dist", "node_modules", "outpu
 VERSION_PATTERN = re.compile(r"(?P<major>\d+)(?:\.(?P<minor>\d+))?(?:\.(?P<patch>\d+))?")
 PRERELEASE_PATTERN = re.compile(r"[-.](alpha|beta|canary|dev|next|pre|rc)(?:[.-]|\d|$)", re.I)
 PRERELEASE_CHANNEL_PATTERN = re.compile(r"[-.](?P<channel>alpha|beta|canary|dev|next|pre|rc)(?:[.-]|\d|$)", re.I)
+PEER_VERSION_TOKEN_PATTERN = re.compile(
+    r"(?P<op>>=|<=|>|<|\^|~|=)?\s*v?(?P<major>\d+)(?:\.(?:\d+|x|X|\*))?(?:\.(?:\d+|x|X|\*))?"
+)
+PEER_BLOCKER_SAMPLE_LIMIT = 10
 
 
 def _relative(path: Path, root: Path) -> str:
@@ -161,6 +165,93 @@ def _parse_version(version: Any) -> tuple[int, int, int] | None:
         int(match.group("minor") or 0),
         int(match.group("patch") or 0),
     )
+
+
+def _package_name_from_lock_path(lock_path: str) -> str:
+    parts = [part for part in lock_path.replace("\\", "/").split("node_modules/") if part]
+    if not parts:
+        return lock_path or "unknown"
+    tail = parts[-1].strip("/")
+    if tail.startswith("@"):
+        scoped_parts = tail.split("/")
+        return "/".join(scoped_parts[:2]) if len(scoped_parts) >= 2 else tail
+    return tail.split("/", 1)[0] or "unknown"
+
+
+def _peer_range_allows_major(range_value: Any, target_major: int) -> bool:
+    if not isinstance(range_value, str):
+        return False
+
+    range_text = range_value.strip()
+    if not range_text:
+        return False
+    if range_text in {"*", "x", "X"}:
+        return True
+
+    for alternative in range_text.split("||"):
+        alternative = alternative.strip()
+        if not alternative:
+            continue
+        if alternative in {"*", "x", "X"}:
+            return True
+
+        tokens = [
+            (match.group("op") or "", int(match.group("major")))
+            for match in PEER_VERSION_TOKEN_PATTERN.finditer(alternative)
+        ]
+        if not tokens:
+            continue
+
+        if any(op in {"", "^", "~", "="} and major == target_major for op, major in tokens):
+            return True
+
+        lower_allows_target = False
+        upper_allows_target = False
+        upper_blocks_target = False
+        for op, major in tokens:
+            if op in {">=", ">"} and major <= target_major:
+                lower_allows_target = True
+            elif op == "<" and major <= target_major:
+                upper_blocks_target = True
+            elif op == "<=" and major < target_major:
+                upper_blocks_target = True
+            elif op in {"<", "<="} and major > target_major:
+                upper_allows_target = True
+
+        if not upper_blocks_target and (lower_allows_target or upper_allows_target):
+            return True
+
+    return False
+
+
+def _find_peer_blockers(
+    project_path: Path, dependency_name: str, target_major: int
+) -> tuple[list[dict[str, Any]], str]:
+    lock_data = _load_json(project_path / "package-lock.json")
+    packages = lock_data.get("packages")
+    if not isinstance(packages, dict):
+        return [], "missing_lockfile"
+
+    blockers = []
+    for lock_path, package_entry in sorted(packages.items(), key=lambda item: str(item[0]).lower()):
+        if not lock_path or not isinstance(package_entry, dict):
+            continue
+        peer_dependencies = package_entry.get("peerDependencies")
+        if not isinstance(peer_dependencies, dict) or dependency_name not in peer_dependencies:
+            continue
+        peer_range = peer_dependencies[dependency_name]
+        if _peer_range_allows_major(peer_range, target_major):
+            continue
+        blockers.append(
+            {
+                "package": str(package_entry.get("name") or _package_name_from_lock_path(str(lock_path))),
+                "version": str(package_entry.get("version") or "unknown"),
+                "peer_range": str(peer_range),
+                "path": str(lock_path).replace("\\", "/"),
+            }
+        )
+
+    return blockers, "blocked" if blockers else "none"
 
 
 def _is_prerelease(version: Any) -> bool:
@@ -320,6 +411,31 @@ def _apply_prerelease_dist_tag_context(
     return dependency
 
 
+def _apply_deferred_major_peer_context(dependency: dict[str, Any], project_path: Path) -> dict[str, Any]:
+    if not dependency.get("deferred") or dependency.get("latest_delta") != "major":
+        return dependency
+
+    latest_version = _parse_version(dependency.get("latest"))
+    if latest_version is None:
+        return dependency
+
+    target_major = latest_version[0]
+    blockers, status = _find_peer_blockers(project_path, str(dependency["name"]), target_major)
+    dependency["peer_blocker_check"] = status
+    dependency["peer_target_major"] = target_major
+    if not blockers:
+        return dependency
+
+    dependency["peer_blocker_count"] = len(blockers)
+    dependency["peer_blockers"] = blockers[:PEER_BLOCKER_SAMPLE_LIMIT]
+    if len(blockers) > PEER_BLOCKER_SAMPLE_LIMIT:
+        dependency["peer_blockers_truncated"] = True
+    dependency["reason"] += (
+        f"; {len(blockers)} installed peer dependency range(s) do not allow {dependency['name']} major {target_major}"
+    )
+    return dependency
+
+
 def summarize_project(
     project_path: Path,
     root: Path,
@@ -356,6 +472,7 @@ def summarize_project(
     for name, raw in sorted(parsed.items(), key=lambda item: str(item[0]).lower()):
         dependency = classify_dependency(str(name), raw if isinstance(raw, dict) else {})
         dependency = _apply_prerelease_dist_tag_context(dependency, project_path, timeout, tag_runner)
+        dependency = _apply_deferred_major_peer_context(dependency, project_path)
         dependencies.append(dependency)
     project["dependencies"] = dependencies
     project["outdated_count"] = len(dependencies)

@@ -137,6 +137,7 @@ python .agents/skills/auto-research/scripts/dependency_freshness_inventory.py --
 
 Use it to separate direct patch/minor adoption candidates from major migrations and prerelease/stable channel mismatches. Treat `defer_major_migration` and `defer_channel_mismatch` as separate upgrade experiments, not routine freshness work.
 Prerelease packages that are current on their matching npm dist-tag are reported as `current_prerelease_channel` instead of deferred, so lower stable `latest` tags do not become false blockers.
+Deferred major migrations may include lockfile peer blocker evidence when installed package peer ranges do not allow the target major.
 
 ## A/B Decision Helper
 

@@ -33,6 +33,15 @@ def _write_package(path: Path, dependencies: dict[str, str] | None = None) -> No
     (path / "package.json").write_text(json.dumps(package), encoding="utf-8")
 
 
+def _write_package_lock(path: Path, packages: dict[str, object]) -> None:
+    payload = {
+        "name": path.name,
+        "lockfileVersion": 3,
+        "packages": packages,
+    }
+    (path / "package-lock.json").write_text(json.dumps(payload), encoding="utf-8")
+
+
 def _npm_result(payload: dict[str, object]) -> dict[str, object]:
     return {
         "available": True,
@@ -202,6 +211,60 @@ def test_major_only_deferred_recommendation_names_major_migrations(tmp_path: Pat
         "No direct npm patch/minor adoption candidates; defer major migrations for: "
         "projects/hanwoo-dashboard, projects/knowledge-dashboard"
     ]
+
+
+def test_deferred_eslint_major_reports_lockfile_peer_blockers(tmp_path: Path) -> None:
+    project_path = tmp_path / "projects" / "knowledge-dashboard"
+    _write_package(project_path, {"eslint": "^9.39.4"})
+    _write_package_lock(
+        project_path,
+        {
+            "": {
+                "name": "knowledge-dashboard",
+                "dependencies": {"eslint": "^9.39.4"},
+            },
+            "node_modules/eslint-config-next": {
+                "version": "16.2.7",
+                "peerDependencies": {"eslint": ">=9.0.0"},
+            },
+            "node_modules/eslint-config-next/node_modules/eslint-plugin-react": {
+                "version": "7.37.5",
+                "peerDependencies": {"eslint": "^3 || ^4 || ^5 || ^6 || ^7 || ^8 || ^9.7"},
+            },
+            "node_modules/eslint-plugin-react-hooks": {
+                "version": "7.1.1",
+                "peerDependencies": {"eslint": "^3 || ^4 || ^5 || ^6 || ^7 || ^8 || ^9 || ^9.7 || ^10.0.0"},
+            },
+        },
+    )
+
+    result = dependency_freshness_inventory.build_inventory(
+        tmp_path,
+        runner=lambda _path, _timeout: _npm_result(
+            {
+                "eslint": {
+                    "current": "9.39.4",
+                    "wanted": "9.39.4",
+                    "latest": "10.4.1",
+                }
+            }
+        ),
+    )
+
+    dependency = result["projects"][0]["dependencies"][0]
+    assert dependency["classification"] == "defer_major_migration"
+    assert dependency["peer_blocker_check"] == "blocked"
+    assert dependency["peer_target_major"] == 10
+    assert dependency["peer_blocker_count"] == 1
+    assert dependency["peer_blockers"] == [
+        {
+            "package": "eslint-plugin-react",
+            "version": "7.37.5",
+            "peer_range": "^3 || ^4 || ^5 || ^6 || ^7 || ^8 || ^9.7",
+            "path": "node_modules/eslint-config-next/node_modules/eslint-plugin-react",
+        }
+    ]
+    assert "do not allow eslint major 10" in dependency["reason"]
 
 
 def test_empty_outdated_payload_marks_project_clean(tmp_path: Path) -> None:
