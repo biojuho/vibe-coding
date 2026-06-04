@@ -25,7 +25,9 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -57,6 +59,7 @@ jobs:
           workspace/tests/test_auto_schedule_paths.py
           workspace/tests/test_skill_lint.py
           workspace/tests/test_auto_research_completion_audit.py
+          workspace/tests/test_github_workflow_hygiene.py
           workspace/tests/test_next_task_id.py
           workspace/tests/test_task_id_gate.py
           -q
@@ -81,6 +84,7 @@ jobs:
           workspace/tests/test_auto_schedule_paths.py
           workspace/tests/test_skill_lint.py
           workspace/tests/test_auto_research_completion_audit.py
+          workspace/tests/test_github_workflow_hygiene.py
           workspace/tests/test_next_task_id.py
           workspace/tests/test_task_id_gate.py
           execution/skill_lint.py
