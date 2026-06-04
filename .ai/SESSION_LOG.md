@@ -394,3 +394,20 @@
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-t1269-vitest-418.json --json` returned `adopt_candidate` with `score_delta=1.4285714285714286`.
 - Completion audit: `.agents/skills/auto-research/scripts/completion_audit.py .tmp\completion-audit-t1269-vitest-418.json --json` returned `complete` with 5/5 items complete and 0 issues.
 - Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification, not local repo work.
+
+## 2026-06-05 - Codex
+
+- Completed T-1270 as a bounded frontend dependency freshness cycle for React/Next patch alignment across Word Chain, Hanwoo Dashboard, and Knowledge Dashboard.
+- Changed `projects/word-chain/package.json`: updated `react` and `react-dom` to `^19.2.7` and `@types/react` to `^19.2.16`; kept `react`/`react-dom` in `dependencies` after npm initially placed them under dev dependencies.
+- Changed `projects/hanwoo-dashboard/package.json`: updated `next` and `eslint-config-next` to `^16.2.7`, and `react`/`react-dom` to `^19.2.7`.
+- Changed `projects/knowledge-dashboard/package.json`: updated `next` and `eslint-config-next` to `16.2.7`.
+- Synchronized `projects/word-chain/package-lock.json`, `projects/hanwoo-dashboard/package-lock.json`, `projects/knowledge-dashboard/package-lock.json`, and root `pnpm-lock.yaml`.
+- External/current-source check: npm metadata confirmed `react@19.2.7`, `react-dom@19.2.7`, `@types/react@19.2.16`, `next@16.2.7`, and `eslint-config-next@16.2.7`, including peer/engine compatibility for the selected apps.
+- Verification: root `pnpm.cmd install --lockfile-only --frozen-lockfile --ignore-scripts` passed; selected `npm.cmd ls` checks reported the target versions; selected `npm.cmd outdated` checks returned `{}`.
+- Word Chain verification: `npm.cmd run test` passed 23/23, `npm.cmd run lint` passed, `npm.cmd run build` passed through the known ASCII-workspace fallback after direct Vite `3221226505`, and `npm.cmd audit --json` reported 0 vulnerabilities.
+- Dashboard verification: `python execution\project_qc_runner.py --project hanwoo-dashboard --project knowledge-dashboard --json --timeout-seconds 900` passed test/lint/build/smoke for both dashboards; Hanwoo reported 499 tests and Knowledge reported 61 tests.
+- Browser QA: `.tmp\word-chain-t1270-browser-qa.json` reports pass after submitting Korean input and retrying after game over; `.tmp\dashboard-t1270-browser-qa.json` reports pass for Hanwoo login input/password-toggle clicks and Knowledge wrong-key submit/error-alert click flow. Screenshots were retained under `output/playwright/`.
+- Audit note: dashboard npm audit output still reports existing moderate transitive advisories, including Next/PostCSS and Prisma/Hono paths, and npm suggested unsuitable downgrade fixes. No broad audit fix was applied in this scoped patch cycle.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-t1270-frontend-patch-alignment.json --json` returned `adopt_candidate` with `score_delta=5.777777777777778`.
+- Completion audit: `.agents/skills/auto-research/scripts/completion_audit.py .tmp\completion-audit-t1270-frontend-patch-alignment.json --json` returned `complete` with 7/7 items complete and 0 issues.
+- Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification, not local repo work.
