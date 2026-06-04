@@ -67,6 +67,7 @@ This is an internal, authenticated dashboard. To ship a production build:
    |---|---|---|
    | `DASHBOARD_API_KEY` | yes | API key clients exchange for an `httpOnly` signed session cookie (ADR-023). Routes return `503` if unset, `401` if a request presents the wrong key. |
    | `DASHBOARD_SESSION_SECRET` | optional | Dedicated HMAC secret for signing session cookies. Defaults to `DASHBOARD_API_KEY`. Set a separate value to rotate sessions without changing the login key. |
+   | `KNOWLEDGE_DASHBOARD_DATA_DIR` | optional | Runtime directory for authenticated JSON payloads. Defaults to `./data`; Docker sets `/app/data`. |
    | `GITHUB_PERSONAL_ACCESS_TOKEN` | optional | Used by `sync_data.py` to fetch repo activity. |
    | `NOTEBOOKLM_AUTH_TOKEN_PATH` | optional | Override for the NotebookLM token file used during sync. |
 

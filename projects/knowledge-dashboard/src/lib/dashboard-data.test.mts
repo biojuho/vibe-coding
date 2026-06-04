@@ -4,7 +4,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { readJsonFileResult } from "./dashboard-data.ts";
+import {
+	DATA_DIR_ENV,
+	dashboardDataFile,
+	getDashboardDataDir,
+	readJsonFileResult,
+} from "./dashboard-data.ts";
 
 test("readJsonFileResult returns 200 with parsed data for valid JSON", async () => {
 	const dir = await mkdtemp(path.join(tmpdir(), "kd-data-"));
@@ -48,6 +53,26 @@ test("readJsonFileResult returns 500 on malformed JSON and does NOT leak file co
 			"raw file contents must never appear in the error body",
 		);
 	} finally {
+		await rm(dir, { recursive: true, force: true });
+	}
+});
+
+test("dashboardDataFile uses the configured runtime data directory", async () => {
+	const previous = process.env[DATA_DIR_ENV];
+	const dir = await mkdtemp(path.join(tmpdir(), "kd-runtime-data-"));
+	try {
+		process.env[DATA_DIR_ENV] = dir;
+		assert.equal(getDashboardDataDir(), path.resolve(dir));
+		assert.equal(
+			dashboardDataFile("skill_lint.json"),
+			path.join(dir, "skill_lint.json"),
+		);
+	} finally {
+		if (previous === undefined) {
+			delete process.env[DATA_DIR_ENV];
+		} else {
+			process.env[DATA_DIR_ENV] = previous;
+		}
 		await rm(dir, { recursive: true, force: true });
 	}
 });

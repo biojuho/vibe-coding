@@ -1,9 +1,9 @@
 import { access } from "node:fs/promises";
-import path from "node:path";
 
 import { NextResponse } from "next/server";
 
 import { getDashboardApiKey } from "@/lib/dashboard-auth";
+import { dashboardDataFile } from "@/lib/dashboard-data";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +17,7 @@ export async function GET() {
 
 	let dataPresent = false;
 	try {
-		await access(path.join(process.cwd(), "data", "dashboard_data.json"));
+		await access(dashboardDataFile("dashboard_data.json"));
 		dataPresent = true;
 	} catch {
 		dataPresent = false;

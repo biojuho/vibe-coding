@@ -9,6 +9,18 @@ const HOST = "127.0.0.1";
 const BASE_URL = `http://${HOST}:${PORT}`;
 const API_KEY = process.env.DASHBOARD_API_KEY ?? "smoke-dashboard-key";
 const DATA_DIR = path.join(process.cwd(), "data");
+const DATA_DIRS = [
+	DATA_DIR,
+	path.join(process.cwd(), ".next", "standalone", "data"),
+	path.join(
+		process.cwd(),
+		".next",
+		"standalone",
+		"projects",
+		"knowledge-dashboard",
+		"data",
+	),
+];
 
 // Fixtures shaped to satisfy the hardened payload guards in src/lib/dashboard-payload.ts.
 const FIXTURES = {
@@ -69,24 +81,28 @@ const FIXTURES = {
 // Back up any real data files, write deterministic fixtures, and restore on exit
 // so the smoke run never depends on (or destroys) locally synced data.
 async function withFixtures(run) {
-	await mkdir(DATA_DIR, { recursive: true });
 	const backups = new Map();
 
-	for (const name of Object.keys(FIXTURES)) {
-		const file = path.join(DATA_DIR, name);
-		try {
-			backups.set(name, await readFile(file, "utf8"));
-		} catch {
-			backups.set(name, null); // did not exist
+	for (const dataDir of DATA_DIRS) {
+		await mkdir(dataDir, { recursive: true });
+		for (const name of Object.keys(FIXTURES)) {
+			const file = path.join(dataDir, name);
+			const backupKey = `${dataDir}\0${name}`;
+			try {
+				backups.set(backupKey, await readFile(file, "utf8"));
+			} catch {
+				backups.set(backupKey, null); // did not exist
+			}
+			await writeFile(file, JSON.stringify(FIXTURES[name], null, 2), "utf8");
 		}
-		await writeFile(file, JSON.stringify(FIXTURES[name], null, 2), "utf8");
 	}
 
 	try {
 		return await run();
 	} finally {
-		for (const [name, original] of backups) {
-			const file = path.join(DATA_DIR, name);
+		for (const [backupKey, original] of backups) {
+			const [dataDir, name] = backupKey.split("\0");
+			const file = path.join(dataDir, name);
 			if (original === null) {
 				await rm(file, { force: true });
 			} else {
@@ -247,18 +263,21 @@ async function run() {
 		}
 
 		// 8) Missing data file -> 404 (authenticated).
-		const skillFile = path.join(DATA_DIR, "skill_lint.json");
-		await rm(skillFile, { force: true });
+		for (const dataDir of DATA_DIRS) {
+			await rm(path.join(dataDir, "skill_lint.json"), { force: true });
+		}
 		const missing = await fetch(`${BASE_URL}/api/data/skills`, {
 			headers: authed,
 			redirect: "manual",
 		});
 		assert.equal(missing.status, 404, "absent data file should 404");
-		await writeFile(
-			skillFile,
-			JSON.stringify(FIXTURES["skill_lint.json"], null, 2),
-			"utf8",
-		);
+		for (const dataDir of DATA_DIRS) {
+			await writeFile(
+				path.join(dataDir, "skill_lint.json"),
+				JSON.stringify(FIXTURES["skill_lint.json"], null, 2),
+				"utf8",
+			);
+		}
 
 		// 9) DELETE clears the cookie.
 		const deleted = await fetch(`${BASE_URL}/api/auth/session`, {

@@ -76,7 +76,6 @@ async function prepareStaticAssets(serverPath) {
 		path.join(projectRoot, ".next", "static"),
 		path.join(serverDir, ".next", "static"),
 	);
-	await copyIfExists(path.join(projectRoot, "data"), path.join(serverDir, "data"));
 }
 
 export async function resolveStandaloneServer() {
@@ -87,8 +86,13 @@ export async function resolveStandaloneServer() {
 
 export async function main() {
 	const serverPath = await resolveStandaloneServer();
+	const env = {
+		...process.env,
+		KNOWLEDGE_DASHBOARD_DATA_DIR:
+			process.env.KNOWLEDGE_DASHBOARD_DATA_DIR ?? path.join(projectRoot, "data"),
+	};
 	const child = spawn(process.execPath, [serverPath], {
-		env: process.env,
+		env,
 		stdio: "inherit",
 	});
 

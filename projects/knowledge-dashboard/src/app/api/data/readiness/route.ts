@@ -1,9 +1,7 @@
-import path from "node:path";
-
 import { type NextRequest, NextResponse } from "next/server";
 
 import { isDashboardRequestAuthorized } from "@/lib/dashboard-auth";
-import { readJsonFileResult } from "@/lib/dashboard-data";
+import { dashboardDataFile, readJsonFileResult } from "@/lib/dashboard-data";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +15,7 @@ export async function GET(request: NextRequest) {
 	}
 
 	const result = await readJsonFileResult(
-		path.join(process.cwd(), "data", "product_readiness.json"),
+		dashboardDataFile("product_readiness.json"),
 		"Product readiness data not found",
 	);
 

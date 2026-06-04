@@ -29,6 +29,7 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
+ENV KNOWLEDGE_DASHBOARD_DATA_DIR=/app/data
 
 RUN addgroup --system --gid 1001 nodejs \
 	&& adduser --system --uid 1001 nextjs
@@ -37,13 +38,13 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Ensure a writable data mount point exists even when nothing is mounted yet.
+# The API uses KNOWLEDGE_DASHBOARD_DATA_DIR, so nested standalone output never
+# has to read a stale copied data directory.
 RUN mkdir -p /app/data \
 	&& if [ -d /app/projects/knowledge-dashboard ]; then \
 		mkdir -p /app/projects/knowledge-dashboard/.next; \
 		cp -r /app/public /app/projects/knowledge-dashboard/public; \
 		cp -r /app/.next/static /app/projects/knowledge-dashboard/.next/static; \
-		rm -rf /app/projects/knowledge-dashboard/data; \
-		ln -s /app/data /app/projects/knowledge-dashboard/data; \
 	fi \
 	&& chown -R nextjs:nodejs /app/data /app/public /app/.next \
 	&& if [ -d /app/projects/knowledge-dashboard ]; then \

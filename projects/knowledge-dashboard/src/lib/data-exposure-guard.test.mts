@@ -3,12 +3,9 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
-// Security invariant (ADR-023): the authenticated /api/data/* routes must read
-// from data/ (auth-gated), never from public/ (web-served without auth). A path
-// regression here would be a silent auth bypass, so we assert the literal path
-// in each route source. This is the one place a source-scan is the right test —
-// the path string IS the security control.
-
+// Security invariant (ADR-023): authenticated /api/data/* routes must read from
+// server-side data/ storage, never public/ web assets. The route shells enforce
+// auth and delegate all path selection to the shared helper below.
 const ROUTE_FILES = [
 	"src/app/api/data/dashboard/route.ts",
 	"src/app/api/data/qaqc/route.ts",
@@ -17,12 +14,27 @@ const ROUTE_FILES = [
 ];
 
 test("every data route resolves under data/ and never public/", async () => {
+	const helperSource = await readFile(
+		path.join(process.cwd(), "src/lib/dashboard-data.ts"),
+		"utf8",
+	);
+	assert.match(
+		helperSource,
+		/"data"/,
+		"dashboard-data helper must default to the data/ directory",
+	);
+	assert.doesNotMatch(
+		helperSource,
+		/"public"/,
+		"dashboard-data helper must NOT default to public/",
+	);
+
 	for (const rel of ROUTE_FILES) {
 		const source = await readFile(path.join(process.cwd(), rel), "utf8");
 		assert.match(
 			source,
-			/"data"/,
-			`${rel} must read from the data/ directory`,
+			/dashboardDataFile/,
+			`${rel} must use the shared data path helper`,
 		);
 		assert.doesNotMatch(
 			source,
