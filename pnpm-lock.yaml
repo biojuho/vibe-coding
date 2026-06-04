@@ -160,8 +160,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^0.563.0
-        version: 0.563.0(react@19.2.3)
+        specifier: ^1.17.0
+        version: 1.17.0(react@19.2.3)
       next:
         specifier: 16.2.6
         version: 16.2.6(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -7979,13 +7979,13 @@ snapshots:
 
   lru.min@1.1.4: {}
 
-  lucide-react@0.563.0(react@19.2.3):
-    dependencies:
-      react: 19.2.3
-
   lucide-react@0.563.0(react@19.2.6):
     dependencies:
       react: 19.2.6
+
+  lucide-react@1.17.0(react@19.2.3):
+    dependencies:
+      react: 19.2.3
 
   lucide-react@1.17.0(react@19.2.6):
     dependencies:
