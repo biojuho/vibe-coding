@@ -47,6 +47,49 @@ def test_json_dry_run_prints_commands_without_executing() -> None:
     assert payload["status"] == "planned"
     assert payload["plan"][0]["project"] == "blind-to-x"
     assert "pytest" in payload["plan"][0]["command"]
+    assert "--no-cov" not in payload["plan"][0]["command"]
+    assert "-o addopts=" in payload["plan"][0]["command"]
+    assert "--basetemp" in payload["plan"][0]["command"]
+    assert str(Path(".tmp") / "project-qc-temp" / "blind-to-x") in payload["plan"][0]["command"]
+    assert "basetemp-" in payload["plan"][0]["command"]
+
+
+def test_resolve_command_prefers_project_venv_python(monkeypatch, tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    if MODULE.sys.platform == "win32":
+        candidate = project / ".venv" / "Scripts" / "python.exe"
+    else:
+        candidate = project / ".venv" / "bin" / "python"
+    candidate.parent.mkdir(parents=True)
+    candidate.write_text("", encoding="utf-8")
+    if MODULE.sys.platform != "win32":
+        candidate.chmod(candidate.stat().st_mode | 0o111)
+
+    monkeypatch.setattr(MODULE, "python_has_module", lambda python_path, module_name: True)
+
+    resolved = MODULE.resolve_command(("python", "-m", "pytest"), project)
+
+    assert resolved == (str(candidate), "-m", "pytest")
+
+
+def test_resolve_command_skips_project_python_without_required_module(monkeypatch, tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    project_python = tmp_path / "project-python"
+    fallback_python = tmp_path / "fallback-python"
+    project_python.write_text("", encoding="utf-8")
+    fallback_python.write_text("", encoding="utf-8")
+    if MODULE.sys.platform != "win32":
+        project_python.chmod(project_python.stat().st_mode | 0o111)
+        fallback_python.chmod(fallback_python.stat().st_mode | 0o111)
+
+    monkeypatch.setattr(MODULE, "project_python_candidates", lambda cwd: (project_python, fallback_python))
+    monkeypatch.setattr(
+        MODULE, "python_has_module", lambda python_path, module_name: python_path == str(fallback_python)
+    )
+
+    resolved = MODULE.resolve_command(("python", "-m", "pytest"), project)
+
+    assert resolved == (str(fallback_python), "-m", "pytest")
 
 
 def test_run_plan_reports_subprocess_failures(monkeypatch) -> None:
@@ -73,6 +116,7 @@ def test_pytest_checks_use_repo_local_temp(monkeypatch) -> None:
         return MODULE.subprocess.CompletedProcess(args[0], 0, stdout="ok", stderr="")
 
     monkeypatch.setattr(MODULE.subprocess, "run", fake_run)
+    monkeypatch.setattr(MODULE, "python_has_module", lambda python_path, module_name: True)
 
     results = MODULE.run_plan(plan, timeout_seconds=5, stop_on_failure=False)
 
@@ -85,7 +129,7 @@ def test_pytest_checks_use_repo_local_temp(monkeypatch) -> None:
 def test_run_plan_reports_missing_executable(monkeypatch) -> None:
     plan = MODULE.build_plan(["knowledge-dashboard"], ["test"])
 
-    monkeypatch.setattr(MODULE, "resolve_command", lambda command: command)
+    monkeypatch.setattr(MODULE, "resolve_command", lambda command, cwd=None: command)
     monkeypatch.setattr(
         MODULE.subprocess, "run", lambda *args, **kwargs: (_ for _ in ()).throw(FileNotFoundError("nope"))
     )

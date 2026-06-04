@@ -53,6 +53,7 @@ jobs:
           workspace/tests/test_health_check.py
           workspace/tests/test_qaqc_runner.py
           workspace/tests/test_qaqc_runner_extended.py
+          workspace/tests/test_project_qc_runner.py
           workspace/tests/test_mcp_config.py
           workspace/tests/test_auto_schedule_paths.py
           workspace/tests/test_skill_lint.py
@@ -68,11 +69,13 @@ jobs:
           workspace/execution/health_check.py
           workspace/execution/qaqc_runner.py
           workspace/execution/qaqc_history_db.py
+          execution/project_qc_runner.py
           workspace/tests/test_governance_checks.py
           workspace/tests/test_doctor.py
           workspace/tests/test_health_check.py
           workspace/tests/test_qaqc_runner.py
           workspace/tests/test_qaqc_runner_extended.py
+          workspace/tests/test_project_qc_runner.py
           workspace/tests/test_mcp_config.py
           workspace/tests/test_auto_schedule_paths.py
           workspace/tests/test_skill_lint.py

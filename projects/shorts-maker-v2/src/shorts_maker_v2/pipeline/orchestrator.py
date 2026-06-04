@@ -65,8 +65,10 @@ class JsonlLogger:
             "event": event,
             **fields,
         }
-        with self._lock, self.log_path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
+        with self._lock:
+            self.log_path.parent.mkdir(parents=True, exist_ok=True)
+            with self.log_path.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
 
     def info(self, event: str, **fields: Any) -> None:
         self._write("INFO", event, **fields)

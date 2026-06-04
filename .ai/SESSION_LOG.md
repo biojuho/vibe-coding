@@ -766,6 +766,15 @@
 
 ## 2026-06-04 - Codex
 
+- Completed T-1245 as a bounded `$auto-research` project-readiness cycle focused on `execution/project_qc_runner.py` and a shorts-maker-v2 logging defect found by the runner.
+- Hardened Python project QC commands: replaced coverage-default-dependent pytest calls with `-o addopts=`, added unique repo-local `--basetemp`, set repo-local `TMP`/`TEMP` on Windows and non-Windows, added Python interpreter resolution that skips project/root candidates missing the required `-m` module, and now includes `resolved_command` in JSON results.
+- Wired `workspace/tests/test_project_qc_runner.py` and `execution/project_qc_runner.py` ruff coverage into both `root-quality-gate` and `active-project-matrix` workspace-quality so CI covers the runner changes.
+- Self-annealed actual QC failures: `blind-to-x` initially hit local Python/pytest and temp issues; final `project_qc_runner.py --project blind-to-x --check test --json` passed (`1723 passed, 9 skipped`). `shorts-maker-v2` initially exposed a `JsonlLogger` parent-directory deletion `FileNotFoundError`; fixed `JsonlLogger._write()` to recreate `log_path.parent` under the lock before opening and added a deletion/rewrite regression test. Final `project_qc_runner.py --project shorts-maker-v2 --check test --json` passed (`1577 passed, 12 skipped`).
+- Verification: `workspace/tests/test_project_qc_runner.py` passed 9/9, focused shorts logger/autofix pytest passed 5/5, CI-equivalent focused workspace pytest passed 122/122, workflow-equivalent ruff passed, ruff format check passed, compileall passed, path-limited `git diff --check` passed, `.tmp/ab-project-qc-runner-t1245.json` returned `adopt_candidate` with `score_delta=1.200667`, and `.tmp/completion-audit-t1245.json` returned `complete`.
+- Boundary: `projects/blind-to-x/pyproject.toml` is dirty but unrelated to T-1245 and was intentionally left unstaged/unowned.
+
+## 2026-06-04 - Codex
+
 - Completed T-1244 by strengthening the existing `auto-research` self-improvement skill for product-launch completion audits instead of adding a duplicate skill.
 - Added `.agents/skills/auto-research/scripts/completion_audit.py`, a deterministic manifest gate that marks completion only when every explicit requirement has artifacts, evidence, `verified: true`, complete coverage, and no unresolved blockers.
 - Added `.agents/skills/auto-research/references/completion-audit.md`, linked the helper from `.agents/skills/auto-research/SKILL.md`, and updated `.agents/skills/auto-research/agents/openai.yaml` so the visible skill prompt includes browser QA, verification, completion audit, and commit-ready decisions.

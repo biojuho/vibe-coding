@@ -16,6 +16,7 @@ This file covers:
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -183,6 +184,18 @@ class TestJsonlLogger:
         jl = JsonlLogger(log)
         jl.info("ok")
         assert log.exists()
+
+    def test_recreates_parent_dirs_between_writes(self, tmp_path: Path):
+        log = tmp_path / "sub" / "deep" / "test.jsonl"
+        jl = JsonlLogger(log)
+        jl.info("before")
+        shutil.rmtree(log.parent)
+
+        jl.warning("after")
+
+        data = json.loads(log.read_text(encoding="utf-8").strip())
+        assert data["level"] == "WARNING"
+        assert data["event"] == "after"
 
 
 # ── renderer_mode validation ────────────────────────────────────────────────

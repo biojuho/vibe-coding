@@ -21,6 +21,7 @@ from typing import Iterable
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_TAIL_CHARS = 4000
+PROJECT_QC_RUN_ID = f"{os.getpid()}-{time.time_ns()}"
 
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
     try:
@@ -58,8 +59,20 @@ PROJECTS: dict[str, ProjectChecks] = {
         checks=(
             CheckCommand(
                 id="test",
-                description="unit pytest without coverage defaults",
-                command=("python", "-m", "pytest", "--no-cov", "tests/unit", "-q", "--tb=short", "--maxfail=1"),
+                description="unit pytest with coverage addopts disabled and repo-local basetemp",
+                command=(
+                    "python",
+                    "-m",
+                    "pytest",
+                    "tests/unit",
+                    "-q",
+                    "--tb=short",
+                    "--maxfail=1",
+                    "-o",
+                    "addopts=",
+                    "--basetemp",
+                    str(REPO_ROOT / ".tmp" / "project-qc-temp" / "blind-to-x" / f"basetemp-{PROJECT_QC_RUN_ID}"),
+                ),
             ),
             CheckCommand(
                 id="lint",
@@ -74,17 +87,20 @@ PROJECTS: dict[str, ProjectChecks] = {
         checks=(
             CheckCommand(
                 id="test",
-                description="unit and integration pytest without coverage defaults",
+                description="unit and integration pytest with coverage addopts disabled and repo-local basetemp",
                 command=(
                     "python",
                     "-m",
                     "pytest",
-                    "--no-cov",
                     "tests/unit",
                     "tests/integration",
                     "-q",
                     "--tb=short",
                     "--maxfail=1",
+                    "-o",
+                    "addopts=",
+                    "--basetemp",
+                    str(REPO_ROOT / ".tmp" / "project-qc-temp" / "shorts-maker-v2" / f"basetemp-{PROJECT_QC_RUN_ID}"),
                 ),
             ),
             CheckCommand(
@@ -148,10 +164,61 @@ def command_to_string(command: tuple[str, ...]) -> str:
     return " ".join(command)
 
 
-def resolve_command(command: tuple[str, ...]) -> tuple[str, ...]:
+def project_python_candidates(cwd: Path) -> tuple[Path, ...]:
+    windows_candidates = (
+        cwd / ".venv" / "Scripts" / "python.exe",
+        cwd / "venv" / "Scripts" / "python.exe",
+        REPO_ROOT / ".venv" / "Scripts" / "python.exe",
+    )
+    posix_candidates = (
+        cwd / ".venv" / "bin" / "python",
+        cwd / "venv" / "bin" / "python",
+        REPO_ROOT / ".venv" / "bin" / "python",
+    )
+    if sys.platform == "win32":
+        return (*windows_candidates, *posix_candidates)
+    return (*posix_candidates, *windows_candidates)
+
+
+def python_has_module(python_path: str, module_name: str) -> bool:
+    try:
+        completed = subprocess.run(
+            (
+                python_path,
+                "-c",
+                (f"import importlib.util, sys; sys.exit(0 if importlib.util.find_spec({module_name!r}) else 1)"),
+            ),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return completed.returncode == 0
+
+
+def resolve_project_python(cwd: Path | None, required_module: str | None = None) -> str | None:
+    if cwd is None:
+        return None
+    seen: set[Path] = set()
+    for candidate in project_python_candidates(cwd):
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        if candidate.is_file() and (sys.platform == "win32" or os.access(candidate, os.X_OK)):
+            if required_module and not python_has_module(str(candidate), required_module):
+                continue
+            return str(candidate)
+    return None
+
+
+def resolve_command(command: tuple[str, ...], cwd: Path | None = None) -> tuple[str, ...]:
     executable = command[0]
     if executable == "python":
-        return (sys.executable, *command[1:])
+        required_module = command[2] if command[1:2] == ("-m",) and len(command) > 2 else None
+        return (resolve_project_python(cwd, required_module) or sys.executable, *command[1:])
     if Path(executable).suffix or "/" in executable or "\\" in executable:
         return command
 
@@ -175,11 +242,10 @@ def _is_pytest_command(command: tuple[str, ...]) -> bool:
 def build_subprocess_env(item: PlanItem) -> dict[str, str]:
     env = os.environ.copy()
     if _is_pytest_command(item.check.command):
-        if sys.platform != "win32":
-            temp_dir = REPO_ROOT / ".tmp" / "project-qc-temp" / item.project
-            temp_dir.mkdir(parents=True, exist_ok=True)
-            env["TMP"] = str(temp_dir)
-            env["TEMP"] = str(temp_dir)
+        temp_dir = REPO_ROOT / ".tmp" / "project-qc-temp" / item.project
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        env["TMP"] = str(temp_dir)
+        env["TEMP"] = str(temp_dir)
         env.setdefault("PYTHONUTF8", "1")
     return env
 
@@ -207,7 +273,7 @@ def serialize_plan(plan: list[PlanItem]) -> list[dict[str, str]]:
 
 def run_item(item: PlanItem, timeout_seconds: int) -> dict[str, object]:
     started = time.monotonic()
-    resolved_command = resolve_command(item.check.command)
+    resolved_command = resolve_command(item.check.command, item.cwd)
     try:
         completed = subprocess.run(
             resolved_command,
@@ -228,6 +294,7 @@ def run_item(item: PlanItem, timeout_seconds: int) -> dict[str, object]:
             "returncode": completed.returncode,
             "duration_seconds": round(duration, 2),
             "command": command_to_string(item.check.command),
+            "resolved_command": command_to_string(resolved_command),
             "stdout_tail": tail_text(completed.stdout),
             "stderr_tail": tail_text(completed.stderr),
         }
@@ -240,6 +307,7 @@ def run_item(item: PlanItem, timeout_seconds: int) -> dict[str, object]:
             "returncode": None,
             "duration_seconds": round(duration, 2),
             "command": command_to_string(item.check.command),
+            "resolved_command": command_to_string(resolved_command),
             "stdout_tail": tail_text(exc.stdout if isinstance(exc.stdout, str) else ""),
             "stderr_tail": tail_text(exc.stderr if isinstance(exc.stderr, str) else ""),
         }
@@ -252,6 +320,7 @@ def run_item(item: PlanItem, timeout_seconds: int) -> dict[str, object]:
             "returncode": None,
             "duration_seconds": round(duration, 2),
             "command": command_to_string(item.check.command),
+            "resolved_command": command_to_string(resolved_command),
             "stdout_tail": "",
             "stderr_tail": str(exc),
         }
