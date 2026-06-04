@@ -371,3 +371,26 @@
 - Commit/push closeout: `3df8642c fix(readiness): T-1263 version project QC artifacts` is on `origin/main`; GitHub Actions passed on that head with `root-quality-gate` run `26971365112` and `active-project-matrix` run `26971365069`. The known checkout annotation appeared, but all jobs and workflows concluded success.
 - Current readiness after the code commit: score 96, clean worktree, open PRs 0, required Actions green, workspace/local blockers 0, external blocker 1.
 - Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification, not local repo work.
+
+## 2026-06-05 - Codex
+
+- Completed T-1268 as a bounded auto-research tooling compatibility cycle for GitHub project inventory automation.
+- Changed `.agents/skills/auto-research/scripts/github_project_inventory.py`: added an accepted `--json` flag while preserving JSON as the default output.
+- Changed `.agents/skills/auto-research/SKILL.md`: updated the documented inventory command to include `--json`.
+- Changed workflow quality lists so the inventory helper and `workspace/tests/test_github_project_inventory.py` remain covered in required CI.
+- Changed `workspace/tests/test_github_project_inventory.py`: added a CLI regression that calls `inventory.main(["--root", ..., "--json"])` and parses the emitted JSON.
+- Verification: focused inventory pytest passed 8/8 with `-o addopts= --basetemp .tmp\pytest-t1268-github-inventory`; ruff passed for the helper/test paths; `python -m py_compile .agents\skills\auto-research\scripts\github_project_inventory.py` passed.
+- Commit/push closeout: `5849691e feat(auto-research): T-1268 accept github inventory json flag` is on `origin/main`; required GitHub Actions passed on that head with `root-quality-gate` run `26975490577` and `active-project-matrix` run `26975490500`.
+- Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification, not local repo work.
+
+## 2026-06-05 - Codex
+
+- Completed T-1269 as a bounded browser-app dependency freshness cycle for the Vitest family.
+- Changed `projects/suika-game-v2/package.json` and `projects/word-chain/package.json`: updated `vitest` and `@vitest/coverage-v8` to `^4.1.8`.
+- Changed `projects/suika-game-v2/package-lock.json`, `projects/word-chain/package-lock.json`, and root `pnpm-lock.yaml`: synchronized the npm and pnpm locks after the package updates.
+- Changed `.gitignore`: ignored generated `coverage/` folders so coverage reports do not pollute future git status or app lint scans.
+- External/current-source check: npm metadata for `vitest@4.1.8` reports Node engine `^20.0.0 || ^22.0.0 || >=24.0.0` and Vite peer support through `^8.0.0`; npm metadata for `@vitest/coverage-v8@4.1.8` peers exactly on `vitest 4.1.8`. Local Node `24.13.0` and Vite `8.0.16` are compatible.
+- Verification: `npm.cmd ls vitest @vitest/coverage-v8 --depth=0` reported `4.1.8` in both apps; Suika `npm.cmd run test:coverage` passed 61 tests with Vitest v4.1.8; Word Chain `npm.cmd run test:coverage` passed 23 tests with Vitest v4.1.8; both app lint commands passed after generated coverage output was removed; both app builds passed through the known ASCII-workspace Vite fallback after direct `3221226505`; root `pnpm.cmd install --lockfile-only --frozen-lockfile --ignore-scripts` passed; both app `npm.cmd audit --json` commands reported 0 vulnerabilities; both selected-package outdated checks returned `{}`; `git diff --check` passed with only the known `pnpm-lock.yaml` line-ending warning.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-t1269-vitest-418.json --json` returned `adopt_candidate` with `score_delta=1.4285714285714286`.
+- Completion audit: `.agents/skills/auto-research/scripts/completion_audit.py .tmp\completion-audit-t1269-vitest-418.json --json` returned `complete` with 5/5 items complete and 0 issues.
+- Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification, not local repo work.

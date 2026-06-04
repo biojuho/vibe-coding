@@ -8,6 +8,20 @@
 |---|---|
 | Date | 2026-06-05 |
 | Tool | Codex |
+| Work | **T-1269 browser app Vitest patch alignment**. Updated `projects/suika-game-v2` and `projects/word-chain` so both declare `vitest` and `@vitest/coverage-v8` `^4.1.8`, synchronized `projects/*/package-lock.json` and root `pnpm-lock.yaml`, and added `.gitignore` coverage-folder ignores for generated reports. Current npm metadata confirms `vitest@4.1.8` is compatible with local Node `24.13.0` and Vite `8.0.16`, and `@vitest/coverage-v8@4.1.8` peers on `vitest 4.1.8`. Verification passed `npm.cmd ls vitest @vitest/coverage-v8 --depth=0` in both apps, Suika `npm.cmd run test:coverage` (`61` tests), Word Chain `npm.cmd run test:coverage` (`23` tests), app lint for both after removing generated coverage output, app builds for both through the known ASCII-workspace Vite fallback after direct `3221226505`, root `pnpm.cmd install --lockfile-only --frozen-lockfile --ignore-scripts`, npm audit `0` vulnerabilities in both apps, selected-package outdated checks returning `{}`, `git diff --check`, A/B `adopt_candidate` (`score_delta=1.4285714285714286`), and completion audit `complete` (`5/5` items). |
+| Next Priorities | Commit/push T-1269, then recheck `root-quality-gate`, `active-project-matrix`, `product_readiness_score.py --json`, and `session_orient.py --json`. Expected readiness after commit is score `96`, workspace/local blockers `0`, open PRs `0`, required Actions green, and only external/user-owned Hanwoo T-251 blocked. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-05 |
+| Tool | Codex |
+| Work | **T-1268 auto-research GitHub inventory JSON flag**. Commit `5849691e` is already on `origin/main`: `.agents/skills/auto-research/scripts/github_project_inventory.py` now accepts `--json` for automation compatibility while JSON remains the default output, `.agents/skills/auto-research/SKILL.md` documents the flag, and `workspace/tests/test_github_project_inventory.py` covers parseable CLI JSON output. Required workflow lists now include the inventory helper and tests. Verification passed focused inventory pytest (`8` tests with repo-local basetemp), ruff, `py_compile`, and required GitHub Actions on `5849691e`: `root-quality-gate` run `26975490577` and `active-project-matrix` run `26975490500` concluded success. |
+| Next Priorities | T-1268 is closed; continue with T-1269 dependency alignment and keep T-251 separate as the user-owned Supabase credential/control-plane blocker. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-05 |
+| Tool | Codex |
 | Work | **T-1267 browser QA screenshot retention closeout**. Followed the T-1266 browser inventory recommendation by capturing current `output/playwright` screenshots for `projects/suika-game-v2` and `projects/word-chain`. Both apps were built for production; direct Vite build hit the known Korean-path `3221226505`, and each project completed through its existing ASCII-workspace fallback. Production `vite preview` ran on `127.0.0.1:43167` and `127.0.0.1:43168`. A temporary Playwright Node script using the npx Playwright package cache clicked Suika `Game Start`, sent ArrowLeft/ArrowRight/Space, verified a nonblank canvas, submitted Korean input `사과` in Word Chain, and captured `output/playwright/suika-t1267-browser-click-qa.png` plus `output/playwright/word-chain-t1267-browser-click-qa.png`. Console warnings/errors and failed requests were `0` for both apps; screenshot checks reported both images `1280x900` with nonblank samples. `browser_qa_inventory.py --root . --json` now reports `browser_project_count=4`, `covered_count=4`, `missing_count=0`, `current_screenshot_project_count=4`, and `recommendations=[]`. A/B selected `adopt_candidate` (`score_delta=1.25`) and T-1267 completion audit is `complete`. No app source changes were needed; preview servers were stopped. |
 | Next Priorities | Continue the next auto-research/product-readiness cycle from clean `main` once required GitHub Actions are green on the current head. Do not retry Hanwoo T-251 until the user completes the Supabase Dashboard DB password/control-plane credential reset; T-251 remains the only external/user-owned launch blocker. |
 
