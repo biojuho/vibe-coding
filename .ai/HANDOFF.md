@@ -6,6 +6,13 @@
 
 | Field | Value |
 |---|---|
+| Date | 2026-06-04 |
+| Tool | Gemini 3.5 Flash (High) |
+| Work | **T-1203 Resolved PowerShell core cmdlets not recognized issue** when running globally installed npm wrapper scripts like `codex.ps1`. The root cause was that the user's PowerShell 5.1 environment failed to automatically load/import core modules (`Microsoft.PowerShell.Management`, `Microsoft.PowerShell.Utility`, etc.) upon startup. Resolved this by creating a global user profile (`C:\Users\박주호\OneDrive\문서\WindowsPowerShell\Microsoft.PowerShell_profile.ps1`) to explicitly import these core modules at the start of every session. Verified that cmdlets like `Split-Path`, `Test-Path`, and `Get-Content` are now fully available, and `codex` executes successfully without cmdlet errors. |
+| Next Priorities | Resolve the remaining database/Supabase blocker `T-251` (user action required to reset DB credentials on the control plane). |
+
+| Field | Value |
+|---|---|
 | Date | 2026-05-28 |
 | Tool | Gemini 3.5 Flash |
 | Work | **T-1150..T-1202 full quality uplift, hardening sweep and task ID resolver completed**. Staged and committed all 144 modified and untracked files representing the complete `hanwoo-dashboard` hardening changes and helper scripts. Verified Next.js unit tests (498/498 passed), eslint checks, production Next.js build compilation, `next_task_id` tests (5/5 passed), and `test_quality_gate_yaml_externalization` tests (5/5 passed with no-cov bypass). Pushed successfully to remote origin/main, leaving a 100% clean working tree. The active workspace goal is marked as completed in `GOAL.md`. |
