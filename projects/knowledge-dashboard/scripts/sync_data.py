@@ -2,7 +2,9 @@ import json
 import os
 import re
 import sys
+import zlib
 from datetime import datetime
+from importlib import util as importlib_util
 from pathlib import Path
 
 
@@ -33,6 +35,7 @@ NOTEBOOKLM_VENV_LIB = REPO_ROOT / "infrastructure" / "notebooklm-mcp" / "venv" /
 NOTEBOOKLM_TOKEN_DIR = REPO_ROOT / "infrastructure" / "notebooklm-mcp" / "tokens"
 NOTEBOOKLM_AUTH_TOKEN_ENV_VAR = "NOTEBOOKLM_AUTH_TOKEN_PATH"
 GITHUB_TOKEN = os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN", "")
+LOCAL_INVENTORY_SCRIPT = REPO_ROOT / ".agents" / "skills" / "auto-research" / "scripts" / "github_project_inventory.py"
 
 if NOTEBOOKLM_VENV_LIB.exists():
     sys.path.append(str(NOTEBOOKLM_VENV_LIB))
@@ -114,11 +117,11 @@ def is_notebooklm_token_template(data: dict) -> bool:
 def fetch_github_repos():
     print("Fetching GitHub repositories...")
     if httpx is None:
-        print(f"  - httpx is not available: {NOTEBOOKLM_IMPORT_ERROR}")
-        return []
+        print(f"  - httpx is not available: {NOTEBOOKLM_IMPORT_ERROR}; using local project inventory")
+        return fetch_local_workspace_projects()
     if not GITHUB_TOKEN:
-        print("  - GITHUB_PERSONAL_ACCESS_TOKEN is not configured")
-        return []
+        print("  - GITHUB_PERSONAL_ACCESS_TOKEN is not configured; using local project inventory")
+        return fetch_local_workspace_projects()
 
     headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
     url = "https://api.github.com/user/repos?sort=updated&per_page=10"
@@ -146,8 +149,106 @@ def fetch_github_repos():
         print(f"  - Found {len(simplified)} repositories")
         return simplified
     except Exception as exc:
-        print(f"  - Error fetching GitHub repos: {exc}")
+        print(f"  - Error fetching GitHub repos: {exc}; using local project inventory")
+        return fetch_local_workspace_projects()
+
+
+def github_remote_base_url(remote_output: str) -> str | None:
+    for line in remote_output.splitlines():
+        parts = line.split()
+        if len(parts) < 2:
+            continue
+        remote_url = parts[1].strip()
+        if "github.com" not in remote_url:
+            continue
+        if remote_url.startswith("git@github.com:"):
+            remote_url = "https://github.com/" + remote_url.removeprefix("git@github.com:")
+        if remote_url.startswith("https://github.com/"):
+            return remote_url.removesuffix(".git")
+    return None
+
+
+def local_project_repo_url(base_url: str | None, branch: str | None, project_path: str) -> str:
+    if not base_url:
+        return ""
+    if project_path == ".":
+        return base_url
+    safe_branch = branch or "main"
+    return f"{base_url}/tree/{safe_branch}/{project_path}"
+
+
+def stable_local_project_id(project_path: str) -> int:
+    return zlib.crc32(project_path.encode("utf-8")) & 0x7FFFFFFF
+
+
+def infer_local_project_language(project: dict) -> str | None:
+    markers = set(project.get("markers") or [])
+    if "pyproject.toml" in markers or "requirements.txt" in markers:
+        return "Python"
+    if "package.json" not in markers:
+        return None
+    path = str(project.get("path") or "")
+    if any(part in path for part in ("dashboard", "word-chain")):
+        return "TypeScript"
+    return "JavaScript"
+
+
+def describe_local_project(project: dict) -> str:
+    markers = ", ".join(str(marker) for marker in project.get("markers") or []) or "no markers"
+    test_count = int(project.get("test_file_count") or 0)
+    workflow_count = len(project.get("workflows") or [])
+    readme_status = "README present" if project.get("has_readme") else "README missing"
+    return (
+        f"Local workspace project; {readme_status}; {test_count} test file(s); "
+        f"{workflow_count} workflow file(s); markers: {markers}."
+    )
+
+
+def local_project_to_github_repo(project: dict, base_url: str | None, branch: str | None) -> dict:
+    project_path = str(project.get("path") or ".")
+    name = "vibe-coding" if project_path == "." else Path(project_path).name
+    return {
+        "id": stable_local_project_id(project_path),
+        "name": name,
+        "full_name": f"local/{name}",
+        "description": describe_local_project(project),
+        "html_url": local_project_repo_url(base_url, branch, project_path),
+        "language": infer_local_project_language(project),
+        "stargazers_count": 0,
+        "updated_at": datetime.now().astimezone().isoformat(),
+    }
+
+
+def fetch_local_workspace_projects(repo_root: Path = REPO_ROOT) -> list[dict]:
+    if not LOCAL_INVENTORY_SCRIPT.exists():
+        print(f"  - Local inventory script not found: {LOCAL_INVENTORY_SCRIPT}")
         return []
+
+    try:
+        spec = importlib_util.spec_from_file_location("github_project_inventory", LOCAL_INVENTORY_SCRIPT)
+        if spec is None or spec.loader is None:
+            raise RuntimeError("failed to create inventory module spec")
+        module = importlib_util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        inventory = module.build_inventory(repo_root, include_prs=False)
+    except Exception as exc:
+        print(f"  - Local project inventory failed: {exc}")
+        return []
+
+    projects = inventory.get("projects")
+    if not isinstance(projects, list):
+        print("  - Local project inventory returned no project list")
+        return []
+
+    git = inventory.get("git") if isinstance(inventory.get("git"), dict) else {}
+    remote = git.get("remote") if isinstance(git.get("remote"), dict) else {}
+    base_url = github_remote_base_url(str(remote.get("stdout") or ""))
+    branch = str(git.get("branch") or "main")
+    repos = [
+        local_project_to_github_repo(project, base_url, branch) for project in projects if isinstance(project, dict)
+    ]
+    print(f"  - Found {len(repos)} local workspace project(s)")
+    return repos
 
 
 def fetch_notebooklm_notebooks():
@@ -291,7 +392,7 @@ def build_product_readiness() -> dict:
     try:
         from product_readiness_score import build_report
 
-        report = build_report(REPO_ROOT, qaqc_path=QAQC_FILE)
+        report = build_report(REPO_ROOT)
         with READINESS_FILE.open("w", encoding="utf-8") as file_obj:
             json.dump(report, file_obj, indent=2, ensure_ascii=False)
         print(f"  - Readiness score: {report['overall']['score']} ({report['overall']['state']})")
