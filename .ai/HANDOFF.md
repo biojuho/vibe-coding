@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-06-04 |
 | Tool | Codex |
+| Work | **Dependency PR closeout final CI confirmation**. Rechecked the current `main` head `db3cd0d7` after T-1241/T-1242/T-1243 documentation commits. `root-quality-gate` completed successfully and `active-project-matrix` completed successfully across `blind-to-x-tests`, `shorts-maker-v2-tests`, `frontend-active-apps (knowledge-dashboard)`, `frontend-active-apps (hanwoo-dashboard)`, `workspace-quality`, and `test-summary`. GitHub still emitted the known checkout annotations (`/usr/bin/git` exit 128), but every job and the workflow concluded success. `github_project_inventory.py --include-prs` reports 0 open PRs, and `git status -sb` reports a clean `main...origin/main` worktree before this AI-context closeout note. |
+| Next Priorities | No open GitHub PRs remain. T-251 remains the only TODO and is user-owned Supabase credential reset/live Prisma verification; keep it separate from local dependency/product-polish completion. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-04 |
+| Tool | Codex |
 | Work | **T-1243 hanwoo-dashboard ESLint 10 non-adoption closeout**. Investigated Dependabot PR #122 on current `main`. Local trial `npm.cmd install eslint@10.4.1 --save-dev --ignore-scripts` produced peer override warnings for `eslint-plugin-import@2.32.0`, `eslint-plugin-jsx-a11y@6.10.2`, and `eslint-plugin-react@7.37.5` from `eslint-config-next@16.2.6`. Plain `npm.cmd run lint` under ESLint 10 failed with `TypeError: (0 , brace_expansion_1.expand) is not a function`, because Hanwoo's existing global `brace-expansion` override forced `brace-expansion@2.1.1` below `minimatch@10.2.5`. A narrow local rescue trial allowing `minimatch@10.2.5 -> brace-expansion@5.0.6` and refreshing `typescript-eslint` to `8.60.1` moved past that issue but still failed `npm.cmd run lint` with `TypeError: scopeManager.addGlobals is not a function`; `npm.cmd ls eslint eslint-config-next eslint-plugin-react eslint-plugin-import eslint-plugin-jsx-a11y typescript-eslint --depth=2` also marked `eslint@10.4.1` invalid under the current Next plugin peer ranges. Restored tracked files and node_modules to the baseline; `hanwoo-dashboard` remains on `eslint@9.39.4`; `npm.cmd run lint` passes. PR #122 was commented and closed as not currently adoptable. |
 | Next Priorities | No open GitHub PRs remain after T-1243. T-251 remains user-owned Supabase credential reset; keep it separate from local dependency/product-polish completion. |
 

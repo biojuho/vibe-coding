@@ -763,3 +763,11 @@
 - Rescue trial: added a narrow local override for `minimatch@10.2.5 -> brace-expansion@5.0.6` and refreshed `typescript-eslint` to `8.60.1`; lint still failed with `TypeError: scopeManager.addGlobals is not a function`, and `npm.cmd ls eslint eslint-config-next eslint-plugin-react eslint-plugin-import eslint-plugin-jsx-a11y typescript-eslint --depth=2` marked `eslint@10.4.1` invalid under the current Next plugin peer ranges.
 - Cleanup/verification: restored tracked package files and reinstalled the baseline; `npm.cmd ls eslint --depth=0` reported `eslint@9.39.4`, `npm.cmd run lint` passed, and the root worktree was clean before `.ai` documentation updates.
 - PR closeout: PR #122 was commented and closed as not currently adoptable; retry should wait for Next's lint plugin stack to publish ESLint 10-compatible plugin versions and should revisit the Hanwoo `brace-expansion` override interaction with `minimatch@10`.
+
+## 2026-06-04 - Codex
+
+- Final dependency PR closeout confirmation after T-1241/T-1242/T-1243 documentation commits.
+- GitHub inventory: `.agents/skills/auto-research/scripts/github_project_inventory.py --root . --include-prs` reported 0 open PRs and a clean `main...origin/main` worktree.
+- CI confirmation for current `main` head `db3cd0d7`: `root-quality-gate` passed, and `gh run watch 26952955621 --exit-status` confirmed `active-project-matrix` passed across blind-to-x, shorts-maker-v2, knowledge-dashboard, hanwoo-dashboard, workspace-quality, and test-summary jobs. The workflow still emitted the known checkout annotation (`/usr/bin/git` exit 128), but all jobs and the workflow concluded success.
+- Handoff rotation check: `python execution/handoff_rotator.py --check --json` returned `noop` with `kept=111`, `archived=0`, cutoff `2026-05-28`.
+- Remaining work: T-251 is still the only TODO and remains user-owned Supabase credential reset/live Prisma verification, not local repo work.
