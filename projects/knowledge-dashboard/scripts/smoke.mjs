@@ -97,18 +97,20 @@ async function withFixtures(run) {
 }
 
 function startServer() {
-	const env = { ...process.env, PORT, DASHBOARD_API_KEY: API_KEY };
-	const nextBin = path.join(
+	const env = {
+		...process.env,
+		PORT,
+		HOSTNAME: HOST,
+		DASHBOARD_API_KEY: API_KEY,
+	};
+	const standaloneStart = path.join(
 		process.cwd(),
-		"node_modules",
-		"next",
-		"dist",
-		"bin",
-		"next",
+		"scripts",
+		"start-standalone.mjs",
 	);
 	const child = spawn(
 		process.execPath,
-		[nextBin, "start", "--port", PORT, "--hostname", HOST],
+		[standaloneStart],
 		{ cwd: process.cwd(), env, stdio: ["ignore", "pipe", "pipe"] },
 	);
 	child.stdout?.on("data", (chunk) =>

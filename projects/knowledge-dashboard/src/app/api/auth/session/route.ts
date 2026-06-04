@@ -20,7 +20,7 @@ const loginLimiter = new SlidingWindowRateLimiter({
 });
 
 export async function POST(request: Request) {
-	// Login-CSRF guard — reject genuine cross-site browser POSTs.
+	// Login-CSRF guard: reject genuine cross-site browser POSTs.
 	if (!isSameOriginRequest(request)) {
 		return NextResponse.json({ error: "Cross-site request blocked" }, {
 			status: 403,

@@ -23,7 +23,7 @@ function record(name, ok, detail) {
 record(
 	"DASHBOARD_API_KEY configured",
 	Boolean(process.env.DASHBOARD_API_KEY?.trim()),
-	process.env.DASHBOARD_API_KEY?.trim() ? "set" : "MISSING — routes will 503",
+	process.env.DASHBOARD_API_KEY?.trim() ? "set" : "MISSING - routes will 503",
 );
 
 // 2) Required + optional data files exist and parse
@@ -42,7 +42,7 @@ async function checkJson(file, required) {
 			missing
 				? required
 					? "MISSING (required)"
-					: "absent (optional — UI degrades gracefully)"
+					: "absent (optional - UI degrades gracefully)"
 				: `INVALID JSON: ${error.message}`,
 		);
 	}
@@ -60,7 +60,7 @@ const failed = checks.filter((c) => !c.ok);
 console.log("knowledge-dashboard deploy verification");
 console.log("=".repeat(42));
 for (const c of checks) {
-	console.log(`${c.ok ? "PASS" : "FAIL"}  ${c.name} — ${c.detail}`);
+	console.log(`${c.ok ? "PASS" : "FAIL"}  ${c.name} - ${c.detail}`);
 }
 console.log("=".repeat(42));
 

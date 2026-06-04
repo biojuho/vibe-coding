@@ -61,11 +61,11 @@ This project does not currently use Svelte, TanStack Query, Supabase/PostgreSQL,
 
 This is an internal, authenticated dashboard. To ship a production build:
 
-1. **Set environment variables** (server-side only — never expose to the client):
+1. **Set environment variables** (server-side only; never expose to the client):
 
    | Variable | Required | Purpose |
    |---|---|---|
-   | `DASHBOARD_API_KEY` | ✅ | API key clients exchange for an `httpOnly` signed session cookie (ADR-023). Routes return `503` if unset, `401` if a request presents the wrong key. |
+   | `DASHBOARD_API_KEY` | yes | API key clients exchange for an `httpOnly` signed session cookie (ADR-023). Routes return `503` if unset, `401` if a request presents the wrong key. |
    | `DASHBOARD_SESSION_SECRET` | optional | Dedicated HMAC secret for signing session cookies. Defaults to `DASHBOARD_API_KEY`. Set a separate value to rotate sessions without changing the login key. |
    | `GITHUB_PERSONAL_ACCESS_TOKEN` | optional | Used by `sync_data.py` to fetch repo activity. |
    | `NOTEBOOKLM_AUTH_TOKEN_PATH` | optional | Override for the NotebookLM token file used during sync. |
@@ -78,15 +78,16 @@ This is an internal, authenticated dashboard. To ship a production build:
    run from a **full workspace checkout**, not a bare copy of this sub-directory:
 
    ```bash
-   npm run sync         # = python scripts/sync_data.py  (also: ./sync.bat)
+   npm run sync          # equivalent to: python scripts/sync_data.py
+   ./sync.bat            # Windows shortcut
    ```
 
 3. **Build and start:**
 
    ```bash
-   npm run build        # `prebuild` strips any public/*.json first (ADR-023)
-   npm run verify-deploy  # confirms the API key + data files are present
-   npm run start        # serves the production build
+   npm run build          # prebuild strips any public/*.json first (ADR-023)
+   npm run verify-deploy  # confirms the API key and data files are present
+   npm run start          # serves the production build
    ```
 
    **Vercel:** a vanilla Vercel build of this sub-path **cannot** run the sync (it
@@ -98,19 +99,19 @@ This is an internal, authenticated dashboard. To ship a production build:
 
    ```bash
    docker build -t knowledge-dashboard .
-   docker run -p 3000:3000 -e DASHBOARD_API_KEY=… \
+   docker run -p 3000:3000 -e DASHBOARD_API_KEY=replace-me \
      -v "$PWD/data:/app/data:ro" knowledge-dashboard
    ```
 
    **Health probe:** `GET /api/health` is unauthenticated and returns `200` when
-   `DASHBOARD_API_KEY` is configured, `503` otherwise — wire it to your load
+   `DASHBOARD_API_KEY` is configured, `503` otherwise; wire it to your load
    balancer / uptime monitor (the Docker image already has a `HEALTHCHECK`).
 
 ### Data & security invariants
 
 - **Never commit data payloads.** `data/*.json` and `public/*.json` are gitignored.
   All dashboard/QA-QC data is served **only** through the authenticated
-  `src/app/api/data/*` routes — never from `public/` (which is web-served without auth).
+  `src/app/api/data/*` routes; never from `public/` (which is web-served without auth).
 - `sync_data.py` mirrors the QA/QC artifact into the authenticated `data/qaqc_result.json`
   that `/api/data/qaqc` serves, so the route never returns a stale copy.
 - Authentication is enforced in `src/lib/dashboard-auth.ts` (HMAC-SHA256 signed,

@@ -7,7 +7,7 @@
 		"dev": "next dev",
 		"prebuild": "node scripts/prebuild-clean-public.mjs",
 		"build": "next build",
-		"start": "next start",
+		"start": "node scripts/start-standalone.mjs",
 		"lint": "eslint",
 		"sync": "python scripts/sync_data.py",
 		"smoke": "node scripts/smoke.mjs",

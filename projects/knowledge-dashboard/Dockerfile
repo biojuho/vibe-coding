@@ -8,13 +8,13 @@
 
 FROM node:20-alpine AS base
 
-# ── deps: install with a clean, reproducible lockfile ─────────────────────────
+# deps: install with a clean, reproducible lockfile.
 FROM base AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 
-# ── builder: compile the production bundle ────────────────────────────────────
+# builder: compile the production bundle.
 FROM base AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -22,7 +22,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
-# ── runner: minimal standalone server as a non-root user ──────────────────────
+# runner: minimal standalone server as a non-root user.
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
@@ -37,7 +37,18 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Ensure a writable data mount point exists even when nothing is mounted yet.
-RUN mkdir -p /app/data && chown nextjs:nodejs /app/data
+RUN mkdir -p /app/data \
+	&& if [ -d /app/projects/knowledge-dashboard ]; then \
+		mkdir -p /app/projects/knowledge-dashboard/.next; \
+		cp -r /app/public /app/projects/knowledge-dashboard/public; \
+		cp -r /app/.next/static /app/projects/knowledge-dashboard/.next/static; \
+		rm -rf /app/projects/knowledge-dashboard/data; \
+		ln -s /app/data /app/projects/knowledge-dashboard/data; \
+	fi \
+	&& chown -R nextjs:nodejs /app/data /app/public /app/.next \
+	&& if [ -d /app/projects/knowledge-dashboard ]; then \
+		chown -R nextjs:nodejs /app/projects/knowledge-dashboard/public /app/projects/knowledge-dashboard/.next; \
+	fi
 
 USER nextjs
 EXPOSE 3000
@@ -45,4 +56,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
 	CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "if [ -f server.js ]; then exec node server.js; fi; exec node projects/knowledge-dashboard/server.js"]
