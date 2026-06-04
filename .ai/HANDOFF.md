@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-06-04 |
 | Tool | Codex |
+| Work | **T-1213 Dependabot PR #109 superseded on main**. Applied `knowledge-dashboard` `tailwind-merge` bump from `^3.4.0` to `^3.6.0` directly on current `main` because PR #109 was behind and its branch CI was failing frontend jobs. `npm.cmd install tailwind-merge@3.6.0` updated `projects/knowledge-dashboard/package.json` and `package-lock.json`; the lockfile root metadata was also synchronized from stale `0.1.0` to `1.1.0` and gained the existing Node engine `>=20`. Verification: `python execution/project_qc_runner.py --project knowledge-dashboard --json` passed test/lint/build and `npm.cmd run smoke` passed. `npm audit --json` still reports 7 unrelated advisories (4 moderate, 3 high), including a Next/PostCSS advisory where npm suggests an unsuitable major downgrade, so no audit fix was applied in this scoped dependency bump. |
+| Next Priorities | Commit/push T-1213 and close/comment Dependabot PR #109 as superseded. Continue with another low-risk Dependabot PR only after checking main CI completion; T-251 remains user-owned Supabase credential reset. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-04 |
+| Tool | Codex |
 | Work | **T-1212 GitHub PR #123 core reapplied on main**. PR `#123` (`codex/fix-readiness-env-status`) was draft and conflicting after newer main changes, but its core product-readiness fix was valid. Reapplied it directly on current `main`: `execution/product_readiness_score.py` now separates missing Hanwoo `.env`, missing `DATABASE_URL`, empty `DATABASE_URL`, placeholder credentials, and present values; readiness recommendations reuse the first concrete env blocker message. Added regression coverage in `workspace/tests/test_product_readiness_score.py` for missing `.env` and tightened placeholder message expectations. Verification: `ruff check execution/product_readiness_score.py workspace/tests/test_product_readiness_score.py` passed, `python -m py_compile ...` passed, and `python -m pytest workspace\tests\test_product_readiness_score.py -q --tb=short --maxfail=1 -o addopts='' --basetemp .tmp\pytest-product-readiness` passed 6/6. |
 | Next Priorities | Commit/push T-1212 and close/comment PR #123 as superseded by the mainline commit. Continue GitHub triage with Dependabot PRs after CI for `efaa484d`/next commit settles. T-251 remains user-owned Supabase credential reset. |
 

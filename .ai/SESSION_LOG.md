@@ -544,3 +544,11 @@
 - Readiness recommendations now reuse the first concrete env blocker message so the operator sees the actual credential-file problem.
 - Updated `workspace/tests/test_product_readiness_score.py` with missing `.env` regression coverage and a stricter placeholder message assertion.
 - Verification: `ruff check execution/product_readiness_score.py workspace/tests/test_product_readiness_score.py` passed; `python -m py_compile execution/product_readiness_score.py workspace/tests/test_product_readiness_score.py` passed; `python -m pytest workspace\tests\test_product_readiness_score.py -q --tb=short --maxfail=1 -o addopts='' --basetemp .tmp\pytest-product-readiness` passed 6/6.
+
+## 2026-06-04 - Codex
+
+- Completed T-1213 by superseding Dependabot PR #109 on current `main`.
+- Changed `projects/knowledge-dashboard/package.json`: bumped `tailwind-merge` from `^3.4.0` to `^3.6.0`.
+- Changed `projects/knowledge-dashboard/package-lock.json`: updated `tailwind-merge` to `3.6.0` and synchronized stale root metadata to package version `1.1.0` plus Node engine `>=20`.
+- Verification: `python execution/project_qc_runner.py --project knowledge-dashboard --json` passed test/lint/build; `npm.cmd run smoke` passed.
+- Residual audit note: `npm.cmd audit --json` still reports 7 unrelated advisories (4 moderate, 3 high), including a Next/PostCSS advisory with an unsuitable npm suggested fix, so no broad audit fix was applied in this scoped bump.
