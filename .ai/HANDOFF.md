@@ -7,6 +7,13 @@
 | Field | Value |
 |---|---|
 | Date | 2026-06-04 |
+| Tool | Codex |
+| Work | **T-1208 workspace control-plane rotation hardening**. Rotated oversized `HANDOFF.md` with existing `execution/handoff_rotator.py` (`archived=458`, `kept=73`, archive `.ai/archive/HANDOFF_archive_2026-06-04.md`). Added deterministic `execution/session_log_rotator.py` plus focused tests, then rotated `.ai/SESSION_LOG.md` (`archived_table_rows=241`, `archived_detail_sections=218`, cutoff `2026-05-28`, archive `.ai/archive/SESSION_LOG_before_2026-05-28.md`). Verification: `python -m pytest workspace/tests/test_session_log_rotator.py -q` passed 10/10, `python -m py_compile execution/session_log_rotator.py` passed, and post-rotation dry-runs returned noop. |
+| Next Priorities | T-251 remains user-owned Supabase credential reset. During session close, use `python execution/handoff_rotator.py --check --json` and `python execution/session_log_rotator.py --check --json` when `.ai` relay files grow large. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-04 |
 | Tool | Claude Opus 4.8 (1M context) |
 | Work | **T-1207 /goal "프로젝트 완성품화" → knowledge-dashboard 출시 가능 v1.0.0** (commit `3c20d53e`). 7개 프로젝트 평가 후 knowledge-dashboard 선정(사용자 확정). 출시 차단 버그 3건: ① `page.tsx` cp949 mojibake 한국어 fallback 5건 UTF-8 교정 — **Edit 툴이 깨진 바이트 매칭 실패(5건 중 1건만 성공)**, 라인번호 기반 Python rewrite + codepoint 검증으로 우회(`windows_korean_path_encode_strict` 계열 함정). ② **QA/QC 인증 우회/staleness** — sync가 `public/`(무인증 노출)에만 쓰고 인증 라우트는 `data/`(stale Apr1)를 읽던 불일치. `sync_data.py`가 `data/qaqc_result.json` 미러 작성 + `public/qaqc_result.json` 추적해제 + `.gitignore public/*.json`. **워크스페이스 공유 `qaqc_runner.py`/`product_readiness_score.py`/`qaqc_status.py`는 병렬툴(T-1206) 충돌 회피 위해 의도적 미변경 — 프로젝트 한정 수정으로 배포 leak만 차단**(로컬 tooling은 public/ 그대로). ③ a11y(WAI-ARIA tablist+tabpanel, lang ko). 테스트 3→16(auth 10/encoding-guard/insights). v1.0.0+favicon+README 배포섹션. 검증: QC 16/16+lint+build OK, sync 실행으로 data/qaqc Apr1→Jun4 신선화 확인, gate risk 0.0. |
 | Next Priorities | T-251(Supabase, 사용자 소유) 그대로. knowledge-dashboard 후속(선택): ① QA/QC 단일 출처를 진짜로 `data/`로 통일하려면 워크스페이스 `qaqc_runner.py:923`/`product_readiness_score.py:332`/`qaqc_status.py:32` + `test_qaqc_runner_extended.py:404`까지 동시 변경 필요(병렬툴 없을 때 묶어서). 현재는 프로젝트 한정으로 배포 leak만 닫음. ② 실 dev-server smoke는 미실행(인증 10 unit + sync 신선화로 대체 검증). |
