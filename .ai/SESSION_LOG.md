@@ -678,3 +678,15 @@
 - Verification: root `pnpm.cmd install --lockfile-only --frozen-lockfile --ignore-scripts` passed; `npm.cmd ls @types/node --depth=0` reported `@types/node@25.9.1`; `python execution/project_qc_runner.py --project knowledge-dashboard --json` passed 59 tests, lint, and build; `npm.cmd run smoke` passed; Chrome CDP QA with fixture data passed API-key login, operations/knowledge/qaqc/activity tab clicks, all four data routes plus `/api/health` 200, SVG count 13, console issues 0, and network failures 0.
 - Audit note: `npm.cmd audit --json` still reports the existing 7 advisories, unchanged by this type-only update.
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/ab-knowledge-types-node-1236.json --json` returned `adopt_candidate` with `score_delta=0.3333333333333333`.
+
+## 2026-06-04 - Codex
+
+- Completed T-1237 pre-push implementation by superseding Dependabot PR #87 on current `main`.
+- Changed `projects/word-chain/package.json`: bumped `vite` from `^7.2.4` to `^8.0.16`.
+- Changed `projects/word-chain/package-lock.json`: updated Vite to `8.0.16` and refreshed its Rolldown-based dependency subtree.
+- Changed `pnpm-lock.yaml`: updated the word-chain importer and Vite snapshot to `vite@8.0.16`.
+- Research: `npm.cmd view vite@8.0.16 version engines dependencies peerDependencies dist-tags --json` reports `latest=8.0.16`, engine `^20.19.0 || >=22.12.0`, and dependencies including `rolldown 1.0.3`; local Node is `24.13.0`. PR #87 changelog highlights Vite 8.0.16 Windows UNC/alternate-path hardening and Vite 8.0.15 request-timeout/Rolldown 1.0.3 fixes.
+- Verification: root `pnpm.cmd install --lockfile-only --frozen-lockfile --ignore-scripts` passed; `npm.cmd ls vite --depth=0` reported `vite@8.0.16`; word-chain `npm.cmd test` passed 23/23; `npm.cmd run lint` passed; `npm.cmd audit --json` reported 0 vulnerabilities; `npm.cmd run build` passed via the established ASCII fallback after direct Vite exited `3221226505`; Chrome CDP browser QA passed Korean input `사과`, submit click, max score 60, SVG count 2, same-origin status failures 0, network loading failures 0, and console issues 0.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/ab-word-chain-vite-1237.json --json` returned `adopt_candidate` with `score_delta=0.5625`.
+- Boundary: `python execution/project_qc_runner.py --project word-chain --json` is not available because the deterministic runner currently supports only `all`, `blind-to-x`, `shorts-maker-v2`, `hanwoo-dashboard`, and `knowledge-dashboard`; word-chain was verified through its project scripts plus browser QA instead.
+- Post-push requirement: comment on and close Dependabot PR #87 as superseded, then confirm main `root-quality-gate` and `active-project-matrix` pass.
