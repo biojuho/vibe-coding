@@ -110,6 +110,16 @@ python .agents/skills/auto-research/scripts/github_project_inventory.py --root .
 
 Use it to identify active projects, GitHub workflow files, Dependabot state, open PRs, and dirty-tree risks.
 
+## Browser QA Evidence Inventory
+
+Run the local browser QA inventory before choosing the next app-click cycle:
+
+```bash
+python .agents/skills/auto-research/scripts/browser_qa_inventory.py --root . --json
+```
+
+Use it to identify browser apps with verified direct-click evidence, current `output/playwright` screenshots, and projects that still need a browser QA pass.
+
 ## A/B Decision Helper
 
 Create a manifest and score it:

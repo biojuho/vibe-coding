@@ -59,6 +59,7 @@ jobs:
           workspace/tests/test_auto_schedule_paths.py
           workspace/tests/test_skill_lint.py
           workspace/tests/test_auto_research_completion_audit.py
+          workspace/tests/test_auto_research_browser_qa_inventory.py
           workspace/tests/test_github_workflow_hygiene.py
           workspace/tests/test_next_task_id.py
           workspace/tests/test_task_id_gate.py
@@ -84,6 +85,7 @@ jobs:
           workspace/tests/test_auto_schedule_paths.py
           workspace/tests/test_skill_lint.py
           workspace/tests/test_auto_research_completion_audit.py
+          workspace/tests/test_auto_research_browser_qa_inventory.py
           workspace/tests/test_github_workflow_hygiene.py
           workspace/tests/test_next_task_id.py
           workspace/tests/test_task_id_gate.py
@@ -91,3 +93,4 @@ jobs:
           execution/next_task_id.py
           execution/task_id_gate.py
           .agents/skills/auto-research/scripts/completion_audit.py
+          .agents/skills/auto-research/scripts/browser_qa_inventory.py
