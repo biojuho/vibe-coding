@@ -66,10 +66,26 @@ def git_log_text(window: int) -> str:
     return result.stdout.decode("utf-8", errors="replace")
 
 
+def git_head_subject() -> str:
+    try:
+        result = subprocess.run(
+            ["git", "log", "-1", "--format=%s"],
+            cwd=str(ROOT),
+            capture_output=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        return ""
+    if result.returncode != 0:
+        return ""
+    return result.stdout.decode("utf-8", errors="replace").strip()
+
+
 def find_duplicate_task_ids(
     message_text: str,
     *,
     history_text: str,
+    head_subject: str = "",
     allow_ai_context: bool = True,
 ) -> list[str]:
     subject = commit_subject(message_text)
@@ -81,7 +97,10 @@ def find_duplicate_task_ids(
         return []
 
     history_ids = extract_task_ids(history_text)
-    return sorted(current_ids & history_ids)
+    duplicates = current_ids & history_ids
+    if subject and subject == head_subject:
+        duplicates -= extract_task_ids(head_subject)
+    return sorted(duplicates)
 
 
 def suggested_next_id(git_window: int) -> str | None:
@@ -128,11 +147,17 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Override git history text for tests.",
     )
+    parser.add_argument(
+        "--head-subject",
+        default=None,
+        help="Override HEAD subject for tests.",
+    )
     args = parser.parse_args(argv)
 
     text = _message_text(args.commit_message_file)
     history = args.history_text if args.history_text is not None else git_log_text(args.git_window)
-    duplicates = find_duplicate_task_ids(text, history_text=history)
+    head_subject = args.head_subject if args.head_subject is not None else git_head_subject()
+    duplicates = find_duplicate_task_ids(text, history_text=history, head_subject=head_subject)
     if not duplicates:
         return 0
 
