@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import re
 import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -104,6 +106,49 @@ def _is_active_task(task: dict[str, str]) -> bool:
 
 def _is_user_owned_task(task: dict[str, str]) -> bool:
     return task.get("owner", "").strip().lower() == "user"
+
+
+def _check_ids(value: Any) -> list[str]:
+    if not isinstance(value, (list, tuple, set)):
+        return []
+    return sorted({str(item).strip() for item in value if str(item).strip()})
+
+
+def _observed_project_qc_checks(result: dict[str, Any]) -> list[str]:
+    observed = _check_ids(result.get("observed_checks"))
+    if observed:
+        return observed
+
+    checks = result.get("checks")
+    if isinstance(checks, list):
+        return _check_ids([item.get("check") for item in checks if isinstance(item, dict)])
+
+    return _check_ids(result.get("expected_checks"))
+
+
+@lru_cache(maxsize=1)
+def _current_project_qc_expected_checks() -> dict[str, tuple[str, ...]]:
+    runner_path = Path(__file__).with_name("project_qc_runner.py")
+    spec = importlib.util.spec_from_file_location("_product_readiness_project_qc_runner", runner_path)
+    if spec is None or spec.loader is None:
+        return {}
+
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    try:
+        spec.loader.exec_module(module)
+    except Exception:
+        return {}
+
+    projects = getattr(module, "PROJECTS", None)
+    if not isinstance(projects, dict):
+        return {}
+
+    expected: dict[str, tuple[str, ...]] = {}
+    for name, project in projects.items():
+        checks = getattr(project, "checks", ())
+        expected[str(name)] = tuple(sorted(str(check.id) for check in checks if getattr(check, "id", None)))
+    return expected
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -472,7 +517,15 @@ def _project_qc_status(qaqc_data: dict[str, Any], project_name: str, now: dateti
 
     status = str(result.get("status") or "UNKNOWN").upper()
     missing_checks = [str(check) for check in result.get("missing_checks") or []]
-    if qaqc_data.get("source") == PROJECT_QC_SOURCE and result.get("coverage") != "complete":
+    is_project_qc = qaqc_data.get("source") == PROJECT_QC_SOURCE
+    if is_project_qc:
+        current_expected_checks = _current_project_qc_expected_checks().get(project_name, ())
+        if current_expected_checks:
+            observed_checks = set(_observed_project_qc_checks(result))
+            drift_missing_checks = sorted(set(current_expected_checks) - observed_checks)
+            missing_checks = sorted(set(missing_checks) | set(drift_missing_checks))
+
+    if is_project_qc and (result.get("coverage") != "complete" or missing_checks):
         return {
             "available": False,
             "status": "PARTIAL",
@@ -759,7 +812,7 @@ def _score_project(
         suffix = f" ({age} days old)" if isinstance(age, int) else ""
         recommendations.append(f"Refresh project QC; latest recorded run is stale{suffix}.")
     elif qc_score < 35:
-        recommendations.append("Refresh project QC so the score reflects the latest test/lint/build state.")
+        recommendations.append("Refresh project QC so the score reflects the latest test/lint/build/smoke state.")
     if any(not item["present"] for item in docs):
         recommendations.append("Add or repair the missing product documentation files.")
     if dirty_paths:

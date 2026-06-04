@@ -346,8 +346,42 @@ def test_default_report_reads_latest_project_qc_runner_artifact(tmp_path: Path):
     blind = next(project for project in report["projects"] if project["name"] == "blind-to-x")
     assert blind["qc"]["available"] is True
     assert blind["qc"]["status"] == "PASS"
-    assert blind["recommendations"][0] != "Refresh project QC so the score reflects the latest test/lint/build state."
+    assert (
+        blind["recommendations"][0]
+        != "Refresh project QC so the score reflects the latest test/lint/build/smoke state."
+    )
     assert report["overall"]["state"] == "ready"
+
+
+def test_project_qc_artifact_missing_current_runner_check_is_partial(tmp_path: Path):
+    _write_project_files(tmp_path)
+    path = _write_latest_project_qc(tmp_path)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    hanwoo = data["projects"]["hanwoo-dashboard"]
+    hanwoo["expected_checks"] = ["test", "lint", "build"]
+    hanwoo["observed_checks"] = ["test", "lint", "build"]
+    hanwoo["missing_checks"] = []
+    path.write_text(json.dumps(data), encoding="utf-8")
+    _write_tasks(
+        tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
+    )
+    _write_required_env(tmp_path)
+
+    report = readiness.build_report(
+        tmp_path,
+        git_status_text="",
+        github_status=_passing_github_status(),
+        now=datetime(2026, 5, 13, tzinfo=timezone.utc),
+    )
+
+    hanwoo_project = next(project for project in report["projects"] if project["name"] == "hanwoo-dashboard")
+    assert hanwoo_project["qc"]["available"] is False
+    assert hanwoo_project["qc"]["status"] == "PARTIAL"
+    assert hanwoo_project["qc"]["missing_checks"] == ["smoke"]
+    assert (
+        hanwoo_project["recommendations"][0]
+        == "Refresh project QC so the score reflects the latest test/lint/build/smoke state."
+    )
 
 
 def test_github_release_gate_blocks_open_prs(tmp_path: Path):
@@ -474,7 +508,10 @@ def test_partial_project_qc_runner_artifact_does_not_score_as_fresh_qc(tmp_path:
     assert blind["qc"]["available"] is False
     assert blind["qc"]["status"] == "PARTIAL"
     assert blind["qc"]["missing_checks"] == ["test"]
-    assert blind["recommendations"][0] == "Refresh project QC so the score reflects the latest test/lint/build state."
+    assert (
+        blind["recommendations"][0]
+        == "Refresh project QC so the score reflects the latest test/lint/build/smoke state."
+    )
 
 
 def test_dirty_paths_lower_the_matching_project_only(tmp_path: Path):
