@@ -316,6 +316,24 @@
 
 ## 2026-06-05 - Codex
 
+- Completed T-1264 as a bounded `$auto-research` Knowledge Dashboard product-readiness cycle focused on sync resilience and direct browser-click QA.
+- Changed `projects/knowledge-dashboard/scripts/sync_data.py`: when `httpx` is unavailable, `GITHUB_PERSONAL_ACCESS_TOKEN` is absent, or GitHub fetch fails, it now falls back to the deterministic local workspace inventory from `.agents/skills/auto-research/scripts/github_project_inventory.py`.
+- The local fallback maps workspace projects into GitHub-card-compatible rows with stable ids, local/root tree URLs, inferred language, README/test/workflow metadata, and safe descriptions, so the dashboard GitHub section is not empty on local/operator machines without a GitHub token.
+- Changed `build_product_readiness()` in the same script to call `build_report(REPO_ROOT)` without forcing the legacy public QA/QC artifact path, keeping Knowledge sync aligned with the current project-QC readiness artifact contract.
+- Changed `projects/knowledge-dashboard/tests/test_sync_data.py`: added regressions for GitHub remote URL normalization, local project card mapping, no-token fallback, and default readiness invocation.
+- Runtime sync proof: `python projects\knowledge-dashboard\scripts\sync_data.py` reported `GITHUB_PERSONAL_ACCESS_TOKEN is not configured; using local project inventory` and found 7 local workspace projects; NotebookLM remained blocked only by the checked-in template token boundary.
+- Browser QA: Playwright CLI against standalone Knowledge Dashboard on `127.0.0.1:4317` used deterministic `.tmp/knowledge-browser-data` fixtures; clicked login, operations, knowledge tab, search/clear, notebook detail modal, export menu, QA/QC tab, activity tab, refresh, and logout. Console errors/warnings were 0, tracked auth/data requests returned 200, and screenshot artifact was saved to `output/playwright/knowledge-t1264-browser-click-qa.png`.
+- Verification: `python -m pytest -o addopts= --basetemp .tmp\pytest-knowledge-sync-data projects\knowledge-dashboard\tests\test_sync_data.py` passed 8/8; `python -m ruff check ...` passed; `python -m py_compile ...` passed; `git diff --check` passed; `npm.cmd test` passed 61/61; `python execution\project_qc_runner.py --project knowledge-dashboard --json` passed test/lint/build/smoke.
+- Full active-project QC restored complete readiness evidence and passed: `blind-to-x` 1723 passed/9 skipped, `shorts-maker-v2` 1577 passed/12 skipped, Hanwoo 499 passed, Knowledge 61 passed; total 3860 passed/21 skipped. Known shorts google.genai DeprecationWarning persisted.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-t1264-knowledge-sync-local-inventory.json --json` returned `adopt_candidate` with `score_delta=4.666666666666667`.
+- Completion audit: `.agents/skills/auto-research/scripts/completion_audit.py .tmp\completion-audit-t1264-knowledge-sync-local-inventory.json --json` returned `complete` with 5/5 items complete and 0 issues.
+- Gate note: staged `code_review_gate.py --staged --json` returned advisory WARN (`risk_score=0.55`) for graph-reported broad sync helper test gaps; direct fallback tests, runtime sync proof, project QC, browser QA, A/B, and completion audit covered the adopted change.
+- Commit/push closeout: `7b656d3a fix(knowledge): T-1264 fall back to local project inventory` is on `origin/main`; GitHub Actions passed on that head with `root-quality-gate` run `26973233204` and `active-project-matrix` run `26973233352`. The known checkout annotation appeared in matrix jobs, but all jobs and summary concluded success.
+- Current readiness after push: score 96, clean worktree, open PRs 0, required Actions green, workspace/local blockers 0, external blocker 1 for user-owned Hanwoo T-251 only.
+- Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification, not local repo work.
+
+## 2026-06-05 - Codex
+
 - Completed T-1260 as a bounded release-readiness cycle focused on separating local launch blockers from user-owned external blockers and adding runtime smoke to dashboard QC.
 - Changed `execution/product_readiness_score.py`: added active-task/user-owned helpers, per-project `blocker_breakdown`, and overall `external_blocker_count`, `local_blocker_count`, `agent_task_count`, `environment_blocker_count`, plus nested `blocker_breakdown`.
 - Changed `workspace/tests/test_product_readiness_score.py`: added a regression for the current T-251 shape where Hanwoo has a user-owned task and configured env, so overall stays `blocked` with `external_blocker_count=1` and `local_blocker_count=0`; also covered placeholder/env and workspace-gate blocker counts.
