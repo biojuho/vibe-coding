@@ -165,6 +165,41 @@ _SEMANTIC_SCENES: dict[tuple[str, str], str] = {
 }
 
 
+# ── Fallback static images (used when ALL AI providers fail) ─────────
+# 운영 환경에서는 config `image.fallback_images` (토픽 → URL) 로 CDN/S3에 올린
+# 카테고리별 기본 이미지를 지정하는 것을 권장합니다 (README의 운영 경로).
+# 아래 기본값은 전체 토픽 클러스터 taxonomy(classification.yaml `topic_rules`)를
+# 빠짐없이 커버하는 검증된(HTTP 200, 2026-06-04 확인) Unsplash 사진들로,
+# AI 생성이 모두 실패해도 깨진(404) 이미지 링크가 발행되지 않도록 보장합니다.
+_UNSPLASH_FALLBACK_BASE = "https://images.unsplash.com/photo-"
+_UNSPLASH_FALLBACK_QUERY = "?auto=format&fit=crop&w=1024&q=80"
+_FALLBACK_DEFAULT_PHOTO_ID = "1497215728101-856f4ea42174"  # 중립적인 사무실
+_FALLBACK_PHOTO_IDS: dict[str, str] = {
+    "연봉": "1579621970563-ebec7560ff3e",  # 급여/현금
+    "이직": "1486312338219-ce68d2c6f44d",  # 커리어/갈림길
+    "회사문화": "1497366754035-f200968a6e72",  # 오픈 오피스
+    "상사": "1556761175-b413da4baf72",  # 회의/관리자
+    "복지": "1497366811353-6870744d04b2",  # 사무 공간
+    "연애": "1516589178581-6cd7833ae3b2",  # 연인
+    "결혼": "1519741497674-611481863552",  # 결혼식
+    "가족": "1511895426328-dc8714191300",  # 가족
+    "재테크": "1565514020179-026b92b84bb6",  # 투자/저축
+    "직장개그": _FALLBACK_DEFAULT_PHOTO_ID,  # 사무실(범용)
+    "부동산": "1560518883-ce09059eeffa",  # 주택/건물
+    "IT": "1518770660439-4636190af475",  # 기술
+    "건강": "1571019613454-1cb2f99b2d8b",  # 운동/건강
+    "정치": "1495020689067-958852a7765e",  # 뉴스/신문
+    "자기계발": "1486312338219-ce68d2c6f44d",  # 학습/커리어
+    "금융/경제": "1518458028785-8fbcd101ebb9",  # 금융/경제
+    "뷰티/라이프": "1522335789203-aabd1fc54bc9",  # 뷰티/라이프
+}
+
+
+def _unsplash_fallback_url(photo_id: str) -> str:
+    """검증된 Unsplash photo id 를 표준 fallback 이미지 URL 로 변환."""
+    return f"{_UNSPLASH_FALLBACK_BASE}{photo_id}{_UNSPLASH_FALLBACK_QUERY}"
+
+
 def _env_flag(name: str):
     raw = os.environ.get(name)
     if raw is None:
@@ -498,20 +533,41 @@ class ImageGenerator:
 
         return result
 
+    def _fallback_image_overrides(self) -> dict[str, str]:
+        """config `image.fallback_images` 를 안전하게 dict[str, str] 로 반환.
+
+        운영자가 CDN/S3에 올린 카테고리별 기본 이미지 URL을 지정하는 경로.
+        값이 비정상(비dict, 빈 값, 비문자열)이면 방어적으로 무시한다.
+        """
+        try:
+            raw = self.config.get("image.fallback_images", {})
+        except Exception:
+            return {}
+        if not isinstance(raw, dict):
+            return {}
+        return {str(k): str(v) for k, v in raw.items() if isinstance(v, str) and v}
+
     def _get_fallback_image_url(self, topic: str) -> str:
-        """AI 생성 실패 시 사용할 정적 이미지 URL. (V2.0 Phase 2)"""
-        # 실제 운영 환경에서는 CDN이나 S3에 업로드된 카테고리별 기본 이미지 URL을 사용합니다.
-        # 여기서는 placeholder AI 서비스를 활용한 안정적인 URL 구조를 반환합니다.
-        base = "https://images.unsplash.com/photo-"
-        mapping = {
-            "연봉": "1554224158-1d4965a9d05d",  # Money
-            "이직": "1486312338219-ce68d2c6f44d",  # Career
-            "회사문화": "1522071823990-956038747e5b",  # Office
-            "연애": "1518199266791-38982405599a",  # Love
-            "IT": "1518770660439-4636190af475",  # Technology
-        }
-        photo_id = mapping.get(topic, "1497215728101-856f4ea42174")  # Default Office
-        return f"{base}{photo_id}?auto=format&fit=crop&w=1024&q=80"
+        """AI 생성이 모두 실패했을 때 사용할 정적 이미지 URL.
+
+        우선순위:
+          1. config `image.fallback_images` (토픽 → URL) 운영자 오버라이드.
+          2. 코드 내 검증된 Unsplash 기본 매핑 (`_FALLBACK_PHOTO_IDS`).
+             전체 토픽 클러스터 taxonomy를 커버하므로 미등록 토픽만
+             중립 기본 이미지로 떨어진다.
+        """
+        overrides = self._fallback_image_overrides()
+        if topic in overrides:
+            return overrides[topic]
+
+        photo_id = _FALLBACK_PHOTO_IDS.get(topic)
+        if photo_id:
+            return _unsplash_fallback_url(photo_id)
+
+        # 미등록 토픽: 운영자 default 오버라이드 우선, 없으면 코드 기본값.
+        if "default" in overrides:
+            return overrides["default"]
+        return _unsplash_fallback_url(_FALLBACK_DEFAULT_PHOTO_ID)
 
     @staticmethod
     def _validate_image(path: str) -> tuple[bool, str]:

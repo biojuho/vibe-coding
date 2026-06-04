@@ -7,6 +7,13 @@
 | Field | Value |
 |---|---|
 | Date | 2026-06-04 |
+| Tool | Claude Opus 4.8 (1M context) |
+| Work | **(1) hermes-agent 설치** (사용자 명시 요청). 이 PC의 Windows PowerShell 5.1은 코어 모듈 자동 로딩이 깨져 있어(T-1203이 프로필로 우회한 그 버그) 공식 `install.ps1`이 그대로는 실패. 우회: ① uv를 `%LOCALAPPDATA%\hermes\bin\uv.exe`에 미리 설치해 스크립트의 유일한 자식 `powershell irm\|iex` 호출 제거, ② venv/deps는 git-bash로 직접(`uv venv`/`uv sync --extra all --locked` — PowerShell의 stderr→NativeCommandError 트랩 회피; `Install-Venv`는 EAP 완화 없는 실제 버그), ③ finalize 단계(path/config-templates/bootstrap-marker/node-deps/platform-sdks)는 `install.ps1 -Stage <name>`를 코어모듈 import 런처로 실행. 결과: hermes v0.15.1 정상(`hermes doctor` green), PATH+HERMES_HOME 등록, 스킬 90개. 남은 건 사용자 `hermes setup`(API 키/모델). 산출물: `.tmp/hermes_install.ps1`, `.tmp/run_hermes_install.ps1`. **(2) T-1206 /goal "프로젝트 완성품화" → blind-to-x**: 이미지 폴백 URL 5개 중 3개(연봉/회사문화/연애) 실제 404 dead 버그 발견·수정 + `config.image.fallback_images` 외부화 + 17개 토픽 taxonomy 전부 검증된 Unsplash로 커버 + 테스트 8종. full blind-to-x unit **1732/1732 pass** (5m15s), ruff clean. |
+| Next Priorities | T-251(Supabase, 사용자 소유) 그대로. blind-to-x 후속: 운영자가 `image.fallback_images`에 실제 CDN/S3 URL을 채우면 폴백 품질이 최상. PowerShell autoload 결함은 T-1203 프로필로 일부 우회됐으나 `-NoProfile` 프로세스(대부분의 자동화)에선 여전히 깨짐 — 근본 원인(시스템 모듈 ListAvailable 미열거) 미해결. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-04 |
 | Tool | Codex |
 | Work | **T-1205 Resolved Codex startup warnings for HeyGen/Figma/Notion**. Shortened invalid HeyGen curated skill descriptions in `C:\Users\박주호\.codex\plugins\cache\openai-curated\heygen\2abb1c44\skills\heygen-avatar\SKILL.md` and `heygen-video\SKILL.md` plus the mirrored `.codex\.tmp\plugins\plugins\heygen` copies so all descriptions are under 1024 bytes. Disabled the broken standalone `[mcp_servers.figma]` remote URL in `C:\Users\박주호\.codex\config.toml` because it requires OAuth client credentials in this Codex environment. Hardened `infrastructure/notion-mcp/start_notion_mcp.ps1` to avoid missing PowerShell cmdlets, map `NOTION_API_KEY` and `NOTION_TOKEN` both ways, and invoke `@notionhq/notion-mcp-server --transport stdio`. |
 | Next Priorities | T-251 remains the only workspace TODO and still requires the user-owned Supabase credential reset. If Figma MCP is needed again, re-enable the standalone remote entry only after configuring OAuth client credentials, or use the Figma plugin/app connector. |

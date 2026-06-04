@@ -461,3 +461,96 @@ class TestGeneratePollinations:
         monkeypatch.setattr("pipeline.image_generator.aiohttp.ClientSession", raise_err)
         result = await gen._generate_pollinations("a test prompt")
         assert result is None
+
+
+# ---------------------------------------------------------------------------
+# _get_fallback_image_url — config-driven, taxonomy-complete static fallback
+# ---------------------------------------------------------------------------
+
+
+class TestFallbackImageUrl:
+    """AI 생성이 모두 실패했을 때의 정적 폴백 이미지 URL 매핑.
+
+    완성품 보증:
+      - 전체 토픽 클러스터 taxonomy를 빠짐없이 커버한다.
+      - 과거 404로 죽어있던 레거시 photo id 는 더 이상 사용되지 않는다.
+      - 운영자는 config `image.fallback_images` 로 토픽별 URL을 오버라이드할 수 있다.
+    """
+
+    # 과거 하드코딩되어 있었으나 404(dead)로 확인된 레거시 photo id.
+    DEAD_LEGACY_IDS = (
+        "1554224158-1d4965a9d05d",  # (구) 연봉
+        "1522071823990-956038747e5b",  # (구) 회사문화
+        "1518199266791-38982405599a",  # (구) 연애
+    )
+
+    def _gen(self, extra: dict | None = None):
+        from pipeline.image_generator import ImageGenerator
+
+        data = {"image.provider": "pollinations"}
+        if extra:
+            data.update(extra)
+        return ImageGenerator(FakeConfig(data))
+
+    def test_every_taxonomy_topic_has_fallback(self):
+        """classification.yaml의 모든 토픽 클러스터가 폴백 매핑을 가진다."""
+        from pipeline.content_intelligence.rules import get_topic_rules
+        from pipeline.image_generator import _FALLBACK_PHOTO_IDS
+
+        labels = {label for label, _ in get_topic_rules()}
+        assert labels, "topic taxonomy가 비어있으면 안 됨"
+        missing = labels - set(_FALLBACK_PHOTO_IDS)
+        assert not missing, f"폴백 이미지 미지정 토픽: {sorted(missing)}"
+
+    def test_known_topics_resolve_to_unsplash_url(self):
+        from pipeline.image_generator import _FALLBACK_PHOTO_IDS
+
+        gen = self._gen()
+        for topic, photo_id in _FALLBACK_PHOTO_IDS.items():
+            url = gen._get_fallback_image_url(topic)
+            assert url.startswith("https://images.unsplash.com/photo-")
+            assert photo_id in url
+            assert "w=1024" in url
+
+    def test_dead_legacy_ids_not_returned(self):
+        """과거 404였던 photo id 가 어떤 토픽에서도 반환되지 않아야 한다."""
+        from pipeline.image_generator import _FALLBACK_PHOTO_IDS
+
+        gen = self._gen()
+        topics = list(_FALLBACK_PHOTO_IDS) + ["기타", "존재하지않는토픽", ""]
+        for topic in topics:
+            url = gen._get_fallback_image_url(topic)
+            for dead in self.DEAD_LEGACY_IDS:
+                assert dead not in url, f"{topic} → dead id {dead}"
+
+    def test_unknown_topic_uses_default(self):
+        from pipeline.image_generator import _FALLBACK_DEFAULT_PHOTO_ID
+
+        gen = self._gen()
+        url = gen._get_fallback_image_url("존재하지않는토픽")
+        assert _FALLBACK_DEFAULT_PHOTO_ID in url
+
+    def test_config_override_wins_for_topic(self):
+        custom = "https://cdn.example.com/fallback/salary.png"
+        gen = self._gen({"image.fallback_images": {"연봉": custom}})
+        assert gen._get_fallback_image_url("연봉") == custom
+        # 오버라이드 안 된 토픽은 코드 기본값을 그대로 사용
+        assert gen._get_fallback_image_url("IT").startswith("https://images.unsplash.com/")
+
+    def test_config_override_default_for_unknown_topic(self):
+        custom = "https://cdn.example.com/fallback/generic.png"
+        gen = self._gen({"image.fallback_images": {"default": custom}})
+        assert gen._get_fallback_image_url("존재하지않는토픽") == custom
+        # 매핑된 토픽은 default 오버라이드보다 코드 매핑이 우선
+        assert gen._get_fallback_image_url("연봉").startswith("https://images.unsplash.com/")
+
+    def test_override_ignores_non_string_and_empty_values(self):
+        gen = self._gen({"image.fallback_images": {"연봉": "", "이직": 123, "IT": None}})
+        # 비정상 값은 무시되고 코드 기본값으로 폴백
+        for topic in ("연봉", "이직", "IT"):
+            assert gen._get_fallback_image_url(topic).startswith("https://images.unsplash.com/photo-")
+
+    def test_malformed_config_value_is_safe(self):
+        gen = self._gen({"image.fallback_images": "not-a-dict"})
+        url = gen._get_fallback_image_url("연봉")
+        assert url.startswith("https://images.unsplash.com/photo-")

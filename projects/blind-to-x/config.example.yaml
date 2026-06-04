@@ -177,6 +177,14 @@ image:
   min_prompt_words: 5
   generate_ai_for_review: false
   generate_ai_for_blind: false
+  # AI 이미지 생성이 모두 실패했을 때 사용할 토픽별 정적 폴백 이미지(선택).
+  # 토픽 클러스터 이름(연봉/이직/회사문화/...) → 이미지 URL. 운영 환경에서는
+  # CDN/S3에 올린 카테고리별 기본 이미지를 지정하는 것을 권장합니다.
+  # 미지정 토픽은 코드 내 검증된 Unsplash 기본 매핑으로 자동 대체됩니다.
+  # "default" 키는 매핑에 없는 토픽의 폴백으로 사용됩니다.
+  # fallback_images:
+  #   연봉: "https://cdn.example.com/fallback/salary.jpg"
+  #   default: "https://cdn.example.com/fallback/office.jpg"
 
 image_hosting:
   provider: "imgur"
