@@ -704,3 +704,16 @@
 - Audit note: `npm.cmd audit --json` still reports the existing 7 advisories (4 moderate, 3 high), unchanged by this dependency freshness patch.
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/ab-knowledge-react-1238.json --json` returned `adopt_candidate` with `score_delta=0.48648648648648646`.
 - Post-push requirement: comment on and close Dependabot PR #114 as superseded, then confirm main `root-quality-gate` and `active-project-matrix` pass.
+
+## 2026-06-04 - Codex
+
+- Completed T-1239 pre-push implementation by superseding Dependabot PR #104 on current `main`.
+- Changed `projects/suika-game-v2/package.json`: bumped `vite` from `^7.2.4` to `^8.0.16`.
+- Changed `projects/suika-game-v2/package-lock.json`: updated Vite to `8.0.16` and refreshed the Rollup/Rolldown-based dependency subtree.
+- Changed `pnpm-lock.yaml`: updated the suika importer and Vitest Vite peer path to `vite@8.0.16`; unrelated Hanwoo/Knowledge `eslint-config-next` peer-context churn from the pnpm refresh was manually trimmed before verification.
+- Research: `npm.cmd view vite@8.0.16 version dist-tags engines dependencies peerDependencies --json` reports latest/current `8.0.16`, engine `^20.19.0 || >=22.12.0`, and `rolldown 1.0.3`; local Node is `24.13.0`. PR #104 changelog highlights Vite 8.0.16 Windows UNC/alternate-path hardening and Vite 8.0.15 request-timeout/Rolldown 1.0.3 fixes.
+- Verification: root `pnpm.cmd install --lockfile-only --frozen-lockfile --ignore-scripts` passed; `npm.cmd ls vite --depth=0` reported `vite@8.0.16`; suika `npm.cmd test` passed 61/61; `npm.cmd run lint` passed; `npm.cmd audit --json` reported 0 vulnerabilities; `npm.cmd run build` passed through the established ASCII fallback after direct Vite exited `3221226505` and copied fallback `dist/` back to the project.
+- Browser QA: Chrome CDP preview QA passed with start overlay hidden, 480x800 canvas rendered, sampled nonzero pixels increasing from 694 to 1102 after a Space drop, `/manifest.webmanifest`, `/icon.svg`, and `/sw.js` all 200, same-origin network/status failures 0, and console/log issues 0.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/ab-suika-vite-1239.json --json` returned `adopt_candidate` with `score_delta=0.5596262799500868`.
+- Boundary: `python execution/project_qc_runner.py --project suika-game-v2 --json` is not available because the deterministic runner currently supports only `all`, `blind-to-x`, `shorts-maker-v2`, `hanwoo-dashboard`, and `knowledge-dashboard`; suika was verified through its project scripts plus browser QA.
+- Post-push requirement: comment on and close Dependabot PR #104 as superseded, then confirm main `root-quality-gate` and `active-project-matrix` pass.
