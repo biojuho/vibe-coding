@@ -794,3 +794,12 @@
 - CI confirmation for current `main` head `db3cd0d7`: `root-quality-gate` passed, and `gh run watch 26952955621 --exit-status` confirmed `active-project-matrix` passed across blind-to-x, shorts-maker-v2, knowledge-dashboard, hanwoo-dashboard, workspace-quality, and test-summary jobs. The workflow still emitted the known checkout annotation (`/usr/bin/git` exit 128), but all jobs and the workflow concluded success.
 - Handoff rotation check: `python execution/handoff_rotator.py --check --json` returned `noop` with `kept=111`, `archived=0`, cutoff `2026-05-28`.
 - Remaining work: T-251 is still the only TODO and remains user-owned Supabase credential reset/live Prisma verification, not local repo work.
+
+## 2026-06-04 - Codex
+
+- Completed T-1248 as a bounded `$auto-research` product-readiness cycle for `knowledge-dashboard`.
+- Browser QA: started local Knowledge Dashboard on `localhost:3103`, authenticated with `DASHBOARD_API_KEY`, clicked operations/readiness, knowledge, QA/QC, and activity tabs, captured `output/playwright/knowledge-t1248-readiness.png`, and wrote `.tmp/knowledge-t1248-tab-click-browser.json`. `/api/auth/session`, `/api/data/dashboard`, `/api/data/qaqc`, `/api/data/readiness`, and `/api/data/skills` returned 200; console/page/network errors were 0; readiness API returned score 94, state `blocked`, blocked_count 1, project_count 4.
+- Changed `projects/knowledge-dashboard/src/encoding-guard.test.mts`: added source-wide common Korean mojibake fragment detection and readable operations copy contracts for `src/app/page.tsx` plus `ProductReadinessPanel.tsx`.
+- Changed `.gitignore`: ignored `.playwright-cli/` and `output/playwright/` so Playwright snapshots/screenshots stay local.
+- Verification: `npm.cmd test` passed 61/61, `npm.cmd run lint` passed, `npm.cmd run build` passed, `python execution/project_qc_runner.py --project knowledge-dashboard --json --timeout-seconds 900` passed, `git check-ignore -v` confirmed the new artifact ignores, A/B `adopt_candidate` score_delta 0.4666666666666667, and completion audit returned `complete`.
+- Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification.
