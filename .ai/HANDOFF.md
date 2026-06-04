@@ -8,6 +8,13 @@
 |---|---|
 | Date | 2026-06-04 |
 | Tool | Codex |
+| Work | **T-1230 blind-to-x OpenAI SDK dependency freshness loop**. Superseded Dependabot PR #110 on current `main` by bumping `projects/blind-to-x` `openai` from `2.37.0` to `2.41.0` and syncing the root workspace `uv.lock`. Official PyPI metadata reports `openai` latest `2.41.0` with `requires_python >=3.9`. Official openai-python release notes for v2.38.0..v2.41.0 are additive API surface updates: generic API/spec updates, workload identity/additional Responses tools, Bedrock Responses support, and `responses.moderation` / `chat_completions.moderation`. The blind-to-x usage surface remains `AsyncOpenAI`, `chat.completions.create`, OpenAI-compatible xAI/Ollama clients, and DALL-E image-generation client construction. Verification: `uv lock --project projects/blind-to-x --check` passed; import smoke reported OpenAI `2.41.0` and `AsyncOpenAI`; focused OpenAI provider/image/runtime tests passed 152/152; blind-to-x project lint passed; A/B helper selected `adopt_candidate` (`score_delta=0.55`). |
+| Next Priorities | Commit/push T-1230, comment on/close PR #110 as superseded, then recheck main `root-quality-gate` and `active-project-matrix`. Continue GitHub triage from remaining PRs after main stays green. T-251 remains user-owned Supabase credential reset. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-04 |
+| Tool | Codex |
 | Work | **T-1229 blind-to-x Anthropic SDK dependency freshness loop**. Superseded Dependabot PR #111 on current `main` by bumping `projects/blind-to-x` `anthropic` from `0.104.1` to `0.105.2` and regenerating the root workspace `uv.lock`. Reviewed official anthropic-sdk-python release pages for v0.105.0, v0.105.1, and v0.105.2: v0.105.0 adds support for `claude-opus-4-8`, mid-conversation system blocks, `usage.output_tokens_details`, and custom file size caps; v0.105.1 is an internal Trusted Publishing chore; v0.105.2 only links a full changelog from v0.105.1. The blind-to-x usage surface is `AsyncAnthropic.messages.create` in `pipeline/draft_providers.py`, plus prompt-cache usage parsing and provider fallback tests. Verification: `uv run` reported anthropic `0.105.2` and `AsyncAnthropic` import OK; focused Anthropic provider/cost/prompt-cache tests passed 70/70; blind-to-x project lint passed; A/B helper selected `adopt_candidate` (`score_delta=0.9`). |
 | Next Priorities | Commit/push T-1229, comment on/close PR #111 as superseded, then recheck main `root-quality-gate` and `active-project-matrix`. Continue GitHub triage from remaining PRs after main stays green. T-251 remains user-owned Supabase credential reset. |
 
