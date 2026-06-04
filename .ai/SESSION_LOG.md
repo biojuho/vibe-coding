@@ -562,3 +562,15 @@
 - Verification: root `pnpm.cmd install --lockfile-only --frozen-lockfile --ignore-scripts` passed; clean temporary worktree `pnpm.cmd install --frozen-lockfile --ignore-scripts` passed; `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed 498 tests, lint, and build.
 - Local note: an attempted root pnpm full install disturbed ignored npm-managed `node_modules`; `npm.cmd install` in `projects/hanwoo-dashboard` restored local npm command resolution before the passing QC rerun.
 - Residual audit note: `npm.cmd audit --json` still reports 8 unrelated Prisma/Hono/Next/PostCSS transitive advisories, so no broad audit fix was applied in this scoped bump.
+
+## 2026-06-04 - Codex
+
+- Completed T-1215 by superseding Dependabot PR #118 on current `main`.
+- Changed `projects/hanwoo-dashboard/package.json`: bumped `@hookform/resolvers` from `^5.2.2` to `^5.4.0`.
+- Changed `projects/hanwoo-dashboard/package-lock.json`: updated `@hookform/resolvers` to `5.4.0`; this matches Dependabot's lockfile shape, including the optional `@emnapi/wasi-threads` lock refresh.
+- Changed `pnpm-lock.yaml`: updated the Hanwoo importer and resolver snapshot to `@hookform/resolvers@5.4.0`.
+- Research: `npm view @hookform/resolvers@5.4.0` reports `latest=5.4.0`, peer `react-hook-form ^7.55.0`; Hanwoo currently uses `react-hook-form ^7.76.1`, so the peer requirement is satisfied. Dependabot release notes cite the v5.4.0 `toNestErrors.ts` fix and new `ata-validator` resolver.
+- Verification: root `pnpm.cmd install --lockfile-only --frozen-lockfile --ignore-scripts` passed; clean temporary worktree `pnpm.cmd install --frozen-lockfile --ignore-scripts` passed; `python execution/project_qc_runner.py --project hanwoo-dashboard --json` passed 498 tests, lint, and build.
+- Browser QA: Chrome CDP automation passed `/login` render, input fill, submit enablement, password toggle, invalid credential error, protected `/admin/diagnostics` redirect to `/login`, console issue 0, and serious failed request 0. Plain Playwright runner was attempted first but hit a Windows/native Playwright crash, so CDP was used as the browser-click fallback.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp/t1215-ab.json --json` returned `adopt_candidate` with `score_delta=0.5`.
+- Residual audit note: `npm.cmd audit --json` still reports 8 existing unrelated Prisma/Hono/Next/PostCSS transitive advisories, so no broad audit fix was applied in this scoped bump.
