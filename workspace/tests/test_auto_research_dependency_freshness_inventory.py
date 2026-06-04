@@ -42,6 +42,15 @@ def _npm_result(payload: dict[str, object]) -> dict[str, object]:
     }
 
 
+def _dist_tags(payload: dict[str, str]) -> dict[str, object]:
+    return {
+        "available": True,
+        "returncode": 0,
+        "stdout": json.dumps(payload),
+        "stderr": "",
+    }
+
+
 def test_patch_minor_wanted_update_is_candidate() -> None:
     result = dependency_freshness_inventory.classify_dependency(
         "react",
@@ -75,6 +84,37 @@ def test_prerelease_channel_mismatch_is_deferred() -> None:
     assert result["classification"] == "defer_channel_mismatch"
     assert result["candidate"] is False
     assert result["deferred"] is True
+
+
+def test_current_prerelease_dist_tag_is_not_deferred(tmp_path: Path) -> None:
+    _write_package(tmp_path / "projects" / "hanwoo-dashboard", {"next-auth": "5.0.0-beta.31"})
+
+    result = dependency_freshness_inventory.build_inventory(
+        tmp_path,
+        runner=lambda _path, _timeout: _npm_result(
+            {
+                "next-auth": {
+                    "current": "5.0.0-beta.31",
+                    "wanted": "5.0.0-beta.31",
+                    "latest": "4.24.14",
+                }
+            }
+        ),
+        tag_runner=lambda _path, package_name, _timeout: _dist_tags(
+            {"latest": "4.24.14", "beta": "5.0.0-beta.31"} if package_name == "next-auth" else {}
+        ),
+    )
+
+    project = result["projects"][0]
+    dependency = project["dependencies"][0]
+    assert project["status"] == "clean"
+    assert result["summary"]["deferred_dependency_count"] == 0
+    assert dependency["classification"] == "current_prerelease_channel"
+    assert dependency["dist_tag_channel"] == "beta"
+    assert dependency["dist_tag_version"] == "5.0.0-beta.31"
+    assert dependency["candidate"] is False
+    assert dependency["deferred"] is False
+    assert result["recommendations"] == []
 
 
 def test_build_inventory_summarizes_candidates_and_deferred(tmp_path: Path) -> None:
@@ -116,6 +156,51 @@ def test_build_inventory_summarizes_candidates_and_deferred(tmp_path: Path) -> N
     assert by_path["projects/hanwoo-dashboard"]["status"] == "deferred_only"
     assert result["recommendations"] == [
         "Run a focused patch/minor dependency update experiment for: projects/word-chain (react)"
+    ]
+
+
+def test_major_only_deferred_recommendation_names_major_migrations(tmp_path: Path) -> None:
+    _write_package(tmp_path / "projects" / "hanwoo-dashboard")
+    _write_package(tmp_path / "projects" / "knowledge-dashboard")
+
+    payloads = {
+        "hanwoo-dashboard": _npm_result(
+            {
+                "eslint": {
+                    "current": "9.39.4",
+                    "wanted": "9.39.4",
+                    "latest": "10.4.1",
+                },
+                "next-auth": {
+                    "current": "5.0.0-beta.31",
+                    "wanted": "5.0.0-beta.31",
+                    "latest": "4.24.14",
+                },
+            }
+        ),
+        "knowledge-dashboard": _npm_result(
+            {
+                "eslint": {
+                    "current": "9.39.4",
+                    "wanted": "9.39.4",
+                    "latest": "10.4.1",
+                }
+            }
+        ),
+    }
+
+    result = dependency_freshness_inventory.build_inventory(
+        tmp_path,
+        runner=lambda path, _timeout: payloads[path.name],
+        tag_runner=lambda _path, package_name, _timeout: _dist_tags(
+            {"latest": "4.24.14", "beta": "5.0.0-beta.31"} if package_name == "next-auth" else {}
+        ),
+    )
+
+    assert result["summary"]["deferred_dependency_count"] == 2
+    assert result["recommendations"] == [
+        "No direct npm patch/minor adoption candidates; defer major migrations for: "
+        "projects/hanwoo-dashboard, projects/knowledge-dashboard"
     ]
 
 

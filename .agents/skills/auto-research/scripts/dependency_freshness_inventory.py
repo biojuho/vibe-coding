@@ -18,6 +18,7 @@ PACKAGE_SECTIONS = ("dependencies", "devDependencies", "peerDependencies", "opti
 PROJECT_SCAN_EXCLUDES = {".git", ".next", ".tmp", "dist", "node_modules", "output"}
 VERSION_PATTERN = re.compile(r"(?P<major>\d+)(?:\.(?P<minor>\d+))?(?:\.(?P<patch>\d+))?")
 PRERELEASE_PATTERN = re.compile(r"[-.](alpha|beta|canary|dev|next|pre|rc)(?:[.-]|\d|$)", re.I)
+PRERELEASE_CHANNEL_PATTERN = re.compile(r"[-.](?P<channel>alpha|beta|canary|dev|next|pre|rc)(?:[.-]|\d|$)", re.I)
 
 
 def _relative(path: Path, root: Path) -> str:
@@ -106,6 +107,49 @@ def _run_npm_outdated(project_path: Path, timeout: int) -> dict[str, Any]:
     }
 
 
+def _run_npm_dist_tags(project_path: Path, package_name: str, timeout: int) -> dict[str, Any]:
+    command = _npm_command()
+    if command is None:
+        return {
+            "available": False,
+            "returncode": None,
+            "stdout": "",
+            "stderr": "npm command not found",
+        }
+    try:
+        completed = subprocess.run(
+            [command, "view", package_name, "dist-tags", "--json"],
+            cwd=str(project_path),
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=timeout,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        return {
+            "available": False,
+            "returncode": None,
+            "stdout": exc.stdout or "",
+            "stderr": f"npm view {package_name} dist-tags timed out after {timeout}s",
+        }
+    except (FileNotFoundError, OSError) as exc:
+        return {
+            "available": False,
+            "returncode": None,
+            "stdout": "",
+            "stderr": str(exc),
+        }
+    return {
+        "available": True,
+        "returncode": completed.returncode,
+        "stdout": completed.stdout.strip(),
+        "stderr": completed.stderr.strip(),
+    }
+
+
 def _parse_version(version: Any) -> tuple[int, int, int] | None:
     if not isinstance(version, str):
         return None
@@ -121,6 +165,15 @@ def _parse_version(version: Any) -> tuple[int, int, int] | None:
 
 def _is_prerelease(version: Any) -> bool:
     return isinstance(version, str) and bool(PRERELEASE_PATTERN.search(version))
+
+
+def _prerelease_channel(version: Any) -> str | None:
+    if not isinstance(version, str):
+        return None
+    match = PRERELEASE_CHANNEL_PATTERN.search(version)
+    if not match:
+        return None
+    return match.group("channel").lower()
 
 
 def _version_delta(current: tuple[int, int, int] | None, target: tuple[int, int, int] | None) -> str:
@@ -217,10 +270,62 @@ def _parse_outdated_result(result: dict[str, Any]) -> tuple[dict[str, Any], list
     return parsed, []
 
 
+def _parse_dist_tags_result(result: dict[str, Any]) -> tuple[dict[str, str], list[str]]:
+    if not result.get("available", False):
+        return {}, [str(result.get("stderr") or "npm dist-tags unavailable")]
+    stdout = str(result.get("stdout") or "").strip()
+    if not stdout:
+        return {}, ["npm dist-tags JSON was empty"]
+    try:
+        parsed = json.loads(stdout)
+    except json.JSONDecodeError as exc:
+        return {}, [f"failed to parse npm dist-tags JSON: {exc}"]
+    if not isinstance(parsed, dict):
+        return {}, ["npm dist-tags JSON root was not an object"]
+    tags = {str(key): str(value) for key, value in parsed.items() if isinstance(value, str)}
+    return tags, []
+
+
+def _apply_prerelease_dist_tag_context(
+    dependency: dict[str, Any],
+    project_path: Path,
+    timeout: int,
+    tag_runner: "DistTagRunner",
+) -> dict[str, Any]:
+    if dependency["classification"] != "defer_channel_mismatch":
+        return dependency
+
+    channel = _prerelease_channel(dependency["current"])
+    if not channel:
+        return dependency
+
+    tags, issues = _parse_dist_tags_result(tag_runner(project_path, dependency["name"], timeout))
+    dependency["dist_tag_channel"] = channel
+    dependency["dist_tag_check"] = "failed" if issues else "ok"
+    if issues:
+        dependency["dist_tag_issues"] = issues
+        return dependency
+
+    channel_version = tags.get(channel)
+    dependency["dist_tag_version"] = channel_version or ""
+    if channel_version == dependency["current"]:
+        dependency["classification"] = "current_prerelease_channel"
+        dependency["action"] = "none"
+        dependency["candidate"] = False
+        dependency["deferred"] = False
+        dependency["reason"] = (
+            f"{dependency['name']} is already current on npm {channel} dist-tag ({dependency['current']}); "
+            f"npm latest {dependency['latest']} is the lower stable channel"
+        )
+    return dependency
+
+
 def summarize_project(
     project_path: Path,
     root: Path,
     npm_result: dict[str, Any],
+    timeout: int = 60,
+    tag_runner: "DistTagRunner" = _run_npm_dist_tags,
 ) -> dict[str, Any]:
     package_data = _load_json(project_path / "package.json")
     declared_names = _package_dependency_names(package_data)
@@ -247,10 +352,11 @@ def summarize_project(
         project["status"] = "unavailable"
         return project
 
-    dependencies = [
-        classify_dependency(str(name), raw if isinstance(raw, dict) else {})
-        for name, raw in sorted(parsed.items(), key=lambda item: str(item[0]).lower())
-    ]
+    dependencies = []
+    for name, raw in sorted(parsed.items(), key=lambda item: str(item[0]).lower()):
+        dependency = classify_dependency(str(name), raw if isinstance(raw, dict) else {})
+        dependency = _apply_prerelease_dist_tag_context(dependency, project_path, timeout, tag_runner)
+        dependencies.append(dependency)
     project["dependencies"] = dependencies
     project["outdated_count"] = len(dependencies)
     project["candidate_count"] = sum(1 for dependency in dependencies if dependency["candidate"])
@@ -260,6 +366,8 @@ def summarize_project(
         project["status"] = "candidate"
     elif project["deferred_count"]:
         project["status"] = "deferred_only"
+    elif dependencies and all(dependency["action"] == "none" for dependency in dependencies):
+        project["status"] = "clean"
     elif dependencies:
         project["status"] = "inspect"
     else:
@@ -289,19 +397,44 @@ def _recommendations(projects: list[dict[str, Any]]) -> list[str]:
         if project["deferred_count"] and not project["candidate_count"] and project["status"] != "unavailable"
     ]
     if deferred_projects and not candidate_projects:
+        deferred_classifications = {
+            str(dependency.get("classification") or "")
+            for project in projects
+            for dependency in project["dependencies"]
+            if dependency.get("deferred")
+        }
+        has_major = any("major" in classification for classification in deferred_classifications)
+        has_channel = any("channel" in classification for classification in deferred_classifications)
+        if has_major and has_channel:
+            deferred_label = "major or channel migrations"
+        elif has_channel:
+            deferred_label = "channel migrations"
+        elif has_major:
+            deferred_label = "major migrations"
+        else:
+            deferred_label = "manual dependency inspections"
         recommendations.append(
-            "No direct npm patch/minor adoption candidates; defer major or channel migrations for: "
+            f"No direct npm patch/minor adoption candidates; defer {deferred_label} for: "
             + ", ".join(deferred_projects)
         )
     return recommendations
 
 
 OutdatedRunner = Callable[[Path, int], dict[str, Any]]
+DistTagRunner = Callable[[Path, str, int], dict[str, Any]]
 
 
-def build_inventory(root: Path, timeout: int = 60, runner: OutdatedRunner = _run_npm_outdated) -> dict[str, Any]:
+def build_inventory(
+    root: Path,
+    timeout: int = 60,
+    runner: OutdatedRunner = _run_npm_outdated,
+    tag_runner: DistTagRunner = _run_npm_dist_tags,
+) -> dict[str, Any]:
     root = root.resolve()
-    projects = [summarize_project(path, root, runner(path, timeout)) for path in _project_dirs(root)]
+    projects = [
+        summarize_project(path, root, runner(path, timeout), timeout=timeout, tag_runner=tag_runner)
+        for path in _project_dirs(root)
+    ]
     summary = {
         "root": str(root),
         "package_project_count": len(projects),
