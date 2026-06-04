@@ -336,3 +336,16 @@
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\T-1262-inventory-test-evidence-ab.json --json` returned `adopt_candidate` with `score_delta=3.4285714285714284`; baseline had 3 Node-project test false negatives and 0 parsed Node counts, candidate had 0 false negatives and parsed both Node test summaries.
 - Commit/push closeout: `fb0268eb fix(inventory): T-1262 detect colocated test coverage` is on `origin/main`; GitHub Actions passed on that head with `root-quality-gate` run `26970050492` and `active-project-matrix` run `26970050500`. The known checkout annotation appeared, but all jobs and workflows concluded success.
 - Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification, not local repo work.
+
+## 2026-06-05 - Codex
+
+- Completed T-1263 as a bounded `$auto-research` launch-evidence hardening cycle for project-QC readiness artifacts.
+- Changed `execution/project_qc_runner.py`: readiness artifacts now include `schema_version=2`, so downstream readiness can distinguish current parser/counting evidence from older `.tmp/project_qc_runner_latest.json` files.
+- Changed `execution/product_readiness_score.py`: imports the current runner contract and downgrades `project_qc_runner` artifacts missing the current schema to `PARTIAL` with `contract_mismatches=["artifact_schema_version"]`; existing current-check drift detection still handles missing check IDs.
+- Changed `workspace/tests/test_project_qc_runner.py` and `workspace/tests/test_product_readiness_score.py`: locked artifact schema emission/persistence and missing-schema partial-readiness behavior.
+- Verification: project-QC runner pytest passed 12/12; product-readiness pytest passed 24/24; combined focused pytest passed 36/36; ruff, ruff format check, `py_compile`, and diff-check passed.
+- Full active-project QC: `python execution\project_qc_runner.py --json --timeout-seconds 900` passed and regenerated `.tmp/project_qc_runner_latest.json` with schema-v2 evidence: `blind-to-x` 1723 passed/9 skipped, `shorts-maker-v2` 1577 passed/12 skipped, Hanwoo 499 passed, Knowledge 61 passed, total 3860 passed/21 skipped.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\T-1263-qc-artifact-schema-ab.json --json` returned `adopt_candidate` with `score_delta=125.12996632996634`; baseline had accepted missing-schema evidence with dashboard counts at 0, candidate enforced schema and refreshed counts.
+- Commit/push closeout: `3df8642c fix(readiness): T-1263 version project QC artifacts` is on `origin/main`; GitHub Actions passed on that head with `root-quality-gate` run `26971365112` and `active-project-matrix` run `26971365069`. The known checkout annotation appeared, but all jobs and workflows concluded success.
+- Current readiness after the code commit: score 96, clean worktree, open PRs 0, required Actions green, workspace/local blockers 0, external blocker 1.
+- Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification, not local repo work.
