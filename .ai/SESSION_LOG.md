@@ -412,3 +412,15 @@
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-t1270-frontend-patch-alignment.json --json` returned `adopt_candidate` with `score_delta=5.777777777777778`.
 - Completion audit: `.agents/skills/auto-research/scripts/completion_audit.py .tmp\completion-audit-t1270-frontend-patch-alignment.json --json` returned `complete` with 7/7 items complete and 0 issues.
 - Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification, not local repo work.
+
+## 2026-06-05 - Codex
+
+- Completed T-1272 as a bounded Hanwoo Recharts 3 responsive chart hardening cycle after T-1271 dependency freshness left Recharts 3 active in the dashboard.
+- Changed `AnalysisTab`, `CattleDetailModal`, `FeedTab`, `SalesTab`, and `FinancialChartWidget`: all six `ResponsiveContainer` chart surfaces now declare `minWidth={0}`, `minHeight={0}`, and `initialDimension={{ width: 1, height: 1 }}` to avoid Recharts 3's initial `width(-1)/height(-1)` sizing warning while preserving responsive resize.
+- Changed source coverage tests in `analysis-copy.test.mjs`, `cattle-detail-modal-wiring.test.mjs`, `empty-state-wiring.test.mjs`, and `home-market-copy.test.mjs` so chart accessibility/source checks lock the sizing guard contract.
+- Verification: `npm.cmd ls recharts react-is --depth=0` reports top-level `recharts@3.8.1` and `react-is@19.2.7`; Hanwoo `npm.cmd test` passed `499/499`; `npm.cmd run lint`, `npm.cmd run smoke`, and `npm.cmd run build` passed.
+- Browser QA: `node .tmp\hanwoo-t1271-browser-qa.cjs` wrote `.tmp\hanwoo-t1272-browser-qa.json` and passed production login click QA plus Recharts 3 render harness; both surfaces reported console/page/network/server errors `0`, and screenshots were retained at `output/playwright/hanwoo-t1272-login-click-qa.png` and `output/playwright/hanwoo-t1272-recharts3-browser-qa.png`.
+- Audit/outdated review: direct top-level outdated checks no longer include Recharts; remaining direct outdated items are deferred major/beta work (`eslint` 10, TypeScript 6, next-auth stable-vs-beta). `npm.cmd audit --json` still reports the existing 5 moderate dashboard advisories with unsuitable Next/Prisma downgrade fixes.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-t1271-hanwoo-recharts-responsive-guards.json --json` returned `adopt_candidate` with `score_delta=3.090909090909091`.
+- Completion audit: `.agents/skills/auto-research/scripts/completion_audit.py .tmp\completion-audit-t1271-hanwoo-recharts-responsive-guards.json --json` returned `complete` with 5/5 items complete and 0 issues.
+- Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification, not local repo work.
