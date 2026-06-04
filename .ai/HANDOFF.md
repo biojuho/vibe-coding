@@ -7,6 +7,13 @@
 | Field | Value |
 |---|---|
 | Date | 2026-06-04 |
+| Tool | Codex |
+| Work | **T-1205 Resolved Codex startup warnings for HeyGen/Figma/Notion**. Shortened invalid HeyGen curated skill descriptions in `C:\Users\박주호\.codex\plugins\cache\openai-curated\heygen\2abb1c44\skills\heygen-avatar\SKILL.md` and `heygen-video\SKILL.md` plus the mirrored `.codex\.tmp\plugins\plugins\heygen` copies so all descriptions are under 1024 bytes. Disabled the broken standalone `[mcp_servers.figma]` remote URL in `C:\Users\박주호\.codex\config.toml` because it requires OAuth client credentials in this Codex environment. Hardened `infrastructure/notion-mcp/start_notion_mcp.ps1` to avoid missing PowerShell cmdlets, map `NOTION_API_KEY` and `NOTION_TOKEN` both ways, and invoke `@notionhq/notion-mcp-server --transport stdio`. |
+| Next Priorities | T-251 remains the only workspace TODO and still requires the user-owned Supabase credential reset. If Figma MCP is needed again, re-enable the standalone remote entry only after configuring OAuth client credentials, or use the Figma plugin/app connector. |
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-04 |
 | Tool | Gemini 3.5 Flash (High) |
 | Work | **T-1204 Resolved global npm wrappers PowerShell cmdlet loading issue**. Patched all .ps1 wrapper scripts in `C:\Users\박주호\AppData\Roaming\npm\` (claude.ps1, codex.ps1, pnpm.ps1, pn.ps1, pnpx.ps1, pnx.ps1) by replacing cmdlet calls like `Split-Path` and `Test-Path` with static .NET methods (`[System.IO.Path]::GetDirectoryName` and `[System.IO.File]::Exists`). This completely bypasses any PowerShell session loading constraints/bugs and allows the commands to execute instantly and flawlessly. |
 | Next Priorities | Resolve the remaining database/Supabase blocker `T-251` (user action required to reset DB credentials on the control plane). |

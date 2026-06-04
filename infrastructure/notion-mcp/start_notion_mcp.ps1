@@ -1,5 +1,7 @@
 param(
-    [string]$WorkspaceRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path,
+    [string]$WorkspaceRoot = [System.IO.Path]::GetFullPath(
+        [System.IO.Path]::Combine($PSScriptRoot, "..", "..")
+    ),
     [switch]$Check
 )
 
@@ -11,7 +13,7 @@ function Set-EnvFromFile {
         [Parameter(Mandatory = $true)][string]$Name
     )
 
-    if (-not (Test-Path -LiteralPath $Path)) {
+    if (-not [System.IO.File]::Exists($Path)) {
         return $false
     }
 
@@ -23,7 +25,7 @@ function Set-EnvFromFile {
 
         $match = [System.Text.RegularExpressions.Regex]::Match(
             $trimmed,
-            "^\s*NOTION_API_KEY\s*=\s*(.*)\s*$"
+            "^\s*(?:NOTION_API_KEY|NOTION_TOKEN)\s*=\s*(.*)\s*$"
         )
         if (-not $match.Success) {
             continue
@@ -46,21 +48,33 @@ function Set-EnvFromFile {
     return $false
 }
 
-if (-not $env:NOTION_API_KEY) {
+if ($env:NOTION_TOKEN -and -not $env:NOTION_API_KEY) {
+    [System.Environment]::SetEnvironmentVariable("NOTION_API_KEY", $env:NOTION_TOKEN, "Process")
+}
+
+if (-not $env:NOTION_TOKEN) {
     $candidateEnvFiles = @(
-        (Join-Path $WorkspaceRoot ".env"),
-        (Join-Path $WorkspaceRoot "projects\blind-to-x\.env")
+        [System.IO.Path]::Combine($WorkspaceRoot, ".env"),
+        [System.IO.Path]::Combine($WorkspaceRoot, "projects", "blind-to-x", ".env")
     )
 
     foreach ($envFile in $candidateEnvFiles) {
-        if (Set-EnvFromFile -Path $envFile -Name "NOTION_API_KEY") {
+        if (Set-EnvFromFile -Path $envFile -Name "NOTION_TOKEN") {
             break
         }
     }
 }
 
-if (-not $env:NOTION_API_KEY) {
-    [Console]::Error.WriteLine("NOTION_API_KEY is not set in process env, .env, or projects/blind-to-x/.env.")
+if ($env:NOTION_TOKEN -and -not $env:NOTION_API_KEY) {
+    [System.Environment]::SetEnvironmentVariable("NOTION_API_KEY", $env:NOTION_TOKEN, "Process")
+}
+
+if ($env:NOTION_API_KEY -and -not $env:NOTION_TOKEN) {
+    [System.Environment]::SetEnvironmentVariable("NOTION_TOKEN", $env:NOTION_API_KEY, "Process")
+}
+
+if (-not $env:NOTION_TOKEN) {
+    [Console]::Error.WriteLine("NOTION_TOKEN or NOTION_API_KEY is not set in process env, .env, or projects/blind-to-x/.env.")
     exit 1
 }
 
@@ -69,5 +83,5 @@ if ($Check) {
     exit 0
 }
 
-& npx.cmd -y "@notionhq/notion-mcp-server"
+& npx.cmd -y "@notionhq/notion-mcp-server" --transport "stdio"
 exit $LASTEXITCODE

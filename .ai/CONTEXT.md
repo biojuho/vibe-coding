@@ -63,6 +63,11 @@
   - `Get-ChildItem -Recurse` 등을 수행할 때 존재하지 않는 디렉토리를 탐색하면 에러가 발생하므로, 탐색 전 타깃 존재 여부를 반드시 체크하십시오.
   - Windows의 CP949 인코딩 콘솔 한글 깨짐 현상이 있어도 실제 파일 및 데이터는 항상 UTF-8 클린하게 저장해야 합니다.
   - 터미널이나 CLI 도구에서 비ASCII 유니코드나 이모지를 stdout/stderr로 직접 출력하면 `UnicodeEncodeError` 예외가 발생하므로, 윈도우 실행 시 `sys.stdout.reconfigure(encoding='utf-8')`을 통해 스트림을 강제 재구성하거나 이모지 사용을 피하십시오.
+  - Codex/PowerShell 세션에서 `Get-Content`, `Join-Path`, `Test-Path`, `Select-Object` 같은 core cmdlet이 다시 로드되지 않을 수 있습니다. MCP/launcher 스크립트는 가능한 한 `[System.IO.*]`, `[System.Environment]`, `[System.Text.RegularExpressions.Regex]` 같은 .NET API로 작성하십시오.
+- **MCP / connector startup**:
+  - `@notionhq/notion-mcp-server` v2.2.1은 `NOTION_TOKEN`을 권장 env로 사용합니다. `infrastructure/notion-mcp/start_notion_mcp.ps1`는 기존 `.env`의 `NOTION_API_KEY`도 읽어 `NOTION_TOKEN`과 양방향 동기화한 뒤 `--transport stdio`로 실행해야 합니다.
+  - sandbox 안에서 Notion MCP npm 검증은 `EACCES` 또는 npm cache/log 쓰기 실패가 날 수 있습니다. 실제 stdio initialize 검증은 승인된 network/cache 권한에서 통과하는지 확인하십시오.
+  - standalone `mcp_servers.figma` remote URL은 OAuth client credentials 없이는 token refresh가 실패합니다. 현재는 `C:\Users\박주호\.codex\config.toml`에서 비활성화했고, Figma 작업은 plugin/app connector를 우선 사용하십시오.
 
 ## Multi-Tool Coordination — Task ID Allocation
 
