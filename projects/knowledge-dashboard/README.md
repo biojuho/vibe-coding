@@ -66,26 +66,45 @@ This is an internal, authenticated dashboard. To ship a production build:
    | Variable | Required | Purpose |
    |---|---|---|
    | `DASHBOARD_API_KEY` | ✅ | API key clients exchange for an `httpOnly` signed session cookie (ADR-023). Routes return `503` if unset, `401` if a request presents the wrong key. |
+   | `DASHBOARD_SESSION_SECRET` | optional | Dedicated HMAC secret for signing session cookies. Defaults to `DASHBOARD_API_KEY`. Set a separate value to rotate sessions without changing the login key. |
    | `GITHUB_PERSONAL_ACCESS_TOKEN` | optional | Used by `sync_data.py` to fetch repo activity. |
    | `NOTEBOOKLM_AUTH_TOKEN_PATH` | optional | Override for the NotebookLM token file used during sync. |
 
-2. **Generate the data set before/at build time.** The dashboard reads JSON from
-   `data/` (gitignored), so run the sync first:
+   See `.env.example` for a copy-paste template.
+
+2. **Generate the data set before deploy.** The dashboard reads JSON from `data/`
+   (gitignored), so run the sync first. The sync reads workspace-wide context
+   (`.ai/SESSION_LOG.md`, `workspace/execution/*`, NotebookLM tokens), so it must
+   run from a **full workspace checkout**, not a bare copy of this sub-directory:
 
    ```bash
-   ./sync.bat          # or: python scripts/sync_data.py
+   npm run sync         # = python scripts/sync_data.py  (also: ./sync.bat)
    ```
 
 3. **Build and start:**
 
    ```bash
-   npm run build
-   npm run start       # serves the production build
+   npm run build        # `prebuild` strips any public/*.json first (ADR-023)
+   npm run verify-deploy  # confirms the API key + data files are present
+   npm run start        # serves the production build
    ```
 
-   `.vercel` is gitignored; deploying to Vercel works with the same env vars set in
-   the project settings. Run the data sync as a build/predeploy step so `data/*.json`
-   exists in the deployed environment.
+   **Vercel:** a vanilla Vercel build of this sub-path **cannot** run the sync (it
+   needs the whole monorepo and the Python toolchain). Generate `data/*.json` in a
+   predeploy step that has the full workspace, then deploy with the env vars set.
+
+   **Docker:** a multi-stage `Dockerfile` (Next.js `output: "standalone"`) is
+   included. Mount the synced data in:
+
+   ```bash
+   docker build -t knowledge-dashboard .
+   docker run -p 3000:3000 -e DASHBOARD_API_KEY=… \
+     -v "$PWD/data:/app/data:ro" knowledge-dashboard
+   ```
+
+   **Health probe:** `GET /api/health` is unauthenticated and returns `200` when
+   `DASHBOARD_API_KEY` is configured, `503` otherwise — wire it to your load
+   balancer / uptime monitor (the Docker image already has a `HEALTHCHECK`).
 
 ### Data & security invariants
 
