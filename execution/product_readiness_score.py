@@ -177,7 +177,29 @@ def _run_text_command(repo_root: Path, command: list[str], timeout: int = 10) ->
     return completed.stdout.strip()
 
 
+def _unavailable_github_release_status(head_sha: str | None = None) -> dict[str, Any]:
+    return {
+        "available": False,
+        "head_sha": head_sha or None,
+        "open_pr_count": None,
+        "open_prs": [],
+        "required_workflows": [],
+        "checks": [
+            {
+                "name": "GitHub release gate",
+                "ok": False,
+                "severity": "watch",
+                "message": "GitHub PR/Actions status is unavailable; verify open PRs and required workflows before launch.",
+            }
+        ],
+        "blockers": [],
+    }
+
+
 def _github_release_status(repo_root: Path) -> dict[str, Any]:
+    if not (repo_root / ".git").exists():
+        return _unavailable_github_release_status()
+
     head_sha = _run_text_command(repo_root, ["git", "rev-parse", "HEAD"])
     open_prs = _run_json_command(
         repo_root,
@@ -202,22 +224,7 @@ def _github_release_status(repo_root: Path) -> dict[str, Any]:
     checks: list[dict[str, Any]] = []
     available = isinstance(open_prs, list) and isinstance(runs, list) and bool(head_sha)
     if not available:
-        return {
-            "available": False,
-            "head_sha": head_sha or None,
-            "open_pr_count": None,
-            "open_prs": [],
-            "required_workflows": [],
-            "checks": [
-                {
-                    "name": "GitHub release gate",
-                    "ok": False,
-                    "severity": "watch",
-                    "message": "GitHub PR/Actions status is unavailable; verify open PRs and required workflows before launch.",
-                }
-            ],
-            "blockers": [],
-        }
+        return _unavailable_github_release_status(head_sha)
 
     open_pr_items = [
         {

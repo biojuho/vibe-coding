@@ -370,6 +370,14 @@ def test_github_release_gate_blocks_missing_required_actions(tmp_path: Path):
     assert "Required GitHub Actions" in report["next_actions"][-1]["action"]
 
 
+def test_github_release_gate_is_unavailable_for_non_git_roots(tmp_path: Path):
+    status = readiness._github_release_status(tmp_path)
+
+    assert status["available"] is False
+    assert status["blockers"] == []
+    assert status["checks"][0]["severity"] == "watch"
+
+
 def test_partial_project_qc_runner_artifact_does_not_score_as_fresh_qc(tmp_path: Path):
     _write_project_files(tmp_path)
     path = tmp_path / ".tmp" / "project_qc_runner_latest.json"
