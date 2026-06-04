@@ -50,6 +50,7 @@ PROJECTS = {
         name="shorts-maker-v2",
         path="projects/shorts-maker-v2",
         required_files=("README.md", "ARCHITECTURE.md", "CLAUDE.md", "FEATURE.md", "pyproject.toml"),
+        env_checks=("shorts_provider_keys",),
     ),
     "hanwoo-dashboard": ProjectProfile(
         name="hanwoo-dashboard",
@@ -251,21 +252,47 @@ def _required_file_status(repo_root: Path, profile: ProjectProfile) -> list[dict
     return statuses
 
 
+def _read_env_assignments(env_path: Path) -> dict[str, str]:
+    if not env_path.exists():
+        return {}
+    assignments: dict[str, str] = {}
+    for line in env_path.read_text(encoding="utf-8", errors="replace").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        key, value = stripped.split("=", 1)
+        assignments[key.strip()] = value.strip()
+    return assignments
+
+
+def _looks_placeholder(value: str) -> bool:
+    normalized = value.strip().lower()
+    if not normalized:
+        return True
+    return any(
+        marker in normalized
+        for marker in (
+            "your_",
+            "placeholder",
+            "changeme",
+            "change_me",
+            "sk-...",
+            "aiza...",
+            "<",
+            ">",
+            "__",
+        )
+    )
+
+
 def _env_status(repo_root: Path, profile: ProjectProfile) -> dict[str, Any]:
     checks: list[dict[str, Any]] = []
     if "supabase_password" in profile.env_checks:
         env_path = repo_root / profile.path / ".env"
-        content = env_path.read_text(encoding="utf-8", errors="replace") if env_path.exists() else ""
-        database_line = next(
-            (
-                stripped
-                for line in content.splitlines()
-                if (stripped := line.strip()) and not stripped.startswith("#") and stripped.startswith("DATABASE_URL=")
-            ),
-            "",
-        )
-        database_url = database_line.split("=", 1)[1].strip() if database_line else ""
-        placeholder = any(marker in database_url for marker in ("YOUR_PASSWORD", "<", ">", "__"))
+        assignments = _read_env_assignments(env_path)
+        database_line = "DATABASE_URL" in assignments
+        database_url = assignments.get("DATABASE_URL", "")
+        placeholder = _looks_placeholder(database_url)
         configured = bool(database_url) and not placeholder
         if not env_path.exists():
             message = "projects/hanwoo-dashboard/.env is missing; configure Supabase DATABASE_URL before live checks."
@@ -282,6 +309,34 @@ def _env_status(repo_root: Path, profile: ProjectProfile) -> dict[str, Any]:
                 "name": "Supabase DATABASE_URL",
                 "ok": configured,
                 "severity": "blocker" if not configured else "ok",
+                "message": message,
+            }
+        )
+    if "shorts_provider_keys" in profile.env_checks:
+        env_path = repo_root / profile.path / ".env"
+        assignments = _read_env_assignments(env_path)
+        provider_keys = (
+            "OPENAI_API_KEY",
+            "GEMINI_API_KEY",
+            "ANTHROPIC_API_KEY",
+            "XAI_API_KEY",
+            "DEEPSEEK_API_KEY",
+            "MOONSHOT_API_KEY",
+            "ZHIPUAI_API_KEY",
+            "MIMO_API_KEY",
+        )
+        present_keys = [key for key in provider_keys if key in assignments and not _looks_placeholder(assignments[key])]
+        if not env_path.exists():
+            message = "projects/shorts-maker-v2/.env is missing; add at least one generation provider API key."
+        elif not present_keys:
+            message = "No usable Shorts generation provider API key is configured in projects/shorts-maker-v2/.env."
+        else:
+            message = f"{len(present_keys)} Shorts generation provider key(s) are configured."
+        checks.append(
+            {
+                "name": "Shorts generation provider keys",
+                "ok": bool(present_keys),
+                "severity": "blocker" if not present_keys else "ok",
                 "message": message,
             }
         )

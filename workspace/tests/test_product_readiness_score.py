@@ -29,6 +29,10 @@ def test_shorts_root_readme_is_required_launch_document():
     assert "README.md" in readiness.PROJECTS["shorts-maker-v2"].required_files
 
 
+def test_shorts_provider_key_check_is_required_for_launch_readiness():
+    assert "shorts_provider_keys" in readiness.PROJECTS["shorts-maker-v2"].env_checks
+
+
 def _write_project_files(root: Path) -> None:
     for profile in readiness.PROJECTS.values():
         project_root = root / profile.path
@@ -37,6 +41,17 @@ def _write_project_files(root: Path) -> None:
             target = project_root / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text("ok\n", encoding="utf-8")
+
+
+def _write_required_env(root: Path) -> None:
+    (root / "projects" / "hanwoo-dashboard" / ".env").write_text(
+        "DATABASE_URL=postgres://user:secret@example/db\n",
+        encoding="utf-8",
+    )
+    (root / "projects" / "shorts-maker-v2" / ".env").write_text(
+        "OPENAI_API_KEY=sk-real-test-key\n",
+        encoding="utf-8",
+    )
 
 
 def _write_qaqc(root: Path) -> Path:
@@ -113,6 +128,10 @@ def _write_tasks(root: Path, body: str) -> None:
 
 def test_hanwoo_placeholder_marks_project_blocked(tmp_path: Path):
     _write_project_files(tmp_path)
+    (tmp_path / "projects" / "shorts-maker-v2" / ".env").write_text(
+        "OPENAI_API_KEY=sk-real-test-key\n",
+        encoding="utf-8",
+    )
     qaqc_path = _write_qaqc(tmp_path)
     _write_tasks(
         tmp_path,
@@ -142,6 +161,10 @@ def test_hanwoo_placeholder_marks_project_blocked(tmp_path: Path):
 
 def test_missing_hanwoo_env_reports_missing_file_instead_of_configured(tmp_path: Path):
     _write_project_files(tmp_path)
+    (tmp_path / "projects" / "shorts-maker-v2" / ".env").write_text(
+        "OPENAI_API_KEY=sk-real-test-key\n",
+        encoding="utf-8",
+    )
     qaqc_path = _write_qaqc(tmp_path)
     _write_tasks(
         tmp_path,
@@ -173,10 +196,7 @@ def test_clean_projects_with_docs_and_qc_score_ready(tmp_path: Path):
     _write_tasks(
         tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
     )
-    (tmp_path / "projects" / "hanwoo-dashboard" / ".env").write_text(
-        "DATABASE_URL=postgres://user:secret@example/db\n",
-        encoding="utf-8",
-    )
+    _write_required_env(tmp_path)
 
     report = readiness.build_report(
         tmp_path,
@@ -196,10 +216,7 @@ def test_default_report_reads_latest_project_qc_runner_artifact(tmp_path: Path):
     _write_tasks(
         tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
     )
-    (tmp_path / "projects" / "hanwoo-dashboard" / ".env").write_text(
-        "DATABASE_URL=postgres://user:secret@example/db\n",
-        encoding="utf-8",
-    )
+    _write_required_env(tmp_path)
 
     report = readiness.build_report(
         tmp_path,
@@ -263,10 +280,7 @@ def test_dirty_paths_lower_the_matching_project_only(tmp_path: Path):
     _write_tasks(
         tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
     )
-    (tmp_path / "projects" / "hanwoo-dashboard" / ".env").write_text(
-        "DATABASE_URL=postgres://user:secret@example/db\n",
-        encoding="utf-8",
-    )
+    _write_required_env(tmp_path)
 
     report = readiness.build_report(
         tmp_path,
@@ -288,10 +302,7 @@ def test_stale_qc_data_lowers_scores_and_recommends_refresh(tmp_path: Path):
     _write_tasks(
         tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
     )
-    (tmp_path / "projects" / "hanwoo-dashboard" / ".env").write_text(
-        "DATABASE_URL=postgres://user:secret@example/db\n",
-        encoding="utf-8",
-    )
+    _write_required_env(tmp_path)
 
     report = readiness.build_report(
         tmp_path,
@@ -317,10 +328,7 @@ def test_missing_project_qc_is_unknown_instead_of_root_fallback(tmp_path: Path):
     _write_tasks(
         tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
     )
-    (tmp_path / "projects" / "hanwoo-dashboard" / ".env").write_text(
-        "DATABASE_URL=postgres://user:secret@example/db\n",
-        encoding="utf-8",
-    )
+    _write_required_env(tmp_path)
 
     report = readiness.build_report(
         tmp_path,
@@ -334,3 +342,31 @@ def test_missing_project_qc_is_unknown_instead_of_root_fallback(tmp_path: Path):
     assert knowledge["qc"]["status"] == "UNKNOWN"
     assert knowledge["qc"]["passed"] == 0
     assert "Refresh project QC" in knowledge["recommendations"][0]
+
+
+def test_missing_shorts_provider_keys_block_launch_readiness(tmp_path: Path):
+    _write_project_files(tmp_path)
+    qaqc_path = _write_qaqc(tmp_path)
+    _write_tasks(
+        tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
+    )
+    (tmp_path / "projects" / "hanwoo-dashboard" / ".env").write_text(
+        "DATABASE_URL=postgres://user:secret@example/db\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "projects" / "shorts-maker-v2" / ".env").write_text(
+        "OPENAI_API_KEY=your_openai_api_key\n",
+        encoding="utf-8",
+    )
+
+    report = readiness.build_report(
+        tmp_path,
+        qaqc_path=qaqc_path,
+        git_status_text="",
+        now=datetime(2026, 5, 13, tzinfo=timezone.utc),
+    )
+
+    shorts = next(project for project in report["projects"] if project["name"] == "shorts-maker-v2")
+    assert shorts["state"] == "blocked"
+    assert shorts["env"]["checks"][0]["severity"] == "blocker"
+    assert "No usable Shorts generation provider API key" in shorts["recommendations"][0]
