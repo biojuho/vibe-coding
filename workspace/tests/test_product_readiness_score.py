@@ -632,7 +632,39 @@ def test_github_release_gate_separates_unpublished_head_from_local_blockers(tmp_
     assert report["overall"]["blocker_breakdown"]["publish"] == 1
     assert report["workspace_gates"]["github_release"]["publish_required"] is True
     assert report["workspace_gates"]["github_release"]["blockers"][0]["blocker_type"] == "publish"
-    assert "explicit authorization" in report["next_actions"][-1]["action"]
+    assert report["next_actions"][0]["project"] == "workspace"
+    assert "explicit authorization" in report["next_actions"][0]["action"]
+
+
+def test_publish_blocker_is_next_action_before_user_owned_project_wait(tmp_path: Path):
+    _write_project_files(tmp_path)
+    qaqc_path = _write_qaqc(tmp_path)
+    _write_tasks(
+        tmp_path,
+        "# TASKS\n\n"
+        "## TODO\n\n"
+        "| ID | Task | Owner | Priority | Auto | Created |\n"
+        "|---|---|---|---|---|---|\n"
+        "| T-251 | `[hanwoo-dashboard]` Run live Supabase CRUD check. | User | High | approval | today |\n",
+    )
+    _write_required_env(tmp_path)
+
+    report = readiness.build_report(
+        tmp_path,
+        qaqc_path=qaqc_path,
+        git_status_text="",
+        github_status=_unpublished_head_github_status(),
+        now=datetime(2026, 5, 13, tzinfo=timezone.utc),
+    )
+
+    assert report["overall"]["external_blocker_count"] == 1
+    assert report["overall"]["publish_blocker_count"] == 1
+    assert report["next_actions"][0]["project"] == "workspace"
+    assert "explicit authorization" in report["next_actions"][0]["action"]
+    assert report["next_actions"][1]["project"] == "hanwoo-dashboard"
+    assert report["next_actions"][1]["action"] == (
+        "Wait for 1 user-owned task blocker(s) before rerunning local launch checks: T-251."
+    )
 
 
 def test_github_release_gate_is_unavailable_for_non_git_roots(tmp_path: Path):

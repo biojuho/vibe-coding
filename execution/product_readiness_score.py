@@ -986,6 +986,15 @@ def build_report(
     publish_blocker_count = len(publish_gate_blockers)
     local_blocker_count = project_environment_blocker_count + len(local_gate_blockers)
     next_actions = []
+    for blocker in publish_gate_blockers[:2]:
+        next_actions.append(
+            {
+                "project": "workspace",
+                "state": "blocked",
+                "score": overall_score,
+                "action": str(blocker.get("message") or "Resolve GitHub release publish blocker."),
+            }
+        )
     for project in sorted(projects, key=lambda item: item["score"]):
         next_actions.append(
             {
@@ -1006,7 +1015,7 @@ def build_report(
                 "action": action.strip("` "),
             }
         )
-    for blocker in workspace_gate_blockers[:2]:
+    for blocker in local_gate_blockers[:2]:
         next_actions.append(
             {
                 "project": "workspace",
