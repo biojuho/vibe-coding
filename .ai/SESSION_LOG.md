@@ -650,9 +650,9 @@
 
 - Closed T-1327 as a bounded `$auto-research` `blind-to-x` generate-review-stage maintainability cycle.
 - Changed `projects/blind-to-x/pipeline/process_stages/generate_review_stage.py`: `run_generate_review_stage()` now delegates missing-generator failure, screenshot upload, draft splitting, Twitter reply fallback, generation failure, quality-gate retries, post-generation component application, Twitter quality failure, and completion into focused helpers.
-- Refactor metrics: top-level functions `5 -> 19`; private helpers `4 -> 18`; `run_generate_review_stage()` body `230 -> 47` lines; top-level statements `21 -> 11`.
+- Refactor metrics: top-level functions `5 -> 19`; private helpers `4 -> 18`; `run_generate_review_stage()` body `230 -> 47` lines; branch points `46 -> 7`.
 - Changed `projects/blind-to-x/tests/unit/test_process_stages.py`: added regression coverage that Twitter reply fallback preserves readable Korean source-copy output and removes placeholder link copy.
-- Verification: project venv process-stage pytest passed `42/42`; related quality/Notion pytest passed `50/50`; ruff check passed; ruff format check passed; `py_compile` passed; `git diff --check` passed; staged code-review gate returned advisory WARN `risk_score=0.30`, covered by the direct tests.
-- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1327.json --json` returned `adopt_candidate` with `score_delta=0.984699`.
+- Verification: project venv process-stage pytest passed `42/42`; full blind-to-x project QC passed with `1740 passed, 9 skipped` plus lint; ruff check passed; ruff format check passed; `py_compile` passed; `git diff --check` passed; code-review gate returned advisory WARN `risk_score=0.30`, covered by direct/full tests.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1327.json --json` returned `adopt_candidate` with `score_delta=1.0158915`.
 - Commit closeout: `2512571d refactor(blind-to-x): T-1327 split generate review stage helpers` is local only; no push was performed.
 - Boundary: product launch remains incomplete until explicit push authorization/user push plus current-head `root-quality-gate` and `active-project-matrix`, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
