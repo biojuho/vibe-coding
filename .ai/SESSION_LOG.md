@@ -574,6 +574,19 @@
 - Commit closeout: `30ed0791 fix(launch): harden Hanwoo login seed credentials` is local only; no push was performed.
 - Boundary: product launch remains incomplete until explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
 
+## 2026-06-06 - Codex
+
+- Closed T-1334 as a bounded `$auto-research` `shorts-maker-v2` media fallback maintainability cycle.
+- Changed `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/media/fallback_mixin.py`: `_try_image_chain()` now routes Imagen/Gemini/Pollinations image attempts through one ordered retry loop while preserving DALL-E policy retry, stock-video fallback, cache, and placeholder behavior.
+- Changed `projects/shorts-maker-v2/tests/unit/test_media_step_branches.py`: added regressions for skipped stock-mix attempts not recording failures and for stock-video recovery after image-provider failures.
+- Verification: focused media-step pytest passed `27/27`; related media fallback pytest passed `6/6`; `ruff check`, `ruff format --check`, `py_compile`, and `git diff --check` passed.
+- Full shorts-maker-v2 project QC passed: `1584 passed`, `12 skipped`, `1 warning` plus lint.
+- VibeDebt proof: `fallback_mixin.py` score `40.5 -> 39.2`, max complexity `19 -> 16`, duplicate blocks `2 -> 2`, project TDR `33.47 -> 33.44`; max function length worsened `103 -> 113` but the weighted A/B stayed positive.
+- Code-review gate: `py -3.13 execution\code_review_gate.py --base HEAD --json` and the pre-commit hook returned advisory WARN `risk_score=0.35` from graph test-gap heuristics, covered by focused, related, and full project tests.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1334.json --json` returned `adopt_candidate` with `score_delta=0.041753047890721456`.
+- Commit closeout: `bd2fa637 refactor(shorts-maker-v2): T-1334 tighten media fallback chain` is local only; no push was performed.
+- Boundary: product launch remains incomplete until explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
+
 ## 2026-06-05 - Codex
 
 - Closed T-1308 as a bounded `$auto-research` launch-audit evidence cycle for `shorts-maker-v2` feature acceptance status.
