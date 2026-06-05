@@ -25,8 +25,15 @@ def test_is_notebooklm_token_template_detects_placeholders():
     assert sync_data.is_notebooklm_token_template({}) is True
     assert sync_data.is_notebooklm_token_template({"cookies": {}}) is True
     assert sync_data.is_notebooklm_token_template({"cookies": {"a": ""}}) is True
+    assert sync_data.is_notebooklm_token_template({"cookies": {"a": 123}}) is True
     assert sync_data.is_notebooklm_token_template({"cookies": {"a": "replace-with-real"}}) is True
     assert sync_data.is_notebooklm_token_template({"cookies": {"sid": "PLACEHOLDER-value"}}) is True
+    assert (
+        sync_data.is_notebooklm_token_template(
+            {"cookies": {"sid": "abc123realsessionvalue"}, "csrf_token": "set-via-local-token"}
+        )
+        is True
+    )
     # A realistic, non-template token is accepted.
     assert sync_data.is_notebooklm_token_template({"cookies": {"sid": "abc123realsessionvalue"}}) is False
 

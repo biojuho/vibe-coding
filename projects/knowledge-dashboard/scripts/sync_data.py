@@ -34,6 +34,7 @@ SESSION_LOG_PATH = REPO_ROOT / ".ai" / "SESSION_LOG.md"
 NOTEBOOKLM_VENV_LIB = REPO_ROOT / "infrastructure" / "notebooklm-mcp" / "venv" / "Lib" / "site-packages"
 NOTEBOOKLM_TOKEN_DIR = REPO_ROOT / "infrastructure" / "notebooklm-mcp" / "tokens"
 NOTEBOOKLM_AUTH_TOKEN_ENV_VAR = "NOTEBOOKLM_AUTH_TOKEN_PATH"
+NOTEBOOKLM_TEMPLATE_MARKERS = ("replace-with", "placeholder", "example", "set-via")
 GITHUB_TOKEN = os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN", "")
 LOCAL_INVENTORY_SCRIPT = REPO_ROOT / ".agents" / "skills" / "auto-research" / "scripts" / "github_project_inventory.py"
 
@@ -89,29 +90,40 @@ def resolve_notebooklm_token_path(repo_root: Path = REPO_ROOT) -> Path | None:
     return None
 
 
+def _is_notebooklm_template_string(value: object) -> bool:
+    return isinstance(value, str) and any(marker in value.lower() for marker in NOTEBOOKLM_TEMPLATE_MARKERS)
+
+
+def _notebooklm_cookie_values(cookies: object) -> list[str]:
+    if not isinstance(cookies, dict):
+        return []
+    return [value for value in cookies.values() if isinstance(value, str)]
+
+
+def _cookie_values_are_empty_or_template(cookie_values: list[str]) -> bool:
+    if not cookie_values:
+        return True
+    return all((not value) or _is_notebooklm_template_string(value) for value in cookie_values)
+
+
+def _has_template_notebooklm_identity_field(data: dict) -> bool:
+    for key in ("csrf_token", "session_id"):
+        value = data.get(key, "")
+        if value and _is_notebooklm_template_string(value):
+            return True
+    return False
+
+
 def is_notebooklm_token_template(data: dict) -> bool:
-    markers = ("replace-with", "placeholder", "example", "set-via")
-
-    def is_template_string(value: object) -> bool:
-        return isinstance(value, str) and any(marker in value.lower() for marker in markers)
-
     cookies = data.get("cookies")
     if not isinstance(cookies, dict) or not cookies:
         return True
 
-    cookie_values = [value for value in cookies.values() if isinstance(value, str)]
-    if not cookie_values:
+    cookie_values = _notebooklm_cookie_values(cookies)
+    if _cookie_values_are_empty_or_template(cookie_values):
         return True
 
-    if all((not value) or is_template_string(value) for value in cookie_values):
-        return True
-
-    for key in ("csrf_token", "session_id"):
-        value = data.get(key, "")
-        if value and is_template_string(value):
-            return True
-
-    return False
+    return _has_template_notebooklm_identity_field(data)
 
 
 def fetch_github_repos():

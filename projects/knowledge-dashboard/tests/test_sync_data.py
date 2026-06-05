@@ -57,6 +57,7 @@ def test_is_notebooklm_token_template_detects_placeholders():
             "session_id": "",
         }
     )
+    assert module.is_notebooklm_token_template({"cookies": {"SID": 123}})
 
 
 def test_is_notebooklm_token_template_allows_realish_payload():
@@ -66,6 +67,18 @@ def test_is_notebooklm_token_template_allows_realish_payload():
         {
             "cookies": {"SID": "real-cookie-value", "HSID": "another-cookie"},
             "csrf_token": "",
+            "session_id": "",
+        }
+    )
+
+
+def test_is_notebooklm_token_template_rejects_identity_placeholders():
+    module = load_sync_data_module()
+
+    assert module.is_notebooklm_token_template(
+        {
+            "cookies": {"SID": "real-cookie-value", "HSID": "another-cookie"},
+            "csrf_token": "set-via-local-token",
             "session_id": "",
         }
     )
