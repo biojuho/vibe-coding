@@ -8,10 +8,12 @@
 - Goal: Product launch-ready workspace through the auto-research self-improvement loop across GitHub projects, browser-click QA, A/B adoption, current dependency/code triage, and local readiness gates.
 - Owner: Codex, with user-owned T-251 external Supabase credential reset
 - Started: 2026-06-05
-- Latest: 2026-06-05 T-1299 feature commit `0bac5859` is pushed and required Actions passed. `session_orient.py` now requires current-HEAD release checks to be green before marking post-push closeout `Next Priorities` stale, preventing clean/synced but CI-pending heads from hiding actionable final live-check work.
+- Latest: 2026-06-05 T-1300 feature commit `b59e3006` is pushed and required Actions passed. `launch_objective_audit.py` now selects local A/B manifest evidence by highest task identity when available, supports `--ab-manifest` for explicit evidence pinning, and cites `.tmp/ab-manifest-t1300.json` with candidate metrics `5` and gates `8/8`.
 - Success: Launch audit is 8/8 complete after user-owned Hanwoo T-251 Supabase credential reset and live Prisma CRUD E2E pass; until then keep local launch evidence green and do not retry T-251.
 
 ## Progress Notes
+
+- 2026-06-05: T-1300 stabilized launch-objective A/B manifest evidence selection so older `.tmp/ab-manifest-*` artifacts touched after newer experiments do not displace the intended latest evidence. The candidate passed focused pytest `18/18`, broader auto-research launch/completion/selector pytest `31/31`, ruff, format check, `py_compile`, diff-check, code-review gate `risk_score=0.0`, A/B `adopt_candidate`, completion audit `4/4`, and required Actions on `b59e3006`. Full product launch remains blocked only by external/user-owned Hanwoo T-251.
 
 - 2026-06-05: T-1295 aligned the shared active goal with the product launch auto-research loop so `session_orient.py --json` no longer reports the stale completed Hanwoo quality goal. The current local state remains launch audit 7/8, readiness score 96, workspace/local/agent blockers 0/0/0, and only external/user-owned Hanwoo T-251 blocked.
 
