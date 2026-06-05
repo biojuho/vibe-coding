@@ -82,6 +82,53 @@ async def test_suggest_selectors(mock_config):
 
 
 @pytest.mark.asyncio
+async def test_suggest_selectors_dedupes_ranked_class_candidates(mock_config):
+    html = """
+    <main>
+      <article class="post-body post-body"></article>
+      <article class="post-content"></article>
+      <article class="post-main"></article>
+    </main>
+    """
+    scraper = DummyScraper(mock_config)
+
+    candidates = scraper._suggest_selectors(html, ".post-content")
+
+    assert ".post-content" not in candidates
+    assert candidates.count(".post-body") == 1
+    assert candidates[:2] == [".post-body", ".post-main"]
+
+
+@pytest.mark.asyncio
+async def test_suggest_selectors_falls_back_to_similar_id_candidates(mock_config):
+    html = """
+    <section id="article-body"></section>
+    <section id="article-body"></section>
+    <section id="article-content"></section>
+    <section id="unrelated"></section>
+    """
+    scraper = DummyScraper(mock_config)
+
+    candidates = scraper._suggest_selectors(html, "#article-detail")
+
+    assert candidates == ["#article-body", "#article-content"]
+
+
+@pytest.mark.asyncio
+async def test_suggest_selectors_falls_back_to_tag_content_candidates(mock_config):
+    html = """
+    <article class="lead banner"></article>
+    <article class="story-body story-body"></article>
+    <article class="entry-main"></article>
+    """
+    scraper = DummyScraper(mock_config)
+
+    candidates = scraper._suggest_selectors(html, "article")
+
+    assert candidates == ["article.story-body", "article.entry-main"]
+
+
+@pytest.mark.asyncio
 async def test_suggest_selectors_from_html():
     html = (
         """

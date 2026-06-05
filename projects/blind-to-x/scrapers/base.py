@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 # Lazy-loaded Crawl4AI extractor (fallback when CSS selectors fail)
 _crawl4ai_extractor = None
+_CONTENT_SELECTOR_HINTS = ("content", "body", "text", "article", "post", "main", "entry", "detail")
 
 
 class BrowserUnavailableError(RuntimeError):
@@ -349,6 +350,95 @@ class BaseScraper:
             return False
 
     # ── Selector self-repair ─────────────────────────────────────
+    @staticmethod
+    def _selector_parts(name: str) -> list[str]:
+        return [part for part in re.split(r"[-_]", name) if len(part) > 2]
+
+    @staticmethod
+    def _selector_overlap_score(target_parts: list[str], candidate_name: str) -> float:
+        if not target_parts:
+            return 0.0
+        candidate_parts = re.split(r"[-_]", candidate_name)
+        candidate_parts_lower = [part.lower() for part in candidate_parts]
+        overlap = sum(1 for part in target_parts if part.lower() in candidate_parts_lower)
+        if overlap <= 0:
+            return 0.0
+        return overlap / max(len(target_parts), len(candidate_parts))
+
+    @staticmethod
+    def _dedupe_scored_selectors(scored: list[tuple[float, str]], limit: int) -> list[str]:
+        selectors: list[str] = []
+        seen: set[str] = set()
+        for _score, selector in sorted(scored, key=lambda item: -item[0]):
+            if selector in seen:
+                continue
+            seen.add(selector)
+            selectors.append(selector)
+            if len(selectors) >= limit:
+                break
+        return selectors
+
+    @staticmethod
+    def _append_unique_selectors(candidates: list[str], selectors: list[str], limit: int) -> None:
+        seen = set(candidates)
+        for selector in selectors:
+            if selector in seen:
+                continue
+            candidates.append(selector)
+            seen.add(selector)
+            if len(candidates) >= limit:
+                break
+
+    def _class_repair_selectors(self, html: str, target_class: str, limit: int) -> list[str]:
+        target_parts = self._selector_parts(target_class)
+        scored: list[tuple[float, str]] = []
+        for class_attr in re.findall(r'class=["\']([^"\']+)["\']', html):
+            for class_name in class_attr.split():
+                if class_name == target_class:
+                    continue
+                score = self._selector_overlap_score(target_parts, class_name)
+                if score > 0:
+                    scored.append((score, f".{class_name}"))
+        return self._dedupe_scored_selectors(scored, limit)
+
+    def _id_repair_selectors(self, html: str, target_id: str, limit: int) -> list[str]:
+        target_parts = self._selector_parts(target_id)
+        selectors: list[str] = []
+        seen: set[str] = set()
+        for element_id in re.findall(r'id=["\']([^"\']+)["\']', html):
+            if element_id == target_id:
+                continue
+            if self._selector_overlap_score(target_parts, element_id) > 0:
+                selector = f"#{element_id}"
+                if selector in seen:
+                    continue
+                selectors.append(selector)
+                seen.add(selector)
+            if len(selectors) >= limit:
+                break
+        return selectors
+
+    @staticmethod
+    def _tag_content_repair_selectors(html: str, target_tag: str, limit: int) -> list[str]:
+        selectors: list[str] = []
+        seen: set[str] = set()
+        tag_pattern = rf'<{re.escape(target_tag)}\s[^>]*class=["\']([^"\']+)["\']'
+        tag_classes = re.findall(tag_pattern, html, re.IGNORECASE)
+        for class_attr in tag_classes:
+            for class_name in class_attr.split():
+                class_lower = class_name.lower()
+                if any(hint in class_lower for hint in _CONTENT_SELECTOR_HINTS):
+                    selector = f"{target_tag}.{class_name}"
+                    if selector in seen:
+                        continue
+                    selectors.append(selector)
+                    seen.add(selector)
+                if len(selectors) >= limit:
+                    break
+            if len(selectors) >= limit:
+                break
+        return selectors
+
     def _suggest_selectors(self, html: str, failed_selector: str) -> list[str]:
         """Parse the failed selector and search HTML for similar elements.
 
@@ -376,70 +466,28 @@ class BaseScraper:
         target_tag = tag_match.group(1) if tag_match else None
 
         # Strategy 1: Find elements with similar class names
-        if target_class:
-            # Split class name by common delimiters to get component words
-            parts = re.split(r"[-_]", target_class)
-            significant_parts = [p for p in parts if len(p) > 2]
-
-            # Find all class values in the HTML
-            all_classes = re.findall(r'class=["\']([^"\']+)["\']', html)
-            scored: list[tuple[float, str]] = []
-            for class_attr in all_classes:
-                for cls in class_attr.split():
-                    if cls == target_class:
-                        continue  # skip exact match (it didn't work)
-                    # Score by how many parts overlap
-                    cls_parts = re.split(r"[-_]", cls)
-                    if not significant_parts:
-                        continue
-                    overlap = sum(1 for p in significant_parts if p.lower() in [cp.lower() for cp in cls_parts])
-                    if overlap > 0:
-                        score = overlap / max(len(significant_parts), len(cls_parts))
-                        scored.append((score, f".{cls}"))
-
-            # Deduplicate and sort by score descending
-            seen: set[str] = set()
-            for _score, sel in sorted(scored, key=lambda x: -x[0]):
-                if sel not in seen:
-                    seen.add(sel)
-                    candidates.append(sel)
-                if len(candidates) >= 3:
-                    break
+        if target_class and len(candidates) < 3:
+            self._append_unique_selectors(
+                candidates,
+                self._class_repair_selectors(html, target_class, limit=3 - len(candidates)),
+                limit=3,
+            )
 
         # Strategy 2: Find elements with similar id names
         if target_id and len(candidates) < 3:
-            id_parts = re.split(r"[-_]", target_id)
-            significant_id_parts = [p for p in id_parts if len(p) > 2]
-            all_ids = re.findall(r'id=["\']([^"\']+)["\']', html)
-            for eid in all_ids:
-                if eid == target_id:
-                    continue
-                eid_parts = re.split(r"[-_]", eid)
-                if significant_id_parts:
-                    overlap = sum(1 for p in significant_id_parts if p.lower() in [ep.lower() for ep in eid_parts])
-                    if overlap > 0:
-                        sel = f"#{eid}"
-                        if sel not in {c for c in candidates}:
-                            candidates.append(sel)
-                if len(candidates) >= 3:
-                    break
+            self._append_unique_selectors(
+                candidates,
+                self._id_repair_selectors(html, target_id, limit=3 - len(candidates)),
+                limit=3,
+            )
 
         # Strategy 3: If we have a tag, look for that tag with content-related classes
         if target_tag and len(candidates) < 3:
-            content_hints = ["content", "body", "text", "article", "post", "main", "entry", "detail"]
-            tag_pattern = rf'<{re.escape(target_tag)}\s[^>]*class=["\']([^"\']+)["\']'
-            tag_classes = re.findall(tag_pattern, html, re.IGNORECASE)
-            for class_attr in tag_classes:
-                for cls in class_attr.split():
-                    cls_lower = cls.lower()
-                    if any(hint in cls_lower for hint in content_hints):
-                        sel = f"{target_tag}.{cls}"
-                        if sel not in {c for c in candidates}:
-                            candidates.append(sel)
-                    if len(candidates) >= 3:
-                        break
-                if len(candidates) >= 3:
-                    break
+            self._append_unique_selectors(
+                candidates,
+                self._tag_content_repair_selectors(html, target_tag, limit=3 - len(candidates)),
+                limit=3,
+            )
 
         return candidates[:3]
 
