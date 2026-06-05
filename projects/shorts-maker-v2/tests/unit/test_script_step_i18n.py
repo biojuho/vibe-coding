@@ -184,6 +184,52 @@ def test_script_step_applies_locale_review_criteria_and_field_names() -> None:
     assert min_score == 9
 
 
+def test_script_step_ignores_malformed_locale_override_entries() -> None:
+    custom_bundle = {
+        "tone_presets": [
+            "bad entry",
+            {"name": "empty_guide", "guide": "  "},
+        ],
+        "channel_persona": {
+            "ai_tech": "bad entry",
+        },
+        "cta_forbidden_words": ["  ", "join"],
+        "persona_keywords": {
+            "ai_tech": ["  ", "tensor"],
+            "history": "bad entry",
+        },
+        "field_names": {
+            "narration": "",
+            "visual_prompt": "visual_prompt",
+            "unknown": "ignored",
+        },
+        "channel_review_criteria": {
+            "ai_tech": {
+                "extra_dimensions": "  freshness_score : Does the script feel current? (1=stale, 10=fresh)\n",
+                "extra_keys": ["  ", "freshness_score"],
+                "min_score_override": 8.8,
+                "context_note": "Locale-specific AI review context.",
+            },
+            "history": "bad entry",
+        },
+    }
+
+    with patch("shorts_maker_v2.pipeline.script_step._load_script_step_locale_bundle", return_value=custom_bundle):
+        step = ScriptStep(config=make_config(), llm_router=FakeLLMRouter([]), channel_key="ai_tech")
+
+    assert step._tone_presets == list(ScriptStep.TONE_PRESETS)
+    assert step._channel_persona["ai_tech"] == ScriptStep._CHANNEL_PERSONA["ai_tech"]
+    assert step._cta_forbidden_words == ("join",)
+    assert step._persona_keywords["ai_tech"] == ("tensor",)
+    assert step._persona_keywords["history"] == ScriptStep._PERSONA_KEYWORDS["history"]
+    assert step._prompt_field_names["narration"] == "narration_ko"
+    assert step._prompt_field_names["visual_prompt"] == "visual_prompt"
+    assert "unknown" not in step._prompt_field_names
+    assert step._channel_review_criteria["ai_tech"]["extra_keys"] == ("freshness_score",)
+    assert step._channel_review_criteria["ai_tech"]["min_score_override"] == 8
+    assert step._channel_review_criteria["ai_tech"]["context_note"] == "Locale-specific AI review context."
+
+
 def test_run_passes_locale_specific_cta_words_to_validator() -> None:
     custom_bundle = {
         "cta_forbidden_words": ["join"],

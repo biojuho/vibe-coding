@@ -36,6 +36,104 @@ def _deep_merge_dicts(base: dict[str, Any], override: dict[str, Any]) -> dict[st
     return merged
 
 
+def _normalize_tone_presets(raw_tone_presets: Any) -> list[tuple[str, str]]:
+    if not isinstance(raw_tone_presets, list):
+        return []
+
+    normalized_tones: list[tuple[str, str]] = []
+    for item in raw_tone_presets:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name", "")).strip()
+        guide = str(item.get("guide", "")).strip()
+        if name and guide:
+            normalized_tones.append((name, guide))
+    return normalized_tones
+
+
+def _normalize_string_tuple(raw_values: Any) -> tuple[str, ...]:
+    if not isinstance(raw_values, (list, tuple)):
+        return ()
+    return tuple(str(item).strip() for item in raw_values if str(item).strip())
+
+
+def _merge_channel_persona(
+    base_persona: dict[str, dict[str, str]],
+    raw_persona: Any,
+) -> dict[str, dict[str, str]]:
+    merged_persona = copy.deepcopy(base_persona)
+    if not isinstance(raw_persona, dict):
+        return merged_persona
+
+    for key, value in raw_persona.items():
+        if not isinstance(value, dict):
+            continue
+        if key not in merged_persona:
+            merged_persona[key] = {}
+        merged_persona[key].update(value)
+    return merged_persona
+
+
+def _merge_persona_keywords(
+    base_keywords: dict[str, tuple[str, ...]],
+    raw_keywords: Any,
+) -> dict[str, tuple[str, ...]]:
+    merged_keywords = copy.deepcopy(base_keywords)
+    if not isinstance(raw_keywords, dict):
+        return merged_keywords
+
+    for key, value in raw_keywords.items():
+        normalized_keywords = _normalize_string_tuple(value) if isinstance(value, list) else ()
+        if normalized_keywords:
+            merged_keywords[str(key)] = normalized_keywords
+    return merged_keywords
+
+
+def _merge_prompt_field_names(
+    base_field_names: dict[str, str],
+    raw_field_names: Any,
+) -> dict[str, str]:
+    merged_field_names = copy.deepcopy(base_field_names)
+    if not isinstance(raw_field_names, dict):
+        return merged_field_names
+
+    for key, value in raw_field_names.items():
+        normalized_key = str(key).strip()
+        normalized_value = str(value).strip()
+        if normalized_key in merged_field_names and normalized_value:
+            merged_field_names[normalized_key] = normalized_value
+    return merged_field_names
+
+
+def _merge_channel_review_criteria(
+    base_criteria: dict[str, dict[str, Any]],
+    raw_criteria: Any,
+) -> dict[str, dict[str, Any]]:
+    merged_criteria = copy.deepcopy(base_criteria)
+    if not isinstance(raw_criteria, dict):
+        return merged_criteria
+
+    for key, value in raw_criteria.items():
+        if not isinstance(value, dict):
+            continue
+        normalized_criteria = copy.deepcopy(merged_criteria.get(str(key), {}))
+        extra_dimensions = value.get("extra_dimensions")
+        if isinstance(extra_dimensions, str) and extra_dimensions.strip():
+            normalized_criteria["extra_dimensions"] = extra_dimensions
+        normalized_extra_keys = _normalize_string_tuple(value.get("extra_keys"))
+        if normalized_extra_keys:
+            normalized_criteria["extra_keys"] = normalized_extra_keys
+        min_score_override = value.get("min_score_override")
+        if isinstance(min_score_override, (int, float)):
+            normalized_criteria["min_score_override"] = int(min_score_override)
+        context_note = value.get("context_note")
+        if isinstance(context_note, str) and context_note.strip():
+            normalized_criteria["context_note"] = context_note
+        if normalized_criteria:
+            merged_criteria[str(key)] = normalized_criteria
+    return merged_criteria
+
+
 class ScriptPromptsMixin:
     """Prompt building, tone/hook pattern rotation, duration estimation.
 
@@ -546,43 +644,23 @@ class ScriptPromptsMixin:
         if not bundle:
             return
 
-        tone_presets = bundle.get("tone_presets")
-        if isinstance(tone_presets, list):
-            normalized_tones: list[tuple[str, str]] = []
-            for item in tone_presets:
-                if not isinstance(item, dict):
-                    continue
-                name = str(item.get("name", "")).strip()
-                guide = str(item.get("guide", "")).strip()
-                if name and guide:
-                    normalized_tones.append((name, guide))
-            if normalized_tones:
-                self._tone_presets = normalized_tones
+        normalized_tones = _normalize_tone_presets(bundle.get("tone_presets"))
+        if normalized_tones:
+            self._tone_presets = normalized_tones
 
-        channel_persona = bundle.get("channel_persona")
-        if isinstance(channel_persona, dict):
-            for key, value in channel_persona.items():
-                if not isinstance(value, dict):
-                    continue
-                if key not in self._channel_persona:
-                    self._channel_persona[key] = {}
-                self._channel_persona[key].update(value)
+        self._channel_persona = _merge_channel_persona(
+            self._channel_persona,
+            bundle.get("channel_persona"),
+        )
 
-        cta_forbidden_words = bundle.get("cta_forbidden_words")
-        if isinstance(cta_forbidden_words, list):
-            normalized_words = tuple(str(word).strip() for word in cta_forbidden_words if str(word).strip())
-            if normalized_words:
-                self._cta_forbidden_words = normalized_words
+        normalized_words = _normalize_string_tuple(bundle.get("cta_forbidden_words"))
+        if normalized_words:
+            self._cta_forbidden_words = normalized_words
 
-        persona_keywords = bundle.get("persona_keywords")
-        if isinstance(persona_keywords, dict):
-            merged_keywords = copy.deepcopy(self._persona_keywords)
-            for key, value in persona_keywords.items():
-                if isinstance(value, list):
-                    normalized_keywords = tuple(str(item).strip() for item in value if str(item).strip())
-                    if normalized_keywords:
-                        merged_keywords[str(key)] = normalized_keywords
-            self._persona_keywords = merged_keywords
+        self._persona_keywords = _merge_persona_keywords(
+            self._persona_keywords,
+            bundle.get("persona_keywords"),
+        )
 
         prompt_copy = bundle.get("prompt_copy")
         if isinstance(prompt_copy, dict):
@@ -592,35 +670,11 @@ class ScriptPromptsMixin:
         if isinstance(review_copy, dict):
             self._review_copy = _deep_merge_dicts(self._review_copy, review_copy)
 
-        field_names = bundle.get("field_names")
-        if isinstance(field_names, dict):
-            for key, value in field_names.items():
-                normalized_key = str(key).strip()
-                normalized_value = str(value).strip()
-                if normalized_key in self._prompt_field_names and normalized_value:
-                    self._prompt_field_names[normalized_key] = normalized_value
-
-        channel_review_criteria = bundle.get("channel_review_criteria")
-        if isinstance(channel_review_criteria, dict):
-            merged_criteria = copy.deepcopy(self._channel_review_criteria)
-            for key, value in channel_review_criteria.items():
-                if not isinstance(value, dict):
-                    continue
-                normalized_criteria = copy.deepcopy(merged_criteria.get(str(key), {}))
-                extra_dimensions = value.get("extra_dimensions")
-                if isinstance(extra_dimensions, str) and extra_dimensions.strip():
-                    normalized_criteria["extra_dimensions"] = extra_dimensions
-                extra_keys = value.get("extra_keys")
-                if isinstance(extra_keys, (list, tuple)):
-                    normalized_extra_keys = tuple(str(item).strip() for item in extra_keys if str(item).strip())
-                    if normalized_extra_keys:
-                        normalized_criteria["extra_keys"] = normalized_extra_keys
-                min_score_override = value.get("min_score_override")
-                if isinstance(min_score_override, (int, float)):
-                    normalized_criteria["min_score_override"] = int(min_score_override)
-                context_note = value.get("context_note")
-                if isinstance(context_note, str) and context_note.strip():
-                    normalized_criteria["context_note"] = context_note
-                if normalized_criteria:
-                    merged_criteria[str(key)] = normalized_criteria
-            self._channel_review_criteria = merged_criteria
+        self._prompt_field_names = _merge_prompt_field_names(
+            self._prompt_field_names,
+            bundle.get("field_names"),
+        )
+        self._channel_review_criteria = _merge_channel_review_criteria(
+            self._channel_review_criteria,
+            bundle.get("channel_review_criteria"),
+        )
