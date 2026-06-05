@@ -53,6 +53,12 @@ HEAD_CLAIM_RE = re.compile(
     r"\bcurrent\b(?:(?!\|).){0,160}\bhead\b(?:(?!\|).){0,80}`([0-9a-f]{7,40})`",
     re.IGNORECASE,
 )
+NEXT_PRIORITIES_ROW_RE = re.compile(r"^\|\s*Next Priorities\s*\|\s*(.*?)\s*\|\s*$", re.IGNORECASE | re.MULTILINE)
+NEXT_PRIORITY_CLOSEOUT_ACTION_RE = re.compile(r"\b(commit(?:ted)?|push(?:ed)?|rerun|re-run)\b", re.IGNORECASE)
+NEXT_PRIORITY_CLOSEOUT_CONTEXT_RE = re.compile(
+    r"\b(closeout|context head|new context head|final live checks|release[- ]gates?)\b|\bpost[- ]push\b",
+    re.IGNORECASE,
+)
 IS_WINDOWS = sys.platform == "win32"
 
 # Windows-safe symbols (Unicode-safe for CP949 console)
@@ -157,10 +163,43 @@ def _extract_head_claims(text: str) -> list[str]:
     return [match.group(1) for match in HEAD_CLAIM_RE.finditer(text)]
 
 
+def _extract_next_priorities(text: str) -> str:
+    """Return the latest addendum's `Next Priorities` cell text."""
+    match = NEXT_PRIORITIES_ROW_RE.search(text)
+    return match.group(1).strip() if match else ""
+
+
 def _head_claim_matches(claim: str, current_head: str) -> bool:
     claim_norm = claim.lower()
     current_norm = current_head.lower()
     return current_norm.startswith(claim_norm) or claim_norm.startswith(current_norm)
+
+
+def _is_closeout_next_priority(next_priorities: str) -> bool:
+    if not next_priorities:
+        return False
+    return bool(
+        NEXT_PRIORITY_CLOSEOUT_ACTION_RE.search(next_priorities)
+        and NEXT_PRIORITY_CLOSEOUT_CONTEXT_RE.search(next_priorities)
+    )
+
+
+def _stale_next_priority_reason(next_priorities: str, git_clean_synced: bool | None) -> str | None:
+    if git_clean_synced is not True or not _is_closeout_next_priority(next_priorities):
+        return None
+    return "git clean/synced but latest Next Priorities still asks for post-push closeout work"
+
+
+def _git_clean_synced(git: dict[str, Any]) -> bool | None:
+    if not git.get("available"):
+        return None
+    if git.get("worktree", {}).get("clean") is not True:
+        return False
+    ahead = git.get("ahead")
+    behind = git.get("behind")
+    if ahead is None or behind is None:
+        return None
+    return ahead == 0 and behind == 0
 
 
 def git_snapshot(repo_root: Path) -> dict[str, Any]:
@@ -222,7 +261,12 @@ def pr_snapshot(repo_root: Path) -> dict[str, Any]:
     return {"available": True, "open_count": len(prs), "open": prs}
 
 
-def handoff_snapshot(repo_root: Path, today: date | None = None, current_head: str | None = None) -> dict[str, Any]:
+def handoff_snapshot(
+    repo_root: Path,
+    today: date | None = None,
+    current_head: str | None = None,
+    git_clean_synced: bool | None = None,
+) -> dict[str, Any]:
     """HANDOFF.md size, Current Addendum date range, rotation suggestion."""
     today = today or date.today()
     handoff = repo_root / ".ai" / "HANDOFF.md"
@@ -278,6 +322,19 @@ def handoff_snapshot(repo_root: Path, today: date | None = None, current_head: s
     else:
         snap["stale_head_claims"] = []
         snap["head_claim_status"] = "unavailable" if head_claims else "none"
+
+    next_priorities = _extract_next_priorities(latest_addendum)
+    stale_next_priority_reason = _stale_next_priority_reason(next_priorities, git_clean_synced)
+    snap["latest_next_priorities"] = next_priorities
+    snap["stale_next_priority_reason"] = stale_next_priority_reason
+    if not next_priorities:
+        snap["latest_next_priority_status"] = "none"
+    elif stale_next_priority_reason:
+        snap["latest_next_priority_status"] = "stale"
+    elif git_clean_synced is None and _is_closeout_next_priority(next_priorities):
+        snap["latest_next_priority_status"] = "unavailable"
+    else:
+        snap["latest_next_priority_status"] = "ok"
     return snap
 
 
@@ -439,7 +496,12 @@ def collect_snapshot(repo_root: Path, today: date | None = None) -> dict[str, An
         "repo_root": str(repo_root),
         "git": git,
         "pull_requests": pr_snapshot(repo_root),
-        "handoff": handoff_snapshot(repo_root, today=today, current_head=current_head),
+        "handoff": handoff_snapshot(
+            repo_root,
+            today=today,
+            current_head=current_head,
+            git_clean_synced=_git_clean_synced(git),
+        ),
         "tasks": tasks_snapshot(repo_root),
         "goal": goal_snapshot(repo_root),
         "workspace_db": workspace_db_snapshot(repo_root),
@@ -493,6 +555,8 @@ def _render_handoff_section(h: dict[str, Any]) -> list[str]:
                 "    stale latest head claim(s): "
                 f"{', '.join(h.get('stale_head_claims', []))} != {h.get('current_head', '?')}"
             )
+        if h.get("latest_next_priority_status") == "stale":
+            lines.append(f"    stale latest next priority: {h.get('stale_next_priority_reason')}")
         return lines
     return [f"  HANDOFF: unavailable ({h.get('reason', '?')})"]
 
@@ -619,11 +683,18 @@ def render_rich_dashboard(snap: dict[str, Any]) -> None:
         if ho_snap.get("rotation_suggested"):
             rot_alert = f"\n[bold orange3]{SYM_WARN} Rotation Suggested! (Old/Large Handoff)[/]"
             ho_style = "orange3"
+        priority_alert = ""
+        if ho_snap.get("latest_next_priority_status") == "stale":
+            priority_alert = (
+                f"\n[bold orange3]{SYM_WARN} Stale next priority: {ho_snap.get('stale_next_priority_reason')}[/]"
+            )
+            ho_style = "orange3"
         ho_str = (
             f"[bold magenta]Lines:[/] {ho_snap.get('line_count')}\n"
             f"[bold magenta]Addenda count:[/] {ho_snap.get('current_addendum_count')} (Last 7d)\n"
             f"[bold magenta]Oldest Addendum:[/] {ho_snap.get('oldest_addendum')} ({ho_snap.get('oldest_age_days')}d old)"
             f"{rot_alert}"
+            f"{priority_alert}"
         )
     handoff_panel = Panel(ho_str, title=f"{SYM_HANDOFF} HANDOFF Status", border_style=ho_style, box=box_style)
 

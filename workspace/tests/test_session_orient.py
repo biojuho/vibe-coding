@@ -136,6 +136,59 @@ def test_handoff_snapshot_only_checks_latest_head_claim(tmp_path):
     assert snap["head_claim_status"] == "none"
 
 
+def test_handoff_snapshot_flags_stale_closeout_next_priority_when_clean_synced(tmp_path):
+    ai = tmp_path / ".ai"
+    ai.mkdir(parents=True)
+    (ai / "HANDOFF.md").write_text(
+        "# HANDOFF - AI Context Relay\n\n"
+        "## Current Addendum\n\n"
+        "| Field | Value |\n"
+        "|---|---|\n"
+        "| Date | 2026-05-12 |\n"
+        "| Tool | Test |\n"
+        "| Work | Release gates already passed. |\n"
+        "| Next Priorities | Commit/push this post-push `.ai` closeout and rerun final live checks from the new context head. |\n",
+        encoding="utf-8",
+    )
+
+    snap = orient.handoff_snapshot(
+        tmp_path,
+        today=date(2026, 5, 12),
+        current_head="def5678",
+        git_clean_synced=True,
+    )
+
+    assert snap["latest_next_priorities"].startswith("Commit/push this post-push")
+    assert snap["latest_next_priority_status"] == "stale"
+    assert "git clean/synced" in snap["stale_next_priority_reason"]
+
+
+def test_handoff_snapshot_keeps_closeout_next_priority_when_not_clean_synced(tmp_path):
+    ai = tmp_path / ".ai"
+    ai.mkdir(parents=True)
+    (ai / "HANDOFF.md").write_text(
+        "# HANDOFF - AI Context Relay\n\n"
+        "## Current Addendum\n\n"
+        "| Field | Value |\n"
+        "|---|---|\n"
+        "| Date | 2026-05-12 |\n"
+        "| Tool | Test |\n"
+        "| Work | Context closeout is still pending. |\n"
+        "| Next Priorities | Commit/push this post-push `.ai` closeout and rerun final live checks from the new context head. |\n",
+        encoding="utf-8",
+    )
+
+    snap = orient.handoff_snapshot(
+        tmp_path,
+        today=date(2026, 5, 12),
+        current_head="def5678",
+        git_clean_synced=False,
+    )
+
+    assert snap["latest_next_priority_status"] == "ok"
+    assert snap["stale_next_priority_reason"] is None
+
+
 def test_handoff_snapshot_missing_file(tmp_path):
     snap = orient.handoff_snapshot(tmp_path, today=date(2026, 5, 12))
     assert snap["available"] is False
@@ -270,6 +323,23 @@ def test_render_handoff_section_surfaces_stale_head_claim():
     )
 
     assert any("stale latest head claim(s): abc1234 != def5678" in line for line in lines)
+
+
+def test_render_handoff_section_surfaces_stale_next_priority():
+    lines = orient._render_handoff_section(
+        {
+            "available": True,
+            "line_count": 10,
+            "current_addendum_count": 1,
+            "oldest_addendum": "2026-05-12",
+            "oldest_age_days": 0,
+            "rotation_suggested": False,
+            "latest_next_priority_status": "stale",
+            "stale_next_priority_reason": "git clean/synced but latest Next Priorities still asks for closeout",
+        }
+    )
+
+    assert any("stale latest next priority: git clean/synced" in line for line in lines)
 
 
 # ----- workspace_db_snapshot ------------------------------------------------
