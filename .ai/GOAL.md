@@ -4,14 +4,16 @@
 
 ## Active Goal
 
-- Status: completed
-- Goal: hanwoo-dashboard quality uplift so other people would want to use it.
-- Owner: Codex
-- Started: 2026-05-18
-- Latest: 2026-05-28 T-1150..T-1202 full quality uplift, hardening sweep and task ID resolver.
-- Success: Hanwoo quality uplift is completed. All 498 Next.js unit tests passed, eslint check succeeded cleanly, and production build compiled perfectly. Staged changes are fully committed and pushed to origin/main.
+- Status: active
+- Goal: Product launch-ready workspace through the auto-research self-improvement loop across GitHub projects, browser-click QA, A/B adoption, current dependency/code triage, and local readiness gates.
+- Owner: Codex, with user-owned T-251 external Supabase credential reset
+- Started: 2026-06-05
+- Latest: 2026-06-05 T-1295 aligns shared GOAL routing with the product launch auto-research loop. Current launch audit is 7/8 complete with workspace/local/agent blockers 0/0/0; only external/user-owned Hanwoo T-251 remains.
+- Success: Launch audit is 8/8 complete after user-owned Hanwoo T-251 Supabase credential reset and live Prisma CRUD E2E pass; until then keep local launch evidence green and do not retry T-251.
 
 ## Progress Notes
+
+- 2026-06-05: T-1295 aligned the shared active goal with the product launch auto-research loop so `session_orient.py --json` no longer reports the stale completed Hanwoo quality goal. The current local state remains launch audit 7/8, readiness score 96, workspace/local/agent blockers 0/0/0, and only external/user-owned Hanwoo T-251 blocked.
 
 - 2026-05-21: T-625 normalized Hanwoo pagination item payloads. `useCattlePagination()` and `useSalesPagination()` now route initial SSR items and load-more API `json.data.items` through `normalizePaginationItems()`, ignore non-array input and malformed/non-object rows, and append from safe arrays, preventing malformed pagination/cache payloads from crashing through spread access. Verification passed with focused pagination source tests (`4 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 263, lint, build), and staged `code_review_gate --json` JSON pass (`risk_score 0.0`; cp949 reader-thread noise only). Commit `676f7453`; commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files.
 

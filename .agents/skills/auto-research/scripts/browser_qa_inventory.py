@@ -6,7 +6,9 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import struct
 import sys
+import zlib
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -55,6 +57,8 @@ IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp"}
 ARTIFACT_PATTERN = re.compile(r"(?P<path>(?:output|\.tmp)[/\\][^\s,;|`'\")]+?\.(?:png|jpg|jpeg|webp|json))", re.I)
 MAX_LOG_SUMMARY_CHARS = 260
 STALE_SCREENSHOT_DAYS = 14
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+PNG_CHANNELS_BY_COLOR_TYPE = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}
 GENERIC_PROJECT_TOKENS = {
     "app",
     "chain",
@@ -202,6 +206,204 @@ def _age_days(modified_at: datetime, now: datetime) -> int:
     return int(seconds // 86400)
 
 
+def _paeth_predictor(left: int, up: int, upper_left: int) -> int:
+    estimate = left + up - upper_left
+    left_distance = abs(estimate - left)
+    up_distance = abs(estimate - up)
+    upper_left_distance = abs(estimate - upper_left)
+    if left_distance <= up_distance and left_distance <= upper_left_distance:
+        return left
+    if up_distance <= upper_left_distance:
+        return up
+    return upper_left
+
+
+def _decode_png_pixels(
+    compressed: bytes,
+    width: int,
+    height: int,
+    bytes_per_pixel: int,
+) -> tuple[bytes, list[str]]:
+    try:
+        raw = zlib.decompress(compressed)
+    except zlib.error as exc:
+        return b"", [f"png idat decompress failed: {exc}"]
+
+    row_length = width * bytes_per_pixel
+    expected_length = height * (row_length + 1)
+    if len(raw) < expected_length:
+        return b"", [f"png pixel data truncated: expected {expected_length} byte(s), got {len(raw)}"]
+
+    previous = bytearray(row_length)
+    pixels = bytearray()
+    offset = 0
+    for _row_index in range(height):
+        filter_type = raw[offset]
+        offset += 1
+        row = bytearray(raw[offset : offset + row_length])
+        offset += row_length
+        if filter_type not in {0, 1, 2, 3, 4}:
+            return b"", [f"unsupported png filter type: {filter_type}"]
+
+        for index in range(row_length):
+            left = row[index - bytes_per_pixel] if index >= bytes_per_pixel else 0
+            up = previous[index]
+            upper_left = previous[index - bytes_per_pixel] if index >= bytes_per_pixel else 0
+            if filter_type == 1:
+                row[index] = (row[index] + left) & 0xFF
+            elif filter_type == 2:
+                row[index] = (row[index] + up) & 0xFF
+            elif filter_type == 3:
+                row[index] = (row[index] + ((left + up) // 2)) & 0xFF
+            elif filter_type == 4:
+                row[index] = (row[index] + _paeth_predictor(left, up, upper_left)) & 0xFF
+
+        pixels.extend(row)
+        previous = row
+
+    return bytes(pixels), []
+
+
+def _pixels_are_nonblank(pixels: bytes, bytes_per_pixel: int) -> bool:
+    if not pixels:
+        return False
+    first_pixel = pixels[:bytes_per_pixel]
+    for offset in range(bytes_per_pixel, len(pixels), bytes_per_pixel):
+        if pixels[offset : offset + bytes_per_pixel] != first_pixel:
+            return True
+    return False
+
+
+def _png_metadata(path: Path) -> dict[str, Any]:
+    issues: list[str] = []
+    try:
+        data = path.read_bytes()
+    except OSError as exc:
+        return {
+            "image_check": "unreadable",
+            "image_valid": False,
+            "nonblank": False,
+            "image_issues": [str(exc)],
+        }
+
+    if not data.startswith(PNG_SIGNATURE):
+        return {
+            "image_check": "invalid",
+            "image_valid": False,
+            "nonblank": False,
+            "image_issues": ["png signature missing"],
+        }
+
+    offset = len(PNG_SIGNATURE)
+    width = 0
+    height = 0
+    bit_depth = 0
+    color_type = -1
+    compression_method = 0
+    filter_method = 0
+    interlace_method = 0
+    idat = bytearray()
+    saw_iend = False
+    while offset + 8 <= len(data):
+        chunk_length = struct.unpack(">I", data[offset : offset + 4])[0]
+        chunk_type = data[offset + 4 : offset + 8]
+        payload_start = offset + 8
+        payload_end = payload_start + chunk_length
+        chunk_end = payload_end + 4
+        if chunk_end > len(data):
+            issues.append(f"png chunk {chunk_type.decode('ascii', errors='replace')} is truncated")
+            break
+        payload = data[payload_start:payload_end]
+        if chunk_type == b"IHDR":
+            if chunk_length != 13:
+                issues.append("png ihdr chunk has invalid length")
+            else:
+                (
+                    width,
+                    height,
+                    bit_depth,
+                    color_type,
+                    compression_method,
+                    filter_method,
+                    interlace_method,
+                ) = struct.unpack(">IIBBBBB", payload)
+        elif chunk_type == b"IDAT":
+            idat.extend(payload)
+        elif chunk_type == b"IEND":
+            saw_iend = True
+            break
+        offset = chunk_end
+
+    metadata: dict[str, Any] = {"width": width, "height": height}
+    if width <= 0 or height <= 0:
+        issues.append("png dimensions are missing or invalid")
+    if not saw_iend:
+        issues.append("png iend chunk missing")
+    if not idat:
+        issues.append("png idat chunk missing")
+    if issues:
+        metadata.update(
+            {
+                "image_check": "invalid",
+                "image_valid": False,
+                "nonblank": False,
+                "image_issues": issues,
+            }
+        )
+        return metadata
+
+    bytes_per_pixel = PNG_CHANNELS_BY_COLOR_TYPE.get(color_type)
+    if (
+        bit_depth != 8
+        or bytes_per_pixel is None
+        or compression_method != 0
+        or filter_method != 0
+        or interlace_method != 0
+    ):
+        metadata.update(
+            {
+                "image_check": "nonblank_check_unsupported",
+                "image_valid": True,
+                "nonblank": None,
+                "image_issues": ["png nonblank check supports only 8-bit non-interlaced color types 0, 2, 3, 4, and 6"],
+            }
+        )
+        return metadata
+
+    pixels, pixel_issues = _decode_png_pixels(bytes(idat), width, height, bytes_per_pixel)
+    if pixel_issues:
+        metadata.update(
+            {
+                "image_check": "invalid",
+                "image_valid": False,
+                "nonblank": False,
+                "image_issues": pixel_issues,
+            }
+        )
+        return metadata
+
+    nonblank = _pixels_are_nonblank(pixels, bytes_per_pixel)
+    metadata.update(
+        {
+            "image_check": "ok" if nonblank else "blank",
+            "image_valid": True,
+            "nonblank": nonblank,
+        }
+    )
+    return metadata
+
+
+def _image_metadata(path: Path) -> dict[str, Any]:
+    if path.suffix.lower() == ".png":
+        return _png_metadata(path)
+    return {
+        "image_check": "nonblank_check_unsupported",
+        "image_valid": None,
+        "nonblank": None,
+        "image_issues": ["non-png image metadata check is not supported"],
+    }
+
+
 def _scan_logs(root: Path, project_path: str, project_names: list[str], tokens: list[str]) -> list[dict[str, Any]]:
     evidence: list[dict[str, Any]] = []
     project_name = Path(project_path).name.lower()
@@ -251,15 +453,15 @@ def _scan_artifacts(root: Path, tokens: list[str], now: datetime) -> list[dict[s
                 continue
             stat = path.stat()
             modified_at = datetime.fromtimestamp(stat.st_mtime, UTC)
-            artifacts.append(
-                {
-                    "kind": "screenshot",
-                    "path": _relative(path, root),
-                    "bytes": stat.st_size,
-                    "modified_at": modified_at.isoformat(),
-                    "age_days": _age_days(modified_at, now),
-                }
-            )
+            artifact = {
+                "kind": "screenshot",
+                "path": _relative(path, root),
+                "bytes": stat.st_size,
+                "modified_at": modified_at.isoformat(),
+                "age_days": _age_days(modified_at, now),
+            }
+            artifact.update(_image_metadata(path))
+            artifacts.append(artifact)
     return artifacts
 
 
@@ -287,7 +489,23 @@ def _project_summary(
     artifact_evidence = _scan_artifacts(root, tokens, now)
     freshest = _freshest_screenshot(artifact_evidence)
     verified_log_count = sum(1 for item in log_evidence if item.get("verified"))
-    status = "covered" if browser_app and (verified_log_count or artifact_evidence) else "missing"
+    valid_screenshots = [artifact for artifact in artifact_evidence if artifact.get("image_valid") is True]
+    usable_screenshots = [
+        artifact
+        for artifact in artifact_evidence
+        if artifact.get("image_valid") is not False and artifact.get("nonblank") is not False
+    ]
+    fresh_valid_screenshots = [
+        artifact for artifact in valid_screenshots if int(artifact.get("age_days") or 0) <= STALE_SCREENSHOT_DAYS
+    ]
+    fresh_usable_screenshots = [
+        artifact for artifact in usable_screenshots if int(artifact.get("age_days") or 0) <= STALE_SCREENSHOT_DAYS
+    ]
+    nonblank_screenshots = [artifact for artifact in artifact_evidence if artifact.get("nonblank") is True]
+    fresh_nonblank_screenshots = [
+        artifact for artifact in nonblank_screenshots if int(artifact.get("age_days") or 0) <= STALE_SCREENSHOT_DAYS
+    ]
+    status = "covered" if browser_app and (verified_log_count or usable_screenshots) else "missing"
     if not browser_app:
         status = "not_browser_app"
     project = {
@@ -298,6 +516,12 @@ def _project_summary(
         "log_evidence_count": len(log_evidence),
         "verified_log_evidence_count": verified_log_count,
         "current_screenshot_count": len(artifact_evidence),
+        "valid_screenshot_count": len(valid_screenshots),
+        "usable_screenshot_count": len(usable_screenshots),
+        "fresh_valid_screenshot_count": len(fresh_valid_screenshots),
+        "fresh_usable_screenshot_count": len(fresh_usable_screenshots),
+        "nonblank_screenshot_count": len(nonblank_screenshots),
+        "fresh_nonblank_screenshot_count": len(fresh_nonblank_screenshots),
         "evidence": [*artifact_evidence, *log_evidence],
     }
     if freshest:
@@ -305,6 +529,13 @@ def _project_summary(
         project["freshest_screenshot_modified_at"] = freshest["modified_at"]
         project["freshest_screenshot_age_days"] = freshest["age_days"]
         project["freshest_screenshot_fresh"] = freshest["age_days"] <= STALE_SCREENSHOT_DAYS
+        project["freshest_screenshot_image_check"] = freshest.get("image_check")
+        project["freshest_screenshot_image_valid"] = freshest.get("image_valid")
+        project["freshest_screenshot_nonblank"] = freshest.get("nonblank")
+        if freshest.get("width") is not None:
+            project["freshest_screenshot_width"] = freshest.get("width")
+        if freshest.get("height") is not None:
+            project["freshest_screenshot_height"] = freshest.get("height")
     return project
 
 
@@ -335,6 +566,22 @@ def _recommendations(projects: list[dict[str, Any]]) -> list[str]:
             f"Refresh browser QA screenshots older than {STALE_SCREENSHOT_DAYS} day(s) for project(s): "
             + ", ".join(stale_screenshot)
         )
+    invalid_screenshot = [
+        project["path"]
+        for project in projects
+        if project["browser_app"] and project["current_screenshot_count"] and project["valid_screenshot_count"] == 0
+    ]
+    if invalid_screenshot:
+        recommendations.append(
+            "Refresh invalid browser QA screenshots for project(s): " + ", ".join(invalid_screenshot)
+        )
+    blank_screenshot = [
+        project["path"]
+        for project in projects
+        if project["browser_app"] and project["valid_screenshot_count"] and project["usable_screenshot_count"] == 0
+    ]
+    if blank_screenshot:
+        recommendations.append("Refresh blank browser QA screenshots for project(s): " + ", ".join(blank_screenshot))
     return recommendations
 
 
@@ -358,6 +605,20 @@ def build_inventory(root: Path, include_non_browser: bool = False, now: datetime
     projects_with_stale_screenshot = [
         project for project in projects_with_current_screenshot if project.get("freshest_screenshot_fresh") is False
     ]
+    projects_with_valid_screenshot = [project for project in browser_projects if project["valid_screenshot_count"]]
+    projects_with_usable_screenshot = [project for project in browser_projects if project["usable_screenshot_count"]]
+    projects_with_fresh_valid_screenshot = [
+        project for project in browser_projects if project["fresh_valid_screenshot_count"]
+    ]
+    projects_with_fresh_usable_screenshot = [
+        project for project in browser_projects if project["fresh_usable_screenshot_count"]
+    ]
+    projects_with_nonblank_screenshot = [
+        project for project in browser_projects if project["nonblank_screenshot_count"]
+    ]
+    projects_with_fresh_nonblank_screenshot = [
+        project for project in browser_projects if project["fresh_nonblank_screenshot_count"]
+    ]
     summary = {
         "root": str(root),
         "browser_project_count": len(browser_projects),
@@ -366,12 +627,23 @@ def build_inventory(root: Path, include_non_browser: bool = False, now: datetime
         "current_screenshot_project_count": len(projects_with_current_screenshot),
         "fresh_screenshot_project_count": len(projects_with_fresh_screenshot),
         "stale_screenshot_project_count": len(projects_with_stale_screenshot),
+        "valid_screenshot_project_count": len(projects_with_valid_screenshot),
+        "usable_screenshot_project_count": len(projects_with_usable_screenshot),
+        "fresh_valid_screenshot_project_count": len(projects_with_fresh_valid_screenshot),
+        "fresh_usable_screenshot_project_count": len(projects_with_fresh_usable_screenshot),
+        "nonblank_screenshot_project_count": len(projects_with_nonblank_screenshot),
+        "fresh_nonblank_screenshot_project_count": len(projects_with_fresh_nonblank_screenshot),
         "freshest_screenshots": {
             project["path"]: {
                 "path": project["freshest_screenshot_path"],
                 "modified_at": project["freshest_screenshot_modified_at"],
                 "age_days": project["freshest_screenshot_age_days"],
                 "fresh": project["freshest_screenshot_fresh"],
+                "image_check": project["freshest_screenshot_image_check"],
+                "image_valid": project["freshest_screenshot_image_valid"],
+                "nonblank": project["freshest_screenshot_nonblank"],
+                "width": project.get("freshest_screenshot_width"),
+                "height": project.get("freshest_screenshot_height"),
             }
             for project in projects_with_current_screenshot
         },
@@ -399,7 +671,7 @@ def _print_text(inventory: dict[str, Any]) -> None:
         print(
             f"- {project['path']}: {project['status']} "
             f"(logs={project['verified_log_evidence_count']}/{project['log_evidence_count']}, "
-            f"screenshots={project['current_screenshot_count']})"
+            f"screenshots={project['current_screenshot_count']}, usable={project['usable_screenshot_count']})"
         )
     for recommendation in inventory["recommendations"]:
         print(f"recommendation: {recommendation}")

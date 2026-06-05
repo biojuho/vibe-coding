@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 from datetime import UTC, datetime
@@ -30,8 +31,19 @@ AI_RELAY_ARTIFACTS = (
     ".ai/TASKS.md",
     ".ai/SESSION_LOG.md",
     ".ai/CONTEXT.md",
+    ".ai/GOAL.md",
 )
 AB_MANIFEST_GLOB = "ab-manifest-*.json"
+GOAL_STATUS_RE = re.compile(r"^-\s*Status:\s*(.*?)\s*$", re.IGNORECASE | re.MULTILINE)
+GOAL_ACTIVE_STATUSES = {"active", "enabled", "in_progress", "in-progress", "blocked", "waiting"}
+GOAL_OBJECTIVE_TERMS = (
+    "auto-research",
+    "product launch",
+    "launch-ready",
+    "제품출시",
+    "제품 출시",
+    "오토리서치",
+)
 
 
 def _exists(root: Path, rel_path: str) -> bool:
@@ -213,12 +225,20 @@ def _browser_item(browser_inventory: dict[str, Any]) -> dict[str, Any]:
     screenshot_count = int(summary.get("current_screenshot_project_count") or 0)
     fresh_screenshot_count = int(summary.get("fresh_screenshot_project_count", screenshot_count) or 0)
     stale_screenshot_count = int(summary.get("stale_screenshot_project_count") or 0)
+    fresh_usable_screenshot_count = int(
+        summary.get("fresh_usable_screenshot_project_count", fresh_screenshot_count) or 0
+    )
+    fresh_nonblank_screenshot_count = int(
+        summary.get("fresh_nonblank_screenshot_project_count", fresh_usable_screenshot_count) or 0
+    )
     complete = (
         browser_count > 0
         and missing_count == 0
         and covered_count == browser_count
         and screenshot_count == browser_count
         and fresh_screenshot_count == browser_count
+        and fresh_usable_screenshot_count == browser_count
+        and fresh_nonblank_screenshot_count == browser_count
     )
     blockers = [str(item) for item in recommendations]
     if missing_count:
@@ -229,14 +249,28 @@ def _browser_item(browser_inventory: dict[str, Any]) -> dict[str, Any]:
         blockers.append(
             f"Only {fresh_screenshot_count}/{browser_count} browser project(s) have fresh retained screenshots."
         )
+    if browser_count and fresh_usable_screenshot_count < browser_count:
+        blockers.append(
+            f"Only {fresh_usable_screenshot_count}/{browser_count} browser project(s) have fresh usable screenshots."
+        )
+    if browser_count and fresh_nonblank_screenshot_count < browser_count:
+        blockers.append(
+            f"Only {fresh_nonblank_screenshot_count}/{browser_count} browser project(s) have fresh nonblank screenshots."
+        )
+    browser_evidence = [
+        f"browser_qa_inventory coverage {covered_count}/{browser_count}, missing_count={missing_count}.",
+        f"current screenshot coverage {screenshot_count}/{browser_count}.",
+        f"fresh screenshot coverage {fresh_screenshot_count}/{browser_count}; stale={stale_screenshot_count}.",
+    ]
+    if "fresh_usable_screenshot_project_count" in summary or "fresh_nonblank_screenshot_project_count" in summary:
+        browser_evidence.append(
+            f"fresh usable screenshot coverage {fresh_usable_screenshot_count}/{browser_count}; "
+            f"fresh nonblank={fresh_nonblank_screenshot_count}/{browser_count}."
+        )
     return _item(
         "Use Codex/browser automation to click through every browser app and retain evidence.",
         ["output/playwright", ".ai/TASKS.md", ".ai/HANDOFF.md", ".ai/SESSION_LOG.md"],
-        [
-            f"browser_qa_inventory coverage {covered_count}/{browser_count}, missing_count={missing_count}.",
-            f"current screenshot coverage {screenshot_count}/{browser_count}.",
-            f"fresh screenshot coverage {fresh_screenshot_count}/{browser_count}; stale={stale_screenshot_count}.",
-        ],
+        browser_evidence,
         complete=complete,
         blockers=blockers,
         verified=bool(browser_inventory),
@@ -495,14 +529,28 @@ def _ab_loop_item(root: Path) -> dict[str, Any]:
 
 def _relay_item(root: Path) -> dict[str, Any]:
     missing = [path for path in AI_RELAY_ARTIFACTS if not _exists(root, path)]
-    complete = not missing
+    goal_text = _read_text(root, ".ai/GOAL.md")
+    goal_status_match = GOAL_STATUS_RE.search(goal_text)
+    goal_status = goal_status_match.group(1).strip() if goal_status_match else "unknown"
+    goal_status_norm = goal_status.lower().replace(" ", "_")
+    goal_mentions_current_objective = any(term in goal_text.lower() for term in GOAL_OBJECTIVE_TERMS)
+    goal_is_current = (
+        ".ai/GOAL.md" not in missing and goal_status_norm in GOAL_ACTIVE_STATUSES and goal_mentions_current_objective
+    )
+    complete = not missing and goal_is_current
     blockers = ["Missing .ai relay artifact(s): " + ", ".join(missing)] if missing else []
+    if ".ai/GOAL.md" not in missing:
+        if goal_status_norm not in GOAL_ACTIVE_STATUSES:
+            blockers.append(f"GOAL.md status is {goal_status}; expected an active launch-loop status.")
+        if not goal_mentions_current_objective:
+            blockers.append("GOAL.md does not describe the current product launch/auto-research objective.")
     return _item(
         "Keep the self-improvement loop resumable across tools and sessions.",
         list(AI_RELAY_ARTIFACTS),
         [
             f"{len(AI_RELAY_ARTIFACTS) - len(missing)}/{len(AI_RELAY_ARTIFACTS)} relay files exist.",
-            "HANDOFF/TASKS/SESSION_LOG/CONTEXT provide the next-session continuation surface.",
+            "HANDOFF/TASKS/SESSION_LOG/CONTEXT/GOAL provide the next-session continuation surface.",
+            f"GOAL.md status={goal_status}; current launch objective mapped={goal_mentions_current_objective}.",
         ],
         complete=complete,
         blockers=blockers,

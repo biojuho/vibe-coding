@@ -54,7 +54,13 @@ def _write_required_skill(root: Path) -> None:
         (scripts / name).write_text("# helper\n", encoding="utf-8")
 
 
-def _write_ai_relay(root: Path, *, ab_evidence: bool = True) -> None:
+def _write_ai_relay(
+    root: Path,
+    *,
+    ab_evidence: bool = True,
+    goal_status: str = "active",
+    goal_text: str = "Product launch auto-research loop across GitHub, browser QA, and A/B adoption.",
+) -> None:
     ai = root / ".ai"
     ai.mkdir()
     (ai / "TASKS.md").write_text(
@@ -63,6 +69,22 @@ def _write_ai_relay(root: Path, *, ab_evidence: bool = True) -> None:
     )
     for name in ("HANDOFF.md", "SESSION_LOG.md", "CONTEXT.md"):
         (ai / name).write_text("relay\n", encoding="utf-8")
+    (ai / "GOAL.md").write_text(
+        "\n".join(
+            [
+                "# GOAL - Active Workspace Goal",
+                "",
+                "## Active Goal",
+                "",
+                f"- Status: {goal_status}",
+                f"- Goal: {goal_text}",
+                "- Owner: Codex",
+                "- Started: 2026-06-05",
+                "- Success: Launch audit complete with every explicit requirement verified.",
+            ]
+        ),
+        encoding="utf-8",
+    )
 
 
 def _write_ab_manifest(
@@ -137,16 +159,26 @@ def _github_inventory() -> dict[str, object]:
     }
 
 
-def _browser_inventory(missing: int = 0, *, fresh: int | None = None, stale: int = 0) -> dict[str, object]:
+def _browser_inventory(
+    missing: int = 0,
+    *,
+    fresh: int | None = None,
+    stale: int = 0,
+    fresh_usable: int | None = None,
+    fresh_nonblank: int | None = None,
+) -> dict[str, object]:
     screenshot_count = 4 - missing
+    fresh_count = screenshot_count if fresh is None else fresh
     return {
         "summary": {
             "browser_project_count": 4,
             "covered_count": 4 - missing,
             "missing_count": missing,
             "current_screenshot_project_count": screenshot_count,
-            "fresh_screenshot_project_count": screenshot_count if fresh is None else fresh,
+            "fresh_screenshot_project_count": fresh_count,
             "stale_screenshot_project_count": stale,
+            "fresh_usable_screenshot_project_count": fresh_count if fresh_usable is None else fresh_usable,
+            "fresh_nonblank_screenshot_project_count": fresh_count if fresh_nonblank is None else fresh_nonblank,
             "missing_projects": ["projects/word-chain"] if missing else [],
         },
         "recommendations": [],
@@ -433,6 +465,25 @@ def test_stale_browser_screenshots_are_not_claimed_complete(tmp_path: Path) -> N
     assert "fresh screenshot coverage 3/4; stale=1." in browser_item["evidence"]
 
 
+def test_blank_browser_screenshots_are_not_claimed_complete(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(fresh=4, fresh_usable=3, fresh_nonblank=2),
+        dependency_inventory=_dependency_inventory(),
+    )
+    browser_item = next(item for item in manifest["items"] if item["requirement"].startswith("Use Codex"))
+
+    assert browser_item["coverage"] == "partial"
+    assert "fresh usable screenshot coverage 3/4; fresh nonblank=2/4." in browser_item["evidence"]
+    assert "Only 3/4 browser project(s) have fresh usable screenshots." in browser_item["blockers"]
+    assert "Only 2/4 browser project(s) have fresh nonblank screenshots." in browser_item["blockers"]
+
+
 def test_dependency_candidates_are_not_claimed_complete(tmp_path: Path) -> None:
     _write_required_skill(tmp_path)
     _write_ai_relay(tmp_path)
@@ -493,6 +544,30 @@ def test_current_prerelease_channel_dependency_evidence_explains_outdated_count(
         "projects/hanwoo-dashboard/next-auth beta=5.0.0-beta.31 current=5.0.0-beta.31 stable_latest=4.24.14" in evidence
         for evidence in dependency_item["evidence"]
     )
+
+
+def test_relay_item_rejects_stale_completed_goal(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(
+        tmp_path,
+        goal_status="completed",
+        goal_text="hanwoo-dashboard quality uplift so other people would want to use it.",
+    )
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    result = completion_audit.audit_manifest(manifest)
+    relay_item = next(item for item in manifest["items"] if item["requirement"].startswith("Keep the self-improvement"))
+
+    assert result["status"] == "incomplete"
+    assert relay_item["coverage"] == "partial"
+    assert "GOAL.md status is completed; expected an active launch-loop status." in relay_item["blockers"]
+    assert "GOAL.md does not describe the current product launch/auto-research objective." in relay_item["blockers"]
 
 
 def test_cli_output_file_is_ascii_safe_for_powershell_default_reads(tmp_path: Path, monkeypatch) -> None:

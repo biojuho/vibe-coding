@@ -5,7 +5,9 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import struct
 import sys
+import zlib
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -38,13 +40,41 @@ def _write_package(
     (path / "package.json").write_text(json.dumps(package), encoding="utf-8")
 
 
+def _write_rgba_png(path: Path, rows: list[list[tuple[int, int, int, int]]]) -> None:
+    height = len(rows)
+    width = len(rows[0]) if rows else 0
+
+    def chunk(kind: bytes, payload: bytes) -> bytes:
+        return struct.pack(">I", len(payload)) + kind + payload + b"\x00\x00\x00\x00"
+
+    raw_rows = []
+    for row in rows:
+        assert len(row) == width
+        raw_rows.append(b"\x00" + b"".join(bytes(pixel) for pixel in row))
+    ihdr = struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)
+    path.write_bytes(
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", ihdr)
+        + chunk(b"IDAT", zlib.compress(b"".join(raw_rows)))
+        + chunk(b"IEND", b"")
+    )
+
+
+def _write_nonblank_png(path: Path) -> None:
+    _write_rgba_png(path, [[(0, 0, 0, 255), (255, 255, 255, 255)]])
+
+
+def _write_blank_png(path: Path) -> None:
+    _write_rgba_png(path, [[(0, 0, 0, 255), (0, 0, 0, 255)]])
+
+
 def test_browser_app_is_covered_by_current_screenshot(tmp_path: Path) -> None:
     app = tmp_path / "projects" / "knowledge-dashboard"
     _write_package(app, dependencies={"next": "1.0.0", "react": "1.0.0"})
     screenshot_dir = tmp_path / "output" / "playwright"
     screenshot_dir.mkdir(parents=True)
     screenshot = screenshot_dir / "knowledge-t1264-browser-click-qa.png"
-    screenshot.write_bytes(b"png")
+    _write_nonblank_png(screenshot)
     modified_at = datetime(2026, 6, 1, tzinfo=UTC).timestamp()
     os.utime(screenshot, (modified_at, modified_at))
 
@@ -55,20 +85,37 @@ def test_browser_app_is_covered_by_current_screenshot(tmp_path: Path) -> None:
     assert result["summary"]["covered_count"] == 1
     assert result["summary"]["fresh_screenshot_project_count"] == 1
     assert result["summary"]["stale_screenshot_project_count"] == 0
+    assert result["summary"]["valid_screenshot_project_count"] == 1
+    assert result["summary"]["fresh_valid_screenshot_project_count"] == 1
+    assert result["summary"]["usable_screenshot_project_count"] == 1
+    assert result["summary"]["fresh_usable_screenshot_project_count"] == 1
+    assert result["summary"]["nonblank_screenshot_project_count"] == 1
+    assert result["summary"]["fresh_nonblank_screenshot_project_count"] == 1
     assert result["summary"]["freshest_screenshots"] == {
         "projects/knowledge-dashboard": {
             "path": "output/playwright/knowledge-t1264-browser-click-qa.png",
             "modified_at": "2026-06-01T00:00:00+00:00",
             "age_days": 4,
             "fresh": True,
+            "image_check": "ok",
+            "image_valid": True,
+            "nonblank": True,
+            "width": 2,
+            "height": 1,
         }
     }
     assert project["path"] == "projects/knowledge-dashboard"
     assert project["status"] == "covered"
     assert project["current_screenshot_count"] == 1
+    assert project["valid_screenshot_count"] == 1
+    assert project["usable_screenshot_count"] == 1
+    assert project["nonblank_screenshot_count"] == 1
     assert project["freshest_screenshot_path"] == "output/playwright/knowledge-t1264-browser-click-qa.png"
     assert project["freshest_screenshot_age_days"] == 4
     assert project["freshest_screenshot_fresh"] is True
+    assert project["freshest_screenshot_image_check"] == "ok"
+    assert project["freshest_screenshot_width"] == 2
+    assert project["freshest_screenshot_height"] == 1
 
 
 def test_stale_browser_screenshot_gets_refresh_recommendation(tmp_path: Path) -> None:
@@ -77,7 +124,7 @@ def test_stale_browser_screenshot_gets_refresh_recommendation(tmp_path: Path) ->
     screenshot_dir = tmp_path / "output" / "playwright"
     screenshot_dir.mkdir(parents=True)
     screenshot = screenshot_dir / "hanwoo-t100-browser-click-qa.png"
-    screenshot.write_bytes(b"png")
+    _write_nonblank_png(screenshot)
     modified_at = datetime(2026, 5, 1, tzinfo=UTC).timestamp()
     os.utime(screenshot, (modified_at, modified_at))
 
@@ -89,8 +136,59 @@ def test_stale_browser_screenshot_gets_refresh_recommendation(tmp_path: Path) ->
     assert project["freshest_screenshot_fresh"] is False
     assert result["summary"]["fresh_screenshot_project_count"] == 0
     assert result["summary"]["stale_screenshot_project_count"] == 1
+    assert result["summary"]["valid_screenshot_project_count"] == 1
+    assert result["summary"]["fresh_valid_screenshot_project_count"] == 0
+    assert result["summary"]["nonblank_screenshot_project_count"] == 1
+    assert result["summary"]["fresh_nonblank_screenshot_project_count"] == 0
     assert result["recommendations"] == [
         "Refresh browser QA screenshots older than 14 day(s) for project(s): projects/hanwoo-dashboard"
+    ]
+
+
+def test_invalid_screenshot_does_not_cover_browser_app(tmp_path: Path) -> None:
+    app = tmp_path / "projects" / "suika-game-v2"
+    _write_package(app, dependencies={"vite": "1.0.0"})
+    screenshot_dir = tmp_path / "output" / "playwright"
+    screenshot_dir.mkdir(parents=True)
+    (screenshot_dir / "suika-t100-browser-click-qa.png").write_bytes(b"png")
+
+    result = browser_qa_inventory.build_inventory(tmp_path, now=datetime(2026, 6, 5, tzinfo=UTC))
+    project = result["projects"][0]
+
+    assert project["status"] == "missing"
+    assert project["current_screenshot_count"] == 1
+    assert project["valid_screenshot_count"] == 0
+    assert project["usable_screenshot_count"] == 0
+    assert project["evidence"][0]["image_check"] == "invalid"
+    assert project["evidence"][0]["image_valid"] is False
+    assert result["summary"]["valid_screenshot_project_count"] == 0
+    assert result["recommendations"] == [
+        "Run direct browser-click QA for project(s): projects/suika-game-v2",
+        "Refresh invalid browser QA screenshots for project(s): projects/suika-game-v2",
+    ]
+
+
+def test_blank_screenshot_does_not_cover_browser_app(tmp_path: Path) -> None:
+    app = tmp_path / "projects" / "word-chain"
+    _write_package(app, dependencies={"vite": "1.0.0"})
+    screenshot_dir = tmp_path / "output" / "playwright"
+    screenshot_dir.mkdir(parents=True)
+    _write_blank_png(screenshot_dir / "word-chain-t100-browser-click-qa.png")
+
+    result = browser_qa_inventory.build_inventory(tmp_path, now=datetime(2026, 6, 5, tzinfo=UTC))
+    project = result["projects"][0]
+
+    assert project["status"] == "missing"
+    assert project["valid_screenshot_count"] == 1
+    assert project["usable_screenshot_count"] == 0
+    assert project["nonblank_screenshot_count"] == 0
+    assert project["freshest_screenshot_image_check"] == "blank"
+    assert result["summary"]["valid_screenshot_project_count"] == 1
+    assert result["summary"]["usable_screenshot_project_count"] == 0
+    assert result["summary"]["fresh_nonblank_screenshot_project_count"] == 0
+    assert result["recommendations"] == [
+        "Run direct browser-click QA for project(s): projects/word-chain",
+        "Refresh blank browser QA screenshots for project(s): projects/word-chain",
     ]
 
 
