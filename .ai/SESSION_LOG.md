@@ -629,7 +629,7 @@
 - Changed `.agents/skills/auto-research/scripts/launch_objective_audit.py`: added `_target_knowledge_dashboard_item()` and included it in the launch manifest after the other direct target-product readiness items.
 - Changed `workspace/tests/test_auto_research_launch_objective_audit.py`: extended readiness fixtures with Knowledge Dashboard evidence and added regressions for complete Knowledge launch evidence plus stale/failing Knowledge blockers.
 - Verification: focused launch/completion pytest passed `45/45`; ruff check, ruff format check, and `py_compile` passed; `py -3.13 execution\code_review_gate.py --base HEAD~1 --json` returned advisory WARN `risk_score=0.40`, covered by direct tests.
-- Graph proof: `py -3.13 -m code_review_graph update --repo . --skip-flows` refreshed the graph to current HEAD `27b58311`.
+- Graph proof: `py -3.13 -m code_review_graph update --repo . --skip-flows` refreshed the graph on the T-1325 feature commit.
 - Runtime proof: `session_orient.py --json` reports clean worktree, `main` ahead of `origin/main` by `68`, and graph freshness `current`; `product_readiness_score.py --json` reports score `96`, local blockers `0`, publish blockers `1`, and external blockers `1`.
 - Release/selector proof: `release_authorization_packet.py --json` returned `ready_for_authorization`; `next_experiment_selector.py --json` returned `blocked_publish_only`.
 - Launch proof: `launch_objective_audit.py --ab-manifest .tmp\ab-manifest-t1325.json --json` generated 14 requirements, including Knowledge Dashboard complete with readiness score `100`, QC `PASS` `61`, docs `3/3`, env checks `2/2`, tasks `0`, dirty paths `0`; `completion_audit.py ... --allow-incomplete` returned `incomplete` with `9/14` complete and 5 blocked issues.
