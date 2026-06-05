@@ -97,13 +97,14 @@ def _item(
     complete: bool,
     blockers: list[str] | None = None,
     verified: bool = True,
+    coverage: str | None = None,
 ) -> dict[str, Any]:
     return {
         "requirement": requirement,
         "artifacts": artifacts,
         "evidence": evidence,
         "verified": verified,
-        "coverage": "complete" if complete else "partial",
+        "coverage": coverage if coverage is not None else ("complete" if complete else "partial"),
         "blockers": blockers or [],
     }
 
@@ -322,9 +323,11 @@ def _external_blocker_item(readiness: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(project, dict):
             continue
         for task in project.get("tasks") or []:
-            if isinstance(task, dict) and task.get("owner") == "User" and task.get("id"):
+            owner = str(task.get("owner") or "").strip().lower() if isinstance(task, dict) else ""
+            if isinstance(task, dict) and owner == "user" and task.get("id"):
                 task_ids.append(str(task["id"]))
     complete = external_blockers == 0
+    external_blockers_have_task_ids = external_blockers == 0 or len(task_ids) >= external_blockers
     blockers = []
     if external_blockers:
         blockers.append(
@@ -340,6 +343,7 @@ def _external_blocker_item(readiness: dict[str, Any]) -> dict[str, Any]:
         complete=complete,
         blockers=blockers,
         verified=bool(readiness),
+        coverage="complete" if external_blockers_have_task_ids else "partial",
     )
 
 

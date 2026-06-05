@@ -64,10 +64,15 @@ def _write_ai_relay(root: Path, *, ab_evidence: bool = True) -> None:
         (ai / name).write_text("relay\n", encoding="utf-8")
 
 
-def _clean_readiness(external_blockers: int = 0) -> dict[str, object]:
+def _clean_readiness(
+    external_blockers: int = 0,
+    *,
+    include_user_task: bool = True,
+    user_task_owner: str = "User",
+) -> dict[str, object]:
     task = {
         "id": "T-251",
-        "owner": "User",
+        "owner": user_task_owner,
         "task": "Supabase password reset required",
     }
     return {
@@ -90,7 +95,7 @@ def _clean_readiness(external_blockers: int = 0) -> dict[str, object]:
         "projects": [
             {
                 "name": "hanwoo-dashboard",
-                "tasks": [task] if external_blockers else [],
+                "tasks": [task] if external_blockers and include_user_task else [],
             }
         ],
     }
@@ -193,10 +198,54 @@ def test_external_user_blocker_prevents_completion(tmp_path: Path) -> None:
         dependency_inventory=_dependency_inventory(),
     )
     result = completion_audit.audit_manifest(manifest)
+    external_item = next(item for item in manifest["items"] if item["requirement"].startswith("Separate"))
 
     assert result["status"] == "incomplete"
     assert result["summary"]["blocked_count"] == 1
+    assert result["summary"]["issue_count"] == 1
+    assert external_item["coverage"] == "complete"
     assert any("T-251" in blocker for item in manifest["items"] for blocker in item["blockers"])
+
+
+def test_external_blocker_without_task_id_is_not_claimed_fully_covered(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(external_blockers=1, include_user_task=False),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    result = completion_audit.audit_manifest(manifest)
+    external_item = next(item for item in manifest["items"] if item["requirement"].startswith("Separate"))
+
+    assert result["status"] == "incomplete"
+    assert result["summary"]["blocked_count"] == 1
+    assert result["summary"]["issue_count"] == 2
+    assert external_item["coverage"] == "partial"
+    assert external_item["blockers"] == ["1 external/user-owned blocker(s) remain: unknown"]
+
+
+def test_external_user_blocker_owner_matching_is_case_insensitive(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(external_blockers=1, user_task_owner="user"),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    result = completion_audit.audit_manifest(manifest)
+    external_item = next(item for item in manifest["items"] if item["requirement"].startswith("Separate"))
+
+    assert result["status"] == "incomplete"
+    assert result["summary"]["issue_count"] == 1
+    assert external_item["coverage"] == "complete"
+    assert external_item["blockers"] == ["1 external/user-owned blocker(s) remain: T-251"]
 
 
 def test_missing_browser_qa_is_reported_as_blocker(tmp_path: Path) -> None:
