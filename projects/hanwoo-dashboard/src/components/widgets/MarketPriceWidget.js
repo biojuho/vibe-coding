@@ -284,6 +284,12 @@ export default function MarketPriceWidget(options = {}) {
 	}
 
 	const sourcePresentation = getSourcePresentation(prices);
+	const lastUpdatedLabel = lastUpdated
+		? `마지막 갱신 ${lastUpdated.toLocaleTimeString()}`
+		: null;
+	const marketFreshnessLabel = lastUpdatedLabel
+		? `${lastUpdatedLabel}. 데이터 출처: KAPE`
+		: null;
 
 	return (
 		<Card className="animate-fadeInUp overflow-hidden">
@@ -354,9 +360,16 @@ export default function MarketPriceWidget(options = {}) {
 					</div>
 				) : null}
 
-				{lastUpdated ? (
-					<div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[color:var(--color-text-muted)]">
-						<span>마지막 갱신 {lastUpdated.toLocaleTimeString()}</span>
+				{lastUpdatedLabel ? (
+					<div
+						className="mt-4 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[color:var(--color-text-muted)]"
+						role="status"
+						aria-live="polite"
+						aria-atomic="true"
+						aria-label={marketFreshnessLabel}
+						title={marketFreshnessLabel}
+					>
+						<span>{lastUpdatedLabel}</span>
 						<span>데이터 출처: KAPE</span>
 					</div>
 				) : null}

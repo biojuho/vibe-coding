@@ -769,6 +769,14 @@ test("market price widget uses Korean product copy for visible states", () => {
 	assert.doesNotMatch(source, /수소 \/ kg/);
 	assert.doesNotMatch(source, /암소 \/ kg/);
 	assert.doesNotMatch(source, /\{formatMoney\(value\)\} \/ kg/);
+	assert.match(
+		source,
+		/const lastUpdatedLabel = lastUpdated\s+\? `마지막 갱신 \$\{lastUpdated\.toLocaleTimeString\(\)\}`\s+: null;/,
+	);
+	assert.match(
+		source,
+		/const marketFreshnessLabel = lastUpdatedLabel\s+\? `\$\{lastUpdatedLabel\}\. 데이터 출처: KAPE`\s+: null;/,
+	);
 	assert.match(source, /마지막 갱신/);
 	assert.match(source, /데이터 출처: KAPE/);
 	assert.doesNotMatch(source, /<span>갱신 \{lastUpdated\.toLocaleTimeString\(\)\}<\/span>/);
@@ -780,6 +788,10 @@ test("market price widget uses Korean product copy for visible states", () => {
 	assert.match(
 		source,
 		/if \(!prices \|\| prices\.available === false\)[\s\S]*?role="status"[\s\S]*?aria-live="polite"[\s\S]*?aria-atomic="true"[\s\S]*?지금은 한우 시세 정보를 확인할 수 없습니다/,
+	);
+	assert.match(
+		source,
+		/lastUpdatedLabel \? \([\s\S]*?role="status"[\s\S]*?aria-live="polite"[\s\S]*?aria-atomic="true"[\s\S]*?aria-label=\{marketFreshnessLabel\}[\s\S]*?title=\{marketFreshnessLabel\}[\s\S]*?<span>\{lastUpdatedLabel\}<\/span>[\s\S]*?<span>데이터 출처: KAPE<\/span>/,
 	);
 	assert.match(source, /disabled=\{loading\}\s+aria-busy=\{loading\}/);
 	assert.match(source, /const isMountedRef = useRef\(false\);/);
