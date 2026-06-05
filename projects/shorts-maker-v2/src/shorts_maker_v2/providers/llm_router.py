@@ -135,6 +135,14 @@ def _safe_console_print(message: str) -> None:
     sys.stdout.flush()
 
 
+def _bridge_reason_codes(validation: Any) -> str:
+    return ",".join(getattr(validation, "reason_codes", []))
+
+
+def _bridge_validation_error(provider: str, attempt: int, validation: Any) -> str:
+    return f"{provider} attempt {attempt}: bridge validation failed - {_bridge_reason_codes(validation)}"
+
+
 class LLMRouter:
     """Provider-agnostic LLM router with automatic fallback."""
 
@@ -420,6 +428,130 @@ class LLMRouter:
 
         raise RuntimeError(f"All providers failed: {' | '.join(all_errors)}")
 
+    def _select_bridge_providers(self, preferred_provider_order: Any, policy: Any) -> list[str]:
+        return (
+            preferred_provider_order(
+                self._enabled_from_order(list(policy.fallback_providers)),
+                policy=policy,
+            )
+            or self.enabled_providers()
+        )
+
+    @staticmethod
+    def _shadow_bridge_result(
+        provider: str,
+        validation: Any,
+        content: Any,
+        *,
+        policy: Any,
+        after_repair: bool = False,
+    ) -> Any | None:
+        if policy.mode != "shadow" or getattr(validation, "is_empty", False):
+            return None
+        suffix = " after repair" if after_repair else ""
+        logger.warning(
+            "LLMRouter bridge shadow warning%s [%s]: %s",
+            suffix,
+            provider,
+            _bridge_reason_codes(validation),
+        )
+        return content
+
+    def _repair_text_bridge_content(
+        self,
+        *,
+        provider: str,
+        system_prompt: str,
+        user_prompt: str,
+        content: str,
+        validation: Any,
+        policy: Any,
+        build_repair_messages: Any,
+        validate_text_content: Any,
+    ) -> tuple[str | None, Any]:
+        for _repair_idx in range(policy.repair_attempts):
+            repair_system, repair_user = build_repair_messages(
+                original_system_prompt=system_prompt,
+                original_user_prompt=user_prompt,
+                raw_content=content,
+                validation=validation,
+                policy=policy,
+                json_mode=False,
+            )
+            repaired = self._generate_once(
+                provider,
+                repair_system,
+                repair_user,
+                0.2,
+                json_mode=False,
+            )
+            validation = validate_text_content(repaired, policy=policy, json_mode=False)
+            if validation.passed:
+                return repaired, validation
+            shadow = self._shadow_bridge_result(
+                provider,
+                validation,
+                repaired,
+                policy=policy,
+                after_repair=True,
+            )
+            if shadow is not None:
+                return shadow, validation
+        return None, validation
+
+    def _try_text_bridge_provider(
+        self,
+        *,
+        provider: str,
+        bridge_system: str,
+        bridge_user: str,
+        system_prompt: str,
+        user_prompt: str,
+        temperature: float,
+        policy: Any,
+        build_repair_messages: Any,
+        validate_text_content: Any,
+        all_errors: list[str],
+    ) -> str | None:
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                content = self._generate_once(
+                    provider,
+                    bridge_system,
+                    bridge_user,
+                    temperature,
+                    json_mode=False,
+                )
+                validation = validate_text_content(content, policy=policy, json_mode=False)
+                if validation.passed:
+                    return content
+                shadow = self._shadow_bridge_result(provider, validation, content, policy=policy)
+                if shadow is not None:
+                    return shadow
+
+                repaired, validation = self._repair_text_bridge_content(
+                    provider=provider,
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    content=content,
+                    validation=validation,
+                    policy=policy,
+                    build_repair_messages=build_repair_messages,
+                    validate_text_content=validate_text_content,
+                )
+                if repaired is not None:
+                    return repaired
+
+                all_errors.append(_bridge_validation_error(provider, attempt, validation))
+                break
+            except Exception as e:
+                all_errors.append(f"{provider} #{attempt}: {e}")
+                if self._is_non_retryable(e):
+                    break
+                if attempt < self.max_retries:
+                    time.sleep(min(2**attempt, 10))
+        return None
+
     def generate_text_bridged(
         self,
         *,
@@ -444,13 +576,7 @@ class LLMRouter:
                 temperature=temperature,
             )
 
-        providers = (
-            preferred_provider_order(
-                self._enabled_from_order(list(policy.fallback_providers)),
-                policy=policy,
-            )
-            or self.enabled_providers()
-        )
+        providers = self._select_bridge_providers(preferred_provider_order, policy)
         if not providers:
             raise RuntimeError("No LLM providers available.")
 
@@ -459,70 +585,157 @@ class LLMRouter:
         all_errors: list[str] = []
 
         for provider in providers:
-            for attempt in range(1, self.max_retries + 1):
-                try:
-                    content = self._generate_once(
-                        provider,
-                        bridge_system,
-                        bridge_user,
-                        temperature,
-                        json_mode=False,
-                    )
-                    validation = validate_text_content(content, policy=policy, json_mode=False)
-                    if validation.passed:
-                        return content
-                    if policy.mode == "shadow" and not validation.is_empty:
-                        logger.warning(
-                            "LLMRouter bridge shadow warning [%s]: %s",
-                            provider,
-                            ",".join(validation.reason_codes),
-                        )
-                        return content
-
-                    for _repair_idx in range(policy.repair_attempts):
-                        repair_system, repair_user = build_repair_messages(
-                            original_system_prompt=system_prompt,
-                            original_user_prompt=user_prompt,
-                            raw_content=content,
-                            validation=validation,
-                            policy=policy,
-                            json_mode=False,
-                        )
-                        repaired = self._generate_once(
-                            provider,
-                            repair_system,
-                            repair_user,
-                            0.2,
-                            json_mode=False,
-                        )
-                        repair_validation = validate_text_content(
-                            repaired,
-                            policy=policy,
-                            json_mode=False,
-                        )
-                        if repair_validation.passed:
-                            return repaired
-                        if policy.mode == "shadow" and not repair_validation.is_empty:
-                            logger.warning(
-                                "LLMRouter bridge shadow warning after repair [%s]: %s",
-                                provider,
-                                ",".join(repair_validation.reason_codes),
-                            )
-                            return repaired
-                        validation = repair_validation
-
-                    all_errors.append(
-                        f"{provider} attempt {attempt}: bridge validation failed - {','.join(validation.reason_codes)}"
-                    )
-                    break
-                except Exception as e:
-                    all_errors.append(f"{provider} #{attempt}: {e}")
-                    if self._is_non_retryable(e):
-                        break
-                    if attempt < self.max_retries:
-                        time.sleep(min(2**attempt, 10))
+            result = self._try_text_bridge_provider(
+                provider=provider,
+                bridge_system=bridge_system,
+                bridge_user=bridge_user,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                temperature=temperature,
+                policy=policy,
+                build_repair_messages=build_repair_messages,
+                validate_text_content=validate_text_content,
+                all_errors=all_errors,
+            )
+            if result is not None:
+                return result
 
         raise RuntimeError(f"All bridge providers failed: {' | '.join(all_errors)}")
+
+    def _validated_json_bridge_payload(
+        self,
+        *,
+        provider: str,
+        content: str,
+        policy: Any,
+        validate_text_content: Any,
+        normalize_json_payload: Any,
+        validate_json_payload: Any,
+        after_repair: bool = False,
+    ) -> tuple[dict[str, Any] | None, Any]:
+        validation = validate_text_content(content, policy=policy, json_mode=True)
+        if not validation.json_valid:
+            return None, validation
+
+        payload = normalize_json_payload(self._parse_json_response(content))
+        payload_validation = validate_json_payload(payload, policy=policy)
+        if payload_validation.passed:
+            return payload, payload_validation
+
+        shadow = self._shadow_bridge_result(
+            provider,
+            payload_validation,
+            payload,
+            policy=policy,
+            after_repair=after_repair,
+        )
+        if shadow is not None:
+            return shadow, payload_validation
+        return None, payload_validation
+
+    def _repair_json_bridge_payload(
+        self,
+        *,
+        provider: str,
+        system_prompt: str,
+        user_prompt: str,
+        content: str,
+        validation: Any,
+        policy: Any,
+        build_repair_messages: Any,
+        validate_text_content: Any,
+        normalize_json_payload: Any,
+        validate_json_payload: Any,
+    ) -> tuple[dict[str, Any] | None, Any]:
+        for _repair_idx in range(policy.repair_attempts):
+            repair_system, repair_user = build_repair_messages(
+                original_system_prompt=system_prompt,
+                original_user_prompt=user_prompt,
+                raw_content=content,
+                validation=validation,
+                policy=policy,
+                json_mode=True,
+            )
+            repaired = self._generate_once(
+                provider,
+                repair_system,
+                repair_user,
+                0.2,
+                json_mode=True,
+            )
+            payload, validation = self._validated_json_bridge_payload(
+                provider=provider,
+                content=repaired,
+                policy=policy,
+                validate_text_content=validate_text_content,
+                normalize_json_payload=normalize_json_payload,
+                validate_json_payload=validate_json_payload,
+                after_repair=True,
+            )
+            if payload is not None:
+                return payload, validation
+        return None, validation
+
+    def _try_json_bridge_provider(
+        self,
+        *,
+        provider: str,
+        bridge_system: str,
+        bridge_user: str,
+        system_prompt: str,
+        user_prompt: str,
+        temperature: float,
+        policy: Any,
+        build_repair_messages: Any,
+        validate_text_content: Any,
+        normalize_json_payload: Any,
+        validate_json_payload: Any,
+        all_errors: list[str],
+    ) -> dict[str, Any] | None:
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                content = self._generate_once(
+                    provider,
+                    bridge_system,
+                    bridge_user,
+                    temperature,
+                    json_mode=True,
+                )
+                payload, validation = self._validated_json_bridge_payload(
+                    provider=provider,
+                    content=content,
+                    policy=policy,
+                    validate_text_content=validate_text_content,
+                    normalize_json_payload=normalize_json_payload,
+                    validate_json_payload=validate_json_payload,
+                )
+                if payload is not None:
+                    return payload
+
+                payload, validation = self._repair_json_bridge_payload(
+                    provider=provider,
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    content=content,
+                    validation=validation,
+                    policy=policy,
+                    build_repair_messages=build_repair_messages,
+                    validate_text_content=validate_text_content,
+                    normalize_json_payload=normalize_json_payload,
+                    validate_json_payload=validate_json_payload,
+                )
+                if payload is not None:
+                    return payload
+
+                all_errors.append(_bridge_validation_error(provider, attempt, validation))
+                break
+            except Exception as e:
+                all_errors.append(f"{provider} attempt {attempt}: {e}")
+                if self._is_non_retryable(e):
+                    break
+                if attempt < self.max_retries:
+                    time.sleep(min(2**attempt, 10))
+        return None
 
     def generate_json_bridged(
         self,
@@ -550,13 +763,7 @@ class LLMRouter:
                 temperature=temperature,
             )
 
-        providers = (
-            preferred_provider_order(
-                self._enabled_from_order(list(policy.fallback_providers)),
-                policy=policy,
-            )
-            or self.enabled_providers()
-        )
+        providers = self._select_bridge_providers(preferred_provider_order, policy)
         if not providers:
             raise RuntimeError(
                 "No LLM providers available. Check API keys: "
@@ -569,74 +776,21 @@ class LLMRouter:
         all_errors: list[str] = []
 
         for provider in providers:
-            for attempt in range(1, self.max_retries + 1):
-                try:
-                    content = self._generate_once(
-                        provider,
-                        bridge_system,
-                        bridge_user,
-                        temperature,
-                        json_mode=True,
-                    )
-                    raw_validation = validate_text_content(content, policy=policy, json_mode=True)
-                    if raw_validation.json_valid:
-                        payload = normalize_json_payload(self._parse_json_response(content))
-                        payload_validation = validate_json_payload(payload, policy=policy)
-                        if payload_validation.passed:
-                            return payload
-                        if policy.mode == "shadow":
-                            logger.warning(
-                                "LLMRouter bridge shadow warning [%s]: %s",
-                                provider,
-                                ",".join(payload_validation.reason_codes),
-                            )
-                            return payload
-                        validation = payload_validation
-                    else:
-                        validation = raw_validation
-
-                    for _repair_idx in range(policy.repair_attempts):
-                        repair_system, repair_user = build_repair_messages(
-                            original_system_prompt=system_prompt,
-                            original_user_prompt=user_prompt,
-                            raw_content=content,
-                            validation=validation,
-                            policy=policy,
-                            json_mode=True,
-                        )
-                        repaired = self._generate_once(
-                            provider,
-                            repair_system,
-                            repair_user,
-                            0.2,
-                            json_mode=True,
-                        )
-                        repair_validation = validate_text_content(repaired, policy=policy, json_mode=True)
-                        if repair_validation.json_valid:
-                            repaired_payload = normalize_json_payload(self._parse_json_response(repaired))
-                            payload_validation = validate_json_payload(repaired_payload, policy=policy)
-                            if payload_validation.passed:
-                                return repaired_payload
-                            if policy.mode == "shadow":
-                                logger.warning(
-                                    "LLMRouter bridge shadow warning after repair [%s]: %s",
-                                    provider,
-                                    ",".join(payload_validation.reason_codes),
-                                )
-                                return repaired_payload
-                            validation = payload_validation
-                        else:
-                            validation = repair_validation
-
-                    all_errors.append(
-                        f"{provider} attempt {attempt}: bridge validation failed - {','.join(validation.reason_codes)}"
-                    )
-                    break
-                except Exception as e:
-                    all_errors.append(f"{provider} attempt {attempt}: {e}")
-                    if self._is_non_retryable(e):
-                        break
-                    if attempt < self.max_retries:
-                        time.sleep(min(2**attempt, 10))
+            result = self._try_json_bridge_provider(
+                provider=provider,
+                bridge_system=bridge_system,
+                bridge_user=bridge_user,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                temperature=temperature,
+                policy=policy,
+                build_repair_messages=build_repair_messages,
+                validate_text_content=validate_text_content,
+                normalize_json_payload=normalize_json_payload,
+                validate_json_payload=validate_json_payload,
+                all_errors=all_errors,
+            )
+            if result is not None:
+                return result
 
         raise RuntimeError(f"All bridge providers failed: {' | '.join(all_errors)}")
