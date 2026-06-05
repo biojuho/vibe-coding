@@ -31,9 +31,12 @@ def _readiness(
     agent: int = 0,
     external: int = 0,
     stale_qc: bool = False,
+    missing_actions: bool = False,
 ) -> dict[str, object]:
     task = {"id": "T-251", "owner": "User", "task": "Supabase credential reset required"}
     recommendations = ["Refresh project QC; latest recorded run is stale."] if stale_qc else ["Keep warm."]
+    workflow_status = "missing" if missing_actions else "completed"
+    workflow_conclusion = None if missing_actions else "success"
     return {
         "overall": {
             "score": 96 if external else 100,
@@ -60,12 +63,31 @@ def _readiness(
                 "recommendations": recommendations,
             }
         ],
+        "workspace_gates": {
+            "github_release": {
+                "required_workflows": [
+                    {
+                        "name": "root-quality-gate",
+                        "status": workflow_status,
+                        "conclusion": workflow_conclusion,
+                    },
+                    {
+                        "name": "active-project-matrix",
+                        "status": workflow_status,
+                        "conclusion": workflow_conclusion,
+                    },
+                ]
+            }
+        },
     }
 
 
-def _github(*, dirty: int = 0, prs: int = 0) -> dict[str, object]:
+def _github(*, dirty: int = 0, prs: int = 0, ahead: int = 0) -> dict[str, object]:
+    status = "## main...origin/main"
+    if ahead:
+        status += f" [ahead {ahead}]"
     return {
-        "git": {"dirty_count": dirty},
+        "git": {"dirty_count": dirty, "status": {"stdout": status}},
         "open_prs": {"available": True, "count": prs},
         "recommendations": [],
     }
@@ -142,6 +164,20 @@ def test_local_readiness_blocker_outranks_external_blocker() -> None:
 
     assert result["status"] == "candidate"
     assert result["selected"]["kind"] == "local_readiness_blocker"
+
+
+def test_ahead_current_head_actions_are_push_authorization_boundary() -> None:
+    result = _select(
+        readiness=_readiness(workspace=1, local=1, external=1, missing_actions=True),
+        github_inventory=_github(ahead=1),
+    )
+
+    assert result["status"] == "blocked"
+    assert result["selected"]["kind"] == "current_head_release_checks_unproven"
+    assert result["selected"]["blocked"] is True
+    assert "explicit push authorization or user push" in result["selected"]["required_gates"]
+    assert any("Do not push without explicit user authorization" in item for item in result["selected"]["guardrails"])
+    assert any("root-quality-gate" in item for item in result["selected"]["evidence"])
 
 
 def test_ready_workspace_routes_to_completion_audit() -> None:

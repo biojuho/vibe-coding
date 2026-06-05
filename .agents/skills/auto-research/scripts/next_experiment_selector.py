@@ -204,7 +204,73 @@ def _input_evidence_candidate(
     )
 
 
-def _local_readiness_candidate(readiness: dict[str, Any]) -> dict[str, Any] | None:
+def _github_status_text(github_inventory: dict[str, Any]) -> str:
+    git = _as_dict(github_inventory.get("git"))
+    status = _as_dict(git.get("status"))
+    return str(status.get("stdout") or "")
+
+
+def _branch_is_ahead(github_inventory: dict[str, Any]) -> bool:
+    status_text = _github_status_text(github_inventory)
+    return "[ahead " in status_text or "ahead " in status_text
+
+
+def _unproven_required_workflows(readiness: dict[str, Any]) -> list[str]:
+    gates = _as_dict(readiness.get("workspace_gates"))
+    github_release = _as_dict(gates.get("github_release"))
+    workflows = _as_list(github_release.get("required_workflows"))
+    missing: list[str] = []
+    for workflow in workflows:
+        if not isinstance(workflow, dict):
+            continue
+        status = str(workflow.get("status") or "")
+        conclusion = str(workflow.get("conclusion") or "")
+        if status != "completed" or conclusion != "success":
+            missing.append(str(workflow.get("name") or "unknown"))
+    return missing
+
+
+def _current_head_release_candidate(
+    readiness: dict[str, Any], github_inventory: dict[str, Any]
+) -> dict[str, Any] | None:
+    missing_workflows = _unproven_required_workflows(readiness)
+    if not missing_workflows or not _branch_is_ahead(github_inventory):
+        return None
+
+    git = _as_dict(github_inventory.get("git"))
+    return _candidate(
+        kind="current_head_release_checks_unproven",
+        priority=10,
+        project="workspace",
+        action="Publish the scoped current HEAD or get explicit push authorization, then wait for required Actions.",
+        reason=(
+            "The worktree is clean but the current local HEAD is ahead of origin, so GitHub Actions cannot prove "
+            "the exact launch evidence commit yet."
+        ),
+        evidence=[
+            f"git status: {_github_status_text(github_inventory).strip() or 'unknown'}",
+            "unproven required workflows: " + ", ".join(missing_workflows),
+            f"github dirty_count={_count(git.get('dirty_count'))}",
+        ],
+        required_gates=[
+            "explicit push authorization or user push",
+            "current-head root-quality-gate success",
+            "current-head active-project-matrix success",
+            "product_readiness_score.py --json",
+        ],
+        blocked=True,
+        blockers=[
+            "Current HEAD GitHub Actions are unproven because the local branch is ahead of origin.",
+        ],
+        guardrails=[
+            "Do not push without explicit user authorization.",
+            "Preserve unrelated dirty-tree work.",
+            "Do not retry external T-251 unless credentials were reset.",
+        ],
+    )
+
+
+def _local_readiness_candidate(readiness: dict[str, Any], github_inventory: dict[str, Any]) -> dict[str, Any] | None:
     overall = _as_dict(readiness.get("overall"))
     blocker_counts = {
         "workspace": _count(overall.get("workspace_blocker_count")),
@@ -215,6 +281,9 @@ def _local_readiness_candidate(readiness: dict[str, Any]) -> dict[str, Any] | No
     total = sum(blocker_counts.values())
     if total == 0:
         return None
+    release_candidate = _current_head_release_candidate(readiness, github_inventory)
+    if release_candidate is not None:
+        return release_candidate
     project, action = _project_action(readiness, "Resolve local launch blocker")
     return _candidate(
         kind="local_readiness_blocker",
@@ -388,7 +457,7 @@ def select_next_experiment(
 ) -> dict[str, Any]:
     candidates = [
         _input_evidence_candidate(readiness, github_inventory, browser_inventory, dependency_inventory),
-        _local_readiness_candidate(readiness),
+        _local_readiness_candidate(readiness, github_inventory),
         _github_candidate(github_inventory),
         _browser_candidate(browser_inventory),
         _dependency_candidate(dependency_inventory),

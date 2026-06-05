@@ -14,8 +14,8 @@ from typing import Any
 
 
 DEFAULT_OBJECTIVE = (
-    "Product launch evidence covers the auto-research self-improvement loop, GitHub project inventory, "
-    "browser-click QA, A/B adoption, current-code triage, and launch readiness gates."
+    "Product launch evidence covers direct target product readiness, auto-research self-improvement loop, "
+    "GitHub project inventory, browser-click QA, A/B adoption, current-code triage, and launch readiness gates."
 )
 SKILL_ARTIFACTS = (
     ".agents/skills/auto-research/SKILL.md",
@@ -247,6 +247,210 @@ def _github_item(github_inventory: dict[str, Any]) -> dict[str, Any]:
         complete=complete,
         blockers=blockers,
         verified=bool(github_inventory),
+    )
+
+
+def _target_blind_to_x_item(readiness: dict[str, Any]) -> dict[str, Any]:
+    projects = readiness.get("projects") if isinstance(readiness.get("projects"), list) else []
+    target: dict[str, Any] | None = None
+    for project in projects:
+        if not isinstance(project, dict):
+            continue
+        if (
+            project.get("name") == "blind-to-x"
+            or str(project.get("path") or "").replace("\\", "/") == "projects/blind-to-x"
+        ):
+            target = project
+            break
+
+    artifacts = [
+        "projects/blind-to-x",
+        "projects/blind-to-x/README.md",
+        "projects/blind-to-x/config.example.yaml",
+        "projects/blind-to-x/docs/ops-runbook.md",
+        "execution/product_readiness_score.py",
+        ".tmp/project_qc_runner_latest.json",
+    ]
+    if target is None:
+        return _item(
+            "Prove blind-to-x target product launch readiness with direct project evidence.",
+            artifacts,
+            ["product_readiness_score did not include a blind-to-x project entry."],
+            complete=False,
+            blockers=["blind-to-x readiness evidence is missing from product_readiness_score output."],
+            verified=bool(readiness),
+        )
+
+    qc = target.get("qc") if isinstance(target.get("qc"), dict) else {}
+    docs = target.get("docs") if isinstance(target.get("docs"), list) else []
+    env = target.get("env") if isinstance(target.get("env"), dict) else {}
+    env_checks = env.get("checks") if isinstance(env.get("checks"), list) else []
+    tasks = target.get("tasks") if isinstance(target.get("tasks"), list) else []
+    dirty_paths = target.get("dirty_paths") if isinstance(target.get("dirty_paths"), list) else []
+
+    score = int(target.get("score") or 0)
+    state = str(target.get("state") or "unknown")
+    qc_status = str(qc.get("status") or "unknown")
+    qc_failed = int(qc.get("failed") or 0)
+    qc_stale = qc.get("stale") is True
+    present_docs = [str(doc.get("path") or "unknown") for doc in docs if isinstance(doc, dict) and doc.get("present")]
+    missing_docs = [
+        str(doc.get("path") or "unknown") for doc in docs if isinstance(doc, dict) and not doc.get("present")
+    ]
+    env_ok_count = sum(1 for check in env_checks if isinstance(check, dict) and check.get("ok") is True)
+    env_check_count = len([check for check in env_checks if isinstance(check, dict)])
+    env_names = [
+        str(check.get("name") or "unknown")
+        for check in env_checks
+        if isinstance(check, dict) and check.get("ok") is True
+    ]
+
+    complete = (
+        score >= 100
+        and state == "ready"
+        and qc_status == "PASS"
+        and qc_failed == 0
+        and not qc_stale
+        and not missing_docs
+        and bool(present_docs)
+        and env_check_count > 0
+        and env_ok_count == env_check_count
+        and not tasks
+        and not dirty_paths
+    )
+    blockers: list[str] = []
+    if score < 100 or state != "ready":
+        blockers.append(f"blind-to-x readiness is score={score}, state={state}; expected score>=100 and ready.")
+    if qc_status != "PASS" or qc_failed or qc_stale:
+        blockers.append(f"blind-to-x QC is status={qc_status}, failed={qc_failed}, stale={qc_stale}.")
+    if missing_docs:
+        blockers.append("Missing blind-to-x launch doc artifact(s): " + ", ".join(missing_docs))
+    if not present_docs:
+        blockers.append("No blind-to-x launch doc artifacts were reported present.")
+    if env_check_count == 0 or env_ok_count != env_check_count:
+        blockers.append(f"blind-to-x env checks ok {env_ok_count}/{env_check_count}.")
+    if tasks:
+        blockers.append(f"blind-to-x has {len(tasks)} unresolved readiness task(s).")
+    if dirty_paths:
+        blockers.append(f"blind-to-x has {len(dirty_paths)} dirty path(s).")
+
+    return _item(
+        "Prove blind-to-x target product launch readiness with direct project evidence.",
+        artifacts,
+        [
+            f"blind-to-x readiness score={score}, state={state}.",
+            f"blind-to-x QC status={qc_status}, passed={qc.get('passed')}, failed={qc_failed}, "
+            f"skipped={qc.get('skipped')}, stale={qc_stale}.",
+            f"blind-to-x docs present {len(present_docs)}/{len(docs)}: {', '.join(present_docs) or 'none'}.",
+            f"blind-to-x env checks ok {env_ok_count}/{env_check_count}: {', '.join(env_names) or 'none'}.",
+            f"blind-to-x tasks={len(tasks)}, dirty_paths={len(dirty_paths)}.",
+        ],
+        complete=complete,
+        blockers=blockers,
+        verified=bool(readiness),
+    )
+
+
+def _target_shorts_maker_v2_item(readiness: dict[str, Any]) -> dict[str, Any]:
+    projects = readiness.get("projects") if isinstance(readiness.get("projects"), list) else []
+    target: dict[str, Any] | None = None
+    for project in projects:
+        if not isinstance(project, dict):
+            continue
+        if (
+            project.get("name") == "shorts-maker-v2"
+            or str(project.get("path") or "").replace("\\", "/") == "projects/shorts-maker-v2"
+        ):
+            target = project
+            break
+
+    artifacts = [
+        "projects/shorts-maker-v2",
+        "projects/shorts-maker-v2/README.md",
+        "projects/shorts-maker-v2/ARCHITECTURE.md",
+        "projects/shorts-maker-v2/CLAUDE.md",
+        "projects/shorts-maker-v2/FEATURE.md",
+        "projects/shorts-maker-v2/pyproject.toml",
+        "execution/product_readiness_score.py",
+        ".tmp/project_qc_runner_latest.json",
+    ]
+    if target is None:
+        return _item(
+            "Prove shorts-maker-v2 target product launch readiness with direct project evidence.",
+            artifacts,
+            ["product_readiness_score did not include a shorts-maker-v2 project entry."],
+            complete=False,
+            blockers=["shorts-maker-v2 readiness evidence is missing from product_readiness_score output."],
+            verified=bool(readiness),
+        )
+
+    qc = target.get("qc") if isinstance(target.get("qc"), dict) else {}
+    docs = target.get("docs") if isinstance(target.get("docs"), list) else []
+    env = target.get("env") if isinstance(target.get("env"), dict) else {}
+    env_checks = env.get("checks") if isinstance(env.get("checks"), list) else []
+    tasks = target.get("tasks") if isinstance(target.get("tasks"), list) else []
+    dirty_paths = target.get("dirty_paths") if isinstance(target.get("dirty_paths"), list) else []
+
+    score = int(target.get("score") or 0)
+    state = str(target.get("state") or "unknown")
+    qc_status = str(qc.get("status") or "unknown")
+    qc_failed = int(qc.get("failed") or 0)
+    qc_stale = qc.get("stale") is True
+    present_docs = [str(doc.get("path") or "unknown") for doc in docs if isinstance(doc, dict) and doc.get("present")]
+    missing_docs = [
+        str(doc.get("path") or "unknown") for doc in docs if isinstance(doc, dict) and not doc.get("present")
+    ]
+    env_ok_count = sum(1 for check in env_checks if isinstance(check, dict) and check.get("ok") is True)
+    env_check_count = len([check for check in env_checks if isinstance(check, dict)])
+    env_names = [
+        str(check.get("name") or "unknown")
+        for check in env_checks
+        if isinstance(check, dict) and check.get("ok") is True
+    ]
+
+    complete = (
+        score >= 100
+        and state == "ready"
+        and qc_status == "PASS"
+        and qc_failed == 0
+        and not qc_stale
+        and not missing_docs
+        and bool(present_docs)
+        and env_check_count > 0
+        and env_ok_count == env_check_count
+        and not tasks
+        and not dirty_paths
+    )
+    blockers: list[str] = []
+    if score < 100 or state != "ready":
+        blockers.append(f"shorts-maker-v2 readiness is score={score}, state={state}; expected score>=100 and ready.")
+    if qc_status != "PASS" or qc_failed or qc_stale:
+        blockers.append(f"shorts-maker-v2 QC is status={qc_status}, failed={qc_failed}, stale={qc_stale}.")
+    if missing_docs:
+        blockers.append("Missing shorts-maker-v2 launch doc artifact(s): " + ", ".join(missing_docs))
+    if not present_docs:
+        blockers.append("No shorts-maker-v2 launch doc artifacts were reported present.")
+    if env_check_count == 0 or env_ok_count != env_check_count:
+        blockers.append(f"shorts-maker-v2 env checks ok {env_ok_count}/{env_check_count}.")
+    if tasks:
+        blockers.append(f"shorts-maker-v2 has {len(tasks)} unresolved readiness task(s).")
+    if dirty_paths:
+        blockers.append(f"shorts-maker-v2 has {len(dirty_paths)} dirty path(s).")
+
+    return _item(
+        "Prove shorts-maker-v2 target product launch readiness with direct project evidence.",
+        artifacts,
+        [
+            f"shorts-maker-v2 readiness score={score}, state={state}.",
+            f"shorts-maker-v2 QC status={qc_status}, passed={qc.get('passed')}, failed={qc_failed}, "
+            f"skipped={qc.get('skipped')}, stale={qc_stale}.",
+            f"shorts-maker-v2 docs present {len(present_docs)}/{len(docs)}: {', '.join(present_docs) or 'none'}.",
+            f"shorts-maker-v2 env checks ok {env_ok_count}/{env_check_count}: {', '.join(env_names) or 'none'}.",
+            f"shorts-maker-v2 tasks={len(tasks)}, dirty_paths={len(dirty_paths)}.",
+        ],
+        complete=complete,
+        blockers=blockers,
+        verified=bool(readiness),
     )
 
 
@@ -693,6 +897,8 @@ def build_manifest(
             _external_blocker_item(readiness or {}),
             _ab_loop_item(root, ab_manifest_path=ab_manifest_path),
             _relay_item(root),
+            _target_blind_to_x_item(readiness or {}),
+            _target_shorts_maker_v2_item(readiness or {}),
         ]
     )
     return {

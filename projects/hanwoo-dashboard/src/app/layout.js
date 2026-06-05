@@ -50,7 +50,7 @@ export default function RootLayout(options = {}) {
 	const { children } = normalizeRootLayoutOptions(options);
 
 	return (
-		<html lang="ko" suppressHydrationWarning>
+		<html lang="ko" data-scroll-behavior="smooth" suppressHydrationWarning>
 			<body
 				className={`${notoSansKr.variable} ${notoSerifKr.variable} ${cormorantGaramond.variable}`}
 			>

@@ -121,6 +121,18 @@ def _clean_readiness(
     *,
     include_user_task: bool = True,
     user_task_owner: str = "User",
+    blind_score: int = 100,
+    blind_state: str = "ready",
+    blind_qc_status: str = "PASS",
+    blind_qc_failed: int = 0,
+    blind_qc_stale: bool = False,
+    blind_env_ok: bool = True,
+    shorts_score: int = 100,
+    shorts_state: str = "ready",
+    shorts_qc_status: str = "PASS",
+    shorts_qc_failed: int = 0,
+    shorts_qc_stale: bool = False,
+    shorts_env_ok: bool = True,
 ) -> dict[str, object]:
     task = {
         "id": "T-251",
@@ -146,9 +158,73 @@ def _clean_readiness(
         },
         "projects": [
             {
+                "name": "blind-to-x",
+                "path": "projects/blind-to-x",
+                "score": blind_score,
+                "state": blind_state,
+                "qc": {
+                    "available": True,
+                    "status": blind_qc_status,
+                    "passed": 1723,
+                    "failed": blind_qc_failed,
+                    "skipped": 9,
+                    "stale": blind_qc_stale,
+                },
+                "docs": [
+                    {"path": "projects/blind-to-x/README.md", "present": True},
+                    {"path": "projects/blind-to-x/config.example.yaml", "present": True},
+                    {"path": "projects/blind-to-x/docs/ops-runbook.md", "present": True},
+                ],
+                "env": {
+                    "checks": [
+                        {
+                            "name": "Notion review queue keys",
+                            "ok": blind_env_ok,
+                        },
+                        {
+                            "name": "blind-to-x LLM provider keys",
+                            "ok": blind_env_ok,
+                        },
+                    ]
+                },
+                "tasks": [],
+                "dirty_paths": [],
+            },
+            {
+                "name": "shorts-maker-v2",
+                "path": "projects/shorts-maker-v2",
+                "score": shorts_score,
+                "state": shorts_state,
+                "qc": {
+                    "available": True,
+                    "status": shorts_qc_status,
+                    "passed": 1577,
+                    "failed": shorts_qc_failed,
+                    "skipped": 12,
+                    "stale": shorts_qc_stale,
+                },
+                "docs": [
+                    {"path": "projects/shorts-maker-v2/README.md", "present": True},
+                    {"path": "projects/shorts-maker-v2/ARCHITECTURE.md", "present": True},
+                    {"path": "projects/shorts-maker-v2/CLAUDE.md", "present": True},
+                    {"path": "projects/shorts-maker-v2/FEATURE.md", "present": True},
+                    {"path": "projects/shorts-maker-v2/pyproject.toml", "present": True},
+                ],
+                "env": {
+                    "checks": [
+                        {
+                            "name": "Shorts generation provider keys",
+                            "ok": shorts_env_ok,
+                        },
+                    ]
+                },
+                "tasks": [],
+                "dirty_paths": [],
+            },
+            {
                 "name": "hanwoo-dashboard",
                 "tasks": [task] if external_blockers and include_user_task else [],
-            }
+            },
         ],
     }
 
@@ -348,6 +424,107 @@ def test_selector_external_only_state_is_evidence_not_duplicate_blocker(tmp_path
             "blockers": ["1 external/user-owned blocker(s) remain: T-251"],
         }
     ]
+
+
+def test_target_blind_to_x_item_includes_direct_release_evidence(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    target_item = next(item for item in manifest["items"] if item["requirement"].startswith("Prove blind-to-x"))
+
+    assert target_item["coverage"] == "complete"
+    assert target_item["blockers"] == []
+    assert "projects/blind-to-x/README.md" in target_item["artifacts"]
+    assert "blind-to-x readiness score=100, state=ready." in target_item["evidence"]
+    assert any("blind-to-x QC status=PASS" in evidence for evidence in target_item["evidence"])
+    assert any("blind-to-x env checks ok 2/2" in evidence for evidence in target_item["evidence"])
+
+
+def test_target_blind_to_x_item_rejects_stale_or_failing_release_evidence(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(
+            blind_score=92,
+            blind_state="blocked",
+            blind_qc_status="FAIL",
+            blind_qc_failed=1,
+            blind_qc_stale=True,
+            blind_env_ok=False,
+        ),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    result = completion_audit.audit_manifest(manifest)
+    target_item = next(item for item in manifest["items"] if item["requirement"].startswith("Prove blind-to-x"))
+
+    assert result["status"] == "incomplete"
+    assert target_item["coverage"] == "partial"
+    assert "blind-to-x readiness is score=92, state=blocked; expected score>=100 and ready." in target_item["blockers"]
+    assert "blind-to-x QC is status=FAIL, failed=1, stale=True." in target_item["blockers"]
+    assert "blind-to-x env checks ok 0/2." in target_item["blockers"]
+
+
+def test_target_shorts_maker_v2_item_includes_direct_release_evidence(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    target_item = next(item for item in manifest["items"] if item["requirement"].startswith("Prove shorts-maker-v2"))
+
+    assert target_item["coverage"] == "complete"
+    assert target_item["blockers"] == []
+    assert "projects/shorts-maker-v2/README.md" in target_item["artifacts"]
+    assert "shorts-maker-v2 readiness score=100, state=ready." in target_item["evidence"]
+    assert any("shorts-maker-v2 QC status=PASS" in evidence for evidence in target_item["evidence"])
+    assert any("shorts-maker-v2 env checks ok 1/1" in evidence for evidence in target_item["evidence"])
+
+
+def test_target_shorts_maker_v2_item_rejects_stale_or_failing_release_evidence(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(
+            shorts_score=92,
+            shorts_state="blocked",
+            shorts_qc_status="FAIL",
+            shorts_qc_failed=1,
+            shorts_qc_stale=True,
+            shorts_env_ok=False,
+        ),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    result = completion_audit.audit_manifest(manifest)
+    target_item = next(item for item in manifest["items"] if item["requirement"].startswith("Prove shorts-maker-v2"))
+
+    assert result["status"] == "incomplete"
+    assert target_item["coverage"] == "partial"
+    assert (
+        "shorts-maker-v2 readiness is score=92, state=blocked; expected score>=100 and ready."
+        in target_item["blockers"]
+    )
+    assert "shorts-maker-v2 QC is status=FAIL, failed=1, stale=True." in target_item["blockers"]
+    assert "shorts-maker-v2 env checks ok 0/1." in target_item["blockers"]
 
 
 def test_selector_local_candidate_prevents_complete_claim(tmp_path: Path) -> None:

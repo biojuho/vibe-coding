@@ -36,6 +36,7 @@ test("app metadata and PWA manifest use product-ready Korean copy", () => {
 		layoutSource,
 		/const \{ children \} = normalizeRootLayoutOptions\(options\);/,
 	);
+	assert.match(layoutSource, /data-scroll-behavior=["']smooth["']/);
 	assert.doesNotMatch(
 		layoutSource,
 		/export default function RootLayout\(\{ children \}\)/,

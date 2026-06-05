@@ -84,6 +84,7 @@ venv/
 # ===== AI 도구 로컬 설정 (각 도구 고유) =====
 .agent/
 .playwright-cli/
+.playwright-mcp/
 .agents/skills/_archive/
 .amazonq/agents/
 .claude/*
