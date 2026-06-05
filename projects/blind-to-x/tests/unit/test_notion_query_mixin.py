@@ -73,7 +73,10 @@ def test_get_page_property_value_supports_common_notion_types():
         link={"type": "url", "url": "https://example.com"},
         status={"type": "status", "status": {"name": "Approved"}},
         stage={"type": "select", "select": {"name": "Draft"}},
+        tags={"type": "multi_select", "multi_select": [{"name": "career"}, {"name": "salary"}]},
         published_at={"type": "date", "date": {"start": "2026-03-31"}},
+        malformed_options={"type": "multi_select", "multi_select": "bad"},
+        malformed_text={"type": "rich_text", "rich_text": "bad"},
     )
 
     assert host.get_page_property_value(page, "title") == "Hello"
@@ -83,7 +86,10 @@ def test_get_page_property_value_supports_common_notion_types():
     assert host.get_page_property_value(page, "link") == "https://example.com"
     assert host.get_page_property_value(page, "status") == "Approved"
     assert host.get_page_property_value(page, "stage") == "Draft"
+    assert host.get_page_property_value(page, "tags") == ["career", "salary"]
     assert host.get_page_property_value(page, "published_at") == "2026-03-31"
+    assert host.get_page_property_value(page, "malformed_options", default=["fallback"]) == ["fallback"]
+    assert host.get_page_property_value(page, "malformed_text", default="fallback") == "fallback"
     assert host.get_page_property_value(page, "missing", default="fallback") == "fallback"
 
 

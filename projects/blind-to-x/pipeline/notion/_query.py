@@ -54,6 +54,121 @@ def _canonical_status_name(value: Any) -> str:
     return str(value).strip()
 
 
+def _plain_text(items: Any) -> str:
+    if not isinstance(items, list):
+        return ""
+    return "".join(str(item.get("plain_text", "")) for item in items if isinstance(item, dict))
+
+
+def _property_option_name(data: dict[str, Any], prop_type: str, default: Any) -> Any:
+    option = data.get(prop_type) or {}
+    if not isinstance(option, dict):
+        return default
+    return option.get("name", default)
+
+
+def _status_aware_option_value(data: dict[str, Any], prop_type: str, semantic_key: str, default: Any) -> Any:
+    value = _property_option_name(data, prop_type, default)
+    if semantic_key == "status":
+        return _canonical_status_name(value) or default
+    return value
+
+
+def _multi_select_names(data: dict[str, Any], default: Any) -> list[str] | Any:
+    options = data.get("multi_select", [])
+    if not isinstance(options, list):
+        return default
+    values = [str(item.get("name", "")).strip() for item in options if isinstance(item, dict) and item.get("name")]
+    return values or default
+
+
+def _property_date_start(data: dict[str, Any], default: Any) -> Any:
+    date_value = data.get("date") or {}
+    if not isinstance(date_value, dict):
+        return default
+    return date_value.get("start", default)
+
+
+def _extract_property_value(data: Any, semantic_key: str, default: Any) -> Any:
+    if not isinstance(data, dict):
+        return default
+
+    prop_type = data.get("type")
+    if prop_type in {"title", "rich_text"}:
+        return _plain_text(data.get(prop_type, [])) or default
+    if prop_type in {"number", "checkbox", "url"}:
+        return data.get(prop_type, default)
+    if prop_type in {"status", "select"}:
+        return _status_aware_option_value(data, prop_type, semantic_key, default)
+    if prop_type == "multi_select":
+        return _multi_select_names(data, default)
+    if prop_type == "date":
+        return _property_date_start(data, default)
+    return default
+
+
+def _record_date_value(record: dict[str, Any]) -> Any:
+    return record.get("published_at") or record.get("date")
+
+
+def _record_is_within_cutoff(record: dict[str, Any], cutoff: datetime) -> bool:
+    start = _record_date_value(record)
+    if not start:
+        return True
+    normalized = _parse_isoish_naive(start)
+    return normalized is None or normalized >= cutoff
+
+
+def _performance_sort_key(item: dict[str, Any]) -> tuple[float, float, float]:
+    return (
+        float(item.get("views", 0) or 0),
+        float(item.get("likes", 0) or 0),
+        float(item.get("retweets", 0) or 0),
+    )
+
+
+def _approved_sort_key(item: dict[str, Any]) -> tuple[str, float]:
+    return (
+        str(item.get("published_at") or item.get("date") or ""),
+        float(item.get("final_rank_score", 0) or 0),
+    )
+
+
+def _database_identity(value: Any) -> str:
+    return str(value or "").replace("-", "")
+
+
+def _page_belongs_to_database(page: dict[str, Any], database_id: str) -> bool:
+    parent = page.get("parent", {})
+    if not isinstance(parent, dict):
+        return False
+
+    parent_type = parent.get("type")
+    if parent_type not in {"database_id", "data_source_id"}:
+        return False
+
+    return _database_identity(parent.get(parent_type)) == _database_identity(database_id)
+
+
+def _filter_recent_search_results(
+    pages: list[dict[str, Any]],
+    *,
+    database_id: str,
+    cutoff: datetime,
+    limit: int,
+) -> list[dict[str, Any]]:
+    results = []
+    for page in pages:
+        if not _page_belongs_to_database(page, database_id):
+            continue
+
+        normalized = _parse_isoish_naive(page.get("created_time"))
+        if normalized and normalized < cutoff:
+            continue
+        results.append(page)
+    return results[:limit]
+
+
 class NotionQueryMixin:
     """Notion 페이지 조회, 검색, 데이터 추출을 담당하는 Mixin.
 
@@ -69,34 +184,7 @@ class NotionQueryMixin:
         data = properties.get(prop_name)
         if not data:
             return default
-
-        prop_type = data.get("type")
-        if prop_type == "title":
-            return "".join(item.get("plain_text", "") for item in data.get("title", [])) or default
-        if prop_type == "rich_text":
-            return "".join(item.get("plain_text", "") for item in data.get("rich_text", [])) or default
-        if prop_type == "number":
-            return data.get("number", default)
-        if prop_type == "checkbox":
-            return data.get("checkbox", default)
-        if prop_type == "url":
-            return data.get("url", default)
-        if prop_type == "status":
-            value = (data.get("status") or {}).get("name", default)
-            if semantic_key == "status":
-                return _canonical_status_name(value) or default
-            return value
-        if prop_type == "select":
-            value = (data.get("select") or {}).get("name", default)
-            if semantic_key == "status":
-                return _canonical_status_name(value) or default
-            return value
-        if prop_type == "multi_select":
-            values = [item.get("name", "") for item in data.get("multi_select", []) if item.get("name")]
-            return values or default
-        if prop_type == "date":
-            return (data.get("date") or {}).get("start", default)
-        return default
+        return _extract_property_value(data, semantic_key, default)
 
     def _status_option_names(self) -> list[str]:
         prop_name = self.props.get("status")
@@ -189,25 +277,12 @@ class NotionQueryMixin:
             cutoff = _utcnow_naive() - timedelta(days=lookback_days)
             filtered = []
             for record in records:
-                start = record.get("published_at") or record.get("date")
-                if start:
-                    try:
-                        normalized = datetime.fromisoformat(str(start).replace("Z", "+00:00")).replace(tzinfo=None)
-                        if normalized < cutoff:
-                            continue
-                    except ValueError:
-                        pass
+                if not _record_is_within_cutoff(record, cutoff):
+                    continue
                 if record.get("text") and (record.get("views") or 0) > 0:
                     filtered.append(record)
 
-            filtered.sort(
-                key=lambda item: (
-                    float(item.get("views", 0) or 0),
-                    float(item.get("likes", 0) or 0),
-                    float(item.get("retweets", 0) or 0),
-                ),
-                reverse=True,
-            )
+            filtered.sort(key=_performance_sort_key, reverse=True)
             if len(filtered) < minimum_posts and allow_fallback_examples:
                 approved = await self.get_recent_approved_posts(limit=limit, lookback_days=lookback_days)
                 if approved:
@@ -227,24 +302,12 @@ class NotionQueryMixin:
             records: list[dict[str, Any]] = []
             for page in pages:
                 record = self.extract_page_record(page)
-                start = record.get("published_at") or record.get("date")
-                if start:
-                    try:
-                        normalized = datetime.fromisoformat(str(start).replace("Z", "+00:00")).replace(tzinfo=None)
-                        if normalized < cutoff:
-                            continue
-                    except ValueError:
-                        pass
+                if not _record_is_within_cutoff(record, cutoff):
+                    continue
                 if record.get("text"):
                     records.append(record)
 
-            records.sort(
-                key=lambda item: (
-                    str(item.get("published_at") or item.get("date") or ""),
-                    float(item.get("final_rank_score", 0) or 0),
-                ),
-                reverse=True,
-            )
+            records.sort(key=_approved_sort_key, reverse=True)
             return records[:limit]
         except Exception as exc:
             logger.error("Failed to fetch approved fallback posts: %s", exc)
@@ -333,25 +396,15 @@ class NotionQueryMixin:
             )
 
             all_results = response.get("results", [])
-            results = []
-
-            for r in all_results:
-                parent = r.get("parent", {})
-                p_type = parent.get("type")
-                p_id = parent.get(p_type, "") if p_type else ""
-
-                # Check DB match
-                if p_type in ["database_id", "data_source_id"] and p_id.replace("-", "") == self.database_id.replace(
-                    "-", ""
-                ):
-                    # Filter by date if applicable
-                    normalized = _parse_isoish_naive(r.get("created_time"))
-                    if normalized and normalized < cutoff:
-                        continue
-                    results.append(r)
+            results = _filter_recent_search_results(
+                all_results,
+                database_id=self.database_id,
+                cutoff=cutoff,
+                limit=limit,
+            )
 
             if results:
-                return results[:limit]
+                return results
         except Exception as exc:
             logger.warning("get_recent_pages search failed: %s", exc)
 
