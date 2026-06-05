@@ -9,6 +9,7 @@ if str(ROOT) not in sys.path:
 
 from pipeline.content_intelligence import (  # noqa: E402
     build_content_profile,
+    calculate_6d_score,
     calculate_publishability_score,
     evaluate_candidate_editorial_fit,
 )
@@ -142,3 +143,57 @@ def test_calculate_publishability_score_returns_brief_from_editorial_fit():
         "specificity",
         "workplace_fit",
     }
+
+
+def test_calculate_6d_score_preserves_dimension_weighting(monkeypatch):
+    from pipeline.content_intelligence import scoring_6d
+
+    monkeypatch.setattr(scoring_6d, "get_season_boost", lambda _topic: 0.0)
+    monkeypatch.setattr(scoring_6d, "get_source_hint", lambda _source: {"quality_boost": 1.1})
+    post_data = {
+        "title": "연봉 협상 망해서 현타 온다",
+        "content": "연봉 인상률이 낮아 허탈한 직장인 이야기입니다.",
+        "likes": 80,
+        "comments": 12,
+    }
+
+    base_score, dimensions = calculate_6d_score(
+        post_data,
+        topic_cluster="연봉",
+        hook_type="공감형",
+        emotion_axis="현타",
+        audience_fit="전직장인",
+    )
+    boosted_score, boosted_dimensions = calculate_6d_score(
+        post_data,
+        topic_cluster="연봉",
+        hook_type="공감형",
+        emotion_axis="현타",
+        audience_fit="전직장인",
+        source="jobplanet",
+    )
+
+    assert set(dimensions) == {
+        "freshness_score",
+        "social_signal_score",
+        "hook_strength_score",
+        "trend_relevance_score",
+        "audience_targeting_score",
+        "viral_potential_score",
+    }
+    weighted_score = (
+        dimensions["freshness_score"] * 0.15
+        + dimensions["social_signal_score"] * 0.25
+        + dimensions["hook_strength_score"] * 0.20
+        + dimensions["trend_relevance_score"] * 0.15
+        + dimensions["audience_targeting_score"] * 0.15
+        + dimensions["viral_potential_score"] * 0.10
+    )
+    assert base_score == round(weighted_score, 2)
+    assert dimensions["freshness_score"] == 50.0
+    assert dimensions["hook_strength_score"] == 83.0
+    assert dimensions["trend_relevance_score"] == 85.0
+    assert dimensions["audience_targeting_score"] == 85.0
+    assert dimensions["viral_potential_score"] == 75.0
+    assert boosted_dimensions == dimensions
+    assert boosted_score == round(base_score * 1.1, 2)
