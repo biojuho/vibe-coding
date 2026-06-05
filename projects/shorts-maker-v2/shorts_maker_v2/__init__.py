@@ -12,6 +12,8 @@ pkgutil.extend_path를 통해 경로를 연결합니다.
 from __future__ import annotations
 
 import importlib
+import importlib.util
+import sys
 from pathlib import Path
 from pkgutil import extend_path
 
@@ -28,4 +30,13 @@ def __getattr__(name: str):
     if name == "run_cli":
         cli = importlib.import_module("shorts_maker_v2.cli")
         return cli.run_cli
+    submodule_name = f"{__name__}.{name}"
+    existing = sys.modules.get(submodule_name)
+    if existing is not None:
+        globals()[name] = existing
+        return existing
+    if importlib.util.find_spec(submodule_name) is not None:
+        module = importlib.import_module(submodule_name)
+        globals()[name] = module
+        return module
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
