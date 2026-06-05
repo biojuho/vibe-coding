@@ -317,6 +317,108 @@ def test_prepare_property_payload_multi_select(mock_config):
     assert payload == {"multi_select": [{"name": "팩트 경계"}, {"name": "클리셰"}]}
 
 
+def test_build_upload_properties_preserves_review_and_x_fields(mock_config):
+    uploader = NotionUploader(mock_config)
+    uploader.status_default = "Draft"
+    uploader.props = {
+        "title": "Title",
+        "memo": "Memo",
+        "status": "Status",
+        "url": "URL",
+        "source": "Source",
+        "creator_take": "Creator Take",
+        "review_focus": "Review Focus",
+        "feedback_request": "Feedback Request",
+        "risk_flags": "Risk Flags",
+        "evidence_anchor": "Evidence Anchor",
+        "publish_platforms": "Publish Platforms",
+        "x_publish_status": "X Publish Status",
+        "x_scheduled_at": "X Scheduled At",
+        "tweet_body": "Tweet Body",
+        "reply_text": "Reply Text",
+        "threads_body": "Threads Body",
+        "blog_body": "Blog Body",
+        "topic_cluster": "Topic Cluster",
+        "emotion_axis": "Emotion Axis",
+        "final_rank_score": "Final Rank Score",
+    }
+    uploader._db_properties = {
+        "Title": {"type": "title"},
+        "Memo": {"type": "rich_text"},
+        "Status": {"type": "status"},
+        "URL": {"type": "url"},
+        "Source": {"type": "select"},
+        "Creator Take": {"type": "rich_text"},
+        "Review Focus": {"type": "rich_text"},
+        "Feedback Request": {"type": "rich_text"},
+        "Risk Flags": {"type": "multi_select"},
+        "Evidence Anchor": {"type": "rich_text"},
+        "Publish Platforms": {"type": "multi_select"},
+        "X Publish Status": {"type": "select"},
+        "X Scheduled At": {"type": "date"},
+        "Tweet Body": {"type": "rich_text"},
+        "Reply Text": {"type": "rich_text"},
+        "Threads Body": {"type": "rich_text"},
+        "Blog Body": {"type": "rich_text"},
+        "Topic Cluster": {"type": "select"},
+        "Emotion Axis": {"type": "select"},
+        "Final Rank Score": {"type": "number"},
+    }
+    review_brief = {
+        "creator_take": "운영자 해석",
+        "evidence_anchor": "근거 앵커",
+        "risk_flags": ["팩트 경계", "독자 핏 약함"],
+        "has_publishable_draft": True,
+        "review_focus": "검토 포인트",
+        "feedback_request": "피드백 요청",
+        "action_steps": [],
+        "publish_platforms": ["X", "Threads"],
+    }
+    post_data = {
+        "title": "테스트 제목",
+        "url": "https://example.com/post",
+        "source": "blind",
+        "publish_scheduled_at": "2026-05-20T09:00:00+09:00",
+        "editorial_avg_score": 8.62,
+    }
+    drafts = {
+        "twitter": "X 본문",
+        "reply_text": "첫 답글",
+        "threads": "Threads 본문",
+        "naver_blog": "블로그 본문",
+    }
+    analysis = {
+        "selection_summary": "선정 요약",
+        "topic_cluster": "직장문화",
+        "emotion_axis": "공감",
+        "final_rank_score": 87,
+    }
+
+    properties = uploader._build_upload_properties(
+        post_data,
+        "https://example.com/post",
+        review_brief,
+        analysis,
+        drafts,
+        "openai: invalid_draft_output",
+    )
+
+    memo = properties["Memo"]["rich_text"][0]["text"]["content"]
+    assert "선정 요약: 선정 요약" in memo
+    assert "운영자 해석: 운영자 해석" in memo
+    assert "권장 채널: X, Threads" in memo
+    assert "최종 랭크: 87" in memo
+    assert "초안 생성 오류: openai: invalid_draft_output" in memo
+    assert properties["Risk Flags"]["multi_select"] == [{"name": "팩트 경계"}, {"name": "독자 핏 약함"}]
+    assert properties["Publish Platforms"]["multi_select"] == [{"name": "X"}, {"name": "Threads"}]
+    assert properties["X Publish Status"]["select"]["name"] == "Ready to Post"
+    assert properties["X Scheduled At"]["date"]["start"] == "2026-05-20T09:00:00+09:00"
+    assert properties["Tweet Body"]["rich_text"][0]["text"]["content"] == "X 본문"
+    assert properties["Reply Text"]["rich_text"][0]["text"]["content"] == "첫 답글"
+    assert properties["Topic Cluster"]["select"]["name"] == "직장문화"
+    assert properties["Final Rank Score"]["number"] == 87.0
+
+
 @pytest.mark.asyncio
 @patch("pipeline.notion_upload.NotionUploader.ensure_schema", new_callable=AsyncMock)
 async def test_upload_populates_review_brief_properties(mock_ensure_schema, mock_config):

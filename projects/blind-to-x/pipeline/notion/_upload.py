@@ -694,6 +694,149 @@ class NotionUploadMixin:
             self._create_toggle_block("부가 산출물 펼치기", asset_children),
         ]
 
+    def _build_upload_memo(
+        self,
+        post_data: dict[str, Any],
+        canonical_url: str,
+        review_brief: dict[str, Any],
+        analysis: dict[str, Any] | None,
+        draft_generation_error: str,
+    ) -> str:
+        memo_parts = [f"원본 링크: {canonical_url or post_data.get('url', '')}"]
+        if analysis and analysis.get("selection_summary"):
+            memo_parts.append(f"선정 요약: {analysis['selection_summary']}")
+        if review_brief["creator_take"]:
+            memo_parts.append(f"운영자 해석: {review_brief['creator_take']}")
+        if review_brief["risk_flags"]:
+            memo_parts.append(f"위험 신호: {', '.join(review_brief['risk_flags'])}")
+        if review_brief["publish_platforms"]:
+            memo_parts.append(f"권장 채널: {', '.join(review_brief['publish_platforms'])}")
+        if analysis and analysis.get("final_rank_score") not in (None, ""):
+            memo_parts.append(f"최종 랭크: {self._format_metric_value(analysis['final_rank_score'])}")
+        editorial_avg_score = post_data.get("editorial_avg_score")
+        if editorial_avg_score not in (None, ""):
+            memo_parts.append(f"에디토리얼 평균: {self._format_metric_value(editorial_avg_score)}")
+        if draft_generation_error:
+            memo_parts.append(f"초안 생성 오류: {self._truncate_for_brief(draft_generation_error, limit=140)}")
+        return "\n".join(memo_parts)
+
+    def _append_x_publish_properties(self, properties: dict[str, Any], post_data: dict[str, Any]) -> None:
+        self._append_property_if_present(
+            properties,
+            "x_publish_status",
+            post_data.get("x_publish_status") or "Ready to Post",
+        )
+        self._append_property_if_present(
+            properties,
+            "x_scheduled_at",
+            post_data.get("x_scheduled_at") or post_data.get("publish_scheduled_at"),
+        )
+        self._append_property_if_present(properties, "x_post_url", post_data.get("x_post_url"))
+        self._append_property_if_present(properties, "x_published_at", post_data.get("x_published_at"))
+        self._append_property_if_present(properties, "x_publish_error", post_data.get("x_publish_error"))
+
+    def _append_draft_body_properties(self, properties: dict[str, Any], drafts: Any) -> None:
+        if isinstance(drafts, dict):
+            self._append_property_if_present(properties, "tweet_body", drafts.get("twitter"))
+            self._append_property_if_present(properties, "reply_text", drafts.get("reply_text"))
+            self._append_property_if_present(properties, "threads_body", drafts.get("threads"))
+            self._append_property_if_present(properties, "blog_body", drafts.get("naver_blog"))
+            return
+        self._append_property_if_present(properties, "tweet_body", drafts)
+
+    def _append_analysis_properties(self, properties: dict[str, Any], analysis: dict[str, Any] | None) -> None:
+        if not analysis:
+            return
+        analysis_mapping = {
+            "topic_cluster": analysis.get("topic_cluster"),
+            "emotion_axis": analysis.get("emotion_axis"),
+            "final_rank_score": analysis.get("final_rank_score"),
+        }
+        for semantic_key, value in analysis_mapping.items():
+            self._append_property_if_present(properties, semantic_key, value)
+
+    def _build_upload_properties(
+        self,
+        post_data: dict[str, Any],
+        canonical_url: str,
+        review_brief: dict[str, Any],
+        analysis: dict[str, Any] | None,
+        drafts: Any,
+        draft_generation_error: str,
+    ) -> dict[str, Any]:
+        properties: dict[str, Any] = {}
+        self._append_property_if_present(properties, "title", post_data.get("title", ""))
+        self._append_property_if_present(
+            properties,
+            "memo",
+            self._build_upload_memo(post_data, canonical_url, review_brief, analysis, draft_generation_error),
+        )
+        self._append_property_if_present(properties, "status", post_data.get("status") or self.status_default)
+        self._append_property_if_present(properties, "date", datetime.now().date())
+        self._append_property_if_present(properties, "url", canonical_url)
+        self._append_property_if_present(properties, "source", post_data.get("source", "blind"))
+        self._append_property_if_present(properties, "creator_take", review_brief["creator_take"])
+        self._append_property_if_present(properties, "review_focus", review_brief["review_focus"])
+        self._append_property_if_present(properties, "feedback_request", review_brief["feedback_request"])
+        self._append_property_if_present(properties, "risk_flags", review_brief["risk_flags"])
+        self._append_property_if_present(properties, "evidence_anchor", review_brief["evidence_anchor"])
+        self._append_property_if_present(properties, "publish_platforms", review_brief["publish_platforms"])
+        if "X" in review_brief["publish_platforms"]:
+            self._append_x_publish_properties(properties, post_data)
+        self._append_draft_body_properties(properties, drafts)
+        self._append_analysis_properties(properties, analysis)
+        return properties
+
+    def _build_initial_upload_children(self, image_url: str | None) -> list[dict[str, Any]]:
+        if not image_url:
+            return []
+        return [
+            {
+                "object": "block",
+                "type": "image",
+                "image": {"type": "external", "external": {"url": image_url}},
+            }
+        ]
+
+    def _append_regulation_status_property(self, properties: dict[str, Any], post_data: dict[str, Any]) -> None:
+        regulation_report = post_data.get("regulation_report", "")
+        if not regulation_report:
+            return
+        self._append_property_if_present(
+            properties,
+            "regulation_status",
+            "통과" if "전체 플랫폼 규제 검증 통과" in regulation_report else "경고",
+        )
+
+    def _build_upload_children(
+        self,
+        post_data: dict[str, Any],
+        image_url: str | None,
+        drafts: Any,
+        analysis: dict[str, Any] | None,
+        screenshot_url: str | None,
+        review_brief: dict[str, Any],
+        draft_generation_error: str,
+        properties: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        children = self._build_initial_upload_children(image_url)
+        self._append_regulation_status_property(properties, post_data)
+        children.extend(
+            self._build_summary_section_blocks(
+                post_data,
+                review_brief,
+                analysis,
+                draft_generation_error,
+                drafts,
+            )
+        )
+        children.extend(self._build_x_upload_card_blocks(drafts, post_data))
+        children.extend(self._build_draft_section_blocks(drafts))
+        children.extend(self._build_diagnostic_section_blocks(post_data, review_brief, analysis))
+        children.extend(self._build_raw_source_section_blocks(post_data, screenshot_url))
+        children.extend(self._build_asset_section_blocks(post_data, properties))
+        return children
+
     async def upload(self, post_data, image_url, drafts, analysis=None, screenshot_url=None):
         """Notion DB에 새 페이지 생성 (본문 + 초안 + 분석 결과)."""
         if not await self.ensure_schema():
@@ -702,105 +845,26 @@ class NotionUploadMixin:
         logger.info("Uploading to Notion: %s", post_data.get("title", "(untitled)"))
         try:
             canonical_url = self.canonicalize_url(post_data.get("url", ""))
-            properties: dict[str, Any] = {}
             review_brief = self._build_review_brief(post_data, drafts, analysis)
             draft_generation_error = str(post_data.get("draft_generation_error", "") or "").strip()
-
-            self._append_property_if_present(properties, "title", post_data.get("title", ""))
-
-            # memo: 원본 링크 + 핵심 판단 정보만 간결하게 유지
-            memo_parts = [f"원본 링크: {canonical_url or post_data.get('url', '')}"]
-            if analysis and analysis.get("selection_summary"):
-                memo_parts.append(f"선정 요약: {analysis['selection_summary']}")
-            if review_brief["creator_take"]:
-                memo_parts.append(f"운영자 해석: {review_brief['creator_take']}")
-            if review_brief["risk_flags"]:
-                memo_parts.append(f"위험 신호: {', '.join(review_brief['risk_flags'])}")
-            if review_brief["publish_platforms"]:
-                memo_parts.append(f"권장 채널: {', '.join(review_brief['publish_platforms'])}")
-            if analysis and analysis.get("final_rank_score") not in (None, ""):
-                memo_parts.append(f"최종 랭크: {self._format_metric_value(analysis['final_rank_score'])}")
-            editorial_avg_score = post_data.get("editorial_avg_score")
-            if editorial_avg_score not in (None, ""):
-                memo_parts.append(f"에디토리얼 평균: {self._format_metric_value(editorial_avg_score)}")
-            if draft_generation_error:
-                memo_parts.append(f"초안 생성 오류: {self._truncate_for_brief(draft_generation_error, limit=140)}")
-            self._append_property_if_present(properties, "memo", "\n".join(memo_parts))
-
-            self._append_property_if_present(properties, "status", post_data.get("status") or self.status_default)
-            self._append_property_if_present(properties, "date", datetime.now().date())
-            self._append_property_if_present(properties, "url", canonical_url)
-            self._append_property_if_present(properties, "source", post_data.get("source", "blind"))
-            self._append_property_if_present(properties, "creator_take", review_brief["creator_take"])
-            self._append_property_if_present(properties, "review_focus", review_brief["review_focus"])
-            self._append_property_if_present(properties, "feedback_request", review_brief["feedback_request"])
-            self._append_property_if_present(properties, "risk_flags", review_brief["risk_flags"])
-            self._append_property_if_present(properties, "evidence_anchor", review_brief["evidence_anchor"])
-            self._append_property_if_present(properties, "publish_platforms", review_brief["publish_platforms"])
-            if "X" in review_brief["publish_platforms"]:
-                self._append_property_if_present(
-                    properties,
-                    "x_publish_status",
-                    post_data.get("x_publish_status") or "Ready to Post",
-                )
-                self._append_property_if_present(
-                    properties,
-                    "x_scheduled_at",
-                    post_data.get("x_scheduled_at") or post_data.get("publish_scheduled_at"),
-                )
-                self._append_property_if_present(properties, "x_post_url", post_data.get("x_post_url"))
-                self._append_property_if_present(properties, "x_published_at", post_data.get("x_published_at"))
-                self._append_property_if_present(properties, "x_publish_error", post_data.get("x_publish_error"))
-
-            if isinstance(drafts, dict):
-                self._append_property_if_present(properties, "tweet_body", drafts.get("twitter"))
-                self._append_property_if_present(properties, "reply_text", drafts.get("reply_text"))
-                self._append_property_if_present(properties, "threads_body", drafts.get("threads"))
-                self._append_property_if_present(properties, "blog_body", drafts.get("naver_blog"))
-            else:
-                self._append_property_if_present(properties, "tweet_body", drafts)
-
-            if analysis:
-                analysis_mapping = {
-                    "topic_cluster": analysis.get("topic_cluster"),
-                    "emotion_axis": analysis.get("emotion_axis"),
-                    "final_rank_score": analysis.get("final_rank_score"),
-                }
-                for semantic_key, value in analysis_mapping.items():
-                    self._append_property_if_present(properties, semantic_key, value)
-
-            children = []
-            if image_url:
-                children.append(
-                    {
-                        "object": "block",
-                        "type": "image",
-                        "image": {"type": "external", "external": {"url": image_url}},
-                    }
-                )
-
-            regulation_report = post_data.get("regulation_report", "")
-            if regulation_report:
-                self._append_property_if_present(
-                    properties,
-                    "regulation_status",
-                    "통과" if "전체 플랫폼 규제 검증 통과" in regulation_report else "경고",
-                )
-
-            children.extend(
-                self._build_summary_section_blocks(
-                    post_data,
-                    review_brief,
-                    analysis,
-                    draft_generation_error,
-                    drafts,
-                )
+            properties = self._build_upload_properties(
+                post_data,
+                canonical_url,
+                review_brief,
+                analysis,
+                drafts,
+                draft_generation_error,
             )
-            children.extend(self._build_x_upload_card_blocks(drafts, post_data))
-            children.extend(self._build_draft_section_blocks(drafts))
-            children.extend(self._build_diagnostic_section_blocks(post_data, review_brief, analysis))
-            children.extend(self._build_raw_source_section_blocks(post_data, screenshot_url))
-            children.extend(self._build_asset_section_blocks(post_data, properties))
+            children = self._build_upload_children(
+                post_data,
+                image_url,
+                drafts,
+                analysis,
+                screenshot_url,
+                review_brief,
+                draft_generation_error,
+                properties,
+            )
 
             response = await self._safe_notion_call(
                 self.client.pages.create,
