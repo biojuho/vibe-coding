@@ -422,6 +422,44 @@ def _readiness_item(readiness: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def _selector_item(selection: dict[str, Any]) -> dict[str, Any]:
+    status = str(selection.get("status") or "unknown")
+    selected = selection.get("selected") if isinstance(selection.get("selected"), dict) else {}
+    summary = selection.get("summary") if isinstance(selection.get("summary"), dict) else {}
+    selected_kind = str(selected.get("kind") or summary.get("selected_kind") or "unknown")
+    selected_project = str(selected.get("project") or "unknown")
+    action = str(selected.get("action") or "unknown")
+    blocked = selected.get("blocked") is True
+    complete = status in {"blocked_external_only", "ready_for_completion_audit"}
+    blockers: list[str] = []
+    if not complete:
+        blockers.append(
+            "next_experiment_selector selected unresolved local work: "
+            f"status={status}, kind={selected_kind}, project={selected_project}"
+        )
+    elif status == "ready_for_completion_audit" and blocked:
+        blockers.append("next_experiment_selector reported ready status with a blocked selected candidate.")
+
+    if status == "blocked_external_only":
+        selector_evidence = "Selector confirms only external/user-owned work remains."
+    elif status == "ready_for_completion_audit":
+        selector_evidence = "Selector reports no remaining local experiment candidate."
+    else:
+        selector_evidence = "Selector reports local follow-up work before launch completion can be claimed."
+
+    return _item(
+        "Run the deterministic next-experiment selector and confirm no local auto-research candidate remains.",
+        [".agents/skills/auto-research/scripts/next_experiment_selector.py"],
+        [
+            f"next_experiment_selector status={status}, selected_kind={selected_kind}, project={selected_project}.",
+            f"Selected action: {action}.",
+            selector_evidence,
+        ],
+        complete=complete and not blockers,
+        blockers=blockers,
+    )
+
+
 def _external_blocker_item(readiness: dict[str, Any]) -> dict[str, Any]:
     overall = readiness.get("overall") if isinstance(readiness.get("overall"), dict) else {}
     external_blockers = int(overall.get("external_blocker_count") or 0)
@@ -611,8 +649,25 @@ def build_manifest(
     github_inventory: dict[str, Any] | None = None,
     browser_inventory: dict[str, Any] | None = None,
     dependency_inventory: dict[str, Any] | None = None,
+    next_experiment_selection: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     root = root.resolve()
+    items = [
+        _skill_item(root),
+        _github_item(github_inventory or {}),
+        _browser_item(browser_inventory or {}),
+        _dependency_item(dependency_inventory or {}),
+        _readiness_item(readiness or {}),
+    ]
+    if next_experiment_selection is not None:
+        items.append(_selector_item(next_experiment_selection))
+    items.extend(
+        [
+            _external_blocker_item(readiness or {}),
+            _ab_loop_item(root, ab_manifest_path=ab_manifest_path),
+            _relay_item(root),
+        ]
+    )
     return {
         "objective": objective,
         "generated_at": datetime.now(UTC).isoformat(),
@@ -622,16 +677,7 @@ def build_manifest(
             "Local launch gates are green before claiming product readiness.",
             "Externally blocked live checks remain explicit blockers instead of being hidden by proxy signals.",
         ],
-        "items": [
-            _skill_item(root),
-            _github_item(github_inventory or {}),
-            _browser_item(browser_inventory or {}),
-            _dependency_item(dependency_inventory or {}),
-            _readiness_item(readiness or {}),
-            _external_blocker_item(readiness or {}),
-            _ab_loop_item(root, ab_manifest_path=ab_manifest_path),
-            _relay_item(root),
-        ],
+        "items": items,
     }
 
 
@@ -661,6 +707,13 @@ def collect_current_inputs(root: Path, timeout: int) -> dict[str, dict[str, Any]
             ".",
             "--json",
         ],
+        "next_experiment_selection": [
+            python,
+            ".agents/skills/auto-research/scripts/next_experiment_selector.py",
+            "--root",
+            ".",
+            "--json",
+        ],
     }
     return {name: _run_json(root, command, timeout) for name, command in commands.items()}
 
@@ -677,6 +730,7 @@ def main(argv: list[str] | None = None) -> int:
 
     root = args.root.resolve()
     collected = collect_current_inputs(root, args.timeout_seconds)
+    selector_result = collected.get("next_experiment_selection") or {}
     manifest = build_manifest(
         root,
         objective=args.objective,
@@ -685,6 +739,7 @@ def main(argv: list[str] | None = None) -> int:
         github_inventory=collected["github_inventory"]["data"],
         browser_inventory=collected["browser_inventory"]["data"],
         dependency_inventory=collected["dependency_inventory"]["data"],
+        next_experiment_selection=selector_result.get("data") if selector_result else None,
     )
     manifest["evidence_commands"] = {
         name: {

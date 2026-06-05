@@ -262,6 +262,34 @@ def _dependency_inventory(
     return inventory
 
 
+def _selector_selection(
+    status: str = "blocked_external_only",
+    *,
+    kind: str = "external_user_blocker",
+    blocked: bool = True,
+    project: str = "projects/hanwoo-dashboard",
+) -> dict[str, object]:
+    selected = {
+        "kind": kind,
+        "project": project,
+        "action": "Wait for user-owned external blocker(s): T-251."
+        if kind == "external_user_blocker"
+        else "Resolve local launch blocker",
+        "blocked": blocked,
+        "blockers": ["1 external/user-owned blocker(s): T-251"] if blocked else [],
+    }
+    return {
+        "status": status,
+        "selected": selected,
+        "ranked_candidates": [selected],
+        "summary": {
+            "adoptable_candidate_count": 0 if blocked else 1,
+            "blocked_candidate_count": 1 if blocked else 0,
+            "selected_kind": kind,
+        },
+    }
+
+
 def test_manifest_is_complete_when_all_requirements_have_current_evidence(tmp_path: Path) -> None:
     _write_required_skill(tmp_path)
     _write_ai_relay(tmp_path)
@@ -280,6 +308,70 @@ def test_manifest_is_complete_when_all_requirements_have_current_evidence(tmp_pa
     assert result["summary"]["complete_count"] == len(manifest["items"])
     assert any("launch objective audit" in evidence for evidence in skill_item["evidence"])
     assert any("next experiment selector" in evidence for evidence in skill_item["evidence"])
+
+
+def test_selector_external_only_state_is_evidence_not_duplicate_blocker(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(external_blockers=1),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+        next_experiment_selection=_selector_selection(),
+    )
+    result = completion_audit.audit_manifest(manifest)
+    selector_item = next(
+        item for item in manifest["items"] if item["requirement"].startswith("Run the deterministic next-experiment")
+    )
+
+    assert selector_item["coverage"] == "complete"
+    assert selector_item["blockers"] == []
+    assert any("status=blocked_external_only" in item for item in selector_item["evidence"])
+    assert result["summary"]["issue_count"] == 1
+    assert result["issues"] == [
+        {
+            "index": 7,
+            "code": "blocked",
+            "message": "Requirement has unresolved blocker(s): 1 external/user-owned blocker(s) remain: T-251",
+            "requirement": "Separate externally blocked live checks from local product-polish completion.",
+            "blockers": ["1 external/user-owned blocker(s) remain: T-251"],
+        }
+    ]
+
+
+def test_selector_local_candidate_prevents_complete_claim(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+        next_experiment_selection=_selector_selection(
+            status="candidate",
+            kind="local_readiness_blocker",
+            blocked=False,
+            project="workspace",
+        ),
+    )
+    result = completion_audit.audit_manifest(manifest)
+    selector_item = next(
+        item for item in manifest["items"] if item["requirement"].startswith("Run the deterministic next-experiment")
+    )
+
+    assert selector_item["coverage"] == "partial"
+    assert selector_item["blockers"] == [
+        "next_experiment_selector selected unresolved local work: "
+        "status=candidate, kind=local_readiness_blocker, project=workspace"
+    ]
+    assert result["status"] == "incomplete"
+    assert result["items"][5]["requirement"].startswith("Run the deterministic next-experiment")
+    assert result["items"][5]["passed"] is False
 
 
 def test_ab_item_includes_latest_local_manifest_artifact(tmp_path: Path) -> None:
