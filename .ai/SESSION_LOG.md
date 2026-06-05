@@ -476,3 +476,28 @@
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-t1271-hanwoo-recharts-responsive-guards.json --json` returned `adopt_candidate` with `score_delta=3.090909090909091`.
 - Completion audit: `.agents/skills/auto-research/scripts/completion_audit.py .tmp\completion-audit-t1271-hanwoo-recharts-responsive-guards.json --json` returned `complete` with 5/5 items complete and 0 issues.
 - Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification, not local repo work.
+
+## 2026-06-05 - Codex
+
+- Completed T-1298 as a bounded `$auto-research` session-orientation reliability cycle for stale HANDOFF closeout routing.
+- Changed `execution/session_orient.py`: extracts the latest Current Addendum `Next Priorities` row, reports `latest_next_priorities`, `latest_next_priority_status`, and `stale_next_priority_reason`, and marks post-push closeout instructions stale only when git is clean/synced.
+- Changed `execution/session_orient.py` rendering: text and Rich dashboard output now surface stale latest next-priority warnings alongside existing stale head-claim warnings.
+- Changed `workspace/tests/test_session_orient.py`: added regression coverage for clean/synced stale closeout detection, dirty/not-synced closeout preservation, and rendered warning output.
+- Runtime proof: after feature commit `d7719bbf` was pushed and the workspace was clean/synced, `python execution\session_orient.py --json` reported `latest_next_priority_status=stale` for the prior T-1297 post-push closeout instruction, proving the stale relay was machine-visible before this context closeout replaced it.
+- Verification: focused session-orient pytest passed `25/25`; broader auto-research selector/launch/session pytest passed `50/50`; ruff, ruff format check, `py_compile`, and `git diff --check` passed; selector dirty-state run selected `local_readiness_blocker` as expected during candidate work; `py -3.13 execution\code_review_gate.py --base HEAD --json` returned advisory WARN (`risk_score=0.55`) from graph heuristic gaps covered by direct focused tests.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1298.json --json` returned `adopt_candidate` with `score_delta=0.9451472980300019`.
+- Commit/push closeout: `d7719bbf fix(session): T-1298 flag stale handoff closeout priorities` is on `origin/main`; required GitHub Actions passed on that head with `root-quality-gate` run `26994128473` and `active-project-matrix` run `26994128458`.
+- Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification, not local repo work.
+
+## 2026-06-05 - Codex
+
+- Completed T-1299 as a bounded `$auto-research` follow-up to T-1298 stale HANDOFF closeout-priority detection.
+- Finding: T-1298's git-only stale-priority rule could misclassify a clean/synced context head while current-HEAD release checks were still running, which could hide actionable final live-check work.
+- Changed `execution/session_orient.py`: `handoff_snapshot()` now receives `release_checks_green`; `_stale_next_priority_reason()` requires both git clean/synced and current-HEAD release checks green before marking post-push closeout priorities stale.
+- Changed `execution/session_orient.py`: added `_required_release_checks_green()` and current-head SHA prefix matching for required release workflows `root-quality-gate` and `active-project-matrix`.
+- Changed `workspace/tests/test_session_orient.py`: added regressions for clean/synced closeout priorities while release checks are not green, current-head required workflow success, and in-progress current-head workflow status.
+- Verification: focused session-orient pytest passed `28/28`; broader session/auto-research audit pytest slice passed `57/57`; ruff, ruff format check, `py_compile`, and `git diff --check` passed.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1299.json --json` returned `adopt_candidate` with `score_delta=0.8818502202643175`.
+- Completion audit: `.agents/skills/auto-research/scripts/completion_audit.py .tmp\completion-manifest-t1299.json --json` returned `complete` with 4/4 items complete and 0 issues.
+- Commit/push closeout: `0bac5859 fix(session): T-1299 wait for green checks before stale closeout` is on `origin/main`; required GitHub Actions passed on that head with `root-quality-gate` run `26994295341` and `active-project-matrix` run `26994295347`.
+- Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification, not local repo work.
