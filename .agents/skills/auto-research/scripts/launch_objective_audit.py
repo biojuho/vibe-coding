@@ -16,7 +16,8 @@ from typing import Any
 
 DEFAULT_OBJECTIVE = (
     "Product launch evidence covers direct target product readiness, auto-research self-improvement loop, "
-    "GitHub project inventory, browser-click QA, A/B adoption, current-code triage, and launch readiness gates."
+    "GitHub project inventory, browser-click QA, A/B adoption, current-code triage, current-head release "
+    "authorization, and launch readiness gates."
 )
 SKILL_ARTIFACTS = (
     ".agents/skills/auto-research/SKILL.md",
@@ -179,6 +180,40 @@ def _select_next_experiment_from_inputs(inputs: dict[str, dict[str, Any]]) -> di
         "stdout": json.dumps(selection, ensure_ascii=True),
         "stderr": "",
         "data": selection,
+    }
+
+
+def _release_authorization_packet_from_inputs(root: Path, readiness: dict[str, Any]) -> dict[str, Any]:
+    packet_path = Path(__file__).with_name("release_authorization_packet.py")
+    spec = importlib.util.spec_from_file_location("auto_research_release_authorization_packet", packet_path)
+    if spec is None or spec.loader is None:
+        return {
+            "available": False,
+            "returncode": None,
+            "stdout": "",
+            "stderr": f"Could not load release_authorization_packet.py from {packet_path}",
+            "data": {},
+        }
+
+    try:
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        packet = module.build_packet(root, readiness=readiness)
+    except Exception as exc:  # pragma: no cover - defensive CLI error path
+        return {
+            "available": False,
+            "returncode": None,
+            "stdout": "",
+            "stderr": str(exc),
+            "data": {},
+        }
+
+    return {
+        "available": True,
+        "returncode": 0,
+        "stdout": json.dumps(packet, ensure_ascii=True),
+        "stderr": "",
+        "data": packet,
     }
 
 
@@ -841,6 +876,68 @@ def _readiness_item(readiness: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def _release_authorization_packet_item(packet: dict[str, Any]) -> dict[str, Any]:
+    status = str(packet.get("status") or "unknown")
+    git = packet.get("git") if isinstance(packet.get("git"), dict) else {}
+    authorization = packet.get("authorization") if isinstance(packet.get("authorization"), dict) else {}
+    workflows = packet.get("required_workflows") if isinstance(packet.get("required_workflows"), list) else []
+    packet_blockers = [str(blocker) for blocker in packet.get("blockers") or [] if str(blocker).strip()]
+    unproven = [str(workflow) for workflow in packet.get("unproven_workflows") or [] if str(workflow).strip()]
+    post_push_gates = [str(gate) for gate in authorization.get("post_push_gates") or [] if str(gate).strip()]
+    guardrails = _sentence_list(authorization.get("guardrails"))
+    dirty_count = int(git.get("dirty_count") or 0)
+    ahead_count = int(git.get("ahead_count") or 0)
+    head_sha = str(git.get("head_sha") or "unknown")
+    head_label = head_sha[:8] if head_sha != "unknown" else head_sha
+    allowed_without_authorization = authorization.get("allowed_without_explicit_user_authorization")
+
+    blockers: list[str] = []
+    if status == "ready_for_authorization":
+        blockers.append(
+            "release authorization packet is ready, but explicit push authorization and current-head Actions are still required."
+        )
+    elif status == "blocked_dirty_worktree":
+        blockers.append(f"release authorization packet blocked by dirty worktree paths: {dirty_count}.")
+    elif status == "git_unavailable":
+        blockers.append("release authorization packet could not inspect git state.")
+    elif status not in {"not_required", "already_verified"}:
+        blockers.append(f"release authorization packet returned unexpected status={status}.")
+    if allowed_without_authorization is not False:
+        blockers.append("release authorization packet did not enforce explicit user authorization.")
+    if status == "ready_for_authorization" and ahead_count > 0 and not authorization.get("suggested_command"):
+        blockers.append("release authorization packet omitted the suggested push command for a clean ahead head.")
+
+    workflow_evidence = ", ".join(
+        f"{workflow.get('name')}={workflow.get('status') or workflow.get('conclusion')}"
+        for workflow in workflows
+        if isinstance(workflow, dict)
+    )
+    evidence = [
+        f"release_authorization_packet status={status}, branch={git.get('branch')}, head={head_label}.",
+        f"release_authorization_packet ahead_count={ahead_count}, dirty_count={dirty_count}.",
+        "Required workflows: " + (workflow_evidence if workflow_evidence else "none."),
+        "Unproven workflows: " + (", ".join(unproven) if unproven else "none."),
+        "Post-push gates: " + (", ".join(post_push_gates) if post_push_gates else "none."),
+        "Suggested push command present="
+        f"{bool(authorization.get('suggested_command'))}; "
+        f"allowed_without_explicit_user_authorization={allowed_without_authorization}.",
+    ]
+    if guardrails:
+        evidence.append(f"Release authorization guardrails: {' '.join(guardrails)}")
+    if packet_blockers:
+        evidence.append(f"Packet blockers: {'; '.join(packet_blockers)}.")
+
+    return _item(
+        "Generate a no-push release authorization packet before any clean-ahead publish.",
+        [".agents/skills/auto-research/scripts/release_authorization_packet.py"],
+        evidence,
+        complete=not blockers,
+        blockers=blockers,
+        verified=bool(packet),
+        coverage="complete" if packet else "partial",
+    )
+
+
 def _selector_item(selection: dict[str, Any]) -> dict[str, Any]:
     status = str(selection.get("status") or "unknown")
     selected = selection.get("selected") if isinstance(selection.get("selected"), dict) else {}
@@ -1086,6 +1183,7 @@ def build_manifest(
     browser_inventory: dict[str, Any] | None = None,
     dependency_inventory: dict[str, Any] | None = None,
     next_experiment_selection: dict[str, Any] | None = None,
+    release_authorization_packet: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     root = root.resolve()
     items = [
@@ -1095,6 +1193,8 @@ def build_manifest(
         _dependency_item(dependency_inventory or {}),
         _readiness_item(readiness or {}),
     ]
+    if release_authorization_packet is not None:
+        items.append(_release_authorization_packet_item(release_authorization_packet))
     if next_experiment_selection is not None:
         items.append(_selector_item(next_experiment_selection))
     items.extend(
@@ -1148,6 +1248,11 @@ def collect_current_inputs(root: Path, timeout: int) -> dict[str, dict[str, Any]
         ],
     }
     collected = {name: _run_json(root, command, timeout) for name, command in commands.items()}
+    readiness_data = collected.get("readiness", {}).get("data")
+    collected["release_authorization_packet"] = _release_authorization_packet_from_inputs(
+        root,
+        readiness_data if isinstance(readiness_data, dict) else {},
+    )
     collected["next_experiment_selection"] = _select_next_experiment_from_inputs(collected)
     return collected
 
@@ -1165,6 +1270,7 @@ def main(argv: list[str] | None = None) -> int:
     root = args.root.resolve()
     collected = collect_current_inputs(root, args.timeout_seconds)
     selector_result = collected.get("next_experiment_selection") or {}
+    release_packet_result = collected.get("release_authorization_packet") or {}
     manifest = build_manifest(
         root,
         objective=args.objective,
@@ -1174,6 +1280,7 @@ def main(argv: list[str] | None = None) -> int:
         browser_inventory=collected["browser_inventory"]["data"],
         dependency_inventory=collected["dependency_inventory"]["data"],
         next_experiment_selection=selector_result.get("data") if selector_result else None,
+        release_authorization_packet=release_packet_result.get("data") if release_packet_result else None,
     )
     manifest["evidence_commands"] = {
         name: {

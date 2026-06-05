@@ -431,6 +431,50 @@ def _selector_selection(
     }
 
 
+def _release_packet(
+    *,
+    status: str = "ready_for_authorization",
+    ahead_count: int = 3,
+    dirty_count: int = 0,
+    allowed_without_authorization: bool = False,
+    blockers: list[str] | None = None,
+) -> dict[str, object]:
+    resolved_blockers = (
+        blockers
+        if blockers is not None
+        else [
+            "current-head Actions unavailable until push authorization/user push",
+            "external/user-owned blocker(s): T-251",
+        ]
+    )
+    return {
+        "status": status,
+        "git": {
+            "branch": "main",
+            "head_sha": "abcdef123456",
+            "ahead_count": ahead_count,
+            "dirty_count": dirty_count,
+            "dirty_paths": ["workspace/tests/example.py"] if dirty_count else [],
+        },
+        "required_workflows": [
+            {"name": "root-quality-gate", "status": "missing", "conclusion": None},
+            {"name": "active-project-matrix", "status": "missing", "conclusion": None},
+        ],
+        "unproven_workflows": ["root-quality-gate", "active-project-matrix"] if ahead_count else [],
+        "authorization": {
+            "push_required": ahead_count > 0,
+            "allowed_without_explicit_user_authorization": allowed_without_authorization,
+            "suggested_command": "git push origin main" if ahead_count and not dirty_count else None,
+            "post_push_gates": ["root-quality-gate", "active-project-matrix"],
+            "guardrails": [
+                "Do not push without explicit user authorization.",
+                "Do not retry external T-251 until Supabase credentials were reset.",
+            ],
+        },
+        "blockers": resolved_blockers,
+    }
+
+
 def test_manifest_is_complete_when_all_requirements_have_current_evidence(tmp_path: Path) -> None:
     _write_required_skill(tmp_path)
     _write_ai_relay(tmp_path)
@@ -516,6 +560,91 @@ def test_readiness_local_workspace_blocker_remains_partial(tmp_path: Path) -> No
     assert any("workspace/local/publish/agent blockers=1/1/0/0" in item for item in readiness_item["evidence"])
 
 
+def test_release_authorization_packet_publish_boundary_is_direct_audit_item(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+        release_authorization_packet=_release_packet(),
+    )
+    result = completion_audit.audit_manifest(manifest)
+    packet_item = next(
+        item for item in manifest["items"] if item["requirement"].startswith("Generate a no-push release")
+    )
+
+    assert packet_item["coverage"] == "complete"
+    assert packet_item["blockers"] == [
+        "release authorization packet is ready, but explicit push authorization and current-head Actions are still required."
+    ]
+    assert any("status=ready_for_authorization" in evidence for evidence in packet_item["evidence"])
+    assert "release_authorization_packet ahead_count=3, dirty_count=0." in packet_item["evidence"]
+    assert any(
+        "Post-push gates: root-quality-gate, active-project-matrix" in evidence for evidence in packet_item["evidence"]
+    )
+    assert any("allowed_without_explicit_user_authorization=False" in evidence for evidence in packet_item["evidence"])
+    assert any("Packet blockers:" in evidence and "T-251" in evidence for evidence in packet_item["evidence"])
+    assert result["status"] == "incomplete"
+    assert not any(issue["code"] == "incomplete_coverage" for issue in result["issues"])
+
+
+def test_release_authorization_packet_synced_state_does_not_block_manifest(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+        release_authorization_packet=_release_packet(
+            status="not_required",
+            ahead_count=0,
+            blockers=["external/user-owned blocker(s): T-251"],
+        ),
+    )
+    result = completion_audit.audit_manifest(manifest)
+    packet_item = next(
+        item for item in manifest["items"] if item["requirement"].startswith("Generate a no-push release")
+    )
+
+    assert packet_item["coverage"] == "complete"
+    assert packet_item["blockers"] == []
+    assert "release_authorization_packet ahead_count=0, dirty_count=0." in packet_item["evidence"]
+    assert result["status"] == "complete"
+
+
+def test_release_authorization_packet_requires_explicit_user_authorization_guard(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+        release_authorization_packet=_release_packet(
+            status="already_verified",
+            blockers=[],
+            allowed_without_authorization=True,
+        ),
+    )
+    result = completion_audit.audit_manifest(manifest)
+    packet_item = next(
+        item for item in manifest["items"] if item["requirement"].startswith("Generate a no-push release")
+    )
+
+    assert packet_item["coverage"] == "complete"
+    assert packet_item["blockers"] == ["release authorization packet did not enforce explicit user authorization."]
+    assert result["status"] == "incomplete"
+
+
 def test_collect_current_inputs_uses_one_snapshot_for_selector(monkeypatch, tmp_path: Path) -> None:
     readiness = _clean_readiness(external_blockers=1)
     assert isinstance(readiness["overall"], dict)
@@ -550,10 +679,24 @@ def test_collect_current_inputs_uses_one_snapshot_for_selector(monkeypatch, tmp_
         return {"available": True, "returncode": 0, "stdout": json.dumps(data), "stderr": "", "data": data}
 
     monkeypatch.setattr(launch_objective_audit, "_run_json", fake_run_json)
+    monkeypatch.setattr(
+        launch_objective_audit,
+        "_release_authorization_packet_from_inputs",
+        lambda _root, packet_readiness: {
+            "available": True,
+            "returncode": 0,
+            "stdout": json.dumps(_release_packet()),
+            "stderr": "",
+            "data": _release_packet(
+                ahead_count=packet_readiness["workspace_gates"]["github_release"].get("ahead_count", 3)
+            ),
+        },
+    )
 
     collected = launch_objective_audit.collect_current_inputs(tmp_path, timeout=1)
 
     assert all("next_experiment_selector.py" not in " ".join(command) for command in calls)
+    assert "release_authorization_packet" in collected
     assert collected["github_inventory"]["data"] == github_inventory
     selection = collected["next_experiment_selection"]["data"]
     assert selection["status"] == "blocked_publish_only"
