@@ -144,6 +144,9 @@ def test_log_and_read_audio_duration_helpers(tmp_path: Path) -> None:
     with patch("shorts_maker_v2.pipeline.media_step.MP3", side_effect=RuntimeError("bad mp3")):
         assert MediaStep._read_audio_duration(fake_audio, 2.0) == 2.0
 
+    with patch("shorts_maker_v2.pipeline.media_step.MP3", None):
+        assert MediaStep._read_audio_duration(fake_audio, 2.5) == 2.5
+
 
 def test_generate_audio_edge_tts_uses_role_voice(tmp_path: Path) -> None:
     config = _make_config()

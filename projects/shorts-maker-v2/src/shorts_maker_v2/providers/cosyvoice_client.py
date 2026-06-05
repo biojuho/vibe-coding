@@ -91,9 +91,6 @@ class CosyVoiceTTSClient:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.unlink(missing_ok=True)
 
-        import torch
-        import torchaudio
-
         cosyvoice = _get_model(self._model_dir)
         lang_tag = _LANGUAGE_TAGS.get(language, "<|ko|>")
 
@@ -105,99 +102,130 @@ class CosyVoiceTTSClient:
             len(text),
         )
 
-        # 모드별 추론
-        audio_tensors: list[torch.Tensor] = []
+        audio_tensors = self._generate_audio_tensors(
+            cosyvoice,
+            text=text,
+            lang_tag=lang_tag,
+            role=role,
+            channel_key=channel_key,
+        )
+        final_path = self._save_audio_output(cosyvoice, audio_tensors, output_path)
 
+        if words_json_path is not None:
+            self._generate_word_timings(final_path, text, words_json_path, language)
+
+        logger.info("[CosyVoice] 생성 완료: %s", final_path)
+        return final_path
+
+    def _generate_audio_tensors(
+        self,
+        cosyvoice,
+        *,
+        text: str,
+        lang_tag: str,
+        role: str,
+        channel_key: str,
+    ) -> list[object]:
+        """설정된 CosyVoice inference 모드를 실행한다."""
         if self._mode == "zero_shot" and self._ref_audio_path:
-            # 제로샷 음성 클로닝
-            if self._speaker_id:
-                # 저장된 스피커 ID 사용
-                for result in cosyvoice.inference_zero_shot(
+            return self._generate_zero_shot_audio(cosyvoice, text)
+        if self._mode == "instruct":
+            return self._generate_instruct_audio(cosyvoice, text, role, channel_key)
+        return self._generate_cross_lingual_audio(cosyvoice, text, lang_tag)
+
+    def _generate_zero_shot_audio(self, cosyvoice, text: str) -> list[object]:
+        if self._speaker_id:
+            return self._collect_tts_speech(
+                cosyvoice.inference_zero_shot(
                     text,
                     "",
                     "",
                     zero_shot_spk_id=self._speaker_id,
                     stream=False,
-                ):
-                    audio_tensors.append(result["tts_speech"])
-            else:
-                for result in cosyvoice.inference_zero_shot(
-                    text,
-                    self._ref_audio_text,
-                    self._ref_audio_path,
-                    stream=False,
-                ):
-                    audio_tensors.append(result["tts_speech"])
+                )
+            )
+        return self._collect_tts_speech(
+            cosyvoice.inference_zero_shot(
+                text,
+                self._ref_audio_text,
+                self._ref_audio_path,
+                stream=False,
+            )
+        )
 
-        elif self._mode == "instruct":
-            # 텍스트 지시 기반 스타일 제어
-            instruct_text = self._get_instruct_text(role, channel_key)
-            for result in cosyvoice.inference_instruct2(
+    def _generate_instruct_audio(
+        self,
+        cosyvoice,
+        text: str,
+        role: str,
+        channel_key: str,
+    ) -> list[object]:
+        instruct_text = self._get_instruct_text(role, channel_key)
+        return self._collect_tts_speech(
+            cosyvoice.inference_instruct2(
                 text,
                 instruct_text,
                 self._ref_audio_path or "",
                 stream=False,
-            ):
-                audio_tensors.append(result["tts_speech"])
+            )
+        )
 
-        else:
-            # cross_lingual (기본): 언어 태그 + 참조 오디오
-            tagged_text = f"{lang_tag}{text}"
-            ref_wav = self._ref_audio_path or self._get_default_ref_audio()
-            if ref_wav:
-                for result in cosyvoice.inference_cross_lingual(
+    def _generate_cross_lingual_audio(self, cosyvoice, text: str, lang_tag: str) -> list[object]:
+        tagged_text = f"{lang_tag}{text}"
+        ref_wav = self._ref_audio_path or self._get_default_ref_audio()
+        if ref_wav:
+            return self._collect_tts_speech(
+                cosyvoice.inference_cross_lingual(
                     tagged_text,
                     ref_wav,
                     stream=False,
-                ):
-                    audio_tensors.append(result["tts_speech"])
-            else:
-                # 참조 오디오 없으면 SFT 모드 fallback
-                sft_voices = getattr(cosyvoice, "list_available_spks", lambda: [])()
-                sft_voice = sft_voices[0] if sft_voices else None
-                if sft_voice:
-                    for result in cosyvoice.inference_sft(
-                        text,
-                        sft_voice,
-                        stream=False,
-                    ):
-                        audio_tensors.append(result["tts_speech"])
-                else:
-                    raise RuntimeError(
-                        "CosyVoice: 참조 오디오가 필요합니다 (config.yaml에 providers.tts_ref_audio 설정)"
-                    )
+                )
+            )
+        return self._generate_sft_audio(cosyvoice, text)
 
+    @staticmethod
+    def _generate_sft_audio(cosyvoice, text: str) -> list[object]:
+        sft_voices = getattr(cosyvoice, "list_available_spks", lambda: [])()
+        sft_voice = sft_voices[0] if sft_voices else None
+        if not sft_voice:
+            raise RuntimeError("CosyVoice: 참조 오디오가 필요합니다 (config.yaml에 providers.tts_ref_audio 설정)")
+        return CosyVoiceTTSClient._collect_tts_speech(
+            cosyvoice.inference_sft(
+                text,
+                sft_voice,
+                stream=False,
+            )
+        )
+
+    @staticmethod
+    def _collect_tts_speech(results) -> list[object]:
+        return [result["tts_speech"] for result in results]
+
+    @staticmethod
+    def _save_audio_output(cosyvoice, audio_tensors: list[object], output_path: Path) -> Path:
         if not audio_tensors:
             raise RuntimeError("CosyVoice: 음성 생성 결과 없음")
 
-        # 청크들을 결합
+        import torch
+        import torchaudio
+
         combined = torch.cat(audio_tensors, dim=-1)
-        sample_rate = cosyvoice.sample_rate
-
-        # WAV로 저장
         wav_path = output_path.with_suffix(".wav")
-        torchaudio.save(str(wav_path), combined, sample_rate)
+        torchaudio.save(str(wav_path), combined, cosyvoice.sample_rate)
 
-        # MP3 변환 (필요시)
-        if output_path.suffix.lower() == ".mp3":
-            try:
-                from pydub import AudioSegment
+        if output_path.suffix.lower() != ".mp3":
+            return wav_path
 
-                audio = AudioSegment.from_wav(str(wav_path))
-                audio.export(str(output_path), format="mp3")
-                wav_path.unlink(missing_ok=True)
-            except ImportError:
-                output_path = wav_path
-                logger.debug("[CosyVoice] pydub 미설치, WAV 사용")
-        else:
-            output_path = wav_path
+        try:
+            from pydub import AudioSegment
 
-        # Whisper로 단어 타이밍 추출
-        if words_json_path is not None:
-            self._generate_word_timings(output_path, text, words_json_path, language)
-
-        logger.info("[CosyVoice] 생성 완료: %s", output_path)
-        return output_path
+            audio = AudioSegment.from_wav(str(wav_path))
+            audio.export(str(output_path), format="mp3")
+            wav_path.unlink(missing_ok=True)
+            return output_path
+        except ImportError:
+            logger.debug("[CosyVoice] pydub 미설치, WAV 사용")
+            return wav_path
 
     @staticmethod
     def _get_instruct_text(role: str, channel_key: str) -> str:
@@ -220,14 +248,14 @@ class CosyVoiceTTSClient:
 
     @staticmethod
     def _get_default_ref_audio() -> str | None:
-        """기본 참조 오디오 경로 (assets에서 탐색)."""
+        """기본 참조 오디오 경로 (assets에서 검색)."""
         candidates = [
             Path("assets/ref_voice/korean_female.wav"),
             Path("assets/ref_voice/korean_male.wav"),
         ]
-        for p in candidates:
-            if p.exists():
-                return str(p)
+        for candidate in candidates:
+            if candidate.exists():
+                return str(candidate)
         return None
 
     @staticmethod
@@ -237,12 +265,11 @@ class CosyVoiceTTSClient:
         words_json_path: Path,
         language: str,
     ) -> None:
-        """Whisper → 근사치 fallback으로 단어 타이밍 생성."""
+        """Whisper 및 근사치 fallback으로 단어 타이밍 생성."""
         import json
 
         words_json_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # 1순위: faster-whisper
         try:
             from shorts_maker_v2.providers.whisper_aligner import (
                 is_whisper_available,
@@ -256,16 +283,11 @@ class CosyVoiceTTSClient:
                         json.dumps(words, ensure_ascii=False, indent=2),
                         encoding="utf-8",
                     )
-                    logger.info(
-                        "[CosyVoice] whisper 타이밍 %d words: %s",
-                        len(words),
-                        words_json_path,
-                    )
+                    logger.info("[CosyVoice] whisper 타이밍 %d words: %s", len(words), words_json_path)
                     return
         except Exception as exc:
             logger.debug("[CosyVoice] whisper fallback 실패: %s", exc)
 
-        # 2순위: 근사치
         try:
             from shorts_maker_v2.providers.edge_tts_client import (
                 _approximate_word_timings,
@@ -277,11 +299,7 @@ class CosyVoiceTTSClient:
                     json.dumps(approx, ensure_ascii=False, indent=2),
                     encoding="utf-8",
                 )
-                logger.info(
-                    "[CosyVoice] 근사 타이밍 %d words: %s",
-                    len(approx),
-                    words_json_path,
-                )
+                logger.info("[CosyVoice] 근사 타이밍 %d words: %s", len(approx), words_json_path)
         except Exception as exc:
             logger.debug("[CosyVoice] 근사 타이밍 실패: %s", exc)
 

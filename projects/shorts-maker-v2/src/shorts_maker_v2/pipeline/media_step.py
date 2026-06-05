@@ -5,22 +5,27 @@ import random
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Any
-
-from mutagen.mp3 import MP3
+from typing import TYPE_CHECKING, Any
 
 from shorts_maker_v2.config import AppConfig
 from shorts_maker_v2.models import SceneAsset, ScenePlan
 from shorts_maker_v2.pipeline.media.audio_mixin import MediaAudioMixin
 from shorts_maker_v2.pipeline.media.fallback_mixin import MediaFallbackMixin
 from shorts_maker_v2.pipeline.media.visual_mixin import MediaVisualMixin
-from shorts_maker_v2.providers.google_client import GoogleClient
-from shorts_maker_v2.providers.llm_router import LLMRouter
-from shorts_maker_v2.providers.openai_client import OpenAIClient
-from shorts_maker_v2.providers.pexels_client import PexelsClient
 from shorts_maker_v2.utils.cost_guard import CostGuard
 from shorts_maker_v2.utils.media_cache import MediaCache
 from shorts_maker_v2.utils.retry import retry_with_backoff, submit_retry_with_backoff
+
+try:
+    from mutagen.mp3 import MP3
+except ImportError:  # pragma: no cover - mutagen is a declared runtime dependency.
+    MP3 = None
+
+if TYPE_CHECKING:
+    from shorts_maker_v2.providers.google_client import GoogleClient
+    from shorts_maker_v2.providers.llm_router import LLMRouter
+    from shorts_maker_v2.providers.openai_client import OpenAIClient
+    from shorts_maker_v2.providers.pexels_client import PexelsClient
 
 logger = logging.getLogger(__name__)
 
@@ -98,14 +103,14 @@ class MediaStep(MediaAudioMixin, MediaVisualMixin, MediaFallbackMixin):
     @staticmethod
     def _read_audio_duration(audio_path: Path, fallback_sec: float) -> float:
         try:
+            if MP3 is None:
+                return float(fallback_sec)
             audio = MP3(str(audio_path))
             if audio.info and audio.info.length > 0:
                 return float(audio.info.length)
         except Exception as exc:
             logger.debug("[MediaStep] MP3 duration 파싱 실패 (fallback 사용): %s", exc)
         return float(fallback_sec)
-
-
 
     @staticmethod
     def _prepare_dirs(run_dir: Path) -> tuple[Path, Path, Path]:
@@ -169,8 +174,6 @@ class MediaStep(MediaAudioMixin, MediaVisualMixin, MediaFallbackMixin):
             if (_role_guide or _color_hint or _prefix)
             else scene.visual_prompt_en
         )
-
-
 
     def _process_one_scene(
         self,

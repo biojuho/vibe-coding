@@ -11,8 +11,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import quote
 
-from PIL import Image, ImageDraw
-
 from shorts_maker_v2.pipeline.media._prompt_filters import with_text_suppression
 
 if TYPE_CHECKING:
@@ -111,6 +109,8 @@ class MediaVisualMixin:
     def _extract_palette(image_path: Path, n_colors: int = 3) -> str:
         """이미지에서 주요 색상 팔레트 추출 (가장 많이 쓰인 색상 위주)."""
         try:
+            from PIL import Image
+
             img = Image.open(str(image_path)).convert("RGB")
             # 너무 작으면 부정확하므로 150x150 유지
             img = img.resize((150, 150), Image.Resampling.LANCZOS)
@@ -141,6 +141,8 @@ class MediaVisualMixin:
     @staticmethod
     def _generate_placeholder_image(output_path: Path, width: int, height: int) -> Path:
         """DALL-E 실패 시 그라데이션 플레이스홀더 이미지 생성."""
+        from PIL import Image, ImageDraw
+
         img = Image.new("RGB", (width, height))
         draw = ImageDraw.Draw(img)
         for y in range(height):

@@ -34,6 +34,45 @@ def _write_fake_audio(path_str: str, *_args, **_kwargs) -> None:
     Path(path_str).write_bytes(b"wav")
 
 
+def test_top_level_package_lazy_loads_submodule_export():
+    import shorts_maker_v2
+    import shorts_maker_v2.providers as providers_module
+
+    original = shorts_maker_v2.__dict__.pop("providers", None)
+    try:
+        assert shorts_maker_v2.providers is providers_module
+    finally:
+        shorts_maker_v2.__dict__.pop("providers", None)
+        if original is not None:
+            shorts_maker_v2.__dict__["providers"] = original
+
+
+def test_pipeline_package_lazy_loads_step_exports():
+    import shorts_maker_v2.pipeline as pipeline_module
+    from shorts_maker_v2.pipeline.media_step import MediaStep
+
+    original = pipeline_module.__dict__.pop("MediaStep", None)
+    try:
+        assert pipeline_module.MediaStep is MediaStep
+    finally:
+        pipeline_module.__dict__.pop("MediaStep", None)
+        if original is not None:
+            pipeline_module.__dict__["MediaStep"] = original
+
+
+def test_providers_package_lazy_loads_client_exports():
+    import shorts_maker_v2.providers as providers_module
+    from shorts_maker_v2.providers.tts_factory import TTSFactory
+
+    original = providers_module.__dict__.pop("TTSFactory", None)
+    try:
+        assert providers_module.TTSFactory is TTSFactory
+    finally:
+        providers_module.__dict__.pop("TTSFactory", None)
+        if original is not None:
+            providers_module.__dict__["TTSFactory"] = original
+
+
 # ── Chatterbox 테스트 ──────────────────────────────────────────────────────────
 
 
