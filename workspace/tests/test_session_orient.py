@@ -53,12 +53,24 @@ def test_handoff_snapshot_counts_addenda(tmp_path):
     assert snap["oldest_addendum"] == "2026-04-15"
     assert snap["newest_addendum"] == "2026-05-08"
     assert snap["oldest_age_days"] == 27
+    assert snap["rotation_cutoff"] == "2026-05-05"
+    assert snap["archivable_addendum_count"] == 2
     assert snap["rotation_suggested"] is True
 
 
 def test_handoff_snapshot_no_rotation_when_fresh(tmp_path):
     _write_handoff(tmp_path, ["2026-05-12"])
     snap = orient.handoff_snapshot(tmp_path, today=date(2026, 5, 12))
+    assert snap["archivable_addendum_count"] == 0
+    assert snap["rotation_suggested"] is False
+
+
+def test_handoff_snapshot_no_rotation_for_long_recent_handoff(tmp_path):
+    _write_handoff(tmp_path, ["2026-05-12"] * 40)
+    snap = orient.handoff_snapshot(tmp_path, today=date(2026, 5, 12))
+
+    assert snap["line_count"] > 200
+    assert snap["archivable_addendum_count"] == 0
     assert snap["rotation_suggested"] is False
 
 

@@ -29,7 +29,7 @@ import re
 import shutil
 import subprocess
 import sys
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -213,8 +213,13 @@ def handoff_snapshot(repo_root: Path, today: date | None = None) -> dict[str, An
         snap["newest_addendum"] = max(dates).isoformat()
         days_old = (today - min(dates)).days
         snap["oldest_age_days"] = days_old
-        snap["rotation_suggested"] = days_old > 7 or len(lines) > 200
+        cutoff = today - timedelta(days=7)
+        archivable_count = sum(1 for entry_date in dates if entry_date < cutoff)
+        snap["rotation_cutoff"] = cutoff.isoformat()
+        snap["archivable_addendum_count"] = archivable_count
+        snap["rotation_suggested"] = archivable_count > 0
     else:
+        snap["archivable_addendum_count"] = 0
         snap["rotation_suggested"] = False
     return snap
 
