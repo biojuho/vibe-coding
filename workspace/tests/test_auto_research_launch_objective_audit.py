@@ -153,11 +153,18 @@ def _browser_inventory(missing: int = 0, *, fresh: int | None = None, stale: int
     }
 
 
-def _dependency_inventory(candidates: int = 0, *, peer_blocked: bool = False) -> dict[str, object]:
+def _dependency_inventory(
+    candidates: int = 0,
+    *,
+    peer_blocked: bool = False,
+    prerelease_current: bool = False,
+) -> dict[str, object]:
+    deferred_count = 2 if peer_blocked else 1
     inventory: dict[str, object] = {
         "summary": {
             "candidate_dependency_count": candidates,
-            "deferred_dependency_count": 2 if peer_blocked else 1,
+            "deferred_dependency_count": deferred_count,
+            "outdated_dependency_count": candidates + deferred_count + (1 if prerelease_current else 0),
             "unavailable_project_count": 0,
         },
         "recommendations": [],
@@ -190,6 +197,24 @@ def _dependency_inventory(candidates: int = 0, *, peer_blocked: bool = False) ->
         inventory["recommendations"] = [
             "No direct npm patch/minor adoption candidates; wait for upstream peer support before major migrations."
         ]
+    if prerelease_current:
+        projects = inventory.setdefault("projects", [])
+        assert isinstance(projects, list)
+        projects.append(
+            {
+                "path": "projects/hanwoo-dashboard",
+                "dependencies": [
+                    {
+                        "name": "next-auth",
+                        "current": "5.0.0-beta.31",
+                        "latest": "4.24.14",
+                        "classification": "current_prerelease_channel",
+                        "dist_tag_channel": "beta",
+                        "dist_tag_version": "5.0.0-beta.31",
+                    }
+                ],
+            }
+        )
     return inventory
 
 
@@ -435,6 +460,28 @@ def test_peer_blocked_deferred_dependency_evidence_is_not_a_direct_candidate_blo
     assert any(
         "projects/hanwoo-dashboard/eslint peer_blocker_count=4" in evidence
         and "projects/knowledge-dashboard/eslint peer_blocker_count=3" in evidence
+        for evidence in dependency_item["evidence"]
+    )
+
+
+def test_current_prerelease_channel_dependency_evidence_explains_outdated_count(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(peer_blocked=True, prerelease_current=True),
+    )
+    dependency_item = next(item for item in manifest["items"] if item["requirement"].startswith("Research"))
+
+    assert dependency_item["coverage"] == "complete"
+    assert dependency_item["blockers"] == []
+    assert "outdated_dependency_count=3." in dependency_item["evidence"]
+    assert any(
+        "projects/hanwoo-dashboard/next-auth beta=5.0.0-beta.31 current=5.0.0-beta.31 stable_latest=4.24.14" in evidence
         for evidence in dependency_item["evidence"]
     )
 

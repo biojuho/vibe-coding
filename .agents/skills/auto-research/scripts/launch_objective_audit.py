@@ -266,6 +266,30 @@ def _dependency_peer_blocker_evidence(dependency_inventory: dict[str, Any]) -> s
     return "Peer-blocked deferred majors: none."
 
 
+def _dependency_prerelease_channel_evidence(dependency_inventory: dict[str, Any]) -> str:
+    projects = dependency_inventory.get("projects") if isinstance(dependency_inventory.get("projects"), list) else []
+    labels: list[str] = []
+    for project in projects:
+        if not isinstance(project, dict):
+            continue
+        project_path = str(project.get("path") or "unknown")
+        dependencies = project.get("dependencies") if isinstance(project.get("dependencies"), list) else []
+        for dependency in dependencies:
+            if not isinstance(dependency, dict):
+                continue
+            if dependency.get("classification") != "current_prerelease_channel":
+                continue
+            labels.append(
+                f"{project_path}/{dependency.get('name') or 'unknown'} "
+                f"{dependency.get('dist_tag_channel') or 'channel'}={dependency.get('dist_tag_version') or 'unknown'} "
+                f"current={dependency.get('current') or 'unknown'} stable_latest={dependency.get('latest') or 'unknown'}"
+            )
+
+    if labels:
+        return "Current prerelease-channel packages: " + "; ".join(labels) + "."
+    return "Current prerelease-channel packages: none."
+
+
 def _dependency_item(dependency_inventory: dict[str, Any]) -> dict[str, Any]:
     summary = dependency_inventory.get("summary") if isinstance(dependency_inventory.get("summary"), dict) else {}
     recommendations = dependency_inventory.get("recommendations")
@@ -273,6 +297,7 @@ def _dependency_item(dependency_inventory: dict[str, Any]) -> dict[str, Any]:
         recommendations = []
     candidate_count = int(summary.get("candidate_dependency_count") or 0)
     deferred_count = int(summary.get("deferred_dependency_count") or 0)
+    outdated_count = int(summary.get("outdated_dependency_count") or 0)
     unavailable_count = int(summary.get("unavailable_project_count") or 0)
     complete = candidate_count == 0 and unavailable_count == 0
     blockers = []
@@ -290,9 +315,11 @@ def _dependency_item(dependency_inventory: dict[str, Any]) -> dict[str, Any]:
         ],
         [
             f"dependency_freshness_inventory candidate_dependency_count={candidate_count}.",
+            f"outdated_dependency_count={outdated_count}.",
             f"deferred_dependency_count={deferred_count}; deferred major/channel items require separate explicit experiments.",
             f"unavailable_project_count={unavailable_count}.",
             _dependency_peer_blocker_evidence(dependency_inventory),
+            _dependency_prerelease_channel_evidence(dependency_inventory),
             "Recommendations: " + "; ".join(str(item) for item in recommendations)
             if recommendations
             else "Recommendations: none.",
