@@ -8,7 +8,7 @@
 - Goal: Product launch-ready workspace through the auto-research self-improvement loop across GitHub projects, browser-click QA, A/B adoption, current dependency/code triage, and local readiness gates.
 - Owner: Codex, with user-owned T-251 external Supabase credential reset
 - Started: 2026-06-05
-- Latest: 2026-06-05 T-1297 feature commit is pushed and required Actions passed. Skill lint evidence is clean, selector missing/invalid inputs route to `input_evidence_unavailable`, and prepared clean artifacts still route to `blocked_external_only` for external/user-owned Hanwoo T-251.
+- Latest: 2026-06-05 T-1299 feature commit `0bac5859` is pushed and required Actions passed. `session_orient.py` now requires current-HEAD release checks to be green before marking post-push closeout `Next Priorities` stale, preventing clean/synced but CI-pending heads from hiding actionable final live-check work.
 - Success: Launch audit is 8/8 complete after user-owned Hanwoo T-251 Supabase credential reset and live Prisma CRUD E2E pass; until then keep local launch evidence green and do not retry T-251.
 
 ## Progress Notes
@@ -18,6 +18,10 @@
 - 2026-06-05: T-1296 added `next_experiment_selector.py` so future auto-research loops deterministically rank local readiness, GitHub, browser QA, dependency, stale QC, and external/user-owned blocker candidates before choosing work. Feature commit `4a1d1dbc` is pushed and required Actions passed; final clean selector output is `blocked_external_only` for T-251. Do not retry T-251 until Supabase Dashboard credentials are reset.
 
 - 2026-06-05: T-1297 cleared skill-lint evidence warnings and hardened `next_experiment_selector.py` against missing/invalid explicit input artifacts plus UTF-16 PowerShell JSON artifacts. Feature commit `7984696c` is pushed and required Actions passed; runtime missing-input selection routes to `input_evidence_unavailable`, while prepared clean artifacts still route to `blocked_external_only` for T-251.
+
+- 2026-06-05: T-1298 hardened session orientation against stale relay closeout instructions. `session_orient.py` now reports `latest_next_priority_status` and marks post-push closeout instructions stale only when git is already clean/synced, preventing continuation agents from repeating completed context closeouts while preserving actionable dirty-work closeouts. Feature commit `d7719bbf` is pushed and required Actions passed; full product launch remains blocked only by external/user-owned T-251.
+
+- 2026-06-05: T-1299 refined T-1298 with current-HEAD CI awareness. `session_orient.py` now requires both `root-quality-gate` and `active-project-matrix` to be completed successfully on the current head before stale post-push closeout `Next Priorities` are flagged; focused pytest `28/28`, broader related pytest `57/57`, A/B `adopt_candidate`, completion audit `4/4`, and required Actions on `0bac5859` passed. Full product launch remains blocked only by external/user-owned T-251.
 
 - 2026-05-21: T-625 normalized Hanwoo pagination item payloads. `useCattlePagination()` and `useSalesPagination()` now route initial SSR items and load-more API `json.data.items` through `normalizePaginationItems()`, ignore non-array input and malformed/non-object rows, and append from safe arrays, preventing malformed pagination/cache payloads from crashing through spread access. Verification passed with focused pagination source tests (`4 passed`), targeted ESLint, path-limited `git diff --check`, full Hanwoo QC (`test` 263, lint, build), and staged `code_review_gate --json` JSON pass (`risk_score 0.0`; cp949 reader-thread noise only). Commit `676f7453`; commit hook WARN was the known graph/test-gap heuristic while direct tests and full QC covered the changed files.
 
