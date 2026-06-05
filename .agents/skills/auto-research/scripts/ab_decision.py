@@ -180,7 +180,7 @@ def main(argv: list[str] | None = None) -> int:
 
     result = decide(_load_json(args.manifest))
     if args.json:
-        json.dump(result, sys.stdout, ensure_ascii=False, indent=2)
+        json.dump(result, sys.stdout, ensure_ascii=True, indent=2)
         print()
     else:
         _print_text(result)

@@ -479,10 +479,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        args.output.write_text(json.dumps(manifest, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
 
     if args.json or not args.output:
-        json.dump(manifest, sys.stdout, ensure_ascii=False, indent=2)
+        json.dump(manifest, sys.stdout, ensure_ascii=True, indent=2)
         print()
     return 0
 

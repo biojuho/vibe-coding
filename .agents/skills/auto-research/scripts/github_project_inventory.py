@@ -291,7 +291,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     inventory = build_inventory(args.root, args.include_prs)
-    json.dump(inventory, sys.stdout, ensure_ascii=False, indent=2)
+    json.dump(inventory, sys.stdout, ensure_ascii=True, indent=2)
     print()
     return 0
 

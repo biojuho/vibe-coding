@@ -626,9 +626,9 @@ def main(argv: list[str] | None = None) -> int:
     inventory = build_inventory(args.root, args.timeout)
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(json.dumps(inventory, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        args.output.write_text(json.dumps(inventory, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
     if args.json:
-        json.dump(inventory, sys.stdout, ensure_ascii=False, indent=2)
+        json.dump(inventory, sys.stdout, ensure_ascii=True, indent=2)
         print()
     else:
         _print_text(inventory)

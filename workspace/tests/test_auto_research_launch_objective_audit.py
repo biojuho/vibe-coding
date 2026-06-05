@@ -271,3 +271,34 @@ def test_peer_blocked_deferred_dependency_evidence_is_not_a_direct_candidate_blo
         and "projects/knowledge-dashboard/eslint peer_blocker_count=3" in evidence
         for evidence in dependency_item["evidence"]
     )
+
+
+def test_cli_output_file_is_ascii_safe_for_powershell_default_reads(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path / "박주호"
+    root.mkdir()
+    _write_required_skill(root)
+    _write_ai_relay(root)
+
+    monkeypatch.setattr(
+        launch_objective_audit,
+        "collect_current_inputs",
+        lambda _root, _timeout: {
+            "readiness": {"available": True, "returncode": 0, "stderr": "", "data": _clean_readiness()},
+            "github_inventory": {"available": True, "returncode": 0, "stderr": "", "data": _github_inventory()},
+            "browser_inventory": {"available": True, "returncode": 0, "stderr": "", "data": _browser_inventory()},
+            "dependency_inventory": {
+                "available": True,
+                "returncode": 0,
+                "stderr": "",
+                "data": _dependency_inventory(),
+            },
+        },
+    )
+
+    output_path = tmp_path / "launch-objective-audit.json"
+
+    assert launch_objective_audit.main(["--root", str(root), "--output", str(output_path)]) == 0
+
+    raw = output_path.read_bytes()
+    assert all(byte < 128 for byte in raw)
+    assert "\\ubc15\\uc8fc\\ud638" in raw.decode("ascii")

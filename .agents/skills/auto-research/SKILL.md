@@ -127,6 +127,7 @@ python .agents/skills/auto-research/scripts/browser_qa_inventory.py --root . --j
 
 Use it to identify browser apps with verified direct-click evidence, current `output/playwright` screenshots, and projects that still need a browser QA pass.
 The inventory reports fresh and stale retained screenshots; refresh screenshots older than the configured freshness window before using them as launch evidence.
+Keep auto-research JSON output ASCII-escaped so Windows PowerShell default file reads do not corrupt Korean profile paths in evidence files.
 
 ## Dependency Freshness Inventory
 

@@ -414,7 +414,7 @@ def main(argv: list[str] | None = None) -> int:
 
     inventory = build_inventory(args.root, args.include_non_browser)
     if args.json:
-        json.dump(inventory, sys.stdout, ensure_ascii=False, indent=2)
+        json.dump(inventory, sys.stdout, ensure_ascii=True, indent=2)
         print()
     else:
         _print_text(inventory)

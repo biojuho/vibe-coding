@@ -204,7 +204,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.template:
         template = build_template(args.objective)
-        json.dump(template, sys.stdout, ensure_ascii=False, indent=2)
+        json.dump(template, sys.stdout, ensure_ascii=True, indent=2)
         print()
         return 0
 
@@ -213,7 +213,7 @@ def main(argv: list[str] | None = None) -> int:
 
     result = audit_manifest(_load_json(args.manifest))
     if args.json:
-        json.dump(result, sys.stdout, ensure_ascii=False, indent=2)
+        json.dump(result, sys.stdout, ensure_ascii=True, indent=2)
         print()
     else:
         _print_text(result)
