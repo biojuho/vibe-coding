@@ -631,7 +631,107 @@ async def test_upload_groups_diagnostics_and_raw_content_into_toggles(mock_ensur
     assert "원문 내용" in raw_headings
 
 
+def test_build_content_intelligence_lines_formats_optional_signals(mock_config):
+    uploader = NotionUploader(mock_config)
+    post_data = {
+        "emotion_profile": {"top_emotions": [("분노", 0.75), ("공감", 1.0), ("", 0.2)], "dominant_group": "분노"},
+        "editorial_scores": {"hook": 9.0, "voice": 8.25, "empty": ""},
+        "readability_scores": {"twitter": 7.8},
+        "quality_gate_scores": {"twitter": 84, "threads": 79.5},
+        "quality_gate_retries": 2,
+        "fact_check_warnings": {
+            "twitter": ["'일반적 이직'이라는 추론은 원문 근거가 약할 수 있음"],
+            "threads": [],
+        },
+        "draft_generation_error": "openai: invalid_draft_output:missing_tags:naver_blog",
+    }
+    analysis = {
+        "topic_cluster": "직장문화",
+        "hook_type": "일화형",
+        "emotion_axis": "분노",
+        "emotion_lane": "공감",
+        "audience_fit": "2030 신입",
+        "selection_summary": "신입과 대기업 갈등을 동시에 건드림",
+        "audience_need": "내 회사가 이상한지 비교하고 싶음",
+        "recommended_draft_type": "controversy_hook",
+        "spinoff_angle": "대기업 문화 차이",
+    }
+
+    lines = uploader._build_content_intelligence_lines(post_data, analysis)
+
+    assert "세부 감정 프로필: 분노=0.75, 공감=1" in lines
+    assert "지배 감정 그룹: 분노" in lines
+    assert "에디토리얼 점수: hook=9, voice=8.25" in lines
+    assert "가독성 점수: twitter=7.8" in lines
+    assert "품질 게이트 점수: twitter=84, threads=79.5" in lines
+    assert "품질 재시도: 2회" in lines
+    assert any(line.startswith("팩트 체크 경고: twitter 1건") for line in lines)
+    assert any(line.startswith("초안 생성 오류: openai: invalid_draft_output") for line in lines)
+
+
 # ── 추가 커버리지 테스트 ──────────────────────────────────────────────────────
+
+
+def test_review_metric_helpers_filter_empty_values(mock_config):
+    uploader = NotionUploader(mock_config)
+
+    assert (
+        uploader._format_metric_pairs(
+            {
+                "twitter": 84,
+                "threads": 79.5,
+                "empty": "",
+                "missing": None,
+                "enabled": True,
+            }
+        )
+        == "twitter=84, threads=79.5, enabled=Yes"
+    )
+    assert uploader._format_metric_pairs([]) == ""
+    assert (
+        uploader._format_fact_check_warning_counts(
+            {
+                "twitter": ["warning one", "warning two"],
+                "threads": [],
+                "blog": "not-a-list",
+            }
+        )
+        == "twitter 2\uac74"
+    )
+
+
+def test_content_intelligence_helpers_preserve_review_details(mock_config):
+    uploader = NotionUploader(mock_config)
+    lines = uploader._build_content_intelligence_lines(
+        {
+            "emotion_profile": {
+                "top_emotions": [("anger", 0.75), ("", 0.25)],
+                "dominant_group": "tension",
+            },
+            "editorial_scores": {"hook": 9, "voice": 8.2},
+            "readability_scores": {"twitter": 7.8},
+            "quality_gate_scores": {"twitter": 84, "threads": 79},
+            "fact_check_warnings": {"twitter": ["short warning"], "threads": ["second warning"]},
+        },
+        {
+            "topic_cluster": "work",
+            "hook_type": "contrast",
+            "emotion_axis": "anger",
+            "emotion_lane": "empathy",
+            "audience_fit": "office",
+            "selection_summary": "summary",
+            "audience_need": "need",
+            "recommended_draft_type": "controversy",
+        },
+    )
+    joined = "\n".join(lines)
+
+    assert "anger=0.75" in joined
+    assert "tension" in joined
+    assert "hook=9, voice=8.2" in joined
+    assert "twitter=7.8" in joined
+    assert "twitter=84, threads=79" in joined
+    assert "twitter 1\uac74 (short warning); threads 1\uac74 (second warning)" in joined
 
 
 @pytest.mark.asyncio

@@ -257,6 +257,47 @@ class NotionUploadMixin:
             return f"{value:.2f}".rstrip("0").rstrip(".")
         return str(value)
 
+    def _format_metric_pairs(self, values: Any) -> str:
+        if not isinstance(values, dict) or not values:
+            return ""
+        return ", ".join(
+            f"{name}={self._format_metric_value(score)}" for name, score in values.items() if score not in (None, "")
+        )
+
+    @staticmethod
+    def _format_fact_check_warning_counts(values: Any) -> str:
+        if not isinstance(values, dict) or not values:
+            return ""
+        return ", ".join(
+            f"{platform} {len(items)}건" for platform, items in values.items() if isinstance(items, list) and items
+        )
+
+    def _format_fact_check_warning_previews(self, values: Any) -> str:
+        if not isinstance(values, dict) or not values:
+            return ""
+        summaries = []
+        for platform, items in values.items():
+            if isinstance(items, list) and items:
+                preview = self._truncate_for_brief(items[0], limit=80)
+                summaries.append(f"{platform} {len(items)}건 ({preview})")
+        return "; ".join(summaries)
+
+    def _build_emotion_profile_lines(self, emotion_profile: Any) -> list[str]:
+        if not isinstance(emotion_profile, dict):
+            return []
+
+        lines: list[str] = []
+        top_emotions = emotion_profile.get("top_emotions") or []
+        if top_emotions:
+            formatted = ", ".join(f"{name}={self._format_metric_value(score)}" for name, score in top_emotions if name)
+            if formatted:
+                lines.append(f"세부 감정 프로필: {formatted}")
+
+        dominant_group = str(emotion_profile.get("dominant_group", "") or "").strip()
+        if dominant_group:
+            lines.append(f"지배 감정 그룹: {dominant_group}")
+        return lines
+
     def _build_review_focus(
         self,
         analysis: dict[str, Any] | None,
@@ -364,25 +405,13 @@ class NotionUploadMixin:
         if quality_gate_retries not in (None, "", 0):
             metric_lines.append(f"품질 재시도: {self._format_metric_value(quality_gate_retries)}회")
 
-        quality_gate_scores = post_data.get("quality_gate_scores")
-        if isinstance(quality_gate_scores, dict) and quality_gate_scores:
-            scores = ", ".join(
-                f"{platform}={self._format_metric_value(score)}"
-                for platform, score in quality_gate_scores.items()
-                if score not in (None, "")
-            )
-            if scores:
-                metric_lines.append(f"품질 점수: {scores}")
+        quality_gate_scores = self._format_metric_pairs(post_data.get("quality_gate_scores"))
+        if quality_gate_scores:
+            metric_lines.append(f"품질 점수: {quality_gate_scores}")
 
-        fact_check_warnings = post_data.get("fact_check_warnings")
-        if isinstance(fact_check_warnings, dict) and fact_check_warnings:
-            warning_summary = ", ".join(
-                f"{platform} {len(items)}건"
-                for platform, items in fact_check_warnings.items()
-                if isinstance(items, list) and items
-            )
-            if warning_summary:
-                metric_lines.append(f"팩트 체크 경고: {warning_summary}")
+        warning_summary = self._format_fact_check_warning_counts(post_data.get("fact_check_warnings"))
+        if warning_summary:
+            metric_lines.append(f"팩트 체크 경고: {warning_summary}")
 
         return metric_lines
 
@@ -402,66 +431,28 @@ class NotionUploadMixin:
             f"추천 스타일: {analysis.get('recommended_draft_type', '공감형')}",
         ]
 
-        emotion_profile = post_data.get("emotion_profile")
-        if isinstance(emotion_profile, dict):
-            top_emotions = emotion_profile.get("top_emotions") or []
-            if top_emotions:
-                formatted = ", ".join(
-                    f"{name}={self._format_metric_value(score)}" for name, score in top_emotions if name
-                )
-                if formatted:
-                    lines.append(f"세부 감정 프로필: {formatted}")
-            dominant_group = str(emotion_profile.get("dominant_group", "") or "").strip()
-            if dominant_group:
-                lines.append(f"지배 감정 그룹: {dominant_group}")
+        lines.extend(self._build_emotion_profile_lines(post_data.get("emotion_profile")))
 
         spinoff_angle = str(analysis.get("spinoff_angle", "") or "").strip()
         if spinoff_angle:
             lines.append(f"파생각: {spinoff_angle}")
 
-        editorial_scores = post_data.get("editorial_scores")
-        if isinstance(editorial_scores, dict) and editorial_scores:
-            formatted = ", ".join(
-                f"{name}={self._format_metric_value(score)}"
-                for name, score in editorial_scores.items()
-                if score not in (None, "")
-            )
+        for label, key in (
+            ("에디토리얼 점수", "editorial_scores"),
+            ("가독성 점수", "readability_scores"),
+            ("품질 게이트 점수", "quality_gate_scores"),
+        ):
+            formatted = self._format_metric_pairs(post_data.get(key))
             if formatted:
-                lines.append(f"에디토리얼 점수: {formatted}")
-
-        readability_scores = post_data.get("readability_scores")
-        if isinstance(readability_scores, dict) and readability_scores:
-            formatted = ", ".join(
-                f"{platform}={self._format_metric_value(score)}"
-                for platform, score in readability_scores.items()
-                if score not in (None, "")
-            )
-            if formatted:
-                lines.append(f"가독성 점수: {formatted}")
-
-        quality_gate_scores = post_data.get("quality_gate_scores")
-        if isinstance(quality_gate_scores, dict) and quality_gate_scores:
-            formatted = ", ".join(
-                f"{platform}={self._format_metric_value(score)}"
-                for platform, score in quality_gate_scores.items()
-                if score not in (None, "")
-            )
-            if formatted:
-                lines.append(f"품질 게이트 점수: {formatted}")
+                lines.append(f"{label}: {formatted}")
 
         quality_gate_retries = post_data.get("quality_gate_retries")
         if quality_gate_retries not in (None, "", 0):
             lines.append(f"품질 재시도: {self._format_metric_value(quality_gate_retries)}회")
 
-        fact_check_warnings = post_data.get("fact_check_warnings")
-        if isinstance(fact_check_warnings, dict) and fact_check_warnings:
-            summaries = []
-            for platform, items in fact_check_warnings.items():
-                if isinstance(items, list) and items:
-                    preview = self._truncate_for_brief(items[0], limit=80)
-                    summaries.append(f"{platform} {len(items)}건 ({preview})")
-            if summaries:
-                lines.append(f"팩트 체크 경고: {'; '.join(summaries)}")
+        warning_previews = self._format_fact_check_warning_previews(post_data.get("fact_check_warnings"))
+        if warning_previews:
+            lines.append(f"팩트 체크 경고: {warning_previews}")
 
         draft_generation_error = str(post_data.get("draft_generation_error", "") or "").strip()
         if draft_generation_error:
