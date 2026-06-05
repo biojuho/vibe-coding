@@ -728,3 +728,16 @@
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1336.json --json` returned `adopt_candidate` with `score_delta=6.71426596552098`.
 - Commit closeout: `7694b14d refactor(shorts): T-1336 split cosyvoice and lazy provider imports`, `8efb3556 fix(shorts): T-1337 handle preloaded lazy submodules`, and `8cd6fe7c test(shorts): T-1338 cover preloaded lazy submodules` are local only; no push was performed.
 - Current boundary: workspace is clean and `main` is ahead of `origin/main` by `124` at code head `8cd6fe7c`; code-review graph refresh was rerun and became current for that code head before the relay commit. Product launch remains incomplete until explicit push authorization/user push plus current-head Actions, exact-head launch evidence refresh if needed after context-only commits, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
+
+## 2026-06-06 - Codex
+
+- Closed T-1340 as a bounded `$auto-research` `shorts-maker-v2` provider optional import hardening cycle.
+- Changed `projects/shorts-maker-v2/src/shorts_maker_v2/providers/__init__.py`: provider package `__getattr__` now restores already-loaded submodules from `sys.modules` before probing `find_spec()`, matching the top-level and pipeline lazy-submodule recovery behavior.
+- Changed `projects/shorts-maker-v2/src/shorts_maker_v2/providers/edge_tts_client.py`: the module now imports without the optional `edge-tts` package and raises a clear lazy `ImportError` only if the fallback `Communicate()` path is used.
+- Changed `projects/shorts-maker-v2/tests/unit/test_tts_providers.py`: added direct regressions for provider submodule recovery when `find_spec()` is unavailable and for missing Edge TTS dependency import.
+- Verification: focused provider pytest passed `3/3`; related provider/Edge pytest passed `102/102`; ruff check passed; ruff format check passed; `py_compile` passed; `git diff --check` passed; full shorts-maker-v2 project QC passed with `1590 passed`, `12 skipped`, `1 warning` plus lint.
+- VibeDebt proof: shorts-maker-v2 project TDR stayed `33.22`; this cycle added import robustness and regression coverage rather than debt reduction.
+- Code-review proof: pre-commit/base gate reported advisory WARN `risk_score=0.30` from graph heuristics while dirty, covered by direct and full project tests; clean-head `py -3.13 execution\code_review_gate.py --base HEAD --json` returned pass `risk_score=0.0`.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1340.json --json` returned `adopt_candidate` with `score_delta=0.6684382871536524`.
+- Commit closeout: `28764187 fix(shorts): T-1340 lazy-load provider submodules` is local only; no push was performed.
+- Current boundary: workspace is clean and `main` is ahead of `origin/main` by `128` at code head `28764187`; code-review graph is current at that code head. Product launch remains incomplete until explicit push authorization/user push plus current-head Actions, exact-head launch evidence refresh if needed after context-only commits, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
