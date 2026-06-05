@@ -8,7 +8,7 @@
 - Goal: Product launch-ready workspace through the auto-research self-improvement loop across GitHub projects, browser-click QA, A/B adoption, current dependency/code triage, and local readiness gates.
 - Owner: Codex, with user-owned T-251 external Supabase credential reset
 - Started: 2026-06-05
-- Latest: 2026-06-05 T-1313/T-1314/T-1315 extended the launch loop with direct release-packet audit evidence, blind-to-x Notion review formatting consolidation, and project-QC artifact preservation. Current HEAD `a3081938` is clean and ahead of `origin/main` by 34 commits; product readiness is score `96`, release packet is `ready_for_authorization`, selector is `blocked_publish_only`, and completion audit is `8/13` complete with 5 explicit blockers: publish/Actions, release authorization, selector publish boundary, external/user-owned T-251, and direct Hanwoo readiness T-251.
+- Latest: 2026-06-05 T-1313/T-1314/T-1315 extended the launch loop with direct release-packet audit evidence, blind-to-x Notion review formatting consolidation, and project-QC artifact preservation. The local branch is clean and ahead of `origin/main`; regenerate the release authorization packet for the exact current HEAD before any push request. Product readiness is score `96`, release packet is `ready_for_authorization`, selector is `blocked_publish_only`, and completion audit is `8/13` complete with 5 explicit blockers: publish/Actions, release authorization, selector publish boundary, external/user-owned T-251, and direct Hanwoo readiness T-251.
 - Success: All launch-audit requirements are complete after user-owned Hanwoo T-251 Supabase credential reset and live Prisma CRUD E2E pass; until then keep local launch evidence green and do not retry T-251.
 
 ## Progress Notes
