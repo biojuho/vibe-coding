@@ -745,6 +745,14 @@
 
 ## 2026-06-06 - Codex
 
+- Closed post-T-1342 exact-head verification before relay update.
+- Preserved local/concurrent commit `e28b042c chore(deps): T-1342 refresh React types`, which updates `@types/react` to `^19.2.17` for knowledge-dashboard and word-chain plus lockfiles.
+- Verification: canonical full active-project QC passed at the code/deps head with blind-to-x `1748 passed, 9 skipped`, shorts-maker-v2 `1590 passed, 12 skipped, 1 warning`, Hanwoo `500 passed` plus lint/build/smoke, and Knowledge `61 passed` plus lint/build/smoke. Word-chain was verified separately with `npm.cmd test` (`23 passed`), `npm.cmd run lint`, and `npm.cmd run build` through the known ASCII fallback after direct Vite `3221226505`.
+- Runtime proof: `product_readiness_score.py --json` reports score `96`, local blockers `0`, publish blockers `1`, and external blockers `1`; release packet is `ready_for_authorization`; selector is `blocked_publish_only`; completion audit is `incomplete` with `9/14` complete and 5 blocked issues.
+- Boundary: no push was performed. Product launch remains incomplete until explicit push authorization/user push plus current-head `root-quality-gate` and `active-project-matrix`, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
+
+## 2026-06-06 - Codex
+
 - Closed T-1341 as a bounded `$auto-research` `blind-to-x` draft response parser helper split discovered during final evidence refresh.
 - Changed `projects/blind-to-x/pipeline/draft_validation.py`: `_parse_response()` now delegates thinking-tag stripping, tag matching/text extraction, JSON payload application, thread/platform/reply/auxiliary tags, Twitter fallback, and single-format fallback to focused helpers while preserving output behavior.
 - Added `projects/blind-to-x/tests/unit/test_draft_validation.py`: covers JSON payload mapping, thread compatibility, auxiliary tags, image-prompt fallback stripping, and single-format plain-text fallback.
