@@ -22,6 +22,29 @@ _FEED_TITLE_SELECTOR = "td.title a[href*='view.php'], td[class*='title'] a[href*
 _FEED_RECOMMEND_SELECTOR = "td.recommend, td.vote"
 _FEED_IMAGE_ICON_SELECTOR = "img[src*='icon_pic'], .pic_icon, img[alt*='사진']"
 _FEED_THUMB_SELECTOR = "img[src*='thumb'], img[src*='no_unnamed']"
+_POST_CONTAINER_SELECTORS = (
+    ".board-contents",
+    ".JS_ContentMain",
+    ".bbsDetail",
+    "#view_content",
+    ".view_content",
+    "td.view_content",
+    ".zb_content",
+    "main",
+    "body",
+)
+_DIRECT_POST_CONTAINER_SELECTORS = (".board-contents", ".JS_ContentMain", ".bbsDetail", "#view_content", "main", "body")
+_POST_TITLE_SELECTORS = ("h1", ".topTitle-mainbox", ".bbsSubject", ".view_title", "td.title_subject", ".subject", "h2")
+_POST_BODY_SELECTORS = (
+    ".board-contents",
+    ".JS_ContentMain",
+    "#view_content",
+    ".view_content",
+    "td.view_content",
+    ".zb_content",
+    ".bbsDetail td",
+)
+_POST_IMAGE_BODY_SELECTORS = (".board-contents", ".JS_ContentMain", "#view_content")
 
 
 class PpomppuScraper(BaseScraper):
@@ -349,6 +372,145 @@ class PpomppuScraper(BaseScraper):
             return "news"
         return "general"
 
+    @staticmethod
+    def _post_fetch_failure_reason(fetch_err):
+        err_str = str(fetch_err).lower()
+        if "403" in err_str:
+            return "http_403_forbidden"
+        if "404" in err_str:
+            return "http_404_not_found"
+        if "timeout" in err_str:
+            return "fetch_timeout"
+        return "html_fetch_failed"
+
+    @staticmethod
+    async def _route_post_html(page, url, html_content):
+        async def intercept_post(route):
+            await route.fulfill(body=html_content, content_type="text/html; charset=utf-8")
+
+        await page.route(url, intercept_post)
+        await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+        await asyncio.sleep(2)
+
+    async def _find_post_container(self, page, selectors, timeout_ms):
+        for selector in selectors:
+            try:
+                await page.wait_for_selector(selector, timeout=timeout_ms)
+                main_container = await page.query_selector(selector)
+                if main_container:
+                    logger.info(f"Found content container: {selector}")
+                    return main_container
+            except PlaywrightTimeoutError:
+                continue
+        return None
+
+    async def _find_post_container_after_direct_navigation(self, page, url):
+        logger.warning(f"Intercept mode failed for {url}. Trying direct navigation...")
+        try:
+            await page.unroute(url)
+            await page.goto(url, wait_until="domcontentloaded", timeout=60000)
+            await asyncio.sleep(3)
+            container = await self._find_post_container(
+                page,
+                _DIRECT_POST_CONTAINER_SELECTORS,
+                self.direct_fallback_timeout_ms,
+            )
+            return container, "intercept_selector_not_found"
+        except Exception as fallback_err:
+            logger.error(f"Fallback navigation failed: {fallback_err}")
+            return None, "direct_navigation_failed"
+
+    @staticmethod
+    async def _extract_post_title(page):
+        for selector in _POST_TITLE_SELECTORS:
+            element = await page.query_selector(selector)
+            if not element:
+                continue
+            comment_element = await element.query_selector("#comment")
+            if comment_element:
+                await comment_element.evaluate("el => el.remove()")
+            text = (await element.inner_text()).strip()
+            if text:
+                return text
+        return "제목 없음"
+
+    async def _extract_post_content_text(self, page, main_container):
+        for selector in _POST_BODY_SELECTORS:
+            element = await main_container.query_selector(selector)
+            if not element:
+                element = await page.query_selector(selector)
+            if not element:
+                continue
+            text = (await element.inner_text()).strip()
+            if text and len(text) > 10:
+                return text
+
+        try:
+            content = self._extract_clean_text(await page.content())
+            if content:
+                logger.info("Content extracted via trafilatura fallback")
+            return content
+        except Exception:
+            return ""
+
+    @staticmethod
+    async def _extract_post_counts(page):
+        likes = 0
+        comments = 0
+        vote_el = await page.query_selector("#vote_list_btn_txt")
+        if vote_el:
+            vote_text = (await vote_el.inner_text()).strip()
+            if vote_text.isdigit():
+                likes = int(vote_text)
+
+        comment_span = await page.query_selector("h1 #comment")
+        if comment_span:
+            comment_text = (await comment_span.inner_text()).strip()
+            if comment_text.isdigit():
+                comments = int(comment_text)
+        else:
+            comments = len(await page.query_selector_all(".comment_line"))
+        return likes, comments
+
+    async def _extract_post_image_urls(self, page):
+        body_el = None
+        for selector in _POST_IMAGE_BODY_SELECTORS:
+            body_el = await page.query_selector(selector)
+            if body_el:
+                break
+        if not body_el:
+            return []
+
+        image_urls = []
+        for img in await body_el.query_selector_all("img"):
+            src = await img.get_attribute("src")
+            if not src or any(skip in src for skip in ["icon", "emoji", "smiley", "blank.", "spacer", "1x1"]):
+                continue
+            if src.startswith("//"):
+                src = "https:" + src
+            elif src.startswith("/"):
+                src = f"{self.BASE_URL}{src}"
+            if src.startswith("http"):
+                image_urls.append(src)
+        return image_urls
+
+    async def _save_post_screenshot(self, page, main_container, title):
+        await self._clean_ui_for_screenshot(page)
+
+        short_id = uuid.uuid4().hex[:8]
+        safe_title = "".join(x for x in title[:20] if x.isalnum() or x in " -_").strip()
+        filename = f"ppomppu_{safe_title or 'post'}_{short_id}.png"
+        filepath = os.path.join(self.screenshot_dir, filename)
+
+        await asyncio.sleep(0.5)
+        try:
+            await asyncio.wait_for(main_container.screenshot(path=filepath), timeout=30)
+        except asyncio.TimeoutError:
+            logger.error("Screenshot timed out")
+            raise
+        logger.info(f"Saved screenshot: {filepath}")
+        return filepath
+
     # ── Post scraping ────────────────────────────────────────────────
     async def scrape_post(self, url):
         logger.info(f"Scraping Ppomppu post: {url}")
@@ -365,73 +527,14 @@ class PpomppuScraper(BaseScraper):
             try:
                 html_content = await self._fetch_html_via_session(url)
             except Exception as fetch_err:
-                err_str = str(fetch_err).lower()
-                if "403" in err_str:
-                    failure_reason = "http_403_forbidden"
-                elif "404" in err_str:
-                    failure_reason = "http_404_not_found"
-                elif "timeout" in err_str:
-                    failure_reason = "fetch_timeout"
-                else:
-                    failure_reason = "html_fetch_failed"
+                failure_reason = self._post_fetch_failure_reason(fetch_err)
                 raise
 
-            async def intercept_post(route):
-                # response.text는 이미 Unicode(UTF-8)로 디코딩됨 → charset=utf-8 선언
-                await route.fulfill(body=html_content, content_type="text/html; charset=utf-8")
-
-            await page.route(url, intercept_post)
-            await page.goto(url, wait_until="domcontentloaded", timeout=30000)
-            await asyncio.sleep(2)
-
-            # 뽐뿌 게시글 컨테이너 셀렉터 (우선순위 순, 2026-03 구조 반영)
-            content_selectors = [
-                ".board-contents",  # 실제 본문 td (현행)
-                ".JS_ContentMain",  # JS 렌더링 콘텐츠 영역 (현행)
-                ".bbsDetail",  # 레거시
-                "#view_content",
-                ".view_content",
-                "td.view_content",
-                ".zb_content",
-                "main",
-                "body",
-            ]
-            main_container = None
-            for selector in content_selectors:
-                try:
-                    await page.wait_for_selector(selector, timeout=self.selector_timeout_ms)
-                    main_container = await page.query_selector(selector)
-                    if main_container:
-                        logger.info(f"Found content container: {selector}")
-                        break
-                except PlaywrightTimeoutError:
-                    continue
+            await self._route_post_html(page, url, html_content)
+            main_container = await self._find_post_container(page, _POST_CONTAINER_SELECTORS, self.selector_timeout_ms)
 
             if not main_container:
-                logger.warning(f"Intercept mode failed for {url}. Trying direct navigation...")
-                failure_reason = "intercept_selector_not_found"
-                try:
-                    await page.unroute(url)
-                    await page.goto(url, wait_until="domcontentloaded", timeout=60000)
-                    await asyncio.sleep(3)
-                    for selector in [
-                        ".board-contents",
-                        ".JS_ContentMain",
-                        ".bbsDetail",
-                        "#view_content",
-                        "main",
-                        "body",
-                    ]:
-                        try:
-                            await page.wait_for_selector(selector, timeout=self.direct_fallback_timeout_ms)
-                            main_container = await page.query_selector(selector)
-                            if main_container:
-                                break
-                        except PlaywrightTimeoutError:
-                            continue
-                except Exception as fallback_err:
-                    failure_reason = "direct_navigation_failed"
-                    logger.error(f"Fallback navigation failed: {fallback_err}")
+                main_container, failure_reason = await self._find_post_container_after_direct_navigation(page, url)
 
             if not main_container:
                 failure_stage = "parse"
@@ -439,145 +542,34 @@ class PpomppuScraper(BaseScraper):
                 raise Exception(f"Could not find content container on {url}")
 
             failure_stage = "parse"
-            image_urls = []
 
             # 제목 추출 (2026-03 구조: h1에 제목 있음)
-            title = ""
-            title_selectors = [
-                "h1",  # 현행 뽐뿌 제목 위치
-                ".topTitle-mainbox",  # 제목 영역 래퍼
-                ".bbsSubject",  # 레거시
-                ".view_title",
-                "td.title_subject",
-                ".subject",
-                "h2",
-            ]
-            for selector in title_selectors:
-                el = await page.query_selector(selector)
-                if el:
-                    # h1 내부 #comment span (댓글수) 제거 후 제목만 추출
-                    cmt_el = await el.query_selector("#comment")
-                    if cmt_el:
-                        await cmt_el.evaluate("el => el.remove()")
-                    text = (await el.inner_text()).strip()
-                    if text:
-                        title = text
-                        break
-            if not title:
-                title = "제목 없음"
+            title = await self._extract_post_title(page)
 
             # 본문 추출 (2026-03 구조: .board-contents 또는 .JS_ContentMain)
-            content = ""
-            body_selectors = [
-                ".board-contents",  # 현행 본문 td
-                ".JS_ContentMain",  # JS 렌더링 콘텐츠
-                "#view_content",  # 레거시
-                ".view_content",
-                "td.view_content",
-                ".zb_content",
-                ".bbsDetail td",
-            ]
-            for selector in body_selectors:
-                el = await main_container.query_selector(selector)
-                if not el:
-                    el = await page.query_selector(selector)
-                if el:
-                    text = (await el.inner_text()).strip()
-                    if text and len(text) > 10:
-                        content = text
-                        # 이미지 소스 추출
-                        img_elements = await el.query_selector_all("img")
-                        for img_el in img_elements:
-                            src = await img_el.get_attribute("src")
-                            if src and "cdn" not in src.lower() and "icon" not in src.lower():
-                                image_urls.append(src)
-                        break
-
-            # trafilatura 폴백: 셀렉터 추출 실패 시 HTML에서 클린 텍스트 추출
-            if not content:
-                try:
-                    raw_html = await page.content()
-                    content = self._extract_clean_text(raw_html)
-                    if content:
-                        logger.info("Content extracted via trafilatura fallback")
-                except Exception:
-                    pass
+            content = await self._extract_post_content_text(page, main_container)
 
             if title == "제목 없음" and not content:
                 failure_reason = "title_and_content_missing"
                 raise Exception(f"Could not parse title/content on {url}")
 
             # 추천/댓글 수 추출 (2026-03 구조 반영)
-            likes = 0
-            comments = 0
-
-            # 추천수: #vote_list_btn_txt 안에 숫자가 있음
-            vote_el = await page.query_selector("#vote_list_btn_txt")
-            if vote_el:
-                vote_text = (await vote_el.inner_text()).strip()
-                if vote_text.isdigit():
-                    likes = int(vote_text)
-
-            # 댓글수: h1 내부 #comment span
-            cmt_span = await page.query_selector("h1 #comment")
-            if cmt_span:
-                cmt_text = (await cmt_span.inner_text()).strip()
-                if cmt_text.isdigit():
-                    comments = int(cmt_text)
-            else:
-                # 폴백: 실제 댓글 div 개수 카운팅
-                comment_divs = await page.query_selector_all(".comment_line")
-                comments = len(comment_divs)
+            likes, comments = await self._extract_post_counts(page)
 
             category = self._determine_category(title, content)
 
             # ── 본문 이미지 URL 추출 (X/Twitter 노출용) ──────────────
-            image_urls = []
-            body_el = None
-            for sel in [".board-contents", ".JS_ContentMain", "#view_content"]:
-                body_el = await page.query_selector(sel)
-                if body_el:
-                    break
-            if body_el:
-                img_elements = await body_el.query_selector_all("img")
-                for img in img_elements:
-                    src = await img.get_attribute("src")
-                    if not src:
-                        continue
-                    # 이모티콘/아이콘 제외, 실제 콘텐츠 이미지만
-                    if any(skip in src for skip in ["icon", "emoji", "smiley", "blank.", "spacer", "1x1"]):
-                        continue
-                    if src.startswith("//"):
-                        src = "https:" + src
-                    elif src.startswith("/"):
-                        src = f"{self.BASE_URL}{src}"
-                    if src.startswith("http"):
-                        image_urls.append(src)
+            image_urls = await self._extract_post_image_urls(page)
             has_images = len(image_urls) > 0
             logger.info(
                 f"Extracted: '{title[:20]}...' | Likes {likes} | Comments {comments} | Images {len(image_urls)}"
             )
 
-            await self._clean_ui_for_screenshot(page)
-
-            short_id = uuid.uuid4().hex[:8]
-            safe_title = "".join(x for x in title[:20] if x.isalnum() or x in " -_").strip()
-            if not safe_title:
-                safe_title = "post"
-            filename = f"ppomppu_{safe_title}_{short_id}.png"
-            filepath = os.path.join(self.screenshot_dir, filename)
-
-            await asyncio.sleep(0.5)
             try:
-                await asyncio.wait_for(
-                    main_container.screenshot(path=filepath),
-                    timeout=30,
-                )
+                filepath = await self._save_post_screenshot(page, main_container, title)
             except asyncio.TimeoutError:
                 failure_reason = "screenshot_timeout"
-                logger.error(f"Screenshot timed out for {url}")
                 raise
-            logger.info(f"Saved screenshot: {filepath}")
 
             return {
                 "url": url,

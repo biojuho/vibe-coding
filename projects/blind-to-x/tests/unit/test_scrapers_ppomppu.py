@@ -160,6 +160,105 @@ async def test_collect_feed_candidates_sorts_and_filters_rows(scraper):
 
 
 @pytest.mark.asyncio
+async def test_extract_post_title_removes_comment_span(scraper):
+    page_mock = AsyncMock()
+    title_el = AsyncMock()
+    comment_el = AsyncMock()
+    title_el.query_selector.return_value = comment_el
+    title_el.inner_text.return_value = "Post title"
+    page_mock.query_selector.side_effect = lambda selector: title_el if selector == "h1" else None
+
+    title = await scraper._extract_post_title(page_mock)
+
+    assert title == "Post title"
+    comment_el.evaluate.assert_awaited_once_with("el => el.remove()")
+
+
+@pytest.mark.asyncio
+async def test_extract_post_content_uses_page_selector_fallback(scraper):
+    page_mock = AsyncMock()
+    main_container_mock = AsyncMock()
+    content_el = AsyncMock()
+    content_el.inner_text.return_value = "This is enough post content."
+    main_container_mock.query_selector.return_value = None
+    page_mock.query_selector.side_effect = lambda selector: content_el if selector == "#view_content" else None
+
+    content = await scraper._extract_post_content_text(page_mock, main_container_mock)
+
+    assert content == "This is enough post content."
+
+
+@pytest.mark.asyncio
+async def test_extract_post_counts_falls_back_to_comment_lines(scraper):
+    page_mock = AsyncMock()
+    vote_el = AsyncMock()
+    vote_el.inner_text.return_value = "7"
+
+    def query_selector(selector):
+        if selector == "#vote_list_btn_txt":
+            return vote_el
+        return None
+
+    page_mock.query_selector.side_effect = query_selector
+    page_mock.query_selector_all.return_value = [AsyncMock(), AsyncMock(), AsyncMock()]
+
+    likes, comments = await scraper._extract_post_counts(page_mock)
+
+    assert likes == 7
+    assert comments == 3
+
+
+@pytest.mark.asyncio
+async def test_extract_post_image_urls_normalizes_and_filters(scraper):
+    page_mock = AsyncMock()
+    body_el = AsyncMock()
+    image_sources = [
+        "//cdn.example.com/photo.jpg",
+        "/zboard/data/photo.png",
+        "https://example.com/icon.gif",
+        "https://example.com/spacer.gif",
+        "https://example.com/full.jpg",
+    ]
+    images = []
+    for source in image_sources:
+        img = AsyncMock()
+        img.get_attribute.return_value = source
+        images.append(img)
+
+    page_mock.query_selector.side_effect = lambda selector: body_el if selector == ".board-contents" else None
+    body_el.query_selector_all.return_value = images
+
+    image_urls = await scraper._extract_post_image_urls(page_mock)
+
+    assert image_urls == [
+        "https://cdn.example.com/photo.jpg",
+        "https://www.ppomppu.co.kr/zboard/data/photo.png",
+        "https://example.com/full.jpg",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_scrape_post_reports_fetch_failure_reason(scraper):
+    page_mock = AsyncMock()
+    scraper._new_page = AsyncMock(return_value=page_mock)
+    scraper._fetch_html_via_session = AsyncMock(side_effect=RuntimeError("403 forbidden"))
+    scraper._save_failure_snapshot = AsyncMock()
+
+    result = await scraper.scrape_post("https://www.ppomppu.co.kr/zboard/view.php?no=403")
+
+    assert result["_scrape_error"] is True
+    assert result["failure_stage"] == "post_fetch"
+    assert result["failure_reason"] == "http_403_forbidden"
+    scraper._save_failure_snapshot.assert_awaited_once_with(
+        page_mock,
+        "https://www.ppomppu.co.kr/zboard/view.php?no=403",
+        "post_fetch",
+        "http_403_forbidden",
+    )
+    page_mock.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
 @patch("scrapers.ppomppu.os.makedirs")
 @patch("scrapers.ppomppu.PpomppuScraper._fetch_html_via_session", new_callable=AsyncMock)
 async def test_scrape_post_success(mock_fetch, mock_mkdir, scraper):
