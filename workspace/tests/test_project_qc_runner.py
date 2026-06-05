@@ -200,11 +200,23 @@ def test_readiness_artifact_aggregates_project_results() -> None:
         },
     ]
 
-    artifact = MODULE.build_readiness_artifact(results, timestamp="2026-06-04T00:00:00Z")
+    artifact = MODULE.build_readiness_artifact(
+        results,
+        timestamp="2026-06-04T00:00:00Z",
+        git_metadata={
+            "available": True,
+            "head_sha": "abc123",
+            "branch": "main",
+            "dirty_count": 0,
+            "dirty_paths": [],
+        },
+    )
 
     assert artifact["source"] == "project_qc_runner"
     assert artifact["schema_version"] == MODULE.READINESS_ARTIFACT_SCHEMA_VERSION
     assert artifact["timestamp"] == "2026-06-04T00:00:00Z"
+    assert artifact["git"]["head_sha"] == "abc123"
+    assert artifact["git"]["dirty_count"] == 0
     assert artifact["projects"]["blind-to-x"]["status"] == "PASS"
     assert artifact["projects"]["blind-to-x"]["passed"] == 12
     assert artifact["projects"]["blind-to-x"]["coverage"] == "complete"

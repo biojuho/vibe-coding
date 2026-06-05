@@ -34,6 +34,8 @@ LEGACY_QAQC_ARTIFACTS = (
 PROJECT_QC_SOURCE = "project_qc_runner"
 REQUIRED_GITHUB_WORKFLOWS = ("root-quality-gate", "active-project-matrix")
 PROJECT_QC_ARTIFACT_CONTRACT_MISMATCH = "artifact_schema_version"
+PROJECT_QC_ARTIFACT_HEAD_STALE = "artifact_head"
+PROJECT_QC_GLOBAL_STALE_PATHS = ("execution/project_qc_runner.py",)
 
 
 @dataclass(frozen=True)
@@ -267,6 +269,84 @@ def _run_text_command(repo_root: Path, command: list[str], timeout: int = 10) ->
     if completed.returncode != 0:
         return ""
     return completed.stdout.strip()
+
+
+def _normalize_git_path(path: str) -> str:
+    return path.replace("\\", "/").strip().strip('"')
+
+
+def _project_qc_artifact_head(qaqc_data: dict[str, Any]) -> str | None:
+    git = qaqc_data.get("git")
+    if not isinstance(git, dict):
+        return None
+    head = git.get("head_sha")
+    return str(head).strip() if isinstance(head, str) and head.strip() else None
+
+
+def _changed_paths_between(repo_root: Path, base_sha: str, head_sha: str) -> dict[str, Any]:
+    if base_sha == head_sha:
+        return {"available": True, "paths": []}
+    try:
+        completed = subprocess.run(
+            ["git", "diff", "--name-only", f"{base_sha}..{head_sha}"],
+            cwd=repo_root,
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=15,
+        )
+    except Exception as exc:
+        return {"available": False, "paths": [], "error": str(exc)}
+    if completed.returncode != 0:
+        return {"available": False, "paths": [], "error": completed.stderr.strip()}
+    return {
+        "available": True,
+        "paths": [_normalize_git_path(line) for line in completed.stdout.splitlines() if line.strip()],
+    }
+
+
+def _project_qc_head_freshness(
+    *,
+    repo_root: Path,
+    qaqc_data: dict[str, Any],
+    current_head_sha: str | None,
+) -> dict[str, Any]:
+    if qaqc_data.get("source") != PROJECT_QC_SOURCE:
+        return {}
+
+    artifact_head = _project_qc_artifact_head(qaqc_data)
+    current_head = current_head_sha or _run_text_command(repo_root, ["git", "rev-parse", "HEAD"])
+    result: dict[str, Any] = {
+        "artifact_head_sha": artifact_head,
+        "current_head_sha": current_head or None,
+        "head_stale": False,
+        "changed_paths_available": False,
+        "changed_paths_since_qc": [],
+    }
+    if not artifact_head or not current_head:
+        return result
+
+    changed = _changed_paths_between(repo_root, artifact_head, current_head)
+    result["changed_paths_available"] = bool(changed.get("available"))
+    result["changed_paths_since_qc"] = list(changed.get("paths") or [])
+    if changed.get("error"):
+        result["changed_paths_error"] = str(changed.get("error"))
+    return result
+
+
+def _relevant_project_qc_changes(project_name: str, head_freshness: dict[str, Any]) -> list[str]:
+    paths = [_normalize_git_path(str(path)) for path in head_freshness.get("changed_paths_since_qc") or []]
+    profile = PROJECTS.get(project_name)
+    project_prefix = f"{profile.path}/" if profile else ""
+    relevant: list[str] = []
+    for path in paths:
+        if project_prefix and (path == project_prefix.rstrip("/") or path.startswith(project_prefix)):
+            relevant.append(path)
+        elif path in PROJECT_QC_GLOBAL_STALE_PATHS:
+            relevant.append(path)
+    return relevant
 
 
 def _unavailable_github_release_status(head_sha: str | None = None) -> dict[str, Any]:
@@ -561,8 +641,39 @@ def _qc_freshness(qaqc_data: dict[str, Any], now: datetime) -> dict[str, Any]:
     }
 
 
-def _project_qc_status(qaqc_data: dict[str, Any], project_name: str, now: datetime) -> dict[str, Any]:
-    freshness = _qc_freshness(qaqc_data, now)
+def _project_qc_status(
+    qaqc_data: dict[str, Any],
+    project_name: str,
+    now: datetime,
+    *,
+    head_freshness: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    time_freshness = _qc_freshness(qaqc_data, now)
+    head_freshness = head_freshness or {}
+    relevant_changes = _relevant_project_qc_changes(project_name, head_freshness)
+    head_stale = bool(relevant_changes)
+    stale_reasons = []
+    if time_freshness.get("stale"):
+        stale_reasons.append("age")
+    if head_stale:
+        stale_reasons.append(PROJECT_QC_ARTIFACT_HEAD_STALE)
+    freshness = {
+        **time_freshness,
+        "stale": bool(time_freshness.get("stale")) or head_stale,
+        "stale_reasons": stale_reasons,
+    }
+    if head_freshness:
+        freshness.update(
+            {
+                "artifact_head_sha": head_freshness.get("artifact_head_sha"),
+                "current_head_sha": head_freshness.get("current_head_sha"),
+                "head_stale": head_stale,
+                "changed_paths_available": head_freshness.get("changed_paths_available", False),
+                "relevant_changes_since_qc": relevant_changes[:20],
+            }
+        )
+        if head_freshness.get("changed_paths_error"):
+            freshness["changed_paths_error"] = head_freshness.get("changed_paths_error")
     projects = qaqc_data.get("projects")
     if not isinstance(projects, dict):
         return {
@@ -838,8 +949,9 @@ def _score_project(
     project_tasks: list[dict[str, str]],
     dirty_paths: list[str],
     now: datetime,
+    qc_head_freshness: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    qc = _project_qc_status(qaqc_data, profile.name, now)
+    qc = _project_qc_status(qaqc_data, profile.name, now, head_freshness=qc_head_freshness)
     docs = _required_file_status(repo_root, profile)
     env = _env_status(repo_root, profile)
 
@@ -894,9 +1006,12 @@ def _score_project(
     if task_recommendation:
         recommendations.append(task_recommendation)
     if qc.get("stale"):
-        age = qc.get("age_days")
-        suffix = f" ({age} days old)" if isinstance(age, int) else ""
-        recommendations.append(f"Refresh project QC; latest recorded run is stale{suffix}.")
+        if qc.get("head_stale"):
+            recommendations.append("Refresh project QC; latest recorded run predates current project changes.")
+        else:
+            age = qc.get("age_days")
+            suffix = f" ({age} days old)" if isinstance(age, int) else ""
+            recommendations.append(f"Refresh project QC; latest recorded run is stale{suffix}.")
     elif qc_score < 35:
         recommendations.append("Refresh project QC so the score reflects the latest test/lint/build/smoke state.")
     if any(not item["present"] for item in docs):
@@ -943,6 +1058,11 @@ def build_report(
     dirty = _dirty_paths_by_project(status_text)
     worktree_release = _worktree_release_status(_dirty_workspace_paths(status_text))
     github_release = github_status if github_status is not None else _github_release_status(repo_root)
+    qc_head_freshness = _project_qc_head_freshness(
+        repo_root=repo_root,
+        qaqc_data=qaqc_data,
+        current_head_sha=github_release.get("head_sha") if isinstance(github_release.get("head_sha"), str) else None,
+    )
 
     projects = [
         _score_project(
@@ -952,6 +1072,7 @@ def build_report(
             project_tasks=tasks.get(name, []),
             dirty_paths=dirty.get(name, []),
             now=now,
+            qc_head_freshness=qc_head_freshness,
         )
         for name in ACTIVE_PROJECTS
     ]

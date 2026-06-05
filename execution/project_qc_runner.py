@@ -26,7 +26,7 @@ OUTPUT_TAIL_CHARS = 4000
 PROJECT_QC_RUN_ID = f"{os.getpid()}-{time.time_ns()}"
 DEFAULT_ARTIFACT_PATH = REPO_ROOT / ".tmp" / "project_qc_runner_latest.json"
 DEFAULT_PARTIAL_ARTIFACT_PATH = REPO_ROOT / ".tmp" / "project_qc_runner_partial_latest.json"
-READINESS_ARTIFACT_SCHEMA_VERSION = 2
+READINESS_ARTIFACT_SCHEMA_VERSION = 3
 
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
     try:
@@ -398,7 +398,58 @@ def _project_check_coverage(project: str, results: list[dict[str, object]]) -> d
     }
 
 
-def build_readiness_artifact(results: list[dict[str, object]], *, timestamp: str | None = None) -> dict[str, object]:
+def _run_git_text(command: tuple[str, ...], repo_root: Path = REPO_ROOT) -> str:
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=repo_root,
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    if completed.returncode != 0:
+        return ""
+    return completed.stdout.strip()
+
+
+def _dirty_paths_from_status(status: str) -> list[str]:
+    paths: list[str] = []
+    for line in status.splitlines():
+        if not line.strip():
+            continue
+        path = line[3:].strip() if len(line) > 3 else line.strip()
+        if path:
+            paths.append(path)
+    return paths
+
+
+def _git_metadata(repo_root: Path = REPO_ROOT) -> dict[str, object]:
+    if not (repo_root / ".git").exists():
+        return {"available": False, "head_sha": None, "branch": None, "dirty_count": None, "dirty_paths": []}
+
+    head_sha = _run_git_text(("git", "rev-parse", "HEAD"), repo_root)
+    branch = _run_git_text(("git", "branch", "--show-current"), repo_root)
+    dirty_paths = _dirty_paths_from_status(_run_git_text(("git", "status", "--porcelain"), repo_root))
+    return {
+        "available": bool(head_sha),
+        "head_sha": head_sha or None,
+        "branch": branch or None,
+        "dirty_count": len(dirty_paths),
+        "dirty_paths": dirty_paths,
+    }
+
+
+def build_readiness_artifact(
+    results: list[dict[str, object]],
+    *,
+    timestamp: str | None = None,
+    git_metadata: dict[str, object] | None = None,
+) -> dict[str, object]:
     timestamp = timestamp or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     grouped: dict[str, list[dict[str, object]]] = {}
     for result in results:
@@ -439,6 +490,7 @@ def build_readiness_artifact(results: list[dict[str, object]], *, timestamp: str
         "timestamp": timestamp,
         "source": "project_qc_runner",
         "schema_version": READINESS_ARTIFACT_SCHEMA_VERSION,
+        "git": git_metadata if git_metadata is not None else _git_metadata(),
         "status": "passed" if exit_code_for_results(results) == 0 else "failed",
         "projects": projects,
         "total": total,

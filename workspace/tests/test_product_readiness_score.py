@@ -793,6 +793,94 @@ def test_stale_qc_data_lowers_scores_and_recommends_refresh(tmp_path: Path):
     assert "Refresh project QC" in blind["recommendations"][0]
 
 
+def test_project_qc_artifact_head_stale_when_project_changed_since_run(tmp_path: Path, monkeypatch):
+    _write_project_files(tmp_path)
+    qaqc_path = _write_latest_project_qc(tmp_path)
+    data = json.loads(qaqc_path.read_text(encoding="utf-8"))
+    data["git"] = {
+        "available": True,
+        "head_sha": "old-head",
+        "branch": "main",
+        "dirty_count": 0,
+        "dirty_paths": [],
+    }
+    qaqc_path.write_text(json.dumps(data), encoding="utf-8")
+    _write_tasks(
+        tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
+    )
+    _write_required_env(tmp_path)
+
+    monkeypatch.setattr(
+        readiness,
+        "_changed_paths_between",
+        lambda repo_root, base_sha, head_sha: {
+            "available": True,
+            "paths": ["projects/blind-to-x/scrapers/ppomppu.py", ".ai/HANDOFF.md"],
+        },
+    )
+    github_status = _passing_github_status()
+    github_status["head_sha"] = "new-head"
+
+    report = readiness.build_report(
+        tmp_path,
+        qaqc_path=qaqc_path,
+        git_status_text="",
+        github_status=github_status,
+        now=datetime(2026, 5, 13, tzinfo=timezone.utc),
+    )
+
+    blind = next(project for project in report["projects"] if project["name"] == "blind-to-x")
+    shorts = next(project for project in report["projects"] if project["name"] == "shorts-maker-v2")
+    assert blind["qc"]["stale"] is True
+    assert blind["qc"]["head_stale"] is True
+    assert blind["qc"]["stale_reasons"] == ["artifact_head"]
+    assert blind["qc"]["relevant_changes_since_qc"] == ["projects/blind-to-x/scrapers/ppomppu.py"]
+    assert blind["state"] == "needs-review"
+    assert "predates current project changes" in blind["recommendations"][0]
+    assert shorts["qc"]["stale"] is False
+
+
+def test_project_qc_artifact_head_allows_context_only_changes(tmp_path: Path, monkeypatch):
+    _write_project_files(tmp_path)
+    qaqc_path = _write_latest_project_qc(tmp_path)
+    data = json.loads(qaqc_path.read_text(encoding="utf-8"))
+    data["git"] = {
+        "available": True,
+        "head_sha": "old-head",
+        "branch": "main",
+        "dirty_count": 0,
+        "dirty_paths": [],
+    }
+    qaqc_path.write_text(json.dumps(data), encoding="utf-8")
+    _write_tasks(
+        tmp_path, "# TASKS\n\n## TODO\n\n| ID | Task | Owner | Priority | Auto | Created |\n|---|---|---|---|---|---|\n"
+    )
+    _write_required_env(tmp_path)
+
+    monkeypatch.setattr(
+        readiness,
+        "_changed_paths_between",
+        lambda repo_root, base_sha, head_sha: {"available": True, "paths": [".ai/HANDOFF.md", ".ai/GOAL.md"]},
+    )
+    github_status = _passing_github_status()
+    github_status["head_sha"] = "new-head"
+
+    report = readiness.build_report(
+        tmp_path,
+        qaqc_path=qaqc_path,
+        git_status_text="",
+        github_status=github_status,
+        now=datetime(2026, 5, 13, tzinfo=timezone.utc),
+    )
+
+    blind = next(project for project in report["projects"] if project["name"] == "blind-to-x")
+    assert blind["qc"]["stale"] is False
+    assert blind["qc"]["head_stale"] is False
+    assert blind["qc"]["changed_paths_available"] is True
+    assert blind["qc"]["relevant_changes_since_qc"] == []
+    assert blind["state"] == "ready"
+
+
 def test_missing_project_qc_is_unknown_instead_of_root_fallback(tmp_path: Path):
     _write_project_files(tmp_path)
     qaqc_path = _write_qaqc(tmp_path)
