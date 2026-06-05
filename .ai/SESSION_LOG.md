@@ -357,6 +357,19 @@
 
 ## 2026-06-05 - Codex
 
+- Completed T-1297 as a bounded `$auto-research` launch-loop reliability cycle for skill evidence linting and selector input artifacts.
+- Changed `execution/skill_lint.py`: generated `input/` and `output/` artifact examples are now treated as workflow artifacts, not missing bundled skill files.
+- Changed `.agents/skills/accessibility/SKILL.md`, `.agents/skills/seo/SKILL.md`, and `.agents/skills/shorts-tts-quality/SKILL.md`: removed unavailable local skill links and the stale Shorts Maker V2 test path that produced false broken-reference warnings.
+- Changed `.agents/skills/auto-research/scripts/next_experiment_selector.py`: missing, unreadable, invalid, non-object, or schema-incomplete readiness/GitHub/browser/dependency input evidence now selects `input_evidence_unavailable` with regeneration gates instead of falling through to completion audit; UTF-16 JSON input artifacts are accepted for Windows resilience.
+- Changed `.agents/skills/auto-research/SKILL.md`: documented that selector ranking checks input evidence availability first and requires helper artifact regeneration when `input_evidence_unavailable` is selected.
+- Changed `workspace/tests/test_skill_lint.py` and `workspace/tests/test_auto_research_next_experiment_selector.py`: added regressions for generated artifact examples, missing/schema-invalid selector inputs, and UTF-16 selector input artifacts.
+- Verification: skill-lint pytest passed 9/9, focused selector+skill-lint pytest passed 17/17, broader auto-research/GitHub/skill-lint pytest passed 75/75, runtime `skill_lint.py --skills-root .agents\skills --json` returned `pass` score 100 with warning_count 0, ruff passed, format check passed, `py_compile` passed, and `git diff --check` passed with CRLF warnings only.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1297.json --json` returned `adopt_candidate` with `score_delta=0.7777777777777778`.
+- Completion audit: `.agents/skills/auto-research/scripts/completion_audit.py .tmp\completion-audit-t1297.json --json` returned `complete` with 4/4 items complete and 0 issues.
+- Boundary: full launch completion remains blocked only by external/user-owned Hanwoo T-251; do not retry T-251 until Supabase Dashboard credentials are reset.
+
+## 2026-06-05 - Codex
+
 - Completed T-1264 as a bounded `$auto-research` Knowledge Dashboard product-readiness cycle focused on sync resilience and direct browser-click QA.
 - Changed `projects/knowledge-dashboard/scripts/sync_data.py`: when `httpx` is unavailable, `GITHUB_PERSONAL_ACCESS_TOKEN` is absent, or GitHub fetch fails, it now falls back to the deterministic local workspace inventory from `.agents/skills/auto-research/scripts/github_project_inventory.py`.
 - The local fallback maps workspace projects into GitHub-card-compatible rows with stable ids, local/root tree URLs, inferred language, README/test/workflow metadata, and safe descriptions, so the dashboard GitHub section is not empty on local/operator machines without a GitHub token.

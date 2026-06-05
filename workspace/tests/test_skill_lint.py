@@ -141,6 +141,23 @@ def test_bare_inline_filenames_are_not_treated_as_required_bundled_files(tmp_pat
     assert report["issues"] == []
 
 
+def test_generated_input_output_paths_are_not_required_bundled_files(tmp_path: Path):
+    _write_skill(
+        tmp_path,
+        "generated-artifacts",
+        "---\n"
+        "name: generated-artifacts\n"
+        "description: Use when validating generated input and output artifact paths in skill prose.\n"
+        "---\n\n"
+        "The workflow may accept `input/source.md` and produce `output/qa_report.md`.\n",
+    )
+
+    report = skill_lint.build_report(tmp_path, now=datetime(2026, 5, 13, tzinfo=timezone.utc))
+
+    assert report["summary"]["status"] == "pass"
+    assert report["issues"] == []
+
+
 def test_references_inside_fenced_code_are_examples_not_required_files(tmp_path: Path):
     _write_skill(
         tmp_path,

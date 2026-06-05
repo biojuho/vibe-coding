@@ -156,7 +156,7 @@ Run the selector after readiness, GitHub, browser, and dependency inventories wh
 python .agents/skills/auto-research/scripts/next_experiment_selector.py --root . --json
 ```
 
-It ranks local readiness blockers, GitHub/PR follow-ups, browser QA refreshes, dependency candidates, stale QC refreshes, and external/user-owned blockers. A `candidate` status is safe to scope as the next bounded experiment. A `blocked_external_only` status means local launch evidence is already green and the selected blocker requires user action, so do not retry it until the prerequisite is complete.
+It ranks input evidence availability, local readiness blockers, GitHub/PR follow-ups, browser QA refreshes, dependency candidates, stale QC refreshes, and external/user-owned blockers. A `candidate` status is safe to scope as the next bounded experiment. If the selected kind is `input_evidence_unavailable`, regenerate the listed helper artifacts before claiming readiness. A `blocked_external_only` status means local launch evidence is already green and the selected blocker requires user action, so do not retry it until the prerequisite is complete.
 
 ## A/B Decision Helper
 

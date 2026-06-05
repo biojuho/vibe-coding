@@ -12,14 +12,33 @@ from typing import Any
 
 
 SCRIPT_ROOT = Path(".agents") / "skills" / "auto-research" / "scripts"
+INPUT_ERROR_KEY = "_input_error"
 
 
-def _load_json(path: Path) -> dict[str, Any]:
+def _input_error(label: str, reason: str, **extra: Any) -> dict[str, Any]:
+    payload = {"label": label, "reason": reason}
+    payload.update({key: value for key, value in extra.items() if value not in (None, "")})
+    return {INPUT_ERROR_KEY: payload}
+
+
+def _load_json(path: Path, *, label: str) -> dict[str, Any]:
     try:
-        parsed = json.loads(path.read_text(encoding="utf-8-sig"))
-    except (FileNotFoundError, OSError, json.JSONDecodeError):
-        return {}
-    return parsed if isinstance(parsed, dict) else {}
+        try:
+            raw = path.read_text(encoding="utf-8-sig")
+        except UnicodeError:
+            raw = path.read_text(encoding="utf-16")
+        parsed = json.loads(raw)
+    except FileNotFoundError:
+        return _input_error(label, "missing artifact", path=str(path))
+    except OSError as exc:
+        return _input_error(label, "unreadable artifact", path=str(path), detail=str(exc))
+    except UnicodeError as exc:
+        return _input_error(label, "unsupported artifact encoding", path=str(path), detail=str(exc))
+    except json.JSONDecodeError as exc:
+        return _input_error(label, "invalid JSON artifact", path=str(path), detail=str(exc))
+    if not isinstance(parsed, dict):
+        return _input_error(label, "JSON root was not an object", path=str(path))
+    return parsed
 
 
 def _run_json(root: Path, args: list[str], timeout: int) -> dict[str, Any]:
@@ -60,6 +79,18 @@ def _run_json(root: Path, args: list[str], timeout: int) -> dict[str, Any]:
         "stderr": completed.stderr.strip(),
         "data": data,
     }
+
+
+def _run_data(result: dict[str, Any], *, label: str) -> dict[str, Any]:
+    data = _as_dict(result.get("data"))
+    if result.get("available") is True and data:
+        return data
+    return _input_error(
+        label,
+        "helper command unavailable",
+        returncode=result.get("returncode"),
+        detail=result.get("stderr"),
+    )
 
 
 def _as_dict(value: Any) -> dict[str, Any]:
@@ -127,6 +158,50 @@ def _candidate(
         "blockers": blockers or [],
         "guardrails": guardrails or [],
     }
+
+
+def _input_evidence_candidate(
+    readiness: dict[str, Any],
+    github_inventory: dict[str, Any],
+    browser_inventory: dict[str, Any],
+    dependency_inventory: dict[str, Any],
+) -> dict[str, Any] | None:
+    inputs = {
+        "readiness": (readiness, "overall"),
+        "github": (github_inventory, "git"),
+        "browser": (browser_inventory, "summary"),
+        "dependency": (dependency_inventory, "summary"),
+    }
+    evidence: list[str] = []
+    for label, (payload, required_key) in inputs.items():
+        error = _as_dict(payload.get(INPUT_ERROR_KEY))
+        if error:
+            evidence.append(
+                f"{label}: {error.get('reason')} ({error.get('path') or error.get('detail') or 'no detail'})"
+            )
+            continue
+        if required_key not in payload:
+            evidence.append(f"{label}: missing required key `{required_key}`")
+    if not evidence:
+        return None
+    return _candidate(
+        kind="input_evidence_unavailable",
+        priority=5,
+        project="workspace",
+        action="Regenerate missing or invalid auto-research input artifact(s) before selecting the next experiment.",
+        reason="The selector must not route to completion audit when required inventory evidence is missing or unreadable.",
+        evidence=evidence,
+        required_gates=[
+            "product_readiness_score.py --json",
+            "github_project_inventory.py --include-prs --json",
+            "browser_qa_inventory.py --json",
+            "dependency_freshness_inventory.py --json",
+        ],
+        guardrails=[
+            "Run artifact-producing helpers before selector evaluation.",
+            "Do not retry external T-251 unless credentials were reset.",
+        ],
+    )
 
 
 def _local_readiness_candidate(readiness: dict[str, Any]) -> dict[str, Any] | None:
@@ -312,6 +387,7 @@ def select_next_experiment(
     dependency_inventory: dict[str, Any],
 ) -> dict[str, Any]:
     candidates = [
+        _input_evidence_candidate(readiness, github_inventory, browser_inventory, dependency_inventory),
         _local_readiness_candidate(readiness),
         _github_candidate(github_inventory),
         _browser_candidate(browser_inventory),
@@ -346,42 +422,52 @@ def select_next_experiment(
 def _collect_inputs(args: argparse.Namespace) -> dict[str, dict[str, Any]]:
     root = args.root.resolve()
     if args.readiness:
-        readiness = _load_json(args.readiness)
+        readiness = _load_json(args.readiness, label="readiness")
     else:
-        readiness = _run_json(root, [sys.executable, "execution/product_readiness_score.py", "--json"], args.timeout)[
-            "data"
-        ]
+        readiness = _run_data(
+            _run_json(root, [sys.executable, "execution/product_readiness_score.py", "--json"], args.timeout),
+            label="readiness",
+        )
     if args.github:
-        github_inventory = _load_json(args.github)
+        github_inventory = _load_json(args.github, label="github")
     else:
-        github_inventory = _run_json(
-            root,
-            [
-                sys.executable,
-                str(SCRIPT_ROOT / "github_project_inventory.py"),
-                "--root",
-                str(root),
-                "--include-prs",
-                "--json",
-            ],
-            args.timeout,
-        )["data"]
+        github_inventory = _run_data(
+            _run_json(
+                root,
+                [
+                    sys.executable,
+                    str(SCRIPT_ROOT / "github_project_inventory.py"),
+                    "--root",
+                    str(root),
+                    "--include-prs",
+                    "--json",
+                ],
+                args.timeout,
+            ),
+            label="github",
+        )
     if args.browser:
-        browser_inventory = _load_json(args.browser)
+        browser_inventory = _load_json(args.browser, label="browser")
     else:
-        browser_inventory = _run_json(
-            root,
-            [sys.executable, str(SCRIPT_ROOT / "browser_qa_inventory.py"), "--root", str(root), "--json"],
-            args.timeout,
-        )["data"]
+        browser_inventory = _run_data(
+            _run_json(
+                root,
+                [sys.executable, str(SCRIPT_ROOT / "browser_qa_inventory.py"), "--root", str(root), "--json"],
+                args.timeout,
+            ),
+            label="browser",
+        )
     if args.dependency:
-        dependency_inventory = _load_json(args.dependency)
+        dependency_inventory = _load_json(args.dependency, label="dependency")
     else:
-        dependency_inventory = _run_json(
-            root,
-            [sys.executable, str(SCRIPT_ROOT / "dependency_freshness_inventory.py"), "--root", str(root), "--json"],
-            args.timeout,
-        )["data"]
+        dependency_inventory = _run_data(
+            _run_json(
+                root,
+                [sys.executable, str(SCRIPT_ROOT / "dependency_freshness_inventory.py"), "--root", str(root), "--json"],
+                args.timeout,
+            ),
+            label="dependency",
+        )
     return {
         "readiness": readiness,
         "github_inventory": github_inventory,

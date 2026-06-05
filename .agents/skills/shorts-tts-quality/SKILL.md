@@ -16,7 +16,7 @@ description: >
 ## 채널별 音聲 매핑 (channel_profiles.yaml `tts_voice` 기준)
 
 > **SSOT**: `channel_profiles.yaml`의 각 채널 `tts_voice` 키. 아래 표는 그 값을
-> 미러링한 것이며, `tests/unit/test_skill_config_consistency.py`가 표와 YAML의
+> 미러링한 것이며, Shorts Maker V2의 TTS unit tests가 표와 YAML의
 > 일치를 자동 검증한다. 음성을 바꾸려면 YAML을 고치고 이 표도 함께 갱신할 것.
 
 | 채널 | 음성 (Edge TTS) | 특성 |

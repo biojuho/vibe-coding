@@ -21,6 +21,7 @@ REFERENCE_PATTERN = re.compile(r"`([^`\n]+\.(?:md|py|yaml|yml|json|toml|txt|ps1|
 MARKDOWN_LINK_PATTERN = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 FENCED_CODE_PATTERN = re.compile(r"```.*?```", re.DOTALL)
 MIN_DESCRIPTION_LENGTH = 40
+GENERATED_ARTIFACT_ROOTS = ("input/", "output/")
 TRIGGER_MARKERS = (
     "trigger",
     "use when",
@@ -166,6 +167,8 @@ def _reference_exists(repo_root: Path, skill_path: Path, reference: str) -> bool
     if not clean or clean.startswith("$") or clean.startswith("<"):
         return True
     if " " in clean or clean.startswith("~") or re.search(r"\bYYYY\b", clean):
+        return True
+    if clean.startswith(GENERATED_ARTIFACT_ROOTS):
         return True
     if clean.startswith(("http://", "https://", "app://", "plugin://")):
         return True

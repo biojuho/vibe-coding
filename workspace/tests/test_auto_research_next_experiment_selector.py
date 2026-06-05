@@ -152,6 +152,15 @@ def test_ready_workspace_routes_to_completion_audit() -> None:
     assert result["summary"]["selected_kind"] == "completion_audit"
 
 
+def test_missing_readiness_schema_routes_to_input_evidence_refresh() -> None:
+    result = _select(readiness={})
+
+    assert result["status"] == "candidate"
+    assert result["selected"]["kind"] == "input_evidence_unavailable"
+    assert "product_readiness_score.py --json" in result["selected"]["required_gates"]
+    assert any("readiness: missing required key" in item for item in result["selected"]["evidence"])
+
+
 def test_cli_writes_ascii_json_artifact(tmp_path: Path, capsys) -> None:
     readiness = tmp_path / "readiness.json"
     github = tmp_path / "github.json"
@@ -185,3 +194,67 @@ def test_cli_writes_ascii_json_artifact(tmp_path: Path, capsys) -> None:
     assert json.loads(stdout)["status"] == "blocked_external_only"
     assert persisted["selected"]["kind"] == "external_user_blocker"
     assert output.read_text(encoding="utf-8").isascii()
+
+
+def test_cli_missing_input_artifact_does_not_route_to_completion(tmp_path: Path, capsys) -> None:
+    github = tmp_path / "github.json"
+    browser = tmp_path / "browser.json"
+    dependency = tmp_path / "dependency.json"
+    output = tmp_path / "next.json"
+    github.write_text(json.dumps(_github()), encoding="utf-8")
+    browser.write_text(json.dumps(_browser()), encoding="utf-8")
+    dependency.write_text(json.dumps(_dependency()), encoding="utf-8")
+
+    code = next_experiment_selector.main(
+        [
+            "--readiness",
+            str(tmp_path / "missing-readiness.json"),
+            "--github",
+            str(github),
+            "--browser",
+            str(browser),
+            "--dependency",
+            str(dependency),
+            "--output",
+            str(output),
+            "--json",
+        ]
+    )
+    stdout = json.loads(capsys.readouterr().out)
+    persisted = json.loads(output.read_text(encoding="utf-8"))
+
+    assert code == 0
+    assert stdout["status"] == "candidate"
+    assert stdout["selected"]["kind"] == "input_evidence_unavailable"
+    assert persisted["selected"]["kind"] == "input_evidence_unavailable"
+    assert any("missing artifact" in item for item in stdout["selected"]["evidence"])
+
+
+def test_cli_reads_utf16_input_artifacts(tmp_path: Path, capsys) -> None:
+    readiness = tmp_path / "readiness.json"
+    github = tmp_path / "github.json"
+    browser = tmp_path / "browser.json"
+    dependency = tmp_path / "dependency.json"
+    readiness.write_text(json.dumps(_readiness(external=1)), encoding="utf-16")
+    github.write_text(json.dumps(_github()), encoding="utf-8")
+    browser.write_text(json.dumps(_browser()), encoding="utf-8")
+    dependency.write_text(json.dumps(_dependency()), encoding="utf-8")
+
+    code = next_experiment_selector.main(
+        [
+            "--readiness",
+            str(readiness),
+            "--github",
+            str(github),
+            "--browser",
+            str(browser),
+            "--dependency",
+            str(dependency),
+            "--json",
+        ]
+    )
+    stdout = json.loads(capsys.readouterr().out)
+
+    assert code == 0
+    assert stdout["status"] == "blocked_external_only"
+    assert stdout["selected"]["kind"] == "external_user_blocker"
