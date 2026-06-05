@@ -6,9 +6,11 @@ Phase 3 enhancement: editorial_reviewer 가 twitter/threads 에 대해 반환하
 
 from __future__ import annotations
 
+import asyncio
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+from unittest.mock import MagicMock
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
@@ -197,6 +199,110 @@ def test_best_of_n_picker_stashes_comment_trigger_avg_into_drafts_dict():
     assert 'drafts_dict["_comment_trigger_avg"]' in source
     # 값은 best_breakdown["comment_trigger_avg"] 에서 직접 추출
     assert 'best_breakdown or {}).get("comment_trigger_avg", 0.0)' in source
+
+
+def test_select_best_of_n_candidate_persists_comment_trigger_avg(monkeypatch):
+    gen = _build_generator()
+
+    @dataclass
+    class FakeSelectionResult:
+        polished_drafts: dict[str, object]
+        avg_score: float
+        comment_trigger_scores: dict[str, float]
+
+    class FakeReviewer:
+        def __init__(self, config):
+            self.config = config
+
+        async def review_and_polish(self, drafts_dict, _post_data):
+            scores = {
+                "avg-winner": (8.5, {"twitter": 4.0}),
+                "comment-winner": (7.5, {"twitter": 8.5}),
+            }
+            avg_score, comment_scores = scores[drafts_dict["id"]]
+            return FakeSelectionResult(
+                polished_drafts=drafts_dict,
+                avg_score=avg_score,
+                comment_trigger_scores=comment_scores,
+            )
+
+    monkeypatch.setattr("pipeline.editorial_reviewer.EditorialReviewer", FakeReviewer)
+
+    selected_drafts, image_prompt = asyncio.run(
+        gen._select_best_of_n_candidate(
+            [
+                ({"id": "avg-winner", "_provider_used": "anthropic"}, "image-a"),
+                ({"id": "comment-winner", "_provider_used": "anthropic"}, "image-b"),
+            ],
+            {"title": "연봉 이야기"},
+            ["twitter"],
+        )
+    )
+
+    assert selected_drafts["id"] == "comment-winner"
+    assert selected_drafts["_comment_trigger_avg"] == 8.5
+    assert image_prompt == "image-b"
+
+
+def test_generate_drafts_single_candidate_caches_generated_result(monkeypatch):
+    gen = _build_generator({"llm.best_of_n": 1})
+    gen.draft_cache = MagicMock()
+    gen.draft_cache.get.return_value = None
+    monkeypatch.setattr(gen, "_build_prompt", lambda _post_data, _top_tweets, _output_formats: "prompt")
+    monkeypatch.setattr(gen, "_available_providers_after_recent_failures", lambda: ["anthropic"])
+
+    async def _fake_generate_once(prompt, providers, output_formats, allow_partial):
+        assert prompt == "prompt"
+        assert providers == ["anthropic"]
+        assert output_formats == ["twitter"]
+        assert allow_partial is False
+        return {"twitter": "fresh draft", "_provider_used": "anthropic"}, "image prompt"
+
+    monkeypatch.setattr(gen, "_generate_drafts_once", _fake_generate_once)
+    post_data = {"title": "제목", "content": "본문"}
+
+    drafts, image_prompt = asyncio.run(gen.generate_drafts(post_data, output_formats=["twitter"]))
+
+    assert drafts["twitter"] == "fresh draft"
+    assert image_prompt == "image prompt"
+    gen.draft_cache.set.assert_called_once()
+    cache_args, cache_kwargs = gen.draft_cache.set.call_args
+    assert cache_args[0] == gen._make_cache_key(post_data, ["twitter"])
+    assert cache_args[1] is drafts
+    assert cache_args[2] == "image prompt"
+    assert cache_kwargs["provider"] == "anthropic"
+
+
+def test_generate_drafts_best_of_n_reviewer_failure_caches_first_candidate(monkeypatch):
+    gen = _build_generator({"llm.best_of_n": 2})
+    gen.draft_cache = MagicMock()
+    gen.draft_cache.get.return_value = None
+    monkeypatch.setattr(gen, "_build_prompt", lambda _post_data, _top_tweets, _output_formats: "prompt")
+    monkeypatch.setattr(gen, "_available_providers_after_recent_failures", lambda: ["anthropic"])
+    generated_ids: list[str] = []
+
+    async def _fake_generate_once(_prompt, _providers, _output_formats, _allow_partial):
+        draft_id = "first" if not generated_ids else "second"
+        generated_ids.append(draft_id)
+        return {"id": draft_id, "_provider_used": "anthropic"}, f"image-{draft_id}"
+
+    async def _fail_selection(_candidates, _post_data, _output_formats):
+        raise RuntimeError("reviewer unavailable")
+
+    monkeypatch.setattr(gen, "_generate_drafts_once", _fake_generate_once)
+    monkeypatch.setattr(gen, "_select_best_of_n_candidate", _fail_selection)
+
+    drafts, image_prompt = asyncio.run(
+        gen.generate_drafts({"title": "제목", "content": "본문"}, output_formats=["twitter"])
+    )
+
+    assert generated_ids == ["first", "second"]
+    assert drafts["id"] == "first"
+    assert image_prompt == "image-first"
+    gen.draft_cache.set.assert_called_once()
+    cache_args, cache_kwargs = gen.draft_cache.set.call_args
+    assert cache_args[1] is drafts
+    assert cache_kwargs["provider"] == "anthropic"
 
 
 def test_combined_score_handles_missing_avg_attribute_gracefully():

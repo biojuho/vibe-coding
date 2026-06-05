@@ -71,6 +71,47 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
         raw = f"{title}|{category}|{source}|{fmt_str}"
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
+    def _cache_generated_drafts(
+        self,
+        cache_key: str,
+        drafts_dict: dict[str, Any],
+        image_prompt: str | None,
+    ) -> None:
+        try:
+            self.draft_cache.set(cache_key, drafts_dict, image_prompt, provider=drafts_dict.get("_provider_used", ""))
+        except Exception:
+            pass
+
+    @staticmethod
+    def _generation_failure(error: str) -> tuple[dict[str, Any], None]:
+        return {
+            "_provider_used": "none",
+            "_generation_failed": True,
+            "_generation_error": error,
+        }, None
+
+    def _available_providers_after_recent_failures(self) -> list[str]:
+        providers = self._enabled_providers()
+        try:
+            from pipeline.cost_db import get_cost_db
+
+            _cost_db = get_cost_db()
+            skipped = _cost_db.get_skipped_providers() if _cost_db else set()
+            if skipped:
+                before = len(providers)
+                providers = [p for p in providers if p not in skipped]
+                if len(providers) < before:
+                    logger.info("Skipping providers with recent failures: %s", skipped)
+        except Exception:
+            pass
+        return providers
+
+    def _best_of_n_for_request(self, quality_feedback: list[dict[str, Any]] | None) -> int:
+        # B-5 피드백 기반 재생성인 경우에는 비용 낭비 방지를 위해 1회만 단독 실행.
+        if quality_feedback:
+            return 1
+        return int(self.config.get("llm.best_of_n", 1))
+
     # ------------------------------------------------------------------
     # Main entry point
     # ------------------------------------------------------------------
@@ -227,6 +268,75 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
         }
         return combined, breakdown
 
+    async def _generate_best_of_n_candidates(
+        self,
+        *,
+        best_of_n: int,
+        prompt: str,
+        providers: list[str],
+        output_formats: list[str],
+        allow_partial: bool,
+    ) -> list[tuple[dict[str, Any], str | None]]:
+        candidates = []
+        for i in range(best_of_n):
+            try:
+                drafts_dict, image_prompt = await self._generate_drafts_once(
+                    prompt, providers, output_formats, allow_partial
+                )
+                candidates.append((drafts_dict, image_prompt))
+            except Exception as exc:
+                logger.warning("[Best-of-N] Candidate %d generation failed: %s", i + 1, exc)
+        return candidates
+
+    async def _select_best_of_n_candidate(
+        self,
+        candidates: list[tuple[dict[str, Any], str | None]],
+        post_data: dict[str, Any],
+        output_formats: list[str],
+    ) -> tuple[dict[str, Any], str | None] | None:
+        from pipeline.editorial_reviewer import EditorialReviewer
+
+        reviewer = EditorialReviewer(config=self.config)
+        best_candidate = None
+        best_combined = -1.0
+        best_breakdown: dict[str, float] | None = None
+        comment_weight = self._best_of_n_comment_weight()
+
+        for idx, (drafts_dict, image_prompt) in enumerate(candidates, start=1):
+            result = await reviewer.review_and_polish(drafts_dict, post_data)
+            combined, breakdown = self._combined_candidate_score(result, output_formats, comment_weight=comment_weight)
+            logger.info(
+                "[Best-of-N] Candidate %d: combined=%.2f (avg=%.2f, ct_avg=%.2f, weight=%.2f)",
+                idx,
+                combined,
+                breakdown.get("avg_score", 0.0),
+                breakdown.get("comment_trigger_avg", 0.0),
+                breakdown.get("comment_weight", 0.0),
+            )
+            if combined > best_combined:
+                best_combined = combined
+                best_breakdown = breakdown
+                best_candidate = (result.polished_drafts, image_prompt)
+
+        if not best_candidate:
+            return None
+
+        drafts_dict, image_prompt = best_candidate
+        logger.info(
+            "[Best-of-N] Selected best candidate combined=%.2f (avg=%.2f, ct_avg=%.2f)",
+            best_combined,
+            (best_breakdown or {}).get("avg_score", 0.0),
+            (best_breakdown or {}).get("comment_trigger_avg", 0.0),
+        )
+        # T-1107: tune_best_of_n_weight.py sweep 데이터 소스로 영속화.
+        # persist_stage 가 이 키를 읽어 record_draft_event 에 전달.
+        if isinstance(drafts_dict, dict):
+            try:
+                drafts_dict["_comment_trigger_avg"] = float((best_breakdown or {}).get("comment_trigger_avg", 0.0))
+            except (TypeError, ValueError):
+                pass
+        return drafts_dict, image_prompt
+
     async def generate_drafts(
         self,
         post_data,
@@ -258,148 +368,57 @@ class TweetDraftGenerator(DraftPromptsMixin, DraftProvidersMixin, DraftValidatio
         if quality_feedback:
             prompt = self._build_retry_prompt(prompt, quality_feedback)
             logger.info("[B-5] Quality gate retry: incorporating %d platform feedback(s)", len(quality_feedback))
-        providers = self._enabled_providers()
-
-        # ── 실패 이력 기반 provider 스킵 ──────────────────────────────
-        try:
-            from pipeline.cost_db import get_cost_db
-
-            _cost_db = get_cost_db()
-            skipped = _cost_db.get_skipped_providers() if _cost_db else set()
-            if skipped:
-                before = len(providers)
-                providers = [p for p in providers if p not in skipped]
-                if len(providers) < before:
-                    logger.info("Skipping providers with recent failures: %s", skipped)
-        except Exception:
-            pass
+        providers = self._available_providers_after_recent_failures()
 
         if not providers:
             logger.error("No enabled LLM providers available for draft generation.")
-            return {
-                "_provider_used": "none",
-                "_generation_failed": True,
-                "_generation_error": "No enabled LLM providers available.",
-            }, None
+            return self._generation_failure("No enabled LLM providers available.")
 
-        # Best-of-N 설정값 획득 (B-5 피드백 기반 재생성인 경우에는 비용 낭비 방지를 위해 1회만 단독 실행)
-        best_of_n = 1
-        if not quality_feedback:
-            best_of_n = int(self.config.get("llm.best_of_n", 1))
+        best_of_n = self._best_of_n_for_request(quality_feedback)
 
         if best_of_n <= 1:
             try:
                 drafts_dict, image_prompt = await self._generate_drafts_once(
                     prompt, providers, output_formats, allow_partial
                 )
-                try:
-                    self.draft_cache.set(
-                        cache_key, drafts_dict, image_prompt, provider=drafts_dict.get("_provider_used", "")
-                    )
-                except Exception:
-                    pass
+                self._cache_generated_drafts(cache_key, drafts_dict, image_prompt)
                 return drafts_dict, image_prompt
             except Exception as exc:
                 logger.error("Draft generation failed: %s", exc)
-                return {
-                    "_provider_used": "none",
-                    "_generation_failed": True,
-                    "_generation_error": str(exc),
-                }, None
+                return self._generation_failure(str(exc))
 
         # Best-of-N 루프 실행
         logger.info("[Best-of-N] Generating %d candidates for comparison...", best_of_n)
-        candidates = []
-        for i in range(best_of_n):
-            try:
-                drafts_dict, image_prompt = await self._generate_drafts_once(
-                    prompt, providers, output_formats, allow_partial
-                )
-                candidates.append((drafts_dict, image_prompt))
-            except Exception as exc:
-                logger.warning("[Best-of-N] Candidate %d generation failed: %s", i + 1, exc)
+        candidates = await self._generate_best_of_n_candidates(
+            best_of_n=best_of_n,
+            prompt=prompt,
+            providers=providers,
+            output_formats=output_formats,
+            allow_partial=allow_partial,
+        )
 
         if not candidates:
             logger.error("[Best-of-N] All candidate generations failed.")
-            return {
-                "_provider_used": "none",
-                "_generation_failed": True,
-                "_generation_error": "All candidates failed to generate.",
-            }, None
+            return self._generation_failure("All candidates failed to generate.")
 
         if len(candidates) == 1:
             drafts_dict, image_prompt = candidates[0]
-            try:
-                self.draft_cache.set(
-                    cache_key, drafts_dict, image_prompt, provider=drafts_dict.get("_provider_used", "")
-                )
-            except Exception:
-                pass
+            self._cache_generated_drafts(cache_key, drafts_dict, image_prompt)
             return drafts_dict, image_prompt
 
         # N개 중 EditorialReviewer를 사용해 최선 책정
         logger.info("[Best-of-N] Comparing %d candidates using EditorialReviewer...", len(candidates))
         try:
-            from pipeline.editorial_reviewer import EditorialReviewer
-
-            reviewer = EditorialReviewer(config=self.config)
-
-            best_candidate = None
-            best_combined = -1.0
-            best_breakdown: dict[str, float] | None = None
-
-            comment_weight = self._best_of_n_comment_weight()
-
-            for idx, (drafts_dict, image_prompt) in enumerate(candidates, start=1):
-                result = await reviewer.review_and_polish(drafts_dict, post_data)
-                combined, breakdown = self._combined_candidate_score(
-                    result, output_formats, comment_weight=comment_weight
-                )
-                logger.info(
-                    "[Best-of-N] Candidate %d: combined=%.2f (avg=%.2f, ct_avg=%.2f, weight=%.2f)",
-                    idx,
-                    combined,
-                    breakdown.get("avg_score", 0.0),
-                    breakdown.get("comment_trigger_avg", 0.0),
-                    breakdown.get("comment_weight", 0.0),
-                )
-                if combined > best_combined:
-                    best_combined = combined
-                    best_breakdown = breakdown
-                    best_candidate = (result.polished_drafts, image_prompt)
-
-            if best_candidate:
-                drafts_dict, image_prompt = best_candidate
-                logger.info(
-                    "[Best-of-N] Selected best candidate combined=%.2f (avg=%.2f, ct_avg=%.2f)",
-                    best_combined,
-                    (best_breakdown or {}).get("avg_score", 0.0),
-                    (best_breakdown or {}).get("comment_trigger_avg", 0.0),
-                )
-                # T-1107: tune_best_of_n_weight.py sweep 데이터 소스로 영속화.
-                # persist_stage 가 이 키를 읽어 record_draft_event 에 전달.
-                if isinstance(drafts_dict, dict):
-                    try:
-                        drafts_dict["_comment_trigger_avg"] = float(
-                            (best_breakdown or {}).get("comment_trigger_avg", 0.0)
-                        )
-                    except (TypeError, ValueError):
-                        pass
-                try:
-                    self.draft_cache.set(
-                        cache_key, drafts_dict, image_prompt, provider=drafts_dict.get("_provider_used", "")
-                    )
-                except Exception:
-                    pass
+            selected = await self._select_best_of_n_candidate(candidates, post_data, output_formats)
+            if selected:
+                drafts_dict, image_prompt = selected
+                self._cache_generated_drafts(cache_key, drafts_dict, image_prompt)
                 return drafts_dict, image_prompt
         except Exception as exc:
             logger.warning("[Best-of-N] Editorial evaluation failed (falling back to first candidate): %s", exc)
 
         drafts_dict, image_prompt = candidates[0]
-        try:
-            self.draft_cache.set(cache_key, drafts_dict, image_prompt, provider=drafts_dict.get("_provider_used", ""))
-        except Exception:
-            pass
+        self._cache_generated_drafts(cache_key, drafts_dict, image_prompt)
         return drafts_dict, image_prompt
 
     async def _call_llm_with_fallback(self, prompt: str, *, platform: str = "twitter") -> str:
