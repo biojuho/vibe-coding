@@ -745,6 +745,20 @@ class TestGenerateReviewStage:
         assert result is True
         assert ctx.image_prompt is None  # tuple이 아니면 image_prompt=None
 
+    def test_twitter_reply_fallback_keeps_readable_korean_source_copy(self):
+        from pipeline.process_stages.generate_review_stage import _ensure_twitter_reply_text
+
+        ctx = self._ctx_ready()
+        ctx.profile = {"topic_cluster": "직장문화"}
+
+        missing_reply = {"twitter": "초안"}
+        _ensure_twitter_reply_text(ctx, missing_reply, ["twitter"])
+        assert missing_reply["reply_text"] == f"원문: {ctx.url}\n#직장문화"
+
+        placeholder_reply = {"twitter": "초안", "reply_text": "원문: (링크)"}
+        _ensure_twitter_reply_text(ctx, placeholder_reply, ["twitter"])
+        assert placeholder_reply["reply_text"] == f"원문: {ctx.url}"
+
     # ── generation_failed 플래그 (lines 54-61) ───────────────────────────
     def test_generation_failed_flag_returns_false(self):
         from pipeline.process_stages.generate_review_stage import run_generate_review_stage
