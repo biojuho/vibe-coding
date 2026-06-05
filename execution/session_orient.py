@@ -490,7 +490,7 @@ def workspace_db_snapshot(repo_root: Path) -> dict[str, Any]:
     }
 
 
-def graph_snapshot(repo_root: Path) -> dict[str, Any]:
+def graph_snapshot(repo_root: Path, current_head: str | None = None) -> dict[str, Any]:
     """code_review_graph status (node/edge/file counts). Lazy import."""
     snap: dict[str, Any] = {"available": False}
     commands = [["python", "-m", "code_review_graph", "status"]]
@@ -507,10 +507,32 @@ def graph_snapshot(repo_root: Path) -> dict[str, Any]:
                 continue
             key, _, value = line.partition(":")
             snap[key.strip().lower().replace(" ", "_")] = value.strip()
+        if current_head:
+            _annotate_graph_freshness(snap, current_head)
         return snap
 
     snap["reason"] = "code_review_graph status failed (graph not built?)"
     return snap
+
+
+def _annotate_graph_freshness(snap: dict[str, Any], current_head: str) -> None:
+    """Mark whether the graph build belongs to the current git HEAD."""
+    snap["current_head"] = current_head
+    built_at_commit = str(snap.get("built_at_commit") or "").strip()
+    if not built_at_commit:
+        snap["freshness"] = "unknown"
+        snap["stale"] = None
+        snap["stale_reason"] = "graph status did not report built_at_commit"
+        return
+
+    if _head_matches_run(current_head, built_at_commit):
+        snap["freshness"] = "current"
+        snap["stale"] = False
+        return
+
+    snap["freshness"] = "stale"
+    snap["stale"] = True
+    snap["stale_reason"] = f"built_at_commit {built_at_commit[:8]} != current_head {current_head[:8]}"
 
 
 def ci_snapshot(repo_root: Path) -> dict[str, Any]:
@@ -567,7 +589,7 @@ def collect_snapshot(repo_root: Path, today: date | None = None) -> dict[str, An
         "tasks": tasks_snapshot(repo_root),
         "goal": goal_snapshot(repo_root),
         "workspace_db": workspace_db_snapshot(repo_root),
-        "graph": graph_snapshot(repo_root),
+        "graph": graph_snapshot(repo_root, current_head=current_head),
         "ci": ci,
     }
 
@@ -650,10 +672,17 @@ def _render_workspace_db_section(db: dict[str, Any]) -> list[str]:
 
 def _render_graph_section(graph: dict[str, Any]) -> list[str]:
     if graph.get("available"):
+        suffix = ""
+        if graph.get("freshness") == "stale":
+            suffix = f", stale ({graph.get('stale_reason', 'commit mismatch')})"
+        elif graph.get("freshness") == "current":
+            suffix = ", current HEAD"
+        elif graph.get("freshness") == "unknown":
+            suffix = f", freshness unknown ({graph.get('stale_reason', 'missing build commit')})"
         return [
             f"  code-review-graph: nodes={graph.get('nodes')}, "
             f"edges={graph.get('edges')}, files={graph.get('files')}, "
-            f"updated {graph.get('last_updated', '?')}"
+            f"updated {graph.get('last_updated', '?')}{suffix}"
         ]
     return [f"  code-review-graph: unavailable ({graph.get('reason', '?')})"]
 
@@ -859,6 +888,12 @@ def render_rich_dashboard(snap: dict[str, Any]) -> None:
     g_str = "[bold red]Graph Status Unavailable[/]"
     if g_snap.get("available"):
         g_str = f"Nodes: {g_snap.get('nodes')}, Edges: {g_snap.get('edges')}, Files: {g_snap.get('files')}"
+        if g_snap.get("freshness") == "stale":
+            g_str += f"\n[bold yellow]Stale:[/] {g_snap.get('stale_reason', 'commit mismatch')}"
+        elif g_snap.get("freshness") == "current":
+            g_str += "\n[bold green]Freshness:[/] current HEAD"
+        elif g_snap.get("freshness") == "unknown":
+            g_str += f"\n[bold yellow]Freshness unknown:[/] {g_snap.get('stale_reason', 'missing build commit')}"
 
     ci_snap = snap.get("ci", {})
     ci_lines = []

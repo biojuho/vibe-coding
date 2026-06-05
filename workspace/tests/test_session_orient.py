@@ -391,6 +391,20 @@ def test_render_section_helpers_cover_available_and_unavailable_states():
     assert orient._render_graph_section(
         {"available": True, "nodes": "1", "edges": "2", "files": "3", "last_updated": "now"}
     ) == ["  code-review-graph: nodes=1, edges=2, files=3, updated now"]
+    assert (
+        "stale"
+        in orient._render_graph_section(
+            {
+                "available": True,
+                "nodes": "1",
+                "edges": "2",
+                "files": "3",
+                "last_updated": "now",
+                "freshness": "stale",
+                "stale_reason": "built_at_commit abc12345 != current_head def56789",
+            }
+        )[0]
+    )
     assert orient._render_ci_section({"available": True, "recent_runs": []}) == ["  CI: no recent runs"]
 
 
@@ -609,3 +623,45 @@ def test_graph_snapshot_prefers_python_before_py_launcher(tmp_path, monkeypatch)
     assert snap["available"] is True
     assert snap["nodes"] == "1"
     assert seen == [["python", "-m", "code_review_graph", "status"]]
+
+
+def test_graph_snapshot_marks_current_when_build_commit_matches_head(tmp_path, monkeypatch):
+    def fake_run(cmd, cwd, timeout=10.0):
+        return 0, ("Nodes: 1\nEdges: 2\nFiles: 3\nLast updated: now\nBuilt at commit: abc123456789\n")
+
+    monkeypatch.setattr(orient, "_run", fake_run)
+    monkeypatch.setattr(orient.shutil, "which", lambda name: None)
+
+    snap = orient.graph_snapshot(tmp_path, current_head="abc1234")
+
+    assert snap["freshness"] == "current"
+    assert snap["stale"] is False
+    assert snap["current_head"] == "abc1234"
+
+
+def test_graph_snapshot_marks_stale_when_build_commit_differs_from_head(tmp_path, monkeypatch):
+    def fake_run(cmd, cwd, timeout=10.0):
+        return 0, ("Nodes: 1\nEdges: 2\nFiles: 3\nLast updated: now\nBuilt at commit: abc123456789\n")
+
+    monkeypatch.setattr(orient, "_run", fake_run)
+    monkeypatch.setattr(orient.shutil, "which", lambda name: None)
+
+    snap = orient.graph_snapshot(tmp_path, current_head="def5678")
+
+    assert snap["freshness"] == "stale"
+    assert snap["stale"] is True
+    assert snap["stale_reason"] == "built_at_commit abc12345 != current_head def5678"
+
+
+def test_graph_snapshot_marks_unknown_freshness_without_build_commit(tmp_path, monkeypatch):
+    def fake_run(cmd, cwd, timeout=10.0):
+        return 0, "Nodes: 1\nEdges: 2\nFiles: 3\nLast updated: now\n"
+
+    monkeypatch.setattr(orient, "_run", fake_run)
+    monkeypatch.setattr(orient.shutil, "which", lambda name: None)
+
+    snap = orient.graph_snapshot(tmp_path, current_head="def5678")
+
+    assert snap["freshness"] == "unknown"
+    assert snap["stale"] is None
+    assert snap["stale_reason"] == "graph status did not report built_at_commit"
