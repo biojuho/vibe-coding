@@ -160,6 +160,25 @@ def _item(
     }
 
 
+def _evidence_sentence(label: str, value: Any) -> str:
+    text = str(value or "unknown").strip() or "unknown"
+    suffix = "" if text.endswith((".", "!", "?")) else "."
+    return f"{label}: {text}{suffix}"
+
+
+def _sentence_list(values: Any) -> list[str]:
+    if not isinstance(values, list):
+        return []
+    sentences: list[str] = []
+    for value in values:
+        text = str(value or "").strip()
+        if not text:
+            continue
+        suffix = "" if text.endswith((".", "!", "?")) else "."
+        sentences.append(f"{text}{suffix}")
+    return sentences
+
+
 def _skill_item(root: Path) -> dict[str, Any]:
     missing = [path for path in SKILL_ARTIFACTS if not _exists(root, path)]
     skill_text = _read_text(root, ".agents/skills/auto-research/SKILL.md").lower()
@@ -429,6 +448,7 @@ def _selector_item(selection: dict[str, Any]) -> dict[str, Any]:
     selected_kind = str(selected.get("kind") or summary.get("selected_kind") or "unknown")
     selected_project = str(selected.get("project") or "unknown")
     action = str(selected.get("action") or "unknown")
+    guardrails = _sentence_list(selected.get("guardrails"))
     blocked = selected.get("blocked") is True
     complete = status in {"blocked_external_only", "ready_for_completion_audit"}
     blockers: list[str] = []
@@ -447,14 +467,18 @@ def _selector_item(selection: dict[str, Any]) -> dict[str, Any]:
     else:
         selector_evidence = "Selector reports local follow-up work before launch completion can be claimed."
 
+    evidence = [
+        f"next_experiment_selector status={status}, selected_kind={selected_kind}, project={selected_project}.",
+        _evidence_sentence("Selected action", action),
+        selector_evidence,
+    ]
+    if guardrails:
+        evidence.append(f"Selector guardrails: {' '.join(guardrails)}")
+
     return _item(
         "Run the deterministic next-experiment selector and confirm no local auto-research candidate remains.",
         [".agents/skills/auto-research/scripts/next_experiment_selector.py"],
-        [
-            f"next_experiment_selector status={status}, selected_kind={selected_kind}, project={selected_project}.",
-            f"Selected action: {action}.",
-            selector_evidence,
-        ],
+        evidence,
         complete=complete and not blockers,
         blockers=blockers,
     )

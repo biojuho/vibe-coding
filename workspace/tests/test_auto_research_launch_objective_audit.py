@@ -268,6 +268,7 @@ def _selector_selection(
     kind: str = "external_user_blocker",
     blocked: bool = True,
     project: str = "projects/hanwoo-dashboard",
+    guardrails: list[str] | None = None,
 ) -> dict[str, object]:
     selected = {
         "kind": kind,
@@ -277,6 +278,9 @@ def _selector_selection(
         else "Resolve local launch blocker",
         "blocked": blocked,
         "blockers": ["1 external/user-owned blocker(s): T-251"] if blocked else [],
+        "guardrails": guardrails
+        if guardrails is not None
+        else ["Do not retry T-251 until Supabase Dashboard credentials are reset."],
     }
     return {
         "status": status,
@@ -372,6 +376,35 @@ def test_selector_local_candidate_prevents_complete_claim(tmp_path: Path) -> Non
     assert result["status"] == "incomplete"
     assert result["items"][5]["requirement"].startswith("Run the deterministic next-experiment")
     assert result["items"][5]["passed"] is False
+
+
+def test_selector_action_evidence_has_single_terminal_punctuation_and_guardrails(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(external_blockers=1),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+        next_experiment_selection=_selector_selection(
+            guardrails=[
+                "Do not retry T-251 until Supabase Dashboard credentials are reset.",
+                "Keep local launch gates green",
+            ]
+        ),
+    )
+    selector_item = next(
+        item for item in manifest["items"] if item["requirement"].startswith("Run the deterministic next-experiment")
+    )
+
+    assert "Selected action: Wait for user-owned external blocker(s): T-251." in selector_item["evidence"]
+    assert not any("T-251.." in evidence for evidence in selector_item["evidence"])
+    assert (
+        "Selector guardrails: Do not retry T-251 until Supabase Dashboard credentials are reset. "
+        "Keep local launch gates green."
+    ) in selector_item["evidence"]
 
 
 def test_ab_item_includes_latest_local_manifest_artifact(tmp_path: Path) -> None:
