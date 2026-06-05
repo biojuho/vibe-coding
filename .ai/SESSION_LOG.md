@@ -670,3 +670,16 @@
 - A/B decisions: `.tmp\ab-manifest-t1328.json` returned `adopt_candidate` with `score_delta=1.1957691`; `.tmp\ab-manifest-t1329.json` returned `adopt_candidate` with `score_delta=1.5712114`.
 - Commit closeout: `1fec5971 test(launch): guard token and tts fallbacks` is local only; no push was performed.
 - Boundary: product launch remains incomplete until explicit push authorization/user push plus current-head `root-quality-gate` and `active-project-matrix`, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
+
+## 2026-06-06 - Codex
+
+- Closed T-1331 as a bounded `$auto-research` `shorts-maker-v2` script prompt maintainability cycle.
+- Changed `projects/shorts-maker-v2/src/shorts_maker_v2/pipeline/script_prompts.py`: locale override handling now delegates tone preset normalization, string tuple normalization, channel persona merging, persona keyword merging, prompt field-name merging, and channel review-criteria merging to focused helpers while preserving prompt/review behavior.
+- Changed `projects/shorts-maker-v2/tests/unit/test_script_step_i18n.py`: added malformed locale bundle regression coverage so bad tone/persona/keyword/field/review entries do not corrupt defaults while valid entries still apply.
+- Verification: focused script pytest passed `30/30` with one upstream Google GenAI deprecation warning; ruff check passed; ruff format check passed; `py_compile` passed; `git diff --check` and staged diff check passed with CRLF warnings only on full diff.
+- Full shorts-maker-v2 project QC passed: `1582 passed, 12 skipped, 1 warning` plus lint.
+- VibeDebt proof: `script_prompts.py` score `40.6 -> 34.9`, max complexity `39 -> 11`, max function length `99 -> 93`, project TDR `33.53 -> 33.47`; `_apply_locale_overrides` is no longer a top offender.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1331.json --json` returned `adopt_candidate` with `score_delta=0.2579619323936688`.
+- Code-review gate: staged/pre-commit gate returned advisory WARN `risk_score=0.45` from graph test-gap heuristics, covered by focused and full project tests.
+- Commit closeout: `d4ca6be4 [shorts-maker-v2] T-1331 split script locale overrides` is local only; no push was performed.
+- Boundary: unrelated dirty blind-to-x WIP remains in `projects/blind-to-x/pipeline/content_intelligence/scoring_editorial.py` and `projects/blind-to-x/tests/unit/test_content_intelligence.py`. Product launch remains incomplete until explicit push authorization/user push plus current-head Actions, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
