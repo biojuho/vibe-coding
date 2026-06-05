@@ -11,6 +11,20 @@ const BUILDINGS = [
 	{ id: "building_3", name: "3동 (송아지/격리)" },
 ];
 
+function resolveAdminSeedCredentials() {
+	const username = process.env.ADMIN_USERNAME || "admin";
+	const password = process.env.ADMIN_PASSWORD;
+
+	if (!password) {
+		throw new Error("ADMIN_PASSWORD environment variable is required.");
+	}
+	if (password.length < 12) {
+		throw new Error("ADMIN_PASSWORD must be at least 12 characters long.");
+	}
+
+	return { username, password };
+}
+
 function getMonthAge(birthDate) {
 	const today = new Date();
 	const birth = new Date(birthDate);
@@ -33,11 +47,13 @@ async function main() {
 	await prisma.user.deleteMany({});
 
 	// 1. Admin User
-	const hashedPassword = await bcrypt.hash("admin123", 10);
+	const { username: adminUsername, password: adminPassword } =
+		resolveAdminSeedCredentials();
+	const hashedPassword = await bcrypt.hash(adminPassword, 10);
 	await prisma.user.create({
-		data: { username: "admin", password: hashedPassword },
+		data: { username: adminUsername, password: hashedPassword },
 	});
-	console.log("Admin user created (admin / admin123)");
+	console.log(`Admin user created (${adminUsername})`);
 
 	// 2. 이름 풀
 	const names = [

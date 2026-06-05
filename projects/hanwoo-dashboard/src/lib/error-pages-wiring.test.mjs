@@ -200,14 +200,27 @@ test("login page operator eyebrow uses Korean product copy", () => {
 	assert.match(source, /Joolife 한우 운영/);
 	assert.match(source, /오늘의 사육, 재고, 출하 업무를 이어서 관리해 주세요/);
 	assert.doesNotMatch(source, /오늘의 사육, 재고, 출하 업무를 이어서 관리하세요/);
-	assert.match(source, /데모 로그인 정보/);
-	assert.match(source, /<span aria-hidden="true">💡<\/span>/);
-	assert.match(source, /아이디: <code/);
-	assert.match(source, /비밀번호: <code/);
+	assert.match(source, /운영자 계정 안내/);
+	assert.match(source, /발급된 관리자 아이디와 비밀번호로 로그인해 주세요/);
+	assert.doesNotMatch(source, /데모 로그인 정보/);
+	assert.doesNotMatch(source, /아이디: <code/);
+	assert.doesNotMatch(source, /비밀번호: <code/);
+	assert.doesNotMatch(source, /admin\s*123/);
 	assert.doesNotMatch(source, /Joolife Operations/);
 	assert.doesNotMatch(source, /Demo Accounts/);
 	assert.doesNotMatch(source, />ID:/);
 	assert.doesNotMatch(source, />PW:/);
+});
+
+test("database seed requires a configured admin password", () => {
+	const source = readFileSync(path.resolve(SRC_ROOT, "../prisma/seed.js"), "utf8");
+
+	assert.match(source, /process\.env\.ADMIN_USERNAME \|\| "admin"/);
+	assert.match(source, /process\.env\.ADMIN_PASSWORD/);
+	assert.match(source, /ADMIN_PASSWORD environment variable is required/);
+	assert.match(source, /password\.length < 12/);
+	assert.doesNotMatch(source, /bcrypt\.hash\("admin\s*123"/);
+	assert.doesNotMatch(source, /admin\s*\/\s*admin\s*123/);
 });
 
 test("login page links authentication errors to both credential fields", () => {

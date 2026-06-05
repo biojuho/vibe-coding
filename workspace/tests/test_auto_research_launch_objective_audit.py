@@ -435,6 +435,51 @@ def test_readiness_item_includes_publish_blocker_count(tmp_path: Path) -> None:
     assert any("workspace/local/publish/agent blockers=1/0/1/0" in item for item in readiness_item["evidence"])
 
 
+def test_collect_current_inputs_uses_one_snapshot_for_selector(monkeypatch, tmp_path: Path) -> None:
+    readiness = _clean_readiness(external_blockers=1)
+    assert isinstance(readiness["overall"], dict)
+    readiness["overall"]["workspace_blocker_count"] = 1
+    readiness["overall"]["publish_blocker_count"] = 1
+    assert isinstance(readiness["workspace_gates"], dict)
+    readiness["workspace_gates"]["github_release"] = {
+        "required_workflows": [
+            {"name": "root-quality-gate", "status": "missing", "conclusion": None},
+            {"name": "active-project-matrix", "status": "missing", "conclusion": None},
+        ]
+    }
+    github_inventory = _github_inventory()
+    assert isinstance(github_inventory["git"], dict)
+    github_inventory["git"]["status"] = {"stdout": "## main...origin/main [ahead 9]"}
+
+    calls: list[list[str]] = []
+
+    def fake_run_json(_root: Path, command: list[str], _timeout: int) -> dict[str, object]:
+        calls.append(command)
+        command_text = " ".join(command)
+        if "product_readiness_score.py" in command_text:
+            data = readiness
+        elif "github_project_inventory.py" in command_text:
+            data = github_inventory
+        elif "browser_qa_inventory.py" in command_text:
+            data = _browser_inventory()
+        elif "dependency_freshness_inventory.py" in command_text:
+            data = _dependency_inventory()
+        else:
+            data = _selector_selection(status="candidate", kind="github_inventory_followup", blocked=False)
+        return {"available": True, "returncode": 0, "stdout": json.dumps(data), "stderr": "", "data": data}
+
+    monkeypatch.setattr(launch_objective_audit, "_run_json", fake_run_json)
+
+    collected = launch_objective_audit.collect_current_inputs(tmp_path, timeout=1)
+
+    assert all("next_experiment_selector.py" not in " ".join(command) for command in calls)
+    assert collected["github_inventory"]["data"] == github_inventory
+    selection = collected["next_experiment_selection"]["data"]
+    assert selection["status"] == "blocked"
+    assert selection["selected"]["kind"] == "current_head_release_checks_unproven"
+    assert any("github dirty_count=0" in evidence for evidence in selection["selected"]["evidence"])
+
+
 def test_selector_external_only_state_is_evidence_not_duplicate_blocker(tmp_path: Path) -> None:
     _write_required_skill(tmp_path)
     _write_ai_relay(tmp_path)

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import re
 import subprocess
@@ -137,6 +138,45 @@ def _run_json(root: Path, args: list[str], timeout: int) -> dict[str, Any]:
         "stdout": stdout,
         "stderr": completed.stderr.strip(),
         "data": data,
+    }
+
+
+def _select_next_experiment_from_inputs(inputs: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    selector_path = Path(__file__).with_name("next_experiment_selector.py")
+    spec = importlib.util.spec_from_file_location("auto_research_next_experiment_selector", selector_path)
+    if spec is None or spec.loader is None:
+        return {
+            "available": False,
+            "returncode": None,
+            "stdout": "",
+            "stderr": f"Could not load next_experiment_selector.py from {selector_path}",
+            "data": {},
+        }
+
+    try:
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        selection = module.select_next_experiment(
+            readiness=inputs["readiness"]["data"],
+            github_inventory=inputs["github_inventory"]["data"],
+            browser_inventory=inputs["browser_inventory"]["data"],
+            dependency_inventory=inputs["dependency_inventory"]["data"],
+        )
+    except Exception as exc:  # pragma: no cover - defensive CLI error path
+        return {
+            "available": False,
+            "returncode": None,
+            "stdout": "",
+            "stderr": str(exc),
+            "data": {},
+        }
+
+    return {
+        "available": True,
+        "returncode": 0,
+        "stdout": json.dumps(selection, ensure_ascii=True),
+        "stderr": "",
+        "data": selection,
     }
 
 
@@ -941,15 +981,10 @@ def collect_current_inputs(root: Path, timeout: int) -> dict[str, dict[str, Any]
             ".",
             "--json",
         ],
-        "next_experiment_selection": [
-            python,
-            ".agents/skills/auto-research/scripts/next_experiment_selector.py",
-            "--root",
-            ".",
-            "--json",
-        ],
     }
-    return {name: _run_json(root, command, timeout) for name, command in commands.items()}
+    collected = {name: _run_json(root, command, timeout) for name, command in commands.items()}
+    collected["next_experiment_selection"] = _select_next_experiment_from_inputs(collected)
+    return collected
 
 
 def main(argv: list[str] | None = None) -> int:
