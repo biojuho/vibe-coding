@@ -49,6 +49,10 @@ except ImportError:
 REPO_ROOT_DEFAULT = Path(__file__).resolve().parents[1]
 DATE_LINE_RE = re.compile(r"^\|\s*Date\s*\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*$")
 GOAL_FIELD_RE = re.compile(r"^-\s*(Status|Goal|Owner|Started|Success):\s*(.*?)\s*$", re.IGNORECASE)
+HEAD_CLAIM_RE = re.compile(
+    r"\bcurrent\b(?:(?!\|).){0,160}\bhead\b(?:(?!\|).){0,80}`([0-9a-f]{7,40})`",
+    re.IGNORECASE,
+)
 IS_WINDOWS = sys.platform == "win32"
 
 # Windows-safe symbols (Unicode-safe for CP949 console)
@@ -123,6 +127,42 @@ def _parse_recent_commits(log_out: str) -> list[dict[str, str]]:
     return commits
 
 
+def _latest_current_addendum_text(lines: list[str]) -> str:
+    """Return the first addendum block under `## Current Addendum`."""
+    in_current = False
+    in_first_block = False
+    block: list[str] = []
+
+    for line in lines:
+        stripped = line.rstrip()
+        if stripped == "## Current Addendum":
+            in_current = True
+            continue
+        if in_current and stripped.startswith("## "):
+            break
+        if not in_current:
+            continue
+        if stripped.startswith("| Field | Value |"):
+            if in_first_block:
+                break
+            in_first_block = True
+        if in_first_block:
+            block.append(stripped)
+
+    return "\n".join(block)
+
+
+def _extract_head_claims(text: str) -> list[str]:
+    """Find explicit latest-addendum claims about the current git HEAD."""
+    return [match.group(1) for match in HEAD_CLAIM_RE.finditer(text)]
+
+
+def _head_claim_matches(claim: str, current_head: str) -> bool:
+    claim_norm = claim.lower()
+    current_norm = current_head.lower()
+    return current_norm.startswith(claim_norm) or claim_norm.startswith(current_norm)
+
+
 def git_snapshot(repo_root: Path) -> dict[str, Any]:
     """Branch name, ahead/behind origin, worktree counts, recent commits."""
     snap: dict[str, Any] = {"available": False}
@@ -182,7 +222,7 @@ def pr_snapshot(repo_root: Path) -> dict[str, Any]:
     return {"available": True, "open_count": len(prs), "open": prs}
 
 
-def handoff_snapshot(repo_root: Path, today: date | None = None) -> dict[str, Any]:
+def handoff_snapshot(repo_root: Path, today: date | None = None, current_head: str | None = None) -> dict[str, Any]:
     """HANDOFF.md size, Current Addendum date range, rotation suggestion."""
     today = today or date.today()
     handoff = repo_root / ".ai" / "HANDOFF.md"
@@ -221,6 +261,23 @@ def handoff_snapshot(repo_root: Path, today: date | None = None) -> dict[str, An
     else:
         snap["archivable_addendum_count"] = 0
         snap["rotation_suggested"] = False
+
+    latest_addendum = _latest_current_addendum_text(lines)
+    head_claims = _extract_head_claims(latest_addendum)
+    snap["latest_head_claims"] = head_claims
+    if current_head:
+        stale_claims = [claim for claim in head_claims if not _head_claim_matches(claim, current_head)]
+        snap["current_head"] = current_head
+        snap["stale_head_claims"] = stale_claims
+        if stale_claims:
+            snap["head_claim_status"] = "stale"
+        elif head_claims:
+            snap["head_claim_status"] = "ok"
+        else:
+            snap["head_claim_status"] = "none"
+    else:
+        snap["stale_head_claims"] = []
+        snap["head_claim_status"] = "unavailable" if head_claims else "none"
     return snap
 
 
@@ -374,11 +431,15 @@ def ci_snapshot(repo_root: Path) -> dict[str, Any]:
 
 def collect_snapshot(repo_root: Path, today: date | None = None) -> dict[str, Any]:
     """Build the full multi-source snapshot."""
+    git = git_snapshot(repo_root)
+    current_head = None
+    if git.get("available") and git.get("recent_commits"):
+        current_head = git["recent_commits"][0].get("sha")
     return {
         "repo_root": str(repo_root),
-        "git": git_snapshot(repo_root),
+        "git": git,
         "pull_requests": pr_snapshot(repo_root),
-        "handoff": handoff_snapshot(repo_root, today=today),
+        "handoff": handoff_snapshot(repo_root, today=today, current_head=current_head),
         "tasks": tasks_snapshot(repo_root),
         "goal": goal_snapshot(repo_root),
         "workspace_db": workspace_db_snapshot(repo_root),
@@ -422,11 +483,17 @@ def _render_pr_section(pr: dict[str, Any]) -> list[str]:
 def _render_handoff_section(h: dict[str, Any]) -> list[str]:
     if h.get("available"):
         rotation = " (rotation suggested)" if h.get("rotation_suggested") else ""
-        return [
+        lines = [
             f"  HANDOFF.md: {h.get('line_count')} lines, "
             f"{h.get('current_addendum_count')} addenda, "
             f"oldest {h.get('oldest_addendum', '-')} ({h.get('oldest_age_days', 0)}d){rotation}"
         ]
+        if h.get("stale_head_claims"):
+            lines.append(
+                "    stale latest head claim(s): "
+                f"{', '.join(h.get('stale_head_claims', []))} != {h.get('current_head', '?')}"
+            )
+        return lines
     return [f"  HANDOFF: unavailable ({h.get('reason', '?')})"]
 
 

@@ -86,6 +86,56 @@ def test_handoff_snapshot_stops_at_next_section(tmp_path):
     assert snap["oldest_addendum"] == "2026-05-12"
 
 
+def test_handoff_snapshot_flags_stale_latest_head_claim(tmp_path):
+    ai = tmp_path / ".ai"
+    ai.mkdir(parents=True)
+    (ai / "HANDOFF.md").write_text(
+        "# HANDOFF - AI Context Relay\n\n"
+        "## Current Addendum\n\n"
+        "| Field | Value |\n"
+        "|---|---|\n"
+        "| Date | 2026-05-12 |\n"
+        "| Tool | Test |\n"
+        "| Work | Confirmed current `main`/`origin/main` head is feature commit `abc1234`. |\n"
+        "| Next Priorities | continue |\n",
+        encoding="utf-8",
+    )
+
+    snap = orient.handoff_snapshot(tmp_path, today=date(2026, 5, 12), current_head="def5678")
+
+    assert snap["latest_head_claims"] == ["abc1234"]
+    assert snap["stale_head_claims"] == ["abc1234"]
+    assert snap["head_claim_status"] == "stale"
+
+
+def test_handoff_snapshot_only_checks_latest_head_claim(tmp_path):
+    ai = tmp_path / ".ai"
+    ai.mkdir(parents=True)
+    (ai / "HANDOFF.md").write_text(
+        "# HANDOFF - AI Context Relay\n\n"
+        "## Current Addendum\n\n"
+        "| Field | Value |\n"
+        "|---|---|\n"
+        "| Date | 2026-05-12 |\n"
+        "| Tool | Test |\n"
+        "| Work | Latest addendum uses no exact current head claim. |\n"
+        "| Next Priorities | continue |\n\n"
+        "| Field | Value |\n"
+        "|---|---|\n"
+        "| Date | 2026-05-11 |\n"
+        "| Tool | Test |\n"
+        "| Work | Confirmed current `main`/`origin/main` head is feature commit `abc1234`. |\n"
+        "| Next Priorities | archived by later context |\n",
+        encoding="utf-8",
+    )
+
+    snap = orient.handoff_snapshot(tmp_path, today=date(2026, 5, 12), current_head="def5678")
+
+    assert snap["latest_head_claims"] == []
+    assert snap["stale_head_claims"] == []
+    assert snap["head_claim_status"] == "none"
+
+
 def test_handoff_snapshot_missing_file(tmp_path):
     snap = orient.handoff_snapshot(tmp_path, today=date(2026, 5, 12))
     assert snap["available"] is False
@@ -203,6 +253,23 @@ def test_render_section_helpers_cover_available_and_unavailable_states():
         {"available": True, "nodes": "1", "edges": "2", "files": "3", "last_updated": "now"}
     ) == ["  code-review-graph: nodes=1, edges=2, files=3, updated now"]
     assert orient._render_ci_section({"available": True, "recent_runs": []}) == ["  CI: no recent runs"]
+
+
+def test_render_handoff_section_surfaces_stale_head_claim():
+    lines = orient._render_handoff_section(
+        {
+            "available": True,
+            "line_count": 10,
+            "current_addendum_count": 1,
+            "oldest_addendum": "2026-05-12",
+            "oldest_age_days": 0,
+            "rotation_suggested": False,
+            "stale_head_claims": ["abc1234"],
+            "current_head": "def5678",
+        }
+    )
+
+    assert any("stale latest head claim(s): abc1234 != def5678" in line for line in lines)
 
 
 # ----- workspace_db_snapshot ------------------------------------------------

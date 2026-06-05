@@ -211,3 +211,34 @@ def test_next_priority_lines_are_not_evidence(tmp_path: Path) -> None:
     result = browser_qa_inventory.build_inventory(tmp_path)
 
     assert result["projects"][0]["status"] == "missing"
+
+
+def test_cli_output_file_writes_ascii_json_and_preserves_text_stdout(tmp_path: Path, capsys) -> None:
+    root = tmp_path / "박주호"
+    app = root / "projects" / "knowledge-dashboard"
+    _write_package(app, dependencies={"next": "1.0.0", "react": "1.0.0"})
+    output = root / ".tmp" / "browser-inventory.json"
+
+    result = browser_qa_inventory.main(["--root", str(root), "--output", str(output)])
+
+    stdout = capsys.readouterr().out
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert result == 0
+    assert "browser QA coverage:" in stdout
+    assert payload["root"] == str(root.resolve())
+    assert output.read_text(encoding="utf-8").isascii()
+
+
+def test_cli_output_file_can_be_combined_with_json_stdout(tmp_path: Path, capsys) -> None:
+    root = tmp_path
+    app = root / "projects" / "word-chain"
+    _write_package(app, dependencies={"vite": "1.0.0"})
+    output = root / ".tmp" / "browser-inventory.json"
+
+    result = browser_qa_inventory.main(["--root", str(root), "--output", str(output), "--json"])
+
+    stdout_payload = json.loads(capsys.readouterr().out)
+    file_payload = json.loads(output.read_text(encoding="utf-8"))
+    assert result == 0
+    assert stdout_payload == file_payload
+    assert file_payload["summary"]["browser_project_count"] == 1

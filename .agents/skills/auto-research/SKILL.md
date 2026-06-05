@@ -112,7 +112,7 @@ After each material cycle, update `.ai/TASKS.md`, `.ai/HANDOFF.md`, and `.ai/SES
 Run the local inventory helper before GitHub-wide work:
 
 ```bash
-python .agents/skills/auto-research/scripts/github_project_inventory.py --root . --include-prs --json
+python .agents/skills/auto-research/scripts/github_project_inventory.py --root . --include-prs --output .tmp/github-project-inventory.json --json
 ```
 
 Use it to identify active projects, GitHub workflow files, Dependabot state, open PRs, and dirty-tree risks.
@@ -122,7 +122,7 @@ Use it to identify active projects, GitHub workflow files, Dependabot state, ope
 Run the local browser QA inventory before choosing the next app-click cycle:
 
 ```bash
-python .agents/skills/auto-research/scripts/browser_qa_inventory.py --root . --json
+python .agents/skills/auto-research/scripts/browser_qa_inventory.py --root . --output .tmp/browser-qa-inventory.json --json
 ```
 
 Use it to identify browser apps with verified direct-click evidence, current `output/playwright` screenshots, and projects that still need a browser QA pass.

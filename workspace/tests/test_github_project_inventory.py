@@ -171,3 +171,21 @@ def test_inventory_cli_accepts_json_flag_and_emits_parseable_json(tmp_path: Path
     assert payload["root"] == str(root.resolve())
     assert payload["projects"][0]["path"] == "projects/knowledge-dashboard"
     assert payload["projects"][0]["has_package_test_script"] is True
+
+
+def test_inventory_cli_output_file_writes_ascii_json_and_preserves_stdout(tmp_path: Path, capsys) -> None:
+    root = tmp_path / "박주호"
+    project = root / "projects" / "knowledge-dashboard"
+    project.mkdir(parents=True)
+    (project / "package.json").write_text(json.dumps({"scripts": {"test": "node --test"}}), encoding="utf-8")
+    (project / "README.md").write_text("# Knowledge Dashboard\n", encoding="utf-8")
+    output = root / ".tmp" / "github-inventory.json"
+
+    result = inventory.main(["--root", str(root), "--output", str(output)])
+
+    stdout_payload = json.loads(capsys.readouterr().out)
+    file_payload = json.loads(output.read_text(encoding="utf-8"))
+    assert result == 0
+    assert stdout_payload == file_payload
+    assert file_payload["root"] == str(root.resolve())
+    assert output.read_text(encoding="utf-8").isascii()

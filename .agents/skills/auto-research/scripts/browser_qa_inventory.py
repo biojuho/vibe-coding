@@ -405,14 +405,22 @@ def _print_text(inventory: dict[str, Any]) -> None:
         print(f"recommendation: {recommendation}")
 
 
+def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path.cwd(), help="Repository root to inspect")
     parser.add_argument("--include-non-browser", action="store_true", help="Include non-browser package projects")
     parser.add_argument("--json", action="store_true", help="Emit JSON instead of text")
+    parser.add_argument("--output", type=Path, help="Optional path to write the inventory JSON")
     args = parser.parse_args(argv)
 
     inventory = build_inventory(args.root, args.include_non_browser)
+    if args.output:
+        _write_json(args.output, inventory)
     if args.json:
         json.dump(inventory, sys.stdout, ensure_ascii=True, indent=2)
         print()

@@ -279,6 +279,11 @@ def build_inventory(root: Path, include_prs: bool) -> dict[str, Any]:
     return summary
 
 
+def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path.cwd(), help="Repository root to inspect")
@@ -288,9 +293,12 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Emit JSON output. This is the default and is kept for automation consistency.",
     )
+    parser.add_argument("--output", type=Path, help="Optional path to write the inventory JSON")
     args = parser.parse_args(argv)
 
     inventory = build_inventory(args.root, args.include_prs)
+    if args.output:
+        _write_json(args.output, inventory)
     json.dump(inventory, sys.stdout, ensure_ascii=True, indent=2)
     print()
     return 0
