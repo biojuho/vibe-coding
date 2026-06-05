@@ -16,6 +16,13 @@ from scrapers.base import BaseScraper, FeedCandidate
 
 logger = logging.getLogger(__name__)
 
+_POPULAR_FEED_PATH = "/hot.php"
+_TRENDING_FEED_PATH = "/zboard/zboard.php?id=humor"
+_FEED_TITLE_SELECTOR = "td.title a[href*='view.php'], td[class*='title'] a[href*='view.php'], a[href*='view.php?id=']"
+_FEED_RECOMMEND_SELECTOR = "td.recommend, td.vote"
+_FEED_IMAGE_ICON_SELECTOR = "img[src*='icon_pic'], .pic_icon, img[alt*='사진']"
+_FEED_THUMB_SELECTOR = "img[src*='thumb'], img[src*='no_unnamed']"
+
 
 class PpomppuScraper(BaseScraper):
     """Scraper for ppomppu.co.kr Korean community (humor board)."""
@@ -176,7 +183,7 @@ class PpomppuScraper(BaseScraper):
     async def get_popular_urls(self, limit=5):
         """뽐뿌 핫게시판 인기글 URL 수집 (전체 게시판 인기 모음)."""
         return await self._fetch_post_urls(
-            f"{self.BASE_URL}/hot.php",
+            self._feed_url_for_mode("popular"),
             board_id="humor",
             label="popular posts (뽐뿌 핫게시판)",
             limit=limit,
@@ -186,7 +193,7 @@ class PpomppuScraper(BaseScraper):
     async def get_trending_urls(self, limit=5):
         """뽐뿌 유머 게시판 최신글 URL 수집."""
         return await self._fetch_post_urls(
-            f"{self.BASE_URL}/zboard/zboard.php?id=humor",
+            self._feed_url_for_mode("trending"),
             board_id="humor",
             label="trending posts (뽐뿌 유머 최신)",
             limit=limit,
@@ -198,9 +205,115 @@ class PpomppuScraper(BaseScraper):
             return await self.get_trending_urls(limit=limit)
         return await self.get_popular_urls(limit=limit)
 
+    def _feed_url_for_mode(self, mode):
+        feed_path = _POPULAR_FEED_PATH if mode == "popular" else _TRENDING_FEED_PATH
+        return f"{self.BASE_URL}{feed_path}"
+
+    async def _navigate_feed_page(self, page, feed_url, html_content):
+        if html_content:
+
+            async def intercept(route):
+                await route.fulfill(body=html_content, content_type="text/html; charset=utf-8")
+
+            try:
+                await page.route(feed_url, intercept)
+                await page.goto(feed_url, wait_until="domcontentloaded", timeout=30000)
+                await asyncio.sleep(2)
+                return
+            except Exception:
+                try:
+                    await page.unroute(feed_url)
+                except Exception:
+                    pass
+
+        await page.goto(feed_url, wait_until="domcontentloaded", timeout=60000)
+        await asyncio.sleep(3)
+
+    @staticmethod
+    def _feed_comment_count(raw_title):
+        cmt_match = re.search(r"\[(\d+)\]", raw_title)
+        return int(cmt_match.group(1)) if cmt_match else 0
+
+    @staticmethod
+    def _feed_title_without_comment_count(raw_title):
+        return re.sub(r"\s*\[\d+\]\s*$", "", raw_title).strip()
+
+    @staticmethod
+    async def _feed_row_views(row):
+        views = 0
+        tds = await row.query_selector_all("td")
+        for td in tds:
+            text = (await td.inner_text()).strip()
+            if text.isdigit() and int(text) > 10:
+                views = max(views, int(text))
+        return views
+
+    @staticmethod
+    async def _feed_row_likes(row):
+        rec_el = await row.query_selector(_FEED_RECOMMEND_SELECTOR)
+        if not rec_el:
+            return 0
+        rec_text = (await rec_el.inner_text()).strip()
+        if rec_text.lstrip("-").isdigit():
+            return max(0, int(rec_text))
+        return 0
+
+    @staticmethod
+    async def _feed_row_image_state(row):
+        has_image = False
+        image_count = 0
+        img_icon = await row.query_selector(_FEED_IMAGE_ICON_SELECTOR)
+        if img_icon:
+            has_image = True
+            image_count = 1
+        thumb = await row.query_selector(_FEED_THUMB_SELECTOR)
+        if thumb:
+            has_image = True
+            image_count = max(image_count, 1)
+        return has_image, image_count
+
+    async def _feed_candidate_from_row(self, row):
+        title_el = await row.query_selector(_FEED_TITLE_SELECTOR)
+        if not title_el:
+            return None
+
+        href = await title_el.get_attribute("href")
+        url = self._normalize_url(href)
+        if not url or "no=" not in url or "id=regulation" in url:
+            return None
+
+        raw_title = (await title_el.inner_text()).strip()
+        has_image, image_count = await self._feed_row_image_state(row)
+        candidate = FeedCandidate(
+            url=url,
+            title=self._feed_title_without_comment_count(raw_title),
+            likes=await self._feed_row_likes(row),
+            comments=self._feed_comment_count(raw_title),
+            views=await self._feed_row_views(row),
+            source=self.SOURCE_NAME,
+            has_image=has_image,
+            image_count=image_count,
+        )
+        candidate.compute_engagement()
+        return candidate
+
+    async def _collect_feed_candidates_from_page(self, page, limit):
+        candidates = []
+        seen = set()
+        rows = await page.query_selector_all("tr")
+        for row in rows[: limit * 4]:
+            candidate = await self._feed_candidate_from_row(row)
+            if not candidate or candidate.url in seen:
+                continue
+            candidates.append(candidate)
+            seen.add(candidate.url)
+
+        candidates.sort(key=lambda c: c.engagement_score, reverse=True)
+        return candidates[:limit]
+
     async def get_feed_candidates(self, mode="trending", limit=5):
         """피드 목록에서 제목 + 조회수/추천수/댓글수를 사전 추출하여 인기순 정렬."""
-        feed_url = f"{self.BASE_URL}/hot.php" if mode == "popular" else f"{self.BASE_URL}/zboard/zboard.php?id=humor"
+        feed_url = self._feed_url_for_mode(mode)
         candidates = []
         page = await self._new_page()
         try:
@@ -210,94 +323,9 @@ class PpomppuScraper(BaseScraper):
             except Exception as fetch_err:
                 logger.warning("curl_cffi fetch failed for candidates: %s", fetch_err)
 
-            if html_content:
+            await self._navigate_feed_page(page, feed_url, html_content)
 
-                async def intercept(route):
-                    await route.fulfill(body=html_content, content_type="text/html; charset=utf-8")
-
-                try:
-                    await page.route(feed_url, intercept)
-                    await page.goto(feed_url, wait_until="domcontentloaded", timeout=30000)
-                    await asyncio.sleep(2)
-                except Exception:
-                    try:
-                        await page.unroute(feed_url)
-                    except Exception:
-                        pass
-                    await page.goto(feed_url, wait_until="domcontentloaded", timeout=60000)
-                    await asyncio.sleep(3)
-            else:
-                await page.goto(feed_url, wait_until="domcontentloaded", timeout=60000)
-                await asyncio.sleep(3)
-
-            # 뽐뿌 목록 행에서 제목 + 조회수 + 추천수 + 댓글수 추출
-            rows = await page.query_selector_all("tr")
-            for row in rows[: limit * 4]:
-                # 제목 + URL
-                title_el = await row.query_selector(
-                    "td.title a[href*='view.php'], td[class*='title'] a[href*='view.php'], a[href*='view.php?id=']"
-                )
-                if not title_el:
-                    continue
-                href = await title_el.get_attribute("href")
-                url = self._normalize_url(href)
-                if not url or "no=" not in url:
-                    continue
-                # regulation 보드 (게시판 규칙)는 콘텐츠가 아니므로 스킵
-                if "id=regulation" in url:
-                    continue
-                if url in {c.url for c in candidates}:
-                    continue
-                raw_title = (await title_el.inner_text()).strip()
-                # [댓글수] 제거
-                comments = 0
-                cmt_match = re.search(r"\[(\d+)\]", raw_title)
-                if cmt_match:
-                    comments = int(cmt_match.group(1))
-                title = re.sub(r"\s*\[\d+\]\s*$", "", raw_title).strip()
-
-                # 조회수
-                views = 0
-                tds = await row.query_selector_all("td")
-                for td in tds:
-                    text = (await td.inner_text()).strip()
-                    if text.isdigit() and int(text) > 10:
-                        views = max(views, int(text))
-
-                # 추천수
-                likes = 0
-                rec_el = await row.query_selector("td.recommend, td.vote")
-                if rec_el:
-                    rec_text = (await rec_el.inner_text()).strip()
-                    if rec_text.lstrip("-").isdigit():
-                        likes = max(0, int(rec_text))
-
-                # 이미지 아이콘/썸네일 여부 (뽐뿌 목록에서 이미지 글 표시)
-                has_image = False
-                image_count = 0
-                img_icon = await row.query_selector("img[src*='icon_pic'], .pic_icon, img[alt*='사진']")
-                if img_icon:
-                    has_image = True
-                    image_count = 1  # 목록에서는 정확한 개수 알 수 없음
-                # 썸네일 이미지가 있으면 이미지 글로 판단
-                thumb = await row.query_selector("img[src*='thumb'], img[src*='no_unnamed']")
-                if thumb:
-                    has_image = True
-                    image_count = max(image_count, 1)
-
-                candidate = FeedCandidate(
-                    url=url,
-                    title=title,
-                    likes=likes,
-                    comments=comments,
-                    views=views,
-                    source=self.SOURCE_NAME,
-                    has_image=has_image,
-                    image_count=image_count,
-                )
-                candidate.compute_engagement()
-                candidates.append(candidate)
-
+            candidates = await self._collect_feed_candidates_from_page(page, limit)
             logger.info("Ppomppu feed candidates: %d collected, sorting by engagement.", len(candidates))
         except Exception as e:
             logger.warning("Feed candidate extraction failed: %s. Falling back to URL-only.", e)
@@ -306,8 +334,7 @@ class PpomppuScraper(BaseScraper):
         finally:
             await page.close()
 
-        candidates.sort(key=lambda c: c.engagement_score, reverse=True)
-        return candidates[:limit]
+        return candidates
 
     # ── Category classification ──────────────────────────────────────
     def _determine_category(self, title, content):

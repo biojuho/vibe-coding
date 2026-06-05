@@ -21,6 +21,38 @@ def scraper(mock_config):
     return s
 
 
+class _FeedElement:
+    def __init__(self, *, text="", href=None):
+        self._text = text
+        self._href = href
+
+    async def get_attribute(self, name):
+        return self._href if name == "href" else None
+
+    async def inner_text(self):
+        return self._text
+
+
+class _FeedRow:
+    def __init__(self, *, href, title, likes="0", cells=None, has_thumb=False):
+        self._link = _FeedElement(text=title, href=href)
+        self._recommend = _FeedElement(text=likes)
+        self._cells = [_FeedElement(text=cell) for cell in (cells or [])]
+        self._has_thumb = has_thumb
+
+    async def query_selector(self, selector):
+        if "view.php" in selector:
+            return self._link
+        if selector == "td.recommend, td.vote":
+            return self._recommend
+        if "thumb" in selector and self._has_thumb:
+            return _FeedElement()
+        return None
+
+    async def query_selector_all(self, selector):
+        return self._cells if selector == "td" else []
+
+
 def test_normalize_url(scraper):
     assert scraper._normalize_url("/zboard/123") == "https://www.ppomppu.co.kr/zboard/123"
     assert scraper._normalize_url("view.php?id=1") == "https://www.ppomppu.co.kr/zboard/view.php?id=1"
@@ -81,6 +113,50 @@ async def test_get_feed_candidates(mock_fetch, scraper):
     assert candidates[0].url == "https://www.ppomppu.co.kr/zboard/view.php?id=humor&no=456"
     assert candidates[0].title == "뽐뿌글"
     assert candidates[0].comments == 10
+
+
+@pytest.mark.asyncio
+async def test_collect_feed_candidates_sorts_and_filters_rows(scraper):
+    page_mock = AsyncMock()
+    page_mock.query_selector_all.return_value = [
+        _FeedRow(
+            href="/zboard/view.php?id=humor&no=low",
+            title="low [1]",
+            likes="1",
+            cells=["9", "20"],
+        ),
+        _FeedRow(
+            href="/zboard/view.php?id=humor&no=high",
+            title="high [3]",
+            likes="4",
+            cells=["120"],
+            has_thumb=True,
+        ),
+        _FeedRow(
+            href="/zboard/view.php?id=humor&no=high",
+            title="duplicate [99]",
+            likes="100",
+            cells=["999"],
+        ),
+        _FeedRow(
+            href="/zboard/view.php?id=regulation&no=skip",
+            title="rules [1]",
+            likes="99",
+            cells=["999"],
+        ),
+    ]
+
+    candidates = await scraper._collect_feed_candidates_from_page(page_mock, limit=2)
+
+    assert [candidate.url for candidate in candidates] == [
+        "https://www.ppomppu.co.kr/zboard/view.php?id=humor&no=high",
+        "https://www.ppomppu.co.kr/zboard/view.php?id=humor&no=low",
+    ]
+    assert candidates[0].title == "high"
+    assert candidates[0].comments == 3
+    assert candidates[0].likes == 4
+    assert candidates[0].views == 120
+    assert candidates[0].has_image is True
 
 
 @pytest.mark.asyncio
