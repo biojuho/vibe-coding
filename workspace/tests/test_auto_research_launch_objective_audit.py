@@ -269,6 +269,7 @@ def _selector_selection(
     blocked: bool = True,
     project: str = "projects/hanwoo-dashboard",
     guardrails: list[str] | None = None,
+    required_gates: list[str] | None = None,
 ) -> dict[str, object]:
     selected = {
         "kind": kind,
@@ -281,6 +282,9 @@ def _selector_selection(
         "guardrails": guardrails
         if guardrails is not None
         else ["Do not retry T-251 until Supabase Dashboard credentials are reset."],
+        "required_gates": required_gates
+        if required_gates is not None
+        else ["Supabase credential reset by user", "Hanwoo live Prisma CRUD E2E after reset"],
     }
     return {
         "status": status,
@@ -378,7 +382,7 @@ def test_selector_local_candidate_prevents_complete_claim(tmp_path: Path) -> Non
     assert result["items"][5]["passed"] is False
 
 
-def test_selector_action_evidence_has_single_terminal_punctuation_and_guardrails(tmp_path: Path) -> None:
+def test_selector_action_evidence_has_single_terminal_punctuation_guardrails_and_gates(tmp_path: Path) -> None:
     _write_required_skill(tmp_path)
     _write_ai_relay(tmp_path)
 
@@ -404,6 +408,9 @@ def test_selector_action_evidence_has_single_terminal_punctuation_and_guardrails
     assert (
         "Selector guardrails: Do not retry T-251 until Supabase Dashboard credentials are reset. "
         "Keep local launch gates green."
+    ) in selector_item["evidence"]
+    assert (
+        "Selector required gates: Supabase credential reset by user. Hanwoo live Prisma CRUD E2E after reset."
     ) in selector_item["evidence"]
 
 

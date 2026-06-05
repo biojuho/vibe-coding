@@ -449,6 +449,7 @@ def _selector_item(selection: dict[str, Any]) -> dict[str, Any]:
     selected_project = str(selected.get("project") or "unknown")
     action = str(selected.get("action") or "unknown")
     guardrails = _sentence_list(selected.get("guardrails"))
+    required_gates = _sentence_list(selected.get("required_gates"))
     blocked = selected.get("blocked") is True
     complete = status in {"blocked_external_only", "ready_for_completion_audit"}
     blockers: list[str] = []
@@ -474,6 +475,8 @@ def _selector_item(selection: dict[str, Any]) -> dict[str, Any]:
     ]
     if guardrails:
         evidence.append(f"Selector guardrails: {' '.join(guardrails)}")
+    if required_gates:
+        evidence.append(f"Selector required gates: {' '.join(required_gates)}")
 
     return _item(
         "Run the deterministic next-experiment selector and confirm no local auto-research candidate remains.",
