@@ -56,7 +56,7 @@ HEAD_CLAIM_RE = re.compile(
 NEXT_PRIORITIES_ROW_RE = re.compile(r"^\|\s*Next Priorities\s*\|\s*(.*?)\s*\|\s*$", re.IGNORECASE | re.MULTILINE)
 NEXT_PRIORITY_CLOSEOUT_ACTION_RE = re.compile(r"\b(commit(?:ted)?|push(?:ed)?|rerun|re-run)\b", re.IGNORECASE)
 NEXT_PRIORITY_CLOSEOUT_CONTEXT_RE = re.compile(
-    r"\b(closeout|context head|new context head|final live checks|release[- ]gates?)\b|\bpost[- ]push\b",
+    r"\b(closeout|context head|new context head|final live checks|release[- ]gates?|relay update|clean[- ]state|completion audit|launch[- ]objective audit)\b|\bpost[- ]push\b",
     re.IGNORECASE,
 )
 REQUIRED_RELEASE_WORKFLOWS = frozenset({"root-quality-gate", "active-project-matrix"})
@@ -201,6 +201,23 @@ def _stale_next_priority_reason(
     )
 
 
+def _next_priority_note(
+    next_priorities: str,
+    worktree_clean: bool | None,
+    git_clean_synced: bool | None,
+) -> str | None:
+    if not _is_closeout_next_priority(next_priorities):
+        return None
+    if worktree_clean is not True or git_clean_synced is not False:
+        return None
+    if not re.search(r"\bcommit(?:ted)?\b", next_priorities, re.IGNORECASE):
+        return None
+    return (
+        "worktree clean; any commit-this-relay-update closeout step is already satisfied locally, "
+        "while publish/CI/user blockers may still remain"
+    )
+
+
 def _git_clean_synced(git: dict[str, Any]) -> bool | None:
     if not git.get("available"):
         return None
@@ -303,6 +320,7 @@ def handoff_snapshot(
     current_head: str | None = None,
     git_clean_synced: bool | None = None,
     release_checks_green: bool | None = None,
+    worktree_clean: bool | None = None,
 ) -> dict[str, Any]:
     """HANDOFF.md size, Current Addendum date range, rotation suggestion."""
     today = today or date.today()
@@ -362,13 +380,17 @@ def handoff_snapshot(
 
     next_priorities = _extract_next_priorities(latest_addendum)
     stale_next_priority_reason = _stale_next_priority_reason(next_priorities, git_clean_synced, release_checks_green)
+    latest_next_priority_note = _next_priority_note(next_priorities, worktree_clean, git_clean_synced)
     snap["latest_next_priorities"] = next_priorities
     snap["stale_next_priority_reason"] = stale_next_priority_reason
+    snap["latest_next_priority_note"] = latest_next_priority_note
     if not next_priorities:
         snap["latest_next_priority_status"] = "none"
     elif stale_next_priority_reason:
         snap["latest_next_priority_status"] = "stale"
-    elif (git_clean_synced is None or release_checks_green is None) and _is_closeout_next_priority(next_priorities):
+    elif (
+        git_clean_synced is None or (git_clean_synced is True and release_checks_green is None)
+    ) and _is_closeout_next_priority(next_priorities):
         snap["latest_next_priority_status"] = "unavailable"
     else:
         snap["latest_next_priority_status"] = "ok"
@@ -540,6 +562,7 @@ def collect_snapshot(repo_root: Path, today: date | None = None) -> dict[str, An
             current_head=current_head,
             git_clean_synced=_git_clean_synced(git),
             release_checks_green=_required_release_checks_green(ci, current_head),
+            worktree_clean=git.get("worktree", {}).get("clean") if git.get("available") else None,
         ),
         "tasks": tasks_snapshot(repo_root),
         "goal": goal_snapshot(repo_root),
@@ -596,6 +619,8 @@ def _render_handoff_section(h: dict[str, Any]) -> list[str]:
             )
         if h.get("latest_next_priority_status") == "stale":
             lines.append(f"    stale latest next priority: {h.get('stale_next_priority_reason')}")
+        if h.get("latest_next_priority_note"):
+            lines.append(f"    latest next priority note: {h.get('latest_next_priority_note')}")
         return lines
     return [f"  HANDOFF: unavailable ({h.get('reason', '?')})"]
 

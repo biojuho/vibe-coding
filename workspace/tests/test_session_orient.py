@@ -191,6 +191,63 @@ def test_handoff_snapshot_keeps_closeout_next_priority_when_not_clean_synced(tmp
     assert snap["stale_next_priority_reason"] is None
 
 
+def test_handoff_snapshot_notes_committed_closeout_step_when_clean_but_ahead(tmp_path):
+    ai = tmp_path / ".ai"
+    ai.mkdir(parents=True)
+    (ai / "HANDOFF.md").write_text(
+        "# HANDOFF - AI Context Relay\n\n"
+        "## Current Addendum\n\n"
+        "| Field | Value |\n"
+        "|---|---|\n"
+        "| Date | 2026-05-12 |\n"
+        "| Tool | Test |\n"
+        "| Work | Context closeout is locally committed and publish remains blocked. |\n"
+        "| Next Priorities | Commit this `.ai` relay update, then wait for release-gates after push. |\n",
+        encoding="utf-8",
+    )
+
+    snap = orient.handoff_snapshot(
+        tmp_path,
+        today=date(2026, 5, 12),
+        current_head="def5678",
+        git_clean_synced=False,
+        release_checks_green=None,
+        worktree_clean=True,
+    )
+
+    assert snap["latest_next_priority_status"] == "ok"
+    assert snap["stale_next_priority_reason"] is None
+    assert "already satisfied locally" in snap["latest_next_priority_note"]
+    assert "publish/CI/user blockers may still remain" in snap["latest_next_priority_note"]
+
+
+def test_handoff_snapshot_no_committed_closeout_note_when_worktree_dirty(tmp_path):
+    ai = tmp_path / ".ai"
+    ai.mkdir(parents=True)
+    (ai / "HANDOFF.md").write_text(
+        "# HANDOFF - AI Context Relay\n\n"
+        "## Current Addendum\n\n"
+        "| Field | Value |\n"
+        "|---|---|\n"
+        "| Date | 2026-05-12 |\n"
+        "| Tool | Test |\n"
+        "| Work | Context closeout is still pending. |\n"
+        "| Next Priorities | Commit this `.ai` relay update, then wait for release-gates after push. |\n",
+        encoding="utf-8",
+    )
+
+    snap = orient.handoff_snapshot(
+        tmp_path,
+        today=date(2026, 5, 12),
+        current_head="def5678",
+        git_clean_synced=False,
+        release_checks_green=None,
+        worktree_clean=False,
+    )
+
+    assert snap["latest_next_priority_note"] is None
+
+
 def test_handoff_snapshot_keeps_closeout_next_priority_until_release_checks_green(tmp_path):
     ai = tmp_path / ".ai"
     ai.mkdir(parents=True)
