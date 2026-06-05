@@ -43,6 +43,277 @@ async def handle_single_commands(args, config_mgr, notifier, notion_uploader, tw
     return False
 
 
+def _build_base_services(image_uploader, image_generator, draft_generator, notion_uploader, twitter_poster):
+    return PipelineServices(
+        scraper=None,
+        image_uploader=image_uploader,
+        image_generator=image_generator,
+        draft_generator=draft_generator,
+        notion_uploader=notion_uploader,
+        twitter_poster=twitter_poster,
+    )
+
+
+def _build_item_services(item, base_services):
+    return PipelineServices(
+        scraper=item["scraper"],
+        image_uploader=base_services.image_uploader,
+        image_generator=base_services.image_generator,
+        draft_generator=base_services.draft_generator,
+        notion_uploader=base_services.notion_uploader,
+        twitter_poster=base_services.twitter_poster,
+    )
+
+
+def _print_item_progress(index, total_count, item):
+    print(f"  [{index}/{total_count}] [{item['source']}] {item['url']}")
+
+
+async def _process_live_item(
+    item,
+    *,
+    base_services,
+    top_examples,
+    output_formats,
+    config_mgr,
+    effective_review_only,
+    daily_queue_floor,
+):
+    return await process_single_post(
+        url=item["url"],
+        top_tweets=top_examples,
+        source_name=item["source"],
+        output_formats=output_formats,
+        config=config_mgr,
+        feed_mode=item["feed_mode"],
+        review_only=effective_review_only,
+        post_data_hint={"feed_title": item.get("feed_title", "")},
+        services=_build_item_services(item, base_services),
+        daily_queue_floor=daily_queue_floor,
+    )
+
+
+async def _process_pipeline_item(
+    item,
+    *,
+    index,
+    total_count,
+    dry_run,
+    config_mgr,
+    base_services,
+    top_examples,
+    output_formats,
+    effective_review_only,
+    daily_queue_floor,
+):
+    _print_item_progress(index, total_count, item)
+    if dry_run:
+        return await run_dry_run_single(
+            item,
+            config_mgr,
+            base_services.draft_generator,
+            base_services.notion_uploader,
+            top_examples,
+        )
+
+    return await _process_live_item(
+        item,
+        base_services=base_services,
+        top_examples=top_examples,
+        output_formats=output_formats,
+        config_mgr=config_mgr,
+        effective_review_only=effective_review_only,
+        daily_queue_floor=daily_queue_floor,
+    )
+
+
+async def _process_collected_items(
+    urls_to_process,
+    *,
+    dry_run,
+    parallel,
+    config_mgr,
+    base_services,
+    top_examples,
+    output_formats,
+    effective_review_only,
+    daily_queue_floor,
+):
+    total_count = len(urls_to_process)
+
+    if dry_run or parallel <= 1:
+        results = []
+        for index, item in enumerate(urls_to_process, start=1):
+            result = await _process_pipeline_item(
+                item,
+                index=index,
+                total_count=total_count,
+                dry_run=dry_run,
+                config_mgr=config_mgr,
+                base_services=base_services,
+                top_examples=top_examples,
+                output_formats=output_formats,
+                effective_review_only=effective_review_only,
+                daily_queue_floor=daily_queue_floor,
+            )
+            results.append(result)
+        return results
+
+    semaphore = asyncio.Semaphore(max(1, parallel))
+    counter = {"done": 0}
+    counter_lock = asyncio.Lock()
+
+    async def _bounded(item):
+        async with semaphore:
+            async with counter_lock:
+                counter["done"] += 1
+                index = counter["done"]
+            return await _process_pipeline_item(
+                item,
+                index=index,
+                total_count=total_count,
+                dry_run=dry_run,
+                config_mgr=config_mgr,
+                base_services=base_services,
+                top_examples=top_examples,
+                output_formats=output_formats,
+                effective_review_only=effective_review_only,
+                daily_queue_floor=daily_queue_floor,
+            )
+
+    return await asyncio.gather(*[_bounded(item) for item in urls_to_process])
+
+
+async def _append_cross_source_insights(
+    results,
+    *,
+    dry_run,
+    config_mgr,
+    draft_generator,
+    notion_uploader,
+    image_uploader,
+    image_generator,
+    output_formats,
+    top_examples,
+    trend_monitor,
+):
+    if dry_run or not config_mgr.get("cross_source_insight.enabled", True):
+        return results
+
+    try:
+        from pipeline.cross_source_insight import process_cross_source_insights
+
+        insight_results = await process_cross_source_insights(
+            results=list(results),
+            draft_generator=draft_generator,
+            notion_uploader=notion_uploader,
+            image_uploader=image_uploader,
+            image_generator=image_generator,
+            config=config_mgr,
+            output_formats=output_formats,
+            top_examples=top_examples,
+            trend_monitor=trend_monitor,
+        )
+        if insight_results:
+            combined_results = list(results) + insight_results
+            logger.info("크로스소스 인사이트 %d건 추가", len(insight_results))
+            return combined_results
+    except Exception as exc:
+        logger.warning("크로스소스 인사이트 생성 실패 (무시): %s", exc)
+
+    return results
+
+
+async def _record_trend_spikes(trend_monitor, *, dry_run):
+    if not trend_monitor or dry_run:
+        return
+
+    try:
+        spikes = await trend_monitor.detect_spikes()
+        if not spikes:
+            return
+
+        from pipeline.cost_db import get_cost_db
+
+        db = get_cost_db()
+        for spike in spikes[:10]:
+            matched = trend_monitor.match_topic_cluster(spike["keyword"])
+            db.record_trend_spike(
+                keyword=spike["keyword"],
+                source=spike["source"],
+                score=spike["score"],
+                matched_topic=matched or "",
+            )
+    except Exception as exc:
+        logger.debug("트렌드 스파이크 기록 실패: %s", exc)
+
+
+def _calculate_execution_metrics(results, *, dry_run):
+    metrics = calculate_run_metrics(results, dry_run=dry_run)
+    successful = metrics["successful"]
+    failed = metrics["failed"]
+    return metrics, successful, failed
+
+
+def _print_execution_summary(results, feed_stats, metrics, start_time, *, dry_run):
+    elapsed = (datetime.now() - start_time).total_seconds()
+    content_dup_skips = len(metrics.get("content_duplicate_skips", []))
+
+    print(f"\n{'=' * 55}")
+    print(f"  EXECUTION SUMMARY  ({elapsed:.1f}s)")
+    print(f"  Total: {len(results)}  |  OK {len(metrics['successful'])}  |  FAIL {len(metrics['failed'])}")
+    print(f"  Duplicate Skips: {len(metrics['duplicate_skips'])}")
+    print(f"  Content Similarity Skips: {content_dup_skips}")
+    print(f"  Low Engagement Skips: {feed_stats['low_engagement_skips']}")
+    print(f"  Blacklist Skips: {feed_stats['blacklist_skips']}")
+    print(f"  Cross-Source Dedup: {feed_stats['cross_source_dedup_count']}")
+    print(f"  Filtered Skips: {len(metrics['filtered_skips'])}")
+    print(f"  Avg Quality Score (success): {metrics['avg_quality_score']:.1f}")
+    if not dry_run:
+        print(
+            f"  Upload Success Rate: {metrics['upload_success_rate']:.1f}% "
+            f"({len(metrics['live_upload_success'])}/{metrics['live_upload_attempts']})"
+        )
+    print(f"{'=' * 55}")
+
+
+async def _send_execution_notification(notifier, results, metrics, successful, failed):
+    review_ready = len([item for item in results if item.get("status") == "검토필요"])
+    level = "INFO"
+    if len(failed) > 0:
+        level = "WARNING"
+    if failed and not successful:
+        level = "CRITICAL"
+
+    await notifier.send_message(
+        "Blind-to-X 실행 완료\n"
+        f"수집 {len(results)}건 / 성공 {len(successful)}건 / 실패 {len(failed)}건\n"
+        f"검토필요 {review_ready}건 / 평균 품질점수 {metrics['avg_quality_score']:.1f}",
+        level=level,
+    )
+
+
+def _exit_if_all_failed(successful, failed):
+    if not failed or successful:
+        return
+
+    error_reasons = "; ".join([str(f.get("error", "unknown")) for f in failed])
+    logger.error(f"Exit 1: All {len(failed)} items failed. Reasons: {error_reasons}")
+    sys.exit(1)
+
+
+async def _maybe_send_daily_digest(config_mgr, notion_uploader):
+    if not (config_mgr.get("digest.enabled", False) and config_mgr.get("digest.telegram_enabled", False)):
+        return
+
+    try:
+        from pipeline.daily_digest import generate_and_send
+
+        await generate_and_send(config_mgr, notion_uploader=notion_uploader)
+    except Exception as _dg_exc:
+        logger.debug("Auto digest skipped: %s", _dg_exc)
+
+
 async def execute_pipeline(
     args,
     config_mgr,
@@ -56,7 +327,7 @@ async def execute_pipeline(
     top_examples,
     trend_monitor,
 ):
-    """Core pipeline: collect → process → report."""
+    """Core pipeline: collect, process, and report."""
     async with AsyncExitStack() as stack:
         for scraper in scrapers.values():
             await stack.enter_async_context(scraper)
@@ -76,173 +347,49 @@ async def execute_pipeline(
             logger.info("No valid posts to process.")
             return
 
-        results = []
         start_time = datetime.now()
         output_formats = config_mgr.get("output_formats", ["twitter"])
-
-        services = PipelineServices(
-            scraper=None,  # Will be set per-item
-            image_uploader=image_uploader,
-            image_generator=image_generator,
-            draft_generator=draft_generator,
-            notion_uploader=notion_uploader,
-            twitter_poster=twitter_poster,
-        )
-
         dry_run = getattr(args, "dry_run", False)
         parallel = getattr(args, "parallel", 3)
+        base_services = _build_base_services(
+            image_uploader,
+            image_generator,
+            draft_generator,
+            notion_uploader,
+            twitter_poster,
+        )
 
-        if dry_run or parallel <= 1:
-            for index, item in enumerate(urls_to_process, start=1):
-                print(f"  [{index}/{len(urls_to_process)}] [{item['source']}] {item['url']}")
-                if dry_run:
-                    result = await run_dry_run_single(item, config_mgr, draft_generator, notion_uploader, top_examples)
-                else:
-                    item_services = PipelineServices(
-                        scraper=item["scraper"],
-                        image_uploader=services.image_uploader,
-                        image_generator=services.image_generator,
-                        draft_generator=services.draft_generator,
-                        notion_uploader=services.notion_uploader,
-                        twitter_poster=services.twitter_poster,
-                    )
-                    result = await process_single_post(
-                        url=item["url"],
-                        top_tweets=top_examples,
-                        source_name=item["source"],
-                        output_formats=output_formats,
-                        config=config_mgr,
-                        feed_mode=item["feed_mode"],
-                        review_only=effective_review_only,
-                        post_data_hint={"feed_title": item.get("feed_title", "")},
-                        services=item_services,
-                        daily_queue_floor=daily_queue_floor,
-                    )
-                results.append(result)
-        else:
-            semaphore = asyncio.Semaphore(max(1, parallel))
-            counter = {"done": 0}
-            counter_lock = asyncio.Lock()
+        results = await _process_collected_items(
+            urls_to_process,
+            dry_run=dry_run,
+            parallel=parallel,
+            config_mgr=config_mgr,
+            base_services=base_services,
+            top_examples=top_examples,
+            output_formats=output_formats,
+            effective_review_only=effective_review_only,
+            daily_queue_floor=daily_queue_floor,
+        )
 
-            async def _bounded(item):
-                async with semaphore:
-                    async with counter_lock:
-                        counter["done"] += 1
-                        index = counter["done"]
-                    print(f"  [{index}/{len(urls_to_process)}] [{item['source']}] {item['url']}")
-                    item_services = PipelineServices(
-                        scraper=item["scraper"],
-                        image_uploader=services.image_uploader,
-                        image_generator=services.image_generator,
-                        draft_generator=services.draft_generator,
-                        notion_uploader=services.notion_uploader,
-                        twitter_poster=services.twitter_poster,
-                    )
-                    return await process_single_post(
-                        url=item["url"],
-                        top_tweets=top_examples,
-                        source_name=item["source"],
-                        output_formats=output_formats,
-                        config=config_mgr,
-                        feed_mode=item["feed_mode"],
-                        review_only=effective_review_only,
-                        post_data_hint={"feed_title": item.get("feed_title", "")},
-                        services=item_services,
-                        daily_queue_floor=daily_queue_floor,
-                    )
+        results = await _append_cross_source_insights(
+            results,
+            dry_run=dry_run,
+            config_mgr=config_mgr,
+            draft_generator=draft_generator,
+            notion_uploader=notion_uploader,
+            image_uploader=image_uploader,
+            image_generator=image_generator,
+            output_formats=output_formats,
+            top_examples=top_examples,
+            trend_monitor=trend_monitor,
+        )
+        await _record_trend_spikes(trend_monitor, dry_run=dry_run)
 
-            results = await asyncio.gather(*[_bounded(item) for item in urls_to_process])
-
-        # ── 크로스소스 인사이트 생성 ─────────────────────────────────────
-        if not dry_run and config_mgr.get("cross_source_insight.enabled", True):
-            try:
-                from pipeline.cross_source_insight import process_cross_source_insights
-
-                insight_results = await process_cross_source_insights(
-                    results=list(results),
-                    draft_generator=draft_generator,
-                    notion_uploader=notion_uploader,
-                    image_uploader=image_uploader,
-                    image_generator=image_generator,
-                    config=config_mgr,
-                    output_formats=output_formats,
-                    top_examples=top_examples,
-                    trend_monitor=trend_monitor,
-                )
-                if insight_results:
-                    results = list(results) + insight_results
-                    logger.info("크로스소스 인사이트 %d건 추가", len(insight_results))
-            except Exception as exc:
-                logger.warning("크로스소스 인사이트 생성 실패 (무시): %s", exc)
-
-        # ── 트렌드 스파이크 기록 ──────────────────────────────────────────
-        if trend_monitor and not dry_run:
-            try:
-                spikes = await trend_monitor.detect_spikes()
-                if spikes:
-                    from pipeline.cost_db import get_cost_db
-
-                    db = get_cost_db()
-                    for spike in spikes[:10]:
-                        matched = trend_monitor.match_topic_cluster(spike["keyword"])
-                        db.record_trend_spike(
-                            keyword=spike["keyword"],
-                            source=spike["source"],
-                            score=spike["score"],
-                            matched_topic=matched or "",
-                        )
-            except Exception as exc:
-                logger.debug("트렌드 스파이크 기록 실패: %s", exc)
-
-        # ── 결과 출력 ─────────────────────────────────────────────────────
-        elapsed = (datetime.now() - start_time).total_seconds()
-        metrics = calculate_run_metrics(results, dry_run=dry_run)
-        successful = metrics["successful"]
-        failed = metrics["failed"]
-        content_dup_skips = len(metrics.get("content_duplicate_skips", []))
-
-        print(f"\n{'=' * 55}")
-        print(f"  EXECUTION SUMMARY  ({elapsed:.1f}s)")
-        print(f"  Total: {len(results)}  |  OK {len(successful)}  |  FAIL {len(failed)}")
-        print(f"  Duplicate Skips: {len(metrics['duplicate_skips'])}")
-        print(f"  Content Similarity Skips: {content_dup_skips}")
-        print(f"  Low Engagement Skips: {feed_stats['low_engagement_skips']}")
-        print(f"  Blacklist Skips: {feed_stats['blacklist_skips']}")
-        print(f"  Cross-Source Dedup: {feed_stats['cross_source_dedup_count']}")
-        print(f"  Filtered Skips: {len(metrics['filtered_skips'])}")
-        print(f"  Avg Quality Score (success): {metrics['avg_quality_score']:.1f}")
-        if not dry_run:
-            print(
-                f"  Upload Success Rate: {metrics['upload_success_rate']:.1f}% "
-                f"({len(metrics['live_upload_success'])}/{metrics['live_upload_attempts']})"
-            )
-        print(f"{'=' * 55}")
+        metrics, successful, failed = _calculate_execution_metrics(results, dry_run=dry_run)
+        _print_execution_summary(results, feed_stats, metrics, start_time, dry_run=dry_run)
 
         if not dry_run:
-            review_ready = len([item for item in results if item.get("status") == "검토필요"])
-            level = "INFO"
-            if len(failed) > 0:
-                level = "WARNING"
-            if failed and not successful:
-                level = "CRITICAL"
+            await _send_execution_notification(notifier, results, metrics, successful, failed)
 
-            await notifier.send_message(
-                "Blind-to-X 실행 완료\n"
-                f"수집 {len(results)}건 / 성공 {len(successful)}건 / 실패 {len(failed)}건\n"
-                f"검토필요 {review_ready}건 / 평균 품질점수 {metrics['avg_quality_score']:.1f}",
-                level=level,
-            )
-
-        if failed and not successful:
-            error_reasons = "; ".join([str(f.get("error", "unknown")) for f in failed])
-            logger.error(f"Exit 1: All {len(failed)} items failed. Reasons: {error_reasons}")
-            sys.exit(1)
-
-        # Auto-send daily digest if configured
-        if config_mgr.get("digest.enabled", False) and config_mgr.get("digest.telegram_enabled", False):
-            try:
-                from pipeline.daily_digest import generate_and_send
-
-                await generate_and_send(config_mgr, notion_uploader=notion_uploader)
-            except Exception as _dg_exc:
-                logger.debug("Auto digest skipped: %s", _dg_exc)
+        _exit_if_all_failed(successful, failed)
+        await _maybe_send_daily_digest(config_mgr, notion_uploader)
