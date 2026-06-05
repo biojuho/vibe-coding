@@ -532,3 +532,14 @@
 - Completion audit: `python .agents/skills/auto-research/scripts/completion_audit.py .tmp/launch-objective-audit-completion-check.json --json --allow-incomplete` returned `status=incomplete`, `complete_count=8/9`, `issue_count=1`, `blocked_count=1`, only because requirement 7 has unresolved external/user-owned blocker T-251.
 - Post-recording boundary: context-only commits can move HEAD ahead of `origin/main`, which makes current-HEAD GitHub Actions unproven until push/CI. Push was not performed because this workspace says not to push without explicit user authorization.
 - T-251 boundary: no Supabase live retry was run; do not mark the product launch goal complete until Supabase credentials are reset and Hanwoo live Prisma CRUD E2E passes.
+
+## 2026-06-05 - Codex
+
+- Closed T-1306 as a bounded `$auto-research` readiness classification follow-up after T-1305.
+- Changed `execution/product_readiness_score.py`: clean ahead-of-origin current-head Actions are now reported as `publish` blockers with `ahead_count`, `publish_required`, and overall `publish_blocker_count`, while `local_blocker_count` stays reserved for actual repo-side blockers.
+- Changed `.agents/skills/auto-research/scripts/launch_objective_audit.py`: readiness evidence now records `workspace/local/publish/agent blockers=...`.
+- Changed regression coverage in `workspace/tests/test_product_readiness_score.py` and `workspace/tests/test_auto_research_launch_objective_audit.py`.
+- Verification: focused product-readiness + launch-audit pytest passed `53/53`; broader auto-research/readiness pytest passed `67/67`; ruff, `py_compile`, and `git diff --check` passed; A/B returned `adopt_candidate` with `score_delta=0.9980448019663706`.
+- Post-context clean-state proof: `session_orient.py --json` reports clean worktree and `main...origin/main [ahead 6]`; `product_readiness_score.py --json` reports score `96`, `workspace_blocker_count=1`, `local_blocker_count=0`, `publish_blocker_count=1`, and `external_blocker_count=1`.
+- Selector/completion proof: `next_experiment_selector.py --json` selected `current_head_release_checks_unproven`; launch objective audit wrote `.tmp/launch-objective-audit-t1306-postcommit.json`; completion audit returned `incomplete` with `8/11` complete because current-head Actions require push authorization and T-251 remains user-owned.
+- Boundary: no push was performed. Do not retry T-251 until the user resets Supabase credentials; after explicit push authorization or user push, wait for current-head `root-quality-gate` and `active-project-matrix`.
