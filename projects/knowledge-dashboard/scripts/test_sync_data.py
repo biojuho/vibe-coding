@@ -3,8 +3,10 @@
 Run with: py -3.13 -m pytest projects/knowledge-dashboard/scripts/test_sync_data.py
 """
 
+import json
 import os
 import sys
+from types import SimpleNamespace
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -108,3 +110,77 @@ def test_candidate_token_paths_honors_env_and_dedupes(tmp_path, monkeypatch):
     assert "auth.json" in names
     # No duplicates.
     assert len(paths) == len(set(str(p) for p in paths))
+
+
+def test_fetch_notebooklm_notebooks_simplifies_client_payload(tmp_path, monkeypatch):
+    token_path = tmp_path / "auth.local.json"
+    token_path.write_text(json.dumps({"cookies": {"SID": "real-cookie-value"}}), encoding="utf-8")
+    captured = {}
+
+    class FakeTokens:
+        cookies = {"SID": "real-cookie-value"}
+        csrf_token = "csrf-value"
+        session_id = "session-value"
+
+        @classmethod
+        def from_dict(cls, data):
+            captured["token_data"] = data
+            return cls()
+
+    class FakeClient:
+        def __init__(self, cookies, csrf_token, session_id):
+            captured["client_kwargs"] = {
+                "cookies": cookies,
+                "csrf_token": csrf_token,
+                "session_id": session_id,
+            }
+
+        def list_notebooks(self):
+            return [
+                SimpleNamespace(
+                    id="notebook-1",
+                    title="Launch Notes",
+                    source_count=1,
+                    url="https://notebooklm.google.com/notebook-1",
+                    ownership="owner",
+                    sources=[{"id": "source-1", "title": "Release Plan", "type": "doc"}],
+                ),
+                SimpleNamespace(
+                    id="notebook-2",
+                    title="Empty Sources",
+                    source_count=0,
+                    url="https://notebooklm.google.com/notebook-2",
+                    ownership="shared",
+                    sources=None,
+                ),
+            ]
+
+    monkeypatch.setattr(sync_data, "NOTEBOOKLM_IMPORT_ERROR", None)
+    monkeypatch.setattr(sync_data, "AuthTokens", FakeTokens)
+    monkeypatch.setattr(sync_data, "NotebookLMClient", FakeClient)
+    monkeypatch.setattr(sync_data, "resolve_notebooklm_token_path", lambda: token_path)
+
+    assert sync_data.fetch_notebooklm_notebooks() == [
+        {
+            "id": "notebook-1",
+            "title": "Launch Notes",
+            "source_count": 1,
+            "url": "https://notebooklm.google.com/notebook-1",
+            "ownership": "owner",
+            "sources": [{"id": "source-1", "title": "Release Plan", "type": "doc"}],
+        },
+        {
+            "id": "notebook-2",
+            "title": "Empty Sources",
+            "source_count": 0,
+            "url": "https://notebooklm.google.com/notebook-2",
+            "ownership": "shared",
+            "sources": [],
+        },
+    ]
+    assert captured["token_data"] == {"cookies": {"SID": "real-cookie-value"}}
+    assert captured["client_kwargs"] == {
+        "cookies": {"SID": "real-cookie-value"},
+        "csrf_token": "csrf-value",
+        "session_id": "session-value",
+    }

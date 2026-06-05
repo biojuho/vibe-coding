@@ -263,9 +263,42 @@ def fetch_local_workspace_projects(repo_root: Path = REPO_ROOT) -> list[dict]:
     return repos
 
 
+def _notebooklm_dependencies_available() -> bool:
+    return NOTEBOOKLM_IMPORT_ERROR is None and NotebookLMClient is not None and AuthTokens is not None
+
+
+def _load_notebooklm_token_data(token_path: Path) -> dict:
+    with token_path.open("r", encoding="utf-8") as file_obj:
+        return json.load(file_obj)
+
+
+def _build_notebooklm_client(data: dict):
+    tokens = AuthTokens.from_dict(data)
+    return NotebookLMClient(cookies=tokens.cookies, csrf_token=tokens.csrf_token, session_id=tokens.session_id)
+
+
+def _simplify_notebooklm_source(source: dict) -> dict:
+    return {"id": source.get("id"), "title": source.get("title"), "type": source.get("type")}
+
+
+def _simplify_notebooklm_notebook(notebook) -> dict:
+    return {
+        "id": notebook.id,
+        "title": notebook.title,
+        "source_count": notebook.source_count,
+        "url": notebook.url,
+        "ownership": notebook.ownership,
+        "sources": [_simplify_notebooklm_source(source) for source in (notebook.sources or [])],
+    }
+
+
+def _simplify_notebooklm_notebooks(notebooks) -> list[dict]:
+    return [_simplify_notebooklm_notebook(notebook) for notebook in notebooks]
+
+
 def fetch_notebooklm_notebooks():
     print("Fetching NotebookLM notebooks...")
-    if NOTEBOOKLM_IMPORT_ERROR is not None or NotebookLMClient is None or AuthTokens is None:
+    if not _notebooklm_dependencies_available():
         print(f"  - NotebookLM dependencies are not available: {NOTEBOOKLM_IMPORT_ERROR}")
         return []
 
@@ -276,8 +309,7 @@ def fetch_notebooklm_notebooks():
         return []
 
     try:
-        with token_path.open("r", encoding="utf-8") as file_obj:
-            data = json.load(file_obj)
+        data = _load_notebooklm_token_data(token_path)
 
         if is_notebooklm_token_template(data):
             print(
@@ -286,26 +318,8 @@ def fetch_notebooklm_notebooks():
             )
             return []
 
-        tokens = AuthTokens.from_dict(data)
-        client = NotebookLMClient(cookies=tokens.cookies, csrf_token=tokens.csrf_token, session_id=tokens.session_id)
-        notebooks = client.list_notebooks()
-
-        simplified = []
-        for notebook in notebooks:
-            simplified.append(
-                {
-                    "id": notebook.id,
-                    "title": notebook.title,
-                    "source_count": notebook.source_count,
-                    "url": notebook.url,
-                    "ownership": notebook.ownership,
-                    "sources": [
-                        {"id": source.get("id"), "title": source.get("title"), "type": source.get("type")}
-                        for source in (notebook.sources or [])
-                    ],
-                }
-            )
-
+        client = _build_notebooklm_client(data)
+        simplified = _simplify_notebooklm_notebooks(client.list_notebooks())
         print(f"  - Found {len(simplified)} notebooks")
         return simplified
     except Exception as exc:
