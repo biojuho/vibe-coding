@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from importlib import import_module
 from importlib.util import find_spec
 
@@ -21,6 +22,10 @@ def __getattr__(name: str):
         globals()[name] = value
         return value
     submodule_name = f"{__name__}.{name}"
+    existing = sys.modules.get(submodule_name)
+    if existing is not None:
+        globals()[name] = existing
+        return existing
     if find_spec(submodule_name) is not None:
         module = import_module(submodule_name)
         globals()[name] = module
