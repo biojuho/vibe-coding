@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -95,11 +96,12 @@ def _write_ab_manifest(
     gate_passes: bool = True,
     name: str = "ab-manifest-t-test.json",
     encoding: str = "utf-8",
+    experiment: str = "T-test launch audit A/B manifest evidence",
 ) -> Path:
     tmp = root / ".tmp"
     tmp.mkdir(exist_ok=True)
     manifest = {
-        "experiment": "T-test launch audit A/B manifest evidence",
+        "experiment": experiment,
         "baseline": {"metrics": {"evidence_strength": 0}},
         "candidate": {
             "metrics": {"evidence_strength": 1},
@@ -299,6 +301,65 @@ def test_ab_item_includes_latest_local_manifest_artifact(tmp_path: Path) -> None
     assert manifest_path.relative_to(tmp_path).as_posix() in ab_item["artifacts"]
     assert any("Latest A/B manifest artifact: .tmp/ab-manifest-t-test.json" in item for item in ab_item["evidence"])
     assert any("required gates passed 2/2" in item for item in ab_item["evidence"])
+
+
+def test_ab_item_prefers_highest_task_manifest_over_newer_file_mtime(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+    selected = _write_ab_manifest(
+        tmp_path,
+        name="ab-manifest-t1300.json",
+        experiment="T-1300 deterministic launch audit A/B manifest selection",
+    )
+    touched_older_task = _write_ab_manifest(
+        tmp_path,
+        name="ab-manifest-t1299.json",
+        experiment="T-1299 touched after newer task",
+    )
+    os.utime(selected, (1_700_000_000, 1_700_000_000))
+    os.utime(touched_older_task, (1_800_000_000, 1_800_000_000))
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    ab_item = next(item for item in manifest["items"] if item["requirement"].startswith("Run bounded A/B"))
+
+    assert selected.relative_to(tmp_path).as_posix() in ab_item["artifacts"]
+    assert touched_older_task.relative_to(tmp_path).as_posix() not in ab_item["artifacts"]
+    assert any("Latest A/B manifest selection used task id T-1300" in item for item in ab_item["evidence"])
+
+
+def test_ab_item_can_use_explicit_manifest_override(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+    default_selected = _write_ab_manifest(
+        tmp_path,
+        name="ab-manifest-t1300.json",
+        experiment="T-1300 default latest manifest",
+    )
+    requested = _write_ab_manifest(
+        tmp_path,
+        name="ab-manifest-t1299.json",
+        experiment="T-1299 requested manifest",
+    )
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        ab_manifest_path=Path(".tmp/ab-manifest-t1299.json"),
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    ab_item = next(item for item in manifest["items"] if item["requirement"].startswith("Run bounded A/B"))
+
+    assert requested.relative_to(tmp_path).as_posix() in ab_item["artifacts"]
+    assert default_selected.relative_to(tmp_path).as_posix() not in ab_item["artifacts"]
+    assert any("Latest A/B manifest selection used task id T-1299" in item for item in ab_item["evidence"])
 
 
 def test_ab_item_failed_manifest_gate_prevents_complete_claim(tmp_path: Path) -> None:

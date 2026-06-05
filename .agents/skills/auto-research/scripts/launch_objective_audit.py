@@ -35,6 +35,7 @@ AI_RELAY_ARTIFACTS = (
     ".ai/GOAL.md",
 )
 AB_MANIFEST_GLOB = "ab-manifest-*.json"
+TASK_ID_RE = re.compile(r"\b[Tt][-_]?(\d{3,6})\b")
 GOAL_STATUS_RE = re.compile(r"^-\s*Status:\s*(.*?)\s*$", re.IGNORECASE | re.MULTILINE)
 GOAL_ACTIVE_STATUSES = {"active", "enabled", "in_progress", "in-progress", "blocked", "waiting"}
 GOAL_OBJECTIVE_TERMS = (
@@ -78,6 +79,20 @@ def _ab_manifest_sort_key(path: Path) -> tuple[int, str] | None:
         return path.stat().st_mtime_ns, path.name
     except OSError:
         return None
+
+
+def _ab_manifest_task_id(path: Path, manifest: dict[str, Any]) -> int | None:
+    texts = [path.name, path.stem]
+    for key in ("experiment", "task_id", "id"):
+        value = manifest.get(key)
+        if value is not None:
+            texts.append(str(value))
+
+    for text in texts:
+        match = TASK_ID_RE.search(text)
+        if match:
+            return int(match.group(1))
+    return None
 
 
 def _run_json(root: Path, args: list[str], timeout: int) -> dict[str, Any]:
@@ -440,32 +455,57 @@ def _external_blocker_item(readiness: dict[str, Any]) -> dict[str, Any]:
     )
 
 
-def _latest_ab_manifest(root: Path) -> tuple[str | None, dict[str, Any] | None, list[str]]:
+def _latest_ab_manifest(
+    root: Path,
+    *,
+    ab_manifest_path: Path | None = None,
+) -> tuple[str | None, dict[str, Any] | None, list[str]]:
     tmp_dir = root / ".tmp"
-    if not tmp_dir.exists():
-        return None, None, []
-
     errors: list[str] = []
-    scored_candidates: list[tuple[tuple[int, str], Path]] = []
+
+    if ab_manifest_path is not None:
+        requested_path = ab_manifest_path if ab_manifest_path.is_absolute() else root / ab_manifest_path
+        if _ab_manifest_sort_key(requested_path) is None:
+            errors.append(f"Requested A/B manifest artifact is unreadable: {_rel(root, requested_path)}")
+            return None, None, errors
+        data = _load_json_object(requested_path)
+        if data is None:
+            errors.append(f"Requested A/B manifest artifact is invalid: {_rel(root, requested_path)}")
+            return None, None, errors
+        return _rel(root, requested_path), data, errors
+
+    if not tmp_dir.exists():
+        return None, None, errors
+
+    scored_candidates: list[tuple[tuple[int, int, int, str], Path, dict[str, Any]]] = []
     for path in tmp_dir.glob(AB_MANIFEST_GLOB):
         sort_key = _ab_manifest_sort_key(path)
         if sort_key is None:
             errors.append(f"Ignored unreadable A/B manifest artifact: {_rel(root, path)}")
             continue
-        scored_candidates.append((sort_key, path))
-
-    candidates = [path for _, path in sorted(scored_candidates, key=lambda item: item[0], reverse=True)]
-    for path in candidates:
         data = _load_json_object(path)
         if data is None:
             errors.append(f"Ignored invalid A/B manifest artifact: {_rel(root, path)}")
             continue
+        task_id = _ab_manifest_task_id(path, data)
+        candidate_key = (
+            1 if task_id is not None else 0,
+            task_id if task_id is not None else -1,
+            sort_key[0],
+            sort_key[1],
+        )
+        scored_candidates.append((candidate_key, path, data))
+
+    if scored_candidates:
+        _, path, data = max(scored_candidates, key=lambda item: item[0])
         return _rel(root, path), data, errors
     return None, None, errors
 
 
-def _ab_manifest_evidence(root: Path) -> tuple[list[str], list[str], list[str]]:
-    manifest_path, manifest, errors = _latest_ab_manifest(root)
+def _ab_manifest_evidence(
+    root: Path, *, ab_manifest_path: Path | None = None
+) -> tuple[list[str], list[str], list[str]]:
+    manifest_path, manifest, errors = _latest_ab_manifest(root, ab_manifest_path=ab_manifest_path)
     evidence = list(errors)
     blockers: list[str] = []
     artifacts: list[str] = []
@@ -475,6 +515,7 @@ def _ab_manifest_evidence(root: Path) -> tuple[list[str], list[str], list[str]]:
 
     artifacts.append(manifest_path)
     experiment = str(manifest.get("experiment") or manifest_path)
+    task_id = _ab_manifest_task_id(root / manifest_path, manifest)
     candidate = manifest.get("candidate") if isinstance(manifest.get("candidate"), dict) else {}
     metrics = candidate.get("metrics") if isinstance(candidate.get("metrics"), dict) else {}
     gates = candidate.get("gates") if isinstance(candidate.get("gates"), dict) else {}
@@ -483,6 +524,8 @@ def _ab_manifest_evidence(root: Path) -> tuple[list[str], list[str], list[str]]:
     passed_gate_count = len(required_gates) - len(failed_gates)
 
     evidence.append(f"Latest A/B manifest artifact: {manifest_path} ({experiment}).")
+    if task_id is not None:
+        evidence.append(f"Latest A/B manifest selection used task id T-{task_id}.")
     evidence.append(
         f"Latest A/B candidate metrics={len(metrics)}, required gates passed {passed_gate_count}/{len(required_gates)}."
     )
@@ -493,13 +536,13 @@ def _ab_manifest_evidence(root: Path) -> tuple[list[str], list[str], list[str]]:
     return artifacts, evidence, blockers
 
 
-def _ab_loop_item(root: Path) -> dict[str, Any]:
+def _ab_loop_item(root: Path, *, ab_manifest_path: Path | None = None) -> dict[str, Any]:
     tasks_text = _read_text(root, ".ai/TASKS.md").lower()
     handoff_text = _read_text(root, ".ai/HANDOFF.md").lower()
     has_ab_script = _exists(root, ".agents/skills/auto-research/scripts/ab_decision.py")
     has_completion_script = _exists(root, ".agents/skills/auto-research/scripts/completion_audit.py")
     has_recent_ab_evidence = "a/b `adopt_candidate`" in tasks_text or "a/b `adopt_candidate`" in handoff_text
-    ab_artifacts, ab_evidence, ab_blockers = _ab_manifest_evidence(root)
+    ab_artifacts, ab_evidence, ab_blockers = _ab_manifest_evidence(root, ab_manifest_path=ab_manifest_path)
     complete = has_ab_script and has_completion_script and has_recent_ab_evidence and not ab_blockers
     blockers = []
     if not has_ab_script:
@@ -563,6 +606,7 @@ def build_manifest(
     root: Path,
     *,
     objective: str = DEFAULT_OBJECTIVE,
+    ab_manifest_path: Path | None = None,
     readiness: dict[str, Any] | None = None,
     github_inventory: dict[str, Any] | None = None,
     browser_inventory: dict[str, Any] | None = None,
@@ -585,7 +629,7 @@ def build_manifest(
             _dependency_item(dependency_inventory or {}),
             _readiness_item(readiness or {}),
             _external_blocker_item(readiness or {}),
-            _ab_loop_item(root),
+            _ab_loop_item(root, ab_manifest_path=ab_manifest_path),
             _relay_item(root),
         ],
     }
@@ -625,6 +669,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path("."), help="Workspace root")
     parser.add_argument("--objective", default=DEFAULT_OBJECTIVE, help="Objective text for the manifest")
+    parser.add_argument("--ab-manifest", type=Path, help="Use a specific local A/B manifest artifact")
     parser.add_argument("--output", type=Path, help="Write manifest JSON to this path")
     parser.add_argument("--timeout-seconds", type=int, default=120, help="Timeout per evidence command")
     parser.add_argument("--json", action="store_true", help="Print JSON manifest to stdout")
@@ -635,6 +680,7 @@ def main(argv: list[str] | None = None) -> int:
     manifest = build_manifest(
         root,
         objective=args.objective,
+        ab_manifest_path=args.ab_manifest,
         readiness=collected["readiness"]["data"],
         github_inventory=collected["github_inventory"]["data"],
         browser_inventory=collected["browser_inventory"]["data"],
