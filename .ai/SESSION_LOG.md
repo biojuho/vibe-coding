@@ -504,3 +504,15 @@
 - Completion audit: `.agents/skills/auto-research/scripts/completion_audit.py .tmp\completion-manifest-t1299.json --json` returned `complete` with 4/4 items complete and 0 issues.
 - Commit/push closeout: `0bac5859 fix(session): T-1299 wait for green checks before stale closeout` is on `origin/main`; required GitHub Actions passed on that head with `root-quality-gate` run `26994295341` and `active-project-matrix` run `26994295347`.
 - Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification, not local repo work.
+
+## 2026-06-05 - Codex
+
+- Completed T-1303 as a bounded `$auto-research` launch-audit evidence cycle for selector required gates.
+- Changed `.agents/skills/auto-research/scripts/launch_objective_audit.py`: selector requirement evidence now carries `selected.required_gates` from `next_experiment_selector.py` as `Selector required gates: ...`.
+- Changed `workspace/tests/test_auto_research_launch_objective_audit.py`: added regression coverage proving required-gate evidence is emitted alongside selector guardrails and normalized action punctuation.
+- Runtime proof: dirty candidate launch audit evidence included `Selector required gates: focused blocker regression. product_readiness_score.py --json.` and final clean-state audits are expected to show the T-251 gates `Supabase credential reset by user` and `Hanwoo live Prisma CRUD E2E after reset`.
+- Verification: focused launch audit pytest passed `21/21`; broader auto-research launch/completion/selector pytest passed `34/34`; ruff, ruff format check, `py_compile`, and `git diff --check` passed; `code_review_gate.py --base HEAD --json` exited `0` with advisory WARN `risk_score=0.4` covered by direct tests.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1303.json --json` returned `adopt_candidate` with `score_delta=0.9881422924901185`.
+- Completion audit: `.agents/skills/auto-research/scripts/completion_audit.py .tmp\completion-manifest-t1303.json --json` returned `complete` with 3/3 items complete and 0 issues.
+- Commit/push closeout: `dc0d11e8 fix(auto-research): T-1303 expose selector required gates` is on `origin/main`; required GitHub Actions are checked on the final context closeout head.
+- Boundary: T-251 remains the only TODO and is still user-owned Supabase credential reset/live Prisma verification, not local repo work.
