@@ -635,3 +635,24 @@
 - Launch proof: `launch_objective_audit.py --ab-manifest .tmp\ab-manifest-t1325.json --json` generated 14 requirements, including Knowledge Dashboard complete with readiness score `100`, QC `PASS` `61`, docs `3/3`, env checks `2/2`, tasks `0`, dirty paths `0`; `completion_audit.py ... --allow-incomplete` returned `incomplete` with `9/14` complete and 5 blocked issues.
 - A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1325.json --json` returned `adopt_candidate` with `score_delta=0.918273371761744`.
 - Boundary: no push was performed. Product launch remains incomplete until explicit push authorization/user push plus current-head `root-quality-gate` and `active-project-matrix`, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
+
+## 2026-06-06 - Codex
+
+- Closed T-1326 as a bounded `$auto-research` GitHub release workflow hygiene improvement.
+- Confirmed local workflow definitions exist for the required publish gates: `.github/workflows/root-quality-gate.yml` has `name: root-quality-gate`, and `.github/workflows/full-test-matrix.yml` has `name: active-project-matrix`.
+- Confirmed `product_readiness_score.py --json` still reports required Actions as unavailable because current `main` is ahead of `origin/main`, so this is a publish authorization boundary rather than missing YAML.
+- Changed `workspace/tests/test_github_workflow_hygiene.py`: required release workflow files are now mapped by expected workflow name, and a regression asserts both expected `name:` values plus `push` and `pull_request` triggers.
+- Verification: `python -m pytest workspace\tests\test_github_workflow_hygiene.py -q -o addopts=` passed `3/3`; release-boundary related pytest passed `67/67`; `python -m ruff check workspace\tests\test_github_workflow_hygiene.py` passed; `python -m ruff format --check workspace\tests\test_github_workflow_hygiene.py` passed; `python -m py_compile workspace\tests\test_github_workflow_hygiene.py` passed; `git diff --check -- workspace\tests\test_github_workflow_hygiene.py` passed with the existing CRLF warning only; staged `py -3.13 execution\code_review_gate.py --staged --json` returned advisory WARN `risk_score=0.30` with no impacted nodes for the staged workflow-test file.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1326.json --json` returned `adopt_candidate` with `score_delta=2.294872`.
+- Boundary: no push was performed. Product launch remains incomplete until explicit push authorization/user push plus current-head `root-quality-gate` and `active-project-matrix`, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
+
+## 2026-06-06 - Codex
+
+- Closed T-1327 as a bounded `$auto-research` `blind-to-x` generate-review-stage maintainability cycle.
+- Changed `projects/blind-to-x/pipeline/process_stages/generate_review_stage.py`: `run_generate_review_stage()` now delegates missing-generator failure, screenshot upload, draft splitting, Twitter reply fallback, generation failure, quality-gate retries, post-generation component application, Twitter quality failure, and completion into focused helpers.
+- Refactor metrics: top-level functions `5 -> 19`; private helpers `4 -> 18`; `run_generate_review_stage()` body `230 -> 47` lines; top-level statements `21 -> 11`.
+- Changed `projects/blind-to-x/tests/unit/test_process_stages.py`: added regression coverage that Twitter reply fallback preserves readable Korean source-copy output and removes placeholder link copy.
+- Verification: project venv process-stage pytest passed `42/42`; related quality/Notion pytest passed `50/50`; ruff check passed; ruff format check passed; `py_compile` passed; `git diff --check` passed; staged code-review gate returned advisory WARN `risk_score=0.30`, covered by the direct tests.
+- A/B decision: `.agents/skills/auto-research/scripts/ab_decision.py .tmp\ab-manifest-t1327.json --json` returned `adopt_candidate` with `score_delta=0.984699`.
+- Commit closeout: `2512571d refactor(blind-to-x): T-1327 split generate review stage helpers` is local only; no push was performed.
+- Boundary: product launch remains incomplete until explicit push authorization/user push plus current-head `root-quality-gate` and `active-project-matrix`, and external/user-owned Hanwoo T-251 Supabase credential reset plus live Prisma CRUD E2E pass. T-251 was not retried.
