@@ -65,9 +65,15 @@ def _write_ai_relay(root: Path, *, ab_evidence: bool = True) -> None:
         (ai / name).write_text("relay\n", encoding="utf-8")
 
 
-def _write_ab_manifest(root: Path, *, gate_passes: bool = True) -> Path:
+def _write_ab_manifest(
+    root: Path,
+    *,
+    gate_passes: bool = True,
+    name: str = "ab-manifest-t-test.json",
+    encoding: str = "utf-8",
+) -> Path:
     tmp = root / ".tmp"
-    tmp.mkdir()
+    tmp.mkdir(exist_ok=True)
     manifest = {
         "experiment": "T-test launch audit A/B manifest evidence",
         "baseline": {"metrics": {"evidence_strength": 0}},
@@ -79,8 +85,8 @@ def _write_ab_manifest(root: Path, *, gate_passes: bool = True) -> Path:
         "required_gates": ["focused_tests", "diff_check"],
         "min_delta": 0,
     }
-    path = tmp / "ab-manifest-t-test.json"
-    path.write_text(json.dumps(manifest), encoding="utf-8")
+    path = tmp / name
+    path.write_text(json.dumps(manifest), encoding=encoding)
     return path
 
 
@@ -243,6 +249,58 @@ def test_ab_item_failed_manifest_gate_prevents_complete_claim(tmp_path: Path) ->
 
     assert ab_item["coverage"] == "partial"
     assert ab_item["blockers"] == ["Latest A/B manifest failed required gate(s): focused_tests"]
+
+
+def test_ab_item_accepts_utf8_bom_manifest(tmp_path: Path) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+    manifest_path = _write_ab_manifest(tmp_path, encoding="utf-8-sig")
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    result = completion_audit.audit_manifest(manifest)
+    ab_item = next(item for item in manifest["items"] if item["requirement"].startswith("Run bounded A/B"))
+
+    assert result["status"] == "complete"
+    assert manifest_path.relative_to(tmp_path).as_posix() in ab_item["artifacts"]
+    assert any("required gates passed 2/2" in item for item in ab_item["evidence"])
+
+
+def test_ab_manifest_stat_failure_is_ignored(tmp_path: Path, monkeypatch) -> None:
+    _write_required_skill(tmp_path)
+    _write_ai_relay(tmp_path)
+    broken_manifest = _write_ab_manifest(tmp_path, name="ab-manifest-broken.json")
+    good_manifest = _write_ab_manifest(tmp_path, name="ab-manifest-good.json")
+    original_sort_key = launch_objective_audit._ab_manifest_sort_key
+
+    def fake_sort_key(path: Path) -> tuple[int, str] | None:
+        if path == broken_manifest:
+            return None
+        return original_sort_key(path)
+
+    monkeypatch.setattr(launch_objective_audit, "_ab_manifest_sort_key", fake_sort_key)
+
+    manifest = launch_objective_audit.build_manifest(
+        tmp_path,
+        readiness=_clean_readiness(),
+        github_inventory=_github_inventory(),
+        browser_inventory=_browser_inventory(),
+        dependency_inventory=_dependency_inventory(),
+    )
+    result = completion_audit.audit_manifest(manifest)
+    ab_item = next(item for item in manifest["items"] if item["requirement"].startswith("Run bounded A/B"))
+
+    assert result["status"] == "complete"
+    assert good_manifest.relative_to(tmp_path).as_posix() in ab_item["artifacts"]
+    assert broken_manifest.relative_to(tmp_path).as_posix() not in ab_item["artifacts"]
+    assert any(
+        "Ignored unreadable A/B manifest artifact: .tmp/ab-manifest-broken.json" in item for item in ab_item["evidence"]
+    )
 
 
 def test_external_user_blocker_prevents_completion(tmp_path: Path) -> None:

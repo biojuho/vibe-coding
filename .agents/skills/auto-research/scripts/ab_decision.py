@@ -16,7 +16,7 @@ VALID_DIRECTIONS = {"higher", "lower", "equal"}
 
 def _load_json(path: Path) -> dict[str, Any]:
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
     except FileNotFoundError as exc:
         raise SystemExit(f"manifest not found: {path}") from exc
     except json.JSONDecodeError as exc:

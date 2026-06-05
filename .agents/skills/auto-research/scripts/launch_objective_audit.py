@@ -54,10 +54,17 @@ def _rel(root: Path, path: Path) -> str:
 
 def _load_json_object(path: Path) -> dict[str, Any] | None:
     try:
-        parsed = json.loads(path.read_text(encoding="utf-8"))
+        parsed = json.loads(path.read_text(encoding="utf-8-sig"))
     except (FileNotFoundError, OSError, json.JSONDecodeError):
         return None
     return parsed if isinstance(parsed, dict) else None
+
+
+def _ab_manifest_sort_key(path: Path) -> tuple[int, str] | None:
+    try:
+        return path.stat().st_mtime_ns, path.name
+    except OSError:
+        return None
 
 
 def _run_json(root: Path, args: list[str], timeout: int) -> dict[str, Any]:
@@ -369,11 +376,15 @@ def _latest_ab_manifest(root: Path) -> tuple[str | None, dict[str, Any] | None, 
         return None, None, []
 
     errors: list[str] = []
-    candidates = sorted(
-        tmp_dir.glob(AB_MANIFEST_GLOB),
-        key=lambda path: (path.stat().st_mtime_ns, path.name),
-        reverse=True,
-    )
+    scored_candidates: list[tuple[tuple[int, str], Path]] = []
+    for path in tmp_dir.glob(AB_MANIFEST_GLOB):
+        sort_key = _ab_manifest_sort_key(path)
+        if sort_key is None:
+            errors.append(f"Ignored unreadable A/B manifest artifact: {_rel(root, path)}")
+            continue
+        scored_candidates.append((sort_key, path))
+
+    candidates = [path for _, path in sorted(scored_candidates, key=lambda item: item[0], reverse=True)]
     for path in candidates:
         data = _load_json_object(path)
         if data is None:
